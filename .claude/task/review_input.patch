@@ -1,523 +1,614 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index dbf4425c..321e6154 100644
+index 321e6154..0bf8464b 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,18 +1,32 @@
--# Task contract — the goals of CAF match 1639347
-+# Task contract — pages hold on narrow screens
+@@ -1,31 +1,37 @@
+-# Task contract — pages hold on narrow screens
++# Task contract — the shared Filter bar
  
  objective: >
--  CAF Champions League match 1639347, Young Africans 4–1 CFFA (second preliminary round, second
--  leg), serves its five goals from fixture_goal_corrections, each sourced, so its goals add up to
--  its score; assert_mart_competition_fixtures_goals_add_up and assert_result_corrections_applied
--  pass and mart_match_days builds again in the nightly.
-+  On every approved page, at every width from 280px, in EN, DE and FI, a team name never splits
-+  inside a word and never runs outside its space; a table row that no longer fits on one line
-+  takes two lines (rank, crest and name, then the numbers under their heads); a block of fact rows
-+  stacks only when its longest row no longer fits on one line; the site header fits. One shared
-+  script measures each block per language; without it a narrow block shows the two-line form.
-+  Wider screens are unchanged. The block standard states the rules; the design check measures
-+  whole words and that every built page's blocks carry the script's mark.
+-  On every approved page, at every width from 280px, in EN, DE and FI, a team name never splits
+-  inside a word and never runs outside its space; a table row that no longer fits on one line
+-  takes two lines (rank, crest and name, then the numbers under their heads); a block of fact rows
+-  stacks only when its longest row no longer fits on one line; the site header fits. One shared
+-  script measures each block per language; without it a narrow block shows the two-line form.
+-  Wider screens are unchanged. The block standard states the rules; the design check measures
+-  whole words and that every built page's blocks carry the script's mark.
++  The Competitions, Matches and Matches day pages show the approved Filter bar: each filter offers
++  only the types and regions the page's rows carry and is absent with fewer than two real choices;
++  a choice that would leave no row beside the other filter's choice is removed and comes back when
++  it fits; the buttons show while each row of buttons fits on one line, otherwise a dropdown per
++  filter in the Filter row's sunk box, side by side while each holds its longest choice and stacked
++  full width below that, decided per block and language by the shared fit script; buttons and
++  dropdowns hold the same choice; the open list is drawn in the site's design where the browser
++  supports it. The block standard states the rules and the design check measures them.
  
  refs: >
--  #232, the match's goals
--  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/232), fix and plan
--  approved in chat, 2026-10-23.
-+  #231, pages break on narrow screens
-+  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/231), fix approved in
-+  chat, 2026-10-23; the fact-row rule approved in chat, 2026-10-22; #127, #128, #129, #130 and
-+  #132, the approved designs of the pages that change. Plan approved in chat, 2026-10-23.
+-  #231, pages break on narrow screens
+-  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/231), fix approved in
+-  chat, 2026-10-23; the fact-row rule approved in chat, 2026-10-22; #127, #128, #129, #130 and
+-  #132, the approved designs of the pages that change. Plan approved in chat, 2026-10-23.
++  #223, the shared Filter bar
++  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/223), design approved in
++  chat, 2026-10-20; #128 and #130, the approved designs of the pages that change; the fit rule
++  approved in chat, 2026-10-22 and 2026-10-23. Plan approved in chat, 2026-10-23.
  
  scope_paths:
--  - dbt_project/seeds/fixture_goal_corrections.csv
-+  - site_v2/src/styles/system.css
-+  - site_v2/src/layouts/Layout.astro
-+  - site_v2/src/lib/fitBlocks.mjs
-+  - site_v2/src/lib/fitBlocks.test.mjs
-+  - docs/wireframes/block_standard.md
-+  - scripts/design_inventory.py
-+  - scripts/check_design_inventory.py
-+  - tests/test_design_inventory.py
-+  - tests/fixtures/design_inventory/green.html
-+  - tests/test_no_decision_history_in_docs.py
-+  - tests/test_sentence_length_in_docs.py
++  - site_v2/src/components/competitions/FilterRows.astro
++  - site_v2/src/components/competitions/CompetitionIndexGrid.astro
++  - site_v2/src/components/matches/MatchesDay.astro
+   - site_v2/src/styles/system.css
+-  - site_v2/src/layouts/Layout.astro
++  - site_v2/src/i18n/strings.ts
++  - site_v2/src/lib/filterBar.mjs
++  - site_v2/src/lib/filterBar.test.mjs
+   - site_v2/src/lib/fitBlocks.mjs
+-  - site_v2/src/lib/fitBlocks.test.mjs
+   - docs/wireframes/block_standard.md
+   - scripts/design_inventory.py
+   - scripts/check_design_inventory.py
+   - tests/test_design_inventory.py
+   - tests/fixtures/design_inventory/green.html
+   - tests/test_no_decision_history_in_docs.py
++  - tests/test_no_decision_history_in_code.py
+   - tests/test_sentence_length_in_docs.py
    - .claude/task/contract.md
    - .claude/task/review.md
-   - .claude/task/review_input.patch
-@@ -20,37 +34,58 @@ scope_paths:
-   - .claude/task/rendered_page_evidence.md
+@@ -35,50 +41,38 @@ scope_paths:
  
  impact_map: >
--  writers: the seed fixture_goal_corrections, read by base_apif__fixture_events.
--  downstream: base_apif__fixture_events and every model built from it (dbt ls --select
--  fixture_goal_corrections+), among them fct_fixture_event, mart_competition_fixtures and
--  mart_match_days; only the rows of fixture 1639347 change.
--  layer_rules: a seed row per goal, applied in base as the seed's description states; no model
--  changes.
--  deploy_order: none; the nightly rebuilds prod from main.
--  blast_radius: one match's goals in every mart that serves goals; mart_match_days, skipped by the
--  nightly while the goals test failed, builds again.
-+  writers: no data writer changes; the export and every payload are untouched.
-+  downstream: `.ctab` is every table built on the standings grid: the competition page's league
-+  table and Deserved points table (DeservedTable.astro) and the Rankings boards (`.ctab.rkt`).
-+  `.frow` is the fact row (the competition page's Season pulse, the Team page). `.fxrow .side .nm`
-+  is the match row's team name (Home, Matches, the competition page). `.club .cn` is the club name
-+  in the match page's result rows. `.header-in` is the site header on every page (SiteHeader.astro
-+  inside Layout.astro). The script is loaded once by Layout.astro on every page. The design check
-+  reads block_standard.md through design_inventory.py.
-+  layer_rules: presentation only; what each page is served and its order are unchanged.
-+  deploy_order: none; deploy:site-v2 is manual and builds from the export.
-+  blast_radius: narrow screens on every approved page in EN, DE and FI; the header gap on every
-+  page at its narrowest; the Team and Player pages get the header and name rules only; one new
-+  shared script; one new measured property in the design check.
+   writers: no data writer changes; the export and every payload are untouched.
+-  downstream: `.ctab` is every table built on the standings grid: the competition page's league
+-  table and Deserved points table (DeservedTable.astro) and the Rankings boards (`.ctab.rkt`).
+-  `.frow` is the fact row (the competition page's Season pulse, the Team page). `.fxrow .side .nm`
+-  is the match row's team name (Home, Matches, the competition page). `.club .cn` is the club name
+-  in the match page's result rows. `.header-in` is the site header on every page (SiteHeader.astro
+-  inside Layout.astro). The script is loaded once by Layout.astro on every page. The design check
+-  reads block_standard.md through design_inventory.py.
+-  layer_rules: presentation only; what each page is served and its order are unchanged.
++  downstream: FilterRows.astro is rendered by CompetitionIndexGrid.astro (the Competitions page)
++  and MatchesDay.astro (the Matches page and every Matches day page). The row-hiding rules in
++  system.css (`#filter-…:checked ~ .categories …`) and the Competitions page's empty-category script
++  read the same radios. fitBlocks.mjs is loaded on every page by Layout.astro; its new kinds act only
++  where a Filter bar renders. The design check reads block_standard.md through design_inventory.py.
++  layer_rules: presentation only; which rows a page is served and their order are unchanged; the
++  bar selects among the page's own rows.
+   deploy_order: none; deploy:site-v2 is manual and builds from the export.
+-  blast_radius: narrow screens on every approved page in EN, DE and FI; the header gap on every
+-  page at its narrowest; the Team and Player pages get the header and name rules only; one new
+-  shared script; one new measured property in the design check.
++  blast_radius: the filter rows of the Competitions, Matches and Matches day pages in EN, DE and FI;
++  two new copy keys; one new shared script; two new fit kinds.
  
  approved_design:
--  - none: no page output changes
-+  - home: #127
-+  - competitions: #128
-+  - competition: #129
-+  - matches: #130
-+  - match: #132
+-  - home: #127
+   - competitions: #128
+-  - competition: #129
+   - matches: #130
+-  - match: #132
  
  acceptance_criteria:
--  - "fixture_goal_corrections holds five rows for fixture 1639347 in match order, each with its team, scorer, minute, event detail, source kind, source URLs and note."
--  - "In the MR's data build, assert_mart_competition_fixtures_goals_add_up and assert_result_corrections_applied pass."
--  - "In the MR's data build, mart_match_days builds and assert_mart_match_days_is_the_matches_page_reach passes."
-+  - "At 280, 320, 375, 430, 768 and 1010px, on every approved page in EN, DE and FI, no team name splits inside a word or runs outside its space."
-+  - "At the same widths, no approved page scrolls sideways, except the filter rows of the Competitions and Matches pages, which the Filter bar (#223) replaces."
-+  - "A table row shows rank, crest, name and every number; where they do not fit on one line, the numbers stand on a second line under their column heads."
-+  - "A block of fact rows is side by side when its longest row fits on one line, and stacked otherwise."
-+  - "At 1010px and 1440px every approved page measures as on main."
-+  - "The design check's whole-words property passes on every built page it lists."
+-  - "At 280, 320, 375, 430, 768 and 1010px, on every approved page in EN, DE and FI, no team name splits inside a word or runs outside its space."
+-  - "At the same widths, no approved page scrolls sideways, except the filter rows of the Competitions and Matches pages, which the Filter bar (#223) replaces."
+-  - "A table row shows rank, crest, name and every number; where they do not fit on one line, the numbers stand on a second line under their column heads."
+-  - "A block of fact rows is side by side when its longest row fits on one line, and stacked otherwise."
+-  - "At 1010px and 1440px every approved page measures as on main."
+-  - "The design check's whole-words property passes on every built page it lists."
++  - "On the Competitions, Matches and Matches day pages in EN, DE and FI, each filter offers only the choices its rows carry, and a filter with fewer than two real choices is absent."
++  - "Every combination the bar offers shows at least one row; a removed choice comes back once the other filter allows it."
++  - "At 280, 320, 375, 430, 700, 768, 1010 and 1440px the bar shows buttons when they fit on one line and dropdowns otherwise, and no page scrolls sideways."
++  - "Buttons and dropdowns always hold the same choice."
++  - "The dropdowns' first choices read All types / Alle Arten / Kaikki tyypit and All regions / Alle Regionen / Kaikki alueet."
++  - "The design check passes on every built page it lists."
  
  decisions_taken: >
--  Approved in chat, 2026-10-23: the five goals as CAF's match report and two Malagasy match reports
--  give them. Reading of the seed's rule: the four Young Africans goals are official, from CAF's
--  match report; CFFA's goal is match_reports, because CAF's report names no scorer and Newsmada and
--  Midi Madagasikara both name Fitahantsoa Albertini. Its minute is CAF's. No new dependency, no
-+  Approved in chat, 2026-10-23: a name wraps only between words; a table row that does not fit
-+  takes two lines and drops nothing; one shared script decides each block's form per language;
-+  without the script a block narrower than 600px shows the two-line form. Approved in chat,
-+  2026-10-22: fact rows stack only when the block's longest row no longer fits. Approved in chat,
-+  2026-10-23, with the plan: the Team and Player pages, whose new designs are built in their own
-+  MRs, take only the header change. The built pages render no table, fact row, match row or club
-+  name in a match row; the header is shared by every page through Layout.astro. The Teams menu
-+  page has no built page yet. Approved in chat, 2026-10-23: the design check fails a built page
-+  whose table, fact-row block or header carries no fit-one or fit-two mark (the Fitted block row,
-+  measured as fit-marked); the check's test page carries the marks. No new dependency, no
-   recurring cost.
+-  Approved in chat, 2026-10-23: a name wraps only between words; a table row that does not fit
+-  takes two lines and drops nothing; one shared script decides each block's form per language;
+-  without the script a block narrower than 600px shows the two-line form. Approved in chat,
+-  2026-10-22: fact rows stack only when the block's longest row no longer fits. Approved in chat,
+-  2026-10-23, with the plan: the Team and Player pages, whose new designs are built in their own
+-  MRs, take only the header change. The built pages render no table, fact row, match row or club
+-  name in a match row; the header is shared by every page through Layout.astro. The Teams menu
+-  page has no built page yet. Approved in chat, 2026-10-23: the design check fails a built page
+-  whose table, fact-row block or header carries no fit-one or fit-two mark (the Fitted block row,
+-  measured as fit-marked); the check's test page carries the marks. No new dependency, no
+-  recurring cost.
++  Approved in chat, 2026-10-20: the Filter bar design and its copy (#223). Approved in chat,
++  2026-10-22 and 2026-10-23: a block switches form only when its content no longer fits, decided
++  per block and language by the shared fit script. Readings of the approved design: the dropdowns
++  reuse the existing filterByType and filterByRegion names; without the script the buttons show and
++  wrap, which still filters. No new dependency, no recurring cost.
  
--decisions_reserved: (none)
-+decisions_reserved:
-+  - The filter rows' narrow form, built with the Filter bar (#223).
-+  - The Team page's and the Player page's narrow forms, each in its own build (#134, #136).
+ decisions_reserved:
+-  - The filter rows' narrow form, built with the Filter bar (#223).
+-  - The Team page's and the Player page's narrow forms, each in its own build (#134, #136).
++  - The Team page's competition filter and the Teams page's filter, built with #134 and #222.
  
  done_when:
--  - dbt parse passes.
-+  - npm run build in site_v2 passes (prebuild tests, astro build, audit-seo, check-built-pages).
-+  - python scripts/check_design_inventory.py --dist site_v2/dist passes.
-   - The full pytest suite and the offline gates pass.
+   - npm run build in site_v2 passes (prebuild tests, astro build, audit-seo, check-built-pages).
+@@ -87,5 +81,5 @@ done_when:
    - Reviewers per review_routing.json pass.
--  - data:build:mr passes and the prod comparison of the match's served goals goes to the CPO.
  
--amendments: (none)
-+amendments:
-+  - Approved in chat, 2026-10-23: the design check's fixture of a correct built page carries the
-+    fit marks a built page now carries, so the check's own tests keep a passing page.
+ amendments:
+-  - Approved in chat, 2026-10-23: the design check's fixture of a correct built page carries the
+-    fit marks a built page now carries, so the check's own tests keep a passing page.
++  - The code-history pin moves down one line, because the Filter bar retires the `.seg.wrap` comment
++    that carried history; the pin only moves down, so this records the cleanup.
 diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
-index 2a1b93c7..07a0cfcd 100644
+index 07a0cfcd..d5f19e71 100644
 --- a/docs/wireframes/block_standard.md
 +++ b/docs/wireframes/block_standard.md
-@@ -54,6 +54,8 @@
- | Table head label | `.ctab-head .h:not(.rk)` | 11px bold muted | `font-size=11px; font-weight=700; color=muted` | ruled | #129 Table |
- | Table row | `.ctab-row` | striped rows counted from the head, the first plain, the stripe ink at 5%; no line under a row; the row's tracks are the head's (one fixed track list per table kind) | `border-bottom-width=0px; stripe=ink@5% from 2; tracks=head` | ruled | #129 Table; 2026-09-17 ("head only") |
- | Table name cell | `.ctab .tm .nm` | 14px semi-bold ink, wraps and never truncates | `font-size=14px; font-weight=600; color=ink; white-space=normal` | ruled | #129 Table |
-+| Table narrow row | `.ctab.fit-two .ctab-row` | a row that does not fit on one line takes two: rank, crest and name, then each number under its head | `tracks=head` | ruled | the narrow-screen fix |
-+| Name in whole words | `.ctab .tm .nm, .fxrow .side .nm, .club .cn` | a team name wraps only between words; no word splits or runs past the name's space | `whole-words` | ruled | the narrow-screen fix |
- | Board name | `.ctab.rkt .ctab-head .nmh .bt .nm` | a board is a single-value table; its name sits in the head row with the chevron, 14px bold ink, not capitals, at the block's left edge | `font-size=14px; font-weight=700; color=ink; text-transform=none` | ruled | #129 board rules; #127 correction 1 |
- | Board name cell | `.ctab.rkt .ctab-head .nmh` | at the block's left edge | `left-edge=section` | ruled | #127 correction 3 |
- | Board sub-line | `.ctab.rkt .tm .ent .sub` | a player's club under the name, 12px muted | `font-size=12px; color=muted` | ruled | #129 Rankings |
-@@ -68,6 +70,8 @@
- | Fact row label | `.frow .fl` | label, 14px ink regular | `font-size=14px; color=ink; font-weight=400` | ruled | #129 the fact row |
+@@ -71,7 +71,7 @@
  | Fact row value | `.frow .fvv b` | the value, bold 15px accent — the number the row is about | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules, Block 3 |
  | Fact row context | `.frow .sub` | the context under the value, 12px muted | `font-size=12px; color=muted` | ruled | #129 the fact row |
-+| Fact row block | `.frow` | label and value side by side while the block's longest row fits on one line; otherwise every row stacks its value under its label | `fits` | ruled | the narrow-screen fix |
-+| Fitted block | `.header-in, .ctab, :has(> .frow)` | a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded | `fit-marked` | ruled | the narrow-screen fix |
+ | Fact row block | `.frow` | label and value side by side while the block's longest row fits on one line; otherwise every row stacks its value under its label | `fits` | ruled | the narrow-screen fix |
+-| Fitted block | `.header-in, .ctab, :has(> .frow)` | a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded | `fit-marked` | ruled | the narrow-screen fix |
++| Fitted block | `.header-in, .ctab, :has(> .frow), .fbar, .selbar` | a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded | `fit-marked` | ruled | the narrow-screen fix |
  | Ordered-by number | `.ctab .n.pts` | the number a table is ordered by: bold 15px accent, everywhere, no per-block colour | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules |
  | Row link | `a.ctab-row, a.fxrow, a.frow, a.brow, a.comp-row` | a row that leads somewhere is one link, the whole row; one hover tint for every row link, ink at 11% (twice the stripe); the press tint `sunk`; no underline inside a row | `hover(background-color)=ink@11%; press(background-color)=sunk; text-decoration-line=none` | ruled | #129 binding rules; #52; #127 (2026-09-14) |
  | Chevron heading link | `a.cnm` | a heading that leads somewhere carries a chevron at rest and is never underlined | `text-decoration-line=none` | ruled | #52; #129 binding rules |
-@@ -109,7 +113,7 @@
+@@ -107,8 +107,10 @@
+ | Tab | `nav.tabs .tab` | one line each, never wrapped; the side padding is what the label needs | `one-line` | ruled | #129 header |
+ | Breadcrumb current page | `.crumb .here` | the page you are on differs from the links at rest; the shipped site has the current page `ink-2` and the links muted, #52's mock had the two inverted | `color=ink-2` | proposed | put to the CPO on the #153 MR; measured, never fails, until ruled |
+ | Page heading | `.crumb + h1` | a menu page's heading under its breadcrumb, the menu item's word: the Competitions page's and the Matches page's, 30px bold ink | `font-size=30px; font-weight=700; color=ink` | ruled | #130 (the Competitions page's heading, as it ships) |
+-| Filter row | `.seg` | the Competitions page's two filter rows, by type and by region, a sunk ground holding one button per choice; the Matches page carries the same two | `background-color=sunk` | ruled | #130 (the Competitions page's filters, as they ship) |
+-| Filter button | `.seg .seg-btn` | 13px, each on one line | `font-size=13px; one-line` | ruled | #130 (the Competitions page's filters, as they ship) |
++| Filter row | `.seg` | a filter by type and one by region on the Competitions and Matches pages, each a sunk ground holding its buttons or its dropdown | `background-color=sunk` | ruled | the Filter bar design |
++| Filter button | `.seg .seg-btn` | 13px, each on one line | `font-size=13px; one-line` | ruled | the Filter bar design |
++| Filter bar | `.fbar` | the buttons while each row of them fits on one line, otherwise a dropdown per filter. A filter offers only the choices its rows carry, and none that would leave no row | `fits` | ruled | the Filter bar design |
++| Filter dropdown | `.seg.sel .sel-in` | 13px bold ink; side by side while each holds its longest choice, stacked full width below that | `font-size=13px; font-weight=700; color=ink; fits` | ruled | the Filter bar design |
+ | Fold | `.fold-ctl` | Under a list's shown rows: "Show all {n}" closed, "Show less" open, with the chevron down or up: 13px semi-bold ink-2 | `font-size=13px; font-weight=600; color=ink-2` | ruled | the shared fold review |
  | Search field | `.header-actions .searchbox` | the header's search field with its placeholder, one on every page from 1010px, where it replaces the search button; on one line in every language, nothing spilling out of it | `visible=1 [>=1010px]; visible=0 [<1010px]; one-line; fits` | ruled | `09_chrome.md` (≥ 1010px: the full field) |
  | Search button | `.iconbtn.search-m` | the header's icon-only search button below 1010px, a 34px target; gone from 1010px | `visible=1 [<1010px]; visible=0 [>=1010px]; min-box=34px` | ruled | `09_chrome.md` (phone: the search icon) |
- | Page width | `body:not(.legacy-width) :is(.header-in, .footer-in)` | the header row and the footer share the content column's one width, 960px; a page awaiting its new design keeps the earlier widths | `max-width=960px` | ruled | the page width review |
--| Header row | `.header-in` | the header's brand, menu and controls fit its row, nothing pushed off the side | `fits` | proposed | measured, never fails: every page scrolls sideways at 700px today because of the header's controls, and fixing that is the CPO's call |
-+| Header row | `.header-in` | the header's brand, menu and controls fit its row; the menu stands in the row when it fits there, otherwise the menu button | `fits` | ruled | the narrow-screen fix |
+@@ -148,15 +150,15 @@ and `gen_taxonomy.py` are diagrams.
+ | Page | Kind | Source | URL | FI | Expect |
+ |---|---|---|---|---|---|
+ | Home | built | `site_v2/dist` | `en/index.html` | path | Block heading, Block explainer, Competition group head, Date heading, Fold, Match row kick-off, Match row zone, Board name, Search field [>=1010px], Search button [<1010px] |
+-| Competitions index | built | `site_v2/dist` | `en/competitions/index.html` | path | Row link, Search field [>=1010px], Search button [<1010px] |
++| Competitions index | built | `site_v2/dist` | `en/competitions/index.html` | path | Filter row, Row link, Search field [>=1010px], Search button [<1010px] |
+ | Competition overview | built | `site_v2/dist` | `en/bundesliga/index.html` | path | Block heading, Table head, Table row, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
+ | Competition matchdays | built | `site_v2/dist` | `en/bundesliga/matches/index.html` | path | Block heading, Schedule block, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar, Search field [>=1010px], Search button [<1010px] |
+ | Competition rankings | built | `site_v2/dist` | `en/bundesliga/stats/index.html` | path | Block heading, Metric group heading, Board name, Board sub-line, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
+ | Match page | built | `site_v2/dist` | `en/*/matches/*/index.html` | path | Block heading, Match header competition head, Navigation link, Search field [>=1010px], Search button [<1010px] |
+ | Played match page | built | `site_v2/dist` | `en/bundesliga/matches/2026-09-05-tsg-1899-hoffenheim-vs-borussia-dortmund/index.html` | path | Match header winner, Goal row meta, Comparison element, Column head, Search field [>=1010px], Search button [<1010px] |
+ | Team page | built | `site_v2/dist` | `en/teams/*/index.html` | path | Block heading, Tab bar, Search field [>=1010px], Search button [<1010px] |
+-| Matches page | built | `site_v2/dist` | `en/matches/index.html` | path | Page heading, Filter row, Filter button, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row kick-off, Match row score, Search field [>=1010px], Search button [<1010px] |
+-| Matches day page | built | `site_v2/dist` | `en/matches/*/index.html` | path | Page heading, Filter row, Filter button, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row score, Search field [>=1010px], Search button [<1010px] |
++| Matches page | built | `site_v2/dist` | `en/matches/index.html` | path | Page heading, Filter row, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row kick-off, Match row score, Search field [>=1010px], Search button [<1010px] |
++| Matches day page | built | `site_v2/dist` | `en/matches/*/index.html` | path | Page heading, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row score, Search field [>=1010px], Search button [<1010px] |
+ | competition-overview | mock | `gen_overview_after_teams.py {out}` | `competition-overview.html` | toggle | Block heading, Table head, Table row, Ordered-by number, Fact row value, Tab bar |
+ | competition-matchdays | mock | `gen_competition_matchdays.py {out}` | `competition-matchdays.html` | toggle | Block heading, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar |
+ | competition-rankings | mock | `gen_competition_teams.py {out}` | `competition-rankings.html` | toggle | Block heading, Metric group heading, Board name, Board sub-line, Tab bar |
+diff --git a/site_v2/src/components/competitions/CompetitionIndexGrid.astro b/site_v2/src/components/competitions/CompetitionIndexGrid.astro
+index 3580d188..7730a726 100644
+--- a/site_v2/src/components/competitions/CompetitionIndexGrid.astro
++++ b/site_v2/src/components/competitions/CompetitionIndexGrid.astro
+@@ -34,7 +34,7 @@ const categories = groupAndOrderCompetitions(competitions);
+ ---
  
- Not measured, still the rule: the header is identical on every tab (crest · name · meta line) and
- there is no page title under the tab bar (#129); a board shows five rows on a competition page and
-diff --git a/scripts/check_design_inventory.py b/scripts/check_design_inventory.py
-index d586cbc8..e7a06808 100644
---- a/scripts/check_design_inventory.py
-+++ b/scripts/check_design_inventory.py
-@@ -116,6 +116,14 @@ MEASURE_JS = r"""
-     }
-     return tops.length;
-   };
-+  // The widest word of the element's text, in its own font.
-+  const ctx = document.createElement('canvas').getContext('2d');
-+  const longestWord = (el) => {
-+    const s = getComputedStyle(el);
-+    ctx.font = `${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`;
-+    const words = el.textContent.trim().split(/\s+/).filter(Boolean);
-+    return words.length ? Math.max(...words.map((w) => ctx.measureText(w).width)) : 0;
+ <section class="compindex">
+-  <FilterRows lang={lang} />
++  <FilterRows lang={lang} rows={competitions} />
+ 
+   <div class="categories">
+     {categories.map((cat) => (
+diff --git a/site_v2/src/components/competitions/FilterRows.astro b/site_v2/src/components/competitions/FilterRows.astro
+index 0088cf22..b57b21e7 100644
+--- a/site_v2/src/components/competitions/FilterRows.astro
++++ b/site_v2/src/components/competitions/FilterRows.astro
+@@ -1,51 +1,70 @@
+ ---
+-// The two filter rows, by type (clubs or national teams) and by region: the zero-JS `.seg-in` /
+-// `.seg-btn` radio pattern (system.css). The radios come first because the stylesheet hides
+-// whatever carries a non-matching `data-entity-type` / `data-confederation` inside the `.categories`
+-// element that must follow them as a sibling. The Competitions page and the Matches page both
+-// render these rows, so the two cannot drift.
++// The Filter bar: a filter by type (clubs or national teams) and one by region, each offering only
++// the values the page's rows carry, and absent with fewer than two. The radios come first because
++// the stylesheet hides whatever carries a non-matching `data-entity-type` / `data-confederation`
++// inside the `.categories` element that must follow them as a sibling. The buttons and the
++// dropdowns are two forms of the same radios: fitBlocks.mjs picks the form that fits, filterBar.mjs
++// keeps the dropdowns on the radios and removes the choices that would leave no row.
+ import { t } from "../../i18n/strings";
+ import type { Lang } from "../../lib/format";
++import { offered } from "../../lib/filterBar.mjs";
+ 
+ interface Props {
+   lang: Lang;
++  rows: { entity_type?: string | null; confederation?: string | null }[];
+ }
+-const { lang } = Astro.props;
++const { lang, rows } = Astro.props;
+ 
+-const ENTITY_FILTERS: { id: string; value: string | null; label: string }[] = [
+-  { id: "filter-entity-all", value: null, label: t(lang, "filterAll") },
+-  { id: "filter-entity-club", value: "club", label: t(lang, "filterClubs") },
+-  { id: "filter-entity-national", value: "national", label: t(lang, "filterNational") },
+-];
++const ENTITY_LABELS: Record<string, string> = { club: "filterClubs", national: "filterNational" };
++const REGION_LABELS: Record<string, string> = {
++  UEFA: "confedUefa", CONMEBOL: "confedConmebol", CONCACAF: "confedConcacaf", CAF: "confedCaf",
++  AFC: "confedAfc", OFC: "confedOfc", FIFA: "confedFifa",
++};
+ 
+-// Fixed, known set (confederations.csv) — hand-enumerated rather than derived from the page's own
+-// data, so a confederation with zero rows TODAY (none currently) still gets a working filter
+-// button the day a competition from it is onboarded.
+-const REGION_FILTERS: { id: string; value: string | null; labelKey: string | null }[] = [
+-  { id: "filter-region-all", value: null, labelKey: null },
+-  { id: "filter-region-uefa", value: "UEFA", labelKey: "confedUefa" },
+-  { id: "filter-region-conmebol", value: "CONMEBOL", labelKey: "confedConmebol" },
+-  { id: "filter-region-concacaf", value: "CONCACAF", labelKey: "confedConcacaf" },
+-  { id: "filter-region-caf", value: "CAF", labelKey: "confedCaf" },
+-  { id: "filter-region-afc", value: "AFC", labelKey: "confedAfc" },
+-  { id: "filter-region-ofc", value: "OFC", labelKey: "confedOfc" },
+-  { id: "filter-region-fifa", value: "FIFA", labelKey: "confedFifa" },
+-];
++const filter = (name: string, idPart: string, labels: Record<string, string>, carried: (string | null | undefined)[],
++                aria: string, first: string) => {
++  const values = offered(Object.keys(labels), carried);
++  return {
++    name, aria, first,
++    shown: values.length >= 2,
++    choices: [
++      { id: `filter-${idPart}-all`, value: "", label: t(lang, "filterAll") },
++      ...values.map((v) => ({ id: `filter-${idPart}-${v.toLowerCase()}`, value: v, label: t(lang, labels[v]) })),
++    ],
 +  };
-   const out = {};
-   for (const el of spec.elements) {
-     let nodes;
-@@ -133,6 +141,8 @@ MEASURE_JS = r"""
-       if (el.kinds.includes('left-edge')) { m.leftEdge = r.left - container(n).getBoundingClientRect().left; }
-       if (el.kinds.includes('fits')) { m.fits = [n.scrollWidth, n.clientWidth]; }
-       if (el.kinds.includes('one-line')) { m.lines = lines(n); }
-+      if (el.kinds.includes('whole-words')) { m.words = [longestWord(n), n.clientWidth]; }
-+      if (el.kinds.includes('fit-marked')) { m.marked = n.classList.contains('fit-one') || n.classList.contains('fit-two'); }
-       if (el.kinds.includes('tracks')) {
-         const head = n.parentElement ? n.parentElement.querySelector(':scope > .ctab-head') : null;
-         m.tracks = [head ? getComputedStyle(head).gridTemplateColumns : null, s.gridTemplateColumns];
-@@ -272,6 +282,9 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
-         for a in el.assertions:
-             if a.kind in ("hover", "press") or not di.applies(a, viewport):
-                 continue
-+            # The mark is set by the site's script, which only a built page loads.
-+            if a.kind == "fit-marked" and page.kind != "built":
-+                continue
-             if a.kind == "visible":
-                 if res.get("inDom", 0):
-                     msg = di.compare(a, len(matches), tokens)
-@@ -297,6 +310,10 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
-                     measured = m.get("fits")
-                 elif a.kind == "one-line":
-                     measured = m.get("lines")
-+                elif a.kind == "whole-words":
-+                    measured = m.get("words")
-+                elif a.kind == "fit-marked":
-+                    measured = m.get("marked")
-                 elif a.kind == "tracks":
-                     measured = m.get("tracks")
-                 elif a.kind == "min-box":
-diff --git a/scripts/design_inventory.py b/scripts/design_inventory.py
-index d5baef35..0e39abff 100644
---- a/scripts/design_inventory.py
-+++ b/scripts/design_inventory.py
-@@ -19,6 +19,8 @@ The "Measured as" column is a small notation, `;`-separated, one assertion each:
-     press(<prop>)=<value>    the computed prop while the mouse button is down on it
-     fits                     scrollWidth <= clientWidth
-     one-line                 the element's text lays out on one line
-+    whole-words              the element's box holds its longest word: no word splits or overruns
-+    fit-marked               the page's script marked the block fit-one or fit-two (built pages)
-     visible=<n>              exactly n matches are laid out
-     min-box=<px>             width and height at least px
++};
++const filters = [
++  filter("entity-filter", "entity", ENTITY_LABELS, rows.map((r) => r.entity_type), t(lang, "filterByType"), t(lang, "filterAllTypes")),
++  filter("region-filter", "region", REGION_LABELS, rows.map((r) => r.confederation), t(lang, "filterByRegion"), t(lang, "filterAllRegions")),
++].filter((f) => f.shown);
+ ---
  
-@@ -59,7 +61,7 @@ PROPS = (
- TOKENS = ("page", "surface", "sunk", "line", "div", "ink", "ink-2", "muted", "accent",
-           "win", "draw", "loss", "pill-ink", "track")
- PX_KINDS = ("gap(next)", "gap(prev)", "min-box")
--FLAG_KINDS = ("fits", "one-line", "left-edge", "tracks")
-+FLAG_KINDS = ("fits", "one-line", "whole-words", "fit-marked", "left-edge", "tracks")
+-{/* The radio's value is what a collapse script matches rows against; "All" is empty. */}
+-{ENTITY_FILTERS.map((f) => (
+-  <input class="seg-in" type="radio" name="entity-filter" id={f.id} value={f.value ?? ""} checked={f.value === null} />
+-))}
+-{REGION_FILTERS.map((f) => (
+-  <input class="seg-in" type="radio" name="region-filter" id={f.id} value={f.value ?? ""} checked={f.value === null} />
+-))}
++{filters.map((f) => f.choices.map((c) => (
++  <input class="seg-in" type="radio" name={f.name} id={c.id} value={c.value} checked={c.value === ""} />
++)))}
  
- 
- class InventoryError(ValueError):
-@@ -391,6 +393,11 @@ def compare(a: Assertion, measured, tokens: dict[str, str]) -> str | None:
-         return None if sw <= cw else "expected fits · measured scrollWidth %d > clientWidth %d" % (sw, cw)
-     if kind == "one-line":
-         return None if measured == 1 else "expected one-line · measured %d lines" % measured
-+    if kind == "whole-words":
-+        word, box = measured
-+        return None if word <= box + 1 else "expected whole-words · longest word %.0fpx in a %.0fpx box" % (word, box)
-+    if kind == "fit-marked":
-+        return None if measured else "expected fit-marked · the block carries neither fit-one nor fit-two"
-     if kind == "visible":
-         return None if int(measured) == int(a.expected) else "expected %s · measured %d" % (a.raw, measured)
-     if kind == "min-box":
-diff --git a/site_v2/src/layouts/Layout.astro b/site_v2/src/layouts/Layout.astro
-index 64fc7d0c..ccdfb881 100644
---- a/site_v2/src/layouts/Layout.astro
-+++ b/site_v2/src/layouts/Layout.astro
-@@ -119,5 +119,8 @@ const jsonLd = graph.length ? JSON.stringify({ "@context": "https://schema.org",
-     <SiteHeader lang={lang} section={section} />
-     <slot />
-     <SiteFooter lang={lang} />
-+    <script>
-+      import "../lib/fitBlocks.mjs";
-+    </script>
-   </body>
- </html>
-diff --git a/site_v2/src/lib/fitBlocks.mjs b/site_v2/src/lib/fitBlocks.mjs
-new file mode 100644
-index 00000000..a294c62b
---- /dev/null
-+++ b/site_v2/src/lib/fitBlocks.mjs
-@@ -0,0 +1,70 @@
-+// One rule for every block with a narrow form: a block keeps its wide form while its content fits on
-+// one line, and takes its narrow form otherwise, measured per block in the page's own language.
-+// The script marks each block `fit-one` or `fit-two`; system.css draws the two forms. A table fits
-+// when every name keeps its longest word inside its own space; a block of fact rows fits when its
-+// longest row (label, gap, value) fits its width; the header row fits when it holds the menu.
+-<div class="seg" role="group" aria-label={t(lang, "filterByType")}>
+-  {ENTITY_FILTERS.map((f) => <label class="seg-btn" for={f.id}>{f.label}</label>)}
+-</div>
+-<div class="seg wrap" role="group" aria-label={t(lang, "filterByRegion")}>
+-  {REGION_FILTERS.map((f) => (
+-    <label class="seg-btn" for={f.id}>{f.labelKey ? t(lang, f.labelKey) : t(lang, "filterAll")}</label>
+-  ))}
+-</div>
++{filters.length > 0 && (
++  <div class="fbar">
++    {filters.map((f) => (
++      <div class="seg" role="group" aria-label={f.aria}>
++        {f.choices.map((c) => <label class="seg-btn" for={c.id}>{c.label}</label>)}
++      </div>
++    ))}
++    <div class="selbar">
++      {filters.map((f) => (
++        <div class="seg sel">
++          <select class="sel-in" data-filter={f.name} aria-label={f.aria}>
++            {f.choices.map((c) => <option value={c.value} selected={c.value === ""}>{c.value ? c.label : f.first}</option>)}
++          </select>
++          <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
++            <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
++          </svg>
++        </div>
++      ))}
++    </div>
++  </div>
++)}
 +
-+/** The width of a text's longest word, given a function that measures one word. */
-+export function longestWord(text, measure) {
-+  const words = String(text).trim().split(/\s+/).filter(Boolean);
-+  return words.length ? Math.max(...words.map(measure)) : 0;
++<script>
++  import "../../lib/filterBar.mjs";
++</script>
+diff --git a/site_v2/src/components/matches/MatchesDay.astro b/site_v2/src/components/matches/MatchesDay.astro
+index 94fa92c7..3b927b19 100644
+--- a/site_v2/src/components/matches/MatchesDay.astro
++++ b/site_v2/src/components/matches/MatchesDay.astro
+@@ -53,7 +53,7 @@ const groups = orderUpcomingGroups(day.competitions);
+ 
+     <h1>{t(lang, "navMatches")}</h1>
+ 
+-    <FilterRows lang={lang} />
++    <FilterRows lang={lang} rows={groups} />
+ 
+     <div class="categories">
+       <div class="md">
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index ccf84433..32b3cdf4 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -293,6 +293,8 @@ const EN: Dict = {
+   filterNational: "National teams",
+   filterByType: "Filter by type",
+   filterByRegion: "Filter by region",
++  filterAllTypes: "All types",
++  filterAllRegions: "All regions",
+   // The competition page (GitLab #129): the Overview tab and its blocks.
+   compTabsAria: "Competition sections",
+   compTabOverview: "Overview",
+@@ -584,6 +586,8 @@ const DE: Dict = {
+   filterNational: "Nationalmannschaften",
+   filterByType: "Nach Art filtern",
+   filterByRegion: "Nach Region filtern",
++  filterAllTypes: "Alle Arten",
++  filterAllRegions: "Alle Regionen",
+   compTabsAria: "Wettbewerbsbereiche",
+   compTabOverview: "Übersicht",
+   compTabMatchdays: "Spieltage",
+@@ -882,6 +886,8 @@ const FI: Dict = {
+   filterNational: "Maajoukkueet",
+   filterByType: "Suodata tyypin mukaan",
+   filterByRegion: "Suodata alueen mukaan",
++  filterAllTypes: "Kaikki tyypit",
++  filterAllRegions: "Kaikki alueet",
+   compTabsAria: "Kilpailun osiot",
+   compTabOverview: "Yleiskatsaus",
+   compTabMatchdays: "Kierrokset",
+diff --git a/site_v2/src/lib/filterBar.mjs b/site_v2/src/lib/filterBar.mjs
+new file mode 100644
+index 00000000..5db5c323
+--- /dev/null
++++ b/site_v2/src/lib/filterBar.mjs
+@@ -0,0 +1,60 @@
++// The Filter bar's choices: a filter offers only the values its page's rows carry, and once the
++// other filter is set, only the values that still leave a row. The radios are the bar's one state;
++// the dropdowns follow them, and a dropdown's choice checks its radio.
++
++/** The values a filter offers, in its own order: those at least one row carries. */
++export function offered(order, carried) {
++  const have = new Set(carried);
++  return order.filter((v) => have.has(v));
 +}
 +
-+/** A block keeps one line when every row needs no more than its room (half a pixel of rounding). */
-+export function fitsOneLine(rows) {
-+  return rows.every(({ need, room }) => need <= room + 0.5);
++/** Whether any row matches every set filter; an empty value matches every row. */
++export function leavesARow(rows, want) {
++  return rows.some((r) => Object.entries(want).every(([k, w]) => !w || r[k] === w));
 +}
 +
 +function start() {
-+  const ctx = document.createElement("canvas").getContext("2d");
-+  const wordWidth = (el) => {
-+    const s = getComputedStyle(el);
-+    ctx.font = `${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`;
-+    return (word) => ctx.measureText(word).width;
-+  };
-+  const shown = (el) => el.getClientRects().length > 0;
-+  // The width a fact row needs on one line: a hidden copy laid out without wrapping, with the
-+  // row's own gap.
-+  const oneLine = (row) => {
-+    const copy = row.cloneNode(true);
-+    const gap = getComputedStyle(row).columnGap;
-+    copy.style.cssText = `display:flex;gap:${gap};width:max-content;position:absolute;visibility:hidden;left:0;top:0`;
-+    copy.querySelectorAll("*").forEach((x) => { x.style.whiteSpace = "nowrap"; });
-+    row.parentNode.appendChild(copy);
-+    const w = copy.getBoundingClientRect().width;
-+    copy.remove();
-+    return w;
-+  };
-+  const measures = {
-+    table: (block) => [...block.querySelectorAll(".ctab-row .tm .nm")].filter(shown)
-+      .map((nm) => ({ need: longestWord(nm.textContent, wordWidth(nm)), room: nm.clientWidth })),
-+    facts: (block) => [...block.children].filter((r) => r.classList.contains("frow") && shown(r))
-+      .map((row) => ({ need: oneLine(row), room: row.clientWidth })),
-+    header: (block) => [{ need: block.scrollWidth, room: block.clientWidth }],
-+  };
-+  const fit = (block, kind) => {
-+    if (!shown(block)) return;
-+    block.classList.remove("fit-two");
-+    block.classList.add("fit-one");
-+    const rows = measures[kind](block);
-+    if (!rows.length) return;
-+    const one = fitsOneLine(rows);
-+    block.classList.toggle("fit-one", one);
-+    block.classList.toggle("fit-two", !one);
-+  };
-+  const blocks = [
-+    ...[...document.querySelectorAll(".header-in")].map((b) => [b, "header"]),
-+    ...[...document.querySelectorAll(".ctab")].map((b) => [b, "table"]),
-+    ...[...new Set([...document.querySelectorAll(".frow")].map((r) => r.parentElement))].map((b) => [b, "facts"]),
-+  ];
-+  const all = () => blocks.forEach(([b, kind]) => fit(b, kind));
-+  const kindOf = new Map(blocks);
-+  const observer = new ResizeObserver((entries) => entries.forEach((e) => fit(e.target, kindOf.get(e.target))));
-+  blocks.forEach(([b]) => observer.observe(b));
-+  // A tab or a fold shows a block that was hidden when the page loaded.
-+  document.addEventListener("change", all);
-+  document.fonts.ready.then(all);
-+  all();
++  for (const bar of document.querySelectorAll(".fbar")) {
++    const scope = bar.parentElement;
++    const rows = [...scope.querySelectorAll(".categories [data-entity-type], .categories [data-confederation]")]
++      .map((e) => ({ entity: e.dataset.entityType || "", region: e.dataset.confederation || "" }));
++    const names = ["entity-filter", "region-filter"].filter((n) => scope.querySelector(`input[name="${n}"]`));
++    const key = { "entity-filter": "entity", "region-filter": "region" };
++    const value = (n) => scope.querySelector(`input[name="${n}"]:checked`)?.value ?? "";
++    const fits = (n, v) => leavesARow(rows, Object.fromEntries(names.map((m) => [key[m], m === n ? v : value(m)])));
++    const full = Object.fromEntries(names.map((n) => {
++      const sel = bar.querySelector(`select[data-filter="${n}"]`);
++      return [n, sel ? [...sel.options].map((o) => [o.value, o.text]) : []];
++    }));
++    const sync = () => {
++      for (const n of names) {
++        const ok = (v) => !v || fits(n, v);
++        const sel = bar.querySelector(`select[data-filter="${n}"]`);
++        if (sel) {
++          sel.replaceChildren(...full[n].filter(([v]) => ok(v)).map(([v, t]) => new Option(t, v)));
++          sel.value = value(n);
++        }
++        for (const input of scope.querySelectorAll(`input[name="${n}"]`)) {
++          input.disabled = !ok(input.value);
++          const label = bar.querySelector(`label[for="${input.id}"]`);
++          if (label) label.hidden = !ok(input.value);
++        }
++      }
++    };
++    scope.addEventListener("change", (e) => {
++      const t = e.target;
++      if (t instanceof HTMLSelectElement && t.dataset.filter) {
++        const radio = scope.querySelector(`input[name="${t.dataset.filter}"][value="${t.value}"]`);
++        if (radio) {
++          radio.checked = true;
++          radio.dispatchEvent(new Event("change", { bubbles: true }));
++          return;
++        }
++      }
++      if (t instanceof HTMLInputElement && names.includes(t.name)) sync();
++    });
++    sync();
++  }
 +}
 +
 +if (typeof document !== "undefined") start();
-diff --git a/site_v2/src/lib/fitBlocks.test.mjs b/site_v2/src/lib/fitBlocks.test.mjs
+diff --git a/site_v2/src/lib/filterBar.test.mjs b/site_v2/src/lib/filterBar.test.mjs
 new file mode 100644
-index 00000000..b36f5a4b
+index 00000000..227aa39b
 --- /dev/null
-+++ b/site_v2/src/lib/fitBlocks.test.mjs
-@@ -0,0 +1,26 @@
-+// Pins the two decisions `fitBlocks.mjs` makes: a name's need is its longest word, never the
-+// whole name, and a block keeps one line only when every row fits.
++++ b/site_v2/src/lib/filterBar.test.mjs
+@@ -0,0 +1,21 @@
++// Pins the Filter bar's two choice rules: a filter offers only what its rows carry, in its own
++// order, and a combination counts only when a row matches both filters.
 +
 +import { test } from "node:test";
 +import assert from "node:assert/strict";
-+import { fitsOneLine, longestWord } from "./fitBlocks.mjs";
++import { leavesARow, offered } from "./filterBar.mjs";
 +
-+const perLetter = (word) => word.length * 10;
-+
-+test("a name needs the width of its longest word", () => {
-+  assert.equal(longestWord("Borussia Mönchengladbach", perLetter), 150);
-+  assert.equal(longestWord("  1. FC Union Berlin ", perLetter), 60);
++test("a filter offers only the values its rows carry, in the filter's order", () => {
++  assert.deepEqual(offered(["UEFA", "CONMEBOL", "CAF", "OFC"], ["CAF", "UEFA", null, "UEFA"]), ["UEFA", "CAF"]);
++  assert.deepEqual(offered(["club", "national"], ["club", "club"]), ["club"]);
 +});
 +
-+test("an empty name needs nothing", () => {
-+  assert.equal(longestWord("", perLetter), 0);
++test("a combination leaves a row only when one row matches both filters", () => {
++  const rows = [{ entity: "club", region: "UEFA" }, { entity: "national", region: "OFC" }];
++  assert.equal(leavesARow(rows, { entity: "club", region: "UEFA" }), true);
++  assert.equal(leavesARow(rows, { entity: "club", region: "OFC" }), false);
 +});
 +
-+test("a block keeps one line only when every row fits", () => {
-+  assert.equal(fitsOneLine([{ need: 100, room: 120 }, { need: 120, room: 120 }]), true);
-+  assert.equal(fitsOneLine([{ need: 100, room: 120 }, { need: 121, room: 120 }]), false);
++test("an unset filter matches every row", () => {
++  assert.equal(leavesARow([{ entity: "club", region: "AFC" }], { entity: "", region: "AFC" }), true);
 +});
-+
-+test("half a pixel of rounding still fits", () => {
-+  assert.equal(fitsOneLine([{ need: 120.4, room: 120 }]), true);
-+});
+diff --git a/site_v2/src/lib/fitBlocks.mjs b/site_v2/src/lib/fitBlocks.mjs
+index a294c62b..4a390897 100644
+--- a/site_v2/src/lib/fitBlocks.mjs
++++ b/site_v2/src/lib/fitBlocks.mjs
+@@ -2,7 +2,8 @@
+ // one line, and takes its narrow form otherwise, measured per block in the page's own language.
+ // The script marks each block `fit-one` or `fit-two`; system.css draws the two forms. A table fits
+ // when every name keeps its longest word inside its own space; a block of fact rows fits when its
+-// longest row (label, gap, value) fits its width; the header row fits when it holds the menu.
++// longest row (label, gap, value) fits its width; the header row fits when it holds the menu; a
++// Filter bar fits when each row of buttons does, and its dropdown row when each holds its longest choice.
+ 
+ /** The width of a text's longest word, given a function that measures one word. */
+ export function longestWord(text, measure) {
+@@ -41,6 +42,14 @@ function start() {
+     facts: (block) => [...block.children].filter((r) => r.classList.contains("frow") && shown(r))
+       .map((row) => ({ need: oneLine(row), room: row.clientWidth })),
+     header: (block) => [{ need: block.scrollWidth, room: block.clientWidth }],
++    filter: (block) => [...block.children].filter((c) => c.matches(".seg:not(.sel)") && shown(c))
++      .map((seg) => ({ need: seg.scrollWidth, room: seg.clientWidth })),
++    selects: (block) => [...block.querySelectorAll(".sel-in")].filter(shown).map((sel) => {
++      const s = getComputedStyle(sel);
++      const width = wordWidth(sel);
++      const longest = Math.max(0, ...[...sel.options].map((o) => width(o.text)));
++      return { need: longest + parseFloat(s.paddingLeft) + parseFloat(s.paddingRight), room: sel.clientWidth };
++    }),
+   };
+   const fit = (block, kind) => {
+     if (!shown(block)) return;
+@@ -56,6 +65,9 @@ function start() {
+     ...[...document.querySelectorAll(".header-in")].map((b) => [b, "header"]),
+     ...[...document.querySelectorAll(".ctab")].map((b) => [b, "table"]),
+     ...[...new Set([...document.querySelectorAll(".frow")].map((r) => r.parentElement))].map((b) => [b, "facts"]),
++    // the bar before its dropdown row: the row shows only once the bar has taken its narrow form
++    ...[...document.querySelectorAll(".fbar")].map((b) => [b, "filter"]),
++    ...[...document.querySelectorAll(".selbar")].map((b) => [b, "selects"]),
+   ];
+   const all = () => blocks.forEach(([b, kind]) => fit(b, kind));
+   const kindOf = new Map(blocks);
 diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
-index 9905b6b1..79921b73 100644
+index 79921b73..b0d57edc 100644
 --- a/site_v2/src/styles/system.css
 +++ b/site_v2/src/styles/system.css
-@@ -412,7 +412,7 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
- }
- .header-in {
-   max-width: 960px; margin: 0 auto; padding: 0 clamp(16px, 3.5vw, 28px);
--  height: 58px; display: flex; align-items: center; gap: 18px;
-+  height: 58px; display: flex; align-items: center; gap: clamp(12px, 4.5vw, 18px);
- }
- .brand { font-size: 18px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); flex: none; }
- .brand .iq { color: var(--ink-2); font-weight: 700; }
-@@ -472,10 +472,15 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
- .fmeta { margin-left: auto; font-size: 11.5px; color: var(--muted); }
- 
- /* nav inline + hamburger/drawer hidden once there's room for the full nav */
--@media (min-width: 700px) {
--  .mainnav { display: flex; }
--  .hamburger { display: none; }
--  .drawer { display: none !important; }
-+/* The menu stands in the header row when the row holds it in the page's language, otherwise the
-+   menu button: fitBlocks.mjs marks .header-in. Without the script the menu shows from 800px. */
-+.header-in.fit-one .mainnav { display: flex; }
-+.header-in.fit-one .hamburger { display: none; }
-+.site-header:has(.header-in.fit-one) .drawer { display: none !important; }
-+@media (min-width: 800px) {
-+  .header-in:not(.fit-two) .mainnav { display: flex; }
-+  .header-in:not(.fit-two) .hamburger { display: none; }
-+  .site-header:has(.header-in:not(.fit-two)) .drawer { display: none !important; }
- }
- /* the two-column page grid needs a bit more room than the nav */
- @media (min-width: 900px) {
-@@ -569,13 +574,13 @@ a.cnm .nm { text-decoration: none; }
-   padding: 12px 0; border-bottom: 1px solid var(--line);
- }
- .fxrow:last-child { border-bottom: 0; }
--.fxrow .sides { display: grid; gap: 8px; min-width: 0; }
--.fxrow .side { display: flex; align-items: center; gap: 10px; min-width: 0; }
-+.fxrow .sides { display: grid; gap: 8px; }
-+.fxrow .side { display: flex; align-items: center; gap: 10px; }
- /* The name never truncates: the row exists to send people to a match, and a clipped name defeats
-    it. `overflow-wrap: normal` keeps the minimum width at the longest word, so a name wraps at a
-    space and can never collapse into a column of letters when the score competes for the space. */
- .fxrow .side .nm {
--  font-size: 15px; color: var(--ink); min-width: 0;
-+  font-size: 15px; color: var(--ink);
-   white-space: normal; overflow: visible; text-overflow: clip;
-   overflow-wrap: normal; word-break: normal; hyphens: none; line-height: 1.25;
- }
-@@ -735,7 +740,7 @@ a.brow:focus-visible { outline-offset: -2px; }
- .comp-category { margin-bottom: 4px; }
- .comp-grid {
-   display: grid;
--  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
-   gap: 8px;
-   margin-top: 6px;
- }
-@@ -850,7 +855,18 @@ a.comp-row:focus-visible { outline-offset: -2px; }
- .ctab .n.gd { color: var(--ink-2); }
- .ctab .tm { display: flex; align-items: center; gap: 9px; min-width: 0; }
- /* the name never truncates: system.css ellipsises .nm elsewhere, a table row wraps instead */
--.ctab .tm .nm { min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink); white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: break-word; line-height: 1.25; }
-+.ctab .tm .nm { min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink); white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: normal; line-height: 1.25; }
-+/* A row whose names do not keep their longest word on one line takes two lines: rank, crest and
-+   name, then every number under its own head. fitBlocks.mjs marks each table fit-one or fit-two
-+   per language; without the script a narrow table takes two lines. */
-+.ctab.fit-two .ctab-row > .rk { grid-row: 1; }
-+.ctab.fit-two .ctab-row > .tm { grid-column: 2 / -1; grid-row: 1; }
-+.ctab.fit-two .ctab-row > .n { grid-row: 2; padding-top: 4px; }
-+@container (max-width: 599.98px) {
-+  .ctab:not(.fit-one) .ctab-row > .rk { grid-row: 1; }
-+  .ctab:not(.fit-one) .ctab-row > .tm { grid-column: 2 / -1; grid-row: 1; }
-+  .ctab:not(.fit-one) .ctab-row > .n { grid-row: 2; padding-top: 4px; }
+@@ -54,7 +54,8 @@ img { max-width: 100%; }
+ .fx a.lnk:hover { text-decoration: underline; text-underline-offset: 2px; }
+ .fx a:focus-visible,
+ .fx button:focus-visible,
+-.fx .seg-in:focus-visible ~ .seg { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 9px; }
++.fx .seg-in:focus-visible ~ .seg,
++.fx .seg-in:focus-visible ~ .fbar > .seg:not(.sel) { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 9px; }
+ .inner { max-width: 960px; margin: 0 auto; padding: 0 clamp(16px, 4cqw, 28px) 40px; }
+ .num { font-variant-numeric: tabular-nums; }
+ .eyebrow { font-size: 13px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+@@ -727,15 +728,48 @@ a.brow:focus-visible { outline-offset: -2px; }
+    the two axes combine for free — no compound selector needed at the row level. Category-level
+    empty-state collapse (a category left with zero rows after BOTH axes apply) needs the two
+    states combined and is handled in the component's small inline script instead; see its comment. */
+-/* .seg is shared with the fixture page's W1/W2 toggle (2 short, equal-width labels, never wraps).
+-   The region filter has 8 labels of very different lengths ("All" vs "North & Central America")
+-   and genuinely overflows at mobile widths without wrapping (measured: scrollWidth 645 vs
+-   clientWidth 375 at the 375px preset, #62 step 5). .wrap opts a specific .seg instance
+-   into wrapping and lets each button size to its own content instead of sharing width equally —
+-   equal-width made no sense once labels stopped being similar lengths. Entity filter (3 short,
+-   similar-length labels) stays on the plain .seg behaviour. */
+-.seg.wrap { flex-wrap: wrap; }
+-.seg.wrap .seg-btn { flex: 0 1 auto; }
++/* The Filter bar (FilterRows.astro): the buttons while each row of them fits on one line, otherwise
++   a dropdown per filter in the Filter row's sunk box, side by side while each holds its longest
++   choice and stacked full width below that. fitBlocks.mjs marks .fbar and .selbar fit-one or
++   fit-two per language; without the script the buttons show and wrap. */
++.fbar.fit-one > .seg:not(.sel) .seg-btn { flex: 1 1 auto; }
++.fbar:not(.fit-one) > .seg:not(.sel) { flex-wrap: wrap; }
++.fbar:not(.fit-one) > .seg:not(.sel) .seg-btn { flex: 0 1 auto; }
++.fbar .seg-btn[hidden] { display: none; }
++.selbar { display: none; gap: 8px; margin-top: 4px; }
++.fbar.fit-two > .seg:not(.sel) { display: none; }
++.fbar.fit-two > .selbar { display: flex; }
++.selbar .seg.sel { flex: 1 1 0; min-width: 0; margin-top: 0; }
++.selbar.fit-two { flex-direction: column; }
++.selbar.fit-two .seg.sel { flex: 0 0 auto; }
++.seg.sel { position: relative; padding: 0; }
++.seg.sel .sel-in {
++  appearance: none; -webkit-appearance: none; width: 100%; border: 0; background: transparent;
++  font: inherit; font-size: 13px; font-weight: 700; color: var(--ink); padding: 12px 36px 12px 14px;
++  border-radius: 8px; cursor: pointer; white-space: nowrap;
++}
++.seg.sel .sel-in:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
++.seg.sel .sel-in option { color: var(--ink); background: var(--surface); }
++.seg.sel .chev { position: absolute; right: 12px; top: 50%; width: 15px; height: 15px; color: var(--muted);
++  transform: translateY(-50%) rotate(90deg); pointer-events: none; }
++/* The open list in the site's design where the browser draws a customisable select. */
++@supports (appearance: base-select) {
++  .seg.sel .sel-in, .seg.sel .sel-in::picker(select) { appearance: base-select; }
++  .seg.sel .sel-in::picker-icon { display: none; }
++  .seg.sel .sel-in::picker(select) {
++    background: var(--sunk); border: 1px solid var(--line); border-radius: 9px; padding: 3px; margin-top: 6px;
++    box-shadow: 0 10px 28px rgba(0, 0, 0, .45);
++  }
++  .seg.sel .sel-in option {
++    background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; padding: 10px 12px;
++    border-radius: 6px; cursor: pointer;
++  }
++  .seg.sel .sel-in option::checkmark { display: none; }
++  .seg.sel .sel-in option:hover { color: var(--ink-2); background: color-mix(in srgb, var(--ink) 11%, transparent); }
++  .seg.sel .sel-in option:checked {
++    background: var(--surface); color: var(--ink); font-weight: 700; box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
++  }
 +}
  
- /* The block explainer: one sentence under a block name. */
- .bsub { margin: 2px 0 8px; font-size: 13px; line-height: 1.45; color: var(--muted); }
-@@ -886,9 +902,13 @@ a.comp-row:focus-visible { outline-offset: -2px; }
- .frow .fvv b { font-weight: 700; font-size: 15px; color: var(--accent); }
- .frow .sub { font-size: 12px; color: var(--muted); }
- .nb { white-space: nowrap; }
--@container (max-width: 420px) {
--  .frow { grid-template-columns: minmax(0, 1fr); gap: 2px; }
--  .frow .fv { text-align: left; }
-+/* A block of fact rows stacks only when its longest row does not fit on one line: fitBlocks.mjs
-+   marks the block fit-one or fit-two per language. Without the script a narrow block stacks. */
-+.fit-two > .frow { grid-template-columns: minmax(0, 1fr); gap: 2px; }
-+.fit-two > .frow .fv { text-align: left; }
-+@container (max-width: 599.98px) {
-+  :not(.fit-one) > .frow { grid-template-columns: minmax(0, 1fr); gap: 2px; }
-+  :not(.fit-one) > .frow .fv { text-align: left; }
+ .comp-category { margin-bottom: 4px; }
+ .comp-grid {
+@@ -773,17 +807,17 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+ #filter-region-ofc:checked ~ .categories [data-confederation]:not([data-confederation="OFC"]) { display: none; }
+ #filter-region-fifa:checked ~ .categories [data-confederation]:not([data-confederation="FIFA"]) { display: none; }
+ 
+-#filter-entity-all:checked ~ .seg .seg-btn[for="filter-entity-all"],
+-#filter-entity-club:checked ~ .seg .seg-btn[for="filter-entity-club"],
+-#filter-entity-national:checked ~ .seg .seg-btn[for="filter-entity-national"],
+-#filter-region-all:checked ~ .seg .seg-btn[for="filter-region-all"],
+-#filter-region-uefa:checked ~ .seg .seg-btn[for="filter-region-uefa"],
+-#filter-region-conmebol:checked ~ .seg .seg-btn[for="filter-region-conmebol"],
+-#filter-region-concacaf:checked ~ .seg .seg-btn[for="filter-region-concacaf"],
+-#filter-region-caf:checked ~ .seg .seg-btn[for="filter-region-caf"],
+-#filter-region-afc:checked ~ .seg .seg-btn[for="filter-region-afc"],
+-#filter-region-ofc:checked ~ .seg .seg-btn[for="filter-region-ofc"],
+-#filter-region-fifa:checked ~ .seg .seg-btn[for="filter-region-fifa"] {
++#filter-entity-all:checked ~ .fbar .seg-btn[for="filter-entity-all"],
++#filter-entity-club:checked ~ .fbar .seg-btn[for="filter-entity-club"],
++#filter-entity-national:checked ~ .fbar .seg-btn[for="filter-entity-national"],
++#filter-region-all:checked ~ .fbar .seg-btn[for="filter-region-all"],
++#filter-region-uefa:checked ~ .fbar .seg-btn[for="filter-region-uefa"],
++#filter-region-conmebol:checked ~ .fbar .seg-btn[for="filter-region-conmebol"],
++#filter-region-concacaf:checked ~ .fbar .seg-btn[for="filter-region-concacaf"],
++#filter-region-caf:checked ~ .fbar .seg-btn[for="filter-region-caf"],
++#filter-region-afc:checked ~ .fbar .seg-btn[for="filter-region-afc"],
++#filter-region-ofc:checked ~ .fbar .seg-btn[for="filter-region-ofc"],
++#filter-region-fifa:checked ~ .fbar .seg-btn[for="filter-region-fifa"] {
+   background: var(--surface); color: var(--ink); font-weight: 700; box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
  }
  
- /* ---- the next match page (.mp) ---- */
-@@ -1004,7 +1024,6 @@ a.comp-row:focus-visible { outline-offset: -2px; }
- .mp .sechead + .rlist > .lrow:first-child .resrow { padding-top: 0; }
- /* A club in a match row carries its crest before its name, 10px apart. */
- .club { display: inline-flex; align-items: center; gap: 10px; vertical-align: middle; max-width: 100%; }
--.club .cn { min-width: 0; }
- .ropp > .club:only-child { vertical-align: top; }
+diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
+index 4a240ae6..ff19e9a7 100644
+--- a/tests/test_no_decision_history_in_code.py
++++ b/tests/test_no_decision_history_in_code.py
+@@ -30,7 +30,7 @@ sys.path.insert(0, HOOKS)
+ import comment_history_gate as gate  # noqa: E402
  
- /* Player row: photo · name over position · numbers on the right at every width; the name wraps. */
-diff --git a/tests/fixtures/design_inventory/green.html b/tests/fixtures/design_inventory/green.html
-index b5724626..cd98c0cc 100644
---- a/tests/fixtures/design_inventory/green.html
-+++ b/tests/fixtures/design_inventory/green.html
-@@ -5,7 +5,7 @@
- <link rel="stylesheet" href="system.css">
- <body class="fx">
- <header class="site-header">
--  <div class="header-in">
-+  <div class="header-in fit-two">
-     <a class="brand" href="#">Matchday<span class="iq">Pilot</span></a>
-     <nav class="mainnav" aria-label="Main"><a href="#">Competitions</a><span>Matches</span><span>Teams</span><span>Players</span><span>Standings</span><span>Statistics</span></nav>
-     <div class="header-actions">
-@@ -38,7 +38,7 @@
+ # The pin. A sweep MR lowers these two numbers and nothing else may move them.
+-PINNED_LINES = 726
++PINNED_LINES = 725
+ PINNED_FILES = 181
  
-   <section>
-     <div class="sechead"><span class="eyebrow">Table</span></div>
--    <div class="ctab">
-+    <div class="ctab fit-one">
-       <div class="ctab-head"><span class="h rk">#</span><span class="h nmh"></span><span class="h">P</span><span class="h wdl">W</span><span class="h wdl">D</span><span class="h wdl">L</span><span class="h wdl">Goals</span><span class="h">GD</span><span class="h">Pts</span></div>
-       <a class="ctab-row" href="#a"><span class="rk num">1</span><span class="tm"><span class="crest xs"></span><span class="nm">SC Freiburg</span></span><span class="n num">3</span><span class="n num wdl">3</span><span class="n num wdl">0</span><span class="n num wdl">0</span><span class="n num wdl">10:1</span><span class="n num gd">+9</span><span class="n num pts">9</span></a>
-       <a class="ctab-row" href="#b"><span class="rk num">2</span><span class="tm"><span class="crest xs"></span><span class="nm">Borussia Dortmund</span></span><span class="n num">3</span><span class="n num wdl">3</span><span class="n num wdl">0</span><span class="n num wdl">0</span><span class="n num wdl">8:2</span><span class="n num gd">+6</span><span class="n num pts">9</span></a>
-@@ -64,7 +64,7 @@
- 
-   <section>
-     <div class="sechead"><span class="eyebrow">The season in numbers</span></div>
--    <div class="facts">
-+    <div class="facts fit-one">
-       <a class="frow" href="#f1"><span class="fl">Goals per match</span><span class="fv"><span class="fvv"><b>3.9</b></span><span class="sub">104 goals in 27 matches</span></span></a>
-       <a class="frow" href="#f2"><span class="fl">Home wins</span><span class="fv"><span class="fvv"><b>14 of 27</b></span><span class="sub">5 draws, 8 away wins</span></span></a>
-     </div>
-diff --git a/tests/test_design_inventory.py b/tests/test_design_inventory.py
-index 6679195c..53615eef 100644
---- a/tests/test_design_inventory.py
-+++ b/tests/test_design_inventory.py
-@@ -156,7 +156,7 @@ def test_the_committed_inventory_parses_and_is_not_empty():
-     assert len(inv.pages) >= 10
-     assert {p.kind for p in inv.pages} == {"built", "mock"}
-     proposed = [e.name for e in inv.elements if e.status == "proposed"]
--    assert proposed == ["Breadcrumb current page", "Header row"], (
-+    assert proposed == ["Breadcrumb current page"], (
-         "a proposed row is measured but never fails: %s" % proposed)
-     names = {e.name for e in inv.elements}
-     for p in inv.pages:
-@@ -257,6 +257,10 @@ def test_comparisons_name_the_expected_and_the_measured():
-     assert di.compare(di.Assertion("gap(next)", None, "14px", "gap(next)=14px"), 14.8, TOKENS) is None
-     assert di.compare(di.Assertion("fits", None, "", "fits"), (348, 343), TOKENS) == "expected fits · measured scrollWidth 348 > clientWidth 343"
-     assert di.compare(di.Assertion("one-line", None, "", "one-line"), 2, TOKENS) == "expected one-line · measured 2 lines"
-+    assert di.compare(di.Assertion("whole-words", None, "", "whole-words"), (74.0, 66), TOKENS) == "expected whole-words · longest word 74px in a 66px box"
-+    assert di.compare(di.Assertion("whole-words", None, "", "whole-words"), (66.6, 66), TOKENS) is None
-+    assert di.compare(di.Assertion("fit-marked", None, "", "fit-marked"), False, TOKENS) == "expected fit-marked · the block carries neither fit-one nor fit-two"
-+    assert di.compare(di.Assertion("fit-marked", None, "", "fit-marked"), True, TOKENS) is None
-     assert di.compare(di.Assertion("left-edge", None, "section", "left-edge=section"), 8.0, TOKENS).endswith("off the section's left")
-     assert di.compare(di.Assertion("tracks", None, "head", "tracks=head"), ("32px 200px", "32px 180px"), TOKENS).startswith("expected tracks=head")
-     assert di.compare(di.Assertion("visible", None, "1", "visible=1"), 3, TOKENS) == "expected visible=1 · measured 3"
+ HASH = chr(35)
+diff --git a/tests/test_no_decision_history_in_docs.py b/tests/test_no_decision_history_in_docs.py
+index 88e543a1..d33b1ee1 100644
+--- a/tests/test_no_decision_history_in_docs.py
++++ b/tests/test_no_decision_history_in_docs.py
+@@ -59,7 +59,7 @@ PINNED = {
+     "docs/wireframes/13_player_career.md": 11,
+     "docs/wireframes/14_team_stats.md": 9,
+     "docs/wireframes/99_gaps_register.md": 30,
+-    "docs/wireframes/block_standard.md": 50,
++    "docs/wireframes/block_standard.md": 48,
+     "docs/wireframes/metrics_display.md": 44,
+     "site_v2/src/data/README.md": 5,
+ }
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -531,9 +622,7 @@ index 6679195c..53615eef 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md    |  24 +-
-#    .claude/task/rendered_page_evidence.md |  17 +-
-#    .claude/task/review.md                 |  31 +-
-#    .claude/task/review_input.patch        | 536 ++++++++++++++++++++++++++++-----
-#    4 files changed, 514 insertions(+), 94 deletions(-)
+#   .claude/task/acceptance_evidence.md    | 24 +++++++++++-------------
+#    .claude/task/rendered_page_evidence.md | 19 +++++++++----------
+#    2 files changed, 20 insertions(+), 23 deletions(-)
 # ============================================================================

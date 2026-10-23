@@ -54,7 +54,8 @@ img { max-width: 100%; }
 .fx a.lnk:hover { text-decoration: underline; text-underline-offset: 2px; }
 .fx a:focus-visible,
 .fx button:focus-visible,
-.fx .seg-in:focus-visible ~ .seg { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 9px; }
+.fx .seg-in:focus-visible ~ .seg,
+.fx .seg-in:focus-visible ~ .fbar > .seg:not(.sel) { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 9px; }
 .inner { max-width: 960px; margin: 0 auto; padding: 0 clamp(16px, 4cqw, 28px) 40px; }
 .num { font-variant-numeric: tabular-nums; }
 .eyebrow { font-size: 13px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
@@ -727,15 +728,48 @@ a.brow:focus-visible { outline-offset: -2px; }
    the two axes combine for free — no compound selector needed at the row level. Category-level
    empty-state collapse (a category left with zero rows after BOTH axes apply) needs the two
    states combined and is handled in the component's small inline script instead; see its comment. */
-/* .seg is shared with the fixture page's W1/W2 toggle (2 short, equal-width labels, never wraps).
-   The region filter has 8 labels of very different lengths ("All" vs "North & Central America")
-   and genuinely overflows at mobile widths without wrapping (measured: scrollWidth 645 vs
-   clientWidth 375 at the 375px preset, #62 step 5). .wrap opts a specific .seg instance
-   into wrapping and lets each button size to its own content instead of sharing width equally —
-   equal-width made no sense once labels stopped being similar lengths. Entity filter (3 short,
-   similar-length labels) stays on the plain .seg behaviour. */
-.seg.wrap { flex-wrap: wrap; }
-.seg.wrap .seg-btn { flex: 0 1 auto; }
+/* The Filter bar (FilterRows.astro): the buttons while each row of them fits on one line, otherwise
+   a dropdown per filter in the Filter row's sunk box, side by side while each holds its longest
+   choice and stacked full width below that. fitBlocks.mjs marks .fbar and .selbar fit-one or
+   fit-two per language; without the script the buttons show and wrap. */
+.fbar.fit-one > .seg:not(.sel) .seg-btn { flex: 1 1 auto; }
+.fbar:not(.fit-one) > .seg:not(.sel) { flex-wrap: wrap; }
+.fbar:not(.fit-one) > .seg:not(.sel) .seg-btn { flex: 0 1 auto; }
+.fbar .seg-btn[hidden] { display: none; }
+.selbar { display: none; gap: 8px; margin-top: 4px; }
+.fbar.fit-two > .seg:not(.sel) { display: none; }
+.fbar.fit-two > .selbar { display: flex; }
+.selbar .seg.sel { flex: 1 1 0; min-width: 0; margin-top: 0; }
+.selbar.fit-two { flex-direction: column; }
+.selbar.fit-two .seg.sel { flex: 0 0 auto; }
+.seg.sel { position: relative; padding: 0; }
+.seg.sel .sel-in {
+  appearance: none; -webkit-appearance: none; width: 100%; border: 0; background: transparent;
+  font: inherit; font-size: 13px; font-weight: 700; color: var(--ink); padding: 12px 36px 12px 14px;
+  border-radius: 8px; cursor: pointer; white-space: nowrap;
+}
+.seg.sel .sel-in:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.seg.sel .sel-in option { color: var(--ink); background: var(--surface); }
+.seg.sel .chev { position: absolute; right: 12px; top: 50%; width: 15px; height: 15px; color: var(--muted);
+  transform: translateY(-50%) rotate(90deg); pointer-events: none; }
+/* The open list in the site's design where the browser draws a customisable select. */
+@supports (appearance: base-select) {
+  .seg.sel .sel-in, .seg.sel .sel-in::picker(select) { appearance: base-select; }
+  .seg.sel .sel-in::picker-icon { display: none; }
+  .seg.sel .sel-in::picker(select) {
+    background: var(--sunk); border: 1px solid var(--line); border-radius: 9px; padding: 3px; margin-top: 6px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, .45);
+  }
+  .seg.sel .sel-in option {
+    background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; padding: 10px 12px;
+    border-radius: 6px; cursor: pointer;
+  }
+  .seg.sel .sel-in option::checkmark { display: none; }
+  .seg.sel .sel-in option:hover { color: var(--ink-2); background: color-mix(in srgb, var(--ink) 11%, transparent); }
+  .seg.sel .sel-in option:checked {
+    background: var(--surface); color: var(--ink); font-weight: 700; box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+  }
+}
 
 .comp-category { margin-bottom: 4px; }
 .comp-grid {
@@ -773,17 +807,17 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 #filter-region-ofc:checked ~ .categories [data-confederation]:not([data-confederation="OFC"]) { display: none; }
 #filter-region-fifa:checked ~ .categories [data-confederation]:not([data-confederation="FIFA"]) { display: none; }
 
-#filter-entity-all:checked ~ .seg .seg-btn[for="filter-entity-all"],
-#filter-entity-club:checked ~ .seg .seg-btn[for="filter-entity-club"],
-#filter-entity-national:checked ~ .seg .seg-btn[for="filter-entity-national"],
-#filter-region-all:checked ~ .seg .seg-btn[for="filter-region-all"],
-#filter-region-uefa:checked ~ .seg .seg-btn[for="filter-region-uefa"],
-#filter-region-conmebol:checked ~ .seg .seg-btn[for="filter-region-conmebol"],
-#filter-region-concacaf:checked ~ .seg .seg-btn[for="filter-region-concacaf"],
-#filter-region-caf:checked ~ .seg .seg-btn[for="filter-region-caf"],
-#filter-region-afc:checked ~ .seg .seg-btn[for="filter-region-afc"],
-#filter-region-ofc:checked ~ .seg .seg-btn[for="filter-region-ofc"],
-#filter-region-fifa:checked ~ .seg .seg-btn[for="filter-region-fifa"] {
+#filter-entity-all:checked ~ .fbar .seg-btn[for="filter-entity-all"],
+#filter-entity-club:checked ~ .fbar .seg-btn[for="filter-entity-club"],
+#filter-entity-national:checked ~ .fbar .seg-btn[for="filter-entity-national"],
+#filter-region-all:checked ~ .fbar .seg-btn[for="filter-region-all"],
+#filter-region-uefa:checked ~ .fbar .seg-btn[for="filter-region-uefa"],
+#filter-region-conmebol:checked ~ .fbar .seg-btn[for="filter-region-conmebol"],
+#filter-region-concacaf:checked ~ .fbar .seg-btn[for="filter-region-concacaf"],
+#filter-region-caf:checked ~ .fbar .seg-btn[for="filter-region-caf"],
+#filter-region-afc:checked ~ .fbar .seg-btn[for="filter-region-afc"],
+#filter-region-ofc:checked ~ .fbar .seg-btn[for="filter-region-ofc"],
+#filter-region-fifa:checked ~ .fbar .seg-btn[for="filter-region-fifa"] {
   background: var(--surface); color: var(--ink); font-weight: 700; box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
 }
 

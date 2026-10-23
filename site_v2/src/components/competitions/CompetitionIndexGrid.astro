@@ -34,7 +34,7 @@ const categories = groupAndOrderCompetitions(competitions);
 ---
 
 <section class="compindex">
-  <FilterRows lang={lang} />
+  <FilterRows lang={lang} rows={competitions} />
 
   <div class="categories">
     {categories.map((cat) => (
