@@ -53,7 +53,7 @@ const groups = orderUpcomingGroups(day.competitions);
 
     <h1>{t(lang, "navMatches")}</h1>
 
-    <FilterRows lang={lang} />
+    <FilterRows lang={lang} rows={groups} />
 
     <div class="categories">
       <div class="md">

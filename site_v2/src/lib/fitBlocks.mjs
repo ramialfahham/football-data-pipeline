@@ -2,7 +2,8 @@
 // one line, and takes its narrow form otherwise, measured per block in the page's own language.
 // The script marks each block `fit-one` or `fit-two`; system.css draws the two forms. A table fits
 // when every name keeps its longest word inside its own space; a block of fact rows fits when its
-// longest row (label, gap, value) fits its width; the header row fits when it holds the menu.
+// longest row (label, gap, value) fits its width; the header row fits when it holds the menu; a
+// Filter bar fits when each row of buttons does, and its dropdown row when each holds its longest choice.
 
 /** The width of a text's longest word, given a function that measures one word. */
 export function longestWord(text, measure) {
@@ -41,6 +42,14 @@ function start() {
     facts: (block) => [...block.children].filter((r) => r.classList.contains("frow") && shown(r))
       .map((row) => ({ need: oneLine(row), room: row.clientWidth })),
     header: (block) => [{ need: block.scrollWidth, room: block.clientWidth }],
+    filter: (block) => [...block.children].filter((c) => c.matches(".seg:not(.sel)") && shown(c))
+      .map((seg) => ({ need: seg.scrollWidth, room: seg.clientWidth })),
+    selects: (block) => [...block.querySelectorAll(".sel-in")].filter(shown).map((sel) => {
+      const s = getComputedStyle(sel);
+      const width = wordWidth(sel);
+      const longest = Math.max(0, ...[...sel.options].map((o) => width(o.text)));
+      return { need: longest + parseFloat(s.paddingLeft) + parseFloat(s.paddingRight), room: sel.clientWidth };
+    }),
   };
   const fit = (block, kind) => {
     if (!shown(block)) return;
@@ -56,6 +65,9 @@ function start() {
     ...[...document.querySelectorAll(".header-in")].map((b) => [b, "header"]),
     ...[...document.querySelectorAll(".ctab")].map((b) => [b, "table"]),
     ...[...new Set([...document.querySelectorAll(".frow")].map((r) => r.parentElement))].map((b) => [b, "facts"]),
+    // the bar before its dropdown row: the row shows only once the bar has taken its narrow form
+    ...[...document.querySelectorAll(".fbar")].map((b) => [b, "filter"]),
+    ...[...document.querySelectorAll(".selbar")].map((b) => [b, "selects"]),
   ];
   const all = () => blocks.forEach(([b, kind]) => fit(b, kind));
   const kindOf = new Map(blocks);

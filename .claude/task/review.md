@@ -1,32 +1,29 @@
-# Review — fix/231-narrow-screens-replay — 2026-10-23
+# Review — feat/223-filter-bar — 2026-10-23
 
-diff_sha256: 2a47555e8a45ba34f751077b83f57724e8b5baef64b3d2ad61896a5e85c325a3
+diff_sha256: 0dd1e5e949b8fca22c72a35afbf95c8c67bb2d9afd0734f556581de9b192037b
 
-rounds: 4
-rounds_cap_override: approved in chat, 2026-10-23; the fourth round only recorded approvals in the contract, every finding closed
+rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every staged path is in scope_paths, including the design check's fixture added by a dated amendment.
-- The five approved pages are named; the Team and Player pages take only the shared header change, recorded with its approval; the built pages render none of the other changed elements.
-- The shared script, the fit-marked check and the Fitted block row are named in decisions_taken with their approvals; no metric, label, URL, copy, order, dependency or cost change.
-- Docs state the current state only; the decisions reserved (filter rows, Team and Player narrow forms) are not built.
+- Every changed path is in scope_paths; approved_design names the two pages whose output changes, and FilterRows renders nowhere else.
+- The copy rests on the approved #223 table and the fit rule on its approvals; the two readings are recorded; the shared script and the fit kinds add no dependency or cost.
+- Nothing touches the Team or Teams pages kept in decisions_reserved; the block standard is updated in the same branch; both pins only move down.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- No field, number, label, metric or order is added, removed or changed; the narrow table row moves the numbers under their heads and hides none.
-- Names never truncate: they wrap only between words; the 216-render sweep finds no split or overrun and no sideways scroll beyond the excluded filter rows.
-- The new block-standard rows match the CSS; the script decides layout only; the evidence covers every criterion with DOM and layout readings.
+- The bar's choices come only from the entity type and confederation the rows already carry; nothing is computed.
+- The two new keys match #223's copy table in EN, DE and FI; every other string is an existing key.
+- The hiding rules still cover every value and the sibling order holds; the block-standard rows match the CSS; the evidence covers each criterion.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- The script cannot oscillate: each measure resets to fit-one first; hidden blocks are skipped and re-measured on reveal, tab change and resize.
-- A missing or broken script fails CI: the ruled Fitted block row fails on every unmarked built page (90 failures on main's build, 0 on this build); mocks are skipped because they load no script.
-- whole-words and fit-marked parse, measure, dispatch and compare end to end, and their tests fail on revert; the fact-row gap is read from the stylesheet.
-- No dependency, credential, workflow, deploy or cache change.
+- The bar's listener on its scope runs before the fit script's document listener, so choices are synced before the re-fit; a dropdown change cannot loop.
+- The fit result depends only on visible labels and width, so resize passes settle; the dropdown row is measured only once the bar shows it.
+- Without the script the buttons show and wrap and still filter; both pin changes are decreases matching the removed lines; no dependency, workflow, deploy or cache change.
 
 ## escalations
 (none)
