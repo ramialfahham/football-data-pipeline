@@ -19,6 +19,8 @@ The "Measured as" column is a small notation, `;`-separated, one assertion each:
     press(<prop>)=<value>    the computed prop while the mouse button is down on it
     fits                     scrollWidth <= clientWidth
     one-line                 the element's text lays out on one line
+    whole-words              the element's box holds its longest word: no word splits or overruns
+    fit-marked               the page's script marked the block fit-one or fit-two (built pages)
     visible=<n>              exactly n matches are laid out
     min-box=<px>             width and height at least px
 
@@ -59,7 +61,7 @@ PROPS = (
 TOKENS = ("page", "surface", "sunk", "line", "div", "ink", "ink-2", "muted", "accent",
           "win", "draw", "loss", "pill-ink", "track")
 PX_KINDS = ("gap(next)", "gap(prev)", "min-box")
-FLAG_KINDS = ("fits", "one-line", "left-edge", "tracks")
+FLAG_KINDS = ("fits", "one-line", "whole-words", "fit-marked", "left-edge", "tracks")
 
 
 class InventoryError(ValueError):
@@ -391,6 +393,11 @@ def compare(a: Assertion, measured, tokens: dict[str, str]) -> str | None:
         return None if sw <= cw else "expected fits · measured scrollWidth %d > clientWidth %d" % (sw, cw)
     if kind == "one-line":
         return None if measured == 1 else "expected one-line · measured %d lines" % measured
+    if kind == "whole-words":
+        word, box = measured
+        return None if word <= box + 1 else "expected whole-words · longest word %.0fpx in a %.0fpx box" % (word, box)
+    if kind == "fit-marked":
+        return None if measured else "expected fit-marked · the block carries neither fit-one nor fit-two"
     if kind == "visible":
         return None if int(measured) == int(a.expected) else "expected %s · measured %d" % (a.raw, measured)
     if kind == "min-box":

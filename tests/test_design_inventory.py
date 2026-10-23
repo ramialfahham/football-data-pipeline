@@ -156,7 +156,7 @@ def test_the_committed_inventory_parses_and_is_not_empty():
     assert len(inv.pages) >= 10
     assert {p.kind for p in inv.pages} == {"built", "mock"}
     proposed = [e.name for e in inv.elements if e.status == "proposed"]
-    assert proposed == ["Breadcrumb current page", "Header row"], (
+    assert proposed == ["Breadcrumb current page"], (
         "a proposed row is measured but never fails: %s" % proposed)
     names = {e.name for e in inv.elements}
     for p in inv.pages:
@@ -257,6 +257,10 @@ def test_comparisons_name_the_expected_and_the_measured():
     assert di.compare(di.Assertion("gap(next)", None, "14px", "gap(next)=14px"), 14.8, TOKENS) is None
     assert di.compare(di.Assertion("fits", None, "", "fits"), (348, 343), TOKENS) == "expected fits · measured scrollWidth 348 > clientWidth 343"
     assert di.compare(di.Assertion("one-line", None, "", "one-line"), 2, TOKENS) == "expected one-line · measured 2 lines"
+    assert di.compare(di.Assertion("whole-words", None, "", "whole-words"), (74.0, 66), TOKENS) == "expected whole-words · longest word 74px in a 66px box"
+    assert di.compare(di.Assertion("whole-words", None, "", "whole-words"), (66.6, 66), TOKENS) is None
+    assert di.compare(di.Assertion("fit-marked", None, "", "fit-marked"), False, TOKENS) == "expected fit-marked · the block carries neither fit-one nor fit-two"
+    assert di.compare(di.Assertion("fit-marked", None, "", "fit-marked"), True, TOKENS) is None
     assert di.compare(di.Assertion("left-edge", None, "section", "left-edge=section"), 8.0, TOKENS).endswith("off the section's left")
     assert di.compare(di.Assertion("tracks", None, "head", "tracks=head"), ("32px 200px", "32px 180px"), TOKENS).startswith("expected tracks=head")
     assert di.compare(di.Assertion("visible", None, "1", "visible=1"), 3, TOKENS) == "expected visible=1 · measured 3"
