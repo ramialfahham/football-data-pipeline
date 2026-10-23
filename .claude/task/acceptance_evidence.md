@@ -1,15 +1,14 @@
-# Verification — the shared Filter bar
+# Verification — key metrics in the catalogue, cards as totals
 
-Built locally with `npm run build` in `site_v2` on the committed sample: exit 0, the site's tests
-pass (with `filterBar.test.mjs`), audit-seo checks 2,269 pages OK, check-built-pages checks 1,644
-match pages and 15,606 match rows OK. The build was served over HTTP and measured in the browser,
-each page in an iframe of the given width with the scrollbar hidden as on a phone; at 375px every
-offered combination was set through the radios and the rows left on screen were counted.
+Checked locally on the branch: the catalogue compared column by column with main's; the served
+list regenerated with the export's own `fetch_metric_rows` and read back; `dbt parse`,
+`generate_metric_sql.py --check` and `sync_metric_docs_blocks.py --check`; `npm run build` in
+`site_v2` on the committed sample, its 548 built match pages searched in EN, DE and FI; the full
+pytest suite; the design check. The MR's data build runs the models and their tests in BigQuery.
 
 criteria_demonstrated:
-  - Competitions (EN, DE, FI) offers type all|club|national and region all|UEFA|CONMEBOL|CONCACAF|CAF|AFC|OFC|FIFA; the Matches page offers region all|UEFA|CONMEBOL|CONCACAF|CAF|AFC and no type filter, because only clubs play that day; the Matches day page of 21 Aug 2026 has one region and shows no bar, and that of 26 Sep 2026 offers type all|club|national and region all|UEFA|CONCACAF.
-  - Every offered combination shows rows: Competitions 23 of 23 in each language, the Matches page 6 of 6, 26 Sep 7 of 7 with 2 impossible combinations removed; none leaves the page empty.
-  - Forms by width, 280 to 1440px: Competitions stacked dropdowns up to 430px and buttons from 700px (FI side-by-side dropdowns at 700px, buttons from 768px); the Matches page one dropdown up to 430px and buttons from 700px; 26 Sep stacked dropdowns at 280px and buttons from 375px. No render of the 81 scrolls sideways, which closes the DE filter-row exception left at 280px.
-  - In every combination set, each dropdown's value equals its checked radio (0 mismatches).
-  - The dropdowns' first options read All types / All regions (EN), Alle Arten / Alle Regionen (DE), Kaikki tyypit / Kaikki alueet (FI).
-  - `python scripts/check_design_inventory.py --dist site_v2/dist`: 24 pages × 3 viewports × 3 languages, 174 renders, 0 failures and 0 warnings, with the new Filter bar, Filter dropdown and Fitted block (`.fbar`, `.selbar`) rows.
+  - The catalogue differs from main's in two columns only: `importance_tier` renamed `is_key_metric`, true on 14 team rows (goals_per_match, goals_against_per_match, shots_per_match, shots_on_goal_per_match, shots_on_goal_against_per_match, passes_per_match, passes_accuracy_pct, passes_share_pct, duels_per_match, duels_won_pct, defensive_actions_per_match, fouls_per_match, cards_yellow, cards_red), false on the other 42 team rows, blank on the 49 player rows; `metric_order` blank on exactly shots_off_target_per_match, shots_blocked_per_match, cards_yellow_per_match and cards_red_per_match. No file in the repo names `importance_tier` any more.
+  - `metric_rows.json` holds 34 rows, every one with `is_key_metric` (14 true); the four rows are gone; cards_yellow (place 4) and cards_red (place 6) are served with `per_match: false` and format `integer`. `tests/test_metric_rows.py` pins the file to a fresh regeneration and each row's flag to the catalogue.
+  - `int_team_momentum__metrics` (regenerated from the form surface) and `mart_team_window_metrics` gain `cards_yellow` and `cards_red`, built from the catalogue formula `sum(cards_*)`; `metric_map.csv` gains their two rows; both generator checks pass. The MR's data build runs the formula and coverage tests on them.
+  - 0 of 548 built match pages show Shots off target or Blocked shots, in EN, DE or FI. The committed sample payloads carry no card totals yet, so no card row shows until the next full export.
+  - `metrics_display.md` holds the approved Key metrics section, the paired rule as approved, the team table without its Tier column, and no remaining mention of a tier; `metric_layer.md` line 21 reads as approved.

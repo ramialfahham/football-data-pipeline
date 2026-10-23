@@ -15,6 +15,7 @@ export interface ServedMetricRow {
   direction: Direction;
   format: SingleFormat;
   per_match: boolean;
+  is_key_metric: boolean;     // one of the team's key metrics, the ones a shorter list keeps
 }
 
 export interface WindowStats {

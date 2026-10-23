@@ -66,7 +66,7 @@ TEAM_FORM = (
     "shots_inside_box_per_match", "passes_accurate_per_match", "passes_share_pct", "dribbles_attempts_per_match",
     "dribbles_success_per_match", "dribbles_success_pct", "duels_won_per_match", "saves_per_match",
     "free_kicks_per_match", "fouls_per_match", "offsides_per_match", "cards_yellow_per_match",
-    "cards_red_per_match",
+    "cards_red_per_match", "cards_yellow", "cards_red",
 )
 TEAM_SEASON = TEAM_COUNTS + tuple(m for m in TEAM_FORM if m not in TEAM_COUNTS) + (
     "clean_sheets_pct", "points_capture_pct", "shots_share_pct", "shots_on_goal_difference_per_match",

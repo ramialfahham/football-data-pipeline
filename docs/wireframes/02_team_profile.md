@@ -128,7 +128,7 @@ signal (styled accordingly). All < 2 → module omitted.
 ### (8) Season metrics — the locked 16-row contract, single-value layout
 
 Label + one value per row (no comparison bars — single team), group subheads,
-same order/tiers as [`metrics_display.md`](metrics_display.md). Each row's name is its key's entry in
+same order as [`metrics_display.md`](metrics_display.md). Each row's name is its key's entry in
 `site_v2/src/i18n/strings.ts`. Available today:
 
 | JSON key (season variant) |

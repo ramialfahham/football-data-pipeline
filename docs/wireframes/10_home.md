@@ -259,7 +259,7 @@ there is no volume metric to rank on. The existing `>= 3 finished games` gate on
 `int_team_competition_benchmark_metrics_long` is the small-sample guard, and it is the same number
 as the pool-selection gate below.
 
-Excluded deliberately: **Set pieces** and **Goalkeeping** (thin, no tier-1 metric), and the
+Excluded deliberately: **Set pieces** and **Goalkeeping** (thin, no key metric), and the
 Outcomes metrics `league_rank` and `deserved_rank`, which are the standings the table page owns.
 
 ⛔ **SUPERSEDED 2026-08-10 — the paragraph below is about the REMOVED % Points captured board.**

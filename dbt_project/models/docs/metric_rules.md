@@ -3,7 +3,7 @@ Every metric we compute, one row per metric and entity (a team or a player). A r
 metric means (description) and how it is computed (base_relation, numerator_expr, denominator_expr,
 computation_kind). It also holds the key of its name (label_i18n_key) and which way is better
 (direction, interpretation). How it is shown is format, metric_group, metric_group_order,
-metric_order and importance_tier. Every
+metric_order and is_key_metric. Every
 model that computes a metric follows its row's formula. A row is window-free: which matches a
 metric counts, and when its value is blank, are the rules below, never part of a row.
 

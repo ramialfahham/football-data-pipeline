@@ -243,7 +243,7 @@ seeds:
     config:
       +full_refresh: true
       column_types:
-        importance_tier: int64
+        is_key_metric: boolean
         metric_group_order: int64
         metric_order: int64
     tests:
@@ -363,21 +363,15 @@ seeds:
           Where the metric sits inside its group on every surface that shows it: 1 first. Blank
           for a metric that no surface shows. No two metrics of one entity and group share a
           position.
-      - name: importance_tier
+      - name: is_key_metric
         description: >
-          Display importance: 1 = survives on a compact surface, 2 = standard, 3 = depth. Tier
-          never reorders anything; it gates visibility when space is short. Populated on every row,
-          team and player alike.
-
-          The rubric: the core stat line is tier 1, including both the raw counts and their
-          headline percentage; a per-90 sits one tier below its own total; breakdowns and rare
-          events are tier 3. Redundancy at tier 1 is deliberate — goals, assists and scorer_points
-          are all 1, because tier means importance, not deduplication.
+          Whether the metric is one of its entity's key metrics: a page that shows fewer metrics shows
+          the key ones, and the order never changes with it. Set on every team row; blank on player
+          rows until their key metrics are set.
         tests:
-          - not_null
-          - accepted_values:
-              values: [1, 2, 3]
-              quote: false
+          - not_null:
+              config:
+                where: "entity = 'team'"
       - name: direction
         description: >
           Which way is better: higher_better, lower_better, or neutral. It is what turns a rank or

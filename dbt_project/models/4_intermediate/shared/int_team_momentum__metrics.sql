@@ -317,7 +317,17 @@ select
     safe_divide(
         if(logical_and(is_awarded_result or cards_red is not null), sum(if(is_awarded_result, null, cards_red)), null),
         countif(not is_awarded_result)
-    ) as cards_red_per_match
+    ) as cards_red_per_match,
+    if(
+        logical_and(is_awarded_result or cards_yellow is not null),
+        sum(if(is_awarded_result, null, cards_yellow)),
+        null
+    ) as cards_yellow,
+    if(
+        logical_and(is_awarded_result or cards_red is not null),
+        sum(if(is_awarded_result, null, cards_red)),
+        null
+    ) as cards_red
     -- end of generated metric sql
 from window_rows
 group by

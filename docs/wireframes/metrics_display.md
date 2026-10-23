@@ -1,49 +1,20 @@
-# Metric display contract — groups, tiers, order (#391)
+# Metric display contract — groups, order
 
 > The CPO-ruled display contract for metric lists everywhere they render (fixture
 > comparison, team profile, player profile, leaderboards). The
 > `metric_catalogue.csv` seed stays the single source of metric definitions (the
 > SSoT); this document records the **display**
-> rulings (grouping, importance tier, order) until they are codified as catalogue
+> rulings (grouping, order) until they are codified as catalogue
 > columns (GAP-09). **Team table: LOCKED (CPO, 2026-06-11). Player rows: LOCKED
 > (CPO, 2026-06-11).**
 
-## Tier semantics (ruled)
+## Key metrics (ruled)
 
-> **Tiers now live in `metric_catalogue.csv`, and they cover players (CPO, 2026-08-04).**
-> The seed carries a tier on all 85 rows. This section keeps the SEMANTICS; the values are in
-> the seed. The order of the groups is the catalogue's `metric_group_order`. The order inside a
-> group is the catalogue's `metric_order` on the match page's Form comparison, the Rankings and Home. On the team page it
-> is the team table below.
+Every catalogue row says whether it is a key metric (`is_key_metric`). Team and player rows decide separately.
 
-1. **Tier never orders.** Display order is fixed once. It is the order the note above names.
-2. **Tier = visibility under constraint.** Surfaces that cannot show the full list
-   (home fixture hooks, teaser cards) show only tier-1 rows, in the same order.
-   Full pages show all rows.
-3. Optional in-place progressive disclosure: tier-3 rows may collapse behind a
-   "show all stats" expander, reappearing exactly where they sit in the order.
-   Design call (#366), not a data rule.
-
-**Tier applies to players too.** This supersedes the 2026-06-11 ruling below that tiers are a
-team-only concept because player importance is position-dependent. CPO override, 2026-08-04: a
-tier states what a FAN wants to see, which is a product judgement rather than a statistical claim,
-and that judgement is as available for a player metric as for a team one.
-
-The rubric, as his rulings established it:
-
-- **Tier 1 is the core stat line** — the raw counts AND their headline percentage. Passes,
-  accurate passes and pass accuracy are all 1; so are duels, duels won and duels won %.
-- **A per-90 sits one tier below its own total.** Goals is 1, goals per 90 is 2.
-- **Tier 3 is breakdowns and rare events** — penalties won, penalties committed, own goals,
-  open-play/penalty goal splits.
-- **Redundancy at tier 1 is deliberate.** Goals, assists and scorer points are all 1. Tier means
-  importance, not deduplication.
-
-Tier-1 selection principle for TEAM metrics, unchanged from 2026-06-11: outcomes + the
-highest-signal quality metrics, and only rows with near-universal data coverage
-(scoreline/team-stat derived). The "never player-stat derived" half of that principle governed
-which TEAM rows qualify on a compact surface; it never barred player metrics from having tiers of
-their own, and does not now.
+1. **The flag never orders.** The order is the catalogue's `metric_group_order` and `metric_order`, with or without the flag.
+2. **A page that shows fewer metrics shows the key ones.** On the Team page, the comparison tables show the key metrics; the switch "Show all metrics" shows every metric in its place.
+3. **The key team metrics:** Goals, Goals against, Shots, Shots on target, Shots on target against, Passes, Pass accuracy, Possession, Duels, Duels won (percentage), Defensive actions, Fouls, Yellow cards, Red cards.
 
 ## Composite-row patterns (ruled)
 
@@ -51,8 +22,8 @@ their own, and does not now.
   mechanisms by surface: team comparisons use an **adjacent count row** in the
   same block (Duels before Duels won percentage); player bundles use the **inline full
   triple** `{num} of {den} · {pct}%`.
-- **Context pairs travel together**: a count that contextualizes a percentage
-  (Duels before Duels won percentage) shares the percentage's tier — never separated.
+- **Context pairs travel together**: a count and its percentage are key together
+  (Duels before Duels won percentage), never separated.
 - **Aggregates with breakdown**: defensive actions render as one number with the
   atomic breakdown as sub-display — `26.4` + `15 T · 9 I · 3 B` (the player
   defensive-actions bundle pattern).
@@ -123,29 +94,27 @@ Display order top to bottom. MVP rows keep their relative order; new blocks slot
 into the spine. **Block order is the catalogue's** `metric_group_order` (CPO, 2026-09-21, #152;
 `docs/metric_layer.md`, "A group is defined once"): Goals → Shooting → Passing → One-on-one →
 Defending → Goalkeeping → Set pieces → Discipline → Results → Playing time, on every surface. The
-group this table calls Duels is One-on-one. Row order WITHIN a block on the team page and the tiers
-are what this table locks.
+group this table calls Duels is One-on-one. Row order WITHIN a block on the team page is what this
+table locks.
 
-| # | metric_id | Group | Tier | Status |
-|---|---|---|---|---|
-| 1 | `goals_per_match` | Goals | 1 | live |
-| 2 | `goals_against_per_match` | Goals | 1 | live |
-| 3 | `clean_sheets` (fixture windows) · `clean_sheets_pct` (team page) | Goals | 2 | live |
-| 4 | `shots_per_match` | Shooting | 2 | live |
-| 5 | `shots_inside_box_pct` | Shooting | 2 | live |
-| 6 | `shots_on_target_per_match` | Shooting | 1 | **new** (GAP-11) |
-| 7 | `finishing_efficiency_pct` | Shooting | 1 | live |
-| 8 | `duels_per_match` | One-on-one | 2 | **new** (GAP-11) |
-| 9 | `duels_won_pct` | One-on-one | 2 | live |
-| 10 | `defensive_actions_per_match` | Defending | 2 | **new aggregate** (GAP-11) |
-| 11 | `passes_per_match` | Passing | 3 | live |
-| 12 | `passes_accuracy_pct` | Passing | 2 | live |
-| 13 | `passes_key_per_match` | Passing | 2 | live |
-| 14 | `corners_per_match` | Set pieces | 3 | live |
-| 15 | `corners_against_per_match` | Set pieces | 3 | live |
-| 16 | `saves_pct` | Goalkeeping | 2 | live |
-
-Tier shape: 4 × tier 1 (rows 1, 2, 6, 7) · 9 × tier 2 · 3 × tier 3.
+| # | metric_id | Group | Status |
+|---|---|---|---|
+| 1 | `goals_per_match` | Goals | live |
+| 2 | `goals_against_per_match` | Goals | live |
+| 3 | `clean_sheets` (fixture windows) · `clean_sheets_pct` (team page) | Goals | live |
+| 4 | `shots_per_match` | Shooting | live |
+| 5 | `shots_inside_box_pct` | Shooting | live |
+| 6 | `shots_on_target_per_match` | Shooting | **new** (GAP-11) |
+| 7 | `finishing_efficiency_pct` | Shooting | live |
+| 8 | `duels_per_match` | One-on-one | **new** (GAP-11) |
+| 9 | `duels_won_pct` | One-on-one | live |
+| 10 | `defensive_actions_per_match` | Defending | **new aggregate** (GAP-11) |
+| 11 | `passes_per_match` | Passing | live |
+| 12 | `passes_accuracy_pct` | Passing | live |
+| 13 | `passes_key_per_match` | Passing | live |
+| 14 | `corners_per_match` | Set pieces | live |
+| 15 | `corners_against_per_match` | Set pieces | live |
+| 16 | `saves_pct` | Goalkeeping | live |
 
 ### Where these strings live, and what the `metric_id` column above really holds (#370, 2026-07-31)
 
@@ -220,13 +189,7 @@ is blank are the catalogue table's rules.
 The player display unit is the **bundled row** (1–3 related atomics per row with a
 defined display string) — NOT one metric per row. That part stands.
 
-⚠ **The "no tiers" half of this ruling was overridden on 2026-08-04.** It held that tiers are a
-team-only concept because player importance is position-dependent and the provider's metric scope
-cannot ground a per-position importance claim. Every player metric now carries a tier in
-`metric_catalogue.csv`, on the CPO's reasoning that a tier is a judgement about what a fan wants
-to see rather than a statistical claim. See the tier-semantics section above for the rubric.
-
-Per-surface rules still apply where a surface needs an ordering the tier does not give (e.g. the
+Per-surface rules still apply where a surface needs an ordering of its own (e.g. the
 fixture top-players strip ranks goals → assists → key passes, GK variant saves_player + save %).
 
 Changes vs the legacy player rows (definitions / formulas now live in the
@@ -259,8 +222,7 @@ mixes groups; (3) ratio displays standardized to the full triple
 ## Data work implied (see 99_gaps_register.md)
 
 - **GAP-09** — catalogue columns: `metric_group` (all atomics, team + player),
-  `importance_tier` (on every row since 2026-08-04), `metric_group_order` (landed with #152;
-  the values are #152's ruling, not this document's block order).
+  `is_key_metric` and `metric_group_order`.
 - **GAP-10** — `wins`/`draws`/`losses` columns in `mart_team_season_record`
   (the W2 counts display).
 - **GAP-11** — new team metrics (`clean_sheets` in both window marts,
@@ -282,12 +244,9 @@ mixes groups; (3) ratio displays standardized to the full triple
 | 2026-06-11 | Groups = MVP blocks; MVP row order untouched; new metrics slot into blocks. |
 | 2026-06-11 | Duels + Defending blocks placed before Passing. |
 | 2026-06-11 | Clean sheets added (new metric); team dribbles dropped; T·I·B aggregated. |
-| 2026-06-11 | Ø Duels added as context row before % Duels won; context pairs share a tier. |
 | 2026-06-11 | Shooting block reshaped: Ø shots, % from box, Ø shots on target (new), finishing; `shots_on_goal_pct` unrendered; finishing relabeled (fix "a"). |
-| 2026-06-11 | Tier 1 = goals, goals against, shots on target, finishing. Duels stay tier 2 (coverage + discrimination + compact-surface budget). |
 | 2026-06-11 | W1 = form pills; W2 = W/D/L counts (GAP-10). |
 | 2026-06-11 | Player display unit = the bundled rows (legacy player catalogue); resequenced into shared block order; groups inherited from atomics (no mixed bundles). |
-| 2026-06-11 | **No tiers for players** — position-dependent importance can't be grounded in the provider's metric scope; compact surfaces use per-surface rules. |
 | 2026-06-11 | No naked percentage: player ratio rows standardized to `{num} of {den} · {pct}%`; GK row gains the triple (`saves_player`, `shots_on_target_faced` atomics). Team comparisons keep single % values — adjacent count rows provide the volume. |
 | 2026-06-11 | W2's user-facing name = "through matchday N" (mart name stays internal); the W1/W2 toggle states carry explicit scope labels (cross-comp vs within-comp) per the context matrix. |
 | 2026-06-11 | Tournament window exception (cumulative + qualifier preview) confirmed as the matrix rule for display; found unimplemented in the new window marts → GAP-18, scheduled before WC 2026. |

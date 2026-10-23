@@ -2271,15 +2271,16 @@ def fetch_metric_groups(seed_path: str = CATALOGUE_SEED_PATH) -> dict:
 
 def fetch_metric_rows(seed_path: str = CATALOGUE_SEED_PATH, map_path: str = METRIC_MAP_PATH) -> dict:
     """metric_rows.json — the rows of the match page's Form comparison: every team metric
-    mart_team_window_metrics serves outside the Results group, in group order and then the catalogue's
-    `metric_order`. A selection from the seeds, no BigQuery."""
+    mart_team_window_metrics serves outside the Results group that has a place (`metric_order`), in
+    group order and then that place, each with its key flag. A selection from the seeds, no BigQuery."""
     import csv
 
     with open(map_path, encoding="utf-8") as f:
         served = {r["metric_id"] for r in csv.DictReader(f) if r["table_name"] == "mart_team_window_metrics"}
     with open(seed_path, encoding="utf-8") as f:
         rows = [r for r in csv.DictReader(f)
-                if r["entity"] == "team" and r["metric_id"] in served and r["metric_group"] != "outcomes"]
+                if r["entity"] == "team" and r["metric_id"] in served and r["metric_group"] != "outcomes"
+                and r["metric_order"]]
     rows.sort(key=lambda r: (int(r["metric_group_order"]), int(r["metric_order"])))
     return {"type": "metric_rows", "rows": [
         {"metric_id": r["metric_id"],
@@ -2288,7 +2289,8 @@ def fetch_metric_rows(seed_path: str = CATALOGUE_SEED_PATH, map_path: str = METR
          "metric_order": int(r["metric_order"]),
          "direction": r["direction"],
          "format": r["format"],
-         "per_match": _per_match(r)}
+         "per_match": _per_match(r),
+         "is_key_metric": r["is_key_metric"] == "true"}
         for r in rows]}
 
 
