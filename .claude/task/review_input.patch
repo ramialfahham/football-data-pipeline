@@ -1,435 +1,142 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 8e34e50a..b7f53325 100644
+index b7f53325..dbf4425c 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,31 +1,28 @@
--# Task contract — the shared fold
-+# Task contract — one page width
+@@ -1,30 +1,18 @@
+-# Task contract — one page width
++# Task contract — the goals of CAF match 1639347
  
  objective: >
--  The site's fold keeps its control between the shown and the revealed rows and reads "Show all
--  {n}" when open. Make it one shared, scriptless fold whose control stays under the shown rows and
--  reads "Show less" once open, on every page that renders it: Home, the Matches page and the
--  Matches day page.
-+  The header, the content and the footer share one maximum width of 960px on every page whose
-+  design is approved; the pages keep their one column. The Team page and the Player page keep
-+  today's widths (content 680px, header and footer 1100px) until their own designs are approved.
-+  The design check measures the width.
+-  The header, the content and the footer share one maximum width of 960px on every page whose
+-  design is approved; the pages keep their one column. The Team page and the Player page keep
+-  today's widths (content 680px, header and footer 1100px) until their own designs are approved.
+-  The design check measures the width.
++  CAF Champions League match 1639347, Young Africans 4–1 CFFA (second preliminary round, second
++  leg), serves its five goals from fixture_goal_corrections, each sourced, so its goals add up to
++  its score; assert_mart_competition_fixtures_goals_add_up and assert_result_corrections_applied
++  pass and mart_match_days builds again in the nightly.
  
  refs: >
--  #221, the shared fold (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/221);
--  #127, Home's approved design; #130, the Matches page's approved design; #133, the Teams page's
--  approved design, which names this fold. Mock and plan approved in chat, 2026-10-19.
-+  #224, one page width (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/224),
-+  design and build scope approved in chat, 2026-10-20; #127, #128, #129, #130 and #132, the
-+  approved designs of the pages that change. Plan approved in chat, 2026-10-20.
+-  #224, one page width (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/224),
+-  design and build scope approved in chat, 2026-10-20; #127, #128, #129, #130 and #132, the
+-  approved designs of the pages that change. Plan approved in chat, 2026-10-20.
++  #232, the match's goals
++  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/232), fix and plan
++  approved in chat, 2026-10-23.
  
  scope_paths:
--  - site_v2/src/components/ui/Fold.astro
--  - site_v2/src/components/home/HeroFixtures.astro
--  - site_v2/src/components/matches/MatchesDay.astro
-   - site_v2/src/styles/system.css
--  - site_v2/src/i18n/strings.ts
--  - site_v2/src/specs/index.spec.json
--  - site_v2/src/specs/matches/index.spec.json
--  - site_v2/src/specs/matches/day.spec.json
-+  - site_v2/src/layouts/Layout.astro
-+  - site_v2/src/pages/[[]lang]/[[]teams]/[[]team].astro
-+  - site_v2/src/pages/[[]lang]/[[]players]/[[]player].astro
-+  - scripts/design_inventory.py
-+  - tests/test_design_inventory.py
-   - docs/wireframes/block_standard.md
-+  - docs/wireframes/00_overview.md
-+  - docs/wireframes/08_browse.md
-+  - docs/wireframes/09_chrome.md
-   - docs/wireframes/10_home.md
--  - design-mocks/gen_home.py
--  - design-mocks/gen_matches_hub.py
--  - design-mocks/check_home.py
--  - tests/test_no_decision_history_in_code.py
-   - tests/test_no_decision_history_in_docs.py
-   - tests/test_sentence_length_in_docs.py
+-  - site_v2/src/styles/system.css
+-  - site_v2/src/layouts/Layout.astro
+-  - site_v2/src/pages/[[]lang]/[[]teams]/[[]team].astro
+-  - site_v2/src/pages/[[]lang]/[[]players]/[[]player].astro
+-  - scripts/design_inventory.py
+-  - tests/test_design_inventory.py
+-  - docs/wireframes/block_standard.md
+-  - docs/wireframes/00_overview.md
+-  - docs/wireframes/08_browse.md
+-  - docs/wireframes/09_chrome.md
+-  - docs/wireframes/10_home.md
+-  - tests/test_no_decision_history_in_docs.py
+-  - tests/test_sentence_length_in_docs.py
++  - dbt_project/seeds/fixture_goal_corrections.csv
    - .claude/task/contract.md
-@@ -36,40 +33,44 @@ scope_paths:
+   - .claude/task/review.md
+   - .claude/task/review_input.patch
+@@ -32,46 +20,37 @@ scope_paths:
+   - .claude/task/rendered_page_evidence.md
  
  impact_map: >
-   writers: no data writer changes; the export and every payload are untouched.
--  downstream: the fold markup is rendered by HeroFixtures.astro (Home) and MatchesDay.astro (the
--  Matches page and the Matches day page), its only two renderers (git grep fxmore). The new
--  Fold.astro has these two importers. The .fxmore rules in system.css have no other reader; the
--  mocks gen_home.py and gen_matches_hub.py inline system.css and emit the fold, so they move with
--  it.
--  layer_rules: presentation only; the rows, their count and their order are what the page is served.
-+  downstream: .inner is the content column of every page (git grep 'class="inner'): Home,
-+  Competitions, a competition's overview, matchdays and rankings, the Matches page and the Matches
-+  day page (MatchesDay.astro), the match page, the Team page and the Player page. .header-in and
-+  .footer-in are rendered once each by SiteHeader.astro and SiteFooter.astro inside Layout.astro,
-+  which every page except the root redirect stub uses. .shell has no reader. The design check reads
-+  block_standard.md through design_inventory.py.
-+  layer_rules: presentation only; what each page is served and its order are unchanged.
-   deploy_order: none; deploy:site-v2 is manual and builds from the export.
--  blast_radius: the three locale Home pages, Matches pages and Matches day pages; the fold's markup
--  and its CSS; one new copy key in EN, DE and FI.
-+  blast_radius: the width of the content column, the header row and the footer on every approved
-+  page in EN, DE and FI; the Team and Player pages unchanged; one new Layout prop; one new measured
-+  property in the design check.
+-  writers: no data writer changes; the export and every payload are untouched.
+-  downstream: .inner is the content column of every page (git grep 'class="inner'): Home,
+-  Competitions, a competition's overview, matchdays and rankings, the Matches page and the Matches
+-  day page (MatchesDay.astro), the match page, the Team page and the Player page. .header-in and
+-  .footer-in are rendered once each by SiteHeader.astro and SiteFooter.astro inside Layout.astro,
+-  which every page except the root redirect stub uses. .shell has no reader. The design check reads
+-  block_standard.md through design_inventory.py.
+-  layer_rules: presentation only; what each page is served and its order are unchanged.
+-  deploy_order: none; deploy:site-v2 is manual and builds from the export.
+-  blast_radius: the width of the content column, the header row and the footer on every approved
+-  page in EN, DE and FI; the Team and Player pages unchanged; one new Layout prop; one new measured
+-  property in the design check.
++  writers: the seed fixture_goal_corrections, read by base_apif__fixture_events.
++  downstream: base_apif__fixture_events and every model built from it (dbt ls --select
++  fixture_goal_corrections+), among them fct_fixture_event, mart_competition_fixtures and
++  mart_match_days; only the rows of fixture 1639347 change.
++  layer_rules: a seed row per goal, applied in base as the seed's description states; no model
++  changes.
++  deploy_order: none; the nightly rebuilds prod from main.
++  blast_radius: one match's goals in every mart that serves goals; mart_match_days, skipped by the
++  nightly while the goals test failed, builds again.
  
  approved_design:
-   - home: #127
-+  - competitions: #128
-+  - competition: #129
-   - matches: #130
-+  - match: #132
+-  - home: #127
+-  - competitions: #128
+-  - competition: #129
+-  - matches: #130
+-  - match: #132
++  - none: no page output changes
  
  acceptance_criteria:
--  - "On Home, the Matches page and the Matches day page, a competition with more than three matches shows its first three, then 'Show all {n}' with the chevron pointing down; n is the competition's match count."
--  - "Opened, the remaining matches follow the third directly in the same list, with the same divider between every two rows and no extra line or gap."
--  - "Opened, the control sits under the last match and reads 'Show less' (DE 'Weniger anzeigen', FI 'Näytä vähemmän') with the chevron pointing up; clicking it closes the list."
--  - "The fold needs no JavaScript, and every match row is in the page's HTML."
--  - "The design check measures the Fold on Home, the Matches page and the Matches day page at 375, 700 and 1010 px."
-+  - "At 1440px, on every approved page in EN, DE and FI, the header, the content and the footer are 960px wide and share both edges."
-+  - "The Team page and the Player page measure as on main: content 680px, header and footer 1100px."
-+  - "At 375px every page measures as on main."
-+  - "No page scrolls sideways and the header fits, at 700, 800, 1010 and 1440px, in EN, DE and FI."
-+  - "The design check's Page width row passes on every built page it lists."
+-  - "At 1440px, on every approved page in EN, DE and FI, the header, the content and the footer are 960px wide and share both edges."
+-  - "The Team page and the Player page measure as on main: content 680px, header and footer 1100px."
+-  - "At 375px every page measures as on main."
+-  - "No page scrolls sideways and the header fits, at 700, 800, 1010 and 1440px, in EN, DE and FI."
+-  - "The design check's Page width row passes on every built page it lists."
++  - "fixture_goal_corrections holds five rows for fixture 1639347 in match order, each with its team, scorer, minute, event detail, source kind, source URLs and note."
++  - "In the MR's data build, assert_mart_competition_fixtures_goals_add_up and assert_result_corrections_applied pass."
++  - "In the MR's data build, mart_match_days builds and assert_mart_match_days_is_the_matches_page_reach passes."
  
  decisions_taken: >
--  Plan approved in chat, 2026-10-19: the copy EN "Show less", DE "Weniger anzeigen", FI "Näytä
--  vähemmän" under the key homeShowLess; the fold is the site's existing scriptless checkbox toggle
--  (the filters' and tabs' pattern), so a closed fold is not opened by the browser's find-in-page;
--  the texts of the block standard's Fold row and of 10_home.md §5 are the ones in the approved plan.
--  No new mechanism, no recurring cost.
-+  Approved in chat, 2026-10-20: one width of 960px for the header, the content and the footer; the
-+  Team and Player pages keep today's widths until their designs are approved. The unused .shell
-+  follows the one width. The two pages opt out through a Layout prop that sets a body class; no new
-+  dependency, no recurring cost.
+-  Approved in chat, 2026-10-20: one width of 960px for the header, the content and the footer; the
+-  Team and Player pages keep today's widths until their designs are approved. The unused .shell
+-  follows the one width. The two pages opt out through a Layout prop that sets a body class; no new
+-  dependency, no recurring cost.
++  Approved in chat, 2026-10-23: the five goals as CAF's match report and two Malagasy match reports
++  give them. Reading of the seed's rule: the four Young Africans goals are official, from CAF's
++  match report; CFFA's goal is match_reports, because CAF's report names no scorer and Newsmada and
++  Midi Madagasikara both name Fitahantsoa Albertini. Its minute is CAF's. No new dependency, no
++  recurring cost.
  
- decisions_reserved:
--  - none: the Teams page renders this fold in its own build (#222).
-+  - The Team page's width (#134) and the Player page's width (#136), each in its own design review.
+-decisions_reserved:
+-  - The Team page's width (#134) and the Player page's width (#136), each in its own design review.
++decisions_reserved: (none)
  
  done_when:
-   - npm run build in site_v2 passes (prebuild tests, astro build, audit-seo, check-built-pages).
--  - python scripts/check_design_inventory.py --dist site_v2/dist passes for Home, the Matches page and the Matches day page at 375, 700 and 1010px.
-+  - python scripts/check_design_inventory.py --dist site_v2/dist passes.
+-  - npm run build in site_v2 passes (prebuild tests, astro build, audit-seo, check-built-pages).
+-  - python scripts/check_design_inventory.py --dist site_v2/dist passes.
++  - dbt parse passes.
    - The full pytest suite and the offline gates pass.
    - Reviewers per review_routing.json pass.
++  - data:build:mr passes and the prod comparison of the match's served goals goes to the CPO.
  
-diff --git a/docs/wireframes/00_overview.md b/docs/wireframes/00_overview.md
-index 042ee8e6..1d107509 100644
---- a/docs/wireframes/00_overview.md
-+++ b/docs/wireframes/00_overview.md
-@@ -116,17 +116,14 @@ not any one screen:
- | Breakpoint | What changes |
- |---|---|
- | **≥ 700px** | `.mainnav` goes inline in the header; the hamburger (`.hamburger`) and mobile drawer (`.drawer`) hide. |
--| **≥ 900px** | The generic page grid (`.shell > .page-grid { main + aside.rail }`) goes two columns (`minmax(0,1.9fr) minmax(0,1fr)`), rail gets a left border. Max content width **~1100px** (`.shell`/`.header-in`/`.footer-in`). |
-+| **≥ 900px** | The generic page grid (`.shell > .page-grid { main + aside.rail }`) goes two columns (`minmax(0,1.9fr) minmax(0,1fr)`), rail gets a left border. Max width **960px**, the site's one width (`.shell`/`.header-in`/`.footer-in`/`.inner`). |
- | **≥ 1010px** | The header search box (`.searchbox`) becomes a full field; the icon-only mobile search button (`.search-m`) hides. |
- 
- `.shell`/`.page-grid`/`.rail` is a **generic primitive**, not wired into any page yet — which
- pages get a rail and what fills it is reserved (per-page rail contents, `.claude/task/contract.md`).
--It is distinct from the team/fixture pages' own `.inner` (680px, single column, locked from the
--CPO-approved mocks `d70aae67`/`f6348775`) — those two pages are unchanged by the foundation shell
--and do not use `.page-grid`. **Open gap**: the original wireframes (01, 02) call for those two
--pages themselves to widen to ~1100px on desktop with an internal two-column reflow; that has not
--been built, and closing it means changing an already-shipped page's width — a separate decision,
--not made here. See 09_chrome.md §10 for the full note.
-+It is distinct from `.inner`, the single column every page renders. The site has one width,
-+960px, for `.inner`, `.header-in` and `.footer-in`. A page whose new design is not yet approved
-+keeps the earlier widths, 680px and 1100px, through the `legacyWidth` prop of `Layout.astro`.
- 
- ## Screen inventory
- 
-diff --git a/docs/wireframes/08_browse.md b/docs/wireframes/08_browse.md
-index 0f052952..9ea6b8f4 100644
---- a/docs/wireframes/08_browse.md
-+++ b/docs/wireframes/08_browse.md
-@@ -54,12 +54,8 @@ csv`, `confederations.csv`, `dim_league`) — `docs/content_architecture.md` §1
- └────────────────────────────────────────────┘
- ```
- 
--Single column at the standard 680px `.inner` measure — the mock's 1080px override was flagged in
--#54 as "a system-level decision, not a page one... flagged for a ruling" and never actually ruled
--on, so this ships at the width every other page uses rather than carrying an unresolved system
--change. Row grid is `repeat(auto-fill, minmax(280px, 1fr))` — "as many as fit" per #54's spec,
--which naturally yields 2 columns at 680px rather than the mock's 3-at-1100px, since the container
--itself is narrower here.
-+Single column at the site's one width, the 960px `.inner`. Row grid is
-+`repeat(auto-fill, minmax(280px, 1fr))`, as many as fit: three columns at 960px.
- 
- ## 5. Module bindings
- 
-diff --git a/docs/wireframes/09_chrome.md b/docs/wireframes/09_chrome.md
-index defd84dd..e655fc92 100644
---- a/docs/wireframes/09_chrome.md
-+++ b/docs/wireframes/09_chrome.md
-@@ -49,12 +49,12 @@ lives in the drawer (`#menuBtn` toggles `.drawer.open`), closed by default.
- hidden — there is no drawer state to open on a laptop-width screen.
- 
- **≥ 900px**: a generic two-column page grid (`.shell > .page-grid { main | aside.rail }`, max
--content width ~1100px, rail border-left) becomes available for any page that needs a context rail
-+width 960px, rail border-left) becomes available for any page that needs a context rail
- alongside its main content. **Not wired into any page this task** — home, competition hub, and
- leaderboards are the candidates (per the home-content mock `1c35e7aa`'s rail: standings/
- trending/top-scorers), but per-page rail contents is a reserved CPO call (`.claude/task/contract.md`).
--The team and fixture pages keep their existing locked single column (`.inner`, 680px, unchanged) —
--see §10 for the open gap this leaves.
-+Every page renders one column, `.inner`, 960px wide like the header and the footer. A page whose
-+new design is not yet approved keeps the earlier widths, 680px and 1100px (`legacyWidth`).
- 
- **≥ 1010px**: the search box becomes a full field with placeholder text (`.searchbox`); the
- icon-only mobile search button (`.search-m`) hides.
-@@ -132,14 +132,9 @@ New this task, added to the aggregate census in `00_overview.md`:
- 
- ## 10. Gaps
- 
--Not a data gap (chrome has no export dependency, §3) — two open, non-data items, recorded here
-+Not a data gap (chrome has no export dependency, §3) — one open, non-data item, recorded here
- rather than silently resolved:
- 
--- **Team/fixture desktop width.** The original wireframes (`01_fixture_page.md` §4,
--  `02_team_profile.md` §4) call for those two pages themselves to widen to ~1100px on desktop with
--  an internal two-column reflow. Today they still render at the locked 680px `.inner` single
--  column (unchanged by this task — see §4 above). Closing this means changing an already-shipped,
--  CPO-approved page's width, which is a design decision outside this task's contract.
- - **Rail contents.** The `.page-grid`/`.rail` primitive exists but is wired into zero pages. The
-   home-content mock (`1c35e7aa`, reference only) shows one candidate rail (standings/trending/
-   top-scorers) for the eventual home page — CPO decides per page type when that page is built.
-diff --git a/docs/wireframes/10_home.md b/docs/wireframes/10_home.md
-index 4556387c..f2d5e8d2 100644
---- a/docs/wireframes/10_home.md
-+++ b/docs/wireframes/10_home.md
-@@ -745,7 +745,7 @@ into the single column in the order drawn above.~~
- 
- ⛔ **SUPERSEDED and never built.** Browse is not in a rail; it was the last block in the single
- column at every width, and neither of the blocks that were to sit beside it still exists. The page
--does not use `.page-grid` at all — it uses `.inner`, the 680px single column. Whether the home page
-+does not use `.page-grid` at all — it uses `.inner`, the 960px single column. Whether the home page
- ever adopts the two-column shell is part of the undecided layout question above. ⛔ **Browse itself
- is dropped 2026-08-19** — this whole rail question is now moot for it specifically, though it
- remains open for whatever Top players/Top teams end up needing.
-diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
-index a3c87504..2a1b93c7 100644
---- a/docs/wireframes/block_standard.md
-+++ b/docs/wireframes/block_standard.md
-@@ -108,6 +108,7 @@
- | Fold | `.fold-ctl` | Under a list's shown rows: "Show all {n}" closed, "Show less" open, with the chevron down or up: 13px semi-bold ink-2 | `font-size=13px; font-weight=600; color=ink-2` | ruled | the shared fold review |
- | Search field | `.header-actions .searchbox` | the header's search field with its placeholder, one on every page from 1010px, where it replaces the search button; on one line in every language, nothing spilling out of it | `visible=1 [>=1010px]; visible=0 [<1010px]; one-line; fits` | ruled | `09_chrome.md` (≥ 1010px: the full field) |
- | Search button | `.iconbtn.search-m` | the header's icon-only search button below 1010px, a 34px target; gone from 1010px | `visible=1 [<1010px]; visible=0 [>=1010px]; min-box=34px` | ruled | `09_chrome.md` (phone: the search icon) |
-+| Page width | `body:not(.legacy-width) :is(.header-in, .footer-in)` | the header row and the footer share the content column's one width, 960px; a page awaiting its new design keeps the earlier widths | `max-width=960px` | ruled | the page width review |
- | Header row | `.header-in` | the header's brand, menu and controls fit its row, nothing pushed off the side | `fits` | proposed | measured, never fails: every page scrolls sideways at 700px today because of the header's controls, and fixing that is the CPO's call |
- 
- Not measured, still the rule: the header is identical on every tab (crest · name · meta line) and
-diff --git a/scripts/design_inventory.py b/scripts/design_inventory.py
-index f8f59858..d5baef35 100644
---- a/scripts/design_inventory.py
-+++ b/scripts/design_inventory.py
-@@ -54,6 +54,7 @@ FI_MODES = ("path", "toggle", "none")
- PROPS = (
-     "font-size", "font-weight", "text-transform", "letter-spacing", "line-height", "white-space",
-     "text-decoration-line", "color", "background-color", "border-bottom-width", "margin-top",
-+    "max-width",
- )
- TOKENS = ("page", "surface", "sunk", "line", "div", "ink", "ink-2", "muted", "accent",
-           "win", "draw", "loss", "pill-ink", "track")
-@@ -147,7 +148,7 @@ def _check_value(kind: str, prop: str, value: str, where: str) -> None:
-         m = _COLOUR.match(value)
-         if not m or (m.group("tok") and m.group("tok") not in TOKENS):
-             raise InventoryError("%s: %s expects a colour (transparent, a token, token@pct), got %r" % (where, kind, value))
--    elif prop in ("font-size", "letter-spacing", "border-bottom-width", "margin-top"):
-+    elif prop in ("font-size", "letter-spacing", "border-bottom-width", "margin-top", "max-width"):
-         if not _PX.match(value):
-             raise InventoryError("%s: %s expects a px value, got %r" % (where, kind, value))
-     elif prop == "font-weight":
-@@ -354,7 +355,7 @@ def compare(a: Assertion, measured, tokens: dict[str, str]) -> str | None:
-             except ValueError as exc:
-                 return "expected %s · measured %s (%s)" % (a.raw, measured, exc)
-             return None if ok else "expected %s · measured %s" % (a.raw, measured)
--        if prop in ("font-size", "letter-spacing", "border-bottom-width", "margin-top", "line-height"):
-+        if prop in ("font-size", "letter-spacing", "border-bottom-width", "margin-top", "line-height", "max-width"):
-             if a.expected == "normal" or not _PX.match(str(measured)):
-                 return None if str(measured) == a.expected else "expected %s · measured %s" % (a.raw, measured)
-             return None if abs(float(str(measured)[:-2]) - float(a.expected[:-2])) <= 0.5 else "expected %s · measured %s" % (a.raw, measured)
-diff --git a/site_v2/src/layouts/Layout.astro b/site_v2/src/layouts/Layout.astro
-index a00b796b..64fc7d0c 100644
---- a/site_v2/src/layouts/Layout.astro
-+++ b/site_v2/src/layouts/Layout.astro
-@@ -26,8 +26,10 @@ interface Props {
-   image?: string;
-   /** The menu section the page sits in, marked in the menu; none on Home. */
-   section?: Section;
-+  /** Keeps the earlier widths on a page whose new design is not yet approved. */
-+  legacyWidth?: boolean;
- }
--const { lang, title, description, entity, crumbs, image, section } = Astro.props;
-+const { lang, title, description, entity, crumbs, image, section, legacyWidth = false } = Astro.props;
- 
- // Canonical from Astro.site + the PATHNAME. Never Astro.url.href: in a static build that carries
- // the dev/preview origin (localhost:4321), so every canonical would point at a machine that is not
-@@ -98,7 +100,7 @@ const jsonLd = graph.length ? JSON.stringify({ "@context": "https://schema.org",
- 
-     {jsonLd && <script type="application/ld+json" set:html={jsonLd} />}
-   </head>
--  <body class="fx" data-theme="dark">
-+  <body class={legacyWidth ? "fx legacy-width" : "fx"} data-theme="dark">
-     <script is:inline>
-       // No-flash theme init: read the saved choice (if any) BEFORE the header/
-       // footer render, as the very first thing in <body>, so a returning
-diff --git a/site_v2/src/pages/[lang]/[players]/[player].astro b/site_v2/src/pages/[lang]/[players]/[player].astro
-index f3a540b4..80023566 100644
---- a/site_v2/src/pages/[lang]/[players]/[player].astro
-+++ b/site_v2/src/pages/[lang]/[players]/[player].astro
-@@ -100,7 +100,7 @@ const crumbs = [
- ];
- ---
- 
--<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs} section="players">
-+<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs} section="players" legacyWidth>
-   <div class="inner">
-     <nav class="crumb" aria-label={t(lang, "crumbAria")}>
-       <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
-diff --git a/site_v2/src/pages/[lang]/[teams]/[team].astro b/site_v2/src/pages/[lang]/[teams]/[team].astro
-index 962bd62f..21708c74 100644
---- a/site_v2/src/pages/[lang]/[teams]/[team].astro
-+++ b/site_v2/src/pages/[lang]/[teams]/[team].astro
-@@ -103,6 +103,7 @@ const linkChips = [t(lang, "table"), t(lang, "topScorers")];
-   crumbs={crumbs}
-   image={team.crest ?? undefined}
-   section="teams"
-+  legacyWidth
- >
-   <div class="inner">
-     <nav class="crumb" aria-label={t(lang, "crumbAria")}>
-diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
-index fbca9693..9905b6b1 100644
---- a/site_v2/src/styles/system.css
-+++ b/site_v2/src/styles/system.css
-@@ -55,7 +55,7 @@ img { max-width: 100%; }
- .fx a:focus-visible,
- .fx button:focus-visible,
- .fx .seg-in:focus-visible ~ .seg { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 9px; }
--.inner { max-width: 680px; margin: 0 auto; padding: 0 clamp(16px, 4cqw, 28px) 40px; }
-+.inner { max-width: 960px; margin: 0 auto; padding: 0 clamp(16px, 4cqw, 28px) 40px; }
- .num { font-variant-numeric: tabular-nums; }
- .eyebrow { font-size: 13px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
- section { margin-top: 36px; }
-@@ -411,7 +411,7 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
-   border-bottom: 1px solid var(--line);
- }
- .header-in {
--  max-width: 1100px; margin: 0 auto; padding: 0 clamp(16px, 3.5vw, 28px);
-+  max-width: 960px; margin: 0 auto; padding: 0 clamp(16px, 3.5vw, 28px);
-   height: 58px; display: flex; align-items: center; gap: 18px;
- }
- .brand { font-size: 18px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); flex: none; }
-@@ -451,16 +451,19 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
-  * into any page: which pages get a rail and what fills it is reserved (§10).   *
-  * Available for a future page (home, competition hub, leaderboards) to opt     *
-  * into via `.shell > .page-grid > main + aside.rail`.                          */
--.shell { max-width: 1100px; margin: 0 auto; padding: 0 clamp(16px, 3.5vw, 28px) 48px; }
-+.shell { max-width: 960px; margin: 0 auto; padding: 0 clamp(16px, 3.5vw, 28px) 48px; }
- .page-grid { display: grid; grid-template-columns: 1fr; gap: 8px 40px; }
- .rail { min-width: 0; }
- 
- /* ---- global footer ---- */
- .site-footer { border-top: 1px solid var(--line); margin-top: 40px; }
- .footer-in {
--  max-width: 1100px; margin: 0 auto; padding: 26px clamp(16px, 3.5vw, 28px) 40px;
-+  max-width: 960px; margin: 0 auto; padding: 26px clamp(16px, 3.5vw, 28px) 40px;
-   display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: baseline;
- }
-+/* A page whose new design is not yet approved keeps the earlier widths. */
-+.fx.legacy-width .inner { max-width: 680px; }
-+.fx.legacy-width .header-in, .fx.legacy-width .footer-in { max-width: 1100px; }
- .site-footer .brand { font-size: 15px; }
- .flinks { display: flex; flex-wrap: wrap; gap: 8px 18px; }
- .flinks a, .flinks span { font-size: 12.5px; color: var(--muted); }
-diff --git a/tests/test_design_inventory.py b/tests/test_design_inventory.py
-index 84ddf310..6679195c 100644
---- a/tests/test_design_inventory.py
-+++ b/tests/test_design_inventory.py
-@@ -105,6 +105,28 @@ def test_the_check_renders_the_width_the_search_field_appears_at():
-                for a in field.assertions), "the Search field row must assert it is shown from %dpx" % width
- 
- 
-+def test_the_content_column_header_and_footer_share_the_page_width():
-+    """The Page width row measures the header and the footer on the built pages; the content
-+    column cannot be named there because mock harnesses restyle `.inner`. This pins the column to
-+    the same width in the stylesheet, and the earlier widths to the pages that keep them."""
-+    (expected,) = [a.expected for a in di.load().element("Page width").assertions if a.kind == "max-width"]
-+    css = SYSTEM_CSS.read_text(encoding="utf-8")
-+
-+    def max_width(selector: str) -> str:
-+        m = re.search(r"(?m)^%s \{[^}]*?max-width: (\d+px);" % re.escape(selector), css)
-+        assert m, "system.css has no max-width rule starting with %r" % selector
-+        return m.group(1)
-+
-+    for sel in (".inner", ".header-in", ".footer-in", ".shell"):
-+        assert max_width(sel) == expected, "%s is %s, the Page width is %s" % (sel, max_width(sel), expected)
-+    assert max_width(".fx.legacy-width .inner") == "680px"
-+    assert max_width(".fx.legacy-width .header-in, .fx.legacy-width .footer-in") == "1100px"
-+    pages = SYSTEM_CSS.parent.parent / "pages"
-+    keep = sorted(p.relative_to(pages).as_posix() for p in pages.rglob("*.astro")
-+                  if re.search(r"\blegacyWidth\b", p.read_text(encoding="utf-8")))
-+    assert keep == ["[lang]/[players]/[player].astro", "[lang]/[teams]/[team].astro"], keep
-+
-+
- def test_a_width_condition_limits_an_assertion_to_its_viewports(tmp_path):
-     row = "| X | `.x` | r | `visible=1 [>=1010px]; visible=0 [<1010px]; one-line` | ruled | #1 |\n"
-     wide, narrow, always = di.load(_doc(tmp_path, GOOD_ROW + row)).element("X").assertions
-@@ -150,6 +172,7 @@ def test_the_committed_inventory_names_every_generator_of_record():
- 
- @pytest.mark.parametrize("row, fragment", [
-     ("| X | `.x` | r | `font-size=13` | ruled | #1 |\n", "px value"),
-+    ("| X | `.x` | r | `max-width=960` | ruled | #1 |\n", "px value"),
-     ("| X | `.x` | r | `gap(nxt)=14px` | ruled | #1 |\n", "unknown key"),
-     ("| X | `.x` | r | `colour=ink` | ruled | #1 |\n", "unknown key"),
-     ("| X | `.x` | r | `color=pink` | ruled | #1 |\n", "colour"),
-@@ -169,6 +192,13 @@ def test_the_parser_fails_closed_on_a_bad_element_row(tmp_path, row, fragment):
-         di.load(_doc(tmp_path, row))
- 
- 
-+def test_a_max_width_assertion_compares_the_computed_px_value():
-+    (a,) = di.parse_measured("max-width=960px")
-+    assert di.compare(a, "960px", {}) is None
-+    assert "measured 680px" in di.compare(a, "680px", {})
-+    assert "measured none" in di.compare(a, "none", {})
-+
-+
- def test_the_parser_fails_closed_on_a_renamed_column(tmp_path):
-     doc = _doc(tmp_path, GOOD_ROW)
-     doc.write_text(doc.read_text(encoding="utf-8").replace("| Measured as |", "| Measured |"), encoding="utf-8")
-diff --git a/tests/test_no_decision_history_in_docs.py b/tests/test_no_decision_history_in_docs.py
-index a2710f82..88e543a1 100644
---- a/tests/test_no_decision_history_in_docs.py
-+++ b/tests/test_no_decision_history_in_docs.py
-@@ -51,7 +51,7 @@ PINNED = {
-     "docs/wireframes/01_fixture_page.md": 4,
-     "docs/wireframes/02_team_profile.md": 2,
-     "docs/wireframes/03_player_profile.md": 3,
--    "docs/wireframes/08_browse.md": 27,
-+    "docs/wireframes/08_browse.md": 25,
-     "docs/wireframes/09_chrome.md": 4,
-     "docs/wireframes/10_home.md": 126,
-     "docs/wireframes/11_team_squad.md": 12,
-diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
-index 641074ab..17e1cfb6 100644
---- a/tests/test_sentence_length_in_docs.py
-+++ b/tests/test_sentence_length_in_docs.py
-@@ -60,12 +60,12 @@ PINNED = {
-     "docs/roles/product_analyst.md": 4,
-     "docs/roles/seo_expert.md": 11,
-     "docs/roles/ui_expert.md": 1,
--    "docs/wireframes/00_overview.md": 13,
-+    "docs/wireframes/00_overview.md": 12,
-     "docs/wireframes/01_fixture_page.md": 4,
-     "docs/wireframes/02_team_profile.md": 3,
-     "docs/wireframes/03_player_profile.md": 3,
--    "docs/wireframes/08_browse.md": 11,
--    "docs/wireframes/09_chrome.md": 8,
-+    "docs/wireframes/08_browse.md": 9,
-+    "docs/wireframes/09_chrome.md": 7,
-     "docs/wireframes/10_home.md": 128,
-     "docs/wireframes/11_team_squad.md": 7,
-     "docs/wireframes/12_player_stats.md": 16,
+ amendments: (none)
+diff --git a/dbt_project/seeds/fixture_goal_corrections.csv b/dbt_project/seeds/fixture_goal_corrections.csv
+index 5e379b48..68cf1d73 100644
+--- a/dbt_project/seeds/fixture_goal_corrections.csv
++++ b/dbt_project/seeds/fixture_goal_corrections.csv
+@@ -107,3 +107,8 @@ fixture_id,goal_order,team_id,player_id,player_name,minute_elapsed,minute_extra,
+ 1125960,1,1531,,Relebohile Mofokeng,60,,Normal Goal,,Elias Mokwana,official,https://api.fifa.com/api/v3/live/football/520/288282/288289/400019682?language=en https://api.fifa.com/api/v3/timelines/520/288282/288289/400019682?language=en,"1-0; FIFA match data 60', goal type 2, assist Elias MOKWANA; FIFA timeline event 'Goal!' at 60' (SuperSport's report says 61')"
+ 1125960,2,1531,,Jayden Adams,64,,Normal Goal,,,official,https://api.fifa.com/api/v3/live/football/520/288282/288289/400019682?language=en https://api.fifa.com/api/v3/timelines/520/288282/288289/400019682?language=en,"2-0; FIFA match data 64', goal type 2, no assist recorded; FIFA timeline event 'Goal!' at 64'; scored from the rebound of his own shot (SuperSport)"
+ 1125867,1,1521,,Emilio Nsue,67,,Normal Goal,,Iban Salvador,official,https://api.fifa.com/api/v3/live/football/520/288282/288289/400017619?language=en https://www.namibian.com.na/warriors-rue-missed-chance/,"1-0; FIFA match data: Emilio NSUE 67', goal type 2, assist IBAN (Iban Salvador); The Namibian: Bikoro crossed from the left and Iban Salvador found Nsue unmarked in the box"
++1639347,1,5370,,Ibrahim Kazimoto,27,,Normal Goal,,,official,https://www.cafonline.com/caf-champions-league/news/young-africans-sweep-past-cffa-to-become-the-first-to-reach-totalenergies-caf-champions-league-group-stage/,"Young Africans-CFFA, CAF Champions League 2nd preliminary round 2nd leg 21 Oct 2026: 4-1; CAF's match report gives Kazimoto 27' (three minutes before the half hour), Mwalimu 49' and 53', a CFFA goal after 75 minutes with no scorer, and Abushiri 82'; Newsmada and Midi Madagasikara both name CFFA's scorer Fitahantsoa Albertini and put the first four goals one minute earlier (26', 48', 52', 74'); Sofascore names Oumar M'Bareck"
++1639347,2,5370,541525,Selemani Mwalimu,49,,Normal Goal,,,official,https://www.cafonline.com/caf-champions-league/news/young-africans-sweep-past-cffa-to-become-the-first-to-reach-totalenergies-caf-champions-league-group-stage/,"Young Africans-CFFA, CAF Champions League 2nd preliminary round 2nd leg 21 Oct 2026: 4-1; CAF's match report gives Kazimoto 27' (three minutes before the half hour), Mwalimu 49' and 53', a CFFA goal after 75 minutes with no scorer, and Abushiri 82'; Newsmada and Midi Madagasikara both name CFFA's scorer Fitahantsoa Albertini and put the first four goals one minute earlier (26', 48', 52', 74'); Sofascore names Oumar M'Bareck"
++1639347,3,5370,541525,Selemani Mwalimu,53,,Normal Goal,,,official,https://www.cafonline.com/caf-champions-league/news/young-africans-sweep-past-cffa-to-become-the-first-to-reach-totalenergies-caf-champions-league-group-stage/,"Young Africans-CFFA, CAF Champions League 2nd preliminary round 2nd leg 21 Oct 2026: 4-1; CAF's match report gives Kazimoto 27' (three minutes before the half hour), Mwalimu 49' and 53', a CFFA goal after 75 minutes with no scorer, and Abushiri 82'; Newsmada and Midi Madagasikara both name CFFA's scorer Fitahantsoa Albertini and put the first four goals one minute earlier (26', 48', 52', 74'); Sofascore names Oumar M'Bareck"
++1639347,4,17447,,Fitahantsoa Albertini,75,,Normal Goal,,,match_reports,https://newsmada.com/2026/10/22/ligue-des-champions-de-la-caf-fin-de-parcours-pour-le-cffa/ https://fr.allafrica.com/stories/202610220391.html https://www.cafonline.com/caf-champions-league/news/young-africans-sweep-past-cffa-to-become-the-first-to-reach-totalenergies-caf-champions-league-group-stage/,"Young Africans-CFFA, CAF Champions League 2nd preliminary round 2nd leg 21 Oct 2026: 4-1; CAF's match report gives Kazimoto 27' (three minutes before the half hour), Mwalimu 49' and 53', a CFFA goal after 75 minutes with no scorer, and Abushiri 82'; Newsmada and Midi Madagasikara both name CFFA's scorer Fitahantsoa Albertini and put the first four goals one minute earlier (26', 48', 52', 74'); Sofascore names Oumar M'Bareck"
++1639347,5,5370,,Juma Issa Abushiri,82,,Normal Goal,,,official,https://www.cafonline.com/caf-champions-league/news/young-africans-sweep-past-cffa-to-become-the-first-to-reach-totalenergies-caf-champions-league-group-stage/,"Young Africans-CFFA, CAF Champions League 2nd preliminary round 2nd leg 21 Oct 2026: 4-1; CAF's match report gives Kazimoto 27' (three minutes before the half hour), Mwalimu 49' and 53', a CFFA goal after 75 minutes with no scorer, and Abushiri 82'; Newsmada and Midi Madagasikara both name CFFA's scorer Fitahantsoa Albertini and put the first four goals one minute earlier (26', 48', 52', 74'); Sofascore names Oumar M'Bareck"
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/acceptance_evidence.md    | 24 ++++++++++--------------
+#    .claude/task/rendered_page_evidence.md | 19 +++----------------
+#    2 files changed, 13 insertions(+), 30 deletions(-)
+# ============================================================================
