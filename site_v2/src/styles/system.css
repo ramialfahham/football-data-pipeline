@@ -1002,7 +1002,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .mp .formhead .fh { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .mp .formhead .fh.home { align-items: flex-start; text-align: left; }
 .mp .formhead .fh.away { align-items: flex-end; text-align: right; }
-.mp .formhead .h { font-size: 12px; font-weight: 700; color: var(--muted); }
+.mp .formhead .h { font-size: 14px; font-weight: 600; color: var(--ink); }
 .mp .formhead .pills { width: 100%; max-width: 140px; }
 .mp .formhead .away .pills { justify-content: flex-end; }
 .mp .formhead .pill { width: auto; height: auto; flex: 0 1 24px; min-width: 0; aspect-ratio: 1; }
@@ -1014,6 +1014,19 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .mp .mrow .mbar { grid-area: bar; max-width: none; }
 .mp .mrow .mval.home { grid-area: home; text-align: left; }
 .mp .mrow .mval.away { grid-area: away; text-align: right; }
+
+/* Show all metrics: off, the rows and headings marked `nonkey` after the switch are hidden. */
+.tsw:not(:checked) ~ * .nonkey { display: none; }
+.tsw { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.tsw-lbl { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin: 4px 0 6px;
+           font-size: 13px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
+.tsw-track { position: relative; width: 36px; height: 20px; border-radius: 10px; background: var(--sunk);
+             border: 1px solid var(--line); flex: 0 0 auto; }
+.tsw-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+            background: var(--ink-2); transition: transform .15s; }
+.tsw:checked ~ .tsw-lbl .tsw-track { background: var(--ink-2); border-color: var(--ink-2); }
+.tsw:checked ~ .tsw-lbl .tsw-knob { transform: translateX(16px); background: var(--page); }
+.tsw:focus-visible ~ .tsw-lbl .tsw-track { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* Two lists side by side from 560px, their rows level with each other. */
 .mp .rsplit { display: grid; grid-template-columns: 1fr; column-gap: 30px; margin-top: 4px; }

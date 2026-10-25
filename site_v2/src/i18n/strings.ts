@@ -241,6 +241,7 @@ const EN: Dict = {
   homeNoFixtures: "No matches scheduled right now.",
   homeShowAll: "Show all {n}",
   homeShowLess: "Show less",
+  showAllMetrics: "Show all metrics",
   // Competitions index page (#62 step 5) — category labels (competition_types.csv
   // label_i18n_key) and region labels (confederations.csv label_i18n_key). Only the keys the
   // live export actually uses (docs/wireframes/00_overview.md's binding rule): a
@@ -546,6 +547,7 @@ const DE: Dict = {
   homeNoFixtures: "Derzeit sind keine Spiele angesetzt.",
   homeShowAll: "Alle {n} anzeigen",
   homeShowLess: "Weniger anzeigen",
+  showAllMetrics: "Alle Kennzahlen anzeigen",
   compTypeDomesticLeague: "Nationale Ligen",
   compTypeDomesticCup: "Nationale Pokale",
   compTypeContinentalCup: "Kontinentale Vereinspokale",
@@ -846,6 +848,7 @@ const FI: Dict = {
   homeNoFixtures: "Ei otteluita tällä hetkellä.",
   homeShowAll: "Näytä kaikki {n}",
   homeShowLess: "Näytä vähemmän",
+  showAllMetrics: "Näytä kaikki tunnusluvut",
   compTypeDomesticLeague: "Kansalliset sarjat",
   compTypeDomesticCup: "Kansalliset cupit",
   compTypeContinentalCup: "Mantereiden seuracupit",
