@@ -757,7 +757,8 @@ def shape_competition_payload(league_code: str, season: int, meta: dict,
                               standings: list[dict], deserved: list[dict], summary: dict | None,
                               fixtures: list[dict] | None = None,
                               team_boards: list[dict] | None = None,
-                              player_boards: list[dict] | None = None) -> dict:
+                              player_boards: list[dict] | None = None,
+                              season_label: str | None = None) -> dict:
     """A competition-season page: header facts, the standings sections, the deserved-points
     table, the season summary, every fixture of the season by round, and the Rankings tab's
     boards. Selection and ordering by served columns only: standings by section then rank,
@@ -769,6 +770,7 @@ def shape_competition_payload(league_code: str, season: int, meta: dict,
         "type": "competition",
         "league_code": league_code,
         "season": season,
+        "season_label": season_label,
         "slug": meta.get("slug"),
         "name": meta.get("name"),
         "crest": meta.get("logo_url"),
@@ -1708,7 +1710,8 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
     published (with its section kind), the team profile's deserved-points columns, the season
     summary, every fixture of the season, and the Rankings tab's boards (the two leaderboard
     marts, the ruled board sets, the warehouse's top five per league-board). Team identity is
-    joined from dim_team so a row can be named and linked; nothing is computed."""
+    joined from dim_team so a row can be named and linked, and the season label from
+    dim_competition_season; nothing is computed."""
     marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
     meta = {
         c["league_code"]: {"name": c.get("name"), "slug": c.get("slug")}
@@ -1727,6 +1730,11 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
         int(r["team_sk"]): r
         for r in _query(client, f"select team_sk, team_name, team_slug, team_logo_url "
                                 f"from `{GCP_PROJECT}.core.dim_team`")
+    }
+    season_labels = {
+        (r["league_code"], int(r["season_api_year"])): r.get("season_label")
+        for r in _query(client, f"select league_code, season_api_year, season_label "
+                                f"from `{GCP_PROJECT}.core.dim_competition_season`")
     }
     standings = _group2(
         _query(client, f"select * from `{marts}.mart_standings`"),
@@ -1820,6 +1828,7 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
                                      team_order, team_catalogue, "team"),
             shape_competition_boards(player_board_rows.get((lc, season), []),
                                      player_order, player_catalogue, "player"),
+            season_label=season_labels.get((lc, season)),
         ))
     return payloads
 

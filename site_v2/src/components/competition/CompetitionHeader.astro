@@ -12,16 +12,16 @@ interface Props {
   crest: string | null;
   regionLabelEn: string | null;
   regionLabelI18nKey: string | null;
-  season: number | null;
+  seasonLabel: string | null;
   round: string | null;
   lang: Lang;
 }
-const { name, crest, regionLabelEn, regionLabelI18nKey, season, round, lang } = Astro.props;
+const { name, crest, regionLabelEn, regionLabelI18nKey, seasonLabel, round, lang } = Astro.props;
 
 const region = regionLabelI18nKey ? t(lang, regionLabelI18nKey) : regionLabelEn;
 const meta = [
   region,
-  season != null ? t(lang, "compSeason", { season }) : null,
+  seasonLabel ? t(lang, "compSeason", { season: seasonLabel }) : null,
   round,
 ].filter(Boolean);
 ---

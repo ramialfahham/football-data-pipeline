@@ -644,6 +644,8 @@ export interface CompetitionPayload {
   type: string;
   league_code: string;
   season: number;
+  /** The season as the warehouse names it: 2026/27 for a split-year competition, 2026 otherwise. */
+  season_label: string | null;
   slug: string | null;
   name: string | null;
   crest: string | null;

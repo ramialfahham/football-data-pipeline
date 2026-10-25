@@ -87,7 +87,7 @@ const crumbs = [
       crest={payload.crest ?? competition.logo_url}
       regionLabelEn={payload.region_label_en ?? competition.region_label_en}
       regionLabelI18nKey={payload.region_label_i18n_key ?? competition.region_label_i18n_key}
-      season={payload.season}
+      seasonLabel={payload.season_label ?? null}
       round={nextRound(payload.fixtures)?.round ?? null}
       lang={lang}
     />

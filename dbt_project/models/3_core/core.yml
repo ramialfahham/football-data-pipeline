@@ -158,7 +158,7 @@ models:
         description: "{{ doc('raw_ingested_at') }}"
 
   - name: dim_competition_season
-    description: "Canonical competition-season dimension with per-season coverage flags. Grain: (league_api_id, season_api_year). Sourced from base_apif__competition_seasons. Coverage flags describe which API-Football endpoints return data for that league-season and drive conditional logic downstream. Season expansion/parsing is performed in staging."
+    description: "Canonical competition-season dimension with per-season coverage flags. Grain: (league_api_id, season_api_year). Sourced from base_apif__competition_seasons, with the season label from the competition_registry seed's season_type. Coverage flags describe which API-Football endpoints return data for that league-season and drive conditional logic downstream. Season expansion/parsing is performed in staging."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -170,6 +170,11 @@ models:
           combination_of_columns:
             - league_api_id
             - season_api_year
+      - dbt_utils.expression_is_true:
+          name: dim_competition_season_label_names_its_year
+          expression: >
+            starts_with(season_label, cast(season_api_year as string))
+            and regexp_contains(season_label, r'^\d{4}(/\d{2})?$')
     columns:
       - name: season_sk
         description: "{{ doc('season_sk') }}"
@@ -189,6 +194,9 @@ models:
         tests: [not_null]
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: season_label
+        description: "The season as a page names it: the start and end year for a competition whose season runs across two years (2026/27), the year alone for one played within a calendar year (2026). Follows the registry's season_type."
         tests: [not_null]
       - name: season_start_date
         description: "Season start date from API-Football."
