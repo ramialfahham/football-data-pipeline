@@ -1,217 +1,417 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 116e9b85..53f42730 100644
+index 53f42730..907887db 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,50 +1,16 @@
--# Task contract — key metrics in the catalogue, cards as totals
-+# Task contract — the correction check compares every goal
+@@ -1,16 +1,26 @@
+-# Task contract — the correction check compares every goal
++# Task contract — the match page's Show all metrics switch and team names
  
  objective: >
--  The metric catalogue replaces importance_tier with is_key_metric (the 14 key team metrics true,
--  the other team rows false, player rows blank); Shots off target, Blocked shots and the per-match
--  card rows leave every page (blank metric_order); the form window serves the card totals, so the
--  match page's comparison shows Yellow cards and Red cards as totals over its window; the served
--  list metric_rows.json carries the key flag and only rows with a place; the documents state key
--  metrics instead of tiers, with the CPO's approved text.
-+  assert_result_corrections_applied calls a goal correction no longer needed only when the
-+  provider has every goal as the seed has it: same team, same player id and same minute; a seed
-+  goal without a player id never matches. The five goal rows of CAF match 1639347 stay, and the
-+  nightly passes the check again.
+-  assert_result_corrections_applied calls a goal correction no longer needed only when the
+-  provider has every goal as the seed has it: same team, same player id and same minute; a seed
+-  goal without a player id never matches. The five goal rows of CAF match 1639347 stay, and the
+-  nightly passes the check again.
++  The played match's Match stats and the upcoming match's Form comparison show the key team
++  metrics by default; a "Show all metrics" switch at the top right shows every metric in its
++  place, the order never changing, and a group heading with no key row is hidden while it is off.
++  The team names over the comparison read 14px, semi-bold, ink. The switch enters the block
++  standard.
  
  refs: >
--  #134 (key-metric flag and its metrics_display.md text, the dropped shot rows, cards as season
--  totals; approved in chat, 2026-10-22) and #132 (cards as totals over the window on the match
--  page, approved in chat, 2026-10-23); the metric_layer.md line approved in chat, 2026-10-23 with
--  the plan.
-+  #232 (the goals of CAF match 1639347; the check's rule approved in chat, 2026-10-25).
+-  #232 (the goals of CAF match 1639347; the check's rule approved in chat, 2026-10-25).
++  #132 (the match page; the switch and the names approved in chat, 2026-10-22, note 4069141243);
++  #134 (the switch's copy in EN, DE and FI, approved in chat, 2026-10-22, note 4069024967).
  
  scope_paths:
--  - dbt_project/seeds/metric_catalogue.csv
--  - dbt_project/seeds/schema.yml
--  - dbt_project/seeds/metric_map.csv
--  - scripts/generate_metric_sql.py
--  - dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
--  - dbt_project/models/4_intermediate/shared/int_momentum.yml
--  - dbt_project/models/5_marts/shared/mart_team_window_metrics.sql
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/models/5_marts/shared/mart_player_career.sql
--  - dbt_project/models/docs/metric_rules.md
--  - dbt_project/models/docs/metric_columns.md
--  - scripts/export_site_data.py
--  - site_v2/src/data/metric_rows.json
--  - site_v2/src/lib/types.ts
--  - site_v2/src/lib/metricRows.ts
--  - site_v2/src/i18n/strings.ts
--  - site_v2/scripts/check-metric-labels.test.mjs
--  - docs/wireframes/metrics_display.md
--  - docs/wireframes/99_gaps_register.md
--  - docs/wireframes/10_home.md
--  - docs/metric_layer.md
--  - docs/wireframes/02_team_profile.md
--  - docs/roles/bi_analyst.md
--  - tests/test_metric_rows.py
--  - tests/test_catalogue_order.py
--  - tests/test_metric_map.py
--  - tests/test_export_site_data.py
--  - tests/test_no_decision_history_in_docs.py
--  - tests/test_no_decision_history_in_code.py
--  - tests/test_sentence_length_in_docs.py
-+  - dbt_project/tests/assert_result_corrections_applied.sql
+-  - dbt_project/tests/assert_result_corrections_applied.sql
++  - site_v2/src/components/ui/MetricSwitch.astro
++  - site_v2/src/components/fixture/MetricComparison.astro
++  - site_v2/src/components/fixture/MetricRow.astro
++  - site_v2/src/components/fixture/MatchStats.astro
++  - site_v2/src/components/fixture/FormSegment.astro
++  - site_v2/src/lib/comparisonGroups.ts
++  - site_v2/src/styles/system.css
++  - site_v2/src/i18n/strings.ts
++  - docs/wireframes/block_standard.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -52,57 +18,32 @@ scope_paths:
+@@ -18,32 +28,36 @@ scope_paths:
    - .claude/task/rendered_page_evidence.md
  
  impact_map: >
--  writers: the seed metric_catalogue (is_key_metric, metric_order); int_team_momentum__metrics,
--  generated by scripts/generate_metric_sql.py, and mart_team_window_metrics gain cards_yellow and
--  cards_red; metric_map.csv, generated by scripts/sync_metric_docs_blocks.py, gains their rows.
--  downstream: mart_team_window_metrics is read by export_site_data.py (fixture payloads' form and
--  match_stats, select *) and fetch_metric_rows (metric_rows.json); metric_rows.json is read by
--  MetricComparison.astro, MatchStats.astro and FormSegment.astro on the match page; the catalogue is
--  read by every metric surface through its formula columns, which do not change; fetch_glossary
--  serves every catalogue column in metrics.json, which no page reads. Lineage (`dbt ls --select
--  int_team_momentum__metrics+ --resource-type model`, 4 models): int_team_momentum__metrics,
--  mart_team_window_metrics, mart_team_momentum_window, mart_matchday_insights; only
--  mart_team_window_metrics selects the new columns, the other two read columns by name.
--  `metric_catalogue+`: mart_team_leaderboards (1 model), which reads formula and order columns.
--  layer_rules: the card totals are computed in intermediate from the catalogue formula, served by
--  the mart, selected by the export; the frontend renders the served list.
--  deploy_order: none; the nightly rebuilds prod from main and the site deploy is manual.
--  blast_radius: two new columns in one intermediate model and one mart; the match page's
--  comparison rows in EN, DE and FI; one catalogue column renamed; the display documents.
-+  writers: none; the change is in one singular dbt test. downstream: the test reads
-+  fixture_result_corrections, standings_corrections, fixture_goal_corrections,
-+  base_apif__fixtures_next, base_apif__standings and base_apif__fixture_events, and nothing reads
-+  the test except dbt's build order, which skips the nodes after it when it fails. layer_rules: a
-+  test changes no model, seed or served column. deploy_order: none; the nightly runs main.
-+  blast_radius: one problem class of one test (no_longer_needed on fixture_goal_corrections).
+-  writers: none; the change is in one singular dbt test. downstream: the test reads
+-  fixture_result_corrections, standings_corrections, fixture_goal_corrections,
+-  base_apif__fixtures_next, base_apif__standings and base_apif__fixture_events, and nothing reads
+-  the test except dbt's build order, which skips the nodes after it when it fails. layer_rules: a
+-  test changes no model, seed or served column. deploy_order: none; the nightly runs main.
+-  blast_radius: one problem class of one test (no_longer_needed on fixture_goal_corrections).
++  writers: none; the export, the warehouse and the served data are unchanged (is_key_metric is
++  already served in metric_rows.json). downstream: the match page's Match stats and Form
++  comparison blocks; the new switch component and its CSS are read by nothing else yet.
++  layer_rules: display only, no metric fact computed. deploy_order: none; deploy:site-v2 is
++  manual. blast_radius: two blocks of the match page, and the `.mp .formhead .h` rule, which only
++  those two blocks use.
  
--approved_design:
--  - match: #132
-+approved_design: []
+-approved_design: []
++approved_design:
++  - match: #132
  
  acceptance_criteria:
--  - "metric_catalogue.csv carries is_key_metric, true on exactly the 14 key team rows, false on every other team row and blank on player rows; importance_tier is gone."
--  - "metric_rows.json no longer serves shots_off_target_per_match, shots_blocked_per_match, cards_yellow_per_match or cards_red_per_match, serves cards_yellow and cards_red with per_match false, and carries is_key_metric on every row."
--  - "mart_team_window_metrics serves cards_yellow and cards_red per window, and the MR's data build passes its formula and coverage tests."
--  - "The built match pages show no Shots off target or Blocked shots row."
--  - "metrics_display.md holds the approved Key metrics section and no tier mention; metric_layer.md line 21 reads as approved."
-+  - "The check names a goal correction no_longer_needed only when every seed goal has a provider goal with the same team, player id, minute and added minute, one to one; a seed goal without a player id never matches."
-+  - "The check on prod's data returns no row; the check as on main returns the 1639347 row on the same data."
-+  - "The not_applied, does_not_add_up and not_sourced branches and the other two seeds' checks are unchanged."
+-  - "The check names a goal correction no_longer_needed only when every seed goal has a provider goal with the same team, player id, minute and added minute, one to one; a seed goal without a player id never matches."
+-  - "The check on prod's data returns no row; the check as on main returns the 1639347 row on the same data."
+-  - "The not_applied, does_not_add_up and not_sourced branches and the other two seeds' checks are unchanged."
++  - "With the switch off, Match stats and Form comparison show only the rows whose is_key_metric is true, and a group heading with no key row is hidden; with it on, every shown row stands in catalogue order."
++  - "The switch reads Show all metrics / Alle Kennzahlen anzeigen / Näytä kaikki tunnusluvut, sits at the top right of the comparison, is off by default, neutral grey when on, needs no script and is announced as a switch."
++  - "The team names over the comparison are 14px, weight 600, ink."
++  - "block_standard.md lists the Metric switch and the Comparison team name, and the Played match page expects both."
  
  decisions_taken: >
--  Approved in chat, 2026-10-22: is_key_metric replaces importance_tier with the 14 key team
--  metrics and the metrics_display.md text; Shots off target and Blocked shots leave the pages; cards
--  as totals. Approved in chat, 2026-10-23: cards as totals over the window on the match page, from
--  one served list; the metric_layer.md line. Readings: Possession is passes_share_pct, its
--  catalogue label; player rows stay blank until the Player page sets them; the four rows with a
--  blank metric_order stay computed in the warehouse. Approved in chat, 2026-10-23: the
--  interpretation texts of cards_yellow and cards_red, which now serve windows as well as seasons.
--  No new dependency; the two columns add no measurable recurring cost.
-+  Approved in chat, 2026-10-25: a goal correction is no longer needed only when the provider has
-+  every goal as the seed has it (same team, same player id, same minute); a seed goal without a
-+  player id never matches; the five rows of match 1639347 stay. Reading: the same minute means
-+  the same minute and the same added minute. No new dependency and no recurring cost.
+-  Approved in chat, 2026-10-25: a goal correction is no longer needed only when the provider has
+-  every goal as the seed has it (same team, same player id, same minute); a seed goal without a
+-  player id never matches; the five rows of match 1639347 stay. Reading: the same minute means
+-  the same minute and the same added minute. No new dependency and no recurring cost.
++  Approved in chat, 2026-10-22: the switch on Match stats and Form comparison, the key metrics by
++  default, every metric in its place when on, a heading without key rows hidden while off, top
++  right, neutral grey when on; the team names 14px semi-bold ink; the copy in three languages.
++  The block standard rows approved with the plan, 2026-10-25. Readings: the switch appears only
++  when the block shows both a key row and another row; the rows behind it carry the class
++  `nonkey`. No new dependency and no recurring cost.
  
--decisions_reserved:
--  - The "Show all metrics" switch that reads the flag (#132, #134).
--  - The key player metrics (#136).
--  - The card columns of the season window W2.
-+decisions_reserved: []
+ decisions_reserved: []
  
  done_when:
--  - dbt parse passes; generate_metric_sql.py --check and sync_metric_docs_blocks.py --check pass.
--  - npm run build in site_v2 passes and the design check passes.
-+  - dbt parse passes and SQLFluff passes on the test.
-   - The full pytest suite and the offline gates pass.
+-  - dbt parse passes and SQLFluff passes on the test.
+-  - The full pytest suite and the offline gates pass.
++  - The offline gates, check_page_css.py and the full pytest suite pass.
++  - The dev server shows both states on a played and an upcoming match in EN, DE and FI.
++  - check_design_inventory.py passes on a local build of the match pages.
    - Reviewers per review_routing.json pass.
--  - data:build:mr passes and the prod comparison of mart_team_window_metrics goes to the CPO.
-+  - The check on prod's data returns no row; data:build:mr passes.
+-  - The check on prod's data returns no row; data:build:mr passes.
  
--amendments:
--  - Two documents that still describe tiers follow the same strip (02_team_profile.md and the
--    BI analyst's role brief), and the impact map carries the measured lineage, after the scope
--    review.
-+amendments: []
-diff --git a/dbt_project/tests/assert_result_corrections_applied.sql b/dbt_project/tests/assert_result_corrections_applied.sql
-index 2481347d..f3450900 100644
---- a/dbt_project/tests/assert_result_corrections_applied.sql
-+++ b/dbt_project/tests/assert_result_corrections_applied.sql
-@@ -13,7 +13,8 @@
- --   - does_not_add_up: a match's corrected goals do not add up to its score side by side (the
- --     score on the pitch for a played or abandoned award), name a team not in the match, or sit
- --     beside the row that says the match had no goal.
----   - no_longer_needed: the provider now carries the official result, or goals that add up, itself.
-+--   - no_longer_needed: the provider now carries the official result itself, or every corrected
-+--     goal with the same team, player id and minute; a goal without a player id never matches.
- --     An award is always needed: the provider never says how it came about.
+ amendments: []
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index d5f19e71..385cae47 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -98,6 +98,8 @@
+ | Goal row | `.resrow.goal` | a goal: the score after it, then the scorer with the crest of the side it counts for. The second line holds the minute with the assist, own goal or penalty. Without minutes the row has no score | `fits` | ruled | the played match page review |
+ | Goal row meta | `.resrow.goal .rmeta` | the goal's minute and its assist, own goal or penalty: 14px ink-2, larger and lighter than a list row's second line | `font-size=14px; color=ink-2` | ruled | the played match page review |
+ | Comparison element | `.cmp` | two teams' numbers on one metric list. Each team's name stands over its column. Each metric group's rows read value, name with the diverging bar, value | `fits` | ruled | the played match page review |
++| Metric switch | `.tsw-lbl` | "Show all metrics" at the top right of a metric comparison: off by default, the key metrics only; on, every metric in its place, the order never changing; a group heading with no key row hidden while off; the track neutral grey when on | `font-size=13px; font-weight=600; color=ink-2` | ruled | the match page review |
++| Comparison team name | `.cmp .formhead .h` | each team's name over its column, 14px semi-bold ink | `font-size=14px; font-weight=600; color=ink` | ruled | the match page review |
+ | Column head | `.rcol .colhead` | a list column's name, 13px bold muted; one fact may follow after a middle dot (a team's formation); a second head inside the column opens its second list | `font-size=13px; font-weight=700; color=muted` | ruled | the played match page review |
+ | Tag | `.nexttag, .fxrow .topmatch` | Next (on the picker's title) and Top match (on the flagged row, before the kick-off): 10px bold capitals in an accent pill | `font-size=10px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink` | ruled | #129 Matchdays; #127 correction 2 |
+ | Matchday picker | `.mdnav .mdstep` | its own full-width line under the tab bar: ‹ MATCHDAY N › with the Next tag, the arrows pinned to the edges, the title centred, a 2px line under; one matchday on screen at a time; no script | `visible=1; border-bottom-width=2px` | ruled | #129 Matchdays |
+@@ -155,7 +157,7 @@ and `gen_taxonomy.py` are diagrams.
+ | Competition matchdays | built | `site_v2/dist` | `en/bundesliga/matches/index.html` | path | Block heading, Schedule block, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar, Search field [>=1010px], Search button [<1010px] |
+ | Competition rankings | built | `site_v2/dist` | `en/bundesliga/stats/index.html` | path | Block heading, Metric group heading, Board name, Board sub-line, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
+ | Match page | built | `site_v2/dist` | `en/*/matches/*/index.html` | path | Block heading, Match header competition head, Navigation link, Search field [>=1010px], Search button [<1010px] |
+-| Played match page | built | `site_v2/dist` | `en/bundesliga/matches/2026-09-05-tsg-1899-hoffenheim-vs-borussia-dortmund/index.html` | path | Match header winner, Goal row meta, Comparison element, Column head, Search field [>=1010px], Search button [<1010px] |
++| Played match page | built | `site_v2/dist` | `en/bundesliga/matches/2026-09-05-tsg-1899-hoffenheim-vs-borussia-dortmund/index.html` | path | Match header winner, Goal row meta, Comparison element, Metric switch, Comparison team name, Column head, Search field [>=1010px], Search button [<1010px] |
+ | Team page | built | `site_v2/dist` | `en/teams/*/index.html` | path | Block heading, Tab bar, Search field [>=1010px], Search button [<1010px] |
+ | Matches page | built | `site_v2/dist` | `en/matches/index.html` | path | Page heading, Filter row, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row kick-off, Match row score, Search field [>=1010px], Search button [<1010px] |
+ | Matches day page | built | `site_v2/dist` | `en/matches/*/index.html` | path | Page heading, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row score, Search field [>=1010px], Search button [<1010px] |
+diff --git a/site_v2/src/components/fixture/FormSegment.astro b/site_v2/src/components/fixture/FormSegment.astro
+index 0df7f399..35b6fbd6 100644
+--- a/site_v2/src/components/fixture/FormSegment.astro
++++ b/site_v2/src/components/fixture/FormSegment.astro
+@@ -3,9 +3,11 @@
+ // (docs/metrics_context_model.md section 4), under one head row of each team's name and its W/D/L pills.
+ // A side whose window is last season's record shows no pills: they are its recent matches, not its window.
+ import SectionHead from "../ui/SectionHead.astro";
++import MetricSwitch from "../ui/MetricSwitch.astro";
+ import MetricComparison from "./MetricComparison.astro";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
++import { comparisonGroups, needsSwitch } from "../../lib/comparisonGroups";
+ import type { Fixture, Side } from "../../lib/types";
  
- {{ config(store_failures = true) }}
-@@ -72,6 +73,49 @@ event_counts as (
-     group by e.fixture_id
- ),
+ interface Props {
+@@ -24,12 +26,14 @@ const results = (side: Side): string[] =>
+ const prev = [home, away].some((s) => s.form?.window_type === "prev_season");
+ const intro = prev ? t(lang, "formIntroPrev", { competition: compName }) : t(lang, "formIntro");
+ const shown = Boolean(home.form || away.form);
++const groups = comparisonGroups(home.form, away.form);
+ ---
  
-+seed_goal_keys as (
-+    select
-+        fixture_id,
-+        team_id,
-+        player_id,
-+        minute_elapsed,
-+        coalesce(minute_extra, 0) as minute_extra,
-+        count(*) as goals
-+    from goal_corrections
-+    where goal_order > 0 and player_id is not null
-+    group by fixture_id, team_id, player_id, minute_elapsed, coalesce(minute_extra, 0)
-+),
+ {shown && (
+   <section aria-label={t(lang, "secForm")}>
+     <SectionHead label={t(lang, "secForm")} />
+     <p class="bsub">{intro}</p>
++    {needsSwitch(groups) && <MetricSwitch id="tsw-form" lang={lang} />}
+     <div class="cmp">
+       <div class="formhead">
+         {[home, away].map((side, i) => (
+@@ -43,7 +47,7 @@ const shown = Boolean(home.form || away.form);
+           </div>
+         ))}
+       </div>
+-      <MetricComparison home={home.form} away={away.form} lang={lang} />
++      <MetricComparison groups={groups} home={home.form} away={away.form} lang={lang} />
+     </div>
+   </section>
+ )}
+diff --git a/site_v2/src/components/fixture/MatchStats.astro b/site_v2/src/components/fixture/MatchStats.astro
+index 35f1188a..d2804fee 100644
+--- a/site_v2/src/components/fixture/MatchStats.astro
++++ b/site_v2/src/components/fixture/MatchStats.astro
+@@ -4,12 +4,12 @@
+ // rate per match is the match's own count, so no row carries "per match". Without team stats the
+ // heading says so in one line.
+ import SectionHead from "../ui/SectionHead.astro";
++import MetricSwitch from "../ui/MetricSwitch.astro";
+ import MetricComparison from "./MetricComparison.astro";
+-import metricRows from "../../data/metric_rows.json";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+-import { asNumber } from "../../lib/types";
+-import type { PlayedFixture, ServedMetricRow } from "../../lib/types";
++import { comparisonGroups, needsSwitch } from "../../lib/comparisonGroups";
++import type { PlayedFixture } from "../../lib/types";
+ 
+ interface Props {
+   fixture: PlayedFixture;
+@@ -17,25 +17,21 @@ interface Props {
+ }
+ const { fixture, lang } = Astro.props;
+ const { home, away } = fixture;
+-const WITHOUT = ["goals"];
+-// The block shows rows only when one of them has a value; otherwise it says the numbers are not recorded.
+-const shown = (metricRows.rows as ServedMetricRow[]).some(
+-  (r) => !WITHOUT.includes(r.metric_group)
+-    && (asNumber(home.match_stats?.[r.metric_id]) !== null || asNumber(away.match_stats?.[r.metric_id]) !== null),
+-);
++const groups = comparisonGroups(home.match_stats, away.match_stats, ["goals"]);
+ ---
+ 
+ <section aria-label={t(lang, "secMatchStats")}>
+   <SectionHead label={t(lang, "secMatchStats")} />
+-  {shown ? (
++  {groups.length > 0 ? (
+     <>
+       <p class="bsub">{t(lang, "matchStatsIntro")}</p>
++      {needsSwitch(groups) && <MetricSwitch id="tsw-stats" lang={lang} />}
+       <div class="cmp">
+         <div class="formhead">
+           <div class="fh home"><div class="h">{home.name}</div></div>
+           <div class="fh away"><div class="h">{away.name}</div></div>
+         </div>
+-        <MetricComparison home={home.match_stats} away={away.match_stats} lang={lang} withoutGroups={WITHOUT} oneMatch />
++        <MetricComparison groups={groups} home={home.match_stats} away={away.match_stats} lang={lang} oneMatch />
+       </div>
+     </>
+   ) : (
+diff --git a/site_v2/src/components/fixture/MetricComparison.astro b/site_v2/src/components/fixture/MetricComparison.astro
+index 41dedccd..994d2ba4 100644
+--- a/site_v2/src/components/fixture/MetricComparison.astro
++++ b/site_v2/src/components/fixture/MetricComparison.astro
+@@ -1,43 +1,27 @@
+ ---
+ // The team comparison for one window (W1 or W2). Rows, groups and their order are served from the
+-// catalogue (src/data/metric_rows.json, src/data/metric_groups.json). A row whose value is missing
+-// on BOTH sides is hidden (avoid a wall of dashes); a row missing on one side shows "-" there.
+-// No reordering by value.
++// catalogue (src/data/metric_rows.json, src/data/metric_groups.json), grouped by comparisonGroups().
++// A row whose value is missing on one side shows "-" there. No reordering by value. Rows that are
++// not key metrics, and a group heading with no key row, carry `nonkey` for the Show all metrics switch.
+ import MetricRow from "./MetricRow.astro";
+-import metricRows from "../../data/metric_rows.json";
+-import metricGroups from "../../data/metric_groups.json";
+ import { metricLabel } from "../../i18n/strings";
+-import { asNumber } from "../../lib/types";
+-import type { ServedMetricRow, WindowStats } from "../../lib/types";
++import type { ComparisonGroup } from "../../lib/comparisonGroups";
++import type { WindowStats } from "../../lib/types";
+ import type { Lang } from "../../lib/format";
+ 
+ interface Props {
++  groups: ComparisonGroup[];
+   home?: WindowStats | null;
+   away?: WindowStats | null;
+   lang: Lang;
+-  /** Metric groups the block leaves out, by the catalogue's group key. */
+-  withoutGroups?: string[];
+   oneMatch?: boolean;
+ }
+-const { home, away, lang, withoutGroups = [], oneMatch = false } = Astro.props;
+-
+-const served = metricRows.rows as ServedMetricRow[];
+-const hasData = (def: ServedMetricRow): boolean =>
+-  asNumber(home?.[def.metric_id]) !== null || asNumber(away?.[def.metric_id]) !== null;
+-
+-const groups = [...metricGroups.groups]
+-  .filter((g) => !withoutGroups.includes(g.key))
+-  .sort((a, b) => a.order - b.order)
+-  .map((g) => ({
+-    group: metricLabel(lang, `metricGroups.${g.key}.label`),
+-    rows: served.filter((r) => r.metric_group === g.key && hasData(r)),
+-  }))
+-  .filter((g) => g.rows.length > 0);
++const { groups, home, away, lang, oneMatch = false } = Astro.props;
+ ---
+ 
+-{groups.map(({ group, rows }) => (
++{groups.map(({ key, rows, hasKey }) => (
+   <>
+-    <div class="mgroup">{group}</div>
++    <div class:list={["mgroup", { nonkey: !hasKey }]}>{metricLabel(lang, `metricGroups.${key}.label`)}</div>
+     {rows.map((def) => (
+       <MetricRow def={def} home={home} away={away} lang={lang} oneMatch={oneMatch} />
+     ))}
+diff --git a/site_v2/src/components/fixture/MetricRow.astro b/site_v2/src/components/fixture/MetricRow.astro
+index 613cf7b5..f087bac4 100644
+--- a/site_v2/src/components/fixture/MetricRow.astro
++++ b/site_v2/src/components/fixture/MetricRow.astro
+@@ -36,7 +36,7 @@ const aWidth = barWidth(av, hv);
+ const sub = metricSubline(lang, def.label_i18n_key, def.per_match && !oneMatch);
+ ---
+ 
+-<div class="mrow">
++<div class:list={["mrow", { nonkey: !def.is_key_metric }]}>
+   <div class:list={["mval", "home", { better: better === "home" }]}>{hDisp}</div>
+   <div class="mmid">
+     <div class="mlabel">{metricLabel(lang, def.label_i18n_key)}{sub && <small>{sub}</small>}</div>
+diff --git a/site_v2/src/components/ui/MetricSwitch.astro b/site_v2/src/components/ui/MetricSwitch.astro
+new file mode 100644
+index 00000000..a144426c
+--- /dev/null
++++ b/site_v2/src/components/ui/MetricSwitch.astro
+@@ -0,0 +1,16 @@
++---
++// The Show all metrics switch over a metric comparison: off, the rows marked `nonkey` that follow
++// it are hidden; on, every row stands in its place. No script: the checkbox and its label are the
++// control, the CSS in system.css does the rest.
++import type { Lang } from "../../lib/format";
++import { t } from "../../i18n/strings";
 +
-+provider_goal_keys as (
-+    select
-+        e.fixture_id,
-+        e.team_id,
-+        e.player_id,
-+        e.minute_elapsed,
-+        coalesce(e.minute_extra, 0) as minute_extra,
-+        count(*) as goals
-+    from events as e
-+    inner join goal_counts as g
-+        on e.fixture_id = g.fixture_id
-+    where e.is_provider_goal
-+    group by e.fixture_id, e.team_id, e.player_id, e.minute_elapsed, coalesce(e.minute_extra, 0)
-+),
++interface Props {
++  id: string;
++  lang: Lang;
++}
++const { id, lang } = Astro.props;
++---
 +
-+goal_matches as (
-+    select
-+        s.fixture_id,
-+        sum(least(s.goals, p.goals)) as matched_goals
-+    from seed_goal_keys as s
-+    inner join provider_goal_keys as p
-+        on
-+            s.fixture_id = p.fixture_id
-+            and s.team_id = p.team_id
-+            and s.player_id = p.player_id
-+            and s.minute_elapsed = p.minute_elapsed
-+            and s.minute_extra = p.minute_extra
-+    group by s.fixture_id
-+),
++<input class="tsw" type="checkbox" role="switch" id={id} />
++<label class="tsw-lbl" for={id}>{t(lang, "showAllMetrics")}<span class="tsw-track" aria-hidden="true"><span class="tsw-knob"></span></span></label>
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index 59f8c262..f9f63df1 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -241,6 +241,7 @@ const EN: Dict = {
+   homeNoFixtures: "No matches scheduled right now.",
+   homeShowAll: "Show all {n}",
+   homeShowLess: "Show less",
++  showAllMetrics: "Show all metrics",
+   // Competitions index page (#62 step 5) — category labels (competition_types.csv
+   // label_i18n_key) and region labels (confederations.csv label_i18n_key). Only the keys the
+   // live export actually uses (docs/wireframes/00_overview.md's binding rule): a
+@@ -546,6 +547,7 @@ const DE: Dict = {
+   homeNoFixtures: "Derzeit sind keine Spiele angesetzt.",
+   homeShowAll: "Alle {n} anzeigen",
+   homeShowLess: "Weniger anzeigen",
++  showAllMetrics: "Alle Kennzahlen anzeigen",
+   compTypeDomesticLeague: "Nationale Ligen",
+   compTypeDomesticCup: "Nationale Pokale",
+   compTypeContinentalCup: "Kontinentale Vereinspokale",
+@@ -846,6 +848,7 @@ const FI: Dict = {
+   homeNoFixtures: "Ei otteluita tällä hetkellä.",
+   homeShowAll: "Näytä kaikki {n}",
+   homeShowLess: "Näytä vähemmän",
++  showAllMetrics: "Näytä kaikki tunnusluvut",
+   compTypeDomesticLeague: "Kansalliset sarjat",
+   compTypeDomesticCup: "Kansalliset cupit",
+   compTypeContinentalCup: "Mantereiden seuracupit",
+diff --git a/site_v2/src/lib/comparisonGroups.ts b/site_v2/src/lib/comparisonGroups.ts
+new file mode 100644
+index 00000000..9fd26080
+--- /dev/null
++++ b/site_v2/src/lib/comparisonGroups.ts
+@@ -0,0 +1,37 @@
++// The rows of a two-team metric comparison, grouped under the catalogue's metric groups in their
++// order. A row whose value is missing on BOTH sides is left out (avoid a wall of dashes); a group
++// without a row is left out. Rows that are not key metrics stand behind the Show all metrics switch.
++import metricRows from "../data/metric_rows.json";
++import metricGroups from "../data/metric_groups.json";
++import { asNumber } from "./types";
++import type { ServedMetricRow, WindowStats } from "./types";
 +
- goal_checks as (
-     select
-         'fixture_goal_corrections' as seed,
-@@ -90,11 +134,14 @@ goal_checks as (
-             when
-                 e.provider_home = g.score_home
-                 and e.provider_away = g.score_away
-+                and coalesce(m.matched_goals, 0) = g.seed_goals
-                 then 'no_longer_needed'
-         end as problem
-     from goal_counts as g
-     left join event_counts as e
-         on g.fixture_id = e.fixture_id
-+    left join goal_matches as m
-+        on g.fixture_id = m.fixture_id
- ),
++export interface ComparisonGroup {
++  key: string;
++  rows: ServedMetricRow[];
++  hasKey: boolean;
++}
++
++export function comparisonGroups(
++  home: WindowStats | null | undefined,
++  away: WindowStats | null | undefined,
++  withoutGroups: string[] = [],
++): ComparisonGroup[] {
++  const served = metricRows.rows as ServedMetricRow[];
++  const hasData = (def: ServedMetricRow): boolean =>
++    asNumber(home?.[def.metric_id]) !== null || asNumber(away?.[def.metric_id]) !== null;
++  return [...metricGroups.groups]
++    .filter((g) => !withoutGroups.includes(g.key))
++    .sort((a, b) => a.order - b.order)
++    .map((g) => {
++      const rows = served.filter((r) => r.metric_group === g.key && hasData(r));
++      return { key: g.key, rows, hasKey: rows.some((r) => r.is_key_metric) };
++    })
++    .filter((g) => g.rows.length > 0);
++}
++
++/** The switch has something to do only when the comparison shows a key row and another row. */
++export function needsSwitch(groups: ComparisonGroup[]): boolean {
++  const rows = groups.flatMap((g) => g.rows);
++  return rows.some((r) => r.is_key_metric) && rows.some((r) => !r.is_key_metric);
++}
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index b0d57edc..3f81baf9 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -1002,7 +1002,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+ .mp .formhead .fh { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+ .mp .formhead .fh.home { align-items: flex-start; text-align: left; }
+ .mp .formhead .fh.away { align-items: flex-end; text-align: right; }
+-.mp .formhead .h { font-size: 12px; font-weight: 700; color: var(--muted); }
++.mp .formhead .h { font-size: 14px; font-weight: 600; color: var(--ink); }
+ .mp .formhead .pills { width: 100%; max-width: 140px; }
+ .mp .formhead .away .pills { justify-content: flex-end; }
+ .mp .formhead .pill { width: auto; height: auto; flex: 0 1 24px; min-width: 0; aspect-ratio: 1; }
+@@ -1015,6 +1015,19 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+ .mp .mrow .mval.home { grid-area: home; text-align: left; }
+ .mp .mrow .mval.away { grid-area: away; text-align: right; }
  
- fixture_checks as (
++/* Show all metrics: off, the rows and headings marked `nonkey` after the switch are hidden. */
++.tsw:not(:checked) ~ * .nonkey { display: none; }
++.tsw { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
++.tsw-lbl { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin: 4px 0 6px;
++           font-size: 13px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
++.tsw-track { position: relative; width: 36px; height: 20px; border-radius: 10px; background: var(--sunk);
++             border: 1px solid var(--line); flex: 0 0 auto; }
++.tsw-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
++            background: var(--ink-2); transition: transform .15s; }
++.tsw:checked ~ .tsw-lbl .tsw-track { background: var(--ink-2); border-color: var(--ink-2); }
++.tsw:checked ~ .tsw-lbl .tsw-knob { transform: translateX(16px); background: var(--page); }
++.tsw:focus-visible ~ .tsw-lbl .tsw-track { outline: 2px solid var(--accent); outline-offset: 2px; }
++
+ /* Two lists side by side from 560px, their rows level with each other. */
+ .mp .rsplit { display: grid; grid-template-columns: 1fr; column-gap: 30px; margin-top: 4px; }
+ @container (min-width: 560px) { .mp .rsplit { grid-template-columns: 1fr 1fr; } .mp .rsplit .colhead { margin-top: 0; } }
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/acceptance_evidence.md    | 18 ++++++++++--------
+#    .claude/task/rendered_page_evidence.md | 16 ++++++++++++++--
+#    2 files changed, 24 insertions(+), 10 deletions(-)
+# ============================================================================

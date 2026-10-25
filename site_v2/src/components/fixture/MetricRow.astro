@@ -36,7 +36,7 @@ const aWidth = barWidth(av, hv);
 const sub = metricSubline(lang, def.label_i18n_key, def.per_match && !oneMatch);
 ---
 
-<div class="mrow">
+<div class:list={["mrow", { nonkey: !def.is_key_metric }]}>
   <div class:list={["mval", "home", { better: better === "home" }]}>{hDisp}</div>
   <div class="mmid">
     <div class="mlabel">{metricLabel(lang, def.label_i18n_key)}{sub && <small>{sub}</small>}</div>

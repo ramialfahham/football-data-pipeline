@@ -3,9 +3,11 @@
 // (docs/metrics_context_model.md section 4), under one head row of each team's name and its W/D/L pills.
 // A side whose window is last season's record shows no pills: they are its recent matches, not its window.
 import SectionHead from "../ui/SectionHead.astro";
+import MetricSwitch from "../ui/MetricSwitch.astro";
 import MetricComparison from "./MetricComparison.astro";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
+import { comparisonGroups, needsSwitch } from "../../lib/comparisonGroups";
 import type { Fixture, Side } from "../../lib/types";
 
 interface Props {
@@ -24,12 +26,14 @@ const results = (side: Side): string[] =>
 const prev = [home, away].some((s) => s.form?.window_type === "prev_season");
 const intro = prev ? t(lang, "formIntroPrev", { competition: compName }) : t(lang, "formIntro");
 const shown = Boolean(home.form || away.form);
+const groups = comparisonGroups(home.form, away.form);
 ---
 
 {shown && (
   <section aria-label={t(lang, "secForm")}>
     <SectionHead label={t(lang, "secForm")} />
     <p class="bsub">{intro}</p>
+    {needsSwitch(groups) && <MetricSwitch id="tsw-form" lang={lang} />}
     <div class="cmp">
       <div class="formhead">
         {[home, away].map((side, i) => (
@@ -43,7 +47,7 @@ const shown = Boolean(home.form || away.form);
           </div>
         ))}
       </div>
-      <MetricComparison home={home.form} away={away.form} lang={lang} />
+      <MetricComparison groups={groups} home={home.form} away={away.form} lang={lang} />
     </div>
   </section>
 )}

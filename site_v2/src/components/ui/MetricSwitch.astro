@@ -1,0 +1,16 @@
+---
+// The Show all metrics switch over a metric comparison: off, the rows marked `nonkey` that follow
+// it are hidden; on, every row stands in its place. No script: the checkbox and its label are the
+// control, the CSS in system.css does the rest.
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+
+interface Props {
+  id: string;
+  lang: Lang;
+}
+const { id, lang } = Astro.props;
+---
+
+<input class="tsw" type="checkbox" role="switch" id={id} />
+<label class="tsw-lbl" for={id}>{t(lang, "showAllMetrics")}<span class="tsw-track" aria-hidden="true"><span class="tsw-knob"></span></span></label>

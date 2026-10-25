@@ -1,22 +1,22 @@
-# Review — fix/232-goal-check-scorers — 2026-10-25
+# Review — feat/132-match-show-all — 2026-10-25
 
-diff_sha256: 76a666b1f2998bc3ce9b44fd874c761f4cf917b584fb1a679df0c23fc56ea182
+diff_sha256: d76602315f44bc731e4238ee29151fafa36ccc06113171a04d7ae0cee5ed21f9
 
-rounds: 2
+rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Only the contract and assert_result_corrections_applied.sql change, both in scope_paths; the rule matches the approval recorded in decisions_taken and on the issue.
-- The added-minute reading is declared in the contract and adds no mechanism, dependency or cost.
-- The other branches and seeds' checks are unchanged; approved_design is empty and no page output changes.
+- Every changed path is in scope_paths; the only copy added is showAllMetrics, verbatim the approved EN/DE/FI text; the team names rule matches the approval.
+- The two readings (switch drawn only when a key row and another row show; the class nonkey) are declared and add no copy, page or visible behaviour beyond the approved states.
+- No dependency, export, warehouse or recurring cost; the block standard gains its two rows and the Played match page expects both.
 
-## analytics-engineer-reviewer
+## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Both goal-key steps normalise the added minute and join on plain equality, so each key is unique per side and least() caps the match one to one; goal_matches is one row per match.
-- A seed goal without a player id or minute never matches, so its correction stays needed; a fully matching provider is reported no longer needed.
-- not_applied, does_not_add_up, not_sourced and the other two seeds' checks are untouched; the new condition only narrows the last case.
+- Row order is the catalogue's in both states; nonkey follows is_key_metric exactly (the 14 key team metrics), and a heading is hidden only when none of its shown rows is key.
+- The grouping keeps the both-sides-missing filter, Match stats still leaves out the goals group and says not recorded without data; no metric fact is computed.
+- The switch is a labelled role=switch checkbox, focusable with a visible ring, no script; its CSS is in system.css alone; the copy exists in EN, DE and FI.
 
 ## escalations
 (none)

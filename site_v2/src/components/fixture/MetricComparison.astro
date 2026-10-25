@@ -1,43 +1,27 @@
 ---
 // The team comparison for one window (W1 or W2). Rows, groups and their order are served from the
-// catalogue (src/data/metric_rows.json, src/data/metric_groups.json). A row whose value is missing
-// on BOTH sides is hidden (avoid a wall of dashes); a row missing on one side shows "-" there.
-// No reordering by value.
+// catalogue (src/data/metric_rows.json, src/data/metric_groups.json), grouped by comparisonGroups().
+// A row whose value is missing on one side shows "-" there. No reordering by value. Rows that are
+// not key metrics, and a group heading with no key row, carry `nonkey` for the Show all metrics switch.
 import MetricRow from "./MetricRow.astro";
-import metricRows from "../../data/metric_rows.json";
-import metricGroups from "../../data/metric_groups.json";
 import { metricLabel } from "../../i18n/strings";
-import { asNumber } from "../../lib/types";
-import type { ServedMetricRow, WindowStats } from "../../lib/types";
+import type { ComparisonGroup } from "../../lib/comparisonGroups";
+import type { WindowStats } from "../../lib/types";
 import type { Lang } from "../../lib/format";
 
 interface Props {
+  groups: ComparisonGroup[];
   home?: WindowStats | null;
   away?: WindowStats | null;
   lang: Lang;
-  /** Metric groups the block leaves out, by the catalogue's group key. */
-  withoutGroups?: string[];
   oneMatch?: boolean;
 }
-const { home, away, lang, withoutGroups = [], oneMatch = false } = Astro.props;
-
-const served = metricRows.rows as ServedMetricRow[];
-const hasData = (def: ServedMetricRow): boolean =>
-  asNumber(home?.[def.metric_id]) !== null || asNumber(away?.[def.metric_id]) !== null;
-
-const groups = [...metricGroups.groups]
-  .filter((g) => !withoutGroups.includes(g.key))
-  .sort((a, b) => a.order - b.order)
-  .map((g) => ({
-    group: metricLabel(lang, `metricGroups.${g.key}.label`),
-    rows: served.filter((r) => r.metric_group === g.key && hasData(r)),
-  }))
-  .filter((g) => g.rows.length > 0);
+const { groups, home, away, lang, oneMatch = false } = Astro.props;
 ---
 
-{groups.map(({ group, rows }) => (
+{groups.map(({ key, rows, hasKey }) => (
   <>
-    <div class="mgroup">{group}</div>
+    <div class:list={["mgroup", { nonkey: !hasKey }]}>{metricLabel(lang, `metricGroups.${key}.label`)}</div>
     {rows.map((def) => (
       <MetricRow def={def} home={home} away={away} lang={lang} oneMatch={oneMatch} />
     ))}
