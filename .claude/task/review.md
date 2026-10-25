@@ -1,13 +1,14 @@
 # Review — feat/229-season-label — 2026-10-25
 
-diff_sha256: 9f9f86014e60de79beb77ac98736d81d190d9ec8a8c479046ed59d2c6afbdf19
+diff_sha256: ffe5c0702503335818417d86207d27e2149539a1f60be8383795feb9ef7cb5f2
 
-rounds: 2
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
 - Every changed path is in scope_paths; the header text matches the approved wording and the Season/Saison/Kausi copy is unchanged; approved_design names the competition page.
+- The committed BL1 sample gains only season_label 2026/27, the export's key with the value the MR's own warehouse build serves.
 - The impact_map lists the lineage of dim_competition_season with its leaves, and the two direct SQL readers select named columns, so the new column reaches no model.
 - The label is built only in dim_competition_season; the export reads it and the pages pass it through; no new mechanism, no credential, a 48-row seed join as the only recurring cost.
 
@@ -31,6 +32,7 @@ risks_checked:
 - The header reads only payload.season_label, a field the export serves from dim_competition_season; the three specs name that source.
 - No page in the competition header path formats a year; the header interpolates the served string through compSeason.
 - compSeason reads Season/Saison/Kausi {season} in EN, DE and FI, the approved text; the meta line stays one plain-text line.
+- The committed sample carries only season_label, a served field with the warehouse's value; its build renders Season 2026/27 on the three Bundesliga tabs in EN, DE and FI, and the inventory passes 174 renders.
 
 ## escalations
 (none)

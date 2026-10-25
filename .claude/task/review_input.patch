@@ -407,3 +407,37 @@ index 0e45fd18..fe996e01 100644
  
  
  _TEAM_CAT = {
+
+# ============================================================================
+# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
+# ============================================================================
+# The files below changed and are DELIBERATELY excluded from the diff body:
+# they are generated/sample data, and pasting them has measured at ~89% of the
+# review payload. They are still reviewed content and still bind your verdict.
+#
+# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
+# particular: whether a field displayed by a component actually EXISTS in the
+# exported sample is checked by opening these files, not by reading a diff.
+#
+#   site_v2/src/data/competitions/BL1/2026.json | 1 +
+#    1 file changed, 1 insertion(+)
+# ============================================================================
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/acceptance_evidence.md    |  20 +-
+#    .claude/task/rendered_page_evidence.md |  20 +-
+#    .claude/task/review.md                 |  32 +-
+#    .claude/task/review_input.patch        | 744 ++++++++++++++++-----------------
+#    4 files changed, 410 insertions(+), 406 deletions(-)
+# ============================================================================
