@@ -13,7 +13,8 @@
 --   - does_not_add_up: a match's corrected goals do not add up to its score side by side (the
 --     score on the pitch for a played or abandoned award), name a team not in the match, or sit
 --     beside the row that says the match had no goal.
---   - no_longer_needed: the provider now carries the official result, or goals that add up, itself.
+--   - no_longer_needed: the provider now carries the official result itself, or every corrected
+--     goal with the same team, player id and minute; a goal without a player id never matches.
 --     An award is always needed: the provider never says how it came about.
 
 {{ config(store_failures = true) }}
@@ -72,6 +73,49 @@ event_counts as (
     group by e.fixture_id
 ),
 
+seed_goal_keys as (
+    select
+        fixture_id,
+        team_id,
+        player_id,
+        minute_elapsed,
+        coalesce(minute_extra, 0) as minute_extra,
+        count(*) as goals
+    from goal_corrections
+    where goal_order > 0 and player_id is not null
+    group by fixture_id, team_id, player_id, minute_elapsed, coalesce(minute_extra, 0)
+),
+
+provider_goal_keys as (
+    select
+        e.fixture_id,
+        e.team_id,
+        e.player_id,
+        e.minute_elapsed,
+        coalesce(e.minute_extra, 0) as minute_extra,
+        count(*) as goals
+    from events as e
+    inner join goal_counts as g
+        on e.fixture_id = g.fixture_id
+    where e.is_provider_goal
+    group by e.fixture_id, e.team_id, e.player_id, e.minute_elapsed, coalesce(e.minute_extra, 0)
+),
+
+goal_matches as (
+    select
+        s.fixture_id,
+        sum(least(s.goals, p.goals)) as matched_goals
+    from seed_goal_keys as s
+    inner join provider_goal_keys as p
+        on
+            s.fixture_id = p.fixture_id
+            and s.team_id = p.team_id
+            and s.player_id = p.player_id
+            and s.minute_elapsed = p.minute_elapsed
+            and s.minute_extra = p.minute_extra
+    group by s.fixture_id
+),
+
 goal_checks as (
     select
         'fixture_goal_corrections' as seed,
@@ -90,11 +134,14 @@ goal_checks as (
             when
                 e.provider_home = g.score_home
                 and e.provider_away = g.score_away
+                and coalesce(m.matched_goals, 0) = g.seed_goals
                 then 'no_longer_needed'
         end as problem
     from goal_counts as g
     left join event_counts as e
         on g.fixture_id = e.fixture_id
+    left join goal_matches as m
+        on g.fixture_id = m.fixture_id
 ),
 
 fixture_checks as (

@@ -1,1048 +1,217 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 0bf8464b..116e9b85 100644
+index 116e9b85..53f42730 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,35 +1,47 @@
--# Task contract — the shared Filter bar
-+# Task contract — key metrics in the catalogue, cards as totals
+@@ -1,50 +1,16 @@
+-# Task contract — key metrics in the catalogue, cards as totals
++# Task contract — the correction check compares every goal
  
  objective: >
--  The Competitions, Matches and Matches day pages show the approved Filter bar: each filter offers
--  only the types and regions the page's rows carry and is absent with fewer than two real choices;
--  a choice that would leave no row beside the other filter's choice is removed and comes back when
--  it fits; the buttons show while each row of buttons fits on one line, otherwise a dropdown per
--  filter in the Filter row's sunk box, side by side while each holds its longest choice and stacked
--  full width below that, decided per block and language by the shared fit script; buttons and
--  dropdowns hold the same choice; the open list is drawn in the site's design where the browser
--  supports it. The block standard states the rules and the design check measures them.
-+  The metric catalogue replaces importance_tier with is_key_metric (the 14 key team metrics true,
-+  the other team rows false, player rows blank); Shots off target, Blocked shots and the per-match
-+  card rows leave every page (blank metric_order); the form window serves the card totals, so the
-+  match page's comparison shows Yellow cards and Red cards as totals over its window; the served
-+  list metric_rows.json carries the key flag and only rows with a place; the documents state key
-+  metrics instead of tiers, with the CPO's approved text.
+-  The metric catalogue replaces importance_tier with is_key_metric (the 14 key team metrics true,
+-  the other team rows false, player rows blank); Shots off target, Blocked shots and the per-match
+-  card rows leave every page (blank metric_order); the form window serves the card totals, so the
+-  match page's comparison shows Yellow cards and Red cards as totals over its window; the served
+-  list metric_rows.json carries the key flag and only rows with a place; the documents state key
+-  metrics instead of tiers, with the CPO's approved text.
++  assert_result_corrections_applied calls a goal correction no longer needed only when the
++  provider has every goal as the seed has it: same team, same player id and same minute; a seed
++  goal without a player id never matches. The five goal rows of CAF match 1639347 stay, and the
++  nightly passes the check again.
  
  refs: >
--  #223, the shared Filter bar
--  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/223), design approved in
--  chat, 2026-10-20; #128 and #130, the approved designs of the pages that change; the fit rule
--  approved in chat, 2026-10-22 and 2026-10-23. Plan approved in chat, 2026-10-23.
-+  #134 (key-metric flag and its metrics_display.md text, the dropped shot rows, cards as season
-+  totals; approved in chat, 2026-10-22) and #132 (cards as totals over the window on the match
-+  page, approved in chat, 2026-10-23); the metric_layer.md line approved in chat, 2026-10-23 with
-+  the plan.
+-  #134 (key-metric flag and its metrics_display.md text, the dropped shot rows, cards as season
+-  totals; approved in chat, 2026-10-22) and #132 (cards as totals over the window on the match
+-  page, approved in chat, 2026-10-23); the metric_layer.md line approved in chat, 2026-10-23 with
+-  the plan.
++  #232 (the goals of CAF match 1639347; the check's rule approved in chat, 2026-10-25).
  
  scope_paths:
--  - site_v2/src/components/competitions/FilterRows.astro
--  - site_v2/src/components/competitions/CompetitionIndexGrid.astro
--  - site_v2/src/components/matches/MatchesDay.astro
--  - site_v2/src/styles/system.css
-+  - dbt_project/seeds/metric_catalogue.csv
-+  - dbt_project/seeds/schema.yml
-+  - dbt_project/seeds/metric_map.csv
-+  - scripts/generate_metric_sql.py
-+  - dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
-+  - dbt_project/models/4_intermediate/shared/int_momentum.yml
-+  - dbt_project/models/5_marts/shared/mart_team_window_metrics.sql
-+  - dbt_project/models/5_marts/shared/shared.yml
-+  - dbt_project/models/5_marts/shared/mart_player_career.sql
-+  - dbt_project/models/docs/metric_rules.md
-+  - dbt_project/models/docs/metric_columns.md
-+  - scripts/export_site_data.py
-+  - site_v2/src/data/metric_rows.json
-+  - site_v2/src/lib/types.ts
-+  - site_v2/src/lib/metricRows.ts
-   - site_v2/src/i18n/strings.ts
--  - site_v2/src/lib/filterBar.mjs
--  - site_v2/src/lib/filterBar.test.mjs
--  - site_v2/src/lib/fitBlocks.mjs
--  - docs/wireframes/block_standard.md
--  - scripts/design_inventory.py
--  - scripts/check_design_inventory.py
--  - tests/test_design_inventory.py
--  - tests/fixtures/design_inventory/green.html
-+  - site_v2/scripts/check-metric-labels.test.mjs
-+  - docs/wireframes/metrics_display.md
-+  - docs/wireframes/99_gaps_register.md
-+  - docs/wireframes/10_home.md
-+  - docs/metric_layer.md
-+  - docs/wireframes/02_team_profile.md
-+  - docs/roles/bi_analyst.md
-+  - tests/test_metric_rows.py
-+  - tests/test_catalogue_order.py
-+  - tests/test_metric_map.py
-+  - tests/test_export_site_data.py
-   - tests/test_no_decision_history_in_docs.py
-   - tests/test_no_decision_history_in_code.py
-   - tests/test_sentence_length_in_docs.py
-@@ -40,46 +52,57 @@ scope_paths:
+-  - dbt_project/seeds/metric_catalogue.csv
+-  - dbt_project/seeds/schema.yml
+-  - dbt_project/seeds/metric_map.csv
+-  - scripts/generate_metric_sql.py
+-  - dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
+-  - dbt_project/models/4_intermediate/shared/int_momentum.yml
+-  - dbt_project/models/5_marts/shared/mart_team_window_metrics.sql
+-  - dbt_project/models/5_marts/shared/shared.yml
+-  - dbt_project/models/5_marts/shared/mart_player_career.sql
+-  - dbt_project/models/docs/metric_rules.md
+-  - dbt_project/models/docs/metric_columns.md
+-  - scripts/export_site_data.py
+-  - site_v2/src/data/metric_rows.json
+-  - site_v2/src/lib/types.ts
+-  - site_v2/src/lib/metricRows.ts
+-  - site_v2/src/i18n/strings.ts
+-  - site_v2/scripts/check-metric-labels.test.mjs
+-  - docs/wireframes/metrics_display.md
+-  - docs/wireframes/99_gaps_register.md
+-  - docs/wireframes/10_home.md
+-  - docs/metric_layer.md
+-  - docs/wireframes/02_team_profile.md
+-  - docs/roles/bi_analyst.md
+-  - tests/test_metric_rows.py
+-  - tests/test_catalogue_order.py
+-  - tests/test_metric_map.py
+-  - tests/test_export_site_data.py
+-  - tests/test_no_decision_history_in_docs.py
+-  - tests/test_no_decision_history_in_code.py
+-  - tests/test_sentence_length_in_docs.py
++  - dbt_project/tests/assert_result_corrections_applied.sql
+   - .claude/task/contract.md
+   - .claude/task/review.md
+   - .claude/task/review_input.patch
+@@ -52,57 +18,32 @@ scope_paths:
    - .claude/task/rendered_page_evidence.md
  
  impact_map: >
--  writers: no data writer changes; the export and every payload are untouched.
--  downstream: FilterRows.astro is rendered by CompetitionIndexGrid.astro (the Competitions page)
--  and MatchesDay.astro (the Matches page and every Matches day page). The row-hiding rules in
--  system.css (`#filter-…:checked ~ .categories …`) and the Competitions page's empty-category script
--  read the same radios. fitBlocks.mjs is loaded on every page by Layout.astro; its new kinds act only
--  where a Filter bar renders. The design check reads block_standard.md through design_inventory.py.
--  layer_rules: presentation only; which rows a page is served and their order are unchanged; the
--  bar selects among the page's own rows.
--  deploy_order: none; deploy:site-v2 is manual and builds from the export.
--  blast_radius: the filter rows of the Competitions, Matches and Matches day pages in EN, DE and FI;
--  two new copy keys; one new shared script; two new fit kinds.
-+  writers: the seed metric_catalogue (is_key_metric, metric_order); int_team_momentum__metrics,
-+  generated by scripts/generate_metric_sql.py, and mart_team_window_metrics gain cards_yellow and
-+  cards_red; metric_map.csv, generated by scripts/sync_metric_docs_blocks.py, gains their rows.
-+  downstream: mart_team_window_metrics is read by export_site_data.py (fixture payloads' form and
-+  match_stats, select *) and fetch_metric_rows (metric_rows.json); metric_rows.json is read by
-+  MetricComparison.astro, MatchStats.astro and FormSegment.astro on the match page; the catalogue is
-+  read by every metric surface through its formula columns, which do not change; fetch_glossary
-+  serves every catalogue column in metrics.json, which no page reads. Lineage (`dbt ls --select
-+  int_team_momentum__metrics+ --resource-type model`, 4 models): int_team_momentum__metrics,
-+  mart_team_window_metrics, mart_team_momentum_window, mart_matchday_insights; only
-+  mart_team_window_metrics selects the new columns, the other two read columns by name.
-+  `metric_catalogue+`: mart_team_leaderboards (1 model), which reads formula and order columns.
-+  layer_rules: the card totals are computed in intermediate from the catalogue formula, served by
-+  the mart, selected by the export; the frontend renders the served list.
-+  deploy_order: none; the nightly rebuilds prod from main and the site deploy is manual.
-+  blast_radius: two new columns in one intermediate model and one mart; the match page's
-+  comparison rows in EN, DE and FI; one catalogue column renamed; the display documents.
+-  writers: the seed metric_catalogue (is_key_metric, metric_order); int_team_momentum__metrics,
+-  generated by scripts/generate_metric_sql.py, and mart_team_window_metrics gain cards_yellow and
+-  cards_red; metric_map.csv, generated by scripts/sync_metric_docs_blocks.py, gains their rows.
+-  downstream: mart_team_window_metrics is read by export_site_data.py (fixture payloads' form and
+-  match_stats, select *) and fetch_metric_rows (metric_rows.json); metric_rows.json is read by
+-  MetricComparison.astro, MatchStats.astro and FormSegment.astro on the match page; the catalogue is
+-  read by every metric surface through its formula columns, which do not change; fetch_glossary
+-  serves every catalogue column in metrics.json, which no page reads. Lineage (`dbt ls --select
+-  int_team_momentum__metrics+ --resource-type model`, 4 models): int_team_momentum__metrics,
+-  mart_team_window_metrics, mart_team_momentum_window, mart_matchday_insights; only
+-  mart_team_window_metrics selects the new columns, the other two read columns by name.
+-  `metric_catalogue+`: mart_team_leaderboards (1 model), which reads formula and order columns.
+-  layer_rules: the card totals are computed in intermediate from the catalogue formula, served by
+-  the mart, selected by the export; the frontend renders the served list.
+-  deploy_order: none; the nightly rebuilds prod from main and the site deploy is manual.
+-  blast_radius: two new columns in one intermediate model and one mart; the match page's
+-  comparison rows in EN, DE and FI; one catalogue column renamed; the display documents.
++  writers: none; the change is in one singular dbt test. downstream: the test reads
++  fixture_result_corrections, standings_corrections, fixture_goal_corrections,
++  base_apif__fixtures_next, base_apif__standings and base_apif__fixture_events, and nothing reads
++  the test except dbt's build order, which skips the nodes after it when it fails. layer_rules: a
++  test changes no model, seed or served column. deploy_order: none; the nightly runs main.
++  blast_radius: one problem class of one test (no_longer_needed on fixture_goal_corrections).
  
- approved_design:
--  - competitions: #128
--  - matches: #130
-+  - match: #132
+-approved_design:
+-  - match: #132
++approved_design: []
  
  acceptance_criteria:
--  - "On the Competitions, Matches and Matches day pages in EN, DE and FI, each filter offers only the choices its rows carry, and a filter with fewer than two real choices is absent."
--  - "Every combination the bar offers shows at least one row; a removed choice comes back once the other filter allows it."
--  - "At 280, 320, 375, 430, 700, 768, 1010 and 1440px the bar shows buttons when they fit on one line and dropdowns otherwise, and no page scrolls sideways."
--  - "Buttons and dropdowns always hold the same choice."
--  - "The dropdowns' first choices read All types / Alle Arten / Kaikki tyypit and All regions / Alle Regionen / Kaikki alueet."
--  - "The design check passes on every built page it lists."
-+  - "metric_catalogue.csv carries is_key_metric, true on exactly the 14 key team rows, false on every other team row and blank on player rows; importance_tier is gone."
-+  - "metric_rows.json no longer serves shots_off_target_per_match, shots_blocked_per_match, cards_yellow_per_match or cards_red_per_match, serves cards_yellow and cards_red with per_match false, and carries is_key_metric on every row."
-+  - "mart_team_window_metrics serves cards_yellow and cards_red per window, and the MR's data build passes its formula and coverage tests."
-+  - "The built match pages show no Shots off target or Blocked shots row."
-+  - "metrics_display.md holds the approved Key metrics section and no tier mention; metric_layer.md line 21 reads as approved."
+-  - "metric_catalogue.csv carries is_key_metric, true on exactly the 14 key team rows, false on every other team row and blank on player rows; importance_tier is gone."
+-  - "metric_rows.json no longer serves shots_off_target_per_match, shots_blocked_per_match, cards_yellow_per_match or cards_red_per_match, serves cards_yellow and cards_red with per_match false, and carries is_key_metric on every row."
+-  - "mart_team_window_metrics serves cards_yellow and cards_red per window, and the MR's data build passes its formula and coverage tests."
+-  - "The built match pages show no Shots off target or Blocked shots row."
+-  - "metrics_display.md holds the approved Key metrics section and no tier mention; metric_layer.md line 21 reads as approved."
++  - "The check names a goal correction no_longer_needed only when every seed goal has a provider goal with the same team, player id, minute and added minute, one to one; a seed goal without a player id never matches."
++  - "The check on prod's data returns no row; the check as on main returns the 1639347 row on the same data."
++  - "The not_applied, does_not_add_up and not_sourced branches and the other two seeds' checks are unchanged."
  
  decisions_taken: >
--  Approved in chat, 2026-10-20: the Filter bar design and its copy (#223). Approved in chat,
--  2026-10-22 and 2026-10-23: a block switches form only when its content no longer fits, decided
--  per block and language by the shared fit script. Readings of the approved design: the dropdowns
--  reuse the existing filterByType and filterByRegion names; without the script the buttons show and
--  wrap, which still filters. No new dependency, no recurring cost.
-+  Approved in chat, 2026-10-22: is_key_metric replaces importance_tier with the 14 key team
-+  metrics and the metrics_display.md text; Shots off target and Blocked shots leave the pages; cards
-+  as totals. Approved in chat, 2026-10-23: cards as totals over the window on the match page, from
-+  one served list; the metric_layer.md line. Readings: Possession is passes_share_pct, its
-+  catalogue label; player rows stay blank until the Player page sets them; the four rows with a
-+  blank metric_order stay computed in the warehouse. Approved in chat, 2026-10-23: the
-+  interpretation texts of cards_yellow and cards_red, which now serve windows as well as seasons.
-+  No new dependency; the two columns add no measurable recurring cost.
+-  Approved in chat, 2026-10-22: is_key_metric replaces importance_tier with the 14 key team
+-  metrics and the metrics_display.md text; Shots off target and Blocked shots leave the pages; cards
+-  as totals. Approved in chat, 2026-10-23: cards as totals over the window on the match page, from
+-  one served list; the metric_layer.md line. Readings: Possession is passes_share_pct, its
+-  catalogue label; player rows stay blank until the Player page sets them; the four rows with a
+-  blank metric_order stay computed in the warehouse. Approved in chat, 2026-10-23: the
+-  interpretation texts of cards_yellow and cards_red, which now serve windows as well as seasons.
+-  No new dependency; the two columns add no measurable recurring cost.
++  Approved in chat, 2026-10-25: a goal correction is no longer needed only when the provider has
++  every goal as the seed has it (same team, same player id, same minute); a seed goal without a
++  player id never matches; the five rows of match 1639347 stay. Reading: the same minute means
++  the same minute and the same added minute. No new dependency and no recurring cost.
  
- decisions_reserved:
--  - The Team page's competition filter and the Teams page's filter, built with #134 and #222.
-+  - The "Show all metrics" switch that reads the flag (#132, #134).
-+  - The key player metrics (#136).
-+  - The card columns of the season window W2.
+-decisions_reserved:
+-  - The "Show all metrics" switch that reads the flag (#132, #134).
+-  - The key player metrics (#136).
+-  - The card columns of the season window W2.
++decisions_reserved: []
  
  done_when:
--  - npm run build in site_v2 passes (prebuild tests, astro build, audit-seo, check-built-pages).
--  - python scripts/check_design_inventory.py --dist site_v2/dist passes.
-+  - dbt parse passes; generate_metric_sql.py --check and sync_metric_docs_blocks.py --check pass.
-+  - npm run build in site_v2 passes and the design check passes.
+-  - dbt parse passes; generate_metric_sql.py --check and sync_metric_docs_blocks.py --check pass.
+-  - npm run build in site_v2 passes and the design check passes.
++  - dbt parse passes and SQLFluff passes on the test.
    - The full pytest suite and the offline gates pass.
    - Reviewers per review_routing.json pass.
-+  - data:build:mr passes and the prod comparison of mart_team_window_metrics goes to the CPO.
+-  - data:build:mr passes and the prod comparison of mart_team_window_metrics goes to the CPO.
++  - The check on prod's data returns no row; data:build:mr passes.
  
- amendments:
--  - The code-history pin moves down one line, because the Filter bar retires the `.seg.wrap` comment
--    that carried history; the pin only moves down, so this records the cleanup.
-+  - Two documents that still describe tiers follow the same strip (02_team_profile.md and the
-+    BI analyst's role brief), and the impact map carries the measured lineage, after the scope
-+    review.
-diff --git a/dbt_project/models/4_intermediate/shared/int_momentum.yml b/dbt_project/models/4_intermediate/shared/int_momentum.yml
-index 5a0de997..899977f0 100644
---- a/dbt_project/models/4_intermediate/shared/int_momentum.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_momentum.yml
-@@ -130,6 +130,10 @@ models:
-         description: "{{ doc('cards_yellow_per_match') }}"
-       - name: cards_red_per_match
-         description: "{{ doc('cards_red_per_match') }}"
-+      - name: cards_yellow
-+        description: "{{ doc('cards_yellow') }}"
-+      - name: cards_red
-+        description: "{{ doc('cards_red') }}"
+-amendments:
+-  - Two documents that still describe tiers follow the same strip (02_team_profile.md and the
+-    BI analyst's role brief), and the impact map carries the measured lineage, after the scope
+-    review.
++amendments: []
+diff --git a/dbt_project/tests/assert_result_corrections_applied.sql b/dbt_project/tests/assert_result_corrections_applied.sql
+index 2481347d..f3450900 100644
+--- a/dbt_project/tests/assert_result_corrections_applied.sql
++++ b/dbt_project/tests/assert_result_corrections_applied.sql
+@@ -13,7 +13,8 @@
+ --   - does_not_add_up: a match's corrected goals do not add up to its score side by side (the
+ --     score on the pitch for a played or abandoned award), name a team not in the match, or sit
+ --     beside the row that says the match had no goal.
+---   - no_longer_needed: the provider now carries the official result, or goals that add up, itself.
++--   - no_longer_needed: the provider now carries the official result itself, or every corrected
++--     goal with the same team, player id and minute; a goal without a player id never matches.
+ --     An award is always needed: the provider never says how it came about.
  
-   - name: int_player_momentum__metrics
-     description: >
-diff --git a/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql b/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
-index e0202b37..67d73aea 100644
---- a/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
-+++ b/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
-@@ -317,7 +317,17 @@ select
-     safe_divide(
-         if(logical_and(is_awarded_result or cards_red is not null), sum(if(is_awarded_result, null, cards_red)), null),
-         countif(not is_awarded_result)
--    ) as cards_red_per_match
-+    ) as cards_red_per_match,
-+    if(
-+        logical_and(is_awarded_result or cards_yellow is not null),
-+        sum(if(is_awarded_result, null, cards_yellow)),
-+        null
-+    ) as cards_yellow,
-+    if(
-+        logical_and(is_awarded_result or cards_red is not null),
-+        sum(if(is_awarded_result, null, cards_red)),
-+        null
-+    ) as cards_red
-     -- end of generated metric sql
- from window_rows
- group by
-diff --git a/dbt_project/models/5_marts/shared/mart_player_career.sql b/dbt_project/models/5_marts/shared/mart_player_career.sql
-index c617c460..d68cd716 100644
---- a/dbt_project/models/5_marts/shared/mart_player_career.sql
-+++ b/dbt_project/models/5_marts/shared/mart_player_career.sql
-@@ -132,7 +132,7 @@ select
-     -- `minutes` and `appearances` are playing-time DIMENSIONS and are deliberately absent from the
-     -- catalogue. An earlier version of this comment lumped goals and assists in with them and called
-     -- all three "not a catalogue metric" — false: `goals_player` and `assists_player` are both catalogue rows
--    -- (entity=player, group=goals, tier 1). Only the playing-time pair is uncatalogued, and the one
-+    -- (entity=player, group=goals). Only the playing-time pair is uncatalogued, and the one
-     -- catalogued member of that family is the RATE below, minutes_per_appearance (group
-     -- playing_time).
-     wc.minutes,
-diff --git a/dbt_project/models/5_marts/shared/mart_team_window_metrics.sql b/dbt_project/models/5_marts/shared/mart_team_window_metrics.sql
-index 87b70f6a..9b119be8 100644
---- a/dbt_project/models/5_marts/shared/mart_team_window_metrics.sql
-+++ b/dbt_project/models/5_marts/shared/mart_team_window_metrics.sql
-@@ -92,6 +92,8 @@ select
-     b.offsides_per_match,
-     b.cards_yellow_per_match,
-     b.cards_red_per_match,
-+    b.cards_yellow,
-+    b.cards_red,
-     b.team_sk = f.home_team_sk as is_home,
-     b.window_type != 'match'
-     and (
-diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index 27ce9077..ba8db07d 100644
---- a/dbt_project/models/5_marts/shared/shared.yml
-+++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -299,6 +299,10 @@ models:
-         description: "{{ doc('cards_yellow_per_match') }}"
-       - name: cards_red_per_match
-         description: "{{ doc('cards_red_per_match') }}"
-+      - name: cards_yellow
-+        description: "{{ doc('cards_yellow') }}"
-+      - name: cards_red
-+        description: "{{ doc('cards_red') }}"
+ {{ config(store_failures = true) }}
+@@ -72,6 +73,49 @@ event_counts as (
+     group by e.fixture_id
+ ),
  
-   - name: mart_player_momentum
-     description: >
-diff --git a/dbt_project/models/docs/metric_rules.md b/dbt_project/models/docs/metric_rules.md
-index e223fcfb..641cc267 100644
---- a/dbt_project/models/docs/metric_rules.md
-+++ b/dbt_project/models/docs/metric_rules.md
-@@ -3,7 +3,7 @@ Every metric we compute, one row per metric and entity (a team or a player). A r
- metric means (description) and how it is computed (base_relation, numerator_expr, denominator_expr,
- computation_kind). It also holds the key of its name (label_i18n_key) and which way is better
- (direction, interpretation). How it is shown is format, metric_group, metric_group_order,
--metric_order and importance_tier. Every
-+metric_order and is_key_metric. Every
- model that computes a metric follows its row's formula. A row is window-free: which matches a
- metric counts, and when its value is blank, are the rules below, never part of a row.
- 
-diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
-index 70c2769a..48d06fe0 100644
---- a/dbt_project/seeds/metric_catalogue.csv
-+++ b/dbt_project/seeds/metric_catalogue.csv
-@@ -1,106 +1,106 @@
--metric_id,entity,label_i18n_key,description,base_relation,numerator_expr,denominator_expr,computation_kind,format,metric_group,importance_tier,direction,interpretation,metric_group_order,metric_order
--league_rank,team,metrics.league_rank.label,The team's position in its league table.,,,,sourced,integer,outcomes,1,lower_better,League position - 1 = top of the table,9,
--points_won,team,metrics.points_won.label,"Points the team won: 3 for a win, 1 for a draw, none for a defeat.",int_legs__team_match,sum(case result when 'W' then 3 when 'D' then 1 else 0 end),,expression,points_fraction,outcomes,1,higher_better,Points tally in the window (3 per win / 1 per draw / 0 per loss),9,
--goals_per_match,team,metrics.goals_per_match.label,Average number of goals the team scored per match.,int_legs__team_match,sum(goals),count(*),expression,decimal_1,goals,1,higher_better,Attacking output - goals scored per game; high = a potent attack,1,1
--goals_against_per_match,team,metrics.goals_against_per_match.label,Average number of goals the team conceded per match.,int_legs__team_match,sum(goals_against),count(*),expression,decimal_1,goals,1,lower_better,Defensive vulnerability - goals conceded per game; low = a mean defence,1,2
--clean_sheets_pct,team,metrics.clean_sheets_pct.label,"Matches in which the team conceded no goal, as a share of all its matches.",int_legs__team_match,countif(goals_against = 0),count(*),expression,percent,goals,2,higher_better,Shut-out rate - the share of matches conceding zero; high = reliable at the back,1,
--goals_penalty,team,metrics.goals_penalty.label,"Goals the team scored from penalties, not counting penalty shoot-outs.",int_legs__team_match,sum(goals_penalty),,expression,integer,goals,3,higher_better,Penalty goals - goals from the spot; they count toward the result and often reward pressure that wins fouls,1,
--goals_own,team,metrics.goals_own.label,"Own goals by the team's opponents, which count for the team.",int_legs__team_match,sum(goals_own),,expression,integer,goals,3,higher_better,Own goals for - goals from opponents' own nets in the team's favour; they count toward the result and are often pressure-forced,1,
--goals_open_play,team,metrics.goals_open_play.label,"Goals the team scored, not counting penalties and opponents' own goals.",int_legs__team_match,sum(goals - goals_penalty - goals_own),,expression,integer,goals,3,higher_better,Open-play goals - goals from open play (excl. penalties and own goals); the core attacking output,1,
--shots_per_match,team,metrics.shots_per_match.label,Average number of shots the team took per match.,int_legs__team_match,sum(shots),count(*),expression,decimal_1,shooting,2,higher_better,Shot volume - attacking attempts per game; high = more attacking threat (volume not shot quality),2,1
--shots_on_goal_pct,team,metrics.shots_on_goal_pct.label,The team's shots on target as a share of all its shots.,int_legs__team_match,sum(shots_on_target),sum(shots),expression,percent,shooting,2,higher_better,Striking precision - share of shots on goal,2,9
--shots_inside_box_pct,team,metrics.shots_inside_box_pct.label,The team's shots from inside the penalty area as a share of all its shots.,int_legs__team_match,sum(shots_inside_box),sum(shots),expression,percent,shooting,2,higher_better,Chance quality - share of shots from inside the box; high = better positions,2,8
--shots_on_goal_per_match,team,metrics.shots_on_target_per_match.label,Average number of shots on target the team had per match.,int_legs__team_match,sum(shots_on_target),count(*),expression,decimal_1,shooting,1,higher_better,On-target threat - efforts testing the keeper; high = sustained threat,2,2
--finishing_efficiency_pct,team,metrics.finishing_efficiency_pct.label,"Goals the team scored, not counting penalties and opponents' own goals, as a share of its shots on target.",int_legs__team_match,sum(goals - goals_penalty - goals_own),sum(shots_on_target),expression,percent,shooting,1,higher_better,Clinical finishing - open-play goals per shot on goal; high = ruthless,2,10
--finishing_efficiency_player_pct,player,playerMetrics.finishingEfficiency.label,"Goals the player scored, not counting penalties, as a share of the player's shots on target.",int_legs__player_match,sum(goals - goals_penalty),sum(shots_on_target),expression,percent,shooting,2,higher_better,Clinical finishing - open-play goals per shot on target; high = a ruthless finisher,2,3
--duels_per_match,team,metrics.duels_per_match.label,"Average number of one-on-one challenges for the ball, on the ground or in the air, that the team's players contested per match.",int_legs__team_from_players,sum(duels),count(*),expression,decimal_0,one_on_one,2,higher_better,Duel engagement - duels contested per game; high = a physically engaged side (volume; can also reflect a side under sustained pressure),4,4
--duels_won_pct,team,metrics.duels_won_pct.label,"One-on-one challenges for the ball, on the ground or in the air, that the team's players won, as a share of those they contested.",int_legs__team_from_players,sum(duels_won),sum(duels),expression,percent,one_on_one,2,higher_better,Duel success - share of duels won; high = wins the physical battle,4,6
--duels_won_player_pct,player,playerMetrics.duels.wonPct,"One-on-one challenges for the ball, on the ground or in the air, that the player won, as a share of those the player contested.",int_legs__player_match,sum(duels_won),sum(duels),expression,percent,one_on_one,1,higher_better,Duel success - share of 1v1 contests won; high = wins the physical battle,4,
--defensive_actions_per_match,team,metrics.defensive_actions_per_match.label,"Average number of tackles, interceptions and blocks the team's players made per match.",int_legs__team_from_players,sum(tackles + interceptions + blocks),count(*),expression,decimal_1,defending,2,higher_better,Defensive activity - tackles + interceptions + blocks per game; high = an active ball-winning defence (volume; can also reflect a side often defending),5,1
--tackles_per_match,team,metrics.tackles_per_match.label,Average number of tackles the team's players made per match.,int_legs__team_from_players,sum(tackles),count(*),expression,decimal_1,defending,3,higher_better,Tackling volume - more ball-winning challenges per game is better all else equal; high can also reflect a side that defends more,5,2
--interceptions_per_match,team,metrics.interceptions_per_match.label,Average number of opponents' passes the team's players intercepted per match.,int_legs__team_from_players,sum(interceptions),count(*),expression,decimal_1,defending,3,higher_better,Interception volume - more passes read and cut out per game is better all else equal; high can also reflect a side that defends more,5,3
--blocks_per_match,team,metrics.blocks_per_match.label,Average number of shots the team's players blocked per match.,int_legs__team_from_players,sum(blocks),count(*),expression,decimal_1,defending,3,higher_better,Block volume - more shots blocked per game is better all else equal; high can also reflect a side under sustained pressure,5,4
--passes_per_match,team,metrics.passes_per_match.label,Average number of passes the team attempted per match.,int_legs__team_match,sum(passes),count(*),expression,decimal_0,passing,3,higher_better,Possession volume - passes played per game; high = sees more of the ball; low = a more direct style (accuracy shows how securely it is kept),3,1
--passes_accuracy_pct,team,metrics.passes_accuracy_pct.label,"The team's passes that reached a teammate, as a share of all its passes.",int_legs__team_match,sum(passes_accurate),sum(passes),expression,percent,passing,2,higher_better,Passing security - completion rate; high = keeps the ball well,3,3
--passes_key_per_match,team,metrics.passes_key_per_match.label,Average number of passes per match by the team's players that led directly to a teammate's shot.,int_legs__team_from_players,sum(passes_key),count(*),expression,decimal_1,passing,2,higher_better,Creativity - passes leading to a shot; high = creates chances,3,5
--corners_per_match,team,metrics.corners_per_match.label,Average number of corner kicks the team won per match.,int_legs__team_match,sum(corners),count(*),expression,decimal_1,set_pieces,3,higher_better,Corners won - high = sustained attacking pressure (a weak proxy),7,1
--corners_against_per_match,team,metrics.corners_against_per_match.label,Average number of corner kicks the team conceded per match.,int_legs__team_match,sum(corners_against),count(*),expression,decimal_1,set_pieces,3,lower_better,Corners conceded - low = less defensive pressure faced (a weak proxy),7,2
--saves_pct,team,metrics.saves_pct.label,"The team's saves as a share of its saves plus the goals it conceded, own goals not counted.",int_legs__team_match,sum(saves),sum(saves + goals_against - goals_own_against),expression,percent,goalkeeping,2,higher_better,Shot-stopping - share of on-target shots saved; high = strong keeping,6,2
--goals_player,player,playerMetrics.scorerPoints.goals,"Goals the player scored, penalties included and own goals not.",int_legs__player_match,sum(goals),,expression,integer,goals,1,higher_better,Scoring output - goals scored in the window; high = a productive goalscorer (a raw count so it also tracks minutes played),1,1
--assists_player,player,playerMetrics.scorerPoints.assists,Goals the player set up for a teammate.,int_legs__player_match,sum(assists),,expression,integer,goals,1,higher_better,Creative output - goals set up in the window; high = a productive creator (a raw count so it also tracks minutes played),1,2
--goals_penalty_player,player,playerMetrics.goalsPenalty.label,"Goals the player scored from penalties, not counting penalty shoot-outs.",int_legs__player_match,sum(goals_penalty),,expression,integer,goals,3,higher_better,Penalty goals - goals from the spot; they count toward the result and reward taking and converting penalties,1,
--goals_open_play_player,player,playerMetrics.goalsOpenPlay.label,"Goals the player scored, not counting penalties.",int_legs__player_match,sum(goals - goals_penalty),,expression,integer,goals,3,higher_better,Open-play goals - goals from open play (excl. penalties); the player's core attacking output,1,
--penalty_won_player,player,playerMetrics.penalties.won,Penalties awarded for fouls on the player.,int_legs__player_match,sum(penalties_won),,expression,integer,goals,3,higher_better,Penalties won - spot kicks earned in the window; high = draws fouls in dangerous areas (rare enough that small differences mean little),1,
--shots_on_goal_player,player,playerMetrics.shotsOnTarget.label,Shots on target the player had.,int_legs__player_match,sum(shots_on_target),,expression,integer,shooting,1,higher_better,On-target threat - efforts that tested the keeper; high = a persistent goal threat (a raw count so it also tracks minutes played),2,2
--duels_won_player,player,playerMetrics.duels.won,"One-on-one challenges for the ball, on the ground or in the air, that the player won.",int_legs__player_match,sum(duels_won),,expression,integer,one_on_one,1,higher_better,Duels won - physical 1v1 contests won in the window; high = comes out on top in physical battles (a volume read; the duel win rate captures efficiency),4,3
--duels_player,player,playerMetrics.duels.total,"One-on-one challenges for the ball, on the ground or in the air, that the player contested.",int_legs__player_match,sum(duels),,expression,integer,one_on_one,1,higher_better,Duel engagement - 1v1 contests entered in the window; high = a physically involved player (a volume read; can also reflect a side under pressure),4,2
--dribbles_success_player,player,playerMetrics.dribbles.success,Dribbles in which the player got past an opponent.,int_legs__player_match,sum(dribbles_success),,expression,integer,one_on_one,1,higher_better,Take-ons completed - opponents beaten on the dribble; high = a dangerous ball-carrier (a volume read; the success rate captures reliability),4,
--dribbles_attempts_player,player,playerMetrics.dribbles.attempts,Times the player tried to dribble past an opponent.,int_legs__player_match,sum(dribbles),,expression,integer,one_on_one,1,higher_better,Take-ons attempted - times the player ran at an opponent; high = willing to take players on (a volume read; the success rate shows how often it comes off),4,1
--dribbles_success_player_pct,player,playerMetrics.dribbles.successPct,"Dribbles in which the player got past an opponent, as a share of the player's attempts to dribble past one.",int_legs__player_match,sum(dribbles_success),sum(dribbles),expression,percent,one_on_one,1,higher_better,Share of take-ons completed; high = a reliable dribbler.,4,
--tackles_player,player,playerMetrics.defensiveActions.tackles,Tackles the player made.,int_legs__player_match,sum(tackles),,expression,integer,defending,1,higher_better,Tackling volume - challenges won in the window; high = an active ball-winner (also reflects how much the side has to defend),5,
--interceptions_player,player,playerMetrics.defensiveActions.interceptions,Opponents' passes the player intercepted.,int_legs__player_match,sum(interceptions),,expression,integer,defending,1,higher_better,Interception volume - passes read and cut out; high = anticipates play well (also reflects how much the side has to defend),5,
--blocks_player,player,playerMetrics.defensiveActions.blocks,Shots the player blocked.,int_legs__player_match,sum(blocks),,expression,integer,defending,1,higher_better,Block volume - shots blocked in the window; high = throws the body in (often for a side under sustained pressure),5,
--dribbles_past_player,player,playerMetrics.dribbles.past,Times an opponent dribbled past the player.,int_legs__player_match,sum(dribbles_against),,expression,integer,defending,2,lower_better,Times beaten - dribbled past by an opponent; low = hard to get past (a raw count so it also tracks how often the player is the one defending),5,
--passes_accurate_player,player,playerMetrics.passAccuracy.accurate,The player's passes that reached a teammate.,int_legs__player_match,sum(passes_accurate),,expression,integer,passing,1,higher_better,Completed passes - passes that found a team-mate; high = heavily involved in possession (a volume read; the completion rate captures security),3,
--passes_player,player,playerMetrics.passAccuracy.total,Passes the player attempted.,int_legs__player_match,sum(passes),,expression,integer,passing,1,higher_better,Passing volume - passes attempted in the window; high = a possession-anchoring role; low = a more direct or less involved one (a raw count so it also tracks minutes played),3,1
--passes_accuracy_player_pct,player,playerMetrics.passAccuracy.label,"The player's passes that reached a teammate, as a share of all the player's passes.",int_legs__player_match,sum(passes_accurate),sum(passes),expression,percent,passing,1,higher_better,Share of passes completed; high = a secure and reliable passer.,3,2
--passes_key_player,player,playerMetrics.keyPasses.label,The player's passes that led directly to a teammate's shot.,int_legs__player_match,sum(passes_key),,expression,integer,passing,1,higher_better,Chance creation - passes leading directly to a shot; high = a creative hub (a raw count so it also tracks minutes played),3,3
--cards_yellow_player,player,playerMetrics.cards.yellow,Yellow cards the player received.,int_legs__player_match,sum(cards_yellow),,expression,integer,discipline,1,lower_better,Cautions - yellow cards shown in the window; low = stays on the right side of the referee (high can reflect an aggressive role as much as poor discipline),8,2
--cards_red_player,player,playerMetrics.cards.red,Red cards the player received.,int_legs__player_match,sum(cards_red),,expression,integer,discipline,1,lower_better,Dismissals - red cards shown in the window; low = avoids leaving the team a man short (rare enough that a single card dominates the count),8,3
--fouls_player,player,playerMetrics.fouls.label,Fouls the player committed.,int_legs__player_match,sum(fouls),,expression,integer,discipline,3,lower_better,Fouls committed - free kicks given away in the window; low = disciplined (high can also mean a player who breaks up play),8,1
--offsides_player,player,playerMetrics.offsides.label,Times the player was caught offside.,int_legs__player_match,sum(offsides),,expression,integer,discipline,2,lower_better,Offside calls - times caught beyond the last defender; low = better timed runs (high can reflect a striker who plays the shoulder rather than poor movement),8,
--penalty_committed_player,player,playerMetrics.penalties.committed,Penalties the player gave away.,int_legs__player_match,sum(penalties_committed),,expression,integer,discipline,3,lower_better,Penalties conceded - fouls given in the team's own box; low = defends cleanly in dangerous areas (rare enough that small differences mean little),8,
--saves_player,player,playerMetrics.savePct.saves,Shots on target the player saved in goal.,int_legs__player_match,sum(saves),,expression,integer,goalkeeping,1,higher_better,Save volume - shots on goal kept out; high = a busy keeper facing plenty of work (volume also tracks shots faced so it is not shot-stopping quality; the save rate captures that),6,1
--shots_on_goal_against_player,player,playerMetrics.savePct.faced,Shots on target the player faced in goal: the player's saves plus the goals conceded while the player was in goal.,int_legs__player_match,sum(saves + goals_against),,expression,integer,goalkeeping,1,lower_better,On-target shots faced - efforts the keeper had to deal with; low = a well-protected goal (a workload read; it says more about the defence than the keeper),6,
--saves_player_pct,player,playerMetrics.savePct.label,The player's saves as a share of the player's saves plus the goals conceded while the player was in goal.,int_legs__player_match,sum(saves),sum(saves + goals_against),expression,percent,goalkeeping,1,higher_better,Share of shots on goal saved; high = a strong shot-stopper.,6,
--shots_player,player,playerMetrics.shots.label,Shots the player took.,int_legs__player_match,sum(shots),,expression,integer,shooting,2,higher_better,Shot volume - attempts on and off target; high = shoots often (volume not shot quality; a raw count so it also tracks minutes played),2,1
--goals_against_player,player,playerMetrics.goalsConceded.label,Goals the team conceded while the player was in goal.,int_legs__player_match,sum(goals_against),,expression,integer,goalkeeping,1,lower_better,Goals conceded - goals let in while the player was on the pitch; low = kept the goal intact (a team outcome; it reflects the defence as much as the individual),6,
--shots_share_pct,team,metrics.shots_share_pct.label,The team's shots as a share of all shots in its matches.,int_legs__team_match,sum(shots),sum(shots + shots_against),expression,percent,shooting,2,higher_better,Shooting dominance - share of the match's shots; high = controls the chances (deserved-vs-actual input),2,
--points_capture_pct,team,metrics.points_capture_pct.label,Points the team won as a share of the 3 points per match it could have won.,int_legs__team_match,sum(case result when 'W' then 3 when 'D' then 1 else 0 end),3 * count(*),expression,percent,outcomes,2,higher_better,Results efficiency - share of available points won (deserved-vs-actual input),9,
--scorer_points_player,player,playerMetrics.scorerPoints.label,The player's goals plus assists.,int_legs__player_match,sum(goals + assists),,expression,integer,goals,1,higher_better,Goal involvement - goals plus assists in the window; high = directly decisive in front of goal (a raw count so it also tracks minutes played),1,
--defensive_actions_player,player,playerMetrics.defensiveActions.label,"Tackles, interceptions and blocks the player made.",int_legs__player_match,sum(tackles + interceptions + blocks),,expression,integer,defending,1,higher_better,Defensive activity - tackles plus interceptions plus blocks; high = a busy ball-winner (a volume read; also reflects how much the side has to defend),5,1
--cards_player,player,playerMetrics.cards.label,Yellow and red cards the player received.,int_legs__player_match,sum(cards_yellow + cards_red),,expression,integer,discipline,1,lower_better,Disciplinary record - yellow plus red cards; low = a clean record (a two-yellow dismissal counts as 3 because the provider logs a yellow plus a red),8,
--goals_per90,player,playerMetrics.goalsPer90.label,"Goals the player scored, penalties included and own goals not, per 90 minutes played.",int_legs__player_match,sum(goals) * 90,sum(minutes),expression,decimal_1,goals,2,higher_better,Scoring frequency; high = a prolific and dependable goalscorer.,1,
--assists_per90,player,playerMetrics.assistsPer90.label,Goals the player set up for a teammate per 90 minutes played.,int_legs__player_match,sum(assists) * 90,sum(minutes),expression,decimal_1,goals,2,higher_better,How often the player creates goals for others; high = a frequent creator.,1,
--scorer_points_per90,player,playerMetrics.scorerPointsPer90.label,The player's goals plus assists per 90 minutes played.,int_legs__player_match,sum(goals + assists) * 90,sum(minutes),expression,decimal_1,goals,2,higher_better,Total goal involvement (goals + assists); high = drives the team's attacking output.,1,
--shots_on_goal_per90,player,playerMetrics.shotsOnTargetPer90.label,Shots on target the player had per 90 minutes played.,int_legs__player_match,sum(shots_on_target) * 90,sum(minutes),expression,decimal_1,shooting,2,higher_better,How often the player tests the keeper; high = a persistent attacking threat.,2,
--passes_key_per90,player,playerMetrics.keyPassesPer90.label,"The player's passes that led directly to a teammate's shot, per 90 minutes played.",int_legs__player_match,sum(passes_key) * 90,sum(minutes),expression,decimal_1,passing,2,higher_better,Shot-creating passes; high = a creative hub who makes chances.,3,
--dribbles_success_per90,player,playerMetrics.dribblesSuccessPer90.label,"Dribbles in which the player got past an opponent, per 90 minutes played.",int_legs__player_match,sum(dribbles_success) * 90,sum(minutes),expression,decimal_1,one_on_one,2,higher_better,Take-ons completed; high = a dangerous ball-carrier who beats opponents.,4,
--passes_per90,player,playerMetrics.passesPer90.label,Passes the player attempted per 90 minutes played.,int_legs__player_match,sum(passes) * 90,sum(minutes),expression,decimal_1,passing,2,higher_better,More passes played per 90 is better all else equal; volume also reads as role - high = a possession-anchoring role; low = a more direct one,3,
--tackles_per90,player,playerMetrics.tacklesPer90.label,Tackles the player made per 90 minutes played.,int_legs__player_match,sum(tackles) * 90,sum(minutes),expression,decimal_1,defending,2,higher_better,More tackles per 90 is better all else equal; volume also reads as role - high = an aggressive ball-winner; can also reflect a side often defending,5,
--interceptions_per90,player,playerMetrics.interceptionsPer90.label,Opponents' passes the player intercepted per 90 minutes played.,int_legs__player_match,sum(interceptions) * 90,sum(minutes),expression,decimal_1,defending,2,higher_better,More interceptions per 90 is better all else equal; volume also reads as role - high = reads play and steps into passing lanes,5,
--blocks_per90,player,playerMetrics.blocksPer90.label,Shots the player blocked per 90 minutes played.,int_legs__player_match,sum(blocks) * 90,sum(minutes),expression,decimal_1,defending,2,higher_better,More blocks per 90 is better all else equal; volume also reads as role - high = throws the body in; often for a side under pressure,5,
--defensive_actions_per90,player,playerMetrics.defensiveActionsPer90.label,"Tackles, interceptions and blocks the player made per 90 minutes played.",int_legs__player_match,sum(tackles + interceptions + blocks) * 90,sum(minutes),expression,decimal_1,defending,2,higher_better,More defensive actions (tackles + interceptions + blocks) per 90 is better all else equal; volume also reads as role - high = a deep block or an aggressive press,5,
--duels_won_per90,player,playerMetrics.duelsWonPer90.label,"One-on-one challenges for the ball, on the ground or in the air, that the player won, per 90 minutes played.",int_legs__player_match,sum(duels_won) * 90,sum(minutes),expression,decimal_1,one_on_one,2,higher_better,More duels won per 90 is better all else equal; this is a volume read - the duel win rate captures efficiency,4,
--saves_per90,player,playerMetrics.savesPer90.label,Shots on target the player saved in goal per 90 minutes played.,int_legs__player_match,sum(saves) * 90,sum(minutes),expression,decimal_1,goalkeeping,2,higher_better,More saves per 90 is better all else equal; volume also tracks shots faced so it is not shot-stopping quality - the save rate captures that,6,
--shots_on_goal_difference_per_match,team,metrics.shots_on_goal_difference_per_match.label,Average per match of the team's shots on target minus its opponents' shots on target.,int_legs__team_match,sum(shots_on_target - shots_on_target_against),count(*),expression,decimal_1,shooting,1,higher_better,On-target dominance - on-target shots created minus conceded per game; high = the process deserves results (deserved-vs-actual input),2,4
--shots_on_goal_against_per_match,team,metrics.shots_on_goal_against_per_match.label,Average number of shots on target the team's opponents had per match.,int_legs__team_match,sum(shots_on_target_against),count(*),expression,decimal_1,shooting,1,lower_better,On-target threat conceded - opponent shots on target per game; low = limits clear chances (deserved-vs-actual input),2,3
--deserved_rank,team,metrics.deserved_rank.label,"The team's position in its league when the teams are ordered by deserved points, most first.",,,,model,integer,outcomes,2,lower_better,Deserved league position - 1 = the most points the process deserved; where the process says the team should sit,9,
--deserved_points,team,metrics.deserved_points.label,"Points the team would have won if its points per match followed its shots-on-target difference per match, as the two relate across its league season.",,,,model,integer,outcomes,2,higher_better,Deserved points - what the season's on-target dominance was worth; compare it against the real points total,9,
--deserved_points_gap,team,metrics.deserved_points_gap.label,The points the team won in its played matches minus its deserved points.,,,,model,integer,outcomes,2,neutral,"Deserved-vs-actual gap - actual minus deserved points; negative = results lag the process (due a correction), positive = results flatter it (regression risk). A narrative, not good or bad",9,
--deserved_points_gap_rank,team,metrics.deserved_points_gap_rank.label,"The team's position in its league when the teams are ordered by deserved-points gap, the most negative first.",,,,model,integer,outcomes,3,neutral,"Deserved-points gap position - 1 = the most under-rewarded team of the league, the last position the most over-rewarded; an ordering, not good or bad",9,
--contribution_player_pct,player,playerMetrics.contributionShare.label,The player's goals plus assists as a share of the goals the club scored on the pitch in that competition season.,,,,cross_grain,percent,goals,2,neutral,"Share of the club's goals the player was involved in; high = central to the team's attack, but position-dependent (a defender's naturally-low share is not a negative). A style/role read, not good or bad.",1,
--minutes_per_appearance,player,playerMetrics.minutesPerAppearance.label,Average minutes the player was on the pitch per match in which the player played.,int_legs__player_match,sum(minutes),countif(minutes > 0),expression,decimal_0,playing_time,2,neutral,"Average minutes per appearance; high = a full-90 regular, low = a rotation or impact-sub role. A playing-time role read, not good or bad.",10,
--goals,team,metrics.goals.label,Goals the team scored.,int_legs__team_match,sum(goals),,expression,integer,goals,2,higher_better,"Attacking output - goals scored; high = a potent attack (a raw count, so it rises with matches played; the per-match rate is the comparable read)",1,
--goals_against,team,metrics.goals_against.label,Goals the team conceded.,int_legs__team_match,sum(goals_against),,expression,integer,goals,2,lower_better,"Defensive vulnerability - goals conceded; low = a mean defence (a raw count, so a side that has played fewer matches shows a lower total without defending better; the per-match rate is the comparable read)",1,
--corners,team,metrics.corners.label,Corner kicks the team won.,int_legs__team_match,sum(corners),,expression,integer,set_pieces,2,higher_better,"Corners won - high = sustained attacking pressure (a weak proxy for threat, and a raw count, so it rises with matches played)",7,
--saves,team,metrics.saves.label,Shots on target the team's goalkeepers saved.,int_legs__team_match,sum(saves),,expression,integer,goalkeeping,2,higher_better,"Shot-stopping volume - saves made; high = more shots kept out, which can reflect strong goalkeeping or a defence under sustained pressure",6,
--shots_inside_box,team,metrics.shots_inside_box.label,Shots the team took from inside the penalty area.,int_legs__team_match,sum(shots_inside_box),,expression,integer,shooting,3,higher_better,"Box shot volume - attempts taken from inside the area; high = more attempts from good positions (volume, not positional quality - shots_inside_box_pct is what measures that; a raw count, so it rises with matches played)",2,
--clean_sheets,team,metrics.clean_sheets.label,Matches in which the team conceded no goal.,int_legs__team_match,countif(goals_against = 0),,expression,integer,goals,2,higher_better,"Shut-outs kept - matches conceding zero; high = reliable at the back (a raw count, so it rises with matches played)",1,3
--cards_yellow,team,metrics.cards_yellow.label,Yellow cards the team's players received.,int_legs__team_match,sum(cards_yellow),,expression,integer,discipline,2,lower_better,"Cautions - yellow cards collected over the season; low = disciplined, high = a side that fouls to stop play (a raw count, so it rises with matches played)",8,4
--cards_red,team,metrics.cards_red.label,Red cards the team's players received.,int_legs__team_match,sum(cards_red),,expression,integer,discipline,2,lower_better,"Dismissals - red cards collected over the season; low = keeps eleven on the pitch (rare enough that a single card dominates the count; a raw count, so it rises with matches played)",8,6
--shots_off_target_per_match,team,metrics.shots_off_target_per_match.label,Average number of shots the team sent wide or over per match.,int_legs__team_match,sum(shots_off_target),count(*),expression,decimal_1,shooting,3,higher_better,Shots missing the target - attempts wide or over per game; high = gets shots away (volume; shooting accuracy says how many of them were on target),2,5
--shots_blocked_per_match,team,metrics.shots_blocked_per_match.label,Average number of the team's shots an opponent blocked per match.,int_legs__team_match,sum(shots_blocked),count(*),expression,decimal_1,shooting,3,higher_better,Shots blocked - attempts stopped by a defender before reaching goal; high = gets shots away into crowded areas (volume),2,6
--shots_inside_box_per_match,team,metrics.shots_inside_box_per_match.label,Average number of shots the team took from inside the penalty area per match.,int_legs__team_match,sum(shots_inside_box),count(*),expression,decimal_1,shooting,3,higher_better,Box shot volume - attempts from inside the area per game; high = gets into good positions often (volume; shots_inside_box_pct is the share),2,7
--passes_accurate_per_match,team,metrics.passes_accurate_per_match.label,Average number of the team's passes that reached a teammate per match.,int_legs__team_match,sum(passes_accurate),count(*),expression,decimal_0,passing,3,higher_better,Completed passing volume - passes that found a teammate per game; high = keeps and moves the ball (volume; pass accuracy is the share),3,2
--passes_share_pct,team,metrics.passes_share_pct.label,"The team's passes as a share of all passes both teams played.",int_legs__team_match,sum(passes),sum(passes + passes_against),expression,percent,passing,2,higher_better,Ball possession - share of the match's passes; high = controls the ball (control is not the same as chances),3,4
--dribbles_attempts_per_match,team,metrics.dribbles_attempts_per_match.label,Average number of times the team's players tried to dribble past an opponent per match.,int_legs__team_from_players,sum(dribbles),count(*),expression,decimal_1,one_on_one,3,higher_better,Take-ons attempted - dribbles tried per game; high = attacks players directly (volume; the completion share says how often it works),4,1
--dribbles_success_per_match,team,metrics.dribbles_success_per_match.label,Average number of dribbles in which the team's players got past an opponent per match.,int_legs__team_from_players,sum(dribbles_success),count(*),expression,decimal_1,one_on_one,3,higher_better,Take-ons completed - opponents beaten by dribbling per game; high = beats players often,4,2
--dribbles_success_pct,team,metrics.dribbles_success_pct.label,"The team's dribbles that got past an opponent, as a share of those attempted.",int_legs__team_from_players,sum(dribbles_success),sum(dribbles),expression,percent,one_on_one,3,higher_better,Dribble success - share of take-ons completed; high = efficient at beating players,4,3
--duels_won_per_match,team,metrics.duels_won_per_match.label,Average number of one-on-one challenges for the ball that the team's players won per match.,int_legs__team_from_players,sum(duels_won),count(*),expression,decimal_0,one_on_one,3,higher_better,Duels won - physical contests won per game; high = comes out on top in physical battles (volume; the win share captures efficiency),4,5
--saves_per_match,team,metrics.saves_per_match.label,Average number of shots on target the team's goalkeepers saved per match.,int_legs__team_match,sum(saves),count(*),expression,decimal_1,goalkeeping,3,higher_better,"Shot-stopping volume - saves per game; high = more shots kept out, which can reflect strong goalkeeping or a defence under sustained pressure",6,1
--free_kicks_per_match,team,metrics.free_kicks_per_match.label,Average number of free kicks the team was awarded per match.,int_legs__team_match,sum(free_kicks),count(*),expression,decimal_1,set_pieces,3,higher_better,Free kicks won - set-piece chances earned per game; high = draws fouls and wins dead-ball situations,7,3
--fouls_per_match,team,metrics.fouls_per_match.label,Average number of fouls the team's players committed per match.,int_legs__team_match,sum(fouls),count(*),expression,decimal_1,discipline,3,lower_better,Fouls committed - free kicks given away per game; low = disciplined (high can also mean a side that breaks up play on purpose),8,1
--offsides_per_match,team,metrics.offsides_per_match.label,Average number of times the team's players were caught offside per match.,int_legs__team_match,sum(offsides),count(*),expression,decimal_1,discipline,3,lower_better,Offside calls - times caught beyond the last defender per game; low = better timed runs (high can reflect a side that plays on the shoulder),8,2
--cards_yellow_per_match,team,metrics.cards_yellow_per_match.label,Average number of yellow cards the team's players received per match.,int_legs__team_match,sum(cards_yellow),count(*),expression,decimal_1,discipline,3,lower_better,"Cautions - yellow cards per game; low = disciplined, high = a side that fouls to stop play",8,3
--cards_red_per_match,team,metrics.cards_red_per_match.label,Average number of red cards the team's players received per match.,int_legs__team_match,sum(cards_red),count(*),expression,decimal_1,discipline,3,lower_better,Dismissals - red cards per game; low = keeps eleven on the pitch (rare enough that a single card dominates a short window),8,5
-+metric_id,entity,label_i18n_key,description,base_relation,numerator_expr,denominator_expr,computation_kind,format,metric_group,is_key_metric,direction,interpretation,metric_group_order,metric_order
-+league_rank,team,metrics.league_rank.label,The team's position in its league table.,,,,sourced,integer,outcomes,false,lower_better,League position - 1 = top of the table,9,
-+points_won,team,metrics.points_won.label,"Points the team won: 3 for a win, 1 for a draw, none for a defeat.",int_legs__team_match,sum(case result when 'W' then 3 when 'D' then 1 else 0 end),,expression,points_fraction,outcomes,false,higher_better,Points tally in the window (3 per win / 1 per draw / 0 per loss),9,
-+goals_per_match,team,metrics.goals_per_match.label,Average number of goals the team scored per match.,int_legs__team_match,sum(goals),count(*),expression,decimal_1,goals,true,higher_better,Attacking output - goals scored per game; high = a potent attack,1,1
-+goals_against_per_match,team,metrics.goals_against_per_match.label,Average number of goals the team conceded per match.,int_legs__team_match,sum(goals_against),count(*),expression,decimal_1,goals,true,lower_better,Defensive vulnerability - goals conceded per game; low = a mean defence,1,2
-+clean_sheets_pct,team,metrics.clean_sheets_pct.label,"Matches in which the team conceded no goal, as a share of all its matches.",int_legs__team_match,countif(goals_against = 0),count(*),expression,percent,goals,false,higher_better,Shut-out rate - the share of matches conceding zero; high = reliable at the back,1,
-+goals_penalty,team,metrics.goals_penalty.label,"Goals the team scored from penalties, not counting penalty shoot-outs.",int_legs__team_match,sum(goals_penalty),,expression,integer,goals,false,higher_better,Penalty goals - goals from the spot; they count toward the result and often reward pressure that wins fouls,1,
-+goals_own,team,metrics.goals_own.label,"Own goals by the team's opponents, which count for the team.",int_legs__team_match,sum(goals_own),,expression,integer,goals,false,higher_better,Own goals for - goals from opponents' own nets in the team's favour; they count toward the result and are often pressure-forced,1,
-+goals_open_play,team,metrics.goals_open_play.label,"Goals the team scored, not counting penalties and opponents' own goals.",int_legs__team_match,sum(goals - goals_penalty - goals_own),,expression,integer,goals,false,higher_better,Open-play goals - goals from open play (excl. penalties and own goals); the core attacking output,1,
-+shots_per_match,team,metrics.shots_per_match.label,Average number of shots the team took per match.,int_legs__team_match,sum(shots),count(*),expression,decimal_1,shooting,true,higher_better,Shot volume - attacking attempts per game; high = more attacking threat (volume not shot quality),2,1
-+shots_on_goal_pct,team,metrics.shots_on_goal_pct.label,The team's shots on target as a share of all its shots.,int_legs__team_match,sum(shots_on_target),sum(shots),expression,percent,shooting,false,higher_better,Striking precision - share of shots on goal,2,9
-+shots_inside_box_pct,team,metrics.shots_inside_box_pct.label,The team's shots from inside the penalty area as a share of all its shots.,int_legs__team_match,sum(shots_inside_box),sum(shots),expression,percent,shooting,false,higher_better,Chance quality - share of shots from inside the box; high = better positions,2,8
-+shots_on_goal_per_match,team,metrics.shots_on_target_per_match.label,Average number of shots on target the team had per match.,int_legs__team_match,sum(shots_on_target),count(*),expression,decimal_1,shooting,true,higher_better,On-target threat - efforts testing the keeper; high = sustained threat,2,2
-+finishing_efficiency_pct,team,metrics.finishing_efficiency_pct.label,"Goals the team scored, not counting penalties and opponents' own goals, as a share of its shots on target.",int_legs__team_match,sum(goals - goals_penalty - goals_own),sum(shots_on_target),expression,percent,shooting,false,higher_better,Clinical finishing - open-play goals per shot on goal; high = ruthless,2,10
-+finishing_efficiency_player_pct,player,playerMetrics.finishingEfficiency.label,"Goals the player scored, not counting penalties, as a share of the player's shots on target.",int_legs__player_match,sum(goals - goals_penalty),sum(shots_on_target),expression,percent,shooting,,higher_better,Clinical finishing - open-play goals per shot on target; high = a ruthless finisher,2,3
-+duels_per_match,team,metrics.duels_per_match.label,"Average number of one-on-one challenges for the ball, on the ground or in the air, that the team's players contested per match.",int_legs__team_from_players,sum(duels),count(*),expression,decimal_0,one_on_one,true,higher_better,Duel engagement - duels contested per game; high = a physically engaged side (volume; can also reflect a side under sustained pressure),4,4
-+duels_won_pct,team,metrics.duels_won_pct.label,"One-on-one challenges for the ball, on the ground or in the air, that the team's players won, as a share of those they contested.",int_legs__team_from_players,sum(duels_won),sum(duels),expression,percent,one_on_one,true,higher_better,Duel success - share of duels won; high = wins the physical battle,4,6
-+duels_won_player_pct,player,playerMetrics.duels.wonPct,"One-on-one challenges for the ball, on the ground or in the air, that the player won, as a share of those the player contested.",int_legs__player_match,sum(duels_won),sum(duels),expression,percent,one_on_one,,higher_better,Duel success - share of 1v1 contests won; high = wins the physical battle,4,
-+defensive_actions_per_match,team,metrics.defensive_actions_per_match.label,"Average number of tackles, interceptions and blocks the team's players made per match.",int_legs__team_from_players,sum(tackles + interceptions + blocks),count(*),expression,decimal_1,defending,true,higher_better,Defensive activity - tackles + interceptions + blocks per game; high = an active ball-winning defence (volume; can also reflect a side often defending),5,1
-+tackles_per_match,team,metrics.tackles_per_match.label,Average number of tackles the team's players made per match.,int_legs__team_from_players,sum(tackles),count(*),expression,decimal_1,defending,false,higher_better,Tackling volume - more ball-winning challenges per game is better all else equal; high can also reflect a side that defends more,5,2
-+interceptions_per_match,team,metrics.interceptions_per_match.label,Average number of opponents' passes the team's players intercepted per match.,int_legs__team_from_players,sum(interceptions),count(*),expression,decimal_1,defending,false,higher_better,Interception volume - more passes read and cut out per game is better all else equal; high can also reflect a side that defends more,5,3
-+blocks_per_match,team,metrics.blocks_per_match.label,Average number of shots the team's players blocked per match.,int_legs__team_from_players,sum(blocks),count(*),expression,decimal_1,defending,false,higher_better,Block volume - more shots blocked per game is better all else equal; high can also reflect a side under sustained pressure,5,4
-+passes_per_match,team,metrics.passes_per_match.label,Average number of passes the team attempted per match.,int_legs__team_match,sum(passes),count(*),expression,decimal_0,passing,true,higher_better,Possession volume - passes played per game; high = sees more of the ball; low = a more direct style (accuracy shows how securely it is kept),3,1
-+passes_accuracy_pct,team,metrics.passes_accuracy_pct.label,"The team's passes that reached a teammate, as a share of all its passes.",int_legs__team_match,sum(passes_accurate),sum(passes),expression,percent,passing,true,higher_better,Passing security - completion rate; high = keeps the ball well,3,3
-+passes_key_per_match,team,metrics.passes_key_per_match.label,Average number of passes per match by the team's players that led directly to a teammate's shot.,int_legs__team_from_players,sum(passes_key),count(*),expression,decimal_1,passing,false,higher_better,Creativity - passes leading to a shot; high = creates chances,3,5
-+corners_per_match,team,metrics.corners_per_match.label,Average number of corner kicks the team won per match.,int_legs__team_match,sum(corners),count(*),expression,decimal_1,set_pieces,false,higher_better,Corners won - high = sustained attacking pressure (a weak proxy),7,1
-+corners_against_per_match,team,metrics.corners_against_per_match.label,Average number of corner kicks the team conceded per match.,int_legs__team_match,sum(corners_against),count(*),expression,decimal_1,set_pieces,false,lower_better,Corners conceded - low = less defensive pressure faced (a weak proxy),7,2
-+saves_pct,team,metrics.saves_pct.label,"The team's saves as a share of its saves plus the goals it conceded, own goals not counted.",int_legs__team_match,sum(saves),sum(saves + goals_against - goals_own_against),expression,percent,goalkeeping,false,higher_better,Shot-stopping - share of on-target shots saved; high = strong keeping,6,2
-+goals_player,player,playerMetrics.scorerPoints.goals,"Goals the player scored, penalties included and own goals not.",int_legs__player_match,sum(goals),,expression,integer,goals,,higher_better,Scoring output - goals scored in the window; high = a productive goalscorer (a raw count so it also tracks minutes played),1,1
-+assists_player,player,playerMetrics.scorerPoints.assists,Goals the player set up for a teammate.,int_legs__player_match,sum(assists),,expression,integer,goals,,higher_better,Creative output - goals set up in the window; high = a productive creator (a raw count so it also tracks minutes played),1,2
-+goals_penalty_player,player,playerMetrics.goalsPenalty.label,"Goals the player scored from penalties, not counting penalty shoot-outs.",int_legs__player_match,sum(goals_penalty),,expression,integer,goals,,higher_better,Penalty goals - goals from the spot; they count toward the result and reward taking and converting penalties,1,
-+goals_open_play_player,player,playerMetrics.goalsOpenPlay.label,"Goals the player scored, not counting penalties.",int_legs__player_match,sum(goals - goals_penalty),,expression,integer,goals,,higher_better,Open-play goals - goals from open play (excl. penalties); the player's core attacking output,1,
-+penalty_won_player,player,playerMetrics.penalties.won,Penalties awarded for fouls on the player.,int_legs__player_match,sum(penalties_won),,expression,integer,goals,,higher_better,Penalties won - spot kicks earned in the window; high = draws fouls in dangerous areas (rare enough that small differences mean little),1,
-+shots_on_goal_player,player,playerMetrics.shotsOnTarget.label,Shots on target the player had.,int_legs__player_match,sum(shots_on_target),,expression,integer,shooting,,higher_better,On-target threat - efforts that tested the keeper; high = a persistent goal threat (a raw count so it also tracks minutes played),2,2
-+duels_won_player,player,playerMetrics.duels.won,"One-on-one challenges for the ball, on the ground or in the air, that the player won.",int_legs__player_match,sum(duels_won),,expression,integer,one_on_one,,higher_better,Duels won - physical 1v1 contests won in the window; high = comes out on top in physical battles (a volume read; the duel win rate captures efficiency),4,3
-+duels_player,player,playerMetrics.duels.total,"One-on-one challenges for the ball, on the ground or in the air, that the player contested.",int_legs__player_match,sum(duels),,expression,integer,one_on_one,,higher_better,Duel engagement - 1v1 contests entered in the window; high = a physically involved player (a volume read; can also reflect a side under pressure),4,2
-+dribbles_success_player,player,playerMetrics.dribbles.success,Dribbles in which the player got past an opponent.,int_legs__player_match,sum(dribbles_success),,expression,integer,one_on_one,,higher_better,Take-ons completed - opponents beaten on the dribble; high = a dangerous ball-carrier (a volume read; the success rate captures reliability),4,
-+dribbles_attempts_player,player,playerMetrics.dribbles.attempts,Times the player tried to dribble past an opponent.,int_legs__player_match,sum(dribbles),,expression,integer,one_on_one,,higher_better,Take-ons attempted - times the player ran at an opponent; high = willing to take players on (a volume read; the success rate shows how often it comes off),4,1
-+dribbles_success_player_pct,player,playerMetrics.dribbles.successPct,"Dribbles in which the player got past an opponent, as a share of the player's attempts to dribble past one.",int_legs__player_match,sum(dribbles_success),sum(dribbles),expression,percent,one_on_one,,higher_better,Share of take-ons completed; high = a reliable dribbler.,4,
-+tackles_player,player,playerMetrics.defensiveActions.tackles,Tackles the player made.,int_legs__player_match,sum(tackles),,expression,integer,defending,,higher_better,Tackling volume - challenges won in the window; high = an active ball-winner (also reflects how much the side has to defend),5,
-+interceptions_player,player,playerMetrics.defensiveActions.interceptions,Opponents' passes the player intercepted.,int_legs__player_match,sum(interceptions),,expression,integer,defending,,higher_better,Interception volume - passes read and cut out; high = anticipates play well (also reflects how much the side has to defend),5,
-+blocks_player,player,playerMetrics.defensiveActions.blocks,Shots the player blocked.,int_legs__player_match,sum(blocks),,expression,integer,defending,,higher_better,Block volume - shots blocked in the window; high = throws the body in (often for a side under sustained pressure),5,
-+dribbles_past_player,player,playerMetrics.dribbles.past,Times an opponent dribbled past the player.,int_legs__player_match,sum(dribbles_against),,expression,integer,defending,,lower_better,Times beaten - dribbled past by an opponent; low = hard to get past (a raw count so it also tracks how often the player is the one defending),5,
-+passes_accurate_player,player,playerMetrics.passAccuracy.accurate,The player's passes that reached a teammate.,int_legs__player_match,sum(passes_accurate),,expression,integer,passing,,higher_better,Completed passes - passes that found a team-mate; high = heavily involved in possession (a volume read; the completion rate captures security),3,
-+passes_player,player,playerMetrics.passAccuracy.total,Passes the player attempted.,int_legs__player_match,sum(passes),,expression,integer,passing,,higher_better,Passing volume - passes attempted in the window; high = a possession-anchoring role; low = a more direct or less involved one (a raw count so it also tracks minutes played),3,1
-+passes_accuracy_player_pct,player,playerMetrics.passAccuracy.label,"The player's passes that reached a teammate, as a share of all the player's passes.",int_legs__player_match,sum(passes_accurate),sum(passes),expression,percent,passing,,higher_better,Share of passes completed; high = a secure and reliable passer.,3,2
-+passes_key_player,player,playerMetrics.keyPasses.label,The player's passes that led directly to a teammate's shot.,int_legs__player_match,sum(passes_key),,expression,integer,passing,,higher_better,Chance creation - passes leading directly to a shot; high = a creative hub (a raw count so it also tracks minutes played),3,3
-+cards_yellow_player,player,playerMetrics.cards.yellow,Yellow cards the player received.,int_legs__player_match,sum(cards_yellow),,expression,integer,discipline,,lower_better,Cautions - yellow cards shown in the window; low = stays on the right side of the referee (high can reflect an aggressive role as much as poor discipline),8,2
-+cards_red_player,player,playerMetrics.cards.red,Red cards the player received.,int_legs__player_match,sum(cards_red),,expression,integer,discipline,,lower_better,Dismissals - red cards shown in the window; low = avoids leaving the team a man short (rare enough that a single card dominates the count),8,3
-+fouls_player,player,playerMetrics.fouls.label,Fouls the player committed.,int_legs__player_match,sum(fouls),,expression,integer,discipline,,lower_better,Fouls committed - free kicks given away in the window; low = disciplined (high can also mean a player who breaks up play),8,1
-+offsides_player,player,playerMetrics.offsides.label,Times the player was caught offside.,int_legs__player_match,sum(offsides),,expression,integer,discipline,,lower_better,Offside calls - times caught beyond the last defender; low = better timed runs (high can reflect a striker who plays the shoulder rather than poor movement),8,
-+penalty_committed_player,player,playerMetrics.penalties.committed,Penalties the player gave away.,int_legs__player_match,sum(penalties_committed),,expression,integer,discipline,,lower_better,Penalties conceded - fouls given in the team's own box; low = defends cleanly in dangerous areas (rare enough that small differences mean little),8,
-+saves_player,player,playerMetrics.savePct.saves,Shots on target the player saved in goal.,int_legs__player_match,sum(saves),,expression,integer,goalkeeping,,higher_better,Save volume - shots on goal kept out; high = a busy keeper facing plenty of work (volume also tracks shots faced so it is not shot-stopping quality; the save rate captures that),6,1
-+shots_on_goal_against_player,player,playerMetrics.savePct.faced,Shots on target the player faced in goal: the player's saves plus the goals conceded while the player was in goal.,int_legs__player_match,sum(saves + goals_against),,expression,integer,goalkeeping,,lower_better,On-target shots faced - efforts the keeper had to deal with; low = a well-protected goal (a workload read; it says more about the defence than the keeper),6,
-+saves_player_pct,player,playerMetrics.savePct.label,The player's saves as a share of the player's saves plus the goals conceded while the player was in goal.,int_legs__player_match,sum(saves),sum(saves + goals_against),expression,percent,goalkeeping,,higher_better,Share of shots on goal saved; high = a strong shot-stopper.,6,
-+shots_player,player,playerMetrics.shots.label,Shots the player took.,int_legs__player_match,sum(shots),,expression,integer,shooting,,higher_better,Shot volume - attempts on and off target; high = shoots often (volume not shot quality; a raw count so it also tracks minutes played),2,1
-+goals_against_player,player,playerMetrics.goalsConceded.label,Goals the team conceded while the player was in goal.,int_legs__player_match,sum(goals_against),,expression,integer,goalkeeping,,lower_better,Goals conceded - goals let in while the player was on the pitch; low = kept the goal intact (a team outcome; it reflects the defence as much as the individual),6,
-+shots_share_pct,team,metrics.shots_share_pct.label,The team's shots as a share of all shots in its matches.,int_legs__team_match,sum(shots),sum(shots + shots_against),expression,percent,shooting,false,higher_better,Shooting dominance - share of the match's shots; high = controls the chances (deserved-vs-actual input),2,
-+points_capture_pct,team,metrics.points_capture_pct.label,Points the team won as a share of the 3 points per match it could have won.,int_legs__team_match,sum(case result when 'W' then 3 when 'D' then 1 else 0 end),3 * count(*),expression,percent,outcomes,false,higher_better,Results efficiency - share of available points won (deserved-vs-actual input),9,
-+scorer_points_player,player,playerMetrics.scorerPoints.label,The player's goals plus assists.,int_legs__player_match,sum(goals + assists),,expression,integer,goals,,higher_better,Goal involvement - goals plus assists in the window; high = directly decisive in front of goal (a raw count so it also tracks minutes played),1,
-+defensive_actions_player,player,playerMetrics.defensiveActions.label,"Tackles, interceptions and blocks the player made.",int_legs__player_match,sum(tackles + interceptions + blocks),,expression,integer,defending,,higher_better,Defensive activity - tackles plus interceptions plus blocks; high = a busy ball-winner (a volume read; also reflects how much the side has to defend),5,1
-+cards_player,player,playerMetrics.cards.label,Yellow and red cards the player received.,int_legs__player_match,sum(cards_yellow + cards_red),,expression,integer,discipline,,lower_better,Disciplinary record - yellow plus red cards; low = a clean record (a two-yellow dismissal counts as 3 because the provider logs a yellow plus a red),8,
-+goals_per90,player,playerMetrics.goalsPer90.label,"Goals the player scored, penalties included and own goals not, per 90 minutes played.",int_legs__player_match,sum(goals) * 90,sum(minutes),expression,decimal_1,goals,,higher_better,Scoring frequency; high = a prolific and dependable goalscorer.,1,
-+assists_per90,player,playerMetrics.assistsPer90.label,Goals the player set up for a teammate per 90 minutes played.,int_legs__player_match,sum(assists) * 90,sum(minutes),expression,decimal_1,goals,,higher_better,How often the player creates goals for others; high = a frequent creator.,1,
-+scorer_points_per90,player,playerMetrics.scorerPointsPer90.label,The player's goals plus assists per 90 minutes played.,int_legs__player_match,sum(goals + assists) * 90,sum(minutes),expression,decimal_1,goals,,higher_better,Total goal involvement (goals + assists); high = drives the team's attacking output.,1,
-+shots_on_goal_per90,player,playerMetrics.shotsOnTargetPer90.label,Shots on target the player had per 90 minutes played.,int_legs__player_match,sum(shots_on_target) * 90,sum(minutes),expression,decimal_1,shooting,,higher_better,How often the player tests the keeper; high = a persistent attacking threat.,2,
-+passes_key_per90,player,playerMetrics.keyPassesPer90.label,"The player's passes that led directly to a teammate's shot, per 90 minutes played.",int_legs__player_match,sum(passes_key) * 90,sum(minutes),expression,decimal_1,passing,,higher_better,Shot-creating passes; high = a creative hub who makes chances.,3,
-+dribbles_success_per90,player,playerMetrics.dribblesSuccessPer90.label,"Dribbles in which the player got past an opponent, per 90 minutes played.",int_legs__player_match,sum(dribbles_success) * 90,sum(minutes),expression,decimal_1,one_on_one,,higher_better,Take-ons completed; high = a dangerous ball-carrier who beats opponents.,4,
-+passes_per90,player,playerMetrics.passesPer90.label,Passes the player attempted per 90 minutes played.,int_legs__player_match,sum(passes) * 90,sum(minutes),expression,decimal_1,passing,,higher_better,More passes played per 90 is better all else equal; volume also reads as role - high = a possession-anchoring role; low = a more direct one,3,
-+tackles_per90,player,playerMetrics.tacklesPer90.label,Tackles the player made per 90 minutes played.,int_legs__player_match,sum(tackles) * 90,sum(minutes),expression,decimal_1,defending,,higher_better,More tackles per 90 is better all else equal; volume also reads as role - high = an aggressive ball-winner; can also reflect a side often defending,5,
-+interceptions_per90,player,playerMetrics.interceptionsPer90.label,Opponents' passes the player intercepted per 90 minutes played.,int_legs__player_match,sum(interceptions) * 90,sum(minutes),expression,decimal_1,defending,,higher_better,More interceptions per 90 is better all else equal; volume also reads as role - high = reads play and steps into passing lanes,5,
-+blocks_per90,player,playerMetrics.blocksPer90.label,Shots the player blocked per 90 minutes played.,int_legs__player_match,sum(blocks) * 90,sum(minutes),expression,decimal_1,defending,,higher_better,More blocks per 90 is better all else equal; volume also reads as role - high = throws the body in; often for a side under pressure,5,
-+defensive_actions_per90,player,playerMetrics.defensiveActionsPer90.label,"Tackles, interceptions and blocks the player made per 90 minutes played.",int_legs__player_match,sum(tackles + interceptions + blocks) * 90,sum(minutes),expression,decimal_1,defending,,higher_better,More defensive actions (tackles + interceptions + blocks) per 90 is better all else equal; volume also reads as role - high = a deep block or an aggressive press,5,
-+duels_won_per90,player,playerMetrics.duelsWonPer90.label,"One-on-one challenges for the ball, on the ground or in the air, that the player won, per 90 minutes played.",int_legs__player_match,sum(duels_won) * 90,sum(minutes),expression,decimal_1,one_on_one,,higher_better,More duels won per 90 is better all else equal; this is a volume read - the duel win rate captures efficiency,4,
-+saves_per90,player,playerMetrics.savesPer90.label,Shots on target the player saved in goal per 90 minutes played.,int_legs__player_match,sum(saves) * 90,sum(minutes),expression,decimal_1,goalkeeping,,higher_better,More saves per 90 is better all else equal; volume also tracks shots faced so it is not shot-stopping quality - the save rate captures that,6,
-+shots_on_goal_difference_per_match,team,metrics.shots_on_goal_difference_per_match.label,Average per match of the team's shots on target minus its opponents' shots on target.,int_legs__team_match,sum(shots_on_target - shots_on_target_against),count(*),expression,decimal_1,shooting,false,higher_better,On-target dominance - on-target shots created minus conceded per game; high = the process deserves results (deserved-vs-actual input),2,4
-+shots_on_goal_against_per_match,team,metrics.shots_on_goal_against_per_match.label,Average number of shots on target the team's opponents had per match.,int_legs__team_match,sum(shots_on_target_against),count(*),expression,decimal_1,shooting,true,lower_better,On-target threat conceded - opponent shots on target per game; low = limits clear chances (deserved-vs-actual input),2,3
-+deserved_rank,team,metrics.deserved_rank.label,"The team's position in its league when the teams are ordered by deserved points, most first.",,,,model,integer,outcomes,false,lower_better,Deserved league position - 1 = the most points the process deserved; where the process says the team should sit,9,
-+deserved_points,team,metrics.deserved_points.label,"Points the team would have won if its points per match followed its shots-on-target difference per match, as the two relate across its league season.",,,,model,integer,outcomes,false,higher_better,Deserved points - what the season's on-target dominance was worth; compare it against the real points total,9,
-+deserved_points_gap,team,metrics.deserved_points_gap.label,The points the team won in its played matches minus its deserved points.,,,,model,integer,outcomes,false,neutral,"Deserved-vs-actual gap - actual minus deserved points; negative = results lag the process (due a correction), positive = results flatter it (regression risk). A narrative, not good or bad",9,
-+deserved_points_gap_rank,team,metrics.deserved_points_gap_rank.label,"The team's position in its league when the teams are ordered by deserved-points gap, the most negative first.",,,,model,integer,outcomes,false,neutral,"Deserved-points gap position - 1 = the most under-rewarded team of the league, the last position the most over-rewarded; an ordering, not good or bad",9,
-+contribution_player_pct,player,playerMetrics.contributionShare.label,The player's goals plus assists as a share of the goals the club scored on the pitch in that competition season.,,,,cross_grain,percent,goals,,neutral,"Share of the club's goals the player was involved in; high = central to the team's attack, but position-dependent (a defender's naturally-low share is not a negative). A style/role read, not good or bad.",1,
-+minutes_per_appearance,player,playerMetrics.minutesPerAppearance.label,Average minutes the player was on the pitch per match in which the player played.,int_legs__player_match,sum(minutes),countif(minutes > 0),expression,decimal_0,playing_time,,neutral,"Average minutes per appearance; high = a full-90 regular, low = a rotation or impact-sub role. A playing-time role read, not good or bad.",10,
-+goals,team,metrics.goals.label,Goals the team scored.,int_legs__team_match,sum(goals),,expression,integer,goals,false,higher_better,"Attacking output - goals scored; high = a potent attack (a raw count, so it rises with matches played; the per-match rate is the comparable read)",1,
-+goals_against,team,metrics.goals_against.label,Goals the team conceded.,int_legs__team_match,sum(goals_against),,expression,integer,goals,false,lower_better,"Defensive vulnerability - goals conceded; low = a mean defence (a raw count, so a side that has played fewer matches shows a lower total without defending better; the per-match rate is the comparable read)",1,
-+corners,team,metrics.corners.label,Corner kicks the team won.,int_legs__team_match,sum(corners),,expression,integer,set_pieces,false,higher_better,"Corners won - high = sustained attacking pressure (a weak proxy for threat, and a raw count, so it rises with matches played)",7,
-+saves,team,metrics.saves.label,Shots on target the team's goalkeepers saved.,int_legs__team_match,sum(saves),,expression,integer,goalkeeping,false,higher_better,"Shot-stopping volume - saves made; high = more shots kept out, which can reflect strong goalkeeping or a defence under sustained pressure",6,
-+shots_inside_box,team,metrics.shots_inside_box.label,Shots the team took from inside the penalty area.,int_legs__team_match,sum(shots_inside_box),,expression,integer,shooting,false,higher_better,"Box shot volume - attempts taken from inside the area; high = more attempts from good positions (volume, not positional quality - shots_inside_box_pct is what measures that; a raw count, so it rises with matches played)",2,
-+clean_sheets,team,metrics.clean_sheets.label,Matches in which the team conceded no goal.,int_legs__team_match,countif(goals_against = 0),,expression,integer,goals,false,higher_better,"Shut-outs kept - matches conceding zero; high = reliable at the back (a raw count, so it rises with matches played)",1,3
-+cards_yellow,team,metrics.cards_yellow.label,Yellow cards the team's players received.,int_legs__team_match,sum(cards_yellow),,expression,integer,discipline,true,lower_better,"Cautions - yellow cards the team's players received: the referee's warning for unsporting or unfair play, such as a tactical foul, dissent or time-wasting; a player who gets a second one in the same match is sent off",8,4
-+cards_red,team,metrics.cards_red.label,Red cards the team's players received.,int_legs__team_match,sum(cards_red),,expression,integer,discipline,true,lower_better,"Dismissals - red cards the team's players received: a player sent off for the rest of the match, who cannot be replaced, so the team plays on a man down",8,6
-+shots_off_target_per_match,team,metrics.shots_off_target_per_match.label,Average number of shots the team sent wide or over per match.,int_legs__team_match,sum(shots_off_target),count(*),expression,decimal_1,shooting,false,higher_better,Shots missing the target - attempts wide or over per game; high = gets shots away (volume; shooting accuracy says how many of them were on target),2,
-+shots_blocked_per_match,team,metrics.shots_blocked_per_match.label,Average number of the team's shots an opponent blocked per match.,int_legs__team_match,sum(shots_blocked),count(*),expression,decimal_1,shooting,false,higher_better,Shots blocked - attempts stopped by a defender before reaching goal; high = gets shots away into crowded areas (volume),2,
-+shots_inside_box_per_match,team,metrics.shots_inside_box_per_match.label,Average number of shots the team took from inside the penalty area per match.,int_legs__team_match,sum(shots_inside_box),count(*),expression,decimal_1,shooting,false,higher_better,Box shot volume - attempts from inside the area per game; high = gets into good positions often (volume; shots_inside_box_pct is the share),2,7
-+passes_accurate_per_match,team,metrics.passes_accurate_per_match.label,Average number of the team's passes that reached a teammate per match.,int_legs__team_match,sum(passes_accurate),count(*),expression,decimal_0,passing,false,higher_better,Completed passing volume - passes that found a teammate per game; high = keeps and moves the ball (volume; pass accuracy is the share),3,2
-+passes_share_pct,team,metrics.passes_share_pct.label,"The team's passes as a share of all passes both teams played.",int_legs__team_match,sum(passes),sum(passes + passes_against),expression,percent,passing,true,higher_better,Ball possession - share of the match's passes; high = controls the ball (control is not the same as chances),3,4
-+dribbles_attempts_per_match,team,metrics.dribbles_attempts_per_match.label,Average number of times the team's players tried to dribble past an opponent per match.,int_legs__team_from_players,sum(dribbles),count(*),expression,decimal_1,one_on_one,false,higher_better,Take-ons attempted - dribbles tried per game; high = attacks players directly (volume; the completion share says how often it works),4,1
-+dribbles_success_per_match,team,metrics.dribbles_success_per_match.label,Average number of dribbles in which the team's players got past an opponent per match.,int_legs__team_from_players,sum(dribbles_success),count(*),expression,decimal_1,one_on_one,false,higher_better,Take-ons completed - opponents beaten by dribbling per game; high = beats players often,4,2
-+dribbles_success_pct,team,metrics.dribbles_success_pct.label,"The team's dribbles that got past an opponent, as a share of those attempted.",int_legs__team_from_players,sum(dribbles_success),sum(dribbles),expression,percent,one_on_one,false,higher_better,Dribble success - share of take-ons completed; high = efficient at beating players,4,3
-+duels_won_per_match,team,metrics.duels_won_per_match.label,Average number of one-on-one challenges for the ball that the team's players won per match.,int_legs__team_from_players,sum(duels_won),count(*),expression,decimal_0,one_on_one,false,higher_better,Duels won - physical contests won per game; high = comes out on top in physical battles (volume; the win share captures efficiency),4,5
-+saves_per_match,team,metrics.saves_per_match.label,Average number of shots on target the team's goalkeepers saved per match.,int_legs__team_match,sum(saves),count(*),expression,decimal_1,goalkeeping,false,higher_better,"Shot-stopping volume - saves per game; high = more shots kept out, which can reflect strong goalkeeping or a defence under sustained pressure",6,1
-+free_kicks_per_match,team,metrics.free_kicks_per_match.label,Average number of free kicks the team was awarded per match.,int_legs__team_match,sum(free_kicks),count(*),expression,decimal_1,set_pieces,false,higher_better,Free kicks won - set-piece chances earned per game; high = draws fouls and wins dead-ball situations,7,3
-+fouls_per_match,team,metrics.fouls_per_match.label,Average number of fouls the team's players committed per match.,int_legs__team_match,sum(fouls),count(*),expression,decimal_1,discipline,true,lower_better,Fouls committed - free kicks given away per game; low = disciplined (high can also mean a side that breaks up play on purpose),8,1
-+offsides_per_match,team,metrics.offsides_per_match.label,Average number of times the team's players were caught offside per match.,int_legs__team_match,sum(offsides),count(*),expression,decimal_1,discipline,false,lower_better,Offside calls - times caught beyond the last defender per game; low = better timed runs (high can reflect a side that plays on the shoulder),8,2
-+cards_yellow_per_match,team,metrics.cards_yellow_per_match.label,Average number of yellow cards the team's players received per match.,int_legs__team_match,sum(cards_yellow),count(*),expression,decimal_1,discipline,false,lower_better,"Cautions - yellow cards per game; low = disciplined, high = a side that fouls to stop play",8,
-+cards_red_per_match,team,metrics.cards_red_per_match.label,Average number of red cards the team's players received per match.,int_legs__team_match,sum(cards_red),count(*),expression,decimal_1,discipline,false,lower_better,Dismissals - red cards per game; low = keeps eleven on the pitch (rare enough that a single card dominates a short window),8,
-diff --git a/dbt_project/seeds/metric_map.csv b/dbt_project/seeds/metric_map.csv
-index da8be670..5e3eac35 100644
---- a/dbt_project/seeds/metric_map.csv
-+++ b/dbt_project/seeds/metric_map.csv
-@@ -396,7 +396,9 @@ mart_team_season_record,shots_on_goal_per_match,shots_on_goal_per_match,,window_
- mart_team_season_record,shots_per_match,shots_per_match,,window_type,
- mart_team_season_record,tackles_per_match,tackles_per_match,,window_type,
- mart_team_window_metrics,blocks_per_match,blocks_per_match,,window_type,
-+mart_team_window_metrics,cards_red,cards_red,,window_type,
- mart_team_window_metrics,cards_red_per_match,cards_red_per_match,,window_type,
-+mart_team_window_metrics,cards_yellow,cards_yellow,,window_type,
- mart_team_window_metrics,cards_yellow_per_match,cards_yellow_per_match,,window_type,
- mart_team_window_metrics,clean_sheets,clean_sheets,,window_type,
- mart_team_window_metrics,corners_against_per_match,corners_against_per_match,,window_type,
-diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
-index 0dff601d..a8938f52 100644
---- a/dbt_project/seeds/schema.yml
-+++ b/dbt_project/seeds/schema.yml
-@@ -243,7 +243,7 @@ seeds:
-     config:
-       +full_refresh: true
-       column_types:
--        importance_tier: int64
-+        is_key_metric: boolean
-         metric_group_order: int64
-         metric_order: int64
-     tests:
-@@ -363,21 +363,15 @@ seeds:
-           Where the metric sits inside its group on every surface that shows it: 1 first. Blank
-           for a metric that no surface shows. No two metrics of one entity and group share a
-           position.
--      - name: importance_tier
-+      - name: is_key_metric
-         description: >
--          Display importance: 1 = survives on a compact surface, 2 = standard, 3 = depth. Tier
--          never reorders anything; it gates visibility when space is short. Populated on every row,
--          team and player alike.
--
--          The rubric: the core stat line is tier 1, including both the raw counts and their
--          headline percentage; a per-90 sits one tier below its own total; breakdowns and rare
--          events are tier 3. Redundancy at tier 1 is deliberate — goals, assists and scorer_points
--          are all 1, because tier means importance, not deduplication.
-+          Whether the metric is one of its entity's key metrics: a page that shows fewer metrics shows
-+          the key ones, and the order never changes with it. Set on every team row; blank on player
-+          rows until their key metrics are set.
-         tests:
--          - not_null
--          - accepted_values:
--              values: [1, 2, 3]
--              quote: false
-+          - not_null:
-+              config:
-+                where: "entity = 'team'"
-       - name: direction
-         description: >
-           Which way is better: higher_better, lower_better, or neutral. It is what turns a rank or
-diff --git a/docs/metric_layer.md b/docs/metric_layer.md
-index e0b31dfd..c0b369e4 100644
---- a/docs/metric_layer.md
-+++ b/docs/metric_layer.md
-@@ -18,7 +18,7 @@
- | how a description is written | `dbt_project/docs/engineering_standards.md` section 2 |
- | which model computes a metric on which surface | the surface list in `scripts/generate_metric_sql.py` |
- | which mart column holds a metric, and which part of it | the `metric_map` table, generated by `scripts/sync_metric_docs_blocks.py` as `dbt_project/seeds/metric_map.csv` |
--| how a metric is shown: tier, row patterns | `docs/wireframes/metrics_display.md` |
-+| how a metric is shown: key metrics, row patterns | `docs/wireframes/metrics_display.md` |
- | the order of the rows inside a group | the catalogue's `metric_order`: on the match page's Form comparison, published as `metric_rows.json`, and on the Rankings and Home boards, ordered by the export; the team table in `docs/wireframes/metrics_display.md` on the team page |
- | what a metric is called on screen, in every language | `METRIC_LABELS_{EN,DE,FI}` in `site_v2/src/i18n/strings.ts`, keyed by the catalogue's `label_i18n_key` |
- | what a test fails on | the test's own header in `dbt_project/tests/` |
-diff --git a/docs/roles/bi_analyst.md b/docs/roles/bi_analyst.md
-index 29584f39..6c17b9e3 100644
---- a/docs/roles/bi_analyst.md
-+++ b/docs/roles/bi_analyst.md
-@@ -29,7 +29,7 @@ Translate football analytics truth into what the product shows fans. Take the me
- 1. **Curate ruthlessly.** Five metrics a fan understands and acts on beat twenty they scroll past.
- 2. **Every metric needs a one-line explanation.** If you can't write it, the metric isn't ready to ship.
- 3. **Know the audience split.** Casual fans need the headline number. Hardcore fans want the formula. Design for both layers simultaneously.
--4. **Own the metric catalogue and the display contract.** Definitions live in the `metric_catalogue` dbt seed (single source, CPO-gated — never invent or redefine a metric outside it); HOW metrics render — groups, tiers, order, composite-row patterns, window labels — is locked in `docs/wireframes/metrics_display.md` (rulings log inside). Tier never reorders; players have bundles, not tiers; no naked percentages.
-+4. **Own the metric catalogue and the display contract.** Definitions live in the `metric_catalogue` dbt seed (single source, CPO-gated — never invent or redefine a metric outside it); HOW metrics render — groups, key metrics, order, composite-row patterns, window labels — is locked in `docs/wireframes/metrics_display.md` (rulings log inside). The key flag never reorders; players have bundles; no naked percentages.
- 5. **Flag gaps honestly.** If stat coverage is low for a competition, surface that — don't show zeros and pretend they mean something. Nulls render "-"; a wireframe block may only bind to fields that exist in the exported JSON (anything else goes to the gaps register).
- 
- ---
-diff --git a/docs/wireframes/02_team_profile.md b/docs/wireframes/02_team_profile.md
-index ce35f93d..127ab6e2 100644
---- a/docs/wireframes/02_team_profile.md
-+++ b/docs/wireframes/02_team_profile.md
-@@ -128,7 +128,7 @@ signal (styled accordingly). All < 2 → module omitted.
- ### (8) Season metrics — the locked 16-row contract, single-value layout
- 
- Label + one value per row (no comparison bars — single team), group subheads,
--same order/tiers as [`metrics_display.md`](metrics_display.md). Each row's name is its key's entry in
-+same order as [`metrics_display.md`](metrics_display.md). Each row's name is its key's entry in
- `site_v2/src/i18n/strings.ts`. Available today:
- 
- | JSON key (season variant) |
-diff --git a/docs/wireframes/10_home.md b/docs/wireframes/10_home.md
-index f2d5e8d2..0b575cdc 100644
---- a/docs/wireframes/10_home.md
-+++ b/docs/wireframes/10_home.md
-@@ -259,7 +259,7 @@ there is no volume metric to rank on. The existing `>= 3 finished games` gate on
- `int_team_competition_benchmark_metrics_long` is the small-sample guard, and it is the same number
- as the pool-selection gate below.
- 
--Excluded deliberately: **Set pieces** and **Goalkeeping** (thin, no tier-1 metric), and the
-+Excluded deliberately: **Set pieces** and **Goalkeeping** (thin, no key metric), and the
- Outcomes metrics `league_rank` and `deserved_rank`, which are the standings the table page owns.
- 
- ⛔ **SUPERSEDED 2026-08-10 — the paragraph below is about the REMOVED % Points captured board.**
-diff --git a/docs/wireframes/99_gaps_register.md b/docs/wireframes/99_gaps_register.md
-index 4bac60bd..645c665f 100644
---- a/docs/wireframes/99_gaps_register.md
-+++ b/docs/wireframes/99_gaps_register.md
-@@ -17,7 +17,7 @@
- | GAP-06 | 01 fixture, 06 h2h | export | `/h2h/{pair}/` is in the URL scheme and `mart_head_to_head` exists, but there is no standalone h2h export target (`ENTITY_TYPES` has none; fixture payloads embed only the summary) | Add an `h2h` export target (canonical pair = lower team id first) | pending | — |
- | GAP-07 | 01 fixture | export (likely + mart) | Fixture pages exist only for upcoming fixtures (`status NS/TBD`); the URL promise is "preview → report" — a finished fixture has no payload (final score + stats on its own page). `matchstats/` covers drill-down stat lines but not the fixture page itself | Decide the report-state scope (which finished fixtures get pages, what they show — likely header + final score + `mart_team_fixture_stats`/`mart_player_fixture_stats`), then extend the export | **shipped**: every played match has a payload (`fetch_played_fixture_payloads`) and its page | — |
- | GAP-08 | 01 fixture, 04 hub | content | `round_name` (e.g. "Regular Season - 14", "Group Stage - 1") is a raw provider string rendered as-is — no localization strategy ("Spieltag 14") | i18n strategy decision in #370 (pattern-based round-label translation vs raw); blueprint renders the raw string until then | pending | — |
--| GAP-09 | all metric screens | catalogue | Metric display needs grouping + importance as data: no `metric_group`, `importance_tier`, `group_display_order` columns in `metric_catalogue` | Add the three columns; values from the locked contract in [`metrics_display.md`](metrics_display.md) — `metric_group` on all atomics (team + player), `importance_tier` team-only (null for player entries) | **approved** (CPO 2026-06-11). **SHIPPED**: `metric_group` and `importance_tier` (on every row, the team-only tier superseded 2026-08-04); the order column landed with #152 as `metric_group_order`, not `group_display_order`, and its values are #152's ruling, not this document's block order — `docs/metric_layer.md`, "A group is defined once" | #152 |
-+| GAP-09 | all metric screens | catalogue | Metric display needs grouping and key metrics as data | `metric_group`, `metric_group_order` and `is_key_metric` columns in `metric_catalogue`, values from [`metrics_display.md`](metrics_display.md) | **SHIPPED** | — |
- | GAP-10 | 01 fixture | mart | W2 (season-to-date) form display needs aggregate W/D/L counts; `mart_team_season_record` carries only `games_played` + `points_won` (counts not derivable from points) | Add `wins`/`draws`/`losses` columns — countif over the same window legs the points come from | **approved** (CPO 2026-06-11) | — |
- | GAP-11 | 01 fixture, 02 team | catalogue + mart | Locked team display table needs four metrics that don't exist: `clean_sheets` (both window marts; approved as `x/y`, then ruled a bare count on #129 and shipped as `integer` by #151), `shots_on_target_per_match`, `duels_per_match`, `defensive_actions_per_match` (T+I+B aggregate). Plus: finishing relabel ("% Conversion rate" → "% Goals per shot on target", formula unchanged), description tightenings (coverage denominators, blocked-shots note, >100% finishing caveat) | One catalogue+marts PR: new rows/columns per [`metrics_display.md`](metrics_display.md); `shots_on_goal_pct` stays defined but unrendered | **approved** (CPO 2026-06-11). **SHIPPED**, with one change of shape: `clean_sheets` displays as a bare count, not `x/y` — ruled on #129 (2026-09-16) and landed by #151 (catalogue format `integer`; `metrics_display.md` row 3) | #151 |
- | GAP-12 | 01 fixture, 03 player | catalogue | Locked player rows need two atomics that aren't catalogue metrics: `saves_player`, `shots_on_target_faced` (data exists in marts as `goals_saves`/`goals_conceded`); ratio display strings standardize to the full triple `{num} of {den} · {pct}%` (duels won, pass accuracy, save percentage) | Add the two atomics + i18n display-string updates; the legacy player display table superseded by [`metrics_display.md`](metrics_display.md) | **approved** (CPO 2026-06-11) | — |
-diff --git a/docs/wireframes/metrics_display.md b/docs/wireframes/metrics_display.md
-index cee4f731..9f94e46c 100644
---- a/docs/wireframes/metrics_display.md
-+++ b/docs/wireframes/metrics_display.md
-@@ -1,49 +1,20 @@
--# Metric display contract — groups, tiers, order (#391)
-+# Metric display contract — groups, order
- 
- > The CPO-ruled display contract for metric lists everywhere they render (fixture
- > comparison, team profile, player profile, leaderboards). The
- > `metric_catalogue.csv` seed stays the single source of metric definitions (the
- > SSoT); this document records the **display**
--> rulings (grouping, importance tier, order) until they are codified as catalogue
-+> rulings (grouping, order) until they are codified as catalogue
- > columns (GAP-09). **Team table: LOCKED (CPO, 2026-06-11). Player rows: LOCKED
- > (CPO, 2026-06-11).**
- 
--## Tier semantics (ruled)
--
--> **Tiers now live in `metric_catalogue.csv`, and they cover players (CPO, 2026-08-04).**
--> The seed carries a tier on all 85 rows. This section keeps the SEMANTICS; the values are in
--> the seed. The order of the groups is the catalogue's `metric_group_order`. The order inside a
--> group is the catalogue's `metric_order` on the match page's Form comparison, the Rankings and Home. On the team page it
--> is the team table below.
--
--1. **Tier never orders.** Display order is fixed once. It is the order the note above names.
--2. **Tier = visibility under constraint.** Surfaces that cannot show the full list
--   (home fixture hooks, teaser cards) show only tier-1 rows, in the same order.
--   Full pages show all rows.
--3. Optional in-place progressive disclosure: tier-3 rows may collapse behind a
--   "show all stats" expander, reappearing exactly where they sit in the order.
--   Design call (#366), not a data rule.
--
--**Tier applies to players too.** This supersedes the 2026-06-11 ruling below that tiers are a
--team-only concept because player importance is position-dependent. CPO override, 2026-08-04: a
--tier states what a FAN wants to see, which is a product judgement rather than a statistical claim,
--and that judgement is as available for a player metric as for a team one.
--
--The rubric, as his rulings established it:
--
--- **Tier 1 is the core stat line** — the raw counts AND their headline percentage. Passes,
--  accurate passes and pass accuracy are all 1; so are duels, duels won and duels won %.
--- **A per-90 sits one tier below its own total.** Goals is 1, goals per 90 is 2.
--- **Tier 3 is breakdowns and rare events** — penalties won, penalties committed, own goals,
--  open-play/penalty goal splits.
--- **Redundancy at tier 1 is deliberate.** Goals, assists and scorer points are all 1. Tier means
--  importance, not deduplication.
--
--Tier-1 selection principle for TEAM metrics, unchanged from 2026-06-11: outcomes + the
--highest-signal quality metrics, and only rows with near-universal data coverage
--(scoreline/team-stat derived). The "never player-stat derived" half of that principle governed
--which TEAM rows qualify on a compact surface; it never barred player metrics from having tiers of
--their own, and does not now.
-+## Key metrics (ruled)
++seed_goal_keys as (
++    select
++        fixture_id,
++        team_id,
++        player_id,
++        minute_elapsed,
++        coalesce(minute_extra, 0) as minute_extra,
++        count(*) as goals
++    from goal_corrections
++    where goal_order > 0 and player_id is not null
++    group by fixture_id, team_id, player_id, minute_elapsed, coalesce(minute_extra, 0)
++),
 +
-+Every catalogue row says whether it is a key metric (`is_key_metric`). Team and player rows decide separately.
++provider_goal_keys as (
++    select
++        e.fixture_id,
++        e.team_id,
++        e.player_id,
++        e.minute_elapsed,
++        coalesce(e.minute_extra, 0) as minute_extra,
++        count(*) as goals
++    from events as e
++    inner join goal_counts as g
++        on e.fixture_id = g.fixture_id
++    where e.is_provider_goal
++    group by e.fixture_id, e.team_id, e.player_id, e.minute_elapsed, coalesce(e.minute_extra, 0)
++),
 +
-+1. **The flag never orders.** The order is the catalogue's `metric_group_order` and `metric_order`, with or without the flag.
-+2. **A page that shows fewer metrics shows the key ones.** On the Team page, the comparison tables show the key metrics; the switch "Show all metrics" shows every metric in its place.
-+3. **The key team metrics:** Goals, Goals against, Shots, Shots on target, Shots on target against, Passes, Pass accuracy, Possession, Duels, Duels won (percentage), Defensive actions, Fouls, Yellow cards, Red cards.
- 
- ## Composite-row patterns (ruled)
- 
-@@ -51,8 +22,8 @@ their own, and does not now.
-   mechanisms by surface: team comparisons use an **adjacent count row** in the
-   same block (Duels before Duels won percentage); player bundles use the **inline full
-   triple** `{num} of {den} · {pct}%`.
--- **Context pairs travel together**: a count that contextualizes a percentage
--  (Duels before Duels won percentage) shares the percentage's tier — never separated.
-+- **Context pairs travel together**: a count and its percentage are key together
-+  (Duels before Duels won percentage), never separated.
- - **Aggregates with breakdown**: defensive actions render as one number with the
-   atomic breakdown as sub-display — `26.4` + `15 T · 9 I · 3 B` (the player
-   defensive-actions bundle pattern).
-@@ -123,29 +94,27 @@ Display order top to bottom. MVP rows keep their relative order; new blocks slot
- into the spine. **Block order is the catalogue's** `metric_group_order` (CPO, 2026-09-21, #152;
- `docs/metric_layer.md`, "A group is defined once"): Goals → Shooting → Passing → One-on-one →
- Defending → Goalkeeping → Set pieces → Discipline → Results → Playing time, on every surface. The
--group this table calls Duels is One-on-one. Row order WITHIN a block on the team page and the tiers
--are what this table locks.
--
--| # | metric_id | Group | Tier | Status |
--|---|---|---|---|---|
--| 1 | `goals_per_match` | Goals | 1 | live |
--| 2 | `goals_against_per_match` | Goals | 1 | live |
--| 3 | `clean_sheets` (fixture windows) · `clean_sheets_pct` (team page) | Goals | 2 | live |
--| 4 | `shots_per_match` | Shooting | 2 | live |
--| 5 | `shots_inside_box_pct` | Shooting | 2 | live |
--| 6 | `shots_on_target_per_match` | Shooting | 1 | **new** (GAP-11) |
--| 7 | `finishing_efficiency_pct` | Shooting | 1 | live |
--| 8 | `duels_per_match` | One-on-one | 2 | **new** (GAP-11) |
--| 9 | `duels_won_pct` | One-on-one | 2 | live |
--| 10 | `defensive_actions_per_match` | Defending | 2 | **new aggregate** (GAP-11) |
--| 11 | `passes_per_match` | Passing | 3 | live |
--| 12 | `passes_accuracy_pct` | Passing | 2 | live |
--| 13 | `passes_key_per_match` | Passing | 2 | live |
--| 14 | `corners_per_match` | Set pieces | 3 | live |
--| 15 | `corners_against_per_match` | Set pieces | 3 | live |
--| 16 | `saves_pct` | Goalkeeping | 2 | live |
--
--Tier shape: 4 × tier 1 (rows 1, 2, 6, 7) · 9 × tier 2 · 3 × tier 3.
-+group this table calls Duels is One-on-one. Row order WITHIN a block on the team page is what this
-+table locks.
++goal_matches as (
++    select
++        s.fixture_id,
++        sum(least(s.goals, p.goals)) as matched_goals
++    from seed_goal_keys as s
++    inner join provider_goal_keys as p
++        on
++            s.fixture_id = p.fixture_id
++            and s.team_id = p.team_id
++            and s.player_id = p.player_id
++            and s.minute_elapsed = p.minute_elapsed
++            and s.minute_extra = p.minute_extra
++    group by s.fixture_id
++),
 +
-+| # | metric_id | Group | Status |
-+|---|---|---|---|
-+| 1 | `goals_per_match` | Goals | live |
-+| 2 | `goals_against_per_match` | Goals | live |
-+| 3 | `clean_sheets` (fixture windows) · `clean_sheets_pct` (team page) | Goals | live |
-+| 4 | `shots_per_match` | Shooting | live |
-+| 5 | `shots_inside_box_pct` | Shooting | live |
-+| 6 | `shots_on_target_per_match` | Shooting | **new** (GAP-11) |
-+| 7 | `finishing_efficiency_pct` | Shooting | live |
-+| 8 | `duels_per_match` | One-on-one | **new** (GAP-11) |
-+| 9 | `duels_won_pct` | One-on-one | live |
-+| 10 | `defensive_actions_per_match` | Defending | **new aggregate** (GAP-11) |
-+| 11 | `passes_per_match` | Passing | live |
-+| 12 | `passes_accuracy_pct` | Passing | live |
-+| 13 | `passes_key_per_match` | Passing | live |
-+| 14 | `corners_per_match` | Set pieces | live |
-+| 15 | `corners_against_per_match` | Set pieces | live |
-+| 16 | `saves_pct` | Goalkeeping | live |
+ goal_checks as (
+     select
+         'fixture_goal_corrections' as seed,
+@@ -90,11 +134,14 @@ goal_checks as (
+             when
+                 e.provider_home = g.score_home
+                 and e.provider_away = g.score_away
++                and coalesce(m.matched_goals, 0) = g.seed_goals
+                 then 'no_longer_needed'
+         end as problem
+     from goal_counts as g
+     left join event_counts as e
+         on g.fixture_id = e.fixture_id
++    left join goal_matches as m
++        on g.fixture_id = m.fixture_id
+ ),
  
- ### Where these strings live, and what the `metric_id` column above really holds (#370, 2026-07-31)
- 
-@@ -220,13 +189,7 @@ is blank are the catalogue table's rules.
- The player display unit is the **bundled row** (1–3 related atomics per row with a
- defined display string) — NOT one metric per row. That part stands.
- 
--⚠ **The "no tiers" half of this ruling was overridden on 2026-08-04.** It held that tiers are a
--team-only concept because player importance is position-dependent and the provider's metric scope
--cannot ground a per-position importance claim. Every player metric now carries a tier in
--`metric_catalogue.csv`, on the CPO's reasoning that a tier is a judgement about what a fan wants
--to see rather than a statistical claim. See the tier-semantics section above for the rubric.
--
--Per-surface rules still apply where a surface needs an ordering the tier does not give (e.g. the
-+Per-surface rules still apply where a surface needs an ordering of its own (e.g. the
- fixture top-players strip ranks goals → assists → key passes, GK variant saves_player + save %).
- 
- Changes vs the legacy player rows (definitions / formulas now live in the
-@@ -259,8 +222,7 @@ mixes groups; (3) ratio displays standardized to the full triple
- ## Data work implied (see 99_gaps_register.md)
- 
- - **GAP-09** — catalogue columns: `metric_group` (all atomics, team + player),
--  `importance_tier` (on every row since 2026-08-04), `metric_group_order` (landed with #152;
--  the values are #152's ruling, not this document's block order).
-+  `is_key_metric` and `metric_group_order`.
- - **GAP-10** — `wins`/`draws`/`losses` columns in `mart_team_season_record`
-   (the W2 counts display).
- - **GAP-11** — new team metrics (`clean_sheets` in both window marts,
-@@ -282,12 +244,9 @@ mixes groups; (3) ratio displays standardized to the full triple
- | 2026-06-11 | Groups = MVP blocks; MVP row order untouched; new metrics slot into blocks. |
- | 2026-06-11 | Duels + Defending blocks placed before Passing. |
- | 2026-06-11 | Clean sheets added (new metric); team dribbles dropped; T·I·B aggregated. |
--| 2026-06-11 | Ø Duels added as context row before % Duels won; context pairs share a tier. |
- | 2026-06-11 | Shooting block reshaped: Ø shots, % from box, Ø shots on target (new), finishing; `shots_on_goal_pct` unrendered; finishing relabeled (fix "a"). |
--| 2026-06-11 | Tier 1 = goals, goals against, shots on target, finishing. Duels stay tier 2 (coverage + discrimination + compact-surface budget). |
- | 2026-06-11 | W1 = form pills; W2 = W/D/L counts (GAP-10). |
- | 2026-06-11 | Player display unit = the bundled rows (legacy player catalogue); resequenced into shared block order; groups inherited from atomics (no mixed bundles). |
--| 2026-06-11 | **No tiers for players** — position-dependent importance can't be grounded in the provider's metric scope; compact surfaces use per-surface rules. |
- | 2026-06-11 | No naked percentage: player ratio rows standardized to `{num} of {den} · {pct}%`; GK row gains the triple (`saves_player`, `shots_on_target_faced` atomics). Team comparisons keep single % values — adjacent count rows provide the volume. |
- | 2026-06-11 | W2's user-facing name = "through matchday N" (mart name stays internal); the W1/W2 toggle states carry explicit scope labels (cross-comp vs within-comp) per the context matrix. |
- | 2026-06-11 | Tournament window exception (cumulative + qualifier preview) confirmed as the matrix rule for display; found unimplemented in the new window marts → GAP-18, scheduled before WC 2026. |
-diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
-index e552bc98..1b2c2614 100644
---- a/scripts/export_site_data.py
-+++ b/scripts/export_site_data.py
-@@ -2271,15 +2271,16 @@ def fetch_metric_groups(seed_path: str = CATALOGUE_SEED_PATH) -> dict:
- 
- def fetch_metric_rows(seed_path: str = CATALOGUE_SEED_PATH, map_path: str = METRIC_MAP_PATH) -> dict:
-     """metric_rows.json — the rows of the match page's Form comparison: every team metric
--    mart_team_window_metrics serves outside the Results group, in group order and then the catalogue's
--    `metric_order`. A selection from the seeds, no BigQuery."""
-+    mart_team_window_metrics serves outside the Results group that has a place (`metric_order`), in
-+    group order and then that place, each with its key flag. A selection from the seeds, no BigQuery."""
-     import csv
- 
-     with open(map_path, encoding="utf-8") as f:
-         served = {r["metric_id"] for r in csv.DictReader(f) if r["table_name"] == "mart_team_window_metrics"}
-     with open(seed_path, encoding="utf-8") as f:
-         rows = [r for r in csv.DictReader(f)
--                if r["entity"] == "team" and r["metric_id"] in served and r["metric_group"] != "outcomes"]
-+                if r["entity"] == "team" and r["metric_id"] in served and r["metric_group"] != "outcomes"
-+                and r["metric_order"]]
-     rows.sort(key=lambda r: (int(r["metric_group_order"]), int(r["metric_order"])))
-     return {"type": "metric_rows", "rows": [
-         {"metric_id": r["metric_id"],
-@@ -2288,7 +2289,8 @@ def fetch_metric_rows(seed_path: str = CATALOGUE_SEED_PATH, map_path: str = METR
-          "metric_order": int(r["metric_order"]),
-          "direction": r["direction"],
-          "format": r["format"],
--         "per_match": _per_match(r)}
-+         "per_match": _per_match(r),
-+         "is_key_metric": r["is_key_metric"] == "true"}
-         for r in rows]}
- 
- 
-diff --git a/scripts/generate_metric_sql.py b/scripts/generate_metric_sql.py
-index 51904158..29b18040 100644
---- a/scripts/generate_metric_sql.py
-+++ b/scripts/generate_metric_sql.py
-@@ -66,7 +66,7 @@ TEAM_FORM = (
-     "shots_inside_box_per_match", "passes_accurate_per_match", "passes_share_pct", "dribbles_attempts_per_match",
-     "dribbles_success_per_match", "dribbles_success_pct", "duels_won_per_match", "saves_per_match",
-     "free_kicks_per_match", "fouls_per_match", "offsides_per_match", "cards_yellow_per_match",
--    "cards_red_per_match",
-+    "cards_red_per_match", "cards_yellow", "cards_red",
- )
- TEAM_SEASON = TEAM_COUNTS + tuple(m for m in TEAM_FORM if m not in TEAM_COUNTS) + (
-     "clean_sheets_pct", "points_capture_pct", "shots_share_pct", "shots_on_goal_difference_per_match",
-diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
-index 32b3cdf4..59f8c262 100644
---- a/site_v2/src/i18n/strings.ts
-+++ b/site_v2/src/i18n/strings.ts
-@@ -1045,8 +1045,6 @@ const METRIC_LABELS_EN: MetricLabels = {
-   "metrics.corners_against_per_match.label": "Corners against",
-   "metrics.saves_pct.label": "Saves",
-   "metrics.shots_on_goal_pct.label": "Shooting accuracy",
--  "metrics.shots_off_target_per_match.label": "Shots off target",
--  "metrics.shots_blocked_per_match.label": "Blocked shots",
-   "metrics.shots_inside_box_per_match.label": "Shots inside box",
-   "metrics.passes_accurate_per_match.label": "Accurate passes",
-   "metrics.passes_share_pct.label": "Possession",
-@@ -1061,8 +1059,6 @@ const METRIC_LABELS_EN: MetricLabels = {
-   "metrics.free_kicks_per_match.label": "Free kicks",
-   "metrics.fouls_per_match.label": "Fouls",
-   "metrics.offsides_per_match.label": "Offsides",
--  "metrics.cards_yellow_per_match.label": "Yellow cards",
--  "metrics.cards_red_per_match.label": "Red cards",
-   "metrics.cards_yellow.label": "Yellow cards",
-   "metrics.cards_red.label": "Red cards",
-   // Player metrics use the catalogue's `playerMetrics.*` keys.
-@@ -1121,8 +1117,6 @@ const METRIC_LABELS_DE: MetricLabels = {
-   "metrics.corners_against_per_match.label": "Ecken gegen",
-   "metrics.saves_pct.label": "Gehaltene Schüsse",
-   "metrics.shots_on_goal_pct.label": "Schussgenauigkeit",
--  "metrics.shots_off_target_per_match.label": "Schüsse neben das Tor",
--  "metrics.shots_blocked_per_match.label": "Geblockte Schüsse",
-   "metrics.shots_inside_box_per_match.label": "Schüsse aus dem Strafraum",
-   "metrics.passes_accurate_per_match.label": "Angekommene Pässe",
-   "metrics.passes_share_pct.label": "Ballbesitz",
-@@ -1137,8 +1131,6 @@ const METRIC_LABELS_DE: MetricLabels = {
-   "metrics.free_kicks_per_match.label": "Freistöße",
-   "metrics.fouls_per_match.label": "Fouls",
-   "metrics.offsides_per_match.label": "Abseits",
--  "metrics.cards_yellow_per_match.label": "Gelbe Karten",
--  "metrics.cards_red_per_match.label": "Rote Karten",
-   "metrics.cards_yellow.label": "Gelbe Karten",
-   "metrics.cards_red.label": "Rote Karten",
-   "playerMetrics.scorerPoints.goals": "Tore",
-@@ -1190,8 +1182,6 @@ const METRIC_LABELS_FI: MetricLabels = {
-   "metrics.corners_against_per_match.label": "Päästetyt kulmapotkut",
-   "metrics.saves_pct.label": "Torjuntaosuus",
-   "metrics.shots_on_goal_pct.label": "Laukaustarkkuus",
--  "metrics.shots_off_target_per_match.label": "Ohi menneet laukaukset",
--  "metrics.shots_blocked_per_match.label": "Blokatut laukaukset",
-   "metrics.shots_inside_box_per_match.label": "Laukaukset boksista",
-   "metrics.passes_accurate_per_match.label": "Onnistuneet syötöt",
-   "metrics.passes_share_pct.label": "Pallonhallinta",
-@@ -1206,8 +1196,6 @@ const METRIC_LABELS_FI: MetricLabels = {
-   "metrics.free_kicks_per_match.label": "Vapaapotkut",
-   "metrics.fouls_per_match.label": "Rikkeet",
-   "metrics.offsides_per_match.label": "Paitsiot",
--  "metrics.cards_yellow_per_match.label": "Keltaiset kortit",
--  "metrics.cards_red_per_match.label": "Punaiset kortit",
-   "metrics.cards_yellow.label": "Keltaiset kortit",
-   "metrics.cards_red.label": "Punaiset kortit",
-   "playerMetrics.scorerPoints.goals": "Maalit",
-diff --git a/site_v2/src/lib/metricRows.ts b/site_v2/src/lib/metricRows.ts
-index 05fc8502..b954d060 100644
---- a/site_v2/src/lib/metricRows.ts
-+++ b/site_v2/src/lib/metricRows.ts
-@@ -1,7 +1,7 @@
- // The LOCKED 16-row team metric contract of the team page Performance tab (vs the league / vs last
- // season). The match page's Form comparison reads its rows from src/data/metric_rows.json instead.
- //
--// This is DISPLAY CONFIG, not computation: row order within a group and tiers come from
-+// This is DISPLAY CONFIG, not computation: row order within a group comes from
- // docs/wireframes/metrics_display.md (LOCKED); `format` + `direction` mirror
- // dbt_project/seeds/metric_catalogue.csv (the metric SSoT) — the frontend renders these
- // definitions, it does not invent them. A row's `group` is the catalogue's `metric_group` KEY
-@@ -21,7 +21,7 @@
- // #370: there is no `label` field here. A metric's display name lives once, per locale, in
- // `i18n/strings.ts` (METRIC_LABELS), keyed by the catalogue's own `label_i18n_key` — which is what
- // `labelKey` below holds. Render a name with `metricLabel(lang, row.labelKey)`; never re-spell one
--// here. The row order and tier contract from `docs/wireframes/metrics_display.md` still lives in
-+// here. The row order contract from `docs/wireframes/metrics_display.md` still lives in
- // this file; the strings and the groups moved out.
- 
- import type { Direction } from "./bars";
-@@ -56,7 +56,6 @@ export interface MetricRowDef {
-   // is how you break the binding. `check-metric-labels.test.mjs` cross-checks every one.
-   labelKey: string;
-   group: string;              // the catalogue's `metric_group` key, verbatim
--  tier: 1 | 2 | 3;            // visibility under constraint (never reorders — display doc)
-   format: RowFormat;
-   direction: Direction;       // drives the green "better" side (never `lower_is_better`)
-   perMatch: boolean;          // the catalogue's denominator is count(*): the value is per match
-@@ -70,29 +69,29 @@ export function teamBinding(row: MetricRowDef): TeamBinding {
- 
- // Groups render in `GROUP_KEYS_IN_ORDER` with a subhead; rows in array order within each group.
- export const METRIC_ROWS: MetricRowDef[] = [
--  { field: "goals_per_match", labelKey: "metrics.goals_per_match.label", group: "goals", tier: 1, format: "decimal_1", direction: "higher_better", perMatch: true },
--  { field: "goals_against_per_match", labelKey: "metrics.goals_against_per_match.label", group: "goals", tier: 1, format: "decimal_1", direction: "lower_better", perMatch: true },
-+  { field: "goals_per_match", labelKey: "metrics.goals_per_match.label", group: "goals", format: "decimal_1", direction: "higher_better", perMatch: true },
-+  { field: "goals_against_per_match", labelKey: "metrics.goals_against_per_match.label", group: "goals", format: "decimal_1", direction: "lower_better", perMatch: true },
-   // ⚠ The ONE row whose two surfaces bind different catalogue metrics. The fixture windows serve
-   //   `clean_sheets`, a count of shut-outs shown as a bare count. The team page ranks
-   //   `clean_sheets_pct`, the proportion, because teams are compared across a league.
-   //   Read the team side through `teamBinding()`; never assume `field` covers both.
--  { field: "clean_sheets", labelKey: "metrics.clean_sheets.label", group: "goals", tier: 2, format: "integer", direction: "higher_better", perMatch: false,
-+  { field: "clean_sheets", labelKey: "metrics.clean_sheets.label", group: "goals", format: "integer", direction: "higher_better", perMatch: false,
-     team: { field: "clean_sheets_pct", labelKey: "metrics.clean_sheets_pct.label", format: "percent", perMatch: false } },
--  { field: "shots_per_match", labelKey: "metrics.shots_per_match.label", group: "shooting", tier: 2, format: "decimal_1", direction: "higher_better", perMatch: true },
--  { field: "shots_inside_box_pct", labelKey: "metrics.shots_inside_box_pct.label", group: "shooting", tier: 2, format: "percent", direction: "higher_better", perMatch: false },
-+  { field: "shots_per_match", labelKey: "metrics.shots_per_match.label", group: "shooting", format: "decimal_1", direction: "higher_better", perMatch: true },
-+  { field: "shots_inside_box_pct", labelKey: "metrics.shots_inside_box_pct.label", group: "shooting", format: "percent", direction: "higher_better", perMatch: false },
-   // ⚠ `field` and `labelKey` DISAGREE on this row on purpose. `metric_catalogue.csv` declares
-   //   metric_id = shots_on_goal_per_match   →   label_i18n_key = metrics.shots_on_target_per_match.label
-   // Do NOT "fix" this to `metrics.shots_on_goal_per_match.label` — the catalogue declares no such
-   // key and the label would resolve to nothing.
--  { field: "shots_on_goal_per_match", labelKey: "metrics.shots_on_target_per_match.label", group: "shooting", tier: 1, format: "decimal_1", direction: "higher_better", perMatch: true },
--  { field: "finishing_efficiency_pct", labelKey: "metrics.finishing_efficiency_pct.label", group: "shooting", tier: 1, format: "percent", direction: "higher_better", perMatch: false },
--  { field: "duels_per_match", labelKey: "metrics.duels_per_match.label", group: "one_on_one", tier: 2, format: "decimal_0", direction: "higher_better", perMatch: true },
--  { field: "duels_won_pct", labelKey: "metrics.duels_won_pct.label", group: "one_on_one", tier: 2, format: "percent", direction: "higher_better", perMatch: false },
--  { field: "defensive_actions_per_match", labelKey: "metrics.defensive_actions_per_match.label", group: "defending", tier: 2, format: "decimal_1", direction: "higher_better", perMatch: true },
--  { field: "passes_per_match", labelKey: "metrics.passes_per_match.label", group: "passing", tier: 3, format: "decimal_0", direction: "higher_better", perMatch: true },
--  { field: "passes_accuracy_pct", labelKey: "metrics.passes_accuracy_pct.label", group: "passing", tier: 2, format: "percent", direction: "higher_better", perMatch: false },
--  { field: "passes_key_per_match", labelKey: "metrics.passes_key_per_match.label", group: "passing", tier: 2, format: "decimal_1", direction: "higher_better", perMatch: true },
--  { field: "corners_per_match", labelKey: "metrics.corners_per_match.label", group: "set_pieces", tier: 3, format: "decimal_1", direction: "higher_better", perMatch: true },
--  { field: "corners_against_per_match", labelKey: "metrics.corners_against_per_match.label", group: "set_pieces", tier: 3, format: "decimal_1", direction: "lower_better", perMatch: true },
--  { field: "saves_pct", labelKey: "metrics.saves_pct.label", group: "goalkeeping", tier: 2, format: "percent", direction: "higher_better", perMatch: false },
-+  { field: "shots_on_goal_per_match", labelKey: "metrics.shots_on_target_per_match.label", group: "shooting", format: "decimal_1", direction: "higher_better", perMatch: true },
-+  { field: "finishing_efficiency_pct", labelKey: "metrics.finishing_efficiency_pct.label", group: "shooting", format: "percent", direction: "higher_better", perMatch: false },
-+  { field: "duels_per_match", labelKey: "metrics.duels_per_match.label", group: "one_on_one", format: "decimal_0", direction: "higher_better", perMatch: true },
-+  { field: "duels_won_pct", labelKey: "metrics.duels_won_pct.label", group: "one_on_one", format: "percent", direction: "higher_better", perMatch: false },
-+  { field: "defensive_actions_per_match", labelKey: "metrics.defensive_actions_per_match.label", group: "defending", format: "decimal_1", direction: "higher_better", perMatch: true },
-+  { field: "passes_per_match", labelKey: "metrics.passes_per_match.label", group: "passing", format: "decimal_0", direction: "higher_better", perMatch: true },
-+  { field: "passes_accuracy_pct", labelKey: "metrics.passes_accuracy_pct.label", group: "passing", format: "percent", direction: "higher_better", perMatch: false },
-+  { field: "passes_key_per_match", labelKey: "metrics.passes_key_per_match.label", group: "passing", format: "decimal_1", direction: "higher_better", perMatch: true },
-+  { field: "corners_per_match", labelKey: "metrics.corners_per_match.label", group: "set_pieces", format: "decimal_1", direction: "higher_better", perMatch: true },
-+  { field: "corners_against_per_match", labelKey: "metrics.corners_against_per_match.label", group: "set_pieces", format: "decimal_1", direction: "lower_better", perMatch: true },
-+  { field: "saves_pct", labelKey: "metrics.saves_pct.label", group: "goalkeeping", format: "percent", direction: "higher_better", perMatch: false },
- ];
-diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
-index c59a45f3..5fe06089 100644
---- a/site_v2/src/lib/types.ts
-+++ b/site_v2/src/lib/types.ts
-@@ -15,6 +15,7 @@ export interface ServedMetricRow {
-   direction: Direction;
-   format: SingleFormat;
-   per_match: boolean;
-+  is_key_metric: boolean;     // one of the team's key metrics, the ones a shorter list keeps
- }
- 
- export interface WindowStats {
-diff --git a/tests/test_metric_rows.py b/tests/test_metric_rows.py
-index 6ab0feb5..b0d0aad8 100644
---- a/tests/test_metric_rows.py
-+++ b/tests/test_metric_rows.py
-@@ -1,8 +1,8 @@
- """The match page's Form comparison rows are the catalogue's, and the site reads a copy of them.
- 
- `site_v2/src/data/metric_rows.json` is a committed build input the export writes from
--`metric_catalogue.csv`: every team metric `mart_team_window_metrics` serves, minus the Results group,
--which the page shows elsewhere. These tests lock the committed file to a fresh regeneration, hold
-+`metric_catalogue.csv`: every team metric `mart_team_window_metrics` serves that has a place (`metric_order`),
-+minus the Results group, which the page shows elsewhere, each with its key flag. These tests lock the committed file to a fresh regeneration, hold
- the row set to that, and hold each group to the catalogue's rising `metric_order`.
- """
- from __future__ import annotations
-@@ -37,7 +37,7 @@ def test_the_committed_file_is_a_fresh_regeneration_from_the_seed():
- def test_the_rows_are_the_form_window_metrics_outside_results():
-     team = {r["metric_id"]: r for r in _read(CATALOGUE) if r["entity"] == "team"}
-     served = {r["metric_id"] for r in _read(METRIC_MAP) if r["table_name"] == "mart_team_window_metrics"}
--    expected = {m for m in served if team[m]["metric_group"] != "outcomes"}
-+    expected = {m for m in served if team[m]["metric_group"] != "outcomes" and team[m]["metric_order"]}
-     rows = {r["metric_id"] for r in export.fetch_metric_rows()["rows"]}
-     assert len(expected) >= 30
-     assert rows == expected, (
-@@ -65,3 +65,9 @@ def test_a_per_match_row_is_a_count_star_average_and_not_a_share():
-     for r in export.fetch_metric_rows()["rows"]:
-         c = team[r["metric_id"]]
-         assert r["per_match"] == (c["denominator_expr"] == "count(*)" and c["format"] != "percent"), r
-+
-+
-+def test_each_row_carries_the_catalogue_key_flag():
-+    team = {r["metric_id"]: r for r in _read(CATALOGUE) if r["entity"] == "team"}
-+    for r in export.fetch_metric_rows()["rows"]:
-+        assert r["is_key_metric"] == (team[r["metric_id"]]["is_key_metric"] == "true"), r
-diff --git a/tests/test_no_decision_history_in_docs.py b/tests/test_no_decision_history_in_docs.py
-index d33b1ee1..4939dd28 100644
---- a/tests/test_no_decision_history_in_docs.py
-+++ b/tests/test_no_decision_history_in_docs.py
-@@ -58,9 +58,9 @@ PINNED = {
-     "docs/wireframes/12_player_stats.md": 14,
-     "docs/wireframes/13_player_career.md": 11,
-     "docs/wireframes/14_team_stats.md": 9,
--    "docs/wireframes/99_gaps_register.md": 30,
-+    "docs/wireframes/99_gaps_register.md": 29,
-     "docs/wireframes/block_standard.md": 48,
--    "docs/wireframes/metrics_display.md": 44,
-+    "docs/wireframes/metrics_display.md": 32,
-     "site_v2/src/data/README.md": 5,
- }
- 
-diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
-index 17e1cfb6..5cb0c7ac 100644
---- a/tests/test_sentence_length_in_docs.py
-+++ b/tests/test_sentence_length_in_docs.py
-@@ -71,9 +71,9 @@ PINNED = {
-     "docs/wireframes/12_player_stats.md": 16,
-     "docs/wireframes/13_player_career.md": 7,
-     "docs/wireframes/14_team_stats.md": 19,
--    "docs/wireframes/99_gaps_register.md": 66,
-+    "docs/wireframes/99_gaps_register.md": 65,
-     "docs/wireframes/block_standard.md": 11,
--    "docs/wireframes/metrics_display.md": 30,
-+    "docs/wireframes/metrics_display.md": 27,
-     "site_v2/src/data/README.md": 10,
- }
- 
-
-# ============================================================================
-# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
-# ============================================================================
-# The files below changed and are DELIBERATELY excluded from the diff body:
-# they are generated/sample data, and pasting them has measured at ~89% of the
-# review payload. They are still reviewed content and still bind your verdict.
-#
-# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
-# particular: whether a field displayed by a component actually EXISTS in the
-# exported sample is checked by opening these files, not by reading a diff.
-#
-#   site_v2/src/data/metric_rows.json | 136 +++++++++++++++++++++-----------------
-#    1 file changed, 76 insertions(+), 60 deletions(-)
-# ============================================================================
-
-# ============================================================================
-# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
-# ============================================================================
-# The files below changed on this branch and are DELIBERATELY kept out of the
-# diff: they are the review's own paperwork or the handover, which reviewers do
-# not judge (CPO 2026-08-01).
-#
-# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
-# and a path that appears in `scope_paths` but not in the diff is not, by itself,
-# a scope defect. Read them directly with Read/Grep if a claim in contract.md
-# depends on one.
-#
-#   .claude/task/acceptance_evidence.md    | 23 +++++++++++------------
-#    .claude/task/rendered_page_evidence.md | 20 +++++++++-----------
-#    2 files changed, 20 insertions(+), 23 deletions(-)
-# ============================================================================
+ fixture_checks as (
