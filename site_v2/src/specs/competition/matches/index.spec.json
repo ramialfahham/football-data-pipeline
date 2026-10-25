@@ -20,7 +20,7 @@
   "blocks": [
     {
       "block": "Competition header",
-      "mart": "mart_competition_index",
+      "mart": ["mart_competition_index", "core:dim_competition_season"],
       "i18n_keys": ["crumbHome", "navCompetitions", "compSeason", "compTabsAria", "compTabOverview", "compTabMatchdays", "compTabRounds", "compTabRankings"]
     },
     {

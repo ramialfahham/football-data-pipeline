@@ -226,10 +226,39 @@ def test_shape_competition_payload_surfaces_the_served_header_facts():
     assert p["competition_type"] == "domestic_league" and p["entity_type"] == "club"
 
 
+def test_shape_competition_payload_carries_the_served_season_label_as_is():
+    split = shape_competition_payload("BL1", 2026, {"name": "Bundesliga", "slug": "bundesliga"},
+                                      standings=[], deserved=[], summary=None,
+                                      season_label="2026/27")
+    calendar = shape_competition_payload("MLS", 2026, {"name": "MLS", "slug": "mls"},
+                                         standings=[], deserved=[], summary=None,
+                                         season_label="2026")
+    assert split["season"] == 2026 and split["season_label"] == "2026/27"
+    assert calendar["season"] == 2026 and calendar["season_label"] == "2026"
+
+
+def test_fetched_competition_payloads_take_the_label_of_their_own_season(monkeypatch):
+    def fake_query(client, sql):
+        if "dim_competition_season" in sql:
+            return [{"league_code": "BL1", "season_api_year": 2025, "season_label": "2025/26"},
+                    {"league_code": "BL1", "season_api_year": 2026, "season_label": "2026/27"}]
+        if "mart_competition_season_summary" in sql:
+            return [{"league_code": "BL1", "season_api_year": 2026}]
+        return []
+
+    monkeypatch.setattr(export_site_data, "_query", fake_query)
+    monkeypatch.setattr(export_site_data, "_warehouse_competition_meta", lambda client: {})
+    monkeypatch.setattr(export_site_data, "_competition_page_meta", lambda client: {})
+    monkeypatch.setattr(export_site_data, "shape_season_summary", lambda *a: None)
+    (payload,) = export_site_data.fetch_competition_payloads(object())
+    assert payload["season"] == 2026 and payload["season_label"] == "2026/27"
+
+
 def test_shape_competition_payload_identity_absent_is_none():
     p = shape_competition_payload("XX", 2025, {"name": "X", "slug": "x"},
                                   standings=[], deserved=[], summary=None)
     assert p["crest"] is None and p["region_label_en"] is None and p["entity_type"] is None
+    assert p["season_label"] is None
 
 
 _TEAM_CAT = {
