@@ -143,6 +143,46 @@ seeds:
           - accepted_values:
               values: ["ranking", "group", "conference", "split_round"]
 
+  - name: round_names
+    description: >
+      Names each provider round text the way its competition does, in EN, DE and FI through one
+      copy key per name. A row matches the lower-cased round text with its pattern; the
+      competition-season's own row wins over the competition's, which wins over the general one,
+      each by lowest priority. Competition rows hold names a competition uses itself (Matchweek,
+      Mestaruussarja); season rows hold a cup's early rounds, whose names follow that season's
+      format, matched to the organiser's rounds by the fixtures' dates. Hand-authored from the
+      researched, approved names; int_round_names applies it and assert_every_round_text_resolves
+      fails on a latest-season round no row names.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season_api_year, pattern]
+    columns:
+      - name: league_code
+        description: "The competition whose own name the row gives; empty for the general name."
+        tests:
+          - relationships:
+              to: ref('competition_registry')
+              field: league_code
+      - name: season_api_year
+        description: "The season the row's name holds for; empty when it holds for every season."
+      - name: priority
+        description: The order the rows are tried in within one level; the lowest number that matches wins.
+        tests:
+          - not_null
+          - unique
+      - name: pattern
+        description: A BigQuery regular expression matched against the whole lower-cased, trimmed round text.
+        tests:
+          - not_null
+      - name: label_i18n_key
+        description: "The copy key the round is named by on a page. Empty on a competition row for a cup round whose name follows each season's format: such a round shows no name until its season's row is added, and assert_every_round_text_resolves reports it."
+      - name: label_en
+        description: The name in English, for a reader of the seed; the site's copy is in strings.ts.
+      - name: n_regex
+        description: A regular expression whose one capture is the number the name shows; empty when it shows none.
+      - name: g_regex
+        description: A regular expression whose one capture is the group letter the name shows; empty when it shows none.
+
   - name: competition_registry
     description: >
       Every competition the platform tracks, with the fields the registry authors by hand:

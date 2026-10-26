@@ -1,14 +1,19 @@
-# Verification — the competition page's season label, served by the warehouse
+# Verification — the round in the competition header, in the page's language
 
-Checked locally on the branch: dbt parse; SQLFluff on dim_competition_season (the same three
-dbt_utils template lines main reports, and clean once the macro is taken out); the six offline
-gates and `check_page_css.py`; `check-page-specs` (10 pages OK); the full pytest suite (1,602
-passed, 2 skipped); the site's node tests (132 passed). A copy of the branch built with
-`npm run build` on the committed sample, its BL1 payload given `season_label` "2026/27" in the copy
-only: exit 0, audit-seo checks 2,269 pages OK, check-built-pages OK.
+Checked locally on the branch: dbt parse; SQLFluff on int_round_names, the three marts and the
+singular test (clean); a dry run of int_round_names and the coverage test against prod's
+fct_fixture (valid, 2.1 MB if run); the seven offline gates incl. check_copy_gate.py (106 seed keys
+resolvable in every locale) and check_description_hygiene.py; check-page-specs (10 pages OK);
+pytest (1,606 passed, 2 skipped); the site's node tests (134 passed). An offline replay of the seed
+over every round text of each competition's latest season in the measured fct_fixture (1,678 round
+texts, 48 competitions) names every one: 0 unresolved, 68 copy keys.
+
+Lineage: `dbt ls --select int_round_names+ --resource-type model` lists int_round_names,
+mart_competition_fixtures, mart_competition_index, mart_match_days, mart_next_matchday;
+mart_match_days is the leaf the new columns pass under unread.
 
 criteria_demonstrated:
-  - dim_competition_season builds season_label from the registry seed's season_type: split_year as concat(year, '/', the next year's last two digits), calendar_year as the year; core.yml tests it not_null and, at model level, that it starts with its season_api_year and has the shape YYYY or YYYY/YY.
-  - fetch_competition_payloads reads season_label from core.dim_competition_season keyed by (league_code, season_api_year) and shape_competition_payload emits it as served; pytest pins a split-year (2026/27) and a calendar-year (2026) label, None when not served, and that a payload takes its own season's label.
-  - The MR's own data build created ci_mr342_core.dim_competition_season (512 rows) with both new tests passing; read from it: BL1 2026 and PL 2026 are 2026/27, MLS 2026, VL 2026 and WC 2026 are 2026. The committed BL1 sample carries season_label 2026/27 as read there, its other fields unchanged.
-  - The local build of the committed sample's competition header reads "Germany · Season 2026/27 · Regular Season - 6" on the Bundesliga Overview, Matchdays and Rankings pages, "Saison 2026/27" in DE and "Kausi 2026/27" in FI; the header formats no year.
+  - round_names names each round text by the competition-season's own row, then the competition's, then the general one; int_round_names serves its copy key, number and group letter per (league_code, season_api_year, round_name); assert_every_round_text_resolves (warn, stored failures) reports a latest-season round without a key or without the number or letter its name shows.
+  - mart_competition_fixtures and mart_next_matchday serve round_label_i18n_key, round_number and round_letter joined on league_code, season_api_year and round_name; mart_competition_index serves current_round_label_i18n_key, current_round_number and current_round_letter from mart_next_matchday.
+  - The export carries the three per round and the current round in the competition payload; roundName() renders the served key with its number and letter; pytest pins that the mart columns are selected and carried by the competition fixture shape and the page meta; the header's round and the Matchdays picker read only those (examples: Bundesliga "6. Spieltag", Premier League "Matchweek 6", Veikkausliiga "Mestaruussarja, 23. kierros", WC "Bronze final", Copa del Rey 2026 "Round of 128" as "First round").
+  - check_copy_gate.py reads round_names.csv and every one of its keys resolves in EN, DE and FI.

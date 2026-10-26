@@ -1099,13 +1099,14 @@ def test_copy_gate_fails_closed_on_a_seed_without_the_key_column(tmp_path, monke
 
 
 def test_copy_gate_reads_the_real_seeds():
-    """Pins the two seed paths and that every key they publish resolves today, so the check
+    """Pins the three seed paths and that every key they publish resolves today, so the check
     cannot be silently pointed at a file that does not exist (an absent file must raise, not
     pass over zero keys)."""
     gate = _copy_gate()
     keys = gate._seed_label_keys()
-    assert set(keys) == {"competition_types.csv", "confederations.csv"}
+    assert set(keys) == {"competition_types.csv", "confederations.csv", "round_names.csv"}
     assert len(keys["competition_types.csv"]) >= 14 and len(keys["confederations.csv"]) >= 7
+    assert len(keys["round_names.csv"]) >= 60
     dicts = gate._dicts(gate.STRINGS.read_text(encoding="utf-8"))
     for name, ks in keys.items():
         for k in ks:

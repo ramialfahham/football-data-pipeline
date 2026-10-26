@@ -1,11 +1,13 @@
 ---
 // The competition page's header: crest, name, and the meta line region · season · round. Every
 // value is a served field; the region label falls back to its English form until every region
-// has a copy key, and the round is the provider's text until the warehouse serves a phase the
-// site can translate. A part that is not served is left out of the line.
+// has a copy key, and the round is the competition's current round, named the way the
+// competition names it.
+// A part that is not served is left out of the line.
 import Crest from "../ui/Crest.astro";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
+import { roundName } from "../../lib/roundName.mjs";
 
 interface Props {
   name: string | null;
@@ -13,16 +15,19 @@ interface Props {
   regionLabelEn: string | null;
   regionLabelI18nKey: string | null;
   seasonLabel: string | null;
-  round: string | null;
+  roundKey: string | null;
+  roundNumber: number | null;
+  roundLetter: string | null;
   lang: Lang;
 }
-const { name, crest, regionLabelEn, regionLabelI18nKey, seasonLabel, round, lang } = Astro.props;
+const { name, crest, regionLabelEn, regionLabelI18nKey, seasonLabel, roundKey, roundNumber, roundLetter, lang } =
+  Astro.props;
 
 const region = regionLabelI18nKey ? t(lang, regionLabelI18nKey) : regionLabelEn;
 const meta = [
   region,
   seasonLabel ? t(lang, "compSeason", { season: seasonLabel }) : null,
-  round,
+  roundName(t, lang, roundKey, roundNumber, roundLetter),
 ].filter(Boolean);
 ---
 

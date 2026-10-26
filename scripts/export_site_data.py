@@ -181,14 +181,18 @@ def group_fixtures_by_round(rows: list[dict]) -> list[dict]:
     for r in sorted(rows, key=lambda r: r["fixture_order"]):
         rnd = rounds.setdefault(r["round"], {
             "round": r["round"],
+            "round_label_i18n_key": r.get("round_label_i18n_key"),
+            "round_number": r.get("round_number"),
+            "round_letter": r.get("round_letter"),
             "round_order": r.get("round_order"),
             "round_sequence": r.get("round_sequence"),
             "is_next_round": bool(r.get("is_next_round")),
             "fixtures": [],
         })
         rnd["fixtures"].append({k: v for k, v in r.items()
-                                if k not in ("round", "round_order", "round_sequence", "is_next_round",
-                                             "fixture_order")})
+                                if k not in ("round", "round_label_i18n_key", "round_number",
+                                             "round_letter", "round_order", "round_sequence",
+                                             "is_next_round", "fixture_order")})
     return list(rounds.values())
 
 
@@ -778,6 +782,9 @@ def shape_competition_payload(league_code: str, season: int, meta: dict,
         "region_label_i18n_key": meta.get("region_label_i18n_key"),
         "competition_type": meta.get("competition_type"),
         "entity_type": meta.get("entity_type"),
+        "current_round_label_i18n_key": meta.get("current_round_label_i18n_key"),
+        "current_round_number": meta.get("current_round_number"),
+        "current_round_letter": meta.get("current_round_letter"),
         "standings": sorted(
             standings, key=lambda r: (r.get("group_name") or "", r.get("standing_rank") or 999)
         ),
@@ -1577,7 +1584,7 @@ def fetch_competition_index(client) -> dict:
 
 
 _COMPETITION_FIXTURE_COLUMNS = (
-    "fixture_sk, league_code, season_api_year, round_name, round_order, round_sequence, "
+    "fixture_sk, league_code, season_api_year, round_name, round_label_i18n_key, round_number, round_letter, round_order, round_sequence, "
     "fixture_order, kickoff_datetime, status_short, is_played, goals_home, goals_away, "
     "home_team_sk, home_team_name, home_team_slug, home_team_logo_url, "
     "away_team_sk, away_team_name, away_team_slug, away_team_logo_url, "
@@ -1594,6 +1601,9 @@ def _competition_fixture(r: dict) -> dict:
         "slug": r.get("fixture_slug"),
         "kickoff": r.get("kickoff_datetime"),
         "round": r.get("round_name"),
+        "round_label_i18n_key": r.get("round_label_i18n_key"),
+        "round_number": r.get("round_number"),
+        "round_letter": r.get("round_letter"),
         "round_order": r.get("round_order"),
         "round_sequence": r.get("round_sequence"),
         "fixture_order": int(r["fixture_order"]),
@@ -1689,7 +1699,9 @@ _STANDING_DROP = {"standing_sk", "season_sk", "league_sk", "competition_type",
 
 
 _COMPETITION_PAGE_META = ("logo_url", "region_label_en", "region_label_i18n_key",
-                          "competition_type", "entity_type")
+                          "competition_type", "entity_type",
+                          "current_round_label_i18n_key", "current_round_number",
+                          "current_round_letter")
 
 
 def _competition_page_meta(client) -> dict[str, dict]:

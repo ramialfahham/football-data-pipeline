@@ -1,427 +1,1361 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 907887db..8f976aa4 100644
+index 8f976aa4..8532443b 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,26 +1,30 @@
--# Task contract — the match page's Show all metrics switch and team names
-+# Task contract — the competition page's season label, served by the warehouse
+@@ -1,26 +1,46 @@
+-# Task contract — the competition page's season label, served by the warehouse
++# Task contract — the round in the competition header, in the page's language
  
  objective: >
--  The played match's Match stats and the upcoming match's Form comparison show the key team
--  metrics by default; a "Show all metrics" switch at the top right shows every metric in its
--  place, the order never changing, and a group heading with no key row is hidden while it is off.
--  The team names over the comparison read 14px, semi-bold, ink. The switch enters the block
--  standard.
-+  The competition page header's meta line shows the season as the warehouse serves it: "Season
-+  2026/27" for a split-year competition, "Season 2026" for a calendar-year one ("Saison", "Kausi"),
-+  on every competition with a payload. The label is a column of dim_competition_season, built from
-+  the registry's season_type; the export carries it and no page computes it.
+-  The competition page header's meta line shows the season as the warehouse serves it: "Season
+-  2026/27" for a split-year competition, "Season 2026" for a calendar-year one ("Saison", "Kausi"),
+-  on every competition with a payload. The label is a column of dim_competition_season, built from
+-  the registry's season_type; the export carries it and no page computes it.
++  The warehouse names every round of a competition's latest season by the competition's own name
++  in EN, DE and FI: a seed of whole-round patterns, the competition's (and where its format
++  changes yearly, the season's) own row before the general one, each giving a copy key and the
++  number or group letter it shows; a test fails on a latest-season round text no pattern covers.
++  The marts serve the key and values per fixture and the competition's current round; the export
++  carries them; the competition header's round and the Matchdays picker render them, so no
++  provider English reaches those places.
  
  refs: >
--  #132 (the match page; the switch and the names approved in chat, 2026-10-22, note 4069141243);
--  #134 (the switch's copy in EN, DE and FI, approved in chat, 2026-10-22, note 4069024967).
-+  #229 (one way to show the season; the competition page's header text approved in chat,
-+  2026-10-22, note 4066426889); #129 (the competition page, design approved); #233 (the country in
-+  the page's language, split off, decided in chat, 2026-10-25).
+-  #229 (one way to show the season; the competition page's header text approved in chat,
+-  2026-10-22, note 4066426889); #129 (the competition page, design approved); #233 (the country in
+-  the page's language, split off, decided in chat, 2026-10-25).
++  #148 (the requirement; the per-competition round names, researched by an independent football
++  expert, approved in chat, 2026-10-26); #129 (the competition page, design approved); #229 (the
++  season part of the same line).
  
  scope_paths:
--  - site_v2/src/components/ui/MetricSwitch.astro
--  - site_v2/src/components/fixture/MetricComparison.astro
--  - site_v2/src/components/fixture/MetricRow.astro
--  - site_v2/src/components/fixture/MatchStats.astro
--  - site_v2/src/components/fixture/FormSegment.astro
--  - site_v2/src/lib/comparisonGroups.ts
--  - site_v2/src/styles/system.css
--  - site_v2/src/i18n/strings.ts
--  - docs/wireframes/block_standard.md
-+  - dbt_project/models/3_core/dim_competition_season.sql
-+  - dbt_project/models/3_core/core.yml
-+  - scripts/export_site_data.py
-+  - tests/test_export_site_data.py
-+  - site_v2/src/components/competition/CompetitionHeader.astro
-+  - site_v2/src/pages/[[]lang]/[[]competition]/index.astro
-+  - site_v2/src/pages/[[]lang]/[[]competition]/[[]matches]/index.astro
-+  - site_v2/src/pages/[[]lang]/[[]competition]/[[]stats]/index.astro
+-  - dbt_project/models/3_core/dim_competition_season.sql
+-  - dbt_project/models/3_core/core.yml
++  - dbt_project/seeds/round_names.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/models/4_intermediate/shared/int_round_names.sql
++  - dbt_project/models/4_intermediate/shared/int_round_names.yml
++  - dbt_project/tests/assert_every_round_text_resolves.sql
++  - dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
++  - dbt_project/models/5_marts/shared/mart_next_matchday.sql
++  - dbt_project/models/5_marts/shared/mart_competition_index.sql
++  - dbt_project/models/5_marts/shared/shared.yml
+   - scripts/export_site_data.py
++  - scripts/check_copy_gate.py
+   - tests/test_export_site_data.py
++  - tests/test_governance_hooks.py
++  - tests/test_no_decision_history_in_code.py
++  - site_v2/src/lib/roundName.mjs
++  - site_v2/src/lib/roundName.test.mjs
++  - site_v2/src/lib/competitionPayload.mjs
++  - site_v2/src/lib/competitionPayload.test.mjs
 +  - site_v2/src/lib/types.ts
-+  - site_v2/src/specs/competition/index.spec.json
-+  - site_v2/src/specs/competition/matches/index.spec.json
-+  - site_v2/src/specs/competition/stats/index.spec.json
-+  - site_v2/src/data/competitions/BL1/2026.json
-   - .claude/task/contract.md
-   - .claude/task/review.md
-   - .claude/task/review_input.patch
-@@ -28,36 +32,45 @@ scope_paths:
++  - site_v2/src/i18n/strings.ts
++  - site_v2/src/styles/system.css
+   - site_v2/src/components/competition/CompetitionHeader.astro
++  - site_v2/src/components/competition/MatchdaySchedule.astro
+   - site_v2/src/pages/[[]lang]/[[]competition]/index.astro
+   - site_v2/src/pages/[[]lang]/[[]competition]/[[]matches]/index.astro
+   - site_v2/src/pages/[[]lang]/[[]competition]/[[]stats]/index.astro
+-  - site_v2/src/lib/types.ts
+   - site_v2/src/specs/competition/index.spec.json
+   - site_v2/src/specs/competition/matches/index.spec.json
+   - site_v2/src/specs/competition/stats/index.spec.json
+@@ -32,45 +52,52 @@ scope_paths:
    - .claude/task/rendered_page_evidence.md
  
  impact_map: >
--  writers: none; the export, the warehouse and the served data are unchanged (is_key_metric is
--  already served in metric_rows.json). downstream: the match page's Match stats and Form
--  comparison blocks; the new switch component and its CSS are read by nothing else yet.
--  layer_rules: display only, no metric fact computed. deploy_order: none; deploy:site-v2 is
--  manual. blast_radius: two blocks of the match page, and the `.mp .formhead .h` rule, which only
--  those two blocks use.
-+  writers: dim_competition_season gains season_label (a join of the competition_registry seed);
-+  the export's competitions target gains season_label per payload, read from
-+  core.dim_competition_season. downstream: `dbt ls --select dim_competition_season+ --resource-type
-+  model` lists 15 models: dim_competition_season, dim_player_team_season_mapping, fct_standings,
-+  int_team_season__deserved_vs_actual, int_team_season__standings_primary,
-+  mart_competition_fixtures, mart_fixture_standing_context, mart_match_days,
-+  mart_matchday_insights, mart_next_matchday, mart_roster, mart_standings, mart_team_profile,
-+  mart_team_season, mart_team_season_insights; 5 leaves (mart_match_days,
-+  mart_matchday_insights, mart_roster, mart_team_profile, mart_team_season_insights). The two
-+  direct SQL readers, dim_player_team_season_mapping and fct_standings, select named columns
-+  (season_sk, league_sk, league_code, season_api_year), so the new column reaches no model; all
-+  14 rebuild in the MR data build unchanged. The site: the competition header on the
-+  Overview, Matchdays and Rankings pages. layer_rules: a core attribute of the season, no fact
-+  computed; the export reads a served column. deploy_order: the column reaches prod with the
-+  nightly after merge; the export carries it on the next deploy:export; deploy:site-v2 is manual.
-+  blast_radius: the competition header's meta line; a null label drops the season part, as a
-+  null season does today.
+-  writers: dim_competition_season gains season_label (a join of the competition_registry seed);
+-  the export's competitions target gains season_label per payload, read from
+-  core.dim_competition_season. downstream: `dbt ls --select dim_competition_season+ --resource-type
+-  model` lists 15 models: dim_competition_season, dim_player_team_season_mapping, fct_standings,
+-  int_team_season__deserved_vs_actual, int_team_season__standings_primary,
+-  mart_competition_fixtures, mart_fixture_standing_context, mart_match_days,
+-  mart_matchday_insights, mart_next_matchday, mart_roster, mart_standings, mart_team_profile,
+-  mart_team_season, mart_team_season_insights; 5 leaves (mart_match_days,
+-  mart_matchday_insights, mart_roster, mart_team_profile, mart_team_season_insights). The two
+-  direct SQL readers, dim_player_team_season_mapping and fct_standings, select named columns
+-  (season_sk, league_sk, league_code, season_api_year), so the new column reaches no model; all
+-  14 rebuild in the MR data build unchanged. The site: the competition header on the
+-  Overview, Matchdays and Rankings pages. layer_rules: a core attribute of the season, no fact
+-  computed; the export reads a served column. deploy_order: the column reaches prod with the
+-  nightly after merge; the export carries it on the next deploy:export; deploy:site-v2 is manual.
+-  blast_radius: the competition header's meta line; a null label drops the season part, as a
+-  null season does today.
++  writers: a new seed round_names and a new intermediate int_round_names (one row per distinct
++  fct_fixture league_code, season and round text); mart_competition_fixtures and
++  mart_next_matchday gain round_label_i18n_key, round_number and round_letter;
++  mart_competition_index gains the current round's three; the export carries them in the
++  competition payload (rounds and page meta) and in every file built from the competition fixture
++  shape. downstream: the dbt ls lineage of the three marts is pasted in the evidence before
++  review. The site: the competition header on the Overview, Matchdays and Rankings pages and the
++  Matchdays picker; compFactMatchday's DE and FI text, which the match page also reads.
++  layer_rules: the round text is read in intermediate, served by marts as a copy key and values,
++  rendered by the site; no page reads a round text. deploy_order: the columns reach prod with the
++  nightly after merge; the export carries them on the next deploy:export; deploy:site-v2 is manual.
++  blast_radius: the header's round and the picker's titles; a latest-season round no pattern
++  covers shows no name and is reported by a warn test with stored failures, without skipping the
++  marts downstream.
  
  approved_design:
--  - match: #132
-+  - competition: #129
+   - competition: #129
++  - match: #132
  
  acceptance_criteria:
--  - "With the switch off, Match stats and Form comparison show only the rows whose is_key_metric is true, and a group heading with no key row is hidden; with it on, every shown row stands in catalogue order."
--  - "The switch reads Show all metrics / Alle Kennzahlen anzeigen / Näytä kaikki tunnusluvut, sits at the top right of the comparison, is off by default, neutral grey when on, needs no script and is announced as a switch."
--  - "The team names over the comparison are 14px, weight 600, ink."
--  - "block_standard.md lists the Metric switch and the Comparison team name, and the Played match page expects both."
-+  - "dim_competition_season serves season_label: split_year as YYYY/YY (2026/27), calendar_year as YYYY (2026); not null and of that shape, asserted by dbt tests."
-+  - "Each competitions/{league_code}/{season}.json carries season_label as served; the export computes nothing."
-+  - "The competition header's meta line reads region · Season <label> · round (Saison, Kausi) on the Overview, Matchdays and Rankings pages; no page formats the year."
+-  - "dim_competition_season serves season_label: split_year as YYYY/YY (2026/27), calendar_year as YYYY (2026); not null and of that shape, asserted by dbt tests."
+-  - "Each competitions/{league_code}/{season}.json carries season_label as served; the export computes nothing."
+-  - "The competition header's meta line reads region · Season <label> · round (Saison, Kausi) on the Overview, Matchdays and Rankings pages; no page formats the year."
++  - "Every round text of each competition's latest season in fct_fixture resolves through round_names to a copy key, with its number or letter where the name shows one; a singular warn test with stored failures reports any that does not."
++  - "mart_competition_fixtures and mart_next_matchday serve round_label_i18n_key, round_number and round_letter per fixture; mart_competition_index serves the current round's three per competition."
++  - "The competition header's round and the Matchdays picker render the approved per-competition names in EN, DE and FI from the served key and values; no provider round text is shown there."
++  - "check_copy_gate.py requires every round_names copy key in EN, DE and FI."
  
  decisions_taken: >
--  Approved in chat, 2026-10-22: the switch on Match stats and Form comparison, the key metrics by
--  default, every metric in its place when on, a heading without key rows hidden while off, top
--  right, neutral grey when on; the team names 14px semi-bold ink; the copy in three languages.
--  The block standard rows approved with the plan, 2026-10-25. Readings: the switch appears only
--  when the block shows both a key row and another row; the rows behind it carry the class
--  `nonkey`. No new dependency and no recurring cost.
-+  Approved in chat, 2026-10-22: the season label as plain text in the header's meta line, from the
-+  registry's season_type, on every competition. The plan approved in chat, 2026-10-25, with the
-+  country names split to #233. Readings: a competition without a payload shows no season's data
-+  and so no season; the label is a core attribute so every page reads one definition. No new
-+  dependency; the recurring cost is a join of a 48-row seed.
+-  Approved in chat, 2026-10-22: the season label as plain text in the header's meta line, from the
+-  registry's season_type, on every competition. The plan approved in chat, 2026-10-25, with the
+-  country names split to #233. Readings: a competition without a payload shows no season's data
+-  and so no season; the label is a core attribute so every page reads one definition. No new
+-  dependency; the recurring cost is a join of a 48-row seed.
++  The per-competition round names approved in chat, 2026-10-26, as researched; compFactMatchday
++  becomes the Matchday name, so the match page reads the same form. Readings: one seed of
++  whole-round patterns, because German and Finnish join a round's parts differently from English
++  ("3. Gruppenspieltag", "Alkulohko, 3. kierros"); a cup's early rounds are named per season,
++  matched to the organiser's rounds by the fixtures' dates, since the provider's "Round of 128"
++  names different rounds in different seasons; the coverage test reads the latest season of each
++  competition, the season the pages show; the season part stays the payload's served label from
++  #229; the match page's cup rounds and the Team page's fixture rows keep the provider text, a
++  follow-up. No new dependency; the recurring cost is a join of the distinct round texts on a
++  small seed.
  
  decisions_reserved: []
  
  done_when:
--  - The offline gates, check_page_css.py and the full pytest suite pass.
--  - The dev server shows both states on a played and an upcoming match in EN, DE and FI.
--  - check_design_inventory.py passes on a local build of the match pages.
-+  - dbt parse, SQLFluff, the offline gates, check_description_hygiene.py, pytest and the site node tests pass.
-+  - A local build on the sample shows Season 2026/27 on the Bundesliga in EN, DE and FI.
-+  - The MR data build passes, including the season_label tests.
+-  - dbt parse, SQLFluff, the offline gates, check_description_hygiene.py, pytest and the site node tests pass.
+-  - A local build on the sample shows Season 2026/27 on the Bundesliga in EN, DE and FI.
+-  - The MR data build passes, including the season_label tests.
++  - dbt parse, SQLFluff, the offline gates, check_copy_gate.py, pytest and the site node tests pass.
++  - A local build and the dev server show the approved names in the header and the picker in EN, DE and FI.
++  - The MR data build passes, including the round coverage test.
    - Reviewers per review_routing.json pass.
  
- amendments: []
-diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
-index dfbb309c..1f323136 100644
---- a/dbt_project/models/3_core/core.yml
-+++ b/dbt_project/models/3_core/core.yml
-@@ -158,7 +158,7 @@ models:
-         description: "{{ doc('raw_ingested_at') }}"
- 
-   - name: dim_competition_season
--    description: "Canonical competition-season dimension with per-season coverage flags. Grain: (league_api_id, season_api_year). Sourced from base_apif__competition_seasons. Coverage flags describe which API-Football endpoints return data for that league-season and drive conditional logic downstream. Season expansion/parsing is performed in staging."
-+    description: "Canonical competition-season dimension with per-season coverage flags. Grain: (league_api_id, season_api_year). Sourced from base_apif__competition_seasons, with the season label from the competition_registry seed's season_type. Coverage flags describe which API-Football endpoints return data for that league-season and drive conditional logic downstream. Season expansion/parsing is performed in staging."
-     meta:
-       owner: "data-platform"
-       domain: "football"
-@@ -170,6 +170,11 @@ models:
-           combination_of_columns:
-             - league_api_id
-             - season_api_year
-+      - dbt_utils.expression_is_true:
-+          name: dim_competition_season_label_names_its_year
-+          expression: >
-+            starts_with(season_label, cast(season_api_year as string))
-+            and regexp_contains(season_label, r'^\d{4}(/\d{2})?$')
-     columns:
-       - name: season_sk
-         description: "{{ doc('season_sk') }}"
-@@ -190,6 +195,9 @@ models:
-       - name: season_api_year
-         description: "{{ doc('season_api_year') }}"
-         tests: [not_null]
-+      - name: season_label
-+        description: "The season as a page names it: the start and end year for a competition whose season runs across two years (2026/27), the year alone for one played within a calendar year (2026). Follows the registry's season_type."
-+        tests: [not_null]
-       - name: season_start_date
-         description: "Season start date from API-Football."
-       - name: season_end_date
-diff --git a/dbt_project/models/3_core/dim_competition_season.sql b/dbt_project/models/3_core/dim_competition_season.sql
-index ba37ec1f..29b75ea8 100644
---- a/dbt_project/models/3_core/dim_competition_season.sql
-+++ b/dbt_project/models/3_core/dim_competition_season.sql
-@@ -1,5 +1,26 @@
- with import_base_apif__competition_seasons as (
-     select * from {{ ref('base_apif__competition_seasons') }}
+-amendments: []
++amendments:
++  - "2026-10-26: the parts seed round_parts became the whole-name seed round_names, per competition and season, after the CPO approved the per-competition names in chat; scope_paths, objective, criteria and readings follow."
++  - "2026-10-26: tests/test_no_decision_history_in_code.py joins scope_paths, to lower its pin by the one flagged comment line this change removes from MatchdaySchedule.astro."
++  - "2026-10-26: the match page (#132) joins approved_design, its matchday wording changing with compFactMatchday as the plan approved in chat; system.css joins scope_paths so a long round name wraps the picker's Next tag instead of overflowing at 375px; the coverage test is warn with stored failures, as engineering_standards.md §3.3/§3.4 prescribe for a check that shows no wrong number."
+diff --git a/dbt_project/models/4_intermediate/shared/int_round_names.sql b/dbt_project/models/4_intermediate/shared/int_round_names.sql
+new file mode 100644
+index 00000000..5092cef9
+--- /dev/null
++++ b/dbt_project/models/4_intermediate/shared/int_round_names.sql
+@@ -0,0 +1,74 @@
++{#
++    int_round_names — every distinct round text of a competition-season named the way the
++    competition names it.
++
++    The lower-cased text takes the round_names pattern that matches it: the competition-season's
++    own row first (a cup whose early rounds change with each season's format), then the
++    competition's own (Veikkausliiga's Mestaruussarja, the Premier League's Matchweek), then the
++    general one, each by lowest priority. The row gives the copy key the page names the round by;
++    its number and group letter are read from the text with the row's own expressions.
++
++    Grain: (league_code, season_api_year, round_name). is_latest_season marks the season the
++    competition pages show; assert_every_round_text_resolves fails on a round of that season with
++    no name.
++#}
++
++with import_fct_fixture as (
++    select distinct
++        league_code,
++        season_api_year,
++        round_name
++    from {{ ref('fct_fixture') }}
++    where round_name is not null
 +),
 +
-+import_competition_registry as (
-+    select * from {{ ref('competition_registry') }}
++import_round_names as (
++    select * from {{ ref('round_names') }}
 +),
 +
-+labelled as (
++latest_seasons as (
 +    select
-+        seasons.*,
-+        case registry.season_type
-+            when 'split_year'
-+                then concat(
-+                    cast(seasons.season_api_year as string),
-+                    '/',
-+                    lpad(cast(mod(seasons.season_api_year + 1, 100) as string), 2, '0')
-+                )
-+            when 'calendar_year' then cast(seasons.season_api_year as string)
-+        end as season_label
-+    from import_base_apif__competition_seasons as seasons
-+    left join import_competition_registry as registry
-+        on seasons.league_code = registry.league_code
++        league_code,
++        max(season_api_year) as latest_season_api_year
++    from import_fct_fixture
++    group by league_code
++),
++
++matched as (
++    select
++        rounds.league_code,
++        rounds.season_api_year,
++        rounds.round_name,
++        names.label_i18n_key,
++        names.n_regex,
++        names.g_regex
++    from import_fct_fixture as rounds
++    inner join import_round_names as names
++        on
++            regexp_contains(lower(trim(rounds.round_name)), names.pattern)
++            and (names.league_code is null or rounds.league_code = names.league_code)
++            and (names.season_api_year is null or rounds.season_api_year = names.season_api_year)
++    qualify row_number() over (
++        partition by rounds.league_code, rounds.season_api_year, rounds.round_name
++        order by names.season_api_year is null, names.league_code is null, names.priority
++    ) = 1
++)
++
++select
++    rounds.league_code,
++    rounds.season_api_year,
++    rounds.round_name,
++    matched.label_i18n_key as round_label_i18n_key,
++    safe_cast(regexp_extract(lower(trim(rounds.round_name)), matched.n_regex) as int64) as round_number,
++    upper(regexp_extract(lower(trim(rounds.round_name)), matched.g_regex)) as round_letter,
++    matched.n_regex is not null as needs_number,
++    matched.g_regex is not null as needs_letter,
++    rounds.season_api_year = latest.latest_season_api_year as is_latest_season
++from import_fct_fixture as rounds
++inner join latest_seasons as latest
++    on rounds.league_code = latest.league_code
++left join matched
++    on
++        rounds.league_code = matched.league_code
++        and rounds.season_api_year = matched.season_api_year
++        and rounds.round_name = matched.round_name
+diff --git a/dbt_project/models/4_intermediate/shared/int_round_names.yml b/dbt_project/models/4_intermediate/shared/int_round_names.yml
+new file mode 100644
+index 00000000..7b2f1cac
+--- /dev/null
++++ b/dbt_project/models/4_intermediate/shared/int_round_names.yml
+@@ -0,0 +1,35 @@
++version: 2
++
++models:
++  - name: int_round_names
++    description: >
++      Every distinct round text of a competition-season in fct_fixture, named the way the
++      competition names it: a copy key from the round_names seed (the competition-season's own
++      row, then the competition's, then the general one) with the number and group letter the
++      name shows. Grain: (league_code, season_api_year, round_name).
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [league_code, season_api_year, round_name]
++    columns:
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: season_api_year
++        description: "{{ doc('season_api_year') }}"
++        tests: [not_null]
++      - name: round_name
++        description: "{{ doc('round_name') }}"
++        tests: [not_null]
++      - name: round_label_i18n_key
++        description: The copy key a page names the round by. NULL when no round_names pattern covers the text.
++      - name: round_number
++        description: The number the round's name shows (the matchday, or the round in a cup's sequence); NULL when the name shows none.
++      - name: round_letter
++        description: The group letter the round's name shows; NULL when the name shows none.
++      - name: needs_number
++        description: True when the matched name shows a number.
++      - name: needs_letter
++        description: True when the matched name shows a group letter.
++      - name: is_latest_season
++        description: True for the competition's latest season in fct_fixture, the season the competition pages show.
++        tests: [not_null]
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql b/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
+index 609d9ce2..b56589ad 100644
+--- a/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
++++ b/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
+@@ -421,6 +421,17 @@ goal_lists as (
+     group by g.fixture_sk
+ ),
+ 
++round_names as (
++    select
++        league_code,
++        season_api_year,
++        round_name,
++        round_label_i18n_key,
++        round_number,
++        round_letter
++    from {{ ref('int_round_names') }}
++),
++
+ formations as (
+     select
+         fixture_sk,
+@@ -445,6 +456,9 @@ select
+     f.league_code,
+     f.season_api_year,
+     f.round_name,
++    rn.round_label_i18n_key,
++    rn.round_number,
++    rn.round_letter,
+     r.round_sequence,
+     f.kickoff_datetime,
+     f.fixture_date,
+@@ -504,6 +518,11 @@ inner join rounds as r
+         f.league_code = r.league_code
+         and f.season_api_year = r.season_api_year
+         and f.round_name = r.round_name
++left join round_names as rn
++    on
++        f.league_code = rn.league_code
++        and f.season_api_year = rn.season_api_year
++        and f.round_name = rn.round_name
+ left join teams as h
+     on f.home_team_sk = h.team_sk
+ left join teams as a
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_index.sql b/dbt_project/models/5_marts/shared/mart_competition_index.sql
+index ff7bb3d3..d0b60a45 100644
+--- a/dbt_project/models/5_marts/shared/mart_competition_index.sql
++++ b/dbt_project/models/5_marts/shared/mart_competition_index.sql
+@@ -48,6 +48,21 @@ import_fct_fixture as (
+     select * from {{ ref('fct_fixture') }}
+ ),
+ 
++import_mart_next_matchday as (
++    select * from {{ ref('mart_next_matchday') }}
++),
++
++-- The competition's current round: the one round its next matchday is in.
++current_round as (
++    select
++        league_code,
++        any_value(round_label_i18n_key) as current_round_label_i18n_key,
++        any_value(round_number) as current_round_number,
++        any_value(round_letter) as current_round_letter
++    from import_mart_next_matchday
++    group by league_code
++),
++
+ -- Kickoff proximity, per competition. Split rather than conditionally aggregated so each side
+ -- keeps its own grain: the next fixture ahead of now, and the last one behind it.
+ next_fixture as (
+@@ -102,6 +117,9 @@ select
+     leagues.league_logo_url as logo_url,
+     next_fixture.next_kickoff_datetime,
+     last_fixture.last_kickoff_datetime,
++    current_round.current_round_label_i18n_key,
++    current_round.current_round_number,
++    current_round.current_round_letter,
+ 
+     -- The region sub-line resolves HERE, so the page never sees the branch (#54 note 4).
+     -- Which relationship is populated IS the answer (#69 step 5): league_country is NULL for
+@@ -122,3 +140,5 @@ left join next_fixture
+     on browsable.league_code = next_fixture.league_code
+ left join last_fixture
+     on browsable.league_code = last_fixture.league_code
++left join current_round
++    on browsable.league_code = current_round.league_code
+diff --git a/dbt_project/models/5_marts/shared/mart_next_matchday.sql b/dbt_project/models/5_marts/shared/mart_next_matchday.sql
+index 5c3ef6d2..923f3192 100644
+--- a/dbt_project/models/5_marts/shared/mart_next_matchday.sql
++++ b/dbt_project/models/5_marts/shared/mart_next_matchday.sql
+@@ -120,12 +120,26 @@ positions as (
+     qualify count(*) over (partition by league_code, season_api_year, team_sk) = 1
+ ),
+ 
++round_names as (
++    select
++        league_code,
++        season_api_year,
++        round_name,
++        round_label_i18n_key,
++        round_number,
++        round_letter
++    from {{ ref('int_round_names') }}
++),
++
+ ranked as (
+     select
+         m.fixture_sk,
+         m.league_code,
+         m.season_api_year,
+         m.round_name,
++        rn.round_label_i18n_key,
++        rn.round_number,
++        rn.round_letter,
+         m.kickoff_datetime,
+         m.fixture_date,
+         m.status_short,
+@@ -136,6 +150,11 @@ ranked as (
+     from next_matchday as m
+     inner join competition_order as o
+         on m.league_code = o.league_code
++    left join round_names as rn
++        on
++            m.league_code = rn.league_code
++            and m.season_api_year = rn.season_api_year
++            and m.round_name = rn.round_name
+     left join positions as h
+         on
+             m.league_code = h.league_code
+@@ -153,6 +172,9 @@ select
+     league_code,
+     season_api_year,
+     round_name,
++    round_label_i18n_key,
++    round_number,
++    round_letter,
+     kickoff_datetime,
+     fixture_date,
+     status_short,
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index ba8db07d..06bae33a 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -88,6 +88,12 @@ models:
+         description: "Earliest upcoming fixture kickoff for this league_code. NULL when nothing is scheduled."
+       - name: last_kickoff_datetime
+         description: "Most recent past fixture kickoff for this league_code. NULL when nothing has ever been played."
++      - name: current_round_label_i18n_key
++        description: "The copy key that names the round the competition's next matchday is in, the competition's own name for it (int_round_names). NULL when nothing is scheduled."
++      - name: current_round_number
++        description: "The number the current round's name shows (the matchday); NULL when it shows none."
++      - name: current_round_letter
++        description: "The group letter the current round's name shows; NULL when it shows none."
+ 
+   - name: mart_team_window_metrics
+     description: >
+@@ -2627,6 +2633,12 @@ models:
+       - name: round_name
+         description: "{{ doc('round_name') }} One value per competition in this table: the round that is the competition's next matchday."
+         tests: [not_null]
++      - name: round_label_i18n_key
++        description: "The copy key that names the round the way its competition does (int_round_names). NULL for a round of an earlier season no name covers."
++      - name: round_number
++        description: "The number the round's name shows (the matchday); NULL when it shows none."
++      - name: round_letter
++        description: "The group letter the round's name shows; NULL when it shows none."
+       - name: kickoff_datetime
+         description: "{{ doc('kickoff_datetime') }}"
+       - name: fixture_date
+@@ -2717,6 +2729,12 @@ models:
+       - name: round_name
+         description: "{{ doc('round_name') }}"
+         tests: [not_null]
++      - name: round_label_i18n_key
++        description: "The copy key that names the round the way its competition does (int_round_names). NULL for a round of an earlier season no name covers."
++      - name: round_number
++        description: "The number the round's name shows (the matchday); NULL when it shows none."
++      - name: round_letter
++        description: "The group letter the round's name shows; NULL when it shows none."
+       - name: round_order
+         description: "{{ doc('round_order') }}"
+       - name: round_sequence
+diff --git a/dbt_project/seeds/round_names.csv b/dbt_project/seeds/round_names.csv
+new file mode 100644
+index 00000000..8f90310e
+--- /dev/null
++++ b/dbt_project/seeds/round_names.csv
+@@ -0,0 +1,90 @@
++league_code,season_api_year,priority,pattern,label_i18n_key,label_en,n_regex,g_regex
++,,10,^regular season - (\d+)$,compFactMatchday,Matchday {n},(\d+)$,
++PL,,11,^regular season - (\d+)$,roundMatchweek,Matchweek {n},(\d+)$,
++J1,,12,^regular season - (\d+)$,roundMatchweek,Matchweek {n},(\d+)$,
++SPL,,13,^regular season - (\d+)$,roundMatchweek,Matchweek {n},(\d+)$,
++TSL,,14,^regular season - (\d+)$,roundWeek,Week {n},(\d+)$,
++,,15,^round - (\d+)$,compFactMatchday,Matchday {n},(\d+)$,
++,,20,^apertura - (\d+)$,roundAperturaMatchday,Apertura · Matchday {n},(\d+)$,
++,,21,^clausura - (\d+)$,roundClausuraMatchday,Clausura · Matchday {n},(\d+)$,
++,,30,^group stage - (\d+)$,roundGroupStageMatchday,Group stage · Matchday {n},(\d+)$,
++WC,,31,^group stage - (\d+)$,roundWcGroupMatchday,Group stage · Matchday {n},(\d+)$,
++WCQAF,,32,^group stage - (\d+)$,roundQualGroupMatchday,Group stage · Matchday {n},(\d+)$,
++WCQEU,,33,^group stage - (\d+)$,roundQualGroupMatchday,Group stage · Matchday {n},(\d+)$,
++WCQOC,,34,^group stage - (\d+)$,roundOcSecondRoundMatchday,Second round · Matchday {n},(\d+)$,
++WCQSA,,35,^group stage - (\d+)$,compFactMatchday,Matchday {n},(\d+)$,
++,,36,^group ([a-l]) - (\d+)$,roundGroupMatchday,Group {g} · Matchday {n},(\d+)$,^group ([a-l])
++,,37,^league (stage|phase) - (\d+)$,roundLeaguePhaseMatchday,League phase · Matchday {n},(\d+)$,
++AFCCL,,38,^league (stage|phase) - (\d+)$,roundLeagueStageMatchday,League Stage · Matchday {n},(\d+)$,
++,,39,^league ([a-d]) - (\d+)$,roundNationsLeagueMatchday,League {g} · Matchday {n},(\d+)$,^league ([a-d])
++,,40,^(round of 32|16th finals|1/16-finals)$,roundOf32,Round of 32,,
++WC,,41,^round of 32$,roundWcOf32,Round of 32,,
++,,42,^((apertura|clausura) - )?(round of 16|8th finals|1/8-finals)$,roundOf16,Round of 16,,
++,,43,^round of (\d+)$,roundOf,Round of {n},(\d+)$,
++,,44,^((apertura|clausura) - )?quarter-finals$,roundQuarterFinals,Quarter-finals,,
++CCCU,,45,^quarter-finals$,roundQuarterfinalsAm,Quarterfinals,,
++CNL,,46,^quarter-finals$,roundQuarterfinalsAm,Quarterfinals,,
++COAM,,47,^quarter-finals$,roundQuarterfinalsAm,Quarterfinals,,
++GCUP,,48,^quarter-finals$,roundQuarterfinalsAm,Quarterfinals,,
++,,50,^((apertura|clausura) - )?semi-finals$,roundSemiFinals,Semi-finals,,
++CCCU,,51,^semi-finals$,roundSemifinalsAm,Semifinals,,
++COAM,,52,^semi-finals$,roundSemifinalsAm,Semifinals,,
++GCUP,,53,^semi-finals$,roundSemifinalsAm,Semifinals,,
++WCQAF,,54,^semi-finals$,roundPlayoffSemiFinals,Play-off semi-finals,,
++WCQEU,,55,^semi-finals$,roundPlayoffSemiFinals,Play-off semi-finals,,
++WCQIP,,56,^semi-finals$,roundIpSemiFinal,Play-off Tournament semi-final,,
++WCQOC,,57,^semi-finals$,roundOcThirdRoundSemiFinals,Third round semi-finals,,
++,,60,^((apertura|clausura) - )?finals?$,roundFinal,Final,,
++WCQAF,,61,^final$,roundPlayoffFinal,Play-off final,,
++WCQEU,,62,^final$,roundPlayoffFinal,Play-off final,,
++WCQIP,,63,^final$,roundIpFinal,Play-off Tournament final,,
++WCQAS,,64,^final$,roundAsFifthRound,Play-offs knockout stage,,
++WCQOC,,65,^final$,roundOcThirdRoundFinal,Third round final,,
++VL,,66,^final$,roundVlEuroFinal,European play-off final,,
++,,70,^3rd place( final)?$,roundThirdPlace,Third-place play-off,,
++WC,,71,^3rd place final$,roundWcBronzeFinal,Bronze final,,
++COAM,,72,^3rd place final$,roundThirdPlaceMatch,Third Place Match,,
++,,80,^1st qualifying round$,roundQualifyingRound1,First qualifying round,,
++,,81,^2nd qualifying round$,roundQualifyingRound2,Second qualifying round,,
++,,82,^3rd qualifying round$,roundQualifyingRound3,Third qualifying round,,
++WCQOC,,83,^1st qualifying round$,roundOcFirstRound,First round,,
++WCQOC,,84,^2nd qualifying round$,roundOcFirstRoundFinal,First round final,,
++,,85,^(play-offs|playoff round)$,roundPlayoffRound,Play-off round,,
++AFCCL,,90,^1st preliminary round$,roundAfcPreliminaryStage,Preliminary Stage,,
++CAFCL,,91,^1st preliminary round$,roundPreliminaryRound1,First preliminary round,,
++CAFCL,,92,^2nd preliminary round$,roundPreliminaryRound2,Second preliminary round,,
++LIBER,,93,^qualification round 1$,roundLiberStage1,First stage,,
++LIBER,,94,^qualification round 2$,roundLiberStage2,Second stage,,
++LIBER,,95,^qualification round 3$,roundLiberStage3,Third stage,,
++DFBP,,100,^round of 64$,roundFirstRound,First round,,
++DFBP,,101,^round of 32$,roundSecondRound,Second round,,
++CDR,2026,102,^1/128-finals$,roundPreliminaryRound,Preliminary round,,
++CDR,2026,103,^round of 128$,roundFirstRound,First round,,
++CIT,2026,104,^round of 128$,roundPreliminaryRound,Preliminary round,,
++CIT,2026,105,^round of 64$,roundFirstRound,First round,,
++CIT,2026,106,^round of 32$,roundSecondRound,Second round,,
++CDF,2025,107,^1/128-finals$,roundSeventhRound,Seventh round,,
++CDF,2025,108,^round of 128$,roundEighthRound,Eighth round,,
++CDR,,140,^(1/128-finals|round of 128)$,,,,
++CIT,,141,^round of (128|64|32)$,,,,
++CDF,,142,^(1/128-finals|round of 128)$,,,,
++FAC,,143,^1/\d+-finals$,,,,
++FAC,,110,^1st round qualifying$,roundFaQualifying1,First Round Qualifying,,
++FAC,,111,^2nd round qualifying$,roundFaQualifying2,Second Round Qualifying,,
++FAC,,112,^3rd round qualifying$,roundFaQualifying3,Third Round Qualifying,,
++FAC,,113,^4th round qualifying$,roundFaQualifying4,Fourth Round Qualifying,,
++FAC,,114,^1st round qualifying replays$,roundFaQualifying1Replay,First Round Qualifying Replay,,
++FAC,,115,^2nd round qualifying replays$,roundFaQualifying2Replay,Second Round Qualifying Replay,,
++FAC,,116,^3rd round qualifying replays$,roundFaQualifying3Replay,Third Round Qualifying Replay,,
++FAC,,117,^4th round qualifying replays$,roundFaQualifying4Replay,Fourth Round Qualifying Replay,,
++FAC,2026,118,^1/128-finals$,roundFaFirstRoundProper,First Round Proper,,
++WCQAS,,120,^1st round$,roundQualFirstRound,First round,,
++WCQAS,,121,^2nd round - group ([a-i]) - (\d+)$,roundAsSecondRoundGroupMatchday,Second round · Group {g} · Matchday {n},(\d+)$,group ([a-i])
++WCQAS,,122,^3rd round - (\d+)$,roundAsThirdRoundMatchday,Third round · Matchday {n},(\d+)$,
++WCQAS,,123,^round 4 - (\d+)$,roundAsPlayoffsMatchday,Play-offs · Matchday {n},(\d+)$,
++WCQCA,,124,^1st round$,roundCaFirstRound,First Round,,
++WCQCA,,125,^2nd round - (\d+)$,roundCaSecondRoundMatchday,Second Round · Matchday {n},(\d+)$,
++WCQCA,,126,^final round - (\d+)$,roundCaFinalRoundMatchday,Final Round · Matchday {n},(\d+)$,
++VL,,130,^championship (group|round) - (\d+)$,roundVlChampionshipMatchday,Championship group · Matchday {n},(\d+)$,
++VL,,131,^relegation (group|round) - (\d+)$,roundVlRelegationMatchday,Relegation group · Matchday {n},(\d+)$,
++VL,,132,^relegation$,roundVlRelegationPlayoff,Relegation play-off,,
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index a8938f52..26a8238b 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -143,6 +143,46 @@ seeds:
+           - accepted_values:
+               values: ["ranking", "group", "conference", "split_round"]
+ 
++  - name: round_names
++    description: >
++      Names each provider round text the way its competition does, in EN, DE and FI through one
++      copy key per name. A row matches the lower-cased round text with its pattern; the
++      competition-season's own row wins over the competition's, which wins over the general one,
++      each by lowest priority. Competition rows hold names a competition uses itself (Matchweek,
++      Mestaruussarja); season rows hold a cup's early rounds, whose names follow that season's
++      format, matched to the organiser's rounds by the fixtures' dates. Hand-authored from the
++      researched, approved names; int_round_names applies it and assert_every_round_text_resolves
++      fails on a latest-season round no row names.
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [league_code, season_api_year, pattern]
++    columns:
++      - name: league_code
++        description: "The competition whose own name the row gives; empty for the general name."
++        tests:
++          - relationships:
++              to: ref('competition_registry')
++              field: league_code
++      - name: season_api_year
++        description: "The season the row's name holds for; empty when it holds for every season."
++      - name: priority
++        description: The order the rows are tried in within one level; the lowest number that matches wins.
++        tests:
++          - not_null
++          - unique
++      - name: pattern
++        description: A BigQuery regular expression matched against the whole lower-cased, trimmed round text.
++        tests:
++          - not_null
++      - name: label_i18n_key
++        description: "The copy key the round is named by on a page. Empty on a competition row for a cup round whose name follows each season's format: such a round shows no name until its season's row is added, and assert_every_round_text_resolves reports it."
++      - name: label_en
++        description: The name in English, for a reader of the seed; the site's copy is in strings.ts.
++      - name: n_regex
++        description: A regular expression whose one capture is the number the name shows; empty when it shows none.
++      - name: g_regex
++        description: A regular expression whose one capture is the group letter the name shows; empty when it shows none.
++
+   - name: competition_registry
+     description: >
+       Every competition the platform tracks, with the fields the registry authors by hand:
+diff --git a/dbt_project/tests/assert_every_round_text_resolves.sql b/dbt_project/tests/assert_every_round_text_resolves.sql
+new file mode 100644
+index 00000000..3bc740cc
+--- /dev/null
++++ b/dbt_project/tests/assert_every_round_text_resolves.sql
+@@ -0,0 +1,20 @@
++-- Every round of a competition's latest season has a name: a round_names copy key, and the number
++-- or group letter that name shows. A round without one shows no name on a page, never the
++-- provider's English, so this warns rather than skipping the marts downstream; the stored rows
++-- name each round a round_names row is missing for.
++{{ config(store_failures = true, severity = 'warn') }}
++select
++    league_code,
++    season_api_year,
++    round_name,
++    round_label_i18n_key,
++    round_number,
++    round_letter
++from {{ ref('int_round_names') }}
++where
++    is_latest_season
++    and (
++        round_label_i18n_key is null
++        or (needs_number and round_number is null)
++        or (needs_letter and round_letter is null)
++    )
+diff --git a/scripts/check_copy_gate.py b/scripts/check_copy_gate.py
+index 428d6056..54ed75f4 100644
+--- a/scripts/check_copy_gate.py
++++ b/scripts/check_copy_gate.py
+@@ -26,7 +26,7 @@ The checks, each traceable to a real defect:
+      symbols, brand names and pure abbreviations are exempt, because those are
+      legitimately identical across locales.
+   5. SEED KEYS RESOLVABLE. Every `label_i18n_key` the warehouse seeds publish
+-     (competition kinds, confederations) exists in every locale. Check 2 sees
++     (competition kinds, confederations, round names) exists in every locale. Check 2 sees
+      only keys that are already in EN, and check 1-4 see only keys the pages
+      show today; a kind with no competition yet had an English label in the
+      seed and nothing in `strings.ts`, so its heading would have rendered in
+@@ -75,6 +75,7 @@ MIN_METRIC_KEYS = 15
+ SEED_LABEL_FILES = (
+     REPO_ROOT / "dbt_project" / "seeds" / "competition_types.csv",
+     REPO_ROOT / "dbt_project" / "seeds" / "confederations.csv",
++    REPO_ROOT / "dbt_project" / "seeds" / "round_names.csv",
  )
  
- select
-@@ -8,6 +29,7 @@ select
-     league_code,
-     league_api_id,
-     season_api_year,
-+    season_label,
-     season_start_date,
-     season_end_date,
-     season_is_current,
-@@ -24,4 +46,4 @@ select
-     has_coverage_predictions,
-     has_coverage_odds,
-     raw_ingested_at
--from import_base_apif__competition_seasons
-+from labelled
+ # Terms the validated corpus settles. term -> (wrong, right, why)
+@@ -144,8 +145,9 @@ def _metric_labels(text: str) -> dict[str, dict[str, str]]:
+ 
+ def _seed_label_keys(paths=None) -> dict[str, list[str]]:
+     """`label_i18n_key` values per seed file, in file order; a blank cell is skipped (the
+-    seeds' own not_null tests own that defect). Reads `SEED_LABEL_FILES` at call time so a
+-    test can point it at a fixture."""
++    seeds' own not_null tests own that defect; in round_names a blank key is a round that shows
++    no name, which its warn test reports). Reads `SEED_LABEL_FILES` at call time so a test can
++    point it at a fixture."""
+     keys: dict[str, list[str]] = {}
+     for path in (paths or SEED_LABEL_FILES):
+         with open(path, encoding="utf-8", newline="") as f:
 diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
-index 1b2c2614..ce7e6f63 100644
+index ce7e6f63..ef9b5e91 100644
 --- a/scripts/export_site_data.py
 +++ b/scripts/export_site_data.py
-@@ -757,7 +757,8 @@ def shape_competition_payload(league_code: str, season: int, meta: dict,
-                               standings: list[dict], deserved: list[dict], summary: dict | None,
-                               fixtures: list[dict] | None = None,
-                               team_boards: list[dict] | None = None,
--                              player_boards: list[dict] | None = None) -> dict:
-+                              player_boards: list[dict] | None = None,
-+                              season_label: str | None = None) -> dict:
-     """A competition-season page: header facts, the standings sections, the deserved-points
-     table, the season summary, every fixture of the season by round, and the Rankings tab's
-     boards. Selection and ordering by served columns only: standings by section then rank,
-@@ -769,6 +770,7 @@ def shape_competition_payload(league_code: str, season: int, meta: dict,
-         "type": "competition",
-         "league_code": league_code,
-         "season": season,
-+        "season_label": season_label,
-         "slug": meta.get("slug"),
-         "name": meta.get("name"),
-         "crest": meta.get("logo_url"),
-@@ -1708,7 +1710,8 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
-     published (with its section kind), the team profile's deserved-points columns, the season
-     summary, every fixture of the season, and the Rankings tab's boards (the two leaderboard
-     marts, the ruled board sets, the warehouse's top five per league-board). Team identity is
--    joined from dim_team so a row can be named and linked; nothing is computed."""
-+    joined from dim_team so a row can be named and linked, and the season label from
-+    dim_competition_season; nothing is computed."""
-     marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
-     meta = {
-         c["league_code"]: {"name": c.get("name"), "slug": c.get("slug")}
-@@ -1728,6 +1731,11 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
-         for r in _query(client, f"select team_sk, team_name, team_slug, team_logo_url "
-                                 f"from `{GCP_PROJECT}.core.dim_team`")
-     }
-+    season_labels = {
-+        (r["league_code"], int(r["season_api_year"])): r.get("season_label")
-+        for r in _query(client, f"select league_code, season_api_year, season_label "
-+                                f"from `{GCP_PROJECT}.core.dim_competition_season`")
-+    }
-     standings = _group2(
-         _query(client, f"select * from `{marts}.mart_standings`"),
-         "league_code", "season_api_year",
-@@ -1820,6 +1828,7 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
-                                      team_order, team_catalogue, "team"),
-             shape_competition_boards(player_board_rows.get((lc, season), []),
-                                      player_order, player_catalogue, "player"),
-+            season_label=season_labels.get((lc, season)),
-         ))
-     return payloads
+@@ -181,14 +181,18 @@ def group_fixtures_by_round(rows: list[dict]) -> list[dict]:
+     for r in sorted(rows, key=lambda r: r["fixture_order"]):
+         rnd = rounds.setdefault(r["round"], {
+             "round": r["round"],
++            "round_label_i18n_key": r.get("round_label_i18n_key"),
++            "round_number": r.get("round_number"),
++            "round_letter": r.get("round_letter"),
+             "round_order": r.get("round_order"),
+             "round_sequence": r.get("round_sequence"),
+             "is_next_round": bool(r.get("is_next_round")),
+             "fixtures": [],
+         })
+         rnd["fixtures"].append({k: v for k, v in r.items()
+-                                if k not in ("round", "round_order", "round_sequence", "is_next_round",
+-                                             "fixture_order")})
++                                if k not in ("round", "round_label_i18n_key", "round_number",
++                                             "round_letter", "round_order", "round_sequence",
++                                             "is_next_round", "fixture_order")})
+     return list(rounds.values())
  
+ 
+@@ -778,6 +782,9 @@ def shape_competition_payload(league_code: str, season: int, meta: dict,
+         "region_label_i18n_key": meta.get("region_label_i18n_key"),
+         "competition_type": meta.get("competition_type"),
+         "entity_type": meta.get("entity_type"),
++        "current_round_label_i18n_key": meta.get("current_round_label_i18n_key"),
++        "current_round_number": meta.get("current_round_number"),
++        "current_round_letter": meta.get("current_round_letter"),
+         "standings": sorted(
+             standings, key=lambda r: (r.get("group_name") or "", r.get("standing_rank") or 999)
+         ),
+@@ -1577,7 +1584,7 @@ def fetch_competition_index(client) -> dict:
+ 
+ 
+ _COMPETITION_FIXTURE_COLUMNS = (
+-    "fixture_sk, league_code, season_api_year, round_name, round_order, round_sequence, "
++    "fixture_sk, league_code, season_api_year, round_name, round_label_i18n_key, round_number, round_letter, round_order, round_sequence, "
+     "fixture_order, kickoff_datetime, status_short, is_played, goals_home, goals_away, "
+     "home_team_sk, home_team_name, home_team_slug, home_team_logo_url, "
+     "away_team_sk, away_team_name, away_team_slug, away_team_logo_url, "
+@@ -1594,6 +1601,9 @@ def _competition_fixture(r: dict) -> dict:
+         "slug": r.get("fixture_slug"),
+         "kickoff": r.get("kickoff_datetime"),
+         "round": r.get("round_name"),
++        "round_label_i18n_key": r.get("round_label_i18n_key"),
++        "round_number": r.get("round_number"),
++        "round_letter": r.get("round_letter"),
+         "round_order": r.get("round_order"),
+         "round_sequence": r.get("round_sequence"),
+         "fixture_order": int(r["fixture_order"]),
+@@ -1689,7 +1699,9 @@ _STANDING_DROP = {"standing_sk", "season_sk", "league_sk", "competition_type",
+ 
+ 
+ _COMPETITION_PAGE_META = ("logo_url", "region_label_en", "region_label_i18n_key",
+-                          "competition_type", "entity_type")
++                          "competition_type", "entity_type",
++                          "current_round_label_i18n_key", "current_round_number",
++                          "current_round_letter")
+ 
+ 
+ def _competition_page_meta(client) -> dict[str, dict]:
 diff --git a/site_v2/src/components/competition/CompetitionHeader.astro b/site_v2/src/components/competition/CompetitionHeader.astro
-index 7e07d5db..73e0a58e 100644
+index 73e0a58e..c58cbdb2 100644
 --- a/site_v2/src/components/competition/CompetitionHeader.astro
 +++ b/site_v2/src/components/competition/CompetitionHeader.astro
-@@ -12,16 +12,16 @@ interface Props {
-   crest: string | null;
+@@ -1,11 +1,13 @@
+ ---
+ // The competition page's header: crest, name, and the meta line region · season · round. Every
+ // value is a served field; the region label falls back to its English form until every region
+-// has a copy key, and the round is the provider's text until the warehouse serves a phase the
+-// site can translate. A part that is not served is left out of the line.
++// has a copy key, and the round is the competition's current round, named the way the
++// competition names it.
++// A part that is not served is left out of the line.
+ import Crest from "../ui/Crest.astro";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
++import { roundName } from "../../lib/roundName.mjs";
+ 
+ interface Props {
+   name: string | null;
+@@ -13,16 +15,19 @@ interface Props {
    regionLabelEn: string | null;
    regionLabelI18nKey: string | null;
--  season: number | null;
-+  seasonLabel: string | null;
-   round: string | null;
+   seasonLabel: string | null;
+-  round: string | null;
++  roundKey: string | null;
++  roundNumber: number | null;
++  roundLetter: string | null;
    lang: Lang;
  }
--const { name, crest, regionLabelEn, regionLabelI18nKey, season, round, lang } = Astro.props;
-+const { name, crest, regionLabelEn, regionLabelI18nKey, seasonLabel, round, lang } = Astro.props;
+-const { name, crest, regionLabelEn, regionLabelI18nKey, seasonLabel, round, lang } = Astro.props;
++const { name, crest, regionLabelEn, regionLabelI18nKey, seasonLabel, roundKey, roundNumber, roundLetter, lang } =
++  Astro.props;
  
  const region = regionLabelI18nKey ? t(lang, regionLabelI18nKey) : regionLabelEn;
  const meta = [
    region,
--  season != null ? t(lang, "compSeason", { season }) : null,
-+  seasonLabel ? t(lang, "compSeason", { season: seasonLabel }) : null,
-   round,
+   seasonLabel ? t(lang, "compSeason", { season: seasonLabel }) : null,
+-  round,
++  roundName(t, lang, roundKey, roundNumber, roundLetter),
  ].filter(Boolean);
  ---
+ 
+diff --git a/site_v2/src/components/competition/MatchdaySchedule.astro b/site_v2/src/components/competition/MatchdaySchedule.astro
+index 4d90e527..4d7a49e3 100644
+--- a/site_v2/src/components/competition/MatchdaySchedule.astro
++++ b/site_v2/src/components/competition/MatchdaySchedule.astro
+@@ -7,22 +7,22 @@
+ //
+ // Which round is checked on load is a display default over served flags: the round the warehouse
+ // flagged next; after the season, the last round with a played match; before it, the first. The
+-// round order is the warehouse's round_sequence; a league round's title is its served matchday
+-// number, any other round shows the provider's round name until the phase key lands (#148).
++// round order is the warehouse's round_sequence; a round's title is the name the warehouse
++// serves for it, the way its competition names it ("6. Spieltag", "Mestaruussarja, 23. kierros").
+ import MatchRow from "../ui/MatchRow.astro";
+ import SectionHead from "../ui/SectionHead.astro";
+ import { formatDate } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
++import { roundName } from "../../lib/roundName.mjs";
+ import type { CompetitionRound } from "../../lib/types";
+ 
+ interface Props {
+   rounds: CompetitionRound[];
+   competitionSlug: string | null;
+   lang: Lang;
+-  isLeague: boolean;
+ }
+-const { rounds, competitionSlug, lang, isLeague } = Astro.props;
++const { rounds, competitionSlug, lang } = Astro.props;
+ 
+ const nextIndex = rounds.findIndex((r) => r.is_next_round);
+ const lastPlayedIndex = rounds.reduce(
+@@ -31,9 +31,7 @@ const lastPlayedIndex = rounds.reduce(
+ const openIndex = nextIndex >= 0 ? nextIndex : lastPlayedIndex >= 0 ? lastPlayedIndex : 0;
+ 
+ function title(r: CompetitionRound): string {
+-  return isLeague && r.round_order != null
+-    ? t(lang, "compFactMatchday", { n: r.round_order })
+-    : r.round;
++  return roundName(t, lang, r.round_label_i18n_key, r.round_number, r.round_letter) ?? "";
+ }
+ 
+ function days(r: CompetitionRound): [string | null, CompetitionRound["fixtures"]][] {
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index f9f63df1..51ecace0 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -338,6 +338,74 @@ const EN: Dict = {
+   compFactLongestWinless: "Longest winless run",
+   compFactMatches: "{n} matches",
+   compFactMatchday: "Matchday {n}",
++  roundMatchweek: "Matchweek {n}",
++  roundWeek: "Week {n}",
++  roundAperturaMatchday: "Apertura · Matchday {n}",
++  roundClausuraMatchday: "Clausura · Matchday {n}",
++  roundGroupStageMatchday: "Group stage · Matchday {n}",
++  roundWcGroupMatchday: "Group stage · Matchday {n}",
++  roundQualGroupMatchday: "Group stage · Matchday {n}",
++  roundOcSecondRoundMatchday: "Second round · Matchday {n}",
++  roundGroupMatchday: "Group {g} · Matchday {n}",
++  roundLeaguePhaseMatchday: "League phase · Matchday {n}",
++  roundLeagueStageMatchday: "League Stage · Matchday {n}",
++  roundNationsLeagueMatchday: "League {g} · Matchday {n}",
++  roundOf32: "Round of 32",
++  roundWcOf32: "Round of 32",
++  roundOf16: "Round of 16",
++  roundOf: "Round of {n}",
++  roundQuarterFinals: "Quarter-finals",
++  roundQuarterfinalsAm: "Quarterfinals",
++  roundSemiFinals: "Semi-finals",
++  roundSemifinalsAm: "Semifinals",
++  roundPlayoffSemiFinals: "Play-off semi-finals",
++  roundIpSemiFinal: "Play-off Tournament semi-final",
++  roundOcThirdRoundSemiFinals: "Third round semi-finals",
++  roundFinal: "Final",
++  roundPlayoffFinal: "Play-off final",
++  roundIpFinal: "Play-off Tournament final",
++  roundAsFifthRound: "Play-offs knockout stage",
++  roundOcThirdRoundFinal: "Third round final",
++  roundVlEuroFinal: "European play-off final",
++  roundThirdPlace: "Third-place play-off",
++  roundWcBronzeFinal: "Bronze final",
++  roundThirdPlaceMatch: "Third Place Match",
++  roundQualifyingRound1: "First qualifying round",
++  roundQualifyingRound2: "Second qualifying round",
++  roundQualifyingRound3: "Third qualifying round",
++  roundOcFirstRound: "First round",
++  roundOcFirstRoundFinal: "First round final",
++  roundPlayoffRound: "Play-off round",
++  roundAfcPreliminaryStage: "Preliminary Stage",
++  roundPreliminaryRound1: "First preliminary round",
++  roundPreliminaryRound2: "Second preliminary round",
++  roundLiberStage1: "First stage",
++  roundLiberStage2: "Second stage",
++  roundLiberStage3: "Third stage",
++  roundFirstRound: "First round",
++  roundSecondRound: "Second round",
++  roundPreliminaryRound: "Preliminary round",
++  roundSeventhRound: "Seventh round",
++  roundEighthRound: "Eighth round",
++  roundFaQualifying1: "First Round Qualifying",
++  roundFaQualifying2: "Second Round Qualifying",
++  roundFaQualifying3: "Third Round Qualifying",
++  roundFaQualifying4: "Fourth Round Qualifying",
++  roundFaQualifying1Replay: "First Round Qualifying Replay",
++  roundFaQualifying2Replay: "Second Round Qualifying Replay",
++  roundFaQualifying3Replay: "Third Round Qualifying Replay",
++  roundFaQualifying4Replay: "Fourth Round Qualifying Replay",
++  roundFaFirstRoundProper: "First Round Proper",
++  roundQualFirstRound: "First round",
++  roundAsSecondRoundGroupMatchday: "Second round · Group {g} · Matchday {n}",
++  roundAsThirdRoundMatchday: "Third round · Matchday {n}",
++  roundAsPlayoffsMatchday: "Play-offs · Matchday {n}",
++  roundCaFirstRound: "First Round",
++  roundCaSecondRoundMatchday: "Second Round · Matchday {n}",
++  roundCaFinalRoundMatchday: "Final Round · Matchday {n}",
++  roundVlChampionshipMatchday: "Championship group · Matchday {n}",
++  roundVlRelegationMatchday: "Relegation group · Matchday {n}",
++  roundVlRelegationPlayoff: "Relegation play-off",
+   compVs: "vs",
+   playedFullTime: "Full time",
+   playedAfterExtraTime: "After extra time",
+@@ -630,7 +698,75 @@ const DE: Dict = {
+   compFactLongestUnbeaten: "Längste Serie ohne Niederlage",
+   compFactLongestWinless: "Längste Serie ohne Sieg",
+   compFactMatches: "{n} Spiele",
+-  compFactMatchday: "Spieltag {n}",
++  compFactMatchday: "{n}. Spieltag",
++  roundMatchweek: "{n}. Spieltag",
++  roundWeek: "{n}. Spieltag",
++  roundAperturaMatchday: "Apertura, {n}. Spieltag",
++  roundClausuraMatchday: "Clausura, {n}. Spieltag",
++  roundGroupStageMatchday: "{n}. Gruppenspieltag",
++  roundWcGroupMatchday: "Vorrunde, {n}. Spieltag",
++  roundQualGroupMatchday: "{n}. Gruppenspieltag",
++  roundOcSecondRoundMatchday: "2. Runde, {n}. Spieltag",
++  roundGroupMatchday: "Gruppe {g}, {n}. Spieltag",
++  roundLeaguePhaseMatchday: "Ligaphase, {n}. Spieltag",
++  roundLeagueStageMatchday: "Ligaphase, {n}. Spieltag",
++  roundNationsLeagueMatchday: "Liga {g}, {n}. Spieltag",
++  roundOf32: "Sechzehntelfinale",
++  roundWcOf32: "Sechzehntelfinale",
++  roundOf16: "Achtelfinale",
++  roundOf: "Runde der letzten {n}",
++  roundQuarterFinals: "Viertelfinale",
++  roundQuarterfinalsAm: "Viertelfinale",
++  roundSemiFinals: "Halbfinale",
++  roundSemifinalsAm: "Halbfinale",
++  roundPlayoffSemiFinals: "Play-off-Halbfinale",
++  roundIpSemiFinal: "Halbfinale",
++  roundOcThirdRoundSemiFinals: "Halbfinale",
++  roundFinal: "Finale",
++  roundPlayoffFinal: "Play-off-Finale",
++  roundIpFinal: "Finale",
++  roundAsFifthRound: "5. Runde",
++  roundOcThirdRoundFinal: "Finale",
++  roundVlEuroFinal: "Europapokal-Play-off-Finale",
++  roundThirdPlace: "Spiel um Platz 3",
++  roundWcBronzeFinal: "Spiel um Platz 3",
++  roundThirdPlaceMatch: "Spiel um Platz 3",
++  roundQualifyingRound1: "1. Qualifikationsrunde",
++  roundQualifyingRound2: "2. Qualifikationsrunde",
++  roundQualifyingRound3: "3. Qualifikationsrunde",
++  roundOcFirstRound: "1. Runde, Halbfinale",
++  roundOcFirstRoundFinal: "1. Runde, Finale",
++  roundPlayoffRound: "Play-off-Runde",
++  roundAfcPreliminaryStage: "Qualifikationsrunde",
++  roundPreliminaryRound1: "1. Qualifikationsrunde",
++  roundPreliminaryRound2: "2. Qualifikationsrunde",
++  roundLiberStage1: "1. Qualifikationsrunde",
++  roundLiberStage2: "2. Qualifikationsrunde",
++  roundLiberStage3: "3. Qualifikationsrunde",
++  roundFirstRound: "1. Runde",
++  roundSecondRound: "2. Runde",
++  roundPreliminaryRound: "Vorrunde",
++  roundSeventhRound: "7. Runde",
++  roundEighthRound: "8. Runde",
++  roundFaQualifying1: "1. Qualifikationsrunde",
++  roundFaQualifying2: "2. Qualifikationsrunde",
++  roundFaQualifying3: "3. Qualifikationsrunde",
++  roundFaQualifying4: "4. Qualifikationsrunde",
++  roundFaQualifying1Replay: "Wiederholungsspiel, 1. Qualifikationsrunde",
++  roundFaQualifying2Replay: "Wiederholungsspiel, 2. Qualifikationsrunde",
++  roundFaQualifying3Replay: "Wiederholungsspiel, 3. Qualifikationsrunde",
++  roundFaQualifying4Replay: "Wiederholungsspiel, 4. Qualifikationsrunde",
++  roundFaFirstRoundProper: "1. Runde",
++  roundQualFirstRound: "1. Runde",
++  roundAsSecondRoundGroupMatchday: "2. Runde, Gruppe {g}, {n}. Spieltag",
++  roundAsThirdRoundMatchday: "3. Runde, {n}. Spieltag",
++  roundAsPlayoffsMatchday: "4. Runde, {n}. Spieltag",
++  roundCaFirstRound: "1. Runde",
++  roundCaSecondRoundMatchday: "2. Runde, {n}. Spieltag",
++  roundCaFinalRoundMatchday: "Finalrunde, {n}. Spieltag",
++  roundVlChampionshipMatchday: "Meisterrunde, {n}. Spieltag",
++  roundVlRelegationMatchday: "Abstiegsrunde, {n}. Spieltag",
++  roundVlRelegationPlayoff: "Relegation",
+   compVs: "gegen",
+   playedFullTime: "Spielende",
+   playedAfterExtraTime: "Nach Verlängerung",
+@@ -931,7 +1067,75 @@ const FI: Dict = {
+   compFactLongestUnbeaten: "Pisin tappioton putki",
+   compFactLongestWinless: "Pisin voitoton putki",
+   compFactMatches: "{n} ottelua",
+-  compFactMatchday: "Kierros {n}",
++  compFactMatchday: "{n}. kierros",
++  roundMatchweek: "{n}. kierros",
++  roundWeek: "{n}. kierros",
++  roundAperturaMatchday: "Apertura, {n}. kierros",
++  roundClausuraMatchday: "Clausura, {n}. kierros",
++  roundGroupStageMatchday: "Alkulohko, {n}. kierros",
++  roundWcGroupMatchday: "Alkulohko, {n}. kierros",
++  roundQualGroupMatchday: "Karsintalohko, {n}. kierros",
++  roundOcSecondRoundMatchday: "2. karsintakierros, {n}. kierros",
++  roundGroupMatchday: "{g}-lohko, {n}. kierros",
++  roundLeaguePhaseMatchday: "Liigavaihe, {n}. kierros",
++  roundLeagueStageMatchday: "Liigavaihe, {n}. kierros",
++  roundNationsLeagueMatchday: "{g}-liiga, {n}. kierros",
++  roundOf32: "32 parhaan kierros",
++  roundWcOf32: "32 parhaan joukko",
++  roundOf16: "Neljännesvälierät",
++  roundOf: "{n} parhaan kierros",
++  roundQuarterFinals: "Puolivälierät",
++  roundQuarterfinalsAm: "Puolivälierät",
++  roundSemiFinals: "Välierät",
++  roundSemifinalsAm: "Välierät",
++  roundPlayoffSemiFinals: "Jatkokarsinnan välierä",
++  roundIpSemiFinal: "Välierä",
++  roundOcThirdRoundSemiFinals: "Välierät",
++  roundFinal: "Finaali",
++  roundPlayoffFinal: "Jatkokarsinnan finaali",
++  roundIpFinal: "Finaali",
++  roundAsFifthRound: "5. karsintakierros",
++  roundOcThirdRoundFinal: "Finaali",
++  roundVlEuroFinal: "Eurokarsinnan finaali",
++  roundThirdPlace: "Pronssiottelu",
++  roundWcBronzeFinal: "Pronssiottelu",
++  roundThirdPlaceMatch: "Pronssiottelu",
++  roundQualifyingRound1: "1. karsintakierros",
++  roundQualifyingRound2: "2. karsintakierros",
++  roundQualifyingRound3: "3. karsintakierros",
++  roundOcFirstRound: "1. karsintakierros",
++  roundOcFirstRoundFinal: "1. karsintakierroksen finaali",
++  roundPlayoffRound: "Playoff-kierros",
++  roundAfcPreliminaryStage: "Karsintakierros",
++  roundPreliminaryRound1: "1. karsintakierros",
++  roundPreliminaryRound2: "2. karsintakierros",
++  roundLiberStage1: "1. karsintakierros",
++  roundLiberStage2: "2. karsintakierros",
++  roundLiberStage3: "3. karsintakierros",
++  roundFirstRound: "1. kierros",
++  roundSecondRound: "2. kierros",
++  roundPreliminaryRound: "Esikarsinta",
++  roundSeventhRound: "7. kierros",
++  roundEighthRound: "8. kierros",
++  roundFaQualifying1: "1. karsintakierros",
++  roundFaQualifying2: "2. karsintakierros",
++  roundFaQualifying3: "3. karsintakierros",
++  roundFaQualifying4: "4. karsintakierros",
++  roundFaQualifying1Replay: "1. karsintakierroksen uusintaottelu",
++  roundFaQualifying2Replay: "2. karsintakierroksen uusintaottelu",
++  roundFaQualifying3Replay: "3. karsintakierroksen uusintaottelu",
++  roundFaQualifying4Replay: "4. karsintakierroksen uusintaottelu",
++  roundFaFirstRoundProper: "1. kierros",
++  roundQualFirstRound: "1. karsintakierros",
++  roundAsSecondRoundGroupMatchday: "2. karsintakierros, {g}-lohko, {n}. kierros",
++  roundAsThirdRoundMatchday: "3. karsintakierros, {n}. kierros",
++  roundAsPlayoffsMatchday: "4. karsintakierros, {n}. kierros",
++  roundCaFirstRound: "1. karsintakierros",
++  roundCaSecondRoundMatchday: "2. karsintakierros, {n}. kierros",
++  roundCaFinalRoundMatchday: "Finaalikierros, {n}. kierros",
++  roundVlChampionshipMatchday: "Mestaruussarja, {n}. kierros",
++  roundVlRelegationMatchday: "Karsintasarja, {n}. kierros",
++  roundVlRelegationPlayoff: "Veikkausliigan karsinta",
+   compVs: "vs",
+   playedFullTime: "Päättynyt",
+   playedAfterExtraTime: "Jatkoajan jälkeen",
+diff --git a/site_v2/src/lib/competitionPayload.mjs b/site_v2/src/lib/competitionPayload.mjs
+index 711ad332..8d875ae0 100644
+--- a/site_v2/src/lib/competitionPayload.mjs
++++ b/site_v2/src/lib/competitionPayload.mjs
+@@ -1,6 +1,5 @@
+ // What the competition page does with its payload before rendering: pick the season to show,
+-// split the standings into the sections a page draws, find the round the warehouse flagged next,
+-// file the Rankings tab's boards under their metric groups, and turn the season summary into the
++// split the standings into the sections a page draws, file the Rankings tab's boards under their metric groups, and turn the season summary into the
+ // fact rows that have something to show. Selection over served columns only — no number is
+ // computed here; a value the mart serves as null yields no row.
+ //
+@@ -31,12 +30,6 @@ export function standingsSections(standings) {
+   return [...sections.values()];
+ }
+ 
+-/** The round the warehouse flagged as next (the Matchdays tab opens on it; the header's round
+- *  reads it), or null when none is flagged — after the season, or before the first round. */
+-export function nextRound(rounds) {
+-  return (rounds ?? []).find((r) => r.is_next_round) ?? null;
+-}
+-
+ /** The Rankings tab's boards filed under their metric groups: one entry per group key, in the
+  *  order the keys are given (the catalogue's, from metric_groups.json), holding the boards the
+  *  export served for that group in the export's order (the ruled order within a group). A group
+diff --git a/site_v2/src/lib/competitionPayload.test.mjs b/site_v2/src/lib/competitionPayload.test.mjs
+index 4f67076b..ea12c1c1 100644
+--- a/site_v2/src/lib/competitionPayload.test.mjs
++++ b/site_v2/src/lib/competitionPayload.test.mjs
+@@ -1,5 +1,5 @@
+ // Pins what the competition page does with its payload: the latest season wins, ranking tables
+-// are left out, the next round is the flagged one, boards file under the catalogue's groups in
++// are left out, boards file under the catalogue's groups in
+ // its order, and a null fact is no row — the rules that keep the page from showing an empty
+ // block or an older season by accident.
+ 
+@@ -8,7 +8,6 @@ import assert from "node:assert/strict";
+ import {
+   boardGroups,
+   latestSeasonPayload,
+-  nextRound,
+   seasonFacts,
+   standingsSections,
+ } from "./competitionPayload.mjs";
+@@ -32,13 +31,6 @@ test("standings split into sections in served order and the provider's ranking t
+   ]);
+ });
+ 
+-test("the next round is the one the warehouse flagged, and nothing when none is", () => {
+-  assert.equal(nextRound([{ round: "Regular Season - 4", is_next_round: false },
+-                          { round: "Regular Season - 5", is_next_round: true }]).round, "Regular Season - 5");
+-  assert.equal(nextRound([{ round: "Regular Season - 34", is_next_round: false }]), null);
+-  assert.equal(nextRound(undefined), null);
+-});
+-
+ test("boards file under their groups in the catalogue's order, the export's order within a group", () => {
+   const boards = [
+     { metric_key: "cards_yellow", metric_group: "discipline", rows: [{}] },
+diff --git a/site_v2/src/lib/roundName.mjs b/site_v2/src/lib/roundName.mjs
+new file mode 100644
+index 00000000..2e1ab1df
+--- /dev/null
++++ b/site_v2/src/lib/roundName.mjs
+@@ -0,0 +1,12 @@
++// A round's name in the page's language, from what the warehouse serves (int_round_names): the
++// copy key that names the round the way its competition does, and the number and group letter
++// that name shows ("6. Spieltag", "A-lohko, 3. kierros"). The page never reads the provider's
++// round text.
++//
++// Plain JS so `roundName.test.mjs` imports it under bare `node --test`; the caller passes `t`.
++
++/** The name, or null when no key is served. */
++export function roundName(t, lang, key, number, letter) {
++  if (!key) return null;
++  return t(lang, key, { n: number ?? "", g: letter ?? "" });
++}
+diff --git a/site_v2/src/lib/roundName.test.mjs b/site_v2/src/lib/roundName.test.mjs
+new file mode 100644
+index 00000000..a146dbaf
+--- /dev/null
++++ b/site_v2/src/lib/roundName.test.mjs
+@@ -0,0 +1,26 @@
++// Pins how a served round reads: its copy key in the page's language with the served number and
++// group letter filled in; no key served is no name.
++
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { roundName } from "./roundName.mjs";
++
++const COPY = {
++  de: { roundGroupStageMatchday: "{n}. Gruppenspieltag", roundFinal: "Finale" },
++  fi: { roundGroupMatchday: "{g}-lohko, {n}. kierros" },
++};
++const t = (lang, key, vars = {}) =>
++  COPY[lang][key].replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ""));
++
++test("the served key reads in the page's language with its number and letter", () => {
++  assert.equal(roundName(t, "de", "roundGroupStageMatchday", 3, null), "3. Gruppenspieltag");
++  assert.equal(roundName(t, "fi", "roundGroupMatchday", 2, "A"), "A-lohko, 2. kierros");
++});
++
++test("a name without a number or letter reads as it is", () => {
++  assert.equal(roundName(t, "de", "roundFinal", null, null), "Finale");
++});
++
++test("no served key is no name, never the provider's text", () => {
++  assert.equal(roundName(t, "de", null, 6, null), null);
++});
 diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
-index 5fe06089..1345a111 100644
+index 1345a111..87371a90 100644
 --- a/site_v2/src/lib/types.ts
 +++ b/site_v2/src/lib/types.ts
-@@ -644,6 +644,8 @@ export interface CompetitionPayload {
-   type: string;
-   league_code: string;
-   season: number;
-+  /** The season as the warehouse names it: 2026/27 for a split-year competition, 2026 otherwise. */
-+  season_label: string | null;
-   slug: string | null;
-   name: string | null;
-   crest: string | null;
+@@ -606,10 +606,15 @@ export interface CompetitionFixture {
+   is_match_that_matters: boolean;
+ }
+ 
+-/** One round of a competition-season: the provider's name, its matchday number where the name
+- *  carries one, its place in the season's sequence, whether it is the next round, its fixtures. */
++/** One round of a competition-season: the provider's name, the copy key that names it the way
++ *  its competition does with the number and group letter that name shows, its matchday number
++ *  where the provider's name carries one, its place in the season's sequence, whether it is the
++ *  next round, its fixtures. */
+ export interface CompetitionRound {
+   round: string;
++  round_label_i18n_key: string | null;
++  round_number: number | null;
++  round_letter: string | null;
+   round_order: number | null;
+   round_sequence: number | null;
+   is_next_round: boolean;
+@@ -653,6 +658,11 @@ export interface CompetitionPayload {
+   region_label_i18n_key: string | null;
+   competition_type: string | null;
+   entity_type: "club" | "national" | null;
++  /** The round the competition's next matchday is in: its copy key, number and group letter;
++   *  null when nothing is scheduled. */
++  current_round_label_i18n_key: string | null;
++  current_round_number: number | null;
++  current_round_letter: string | null;
+   standings: StandingRow[];
+   deserved: DeservedRow[];
+   summary: SeasonSummary | null;
 diff --git a/site_v2/src/pages/[lang]/[competition]/[matches]/index.astro b/site_v2/src/pages/[lang]/[competition]/[matches]/index.astro
-index 556d062c..bd28a029 100644
+index bd28a029..7d7fdd15 100644
 --- a/site_v2/src/pages/[lang]/[competition]/[matches]/index.astro
 +++ b/site_v2/src/pages/[lang]/[competition]/[matches]/index.astro
-@@ -85,7 +85,7 @@ const crumbs = [
-       crest={payload.crest ?? competition.logo_url}
+@@ -18,7 +18,7 @@ import { t } from "../../../../i18n/strings";
+ import { localeHref, LOCALES, word } from "../../../../lib/href";
+ import type { Lang } from "../../../../lib/format";
+ import type { CompetitionIndex, CompetitionIndexRow, CompetitionPayload } from "../../../../lib/types";
+-import { latestSeasonPayload, nextRound } from "../../../../lib/competitionPayload.mjs";
++import { latestSeasonPayload } from "../../../../lib/competitionPayload.mjs";
+ import competitionIndex from "../../../../data/competition_index.json";
+ 
+ export function getStaticPaths() {
+@@ -86,7 +86,9 @@ const crumbs = [
        regionLabelEn={payload.region_label_en ?? competition.region_label_en}
        regionLabelI18nKey={payload.region_label_i18n_key ?? competition.region_label_i18n_key}
--      season={payload.season}
-+      seasonLabel={payload.season_label ?? null}
-       round={nextRound(payload.fixtures)?.round ?? null}
+       seasonLabel={payload.season_label ?? null}
+-      round={nextRound(payload.fixtures)?.round ?? null}
++      roundKey={payload.current_round_label_i18n_key ?? null}
++      roundNumber={payload.current_round_number ?? null}
++      roundLetter={payload.current_round_letter ?? null}
        lang={lang}
      />
+     <CompetitionTabs
+@@ -102,7 +104,6 @@ const crumbs = [
+       rounds={payload.fixtures ?? []}
+       competitionSlug={payload.slug}
+       lang={lang}
+-      isLeague={isLeague}
+     />
+   </div>
+ </Layout>
 diff --git a/site_v2/src/pages/[lang]/[competition]/[stats]/index.astro b/site_v2/src/pages/[lang]/[competition]/[stats]/index.astro
-index 0f596d82..e19455cb 100644
+index e19455cb..330e5b57 100644
 --- a/site_v2/src/pages/[lang]/[competition]/[stats]/index.astro
 +++ b/site_v2/src/pages/[lang]/[competition]/[stats]/index.astro
-@@ -87,7 +87,7 @@ const crumbs = [
-       crest={payload.crest ?? competition.logo_url}
+@@ -19,7 +19,7 @@ import { t, inCompetition } from "../../../../i18n/strings";
+ import { localeHref, LOCALES, word } from "../../../../lib/href";
+ import type { Lang } from "../../../../lib/format";
+ import type { CompetitionIndex, CompetitionIndexRow, CompetitionPayload } from "../../../../lib/types";
+-import { latestSeasonPayload, nextRound } from "../../../../lib/competitionPayload.mjs";
++import { latestSeasonPayload } from "../../../../lib/competitionPayload.mjs";
+ import competitionIndex from "../../../../data/competition_index.json";
+ 
+ export function getStaticPaths() {
+@@ -88,7 +88,9 @@ const crumbs = [
        regionLabelEn={payload.region_label_en ?? competition.region_label_en}
        regionLabelI18nKey={payload.region_label_i18n_key ?? competition.region_label_i18n_key}
--      season={payload.season}
-+      seasonLabel={payload.season_label ?? null}
-       round={nextRound(payload.fixtures)?.round ?? null}
+       seasonLabel={payload.season_label ?? null}
+-      round={nextRound(payload.fixtures)?.round ?? null}
++      roundKey={payload.current_round_label_i18n_key ?? null}
++      roundNumber={payload.current_round_number ?? null}
++      roundLetter={payload.current_round_letter ?? null}
        lang={lang}
      />
+     <CompetitionTabs
 diff --git a/site_v2/src/pages/[lang]/[competition]/index.astro b/site_v2/src/pages/[lang]/[competition]/index.astro
-index 778f861e..a9fe65f5 100644
+index a9fe65f5..f0d3e689 100644
 --- a/site_v2/src/pages/[lang]/[competition]/index.astro
 +++ b/site_v2/src/pages/[lang]/[competition]/index.astro
-@@ -99,7 +99,7 @@ const competitionType = payload?.competition_type ?? competition.competition_typ
-       crest={payload?.crest ?? competition.logo_url}
+@@ -23,7 +23,7 @@ import { t } from "../../../i18n/strings";
+ import { localeHref, LOCALES, word } from "../../../lib/href";
+ import type { Lang } from "../../../lib/format";
+ import type { CompetitionIndex, CompetitionIndexRow, CompetitionPayload } from "../../../lib/types";
+-import { latestSeasonPayload, nextRound } from "../../../lib/competitionPayload.mjs";
++import { latestSeasonPayload } from "../../../lib/competitionPayload.mjs";
+ import { assertNoClash } from "../../../lib/addressWords.mjs";
+ import competitionIndex from "../../../data/competition_index.json";
+ import competitions from "../../../data/competitions.json";
+@@ -100,7 +100,9 @@ const competitionType = payload?.competition_type ?? competition.competition_typ
        regionLabelEn={payload?.region_label_en ?? competition.region_label_en}
        regionLabelI18nKey={payload?.region_label_i18n_key ?? competition.region_label_i18n_key}
--      season={payload?.season ?? null}
-+      seasonLabel={payload?.season_label ?? null}
-       round={nextRound(payload?.fixtures)?.round ?? null}
+       seasonLabel={payload?.season_label ?? null}
+-      round={nextRound(payload?.fixtures)?.round ?? null}
++      roundKey={payload?.current_round_label_i18n_key ?? null}
++      roundNumber={payload?.current_round_number ?? null}
++      roundLetter={payload?.current_round_letter ?? null}
        lang={lang}
      />
-diff --git a/site_v2/src/specs/competition/index.spec.json b/site_v2/src/specs/competition/index.spec.json
-index 143207f3..000157b5 100644
---- a/site_v2/src/specs/competition/index.spec.json
-+++ b/site_v2/src/specs/competition/index.spec.json
-@@ -20,7 +20,7 @@
-   "blocks": [
-     {
-       "block": "Competition header",
--      "mart": ["mart_competition_index", "mart_competition_fixtures"],
-+      "mart": ["mart_competition_index", "mart_competition_fixtures", "core:dim_competition_season"],
-       "i18n_keys": ["crumbHome", "navCompetitions", "compSeason", "compTabsAria", "compTabOverview", "compTabMatchdays", "compTabRounds", "compTabRankings"]
-     },
-     {
-diff --git a/site_v2/src/specs/competition/matches/index.spec.json b/site_v2/src/specs/competition/matches/index.spec.json
-index 768c9377..6787791e 100644
---- a/site_v2/src/specs/competition/matches/index.spec.json
-+++ b/site_v2/src/specs/competition/matches/index.spec.json
-@@ -20,7 +20,7 @@
-   "blocks": [
-     {
-       "block": "Competition header",
--      "mart": "mart_competition_index",
-+      "mart": ["mart_competition_index", "core:dim_competition_season"],
-       "i18n_keys": ["crumbHome", "navCompetitions", "compSeason", "compTabsAria", "compTabOverview", "compTabMatchdays", "compTabRounds", "compTabRankings"]
-     },
-     {
-diff --git a/site_v2/src/specs/competition/stats/index.spec.json b/site_v2/src/specs/competition/stats/index.spec.json
-index 82d8c823..558ccd22 100644
---- a/site_v2/src/specs/competition/stats/index.spec.json
-+++ b/site_v2/src/specs/competition/stats/index.spec.json
-@@ -20,7 +20,7 @@
-   "blocks": [
-     {
-       "block": "Competition header",
--      "mart": ["mart_competition_index", "mart_competition_fixtures"],
-+      "mart": ["mart_competition_index", "mart_competition_fixtures", "core:dim_competition_season"],
-       "i18n_keys": ["crumbHome", "navCompetitions", "compSeason", "compTabsAria", "compTabOverview", "compTabMatchdays", "compTabRounds", "compTabRankings"]
-     },
-     {
+     <CompetitionTabs
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index 3f81baf9..739e1f70 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -842,8 +842,8 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+ .fx .md-in:focus-visible + .mdnav { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+ .mdnav { margin-top: 22px; }
+ .mdstep { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 10px; border-bottom: 2px solid var(--div); }
+-.mdstep .mdtitle { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; }
+-.mdstep .mdtitle .num { font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); white-space: nowrap; }
++.mdstep .mdtitle { flex: 1; display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; min-width: 0; }
++.mdstep .mdtitle .num { font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); text-align: center; }
+ .mdstep .step { width: 34px; height: 34px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 9px; border: 1px solid var(--line); color: var(--ink-2); cursor: pointer; }
+ .mdstep .step svg { width: 16px; height: 16px; }
+ .mdstep .step:hover { background: var(--surface); }
 diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
-index 0e45fd18..fe996e01 100644
+index fe996e01..84692b5a 100644
 --- a/tests/test_export_site_data.py
 +++ b/tests/test_export_site_data.py
-@@ -226,10 +226,39 @@ def test_shape_competition_payload_surfaces_the_served_header_facts():
-     assert p["competition_type"] == "domestic_league" and p["entity_type"] == "club"
+@@ -425,6 +425,44 @@ def test_group_fixtures_by_round_follows_the_served_fixture_order():
+     assert rounds[0]["fixtures"][0]["slug"] == "s10", "the served slug is carried through"
  
  
-+def test_shape_competition_payload_carries_the_served_season_label_as_is():
-+    split = shape_competition_payload("BL1", 2026, {"name": "Bundesliga", "slug": "bundesliga"},
-+                                      standings=[], deserved=[], summary=None,
-+                                      season_label="2026/27")
-+    calendar = shape_competition_payload("MLS", 2026, {"name": "MLS", "slug": "mls"},
-+                                         standings=[], deserved=[], summary=None,
-+                                         season_label="2026")
-+    assert split["season"] == 2026 and split["season_label"] == "2026/27"
-+    assert calendar["season"] == 2026 and calendar["season_label"] == "2026"
++def test_group_fixtures_by_round_lifts_the_served_round_name():
++    name = {"round_label_i18n_key": "roundGroupMatchday", "round_number": 2, "round_letter": "A"}
++    rows = [dict(_served_fixture(21, "Group A - 2", 2, "2026-09-05T13:30:00", order=2, pos=2), **name),
++            dict(_served_fixture(20, "Group A - 2", 2, "2026-09-04T18:30:00", order=2, pos=1), **name)]
++    (rnd,) = group_fixtures_by_round(rows)
++    assert {k: rnd[k] for k in name} == name
++    assert all(k not in f for f in rnd["fixtures"] for k in name)
 +
 +
-+def test_fetched_competition_payloads_take_the_label_of_their_own_season(monkeypatch):
-+    def fake_query(client, sql):
-+        if "dim_competition_season" in sql:
-+            return [{"league_code": "BL1", "season_api_year": 2025, "season_label": "2025/26"},
-+                    {"league_code": "BL1", "season_api_year": 2026, "season_label": "2026/27"}]
-+        if "mart_competition_season_summary" in sql:
-+            return [{"league_code": "BL1", "season_api_year": 2026}]
-+        return []
-+
-+    monkeypatch.setattr(export_site_data, "_query", fake_query)
-+    monkeypatch.setattr(export_site_data, "_warehouse_competition_meta", lambda client: {})
-+    monkeypatch.setattr(export_site_data, "_competition_page_meta", lambda client: {})
-+    monkeypatch.setattr(export_site_data, "shape_season_summary", lambda *a: None)
-+    (payload,) = export_site_data.fetch_competition_payloads(object())
-+    assert payload["season"] == 2026 and payload["season_label"] == "2026/27"
++def test_the_competition_fixture_shape_selects_and_carries_the_served_round_name():
++    """The columns are selected from the mart and every match row carries them: the Matchdays
++    picker, the match-day files and Home's upcoming block all read this one shape."""
++    for col in ("round_label_i18n_key", "round_number", "round_letter"):
++        assert col in export_site_data._COMPETITION_FIXTURE_COLUMNS
++    row = {"fixture_sk": 7, "fixture_slug": "s7", "kickoff_datetime": "2026-09-05T13:30:00Z",
++           "round_name": "Championship Group - 23", "round_label_i18n_key": "roundVlChampionshipMatchday",
++           "round_number": 23, "round_letter": None, "round_order": 23, "round_sequence": 23,
++           "fixture_order": 1, "status_short": "NS", "is_played": False,
++           "home_team_sk": 1, "away_team_sk": 2, "is_next_round": True, "is_match_that_matters": False}
++    out = export_site_data._competition_fixture(row)
++    assert out["round_label_i18n_key"] == "roundVlChampionshipMatchday"
++    assert out["round_number"] == 23 and out["round_letter"] is None
 +
 +
- def test_shape_competition_payload_identity_absent_is_none():
++def test_the_competition_page_meta_selects_the_served_current_round():
++    for col in ("current_round_label_i18n_key", "current_round_number", "current_round_letter"):
++        assert col in export_site_data._COMPETITION_PAGE_META
++
++
++def test_shape_competition_payload_carries_the_served_current_round():
++    meta = {"name": "Veikkausliiga", "slug": "veikkausliiga",
++            "current_round_label_i18n_key": "roundVlChampionshipMatchday",
++            "current_round_number": 23, "current_round_letter": None}
++    p = shape_competition_payload("VL", 2026, meta, standings=[], deserved=[], summary=None)
++    assert p["current_round_label_i18n_key"] == "roundVlChampionshipMatchday"
++    assert p["current_round_number"] == 23 and p["current_round_letter"] is None
++
++
+ def test_group_fixtures_by_round_is_empty_when_nothing_is_served():
+     assert group_fixtures_by_round([]) == []
      p = shape_competition_payload("XX", 2025, {"name": "X", "slug": "x"},
-                                   standings=[], deserved=[], summary=None)
-     assert p["crest"] is None and p["region_label_en"] is None and p["entity_type"] is None
-+    assert p["season_label"] is None
+diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
+index 45146621..0ff0e799 100644
+--- a/tests/test_governance_hooks.py
++++ b/tests/test_governance_hooks.py
+@@ -1099,13 +1099,14 @@ def test_copy_gate_fails_closed_on_a_seed_without_the_key_column(tmp_path, monke
  
  
- _TEAM_CAT = {
-
-# ============================================================================
-# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
-# ============================================================================
-# The files below changed and are DELIBERATELY excluded from the diff body:
-# they are generated/sample data, and pasting them has measured at ~89% of the
-# review payload. They are still reviewed content and still bind your verdict.
-#
-# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
-# particular: whether a field displayed by a component actually EXISTS in the
-# exported sample is checked by opening these files, not by reading a diff.
-#
-#   site_v2/src/data/competitions/BL1/2026.json | 1 +
-#    1 file changed, 1 insertion(+)
-# ============================================================================
+ def test_copy_gate_reads_the_real_seeds():
+-    """Pins the two seed paths and that every key they publish resolves today, so the check
++    """Pins the three seed paths and that every key they publish resolves today, so the check
+     cannot be silently pointed at a file that does not exist (an absent file must raise, not
+     pass over zero keys)."""
+     gate = _copy_gate()
+     keys = gate._seed_label_keys()
+-    assert set(keys) == {"competition_types.csv", "confederations.csv"}
++    assert set(keys) == {"competition_types.csv", "confederations.csv", "round_names.csv"}
+     assert len(keys["competition_types.csv"]) >= 14 and len(keys["confederations.csv"]) >= 7
++    assert len(keys["round_names.csv"]) >= 60
+     dicts = gate._dicts(gate.STRINGS.read_text(encoding="utf-8"))
+     for name, ks in keys.items():
+         for k in ks:
+diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
+index ff19e9a7..45acbfcd 100644
+--- a/tests/test_no_decision_history_in_code.py
++++ b/tests/test_no_decision_history_in_code.py
+@@ -30,8 +30,8 @@ sys.path.insert(0, HOOKS)
+ import comment_history_gate as gate  # noqa: E402
+ 
+ # The pin. A sweep MR lowers these two numbers and nothing else may move them.
+-PINNED_LINES = 725
+-PINNED_FILES = 181
++PINNED_LINES = 724
++PINNED_FILES = 180
+ 
+ HASH = chr(35)
+ 
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -435,9 +1369,8 @@ index 0e45fd18..fe996e01 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md    |  20 +-
-#    .claude/task/rendered_page_evidence.md |  20 +-
-#    .claude/task/review.md                 |  32 +-
-#    .claude/task/review_input.patch        | 744 ++++++++++++++++-----------------
-#    4 files changed, 410 insertions(+), 406 deletions(-)
+#   .claude/task/acceptance_evidence.md    |   27 +-
+#    .claude/task/rendered_page_evidence.md |   12 +-
+#    .claude/task/review_input.patch        | 1580 ++++++++++++++++++++++++--------
+#    3 files changed, 1243 insertions(+), 376 deletions(-)
 # ============================================================================

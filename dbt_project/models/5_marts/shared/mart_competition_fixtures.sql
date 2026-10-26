@@ -421,6 +421,17 @@ goal_lists as (
     group by g.fixture_sk
 ),
 
+round_names as (
+    select
+        league_code,
+        season_api_year,
+        round_name,
+        round_label_i18n_key,
+        round_number,
+        round_letter
+    from {{ ref('int_round_names') }}
+),
+
 formations as (
     select
         fixture_sk,
@@ -445,6 +456,9 @@ select
     f.league_code,
     f.season_api_year,
     f.round_name,
+    rn.round_label_i18n_key,
+    rn.round_number,
+    rn.round_letter,
     r.round_sequence,
     f.kickoff_datetime,
     f.fixture_date,
@@ -504,6 +518,11 @@ inner join rounds as r
         f.league_code = r.league_code
         and f.season_api_year = r.season_api_year
         and f.round_name = r.round_name
+left join round_names as rn
+    on
+        f.league_code = rn.league_code
+        and f.season_api_year = rn.season_api_year
+        and f.round_name = rn.round_name
 left join teams as h
     on f.home_team_sk = h.team_sk
 left join teams as a

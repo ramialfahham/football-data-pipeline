@@ -48,6 +48,21 @@ import_fct_fixture as (
     select * from {{ ref('fct_fixture') }}
 ),
 
+import_mart_next_matchday as (
+    select * from {{ ref('mart_next_matchday') }}
+),
+
+-- The competition's current round: the one round its next matchday is in.
+current_round as (
+    select
+        league_code,
+        any_value(round_label_i18n_key) as current_round_label_i18n_key,
+        any_value(round_number) as current_round_number,
+        any_value(round_letter) as current_round_letter
+    from import_mart_next_matchday
+    group by league_code
+),
+
 -- Kickoff proximity, per competition. Split rather than conditionally aggregated so each side
 -- keeps its own grain: the next fixture ahead of now, and the last one behind it.
 next_fixture as (
@@ -102,6 +117,9 @@ select
     leagues.league_logo_url as logo_url,
     next_fixture.next_kickoff_datetime,
     last_fixture.last_kickoff_datetime,
+    current_round.current_round_label_i18n_key,
+    current_round.current_round_number,
+    current_round.current_round_letter,
 
     -- The region sub-line resolves HERE, so the page never sees the branch (#54 note 4).
     -- Which relationship is populated IS the answer (#69 step 5): league_country is NULL for
@@ -122,3 +140,5 @@ left join next_fixture
     on browsable.league_code = next_fixture.league_code
 left join last_fixture
     on browsable.league_code = last_fixture.league_code
+left join current_round
+    on browsable.league_code = current_round.league_code

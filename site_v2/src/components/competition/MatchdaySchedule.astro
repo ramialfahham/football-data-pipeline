@@ -7,22 +7,22 @@
 //
 // Which round is checked on load is a display default over served flags: the round the warehouse
 // flagged next; after the season, the last round with a played match; before it, the first. The
-// round order is the warehouse's round_sequence; a league round's title is its served matchday
-// number, any other round shows the provider's round name until the phase key lands (#148).
+// round order is the warehouse's round_sequence; a round's title is the name the warehouse
+// serves for it, the way its competition names it ("6. Spieltag", "Mestaruussarja, 23. kierros").
 import MatchRow from "../ui/MatchRow.astro";
 import SectionHead from "../ui/SectionHead.astro";
 import { formatDate } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
+import { roundName } from "../../lib/roundName.mjs";
 import type { CompetitionRound } from "../../lib/types";
 
 interface Props {
   rounds: CompetitionRound[];
   competitionSlug: string | null;
   lang: Lang;
-  isLeague: boolean;
 }
-const { rounds, competitionSlug, lang, isLeague } = Astro.props;
+const { rounds, competitionSlug, lang } = Astro.props;
 
 const nextIndex = rounds.findIndex((r) => r.is_next_round);
 const lastPlayedIndex = rounds.reduce(
@@ -31,9 +31,7 @@ const lastPlayedIndex = rounds.reduce(
 const openIndex = nextIndex >= 0 ? nextIndex : lastPlayedIndex >= 0 ? lastPlayedIndex : 0;
 
 function title(r: CompetitionRound): string {
-  return isLeague && r.round_order != null
-    ? t(lang, "compFactMatchday", { n: r.round_order })
-    : r.round;
+  return roundName(t, lang, r.round_label_i18n_key, r.round_number, r.round_letter) ?? "";
 }
 
 function days(r: CompetitionRound): [string | null, CompetitionRound["fixtures"]][] {

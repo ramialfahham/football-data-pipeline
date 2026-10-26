@@ -1,26 +1,46 @@
-# Task contract — the competition page's season label, served by the warehouse
+# Task contract — the round in the competition header, in the page's language
 
 objective: >
-  The competition page header's meta line shows the season as the warehouse serves it: "Season
-  2026/27" for a split-year competition, "Season 2026" for a calendar-year one ("Saison", "Kausi"),
-  on every competition with a payload. The label is a column of dim_competition_season, built from
-  the registry's season_type; the export carries it and no page computes it.
+  The warehouse names every round of a competition's latest season by the competition's own name
+  in EN, DE and FI: a seed of whole-round patterns, the competition's (and where its format
+  changes yearly, the season's) own row before the general one, each giving a copy key and the
+  number or group letter it shows; a test fails on a latest-season round text no pattern covers.
+  The marts serve the key and values per fixture and the competition's current round; the export
+  carries them; the competition header's round and the Matchdays picker render them, so no
+  provider English reaches those places.
 
 refs: >
-  #229 (one way to show the season; the competition page's header text approved in chat,
-  2026-10-22, note 4066426889); #129 (the competition page, design approved); #233 (the country in
-  the page's language, split off, decided in chat, 2026-10-25).
+  #148 (the requirement; the per-competition round names, researched by an independent football
+  expert, approved in chat, 2026-10-26); #129 (the competition page, design approved); #229 (the
+  season part of the same line).
 
 scope_paths:
-  - dbt_project/models/3_core/dim_competition_season.sql
-  - dbt_project/models/3_core/core.yml
+  - dbt_project/seeds/round_names.csv
+  - dbt_project/seeds/schema.yml
+  - dbt_project/models/4_intermediate/shared/int_round_names.sql
+  - dbt_project/models/4_intermediate/shared/int_round_names.yml
+  - dbt_project/tests/assert_every_round_text_resolves.sql
+  - dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
+  - dbt_project/models/5_marts/shared/mart_next_matchday.sql
+  - dbt_project/models/5_marts/shared/mart_competition_index.sql
+  - dbt_project/models/5_marts/shared/shared.yml
   - scripts/export_site_data.py
+  - scripts/check_copy_gate.py
   - tests/test_export_site_data.py
+  - tests/test_governance_hooks.py
+  - tests/test_no_decision_history_in_code.py
+  - site_v2/src/lib/roundName.mjs
+  - site_v2/src/lib/roundName.test.mjs
+  - site_v2/src/lib/competitionPayload.mjs
+  - site_v2/src/lib/competitionPayload.test.mjs
+  - site_v2/src/lib/types.ts
+  - site_v2/src/i18n/strings.ts
+  - site_v2/src/styles/system.css
   - site_v2/src/components/competition/CompetitionHeader.astro
+  - site_v2/src/components/competition/MatchdaySchedule.astro
   - site_v2/src/pages/[[]lang]/[[]competition]/index.astro
   - site_v2/src/pages/[[]lang]/[[]competition]/[[]matches]/index.astro
   - site_v2/src/pages/[[]lang]/[[]competition]/[[]stats]/index.astro
-  - site_v2/src/lib/types.ts
   - site_v2/src/specs/competition/index.spec.json
   - site_v2/src/specs/competition/matches/index.spec.json
   - site_v2/src/specs/competition/stats/index.spec.json
@@ -32,45 +52,52 @@ scope_paths:
   - .claude/task/rendered_page_evidence.md
 
 impact_map: >
-  writers: dim_competition_season gains season_label (a join of the competition_registry seed);
-  the export's competitions target gains season_label per payload, read from
-  core.dim_competition_season. downstream: `dbt ls --select dim_competition_season+ --resource-type
-  model` lists 15 models: dim_competition_season, dim_player_team_season_mapping, fct_standings,
-  int_team_season__deserved_vs_actual, int_team_season__standings_primary,
-  mart_competition_fixtures, mart_fixture_standing_context, mart_match_days,
-  mart_matchday_insights, mart_next_matchday, mart_roster, mart_standings, mart_team_profile,
-  mart_team_season, mart_team_season_insights; 5 leaves (mart_match_days,
-  mart_matchday_insights, mart_roster, mart_team_profile, mart_team_season_insights). The two
-  direct SQL readers, dim_player_team_season_mapping and fct_standings, select named columns
-  (season_sk, league_sk, league_code, season_api_year), so the new column reaches no model; all
-  14 rebuild in the MR data build unchanged. The site: the competition header on the
-  Overview, Matchdays and Rankings pages. layer_rules: a core attribute of the season, no fact
-  computed; the export reads a served column. deploy_order: the column reaches prod with the
-  nightly after merge; the export carries it on the next deploy:export; deploy:site-v2 is manual.
-  blast_radius: the competition header's meta line; a null label drops the season part, as a
-  null season does today.
+  writers: a new seed round_names and a new intermediate int_round_names (one row per distinct
+  fct_fixture league_code, season and round text); mart_competition_fixtures and
+  mart_next_matchday gain round_label_i18n_key, round_number and round_letter;
+  mart_competition_index gains the current round's three; the export carries them in the
+  competition payload (rounds and page meta) and in every file built from the competition fixture
+  shape. downstream: the dbt ls lineage of the three marts is pasted in the evidence before
+  review. The site: the competition header on the Overview, Matchdays and Rankings pages and the
+  Matchdays picker; compFactMatchday's DE and FI text, which the match page also reads.
+  layer_rules: the round text is read in intermediate, served by marts as a copy key and values,
+  rendered by the site; no page reads a round text. deploy_order: the columns reach prod with the
+  nightly after merge; the export carries them on the next deploy:export; deploy:site-v2 is manual.
+  blast_radius: the header's round and the picker's titles; a latest-season round no pattern
+  covers shows no name and is reported by a warn test with stored failures, without skipping the
+  marts downstream.
 
 approved_design:
   - competition: #129
+  - match: #132
 
 acceptance_criteria:
-  - "dim_competition_season serves season_label: split_year as YYYY/YY (2026/27), calendar_year as YYYY (2026); not null and of that shape, asserted by dbt tests."
-  - "Each competitions/{league_code}/{season}.json carries season_label as served; the export computes nothing."
-  - "The competition header's meta line reads region · Season <label> · round (Saison, Kausi) on the Overview, Matchdays and Rankings pages; no page formats the year."
+  - "Every round text of each competition's latest season in fct_fixture resolves through round_names to a copy key, with its number or letter where the name shows one; a singular warn test with stored failures reports any that does not."
+  - "mart_competition_fixtures and mart_next_matchday serve round_label_i18n_key, round_number and round_letter per fixture; mart_competition_index serves the current round's three per competition."
+  - "The competition header's round and the Matchdays picker render the approved per-competition names in EN, DE and FI from the served key and values; no provider round text is shown there."
+  - "check_copy_gate.py requires every round_names copy key in EN, DE and FI."
 
 decisions_taken: >
-  Approved in chat, 2026-10-22: the season label as plain text in the header's meta line, from the
-  registry's season_type, on every competition. The plan approved in chat, 2026-10-25, with the
-  country names split to #233. Readings: a competition without a payload shows no season's data
-  and so no season; the label is a core attribute so every page reads one definition. No new
-  dependency; the recurring cost is a join of a 48-row seed.
+  The per-competition round names approved in chat, 2026-10-26, as researched; compFactMatchday
+  becomes the Matchday name, so the match page reads the same form. Readings: one seed of
+  whole-round patterns, because German and Finnish join a round's parts differently from English
+  ("3. Gruppenspieltag", "Alkulohko, 3. kierros"); a cup's early rounds are named per season,
+  matched to the organiser's rounds by the fixtures' dates, since the provider's "Round of 128"
+  names different rounds in different seasons; the coverage test reads the latest season of each
+  competition, the season the pages show; the season part stays the payload's served label from
+  #229; the match page's cup rounds and the Team page's fixture rows keep the provider text, a
+  follow-up. No new dependency; the recurring cost is a join of the distinct round texts on a
+  small seed.
 
 decisions_reserved: []
 
 done_when:
-  - dbt parse, SQLFluff, the offline gates, check_description_hygiene.py, pytest and the site node tests pass.
-  - A local build on the sample shows Season 2026/27 on the Bundesliga in EN, DE and FI.
-  - The MR data build passes, including the season_label tests.
+  - dbt parse, SQLFluff, the offline gates, check_copy_gate.py, pytest and the site node tests pass.
+  - A local build and the dev server show the approved names in the header and the picker in EN, DE and FI.
+  - The MR data build passes, including the round coverage test.
   - Reviewers per review_routing.json pass.
 
-amendments: []
+amendments:
+  - "2026-10-26: the parts seed round_parts became the whole-name seed round_names, per competition and season, after the CPO approved the per-competition names in chat; scope_paths, objective, criteria and readings follow."
+  - "2026-10-26: tests/test_no_decision_history_in_code.py joins scope_paths, to lower its pin by the one flagged comment line this change removes from MatchdaySchedule.astro."
+  - "2026-10-26: the match page (#132) joins approved_design, its matchday wording changing with compFactMatchday as the plan approved in chat; system.css joins scope_paths so a long round name wraps the picker's Next tag instead of overflowing at 375px; the coverage test is warn with stored failures, as engineering_standards.md §3.3/§3.4 prescribe for a check that shows no wrong number."
