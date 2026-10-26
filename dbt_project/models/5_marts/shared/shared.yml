@@ -88,6 +88,12 @@ models:
         description: "Earliest upcoming fixture kickoff for this league_code. NULL when nothing is scheduled."
       - name: last_kickoff_datetime
         description: "Most recent past fixture kickoff for this league_code. NULL when nothing has ever been played."
+      - name: current_round_label_i18n_key
+        description: "The copy key that names the round the competition's next matchday is in, the competition's own name for it (int_round_names). NULL when nothing is scheduled."
+      - name: current_round_number
+        description: "The number the current round's name shows (the matchday); NULL when it shows none."
+      - name: current_round_letter
+        description: "The group letter the current round's name shows; NULL when it shows none."
 
   - name: mart_team_window_metrics
     description: >
@@ -2627,6 +2633,12 @@ models:
       - name: round_name
         description: "{{ doc('round_name') }} One value per competition in this table: the round that is the competition's next matchday."
         tests: [not_null]
+      - name: round_label_i18n_key
+        description: "The copy key that names the round the way its competition does (int_round_names). NULL for a round of an earlier season no name covers."
+      - name: round_number
+        description: "The number the round's name shows (the matchday); NULL when it shows none."
+      - name: round_letter
+        description: "The group letter the round's name shows; NULL when it shows none."
       - name: kickoff_datetime
         description: "{{ doc('kickoff_datetime') }}"
       - name: fixture_date
@@ -2717,6 +2729,12 @@ models:
       - name: round_name
         description: "{{ doc('round_name') }}"
         tests: [not_null]
+      - name: round_label_i18n_key
+        description: "The copy key that names the round the way its competition does (int_round_names). NULL for a round of an earlier season no name covers."
+      - name: round_number
+        description: "The number the round's name shows (the matchday); NULL when it shows none."
+      - name: round_letter
+        description: "The group letter the round's name shows; NULL when it shows none."
       - name: round_order
         description: "{{ doc('round_order') }}"
       - name: round_sequence

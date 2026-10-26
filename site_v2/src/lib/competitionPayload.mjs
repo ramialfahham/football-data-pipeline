@@ -1,6 +1,5 @@
 // What the competition page does with its payload before rendering: pick the season to show,
-// split the standings into the sections a page draws, find the round the warehouse flagged next,
-// file the Rankings tab's boards under their metric groups, and turn the season summary into the
+// split the standings into the sections a page draws, file the Rankings tab's boards under their metric groups, and turn the season summary into the
 // fact rows that have something to show. Selection over served columns only — no number is
 // computed here; a value the mart serves as null yields no row.
 //
@@ -29,12 +28,6 @@ export function standingsSections(standings) {
     sections.get(key).rows.push(row);
   }
   return [...sections.values()];
-}
-
-/** The round the warehouse flagged as next (the Matchdays tab opens on it; the header's round
- *  reads it), or null when none is flagged — after the season, or before the first round. */
-export function nextRound(rounds) {
-  return (rounds ?? []).find((r) => r.is_next_round) ?? null;
 }
 
 /** The Rankings tab's boards filed under their metric groups: one entry per group key, in the

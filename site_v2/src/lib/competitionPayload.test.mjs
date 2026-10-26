@@ -1,5 +1,5 @@
 // Pins what the competition page does with its payload: the latest season wins, ranking tables
-// are left out, the next round is the flagged one, boards file under the catalogue's groups in
+// are left out, boards file under the catalogue's groups in
 // its order, and a null fact is no row — the rules that keep the page from showing an empty
 // block or an older season by accident.
 
@@ -8,7 +8,6 @@ import assert from "node:assert/strict";
 import {
   boardGroups,
   latestSeasonPayload,
-  nextRound,
   seasonFacts,
   standingsSections,
 } from "./competitionPayload.mjs";
@@ -30,13 +29,6 @@ test("standings split into sections in served order and the provider's ranking t
     ["Group A", "group", 2],
     ["Group B", "group", 1],
   ]);
-});
-
-test("the next round is the one the warehouse flagged, and nothing when none is", () => {
-  assert.equal(nextRound([{ round: "Regular Season - 4", is_next_round: false },
-                          { round: "Regular Season - 5", is_next_round: true }]).round, "Regular Season - 5");
-  assert.equal(nextRound([{ round: "Regular Season - 34", is_next_round: false }]), null);
-  assert.equal(nextRound(undefined), null);
 });
 
 test("boards file under their groups in the catalogue's order, the export's order within a group", () => {

@@ -425,6 +425,44 @@ def test_group_fixtures_by_round_follows_the_served_fixture_order():
     assert rounds[0]["fixtures"][0]["slug"] == "s10", "the served slug is carried through"
 
 
+def test_group_fixtures_by_round_lifts_the_served_round_name():
+    name = {"round_label_i18n_key": "roundGroupMatchday", "round_number": 2, "round_letter": "A"}
+    rows = [dict(_served_fixture(21, "Group A - 2", 2, "2026-09-05T13:30:00", order=2, pos=2), **name),
+            dict(_served_fixture(20, "Group A - 2", 2, "2026-09-04T18:30:00", order=2, pos=1), **name)]
+    (rnd,) = group_fixtures_by_round(rows)
+    assert {k: rnd[k] for k in name} == name
+    assert all(k not in f for f in rnd["fixtures"] for k in name)
+
+
+def test_the_competition_fixture_shape_selects_and_carries_the_served_round_name():
+    """The columns are selected from the mart and every match row carries them: the Matchdays
+    picker, the match-day files and Home's upcoming block all read this one shape."""
+    for col in ("round_label_i18n_key", "round_number", "round_letter"):
+        assert col in export_site_data._COMPETITION_FIXTURE_COLUMNS
+    row = {"fixture_sk": 7, "fixture_slug": "s7", "kickoff_datetime": "2026-09-05T13:30:00Z",
+           "round_name": "Championship Group - 23", "round_label_i18n_key": "roundVlChampionshipMatchday",
+           "round_number": 23, "round_letter": None, "round_order": 23, "round_sequence": 23,
+           "fixture_order": 1, "status_short": "NS", "is_played": False,
+           "home_team_sk": 1, "away_team_sk": 2, "is_next_round": True, "is_match_that_matters": False}
+    out = export_site_data._competition_fixture(row)
+    assert out["round_label_i18n_key"] == "roundVlChampionshipMatchday"
+    assert out["round_number"] == 23 and out["round_letter"] is None
+
+
+def test_the_competition_page_meta_selects_the_served_current_round():
+    for col in ("current_round_label_i18n_key", "current_round_number", "current_round_letter"):
+        assert col in export_site_data._COMPETITION_PAGE_META
+
+
+def test_shape_competition_payload_carries_the_served_current_round():
+    meta = {"name": "Veikkausliiga", "slug": "veikkausliiga",
+            "current_round_label_i18n_key": "roundVlChampionshipMatchday",
+            "current_round_number": 23, "current_round_letter": None}
+    p = shape_competition_payload("VL", 2026, meta, standings=[], deserved=[], summary=None)
+    assert p["current_round_label_i18n_key"] == "roundVlChampionshipMatchday"
+    assert p["current_round_number"] == 23 and p["current_round_letter"] is None
+
+
 def test_group_fixtures_by_round_is_empty_when_nothing_is_served():
     assert group_fixtures_by_round([]) == []
     p = shape_competition_payload("XX", 2025, {"name": "X", "slug": "x"},

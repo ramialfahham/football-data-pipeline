@@ -842,8 +842,8 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .fx .md-in:focus-visible + .mdnav { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
 .mdnav { margin-top: 22px; }
 .mdstep { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 10px; border-bottom: 2px solid var(--div); }
-.mdstep .mdtitle { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; }
-.mdstep .mdtitle .num { font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); white-space: nowrap; }
+.mdstep .mdtitle { flex: 1; display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; min-width: 0; }
+.mdstep .mdtitle .num { font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); text-align: center; }
 .mdstep .step { width: 34px; height: 34px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 9px; border: 1px solid var(--line); color: var(--ink-2); cursor: pointer; }
 .mdstep .step svg { width: 16px; height: 16px; }
 .mdstep .step:hover { background: var(--surface); }

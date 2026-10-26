@@ -606,10 +606,15 @@ export interface CompetitionFixture {
   is_match_that_matters: boolean;
 }
 
-/** One round of a competition-season: the provider's name, its matchday number where the name
- *  carries one, its place in the season's sequence, whether it is the next round, its fixtures. */
+/** One round of a competition-season: the provider's name, the copy key that names it the way
+ *  its competition does with the number and group letter that name shows, its matchday number
+ *  where the provider's name carries one, its place in the season's sequence, whether it is the
+ *  next round, its fixtures. */
 export interface CompetitionRound {
   round: string;
+  round_label_i18n_key: string | null;
+  round_number: number | null;
+  round_letter: string | null;
   round_order: number | null;
   round_sequence: number | null;
   is_next_round: boolean;
@@ -653,6 +658,11 @@ export interface CompetitionPayload {
   region_label_i18n_key: string | null;
   competition_type: string | null;
   entity_type: "club" | "national" | null;
+  /** The round the competition's next matchday is in: its copy key, number and group letter;
+   *  null when nothing is scheduled. */
+  current_round_label_i18n_key: string | null;
+  current_round_number: number | null;
+  current_round_letter: string | null;
   standings: StandingRow[];
   deserved: DeservedRow[];
   summary: SeasonSummary | null;

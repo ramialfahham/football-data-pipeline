@@ -120,12 +120,26 @@ positions as (
     qualify count(*) over (partition by league_code, season_api_year, team_sk) = 1
 ),
 
+round_names as (
+    select
+        league_code,
+        season_api_year,
+        round_name,
+        round_label_i18n_key,
+        round_number,
+        round_letter
+    from {{ ref('int_round_names') }}
+),
+
 ranked as (
     select
         m.fixture_sk,
         m.league_code,
         m.season_api_year,
         m.round_name,
+        rn.round_label_i18n_key,
+        rn.round_number,
+        rn.round_letter,
         m.kickoff_datetime,
         m.fixture_date,
         m.status_short,
@@ -136,6 +150,11 @@ ranked as (
     from next_matchday as m
     inner join competition_order as o
         on m.league_code = o.league_code
+    left join round_names as rn
+        on
+            m.league_code = rn.league_code
+            and m.season_api_year = rn.season_api_year
+            and m.round_name = rn.round_name
     left join positions as h
         on
             m.league_code = h.league_code
@@ -153,6 +172,9 @@ select
     league_code,
     season_api_year,
     round_name,
+    round_label_i18n_key,
+    round_number,
+    round_letter,
     kickoff_datetime,
     fixture_date,
     status_short,

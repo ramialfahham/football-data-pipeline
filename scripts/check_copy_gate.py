@@ -26,7 +26,7 @@ The checks, each traceable to a real defect:
      symbols, brand names and pure abbreviations are exempt, because those are
      legitimately identical across locales.
   5. SEED KEYS RESOLVABLE. Every `label_i18n_key` the warehouse seeds publish
-     (competition kinds, confederations) exists in every locale. Check 2 sees
+     (competition kinds, confederations, round names) exists in every locale. Check 2 sees
      only keys that are already in EN, and check 1-4 see only keys the pages
      show today; a kind with no competition yet had an English label in the
      seed and nothing in `strings.ts`, so its heading would have rendered in
@@ -75,6 +75,7 @@ MIN_METRIC_KEYS = 15
 SEED_LABEL_FILES = (
     REPO_ROOT / "dbt_project" / "seeds" / "competition_types.csv",
     REPO_ROOT / "dbt_project" / "seeds" / "confederations.csv",
+    REPO_ROOT / "dbt_project" / "seeds" / "round_names.csv",
 )
 
 # Terms the validated corpus settles. term -> (wrong, right, why)
@@ -144,8 +145,9 @@ def _metric_labels(text: str) -> dict[str, dict[str, str]]:
 
 def _seed_label_keys(paths=None) -> dict[str, list[str]]:
     """`label_i18n_key` values per seed file, in file order; a blank cell is skipped (the
-    seeds' own not_null tests own that defect). Reads `SEED_LABEL_FILES` at call time so a
-    test can point it at a fixture."""
+    seeds' own not_null tests own that defect; in round_names a blank key is a round that shows
+    no name, which its warn test reports). Reads `SEED_LABEL_FILES` at call time so a test can
+    point it at a fixture."""
     keys: dict[str, list[str]] = {}
     for path in (paths or SEED_LABEL_FILES):
         with open(path, encoding="utf-8", newline="") as f:
