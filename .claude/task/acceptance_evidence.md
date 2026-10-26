@@ -12,6 +12,13 @@ Lineage: `dbt ls --select int_round_names+ --resource-type model` lists int_roun
 mart_competition_fixtures, mart_competition_index, mart_match_days, mart_next_matchday;
 mart_match_days is the leaf the new columns pass under unread.
 
+The MR's own data build (ci_mr343) loaded round_names (89 rows), built int_round_names (6.6k
+competition-season round texts) and the marts without error; assert_every_round_text_resolves
+passed (every latest-season round named). Read from ci_mr343_marts (3.6 MB, approved): all 34 BL1
+2026 rounds served as compFactMatchday with their matchday. The committed BL1 sample carries those
+fields per round, and as its current round the served name of its own next round (Regular Season - 6),
+its other fields unchanged.
+
 criteria_demonstrated:
   - round_names names each round text by the competition-season's own row, then the competition's, then the general one; int_round_names serves its copy key, number and group letter per (league_code, season_api_year, round_name); assert_every_round_text_resolves (warn, stored failures) reports a latest-season round without a key or without the number or letter its name shows.
   - mart_competition_fixtures and mart_next_matchday serve round_label_i18n_key, round_number and round_letter joined on league_code, season_api_year and round_name; mart_competition_index serves current_round_label_i18n_key, current_round_number and current_round_letter from mart_next_matchday.

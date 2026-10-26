@@ -1358,6 +1358,21 @@ index ff19e9a7..45acbfcd 100644
  
 
 # ============================================================================
+# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
+# ============================================================================
+# The files below changed and are DELIBERATELY excluded from the diff body:
+# they are generated/sample data, and pasting them has measured at ~89% of the
+# review payload. They are still reviewed content and still bind your verdict.
+#
+# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
+# particular: whether a field displayed by a component actually EXISTS in the
+# exported sample is checked by opening these files, not by reading a diff.
+#
+#   site_v2/src/data/competitions/BL1/2026.json | 105 ++++++++++++++++++++++++++++
+#    1 file changed, 105 insertions(+)
+# ============================================================================
+
+# ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
 # ============================================================================
 # The files below changed on this branch and are DELIBERATELY kept out of the
@@ -1370,7 +1385,8 @@ index ff19e9a7..45acbfcd 100644
 # depends on one.
 #
 #   .claude/task/acceptance_evidence.md    |   27 +-
-#    .claude/task/rendered_page_evidence.md |   12 +-
-#    .claude/task/review_input.patch        | 1580 ++++++++++++++++++++++++--------
-#    3 files changed, 1243 insertions(+), 376 deletions(-)
+#    .claude/task/rendered_page_evidence.md |   17 +-
+#    .claude/task/review.md                 |   30 +-
+#    .claude/task/review_input.patch        | 1619 +++++++++++++++++++++++++-------
+#    4 files changed, 1318 insertions(+), 375 deletions(-)
 # ============================================================================
