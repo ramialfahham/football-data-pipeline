@@ -1,0 +1,21 @@
+version: 2
+
+models:
+  - name: int_standings__section_kinds
+    description: >
+      What kind of table each standings section is. One row per distinct section name in
+      fct_standings, with the kind of the first standings_table_kinds pattern by priority that
+      matches it, and league where none does. mart_standings and the position at a number of
+      matches read it. Grain: (group_name).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [group_name]
+    columns:
+      - name: group_name
+        description: "The standings section's name as the provider gives it: the league's name, a group, a conference or a round of a split season."
+      - name: table_kind
+        description: "The section's kind: league, group, conference, split_round or ranking."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["league", "group", "conference", "split_round", "ranking"]

@@ -768,6 +768,36 @@ def test_a_sampled_team_export_scopes_its_competitions_to_the_sample(monkeypatch
     assert "team_sk in (1)" in comp_sql
 
 
+def test_the_team_payload_lists_its_recent_matches_newest_first():
+    rows = [{"team_sk": 165, "season_api_year": 2026, "league_code": "BL1", "team_name": "Dortmund"}]
+    recent = [
+        {"upcoming_fixture_sk": None, "team_sk": 165, "league_code": None, "is_home": None,
+         "entity_type": "club", "season_api_year": 2026, "window_type": "last_5", "recency_rank": r,
+         "played_fixture_sk": 900 + r, "played_league_code": "BL1", "result": res}
+        for r, res in [(2, "D"), (1, "W"), (3, "L")]
+    ]
+    p = shape_team_payload(_mark_featured(rows), recent_rows=recent)
+    assert [m["played_fixture_sk"] for m in p["recent_matches"]] == [901, 902, 903]
+    assert set(p["recent_matches"][0]) == {"recency_rank", "played_fixture_sk", "played_league_code", "result"}
+    assert shape_team_payload(_mark_featured(rows))["recent_matches"] == []
+
+
+def test_a_sampled_team_export_reads_the_team_window_of_the_sample(monkeypatch):
+    profile = [{"team_sk": 1, "season_api_year": 2026, "league_code": "PL", "team_name": "City",
+                "is_featured_season": True}]
+    seen = []
+
+    def fake_query(client, sql):
+        seen.append(sql)
+        return profile if "mart_team_profile" in sql else []
+
+    monkeypatch.setattr(export_site_data, "_query", fake_query)
+    export_site_data.fetch_team_payloads(client=None, sample=1)
+    recent_sql = next(s for s in seen if "mart_team_momentum_window" in s)
+    assert "upcoming_fixture_sk is null" in recent_sql
+    assert "team_sk in (1)" in recent_sql
+
+
 def test_a_sampled_team_export_reads_every_club_for_the_strip(monkeypatch):
     # A sample run scopes most queries to the sampled teams, but the strip shows the whole league,
     # so the benchmark query must read every club.

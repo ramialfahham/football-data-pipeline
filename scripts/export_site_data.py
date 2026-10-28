@@ -339,9 +339,12 @@ def shape_team_payload(
     career_rows: list[dict] | None = None,
     strip_index: dict | None = None,
     competition_rows: list[dict] | None = None,
+    recent_rows: list[dict] | None = None,
 ) -> dict:
     """One team's mart_team_profile rows (+ mart_team_fixtures + mart_roster +
     mart_team_competition_benchmarks rows) -> the team page payload.
+
+    recent_rows: that team's team-window rows of mart_team_momentum_window (its last five matches).
 
     profile_rows: every (team, competition-season) profile row for a single team_sk.
     fixture_rows: that team's mart_team_fixtures rows (next + last-5 per season; GAP-15).
@@ -457,6 +460,10 @@ def shape_team_payload(
         "crest": featured.get("team_logo_url"),
         "founded_year": featured.get("team_founded_year"),
         "venue": _venue_block(featured),
+        "recent_matches": [
+            _drop(r, _FW_DROP | {"league_code", "is_home"})
+            for r in sorted(recent_rows or [], key=lambda r: r["recency_rank"])
+        ],
         "seasons": seasons_out,
     }
 
@@ -1090,11 +1097,18 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
     else:
         comp_sql = f"select * from {comp_table}"
     comp_by_team = _group_by(_query(client, comp_sql), "team_sk")
+    # Recent matches: the team window of mart_team_momentum_window, scoped like the roster.
+    recent_sql = (f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_team_momentum_window` "
+                  f"where upcoming_fixture_sk is null")
+    if sample:
+        id_list = ", ".join(str(int(t)) for t in team_ids)
+        recent_sql += f" and team_sk in ({id_list})"
+    recent_by_team = _group_by(_query(client, recent_sql), "team_sk")
     return [
         shape_team_payload(
             grouped[t], fixtures_by_team.get(t, []), roster_by_team.get(t, []),
             bench_by_team.get(t, []), scatter_idx, career_by_team.get(t, []), strip_idx,
-            comp_by_team.get(t, []),
+            comp_by_team.get(t, []), recent_by_team.get(t, []),
         )
         for t in team_ids
     ]

@@ -6,7 +6,10 @@ models:
       WHICH past matches count as a side's recent form. One row per (upcoming fixture side,
       selected match). Grain: (upcoming_fixture_sk, team_sk, leg_fixture_sk). Every played
       fixture is also a window of one for each side (window_type match): there
-      upcoming_fixture_sk and leg_fixture_sk both hold that played fixture.
+      upcoming_fixture_sk and leg_fixture_sk both hold that played fixture. Every team with a
+      finished match also has a team window (upcoming_fixture_sk empty, window_type last_5): its
+      last five finished matches before now, a club's in the season of its latest one, for the
+      Team page; the form aggregates leave it out.
 
       {{ doc('window_type__form') }}
 
@@ -20,9 +23,11 @@ models:
           name: momentum_window_team_recency_rank_capped_for_last_5
     columns:
       - name: upcoming_fixture_sk
-        description: "{{ doc('upcoming_fixture_sk') }} On a match window (window_type match) it holds the played fixture itself."
+        description: "{{ doc('upcoming_fixture_sk') }} On a match window (window_type match) it holds the played fixture itself; empty on the team window."
         tests:
-          - not_null
+          - not_null:
+              config:
+                where: "window_type != 'last_5'"
           - relationships:
               to: ref('fct_fixture')
               field: fixture_sk

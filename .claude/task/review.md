@@ -1,31 +1,36 @@
-# Review — feat/235-team-competitions — 2026-10-28
+# Review — feat/235-team-form — 2026-10-28
 
-diff_sha256: f0763a66740c37b810f9c13b100bf17607ee72b427c9a40aacc9d8c67257adf2
+diff_sha256: 2b7bdae7976b4209bf604c10134ec3f5d405275a9f284b81fde1de8bad04f475
 
-rounds: 4
-
-rounds_cap_override: approved in chat, 2026-10-28; the fourth round reviewed only the one-tie rule for winners the MR data build called for.
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every changed path is in scope_paths; approved_design names the Team page, whose payload gains the competitions rows on the featured season.
-- The block order quotes #134; the round kinds, the third-place rule and the winners rule are recorded readings of #134's cup rule.
+- Every changed path is in scope_paths, the two generator files added by the amendment; approved_design names the Team page.
+- The points_rank row, rule R7's text and the column name points_rank_prev_season are named as approved in chat, 2026-10-28.
 - The impact map carries the measured lineage; no secret, no new mechanism or run cadence.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- A tie is decided over its legs, then by the last leg's shoot-out or award; an FA Cup draw stays undecided until its replay.
-- A third-place match is not the round reached; winners need a final of one tie outside a qualifying competition; the standing reads the section named in the latest round.
-- Grain and joins hold; the mart reads its own layer as precedent allows; each new test can fail.
+- The computed position is the catalogue metric points_rank, which R7 names; a range test pins it to a place, empty where the previous season is.
+- The team window's empty upcoming fixture is left out by every form aggregate and test that reads the window; its own test recomputes it.
+- The ranking has its grain test and cannot fan out; mart_standings reads the section kinds with its coalesce kept.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- The export carries the competitions rows on the featured season, scoped to the sample; both tests fail on revert.
-- The seed's new last column leaves the copy gate's reading unchanged; the singular tests fail closed.
+- The export carries recent_matches from the team window, scoped to the sample; both tests fail on revert.
+- The generator's prev_season phrase is split with its words unchanged; the pin drops to the measured 15 and fails both ways.
 - No dependency, credential, workflow or hosting change.
+
+## football-analytics-expert-reviewer
+VERDICT: PASS
+risks_checked:
+- points_rank's description matches the model's order: points, then goal difference, then goals scored, level teams sharing a place.
+- The row is model-computed, an integer, lower is better, in outcomes like league_rank and deserved_rank.
+- The description is a plain definition; the empty case sits in the column note, not the row.
 
 ## escalations
 (none)

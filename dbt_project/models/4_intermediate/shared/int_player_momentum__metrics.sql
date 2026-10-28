@@ -30,7 +30,7 @@ with window_legs as (
         window_type,
         leg_fixture_sk
     from {{ ref('int_team_momentum_window') }}
-    where window_type != 'match'
+    where window_type != 'match' and upcoming_fixture_sk is not null
 ),
 
 -- A team match with no player data at all: nobody knows who played or what they did, so every player

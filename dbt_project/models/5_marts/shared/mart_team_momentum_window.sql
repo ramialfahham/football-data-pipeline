@@ -4,6 +4,8 @@
   un-aggregated — one row per (upcoming fixture side, past match), newest first.
   window_type (last_5 / tournament_to_date / qualifiers, GAP-18) is carried from the
   selection; tournament windows are cumulative, so a side can have more than five rows.
+  The team window (upcoming_fixture_sk NULL) lists a team's last 5 matches for the Team page,
+  with no upcoming fixture, so its league_code and is_home are NULL.
 
   played_fixture_sk is the click-through key into the played match: its window of one in
   mart_team_window_metrics and its players in mart_player_fixture_stats. has_team_stats /
@@ -76,7 +78,7 @@ select
     tc.fixture_sk is not null as has_team_stats,
     pc.fixture_sk is not null as has_player_stats
 from window_legs as wl
-inner join fixtures as f
+left join fixtures as f
     on wl.upcoming_fixture_sk = f.fixture_sk
 left join opponents as opp
     on wl.opponent_team_sk = opp.team_sk

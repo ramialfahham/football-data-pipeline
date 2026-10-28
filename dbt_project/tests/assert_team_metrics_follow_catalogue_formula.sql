@@ -110,6 +110,7 @@ momentum_rows as (
     from {{ ref('int_team_momentum_window') }} as w
     inner join legs
         on w.leg_fixture_sk = legs.fixture_sk and w.team_sk = legs.team_sk
+    where w.upcoming_fixture_sk is not null
 ),
 
 window_mart_rows as (

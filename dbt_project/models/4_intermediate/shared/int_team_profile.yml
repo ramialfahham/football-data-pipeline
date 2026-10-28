@@ -8,7 +8,8 @@ models:
       DOMESTIC LEAGUES ONLY.
 
       Carries the three scoreline totals and every rate metric, each as _this_season,
-      _prev_season and _delta_yoy.
+      _prev_season and _delta_yoy. It also carries last season's position at the cutoff,
+      points_rank_prev_season.
 
       Aligned by GAMES PLAYED, not by matchday: parsed round numbers collide across phases in a
       multi-phase format, so games played is the only key safe for every competition shape.
@@ -34,6 +35,9 @@ models:
       - dbt_utils.expression_is_true:
           expression: "(goals_per_match_this_season is null or goals_per_match_this_season >= 0) and (goals_against_per_match_this_season is null or goals_against_per_match_this_season >= 0) and (shots_per_match_this_season is null or shots_per_match_this_season >= 0) and (shots_on_goal_per_match_this_season is null or shots_on_goal_per_match_this_season >= 0) and (duels_per_match_this_season is null or duels_per_match_this_season >= 0) and (defensive_actions_per_match_this_season is null or defensive_actions_per_match_this_season >= 0) and (passes_per_match_this_season is null or passes_per_match_this_season >= 0) and (passes_key_per_match_this_season is null or passes_key_per_match_this_season >= 0) and (corners_per_match_this_season is null or corners_per_match_this_season >= 0) and (corners_against_per_match_this_season is null or corners_against_per_match_this_season >= 0) and (goals_per_match_prev_season is null or goals_per_match_prev_season >= 0) and (goals_against_per_match_prev_season is null or goals_against_per_match_prev_season >= 0) and (shots_per_match_prev_season is null or shots_per_match_prev_season >= 0) and (shots_on_goal_per_match_prev_season is null or shots_on_goal_per_match_prev_season >= 0) and (duels_per_match_prev_season is null or duels_per_match_prev_season >= 0) and (defensive_actions_per_match_prev_season is null or defensive_actions_per_match_prev_season >= 0) and (passes_per_match_prev_season is null or passes_per_match_prev_season >= 0) and (passes_key_per_match_prev_season is null or passes_key_per_match_prev_season >= 0) and (corners_per_match_prev_season is null or corners_per_match_prev_season >= 0) and (corners_against_per_match_prev_season is null or corners_against_per_match_prev_season >= 0)"
           name: team_profile_yoy_per_match_rates_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "points_rank_prev_season is null or (points_rank_prev_season >= 1 and games_played_prev is not null)"
+          name: team_profile_yoy_points_rank_is_a_place
     columns:
       - name: team_sk
         description: "{{ doc('team_sk') }}"
@@ -95,6 +99,8 @@ models:
         description: "{{ doc('corners_against_per_match_this_season__team') }}"
       - name: saves_pct_this_season
         description: "{{ doc('saves_pct_this_season__team') }}"
+      - name: points_rank_prev_season
+        description: "{{ doc('points_rank_prev_season__team') }} Empty where last season's table was split into rounds or listed a team in more than one section."
       - name: points_prev_season
         description: "{{ doc('points_won') }} Here, the previous season through the same games-played cutoff N."
       - name: goals_for_prev_season
