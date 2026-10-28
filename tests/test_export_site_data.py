@@ -15,6 +15,7 @@ from scripts.export_site_data import (
     _shape_team_benchmark_member,
     build_manifest,
     deserved_scatter_index,
+    league_strip_index,
     build_nav,
     fetch_glossary,
     group_fixtures_by_round,
@@ -705,6 +706,59 @@ def test_shape_team_payload_attaches_deserved_scatter_and_flags_self():
     assert sum(1 for d in sc if d["is_self"]) == 1          # exactly one self
 
 
+def test_league_strip_lists_every_club_of_the_featured_season_and_flags_self():
+    rows = [
+        {"team_sk": 2, "season_api_year": 2025, "league_code": "PL", "team_name": "Forest"},
+        {"team_sk": 2, "season_api_year": 2024, "league_code": "PL", "team_name": "Forest"},
+    ]
+    bench = [
+        {"team_sk": t, "team_name": n, "league_code": "PL", "season_api_year": y,
+         "metric_key": k, "metric_value": v}
+        for y in (2024, 2025)
+        for t, n, k, v in [(2, "Forest", "goals_per_match", 1.2), (1, "City", "goals_per_match", 2.4),
+                           (1, "City", "fouls_per_match", 9.0), (2, "Forest", "fouls_per_match", 12.0)]
+    ]
+    idx = league_strip_index(bench)
+    p = shape_team_payload(_mark_featured(rows), strip_index=idx)
+    featured, other = p["seasons"]
+    assert [m["metric_key"] for m in featured["league_strip"]] == ["fouls_per_match", "goals_per_match"]
+    goals = featured["league_strip"][1]["clubs"]
+    assert goals == [{"name": "City", "value": 2.4, "is_self": False},
+                     {"name": "Forest", "value": 1.2, "is_self": True}]
+    assert "league_strip" not in other
+
+
+def test_a_sampled_team_export_reads_every_club_for_the_strip(monkeypatch):
+    # A sample run scopes most queries to the sampled teams, but the strip shows the whole league,
+    # so the benchmark query must read every club.
+    profile = [
+        {"team_sk": t, "season_api_year": 2025, "league_code": "PL", "team_name": n,
+         "is_featured_season": True}
+        for t, n in [(1, "City"), (2, "Forest")]
+    ]
+    bench = [
+        {"team_sk": t, "team_name": n, "league_code": "PL", "season_api_year": 2025,
+         "metric_key": "goals_per_match", "metric_value": v}
+        for t, n, v in [(1, "City", 2.4), (2, "Forest", 1.2)]
+    ]
+    seen = []
+
+    def fake_query(client, sql):
+        seen.append(sql)
+        if "mart_team_profile" in sql:
+            return profile
+        if "mart_team_competition_benchmarks" in sql:
+            return bench
+        return []
+
+    monkeypatch.setattr(export_site_data, "_query", fake_query)
+    payloads = export_site_data.fetch_team_payloads(client=None, sample=1)
+    bench_sql = next(s for s in seen if "mart_team_competition_benchmarks" in s)
+    assert "where" not in bench_sql.lower()
+    clubs = payloads[0]["seasons"][0]["league_strip"][0]["clubs"]
+    assert [c["name"] for c in clubs] == ["City", "Forest"]
+
+
 def test_shape_team_payload_no_scatter_when_season_not_fittable():
     # a season with no deserved value (not in the index) -> no deserved_scatter key (absent state)
     rows = [{"team_sk": 9, "season_api_year": 2026, "league_code": "WC",
@@ -877,10 +931,11 @@ def test_shape_team_benchmark_member_carries_mart_columns():
         "league_code": "BL1", "season_api_year": 2025, "metric_key": "goals_per_match",
         "metric_value": 2.2, "league_mean": 1.6, "league_median": 1.5,
         "league_p25": 1.1, "league_p75": 2.0, "team_count": 18, "rank": 3,
-        "vs_median_delta": 0.7,
+        "vs_median_delta": 0.7, "metric_value_prev_season": 1.9,
     })
     assert m == {
-        "metric_key": "goals_per_match", "metric_value": 2.2, "rank": 3, "team_count": 18,
+        "metric_key": "goals_per_match", "metric_value": 2.2, "metric_value_prev_season": 1.9,
+        "rank": 3, "team_count": 18,
         "league_median": 1.5, "league_p25": 1.1, "league_p75": 2.0, "vs_median_delta": 0.7,
     }
     # internal keys + league_mean (unbound by the screen) are not carried

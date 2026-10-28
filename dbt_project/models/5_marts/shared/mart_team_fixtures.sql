@@ -10,8 +10,8 @@
   fixture, recency_rank <= 5 the last five results — no window logic in any
   frontend.
 
-  Rows exist for every fixture; ranks are populated only for scheduled (NS/TBD)
-  and finished-with-leg fixtures. Live / postponed / cancelled rows carry null
+  Rows exist for every fixture; ranks are populated only for scheduled (NS/TBD,
+  dated today or later) and finished-with-leg fixtures. Live / postponed / cancelled rows carry null
   ranks (no honest place in "next" or "recent results").
 
   No slug column: the published fixture URL identity is a separate product
@@ -100,7 +100,8 @@ joined as (
         -- non-null scores). This — not raw status — is the honest "show in recent
         -- results" population; a finished fixture with null scores has no leg.
         l.fixture_sk is not null as has_result,
-        s.status_short in ('NS', 'TBD') as is_upcoming
+        -- a scheduled fixture whose date has passed is stale, never the next match
+        s.status_short in ('NS', 'TBD') and date(s.kickoff_datetime) >= current_date() as is_upcoming
     from sides as s
     left join teams as t
         on s.opponent_team_sk = t.team_sk

@@ -730,6 +730,9 @@ models:
       - dbt_utils.expression_is_true:
           expression: "points_capture_pct is null or (points_capture_pct between 0 and 1)"
           name: team_profile_points_capture_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "(cards_yellow is null or cards_yellow >= 0) and (cards_red is null or cards_red >= 0)"
+          name: team_profile_card_totals_non_negative
       # GAP-13 season variant of the duel win rate — same-window ratio bound
       - dbt_utils.expression_is_true:
           expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
@@ -921,6 +924,62 @@ models:
         description: "{{ doc('deserved_points_gap') }}"
       - name: deserved_points_gap_rank
         description: "{{ doc('deserved_points_gap_rank') }}"
+      - name: cards_yellow
+        description: "{{ doc('cards_yellow') }}"
+      - name: cards_red
+        description: "{{ doc('cards_red') }}"
+      - name: longest_unbeaten_run
+        description: "The team's longest run of matches without a defeat in this competition-season, from int_team_season__longest_runs; NULL below two matches."
+      - name: longest_winless_run
+        description: "The team's longest run of matches without a win in this competition-season, from int_team_season__longest_runs; NULL below two matches."
+      - name: biggest_win_fixture_sk
+        description: "The team's biggest win this season across its competitions (the widest winning margin, from int_team_season__biggest_results); NULL without a win."
+        tests:
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: biggest_win_league_code
+        description: "The competition of the biggest win."
+      - name: biggest_win_opponent_team_sk
+        description: "The opponent in the biggest win."
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: biggest_win_opponent_name
+        description: "The opponent's name in the biggest win, from dim_team."
+      - name: biggest_win_home_away
+        description: "Whether the team played the biggest win at home or away."
+      - name: biggest_win_goals_for
+        description: "The team's goals in the biggest win."
+      - name: biggest_win_goals_against
+        description: "The opponent's goals in the biggest win."
+      - name: biggest_win_kickoff_datetime
+        description: "The biggest win's kickoff, UTC."
+      - name: heaviest_defeat_fixture_sk
+        description: "The team's heaviest defeat this season across its competitions (the widest losing margin, from int_team_season__biggest_results); NULL without a defeat."
+        tests:
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: heaviest_defeat_league_code
+        description: "The competition of the heaviest defeat."
+      - name: heaviest_defeat_opponent_team_sk
+        description: "The opponent in the heaviest defeat."
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: heaviest_defeat_opponent_name
+        description: "The opponent's name in the heaviest defeat, from dim_team."
+      - name: heaviest_defeat_home_away
+        description: "Whether the team played the heaviest defeat at home or away."
+      - name: heaviest_defeat_goals_for
+        description: "The team's goals in the heaviest defeat."
+      - name: heaviest_defeat_goals_against
+        description: "The opponent's goals in the heaviest defeat."
+      - name: heaviest_defeat_kickoff_datetime
+        description: "The heaviest defeat's kickoff, UTC."
       - name: team_founded_year
         description: "Club founded year, from dim_team. Nullable — sparse in the provider feed."
       - name: venue_name
@@ -3025,7 +3084,7 @@ models:
       - name: has_result
         description: "True when a finished result is attached to this fixture. It is NOT the opposite of is_upcoming: a postponed, abandoned or cancelled fixture is false on both, so test the flag you mean rather than negating the other one."
       - name: is_upcoming
-        description: "True when the fixture is still to be played - the provider has it as not started or its date is still to be confirmed. It is NOT the opposite of has_result: a postponed or abandoned fixture is false on both."
+        description: "True when the fixture is still to be played - the provider has it as not started or its date is still to be confirmed, and its date is today or later. It is NOT the opposite of has_result: a postponed or abandoned fixture is false on both."
       - name: upcoming_rank
         description: "1 for this team's next fixture in this competition-season, 2 for the one after, and so on by kickoff time. NULL for any fixture that is not upcoming, so the ranks run 1..n over upcoming fixtures alone with no gaps."
       - name: recency_rank
@@ -3105,11 +3164,12 @@ models:
   - name: mart_team_competition_benchmarks
     description: >
       Where a team sits against its own league on each team metric: its value, the league median
-      and mean, the p25/p75 spread, its rank out of team_count, and its distance from the median.
-      Long-shaped, one row per (team, season, metric). Grain: (team_sk, season_sk, metric_key).
+      and mean, the p25/p75 spread, its rank out of team_count, its distance from the median and
+      its value at the same point last season. Long-shaped, one row per (team, season, metric).
+      Grain: (team_sk, season_sk, metric_key).
 
-      DIRECTION-AGNOSTIC: rank is by value descending, so rank 1 is the highest value and not
-      necessarily the best. The good/bad reading comes from the metric's catalogue direction.
+      rank follows the metric's catalogue direction: for a lower_better metric rank 1 is the lowest
+      value, for every other metric the highest. Tied values share a rank.
 
       Median-led and ranked rather than percentiled, which stays honest at around 18 teams.
       Season-to-date.
@@ -3159,11 +3219,11 @@ models:
         description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: metric_key
-        description: "The benchmarked metric — a metric_catalogue team metric_id (the 22-metric set)."
+        description: "The benchmarked metric — a metric_catalogue team metric_id (the benchmark metric set)."
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shots_on_goal_pct", "shots_inside_box_pct", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match", "finishing_efficiency_pct", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "passes_accuracy_pct", "passes_key_per_match", "corners_per_match", "corners_against_per_match", "saves_pct"]
+              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "clean_sheets_pct", "shots_per_match", "shots_on_goal_pct", "shots_inside_box_pct", "shots_inside_box_per_match", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match", "finishing_efficiency_pct", "duels_per_match", "duels_won_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "passes_accurate_per_match", "passes_accuracy_pct", "passes_share_pct", "passes_key_per_match", "dribbles_attempts_per_match", "dribbles_success_per_match", "dribbles_success_pct", "corners_per_match", "corners_against_per_match", "free_kicks_per_match", "fouls_per_match", "offsides_per_match", "saves_per_match", "saves_pct", "cards_yellow", "cards_red"]
       - name: metric_value
         description: "The team's season-to-date value for this metric (always present — null values are not ranked)."
         tests: [not_null]
@@ -3178,8 +3238,10 @@ models:
       - name: team_count
         description: "N — teams ranked for this metric this league-season."
         tests: [not_null]
+      - name: metric_value_prev_season
+        description: "The team's value at the same point last season (rule R6): the previous season's latest match at or before this season's match count, domestic leagues only; null otherwise."
       - name: rank
-        description: "Rank by value desc (1 = highest), k of team_count. Positional — orient with the catalogue direction at display."
+        description: "Rank by the metric's catalogue direction (lower_better: 1 = lowest value, otherwise 1 = highest), k of team_count; tied values share a rank."
         tests: [not_null]
       - name: vs_median_delta
         description: "value - league_median."
