@@ -131,7 +131,7 @@ keeps the earlier widths, 680px and 1100px, through the `legacyWidth` prop of `L
 |---|------|--------|-------------|----|
 | 01 | [01_fixture_page.md](01_fixture_page.md) | Fixture page ⭐ | **spec'd** | 1 |
 | — | [metrics_display.md](metrics_display.md) | Metric display contract (team + player, LOCKED) | **ruled** | 1 |
-| 02 | [02_team_profile.md](02_team_profile.md) | Team profile ⭐ | **spec'd** | 2 |
+| 02 | [02_team_profile.md](02_team_profile.md) | Team page | **approved on [its GitLab issue](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/134)** — the authority for the page | 2 |
 | 03 | [03_player_profile.md](03_player_profile.md) | Player profile ⭐ | **spec'd** | 2 |
 | 04 | 04_competition_hub.md | Competition page: Overview · Matchdays · Rankings | **Fully approved on GitLab #129** ("The approved design", three tabs) — the authority for the page. No wireframe file: the issue's block list and its data-model tables are the field contract; the elements and their measurements are [block_standard.md](block_standard.md). Built: the Overview (#149), the Matchdays tab (#150) and the Rankings tab (#151), each at its address word ([site_architecture.md](../site_architecture.md) "Address words") | 3 |
 | 05 | 05_leaderboards.md | Leaderboards + per-metric stats pages | pending | 3 |
