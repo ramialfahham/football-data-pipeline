@@ -1,40 +1,32 @@
-# Review — feat/148-round-names — 2026-10-26
+# Review — feat/226-metric-names — 2026-10-28
 
-diff_sha256: 2d5da537d2cdab53acb1adb44da01738b6f5bb41696c16ea40bb8583cb16470b
+diff_sha256: d5d8b6616b7e92bc88a7991ceb65054ed9f755b54aa5b000a5d81b7979fdba08
 
-rounds: 4
-
-rounds_cap_override: approved in chat, 2026-10-26; the fourth round reviewed only the committed sample's round fields, read from this branch's own warehouse build, with no finding open.
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every changed path is in scope_paths; approved_design names the competition page and the match page, whose matchday wording changes with compFactMatchday as the plan approved.
-- The round names are the per-competition names approved in chat; the cup rows with no name add no copy and fit the reading that a cup's early rounds are named per season.
-- The amendments record their authority; the new seed, model and warn test are declared; the only recurring cost is a join on a small seed.
-- The committed BL1 sample gains only the three served round fields per round and the current round, read from the MR's own warehouse build; no other field changes.
-
-## analytics-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- int_round_names is unique on (league_code, season_api_year, round_name), one match per text by season row, competition row, general row, then priority; the mart joins use that key and cannot fan out.
-- A cup's season-dependent round in a new season resolves to no name, not a plausible wrong one; the warn test with stored failures reports it without skipping the marts downstream.
-- Seed tests, regexes with one capture group, layer rules and descriptions hold; no competition identifier is hardcoded in model SQL.
-
-## platform-reviewer
-VERDICT: PASS
-risks_checked:
-- Tests fail on revert for the export wiring: the fixture shape and page meta select and carry the round name key, number and letter.
-- check_copy_gate.py reads round_names.csv and stays fail-closed; a blank key is skipped as before; the decision-history pin moves by the one removed comment.
-- roundName.mjs is pure and tested; the CSS change adds no asset or request; no dependency, workflow or credential change.
+- Every changed path is in scope_paths; approved_design names the competition page, Home and the match page, where the renamed labels show.
+- The Team page, which has no approved design yet, is covered by an amendment recording the CPO's ruling in chat with its authority and date.
+- The names and sentences are the approved list; the point-count helper only chooses between two count forms and adds no wording.
+- No new dependency, mechanism or recurring cost; the decision-history pin moves only by the removed comment lines.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Every field the header and picker render is served by the export; no page reads the provider's round text where a name is shown.
-- Numbers are bound to their words with no-break spaces; the picker title wraps at normal spaces, so the longest names fit at 320px without sideways scroll.
-- The committed sample carries exactly the keys the export emits with served values, its current round matching its own next round.
-- The rendered evidence states the built HTML, the inventory at 375, 700 and 1010px and the long-name measurements, and that no screenshot was taken.
+- Every new METRIC_LABELS key is a label_i18n_key the catalogue declares; the components read only served fields, and no sample data changed.
+- Every new placeholder is filled by its caller; no unfilled placeholder reaches a built page.
+- The German verdict's noun agrees with the gap as shown ("1 Punkt"); the test pins the helper and the component's call.
+- The rendered evidence states the built HTML, the measurements at 375 and 1010px and the inventory, and that no screenshot was taken.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- The name check fails on main's strings, reads every key including several on one line, and proves its matcher finds a name.
+- The uniqueness check proves it finds a planted collision and compares more than 150 names.
+- pointCount() is pure and tested in EN, DE and FI; the component's use of it and of the shown gap is text-pinned.
+- The tests are read-only and fail closed; no dependency, workflow, credential or hosting change.
 
 ## escalations
 (none)

@@ -1,15 +1,15 @@
 ---
 // The Deserved points table on the competition page: the block name, the explanation, then every
 // team of the season in one table in the served deserved order (mart_team_profile: deserved_rank,
-// shots_on_goal_difference_per_match, deserved_points, points, deserved_points_gap). The columns
-// read # · club · Balance · Deserved · Pts · Diff; Deserved is the number the table is ordered by
-// and carries the ordered-by style. The gap is the catalogue's, actual minus deserved, signed. The
-// whole row links to the team page. Renders nothing unless the model fitted this competition.
+// shots_on_goal_difference_per_match, deserved_points, points, deserved_points_gap). The heads are
+// the catalogue's names of those four metrics; deserved points is the number the table is ordered
+// by and carries the ordered-by style. The gap is the catalogue's, actual minus deserved, signed.
+// The whole row links to the team page. Renders nothing unless the model fitted this competition.
 import Crest from "../ui/Crest.astro";
 import SectionHead from "../ui/SectionHead.astro";
 import { decimal1, integer, signedDelta } from "../../lib/format";
 import type { Lang } from "../../lib/format";
-import { t } from "../../i18n/strings";
+import { t, metricLabel, metricInSentence } from "../../i18n/strings";
 import { localeHref, word } from "../../lib/href";
 import type { DeservedRow } from "../../lib/types";
 
@@ -19,20 +19,34 @@ interface Props {
 }
 const { deserved, lang } = Astro.props;
 const rows = deserved.filter((row) => row.deserved_rank != null);
+
+const SOTD = "metrics.shots_on_goal_difference_per_match.label";
+const DESERVED = "metrics.deserved_points.label";
+const heads = [
+  { name: metricLabel(lang, SOTD), sub: t(lang, "perMatch") },
+  { name: metricLabel(lang, DESERVED), sub: "" },
+  { name: metricLabel(lang, "metrics.points_won.label"), sub: "" },
+  { name: metricLabel(lang, "metrics.deserved_points_gap.label"), sub: "" },
+];
+const names = {
+  deservedName: metricLabel(lang, DESERVED),
+  sotdName: metricInSentence(lang, SOTD),
+  sotdNameStart: metricLabel(lang, SOTD),
+  sotName: metricInSentence(lang, "metrics.shots_on_target_per_match.label"),
+};
 ---
 
 {rows.length > 0 && (
   <section>
-    <SectionHead label={t(lang, "compSecDeserved")} />
-    <p class="bsub">{t(lang, "compDeservedExplainer")}</p>
+    <SectionHead label={t(lang, "compSecDeserved", names)} />
+    <p class="bsub">{t(lang, "compDeservedExplainer", names)}</p>
     <div class="ctab dpt">
       <div class="ctab-head">
         <span class="h rk">{t(lang, "compColPos")}</span>
         <span class="h nmh"></span>
-        <span class="h">{t(lang, "compColBalance")}</span>
-        <span class="h">{t(lang, "compColDeserved")}</span>
-        <span class="h">{t(lang, "compColPoints")}</span>
-        <span class="h">{t(lang, "compColDiff")}</span>
+        {heads.map((h) => (
+          <span class="h">{h.name}{h.sub && <span class="hs">{h.sub}</span>}</span>
+        ))}
       </div>
       {rows.map((row) => (
         <a class="ctab-row" href={row.slug ? localeHref(lang, `${word(lang, "teams")}/${row.slug}/`) : undefined}>

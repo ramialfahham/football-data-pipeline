@@ -288,13 +288,8 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
 .hero .verdict b { color: var(--ink); font-weight: 700; }
 .hero .heronums { display: flex; gap: 8px; margin: 0 0 18px; }
 .hero .hn { flex: 1; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; min-width: 0; display: flex; flex-direction: column; }
-/* `overflow-wrap: anywhere` (#370): metric names are localised now, and
-   German and Finnish build single long compounds where English uses several short words. MEASURED at
-   375px, where this box is 71px: `Ø Maalilaukaukset` needs 78 and `Ø Torschussdifferenz` needs 89, so
-   the text ran into the tile's padding with nowhere to break — the default `overflow-wrap: normal`
-   plus `hyphens: manual` gives a 16-character compound no break opportunity at all. `anywhere` rather
-   than `break-word` because it also lowers min-content width, which is what a flex item with
-   `min-width: 0` actually sizes against. Every future compounding locale (Dutch next) needs this. */
+/* A German or Finnish compound in a metric name can be wider than this tile on a phone; `anywhere`
+   breaks it and also lowers the min-content width a flex item with `min-width: 0` sizes against. */
 .hero .hn .hl { font-size: 11px; color: var(--muted); line-height: 1.3; overflow-wrap: anywhere; }
 .hero .hn .hl .hs { display: block; opacity: .8; }
 .hero .hn .hv { font-size: 17px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; margin-top: auto; padding-top: 8px; }
@@ -907,8 +902,12 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 /* A group opening the block after its explainer carries no space of its own either. */
 .bsub + .fxgroup { margin-top: 0; }
 /* Two more table kinds, each one fixed track list. `.dpt`: the Overview's deserved points table
-   (# · club · Balance · Deserved · Pts · Diff); the ordered-by number keeps the accent. */
-.ctab.dpt, .ctab.dpt.ctab { --cols: 2rem minmax(0, 1fr) 3.6rem 4.2rem 2.6rem 3.2rem; }
+   (# · club · four metrics named in full); the ordered-by number keeps the accent. Its four equal
+   number tracks shrink on a narrow screen, and a long head wraps and hyphenates. */
+.ctab.dpt, .ctab.dpt.ctab { --cols: 2rem minmax(0, 1fr) repeat(4, minmax(3.6rem, 4.6rem)); }
+.ctab.dpt .ctab-head { align-items: end; }
+.ctab.dpt .h { hyphens: auto; overflow-wrap: anywhere; line-height: 1.25; letter-spacing: 0; }
+.ctab.dpt .h .hs { display: block; font-weight: 600; }
 /* A board is a single-value table: the Table's striped rows and grid (# · crest name · value), one
    fixed track list; the board's name is the head, with its chevron, and its rule the only line.
    A player's row carries the club under the name. */

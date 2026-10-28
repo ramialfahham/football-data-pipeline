@@ -1,50 +1,32 @@
-# Task contract — the round in the competition header, in the page's language
+# Task contract — metric names on screen come only from the catalogue label
 
 objective: >
-  The warehouse names every round of a competition's latest season by the competition's own name
-  in EN, DE and FI: a seed of whole-round patterns, the competition's (and where its format
-  changes yearly, the season's) own row before the general one, each giving a copy key and the
-  number or group letter it shows; a test fails on a latest-season round text no pattern covers.
-  The marts serve the key and values per fixture and the competition's current round; the export
-  carries them; the competition header's round and the Matchdays picker render them, so no
-  provider English reaches those places.
+  Every on-screen name of a catalogue metric comes from METRIC_LABELS through its label_i18n_key:
+  column heads, tiles and axis titles take the label, and a sentence that names a metric in its
+  base form fills it through a placeholder. The competition page's Deserved points table and
+  explainer and the Team page's verdict, caption, axes and last-season heads name the metrics by
+  the catalogue's names in EN, DE and FI. check-metric-labels.test.mjs fails on a page string that
+  spells a catalogue name outside METRIC_LABELS, and on two metrics of one entity that share both
+  name and second line.
 
 refs: >
-  #148 (the requirement; the per-competition round names, researched by an independent football
-  expert, approved in chat, 2026-10-26); #129 (the competition page, design approved); #229 (the
-  season part of the same line).
+  #226 (the requirement; the names and sentences in EN, DE and FI researched by an independent
+  football expert, approved in chat, 2026-10-27; the competition table mock and the DE and FI
+  names of shots on target against, researched the same way, approved in chat, 2026-10-28); #134 (the English names of points_won, deserved_points and deserved_points_gap);
+  #129 (the competition page, design approved).
 
 scope_paths:
-  - dbt_project/seeds/round_names.csv
-  - dbt_project/seeds/schema.yml
-  - dbt_project/models/4_intermediate/shared/int_round_names.sql
-  - dbt_project/models/4_intermediate/shared/int_round_names.yml
-  - dbt_project/tests/assert_every_round_text_resolves.sql
-  - dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
-  - dbt_project/models/5_marts/shared/mart_next_matchday.sql
-  - dbt_project/models/5_marts/shared/mart_competition_index.sql
-  - dbt_project/models/5_marts/shared/shared.yml
-  - scripts/export_site_data.py
-  - scripts/check_copy_gate.py
-  - tests/test_export_site_data.py
-  - tests/test_governance_hooks.py
-  - tests/test_no_decision_history_in_code.py
-  - site_v2/src/lib/roundName.mjs
-  - site_v2/src/lib/roundName.test.mjs
-  - site_v2/src/lib/competitionPayload.mjs
-  - site_v2/src/lib/competitionPayload.test.mjs
-  - site_v2/src/lib/types.ts
   - site_v2/src/i18n/strings.ts
-  - site_v2/src/styles/system.css
-  - site_v2/src/components/competition/CompetitionHeader.astro
-  - site_v2/src/components/competition/MatchdaySchedule.astro
-  - site_v2/src/pages/[[]lang]/[[]competition]/index.astro
-  - site_v2/src/pages/[[]lang]/[[]competition]/[[]matches]/index.astro
+  - site_v2/src/components/competition/DeservedTable.astro
+  - site_v2/src/components/team/DeservedHero.astro
+  - site_v2/src/components/team/YearOverYear.astro
   - site_v2/src/pages/[[]lang]/[[]competition]/[[]stats]/index.astro
   - site_v2/src/specs/competition/index.spec.json
-  - site_v2/src/specs/competition/matches/index.spec.json
   - site_v2/src/specs/competition/stats/index.spec.json
-  - site_v2/src/data/competitions/BL1/2026.json
+  - site_v2/src/specs/teams/team.spec.json
+  - site_v2/src/styles/system.css
+  - site_v2/scripts/check-metric-labels.test.mjs
+  - tests/test_no_decision_history_in_code.py
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -52,52 +34,54 @@ scope_paths:
   - .claude/task/rendered_page_evidence.md
 
 impact_map: >
-  writers: a new seed round_names and a new intermediate int_round_names (one row per distinct
-  fct_fixture league_code, season and round text); mart_competition_fixtures and
-  mart_next_matchday gain round_label_i18n_key, round_number and round_letter;
-  mart_competition_index gains the current round's three; the export carries them in the
-  competition payload (rounds and page meta) and in every file built from the competition fixture
-  shape. downstream: the dbt ls lineage of the three marts is pasted in the evidence before
-  review. The site: the competition header on the Overview, Matchdays and Rankings pages and the
-  Matchdays picker; compFactMatchday's DE and FI text, which the match page also reads.
-  layer_rules: the round text is read in intermediate, served by marts as a copy key and values,
-  rendered by the site; no page reads a round text. deploy_order: the columns reach prod with the
-  nightly after merge; the export carries them on the next deploy:export; deploy:site-v2 is manual.
-  blast_radius: the header's round and the picker's titles; a latest-season round no pattern
-  covers shows no name and is reported by a warn test with stored failures, without skipping the
-  marts downstream.
+  writers: none; the export, the warehouse and the served data are unchanged. downstream: the
+  competition page's Deserved points table (heads and explainer), the Rankings page's search
+  description, the Team page's Deserved vs actual block (verdict, caption, axes, tiles) and its
+  last-season heads, and every place that shows the shots on target names (Finnish: the Form
+  comparison, the boards, the hero tiles). layer_rules: display only; names are looked up by the
+  catalogue's label_i18n_key, no metric fact computed. deploy_order: none; deploy:site-v2 is
+  manual. blast_radius: the strings.ts entries named above and the components that read them; the
+  new METRIC_LABELS entries for points_won, deserved_points, deserved_points_gap, goals and
+  goals_against, and the renamed shots on target, shots on target against and shots on target
+  difference names; the label
+  check, which can fail a build on any page string.
 
 approved_design:
   - competition: #129
+  - home: #127
   - match: #132
 
 acceptance_criteria:
-  - "Every round text of each competition's latest season in fct_fixture resolves through round_names to a copy key, with its number or letter where the name shows one; a singular warn test with stored failures reports any that does not."
-  - "mart_competition_fixtures and mart_next_matchday serve round_label_i18n_key, round_number and round_letter per fixture; mart_competition_index serves the current round's three per competition."
-  - "The competition header's round and the Matchdays picker render the approved per-competition names in EN, DE and FI from the served key and values; no provider round text is shown there."
-  - "check_copy_gate.py requires every round_names copy key in EN, DE and FI."
+  - "The Deserved points table's heads and explainer, the Team page's verdict, caption, axes and last-season heads take every catalogue name in its base form from METRIC_LABELS; no page string repeats one."
+  - "The rendered text is the approved wording in EN, DE and FI: shots on target difference reads Differenz der Schüsse aufs Tor (DE) and Laukausero maalia kohti (FI), shots on target reads Laukaukset maalia kohti (FI), shots on target against reads Zugelassene Schüsse aufs Tor (DE) and Vastustajan laukaukset maalia kohti (FI); Balance, shot balance, Schussbilanz and laukaustase are gone."
+  - "check-metric-labels.test.mjs fails on a page string outside METRIC_LABELS that contains a catalogue name of two or more words or is exactly one, unless listed as not the metric, with its reason."
+  - "check-metric-labels.test.mjs fails when two catalogue metrics of one entity share both name and second line in any locale."
 
 decisions_taken: >
-  The per-competition round names approved in chat, 2026-10-26, as researched; compFactMatchday
-  becomes the Matchday name, so the match page reads the same form. Readings: one seed of
-  whole-round patterns, because German and Finnish join a round's parts differently from English
-  ("3. Gruppenspieltag", "Alkulohko, 3. kierros"); a cup's early rounds are named per season,
-  matched to the organiser's rounds by the fixtures' dates, since the provider's "Round of 128"
-  names different rounds in different seasons; the coverage test reads the latest season of each
-  competition, the season the pages show; the season part stays the payload's served label from
-  #229; the match page's cup rounds and the Team page's fixture rows keep the provider text, a
-  follow-up. No new dependency; the recurring cost is a join of the distinct round texts on a
-  small seed.
+  The names and sentences as approved in chat, 2026-10-27; the competition table with the
+  catalogue names as heads as mocked and approved in chat, 2026-10-28: four equal number columns
+  that shrink on narrow screens, heads that wrap and hyphenate. The Team page has no approved
+  design yet; its verdict, caption, axes, tiles and last-season heads ship the approved wording in
+  their existing layout, approved in chat, 2026-10-28. Home and the match page change only through
+  the renamed labels, in their approved layouts. Readings: a count of points takes the singular
+  for one point; inside a sentence a
+  name takes a small first letter in EN and FI and stays as written in DE; a one-word name inside
+  a sentence is an ordinary word; the Finnish shots on target name is one name for the team and
+  the player metric; a name inflected inside a German or Finnish sentence (Schüssen aufs Tor,
+  laukauserolla maalia kohti) is written in that sentence, and the check cannot match it by
+  spelling; the test's exceptions are exact matches that are not the metric (the standings Goals
+  column, the match page's Goals section, the word after a goal count), each with its reason. The
+  decision-history pin moves down by the comment lines this change removes. No new dependency and
+  no recurring cost.
 
-decisions_reserved: []
+decisions_reserved:
+  - Any metric name or sentence wording beyond the approved list; researched by the football expert before it is put to the CPO.
 
 done_when:
-  - dbt parse, SQLFluff, the offline gates, check_copy_gate.py, pytest and the site node tests pass.
-  - A local build and the dev server show the approved names in the header and the picker in EN, DE and FI.
-  - The MR data build passes, including the round coverage test.
+  - The offline gates, check_copy_gate.py, check-page-specs, the site node tests and pytest pass.
+  - A local build and the dev server show the approved wording in EN, DE and FI at 375px and 1010px.
+  - check_design_inventory.py passes on the local build.
   - Reviewers per review_routing.json pass.
 
 amendments:
-  - "2026-10-26: the parts seed round_parts became the whole-name seed round_names, per competition and season, after the CPO approved the per-competition names in chat; scope_paths, objective, criteria and readings follow."
-  - "2026-10-26: tests/test_no_decision_history_in_code.py joins scope_paths, to lower its pin by the one flagged comment line this change removes from MatchdaySchedule.astro."
-  - "2026-10-26: the match page (#132) joins approved_design, its matchday wording changing with compFactMatchday as the plan approved in chat; system.css joins scope_paths so a long round name wraps the picker's Next tag instead of overflowing at 375px; the coverage test is warn with stored failures, as engineering_standards.md §3.3/§3.4 prescribe for a check that shows no wrong number."
+  - "2026-10-28: the Team page, which has no approved design yet, ships the approved #226 wording in its verdict, caption, axes, tiles and last-season heads in its existing layout — authority: the CPO's ruling in chat, 2026-10-28, when asked whether the Team page's changed wording ships in this MR; content: decisions_taken records it, approved_design is unchanged."

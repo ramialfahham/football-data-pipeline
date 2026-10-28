@@ -15,7 +15,7 @@ import Layout from "../../../../layouts/Layout.astro";
 import CompetitionHeader from "../../../../components/competition/CompetitionHeader.astro";
 import CompetitionTabs from "../../../../components/competition/CompetitionTabs.astro";
 import RankingsBlock from "../../../../components/competition/RankingsBlock.astro";
-import { t, inCompetition } from "../../../../i18n/strings";
+import { t, inCompetition, metricInSentence } from "../../../../i18n/strings";
 import { localeHref, LOCALES, word } from "../../../../lib/href";
 import type { Lang } from "../../../../lib/format";
 import type { CompetitionIndex, CompetitionIndexRow, CompetitionPayload } from "../../../../lib/types";
@@ -54,7 +54,11 @@ const tabLabel = t(lang, "compTabRankings");
 const within = inCompetition(lang, competition.league_code, name);
 
 const title = t(lang, "seoCompetitionStatsTitle", { competition: name, season: String(payload.season) });
-const description = t(lang, "seoCompetitionStatsDesc", { competition: name, season: String(payload.season) });
+const description = t(lang, "seoCompetitionStatsDesc", {
+  competition: name,
+  season: String(payload.season),
+  sotName: metricInSentence(lang, "metrics.shots_on_target_per_match.label"),
+});
 
 const entity = {
   "@type": "SportsOrganization",
