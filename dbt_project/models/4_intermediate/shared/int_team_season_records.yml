@@ -1,0 +1,113 @@
+version: 2
+
+models:
+  - name: int_team_season__longest_runs
+    description: >
+      Each team's longest unbeaten and longest winless run in a competition-season, ordered by
+      kickoff: the raw lengths the competition season summary reduces to the league's longest, and
+      the same lengths under the run rule the pages show, NULL below two matches.
+      Grain: (league_code, season_api_year, team_sk).
+    config:
+      tags: ["intermediate", "football", "team_season"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season_api_year, team_sk]
+      - dbt_utils.expression_is_true:
+          expression: "(longest_unbeaten_run is null) = (longest_unbeaten < 2) and (longest_winless_run is null) = (longest_winless < 2)"
+          name: int_team_season_longest_runs_null_below_two
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: team_sk
+        description: "{{ doc('team_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: longest_unbeaten
+        description: "The longest run of finished matches without a defeat, raw (zero when every match was lost)."
+        tests: [not_null]
+      - name: longest_winless
+        description: "The longest run of finished matches without a win, raw (zero when every match was won)."
+        tests: [not_null]
+      - name: longest_unbeaten_run
+        description: "The longest unbeaten run, NULL below two matches."
+      - name: longest_winless_run
+        description: "The longest winless run, NULL below two matches."
+
+  - name: int_team_season__biggest_results
+    description: >
+      Each team's biggest win and heaviest defeat in a season across every competition it played:
+      the finished match with the widest margin, a tie going to the match with more goals, then the
+      earlier kickoff, then the fixture id. Grain: (team_sk, season_api_year).
+    config:
+      tags: ["intermediate", "football", "team_season"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [team_sk, season_api_year]
+      - dbt_utils.expression_is_true:
+          expression: "biggest_win_fixture_sk is null or biggest_win_goals_for > biggest_win_goals_against"
+          name: int_team_season_biggest_win_is_a_win
+      - dbt_utils.expression_is_true:
+          expression: "heaviest_defeat_fixture_sk is null or heaviest_defeat_goals_for < heaviest_defeat_goals_against"
+          name: int_team_season_heaviest_defeat_is_a_defeat
+    columns:
+      - name: team_sk
+        description: "{{ doc('team_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: biggest_win_fixture_sk
+        description: "The biggest win's fixture; NULL without a win this season."
+        tests:
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: biggest_win_league_code
+        description: "The competition of the biggest win."
+      - name: biggest_win_opponent_team_sk
+        description: "The opponent in the biggest win."
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: biggest_win_home_away
+        description: "Whether the team played the biggest win at home or away."
+      - name: biggest_win_goals_for
+        description: "The team's goals in the biggest win."
+      - name: biggest_win_goals_against
+        description: "The opponent's goals in the biggest win."
+      - name: biggest_win_kickoff_datetime
+        description: "The biggest win's kickoff, UTC."
+      - name: heaviest_defeat_fixture_sk
+        description: "The heaviest defeat's fixture; NULL without a defeat this season."
+        tests:
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: heaviest_defeat_league_code
+        description: "The competition of the heaviest defeat."
+      - name: heaviest_defeat_opponent_team_sk
+        description: "The opponent in the heaviest defeat."
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: heaviest_defeat_home_away
+        description: "Whether the team played the heaviest defeat at home or away."
+      - name: heaviest_defeat_goals_for
+        description: "The team's goals in the heaviest defeat."
+      - name: heaviest_defeat_goals_against
+        description: "The opponent's goals in the heaviest defeat."
+      - name: heaviest_defeat_kickoff_datetime
+        description: "The heaviest defeat's kickoff, UTC."

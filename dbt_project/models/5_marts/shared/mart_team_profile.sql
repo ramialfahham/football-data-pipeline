@@ -48,6 +48,21 @@ streaks as (
 
 deserved as (
     select * from {{ ref('int_team_season__deserved_vs_actual') }}
+),
+
+longest_runs as (
+    select * from {{ ref('int_team_season__longest_runs') }}
+),
+
+biggest_results as (
+    select * from {{ ref('int_team_season__biggest_results') }}
+),
+
+opponents as (
+    select
+        team_sk,
+        team_name
+    from {{ ref('dim_team') }}
 )
 
 select
@@ -190,6 +205,29 @@ select
     d.deserved_rank,
     d.deserved_points_gap,
     d.deserved_points_gap_rank,
+    -- card totals this competition-season
+    m.cards_yellow,
+    m.cards_red,
+    -- highs and lows: the longest runs in this competition, the biggest win and heaviest defeat
+    -- across the team's competitions this season
+    lr.longest_unbeaten_run,
+    lr.longest_winless_run,
+    br.biggest_win_fixture_sk,
+    br.biggest_win_league_code,
+    br.biggest_win_opponent_team_sk,
+    bw.team_name as biggest_win_opponent_name,
+    br.biggest_win_home_away,
+    br.biggest_win_goals_for,
+    br.biggest_win_goals_against,
+    br.biggest_win_kickoff_datetime,
+    br.heaviest_defeat_fixture_sk,
+    br.heaviest_defeat_league_code,
+    br.heaviest_defeat_opponent_team_sk,
+    hd.team_name as heaviest_defeat_opponent_name,
+    br.heaviest_defeat_home_away,
+    br.heaviest_defeat_goals_for,
+    br.heaviest_defeat_goals_against,
+    br.heaviest_defeat_kickoff_datetime,
     -- The season this team's page opens on (#846). Exactly one row per team is true: the most
     -- recent DOMESTIC LEAGUE season, falling back to the most recent season of any type for a team
     -- with no league season. A warehouse fact, so the export and the page
@@ -221,3 +259,16 @@ left join deserved as d
     on
         m.team_sk = d.team_sk
         and m.season_sk = d.season_sk
+left join longest_runs as lr
+    on
+        m.league_code = lr.league_code
+        and m.season_api_year = lr.season_api_year
+        and m.team_sk = lr.team_sk
+left join biggest_results as br
+    on
+        m.team_sk = br.team_sk
+        and m.season_api_year = br.season_api_year
+left join opponents as bw
+    on br.biggest_win_opponent_team_sk = bw.team_sk
+left join opponents as hd
+    on br.heaviest_defeat_opponent_team_sk = hd.team_sk

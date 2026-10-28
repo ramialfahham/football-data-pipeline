@@ -303,6 +303,23 @@ def deserved_scatter_index(all_profile_rows: list[dict]) -> dict:
     return idx
 
 
+def league_strip_index(all_benchmark_rows: list[dict]) -> dict:
+    """Index every club's value per metric by (league_code, season_api_year), for the Team page's
+    strip plot. A league-season property like the deserved scatter, so it is built once from the
+    whole `mart_team_competition_benchmarks` and attached to each team's matching season. Selection
+    only: the clubs are the ones the mart ranks, in team_sk order."""
+    idx: dict = {}
+    for r in sorted(all_benchmark_rows, key=lambda r: (r.get("metric_key") or "", int(r["team_sk"]))):
+        key = (r.get("league_code"), r.get("season_api_year"))
+        metrics = idx.setdefault(key, {})
+        metrics.setdefault(r.get("metric_key"), []).append({
+            "team_sk": int(r["team_sk"]),
+            "name": r.get("team_name"),
+            "value": r.get("metric_value"),
+        })
+    return idx
+
+
 def shape_team_payload(
     profile_rows: list[dict],
     fixture_rows: list[dict] | None = None,
@@ -310,6 +327,7 @@ def shape_team_payload(
     benchmark_rows: list[dict] | None = None,
     scatter_index: dict | None = None,
     career_rows: list[dict] | None = None,
+    strip_index: dict | None = None,
 ) -> dict:
     """One team's mart_team_profile rows (+ mart_team_fixtures + mart_roster +
     mart_team_competition_benchmarks rows) -> the team page payload.
@@ -392,6 +410,17 @@ def shape_team_payload(
                  "is_self": e["team_sk"] == team_id}
                 for e in entries
             ]
+        # The strip plot: every club's value per metric in this league-season, the self team flagged.
+        # The page shows the featured season only, so only that season carries it.
+        strips = (strip_index or {}).get((s.get("league_code"), s.get("season_api_year")))
+        if strips and s.get("is_featured_season"):
+            s["league_strip"] = [
+                {"metric_key": key, "clubs": [
+                    {"name": c["name"], "value": c["value"], "is_self": c["team_sk"] == team_id}
+                    for c in clubs
+                ]}
+                for key, clubs in sorted(strips.items())
+            ]
         seasons_out.append(s)
 
     return {
@@ -470,13 +499,12 @@ def _shape_benchmarks(rows: list[dict]) -> list[dict]:
 
 def _shape_team_benchmark_member(row: dict) -> dict:
     """One mart_team_competition_benchmarks row -> a Team-Stats metric entry (GAP-23). Select/reshape
-    only — the "k of N" / vs-median / spread-bar labels and the direction-mirror (only lower_better rows)
-    are applied at render from the catalogue direction (the mart is direction-agnostic: rank is by value
-    DESC). No num/den atoms — the team mart carries none; team ratios use the adjacent-count-row mechanism
-    (metrics_display.md). The frontend renders the LOCKED 16 (dropping shots_on_goal_pct + the T/I/B sub-display)."""
+    only: the rank already follows the metric's catalogue direction in the mart. No num/den atoms — the
+    team mart carries none; team ratios use the adjacent-count-row mechanism (metrics_display.md)."""
     return {
         "metric_key": row.get("metric_key"),
         "metric_value": row.get("metric_value"),
+        "metric_value_prev_season": row.get("metric_value_prev_season"),
         "rank": row.get("rank"),
         "team_count": row.get("team_count"),
         "league_median": row.get("league_median"),
@@ -1017,13 +1045,12 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
     # GAP-23: rank-vs-league benchmark per (team, competition-season) from
     # mart_team_competition_benchmarks. Scope to the sampled teams on a sample run; whole-table
     # otherwise (selection, not derivation), exactly like the roster block above.
+    # The whole table is read on a sample run too: the strip plot shows every club of a sampled
+    # team's league.
     bench_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_team_competition_benchmarks`"
-    if sample:
-        id_list = ", ".join(str(int(t)) for t in team_ids)
-        bench_sql = f"select * from {bench_table} where team_sk in ({id_list})"
-    else:
-        bench_sql = f"select * from {bench_table}"
-    bench_by_team = _group_by(_query(client, bench_sql), "team_sk")
+    bench_rows = _query(client, f"select * from {bench_table}")
+    strip_idx = league_strip_index(bench_rows)
+    bench_by_team = _group_by(bench_rows, "team_sk")
     # Squad tab: per-player season stats from mart_player_career, scoped by team_sk on a sample run
     # (like the roster/benchmark blocks); shape_team_payload joins them onto squad members. Selection.
     career_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_player_career`"
@@ -1036,7 +1063,7 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
     return [
         shape_team_payload(
             grouped[t], fixtures_by_team.get(t, []), roster_by_team.get(t, []),
-            bench_by_team.get(t, []), scatter_idx, career_by_team.get(t, []),
+            bench_by_team.get(t, []), scatter_idx, career_by_team.get(t, []), strip_idx,
         )
         for t in team_ids
     ]

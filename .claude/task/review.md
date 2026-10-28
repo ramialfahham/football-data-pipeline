@@ -1,24 +1,29 @@
-# Review — docs/134-team-design-approved — 2026-10-28
+# Review — feat/235-team-data — 2026-10-28
 
-diff_sha256: 963f3a59082264d1220fbd733af395e1cbc732368cd54d22b87f16e50edfcf6f
+diff_sha256: 0e98f10c78a9e6948e3049027ed11ce370b3f2b1c434e904540ab5ebc7e36628
 
-rounds: 4
-
-rounds_cap_override: approved in chat, 2026-10-28; the fourth round reviewed only the amendment that records the CPO's approval of the row text and the Squad and Stats line, both unchanged from round 3.
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Both changed documents are in scope_paths; each amendment names its authority and date.
-- The row and the Squad and Stats line carry the CPO's named approval; team: 134 matches the gate's form and is read from main.
-- No page-surface file, no impact map needed, no secret, no date or rationale in a repo document.
+- Every changed path is in scope_paths; both amendments name their authority; approved_design names the Team page, the only reader of the changed marts.
+- The rank by direction and the upcoming date rule are quoted from the approved plan; the committed samples do not change here.
+- No secret, no new dependency or run cadence; the export only selects and indexes.
 
-## bi-analyst-reviewer
+## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- team: 134 is the Team page's issue, in the list's form, with no duplicate.
-- Row 02 points at the issue as the authority for the page and makes no claim the repo cannot back.
-- The Squad and Stats sub-screens' disposition is stated in the contract, citing #134; no field is bound and no metric added.
+- Every join keeps its grain; the last-season value is chosen as int_team_profile__yoy chooses it; the rank follows direction with shared ties.
+- The season summary's runs moved unchanged into the shared intermediate; the descriptions and the layering row state what the models do.
+- The two new tests fail in each direction; relationship and range tests cover the new columns.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- The export tests pin the last-season value, the featured season's strip and the whole-table read on a sample run; each fails on revert.
+- The generated metric map matches the catalogue and the YAML.
+- No dependency, credential, workflow or hosting change; the strip adds about 15% to a team file, on the featured season only.
 
 ## escalations
 (none)

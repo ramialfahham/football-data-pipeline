@@ -4,9 +4,9 @@ models:
   - name: int_team_competition_benchmarks
     description: >
       Competition benchmark engine (team): per (league_code, season_api_year, metric_key) the league
-      distribution (median / mean / p25 / p75 / team_count) of the 22 team season metrics. Median-led
+      distribution (median / mean / p25 / p75 / team_count) of the team benchmark metrics. Median-led
       (robust to a dominant team). mart_team_competition_benchmarks ranks each team against this. The
-      22-metric set comes from int_team_competition_benchmark_metrics_long.
+      metric set comes from int_team_competition_benchmark_metrics_long.
       Grain: (league_code, season_api_year, metric_key).
 
       {{ doc('ranking_rules') }}
@@ -23,11 +23,11 @@ models:
         description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: metric_key
-        description: "The benchmarked metric — a metric_catalogue team metric_id (the 22-metric set)."
+        description: "The benchmarked metric — a metric_catalogue team metric_id (the benchmark metric set)."
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shots_on_goal_pct", "shots_inside_box_pct", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match", "finishing_efficiency_pct", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "passes_accuracy_pct", "passes_key_per_match", "corners_per_match", "corners_against_per_match", "saves_pct"]
+              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "clean_sheets_pct", "shots_per_match", "shots_on_goal_pct", "shots_inside_box_pct", "shots_inside_box_per_match", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match", "finishing_efficiency_pct", "duels_per_match", "duels_won_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "passes_accurate_per_match", "passes_accuracy_pct", "passes_share_pct", "passes_key_per_match", "dribbles_attempts_per_match", "dribbles_success_per_match", "dribbles_success_pct", "corners_per_match", "corners_against_per_match", "free_kicks_per_match", "fouls_per_match", "offsides_per_match", "saves_per_match", "saves_pct", "cards_yellow", "cards_red"]
       - name: team_count
         description: "Teams with a non-null value for this metric this league-season — the N for rank-of-N."
         tests: [not_null]
@@ -42,8 +42,10 @@ models:
 
   - name: int_team_competition_benchmark_metrics_long
     description: >
-      The 22 team competition-benchmark metrics in long form, per team-season: one row per
-      (team_sk, season_sk, metric_key) unpivoted from int_team_season__metrics. The single source of
+      The team competition-benchmark metrics in long form, per team-season: every team metric of the
+      site's served list plus the shots-on-target difference and the clean-sheet share, one row per (team_sk, season_sk,
+      metric_key) unpivoted from int_team_season__metrics, with the value at the same point last
+      season. The single source of
       the benchmark metric set — int_team_competition_benchmarks aggregates it to the league
       distribution and mart_team_competition_benchmarks ranks each team against it, so the two cannot
       drift. Replaces the team_benchmark_metrics() macro. Grain: (team_sk, season_sk, metric_key).
@@ -73,14 +75,16 @@ models:
         description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: metric_key
-        description: "The benchmarked metric — a metric_catalogue team metric_id (the 22-metric set)."
+        description: "The benchmarked metric — a metric_catalogue team metric_id (the benchmark metric set)."
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shots_on_goal_pct", "shots_inside_box_pct", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match", "finishing_efficiency_pct", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "passes_accuracy_pct", "passes_key_per_match", "corners_per_match", "corners_against_per_match", "saves_pct"]
+              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "clean_sheets_pct", "shots_per_match", "shots_on_goal_pct", "shots_inside_box_pct", "shots_inside_box_per_match", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match", "finishing_efficiency_pct", "duels_per_match", "duels_won_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "passes_accurate_per_match", "passes_accuracy_pct", "passes_share_pct", "passes_key_per_match", "dribbles_attempts_per_match", "dribbles_success_per_match", "dribbles_success_pct", "corners_per_match", "corners_against_per_match", "free_kicks_per_match", "fouls_per_match", "offsides_per_match", "saves_per_match", "saves_pct", "cards_yellow", "cards_red"]
       - name: metric_value
         description: "The team's season-to-date value for this metric. UNPIVOT excludes nulls, so this is never null."
         tests: [not_null]
+      - name: metric_value_prev_season
+        description: "The team's value at the same point last season (rule R6): the previous season's latest match at or before this season's match count, domestic leagues only; null otherwise."
       - name: league_sk
         description: "{{ doc('league_sk') }}"
         tests:
