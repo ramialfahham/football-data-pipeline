@@ -59,7 +59,7 @@ approved_design:
 acceptance_criteria:
   - "Every round_names row has stage_kind table, final, placement or knockout (a round named by a matchday is a table round, a final pattern a final, a third-place pattern a placement match, every other a knockout round); int_round_names serves round_stage_kind, and assert_every_round_text_resolves still names every latest-season round."
   - "int_knockout_ties has one row per team and tie (competition, season, round of ties, the two teams) with its legs, the legs played, the goals for and against over the played legs, and won true or false once every leg is played and the tie is decided by goals, then by the last leg's shoot-out or award; a level tie without one is undecided (null), as an FA Cup draw before its replay; tests pin one winner per decided tie."
-  - "mart_team_competitions has one row per (team_sk, league_code, season_api_year) the team has a fixture in: competition_type, the standing of its table section (the section named in its latest played round, else the one with the most matches), the latest played round (copy key, number, letter), the round reached (its latest round, a third-place match left out) with cup_status through, knocked_out or winners (winners only for a final outside a qualifying competition), null while a tie is being played or in a table round, and competition_order; tests pin the grain, the accepted statuses, winners only in a final, at most one winner per competition-season, and that a knocked-out team or a winner has no later fixture in that competition."
+  - "mart_team_competitions has one row per (team_sk, league_code, season_api_year) the team has a fixture in: competition_type, the standing of its table section (the section named in its latest played round, else the one with the most matches), the latest played round (copy key, number, letter), the round reached (its latest round, a third-place match left out) with cup_status through, knocked_out or winners (winners only for a final of one tie outside a qualifying competition), null while a tie is being played or in a table round, and competition_order; tests pin the grain, the accepted statuses, winners only in a final, at most one winner per competition-season, and that a knocked-out team or a winner has no later fixture in that competition."
   - "The team payload's featured season carries its competitions rows in competition_order; pytest pins it."
 
 decisions_taken: >
@@ -74,7 +74,9 @@ decisions_taken: >
   round; a third-place match is not the round reached, so a semi-final loser is knocked out in
   the semi-final; winners are the winners of a final, a cup's or a league's play-off final for
   its title (Liga MX, MLS), as #134's rule "winning the final shows Final and Winners" reads, a
-  qualifying competition's final winner being through; the standing is the team's section named
+  qualifying competition's final winner being through, and a round named final that holds more
+  than one tie (K League 1's promotion play-offs, two ties in 2025, found by the MR data build)
+  being no title, its winners through; the standing is the team's section named
   in its latest played round (an Apertura or Clausura), otherwise its section with the most
   matches played; the latest played round gives the league's "Matchday N"; in the block order
   the domestic super cup follows the cups and each group runs by its latest match first; the

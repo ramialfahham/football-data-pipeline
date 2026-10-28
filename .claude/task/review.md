@@ -1,8 +1,10 @@
 # Review — feat/235-team-competitions — 2026-10-28
 
-diff_sha256: f313dea231115b3fb83355ea75e809746f01bf250a20aa50abe9e3184bc226da
+diff_sha256: f0763a66740c37b810f9c13b100bf17607ee72b427c9a40aacc9d8c67257adf2
 
-rounds: 3
+rounds: 4
+
+rounds_cap_override: approved in chat, 2026-10-28; the fourth round reviewed only the one-tie rule for winners the MR data build called for.
 
 ## scope-auditor
 VERDICT: PASS
@@ -15,7 +17,7 @@ risks_checked:
 VERDICT: PASS
 risks_checked:
 - A tie is decided over its legs, then by the last leg's shoot-out or award; an FA Cup draw stays undecided until its replay.
-- A third-place match is not the round reached; winners need a final outside a qualifying competition; the standing reads the section named in the latest round.
+- A third-place match is not the round reached; winners need a final of one tie outside a qualifying competition; the standing reads the section named in the latest round.
 - Grain and joins hold; the mart reads its own layer as precedent allows; each new test can fail.
 
 ## platform-reviewer

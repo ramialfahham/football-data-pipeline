@@ -8,8 +8,9 @@
   For a round of ties (int_round_names' round_stage_kind knockout or final) cup_status follows the
   tie in that round (int_knockout_ties):
     - knocked_out when the team lost it;
-    - winners when it won a final (a cup's, or a league's play-off final for its title), outside a
-      qualifying competition, where winning the final is qualifying;
+    - winners when it won a final of one tie (a cup's, or a league's play-off final for its
+      title), outside a qualifying competition, where winning the final is qualifying; a round
+      named final with more ties, as K League's promotion play-offs, is no title;
     - through when it won any other tie, or when it is drawn into the round's unplayed tie after
       winning its tie in the round before, or after a table round;
     - NULL while the tie is being played or undecided, in a first round not yet played, and in a
@@ -169,6 +170,17 @@ reached_ties as (
     group by r.team_sk, r.league_code, r.season_api_year
 ),
 
+-- how many ties each round of ties holds: a final is one tie, K League's play-off "Final" two
+round_ties as (
+    select
+        league_code,
+        season_api_year,
+        round_name,
+        count(*) / 2 as ties_in_round
+    from ties
+    group by league_code, season_api_year, round_name
+),
+
 -- the tie of the round before the reached one: a team waiting for an FA Cup replay is not through
 previous_ties as (
     select
@@ -247,6 +259,7 @@ select
         when
             rt.won
             and r.round_stage_kind = 'final'
+            and rd.ties_in_round = 1
             and coalesce(reg.competition_type, '') != 'qualifying'
             then 'winners'
         when rt.won then 'through'
@@ -280,6 +293,11 @@ left join reached_ties as rt
         r.team_sk = rt.team_sk
         and r.league_code = rt.league_code
         and r.season_api_year = rt.season_api_year
+left join round_ties as rd
+    on
+        r.league_code = rd.league_code
+        and r.season_api_year = rd.season_api_year
+        and r.round_name = rd.round_name
 left join previous_ties as pt
     on
         r.team_sk = pt.team_sk

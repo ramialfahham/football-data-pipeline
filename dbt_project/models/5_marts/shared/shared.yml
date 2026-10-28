@@ -3499,8 +3499,8 @@ models:
       fixture in, with its standing in that competition's table (the section named in its latest
       played round, otherwise the section with the most matches played), the round of its latest
       played match, and the round it has reached, a third-place match left out, with, for a round
-      of ties, cup_status: knocked_out when it lost that tie, winners when it won a final outside a
-      qualifying competition, through when it won any other tie or is drawn into the next round
+      of ties, cup_status: knocked_out when it lost that tie, winners when it won a final of one tie
+      outside a qualifying competition, through when it won any other tie or is drawn into the next round
       after winning, NULL while a tie is being played or in a table round.
       Grain: (team_sk, league_code, season_api_year).
     meta:
@@ -3578,7 +3578,7 @@ models:
           - accepted_values:
               values: ["table", "knockout", "final"]
       - name: cup_status
-        description: "through, knocked_out or winners in a round of ties, by int_knockout_ties, winners only for a final outside a qualifying competition; NULL while the tie is being played or undecided, in a first round not yet played, and in a table round."
+        description: "through, knocked_out or winners in a round of ties, by int_knockout_ties, winners only for a final of one tie outside a qualifying competition; NULL while the tie is being played or undecided, in a first round not yet played, and in a table round."
         tests:
           - accepted_values:
               values: ["through", "knocked_out", "winners"]
