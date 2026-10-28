@@ -72,6 +72,9 @@ models:
       - name: is_awarded_result
         description: "TRUE where the match was decided off the pitch — a technical loss or walkover."
         tests: [not_null]
+      - name: is_table_shootout_win
+        description: "{{ doc('is_table_shootout_win') }}"
+        tests: [not_null]
       - name: goals
         description: "Goals the team scored in this match: the scoreline."
       - name: goals_against

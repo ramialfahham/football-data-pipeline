@@ -30,6 +30,15 @@ types as (
     select * from {{ ref('competition_types') }}
 ),
 
+round_kinds as (
+    select
+        league_code,
+        season_api_year,
+        round_name,
+        round_stage_kind
+    from {{ ref('int_round_names') }}
+),
+
 -- Each finished match as two team legs: the home side's perspective and the away side's.
 legs as (
     select
@@ -56,8 +65,17 @@ legs as (
         -- counts for points and goals and can NEVER have a stat line. Emitted so the coverage gates
         -- downstream can tell "the stats are missing" from "there were never any to have" — without
         -- it, counting these as played nulls every rate for the whole season.
-        f.status_short in ('AWD', 'WO') as is_awarded_result
+        f.status_short in ('AWD', 'WO') as is_awarded_result,
+        coalesce(
+            rk.round_stage_kind = 'table' and f.status_short = 'PEN' and f.winner_team_sk = f.home_team_sk,
+            false
+        ) as is_table_shootout_win
     from fixtures as f
+    left join round_kinds as rk
+        on
+            f.league_code = rk.league_code
+            and f.season_api_year = rk.season_api_year
+            and f.round_name = rk.round_name
     where
         f.status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO')
         and f.goals_home is not null
@@ -87,8 +105,17 @@ legs as (
         -- counts for points and goals and can NEVER have a stat line. Emitted so the coverage gates
         -- downstream can tell "the stats are missing" from "there were never any to have" — without
         -- it, counting these as played nulls every rate for the whole season.
-        f.status_short in ('AWD', 'WO') as is_awarded_result
+        f.status_short in ('AWD', 'WO') as is_awarded_result,
+        coalesce(
+            rk.round_stage_kind = 'table' and f.status_short = 'PEN' and f.winner_team_sk = f.away_team_sk,
+            false
+        ) as is_table_shootout_win
     from fixtures as f
+    left join round_kinds as rk
+        on
+            f.league_code = rk.league_code
+            and f.season_api_year = rk.season_api_year
+            and f.round_name = rk.round_name
     where
         f.status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO')
         and f.goals_home is not null
@@ -112,6 +139,7 @@ with_stats as (
         l.goals_against,
         l.result,
         l.is_awarded_result,
+        l.is_table_shootout_win,
         own.shots_on_target,
         own.shots,
         own.shots_inside_box,

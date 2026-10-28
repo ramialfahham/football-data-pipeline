@@ -7,8 +7,9 @@ models:
       number N of its season: its place after its Nth match, within its section of that season's
       official table. Teams rank by points, then goal difference, then goals scored, and teams
       level on all three share a place. Only seasons where every team sits in one league,
-      conference or group table are ranked. Grain: (team_sk, league_code, season_api_year,
-      match_number).
+      conference or group table are ranked, and only where the results give every team the
+      table's goals scored and conceded through its matches played. A place is ranked up to the
+      table's matches played. Grain: (team_sk, league_code, season_api_year, match_number).
     config:
       tags: ["intermediate", "football", "team_season"]
     tests:

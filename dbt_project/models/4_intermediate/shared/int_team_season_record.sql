@@ -40,6 +40,7 @@ select
     tl.round_order,
     tl.result,
     tl.is_awarded_result,
+    tl.is_table_shootout_win,
     tl.goals,
     tl.goals_against,
     tl.goals_penalty,

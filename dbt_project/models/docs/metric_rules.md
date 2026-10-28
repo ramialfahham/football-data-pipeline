@@ -15,7 +15,8 @@ How every metric is computed:
 - R3 A forfeit (AWD/WO) is a result awarded without the match being played. It counts in
   points_won, goals and goals_against and in the counts of matches, wins, draws and losses, as the
   league table counts it; every other metric counts played matches only. No player appears in a
-  forfeit.
+  forfeit. A league match level at full time and decided by a shoot-out gives the shoot-out winner
+  2 points and the loser 1.
 - R4 A metric is blank when any match it counts lacks an input; a player's metric also when its
   window holds a played team match with no player data at all.
 - R5 A ratio over zero is blank.

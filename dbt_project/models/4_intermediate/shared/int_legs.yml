@@ -50,6 +50,13 @@ models:
         # against a denominator that is quietly too small. It cannot be NULL today — the leg filter
         # already restricts status_short to five non-null codes — so this guards a future change.
         tests: [not_null]
+      - name: is_table_shootout_win
+        description: "{{ doc('is_table_shootout_win') }}"
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "= false or result = 'D'"
+              name: legs_table_shootout_win_is_a_draw
       - name: home_away
         description: "{{ doc('home_away') }}"
         tests:

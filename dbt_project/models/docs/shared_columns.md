@@ -211,6 +211,12 @@ researched team sheet decides where it names the player; elsewhere the provider'
 {% enddocs %}
 
 
+{% docs is_table_shootout_win %}
+True where the team won a shoot-out after a drawn match in a league table round. Such a win gives
+the team 2 points instead of 1. A shoot-out in a cup or play-off round is false.
+{% enddocs %}
+
+
 {% docs has_stat_line__player %}
 True where the provider sent a statistics line for this player in this match. False for a player
 only the line-ups name: every statistic of that row is NULL.

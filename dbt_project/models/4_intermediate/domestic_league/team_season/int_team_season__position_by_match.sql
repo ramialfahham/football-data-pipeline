@@ -4,11 +4,14 @@
   section of that season's official table (an MLS conference). rank(), so teams level on all three
   share a place. The year-over-year comparison reads last season's position at this season's N.
 
-  Only a season where every team sits in one section that is a league, conference or group table:
-  a season split into rounds, or with a team in two sections (an Apertura and a Clausura), has no
-  position at a number of matches. Points come from the results, so a deduction the official table
-  carries is not in them; assert_team_position_by_match_matches_final_table lists where the rank
-  and the official table differ.
+  Only a season where every team sits in one section that is a league, conference or group table,
+  and whose results reproduce that table: each team's goals scored and conceded through the
+  table's matches played equal the table's. A season split into rounds, with a team in two
+  sections, or whose table counts other matches (an Apertura and a Clausura) has no position. A
+  position is ranked up to the table's matches played, so a play-off match never enters it.
+  Points come from the results, so a deduction the official table carries is not in them;
+  assert_team_position_by_match_matches_final_table lists where the rank and the official table
+  differ.
 
   Grain: (team_sk, league_code, season_api_year, match_number).
 #}
@@ -38,6 +41,9 @@ sections as (
         s.season_api_year,
         s.team_sk,
         s.group_name,
+        s.played,
+        s.goals_scored,
+        s.goals_conceded,
         k.table_kind
     from {{ ref('fct_standings') }} as s
     inner join {{ ref('int_standings__section_kinds') }} as k
@@ -57,6 +63,22 @@ single_table_seasons as (
         and count(*) = count(distinct team_sk)
 ),
 
+-- seasons whose results give every team the table's goals through the table's matches played
+reproduced_seasons as (
+    select
+        s.league_code,
+        s.season_api_year
+    from sections as s
+    left join cml as c
+        on
+            s.team_sk = c.team_sk
+            and s.league_code = c.league_code
+            and s.season_api_year = c.season_api_year
+            and s.played = c.match_number
+    group by s.league_code, s.season_api_year
+    having logical_and(coalesce(c.goals = s.goals_scored and c.goals_against = s.goals_conceded, false))
+),
+
 team_sections as (
     select s.*
     from sections as s
@@ -64,6 +86,10 @@ team_sections as (
         on
             s.league_code = t.league_code
             and s.season_api_year = t.season_api_year
+    inner join reproduced_seasons as rs
+        on
+            s.league_code = rs.league_code
+            and s.season_api_year = rs.season_api_year
 )
 
 select
@@ -87,4 +113,6 @@ inner join team_sections as ts
         c.team_sk = ts.team_sk
         and c.league_code = ts.league_code
         and c.season_api_year = ts.season_api_year
-where r.competition_type = 'domestic_league'
+where
+    r.competition_type = 'domestic_league'
+    and c.match_number <= ts.played

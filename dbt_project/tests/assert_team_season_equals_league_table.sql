@@ -1,9 +1,8 @@
 {#
   A team-season equals the provider's league table wherever the table counts the same games: every
   table section of the team-season whose played equals our season_games_played must carry our wins,
-  draws, losses, goals and goals against, and our points must equal 3 x the table's wins plus its
-  draws. The table's own points equal that less the points the league took, declared with its
-  source in seeds/standings_points_adjustments.csv. A table row with a different played count (a
+  draws, losses, goals and goals against, and our points must equal the table's points plus the
+  points the league took, declared with its source in seeds/standings_points_adjustments.csv. A table row with a different played count (a
   snapshot older than our last match, a section that counts other games) is not compared. A red row
   is a result or an adjustment to research and declare in the seeds, never an exception.
 
@@ -87,5 +86,4 @@ where
     or o.losses is distinct from t.losses
     or o.goals is distinct from t.goals_scored
     or o.goals_against is distinct from t.goals_conceded
-    or o.points_won is distinct from 3 * t.wins + t.draws
-    or t.points is distinct from 3 * t.wins + t.draws - coalesce(a.points_taken, 0)
+    or o.points_won is distinct from t.points + coalesce(a.points_taken, 0)

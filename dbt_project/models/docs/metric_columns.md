@@ -818,12 +818,14 @@ rather than a part season against a full one.
 
 
 {% docs points_won %}
-Points the team won: 3 for a win, 1 for a draw, none for a defeat.
+Points the team won: 3 for a win, 1 for a draw, none for a defeat. A league match drawn and
+then decided by a shoot-out gives the shoot-out winner 2.
 {% enddocs %}
 
 
 {% docs points_won_sum_season__team %}
-Points the team won: 3 for a win, 1 for a draw, none for a defeat. Totalled over the season.
+Points the team won: 3 for a win, 1 for a draw, none for a defeat. A league match drawn and
+then decided by a shoot-out gives the shoot-out winner 2. Totalled over the season.
 {% enddocs %}
 
 
