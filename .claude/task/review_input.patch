@@ -1,708 +1,322 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 948a97be..b5e29d2a 100644
+index b5e29d2a..4fa6409d 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,40 +1,97 @@
--# Task contract — the Team page enters the approved-designs list
-+# Task contract — the Team page's comparison data, cards and highs and lows
+@@ -1,39 +1,37 @@
+-# Task contract — the Team page's comparison data, cards and highs and lows
++# Task contract — the Team page's Competitions block
  
  objective: >
--  The Team page review on #134 closed with the design approved. The Team page enters
--  docs/wireframes/approved_designs.yml so the design gate lets its build change the page surface
--  once this merges.
-+  The warehouse serves the comparison data of the Team page's Performance tab and its Highs and
-+  lows (#235, design #134). mart_team_competition_benchmarks carries every metric of the served
-+  list (metric_rows.json), each team's rank in its league by the metric's direction from the
-+  catalogue, and its value at the same point last season in a domestic league. mart_team_profile
-+  carries the season's card totals and the team's Highs and lows: its biggest win and heaviest
-+  defeat across its competitions in the season, and its longest unbeaten and winless runs in the
-+  competition, the runs from one intermediate the competition page's season summary reads too.
-+  mart_team_fixtures counts a match as upcoming only when its date has not passed. The export
-+  carries the last-season value and serves every club's value per metric for the strip plot on the
-+  featured season.
+-  The warehouse serves the comparison data of the Team page's Performance tab and its Highs and
+-  lows (#235, design #134). mart_team_competition_benchmarks carries every metric of the served
+-  list (metric_rows.json), each team's rank in its league by the metric's direction from the
+-  catalogue, and its value at the same point last season in a domestic league. mart_team_profile
+-  carries the season's card totals and the team's Highs and lows: its biggest win and heaviest
+-  defeat across its competitions in the season, and its longest unbeaten and winless runs in the
+-  competition, the runs from one intermediate the competition page's season summary reads too.
+-  mart_team_fixtures counts a match as upcoming only when its date has not passed. The export
+-  carries the last-season value and serves every club's value per metric for the strip plot on the
+-  featured season.
++  The warehouse serves the Team page's Competitions block (#235, design #134): one row per team,
++  competition and season on mart_team_competitions, with the team's standing in that
++  competition's table, the round of its latest played match, and for a cup the round it reached
++  with Through, Knocked out or Winners. Each round of the round_names seed says whether it is a
++  table round, a final, a third-place match or another knockout round; int_knockout_ties decides
++  each tie by the goals over its legs, then a shoot-out or an awarded result, so a two-legged tie
++  and an FA Cup replay are read as the tie, not the leg. The export carries the rows on the team
++  payload's featured season.
  
  refs: >
--  #134, the Team page's design (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/134),
--  drawn in the mock in the private snippet 6069923. Approved in chat, 2026-10-22 and 2026-10-28.
-+  #235 (the build; its plan approved in chat, 2026-10-28); #134 (the Team page design, approved in
-+  chat, 2026-10-22 and 2026-10-28).
+-  #235 (the build; its plan approved in chat, 2026-10-28); #134 (the Team page design, approved in
+-  chat, 2026-10-22 and 2026-10-28).
++  #235 (the build; its plan approved in chat, 2026-10-28: the Competitions block "for a cup, the
++  furthest round and Through / Knocked out / Winners, decided by the tie, not the leg"); #134 (the
++  Team page design, approved in chat, 2026-10-22 and 2026-10-28; its cup rule: winning a tie shows
++  the next round and Through, losing shows that round and Knocked out, winning the final shows
++  Final and Winners); #148 (the round names); #178 (who went through, for match rows, which this
++  tie model serves later).
  
  scope_paths:
--  - docs/wireframes/approved_designs.yml
--  - docs/wireframes/00_overview.md
-+  - dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
-+  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
-+  - dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
-+  - dbt_project/docs/layering.md
-+  - dbt_project/models/4_intermediate/shared/int_team_season__longest_runs.sql
-+  - dbt_project/models/4_intermediate/shared/int_team_season__biggest_results.sql
-+  - dbt_project/models/4_intermediate/shared/int_team_season_records.yml
-+  - dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
-+  - dbt_project/models/5_marts/shared/mart_team_profile.sql
-+  - dbt_project/models/5_marts/shared/mart_competition_season_summary.sql
-+  - dbt_project/models/5_marts/shared/mart_team_fixtures.sql
-+  - dbt_project/models/5_marts/shared/shared.yml
-+  - dbt_project/seeds/metric_map.csv
-+  - dbt_project/tests/assert_team_benchmark_rank_follows_direction.sql
-+  - dbt_project/tests/assert_team_benchmark_prev_season_matches_yoy.sql
-+  - scripts/export_site_data.py
-+  - tests/test_export_site_data.py
-+  - tests/test_no_decision_history_in_code.py
+-  - dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
+-  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+-  - dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
+-  - dbt_project/docs/layering.md
+-  - dbt_project/models/4_intermediate/shared/int_team_season__longest_runs.sql
+-  - dbt_project/models/4_intermediate/shared/int_team_season__biggest_results.sql
+-  - dbt_project/models/4_intermediate/shared/int_team_season_records.yml
+-  - dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
+-  - dbt_project/models/5_marts/shared/mart_team_profile.sql
+-  - dbt_project/models/5_marts/shared/mart_competition_season_summary.sql
+-  - dbt_project/models/5_marts/shared/mart_team_fixtures.sql
++  - dbt_project/seeds/round_names.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/models/4_intermediate/shared/int_round_names.sql
++  - dbt_project/models/4_intermediate/shared/int_round_names.yml
++  - dbt_project/models/4_intermediate/shared/int_knockout_ties.sql
++  - dbt_project/models/4_intermediate/shared/int_knockout_ties.yml
++  - dbt_project/models/5_marts/shared/mart_team_competitions.sql
+   - dbt_project/models/5_marts/shared/shared.yml
+-  - dbt_project/seeds/metric_map.csv
+-  - dbt_project/tests/assert_team_benchmark_rank_follows_direction.sql
+-  - dbt_project/tests/assert_team_benchmark_prev_season_matches_yoy.sql
++  - dbt_project/tests/assert_*.sql
+   - scripts/export_site_data.py
++  - scripts/check_copy_gate.py
+   - tests/test_export_site_data.py
++  - tests/test_governance_hooks.py
+   - tests/test_no_decision_history_in_code.py
    - .claude/task/contract.md
    - .claude/task/review.md
-   - .claude/task/review_input.patch
-   - .claude/task/acceptance_evidence.md
+@@ -42,56 +40,53 @@ scope_paths:
    - .claude/task/rendered_page_evidence.md
  
-+impact_map: >
-+  writers: int_team_competition_benchmark_metrics_long (14 more metrics and the value at the same
-+  point last season), mart_team_competition_benchmarks (rank by direction), two new intermediates
-+  (int_team_season__longest_runs, int_team_season__biggest_results), mart_team_profile (card
-+  totals, highs and lows), mart_competition_season_summary (reads the runs intermediate),
-+  mart_team_fixtures (the upcoming rule). downstream: `dbt ls --select
-+  int_team_competition_benchmark_metrics_long+ mart_team_profile+ mart_competition_season_summary+
-+  mart_team_fixtures+ --resource-type model` lists int_team_competition_benchmarks and the four
-+  marts, nothing further; the export's team payload and competition payload. layer_rules: every
-+  ranking and grouping is in the warehouse; the export only selects and indexes. deploy_order: the
-+  MR data build; the committed samples are re-exported with the page's build, which also drops the
-+  page's own rank turnaround (displayRank) in the same change. blast_radius: the benchmark mart's
-+  rank and row set, the season summary's runs (same values), the next-fixture rule on every page
-+  reading mart_team_fixtures.
-+
+ impact_map: >
+-  writers: int_team_competition_benchmark_metrics_long (14 more metrics and the value at the same
+-  point last season), mart_team_competition_benchmarks (rank by direction), two new intermediates
+-  (int_team_season__longest_runs, int_team_season__biggest_results), mart_team_profile (card
+-  totals, highs and lows), mart_competition_season_summary (reads the runs intermediate),
+-  mart_team_fixtures (the upcoming rule). downstream: `dbt ls --select
+-  int_team_competition_benchmark_metrics_long+ mart_team_profile+ mart_competition_season_summary+
+-  mart_team_fixtures+ --resource-type model` lists int_team_competition_benchmarks and the four
+-  marts, nothing further; the export's team payload and competition payload. layer_rules: every
+-  ranking and grouping is in the warehouse; the export only selects and indexes. deploy_order: the
+-  MR data build; the committed samples are re-exported with the page's build, which also drops the
+-  page's own rank turnaround (displayRank) in the same change. blast_radius: the benchmark mart's
+-  rank and row set, the season summary's runs (same values), the next-fixture rule on every page
+-  reading mart_team_fixtures.
++  writers: the round_names seed (a stage_kind column), int_round_names (round_stage_kind), a new
++  intermediate int_knockout_ties and a new mart mart_team_competitions. downstream: `dbt ls
++  --select round_names+ int_knockout_ties+ mart_team_competitions+ --resource-type model` lists 7
++  models: int_knockout_ties, int_round_names, mart_competition_fixtures, mart_competition_index,
++  mart_match_days, mart_next_matchday, mart_team_competitions; the four existing marts select
++  named columns of int_round_names and do not read the new one, and nothing reads the two new
++  models but mart_team_competitions and the export. The export's team
++  payload gains the competitions rows. layer_rules: the tie and the outcome are computed in the
++  warehouse; the mart reads mart_competition_fixtures and mart_standings in its own layer for the
++  round order and the tables; the export only selects. deploy_order: the MR data build; the
++  committed samples are re-exported with the page's build. blast_radius: the seed's new column,
++  the two new models and their tests, the team payload's new key.
+ 
  approved_design:
--  - none: no page output changes
-+  - team: #134
-+
-+acceptance_criteria:
-+  - "mart_team_competition_benchmarks has a row per team-season for every metric of metric_rows.json the team has a value for; its rank orders by the catalogue direction (lower_better ascending, otherwise descending), ties sharing a rank; a test fails where a league-season's rank 1 is not the best value by that direction."
-+  - "The benchmark rows carry the value at the same point last season by rule R6, chosen as int_team_profile__yoy chooses it, null outside a domestic league; a test fails where it differs from int_team_profile__yoy's value for a metric both serve, or where a benchmark metric has no catalogue row."
-+  - "mart_team_profile carries cards_yellow and cards_red season totals and the highs and lows: biggest win and heaviest defeat (fixture, competition, opponent, home or away, score, kickoff) across the team's competitions in the season, and the longest unbeaten and winless runs in the competition, null below two matches; mart_competition_season_summary reads its runs from the same intermediate and its values do not change."
-+  - "mart_team_fixtures marks a fixture upcoming only when its status is NS or TBD and its date is today or later."
-+  - "The team payload's benchmark entries carry metric_value_prev_season, and the featured season carries league_strip, every club's value per metric with the team flagged; pytest pins both."
+   - team: #134
+ 
+ acceptance_criteria:
+-  - "mart_team_competition_benchmarks has a row per team-season for every metric of metric_rows.json the team has a value for; its rank orders by the catalogue direction (lower_better ascending, otherwise descending), ties sharing a rank; a test fails where a league-season's rank 1 is not the best value by that direction."
+-  - "The benchmark rows carry the value at the same point last season by rule R6, chosen as int_team_profile__yoy chooses it, null outside a domestic league; a test fails where it differs from int_team_profile__yoy's value for a metric both serve, or where a benchmark metric has no catalogue row."
+-  - "mart_team_profile carries cards_yellow and cards_red season totals and the highs and lows: biggest win and heaviest defeat (fixture, competition, opponent, home or away, score, kickoff) across the team's competitions in the season, and the longest unbeaten and winless runs in the competition, null below two matches; mart_competition_season_summary reads its runs from the same intermediate and its values do not change."
+-  - "mart_team_fixtures marks a fixture upcoming only when its status is NS or TBD and its date is today or later."
+-  - "The team payload's benchmark entries carry metric_value_prev_season, and the featured season carries league_strip, every club's value per metric with the team flagged; pytest pins both."
++  - "Every round_names row has stage_kind table, final, placement or knockout (a round named by a matchday is a table round, a final pattern a final, a third-place pattern a placement match, every other a knockout round); int_round_names serves round_stage_kind, and assert_every_round_text_resolves still names every latest-season round."
++  - "int_knockout_ties has one row per team and tie (competition, season, round of ties, the two teams) with its legs, the legs played, the goals for and against over the played legs, and won true or false once every leg is played and the tie is decided by goals, then by the last leg's shoot-out or award; a level tie without one is undecided (null), as an FA Cup draw before its replay; tests pin one winner per decided tie."
++  - "mart_team_competitions has one row per (team_sk, league_code, season_api_year) the team has a fixture in: competition_type, the standing of its table section (the section named in its latest played round, else the one with the most matches), the latest played round (copy key, number, letter), the round reached (its latest round, a third-place match left out) with cup_status through, knocked_out or winners (winners only for a final outside a qualifying competition), null while a tie is being played or in a table round, and competition_order; tests pin the grain, the accepted statuses, winners only in a final, at most one winner per competition-season, and that a knocked-out team or a winner has no later fixture in that competition."
++  - "The team payload's featured season carries its competitions rows in competition_order; pytest pins it."
  
  decisions_taken: >
--  Approved in chat, 2026-10-28: the Team page review is closed and the page enters the list as
--  "team: 134"; the screen inventory's row 02 in 00_overview.md points at #134 as the authority for
--  the page, in the approved text with its dates, its tab list and its closing clause left out and
--  the issue as a link. As #134 records, the Squad sub-screen (11_team_squad.md) is the Overview's
--  last block and the Stats sub-screen (14_team_stats.md) is the Performance tab.
-+  The build plan approved in chat, 2026-10-28, including two of its lines by name: the benchmark
-+  rank "follows the metric's direction from the catalogue", and mart_team_fixtures.is_upcoming
-+  "also checks the date, so a stale fixture never shows as next" (the date against current_date(),
-+  as int_team_momentum_window already does). Only the Team page reads mart_team_fixtures and the
-+  benchmark mart, and the committed samples it renders do not change here: the page's build
-+  re-exports them and drops the page's own rank turnaround in one change. Readings: the data comes in two MRs before the page
-+  (this one; then the Competitions block, last season's position, the last five matches and the
-+  squad's appearances, which need the cup-tie outcome #178 asks for), and the export of the whole
-+  season's fixtures follows with the page, which picks the shared rows' fields; the value at the
-+  same point last season sits on the benchmark rows, one row per metric, rather than as three
-+  columns per metric on mart_team_profile; the biggest win and heaviest defeat follow the
-+  competition page's rule for the biggest margin and count across the team's competitions in the
-+  season, as the approved mock shows; the runs follow the competition page's run rule; counts in
-+  the benchmark rows are cast to the float the long form holds; a neutral metric ranks high first;
-+  the strip plot rides on the featured season only, the one the page shows. No new dependency; the
-+  recurring cost is measured on the MR data build and put to the CPO before the merge.
+-  The build plan approved in chat, 2026-10-28, including two of its lines by name: the benchmark
+-  rank "follows the metric's direction from the catalogue", and mart_team_fixtures.is_upcoming
+-  "also checks the date, so a stale fixture never shows as next" (the date against current_date(),
+-  as int_team_momentum_window already does). Only the Team page reads mart_team_fixtures and the
+-  benchmark mart, and the committed samples it renders do not change here: the page's build
+-  re-exports them and drops the page's own rank turnaround in one change. Readings: the data comes in two MRs before the page
+-  (this one; then the Competitions block, last season's position, the last five matches and the
+-  squad's appearances, which need the cup-tie outcome #178 asks for), and the export of the whole
+-  season's fixtures follows with the page, which picks the shared rows' fields; the value at the
+-  same point last season sits on the benchmark rows, one row per metric, rather than as three
+-  columns per metric on mart_team_profile; the biggest win and heaviest defeat follow the
+-  competition page's rule for the biggest margin and count across the team's competitions in the
+-  season, as the approved mock shows; the runs follow the competition page's run rule; counts in
+-  the benchmark rows are cast to the float the long form holds; a neutral metric ranks high first;
+-  the strip plot rides on the featured season only, the one the page shows. No new dependency; the
++  The build plan approved in chat, 2026-10-28, #134's cup rule, and #134's block order (note of
++  2026-10-20: "one list row per competition this season, domestic first (league, then cup), then
++  international"). Readings: a round's kind sits on the round_names row that names it, a round
++  named by a matchday ("Matchday", "Matchweek", "Week") being a table round, the final patterns a
++  final and the third-place patterns a placement match, Veikkausliiga's European play-off final
++  being a knockout round, since it decides a place in Europe and no title; a tie is the fixtures of one round of
++  ties between the same two teams, and an FA Cup replay is its own round, so a draw is undecided
++  until the replay decides; a team drawn into a later round's unplayed tie is through to that
++  round; a third-place match is not the round reached, so a semi-final loser is knocked out in
++  the semi-final; winners are the winners of a final, a cup's or a league's play-off final for
++  its title (Liga MX, MLS), as #134's rule "winning the final shows Final and Winners" reads, a
++  qualifying competition's final winner being through; the standing is the team's section named
++  in its latest played round (an Apertura or Clausura), otherwise its section with the most
++  matches played; the latest played round gives the league's "Matchday N"; in the block order
++  the domestic super cup follows the cups and each group runs by its latest match first; the
++  export carries the rows on the featured season only, the one the page shows. No new dependency; the
+   recurring cost is measured on the MR data build and put to the CPO before the merge.
  
  decisions_reserved:
--  - none: the CPO approved the Team page design on #134, and this task only records it in the list.
-+  - Any wording, block or rule the Team page design does not hold.
+-  - Any wording, block or rule the Team page design does not hold.
++  - Any wording, block or rule the Team page design does not hold; last season's position, the last five matches and the squad's appearances follow in their own MR.
  
  done_when:
--  - The full pytest suite passes.
-+  - dbt parse, SQLFluff on every changed model, a dry run of each against prod, pytest, the site node tests, the copy gate and the offline gates pass.
-+  - The MR data build passes, including the new tests; its added bytes are measured and put to the CPO.
+-  - dbt parse, SQLFluff on every changed model, a dry run of each against prod, pytest, the site node tests, the copy gate and the offline gates pass.
++  - dbt parse, SQLFluff on every changed model, a dry run of each against prod, pytest, the copy gate and the offline gates pass.
+   - The MR data build passes, including the new tests; its added bytes are measured and put to the CPO.
    - Reviewers per review_routing.json pass.
  
- amendments:
--  - "2026-10-28: + docs/wireframes/00_overview.md — authority: the CPO's approval in chat, 2026-10-28, of the row text; content: row 02 of the screen inventory names #134 as the authority for the Team page."
--  - "2026-10-28: the shortened row 02 text as committed and the decisions_taken line on the Squad and Stats sub-screens — authority: the CPO's approval in chat, 2026-10-28, of both texts as shown to him; content: unchanged from the round-3 diff."
-+  - "2026-10-28: + dbt_project/seeds/metric_map.csv — authority: standing rule, the generated metric map must match the catalogue and the model YAML (`sync_metric_docs_blocks.py --check` in CI); content: the map rows of the new benchmark metrics and the profile's card totals, written by the generator."
-+  - "2026-10-28: + dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql and dbt_project/docs/layering.md — authority: standing rule, a repo file states only the current state; content: the header and the mart's layering row stop naming 22 metrics and a direction-agnostic rank, words removed only."
-diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
-index 142c9708..96ca8a20 100644
---- a/dbt_project/docs/layering.md
-+++ b/dbt_project/docs/layering.md
-@@ -330,7 +330,7 @@ Canonical mart inventory (exhaustive) for this project:
- | `mart_fixture_standing_context` | (fixture_sk, team_sk) | Pre-fixture standings / rank context. |
- | `mart_head_to_head` | (team_sk, opponent_team_sk) | Head-to-head history per team pair. |
- | `mart_roster` | (team_sk, league_code, season_api_year, player_sk) | Identity-only club squad list from `dim_player_team_season_mapping` ⋈ `dim_player`; club-scoped via `competition_types`. No per-club stat columns of its own; the Squad tab's per-player stats come from `mart_player_career` (#480), joined onto the roster at the export. |
--| `mart_team_competition_benchmarks` | (team_sk, season_sk, metric_key) | LONG team-vs-league benchmark over the 22 team season metrics; value · league median/mean/p25/p75 · rank (k of N) · vs-median. Composes `int_team_competition_benchmark_metrics_long` (shared per-team long form) + `int_team_competition_benchmarks` (the league distribution). Direction-agnostic (positional). |
-+| `mart_team_competition_benchmarks` | (team_sk, season_sk, metric_key) | LONG team-vs-league benchmark over the team season metrics; value · league median/mean/p25/p75 · rank (k of N) · vs-median. Composes `int_team_competition_benchmark_metrics_long` (shared per-team long form) + `int_team_competition_benchmarks` (the league distribution). |
- | `mart_player_competition_benchmarks` | (player_sk, season_sk, position_group, metric_key) | LONG player-vs-positional-peers benchmark; in-position per-90/rate value · peer median/mean/p25/p75 · rank (k of N) + percentile · vs-median. Composes `int_player_competition_benchmark_metrics_long` (shared per-player long form: the metric set, position eligibility and who enters) + `int_player_competition_benchmarks` (the positional distribution). Direction-agnostic (positional). |
- | `mart_player_career` | (player_sk, team_sk, season_sk) | Player Career log: one row per player × club × competition-season (appearances/goals/assists) + player/club identity + `entity_type`. Composes `int_player_club_season__metrics` (the per-club atoms base, #480 §8.3); a mid-season transfer = two rows; national-entity rows = national appearances in covered competitions (NOT true caps); `national_appearances_total` denormalised per player. |
- 
-diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
-index 6ffeae37..e002b7d0 100644
---- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
-@@ -4,9 +4,9 @@ models:
-   - name: int_team_competition_benchmarks
-     description: >
-       Competition benchmark engine (team): per (league_code, season_api_year, metric_key) the league
--      distribution (median / mean / p25 / p75 / team_count) of the 22 team season metrics. Median-led
-+      distribution (median / mean / p25 / p75 / team_count) of the team benchmark metrics. Median-led
-       (robust to a dominant team). mart_team_competition_benchmarks ranks each team against this. The
--      22-metric set comes from int_team_competition_benchmark_metrics_long.
-+      metric set comes from int_team_competition_benchmark_metrics_long.
-       Grain: (league_code, season_api_year, metric_key).
- 
-       {{ doc('ranking_rules') }}
-@@ -23,11 +23,11 @@ models:
-         description: "{{ doc('season_api_year') }}"
-         tests: [not_null]
-       - name: metric_key
--        description: "The benchmarked metric — a metric_catalogue team metric_id (the 22-metric set)."
-+        description: "The benchmarked metric — a metric_catalogue team metric_id (the benchmark metric set)."
-         tests:
-           - not_null
-           - accepted_values:
--              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shots_on_goal_pct", "shots_inside_box_pct", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match", "finishing_efficiency_pct", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "passes_accuracy_pct", "passes_key_per_match", "corners_per_match", "corners_against_per_match", "saves_pct"]
-+              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "clean_sheets_pct", "shots_per_match", "shots_on_goal_pct", "shots_inside_box_pct", "shots_inside_box_per_match", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match", "finishing_efficiency_pct", "duels_per_match", "duels_won_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "passes_accurate_per_match", "passes_accuracy_pct", "passes_share_pct", "passes_key_per_match", "dribbles_attempts_per_match", "dribbles_success_per_match", "dribbles_success_pct", "corners_per_match", "corners_against_per_match", "free_kicks_per_match", "fouls_per_match", "offsides_per_match", "saves_per_match", "saves_pct", "cards_yellow", "cards_red"]
-       - name: team_count
-         description: "Teams with a non-null value for this metric this league-season — the N for rank-of-N."
-         tests: [not_null]
-@@ -42,8 +42,10 @@ models:
- 
-   - name: int_team_competition_benchmark_metrics_long
-     description: >
--      The 22 team competition-benchmark metrics in long form, per team-season: one row per
--      (team_sk, season_sk, metric_key) unpivoted from int_team_season__metrics. The single source of
-+      The team competition-benchmark metrics in long form, per team-season: every team metric of the
-+      site's served list plus the shots-on-target difference and the clean-sheet share, one row per (team_sk, season_sk,
-+      metric_key) unpivoted from int_team_season__metrics, with the value at the same point last
-+      season. The single source of
-       the benchmark metric set — int_team_competition_benchmarks aggregates it to the league
-       distribution and mart_team_competition_benchmarks ranks each team against it, so the two cannot
-       drift. Replaces the team_benchmark_metrics() macro. Grain: (team_sk, season_sk, metric_key).
-@@ -73,14 +75,16 @@ models:
-         description: "{{ doc('league_code') }}"
-         tests: [not_null]
-       - name: metric_key
--        description: "The benchmarked metric — a metric_catalogue team metric_id (the 22-metric set)."
-+        description: "The benchmarked metric — a metric_catalogue team metric_id (the benchmark metric set)."
-         tests:
-           - not_null
-           - accepted_values:
--              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shots_on_goal_pct", "shots_inside_box_pct", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match", "finishing_efficiency_pct", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "passes_accuracy_pct", "passes_key_per_match", "corners_per_match", "corners_against_per_match", "saves_pct"]
-+              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "clean_sheets_pct", "shots_per_match", "shots_on_goal_pct", "shots_inside_box_pct", "shots_inside_box_per_match", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match", "finishing_efficiency_pct", "duels_per_match", "duels_won_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "passes_accurate_per_match", "passes_accuracy_pct", "passes_share_pct", "passes_key_per_match", "dribbles_attempts_per_match", "dribbles_success_per_match", "dribbles_success_pct", "corners_per_match", "corners_against_per_match", "free_kicks_per_match", "fouls_per_match", "offsides_per_match", "saves_per_match", "saves_pct", "cards_yellow", "cards_red"]
-       - name: metric_value
-         description: "The team's season-to-date value for this metric. UNPIVOT excludes nulls, so this is never null."
-         tests: [not_null]
-+      - name: metric_value_prev_season
-+        description: "The team's value at the same point last season (rule R6): the previous season's latest match at or before this season's match count, domestic leagues only; null otherwise."
-       - name: league_sk
-         description: "{{ doc('league_sk') }}"
-         tests:
-diff --git a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
-index e289690b..4d912c14 100644
---- a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
-+++ b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
-@@ -1,53 +1,263 @@
- {#
--  The 22 team competition-benchmark metrics in LONG form, per team-season: one row per
-+  The team competition-benchmark metrics in LONG form, per team-season: one row per
-   (team_sk, season_sk, metric_key) unpivoted from int_team_season__metrics (season-to-date, teams with
--  at least the var team_min_matches finished games). This is the single source of the benchmark metric set — both
--  int_team_competition_benchmarks (which aggregates it to the league distribution) and
--  mart_team_competition_benchmarks (which ranks each team against that distribution) read from here, so
--  the two cannot drift apart. Replaces the team_benchmark_metrics() macro (engineering_standards.md §1.3:
--  a shared list belongs in a model, not a macro). BigQuery UNPIVOT excludes nulls, so a metric with no
--  value for a team (e.g. a player-stat coverage gap) simply yields no row — the same teams the prior
--  `where metric_value is not null` filters dropped.
-+  at least the var team_min_matches finished games). The set is every team metric the site's served
-+  list shows (metric_rows.json) plus the shots-on-target difference and the clean-sheet share. This is the single source of the
-+  benchmark metric set — both int_team_competition_benchmarks (which aggregates it to the league
-+  distribution) and mart_team_competition_benchmarks (which ranks each team against that
-+  distribution) read from here, so the two cannot drift apart. BigQuery UNPIVOT excludes nulls, so a
-+  metric with no value for a team (e.g. a player-stat coverage gap) simply yields no row. Counts are
-+  cast to FLOAT64, the one type an UNPIVOT column list holds.
-+
-+  Each row also carries the team's value at the same point last season (rule R6), from
-+  int_team_season__metrics_cumulative, chosen as int_team_profile__yoy chooses it: the previous
-+  season's latest match at or before this season's match count, domestic leagues only.
-   Grain: (team_sk, season_sk, metric_key).
- #}
- 
- with season as (
--    select * from {{ ref('int_team_season__metrics') }}
--    where season_games_played >= {{ var('team_min_matches') }}
--)
--
--select
--    team_sk,
--    season_sk,
--    league_sk,
--    league_code,
--    season_api_year,
--    metric_key,
--    metric_value
--from season
--unpivot (
--    metric_value for metric_key in (
-+    select
-+        team_sk,
-+        season_sk,
-+        league_sk,
-+        league_code,
-+        season_api_year,
-+        season_games_played,
-         goals_per_match,
-         goals_against_per_match,
-+        cast(clean_sheets as float64) as clean_sheets,
-         clean_sheets_pct,
-         shots_per_match,
-         shots_on_goal_pct,
-         shots_inside_box_pct,
-+        shots_inside_box_per_match,
-         shots_on_goal_per_match,
-         shots_on_goal_against_per_match,
-         shots_on_goal_difference_per_match,
-         finishing_efficiency_pct,
-         duels_per_match,
-+        duels_won_per_match,
-         duels_won_pct,
-         defensive_actions_per_match,
-         tackles_per_match,
-         interceptions_per_match,
-         blocks_per_match,
-         passes_per_match,
-+        passes_accurate_per_match,
-         passes_accuracy_pct,
-+        passes_share_pct,
-         passes_key_per_match,
-+        dribbles_attempts_per_match,
-+        dribbles_success_per_match,
-+        dribbles_success_pct,
-         corners_per_match,
-         corners_against_per_match,
--        saves_pct
-+        free_kicks_per_match,
-+        fouls_per_match,
-+        offsides_per_match,
-+        saves_per_match,
-+        saves_pct,
-+        cast(cards_yellow as float64) as cards_yellow,
-+        cast(cards_red as float64) as cards_red
-+    from {{ ref('int_team_season__metrics') }}
-+    where season_games_played >= {{ var('team_min_matches') }}
-+),
-+
-+registry as (
-+    select
-+        league_code,
-+        competition_type
-+    from {{ ref('competition_registry') }}
-+),
-+
-+domestic_cumulative as (
-+    select c.*
-+    from {{ ref('int_team_season__metrics_cumulative') }} as c
-+    inner join registry as r
-+        on c.league_code = r.league_code
-+    where r.competition_type = 'domestic_league'
-+),
-+
-+-- each domestic team-season's match count, the N its previous season is read at
-+season_n as (
-+    select
-+        team_sk,
-+        league_code,
-+        season_api_year,
-+        max(match_number) as match_count
-+    from domestic_cumulative
-+    group by team_sk, league_code, season_api_year
-+),
-+
-+previous as (
-+    select
-+        n.team_sk,
-+        n.league_code,
-+        n.season_api_year,
-+        c.goals_per_match,
-+        c.goals_against_per_match,
-+        cast(c.clean_sheets as float64) as clean_sheets,
-+        c.clean_sheets_pct,
-+        c.shots_per_match,
-+        c.shots_on_goal_pct,
-+        c.shots_inside_box_pct,
-+        c.shots_inside_box_per_match,
-+        c.shots_on_goal_per_match,
-+        c.shots_on_goal_against_per_match,
-+        c.shots_on_goal_difference_per_match,
-+        c.finishing_efficiency_pct,
-+        c.duels_per_match,
-+        c.duels_won_per_match,
-+        c.duels_won_pct,
-+        c.defensive_actions_per_match,
-+        c.tackles_per_match,
-+        c.interceptions_per_match,
-+        c.blocks_per_match,
-+        c.passes_per_match,
-+        c.passes_accurate_per_match,
-+        c.passes_accuracy_pct,
-+        c.passes_share_pct,
-+        c.passes_key_per_match,
-+        c.dribbles_attempts_per_match,
-+        c.dribbles_success_per_match,
-+        c.dribbles_success_pct,
-+        c.corners_per_match,
-+        c.corners_against_per_match,
-+        c.free_kicks_per_match,
-+        c.fouls_per_match,
-+        c.offsides_per_match,
-+        c.saves_per_match,
-+        c.saves_pct,
-+        cast(c.cards_yellow as float64) as cards_yellow,
-+        cast(c.cards_red as float64) as cards_red
-+    from season_n as n
-+    inner join domestic_cumulative as c
-+        on
-+            n.team_sk = c.team_sk
-+            and n.league_code = c.league_code
-+            and n.season_api_year - 1 = c.season_api_year
-+            and n.match_count >= c.match_number
-+    qualify row_number() over (
-+        partition by n.team_sk, n.league_code, n.season_api_year
-+        order by c.match_number desc
-+    ) = 1
-+),
-+
-+current_long as (
-+    select
-+        team_sk,
-+        season_sk,
-+        league_sk,
-+        league_code,
-+        season_api_year,
-+        metric_key,
-+        metric_value
-+    from season
-+    unpivot (
-+        metric_value for metric_key in (
-+            goals_per_match,
-+            goals_against_per_match,
-+            clean_sheets,
-+            clean_sheets_pct,
-+            shots_per_match,
-+            shots_on_goal_pct,
-+            shots_inside_box_pct,
-+            shots_inside_box_per_match,
-+            shots_on_goal_per_match,
-+            shots_on_goal_against_per_match,
-+            shots_on_goal_difference_per_match,
-+            finishing_efficiency_pct,
-+            duels_per_match,
-+            duels_won_per_match,
-+            duels_won_pct,
-+            defensive_actions_per_match,
-+            tackles_per_match,
-+            interceptions_per_match,
-+            blocks_per_match,
-+            passes_per_match,
-+            passes_accurate_per_match,
-+            passes_accuracy_pct,
-+            passes_share_pct,
-+            passes_key_per_match,
-+            dribbles_attempts_per_match,
-+            dribbles_success_per_match,
-+            dribbles_success_pct,
-+            corners_per_match,
-+            corners_against_per_match,
-+            free_kicks_per_match,
-+            fouls_per_match,
-+            offsides_per_match,
-+            saves_per_match,
-+            saves_pct,
-+            cards_yellow,
-+            cards_red
-+        )
-+    )
-+),
-+
-+previous_long as (
-+    select
-+        team_sk,
-+        league_code,
-+        season_api_year,
-+        metric_key,
-+        metric_value
-+    from previous
-+    unpivot (
-+        metric_value for metric_key in (
-+            goals_per_match,
-+            goals_against_per_match,
-+            clean_sheets,
-+            clean_sheets_pct,
-+            shots_per_match,
-+            shots_on_goal_pct,
-+            shots_inside_box_pct,
-+            shots_inside_box_per_match,
-+            shots_on_goal_per_match,
-+            shots_on_goal_against_per_match,
-+            shots_on_goal_difference_per_match,
-+            finishing_efficiency_pct,
-+            duels_per_match,
-+            duels_won_per_match,
-+            duels_won_pct,
-+            defensive_actions_per_match,
-+            tackles_per_match,
-+            interceptions_per_match,
-+            blocks_per_match,
-+            passes_per_match,
-+            passes_accurate_per_match,
-+            passes_accuracy_pct,
-+            passes_share_pct,
-+            passes_key_per_match,
-+            dribbles_attempts_per_match,
-+            dribbles_success_per_match,
-+            dribbles_success_pct,
-+            corners_per_match,
-+            corners_against_per_match,
-+            free_kicks_per_match,
-+            fouls_per_match,
-+            offsides_per_match,
-+            saves_per_match,
-+            saves_pct,
-+            cards_yellow,
-+            cards_red
-+        )
-     )
- )
-+
-+select
-+    cur.team_sk,
-+    cur.season_sk,
-+    cur.league_sk,
-+    cur.league_code,
-+    cur.season_api_year,
-+    cur.metric_key,
-+    cur.metric_value,
-+    prev.metric_value as metric_value_prev_season
-+from current_long as cur
-+left join previous_long as prev
-+    on
-+        cur.team_sk = prev.team_sk
-+        and cur.league_code = prev.league_code
-+        and cur.season_api_year = prev.season_api_year
-+        and cur.metric_key = prev.metric_key
-diff --git a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
-index 3c7b5cff..7a4198c7 100644
---- a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
-+++ b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
-@@ -1,6 +1,6 @@
- {#
-   Competition benchmark engine (team). Per (league_code, season_api_year, metric_key): the league
--  distribution of each of the 22 team season metrics, so a team's value can be read against its peers.
-+  distribution of each team benchmark metric, so a team's value can be read against its peers.
-   Median-led (robust to a dominant team) with the p25/p75 spread; the mean is carried for the
-   "vs league average" read but is skew-sensitive. team_count is N for the rank-of-N display.
- 
-diff --git a/dbt_project/models/4_intermediate/shared/int_team_season__biggest_results.sql b/dbt_project/models/4_intermediate/shared/int_team_season__biggest_results.sql
+-amendments:
+-  - "2026-10-28: + dbt_project/seeds/metric_map.csv — authority: standing rule, the generated metric map must match the catalogue and the model YAML (`sync_metric_docs_blocks.py --check` in CI); content: the map rows of the new benchmark metrics and the profile's card totals, written by the generator."
+-  - "2026-10-28: + dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql and dbt_project/docs/layering.md — authority: standing rule, a repo file states only the current state; content: the header and the mart's layering row stop naming 22 metrics and a direction-agnostic rank, words removed only."
++amendments: (none)
+diff --git a/dbt_project/models/4_intermediate/shared/int_knockout_ties.sql b/dbt_project/models/4_intermediate/shared/int_knockout_ties.sql
 new file mode 100644
-index 00000000..b2e0c22b
+index 00000000..33169b16
 --- /dev/null
-+++ b/dbt_project/models/4_intermediate/shared/int_team_season__biggest_results.sql
-@@ -0,0 +1,85 @@
++++ b/dbt_project/models/4_intermediate/shared/int_knockout_ties.sql
+@@ -0,0 +1,124 @@
 +{#
-+  Each team's biggest win and heaviest defeat in a season, across every competition it played
-+  that season: the finished match with the widest margin. The competition page's rule for its
-+  biggest margin decides a tie: the match with more goals, then the earlier kickoff, then the
-+  fixture id. A shoot-out after a level score has no margin, so it is neither. A season without a
-+  win (or without a defeat) by a margin has NULL in that half.
-+  Grain: (team_sk, season_api_year).
++  Every knockout tie seen from each of its two teams: the fixtures of one round of ties (a
++  knockout round, a final or a third-place match by int_round_names' round_stage_kind) between
++  the same two teams, one leg or two. Once every leg
++  is played, the tie goes to the team with more goals over its legs; a level tie goes to the
++  winner of its last leg when that leg was decided by a shoot-out or awarded. A level tie without
++  one stays undecided (won NULL): an FA Cup draw is decided by its replay, which is a round of its
++  own. A tie with a leg still to play is undecided too.
++  Grain: (league_code, season_api_year, round_name, team_sk, opponent_team_sk).
 +#}
 +
-+with legs as (
++with rounds as (
++    select
++        league_code,
++        season_api_year,
++        round_name
++    from {{ ref('int_round_names') }}
++    where round_stage_kind in ('knockout', 'final', 'placement')
++),
++
++fixtures as (
++    select
++        f.fixture_sk,
++        f.league_code,
++        f.season_api_year,
++        f.round_name,
++        f.home_team_sk,
++        f.away_team_sk,
++        f.goals_home,
++        f.goals_away,
++        f.status_short,
++        f.winner_team_sk,
++        f.kickoff_datetime,
++        f.status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO') as is_played
++    from {{ ref('fct_fixture') }} as f
++    inner join rounds as r
++        on
++            f.league_code = r.league_code
++            and f.season_api_year = r.season_api_year
++            and f.round_name = r.round_name
++    where f.home_team_sk is not null and f.away_team_sk is not null
++),
++
++sides as (
 +    select
 +        fixture_sk,
 +        league_code,
 +        season_api_year,
++        round_name,
++        home_team_sk as team_sk,
++        away_team_sk as opponent_team_sk,
++        if(is_played, goals_home, null) as goals_for,
++        if(is_played, goals_away, null) as goals_against,
++        status_short,
++        winner_team_sk,
++        kickoff_datetime,
++        is_played
++    from fixtures
++    union all
++    select
++        fixture_sk,
++        league_code,
++        season_api_year,
++        round_name,
++        away_team_sk as team_sk,
++        home_team_sk as opponent_team_sk,
++        if(is_played, goals_away, null) as goals_for,
++        if(is_played, goals_home, null) as goals_against,
++        status_short,
++        winner_team_sk,
++        kickoff_datetime,
++        is_played
++    from fixtures
++),
++
++ties as (
++    select
++        league_code,
++        season_api_year,
++        round_name,
 +        team_sk,
 +        opponent_team_sk,
-+        home_away,
-+        kickoff_datetime,
-+        goals,
-+        goals_against,
-+        result
-+    from {{ ref('int_legs__team_match') }}
-+),
-+
-+teams as (
-+    select distinct
-+        team_sk,
-+        season_api_year
-+    from legs
-+),
-+
-+biggest_win as (
-+    select *
-+    from legs
-+    where result = 'W' and goals > goals_against
-+    qualify row_number() over (
-+        partition by team_sk, season_api_year
-+        order by
-+            goals - goals_against desc,
-+            goals + goals_against desc,
-+            kickoff_datetime asc,
-+            fixture_sk asc
-+    ) = 1
-+),
-+
-+heaviest_defeat as (
-+    select *
-+    from legs
-+    where result = 'L' and goals < goals_against
-+    qualify row_number() over (
-+        partition by team_sk, season_api_year
-+        order by
-+            goals_against - goals desc,
-+            goals + goals_against desc,
-+            kickoff_datetime asc,
-+            fixture_sk asc
-+    ) = 1
-+)
-+
-+select
-+    t.team_sk,
-+    t.season_api_year,
-+    w.fixture_sk as biggest_win_fixture_sk,
-+    w.league_code as biggest_win_league_code,
-+    w.opponent_team_sk as biggest_win_opponent_team_sk,
-+    w.home_away as biggest_win_home_away,
-+    w.goals as biggest_win_goals_for,
-+    w.goals_against as biggest_win_goals_against,
-+    w.kickoff_datetime as biggest_win_kickoff_datetime,
-+    d.fixture_sk as heaviest_defeat_fixture_sk,
-+    d.league_code as heaviest_defeat_league_code,
-+    d.opponent_team_sk as heaviest_defeat_opponent_team_sk,
-+    d.home_away as heaviest_defeat_home_away,
-+    d.goals as heaviest_defeat_goals_for,
-+    d.goals_against as heaviest_defeat_goals_against,
-+    d.kickoff_datetime as heaviest_defeat_kickoff_datetime
-+from teams as t
-+left join biggest_win as w
-+    on
-+        t.team_sk = w.team_sk
-+        and t.season_api_year = w.season_api_year
-+left join heaviest_defeat as d
-+    on
-+        t.team_sk = d.team_sk
-+        and t.season_api_year = d.season_api_year
-diff --git a/dbt_project/models/4_intermediate/shared/int_team_season__longest_runs.sql b/dbt_project/models/4_intermediate/shared/int_team_season__longest_runs.sql
-new file mode 100644
-index 00000000..ea49cf70
---- /dev/null
-+++ b/dbt_project/models/4_intermediate/shared/int_team_season__longest_runs.sql
-@@ -0,0 +1,86 @@
-+{#
-+  Each team's longest unbeaten and longest winless run in a competition-season: the longest
-+  unbroken stretch of finished matches ordered by kickoff, not the run it is on now (the team
-+  profile's streaks carry that). Gaps and islands: a run's island id is the count of run-breaking
-+  results up to and including this match, so every match after a break starts a new island.
-+  longest_unbeaten / longest_winless hold the raw lengths, which the competition season summary
-+  reduces to the league's longest; longest_unbeaten_run / longest_winless_run apply the run rule
-+  the competition page shows, a run of one match is no run, so they are NULL below two.
-+  Grain: (league_code, season_api_year, team_sk).
-+#}
-+
-+with legs as (
-+    select
-+        fixture_sk,
-+        league_code,
-+        season_api_year,
-+        team_sk,
-+        kickoff_datetime,
-+        result
-+    from {{ ref('int_legs__team_match') }}
-+),
-+
-+ordered_legs as (
-+    select
-+        league_code,
-+        season_api_year,
-+        team_sk,
-+        result,
-+        countif(result = 'L') over (
-+            partition by league_code, season_api_year, team_sk
-+            order by kickoff_datetime, fixture_sk
-+            rows between unbounded preceding and current row
-+        ) as loss_island,
-+        countif(result = 'W') over (
-+            partition by league_code, season_api_year, team_sk
-+            order by kickoff_datetime, fixture_sk
-+            rows between unbounded preceding and current row
-+        ) as win_island
-+    from legs
-+),
-+
-+unbeaten_islands as (
-+    select
-+        league_code,
-+        season_api_year,
-+        team_sk,
-+        countif(result != 'L') as run_length
-+    from ordered_legs
-+    group by league_code, season_api_year, team_sk, loss_island
-+),
-+
-+winless_islands as (
-+    select
-+        league_code,
-+        season_api_year,
-+        team_sk,
-+        countif(result != 'W') as run_length
-+    from ordered_legs
-+    group by league_code, season_api_year, team_sk, win_island
-+),
-+
-+team_longest as (
-+    select
-+        u.league_code,
-+        u.season_api_year,
-+        u.team_sk,
-+        max(u.run_length) as longest_unbeaten,
-+        max(w.run_length) as longest_winless
-+    from unbeaten_islands as u
-+    inner join winless_islands as w
-+        on
-+            u.league_code = w.league_code
-+            and u.season_api_year = w.season_api_year
-+            and u.team_sk = w.team_sk
-+    group by u.league_code, u.season_api_year, u.team_sk
++        count(*) as legs,
++        countif(is_played) as legs_played,
++        sum(goals_for) as goals_for,
++        sum(goals_against) as goals_against,
++        array_agg(
++            if(is_played, struct(fixture_sk, status_short, winner_team_sk, kickoff_datetime), null)
++            ignore nulls order by kickoff_datetime desc, fixture_sk desc limit 1
++        )[safe_offset(0)] as last_played_leg,
++        max(kickoff_datetime) as last_kickoff_datetime
++    from sides
++    group by league_code, season_api_year, round_name, team_sk, opponent_team_sk
 +)
 +
 +select
 +    league_code,
 +    season_api_year,
++    round_name,
 +    team_sk,
-+    longest_unbeaten,
-+    longest_winless,
-+    if(longest_unbeaten >= 2, longest_unbeaten, null) as longest_unbeaten_run,
-+    if(longest_winless >= 2, longest_winless, null) as longest_winless_run
-+from team_longest
-diff --git a/dbt_project/models/4_intermediate/shared/int_team_season_records.yml b/dbt_project/models/4_intermediate/shared/int_team_season_records.yml
++    opponent_team_sk,
++    legs,
++    legs_played,
++    goals_for,
++    goals_against,
++    last_played_leg.fixture_sk as last_played_fixture_sk,
++    last_kickoff_datetime,
++    case
++        when legs_played < legs then null
++        when goals_for != goals_against then 'goals'
++        when
++            last_played_leg.status_short in ('PEN', 'AWD', 'WO')
++            and last_played_leg.winner_team_sk is not null
++            then if(last_played_leg.status_short = 'PEN', 'shootout', 'award')
++    end as decided_by,
++    case
++        when legs_played < legs then null
++        when goals_for != goals_against then goals_for > goals_against
++        when
++            last_played_leg.status_short in ('PEN', 'AWD', 'WO')
++            and last_played_leg.winner_team_sk is not null
++            then last_played_leg.winner_team_sk = team_sk
++    end as won
++from ties
+diff --git a/dbt_project/models/4_intermediate/shared/int_knockout_ties.yml b/dbt_project/models/4_intermediate/shared/int_knockout_ties.yml
 new file mode 100644
-index 00000000..4a08eea2
+index 00000000..caedb431
 --- /dev/null
-+++ b/dbt_project/models/4_intermediate/shared/int_team_season_records.yml
-@@ -0,0 +1,114 @@
++++ b/dbt_project/models/4_intermediate/shared/int_knockout_ties.yml
+@@ -0,0 +1,71 @@
 +version: 2
 +
 +models:
-+  - name: int_team_season__longest_runs
++  - name: int_knockout_ties
 +    description: >
-+      Each team's longest unbeaten and longest winless run in a competition-season, ordered by
-+      kickoff: the raw lengths the competition season summary reduces to the league's longest, and
-+      the same lengths under the run rule the pages show, NULL below two matches.
-+      Grain: (league_code, season_api_year, team_sk).
++      Every knockout tie seen from each of its two teams: the fixtures of one round of ties (a
++      knockout round, a final or a third-place match) between the same two teams, one leg or two. Once every leg is played the tie goes to the
++      team with more goals over its legs, and a level tie to the winner of its last leg when that
++      leg was decided by a shoot-out or awarded; otherwise it is undecided, as an FA Cup draw
++      before its replay, which is a round of its own.
++      Grain: (league_code, season_api_year, round_name, team_sk, opponent_team_sk).
 +    config:
-+      tags: ["intermediate", "football", "team_season"]
++      tags: ["intermediate", "football", "knockout"]
 +    tests:
 +      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns: [league_code, season_api_year, team_sk]
++          combination_of_columns: [league_code, season_api_year, round_name, team_sk, opponent_team_sk]
 +      - dbt_utils.expression_is_true:
-+          expression: "(longest_unbeaten_run is null) = (longest_unbeaten < 2) and (longest_winless_run is null) = (longest_winless < 2)"
-+          name: int_team_season_longest_runs_null_below_two
++          expression: "legs_played between 0 and legs"
++          name: int_knockout_ties_played_legs_in_range
++      - dbt_utils.expression_is_true:
++          expression: "(won is null) = (decided_by is null)"
++          name: int_knockout_ties_decided_has_a_result
 +    columns:
 +      - name: league_code
 +        description: "{{ doc('league_code') }}"
@@ -710,6 +324,9 @@ index 00000000..4a08eea2
 +      - name: season_api_year
 +        description: "{{ doc('season_api_year') }}"
 +        tests: [not_null]
++      - name: round_name
++        description: "{{ doc('round_name') }}"
++        tests: [not_null]
 +      - name: team_sk
 +        description: "{{ doc('team_sk') }}"
 +        tests:
@@ -717,582 +334,132 @@ index 00000000..4a08eea2
 +          - relationships:
 +              to: ref('dim_team')
 +              field: team_sk
-+      - name: longest_unbeaten
-+        description: "The longest run of finished matches without a defeat, raw (zero when every match was lost)."
-+        tests: [not_null]
-+      - name: longest_winless
-+        description: "The longest run of finished matches without a win, raw (zero when every match was won)."
-+        tests: [not_null]
-+      - name: longest_unbeaten_run
-+        description: "The longest unbeaten run, NULL below two matches."
-+      - name: longest_winless_run
-+        description: "The longest winless run, NULL below two matches."
-+
-+  - name: int_team_season__biggest_results
-+    description: >
-+      Each team's biggest win and heaviest defeat in a season across every competition it played:
-+      the finished match with the widest margin, a tie going to the match with more goals, then the
-+      earlier kickoff, then the fixture id. A shoot-out after a level score has no margin, so it is
-+      neither. Grain: (team_sk, season_api_year).
-+    config:
-+      tags: ["intermediate", "football", "team_season"]
-+    tests:
-+      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns: [team_sk, season_api_year]
-+      - dbt_utils.expression_is_true:
-+          expression: "biggest_win_fixture_sk is null or biggest_win_goals_for > biggest_win_goals_against"
-+          name: int_team_season_biggest_win_is_a_win
-+      - dbt_utils.expression_is_true:
-+          expression: "heaviest_defeat_fixture_sk is null or heaviest_defeat_goals_for < heaviest_defeat_goals_against"
-+          name: int_team_season_heaviest_defeat_is_a_defeat
-+    columns:
-+      - name: team_sk
-+        description: "{{ doc('team_sk') }}"
++      - name: opponent_team_sk
++        description: "{{ doc('opponent_team_sk') }}"
 +        tests:
 +          - not_null
 +          - relationships:
 +              to: ref('dim_team')
 +              field: team_sk
-+      - name: season_api_year
-+        description: "{{ doc('season_api_year') }}"
++      - name: legs
++        description: "The tie's fixtures in this round, played or not."
 +        tests: [not_null]
-+      - name: biggest_win_fixture_sk
-+        description: "The biggest win's fixture; NULL without a win this season."
++      - name: legs_played
++        description: "The tie's fixtures already played (FT, AET, PEN, AWD, WO)."
++        tests: [not_null]
++      - name: goals_for
++        description: "The team's goals over the played legs, extra time included; NULL before a leg is played."
++      - name: goals_against
++        description: "The opponent's goals over the played legs; NULL before a leg is played."
++      - name: last_played_fixture_sk
++        description: "The tie's latest played leg; NULL before a leg is played."
 +        tests:
 +          - relationships:
 +              to: ref('fct_fixture')
 +              field: fixture_sk
-+      - name: biggest_win_league_code
-+        description: "The competition of the biggest win."
-+      - name: biggest_win_opponent_team_sk
-+        description: "The opponent in the biggest win."
++      - name: last_kickoff_datetime
++        description: "The kickoff of the tie's latest leg, played or not, UTC."
++      - name: decided_by
++        description: "goals, shootout or award once the tie is decided; NULL while it is not."
 +        tests:
-+          - relationships:
-+              to: ref('dim_team')
-+              field: team_sk
-+      - name: biggest_win_home_away
-+        description: "Whether the team played the biggest win at home or away."
-+      - name: biggest_win_goals_for
-+        description: "The team's goals in the biggest win."
-+      - name: biggest_win_goals_against
-+        description: "The opponent's goals in the biggest win."
-+      - name: biggest_win_kickoff_datetime
-+        description: "The biggest win's kickoff, UTC."
-+      - name: heaviest_defeat_fixture_sk
-+        description: "The heaviest defeat's fixture; NULL without a defeat this season."
-+        tests:
-+          - relationships:
-+              to: ref('fct_fixture')
-+              field: fixture_sk
-+      - name: heaviest_defeat_league_code
-+        description: "The competition of the heaviest defeat."
-+      - name: heaviest_defeat_opponent_team_sk
-+        description: "The opponent in the heaviest defeat."
-+        tests:
-+          - relationships:
-+              to: ref('dim_team')
-+              field: team_sk
-+      - name: heaviest_defeat_home_away
-+        description: "Whether the team played the heaviest defeat at home or away."
-+      - name: heaviest_defeat_goals_for
-+        description: "The team's goals in the heaviest defeat."
-+      - name: heaviest_defeat_goals_against
-+        description: "The opponent's goals in the heaviest defeat."
-+      - name: heaviest_defeat_kickoff_datetime
-+        description: "The heaviest defeat's kickoff, UTC."
-diff --git a/dbt_project/models/5_marts/shared/mart_competition_season_summary.sql b/dbt_project/models/5_marts/shared/mart_competition_season_summary.sql
-index 53e21606..85fa2b4b 100644
---- a/dbt_project/models/5_marts/shared/mart_competition_season_summary.sql
-+++ b/dbt_project/models/5_marts/shared/mart_competition_season_summary.sql
-@@ -131,61 +131,15 @@ most_goals as (
-     ) = 1
- ),
++          - accepted_values:
++              values: ["goals", "shootout", "award"]
++      - name: won
++        description: "True when the team won the tie, false when it lost; NULL while the tie is undecided."
+diff --git a/dbt_project/models/4_intermediate/shared/int_round_names.sql b/dbt_project/models/4_intermediate/shared/int_round_names.sql
+index 5092cef9..b335ca08 100644
+--- a/dbt_project/models/4_intermediate/shared/int_round_names.sql
++++ b/dbt_project/models/4_intermediate/shared/int_round_names.sql
+@@ -6,7 +6,9 @@
+     own row first (a cup whose early rounds change with each season's format), then the
+     competition's own (Veikkausliiga's Mestaruussarja, the Premier League's Matchweek), then the
+     general one, each by lowest priority. The row gives the copy key the page names the round by;
+-    its number and group letter are read from the text with the row's own expressions.
++    its number and group letter are read from the text with the row's own expressions, and its
++    stage kind says whether the round is played for a table, is a final, a third-place match, or
++    another round of knockout ties.
  
---- Gaps and islands: a run's island id is the count of run-breaking results up to and including
---- this match, so every match after a break starts a new island.
--ordered_legs as (
--    select
--        league_code,
--        season_api_year,
--        team_sk,
--        result,
--        countif(result = 'L') over (
--            partition by league_code, season_api_year, team_sk
--            order by kickoff_datetime, fixture_sk
--            rows between unbounded preceding and current row
--        ) as loss_island,
--        countif(result = 'W') over (
--            partition by league_code, season_api_year, team_sk
--            order by kickoff_datetime, fixture_sk
--            rows between unbounded preceding and current row
--        ) as win_island
--    from legs
--),
--
--unbeaten_islands as (
--    select
--        league_code,
--        season_api_year,
--        team_sk,
--        countif(result != 'L') as run_length
--    from ordered_legs
--    group by league_code, season_api_year, team_sk, loss_island
--),
--
--winless_islands as (
-+-- Each team's longest runs this competition-season, the raw lengths the league's longest reduce.
-+team_longest as (
-     select
-         league_code,
-         season_api_year,
-         team_sk,
--        countif(result != 'W') as run_length
--    from ordered_legs
--    group by league_code, season_api_year, team_sk, win_island
--),
--
--team_longest as (
--    select
--        u.league_code,
--        u.season_api_year,
--        u.team_sk,
--        max(u.run_length) as longest_unbeaten,
--        max(w.run_length) as longest_winless
--    from unbeaten_islands as u
--    inner join winless_islands as w
--        on
--            u.league_code = w.league_code
--            and u.season_api_year = w.season_api_year
--            and u.team_sk = w.team_sk
--    group by u.league_code, u.season_api_year, u.team_sk
-+        longest_unbeaten,
-+        longest_winless
-+    from {{ ref('int_team_season__longest_runs') }}
- ),
- 
- league_runs as (
-diff --git a/dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql b/dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
-index aac46d7b..c7f34d5a 100644
---- a/dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
-+++ b/dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
-@@ -1,16 +1,15 @@
- {#
-   Team competition benchmark (the vs-benchmark block; content_architecture §6 — the engine, table stakes).
--  LONG: one row per (team, season, metric_key) over the 22 team season metrics. Each row places the team
--  against its league that season: the team's metric_value, the league median (+ mean) and p25/p75 spread,
--  the team's rank (k of team_count), and metric_value - median.
-+  LONG: one row per (team, season, metric_key) over the team benchmark metrics. Each row places the
-+  team against its league that season: the team's metric_value, the league median (+ mean) and
-+  p25/p75 spread, the team's rank (k of team_count), metric_value - median, and the team's value at
-+  the same point last season.
- 
--  DIRECTION-AGNOSTIC by design: the mart reports position, not a verdict. rank is by metric_value DESC
--  within (league_code, season_api_year, metric_key) — stated as "k of team_count" — and the good/bad
--  reading is supplied at display from the catalogue's `direction` (joined there), since most football
--  metrics are style, not quality. Median-led; rank not percentile (honest at N~18). Composes
--  int_team_competition_benchmark_metrics_long (the shared per-team long form) + the
--  int_team_competition_benchmarks engine — both read the same long form, so the metric set cannot drift.
--  Who is ranked: the ranking_rules doc block in models/docs/metric_rules.md.
-+  rank orders by the metric's direction from the catalogue: a lower_better metric ranks the lowest
-+  value 1, every other metric the highest; tied values share a rank. Median-led; rank not percentile
-+  (honest at N~18). Composes int_team_competition_benchmark_metrics_long (the shared per-team long
-+  form) + the int_team_competition_benchmarks engine — both read the same long form, so the metric
-+  set cannot drift. Who is ranked: the ranking_rules doc block in models/docs/metric_rules.md.
- 
-   Season-to-date (W2). Player benchmark + percentile-vs-peers are the v1.x follow-up.
-   Grain: (team_sk, season_sk, metric_key).
-@@ -32,6 +31,14 @@ benchmarks as (
-     select * from {{ ref('int_team_competition_benchmarks') }}
- ),
- 
-+catalogue as (
-+    select
-+        metric_id,
-+        direction
-+    from {{ ref('metric_catalogue') }}
-+    where entity = 'team'
-+),
-+
- ranked as (
-     select
-         m.team_sk,
-@@ -41,11 +48,14 @@ ranked as (
-         m.season_api_year,
-         m.metric_key,
-         m.metric_value,
-+        m.metric_value_prev_season,
-         rank() over (
-             partition by m.league_code, m.season_api_year, m.metric_key
--            order by m.metric_value desc
-+            order by if(c.direction = 'lower_better', m.metric_value, -m.metric_value) asc
-         ) as rank
-     from metrics as m
-+    inner join catalogue as c
-+        on m.metric_key = c.metric_id
-     where m.metric_value is not null
- )
- 
-@@ -67,6 +77,7 @@ select
-     b.league_p75,
-     b.team_count,
-     r.rank,
-+    r.metric_value_prev_season,
-     r.metric_value - b.league_median as vs_median_delta
- from ranked as r
- inner join benchmarks as b
-diff --git a/dbt_project/models/5_marts/shared/mart_team_fixtures.sql b/dbt_project/models/5_marts/shared/mart_team_fixtures.sql
-index 7b02a187..7e4125f1 100644
---- a/dbt_project/models/5_marts/shared/mart_team_fixtures.sql
-+++ b/dbt_project/models/5_marts/shared/mart_team_fixtures.sql
-@@ -10,8 +10,8 @@
-   fixture, recency_rank <= 5 the last five results — no window logic in any
-   frontend.
- 
--  Rows exist for every fixture; ranks are populated only for scheduled (NS/TBD)
--  and finished-with-leg fixtures. Live / postponed / cancelled rows carry null
-+  Rows exist for every fixture; ranks are populated only for scheduled (NS/TBD,
-+  dated today or later) and finished-with-leg fixtures. Live / postponed / cancelled rows carry null
-   ranks (no honest place in "next" or "recent results").
- 
-   No slug column: the published fixture URL identity is a separate product
-@@ -100,7 +100,8 @@ joined as (
-         -- non-null scores). This — not raw status — is the honest "show in recent
-         -- results" population; a finished fixture with null scores has no leg.
-         l.fixture_sk is not null as has_result,
--        s.status_short in ('NS', 'TBD') as is_upcoming
-+        -- a scheduled fixture whose date has passed is stale, never the next match
-+        s.status_short in ('NS', 'TBD') and date(s.kickoff_datetime) >= current_date() as is_upcoming
-     from sides as s
-     left join teams as t
-         on s.opponent_team_sk = t.team_sk
-diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
-index f52af594..dfe97929 100644
---- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
-+++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
-@@ -48,6 +48,21 @@ streaks as (
- 
- deserved as (
-     select * from {{ ref('int_team_season__deserved_vs_actual') }}
-+),
-+
-+longest_runs as (
-+    select * from {{ ref('int_team_season__longest_runs') }}
-+),
-+
-+biggest_results as (
-+    select * from {{ ref('int_team_season__biggest_results') }}
-+),
-+
-+opponents as (
-+    select
-+        team_sk,
-+        team_name
-+    from {{ ref('dim_team') }}
- )
- 
- select
-@@ -190,6 +205,29 @@ select
-     d.deserved_rank,
-     d.deserved_points_gap,
-     d.deserved_points_gap_rank,
-+    -- card totals this competition-season
-+    m.cards_yellow,
-+    m.cards_red,
-+    -- highs and lows: the longest runs in this competition, the biggest win and heaviest defeat
-+    -- across the team's competitions this season
-+    lr.longest_unbeaten_run,
-+    lr.longest_winless_run,
-+    br.biggest_win_fixture_sk,
-+    br.biggest_win_league_code,
-+    br.biggest_win_opponent_team_sk,
-+    bw.team_name as biggest_win_opponent_name,
-+    br.biggest_win_home_away,
-+    br.biggest_win_goals_for,
-+    br.biggest_win_goals_against,
-+    br.biggest_win_kickoff_datetime,
-+    br.heaviest_defeat_fixture_sk,
-+    br.heaviest_defeat_league_code,
-+    br.heaviest_defeat_opponent_team_sk,
-+    hd.team_name as heaviest_defeat_opponent_name,
-+    br.heaviest_defeat_home_away,
-+    br.heaviest_defeat_goals_for,
-+    br.heaviest_defeat_goals_against,
-+    br.heaviest_defeat_kickoff_datetime,
-     -- The season this team's page opens on (#846). Exactly one row per team is true: the most
-     -- recent DOMESTIC LEAGUE season, falling back to the most recent season of any type for a team
-     -- with no league season. A warehouse fact, so the export and the page
-@@ -221,3 +259,16 @@ left join deserved as d
-     on
-         m.team_sk = d.team_sk
-         and m.season_sk = d.season_sk
-+left join longest_runs as lr
-+    on
-+        m.league_code = lr.league_code
-+        and m.season_api_year = lr.season_api_year
-+        and m.team_sk = lr.team_sk
-+left join biggest_results as br
-+    on
-+        m.team_sk = br.team_sk
-+        and m.season_api_year = br.season_api_year
-+left join opponents as bw
-+    on br.biggest_win_opponent_team_sk = bw.team_sk
-+left join opponents as hd
-+    on br.heaviest_defeat_opponent_team_sk = hd.team_sk
-diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index 06bae33a..bdb08981 100644
---- a/dbt_project/models/5_marts/shared/shared.yml
-+++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -730,6 +730,9 @@ models:
-       - dbt_utils.expression_is_true:
-           expression: "points_capture_pct is null or (points_capture_pct between 0 and 1)"
-           name: team_profile_points_capture_pct_in_range
-+      - dbt_utils.expression_is_true:
-+          expression: "(cards_yellow is null or cards_yellow >= 0) and (cards_red is null or cards_red >= 0)"
-+          name: team_profile_card_totals_non_negative
-       # GAP-13 season variant of the duel win rate — same-window ratio bound
-       - dbt_utils.expression_is_true:
-           expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
-@@ -921,6 +924,62 @@ models:
-         description: "{{ doc('deserved_points_gap') }}"
-       - name: deserved_points_gap_rank
-         description: "{{ doc('deserved_points_gap_rank') }}"
-+      - name: cards_yellow
-+        description: "{{ doc('cards_yellow') }}"
-+      - name: cards_red
-+        description: "{{ doc('cards_red') }}"
-+      - name: longest_unbeaten_run
-+        description: "The team's longest run of matches without a defeat in this competition-season, from int_team_season__longest_runs; NULL below two matches."
-+      - name: longest_winless_run
-+        description: "The team's longest run of matches without a win in this competition-season, from int_team_season__longest_runs; NULL below two matches."
-+      - name: biggest_win_fixture_sk
-+        description: "The team's biggest win this season across its competitions (the widest winning margin, from int_team_season__biggest_results); NULL without a win."
-+        tests:
-+          - relationships:
-+              to: ref('fct_fixture')
-+              field: fixture_sk
-+      - name: biggest_win_league_code
-+        description: "The competition of the biggest win."
-+      - name: biggest_win_opponent_team_sk
-+        description: "The opponent in the biggest win."
-+        tests:
-+          - relationships:
-+              to: ref('dim_team')
-+              field: team_sk
-+      - name: biggest_win_opponent_name
-+        description: "The opponent's name in the biggest win, from dim_team."
-+      - name: biggest_win_home_away
-+        description: "Whether the team played the biggest win at home or away."
-+      - name: biggest_win_goals_for
-+        description: "The team's goals in the biggest win."
-+      - name: biggest_win_goals_against
-+        description: "The opponent's goals in the biggest win."
-+      - name: biggest_win_kickoff_datetime
-+        description: "The biggest win's kickoff, UTC."
-+      - name: heaviest_defeat_fixture_sk
-+        description: "The team's heaviest defeat this season across its competitions (the widest losing margin, from int_team_season__biggest_results); NULL without a defeat."
-+        tests:
-+          - relationships:
-+              to: ref('fct_fixture')
-+              field: fixture_sk
-+      - name: heaviest_defeat_league_code
-+        description: "The competition of the heaviest defeat."
-+      - name: heaviest_defeat_opponent_team_sk
-+        description: "The opponent in the heaviest defeat."
-+        tests:
-+          - relationships:
-+              to: ref('dim_team')
-+              field: team_sk
-+      - name: heaviest_defeat_opponent_name
-+        description: "The opponent's name in the heaviest defeat, from dim_team."
-+      - name: heaviest_defeat_home_away
-+        description: "Whether the team played the heaviest defeat at home or away."
-+      - name: heaviest_defeat_goals_for
-+        description: "The team's goals in the heaviest defeat."
-+      - name: heaviest_defeat_goals_against
-+        description: "The opponent's goals in the heaviest defeat."
-+      - name: heaviest_defeat_kickoff_datetime
-+        description: "The heaviest defeat's kickoff, UTC."
-       - name: team_founded_year
-         description: "Club founded year, from dim_team. Nullable — sparse in the provider feed."
-       - name: venue_name
-@@ -3025,7 +3084,7 @@ models:
-       - name: has_result
-         description: "True when a finished result is attached to this fixture. It is NOT the opposite of is_upcoming: a postponed, abandoned or cancelled fixture is false on both, so test the flag you mean rather than negating the other one."
-       - name: is_upcoming
--        description: "True when the fixture is still to be played - the provider has it as not started or its date is still to be confirmed. It is NOT the opposite of has_result: a postponed or abandoned fixture is false on both."
-+        description: "True when the fixture is still to be played - the provider has it as not started or its date is still to be confirmed, and its date is today or later. It is NOT the opposite of has_result: a postponed or abandoned fixture is false on both."
-       - name: upcoming_rank
-         description: "1 for this team's next fixture in this competition-season, 2 for the one after, and so on by kickoff time. NULL for any fixture that is not upcoming, so the ranks run 1..n over upcoming fixtures alone with no gaps."
-       - name: recency_rank
-@@ -3105,11 +3164,12 @@ models:
-   - name: mart_team_competition_benchmarks
-     description: >
-       Where a team sits against its own league on each team metric: its value, the league median
--      and mean, the p25/p75 spread, its rank out of team_count, and its distance from the median.
--      Long-shaped, one row per (team, season, metric). Grain: (team_sk, season_sk, metric_key).
-+      and mean, the p25/p75 spread, its rank out of team_count, its distance from the median and
-+      its value at the same point last season. Long-shaped, one row per (team, season, metric).
-+      Grain: (team_sk, season_sk, metric_key).
- 
--      DIRECTION-AGNOSTIC: rank is by value descending, so rank 1 is the highest value and not
--      necessarily the best. The good/bad reading comes from the metric's catalogue direction.
-+      rank follows the metric's catalogue direction: for a lower_better metric rank 1 is the lowest
-+      value, for every other metric the highest. Tied values share a rank.
- 
-       Median-led and ranked rather than percentiled, which stays honest at around 18 teams.
-       Season-to-date.
-@@ -3159,11 +3219,11 @@ models:
-         description: "{{ doc('season_api_year') }}"
+     Grain: (league_code, season_api_year, round_name). is_latest_season marks the season the
+     competition pages show; assert_every_round_text_resolves fails on a round of that season with
+@@ -41,7 +43,8 @@ matched as (
+         rounds.round_name,
+         names.label_i18n_key,
+         names.n_regex,
+-        names.g_regex
++        names.g_regex,
++        names.stage_kind
+     from import_fct_fixture as rounds
+     inner join import_round_names as names
+         on
+@@ -59,6 +62,7 @@ select
+     rounds.season_api_year,
+     rounds.round_name,
+     matched.label_i18n_key as round_label_i18n_key,
++    matched.stage_kind as round_stage_kind,
+     safe_cast(regexp_extract(lower(trim(rounds.round_name)), matched.n_regex) as int64) as round_number,
+     upper(regexp_extract(lower(trim(rounds.round_name)), matched.g_regex)) as round_letter,
+     matched.n_regex is not null as needs_number,
+diff --git a/dbt_project/models/4_intermediate/shared/int_round_names.yml b/dbt_project/models/4_intermediate/shared/int_round_names.yml
+index 7b2f1cac..29c0e907 100644
+--- a/dbt_project/models/4_intermediate/shared/int_round_names.yml
++++ b/dbt_project/models/4_intermediate/shared/int_round_names.yml
+@@ -22,6 +22,11 @@ models:
          tests: [not_null]
-       - name: metric_key
--        description: "The benchmarked metric — a metric_catalogue team metric_id (the 22-metric set)."
-+        description: "The benchmarked metric — a metric_catalogue team metric_id (the benchmark metric set)."
-         tests:
-           - not_null
-           - accepted_values:
--              values: ["goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shots_on_goal_pct", "shots_inside_box_pct", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match", "finishing_efficiency_pct", "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "passes_accuracy_pct", "passes_key_per_match", "corners_per_match", "corners_against_per_match", "saves_pct"]
-+              values: ["goals_per_match", "goals_against_per_match", "clean_sheets", "clean_sheets_pct", "shots_per_match", "shots_on_goal_pct", "shots_inside_box_pct", "shots_inside_box_per_match", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match", "finishing_efficiency_pct", "duels_per_match", "duels_won_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "passes_accurate_per_match", "passes_accuracy_pct", "passes_share_pct", "passes_key_per_match", "dribbles_attempts_per_match", "dribbles_success_per_match", "dribbles_success_pct", "corners_per_match", "corners_against_per_match", "free_kicks_per_match", "fouls_per_match", "offsides_per_match", "saves_per_match", "saves_pct", "cards_yellow", "cards_red"]
-       - name: metric_value
-         description: "The team's season-to-date value for this metric (always present — null values are not ranked)."
-         tests: [not_null]
-@@ -3178,8 +3238,10 @@ models:
-       - name: team_count
-         description: "N — teams ranked for this metric this league-season."
-         tests: [not_null]
-+      - name: metric_value_prev_season
-+        description: "The team's value at the same point last season (rule R6): the previous season's latest match at or before this season's match count, domestic leagues only; null otherwise."
-       - name: rank
--        description: "Rank by value desc (1 = highest), k of team_count. Positional — orient with the catalogue direction at display."
-+        description: "Rank by the metric's catalogue direction (lower_better: 1 = lowest value, otherwise 1 = highest), k of team_count; tied values share a rank."
-         tests: [not_null]
-       - name: vs_median_delta
-         description: "value - league_median."
-diff --git a/dbt_project/seeds/metric_map.csv b/dbt_project/seeds/metric_map.csv
-index 5e3eac35..f807b6d2 100644
---- a/dbt_project/seeds/metric_map.csv
-+++ b/dbt_project/seeds/metric_map.csv
-@@ -218,21 +218,35 @@ mart_player_season_record,shots_on,shots_on_goal_player,,window_type,
- mart_player_season_record,tackles_player,tackles_player,,window_type,
- mart_standings,standing_rank,league_rank,,,
- mart_team_competition_benchmarks,metric_value,blocks_per_match,,,metric_key
-+mart_team_competition_benchmarks,metric_value,cards_red,,,metric_key
-+mart_team_competition_benchmarks,metric_value,cards_yellow,,,metric_key
-+mart_team_competition_benchmarks,metric_value,clean_sheets,,,metric_key
- mart_team_competition_benchmarks,metric_value,clean_sheets_pct,,,metric_key
- mart_team_competition_benchmarks,metric_value,corners_against_per_match,,,metric_key
- mart_team_competition_benchmarks,metric_value,corners_per_match,,,metric_key
- mart_team_competition_benchmarks,metric_value,defensive_actions_per_match,,,metric_key
-+mart_team_competition_benchmarks,metric_value,dribbles_attempts_per_match,,,metric_key
-+mart_team_competition_benchmarks,metric_value,dribbles_success_pct,,,metric_key
-+mart_team_competition_benchmarks,metric_value,dribbles_success_per_match,,,metric_key
- mart_team_competition_benchmarks,metric_value,duels_per_match,,,metric_key
- mart_team_competition_benchmarks,metric_value,duels_won_pct,,,metric_key
-+mart_team_competition_benchmarks,metric_value,duels_won_per_match,,,metric_key
- mart_team_competition_benchmarks,metric_value,finishing_efficiency_pct,,,metric_key
-+mart_team_competition_benchmarks,metric_value,fouls_per_match,,,metric_key
-+mart_team_competition_benchmarks,metric_value,free_kicks_per_match,,,metric_key
- mart_team_competition_benchmarks,metric_value,goals_against_per_match,,,metric_key
- mart_team_competition_benchmarks,metric_value,goals_per_match,,,metric_key
- mart_team_competition_benchmarks,metric_value,interceptions_per_match,,,metric_key
-+mart_team_competition_benchmarks,metric_value,offsides_per_match,,,metric_key
- mart_team_competition_benchmarks,metric_value,passes_accuracy_pct,,,metric_key
-+mart_team_competition_benchmarks,metric_value,passes_accurate_per_match,,,metric_key
- mart_team_competition_benchmarks,metric_value,passes_key_per_match,,,metric_key
- mart_team_competition_benchmarks,metric_value,passes_per_match,,,metric_key
-+mart_team_competition_benchmarks,metric_value,passes_share_pct,,,metric_key
- mart_team_competition_benchmarks,metric_value,saves_pct,,,metric_key
-+mart_team_competition_benchmarks,metric_value,saves_per_match,,,metric_key
- mart_team_competition_benchmarks,metric_value,shots_inside_box_pct,,,metric_key
-+mart_team_competition_benchmarks,metric_value,shots_inside_box_per_match,,,metric_key
- mart_team_competition_benchmarks,metric_value,shots_on_goal_against_per_match,,,metric_key
- mart_team_competition_benchmarks,metric_value,shots_on_goal_difference_per_match,,,metric_key
- mart_team_competition_benchmarks,metric_value,shots_on_goal_pct,,,metric_key
-@@ -255,6 +269,8 @@ mart_team_leaderboards,sort_value,shots_on_goal_difference_per_match,,,metric_ke
- mart_team_leaderboards,sort_value,shots_on_goal_per_match,,,metric_key
- mart_team_momentum_window,goals_against,goals_against,,window_type,
- mart_team_momentum_window,goals_for,goals,,window_type,
-+mart_team_profile,cards_red,cards_red,,,
-+mart_team_profile,cards_yellow,cards_yellow,,,
- mart_team_profile,clean_sheets,clean_sheets,,,
- mart_team_profile,clean_sheets_pct_delta_yoy,clean_sheets_pct,delta_yoy,,
- mart_team_profile,clean_sheets_pct_prev_season,clean_sheets_pct,prev_season,,
-diff --git a/dbt_project/tests/assert_team_benchmark_prev_season_matches_yoy.sql b/dbt_project/tests/assert_team_benchmark_prev_season_matches_yoy.sql
+       - name: round_label_i18n_key
+         description: The copy key a page names the round by. NULL when no round_names pattern covers the text.
++      - name: round_stage_kind
++        description: "table for a round played for a table, final, placement for a third-place match, or knockout for every other round of ties, from the round_names row that names it; NULL when no row covers the text."
++        tests:
++          - accepted_values:
++              values: ["table", "knockout", "final", "placement"]
+       - name: round_number
+         description: The number the round's name shows (the matchday, or the round in a cup's sequence); NULL when the name shows none.
+       - name: round_letter
+diff --git a/dbt_project/models/5_marts/shared/mart_team_competitions.sql b/dbt_project/models/5_marts/shared/mart_team_competitions.sql
 new file mode 100644
-index 00000000..ca3d7b58
+index 00000000..471e83ee
 --- /dev/null
-+++ b/dbt_project/tests/assert_team_benchmark_prev_season_matches_yoy.sql
-@@ -0,0 +1,115 @@
-+-- A team benchmark's value at the same point last season equals int_team_profile__yoy's, for every
-+-- metric both serve, on the team's current domestic season: the two read rule R6 one way. Also
-+-- fails a value outside a domestic league, where rule R6 has none, and a benchmark metric the
-+-- catalogue does not hold, which the mart's rank would drop.
++++ b/dbt_project/models/5_marts/shared/mart_team_competitions.sql
+@@ -0,0 +1,296 @@
++{#
++  The Team page's Competitions block: one row per team, competition and season the team has a
++  fixture in. Each row carries the team's standing in that competition's table, the round of its
++  latest played match (a league's "Matchday N"), and the round it has reached: its latest round,
++  played or scheduled, leaving out a third-place match, so a semi-final loser has reached the
++  semi-final.
 +
-+{{ config(store_failures = true) }}
++  For a round of ties (int_round_names' round_stage_kind knockout or final) cup_status follows the
++  tie in that round (int_knockout_ties):
++    - knocked_out when the team lost it;
++    - winners when it won a final (a cup's, or a league's play-off final for its title), outside a
++      qualifying competition, where winning the final is qualifying;
++    - through when it won any other tie, or when it is drawn into the round's unplayed tie after
++      winning its tie in the round before, or after a table round;
++    - NULL while the tie is being played or undecided, in a first round not yet played, and in a
++      table round, where the standing tells the story.
++  The standing is the team's table section named in its latest played round (Liga MX's Clausura
++  while the Clausura is played), otherwise its section with the most matches played; a ranking
++  section is not a table.
 +
-+with yoy as (
++  Reads mart_competition_fixtures and mart_standings in its own layer, for the round order the
++  competition pages use and the tables they show. Grain: (team_sk, league_code, season_api_year).
++#}
++
++with fixtures as (
++    select * from {{ ref('mart_competition_fixtures') }}
++),
++
++round_kinds as (
 +    select
-+        team_sk,
 +        league_code,
 +        season_api_year,
-+        metric_key,
-+        metric_value_prev_season
-+    from {{ ref('int_team_profile__yoy') }}
-+    unpivot include nulls (
-+        metric_value_prev_season for metric_key in (
-+            goals_per_match_prev_season as 'goals_per_match',
-+            goals_against_per_match_prev_season as 'goals_against_per_match',
-+            clean_sheets_pct_prev_season as 'clean_sheets_pct',
-+            shots_per_match_prev_season as 'shots_per_match',
-+            shots_inside_box_pct_prev_season as 'shots_inside_box_pct',
-+            shots_on_goal_per_match_prev_season as 'shots_on_goal_per_match',
-+            finishing_efficiency_pct_prev_season as 'finishing_efficiency_pct',
-+            duels_per_match_prev_season as 'duels_per_match',
-+            duels_won_pct_prev_season as 'duels_won_pct',
-+            defensive_actions_per_match_prev_season as 'defensive_actions_per_match',
-+            passes_per_match_prev_season as 'passes_per_match',
-+            passes_accuracy_pct_prev_season as 'passes_accuracy_pct',
-+            passes_key_per_match_prev_season as 'passes_key_per_match',
-+            corners_per_match_prev_season as 'corners_per_match',
-+            corners_against_per_match_prev_season as 'corners_against_per_match',
-+            saves_pct_prev_season as 'saves_pct'
-+        )
-+    )
++        round_name,
++        round_stage_kind
++    from {{ ref('int_round_names') }}
 +),
 +
-+benchmarks as (
-+    select
-+        team_sk,
-+        league_code,
-+        season_api_year,
-+        metric_key,
-+        metric_value_prev_season
-+    from {{ ref('mart_team_competition_benchmarks') }}
-+),
-+
-+catalogue as (
-+    select metric_id
-+    from {{ ref('metric_catalogue') }}
-+    where entity = 'team'
-+),
-+
-+mismatches as (
-+    select
-+        b.team_sk,
-+        b.league_code,
-+        b.season_api_year,
-+        b.metric_key,
-+        b.metric_value_prev_season as benchmark_prev,
-+        y.metric_value_prev_season as yoy_prev
-+    from benchmarks as b
-+    inner join yoy as y
-+        on
-+            b.team_sk = y.team_sk
-+            and b.league_code = y.league_code
-+            and b.season_api_year = y.season_api_year
-+            and b.metric_key = y.metric_key
-+    where
-+        (b.metric_value_prev_season is null) != (y.metric_value_prev_season is null)
-+        or abs(b.metric_value_prev_season - y.metric_value_prev_season) > 1e-9
++ties as (
++    select * from {{ ref('int_knockout_ties') }}
 +),
 +
 +registry as (
@@ -1302,276 +469,812 @@ index 00000000..ca3d7b58
 +    from {{ ref('competition_registry') }}
 +),
 +
-+outside_domestic as (
++types as (
 +    select
-+        b.team_sk,
-+        b.league_code,
-+        b.season_api_year,
-+        b.metric_key,
-+        b.metric_value_prev_season as benchmark_prev,
-+        cast(null as float64) as yoy_prev
-+    from benchmarks as b
-+    left join registry as r
-+        on b.league_code = r.league_code
-+    where
-+        b.metric_value_prev_season is not null
-+        and coalesce(r.competition_type, '') != 'domestic_league'
++        competition_type,
++        entity_type
++    from {{ ref('competition_types') }}
 +),
 +
-+uncatalogued as (
-+    select distinct
-+        cast(null as int64) as team_sk,
-+        cast(null as string) as league_code,
-+        cast(null as int64) as season_api_year,
-+        l.metric_key,
-+        cast(null as float64) as benchmark_prev,
-+        cast(null as float64) as yoy_prev
-+    from {{ ref('int_team_competition_benchmark_metrics_long') }} as l
-+    left join catalogue as c
-+        on l.metric_key = c.metric_id
-+    where c.metric_id is null
-+)
-+
-+select * from mismatches
-+union all
-+select * from outside_domestic
-+union all
-+select * from uncatalogued
-diff --git a/dbt_project/tests/assert_team_benchmark_rank_follows_direction.sql b/dbt_project/tests/assert_team_benchmark_rank_follows_direction.sql
-new file mode 100644
-index 00000000..63ec22fc
---- /dev/null
-+++ b/dbt_project/tests/assert_team_benchmark_rank_follows_direction.sql
-@@ -0,0 +1,44 @@
-+-- A team benchmark's rank 1 holds the best value by the metric's catalogue direction: the lowest
-+-- for a lower_better metric, the highest for every other. Returns each (league-season, metric)
-+-- whose rank-1 value is not that extreme.
-+
-+{{ config(store_failures = true) }}
-+
-+with benchmarks as (
++sides as (
 +    select
 +        league_code,
 +        season_api_year,
-+        metric_key,
-+        metric_value,
-+        rank
-+    from {{ ref('mart_team_competition_benchmarks') }}
++        home_team_sk as team_sk,
++        round_name,
++        round_label_i18n_key,
++        round_number,
++        round_letter,
++        round_sequence,
++        kickoff_datetime,
++        fixture_sk,
++        is_played
++    from fixtures
++    where home_team_sk is not null
++    union all
++    select
++        league_code,
++        season_api_year,
++        away_team_sk as team_sk,
++        round_name,
++        round_label_i18n_key,
++        round_number,
++        round_letter,
++        round_sequence,
++        kickoff_datetime,
++        fixture_sk,
++        is_played
++    from fixtures
++    where away_team_sk is not null
 +),
 +
-+catalogue as (
++team_fixtures as (
 +    select
-+        metric_id,
-+        direction
-+    from {{ ref('metric_catalogue') }}
-+    where entity = 'team'
++        s.*,
++        rk.round_stage_kind
++    from sides as s
++    left join round_kinds as rk
++        on
++            s.league_code = rk.league_code
++            and s.season_api_year = rk.season_api_year
++            and s.round_name = rk.round_name
 +),
 +
-+per_metric as (
++latest_played as (
++    select *
++    from team_fixtures
++    where is_played
++    qualify row_number() over (
++        partition by team_sk, league_code, season_api_year
++        order by round_sequence desc, kickoff_datetime desc, fixture_sk desc
++    ) = 1
++),
++
++-- each team's rounds in order, a third-place match left out, with the round before each
++team_rounds as (
 +    select
-+        b.league_code,
-+        b.season_api_year,
-+        b.metric_key,
-+        any_value(c.direction) as direction,
-+        min(b.metric_value) as lowest_value,
-+        max(b.metric_value) as highest_value,
-+        min(if(b.rank = 1, b.metric_value, null)) as rank_one_value
-+    from benchmarks as b
-+    inner join catalogue as c
-+        on b.metric_key = c.metric_id
-+    group by b.league_code, b.season_api_year, b.metric_key
++        team_sk,
++        league_code,
++        season_api_year,
++        round_name,
++        round_stage_kind,
++        lag(round_name) over (
++            partition by team_sk, league_code, season_api_year order by round_sequence
++        ) as previous_round_name,
++        lag(round_stage_kind) over (
++            partition by team_sk, league_code, season_api_year order by round_sequence
++        ) as previous_stage_kind
++    from (
++        select distinct
++            team_sk,
++            league_code,
++            season_api_year,
++            round_name,
++            round_sequence,
++            round_stage_kind
++        from team_fixtures
++        where coalesce(round_stage_kind, '') != 'placement'
++    )
++),
++
++reached as (
++    select
++        tf.*,
++        tr.previous_round_name,
++        tr.previous_stage_kind
++    from team_fixtures as tf
++    inner join team_rounds as tr
++        on
++            tf.team_sk = tr.team_sk
++            and tf.league_code = tr.league_code
++            and tf.season_api_year = tr.season_api_year
++            and tf.round_name = tr.round_name
++    qualify row_number() over (
++        partition by tf.team_sk, tf.league_code, tf.season_api_year
++        order by tf.round_sequence desc, tf.kickoff_datetime desc, tf.fixture_sk desc
++    ) = 1
++),
++
++reached_ties as (
++    select
++        r.team_sk,
++        r.league_code,
++        r.season_api_year,
++        any_value(t.legs_played) as legs_played,
++        any_value(t.won) as won
++    from reached as r
++    inner join ties as t
++        on
++            r.league_code = t.league_code
++            and r.season_api_year = t.season_api_year
++            and r.round_name = t.round_name
++            and r.team_sk = t.team_sk
++    group by r.team_sk, r.league_code, r.season_api_year
++),
++
++-- the tie of the round before the reached one: a team waiting for an FA Cup replay is not through
++previous_ties as (
++    select
++        r.team_sk,
++        r.league_code,
++        r.season_api_year,
++        any_value(t.won) as previous_won
++    from reached as r
++    inner join ties as t
++        on
++            r.league_code = t.league_code
++            and r.season_api_year = t.season_api_year
++            and r.previous_round_name = t.round_name
++            and r.team_sk = t.team_sk
++    group by r.team_sk, r.league_code, r.season_api_year
++),
++
++standings as (
++    select
++        s.team_sk,
++        s.league_code,
++        s.season_api_year,
++        s.group_name,
++        s.standing_rank,
++        s.played,
++        s.wins,
++        s.draws,
++        s.losses,
++        s.goals_scored,
++        s.goals_conceded,
++        s.points
++    from {{ ref('mart_standings') }} as s
++    left join latest_played as lp
++        on
++            s.team_sk = lp.team_sk
++            and s.league_code = lp.league_code
++            and s.season_api_year = lp.season_api_year
++    where s.table_kind != 'ranking'
++    qualify row_number() over (
++        partition by s.team_sk, s.league_code, s.season_api_year
++        order by
++            coalesce(strpos(lower(lp.round_name), lower(s.group_name)) > 0, false) desc,
++            s.played desc,
++            s.group_name asc
++    ) = 1
 +)
 +
-+select *
-+from per_metric
-+where
-+    rank_one_value is null
-+    or rank_one_value != if(direction = 'lower_better', lowest_value, highest_value)
++select
++    r.team_sk,
++    r.league_code,
++    r.season_api_year,
++    reg.competition_type,
++    typ.entity_type,
++    s.group_name as standing_group_name,
++    s.standing_rank,
++    s.played,
++    s.wins,
++    s.draws,
++    s.losses,
++    s.goals_scored as goals_for,
++    s.goals_conceded as goals_against,
++    s.points,
++    lp.round_name as latest_played_round_name,
++    lp.round_label_i18n_key as latest_played_round_label_i18n_key,
++    lp.round_number as latest_played_round_number,
++    lp.round_letter as latest_played_round_letter,
++    lp.kickoff_datetime as latest_played_kickoff_datetime,
++    r.round_name as reached_round_name,
++    r.round_label_i18n_key as reached_round_label_i18n_key,
++    r.round_number as reached_round_number,
++    r.round_letter as reached_round_letter,
++    r.round_stage_kind as reached_round_stage_kind,
++    case
++        when coalesce(r.round_stage_kind, '') not in ('knockout', 'final') then null
++        when rt.won = false then 'knocked_out'
++        when
++            rt.won
++            and r.round_stage_kind = 'final'
++            and coalesce(reg.competition_type, '') != 'qualifying'
++            then 'winners'
++        when rt.won then 'through'
++        when
++            rt.legs_played = 0
++            and (r.previous_stage_kind = 'table' or pt.previous_won)
++            then 'through'
++    end as cup_status,
++    -- the block's order: the domestic league, then the domestic cups, then every other
++    -- competition, each group by its latest match
++    row_number() over (
++        partition by r.team_sk, r.season_api_year
++        order by
++            case reg.competition_type
++                when 'domestic_league' then 1
++                when 'domestic_cup' then 2
++                when 'domestic_super_cup' then 3
++                else 4
++            end asc,
++            r.kickoff_datetime desc,
++            r.league_code asc
++    ) as competition_order
++from reached as r
++left join latest_played as lp
++    on
++        r.team_sk = lp.team_sk
++        and r.league_code = lp.league_code
++        and r.season_api_year = lp.season_api_year
++left join reached_ties as rt
++    on
++        r.team_sk = rt.team_sk
++        and r.league_code = rt.league_code
++        and r.season_api_year = rt.season_api_year
++left join previous_ties as pt
++    on
++        r.team_sk = pt.team_sk
++        and r.league_code = pt.league_code
++        and r.season_api_year = pt.season_api_year
++left join standings as s
++    on
++        r.team_sk = s.team_sk
++        and r.league_code = s.league_code
++        and r.season_api_year = s.season_api_year
++left join registry as reg
++    on r.league_code = reg.league_code
++left join types as typ
++    on reg.competition_type = typ.competition_type
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index bdb08981..b5b11fcf 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -3492,3 +3492,96 @@ models:
+         description: "{{ doc('goals_player') }}"
+       - name: assists_player
+         description: "{{ doc('assists_player') }}"
++
++  - name: mart_team_competitions
++    description: >
++      The Team page's Competitions block: one row per team, competition and season the team has a
++      fixture in, with its standing in that competition's table (the section named in its latest
++      played round, otherwise the section with the most matches played), the round of its latest
++      played match, and the round it has reached, a third-place match left out, with, for a round
++      of ties, cup_status: knocked_out when it lost that tie, winners when it won a final outside a
++      qualifying competition, through when it won any other tie or is drawn into the next round
++      after winning, NULL while a tie is being played or in a table round.
++      Grain: (team_sk, league_code, season_api_year).
++    meta:
++      owner: "data-platform"
++      domain: "football"
++      criticality: "medium"
++    config:
++      tags: ["marts", "football", "team"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [team_sk, league_code, season_api_year]
++      - dbt_utils.expression_is_true:
++          expression: "cup_status is null or reached_round_stage_kind in ('knockout', 'final')"
++          name: team_competitions_cup_status_only_in_a_round_of_ties
++      - dbt_utils.expression_is_true:
++          expression: "cup_status != 'winners' or reached_round_stage_kind = 'final'"
++          name: team_competitions_winners_only_in_a_final
++    columns:
++      - name: team_sk
++        description: "{{ doc('team_sk') }}"
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: season_api_year
++        description: "{{ doc('season_api_year') }}"
++        tests: [not_null]
++      - name: competition_type
++        description: "{{ doc('competition_type') }}"
++      - name: entity_type
++        description: "{{ doc('entity_type') }}"
++      - name: standing_group_name
++        description: "The table section the standing is read from: the team's section named in its latest played round, otherwise its section with the most matches played; NULL without a table."
++      - name: standing_rank
++        description: "The team's position in that section."
++      - name: played
++        description: "Matches played in that section."
++      - name: wins
++        description: "{{ doc('wins') }}"
++      - name: draws
++        description: "{{ doc('draws') }}"
++      - name: losses
++        description: "{{ doc('losses') }}"
++      - name: goals_for
++        description: "Goals scored in that section."
++      - name: goals_against
++        description: "Goals conceded in that section."
++      - name: points
++        description: "Points in that section."
++      - name: latest_played_round_name
++        description: "The provider's round text of the team's latest played match in this competition-season."
++      - name: latest_played_round_label_i18n_key
++        description: "The copy key that names that round (int_round_names)."
++      - name: latest_played_round_number
++        description: "The number that round's name shows, as a matchday; NULL when it shows none."
++      - name: latest_played_round_letter
++        description: "The group letter that round's name shows; NULL when it shows none."
++      - name: latest_played_kickoff_datetime
++        description: "The kickoff of the team's latest played match in this competition-season, UTC."
++      - name: reached_round_name
++        description: "The provider's round text of the team's latest round in this competition-season, played or scheduled, a third-place match left out."
++      - name: reached_round_label_i18n_key
++        description: "The copy key that names the reached round (int_round_names)."
++      - name: reached_round_number
++        description: "The number the reached round's name shows; NULL when it shows none."
++      - name: reached_round_letter
++        description: "The group letter the reached round's name shows; NULL when it shows none."
++      - name: reached_round_stage_kind
++        description: "table, knockout or final: the kind of the reached round."
++        tests:
++          - accepted_values:
++              values: ["table", "knockout", "final"]
++      - name: cup_status
++        description: "through, knocked_out or winners in a round of ties, by int_knockout_ties, winners only for a final outside a qualifying competition; NULL while the tie is being played or undecided, in a first round not yet played, and in a table round."
++        tests:
++          - accepted_values:
++              values: ["through", "knocked_out", "winners"]
++      - name: competition_order
++        description: "The row's place in the team's season: the domestic league, then the domestic cups, then the domestic super cup, then every other competition, each group by its latest match first."
++        tests: [not_null]
+diff --git a/dbt_project/seeds/round_names.csv b/dbt_project/seeds/round_names.csv
+index 8f90310e..b4f1a552 100644
+--- a/dbt_project/seeds/round_names.csv
++++ b/dbt_project/seeds/round_names.csv
+@@ -1,90 +1,90 @@
+-league_code,season_api_year,priority,pattern,label_i18n_key,label_en,n_regex,g_regex
+-,,10,^regular season - (\d+)$,compFactMatchday,Matchday {n},(\d+)$,
+-PL,,11,^regular season - (\d+)$,roundMatchweek,Matchweek {n},(\d+)$,
+-J1,,12,^regular season - (\d+)$,roundMatchweek,Matchweek {n},(\d+)$,
+-SPL,,13,^regular season - (\d+)$,roundMatchweek,Matchweek {n},(\d+)$,
+-TSL,,14,^regular season - (\d+)$,roundWeek,Week {n},(\d+)$,
+-,,15,^round - (\d+)$,compFactMatchday,Matchday {n},(\d+)$,
+-,,20,^apertura - (\d+)$,roundAperturaMatchday,Apertura · Matchday {n},(\d+)$,
+-,,21,^clausura - (\d+)$,roundClausuraMatchday,Clausura · Matchday {n},(\d+)$,
+-,,30,^group stage - (\d+)$,roundGroupStageMatchday,Group stage · Matchday {n},(\d+)$,
+-WC,,31,^group stage - (\d+)$,roundWcGroupMatchday,Group stage · Matchday {n},(\d+)$,
+-WCQAF,,32,^group stage - (\d+)$,roundQualGroupMatchday,Group stage · Matchday {n},(\d+)$,
+-WCQEU,,33,^group stage - (\d+)$,roundQualGroupMatchday,Group stage · Matchday {n},(\d+)$,
+-WCQOC,,34,^group stage - (\d+)$,roundOcSecondRoundMatchday,Second round · Matchday {n},(\d+)$,
+-WCQSA,,35,^group stage - (\d+)$,compFactMatchday,Matchday {n},(\d+)$,
+-,,36,^group ([a-l]) - (\d+)$,roundGroupMatchday,Group {g} · Matchday {n},(\d+)$,^group ([a-l])
+-,,37,^league (stage|phase) - (\d+)$,roundLeaguePhaseMatchday,League phase · Matchday {n},(\d+)$,
+-AFCCL,,38,^league (stage|phase) - (\d+)$,roundLeagueStageMatchday,League Stage · Matchday {n},(\d+)$,
+-,,39,^league ([a-d]) - (\d+)$,roundNationsLeagueMatchday,League {g} · Matchday {n},(\d+)$,^league ([a-d])
+-,,40,^(round of 32|16th finals|1/16-finals)$,roundOf32,Round of 32,,
+-WC,,41,^round of 32$,roundWcOf32,Round of 32,,
+-,,42,^((apertura|clausura) - )?(round of 16|8th finals|1/8-finals)$,roundOf16,Round of 16,,
+-,,43,^round of (\d+)$,roundOf,Round of {n},(\d+)$,
+-,,44,^((apertura|clausura) - )?quarter-finals$,roundQuarterFinals,Quarter-finals,,
+-CCCU,,45,^quarter-finals$,roundQuarterfinalsAm,Quarterfinals,,
+-CNL,,46,^quarter-finals$,roundQuarterfinalsAm,Quarterfinals,,
+-COAM,,47,^quarter-finals$,roundQuarterfinalsAm,Quarterfinals,,
+-GCUP,,48,^quarter-finals$,roundQuarterfinalsAm,Quarterfinals,,
+-,,50,^((apertura|clausura) - )?semi-finals$,roundSemiFinals,Semi-finals,,
+-CCCU,,51,^semi-finals$,roundSemifinalsAm,Semifinals,,
+-COAM,,52,^semi-finals$,roundSemifinalsAm,Semifinals,,
+-GCUP,,53,^semi-finals$,roundSemifinalsAm,Semifinals,,
+-WCQAF,,54,^semi-finals$,roundPlayoffSemiFinals,Play-off semi-finals,,
+-WCQEU,,55,^semi-finals$,roundPlayoffSemiFinals,Play-off semi-finals,,
+-WCQIP,,56,^semi-finals$,roundIpSemiFinal,Play-off Tournament semi-final,,
+-WCQOC,,57,^semi-finals$,roundOcThirdRoundSemiFinals,Third round semi-finals,,
+-,,60,^((apertura|clausura) - )?finals?$,roundFinal,Final,,
+-WCQAF,,61,^final$,roundPlayoffFinal,Play-off final,,
+-WCQEU,,62,^final$,roundPlayoffFinal,Play-off final,,
+-WCQIP,,63,^final$,roundIpFinal,Play-off Tournament final,,
+-WCQAS,,64,^final$,roundAsFifthRound,Play-offs knockout stage,,
+-WCQOC,,65,^final$,roundOcThirdRoundFinal,Third round final,,
+-VL,,66,^final$,roundVlEuroFinal,European play-off final,,
+-,,70,^3rd place( final)?$,roundThirdPlace,Third-place play-off,,
+-WC,,71,^3rd place final$,roundWcBronzeFinal,Bronze final,,
+-COAM,,72,^3rd place final$,roundThirdPlaceMatch,Third Place Match,,
+-,,80,^1st qualifying round$,roundQualifyingRound1,First qualifying round,,
+-,,81,^2nd qualifying round$,roundQualifyingRound2,Second qualifying round,,
+-,,82,^3rd qualifying round$,roundQualifyingRound3,Third qualifying round,,
+-WCQOC,,83,^1st qualifying round$,roundOcFirstRound,First round,,
+-WCQOC,,84,^2nd qualifying round$,roundOcFirstRoundFinal,First round final,,
+-,,85,^(play-offs|playoff round)$,roundPlayoffRound,Play-off round,,
+-AFCCL,,90,^1st preliminary round$,roundAfcPreliminaryStage,Preliminary Stage,,
+-CAFCL,,91,^1st preliminary round$,roundPreliminaryRound1,First preliminary round,,
+-CAFCL,,92,^2nd preliminary round$,roundPreliminaryRound2,Second preliminary round,,
+-LIBER,,93,^qualification round 1$,roundLiberStage1,First stage,,
+-LIBER,,94,^qualification round 2$,roundLiberStage2,Second stage,,
+-LIBER,,95,^qualification round 3$,roundLiberStage3,Third stage,,
+-DFBP,,100,^round of 64$,roundFirstRound,First round,,
+-DFBP,,101,^round of 32$,roundSecondRound,Second round,,
+-CDR,2026,102,^1/128-finals$,roundPreliminaryRound,Preliminary round,,
+-CDR,2026,103,^round of 128$,roundFirstRound,First round,,
+-CIT,2026,104,^round of 128$,roundPreliminaryRound,Preliminary round,,
+-CIT,2026,105,^round of 64$,roundFirstRound,First round,,
+-CIT,2026,106,^round of 32$,roundSecondRound,Second round,,
+-CDF,2025,107,^1/128-finals$,roundSeventhRound,Seventh round,,
+-CDF,2025,108,^round of 128$,roundEighthRound,Eighth round,,
+-CDR,,140,^(1/128-finals|round of 128)$,,,,
+-CIT,,141,^round of (128|64|32)$,,,,
+-CDF,,142,^(1/128-finals|round of 128)$,,,,
+-FAC,,143,^1/\d+-finals$,,,,
+-FAC,,110,^1st round qualifying$,roundFaQualifying1,First Round Qualifying,,
+-FAC,,111,^2nd round qualifying$,roundFaQualifying2,Second Round Qualifying,,
+-FAC,,112,^3rd round qualifying$,roundFaQualifying3,Third Round Qualifying,,
+-FAC,,113,^4th round qualifying$,roundFaQualifying4,Fourth Round Qualifying,,
+-FAC,,114,^1st round qualifying replays$,roundFaQualifying1Replay,First Round Qualifying Replay,,
+-FAC,,115,^2nd round qualifying replays$,roundFaQualifying2Replay,Second Round Qualifying Replay,,
+-FAC,,116,^3rd round qualifying replays$,roundFaQualifying3Replay,Third Round Qualifying Replay,,
+-FAC,,117,^4th round qualifying replays$,roundFaQualifying4Replay,Fourth Round Qualifying Replay,,
+-FAC,2026,118,^1/128-finals$,roundFaFirstRoundProper,First Round Proper,,
+-WCQAS,,120,^1st round$,roundQualFirstRound,First round,,
+-WCQAS,,121,^2nd round - group ([a-i]) - (\d+)$,roundAsSecondRoundGroupMatchday,Second round · Group {g} · Matchday {n},(\d+)$,group ([a-i])
+-WCQAS,,122,^3rd round - (\d+)$,roundAsThirdRoundMatchday,Third round · Matchday {n},(\d+)$,
+-WCQAS,,123,^round 4 - (\d+)$,roundAsPlayoffsMatchday,Play-offs · Matchday {n},(\d+)$,
+-WCQCA,,124,^1st round$,roundCaFirstRound,First Round,,
+-WCQCA,,125,^2nd round - (\d+)$,roundCaSecondRoundMatchday,Second Round · Matchday {n},(\d+)$,
+-WCQCA,,126,^final round - (\d+)$,roundCaFinalRoundMatchday,Final Round · Matchday {n},(\d+)$,
+-VL,,130,^championship (group|round) - (\d+)$,roundVlChampionshipMatchday,Championship group · Matchday {n},(\d+)$,
+-VL,,131,^relegation (group|round) - (\d+)$,roundVlRelegationMatchday,Relegation group · Matchday {n},(\d+)$,
+-VL,,132,^relegation$,roundVlRelegationPlayoff,Relegation play-off,,
++league_code,season_api_year,priority,pattern,label_i18n_key,label_en,n_regex,g_regex,stage_kind
++,,10,^regular season - (\d+)$,compFactMatchday,Matchday {n},(\d+)$,,table
++PL,,11,^regular season - (\d+)$,roundMatchweek,Matchweek {n},(\d+)$,,table
++J1,,12,^regular season - (\d+)$,roundMatchweek,Matchweek {n},(\d+)$,,table
++SPL,,13,^regular season - (\d+)$,roundMatchweek,Matchweek {n},(\d+)$,,table
++TSL,,14,^regular season - (\d+)$,roundWeek,Week {n},(\d+)$,,table
++,,15,^round - (\d+)$,compFactMatchday,Matchday {n},(\d+)$,,table
++,,20,^apertura - (\d+)$,roundAperturaMatchday,Apertura · Matchday {n},(\d+)$,,table
++,,21,^clausura - (\d+)$,roundClausuraMatchday,Clausura · Matchday {n},(\d+)$,,table
++,,30,^group stage - (\d+)$,roundGroupStageMatchday,Group stage · Matchday {n},(\d+)$,,table
++WC,,31,^group stage - (\d+)$,roundWcGroupMatchday,Group stage · Matchday {n},(\d+)$,,table
++WCQAF,,32,^group stage - (\d+)$,roundQualGroupMatchday,Group stage · Matchday {n},(\d+)$,,table
++WCQEU,,33,^group stage - (\d+)$,roundQualGroupMatchday,Group stage · Matchday {n},(\d+)$,,table
++WCQOC,,34,^group stage - (\d+)$,roundOcSecondRoundMatchday,Second round · Matchday {n},(\d+)$,,table
++WCQSA,,35,^group stage - (\d+)$,compFactMatchday,Matchday {n},(\d+)$,,table
++,,36,^group ([a-l]) - (\d+)$,roundGroupMatchday,Group {g} · Matchday {n},(\d+)$,^group ([a-l]),table
++,,37,^league (stage|phase) - (\d+)$,roundLeaguePhaseMatchday,League phase · Matchday {n},(\d+)$,,table
++AFCCL,,38,^league (stage|phase) - (\d+)$,roundLeagueStageMatchday,League Stage · Matchday {n},(\d+)$,,table
++,,39,^league ([a-d]) - (\d+)$,roundNationsLeagueMatchday,League {g} · Matchday {n},(\d+)$,^league ([a-d]),table
++,,40,^(round of 32|16th finals|1/16-finals)$,roundOf32,Round of 32,,,knockout
++WC,,41,^round of 32$,roundWcOf32,Round of 32,,,knockout
++,,42,^((apertura|clausura) - )?(round of 16|8th finals|1/8-finals)$,roundOf16,Round of 16,,,knockout
++,,43,^round of (\d+)$,roundOf,Round of {n},(\d+)$,,knockout
++,,44,^((apertura|clausura) - )?quarter-finals$,roundQuarterFinals,Quarter-finals,,,knockout
++CCCU,,45,^quarter-finals$,roundQuarterfinalsAm,Quarterfinals,,,knockout
++CNL,,46,^quarter-finals$,roundQuarterfinalsAm,Quarterfinals,,,knockout
++COAM,,47,^quarter-finals$,roundQuarterfinalsAm,Quarterfinals,,,knockout
++GCUP,,48,^quarter-finals$,roundQuarterfinalsAm,Quarterfinals,,,knockout
++,,50,^((apertura|clausura) - )?semi-finals$,roundSemiFinals,Semi-finals,,,knockout
++CCCU,,51,^semi-finals$,roundSemifinalsAm,Semifinals,,,knockout
++COAM,,52,^semi-finals$,roundSemifinalsAm,Semifinals,,,knockout
++GCUP,,53,^semi-finals$,roundSemifinalsAm,Semifinals,,,knockout
++WCQAF,,54,^semi-finals$,roundPlayoffSemiFinals,Play-off semi-finals,,,knockout
++WCQEU,,55,^semi-finals$,roundPlayoffSemiFinals,Play-off semi-finals,,,knockout
++WCQIP,,56,^semi-finals$,roundIpSemiFinal,Play-off Tournament semi-final,,,knockout
++WCQOC,,57,^semi-finals$,roundOcThirdRoundSemiFinals,Third round semi-finals,,,knockout
++,,60,^((apertura|clausura) - )?finals?$,roundFinal,Final,,,final
++WCQAF,,61,^final$,roundPlayoffFinal,Play-off final,,,final
++WCQEU,,62,^final$,roundPlayoffFinal,Play-off final,,,final
++WCQIP,,63,^final$,roundIpFinal,Play-off Tournament final,,,final
++WCQAS,,64,^final$,roundAsFifthRound,Play-offs knockout stage,,,final
++WCQOC,,65,^final$,roundOcThirdRoundFinal,Third round final,,,final
++VL,,66,^final$,roundVlEuroFinal,European play-off final,,,knockout
++,,70,^3rd place( final)?$,roundThirdPlace,Third-place play-off,,,placement
++WC,,71,^3rd place final$,roundWcBronzeFinal,Bronze final,,,placement
++COAM,,72,^3rd place final$,roundThirdPlaceMatch,Third Place Match,,,placement
++,,80,^1st qualifying round$,roundQualifyingRound1,First qualifying round,,,knockout
++,,81,^2nd qualifying round$,roundQualifyingRound2,Second qualifying round,,,knockout
++,,82,^3rd qualifying round$,roundQualifyingRound3,Third qualifying round,,,knockout
++WCQOC,,83,^1st qualifying round$,roundOcFirstRound,First round,,,knockout
++WCQOC,,84,^2nd qualifying round$,roundOcFirstRoundFinal,First round final,,,knockout
++,,85,^(play-offs|playoff round)$,roundPlayoffRound,Play-off round,,,knockout
++AFCCL,,90,^1st preliminary round$,roundAfcPreliminaryStage,Preliminary Stage,,,knockout
++CAFCL,,91,^1st preliminary round$,roundPreliminaryRound1,First preliminary round,,,knockout
++CAFCL,,92,^2nd preliminary round$,roundPreliminaryRound2,Second preliminary round,,,knockout
++LIBER,,93,^qualification round 1$,roundLiberStage1,First stage,,,knockout
++LIBER,,94,^qualification round 2$,roundLiberStage2,Second stage,,,knockout
++LIBER,,95,^qualification round 3$,roundLiberStage3,Third stage,,,knockout
++DFBP,,100,^round of 64$,roundFirstRound,First round,,,knockout
++DFBP,,101,^round of 32$,roundSecondRound,Second round,,,knockout
++CDR,2026,102,^1/128-finals$,roundPreliminaryRound,Preliminary round,,,knockout
++CDR,2026,103,^round of 128$,roundFirstRound,First round,,,knockout
++CIT,2026,104,^round of 128$,roundPreliminaryRound,Preliminary round,,,knockout
++CIT,2026,105,^round of 64$,roundFirstRound,First round,,,knockout
++CIT,2026,106,^round of 32$,roundSecondRound,Second round,,,knockout
++CDF,2025,107,^1/128-finals$,roundSeventhRound,Seventh round,,,knockout
++CDF,2025,108,^round of 128$,roundEighthRound,Eighth round,,,knockout
++CDR,,140,^(1/128-finals|round of 128)$,,,,,knockout
++CIT,,141,^round of (128|64|32)$,,,,,knockout
++CDF,,142,^(1/128-finals|round of 128)$,,,,,knockout
++FAC,,143,^1/\d+-finals$,,,,,knockout
++FAC,,110,^1st round qualifying$,roundFaQualifying1,First Round Qualifying,,,knockout
++FAC,,111,^2nd round qualifying$,roundFaQualifying2,Second Round Qualifying,,,knockout
++FAC,,112,^3rd round qualifying$,roundFaQualifying3,Third Round Qualifying,,,knockout
++FAC,,113,^4th round qualifying$,roundFaQualifying4,Fourth Round Qualifying,,,knockout
++FAC,,114,^1st round qualifying replays$,roundFaQualifying1Replay,First Round Qualifying Replay,,,knockout
++FAC,,115,^2nd round qualifying replays$,roundFaQualifying2Replay,Second Round Qualifying Replay,,,knockout
++FAC,,116,^3rd round qualifying replays$,roundFaQualifying3Replay,Third Round Qualifying Replay,,,knockout
++FAC,,117,^4th round qualifying replays$,roundFaQualifying4Replay,Fourth Round Qualifying Replay,,,knockout
++FAC,2026,118,^1/128-finals$,roundFaFirstRoundProper,First Round Proper,,,knockout
++WCQAS,,120,^1st round$,roundQualFirstRound,First round,,,knockout
++WCQAS,,121,^2nd round - group ([a-i]) - (\d+)$,roundAsSecondRoundGroupMatchday,Second round · Group {g} · Matchday {n},(\d+)$,group ([a-i]),table
++WCQAS,,122,^3rd round - (\d+)$,roundAsThirdRoundMatchday,Third round · Matchday {n},(\d+)$,,table
++WCQAS,,123,^round 4 - (\d+)$,roundAsPlayoffsMatchday,Play-offs · Matchday {n},(\d+)$,,table
++WCQCA,,124,^1st round$,roundCaFirstRound,First Round,,,knockout
++WCQCA,,125,^2nd round - (\d+)$,roundCaSecondRoundMatchday,Second Round · Matchday {n},(\d+)$,,table
++WCQCA,,126,^final round - (\d+)$,roundCaFinalRoundMatchday,Final Round · Matchday {n},(\d+)$,,table
++VL,,130,^championship (group|round) - (\d+)$,roundVlChampionshipMatchday,Championship group · Matchday {n},(\d+)$,,table
++VL,,131,^relegation (group|round) - (\d+)$,roundVlRelegationMatchday,Relegation group · Matchday {n},(\d+)$,,table
++VL,,132,^relegation$,roundVlRelegationPlayoff,Relegation play-off,,,knockout
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index 26a8238b..be3a34b5 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -182,6 +182,12 @@ seeds:
+         description: A regular expression whose one capture is the number the name shows; empty when it shows none.
+       - name: g_regex
+         description: A regular expression whose one capture is the group letter the name shows; empty when it shows none.
++      - name: stage_kind
++        description: "table for a round played for a table (a league, a league phase, a group stage: the rows named by a matchday), final for a final, placement for a third-place match, knockout for every other round of ties."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["table", "knockout", "final", "placement"]
+ 
+   - name: competition_registry
+     description: >
+diff --git a/dbt_project/tests/assert_knockout_tie_has_one_winner.sql b/dbt_project/tests/assert_knockout_tie_has_one_winner.sql
+new file mode 100644
+index 00000000..76e1ef81
+--- /dev/null
++++ b/dbt_project/tests/assert_knockout_tie_has_one_winner.sql
+@@ -0,0 +1,33 @@
++-- A decided knockout tie has exactly one winner: of its two team rows one won and one lost, and
++-- both read the same decision. Returns each tie whose two rows disagree.
++
++{{ config(store_failures = true) }}
++
++with ties as (
++    select
++        league_code,
++        season_api_year,
++        round_name,
++        won,
++        decided_by,
++        least(team_sk, opponent_team_sk) as team_a,
++        greatest(team_sk, opponent_team_sk) as team_b
++    from {{ ref('int_knockout_ties') }}
++)
++
++select
++    league_code,
++    season_api_year,
++    round_name,
++    team_a,
++    team_b,
++    count(*) as team_rows,
++    countif(won) as winners,
++    countif(not won) as losers,
++    count(distinct coalesce(decided_by, 'undecided')) as decisions
++from ties
++group by league_code, season_api_year, round_name, team_a, team_b
++having
++    count(*) != 2
++    or count(distinct coalesce(decided_by, 'undecided')) != 1
++    or (countif(won is not null) > 0 and (countif(won) != 1 or countif(not won) != 1))
+diff --git a/dbt_project/tests/assert_team_competitions_knocked_out_has_no_later_fixture.sql b/dbt_project/tests/assert_team_competitions_knocked_out_has_no_later_fixture.sql
+new file mode 100644
+index 00000000..8bea7107
+--- /dev/null
++++ b/dbt_project/tests/assert_team_competitions_knocked_out_has_no_later_fixture.sql
+@@ -0,0 +1,73 @@
++-- A team knocked out of a competition has no fixture in a later round of it that season, and a
++-- winner neither; a third-place match is not a later round, as the mart leaves it out of the
++-- round reached. Returns each such team with the later fixture.
++
++{{ config(store_failures = true) }}
++
++with competitions as (
++    select
++        team_sk,
++        league_code,
++        season_api_year,
++        reached_round_name,
++        cup_status
++    from {{ ref('mart_team_competitions') }}
++    where cup_status in ('knocked_out', 'winners')
++),
++
++round_kinds as (
++    select
++        league_code,
++        season_api_year,
++        round_name,
++        round_stage_kind
++    from {{ ref('int_round_names') }}
++),
++
++fixtures as (
++    select
++        f.fixture_sk,
++        f.league_code,
++        f.season_api_year,
++        f.round_name,
++        f.round_sequence,
++        f.home_team_sk,
++        f.away_team_sk
++    from {{ ref('mart_competition_fixtures') }} as f
++    left join round_kinds as rk
++        on
++            f.league_code = rk.league_code
++            and f.season_api_year = rk.season_api_year
++            and f.round_name = rk.round_name
++    where coalesce(rk.round_stage_kind, '') != 'placement'
++),
++
++reached_sequence as (
++    select distinct
++        c.team_sk,
++        c.league_code,
++        c.season_api_year,
++        c.cup_status,
++        f.round_sequence
++    from competitions as c
++    inner join fixtures as f
++        on
++            c.league_code = f.league_code
++            and c.season_api_year = f.season_api_year
++            and c.reached_round_name = f.round_name
++)
++
++select
++    r.team_sk,
++    r.league_code,
++    r.season_api_year,
++    r.cup_status,
++    f.fixture_sk as later_fixture_sk,
++    f.round_name as later_round_name
++from reached_sequence as r
++inner join fixtures as f
++    on
++        r.league_code = f.league_code
++        and r.season_api_year = f.season_api_year
++        and r.team_sk in (f.home_team_sk, f.away_team_sk)
++        and r.round_sequence < f.round_sequence
+diff --git a/dbt_project/tests/assert_team_competitions_one_winner.sql b/dbt_project/tests/assert_team_competitions_one_winner.sql
+new file mode 100644
+index 00000000..b23d975f
+--- /dev/null
++++ b/dbt_project/tests/assert_team_competitions_one_winner.sql
+@@ -0,0 +1,13 @@
++-- A competition-season has at most one winner on mart_team_competitions. Returns each
++-- competition-season that names more than one.
++
++{{ config(store_failures = true) }}
++
++select
++    league_code,
++    season_api_year,
++    count(*) as winners
++from {{ ref('mart_team_competitions') }}
++where cup_status = 'winners'
++group by league_code, season_api_year
++having count(*) > 1
 diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
-index ef9b5e91..29bd54d7 100644
+index 29bd54d7..b2c5ea9e 100644
 --- a/scripts/export_site_data.py
 +++ b/scripts/export_site_data.py
-@@ -303,6 +303,23 @@ def deserved_scatter_index(all_profile_rows: list[dict]) -> dict:
+@@ -320,6 +320,16 @@ def league_strip_index(all_benchmark_rows: list[dict]) -> dict:
      return idx
  
  
-+def league_strip_index(all_benchmark_rows: list[dict]) -> dict:
-+    """Index every club's value per metric by (league_code, season_api_year), for the Team page's
-+    strip plot. A league-season property like the deserved scatter, so it is built once from the
-+    whole `mart_team_competition_benchmarks` and attached to each team's matching season. Selection
-+    only: the clubs are the ones the mart ranks, in team_sk order."""
-+    idx: dict = {}
-+    for r in sorted(all_benchmark_rows, key=lambda r: (r.get("metric_key") or "", int(r["team_sk"]))):
-+        key = (r.get("league_code"), r.get("season_api_year"))
-+        metrics = idx.setdefault(key, {})
-+        metrics.setdefault(r.get("metric_key"), []).append({
-+            "team_sk": int(r["team_sk"]),
-+            "name": r.get("team_name"),
-+            "value": r.get("metric_value"),
-+        })
-+    return idx
++# Display fields kept from a mart_team_competitions row: the Team page's Competitions block.
++_TEAM_COMPETITION_FIELDS = (
++    "league_code", "competition_type", "entity_type", "standing_group_name", "standing_rank",
++    "played", "wins", "draws", "losses", "goals_for", "goals_against", "points",
++    "latest_played_round_label_i18n_key", "latest_played_round_number", "latest_played_round_letter",
++    "reached_round_label_i18n_key", "reached_round_number", "reached_round_letter",
++    "reached_round_stage_kind", "cup_status",
++)
 +
 +
  def shape_team_payload(
      profile_rows: list[dict],
      fixture_rows: list[dict] | None = None,
-@@ -310,6 +327,7 @@ def shape_team_payload(
-     benchmark_rows: list[dict] | None = None,
+@@ -328,6 +338,7 @@ def shape_team_payload(
      scatter_index: dict | None = None,
      career_rows: list[dict] | None = None,
-+    strip_index: dict | None = None,
+     strip_index: dict | None = None,
++    competition_rows: list[dict] | None = None,
  ) -> dict:
      """One team's mart_team_profile rows (+ mart_team_fixtures + mart_roster +
      mart_team_competition_benchmarks rows) -> the team page payload.
-@@ -392,6 +410,17 @@ def shape_team_payload(
-                  "is_self": e["team_sk"] == team_id}
-                 for e in entries
-             ]
-+        # The strip plot: every club's value per metric in this league-season, the self team flagged.
-+        # The page shows the featured season only, so only that season carries it.
-+        strips = (strip_index or {}).get((s.get("league_code"), s.get("season_api_year")))
-+        if strips and s.get("is_featured_season"):
-+            s["league_strip"] = [
-+                {"metric_key": key, "clubs": [
-+                    {"name": c["name"], "value": c["value"], "is_self": c["team_sk"] == team_id}
-+                    for c in clubs
-+                ]}
-+                for key, clubs in sorted(strips.items())
+@@ -413,6 +424,17 @@ def shape_team_payload(
+         # The strip plot: every club's value per metric in this league-season, the self team flagged.
+         # The page shows the featured season only, so only that season carries it.
+         strips = (strip_index or {}).get((s.get("league_code"), s.get("season_api_year")))
++        # The Competitions block: every competition of the featured season's year, in the served
++        # order.
++        if s.get("is_featured_season"):
++            s["competitions"] = [
++                {k: cr.get(k) for k in _TEAM_COMPETITION_FIELDS}
++                for cr in sorted(
++                    (cr for cr in competition_rows or []
++                     if cr.get("season_api_year") == s.get("season_api_year")),
++                    key=lambda cr: cr.get("competition_order") or 0,
++                )
 +            ]
-         seasons_out.append(s)
- 
-     return {
-@@ -470,13 +499,12 @@ def _shape_benchmarks(rows: list[dict]) -> list[dict]:
- 
- def _shape_team_benchmark_member(row: dict) -> dict:
-     """One mart_team_competition_benchmarks row -> a Team-Stats metric entry (GAP-23). Select/reshape
--    only — the "k of N" / vs-median / spread-bar labels and the direction-mirror (only lower_better rows)
--    are applied at render from the catalogue direction (the mart is direction-agnostic: rank is by value
--    DESC). No num/den atoms — the team mart carries none; team ratios use the adjacent-count-row mechanism
--    (metrics_display.md). The frontend renders the LOCKED 16 (dropping shots_on_goal_pct + the T/I/B sub-display)."""
-+    only: the rank already follows the metric's catalogue direction in the mart. No num/den atoms — the
-+    team mart carries none; team ratios use the adjacent-count-row mechanism (metrics_display.md)."""
-     return {
-         "metric_key": row.get("metric_key"),
-         "metric_value": row.get("metric_value"),
-+        "metric_value_prev_season": row.get("metric_value_prev_season"),
-         "rank": row.get("rank"),
-         "team_count": row.get("team_count"),
-         "league_median": row.get("league_median"),
-@@ -1017,13 +1045,12 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
-     # GAP-23: rank-vs-league benchmark per (team, competition-season) from
-     # mart_team_competition_benchmarks. Scope to the sampled teams on a sample run; whole-table
-     # otherwise (selection, not derivation), exactly like the roster block above.
-+    # The whole table is read on a sample run too: the strip plot shows every club of a sampled
-+    # team's league.
-     bench_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_team_competition_benchmarks`"
--    if sample:
--        id_list = ", ".join(str(int(t)) for t in team_ids)
--        bench_sql = f"select * from {bench_table} where team_sk in ({id_list})"
--    else:
--        bench_sql = f"select * from {bench_table}"
--    bench_by_team = _group_by(_query(client, bench_sql), "team_sk")
-+    bench_rows = _query(client, f"select * from {bench_table}")
-+    strip_idx = league_strip_index(bench_rows)
-+    bench_by_team = _group_by(bench_rows, "team_sk")
-     # Squad tab: per-player season stats from mart_player_career, scoped by team_sk on a sample run
-     # (like the roster/benchmark blocks); shape_team_payload joins them onto squad members. Selection.
-     career_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_player_career`"
-@@ -1036,7 +1063,7 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
+         if strips and s.get("is_featured_season"):
+             s["league_strip"] = [
+                 {"metric_key": key, "clubs": [
+@@ -1060,10 +1082,19 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
+     else:
+         career_sql = f"select * from {career_table}"
+     career_by_team = _group_by(_query(client, career_sql), "team_sk")
++    # The Competitions block: one row per team, competition and season, scoped like the roster.
++    comp_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_team_competitions`"
++    if sample:
++        id_list = ", ".join(str(int(t)) for t in team_ids)
++        comp_sql = f"select * from {comp_table} where team_sk in ({id_list})"
++    else:
++        comp_sql = f"select * from {comp_table}"
++    comp_by_team = _group_by(_query(client, comp_sql), "team_sk")
      return [
          shape_team_payload(
              grouped[t], fixtures_by_team.get(t, []), roster_by_team.get(t, []),
--            bench_by_team.get(t, []), scatter_idx, career_by_team.get(t, []),
-+            bench_by_team.get(t, []), scatter_idx, career_by_team.get(t, []), strip_idx,
+             bench_by_team.get(t, []), scatter_idx, career_by_team.get(t, []), strip_idx,
++            comp_by_team.get(t, []),
          )
          for t in team_ids
      ]
 diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
-index 84692b5a..287efa50 100644
+index 287efa50..6514649f 100644
 --- a/tests/test_export_site_data.py
 +++ b/tests/test_export_site_data.py
-@@ -15,6 +15,7 @@ from scripts.export_site_data import (
-     _shape_team_benchmark_member,
-     build_manifest,
-     deserved_scatter_index,
-+    league_strip_index,
-     build_nav,
-     fetch_glossary,
-     group_fixtures_by_round,
-@@ -705,6 +706,59 @@ def test_shape_team_payload_attaches_deserved_scatter_and_flags_self():
-     assert sum(1 for d in sc if d["is_self"]) == 1          # exactly one self
+@@ -728,6 +728,46 @@ def test_league_strip_lists_every_club_of_the_featured_season_and_flags_self():
+     assert "league_strip" not in other
  
  
-+def test_league_strip_lists_every_club_of_the_featured_season_and_flags_self():
++def test_the_featured_season_lists_its_competitions_in_the_served_order():
 +    rows = [
-+        {"team_sk": 2, "season_api_year": 2025, "league_code": "PL", "team_name": "Forest"},
-+        {"team_sk": 2, "season_api_year": 2024, "league_code": "PL", "team_name": "Forest"},
++        {"team_sk": 165, "season_api_year": 2026, "league_code": "BL1", "team_name": "Dortmund"},
++        {"team_sk": 165, "season_api_year": 2025, "league_code": "BL1", "team_name": "Dortmund"},
 +    ]
-+    bench = [
-+        {"team_sk": t, "team_name": n, "league_code": "PL", "season_api_year": y,
-+         "metric_key": k, "metric_value": v}
-+        for y in (2024, 2025)
-+        for t, n, k, v in [(2, "Forest", "goals_per_match", 1.2), (1, "City", "goals_per_match", 2.4),
-+                           (1, "City", "fouls_per_match", 9.0), (2, "Forest", "fouls_per_match", 12.0)]
++    comps = [
++        {"team_sk": 165, "league_code": "UCL", "season_api_year": 2026, "competition_order": 3,
++         "competition_type": "continental_cup", "standing_rank": 18, "reached_round_stage_kind": "table",
++         "cup_status": None, "internal": "x"},
++        {"team_sk": 165, "league_code": "BL1", "season_api_year": 2026, "competition_order": 1,
++         "competition_type": "domestic_league", "standing_rank": 2, "latest_played_round_number": 6},
++        {"team_sk": 165, "league_code": "DFBP", "season_api_year": 2026, "competition_order": 2,
++         "competition_type": "domestic_cup", "reached_round_label_i18n_key": "roundSecondRound",
++         "reached_round_stage_kind": "knockout", "cup_status": "through"},
++        {"team_sk": 165, "league_code": "DFBP", "season_api_year": 2025, "competition_order": 2,
++         "competition_type": "domestic_cup", "cup_status": "knocked_out"},
 +    ]
-+    idx = league_strip_index(bench)
-+    p = shape_team_payload(_mark_featured(rows), strip_index=idx)
++    p = shape_team_payload(_mark_featured(rows), competition_rows=comps)
 +    featured, other = p["seasons"]
-+    assert [m["metric_key"] for m in featured["league_strip"]] == ["fouls_per_match", "goals_per_match"]
-+    goals = featured["league_strip"][1]["clubs"]
-+    assert goals == [{"name": "City", "value": 2.4, "is_self": False},
-+                     {"name": "Forest", "value": 1.2, "is_self": True}]
-+    assert "league_strip" not in other
++    assert [c["league_code"] for c in featured["competitions"]] == ["BL1", "DFBP", "UCL"]
++    assert featured["competitions"][1]["cup_status"] == "through"
++    assert set(featured["competitions"][0]) == set(export_site_data._TEAM_COMPETITION_FIELDS)
++    assert "competitions" not in other
 +
 +
-+def test_a_sampled_team_export_reads_every_club_for_the_strip(monkeypatch):
-+    # A sample run scopes most queries to the sampled teams, but the strip shows the whole league,
-+    # so the benchmark query must read every club.
-+    profile = [
-+        {"team_sk": t, "season_api_year": 2025, "league_code": "PL", "team_name": n,
-+         "is_featured_season": True}
-+        for t, n in [(1, "City"), (2, "Forest")]
-+    ]
-+    bench = [
-+        {"team_sk": t, "team_name": n, "league_code": "PL", "season_api_year": 2025,
-+         "metric_key": "goals_per_match", "metric_value": v}
-+        for t, n, v in [(1, "City", 2.4), (2, "Forest", 1.2)]
-+    ]
++def test_a_sampled_team_export_scopes_its_competitions_to_the_sample(monkeypatch):
++    profile = [{"team_sk": 1, "season_api_year": 2026, "league_code": "PL", "team_name": "City",
++                "is_featured_season": True}]
 +    seen = []
 +
 +    def fake_query(client, sql):
 +        seen.append(sql)
-+        if "mart_team_profile" in sql:
-+            return profile
-+        if "mart_team_competition_benchmarks" in sql:
-+            return bench
-+        return []
++        return profile if "mart_team_profile" in sql else []
 +
 +    monkeypatch.setattr(export_site_data, "_query", fake_query)
-+    payloads = export_site_data.fetch_team_payloads(client=None, sample=1)
-+    bench_sql = next(s for s in seen if "mart_team_competition_benchmarks" in s)
-+    assert "where" not in bench_sql.lower()
-+    clubs = payloads[0]["seasons"][0]["league_strip"][0]["clubs"]
-+    assert [c["name"] for c in clubs] == ["City", "Forest"]
++    export_site_data.fetch_team_payloads(client=None, sample=1)
++    comp_sql = next(s for s in seen if "mart_team_competitions" in s)
++    assert "team_sk in (1)" in comp_sql
 +
 +
- def test_shape_team_payload_no_scatter_when_season_not_fittable():
-     # a season with no deserved value (not in the index) -> no deserved_scatter key (absent state)
-     rows = [{"team_sk": 9, "season_api_year": 2026, "league_code": "WC",
-@@ -877,10 +931,11 @@ def test_shape_team_benchmark_member_carries_mart_columns():
-         "league_code": "BL1", "season_api_year": 2025, "metric_key": "goals_per_match",
-         "metric_value": 2.2, "league_mean": 1.6, "league_median": 1.5,
-         "league_p25": 1.1, "league_p75": 2.0, "team_count": 18, "rank": 3,
--        "vs_median_delta": 0.7,
-+        "vs_median_delta": 0.7, "metric_value_prev_season": 1.9,
-     })
-     assert m == {
--        "metric_key": "goals_per_match", "metric_value": 2.2, "rank": 3, "team_count": 18,
-+        "metric_key": "goals_per_match", "metric_value": 2.2, "metric_value_prev_season": 1.9,
-+        "rank": 3, "team_count": 18,
-         "league_median": 1.5, "league_p25": 1.1, "league_p75": 2.0, "vs_median_delta": 0.7,
-     }
-     # internal keys + league_mean (unbound by the screen) are not carried
+ def test_a_sampled_team_export_reads_every_club_for_the_strip(monkeypatch):
+     # A sample run scopes most queries to the sampled teams, but the strip shows the whole league,
+     # so the benchmark query must read every club.
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -1585,9 +1288,7 @@ index 84692b5a..287efa50 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md    |   18 +-
-#    .claude/task/rendered_page_evidence.md |    7 +-
-#    .claude/task/review.md                 |   29 +-
-#    .claude/task/review_input.patch        | 1660 +++++++++++++++++++++++++++++---
-#    4 files changed, 1583 insertions(+), 131 deletions(-)
+#   .claude/task/acceptance_evidence.md    | 31 ++++++++++++++++++-------------
+#    .claude/task/rendered_page_evidence.md |  4 ++--
+#    2 files changed, 20 insertions(+), 15 deletions(-)
 # ============================================================================

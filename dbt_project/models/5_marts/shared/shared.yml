@@ -3492,3 +3492,96 @@ models:
         description: "{{ doc('goals_player') }}"
       - name: assists_player
         description: "{{ doc('assists_player') }}"
+
+  - name: mart_team_competitions
+    description: >
+      The Team page's Competitions block: one row per team, competition and season the team has a
+      fixture in, with its standing in that competition's table (the section named in its latest
+      played round, otherwise the section with the most matches played), the round of its latest
+      played match, and the round it has reached, a third-place match left out, with, for a round
+      of ties, cup_status: knocked_out when it lost that tie, winners when it won a final outside a
+      qualifying competition, through when it won any other tie or is drawn into the next round
+      after winning, NULL while a tie is being played or in a table round.
+      Grain: (team_sk, league_code, season_api_year).
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["marts", "football", "team"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [team_sk, league_code, season_api_year]
+      - dbt_utils.expression_is_true:
+          expression: "cup_status is null or reached_round_stage_kind in ('knockout', 'final')"
+          name: team_competitions_cup_status_only_in_a_round_of_ties
+      - dbt_utils.expression_is_true:
+          expression: "cup_status != 'winners' or reached_round_stage_kind = 'final'"
+          name: team_competitions_winners_only_in_a_final
+    columns:
+      - name: team_sk
+        description: "{{ doc('team_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: competition_type
+        description: "{{ doc('competition_type') }}"
+      - name: entity_type
+        description: "{{ doc('entity_type') }}"
+      - name: standing_group_name
+        description: "The table section the standing is read from: the team's section named in its latest played round, otherwise its section with the most matches played; NULL without a table."
+      - name: standing_rank
+        description: "The team's position in that section."
+      - name: played
+        description: "Matches played in that section."
+      - name: wins
+        description: "{{ doc('wins') }}"
+      - name: draws
+        description: "{{ doc('draws') }}"
+      - name: losses
+        description: "{{ doc('losses') }}"
+      - name: goals_for
+        description: "Goals scored in that section."
+      - name: goals_against
+        description: "Goals conceded in that section."
+      - name: points
+        description: "Points in that section."
+      - name: latest_played_round_name
+        description: "The provider's round text of the team's latest played match in this competition-season."
+      - name: latest_played_round_label_i18n_key
+        description: "The copy key that names that round (int_round_names)."
+      - name: latest_played_round_number
+        description: "The number that round's name shows, as a matchday; NULL when it shows none."
+      - name: latest_played_round_letter
+        description: "The group letter that round's name shows; NULL when it shows none."
+      - name: latest_played_kickoff_datetime
+        description: "The kickoff of the team's latest played match in this competition-season, UTC."
+      - name: reached_round_name
+        description: "The provider's round text of the team's latest round in this competition-season, played or scheduled, a third-place match left out."
+      - name: reached_round_label_i18n_key
+        description: "The copy key that names the reached round (int_round_names)."
+      - name: reached_round_number
+        description: "The number the reached round's name shows; NULL when it shows none."
+      - name: reached_round_letter
+        description: "The group letter the reached round's name shows; NULL when it shows none."
+      - name: reached_round_stage_kind
+        description: "table, knockout or final: the kind of the reached round."
+        tests:
+          - accepted_values:
+              values: ["table", "knockout", "final"]
+      - name: cup_status
+        description: "through, knocked_out or winners in a round of ties, by int_knockout_ties, winners only for a final outside a qualifying competition; NULL while the tie is being played or undecided, in a first round not yet played, and in a table round."
+        tests:
+          - accepted_values:
+              values: ["through", "knocked_out", "winners"]
+      - name: competition_order
+        description: "The row's place in the team's season: the domestic league, then the domestic cups, then the domestic super cup, then every other competition, each group by its latest match first."
+        tests: [not_null]

@@ -1,4 +1,4 @@
-# Rendered page evidence — the Team page's comparison data, cards and highs and lows
+# Rendered page evidence — the Team page's Competitions block
 
 No page renders differently: the change touches no file under `site_v2/`. The page reads the new
-fields in its own build, with the samples re-exported then.
+rows in its own build, with the samples re-exported then.

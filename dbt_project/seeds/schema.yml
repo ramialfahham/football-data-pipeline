@@ -182,6 +182,12 @@ seeds:
         description: A regular expression whose one capture is the number the name shows; empty when it shows none.
       - name: g_regex
         description: A regular expression whose one capture is the group letter the name shows; empty when it shows none.
+      - name: stage_kind
+        description: "table for a round played for a table (a league, a league phase, a group stage: the rows named by a matchday), final for a final, placement for a third-place match, knockout for every other round of ties."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["table", "knockout", "final", "placement"]
 
   - name: competition_registry
     description: >
