@@ -131,6 +131,7 @@ select
     y.points_this_season,
     y.points_prev_season,
     y.points_delta_yoy,
+    y.points_rank_prev_season,
     y.goals_for_this_season,
     y.goals_for_prev_season,
     y.goals_for_delta_yoy,

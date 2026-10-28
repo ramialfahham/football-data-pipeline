@@ -21,6 +21,7 @@
 
 with window_legs as (
     select * from {{ ref('int_team_momentum_window') }}
+    where upcoming_fixture_sk is not null
 ),
 
 window_rows as (

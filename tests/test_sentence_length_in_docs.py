@@ -41,7 +41,7 @@ PINNED = {
     "dbt_project/docs/layering.md": 43,
     "dbt_project/models/1_staging/api_football/README.md": 1,
     "dbt_project/models/docs/cleaning_rules.md": 5,
-    "dbt_project/models/docs/metric_columns.md": 37,
+    "dbt_project/models/docs/metric_columns.md": 15,
     "dbt_project/models/docs/metric_rules.md": 2,
     "dbt_project/models/docs/shared_columns.md": 35,
     "deploy/nightly/README.md": 19,

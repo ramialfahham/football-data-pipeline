@@ -28,6 +28,12 @@
   own page's numbers. Here upcoming_fixture_sk holds that played fixture. The form readers
   (int_player_momentum__metrics, mart_team_momentum_window) leave these rows out.
 
+  Team window (upcoming_fixture_sk NULL, window_type last_5): every team's last 5 finished
+  matches before now, by the last_5 rule, a club's within the season of its latest finished
+  match: the Team page's recent matches, with or without a next match and before a new season
+  starts. The form aggregates (int_team_momentum__metrics, int_player_momentum__metrics) leave
+  these rows out.
+
   Returns no rows for a team with no finished matches yet (before phase for a club
   domestic_league); #326's season-to-date fallback covers that gap.
 
@@ -73,7 +79,20 @@ upcoming_with_type as (
         on reg.competition_type = typ.competition_type
 ),
 
--- Expand each fixture into two sides (home + away)
+-- Each team's latest finished match, whose season bounds a club's team window.
+team_latest_legs as (
+    select
+        team_sk,
+        season_api_year,
+        entity_type
+    from {{ ref('int_legs__team_match') }}
+    qualify row_number() over (
+        partition by team_sk
+        order by kickoff_datetime desc, fixture_sk desc
+    ) = 1
+),
+
+-- Expand each fixture into two sides (home + away), and every team into its team window
 upcoming_sides as (
     select
         fixture_sk as upcoming_fixture_sk,
@@ -96,6 +115,18 @@ upcoming_sides as (
         competition_type,
         entity_type
     from upcoming_with_type
+
+    union all
+
+    select
+        cast(null as int64) as upcoming_fixture_sk,
+        team_sk,
+        cast(null as string) as upcoming_league_code,
+        season_api_year,
+        current_timestamp() as kickoff_datetime,
+        cast(null as string) as competition_type,
+        entity_type
+    from team_latest_legs
 ),
 
 -- Every candidate leg for a side: the team's finished matches (same entity_type) before

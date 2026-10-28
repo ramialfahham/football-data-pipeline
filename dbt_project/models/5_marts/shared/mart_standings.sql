@@ -17,7 +17,8 @@
   carried verbatim in group_description and never interpreted.
 
   table_kind says what kind of table a section is (league, group, conference, split_round,
-  ranking), resolved from the section name through the standings_table_kinds seed so that a
+  ranking), resolved from the section name through the standings_table_kinds seed
+  (int_standings__section_kinds) so that a
   page can render one table per group, drop the provider's cross-group ranking tables and head
   a split season's rounds — and never matches on a name itself. A name no seed pattern matches
   is the competition's own league table.
@@ -49,29 +50,11 @@ teams as (
     from {{ ref('dim_team') }}
 ),
 
-kind_patterns as (
-    select
-        priority,
-        pattern,
-        table_kind
-    from {{ ref('standings_table_kinds') }}
-),
-
--- One kind per distinct section name: the lowest-priority pattern that matches it.
 section_kinds as (
     select
         group_name,
         table_kind
-    from (
-        select distinct
-            s.group_name,
-            k.table_kind,
-            k.priority
-        from standings as s
-        cross join kind_patterns as k
-        where regexp_contains(lower(s.group_name), k.pattern)
-    )
-    qualify row_number() over (partition by group_name order by priority) = 1
+    from {{ ref('int_standings__section_kinds') }}
 )
 
 select

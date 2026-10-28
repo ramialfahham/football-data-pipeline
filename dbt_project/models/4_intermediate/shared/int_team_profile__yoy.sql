@@ -11,6 +11,7 @@
 
   Metrics:
     - Totals (points / goals for / against): the cumulative scoreline sums (always present).
+    - Position: last season's place after the same N matches (int_team_season__position_by_match).
     - Rates (the LOCKED 16-row team display set): as the cumulative model holds them at N.
     - delta = this − prev.
 
@@ -67,6 +68,16 @@ prev as (
         partition by d.team_sk, d.league_code
         order by d.match_number desc
     ) = 1
+),
+
+positions as (
+    select
+        team_sk,
+        league_code,
+        season_api_year,
+        match_number,
+        position_at_match
+    from {{ ref('int_team_season__position_by_match') }}
 )
 
 select
@@ -96,6 +107,7 @@ select
     cur.corners_against_per_match as corners_against_per_match_this_season,
     cur.saves_pct as saves_pct_this_season,
     -- prior-season values (through the same N)
+    pos.position_at_match as points_rank_prev_season,
     prev.points_won as points_prev_season,
     prev.goals as goals_for_prev_season,
     prev.goals_against as goals_against_prev_season,
@@ -140,3 +152,9 @@ left join prev
     on
         cur.team_sk = prev.team_sk
         and cur.league_code = prev.league_code
+left join positions as pos
+    on
+        prev.team_sk = pos.team_sk
+        and prev.league_code = pos.league_code
+        and prev.season_api_year = pos.season_api_year
+        and prev.match_number = pos.match_number

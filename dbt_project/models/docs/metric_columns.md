@@ -38,7 +38,7 @@ compared at the same point of the campaign: the current value minus the previous
 
 {% docs assists_player_prev_season__player %}
 Goals the player set up for a teammate. Value for the season before, through the same number of
-matches as the current season has played so far, so the two are compared at the same point of a
+matches as the current season has played so far. So the two are compared at the same point of a
 campaign rather than a part season against a full one.
 {% enddocs %}
 
@@ -125,7 +125,7 @@ value minus the previous one.
 
 {% docs clean_sheets_pct_prev_season__team %}
 Matches in which the team conceded no goal, as a share of all its matches. Value for the season
-before, through the same number of matches as the current season has played so far, so the two
+before, through the same number of matches as the current season has played so far. So the two
 are compared at the same point of a campaign rather than a part season against a full one.
 {% enddocs %}
 
@@ -161,7 +161,7 @@ previous one.
 
 {% docs corners_against_per_match_prev_season__team %}
 Average number of corner kicks the team conceded per match. Value for the season before,
-through the same number of matches as the current season has played so far, so the two are
+through the same number of matches as the current season has played so far. So the two are
 compared at the same point of a campaign rather than a part season against a full one.
 {% enddocs %}
 
@@ -186,7 +186,7 @@ previous one.
 
 {% docs corners_per_match_prev_season__team %}
 Average number of corner kicks the team won per match. Value for the season before, through the
-same number of matches as the current season has played so far, so the two are compared at the
+same number of matches as the current season has played so far. So the two are compared at the
 same point of a campaign rather than a part season against a full one.
 {% enddocs %}
 
@@ -217,7 +217,7 @@ the current value minus the previous one.
 {% docs defensive_actions_per_match_prev_season__team %}
 Average number of tackles, interceptions and blocks the team's players made per match. Value
 for the season before, through the same number of matches as the current season has played so
-far, so the two are compared at the same point of a campaign rather than a part season against
+far. So the two are compared at the same point of a campaign rather than a part season against
 a full one.
 {% enddocs %}
 
@@ -242,7 +242,7 @@ one.
 
 {% docs defensive_actions_player_prev_season__player %}
 Tackles, interceptions and blocks the player made. Value for the season before, through the
-same number of matches as the current season has played so far, so the two are compared at the
+same number of matches as the current season has played so far. So the two are compared at the
 same point of a campaign rather than a part season against a full one.
 {% enddocs %}
 
@@ -339,7 +339,7 @@ compared at the same point of the campaign: the current value minus the previous
 {% docs duels_per_match_prev_season__team %}
 Average number of one-on-one challenges for the ball, on the ground or in the air, that the
 team's players contested per match. Value for the season before, through the same number of
-matches as the current season has played so far, so the two are compared at the same point of a
+matches as the current season has played so far. So the two are compared at the same point of a
 campaign rather than a part season against a full one.
 {% enddocs %}
 
@@ -372,7 +372,7 @@ compared at the same point of the campaign: the current value minus the previous
 {% docs duels_won_pct_prev_season__team %}
 One-on-one challenges for the ball, on the ground or in the air, that the team's players won,
 as a share of those they contested. Value for the season before, through the same number of
-matches as the current season has played so far, so the two are compared at the same point of a
+matches as the current season has played so far. So the two are compared at the same point of a
 campaign rather than a part season against a full one.
 {% enddocs %}
 
@@ -422,7 +422,7 @@ of the campaign: the current value minus the previous one.
 {% docs finishing_efficiency_pct_prev_season__team %}
 Goals the team scored, not counting penalties and opponents' own goals, as a share of its shots
 on target. Value for the season before, through the same number of matches as the current
-season has played so far, so the two are compared at the same point of a campaign rather than a
+season has played so far. So the two are compared at the same point of a campaign rather than a
 part season against a full one.
 {% enddocs %}
 
@@ -483,7 +483,7 @@ one.
 
 {% docs goals_against_per_match_prev_season__team %}
 Average number of goals the team conceded per match. Value for the season before, through the
-same number of matches as the current season has played so far, so the two are compared at the
+same number of matches as the current season has played so far. So the two are compared at the
 same point of a campaign rather than a part season against a full one.
 {% enddocs %}
 
@@ -501,7 +501,7 @@ Goals the team conceded while the player was in goal.
 
 {% docs goals_against_prev_season__team %}
 Goals the team conceded. Value for the season before, through the same number of matches as the
-current season has played so far, so the two are compared at the same point of a campaign
+current season has played so far. So the two are compared at the same point of a campaign
 rather than a part season against a full one.
 {% enddocs %}
 
@@ -561,7 +561,7 @@ one.
 
 {% docs goals_per_match_prev_season__team %}
 Average number of goals the team scored per match. Value for the season before, through the
-same number of matches as the current season has played so far, so the two are compared at the
+same number of matches as the current season has played so far. So the two are compared at the
 same point of a campaign rather than a part season against a full one.
 {% enddocs %}
 
@@ -586,7 +586,7 @@ the previous one.
 
 {% docs goals_player_prev_season__player %}
 Goals the player scored, penalties included and own goals not. Value for the season before,
-through the same number of matches as the current season has played so far, so the two are
+through the same number of matches as the current season has played so far. So the two are
 compared at the same point of a campaign rather than a part season against a full one.
 {% enddocs %}
 
@@ -658,7 +658,7 @@ value minus the previous one.
 
 {% docs passes_accuracy_pct_prev_season__team %}
 The team's passes that reached a teammate, as a share of all its passes. Value for the season
-before, through the same number of matches as the current season has played so far, so the two
+before, through the same number of matches as the current season has played so far. So the two
 are compared at the same point of a campaign rather than a part season against a full one.
 {% enddocs %}
 
@@ -705,7 +705,7 @@ campaign: the current value minus the previous one.
 {% docs passes_key_per_match_prev_season__team %}
 Average number of passes per match by the team's players that led directly to a teammate's
 shot. Value for the season before, through the same number of matches as the current season has
-played so far, so the two are compared at the same point of a campaign rather than a part
+played so far. So the two are compared at the same point of a campaign rather than a part
 season against a full one.
 {% enddocs %}
 
@@ -730,7 +730,7 @@ previous one.
 
 {% docs passes_key_player_prev_season__player %}
 The player's passes that led directly to a teammate's shot. Value for the season before,
-through the same number of matches as the current season has played so far, so the two are
+through the same number of matches as the current season has played so far. So the two are
 compared at the same point of a campaign rather than a part season against a full one.
 {% enddocs %}
 
@@ -767,7 +767,7 @@ previous one.
 
 {% docs passes_per_match_prev_season__team %}
 Average number of passes the team attempted per match. Value for the season before, through the
-same number of matches as the current season has played so far, so the two are compared at the
+same number of matches as the current season has played so far. So the two are compared at the
 same point of a campaign rather than a part season against a full one.
 {% enddocs %}
 
@@ -803,6 +803,20 @@ Points the team won as a share of the 3 points per match it could have won.
 {% enddocs %}
 
 
+{% docs points_rank %}
+The team's position in its league when the teams are ordered by points, then goal difference,
+then goals scored.
+{% enddocs %}
+
+
+{% docs points_rank_prev_season__team %}
+The team's position in its league when the teams are ordered by points, then goal difference,
+then goals scored. Value for the season before, through the same number of matches as the
+current season has played so far. So the two are compared at the same point of a campaign
+rather than a part season against a full one.
+{% enddocs %}
+
+
 {% docs points_won %}
 Points the team won: 3 for a win, 1 for a draw, none for a defeat.
 {% enddocs %}
@@ -833,7 +847,7 @@ the current value minus the previous one.
 {% docs saves_pct_prev_season__team %}
 The team's saves as a share of its saves plus the goals it conceded, own goals not counted.
 Value for the season before, through the same number of matches as the current season has
-played so far, so the two are compared at the same point of a campaign rather than a part
+played so far. So the two are compared at the same point of a campaign rather than a part
 season against a full one.
 {% enddocs %}
 
@@ -899,7 +913,7 @@ value minus the previous one.
 
 {% docs shots_inside_box_pct_prev_season__team %}
 The team's shots from inside the penalty area as a share of all its shots. Value for the season
-before, through the same number of matches as the current season has played so far, so the two
+before, through the same number of matches as the current season has played so far. So the two
 are compared at the same point of a campaign rather than a part season against a full one.
 {% enddocs %}
 
@@ -965,7 +979,7 @@ previous one.
 
 {% docs shots_on_goal_per_match_prev_season__team %}
 Average number of shots on target the team had per match. Value for the season before, through
-the same number of matches as the current season has played so far, so the two are compared at
+the same number of matches as the current season has played so far. So the two are compared at
 the same point of a campaign rather than a part season against a full one.
 {% enddocs %}
 
@@ -989,7 +1003,7 @@ compared at the same point of the campaign: the current value minus the previous
 
 {% docs shots_on_goal_player_prev_season__player %}
 Shots on target the player had. Value for the season before, through the same number of matches
-as the current season has played so far, so the two are compared at the same point of a
+as the current season has played so far. So the two are compared at the same point of a
 campaign rather than a part season against a full one.
 {% enddocs %}
 
@@ -1021,7 +1035,7 @@ one.
 
 {% docs shots_per_match_prev_season__team %}
 Average number of shots the team took per match. Value for the season before, through the same
-number of matches as the current season has played so far, so the two are compared at the same
+number of matches as the current season has played so far. So the two are compared at the same
 point of a campaign rather than a part season against a full one.
 {% enddocs %}
 

@@ -455,6 +455,9 @@ models:
       mart_player_fixture_stats, so true means detail genuinely exists rather than that it ought
       to.
 
+      The team window has no upcoming fixture: upcoming_fixture_sk, league_code and is_home are
+      empty, and its rows are the team's last five finished matches, for the Team page.
+
       assert_momentum_window_matches_momentum guards that these rows and the aggregate stay
       consistent.
     tests:
@@ -462,11 +465,13 @@ models:
           combination_of_columns: [upcoming_fixture_sk, team_sk, played_fixture_sk]
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [upcoming_fixture_sk, team_sk, recency_rank]
+      - dbt_utils.expression_is_true:
+          expression: "upcoming_fixture_sk is not null or (window_type = 'last_5' and recency_rank <= 5 and league_code is null and is_home is null)"
+          name: team_momentum_window_team_window_is_a_last_5
     columns:
       - name: upcoming_fixture_sk
-        description: "{{ doc('upcoming_fixture_sk') }}"
+        description: "{{ doc('upcoming_fixture_sk') }} Empty on the team window."
         tests:
-          - not_null
           - relationships:
               to: ref('fct_fixture')
               field: fixture_sk
@@ -478,8 +483,11 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: league_code
-        description: "{{ doc('league_code') }} Here it is the UPCOMING fixture's competition; the past match's own competition is played_league_code."
-        tests: [not_null]
+        description: "{{ doc('league_code') }} Here it is the UPCOMING fixture's competition, empty on the team window; the past match's own competition is played_league_code."
+        tests:
+          - not_null:
+              config:
+                where: "upcoming_fixture_sk is not null"
       - name: window_type
         description: "{{ doc('window_type__form') }} A tournament window is not capped, so a side can have more than five rows here."
         tests:
@@ -516,8 +524,11 @@ models:
         description: "True when mart_player_fixture_stats has a player stat line (has_stat_line) for this played fixture + team. False is the common case — many competitions lack player stats."
         tests: [not_null]
       - name: is_home
-        description: "True when team_sk is the home side of the upcoming fixture."
-        tests: [not_null]
+        description: "True when team_sk is the home side of the upcoming fixture; empty on the team window."
+        tests:
+          - not_null:
+              config:
+                where: "upcoming_fixture_sk is not null"
       - name: entity_type
         description: "{{ doc('entity_type') }}"
       - name: season_api_year
@@ -1080,6 +1091,8 @@ models:
         description: "{{ doc('points_won') }} Here, this season through the games-played cutoff N (yoy_games_played_cutoff)."
       - name: points_prev_season
         description: "{{ doc('points_won') }} Here, the previous season through the same games-played cutoff N."
+      - name: points_rank_prev_season
+        description: "{{ doc('points_rank_prev_season__team') }} Empty where last season's table was split into rounds or listed a team in more than one section."
       - name: goals_for_this_season
         description: "{{ doc('goals') }} Here, this season through the games-played cutoff N (yoy_games_played_cutoff)."
       - name: goals_for_prev_season

@@ -193,7 +193,7 @@ DERIVED_AFFIXES: tuple[tuple[str, str, str], ...] = (
      "against a full one would mislead."),
     ("_prev_season", "suffix",
      "Value for the season before, through the same number of matches as the current season has "
-     "played so far, so the two are compared at the same point of a campaign rather than a part "
+     "played so far. So the two are compared at the same point of a campaign rather than a part "
      "season against a full one."),
     ("_this_season", "suffix",
      "Value for the season now in progress, accumulated through the matches played so far."),

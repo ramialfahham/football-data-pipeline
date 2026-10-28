@@ -1,6 +1,52 @@
 version: 2
 
 models:
+  - name: int_team_season__position_by_match
+    description: >
+      A domestic league's table at every number of matches played. One row per team and match
+      number N of its season: its place after its Nth match, within its section of that season's
+      official table. Teams rank by points, then goal difference, then goals scored, and teams
+      level on all three share a place. Only seasons where every team sits in one league,
+      conference or group table are ranked. Grain: (team_sk, league_code, season_api_year,
+      match_number).
+    config:
+      tags: ["intermediate", "football", "team_season"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [team_sk, league_code, season_api_year, match_number]
+      - dbt_utils.expression_is_true:
+          expression: "position_at_match >= 1 and match_number >= 1"
+          name: team_position_by_match_is_a_place
+    columns:
+      - name: team_sk
+        description: "{{ doc('team_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: match_number
+        description: "The team's Nth match of the season in this league, counted by kickoff."
+        tests: [not_null]
+      - name: group_name
+        description: "The section of the official table the team is ranked in: the league's table, or a conference."
+        tests: [not_null]
+      - name: points_won
+        description: "{{ doc('points_won') }} Here, through the Nth match."
+      - name: goal_difference
+        description: "Goals scored minus goals conceded through the Nth match."
+      - name: goals_for
+        description: "{{ doc('goals') }} Here, through the Nth match."
+      - name: position_at_match
+        description: "The team's place in its section after its Nth match; teams level on points, goal difference and goals scored share a place."
+        tests: [not_null]
+
   - name: int_team_season__standings_primary
     description: >
       Deduplicated standings snapshot per team-season: one row per (team_sk, season_sk)
