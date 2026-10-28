@@ -22,6 +22,11 @@ models:
         tests: [not_null]
       - name: round_label_i18n_key
         description: The copy key a page names the round by. NULL when no round_names pattern covers the text.
+      - name: round_stage_kind
+        description: "table for a round played for a table, final, placement for a third-place match, or knockout for every other round of ties, from the round_names row that names it; NULL when no row covers the text."
+        tests:
+          - accepted_values:
+              values: ["table", "knockout", "final", "placement"]
       - name: round_number
         description: The number the round's name shows (the matchday, or the round in a cup's sequence); NULL when the name shows none.
       - name: round_letter

@@ -320,6 +320,16 @@ def league_strip_index(all_benchmark_rows: list[dict]) -> dict:
     return idx
 
 
+# Display fields kept from a mart_team_competitions row: the Team page's Competitions block.
+_TEAM_COMPETITION_FIELDS = (
+    "league_code", "competition_type", "entity_type", "standing_group_name", "standing_rank",
+    "played", "wins", "draws", "losses", "goals_for", "goals_against", "points",
+    "latest_played_round_label_i18n_key", "latest_played_round_number", "latest_played_round_letter",
+    "reached_round_label_i18n_key", "reached_round_number", "reached_round_letter",
+    "reached_round_stage_kind", "cup_status",
+)
+
+
 def shape_team_payload(
     profile_rows: list[dict],
     fixture_rows: list[dict] | None = None,
@@ -328,6 +338,7 @@ def shape_team_payload(
     scatter_index: dict | None = None,
     career_rows: list[dict] | None = None,
     strip_index: dict | None = None,
+    competition_rows: list[dict] | None = None,
 ) -> dict:
     """One team's mart_team_profile rows (+ mart_team_fixtures + mart_roster +
     mart_team_competition_benchmarks rows) -> the team page payload.
@@ -413,6 +424,17 @@ def shape_team_payload(
         # The strip plot: every club's value per metric in this league-season, the self team flagged.
         # The page shows the featured season only, so only that season carries it.
         strips = (strip_index or {}).get((s.get("league_code"), s.get("season_api_year")))
+        # The Competitions block: every competition of the featured season's year, in the served
+        # order.
+        if s.get("is_featured_season"):
+            s["competitions"] = [
+                {k: cr.get(k) for k in _TEAM_COMPETITION_FIELDS}
+                for cr in sorted(
+                    (cr for cr in competition_rows or []
+                     if cr.get("season_api_year") == s.get("season_api_year")),
+                    key=lambda cr: cr.get("competition_order") or 0,
+                )
+            ]
         if strips and s.get("is_featured_season"):
             s["league_strip"] = [
                 {"metric_key": key, "clubs": [
@@ -1060,10 +1082,19 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
     else:
         career_sql = f"select * from {career_table}"
     career_by_team = _group_by(_query(client, career_sql), "team_sk")
+    # The Competitions block: one row per team, competition and season, scoped like the roster.
+    comp_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_team_competitions`"
+    if sample:
+        id_list = ", ".join(str(int(t)) for t in team_ids)
+        comp_sql = f"select * from {comp_table} where team_sk in ({id_list})"
+    else:
+        comp_sql = f"select * from {comp_table}"
+    comp_by_team = _group_by(_query(client, comp_sql), "team_sk")
     return [
         shape_team_payload(
             grouped[t], fixtures_by_team.get(t, []), roster_by_team.get(t, []),
             bench_by_team.get(t, []), scatter_idx, career_by_team.get(t, []), strip_idx,
+            comp_by_team.get(t, []),
         )
         for t in team_ids
     ]

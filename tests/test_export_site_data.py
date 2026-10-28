@@ -728,6 +728,46 @@ def test_league_strip_lists_every_club_of_the_featured_season_and_flags_self():
     assert "league_strip" not in other
 
 
+def test_the_featured_season_lists_its_competitions_in_the_served_order():
+    rows = [
+        {"team_sk": 165, "season_api_year": 2026, "league_code": "BL1", "team_name": "Dortmund"},
+        {"team_sk": 165, "season_api_year": 2025, "league_code": "BL1", "team_name": "Dortmund"},
+    ]
+    comps = [
+        {"team_sk": 165, "league_code": "UCL", "season_api_year": 2026, "competition_order": 3,
+         "competition_type": "continental_cup", "standing_rank": 18, "reached_round_stage_kind": "table",
+         "cup_status": None, "internal": "x"},
+        {"team_sk": 165, "league_code": "BL1", "season_api_year": 2026, "competition_order": 1,
+         "competition_type": "domestic_league", "standing_rank": 2, "latest_played_round_number": 6},
+        {"team_sk": 165, "league_code": "DFBP", "season_api_year": 2026, "competition_order": 2,
+         "competition_type": "domestic_cup", "reached_round_label_i18n_key": "roundSecondRound",
+         "reached_round_stage_kind": "knockout", "cup_status": "through"},
+        {"team_sk": 165, "league_code": "DFBP", "season_api_year": 2025, "competition_order": 2,
+         "competition_type": "domestic_cup", "cup_status": "knocked_out"},
+    ]
+    p = shape_team_payload(_mark_featured(rows), competition_rows=comps)
+    featured, other = p["seasons"]
+    assert [c["league_code"] for c in featured["competitions"]] == ["BL1", "DFBP", "UCL"]
+    assert featured["competitions"][1]["cup_status"] == "through"
+    assert set(featured["competitions"][0]) == set(export_site_data._TEAM_COMPETITION_FIELDS)
+    assert "competitions" not in other
+
+
+def test_a_sampled_team_export_scopes_its_competitions_to_the_sample(monkeypatch):
+    profile = [{"team_sk": 1, "season_api_year": 2026, "league_code": "PL", "team_name": "City",
+                "is_featured_season": True}]
+    seen = []
+
+    def fake_query(client, sql):
+        seen.append(sql)
+        return profile if "mart_team_profile" in sql else []
+
+    monkeypatch.setattr(export_site_data, "_query", fake_query)
+    export_site_data.fetch_team_payloads(client=None, sample=1)
+    comp_sql = next(s for s in seen if "mart_team_competitions" in s)
+    assert "team_sk in (1)" in comp_sql
+
+
 def test_a_sampled_team_export_reads_every_club_for_the_strip(monkeypatch):
     # A sample run scopes most queries to the sampled teams, but the strip shows the whole league,
     # so the benchmark query must read every club.

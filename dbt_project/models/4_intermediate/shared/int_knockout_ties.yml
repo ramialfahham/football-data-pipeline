@@ -1,0 +1,71 @@
+version: 2
+
+models:
+  - name: int_knockout_ties
+    description: >
+      Every knockout tie seen from each of its two teams: the fixtures of one round of ties (a
+      knockout round, a final or a third-place match) between the same two teams, one leg or two. Once every leg is played the tie goes to the
+      team with more goals over its legs, and a level tie to the winner of its last leg when that
+      leg was decided by a shoot-out or awarded; otherwise it is undecided, as an FA Cup draw
+      before its replay, which is a round of its own.
+      Grain: (league_code, season_api_year, round_name, team_sk, opponent_team_sk).
+    config:
+      tags: ["intermediate", "football", "knockout"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season_api_year, round_name, team_sk, opponent_team_sk]
+      - dbt_utils.expression_is_true:
+          expression: "legs_played between 0 and legs"
+          name: int_knockout_ties_played_legs_in_range
+      - dbt_utils.expression_is_true:
+          expression: "(won is null) = (decided_by is null)"
+          name: int_knockout_ties_decided_has_a_result
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: round_name
+        description: "{{ doc('round_name') }}"
+        tests: [not_null]
+      - name: team_sk
+        description: "{{ doc('team_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: opponent_team_sk
+        description: "{{ doc('opponent_team_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: legs
+        description: "The tie's fixtures in this round, played or not."
+        tests: [not_null]
+      - name: legs_played
+        description: "The tie's fixtures already played (FT, AET, PEN, AWD, WO)."
+        tests: [not_null]
+      - name: goals_for
+        description: "The team's goals over the played legs, extra time included; NULL before a leg is played."
+      - name: goals_against
+        description: "The opponent's goals over the played legs; NULL before a leg is played."
+      - name: last_played_fixture_sk
+        description: "The tie's latest played leg; NULL before a leg is played."
+        tests:
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: last_kickoff_datetime
+        description: "The kickoff of the tie's latest leg, played or not, UTC."
+      - name: decided_by
+        description: "goals, shootout or award once the tie is decided; NULL while it is not."
+        tests:
+          - accepted_values:
+              values: ["goals", "shootout", "award"]
+      - name: won
+        description: "True when the team won the tie, false when it lost; NULL while the tie is undecided."
