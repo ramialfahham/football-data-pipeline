@@ -44,7 +44,8 @@ models:
     description: >
       Each team's biggest win and heaviest defeat in a season across every competition it played:
       the finished match with the widest margin, a tie going to the match with more goals, then the
-      earlier kickoff, then the fixture id. Grain: (team_sk, season_api_year).
+      earlier kickoff, then the fixture id. A shoot-out after a level score has no margin, so it is
+      neither. Grain: (team_sk, season_api_year).
     config:
       tags: ["intermediate", "football", "team_season"]
     tests:

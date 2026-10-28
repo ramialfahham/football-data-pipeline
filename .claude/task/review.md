@@ -1,8 +1,8 @@
 # Review — feat/235-team-data — 2026-10-28
 
-diff_sha256: 0e98f10c78a9e6948e3049027ed11ce370b3f2b1c434e904540ab5ebc7e36628
+diff_sha256: b9d6a723c678b07171a4206319270ffb3047fe25a55136265062a544bf4a9402
 
-rounds: 2
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
@@ -17,6 +17,7 @@ risks_checked:
 - Every join keeps its grain; the last-season value is chosen as int_team_profile__yoy chooses it; the rank follows direction with shared ties.
 - The season summary's runs moved unchanged into the shared intermediate; the descriptions and the layering row state what the models do.
 - The two new tests fail in each direction; relationship and range tests cover the new columns.
+- A shoot-out after a level score is neither a biggest win nor a heaviest defeat, which the two result tests pin.
 
 ## platform-reviewer
 VERDICT: PASS

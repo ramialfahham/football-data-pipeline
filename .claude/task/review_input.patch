@@ -499,15 +499,16 @@ index 3c7b5cff..7a4198c7 100644
  
 diff --git a/dbt_project/models/4_intermediate/shared/int_team_season__biggest_results.sql b/dbt_project/models/4_intermediate/shared/int_team_season__biggest_results.sql
 new file mode 100644
-index 00000000..cacd9919
+index 00000000..b2e0c22b
 --- /dev/null
 +++ b/dbt_project/models/4_intermediate/shared/int_team_season__biggest_results.sql
-@@ -0,0 +1,84 @@
+@@ -0,0 +1,85 @@
 +{#
 +  Each team's biggest win and heaviest defeat in a season, across every competition it played
 +  that season: the finished match with the widest margin. The competition page's rule for its
 +  biggest margin decides a tie: the match with more goals, then the earlier kickoff, then the
-+  fixture id. A season without a win (or without a defeat) has NULL in that half.
++  fixture id. A shoot-out after a level score has no margin, so it is neither. A season without a
++  win (or without a defeat) by a margin has NULL in that half.
 +  Grain: (team_sk, season_api_year).
 +#}
 +
@@ -536,7 +537,7 @@ index 00000000..cacd9919
 +biggest_win as (
 +    select *
 +    from legs
-+    where result = 'W'
++    where result = 'W' and goals > goals_against
 +    qualify row_number() over (
 +        partition by team_sk, season_api_year
 +        order by
@@ -550,7 +551,7 @@ index 00000000..cacd9919
 +heaviest_defeat as (
 +    select *
 +    from legs
-+    where result = 'L'
++    where result = 'L' and goals < goals_against
 +    qualify row_number() over (
 +        partition by team_sk, season_api_year
 +        order by
@@ -681,10 +682,10 @@ index 00000000..ea49cf70
 +from team_longest
 diff --git a/dbt_project/models/4_intermediate/shared/int_team_season_records.yml b/dbt_project/models/4_intermediate/shared/int_team_season_records.yml
 new file mode 100644
-index 00000000..5f711834
+index 00000000..4a08eea2
 --- /dev/null
 +++ b/dbt_project/models/4_intermediate/shared/int_team_season_records.yml
-@@ -0,0 +1,113 @@
+@@ -0,0 +1,114 @@
 +version: 2
 +
 +models:
@@ -731,7 +732,8 @@ index 00000000..5f711834
 +    description: >
 +      Each team's biggest win and heaviest defeat in a season across every competition it played:
 +      the finished match with the widest margin, a tie going to the match with more goals, then the
-+      earlier kickoff, then the fixture id. Grain: (team_sk, season_api_year).
++      earlier kickoff, then the fixture id. A shoot-out after a level score has no margin, so it is
++      neither. Grain: (team_sk, season_api_year).
 +    config:
 +      tags: ["intermediate", "football", "team_season"]
 +    tests:
@@ -1583,7 +1585,9 @@ index 84692b5a..287efa50 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md    | 17 ++++++++++++-----
-#    .claude/task/rendered_page_evidence.md |  7 +++----
-#    2 files changed, 15 insertions(+), 9 deletions(-)
+#   .claude/task/acceptance_evidence.md    |   18 +-
+#    .claude/task/rendered_page_evidence.md |    7 +-
+#    .claude/task/review.md                 |   29 +-
+#    .claude/task/review_input.patch        | 1660 +++++++++++++++++++++++++++++---
+#    4 files changed, 1583 insertions(+), 131 deletions(-)
 # ============================================================================

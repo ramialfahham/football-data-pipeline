@@ -2,7 +2,8 @@
   Each team's biggest win and heaviest defeat in a season, across every competition it played
   that season: the finished match with the widest margin. The competition page's rule for its
   biggest margin decides a tie: the match with more goals, then the earlier kickoff, then the
-  fixture id. A season without a win (or without a defeat) has NULL in that half.
+  fixture id. A shoot-out after a level score has no margin, so it is neither. A season without a
+  win (or without a defeat) by a margin has NULL in that half.
   Grain: (team_sk, season_api_year).
 #}
 
@@ -31,7 +32,7 @@ teams as (
 biggest_win as (
     select *
     from legs
-    where result = 'W'
+    where result = 'W' and goals > goals_against
     qualify row_number() over (
         partition by team_sk, season_api_year
         order by
@@ -45,7 +46,7 @@ biggest_win as (
 heaviest_defeat as (
     select *
     from legs
-    where result = 'L'
+    where result = 'L' and goals < goals_against
     qualify row_number() over (
         partition by team_sk, season_api_year
         order by
