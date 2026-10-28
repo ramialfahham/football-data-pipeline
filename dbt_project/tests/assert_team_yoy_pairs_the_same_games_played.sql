@@ -17,7 +17,7 @@ with domestic_legs as (
         l.season_api_year,
         l.goals,
         l.goals_against,
-        case l.result when 'W' then 3 when 'D' then 1 else 0 end as points,
+        case l.result when 'W' then 3 when 'D' then 1 else 0 end + if(l.is_table_shootout_win, 1, 0) as points,
         row_number() over (
             partition by l.team_sk, l.league_code, l.season_api_year
             order by l.kickoff_datetime asc, l.fixture_sk asc

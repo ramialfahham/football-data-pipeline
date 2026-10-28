@@ -67,6 +67,9 @@ models:
         # against a denominator that is quietly too small. It cannot be NULL today — the leg filter
         # already restricts status_short to five non-null codes — so this guards a future change.
         tests: [not_null]
+      - name: is_table_shootout_win
+        description: "{{ doc('is_table_shootout_win') }}"
+        tests: [not_null]
       - name: result
         description: "{{ doc('result') }}"
         tests:

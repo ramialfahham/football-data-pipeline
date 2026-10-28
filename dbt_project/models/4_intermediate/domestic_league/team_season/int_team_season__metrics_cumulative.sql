@@ -73,6 +73,10 @@ select
         logical_and((case result when 'W' then 3 when 'D' then 1 else 0 end) is not null) over w,
         sum(case result when 'W' then 3 when 'D' then 1 else 0 end) over w,
         null
+    ) + if(
+        logical_and(is_table_shootout_win is not null) over w,
+        countif(is_table_shootout_win) over w,
+        null
     ) as points_won,
     if(logical_and(goals is not null) over w, sum(goals) over w, null) as goals,
     if(logical_and(goals_against is not null) over w, sum(goals_against) over w, null) as goals_against,
@@ -447,6 +451,12 @@ select
                 is_awarded_result or (case result when 'W' then 3 when 'D' then 1 else 0 end) is not null
             ) over w,
             sum(if(is_awarded_result, null, case result when 'W' then 3 when 'D' then 1 else 0 end)) over w,
+            null
+        ) + if(
+            logical_and(
+                is_awarded_result or is_table_shootout_win is not null
+            ) over w,
+            countif(not is_awarded_result and is_table_shootout_win) over w,
             null
         ),
         3 * countif(not is_awarded_result) over w

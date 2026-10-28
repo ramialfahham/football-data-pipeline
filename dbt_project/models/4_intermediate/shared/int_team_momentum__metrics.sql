@@ -61,6 +61,10 @@ select
         logical_and((case result when 'W' then 3 when 'D' then 1 else 0 end) is not null),
         sum(case result when 'W' then 3 when 'D' then 1 else 0 end),
         null
+    ) + if(
+        logical_and(is_table_shootout_win is not null),
+        countif(is_table_shootout_win),
+        null
     ) as points_won,
     if(
         logical_and(is_awarded_result or (goals_against = 0) is not null),
