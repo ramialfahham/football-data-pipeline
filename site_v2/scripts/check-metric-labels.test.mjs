@@ -9,7 +9,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -47,8 +47,18 @@ const rowKeys = [
   ...[...rowsSrc.matchAll(/labelKey:\s*"(metrics\.[A-Za-z0-9_]+\.label)"/g)].map((m) => m[1]),
   ...servedRows.map((r) => r.label_i18n_key),
 ];
-const heroKeys = [...readFileSync(join(SITE, "src/components/team/DeservedHero.astro"), "utf8")
-  .matchAll(/metricLabel\(lang,\s*"(metrics\.[A-Za-z0-9_]+\.label)"\)/g)].map((m) => m[1]);
+/** Every .astro file under src/, for the names a component or page asks for by a literal key. */
+function astroFiles(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? astroFiles(join(dir, e.name)) : e.name.endsWith(".astro") ? [join(dir, e.name)] : []);
+}
+const componentKeys = astroFiles(join(SITE, "src")).flatMap((f) => {
+  const text = readFileSync(f, "utf8");
+  const consts = new Map([...text.matchAll(/const ([A-Z_]+) = "(metrics\.[A-Za-z0-9_]+\.label)"/g)]
+    .map((m) => [m[1], m[2]]));
+  return [...text.matchAll(/(?:metricLabel|metricInSentence)\(lang,\s*(?:"(metrics\.[A-Za-z0-9_]+\.label)"|([A-Z_]+))\)/g)]
+    .map((m) => m[1] ?? consts.get(m[2])).filter(Boolean);
+});
 
 /** The catalogue rows, as {metric_id, entity, label_i18n_key}. Naive comma split, which is safe
  * for exactly these three columns: they are the first three, and `description` — the only field
@@ -122,7 +132,7 @@ test("the metric groups come from the catalogue and every one has a name in ever
 });
 
 test("every metric name the page asks for resolves in all three locales", () => {
-  const asked = [...new Set([...rowKeys, ...heroKeys, ...boardKeys, ...groupKeys])];
+  const asked = [...new Set([...rowKeys, ...componentKeys, ...boardKeys, ...groupKeys])];
   assert.ok(asked.length >= 22, `expected >=22 metric names in use, found ${asked.length}`);
   for (const loc of LOCALES) {
     const missing = asked.filter((k) => !labels[loc].get(k));
@@ -133,7 +143,7 @@ test("every metric name the page asks for resolves in all three locales", () => 
 });
 
 test("no locale carries a label nothing renders, and none is empty", () => {
-  const asked = new Set([...rowKeys, ...heroKeys, ...boardKeys, ...groupKeys]);
+  const asked = new Set([...rowKeys, ...componentKeys, ...boardKeys, ...groupKeys]);
   for (const loc of LOCALES) {
     for (const [key, val] of labels[loc]) {
       assert.ok(asked.has(key), `${loc}.${key} is defined but no component asks for it`);
@@ -161,7 +171,7 @@ test("every labelKey is a label_i18n_key the catalogue actually declares", () =>
   assert.ok(declared.size >= 50,
     `parsed only ${declared.size} label_i18n_key values — the CSV column split broke, and a set that ` +
     `small would make every key look undeclared`);
-  const asked = [...new Set([...rowKeys, ...heroKeys, ...boardKeys])];
+  const asked = [...new Set([...rowKeys, ...componentKeys, ...boardKeys])];
   const bad = asked.filter((k) => !declared.has(k));
   assert.deepEqual(bad, [],
     `label keys the catalogue does not declare in label_i18n_key: ${bad.join(", ")}. ` +
@@ -337,4 +347,96 @@ test("metricRows.ts no longer carries an English label", () => {
     "metricRows.ts still declares `label:` — a metric name must live in one place only");
   assert.ok(!/\blabel:\s*"/.test(rowsSrc),
     "metricRows.ts still has an inline label string");
+});
+
+/** The chrome strings of one locale's Dict block, as key → text. */
+function chromeBlock(loc) {
+  const m = strings.match(new RegExp(`\\nconst ${loc}: Dict = \\{([\\s\\S]*?)\\n\\};`));
+  assert.ok(m, `const ${loc}: Dict not found in strings.ts`);
+  // Every key, not only the first on a line: several short strings share one line.
+  return new Map([...m[1].matchAll(/(?:^\s+|,\s*)([A-Za-z0-9_]+):\s*"((?:[^"\\]|\\.)*)"/gm)].map((x) => [x[1], x[2]]));
+}
+
+/** The catalogue names a text spells: a name of two or more words anywhere in it, any case; a
+ *  one-word name only when it is the whole text, as written. */
+function spelledNames(text, names) {
+  const lower = text.toLowerCase();
+  return names.filter((n) => (n.includes(" ") ? lower.includes(n.toLowerCase()) : text === n));
+}
+
+// Chrome strings that read as a catalogue name and are not that metric.
+const NOT_THE_METRIC = {
+  compColGoals: "the league table's Goals column shows goals for and against, not the goals metric",
+  secGoals: "the match page's Goals section lists the goals scored, not the goals metric",
+  goals: "the word after a goal count (2 Tore), not the goals metric",
+  goalsWord: "the word after a goal count, not the goals metric",
+};
+
+test("no page string spells a catalogue metric name; it comes from METRIC_LABELS", () => {
+  assert.deepEqual(spelledNames("a shots on target difference of", ["Shots on target difference", "Goals"]),
+    ["Shots on target difference"], "the name finder no longer finds a name inside a sentence");
+  assert.deepEqual(spelledNames("Goals", ["Goals"]), ["Goals"], "the name finder no longer finds a one-word name");
+  for (const loc of LOCALES) {
+    const chrome = chromeBlock(loc);
+    assert.ok(chrome.size >= 300, `parsed only ${chrome.size} ${loc} chrome strings`);
+    const names = [...new Set([...labels[loc]].filter(([k]) => !k.startsWith("metricGroups.")).map(([, v]) => v))];
+    const bad = [...chrome].filter(([k]) => !(k in NOT_THE_METRIC))
+      .flatMap(([k, v]) => spelledNames(v, names).map((n) => `${loc}.${k} spells "${n}"`));
+    assert.deepEqual(bad, [],
+      `a page string names a metric by hand; fill it from METRIC_LABELS (metricLabel / metricInSentence):\n  ${bad.join("\n  ")}`);
+  }
+});
+
+/** Pairs of label keys whose (entity, locale, name, second line) read the same. */
+function sharedNames(rows, metricLabel, metricSubline) {
+  const seen = new Map();
+  const clashes = [];
+  for (const { entity, key, perMatch } of rows) {
+    for (const lang of ["en", "de", "fi"]) {
+      const shown = `${entity}|${lang}|${metricLabel(lang, key)}|${metricSubline(lang, key, perMatch)}`;
+      const other = seen.get(shown);
+      if (other && other !== key) clashes.push(`${key} and ${other} both read "${shown}"`);
+      seen.set(shown, key);
+    }
+  }
+  return { clashes, compared: seen.size };
+}
+
+test("no two metrics of one entity share both name and second line, in any locale", async () => {
+  const { metricLabel, metricSubline } = await import("../src/i18n/strings.ts");
+  const planted = sharedNames([
+    { entity: "team", key: "metrics.goals.label", perMatch: false },
+    { entity: "team", key: "metrics.goals_per_match.label", perMatch: false },
+  ], metricLabel, metricSubline);
+  assert.ok(planted.clashes.length > 0, "the clash finder no longer finds two metrics read the same");
+  const rows = [...catalogueByKey()]
+    .filter(([, row]) => row.key && labels.EN.has(row.key))
+    .map(([idEntity, row]) => ({
+      entity: idEntity.split("|")[1],
+      key: row.key,
+      perMatch: row.denominator === "count(*)" && row.format !== "percent",
+    }));
+  const { clashes, compared } = sharedNames(rows, metricLabel, metricSubline);
+  assert.ok(compared >= 150, `compared only ${compared} names`);
+  assert.deepEqual(clashes, [], clashes.join("\n"));
+});
+
+test("a verdict that counts points takes the singular for one point", async () => {
+  const { t, pointCount } = await import("../src/i18n/strings.ts");
+  assert.deepEqual(["0", "1", "2"].map((n) => pointCount("de", n)), ["0 Punkte", "1 Punkt", "2 Punkte"]);
+  assert.deepEqual(["1", "2"].map((n) => pointCount("en", n)), ["1 point", "2 points"]);
+  assert.deepEqual(["1", "2"].map((n) => pointCount("fi", n)), ["1 piste", "2 pistettä"]);
+  const one = t("de", "heroVerdictUnder", { gapPoints: pointCount("de", "1") });
+  assert.match(one, /holte 1 Punkt weniger/);
+  const hero = readFileSync(join(SITE, "src/components/team/DeservedHero.astro"), "utf8");
+  assert.match(hero, /gapPoints: pointCount\(lang, gapShown\)/,
+    "DeservedHero.astro no longer counts the verdict's points through pointCount");
+  assert.match(hero, /const gapShown = integer\(Math\.abs\(gap\), lang\)/,
+    "the verdict's point count no longer agrees with the gap as shown");
+  for (const loc of LOCALES) {
+    for (const key of ["heroVerdictUnder", "heroVerdictOver"]) {
+      assert.ok(!/\{gap\} (Punkte|points|pistettä)/.test(chromeBlock(loc).get(key)),
+        `${loc}.${key} puts a plural noun after {gap}; use {gapPoints}`);
+    }
+  }
 });

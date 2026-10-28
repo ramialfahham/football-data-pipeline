@@ -1,20 +1,18 @@
-# Rendered page evidence — the round in the competition header
+# Rendered page evidence — metric names on screen come only from the catalogue label
 
 What was checked, how, and at which widths:
 
-- A local build of a copy of the branch on the committed sample, the copy's BL1 payload given the
-  round name fields the warehouse serves for the Bundesliga (compFactMatchday with the matchday).
-  The built HTML read on the Bundesliga Overview and Matchdays pages in EN, DE and FI: the header's
-  meta line "Germany · Season 2026/27 · Matchday 6" / "Saison 2026/27 · 6. Spieltag" /
-  "Kausi 2026/27 · 6. kierros", and the picker titles "Matchday 6" / "6. Spieltag" / "6. kierros",
-  the number held to its word by a no-break space as compFactMatchday already does.
+- A local build of a copy of the branch on the committed sample, served locally and opened in the
+  browser pane: the Bundesliga Overview and the Borussia Dortmund team page in EN, DE and FI.
+- The built HTML read for the Deserved points table's heads, block name and explainer, the
+  Rankings page's description, and the team page's verdict, caption, axes, tiles and last-season
+  heads: the approved wording in all three languages.
+- Measured at 375 and 1010px: no sideways scroll; no table head, tile or last-season head wider
+  than its box. At 320px and 375px no name in a tile or a table head splits inside a word, except
+  the Finnish table heads at 320px, where "Laukausero" and "ansaittuihin" hyphenate, as on the
+  approved mock.
 - `scripts/check_design_inventory.py --dist <local build>`: every built page and mock in the block
   standard's Pages table at 375, 700 and 1010px in EN, DE and FI: 174 renders, 0 failures and 0
   warnings.
-- The longest names on the picker, written into copies of the built Matchdays page ("Second round ·
-  Group A · Matchday 3", "2. Runde, Gruppe A, 3. Spieltag", "2. karsintakierros, A-lohko,
-  3. kierros"), measured at 320, 375 and 1010px: no horizontal scroll in any language; a name too
-  long for one line wraps to two at a normal space, each number held to its word, and the Next tag
-  moves under it.
-- Obtained: the built HTML and the inventory's DOM and style measurements. No screenshot (the
-  pane's screenshot fails on this site).
+- Obtained: the built HTML and the DOM and style measurements. No screenshot (the pane's screenshot
+  fails on this site).

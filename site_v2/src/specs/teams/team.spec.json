@@ -33,9 +33,11 @@
         "metrics.shots_on_goal_difference_per_match.label",
         "heroVerdictUnder",
         "heroVerdictOver",
+        "pointCountOne",
+        "pointCount",
         "heroCaption",
         "heroNoData",
-        "axPoints",
+        "metrics.points_won.label",
         "axPlay",
         "trendLabel"
       ]
@@ -43,7 +45,7 @@
     {
       "block": "Season-over-season",
       "mart": "mart_team_profile",
-      "i18n_keys": ["secYoY", "yoyPoints", "yoyGoalsFor", "yoyGoalsAgainst", "yoyThroughGames", "noYoY"]
+      "i18n_keys": ["secYoY", "metrics.points_won.label", "metrics.goals.label", "metrics.goals_against.label", "yoyThroughGames", "noYoY"]
     },
     {
       "block": "Upcoming / Results",

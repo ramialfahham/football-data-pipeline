@@ -13,7 +13,7 @@
 // scatter.
 import { decimal1, integer, DASH } from "../../lib/format";
 import type { Lang } from "../../lib/format";
-import { t, metricLabel } from "../../i18n/strings";
+import { t, metricLabel, metricInSentence, pointCount } from "../../i18n/strings";
 import type { TeamSeason } from "../../lib/types";
 
 interface Props {
@@ -64,6 +64,8 @@ if (canPlot && self) {
   // No rounding threshold / "in line" tier is invented here: classifying the gap would
   // be a result/perspective computation the consumption layer must not make.
   const gap = s.deserved_points_gap ?? 0;
+  // The noun agrees with the number as shown: a gap of 0.6 reads "1 Punkt".
+  const gapShown = integer(Math.abs(gap), lang);
   const dir = gap < 0 ? "Under" : "Over";
   // The record strip already shows the actual points; the verdict speaks only to the
   // deserved value and the gap so the same number is not restated a second time.
@@ -71,9 +73,15 @@ if (canPlot && self) {
     team: teamName,
     sotd: signedDec1(s.shots_on_goal_difference_per_match),
     deserved: integer(s.deserved_points, lang),
-    gap: integer(Math.abs(gap), lang),
+    gap: gapShown,
+    gapPoints: pointCount(lang, gapShown),
+    sotdName: metricInSentence(lang, "metrics.shots_on_goal_difference_per_match.label"),
   });
-  caption = t(lang, "heroCaption", { competition: compName });
+  caption = t(lang, "heroCaption", {
+    competition: compName,
+    sotdName: metricInSentence(lang, "metrics.shots_on_goal_difference_per_match.label"),
+    pointsName: metricInSentence(lang, "metrics.points_won.label"),
+  });
 
   // plot geometry (viewBox 0 0 340 210)
   const L = 46, R = 328, T = 16, B = 168;
@@ -112,7 +120,11 @@ if (canPlot && self) {
 
   svg = {
     ax: { x: L, yTop: T, yBot: B, xRight: R },
-    labels: { yTitle: t(lang, "axPoints"), xTitle: t(lang, "axPlay"), trend: t(lang, "trendLabel") },
+    labels: {
+      yTitle: metricLabel(lang, "metrics.points_won.label"),
+      xTitle: t(lang, "axPlay", { name: metricLabel(lang, "metrics.shots_on_goal_difference_per_match.label") }),
+      trend: t(lang, "trendLabel"),
+    },
     trend,
     trendMid,
     dots: dots.filter((d) => !d.is_self).map((d) => ({ x: sx(d.sotd as number), y: sy(d.points as number) })),

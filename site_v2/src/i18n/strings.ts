@@ -108,19 +108,15 @@ const EN: Dict = {
   secDeserved: "Deserved vs actual",
   secYoY: "Vs last season",
   secFixtures: "Fixtures",
-  // heroSotFor / heroSotAgainst / heroSotDiff removed (#370): they were a THIRD hand-written copy of
-  // three metric names that the catalogue already identifies. The hero tiles now read them from
-  // METRIC_LABELS below, like every other metric name on the site.
-  heroVerdictUnder: "Play like {team}'s, a shots-on-target difference of {sotd} per match, usually earns about {deserved} points. They finished {gap} short of what they created.",
-  heroVerdictOver: "Play like {team}'s, a shots-on-target difference of {sotd} per match, usually earns about {deserved} points. They took {gap} more than they created.",
-  heroCaption: "Every dot is a {competition} team, placed by shots-on-target difference per match (left to right) against points won (up = more). The dashed line is the points that level of play usually earns.",
+  // A metric's name is a {…Name} placeholder filled from METRIC_LABELS (metricInSentence below).
+  heroVerdictUnder: "Play like {team}'s, a {sotdName} of {sotd} per match, usually earns about {deserved} points. They finished {gap} short of what they created.",
+  heroVerdictOver: "Play like {team}'s, a {sotdName} of {sotd} per match, usually earns about {deserved} points. They took {gap} more than they created.",
+  heroCaption: "Every dot is a {competition} team, placed by {sotdName} per match (left to right) against {pointsName} (up = more). The dashed line is the points that level of play usually earns.",
   heroNoData: "A deserved-vs-actual read needs a single league table, so it is shown for domestic leagues only.",
-  axPoints: "Points won",
-  axPlay: "Shots on target difference / match",
+  axPlay: "{name} / match",
   trendLabel: "as expected",
-  yoyPoints: "Points",
-  yoyGoalsFor: "Goals",
-  yoyGoalsAgainst: "Goals against",
+  pointCountOne: "{n} point",
+  pointCount: "{n} points",
   yoyThroughGames: "same point last season ({n} games)",
   noYoY: "No comparable season a year ago.",
   fxHome: "Home",
@@ -281,7 +277,7 @@ const EN: Dict = {
   seoMatchesDesc: "Every football match on {date} from {n} competitions: the kick-off time before the match, the result after it.",
   dayPickerAria: "Pick a day",
   seoCompetitionStatsTitle: "{competition}: Stats {season}",
-  seoCompetitionStatsDesc: "The top teams and players of {competition} {season} on every stat: goals, shots on target, passing, duels, defending, discipline and goalkeeping.",
+  seoCompetitionStatsDesc: "The top teams and players of {competition} {season} on every stat: goals, {sotName}, passing, duels, defending, discipline and goalkeeping.",
   // The player page (#40 MR B). Same modest wording and the same reason as the competition hub
   // above: this is a scaffold with no content blocks, so the title promises nothing.
   // ⚠ THE CLUB IS IN THE TITLE FOR UNIQUENESS, not decoration. audit-seo check 5 requires titles to
@@ -317,11 +313,8 @@ const EN: Dict = {
   compNextTag: "Next",
   compTBC: "TBC",
   compTopMatch: "Top match",
-  compSecDeserved: "Deserved points table",
-  compDeservedExplainer: "Deserved points are the points a team's shot balance usually earns. Shot balance is shots on target created minus shots on target conceded. Teams with fewer points than deserved are better than the table says; teams with more are worse.",
-  compColBalance: "Balance",
-  compColDeserved: "Deserved",
-  compColDiff: "Diff",
+  compSecDeserved: "{deservedName} table",
+  compDeservedExplainer: "{deservedName} are the points a team's {sotdName} usually earns. {sotdNameStart} is the team's {sotName} minus its opponents' {sotName}. Teams with fewer points than deserved are better than the table says; teams with more are worse.",
   compSecTeamRankings: "Team rankings",
   compSecPlayerRankings: "Player rankings",
   compTeamRankingsIntro: "The leading teams {in} this season, metric by metric.",
@@ -531,22 +524,15 @@ const DE: Dict = {
   secDeserved: "Verdient vs. tatsächlich",
   secYoY: "Vs. letzte Saison",
   secFixtures: "Spiele",
-  // heroSot* removed (#370): the three German tile labels moved to METRIC_LABELS_DE unchanged.
-  // ⚠ FOUR strings on the deserved-vs-actual block name this metric — the two sentences below, the
-  // tile label in METRIC_LABELS_DE, the axis (`axPlay`) and the caption (`heroCaption`). Nothing binds
-  // them, so revising one silently leaves three disagreeing. Change them together or not at all.
-  // Wording is the product owner's (§10).
-  heroVerdictUnder: "Ein Spiel wie das von {team}, eine Differenz der Schüsse aufs Tor von {sotd} pro Spiel, bringt normalerweise etwa {deserved} Punkte. Sie blieben {gap} unter dem, was sie sich erspielt haben.",
-  heroVerdictOver: "Ein Spiel wie das von {team}, eine Differenz der Schüsse aufs Tor von {sotd} pro Spiel, bringt normalerweise etwa {deserved} Punkte. Sie holten {gap} mehr, als sie sich erspielt haben.",
-  heroCaption: "Jeder Punkt ist eine {competition}-Mannschaft, eingeordnet nach der Differenz der Schüsse aufs Tor pro Spiel (links nach rechts) gegen die geholten Punkte (oben = mehr). Die gestrichelte Linie ist der Punkteschnitt, den ein solches Spiel normalerweise bringt.",
+  // The verdict inflects the name (Schüssen aufs Tor), so it is written here; the rest fill it.
+  heroVerdictUnder: "Eine Leistung wie die von {team} – eine Differenz von {sotd} Schüssen aufs Tor pro Spiel – bringt in der Regel etwa {deserved} Punkte. Die Mannschaft holte {gapPoints} weniger, als sie sich erspielt hat.",
+  heroVerdictOver: "Eine Leistung wie die von {team} – eine Differenz von {sotd} Schüssen aufs Tor pro Spiel – bringt in der Regel etwa {deserved} Punkte. Die Mannschaft holte {gapPoints} mehr, als sie sich erspielt hat.",
+  heroCaption: "Jeder Kreis steht für ein Team der {competition}, eingeordnet nach der {sotdName} pro Spiel (von links nach rechts) und nach Punkten (weiter oben = mehr). Die gestrichelte Linie zeigt, wie viele Punkte dieses Niveau in der Regel bringt.",
   heroNoData: "Eine Verdient-vs.-tatsächlich-Einordnung braucht eine einzige Ligatabelle und wird daher nur für Ligen gezeigt.",
-  axPoints: "Geholte Punkte",
-  // Chrome, not a metric label: the `/ Spiel` suffix is axis grammar. See the ⚠ above heroVerdict*.
-  axPlay: "Differenz Schüsse aufs Tor / Spiel",
+  axPlay: "{name} / Spiel",
   trendLabel: "wie erwartet",
-  yoyPoints: "Punkte",
-  yoyGoalsFor: "Tore",
-  yoyGoalsAgainst: "Gegentore",
+  pointCountOne: "{n} Punkt",
+  pointCount: "{n} Punkte",
   yoyThroughGames: "gleicher Stand letzte Saison ({n} Spiele)",
   noYoY: "Keine vergleichbare Saison im Vorjahr.",
   fxHome: "Heim",
@@ -648,7 +634,7 @@ const DE: Dict = {
   seoMatchesDesc: "Alle Fußballspiele am {date} aus {n} Wettbewerben: vor dem Spiel die Anstoßzeit, danach das Ergebnis.",
   dayPickerAria: "Tag wählen",
   seoCompetitionStatsTitle: "{competition}: Statistiken {season}",
-  seoCompetitionStatsDesc: "Die besten Mannschaften und Spieler von {competition} {season} in jeder Statistik: Tore, Schüsse aufs Tor, Passspiel, Zweikämpfe, Defensive, Disziplin und Torwartspiel.",
+  seoCompetitionStatsDesc: "Die besten Mannschaften und Spieler von {competition} {season} in jeder Statistik: Tore, {sotName}, Passspiel, Zweikämpfe, Defensive, Disziplin und Torwartspiel.",
   seoPlayerTitle: "{player} ({club}): Überblick",
   seoPlayerDesc: "Überblicksseite für {player} von {club}.",
   filterAll: "Alle",
@@ -679,10 +665,7 @@ const DE: Dict = {
   compTBC: "Offen",
   compTopMatch: "Topspiel",
   compSecDeserved: "Tabelle nach verdienten Punkten",
-  compDeservedExplainer: "Verdiente Punkte sind die Punkte, die die Schussbilanz einer Mannschaft normalerweise einbringt. Die Schussbilanz sind die eigenen Schüsse aufs Tor minus die zugelassenen Schüsse aufs Tor. Mannschaften mit weniger Punkten als verdient sind besser, als die Tabelle sagt; Mannschaften mit mehr sind schlechter.",
-  compColBalance: "Bilanz",
-  compColDeserved: "Verdient",
-  compColDiff: "Diff.",
+  compDeservedExplainer: "{deservedName} sind die Punkte, die eine Mannschaft mit ihrer {sotdName} in der Regel holt. Die {sotdName} ist die Zahl der eigenen {sotName} minus die der Gegner. Teams mit weniger Punkten als verdient sind besser, als es die Tabelle zeigt; Teams mit mehr sind schlechter.",
   compSecTeamRankings: "Mannschafts-Ranglisten",
   compSecPlayerRankings: "Spieler-Ranglisten",
   compTeamRankingsIntro: "Die besten Mannschaften {in} in dieser Saison, Kennzahl für Kennzahl.",
@@ -903,24 +886,15 @@ const FI: Dict = {
   secDeserved: "Ansaittu vs. toteutunut",
   secYoY: "Vs. viime kausi",
   secFixtures: "Ottelut",
-  // heroSot* removed (#370): the three Finnish tile labels moved to METRIC_LABELS_FI.
-  // ⚠ Same four-string trap as the German block above — these two sentences, the tile label, `axPlay`
-  // and `heroCaption` all name this metric and nothing binds them. Change them together or not at all.
-  // Wording is the product owner's (§10). `maalilaukauksien ero` is nominative here, as an appositive.
-  heroVerdictUnder: "Tällainen peli, maalilaukauksien ero {sotd} ottelua kohden, tuottaa yleensä noin {deserved} pistettä. {team} jäi {gap} alle sen, minkä loi.",
-  heroVerdictOver: "Tällainen peli, maalilaukauksien ero {sotd} ottelua kohden, tuottaa yleensä noin {deserved} pistettä. {team} sai {gap} enemmän kuin loi.",
-  // ⚠ `eron` is an inferred GENITIVE ending, not a supplied word — the supplied noun is
-  // `maalilaukauksien ero`. The case is governed by the later `mukaan`. Finnish inflection is where
-  // #867 went wrong four times, so this is unverified against a Finnish source; approved knowing that.
-  heroCaption: "Jokainen piste on {competition}-joukkue, sijoitettuna maalilaukauksien eron ottelua kohden (vasemmalta oikealle) ja kerättyjen pisteiden (ylös = enemmän) mukaan. Katkoviiva on pistemäärä, jonka tällainen peli yleensä tuottaa.",
+  // The verdict and the caption inflect the name (laukauserolla, laukauseron), so it is written here.
+  heroVerdictUnder: "{team} on pelannut laukauserolla maalia kohti {sotd} per ottelu, ja sellainen peli tuo yleensä noin {deserved} pistettä. Pisteitä on tullut {gap} vähemmän kuin peli ansaitsi.",
+  heroVerdictOver: "{team} on pelannut laukauserolla maalia kohti {sotd} per ottelu, ja sellainen peli tuo yleensä noin {deserved} pistettä. Pisteitä on tullut {gap} enemmän kuin peli ansaitsi.",
+  heroCaption: "Jokainen merkki on yksi joukkue ({competition}). Vaaka-akseli näyttää laukauseron maalia kohti per ottelu (vasemmalta oikealle), pystyakseli {pointsName} (ylempänä enemmän). Katkoviiva kertoo, paljonko pisteitä tällainen peli yleensä tuo.",
   heroNoData: "Ansaittu vs. toteutunut -tarkastelu vaatii yhden sarjataulukon, joten se näytetään vain sarjoille.",
-  axPoints: "Kerätyt pisteet",
-  // Chrome, not a metric label: the `/ ottelu` suffix is axis grammar. See the ⚠ above heroVerdict*.
-  axPlay: "Maalilaukauksien ero / ottelu",
+  axPlay: "{name} / ottelu",
   trendLabel: "odotetusti",
-  yoyPoints: "Pisteet",
-  yoyGoalsFor: "Maalit",
-  yoyGoalsAgainst: "Päästetyt maalit",
+  pointCountOne: "{n} piste",
+  pointCount: "{n} pistettä",
   yoyThroughGames: "sama kohta viime kaudella ({n} ottelua)",
   noYoY: "Ei vertailukelpoista kautta vuotta aiemmin.",
   fxHome: "Koti",
@@ -1017,7 +991,7 @@ const FI: Dict = {
   seoMatchesDesc: "Kaikki jalkapallo-ottelut {date}, {n} kilpailusta: ennen ottelua alkamisaika, sen jälkeen tulos.",
   dayPickerAria: "Valitse päivä",
   seoCompetitionStatsTitle: "{competition}: tilastot {season}",
-  seoCompetitionStatsDesc: "Kilpailun {competition} {season} parhaat joukkueet ja pelaajat jokaisessa tilastossa: maalit, laukaukset maalia kohti, syötöt, kaksinkamppailut, puolustus, kurinpito ja maalivahtipeli.",
+  seoCompetitionStatsDesc: "Kilpailun {competition} {season} parhaat joukkueet ja pelaajat jokaisessa tilastossa: maalit, {sotName}, syötöt, kaksinkamppailut, puolustus, kurinpito ja maalivahtipeli.",
   seoPlayerTitle: "{player} ({club}): yleiskatsaus",
   seoPlayerDesc: "Yleiskatsaussivu pelaajalle {player}, joukkue {club}.",
   filterAll: "Kaikki",
@@ -1048,10 +1022,7 @@ const FI: Dict = {
   compTBC: "Avoin",
   compTopMatch: "Huippuottelu",
   compSecDeserved: "Ansaittujen pisteiden taulukko",
-  compDeservedExplainer: "Ansaitut pisteet ovat pisteet, jotka joukkueen laukaustase yleensä tuottaa. Laukaustase on luodut laukaukset maalia kohti miinus päästetyt laukaukset maalia kohti. Joukkueet, joilla on vähemmän pisteitä kuin ansaittu, ovat parempia kuin taulukko kertoo; joukkueet, joilla on enemmän, ovat heikompia.",
-  compColBalance: "Tase",
-  compColDeserved: "Ansaitut",
-  compColDiff: "Ero",
+  compDeservedExplainer: "{deservedName} ovat pisteet, jotka joukkueen {sotdName} yleensä tuo. {sotdNameStart} on joukkueen omat {sotName} miinus vastustajien {sotName}. Joukkue, jolla on vähemmän pisteitä kuin se ansaitsisi, on parempi kuin sarjataulukko kertoo; joukkue, jolla on enemmän, on huonompi.",
   compSecTeamRankings: "Joukkuerankingit",
   compSecPlayerRankings: "Pelaajarankingit",
   compTeamRankingsIntro: "Parhaat joukkueet {in} tällä kaudella, tilasto kerrallaan.",
@@ -1268,6 +1239,11 @@ const METRIC_LABELS_EN: MetricLabels = {
   "metrics.offsides_per_match.label": "Offsides",
   "metrics.cards_yellow.label": "Yellow cards",
   "metrics.cards_red.label": "Red cards",
+  "metrics.goals.label": "Goals",
+  "metrics.goals_against.label": "Goals against",
+  "metrics.points_won.label": "Points",
+  "metrics.deserved_points.label": "Deserved points",
+  "metrics.deserved_points_gap.label": "Difference from deserved points",
   // Player metrics use the catalogue's `playerMetrics.*` keys.
   "playerMetrics.scorerPoints.goals": "Goals",
   "playerMetrics.scorerPoints.assists": "Assists",
@@ -1309,8 +1285,8 @@ const METRIC_LABELS_DE: MetricLabels = {
   "metrics.shots_inside_box_pct.label": "Schüsse aus dem Strafraum",
   // kicker and bundesliga.com use "Torschüsse" for all shots; a shot on target is "aufs Tor".
   "metrics.shots_on_target_per_match.label": "Schüsse aufs Tor",
-  "metrics.shots_on_goal_against_per_match.label": "Schüsse aufs Tor gegen",
-  "metrics.shots_on_goal_difference_per_match.label": "Differenz Schüsse aufs Tor",
+  "metrics.shots_on_goal_against_per_match.label": "Zugelassene Schüsse aufs Tor",
+  "metrics.shots_on_goal_difference_per_match.label": "Differenz der Schüsse aufs Tor",
   "metrics.finishing_efficiency_pct.label": "Trefferquote",
   "metrics.duels_per_match.label": "Zweikämpfe",
   "metrics.duels_won_pct.label": "Gewonnene Zweikämpfe",
@@ -1340,6 +1316,11 @@ const METRIC_LABELS_DE: MetricLabels = {
   "metrics.offsides_per_match.label": "Abseits",
   "metrics.cards_yellow.label": "Gelbe Karten",
   "metrics.cards_red.label": "Rote Karten",
+  "metrics.goals.label": "Tore",
+  "metrics.goals_against.label": "Gegentore",
+  "metrics.points_won.label": "Punkte",
+  "metrics.deserved_points.label": "Verdiente Punkte",
+  "metrics.deserved_points_gap.label": "Differenz zu den verdienten Punkten",
   "playerMetrics.scorerPoints.goals": "Tore",
   "playerMetrics.scorerPoints.assists": "Torvorlagen",
   "playerMetrics.passAccuracy.total": "Pässe",
@@ -1375,9 +1356,9 @@ const METRIC_LABELS_FI: MetricLabels = {
   "metrics.clean_sheets_pct.label": "Nollapelit",
   "metrics.shots_per_match.label": "Laukaukset",
   "metrics.shots_inside_box_pct.label": "Laukaukset boksista",
-  "metrics.shots_on_target_per_match.label": "Maalilaukaukset",
-  "metrics.shots_on_goal_against_per_match.label": "Maalilaukaukset vastaan",
-  "metrics.shots_on_goal_difference_per_match.label": "Maalilaukauksien ero",
+  "metrics.shots_on_target_per_match.label": "Laukaukset maalia kohti",
+  "metrics.shots_on_goal_against_per_match.label": "Vastustajan laukaukset maalia kohti",
+  "metrics.shots_on_goal_difference_per_match.label": "Laukausero maalia kohti",
   "metrics.finishing_efficiency_pct.label": "Viimeistelytehokkuus",
   "metrics.duels_per_match.label": "Kaksinkamppailut",
   "metrics.duels_won_pct.label": "Voitetut kaksinkamppailut",
@@ -1405,12 +1386,17 @@ const METRIC_LABELS_FI: MetricLabels = {
   "metrics.offsides_per_match.label": "Paitsiot",
   "metrics.cards_yellow.label": "Keltaiset kortit",
   "metrics.cards_red.label": "Punaiset kortit",
+  "metrics.goals.label": "Maalit",
+  "metrics.goals_against.label": "Päästetyt maalit",
+  "metrics.points_won.label": "Pisteet",
+  "metrics.deserved_points.label": "Ansaitut pisteet",
+  "metrics.deserved_points_gap.label": "Ero ansaittuihin pisteisiin",
   "playerMetrics.scorerPoints.goals": "Maalit",
   "playerMetrics.scorerPoints.assists": "Maalisyötöt",
   "playerMetrics.passAccuracy.total": "Syötöt",
   "playerMetrics.keyPasses.label": "Avainsyötöt",
   "playerMetrics.shots.label": "Laukaukset",
-  "playerMetrics.shotsOnTarget.label": "Maalilaukaukset",
+  "playerMetrics.shotsOnTarget.label": "Laukaukset maalia kohti",
   "playerMetrics.finishingEfficiency.label": "Viimeistelytehokkuus",
   "playerMetrics.passAccuracy.label": "Syöttötarkkuus",
   "playerMetrics.dribbles.attempts": "Harhautukset",
@@ -1455,6 +1441,13 @@ export function metricLabel(lang: Lang, labelKey: string): string {
   return METRIC_LABELS[lang]?.[labelKey] ?? METRIC_LABELS_EN[labelKey] ?? "";
 }
 
+/** A metric's name inside a sentence: a small first letter in English and Finnish; German nouns
+ *  keep theirs. At the start of a sentence a string takes `metricLabel` as it is. */
+export function metricInSentence(lang: Lang, labelKey: string): string {
+  const label = metricLabel(lang, labelKey);
+  return lang === "de" ? label : label.charAt(0).toLocaleLowerCase(lang) + label.slice(1);
+}
+
 // Shares without a football word of their own: each is named by its count, and "percentage" says
 // it is the share. A share with its own word (Pass accuracy, Shooting accuracy) is not listed.
 const SHARE_NAMED_BY_ITS_COUNT = new Set([
@@ -1471,6 +1464,11 @@ export function metricSubline(lang: Lang, labelKey: string, perMatch: boolean): 
   if (perMatch) return t(lang, "perMatch");
   if (SHARE_NAMED_BY_ITS_COUNT.has(labelKey)) return t(lang, "percentage");
   return "";
+}
+
+/** A count of points as shown, with the noun agreeing with that shown number. */
+export function pointCount(lang: Lang, shown: string): string {
+  return t(lang, shown === "1" ? "pointCountOne" : "pointCount", { n: shown });
 }
 
 /** A ranked board's TITLE on one line: the name, then its second line's words. */
