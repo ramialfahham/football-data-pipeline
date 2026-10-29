@@ -1,8 +1,8 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 7b1a2792..8bdc78a2 100644
+index 7b1a2792..32fe94c2 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,39 +1,42 @@
+@@ -1,39 +1,43 @@
 -# Task contract — shoot-out points and last season's position for a season of two tournaments
 +# Task contract — the official league table at every kick-off
  
@@ -61,6 +61,7 @@ index 7b1a2792..8bdc78a2 100644
 +  - dbt_project/seeds/standings_points_adjustments.csv
 +  - dbt_project/seeds/league_tiebreak_rules.csv
 +  - dbt_project/seeds/standings_temporary_results.csv
++  - dbt_project/seeds/standings_corrections.csv
 +  - dbt_project/seeds/schema.yml
    - dbt_project/seeds/metric_catalogue.csv
    - dbt_project/seeds/metric_map.csv
@@ -69,7 +70,7 @@ index 7b1a2792..8bdc78a2 100644
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -41,43 +44,60 @@ scope_paths:
+@@ -41,43 +45,71 @@ scope_paths:
    - .claude/task/rendered_page_evidence.md
  
  impact_map: >
@@ -102,7 +103,7 @@ index 7b1a2792..8bdc78a2 100644
 +  - "league_tiebreak_rules holds each league's ordered criteria per phase and first season, each with its official regulation as source, from a closed list of criteria and conditions tested as accepted values."
 +  - "int_team_season__table_by_time holds every ranked league-season's table at every kick-off: played, table points, goal difference, goals and the place by the league's rules, empty where teams stay level at a criterion the results cannot settle."
 +  - "int_team_profile__yoy's points_this_season, points_prev_season, points_delta_yoy and points_rank_prev_season read the rebuilt table on the day of the team's Nth match."
-+  - "An error test compares the rebuilt place and points with every published table the provider gave us, wherever the published played counts match the rebuilt ones, and fails for a ranked league-season with no comparable published table; the two warning tests it replaces are removed."
++  - "An error test compares the rebuilt place and points with every published table the provider gave us, with the official corrections applied, wherever the published played counts match the rebuilt ones, and fails for a ranked league-season with no comparable published table; the two warning tests it replaces are removed."
 +  - "The metric rules no longer hold the sentence that allowed a computed position."
  
  decisions_taken: >
@@ -154,7 +155,18 @@ index 7b1a2792..8bdc78a2 100644
 +  standings_temporary_results, and the rebuilt table counts it only between those dates; approved
 +  in chat, 2026-10-29. The approved plan states the reading of the metric rules' "taken as
 +  published, never computed": "A rebuilt table is the published table at that match, and the
-+  tests below prove it equal."
++  tests below prove it equal." The MR data build found places that differ from the provider's
++  tables, no points. Serie A 2022-23: the provider has Spezia 17th and Verona 18th; Verona won
++  the relegation play-off and finished 17th. Ligue 1 2025-26: the provider's table does not count
++  the Nantes-Toulouse 0-0 the league ratified. Both get official rows in standings_corrections,
++  which enters scope, and the published-table test applies a correction to every table of a past
++  season, each of them being its final table. Liga Portugal: the league's own table applies
++  head-to-head during the season only once the level teams have played each other twice, so its
++  in-season head-to-head points row carries that condition, sourced to the league's standings
++  (the metric rules: the table is taken as published). Saudi Pro League during the season: teams
++  level on points, goal difference and goals are ordered by last season's place, as the
++  regulation says, approved in chat, 2026-10-29; the provider orders them another way and no
++  league table of those dates exists, so the test does not compare those places.
 diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
 index c0bfe950..72dede81 100644
 --- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
@@ -1358,7 +1370,7 @@ index 5e6d99bb..17a1fd72 100644
  the team 2 points instead of 1. A shoot-out in a cup or play-off round is false.
 diff --git a/dbt_project/seeds/league_tiebreak_rules.csv b/dbt_project/seeds/league_tiebreak_rules.csv
 new file mode 100644
-index 00000000..3a61a297
+index 00000000..cc7e0e95
 --- /dev/null
 +++ b/dbt_project/seeds/league_tiebreak_rules.csv
 @@ -0,0 +1,217 @@
@@ -1491,7 +1503,7 @@ index 00000000..3a61a297
 +LP,2022,end_of_season,7,playoff_winner,,http://web.archive.org/web/20220816034904/https://www.ligaportugal.pt/media/38662/regulamento-das-competicoes.pdf
 +LP,2022,end_of_season,8,undecidable,,http://web.archive.org/web/20220816034904/https://www.ligaportugal.pt/media/38662/regulamento-das-competicoes.pdf
 +LP,2023,in_season,1,points,,http://web.archive.org/web/20231004071605/https://www.ligaportugal.pt/media/44455/regulamento-das-competicoes-2023-24.pdf https://ligaportugalstorage.blob.core.windows.net/backoffice/assets/Regulamento_das_competicoes_2025_26_a5c7fe7c6f.pdf
-+LP,2023,in_season,2,h2h_points,,http://web.archive.org/web/20231004071605/https://www.ligaportugal.pt/media/44455/regulamento-das-competicoes-2023-24.pdf https://ligaportugalstorage.blob.core.windows.net/backoffice/assets/Regulamento_das_competicoes_2025_26_a5c7fe7c6f.pdf
++LP,2023,in_season,2,h2h_points,all_h2h_played,http://web.archive.org/web/20231004071605/https://www.ligaportugal.pt/media/44455/regulamento-das-competicoes-2023-24.pdf https://ligaportugalstorage.blob.core.windows.net/backoffice/assets/Regulamento_das_competicoes_2025_26_a5c7fe7c6f.pdf https://www.ligaportugal.pt/competition/911/liga-portugal-betclic/round/20262027?tab=standings
 +LP,2023,in_season,3,h2h_goal_difference,all_h2h_played,http://web.archive.org/web/20231004071605/https://www.ligaportugal.pt/media/44455/regulamento-das-competicoes-2023-24.pdf https://ligaportugalstorage.blob.core.windows.net/backoffice/assets/Regulamento_das_competicoes_2025_26_a5c7fe7c6f.pdf
 +LP,2023,in_season,4,goal_difference,,http://web.archive.org/web/20231004071605/https://www.ligaportugal.pt/media/44455/regulamento-das-competicoes-2023-24.pdf https://ligaportugalstorage.blob.core.windows.net/backoffice/assets/Regulamento_das_competicoes_2025_26_a5c7fe7c6f.pdf
 +LP,2023,in_season,5,wins,,http://web.archive.org/web/20231004071605/https://www.ligaportugal.pt/media/44455/regulamento-das-competicoes-2023-24.pdf https://ligaportugalstorage.blob.core.windows.net/backoffice/assets/Regulamento_das_competicoes_2025_26_a5c7fe7c6f.pdf
@@ -1777,6 +1789,19 @@ index be3a34b5..82b51343 100644
    - name: player_match_cleaning_answer_key
      description: >
        Hand-worked answers for the player-match cleaning in base_apif__fixture_players: real player
+diff --git a/dbt_project/seeds/standings_corrections.csv b/dbt_project/seeds/standings_corrections.csv
+index 042451cc..79442079 100644
+--- a/dbt_project/seeds/standings_corrections.csv
++++ b/dbt_project/seeds/standings_corrections.csv
+@@ -5,3 +5,8 @@ SA,2016,488,Serie A,12,38,13,7,18,58,63,46,official,https://www.figc.it/it/feder
+ SA,2016,525,Serie A,20,38,3,9,26,37,81,18,official,https://www.figc.it/it/federazione/news/corte-sportiva-d-appello-respinto-il-ricorso-del-sassuolo-confermato-lo-0-3-con-il-pescara/ https://www.espn.com/soccer/standings/_/league/ita.1/season/2016,"Pescara, Serie A 2016-17: Sassuolo-Pescara counted as awarded 0-3, not the 2-1 played",
+ AFCCL,2021,2937,Group E,2,6,4,1,1,7,3,13,official,https://www.the-afc.com/en/club/afc_champions_league/news/al_wahda%E2%80%99s_ten_cate_ecstatic_with_afc_champions_league_round-of-16_progress.html,"Al Wahda FC (UAE), AFC Champions League 2021 Group E: 2nd; the provider files the row under Al Wehda Club (Saudi Arabia)",2875
+ AFCCL,2021,2937,Ranking of second-placed teams,1,6,4,1,1,7,3,13,official,https://www.the-afc.com/en/club/afc_champions_league/news/al_wahda%E2%80%99s_ten_cate_ecstatic_with_afc_champions_league_round-of-16_progress.html,"Al Wahda FC (UAE), AFC Champions League 2021, ranking of second-placed teams: the provider files the row under Al Wehda Club (Saudi Arabia)",2875
++SA,2022,504,Serie A,17,38,7,10,21,31,59,31,official,https://img.legaseriea.it/vimages/64806966/Insights%20Spareggio%20Salvezza%20Spezia%20vs%20Hellas%20Verona.pdf https://tg24.sky.it/sport/2023/06/11/spezia-verona-spareggio-salvezza-serie-a-video-gol-highlights,"Hellas Verona, Serie A 2022-23: 17th, level on points with Spezia and ahead of it after winning the relegation play-off 3-1",
++SA,2022,515,Serie A,18,38,6,13,19,31,62,31,official,https://img.legaseriea.it/vimages/64806966/Insights%20Spareggio%20Salvezza%20Spezia%20vs%20Hellas%20Verona.pdf https://tg24.sky.it/sport/2023/06/11/spezia-verona-spareggio-salvezza-serie-a-video-gol-highlights,"Spezia, Serie A 2022-23: 18th and relegated after losing the relegation play-off to Hellas Verona 1-3",
++L1,2025,96,"Ligue 1 ",9,34,12,9,13,47,46,45,official,https://ligue1.com/fr/articles/l1_article_5189- https://ligue1.com/fr/articles/l1_article_5119-,"Toulouse, Ligue 1 2025-26: Nantes-Toulouse counts as the 0-0 the league ratified, so 34 played and 45 points, ahead of Lorient on goal difference",
++L1,2025,97,"Ligue 1 ",10,34,11,12,11,48,51,45,official,https://ligue1.com/fr/articles/l1_article_5189- https://ligue1.com/fr/articles/l1_article_5119-,"Lorient, Ligue 1 2025-26: 10th, behind Toulouse on goal difference once Nantes-Toulouse counts as the 0-0 the league ratified",
++L1,2025,83,"Ligue 1 ",17,34,5,9,20,29,52,24,official,https://ligue1.com/fr/articles/l1_article_5189- https://ligue1.com/fr/articles/l1_article_5119-,"Nantes, Ligue 1 2025-26: Nantes-Toulouse counts as the 0-0 the league ratified, so 34 played and 24 points",
 diff --git a/dbt_project/seeds/standings_points_adjustments.csv b/dbt_project/seeds/standings_points_adjustments.csv
 index 40dee4b0..2f8279ac 100644
 --- a/dbt_project/seeds/standings_points_adjustments.csv
@@ -2053,19 +2078,22 @@ index 6fd0e70c..ff7afae3 100644
  select
 diff --git a/dbt_project/tests/assert_team_table_equals_published_tables.sql b/dbt_project/tests/assert_team_table_equals_published_tables.sql
 new file mode 100644
-index 00000000..656e7851
+index 00000000..ba88d975
 --- /dev/null
 +++ b/dbt_project/tests/assert_team_table_equals_published_tables.sql
-@@ -0,0 +1,186 @@
+@@ -0,0 +1,261 @@
 +{#
 +  The rebuilt table (int_team_season__table_by_time) against every table the provider published:
-+  each stored standings snapshot, with the league's corrections from standings_corrections. A
-+  published section is compared at the rebuilt table of the latest kick-off before the snapshot,
++  each stored standings snapshot, with the league's corrections from standings_corrections: on a
++  table whose played count is the correction's, and on every table of a past season, which is its
++  final table. A published section is compared at the rebuilt table of the latest kick-off before the snapshot,
 +  where every team's played count matches; otherwise the provider had not yet counted a match and
 +  the section is left out. A section is also left out where a deduction step of that league-season
 +  took effect after that kick-off's day and by the snapshot's day, since the two tables then hold
-+  different deductions. One row per team whose rebuilt place or table points differ from the
-+  published ones, and one per rebuilt league-season with no comparable published table.
++  different deductions. A place the league's rule settles by last season's place is not compared:
++  the provider orders those teams another way. One row per team whose rebuilt place or table
++  points differ from the published ones, and one per rebuilt league-season with no comparable
++  published table.
 +#}
 +{{ config(store_failures = true, severity = 'error') }}
 +
@@ -2092,16 +2120,17 @@ index 00000000..656e7851
 +        unnest(json_query_array(stage_group, '$')) as team_row
 +),
 +
-+corrected as (
++correction_matches as (
 +    select
-+        p.league_code,
-+        p.ingested_at,
-+        p.season_api_year,
-+        p.group_name,
-+        p.played,
-+        coalesce(if(p.played = c.played, c.official_team_id, null), p.team_id) as team_sk,
-+        coalesce(if(p.played = c.played, c.standing_rank, null), p.standing_rank) as standing_rank,
-+        coalesce(if(p.played = c.played, c.points, null), p.points) as points
++        p.*,
++        c.official_team_id,
++        c.standing_rank as corrected_rank,
++        c.points as corrected_points,
++        c.played as corrected_played,
++        c.team_id is not null and (
++            p.played = c.played
++            or p.season_api_year < max(p.season_api_year) over (partition by p.league_code, p.ingested_at)
++        ) as is_corrected
 +    from published as p
 +    left join {{ ref('standings_corrections') }} as c
 +        on
@@ -2111,8 +2140,75 @@ index 00000000..656e7851
 +            and p.group_name = c.group_name
 +),
 +
++corrected as (
++    select
++        league_code,
++        ingested_at,
++        season_api_year,
++        group_name,
++        if(is_corrected, corrected_played, played) as played,
++        if(is_corrected, coalesce(official_team_id, team_id), team_id) as team_sk,
++        if(is_corrected, corrected_rank, standing_rank) as standing_rank,
++        if(is_corrected, corrected_points, points) as points
++    from correction_matches
++),
++
++rules as (
++    select * from {{ ref('league_tiebreak_rules') }}
++),
++
++rebuilt_phases as (
++    select distinct
++        league_code,
++        season_api_year,
++        phase
++    from {{ ref('int_team_season__table_by_time') }}
++),
++
++rule_versions as (
++    select
++        p.league_code,
++        p.season_api_year,
++        p.phase,
++        max(r.from_season) as from_season
++    from rebuilt_phases as p
++    inner join rules as r
++        on
++            p.league_code = r.league_code
++            and p.phase = r.phase
++            and p.season_api_year >= r.from_season
++    group by p.league_code, p.season_api_year, p.phase
++),
++
++-- the rule orders teams level on points, goal difference and goals by last season's place
++previous_season_phases as (
++    select distinct
++        v.league_code,
++        v.season_api_year,
++        v.phase
++    from rule_versions as v
++    inner join rules as r
++        on
++            v.league_code = r.league_code
++            and v.phase = r.phase
++            and v.from_season = r.from_season
++    where r.criterion = 'previous_position'
++),
++
 +rebuilt as (
-+    select * from {{ ref('int_team_season__table_by_time') }}
++    select
++        t.*,
++        ps.league_code is not null and count(*) over (
++            partition by
++                t.league_code, t.season_api_year, t.group_name, t.table_at,
++                t.table_points, t.goal_difference, t.goals_for
++        ) > 1 as is_placed_by_previous_season
++    from {{ ref('int_team_season__table_by_time') }} as t
++    left join previous_season_phases as ps
++        on
++            t.league_code = ps.league_code
++            and t.season_api_year = ps.season_api_year
++            and t.phase = ps.phase
 +),
 +
 +league_seasons as (
@@ -2183,6 +2279,7 @@ index 00000000..656e7851
 +        r.played as rebuilt_played,
 +        r.table_position as rebuilt_rank,
 +        r.table_points as rebuilt_points,
++        coalesce(r.is_placed_by_previous_season, false) as is_placed_by_previous_season,
 +        logical_and(r.played is not null and c.played = r.played) over (
 +            partition by c.league_code, c.season_api_year, c.group_name, c.ingested_at
 +        ) as is_comparable
@@ -2228,7 +2325,10 @@ index 00000000..656e7851
 +from compared
 +where
 +    is_comparable
-+    and (rebuilt_points != published_points or (rebuilt_rank is not null and rebuilt_rank != published_rank))
++    and (
++        rebuilt_points != published_points
++        or (rebuilt_rank is not null and rebuilt_rank != published_rank and not is_placed_by_previous_season)
++    )
 +union all
 +select
 +    league_code,
@@ -2381,7 +2481,8 @@ index 85ec496f..45241074 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md |   48 +-
-#    .claude/task/review_input.patch     | 2690 ++++++++++++++++++++++++++++-------
-#    2 files changed, 2210 insertions(+), 528 deletions(-)
+#   .claude/task/acceptance_evidence.md |   58 +-
+#    .claude/task/review.md              |   31 +-
+#    .claude/task/review_input.patch     | 2764 ++++++++++++++++++++++++++++-------
+#    3 files changed, 2313 insertions(+), 540 deletions(-)
 # ============================================================================

@@ -32,6 +32,7 @@ scope_paths:
   - dbt_project/seeds/standings_points_adjustments.csv
   - dbt_project/seeds/league_tiebreak_rules.csv
   - dbt_project/seeds/standings_temporary_results.csv
+  - dbt_project/seeds/standings_corrections.csv
   - dbt_project/seeds/schema.yml
   - dbt_project/seeds/metric_catalogue.csv
   - dbt_project/seeds/metric_map.csv
@@ -60,7 +61,7 @@ acceptance_criteria:
   - "league_tiebreak_rules holds each league's ordered criteria per phase and first season, each with its official regulation as source, from a closed list of criteria and conditions tested as accepted values."
   - "int_team_season__table_by_time holds every ranked league-season's table at every kick-off: played, table points, goal difference, goals and the place by the league's rules, empty where teams stay level at a criterion the results cannot settle."
   - "int_team_profile__yoy's points_this_season, points_prev_season, points_delta_yoy and points_rank_prev_season read the rebuilt table on the day of the team's Nth match."
-  - "An error test compares the rebuilt place and points with every published table the provider gave us, wherever the published played counts match the rebuilt ones, and fails for a ranked league-season with no comparable published table; the two warning tests it replaces are removed."
+  - "An error test compares the rebuilt place and points with every published table the provider gave us, with the official corrections applied, wherever the published played counts match the rebuilt ones, and fails for a ranked league-season with no comparable published table; the two warning tests it replaces are removed."
   - "The metric rules no longer hold the sentence that allowed a computed position."
 
 decisions_taken: >
@@ -100,4 +101,15 @@ amendments: >
   standings_temporary_results, and the rebuilt table counts it only between those dates; approved
   in chat, 2026-10-29. The approved plan states the reading of the metric rules' "taken as
   published, never computed": "A rebuilt table is the published table at that match, and the
-  tests below prove it equal."
+  tests below prove it equal." The MR data build found places that differ from the provider's
+  tables, no points. Serie A 2022-23: the provider has Spezia 17th and Verona 18th; Verona won
+  the relegation play-off and finished 17th. Ligue 1 2025-26: the provider's table does not count
+  the Nantes-Toulouse 0-0 the league ratified. Both get official rows in standings_corrections,
+  which enters scope, and the published-table test applies a correction to every table of a past
+  season, each of them being its final table. Liga Portugal: the league's own table applies
+  head-to-head during the season only once the level teams have played each other twice, so its
+  in-season head-to-head points row carries that condition, sourced to the league's standings
+  (the metric rules: the table is taken as published). Saudi Pro League during the season: teams
+  level on points, goal difference and goals are ordered by last season's place, as the
+  regulation says, approved in chat, 2026-10-29; the provider orders them another way and no
+  league table of those dates exists, so the test does not compare those places.

@@ -1,36 +1,38 @@
 # Review — feat/235-table-exact — 2026-10-29
 
-diff_sha256: 943fa3acacad44799fe8ce3aea15e06e5cbc6ab0793ed659e24b0d82400396b3
+diff_sha256: 7a7f6b3d0e4658fecb6cc55d59f23c117876332f2e4b353f90a4beb07a06bbe5
 
-rounds: 3
+rounds: 4
+
+rounds_cap_override: the first MR data build failed the published-table test on places; the fourth round reviews the fixes, approved in chat, 2026-10-29
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every changed path is in scope_paths; refs cite the approved plan, the points_rank texts and the temporary result.
-- The computed-position sentence is removed from the metric rules; the table is rebuilt to equal the published one and tested as an error.
-- No new export, frontend change, dependency or run cadence; the round-1 fixes stay inside the approved plan.
+- Every path in the delta is in scope_paths; the corrections, the Portugal condition and the test change are recorded in the amendments, the Saudi order with its approval.
+- The five correction rows use the existing official-correction mechanism; the Portugal condition is an existing accepted value and a reading of the taken-as-published rule.
+- The test changes narrow the comparison only where a correct table would fail; it stays an error.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- The model is unique on league, season, section, kick-off and team; the previous season's place reads single-table seasons only, so it cannot fan out.
-- Deduction steps count from their effective date; the published-table test leaves out a snapshot with a step after the matched kick-off's day and fails a league-season with no comparable snapshot.
-- The second head-to-head pass groups by the first pass's conditioned values; a phase with no rules orders by points alone and level teams get no place.
+- A correction applies on a table with its played count or on every past-season table; corrections are unique per row, so no fan-out, and the trailing-space group matches through base, the corrections test and the raw group.
+- The test's rule version is the model's latest version per league, season and phase; the previous-place flag covers only teams level on points, goal difference and goals in SPL 2026 in season.
+- The Portugal in-season head-to-head points now wait for both games, like the goal-difference row beside it.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- The seeds carry closed-list and uniqueness tests; every rule version ends in one undecidable row, tested.
-- The replaced warning tests are removed; the new table tests are errors with stored failures.
-- The raw snapshot scan in the published-table test is measured on the MR build before the merge.
+- The test is an error with stored failures, and nothing downgrades it.
+- The exemption needs a previous_position rule row, so it cannot spread to another league; points are still compared.
+- Both seeds keep CRLF and parse; the raw snapshot scan is about 203 MB a run and grows daily, measured before the merge.
 
 ## football-analytics-expert-reviewer
 VERDICT: PASS
 risks_checked:
-- Each league's order follows its official regulation per season and phase; a tie the results cannot settle gives no place.
-- The temporary 3-0 counts for both teams only between its dates; the replayed match kicked off on 7 April 2021, outside them.
-- The points_rank description and interpretation agree; table points are the published standings value, points_won stays points from results.
+- The corrected rows add up: played, points and goal difference; Verona above Spezia by the play-off, Toulouse above Lorient on goal difference.
+- Portugal's in-season head-to-head counts once the level teams have met twice, as the league's table shows after matchday 9.
+- Saudi in-season order by last season's place follows points, goal difference and goals; points stay compared for those teams.
 
 ## escalations
 (none)
