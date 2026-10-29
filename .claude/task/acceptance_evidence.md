@@ -28,13 +28,21 @@ or, for J1's in-season order, the league's own published standings rules.
 
 The first MR data build failed the published-table test on 508 places, no points. Serie A 2022-23
 (Spezia and Verona) and Ligue 1 2025-26 (Toulouse, Lorient, Nantes) get official rows in
-standings_corrections; the test applies a correction to every table of a past season. Liga
-Portugal's in-season head-to-head points wait for both games, as the league's own table shows.
-Saudi in-season places settled by last season's place are not compared. The changed test, run
-against the first build's tables with the corrected seeds inlined (202.7 MB), returned no Serie A
-or Saudi row; the remaining rows are Portugal, whose rule change takes the next build, and the
-Ligue 1 coverage row, whose corrections now carry the provider's group name with its trailing
-space.
+standings_corrections, Ligue 1's with the provider's group name and its trailing space; the test
+applies a correction to every table of a past season. Saudi in-season places settled by last
+season's place are not compared. The second build failed on 122 places, all Liga Portugal 2026-27
+in season; every other league matched.
+
+Liga Portugal in season: the league's nine 2026-27 matchday tables (ligaportugal.pt, read
+2026-10-29) are reproduced exactly by head-to-head points once all level teams have met,
+head-to-head goal difference once they have played each other twice, goal difference, the same
+head-to-head among the teams still level, wins, goals; teams still level are listed
+alphabetically, where the regulation gives them the same place. The provider orders teams level
+on points by goal difference, then fewer goals conceded, so its tables are not the league's: that
+version carries provider_order_differs and the test does not compare those places.
+int_team_season__table_by_time, run against prod with the seeds inlined (11.6 MB), gives the same
+place as that order for every team at all 70 Portugal 2026-27 kick-offs. The changed tests are
+dry-run valid (202.7 MB; the new version test 0 B); pytest 1,612 passed, 2 skipped.
 
 criteria_demonstrated:
   - standings_points_adjustments holds 22 dated deduction steps (Everton 3, Juventus 3, Adana Demirspor 3, Napoli 2 netting to zero, one each for the others) and the 38 halving rows undated; the seed's tests: unique per league, season, team, section and date; every step changes the points and every deduction is dated.

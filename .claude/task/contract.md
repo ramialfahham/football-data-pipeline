@@ -106,10 +106,15 @@ amendments: >
   the relegation play-off and finished 17th. Ligue 1 2025-26: the provider's table does not count
   the Nantes-Toulouse 0-0 the league ratified. Both get official rows in standings_corrections,
   which enters scope, and the published-table test applies a correction to every table of a past
-  season, each of them being its final table. Liga Portugal: the league's own table applies
-  head-to-head during the season only once the level teams have played each other twice, so its
-  in-season head-to-head points row carries that condition, sourced to the league's standings
-  (the metric rules: the table is taken as published). Saudi Pro League during the season: teams
+  season, each of them being its final table. Liga Portugal during the season follows the
+  league's own published tables, approved in chat, 2026-10-29: head-to-head points once every
+  level team has met each of the others, head-to-head goal difference once they have all played
+  each other twice, goal difference, the head-to-head again among the teams still level, wins,
+  goals; the order reproduces each of the league's nine 2026-27 matchday tables. The provider
+  orders teams level on points otherwise, so the published-table test does not compare those
+  places: league_tiebreak_rules gains the column provider_order_differs (name approved in chat,
+  2026-10-29), true for that version, and the condition all_h2h_met; the model's second
+  head-to-head pass groups by every criterion before it. Saudi Pro League during the season: teams
   level on points, goal difference and goals are ordered by last season's place, as the
   regulation says, approved in chat, 2026-10-29; the provider orders them another way and no
   league table of those dates exists, so the test does not compare those places.

@@ -6,8 +6,9 @@
   where every team's played count matches; otherwise the provider had not yet counted a match and
   the section is left out. A section is also left out where a deduction step of that league-season
   took effect after that kick-off's day and by the snapshot's day, since the two tables then hold
-  different deductions. A place the league's rule settles by last season's place is not compared:
-  the provider orders those teams another way. One row per team whose rebuilt place or table
+  different deductions. A place the league's rule settles by last season's place, or of a team
+  level on points where the rule version has provider_order_differs, is not compared: the
+  provider orders those teams another way. One row per team whose rebuilt place or table
   points differ from the published ones, and one per rebuilt league-season with no comparable
   published table.
 #}
@@ -96,35 +97,41 @@ rule_versions as (
     group by p.league_code, p.season_api_year, p.phase
 ),
 
--- the rule orders teams level on points, goal difference and goals by last season's place
-previous_season_phases as (
-    select distinct
+-- previous_position: the rule orders teams level on points, goal difference and goals by last
+-- season's place
+uncompared_phases as (
+    select
         v.league_code,
         v.season_api_year,
-        v.phase
+        v.phase,
+        logical_or(r.criterion = 'previous_position') as orders_by_previous_season,
+        logical_or(r.provider_order_differs) as provider_order_differs
     from rule_versions as v
     inner join rules as r
         on
             v.league_code = r.league_code
             and v.phase = r.phase
             and v.from_season = r.from_season
-    where r.criterion = 'previous_position'
+    group by v.league_code, v.season_api_year, v.phase
 ),
 
 rebuilt as (
     select
         t.*,
-        ps.league_code is not null and count(*) over (
+        coalesce(up.orders_by_previous_season, false) and count(*) over (
             partition by
                 t.league_code, t.season_api_year, t.group_name, t.table_at,
                 t.table_points, t.goal_difference, t.goals_for
-        ) > 1 as is_placed_by_previous_season
+        ) > 1
+        or coalesce(up.provider_order_differs, false) and count(*) over (
+            partition by t.league_code, t.season_api_year, t.group_name, t.table_at, t.table_points
+        ) > 1 as is_place_not_compared
     from {{ ref('int_team_season__table_by_time') }} as t
-    left join previous_season_phases as ps
+    left join uncompared_phases as up
         on
-            t.league_code = ps.league_code
-            and t.season_api_year = ps.season_api_year
-            and t.phase = ps.phase
+            t.league_code = up.league_code
+            and t.season_api_year = up.season_api_year
+            and t.phase = up.phase
 ),
 
 league_seasons as (
@@ -195,7 +202,7 @@ compared as (
         r.played as rebuilt_played,
         r.table_position as rebuilt_rank,
         r.table_points as rebuilt_points,
-        coalesce(r.is_placed_by_previous_season, false) as is_placed_by_previous_season,
+        coalesce(r.is_place_not_compared, false) as is_place_not_compared,
         logical_and(r.played is not null and c.played = r.played) over (
             partition by c.league_code, c.season_api_year, c.group_name, c.ingested_at
         ) as is_comparable
@@ -243,7 +250,7 @@ where
     is_comparable
     and (
         rebuilt_points != published_points
-        or (rebuilt_rank is not null and rebuilt_rank != published_rank and not is_placed_by_previous_season)
+        or (rebuilt_rank is not null and rebuilt_rank != published_rank and not is_place_not_compared)
     )
 union all
 select

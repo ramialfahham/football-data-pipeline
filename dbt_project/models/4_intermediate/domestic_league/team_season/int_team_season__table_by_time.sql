@@ -468,6 +468,7 @@ h2h_1_games as (
         a.team_sk,
         a.pre_key_1,
         count(l.leg_key) as h2h_games,
+        count(distinct l.opponent_team_sk) as h2h_opponents_met,
         coalesce(sum(l.points), 0) as h2h_points,
         coalesce(sum(l.goals - l.goals_against), 0) as h2h_goal_difference,
         coalesce(sum(l.goals), 0) as h2h_goals,
@@ -536,6 +537,9 @@ h2h_1 as (
         logical_and(g.h2h_games = 2 * (g.tied_teams - 1)) over (
             partition by g.league_code, g.season_api_year, g.group_name, g.table_at, g.pre_key_1
         ) as is_complete,
+        logical_and(g.h2h_opponents_met = g.tied_teams - 1) over (
+            partition by g.league_code, g.season_api_year, g.group_name, g.table_at, g.pre_key_1
+        ) as is_all_met,
         coalesce(p.playoff_wins, 0) as playoff_wins
     from h2h_1_sized as g
     left join playoff_wins as p
@@ -547,7 +551,8 @@ h2h_1 as (
             and g.team_sk = p.team_sk
 ),
 
--- the first pass's head-to-head values as the rule applies them decide who is still level
+-- every criterion from the first head-to-head one to the first h2h2 one, as the rule applies
+-- it, decides who is still level for the second pass
 first_pass_keys as (
     select
         c.league_code,
@@ -556,15 +561,28 @@ first_pass_keys as (
         c.table_at,
         c.team_sk,
         string_agg(format('%07d', 5000000 + case
+            when not starts_with(c.criterion, 'h2h_') and c.criterion != 'playoff_winner' then c.base_value
             when c.condition = 'all_h2h_played' and not h1.is_complete then 0
+            when c.condition = 'all_h2h_met' and not h1.is_all_met then 0
             when c.condition = 'two_teams_only' and h1.tied_teams != 2 then 0
             when c.condition = 'three_plus_only' and h1.tied_teams < 3 then 0
+            when c.criterion = 'playoff_winner' then h1.playoff_wins
             when c.criterion = 'h2h_points' then h1.h2h_points
             when c.criterion = 'h2h_goal_difference' then h1.h2h_goal_difference
             when c.criterion = 'h2h_goals' then h1.h2h_goals
             else h1.h2h_away_goals
         end), '' order by c.criterion_order) as first_pass_key
-    from criteria as c
+    from (
+        select
+            *,
+            min(if(starts_with(criterion, 'h2h_'), criterion_order, null)) over (
+                partition by league_code, season_api_year, group_name, table_at, team_sk
+            ) as first_h2h_order,
+            min(if(starts_with(criterion, 'h2h2_'), criterion_order, null)) over (
+                partition by league_code, season_api_year, group_name, table_at, team_sk
+            ) as first_h2h2_order
+        from criteria
+    ) as c
     inner join h2h_1 as h1
         on
             c.league_code = h1.league_code
@@ -572,7 +590,7 @@ first_pass_keys as (
             and c.group_name = h1.group_name
             and c.table_at = h1.table_at
             and c.team_sk = h1.team_sk
-    where starts_with(c.criterion, 'h2h_')
+    where c.criterion_order >= c.first_h2h_order and c.criterion_order < coalesce(c.first_h2h2_order, 999)
     group by c.league_code, c.season_api_year, c.group_name, c.table_at, c.team_sk
 ),
 
@@ -603,6 +621,7 @@ h2h_2_games as (
         a.team_sk,
         a.pre_key_2,
         count(l.leg_key) as h2h_games,
+        count(distinct l.opponent_team_sk) as h2h_opponents_met,
         coalesce(sum(l.points), 0) as h2h_points,
         coalesce(sum(l.goals - l.goals_against), 0) as h2h_goal_difference,
         coalesce(sum(l.goals), 0) as h2h_goals
@@ -640,7 +659,10 @@ h2h_2 as (
         *,
         logical_and(h2h_games = 2 * (tied_teams - 1)) over (
             partition by league_code, season_api_year, group_name, table_at, pre_key_2
-        ) as is_complete
+        ) as is_complete,
+        logical_and(h2h_opponents_met = tied_teams - 1) over (
+            partition by league_code, season_api_year, group_name, table_at, pre_key_2
+        ) as is_all_met
     from h2h_2_sized
 ),
 
@@ -657,6 +679,10 @@ valued as (
             when
                 c.condition = 'all_h2h_played'
                 and not if(starts_with(c.criterion, 'h2h2_'), h2.is_complete, h1.is_complete)
+                then 0
+            when
+                c.condition = 'all_h2h_met'
+                and not if(starts_with(c.criterion, 'h2h2_'), h2.is_all_met, h1.is_all_met)
                 then 0
             when c.condition = 'two_teams_only' and h1.tied_teams != 2 then 0
             when c.condition = 'three_plus_only' and h1.tied_teams < 3 then 0
