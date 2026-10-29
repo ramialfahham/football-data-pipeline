@@ -10,8 +10,9 @@
   in every format (parsed round numbers collide across multi-phase domestic formats).
 
   Metrics:
-    - Totals (points / goals for / against): the cumulative scoreline sums (always present).
-    - Position: last season's place after the same N matches (int_team_season__position_by_match).
+    - Goals for / against: the cumulative scoreline sums (always present).
+    - Points and position: the official table on the day of the team's Nth match this season and
+      last season (int_team_season__table_by_time); empty where that season's table is not rebuilt.
     - Rates (the LOCKED 16-row team display set): as the cumulative model holds them at N.
     - delta = this − prev.
 
@@ -70,14 +71,22 @@ prev as (
     ) = 1
 ),
 
-positions as (
+-- the official table on the day of a team's Nth league match
+tables_at_match as (
     select
-        team_sk,
-        league_code,
-        season_api_year,
-        match_number,
-        position_at_match
-    from {{ ref('int_team_season__position_by_match') }}
+        r.team_sk,
+        r.league_code,
+        r.season_api_year,
+        r.match_number,
+        t.table_points,
+        t.table_position
+    from {{ ref('int_team_season_record') }} as r
+    inner join {{ ref('int_team_season__table_by_time') }} as t
+        on
+            r.team_sk = t.team_sk
+            and r.league_code = t.league_code
+            and r.season_api_year = t.season_api_year
+            and r.kickoff_datetime = t.table_at
 )
 
 select
@@ -87,7 +96,7 @@ select
     cur.match_number as yoy_games_played_cutoff,
     prev.match_number as games_played_prev,
     -- this-season values (through N): 3 scoreline totals + the LOCKED 16-row rate metrics
-    cur.points_won as points_this_season,
+    cur_table.table_points as points_this_season,
     cur.goals as goals_for_this_season,
     cur.goals_against as goals_against_this_season,
     cur.goals_per_match as goals_per_match_this_season,
@@ -107,8 +116,8 @@ select
     cur.corners_against_per_match as corners_against_per_match_this_season,
     cur.saves_pct as saves_pct_this_season,
     -- prior-season values (through the same N)
-    pos.position_at_match as points_rank_prev_season,
-    prev.points_won as points_prev_season,
+    prev_table.table_position as points_rank_prev_season,
+    prev_table.table_points as points_prev_season,
     prev.goals as goals_for_prev_season,
     prev.goals_against as goals_against_prev_season,
     prev.goals_per_match as goals_per_match_prev_season,
@@ -128,7 +137,7 @@ select
     prev.corners_against_per_match as corners_against_per_match_prev_season,
     prev.saves_pct as saves_pct_prev_season,
     -- year-over-year deltas (this − prev; NULL when either side is NULL)
-    cur.points_won - prev.points_won as points_delta_yoy,
+    cur_table.table_points - prev_table.table_points as points_delta_yoy,
     cur.goals - prev.goals as goals_for_delta_yoy,
     cur.goals_against - prev.goals_against as goals_against_delta_yoy,
     cur.goals_per_match - prev.goals_per_match as goals_per_match_delta_yoy,
@@ -152,9 +161,15 @@ left join prev
     on
         cur.team_sk = prev.team_sk
         and cur.league_code = prev.league_code
-left join positions as pos
+left join tables_at_match as cur_table
     on
-        prev.team_sk = pos.team_sk
-        and prev.league_code = pos.league_code
-        and prev.season_api_year = pos.season_api_year
-        and prev.match_number = pos.match_number
+        cur.team_sk = cur_table.team_sk
+        and cur.league_code = cur_table.league_code
+        and cur.season_api_year = cur_table.season_api_year
+        and cur.match_number = cur_table.match_number
+left join tables_at_match as prev_table
+    on
+        prev.team_sk = prev_table.team_sk
+        and prev.league_code = prev_table.league_code
+        and prev.season_api_year = prev_table.season_api_year
+        and prev.match_number = prev_table.match_number

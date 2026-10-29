@@ -804,16 +804,16 @@ Points the team won as a share of the 3 points per match it could have won.
 
 
 {% docs points_rank %}
-The team's position in its league when the teams are ordered by points, then goal difference,
-then goals scored.
+The team's place in its league table, with teams level on points ordered by the league's own
+rules.
 {% enddocs %}
 
 
 {% docs points_rank_prev_season__team %}
-The team's position in its league when the teams are ordered by points, then goal difference,
-then goals scored. Value for the season before, through the same number of matches as the
-current season has played so far. So the two are compared at the same point of a campaign
-rather than a part season against a full one.
+The team's place in its league table, with teams level on points ordered by the league's own
+rules. Value for the season before, through the same number of matches as the current season
+has played so far. So the two are compared at the same point of a campaign rather than a part
+season against a full one.
 {% enddocs %}
 
 

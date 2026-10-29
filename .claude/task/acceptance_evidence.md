@@ -1,21 +1,35 @@
-# Verification — shoot-out points and last season's position for a season of two tournaments
+# Verification — the official league table at every kick-off
 
-Checked locally on the branch: dbt parse; generate_metric_sql.py --check and
-sync_metric_docs_blocks.py --check; SQLFluff on every changed model (clean) and on the changed yoy
-test (four findings, the same four main has, none on the changed line); a dry run of each changed
-model and of the three tests that read them against prod (valid, 2.1 to 29.4 MiB each if run);
-the six offline gates; pytest (1,612 passed, 2 skipped). The MR's data build runs the models and
-their tests in BigQuery.
+Checked locally on the branch: dbt parse; SQLFluff on the new model, the yoy model and the new
+and changed tests (clean but for findings main already has: ST06 in
+assert_team_season_equals_league_table, ST09 and two RF02 in
+assert_team_yoy_pairs_the_same_games_played); a dry run against prod of the new model (11.1 MiB)
+and int_team_profile__yoy (32.3 MiB) with the two seeds inlined; generate_metric_sql.py --check and
+sync_metric_docs_blocks.py --check; the six offline gates; pytest (1,612 passed, 2 skipped). The
+two tests that read the new model cannot be dry-run with it inlined (BigQuery: query too complex);
+the MR data build runs them against the built table.
 
-Lineage: `dbt ls --select int_legs__team_match+ --resource-type model` lists 44 models. Their
-values change only for a team with a shoot-out in a table round (J1 2026 in the data today) and
-for the seasons the ranking's new check leaves out. The 5.5 MB prod query behind the fix: J1 2026
-East and West hold 270 points each over 90 matches, 51 of them level; Argentina 2025's stored
-table is the Clausura's two zones at 16 played, while each team played 16 Apertura and 16 Clausura
-table matches and the knockout rounds.
+Lineage: `dbt ls --select int_team_season__table_by_time+ --resource-type model` lists
+int_team_season__table_by_time, int_team_profile__yoy and mart_team_profile.
+
+Research behind the seeds: each league's tie-break regulation per season, official texts only
+(a season between two identical official editions counts as covered by them; a secondary source
+does not); each deduction step's date from the decision that changed the table. Ruch Chorzow and
+Al-Ittihad 2016-17 are outside the seasons the warehouse holds for those leagues.
+
+Round 1 of the review changed: the published-table test leaves out a snapshot with a deduction
+step after the matched kick-off's day; the previous season's place comes from single-table seasons
+(one row per team); the second head-to-head pass groups by the first pass's criteria as the rule
+applies them; assert_tiebreak_rules_end_undecidable (dry-run valid) requires every rule version to
+end in one undecidable row; standings_temporary_results holds the 3-0 Juventus win over Napoli
+the Serie A 2020-21 table held from 14 Oct to 21 Dec 2020, and the model counts it for both teams
+(points, goals, played and head-to-head) at every kick-off in those dates. Sources are the official regulation
+or, for J1's in-season order, the league's own published standings rules.
 
 criteria_demonstrated:
-  - int_legs__team_match carries is_table_shootout_win from int_round_names' round_stage_kind table, status PEN and fct_fixture's winner, coalesced to FALSE; tested not null there and on int_team_season_record and int_team_momentum_window, which carry it; legs_table_shootout_win_is_a_draw fails a shoot-out win whose result is not a draw.
-  - assert_team_season_equals_league_table compares points_won with the table's points plus the points taken, which with its wins, draws and losses checks covers the two lines it replaces; assert_team_position_points_equal_the_table (warn, stored rows) compares every ranked team's points at the table's matches played the same way; its J1 2026 rows are read after the MR data build. Both and the draw test dry-run valid against prod (2.1, 9.5 and 7.1 MiB).
-  - points_won and points_capture_pct are sum(case result when 'W' then 3 when 'D' then 1 else 0 end) + countif(is_table_shootout_win) in metric_catalogue.csv; points_won carries the approved description and interpretation; the generator rewrote int_team_season__metrics_cumulative and int_team_momentum__metrics and both checks pass; R3 carries the approved sentence; assert_team_yoy_pairs_the_same_games_played adds the shoot-out point.
-  - int_team_season__position_by_match keeps a season only where every team's goals scored and conceded at the table's matches played equal the table's (a team with no row there fails it), and ranks only up to each team's table matches played; the Argentina 2025 and J1 2026 counts in the final-table warning are read after the MR data build.
+  - standings_points_adjustments holds 22 dated deduction steps (Everton 3, Juventus 3, Adana Demirspor 3, Napoli 2 netting to zero, one each for the others) and the 38 halving rows undated; the seed's tests: unique per league, season, team, section and date; every step changes the points and every deduction is dated.
+  - league_tiebreak_rules holds the regulations of BL1, BL2, PL, PD, SA, L1, ED, LP, TSL, SPL (from 2026), EKS (from 2023), BSA, MLS and J1 by first season and phase, each row with its source; seasons with no official text hold points alone; criterion, condition and phase are tested to closed lists.
+  - int_team_season__table_by_time rebuilds every ranked league-season's table at every league kick-off: table points with the deductions in effect that day, the place by the league's rule rows (head-to-head mini-table and its second pass, conditions, play-off results), and no place for teams level at a criterion the results cannot settle; a phase with no rules orders by points alone; tested for its grain, the phase values and that an empty place only comes with a level team.
+  - int_team_profile__yoy reads the rebuilt table on the day of the team's Nth match for points_this_season, points_prev_season, points_delta_yoy and points_rank_prev_season; assert_team_yoy_pairs_the_same_games_played checks those points against the table at the kick-offs it recomputes.
+  - assert_team_table_equals_published_tables (error) compares the rebuilt place and points with every stored published table where the played counts match, and fails a rebuilt league-season with none comparable; the two warning tests it replaces are removed; assert_team_season_equals_league_table sums the dated steps per team.
+  - The metric rules no longer hold the sentence that allowed a computed position; points_rank carries the approved description and interpretation.

@@ -1,29 +1,36 @@
-# Review — feat/235-points-rules — 2026-10-28
+# Review — feat/235-table-exact — 2026-10-29
 
-diff_sha256: e87f1ec3cc8deac3940afe52c85e53ee59b48efe94a848936d1f3b1218867677
+diff_sha256: 943fa3acacad44799fe8ce3aea15e06e5cbc6ab0793ed659e24b0d82400396b3
 
-rounds: 2
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every changed path is in scope_paths; refs quote the approved R3 sentence, the points_won texts and both formulas.
-- Deductions stay reserved; no new mechanism, dependency or run cadence; no export or frontend change.
-- The test changes follow the shoot-out rule without hiding a defect.
+- Every changed path is in scope_paths; refs cite the approved plan, the points_rank texts and the temporary result.
+- The computed-position sentence is removed from the metric rules; the table is rebuilt to equal the published one and tested as an error.
+- No new export, frontend change, dependency or run cadence; the round-1 fixes stay inside the approved plan.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- The flag reads int_round_names on its grain, so legs cannot fan out; it is not null and tested to be a draw.
-- The league-table test compares our points with the table's plus points taken; a warning test checks every ranked team's points against the table.
-- A season the results do not reproduce is dropped, never mis-ranked, and ranking stops at the table's matches played.
+- The model is unique on league, season, section, kick-off and team; the previous season's place reads single-table seasons only, so it cannot fan out.
+- Deduction steps count from their effective date; the published-table test leaves out a snapshot with a step after the matched kick-off's day and fails a league-season with no comparable snapshot.
+- The second head-to-head pass groups by the first pass's conditioned values; a phase with no rules orders by points alone and level teams get no place.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- The seeds carry closed-list and uniqueness tests; every rule version ends in one undecidable row, tested.
+- The replaced warning tests are removed; the new table tests are errors with stored failures.
+- The raw snapshot scan in the published-table test is measured on the MR build before the merge.
 
 ## football-analytics-expert-reviewer
 VERDICT: PASS
 risks_checked:
-- A table shoot-out win is a draw worth 1 plus 1, so 2 points; the loser keeps 1; cup and play-off shoot-outs are unchanged.
-- points_capture_pct stays at most 100 percent over the same matches.
-- The description, the interpretation and the formula agree; each column holds one thing.
+- Each league's order follows its official regulation per season and phase; a tie the results cannot settle gives no place.
+- The temporary 3-0 counts for both teams only between its dates; the replayed match kicked off on 7 April 2021, outside them.
+- The points_rank description and interpretation agree; table points are the published standings value, points_won stays points from results.
 
 ## escalations
 (none)
