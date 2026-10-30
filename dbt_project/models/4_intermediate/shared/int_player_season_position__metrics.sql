@@ -64,9 +64,9 @@ select
     position_group,
     -- pitch time required, same rule as int_player_club_season__metrics: the provider lists whole
     -- matchday squads, so an unused substitute is no appearance.
-    if(logical_and(window_is_complete and minutes is not null), countif(minutes > 0), null) as appearances,
     if(logical_and(window_is_complete and minutes is not null), sum(minutes), null) as minutes,
     -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
+    if(logical_and(window_is_complete and (minutes > 0) is not null), countif(minutes > 0), null) as appearances,
     if(logical_and(window_is_complete and goals is not null), sum(goals), null) as goals_player,
     if(logical_and(window_is_complete and goals_penalty is not null), sum(goals_penalty), null) as goals_penalty_player,
     if(logical_and(window_is_complete and assists is not null), sum(assists), null) as assists_player,

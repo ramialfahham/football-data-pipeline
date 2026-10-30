@@ -1,1064 +1,431 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index ff3a4e87..45cd8103 100644
+index 45cd8103..27ac734f 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,126 +1,50 @@
--# Task contract — the official league table at every kick-off
-+# Task contract — the official table at every kick-off, within the query time limit
+@@ -1,21 +1,33 @@
+-# Task contract — the official table at every kick-off, within the query time limit
++# Task contract — appearances as a catalogue metric
  
  objective: >
--  Goals, points, standings and results are exact at all times. The Team page's "Season before"
--  (#235) shows last season's points and place on the day the team played its Nth match. A new
--  intermediate rebuilds each domestic league's official table at every kick-off: table points are
--  the points won less the deductions in effect that day, and the order follows the league's own
--  regulation for that season, from a new rule seed with its official sources. A tie the results
--  cannot settle has no place. The rebuilt table must equal every published table the provider
--  gave us, as an error test, so a wrong value fails the build.
-+  int_team_season__table_by_time ran past BigQuery's 300-second query limit in main's build, so
-+  int_team_profile__yoy and mart_team_profile were skipped. BigQuery recomputes a step each time a
-+  later step reads it, so the model expanded into more than 1,400 stages. Its first steps move
-+  into two models stored as tables, the legs and the team state at every kick-off, so each is
-+  computed once; the table's columns, grain and values stay the same.
+-  int_team_season__table_by_time ran past BigQuery's 300-second query limit in main's build, so
+-  int_team_profile__yoy and mart_team_profile were skipped. BigQuery recomputes a step each time a
+-  later step reads it, so the model expanded into more than 1,400 stages. Its first steps move
+-  into two models stored as tables, the legs and the team state at every kick-off, so each is
+-  computed once; the table's columns, grain and values stay the same.
++  The Team page's Squad tab (#235) shows appearances, minutes per appearance, goals and assists,
++  and on-screen metric names come only from the catalogue. Appearances becomes a catalogue metric
++  with its formula, generated into the models that compute it today, with the same value: matches
++  with minutes > 0, 0 for a squad member never brought on, blank where a match's minutes are
++  unknown or the club has a played match with no player data.
  
  refs: >
--  #235 (the Team page build). The plan, approved in chat, 2026-10-29: dated deduction steps,
--  each league's tie-break rules from its regulation, table points for points_this_season and
--  points_prev_season, the checks as errors against the final tables and every published
--  snapshot, and the removal of the sentence that allowed a computed position from the metric
--  rules. points_rank's description "The team's place in its league table, with teams level on
--  points ordered by the league's own rules." and interpretation "League position - 1 = top of the
--  table; the place in the official table at that point of the season": approved in chat,
--  2026-10-29.
-+  #235 (the Team page build). The plan, approved in chat, 2026-10-30, with the model names
-+  int_team_season__table_legs and int_team_season__table_state.
+-  #235 (the Team page build). The plan, approved in chat, 2026-10-30, with the model names
+-  int_team_season__table_legs and int_team_season__table_state.
++  #235 (What exactly: appearances and minutes per appearance as catalogue metrics); plan approved
++  in chat, 2026-10-30.
  
  scope_paths:
-+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_legs.sql
-+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_state.sql
-   - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_by_time.sql
--  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__position_by_match.sql
--  - dbt_project/models/4_intermediate/domestic_league/team_season/*.yml
--  - dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
--  - dbt_project/models/4_intermediate/shared/int_standings__section_kinds.sql
--  - dbt_project/models/4_intermediate/shared/*.yml
--  - dbt_project/models/5_marts/shared/mart_team_profile.sql
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/models/docs/*.md
--  - dbt_project/seeds/standings_points_adjustments.csv
--  - dbt_project/seeds/league_tiebreak_rules.csv
--  - dbt_project/seeds/standings_temporary_results.csv
--  - dbt_project/seeds/standings_corrections.csv
--  - dbt_project/seeds/fixture_goal_corrections.csv
--  - dbt_project/seeds/schema.yml
--  - dbt_project/seeds/metric_catalogue.csv
--  - dbt_project/seeds/metric_map.csv
--  - dbt_project/tests/assert_*.sql
-+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_legs.sql
+-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_state.sql
+-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_by_time.sql
+-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++  - dbt_project/seeds/metric_catalogue.csv
++  - dbt_project/seeds/metric_map.csv
++  - dbt_project/seeds/player_season_answer_key.csv
++  - dbt_project/models/docs/metric_rules.md
++  - dbt_project/models/docs/*.md
++  - dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
++  - dbt_project/models/5_marts/shared/mart_player_career.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/tests/assert_no_uncatalogued_season_metric.sql
++  - scripts/generate_metric_sql.py
++  - docs/wireframes/11_team_squad.md
++  - docs/wireframes/03_player_profile.md
++  - docs/wireframes/13_player_career.md
++  - dbt_project/seeds/schema.yml
    - tests/test_*.py
    - .claude/task/contract.md
    - .claude/task/review.md
-   - .claude/task/review_input.patch
+@@ -23,28 +35,44 @@ scope_paths:
    - .claude/task/acceptance_evidence.md
--  - .claude/task/rendered_page_evidence.md
  
  impact_map: >
--  writers: int_team_season__table_by_time replaces int_team_season__position_by_match;
--  standings_points_adjustments gains dated steps; league_tiebreak_rules is new;
--  int_team_profile__yoy reads the rebuilt table for points_this_season, points_prev_season,
--  points_delta_yoy and points_rank_prev_season, and mart_team_profile carries them. downstream:
--  the readers of int_team_profile__yoy (listed by dbt ls in the evidence). layer_rules: computed in
--  the warehouse; no export change. deploy_order: the MR data build. blast_radius: the yoy points
--  and place columns, two seeds, the tests on the table.
-+  writers: int_team_season__table_by_time, now reading the two new models
-+  int_team_season__table_legs and int_team_season__table_state. downstream (dbt ls --select
-+  int_team_season__table_by_time+): int_team_profile__yoy, mart_team_profile.
-+  layer_rules: three intermediate models, materialised by the layer's one rule; no per-competition
-+  file. deploy_order: the MR data build. blast_radius: none in values; the table's columns and
-+  grain stay the same, proven by a row-by-row comparison with today's model.
+-  writers: int_team_season__table_by_time, now reading the two new models
+-  int_team_season__table_legs and int_team_season__table_state. downstream (dbt ls --select
+-  int_team_season__table_by_time+): int_team_profile__yoy, mart_team_profile.
+-  layer_rules: three intermediate models, materialised by the layer's one rule; no per-competition
+-  file. deploy_order: the MR data build. blast_radius: none in values; the table's columns and
+-  grain stay the same, proven by a row-by-row comparison with today's model.
++  writers: int_player_club_season__metrics, int_player_season__metrics and
++  int_player_season_position__metrics, whose hand-written appearances column becomes the generated
++  one with the same guard. downstream, pasted from `dbt ls --resource-type model --select
++  int_player_club_season__metrics+ int_player_season__metrics+
++  int_player_season_position__metrics+` (9 models, the three writers included):
++  int_player_season__metrics, int_player_club_season__metrics,
++  int_player_competition_benchmark_metrics_long, int_player_competition_benchmarks,
++  int_player_season_position__metrics, mart_leaderboards, mart_player_career,
++  mart_player_competition_benchmarks, mart_player_profile. layer_rules: the formula in the
++  catalogue, computed in the intermediates. deploy_order: the MR data build. blast_radius: none in
++  values; the column's description and the metric map change, and the drift test no longer
++  exempts appearances.
  
  approved_design:
--  - team: #134
--
--acceptance_criteria:
--  - "standings_points_adjustments holds one row per deduction step with the date it took effect and its official source; tested unique per team, section and date, every step changing the points and dated."
--  - "league_tiebreak_rules holds each league's ordered criteria per phase and first season, each with its official regulation as source, from a closed list of criteria and conditions tested as accepted values."
--  - "int_team_season__table_by_time holds every ranked league-season's table at every kick-off: played, table points, goal difference, goals and the place by the league's rules, empty where teams stay level at a criterion the results cannot settle."
--  - "int_team_profile__yoy's points_this_season, points_prev_season, points_delta_yoy and points_rank_prev_season read the rebuilt table on the day of the team's Nth match."
--  - "An error test compares the rebuilt place and points with every published table the provider gave us, with the official corrections applied, wherever the published played counts match the rebuilt ones, and fails for a ranked league-season with no comparable published table; the two warning tests it replaces are removed."
--  - "The metric rules no longer hold the sentence that allowed a computed position."
-+  - none: no page output changes
+   - none: no page output changes
  
  decisions_taken: >
--  The plan, approved in chat, 2026-10-29. Readings: "the same point" is the day of the team's Nth
--  match, so the table counts every match kicked off by then, other teams' games in hand included;
--  the published tables are the provider's daily snapshots, each covering every season the league
--  configures, so they hold every past season's final table and this season's matchdays; a
--  published table where a team's played count differs from the rebuilt one is not comparable
--  (the provider had not yet counted a match) and is left out, with every ranked league-season
--  needing at least one comparable table. No new dependency; the recurring cost is measured on the
--  MR data build and put to the CPO before the merge.
-+  The plan, approved in chat, 2026-10-30. Each step's SQL moves into one model; the legs model
-+  marks each leg with the dates it counts in the table so the state and table models read the
-+  counted legs, the play-off legs and the kick-offs from it. No new dependency; the recurring cost
-+  of three stored models is measured on the MR data build and put to the CPO.
+-  The plan, approved in chat, 2026-10-30. Each step's SQL moves into one model; the legs model
+-  marks each leg with the dates it counts in the table so the state and table models read the
+-  counted legs, the play-off legs and the kick-offs from it. No new dependency; the recurring cost
+-  of three stored models is measured on the MR data build and put to the CPO.
++  The plan, approved in chat, 2026-10-30, with its exact texts: rule R7 loses "appearances, "; the
++  catalogue row appearances (player, countif(minutes > 0) on int_legs__player_match, integer,
++  playing_time, neutral) with its description and interpretation; the Squad wireframe's sentence
++  on catalogue metrics. The label text comes with the page. No new mechanism, no dependency, no
++  recurring cost.
  
  decisions_reserved:
--  - Any catalogue description text beyond points_rank's approved one.
-+  - none: the model names are approved with the plan, and no value changes.
+-  - none: the model names are approved with the plan, and no value changes.
++  - The EN, DE and FI label text for appearances, with the page.
  
  done_when:
--  - dbt parse, SQLFluff on every changed model, a dry run of each against prod, pytest and the offline gates pass.
--  - The MR data build passes with every table test as an error; its added bytes are measured and put to the CPO.
--  - Reviewers per review_routing.json pass.
-+  - dbt parse, SQLFluff on the three models, dry runs against prod, the offline gates and pytest pass.
-+  - The MR data build passes every table test as an error, with each model's time read from its log.
-+  - A comparison with today's model shows the same rows, none only on one side.
+-  - dbt parse, SQLFluff on the three models, dry runs against prod, the offline gates and pytest pass.
+-  - The MR data build passes every table test as an error, with each model's time read from its log.
+-  - A comparison with today's model shows the same rows, none only on one side.
++  - generate_metric_sql.py --check and sync_metric_docs_blocks.py --check pass.
++  - dbt parse, SQLFluff on the changed models, the offline gates and pytest pass.
++  - The MR data build passes every catalogue and value test as an error, the answer key included.
  
--amendments: >
--  int_standings__section_kinds.sql enters scope: its header names the model this replaces. A
--  deduction that was annulled (Napoli 2020-21) nets to zero, so the seed's test checks that every
--  step changes the points and carries a date, not a net above zero. The fan-question test's
--  question 2 asked for points against the same point last season through the catalogue map;
--  those are now table points, outside the catalogue, so it asks for points won in the last five
--  matches instead. Round 1 of the review: the published-table test leaves out a published table
--  with a deduction step dated after the rebuilt table's kick-off; the previous season's place is
--  read from single-table seasons only, one row per team; the second head-to-head pass groups by
--  the first pass's criteria as the rule applies them; a test requires every rule version to end
--  in undecidable. Those three are technical fixes inside the approved plan: two tables that hold
--  different deductions by construction are not compared, since comparing them fails a correct
--  table, and the previous season's final place exists only where that season had one table per
--  team. A result the official table held for a time and that was later annulled (Serie A 2020-21:
--  a 3-0 Juventus win over Napoli awarded on 14 Oct 2020, annulled on 22 Dec 2020 and the match
--  replayed) is recorded with its dates and official sources in a new seed,
--  standings_temporary_results, and the rebuilt table counts it only between those dates; approved
--  in chat, 2026-10-29. The approved plan states the reading of the metric rules' "taken as
--  published, never computed": "A rebuilt table is the published table at that match, and the
--  tests below prove it equal." The MR data build found places that differ from the provider's
--  tables, no points. Serie A 2022-23: the provider has Spezia 17th and Verona 18th; Verona won
--  the relegation play-off and finished 17th. Ligue 1 2025-26: the provider's table does not count
--  the Nantes-Toulouse 0-0 the league ratified. Both get official rows in standings_corrections,
--  which enters scope, and the published-table test applies a correction to every table of a past
--  season, each of them being its final table. Liga Portugal during the season follows the
--  league's own published tables, approved in chat, 2026-10-29: head-to-head points once the
--  level teams have all met each other equally often (approved in chat, 2026-10-30), head-to-head
--  goal difference once they have all played each other twice, goal difference, the head-to-head
--  again among the teams still level, wins, goals; the order reproduces each of the league's nine
--  2026-27 and 34 2025-26 matchday tables. The provider
--  orders teams level on points otherwise, so the published-table test does not compare those
--  places: league_tiebreak_rules gains the column provider_order_differs (name approved in chat,
--  2026-10-29), true for that version, and the condition all_h2h_met; the model's second
--  head-to-head pass groups by every criterion before it. Saudi Pro League during the season: teams
--  level on points, goal difference and goals are ordered by last season's place, as the
--  regulation says, approved in chat, 2026-10-29; the provider orders them another way and no
--  league table of those dates exists, so the test does not compare those places. The build of
--  main after the first merge failed assert_mart_competition_fixtures_goals_add_up on Peña
--  Sport-Huesca, Copa del Rey first round 2026-27: the provider's goal events miss the home goal
--  of the 1-5. fixture_goal_corrections, which enters scope, gains the six goals of the RFEF match
--  sheet, approved in chat, 2026-10-30.
-+amendments: (none)
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-index 72dede81..4764f2b3 100644
---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-@@ -1,6 +1,139 @@
- version: 2
+-amendments: (none)
++amendments: >
++  Round 1 of the review: docs/wireframes/03_player_profile.md enters scope, its section 4 saying
++  appearances is a catalogue metric and starts, substitute appearances and minutes are facts, text
++  approved in chat, 2026-10-30; int_player_season_position__metrics enters scope, the third model
++  that computes appearances today, which the objective covers; the impact map carries the dbt ls
++  output. Round 2: docs/wireframes/13_player_career.md enters scope, its two lines naming
++  appearances a catalogue metric with its label and format from the catalogue, text approved in
++  chat, 2026-10-30; dbt_project/seeds/schema.yml enters scope, its metric_group description naming
++  appearances under playing_time, text approved in chat, 2026-10-30. Round 3: the second sentence
++  of 03_player_profile.md section 4 is in the active voice, text approved in chat, 2026-10-30.
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+index 707a9313..90a42449 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+@@ -44,7 +44,6 @@ select
+     season_api_year,
+     array_agg(team_sk ignore nulls order by kickoff_datetime desc, team_sk desc limit 1)[safe_offset(0)]
+         as team_sk,
+-    if(logical_and(window_is_complete and minutes is not null), countif(minutes > 0), null) as appearances,
+     if(logical_and(window_is_complete and minutes is not null), countif(is_starter), null) as starts,
+     if(
+         logical_and(window_is_complete and minutes is not null),
+@@ -53,6 +52,7 @@ select
+     ) as substitute_appearances,
+     if(logical_and(window_is_complete and minutes is not null), sum(minutes), null) as minutes,
+     -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
++    if(logical_and(window_is_complete and (minutes > 0) is not null), countif(minutes > 0), null) as appearances,
+     if(logical_and(window_is_complete and goals is not null), sum(goals), null) as goals_player,
+     if(logical_and(window_is_complete and goals_penalty is not null), sum(goals_penalty), null) as goals_penalty_player,
+     if(logical_and(window_is_complete and assists is not null), sum(assists), null) as assists_player,
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
+index 4ebfd7d7..ab5bbfb2 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
+@@ -51,7 +51,6 @@ select
+     max(kickoff_datetime) as last_kickoff_at,
+     -- An appearance requires PITCH TIME: the provider lists the whole matchday squad, so an unused
+     -- substitute arrives as a row with no minutes. Squad members who never played keep their row.
+-    if(logical_and(window_is_complete and minutes is not null), countif(minutes > 0), null) as appearances,
+     if(logical_and(window_is_complete and minutes is not null), countif(is_starter), null) as starts,
+     if(
+         logical_and(window_is_complete and minutes is not null),
+@@ -60,6 +59,7 @@ select
+     ) as substitute_appearances,
+     if(logical_and(window_is_complete and minutes is not null), sum(minutes), null) as minutes,
+     -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
++    if(logical_and(window_is_complete and (minutes > 0) is not null), countif(minutes > 0), null) as appearances,
+     if(logical_and(window_is_complete and goals is not null), sum(goals), null) as goals_player,
+     if(logical_and(window_is_complete and goals_penalty is not null), sum(goals_penalty), null) as goals_penalty_player,
+     if(logical_and(window_is_complete and assists is not null), sum(assists), null) as assists_player,
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+index d0902067..9985f3c7 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+@@ -64,9 +64,9 @@ select
+     position_group,
+     -- pitch time required, same rule as int_player_club_season__metrics: the provider lists whole
+     -- matchday squads, so an unused substitute is no appearance.
+-    if(logical_and(window_is_complete and minutes is not null), countif(minutes > 0), null) as appearances,
+     if(logical_and(window_is_complete and minutes is not null), sum(minutes), null) as minutes,
+     -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
++    if(logical_and(window_is_complete and (minutes > 0) is not null), countif(minutes > 0), null) as appearances,
+     if(logical_and(window_is_complete and goals is not null), sum(goals), null) as goals_player,
+     if(logical_and(window_is_complete and goals_penalty is not null), sum(goals_penalty), null) as goals_penalty_player,
+     if(logical_and(window_is_complete and assists is not null), sum(assists), null) as assists_player,
+diff --git a/dbt_project/models/5_marts/shared/mart_player_career.sql b/dbt_project/models/5_marts/shared/mart_player_career.sql
+index d68cd716..f0bc2ea2 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_career.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_career.sql
+@@ -128,13 +128,7 @@ select
+     tm.team_country,
+     wc.entity_type,
+     wc.appearances,
+-    -- raw seasonal minutes sum at this club (carried up unchanged from int_player_club_season__metrics).
+-    -- `minutes` and `appearances` are playing-time DIMENSIONS and are deliberately absent from the
+-    -- catalogue. An earlier version of this comment lumped goals and assists in with them and called
+-    -- all three "not a catalogue metric" — false: `goals_player` and `assists_player` are both catalogue rows
+-    -- (entity=player, group=goals). Only the playing-time pair is uncatalogued, and the one
+-    -- catalogued member of that family is the RATE below, minutes_per_appearance (group
+-    -- playing_time).
++    -- raw seasonal minutes sum at this club, a playing-time fact, not a catalogue metric.
+     wc.minutes,
+     -- mins/app for the Squad tab, from int_player_club_season__metrics, which computes it from its
+     -- catalogue formula; null for a squad member who never played: no mins/app without an appearance.
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 98883839..4c4733cf 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -3463,13 +3463,9 @@ models:
+           - accepted_values:
+               values: ["club", "national"]
+       - name: appearances
+-        description: >
+-          Finished matches the player actually PLAYED for this club that competition-season, that
+-          is minutes > 0. 0 is legitimate rather than missing: a squad member who was never
+-          brought on keeps his row. NULL when a match's minutes are unknown or the club has a
+-          match with no player data at all.
++        description: "{{ doc('appearances') }}"
+       - name: minutes
+-        description: "Minutes played at this club that competition-season (carried up unchanged from int_player_club_season__metrics; a playing-time dimension, not a catalogue metric — exempt in assert_no_uncatalogued_season_metric). NULL under the same conditions as appearances."
++        description: "Minutes played at this club that competition-season (carried up unchanged from int_player_club_season__metrics; a playing-time dimension, not a catalogue metric — exempt in assert_no_uncatalogued_season_metric). NULL when a match's minutes are unknown or the club has a played match with no player data."
+       - name: minutes_per_appearance
+         description: "{{ doc('minutes_per_appearance') }}"
+       - name: national_appearances_total
+diff --git a/dbt_project/models/docs/metric_columns.md b/dbt_project/models/docs/metric_columns.md
+index a94c5b2a..d89d64df 100644
+--- a/dbt_project/models/docs/metric_columns.md
++++ b/dbt_project/models/docs/metric_columns.md
+@@ -20,6 +20,11 @@ way and forgetting to regenerate fails the drift check in CI.
+ -->
  
- models:
-+  - name: int_team_season__table_legs
-+    description: >
-+      Every leg a domestic league season holds, for its official table at every kick-off: each
-+      team's league match legs with their round kind, and each result the official table held for
-+      a time and that was later annulled (standings_temporary_results), as one leg per team. A leg
-+      counts in the table from counts_from, until counts_until where it is set.
-+      Grain: (league_code, season_api_year, team_sk, leg_key).
-+    config:
-+      tags: ["intermediate", "football", "team_season"]
-+    tests:
-+      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns: [league_code, season_api_year, team_sk, leg_key]
-+    columns:
-+      - name: league_code
-+        description: "{{ doc('league_code') }}"
-+        tests: [not_null]
-+      - name: season_api_year
-+        description: "{{ doc('season_api_year') }}"
-+        tests: [not_null]
-+      - name: leg_key
-+        description: "The leg's identifier within its team and season: the match's fixture_sk, or 'temporary-' and the date a temporary result took effect."
-+        tests: [not_null]
-+      - name: fixture_sk
-+        description: "{{ doc('fixture_sk') }} Empty for a temporary result."
-+        tests:
-+          - relationships:
-+              to: ref('fct_fixture')
-+              field: fixture_sk
-+      - name: kickoff_datetime
-+        description: "{{ doc('kickoff_datetime') }} Empty for a temporary result."
-+      - name: team_sk
-+        description: "{{ doc('team_sk') }}"
-+        tests:
-+          - not_null
-+          - relationships:
-+              to: ref('dim_team')
-+              field: team_sk
-+      - name: opponent_team_sk
-+        description: "{{ doc('opponent_team_sk') }}"
-+        tests:
-+          - not_null
-+          - relationships:
-+              to: ref('dim_team')
-+              field: team_sk
-+      - name: home_away
-+        description: "{{ doc('home_away') }}"
-+        tests:
-+          - accepted_values:
-+              values: ["home", "away"]
-+      - name: goals
-+        description: "Goals the team scored in the leg."
-+      - name: goals_against
-+        description: "Goals the team conceded in the leg."
-+      - name: result
-+        description: "{{ doc('result') }}"
-+      - name: points
-+        description: "Table points the leg gives the team: 3 for a win, 1 for a draw, plus 1 for a shoot-out win where the league awards it."
-+      - name: round_stage_kind
-+        description: "The kind of round the match belongs to; table for a match that counts in the table, and for a temporary result."
-+      - name: counts_from
-+        description: "When the leg starts counting in the table: the kick-off, or the day a temporary result took effect."
-+        tests: [not_null]
-+      - name: counts_until
-+        description: "When a temporary result stops counting: the day after it was annulled. Empty for a match."
-+      - name: is_temporary
-+        description: "True for a result the official table held for a time and that was later annulled."
-+        tests: [not_null]
-+
-+  - name: int_team_season__table_state
-+    description: >
-+      Every team's state in a domestic league's official table at every kick-off of its season,
-+      before any ordering: matches played, points won, table points after the deductions in effect
-+      that day, goals, wins, away wins and goals, the previous season's final place, and the phase.
-+      Only seasons with one table per team whose results give every team the table's goals through
-+      its matches played. Grain: (league_code, season_api_year, group_name, table_at, team_sk).
-+    config:
-+      tags: ["intermediate", "football", "team_season"]
-+    tests:
-+      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns: [league_code, season_api_year, group_name, table_at, team_sk]
-+    columns:
-+      - name: league_code
-+        description: "{{ doc('league_code') }}"
-+        tests: [not_null]
-+      - name: season_api_year
-+        description: "{{ doc('season_api_year') }}"
-+        tests: [not_null]
-+      - name: group_name
-+        description: "The section of the official table the team is ranked in: the league's table, or a conference."
-+        tests: [not_null]
-+      - name: table_at
-+        description: "The moment of the table: a league match's kick-off time in UTC. The table counts every table match kicked off by then."
-+        tests: [not_null]
-+      - name: team_sk
-+        description: "{{ doc('team_sk') }}"
-+        tests:
-+          - not_null
-+          - relationships:
-+              to: ref('dim_team')
-+              field: team_sk
-+      - name: played
-+        description: "Table matches the team has played by then."
-+        tests: [not_null]
-+      - name: points_from_results
-+        description: "{{ doc('points_won') }} Here, over the table matches played by then."
-+        tests: [not_null]
-+      - name: goal_difference
-+        description: "Goals scored minus goals conceded in the table matches played by then."
-+        tests: [not_null]
-+      - name: goals_for
-+        description: "{{ doc('goals') }} Here, in the table matches played by then."
-+        tests: [not_null]
-+      - name: wins
-+        description: "{{ doc('wins') }} Here, in the table matches played by then."
-+        tests: [not_null]
-+      - name: away_wins
-+        description: "Table matches the team has won away by then."
-+        tests: [not_null]
-+      - name: away_goals
-+        description: "Goals the team has scored away in the table matches played by then."
-+        tests: [not_null]
-+      - name: previous_position
-+        description: "The team's final place in the previous season's table of the league, where that season had one table per team; empty otherwise."
-+      - name: table_points
-+        description: "{{ doc('table_points') }}"
-+        tests: [not_null]
-+      - name: phase
-+        description: "Which rules order the table: in_season, or end_of_season once a finished season's teams have all played their table matches."
-+        tests:
-+          - not_null
-+          - accepted_values:
-+              values: ["in_season", "end_of_season"]
-+
-   - name: int_team_season__table_by_time
-     description: >
-       A domestic league's official table at every kick-off of its season. One row per team and
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_by_time.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_by_time.sql
-index e8e94bce..1b942209 100644
---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_by_time.sql
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_by_time.sql
-@@ -1,133 +1,28 @@
- {#
-   A domestic league's official table at every kick-off of its season: once each league match
-   kicks off, every team's matches played, table points and place in its section, as the league's
--  own regulation orders them.
-+  own regulation orders them. The team state at each kick-off comes from
-+  int_team_season__table_state, the legs from int_team_season__table_legs.
  
--  Table points are the points won in the season's table matches, less the deductions in
--  standings_points_adjustments that took effect by that day. A result the official table held for
--  a time and that was later annulled (standings_temporary_results) counts between its dates. The order follows the league's rule
--  rows in league_tiebreak_rules for that season and phase: in the season, or the final table once
--  a finished season's teams have all played their table matches. Head-to-head criteria form a
--  mini-table of the teams still level on every criterion before them, and h2h2 criteria repeat it
--  for the teams still level after it. A criterion with a condition counts only where it holds.
--  Teams still level when the rules reach a criterion the results cannot settle (fair play, lots)
--  have no place.
--
--  Only a season where every team sits in one league, conference or group table, and whose table
--  results give every team the official table's goals scored and conceded through its matches
--  played. A league-season and phase with no rule rows is ordered by points alone, so teams level
--  on points have no place.
-+  The order follows the league's rule rows in league_tiebreak_rules for that season and phase.
-+  Head-to-head criteria form a mini-table of the teams still level on every criterion before
-+  them, and h2h2 criteria repeat it for the teams still level after it. A criterion with a
-+  condition counts only where it holds. Teams still level when the rules reach a criterion the
-+  results cannot settle (fair play, lots) have no place. A league-season and phase with no rule
-+  rows is ordered by points alone, so teams level on points have no place.
++{% docs appearances %}
++Matches in which the player was on the pitch.
++{% enddocs %}
++
++
+ {% docs assists_per90 %}
+ Goals the player set up for a teammate per 90 minutes played.
+ {% enddocs %}
+diff --git a/dbt_project/models/docs/metric_rules.md b/dbt_project/models/docs/metric_rules.md
+index cd9222db..0e728f18 100644
+--- a/dbt_project/models/docs/metric_rules.md
++++ b/dbt_project/models/docs/metric_rules.md
+@@ -24,7 +24,7 @@ How every metric is computed:
+   against its previous season through its first N; a player's through N appearances against the
+   previous season at the same club through its first N. It is blank when either side is.
+ - R7 Results the league publishes (the score, the league table) are taken as published, never
+-  computed. A count of results or a playing-time fact (appearances, minutes, starts) is a fact, not
++  computed. A count of results or a playing-time fact (minutes, starts) is a fact, not
+   a catalogue metric.
  
-   Grain: (league_code, season_api_year, group_name, table_at, team_sk).
- #}
+ A metric computed by a model (deserved points and its ranks, the contribution share, the league
+diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
+index f7373f21..a1f0b18b 100644
+--- a/dbt_project/seeds/metric_catalogue.csv
++++ b/dbt_project/seeds/metric_catalogue.csv
+@@ -81,6 +81,7 @@ deserved_points,team,metrics.deserved_points.label,"Points the team would have w
+ deserved_points_gap,team,metrics.deserved_points_gap.label,The points the team won in its played matches minus its deserved points.,,,,model,integer,outcomes,false,neutral,"Deserved-vs-actual gap - actual minus deserved points; negative = results lag the process (due a correction), positive = results flatter it (regression risk). A narrative, not good or bad",9,
+ deserved_points_gap_rank,team,metrics.deserved_points_gap_rank.label,"The team's position in its league when the teams are ordered by deserved-points gap, the most negative first.",,,,model,integer,outcomes,false,neutral,"Deserved-points gap position - 1 = the most under-rewarded team of the league, the last position the most over-rewarded; an ordering, not good or bad",9,
+ contribution_player_pct,player,playerMetrics.contributionShare.label,The player's goals plus assists as a share of the goals the club scored on the pitch in that competition season.,,,,cross_grain,percent,goals,,neutral,"Share of the club's goals the player was involved in; high = central to the team's attack, but position-dependent (a defender's naturally-low share is not a negative). A style/role read, not good or bad.",1,
++appearances,player,playerMetrics.appearances.label,Matches in which the player was on the pitch.,int_legs__player_match,countif(minutes > 0),,expression,integer,playing_time,,neutral,"Matches played in the window; high = a regular, low = a squad or rotation player. A playing-time read, not good or bad.",10,
+ minutes_per_appearance,player,playerMetrics.minutesPerAppearance.label,Average minutes the player was on the pitch per match in which the player played.,int_legs__player_match,sum(minutes),countif(minutes > 0),expression,decimal_0,playing_time,,neutral,"Average minutes per appearance; high = a full-90 regular, low = a rotation or impact-sub role. A playing-time role read, not good or bad.",10,
+ goals,team,metrics.goals.label,Goals the team scored.,int_legs__team_match,sum(goals),,expression,integer,goals,false,higher_better,"Attacking output - goals scored; high = a potent attack (a raw count, so it rises with matches played; the per-match rate is the comparable read)",1,
+ goals_against,team,metrics.goals_against.label,Goals the team conceded.,int_legs__team_match,sum(goals_against),,expression,integer,goals,false,lower_better,"Defensive vulnerability - goals conceded; low = a mean defence (a raw count, so a side that has played fewer matches shows a lower total without defending better; the per-match rate is the comparable read)",1,
+diff --git a/dbt_project/seeds/metric_map.csv b/dbt_project/seeds/metric_map.csv
+index 0291a14a..516495b7 100644
+--- a/dbt_project/seeds/metric_map.csv
++++ b/dbt_project/seeds/metric_map.csv
+@@ -73,6 +73,7 @@ mart_matchday_insights,home_saves_pct_recent,saves_pct,home_form,,
+ mart_matchday_insights,home_shots_inside_box_pct_recent,shots_inside_box_pct,home_form,,
+ mart_matchday_insights,home_shots_on_goal_pct_recent,shots_on_goal_pct,home_form,,
+ mart_matchday_insights,home_shots_per_match_recent,shots_per_match,home_form,,
++mart_player_career,appearances,appearances,,,
+ mart_player_career,assists_player,assists_player,,,
+ mart_player_career,goals_player,goals_player,,,
+ mart_player_career,minutes_per_appearance,minutes_per_appearance,,,
+diff --git a/dbt_project/seeds/player_season_answer_key.csv b/dbt_project/seeds/player_season_answer_key.csv
+index 640a523f..792ca54b 100644
+--- a/dbt_project/seeds/player_season_answer_key.csv
++++ b/dbt_project/seeds/player_season_answer_key.csv
+@@ -1,4 +1,5 @@
+ league_code,season,player_id,metric_id,numerator,denominator,working
++WC,2026,278,appearances,8,,"Kylian Mbappé, World Cup 2026: 8 matches. countif(minutes > 0) = 8; no match without minutes."
+ WC,2026,278,assists_per90,360,698,"Kylian Mbappé, World Cup 2026: 8 matches. sum(assists) * 90 = 360; sum(minutes) = 698; assists blank in 1 match, 0 by the blank rule."
+ WC,2026,278,assists_player,4,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(assists) = 4; assists blank in 1 match, 0 by the blank rule."
+ WC,2026,278,blocks_per90,0,698,"Kylian Mbappé, World Cup 2026: 8 matches. sum(blocks) * 90 = 0; sum(minutes) = 698; blocks blank in 8 matches, 0 by the blank rule."
+@@ -45,6 +46,7 @@ WC,2026,278,shots_on_goal_player,23,,"Kylian Mbappé, World Cup 2026: 8 matches.
+ WC,2026,278,shots_player,36,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(shots) = 36."
+ WC,2026,278,tackles_per90,90,698,"Kylian Mbappé, World Cup 2026: 8 matches. sum(tackles) * 90 = 90; sum(minutes) = 698; tackles blank in 7 matches, 0 by the blank rule."
+ WC,2026,278,tackles_player,1,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(tackles) = 1; tackles blank in 7 matches, 0 by the blank rule."
++WC,2026,19599,appearances,8,,"Emiliano Martínez, World Cup 2026: 8 matches. countif(minutes > 0) = 8; no match without minutes."
+ WC,2026,19599,assists_per90,0,810,"Emiliano Martínez, World Cup 2026: 8 matches. sum(assists) * 90 = 0; sum(minutes) = 810; assists blank in 2 matches, 0 by the blank rule."
+ WC,2026,19599,assists_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(assists) = 0; assists blank in 2 matches, 0 by the blank rule."
+ WC,2026,19599,blocks_per90,0,810,"Emiliano Martínez, World Cup 2026: 8 matches. sum(blocks) * 90 = 0; sum(minutes) = 810; blocks blank in 8 matches, 0 by the blank rule."
+@@ -91,6 +93,7 @@ WC,2026,19599,shots_on_goal_player,0,,"Emiliano Martínez, World Cup 2026: 8 mat
+ WC,2026,19599,shots_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(shots) = 0; shots blank in 8 matches, 0 by the blank rule."
+ WC,2026,19599,tackles_per90,0,810,"Emiliano Martínez, World Cup 2026: 8 matches. sum(tackles) * 90 = 0; sum(minutes) = 810; tackles blank in 8 matches, 0 by the blank rule."
+ WC,2026,19599,tackles_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(tackles) = 0; tackles blank in 8 matches, 0 by the blank rule."
++EURO,2024,1323,appearances,6,,"Dani Olmo, EURO 2024: 7 matches. countif(minutes > 0) = 6; 1 match named without minutes, which is no appearance."
+ EURO,2024,1323,assists_per90,180,431,"Dani Olmo, EURO 2024: 7 matches. sum(assists) * 90 = 180; sum(minutes) = 431; assists blank in 1 match, 0 by the blank rule; minutes blank in 1 match, 0 by the blank rule."
+ EURO,2024,1323,assists_player,2,,"Dani Olmo, EURO 2024: 7 matches. sum(assists) = 2; assists blank in 1 match, 0 by the blank rule."
+ EURO,2024,1323,blocks_per90,90,431,"Dani Olmo, EURO 2024: 7 matches. sum(blocks) * 90 = 90; sum(minutes) = 431; blocks blank in 6 matches, 0 by the blank rule; minutes blank in 1 match, 0 by the blank rule."
+@@ -137,6 +140,7 @@ EURO,2024,1323,shots_on_goal_player,6,,"Dani Olmo, EURO 2024: 7 matches. sum(sho
+ EURO,2024,1323,shots_player,10,,"Dani Olmo, EURO 2024: 7 matches. sum(shots) = 10; shots blank in 2 matches, 0 by the blank rule."
+ EURO,2024,1323,tackles_per90,360,431,"Dani Olmo, EURO 2024: 7 matches. sum(tackles) * 90 = 360; sum(minutes) = 431; tackles blank in 3 matches, 0 by the blank rule; minutes blank in 1 match, 0 by the blank rule."
+ EURO,2024,1323,tackles_player,4,,"Dani Olmo, EURO 2024: 7 matches. sum(tackles) = 4; tackles blank in 3 matches, 0 by the blank rule."
++PL,2024,306,appearances,38,,"Mohamed Salah, Premier League 2024-25: 38 matches. countif(minutes > 0) = 38; no match without minutes."
+ PL,2024,306,assists_per90,1620,3377,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(assists) * 90 = 1620; sum(minutes) = 3377."
+ PL,2024,306,assists_player,18,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(assists) = 18."
+ PL,2024,306,blocks_per90,0,3377,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(blocks) * 90 = 0; sum(minutes) = 3377; blocks blank in 38 matches, 0 by the blank rule."
+@@ -183,6 +187,7 @@ PL,2024,306,shots_on_goal_player,61,,"Mohamed Salah, Premier League 2024-25: 38
+ PL,2024,306,shots_player,104,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(shots) = 104; shots blank in 1 match, 0 by the blank rule."
+ PL,2024,306,tackles_per90,1980,3377,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(tackles) * 90 = 1980; sum(minutes) = 3377; tackles blank in 23 matches, 0 by the blank rule."
+ PL,2024,306,tackles_player,22,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(tackles) = 22; tackles blank in 23 matches, 0 by the blank rule."
++BL1,2024,184,appearances,31,,"Harry Kane, Bundesliga 2024-25: 31 matches. countif(minutes > 0) = 31; no match without minutes."
+ BL1,2024,184,assists_per90,720,2389,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(assists) * 90 = 720; sum(minutes) = 2389."
+ BL1,2024,184,assists_player,8,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(assists) = 8."
+ BL1,2024,184,blocks_per90,180,2389,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(blocks) * 90 = 180; sum(minutes) = 2389; blocks blank in 29 matches, 0 by the blank rule."
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index 774f0d62..53863176 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -391,7 +391,7 @@ seeds:
+           family keeps the same group on its team row and its player row. Populated on every row.
  
--with registry as (
--    select league_code
--    from {{ ref('competition_registry') }}
--    where competition_type = 'domestic_league'
--),
--
--round_kinds as (
--    select
--        league_code,
--        season_api_year,
--        round_name,
--        round_stage_kind
--    from {{ ref('int_round_names') }}
--),
--
--sections as (
--    select
--        s.league_code,
--        s.season_api_year,
--        s.team_sk,
--        s.team_api_id,
--        s.group_name,
--        s.played,
--        s.goals_scored,
--        s.goals_conceded,
--        s.standing_rank,
--        k.table_kind
--    from {{ ref('fct_standings') }} as s
--    inner join {{ ref('int_standings__section_kinds') }} as k
--        on s.group_name = k.group_name
--    inner join registry as r
--        on s.league_code = r.league_code
--    where k.table_kind != 'ranking'
-+with team_state as (
-+    select * from {{ ref('int_team_season__table_state') }}
- ),
+           `outcomes` covers the points and standing metrics (points won, points capture, league
+-          rank, and the deserved trio); `playing_time` covers minutes_per_appearance.
++          rank, and the deserved trio); `playing_time` covers appearances and minutes_per_appearance.
+         tests:
+           - not_null
+           - accepted_values:
+diff --git a/dbt_project/tests/assert_no_uncatalogued_season_metric.sql b/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
+index e20b2a92..a62dbfae 100644
+--- a/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
++++ b/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
+@@ -6,8 +6,8 @@
+   the registry, and they cannot silently diverge.
  
- single_table_seasons as (
--    select
-+    select distinct
-         league_code,
-         season_api_year
--    from sections
--    group by league_code, season_api_year
--    having
--        countif(table_kind = 'split_round') = 0
--        and count(*) = count(distinct team_sk)
--),
--
--league_legs as (
--    select
--        l.league_code,
--        l.season_api_year,
--        l.fixture_sk,
--        l.kickoff_datetime,
--        l.team_sk,
--        l.opponent_team_sk,
--        l.home_away,
--        l.goals,
--        l.goals_against,
--        l.result,
--        rk.round_stage_kind,
--        case l.result when 'W' then 3 when 'D' then 1 else 0 end + if(l.is_table_shootout_win, 1, 0) as points
--    from {{ ref('int_legs__team_match') }} as l
--    inner join registry as r
--        on l.league_code = r.league_code
--    left join round_kinds as rk
--        on
--            l.league_code = rk.league_code
--            and l.season_api_year = rk.season_api_year
--            and l.round_name = rk.round_name
--),
--
--table_legs as (
--    select
--        *,
--        row_number() over (
--            partition by team_sk, league_code, season_api_year
--            order by kickoff_datetime, fixture_sk
--        ) as table_match_number,
--        sum(goals) over (
--            partition by team_sk, league_code, season_api_year
--            order by kickoff_datetime, fixture_sk
--        ) as goals_to_date,
--        sum(goals_against) over (
--            partition by team_sk, league_code, season_api_year
--            order by kickoff_datetime, fixture_sk
--        ) as goals_against_to_date
--    from league_legs
--    where round_stage_kind = 'table'
--),
--
---- seasons whose table results give every team the official table's goals through its played
--reproduced_seasons as (
--    select
--        s.league_code,
--        s.season_api_year
--    from sections as s
--    left join table_legs as l
--        on
--            s.team_sk = l.team_sk
--            and s.league_code = l.league_code
--            and s.season_api_year = l.season_api_year
--            and s.played = l.table_match_number
--    group by s.league_code, s.season_api_year
--    having
--        logical_and(
--            s.played = 0
--            or coalesce(l.goals_to_date = s.goals_scored and l.goals_against_to_date = s.goals_conceded, false)
--        )
-+    from team_state
- ),
+   Non-metric columns are excluded: surrogate / foreign keys (*_sk), the coverage counts, the
+-  *_sum_season raw intermediates, and the playing-time facts (appearances / starts / subs /
+-  minutes) which are dimensions, not metrics.
++  *_sum_season raw intermediates, and the playing-time facts (starts / subs / minutes) which are
++  dimensions, not metrics.
  
- rule_rows as (
-@@ -202,56 +97,13 @@ applied_rules as (
-     where rp.phase is null
- ),
+   Naming is normalised to the catalogue's metric_id: #500 Stage 2 has renamed the team-season model
+   columns to catalogue-id names (no `_season` suffix), so the strip here is now a defensive no-op;
+@@ -34,7 +34,7 @@
+     'season_games_played', 'season_matchdays_used', 'stat_coverage_season_games',
+     'player_stat_coverage_season_games', 'games_with_team_stats',
+     'games_expecting_team_stats', 'entity_type',
+-    'appearances', 'starts', 'substitute_appearances', 'minutes', 'last_kickoff_at'
++    'starts', 'substitute_appearances', 'minutes', 'last_kickoff_at'
+ ] %}
  
--ranked_sections as (
--    select s.*
--    from sections as s
--    inner join single_table_seasons as t
--        on s.league_code = t.league_code and s.season_api_year = t.season_api_year
--    inner join reproduced_seasons as rs
--        on s.league_code = rs.league_code and s.season_api_year = rs.season_api_year
-+legs as (
-+    select * from {{ ref('int_team_season__table_legs') }}
- ),
+ {% set rows = [] %}
+diff --git a/docs/wireframes/03_player_profile.md b/docs/wireframes/03_player_profile.md
+index 0a625051..43cbf605 100644
+--- a/docs/wireframes/03_player_profile.md
++++ b/docs/wireframes/03_player_profile.md
+@@ -83,8 +83,8 @@ season stats; right: match log (it carries the scroll).
  
---- a team's final place in a single-table season, for a rule that ranks by the season before
--previous_positions as (
--    select
--        s.team_sk,
--        s.league_code,
--        s.season_api_year,
--        s.standing_rank
--    from sections as s
--    inner join single_table_seasons as t
--        on s.league_code = t.league_code and s.season_api_year = t.season_api_year
--),
--
--temporary_results as (
--    select * from {{ ref('standings_temporary_results') }}
--),
--
---- a result the official table held for a time, as one leg per team
--temporary_legs as (
--    select
--        league_code,
--        season as season_api_year,
--        home_team_id as team_sk,
--        away_team_id as opponent_team_sk,
--        'home' as home_away,
--        home_goals as goals,
--        away_goals as goals_against,
--        from_date,
--        to_date
--    from temporary_results
--    union all
--    select
--        league_code,
--        season as season_api_year,
--        away_team_id as team_sk,
--        home_team_id as opponent_team_sk,
--        'away' as home_away,
--        away_goals as goals,
--        home_goals as goals_against,
--        from_date,
--        to_date
--    from temporary_results
-+league_legs as (
-+    select * from legs
-+    where not is_temporary
- ),
+ ### (4) Appearance facts (selected season row)
  
- -- every leg the table counts: a played table match from its kick-off, a temporary result between
-@@ -260,7 +112,7 @@ counted_legs as (
-     select
-         league_code,
-         season_api_year,
--        cast(fixture_sk as string) as leg_key,
-+        leg_key,
-         team_sk,
-         opponent_team_sk,
-         home_away,
-@@ -268,143 +120,10 @@ counted_legs as (
-         goals_against,
-         result,
-         points,
--        kickoff_datetime as counts_from,
--        cast(null as timestamp) as counts_until
--    from table_legs
--    union all
--    select
--        league_code,
--        season_api_year,
--        concat('temporary-', from_date) as leg_key,
--        team_sk,
--        opponent_team_sk,
--        home_away,
--        goals,
--        goals_against,
--        case when goals > goals_against then 'W' when goals < goals_against then 'L' else 'D' end as result,
--        case when goals > goals_against then 3 when goals < goals_against then 0 else 1 end as points,
--        timestamp(from_date) as counts_from,
--        timestamp(date_add(to_date, interval 1 day)) as counts_until
--    from temporary_legs
--),
--
--latest_seasons as (
--    select
--        league_code,
--        max(season_api_year) as latest_season_api_year
--    from sections
--    group by league_code
--),
--
--table_times as (
--    select distinct
--        l.league_code,
--        l.season_api_year,
--        l.kickoff_datetime as table_at
--    from league_legs as l
--    inner join ranked_sections as s
--        on l.team_sk = s.team_sk and l.league_code = s.league_code and l.season_api_year = s.season_api_year
--),
--
--deduction_steps as (
--    select
--        league_code,
--        season,
--        team_id,
--        group_name,
--        effective_date,
--        points_taken
--    from {{ ref('standings_points_adjustments') }}
--    where rule = 'deduction'
--),
--
--totals as (
--    select
--        tt.league_code,
--        tt.season_api_year,
--        s.group_name,
--        tt.table_at,
--        s.team_sk,
--        s.team_api_id,
--        s.played as final_played,
--        count(l.leg_key) as played,
--        coalesce(sum(l.points), 0) as points_from_results,
--        coalesce(sum(l.goals - l.goals_against), 0) as goal_difference,
--        coalesce(sum(l.goals), 0) as goals_for,
--        countif(l.result = 'W') as wins,
--        countif(l.result = 'W' and l.home_away = 'away') as away_wins,
--        coalesce(sum(if(l.home_away = 'away', l.goals, 0)), 0) as away_goals
--    from table_times as tt
--    inner join ranked_sections as s
--        on tt.league_code = s.league_code and tt.season_api_year = s.season_api_year
--    left join counted_legs as l
--        on
--            s.team_sk = l.team_sk
--            and s.league_code = l.league_code
--            and s.season_api_year = l.season_api_year
--            and tt.table_at >= l.counts_from
--            and (l.counts_until is null or tt.table_at < l.counts_until)
--    group by tt.league_code, tt.season_api_year, s.group_name, tt.table_at, s.team_sk, s.team_api_id, s.played
--),
--
--points_taken_by_then as (
--    select
--        t.league_code,
--        t.season_api_year,
--        t.group_name,
--        t.table_at,
--        t.team_sk,
--        sum(d.points_taken) as points_taken
--    from totals as t
--    inner join deduction_steps as d
--        on
--            t.league_code = d.league_code
--            and t.season_api_year = d.season
--            and t.team_api_id = d.team_id
--            and trim(t.group_name) = trim(d.group_name)
--            and date(t.table_at) >= d.effective_date
--    group by t.league_code, t.season_api_year, t.group_name, t.table_at, t.team_sk
--),
--
--team_state as (
--    select
--        t.league_code,
--        t.season_api_year,
--        t.group_name,
--        t.table_at,
--        t.team_sk,
--        t.played,
--        t.points_from_results,
--        t.goal_difference,
--        t.goals_for,
--        t.wins,
--        t.away_wins,
--        t.away_goals,
--        prev.standing_rank as previous_position,
--        t.points_from_results - coalesce(pt.points_taken, 0) as table_points,
--        if(
--            t.season_api_year < ls.latest_season_api_year
--            and logical_and(t.played = t.final_played) over (
--                partition by t.league_code, t.season_api_year, t.group_name, t.table_at
--            ),
--            'end_of_season',
--            'in_season'
--        ) as phase
--    from totals as t
--    inner join latest_seasons as ls
--        on t.league_code = ls.league_code
--    left join points_taken_by_then as pt
--        on
--            t.league_code = pt.league_code
--            and t.season_api_year = pt.season_api_year
--            and t.group_name = pt.group_name
--            and t.table_at = pt.table_at
--            and t.team_sk = pt.team_sk
--    left join previous_positions as prev
--        on
--            t.team_sk = prev.team_sk
--            and t.league_code = prev.league_code
--            and t.season_api_year - 1 = prev.season_api_year
-+        counts_from,
-+        counts_until
-+    from legs
-+    where round_stage_kind = 'table'
- ),
+-`appearances`, `starts`, `substitute_appearances`, `minutes` — facts, not
+-catalogue metrics; rendered as a one-line summary.
++`appearances` is a catalogue metric; `starts`, `substitute_appearances` and `minutes` are facts,
++not catalogue metrics. The page renders all four as a one-line summary.
  
- -- one value per team, moment and rule row; head-to-head values are filled in below
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_legs.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_legs.sql
-new file mode 100644
-index 00000000..026b91ac
---- /dev/null
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_legs.sql
-@@ -0,0 +1,117 @@
-+{#
-+  Every leg a domestic league season holds, for its official table at every kick-off: each team's
-+  league match legs with their round kind, and each result the official table held for a time and
-+  that was later annulled (standings_temporary_results), as one leg per team. A leg counts in the
-+  table from counts_from, until counts_until where it is set: a played table match from its
-+  kick-off, a temporary result between its dates.
-+
-+  Grain: (league_code, season_api_year, team_sk, leg_key).
-+#}
-+
-+with registry as (
-+    select league_code
-+    from {{ ref('competition_registry') }}
-+    where competition_type = 'domestic_league'
-+),
-+
-+round_kinds as (
-+    select
-+        league_code,
-+        season_api_year,
-+        round_name,
-+        round_stage_kind
-+    from {{ ref('int_round_names') }}
-+),
-+
-+league_legs as (
-+    select
-+        l.league_code,
-+        l.season_api_year,
-+        l.fixture_sk,
-+        l.kickoff_datetime,
-+        l.team_sk,
-+        l.opponent_team_sk,
-+        l.home_away,
-+        l.goals,
-+        l.goals_against,
-+        l.result,
-+        rk.round_stage_kind,
-+        case l.result when 'W' then 3 when 'D' then 1 else 0 end + if(l.is_table_shootout_win, 1, 0) as points
-+    from {{ ref('int_legs__team_match') }} as l
-+    inner join registry as r
-+        on l.league_code = r.league_code
-+    left join round_kinds as rk
-+        on
-+            l.league_code = rk.league_code
-+            and l.season_api_year = rk.season_api_year
-+            and l.round_name = rk.round_name
-+),
-+
-+temporary_results as (
-+    select * from {{ ref('standings_temporary_results') }}
-+),
-+
-+-- a result the official table held for a time, as one leg per team
-+temporary_legs as (
-+    select
-+        league_code,
-+        season as season_api_year,
-+        home_team_id as team_sk,
-+        away_team_id as opponent_team_sk,
-+        'home' as home_away,
-+        home_goals as goals,
-+        away_goals as goals_against,
-+        from_date,
-+        to_date
-+    from temporary_results
-+    union all
-+    select
-+        league_code,
-+        season as season_api_year,
-+        away_team_id as team_sk,
-+        home_team_id as opponent_team_sk,
-+        'away' as home_away,
-+        away_goals as goals,
-+        home_goals as goals_against,
-+        from_date,
-+        to_date
-+    from temporary_results
-+)
-+
-+select
-+    league_code,
-+    season_api_year,
-+    cast(fixture_sk as string) as leg_key,
-+    fixture_sk,
-+    kickoff_datetime,
-+    team_sk,
-+    opponent_team_sk,
-+    home_away,
-+    goals,
-+    goals_against,
-+    result,
-+    points,
-+    round_stage_kind,
-+    kickoff_datetime as counts_from,
-+    cast(null as timestamp) as counts_until,
-+    false as is_temporary
-+from league_legs
-+union all
-+select
-+    league_code,
-+    season_api_year,
-+    concat('temporary-', from_date) as leg_key,
-+    cast(null as int64) as fixture_sk,
-+    cast(null as timestamp) as kickoff_datetime,
-+    team_sk,
-+    opponent_team_sk,
-+    home_away,
-+    goals,
-+    goals_against,
-+    case when goals > goals_against then 'W' when goals < goals_against then 'L' else 'D' end as result,
-+    case when goals > goals_against then 3 when goals < goals_against then 0 else 1 end as points,
-+    'table' as round_stage_kind,
-+    timestamp(from_date) as counts_from,
-+    timestamp(date_add(to_date, interval 1 day)) as counts_until,
-+    true as is_temporary
-+from temporary_legs
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_state.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_state.sql
-new file mode 100644
-index 00000000..15f81587
---- /dev/null
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_state.sql
-@@ -0,0 +1,261 @@
-+{#
-+  Every team's place-free state in a domestic league's official table at every kick-off of its
-+  season: matches played, points won, table points after the deductions in
-+  standings_points_adjustments that took effect by that day, goals, wins, away wins and goals, the
-+  previous season's final place, and the phase (in the season, or the final table once a finished
-+  season's teams have all played their table matches). The legs come from
-+  int_team_season__table_legs.
-+
-+  Only a season where every team sits in one league, conference or group table, and whose table
-+  results give every team the official table's goals scored and conceded through its matches
-+  played.
-+
-+  Grain: (league_code, season_api_year, group_name, table_at, team_sk).
-+#}
-+
-+with registry as (
-+    select league_code
-+    from {{ ref('competition_registry') }}
-+    where competition_type = 'domestic_league'
-+),
-+
-+sections as (
-+    select
-+        s.league_code,
-+        s.season_api_year,
-+        s.team_sk,
-+        s.team_api_id,
-+        s.group_name,
-+        s.played,
-+        s.goals_scored,
-+        s.goals_conceded,
-+        s.standing_rank,
-+        k.table_kind
-+    from {{ ref('fct_standings') }} as s
-+    inner join {{ ref('int_standings__section_kinds') }} as k
-+        on s.group_name = k.group_name
-+    inner join registry as r
-+        on s.league_code = r.league_code
-+    where k.table_kind != 'ranking'
-+),
-+
-+single_table_seasons as (
-+    select
-+        league_code,
-+        season_api_year
-+    from sections
-+    group by league_code, season_api_year
-+    having
-+        countif(table_kind = 'split_round') = 0
-+        and count(*) = count(distinct team_sk)
-+),
-+
-+legs as (
-+    select * from {{ ref('int_team_season__table_legs') }}
-+),
-+
-+league_legs as (
-+    select * from legs
-+    where not is_temporary
-+),
-+
-+table_legs as (
-+    select
-+        *,
-+        row_number() over (
-+            partition by team_sk, league_code, season_api_year
-+            order by kickoff_datetime, fixture_sk
-+        ) as table_match_number,
-+        sum(goals) over (
-+            partition by team_sk, league_code, season_api_year
-+            order by kickoff_datetime, fixture_sk
-+        ) as goals_to_date,
-+        sum(goals_against) over (
-+            partition by team_sk, league_code, season_api_year
-+            order by kickoff_datetime, fixture_sk
-+        ) as goals_against_to_date
-+    from league_legs
-+    where round_stage_kind = 'table'
-+),
-+
-+-- seasons whose table results give every team the official table's goals through its played
-+reproduced_seasons as (
-+    select
-+        s.league_code,
-+        s.season_api_year
-+    from sections as s
-+    left join table_legs as l
-+        on
-+            s.team_sk = l.team_sk
-+            and s.league_code = l.league_code
-+            and s.season_api_year = l.season_api_year
-+            and s.played = l.table_match_number
-+    group by s.league_code, s.season_api_year
-+    having
-+        logical_and(
-+            s.played = 0
-+            or coalesce(l.goals_to_date = s.goals_scored and l.goals_against_to_date = s.goals_conceded, false)
-+        )
-+),
-+
-+ranked_sections as (
-+    select s.*
-+    from sections as s
-+    inner join single_table_seasons as t
-+        on s.league_code = t.league_code and s.season_api_year = t.season_api_year
-+    inner join reproduced_seasons as rs
-+        on s.league_code = rs.league_code and s.season_api_year = rs.season_api_year
-+),
-+
-+-- a team's final place in a single-table season, for a rule that ranks by the season before
-+previous_positions as (
-+    select
-+        s.team_sk,
-+        s.league_code,
-+        s.season_api_year,
-+        s.standing_rank
-+    from sections as s
-+    inner join single_table_seasons as t
-+        on s.league_code = t.league_code and s.season_api_year = t.season_api_year
-+),
-+
-+-- every leg the table counts: a played table match from its kick-off, a temporary result between
-+-- its dates
-+counted_legs as (
-+    select
-+        league_code,
-+        season_api_year,
-+        leg_key,
-+        team_sk,
-+        opponent_team_sk,
-+        home_away,
-+        goals,
-+        goals_against,
-+        result,
-+        points,
-+        counts_from,
-+        counts_until
-+    from legs
-+    where round_stage_kind = 'table'
-+),
-+
-+latest_seasons as (
-+    select
-+        league_code,
-+        max(season_api_year) as latest_season_api_year
-+    from sections
-+    group by league_code
-+),
-+
-+table_times as (
-+    select distinct
-+        l.league_code,
-+        l.season_api_year,
-+        l.kickoff_datetime as table_at
-+    from league_legs as l
-+    inner join ranked_sections as s
-+        on l.team_sk = s.team_sk and l.league_code = s.league_code and l.season_api_year = s.season_api_year
-+),
-+
-+deduction_steps as (
-+    select
-+        league_code,
-+        season,
-+        team_id,
-+        group_name,
-+        effective_date,
-+        points_taken
-+    from {{ ref('standings_points_adjustments') }}
-+    where rule = 'deduction'
-+),
-+
-+totals as (
-+    select
-+        tt.league_code,
-+        tt.season_api_year,
-+        s.group_name,
-+        tt.table_at,
-+        s.team_sk,
-+        s.team_api_id,
-+        s.played as final_played,
-+        count(l.leg_key) as played,
-+        coalesce(sum(l.points), 0) as points_from_results,
-+        coalesce(sum(l.goals - l.goals_against), 0) as goal_difference,
-+        coalesce(sum(l.goals), 0) as goals_for,
-+        countif(l.result = 'W') as wins,
-+        countif(l.result = 'W' and l.home_away = 'away') as away_wins,
-+        coalesce(sum(if(l.home_away = 'away', l.goals, 0)), 0) as away_goals
-+    from table_times as tt
-+    inner join ranked_sections as s
-+        on tt.league_code = s.league_code and tt.season_api_year = s.season_api_year
-+    left join counted_legs as l
-+        on
-+            s.team_sk = l.team_sk
-+            and s.league_code = l.league_code
-+            and s.season_api_year = l.season_api_year
-+            and tt.table_at >= l.counts_from
-+            and (l.counts_until is null or tt.table_at < l.counts_until)
-+    group by tt.league_code, tt.season_api_year, s.group_name, tt.table_at, s.team_sk, s.team_api_id, s.played
-+),
-+
-+points_taken_by_then as (
-+    select
-+        t.league_code,
-+        t.season_api_year,
-+        t.group_name,
-+        t.table_at,
-+        t.team_sk,
-+        sum(d.points_taken) as points_taken
-+    from totals as t
-+    inner join deduction_steps as d
-+        on
-+            t.league_code = d.league_code
-+            and t.season_api_year = d.season
-+            and t.team_api_id = d.team_id
-+            and trim(t.group_name) = trim(d.group_name)
-+            and date(t.table_at) >= d.effective_date
-+    group by t.league_code, t.season_api_year, t.group_name, t.table_at, t.team_sk
-+),
-+
-+team_state as (
-+    select
-+        t.league_code,
-+        t.season_api_year,
-+        t.group_name,
-+        t.table_at,
-+        t.team_sk,
-+        t.played,
-+        t.points_from_results,
-+        t.goal_difference,
-+        t.goals_for,
-+        t.wins,
-+        t.away_wins,
-+        t.away_goals,
-+        prev.standing_rank as previous_position,
-+        t.points_from_results - coalesce(pt.points_taken, 0) as table_points,
-+        if(
-+            t.season_api_year < ls.latest_season_api_year
-+            and logical_and(t.played = t.final_played) over (
-+                partition by t.league_code, t.season_api_year, t.group_name, t.table_at
-+            ),
-+            'end_of_season',
-+            'in_season'
-+        ) as phase
-+    from totals as t
-+    inner join latest_seasons as ls
-+        on t.league_code = ls.league_code
-+    left join points_taken_by_then as pt
-+        on
-+            t.league_code = pt.league_code
-+            and t.season_api_year = pt.season_api_year
-+            and t.group_name = pt.group_name
-+            and t.table_at = pt.table_at
-+            and t.team_sk = pt.team_sk
-+    left join previous_positions as prev
-+        on
-+            t.team_sk = prev.team_sk
-+            and t.league_code = prev.league_code
-+            and t.season_api_year - 1 = prev.season_api_year
-+)
-+
-+select * from team_state
+ ### (5) Season stats — the 9 locked bundles
+ 
+diff --git a/docs/wireframes/11_team_squad.md b/docs/wireframes/11_team_squad.md
+index af0ef363..78d702c6 100644
+--- a/docs/wireframes/11_team_squad.md
++++ b/docs/wireframes/11_team_squad.md
+@@ -120,8 +120,9 @@ Squad members come from the selected season's `squad[]`. All keys **wired** (GAP
+ | Goals | `squad[].goals` | `mart_player_career.goals_player` | competition-season |
+ | Assists | `squad[].assists` | `mart_player_career.assists_player` | competition-season |
+ 
+-Position-group header labels are **new i18n keys** (copy work, not metric labels). Only
+-`minutes_per_appearance` is a catalogue metric; appearances / goals / assists are dimensions.
++Position-group header labels are **new i18n keys** (copy work, not metric labels). Every
++value in a row is a catalogue metric: `appearances`, `minutes_per_appearance`, `goals_player`,
++`assists_player`.
+ (Was: "No metric rows — mart_roster is identity-only.")
+ 
+ ### (5) Internal links
+diff --git a/docs/wireframes/13_player_career.md b/docs/wireframes/13_player_career.md
+index 3f0af4ff..b3074f77 100644
+--- a/docs/wireframes/13_player_career.md
++++ b/docs/wireframes/13_player_career.md
+@@ -97,7 +97,7 @@ All keys **wired** (GAP-22, #634); each maps to a real `mart_player_career` colu
+ | Club group header | `career[].team` block (`name`, `crest`, `team_id`) | `team_name`, `team_logo_url`, `team_sk` | crest + name; ▸ team profile via `team.team_id` |
+ | Row — season | `career[].season` | `season_api_year` | e.g. "2025/26" (locale season format) |
+ | Row — competition | `career[].competition` | `league_code` | competition badge; ▸ competition hub |
+-| Row — appearances | `career[].appearances` | `appearances` | integer (a playing-time fact, not a catalogue metric) |
++| Row — appearances | `career[].appearances` | `appearances` | integer; label/format from `metric_catalogue` (`appearances`) |
+ | Row — goals | `career[].goals` | `goals_player` | integer; label/format from `metric_catalogue` (`goals_player`) |
+ | Row — assists | `career[].assists` | `assists_player` | integer; label/format from `metric_catalogue` (`assists_player`) |
+ | Per-club subtotal | (display grouping) | sum of the club's rows | **display-side grouping** of `career[]` — resolved #634 (the export ships raw rows only, computes nothing; §10) |
+@@ -110,8 +110,8 @@ All keys **wired** (GAP-22, #634); each maps to a real `mart_player_career` colu
+ | Split club vs national | `career[].entity_type` | `entity_type` | `club` rows in the club groups; `national` rows in this section |
+ | Caps line | top-level `national_appearances_total` | `national_appearances_total` | "{national_team} · {n} appearances (covered competitions)" — **precomputed on the mart**; worded as covered-competition appearances, **never** "caps" |
+ 
+-`goals_player`/`assists_player` labels, formats, and better/worse direction come **only** from `metric_catalogue.csv` (never
+-invented); `appearances` is a playing-time fact rendered as an integer. No per-90, no ratios on this screen.
++`appearances`/`goals_player`/`assists_player` labels, formats, and better/worse direction come **only** from
++`metric_catalogue.csv` (never invented). No per-90, no ratios on this screen.
+ 
+ ### (7) Internal links
+ 
+diff --git a/scripts/generate_metric_sql.py b/scripts/generate_metric_sql.py
+index 29b18040..4dd04eb0 100644
+--- a/scripts/generate_metric_sql.py
++++ b/scripts/generate_metric_sql.py
+@@ -73,7 +73,8 @@ TEAM_SEASON = TEAM_COUNTS + tuple(m for m in TEAM_FORM if m not in TEAM_COUNTS)
+ )
+ 
+ COUNTS = (
+-    "goals_player", "goals_penalty_player", "assists_player", "shots_player", "shots_on_goal_player",
++    "appearances", "goals_player", "goals_penalty_player", "assists_player", "shots_player",
++    "shots_on_goal_player",
+     "passes_player", "passes_key_player", "passes_accurate_player", "tackles_player",
+     "interceptions_player", "blocks_player", "duels_player", "duels_won_player",
+     "dribbles_attempts_player", "dribbles_success_player", "dribbles_past_player", "offsides_player",
+@@ -109,7 +110,8 @@ MATCH_BOARDS = (
+     "defensive_actions_player", "fouls_player",
+ )
+ POSITION_COUNTS = (
+-    "goals_player", "goals_penalty_player", "assists_player", "shots_on_goal_player", "passes_player",
++    "appearances", "goals_player", "goals_penalty_player", "assists_player", "shots_on_goal_player",
++    "passes_player",
+     "passes_accurate_player", "passes_key_player", "tackles_player", "interceptions_player",
+     "blocks_player", "duels_player", "duels_won_player", "dribbles_attempts_player",
+     "dribbles_success_player", "saves_player", "goals_against_player",
+diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
+index d9a427da..76f6acef 100644
+--- a/tests/test_no_decision_history_in_code.py
++++ b/tests/test_no_decision_history_in_code.py
+@@ -30,7 +30,7 @@ sys.path.insert(0, HOOKS)
+ import comment_history_gate as gate  # noqa: E402
+ 
+ # The pin. A sweep MR lowers these two numbers and nothing else may move them.
+-PINNED_LINES = 719
++PINNED_LINES = 718
+ PINNED_FILES = 180
+ 
+ HASH = chr(35)
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -1072,6 +439,7 @@ index 00000000..15f81587
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md | 72 +++++++------------------------------
-#    1 file changed, 12 insertions(+), 60 deletions(-)
+#   .claude/task/acceptance_evidence.md |   29 +-
+#    .claude/task/review_input.patch     | 1421 ++++++++++-------------------------
+#    2 files changed, 410 insertions(+), 1040 deletions(-)
 # ============================================================================

@@ -1,16 +1,19 @@
-# Verification — the official table at every kick-off, within the query time limit
+# Verification — appearances as a catalogue metric
 
-BigQuery's job history for int_team_season__table_by_time since 2026-10-29: eight runs of 137 to
-316 s and 24 to 142 slot-hours, two stopped at the 300-second limit (MR !351's first build and
-main's build after it), each plan over 1,400 stages, most of them reading 19 to 122,000 rows.
+Checked locally on the branch: generate_metric_sql.py --check (10 surfaces match the catalogue);
+sync_metric_docs_blocks.py --check (183 docs blocks, 450 map rows); dbt parse; SQLFluff on the two
+player intermediates, mart_player_career and the drift test (only the dbt_utils template noise of
+these files, on unchanged lines); the seven offline gates; pytest (1,612 passed, 2 skipped) after
+lowering the decision-history pin by the one line the mart comment no longer holds.
 
-A script with temporary tables, run against prod on 2026-10-30, ran today's model (427 s, 131.6
-slot-hours) and the split this branch builds: the legs (1 s), the team state (13 s) and the rest
-(44 s, 0.5 slot-hours). Both gave 428,916 rows, and comparing every column of every row found
-none only on one side; the script billed 479 MB.
+After round 1 of the review the position surface generates appearances too, the player profile
+wireframe and the minutes description follow, and the same checks pass again (pytest 1,612 passed,
+2 skipped).
 
-Checked locally on the branch: dbt compile and parse; SQLFluff on the three models; a dry run
-against prod of int_team_season__table_legs (11.3 MB) and int_team_season__table_state with the
-legs inlined (10.7 MB), while int_team_season__table_by_time with both inlined is too complex to
-plan as one query, which is the defect itself; the six offline gates;
-check_relationships_coverage; pytest (1,612 passed, 2 skipped).
+The generated appearances column keeps the hand-written guard: blank when a match's minutes are
+unknown or the window holds a played team match with no player data, otherwise countif(minutes > 0).
+
+The answer key gains appearances for its five player-seasons, read from int_legs__player_match on
+2026-10-30 (55.8 MB): Kane BL1 2024-25 31 of 31 match rows, Olmo EURO 2024 6 of 7 (one match named
+without minutes), Salah PL 2024-25 38 of 38, Mbappé WC 2026 8 of 8, Martínez WC 2026 8 of 8; no
+row without minutes.

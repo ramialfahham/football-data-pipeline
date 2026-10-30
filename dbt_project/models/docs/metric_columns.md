@@ -20,6 +20,11 @@ way and forgetting to regenerate fails the drift check in CI.
 -->
 
 
+{% docs appearances %}
+Matches in which the player was on the pitch.
+{% enddocs %}
+
+
 {% docs assists_per90 %}
 Goals the player set up for a teammate per 90 minutes played.
 {% enddocs %}

@@ -83,8 +83,8 @@ season stats; right: match log (it carries the scroll).
 
 ### (4) Appearance facts (selected season row)
 
-`appearances`, `starts`, `substitute_appearances`, `minutes` — facts, not
-catalogue metrics; rendered as a one-line summary.
+`appearances` is a catalogue metric; `starts`, `substitute_appearances` and `minutes` are facts,
+not catalogue metrics. The page renders all four as a one-line summary.
 
 ### (5) Season stats — the 9 locked bundles
 

@@ -128,13 +128,7 @@ select
     tm.team_country,
     wc.entity_type,
     wc.appearances,
-    -- raw seasonal minutes sum at this club (carried up unchanged from int_player_club_season__metrics).
-    -- `minutes` and `appearances` are playing-time DIMENSIONS and are deliberately absent from the
-    -- catalogue. An earlier version of this comment lumped goals and assists in with them and called
-    -- all three "not a catalogue metric" — false: `goals_player` and `assists_player` are both catalogue rows
-    -- (entity=player, group=goals). Only the playing-time pair is uncatalogued, and the one
-    -- catalogued member of that family is the RATE below, minutes_per_appearance (group
-    -- playing_time).
+    -- raw seasonal minutes sum at this club, a playing-time fact, not a catalogue metric.
     wc.minutes,
     -- mins/app for the Squad tab, from int_player_club_season__metrics, which computes it from its
     -- catalogue formula; null for a squad member who never played: no mins/app without an appearance.

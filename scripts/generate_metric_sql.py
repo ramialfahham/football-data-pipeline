@@ -73,7 +73,8 @@ TEAM_SEASON = TEAM_COUNTS + tuple(m for m in TEAM_FORM if m not in TEAM_COUNTS) 
 )
 
 COUNTS = (
-    "goals_player", "goals_penalty_player", "assists_player", "shots_player", "shots_on_goal_player",
+    "appearances", "goals_player", "goals_penalty_player", "assists_player", "shots_player",
+    "shots_on_goal_player",
     "passes_player", "passes_key_player", "passes_accurate_player", "tackles_player",
     "interceptions_player", "blocks_player", "duels_player", "duels_won_player",
     "dribbles_attempts_player", "dribbles_success_player", "dribbles_past_player", "offsides_player",
@@ -109,7 +110,8 @@ MATCH_BOARDS = (
     "defensive_actions_player", "fouls_player",
 )
 POSITION_COUNTS = (
-    "goals_player", "goals_penalty_player", "assists_player", "shots_on_goal_player", "passes_player",
+    "appearances", "goals_player", "goals_penalty_player", "assists_player", "shots_on_goal_player",
+    "passes_player",
     "passes_accurate_player", "passes_key_player", "tackles_player", "interceptions_player",
     "blocks_player", "duels_player", "duels_won_player", "dribbles_attempts_player",
     "dribbles_success_player", "saves_player", "goals_against_player",

@@ -1,29 +1,43 @@
-# Review — feat/235-table-speed — 2026-10-30
+# Review — feat/235-appearances — 2026-10-30
 
-diff_sha256: f413c837ae16f2684cf77d6ecc133b0c4aa7822c6cd2036b2fc5fedc34acb900
+diff_sha256: c37888d2983be9cc2c6904b4ba1f67cd7a7996ca134b72b6c5aa1f09971bf808
 
-rounds: 1
+rounds: 4
+
+rounds_cap_override: rounds 2 to 4 bring the wireframes and seed descriptions that named appearances a fact in line with the catalogue, approved in chat, 2026-10-30
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every staged path is in scope_paths; the two new model names are the ones approved with the plan; nothing credential-shaped.
-- No new mechanism: the layer-wide table materialisation applies, no config, library, hook or per-competition file.
-- The recurring cost of three stored models is declared for measurement on the MR data build; no page output changes.
+- Every changed file is in scope_paths; each extension carries its approval in the amendments, and the approved texts appear verbatim.
+- The impact map carries the pasted dbt ls lineage of the three writers, 9 models.
+- No label text is decided, no new mechanism, dependency or recurring cost; no page output changes.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- The counted legs, the play-off legs and the single-table seasons read from the new models give the same rows to every step that reads them as the original single model did.
-- Every moved step matches the deleted lines; the head-to-head passes, the placing and the final select are unchanged.
-- The new grain, not-null, accepted-values and relationships tests hold by construction; intermediates read no mart and name no competition.
+- The generated appearances guard equals the hand-written one on all three surfaces, so no value changes; every reader takes the column by name.
+- The answer key's five rows are catalogued, unique and integer, and assert_player_metrics_follow_catalogue_formula covers the metric on every surface.
+- The minutes description and the seed schema's playing_time text match the code and the catalogue.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Each model runs as its own BigQuery job, ordered by ref, measured at 1 s, 13 s and 44 s against the 300-second limit; no CI, profile or timeout change.
-- The slim MR build selects the two new nodes and everything downstream; the nightly builds all three.
-- No Python test names the split models; two extra tables of about 430,000 rows add negligible storage.
+- The generator adds appearances to the club-season, season and position counts, and test_models_match_the_catalogue pins every surface to it.
+- The decision-history pin moves from 719 to 718 for the one history comment cut from mart_player_career.
+- No CI, hook, dependency or workflow file changes.
+
+## football-analytics-expert-reviewer
+VERDICT: PASS
+risks_checked:
+- appearances counts matches with pitch time, the standard meaning, consistent with minutes_per_appearance's denominator.
+- The description is a plain definition on cleaned data; the window sits in the interpretation, and direction neutral matches the playing_time peer.
+
+## bi-analyst-reviewer
+VERDICT: PASS
+risks_checked:
+- The Squad, player profile and player career wireframes all name appearances a catalogue metric, and no wireframe says otherwise.
+- appearances is in no locked metric bundle, so no page's rows, order or tiers change; the label text comes with the page.
 
 ## escalations
 (none)

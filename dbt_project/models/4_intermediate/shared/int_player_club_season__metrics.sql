@@ -51,7 +51,6 @@ select
     max(kickoff_datetime) as last_kickoff_at,
     -- An appearance requires PITCH TIME: the provider lists the whole matchday squad, so an unused
     -- substitute arrives as a row with no minutes. Squad members who never played keep their row.
-    if(logical_and(window_is_complete and minutes is not null), countif(minutes > 0), null) as appearances,
     if(logical_and(window_is_complete and minutes is not null), countif(is_starter), null) as starts,
     if(
         logical_and(window_is_complete and minutes is not null),
@@ -60,6 +59,7 @@ select
     ) as substitute_appearances,
     if(logical_and(window_is_complete and minutes is not null), sum(minutes), null) as minutes,
     -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
+    if(logical_and(window_is_complete and (minutes > 0) is not null), countif(minutes > 0), null) as appearances,
     if(logical_and(window_is_complete and goals is not null), sum(goals), null) as goals_player,
     if(logical_and(window_is_complete and goals_penalty is not null), sum(goals_penalty), null) as goals_penalty_player,
     if(logical_and(window_is_complete and assists is not null), sum(assists), null) as assists_player,

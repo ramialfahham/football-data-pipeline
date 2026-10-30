@@ -97,7 +97,7 @@ All keys **wired** (GAP-22, #634); each maps to a real `mart_player_career` colu
 | Club group header | `career[].team` block (`name`, `crest`, `team_id`) | `team_name`, `team_logo_url`, `team_sk` | crest + name; ▸ team profile via `team.team_id` |
 | Row — season | `career[].season` | `season_api_year` | e.g. "2025/26" (locale season format) |
 | Row — competition | `career[].competition` | `league_code` | competition badge; ▸ competition hub |
-| Row — appearances | `career[].appearances` | `appearances` | integer (a playing-time fact, not a catalogue metric) |
+| Row — appearances | `career[].appearances` | `appearances` | integer; label/format from `metric_catalogue` (`appearances`) |
 | Row — goals | `career[].goals` | `goals_player` | integer; label/format from `metric_catalogue` (`goals_player`) |
 | Row — assists | `career[].assists` | `assists_player` | integer; label/format from `metric_catalogue` (`assists_player`) |
 | Per-club subtotal | (display grouping) | sum of the club's rows | **display-side grouping** of `career[]` — resolved #634 (the export ships raw rows only, computes nothing; §10) |
@@ -110,8 +110,8 @@ All keys **wired** (GAP-22, #634); each maps to a real `mart_player_career` colu
 | Split club vs national | `career[].entity_type` | `entity_type` | `club` rows in the club groups; `national` rows in this section |
 | Caps line | top-level `national_appearances_total` | `national_appearances_total` | "{national_team} · {n} appearances (covered competitions)" — **precomputed on the mart**; worded as covered-competition appearances, **never** "caps" |
 
-`goals_player`/`assists_player` labels, formats, and better/worse direction come **only** from `metric_catalogue.csv` (never
-invented); `appearances` is a playing-time fact rendered as an integer. No per-90, no ratios on this screen.
+`appearances`/`goals_player`/`assists_player` labels, formats, and better/worse direction come **only** from
+`metric_catalogue.csv` (never invented). No per-90, no ratios on this screen.
 
 ### (7) Internal links
 
