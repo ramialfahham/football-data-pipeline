@@ -1,19 +1,17 @@
-# Verification — appearances as a catalogue metric
+# Verification — the committed team samples, re-exported from prod
 
-Checked locally on the branch: generate_metric_sql.py --check (10 surfaces match the catalogue);
-sync_metric_docs_blocks.py --check (183 docs blocks, 450 map rows); dbt parse; SQLFluff on the two
-player intermediates, mart_player_career and the drift test (only the dbt_utils template noise of
-these files, on unchanged lines); the seven offline gates; pytest (1,612 passed, 2 skipped) after
-lowering the decision-history pin by the one line the mart comment no longer holds.
+The 34 payloads were written on 2026-10-30, after main's build of the merge of MR !353, by a
+scratch driver that imports scripts/export_site_data.py, orders the 34 committed ids first in
+fetch_team_payloads' grouping and calls it with sample=34, so the fixtures, roster, career,
+competitions and recent-match reads are scoped to the 34 while mart_team_profile and
+mart_team_competition_benchmarks stay whole for the scatter and the strip. Each file is written
+by write_entity into a scratch folder and copied in unchanged; the marts read about 311 MB.
 
-After round 1 of the review the position surface generates appearances too, the player profile
-wireframe and the minutes description follow, and the same checks pass again (pytest 1,612 passed,
-2 skipped).
+criteria_demonstrated:
+  - site_v2/src/data/teams/ holds the same 34 file names; git reports 34 modified files and none added or removed.
+  - All 34 slugs equal the committed ones (a script compared each pair: no difference).
+  - teams/33.json carries recent_matches (5), its one featured season carries competitions and league_strip, and all 32 of its squad members carry appearances.
+  - The data folder holds no ignored untracked file (git status --ignored lists none), so the build reads exactly the tracked set; npm run build in site_v2 exits 0 with its prebuild tests, 2,268 pages built, "audit-seo: 2269 built page(s) checked. OK." and "check-built-pages: ... OK."
 
-The generated appearances column keeps the hand-written guard: blank when a match's minutes are
-unknown or the window holds a played team match with no player data, otherwise countif(minutes > 0).
-
-The answer key gains appearances for its five player-seasons, read from int_legs__player_match on
-2026-10-30 (55.8 MB): Kane BL1 2024-25 31 of 31 match rows, Olmo EURO 2024 6 of 7 (one match named
-without minutes), Salah PL 2024-25 38 of 38, Mbappé WC 2026 8 of 8, Martínez WC 2026 8 of 8; no
-row without minutes.
+The Team page at /en/teams/manchester-united-fc/ renders in the v2 dev server with no console
+error. pytest: 1,612 passed, 2 skipped; the offline gates pass.
