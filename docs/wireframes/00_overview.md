@@ -131,7 +131,7 @@ keeps the earlier widths, 680px and 1100px, through the `legacyWidth` prop of `L
 |---|------|--------|-------------|----|
 | 01 | [01_fixture_page.md](01_fixture_page.md) | Fixture page ⭐ | **spec'd** | 1 |
 | — | [metrics_display.md](metrics_display.md) | Metric display contract (team + player, LOCKED) | **ruled** | 1 |
-| 02 | [02_team_profile.md](02_team_profile.md) | Team page | **approved on [its GitLab issue](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/134)** — the authority for the page | 2 |
+| 02 | [02_team_profile.md](02_team_profile.md) | Team page: Overview · Matches · Performance | **built**; **approved on [its GitLab issue](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/134)** — the authority for the page | 2 |
 | 03 | [03_player_profile.md](03_player_profile.md) | Player profile ⭐ | **spec'd** | 2 |
 | 04 | 04_competition_hub.md | Competition page: Overview · Matchdays · Rankings | **Fully approved on GitLab #129** ("The approved design", three tabs) — the authority for the page. No wireframe file: the issue's block list and its data-model tables are the field contract; the elements and their measurements are [block_standard.md](block_standard.md). Built: the Overview (#149), the Matchdays tab (#150) and the Rankings tab (#151), each at its address word ([site_architecture.md](../site_architecture.md) "Address words") | 3 |
 | 05 | 05_leaderboards.md | Leaderboards + per-metric stats pages | pending | 3 |
@@ -140,10 +140,10 @@ keeps the earlier widths, 680px and 1100px, through the `legacyWidth` prop of `L
 | 08 | [08_browse.md](08_browse.md) | Competitions index | **built** 2026-08-18 (#62 step 5); **approved on GitLab #128** (2026-09-14, "The approved design") — the authority for the page; #144 builds the row links, the collapse fix and the missing labels. ~~Country hubs (`/football/{country-slug}/`) still pending~~ — in no menu and no issue; struck by #128 | 4 |
 | 09 | [09_chrome.md](09_chrome.md) | Nav/header/footer/search/locale/404 | **spec'd + built** 2026-07-26 (header/footer/nav/search-chrome/theme-toggle; locale-switch mechanism + 404 page deferred) | 4 |
 | 10 | [10_home.md](10_home.md) | Home (pins the homepage spec → unblocks `landing.json`) | **built**, three blocks; **approved on GitLab #127** (2026-09-13, "The approved design") — the authority for Home; the wireframe is corrected to it and #143 builds the Home-owned changes | 5 |
-| 11 | [11_team_squad.md](11_team_squad.md) | Team → Squad (roster + per-player apps/mins-per-app/goals/assists) | **built** 2026-07-24 | #391 ⁑ |
+| 11 | [11_team_squad.md](11_team_squad.md) | Team → Squad | **retired**: the squad is the last block of the Team page's Overview ([02](02_team_profile.md)) | ⁑ |
 | 12 | [12_player_stats.md](12_player_stats.md) | Player → Stats (percentile vs peers) | **spec'd** | #391 ⁑ |
 | 13 | [13_player_career.md](13_player_career.md) | Player → Career (clubs · competitions · seasons) | **spec'd** | #391 ⁑ |
-| 14 | [14_team_stats.md](14_team_stats.md) | Team → Stats (rank vs league) | **spec'd** | #391 ⁑ |
+| 14 | [14_team_stats.md](14_team_stats.md) | Team → Stats | **retired**: the Team page's Performance tab compares the team with its league ([02](02_team_profile.md)) | ⁑ |
 | 15 | — | Matches page and its day pages | **built**; **approved on GitLab #130** ("The approved design") with the reach ruled on #131 — the authority for the page. No wireframe file: the issue is the field contract; the elements and their measurements are [block_standard.md](block_standard.md) | #160 |
 | 99 | [99_gaps_register.md](99_gaps_register.md) | Data-gap register | live | 1+ |
 
@@ -179,16 +179,17 @@ inventory, flagged as new for the design system (#366).
 | Narrative block (data-to-text slot) | 01 | ➕ (slot only — GAP-03) |
 | Internal-links footer | 01, 02, 03, 11, 12, 13, 14 | ➕ (SEO-driven) |
 | Profile header (team/player) | 02, 03, 11, 12, 13, 14 | ✓ |
-| Competition-/season selector | 02, 03, 11, 12, 14 | ➕ |
+| Competition-/season selector | 03, 11, 12, 14 | ➕ |
 | Position selector | 12 | ➕ |
 | Percentile rank bar (single fill + track + dashed median) | 12 | ➕ |
 | Rank + spread bar (value · k-of-N · vs-median · p25/median/p75 track) | 14 | ➕ |
 | Sample caption (peers · minutes · apps) | 12 | ➕ |
-| Big-number record block | 02 | big-number callout ✓ |
-| Single-bar ratio row + gap callout (deserved vs actual) | 02 | ➕ |
-| Aligned-comparison row (YoY) | 02 | sparkline/trend family ✓ |
-| Streak chip | 02 | ➕ |
-| Stat row (label + value + direction) | 02 | ✓ |
+| Competition row (crest · name · note · standing or outcome) | 02 | ➕ |
+| Tab explainer | 02 | ➕ |
+| Squad grid | 02 | ➕ |
+| Strip plot (the league per metric) | 02 | ➕ |
+| Scatter plot (deserved points) | 02 | ➕ |
+| Trend (▲ ▼ –) | 02 | ➕ |
 | Group subhead | 01, 02, 03, 12, 14 | ➕ |
 | Position badge | 03 | ➕ |
 | Fact summary line | 03 | ➕ |

@@ -122,8 +122,8 @@ Since the catalogue-wide direction sweep (2026-07-21) **all 18 metrics are `high
 better. Those 7 now carry a direction, so the caveat no longer applies here.)
 
 **Bar colour: direction-aware** (CPO 2026-07-21, v2 design review). ONE bar language across every
-vs-population screen, player and team alike — no bespoke percentile treatment; the team benchmark screen
-([14](14_team_stats.md)) carries the identical rule. The fill goes **green when the metric beats the median
+vs-population screen of a player — no bespoke percentile treatment. The Team page compares a team with
+its league in a strip plot ([02](02_team_profile.md)). The fill goes **green when the metric beats the median
 peer in its better direction** and stays **plain ink** otherwise. (Superseded: the rule used to be **no traffic-light colours**, on the
 grounds that colour was redundant with the median line and would wrongly imply a good/bad verdict on the
 neutral metrics. That rationale is void — no neutral metrics remain in this set, and dropping colour entirely

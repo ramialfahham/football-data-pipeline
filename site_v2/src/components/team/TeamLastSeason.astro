@@ -1,0 +1,82 @@
+---
+// Compared with last season: a table of the served metric list (the catalogue's groups and order),
+// this season and last season over their first N matches, then the trend: ▲ when this season is
+// better by the metric's direction, ▼ when worse, "–" when the shown values are equal. A row with
+// neither value is left out. The key metrics show; the switch shows every row in its place.
+// Data: mart_team_competition_benchmarks (metric_value, metric_value_prev_season).
+import SectionHead from "../ui/SectionHead.astro";
+import MetricSwitch from "../ui/MetricSwitch.astro";
+import type { Lang } from "../../lib/format";
+import { formatValue, integer, DASH } from "../../lib/format";
+import { t, metricLabel, boardTitle } from "../../i18n/strings";
+import { comparisonGroups, needsSwitch } from "../../lib/comparisonGroups";
+import { teamBinding } from "../../lib/metricRows";
+import { betterSide } from "../../lib/bars";
+import type { TeamSeason, WindowStats } from "../../lib/types";
+
+interface Props {
+  season: TeamSeason;
+  lang: Lang;
+}
+const { season: s, lang } = Astro.props;
+
+const bench = s.benchmarks ?? [];
+const now = Object.fromEntries(bench.map((b) => [b.metric_key, b.metric_value ?? null])) as WindowStats;
+const prev = Object.fromEntries(bench.map((b) => [b.metric_key, b.metric_value_prev_season ?? null])) as WindowStats;
+const has = (id: string) => now[id] != null || prev[id] != null;
+const groups = s.yoy_games_played_cutoff != null && bench.some((b) => b.metric_value_prev_season != null)
+  ? comparisonGroups(now, prev)
+    .map((g) => ({ ...g, rows: g.rows.map(teamBinding).filter((r) => has(r.metric_id)) }))
+    .filter((g) => g.rows.length > 0)
+  : [];
+const shown = (v: unknown, format: Parameters<typeof formatValue>[1]) =>
+  typeof v === "number" ? formatValue(v, format, lang) : DASH;
+---
+
+{groups.length > 0 && (
+  <section>
+    <SectionHead label={t(lang, "teamVsLastSeason")} />
+    <p class="bsub">{t(lang, "teamVsLastSeasonIntro", { n: integer(s.yoy_games_played_cutoff, lang) })}</p>
+    {needsSwitch(groups) && <MetricSwitch id="tsw-season" lang={lang} />}
+    <div class="yoy-list">
+      <div class="ctab yoyt yoyt-head">
+        <div class="ctab-head">
+          <span class="h nmh"></span>
+          <span class="h">{t(lang, "teamThisSeasonHead")}</span>
+          <span class="h">{t(lang, "teamLastSeasonHead")}</span>
+          <span class="h tr">{t(lang, "teamTrend")}</span>
+        </div>
+      </div>
+      {groups.map((g) => (
+        <div class:list={["fxgroup", "rkgroup", { nonkey: !g.hasKey }]}>
+          <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${g.key}.label`)}</span></div>
+          <div class="ctab yoyt">
+            {g.rows.map((r) => {
+              const a = shown(now[r.metric_id], r.format);
+              const b = shown(prev[r.metric_id], r.format);
+              const side = a === DASH || b === DASH || a === b
+                ? null
+                : betterSide(now[r.metric_id] as number, prev[r.metric_id] as number, r.direction);
+              return (
+                <div class:list={["ctab-row", { nonkey: !r.is_key_metric }]}>
+                  <span class="tm"><span class="nm">{boardTitle(lang, r.label_i18n_key, r.per_match)}</span></span>
+                  <span class="n now">{a}</span>
+                  <span class="n prev">{b}</span>
+                  {a === DASH || b === DASH || (r.direction === "neutral" && a !== b) ? (
+                    <span class="n tr"></span>
+                  ) : side === "home" ? (
+                    <span class="n tr up" role="img" aria-label={t(lang, "teamTrendBetter")}>▲</span>
+                  ) : side === "away" ? (
+                    <span class="n tr down" role="img" aria-label={t(lang, "teamTrendWorse")}>▼</span>
+                  ) : (
+                    <span class="n tr flat" role="img" aria-label={t(lang, "teamTrendSame")}>–</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+)}

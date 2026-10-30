@@ -23,8 +23,10 @@ interface Props {
   competitionSlug: string | null;
   lang: Lang;
   topMatch?: boolean;
+  /** The Next tag in the same place, on a team's soonest match. */
+  nextMatch?: boolean;
 }
-const { fx, competitionSlug, lang, topMatch = false } = Astro.props;
+const { fx, competitionSlug, lang, topMatch = false, nextMatch = false } = Astro.props;
 
 const ZONE = "UTC";
 const played = fx.is_played && fx.goals_home != null && fx.goals_away != null;
@@ -49,7 +51,7 @@ const time = fx.status === "TBD" ? t(lang, "compTBC") : formatTime(fx.kickoff, l
       {played && <span class:list={["g", "num", { winner: awayWins }]}>{fx.goals_away}</span>}
     </span>
   </span>
-  {!played && topMatch && <span class="topmatch">{t(lang, "compTopMatch")}</span>}
+  {!played && (nextMatch || topMatch) && <span class="topmatch">{t(lang, nextMatch ? "compNextTag" : "compTopMatch")}</span>}
   {!played && (
     <span class="when">
       <b class="t">{time}</b>

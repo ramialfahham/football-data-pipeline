@@ -258,9 +258,51 @@ export interface TeamFixture {
   status_short?: string | null;
 }
 
+/** One match of a team's schedule: a scheduled match (with the mart's per-competition
+ *  `upcoming_rank`) or a result of the featured season's year, with its match id. */
+export interface TeamScheduleFixture extends TeamFixture {
+  fixture_id: number;
+  league_code: string;
+  upcoming_rank: number | null;
+}
+
+export interface TeamSchedule {
+  upcoming: TeamScheduleFixture[];   // soonest first
+  results: TeamScheduleFixture[];    // newest first
+}
+
+/** One competition of the featured season's year (mart_team_competitions), in the served order. */
+export interface TeamCompetition {
+  league_code: string;
+  competition_type: string | null;
+  standing_rank: number | null;
+  played: number | null;
+  wins: number | null;
+  draws: number | null;
+  losses: number | null;
+  goals_for: number | null;
+  goals_against: number | null;
+  points: number | null;
+  latest_played_round_label_i18n_key: string | null;
+  latest_played_round_number: number | null;
+  latest_played_round_letter: string | null;
+  reached_round_label_i18n_key: string | null;
+  reached_round_number: number | null;
+  reached_round_letter: string | null;
+  reached_round_stage_kind: string | null;   // "table" | "knockout" | "final"
+  cup_status: string | null;                 // "through" | "knocked_out" | "winners" | null
+}
+
+/** Every club's value for one metric in the team's league-season: the strip plot. */
+export interface LeagueStrip {
+  metric_key: string;
+  clubs: { name: string; value: number | null; is_self: boolean }[];
+}
+
 /** One team in the league-season deserved-vs-actual scatter (the hero). Every value is
  *  a served column the model already computed; `deserved` is its least-squares fit. */
 export interface ScatterDot {
+  name?: string | null;
   sotd: number | null;          // shots-on-target difference per match (x)
   points: number | null;        // points won (y)
   deserved: number | null;      // the model's deserved_points at this team (on the trend line)
@@ -276,6 +318,7 @@ export interface ScatterDot {
 export interface Benchmark {
   metric_key: string;
   metric_value?: number | null;
+  metric_value_prev_season?: number | null;
   rank?: number | null;
   team_count?: number | null;
   league_median?: number | null;
@@ -286,7 +329,7 @@ export interface Benchmark {
 
 /** One squad member (mart_roster identity + the per-club season stats joined from
  * mart_player_career by player_sk). Stats are null when the player has no career row
- * (never appeared in a finished-match squad); the Squad tab lists only >= 1 appearance.
+ * (never appeared in a finished-match squad); the squad block lists every member.
  * `position` is the raw provider word (Goalkeeper/Defender/Midfielder/Attacker); the
  * GK/DEF/MID/FWD grouping is frontend display. */
 export interface SquadMember {
@@ -349,10 +392,29 @@ export interface TeamSeason {
   recent_results?: TeamFixture[];
   // rank-vs-league benchmarks (GAP-23) — the Performance tab's "vs the league" panel.
   benchmarks?: Benchmark[];
-  // squad (identity + per-club season stats) — the Squad tab.
+  // squad (identity + per-club season stats) — the Overview's Squad block.
   squad?: SquadMember[];
-  // the 16 metric values + their `{field}_delta_yoy` also live on this row and are read
-  // positionally via a Record cast (same pattern as the fixture WindowStats).
+  season_label?: string | null;
+  points_prev_season?: number | null;
+  points_rank_prev_season?: number | null;
+  deserved_rank?: number | null;
+  longest_unbeaten_run?: number | null;
+  longest_winless_run?: number | null;
+  biggest_win_league_code?: string | null;
+  biggest_win_opponent_name?: string | null;
+  biggest_win_home_away?: string | null;
+  biggest_win_goals_for?: number | null;
+  biggest_win_goals_against?: number | null;
+  biggest_win_kickoff_datetime?: string | null;
+  heaviest_defeat_league_code?: string | null;
+  heaviest_defeat_opponent_name?: string | null;
+  heaviest_defeat_home_away?: string | null;
+  heaviest_defeat_goals_for?: number | null;
+  heaviest_defeat_goals_against?: number | null;
+  heaviest_defeat_kickoff_datetime?: string | null;
+  // the featured season only
+  competitions?: TeamCompetition[];
+  league_strip?: LeagueStrip[];
 }
 
 export interface Team {
@@ -364,6 +426,8 @@ export interface Team {
   crest?: string | null;
   founded_year?: number | null;
   venue?: Venue | null;
+  recent_matches?: FormMatch[];
+  schedule?: TeamSchedule;
   seasons: TeamSeason[];
 }
 

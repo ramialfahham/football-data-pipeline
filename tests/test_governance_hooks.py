@@ -953,8 +953,8 @@ def test_copy_gate_metric_parser_agrees_with_the_real_consumers():
 
     pattern = _re.compile(r'"(metrics\.[A-Za-z0-9_]+\.label)"')
     asked = set()
-    for rel in ("site_v2/src/lib/metricRows.ts",
-                "site_v2/src/components/team/DeservedHero.astro"):
+    for rel in ("site_v2/src/data/metric_rows.json",
+                "site_v2/src/components/team/TeamDeserved.astro"):
         asked |= set(pattern.findall((root / rel).read_text(encoding="utf-8")))
     assert len(asked) >= 18, f"only {len(asked)} keys found in the consumers"
 

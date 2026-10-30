@@ -1,37 +1,38 @@
 ---
-// Team page (screen 02) — the v2 design system's second real screen, from the
-// approved mock f6348775. URL: /{lang}/{teams word}/{team-slug}/ (site_architecture.md).
-// This increment builds the OVERVIEW tab from ONE committed real team across the three
-// locales; Performance and Squad are chrome + the honest coming-state (their data
-// binding — benchmarks GAP-23, roster GAP-20 + the metricRows.ts 16-row contract — is
-// the next PR). The page only COMPOSES the shared components in mock order; it holds no
-// styling and derives no facts.
+// The Team page (screen 02). URL: /{lang}/{teams word}/{team-slug}/ (site_architecture.md).
+// One season, the featured one (`is_featured_season`); only the blocks that look ahead show what
+// comes next. Three tabs: Overview (Competitions, Recent matches, Next matches, Highs and lows,
+// Squad), Matches (the Filter bar, Upcoming, Results) and Performance (the tab's explainer,
+// Standing, Deserved points, Compared with the league, Compared with last season). The page
+// composes the shared elements; it holds no styling and derives no facts.
 import Layout from "../../../layouts/Layout.astro";
 import TeamHeader from "../../../components/team/TeamHeader.astro";
 import Tabs from "../../../components/team/Tabs.astro";
-import RecordStrip from "../../../components/team/RecordStrip.astro";
-import DeservedHero from "../../../components/team/DeservedHero.astro";
-import YearOverYear from "../../../components/team/YearOverYear.astro";
-import TeamFixtures from "../../../components/team/TeamFixtures.astro";
-import TeamPerformance from "../../../components/team/TeamPerformance.astro";
+import TeamCompetitions from "../../../components/team/TeamCompetitions.astro";
+import TeamFixtureGroup from "../../../components/team/TeamFixtureGroup.astro";
+import TeamHighsLows from "../../../components/team/TeamHighsLows.astro";
 import TeamSquad from "../../../components/team/TeamSquad.astro";
+import TeamMatches from "../../../components/team/TeamMatches.astro";
+import TeamStanding from "../../../components/team/TeamStanding.astro";
+import TeamDeserved from "../../../components/team/TeamDeserved.astro";
+import TeamLeagueStrips from "../../../components/team/TeamLeagueStrips.astro";
+import TeamLastSeason from "../../../components/team/TeamLastSeason.astro";
+import RecentMatch from "../../../components/fixture/RecentMatch.astro";
 import SectionHead from "../../../components/ui/SectionHead.astro";
-import { t, BRAND } from "../../../i18n/strings";
+import { t } from "../../../i18n/strings";
 import { localeHref, word } from "../../../lib/href";
+import { competitionInfo } from "../../../lib/teamFixtures";
 import type { Lang } from "../../../lib/format";
-import type { Team, TeamSeason } from "../../../lib/types";
-import competitions from "../../../data/competitions.json";
+import type { Team, TeamRef, TeamSeason } from "../../../lib/types";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 export function getStaticPaths() {
   const locales: Lang[] = ["de", "en", "fi"];
-  // Every team the export wrote to src/data/teams/*.json becomes a page. Dev/PR: the committed
-  // sample(s); production: the full export populated into the dir at build time (the bulk is
-  // gitignored, never committed). One page per team x 3 locales. Read from disk inside
-  // getStaticPaths (Astro extracts this fn in isolation, so a module-level const is out of scope);
-  // an import would bundle every team file into the build's JavaScript, which runs out of memory.
-  // Only the file name travels as a prop: Astro holds every route's props until the build ends.
+  // Every team the export wrote to src/data/teams/*.json becomes a page, per locale. Read from disk
+  // inside getStaticPaths (Astro extracts this function alone); an import would bundle every team
+  // file into the build's JavaScript, which runs out of memory. Only the file name travels as a
+  // prop: Astro holds every route's props until the build ends.
   const dir = join(process.cwd(), "src/data/teams");
   const teams = readdirSync(dir)
     .filter((name) => name.endsWith(".json"))
@@ -52,29 +53,25 @@ interface Props {
 const { file, lang } = Astro.props;
 const team = JSON.parse(readFileSync(join(process.cwd(), "src/data/teams", file), "utf8")) as Team;
 
-// The season this page opens on is decided in the warehouse and served on the row (#846).
-// This is a lookup of a flag, not a choice: the rule used to be written here, again on the
-// player page in different code, and a third time in the export, and the three had already
-// drifted. Exactly one season carries the flag, asserted by a dbt test, so the `!` is the
-// contract rather than an assumption.
-// Reaching a season OTHER than this one is #882 and does not exist yet: there is no season
-// segment in the URL and no selector, so today this is the only season a reader can see.
+// Exactly one season carries the flag, asserted by a dbt test.
 const season: TeamSeason = team.seasons.find((s) => s.is_featured_season)!;
+const compName = competitionInfo(season.league_code).name;
+const name = team.name ?? "";
+const self: TeamRef = { team_id: team.team_id, name, slug: team.slug, crest: team.crest ?? null };
+const schedule = team.schedule ?? { upcoming: [], results: [] };
+const competitions = season.competitions ?? [];
+const recent = team.recent_matches ?? [];
+const nextMatches = schedule.upcoming.filter((fx) => fx.upcoming_rank === 1);
 
-const comp = (competitions as Record<string, { slug: string; name?: string }>)[season.league_code];
-const compName = comp?.name ?? season.league_code;
+const hasMatches = schedule.upcoming.length > 0 || schedule.results.length > 0;
+const hasPerformance = season.latest_rank != null || season.points_this_season != null
+  || (season.benchmarks ?? []).some((b) => b.metric_value != null);
+const pages = (["overview", "matches", "performance"] as const).filter(
+  (p) => p === "overview" || (p === "matches" ? hasMatches : hasPerformance),
+);
 
-// Title/description per 02_team_profile.md section 8, THROUGH t() (#844). Before this they were
-// built by string concatenation from `team.name` + `compName`, both of which are locale-independent
-// (the registry carries ONE `name` per competition), so all three locales shipped byte-identical
-// <title> and <meta description>. The descriptive words are the entire locale signal.
-// No numbers here until #838: `points` is a synthetic 3-1-0 tally, so a templated "N points" would
-// put a known-false figure into a surface search engines cache separately from the page.
-const title = t(lang, "seoTeamTitle", { team: team.name ?? "" });
-const description = t(lang, "seoTeamDesc", { team: team.name ?? "", competition: compName });
-
-// schema.org/SportsTeam per the same section. Selection only — every value is a served payload
-// field; nothing here is computed.
+const title = t(lang, "seoTeamTitle", { team: name });
+const description = t(lang, "seoTeamDesc", { team: name, competition: compName });
 const entity = {
   "@type": "SportsTeam",
   name: team.name ?? undefined,
@@ -82,17 +79,14 @@ const entity = {
   ...(team.crest ? { logo: team.crest } : {}),
   ...(team.founded_year ? { foundingDate: String(team.founded_year) } : {}),
   ...(team.country ? { location: { "@type": "Place", name: team.country } } : {}),
-  ...(comp?.name ? { memberOf: { "@type": "SportsOrganization", name: comp.name } } : {}),
+  memberOf: { "@type": "SportsOrganization", name: compName },
 };
+// "Teams" links to the Teams page once the build makes one.
 const crumbs = [
   { name: t(lang, "crumbHome"), href: localeHref(lang) },
   { name: t(lang, "crumbTeams") },
-  { name: team.name ?? "" },
+  { name },
 ];
-
-// Explore chips (SEO/navigation) — inert this increment; the league table and
-// top-scorers pages are not built yet.
-const linkChips = [t(lang, "table"), t(lang, "topScorers")];
 ---
 
 <Layout
@@ -103,7 +97,6 @@ const linkChips = [t(lang, "table"), t(lang, "topScorers")];
   crumbs={crumbs}
   image={team.crest ?? undefined}
   section="teams"
-  legacyWidth
 >
   <div class="inner">
     <nav class="crumb" aria-label={t(lang, "crumbAria")}>
@@ -111,41 +104,48 @@ const linkChips = [t(lang, "table"), t(lang, "topScorers")];
       <span class="sep">›</span>
       <span>{t(lang, "crumbTeams")}</span>
       <span class="sep">›</span>
-      <span class="here">{team.name}</span>
+      <span class="here">{name}</span>
     </nav>
 
     <TeamHeader team={team} season={season} lang={lang} />
 
-    {/* Hidden radios drive the JS-free tab toggle; the checked one shows its .page (CSS). */}
-    <input type="radio" name="team-tab" id="tab-overview" class="tab-in" checked />
-    <input type="radio" name="team-tab" id="tab-performance" class="tab-in" />
-    <input type="radio" name="team-tab" id="tab-squad" class="tab-in" />
-    <Tabs lang={lang} />
+    {pages.map((p) => <input type="radio" name="team-tab" id={`tab-${p}`} class="tab-in" checked={p === "overview"} />)}
+    <Tabs lang={lang} pages={[...pages]} />
 
     <div class="page" data-page="overview">
-      <RecordStrip season={season} lang={lang} />
+      <TeamCompetitions competitions={competitions} lang={lang} />
+      {recent.length > 0 && (
+        <section>
+          <SectionHead label={t(lang, "secRecent")} />
+          <div class="rlist">{recent.map((m) => <RecentMatch match={m} lang={lang} />)}</div>
+        </section>
+      )}
+      {nextMatches.length > 0 && (
+        <section>
+          <SectionHead label={t(lang, "homeNext")} />
+          {nextMatches.map((fx) => (
+            <TeamFixtureGroup code={fx.league_code} fixtures={[fx]} team={self} lang={lang} nextId={nextMatches[0].fixture_id} />
+          ))}
+        </section>
+      )}
+      <TeamHighsLows season={season} lang={lang} />
+      <TeamSquad squad={season.squad ?? []} lang={lang} />
+    </div>
 
-      <section aria-label={t(lang, "secDeserved")}>
-        <SectionHead label={t(lang, "secDeserved")} />
-        <DeservedHero season={season} teamName={team.name ?? ""} compName={compName} lang={lang} />
-      </section>
-
-      <YearOverYear season={season} lang={lang} />
-      <TeamFixtures season={season} lang={lang} />
-
-      <div class="linkrow">
-        {linkChips.map((c) => <span class="linkchip">{c}</span>)}
+    {hasMatches && (
+      <div class="page" data-page="matches">
+        <TeamMatches schedule={schedule} competitions={competitions} team={self} lang={lang} />
       </div>
-    </div>
+    )}
 
-    <div class="page" data-page="performance">
-      <TeamPerformance season={season} teamName={team.name ?? ""} compName={compName} lang={lang} />
-    </div>
-
-    <div class="page" data-page="squad">
-      <TeamSquad season={season} teamName={team.name ?? ""} compName={compName} lang={lang} />
-    </div>
-
-    <div class="footnote">{t(lang, "teamFootnote", { brand: BRAND })}</div>
+    {hasPerformance && (
+      <div class="page" data-page="performance">
+        <p class="bsub tab-intro">{t(lang, "teamPerfIntro", { competition: compName, season: season.season_label ?? "", team: name })}</p>
+        <TeamStanding season={season} lang={lang} />
+        <TeamDeserved season={season} teamName={name} compName={compName} lang={lang} />
+        <TeamLeagueStrips season={season} teamName={name} compName={compName} lang={lang} />
+        <TeamLastSeason season={season} lang={lang} />
+      </div>
+    )}
   </div>
 </Layout>

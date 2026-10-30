@@ -1,5 +1,7 @@
 # 11 — Team → Squad
 
+> **Retired.** The Team page has no Squad tab: the squad is the last block of its Overview ([02](02_team_profile.md)).
+
 > **SUPERSEDED IN PART, 2026-07-24 (Squad tab built):** this spec was written identity-only.
 > The CPO approved the FULL squad mock `f6348775` (AskUserQuestion 2026-07-23), so the built Squad
 > tab now shows **per-player appearances · mins/app · goals · assists**, grouped by position, on top

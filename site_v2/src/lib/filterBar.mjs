@@ -16,10 +16,13 @@ export function leavesARow(rows, want) {
 function start() {
   for (const bar of document.querySelectorAll(".fbar")) {
     const scope = bar.parentElement;
-    const rows = [...scope.querySelectorAll(".categories [data-entity-type], .categories [data-confederation]")]
-      .map((e) => ({ entity: e.dataset.entityType || "", region: e.dataset.confederation || "" }));
-    const names = ["entity-filter", "region-filter"].filter((n) => scope.querySelector(`input[name="${n}"]`));
-    const key = { "entity-filter": "entity", "region-filter": "region" };
+    const rows = [...scope.querySelectorAll(
+      ".categories [data-entity-type], .categories [data-confederation], .categories [data-competition-slot]")]
+      .map((e) => ({
+        entity: e.dataset.entityType || "", region: e.dataset.confederation || "", competition: e.dataset.competitionSlot || "",
+      }));
+    const names = ["entity-filter", "region-filter", "competition-filter"].filter((n) => scope.querySelector(`input[name="${n}"]`));
+    const key = { "entity-filter": "entity", "region-filter": "region", "competition-filter": "competition" };
     const value = (n) => scope.querySelector(`input[name="${n}"]:checked`)?.value ?? "";
     const fits = (n, v) => leavesARow(rows, Object.fromEntries(names.map((m) => [key[m], m === n ? v : value(m)])));
     const full = Object.fromEntries(names.map((n) => {

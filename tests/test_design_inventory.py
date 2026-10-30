@@ -124,7 +124,7 @@ def test_the_content_column_header_and_footer_share_the_page_width():
     pages = SYSTEM_CSS.parent.parent / "pages"
     keep = sorted(p.relative_to(pages).as_posix() for p in pages.rglob("*.astro")
                   if re.search(r"\blegacyWidth\b", p.read_text(encoding="utf-8")))
-    assert keep == ["[lang]/[players]/[player].astro", "[lang]/[teams]/[team].astro"], keep
+    assert keep == ["[lang]/[players]/[player].astro"], keep
 
 
 def test_a_width_condition_limits_an_assertion_to_its_viewports(tmp_path):

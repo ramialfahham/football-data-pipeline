@@ -19,74 +19,75 @@
   },
   "blocks": [
     {
-      "block": "Team header",
+      "block": "Team header and tabs",
       "mart": "mart_team_profile",
-      "i18n_keys": ["crumbTeams", "founded", "teamPlayed"]
+      "i18n_keys": ["crumbTeams", "founded", "compSeason", "tabOverview", "navMatches", "tabPerformance", "tabsAria"]
     },
     {
-      "block": "Deserved-vs-actual (flagship)",
+      "block": "Competitions",
+      "mart": "mart_team_competitions",
+      "i18n_keys": ["navCompetitions", "teamLeaguePhase", "teamThrough", "teamKnockedOut", "teamWinners", "compColWins", "compColDraws", "compColLosses", "compColGoals", "compColPoints"]
+    },
+    {
+      "block": "Recent matches",
+      "mart": "mart_team_momentum_window",
+      "i18n_keys": ["secRecent", "haHome", "haAway"]
+    },
+    {
+      "block": "Next matches, Upcoming and Results",
+      "mart": "mart_team_fixtures",
+      "i18n_keys": ["homeNext", "compNextTag", "teamUpcoming", "teamResults", "filterByCompetition", "filterAllCompetitions", "filterAll"]
+    },
+    {
+      "block": "Highs and lows",
+      "mart": "mart_team_profile",
+      "i18n_keys": ["teamHighsLows", "teamBiggestWin", "teamHeaviestDefeat", "teamVsHome", "teamAtAway", "compFactLongestUnbeaten", "compFactLongestWinless", "compFactMatches"]
+    },
+    {
+      "block": "Squad",
+      "mart": ["mart_roster", "mart_player_career"],
+      "i18n_keys": ["tabSquad", "squadGk", "squadDef", "squadMid", "squadFwd", "squadOther", "appearanceCountOne", "appearanceCount", "playerMetrics.minutesPerAppearance.label"]
+    },
+    {
+      "block": "Standing",
+      "mart": "mart_team_profile",
+      "i18n_keys": ["teamPerfIntro", "teamStanding", "teamPosition", "teamSeasonBefore", "metrics.points_won.label"]
+    },
+    {
+      "block": "Deserved points",
       "mart": "mart_team_profile",
       "i18n_keys": [
-        "secDeserved",
-        "metrics.shots_on_target_per_match.label",
-        "metrics.shots_on_goal_against_per_match.label",
+        "compDeservedExplainer",
+        "teamAfterMatches",
+        "teamOtherTeams",
+        "teamScatterAria",
+        "perMatch",
         "metrics.shots_on_goal_difference_per_match.label",
-        "heroVerdictUnder",
-        "heroVerdictOver",
-        "pointCountOne",
-        "pointCount",
-        "heroCaption",
-        "heroNoData",
+        "metrics.shots_on_target_per_match.label",
         "metrics.points_won.label",
-        "axPlay",
-        "trendLabel"
+        "metrics.deserved_points.label",
+        "metrics.deserved_points_gap.label"
       ]
     },
     {
-      "block": "Season-over-season",
-      "mart": "mart_team_profile",
-      "i18n_keys": ["secYoY", "metrics.points_won.label", "metrics.goals.label", "metrics.goals_against.label", "yoyThroughGames", "noYoY"]
-    },
-    {
-      "block": "Upcoming / Results",
-      "mart": "mart_team_fixtures",
-      "i18n_keys": ["secFixtures", "fxHome", "fxAway", "fxNext", "linkFixtures"]
-    },
-    {
-      "block": "Vs-benchmark (bars vs league avg + percentile)",
+      "block": "Compared with the league and with last season",
       "mart": "mart_team_competition_benchmarks",
       "i18n_keys": [
-        "vsLeague",
-        "vsLastSeason",
-        "median",
-        "rankOfCount",
-        "notRankable",
-        "rankedInLeague",
-        "vsPriorSeasonGames",
-        "unitPp",
-        "noYoY",
-        "metrics.goals_per_match.label",
-        "metrics.goals_against_per_match.label",
-        "metrics.clean_sheets_pct.label",
-        "metrics.shots_per_match.label",
-        "metrics.shots_inside_box_pct.label",
-        "metrics.shots_on_target_per_match.label",
-        "metrics.finishing_efficiency_pct.label",
-        "metrics.duels_per_match.label",
-        "metrics.duels_won_pct.label",
-        "metrics.defensive_actions_per_match.label",
-        "metrics.passes_per_match.label",
-        "metrics.passes_accuracy_pct.label",
-        "metrics.passes_key_per_match.label",
-        "metrics.corners_per_match.label",
-        "metrics.corners_against_per_match.label",
-        "metrics.saves_pct.label"
+        "teamVsLeague",
+        "teamVsLeagueIntro",
+        "teamLeagueMedian",
+        "teamBetterLeft",
+        "teamBetterRight",
+        "teamVsLastSeason",
+        "teamVsLastSeasonIntro",
+        "teamThisSeasonHead",
+        "teamLastSeasonHead",
+        "teamTrend",
+        "teamTrendBetter",
+        "teamTrendWorse",
+        "teamTrendSame",
+        "showAllMetrics"
       ]
-    },
-    {
-      "block": "Squad / roster",
-      "mart": ["mart_roster", "mart_player_career"],
-      "i18n_keys": ["squadGk", "squadDef", "squadMid", "squadFwd", "squadShown", "squadEmpty", "appOne", "appMany", "minsPerApp"]
     }
   ]
 }
