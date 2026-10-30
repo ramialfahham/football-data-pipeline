@@ -1,6 +1,139 @@
 version: 2
 
 models:
+  - name: int_team_season__table_legs
+    description: >
+      Every leg a domestic league season holds, for its official table at every kick-off: each
+      team's league match legs with their round kind, and each result the official table held for
+      a time and that was later annulled (standings_temporary_results), as one leg per team. A leg
+      counts in the table from counts_from, until counts_until where it is set.
+      Grain: (league_code, season_api_year, team_sk, leg_key).
+    config:
+      tags: ["intermediate", "football", "team_season"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season_api_year, team_sk, leg_key]
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: leg_key
+        description: "The leg's identifier within its team and season: the match's fixture_sk, or 'temporary-' and the date a temporary result took effect."
+        tests: [not_null]
+      - name: fixture_sk
+        description: "{{ doc('fixture_sk') }} Empty for a temporary result."
+        tests:
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: kickoff_datetime
+        description: "{{ doc('kickoff_datetime') }} Empty for a temporary result."
+      - name: team_sk
+        description: "{{ doc('team_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: opponent_team_sk
+        description: "{{ doc('opponent_team_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: home_away
+        description: "{{ doc('home_away') }}"
+        tests:
+          - accepted_values:
+              values: ["home", "away"]
+      - name: goals
+        description: "Goals the team scored in the leg."
+      - name: goals_against
+        description: "Goals the team conceded in the leg."
+      - name: result
+        description: "{{ doc('result') }}"
+      - name: points
+        description: "Table points the leg gives the team: 3 for a win, 1 for a draw, plus 1 for a shoot-out win where the league awards it."
+      - name: round_stage_kind
+        description: "The kind of round the match belongs to; table for a match that counts in the table, and for a temporary result."
+      - name: counts_from
+        description: "When the leg starts counting in the table: the kick-off, or the day a temporary result took effect."
+        tests: [not_null]
+      - name: counts_until
+        description: "When a temporary result stops counting: the day after it was annulled. Empty for a match."
+      - name: is_temporary
+        description: "True for a result the official table held for a time and that was later annulled."
+        tests: [not_null]
+
+  - name: int_team_season__table_state
+    description: >
+      Every team's state in a domestic league's official table at every kick-off of its season,
+      before any ordering: matches played, points won, table points after the deductions in effect
+      that day, goals, wins, away wins and goals, the previous season's final place, and the phase.
+      Only seasons with one table per team whose results give every team the table's goals through
+      its matches played. Grain: (league_code, season_api_year, group_name, table_at, team_sk).
+    config:
+      tags: ["intermediate", "football", "team_season"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season_api_year, group_name, table_at, team_sk]
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: group_name
+        description: "The section of the official table the team is ranked in: the league's table, or a conference."
+        tests: [not_null]
+      - name: table_at
+        description: "The moment of the table: a league match's kick-off time in UTC. The table counts every table match kicked off by then."
+        tests: [not_null]
+      - name: team_sk
+        description: "{{ doc('team_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: played
+        description: "Table matches the team has played by then."
+        tests: [not_null]
+      - name: points_from_results
+        description: "{{ doc('points_won') }} Here, over the table matches played by then."
+        tests: [not_null]
+      - name: goal_difference
+        description: "Goals scored minus goals conceded in the table matches played by then."
+        tests: [not_null]
+      - name: goals_for
+        description: "{{ doc('goals') }} Here, in the table matches played by then."
+        tests: [not_null]
+      - name: wins
+        description: "{{ doc('wins') }} Here, in the table matches played by then."
+        tests: [not_null]
+      - name: away_wins
+        description: "Table matches the team has won away by then."
+        tests: [not_null]
+      - name: away_goals
+        description: "Goals the team has scored away in the table matches played by then."
+        tests: [not_null]
+      - name: previous_position
+        description: "The team's final place in the previous season's table of the league, where that season had one table per team; empty otherwise."
+      - name: table_points
+        description: "{{ doc('table_points') }}"
+        tests: [not_null]
+      - name: phase
+        description: "Which rules order the table: in_season, or end_of_season once a finished season's teams have all played their table matches."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["in_season", "end_of_season"]
+
   - name: int_team_season__table_by_time
     description: >
       A domestic league's official table at every kick-off of its season. One row per team and
