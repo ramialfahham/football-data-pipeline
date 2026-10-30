@@ -47,6 +47,13 @@ Applying head-to-head points whenever every pair has met misplaces three teams o
 at 2025-26 matchday 20, where some pairs had met twice and others once. The changed tests are
 dry-run valid (202.7 MB; the new version test 0 B); pytest 1,612 passed, 2 skipped.
 
+Peña Sport-Huesca, Copa del Rey first round 2026-27 (provider fixture 1644366, 1-5): the
+provider's goal events hold the five Huesca goals and miss Peña Sport's, so main's build after the
+first merge failed assert_mart_competition_fixtures_goals_add_up on goals_not_reconciled and skipped
+mart_match_days and mart_team_competitions. The RFEF match sheet (resultados.rfef.es, acta
+70705538, read 2026-10-30) gives Aznar 22', Collado 31', García 55', Recalde 66' (Peña Sport),
+Redondo 67', Gorostidi 89', all plain goals; fixture_goal_corrections holds them with that source.
+
 criteria_demonstrated:
   - standings_points_adjustments holds 22 dated deduction steps (Everton 3, Juventus 3, Adana Demirspor 3, Napoli 2 netting to zero, one each for the others) and the 38 halving rows undated; the seed's tests: unique per league, season, team, section and date; every step changes the points and every deduction is dated.
   - league_tiebreak_rules holds the regulations of BL1, BL2, PL, PD, SA, L1, ED, LP, TSL, SPL (from 2026), EKS (from 2023), BSA, MLS and J1 by first season and phase, each row with its source; seasons with no official text hold points alone; criterion, condition and phase are tested to closed lists.

@@ -33,6 +33,7 @@ scope_paths:
   - dbt_project/seeds/league_tiebreak_rules.csv
   - dbt_project/seeds/standings_temporary_results.csv
   - dbt_project/seeds/standings_corrections.csv
+  - dbt_project/seeds/fixture_goal_corrections.csv
   - dbt_project/seeds/schema.yml
   - dbt_project/seeds/metric_catalogue.csv
   - dbt_project/seeds/metric_map.csv
@@ -118,4 +119,8 @@ amendments: >
   head-to-head pass groups by every criterion before it. Saudi Pro League during the season: teams
   level on points, goal difference and goals are ordered by last season's place, as the
   regulation says, approved in chat, 2026-10-29; the provider orders them another way and no
-  league table of those dates exists, so the test does not compare those places.
+  league table of those dates exists, so the test does not compare those places. The build of
+  main after the first merge failed assert_mart_competition_fixtures_goals_add_up on Peña
+  Sport-Huesca, Copa del Rey first round 2026-27: the provider's goal events miss the home goal
+  of the 1-5. fixture_goal_corrections, which enters scope, gains the six goals of the RFEF match
+  sheet, approved in chat, 2026-10-30.
