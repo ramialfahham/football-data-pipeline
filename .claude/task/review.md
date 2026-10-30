@@ -1,6 +1,6 @@
 # Review — feat/235-table-exact — 2026-10-30
 
-diff_sha256: 22fcf625d95bf79549fab2ed11fdc76f53137c21aed42ad1ab7b8d54aeb6d838
+diff_sha256: 0c98e81a307f8db45e9b6cf6c0f484447f35423c51e5d34fd83a29e10aced790
 
 rounds: 6
 
