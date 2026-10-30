@@ -3463,13 +3463,9 @@ models:
           - accepted_values:
               values: ["club", "national"]
       - name: appearances
-        description: >
-          Finished matches the player actually PLAYED for this club that competition-season, that
-          is minutes > 0. 0 is legitimate rather than missing: a squad member who was never
-          brought on keeps his row. NULL when a match's minutes are unknown or the club has a
-          match with no player data at all.
+        description: "{{ doc('appearances') }}"
       - name: minutes
-        description: "Minutes played at this club that competition-season (carried up unchanged from int_player_club_season__metrics; a playing-time dimension, not a catalogue metric — exempt in assert_no_uncatalogued_season_metric). NULL under the same conditions as appearances."
+        description: "Minutes played at this club that competition-season (carried up unchanged from int_player_club_season__metrics; a playing-time dimension, not a catalogue metric — exempt in assert_no_uncatalogued_season_metric). NULL when a match's minutes are unknown or the club has a played match with no player data."
       - name: minutes_per_appearance
         description: "{{ doc('minutes_per_appearance') }}"
       - name: national_appearances_total

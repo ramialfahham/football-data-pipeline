@@ -6,8 +6,8 @@
   the registry, and they cannot silently diverge.
 
   Non-metric columns are excluded: surrogate / foreign keys (*_sk), the coverage counts, the
-  *_sum_season raw intermediates, and the playing-time facts (appearances / starts / subs /
-  minutes) which are dimensions, not metrics.
+  *_sum_season raw intermediates, and the playing-time facts (starts / subs / minutes) which are
+  dimensions, not metrics.
 
   Naming is normalised to the catalogue's metric_id: #500 Stage 2 has renamed the team-season model
   columns to catalogue-id names (no `_season` suffix), so the strip here is now a defensive no-op;
@@ -34,7 +34,7 @@
     'season_games_played', 'season_matchdays_used', 'stat_coverage_season_games',
     'player_stat_coverage_season_games', 'games_with_team_stats',
     'games_expecting_team_stats', 'entity_type',
-    'appearances', 'starts', 'substitute_appearances', 'minutes', 'last_kickoff_at'
+    'starts', 'substitute_appearances', 'minutes', 'last_kickoff_at'
 ] %}
 
 {% set rows = [] %}

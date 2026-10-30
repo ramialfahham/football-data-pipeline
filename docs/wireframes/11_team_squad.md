@@ -120,8 +120,9 @@ Squad members come from the selected season's `squad[]`. All keys **wired** (GAP
 | Goals | `squad[].goals` | `mart_player_career.goals_player` | competition-season |
 | Assists | `squad[].assists` | `mart_player_career.assists_player` | competition-season |
 
-Position-group header labels are **new i18n keys** (copy work, not metric labels). Only
-`minutes_per_appearance` is a catalogue metric; appearances / goals / assists are dimensions.
+Position-group header labels are **new i18n keys** (copy work, not metric labels). Every
+value in a row is a catalogue metric: `appearances`, `minutes_per_appearance`, `goals_player`,
+`assists_player`.
 (Was: "No metric rows — mart_roster is identity-only.")
 
 ### (5) Internal links

@@ -391,7 +391,7 @@ seeds:
           family keeps the same group on its team row and its player row. Populated on every row.
 
           `outcomes` covers the points and standing metrics (points won, points capture, league
-          rank, and the deserved trio); `playing_time` covers minutes_per_appearance.
+          rank, and the deserved trio); `playing_time` covers appearances and minutes_per_appearance.
         tests:
           - not_null
           - accepted_values:
