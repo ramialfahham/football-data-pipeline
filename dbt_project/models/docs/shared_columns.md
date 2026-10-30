@@ -211,6 +211,12 @@ researched team sheet decides where it names the player; elsewhere the provider'
 {% enddocs %}
 
 
+{% docs table_points %}
+Points in the official league table: the points won less the points the league had taken off the
+team by then.
+{% enddocs %}
+
+
 {% docs is_table_shootout_win %}
 True where the team won a shoot-out after a drawn match in a league table round. Such a win gives
 the team 2 points instead of 1. A shoot-out in a cup or play-off round is false.

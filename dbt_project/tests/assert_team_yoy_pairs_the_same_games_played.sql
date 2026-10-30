@@ -2,9 +2,10 @@
   int_team_profile__yoy compares each team's current domestic league season through its N matches
   played with the same team's previous season in that league through its first N (fewer if that
   season had fewer), recomputed here from int_legs__team_match: the team's latest season in the
-  league, its match count N, the previous season's cutoff, and the points and goals on each side,
-  summed over exactly those matches (a forfeit counts in both, as in the league table). The
-  previous side is empty when the team did not play the league the season before.
+  league, its match count N, the previous season's cutoff, and the goals on each side, summed over
+  exactly those matches (a forfeit counts in both, as in the league table). The points on each
+  side are the rebuilt table's (int_team_season__table_by_time) at the kick-off of that side's
+  last match. The previous side is empty when the team did not play the league the season before.
 
   One row per (team, league) whose pairing or totals differ, or that exists on one side only.
 #}
@@ -17,7 +18,7 @@ with domestic_legs as (
         l.season_api_year,
         l.goals,
         l.goals_against,
-        case l.result when 'W' then 3 when 'D' then 1 else 0 end + if(l.is_table_shootout_win, 1, 0) as points,
+        l.kickoff_datetime,
         row_number() over (
             partition by l.team_sk, l.league_code, l.season_api_year
             order by l.kickoff_datetime asc, l.fixture_sk asc
@@ -39,15 +40,15 @@ current_seasons as (
     qualify row_number() over (partition by team_sk, league_code order by season_api_year desc) = 1
 ),
 
-expected as (
+expected_sums as (
     select
         c.team_sk,
         c.league_code,
         c.season_api_year,
         c.games_played as cutoff,
         max(if(d.season_api_year = c.season_api_year - 1, d.match_number, null)) as games_played_prev,
-        sum(if(d.season_api_year = c.season_api_year, d.points, 0)) as points_this_season,
-        sum(if(d.season_api_year = c.season_api_year - 1, d.points, null)) as points_prev_season,
+        max(if(d.season_api_year = c.season_api_year, d.kickoff_datetime, null)) as kickoff_this_season,
+        max(if(d.season_api_year = c.season_api_year - 1, d.kickoff_datetime, null)) as kickoff_prev_season,
         sum(if(d.season_api_year = c.season_api_year, d.goals, 0)) as goals_this_season,
         sum(if(d.season_api_year = c.season_api_year - 1, d.goals, null)) as goals_prev_season,
         sum(if(d.season_api_year = c.season_api_year, d.goals_against, 0)) as goals_against_this_season,
@@ -60,6 +61,26 @@ expected as (
             and d.season_api_year in (c.season_api_year, c.season_api_year - 1)
             and d.match_number <= c.games_played
     group by c.team_sk, c.league_code, c.season_api_year, c.games_played
+),
+
+expected as (
+    select
+        s.*,
+        cur_t.table_points as points_this_season,
+        prev_t.table_points as points_prev_season
+    from expected_sums as s
+    left join {{ ref('int_team_season__table_by_time') }} as cur_t
+        on
+            s.team_sk = cur_t.team_sk
+            and s.league_code = cur_t.league_code
+            and s.season_api_year = cur_t.season_api_year
+            and s.kickoff_this_season = cur_t.table_at
+    left join {{ ref('int_team_season__table_by_time') }} as prev_t
+        on
+            s.team_sk = prev_t.team_sk
+            and s.league_code = prev_t.league_code
+            and s.season_api_year - 1 = prev_t.season_api_year
+            and s.kickoff_prev_season = prev_t.table_at
 ),
 
 model as (
@@ -92,7 +113,7 @@ where
     or e.season_api_year != m.season_api_year
     or e.cutoff != m.cutoff
     or e.games_played_prev is distinct from m.games_played_prev
-    or e.points_this_season != m.points_this_season
+    or e.points_this_season is distinct from m.points_this_season
     or e.points_prev_season is distinct from m.points_prev_season
     or e.goals_this_season != m.goals_this_season
     or e.goals_prev_season is distinct from m.goals_prev_season

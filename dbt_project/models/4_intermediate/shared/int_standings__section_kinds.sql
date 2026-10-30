@@ -2,7 +2,7 @@
   What kind of table each standings section is: one row per distinct section name in
   fct_standings, with the kind of the lowest-priority standings_table_kinds pattern that matches
   it (ranking, split_round, group, conference), and league where none does. mart_standings and
-  int_team_season__position_by_match read it, so a section has one kind everywhere.
+  int_team_season__table_by_time read it, so a section has one kind everywhere.
 
   Grain: (group_name).
 #}

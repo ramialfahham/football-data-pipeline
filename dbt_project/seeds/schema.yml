@@ -875,16 +875,18 @@ seeds:
 
   - name: standings_points_adjustments
     description: >
-      The points a league took from a team in its official table, one row per table row whose
-      points are below 3 x its wins + draws: a deduction, or the halving some leagues apply before
-      their play-offs, each naming its official source. assert_team_season_equals_league_table
-      fails when a table row's points are not 3 x wins + draws less the points taken declared here.
+      The points a league took from a team in its official table: a deduction, or the halving some
+      leagues apply before their play-offs, each naming its official source. A deduction is one row
+      per step that changed the table, with the date it took effect; a step that gave points back
+      takes a negative number. A table row's points are the points won less the sum of its steps.
+      assert_team_season_equals_league_table fails where they are not.
     config:
       column_types:
         league_code: string
         season: int64
         team_id: int64
         group_name: string
+        effective_date: date
         points_taken: int64
         rule: string
         source_kind: string
@@ -892,10 +894,10 @@ seeds:
         note: string
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [league_code, season, team_id, group_name]
+          combination_of_columns: [league_code, season, team_id, group_name, effective_date]
       - dbt_utils.expression_is_true:
-          expression: "points_taken >= 1"
-          name: standings_points_adjustments_take_points
+          expression: "points_taken != 0 and (rule != 'deduction' or effective_date is not null)"
+          name: standings_points_adjustments_dated_steps
     columns:
       - name: league_code
         description: "{{ doc('league_code') }}"
@@ -909,8 +911,10 @@ seeds:
       - name: group_name
         description: "The provider's table name the row belongs to, as in base_apif__standings."
         tests: [not_null]
+      - name: effective_date
+        description: "The day the step took effect in the official table; a step decided before the season starts takes the decision's date. Empty for a halving."
       - name: points_taken
-        description: "The points the league took from the team in this table, at least 1: 3 x wins + draws less the table's points."
+        description: "The points this step took from the team; negative where a step gave points back."
         tests: [not_null]
       - name: rule
         description: "deduction = points taken as a sanction; halving = the league's halving of the regular-season points before its play-offs."
@@ -929,6 +933,120 @@ seeds:
         tests: [not_null]
       - name: note
         description: "The team, the season and the decision, in words."
+        tests: [not_null]
+
+  - name: standings_temporary_results
+    description: >
+      A result the official league table held for a time and that was later annulled, such as an
+      awarded win before the match was ordered replayed. One row per match and period, with its
+      official sources. int_team_season__table_by_time counts the result for both teams at every
+      kick-off from from_date to to_date.
+    config:
+      column_types:
+        league_code: string
+        season: int64
+        home_team_id: int64
+        away_team_id: int64
+        home_goals: int64
+        away_goals: int64
+        from_date: date
+        to_date: date
+        source: string
+        note: string
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season, home_team_id, away_team_id, from_date]
+      - dbt_utils.expression_is_true:
+          expression: "from_date <= to_date and home_goals >= 0 and away_goals >= 0"
+          name: standings_temporary_results_dates_and_score
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: home_team_id
+        description: "The provider's id of the home team."
+        tests: [not_null]
+      - name: away_team_id
+        description: "The provider's id of the away team."
+        tests: [not_null]
+      - name: home_goals
+        description: "The home team's goals in the result the table held."
+        tests: [not_null]
+      - name: away_goals
+        description: "The away team's goals in the result the table held."
+        tests: [not_null]
+      - name: from_date
+        description: "The first day the official table held the result."
+        tests: [not_null]
+      - name: to_date
+        description: "The last day the official table held the result."
+        tests: [not_null]
+      - name: source
+        description: "The URLs of the official decisions that gave and annulled the result, separated by a space."
+        tests: [not_null]
+      - name: note
+        description: "The match, the result and the decisions, in words."
+        tests: [not_null]
+
+  - name: league_tiebreak_rules
+    description: >
+      How each domestic league orders teams level on points, from its official regulation: one row
+      per league, first season, phase and criterion, in order. A version holds from its first
+      season until the league's next version. in_season orders the table during the season;
+      end_of_season orders the final table. A league-season or phase with no row is ordered by
+      points alone. undecidable marks the first criterion the results cannot settle.
+    config:
+      column_types:
+        league_code: string
+        from_season: int64
+        phase: string
+        criterion_order: int64
+        criterion: string
+        condition: string
+        source: string
+        provider_order_differs: boolean
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, from_season, phase, criterion_order]
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('competition_registry')
+              field: league_code
+      - name: from_season
+        description: "{{ doc('season_api_year') }} Here, the first season the version holds."
+        tests: [not_null]
+      - name: phase
+        description: "in_season = the table during the season; end_of_season = the final table."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["in_season", "end_of_season"]
+      - name: criterion_order
+        description: "The criterion's place in the version's order, 1 first."
+        tests: [not_null]
+      - name: criterion
+        description: "A criterion computed from the table matches: points, points_lost, goal_difference, goals, wins, away_wins, away_goals, previous_position (the final place the season before, a team not in the league then last), a head-to-head value among the level teams (h2h_), the same among the teams still level on every criterion before it (h2h2_), playoff_winner, or undecidable."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["points", "points_lost", "goal_difference", "goals", "wins", "away_wins", "away_goals", "previous_position", "h2h_points", "h2h_goal_difference", "h2h_goals", "h2h_away_goals", "h2h2_points", "h2h2_goal_difference", "h2h2_goals", "playoff_winner", "undecidable"]
+      - name: condition
+        description: "When the criterion counts: all_h2h_played = once the level teams have all played each other twice; all_h2h_met = once each level team has played every other at least once; two_teams_only or three_plus_only = by how many teams are level. Empty = always."
+        tests:
+          - accepted_values:
+              values: ["all_h2h_played", "all_h2h_met", "two_teams_only", "three_plus_only"]
+      - name: source
+        description: "The official regulation the version comes from, and the league's own standings where its published tables order teams otherwise, as URLs separated by a space; or why no official text was found, for a version that orders by points alone."
+        tests: [not_null]
+      - name: provider_order_differs
+        description: "True where the provider's tables order teams level on points otherwise than the league's own, so assert_team_table_equals_published_tables does not compare their places; the same on every row of a version."
         tests: [not_null]
 
   - name: player_match_cleaning_answer_key

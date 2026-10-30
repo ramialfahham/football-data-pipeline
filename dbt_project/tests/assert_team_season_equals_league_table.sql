@@ -45,7 +45,14 @@ league_table as (
 ),
 
 adjustments as (
-    select * from {{ ref('standings_points_adjustments') }}
+    select
+        league_code,
+        season,
+        team_id,
+        group_name,
+        sum(points_taken) as points_taken
+    from {{ ref('standings_points_adjustments') }}
+    group by league_code, season, team_id, group_name
 )
 
 select

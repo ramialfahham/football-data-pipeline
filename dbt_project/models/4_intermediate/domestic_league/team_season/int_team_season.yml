@@ -1,24 +1,37 @@
 version: 2
 
 models:
-  - name: int_team_season__position_by_match
+  - name: int_team_season__table_by_time
     description: >
-      A domestic league's table at every number of matches played. One row per team and match
-      number N of its season: its place after its Nth match, within its section of that season's
-      official table. Teams rank by points, then goal difference, then goals scored, and teams
-      level on all three share a place. Only seasons where every team sits in one league,
-      conference or group table are ranked, and only where the results give every team the
-      table's goals scored and conceded through its matches played. A place is ranked up to the
-      table's matches played. Grain: (team_sk, league_code, season_api_year, match_number).
+      A domestic league's official table at every kick-off of its season. One row per team and
+      moment: its matches played, table points and place in its section, counting every table
+      match kicked off by then, and a later annulled result from standings_temporary_results
+      between its dates. Table points are the points won less the deductions in effect that day. The place follows the league's regulation in league_tiebreak_rules for that season, in
+      the season or for the final table. Teams still level when the rules reach a criterion the
+      results cannot settle have no place. Only seasons with one table per team, whose results
+      give every team the table's goals through its matches played, and whose league has rules.
+      Grain: (league_code, season_api_year, group_name, table_at, team_sk).
     config:
       tags: ["intermediate", "football", "team_season"]
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [team_sk, league_code, season_api_year, match_number]
+          combination_of_columns: [league_code, season_api_year, group_name, table_at, team_sk]
       - dbt_utils.expression_is_true:
-          expression: "position_at_match >= 1 and match_number >= 1"
-          name: team_position_by_match_is_a_place
+          expression: "(table_position >= 1 or (table_position is null and is_level_after_rules)) and played >= 0"
+          name: team_table_by_time_place_or_level
     columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: group_name
+        description: "The section of the official table the team is ranked in: the league's table, or a conference."
+        tests: [not_null]
+      - name: table_at
+        description: "The moment of the table: a league match's kick-off time in UTC. The table counts every table match kicked off by then."
+        tests: [not_null]
       - name: team_sk
         description: "{{ doc('team_sk') }}"
         tests:
@@ -26,27 +39,35 @@ models:
           - relationships:
               to: ref('dim_team')
               field: team_sk
-      - name: league_code
-        description: "{{ doc('league_code') }}"
+      - name: phase
+        description: "Which rules order the table: in_season, or end_of_season once a finished season's teams have all played their table matches."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["in_season", "end_of_season"]
+      - name: played
+        description: "Table matches the team has played by then."
         tests: [not_null]
-      - name: season_api_year
-        description: "{{ doc('season_api_year') }}"
+      - name: points_from_results
+        description: "{{ doc('points_won') }} Here, over the table matches played by then."
         tests: [not_null]
-      - name: match_number
-        description: "The team's Nth match of the season in this league, counted by kickoff."
+      - name: table_points
+        description: "{{ doc('table_points') }}"
         tests: [not_null]
-      - name: group_name
-        description: "The section of the official table the team is ranked in: the league's table, or a conference."
-        tests: [not_null]
-      - name: points_won
-        description: "{{ doc('points_won') }} Here, through the Nth match."
       - name: goal_difference
-        description: "Goals scored minus goals conceded through the Nth match."
-      - name: goals_for
-        description: "{{ doc('goals') }} Here, through the Nth match."
-      - name: position_at_match
-        description: "The team's place in its section after its Nth match; teams level on points, goal difference and goals scored share a place."
+        description: "Goals scored minus goals conceded in the table matches played by then."
         tests: [not_null]
+      - name: goals_for
+        description: "{{ doc('goals') }} Here, in the table matches played by then."
+        tests: [not_null]
+      - name: points_taken
+        description: "Points the league had taken off the team by that day, from standings_points_adjustments."
+        tests: [not_null]
+      - name: is_level_after_rules
+        description: "True where another team of the section is level with this one on every criterion the rules apply."
+        tests: [not_null]
+      - name: table_position
+        description: "The team's place in its section by the league's rules; empty where it is level with another team at a criterion the results cannot settle."
 
   - name: int_team_season__standings_primary
     description: >

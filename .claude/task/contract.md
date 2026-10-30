@@ -1,39 +1,43 @@
-# Task contract — shoot-out points and last season's position for a season of two tournaments
+# Task contract — the official league table at every kick-off
 
 objective: >
-  Two errors in last season's position on the Team page (#235). A league match drawn and then
-  decided by a shoot-out gives the shoot-out winner 2 points (J1 2026 awarded them; the warehouse
-  counted 1), through a new team-leg column and the catalogue formulas of points_won and
-  points_capture_pct. A season whose results do not reproduce its official table through the
-  table's matches played (Argentina 2025: an Apertura and a Clausura, the stored table only the
-  Clausura) has no position, and a position is ranked only up to the table's matches played.
+  Goals, points, standings and results are exact at all times. The Team page's "Season before"
+  (#235) shows last season's points and place on the day the team played its Nth match. A new
+  intermediate rebuilds each domestic league's official table at every kick-off: table points are
+  the points won less the deductions in effect that day, and the order follows the league's own
+  regulation for that season, from a new rule seed with its official sources. A tie the results
+  cannot settle has no place. The rebuilt table must equal every published table the provider
+  gave us, as an error test, so a wrong value fails the build.
 
 refs: >
-  #235 (the Team page build). Approved in chat, 2026-10-28, with the fix plan: one MR for both
-  fixes; rule R3's sentence "A league match level at full time and decided by a shoot-out gives the
-  shoot-out winner 2 points and the loser 1."; points_won's description "Points the team won: 3 for
-  a win, 1 for a draw, none for a defeat. A league match drawn and then decided by a shoot-out gives
-  the shoot-out winner 2." and interpretation "Points tally in the window (3 per win / 1 per draw /
-  0 per loss; 2 for a league shoot-out win)"; and the formulas of points_won and points_capture_pct
-  counting a table shoot-out win as 2 points, written sum(case result when 'W' then 3 when 'D' then
-  1 else 0 end) + countif(is_table_shootout_win), with points_capture_pct's denominator and
-  description unchanged. The approved split-season rule (a season split into rounds shows "Season
-  before: –") is #134's and the build plan's.
+  #235 (the Team page build). The plan, approved in chat, 2026-10-29: dated deduction steps,
+  each league's tie-break rules from its regulation, table points for points_this_season and
+  points_prev_season, the checks as errors against the final tables and every published
+  snapshot, and the removal of the sentence that allowed a computed position from the metric
+  rules. points_rank's description "The team's place in its league table, with teams level on
+  points ordered by the league's own rules." and interpretation "League position - 1 = top of the
+  table; the place in the official table at that point of the season": approved in chat,
+  2026-10-29.
 
 scope_paths:
-  - dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
-  - dbt_project/models/4_intermediate/shared/int_legs.yml
-  - dbt_project/models/4_intermediate/shared/int_team_season_record.sql
-  - dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
-  - dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
-  - dbt_project/models/4_intermediate/shared/*.yml
-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_by_time.sql
   - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__position_by_match.sql
   - dbt_project/models/4_intermediate/domestic_league/team_season/*.yml
+  - dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
+  - dbt_project/models/4_intermediate/shared/int_standings__section_kinds.sql
+  - dbt_project/models/4_intermediate/shared/*.yml
+  - dbt_project/models/5_marts/shared/mart_team_profile.sql
+  - dbt_project/models/5_marts/shared/shared.yml
   - dbt_project/models/docs/*.md
+  - dbt_project/seeds/standings_points_adjustments.csv
+  - dbt_project/seeds/league_tiebreak_rules.csv
+  - dbt_project/seeds/standings_temporary_results.csv
+  - dbt_project/seeds/standings_corrections.csv
+  - dbt_project/seeds/schema.yml
   - dbt_project/seeds/metric_catalogue.csv
   - dbt_project/seeds/metric_map.csv
   - dbt_project/tests/assert_*.sql
+  - tests/test_*.py
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -41,43 +45,76 @@ scope_paths:
   - .claude/task/rendered_page_evidence.md
 
 impact_map: >
-  writers: int_legs__team_match gains is_table_shootout_win; int_team_season_record and
-  int_team_momentum_window carry it; the generated points_won and points_capture_pct in
-  int_team_season__metrics_cumulative and int_team_momentum__metrics count a table shoot-out win
-  as 2 points; int_team_season__position_by_match keeps a season only where the results reproduce
-  the official table and ranks up to its matches played. downstream: the readers of those models
-  (listed by dbt ls in the evidence); values change only for teams with a shoot-out in a table
-  round and for the seasons the new check leaves out. layer_rules: computed in the warehouse;
-  no export change. deploy_order: the MR data build. blast_radius: one leg column, two catalogue
-  formulas and one description, the ranking's season filter.
+  writers: int_team_season__table_by_time replaces int_team_season__position_by_match;
+  standings_points_adjustments gains dated steps; league_tiebreak_rules is new;
+  int_team_profile__yoy reads the rebuilt table for points_this_season, points_prev_season,
+  points_delta_yoy and points_rank_prev_season, and mart_team_profile carries them. downstream:
+  the readers of int_team_profile__yoy (listed by dbt ls in the evidence). layer_rules: computed in
+  the warehouse; no export change. deploy_order: the MR data build. blast_radius: the yoy points
+  and place columns, two seeds, the tests on the table.
 
 approved_design:
   - team: #134
 
 acceptance_criteria:
-  - "int_legs__team_match carries is_table_shootout_win: TRUE where the match is in a table round, finished on penalties and the team won the shoot-out; FALSE otherwise; tested not null and to be a draw; int_team_season_record and int_team_momentum_window carry it."
-  - "assert_team_season_equals_league_table compares our points with the table's points plus the points taken; a new warning test with stored rows compares every ranked team's points at the table's matches played with the same, and after the MR data build it holds no J1 2026 row."
-  - "points_won and points_capture_pct in metric_catalogue.csv count a table shoot-out win as 2 points; points_won's description and interpretation carry the approved text; generate_metric_sql.py --check and sync_metric_docs_blocks.py --check pass; rule R3 carries the approved sentence."
-  - "int_team_season__position_by_match ranks a season only where every team's goals scored and conceded through the official table's matches played equal the table's, and only up to the table's matches played; after the MR data build the final-table warning lists no Argentina 2025 row and no J1 2026 team whose points differ."
+  - "standings_points_adjustments holds one row per deduction step with the date it took effect and its official source; tested unique per team, section and date, every step changing the points and dated."
+  - "league_tiebreak_rules holds each league's ordered criteria per phase and first season, each with its official regulation as source, from a closed list of criteria and conditions tested as accepted values."
+  - "int_team_season__table_by_time holds every ranked league-season's table at every kick-off: played, table points, goal difference, goals and the place by the league's rules, empty where teams stay level at a criterion the results cannot settle."
+  - "int_team_profile__yoy's points_this_season, points_prev_season, points_delta_yoy and points_rank_prev_season read the rebuilt table on the day of the team's Nth match."
+  - "An error test compares the rebuilt place and points with every published table the provider gave us, with the official corrections applied, wherever the published played counts match the rebuilt ones, and fails for a ranked league-season with no comparable published table; the two warning tests it replaces are removed."
+  - "The metric rules no longer hold the sentence that allowed a computed position."
 
 decisions_taken: >
-  The R3 sentence, the points_won description and interpretation, and one MR: approved in chat,
-  2026-10-28. Readings: a league match is a match in a table round by int_round_names, so a cup or
-  play-off shoot-out stays a draw worth 1; a season the results do not reproduce is the approved
-  split-season case and shows no position. Points deductions and other tie-break rules are not
-  changed here. No new dependency; the recurring cost is measured on the MR data build and put to
-  the CPO before the merge.
+  The plan, approved in chat, 2026-10-29. Readings: "the same point" is the day of the team's Nth
+  match, so the table counts every match kicked off by then, other teams' games in hand included;
+  the published tables are the provider's daily snapshots, each covering every season the league
+  configures, so they hold every past season's final table and this season's matchdays; a
+  published table where a team's played count differs from the rebuilt one is not comparable
+  (the provider had not yet counted a match) and is left out, with every ranked league-season
+  needing at least one comparable table. No new dependency; the recurring cost is measured on the
+  MR data build and put to the CPO before the merge.
 
 decisions_reserved:
-  - Points deductions in last season's position.
+  - Any catalogue description text beyond points_rank's approved one.
 
 done_when:
   - dbt parse, SQLFluff on every changed model, a dry run of each against prod, pytest and the offline gates pass.
-  - The MR data build passes; its added bytes are measured and put to the CPO.
+  - The MR data build passes with every table test as an error; its added bytes are measured and put to the CPO.
   - Reviewers per review_routing.json pass.
 
 amendments: >
-  Round 1 of the warehouse review: the league-table test still expected 3 x wins + draws, the
-  shoot-out flag had no test that it is a draw, the new points had no value test, and refs did not
-  quote the approved texts or name points_capture_pct. The test, the draw test, the value test and
-  the quotes are added.
+  int_standings__section_kinds.sql enters scope: its header names the model this replaces. A
+  deduction that was annulled (Napoli 2020-21) nets to zero, so the seed's test checks that every
+  step changes the points and carries a date, not a net above zero. The fan-question test's
+  question 2 asked for points against the same point last season through the catalogue map;
+  those are now table points, outside the catalogue, so it asks for points won in the last five
+  matches instead. Round 1 of the review: the published-table test leaves out a published table
+  with a deduction step dated after the rebuilt table's kick-off; the previous season's place is
+  read from single-table seasons only, one row per team; the second head-to-head pass groups by
+  the first pass's criteria as the rule applies them; a test requires every rule version to end
+  in undecidable. Those three are technical fixes inside the approved plan: two tables that hold
+  different deductions by construction are not compared, since comparing them fails a correct
+  table, and the previous season's final place exists only where that season had one table per
+  team. A result the official table held for a time and that was later annulled (Serie A 2020-21:
+  a 3-0 Juventus win over Napoli awarded on 14 Oct 2020, annulled on 22 Dec 2020 and the match
+  replayed) is recorded with its dates and official sources in a new seed,
+  standings_temporary_results, and the rebuilt table counts it only between those dates; approved
+  in chat, 2026-10-29. The approved plan states the reading of the metric rules' "taken as
+  published, never computed": "A rebuilt table is the published table at that match, and the
+  tests below prove it equal." The MR data build found places that differ from the provider's
+  tables, no points. Serie A 2022-23: the provider has Spezia 17th and Verona 18th; Verona won
+  the relegation play-off and finished 17th. Ligue 1 2025-26: the provider's table does not count
+  the Nantes-Toulouse 0-0 the league ratified. Both get official rows in standings_corrections,
+  which enters scope, and the published-table test applies a correction to every table of a past
+  season, each of them being its final table. Liga Portugal during the season follows the
+  league's own published tables, approved in chat, 2026-10-29: head-to-head points once every
+  level team has met each of the others, head-to-head goal difference once they have all played
+  each other twice, goal difference, the head-to-head again among the teams still level, wins,
+  goals; the order reproduces each of the league's nine 2026-27 matchday tables. The provider
+  orders teams level on points otherwise, so the published-table test does not compare those
+  places: league_tiebreak_rules gains the column provider_order_differs (name approved in chat,
+  2026-10-29), true for that version, and the condition all_h2h_met; the model's second
+  head-to-head pass groups by every criterion before it. Saudi Pro League during the season: teams
+  level on points, goal difference and goals are ordered by last season's place, as the
+  regulation says, approved in chat, 2026-10-29; the provider orders them another way and no
+  league table of those dates exists, so the test does not compare those places.
