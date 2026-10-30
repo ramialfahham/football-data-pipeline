@@ -41,7 +41,9 @@ Bundesliga competition payload, 50 Matches page days, 548 fixture payloads and 3
   other day has its own dated page. Days drop off as rounds are played, so the whole directory is
   replaced on a refresh, never appended to.
 - `teams/*.json` — **34** real exported teams: `33` (Manchester United), the team-page sample; the
-  teams the Home Top teams boards link to; the clubs of the Bundesliga sample's table.
+  teams the Home Top teams boards link to; the clubs of the Bundesliga sample's table. These 34 can
+  be refreshed alone, from `fetch_team_payloads` written by `write_entity`. Every slug must stay the
+  same, because the Home and Bundesliga pages link to them.
 - `competitions/BL1/2026.json` — the one competition payload, the Bundesliga 2026/27 season, all
   three tabs of the competition page in one file (`standings`, `deserved`, `summary`, `fixtures`,
   `team_boards`, `player_boards`), produced verbatim by
