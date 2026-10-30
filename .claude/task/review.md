@@ -1,22 +1,26 @@
-# Review — feat/235-team-samples — 2026-10-30
+# Review — feat/235-team-fixture-order — 2026-10-30
 
-diff_sha256: 7740f9630688034a802bae2f64f8a0f69d11da20c64cca39a2fc0d5ce77452d8
+diff_sha256: 7c1265b0f8e33fb47b2c84060acb76bbb397573401a5d914188c99d2a7807691
 
 rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every staged path is in scope_paths; nothing credential-shaped in the 34 payloads.
-- The acceptance criteria are shown in the evidence; the impact map names the writer and the two readers.
-- One export of about 311 MB, no recurring cost, no new mechanism or code change; a changed slug is reserved to the CPO.
+- Scope: the diff touches only mart_team_fixtures.sql, shared.yml and the task files, all in the contract's scope_paths; amendments are none.
+- Decision rights: the two column names carry a dated approval with no quoted words; the ordering mirrors upcoming_rank and recency_rank without competition in the partition; no new metric, label, URL, mechanism or recurring cost.
+- Existing numbers: the SQL only appends two columns and the existing rank expressions are untouched; done_when requires the except-distinct comparison against main.
+- Impact map: the pasted dbt ls output shows no downstream model; the one outside reader, scripts/export_site_data.py, keeps only _TEAM_FIXTURE_FIELDS, so no payload changes and approved_design none holds.
+- Docs and writing: the model header and shared.yml descriptions are updated and state what each column is; no secrets, no escalations.log entry.
 
-## bi-analyst-reviewer
+## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Every field the current Team page and its components read is present under the same name in the new payloads, and each file has exactly one featured season.
-- The Performance tab's metric rows still bind to the benchmarks and the year-over-year fields.
-- The new fields are read by no current component; every slug the Bundesliga payload links is among the 34; the README sentence states only the current state.
+- Layer placement: two row_number() windows in a 5_marts model, no new ref, no staging ref; materialisation unchanged.
+- Window correctness: both orders are total (kickoff then fixture_sk), the grain (team_sk, fixture_sk) rules out duplicates in a partition, and the case-when guards leave NULL on ineligible rows.
+- Tests: four added (null exactly when the flag is false, positive, unique per partition with a where config); none removed or weakened; a null flag passes expression_is_true as it already does for the existing rank test.
+- Catalogue and competition-agnostic: ordering keys, not metrics; metric_map unaffected; no hardcoded competition identifier.
+- Consumption: the export is unchanged and drops the new columns; the order is computed in the warehouse as layering.md §Consumption layer requires.
 
 ## escalations
 (none)

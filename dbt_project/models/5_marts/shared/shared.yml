@@ -3032,7 +3032,8 @@ models:
 
       The rank columns reduce selection to a filter: upcoming_rank = 1 is the next fixture, and
       recency_rank <= 5 the last five results. Live, postponed and cancelled rows carry NULL
-      ranks, having no honest place in either.
+      ranks, having no honest place in either. upcoming_order and result_order give the same
+      order across all of the team's competitions, for a list that mixes them.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [team_sk, fixture_sk]
@@ -3047,6 +3048,22 @@ models:
       - dbt_utils.expression_is_true:
           expression: "(upcoming_rank is null or upcoming_rank >= 1) and (recency_rank is null or recency_rank >= 1)"
           name: team_fixtures_ranks_positive
+      - dbt_utils.expression_is_true:
+          expression: "(upcoming_order is null) = (not is_upcoming) and (result_order is null) = (not has_result)"
+          name: team_fixtures_orders_track_flags
+      - dbt_utils.expression_is_true:
+          expression: "(upcoming_order is null or upcoming_order >= 1) and (result_order is null or result_order >= 1)"
+          name: team_fixtures_orders_positive
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [team_sk, upcoming_order]
+          name: team_fixtures_upcoming_order_unique
+          config:
+            where: "upcoming_order is not null"
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [team_sk, season_api_year, result_order]
+          name: team_fixtures_result_order_unique
+          config:
+            where: "result_order is not null"
     columns:
       - name: team_sk
         description: "{{ doc('team_sk') }}"
@@ -3102,6 +3119,10 @@ models:
         description: "1 for this team's next fixture in this competition-season, 2 for the one after, and so on by kickoff time. NULL for any fixture that is not upcoming, so the ranks run 1..n over upcoming fixtures alone with no gaps."
       - name: recency_rank
         description: "1 for this team's most recent finished result in this competition-season, 2 for the one before, and so on by kickoff time descending. NULL for any fixture that is not a finished result (upcoming, live, postponed, cancelled, or without a result leg), so the ranks run 1..n over finished results alone with no gaps."
+      - name: upcoming_order
+        description: "1 for this team's next fixture in any competition, 2 for the one after, and so on by kickoff time; equal kickoff times follow fixture_sk. NULL for any fixture that is not upcoming."
+      - name: result_order
+        description: "1 for this team's most recent finished result in this season_api_year in any competition, 2 for the one before, and so on by kickoff time descending; equal kickoff times follow fixture_sk descending. NULL for any fixture that is not a finished result."
 
   - name: mart_roster
     description: >

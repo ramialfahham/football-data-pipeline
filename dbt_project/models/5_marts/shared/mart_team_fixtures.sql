@@ -8,7 +8,8 @@
   int_legs__team_match — NOT re-derived here (consumption-layer contract). Rank
   columns make the consumption pure selection: upcoming_rank = 1 is the next
   fixture, recency_rank <= 5 the last five results — no window logic in any
-  frontend.
+  frontend. upcoming_order and result_order order the same rows across all of a
+  team's competitions, for lists that mix them.
 
   Rows exist for every fixture; ranks are populated only for scheduled (NS/TBD,
   dated today or later) and finished-with-leg fixtures. Live / postponed / cancelled rows carry null
@@ -142,5 +143,19 @@ select
             partition by team_sk, league_code, season_api_year, has_result
             order by kickoff_datetime desc, fixture_sk desc
         )
-    end as recency_rank
+    end as recency_rank,
+    -- team-wide orders: the same ranks with competition left out of the partition, so one
+    -- list can mix a team's competitions
+    case
+        when is_upcoming then row_number() over (
+            partition by team_sk, is_upcoming
+            order by kickoff_datetime asc, fixture_sk asc
+        )
+    end as upcoming_order,
+    case
+        when has_result then row_number() over (
+            partition by team_sk, season_api_year, has_result
+            order by kickoff_datetime desc, fixture_sk desc
+        )
+    end as result_order
 from joined
