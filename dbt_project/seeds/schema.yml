@@ -1038,7 +1038,7 @@ seeds:
           - accepted_values:
               values: ["points", "points_lost", "goal_difference", "goals", "wins", "away_wins", "away_goals", "previous_position", "h2h_points", "h2h_goal_difference", "h2h_goals", "h2h_away_goals", "h2h2_points", "h2h2_goal_difference", "h2h2_goals", "playoff_winner", "undecidable"]
       - name: condition
-        description: "When the criterion counts: all_h2h_played = once the level teams have all played each other twice; all_h2h_met = once each level team has played every other at least once; two_teams_only or three_plus_only = by how many teams are level. Empty = always."
+        description: "When the criterion counts: all_h2h_played = once the level teams have all played each other twice; all_h2h_met = once the level teams have all played each other equally often, every pair once or every pair twice; two_teams_only or three_plus_only = by how many teams are level. Empty = always."
         tests:
           - accepted_values:
               values: ["all_h2h_played", "all_h2h_met", "two_teams_only", "three_plus_only"]

@@ -1,38 +1,38 @@
-# Review — feat/235-table-exact — 2026-10-29
+# Review — feat/235-table-exact — 2026-10-30
 
-diff_sha256: f58e1ab9bab6dced11cc99ca13026ab961b64c35626cd8e7b836c0bc47846e61
+diff_sha256: 22fcf625d95bf79549fab2ed11fdc76f53137c21aed42ad1ab7b8d54aeb6d838
 
-rounds: 5
+rounds: 6
 
-rounds_cap_override: the first two MR data builds failed the published-table test on places; the fourth and fifth rounds review the fixes, approved in chat, 2026-10-29
+rounds_cap_override: the first two MR data builds failed the published-table test on places; the fourth and fifth rounds review the fixes, approved in chat, 2026-10-29; the sixth reviews the Portuguese head-to-head condition the league's 2025-26 tables showed, approved in chat, 2026-10-30
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
 - Every staged path is in scope_paths; nothing credential-shaped.
-- The Portugal in-season order, the column name provider_order_differs, the all_h2h_met condition and the skip carry their approval in the contract; the second-pass grouping is a technical reading of the head-to-head rule.
-- The new column, condition and version test add no dependency, run or query volume; the skip covers only places of teams level on points in a flagged version.
+- The changed head-to-head condition carries its approval in the contract and stays inside the same Liga Portugal rule version; no mechanism, dependency or recurring cost is added.
+- The condition description, the SQL and the evidence (612 places of 2025-26, 70 kick-offs of 2026-27) agree.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- The second pass now groups by every criterion from the first head-to-head one to the first h2h2 one; Spain's and Saudi Arabia's final-table versions are unchanged, versions without h2h2 never read it, and nothing fans out.
-- all_h2h_met is read only where a version uses it; a one-team group counts as met.
-- The test's exemption parses as intended, covers only ranks, and a version without rules falls back to compared.
+- is_met_equally is true exactly when every pair of level teams has met once or every pair twice, in both head-to-head passes; a mixed set cannot pass and a one-team group counts as met.
+- The window sits on the same partitions as is_complete over non-null counts; nothing fans out, and no reader of the old flag remains.
+- first_pass_keys and valued read the first pass for h2h_ criteria and the second for h2h2_ ones.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- The seed keeps CRLF, every row has eight fields and ends true or false, and only Portugal's 2023 in-season version is true.
-- The new column is typed boolean and not null; both changed tests stay errors and nothing downgrades them.
-- The exemption needs a flagged seed row; one value per version is enforced.
+- The round touches no script, test, hook, CI job or dependency; the renamed flag has no orphan reference.
+- The two window functions are stateless, so re-runs change nothing.
+- The published-table test does not compare Portugal's in-season places of teams level on points, so the condition is proven by the recorded run against the league's tables, as all_h2h_met was before.
 
 ## football-analytics-expert-reviewer
 VERDICT: PASS
 risks_checked:
-- Portugal's in-season order matches Article 17 (head-to-head, goal difference, wins, goals; head-to-head goal difference only once both games are played) with the head-to-head again among the teams still level, as the league's tables show.
-- Teams still level get no place, as Article 17.4 gives them the same place.
-- Portugal's final-table rows are untouched; each rule row's condition and source hold only their own thing.
+- The condition description says plainly that head-to-head counts once the level teams have all played each other equally often, every pair once or every pair twice, as the league's 2025-26 matchday 20 table shows.
+- The same rule applies in both head-to-head passes.
+- The condition column still holds only a condition.
 
 ## escalations
 (none)

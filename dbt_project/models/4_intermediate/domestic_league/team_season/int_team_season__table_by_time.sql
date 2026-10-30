@@ -537,9 +537,12 @@ h2h_1 as (
         logical_and(g.h2h_games = 2 * (g.tied_teams - 1)) over (
             partition by g.league_code, g.season_api_year, g.group_name, g.table_at, g.pre_key_1
         ) as is_complete,
-        logical_and(g.h2h_opponents_met = g.tied_teams - 1) over (
+        -- a mini-table counts only while every pair has met as often: unequal meetings make it unfair
+        logical_and(
+            g.h2h_opponents_met = g.tied_teams - 1 and g.h2h_games in (g.tied_teams - 1, 2 * (g.tied_teams - 1))
+        ) over (
             partition by g.league_code, g.season_api_year, g.group_name, g.table_at, g.pre_key_1
-        ) as is_all_met,
+        ) as is_met_equally,
         coalesce(p.playoff_wins, 0) as playoff_wins
     from h2h_1_sized as g
     left join playoff_wins as p
@@ -563,7 +566,7 @@ first_pass_keys as (
         string_agg(format('%07d', 5000000 + case
             when not starts_with(c.criterion, 'h2h_') and c.criterion != 'playoff_winner' then c.base_value
             when c.condition = 'all_h2h_played' and not h1.is_complete then 0
-            when c.condition = 'all_h2h_met' and not h1.is_all_met then 0
+            when c.condition = 'all_h2h_met' and not h1.is_met_equally then 0
             when c.condition = 'two_teams_only' and h1.tied_teams != 2 then 0
             when c.condition = 'three_plus_only' and h1.tied_teams < 3 then 0
             when c.criterion = 'playoff_winner' then h1.playoff_wins
@@ -660,9 +663,11 @@ h2h_2 as (
         logical_and(h2h_games = 2 * (tied_teams - 1)) over (
             partition by league_code, season_api_year, group_name, table_at, pre_key_2
         ) as is_complete,
-        logical_and(h2h_opponents_met = tied_teams - 1) over (
+        logical_and(
+            h2h_opponents_met = tied_teams - 1 and h2h_games in (tied_teams - 1, 2 * (tied_teams - 1))
+        ) over (
             partition by league_code, season_api_year, group_name, table_at, pre_key_2
-        ) as is_all_met
+        ) as is_met_equally
     from h2h_2_sized
 ),
 
@@ -682,7 +687,7 @@ valued as (
                 then 0
             when
                 c.condition = 'all_h2h_met'
-                and not if(starts_with(c.criterion, 'h2h2_'), h2.is_all_met, h1.is_all_met)
+                and not if(starts_with(c.criterion, 'h2h2_'), h2.is_met_equally, h1.is_met_equally)
                 then 0
             when c.condition = 'two_teams_only' and h1.tied_teams != 2 then 0
             when c.condition = 'three_plus_only' and h1.tied_teams < 3 then 0

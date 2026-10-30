@@ -34,14 +34,17 @@ season's place are not compared. The second build failed on 122 places, all Liga
 in season; every other league matched.
 
 Liga Portugal in season: the league's nine 2026-27 matchday tables (ligaportugal.pt, read
-2026-10-29) are reproduced exactly by head-to-head points once all level teams have met,
+2026-10-29) and its 34 2025-26 matchday tables (read 2026-10-30), 612 places, are reproduced
+exactly by head-to-head points once the level teams have all met each other equally often,
 head-to-head goal difference once they have played each other twice, goal difference, the same
 head-to-head among the teams still level, wins, goals; teams still level are listed
 alphabetically, where the regulation gives them the same place. The provider orders teams level
 on points by goal difference, then fewer goals conceded, so its tables are not the league's: that
 version carries provider_order_differs and the test does not compare those places.
 int_team_season__table_by_time, run against prod with the seeds inlined (11.6 MB), gives the same
-place as that order for every team at all 70 Portugal 2026-27 kick-offs. The changed tests are
+place as that order for every team at all 70 Portugal 2026-27 kick-offs and all 263 of 2025-26.
+Applying head-to-head points whenever every pair has met misplaces three teams of a four-team tie
+at 2025-26 matchday 20, where some pairs had met twice and others once. The changed tests are
 dry-run valid (202.7 MB; the new version test 0 B); pytest 1,612 passed, 2 skipped.
 
 criteria_demonstrated:
