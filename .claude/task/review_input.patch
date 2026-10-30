@@ -1,181 +1,187 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 27ac734f..de4c9eb6 100644
+index de4c9eb6..ff24fb2e 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,78 +1,55 @@
--# Task contract — appearances as a catalogue metric
-+# Task contract — the committed team samples, re-exported from prod
+@@ -1,55 +1,64 @@
+-# Task contract — the committed team samples, re-exported from prod
++# Task contract — a team-wide match order in mart_team_fixtures
  
  objective: >
--  The Team page's Squad tab (#235) shows appearances, minutes per appearance, goals and assists,
--  and on-screen metric names come only from the catalogue. Appearances becomes a catalogue metric
--  with its formula, generated into the models that compute it today, with the same value: matches
--  with minutes > 0, 0 for a squad member never brought on, blank where a match's minutes are
--  unknown or the club has a played match with no player data.
-+  The Team page (#235) builds in merge requests from the 34 team payloads committed in
-+  site_v2/src/data/teams/, and those predate the data the page now needs: the Competitions block,
-+  the league strip, recent matches, last season's place from the official table and appearances
-+  in the squad. The same 34 teams are re-exported from prod by the exporter's own code, with
-+  their slugs unchanged, so every page that links to them still resolves.
+-  The Team page (#235) builds in merge requests from the 34 team payloads committed in
+-  site_v2/src/data/teams/, and those predate the data the page now needs: the Competitions block,
+-  the league strip, recent matches, last season's place from the official table and appearances
+-  in the squad. The same 34 teams are re-exported from prod by the exporter's own code, with
+-  their slugs unchanged, so every page that links to them still resolves.
++  The Team page's Matches tab lists one team's upcoming matches and its results across every
++  competition it plays. mart_team_fixtures ranks rows only within one competition-season, so the
++  mixed lists have no order from the warehouse, and layering.md §Consumption layer forbids
++  ordering them in the export. Two columns add that order: upcoming_order and result_order.
  
  refs: >
--  #235 (What exactly: appearances and minutes per appearance as catalogue metrics); plan approved
--  in chat, 2026-10-30.
-+  #235 (build order approved in chat, 2026-10-28: the committed team samples are re-exported from
-+  prod once the warehouse work merges); the plan approved in chat, 2026-10-30.
+-  #235 (build order approved in chat, 2026-10-28: the committed team samples are re-exported from
+-  prod once the warehouse work merges); the plan approved in chat, 2026-10-30.
++  #235 (column names approved in chat, 2026-10-30; this order lands in its own MR before the Team
++  page MR switches the export to it).
  
  scope_paths:
--  - dbt_project/seeds/metric_catalogue.csv
--  - dbt_project/seeds/metric_map.csv
--  - dbt_project/seeds/player_season_answer_key.csv
--  - dbt_project/models/docs/metric_rules.md
--  - dbt_project/models/docs/*.md
--  - dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
--  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
--  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
--  - dbt_project/models/5_marts/shared/mart_player_career.sql
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/tests/assert_no_uncatalogued_season_metric.sql
--  - scripts/generate_metric_sql.py
--  - docs/wireframes/11_team_squad.md
--  - docs/wireframes/03_player_profile.md
--  - docs/wireframes/13_player_career.md
--  - dbt_project/seeds/schema.yml
--  - tests/test_*.py
-+  - site_v2/src/data/teams/*.json
-+  - site_v2/src/data/README.md
+-  - site_v2/src/data/teams/*.json
+-  - site_v2/src/data/README.md
++  - dbt_project/models/5_marts/shared/mart_team_fixtures.sql
++  - dbt_project/models/5_marts/shared/shared.yml
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-   - .claude/task/acceptance_evidence.md
+-  - .claude/task/acceptance_evidence.md
  
  impact_map: >
--  writers: int_player_club_season__metrics, int_player_season__metrics and
--  int_player_season_position__metrics, whose hand-written appearances column becomes the generated
--  one with the same guard. downstream, pasted from `dbt ls --resource-type model --select
--  int_player_club_season__metrics+ int_player_season__metrics+
--  int_player_season_position__metrics+` (9 models, the three writers included):
--  int_player_season__metrics, int_player_club_season__metrics,
--  int_player_competition_benchmark_metrics_long, int_player_competition_benchmarks,
--  int_player_season_position__metrics, mart_leaderboards, mart_player_career,
--  mart_player_competition_benchmarks, mart_player_profile. layer_rules: the formula in the
--  catalogue, computed in the intermediates. deploy_order: the MR data build. blast_radius: none in
--  values; the column's description and the metric map change, and the drift test no longer
--  exempts appearances.
-+  writers: scripts/export_site_data.py (fetch_team_payloads, write_entity), run once against prod;
-+  no model, mart or code changes. downstream: the two pages that read site_v2/src/data/teams,
-+  pages/[lang]/[teams]/[team].astro (one page per file and locale) and
-+  pages/[lang]/[competition]/[matches]/[fixture].astro (links a team only when its slug is
-+  built). layer_rules: data selected and shaped by the exporter, nothing computed in the site.
-+  deploy_order: none; deploy:site-v2 replaces this sample with the full export. blast_radius: the
-+  34 Team pages of the merge-request build; same files and slugs, so no link changes.
+-  writers: scripts/export_site_data.py (fetch_team_payloads, write_entity), run once against prod;
+-  no model, mart or code changes. downstream: the two pages that read site_v2/src/data/teams,
+-  pages/[lang]/[teams]/[team].astro (one page per file and locale) and
+-  pages/[lang]/[competition]/[matches]/[fixture].astro (links a team only when its slug is
+-  built). layer_rules: data selected and shaped by the exporter, nothing computed in the site.
+-  deploy_order: none; deploy:site-v2 replaces this sample with the full export. blast_radius: the
+-  34 Team pages of the merge-request build; same files and slugs, so no link changes.
++  writers: mart_team_fixtures is written only by dbt (the fdp-nightly prod build, and data:build:mr
++  into ci_mr<IID>_marts); it reads fct_fixture, dim_team and int_legs__team_match, none of which
++  changes. downstream: `dbt ls --select mart_team_fixtures+` (run 2026-10-30 on this branch's base)
++  lists the model and its 11 tests and no downstream model:
++  mart_team_fixtures, accepted_values_mart_team_fixtures_result__W__D__L,
++  dbt_utils_unique_combination_of_columns_mart_team_fixtures_team_sk__fixture_sk,
++  not_null_mart_team_fixtures_fixture_sk, not_null_mart_team_fixtures_league_code,
++  not_null_mart_team_fixtures_team_sk,
++  relationships_mart_team_fixtures_fixture_sk__fixture_sk__ref_fct_fixture_,
++  relationships_mart_team_fixtures_opponent_team_sk__team_sk__ref_dim_team_,
++  relationships_mart_team_fixtures_team_sk__team_sk__ref_dim_team_,
++  team_fixtures_ranks_positive, team_fixtures_recency_has_result, team_fixtures_result_present.
++  Outside dbt the only reader is scripts/export_site_data.py, which selects * filtered on
++  upcoming_rank/recency_rank and keeps only _TEAM_FIXTURE_FIELDS, so the new columns are dropped
++  and no payload changes. layer_rules: 5_marts consumption layer, materialised as a table at
++  project level (check_layer_contract.py); all ordering comes from the warehouse
++  (layering.md §Consumption layer). deploy_order: additive columns on a table rebuilt whole; the
++  first fdp-nightly after merge adds them to prod, and nothing reads them until the Team page MR
++  merges. blast_radius: no existing column or number changes; two new nullable integer columns.
  
  approved_design:
--  - none: no page output changes
-+  - team: #134
-+
-+acceptance_criteria:
-+  - "site_v2/src/data/teams/ holds the same 34 files as before, each written by the exporter's write_entity from fetch_team_payloads against prod, none edited by hand."
-+  - "Every one of the 34 payloads has the same slug as the committed file it replaces."
-+  - "teams/33.json carries recent_matches, and its featured season carries competitions and league_strip; its squad members carry appearances."
-+  - "After git clean -fX site_v2/src/data, the site_v2 build passes its prebuild tests, audit-seo and the built-page checks."
+-  - team: #134
+-
+-acceptance_criteria:
+-  - "site_v2/src/data/teams/ holds the same 34 files as before, each written by the exporter's write_entity from fetch_team_payloads against prod, none edited by hand."
+-  - "Every one of the 34 payloads has the same slug as the committed file it replaces."
+-  - "teams/33.json carries recent_matches, and its featured season carries competitions and league_strip; its squad members carry appearances."
+-  - "After git clean -fX site_v2/src/data, the site_v2 build passes its prebuild tests, audit-seo and the built-page checks."
++  - none: no page output changes
  
  decisions_taken: >
--  The plan, approved in chat, 2026-10-30, with its exact texts: rule R7 loses "appearances, "; the
--  catalogue row appearances (player, countif(minutes > 0) on int_legs__player_match, integer,
--  playing_time, neutral) with its description and interpretation; the Squad wireframe's sentence
--  on catalogue metrics. The label text comes with the page. No new mechanism, no dependency, no
--  recurring cost.
-+  The plan, approved in chat, 2026-10-30: only the 34 team files move; landing.json, the
-+  Bundesliga payload, the fixtures and the .gitignore allowlist stay as they are. No code change:
-+  a scratch driver runs the exporter's sample path restricted to the 34 ids, with the whole-table
-+  reads the league views need left whole. One export of about 311 MB, no recurring cost, no new
-+  mechanism or dependency.
+-  The plan, approved in chat, 2026-10-30: only the 34 team files move; landing.json, the
+-  Bundesliga payload, the fixtures and the .gitignore allowlist stay as they are. No code change:
+-  a scratch driver runs the exporter's sample path restricted to the 34 ids, with the whole-table
+-  reads the league views need left whole. One export of about 311 MB, no recurring cost, no new
+-  mechanism or dependency.
++  Column names upcoming_order and result_order, approved in chat, 2026-10-30. upcoming_order
++  numbers every is_upcoming row of a team across all its competitions and seasons, soonest
++  kick-off first, ties by fixture_sk; result_order numbers every has_result row of a team within
++  one season_api_year across all its competitions, newest kick-off first, ties by fixture_sk
++  descending; both null on other rows. Existing columns unchanged. Tests: each order null exactly
++  when its flag is false, positive, and unique per partition. No new mechanism, dependency or
++  recurring cost: two window functions in a model the nightly already builds.
  
  decisions_reserved:
--  - The EN, DE and FI label text for appearances, with the page.
-+  - A slug that differs from the committed one stops the task and goes to the CPO.
+-  - A slug that differs from the committed one stops the task and goes to the CPO.
++  - Any change to an existing column's values, or to an export or page, stops the task and goes to
++    the CPO.
  
  done_when:
--  - generate_metric_sql.py --check and sync_metric_docs_blocks.py --check pass.
--  - dbt parse, SQLFluff on the changed models, the offline gates and pytest pass.
--  - The MR data build passes every catalogue and value test as an error, the answer key included.
-+  - The four acceptance criteria hold, shown in acceptance_evidence.md.
-+  - pytest and the offline gates pass; the MR's build:site-v2 and validate:ui pass.
+-  - The four acceptance criteria hold, shown in acceptance_evidence.md.
+-  - pytest and the offline gates pass; the MR's build:site-v2 and validate:ui pass.
++  - dbt parse passes; sqlfluff lint on the model is clean; pytest tests and the offline gates pass.
++  - data:build:mr is green, including the new tests.
++  - The prod comparison (main's SQL against ci_mr<IID>_marts.mart_team_fixtures, every existing
++    column both ways with except distinct) returns zero rows, its dry-run bytes put to the CPO
++    first.
  
- amendments: >
--  Round 1 of the review: docs/wireframes/03_player_profile.md enters scope, its section 4 saying
--  appearances is a catalogue metric and starts, substitute appearances and minutes are facts, text
--  approved in chat, 2026-10-30; int_player_season_position__metrics enters scope, the third model
--  that computes appearances today, which the objective covers; the impact map carries the dbt ls
--  output. Round 2: docs/wireframes/13_player_career.md enters scope, its two lines naming
--  appearances a catalogue metric with its label and format from the catalogue, text approved in
--  chat, 2026-10-30; dbt_project/seeds/schema.yml enters scope, its metric_group description naming
--  appearances under playing_time, text approved in chat, 2026-10-30. Round 3: the second sentence
--  of 03_player_profile.md section 4 is in the active voice, text approved in chat, 2026-10-30.
-+  The impact map is added before the README edit, as the structural-surface gate requires.
-
-# ============================================================================
-# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
-# ============================================================================
-# The files below changed and are DELIBERATELY excluded from the diff body:
-# they are generated/sample data, and pasting them has measured at ~89% of the
-# review payload. They are still reviewed content and still bind your verdict.
-#
-# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
-# particular: whether a field displayed by a component actually EXISTS in the
-# exported sample is checked by opening these files, not by reading a diff.
-#
-#   site_v2/src/data/README.md       |     4 +-
-#    site_v2/src/data/teams/106.json  |  6235 +++++++++++++++++++--
-#    site_v2/src/data/teams/157.json  |  9387 +++++++++++++++++++++++++++++--
-#    site_v2/src/data/teams/160.json  |  8318 +++++++++++++++++++++++++---
-#    site_v2/src/data/teams/162.json  |  6704 ++++++++++++++++++++--
-#    site_v2/src/data/teams/163.json  |  7292 ++++++++++++++++++++++--
-#    site_v2/src/data/teams/164.json  |  6937 +++++++++++++++++++++--
-#    site_v2/src/data/teams/165.json  |  9690 ++++++++++++++++++++++++++++++--
-#    site_v2/src/data/teams/1660.json |  5042 +++++++++++++++--
-#    site_v2/src/data/teams/167.json  |  8673 ++++++++++++++++++++++++++---
-#    site_v2/src/data/teams/168.json  |  9474 ++++++++++++++++++++++++++++++--
-#    site_v2/src/data/teams/169.json  |  8110 +++++++++++++++++++++++++--
-#    site_v2/src/data/teams/170.json  |  6659 ++++++++++++++++++++--
-#    site_v2/src/data/teams/172.json  |  7967 ++++++++++++++++++++++++---
-#    site_v2/src/data/teams/173.json  |  9620 +++++++++++++++++++++++++++++---
-#    site_v2/src/data/teams/174.json  |  6430 ++++++++++++++++++++--
-#    site_v2/src/data/teams/175.json  |  6296 +++++++++++++++++++--
-#    site_v2/src/data/teams/182.json  |  6745 +++++++++++++++++++++--
-#    site_v2/src/data/teams/185.json  |  5945 ++++++++++++++++++--
-#    site_v2/src/data/teams/192.json  |  6936 +++++++++++++++++++++--
-#    site_v2/src/data/teams/194.json  |  7435 ++++++++++++++++++++++---
-#    site_v2/src/data/teams/209.json  |  6883 +++++++++++++++++++++--
-#    site_v2/src/data/teams/211.json  |  7548 +++++++++++++++++++++++--
-#    site_v2/src/data/teams/224.json  |  5446 ++++++++++++++++--
-#    site_v2/src/data/teams/33.json   | 10507 +++++++++++++++++++++++++++++++----
-#    site_v2/src/data/teams/420.json  |  4359 +++++++++++++--
-#    site_v2/src/data/teams/49.json   |  9714 ++++++++++++++++++++++++++++----
-#    site_v2/src/data/teams/50.json   | 10835 ++++++++++++++++++++++++++++++++----
-#    site_v2/src/data/teams/505.json  | 10982 +++++++++++++++++++++++++++++++++----
-#    site_v2/src/data/teams/51.json   |  8620 +++++++++++++++++++++++++----
-#    site_v2/src/data/teams/529.json  | 10326 ++++++++++++++++++++++++++++++----
-#    site_v2/src/data/teams/536.json  |  9990 +++++++++++++++++++++++++++++----
-#    site_v2/src/data/teams/55.json   |  6309 ++++++++++++++++++---
-#    site_v2/src/data/teams/85.json   |  9987 ++++++++++++++++++++++++++++++---
-#    site_v2/src/data/teams/867.json  |  6196 +++++++++++++++++++--
-#    35 files changed, 246057 insertions(+), 21544 deletions(-)
-# ============================================================================
-
-# ============================================================================
-# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
-# ============================================================================
-# The files below changed on this branch and are DELIBERATELY kept out of the
-# diff: they are the review's own paperwork or the handover, which reviewers do
-# not judge (CPO 2026-08-01).
-#
-# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
-# and a path that appears in `scope_paths` but not in the diff is not, by itself,
-# a scope defect. Read them directly with Read/Grep if a claim in contract.md
-# depends on one.
-#
-#   .claude/task/acceptance_evidence.md | 30 ++++++++++++++----------------
-#    1 file changed, 14 insertions(+), 16 deletions(-)
-# ============================================================================
+-amendments: >
+-  The impact map is added before the README edit, as the structural-surface gate requires.
++amendments: (none)
+diff --git a/dbt_project/models/5_marts/shared/mart_team_fixtures.sql b/dbt_project/models/5_marts/shared/mart_team_fixtures.sql
+index 7e4125f1..ca9ec13a 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_fixtures.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_fixtures.sql
+@@ -8,7 +8,8 @@
+   int_legs__team_match — NOT re-derived here (consumption-layer contract). Rank
+   columns make the consumption pure selection: upcoming_rank = 1 is the next
+   fixture, recency_rank <= 5 the last five results — no window logic in any
+-  frontend.
++  frontend. upcoming_order and result_order order the same rows across all of a
++  team's competitions, for lists that mix them.
+ 
+   Rows exist for every fixture; ranks are populated only for scheduled (NS/TBD,
+   dated today or later) and finished-with-leg fixtures. Live / postponed / cancelled rows carry null
+@@ -142,5 +143,19 @@ select
+             partition by team_sk, league_code, season_api_year, has_result
+             order by kickoff_datetime desc, fixture_sk desc
+         )
+-    end as recency_rank
++    end as recency_rank,
++    -- team-wide orders: the same ranks with competition left out of the partition, so one
++    -- list can mix a team's competitions
++    case
++        when is_upcoming then row_number() over (
++            partition by team_sk, is_upcoming
++            order by kickoff_datetime asc, fixture_sk asc
++        )
++    end as upcoming_order,
++    case
++        when has_result then row_number() over (
++            partition by team_sk, season_api_year, has_result
++            order by kickoff_datetime desc, fixture_sk desc
++        )
++    end as result_order
+ from joined
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 4c4733cf..1a1c06e2 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -3032,7 +3032,8 @@ models:
+ 
+       The rank columns reduce selection to a filter: upcoming_rank = 1 is the next fixture, and
+       recency_rank <= 5 the last five results. Live, postponed and cancelled rows carry NULL
+-      ranks, having no honest place in either.
++      ranks, having no honest place in either. upcoming_order and result_order give the same
++      order across all of the team's competitions, for a list that mixes them.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [team_sk, fixture_sk]
+@@ -3047,6 +3048,22 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "(upcoming_rank is null or upcoming_rank >= 1) and (recency_rank is null or recency_rank >= 1)"
+           name: team_fixtures_ranks_positive
++      - dbt_utils.expression_is_true:
++          expression: "(upcoming_order is null) = (not is_upcoming) and (result_order is null) = (not has_result)"
++          name: team_fixtures_orders_track_flags
++      - dbt_utils.expression_is_true:
++          expression: "(upcoming_order is null or upcoming_order >= 1) and (result_order is null or result_order >= 1)"
++          name: team_fixtures_orders_positive
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [team_sk, upcoming_order]
++          name: team_fixtures_upcoming_order_unique
++          config:
++            where: "upcoming_order is not null"
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [team_sk, season_api_year, result_order]
++          name: team_fixtures_result_order_unique
++          config:
++            where: "result_order is not null"
+     columns:
+       - name: team_sk
+         description: "{{ doc('team_sk') }}"
+@@ -3102,6 +3119,10 @@ models:
+         description: "1 for this team's next fixture in this competition-season, 2 for the one after, and so on by kickoff time. NULL for any fixture that is not upcoming, so the ranks run 1..n over upcoming fixtures alone with no gaps."
+       - name: recency_rank
+         description: "1 for this team's most recent finished result in this competition-season, 2 for the one before, and so on by kickoff time descending. NULL for any fixture that is not a finished result (upcoming, live, postponed, cancelled, or without a result leg), so the ranks run 1..n over finished results alone with no gaps."
++      - name: upcoming_order
++        description: "1 for this team's next fixture in any competition, 2 for the one after, and so on by kickoff time; equal kickoff times follow fixture_sk. NULL for any fixture that is not upcoming."
++      - name: result_order
++        description: "1 for this team's most recent finished result in this season_api_year in any competition, 2 for the one before, and so on by kickoff time descending; equal kickoff times follow fixture_sk descending. NULL for any fixture that is not a finished result."
+ 
+   - name: mart_roster
+     description: >
