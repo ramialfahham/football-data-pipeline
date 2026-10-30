@@ -33,6 +33,7 @@ scope_paths:
   - dbt_project/seeds/league_tiebreak_rules.csv
   - dbt_project/seeds/standings_temporary_results.csv
   - dbt_project/seeds/standings_corrections.csv
+  - dbt_project/seeds/fixture_goal_corrections.csv
   - dbt_project/seeds/schema.yml
   - dbt_project/seeds/metric_catalogue.csv
   - dbt_project/seeds/metric_map.csv
@@ -107,14 +108,19 @@ amendments: >
   the Nantes-Toulouse 0-0 the league ratified. Both get official rows in standings_corrections,
   which enters scope, and the published-table test applies a correction to every table of a past
   season, each of them being its final table. Liga Portugal during the season follows the
-  league's own published tables, approved in chat, 2026-10-29: head-to-head points once every
-  level team has met each of the others, head-to-head goal difference once they have all played
-  each other twice, goal difference, the head-to-head again among the teams still level, wins,
-  goals; the order reproduces each of the league's nine 2026-27 matchday tables. The provider
+  league's own published tables, approved in chat, 2026-10-29: head-to-head points once the
+  level teams have all met each other equally often (approved in chat, 2026-10-30), head-to-head
+  goal difference once they have all played each other twice, goal difference, the head-to-head
+  again among the teams still level, wins, goals; the order reproduces each of the league's nine
+  2026-27 and 34 2025-26 matchday tables. The provider
   orders teams level on points otherwise, so the published-table test does not compare those
   places: league_tiebreak_rules gains the column provider_order_differs (name approved in chat,
   2026-10-29), true for that version, and the condition all_h2h_met; the model's second
   head-to-head pass groups by every criterion before it. Saudi Pro League during the season: teams
   level on points, goal difference and goals are ordered by last season's place, as the
   regulation says, approved in chat, 2026-10-29; the provider orders them another way and no
-  league table of those dates exists, so the test does not compare those places.
+  league table of those dates exists, so the test does not compare those places. The build of
+  main after the first merge failed assert_mart_competition_fixtures_goals_add_up on Peña
+  Sport-Huesca, Copa del Rey first round 2026-27: the provider's goal events miss the home goal
+  of the 1-5. fixture_goal_corrections, which enters scope, gains the six goals of the RFEF match
+  sheet, approved in chat, 2026-10-30.
