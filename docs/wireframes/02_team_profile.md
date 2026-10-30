@@ -1,205 +1,141 @@
-# 02 — Team profile ⭐ (#391)
+# 02 — Team page
 
-> Field-bound against `shape_team_payload` / `mart_team_profile` (verified
-> 2026-06-11). Metric rows follow the LOCKED contract in
-> [`metrics_display.md`](metrics_display.md).
+> The field contract of the Team page. The design is approved on
+> [its GitLab issue](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/134), the authority for
+> what the page shows. Metric names, groups, order, direction and format come from the catalogue
+> through `metric_rows.json` and [`metrics_display.md`](metrics_display.md).
 
 ## 1. Purpose
 
-The team's season story at a glance, for a fan deciding "how good are they
-really?". The **stop-scrolling moment** is **deserved vs actual** — "they dominate
-play more than results show" — two real ratios and their labelled gap, the
-product's signature differentiator (brief §6.2). Secondary hooks: the
-games-aligned year-over-year comparison and active streaks.
+A team's season in one place: where it stands in each competition, how it plays against its league
+and against the season before. The stop-scrolling moment is Deserved points: the points its play
+usually earns against the points it has.
 
 ## 2. URL
 
 ```
-/{locale}/teams/{kebab-name}-{team_id}/
+/{locale}/{teams word}/{team-slug}/
 ```
 
-- `slug` from the payload (latest-season name + id, e.g. `bayern-munchen-157`).
-- Breadcrumb: Home → Teams → {team}.
-- One page per team; competition-season is a selector on the page (not a URL
-  segment) — keeps one canonical team URL.
+- `slug` from the payload, derived in the warehouse.
+- Breadcrumb: Home › Teams › {team}. "Teams" links to the Teams page once the build makes one.
+- One page per team and locale. The page shows one season: the featured season.
 
 ## 3. Data sources
 
-`data/teams/{team_id}.json` — top level: `team_id, slug, name, country, crest, founded_year, venue`;
-`seasons[]` (one row per competition-season, sorted year desc) carrying record,
-season rates, deserved-vs-actual, YoY and streaks (identity stripped per row).
+`data/teams/{team_id}.json`:
+
+- top level: `team_id`, `slug`, `name`, `country`, `crest`, `founded_year`, `venue`,
+  `recent_matches` (`mart_team_momentum_window`), `schedule` (`mart_team_fixtures`), `seasons[]`;
+- `seasons[]`: one row per competition-season (`mart_team_profile`), with `benchmarks`
+  (`mart_team_competition_benchmarks`) and `squad` (`mart_roster` joined to `mart_player_career`);
+- the featured season only (`is_featured_season`): `competitions` (`mart_team_competitions`),
+  `league_strip` and `deserved_scatter`.
 
 ## 4. Layout
 
 ```
-┌────────────────────────────────────────────┐
-│ ▸Home › ▸Teams › Bayern München            │  (1) breadcrumb
-├────────────────────────────────────────────┤
-│  [crest]  Bayern München                   │  (2) identity header
-│           Germany                          │      (founded + venue in payload)
-│  [ Bundesliga 2025/26          ▾ ]         │  (3) competition-season selector
-├────────────────────────────────────────────┤
-│  #1 · 33 pts        Form W W D W W         │  (4) record block
-│  14 played · 10W 3D 1L · 31:11 · +20       │
-│  Clean sheets: 6                           │
-├────────────────────────────────────────────┤
-│  DESERVED VS ACTUAL                        │  (5) the differentiator
-│  Shot share        62% ▐██████▌            │
-│  Points capture    79% ▐███████▌           │
-│  Gap: −17 — results outpace play (ⓘ)       │
-├──────────────— fold (~700px) —─────────────┤
-│  VS LAST SEASON (after 14 games)           │  (6) year-over-year
-│  Points        33 ↑ +5      (28)           │
-│  Goals for     31 ↑ +4      (27)           │
-│  Goals against 11 ↓ −3      (14)           │
-├────────────────────────────────────────────┤
-│  STREAKS                                   │  (7) streak chips
-│  ⬡ 8 unbeaten ⬡ 3 wins ⬡ 2 clean sheets    │
-├────────────────────────────────────────────┤
-│  SEASON METRICS                            │  (8) metric list (locked
-│  GOALS                                     │      contract, single-value)
-│  goals_per_match    2.2                    │
-│  …16 rows under group subheads…            │
-├────────────────────────────────────────────┤
-│  FIXTURES                                  │  (9) next + recent (GAP-15)
-├────────────────────────────────────────────┤
-│  ▸Bundesliga ▸Table ▸Top scorers ▸Squad ▸Stats │  (10) internal links
-└────────────────────────────────────────────┘
+Home › Teams › {team}
+[crest] {team}
+        {country} · {venue}, {city} · Founded {year} · Season {season}
+[ Overview | Matches | Performance ]
+
+OVERVIEW
+  COMPETITIONS      one row per competition: name · note · standing or outcome
+                    W D L counts · Goals · Pts (a table only)
+  RECENT MATCHES    five result rows
+  NEXT MATCHES      one match per competition, the soonest tagged Next
+  HIGHS AND LOWS    Biggest win · Heaviest defeat · Longest unbeaten run · Longest winless run
+  SQUAD             by position, two columns where they fit
+
+MATCHES
+  [ Filter bar: All | {competition} … ]
+  UPCOMING          every scheduled match, grouped by competition
+  RESULTS           every result of the season, newest first
+
+PERFORMANCE
+  {competition} {season}: {team} compared with … (the tab's explainer)
+  STANDING          Position · Points, each with "Season before"
+  DESERVED POINTS   explainer · table of four values · scatter plot
+  COMPARED WITH THE LEAGUE        explainer · switch · strip plot per metric
+  COMPARED WITH LAST SEASON       explainer · switch · This season | Last season | Trend
 ```
 
-**Above the fold**: identity + selector + record block + deserved-vs-actual. The
-differentiator deliberately sits above the fold — it is the screen's hook.
-
-**Desktop (≥ ~900px)**: two columns — left: record + deserved-vs-actual + YoY +
-streaks; right: season metrics list + fixtures. Header full-width.
+The page has the site's one width, 960px, and a single column at every width.
 
 ## 5. Module bindings
 
-All season-scoped keys come from the selected `seasons[]` row.
+### Header
 
-### (2) Identity + (3) selector
+| Element | JSON key |
+|---|---|
+| Name, crest, country | `name`, `crest`, `country` |
+| Venue, founded | `venue.name`, `venue.city`, `founded_year` |
+| Season | the featured season's `season_label` (`dim_competition_season`) |
 
-| Element | JSON key | Notes |
+### Overview
+
+| Block | JSON keys | Notes |
 |---|---|---|
-| Name / crest / country | top-level `name`, `crest`, `country` | crest fallback = monogram |
-| Founded, venue | top-level `founded_year` + `venue` `{name, city, capacity}` | from dim_team; `venue` is null when the club has no venue data |
-| Selector options | `seasons[].league_code` + `season_api_year` (+ `competition_type`) | label via registry name + season slug rule; default = most recent season, domestic league first |
+| Competitions | `competitions[]`: `league_code`, `competition_type`, `standing_rank`, `wins`, `draws`, `losses`, `goals_for`, `goals_against`, `points`, `latest_played_round_*`, `reached_round_*`, `reached_round_stage_kind`, `cup_status` | A table row shows the standing and the W/D/L line. A cup row shows the round reached and Through, Knocked out or Winners. An international table's note is "League phase". The row links to the competition's page |
+| Recent matches | `recent_matches[]` | the result row; it links to the match page when the build makes one |
+| Next matches | `schedule.upcoming[]` with `upcoming_rank` = 1 | the competition group head and the match row; the first row carries the Next tag |
+| Highs and lows | `biggest_win_*`, `heaviest_defeat_*`, `longest_unbeaten_run`, `longest_winless_run` | fact rows; a match reads its score, then "vs" or "at" the opponent, the competition and the date |
+| Squad | `squad[]`: `name`, `photo`, `position`, `nationality`, `birth_date`, `appearances`, `minutes_per_appearance` | the player row without goals or assists; the second line reads country · age · appearances · minutes per appearance |
 
-### (4) Record block
+### Matches
 
-| Element | JSON key | Format |
+| Block | JSON keys | Notes |
 |---|---|---|
-| Rank | `latest_rank` | integer; null → omit (cups/knockout) |
-| Points | `points` | integer |
-| Played / W / D / L | `played`, `wins`, `draws`, `losses` | integers |
-| Goals | `goals_for`:`goals_against`, `goal_diff` | signed for diff |
-| Clean sheets | `clean_sheets` | integer (count; the x/y form is the window-metric variant) |
-| Form string | `latest_form` | W/D/L chips (standings-derived, this competition) |
+| Filter bar | the competitions of `schedule` | the shared Filter bar, one choice per competition with a match |
+| Upcoming | `schedule.upcoming[]` | grouped by competition in the order of each group's first match; date headings; the match row |
+| Results | `schedule.results[]` | the result row, newest first |
 
-### (5) Deserved vs actual
+### Performance
 
-| Element | JSON key | Display |
+| Block | JSON keys | Notes |
 |---|---|---|
-| Shot share | `shots_share_pct` | percent + bar |
-| Points capture | `points_capture_pct` | percent + bar |
-| Gap | `performance_vs_results_gap` | signed percentage-point delta + plain-language label ("dominates play more than results show" / inverse); ⓘ → glossary |
+| Tab explainer | the featured season's competition name and `season_label` | one sentence under the tab bar |
+| Standing | `latest_rank`, `points_rank_prev_season`, `points_this_season`, `points_prev_season` | fact rows; the points and both "Season before" values come from the official table on the day of the team's Nth match |
+| Deserved points | `played`, `shots_on_goal_difference_per_match`, `points`, `deserved_points`, `deserved_points_gap`, `deserved_scatter[]` | the competition page's explainer; the table's head reads "{competition}, after {n} matches"; the line joins the deserved points of the two teams at the ends of the axis |
+| Compared with the league | `benchmarks[]`: `metric_value`, `rank`, `league_median`; `league_strip[]` | one strip per served metric with a value; the rank is the warehouse's, by the metric's direction |
+| Compared with last season | `benchmarks[]`: `metric_value`, `metric_value_prev_season`; `yoy_games_played_cutoff` | the trend compares the shown values by the metric's direction |
 
-Two real ratios and their difference — NEVER a composite score gauge (ruled).
-
-### (6) Year-over-year (domestic leagues only)
-
-Header: "after {yoy_games_played_cutoff} games" — the games-aligned cutoff.
-
-| Row | This season | Prev | Delta |
-|---|---|---|---|
-| Points | `points_this_season` | `points_prev_season` | `points_delta_yoy` |
-| Goals for | `goals_for_this_season` | `goals_for_prev_season` | `goals_for_delta_yoy` |
-| Goals against | `goals_against_this_season` | `goals_against_prev_season` | `goals_against_delta_yoy` |
-
-Delta direction: goals against is better when negative (`direction` is `lower_better`).
-All-null → module renders its designed absent state (§6).
-
-### (7) Streaks
-
-`unbeaten_run`, `win_run`, `winless_run`, `clean_sheet_run`, `scoring_run` —
-chips, only runs ≥ 2 shown, positive runs first; `winless_run` is a negative
-signal (styled accordingly). All < 2 → module omitted.
-
-### (8) Season metrics — the locked 16-row contract, single-value layout
-
-Label + one value per row (no comparison bars — single team), group subheads,
-same order as [`metrics_display.md`](metrics_display.md). Each row's name is its key's entry in
-`site_v2/src/i18n/strings.ts`. Available today:
-
-| JSON key (season variant) |
-|---|
-| `goals_per_match` |
-| `goals_against_per_match` |
-| derivable: `clean_sheets` of `played` |
-| `shots_per_match` |
-| `shots_inside_box_pct` |
-| `finishing_efficiency_pct` |
-| `passes_per_match` |
-| `passes_accuracy_pct` |
-| `corners_per_match` |
-| `corners_against_per_match` |
-| `saves_pct` |
-
-**Missing season variants (GAP-13)**: `shots_on_goal_per_match`, `duels_per_match`, `duels_won_pct`,
-`defensive_actions_per_match`, `passes_key_per_match` — the full-season intermediate predates the
-player-stat-derived team metrics. Until GAP-13 ships these rows render only in
-the fixture comparison, not here. Coverage caption from
-`stat_coverage_season_games` vs `season_games_played` ("stats from N of M").
-`shots_on_goal_pct` exists but is unrendered (contract).
-
-### (9) Fixtures + (10) links
-
-**Next fixture + last 5 results** per (team, season) — scope ruled (GAP-15,
-approved): ships via the team-export extension from `fct_fixture`/legs. Rows
-reuse the fixture-row component (opponent, H/A, score, result chip; next fixture
-links to its fixture page). Until the data PR lands the section renders links to
-the competition's Matchdays tab. Internal links: competition hub, `/table/`,
-`/top-scorers/`, the **Squad** sub-screen ([11](11_team_squad.md), backed by
-`mart_roster` — export wiring pending [GAP-20](99_gaps_register.md)), and the **Stats**
-sub-screen ([14](14_team_stats.md), rank vs league — export wiring pending
-[GAP-23](99_gaps_register.md)); player-level links live on the squad + fixture pages.
+Both comparisons show the key metrics (`is_key_metric`) until the switch "Show all metrics" is on.
 
 ## 6. States
 
-| State | Trigger | Render |
-|---|---|---|
-| Normal | — | everything above |
-| No rank | `latest_rank` null (cup/knockout phase) | rank chip omitted |
-| No YoY | all `*_yoy` null (non-domestic, or prior season not ingested, or before any match) | absent state: "No previous-season comparison available" (designed, brief §8) |
-| No streaks | all runs < 2 | module omitted |
-| Sparse stats | `stat_coverage_season_games < season_games_played` | coverage caption; null rates → "-" |
-| Multiple competitions | several `seasons[]` rows per year | selector lists each; no cross-competition blending |
-| Thin page | team has no `mart_team_profile` row | page not generated |
+| State | Render |
+|---|---|
+| A value is empty | "–" |
+| A block has nothing to show | the block is absent |
+| A metric row has no value | the row is absent |
+| No schedule | the Matches tab is absent |
+| No standing and no metric | the Performance tab is absent |
+| Before the team's first match of a season | the page shows the featured season, the season just finished; Next matches and Upcoming show the new season |
+| No comparable season before | Compared with last season is absent |
 
 ## 7. Interactions
 
-- **Competition-season selector**: swaps all season-scoped modules in place (all
-  rows are in the payload — no fetch). Crawlability: the default season renders
-  in HTML; other seasons may be JS-swapped (sitemap carries one URL per team).
-- Deserved-vs-actual ⓘ → metric glossary anchors.
-- Links per (10).
+- The tabs and the switches are radios and checkboxes; no script.
+- The Filter bar's buttons and dropdowns are two forms of one choice (the shared Filter bar).
+- The scatter plot's marks keep their pixel size (a small script); every dot and strip mark names
+  its team and value on hover.
 
 ## 8. SEO
 
-- `schema.org/SportsTeam`: name, logo = crest, `memberOf` = selected competition.
-- Title: `{name} — Stats, Form & Season Records | Matchday IQ` (localized).
-- Meta description templated from record fields (rank, points, form).
-- `BreadcrumbList`; canonical per locale + hreflang; OG card with crest.
+- `schema.org/SportsTeam`: name, logo, founding date, location, `memberOf` the featured
+  competition.
+- Title and description from `seoTeamTitle` and `seoTeamDesc`.
+- `BreadcrumbList`; canonical per locale with hreflang.
 
 ## 9. Component census
 
-Breadcrumb · profile header (team) · **competition-season selector ➕** ·
-**big-number record block ➕** · form string · **single-bar ratio row ➕**
-(deserved-vs-actual) · **gap callout ➕** · **aligned-comparison row ➕** (YoY) ·
-**streak chip ➕** · stat row (label + value + direction) · group subhead ·
-empty/absent states · internal-links footer.
+- breadcrumb, entity header, tab bar, tab explainer;
+- competition row, result row, competition group head, match row, tag;
+- fact row, player row, squad grid, Filter bar;
+- table, metric group heading, metric switch, strip plot, scatter plot, trend.
 
 ## 10. Gaps
 
-- [GAP-13](99_gaps_register.md) — five locked metric rows lack season variants (§5.8).
-- [GAP-15](99_gaps_register.md) — no fixtures list in the team payload (§5.9).
+None. Every value on the page is served.

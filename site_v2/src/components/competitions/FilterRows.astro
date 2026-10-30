@@ -1,8 +1,9 @@
 ---
 // The Filter bar: a filter by type (clubs or national teams) and one by region, each offering only
-// the values the page's rows carry, and absent with fewer than two. The radios come first because
-// the stylesheet hides whatever carries a non-matching `data-entity-type` / `data-confederation`
-// inside the `.categories` element that must follow them as a sibling. The buttons and the
+// the values the page's rows carry, or one by competition; each is absent with fewer than two
+// choices. The radios come first because the stylesheet hides whatever carries a non-matching
+// `data-entity-type` / `data-confederation` / `data-competition-slot` inside the `.categories`
+// element that must follow them as a sibling. The buttons and the
 // dropdowns are two forms of the same radios: fitBlocks.mjs picks the form that fits, filterBar.mjs
 // keeps the dropdowns on the radios and removes the choices that would leave no row.
 import { t } from "../../i18n/strings";
@@ -12,8 +13,17 @@ import { offered } from "../../lib/filterBar.mjs";
 interface Props {
   lang: Lang;
   rows: { entity_type?: string | null; confederation?: string | null }[];
+  /** A filter by competition (the Team page's Matches tab): each competition in its order, its
+   *  rows marked `data-competition-slot` with its place, 1 to COMPETITION_SLOTS. */
+  competitions?: { name: string }[];
 }
-const { lang, rows } = Astro.props;
+const { lang, rows, competitions = [] } = Astro.props;
+
+// system.css carries one rule per slot.
+const COMPETITION_SLOTS = 8;
+if (competitions.length > COMPETITION_SLOTS) {
+  throw new Error(`FilterRows: ${competitions.length} competitions, system.css has rules for ${COMPETITION_SLOTS}`);
+}
 
 const ENTITY_LABELS: Record<string, string> = { club: "filterClubs", national: "filterNational" };
 const REGION_LABELS: Record<string, string> = {
@@ -33,9 +43,20 @@ const filter = (name: string, idPart: string, labels: Record<string, string>, ca
     ],
   };
 };
+const competitionFilter = {
+  name: "competition-filter",
+  aria: t(lang, "filterByCompetition"),
+  first: t(lang, "filterAllCompetitions"),
+  shown: competitions.length >= 2,
+  choices: [
+    { id: "filter-competition-all", value: "", label: t(lang, "filterAll") },
+    ...competitions.map((c, i) => ({ id: `filter-competition-${i + 1}`, value: String(i + 1), label: c.name })),
+  ],
+};
 const filters = [
   filter("entity-filter", "entity", ENTITY_LABELS, rows.map((r) => r.entity_type), t(lang, "filterByType"), t(lang, "filterAllTypes")),
   filter("region-filter", "region", REGION_LABELS, rows.map((r) => r.confederation), t(lang, "filterByRegion"), t(lang, "filterAllRegions")),
+  competitionFilter,
 ].filter((f) => f.shown);
 ---
 

@@ -685,7 +685,7 @@ def test_deserved_scatter_index_groups_by_league_season_and_excludes_null():
     pl = idx[("PL", 2024)]
     assert len(pl) == 2
     # raw values passed through (no rounding, no derivation)
-    assert pl[0] == {"team_sk": 1, "sotd": 2.4, "points": 84, "deserved": 77.0}
+    assert pl[0] == {"team_sk": 1, "name": None, "sotd": 2.4, "points": 84, "deserved": 77.0}
 
 
 def test_shape_team_payload_attaches_deserved_scatter_and_flags_self():
@@ -695,14 +695,14 @@ def test_shape_team_payload_attaches_deserved_scatter_and_flags_self():
     idx = deserved_scatter_index([
         {"team_sk": 1, "league_code": "PL", "season_api_year": 2024,
          "shots_on_goal_difference_per_match": 2.4, "points": 84, "deserved_points": 77.0},
-        {"team_sk": 2, "league_code": "PL", "season_api_year": 2024,
+        {"team_sk": 2, "league_code": "PL", "season_api_year": 2024, "team_name": "Forest",
          "shots_on_goal_difference_per_match": -0.3, "points": 65, "deserved_points": 50.0},
     ])
     p = shape_team_payload(_mark_featured(rows), scatter_index=idx)
     sc = p["seasons"][0]["deserved_scatter"]
     assert len(sc) == 2
     self_dot = next(d for d in sc if d["is_self"])
-    assert self_dot == {"sotd": -0.3, "points": 65, "deserved": 50.0, "is_self": True}
+    assert self_dot == {"name": "Forest", "sotd": -0.3, "points": 65, "deserved": 50.0, "is_self": True}
     assert sum(1 for d in sc if d["is_self"]) == 1          # exactly one self
 
 
@@ -907,6 +907,81 @@ def test_shape_team_payload_attaches_fixtures_per_season_newest_first():
     s2024 = p["seasons"][1]
     assert s2024["next_fixture"] is None
     assert s2024["recent_results"] == []
+
+
+def test_the_team_schedule_lists_every_match_ahead_and_every_result_of_the_featured_year():
+    rows = [{"team_sk": 165, "season_api_year": 2026, "league_code": "BL1", "team_name": "Dortmund"}]
+
+    def fx(sk, kickoff, year, *, upcoming=None, recency=None, order=None, league="BL1"):
+        return {"team_sk": 165, "fixture_sk": sk, "league_code": league, "season_api_year": year,
+                "kickoff_datetime": kickoff, "opponent_team_sk": 5, "opponent_name": f"O{sk}",
+                "opponent_logo_url": "x", "is_home": True, "round_name": "R", "goals_for": None,
+                "goals_against": None, "result": None, "status_short": "NS",
+                "has_result": recency is not None, "is_upcoming": upcoming is not None,
+                "upcoming_rank": upcoming, "recency_rank": recency,
+                "upcoming_order": order if upcoming is not None else None,
+                "result_order": order if recency is not None else None}
+
+    # the kick-offs disagree with the served orders on purpose: the export follows the mart's order
+    fixtures = [
+        fx(3, "2026-11-08 14:30:00+00:00", 2026, upcoming=2, order=3),
+        fx(4, "2026-11-04 20:00:00+00:00", 2026, upcoming=1, order=2, league="UCL"),
+        fx(1, "2026-11-09 14:30:00+00:00", 2026, upcoming=1, order=1),
+        fx(7, "2027-07-30 18:00:00+00:00", 2027, upcoming=1, order=4),
+        fx(10, "2026-10-25 14:30:00+00:00", 2026, recency=1, order=1),
+        fx(9, "2026-10-28 19:00:00+00:00", 2026, recency=1, order=2, league="UCL"),
+        fx(8, "2026-05-16 14:30:00+00:00", 2025, recency=1, order=1),
+    ]
+    sched = shape_team_payload(_mark_featured(rows), fixtures)["schedule"]
+    assert [f["fixture_id"] for f in sched["upcoming"]] == [1, 4, 3, 7]
+    assert [f["fixture_id"] for f in sched["results"]] == [10, 9], "last season's result is not listed"
+    assert sched["upcoming"][1] == {
+        "fixture_id": 4, "league_code": "UCL", "upcoming_rank": 1, "opponent_name": "O4",
+        # the payload carries no order key: its list order is the order
+        "opponent_logo_url": "x", "is_home": True, "kickoff_datetime": "2026-11-04 20:00:00+00:00",
+        "round_name": "R", "goals_for": None, "goals_against": None, "result": None,
+        "status_short": "NS"}
+    assert shape_team_payload(_mark_featured(rows))["schedule"] == {"upcoming": [], "results": []}
+
+
+def test_each_team_season_carries_its_competitions_season_label():
+    rows = [{"team_sk": 1, "season_api_year": 2026, "league_code": "PL", "team_name": "City"},
+            {"team_sk": 1, "season_api_year": 2026, "league_code": "MLS", "team_name": "City"}]
+    labels = {("PL", 2026): "2026/27", ("MLS", 2026): "2026"}
+    p = shape_team_payload(_mark_featured(rows), season_labels=labels)
+    assert {s["league_code"]: s["season_label"] for s in p["seasons"]} == {"PL": "2026/27", "MLS": "2026"}
+    assert shape_team_payload(_mark_featured(rows))["seasons"][0]["season_label"] is None
+
+
+def test_a_team_export_reads_each_seasons_label_from_the_warehouse(monkeypatch):
+    profile = [{"team_sk": 1, "season_api_year": 2026, "league_code": "PL", "team_name": "City",
+                "is_featured_season": True}]
+    labels = [{"league_code": "PL", "season_api_year": 2026, "season_label": "2026/27"}]
+
+    def fake_query(client, sql):
+        if "mart_team_profile" in sql:
+            return profile
+        return labels if "dim_competition_season" in sql else []
+
+    monkeypatch.setattr(export_site_data, "_query", fake_query)
+    (payload,) = export_site_data.fetch_team_payloads(client=None, sample=1)
+    assert payload["seasons"][0]["season_label"] == "2026/27"
+
+
+def test_a_sampled_team_export_reads_every_ranked_fixture(monkeypatch):
+    profile = [{"team_sk": 1, "season_api_year": 2026, "league_code": "PL", "team_name": "City",
+                "is_featured_season": True}]
+    seen = []
+
+    def fake_query(client, sql):
+        seen.append(sql)
+        return profile if "mart_team_profile" in sql else []
+
+    monkeypatch.setattr(export_site_data, "_query", fake_query)
+    export_site_data.fetch_team_payloads(client=None, sample=1)
+    fx_sql = next(s for s in seen if "mart_team_fixtures" in s)
+    assert "(upcoming_rank is not null or recency_rank is not null)" in fx_sql
+    assert "team_sk in (1)" in fx_sql
 
 
 def test_shape_team_payload_attaches_squad_per_season_omits_null_name():

@@ -1,5 +1,7 @@
 # 14 — Team → Stats (vs league)
 
+> **Retired.** The Team page has no Stats tab: its Performance tab compares the team with its league ([02](02_team_profile.md)).
+
 > A sub-screen of the team page ([02](02_team_profile.md)). Field-bound against
 > `mart_team_competition_benchmarks` — **built** (the team benchmark chain:
 > `int_team_competition_benchmark_metrics_long` → the `int_team_competition_benchmarks` engine → the

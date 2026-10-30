@@ -1,0 +1,85 @@
+---
+// Competitions: one list row per competition of the season, in the served order (domestic first,
+// league then cup, then international). Line 1: crest · name · a muted note (a league's latest
+// round, a cup's round reached, an international league phase); on the right the standing, or a
+// cup's Through / Knocked out / Winners. Line 2, for a table: the W/D/L counts, then goals and
+// points. Every value is mart_team_competitions'; the row links to the competition's page.
+import Crest from "../ui/Crest.astro";
+import SectionHead from "../ui/SectionHead.astro";
+import type { Lang } from "../../lib/format";
+import { ordinal, integer } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import { roundName } from "../../lib/roundName.mjs";
+import { localeHref } from "../../lib/href";
+import { competitionInfo } from "../../lib/teamFixtures";
+import type { TeamCompetition } from "../../lib/types";
+
+interface Props {
+  competitions: TeamCompetition[];
+  lang: Lang;
+}
+const { competitions, lang } = Astro.props;
+
+const CUP_STATUS: Record<string, string> = { through: "teamThrough", knocked_out: "teamKnockedOut", winners: "teamWinners" };
+
+const rows = competitions.map((c) => {
+  const info = competitionInfo(c.league_code);
+  const cup = c.cup_status != null || c.reached_round_stage_kind !== "table";
+  const note = cup
+    ? roundName(t, lang, c.reached_round_label_i18n_key, c.reached_round_number, c.reached_round_letter)
+    : c.competition_type === "domestic_league"
+      ? roundName(t, lang, c.latest_played_round_label_i18n_key, c.latest_played_round_number, c.latest_played_round_letter)
+      : t(lang, "teamLeaguePhase");
+  const right = cup
+    ? (c.cup_status && CUP_STATUS[c.cup_status] ? t(lang, CUP_STATUS[c.cup_status]) : null)
+    : c.standing_rank != null ? ordinal(c.standing_rank, lang) : null;
+  const words = info.name.split(" ");
+  return {
+    info,
+    head: words.slice(0, -1).join(" "),
+    last: words[words.length - 1],
+    note,
+    right,
+    table: !cup,
+    c,
+  };
+});
+const CHIPS = [
+  { k: "W", field: "wins", label: "compColWins" },
+  { k: "D", field: "draws", label: "compColDraws" },
+  { k: "L", field: "losses", label: "compColLosses" },
+] as const;
+---
+
+{rows.length > 0 && (
+  <section>
+    <SectionHead label={t(lang, "navCompetitions")} />
+    <div class="tcomps">
+      {rows.map((r) => {
+        const Row = r.info.slug ? "a" : "div";
+        return (
+          <Row class="lrow tc" href={r.info.slug ? localeHref(lang, `${r.info.slug}/`) : undefined}>
+            <div class="tcin">
+              <span class="tc-crest"><Crest name={r.info.name} crest={r.info.crest} size="xs" /></span>
+              <span class="tc-name">{r.head && `${r.head} `}<span class="nb">{r.last}{r.note && <span class="tc-ctx"> · {r.note}</span>}</span></span>
+              {r.right && <span class="tc-right">{r.right}</span>}
+              {r.table && (
+                <span class="tc-extra">
+                  {r.right && <span class="tc-rank2" aria-hidden="true">{r.right}</span>}
+                  <span class="cchips">
+                    {CHIPS.map((ch) => <span class:list={["cchip", ch.k]}>{integer(r.c[ch.field], lang)} <small>{t(lang, ch.label)}</small></span>)}
+                  </span>
+                  <span class="tc-nums">
+                    <span class="nb">{t(lang, "compColGoals")} <b>{integer(r.c.goals_for, lang)}:{integer(r.c.goals_against, lang)}</b></span>
+                    {" · "}
+                    <span class="nb">{t(lang, "compColPoints")} <b>{integer(r.c.points, lang)}</b></span>
+                  </span>
+                </span>
+              )}
+            </div>
+          </Row>
+        );
+      })}
+    </div>
+  </section>
+)}

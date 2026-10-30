@@ -1,27 +1,21 @@
 ---
-// The three team-page tabs (mock f6348775 .tabs): Overview active; Performance and
-// Squad are chrome this increment — their panels show the honest coming-state (their
-// data export is pending), not a dead tab. Switching is JS-free: each tab is a
-// `<label>` bound (via `for`) to a hidden `#tab-*` radio the page renders, and the
-// checked radio drives the active label + its `.page` panel in CSS (same pattern as
-// the fixture `.seg-in` control). No client script → works without JavaScript.
+// The Team page's tabs: Overview, Matches and Performance, each present when its page has a block.
+// Each tab is a `<label>` bound to a hidden `#tab-*` radio the page renders; the checked radio marks
+// its label and shows its `.page` panel in CSS. No client script.
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
 
 interface Props {
   lang: Lang;
+  pages: ("overview" | "matches" | "performance")[];
 }
-const { lang } = Astro.props;
+const { lang, pages } = Astro.props;
 
-const tabs = [
-  { go: "overview", label: t(lang, "tabOverview") },
-  { go: "performance", label: t(lang, "tabPerformance") },
-  { go: "squad", label: t(lang, "tabSquad") },
-];
+const LABEL = { overview: "tabOverview", matches: "navMatches", performance: "tabPerformance" };
 ---
 
-<nav class="tabs" aria-label={t(lang, "tabsAria")}>
-  {tabs.map((tb) => (
-    <label class="tab" for={`tab-${tb.go}`}>{tb.label}</label>
+<nav class="tabs comp-tabs" aria-label={t(lang, "tabsAria")}>
+  {pages.map((go) => (
+    <label class="tab" for={`tab-${go}`}>{t(lang, LABEL[go])}</label>
   ))}
 </nav>

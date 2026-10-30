@@ -112,11 +112,9 @@ own the exact block placement, and which compact blocks an Overview shows.
 
 | Entity | Tab | Blocks |
 |---|---|---|
-| **Team** | **Overview** | header, form, season highlights, standing, next match, key players, deserved-vs-actual teaser |
+| **Team** | **Overview** | competitions, recent matches, next matches, highs and lows, squad |
 | | **Matches** | upcoming, results |
-| | **Stats** | season per-game, vs-benchmark, season-over-season, deserved-vs-actual, streaks |
-| | **Squad** | roster, with per-player appearances, minutes per appearance, goals and assists |
-| | **History** | past-season records, all-time, coach |
+| | **Performance** | standing, deserved points, compared with the league, compared with last season |
 | **Player** | **Overview** | header, form, season highlights, position, next match |
 | | **Matches** | match log; each row links to its fixture |
 | | **Stats** | season per-game, percentile vs peers, season-over-season |

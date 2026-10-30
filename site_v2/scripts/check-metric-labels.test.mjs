@@ -44,8 +44,8 @@ function labelBlock(loc) {
 const labels = Object.fromEntries(LOCALES.map((l) => [l, labelBlock(l)]));
 const servedRows = JSON.parse(readFileSync(join(SITE, "src/data/metric_rows.json"), "utf8")).rows;
 const rowKeys = [
-  ...[...rowsSrc.matchAll(/labelKey:\s*"(metrics\.[A-Za-z0-9_]+\.label)"/g)].map((m) => m[1]),
   ...servedRows.map((r) => r.label_i18n_key),
+  ...[...rowsSrc.matchAll(/label_i18n_key:\s*"(metrics\.[A-Za-z0-9_]+\.label)"/g)].map((m) => m[1]),
 ];
 /** Every .astro file under src/, for the names a component or page asks for by a literal key. */
 function astroFiles(dir) {
@@ -54,9 +54,9 @@ function astroFiles(dir) {
 }
 const componentKeys = astroFiles(join(SITE, "src")).flatMap((f) => {
   const text = readFileSync(f, "utf8");
-  const consts = new Map([...text.matchAll(/const ([A-Z_]+) = "(metrics\.[A-Za-z0-9_]+\.label)"/g)]
+  const consts = new Map([...text.matchAll(/const ([A-Z_]+) = "((?:metrics|playerMetrics)\.[A-Za-z0-9_]+\.label)"/g)]
     .map((m) => [m[1], m[2]]));
-  return [...text.matchAll(/(?:metricLabel|metricInSentence)\(lang,\s*(?:"(metrics\.[A-Za-z0-9_]+\.label)"|([A-Z_]+))\)/g)]
+  return [...text.matchAll(/(?:metricLabel|metricInSentence)\(lang,\s*(?:"((?:metrics|playerMetrics)\.[A-Za-z0-9_]+\.label)"|([A-Z_]+))\)/g)]
     .map((m) => m[1] ?? consts.get(m[2])).filter(Boolean);
 });
 
@@ -113,16 +113,11 @@ const boardKeys = [
 const groupJson = JSON.parse(readFileSync(join(SITE, "src/data/metric_groups.json"), "utf8"));
 const groupIds = groupJson.groups.map((g) => g.key);
 const groupKeys = groupIds.map((k) => `metricGroups.${k}.label`);
-const rowGroups = [...rowsSrc.matchAll(/\bgroup:\s*"([a-z_]+)"/g)].map((m) => m[1]);
 
 test("the metric groups come from the catalogue and every one has a name in every locale", () => {
   assert.ok(groupIds.length >= 8, `parsed only ${groupIds.length} groups from metric_groups.json`);
   assert.deepEqual(groupJson.groups.map((g) => g.order), groupIds.map((_, i) => i + 1),
     "metric_groups.json is not one row per group at positions 1..N");
-  assert.ok(rowGroups.length >= 16, `parsed only ${rowGroups.length} group: tokens from metricRows.ts`);
-  const unknown = [...new Set(rowGroups)].filter((g) => !groupIds.includes(g));
-  assert.deepEqual(unknown, [],
-    `metricRows.ts names groups the catalogue does not define: ${unknown.join(", ")}`);
   for (const loc of LOCALES) {
     const missing = groupKeys.filter((k) => !labels[loc].get(k));
     assert.deepEqual(missing, [], `${loc} has no group name for: ${missing.join(", ")}`);
@@ -208,15 +203,8 @@ test("the site's per-match flags and share list agree with the catalogue", () =>
   // A per-match average divides by the matches and is not a share (clean_sheets_pct divides by the
   // matches too, but it is a share).
   const perMatch = (id) => cat.get(`${id}|team`)?.denominator === "count(*)" && cat.get(`${id}|team`)?.format !== "percent";
-  const flags = [...rowsSrc.matchAll(/field: "([a-z_]+)", labelKey: "[^"]+"[^}]*?perMatch: (true|false)/g)];
-  assert.ok(flags.length >= 17, `expected the 16 rows and the team binding, parsed ${flags.length}`);
-  for (const [, field, flag] of flags) {
-    assert.ok(cat.has(`${field}|team`), `metricRows.ts field ${field} is not a team catalogue metric`);
-    assert.equal(flag === "true", perMatch(field), `metricRows.ts perMatch for ${field} disagrees with the catalogue`);
-  }
-  for (const id of ["shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match"]) {
-    assert.ok(perMatch(id), `the team hero tile ${id} says "per match" but the catalogue does not define it so`);
-  }
+  assert.ok(perMatch("shots_on_goal_difference_per_match"),
+    `the Team page's Deserved points block says "per match" for shots on target difference, but the catalogue does not define it so`);
   const shares = [...strings.match(/SHARE_NAMED_BY_ITS_COUNT = new Set\(\[([\s\S]*?)\]\)/)[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
   const byKey = new Map([...cat.values()].map((r) => [r.key, r]));
   for (const key of shares) {
@@ -405,8 +393,8 @@ function sharedNames(rows, metricLabel, metricSubline) {
 test("no two metrics of one entity share both name and second line, in any locale", async () => {
   const { metricLabel, metricSubline } = await import("../src/i18n/strings.ts");
   const planted = sharedNames([
-    { entity: "team", key: "metrics.goals.label", perMatch: false },
-    { entity: "team", key: "metrics.goals_per_match.label", perMatch: false },
+    { entity: "team", key: "metrics.shots_per_match.label", perMatch: false },
+    { entity: "team", key: "playerMetrics.shots.label", perMatch: false },
   ], metricLabel, metricSubline);
   assert.ok(planted.clashes.length > 0, "the clash finder no longer finds two metrics read the same");
   const rows = [...catalogueByKey()]
@@ -421,22 +409,18 @@ test("no two metrics of one entity share both name and second line, in any local
   assert.deepEqual(clashes, [], clashes.join("\n"));
 });
 
-test("a verdict that counts points takes the singular for one point", async () => {
-  const { t, pointCount } = await import("../src/i18n/strings.ts");
-  assert.deepEqual(["0", "1", "2"].map((n) => pointCount("de", n)), ["0 Punkte", "1 Punkt", "2 Punkte"]);
-  assert.deepEqual(["1", "2"].map((n) => pointCount("en", n)), ["1 point", "2 points"]);
-  assert.deepEqual(["1", "2"].map((n) => pointCount("fi", n)), ["1 piste", "2 pistettä"]);
-  const one = t("de", "heroVerdictUnder", { gapPoints: pointCount("de", "1") });
-  assert.match(one, /holte 1 Punkt weniger/);
-  const hero = readFileSync(join(SITE, "src/components/team/DeservedHero.astro"), "utf8");
-  assert.match(hero, /gapPoints: pointCount\(lang, gapShown\)/,
-    "DeservedHero.astro no longer counts the verdict's points through pointCount");
-  assert.match(hero, /const gapShown = integer\(Math\.abs\(gap\), lang\)/,
-    "the verdict's point count no longer agrees with the gap as shown");
-  for (const loc of LOCALES) {
-    for (const key of ["heroVerdictUnder", "heroVerdictOver"]) {
-      assert.ok(!/\{gap\} (Punkte|points|pistettä)/.test(chromeBlock(loc).get(key)),
-        `${loc}.${key} puts a plural noun after {gap}; use {gapPoints}`);
-    }
-  }
+test("a squad row counts its appearances with the noun agreeing with the number", async () => {
+  const { t, metricInSentence } = await import("../src/i18n/strings.ts");
+  const apps = (lang, n) => t(lang, n === 1 ? "appearanceCountOne" : "appearanceCount", { n });
+  assert.deepEqual([1, 12].map((n) => apps("en", n)), ["1 appearance", "12 appearances"]);
+  assert.deepEqual([1, 12].map((n) => apps("de", n)), ["1 Einsatz", "12 Einsätze"]);
+  assert.deepEqual([1, 12].map((n) => apps("fi", n)), ["1 ottelu", "12 ottelua"]);
+  const minutes = (lang) => `75 ${metricInSentence(lang, "playerMetrics.minutesPerAppearance.label")}`;
+  assert.deepEqual(["en", "de", "fi"].map(minutes),
+    ["75 minutes per appearance", "75 Minuten pro Einsatz", "75 minuuttia per ottelu"]);
+  const squad = readFileSync(join(SITE, "src/components/team/TeamSquad.astro"), "utf8");
+  assert.match(squad, /\$\{metricInSentence\(lang, MINUTES\)\}/,
+    "TeamSquad.astro no longer names the minutes from the catalogue");
+  assert.match(squad, /m\.appearances === 1 \? "appearanceCountOne" : "appearanceCount"/,
+    "TeamSquad.astro no longer picks the singular for one appearance");
 });

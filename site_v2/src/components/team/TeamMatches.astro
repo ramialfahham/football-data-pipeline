@@ -1,0 +1,60 @@
+---
+// The Matches tab: the shared Filter bar by competition, then Upcoming (every scheduled match,
+// grouped by competition, the group of the soonest match first) and Results (every result of the
+// season, newest first, the result row linking to the match). The competitions are the season's,
+// in the served order, then any other competition the schedule holds; each is offered only when it
+// has a match. Data: the served schedule (mart_team_fixtures).
+import SectionHead from "../ui/SectionHead.astro";
+import FilterRows from "../competitions/FilterRows.astro";
+import RecentMatch from "../fixture/RecentMatch.astro";
+import TeamFixtureGroup from "./TeamFixtureGroup.astro";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import { asResultMatch, competitionInfo, upcomingByCompetition } from "../../lib/teamFixtures";
+import type { TeamCompetition, TeamRef, TeamSchedule } from "../../lib/types";
+
+interface Props {
+  schedule: TeamSchedule;
+  competitions: TeamCompetition[];
+  team: TeamRef;
+  lang: Lang;
+}
+const { schedule, competitions, team, lang } = Astro.props;
+
+const carried = new Set([...schedule.upcoming, ...schedule.results].map((fx) => fx.league_code));
+const codes = [
+  ...competitions.map((c) => c.league_code).filter((c) => carried.has(c)),
+  ...[...schedule.upcoming, ...schedule.results].map((fx) => fx.league_code),
+].filter((c, i, all) => all.indexOf(c) === i);
+const slot = new Map(codes.map((c, i) => [c, i + 1]));
+const groups = upcomingByCompetition(schedule.upcoming);
+// The slots a section holds: a filter choice it holds none of hides the whole section, heading too.
+const slotsOf = (fixtures: { league_code: string }[]) =>
+  [...new Set(fixtures.map((fx) => slot.get(fx.league_code)))].join(" ");
+---
+
+{codes.length > 0 && (
+  <>
+    <FilterRows lang={lang} rows={[]} competitions={codes.map((c) => ({ name: competitionInfo(c).name }))} />
+    <div class="categories">
+      {groups.length > 0 && (
+        <section data-slots={slotsOf(schedule.upcoming)}>
+          <SectionHead label={t(lang, "teamUpcoming")} />
+          {groups.map((g) => (
+            <TeamFixtureGroup code={g.code} fixtures={g.fixtures} team={team} lang={lang} slot={slot.get(g.code)} />
+          ))}
+        </section>
+      )}
+      {schedule.results.length > 0 && (
+        <section data-slots={slotsOf(schedule.results)}>
+          <SectionHead label={t(lang, "teamResults")} />
+          <div class="rlist">
+            {schedule.results.map((fx, i) => (
+              <RecentMatch match={asResultMatch(fx, i + 1)} lang={lang} slot={slot.get(fx.league_code)} />
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  </>
+)}

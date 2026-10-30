@@ -1,0 +1,36 @@
+---
+// Standing, fact rows: the team's position and points, each with the season before at the same
+// point under it. The position is the latest table place; the points and both "Season before"
+// values are the official league table's on the day of the team's Nth match (mart_team_profile).
+import SectionHead from "../ui/SectionHead.astro";
+import type { Lang } from "../../lib/format";
+import { integer, ordinal, DASH } from "../../lib/format";
+import { t, metricLabel } from "../../i18n/strings";
+import type { TeamSeason } from "../../lib/types";
+
+interface Props {
+  season: TeamSeason;
+  lang: Lang;
+}
+const { season: s, lang } = Astro.props;
+const rows = [
+  { label: t(lang, "teamPosition"), value: ordinal(s.latest_rank, lang),
+    before: s.points_rank_prev_season == null ? DASH : ordinal(s.points_rank_prev_season, lang) },
+  { label: metricLabel(lang, "metrics.points_won.label"), value: integer(s.points_this_season, lang),
+    before: integer(s.points_prev_season, lang) },
+];
+---
+
+{(s.latest_rank != null || s.points_this_season != null) && (
+  <section>
+    <SectionHead label={t(lang, "teamStanding")} />
+    <div class="facts">
+      {rows.map((r) => (
+        <div class="frow">
+          <span class="fl">{r.label}</span>
+          <span class="fv"><span class="fvv"><b>{r.value}</b></span><span class="sub">{t(lang, "teamSeasonBefore", { value: r.before })}</span></span>
+        </div>
+      ))}
+    </div>
+  </section>
+)}

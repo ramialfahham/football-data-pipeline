@@ -1,0 +1,45 @@
+---
+// One competition's matches of a team, the way Home lists a competition: the group head (crest ·
+// name · chevron to the competition's page), a date heading wherever the day changes, THE match
+// row. `nextId` puts the Next tag on that match.
+import Crest from "../ui/Crest.astro";
+import Chevron from "../fixture/Chevron.astro";
+import MatchRow from "../ui/MatchRow.astro";
+import type { Lang } from "../../lib/format";
+import { formatDate } from "../../lib/format";
+import { localeHref } from "../../lib/href";
+import { asMatchRowFixture, competitionInfo } from "../../lib/teamFixtures";
+import type { TeamRef, TeamScheduleFixture } from "../../lib/types";
+
+interface Props {
+  code: string;
+  fixtures: TeamScheduleFixture[];
+  team: TeamRef;
+  lang: Lang;
+  nextId?: number | null;
+  slot?: number;
+}
+const { code, fixtures, team, lang, nextId = null, slot } = Astro.props;
+const info = competitionInfo(code);
+const dayOf = (fx: TeamScheduleFixture) => fx.kickoff_datetime?.slice(0, 10) ?? null;
+---
+
+<div class="fxgroup" data-competition-slot={slot}>
+  <div class="gh">
+    {info.slug ? (
+      <a class="cnm" href={localeHref(lang, `${info.slug}/`)}>
+        <span class="clogo"><Crest name={info.name} crest={info.crest} size="xs" /></span>
+        <span class="nm">{info.name}</span>
+        <Chevron />
+      </a>
+    ) : (
+      <span class="nm">{info.name}</span>
+    )}
+  </div>
+  {fixtures.map((fx, i) => (
+    <>
+      {(i === 0 || dayOf(fx) !== dayOf(fixtures[i - 1])) && <div class="dh">{formatDate(fx.kickoff_datetime, lang)}</div>}
+      <MatchRow fx={asMatchRowFixture(fx, team)} competitionSlug={info.slug} lang={lang} nextMatch={fx.fixture_id === nextId} />
+    </>
+  ))}
+</div>

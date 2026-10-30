@@ -75,8 +75,8 @@ N" + vs-median, honest at N≈18) — never a percentile.
    direction, so the caveat no longer applies here.)
 4. **Peers = position group** (GK / DEF / MID / ATT) — position-aware, set at the mart (CPO 2026-06-23).
 5. **One bar, direction-aware colour** (CPO 2026-07-21, v2 design review). ONE bar language across every
-   vs-population screen, player and team alike — no bespoke percentile treatment; the team benchmark screen
-   ([14](14_team_stats.md)) carries the identical rule. A single-fill rank bar on a track + the median
+   vs-population screen of a player — no bespoke percentile treatment. The Team page compares a team with
+   its league in a strip plot ([02](02_team_profile.md)). A single-fill rank bar on a track + the median
    reference mark; the fill goes **green when the metric beats the median in its better direction**
    and stays **plain ink** otherwise. Sample (`peer_count`, `minutes`, `appearances`) is always shown.
    (Superseded: the rule used to be "no traffic lights, no colour at all", on the grounds that colour would

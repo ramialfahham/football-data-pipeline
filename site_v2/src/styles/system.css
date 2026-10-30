@@ -160,8 +160,6 @@ section { margin-top: 36px; }
 .split { display: grid; grid-template-columns: 1fr; gap: 8px 30px; margin-top: 4px; }
 @container (min-width: 560px) { .split { grid-template-columns: 1fr 1fr; } }
 .colhead { font-size: 13px; font-weight: 700; color: var(--muted); margin: 14px 0 8px; }
-.rmatch { display: grid; grid-template-columns: 24px 42px 1fr auto; align-items: center; gap: 11px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
-.rmatch:last-child { border-bottom: 0; }
 .res { width: 24px; height: 24px; border-radius: 5px; display: grid; place-items: center; font-weight: 700; font-size: 11px; color: var(--pill-ink); }
 .res.W { background: var(--win); }
 .res.D { background: var(--draw); }
@@ -173,8 +171,6 @@ section { margin-top: 36px; }
 .noclick .rscore,
 .noclick .ropp { opacity: .55; }
 
-.prow { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
-.prow:last-child { border-bottom: 0; }
 .pphoto { width: 34px; height: 34px; border-radius: 50%; background: var(--sunk); border: 1px solid var(--line); display: grid; place-items: center; font-weight: 700; font-size: 11px; color: var(--muted); overflow: hidden; }
 .pphoto img { width: 100%; height: 100%; object-fit: cover; }
 .pname { min-width: 0; }
@@ -182,12 +178,6 @@ section { margin-top: 36px; }
 .pname .ps { font-size: 11.5px; color: var(--muted); }
 .pstat { font-size: 13px; color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
 .pstat b { color: var(--ink); font-weight: 700; }
-/* Squad tab (mock f6348775): a TWO-LINE stat readout (l1 apps · mins/app, l2 goals ·
-   assists), SCOPED to .squad so the fixture PlayerRow's single-line .pstat above is
-   untouched. Inherits text-align/tabular-nums/colour from .pstat. */
-.squad .pstat { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; line-height: 1.2; }
-.squad .pstat .l1 { font-size: 13px; color: var(--muted); }
-.squad .pstat .l2 { font-size: 12px; color: var(--muted); }
 
 /* ---- h2h ---- */
 .h2h-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
@@ -206,37 +196,17 @@ section { margin-top: 36px; }
 .h2h-last b { color: var(--ink); font-weight: 700; }
 .h2h-list { margin-top: 14px; }
 
-/* ---- links / footer ---- */
-.linkrow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
-.linkchip { font-size: 13px; font-weight: 600; color: var(--ink-2); border: 1px solid var(--line); border-radius: 6px; padding: 8px 13px; }
-/* Hover is an affordance, so only something clickable may carry it. Every linkchip in the tree is
-   still an inert <span> (the fixture links footer and the team page both wait on page types that
-   are not built), and the unscoped rule invited a click on all of them. Anchor-scoped rather
-   than marker-scoped so a chip gets the affordance back the moment it becomes a link, with no
-   second edit and no class to remember. */
-a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
+/* ---- links ---- */
 /* The ONE place an underline stays: a link inside running text, which has no structure of its own
    to signal with. `.fx a` above resets decoration at (0,1,1), so these carry the `.fx` prefix. */
 .fx .lede a, .fx .bnote a, .fx p a, .fx .sub a {
   text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--div); color: var(--ink);
 }
 .fx .lede a:hover, .fx .bnote a:hover, .fx p a:hover, .fx .sub a:hover { text-decoration-color: var(--ink-2); }
-.footnote { margin-top: 30px; font-size: 11px; color: var(--muted); text-align: center; opacity: .8; }
 .err { padding: 40px; color: #f26d6d; font-size: 14px; white-space: pre-wrap; }
 
 /* ================================================================ *
- *  TEAM PAGE — blocks transcribed from the approved mock             *
- *  (artifact f6348775). Same token contract as above: colour =      *
- *  meaning (green reserved for "better value"), hierarchy by         *
- *  tone/weight/size. Shared blocks are REUSED from the system above  *
- *  and not redefined here: .pills/.pill · .cchips/.cchip ·           *
- *  .rmatch/.res/.rscore/.ropp/.rmeta · .linkrow/.linkchip ·          *
- *  .sechead/.eyebrow/.win-note · .crest · .footnote. Two classes are *
- *  additions, not in the mock, each carrying meaning the mock's      *
- *  example did not need: `.sc .gap` draws the self dot's distance to  *
- *  the trend line (= deserved_points_gap, ~0 in the mock's example), and   *
- *  `.coming` is the honest coming-state for the not-yet-built         *
- *  Performance/Squad tabs.                                            *
+ *  ENTITY HEADER AND TABS — the team page's header and tab bar.      *
  * ================================================================ */
 
 /* breadcrumb current page */
@@ -249,9 +219,6 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
 .tid h1 { font-size: clamp(22px, 5cqw, 28px); font-weight: 700; line-height: 1.03; margin: 0; text-wrap: balance; }
 .tid .meta { font-size: 13px; color: var(--muted); margin-top: 5px; }
 .tid .meta b { color: var(--ink-2); font-weight: 600; }
-.selector { display: inline-flex; align-items: center; gap: 9px; margin-top: 13px; font-size: 13px; font-weight: 600; color: var(--ink-2); background: var(--sunk); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
-.selector .yr { color: var(--muted); }
-.selector .chev { color: var(--muted); font-size: 11px; }
 
 /* tabs — JS-free radio toggle (same pattern as the fixture `.seg-in` control): the
    checked `#tab-*` radio drives both the active label and which `.page` panel shows.
@@ -262,125 +229,13 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
 .tab { font-size: 14px; font-weight: 600; color: var(--muted); padding: 13px 16px 12px; cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; user-select: none; }
 .tab:hover { color: var(--ink-2); }
 #tab-overview:checked ~ .tabs .tab[for="tab-overview"],
-#tab-performance:checked ~ .tabs .tab[for="tab-performance"],
-#tab-squad:checked ~ .tabs .tab[for="tab-squad"] { color: var(--ink); font-weight: 700; border-bottom-color: var(--ink); }
+#tab-matches:checked ~ .tabs .tab[for="tab-matches"],
+#tab-performance:checked ~ .tabs .tab[for="tab-performance"] { color: var(--ink); font-weight: 700; border-bottom-color: var(--ink); }
 .fx .tab-in:focus-visible ~ .tabs { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
 .page { display: none; }
 #tab-overview:checked ~ .page[data-page="overview"],
-#tab-performance:checked ~ .page[data-page="performance"],
-#tab-squad:checked ~ .page[data-page="squad"] { display: block; }
-.pagecap { font-size: 12.5px; color: var(--muted); margin: 18px 0 0; }
-
-/* coming-state (Performance / Squad panels — their data export is pending) */
-.coming { margin: 44px 0; text-align: center; }
-.coming .ct { font-size: 15px; font-weight: 700; color: var(--ink-2); }
-.coming .cb { font-size: 13px; color: var(--muted); margin: 8px auto 0; max-width: 42ch; line-height: 1.6; }
-
-/* record strip: standing + status (count-chips + form pills) */
-.record { margin-top: 24px; display: flex; flex-direction: column; gap: 14px; }
-.record .stand { font-size: 15px; color: var(--muted); }
-.record .stand b { color: var(--ink); font-weight: 700; }
-.recrow { display: flex; align-items: center; justify-content: space-between; gap: 14px 18px; flex-wrap: wrap; }
-
-/* HERO: deserved vs actual scatter */
-.hero { background: var(--sunk); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
-.hero .verdict { font-size: 16px; line-height: 1.6; color: var(--ink-2); margin: 0 0 16px; }
-.hero .verdict b { color: var(--ink); font-weight: 700; }
-.hero .heronums { display: flex; gap: 8px; margin: 0 0 18px; }
-.hero .hn { flex: 1; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; min-width: 0; display: flex; flex-direction: column; }
-/* A German or Finnish compound in a metric name can be wider than this tile on a phone; `anywhere`
-   breaks it and also lowers the min-content width a flex item with `min-width: 0` sizes against. */
-.hero .hn .hl { font-size: 11px; color: var(--muted); line-height: 1.3; overflow-wrap: anywhere; }
-.hero .hn .hl .hs { display: block; opacity: .8; }
-.hero .hn .hv { font-size: 17px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; margin-top: auto; padding-top: 8px; }
-/* Stack the hero tiles on phones (#370). Three side by side leave 71px per label, and
-   `overflow-wrap: anywhere` above then breaks a German or Finnish compound at an arbitrary letter with
-   no hyphen — `Ø / Torschussdiffe / renz`. `hyphens: auto` cannot help: this engine ships no de/fi
-   hyphenation dictionary. Stacked, the label gets ~231px (the 301px tile less padding, the value and
-   the gap, since `.hl` and `.hv` share the row) against the 89px the longest German name needs, so
-   every name fits on one line. Costs 53px of block height. English is unaffected either way.
-   The `anywhere` rule above STAYS as the backstop for `.vs-name`, which is not stacked (#876).
-   560px is a builder choice, not part of the ruling: the shell's breakpoints are all min-width
-   700/900/1010 and the container queries at 560/520 target other selectors, so it collides with none. */
-@media (max-width: 560px) {
-  .hero .heronums { flex-direction: column; gap: 6px; }
-  .hero .hn { flex-direction: row; align-items: baseline; justify-content: space-between; gap: 10px; }
-  .hero .hn .hv { margin-top: 0; padding-top: 0; }
-}
-.hero .cap2 { font-size: 12px; color: var(--muted); line-height: 1.55; margin: 14px 0 0; }
-.sc { width: 100%; height: auto; display: block; overflow: visible; }
-.sc .ax { stroke: var(--div); stroke-width: 1; }
-.sc .axtxt { fill: var(--muted); font: 600 9px system-ui, sans-serif; }
-.sc .trend { stroke: var(--muted); stroke-width: 1.3; stroke-dasharray: 4 3; opacity: .7; }
-.sc .gap { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 2; opacity: .6; }
-.sc .dot { fill: var(--muted); opacity: .5; }
-.sc .team { fill: var(--ink); }
-.sc .teamtxt { fill: var(--ink); font: 800 10px system-ui, sans-serif; }
-.sc .expl { fill: var(--muted); font: 600 8.5px system-ui, sans-serif; }
-
-/* vs last season (overview headline set) */
-.yoygrid { display: grid; grid-template-columns: 1fr; gap: 2px; }
-@container (min-width: 520px) { .yoygrid { grid-template-columns: 1fr 1fr; gap: 2px 26px; } }
-.yrow { display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
-.yrow .yl { font-size: 13px; color: var(--muted); }
-.yrow .yn { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
-.yrow .yd { font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; min-width: 96px; color: var(--muted); }
-.yrow .yd.up { color: var(--accent); }
-
-/* fixtures: next-fixture card + recent list (rows reuse the shared .rmatch grid) */
-.nextfx { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 13px; padding: 14px; background: var(--sunk); border: 1px solid var(--line); border-radius: 10px; }
-.nextfx .tag { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--div); border-radius: 5px; padding: 3px 8px; white-space: nowrap; }
-.nextfx .opp { min-width: 0; }
-.nextfx .opp .nm { font-size: 15px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nextfx .opp .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
-.nextfx .when { text-align: right; font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.nextfx .when b { display: block; color: var(--ink); font-weight: 700; font-size: 14px; }
-.recent { margin-top: 12px; }
-
-/* ---- Performance tab: two panels behind the JS-free segment ---- */
-/* The segment reuses the shared `.seg-in`/`.seg`/`.seg-btn`/`.win` blocks; these two id
-   rules bind the Performance radios to their panels + active label (same shape as the
-   fixture `#seg-w1`/`#seg-w2` pair). */
-#pf-league:checked ~ .pf-league,
-#pf-season:checked ~ .pf-season { display: block; }
-#pf-league:checked ~ .seg .seg-btn[for="pf-league"],
-#pf-season:checked ~ .seg .seg-btn[for="pf-season"] { background: var(--surface); color: var(--ink); font-weight: 700; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); }
-
-/* one shared grid: name | bar | value+rank | median (the group head carries the Median label) */
-.vs-group { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 22px 0 6px; }
-/* name | bar | value+rank | median. The value/rank column is wider than the mock's (3.4rem)
-   to fit the spec-required "{rank} of {team_count}" (e.g. "13th of 16"). */
-.vs-grouphead,
-.vs-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(84px, 1.5fr) 4.7rem 3.2rem; align-items: center; column-gap: clamp(8px, 2.2cqw, 14px); }
-.vs-grouphead { align-items: start; }
-.vs-h { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-align: right; }
-.vs-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
-.vs-row:last-child { border-bottom: 0; }
-/* Same rule, same reason, and this is the surface that measured WORST (#370): at 375px this
-   column is 77px and 9 of the 16 Performance rows overflowed it in
-   Finnish, `% Viimeistelytehokkuus` by 53px — far enough to run the label into the bar column beside
-   it. Note that string is from the validated corpus, so the gap is pre-existing in this
-   file and localising the labels merely exposed it. `.mlabel` on the fixture page deliberately does
-   NOT get this: it was measured too and is fine, because `.mmid` centres rather than stretches so its
-   box grows to fit. Fix what measured over, not every label that might. */
-.vs-name { font-size: 14px; color: var(--ink); line-height: 1.25; min-width: 0; overflow-wrap: anywhere; }
-.vs-name .sub { display: block; font-size: 11px; color: var(--muted); }
-.vs-bar { position: relative; height: 6px; background: var(--track); border-radius: 3px; }
-.vs-fill { position: absolute; left: 0; top: 0; bottom: 0; min-width: 3px; background: var(--ink); border-radius: 3px; }
-/* every metric is directional: green when it beats the league median in its better direction, plain ink otherwise (red stays reserved for a Loss) */
-.vs-fill.up { background: var(--accent); }
-.vs-notch { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--page); transform: translateX(-50%); }
-.vs-vr { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.15; }
-.vs-val { font-size: 16px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
-.vs-rank { font-size: 11px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 2px; white-space: nowrap; }
-.vs-medv { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
-/* vs last season: current value + signed change; green only when the change is in the better direction */
-.ss-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
-.ss-row:last-child { border-bottom: 0; }
-.ss-rt { display: flex; align-items: baseline; gap: 18px; }
-.ss-chg { min-width: 64px; text-align: right; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--muted); }
-.ss-chg.up { color: var(--accent); }
-.ss-chg .u { font-size: 11px; font-weight: 600; opacity: .8; margin-left: 2px; }
+#tab-matches:checked ~ .page[data-page="matches"],
+#tab-performance:checked ~ .page[data-page="performance"] { display: block; }
 
 /* ================================================================ *
  *  FOUNDATION SHELL — global header/footer + responsive layout system   *
@@ -802,6 +657,33 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 #filter-region-ofc:checked ~ .categories [data-confederation]:not([data-confederation="OFC"]) { display: none; }
 #filter-region-fifa:checked ~ .categories [data-confederation]:not([data-confederation="FIFA"]) { display: none; }
 
+/* The competition filter (the Team page's Matches tab): each competition is a slot, 1 to 8. */
+#filter-competition-1:checked ~ .categories [data-competition-slot]:not([data-competition-slot="1"]),
+#filter-competition-2:checked ~ .categories [data-competition-slot]:not([data-competition-slot="2"]),
+#filter-competition-3:checked ~ .categories [data-competition-slot]:not([data-competition-slot="3"]),
+#filter-competition-4:checked ~ .categories [data-competition-slot]:not([data-competition-slot="4"]),
+#filter-competition-5:checked ~ .categories [data-competition-slot]:not([data-competition-slot="5"]),
+#filter-competition-6:checked ~ .categories [data-competition-slot]:not([data-competition-slot="6"]),
+#filter-competition-7:checked ~ .categories [data-competition-slot]:not([data-competition-slot="7"]),
+#filter-competition-8:checked ~ .categories [data-competition-slot]:not([data-competition-slot="8"]),
+#filter-competition-1:checked ~ .categories section[data-slots]:not([data-slots~="1"]),
+#filter-competition-2:checked ~ .categories section[data-slots]:not([data-slots~="2"]),
+#filter-competition-3:checked ~ .categories section[data-slots]:not([data-slots~="3"]),
+#filter-competition-4:checked ~ .categories section[data-slots]:not([data-slots~="4"]),
+#filter-competition-5:checked ~ .categories section[data-slots]:not([data-slots~="5"]),
+#filter-competition-6:checked ~ .categories section[data-slots]:not([data-slots~="6"]),
+#filter-competition-7:checked ~ .categories section[data-slots]:not([data-slots~="7"]),
+#filter-competition-8:checked ~ .categories section[data-slots]:not([data-slots~="8"]) { display: none; }
+
+#filter-competition-all:checked ~ .fbar .seg-btn[for="filter-competition-all"],
+#filter-competition-1:checked ~ .fbar .seg-btn[for="filter-competition-1"],
+#filter-competition-2:checked ~ .fbar .seg-btn[for="filter-competition-2"],
+#filter-competition-3:checked ~ .fbar .seg-btn[for="filter-competition-3"],
+#filter-competition-4:checked ~ .fbar .seg-btn[for="filter-competition-4"],
+#filter-competition-5:checked ~ .fbar .seg-btn[for="filter-competition-5"],
+#filter-competition-6:checked ~ .fbar .seg-btn[for="filter-competition-6"],
+#filter-competition-7:checked ~ .fbar .seg-btn[for="filter-competition-7"],
+#filter-competition-8:checked ~ .fbar .seg-btn[for="filter-competition-8"],
 #filter-entity-all:checked ~ .fbar .seg-btn[for="filter-entity-all"],
 #filter-entity-club:checked ~ .fbar .seg-btn[for="filter-entity-club"],
 #filter-entity-national:checked ~ .fbar .seg-btn[for="filter-entity-national"],
@@ -1081,5 +963,117 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .plrow .pname .ps { grid-area: pos; font-size: 12px; color: var(--muted); }
 .plrow .pstat { grid-area: stat; align-self: center; text-align: right; font-size: 12px; }
 .plrow .pstat b { font-size: 15px; }
+
+/* ---- team page ---- */
+/* A tab's opening sentence: the block explainer's style, under the tab bar. */
+.bsub.tab-intro { margin-top: 14px; }
+
+/* The competition row: crest · name with its muted note · the standing or the cup's outcome on the
+   right; under it, for a table, the W/D/L counts and goals and points. Narrow, the standing moves
+   to the second line before the numbers, and the counts take a third. */
+a.lrow.tc, div.lrow.tc { padding-block: 12px; }
+/* A row opening a block carries no space of its own. */
+.sechead + .tcomps > .tc:first-child { padding-top: 0; }
+.sechead + .rlist > .lrow:first-child .resrow { padding-top: 0; }
+.tc .tcin { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto;
+  grid-template-areas: "crest name right" ". extra extra"; column-gap: 12px; row-gap: 8px; align-items: center; }
+.tc .tc-crest { grid-area: crest; }
+.tc .tc-name { grid-area: name; font-size: 15px; font-weight: 600; color: var(--ink); min-width: 0; }
+.tc .tc-ctx { font-size: 12px; font-weight: 400; color: var(--muted); }
+.tc .tc-right { grid-area: right; font-size: 15px; font-weight: 700; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tc .tc-extra { grid-area: extra; display: flex; align-items: center; justify-content: space-between; gap: 8px 14px; flex-wrap: wrap; }
+.tc .tc-rank2 { display: none; font-size: 15px; font-weight: 700; color: var(--ink); }
+.tc .tc-nums { margin-left: auto; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tc .tc-nums b { font-size: 15px; font-weight: 700; color: var(--ink); }
+@container (max-width: 340px) {
+  .tc .tcin { grid-template-areas: "crest name name" ". extra extra"; }
+  .tc .tc-right { display: none; }
+  .tc .tc-extra { display: grid; grid-template-columns: auto 1fr; grid-template-areas: "rank nums" "pills pills";
+    justify-items: start; align-items: baseline; gap: 8px 0; }
+  .tc .tc-rank2 { display: inline; grid-area: rank; }
+  .tc .tc-extra:has(.tc-nums) .tc-rank2::after { content: " ·"; font-size: 12px; font-weight: 400; color: var(--muted); margin-right: 4px; }
+  .tc .tc-nums { grid-area: nums; margin-left: 0; }
+  .tc .tc-extra .cchips { grid-area: pills; }
+}
+
+/* The squad: the player rows in two columns where each keeps 280px, one below. */
+.sqgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, max(280px, calc(50% - 12px))), 1fr)); column-gap: 24px; }
+.sqgrid > .lrow { border-bottom: 1px solid var(--line); min-width: 0; }
+.sqgrid > a.lrow { margin-inline: 0; padding-inline: 0; }
+
+/* Deserved points: the team's four values as a two-column table, then the scatter plot. */
+.ctab.dpm, .ctab.dpm.ctab { --cols: minmax(0, 1fr) 4.2rem; margin-top: 10px; }
+.ctab.dpm .ctab-head .nmh { text-align: left; padding-left: 0; }
+.ctab.dpm .tm .nm { font-weight: 400; }
+.ctab.dpm .n.dpm-v { font-size: 15px; font-weight: 700; color: var(--ink); }
+.dpm-sub { display: block; font-size: 12px; color: var(--muted); font-weight: 400; }
+.dp-wrap { container-type: inline-size; margin-top: 18px; }
+.dp-wrap .dp-narrow { display: none; }
+@container (max-width: 479.98px) {
+  .dp-wrap .dp-wide { display: none; }
+  .dp-wrap .dp-narrow { display: block; }
+}
+.dp-chart { width: 100%; height: auto; display: block; font-family: inherit; }
+.dp-chart text { font-family: inherit; }
+.dp-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--ink-2); margin: 0 0 8px; }
+.dp-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.dp-axis { stroke: var(--muted); stroke-width: 1; }
+.dp-tick { fill: var(--muted); }
+.dp-title, .dp-note { fill: var(--ink-2); }
+.dp-name { fill: var(--ink); }
+.dp-fit { stroke: var(--ink-2); stroke-width: 1.5; }
+.dp-gap { stroke: var(--ink-2); stroke-width: 1; stroke-dasharray: 2 2; }
+.dp-club { fill: color-mix(in srgb, var(--ink) 24%, transparent); }
+.dp-me { fill: var(--ink); stroke: var(--page); paint-order: stroke; stroke-width: 4; }
+.dp-k-me, .dp-k-club { display: inline-block; border-radius: 50%; }
+.dp-k-me { width: 10px; height: 10px; background: var(--ink); }
+.dp-k-club { width: 6px; height: 6px; background: color-mix(in srgb, var(--ink) 24%, transparent); }
+
+/* The strip plot: a metric's name · the league from its lowest to its highest value, values growing
+   to the right, every other club a light dot, the median a tick with its value, the team the solid
+   dot · the team's value over its rank. Narrow, the strip takes the row's second line. */
+.rs-list { container-type: inline-size; }
+.rs-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--ink-2); margin: 2px 0 6px; }
+.rs-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.rs-k-club { width: 6px; height: 6px; border-radius: 50%; background: color-mix(in srgb, var(--ink) 24%, transparent); }
+.rs-k-med { width: 2px; height: 14px; background: var(--ink-2); }
+.rs-k-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ink); }
+.rs-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) 4.6rem; column-gap: 14px; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--line); }
+.rs-name { font-size: 14px; color: var(--ink); line-height: 1.3; }
+.rs-strip { position: relative; height: 14px; margin: 26px 0 14px; }
+.rs-line { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--div); }
+.rs-med { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--ink-2); }
+.rs-medv { position: absolute; top: -25px; transform: translateX(-50%); font-size: 11px; color: var(--ink-2);
+  font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rs-club { position: absolute; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%;
+  background: color-mix(in srgb, var(--ink) 24%, transparent); }
+.rs-dot { position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%;
+  background: var(--ink); box-shadow: 0 0 0 2px var(--page); }
+.rs-dir { position: absolute; top: 16px; left: 0; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.rs-dir.r { left: auto; right: 0; }
+.rs-val { text-align: right; font-size: 15px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.25; }
+.rs-val small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
+@container (max-width: 479.98px) {
+  .rs-row { grid-template-columns: minmax(0, 1fr) 4.2rem; row-gap: 6px; }
+  .rs-row .rs-strip { grid-column: 1 / -1; grid-row: 2; }
+}
+
+/* Compared with last season: a table of this season, last season and the trend; ▲ in the accent when
+   better, ▼ in the loss red when worse, "–" when equal. The stripes count the rows on screen. */
+.ctab.yoyt, .ctab.yoyt.ctab { --cols: minmax(0, 1fr) 3.4rem 3.4rem 2.8rem; margin-top: 0; }
+@container (min-width: 420px) { .ctab.yoyt, .ctab.yoyt.ctab { --cols: minmax(0, 1fr) 4.6rem 4.6rem 3rem; } }
+.ctab.yoyt .ctab-head .h { white-space: normal; line-height: 1.2; }
+.ctab.yoyt .h.tr { text-align: center; }
+.ctab.yoyt .tm .nm { font-weight: 400; }
+.ctab.yoyt .n.now { font-size: 15px; font-weight: 700; color: var(--ink); }
+.ctab.yoyt .n.prev { font-size: 15px; color: var(--ink-2); }
+.ctab.yoyt .n.tr { font-size: 13px; text-align: center; padding-left: 0; }
+.ctab.yoyt .tr.up { color: var(--accent); }
+.ctab.yoyt .tr.down { color: var(--loss); }
+.ctab.yoyt .tr.flat { color: var(--muted); }
+.yoyt-head { margin-top: 6px; }
+.tsw:not(:checked) ~ * .ctab.yoyt .ctab-row { background: transparent; }
+.tsw:not(:checked) ~ * .ctab.yoyt .ctab-row:nth-child(odd of :not(.nonkey)) { background: color-mix(in srgb, var(--ink) 5%, transparent); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

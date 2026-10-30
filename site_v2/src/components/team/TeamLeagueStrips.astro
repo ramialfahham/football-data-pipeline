@@ -1,0 +1,87 @@
+---
+// Compared with the league: the served metric list (metric_rows.json, the catalogue's groups and
+// order), each row a strip plot of the team's league this season. The line runs from the league's
+// lowest to its highest value, values growing to the right; every other club is a small light dot,
+// the team the one solid dot, the league median a tick with its value. The team's value and its
+// rank (the mart's, by the metric's direction) stand on the right; "better" points the metric's
+// way. A row without a value for the team is left out. The key metrics show; the switch shows
+// every row in its place. Data: mart_team_competition_benchmarks and its every-club strip.
+import SectionHead from "../ui/SectionHead.astro";
+import MetricSwitch from "../ui/MetricSwitch.astro";
+import type { Lang } from "../../lib/format";
+import { formatValue, ordinal } from "../../lib/format";
+import { t, metricLabel, boardTitle } from "../../i18n/strings";
+import { comparisonGroups, needsSwitch } from "../../lib/comparisonGroups";
+import { teamBinding } from "../../lib/metricRows";
+import type { TeamSeason, WindowStats } from "../../lib/types";
+
+interface Props {
+  season: TeamSeason;
+  teamName: string;
+  compName: string;
+  lang: Lang;
+}
+const { season: s, teamName, compName, lang } = Astro.props;
+
+const bench = new Map((s.benchmarks ?? []).map((b) => [b.metric_key, b]));
+const strips = new Map((s.league_strip ?? []).map((x) => [x.metric_key, x.clubs]));
+const values = Object.fromEntries([...bench].map(([k, b]) => [k, b.metric_value ?? null])) as WindowStats;
+const groups = comparisonGroups(values, null).map((g) => ({ ...g, rows: g.rows.map(teamBinding) }))
+  .map((g) => ({ ...g, rows: g.rows.filter((r) => bench.get(r.metric_id)?.metric_value != null) }))
+  .filter((g) => g.rows.length > 0);
+
+// A value's place on the line, inside 3%–97% so no dot is cut at an end.
+function place(v: number, lo: number, hi: number): number {
+  return hi === lo ? 50 : 3 + ((v - lo) / (hi - lo)) * 94;
+}
+---
+
+{groups.length > 0 && (
+  <section>
+    <SectionHead label={t(lang, "teamVsLeague")} />
+    <p class="bsub">{t(lang, "teamVsLeagueIntro", { competition: compName })}</p>
+    {needsSwitch(groups) && <MetricSwitch id="tsw-league" lang={lang} />}
+    <div class="rs-list">
+      <div class="rs-legend" aria-hidden="true">
+        <span><i class="rs-k-club"></i>{t(lang, "teamOtherTeams", { competition: compName })}</span>
+        <span><i class="rs-k-med"></i>{t(lang, "teamLeagueMedian")}</span>
+        <span><i class="rs-k-dot"></i>{teamName}</span>
+      </div>
+      {groups.map((g) => (
+        <div class:list={["fxgroup", "rkgroup", { nonkey: !g.hasKey }]}>
+          <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${g.key}.label`)}</span></div>
+          {g.rows.map((r) => {
+            const b = bench.get(r.metric_id)!;
+            const v = b.metric_value as number;
+            const clubs = (strips.get(r.metric_id) ?? []).filter((c) => c.value != null) as { name: string; value: number; is_self: boolean }[];
+            const all = clubs.map((c) => c.value);
+            const lo = all.length ? Math.min(...all, v) : v;
+            const hi = all.length ? Math.max(...all, v) : v;
+            const med = b.league_median;
+            return (
+              <div class:list={["rs-row", { nonkey: !r.is_key_metric }]}>
+                <span class="rs-name">{boardTitle(lang, r.label_i18n_key, r.per_match)}</span>
+                <span class="rs-strip">
+                  <span class="rs-line"></span>
+                  {med != null && (
+                    <>
+                      <span class="rs-med" style={`left:${place(med, lo, hi)}%`}></span>
+                      <span class="rs-medv" style={`left:${place(med, lo, hi)}%`}>{formatValue(med, r.format, lang)}</span>
+                    </>
+                  )}
+                  {clubs.filter((c) => !c.is_self).map((c) => (
+                    <span class="rs-club" style={`left:${place(c.value, lo, hi)}%`} title={`${c.name}: ${formatValue(c.value, r.format, lang)}`}></span>
+                  ))}
+                  <span class="rs-dot" style={`left:${place(v, lo, hi)}%`} title={`${teamName}: ${formatValue(v, r.format, lang)}`}></span>
+                  {r.direction === "higher_better" && <span class="rs-dir r">{t(lang, "teamBetterRight")}</span>}
+                  {r.direction === "lower_better" && <span class="rs-dir">{t(lang, "teamBetterLeft")}</span>}
+                </span>
+                <span class="rs-val">{formatValue(v, r.format, lang)}<small>{ordinal(b.rank, lang)}</small></span>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  </section>
+)}

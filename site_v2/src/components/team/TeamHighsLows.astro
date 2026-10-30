@@ -1,0 +1,56 @@
+---
+// Highs and lows, fact rows: the biggest win and the heaviest defeat this season across the team's
+// competitions (score from the team's side, then the opponent, competition and date), and the
+// longest unbeaten and winless runs in the featured competition. Every value is mart_team_profile's;
+// a row without a value is absent, and so is the block without a row.
+import SectionHead from "../ui/SectionHead.astro";
+import type { Lang } from "../../lib/format";
+import { integer, formatShortDate } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import { competitionInfo } from "../../lib/teamFixtures";
+import type { TeamSeason } from "../../lib/types";
+
+interface Props {
+  season: TeamSeason;
+  lang: Lang;
+}
+const { season: s, lang } = Astro.props;
+
+const match = (gf: number | null | undefined, ga: number | null | undefined, opp: string | null | undefined,
+               ha: string | null | undefined, code: string | null | undefined, kickoff: string | null | undefined) =>
+  gf == null || ga == null || !opp
+    ? null
+    : {
+        value: `${integer(gf, lang)}–${integer(ga, lang)}`,
+        sub: [
+          t(lang, ha === "away" ? "teamAtAway" : "teamVsHome", { opponent: opp }),
+          code ? competitionInfo(code).name : null,
+          formatShortDate(kickoff, lang),
+        ].filter(Boolean).join(", "),
+      };
+const run = (n: number | null | undefined) =>
+  n == null ? null : { value: t(lang, "compFactMatches", { n: integer(n, lang) }), sub: competitionInfo(s.league_code).name };
+
+const rows = [
+  { label: t(lang, "teamBiggestWin"), v: match(s.biggest_win_goals_for, s.biggest_win_goals_against, s.biggest_win_opponent_name,
+      s.biggest_win_home_away, s.biggest_win_league_code, s.biggest_win_kickoff_datetime) },
+  { label: t(lang, "teamHeaviestDefeat"), v: match(s.heaviest_defeat_goals_for, s.heaviest_defeat_goals_against,
+      s.heaviest_defeat_opponent_name, s.heaviest_defeat_home_away, s.heaviest_defeat_league_code, s.heaviest_defeat_kickoff_datetime) },
+  { label: t(lang, "compFactLongestUnbeaten"), v: run(s.longest_unbeaten_run) },
+  { label: t(lang, "compFactLongestWinless"), v: run(s.longest_winless_run) },
+].filter((r) => r.v !== null);
+---
+
+{rows.length > 0 && (
+  <section>
+    <SectionHead label={t(lang, "teamHighsLows")} />
+    <div class="facts">
+      {rows.map((r) => (
+        <div class="frow">
+          <span class="fl">{r.label}</span>
+          <span class="fv"><span class="fvv"><b>{r.v!.value}</b></span><span class="sub">{r.v!.sub}</span></span>
+        </div>
+      ))}
+    </div>
+  </section>
+)}

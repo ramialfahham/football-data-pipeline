@@ -12,8 +12,10 @@ import competitions from "../../data/competitions.json";
 interface Props {
   match: FormMatch;
   lang: Lang;
+  /** The competition filter's mark (the Team page's Matches tab). */
+  slot?: number;
 }
-const { match, lang } = Astro.props;
+const { match, lang, slot } = Astro.props;
 const LETTER: Record<string, string> = { W: "compColWins", D: "compColDraws", L: "compColLosses" };
 const result = match.result && LETTER[match.result] ? match.result : null;
 const ha = match.home_away === "home" ? t(lang, "haHome") : match.home_away === "away" ? t(lang, "haAway") : "";
@@ -22,7 +24,7 @@ const href = matchPageHref(lang, match.played_fixture_sk);
 const Row = href ? "a" : "div";
 ---
 
-<Row class="lrow" href={href} data-fixture={match.played_fixture_sk ?? undefined}>
+<Row class="lrow" href={href} data-fixture={match.played_fixture_sk ?? undefined} data-competition-slot={slot}>
   <div class="resrow">
     {result && <span class:list={["pill", result]}>{t(lang, LETTER[result])}</span>}
     <span class="rscore">{match.goals_for}–{match.goals_against}</span>

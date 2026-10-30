@@ -240,13 +240,42 @@ def _shape_team_fixture(row: dict) -> dict:
     return {k: row.get(k) for k in _TEAM_FIXTURE_FIELDS}
 
 
+def _shape_schedule_fixture(row: dict) -> dict:
+    """A schedule row: the display fields plus what the page needs to group, link and pick the
+    next match per competition (the match id, the competition, the mart's upcoming_rank)."""
+    return {
+        "fixture_id": int(row["fixture_sk"]),
+        "league_code": row.get("league_code"),
+        "upcoming_rank": row.get("upcoming_rank"),
+        **_shape_team_fixture(row),
+    }
+
+
+def _team_schedule(fixture_rows: list[dict], featured_year) -> dict:
+    """The Matches tab's schedule: every scheduled match in the mart's upcoming_order, and every
+    result of the featured season's year in its result_order. Selection on the mart's orders."""
+    upcoming = sorted(
+        (fr for fr in fixture_rows if fr.get("upcoming_order") is not None),
+        key=lambda fr: fr["upcoming_order"],
+    )
+    results = sorted(
+        (fr for fr in fixture_rows
+         if fr.get("result_order") is not None and fr.get("season_api_year") == featured_year),
+        key=lambda fr: fr["result_order"],
+    )
+    return {
+        "upcoming": [_shape_schedule_fixture(fr) for fr in upcoming],
+        "results": [_shape_schedule_fixture(fr) for fr in results],
+    }
+
+
 def _shape_squad_member(row: dict, career: dict | None = None) -> dict:
     """One mart_roster row -> a squad member. Identity from the roster row; the per-club
     season stats (appearances / mins-per-app / goals_player / assists_player) are JOINED from that
     player's mart_player_career row for the same (league_code, season) — selection, not
     derivation: minutes_per_appearance is the mart's precomputed column, never divided
     here. A member with no career row never appeared in a finished-match squad -> stats
-    null (the Squad tab shows only members with >= 1 appearance). player_position is
+    null (the page shows "–" appearances). player_position is
     carried RAW — the GK/DEF/MID/ATT grouping is frontend display. Internal keys
     (team_sk, season_sk, ...) are dropped; no slug (the frontend slugifies)."""
     return {
@@ -296,6 +325,7 @@ def deserved_scatter_index(all_profile_rows: list[dict]) -> dict:
         key = (r.get("league_code"), r.get("season_api_year"))
         idx.setdefault(key, []).append({
             "team_sk": int(r["team_sk"]),
+            "name": r.get("team_name"),
             "sotd": r.get("shots_on_goal_difference_per_match"),
             "points": r.get("points"),
             "deserved": r.get("deserved_points"),
@@ -340,14 +370,17 @@ def shape_team_payload(
     strip_index: dict | None = None,
     competition_rows: list[dict] | None = None,
     recent_rows: list[dict] | None = None,
+    season_labels: dict | None = None,
 ) -> dict:
     """One team's mart_team_profile rows (+ mart_team_fixtures + mart_roster +
     mart_team_competition_benchmarks rows) -> the team page payload.
 
     recent_rows: that team's team-window rows of mart_team_momentum_window (its last five matches).
+    season_labels: (league_code, season_api_year) -> the season's label from dim_competition_season.
 
     profile_rows: every (team, competition-season) profile row for a single team_sk.
-    fixture_rows: that team's mart_team_fixtures rows (next + last-5 per season; GAP-15).
+    fixture_rows: that team's ranked mart_team_fixtures rows, every scheduled match and every
+        result (next + last-5 per season, and the schedule).
     roster_rows: that team's mart_roster rows (the roster identity, per season; GAP-20).
     career_rows: that team's mart_player_career rows — per-player season stats joined onto the
         roster below (GAP-22).
@@ -386,6 +419,7 @@ def shape_team_payload(
     seasons_out = []
     for r in seasons:
         s = _strip_identity(r)
+        s["season_label"] = (season_labels or {}).get((s.get("league_code"), s.get("season_api_year")))
         frs = fixtures_by_season.get((s.get("league_code"), s.get("season_api_year")), [])
         nxt = next((fr for fr in frs if fr.get("upcoming_rank") == 1), None)
         recent = sorted(
@@ -420,7 +454,7 @@ def shape_team_payload(
         entries = (scatter_index or {}).get((s.get("league_code"), s.get("season_api_year")))
         if entries:
             s["deserved_scatter"] = [
-                {"sotd": e["sotd"], "points": e["points"], "deserved": e["deserved"],
+                {"name": e["name"], "sotd": e["sotd"], "points": e["points"], "deserved": e["deserved"],
                  "is_self": e["team_sk"] == team_id}
                 for e in entries
             ]
@@ -464,6 +498,7 @@ def shape_team_payload(
             _drop(r, _FW_DROP | {"league_code", "is_home"})
             for r in sorted(recent_rows or [], key=lambda r: r["recency_rank"])
         ],
+        "schedule": _team_schedule(fixture_rows or [], featured.get("season_api_year")),
         "seasons": seasons_out,
     }
 
@@ -1052,10 +1087,10 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
     # each team's matching season. Built before sampling so a sampled team still gets its full league.
     scatter_idx = deserved_scatter_index(rows)
     team_ids = list(grouped.keys())[:sample] if sample else list(grouped.keys())
-    # GAP-15: next fixture + last-5 results, already rank-tagged in mart_team_fixtures. Filter on
-    # the precomputed ranks (selection, not derivation); scope to sampled teams on a sample run.
+    # Every ranked row of mart_team_fixtures: each scheduled match and each result. Filter on the
+    # precomputed ranks (selection, not derivation); scope to sampled teams on a sample run.
     fx_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_team_fixtures`"
-    fx_where = "(upcoming_rank = 1 or recency_rank <= 5)"
+    fx_where = "(upcoming_rank is not null or recency_rank is not null)"
     if sample:
         id_list = ", ".join(str(int(t)) for t in team_ids)
         fx_sql = f"select * from {fx_table} where {fx_where} and team_sk in ({id_list})"
@@ -1104,11 +1139,17 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
         id_list = ", ".join(str(int(t)) for t in team_ids)
         recent_sql += f" and team_sk in ({id_list})"
     recent_by_team = _group_by(_query(client, recent_sql), "team_sk")
+    # The season as each competition names it (split-year or calendar-year), from the warehouse.
+    season_labels = {
+        (r["league_code"], int(r["season_api_year"])): r.get("season_label")
+        for r in _query(client, f"select league_code, season_api_year, season_label "
+                                f"from `{GCP_PROJECT}.core.dim_competition_season`")
+    }
     return [
         shape_team_payload(
             grouped[t], fixtures_by_team.get(t, []), roster_by_team.get(t, []),
             bench_by_team.get(t, []), scatter_idx, career_by_team.get(t, []), strip_idx,
-            comp_by_team.get(t, []), recent_by_team.get(t, []),
+            comp_by_team.get(t, []), recent_by_team.get(t, []), season_labels,
         )
         for t in team_ids
     ]
