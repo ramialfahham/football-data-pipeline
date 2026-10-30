@@ -59,7 +59,7 @@ function place(v: number, lo: number, hi: number): number {
             const hi = all.length ? Math.max(...all, v) : v;
             const med = b.league_median;
             return (
-              <div class:list={["rs-row", { nonkey: !r.is_key_metric }]}>
+              <div class:list={["rs-row", { nonkey: !r.is_key_metric }]} data-metric={r.metric_id}>
                 <span class="rs-name">{boardTitle(lang, r.label_i18n_key, r.per_match)}</span>
                 <span class="rs-strip">
                   <span class="rs-line"></span>

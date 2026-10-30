@@ -17,6 +17,10 @@
 //    board (a zero is not a ranking there; on a fewest-first board it is the top). Nothing on the
 //    page names its direction, so the directions come from the payload, grouped the way the page
 //    groups the boards — `boardGroups`, the function the block renders from.
+// 4. On every Team page each "Compared with the league" row (`data-metric`) shows the rank the
+//    team payload's featured season serves for that metric, through `ordinal`, the function the
+//    block renders it with. A less-is-better metric is already ranked lowest-first by the warehouse,
+//    so a page that flips it a second time fails.
 //
 // The parsing is regex over the emitted HTML, as audit-seo does it: the shapes are this repo's own
 // components, and the pure functions below are unit-tested on string literals.
@@ -27,6 +31,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { readDist } from "./audit-seo.mjs";
 import { boardGroups } from "../src/lib/competitionPayload.mjs";
 import { word } from "../src/lib/addressWords.mjs";
+import { ordinal } from "../src/lib/format.ts";
 
 export const SITE_ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 export const DIST_DIR = join(SITE_ROOT, "dist");
@@ -42,6 +47,7 @@ function tabPath(key, tail) {
 export const MATCH_PAGE = tabPath("matches", "[^/]+/");
 export const FIXTURES_PAGE = tabPath("matches", "");
 export const RANKINGS_PAGE = tabPath("stats", "");
+export const TEAM_PAGE = new RegExp(`^/(?:${LOCALES.map((l) => `${l}/${word(l, "teams")}`).join("|")})/[^/]+/$`);
 export const BOARD_ROWS_MAX = 5;
 
 /** Issues for the match-page count against the payloads written and, when present, the manifest. */
@@ -227,6 +233,63 @@ export function expectedBoards(dataDir = DATA_DIR) {
   return latest;
 }
 
+const TEAM_RE = {
+  row: /<div(?=[^>]*\sclass="rs-row[ "])[^>]*>/g,
+  metric: /\sdata-metric="([^"]*)"/,
+  rank: /<span class="rs-val">[^<]*<small>([^<]*)<\/small>/,
+};
+
+/** The league rows on one Team page, each with its metric and the rank it shows. A row is the HTML
+ *  from one `.rs-row` wrapper to the next. */
+export function teamRankRows(html) {
+  const starts = [...html.matchAll(TEAM_RE.row)];
+  return starts.map((m, i) => ({
+    metric: m[0].match(TEAM_RE.metric)?.[1] ?? null,
+    shown: html.slice(m.index, starts[i + 1]?.index ?? html.length).match(TEAM_RE.rank)?.[1]?.trim() ?? null,
+  }));
+}
+
+/** Issues on one Team page: each row's shown rank against `served`, the featured season's rank by
+ *  metric key from the payload the page was built from. */
+export function checkTeamPage(html, lang, served, path = "") {
+  const issues = [];
+  for (const { metric, shown } of teamRankRows(html)) {
+    if (!metric) {
+      issues.push(`${path}: a league row names no metric with data-metric`);
+    } else if (!served?.has(metric)) {
+      issues.push(`${path}: the league row of ${metric} has no served rank in the team payload`);
+    } else if (shown !== ordinal(served.get(metric), lang)) {
+      issues.push(`${path}: the league row of ${metric} shows ${shown ?? "no rank"}, the payload serves ${ordinal(served.get(metric), lang)}`);
+    }
+  }
+  return issues;
+}
+
+/** Each team payload's served league ranks, by slug: the featured season's `benchmarks`, rank by
+ *  metric key. */
+export function expectedTeamRanks(dataDir = DATA_DIR) {
+  const dir = join(dataDir, "teams");
+  const ranks = new Map();
+  if (!existsSync(dir)) return ranks;
+  for (const file of readdirSync(dir).filter((f) => f.endsWith(".json"))) {
+    const p = JSON.parse(readFileSync(join(dir, file), "utf8"));
+    const season = (p.seasons ?? []).find((s) => s.is_featured_season);
+    ranks.set(p.slug, new Map((season?.benchmarks ?? []).map((b) => [b.metric_key, b.rank])));
+  }
+  return ranks;
+}
+
+/** Issues when the team payloads serve ranks but no Team page or no league row was checked: the
+ *  rule only runs on the pages TEAM_PAGE finds and the rows that carry `rs-row`, so a drifted shape
+ *  would otherwise check nothing and pass. */
+export function checkTeamRowsFound({ teamPages, teamRows, expected }) {
+  const issues = [];
+  if (expected.size > 0 && teamPages === 0) issues.push("the build carries team payloads but no Team page matched TEAM_PAGE");
+  if (teamRows === 0 && [...expected.values()].some((m) => m.size > 0))
+    issues.push("a team payload serves league ranks but no Team page carried a league row");
+  return issues;
+}
+
 /** Issues when a tab the payloads call for matched no built page: the tab checks above only run on
  *  the pages their path shape finds, so a shape that drifts from the address words would otherwise
  *  check nothing and pass. */
@@ -275,7 +338,10 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
   let fixturesPages = 0;
   let rankingsPages = 0;
   let rowsChecked = 0;
+  let teamPages = 0;
+  let teamRows = 0;
   const expected = expectedBoards(dataDir);
+  const teamRanks = expectedTeamRanks(dataDir);
   const built = payloadIds(dataDir);
   for (const { path, html } of readDist(distDir)) {
     if (MATCH_PAGE.test(path)) matchPages += 1;
@@ -289,12 +355,19 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
       rankingsPages += 1;
       issues.push(...checkRankingsPage(html, path, expected.get(path.split("/")[2]) ?? null));
     }
+    if (TEAM_PAGE.test(path)) {
+      const [, lang, , slug] = path.split("/");
+      teamPages += 1;
+      teamRows += teamRankRows(html).length;
+      issues.push(...checkTeamPage(html, lang, teamRanks.get(slug), path));
+    }
   }
   const payloadFiles = built.size;
   const manifest = readManifest(dataDir);
   issues.push(...checkMatchPageCount({ matchPages, payloadFiles, manifest }));
   issues.push(...checkTabPagesFound({ fixturesPages, rankingsPages, expected }));
   issues.push(...checkMatchRowsFound({ matchRows: rowsChecked, payloadFiles }));
+  issues.push(...checkTeamRowsFound({ teamPages, teamRows, expected: teamRanks }));
   if (issues.length) {
     console.error(`check-built-pages: ${issues.length} issue(s)`);
     for (const i of issues) console.error(`  - ${i}`);
@@ -305,7 +378,8 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
       (manifest
         ? ` = the warehouse's ${manifest.source_counts?.fixtures_unplayed} unplayed and ${manifest.source_counts?.fixtures_played} played`
         : " (no manifest: sample build)") +
-      `; ${fixturesPages} fixtures page(s), ${rankingsPages} rankings page(s) and ${rowsChecked} match row(s) checked. OK.`,
+      `; ${fixturesPages} fixtures page(s), ${rankingsPages} rankings page(s), ${rowsChecked} match row(s)` +
+      ` and ${teamRows} league row(s) on ${teamPages} team page(s) checked. OK.`,
   );
   return 0;
 }

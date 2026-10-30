@@ -436,8 +436,6 @@ def build_league_rows(feat, team_name="Borussia Dortmund"):
             name = label(r["label_i18n_key"]) + (f"<small>{sub}</small>" if sub else "")
             strip, val = "", '–<small>&nbsp;</small>'
             if b and clubs.get(key):
-                n = b["team_count"]
-                dr = n - b["rank"] + 1 if r["direction"] == "lower_better" else b["rank"]
                 v, med = b["metric_value"], b["league_median"]
                 pts = clubs[key]
                 lo, hi = min(x for _, x in pts), max(x for _, x in pts)
@@ -454,7 +452,7 @@ def build_league_rows(feat, team_name="Borussia Dortmund"):
                          + f'<span class="rs-dot" style="left:{pos(v)}%;top:50%" title="{E(team_name)}: {fmt(v, f)}"></span>'
                          + ({'higher_better': '<span class="rs-dir r">better →</span>',
                              'lower_better': '<span class="rs-dir">← better</span>'}.get(r['direction'], '')))
-                val = f'{fmt(v, f)}<small>{_ord(dr)}</small>'
+                val = f'{fmt(v, f)}<small>{_ord(b["rank"])}</small>'
             else:
                 missing.append(label(r["label_i18n_key"]) + (f" ({sub})" if sub else ""))
             t3 = " t3" if TIER.get(r["metric_id"]) == "3" else ""
@@ -898,12 +896,6 @@ def build():
                                           [(day_head(k), r) for k, r in rows[:1]]))
     q4 = f'<section aria-label="Next matches">{sechead("Next matches")}{"".join(next_groups)}</section>'
 
-    bm = {b["metric_key"]: b for b in feat["benchmarks"]}
-
-    def low_rank(key):
-        b = bm[key]
-        return b["team_count"] - b["rank"] + 1, b["team_count"]
-    ga_rank, n_teams = low_rank("goals_against_per_match")
     played = []
     for rnd in bl1["fixtures"]:
         for fx in rnd["fixtures"]:
