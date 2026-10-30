@@ -11,6 +11,7 @@ import { join } from "node:path";
 import {
   checkFixturesPage, checkMatchPageCount, checkMatchRowLinks, checkMatchRowsFound, checkRankingsPage, boards, isZeroValue,
   main, matchRows, renderedBoards, rounds, checkTabPagesFound, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
+  checkTeamPage, checkTeamRowsFound, teamRankRows, TEAM_PAGE,
 } from "./check-built-pages.mjs";
 
 function round(n, { checked = false, next = false, rows = [] } = {}) {
@@ -228,6 +229,85 @@ test("main fails a build whose pages name no match, and passes it once a row doe
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+// A "Compared with the league" row as TeamLeagueStrips.astro emits it: the name, the strip, then the
+// value with the shown rank under it.
+function leagueRow(metric, value, rank, { nonkey = false } = {}) {
+  return (
+    `<div class="rs-row${nonkey ? " nonkey" : ""}" data-metric="${metric}"><span class="rs-name">x</span>` +
+    `<span class="rs-strip"><span class="rs-line"></span><span class="rs-dir">better</span></span>` +
+    `<span class="rs-val">${value}<small>${rank}</small></span></div>`
+  );
+}
+
+test("the Team page shape: a team's page in each locale's word, not the teams index", () => {
+  assert.ok(TEAM_PAGE.test("/en/teams/paris-saint-germain-fc/"));
+  assert.ok(TEAM_PAGE.test("/de/mannschaften/paris-saint-germain-fc/"));
+  assert.ok(!TEAM_PAGE.test("/en/teams/"));
+  assert.ok(!TEAM_PAGE.test("/de/teams/paris-saint-germain-fc/"));
+  assert.ok(!TEAM_PAGE.test("/en/bundesliga/stats/"));
+});
+
+test("a less-is-better row shows the served rank: 1 of 18 is 1st, and a flipped 18th fails", () => {
+  const served = new Map([["fouls_per_match", 1]]);
+  assert.deepEqual(checkTeamPage(leagueRow("fouls_per_match", "6.1", "1st"), "en", served, "p"), []);
+  assert.match(checkTeamPage(leagueRow("fouls_per_match", "6.1", "18th"), "en", served, "p")[0],
+    /fouls_per_match shows 18th, the payload serves 1st/);
+  assert.deepEqual(checkTeamPage(leagueRow("fouls_per_match", "6,1", "1."), "de", served, "p"), []);
+});
+
+test("a more-is-better row shows the served rank too: the highest value is 1st", () => {
+  const served = new Map([["goals_per_match", 1], ["passes_per_match", 12]]);
+  const page = leagueRow("goals_per_match", "2.9", "1st") + leagueRow("passes_per_match", "410", "12th", { nonkey: true });
+  assert.deepEqual(checkTeamPage(page, "en", served, "p"), []);
+  assert.match(checkTeamPage(leagueRow("goals_per_match", "2.9", "18th"), "en", served, "p")[0], /shows 18th, the payload serves 1st/);
+});
+
+test("a league row with no metric, no served rank or no shown rank is an issue, not a pass", () => {
+  const served = new Map([["fouls_per_match", 1]]);
+  assert.match(checkTeamPage(leagueRow("fouls_per_match", "6.1", "1st").replace(' data-metric="fouls_per_match"', ""), "en", served, "p")[0],
+    /names no metric/);
+  assert.match(checkTeamPage(leagueRow("cards_red", "0.1", "1st"), "en", served, "p")[0], /cards_red has no served rank/);
+  assert.match(checkTeamPage(leagueRow("fouls_per_match", "6.1", "1st"), "en", undefined, "p")[0], /no served rank/);
+  assert.match(checkTeamPage('<div class="rs-row" data-metric="fouls_per_match"></div>', "en", served, "p")[0], /shows no rank/);
+  assert.equal(teamRankRows(leagueRow("a", "1", "1st") + '<div class="rs-list"></div>' + leagueRow("b", "2", "2nd")).length, 2);
+});
+
+// The Team rule reaches the build only through main: the payload read by slug, the page found by
+// TEAM_PAGE and the row count. A tree in the OS temp folder, as above.
+test("main fails a Team page with no league row or a flipped served rank, and passes it once the row shows the served one", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "check-built-pages-team-"));
+  try {
+    mkdirSync(join(root, "data", "teams"), { recursive: true });
+    const season = { is_featured_season: true, benchmarks: [{ metric_key: "fouls_per_match", rank: 1, team_count: 18 }] };
+    writeFileSync(join(root, "data", "teams", "85.json"), JSON.stringify({ slug: "psg", seasons: [season] }));
+    const write = (html) => {
+      mkdirSync(join(root, "dist", "en", "teams", "psg"), { recursive: true });
+      writeFileSync(join(root, "dist", "en", "teams", "psg", "index.html"), html);
+    };
+    const page = (shown) => write(leagueRow("fouls_per_match", "6.1", shown));
+    const errors = t.mock.method(console, "error", () => {});
+    t.mock.method(console, "log", () => {});
+    write("<html></html>");
+    assert.equal(main(join(root, "dist"), join(root, "data")), 1);
+    assert.ok(errors.mock.calls.some((c) => /no Team page carried a league row/.test(c.arguments[0])));
+    page("18th");
+    assert.equal(main(join(root, "dist"), join(root, "data")), 1);
+    assert.ok(errors.mock.calls.some((c) => /fouls_per_match shows 18th, the payload serves 1st/.test(c.arguments[0])));
+    page("1st");
+    assert.equal(main(join(root, "dist"), join(root, "data")), 0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("team payloads with ranks but no Team page or no league row checked is an issue, not a silent pass", () => {
+  const expected = new Map([["psg", new Map([["fouls_per_match", 1]])]]);
+  assert.equal(checkTeamRowsFound({ teamPages: 0, teamRows: 0, expected }).length, 2);
+  assert.match(checkTeamRowsFound({ teamPages: 3, teamRows: 0, expected })[0], /no Team page carried a league row/);
+  assert.deepEqual(checkTeamRowsFound({ teamPages: 3, teamRows: 20, expected }), []);
+  assert.deepEqual(checkTeamRowsFound({ teamPages: 0, teamRows: 0, expected: new Map() }), []);
 });
 
 test("a page with no round at all is an issue, not a pass", () => {
