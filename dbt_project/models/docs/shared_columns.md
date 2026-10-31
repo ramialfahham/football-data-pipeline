@@ -762,7 +762,8 @@ when no crest is ingested for the team.
 
 {% docs team_country %}
 The country the team is registered in, canonicalised and reconciled against dim_country in
-base, as dim_team publishes it. NULL when the provider row carried none.
+base, as dim_team publishes it. NULL when neither the provider row nor `team_country_corrections`
+gives one.
 {% enddocs %}
 
 {% docs player_name %}
