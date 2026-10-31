@@ -1,8 +1,10 @@
 # Review — feat/222-teams-page — 2026-10-31
 
-diff_sha256: f767fdb3b689fcb29476ca74d0a63130b80c210d60591afceecfaf114252481d
+diff_sha256: ba7c936fcfcf3ad4a56343b38205e30f9422604d1d9f8fb78c55ff6d0671a5ca
 
-rounds: 3
+rounds: 4
+
+rounds_cap_override: a fourth round approved in chat, 2026-10-31, after the MR pipeline failed the doc sentence-length test on the data README.
 
 ## scope-auditor
 VERDICT: PASS

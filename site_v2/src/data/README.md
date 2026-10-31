@@ -22,9 +22,9 @@ Bundesliga competition payload, 50 Matches page days, 548 fixture payloads and 3
   browsable rows from `mart_competition_index` — small enough to commit whole rather than sample.
   Refreshed the same way as the others below: rerun the export, replace the file, in one commit.
 - `teams_index.json` — the Teams page's payload, from
-  `python scripts/export_site_data.py --entities teams_index`, its rows unchanged but cut to fit
-  the repo's 1,024 KB file limit: every national team, every club in a covered league and every
-  ranked club (`top_club_rank`). The top lists are the full export's; the country groups hold
+  `python scripts/export_site_data.py --entities teams_index`. Its rows are unchanged but cut to
+  fit the repo's 1,024 KB file limit. It keeps every national team, every club in a covered league
+  and every ranked club (`top_club_rank`). The top lists are the full export's; the country groups hold
   fewer clubs. A row links only to a team with a payload in `teams/`.
 - `fixtures/*.json` — real exported fixtures, produced verbatim by
   `python scripts/export_site_data.py --entities fixtures`. The **537** every unplayed row of a
