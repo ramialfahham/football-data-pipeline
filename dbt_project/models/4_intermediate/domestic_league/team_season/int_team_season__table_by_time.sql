@@ -475,6 +475,7 @@ select
     ts.table_points,
     ts.goal_difference,
     ts.goals_for,
+    p.rank_by_rules as place_by_rules,
     ts.points_from_results - ts.table_points as points_taken,
     p.teams_on_key > 1 as is_level_after_rules,
     if(p.teams_on_key > 1 and p.ends_undecided, null, p.rank_by_rules) as table_position

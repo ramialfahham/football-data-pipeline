@@ -116,7 +116,7 @@ positions as (
         season_api_year,
         team_sk,
         standing_rank
-    from {{ ref('fct_standings') }}
+    from {{ ref('int_standings__official_rank') }}
     qualify count(*) over (partition by league_code, season_api_year, team_sk) = 1
 ),
 

@@ -54,5 +54,6 @@ the committed export, and `site_v2/scripts/check-metric-labels.test.mjs` on the 
 
 Which numbers are facts taken from the provider as published is rule R7 of the catalogue table's
 description. The two never mix inside one block: a table is the provider's row, a board is
-catalogue metrics. Where they overlap — the provider's points and the catalogue's `points_won`
-tally — a reconciliation test guards the pair rather than one replacing the other.
+catalogue metrics. A table's teams level on points stand in the league's tie-break order. Where
+they overlap — the provider's points and the catalogue's `points_won` tally — a reconciliation
+test guards the pair rather than one replacing the other.

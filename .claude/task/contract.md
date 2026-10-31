@@ -1,58 +1,72 @@
-# Task contract — every club the site shows has its country
+# Task contract — teams level on points stand in their league's tie-break order
 
 objective: >
-  78 teams in `dim_team` have no country because the provider sends none, SV Werder Bremen among
-  them. A seed gives each one its country from an official source, applied in base like the team
-  name overrides. A warn test reports any team with a Team page that still has no country, and a
-  second reports a correction the provider has made unnecessary. The shared `team_country`
-  description states when the column is NULL now.
+  The league table serves each team's place in its league's own tie-break order wherever our
+  table equals the provider's, instead of the provider's order of teams level on points. The
+  Table page, the Team page and the match page read the same place. A dbt test holds the served
+  place to the rule's place.
 
 refs: >
-  #222, the Teams menu page (build plan approved in chat, 2026-10-30); design #133.
+  #237 (the issue text, approved in chat, 2026-10-31; the plan, approved in chat, 2026-10-31).
 
 scope_paths:
-  - dbt_project/seeds/team_country_corrections.csv
-  - dbt_project/seeds/schema.yml
-  - dbt_project/models/2_base/api_football/base_apif__teams_global.sql
-  - dbt_project/tests/assert_team_country_corrections_still_needed.sql
-  - dbt_project/tests/assert_shown_teams_have_a_country.sql
-  - dbt_project/models/docs/shared_columns.md
+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_by_time.sql
+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+  - dbt_project/models/4_intermediate/shared/int_standings__official_rank.sql
+  - dbt_project/models/4_intermediate/shared/int_standings__official_rank.yml
+  - dbt_project/models/5_marts/shared/mart_standings.sql
+  - dbt_project/models/5_marts/shared/mart_next_matchday.sql
+  - dbt_project/tests/assert_standings_rank_follows_league_rule.sql
+  - dbt_project/tests/assert_one_match_that_matters_per_competition.sql
+  - dbt_project/models/5_marts/shared/shared.yml
+  - dbt_project/models/docs/metric_rules.md
+  - dbt_project/docs/layering.md
+  - docs/metric_layer.md
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
   - .claude/task/acceptance_evidence.md
 
 impact_map: >
-  `team_country` is set in `base_apif__teams_global` and published by `dim_team`.
-  `.venv/Scripts/dbt.exe ls --project-dir dbt_project --select base_apif__teams_global+
-  --resource-type model` lists 29 models: base_apif__teams_global dim_player_team_season_mapping
-  dim_team mart_competition_fixtures mart_fixture_standing_context mart_leaderboards
-  mart_match_days mart_matchday_insights mart_player_career mart_player_fixture_stats
-  mart_player_profile mart_roster mart_standings mart_team_competition_benchmarks
-  mart_team_competitions mart_team_fixtures mart_team_leaderboards mart_team_market_value
-  mart_team_momentum_window mart_team_profile mart_team_season mart_team_season_insights and the
-  rest of the lineage. Readers of `team_country` (grep): dim_country, dim_team,
-  mart_team_season_insights, mart_player_career, mart_player_profile, mart_team_market_value,
-  mart_team_profile. blast_radius: only the 78 corrected teams change, from no country to their
-  country; every country they get already exists in `countries.csv`, so `dim_country` gains no
-  row. The team slug anchors on the provider's raw country (`team_country_raw`), so no URL moves.
+  `int_team_season__table_by_time` gains `place_by_rules`; its existing readers
+  (`int_team_profile__yoy`, the published-tables test) read named columns and are unchanged.
+  The new `int_standings__official_rank` reads `fct_standings` and `int_team_season__table_by_time`.
+  Three readers switch to it from `fct_standings`: `mart_standings`, `mart_next_matchday` and
+  `int_team_season__standings_primary`. The test `assert_one_match_that_matters_per_competition`
+  recomputes `mart_next_matchday`'s flag from the table positions and switches with it.
+  `dbt ls --select int_standings__official_rank+ --resource-type model` lists 14 models: the new
+  one, the three readers and the ten below. Downstream:
+  `mart_team_competitions`, `mart_fixture_standing_context` and `mart_matchday_insights` (through
+  `mart_standings`); `mart_competition_fixtures`, `mart_competition_index` and `mart_match_days`
+  (through `mart_next_matchday`); `mart_team_season`, `int_team_season__deserved_vs_actual`,
+  `mart_team_profile` and `mart_team_season_insights` (through `int_team_season__standings_primary`).
+  `int_team_season__table_state` keeps reading `fct_standings` for `previous_position`.
+  blast_radius: the place of teams level on points changes where the provider's order differs
+  from the league's rule and our table equals the provider's; every other value is unchanged.
+  Cost: about 60 MB a night more, approved in chat, 2026-10-31.
+
+acceptance_criteria:
+  - "On the Table page, teams level on points stand in the order of their league's own tie-break rule, for Liga Portugal, the Saudi Pro League and every league with rule rows."
+  - "Teams the rule cannot separate keep the provider's order."
+  - "The Team page and the match page show the same place as the Table page."
+  - "A test fails when a served place differs from the place the league's rule gives, wherever the rule decides."
+  - "The MR lists every place that changes, per league, measured on prod before the change."
+  - "Rule R7 and docs/metric_layer.md say that the order of teams level on points follows the league's published rule."
 
 decisions_taken: >
-  The build plan approved in chat, 2026-10-30. The seed mirrors `team_name_overrides.csv`: keyed by
-  `team_api_id` (equal to `team_sk`), with `source` and `note`, applied by a left join in
-  `base_apif__teams_global`. Every source is the federation, league or competition organiser.
-  Both tests warn with stored failures (approved in chat, 2026-10-30): a team without a country
-  shows under the design's "no recorded country" group, so it is incomplete, not wrong.
+  The plan approved in chat, 2026-10-31: the rule's order applies only to a section where every
+  team's points and games played equal the provider's row, otherwise the provider's rank stands;
+  the exact mart_standings header sentence; the R7 and docs/metric_layer.md sentences, split to
+  the sentence-length limit, approved in chat, 2026-10-31; the recurring cost of
+  about 60 MB a night. Both leagues' rules checked against their own sources, recorded on #237.
 
 decisions_reserved:
-  - "none: no copy, label, order or page changes"
+  - "none: every changed sentence and the shipped-number change were approved in the plan"
 
 done_when:
-  - The seed has one row per country-less team, each with an official source.
-  - dbt parse passes; the seed's tests, the two warn tests and the base model compile.
-  - The whole pytest and the offline gates of validate-local pass.
-  - The MR's data:build:mr passes, and prod shows no shown team without a country.
+  - dbt parse passes; the changed models pass SQLFluff.
+  - The offline gates of validate-local pass.
+  - On prod, read-only, the new model's SQL lists every changed place and the new test's SQL returns 0 rows.
 
-amendments:
-  - "Review round 1: `shared_columns.md` added to scope, so the `team_country` description names the corrections seed as the second source. Its exact sentence was approved in chat, 2026-10-31."
-  - "Prod check: the provider now sends Red Star FC 93's country, so its row goes; Lourdes FC, new in the nightly, gets a row from the FFF. Both rows and a fourth review round approved in chat, 2026-10-31."
+amendments: (none)

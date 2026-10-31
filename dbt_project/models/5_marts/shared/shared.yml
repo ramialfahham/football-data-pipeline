@@ -1620,7 +1620,7 @@ models:
         description: "{{ doc('losses') }}"
 
   - name: mart_team_season
-    description: "Per-team, per-season rollup. Grain: (team_sk, season_sk). latest_rank, latest_form, and standings_group_description come from fct_standings (null when absent). Interpret latest_rank together with standings_group_description for multi-group competitions."
+    description: "Per-team, per-season rollup. Grain: (team_sk, season_sk). latest_rank, latest_form, and standings_group_description come from int_standings__official_rank (null when absent). Interpret latest_rank together with standings_group_description for multi-group competitions."
     meta:
       owner: "data-platform"
       domain: "football"
