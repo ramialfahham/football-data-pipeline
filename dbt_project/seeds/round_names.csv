@@ -50,12 +50,22 @@ COAM,,72,^3rd place final$,roundThirdPlaceMatch,Third Place Match,,,placement
 WCQOC,,83,^1st qualifying round$,roundOcFirstRound,First round,,,knockout
 WCQOC,,84,^2nd qualifying round$,roundOcFirstRoundFinal,First round final,,,knockout
 ,,85,^(play-offs|playoff round)$,roundPlayoffRound,Play-off round,,,knockout
+UCL,,86,^knockout round play-offs$,roundKnockoutPlayoffs,Knockout phase play-offs,,,knockout
+UCL,,87,^preliminary round$,roundPreliminaryRound,Preliminary round,,,knockout
 AFCCL,,90,^1st preliminary round$,roundAfcPreliminaryStage,Preliminary Stage,,,knockout
 CAFCL,,91,^1st preliminary round$,roundPreliminaryRound1,First preliminary round,,,knockout
 CAFCL,,92,^2nd preliminary round$,roundPreliminaryRound2,Second preliminary round,,,knockout
 LIBER,,93,^qualification round 1$,roundLiberStage1,First stage,,,knockout
 LIBER,,94,^qualification round 2$,roundLiberStage2,Second stage,,,knockout
 LIBER,,95,^qualification round 3$,roundLiberStage3,Third stage,,,knockout
+AFCCL,,96,^preliminary round$,roundPreliminaryRound,Preliminary round,,,knockout
+AFCCL,,97,^2nd preliminary round$,roundPreliminaryRound2,Second preliminary round,,,knockout
+AFCCL,,98,^league phase (east|west) - (\d+)$,roundLeagueStageMatchday,League Stage · Matchday {n},(\d+)$,,table
+AFCCL,,99,^ranking of second-placed teams - (\d+)$,roundGroupStageMatchday,Group stage · Matchday {n},(\d+)$,,table
+LIBER,,133,^1st round$,roundLiberStage1,First stage,,,knockout
+LIBER,,134,^2nd round$,roundLiberStage2,Second stage,,,knockout
+LIBER,,135,^3rd round$,roundLiberStage3,Third stage,,,knockout
+CCCU,,136,^1st round$,roundOf32,Round of 32,,,knockout
 DFBP,,100,^round of 64$,roundFirstRound,First round,,,knockout
 DFBP,,101,^round of 32$,roundSecondRound,Second round,,,knockout
 CDR,2026,102,^1/128-finals$,roundPreliminaryRound,Preliminary round,,,knockout

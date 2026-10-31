@@ -107,6 +107,24 @@ seeds:
         tests:
           - not_null
           - unique
+      - name: top_club_competition
+        description: >
+          The league_code of the region's top club competition, whose results rank the region's
+          clubs on the Teams page. Empty for FIFA and Oceania.
+        tests:
+          - unique
+          - relationships:
+              to: ref('competition_registry')
+              field: league_code
+      - name: continental_championship
+        description: >
+          The league_code of the region's championship for national teams, whose latest edition
+          ranks the region's national teams on the Teams page. Empty for FIFA and Oceania.
+        tests:
+          - unique
+          - relationships:
+              to: ref('competition_registry')
+              field: league_code
 
   - name: standings_table_kinds
     description: >
@@ -1125,6 +1143,42 @@ seeds:
       - name: working
         description: "The hand working: the raw values the answer rests on and the step from them to the expected value."
         tests: [not_null]
+
+  - name: team_index_answer_key
+    description: >
+      Each listed team's round in a competition-season, read from the confederation's or FIFA's
+      own page: the round's value on the Teams page scale, a club's top club competition points or
+      a national team's World Cup or championship stage. assert_team_index_stage_answer_key fails
+      when mart_team_index serves another sum or stage.
+    config:
+      column_types:
+        league_code: string
+        season: int64
+        team_id: int64
+        stage_value: int64
+        source: string
+        working: string
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season, team_id]
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: team_id
+        description: "{{ doc('team_api_id') }}"
+        tests: [not_null]
+      - name: stage_value
+        description: "The round's value: 1 to 6 for a club, 1 to 7 for a national team."
+        tests: [not_null]
+      - name: source
+        description: "URL of the official page that shows the round."
+        tests: [not_null]
+      - name: working
+        description: "The team, competition, season and round in words."
 
   - name: team_season_answer_key
     description: >
