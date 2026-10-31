@@ -43,7 +43,7 @@ SEEDS_DATASET = "dbt_analytics"
 DEFAULT_OUT = "artifacts/site_data"
 ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
                 "leaderboards", "glossary", "metric_groups", "metric_rows", "landing",
-                "competition_index", "matches")
+                "competition_index", "matches", "teams_index")
 REGISTRY_PATH = "docs/competition_registry.yml"
 CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
 METRIC_MAP_PATH = "dbt_project/seeds/metric_map.csv"
@@ -1696,6 +1696,43 @@ def fetch_competition_index(client) -> dict:
     return {"type": "competition_index", "competitions": shape_competition_index(rows)}
 
 
+_TEAM_INDEX_KEEP = (
+    "team_name", "team_slug", "team_country", "entity_type", "region_key", "region_rank",
+    "region_label_i18n_key",
+    "country_region_key", "country_order", "league_code", "team_order_in_country",
+    "top_club_rank", "national_team_rank", "national_team_region_rank",
+)
+
+
+def shape_team_index(rows: list[dict]) -> dict:
+    """mart_team_index rows, projected to the columns the Teams page renders, in input order.
+    `national_teams_first` is one value for the whole page, so it is lifted out of the rows."""
+    flags = {r.get("national_teams_first") for r in rows}
+    if len(flags) > 1:
+        raise ValueError(f"mart_team_index rows disagree on national_teams_first: {flags}")
+    return {
+        "type": "teams_index",
+        "national_teams_first": flags.pop() if flags else False,
+        "teams": [{**{k: r.get(k) for k in _TEAM_INDEX_KEEP}, "crest": r.get("team_logo_url")}
+                  for r in rows],
+    }
+
+
+def fetch_team_index(client) -> dict:
+    """teams_index.json -- mart_team_index, one row per team with a page, with its region's
+    region_rank and label key from the confederations seed. Ordered by team name: the page lists
+    teams that share a place in this order."""
+    rows = _query(
+        client,
+        f"select t.*, g.region_rank, g.label_i18n_key as region_label_i18n_key "
+        f"from `{GCP_PROJECT}.{MARTS_DATASET}.mart_team_index` as t "
+        f"left join `{GCP_PROJECT}.{SEEDS_DATASET}.confederations` as g "
+        f"on t.region_key = g.confederation "
+        f"order by t.team_name, t.team_slug",
+    )
+    return shape_team_index(rows)
+
+
 _COMPETITION_FIXTURE_COLUMNS = (
     "fixture_sk, league_code, season_api_year, round_name, round_label_i18n_key, round_number, round_letter, round_order, round_sequence, "
     "fixture_order, kickoff_datetime, status_short, is_played, goals_home, goals_away, "
@@ -2521,6 +2558,10 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
         sha = write_file(out_root, "competition_index.json", fetch_competition_index(client))
         entries.append({"type": "competition_index", "id": "competition_index", "slug": None,
                         "path": "competition_index.json", "sha256": sha})
+    if "teams_index" in entities:
+        sha = write_file(out_root, "teams_index.json", fetch_team_index(client))
+        entries.append({"type": "teams_index", "id": "teams_index", "slug": None,
+                        "path": "teams_index.json", "sha256": sha})
     if "matches" in entities:
         for p in fetch_match_day_payloads(client):
             entries.append(write_entity(out_root, "matches", p["day"], p))

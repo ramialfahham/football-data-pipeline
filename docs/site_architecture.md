@@ -49,6 +49,7 @@ The scheme is written here with the English words.
 /{locale}/{competition-slug}/matches/                        competition page, Matchdays tab (every round, results and fixtures; "Rounds" for a cup), the same word for every kind of competition
 /{locale}/{competition-slug}/matches/{date}-{home}-vs-{away}/   fixture page (preview → report), under its competition's Matchdays tab
 /{locale}/{competition-slug}/stats/                          competition page, Rankings tab (the top five of every team and player board under the catalogue's groups); the tab's on-screen name stays Rankings
+/{locale}/teams/                                             Teams menu page: top clubs and national teams, clubs by country, national teams by region
 /{locale}/teams/{team-slug}/                                 team profile, a club or a national team
 /{locale}/players/{player-slug}/                             player profile
 /{locale}/matches/                                           Matches menu page: the day it opens on (the build day, else the next day with a match), every competition playing it
@@ -61,7 +62,6 @@ The player page is a stub.
 Planned, not designed yet; each address is provisional until its page's review (§ Address words):
 
 ```
-/{locale}/teams/                                             Teams menu page
 /{locale}/players/                                           Players menu page
 /{locale}/standings/                                         Standings menu page
 /{locale}/stats/                                             Statistics menu page
@@ -275,6 +275,7 @@ every file. The `fetch_*` function for a file holds its live list of marts.
 |---|---|---|
 | Landing | `landing.json` | The next-matchday hero: `mart_next_matchday` (every competition's next round, read whole), and its competitions' order, with `mart_competition_fixtures` for the match rows. Names and crests: `mart_competition_index`. Top players: `mart_leaderboards`. Top teams: `mart_team_leaderboards`. Read `fetch_landing_payload` for the live list. |
 | Competitions index / country hub | `competition_index.json` | `mart_competition_index` |
+| Teams page | `teams_index.json` | `mart_team_index`, with each region's order and name key from the `confederations` seed. Read `fetch_team_index`. |
 | Matches page and its days | `matches/{yyyy-mm-dd}.json`, one per day | `mart_match_days` (the reach, each day's neighbours, the opening day), `mart_competition_fixtures` (the match rows), `mart_competition_index` (a competition's name, crest, kind and region rank). Read `fetch_match_day_payloads`. |
 | Competition page, all three tabs | `competitions/{league_code}/{season}.json` (the page shows the latest season served) | Header: `mart_competition_index`. The table: `mart_standings`, with `table_kind`. The deserved points table: `mart_team_profile`. The season in numbers: `mart_competition_season_summary`. The Matchdays tab, the header's round and the match-that-matters flag: `mart_competition_fixtures`. The Rankings tab's boards, the top five per board: `mart_team_leaderboards` and `mart_leaderboards`. Read `fetch_competition_payloads` for the live list. |
 | Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_window_metrics` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H), `mart_team_momentum_window` (the form list), `mart_player_momentum` (top players). Read `fetch_fixture_payloads`. **Not** `mart_matchday_insights`, the retired MVP's presentation pivot of the momentum mart. v2 reads the source marts directly. A played match's payload reads `mart_competition_fixtures` (result, goals, line-up state), `mart_leaderboards` (match boards), `mart_team_window_metrics` (one match) and `mart_player_fixture_stats` (line-ups). Read `fetch_played_fixture_payloads`. |

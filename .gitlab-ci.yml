@@ -1038,7 +1038,7 @@ deploy:export:
     # The --entities list is LOAD-BEARING: every data set a built page reads, and no
     # other (competitions.json is always emitted). Reads marts and seeds only; writes
     # no BigQuery table.
-    - python scripts/export_site_data.py --entities teams,fixtures,competitions,competition_index,landing,matches,metric_groups,metric_rows --out site_v2/export_data
+    - python scripts/export_site_data.py --entities teams,fixtures,competitions,competition_index,teams_index,landing,matches,metric_groups,metric_rows --out site_v2/export_data
   artifacts:
     paths:
       - site_v2/export_data

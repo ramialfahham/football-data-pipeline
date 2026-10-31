@@ -4,6 +4,8 @@ No BigQuery — exercises slugify, payload shaping and manifest building with
 fabricated rows so python-ci validates the logic offline.
 """
 
+import pytest
+
 from scripts.export_site_data import (
     _competitions_index,
     _display_group_of_type,
@@ -22,6 +24,7 @@ from scripts.export_site_data import (
     shape_competition_boards,
     shape_competition_index,
     shape_competition_payload,
+    shape_team_index,
     shape_season_summary,
     shape_fixture_payload,
     shape_next_match,
@@ -1387,6 +1390,58 @@ def test_shape_competition_index_projects_the_keep_list_and_changes_nothing():
     assert "some_column_the_page_does_not_render" not in pl   # projected, not passed through raw
     assert pl["region_label_en"] == "England"          # the domestic-country case
     assert pl["region_label_i18n_key"] is None          # a country name is not chrome
+
+
+def _team_index_row(**over) -> dict:
+    row = {
+        "team_sk": "x", "team_name": "A", "team_slug": "a", "team_logo_url": "https://x/a.png",
+        "team_country": "Spain", "entity_type": "club", "region_key": "UEFA", "region_rank": 1,
+        "region_label_i18n_key": "confedUefa", "country_region_key": "UEFA", "country_order": 2,
+        "league_code": "PD", "league_tier": 1,
+        "team_order_in_country": 3, "top_club_rank": 1, "national_team_rank": None,
+        "national_team_region_rank": None, "national_teams_first": False,
+    }
+    return {**row, **over}
+
+
+def test_shape_team_index_projects_in_input_order_and_lifts_the_page_flag():
+    # The export orders by team name, which is the order of teams sharing a place; a page that
+    # re-sorted by name or rank here would change it.
+    rows = [_team_index_row(team_name="Zeta", top_club_rank=2),
+            _team_index_row(team_name="Alpha", top_club_rank=1, team_logo_url=None)]
+    shaped = shape_team_index(rows)
+    assert shaped["type"] == "teams_index"
+    assert shaped["national_teams_first"] is False
+    assert [t["team_name"] for t in shaped["teams"]] == ["Zeta", "Alpha"]
+    zeta, alpha = shaped["teams"]
+    assert zeta["crest"] == "https://x/a.png" and alpha["crest"] is None
+    for dropped in ("team_logo_url", "team_sk", "league_tier", "national_teams_first"):
+        assert dropped not in zeta
+    assert zeta["region_rank"] == 1 and zeta["country_order"] == 2
+
+
+def test_fetch_team_index_orders_by_name_and_reads_the_region_facts_from_the_seed(monkeypatch):
+    # The name order is the order of teams sharing a place, and the seed's region rank and label
+    # key order and name the region groups; without either the page changes on every export.
+    seen = []
+
+    def fake_query(client, sql):
+        seen.append(" ".join(sql.split()))
+        return [_team_index_row()]
+
+    monkeypatch.setattr(export_site_data, "_query", fake_query)
+    payload = export_site_data.fetch_team_index(object())
+    (sql,) = seen
+    assert payload["type"] == "teams_index"
+    assert "mart_team_index` as t" in sql
+    assert "confederations` as g on t.region_key = g.confederation" in sql
+    assert "g.region_rank, g.label_i18n_key as region_label_i18n_key" in sql
+    assert sql.endswith("order by t.team_name, t.team_slug")
+
+
+def test_shape_team_index_refuses_rows_that_disagree_on_the_page_flag():
+    with pytest.raises(ValueError, match="national_teams_first"):
+        shape_team_index([_team_index_row(), _team_index_row(national_teams_first=True)])
 
 
 def test_shape_player_payload_opens_on_the_featured_club_season_not_the_latest():

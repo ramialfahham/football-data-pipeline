@@ -558,6 +558,31 @@ export interface CompetitionIndex {
   competitions: CompetitionIndexRow[];
 }
 
+/** teams_index.json — mart_team_index, one row per team with a page, ordered by name. */
+export interface TeamIndexRow {
+  team_name: string;
+  team_slug: string;
+  team_country: string | null;
+  entity_type: "club" | "national";
+  region_key: string | null;
+  region_rank: number | null;
+  region_label_i18n_key: string | null;
+  country_region_key: string | null;
+  country_order: number | null;
+  league_code: string | null;
+  team_order_in_country: number | null;
+  top_club_rank: number | null;
+  national_team_rank: number | null;
+  national_team_region_rank: number | null;
+  crest: string | null;
+}
+
+export interface TeamIndex {
+  type: string;
+  national_teams_first: boolean;
+  teams: TeamIndexRow[];
+}
+
 /** competitions/{league_code}/{season}.json — one competition-season's page payload, every block
  *  a mart read whole or filtered by served columns (fetch_competition_payloads). Selection and
  *  ordering by served columns only; the page picks and renders, it never computes. */

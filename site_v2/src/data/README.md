@@ -14,13 +14,18 @@ That trap sprang once inside this branch's own life. The allowlist in `.gitignor
 `site_v2/src/data/**` block — is the authoritative list of what is tracked. (It is cited by block
 rather than by line range: the range written here was `249-270`, and it had already rotted.)
 
-Count what is tracked with `git ls-files site_v2/src/data`. Today: the five root files below, the
+Count what is tracked with `git ls-files site_v2/src/data`. Today: the six root files below, the
 Bundesliga competition payload, 50 Matches page days, 548 fixture payloads and 34 team payloads.
 
 - `competition_index.json` — the competitions index page's payload (#62 step 5), produced
   verbatim by `python scripts/export_site_data.py --entities competition_index`. All **48**
   browsable rows from `mart_competition_index` — small enough to commit whole rather than sample.
   Refreshed the same way as the others below: rerun the export, replace the file, in one commit.
+- `teams_index.json` — the Teams page's payload, from
+  `python scripts/export_site_data.py --entities teams_index`. Its rows are unchanged but cut to
+  fit the repo's 1,024 KB file limit. It keeps every national team, every club in a covered league
+  and every ranked club (`top_club_rank`). The top lists are the full export's; the country groups hold
+  fewer clubs. A row links only to a team with a payload in `teams/`.
 - `fixtures/*.json` — real exported fixtures, produced verbatim by
   `python scripts/export_site_data.py --entities fixtures`. The **537** every unplayed row of a
   committed page links to: each day of the Matches page, the Bundesliga sample's Matchdays tab and

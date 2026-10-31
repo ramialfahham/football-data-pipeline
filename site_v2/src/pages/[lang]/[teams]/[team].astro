@@ -81,10 +81,10 @@ const entity = {
   ...(team.country ? { location: { "@type": "Place", name: team.country } } : {}),
   memberOf: { "@type": "SportsOrganization", name: compName },
 };
-// "Teams" links to the Teams page once the build makes one.
+const teamsHref = localeHref(lang, `${word(lang, "teams")}/`);
 const crumbs = [
   { name: t(lang, "crumbHome"), href: localeHref(lang) },
-  { name: t(lang, "crumbTeams") },
+  { name: t(lang, "crumbTeams"), href: teamsHref },
   { name },
 ];
 ---
@@ -102,7 +102,7 @@ const crumbs = [
     <nav class="crumb" aria-label={t(lang, "crumbAria")}>
       <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
       <span class="sep">›</span>
-      <span>{t(lang, "crumbTeams")}</span>
+      <a class="lnk" href={teamsHref}>{t(lang, "crumbTeams")}</a>
       <span class="sep">›</span>
       <span class="here">{name}</span>
     </nav>
