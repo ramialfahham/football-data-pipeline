@@ -1,499 +1,1477 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index f4132a3f..7ef14085 100644
+index 7ef14085..55de2673 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,57 +1,72 @@
--# Task contract — the Team page shows the served league rank, and a build check holds it
-+# Task contract — teams level on points stand in their league's tie-break order
+@@ -1,72 +1,105 @@
+-# Task contract — teams level on points stand in their league's tie-break order
++# Task contract — the Teams page's rankings, served by the warehouse
  
  objective: >
--  The Team page's "Compared with the league" block shows the league rank as the warehouse serves
--  it. This task removes the unused site helpers that flip a served rank and fixes the mock
--  generator's flip. A built-page check fails every build whose Team page shows another rank.
-+  The league table serves each team's place in its league's own tie-break order wherever our
-+  table equals the provider's, instead of the provider's order of teams level on points. The
-+  Table page, the Team page and the match page read the same place. A dbt test holds the served
-+  place to the rule's place.
+-  The league table serves each team's place in its league's own tie-break order wherever our
+-  table equals the provider's, instead of the provider's order of teams level on points. The
+-  Table page, the Team page and the match page read the same place. A dbt test holds the served
+-  place to the rule's place.
++  A new mart, `mart_team_index`, serves one row per team with a Team page: identity, club or
++  national team, country, region, covered league and table position, and the orders the Teams
++  page shows (#133): Top clubs per region, the order of countries, the order of clubs inside a
++  country, Top national teams in the world and per region, and whether national teams come first.
++  Each continent's top club cup and championship are data on its row in `confederations.csv`.
++  The value of each round lives once, in `int_team_index__round_values`. The cup rounds that
++  have no name yet get one in `round_names.csv`, so every round of the counted seasons has a stage.
  
  refs: >
--  #236 (the issue text and plan approved in chat, 2026-10-30); design #134.
-+  #237 (the issue text, approved in chat, 2026-10-31; the plan, approved in chat, 2026-10-31).
+-  #237 (the issue text, approved in chat, 2026-10-31; the plan, approved in chat, 2026-10-31).
++  #222, the Teams menu page (build plan approved in chat, 2026-10-30); design #133.
  
  scope_paths:
--  - site_v2/src/lib/bars.ts
--  - site_v2/src/components/team/TeamLeagueStrips.astro
--  - site_v2/scripts/check-built-pages.mjs
--  - site_v2/scripts/check-built-pages.test.mjs
--  - design-mocks/gen_team_mock.py
-+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_by_time.sql
-+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
-+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-+  - dbt_project/models/4_intermediate/shared/int_standings__official_rank.sql
-+  - dbt_project/models/4_intermediate/shared/int_standings__official_rank.yml
-+  - dbt_project/models/5_marts/shared/mart_standings.sql
-+  - dbt_project/models/5_marts/shared/mart_next_matchday.sql
-+  - dbt_project/tests/assert_standings_rank_follows_league_rule.sql
-+  - dbt_project/tests/assert_one_match_that_matters_per_competition.sql
-+  - dbt_project/models/5_marts/shared/shared.yml
-+  - dbt_project/models/docs/metric_rules.md
-+  - dbt_project/docs/layering.md
-+  - docs/metric_layer.md
+-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_by_time.sql
+-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
+-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+-  - dbt_project/models/4_intermediate/shared/int_standings__official_rank.sql
+-  - dbt_project/models/4_intermediate/shared/int_standings__official_rank.yml
+-  - dbt_project/models/5_marts/shared/mart_standings.sql
+-  - dbt_project/models/5_marts/shared/mart_next_matchday.sql
+-  - dbt_project/tests/assert_standings_rank_follows_league_rule.sql
+-  - dbt_project/tests/assert_one_match_that_matters_per_competition.sql
++  - dbt_project/seeds/confederations.csv
++  - dbt_project/seeds/round_names.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/seeds/team_index_answer_key.csv
++  - dbt_project/models/4_intermediate/shared/int_team_index__round_values.sql
++  - dbt_project/models/4_intermediate/shared/int_team_index__round_values.yml
++  - dbt_project/models/5_marts/shared/mart_team_index.sql
+   - dbt_project/models/5_marts/shared/shared.yml
+-  - dbt_project/models/docs/metric_rules.md
++  - dbt_project/macros/team_ranking_round_values.sql
++  - dbt_project/tests/assert_team_index_cup_rounds_scored.sql
++  - dbt_project/tests/assert_team_index_one_winner_per_cup_season.sql
++  - dbt_project/tests/assert_team_index_stage_answer_key.sql
++  - dbt_project/tests/assert_team_index_covers_every_team_page.sql
+   - dbt_project/docs/layering.md
+-  - docs/metric_layer.md
++  - site_v2/src/i18n/strings.ts
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
    - .claude/task/acceptance_evidence.md
--  - .claude/task/rendered_page_evidence.md
  
  impact_map: >
--  Short form: frontend, build check and mock only. No model, export or payload change.
--  `TeamLeagueStrips.astro` is rendered only by `site_v2/src/pages/[lang]/[teams]/[team].astro`
--  (`grep -rn TeamLeagueStrips site_v2/src`). `displayRank`, `rankFill` and `beatsMedian` have no
--  caller in `site_v2/src` or `design-mocks/` (grep). The row already shows `ordinal(b.rank, lang)`,
--  the served rank. blast_radius: no shown number changes; each row gains one invisible
--  `data-metric` attribute; `npm run build` gains one check on the Team pages.
--
--approved_design:
--  - team: #134
-+  `int_team_season__table_by_time` gains `place_by_rules`; its existing readers
-+  (`int_team_profile__yoy`, the published-tables test) read named columns and are unchanged.
-+  The new `int_standings__official_rank` reads `fct_standings` and `int_team_season__table_by_time`.
-+  Three readers switch to it from `fct_standings`: `mart_standings`, `mart_next_matchday` and
-+  `int_team_season__standings_primary`. The test `assert_one_match_that_matters_per_competition`
-+  recomputes `mart_next_matchday`'s flag from the table positions and switches with it.
-+  `dbt ls --select int_standings__official_rank+ --resource-type model` lists 14 models: the new
-+  one, the three readers and the ten below. Downstream:
-+  `mart_team_competitions`, `mart_fixture_standing_context` and `mart_matchday_insights` (through
-+  `mart_standings`); `mart_competition_fixtures`, `mart_competition_index` and `mart_match_days`
-+  (through `mart_next_matchday`); `mart_team_season`, `int_team_season__deserved_vs_actual`,
-+  `mart_team_profile` and `mart_team_season_insights` (through `int_team_season__standings_primary`).
-+  `int_team_season__table_state` keeps reading `fct_standings` for `previous_position`.
-+  blast_radius: the place of teams level on points changes where the provider's order differs
-+  from the league's rule and our table equals the provider's; every other value is unchanged.
-+  Cost: about 60 MB a night more, approved in chat, 2026-10-31.
+-  `int_team_season__table_by_time` gains `place_by_rules`; its existing readers
+-  (`int_team_profile__yoy`, the published-tables test) read named columns and are unchanged.
+-  The new `int_standings__official_rank` reads `fct_standings` and `int_team_season__table_by_time`.
+-  Three readers switch to it from `fct_standings`: `mart_standings`, `mart_next_matchday` and
+-  `int_team_season__standings_primary`. The test `assert_one_match_that_matters_per_competition`
+-  recomputes `mart_next_matchday`'s flag from the table positions and switches with it.
+-  `dbt ls --select int_standings__official_rank+ --resource-type model` lists 14 models: the new
+-  one, the three readers and the ten below. Downstream:
+-  `mart_team_competitions`, `mart_fixture_standing_context` and `mart_matchday_insights` (through
+-  `mart_standings`); `mart_competition_fixtures`, `mart_competition_index` and `mart_match_days`
+-  (through `mart_next_matchday`); `mart_team_season`, `int_team_season__deserved_vs_actual`,
+-  `mart_team_profile` and `mart_team_season_insights` (through `int_team_season__standings_primary`).
+-  `int_team_season__table_state` keeps reading `fct_standings` for `previous_position`.
+-  blast_radius: the place of teams level on points changes where the provider's order differs
+-  from the league's rule and our table equals the provider's; every other value is unchanged.
+-  Cost: about 60 MB a night more, approved in chat, 2026-10-31.
++  New: `int_team_index__round_values`, read by `mart_team_index` and one test, and
++  `mart_team_index`, read by nothing yet (the Teams page export is the next MR). The mart reads
++  `mart_team_profile` (the teams with a page), `mart_team_competitions` (each team's furthest
++  round per competition and season, and its table position), `dim_team`, `fct_fixture`,
++  `int_round_names`, `competition_registry`, `competition_types` and `confederations`.
++  `.venv/Scripts/dbt.exe ls --project-dir dbt_project --select confederations+ round_names+
++  --resource-type model` lists 58 models: dim_region int_knockout_ties int_legs__team_match
++  int_player_club_season__metrics int_player_competition_benchmark_metrics_long
++  int_player_competition_benchmarks int_player_momentum__metrics int_player_profile__contribution
++  int_player_profile__yoy int_player_season__metrics int_player_season_position__metrics
++  int_player_season_record int_round_names int_standings__official_rank
++  int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
++  int_team_momentum__metrics int_team_momentum_window int_team_profile__streaks
++  int_team_profile__yoy int_team_season__biggest_results int_team_season__deserved_vs_actual
++  int_team_season__longest_runs int_team_season__metrics int_team_season__metrics_cumulative
++  int_team_season__standings_primary int_team_season__table_by_time int_team_season__table_legs
++  int_team_season__table_state int_team_season_record mart_competition_fixtures
++  mart_competition_index mart_competition_season_summary mart_fixture_standing_context
++  mart_head_to_head mart_leaderboards mart_match_days mart_matchday_insights mart_next_matchday
++  mart_player_career mart_player_competition_benchmarks mart_player_momentum mart_player_profile
++  mart_player_season_record mart_standings mart_team_competition_benchmarks
++  mart_team_competitions mart_team_fixtures mart_team_index mart_team_leaderboards
++  mart_team_momentum_window mart_team_profile mart_team_season mart_team_season_insights
++  mart_team_season_record mart_team_window_metrics.
++  blast_radius: `confederations.csv` gains two columns that no existing model reads. The new
++  `round_names.csv` rows are each scoped to one competition and match only round texts that
++  have no name today: those fixtures gain a round name and a stage kind, so `int_knockout_ties`
++  gains their ties and `mart_team_competitions` their cup status. Measured on prod: the rows name
++  435 fixtures in 22 competition-season rounds that have no name today (UCL 2021-2024, AFCCL
++  2017-2025, LIBER 2019-2025, CCCU 2024-2025); every matched round text has no name today, so no
++  named round changes. One new copy key, `roundKnockoutPlayoffs`, in EN, DE and FI.
++  Cost: about 0.6 GB a night more, the mart about 80 MB and its tests about 0.5 GB.
++
++approved_design:
++  - teams: #133
++  - competition: #129
++  - team: #134
  
  acceptance_criteria:
--  - "On the Team page, \"Compared with the league\", a less-is-better metric shows the club's league rank as the warehouse serves it. Less is better for fouls, goals against, shots on target against, yellow cards and red cards. The club with the lowest fouls per match shows 1st."
--  - "A metric where more is better keeps showing its rank as served (goals per match: the highest value shows 1st)."
--  - "Every site build fails when a Team-page row shows a rank other than the served one."
--  - "A test pins a less-is-better row: served rank 1 of 18 displays \"1st\", and a page showing \"18th\" for it fails."
--  - "The Team-page mock generator `design-mocks/gen_team_mock.py` shows the served rank."
--  - "The site code holds no helper that flips a served rank."
-+  - "On the Table page, teams level on points stand in the order of their league's own tie-break rule, for Liga Portugal, the Saudi Pro League and every league with rule rows."
-+  - "Teams the rule cannot separate keep the provider's order."
-+  - "The Team page and the match page show the same place as the Table page."
-+  - "A test fails when a served place differs from the place the league's rule gives, wherever the rule decides."
-+  - "The MR lists every place that changes, per league, measured on prod before the change."
-+  - "Rule R7 and docs/metric_layer.md say that the order of teams level on points follows the league's published rule."
+-  - "On the Table page, teams level on points stand in the order of their league's own tie-break rule, for Liga Portugal, the Saudi Pro League and every league with rule rows."
+-  - "Teams the rule cannot separate keep the provider's order."
+-  - "The Team page and the match page show the same place as the Table page."
+-  - "A test fails when a served place differs from the place the league's rule gives, wherever the rule decides."
+-  - "The MR lists every place that changes, per league, measured on prod before the change."
+-  - "Rule R7 and docs/metric_layer.md say that the order of teams level on points follows the league's published rule."
++  - "The round the provider calls \"Knockout Round Play-offs\" (Champions League 2024-25) is named \"Knockout phase play-offs\" / \"Play-offs der K.-o.-Phase\" / \"Pudotuspelivaiheen playoff\" wherever a page names it."
++  - "The competition page (header and Matchdays) and the Team page (Competitions block) show the new round names through the round key, as their approved designs already do for every named round."
  
  decisions_taken: >
--  The plan approved in chat, 2026-10-30: path A, a check on the built Team pages. The check reads
--  the served rank from the team payload's featured season and renders it with `ordinal`. No new
--  mechanism: the rule joins `check-built-pages.mjs`, which `npm run build` already runs. No
--  recurring cost.
-+  The plan approved in chat, 2026-10-31: the rule's order applies only to a section where every
-+  team's points and games played equal the provider's row, otherwise the provider's rank stands;
-+  the exact mart_standings header sentence; the R7 and docs/metric_layer.md sentences, split to
-+  the sentence-length limit, approved in chat, 2026-10-31; the recurring cost of
-+  about 60 MB a night. Both leagues' rules checked against their own sources, recorded on #237.
+-  The plan approved in chat, 2026-10-31: the rule's order applies only to a section where every
+-  team's points and games played equal the provider's row, otherwise the provider's rank stands;
+-  the exact mart_standings header sentence; the R7 and docs/metric_layer.md sentences, split to
+-  the sentence-length limit, approved in chat, 2026-10-31; the recurring cost of
+-  about 60 MB a night. Both leagues' rules checked against their own sources, recorded on #237.
++  The build plan approved in chat, 2026-10-30, with its decisions: the last five finished seasons;
++  each continent's top cup and championship on its row in `confederations.csv`; the round points
++  written once, in a model; clubs and countries still level after the most recent season
++  separated by wins, then goal difference, then sharing the place. Approved in chat, 2026-10-31:
++  the copy of `roundKnockoutPlayoffs`; national teams still level on all three of #133's criteria
++  separated by qualifier goal difference per match, then sharing the place. The stages come from
++  `mart_team_competitions`, which already serves each team's furthest round and its final won.
++  Readings of #133 stated on #222: CONCACAF's "1st Round" is the round of 32; for national teams
++  "furthest stage" counts each round in order (group, round of 32, round of 16, quarter-final,
++  semi-final, final, winner); a ranked club's region is its top club competition's. Approved in
++  chat, 2026-10-31: the exact text of every new seed, model and column description; the model
++  `int_team_index__round_values` with its text; the seed `team_index_answer_key.csv`; AFC's
++  "League Phase East/West" named as its league stage and "Ranking of second-placed teams" as
++  its group stage; the nightly cost of about 0.6 GB; the layering.md row; the region_key text.
  
  decisions_reserved:
--  - "none: no copy, label, order or shown number changes"
-+  - "none: every changed sentence and the shipped-number change were approved in the plan"
+-  - "none: every changed sentence and the shipped-number change were approved in the plan"
++  - "none: every decision of this task is approved, see decisions_taken"
  
  done_when:
--  - npm test in site_v2 passes, with the new less-is-better and more-is-better cases.
--  - check-built-pages.mjs passes on a sample build, or the MR's build:site-v2 job passes.
--  - python -m py_compile design-mocks/gen_team_mock.py passes; the whole pytest passes.
-+  - dbt parse passes; the changed models pass SQLFluff.
-   - The offline gates of validate-local pass.
-+  - On prod, read-only, the new model's SQL lists every changed place and the new test's SQL returns 0 rows.
+-  - dbt parse passes; the changed models pass SQLFluff.
+-  - The offline gates of validate-local pass.
+-  - On prod, read-only, the new model's SQL lists every changed place and the new test's SQL returns 0 rows.
++  - dbt parse passes; the new SQL passes SQLFluff; the offline gates and the whole pytest pass.
++  - The copy gate passes with the new key in three languages.
++  - The MR's data:build:mr passes, and on prod, read-only, the new tests return no rows
++    and the Top clubs, country and national-team orders are shown to the CPO.
  
- amendments: (none)
+-amendments: (none)
++amendments:
++  - "Review round 1: the round values move from a macro into `int_team_index__round_values` (engineering_standards.md 1.3); the answer key is a seed like the existing ones; range and coverage tests added; four defects fixed."
 diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
-index 96ca8a20..62dc9cd3 100644
+index 62dc9cd3..e2eb059d 100644
 --- a/dbt_project/docs/layering.md
 +++ b/dbt_project/docs/layering.md
-@@ -309,14 +309,14 @@ Canonical mart inventory (exhaustive) for this project:
- 
- | Mart | Grain | Notes |
- |------|-------|-------|
--| `mart_team_season` | (team_sk, season_sk) | Per-team-per-season rollup over finished matches; latest rank, form, and standings group label joined from `fct_standings`. |
-+| `mart_team_season` | (team_sk, season_sk) | Per-team-per-season rollup over finished matches; latest rank, form, and standings group label joined from `int_standings__official_rank`. |
- | `mart_leaderboards` | (player_sk, season_sk, metric_key) on season rows; (fixture_sk, player_sk, metric_key) on match rows | LONG per-board player leaderboards. The season rows are the thirteen boards of the competition page's Rankings tab, top 10 per board: 11 count and 2 rate. The rate boards sit behind a minutes and position floor. The match rows are seven count boards for each played match (window_type match), top three. Composes `int_player_season__metrics` and `int_player_match__metrics`; DENSE_RANK ties share, every board most first, a zero never ranked. |
- | `mart_team_leaderboards` | (team_sk, season_sk, metric_key) | LONG per-board team leaderboards — the team mirror of `mart_leaderboards` (GAP-29). Twelve boards, the Rankings tab's, each ranked in the direction the `metric_catalogue` seed gives its metric and serving it as `rank_order` (the two "against" rates ascending; the two card totals most first by ruling). Composes `int_team_season__metrics` (UNPIVOT, not a union-all loop — one shared rule, unlike the player rate boards) + the catalogue seed + `dim_team`; no games floor; top-10 per board, DENSE_RANK ties share; a zero ranks only on an ascending board. Rank partitions `(league_code, season_api_year, metric_key)` — per league by ruling, so the ranking never crosses competitions. |
- | `mart_next_matchday` | fixture_sk | Every competition's next matchday: each upcoming fixture (NS/TBD, dated on or after the build day) in the round of that competition's earliest upcoming fixture. The Home hero reads it whole; nothing is capped in it. `is_match_that_matters` flags, per competition, the fixture whose two teams have the lowest sum of table positions. |
+@@ -316,6 +316,7 @@ Canonical mart inventory (exhaustive) for this project:
  | `mart_competition_fixtures` | fixture_sk | Every match of a competition-season, played and unplayed, with both teams, its round and its flags. A played match also carries its goals as one list and its `goal_data_state`. |
  | `mart_matchday_insights` | fixture_sk (per `league_code`) | MVP domestic upcoming matchday + form; filter by `league_code` at export/UI. BL1 play-offs: `mart_matchday_insights_bl1_relegation`. WC: `mart_matchday_insights_wc`. |
  | `mart_team_season_insights` | (league_code, team_sk) | MVP latest season per league; slice by `league_code` at export/UI. |
--| `mart_standings` | (league_code, season_api_year, group_name, team_sk) | The league's official standings row, the provider's except where corrected to the league's figures (rank, points, W/D/L, goals scored and conceded, goal difference, form) plus `table_kind`, the section's kind (league / group / conference / split_round / ranking) resolved from its name through the `standings_table_kinds` seed. |
-+| `mart_standings` | (league_code, season_api_year, group_name, team_sk) | The league's official standings row, the provider's except where corrected to the league's figures (rank, points, W/D/L, goals scored and conceded, goal difference, form) plus `table_kind`, the section's kind (league / group / conference / split_round / ranking) resolved from its name through the `standings_table_kinds` seed. Teams level on points stand in the league's tie-break order where our table equals the provider's (`int_standings__official_rank`). |
++| `mart_team_index` | team_sk | The Teams page: every team with a Team page and the orders the page shows, Top clubs, countries, clubs inside a country and national teams. Reads `mart_team_competitions` in its own layer. |
+ | `mart_standings` | (league_code, season_api_year, group_name, team_sk) | The league's official standings row, the provider's except where corrected to the league's figures (rank, points, W/D/L, goals scored and conceded, goal difference, form) plus `table_kind`, the section's kind (league / group / conference / split_round / ranking) resolved from its name through the `standings_table_kinds` seed. Teams level on points stand in the league's tie-break order where our table equals the provider's (`int_standings__official_rank`). |
  | `mart_competition_season_summary` | (league_code, season_api_year) | The season's headline tallies over finished matches: matches, goals, goals per match, home/away/draw split, the biggest-margin and most-goals fixtures, the longest unbeaten and winless runs with their holders. Composes `int_legs__team_match`; results tallied at competition grain, not catalogue metrics. |
  | `mart_team_market_value` | team_sk | Team squad market value; currently WC-scoped (see #418 to generalize). |
- | `mart_team_profile` | (team_sk, season_sk) | v2 team profile: full-season metrics, YoY deltas, streaks. |
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-index 4764f2b3..bb6b48cf 100644
---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-@@ -201,6 +201,9 @@ models:
-         tests: [not_null]
-       - name: table_position
-         description: "The team's place in its section by the league's rules; empty where it is level with another team at a criterion the results cannot settle."
-+      - name: place_by_rules
-+        description: "The place the league's rules give the team in its section; teams the rules leave level share the best place they cover."
-+        tests: [not_null]
- 
-   - name: int_team_season__standings_primary
-     description: >
-@@ -229,7 +232,7 @@ models:
-               to: ref('dim_competition_season')
-               field: season_sk
-       - name: standing_rank
--        description: "API rank from the chosen row (same semantics as mart_team_season.latest_rank source)."
-+        description: "The official place from the chosen row, read from int_standings__official_rank (the source of mart_team_season.latest_rank)."
-       - name: form
-         description: "Recent-form string from the chosen row (latest_form in marts)."
-       - name: group_description
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
-index 9fe3d1a7..14e59b1c 100644
---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
-@@ -1,11 +1,11 @@
- {#
-   One row per (team_sk, season_sk) for table display and marts.
--  fct_standings grain can include multiple rows (e.g. group_description);
-+  int_standings__official_rank grain can include multiple rows (e.g. group_description);
-   keep the row with latest raw_ingested_at.
- #}
- 
--with import_fct_standings as (
--    select * from {{ ref('fct_standings') }}
-+with import_int_standings__official_rank as (
-+    select * from {{ ref('int_standings__official_rank') }}
- )
- 
- select
-@@ -14,7 +14,7 @@ select
-     standing_rank,
-     form,
-     group_description
--from import_fct_standings
-+from import_int_standings__official_rank
- qualify row_number() over (
-     partition by team_sk, season_sk order by raw_ingested_at desc nulls last
- ) = 1
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_by_time.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_by_time.sql
-index 1b942209..db6561ba 100644
---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_by_time.sql
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_by_time.sql
-@@ -475,6 +475,7 @@ select
-     ts.table_points,
-     ts.goal_difference,
-     ts.goals_for,
-+    p.rank_by_rules as place_by_rules,
-     ts.points_from_results - ts.table_points as points_taken,
-     p.teams_on_key > 1 as is_level_after_rules,
-     if(p.teams_on_key > 1 and p.ends_undecided, null, p.rank_by_rules) as table_position
-diff --git a/dbt_project/models/4_intermediate/shared/int_standings__official_rank.sql b/dbt_project/models/4_intermediate/shared/int_standings__official_rank.sql
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_index__round_values.sql b/dbt_project/models/4_intermediate/shared/int_team_index__round_values.sql
 new file mode 100644
-index 00000000..9a7193b9
+index 00000000..34d6bdd5
 --- /dev/null
-+++ b/dbt_project/models/4_intermediate/shared/int_standings__official_rank.sql
-@@ -0,0 +1,57 @@
++++ b/dbt_project/models/4_intermediate/shared/int_team_index__round_values.sql
+@@ -0,0 +1,37 @@
 +{#
-+  Every standings row with its official place: fct_standings, with standing_rank in the league's
-+  own tie-break order where it can be applied and the provider's rank everywhere else.
-+
-+  The order comes from int_team_season__table_by_time at the section's latest kick-off. It applies
-+  only to a section where every team's matches played and points equal its standings row; that
-+  section is ordered by place_by_rules, and teams the rules leave level keep the provider's order.
-+  Every other section, and every table int_team_season__table_by_time does not cover, keeps the
-+  provider's rank.
-+
-+  Grain: (league_code, season_api_year, group_name, team_sk).
++  The Teams page value of each round key: club_points for Top clubs, national_stage for
++  national teams. Grain: (round_key).
 +#}
 +
-+with standings as (
-+    select * from {{ ref('fct_standings') }}
-+),
-+
-+rule_table as (
-+    select
-+        league_code,
-+        season_api_year,
-+        group_name,
-+        team_sk,
-+        played,
-+        table_points,
-+        place_by_rules
-+    from {{ ref('int_team_season__table_by_time') }}
-+    qualify table_at = max(table_at) over (partition by league_code, season_api_year, group_name)
-+),
-+
-+compared as (
-+    select
-+        s.*,
-+        r.place_by_rules,
-+        logical_and(coalesce(r.played = s.played and r.table_points = s.points, false)) over (
-+            partition by s.league_code, s.season_api_year, s.group_name
-+        ) as is_section_matched
-+    from standings as s
-+    left join rule_table as r
-+        on
-+            s.league_code = r.league_code
-+            and s.season_api_year = r.season_api_year
-+            and s.group_name = r.group_name
-+            and s.team_sk = r.team_sk
-+)
-+
 +select
-+    * except (standing_rank, place_by_rules, is_section_matched),
-+    if(
-+        is_section_matched,
-+        row_number() over (
-+            partition by league_code, season_api_year, group_name
-+            order by place_by_rules, standing_rank, team_sk
-+        ),
-+        standing_rank
-+    ) as standing_rank
-+from compared
-diff --git a/dbt_project/models/4_intermediate/shared/int_standings__official_rank.yml b/dbt_project/models/4_intermediate/shared/int_standings__official_rank.yml
++    round_key,
++    club_points,
++    national_stage
++from unnest([
++    struct('roundGroupStageMatchday' as round_key, 1 as club_points, 1 as national_stage),
++    struct('roundGroupMatchday', 1, 1),
++    struct('roundLeaguePhaseMatchday', 1, 1),
++    struct('roundLeagueStageMatchday', 1, 1),
++    struct('compFactMatchday', 1, 1),
++    struct('roundWcGroupMatchday', 1, 1),
++    struct('roundOf32', 2, 2),
++    struct('roundWcOf32', 2, 2),
++    struct('roundKnockoutPlayoffs', 2, 2),
++    struct('roundOf16', 2, 3),
++    struct('roundQuarterFinals', 3, 4),
++    struct('roundQuarterfinalsAm', 3, 4),
++    struct('roundSemiFinals', 4, 5),
++    struct('roundSemifinalsAm', 4, 5),
++    struct('roundFinal', 5, 6),
++    struct('roundQualifyingRound1', 0, null),
++    struct('roundQualifyingRound2', 0, null),
++    struct('roundQualifyingRound3', 0, null),
++    struct('roundPlayoffRound', 0, null),
++    struct('roundAfcPreliminaryStage', 0, null),
++    struct('roundPreliminaryRound', 0, null),
++    struct('roundPreliminaryRound1', 0, null),
++    struct('roundPreliminaryRound2', 0, null),
++    struct('roundLiberStage1', 0, null),
++    struct('roundLiberStage2', 0, null),
++    struct('roundLiberStage3', 0, null)
++])
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_index__round_values.yml b/dbt_project/models/4_intermediate/shared/int_team_index__round_values.yml
 new file mode 100644
-index 00000000..12e4412f
+index 00000000..dd66d612
 --- /dev/null
-+++ b/dbt_project/models/4_intermediate/shared/int_standings__official_rank.yml
-@@ -0,0 +1,17 @@
++++ b/dbt_project/models/4_intermediate/shared/int_team_index__round_values.yml
+@@ -0,0 +1,28 @@
 +version: 2
 +
 +models:
-+  - name: int_standings__official_rank
++  - name: int_team_index__round_values
 +    description: >
-+      Every standings row with its official place. The columns of fct_standings, with
-+      standing_rank in the league's own tie-break order wherever the league table rebuilt from
-+      results equals the provider's for the whole section; elsewhere the provider's rank.
-+      mart_standings, mart_next_matchday and the team-season standing read it. Grain:
-+      (league_code, season_api_year, group_name, team_sk).
-+    tests:
-+      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns: [league_code, season_api_year, group_name, team_sk]
++      The value of each round on the Teams page, one row per round key: a club's points for its
++      furthest round in a top club competition (1 league or group phase, 2 round of 32, knockout
++      play-off or round of 16, 3 quarter-final, 4 semi-final, 5 final; qualifying rounds 0), and
++      a national team's stage (each round in order, 1 group to 6 final). Grain: (round_key).
 +    columns:
-+      - name: standing_rank
-+        description: "The team's place in its standings section (1 = leader): teams level on points in the league's tie-break order where the rebuilt table equals the provider's, otherwise the provider's rank."
-+        tests: [not_null]
-diff --git a/dbt_project/models/5_marts/shared/mart_next_matchday.sql b/dbt_project/models/5_marts/shared/mart_next_matchday.sql
-index 923f3192..b2c32d8d 100644
---- a/dbt_project/models/5_marts/shared/mart_next_matchday.sql
-+++ b/dbt_project/models/5_marts/shared/mart_next_matchday.sql
-@@ -116,7 +116,7 @@ positions as (
-         season_api_year,
-         team_sk,
-         standing_rank
--    from {{ ref('fct_standings') }}
-+    from {{ ref('int_standings__official_rank') }}
-     qualify count(*) over (partition by league_code, season_api_year, team_sk) = 1
- ),
- 
-diff --git a/dbt_project/models/5_marts/shared/mart_standings.sql b/dbt_project/models/5_marts/shared/mart_standings.sql
-index 1e3d0b50..733a12a5 100644
---- a/dbt_project/models/5_marts/shared/mart_standings.sql
-+++ b/dbt_project/models/5_marts/shared/mart_standings.sql
-@@ -11,9 +11,11 @@
- 
-   Every value is the league's official standings row (the provider's, except where corrected in
-   base to the league's figures) — rank, points, W/D/L,
--  goals scored and conceded, goal difference, form. Nothing here is computed from fixtures: the
--  official table carries deductions and tie-break orders a recomputation cannot reproduce, so it
--  is a fact from the source, like a match score. NO zones — the provider's zone annotation is
-+  goals scored and conceded, goal difference, form. The one computed value is the order of teams
-+  level on points: int_standings__official_rank puts them in the league's own tie-break order
-+  wherever our table equals the provider's. Nothing else is computed from fixtures: the official
-+  table carries deductions a recomputation cannot reproduce, so it is a fact from the source, like
-+  a match score. NO zones — the provider's zone annotation is
-   carried verbatim in group_description and never interpreted.
- 
-   table_kind says what kind of table a section is (league, group, conference, split_round,
-@@ -31,7 +33,7 @@
- #}
- 
- with standings as (
--    select * from {{ ref('fct_standings') }}
-+    select * from {{ ref('int_standings__official_rank') }}
- ),
- 
- registry as (
-diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index 1a1c06e2..48c823a7 100644
---- a/dbt_project/models/5_marts/shared/shared.yml
-+++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -1620,7 +1620,7 @@ models:
-         description: "{{ doc('losses') }}"
- 
-   - name: mart_team_season
--    description: "Per-team, per-season rollup. Grain: (team_sk, season_sk). latest_rank, latest_form, and standings_group_description come from fct_standings (null when absent). Interpret latest_rank together with standings_group_description for multi-group competitions."
-+    description: "Per-team, per-season rollup. Grain: (team_sk, season_sk). latest_rank, latest_form, and standings_group_description come from int_standings__official_rank (null when absent). Interpret latest_rank together with standings_group_description for multi-group competitions."
-     meta:
-       owner: "data-platform"
-       domain: "football"
-diff --git a/dbt_project/models/docs/metric_rules.md b/dbt_project/models/docs/metric_rules.md
-index 0e728f18..910e8750 100644
---- a/dbt_project/models/docs/metric_rules.md
-+++ b/dbt_project/models/docs/metric_rules.md
-@@ -24,7 +24,8 @@ How every metric is computed:
-   against its previous season through its first N; a player's through N appearances against the
-   previous season at the same club through its first N. It is blank when either side is.
- - R7 Results the league publishes (the score, the league table) are taken as published, never
--  computed. A count of results or a playing-time fact (minutes, starts) is a fact, not
-+  computed. The one exception: teams level on points stand in the order of the league's own
-+  tie-break rule. A count of results or a playing-time fact (minutes, starts) is a fact, not
-   a catalogue metric.
- 
- A metric computed by a model (deserved points and its ranks, the contribution share, the league
-diff --git a/dbt_project/tests/assert_one_match_that_matters_per_competition.sql b/dbt_project/tests/assert_one_match_that_matters_per_competition.sql
-index 0e68d380..845464ea 100644
---- a/dbt_project/tests/assert_one_match_that_matters_per_competition.sql
-+++ b/dbt_project/tests/assert_one_match_that_matters_per_competition.sql
-@@ -3,9 +3,9 @@
- -- competition, it is the one the rule picks, and no fixture is flagged where either side has no
- -- position (a team in zero or several standings sections that season).
- --
---- Recomputed from fct_fixture and fct_standings with the mart's own window definition, not from
---- the mart's CTEs, so a rewrite of the mart that flags by a different rule, flags twice, or
---- flags a knockout tie fails here even when the schema tests stay green.
-+-- Recomputed from fct_fixture and int_standings__official_rank with the mart's own window
-+-- definition, not from the mart's CTEs, so a rewrite of the mart that flags by a different rule,
-+-- flags twice, or flags a knockout tie fails here even when the schema tests stay green.
- --
- -- Returns a row (= fails) per competition where the property does not hold.
- {{ config(store_failures = true) }}
-@@ -44,7 +44,7 @@ positions as (
-         season_api_year,
-         team_sk,
-         standing_rank
--    from {{ ref('fct_standings') }}
-+    from {{ ref('int_standings__official_rank') }}
-     qualify count(*) over (partition by league_code, season_api_year, team_sk) = 1
- ),
- 
-diff --git a/dbt_project/tests/assert_standings_rank_follows_league_rule.sql b/dbt_project/tests/assert_standings_rank_follows_league_rule.sql
++      - name: round_key
++        description: "The round's round_label_i18n_key, as int_round_names serves it."
++        tests:
++          - not_null
++          - unique
++      - name: club_points
++        description: "The points a club scores for reaching this round; 0 for a qualifying round."
++        tests:
++          - not_null
++          - accepted_values:
++              values: [0, 1, 2, 3, 4, 5]
++              quote: false
++      - name: national_stage
++        description: "The round's stage for a national team, 1 group to 6 final; NULL for a qualifying round."
++        tests:
++          - accepted_values:
++              values: [1, 2, 3, 4, 5, 6]
++              quote: false
+diff --git a/dbt_project/models/5_marts/shared/mart_team_index.sql b/dbt_project/models/5_marts/shared/mart_team_index.sql
 new file mode 100644
-index 00000000..9a42b1a3
+index 00000000..368b247f
 --- /dev/null
-+++ b/dbt_project/tests/assert_standings_rank_follows_league_rule.sql
-@@ -0,0 +1,102 @@
++++ b/dbt_project/models/5_marts/shared/mart_team_index.sql
+@@ -0,0 +1,581 @@
 +{#
-+  The served league table follows the league's own tie-break rule wherever the rule decides. A
-+  section is compared when every team's matches played and points equal the league table rebuilt
-+  at the section's latest kick-off (int_team_season__table_by_time). There, a team the rules place
-+  must be served at that place, and the section's served places must run 1 to n without a gap or
-+  a repeat. A section that is not compared keeps the provider's rank.
++  The Teams page: one row per team with a Team page, with the orders the page shows.
 +
-+  Returns one row per failing team or section.
++  Clubs: each continent's top club competition (confederations.top_club_competition) over its
++  last five finished seasons, a season being finished once its final is played. A club scores
++  its furthest round per season: 1 league or group phase, 2 round of 32, knockout play-off or
++  round of 16, 3 quarter-final, 4 semi-final, 5 final, 6 winner; qualifying rounds score 0.
++  top_club_rank orders a continent's clubs by the sum, then the most recent season, then wins,
++  then goal difference in those matches; clubs still level share the place.
++
++  Countries: the sum of their clubs' points, ordered by region_rank, then the sum, the most recent
++  season, wins and goal difference; countries without points follow A to Z, teams without a
++  country last.
++
++  National teams: the furthest round at the latest finished World Cup, then at the region's
++  latest finished championship (each round in order, the winner above the final), then points
++  per match and goal difference per match in the team's World Cup qualifier table matches;
++  teams still level share the place, teams with none of the three follow A to Z.
++
++  Reads mart_team_competitions in its own layer, for each team's furthest round and final won.
++  Grain: (team_sk).
 +#}
-+{{ config(store_failures = true, severity = 'error') }}
 +
-+with served as (
++with shown_teams as (
++    select distinct team_sk
++    from {{ ref('mart_team_profile') }}
++),
++
++teams as (
++    select
++        team_sk,
++        team_name,
++        team_slug,
++        team_logo_url,
++        team_country
++    from {{ ref('dim_team') }}
++),
++
++registry as (
++    select
++        league_code,
++        competition_type,
++        parent_competition,
++        confederation,
++        tier
++    from {{ ref('competition_registry') }}
++),
++
++competition_types as (
++    select
++        competition_type,
++        entity_type
++    from {{ ref('competition_types') }}
++),
++
++regions as (
++    select
++        confederation,
++        region_rank,
++        top_club_competition,
++        continental_championship
++    from {{ ref('confederations') }}
++),
++
++team_competitions as (
++    select * from {{ ref('mart_team_competitions') }}
++),
++
++round_names as (
 +    select
 +        league_code,
 +        season_api_year,
-+        group_name,
-+        team_sk,
-+        played,
-+        points,
-+        standing_rank
-+    from {{ ref('mart_standings') }}
++        round_name,
++        round_label_i18n_key,
++        round_stage_kind
++    from {{ ref('int_round_names') }}
 +),
 +
-+rebuilt as (
++fixtures as (
 +    select
 +        league_code,
 +        season_api_year,
-+        group_name,
-+        team_sk,
-+        played,
-+        table_points,
-+        table_position
-+    from {{ ref('int_team_season__table_by_time') }}
-+    qualify table_at = max(table_at) over (partition by league_code, season_api_year, group_name)
++        round_name,
++        home_team_sk,
++        away_team_sk,
++        goals_home,
++        goals_away,
++        date(fixture_date) as fixture_date,
++        status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO') as is_finished
++    from {{ ref('fct_fixture') }}
 +),
 +
-+compared as (
++stage_values as (
++    select * from {{ ref('int_team_index__round_values') }}
++),
++
++finished_seasons as (
++    select
++        f.league_code,
++        f.season_api_year,
++        row_number() over (
++            partition by f.league_code order by f.season_api_year desc
++        ) as recency
++    from fixtures as f
++    inner join round_names as r
++        on
++            f.league_code = r.league_code
++            and f.season_api_year = r.season_api_year
++            and f.round_name = r.round_name
++    where r.round_stage_kind = 'final'
++    group by f.league_code, f.season_api_year
++    having logical_and(f.is_finished)
++),
++
++club_cup_seasons as (
 +    select
 +        s.league_code,
 +        s.season_api_year,
-+        s.group_name,
-+        s.team_sk,
-+        s.standing_rank,
-+        r.table_position,
-+        logical_and(coalesce(r.played = s.played and r.table_points = s.points, false)) over (
-+            partition by s.league_code, s.season_api_year, s.group_name
-+        ) as is_section_compared
-+    from served as s
-+    left join rebuilt as r
++        s.recency,
++        g.confederation as cup_region_key
++    from finished_seasons as s
++    inner join regions as g
++        on s.league_code = g.top_club_competition
++    where s.recency <= 5
++),
++
++club_stages as (
++    select
++        tc.team_sk,
++        cs.cup_region_key,
++        cs.recency,
++        if(tc.cup_status = 'winners', 6, v.club_points) as points
++    from team_competitions as tc
++    inner join club_cup_seasons as cs
 +        on
-+            s.league_code = r.league_code
-+            and s.season_api_year = r.season_api_year
-+            and s.group_name = r.group_name
-+            and s.team_sk = r.team_sk
++            tc.league_code = cs.league_code
++            and tc.season_api_year = cs.season_api_year
++    inner join shown_teams as st
++        on tc.team_sk = st.team_sk
++    left join stage_values as v
++        on tc.reached_round_label_i18n_key = v.round_key
 +),
 +
-+off_rule as (
++club_cup_matches as (
 +    select
-+        league_code,
-+        season_api_year,
-+        group_name,
++        cs.cup_region_key,
++        side.team_sk,
++        side.goals_for,
++        side.goals_against
++    from fixtures as f
++    inner join club_cup_seasons as cs
++        on
++            f.league_code = cs.league_code
++            and f.season_api_year = cs.season_api_year
++    inner join round_names as r
++        on
++            f.league_code = r.league_code
++            and f.season_api_year = r.season_api_year
++            and f.round_name = r.round_name
++    inner join stage_values as v
++        on r.round_label_i18n_key = v.round_key
++    cross join
++        unnest([
++            struct(f.home_team_sk as team_sk, f.goals_home as goals_for, f.goals_away as goals_against),
++            struct(f.away_team_sk, f.goals_away, f.goals_home)
++        ]) as side
++    where f.is_finished and v.club_points > 0
++),
++
++club_cup_results as (
++    select
++        cup_region_key,
 +        team_sk,
-+        standing_rank,
-+        table_position,
-+        'served place differs from the rule' as failure
-+    from compared
++        countif(goals_for > goals_against) as wins,
++        sum(goals_for - goals_against) as goal_difference
++    from club_cup_matches
++    group by cup_region_key, team_sk
++),
++
++club_scores as (
++    select
++        s.team_sk,
++        s.cup_region_key,
++        sum(s.points) as cup_points,
++        sum(if(s.recency = 1, s.points, 0)) as latest_season_points
++    from club_stages as s
++    group by s.team_sk, s.cup_region_key
++    having sum(s.points) > 0
++),
++
++top_clubs as (
++    select
++        c.team_sk,
++        c.cup_region_key,
++        c.cup_points,
++        c.latest_season_points,
++        coalesce(m.wins, 0) as cup_wins,
++        coalesce(m.goal_difference, 0) as cup_goal_difference,
++        rank() over (
++            partition by c.cup_region_key
++            order by
++                c.cup_points desc,
++                c.latest_season_points desc,
++                coalesce(m.wins, 0) desc,
++                coalesce(m.goal_difference, 0) desc
++        ) as top_club_rank
++    from club_scores as c
++    left join club_cup_results as m
++        on
++            c.team_sk = m.team_sk
++            and c.cup_region_key = m.cup_region_key
++),
++
++team_kinds as (
++    select
++        tc.team_sk,
++        logical_or(ct.entity_type = 'national') as is_national
++    from team_competitions as tc
++    inner join registry as reg
++        on tc.league_code = reg.league_code
++    inner join competition_types as ct
++        on reg.competition_type = ct.competition_type
++    group by tc.team_sk
++),
++
++-- a team's region: the confederation of the competitions it plays most, FIFA's left out
++team_regions as (
++    select
++        tc.team_sk,
++        reg.confederation as region_key
++    from team_competitions as tc
++    inner join registry as reg
++        on tc.league_code = reg.league_code
++    inner join regions as g
++        on reg.confederation = g.confederation
++    where reg.confederation != 'FIFA'
++    group by tc.team_sk, reg.confederation, g.region_rank
++    qualify row_number() over (
++        partition by tc.team_sk order by count(*) desc, g.region_rank asc
++    ) = 1
++),
++
++latest_league_seasons as (
++    select
++        league_code,
++        max(season_api_year) as season_api_year
++    from team_competitions
++    where competition_type = 'domestic_league'
++    group by league_code
++),
++
++covered_leagues as (
++    select
++        tc.team_sk,
++        tc.league_code,
++        reg.tier as league_tier,
++        tc.standing_group_name,
++        tc.standing_rank as league_position
++    from team_competitions as tc
++    inner join latest_league_seasons as ls
++        on
++            tc.league_code = ls.league_code
++            and tc.season_api_year = ls.season_api_year
++    inner join registry as reg
++        on tc.league_code = reg.league_code
++    qualify row_number() over (
++        partition by tc.team_sk order by reg.tier asc, tc.league_code asc
++    ) = 1
++),
++
++clubs as (
++    select
++        t.team_sk,
++        t.team_name,
++        t.team_country,
++        coalesce(c.cup_region_key, r.region_key) as region_key,
++        coalesce(c.cup_points, 0) as cup_points,
++        coalesce(c.latest_season_points, 0) as latest_season_points,
++        coalesce(c.cup_wins, 0) as cup_wins,
++        coalesce(c.cup_goal_difference, 0) as cup_goal_difference
++    from teams as t
++    inner join shown_teams as st
++        on t.team_sk = st.team_sk
++    inner join team_kinds as k
++        on t.team_sk = k.team_sk
++    left join team_regions as r
++        on t.team_sk = r.team_sk
++    left join top_clubs as c
++        on t.team_sk = c.team_sk
++    where not k.is_national
++),
++
++countries as (
++    select
++        team_country,
++        sum(cup_points) as country_points,
++        sum(latest_season_points) as country_latest_season_points,
++        sum(cup_wins) as country_wins,
++        sum(cup_goal_difference) as country_goal_difference
++    from clubs
++    group by team_country
++),
++
++country_regions as (
++    select
++        c.team_country,
++        c.region_key as country_region_key,
++        g.region_rank as country_region_rank
++    from clubs as c
++    inner join regions as g
++        on c.region_key = g.confederation
++    where c.team_country is not null
++    group by c.team_country, c.region_key, g.region_rank
++    qualify row_number() over (
++        partition by c.team_country order by count(*) desc, g.region_rank asc
++    ) = 1
++),
++
++country_orders as (
++    select
++        c.team_country,
++        cr.country_region_key,
++        rank() over (
++            order by
++                c.team_country is null asc,
++                c.country_points = 0 asc,
++                if(c.country_points > 0, cr.country_region_rank, null) asc,
++                c.country_points desc,
++                c.country_latest_season_points desc,
++                c.country_wins desc,
++                c.country_goal_difference desc,
++                if(c.country_points = 0, c.team_country, null) asc
++        ) as country_order
++    from countries as c
++    left join country_regions as cr
++        on c.team_country = cr.team_country
++),
++
++club_orders as (
++    select
++        c.team_sk,
++        row_number() over (
++            partition by c.team_country
++            order by
++                l.league_code is null asc,
++                l.league_tier asc,
++                l.league_code asc,
++                l.standing_group_name asc,
++                l.league_position asc,
++                c.team_name asc
++        ) as team_order_in_country
++    from clubs as c
++    left join covered_leagues as l
++        on c.team_sk = l.team_sk
++),
++
++world_cups as (
++    select
++        s.league_code,
++        s.season_api_year
++    from finished_seasons as s
++    inner join registry as reg
++        on s.league_code = reg.league_code
++    where reg.competition_type = 'world_championship' and s.recency = 1
++),
++
++championships as (
++    select
++        s.league_code,
++        s.season_api_year,
++        g.confederation as region_key
++    from finished_seasons as s
++    inner join regions as g
++        on s.league_code = g.continental_championship
++    where s.recency = 1
++),
++
++national_stages as (
++    select
++        tc.team_sk,
++        max(if(wc.league_code is null, null, if(tc.cup_status = 'winners', 7, v.national_stage)))
++            as world_cup_stage,
++        max(if(ch.league_code is null, null, if(tc.cup_status = 'winners', 7, v.national_stage)))
++            as championship_stage
++    from team_competitions as tc
++    left join world_cups as wc
++        on
++            tc.league_code = wc.league_code
++            and tc.season_api_year = wc.season_api_year
++    left join team_regions as tr
++        on tc.team_sk = tr.team_sk
++    left join championships as ch
++        on
++            tc.league_code = ch.league_code
++            and tc.season_api_year = ch.season_api_year
++            and tr.region_key = ch.region_key
++    left join stage_values as v
++        on tc.reached_round_label_i18n_key = v.round_key
++    where wc.league_code is not null or ch.league_code is not null
++    group by tc.team_sk
++),
++
++qualifier_seasons as (
++    select
++        f.league_code,
++        max(f.season_api_year) as season_api_year
++    from fixtures as f
++    inner join registry as reg
++        on f.league_code = reg.league_code
++    inner join registry as parent
++        on reg.parent_competition = parent.league_code
++    inner join round_names as r
++        on
++            f.league_code = r.league_code
++            and f.season_api_year = r.season_api_year
++            and f.round_name = r.round_name
 +    where
-+        is_section_compared
-+        and table_position is not null
-+        and standing_rank != table_position
++        reg.competition_type = 'qualifying'
++        and parent.competition_type = 'world_championship'
++        and r.round_stage_kind = 'table'
++        and f.is_finished
++    group by f.league_code
 +),
 +
-+section_runs as (
++qualifier_results as (
 +    select
-+        league_code,
-+        season_api_year,
-+        group_name,
-+        count(*) as teams,
-+        count(distinct standing_rank) as distinct_places,
-+        min(standing_rank) as first_place,
-+        max(standing_rank) as last_place
-+    from compared
-+    where is_section_compared
-+    group by league_code, season_api_year, group_name
++        side.team_sk,
++        avg(
++            case
++                when side.goals_for > side.goals_against then 3
++                when side.goals_for = side.goals_against then 1
++                else 0
++            end
++        ) as qualifier_points_per_match,
++        avg(side.goals_for - side.goals_against) as qualifier_goal_difference_per_match
++    from fixtures as f
++    inner join qualifier_seasons as q
++        on
++            f.league_code = q.league_code
++            and f.season_api_year = q.season_api_year
++    inner join round_names as r
++        on
++            f.league_code = r.league_code
++            and f.season_api_year = r.season_api_year
++            and f.round_name = r.round_name
++    cross join
++        unnest([
++            struct(f.home_team_sk as team_sk, f.goals_home as goals_for, f.goals_away as goals_against),
++            struct(f.away_team_sk, f.goals_away, f.goals_home)
++        ]) as side
++    where
++        f.is_finished
++        and r.round_stage_kind = 'table'
++        and f.goals_home is not null
++        and f.goals_away is not null
++    group by side.team_sk
 +),
 +
-+broken_runs as (
++national_teams as (
 +    select
-+        league_code,
-+        season_api_year,
-+        group_name,
-+        cast(null as int64) as team_sk,
-+        cast(null as int64) as standing_rank,
-+        cast(null as int64) as table_position,
-+        'served places do not run 1 to n' as failure
-+    from section_runs
-+    where not (first_place = 1 and last_place = teams and distinct_places = teams)
++        t.team_sk,
++        t.team_name,
++        r.region_key,
++        s.world_cup_stage,
++        s.championship_stage,
++        q.qualifier_points_per_match,
++        q.qualifier_goal_difference_per_match,
++        coalesce(
++            s.world_cup_stage, s.championship_stage, q.qualifier_points_per_match
++        ) is null as has_no_criterion
++    from teams as t
++    inner join shown_teams as st
++        on t.team_sk = st.team_sk
++    inner join team_kinds as k
++        on t.team_sk = k.team_sk
++    left join team_regions as r
++        on t.team_sk = r.team_sk
++    left join national_stages as s
++        on t.team_sk = s.team_sk
++    left join qualifier_results as q
++        on t.team_sk = q.team_sk
++    where k.is_national
++),
++
++national_orders as (
++    select
++        team_sk,
++        world_cup_stage,
++        championship_stage,
++        rank() over (
++            order by
++                has_no_criterion asc,
++                world_cup_stage desc,
++                championship_stage desc,
++                qualifier_points_per_match desc,
++                qualifier_goal_difference_per_match desc,
++                if(has_no_criterion, team_name, null) asc
++        ) as national_team_rank,
++        rank() over (
++            partition by region_key
++            order by
++                has_no_criterion asc,
++                world_cup_stage desc,
++                championship_stage desc,
++                qualifier_points_per_match desc,
++                qualifier_goal_difference_per_match desc,
++                if(has_no_criterion, team_name, null) asc
++        ) as national_team_region_rank
++    from national_teams
++),
++
++tournament_days as (
++    select
++        f.league_code,
++        f.season_api_year,
++        min(f.fixture_date) as first_day,
++        max(f.fixture_date) as final_day
++    from fixtures as f
++    inner join registry as reg
++        on f.league_code = reg.league_code
++    left join regions as g
++        on f.league_code = g.continental_championship
++    where reg.competition_type = 'world_championship' or g.continental_championship is not null
++    group by f.league_code, f.season_api_year
++),
++
++block_order as (
++    select
++        coalesce(
++            logical_or(current_date() between first_day and date_add(final_day, interval 1 day)),
++            false
++        ) as national_teams_first
++    from tournament_days
 +)
 +
-+select * from off_rule
-+union all
-+select * from broken_runs
-diff --git a/docs/metric_layer.md b/docs/metric_layer.md
-index c0b369e4..90c92b5c 100644
---- a/docs/metric_layer.md
-+++ b/docs/metric_layer.md
-@@ -54,5 +54,6 @@ the committed export, and `site_v2/scripts/check-metric-labels.test.mjs` on the
++select
++    t.team_sk,
++    t.team_name,
++    t.team_slug,
++    t.team_logo_url,
++    t.team_country,
++    l.league_code,
++    l.league_tier,
++    l.standing_group_name,
++    l.league_position,
++    tc.cup_points,
++    tc.top_club_rank,
++    co.country_region_key,
++    co.country_order,
++    cl.team_order_in_country,
++    n.national_team_rank,
++    n.national_team_region_rank,
++    n.world_cup_stage,
++    n.championship_stage,
++    b.national_teams_first,
++    coalesce(tc.cup_region_key, r.region_key) as region_key,
++    if(k.is_national, 'national', 'club') as entity_type
++from teams as t
++inner join shown_teams as st
++    on t.team_sk = st.team_sk
++inner join team_kinds as k
++    on t.team_sk = k.team_sk
++left join team_regions as r
++    on t.team_sk = r.team_sk
++left join covered_leagues as l
++    on
++        t.team_sk = l.team_sk
++        and not k.is_national
++left join top_clubs as tc
++    on
++        t.team_sk = tc.team_sk
++        and not k.is_national
++left join country_orders as co
++    on
++        t.team_country is not distinct from co.team_country
++        and not k.is_national
++left join club_orders as cl
++    on t.team_sk = cl.team_sk
++left join national_orders as n
++    on t.team_sk = n.team_sk
++cross join block_order as b
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 48c823a7..c1e1bccd 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -3615,3 +3615,110 @@ models:
+       - name: competition_order
+         description: "The row's place in the team's season: the domestic league, then the domestic cups, then the domestic super cup, then every other competition, each group by its latest match first."
+         tests: [not_null]
++
++  - name: mart_team_index
++    description: >
++      The Teams page: one row per team with a Team page, with the orders the page shows.
++      Top clubs: each region's top club competition (confederations) over its last five finished
++      seasons, a season being finished once its final is played. A club scores its furthest round
++      per season: 1 league or group phase, 2 round of 32, knockout play-off or round of 16,
++      3 quarter-final, 4 semi-final, 5 final, 6 winner; qualifying rounds score nothing. Clubs are
++      ordered by the sum, then the most recent season, then wins, then goal difference in those
++      matches; clubs still level share the place.
++      Countries: the sum of their clubs' points; Europe's countries first, then each region in
++      region_rank order, each by the same keys; countries without points follow A to Z, teams
++      without a country last.
++      National teams: the furthest round at the latest finished World Cup, then at the region's
++      latest finished championship, then points per match and goal difference per match in the
++      team's World Cup qualifier table matches; teams still level share the place, teams with
++      none of the three follow A to Z.
++      Grain: (team_sk).
++    meta:
++      owner: "data-platform"
++      domain: "football"
++      criticality: "medium"
++    config:
++      tags: ["marts", "football", "team"]
++    tests:
++      - dbt_utils.expression_is_true:
++          expression: "(cup_points is null) = (top_club_rank is null) and coalesce(cup_points > 0 and top_club_rank >= 1, true)"
++          name: team_index_top_club_rank_exactly_with_cup_points
++      - dbt_utils.expression_is_true:
++          expression: "entity_type = 'national' or (national_team_rank is null and national_team_region_rank is null and world_cup_stage is null and championship_stage is null)"
++          name: team_index_club_rows_carry_no_national_order
++      - dbt_utils.expression_is_true:
++          expression: "entity_type = 'club' or (country_order is null and team_order_in_country is null and top_club_rank is null and league_code is null)"
++          name: team_index_national_rows_carry_no_club_order
++      - dbt_utils.expression_is_true:
++          expression: "entity_type = 'club' or (national_team_rank >= 1 and national_team_region_rank >= 1)"
++          name: team_index_national_rows_have_their_ranks
++      - dbt_utils.expression_is_true:
++          expression: "entity_type = 'national' or (country_order >= 1 and team_order_in_country >= 1)"
++          name: team_index_club_rows_have_their_orders
++      - dbt_utils.expression_is_true:
++          expression: "coalesce(world_cup_stage between 1 and 7, true) and coalesce(championship_stage between 1 and 7, true)"
++          name: team_index_stages_in_range
++    columns:
++      - name: team_sk
++        description: "{{ doc('team_sk') }}"
++        tests:
++          - not_null
++          - unique
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
++      - name: team_name
++        description: "{{ doc('team_name') }}"
++        tests: [not_null]
++      - name: team_slug
++        description: "{{ doc('team_slug') }}"
++        tests: [not_null]
++      - name: team_logo_url
++        description: "{{ doc('team_logo_url') }}"
++      - name: team_country
++        description: "{{ doc('team_country') }}"
++      - name: region_key
++        description: "The team's region: for a club with cup_points, its top club competition's region; otherwise the confederation of the competitions it plays most, FIFA's left out."
++        tests:
++          - relationships:
++              to: ref('confederations')
++              field: confederation
++      - name: league_code
++        description: "The domestic league the club plays in this season, the top tier when it plays in two; NULL for a national team or a club in no covered league."
++        tests:
++          - relationships:
++              to: ref('competition_registry')
++              field: league_code
++      - name: league_tier
++        description: "That league's tier, 1 for a top flight."
++      - name: standing_group_name
++        description: "The section of that league's table the club stands in."
++      - name: league_position
++        description: "The club's place in that section."
++      - name: cup_points
++        description: "The club's points over its region's top club competition's last five finished seasons; NULL without any."
++      - name: top_club_rank
++        description: "The club's place among its region's clubs by cup_points; level clubs share it; NULL without cup points."
++      - name: country_region_key
++        description: "The region of the club's country, the region most of its clubs play in."
++      - name: country_order
++        description: "The place of the club's country among the countries; NULL for a national team."
++      - name: team_order_in_country
++        description: "The club's place inside its country: the covered league by tier and table, then the other clubs A to Z; NULL for a national team."
++      - name: national_team_rank
++        description: "The national team's place in the world; level teams share it; NULL for a club."
++      - name: national_team_region_rank
++        description: "The national team's place in its region; level teams share it; NULL for a club."
++      - name: world_cup_stage
++        description: "The furthest round at the latest finished World Cup: 1 group, 2 round of 32, 3 round of 16, 4 quarter-final, 5 semi-final, 6 final, 7 winner; NULL when the team was not there."
++      - name: championship_stage
++        description: "The furthest round at the region's latest finished championship, on the same scale; NULL when the team was not there."
++      - name: national_teams_first
++        description: "True from the first match day of a World Cup or championship to the day after its final: the page shows national teams first."
++        tests: [not_null]
++      - name: entity_type
++        description: "{{ doc('entity_type') }}"
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["club", "national"]
+diff --git a/dbt_project/seeds/confederations.csv b/dbt_project/seeds/confederations.csv
+index a2fdc6b9..582db4c0 100644
+--- a/dbt_project/seeds/confederations.csv
++++ b/dbt_project/seeds/confederations.csv
+@@ -1,8 +1,8 @@
+-confederation,label_i18n_key,label_en,region_rank
+-AFC,confedAfc,Asia,5
+-CAF,confedCaf,Africa,6
+-CONCACAF,confedConcacaf,North & Central America,4
+-CONMEBOL,confedConmebol,South America,3
+-FIFA,confedFifa,World,2
+-OFC,confedOfc,Oceania,7
+-UEFA,confedUefa,Europe,1
++confederation,label_i18n_key,label_en,region_rank,top_club_competition,continental_championship
++AFC,confedAfc,Asia,5,AFCCL,ACN
++CAF,confedCaf,Africa,6,CAFCL,AFCON
++CONCACAF,confedConcacaf,North & Central America,4,CCCU,GCUP
++CONMEBOL,confedConmebol,South America,3,LIBER,COAM
++FIFA,confedFifa,World,2,,
++OFC,confedOfc,Oceania,7,,
++UEFA,confedUefa,Europe,1,UCL,EURO
+diff --git a/dbt_project/seeds/round_names.csv b/dbt_project/seeds/round_names.csv
+index b4f1a552..9605c18a 100644
+--- a/dbt_project/seeds/round_names.csv
++++ b/dbt_project/seeds/round_names.csv
+@@ -50,12 +50,22 @@ COAM,,72,^3rd place final$,roundThirdPlaceMatch,Third Place Match,,,placement
+ WCQOC,,83,^1st qualifying round$,roundOcFirstRound,First round,,,knockout
+ WCQOC,,84,^2nd qualifying round$,roundOcFirstRoundFinal,First round final,,,knockout
+ ,,85,^(play-offs|playoff round)$,roundPlayoffRound,Play-off round,,,knockout
++UCL,,86,^knockout round play-offs$,roundKnockoutPlayoffs,Knockout phase play-offs,,,knockout
++UCL,,87,^preliminary round$,roundPreliminaryRound,Preliminary round,,,knockout
+ AFCCL,,90,^1st preliminary round$,roundAfcPreliminaryStage,Preliminary Stage,,,knockout
+ CAFCL,,91,^1st preliminary round$,roundPreliminaryRound1,First preliminary round,,,knockout
+ CAFCL,,92,^2nd preliminary round$,roundPreliminaryRound2,Second preliminary round,,,knockout
+ LIBER,,93,^qualification round 1$,roundLiberStage1,First stage,,,knockout
+ LIBER,,94,^qualification round 2$,roundLiberStage2,Second stage,,,knockout
+ LIBER,,95,^qualification round 3$,roundLiberStage3,Third stage,,,knockout
++AFCCL,,96,^preliminary round$,roundPreliminaryRound,Preliminary round,,,knockout
++AFCCL,,97,^2nd preliminary round$,roundPreliminaryRound2,Second preliminary round,,,knockout
++AFCCL,,98,^league phase (east|west) - (\d+)$,roundLeagueStageMatchday,League Stage · Matchday {n},(\d+)$,,table
++AFCCL,,99,^ranking of second-placed teams - (\d+)$,roundGroupStageMatchday,Group stage · Matchday {n},(\d+)$,,table
++LIBER,,133,^1st round$,roundLiberStage1,First stage,,,knockout
++LIBER,,134,^2nd round$,roundLiberStage2,Second stage,,,knockout
++LIBER,,135,^3rd round$,roundLiberStage3,Third stage,,,knockout
++CCCU,,136,^1st round$,roundOf32,Round of 32,,,knockout
+ DFBP,,100,^round of 64$,roundFirstRound,First round,,,knockout
+ DFBP,,101,^round of 32$,roundSecondRound,Second round,,,knockout
+ CDR,2026,102,^1/128-finals$,roundPreliminaryRound,Preliminary round,,,knockout
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index 8cd04346..d5e1b0c8 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -107,6 +107,24 @@ seeds:
+         tests:
+           - not_null
+           - unique
++      - name: top_club_competition
++        description: >
++          The league_code of the region's top club competition, whose results rank the region's
++          clubs on the Teams page. Empty for FIFA and Oceania.
++        tests:
++          - unique
++          - relationships:
++              to: ref('competition_registry')
++              field: league_code
++      - name: continental_championship
++        description: >
++          The league_code of the region's championship for national teams, whose latest edition
++          ranks the region's national teams on the Teams page. Empty for FIFA and Oceania.
++        tests:
++          - unique
++          - relationships:
++              to: ref('competition_registry')
++              field: league_code
  
- Which numbers are facts taken from the provider as published is rule R7 of the catalogue table's
- description. The two never mix inside one block: a table is the provider's row, a board is
--catalogue metrics. Where they overlap — the provider's points and the catalogue's `points_won`
--tally — a reconciliation test guards the pair rather than one replacing the other.
-+catalogue metrics. A table's teams level on points stand in the league's tie-break order. Where
-+they overlap — the provider's points and the catalogue's `points_won` tally — a reconciliation
-+test guards the pair rather than one replacing the other.
+   - name: standings_table_kinds
+     description: >
+@@ -1126,6 +1144,42 @@ seeds:
+         description: "The hand working: the raw values the answer rests on and the step from them to the expected value."
+         tests: [not_null]
+ 
++  - name: team_index_answer_key
++    description: >
++      Each listed team's round in a competition-season, read from the confederation's or FIFA's
++      own page: the round's value on the Teams page scale, a club's top club competition points or
++      a national team's World Cup or championship stage. assert_team_index_stage_answer_key fails
++      when mart_team_index serves another sum or stage.
++    config:
++      column_types:
++        league_code: string
++        season: int64
++        team_id: int64
++        stage_value: int64
++        source: string
++        working: string
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [league_code, season, team_id]
++    columns:
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: season
++        description: "{{ doc('season_api_year') }}"
++        tests: [not_null]
++      - name: team_id
++        description: "{{ doc('team_api_id') }}"
++        tests: [not_null]
++      - name: stage_value
++        description: "The round's value: 1 to 6 for a club, 1 to 7 for a national team."
++        tests: [not_null]
++      - name: source
++        description: "URL of the official page that shows the round."
++        tests: [not_null]
++      - name: working
++        description: "The team, competition, season and round in words."
++
+   - name: team_season_answer_key
+     description: >
+       Hand-worked season values for real team-seasons across competitions, a World Cup included:
+diff --git a/dbt_project/seeds/team_index_answer_key.csv b/dbt_project/seeds/team_index_answer_key.csv
+new file mode 100644
+index 00000000..1754da53
+--- /dev/null
++++ b/dbt_project/seeds/team_index_answer_key.csv
+@@ -0,0 +1,47 @@
++league_code,season,team_id,stage_value,source,working
++ACN,2023,12,4,https://www.the-afc.com/en/national/afc_asian_cup/news/qf_ir_iran_v_japan_2.html,"Japan, AFC Asian Cup 2023: qf"
++AFCCL,2021,2932,6,https://www.the-afc.com/en/club/afc_champions_league/news/report_al_hilal_sfc_ksa_v_fc_pohang_steelers_kor.html,"Al Hilal, AFC Champions League 2021: final won"
++AFCCL,2022,2932,5,https://www.the-afc.com/en/club/afc_champions_league/news/urawa_reds_edge_al_hilal_for_historic_third_title.html,"Al Hilal, AFC Champions League 2022: final"
++AFCCL,2023,2932,4,https://www.the-afc.com/en/club/afc_champions_league/news/resilience_powers_al_ain_past_al_hilal.html,"Al Hilal, AFC Champions League 2023-24: sf"
++AFCCL,2024,2932,4,https://www.the-afc.com/en/club/afc_champions_league_elite.html/news/sensational-al-ahli-beat-al-hilal-to-book-final-spot,"Al Hilal, AFC Champions League Elite 2024-25: sf"
++AFCCL,2025,2932,2,https://www.the-afc.com/en/club/afc_champions_league_elite.html/news/r16-al-hilal-sfc-ksa-3-2-4-3-al-sadd-sc-qat,"Al Hilal, AFC Champions League Elite 2025-26: r16"
++AFCON,2025,31,7,https://www.cafonline.com/news/caf-appeal-board-media-statement/;https://www.cafonline.com/afcon2025/news/gueye-extra-time-stunner-hands-senegal-totalenergies-caf-afcon-2025-title/,"Morocco, Africa Cup of Nations 2025: final won"
++CAFCL,2021,1577,5,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-final-match-facts-al-ahly-wydad-ac/;https://www.cafonline.com/caf-champions-league/news/wydad-al-ahly-face-off-in-repeat-of-last-year-s-totalenergies-caf-cl-final/,"Al Ahly, CAF Champions League 2021-22: final"
++CAFCL,2022,1577,6,https://www.cafonline.com/total-caf-champions-league/2022/news/koller-delights-as-ahly-reclaim-totalenergies-caf-champions-league-title,"Al Ahly, CAF Champions League 2022-23: final won"
++CAFCL,2023,1577,6,https://www.cafonline.com/caf-champions-league/news/ahly-crowned-champions-of-africa-for-record-extending-12th-title/,"Al Ahly, CAF Champions League 2023-24: final won"
++CAFCL,2024,1577,4,https://www.cafonline.com/caf-champions-league/news/sundowns-edge-past-al-ahly-on-away-goals-to-reach-totalenergies-caf-champions-league-final/,"Al Ahly, CAF Champions League 2024-25: sf"
++CAFCL,2025,1577,3,https://www.cafonline.com/caf-champions-league/news/esperance-stun-al-ahly-in-cairo-thriller-to-reach-totalenergies-caf-champions-league-semi-finals/;https://www.cafonline.com/caf-champions-league/news/esperance-sundowns-and-moroccan-duo-book-semi-final-spots-in-202526-totalenergies-caf-champions/,"Al Ahly, CAF Champions League 2025-26: qf"
++CCCU,2024,2282,4,https://www.concacaf.com/competitions/champions-cup/news/2024-concacaf-champions-cup-semifinals-schedule-confirmed;https://www.concacaf.com/champions-cup/news/cf-pachuca-to-face-columbus-crew-in-2024-concacaf-champions-cup-final-on-june-1/,"CF Monterrey, Concacaf Champions Cup 2024: sf"
++CCCU,2024,2287,4,https://www.concacaf.com/competitions/champions-cup/news/2024-concacaf-champions-cup-semifinals-schedule-confirmed;https://www.concacaf.com/competitions/champions-cup/news/pachuca-secures-place-in-champions-cup-final-in-3-2-aggregate-win-over-america,"Club América, Concacaf Champions Cup 2024: sf"
++CCCU,2025,2282,2,https://www.concacaf.com/champions-cup/news/white-sends-vancouver-whitecaps-to-quarterfinals-on-away-goals/;https://www.concacaf.com/competitions/champions-cup/news/2025-concacaf-champions-cup-quarterfinals-matchups-and-schedule,"CF Monterrey, Concacaf Champions Cup 2025: r16"
++CCCU,2025,2287,3,https://www.concacaf.com/competitions/champions-cup/news/sepulveda-brace-against-club-america-sends-cruz-azul-to-semifinals;https://www.concacaf.com/competitions/champions-cup/news/2025-concacaf-champions-cup-quarterfinals-matchups-and-schedule,"Club América, Concacaf Champions Cup 2025: qf"
++CCCU,2026,2282,2,https://www.concacaf.com/champions-cup/news/2026-concacaf-champions-cup-round-of-16-matchups-and-schedule-confirmed/;https://www.concacaf.com/competitions/champions-cup/news/2026-concacaf-champions-cup-quarterfinals-set-to-kick-off-tuesday,"CF Monterrey, Concacaf Champions Cup 2026: r16"
++CCCU,2026,2287,3,https://www.concacaf.com/competitions/champions-cup/news/key-takeaways-quarterfinals-second-leg-matches-of-2026-concacaf-champions-cup;https://www.concacaf.com/competitions/champions-cup/news/2026-concacaf-champions-cup-semifinals-set-to-kick-off-tuesday,"Club América, Concacaf Champions Cup 2026: qf"
++COAM,2024,26,7,https://www.conmebol.com/noticias/argentina-es-bicampeon-de-la-conmebol-copa-america/,"Argentina, Copa América 2024: final won"
++EURO,2024,9,7,https://www.uefa.com/uefaeuro/history/news/028f-1b5e7f1a7388-75132b6e23be-1000--oyarzabal-winner-earns-spain-record-fourth-euro-title/,"Spain, UEFA EURO 2024: final won"
++GCUP,2025,2384,6,https://www.concacaf.com/competitions/gold-cup/news/jimenez-y-alvarez-guian-a-mexico-a-su-decimo-titulo-de-copa-oro,"USA, Concacaf Gold Cup 2025: final"
++LIBER,2021,121,6,https://www.conmebol.com/banners/la-gloria-eterna-es-para-el-palmeiras-2/,"Palmeiras, Copa Libertadores 2021: final won"
++LIBER,2021,127,5,https://www.conmebol.com/noticias/flamengo-es-finalista-y-se-cita-con-palmeiras-en-montevideo/;https://www.conmebol.com/banners/la-gloria-eterna-es-para-el-palmeiras-2/,"Flamengo, Copa Libertadores 2021: final"
++LIBER,2022,121,4,https://www.conmebol.com/noticias/por-la-gloria-eterna-paranaense-y-flamengo-jugaran-la-final-de-conmebol-libertadores/;https://www.conmebol.com/pt-br/noticias-pt-br/semana-de-semifinais-da-conmebol-libertadores/,"Palmeiras, Copa Libertadores 2022: sf"
++LIBER,2022,127,6,https://www.conmebol.com/noticias/flamengo-alcanza-la-gloria-eterna-y-es-tricampeon-de-la-conmebol-libertadores/,"Flamengo, Copa Libertadores 2022: final won"
++LIBER,2023,121,4,https://www.conmebol.com/noticias/boca-y-fluminense-van-por-la-gloria-eterna/,"Palmeiras, Copa Libertadores 2023: sf"
++LIBER,2023,127,2,https://www.conmebol.com/noticias/tensos-encuentros-definieron-a-los-ocho-mejores-del-continente/,"Flamengo, Copa Libertadores 2023: r16"
++LIBER,2024,121,2,https://www.conmebol.com/pt-br/noticias-pt-br/veja-como-ficou-a-tabela-das-quartas-de-final/,"Palmeiras, Copa Libertadores 2024: r16"
++LIBER,2024,127,3,https://www.conmebol.com/noticias/semifinalistas-confirmados-en-la-gloria-eterna/;https://www.conmebol.com/pt-br/noticias-pt-br/veja-como-ficou-a-tabela-das-quartas-de-final/,"Flamengo, Copa Libertadores 2024: qf"
++LIBER,2025,121,5,https://www.conmebol.com/pt-br/noticias-pt-br/final-brasileira-confirmada-palmeiras-enfrenta-flamengo-em-lima/;https://www.conmebol.com/pt-br/noticias-pt-br/flamengo-faz-historia-e-conquista-o-quarto-titulo-da-conmebol-libertadores-2025/,"Palmeiras, Copa Libertadores 2025: final"
++LIBER,2025,127,6,https://www.conmebol.com/pt-br/noticias-pt-br/flamengo-faz-historia-e-conquista-o-quarto-titulo-da-conmebol-libertadores-2025/,"Flamengo, Copa Libertadores 2025: final won"
++UCL,2021,157,3,https://www.uefa.com/uefachampionsleague/history/clubs/50037--fc-bayern-munchen/;https://www.uefa.com/uefachampionsleague/history/seasons/2022/,"Bayern München, UEFA Champions League 2021-22: qf"
++UCL,2021,541,6,https://www.uefa.com/uefachampionsleague/history/clubs/50051--real-madrid/;https://www.uefa.com/uefachampionsleague/history/seasons/2022/,"Real Madrid, UEFA Champions League 2021-22: final won"
++UCL,2022,157,3,https://www.uefa.com/uefachampionsleague/history/clubs/50037--fc-bayern-munchen/;https://www.uefa.com/uefachampionsleague/history/seasons/2023/,"Bayern München, UEFA Champions League 2022-23: qf"
++UCL,2022,541,4,https://www.uefa.com/uefachampionsleague/history/clubs/50051--real-madrid/;https://www.uefa.com/uefachampionsleague/history/seasons/2023/,"Real Madrid, UEFA Champions League 2022-23: sf"
++UCL,2023,157,4,https://www.uefa.com/uefachampionsleague/history/clubs/50037--fc-bayern-munchen/;https://www.uefa.com/uefachampionsleague/history/seasons/2024/,"Bayern München, UEFA Champions League 2023-24: sf"
++UCL,2023,541,6,https://www.uefa.com/uefachampionsleague/history/clubs/50051--real-madrid/;https://www.uefa.com/uefachampionsleague/history/seasons/2024/,"Real Madrid, UEFA Champions League 2023-24: final won"
++UCL,2024,157,3,https://www.uefa.com/uefachampionsleague/history/clubs/50037--fc-bayern-munchen/;https://www.uefa.com/uefachampionsleague/history/seasons/2025/,"Bayern München, UEFA Champions League 2024-25: qf"
++UCL,2024,541,3,https://www.uefa.com/uefachampionsleague/history/clubs/50051--real-madrid/;https://www.uefa.com/uefachampionsleague/history/seasons/2025/,"Real Madrid, UEFA Champions League 2024-25: qf"
++UCL,2025,157,4,https://www.uefa.com/uefachampionsleague/history/clubs/50037--fc-bayern-munchen/;https://www.uefa.com/uefachampionsleague/history/seasons/2026/,"Bayern München, UEFA Champions League 2025-26: sf"
++UCL,2025,541,3,https://www.uefa.com/uefachampionsleague/history/clubs/50051--real-madrid/;https://www.uefa.com/uefachampionsleague/history/seasons/2026/,"Real Madrid, UEFA Champions League 2025-26: qf"
++WC,2026,9,7,https://inside.fifa.com/news/spain-crowned-world-cup-2026-champions-new-york-new-jersey,"Spain, FIFA World Cup 2026: final won"
++WC,2026,12,2,https://www.the-afc.com/en/national/fifa_world_cup.html/news/r32-brazil-2-1-japan,"Japan, FIFA World Cup 2026: playoff_or_r32"
++WC,2026,26,6,https://inside.fifa.com/news/spain-crowned-world-cup-2026-champions-new-york-new-jersey,"Argentina, FIFA World Cup 2026: final"
++WC,2026,31,4,https://www.cafonline.com/caf-strategy-conference/news/caf-strategy-conference-ouahbi-the-youth-developer-who-carried-morocco-s-new-generation-to-another-world-cup-quarter-final/,"Morocco, FIFA World Cup 2026: qf"
++WC,2026,2384,3,https://www.ussoccer.com/stories/2026/07/usmnt/match-recap-highlights-vs-belgium-world-cup-round-of-16,"USA, FIFA World Cup 2026: r16"
+diff --git a/dbt_project/tests/assert_team_index_covers_every_team_page.sql b/dbt_project/tests/assert_team_index_covers_every_team_page.sql
+new file mode 100644
+index 00000000..6ff78a26
+--- /dev/null
++++ b/dbt_project/tests/assert_team_index_covers_every_team_page.sql
+@@ -0,0 +1,17 @@
++-- Every team with a Team page has its row in mart_team_index, so the Teams page lists it.
++
++with team_pages as (
++    select distinct team_sk
++    from {{ ref('mart_team_profile') }}
++),
++
++team_index as (
++    select team_sk
++    from {{ ref('mart_team_index') }}
++)
++
++select p.team_sk
++from team_pages as p
++left join team_index as i
++    on p.team_sk = i.team_sk
++where i.team_sk is null
+diff --git a/dbt_project/tests/assert_team_index_cup_rounds_scored.sql b/dbt_project/tests/assert_team_index_cup_rounds_scored.sql
+new file mode 100644
+index 00000000..5f6f9385
+--- /dev/null
++++ b/dbt_project/tests/assert_team_index_cup_rounds_scored.sql
+@@ -0,0 +1,115 @@
++-- Every round the Teams page counts has a value in int_team_index__round_values: the rounds of
++-- each top club cup's last five finished seasons and of the latest finished World Cup and
++-- championships, a round without a name included. A round without a value would score nothing
++-- and drop a team down the ranking. A configured competition with no counted season fails too.
++
++with regions as (
++    select
++        top_club_competition,
++        continental_championship
++    from {{ ref('confederations') }}
++),
++
++world_championships as (
++    select league_code
++    from {{ ref('competition_registry') }}
++    where competition_type = 'world_championship'
++),
++
++fixtures as (
++    select
++        league_code,
++        season_api_year,
++        round_name,
++        status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO') as is_finished
++    from {{ ref('fct_fixture') }}
++),
++
++round_names as (
++    select
++        league_code,
++        season_api_year,
++        round_name,
++        round_label_i18n_key,
++        round_stage_kind
++    from {{ ref('int_round_names') }}
++),
++
++round_values as (
++    select * from {{ ref('int_team_index__round_values') }}
++),
++
++finished_seasons as (
++    select
++        f.league_code,
++        f.season_api_year,
++        row_number() over (
++            partition by f.league_code order by f.season_api_year desc
++        ) as recency
++    from fixtures as f
++    inner join round_names as r
++        on
++            f.league_code = r.league_code
++            and f.season_api_year = r.season_api_year
++            and f.round_name = r.round_name
++    where r.round_stage_kind = 'final'
++    group by f.league_code, f.season_api_year
++    having logical_and(f.is_finished)
++),
++
++counted_competitions as (
++    select
++        top_club_competition as league_code,
++        5 as seasons_counted
++    from regions
++    where top_club_competition is not null
++    union all
++    select
++        continental_championship as league_code,
++        1 as seasons_counted
++    from regions
++    where continental_championship is not null
++    union all
++    select
++        league_code,
++        1 as seasons_counted
++    from world_championships
++),
++
++counted_seasons as (
++    select
++        s.league_code,
++        s.season_api_year
++    from finished_seasons as s
++    inner join counted_competitions as c
++        on s.league_code = c.league_code
++    where s.recency <= c.seasons_counted
++)
++
++select
++    r.league_code,
++    r.season_api_year,
++    r.round_name,
++    r.round_label_i18n_key
++from round_names as r
++inner join counted_seasons as c
++    on
++        r.league_code = c.league_code
++        and r.season_api_year = c.season_api_year
++left join round_values as v
++    on r.round_label_i18n_key = v.round_key
++where
++    (r.round_stage_kind is null or r.round_stage_kind in ('table', 'knockout', 'final'))
++    and v.round_key is null
++
++union all
++
++select
++    c.league_code,
++    null as season_api_year,
++    null as round_name,
++    'no counted season' as round_label_i18n_key
++from counted_competitions as c
++left join counted_seasons as s
++    on c.league_code = s.league_code
++where s.league_code is null
+diff --git a/dbt_project/tests/assert_team_index_one_winner_per_cup_season.sql b/dbt_project/tests/assert_team_index_one_winner_per_cup_season.sql
+new file mode 100644
+index 00000000..797a2f6c
+--- /dev/null
++++ b/dbt_project/tests/assert_team_index_one_winner_per_cup_season.sql
+@@ -0,0 +1,82 @@
++-- Every season the Teams page counts (a top club cup's last five finished seasons, the latest
++-- finished World Cup and championships) has exactly one winner in mart_team_competitions.
++
++with regions as (
++    select
++        top_club_competition,
++        continental_championship
++    from {{ ref('confederations') }}
++),
++
++world_championships as (
++    select league_code
++    from {{ ref('competition_registry') }}
++    where competition_type = 'world_championship'
++),
++
++finals as (
++    select
++        f.league_code,
++        f.season_api_year,
++        row_number() over (
++            partition by f.league_code order by f.season_api_year desc
++        ) as recency
++    from {{ ref('fct_fixture') }} as f
++    inner join {{ ref('int_round_names') }} as r
++        on
++            f.league_code = r.league_code
++            and f.season_api_year = r.season_api_year
++            and f.round_name = r.round_name
++    where r.round_stage_kind = 'final'
++    group by f.league_code, f.season_api_year
++    having logical_and(f.status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO'))
++),
++
++counted_competitions as (
++    select
++        top_club_competition as league_code,
++        5 as seasons_counted
++    from regions
++    where top_club_competition is not null
++    union all
++    select
++        continental_championship as league_code,
++        1 as seasons_counted
++    from regions
++    where continental_championship is not null
++    union all
++    select
++        league_code,
++        1 as seasons_counted
++    from world_championships
++),
++
++counted_seasons as (
++    select
++        s.league_code,
++        s.season_api_year
++    from finals as s
++    inner join counted_competitions as c
++        on s.league_code = c.league_code
++    where s.recency <= c.seasons_counted
++),
++
++winners as (
++    select
++        league_code,
++        season_api_year,
++        countif(cup_status = 'winners') as winner_count
++    from {{ ref('mart_team_competitions') }}
++    group by league_code, season_api_year
++)
++
++select
++    c.league_code,
++    c.season_api_year,
++    coalesce(w.winner_count, 0) as winner_count
++from counted_seasons as c
++left join winners as w
++    on
++        c.league_code = w.league_code
++        and c.season_api_year = w.season_api_year
++where coalesce(w.winner_count, 0) != 1
+diff --git a/dbt_project/tests/assert_team_index_stage_answer_key.sql b/dbt_project/tests/assert_team_index_stage_answer_key.sql
+new file mode 100644
+index 00000000..0136bb4a
+--- /dev/null
++++ b/dbt_project/tests/assert_team_index_stage_answer_key.sql
+@@ -0,0 +1,85 @@
++-- mart_team_index against team_index_answer_key: a club's cup_points is the sum of its rows in its
++-- region's top club competition; a national team's world_cup_stage and championship_stage are
++-- its World Cup row and its championship row.
++
++with answer_key as (
++    select * from {{ ref('team_index_answer_key') }}
++),
++
++regions as (
++    select
++        top_club_competition,
++        continental_championship
++    from {{ ref('confederations') }}
++),
++
++registry as (
++    select
++        league_code,
++        competition_type
++    from {{ ref('competition_registry') }}
++),
++
++team_index as (
++    select * from {{ ref('mart_team_index') }}
++),
++
++club_expected as (
++    select
++        k.team_id,
++        sum(k.stage_value) as expected_cup_points
++    from answer_key as k
++    inner join regions as g
++        on k.league_code = g.top_club_competition
++    group by k.team_id
++),
++
++national_expected as (
++    select
++        k.team_id,
++        max(if(r.competition_type = 'world_championship', k.stage_value, null))
++            as expected_world_cup_stage,
++        max(if(g.continental_championship is not null, k.stage_value, null))
++            as expected_championship_stage
++    from answer_key as k
++    inner join registry as r
++        on k.league_code = r.league_code
++    left join regions as g
++        on k.league_code = g.continental_championship
++    where r.competition_type = 'world_championship' or g.continental_championship is not null
++    group by k.team_id
++)
++
++select
++    c.team_id,
++    'cup_points' as served_column,
++    c.expected_cup_points as expected_value,
++    t.cup_points as served_value
++from club_expected as c
++left join team_index as t
++    on c.team_id = t.team_sk
++where t.cup_points is distinct from c.expected_cup_points
++
++union all
++
++select
++    n.team_id,
++    'world_cup_stage' as served_column,
++    n.expected_world_cup_stage as expected_value,
++    t.world_cup_stage as served_value
++from national_expected as n
++left join team_index as t
++    on n.team_id = t.team_sk
++where t.world_cup_stage is distinct from n.expected_world_cup_stage
++
++union all
++
++select
++    n.team_id,
++    'championship_stage' as served_column,
++    n.expected_championship_stage as expected_value,
++    t.championship_stage as served_value
++from national_expected as n
++left join team_index as t
++    on n.team_id = t.team_sk
++where t.championship_stage is distinct from n.expected_championship_stage
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index e4c935fc..bac8f394 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -373,6 +373,7 @@ const EN: Dict = {
+   roundOcFirstRound: "First round",
+   roundOcFirstRoundFinal: "First round final",
+   roundPlayoffRound: "Play-off round",
++  roundKnockoutPlayoffs: "Knockout phase play-offs",
+   roundAfcPreliminaryStage: "Preliminary Stage",
+   roundPreliminaryRound1: "First preliminary round",
+   roundPreliminaryRound2: "Second preliminary round",
+@@ -728,6 +729,7 @@ const DE: Dict = {
+   roundOcFirstRound: "1. Runde, Halbfinale",
+   roundOcFirstRoundFinal: "1. Runde, Finale",
+   roundPlayoffRound: "Play-off-Runde",
++  roundKnockoutPlayoffs: "Play-offs der K.-o.-Phase",
+   roundAfcPreliminaryStage: "Qualifikationsrunde",
+   roundPreliminaryRound1: "1. Qualifikationsrunde",
+   roundPreliminaryRound2: "2. Qualifikationsrunde",
+@@ -1089,6 +1091,7 @@ const FI: Dict = {
+   roundOcFirstRound: "1. karsintakierros",
+   roundOcFirstRoundFinal: "1. karsintakierroksen finaali",
+   roundPlayoffRound: "Playoff-kierros",
++  roundKnockoutPlayoffs: "Pudotuspelivaiheen playoff",
+   roundAfcPreliminaryStage: "Karsintakierros",
+   roundPreliminaryRound1: "1. karsintakierros",
+   roundPreliminaryRound2: "2. karsintakierros",
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -507,6 +1485,8 @@ index c0b369e4..90c92b5c 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/review_input.patch | 832 ++++++++++++++++++----------------------
-#    1 file changed, 380 insertions(+), 452 deletions(-)
+#   .claude/task/acceptance_evidence.md |   21 +-
+#    .claude/task/review.md              |   35 +-
+#    .claude/task/review_input.patch     | 1798 +++++++++++++++++++++++++++--------
+#    3 files changed, 1415 insertions(+), 439 deletions(-)
 # ============================================================================

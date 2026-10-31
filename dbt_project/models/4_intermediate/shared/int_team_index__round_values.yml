@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: int_team_index__round_values
+    description: >
+      The value of each round on the Teams page, one row per round key: a club's points for its
+      furthest round in a top club competition (1 league or group phase, 2 round of 32, knockout
+      play-off or round of 16, 3 quarter-final, 4 semi-final, 5 final; qualifying rounds 0), and
+      a national team's stage (each round in order, 1 group to 6 final). Grain: (round_key).
+    columns:
+      - name: round_key
+        description: "The round's round_label_i18n_key, as int_round_names serves it."
+        tests:
+          - not_null
+          - unique
+      - name: club_points
+        description: "The points a club scores for reaching this round; 0 for a qualifying round."
+        tests:
+          - not_null
+          - accepted_values:
+              values: [0, 1, 2, 3, 4, 5]
+              quote: false
+      - name: national_stage
+        description: "The round's stage for a national team, 1 group to 6 final; NULL for a qualifying round."
+        tests:
+          - accepted_values:
+              values: [1, 2, 3, 4, 5, 6]
+              quote: false

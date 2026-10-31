@@ -3615,3 +3615,110 @@ models:
       - name: competition_order
         description: "The row's place in the team's season: the domestic league, then the domestic cups, then the domestic super cup, then every other competition, each group by its latest match first."
         tests: [not_null]
+
+  - name: mart_team_index
+    description: >
+      The Teams page: one row per team with a Team page, with the orders the page shows.
+      Top clubs: each region's top club competition (confederations) over its last five finished
+      seasons, a season being finished once its final is played. A club scores its furthest round
+      per season: 1 league or group phase, 2 round of 32, knockout play-off or round of 16,
+      3 quarter-final, 4 semi-final, 5 final, 6 winner; qualifying rounds score nothing. Clubs are
+      ordered by the sum, then the most recent season, then wins, then goal difference in those
+      matches; clubs still level share the place.
+      Countries: the sum of their clubs' points; Europe's countries first, then each region in
+      region_rank order, each by the same keys; countries without points follow A to Z, teams
+      without a country last.
+      National teams: the furthest round at the latest finished World Cup, then at the region's
+      latest finished championship, then points per match and goal difference per match in the
+      team's World Cup qualifier table matches; teams still level share the place, teams with
+      none of the three follow A to Z.
+      Grain: (team_sk).
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["marts", "football", "team"]
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "(cup_points is null) = (top_club_rank is null) and coalesce(cup_points > 0 and top_club_rank >= 1, true)"
+          name: team_index_top_club_rank_exactly_with_cup_points
+      - dbt_utils.expression_is_true:
+          expression: "entity_type = 'national' or (national_team_rank is null and national_team_region_rank is null and world_cup_stage is null and championship_stage is null)"
+          name: team_index_club_rows_carry_no_national_order
+      - dbt_utils.expression_is_true:
+          expression: "entity_type = 'club' or (country_order is null and team_order_in_country is null and top_club_rank is null and league_code is null)"
+          name: team_index_national_rows_carry_no_club_order
+      - dbt_utils.expression_is_true:
+          expression: "entity_type = 'club' or (national_team_rank >= 1 and national_team_region_rank >= 1)"
+          name: team_index_national_rows_have_their_ranks
+      - dbt_utils.expression_is_true:
+          expression: "entity_type = 'national' or (country_order >= 1 and team_order_in_country >= 1)"
+          name: team_index_club_rows_have_their_orders
+      - dbt_utils.expression_is_true:
+          expression: "coalesce(world_cup_stage between 1 and 7, true) and coalesce(championship_stage between 1 and 7, true)"
+          name: team_index_stages_in_range
+    columns:
+      - name: team_sk
+        description: "{{ doc('team_sk') }}"
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: team_name
+        description: "{{ doc('team_name') }}"
+        tests: [not_null]
+      - name: team_slug
+        description: "{{ doc('team_slug') }}"
+        tests: [not_null]
+      - name: team_logo_url
+        description: "{{ doc('team_logo_url') }}"
+      - name: team_country
+        description: "{{ doc('team_country') }}"
+      - name: region_key
+        description: "The team's region: for a club with cup_points, its top club competition's region; otherwise the confederation of the competitions it plays most, FIFA's left out."
+        tests:
+          - relationships:
+              to: ref('confederations')
+              field: confederation
+      - name: league_code
+        description: "The domestic league the club plays in this season, the top tier when it plays in two; NULL for a national team or a club in no covered league."
+        tests:
+          - relationships:
+              to: ref('competition_registry')
+              field: league_code
+      - name: league_tier
+        description: "That league's tier, 1 for a top flight."
+      - name: standing_group_name
+        description: "The section of that league's table the club stands in."
+      - name: league_position
+        description: "The club's place in that section."
+      - name: cup_points
+        description: "The club's points over its region's top club competition's last five finished seasons; NULL without any."
+      - name: top_club_rank
+        description: "The club's place among its region's clubs by cup_points; level clubs share it; NULL without cup points."
+      - name: country_region_key
+        description: "The region of the club's country, the region most of its clubs play in."
+      - name: country_order
+        description: "The place of the club's country among the countries; NULL for a national team."
+      - name: team_order_in_country
+        description: "The club's place inside its country: the covered league by tier and table, then the other clubs A to Z; NULL for a national team."
+      - name: national_team_rank
+        description: "The national team's place in the world; level teams share it; NULL for a club."
+      - name: national_team_region_rank
+        description: "The national team's place in its region; level teams share it; NULL for a club."
+      - name: world_cup_stage
+        description: "The furthest round at the latest finished World Cup: 1 group, 2 round of 32, 3 round of 16, 4 quarter-final, 5 semi-final, 6 final, 7 winner; NULL when the team was not there."
+      - name: championship_stage
+        description: "The furthest round at the region's latest finished championship, on the same scale; NULL when the team was not there."
+      - name: national_teams_first
+        description: "True from the first match day of a World Cup or championship to the day after its final: the page shows national teams first."
+        tests: [not_null]
+      - name: entity_type
+        description: "{{ doc('entity_type') }}"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["club", "national"]
