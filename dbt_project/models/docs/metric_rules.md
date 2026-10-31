@@ -24,7 +24,8 @@ How every metric is computed:
   against its previous season through its first N; a player's through N appearances against the
   previous season at the same club through its first N. It is blank when either side is.
 - R7 Results the league publishes (the score, the league table) are taken as published, never
-  computed. A count of results or a playing-time fact (minutes, starts) is a fact, not
+  computed. The one exception: teams level on points stand in the order of the league's own
+  tie-break rule. A count of results or a playing-time fact (minutes, starts) is a fact, not
   a catalogue metric.
 
 A metric computed by a model (deserved points and its ranks, the contribution share, the league

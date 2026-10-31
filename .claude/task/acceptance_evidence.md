@@ -1,17 +1,17 @@
-# Verification — the Team page shows the served league rank
+# Verification — teams level on points stand in their league's tie-break order
 
-Read from the built output of `npm run build` in site_v2 on the committed sample (prebuild: 144 site
-tests pass and 10 page specs validate; 2,268 pages built; audit-seo OK). `check-built-pages.mjs`
-reports "3318 league row(s) on 102 team page(s) checked. OK." The sample page is SC Freiburg,
-Bundesliga, 18 clubs, at `/en/teams/sc-freiburg/`, `/de/mannschaften/sc-freiburg/` and
-`/fi/joukkueet/sc-freiburg/`, read from `site_v2/dist`.
+Read on prod on 2026-10-31, read-only, each query dry-run first. The SQL is the branch's compiled
+`int_team_season__table_by_time`, `int_standings__official_rank` and
+`assert_standings_rank_follows_league_rule`, pointed at the prod tables, with the rebuilt table
+recomputed from `int_team_season__table_state` and `int_team_season__table_legs` because prod
+does not yet carry `place_by_rules`. No `dbt build` was run.
 
 criteria_demonstrated:
-  - Less is better: SC Freiburg's fouls per match is 9.43, the league strip's lowest of 18 clubs; the payload serves rank 1 and the built row shows "1st" (DE and FI "1."). Its other less-is-better rows show the served rank: goals against 4th, shots on target against 3rd, yellow cards 9th, red cards 12th.
-  - More is better: SC Freiburg's goals per match is 2.29 with 3 clubs higher on the strip; the payload serves rank 4 and the built row shows "4th" (DE and FI "4.").
-  - Every build fails on another rank: `npm run build` runs `check-built-pages.mjs`, which held all 3,318 league rows on the 102 built Team pages to the served rank. With SC Freiburg's built EN page changed to show fouls per match "18th", `checkTeamPage` reports "the league row of fouls_per_match shows 18th, the payload serves 1st". The test "main fails a Team page with no league row or a flipped served rank, and passes it once the row shows the served one" holds the same through `main` on a built tree.
-  - The test "a less-is-better row shows the served rank: 1 of 18 is 1st, and a flipped 18th fails" in `site_v2/scripts/check-built-pages.test.mjs` passes, beside a more-is-better case and the cases for a row with no metric or no served rank.
-  - The mock generator: `design-mocks/gen_team_mock.py` writes `_ord(b["rank"])` in the league row; the flip and the unused `low_rank` helper are gone; `python -m py_compile` passes.
-  - No flipping helper: `displayRank`, `rankFill` and `beatsMedian` are deleted from `site_v2/src/lib/bars.ts`; `grep -rn "displayRank\|rankFill\|beatsMedian" site_v2/src design-mocks` finds nothing.
+  - Rule order on the Table page: `mart_standings` reads `int_standings__official_rank`, which orders a section by `place_by_rules` wherever every team's matches played and points equal the provider's row. Today every section with a rule table is compared in all 15 leagues: BL1 10, BL2 5, BPL 1, BSA 5, ED 5, EKS 5, J1 4, L1 11, LP 5, MLS 10, PD 10, PL 11, SA 11, SPL 5, TSL 5. The rules were checked against the leagues' own sources for Liga Portugal (ligaportugal.pt tables by round) and the Saudi Pro League (SPL Handbook 2026-27, Article 9.2), recorded on #237.
+  - Teams the rule cannot separate: they share `place_by_rules`, and the order falls back to the provider's `standing_rank`, then `team_sk`.
+  - Same place on every page: `mart_next_matchday` and `int_team_season__standings_primary` read the same model, so `mart_team_competitions`, `mart_fixture_standing_context`, `mart_team_season.latest_rank` and the match page read the Table page's place; `assert_one_match_that_matters_per_competition` reads it too.
+  - The test: the compiled `assert_standings_rank_follows_league_rule` returns 0 rows on prod. It fails a compared section where a placed team is served off its rule place, or where the served places do not run 1 to n.
+  - Places that change, per league, measured on prod before the change: none today in any of the 15 leagues; the provider's current order of teams level on points matches the rule. The stored provider tables of the season show where it did not: Liga Portugal 132 places on 35 tables (latest 2026-10-25), Saudi Pro League 50 places on 11 tables (latest 2026-10-22).
+  - R7 and docs/metric_layer.md: both now say that teams level on points stand in the league's tie-break order.
 
-pytest: 1,614 passed, 4 skipped. The offline gates of validate-local pass.
+dbt parse passes; SQLFluff passes on every changed SQL file; the offline gates of validate-local pass.

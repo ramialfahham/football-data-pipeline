@@ -3,9 +3,9 @@
 -- competition, it is the one the rule picks, and no fixture is flagged where either side has no
 -- position (a team in zero or several standings sections that season).
 --
--- Recomputed from fct_fixture and fct_standings with the mart's own window definition, not from
--- the mart's CTEs, so a rewrite of the mart that flags by a different rule, flags twice, or
--- flags a knockout tie fails here even when the schema tests stay green.
+-- Recomputed from fct_fixture and int_standings__official_rank with the mart's own window
+-- definition, not from the mart's CTEs, so a rewrite of the mart that flags by a different rule,
+-- flags twice, or flags a knockout tie fails here even when the schema tests stay green.
 --
 -- Returns a row (= fails) per competition where the property does not hold.
 {{ config(store_failures = true) }}
@@ -44,7 +44,7 @@ positions as (
         season_api_year,
         team_sk,
         standing_rank
-    from {{ ref('fct_standings') }}
+    from {{ ref('int_standings__official_rank') }}
     qualify count(*) over (partition by league_code, season_api_year, team_sk) = 1
 ),
 

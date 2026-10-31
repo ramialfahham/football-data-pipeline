@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: int_standings__official_rank
+    description: >
+      Every standings row with its official place. The columns of fct_standings, with
+      standing_rank in the league's own tie-break order wherever the league table rebuilt from
+      results equals the provider's for the whole section; elsewhere the provider's rank.
+      mart_standings, mart_next_matchday and the team-season standing read it. Grain:
+      (league_code, season_api_year, group_name, team_sk).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season_api_year, group_name, team_sk]
+    columns:
+      - name: standing_rank
+        description: "The team's place in its standings section (1 = leader): teams level on points in the league's tie-break order where the rebuilt table equals the provider's, otherwise the provider's rank."
+        tests: [not_null]

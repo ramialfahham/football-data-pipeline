@@ -201,6 +201,9 @@ models:
         tests: [not_null]
       - name: table_position
         description: "The team's place in its section by the league's rules; empty where it is level with another team at a criterion the results cannot settle."
+      - name: place_by_rules
+        description: "The place the league's rules give the team in its section; teams the rules leave level share the best place they cover."
+        tests: [not_null]
 
   - name: int_team_season__standings_primary
     description: >
@@ -229,7 +232,7 @@ models:
               to: ref('dim_competition_season')
               field: season_sk
       - name: standing_rank
-        description: "API rank from the chosen row (same semantics as mart_team_season.latest_rank source)."
+        description: "The official place from the chosen row, read from int_standings__official_rank (the source of mart_team_season.latest_rank)."
       - name: form
         description: "Recent-form string from the chosen row (latest_form in marts)."
       - name: group_description

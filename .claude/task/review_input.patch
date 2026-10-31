@@ -1,24 +1,23 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index f4132a3f..9b6f562c 100644
+index f4132a3f..7ef14085 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,57 +1,58 @@
+@@ -1,57 +1,72 @@
 -# Task contract — the Team page shows the served league rank, and a build check holds it
-+# Task contract — every club the site shows has its country
++# Task contract — teams level on points stand in their league's tie-break order
  
  objective: >
 -  The Team page's "Compared with the league" block shows the league rank as the warehouse serves
 -  it. This task removes the unused site helpers that flip a served rank and fixes the mock
 -  generator's flip. A built-page check fails every build whose Team page shows another rank.
-+  78 teams in `dim_team` have no country because the provider sends none, SV Werder Bremen among
-+  them. A seed gives each one its country from an official source, applied in base like the team
-+  name overrides. A warn test reports any team with a Team page that still has no country, and a
-+  second reports a correction the provider has made unnecessary. The shared `team_country`
-+  description states when the column is NULL now.
++  The league table serves each team's place in its league's own tie-break order wherever our
++  table equals the provider's, instead of the provider's order of teams level on points. The
++  Table page, the Team page and the match page read the same place. A dbt test holds the served
++  place to the rule's place.
  
  refs: >
 -  #236 (the issue text and plan approved in chat, 2026-10-30); design #134.
-+  #222, the Teams menu page (build plan approved in chat, 2026-10-30); design #133.
++  #237 (the issue text, approved in chat, 2026-10-31; the plan, approved in chat, 2026-10-31).
  
  scope_paths:
 -  - site_v2/src/lib/bars.ts
@@ -26,12 +25,19 @@ index f4132a3f..9b6f562c 100644
 -  - site_v2/scripts/check-built-pages.mjs
 -  - site_v2/scripts/check-built-pages.test.mjs
 -  - design-mocks/gen_team_mock.py
-+  - dbt_project/seeds/team_country_corrections.csv
-+  - dbt_project/seeds/schema.yml
-+  - dbt_project/models/2_base/api_football/base_apif__teams_global.sql
-+  - dbt_project/tests/assert_team_country_corrections_still_needed.sql
-+  - dbt_project/tests/assert_shown_teams_have_a_country.sql
-+  - dbt_project/models/docs/shared_columns.md
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_by_time.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++  - dbt_project/models/4_intermediate/shared/int_standings__official_rank.sql
++  - dbt_project/models/4_intermediate/shared/int_standings__official_rank.yml
++  - dbt_project/models/5_marts/shared/mart_standings.sql
++  - dbt_project/models/5_marts/shared/mart_next_matchday.sql
++  - dbt_project/tests/assert_standings_rank_follows_league_rule.sql
++  - dbt_project/tests/assert_one_match_that_matters_per_competition.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/models/docs/metric_rules.md
++  - dbt_project/docs/layering.md
++  - docs/metric_layer.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
@@ -48,303 +54,446 @@ index f4132a3f..9b6f562c 100644
 -
 -approved_design:
 -  - team: #134
--
--acceptance_criteria:
++  `int_team_season__table_by_time` gains `place_by_rules`; its existing readers
++  (`int_team_profile__yoy`, the published-tables test) read named columns and are unchanged.
++  The new `int_standings__official_rank` reads `fct_standings` and `int_team_season__table_by_time`.
++  Three readers switch to it from `fct_standings`: `mart_standings`, `mart_next_matchday` and
++  `int_team_season__standings_primary`. The test `assert_one_match_that_matters_per_competition`
++  recomputes `mart_next_matchday`'s flag from the table positions and switches with it.
++  `dbt ls --select int_standings__official_rank+ --resource-type model` lists 14 models: the new
++  one, the three readers and the ten below. Downstream:
++  `mart_team_competitions`, `mart_fixture_standing_context` and `mart_matchday_insights` (through
++  `mart_standings`); `mart_competition_fixtures`, `mart_competition_index` and `mart_match_days`
++  (through `mart_next_matchday`); `mart_team_season`, `int_team_season__deserved_vs_actual`,
++  `mart_team_profile` and `mart_team_season_insights` (through `int_team_season__standings_primary`).
++  `int_team_season__table_state` keeps reading `fct_standings` for `previous_position`.
++  blast_radius: the place of teams level on points changes where the provider's order differs
++  from the league's rule and our table equals the provider's; every other value is unchanged.
++  Cost: about 60 MB a night more, approved in chat, 2026-10-31.
+ 
+ acceptance_criteria:
 -  - "On the Team page, \"Compared with the league\", a less-is-better metric shows the club's league rank as the warehouse serves it. Less is better for fouls, goals against, shots on target against, yellow cards and red cards. The club with the lowest fouls per match shows 1st."
 -  - "A metric where more is better keeps showing its rank as served (goals per match: the highest value shows 1st)."
 -  - "Every site build fails when a Team-page row shows a rank other than the served one."
 -  - "A test pins a less-is-better row: served rank 1 of 18 displays \"1st\", and a page showing \"18th\" for it fails."
 -  - "The Team-page mock generator `design-mocks/gen_team_mock.py` shows the served rank."
 -  - "The site code holds no helper that flips a served rank."
-+  `team_country` is set in `base_apif__teams_global` and published by `dim_team`.
-+  `.venv/Scripts/dbt.exe ls --project-dir dbt_project --select base_apif__teams_global+
-+  --resource-type model` lists 29 models: base_apif__teams_global dim_player_team_season_mapping
-+  dim_team mart_competition_fixtures mart_fixture_standing_context mart_leaderboards
-+  mart_match_days mart_matchday_insights mart_player_career mart_player_fixture_stats
-+  mart_player_profile mart_roster mart_standings mart_team_competition_benchmarks
-+  mart_team_competitions mart_team_fixtures mart_team_leaderboards mart_team_market_value
-+  mart_team_momentum_window mart_team_profile mart_team_season mart_team_season_insights and the
-+  rest of the lineage. Readers of `team_country` (grep): dim_country, dim_team,
-+  mart_team_season_insights, mart_player_career, mart_player_profile, mart_team_market_value,
-+  mart_team_profile. blast_radius: only the 78 corrected teams change, from no country to their
-+  country; every country they get already exists in `countries.csv`, so `dim_country` gains no
-+  row. The team slug anchors on the provider's raw country (`team_country_raw`), so no URL moves.
++  - "On the Table page, teams level on points stand in the order of their league's own tie-break rule, for Liga Portugal, the Saudi Pro League and every league with rule rows."
++  - "Teams the rule cannot separate keep the provider's order."
++  - "The Team page and the match page show the same place as the Table page."
++  - "A test fails when a served place differs from the place the league's rule gives, wherever the rule decides."
++  - "The MR lists every place that changes, per league, measured on prod before the change."
++  - "Rule R7 and docs/metric_layer.md say that the order of teams level on points follows the league's published rule."
  
  decisions_taken: >
 -  The plan approved in chat, 2026-10-30: path A, a check on the built Team pages. The check reads
 -  the served rank from the team payload's featured season and renders it with `ordinal`. No new
 -  mechanism: the rule joins `check-built-pages.mjs`, which `npm run build` already runs. No
 -  recurring cost.
-+  The build plan approved in chat, 2026-10-30. The seed mirrors `team_name_overrides.csv`: keyed by
-+  `team_api_id` (equal to `team_sk`), with `source` and `note`, applied by a left join in
-+  `base_apif__teams_global`. Every source is the federation, league or competition organiser.
-+  Both tests warn with stored failures (approved in chat, 2026-10-30): a team without a country
-+  shows under the design's "no recorded country" group, so it is incomplete, not wrong.
++  The plan approved in chat, 2026-10-31: the rule's order applies only to a section where every
++  team's points and games played equal the provider's row, otherwise the provider's rank stands;
++  the exact mart_standings header sentence; the R7 and docs/metric_layer.md sentences, split to
++  the sentence-length limit, approved in chat, 2026-10-31; the recurring cost of
++  about 60 MB a night. Both leagues' rules checked against their own sources, recorded on #237.
  
  decisions_reserved:
 -  - "none: no copy, label, order or shown number changes"
-+  - "none: no copy, label, order or page changes"
++  - "none: every changed sentence and the shipped-number change were approved in the plan"
  
  done_when:
 -  - npm test in site_v2 passes, with the new less-is-better and more-is-better cases.
 -  - check-built-pages.mjs passes on a sample build, or the MR's build:site-v2 job passes.
 -  - python -m py_compile design-mocks/gen_team_mock.py passes; the whole pytest passes.
--  - The offline gates of validate-local pass.
--
--amendments: (none)
-+  - The seed has one row per country-less team, each with an official source.
-+  - dbt parse passes; the seed's tests, the two warn tests and the base model compile.
-+  - The whole pytest and the offline gates of validate-local pass.
-+  - The MR's data:build:mr passes, and prod shows no shown team without a country.
-+
-+amendments:
-+  - "Review round 1: `shared_columns.md` added to scope, so the `team_country` description names the corrections seed as the second source. Its exact sentence was approved in chat, 2026-10-31."
-+  - "Prod check: the provider now sends Red Star FC 93's country, so its row goes; Lourdes FC, new in the nightly, gets a row from the FFF. Both rows and a fourth review round approved in chat, 2026-10-31."
-diff --git a/dbt_project/models/2_base/api_football/base_apif__teams_global.sql b/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
-index 014fbbdf..476b55ec 100644
---- a/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
-@@ -21,6 +21,10 @@ import_country_name_overrides as (
-     select * from {{ ref('country_name_overrides') }}
- ),
++  - dbt parse passes; the changed models pass SQLFluff.
+   - The offline gates of validate-local pass.
++  - On prod, read-only, the new model's SQL lists every changed place and the new test's SQL returns 0 rows.
  
-+import_team_country_corrections as (
-+    select * from {{ ref('team_country_corrections') }}
-+),
-+
- latest_per_team as (
-     select *
-     from import_base_apif__teams
-@@ -58,12 +62,16 @@ corrected as (
-         teams.venue_capacity,
-         teams.raw_ingested_at,
-         coalesce(overrides.team_name, teams.team_name) as team_name,
--        coalesce(country_overrides.country_name, teams.team_country) as team_country
-+        coalesce(
-+            country_corrections.team_country, country_overrides.country_name, teams.team_country
-+        ) as team_country
-     from latest_per_team as teams
-     left join import_team_name_overrides as overrides
-         on teams.team_api_id = overrides.team_api_id
-     left join import_country_name_overrides as country_overrides
-         on teams.team_country = country_overrides.provider_country
-+    left join import_team_country_corrections as country_corrections
-+        on teams.team_api_id = country_corrections.team_api_id
- ),
+ amendments: (none)
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index 96ca8a20..62dc9cd3 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -309,14 +309,14 @@ Canonical mart inventory (exhaustive) for this project:
  
- -- team_slug: the permanent, locale-independent team URL (#852). Derived HERE and not in the
-diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
-index 17a1fd72..353894e5 100644
---- a/dbt_project/models/docs/shared_columns.md
-+++ b/dbt_project/models/docs/shared_columns.md
-@@ -762,7 +762,8 @@ when no crest is ingested for the team.
+ | Mart | Grain | Notes |
+ |------|-------|-------|
+-| `mart_team_season` | (team_sk, season_sk) | Per-team-per-season rollup over finished matches; latest rank, form, and standings group label joined from `fct_standings`. |
++| `mart_team_season` | (team_sk, season_sk) | Per-team-per-season rollup over finished matches; latest rank, form, and standings group label joined from `int_standings__official_rank`. |
+ | `mart_leaderboards` | (player_sk, season_sk, metric_key) on season rows; (fixture_sk, player_sk, metric_key) on match rows | LONG per-board player leaderboards. The season rows are the thirteen boards of the competition page's Rankings tab, top 10 per board: 11 count and 2 rate. The rate boards sit behind a minutes and position floor. The match rows are seven count boards for each played match (window_type match), top three. Composes `int_player_season__metrics` and `int_player_match__metrics`; DENSE_RANK ties share, every board most first, a zero never ranked. |
+ | `mart_team_leaderboards` | (team_sk, season_sk, metric_key) | LONG per-board team leaderboards — the team mirror of `mart_leaderboards` (GAP-29). Twelve boards, the Rankings tab's, each ranked in the direction the `metric_catalogue` seed gives its metric and serving it as `rank_order` (the two "against" rates ascending; the two card totals most first by ruling). Composes `int_team_season__metrics` (UNPIVOT, not a union-all loop — one shared rule, unlike the player rate boards) + the catalogue seed + `dim_team`; no games floor; top-10 per board, DENSE_RANK ties share; a zero ranks only on an ascending board. Rank partitions `(league_code, season_api_year, metric_key)` — per league by ruling, so the ranking never crosses competitions. |
+ | `mart_next_matchday` | fixture_sk | Every competition's next matchday: each upcoming fixture (NS/TBD, dated on or after the build day) in the round of that competition's earliest upcoming fixture. The Home hero reads it whole; nothing is capped in it. `is_match_that_matters` flags, per competition, the fixture whose two teams have the lowest sum of table positions. |
+ | `mart_competition_fixtures` | fixture_sk | Every match of a competition-season, played and unplayed, with both teams, its round and its flags. A played match also carries its goals as one list and its `goal_data_state`. |
+ | `mart_matchday_insights` | fixture_sk (per `league_code`) | MVP domestic upcoming matchday + form; filter by `league_code` at export/UI. BL1 play-offs: `mart_matchday_insights_bl1_relegation`. WC: `mart_matchday_insights_wc`. |
+ | `mart_team_season_insights` | (league_code, team_sk) | MVP latest season per league; slice by `league_code` at export/UI. |
+-| `mart_standings` | (league_code, season_api_year, group_name, team_sk) | The league's official standings row, the provider's except where corrected to the league's figures (rank, points, W/D/L, goals scored and conceded, goal difference, form) plus `table_kind`, the section's kind (league / group / conference / split_round / ranking) resolved from its name through the `standings_table_kinds` seed. |
++| `mart_standings` | (league_code, season_api_year, group_name, team_sk) | The league's official standings row, the provider's except where corrected to the league's figures (rank, points, W/D/L, goals scored and conceded, goal difference, form) plus `table_kind`, the section's kind (league / group / conference / split_round / ranking) resolved from its name through the `standings_table_kinds` seed. Teams level on points stand in the league's tie-break order where our table equals the provider's (`int_standings__official_rank`). |
+ | `mart_competition_season_summary` | (league_code, season_api_year) | The season's headline tallies over finished matches: matches, goals, goals per match, home/away/draw split, the biggest-margin and most-goals fixtures, the longest unbeaten and winless runs with their holders. Composes `int_legs__team_match`; results tallied at competition grain, not catalogue metrics. |
+ | `mart_team_market_value` | team_sk | Team squad market value; currently WC-scoped (see #418 to generalize). |
+ | `mart_team_profile` | (team_sk, season_sk) | v2 team profile: full-season metrics, YoY deltas, streaks. |
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+index 4764f2b3..bb6b48cf 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+@@ -201,6 +201,9 @@ models:
+         tests: [not_null]
+       - name: table_position
+         description: "The team's place in its section by the league's rules; empty where it is level with another team at a criterion the results cannot settle."
++      - name: place_by_rules
++        description: "The place the league's rules give the team in its section; teams the rules leave level share the best place they cover."
++        tests: [not_null]
  
- {% docs team_country %}
- The country the team is registered in, canonicalised and reconciled against dim_country in
--base, as dim_team publishes it. NULL when the provider row carried none.
-+base, as dim_team publishes it. NULL when neither the provider row nor `team_country_corrections`
-+gives one.
- {% enddocs %}
- 
- {% docs player_name %}
-diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
-index 53863176..8cd04346 100644
---- a/dbt_project/seeds/schema.yml
-+++ b/dbt_project/seeds/schema.yml
-@@ -1252,6 +1252,42 @@ seeds:
-         tests:
-           - not_null
- 
-+  - name: team_country_corrections
-+    description: >
-+      A team's country where the provider sends none: one row per team. Applied in
-+      `base_apif__teams_global` and published by `dim_team`. Every row cites the federation, league
-+      or competition organiser that lists the team.
-+    config:
-+      column_types:
-+        team_api_id: int64
-+        team_country: string
-+        source: string
-+        note: string
-+    columns:
-+      - name: team_api_id
-+        description: "The team this row gives a country."
-+        tests:
-+          - not_null
-+          - unique
-+          - relationships:
-+              to: ref('dim_team')
-+              field: team_api_id
-+      - name: team_country
-+        description: "The team's country, as named in `countries`."
-+        tests:
-+          - not_null
-+          - relationships:
-+              to: ref('countries')
-+              field: country_name
-+      - name: source
-+        description: "URL of the official page that lists the team in its country's competition."
-+        tests:
-+          - not_null
-+      - name: note
-+        description: "Which competition of that country the team plays in."
-+        tests:
-+          - not_null
-+
-   - name: league_name_overrides
+   - name: int_team_season__standings_primary
      description: >
-       Corrections to a COMPETITION's display name: one row per competition whose provider name is
-diff --git a/dbt_project/seeds/team_country_corrections.csv b/dbt_project/seeds/team_country_corrections.csv
+@@ -229,7 +232,7 @@ models:
+               to: ref('dim_competition_season')
+               field: season_sk
+       - name: standing_rank
+-        description: "API rank from the chosen row (same semantics as mart_team_season.latest_rank source)."
++        description: "The official place from the chosen row, read from int_standings__official_rank (the source of mart_team_season.latest_rank)."
+       - name: form
+         description: "Recent-form string from the chosen row (latest_form in marts)."
+       - name: group_description
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
+index 9fe3d1a7..14e59b1c 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
+@@ -1,11 +1,11 @@
+ {#
+   One row per (team_sk, season_sk) for table display and marts.
+-  fct_standings grain can include multiple rows (e.g. group_description);
++  int_standings__official_rank grain can include multiple rows (e.g. group_description);
+   keep the row with latest raw_ingested_at.
+ #}
+ 
+-with import_fct_standings as (
+-    select * from {{ ref('fct_standings') }}
++with import_int_standings__official_rank as (
++    select * from {{ ref('int_standings__official_rank') }}
+ )
+ 
+ select
+@@ -14,7 +14,7 @@ select
+     standing_rank,
+     form,
+     group_description
+-from import_fct_standings
++from import_int_standings__official_rank
+ qualify row_number() over (
+     partition by team_sk, season_sk order by raw_ingested_at desc nulls last
+ ) = 1
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_by_time.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_by_time.sql
+index 1b942209..db6561ba 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_by_time.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_by_time.sql
+@@ -475,6 +475,7 @@ select
+     ts.table_points,
+     ts.goal_difference,
+     ts.goals_for,
++    p.rank_by_rules as place_by_rules,
+     ts.points_from_results - ts.table_points as points_taken,
+     p.teams_on_key > 1 as is_level_after_rules,
+     if(p.teams_on_key > 1 and p.ends_undecided, null, p.rank_by_rules) as table_position
+diff --git a/dbt_project/models/4_intermediate/shared/int_standings__official_rank.sql b/dbt_project/models/4_intermediate/shared/int_standings__official_rank.sql
 new file mode 100644
-index 00000000..7c0fc5ab
+index 00000000..9a7193b9
 --- /dev/null
-+++ b/dbt_project/seeds/team_country_corrections.csv
-@@ -0,0 +1,79 @@
-+team_api_id,team_country,source,note
-+162,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
-+184,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
-+190,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
-+221,Portugal,https://www.ligaportugal.pt/video/58126/golo!-cf-os-belenenses-sambu-aos-90'+6'-cf-os-belenenses-1-3-cd-nacional,Provider sends no country; Liga Portugal lists CF Os Belenenses.
-+225,Portugal,https://www.ligaportugal.pt/video/58126/golo!-cf-os-belenenses-sambu-aos-90'+6'-cf-os-belenenses-1-3-cd-nacional,Provider sends no country; Liga Portugal lists CD Nacional.
-+860,Spain,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
-+862,Italy,https://www.legab.it/news/trentaduesimi-coppa-italia-si-parte-con-la-b,Provider sends no country; Lega B lists Pordenone in the Coppa Italia.
-+878,Italy,https://www.legab.it/seriebkt/alessandria-como-perugia-e-ternana-si-parte,Provider sends no country; Lega B lists Alessandria in the Coppa Italia.
-+1301,France,https://www.lfp.fr/article/ligue-2-bkt-le-calendrier-de-la-saison-2026-2027,Provider sends no country; the LFP lists Rodez Aveyron Football in Ligue 2 BKT.
-+1544,Macao,https://inside.fifa.com/associations/MAC,"Provider sends no country; FIFA lists the Football Association of Macau, China."
-+1622,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
-+1649,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; the DFB lists SC Weiche Flensburg 08 in the DFB-Pokal.
-+2732,Iran,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Naft Tehran as IRN in the AFC Champions League.
-+2772,Thailand,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Chonburi FC as THA in the AFC Champions League.
-+3467,India,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Mohun Bagan as IND in the AFC Champions League.
-+3668,Vietnam,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Becamex Binh Duong as VIE in the AFC Champions League.
-+3772,Australia,https://footballnsw.com.au/club/sydney-fc-boys-youth/,"Provider sends no country; reserve side of Sydney FC, which Football NSW lists in the NPL NSW."
-+5258,Spain,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
-+6688,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+7673,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+7755,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2021-22/emirates-fa-cup/the-emirates-fa-cup---list-of-exemptions.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8018,Vietnam,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Hanoi T&T as VIE in the AFC Champions League.
-+8679,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8688,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8706,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8721,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8731,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8768,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8818,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8823,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8827,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8829,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8874,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8890,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8897,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8916,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8948,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8951,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8960,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8963,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+9335,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; the DFB lists the club as Türkgücü München in the DFB-Pokal.
-+9375,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
-+9397,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9573,Spain,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9581,Spain,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9597,Spain,https://rfef.es/es/noticias/asi-quedo-el-sorteo-de-la-primera-y-segunda-ronda-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9620,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9647,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9739,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9749,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9771,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9800,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9808,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9835,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9852,France,https://epreuves.fff.fr/competition/engagement/12-coupe-de-france-credit-agricole/phase/1/8/resultats-et-calendrier,Provider sends no country; the FFF lists Lourdes FC in the Coupe de France.
-+9883,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
-+12003,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+12089,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+12888,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
-+15332,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
-+16988,England,https://www.thefa.com/news/2021/aug/07/emirates-fa-cup-extra-preliminary-round-wrap-07082021,Provider sends no country; The FA lists the club as Kensington & Ealing Borough in the Emirates FA Cup.
-+17499,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18087,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18088,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18089,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18091,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18092,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18093,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18094,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18095,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18097,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18098,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18099,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18100,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18101,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18102,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18103,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+19866,South Sudan,https://www.cafonline.com/media/bufbzcow/club-licensing-cl-licensed-clubs-2022-2023.pdf,Provider sends no country; CAF lists Zalan FC under South Sudan.
-diff --git a/dbt_project/tests/assert_shown_teams_have_a_country.sql b/dbt_project/tests/assert_shown_teams_have_a_country.sql
-new file mode 100644
-index 00000000..25f0e795
---- /dev/null
-+++ b/dbt_project/tests/assert_shown_teams_have_a_country.sql
-@@ -0,0 +1,20 @@
-+-- Every team with a page (one row in mart_team_profile) has a country, or the Teams page lists it
-+-- under "no recorded country". Reported, not fatal: the fix is a row in team_country_corrections.
-+{{ config(severity = 'warn', store_failures = true) }}
++++ b/dbt_project/models/4_intermediate/shared/int_standings__official_rank.sql
+@@ -0,0 +1,57 @@
++{#
++  Every standings row with its official place: fct_standings, with standing_rank in the league's
++  own tie-break order where it can be applied and the provider's rank everywhere else.
 +
-+with shown_teams as (
-+    select distinct team_sk
-+    from {{ ref('mart_team_profile') }}
++  The order comes from int_team_season__table_by_time at the section's latest kick-off. It applies
++  only to a section where every team's matches played and points equal its standings row; that
++  section is ordered by place_by_rules, and teams the rules leave level keep the provider's order.
++  Every other section, and every table int_team_season__table_by_time does not cover, keeps the
++  provider's rank.
++
++  Grain: (league_code, season_api_year, group_name, team_sk).
++#}
++
++with standings as (
++    select * from {{ ref('fct_standings') }}
 +),
 +
-+teams as (
-+    select * from {{ ref('dim_team') }}
-+)
-+
-+select
-+    teams.team_sk,
-+    teams.team_name
-+from shown_teams
-+inner join teams
-+    on shown_teams.team_sk = teams.team_sk
-+where nullif(trim(teams.team_country), '') is null
-diff --git a/dbt_project/tests/assert_team_country_corrections_still_needed.sql b/dbt_project/tests/assert_team_country_corrections_still_needed.sql
-new file mode 100644
-index 00000000..761061d7
---- /dev/null
-+++ b/dbt_project/tests/assert_team_country_corrections_still_needed.sql
-@@ -0,0 +1,34 @@
-+-- A country correction fills a country the provider does not send. Once the provider sends one,
-+-- the row is dead weight or a disagreement: either way someone must look, so it is reported.
-+--
-+-- Compares against base_apif__teams (PRE-correction), deduplicated exactly as
-+-- base_apif__teams_global does, so the comparison is against the row that model publishes.
-+{{ config(severity = 'warn', store_failures = true) }}
-+
-+with import_base_apif__teams as (
-+    select * from {{ ref('base_apif__teams') }}
-+),
-+
-+import_team_country_corrections as (
-+    select * from {{ ref('team_country_corrections') }}
-+),
-+
-+provider_country as (
++rule_table as (
 +    select
-+        team_api_id,
-+        team_country
-+    from import_base_apif__teams
-+    qualify row_number() over (
-+        partition by team_api_id
-+        order by raw_ingested_at desc
-+    ) = 1
++        league_code,
++        season_api_year,
++        group_name,
++        team_sk,
++        played,
++        table_points,
++        place_by_rules
++    from {{ ref('int_team_season__table_by_time') }}
++    qualify table_at = max(table_at) over (partition by league_code, season_api_year, group_name)
++),
++
++compared as (
++    select
++        s.*,
++        r.place_by_rules,
++        logical_and(coalesce(r.played = s.played and r.table_points = s.points, false)) over (
++            partition by s.league_code, s.season_api_year, s.group_name
++        ) as is_section_matched
++    from standings as s
++    left join rule_table as r
++        on
++            s.league_code = r.league_code
++            and s.season_api_year = r.season_api_year
++            and s.group_name = r.group_name
++            and s.team_sk = r.team_sk
 +)
 +
 +select
-+    corrections.team_api_id,
-+    corrections.team_country as corrected_country,
-+    provider.team_country as provider_country
-+from import_team_country_corrections as corrections
-+inner join provider_country as provider
-+    on corrections.team_api_id = provider.team_api_id
-+where nullif(trim(provider.team_country), '') is not null
++    * except (standing_rank, place_by_rules, is_section_matched),
++    if(
++        is_section_matched,
++        row_number() over (
++            partition by league_code, season_api_year, group_name
++            order by place_by_rules, standing_rank, team_sk
++        ),
++        standing_rank
++    ) as standing_rank
++from compared
+diff --git a/dbt_project/models/4_intermediate/shared/int_standings__official_rank.yml b/dbt_project/models/4_intermediate/shared/int_standings__official_rank.yml
+new file mode 100644
+index 00000000..12e4412f
+--- /dev/null
++++ b/dbt_project/models/4_intermediate/shared/int_standings__official_rank.yml
+@@ -0,0 +1,17 @@
++version: 2
++
++models:
++  - name: int_standings__official_rank
++    description: >
++      Every standings row with its official place. The columns of fct_standings, with
++      standing_rank in the league's own tie-break order wherever the league table rebuilt from
++      results equals the provider's for the whole section; elsewhere the provider's rank.
++      mart_standings, mart_next_matchday and the team-season standing read it. Grain:
++      (league_code, season_api_year, group_name, team_sk).
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [league_code, season_api_year, group_name, team_sk]
++    columns:
++      - name: standing_rank
++        description: "The team's place in its standings section (1 = leader): teams level on points in the league's tie-break order where the rebuilt table equals the provider's, otherwise the provider's rank."
++        tests: [not_null]
+diff --git a/dbt_project/models/5_marts/shared/mart_next_matchday.sql b/dbt_project/models/5_marts/shared/mart_next_matchday.sql
+index 923f3192..b2c32d8d 100644
+--- a/dbt_project/models/5_marts/shared/mart_next_matchday.sql
++++ b/dbt_project/models/5_marts/shared/mart_next_matchday.sql
+@@ -116,7 +116,7 @@ positions as (
+         season_api_year,
+         team_sk,
+         standing_rank
+-    from {{ ref('fct_standings') }}
++    from {{ ref('int_standings__official_rank') }}
+     qualify count(*) over (partition by league_code, season_api_year, team_sk) = 1
+ ),
+ 
+diff --git a/dbt_project/models/5_marts/shared/mart_standings.sql b/dbt_project/models/5_marts/shared/mart_standings.sql
+index 1e3d0b50..733a12a5 100644
+--- a/dbt_project/models/5_marts/shared/mart_standings.sql
++++ b/dbt_project/models/5_marts/shared/mart_standings.sql
+@@ -11,9 +11,11 @@
+ 
+   Every value is the league's official standings row (the provider's, except where corrected in
+   base to the league's figures) — rank, points, W/D/L,
+-  goals scored and conceded, goal difference, form. Nothing here is computed from fixtures: the
+-  official table carries deductions and tie-break orders a recomputation cannot reproduce, so it
+-  is a fact from the source, like a match score. NO zones — the provider's zone annotation is
++  goals scored and conceded, goal difference, form. The one computed value is the order of teams
++  level on points: int_standings__official_rank puts them in the league's own tie-break order
++  wherever our table equals the provider's. Nothing else is computed from fixtures: the official
++  table carries deductions a recomputation cannot reproduce, so it is a fact from the source, like
++  a match score. NO zones — the provider's zone annotation is
+   carried verbatim in group_description and never interpreted.
+ 
+   table_kind says what kind of table a section is (league, group, conference, split_round,
+@@ -31,7 +33,7 @@
+ #}
+ 
+ with standings as (
+-    select * from {{ ref('fct_standings') }}
++    select * from {{ ref('int_standings__official_rank') }}
+ ),
+ 
+ registry as (
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 1a1c06e2..48c823a7 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -1620,7 +1620,7 @@ models:
+         description: "{{ doc('losses') }}"
+ 
+   - name: mart_team_season
+-    description: "Per-team, per-season rollup. Grain: (team_sk, season_sk). latest_rank, latest_form, and standings_group_description come from fct_standings (null when absent). Interpret latest_rank together with standings_group_description for multi-group competitions."
++    description: "Per-team, per-season rollup. Grain: (team_sk, season_sk). latest_rank, latest_form, and standings_group_description come from int_standings__official_rank (null when absent). Interpret latest_rank together with standings_group_description for multi-group competitions."
+     meta:
+       owner: "data-platform"
+       domain: "football"
+diff --git a/dbt_project/models/docs/metric_rules.md b/dbt_project/models/docs/metric_rules.md
+index 0e728f18..910e8750 100644
+--- a/dbt_project/models/docs/metric_rules.md
++++ b/dbt_project/models/docs/metric_rules.md
+@@ -24,7 +24,8 @@ How every metric is computed:
+   against its previous season through its first N; a player's through N appearances against the
+   previous season at the same club through its first N. It is blank when either side is.
+ - R7 Results the league publishes (the score, the league table) are taken as published, never
+-  computed. A count of results or a playing-time fact (minutes, starts) is a fact, not
++  computed. The one exception: teams level on points stand in the order of the league's own
++  tie-break rule. A count of results or a playing-time fact (minutes, starts) is a fact, not
+   a catalogue metric.
+ 
+ A metric computed by a model (deserved points and its ranks, the contribution share, the league
+diff --git a/dbt_project/tests/assert_one_match_that_matters_per_competition.sql b/dbt_project/tests/assert_one_match_that_matters_per_competition.sql
+index 0e68d380..845464ea 100644
+--- a/dbt_project/tests/assert_one_match_that_matters_per_competition.sql
++++ b/dbt_project/tests/assert_one_match_that_matters_per_competition.sql
+@@ -3,9 +3,9 @@
+ -- competition, it is the one the rule picks, and no fixture is flagged where either side has no
+ -- position (a team in zero or several standings sections that season).
+ --
+--- Recomputed from fct_fixture and fct_standings with the mart's own window definition, not from
+--- the mart's CTEs, so a rewrite of the mart that flags by a different rule, flags twice, or
+--- flags a knockout tie fails here even when the schema tests stay green.
++-- Recomputed from fct_fixture and int_standings__official_rank with the mart's own window
++-- definition, not from the mart's CTEs, so a rewrite of the mart that flags by a different rule,
++-- flags twice, or flags a knockout tie fails here even when the schema tests stay green.
+ --
+ -- Returns a row (= fails) per competition where the property does not hold.
+ {{ config(store_failures = true) }}
+@@ -44,7 +44,7 @@ positions as (
+         season_api_year,
+         team_sk,
+         standing_rank
+-    from {{ ref('fct_standings') }}
++    from {{ ref('int_standings__official_rank') }}
+     qualify count(*) over (partition by league_code, season_api_year, team_sk) = 1
+ ),
+ 
+diff --git a/dbt_project/tests/assert_standings_rank_follows_league_rule.sql b/dbt_project/tests/assert_standings_rank_follows_league_rule.sql
+new file mode 100644
+index 00000000..9a42b1a3
+--- /dev/null
++++ b/dbt_project/tests/assert_standings_rank_follows_league_rule.sql
+@@ -0,0 +1,102 @@
++{#
++  The served league table follows the league's own tie-break rule wherever the rule decides. A
++  section is compared when every team's matches played and points equal the league table rebuilt
++  at the section's latest kick-off (int_team_season__table_by_time). There, a team the rules place
++  must be served at that place, and the section's served places must run 1 to n without a gap or
++  a repeat. A section that is not compared keeps the provider's rank.
++
++  Returns one row per failing team or section.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with served as (
++    select
++        league_code,
++        season_api_year,
++        group_name,
++        team_sk,
++        played,
++        points,
++        standing_rank
++    from {{ ref('mart_standings') }}
++),
++
++rebuilt as (
++    select
++        league_code,
++        season_api_year,
++        group_name,
++        team_sk,
++        played,
++        table_points,
++        table_position
++    from {{ ref('int_team_season__table_by_time') }}
++    qualify table_at = max(table_at) over (partition by league_code, season_api_year, group_name)
++),
++
++compared as (
++    select
++        s.league_code,
++        s.season_api_year,
++        s.group_name,
++        s.team_sk,
++        s.standing_rank,
++        r.table_position,
++        logical_and(coalesce(r.played = s.played and r.table_points = s.points, false)) over (
++            partition by s.league_code, s.season_api_year, s.group_name
++        ) as is_section_compared
++    from served as s
++    left join rebuilt as r
++        on
++            s.league_code = r.league_code
++            and s.season_api_year = r.season_api_year
++            and s.group_name = r.group_name
++            and s.team_sk = r.team_sk
++),
++
++off_rule as (
++    select
++        league_code,
++        season_api_year,
++        group_name,
++        team_sk,
++        standing_rank,
++        table_position,
++        'served place differs from the rule' as failure
++    from compared
++    where
++        is_section_compared
++        and table_position is not null
++        and standing_rank != table_position
++),
++
++section_runs as (
++    select
++        league_code,
++        season_api_year,
++        group_name,
++        count(*) as teams,
++        count(distinct standing_rank) as distinct_places,
++        min(standing_rank) as first_place,
++        max(standing_rank) as last_place
++    from compared
++    where is_section_compared
++    group by league_code, season_api_year, group_name
++),
++
++broken_runs as (
++    select
++        league_code,
++        season_api_year,
++        group_name,
++        cast(null as int64) as team_sk,
++        cast(null as int64) as standing_rank,
++        cast(null as int64) as table_position,
++        'served places do not run 1 to n' as failure
++    from section_runs
++    where not (first_place = 1 and last_place = teams and distinct_places = teams)
++)
++
++select * from off_rule
++union all
++select * from broken_runs
+diff --git a/docs/metric_layer.md b/docs/metric_layer.md
+index c0b369e4..90c92b5c 100644
+--- a/docs/metric_layer.md
++++ b/docs/metric_layer.md
+@@ -54,5 +54,6 @@ the committed export, and `site_v2/scripts/check-metric-labels.test.mjs` on the
+ 
+ Which numbers are facts taken from the provider as published is rule R7 of the catalogue table's
+ description. The two never mix inside one block: a table is the provider's row, a board is
+-catalogue metrics. Where they overlap — the provider's points and the catalogue's `points_won`
+-tally — a reconciliation test guards the pair rather than one replacing the other.
++catalogue metrics. A table's teams level on points stand in the league's tie-break order. Where
++they overlap — the provider's points and the catalogue's `points_won` tally — a reconciliation
++test guards the pair rather than one replacing the other.
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -358,7 +507,6 @@ index 00000000..761061d7
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/review.md          |  37 +-
-#    .claude/task/review_input.patch | 759 +++++++++++++++++-----------------------
-#    2 files changed, 323 insertions(+), 473 deletions(-)
+#   .claude/task/review_input.patch | 832 ++++++++++++++++++----------------------
+#    1 file changed, 380 insertions(+), 452 deletions(-)
 # ============================================================================

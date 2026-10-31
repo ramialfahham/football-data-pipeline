@@ -11,9 +11,11 @@
 
   Every value is the league's official standings row (the provider's, except where corrected in
   base to the league's figures) — rank, points, W/D/L,
-  goals scored and conceded, goal difference, form. Nothing here is computed from fixtures: the
-  official table carries deductions and tie-break orders a recomputation cannot reproduce, so it
-  is a fact from the source, like a match score. NO zones — the provider's zone annotation is
+  goals scored and conceded, goal difference, form. The one computed value is the order of teams
+  level on points: int_standings__official_rank puts them in the league's own tie-break order
+  wherever our table equals the provider's. Nothing else is computed from fixtures: the official
+  table carries deductions a recomputation cannot reproduce, so it is a fact from the source, like
+  a match score. NO zones — the provider's zone annotation is
   carried verbatim in group_description and never interpreted.
 
   table_kind says what kind of table a section is (league, group, conference, split_round,
@@ -31,7 +33,7 @@
 #}
 
 with standings as (
-    select * from {{ ref('fct_standings') }}
+    select * from {{ ref('int_standings__official_rank') }}
 ),
 
 registry as (
