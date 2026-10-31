@@ -1,0 +1,141 @@
+---
+// The Teams page's body: the Filter bar, then four blocks in the order the warehouse serves
+// (`national_teams_first`). Every block is a run of units, each one list in one grid with the
+// site's fold: a top list for all regions or for one region, a country group or a region group.
+// The lists and their order come from lib/teamIndex.mjs, which only cuts the served rows.
+//
+// A unit carries its type and region, so the stylesheet's filter rules hide it whole and
+// filterBar.mjs offers only the choices that leave one; a list never loses rows to a filter, so
+// its fold count stays true. A country group takes its country's region. The script below hides a
+// block whose units are all filtered out.
+import FilterRows from "../competitions/FilterRows.astro";
+import SectionHead from "../ui/SectionHead.astro";
+import Crest from "../ui/Crest.astro";
+import Fold from "../ui/Fold.astro";
+import { t } from "../../i18n/strings";
+import { localeHref, word } from "../../lib/href";
+import { competitionInfo } from "../../lib/teamFixtures";
+import { topClubs, topNationalTeams, clubsByCountry, nationalTeamsByRegion } from "../../lib/teamIndex.mjs";
+import type { Lang } from "../../lib/format";
+import type { TeamIndex, TeamIndexRow } from "../../lib/types";
+
+type Item = { kind: "row"; team: TeamIndexRow } | { kind: "head"; league?: string | null; label?: string | null };
+type List = { visible: Item[]; rest: Item[]; n: number };
+type Unit = {
+  view?: "tview-all" | "tview-region";
+  entity: "club" | "national";
+  region?: string;
+  head?: { name: string; n: number };
+  list: List;
+};
+type Block = { label: string; className?: string; units: Unit[] };
+
+interface Props {
+  data: TeamIndex;
+  lang: Lang;
+  built: Set<string>;
+}
+const { data, lang, built } = Astro.props;
+const teamsWord = word(lang, "teams");
+const count = (n: number) => t(lang, n === 1 ? "teamsCountOne" : "teamsCount", { n });
+
+const topViews = (top: { all: List | null; regions: { region: string; list: List }[] }, entity: Unit["entity"]): Unit[] => [
+  ...(top.all ? [{ view: "tview-all" as const, entity, list: top.all }] : []),
+  ...top.regions.map((r) => ({ view: "tview-region" as const, entity, region: r.region, list: r.list })),
+];
+
+const clubs: Block[] = [
+  { label: t(lang, "teamsTopClubs"), units: topViews(topClubs(data.teams), "club") },
+  {
+    label: t(lang, "teamsClubsByCountry"),
+    units: clubsByCountry(data.teams).map((g) => ({
+      entity: "club", region: g.region, head: { name: g.country ?? "", n: g.n }, list: g.list,
+    })),
+  },
+];
+const national: Block[] = [
+  { label: t(lang, "teamsTopNational"), units: topViews(topNationalTeams(data.teams), "national") },
+  {
+    label: t(lang, "teamsNationalByRegion"),
+    className: "tgroups-region",
+    units: nationalTeamsByRegion(data.teams).map((g) => ({
+      entity: "national", region: g.region, head: { name: g.label ? t(lang, g.label) : g.region, n: g.n }, list: g.list,
+    })),
+  },
+];
+const blocks = (data.national_teams_first ? [...national, ...clubs] : [...clubs, ...national])
+  .filter((b) => b.units.length > 0);
+
+const filterRows = blocks.flatMap((b) => b.units.filter((u) => u.region).map((u) => ({ entity_type: u.entity, confederation: u.region })));
+// A heading's text and link; a row's link, only to a page the build makes.
+const heading = (item: Extract<Item, { kind: "head" }>) => {
+  if (item.label) return { text: t(lang, item.label), href: null };
+  if (!item.league) return { text: t(lang, "teamsOtherClubs"), href: null };
+  const c = competitionInfo(item.league);
+  return { text: c.name, href: c.slug ? localeHref(lang, `${c.slug}/`) : null };
+};
+const teamHref = (team: TeamIndexRow) => built.has(team.team_slug) ? localeHref(lang, `${teamsWord}/${team.team_slug}/`) : null;
+---
+
+<section class="teamindex">
+  <FilterRows lang={lang} rows={filterRows} />
+
+  <div class="categories">
+    {blocks.map((block, b) => (
+      <section class:list={["tblock", block.className]}>
+        <SectionHead label={block.label} />
+        {block.units.map((unit, u) => (
+          <div class:list={[unit.view, unit.head && "fxgroup"]} data-entity-type={unit.entity} data-confederation={unit.region}>
+            {unit.head && (
+              <div class="gh"><span class="nm">{unit.head.name}</span><span class="cnt">{count(unit.head.n)}</span></div>
+            )}
+            <div class="comp-grid">
+              {[unit.list.visible, unit.list.rest].map((part, p) => {
+                const rendered = part.map((item) => {
+                  if (item.kind === "head") {
+                    const h = heading(item);
+                    return <div class="colhead">{h.href ? <a class="lnk" href={h.href}>{h.text}</a> : h.text}</div>;
+                  }
+                  const href = teamHref(item.team);
+                  const Row = href ? "a" : "div";
+                  return (
+                    <Row class="comp-row" href={href ?? undefined}>
+                      <Crest name={item.team.team_name} crest={item.team.crest} size="xs" />
+                      <span class="comp-meta"><span class="comp-name">{item.team.team_name}</span></span>
+                    </Row>
+                  );
+                });
+                return p === 0 ? rendered : part.length > 0 && (
+                  <Fold id={`fold-${b}-${u}`} n={unit.list.n} lang={lang}>{rendered}</Fold>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </section>
+    ))}
+  </div>
+</section>
+
+<script>
+  // Decided from the filter state, never from layout (see CompetitionIndexGrid.astro).
+  function checkedValue(name: string): string {
+    return document.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`)?.value ?? "";
+  }
+  function hideEmptyBlocks() {
+    const entity = checkedValue("entity-filter");
+    const region = checkedValue("region-filter");
+    document.querySelectorAll<HTMLElement>(".tblock").forEach((block) => {
+      const units = Array.from(block.querySelectorAll<HTMLElement>("[data-entity-type]"));
+      block.hidden = !units.some(
+        (u) =>
+          (!entity || u.dataset.entityType === entity) &&
+          (region ? u.dataset.confederation === region : !u.classList.contains("tview-region")),
+      );
+    });
+  }
+  document
+    .querySelectorAll('input[name="entity-filter"], input[name="region-filter"]')
+    .forEach((el) => el.addEventListener("change", hideEmptyBlocks));
+  hideEmptyBlocks();
+</script>

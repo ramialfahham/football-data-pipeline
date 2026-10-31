@@ -646,6 +646,17 @@ a.brow:focus-visible { outline-offset: -2px; }
    neighbour). */
 a.comp-row { border-radius: 9px; }
 a.comp-row:focus-visible { outline-offset: -2px; }
+/* The Teams page: two columns at most, so an even list leaves no hole; a top list opens on its
+   first row's line, not its padding (the block heading's gap); a heading inside a list spans the
+   grid; the group head's count sits at its right. A top list has one view for all regions and one per region; a region filter swaps them
+   (the region rules below hide the other regions' views) and hides the region groups. */
+.teamindex .comp-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, max(280px, calc((100% - 8px) / 2))), 1fr)); }
+.comp-grid .colhead { grid-column: 1 / -1; margin: 6px 0 0; }
+.fxgroup > .gh .cnt { font-size: 13px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.tblock > :is(.tview-all, .tview-region) > .comp-grid { margin-top: -8px; }
+.tview-region { display: none; }
+.seg-in[name="region-filter"]:not([value=""]):checked ~ .categories .tview-region { display: block; }
+.seg-in[name="region-filter"]:not([value=""]):checked ~ .categories :is(.tview-all, .tgroups-region) { display: none; }
 
 #filter-entity-club:checked ~ .categories [data-entity-type="national"] { display: none; }
 #filter-entity-national:checked ~ .categories [data-entity-type="club"] { display: none; }

@@ -1,32 +1,45 @@
-# Review — feat/222-team-rankings — 2026-10-31
+# Review — feat/222-teams-page — 2026-10-31
 
-diff_sha256: f1c6480ec2da4269a29f5b67290f065a195410a17779587855862abc6e8fa0d7
+diff_sha256: f767fdb3b689fcb29476ca74d0a63130b80c210d60591afceecfaf114252481d
 
 rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 1 findings closed: the layering.md row, the macro replaced by int_team_index__round_values, the nightly cost, the approved_design pages, the pasted dbt ls list with the 435-fixture measurement, and the AFC readings, each with its approval in the contract.
-- No credential, workflow or permission change; layering.md inventories no intermediate models, so the new int_ model needs no row.
-- Every round_names.csv row is scoped to one competition; strings.ts gains one key in EN, DE and FI; decisions_reserved is none.
+- Every staged path is in scope_paths, including the two spec-kind files and the rendered evidence added by amendment; the trimmed sample (778 of 3,342 rows, unchanged) carries its recorded approval.
+- The copy, the doc text, the page kind, the export bytes and runs, and the .gitlab-ci.yml edit each carry a recorded approval; decisions_reserved is none.
+- Added comments and docs carry no dates, issue numbers or chat quotes.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- The round values live in one intermediate model with unique, not_null and accepted_values tests, read by the mart and the round test; no intermediate model reads a mart.
-- A national team counts only its own region's championship; the qualifier criterion uses the latest season with a finished table match, on matches with goals.
-- The round test fails on an unnamed round and on a configured competition with no counted season; six consistency tests and a coverage test guard the mart.
-- A ranked club's served region is its top club competition's, the key top_club_rank is partitioned by.
-- No hard-coded competition identifier; the mart takes the layer's table materialisation.
+- The export only projects, renames the crest and lifts national_teams_first; it computes no ranking, affiliation or mapping.
+- The confederations join cannot fan out (unique key), and null regions or places are skipped, never sorted as NaN.
+- The page sorts only by served places; teams and countries sharing a place keep the export's order, pinned by node tests.
+- A test pins fetch_team_index's join and its name order.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- roundKnockoutPlayoffs matches its approved EN, DE and FI text, and every key the new round_names.csv rows use exists in all three languages.
-- mart_team_index serves every order the Teams page needs, so the page applies none of its own.
-- region_key and top_club_rank agree for every ranked club; national_teams_first follows the nightly build, as #133 says.
-- Round 3: the competition header, Matchdays and the Team page Competitions block name rounds through roundName from the served key; no match-page file does, so the criterion names only those two pages.
+- Every rendered field is in the export's keep list and the committed sample; every new copy key exists in EN, DE and FI.
+- Filters hide whole lists, headings, groups and blocks together, so fold counts stay true.
+- Lists are one grid of at most two columns, 6 shown (10 for top lists); rows link only to built team pages.
+- The rendered evidence states its method, widths and the filter swaps.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- teams_index is in the deploy export's --entities list and in ENTITY_TYPES; the export writes deterministically.
+- The teamIndex kind is in both the schema enum and ENTITY_VALUES, which a test holds equal.
+- The page reads team payloads from disk, as the Team page does; no payload is bundled.
+
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- The .gitlab-ci.yml change is one line, deploy:export's --entities list, and protected_override names its approval.
+- The export's recurring cost (about 20 MB billed per manual deploy) and the page kind are recorded as approved.
+- No dependency, permission or guard invariant changes.
 
 ## escalations
 (none)

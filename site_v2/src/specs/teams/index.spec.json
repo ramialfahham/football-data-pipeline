@@ -1,0 +1,47 @@
+{
+  "$schema": "../page-spec.schema.json",
+  "page": "[lang]/[teams]/index.astro",
+  "entity": "teamIndex",
+  "seo": {
+    "canonical": "self",
+    "hreflang": "all-locales",
+    "title": "seoTeamsTitle",
+    "description": "seoTeamsDesc",
+    "schema_org": "ItemList",
+    "links": {
+      "inbound_hub": "none",
+      "outbound": ["team", "competition"]
+    },
+    "minimum_data": "None: every row of mart_team_index renders. A row links to its team's page when the build makes one, and a league heading to its competition page when one exists.",
+    "page_count_driver": "count(locales)",
+    "url_permanence": "permanent",
+    "url_permanence_note": "One page per locale at the teams word; the menu, the footer and every Team page's breadcrumb link to it."
+  },
+  "blocks": [
+    {
+      "block": "Filter rows",
+      "mart": "mart_team_index",
+      "i18n_keys": ["crumbHome", "navTeams", "filterAll", "filterClubs", "filterNational", "filterByType", "filterByRegion", "confedUefa"]
+    },
+    {
+      "block": "Top clubs",
+      "mart": "mart_team_index",
+      "i18n_keys": ["teamsTopClubs", "homeShowAll", "homeShowLess"]
+    },
+    {
+      "block": "Clubs by country",
+      "mart": "mart_team_index",
+      "i18n_keys": ["teamsClubsByCountry", "teamsOtherClubs", "teamsCount", "teamsCountOne"]
+    },
+    {
+      "block": "Top national teams",
+      "mart": "mart_team_index",
+      "i18n_keys": ["teamsTopNational"]
+    },
+    {
+      "block": "National teams by region",
+      "mart": "mart_team_index",
+      "i18n_keys": ["teamsNationalByRegion"]
+    }
+  ]
+}
