@@ -55,3 +55,4 @@ done_when:
 
 amendments:
   - "Review round 1: `shared_columns.md` added to scope, so the `team_country` description names the corrections seed as the second source. Its exact sentence was approved in chat, 2026-10-31."
+  - "Prod check: the provider now sends Red Star FC 93's country, so its row goes; Lourdes FC, new in the nightly, gets a row from the FFF. Both rows and a fourth review round approved in chat, 2026-10-31."
