@@ -1308,13 +1308,14 @@ seeds:
 
   - name: team_country_corrections
     description: >
-      A team's country where the provider sends none: one row per team. Applied in
+      A team's country where the provider sends none or a wrong one: one row per team. Applied in
       `base_apif__teams_global` and published by `dim_team`. Every row cites the federation, league
       or competition organiser that lists the team.
     config:
       column_types:
         team_api_id: int64
         team_country: string
+        provider_country: string
         source: string
         note: string
     columns:
@@ -1333,12 +1334,14 @@ seeds:
           - relationships:
               to: ref('countries')
               field: country_name
+      - name: provider_country
+        description: "The country the provider sent when the row was written; empty when it sent none."
       - name: source
-        description: "URL of the official page that lists the team in its country's competition."
+        description: "URL of the official page that lists the team with its country."
         tests:
           - not_null
       - name: note
-        description: "Which competition of that country the team plays in."
+        description: "What the provider sends, and which competition lists the team."
         tests:
           - not_null
 

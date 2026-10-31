@@ -1,1068 +1,445 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 55de2673..3c644dbd 100644
+index 3c644dbd..1c876a62 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,105 +1,87 @@
--# Task contract — the Teams page's rankings, served by the warehouse
-+# Task contract — the Teams page
+@@ -1,87 +1,58 @@
+-# Task contract — the Teams page
++# Task contract — club regions on the Teams page
  
  objective: >
--  A new mart, `mart_team_index`, serves one row per team with a Team page: identity, club or
--  national team, country, region, covered league and table position, and the orders the Teams
--  page shows (#133): Top clubs per region, the order of countries, the order of clubs inside a
--  country, Top national teams in the world and per region, and whether national teams come first.
--  Each continent's top club cup and championship are data on its row in `confederations.csv`.
--  The value of each round lives once, in `int_team_index__round_values`. The cup rounds that
--  have no name yet get one in `round_names.csv`, so every round of the counted seasons has a stage.
-+  The Teams menu item leads to `/{lang}/teams/`, built as #133 approved it: the Filter bar, Top
-+  clubs, Top national teams, Clubs by country and National teams by region, in the block order
-+  the warehouse serves. The export writes `teams_index.json` from `mart_team_index`; the page
-+  groups and shows the served rows in the served orders and adds none of its own. The menu, the
-+  footer and the Team page breadcrumb link to it.
+-  The Teams menu item leads to `/{lang}/teams/`, built as #133 approved it: the Filter bar, Top
+-  clubs, Top national teams, Clubs by country and National teams by region, in the block order
+-  the warehouse serves. The export writes `teams_index.json` from `mart_team_index`; the page
+-  groups and shows the served rows in the served orders and adds none of its own. The menu, the
+-  footer and the Team page breadcrumb link to it.
++  Five clubs the provider files under a wrong country get their real country from a correction
++  row (Dragon, Al Shorta, Cano Sport, GR / SIAF, 15 de Agosto), and the correction seed records
++  the country it replaces so the warn test flags a row only when the provider changes it. A club
++  with no region of its own takes its country's, and a country none of whose clubs has a region
++  takes its national team's, so Auckland City is filed under Oceania.
  
  refs: >
--  #222, the Teams menu page (build plan approved in chat, 2026-10-30); design #133.
-+  #222, the Teams menu page (build plan approved in chat, 2026-10-30; this MR's plan approved in
-+  chat, 2026-10-31); design #133; #223, the shared Filter bar, whose last page this is.
+-  #222, the Teams menu page (build plan approved in chat, 2026-10-30; this MR's plan approved in
+-  chat, 2026-10-31); design #133; #223, the shared Filter bar, whose last page this is.
++  #239, nine clubs with a missing or contradicting region (decisions and exact texts approved in
++  chat, 2026-10-31; this MR's plan approved in chat, 2026-10-31). The three clubs sharing a
++  provider id with a namesake (Newmarket, Victoria United, Warriors FC) go to #238.
  
  scope_paths:
--  - dbt_project/seeds/confederations.csv
--  - dbt_project/seeds/round_names.csv
--  - dbt_project/seeds/schema.yml
--  - dbt_project/seeds/team_index_answer_key.csv
--  - dbt_project/models/4_intermediate/shared/int_team_index__round_values.sql
--  - dbt_project/models/4_intermediate/shared/int_team_index__round_values.yml
--  - dbt_project/models/5_marts/shared/mart_team_index.sql
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/macros/team_ranking_round_values.sql
--  - dbt_project/tests/assert_team_index_cup_rounds_scored.sql
--  - dbt_project/tests/assert_team_index_one_winner_per_cup_season.sql
--  - dbt_project/tests/assert_team_index_stage_answer_key.sql
--  - dbt_project/tests/assert_team_index_covers_every_team_page.sql
--  - dbt_project/docs/layering.md
-+  - scripts/export_site_data.py
-+  - tests/test_export_site_data.py
-+  - .gitlab-ci.yml
-+  - site_v2/src/data/teams_index.json
-+  - site_v2/src/data/README.md
-+  - site_v2/src/pages/*/*teams*/index.astro
-+  - site_v2/src/pages/*/*/?team?.astro
-+  - site_v2/src/components/teams/TeamIndex.astro
-+  - site_v2/src/lib/teamIndex.mjs
-+  - site_v2/src/lib/teamIndex.test.mjs
-+  - site_v2/src/lib/types.ts
-+  - site_v2/src/lib/menu.ts
-+  - site_v2/src/styles/system.css
-   - site_v2/src/i18n/strings.ts
-+  - site_v2/src/specs/teams/index.spec.json
-+  - site_v2/src/specs/page-spec.schema.json
-+  - site_v2/scripts/check-page-specs.mjs
-+  - docs/site_architecture.md
-+  - docs/wireframes/block_standard.md
+-  - scripts/export_site_data.py
+-  - tests/test_export_site_data.py
+-  - .gitlab-ci.yml
+-  - site_v2/src/data/teams_index.json
+-  - site_v2/src/data/README.md
+-  - site_v2/src/pages/*/*teams*/index.astro
+-  - site_v2/src/pages/*/*/?team?.astro
+-  - site_v2/src/components/teams/TeamIndex.astro
+-  - site_v2/src/lib/teamIndex.mjs
+-  - site_v2/src/lib/teamIndex.test.mjs
+-  - site_v2/src/lib/types.ts
+-  - site_v2/src/lib/menu.ts
+-  - site_v2/src/styles/system.css
+-  - site_v2/src/i18n/strings.ts
+-  - site_v2/src/specs/teams/index.spec.json
+-  - site_v2/src/specs/page-spec.schema.json
+-  - site_v2/scripts/check-page-specs.mjs
+-  - docs/site_architecture.md
+-  - docs/wireframes/block_standard.md
++  - dbt_project/seeds/team_country_corrections.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/tests/assert_team_country_corrections_still_needed.sql
++  - dbt_project/models/5_marts/shared/mart_team_index.sql
++  - dbt_project/models/5_marts/shared/shared.yml
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
    - .claude/task/acceptance_evidence.md
-+  - .claude/task/rendered_page_evidence.md
-+
-+protected_override: >
-+  .gitlab-ci.yml, job deploy:export only: `teams_index` added to its `--entities` list; nothing
-+  else in the file changes. The plan naming this edit approved in chat, 2026-10-31.
+-  - .claude/task/rendered_page_evidence.md
+-
+-protected_override: >
+-  .gitlab-ci.yml, job deploy:export only: `teams_index` added to its `--entities` list; nothing
+-  else in the file changes. The plan naming this edit approved in chat, 2026-10-31.
  
  impact_map: >
--  New: `int_team_index__round_values`, read by `mart_team_index` and one test, and
--  `mart_team_index`, read by nothing yet (the Teams page export is the next MR). The mart reads
--  `mart_team_profile` (the teams with a page), `mart_team_competitions` (each team's furthest
--  round per competition and season, and its table position), `dim_team`, `fct_fixture`,
--  `int_round_names`, `competition_registry`, `competition_types` and `confederations`.
--  `.venv/Scripts/dbt.exe ls --project-dir dbt_project --select confederations+ round_names+
--  --resource-type model` lists 58 models: dim_region int_knockout_ties int_legs__team_match
--  int_player_club_season__metrics int_player_competition_benchmark_metrics_long
--  int_player_competition_benchmarks int_player_momentum__metrics int_player_profile__contribution
--  int_player_profile__yoy int_player_season__metrics int_player_season_position__metrics
--  int_player_season_record int_round_names int_standings__official_rank
--  int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
--  int_team_momentum__metrics int_team_momentum_window int_team_profile__streaks
--  int_team_profile__yoy int_team_season__biggest_results int_team_season__deserved_vs_actual
--  int_team_season__longest_runs int_team_season__metrics int_team_season__metrics_cumulative
--  int_team_season__standings_primary int_team_season__table_by_time int_team_season__table_legs
--  int_team_season__table_state int_team_season_record mart_competition_fixtures
--  mart_competition_index mart_competition_season_summary mart_fixture_standing_context
--  mart_head_to_head mart_leaderboards mart_match_days mart_matchday_insights mart_next_matchday
--  mart_player_career mart_player_competition_benchmarks mart_player_momentum mart_player_profile
--  mart_player_season_record mart_standings mart_team_competition_benchmarks
--  mart_team_competitions mart_team_fixtures mart_team_index mart_team_leaderboards
--  mart_team_momentum_window mart_team_profile mart_team_season mart_team_season_insights
--  mart_team_season_record mart_team_window_metrics.
--  blast_radius: `confederations.csv` gains two columns that no existing model reads. The new
--  `round_names.csv` rows are each scoped to one competition and match only round texts that
--  have no name today: those fixtures gain a round name and a stage kind, so `int_knockout_ties`
--  gains their ties and `mart_team_competitions` their cup status. Measured on prod: the rows name
--  435 fixtures in 22 competition-season rounds that have no name today (UCL 2021-2024, AFCCL
--  2017-2025, LIBER 2019-2025, CCCU 2024-2025); every matched round text has no name today, so no
--  named round changes. One new copy key, `roundKnockoutPlayoffs`, in EN, DE and FI.
--  Cost: about 0.6 GB a night more, the mart about 80 MB and its tests about 0.5 GB.
-+  No dbt model changes. The export gains one file, `teams_index.json`, read from
-+  `mart_team_index` joined to the `confederations` seed for each region's `region_rank`; it is
-+  added to the deploy export's `--entities`. `.venv/Scripts/dbt.exe ls --project-dir dbt_project
-+  --select mart_team_index+ --resource-type model` lists only mart_team_index: nothing in the
-+  warehouse reads it, and this MR adds the export as its one reader.
-+  blast_radius: one new page per locale (3); the menu, drawer and footer item Teams becomes a link
-+  on every page; the Team page breadcrumb's "Teams" becomes a link. No existing page's data
-+  changes.
- 
- approved_design:
-   - teams: #133
--  - competition: #129
-   - team: #134
- 
- acceptance_criteria:
--  - "The round the provider calls \"Knockout Round Play-offs\" (Champions League 2024-25) is named \"Knockout phase play-offs\" / \"Play-offs der K.-o.-Phase\" / \"Pudotuspelivaiheen playoff\" wherever a page names it."
--  - "The competition page (header and Matchdays) and the Team page (Competitions block) show the new round names through the round key, as their approved designs already do for every named round."
-+  - "`/{lang}/teams/` renders in EN, DE and FI: breadcrumb Home › Teams, heading Teams, the Filter bar (type and region, no World), then the list; the menu, footer and Team page breadcrumb link to it."
-+  - "Top clubs: Europe's top 10 shown; under the fold Europe 11–20, then each other region's top 6 under its name; a region filter shows that region's own list (Europe 10, others 6)."
-+  - "Top national teams: the world's top 10 shown, 11–20 under the fold; a region filter shows that region's top 10, the rest under the fold."
-+  - "Clubs by country: one group per country with its team count, in the served country order; inside, each covered league under a heading linking to its competition page, then Other clubs, in the served order; 6 shown, the rest under the fold."
-+  - "National teams by region: one group per region with its team count, in the served order; hidden under a region filter."
-+  - "Filters: rows, headings, folds, groups and blocks with nothing left hide together; fold counts are the rows the filter leaves."
-+  - "Block order: national teams first when the warehouse's national_teams_first is true, clubs first otherwise."
-+  - "Every row links to its team's page when that page is built; every order shown is the warehouse's."
+-  No dbt model changes. The export gains one file, `teams_index.json`, read from
+-  `mart_team_index` joined to the `confederations` seed for each region's `region_rank`; it is
+-  added to the deploy export's `--entities`. `.venv/Scripts/dbt.exe ls --project-dir dbt_project
+-  --select mart_team_index+ --resource-type model` lists only mart_team_index: nothing in the
+-  warehouse reads it, and this MR adds the export as its one reader.
+-  blast_radius: one new page per locale (3); the menu, drawer and footer item Teams becomes a link
+-  on every page; the Team page breadcrumb's "Teams" becomes a link. No existing page's data
+-  changes.
+-
+-approved_design:
+-  - teams: #133
+-  - team: #134
+-
+-acceptance_criteria:
+-  - "`/{lang}/teams/` renders in EN, DE and FI: breadcrumb Home › Teams, heading Teams, the Filter bar (type and region, no World), then the list; the menu, footer and Team page breadcrumb link to it."
+-  - "Top clubs: Europe's top 10 shown; under the fold Europe 11–20, then each other region's top 6 under its name; a region filter shows that region's own list (Europe 10, others 6)."
+-  - "Top national teams: the world's top 10 shown, 11–20 under the fold; a region filter shows that region's top 10, the rest under the fold."
+-  - "Clubs by country: one group per country with its team count, in the served country order; inside, each covered league under a heading linking to its competition page, then Other clubs, in the served order; 6 shown, the rest under the fold."
+-  - "National teams by region: one group per region with its team count, in the served order; hidden under a region filter."
+-  - "Filters: rows, headings, folds, groups and blocks with nothing left hide together; fold counts are the rows the filter leaves."
+-  - "Block order: national teams first when the warehouse's national_teams_first is true, clubs first otherwise."
+-  - "Every row links to its team's page when that page is built; every order shown is the warehouse's."
++  `.venv/Scripts/dbt.exe ls --project-dir dbt_project --select team_country_corrections+
++  mart_team_index+ --resource-type model` lists base_apif__teams_global, dim_team,
++  dim_player_team_season_mapping, mart_competition_fixtures, mart_fixture_standing_context,
++  mart_leaderboards, mart_match_days, mart_matchday_insights, mart_player_career,
++  mart_player_fixture_stats, mart_player_profile, mart_roster, mart_standings,
++  mart_team_competition_benchmarks, mart_team_competitions, mart_team_fixtures, mart_team_index,
++  mart_team_leaderboards, mart_team_market_value, mart_team_momentum_window, mart_team_profile,
++  mart_team_season, mart_team_season_insights.
++  The seed's five rows change team_country for five teams wherever a model carries it; the new
++  column is read only by the warn test. The mart_team_index change moves only clubs with no
++  region: on prod today that is Auckland City alone (checked 2026-10-31).
++  blast_radius: five teams' country on every page that shows it; Auckland City's region and New
++  Zealand's country region on the Teams page.
  
  decisions_taken: >
--  The build plan approved in chat, 2026-10-30, with its decisions: the last five finished seasons;
--  each continent's top cup and championship on its row in `confederations.csv`; the round points
--  written once, in a model; clubs and countries still level after the most recent season
--  separated by wins, then goal difference, then sharing the place. Approved in chat, 2026-10-31:
--  the copy of `roundKnockoutPlayoffs`; national teams still level on all three of #133's criteria
--  separated by qualifier goal difference per match, then sharing the place. The stages come from
--  `mart_team_competitions`, which already serves each team's furthest round and its final won.
--  Readings of #133 stated on #222: CONCACAF's "1st Round" is the round of 32; for national teams
--  "furthest stage" counts each round in order (group, round of 32, round of 16, quarter-final,
--  semi-final, final, winner); a ranked club's region is its top club competition's. Approved in
--  chat, 2026-10-31: the exact text of every new seed, model and column description; the model
--  `int_team_index__round_values` with its text; the seed `team_index_answer_key.csv`; AFC's
--  "League Phase East/West" named as its league stage and "Ranking of second-placed teams" as
--  its group stage; the nightly cost of about 0.6 GB; the layering.md row; the region_key text.
-+  The plan approved in chat, 2026-10-31, with its decisions: teams sharing a place are listed A to
-+  Z inside it, ordered in the export; country and region groups use the existing group head with
-+  the team count at its right; inside a country, the clubs outside the covered leagues follow
-+  under "Other clubs"; the copy of the four block names, the team count, "Other clubs" and the
-+  SEO title and text in EN, DE and FI. Readings of #133: a club in Clubs by country is filtered by
-+  its country's region, so a country group stays whole; country names are shown as served, as on
-+  the Team page.
+-  The plan approved in chat, 2026-10-31, with its decisions: teams sharing a place are listed A to
+-  Z inside it, ordered in the export; country and region groups use the existing group head with
+-  the team count at its right; inside a country, the clubs outside the covered leagues follow
+-  under "Other clubs"; the copy of the four block names, the team count, "Other clubs" and the
+-  SEO title and text in EN, DE and FI. Readings of #133: a club in Clubs by country is filtered by
+-  its country's region, so a country group stays whole; country names are shown as served, as on
+-  the Team page.
++  Approved in chat, 2026-10-31: the five corrections with their sources and notes; the new
++  provider_country column and the warn test's rule; the region rule for clubs and countries with
++  no region; the exact texts in seeds/schema.yml and shared.yml; the three shared-id clubs left
++  to #238.
  
  decisions_reserved:
--  - "none: every decision of this task is approved, see decisions_taken"
-+  - "none: every decision of this task is approved, see decisions_taken and amendments"
+-  - "none: every decision of this task is approved, see decisions_taken and amendments"
++  - "none: every decision of this task is approved, see decisions_taken"
  
- done_when:
--  - dbt parse passes; the new SQL passes SQLFluff; the offline gates and the whole pytest pass.
--  - The copy gate passes with the new key in three languages.
--  - The MR's data:build:mr passes, and on prod, read-only, the new tests return no rows
--    and the Top clubs, country and national-team orders are shown to the CPO.
-+  - pytest, the offline gates, the copy gate and the new node tests pass.
-+  - "`npm run build` in site_v2 passes, including the SEO audit and the built-pages check."
-+  - The page is read in the v2 dev server in EN, DE and FI at 280–1010px across the filter combinations.
+-done_when:
+-  - pytest, the offline gates, the copy gate and the new node tests pass.
+-  - "`npm run build` in site_v2 passes, including the SEO audit and the built-pages check."
+-  - The page is read in the v2 dev server in EN, DE and FI at 280–1010px across the filter combinations.
++acceptance_criteria:
++  - "The five teams carry their corrected country in dim_team; each seed row cites an official page that lists the team with that country."
++  - "The warn test flags a correction row only when the provider's latest country differs from the row's provider_country (empty counts as none); the 78 existing rows behave as before."
++  - "In mart_team_index, a club with no region takes its country's region, and a country none of whose clubs has a region takes its national team's; on prod data the only change is Auckland City's region_key and New Zealand's country_region_key, both OFC."
  
- amendments:
--  - "Review round 1: the round values move from a macro into `int_team_index__round_values` (engineering_standards.md 1.3); the answer key is a seed like the existing ones; range and coverage tests added; four defects fixed."
-+  - "Approved in chat, 2026-10-31: the page kind teamIndex added to the page spec schema and its checker; the export query's bytes (about 0.46 MB, billed 10 MB per table) and its two runs, the second adding each region's name key; the exact text of the site_architecture.md, block_standard.md and data README changes."
-+  - "Approved in chat, 2026-10-31: the whole export (1.8 MB) is over the repo's 1,024 KB file limit, so the committed sample keeps the export's rows unchanged but only every national team, every club in a covered league and every ranked club (778 rows, 410 KB); the data README says so."
-diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
-index c2644d88..6d2f393a 100644
---- a/.gitlab-ci.yml
-+++ b/.gitlab-ci.yml
-@@ -1038,7 +1038,7 @@ deploy:export:
-     # The --entities list is LOAD-BEARING: every data set a built page reads, and no
-     # other (competitions.json is always emitted). Reads marts and seeds only; writes
-     # no BigQuery table.
--    - python scripts/export_site_data.py --entities teams,fixtures,competitions,competition_index,landing,matches,metric_groups,metric_rows --out site_v2/export_data
-+    - python scripts/export_site_data.py --entities teams,fixtures,competitions,competition_index,teams_index,landing,matches,metric_groups,metric_rows --out site_v2/export_data
-   artifacts:
-     paths:
-       - site_v2/export_data
-diff --git a/docs/site_architecture.md b/docs/site_architecture.md
-index ecb767f2..998f90fd 100644
---- a/docs/site_architecture.md
-+++ b/docs/site_architecture.md
-@@ -49,6 +49,7 @@ The scheme is written here with the English words.
- /{locale}/{competition-slug}/matches/                        competition page, Matchdays tab (every round, results and fixtures; "Rounds" for a cup), the same word for every kind of competition
- /{locale}/{competition-slug}/matches/{date}-{home}-vs-{away}/   fixture page (preview → report), under its competition's Matchdays tab
- /{locale}/{competition-slug}/stats/                          competition page, Rankings tab (the top five of every team and player board under the catalogue's groups); the tab's on-screen name stays Rankings
-+/{locale}/teams/                                             Teams menu page: top clubs and national teams, clubs by country, national teams by region
- /{locale}/teams/{team-slug}/                                 team profile, a club or a national team
- /{locale}/players/{player-slug}/                             player profile
- /{locale}/matches/                                           Matches menu page: the day it opens on (the build day, else the next day with a match), every competition playing it
-@@ -61,7 +62,6 @@ The player page is a stub.
- Planned, not designed yet; each address is provisional until its page's review (§ Address words):
+-amendments:
+-  - "Approved in chat, 2026-10-31: the page kind teamIndex added to the page spec schema and its checker; the export query's bytes (about 0.46 MB, billed 10 MB per table) and its two runs, the second adding each region's name key; the exact text of the site_architecture.md, block_standard.md and data README changes."
+-  - "Approved in chat, 2026-10-31: the whole export (1.8 MB) is over the repo's 1,024 KB file limit, so the committed sample keeps the export's rows unchanged but only every national team, every club in a covered league and every ranked club (778 rows, 410 KB); the data README says so."
++done_when:
++  - dbt parse, SQLFluff on the changed SQL, pytest and the offline gates pass.
++  - The compiled mart, run on prod data, differs from prod mart_team_index only in Auckland City's region_key and country_region_key.
++  - The provider's country for each of the five ids equals the row's provider_country.
+diff --git a/dbt_project/models/5_marts/shared/mart_team_index.sql b/dbt_project/models/5_marts/shared/mart_team_index.sql
+index 368b247f..67fa4de4 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_index.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_index.sql
+@@ -301,7 +301,7 @@ countries as (
+     group by team_country
+ ),
  
- ```
--/{locale}/teams/                                             Teams menu page
- /{locale}/players/                                           Players menu page
- /{locale}/standings/                                         Standings menu page
- /{locale}/stats/                                             Statistics menu page
-@@ -275,6 +275,7 @@ every file. The `fetch_*` function for a file holds its live list of marts.
- |---|---|---|
- | Landing | `landing.json` | The next-matchday hero: `mart_next_matchday` (every competition's next round, read whole), and its competitions' order, with `mart_competition_fixtures` for the match rows. Names and crests: `mart_competition_index`. Top players: `mart_leaderboards`. Top teams: `mart_team_leaderboards`. Read `fetch_landing_payload` for the live list. |
- | Competitions index / country hub | `competition_index.json` | `mart_competition_index` |
-+| Teams page | `teams_index.json` | `mart_team_index`, with each region's order and name key from the `confederations` seed. Read `fetch_team_index`. |
- | Matches page and its days | `matches/{yyyy-mm-dd}.json`, one per day | `mart_match_days` (the reach, each day's neighbours, the opening day), `mart_competition_fixtures` (the match rows), `mart_competition_index` (a competition's name, crest, kind and region rank). Read `fetch_match_day_payloads`. |
- | Competition page, all three tabs | `competitions/{league_code}/{season}.json` (the page shows the latest season served) | Header: `mart_competition_index`. The table: `mart_standings`, with `table_kind`. The deserved points table: `mart_team_profile`. The season in numbers: `mart_competition_season_summary`. The Matchdays tab, the header's round and the match-that-matters flag: `mart_competition_fixtures`. The Rankings tab's boards, the top five per board: `mart_team_leaderboards` and `mart_leaderboards`. Read `fetch_competition_payloads` for the live list. |
- | Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_window_metrics` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H), `mart_team_momentum_window` (the form list), `mart_player_momentum` (top players). Read `fetch_fixture_payloads`. **Not** `mart_matchday_insights`, the retired MVP's presentation pivot of the momentum mart. v2 reads the source marts directly. A played match's payload reads `mart_competition_fixtures` (result, goals, line-up state), `mart_leaderboards` (match boards), `mart_team_window_metrics` (one match) and `mart_player_fixture_stats` (line-ups). Read `fetch_played_fixture_payloads`. |
-diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
-index b8ec86c0..7e1d93d5 100644
---- a/docs/wireframes/block_standard.md
-+++ b/docs/wireframes/block_standard.md
-@@ -45,6 +45,7 @@
- | Block explainer | `.bsub` | the one sentence under a block name, 13px muted | `font-size=13px; color=muted` | ruled | #129 Deserved points |
- | Competition group head | `.fxgroup:not(.rkgroup) > .gh` | the level-1 heading over a competition's match rows: crest · name · chevron, 17px bold, a 2px line under it, 34px above the group; on Home, inside the Next matches block, it keeps its line | `border-bottom-width=2px; left-edge=section` | ruled | #50; #129; 2026-09-17 ("Home with line") |
- | Competition group name | `.fxgroup:not(.rkgroup) > .gh .nm` | 17px bold ink | `font-size=17px; font-weight=700; color=ink` | ruled | #50 |
-+| Group count | `.fxgroup > .gh .cnt` | the team count at the right of a group head: 13px semi-bold muted | `font-size=13px; font-weight=600; color=muted` | ruled | the Teams page review |
- | Group spacing | `.fxgroup + .fxgroup` | 34px from one group's last row to the next group's heading | `gap(prev)=34px` | ruled | #50 |
- | Metric group heading | `.rkgroup > .gh` | the level-1 heading over a metric group's boards on the Rankings tab: the competition group head's size and air, without its line; 26px to its first board | `border-bottom-width=0px; gap(next)=26px; left-edge=section` | ruled | #129 Rankings; 2026-09-17 ("Rankings without") |
- | Metric group name | `.rkgroup > .gh .nm` | 17px bold ink, a clear step over the 14px board names | `font-size=17px; font-weight=700; color=ink` | ruled | #129 Rankings |
-@@ -167,6 +168,7 @@ and `gen_taxonomy.py` are diagrams.
- | Match page | built | `site_v2/dist` | `en/*/matches/*/index.html` | path | Block heading, Match header competition head, Navigation link, Search field [>=1010px], Search button [<1010px] |
- | Played match page | built | `site_v2/dist` | `en/bundesliga/matches/2026-09-05-tsg-1899-hoffenheim-vs-borussia-dortmund/index.html` | path | Match header winner, Goal row meta, Comparison element, Metric switch, Comparison team name, Column head, Search field [>=1010px], Search button [<1010px] |
- | Team page | built | `site_v2/dist` | `en/teams/*/index.html` | path | Block heading, Tab bar, Competition row, Result row, Match row kick-off, Tag, Fact row value, Player row, Squad grid, Search field [>=1010px], Search button [<1010px] |
-+| Teams page | built | `site_v2/dist` | `en/teams/index.html` | path | Page heading, Filter row, Block heading, Competition group head, Group count, Fold, Row link, Search field [>=1010px], Search button [<1010px] |
- | Matches page | built | `site_v2/dist` | `en/matches/index.html` | path | Page heading, Filter row, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row kick-off, Match row score, Search field [>=1010px], Search button [<1010px] |
- | Matches day page | built | `site_v2/dist` | `en/matches/*/index.html` | path | Page heading, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row score, Search field [>=1010px], Search button [<1010px] |
- | competition-overview | mock | `gen_overview_after_teams.py {out}` | `competition-overview.html` | toggle | Block heading, Table head, Table row, Ordered-by number, Fact row value, Tab bar |
-diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
-index 5bffadd6..87493529 100644
---- a/scripts/export_site_data.py
-+++ b/scripts/export_site_data.py
-@@ -43,7 +43,7 @@ SEEDS_DATASET = "dbt_analytics"
- DEFAULT_OUT = "artifacts/site_data"
- ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
-                 "leaderboards", "glossary", "metric_groups", "metric_rows", "landing",
--                "competition_index", "matches")
-+                "competition_index", "matches", "teams_index")
- REGISTRY_PATH = "docs/competition_registry.yml"
- CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
- METRIC_MAP_PATH = "dbt_project/seeds/metric_map.csv"
-@@ -1696,6 +1696,43 @@ def fetch_competition_index(client) -> dict:
-     return {"type": "competition_index", "competitions": shape_competition_index(rows)}
+-country_regions as (
++club_country_regions as (
+     select
+         c.team_country,
+         c.region_key as country_region_key,
+@@ -316,6 +316,39 @@ country_regions as (
+     ) = 1
+ ),
  
++national_country_regions as (
++    select
++        t.team_country,
++        r.region_key as country_region_key,
++        g.region_rank as country_region_rank
++    from teams as t
++    inner join team_kinds as k
++        on t.team_sk = k.team_sk
++    inner join team_regions as r
++        on t.team_sk = r.team_sk
++    inner join regions as g
++        on r.region_key = g.confederation
++    where
++        k.is_national
++        and t.team_country is not null
++    qualify row_number() over (
++        partition by t.team_country order by g.region_rank asc
++    ) = 1
++),
++
++-- a country none of whose clubs has a region takes its national team's
++country_regions as (
++    select
++        coalesce(c.team_country, n.team_country) as team_country,
++        if(c.team_country is not null, c.country_region_key, n.country_region_key)
++            as country_region_key,
++        if(c.team_country is not null, c.country_region_rank, n.country_region_rank)
++            as country_region_rank
++    from club_country_regions as c
++    full outer join national_country_regions as n
++        on c.team_country = n.team_country
++),
++
+ country_orders as (
+     select
+         c.team_country,
+@@ -553,7 +586,7 @@ select
+     n.world_cup_stage,
+     n.championship_stage,
+     b.national_teams_first,
+-    coalesce(tc.cup_region_key, r.region_key) as region_key,
++    coalesce(tc.cup_region_key, r.region_key, co.country_region_key) as region_key,
+     if(k.is_national, 'national', 'club') as entity_type
+ from teams as t
+ inner join shown_teams as st
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index c1e1bccd..2f599b1f 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -3678,7 +3678,7 @@ models:
+       - name: team_country
+         description: "{{ doc('team_country') }}"
+       - name: region_key
+-        description: "The team's region: for a club with cup_points, its top club competition's region; otherwise the confederation of the competitions it plays most, FIFA's left out."
++        description: "The team's region: for a club with cup_points, its top club competition's region; otherwise the confederation of the competitions it plays most, FIFA's left out; for a club with neither, its country's region."
+         tests:
+           - relationships:
+               to: ref('confederations')
+@@ -3700,7 +3700,7 @@ models:
+       - name: top_club_rank
+         description: "The club's place among its region's clubs by cup_points; level clubs share it; NULL without cup points."
+       - name: country_region_key
+-        description: "The region of the club's country, the region most of its clubs play in."
++        description: "The region of the club's country, the region most of its clubs play in; when none of them has one, its national team's region."
+       - name: country_order
+         description: "The place of the club's country among the countries; NULL for a national team."
+       - name: team_order_in_country
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index d5e1b0c8..a3241a6b 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -1308,13 +1308,14 @@ seeds:
  
-+_TEAM_INDEX_KEEP = (
-+    "team_name", "team_slug", "team_country", "entity_type", "region_key", "region_rank",
-+    "region_label_i18n_key",
-+    "country_region_key", "country_order", "league_code", "team_order_in_country",
-+    "top_club_rank", "national_team_rank", "national_team_region_rank",
-+)
-+
-+
-+def shape_team_index(rows: list[dict]) -> dict:
-+    """mart_team_index rows, projected to the columns the Teams page renders, in input order.
-+    `national_teams_first` is one value for the whole page, so it is lifted out of the rows."""
-+    flags = {r.get("national_teams_first") for r in rows}
-+    if len(flags) > 1:
-+        raise ValueError(f"mart_team_index rows disagree on national_teams_first: {flags}")
-+    return {
-+        "type": "teams_index",
-+        "national_teams_first": flags.pop() if flags else False,
-+        "teams": [{**{k: r.get(k) for k in _TEAM_INDEX_KEEP}, "crest": r.get("team_logo_url")}
-+                  for r in rows],
-+    }
-+
-+
-+def fetch_team_index(client) -> dict:
-+    """teams_index.json -- mart_team_index, one row per team with a page, with its region's
-+    region_rank and label key from the confederations seed. Ordered by team name: the page lists
-+    teams that share a place in this order."""
-+    rows = _query(
-+        client,
-+        f"select t.*, g.region_rank, g.label_i18n_key as region_label_i18n_key "
-+        f"from `{GCP_PROJECT}.{MARTS_DATASET}.mart_team_index` as t "
-+        f"left join `{GCP_PROJECT}.{SEEDS_DATASET}.confederations` as g "
-+        f"on t.region_key = g.confederation "
-+        f"order by t.team_name, t.team_slug",
-+    )
-+    return shape_team_index(rows)
-+
-+
- _COMPETITION_FIXTURE_COLUMNS = (
-     "fixture_sk, league_code, season_api_year, round_name, round_label_i18n_key, round_number, round_letter, round_order, round_sequence, "
-     "fixture_order, kickoff_datetime, status_short, is_played, goals_home, goals_away, "
-@@ -2521,6 +2558,10 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
-         sha = write_file(out_root, "competition_index.json", fetch_competition_index(client))
-         entries.append({"type": "competition_index", "id": "competition_index", "slug": None,
-                         "path": "competition_index.json", "sha256": sha})
-+    if "teams_index" in entities:
-+        sha = write_file(out_root, "teams_index.json", fetch_team_index(client))
-+        entries.append({"type": "teams_index", "id": "teams_index", "slug": None,
-+                        "path": "teams_index.json", "sha256": sha})
-     if "matches" in entities:
-         for p in fetch_match_day_payloads(client):
-             entries.append(write_entity(out_root, "matches", p["day"], p))
-diff --git a/site_v2/scripts/check-page-specs.mjs b/site_v2/scripts/check-page-specs.mjs
-index 8b14a590..3c5eefcf 100644
---- a/site_v2/scripts/check-page-specs.mjs
-+++ b/site_v2/scripts/check-page-specs.mjs
-@@ -28,7 +28,7 @@ export const STRINGS_FILE = join(SITE_ROOT, "src", "i18n", "strings.ts");
- export const SCHEMA_FILE = join(SITE_ROOT, "src", "specs", "page-spec.schema.json");
+   - name: team_country_corrections
+     description: >
+-      A team's country where the provider sends none: one row per team. Applied in
++      A team's country where the provider sends none or a wrong one: one row per team. Applied in
+       `base_apif__teams_global` and published by `dim_team`. Every row cites the federation, league
+       or competition organiser that lists the team.
+     config:
+       column_types:
+         team_api_id: int64
+         team_country: string
++        provider_country: string
+         source: string
+         note: string
+     columns:
+@@ -1333,12 +1334,14 @@ seeds:
+           - relationships:
+               to: ref('countries')
+               field: country_name
++      - name: provider_country
++        description: "The country the provider sent when the row was written; empty when it sent none."
+       - name: source
+-        description: "URL of the official page that lists the team in its country's competition."
++        description: "URL of the official page that lists the team with its country."
+         tests:
+           - not_null
+       - name: note
+-        description: "Which competition of that country the team plays in."
++        description: "What the provider sends, and which competition lists the team."
+         tests:
+           - not_null
  
- const LAYOUT_IMPORT_RE = /["'](?:\.\.\/)+layouts\/Layout\.astro["']/;
--export const ENTITY_VALUES = new Set(["team", "player", "fixture", "competition", "competitionIndex", "home", "matchDay"]);
-+export const ENTITY_VALUES = new Set(["team", "player", "fixture", "competition", "competitionIndex", "home", "matchDay", "teamIndex"]);
- 
- // --- the SEO gate's declaration half (#844) -------------------------------------------------
- // This file checks that what a spec DECLARES exists. scripts/audit-seo.mjs checks that what the
-diff --git a/site_v2/src/components/teams/TeamIndex.astro b/site_v2/src/components/teams/TeamIndex.astro
-new file mode 100644
-index 00000000..d9cc72e9
---- /dev/null
-+++ b/site_v2/src/components/teams/TeamIndex.astro
-@@ -0,0 +1,141 @@
-+---
-+// The Teams page's body: the Filter bar, then four blocks in the order the warehouse serves
-+// (`national_teams_first`). Every block is a run of units, each one list in one grid with the
-+// site's fold: a top list for all regions or for one region, a country group or a region group.
-+// The lists and their order come from lib/teamIndex.mjs, which only cuts the served rows.
-+//
-+// A unit carries its type and region, so the stylesheet's filter rules hide it whole and
-+// filterBar.mjs offers only the choices that leave one; a list never loses rows to a filter, so
-+// its fold count stays true. A country group takes its country's region. The script below hides a
-+// block whose units are all filtered out.
-+import FilterRows from "../competitions/FilterRows.astro";
-+import SectionHead from "../ui/SectionHead.astro";
-+import Crest from "../ui/Crest.astro";
-+import Fold from "../ui/Fold.astro";
-+import { t } from "../../i18n/strings";
-+import { localeHref, word } from "../../lib/href";
-+import { competitionInfo } from "../../lib/teamFixtures";
-+import { topClubs, topNationalTeams, clubsByCountry, nationalTeamsByRegion } from "../../lib/teamIndex.mjs";
-+import type { Lang } from "../../lib/format";
-+import type { TeamIndex, TeamIndexRow } from "../../lib/types";
-+
-+type Item = { kind: "row"; team: TeamIndexRow } | { kind: "head"; league?: string | null; label?: string | null };
-+type List = { visible: Item[]; rest: Item[]; n: number };
-+type Unit = {
-+  view?: "tview-all" | "tview-region";
-+  entity: "club" | "national";
-+  region?: string;
-+  head?: { name: string; n: number };
-+  list: List;
-+};
-+type Block = { label: string; className?: string; units: Unit[] };
-+
-+interface Props {
-+  data: TeamIndex;
-+  lang: Lang;
-+  built: Set<string>;
-+}
-+const { data, lang, built } = Astro.props;
-+const teamsWord = word(lang, "teams");
-+const count = (n: number) => t(lang, n === 1 ? "teamsCountOne" : "teamsCount", { n });
-+
-+const topViews = (top: { all: List | null; regions: { region: string; list: List }[] }, entity: Unit["entity"]): Unit[] => [
-+  ...(top.all ? [{ view: "tview-all" as const, entity, list: top.all }] : []),
-+  ...top.regions.map((r) => ({ view: "tview-region" as const, entity, region: r.region, list: r.list })),
-+];
-+
-+const clubs: Block[] = [
-+  { label: t(lang, "teamsTopClubs"), units: topViews(topClubs(data.teams), "club") },
-+  {
-+    label: t(lang, "teamsClubsByCountry"),
-+    units: clubsByCountry(data.teams).map((g) => ({
-+      entity: "club", region: g.region, head: { name: g.country ?? "", n: g.n }, list: g.list,
-+    })),
-+  },
-+];
-+const national: Block[] = [
-+  { label: t(lang, "teamsTopNational"), units: topViews(topNationalTeams(data.teams), "national") },
-+  {
-+    label: t(lang, "teamsNationalByRegion"),
-+    className: "tgroups-region",
-+    units: nationalTeamsByRegion(data.teams).map((g) => ({
-+      entity: "national", region: g.region, head: { name: g.label ? t(lang, g.label) : g.region, n: g.n }, list: g.list,
-+    })),
-+  },
-+];
-+const blocks = (data.national_teams_first ? [...national, ...clubs] : [...clubs, ...national])
-+  .filter((b) => b.units.length > 0);
-+
-+const filterRows = blocks.flatMap((b) => b.units.filter((u) => u.region).map((u) => ({ entity_type: u.entity, confederation: u.region })));
-+// A heading's text and link; a row's link, only to a page the build makes.
-+const heading = (item: Extract<Item, { kind: "head" }>) => {
-+  if (item.label) return { text: t(lang, item.label), href: null };
-+  if (!item.league) return { text: t(lang, "teamsOtherClubs"), href: null };
-+  const c = competitionInfo(item.league);
-+  return { text: c.name, href: c.slug ? localeHref(lang, `${c.slug}/`) : null };
-+};
-+const teamHref = (team: TeamIndexRow) => built.has(team.team_slug) ? localeHref(lang, `${teamsWord}/${team.team_slug}/`) : null;
-+---
-+
-+<section class="teamindex">
-+  <FilterRows lang={lang} rows={filterRows} />
-+
-+  <div class="categories">
-+    {blocks.map((block, b) => (
-+      <section class:list={["tblock", block.className]}>
-+        <SectionHead label={block.label} />
-+        {block.units.map((unit, u) => (
-+          <div class:list={[unit.view, unit.head && "fxgroup"]} data-entity-type={unit.entity} data-confederation={unit.region}>
-+            {unit.head && (
-+              <div class="gh"><span class="nm">{unit.head.name}</span><span class="cnt">{count(unit.head.n)}</span></div>
-+            )}
-+            <div class="comp-grid">
-+              {[unit.list.visible, unit.list.rest].map((part, p) => {
-+                const rendered = part.map((item) => {
-+                  if (item.kind === "head") {
-+                    const h = heading(item);
-+                    return <div class="colhead">{h.href ? <a class="lnk" href={h.href}>{h.text}</a> : h.text}</div>;
-+                  }
-+                  const href = teamHref(item.team);
-+                  const Row = href ? "a" : "div";
-+                  return (
-+                    <Row class="comp-row" href={href ?? undefined}>
-+                      <Crest name={item.team.team_name} crest={item.team.crest} size="xs" />
-+                      <span class="comp-meta"><span class="comp-name">{item.team.team_name}</span></span>
-+                    </Row>
-+                  );
-+                });
-+                return p === 0 ? rendered : part.length > 0 && (
-+                  <Fold id={`fold-${b}-${u}`} n={unit.list.n} lang={lang}>{rendered}</Fold>
-+                );
-+              })}
-+            </div>
-+          </div>
-+        ))}
-+      </section>
-+    ))}
-+  </div>
-+</section>
-+
-+<script>
-+  // Decided from the filter state, never from layout (see CompetitionIndexGrid.astro).
-+  function checkedValue(name: string): string {
-+    return document.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`)?.value ?? "";
-+  }
-+  function hideEmptyBlocks() {
-+    const entity = checkedValue("entity-filter");
-+    const region = checkedValue("region-filter");
-+    document.querySelectorAll<HTMLElement>(".tblock").forEach((block) => {
-+      const units = Array.from(block.querySelectorAll<HTMLElement>("[data-entity-type]"));
-+      block.hidden = !units.some(
-+        (u) =>
-+          (!entity || u.dataset.entityType === entity) &&
-+          (region ? u.dataset.confederation === region : !u.classList.contains("tview-region")),
-+      );
-+    });
-+  }
-+  document
-+    .querySelectorAll('input[name="entity-filter"], input[name="region-filter"]')
-+    .forEach((el) => el.addEventListener("change", hideEmptyBlocks));
-+  hideEmptyBlocks();
-+</script>
-diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
-index bac8f394..73415377 100644
---- a/site_v2/src/i18n/strings.ts
-+++ b/site_v2/src/i18n/strings.ts
-@@ -269,6 +269,15 @@ const EN: Dict = {
-   confedUefa: "Europe",
-   seoCompetitionsTitle: "All football competitions",
-   seoCompetitionsDesc: "Every league, cup and international competition we cover, grouped by type and region.",
-+  seoTeamsTitle: "All football teams",
-+  seoTeamsDesc: "Every club and national team we cover: the top teams of each region, clubs by country and national teams by region.",
-+  teamsTopClubs: "Top clubs",
-+  teamsTopNational: "Top national teams",
-+  teamsClubsByCountry: "Clubs by country",
-+  teamsNationalByRegion: "National teams by region",
-+  teamsOtherClubs: "Other clubs",
-+  teamsCountOne: "{n} team",
-+  teamsCount: "{n} teams",
-   // The competition HUB (singular), not the index above. Deliberately modest wording: the page is
-   // a scaffold with no content blocks yet (#47), so a title promising a table, fixtures and
-   // scorers would be a promise the page does not keep. Revisit the wording when #47 fills it.
-@@ -634,6 +643,15 @@ const DE: Dict = {
-   confedUefa: "Europa",
-   seoCompetitionsTitle: "Alle Fußballwettbewerbe",
-   seoCompetitionsDesc: "Jede Liga, jeder Pokal und jeder internationale Wettbewerb, den wir abdecken, gruppiert nach Art und Region.",
-+  seoTeamsTitle: "Alle Fußballmannschaften",
-+  seoTeamsDesc: "Jeder Verein und jede Nationalmannschaft, die wir abdecken: die besten Teams jeder Region, Vereine nach Land und Nationalmannschaften nach Region.",
-+  teamsTopClubs: "Top-Vereine",
-+  teamsTopNational: "Top-Nationalmannschaften",
-+  teamsClubsByCountry: "Vereine nach Land",
-+  teamsNationalByRegion: "Nationalmannschaften nach Region",
-+  teamsOtherClubs: "Weitere Vereine",
-+  teamsCountOne: "{n} Mannschaft",
-+  teamsCount: "{n} Mannschaften",
-   seoCompetitionTitle: "{competition}: Überblick",
-   seoCompetitionDesc: "Überblicksseite für {competition}.",
-   seoCompetitionFixturesTitle: "{competition}: Spielplan {season}",
-@@ -996,6 +1014,15 @@ const FI: Dict = {
-   confedUefa: "Eurooppa",
-   seoCompetitionsTitle: "Kaikki jalkapallokilpailut",
-   seoCompetitionsDesc: "Jokainen sarja, cup ja kansainvälinen kilpailu, jota seuraamme, ryhmiteltynä tyypin ja alueen mukaan.",
-+  seoTeamsTitle: "Kaikki jalkapallojoukkueet",
-+  seoTeamsDesc: "Kaikki seuraamamme seurat ja maajoukkueet: kunkin alueen parhaat joukkueet, seurat maittain ja maajoukkueet alueittain.",
-+  teamsTopClubs: "Huippuseurat",
-+  teamsTopNational: "Parhaat maajoukkueet",
-+  teamsClubsByCountry: "Seurat maittain",
-+  teamsNationalByRegion: "Maajoukkueet alueittain",
-+  teamsOtherClubs: "Muut seurat",
-+  teamsCountOne: "{n} joukkue",
-+  teamsCount: "{n} joukkuetta",
-   seoCompetitionTitle: "{competition}: yleiskatsaus",
-   seoCompetitionDesc: "Yleiskatsaussivu kilpailulle {competition}.",
-   seoCompetitionFixturesTitle: "{competition}: otteluohjelma {season}",
-diff --git a/site_v2/src/lib/menu.ts b/site_v2/src/lib/menu.ts
-index 1fcfdac0..be000e01 100644
---- a/site_v2/src/lib/menu.ts
-+++ b/site_v2/src/lib/menu.ts
-@@ -17,7 +17,7 @@ export function menuItems(lang: Lang): MenuItem[] {
-   return [
-     { section: "competitions", label: t(lang, "navCompetitions"), href: localeHref(lang, `${word(lang, "competitions")}/`) },
-     { section: "matches", label: t(lang, "navMatches"), href: localeHref(lang, `${word(lang, "matches")}/`) },
--    { section: "teams", label: t(lang, "navTeams") },
-+    { section: "teams", label: t(lang, "navTeams"), href: localeHref(lang, `${word(lang, "teams")}/`) },
-     { section: "players", label: t(lang, "navPlayers") },
-     { section: "standings", label: t(lang, "navStandings") },
-     { section: "statistics", label: t(lang, "navStatistics") },
-diff --git a/site_v2/src/lib/teamIndex.mjs b/site_v2/src/lib/teamIndex.mjs
-new file mode 100644
-index 00000000..88465f72
---- /dev/null
-+++ b/site_v2/src/lib/teamIndex.mjs
-@@ -0,0 +1,117 @@
-+// The Teams page's lists, cut from teams_index.json by the served orders. Nothing here ranks: a
-+// list is the served rows sorted by their served place, and rows sharing a place keep the export's
-+// order. The region listed first is the first in the served region order.
-+
-+export const SHOWN = 6;
-+export const TOP_SHOWN = 10;
-+export const TOP_ALL = 20;
-+
-+const byPlace = (key) => (a, b) => a[key] - b[key];
-+
-+/** Rows that carry `key`, sorted by it; equal places keep their input order. */
-+export function ranked(rows, key) {
-+  return rows.filter((r) => r[key] != null).sort(byPlace(key));
-+}
-+
-+/** Rows grouped by `key`, the groups in the served region order. */
-+export function byRegion(rows, key = "region_key") {
-+  const groups = new Map();
-+  for (const r of rows) {
-+    if (r[key] == null) continue;
-+    if (!groups.has(r[key])) {
-+      groups.set(r[key], { region: r[key], label: r.region_label_i18n_key, rank: r.region_rank, rows: [] });
-+    }
-+    groups.get(r[key]).rows.push(r);
-+  }
-+  return [...groups.values()].sort((a, b) => a.rank - b.rank);
-+}
-+
-+const row = (team) => ({ kind: "row", team });
-+const head = (props) => ({ kind: "head", ...props });
-+
-+/** A list cut at `shown` rows: the items before the cut, the items after it, and the row count.
-+ *  A heading goes with the first row it heads. */
-+export function cut(items, shown) {
-+  let rows = 0;
-+  let at = items.length;
-+  for (let i = 0; i < items.length; i++) {
-+    if (items[i].kind !== "row") continue;
-+    if (rows === shown) {
-+      at = i;
-+      while (at > 0 && items[at - 1].kind === "head") at--;
-+      break;
-+    }
-+    rows++;
-+  }
-+  const n = items.filter((i) => i.kind === "row").length;
-+  return { visible: items.slice(0, at), rest: items.slice(at), n };
-+}
-+
-+/** Top clubs. All regions: the first region's top TOP_SHOWN shown, then its places up to TOP_ALL
-+ *  and each other region's top SHOWN under its name. A region: its own top list. */
-+export function topClubs(teams) {
-+  const regions = byRegion(ranked(teams.filter((t) => t.entity_type === "club"), "top_club_rank"));
-+  if (regions.length === 0) return { all: null, regions: [] };
-+  const [lead, ...others] = regions;
-+  const items = [
-+    ...lead.rows.slice(0, TOP_ALL).map(row),
-+    ...others.flatMap((g) => [head({ region: g.region, label: g.label }), ...g.rows.slice(0, SHOWN).map(row)]),
-+  ];
-+  return {
-+    all: cut(items, TOP_SHOWN),
-+    regions: regions.map((g) => ({
-+      region: g.region,
-+      list: cut(g.rows.slice(0, g === lead ? TOP_SHOWN : SHOWN).map(row), TOP_SHOWN),
-+    })),
-+  };
-+}
-+
-+/** Top national teams. All regions: the world's top TOP_ALL, TOP_SHOWN shown. A region: all its
-+ *  teams, TOP_SHOWN shown. */
-+export function topNationalTeams(teams) {
-+  const national = teams.filter((t) => t.entity_type === "national");
-+  const world = ranked(national, "national_team_rank").slice(0, TOP_ALL);
-+  if (world.length === 0) return { all: null, regions: [] };
-+  return {
-+    all: cut(world.map(row), TOP_SHOWN),
-+    regions: byRegion(ranked(national, "national_team_region_rank")).map((g) => ({
-+      region: g.region,
-+      list: cut(g.rows.map(row), TOP_SHOWN),
-+    })),
-+  };
-+}
-+
-+/** Clubs by country: one group per country in the served country order (countries sharing a place
-+ *  in the export's order); inside, the clubs in their served order under their covered league, then the others,
-+ *  headed "Other clubs" only when a league heading comes before them. */
-+export function clubsByCountry(teams) {
-+  const groups = new Map();
-+  for (const t of teams) {
-+    if (t.entity_type !== "club") continue;
-+    const key = t.team_country ?? "";
-+    if (!groups.has(key)) {
-+      groups.set(key, { country: t.team_country, order: t.country_order, region: t.country_region_key ?? "", rows: [] });
-+    }
-+    groups.get(key).rows.push(t);
-+  }
-+  return [...groups.values()]
-+    .sort(byPlace("order"))
-+    .map((g) => {
-+      const items = [];
-+      let league;
-+      for (const t of g.rows.sort(byPlace("team_order_in_country"))) {
-+        if (items.length === 0 ? t.league_code != null : t.league_code !== league) {
-+          items.push(head({ league: t.league_code ?? null }));
-+        }
-+        league = t.league_code;
-+        items.push(row(t));
-+      }
-+      return { country: g.country, region: g.region, n: g.rows.length, list: cut(items, SHOWN) };
-+    });
-+}
-+
-+/** National teams by region: one group per region, in the served region order and places. */
-+export function nationalTeamsByRegion(teams) {
-+  return byRegion(ranked(teams.filter((t) => t.entity_type === "national"), "national_team_region_rank"))
-+    .map((g) => ({ region: g.region, label: g.label, n: g.rows.length, list: cut(g.rows.map(row), SHOWN) }));
-+}
-diff --git a/site_v2/src/lib/teamIndex.test.mjs b/site_v2/src/lib/teamIndex.test.mjs
-new file mode 100644
-index 00000000..296cb4bb
---- /dev/null
-+++ b/site_v2/src/lib/teamIndex.test.mjs
-@@ -0,0 +1,88 @@
-+import { test } from "node:test";
-+import assert from "node:assert/strict";
-+import { cut, topClubs, topNationalTeams, clubsByCountry, nationalTeamsByRegion } from "./teamIndex.mjs";
-+
-+const REGIONS = { UEFA: 1, CONMEBOL: 2, CAF: 6 };
-+
-+function club(name, region, over = {}) {
-+  return {
-+    team_name: name, team_slug: name.toLowerCase(), entity_type: "club", region_key: region,
-+    region_rank: REGIONS[region], region_label_i18n_key: `confed${region}`, team_country: "X",
-+    country_region_key: region, country_order: 1, league_code: null, team_order_in_country: 1,
-+    top_club_rank: null, national_team_rank: null, national_team_region_rank: null, crest: null, ...over,
-+  };
-+}
-+
-+function national(name, region, world, inRegion) {
-+  return club(name, region, {
-+    entity_type: "national", team_country: name, country_region_key: null, country_order: null,
-+    team_order_in_country: null, national_team_rank: world, national_team_region_rank: inRegion,
-+  });
-+}
-+
-+const names = (items) => items.filter((i) => i.kind === "row").map((i) => i.team.team_name);
-+
-+test("a cut keeps a heading with the first row it heads", () => {
-+  const items = [{ kind: "head" }, ...[1, 2].map((n) => ({ kind: "row", team: { team_name: `a${n}` } })),
-+    { kind: "head" }, { kind: "row", team: { team_name: "b1" } }];
-+  const { visible, rest, n } = cut(items, 2);
-+  assert.equal(n, 3);
-+  assert.deepEqual(visible.map((i) => i.kind), ["head", "row", "row"]);
-+  assert.deepEqual(rest.map((i) => i.kind), ["head", "row"]);
-+});
-+
-+test("top clubs: the first region's 10 shown, its 11-20 and each other region's 6 behind the fold", () => {
-+  // Input order is the export's (by name); the served places decide the list.
-+  const europe = Array.from({ length: 25 }, (_, i) => club(`E${String(25 - i).padStart(2, "0")}`, "UEFA", { top_club_rank: 25 - i }));
-+  const southAmerica = Array.from({ length: 8 }, (_, i) => club(`S${i + 1}`, "CONMEBOL", { top_club_rank: i + 1 }));
-+  const unranked = club("U", "UEFA");
-+  const { all, regions } = topClubs([...southAmerica, unranked, ...europe]);
-+  assert.deepEqual(names(all.visible), ["E01", "E02", "E03", "E04", "E05", "E06", "E07", "E08", "E09", "E10"]);
-+  assert.equal(all.n, 26);
-+  assert.deepEqual(all.rest.filter((i) => i.kind === "head").map((i) => i.region), ["CONMEBOL"]);
-+  assert.deepEqual(names(all.rest).slice(-6), ["S1", "S2", "S3", "S4", "S5", "S6"]);
-+  assert.deepEqual(regions.map((r) => [r.region, r.list.n, r.list.rest.length]), [["UEFA", 10, 0], ["CONMEBOL", 6, 0]]);
-+});
-+
-+test("teams sharing a place keep the export's order", () => {
-+  const { all } = topClubs([club("Alpha", "UEFA", { top_club_rank: 2 }), club("Beta", "UEFA", { top_club_rank: 1 }),
-+    club("Gamma", "UEFA", { top_club_rank: 2 })]);
-+  assert.deepEqual(names(all.visible), ["Beta", "Alpha", "Gamma"]);
-+});
-+
-+test("top national teams: the world's 20, 10 shown; a region lists all its teams", () => {
-+  const teams = Array.from({ length: 24 }, (_, i) => national(`N${i + 1}`, i % 2 ? "CAF" : "UEFA", i + 1, Math.floor(i / 2) + 1));
-+  const { all, regions } = topNationalTeams(teams);
-+  assert.equal(all.n, 20);
-+  assert.equal(names(all.visible).length, 10);
-+  assert.deepEqual(regions.map((r) => [r.region, r.list.n, names(r.list.visible).length]), [["UEFA", 12, 10], ["CAF", 12, 10]]);
-+});
-+
-+test("clubs by country: served country order, leagues then Other clubs, 6 shown", () => {
-+  const teams = [
-+    club("Zed", "UEFA", { team_country: "Spain", country_order: 1, league_code: null, team_order_in_country: 8 }),
-+    ...Array.from({ length: 7 }, (_, i) => club(`P${i + 1}`, "UEFA", { team_country: "Spain", country_order: 1, league_code: "PD", team_order_in_country: i + 1 })),
-+    club("Only", "CAF", { team_country: "Sudan", country_order: 2 }),
-+  ];
-+  const [spain, sudan] = clubsByCountry(teams);
-+  assert.equal(spain.country, "Spain");
-+  assert.equal(spain.n, 8);
-+  assert.deepEqual(spain.list.visible.filter((i) => i.kind === "head").map((i) => i.league), ["PD"]);
-+  assert.deepEqual(spain.list.rest.map((i) => i.kind === "head" ? `head:${i.league}` : i.team.team_name), ["P7", "head:null", "Zed"]);
-+  assert.deepEqual(sudan.list.visible.map((i) => i.kind), ["row"], "no Other clubs heading without a league before it");
-+  assert.equal(sudan.region, "CAF");
-+});
-+
-+test("countries sharing a place keep the export's order", () => {
-+  const groups = clubsByCountry([
-+    club("A", "UEFA", { team_country: "Portugal", country_order: 7 }),
-+    club("B", "UEFA", { team_country: "Österreich", country_order: 7 }),
-+    club("C", "UEFA", { team_country: "Spain", country_order: 1 }),
-+  ]);
-+  assert.deepEqual(groups.map((g) => g.country), ["Spain", "Portugal", "Österreich"]);
-+});
-+
-+test("national teams by region: one group per region in the served region order", () => {
-+  const groups = nationalTeamsByRegion([national("A", "CAF", 3, 1), national("B", "UEFA", 1, 1), national("C", "UEFA", 2, 2)]);
-+  assert.deepEqual(groups.map((g) => [g.region, g.n, names(g.list.visible)]), [["UEFA", 2, ["B", "C"]], ["CAF", 1, ["A"]]]);
-+});
-diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
-index 641896f2..1ae83787 100644
---- a/site_v2/src/lib/types.ts
-+++ b/site_v2/src/lib/types.ts
-@@ -558,6 +558,31 @@ export interface CompetitionIndex {
-   competitions: CompetitionIndexRow[];
- }
- 
-+/** teams_index.json — mart_team_index, one row per team with a page, ordered by name. */
-+export interface TeamIndexRow {
-+  team_name: string;
-+  team_slug: string;
-+  team_country: string | null;
-+  entity_type: "club" | "national";
-+  region_key: string | null;
-+  region_rank: number | null;
-+  region_label_i18n_key: string | null;
-+  country_region_key: string | null;
-+  country_order: number | null;
-+  league_code: string | null;
-+  team_order_in_country: number | null;
-+  top_club_rank: number | null;
-+  national_team_rank: number | null;
-+  national_team_region_rank: number | null;
-+  crest: string | null;
-+}
-+
-+export interface TeamIndex {
-+  type: string;
-+  national_teams_first: boolean;
-+  teams: TeamIndexRow[];
-+}
-+
- /** competitions/{league_code}/{season}.json — one competition-season's page payload, every block
-  *  a mart read whole or filtered by served columns (fetch_competition_payloads). Selection and
-  *  ordering by served columns only; the page picks and renders, it never computes. */
-diff --git a/site_v2/src/pages/[lang]/[teams]/[team].astro b/site_v2/src/pages/[lang]/[teams]/[team].astro
-index 580a0dd5..5c64a720 100644
---- a/site_v2/src/pages/[lang]/[teams]/[team].astro
-+++ b/site_v2/src/pages/[lang]/[teams]/[team].astro
-@@ -81,10 +81,10 @@ const entity = {
-   ...(team.country ? { location: { "@type": "Place", name: team.country } } : {}),
-   memberOf: { "@type": "SportsOrganization", name: compName },
- };
--// "Teams" links to the Teams page once the build makes one.
-+const teamsHref = localeHref(lang, `${word(lang, "teams")}/`);
- const crumbs = [
-   { name: t(lang, "crumbHome"), href: localeHref(lang) },
--  { name: t(lang, "crumbTeams") },
-+  { name: t(lang, "crumbTeams"), href: teamsHref },
-   { name },
- ];
- ---
-@@ -102,7 +102,7 @@ const crumbs = [
-     <nav class="crumb" aria-label={t(lang, "crumbAria")}>
-       <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
-       <span class="sep">›</span>
--      <span>{t(lang, "crumbTeams")}</span>
-+      <a class="lnk" href={teamsHref}>{t(lang, "crumbTeams")}</a>
-       <span class="sep">›</span>
-       <span class="here">{name}</span>
-     </nav>
-diff --git a/site_v2/src/pages/[lang]/[teams]/index.astro b/site_v2/src/pages/[lang]/[teams]/index.astro
-new file mode 100644
-index 00000000..84c24efa
---- /dev/null
-+++ b/site_v2/src/pages/[lang]/[teams]/index.astro
-@@ -0,0 +1,56 @@
-+---
-+// The Teams page: every team with a page, in the lists and orders teams_index.json serves
-+// (mart_team_index). The page composes; TeamIndex.astro renders, lib/teamIndex.mjs cuts the lists.
-+import Layout from "../../../layouts/Layout.astro";
-+import TeamIndex from "../../../components/teams/TeamIndex.astro";
-+import { t } from "../../../i18n/strings";
-+import { localeHref, word } from "../../../lib/href";
-+import type { Lang } from "../../../lib/format";
-+import type { Team, TeamIndex as TeamIndexData } from "../../../lib/types";
-+import teamsIndex from "../../../data/teams_index.json";
-+import { readdirSync, readFileSync } from "node:fs";
-+import { join } from "node:path";
-+
-+export function getStaticPaths() {
-+  return (["de", "en", "fi"] as const).map((lang) => ({
-+    params: { lang, teams: word(lang, "teams") },
-+  }));
-+}
-+
-+const lang = (Astro.params.lang ?? "en") as Lang;
-+const data = teamsIndex as unknown as TeamIndexData;
-+
-+// A row links only to a page the build makes: one per team payload.
-+const dir = join(process.cwd(), "src/data/teams");
-+const built = new Set(
-+  readdirSync(dir)
-+    .filter((name) => name.endsWith(".json"))
-+    .map((name) => (JSON.parse(readFileSync(join(dir, name), "utf8")) as Team).slug),
-+);
-+
-+const title = t(lang, "seoTeamsTitle");
-+const description = t(lang, "seoTeamsDesc");
-+const entity = {
-+  "@type": "ItemList",
-+  name: title,
-+  numberOfItems: data.teams.length,
-+};
-+const crumbs = [
-+  { name: t(lang, "crumbHome"), href: localeHref(lang) },
-+  { name: t(lang, "navTeams") },
-+];
-+---
-+
-+<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs} section="teams">
-+  <div class="inner">
-+    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
-+      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
-+      <span class="sep">›</span>
-+      <span class="here">{t(lang, "navTeams")}</span>
-+    </nav>
-+
-+    <h1>{t(lang, "navTeams")}</h1>
-+
-+    <TeamIndex data={data} lang={lang} built={built} />
-+  </div>
-+</Layout>
-diff --git a/site_v2/src/specs/page-spec.schema.json b/site_v2/src/specs/page-spec.schema.json
-index 6ed28741..7eacfce8 100644
---- a/site_v2/src/specs/page-spec.schema.json
-+++ b/site_v2/src/specs/page-spec.schema.json
-@@ -13,7 +13,7 @@
-     },
-     "entity": {
-       "type": "string",
--      "enum": ["team", "player", "fixture", "competition", "competitionIndex", "home", "matchDay"],
-+      "enum": ["team", "player", "fixture", "competition", "competitionIndex", "home", "matchDay", "teamIndex"],
-       "description": "The entity type this template renders, per docs/content_architecture.md section 2."
-     },
-     "stub": {
-diff --git a/site_v2/src/specs/teams/index.spec.json b/site_v2/src/specs/teams/index.spec.json
-new file mode 100644
-index 00000000..7034002f
---- /dev/null
-+++ b/site_v2/src/specs/teams/index.spec.json
-@@ -0,0 +1,47 @@
-+{
-+  "$schema": "../page-spec.schema.json",
-+  "page": "[lang]/[teams]/index.astro",
-+  "entity": "teamIndex",
-+  "seo": {
-+    "canonical": "self",
-+    "hreflang": "all-locales",
-+    "title": "seoTeamsTitle",
-+    "description": "seoTeamsDesc",
-+    "schema_org": "ItemList",
-+    "links": {
-+      "inbound_hub": "none",
-+      "outbound": ["team", "competition"]
-+    },
-+    "minimum_data": "None: every row of mart_team_index renders. A row links to its team's page when the build makes one, and a league heading to its competition page when one exists.",
-+    "page_count_driver": "count(locales)",
-+    "url_permanence": "permanent",
-+    "url_permanence_note": "One page per locale at the teams word; the menu, the footer and every Team page's breadcrumb link to it."
-+  },
-+  "blocks": [
-+    {
-+      "block": "Filter rows",
-+      "mart": "mart_team_index",
-+      "i18n_keys": ["crumbHome", "navTeams", "filterAll", "filterClubs", "filterNational", "filterByType", "filterByRegion", "confedUefa"]
-+    },
-+    {
-+      "block": "Top clubs",
-+      "mart": "mart_team_index",
-+      "i18n_keys": ["teamsTopClubs", "homeShowAll", "homeShowLess"]
-+    },
-+    {
-+      "block": "Clubs by country",
-+      "mart": "mart_team_index",
-+      "i18n_keys": ["teamsClubsByCountry", "teamsOtherClubs", "teamsCount", "teamsCountOne"]
-+    },
-+    {
-+      "block": "Top national teams",
-+      "mart": "mart_team_index",
-+      "i18n_keys": ["teamsTopNational"]
-+    },
-+    {
-+      "block": "National teams by region",
-+      "mart": "mart_team_index",
-+      "i18n_keys": ["teamsNationalByRegion"]
-+    }
-+  ]
-+}
-diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
-index 95f4ce83..54fb41b8 100644
---- a/site_v2/src/styles/system.css
-+++ b/site_v2/src/styles/system.css
-@@ -646,6 +646,17 @@ a.brow:focus-visible { outline-offset: -2px; }
-    neighbour). */
- a.comp-row { border-radius: 9px; }
- a.comp-row:focus-visible { outline-offset: -2px; }
-+/* The Teams page: two columns at most, so an even list leaves no hole; a top list opens on its
-+   first row's line, not its padding (the block heading's gap); a heading inside a list spans the
-+   grid; the group head's count sits at its right. A top list has one view for all regions and one per region; a region filter swaps them
-+   (the region rules below hide the other regions' views) and hides the region groups. */
-+.teamindex .comp-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, max(280px, calc((100% - 8px) / 2))), 1fr)); }
-+.comp-grid .colhead { grid-column: 1 / -1; margin: 6px 0 0; }
-+.fxgroup > .gh .cnt { font-size: 13px; font-weight: 600; color: var(--muted); white-space: nowrap; }
-+.tblock > :is(.tview-all, .tview-region) > .comp-grid { margin-top: -8px; }
-+.tview-region { display: none; }
-+.seg-in[name="region-filter"]:not([value=""]):checked ~ .categories .tview-region { display: block; }
-+.seg-in[name="region-filter"]:not([value=""]):checked ~ .categories :is(.tview-all, .tgroups-region) { display: none; }
- 
- #filter-entity-club:checked ~ .categories [data-entity-type="national"] { display: none; }
- #filter-entity-national:checked ~ .categories [data-entity-type="club"] { display: none; }
-diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
-index 365be891..b3fa3fb7 100644
---- a/tests/test_export_site_data.py
-+++ b/tests/test_export_site_data.py
-@@ -4,6 +4,8 @@ No BigQuery — exercises slugify, payload shaping and manifest building with
- fabricated rows so python-ci validates the logic offline.
- """
- 
-+import pytest
-+
- from scripts.export_site_data import (
-     _competitions_index,
-     _display_group_of_type,
-@@ -22,6 +24,7 @@ from scripts.export_site_data import (
-     shape_competition_boards,
-     shape_competition_index,
-     shape_competition_payload,
-+    shape_team_index,
-     shape_season_summary,
-     shape_fixture_payload,
-     shape_next_match,
-@@ -1389,6 +1392,58 @@ def test_shape_competition_index_projects_the_keep_list_and_changes_nothing():
-     assert pl["region_label_i18n_key"] is None          # a country name is not chrome
- 
- 
-+def _team_index_row(**over) -> dict:
-+    row = {
-+        "team_sk": "x", "team_name": "A", "team_slug": "a", "team_logo_url": "https://x/a.png",
-+        "team_country": "Spain", "entity_type": "club", "region_key": "UEFA", "region_rank": 1,
-+        "region_label_i18n_key": "confedUefa", "country_region_key": "UEFA", "country_order": 2,
-+        "league_code": "PD", "league_tier": 1,
-+        "team_order_in_country": 3, "top_club_rank": 1, "national_team_rank": None,
-+        "national_team_region_rank": None, "national_teams_first": False,
-+    }
-+    return {**row, **over}
-+
-+
-+def test_shape_team_index_projects_in_input_order_and_lifts_the_page_flag():
-+    # The export orders by team name, which is the order of teams sharing a place; a page that
-+    # re-sorted by name or rank here would change it.
-+    rows = [_team_index_row(team_name="Zeta", top_club_rank=2),
-+            _team_index_row(team_name="Alpha", top_club_rank=1, team_logo_url=None)]
-+    shaped = shape_team_index(rows)
-+    assert shaped["type"] == "teams_index"
-+    assert shaped["national_teams_first"] is False
-+    assert [t["team_name"] for t in shaped["teams"]] == ["Zeta", "Alpha"]
-+    zeta, alpha = shaped["teams"]
-+    assert zeta["crest"] == "https://x/a.png" and alpha["crest"] is None
-+    for dropped in ("team_logo_url", "team_sk", "league_tier", "national_teams_first"):
-+        assert dropped not in zeta
-+    assert zeta["region_rank"] == 1 and zeta["country_order"] == 2
-+
-+
-+def test_fetch_team_index_orders_by_name_and_reads_the_region_facts_from_the_seed(monkeypatch):
-+    # The name order is the order of teams sharing a place, and the seed's region rank and label
-+    # key order and name the region groups; without either the page changes on every export.
-+    seen = []
-+
-+    def fake_query(client, sql):
-+        seen.append(" ".join(sql.split()))
-+        return [_team_index_row()]
-+
-+    monkeypatch.setattr(export_site_data, "_query", fake_query)
-+    payload = export_site_data.fetch_team_index(object())
-+    (sql,) = seen
-+    assert payload["type"] == "teams_index"
-+    assert "mart_team_index` as t" in sql
-+    assert "confederations` as g on t.region_key = g.confederation" in sql
-+    assert "g.region_rank, g.label_i18n_key as region_label_i18n_key" in sql
-+    assert sql.endswith("order by t.team_name, t.team_slug")
-+
-+
-+def test_shape_team_index_refuses_rows_that_disagree_on_the_page_flag():
-+    with pytest.raises(ValueError, match="national_teams_first"):
-+        shape_team_index([_team_index_row(), _team_index_row(national_teams_first=True)])
-+
-+
- def test_shape_player_payload_opens_on_the_featured_club_season_not_the_latest():
-     """#846 criterion 1: a player fresh off a summer tournament still opens on their club season.
- 
-
-# ============================================================================
-# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
-# ============================================================================
-# The files below changed and are DELIBERATELY excluded from the diff body:
-# they are generated/sample data, and pasting them has measured at ~89% of the
-# review payload. They are still reviewed content and still bind your verdict.
-#
-# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
-# particular: whether a field displayed by a component actually EXISTS in the
-# exported sample is checked by opening these files, not by reading a diff.
-#
-#   site_v2/src/data/README.md        |     7 +-
-#    site_v2/src/data/teams_index.json | 13232 ++++++++++++++++++++++++++++++++++++
-#    2 files changed, 13238 insertions(+), 1 deletion(-)
-# ============================================================================
-
-# ============================================================================
-# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
-# ============================================================================
-# The files below changed on this branch and are DELIBERATELY kept out of the
-# diff: they are the review's own paperwork or the handover, which reviewers do
-# not judge (CPO 2026-08-01).
-#
-# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
-# and a path that appears in `scope_paths` but not in the diff is not, by itself,
-# a scope defect. Read them directly with Read/Grep if a claim in contract.md
-# depends on one.
-#
-#   .claude/task/acceptance_evidence.md    |   23 +-
-#    .claude/task/rendered_page_evidence.md |   20 +-
-#    .claude/task/review.md                 |   41 +-
-#    .claude/task/review_input.patch        | 2454 +++++++++++++-------------------
-#    4 files changed, 1072 insertions(+), 1466 deletions(-)
-# ============================================================================
+diff --git a/dbt_project/seeds/team_country_corrections.csv b/dbt_project/seeds/team_country_corrections.csv
+index 7c0fc5ab..a17aa3bc 100644
+--- a/dbt_project/seeds/team_country_corrections.csv
++++ b/dbt_project/seeds/team_country_corrections.csv
+@@ -1,79 +1,84 @@
+-team_api_id,team_country,source,note
+-162,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
+-184,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
+-190,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
+-221,Portugal,https://www.ligaportugal.pt/video/58126/golo!-cf-os-belenenses-sambu-aos-90'+6'-cf-os-belenenses-1-3-cd-nacional,Provider sends no country; Liga Portugal lists CF Os Belenenses.
+-225,Portugal,https://www.ligaportugal.pt/video/58126/golo!-cf-os-belenenses-sambu-aos-90'+6'-cf-os-belenenses-1-3-cd-nacional,Provider sends no country; Liga Portugal lists CD Nacional.
+-860,Spain,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
+-862,Italy,https://www.legab.it/news/trentaduesimi-coppa-italia-si-parte-con-la-b,Provider sends no country; Lega B lists Pordenone in the Coppa Italia.
+-878,Italy,https://www.legab.it/seriebkt/alessandria-como-perugia-e-ternana-si-parte,Provider sends no country; Lega B lists Alessandria in the Coppa Italia.
+-1301,France,https://www.lfp.fr/article/ligue-2-bkt-le-calendrier-de-la-saison-2026-2027,Provider sends no country; the LFP lists Rodez Aveyron Football in Ligue 2 BKT.
+-1544,Macao,https://inside.fifa.com/associations/MAC,"Provider sends no country; FIFA lists the Football Association of Macau, China."
+-1622,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
+-1649,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; the DFB lists SC Weiche Flensburg 08 in the DFB-Pokal.
+-2732,Iran,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Naft Tehran as IRN in the AFC Champions League.
+-2772,Thailand,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Chonburi FC as THA in the AFC Champions League.
+-3467,India,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Mohun Bagan as IND in the AFC Champions League.
+-3668,Vietnam,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Becamex Binh Duong as VIE in the AFC Champions League.
+-3772,Australia,https://footballnsw.com.au/club/sydney-fc-boys-youth/,"Provider sends no country; reserve side of Sydney FC, which Football NSW lists in the NPL NSW."
+-5258,Spain,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
+-6688,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
+-7673,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-7755,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2021-22/emirates-fa-cup/the-emirates-fa-cup---list-of-exemptions.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-8018,Vietnam,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Hanoi T&T as VIE in the AFC Champions League.
+-8679,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-8688,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-8706,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-8721,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-8731,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-8768,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-8818,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-8823,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-8827,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-8829,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-8874,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-8890,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-8897,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-8916,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-8948,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-8951,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-8960,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-8963,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-9335,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; the DFB lists the club as Türkgücü München in the DFB-Pokal.
+-9375,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
+-9397,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
+-9573,Spain,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
+-9581,Spain,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
+-9597,Spain,https://rfef.es/es/noticias/asi-quedo-el-sorteo-de-la-primera-y-segunda-ronda-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
+-9620,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
+-9647,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
+-9739,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
+-9749,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
+-9771,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
+-9800,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
+-9808,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
+-9835,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
+-9852,France,https://epreuves.fff.fr/competition/engagement/12-coupe-de-france-credit-agricole/phase/1/8/resultats-et-calendrier,Provider sends no country; the FFF lists Lourdes FC in the Coupe de France.
+-9883,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
+-12003,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-12089,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-12888,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
+-15332,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
+-16988,England,https://www.thefa.com/news/2021/aug/07/emirates-fa-cup-extra-preliminary-round-wrap-07082021,Provider sends no country; The FA lists the club as Kensington & Ealing Borough in the Emirates FA Cup.
+-17499,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
+-18087,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
+-18088,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
+-18089,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
+-18091,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
+-18092,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
+-18093,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
+-18094,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
+-18095,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
+-18097,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
+-18098,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
+-18099,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
+-18100,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
+-18101,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
+-18102,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
+-18103,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
+-19866,South Sudan,https://www.cafonline.com/media/bufbzcow/club-licensing-cl-licensed-clubs-2022-2023.pdf,Provider sends no country; CAF lists Zalan FC under South Sudan.
++team_api_id,team_country,provider_country,source,note
++162,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
++184,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
++190,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
++221,Portugal,,https://www.ligaportugal.pt/video/58126/golo!-cf-os-belenenses-sambu-aos-90'+6'-cf-os-belenenses-1-3-cd-nacional,Provider sends no country; Liga Portugal lists CF Os Belenenses.
++225,Portugal,,https://www.ligaportugal.pt/video/58126/golo!-cf-os-belenenses-sambu-aos-90'+6'-cf-os-belenenses-1-3-cd-nacional,Provider sends no country; Liga Portugal lists CD Nacional.
++860,Spain,,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
++862,Italy,,https://www.legab.it/news/trentaduesimi-coppa-italia-si-parte-con-la-b,Provider sends no country; Lega B lists Pordenone in the Coppa Italia.
++878,Italy,,https://www.legab.it/seriebkt/alessandria-como-perugia-e-ternana-si-parte,Provider sends no country; Lega B lists Alessandria in the Coppa Italia.
++1301,France,,https://www.lfp.fr/article/ligue-2-bkt-le-calendrier-de-la-saison-2026-2027,Provider sends no country; the LFP lists Rodez Aveyron Football in Ligue 2 BKT.
++1544,Macao,,https://inside.fifa.com/associations/MAC,"Provider sends no country; FIFA lists the Football Association of Macau, China."
++1622,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
++1649,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; the DFB lists SC Weiche Flensburg 08 in the DFB-Pokal.
++2732,Iran,,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Naft Tehran as IRN in the AFC Champions League.
++2772,Thailand,,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Chonburi FC as THA in the AFC Champions League.
++3045,El Salvador,France,https://www.concacaf.com/competitions/champions-cup/news/saprissa-defeats-dragon-breaks-team-sccl-record,Provider sends France; plays in the CONCACAF Champions League for El Salvador.
++3467,India,,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Mohun Bagan as IND in the AFC Champions League.
++3668,Vietnam,,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Becamex Binh Duong as VIE in the AFC Champions League.
++3772,Australia,,https://footballnsw.com.au/club/sydney-fc-boys-youth/,"Provider sends no country; reserve side of Sydney FC, which Football NSW lists in the NPL NSW."
++5242,Iraq,Sudan,https://www.the-afc.com/en/club/afc_champions_league_elite.html/news/md1-al-shorta-irq-1-1-al-sadd-sc-qat,Provider sends Sudan; plays in the AFC Champions League Elite for Iraq.
++5258,Spain,,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
++6414,Equatorial Guinea,Cyprus,https://www.cafonline.com/caf-champions-league/news/road-to-the-semifinal,Provider sends Cyprus; plays in the CAF Champions League for Equatorial Guinea.
++6688,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
++7673,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++7755,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2021-22/emirates-fa-cup/the-emirates-fa-cup---list-of-exemptions.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++8018,Vietnam,,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Hanoi T&T as VIE in the AFC Champions League.
++8679,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++8688,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++8706,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++8721,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++8731,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++8768,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++8818,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++8823,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++8827,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++8829,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++8874,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++8890,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++8897,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++8916,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++8948,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++8951,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++8960,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++8963,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++9335,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; the DFB lists the club as Türkgücü München in the DFB-Pokal.
++9375,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
++9397,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
++9573,Spain,,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
++9581,Spain,,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
++9597,Spain,,https://rfef.es/es/noticias/asi-quedo-el-sorteo-de-la-primera-y-segunda-ronda-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
++9620,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
++9647,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
++9739,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
++9749,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
++9771,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
++9800,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
++9808,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
++9835,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
++9852,France,,https://epreuves.fff.fr/competition/engagement/12-coupe-de-france-credit-agricole/phase/1/8/resultats-et-calendrier,Provider sends no country; the FFF lists Lourdes FC in the Coupe de France.
++9883,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
++12003,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++12089,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++12888,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
++15332,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
++15565,Djibouti,Austria,https://www.cafonline.com/caf-champions-league/news/2020-21-first-preliminary-round-first-leg-results-x2960/,Provider sends Austria; entered the CAF Champions League for Djibouti.
++16988,England,,https://www.thefa.com/news/2021/aug/07/emirates-fa-cup-extra-preliminary-round-wrap-07082021,Provider sends no country; The FA lists the club as Kensington & Ealing Borough in the Emirates FA Cup.
++17499,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
++18087,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
++18088,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
++18089,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
++18091,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
++18092,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
++18093,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
++18094,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
++18095,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
++18097,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
++18098,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
++18099,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
++18100,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
++18101,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
++18102,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
++18103,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
++19116,Equatorial Guinea,Paraguay,https://www.cafonline.com/caf-champions-league/news/africa-s-elite-learn-their-path-to-the-group-stages-of-the-totalenergies-caf-champions-league-202627/,Provider sends Paraguay; plays in the CAF Champions League for Equatorial Guinea.
++19866,South Sudan,,https://www.cafonline.com/media/bufbzcow/club-licensing-cl-licensed-clubs-2022-2023.pdf,Provider sends no country; CAF lists Zalan FC under South Sudan.
+diff --git a/dbt_project/tests/assert_team_country_corrections_still_needed.sql b/dbt_project/tests/assert_team_country_corrections_still_needed.sql
+index 761061d7..8053945f 100644
+--- a/dbt_project/tests/assert_team_country_corrections_still_needed.sql
++++ b/dbt_project/tests/assert_team_country_corrections_still_needed.sql
+@@ -1,5 +1,4 @@
+--- A country correction fills a country the provider does not send. Once the provider sends one,
+--- the row is dead weight or a disagreement: either way someone must look, so it is reported.
++-- Flags a row when the provider's country is no longer the one the row recorded.
+ --
+ -- Compares against base_apif__teams (PRE-correction), deduplicated exactly as
+ -- base_apif__teams_global does, so the comparison is against the row that model publishes.
+@@ -27,8 +26,11 @@ provider_country as (
+ select
+     corrections.team_api_id,
+     corrections.team_country as corrected_country,
++    corrections.provider_country as recorded_provider_country,
+     provider.team_country as provider_country
+ from import_team_country_corrections as corrections
+ inner join provider_country as provider
+     on corrections.team_api_id = provider.team_api_id
+-where nullif(trim(provider.team_country), '') is not null
++where
++    nullif(trim(provider.team_country), '')
++    is distinct from nullif(trim(corrections.provider_country), '')

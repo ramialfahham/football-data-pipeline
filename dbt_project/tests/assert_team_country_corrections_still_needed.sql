@@ -1,5 +1,4 @@
--- A country correction fills a country the provider does not send. Once the provider sends one,
--- the row is dead weight or a disagreement: either way someone must look, so it is reported.
+-- Flags a row when the provider's country is no longer the one the row recorded.
 --
 -- Compares against base_apif__teams (PRE-correction), deduplicated exactly as
 -- base_apif__teams_global does, so the comparison is against the row that model publishes.
@@ -27,8 +26,11 @@ provider_country as (
 select
     corrections.team_api_id,
     corrections.team_country as corrected_country,
+    corrections.provider_country as recorded_provider_country,
     provider.team_country as provider_country
 from import_team_country_corrections as corrections
 inner join provider_country as provider
     on corrections.team_api_id = provider.team_api_id
-where nullif(trim(provider.team_country), '') is not null
+where
+    nullif(trim(provider.team_country), '')
+    is distinct from nullif(trim(corrections.provider_country), '')
