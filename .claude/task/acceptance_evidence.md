@@ -1,19 +1,13 @@
-# Verification — the Teams page
+# Verification — club regions on the Teams page
 
-Read in the v2 dev server on the full export of 2026-10-31 (3,342 teams: 3,127 clubs and 215
-national teams), and in the built `site_v2/dist` on the committed sample cut from it (778 rows:
-every national team, every club in a covered league, every ranked club).
+Read on prod data on 2026-10-31. The compiled `mart_team_index` and the queries below ran against
+the prod datasets; the bytes of each were approved before it ran.
 
 criteria_demonstrated:
-  - `/en/teams/`, `/de/mannschaften/` and `/fi/joukkueet/` render: breadcrumb Home › Teams, heading "Teams" / "Mannschaften" / "Joukkueet", the type filter (All, Clubs, National teams) and the region filter (All, Europe, South America, North & Central America, Africa, Asia, Oceania; no World). The header, drawer and footer item link to the page in all three languages (`/de/mannschaften/` read in the DE footer); the Team page breadcrumb's "Teams" is a link. `audit-seo: 2272 built page(s) checked. OK.`
-  - Top clubs, All regions: Real Madrid, Paris Saint-Germain FC, Bayern München, Manchester City FC, Inter Milan, Atlético Madrid, Borussia Dortmund, Arsenal FC, Liverpool FC, FC Barcelona shown; "Show all 44" holds Europe 11–20 and four other regions' top 6 under their names (20 + 24). Each region filter shows that region's list without a fold: Europe 10 rows, South America, North & Central America, Africa and Asia 6 each. `teamIndex.test.mjs` pins the cut.
-  - Top national teams, All regions: Spain, Argentina, England, France, Morocco, Switzerland, Belgium, Norway, Mexico, Colombia shown, "Show all 20". A region: its top 10 and "Show all {n}" for its teams (Europe 54, Africa 53, Asia 46, North & Central America 41, Oceania 11); South America's 10 need no fold.
-  - Clubs by country: on the full export 166 groups, England first ("England · 868 teams", the Premier League heading linking to `/en/premier-league/`, its clubs in table order), then Spain (315); on the committed sample 92 groups, England (20 teams), Spain (21), Germany (36). Clubs outside a covered league follow under "Other clubs" (18 such headings in FI); a country with no covered league has none. 6 rows shown, the rest under the fold.
-  - National teams by region: 6 groups in region order (Europe 54 teams first, South America 10 second), each in its served order; under any region filter the block is hidden.
-  - All 21 filter combinations were set in the dev server: under a region filter only that region's units show and the region groups hide; under Clubs the national blocks hide, under National teams the club blocks; Clubs + Oceania is removed from the choices because no club unit carries Oceania; no block heading shows with nothing under it. Every list is filtered whole, so every fold count equals its rows (e.g. Africa: "Show all 53").
-  - `teams_index.json` carries `national_teams_first: false`; the page shows the club blocks first (Top clubs, Clubs by country, Top national teams, National teams by region). The page reverses the two pairs when the flag is true, and the export refuses rows that disagree on it (`test_shape_team_index_refuses_rows_that_disagree_on_the_page_flag`).
-  - A row links to `/{lang}/{teams word}/{slug}/` exactly when `src/data/teams` holds that team's payload (50 links on the sample build); `check-built-pages` and `audit-seo` report every emitted link resolves. The lists come from `teamIndex.mjs`, which sorts only by the served places (`top_club_rank`, `national_team_rank`, `national_team_region_rank`, `country_order`, `team_order_in_country`, `region_rank`); teams and countries sharing a place keep the export's name order (`teams sharing a place keep the export's order`, `countries sharing a place keep the export's order`).
+  - The seed carries the five corrections: 3045 Dragon El Salvador, 5242 Al Shorta Iraq, 6414 Cano Sport Equatorial Guinea, 15565 GR / SIAF Djibouti, 19116 15 de Agosto Equatorial Guinea, each with its CONCACAF, AFC or CAF source. `base_apif__teams_global` takes the correction before the provider's country, so dim_team carries the corrected one once the seed is built. The 78 existing rows are unchanged apart from the empty `provider_country` field (compared field by field against main).
+  - The provider's latest country in `base_apif__teams` for the five ids is France, Sudan, Cyprus, Austria and Paraguay, each equal to the row's `provider_country`, so the warn test does not flag them. A row with an empty `provider_country` is flagged when the provider sends any country, as before.
+  - The compiled mart, run on prod data and compared with prod `mart_team_index` on team, country, region, country region, country order, order in country, ranks, entity type and league: one row differs, Auckland City, `region_key` and `country_region_key` NULL to OFC, `country_order` 144 unchanged. No team is added or lost.
 
-Widths: no sideways scroll at 280, 360, 560, 768 and 1010px in EN, DE and FI (scrollWidth equals the viewport); two columns from 568px, one below. `check_design_inventory.py --no-mocks`: 11 pages, 99 renders, 0 failures (the Teams page at 375, 700 and 1010 in three languages).
-
-pytest: 1,619 passed, 2 skipped. `npm run build`: 152 node tests pass, 11 page specs valid, 2,272 pages built. The fast offline gates and the copy gate (1,170 strings) pass.
+dbt parse and SQLFluff (mart and test) pass. pytest: 1,619 passed, 2 skipped. The fast offline gates
+pass: layer contract, registry sync, competition type seed, UI metric labels, copy gate (1,170
+strings), description hygiene.

@@ -3678,7 +3678,7 @@ models:
       - name: team_country
         description: "{{ doc('team_country') }}"
       - name: region_key
-        description: "The team's region: for a club with cup_points, its top club competition's region; otherwise the confederation of the competitions it plays most, FIFA's left out."
+        description: "The team's region: for a club with cup_points, its top club competition's region; otherwise the confederation of the competitions it plays most, FIFA's left out; for a club with neither, its country's region."
         tests:
           - relationships:
               to: ref('confederations')
@@ -3700,7 +3700,7 @@ models:
       - name: top_club_rank
         description: "The club's place among its region's clubs by cup_points; level clubs share it; NULL without cup points."
       - name: country_region_key
-        description: "The region of the club's country, the region most of its clubs play in."
+        description: "The region of the club's country, the region most of its clubs play in; when none of them has one, its national team's region."
       - name: country_order
         description: "The place of the club's country among the countries; NULL for a national team."
       - name: team_order_in_country

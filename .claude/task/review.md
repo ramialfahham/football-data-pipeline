@@ -1,47 +1,21 @@
-# Review — feat/222-teams-page — 2026-10-31
+# Review — fix/239-club-regions — 2026-10-31
 
-diff_sha256: ba7c936fcfcf3ad4a56343b38205e30f9422604d1d9f8fb78c55ff6d0671a5ca
+diff_sha256: 7df8c65650145d1f74c95219a867a96f3a927255f710e96175012ce91ae112dc
 
-rounds: 4
-
-rounds_cap_override: a fourth round approved in chat, 2026-10-31, after the MR pipeline failed the doc sentence-length test on the data README.
+rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every staged path is in scope_paths, including the two spec-kind files and the rendered evidence added by amendment; the trimmed sample (778 of 3,342 rows, unchanged) carries its recorded approval.
-- The copy, the doc text, the page kind, the export bytes and runs, and the .gitlab-ci.yml edit each carry a recorded approval; decisions_reserved is none.
-- Added comments and docs carry no dates, issue numbers or chat quotes.
+- Every staged path is in scope_paths; no protected file is touched.
+- The corrections, the provider_country column and the warn test's rule, the region fallback and the YAML texts each carry a recorded approval; decisions_reserved is none.
+- The impact map pastes the dbt ls lineage; base already lets a correction win over the provider's country.
+- No chat quotes, dates or issue numbers in code or docs; no secrets; no new mechanism or recurring cost.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- The export only projects, renames the crest and lifts national_teams_first; it computes no ranking, affiliation or mapping.
-- The confederations join cannot fan out (unique key), and null regions or places are skipped, never sorted as NaN.
-- The page sorts only by served places; teams and countries sharing a place keep the export's order, pinned by node tests.
-- A test pins fetch_team_index's join and its name order.
-
-## bi-analyst-reviewer
-VERDICT: PASS
-risks_checked:
-- Every rendered field is in the export's keep list and the committed sample; every new copy key exists in EN, DE and FI.
-- Filters hide whole lists, headings, groups and blocks together, so fold counts stay true.
-- Lists are one grid of at most two columns, 6 shown (10 for top lists); rows link only to built team pages.
-- The rendered evidence states its method, widths and the filter swaps.
-
-## platform-reviewer
-VERDICT: PASS
-risks_checked:
-- teams_index is in the deploy export's --entities list and in ENTITY_TYPES; the export writes deterministically.
-- The teamIndex kind is in both the schema enum and ENTITY_VALUES, which a test holds equal.
-- The page reads team payloads from disk, as the Team page does; no payload is bundled.
-
-## cto-reviewer
-VERDICT: PASS
-risks_checked:
-- The .gitlab-ci.yml change is one line, deploy:export's --entities list, and protected_override names its approval.
-- The export's recurring cost (about 20 MB billed per manual deploy) and the page kind are recorded as approved.
-- No dependency, permission or guard invariant changes.
-
-## escalations
-(none)
+- Both country CTEs keep one row per country, so the full outer join cannot fan out and team_sk stays unique.
+- The club side wins whenever a club region exists; the clubs CTE keeps its own region, so the fallback cannot loop; national rows keep NULL country columns.
+- base_apif__teams_global applies the correction before the provider's country; the warn test compares against pre-correction base, deduplicated the same way.
+- The warn test treats empty and NULL alike, so the 78 existing rows flag as before; every corrected country exists in countries.

@@ -1,87 +1,58 @@
-# Task contract — the Teams page
+# Task contract — club regions on the Teams page
 
 objective: >
-  The Teams menu item leads to `/{lang}/teams/`, built as #133 approved it: the Filter bar, Top
-  clubs, Top national teams, Clubs by country and National teams by region, in the block order
-  the warehouse serves. The export writes `teams_index.json` from `mart_team_index`; the page
-  groups and shows the served rows in the served orders and adds none of its own. The menu, the
-  footer and the Team page breadcrumb link to it.
+  Five clubs the provider files under a wrong country get their real country from a correction
+  row (Dragon, Al Shorta, Cano Sport, GR / SIAF, 15 de Agosto), and the correction seed records
+  the country it replaces so the warn test flags a row only when the provider changes it. A club
+  with no region of its own takes its country's, and a country none of whose clubs has a region
+  takes its national team's, so Auckland City is filed under Oceania.
 
 refs: >
-  #222, the Teams menu page (build plan approved in chat, 2026-10-30; this MR's plan approved in
-  chat, 2026-10-31); design #133; #223, the shared Filter bar, whose last page this is.
+  #239, nine clubs with a missing or contradicting region (decisions and exact texts approved in
+  chat, 2026-10-31; this MR's plan approved in chat, 2026-10-31). The three clubs sharing a
+  provider id with a namesake (Newmarket, Victoria United, Warriors FC) go to #238.
 
 scope_paths:
-  - scripts/export_site_data.py
-  - tests/test_export_site_data.py
-  - .gitlab-ci.yml
-  - site_v2/src/data/teams_index.json
-  - site_v2/src/data/README.md
-  - site_v2/src/pages/*/*teams*/index.astro
-  - site_v2/src/pages/*/*/?team?.astro
-  - site_v2/src/components/teams/TeamIndex.astro
-  - site_v2/src/lib/teamIndex.mjs
-  - site_v2/src/lib/teamIndex.test.mjs
-  - site_v2/src/lib/types.ts
-  - site_v2/src/lib/menu.ts
-  - site_v2/src/styles/system.css
-  - site_v2/src/i18n/strings.ts
-  - site_v2/src/specs/teams/index.spec.json
-  - site_v2/src/specs/page-spec.schema.json
-  - site_v2/scripts/check-page-specs.mjs
-  - docs/site_architecture.md
-  - docs/wireframes/block_standard.md
+  - dbt_project/seeds/team_country_corrections.csv
+  - dbt_project/seeds/schema.yml
+  - dbt_project/tests/assert_team_country_corrections_still_needed.sql
+  - dbt_project/models/5_marts/shared/mart_team_index.sql
+  - dbt_project/models/5_marts/shared/shared.yml
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
   - .claude/task/acceptance_evidence.md
-  - .claude/task/rendered_page_evidence.md
-
-protected_override: >
-  .gitlab-ci.yml, job deploy:export only: `teams_index` added to its `--entities` list; nothing
-  else in the file changes. The plan naming this edit approved in chat, 2026-10-31.
 
 impact_map: >
-  No dbt model changes. The export gains one file, `teams_index.json`, read from
-  `mart_team_index` joined to the `confederations` seed for each region's `region_rank`; it is
-  added to the deploy export's `--entities`. `.venv/Scripts/dbt.exe ls --project-dir dbt_project
-  --select mart_team_index+ --resource-type model` lists only mart_team_index: nothing in the
-  warehouse reads it, and this MR adds the export as its one reader.
-  blast_radius: one new page per locale (3); the menu, drawer and footer item Teams becomes a link
-  on every page; the Team page breadcrumb's "Teams" becomes a link. No existing page's data
-  changes.
-
-approved_design:
-  - teams: #133
-  - team: #134
-
-acceptance_criteria:
-  - "`/{lang}/teams/` renders in EN, DE and FI: breadcrumb Home › Teams, heading Teams, the Filter bar (type and region, no World), then the list; the menu, footer and Team page breadcrumb link to it."
-  - "Top clubs: Europe's top 10 shown; under the fold Europe 11–20, then each other region's top 6 under its name; a region filter shows that region's own list (Europe 10, others 6)."
-  - "Top national teams: the world's top 10 shown, 11–20 under the fold; a region filter shows that region's top 10, the rest under the fold."
-  - "Clubs by country: one group per country with its team count, in the served country order; inside, each covered league under a heading linking to its competition page, then Other clubs, in the served order; 6 shown, the rest under the fold."
-  - "National teams by region: one group per region with its team count, in the served order; hidden under a region filter."
-  - "Filters: rows, headings, folds, groups and blocks with nothing left hide together; fold counts are the rows the filter leaves."
-  - "Block order: national teams first when the warehouse's national_teams_first is true, clubs first otherwise."
-  - "Every row links to its team's page when that page is built; every order shown is the warehouse's."
+  `.venv/Scripts/dbt.exe ls --project-dir dbt_project --select team_country_corrections+
+  mart_team_index+ --resource-type model` lists base_apif__teams_global, dim_team,
+  dim_player_team_season_mapping, mart_competition_fixtures, mart_fixture_standing_context,
+  mart_leaderboards, mart_match_days, mart_matchday_insights, mart_player_career,
+  mart_player_fixture_stats, mart_player_profile, mart_roster, mart_standings,
+  mart_team_competition_benchmarks, mart_team_competitions, mart_team_fixtures, mart_team_index,
+  mart_team_leaderboards, mart_team_market_value, mart_team_momentum_window, mart_team_profile,
+  mart_team_season, mart_team_season_insights.
+  The seed's five rows change team_country for five teams wherever a model carries it; the new
+  column is read only by the warn test. The mart_team_index change moves only clubs with no
+  region: on prod today that is Auckland City alone (checked 2026-10-31).
+  blast_radius: five teams' country on every page that shows it; Auckland City's region and New
+  Zealand's country region on the Teams page.
 
 decisions_taken: >
-  The plan approved in chat, 2026-10-31, with its decisions: teams sharing a place are listed A to
-  Z inside it, ordered in the export; country and region groups use the existing group head with
-  the team count at its right; inside a country, the clubs outside the covered leagues follow
-  under "Other clubs"; the copy of the four block names, the team count, "Other clubs" and the
-  SEO title and text in EN, DE and FI. Readings of #133: a club in Clubs by country is filtered by
-  its country's region, so a country group stays whole; country names are shown as served, as on
-  the Team page.
+  Approved in chat, 2026-10-31: the five corrections with their sources and notes; the new
+  provider_country column and the warn test's rule; the region rule for clubs and countries with
+  no region; the exact texts in seeds/schema.yml and shared.yml; the three shared-id clubs left
+  to #238.
 
 decisions_reserved:
-  - "none: every decision of this task is approved, see decisions_taken and amendments"
+  - "none: every decision of this task is approved, see decisions_taken"
+
+acceptance_criteria:
+  - "The five teams carry their corrected country in dim_team; each seed row cites an official page that lists the team with that country."
+  - "The warn test flags a correction row only when the provider's latest country differs from the row's provider_country (empty counts as none); the 78 existing rows behave as before."
+  - "In mart_team_index, a club with no region takes its country's region, and a country none of whose clubs has a region takes its national team's; on prod data the only change is Auckland City's region_key and New Zealand's country_region_key, both OFC."
 
 done_when:
-  - pytest, the offline gates, the copy gate and the new node tests pass.
-  - "`npm run build` in site_v2 passes, including the SEO audit and the built-pages check."
-  - The page is read in the v2 dev server in EN, DE and FI at 280–1010px across the filter combinations.
-
-amendments:
-  - "Approved in chat, 2026-10-31: the page kind teamIndex added to the page spec schema and its checker; the export query's bytes (about 0.46 MB, billed 10 MB per table) and its two runs, the second adding each region's name key; the exact text of the site_architecture.md, block_standard.md and data README changes."
-  - "Approved in chat, 2026-10-31: the whole export (1.8 MB) is over the repo's 1,024 KB file limit, so the committed sample keeps the export's rows unchanged but only every national team, every club in a covered league and every ranked club (778 rows, 410 KB); the data README says so."
+  - dbt parse, SQLFluff on the changed SQL, pytest and the offline gates pass.
+  - The compiled mart, run on prod data, differs from prod mart_team_index only in Auckland City's region_key and country_region_key.
+  - The provider's country for each of the five ids equals the row's provider_country.

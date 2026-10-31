@@ -301,7 +301,7 @@ countries as (
     group by team_country
 ),
 
-country_regions as (
+club_country_regions as (
     select
         c.team_country,
         c.region_key as country_region_key,
@@ -314,6 +314,39 @@ country_regions as (
     qualify row_number() over (
         partition by c.team_country order by count(*) desc, g.region_rank asc
     ) = 1
+),
+
+national_country_regions as (
+    select
+        t.team_country,
+        r.region_key as country_region_key,
+        g.region_rank as country_region_rank
+    from teams as t
+    inner join team_kinds as k
+        on t.team_sk = k.team_sk
+    inner join team_regions as r
+        on t.team_sk = r.team_sk
+    inner join regions as g
+        on r.region_key = g.confederation
+    where
+        k.is_national
+        and t.team_country is not null
+    qualify row_number() over (
+        partition by t.team_country order by g.region_rank asc
+    ) = 1
+),
+
+-- a country none of whose clubs has a region takes its national team's
+country_regions as (
+    select
+        coalesce(c.team_country, n.team_country) as team_country,
+        if(c.team_country is not null, c.country_region_key, n.country_region_key)
+            as country_region_key,
+        if(c.team_country is not null, c.country_region_rank, n.country_region_rank)
+            as country_region_rank
+    from club_country_regions as c
+    full outer join national_country_regions as n
+        on c.team_country = n.team_country
 ),
 
 country_orders as (
@@ -553,7 +586,7 @@ select
     n.world_cup_stage,
     n.championship_stage,
     b.national_teams_first,
-    coalesce(tc.cup_region_key, r.region_key) as region_key,
+    coalesce(tc.cup_region_key, r.region_key, co.country_region_key) as region_key,
     if(k.is_national, 'national', 'club') as entity_type
 from teams as t
 inner join shown_teams as st
