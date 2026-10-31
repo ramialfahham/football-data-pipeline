@@ -21,6 +21,10 @@ import_country_name_overrides as (
     select * from {{ ref('country_name_overrides') }}
 ),
 
+import_team_country_corrections as (
+    select * from {{ ref('team_country_corrections') }}
+),
+
 latest_per_team as (
     select *
     from import_base_apif__teams
@@ -58,12 +62,16 @@ corrected as (
         teams.venue_capacity,
         teams.raw_ingested_at,
         coalesce(overrides.team_name, teams.team_name) as team_name,
-        coalesce(country_overrides.country_name, teams.team_country) as team_country
+        coalesce(
+            country_corrections.team_country, country_overrides.country_name, teams.team_country
+        ) as team_country
     from latest_per_team as teams
     left join import_team_name_overrides as overrides
         on teams.team_api_id = overrides.team_api_id
     left join import_country_name_overrides as country_overrides
         on teams.team_country = country_overrides.provider_country
+    left join import_team_country_corrections as country_corrections
+        on teams.team_api_id = country_corrections.team_api_id
 ),
 
 -- team_slug: the permanent, locale-independent team URL (#852). Derived HERE and not in the

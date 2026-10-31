@@ -1252,6 +1252,42 @@ seeds:
         tests:
           - not_null
 
+  - name: team_country_corrections
+    description: >
+      A team's country where the provider sends none: one row per team. Applied in
+      `base_apif__teams_global` and published by `dim_team`. Every row cites the federation, league
+      or competition organiser that lists the team.
+    config:
+      column_types:
+        team_api_id: int64
+        team_country: string
+        source: string
+        note: string
+    columns:
+      - name: team_api_id
+        description: "The team this row gives a country."
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('dim_team')
+              field: team_api_id
+      - name: team_country
+        description: "The team's country, as named in `countries`."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('countries')
+              field: country_name
+      - name: source
+        description: "URL of the official page that lists the team in its country's competition."
+        tests:
+          - not_null
+      - name: note
+        description: "Which competition of that country the team plays in."
+        tests:
+          - not_null
+
   - name: league_name_overrides
     description: >
       Corrections to a COMPETITION's display name: one row per competition whose provider name is

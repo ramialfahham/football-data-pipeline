@@ -1,57 +1,57 @@
-# Task contract — the Team page shows the served league rank, and a build check holds it
+# Task contract — every club the site shows has its country
 
 objective: >
-  The Team page's "Compared with the league" block shows the league rank as the warehouse serves
-  it. This task removes the unused site helpers that flip a served rank and fixes the mock
-  generator's flip. A built-page check fails every build whose Team page shows another rank.
+  78 teams in `dim_team` have no country because the provider sends none, SV Werder Bremen among
+  them. A seed gives each one its country from an official source, applied in base like the team
+  name overrides. A warn test reports any team with a Team page that still has no country, and a
+  second reports a correction the provider has made unnecessary. The shared `team_country`
+  description states when the column is NULL now.
 
 refs: >
-  #236 (the issue text and plan approved in chat, 2026-10-30); design #134.
+  #222, the Teams menu page (build plan approved in chat, 2026-10-30); design #133.
 
 scope_paths:
-  - site_v2/src/lib/bars.ts
-  - site_v2/src/components/team/TeamLeagueStrips.astro
-  - site_v2/scripts/check-built-pages.mjs
-  - site_v2/scripts/check-built-pages.test.mjs
-  - design-mocks/gen_team_mock.py
+  - dbt_project/seeds/team_country_corrections.csv
+  - dbt_project/seeds/schema.yml
+  - dbt_project/models/2_base/api_football/base_apif__teams_global.sql
+  - dbt_project/tests/assert_team_country_corrections_still_needed.sql
+  - dbt_project/tests/assert_shown_teams_have_a_country.sql
+  - dbt_project/models/docs/shared_columns.md
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
   - .claude/task/acceptance_evidence.md
-  - .claude/task/rendered_page_evidence.md
 
 impact_map: >
-  Short form: frontend, build check and mock only. No model, export or payload change.
-  `TeamLeagueStrips.astro` is rendered only by `site_v2/src/pages/[lang]/[teams]/[team].astro`
-  (`grep -rn TeamLeagueStrips site_v2/src`). `displayRank`, `rankFill` and `beatsMedian` have no
-  caller in `site_v2/src` or `design-mocks/` (grep). The row already shows `ordinal(b.rank, lang)`,
-  the served rank. blast_radius: no shown number changes; each row gains one invisible
-  `data-metric` attribute; `npm run build` gains one check on the Team pages.
-
-approved_design:
-  - team: #134
-
-acceptance_criteria:
-  - "On the Team page, \"Compared with the league\", a less-is-better metric shows the club's league rank as the warehouse serves it. Less is better for fouls, goals against, shots on target against, yellow cards and red cards. The club with the lowest fouls per match shows 1st."
-  - "A metric where more is better keeps showing its rank as served (goals per match: the highest value shows 1st)."
-  - "Every site build fails when a Team-page row shows a rank other than the served one."
-  - "A test pins a less-is-better row: served rank 1 of 18 displays \"1st\", and a page showing \"18th\" for it fails."
-  - "The Team-page mock generator `design-mocks/gen_team_mock.py` shows the served rank."
-  - "The site code holds no helper that flips a served rank."
+  `team_country` is set in `base_apif__teams_global` and published by `dim_team`.
+  `.venv/Scripts/dbt.exe ls --project-dir dbt_project --select base_apif__teams_global+
+  --resource-type model` lists 29 models: base_apif__teams_global dim_player_team_season_mapping
+  dim_team mart_competition_fixtures mart_fixture_standing_context mart_leaderboards
+  mart_match_days mart_matchday_insights mart_player_career mart_player_fixture_stats
+  mart_player_profile mart_roster mart_standings mart_team_competition_benchmarks
+  mart_team_competitions mart_team_fixtures mart_team_leaderboards mart_team_market_value
+  mart_team_momentum_window mart_team_profile mart_team_season mart_team_season_insights and the
+  rest of the lineage. Readers of `team_country` (grep): dim_country, dim_team,
+  mart_team_season_insights, mart_player_career, mart_player_profile, mart_team_market_value,
+  mart_team_profile. blast_radius: only the 78 corrected teams change, from no country to their
+  country; every country they get already exists in `countries.csv`, so `dim_country` gains no
+  row. The team slug anchors on the provider's raw country (`team_country_raw`), so no URL moves.
 
 decisions_taken: >
-  The plan approved in chat, 2026-10-30: path A, a check on the built Team pages. The check reads
-  the served rank from the team payload's featured season and renders it with `ordinal`. No new
-  mechanism: the rule joins `check-built-pages.mjs`, which `npm run build` already runs. No
-  recurring cost.
+  The build plan approved in chat, 2026-10-30. The seed mirrors `team_name_overrides.csv`: keyed by
+  `team_api_id` (equal to `team_sk`), with `source` and `note`, applied by a left join in
+  `base_apif__teams_global`. Every source is the federation, league or competition organiser.
+  Both tests warn with stored failures (approved in chat, 2026-10-30): a team without a country
+  shows under the design's "no recorded country" group, so it is incomplete, not wrong.
 
 decisions_reserved:
-  - "none: no copy, label, order or shown number changes"
+  - "none: no copy, label, order or page changes"
 
 done_when:
-  - npm test in site_v2 passes, with the new less-is-better and more-is-better cases.
-  - check-built-pages.mjs passes on a sample build, or the MR's build:site-v2 job passes.
-  - python -m py_compile design-mocks/gen_team_mock.py passes; the whole pytest passes.
-  - The offline gates of validate-local pass.
+  - The seed has one row per country-less team, each with an official source.
+  - dbt parse passes; the seed's tests, the two warn tests and the base model compile.
+  - The whole pytest and the offline gates of validate-local pass.
+  - The MR's data:build:mr passes, and prod shows no shown team without a country.
 
-amendments: (none)
+amendments:
+  - "Review round 1: `shared_columns.md` added to scope, so the `team_country` description names the corrections seed as the second source. Its exact sentence was approved in chat, 2026-10-31."
