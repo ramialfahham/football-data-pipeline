@@ -1,8 +1,8 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index f4132a3f..6e70db8f 100644
+index f4132a3f..9b6f562c 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,57 +1,57 @@
+@@ -1,57 +1,58 @@
 -# Task contract — the Team page shows the served league rank, and a build check holds it
 +# Task contract — every club the site shows has its country
  
@@ -90,14 +90,16 @@ index f4132a3f..6e70db8f 100644
 -  - check-built-pages.mjs passes on a sample build, or the MR's build:site-v2 job passes.
 -  - python -m py_compile design-mocks/gen_team_mock.py passes; the whole pytest passes.
 -  - The offline gates of validate-local pass.
+-
+-amendments: (none)
 +  - The seed has one row per country-less team, each with an official source.
 +  - dbt parse passes; the seed's tests, the two warn tests and the base model compile.
 +  - The whole pytest and the offline gates of validate-local pass.
 +  - The MR's data:build:mr passes, and prod shows no shown team without a country.
- 
--amendments: (none)
++
 +amendments:
 +  - "Review round 1: `shared_columns.md` added to scope, so the `team_country` description names the corrections seed as the second source. Its exact sentence was approved in chat, 2026-10-31."
++  - "Prod check: the provider now sends Red Star FC 93's country, so its row goes; Lourdes FC, new in the nightly, gets a row from the FFF. Both rows and a fourth review round approved in chat, 2026-10-31."
 diff --git a/dbt_project/models/2_base/api_football/base_apif__teams_global.sql b/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
 index 014fbbdf..476b55ec 100644
 --- a/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
@@ -194,12 +196,11 @@ index 53863176..8cd04346 100644
        Corrections to a COMPETITION's display name: one row per competition whose provider name is
 diff --git a/dbt_project/seeds/team_country_corrections.csv b/dbt_project/seeds/team_country_corrections.csv
 new file mode 100644
-index 00000000..3713bdf7
+index 00000000..7c0fc5ab
 --- /dev/null
 +++ b/dbt_project/seeds/team_country_corrections.csv
 @@ -0,0 +1,79 @@
 +team_api_id,team_country,source,note
-+104,France,https://www.lfp.fr/article/ligue-2-bkt-le-calendrier-de-la-saison-2026-2027,Provider sends no country; the LFP lists Red Star FC in Ligue 2 BKT.
 +162,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
 +184,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
 +190,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
@@ -254,6 +255,7 @@ index 00000000..3713bdf7
 +9800,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
 +9808,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
 +9835,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
++9852,France,https://epreuves.fff.fr/competition/engagement/12-coupe-de-france-credit-agricole/phase/1/8/resultats-et-calendrier,Provider sends no country; the FFF lists Lourdes FC in the Coupe de France.
 +9883,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
 +12003,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
 +12089,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
@@ -356,6 +358,7 @@ index 00000000..761061d7
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/review_input.patch | 759 +++++++++++++++++-----------------------
-#    1 file changed, 314 insertions(+), 445 deletions(-)
+#   .claude/task/review.md          |  37 +-
+#    .claude/task/review_input.patch | 759 +++++++++++++++++-----------------------
+#    2 files changed, 323 insertions(+), 473 deletions(-)
 # ============================================================================
