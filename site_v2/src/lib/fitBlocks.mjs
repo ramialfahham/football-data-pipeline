@@ -3,7 +3,8 @@
 // The script marks each block `fit-one` or `fit-two`; system.css draws the two forms. A table fits
 // when every name keeps its longest word inside its own space; a block of fact rows fits when its
 // longest row (label, gap, value) fits its width; the header row fits when it holds the menu; a
-// Filter bar fits when each row of buttons does, and its dropdown row when each holds its longest choice.
+// Filter bar fits when each row of buttons does, and its dropdown row when each holds its longest choice;
+// a match row with a tag fits when its names keep their column beside the tag.
 
 /** The width of a text's longest word, given a function that measures one word. */
 export function longestWord(text, measure) {
@@ -42,6 +43,8 @@ function start() {
     facts: (block) => [...block.children].filter((r) => r.classList.contains("frow") && shown(r))
       .map((row) => ({ need: oneLine(row), room: row.clientWidth })),
     header: (block) => [{ need: block.scrollWidth, room: block.clientWidth }],
+    tagged: (block) => [...block.querySelectorAll(":scope > .sides")]
+      .map((sides) => ({ need: sides.scrollWidth, room: sides.clientWidth })),
     filter: (block) => [...block.children].filter((c) => c.matches(".seg:not(.sel)") && shown(c))
       .map((seg) => ({ need: seg.scrollWidth, room: seg.clientWidth })),
     selects: (block) => [...block.querySelectorAll(".sel-in")].filter(shown).map((sel) => {
@@ -65,6 +68,7 @@ function start() {
     ...[...document.querySelectorAll(".header-in")].map((b) => [b, "header"]),
     ...[...document.querySelectorAll(".ctab")].map((b) => [b, "table"]),
     ...[...new Set([...document.querySelectorAll(".frow")].map((r) => r.parentElement))].map((b) => [b, "facts"]),
+    ...[...document.querySelectorAll(".fxrow:has(> .topmatch)")].map((b) => [b, "tagged"]),
     // the bar before its dropdown row: the row shows only once the bar has taken its narrow form
     ...[...document.querySelectorAll(".fbar")].map((b) => [b, "filter"]),
     ...[...document.querySelectorAll(".selbar")].map((b) => [b, "selects"]),
