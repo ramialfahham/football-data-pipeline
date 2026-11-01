@@ -1,445 +1,159 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 3c644dbd..1c876a62 100644
+index 1c876a62..db3cdfe4 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,87 +1,58 @@
--# Task contract — the Teams page
-+# Task contract — club regions on the Teams page
+@@ -1,58 +1,58 @@
+-# Task contract — club regions on the Teams page
++# Task contract — player metric directions
  
  objective: >
--  The Teams menu item leads to `/{lang}/teams/`, built as #133 approved it: the Filter bar, Top
--  clubs, Top national teams, Clubs by country and National teams by region, in the block order
--  the warehouse serves. The export writes `teams_index.json` from `mart_team_index`; the page
--  groups and shows the served rows in the served orders and adds none of its own. The menu, the
--  footer and the Team page breadcrumb link to it.
-+  Five clubs the provider files under a wrong country get their real country from a correction
-+  row (Dragon, Al Shorta, Cano Sport, GR / SIAF, 15 de Agosto), and the correction seed records
-+  the country it replaces so the warn test flags a row only when the provider changes it. A club
-+  with no region of its own takes its country's, and a country none of whose clubs has a region
-+  takes its national team's, so Auckland City is filed under Oceania.
+-  Five clubs the provider files under a wrong country get their real country from a correction
+-  row (Dragon, Al Shorta, Cano Sport, GR / SIAF, 15 de Agosto), and the correction seed records
+-  the country it replaces so the warn test flags a row only when the provider changes it. A club
+-  with no region of its own takes its country's, and a country none of whose clubs has a region
+-  takes its national team's, so Auckland City is filed under Oceania.
++  Appearances, minutes per appearance and the share of team goals carry the direction the
++  catalogue's own rule gives them (is more of it better, all else equal: yes), their
++  interpretations stop calling them neither good nor bad, and the `direction` description no
++  longer names a position-dependent share as neutral.
  
  refs: >
--  #222, the Teams menu page (build plan approved in chat, 2026-10-30; this MR's plan approved in
--  chat, 2026-10-31); design #133; #223, the shared Filter bar, whose last page this is.
-+  #239, nine clubs with a missing or contradicting region (decisions and exact texts approved in
-+  chat, 2026-10-31; this MR's plan approved in chat, 2026-10-31). The three clubs sharing a
-+  provider id with a namesake (Newmarket, Victoria United, Warriors FC) go to #238.
+-  #239, nine clubs with a missing or contradicting region (decisions and exact texts approved in
+-  chat, 2026-10-31; this MR's plan approved in chat, 2026-10-31). The three clubs sharing a
+-  provider id with a namesake (Newmarket, Victoria United, Warriors FC) go to #238.
++  #136, the Player page review, where the catalogue's player metrics were listed (directions,
++  interpretation texts and the description sentence approved in chat, 2026-11-01; this MR's plan
++  approved in chat, 2026-11-01). The approved player metric labels ship with the page that first
++  shows each metric and are recorded on #136.
  
  scope_paths:
--  - scripts/export_site_data.py
--  - tests/test_export_site_data.py
--  - .gitlab-ci.yml
--  - site_v2/src/data/teams_index.json
--  - site_v2/src/data/README.md
--  - site_v2/src/pages/*/*teams*/index.astro
--  - site_v2/src/pages/*/*/?team?.astro
--  - site_v2/src/components/teams/TeamIndex.astro
--  - site_v2/src/lib/teamIndex.mjs
--  - site_v2/src/lib/teamIndex.test.mjs
--  - site_v2/src/lib/types.ts
--  - site_v2/src/lib/menu.ts
--  - site_v2/src/styles/system.css
--  - site_v2/src/i18n/strings.ts
--  - site_v2/src/specs/teams/index.spec.json
--  - site_v2/src/specs/page-spec.schema.json
--  - site_v2/scripts/check-page-specs.mjs
--  - docs/site_architecture.md
--  - docs/wireframes/block_standard.md
-+  - dbt_project/seeds/team_country_corrections.csv
-+  - dbt_project/seeds/schema.yml
-+  - dbt_project/tests/assert_team_country_corrections_still_needed.sql
-+  - dbt_project/models/5_marts/shared/mart_team_index.sql
-+  - dbt_project/models/5_marts/shared/shared.yml
+-  - dbt_project/seeds/team_country_corrections.csv
++  - dbt_project/seeds/metric_catalogue.csv
+   - dbt_project/seeds/schema.yml
+-  - dbt_project/tests/assert_team_country_corrections_still_needed.sql
+-  - dbt_project/models/5_marts/shared/mart_team_index.sql
+-  - dbt_project/models/5_marts/shared/shared.yml
++  - docs/wireframes/11_team_squad.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
    - .claude/task/acceptance_evidence.md
--  - .claude/task/rendered_page_evidence.md
--
--protected_override: >
--  .gitlab-ci.yml, job deploy:export only: `teams_index` added to its `--entities` list; nothing
--  else in the file changes. The plan naming this edit approved in chat, 2026-10-31.
  
  impact_map: >
--  No dbt model changes. The export gains one file, `teams_index.json`, read from
--  `mart_team_index` joined to the `confederations` seed for each region's `region_rank`; it is
--  added to the deploy export's `--entities`. `.venv/Scripts/dbt.exe ls --project-dir dbt_project
--  --select mart_team_index+ --resource-type model` lists only mart_team_index: nothing in the
--  warehouse reads it, and this MR adds the export as its one reader.
--  blast_radius: one new page per locale (3); the menu, drawer and footer item Teams becomes a link
--  on every page; the Team page breadcrumb's "Teams" becomes a link. No existing page's data
--  changes.
--
--approved_design:
--  - teams: #133
--  - team: #134
--
--acceptance_criteria:
--  - "`/{lang}/teams/` renders in EN, DE and FI: breadcrumb Home › Teams, heading Teams, the Filter bar (type and region, no World), then the list; the menu, footer and Team page breadcrumb link to it."
--  - "Top clubs: Europe's top 10 shown; under the fold Europe 11–20, then each other region's top 6 under its name; a region filter shows that region's own list (Europe 10, others 6)."
--  - "Top national teams: the world's top 10 shown, 11–20 under the fold; a region filter shows that region's top 10, the rest under the fold."
--  - "Clubs by country: one group per country with its team count, in the served country order; inside, each covered league under a heading linking to its competition page, then Other clubs, in the served order; 6 shown, the rest under the fold."
--  - "National teams by region: one group per region with its team count, in the served order; hidden under a region filter."
--  - "Filters: rows, headings, folds, groups and blocks with nothing left hide together; fold counts are the rows the filter leaves."
--  - "Block order: national teams first when the warehouse's national_teams_first is true, clubs first otherwise."
--  - "Every row links to its team's page when that page is built; every order shown is the warehouse's."
-+  `.venv/Scripts/dbt.exe ls --project-dir dbt_project --select team_country_corrections+
-+  mart_team_index+ --resource-type model` lists base_apif__teams_global, dim_team,
-+  dim_player_team_season_mapping, mart_competition_fixtures, mart_fixture_standing_context,
-+  mart_leaderboards, mart_match_days, mart_matchday_insights, mart_player_career,
-+  mart_player_fixture_stats, mart_player_profile, mart_roster, mart_standings,
-+  mart_team_competition_benchmarks, mart_team_competitions, mart_team_fixtures, mart_team_index,
-+  mart_team_leaderboards, mart_team_market_value, mart_team_momentum_window, mart_team_profile,
-+  mart_team_season, mart_team_season_insights.
-+  The seed's five rows change team_country for five teams wherever a model carries it; the new
-+  column is read only by the warn test. The mart_team_index change moves only clubs with no
-+  region: on prod today that is Auckland City alone (checked 2026-10-31).
-+  blast_radius: five teams' country on every page that shows it; Auckland City's region and New
-+  Zealand's country region on the Teams page.
+-  `.venv/Scripts/dbt.exe ls --project-dir dbt_project --select team_country_corrections+
+-  mart_team_index+ --resource-type model` lists base_apif__teams_global, dim_team,
+-  dim_player_team_season_mapping, mart_competition_fixtures, mart_fixture_standing_context,
+-  mart_leaderboards, mart_match_days, mart_matchday_insights, mart_player_career,
+-  mart_player_fixture_stats, mart_player_profile, mart_roster, mart_standings,
+-  mart_team_competition_benchmarks, mart_team_competitions, mart_team_fixtures, mart_team_index,
+-  mart_team_leaderboards, mart_team_market_value, mart_team_momentum_window, mart_team_profile,
+-  mart_team_season, mart_team_season_insights.
+-  The seed's five rows change team_country for five teams wherever a model carries it; the new
+-  column is read only by the warn test. The mart_team_index change moves only clubs with no
+-  region: on prod today that is Auckland City alone (checked 2026-10-31).
+-  blast_radius: five teams' country on every page that shows it; Auckland City's region and New
+-  Zealand's country region on the Teams page.
++  `metric_catalogue.csv` changes `direction` and `interpretation` on three player rows.
++  `direction` is read in SQL by mart_team_competition_benchmarks and mart_team_leaderboards,
++  both limited to team rows, and by scripts/export_metric_definitions_json.py (only as
++  lower_better) and the export's metric rows (team rows only); none of the three metrics is in
++  the player benchmark set (int_player_competition_benchmark_metrics_long.sql), so no served value
++  changes. `fetch_glossary` in scripts/export_site_data.py writes every catalogue row and column
++  to `metrics.json`, so the three rows' `direction` and `interpretation` change in that file; the
++  deploy's export list in .gitlab-ci.yml does not include `glossary`, and no page under site_v2/src
++  reads it. `schema.yml` changes one column
++  description of the catalogue seed.
++  blast_radius: none rendered; three catalogue rows.
++
++approved_design:
++  - none: no page output changes; the diff touches two seed files and no site file
  
  decisions_taken: >
--  The plan approved in chat, 2026-10-31, with its decisions: teams sharing a place are listed A to
--  Z inside it, ordered in the export; country and region groups use the existing group head with
--  the team count at its right; inside a country, the clubs outside the covered leagues follow
--  under "Other clubs"; the copy of the four block names, the team count, "Other clubs" and the
--  SEO title and text in EN, DE and FI. Readings of #133: a club in Clubs by country is filtered by
--  its country's region, so a country group stays whole; country names are shown as served, as on
--  the Team page.
-+  Approved in chat, 2026-10-31: the five corrections with their sources and notes; the new
-+  provider_country column and the warn test's rule; the region rule for clubs and countries with
-+  no region; the exact texts in seeds/schema.yml and shared.yml; the three shared-id clubs left
-+  to #238.
+-  Approved in chat, 2026-10-31: the five corrections with their sources and notes; the new
+-  provider_country column and the warn test's rule; the region rule for clubs and countries with
+-  no region; the exact texts in seeds/schema.yml and shared.yml; the three shared-id clubs left
+-  to #238.
++  Approved in chat, 2026-11-01: appearances, minutes per appearance and contribution_player_pct
++  become higher_better; their interpretations lose the closing 'not good or bad' sentence, the
++  contribution share keeping its position caveat in brackets; the `direction` description's
++  neutral example is a narrative gap only; the deserved points gap stays neutral; the player
++  metric labels ship with the page that first shows each metric.
  
  decisions_reserved:
--  - "none: every decision of this task is approved, see decisions_taken and amendments"
-+  - "none: every decision of this task is approved, see decisions_taken"
+   - "none: every decision of this task is approved, see decisions_taken"
  
--done_when:
--  - pytest, the offline gates, the copy gate and the new node tests pass.
--  - "`npm run build` in site_v2 passes, including the SEO audit and the built-pages check."
--  - The page is read in the v2 dev server in EN, DE and FI at 280–1010px across the filter combinations.
-+acceptance_criteria:
-+  - "The five teams carry their corrected country in dim_team; each seed row cites an official page that lists the team with that country."
-+  - "The warn test flags a correction row only when the provider's latest country differs from the row's provider_country (empty counts as none); the 78 existing rows behave as before."
-+  - "In mart_team_index, a club with no region takes its country's region, and a country none of whose clubs has a region takes its national team's; on prod data the only change is Auckland City's region_key and New Zealand's country_region_key, both OFC."
- 
--amendments:
--  - "Approved in chat, 2026-10-31: the page kind teamIndex added to the page spec schema and its checker; the export query's bytes (about 0.46 MB, billed 10 MB per table) and its two runs, the second adding each region's name key; the exact text of the site_architecture.md, block_standard.md and data README changes."
--  - "Approved in chat, 2026-10-31: the whole export (1.8 MB) is over the repo's 1,024 KB file limit, so the committed sample keeps the export's rows unchanged but only every national team, every club in a covered league and every ranked club (778 rows, 410 KB); the data README says so."
-+done_when:
-+  - dbt parse, SQLFluff on the changed SQL, pytest and the offline gates pass.
-+  - The compiled mart, run on prod data, differs from prod mart_team_index only in Auckland City's region_key and country_region_key.
-+  - The provider's country for each of the five ids equals the row's provider_country.
-diff --git a/dbt_project/models/5_marts/shared/mart_team_index.sql b/dbt_project/models/5_marts/shared/mart_team_index.sql
-index 368b247f..67fa4de4 100644
---- a/dbt_project/models/5_marts/shared/mart_team_index.sql
-+++ b/dbt_project/models/5_marts/shared/mart_team_index.sql
-@@ -301,7 +301,7 @@ countries as (
-     group by team_country
- ),
- 
--country_regions as (
-+club_country_regions as (
-     select
-         c.team_country,
-         c.region_key as country_region_key,
-@@ -316,6 +316,39 @@ country_regions as (
-     ) = 1
- ),
- 
-+national_country_regions as (
-+    select
-+        t.team_country,
-+        r.region_key as country_region_key,
-+        g.region_rank as country_region_rank
-+    from teams as t
-+    inner join team_kinds as k
-+        on t.team_sk = k.team_sk
-+    inner join team_regions as r
-+        on t.team_sk = r.team_sk
-+    inner join regions as g
-+        on r.region_key = g.confederation
-+    where
-+        k.is_national
-+        and t.team_country is not null
-+    qualify row_number() over (
-+        partition by t.team_country order by g.region_rank asc
-+    ) = 1
-+),
+ acceptance_criteria:
+-  - "The five teams carry their corrected country in dim_team; each seed row cites an official page that lists the team with that country."
+-  - "The warn test flags a correction row only when the provider's latest country differs from the row's provider_country (empty counts as none); the 78 existing rows behave as before."
+-  - "In mart_team_index, a club with no region takes its country's region, and a country none of whose clubs has a region takes its national team's; on prod data the only change is Auckland City's region_key and New Zealand's country_region_key, both OFC."
++  - "appearances, minutes_per_appearance and contribution_player_pct carry direction higher_better and an interpretation without the 'not good or bad' close; no other catalogue cell changes."
++  - "The catalogue's direction description reads: neutral is reserved for a metric with genuinely no better/worse pole, such as a narrative gap."
 +
-+-- a country none of whose clubs has a region takes its national team's
-+country_regions as (
-+    select
-+        coalesce(c.team_country, n.team_country) as team_country,
-+        if(c.team_country is not null, c.country_region_key, n.country_region_key)
-+            as country_region_key,
-+        if(c.team_country is not null, c.country_region_rank, n.country_region_rank)
-+            as country_region_rank
-+    from club_country_regions as c
-+    full outer join national_country_regions as n
-+        on c.team_country = n.team_country
-+),
-+
- country_orders as (
-     select
-         c.team_country,
-@@ -553,7 +586,7 @@ select
-     n.world_cup_stage,
-     n.championship_stage,
-     b.national_teams_first,
--    coalesce(tc.cup_region_key, r.region_key) as region_key,
-+    coalesce(tc.cup_region_key, r.region_key, co.country_region_key) as region_key,
-     if(k.is_national, 'national', 'club') as entity_type
- from teams as t
- inner join shown_teams as st
-diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index c1e1bccd..2f599b1f 100644
---- a/dbt_project/models/5_marts/shared/shared.yml
-+++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -3678,7 +3678,7 @@ models:
-       - name: team_country
-         description: "{{ doc('team_country') }}"
-       - name: region_key
--        description: "The team's region: for a club with cup_points, its top club competition's region; otherwise the confederation of the competitions it plays most, FIFA's left out."
-+        description: "The team's region: for a club with cup_points, its top club competition's region; otherwise the confederation of the competitions it plays most, FIFA's left out; for a club with neither, its country's region."
-         tests:
-           - relationships:
-               to: ref('confederations')
-@@ -3700,7 +3700,7 @@ models:
-       - name: top_club_rank
-         description: "The club's place among its region's clubs by cup_points; level clubs share it; NULL without cup points."
-       - name: country_region_key
--        description: "The region of the club's country, the region most of its clubs play in."
-+        description: "The region of the club's country, the region most of its clubs play in; when none of them has one, its national team's region."
-       - name: country_order
-         description: "The place of the club's country among the countries; NULL for a national team."
-       - name: team_order_in_country
++amendments:
++  - "Approved in chat, 2026-11-01: the Team Squad wireframe's minutes-per-appearance row drops '(neutral)', so it no longer restates a direction the catalogue owns."
+ 
+ done_when:
+-  - dbt parse, SQLFluff on the changed SQL, pytest and the offline gates pass.
+-  - The compiled mart, run on prod data, differs from prod mart_team_index only in Auckland City's region_key and country_region_key.
+-  - The provider's country for each of the five ids equals the row's provider_country.
++  - The offline gates, pytest, the site's node tests and dbt parse pass.
+diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
+index a1f0b18b..ce13f801 100644
+--- a/dbt_project/seeds/metric_catalogue.csv
++++ b/dbt_project/seeds/metric_catalogue.csv
+@@ -80,9 +80,9 @@ points_rank,team,metrics.points_rank.label,"The team's place in its league table
+ deserved_points,team,metrics.deserved_points.label,"Points the team would have won if its points per match followed its shots-on-target difference per match, as the two relate across its league season.",,,,model,integer,outcomes,false,higher_better,Deserved points - what the season's on-target dominance was worth; compare it against the real points total,9,
+ deserved_points_gap,team,metrics.deserved_points_gap.label,The points the team won in its played matches minus its deserved points.,,,,model,integer,outcomes,false,neutral,"Deserved-vs-actual gap - actual minus deserved points; negative = results lag the process (due a correction), positive = results flatter it (regression risk). A narrative, not good or bad",9,
+ deserved_points_gap_rank,team,metrics.deserved_points_gap_rank.label,"The team's position in its league when the teams are ordered by deserved-points gap, the most negative first.",,,,model,integer,outcomes,false,neutral,"Deserved-points gap position - 1 = the most under-rewarded team of the league, the last position the most over-rewarded; an ordering, not good or bad",9,
+-contribution_player_pct,player,playerMetrics.contributionShare.label,The player's goals plus assists as a share of the goals the club scored on the pitch in that competition season.,,,,cross_grain,percent,goals,,neutral,"Share of the club's goals the player was involved in; high = central to the team's attack, but position-dependent (a defender's naturally-low share is not a negative). A style/role read, not good or bad.",1,
+-appearances,player,playerMetrics.appearances.label,Matches in which the player was on the pitch.,int_legs__player_match,countif(minutes > 0),,expression,integer,playing_time,,neutral,"Matches played in the window; high = a regular, low = a squad or rotation player. A playing-time read, not good or bad.",10,
+-minutes_per_appearance,player,playerMetrics.minutesPerAppearance.label,Average minutes the player was on the pitch per match in which the player played.,int_legs__player_match,sum(minutes),countif(minutes > 0),expression,decimal_0,playing_time,,neutral,"Average minutes per appearance; high = a full-90 regular, low = a rotation or impact-sub role. A playing-time role read, not good or bad.",10,
++contribution_player_pct,player,playerMetrics.contributionShare.label,The player's goals plus assists as a share of the goals the club scored on the pitch in that competition season.,,,,cross_grain,percent,goals,,higher_better,"Share of the club's goals the player was involved in; high = central to the team's attack (position-dependent: a defender's share is naturally low).",1,
++appearances,player,playerMetrics.appearances.label,Matches in which the player was on the pitch.,int_legs__player_match,countif(minutes > 0),,expression,integer,playing_time,,higher_better,"Matches played in the window; high = a regular, low = a squad or rotation player.",10,
++minutes_per_appearance,player,playerMetrics.minutesPerAppearance.label,Average minutes the player was on the pitch per match in which the player played.,int_legs__player_match,sum(minutes),countif(minutes > 0),expression,decimal_0,playing_time,,higher_better,"Average minutes per appearance; high = a full-90 regular, low = a rotation or impact-sub role.",10,
+ goals,team,metrics.goals.label,Goals the team scored.,int_legs__team_match,sum(goals),,expression,integer,goals,false,higher_better,"Attacking output - goals scored; high = a potent attack (a raw count, so it rises with matches played; the per-match rate is the comparable read)",1,
+ goals_against,team,metrics.goals_against.label,Goals the team conceded.,int_legs__team_match,sum(goals_against),,expression,integer,goals,false,lower_better,"Defensive vulnerability - goals conceded; low = a mean defence (a raw count, so a side that has played fewer matches shows a lower total without defending better; the per-match rate is the comparable read)",1,
+ corners,team,metrics.corners.label,Corner kicks the team won.,int_legs__team_match,sum(corners),,expression,integer,set_pieces,false,higher_better,"Corners won - high = sustained attacking pressure (a weak proxy for threat, and a raw count, so it rises with matches played)",7,
 diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
-index d5e1b0c8..a3241a6b 100644
+index a3241a6b..3a125a5c 100644
 --- a/dbt_project/seeds/schema.yml
 +++ b/dbt_project/seeds/schema.yml
-@@ -1308,13 +1308,14 @@ seeds:
- 
-   - name: team_country_corrections
-     description: >
--      A team's country where the provider sends none: one row per team. Applied in
-+      A team's country where the provider sends none or a wrong one: one row per team. Applied in
-       `base_apif__teams_global` and published by `dim_team`. Every row cites the federation, league
-       or competition organiser that lists the team.
-     config:
-       column_types:
-         team_api_id: int64
-         team_country: string
-+        provider_country: string
-         source: string
-         note: string
-     columns:
-@@ -1333,12 +1334,14 @@ seeds:
-           - relationships:
-               to: ref('countries')
-               field: country_name
-+      - name: provider_country
-+        description: "The country the provider sent when the row was written; empty when it sent none."
-       - name: source
--        description: "URL of the official page that lists the team in its country's competition."
-+        description: "URL of the official page that lists the team with its country."
+@@ -445,7 +445,7 @@ seeds:
+           Set by the all-else-equal judgement "is MORE of this better?", NOT by correlation with
+           results or league position — so a style or volume metric still carries a direction.
+           `neutral` is reserved for a metric with genuinely no better/worse pole, such as a
+-          narrative gap or a position-dependent share.
++          narrative gap.
          tests:
-           - not_null
-       - name: note
--        description: "Which competition of that country the team plays in."
-+        description: "What the provider sends, and which competition lists the team."
-         tests:
-           - not_null
+           - accepted_values:
+               values: ["higher_better", "lower_better", "neutral"]
+diff --git a/docs/wireframes/11_team_squad.md b/docs/wireframes/11_team_squad.md
+index 9c72b418..cd414bd0 100644
+--- a/docs/wireframes/11_team_squad.md
++++ b/docs/wireframes/11_team_squad.md
+@@ -118,7 +118,7 @@ Squad members come from the selected season's `squad[]`. All keys **wired** (GAP
+ | Field | Payload key | Source column | Notes |
+ |-------|-------------|---------------|-------|
+ | Appearances | `squad[].appearances` | `mart_player_career.appearances` | matches actually played (minutes > 0) |
+-| Mins per appearance | `squad[].minutes_per_appearance` | `mart_player_career.minutes_per_appearance` | catalogue metric (neutral); read, never divided in the frontend |
++| Mins per appearance | `squad[].minutes_per_appearance` | `mart_player_career.minutes_per_appearance` | catalogue metric; read, never divided in the frontend |
+ | Goals | `squad[].goals` | `mart_player_career.goals_player` | competition-season |
+ | Assists | `squad[].assists` | `mart_player_career.assists_player` | competition-season |
  
-diff --git a/dbt_project/seeds/team_country_corrections.csv b/dbt_project/seeds/team_country_corrections.csv
-index 7c0fc5ab..a17aa3bc 100644
---- a/dbt_project/seeds/team_country_corrections.csv
-+++ b/dbt_project/seeds/team_country_corrections.csv
-@@ -1,79 +1,84 @@
--team_api_id,team_country,source,note
--162,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
--184,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
--190,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
--221,Portugal,https://www.ligaportugal.pt/video/58126/golo!-cf-os-belenenses-sambu-aos-90'+6'-cf-os-belenenses-1-3-cd-nacional,Provider sends no country; Liga Portugal lists CF Os Belenenses.
--225,Portugal,https://www.ligaportugal.pt/video/58126/golo!-cf-os-belenenses-sambu-aos-90'+6'-cf-os-belenenses-1-3-cd-nacional,Provider sends no country; Liga Portugal lists CD Nacional.
--860,Spain,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
--862,Italy,https://www.legab.it/news/trentaduesimi-coppa-italia-si-parte-con-la-b,Provider sends no country; Lega B lists Pordenone in the Coppa Italia.
--878,Italy,https://www.legab.it/seriebkt/alessandria-como-perugia-e-ternana-si-parte,Provider sends no country; Lega B lists Alessandria in the Coppa Italia.
--1301,France,https://www.lfp.fr/article/ligue-2-bkt-le-calendrier-de-la-saison-2026-2027,Provider sends no country; the LFP lists Rodez Aveyron Football in Ligue 2 BKT.
--1544,Macao,https://inside.fifa.com/associations/MAC,"Provider sends no country; FIFA lists the Football Association of Macau, China."
--1622,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
--1649,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; the DFB lists SC Weiche Flensburg 08 in the DFB-Pokal.
--2732,Iran,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Naft Tehran as IRN in the AFC Champions League.
--2772,Thailand,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Chonburi FC as THA in the AFC Champions League.
--3467,India,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Mohun Bagan as IND in the AFC Champions League.
--3668,Vietnam,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Becamex Binh Duong as VIE in the AFC Champions League.
--3772,Australia,https://footballnsw.com.au/club/sydney-fc-boys-youth/,"Provider sends no country; reserve side of Sydney FC, which Football NSW lists in the NPL NSW."
--5258,Spain,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
--6688,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
--7673,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--7755,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2021-22/emirates-fa-cup/the-emirates-fa-cup---list-of-exemptions.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--8018,Vietnam,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Hanoi T&T as VIE in the AFC Champions League.
--8679,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--8688,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--8706,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--8721,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--8731,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--8768,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--8818,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--8823,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--8827,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--8829,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--8874,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--8890,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--8897,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--8916,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--8948,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--8951,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--8960,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--8963,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--9335,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; the DFB lists the club as Türkgücü München in the DFB-Pokal.
--9375,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
--9397,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
--9573,Spain,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
--9581,Spain,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
--9597,Spain,https://rfef.es/es/noticias/asi-quedo-el-sorteo-de-la-primera-y-segunda-ronda-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
--9620,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
--9647,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
--9739,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
--9749,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
--9771,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
--9800,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
--9808,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
--9835,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
--9852,France,https://epreuves.fff.fr/competition/engagement/12-coupe-de-france-credit-agricole/phase/1/8/resultats-et-calendrier,Provider sends no country; the FFF lists Lourdes FC in the Coupe de France.
--9883,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
--12003,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--12089,England,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
--12888,Germany,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
--15332,Spain,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
--16988,England,https://www.thefa.com/news/2021/aug/07/emirates-fa-cup-extra-preliminary-round-wrap-07082021,Provider sends no country; The FA lists the club as Kensington & Ealing Borough in the Emirates FA Cup.
--17499,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
--18087,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
--18088,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
--18089,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
--18091,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
--18092,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
--18093,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
--18094,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
--18095,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
--18097,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
--18098,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
--18099,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
--18100,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
--18101,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
--18102,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
--18103,Spain,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
--19866,South Sudan,https://www.cafonline.com/media/bufbzcow/club-licensing-cl-licensed-clubs-2022-2023.pdf,Provider sends no country; CAF lists Zalan FC under South Sudan.
-+team_api_id,team_country,provider_country,source,note
-+162,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
-+184,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
-+190,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
-+221,Portugal,,https://www.ligaportugal.pt/video/58126/golo!-cf-os-belenenses-sambu-aos-90'+6'-cf-os-belenenses-1-3-cd-nacional,Provider sends no country; Liga Portugal lists CF Os Belenenses.
-+225,Portugal,,https://www.ligaportugal.pt/video/58126/golo!-cf-os-belenenses-sambu-aos-90'+6'-cf-os-belenenses-1-3-cd-nacional,Provider sends no country; Liga Portugal lists CD Nacional.
-+860,Spain,,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
-+862,Italy,,https://www.legab.it/news/trentaduesimi-coppa-italia-si-parte-con-la-b,Provider sends no country; Lega B lists Pordenone in the Coppa Italia.
-+878,Italy,,https://www.legab.it/seriebkt/alessandria-como-perugia-e-ternana-si-parte,Provider sends no country; Lega B lists Alessandria in the Coppa Italia.
-+1301,France,,https://www.lfp.fr/article/ligue-2-bkt-le-calendrier-de-la-saison-2026-2027,Provider sends no country; the LFP lists Rodez Aveyron Football in Ligue 2 BKT.
-+1544,Macao,,https://inside.fifa.com/associations/MAC,"Provider sends no country; FIFA lists the Football Association of Macau, China."
-+1622,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
-+1649,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; the DFB lists SC Weiche Flensburg 08 in the DFB-Pokal.
-+2732,Iran,,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Naft Tehran as IRN in the AFC Champions League.
-+2772,Thailand,,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Chonburi FC as THA in the AFC Champions League.
-+3045,El Salvador,France,https://www.concacaf.com/competitions/champions-cup/news/saprissa-defeats-dragon-breaks-team-sccl-record,Provider sends France; plays in the CONCACAF Champions League for El Salvador.
-+3467,India,,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Mohun Bagan as IND in the AFC Champions League.
-+3668,Vietnam,,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Becamex Binh Duong as VIE in the AFC Champions League.
-+3772,Australia,,https://footballnsw.com.au/club/sydney-fc-boys-youth/,"Provider sends no country; reserve side of Sydney FC, which Football NSW lists in the NPL NSW."
-+5242,Iraq,Sudan,https://www.the-afc.com/en/club/afc_champions_league_elite.html/news/md1-al-shorta-irq-1-1-al-sadd-sc-qat,Provider sends Sudan; plays in the AFC Champions League Elite for Iraq.
-+5258,Spain,,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
-+6414,Equatorial Guinea,Cyprus,https://www.cafonline.com/caf-champions-league/news/road-to-the-semifinal,Provider sends Cyprus; plays in the CAF Champions League for Equatorial Guinea.
-+6688,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+7673,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+7755,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2021-22/emirates-fa-cup/the-emirates-fa-cup---list-of-exemptions.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8018,Vietnam,,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Hanoi T&T as VIE in the AFC Champions League.
-+8679,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8688,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8706,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8721,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8731,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8768,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8818,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8823,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8827,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8829,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8874,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8890,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8897,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8916,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8948,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8951,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8960,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+8963,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+9335,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; the DFB lists the club as Türkgücü München in the DFB-Pokal.
-+9375,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
-+9397,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9573,Spain,,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9581,Spain,,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9597,Spain,,https://rfef.es/es/noticias/asi-quedo-el-sorteo-de-la-primera-y-segunda-ronda-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9620,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9647,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9739,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9749,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9771,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9800,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9808,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9835,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
-+9852,France,,https://epreuves.fff.fr/competition/engagement/12-coupe-de-france-credit-agricole/phase/1/8/resultats-et-calendrier,Provider sends no country; the FFF lists Lourdes FC in the Coupe de France.
-+9883,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
-+12003,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+12089,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
-+12888,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
-+15332,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
-+15565,Djibouti,Austria,https://www.cafonline.com/caf-champions-league/news/2020-21-first-preliminary-round-first-leg-results-x2960/,Provider sends Austria; entered the CAF Champions League for Djibouti.
-+16988,England,,https://www.thefa.com/news/2021/aug/07/emirates-fa-cup-extra-preliminary-round-wrap-07082021,Provider sends no country; The FA lists the club as Kensington & Ealing Borough in the Emirates FA Cup.
-+17499,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18087,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18088,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18089,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18091,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18092,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18093,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18094,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18095,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18097,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18098,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18099,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18100,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18101,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18102,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+18103,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
-+19116,Equatorial Guinea,Paraguay,https://www.cafonline.com/caf-champions-league/news/africa-s-elite-learn-their-path-to-the-group-stages-of-the-totalenergies-caf-champions-league-202627/,Provider sends Paraguay; plays in the CAF Champions League for Equatorial Guinea.
-+19866,South Sudan,,https://www.cafonline.com/media/bufbzcow/club-licensing-cl-licensed-clubs-2022-2023.pdf,Provider sends no country; CAF lists Zalan FC under South Sudan.
-diff --git a/dbt_project/tests/assert_team_country_corrections_still_needed.sql b/dbt_project/tests/assert_team_country_corrections_still_needed.sql
-index 761061d7..8053945f 100644
---- a/dbt_project/tests/assert_team_country_corrections_still_needed.sql
-+++ b/dbt_project/tests/assert_team_country_corrections_still_needed.sql
-@@ -1,5 +1,4 @@
---- A country correction fills a country the provider does not send. Once the provider sends one,
---- the row is dead weight or a disagreement: either way someone must look, so it is reported.
-+-- Flags a row when the provider's country is no longer the one the row recorded.
- --
- -- Compares against base_apif__teams (PRE-correction), deduplicated exactly as
- -- base_apif__teams_global does, so the comparison is against the row that model publishes.
-@@ -27,8 +26,11 @@ provider_country as (
- select
-     corrections.team_api_id,
-     corrections.team_country as corrected_country,
-+    corrections.provider_country as recorded_provider_country,
-     provider.team_country as provider_country
- from import_team_country_corrections as corrections
- inner join provider_country as provider
-     on corrections.team_api_id = provider.team_api_id
--where nullif(trim(provider.team_country), '') is not null
-+where
-+    nullif(trim(provider.team_country), '')
-+    is distinct from nullif(trim(corrections.provider_country), '')
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/acceptance_evidence.md |  18 +-
+#    .claude/task/review_input.patch     | 548 +++++++++---------------------------
+#    2 files changed, 137 insertions(+), 429 deletions(-)
+# ============================================================================

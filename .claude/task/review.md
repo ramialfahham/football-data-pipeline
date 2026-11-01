@@ -1,21 +1,37 @@
-# Review — fix/239-club-regions — 2026-10-31
+# Review — feat/player-metric-labels — 2026-11-01
 
-diff_sha256: 7df8c65650145d1f74c95219a867a96f3a927255f710e96175012ce91ae112dc
+diff_sha256: a802d0f769684fd485d8db109050288281040c686742e3e284937aef2b0e49a5
 
-rounds: 1
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every staged path is in scope_paths; no protected file is touched.
-- The corrections, the provider_country column and the warn test's rule, the region fallback and the YAML texts each carry a recorded approval; decisions_reserved is none.
-- The impact map pastes the dbt ls lineage; base already lets a correction win over the provider's country.
-- No chat quotes, dates or issue numbers in code or docs; no secrets; no new mechanism or recurring cost.
+- Every changed file is in scope_paths; the wireframe edit carries its own dated amendment.
+- The directions, interpretation texts, schema sentence and wireframe edit each carry a recorded approval; decisions_reserved is none.
+- The impact map names every reader of the changed cells, including the glossary export, which the deploy does not run and no page reads.
+- No chat quotes, dates, issue numbers or decision history in the changed files; approved_design none holds, as no site file changes.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Both country CTEs keep one row per country, so the full outer join cannot fan out and team_sk stays unique.
-- The club side wins whenever a club region exists; the clubs CTE keeps its own region, so the fallback cannot loop; national rows keep NULL country columns.
-- base_apif__teams_global applies the correction before the provider's country; the warn test compares against pre-correction base, deduplicated the same way.
-- The warn test treats empty and NULL alike, so the 78 existing rows flag as before; every corrected country exists in countries.
+- Only direction and interpretation change on the three rows, plus one schema.yml sentence and one wireframe word.
+- direction is read in SQL only by the two team marts, filtered to team rows; none of the three is a player benchmark metric, so no served value changes.
+- The export's metric rows are team-only, export_metric_definitions_json reads only lower_better, and metrics.json is not in the deploy's export list.
+- No test or doc pins the removed text or the old directions; generated metric SQL does not read these cells.
+
+## bi-analyst-reviewer
+VERDICT: PASS
+risks_checked:
+- The wireframe row stays correct without "(neutral)"; no other wireframe restates a direction for the three metrics.
+- The built Team Squad renders appearances and minutes per appearance as plain text and never reads direction.
+- Every direction reader under site_v2/src takes team metric rows; no page reads the glossary export.
+- No block, field, sample key or user-visible string is added; the labels stay with the page that first shows them.
+
+## football-analytics-expert-reviewer
+VERDICT: PASS
+risks_checked:
+- Appearances, minutes per appearance and share of team goals are each better when higher, all else equal.
+- Each interpretation still matches its formula and holds only its own meaning; the share keeps its position caveat in brackets.
+- The direction description now reserves neutral for a narrative gap, which the deserved points rows keep.
+- No formula, label, unit or window cell changes; no new or redefined metric.

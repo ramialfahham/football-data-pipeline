@@ -118,7 +118,7 @@ Squad members come from the selected season's `squad[]`. All keys **wired** (GAP
 | Field | Payload key | Source column | Notes |
 |-------|-------------|---------------|-------|
 | Appearances | `squad[].appearances` | `mart_player_career.appearances` | matches actually played (minutes > 0) |
-| Mins per appearance | `squad[].minutes_per_appearance` | `mart_player_career.minutes_per_appearance` | catalogue metric (neutral); read, never divided in the frontend |
+| Mins per appearance | `squad[].minutes_per_appearance` | `mart_player_career.minutes_per_appearance` | catalogue metric; read, never divided in the frontend |
 | Goals | `squad[].goals` | `mart_player_career.goals_player` | competition-season |
 | Assists | `squad[].assists` | `mart_player_career.assists_player` | competition-season |
 
