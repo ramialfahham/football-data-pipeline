@@ -66,13 +66,9 @@ N" + vs-median, honest at N≈18) — never a percentile.
    positional peers; its COLOUR (rule 5) says whether that end is the good one. The mart `percentile` is
    direction-agnostic (by value ascending); read position = `percentile`
    for `higher_better`/`neutral`, `1 − percentile` for `lower_better` (which also mirrors the caption rank to
-   `peer_count + 1 − rank`, since the mart's `rank` is value-descending; so "top"/"1st" mark the better end —
-   dormant, 0 such metrics today); then `>50 → top X%`, `<50 → bottom X%`, `=50 → median` (strong extreme =
-   "top 1%", never "top 0%"). Since the catalogue-wide direction sweep (2026-07-21) **all 18 benchmark metrics
-   are `higher_better`** — 0 neutral and 0 lower_better remain in this set — so "top" reads as quality on every
-   row. (Superseded: this rule used to split the set "11 higher_better / 7 neutral" and warn that for the
-   neutral volume/style metrics "top" meant *most*, not better. Those 7 per-90 volume metrics now carry a
-   direction, so the caveat no longer applies here.)
+   `peer_count + 1 − rank`, since the mart's `rank` is value-descending; so "top"/"1st" mark the better end);
+   then `>50 → top X%`, `<50 → bottom X%`, `=50 → median` (strong extreme =
+   "top 1%", never "top 0%").
 4. **Peers = position group** (GK / DEF / MID / ATT) — position-aware, set at the mart (CPO 2026-06-23).
 5. **One bar, direction-aware colour** (CPO 2026-07-21, v2 design review). ONE bar language across every
    vs-population screen of a player — no bespoke percentile treatment. The Team page compares a team with

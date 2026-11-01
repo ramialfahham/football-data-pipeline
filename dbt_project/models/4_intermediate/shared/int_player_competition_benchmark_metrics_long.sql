@@ -1,5 +1,5 @@
 {#
-  The 18 player competition-benchmark metrics in LONG form, per player-season and position: one row
+  The player competition-benchmark metrics in LONG form, per player-season and position: one row
   per (player_sk, season_sk, position_group, metric_key) where the player enters the benchmark, with
   the value and, for the 5 ratio metrics, the numerator and denominator behind it. The single source
   of the benchmark metric set and of the positions each metric is benchmarked for:
@@ -44,6 +44,7 @@ from season as s,
             s.saves_player, s.saves_player + s.goals_against_player
         ),
         ('passes_per90', ['GK', 'DEF', 'MID', 'ATT'], true, s.passes_per90, null, null),
+        ('ball_actions_per90', ['GK', 'DEF', 'MID', 'ATT'], true, s.ball_actions_per90, null, null),
         (
             'passes_accuracy_player_pct', ['GK', 'DEF', 'MID', 'ATT'], true, s.passes_accuracy_player_pct,
             s.passes_accurate_player, s.passes_player

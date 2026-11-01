@@ -54,12 +54,12 @@ PINNED = {
     "docs/wireframes/09_chrome.md": 4,
     "docs/wireframes/10_home.md": 126,
     "docs/wireframes/11_team_squad.md": 12,
-    "docs/wireframes/12_player_stats.md": 14,
+    "docs/wireframes/12_player_stats.md": 11,
     "docs/wireframes/13_player_career.md": 11,
     "docs/wireframes/14_team_stats.md": 9,
     "docs/wireframes/99_gaps_register.md": 29,
     "docs/wireframes/block_standard.md": 48,
-    "docs/wireframes/metrics_display.md": 32,
+    "docs/wireframes/metrics_display.md": 30,
     "site_v2/src/data/README.md": 5,
 }
 

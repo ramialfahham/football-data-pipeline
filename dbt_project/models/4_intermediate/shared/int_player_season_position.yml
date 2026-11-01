@@ -135,6 +135,8 @@ models:
         description: "{{ doc('dribbles_success_per90') }}"
       - name: passes_per90
         description: "{{ doc('passes_per90') }}"
+      - name: ball_actions_per90
+        description: "{{ doc('ball_actions_per90') }}"
       - name: tackles_per90
         description: "{{ doc('tackles_per90') }}"
       - name: interceptions_per90

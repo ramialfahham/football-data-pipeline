@@ -109,17 +109,12 @@ Display reads it as a position among the player's positional peers:
 - `lower_better` metric → **mirror both**: position = `1 − percentile` **and** the caption rank =
   `peer_count + 1 − rank`, so "top" / "1st" mark the better (low-value) end. The mart is direction-agnostic
   (`percentile` ascending, `rank` descending), so both mirrors are a display-side step.
-  **Defined but dormant — 0 of the 18 metrics are `lower_better` today.**
 
 Then, on a 0–100 scale: **above the median → "top X%"**, **below → "bottom X%"**, **at the median → "median"**
 (the dashed line). The strong extreme reads **"top 1%"**, never "top 0%" (the exact percentile→label rounding,
 and whether the extreme falls back to the `rank` "k of N" form, is a render detail confirmed at the wiring PR).
 
-Since the catalogue-wide direction sweep (2026-07-21) **all 18 metrics are `higher_better`** — 0 neutral and
-0 lower_better — so a high position reads as quality on every row. (Superseded: this used to read "11 are
-`higher_better`, 7 are `neutral`" (`saves_per90`, `passes_per90`, `duels_won_per90`, `defensive_actions_per90`,
-`tackles_per90`, `interceptions_per90`, `blocks_per90`) and warned that for those "top" just meant *most*, not
-better. Those 7 now carry a direction, so the caveat no longer applies here.)
+Each metric's direction is the catalogue's `direction` column.
 
 **Bar colour: direction-aware** (CPO 2026-07-21, v2 design review). ONE bar language across every
 vs-population screen of a player — no bespoke percentile treatment. The Team page compares a team with
@@ -143,12 +138,8 @@ added back here it renders uncoloured, exactly as the team rule already prescrib
 | `dribbles_success_player_pct` | `dribbles_success_player` | `dribbles_attempts_player` |
 | `duels_won_player_pct` | `duels_won_player` | `duels_player` |
 
-The benchmarked set is the **18 metrics** of `int_player_competition_benchmark_metrics_long`, each ranked **within its own
-position group**: **GK** = saves_player, save %, passes, pass accuracy; **DEF / MID / ATT** = passes, pass accuracy,
-goals, assists, scorer points, shots on target, key passes, finishing, dribbles (count + %), duels won
-(count + %), defensive actions, tackles, interceptions, blocks. `finishing_efficiency_player_pct` and `duels_won_player_pct`
-are now catalogued (both `higher_better`, via #530b/#621) — they were the last blockers, so the screen can
-bind all 18 honestly.
+The benchmarked set is the metrics of `int_player_competition_benchmark_metrics_long`, each ranked **within its own
+position group**; that model lists the metrics and the positions each is compared on.
 
 ### (5) Internal links
 
