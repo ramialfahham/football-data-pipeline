@@ -1869,6 +1869,8 @@ models:
         description: "{{ doc('passes_key_player') }}"
       - name: passes_accurate_player
         description: "{{ doc('passes_accurate_player') }}"
+      - name: ball_actions_player
+        description: "{{ doc('ball_actions_player') }}"
       - name: tackles_player
         description: "{{ doc('tackles_player') }}"
       - name: interceptions_player
@@ -3362,11 +3364,11 @@ models:
           - accepted_values:
               values: ["GK", "DEF", "MID", "ATT"]
       - name: metric_key
-        description: "The benchmarked metric — a metric_catalogue player metric_id (the 18-metric set)."
+        description: "The benchmarked metric — a metric_catalogue player metric_id."
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
+              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90", "dribbles_success_per90", "passes_per90", "ball_actions_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
       - name: metric_value
         description: "The player's in-position value for this metric (always present — null values are not ranked)."
         tests: [not_null]

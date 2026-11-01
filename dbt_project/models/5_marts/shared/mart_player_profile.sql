@@ -147,6 +147,7 @@ select
     a.passes_player,
     a.passes_key_player,
     a.passes_accurate_player,
+    a.ball_actions_player,
     a.tackles_player,
     a.interceptions_player,
     a.blocks_player,

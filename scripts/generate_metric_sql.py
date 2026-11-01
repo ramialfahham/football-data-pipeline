@@ -83,7 +83,7 @@ COUNTS = (
 )
 COMPOSITES = (
     "goals_open_play_player", "scorer_points_player", "defensive_actions_player", "cards_player",
-    "shots_on_goal_against_player",
+    "shots_on_goal_against_player", "ball_actions_player",
 )
 RATIOS = (
     "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct",
@@ -92,7 +92,7 @@ RATIOS = (
 PER90 = (
     "goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90",
     "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90",
-    "defensive_actions_per90", "duels_won_per90", "saves_per90",
+    "defensive_actions_per90", "duels_won_per90", "saves_per90", "ball_actions_per90",
 )
 WINDOW_COUNTS = (
     "goals_player", "assists_player", "goals_against_player", "saves_player", "shots_player",
@@ -190,7 +190,7 @@ def _gate(function: str, inner: str, over: str, entity: str, forfeit_counted: bo
 
 def _pieces(expression: str, windowed: bool, entity: str = "player", forfeit_counted: bool = False) -> list:
     """The expression split into plain text and gated aggregates, each aggregate as (inline, broken,
-    broken with its condition on a line of its own).
+    broken with its condition on a line of its own, and that condition split at its first `and`).
 
     A gated aggregate is NULL unless every row it counts has its input (and, for a player, the
     window is complete). On a team surface `count(*)` counts the rows the metric counts."""
@@ -202,13 +202,17 @@ def _pieces(expression: str, windowed: bool, entity: str = "player", forfeit_cou
         position = match.end()
         if match.group(1) is None:
             matches = f"count(*){over}" if forfeit_counted else f"countif(not is_awarded_result){over}"
-            pieces.append((matches, [matches], [matches]))
+            pieces.append((matches, [matches], [matches], [matches]))
             continue
         requirement, value = _gate(match.group(1), match.group(2).strip(), over, entity, forfeit_counted)
         condition = f"logical_and({requirement}){over}"
+        first, _, rest = requirement.partition(" and ")
+        split = [INDENT * 2 + first] + ([INDENT * 2 + "and " + rest] if rest else [])
         pieces.append((f"if({condition}, {value}, null)",
                        ["if(", INDENT + condition + ",", INDENT + value + ",", INDENT + "null", ")"],
                        ["if(", INDENT + "logical_and(", INDENT * 2 + requirement, INDENT + f"){over},",
+                        INDENT + value + ",", INDENT + "null", ")"],
+                       ["if(", INDENT + "logical_and("] + split + [INDENT + f"){over},",
                         INDENT + value + ",", INDENT + "null", ")"]))
     if len(pieces) == 0:
         raise Abort(f"no sum() or countif() in `{expression}`")
@@ -220,13 +224,15 @@ def _inline(pieces: list) -> str:
     return "".join(piece if isinstance(piece, str) else piece[0] for piece in pieces)
 
 
-def _broken(pieces: list, deep: bool = False) -> list[str]:
+def _broken(pieces: list, deep: int = 0) -> list[str]:
+    """`deep` 0 keeps each condition on one line, 1 gives it a line of its own, 2 also splits it at
+    its first `and`."""
     lines = [""]
     for piece in pieces:
         if isinstance(piece, str):
             lines[-1] += piece
         else:
-            form = piece[2] if deep else piece[1]
+            form = piece[1 + deep]
             lines[-1] += form[0]
             lines.extend(form[1:])
     return lines
@@ -242,16 +248,16 @@ def _metric_lines(metric: str, numerator: str, denominator: str, windowed: bool,
     forfeit_counted = entity == "team" and metric in FORFEIT_COUNTED
     top = _pieces(numerator, windowed, entity, forfeit_counted)
     if not denominator:
-        layouts = [[f"{_inline(top)} as {metric}"], _broken(top), _broken(top, deep=True)]
-        layouts[1][-1] += f" as {metric}"
-        layouts[2][-1] += f" as {metric}"
+        layouts = [[f"{_inline(top)} as {metric}"], _broken(top), _broken(top, 1), _broken(top, 2)]
+        for layout in layouts[1:]:
+            layout[-1] += f" as {metric}"
     else:
         bottom = _pieces(denominator, windowed, entity, forfeit_counted)
         layouts = [
             [f"safe_divide({_inline(top)}, {_inline(bottom)}) as {metric}"],
             ["safe_divide(", INDENT + _inline(top) + ",", INDENT + _inline(bottom), f") as {metric}"],
         ]
-        for deep in (False, True):
+        for deep in (0, 1, 2):
             layout = ["safe_divide("] + [INDENT + line for line in _broken(top, deep)]
             layout[-1] += ","
             layouts.append(layout + [INDENT + line for line in _broken(bottom, deep)] + [f") as {metric}"])

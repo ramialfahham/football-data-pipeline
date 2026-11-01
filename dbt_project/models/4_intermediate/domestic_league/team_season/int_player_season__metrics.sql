@@ -121,6 +121,13 @@ select
         sum(saves + goals_against),
         null
     ) as shots_on_goal_against_player,
+    if(
+        logical_and(
+            window_is_complete and (passes + shots + dribbles + tackles + interceptions + blocks + saves) is not null
+        ),
+        sum(passes + shots + dribbles + tackles + interceptions + blocks + saves),
+        null
+    ) as ball_actions_player,
     safe_divide(
         if(logical_and(window_is_complete and passes_accurate is not null), sum(passes_accurate), null),
         if(logical_and(window_is_complete and passes is not null), sum(passes), null)
@@ -200,7 +207,25 @@ select
     safe_divide(
         if(logical_and(window_is_complete and saves is not null), sum(saves), null) * 90,
         if(logical_and(window_is_complete and minutes is not null), sum(minutes), null)
-    ) as saves_per90
+    ) as saves_per90,
+    safe_divide(
+        if(
+            logical_and(
+                window_is_complete
+                and (passes + shots + dribbles + tackles + interceptions + blocks + saves) is not null
+            ),
+            sum(passes + shots + dribbles + tackles + interceptions + blocks + saves),
+            null
+        ) * 90,
+        if(
+            logical_and(
+                window_is_complete
+                and minutes is not null
+            ),
+            sum(minutes),
+            null
+        )
+    ) as ball_actions_per90
     -- end of generated metric sql
 from window_rows
 group by player_sk, league_sk, season_sk, league_code, season_api_year

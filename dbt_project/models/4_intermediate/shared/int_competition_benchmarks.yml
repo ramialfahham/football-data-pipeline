@@ -96,7 +96,7 @@ models:
 
   - name: int_player_competition_benchmark_metrics_long
     description: >
-      The 18 player competition-benchmark metrics in long form, per player-season and position: one
+      The player competition-benchmark metrics in long form, per player-season and position: one
       row per (player_sk, season_sk, position_group, metric_key) where the player enters the
       benchmark, with the value and, for the 5 ratio metrics, its numerator and denominator. The
       single source of the benchmark metric set and of the positions each metric is benchmarked for
@@ -149,11 +149,11 @@ models:
       - name: appearances
         description: "The player's appearances in this position this competition-season."
       - name: metric_key
-        description: "The benchmarked metric — a metric_catalogue player metric_id (the 18-metric set)."
+        description: "The benchmarked metric — a metric_catalogue player metric_id."
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
+              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90", "dribbles_success_per90", "passes_per90", "ball_actions_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
       - name: metric_value
         description: "The player's in-position value for this metric. Rows without a value are left out, so this is never null."
         tests: [not_null]
@@ -190,11 +190,11 @@ models:
           - accepted_values:
               values: ["GK", "DEF", "MID", "ATT"]
       - name: metric_key
-        description: "The benchmarked metric — a metric_catalogue player metric_id (the 18-metric set)."
+        description: "The benchmarked metric — a metric_catalogue player metric_id."
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
+              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90", "dribbles_success_per90", "passes_per90", "ball_actions_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
       - name: player_count
         description: "Players with a non-null value for this metric in this league-season-position — the N for rank-of-N / percentile."
         tests: [not_null]
