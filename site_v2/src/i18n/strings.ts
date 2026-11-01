@@ -84,7 +84,7 @@ const EN: Dict = {
   tabOverview: "Overview",
   tabPerformance: "Performance",
   tabSquad: "Squad",
-  teamPerfIntro: "{competition} {season}: {team} compared with the other teams and with the season before. Other competitions are not included.",
+  teamPerfIntro: "{competition} {season}: {team} compared with the other teams and with the season before, without other competitions.",
   teamLeaguePhase: "League phase",
   teamThrough: "Through",
   teamKnockedOut: "Knocked out",
@@ -103,8 +103,7 @@ const EN: Dict = {
   teamOtherTeams: "Other {competition} teams",
   teamScatterAria: "{pointsName} and {sotdName} per match of every {competition} team, with the {deservedName} line.",
   teamVsLeague: "Compared with the league",
-  teamVsLeagueIntro: "Each value is ranked against the other {competition} clubs this season. The median splits the league in two: half the clubs are above it, half below.",
-  teamLeagueMedian: "League median",
+  teamVsLeagueIntro: "Each value is ranked against the other {competition} clubs this season.",
   teamBetterLeft: "← better",
   teamBetterRight: "better →",
   teamVsLastSeason: "Compared with last season",
@@ -221,7 +220,7 @@ const EN: Dict = {
   // above; and it names no metric, because the sentence sits above all four boards and "top player"
   // carries every one of them equally.
   // The league list is the SHOWN group's members, injected from the data — not a fixed seven.
-  homeTopPlayersIntro: "Current season. The top player from each league in the rankings: {leagues}.",
+  homeTopPlayersIntro: "The top player from each league in this season's rankings: {leagues}.",
   homeTopTeams: "Top teams",
   // ⭐ APPROVED COPY (#41), the second half dictated verbatim in all three locales. Nothing here
   // is a draft and nothing is awaiting sign-off.
@@ -234,7 +233,7 @@ const EN: Dict = {
   // awaiting approval while it was the approved wording, and it justified a "Season to date"
   // wording already rejected. Unapproved copy LOOKING approved and approved copy looking
   // unapproved are the same accumulate-instead-of-replace failure. Replaced, not amended.
-  homeTopTeamsIntro: "Current season. The top team from each league in the rankings: {leagues}.",
+  homeTopTeamsIntro: "The top team from each league in this season's rankings: {leagues}.",
   // A metric's second line: a value averaged over matches, or a share named by its count.
   perMatch: "per match",
   percentage: "percentage",
@@ -327,7 +326,7 @@ const EN: Dict = {
   compTBC: "TBC",
   compTopMatch: "Top match",
   compSecDeserved: "{deservedName} table",
-  compDeservedExplainer: "{deservedName} are the points a team's {sotdName} usually earns. {sotdNameStart} is the team's {sotName} minus its opponents' {sotName}. Teams with fewer points than deserved are better than the table says; teams with more are worse.",
+  compDeservedExplainer: "{deservedName} are the points a team's {sotdName} usually earns; a team with fewer is better than the table says.",
   compSecTeamRankings: "Team rankings",
   compSecPlayerRankings: "Player rankings",
   compTeamRankingsIntro: "The leading teams {in} this season, metric by metric.",
@@ -510,7 +509,7 @@ const DE: Dict = {
   tabOverview: "Übersicht",
   tabPerformance: "Leistung",
   tabSquad: "Kader",
-  teamPerfIntro: "{competition} {season}: {team} im Vergleich mit den anderen Mannschaften und mit der Vorsaison. Andere Wettbewerbe sind nicht enthalten.",
+  teamPerfIntro: "{competition} {season}: {team} im Vergleich mit den anderen Mannschaften und mit der Vorsaison, ohne andere Wettbewerbe.",
   teamLeaguePhase: "Ligaphase",
   teamThrough: "Weiter",
   teamKnockedOut: "Ausgeschieden",
@@ -529,8 +528,7 @@ const DE: Dict = {
   teamOtherTeams: "Übrige Klubs der Liga",
   teamScatterAria: "Punkte und Torschussdifferenz pro Spiel aller Mannschaften der Liga, mit der Linie der verdienten Punkte.",
   teamVsLeague: "Im Vergleich zur Liga",
-  teamVsLeagueIntro: "Alle Werte im Vergleich mit den übrigen Klubs der Liga in dieser Saison. Der Median teilt die Liga in zwei Hälften: Die eine Hälfte der Klubs liegt darüber, die andere darunter.",
-  teamLeagueMedian: "Liga-Median",
+  teamVsLeagueIntro: "Alle Werte im Vergleich mit den übrigen Klubs der Liga in dieser Saison.",
   teamBetterLeft: "← besser",
   teamBetterRight: "besser →",
   teamVsLastSeason: "Im Vergleich zur Vorsaison",
@@ -609,11 +607,11 @@ const DE: Dict = {
   // women's teams means changing this string properly.
   // `Die Top-Mannschaft` below is NOT affected — Mannschaft is the standard German
   // word for a women's team too. EN and FI are unaffected; Finnish has no grammatical gender.
-  homeTopPlayersIntro: "Aktuelle Saison. Der Top-Spieler jeder Liga in den Ranglisten: {leagues}.",
+  homeTopPlayersIntro: "Der Top-Spieler jeder Liga in den Ranglisten dieser Saison: {leagues}.",
   homeTopTeams: "Top-Mannschaften",
   // Approved copy (#41). It mirrors the DE players line above — both approved together — and
   // avoids "Führende", the German trap the "leader" rejection points at.
-  homeTopTeamsIntro: "Aktuelle Saison. Die Top-Mannschaft jeder Liga in den Ranglisten: {leagues}.",
+  homeTopTeamsIntro: "Die Top-Mannschaft jeder Liga in den Ranglisten dieser Saison: {leagues}.",
   perMatch: "pro Spiel",
   percentage: "in Prozent",
   homeNoFixtures: "Derzeit sind keine Spiele angesetzt.",
@@ -692,7 +690,7 @@ const DE: Dict = {
   compTBC: "Offen",
   compTopMatch: "Topspiel",
   compSecDeserved: "Tabelle nach verdienten Punkten",
-  compDeservedExplainer: "{deservedName} sind die Punkte, die eine Mannschaft mit ihrer {sotdName} in der Regel holt. Die {sotdName} ist die Zahl der eigenen {sotName} minus die der Gegner. Teams mit weniger Punkten als verdient sind besser, als es die Tabelle zeigt; Teams mit mehr sind schlechter.",
+  compDeservedExplainer: "{deservedName} sind die Punkte, die eine Mannschaft mit ihrer {sotdName} in der Regel holt; ein Team mit weniger ist besser, als es die Tabelle zeigt.",
   compSecTeamRankings: "Mannschafts-Ranglisten",
   compSecPlayerRankings: "Spieler-Ranglisten",
   compTeamRankingsIntro: "Die besten Mannschaften {in} in dieser Saison, Kennzahl für Kennzahl.",
@@ -890,7 +888,7 @@ const FI: Dict = {
   tabOverview: "Yleiskatsaus",
   tabPerformance: "Suoritus",
   tabSquad: "Kokoonpano",
-  teamPerfIntro: "{competition} {season}: {team} verrattuna muihin joukkueisiin ja edelliseen kauteen. Muut kilpailut eivät ole mukana.",
+  teamPerfIntro: "{competition} {season}: {team} verrattuna muihin joukkueisiin ja edelliseen kauteen, ilman muita kilpailuja.",
   teamLeaguePhase: "Liigavaihe",
   teamThrough: "Jatkoon",
   teamKnockedOut: "Pudonnut",
@@ -909,8 +907,7 @@ const FI: Dict = {
   teamOtherTeams: "Sarjan muut joukkueet",
   teamScatterAria: "Sarjan kaikkien joukkueiden pisteet ja maalilaukausero per ottelu sekä ansaittujen pisteiden viiva.",
   teamVsLeague: "Verrattuna sarjaan",
-  teamVsLeagueIntro: "Kaikkia lukuja verrataan sarjan muihin joukkueisiin tällä kaudella. Mediaani jakaa sarjan kahtia: puolet joukkueista on sen yläpuolella, puolet alapuolella.",
-  teamLeagueMedian: "Sarjan mediaani",
+  teamVsLeagueIntro: "Kaikkia lukuja verrataan sarjan muihin joukkueisiin tällä kaudella.",
   teamBetterLeft: "← parempi",
   teamBetterRight: "parempi →",
   teamVsLastSeason: "Verrattuna edelliskauteen",
@@ -980,11 +977,11 @@ const FI: Dict = {
   seoHomeDesc: "Tulevat ottelut kaikista kattamistamme kilpailuista.",
   homeNext: "Seuraavat ottelut",
   homeTopPlayers: "Kärkipelaajat",
-  homeTopPlayersIntro: "Tämä kausi. Kunkin sarjan kärkipelaaja ranking-listoilla: {leagues}.",
+  homeTopPlayersIntro: "Kunkin sarjan kärkipelaaja tämän kauden ranking-listoilla: {leagues}.",
   homeTopTeams: "Kärkijoukkueet",
   // Approved copy (#41), mirroring the FI players line above — `kärkipelaaja` there,
   // `kärkijoukkue` here.
-  homeTopTeamsIntro: "Tämä kausi. Kunkin sarjan kärkijoukkue ranking-listoilla: {leagues}.",
+  homeTopTeamsIntro: "Kunkin sarjan kärkijoukkue tämän kauden ranking-listoilla: {leagues}.",
   perMatch: "ottelua kohden",
   percentage: "prosentteina",
   homeNoFixtures: "Ei otteluita tällä hetkellä.",
@@ -1063,7 +1060,7 @@ const FI: Dict = {
   compTBC: "Avoin",
   compTopMatch: "Huippuottelu",
   compSecDeserved: "Ansaittujen pisteiden taulukko",
-  compDeservedExplainer: "{deservedName} ovat pisteet, jotka joukkueen {sotdName} yleensä tuo. {sotdNameStart} on joukkueen omat {sotName} miinus vastustajien {sotName}. Joukkue, jolla on vähemmän pisteitä kuin se ansaitsisi, on parempi kuin sarjataulukko kertoo; joukkue, jolla on enemmän, on huonompi.",
+  compDeservedExplainer: "{deservedName} ovat pisteet, jotka joukkueen {sotdName} yleensä tuo; joukkue, jolla on vähemmän, on parempi kuin sarjataulukko kertoo.",
   compSecTeamRankings: "Joukkuerankingit",
   compSecPlayerRankings: "Pelaajarankingit",
   compTeamRankingsIntro: "Parhaat joukkueet {in} tällä kaudella, tilasto kerrallaan.",

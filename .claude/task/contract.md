@@ -1,86 +1,70 @@
-# Task contract — Ball actions, a new player metric
+# Task contract — the Team page's league strip plot and scatter labels
 
 objective: >
-  The catalogue gains two player metrics: ball_actions_player, the passes, shots, dribbles,
-  tackles, interceptions, blocks and saves a player made, and ball_actions_per90, the same per 90
-  minutes played. The generator writes both into the player season models; the count is served in
-  mart_player_profile and the per 90 in the position-peer comparison, as every existing count and
-  per-90 metric is. A hand-worked answer key proves both values.
+  The Team page's "Compared with the league" strip plot drops the league median and shows the
+  team's rank first with its value under it, keeping the "better" marker (#241). The deserved
+  points scatter puts the difference label on the side of the dot opposite the team name, so the
+  two never overlap (#242). Five explainers become the approved one-sentence texts, and the block
+  standard's two strip plot rows say what the row now shows.
 
 refs: >
-  #136, the Player page review, where the metric was defined (definition, texts, group and
-  direction approved in chat, 2026-11-01, recorded on #136; this MR's plan approved in chat,
-  2026-11-01).
+  #241, the strip plot and the explainer texts; #242, the scatter label overlap. The plan and its
+  texts approved in chat, 2026-11-01.
 
 scope_paths:
-  - dbt_project/seeds/metric_catalogue.csv
-  - dbt_project/seeds/metric_map.csv
-  - dbt_project/seeds/player_season_answer_key.csv
-  - dbt_project/seeds/schema.yml
-  - scripts/generate_metric_sql.py
-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-  - dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
-  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
-  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
-  - dbt_project/models/4_intermediate/shared/int_player_competition_benchmark_metrics_long.sql
-  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
-  - dbt_project/models/5_marts/shared/mart_player_profile.sql
-  - dbt_project/models/5_marts/shared/shared.yml
-  - dbt_project/models/docs/metric_columns.md
-  - docs/wireframes/12_player_stats.md
-  - docs/wireframes/metrics_display.md
-  - tests/test_no_decision_history_in_docs.py
-  - tests/test_sentence_length_in_docs.py
+  - site_v2/src/components/team/TeamLeagueStrips.astro
+  - site_v2/src/components/team/TeamDeserved.astro
+  - site_v2/src/styles/system.css
+  - site_v2/src/i18n/strings.ts
+  - site_v2/src/specs/teams/team.spec.json
+  - site_v2/scripts/check-built-pages.mjs
+  - site_v2/scripts/check-built-pages.test.mjs
+  - docs/wireframes/block_standard.md
+  - docs/wireframes/02_team_profile.md
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
   - .claude/task/acceptance_evidence.md
+  - .claude/task/rendered_page_evidence.md
 
 impact_map: >
-  `.venv/Scripts/dbt.exe ls --project-dir dbt_project --select int_player_season__metrics+
-  int_player_season_position__metrics+ int_player_competition_benchmark_metrics_long+
-  mart_player_profile+ metric_catalogue+ player_season_answer_key+ --resource-type model` lists
-  int_player_competition_benchmark_metrics_long, int_player_competition_benchmarks,
-  int_player_season__metrics, int_player_season_position__metrics, mart_leaderboards,
-  mart_player_competition_benchmarks, mart_player_profile, mart_team_competition_benchmarks,
-  mart_team_leaderboards.
-  The two season models and mart_player_profile gain columns; the benchmark models gain
-  ball_actions_per90 rows for every player-season-position that clears the existing floors. The
-  team marts and mart_leaderboards read the catalogue but select team rows or named boards, so
-  they gain nothing. On prod data the season model keeps its 193,804 rows. The glossary export
-  (metrics.json, not deployed) gains the two catalogue rows, and the player payload (`players`,
-  not in the deploy's export list) gains `seasons[].ball_actions_player` and a
-  `ball_actions_per90` benchmark member. No page reads any of it.
-  blast_radius: two new columns and new benchmark rows; no existing value changes.
+  No dbt model and no export change; no data file changes. Consumption only: two Team page
+  components, their CSS rules and five i18n keys. `teamLeagueMedian` is read only by
+  TeamLeagueStrips.astro and listed in the Team page spec (grep over site_v2/src); `compDeservedExplainer` is read by the Team
+  page's TeamDeserved.astro and the competition page's DeservedTable.astro;
+  `homeTopPlayersIntro` and `homeTopTeamsIntro` by Home's TopPlayers.astro and TopTeams.astro;
+  `teamPerfIntro` by the Team page; `teamVsLeagueIntro` by TeamLeagueStrips.astro. The `.rs-*`
+  rules are used only by TeamLeagueStrips.astro.
+  blast_radius: the Team page Performance tab (strip plot, scatter, two explainers), the
+  competition page's deserved points explainer and Home's two top-list explainers, in all three
+  locales. No served number changes.
 
 approved_design:
-  - none: no page output changes; no page shows either metric, and the labels ship with the page that first does
+  - team: #134
+  - competition: #129
+  - home: #127
+
+acceptance_criteria:
+  - "On the built Team page, the Compared with the league rows show no median tick and no median value; the legend lists the team first, then the other clubs; each row's right column shows the rank first in bold with the value under it; the better marker remains."
+  - "On every built Team page with the deserved points scatter, in both the wide and the narrow chart, the bounding boxes of the team name and the difference label do not overlap, and the difference label stays inside the chart without reaching the y axis; the built-pages check holds the placement on every build."
+  - "teamVsLeagueIntro, compDeservedExplainer, homeTopPlayersIntro, homeTopTeamsIntro and teamPerfIntro render the approved one-sentence texts in EN, DE and FI; teamLeagueMedian is gone from strings.ts."
+  - "block_standard.md's Strip plot row and Strip plot value rows carry the approved texts, and check_design_inventory.py --no-mocks passes."
 
 decisions_taken: >
-  Approved in chat, 2026-11-01: the definition (passes + shots + dribbles + tackles +
-  interceptions + blocks + saves, duels left out), the count and per-90 forms, the ids, the
-  description and interpretation texts, group Passing and direction higher_better; labels ship
-  with the page that first shows the metric. The plan approved in chat, 2026-11-01: the count is
-  served in mart_player_profile and the per 90 in the position-peer comparison for all four
-  positions, like passes_per90.
+  Approved in chat, 2026-11-01: the plan for #241 and #242, the five explainer texts in EN, DE and
+  FI, and the two block standard texts. The difference label takes the side of the dot opposite
+  the name, in both charts. The deserved points components keep passing the names the old
+  explainer used; t() ignores a name the text does not use. No new mechanism, no recurring cost.
 
 decisions_reserved:
   - "none: every decision of this task is approved, see decisions_taken"
 
-acceptance_criteria:
-  - "The catalogue holds ball_actions_player and ball_actions_per90 with the approved formula, texts, group Passing and direction higher_better."
-  - "int_player_season__metrics carries both, written by the generator; mart_player_profile serves the count and mart_player_competition_benchmarks serves the per 90 for all four positions."
-  - "The answer key proves both values for the five hand-worked player-seasons."
-  - "No existing column or row count changes."
+done_when:
+  - npm run build in site_v2 (node tests, SEO audit, built-pages check), the full pytest, the offline gates and check_design_inventory.py --no-mocks pass.
+  - The built Team page Performance tab, a competition page and Home are checked in the Browser pane at 280, 360, 560, 768 and 1010px in EN, DE and FI.
+  - The scatter name and difference label boxes are measured on every built Team page and none overlap.
 
 amendments:
-  - "Implementation within the approved plan, reported in chat, 2026-11-01: the generator gains one more layout, a null check split at its first 'and', used only when no other layout fits; it changes no existing metric's SQL."
-  - "Approved in chat, 2026-11-01, strip-only: 12_player_stats.md and metrics_display.md stop restating the benchmark set's count, members and directions and point to the catalogue's direction column and to int_player_competition_benchmark_metrics_long; the benchmark model and yml descriptions drop the set's count. The two doc ratchet tests lower their pinned counts for the two files, as the tests require when a cleanup removes history lines or long sentences."
-
-  - "Approved in chat, 2026-11-01: the two rows' descriptions name the passes, shots and dribbles the player attempted and the tackles, interceptions, blocks and saves the player made; the interpretation reads as involvement in play on or off the ball, and the count adds the raw-count minutes caveat."
-  - "Approved in chat, 2026-11-01: the per-90 description drops its second 'the player' to stay within the docs sentence limit."
-
-done_when:
-  - The generator and docs-sync checks, dbt parse, SQLFluff, pytest, the offline gates and the site's node tests pass.
-  - The changed models run on prod data give the answer key's values and change no existing column or row count.
+  - "Implementation within the approved plan, 2026-11-01: removing teamLeagueMedian, approved in chat, 2026-11-01, also removes it from the Team page spec's i18n key list (team.spec.json), which the build's page-spec check reads."
+  - "Implementation within the approved plan, 2026-11-01: the rank now leads the strip plot's right column (approved in chat, 2026-11-01), so the built-pages check reads the shown rank from that place instead of from under the value, and its test row is built the same way; the check still compares every row's shown rank with the served one."
+  - "Approved in chat, 2026-11-01, after review: where the difference label, on the side opposite the name, would reach the y axis, it moves to the name's side, one line under the name; the built-pages check fails a built Team page whose scatter label is neither opposite the name across the dot nor under it, with a test row that fails when the placement is reverted; the Team page wireframe's Compared with the league row drops `league_median`, strip-only."

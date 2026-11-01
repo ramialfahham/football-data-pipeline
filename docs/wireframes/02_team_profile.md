@@ -98,7 +98,7 @@ The page has the site's one width, 960px, and a single column at every width.
 | Tab explainer | the featured season's competition name and `season_label` | one sentence under the tab bar |
 | Standing | `latest_rank`, `points_rank_prev_season`, `points_this_season`, `points_prev_season` | fact rows; the points and both "Season before" values come from the official table on the day of the team's Nth match |
 | Deserved points | `played`, `shots_on_goal_difference_per_match`, `points`, `deserved_points`, `deserved_points_gap`, `deserved_scatter[]` | the competition page's explainer; the table's head reads "{competition}, after {n} matches"; the line joins the deserved points of the two teams at the ends of the axis |
-| Compared with the league | `benchmarks[]`: `metric_value`, `rank`, `league_median`; `league_strip[]` | one strip per served metric with a value; the rank is the warehouse's, by the metric's direction |
+| Compared with the league | `benchmarks[]`: `metric_value`, `rank`; `league_strip[]` | one strip per served metric with a value; the rank is the warehouse's, by the metric's direction |
 | Compared with last season | `benchmarks[]`: `metric_value`, `metric_value_prev_season`; `yoy_games_played_cutoff` | the trend compares the shown values by the metric's direction |
 
 Both comparisons show the key metrics (`is_key_metric`) until the switch "Show all metrics" is on.
