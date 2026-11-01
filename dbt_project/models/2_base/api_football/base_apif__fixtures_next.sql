@@ -13,6 +13,33 @@ latest as (
     ) = 1
 ),
 
+-- A team id two clubs share, corrected inside the one fixture named, from
+-- seeds/fixture_team_id_overrides.csv. The match feeds read their participants from here.
+fixture_overrides as (
+    select
+        cast(fixture_id as int64) as fixture_id,
+        cast(wrong_team_api_id as int64) as wrong_team_api_id,
+        cast(correct_team_api_id as int64) as correct_team_api_id
+    from {{ ref('fixture_team_id_overrides') }}
+    where mode = 'reattribute_in_fixture'
+),
+
+corrected as (
+    select
+        latest.* except (home_team_id, away_team_id),
+        coalesce(home_override.correct_team_api_id, latest.home_team_id) as home_team_id,
+        coalesce(away_override.correct_team_api_id, latest.away_team_id) as away_team_id
+    from latest
+    left join fixture_overrides as home_override
+        on
+            latest.fixture_id = home_override.fixture_id
+            and latest.home_team_id = home_override.wrong_team_api_id
+    left join fixture_overrides as away_override
+        on
+            latest.fixture_id = away_override.fixture_id
+            and latest.away_team_id = away_override.wrong_team_api_id
+),
+
 -- The league's official result where the provider's differs, from seeds/fixture_result_corrections.csv.
 result_corrections as (
     select * from {{ ref('fixture_result_corrections') }}
@@ -65,6 +92,6 @@ select
                 when coalesce(c.goals_away, f.goals_away) > coalesce(c.goals_home, f.goals_home) then f.away_team_id
             end
     end as winner_team_id
-from latest as f
+from corrected as f
 left join result_corrections as c
     on f.fixture_id = c.fixture_id

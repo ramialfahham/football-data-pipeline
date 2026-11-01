@@ -548,7 +548,8 @@ seeds:
   - name: fixture_team_id_overrides
     description: >
       Corrections for known API-Football fixture-level team-id defects. Hand-authored, one row per
-      wrong source team id: what it should resolve to, and how to apply it. Applied to all three
+      wrong source team id, or per wrong id and fixture for `reattribute_in_fixture`: what it
+      should resolve to, and how to apply it. Applied to all three
       fixture-level feeds — events, team statistics and player statistics — and to the team keys
       the entity dimension takes from them, so one row corrects a mis-attribution everywhere it
       appears rather than in whichever feed happened to be looked at.
@@ -557,6 +558,9 @@ seeds:
       `reattribute_if_cohabiting` replaces it only in fixtures where the correct team is a
       participant and the wrong one is not: a mis-attribution between two DISTINCT clubs, so the
       wrong club's own rows are never touched.
+      `reattribute_in_fixture` replaces it only inside the one fixture the row names, in the
+      fixture list too: two clubs share the provider's id there, so no participant check can tell
+      them apart. It outranks the other two modes.
 
       Add a row only with EXTERNALLY verified evidence; never infer a duplicate from name
       similarity within our own data.
@@ -565,13 +569,19 @@ seeds:
         wrong_team_api_id: int64
         correct_team_api_id: int64
         mode: string
+        fixture_id: int64
         note: string
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [wrong_team_api_id, fixture_id]
+      - dbt_utils.expression_is_true:
+          expression: "(fixture_id is not null) = (mode = 'reattribute_in_fixture')"
+          name: fixture_team_id_overrides_fixture_id_only_in_fixture_mode
     columns:
       - name: wrong_team_api_id
         description: "The team_api_id the provider's fixture-level feeds wrongly emit."
         tests:
           - not_null
-          - unique
       - name: correct_team_api_id
         description: >
           The team_api_id the row should resolve to. Must exist in dim_team: this value is hand
@@ -584,11 +594,13 @@ seeds:
               to: ref('dim_team')
               field: team_api_id
       - name: mode
-        description: "alias = unconditional duplicate-id replacement; reattribute_if_cohabiting = participant-gated mis-attribution fix."
+        description: "alias = unconditional duplicate-id replacement; reattribute_if_cohabiting = participant-gated mis-attribution fix; reattribute_in_fixture = replacement inside the one fixture named in fixture_id."
         tests:
           - not_null
           - accepted_values:
-              values: ["alias", "reattribute_if_cohabiting"]
+              values: ["alias", "reattribute_if_cohabiting", "reattribute_in_fixture"]
+      - name: fixture_id
+        description: "The fixture a reattribute_in_fixture row corrects; empty for the other two modes."
       - name: note
         description: "Human note + external-evidence reference for the correction (required — the governance control)."
         tests:
@@ -1272,7 +1284,8 @@ seeds:
       A row is justified by a COLLISION (two real clubs sharing a label, e.g. "Rangers") or by a
       name unique but incomplete against an external source ("Arsenal" for Arsenal FC); `note`
       says which. Add one only where an authoritative external source disagrees with the provider,
-      and cite it — never taste, never a nickname, never a locale preference.
+      and cite it — never taste, never a nickname, never a locale preference. A team id of our
+      own, for a club the provider has no id for, has no provider name, so its row gives the name.
 
       It does NOT fold duplicate provider ids.
     config:

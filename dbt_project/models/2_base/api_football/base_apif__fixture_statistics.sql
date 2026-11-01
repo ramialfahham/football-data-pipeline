@@ -81,12 +81,14 @@ fixture_participants as (
 -- seeds/fixture_team_id_overrides.csv. `alias` = unconditional duplicate-id replacement (one club
 -- under two provider ids); `reattribute_if_cohabiting` = replace only when the correct id is a
 -- fixture participant and the wrong id is not (a mis-attribution between two DISTINCT clubs, so a
--- club's own legitimate statistics are never touched).
+-- club's own legitimate statistics are never touched); `reattribute_in_fixture` = replace inside
+-- the one fixture named, where two clubs share the id, and it outranks the other two.
 overrides as (
     select
         cast(wrong_team_api_id as int64) as wrong_team_api_id,
         cast(correct_team_api_id as int64) as correct_team_api_id,
-        mode
+        mode,
+        cast(fixture_id as int64) as fixture_id
     from {{ ref('fixture_team_id_overrides') }}
 ),
 
@@ -98,11 +100,17 @@ corrected as (
     select
         pivoted.* except (team_id),
         coalesce(
+            fixture_override.correct_team_api_id,
             alias_override.correct_team_api_id,
             reattribute_override.correct_team_api_id,
             pivoted.team_id
         ) as team_id
     from pivoted
+    left join overrides as fixture_override
+        on
+            pivoted.team_id = fixture_override.wrong_team_api_id
+            and pivoted.fixture_id = fixture_override.fixture_id
+            and fixture_override.mode = 'reattribute_in_fixture'
     left join overrides as alias_override
         on
             pivoted.team_id = alias_override.wrong_team_api_id
