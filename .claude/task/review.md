@@ -1,26 +1,34 @@
-# Review — fix/238-red-star-own-id
+# Review — fix/231-tag-narrow-form — 2026-11-01
 
-diff_sha256: 8522a29667dee2c56cc33a012870bc5c63dbee444e8e9d78e05f025e6e00f3ba
+diff_sha256: bcbf94d91bf68fd0f7a9674dffb5f5d4eab07080e6781cc71e1e9bdea79d1a2f
 
-rounds: 2
+rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- All 14 changed paths are in scope_paths: three seeds, seeds/schema.yml, six base models, base.yml, two tests and contract.md.
-- The -1 id, its name and country, the reattribute_in_fixture mode and the new test are declared in decisions_taken; the new mechanism is declared; no metric, URL, label, cadence or recurring cost changes.
-- decisions_reserved is honest: only fixtures 1239850 and 1239851 are keyed, and the three other shared-id clubs are untouched.
-- impact_map carries the dbt ls lineage (79 models, 29 marts), deploy order and blast radius; approved_design none holds, as no page surface is touched.
-- Doc sync: the two yml files that describe the overrides are updated; no secrets, dates, decision history or bare issue numbers added.
+- Every file in the diff is in scope_paths, and no file outside it changed.
+- The narrow form, the plan and the two block standard texts are named in decisions_taken as approved in chat, 2026-11-01; the Tag row sentence matches acceptance criterion 3; nothing else is decided in the diff.
+- The new "tagged" kind is a block type inside the existing shared fit script, declared as no new mechanism; no library, hook, service, run or API volume is added; no recurring cost.
+- The impact map's three callers were checked by grep: HeroFixtures.astro, MatchdaySchedule.astro and TeamFixtureGroup.astro are the only callers passing topMatch or nextMatch; approved_design names exactly their three pages.
+- The green.html fit-one mark and the history pin moving from 48 to 47 match the contract amendments and the diff.
 
-## analytics-engineer-reviewer
+## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Every team-id reader of the fixture list, the four match feeds and the team keys takes the correction; no other base model reads a fixture team id from staging.
-- The new joins are unique on (wrong id, fixture_id) by the seed test; null fixture_id never joins, so the older rows are untouched; the new mode outranks the other two and the player's-team resolution stays ahead of it, built from corrected events.
-- A negative id passes dim_team, the seed relationship tests and the still-needed tests; no sentinel or positive-id filter exists.
-- The new test fails on uncorrected data and passes on corrected data, as the prod reads show.
-- Round 2: the slug concern is cleared by the prod read; -1 takes red-star, 104 keeps red-star-fc-93, and no other team's slug changes.
+- No data, export, component markup or user-visible string changes; the tag text still comes from compNextTag and compTopMatch.
+- The rendered evidence gives measured boxes over 108 pages at 280, 360, 560, 768 and 1010px: 52 failing views before, 0 of 1,620 after, the narrow tag at x=16 above the home name.
+- The fit-one overrides are strictly more specific than the narrow base rules, so the wide form wins when marked and the narrow form is the default without the script; no other file styles `.fxrow` or `.topmatch`.
+- No metric row, tier, order, percentage, null or window label is touched.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- fit() in fitBlocks.mjs is idempotent for the "tagged" kind: it measures only the wide form, always finds a `.sides` child, and the ResizeObserver re-run settles without oscillating; hidden rows are re-measured on `change`.
+- The CSS cascade in system.css: the fit-one rules out-rank the narrow defaults, and DOM order puts the tag before the kick-off in the wide form.
+- The measure is valid: an unbreakable word wider than the `minmax(0, 1fr)` column makes `.sides` scrollWidth exceed clientWidth.
+- Coverage: the Fitted block row's fit-marked assertion fails a tagged row left unmarked; the narrow placement itself is pinned only by the task's measurement, as for every other fitted block.
+- check-built-pages.mjs reads the server-rendered class only, which fit-one does not touch; no dependency, credential, hook or CI change.
 
 ## escalations
 (none)

@@ -452,8 +452,14 @@ a.cnm .nm { text-decoration: none; }
   text-transform: uppercase; white-space: nowrap;
 }
 .nexttag { margin-left: 8px; }
-.fxrow .topmatch { align-self: center; margin-right: 10px; }
-.fxrow:has(.topmatch) { grid-template-columns: minmax(0, 1fr) max-content 41px; }
+/* The tag stands before the kick-off while the names keep their space beside it (fitBlocks.mjs marks
+   the row fit-one); otherwise, and without the script, it takes its own line above the home team. */
+.fxrow:has(.topmatch) { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
+.fxrow .topmatch { grid-column: 1 / -1; grid-row: 1; justify-self: start; }
+.fxrow:has(.topmatch) > .sides, .fxrow:has(.topmatch) > .when { grid-row: 2; }
+.fxrow.fit-one:has(.topmatch) { grid-template-columns: minmax(0, 1fr) max-content 41px; }
+.fxrow.fit-one .topmatch { grid-column: auto; grid-row: auto; align-self: center; margin-right: 10px; }
+.fxrow.fit-one:has(.topmatch) > .sides, .fxrow.fit-one:has(.topmatch) > .when { grid-row: auto; }
 /* THE FOLD (components/ui/Fold.astro) — the revealed rows join the list they continue
    (`display: contents`, so they also fill a grid's columns), and the control reads as one more row
    under whatever is shown: "Show all {n}" with the chevron down, "Show less" with it up. */

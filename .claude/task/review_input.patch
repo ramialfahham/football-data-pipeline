@@ -1,10 +1,10 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index d5dd0f96..03364d47 100644
+index d5dd0f96..5021a7f7 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,70 +1,81 @@
+@@ -1,26 +1,21 @@
 -# Task contract — the Team page's league strip plot and scatter labels
-+# Task contract — Red Star de Bangui gets its own team id
++# Task contract — the match row's tag on narrow screens
  
  objective: >
 -  The Team page's "Compared with the league" strip plot drops the league median and shows the
@@ -12,46 +12,35 @@ index d5dd0f96..03364d47 100644
 -  points scatter puts the difference label on the side of the dot opposite the team name, so the
 -  two never overlap (#242). Five explainers become the approved one-sentence texts, and the block
 -  standard's two strip plot rows say what the row now shows.
-+  The provider files Red Star de Bangui (Central African Republic) under Red Star FC 93's team id
-+  104 in two CAF Champions League 2024 matches, fixtures 1239850 and 1239851. Red Star de Bangui
-+  has no provider id. It gets our own team id -1, named Red Star, country Central African
-+  Republic, and both matches move to it in the fixture list and every match feed. Red Star FC 93
-+  keeps all its own matches.
++  A match row's tag (Top match on Home and the competition matchdays, Next on the Team page) no
++  longer covers a team name. A tagged row whose names fit keeps the tag before the kick-off; a row
++  that does not fit takes its narrow form, the tag on its own line above the home team,
++  left-aligned. The row is measured per page and language by the shared fit script.
  
  refs: >
 -  #241, the strip plot and the explainer texts; #242, the scatter label overlap. The plan and its
 -  texts approved in chat, 2026-11-01.
-+  `#238`, Red Star FC 93 shows two CAF Champions League matches Red Star de Bangui played. Plan
-+  (path A) approved in chat via plan mode.
++  #231, the rule that a team name never runs outside its space at 280–1010px. The narrow form and
++  the plan approved in chat, 2026-11-01.
  
  scope_paths:
 -  - site_v2/src/components/team/TeamLeagueStrips.astro
 -  - site_v2/src/components/team/TeamDeserved.astro
--  - site_v2/src/styles/system.css
+   - site_v2/src/styles/system.css
 -  - site_v2/src/i18n/strings.ts
 -  - site_v2/src/specs/teams/team.spec.json
 -  - site_v2/scripts/check-built-pages.mjs
 -  - site_v2/scripts/check-built-pages.test.mjs
--  - docs/wireframes/block_standard.md
++  - site_v2/src/lib/fitBlocks.mjs
+   - docs/wireframes/block_standard.md
 -  - docs/wireframes/02_team_profile.md
-+  - dbt_project/seeds/fixture_team_id_overrides.csv
-+  - dbt_project/seeds/team_name_overrides.csv
-+  - dbt_project/seeds/team_country_corrections.csv
-+  - dbt_project/seeds/schema.yml
-+  - dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
-+  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
-+  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-+  - dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
-+  - dbt_project/models/2_base/api_football/base_apif__lineups.sql
-+  - dbt_project/models/2_base/api_football/base_apif__teams.sql
-+  - dbt_project/models/2_base/api_football/base.yml
-+  - dbt_project/tests/assert_base_team_stats_cleaned.sql
-+  - dbt_project/tests/assert_fixture_team_id_overrides_applied.sql
++  - tests/fixtures/design_inventory/green.html
++  - tests/test_no_decision_history_in_docs.py
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-   - .claude/task/acceptance_evidence.md
--  - .claude/task/rendered_page_evidence.md
+@@ -28,43 +23,39 @@ scope_paths:
+   - .claude/task/rendered_page_evidence.md
  
  impact_map: >
 -  No dbt model and no export change; no data file changes. Consumption only: two Team page
@@ -64,630 +53,158 @@ index d5dd0f96..03364d47 100644
 -  blast_radius: the Team page Performance tab (strip plot, scatter, two explainers), the
 -  competition page's deserved points explainer and Home's two top-list explainers, in all three
 -  locales. No served number changes.
-+  writers: the six base models named in scope_paths are the only readers of
-+  fixture_team_id_overrides; base_apif__teams_global is the only reader of team_name_overrides and
-+  team_country_corrections.
-+  downstream: `.venv/Scripts/dbt.exe ls --project-dir dbt_project --select
-+  base_apif__fixtures_next+ base_apif__fixture_events+ base_apif__fixture_players+
-+  base_apif__fixture_statistics+ base_apif__lineups+ base_apif__teams+ fixture_team_id_overrides+
-+  team_name_overrides+ team_country_corrections+ --resource-type model` lists 79 models, 29 of them
-+  marts: mart_competition_fixtures, mart_competition_index, mart_competition_season_summary,
-+  mart_fixture_standing_context, mart_head_to_head, mart_leaderboards, mart_match_days,
-+  mart_matchday_insights, mart_next_matchday, mart_player_career,
-+  mart_player_competition_benchmarks, mart_player_fixture_stats, mart_player_momentum,
-+  mart_player_profile, mart_player_season_record, mart_roster, mart_standings,
-+  mart_team_competition_benchmarks, mart_team_competitions, mart_team_fixtures, mart_team_index,
-+  mart_team_leaderboards, mart_team_market_value, mart_team_momentum_window, mart_team_profile,
-+  mart_team_season, mart_team_season_insights, mart_team_season_record, mart_team_window_metrics.
-+  layer_rules: the corrections are seeds applied in base, as the existing override modes are;
-+  check_layer_contract.py applies unchanged.
-+  deploy_order: seeds and models change together in the one prod build after merge; nothing
-+  breaks before it, the two fixtures simply stay under 104 until then.
-+  blast_radius: only rows of fixtures 1239850 and 1239851 change. Team 104 loses its two CAF
-+  Champions League 2024 matches (played 2, W0 D1 L1 on today's prod); a new team -1 gains them,
-+  with its events, line-ups, team and player statistics. No other fixture's team id moves, since
-+  the new mode is keyed on the fixture id.
++  Consumption only; no dbt model, no export, no data file changes. The tag is drawn by
++  site_v2/src/components/ui/MatchRow.astro, which only three callers give a tag: Home's
++  HeroFixtures.astro (topMatch), the competition page's MatchdaySchedule.astro (topMatch) and the
++  Team page's TeamFixtureGroup.astro (nextMatch); NextMatches.astro and MatchesDay.astro draw rows
++  without one. The `.fxrow .topmatch` rules are read only by those rows. fitBlocks.mjs is loaded
++  once by Layout.astro; the new block kind touches only `.fxrow` elements holding a `.topmatch`.
++  blast_radius: the tagged match rows on Home, the competition matchdays and the Team pages, in
++  all three locales. No served number changes.
  
  approved_design:
 -  - team: #134
 -  - competition: #129
--  - home: #127
--
--acceptance_criteria:
+   - home: #127
++  - competition: #129
++  - team: #134
+ 
+ acceptance_criteria:
 -  - "On the built Team page, the Compared with the league rows show no median tick and no median value; the legend lists the team first, then the other clubs; each row's right column shows the rank first in bold with the value under it; the better marker remains."
 -  - "On every built Team page with the deserved points scatter, in both the wide and the narrow chart, the bounding boxes of the team name and the difference label do not overlap, and the difference label stays inside the chart without reaching the y axis; the built-pages check holds the placement on every build."
 -  - "teamVsLeagueIntro, compDeservedExplainer, homeTopPlayersIntro, homeTopTeamsIntro and teamPerfIntro render the approved one-sentence texts in EN, DE and FI; teamLeagueMedian is gone from strings.ts."
 -  - "block_standard.md's Strip plot row and Strip plot value rows carry the approved texts, and check_design_inventory.py --no-mocks passes."
-+  - "none: no page output changes; the marts gain team -1 and lose 104's two CAF rows, and no page layout or field changes"
++  - "On every built page whose match rows carry a Top match or Next tag (Home, competition matchdays, Team pages), at 280, 360, 560, 768 and 1010px in EN, DE and FI, no tag overlaps a team name or the kick-off, and no tagged row's names run past their column; measured over the built site."
++  - "A tagged row whose names fit keeps the tag before the kick-off on the same line; a row that does not fit shows the tag on its own line above the home team, left-aligned, with names and kick-off below; at 1010px every tagged row has the wide form, and every visible tagged row carries fit-one or fit-two."
++  - "block_standard.md's Tag row adds 'Narrow, a row's tag takes its own line above the home team, left-aligned' and the narrow-screen fix as a source; its Fitted block row adds `.fxrow:has(.topmatch)`; check_design_inventory.py --no-mocks passes at its default widths and at 280, 360, 560, 768 and 1010px."
  
  decisions_taken: >
 -  Approved in chat, 2026-11-01: the plan for #241 and #242, the five explainer texts in EN, DE and
 -  FI, and the two block standard texts. The difference label takes the side of the dot opposite
 -  the name, in both charts. The deserved points components keep passing the names the old
 -  explainer used; t() ignores a name the text does not use. No new mechanism, no recurring cost.
-+  Approved in chat via plan mode: path A. Team id -1 is ours, not the provider's, named Red Star
-+  with country Central African Republic, both sourced to CAF's preliminary-round fixture list.
-+  fixture_team_id_overrides gains a fixture_id column and a third mode, reattribute_in_fixture,
-+  that replaces the wrong id with the correct one inside the named fixture only, and outranks the
-+  other two modes. It is applied in the fixture list, the four match feeds, the team keys and the
-+  team statistics test's own replay of the overrides. A new error test fails while a
-+  reattribute_in_fixture row is not applied.
-+  NEW MECHANISM declared: a team id the provider never sent (-1), and the per-fixture override
-+  mode. Both are part of the approved plan.
++  Approved in chat, 2026-11-01: the narrow form (the tag on its own line above the home team,
++  left-aligned), the plan, the acceptance criteria and the two block standard texts. No new
++  mechanism: the tagged row joins the one shared fit script that #231 set for every narrow form,
++  measured like the header row (the names' column holds its content). Without the script the row
++  shows the narrow form, as #231 rules for every fitted block. No recurring cost.
  
  decisions_reserved:
    - "none: every decision of this task is approved, see decisions_taken"
-+  - "Out of scope, each its own decision later: Newmarket, Victoria United and Warriors FC, whose provider ids show the same shared-id shape."
  
  done_when:
 -  - npm run build in site_v2 (node tests, SEO audit, built-pages check), the full pytest, the offline gates and check_design_inventory.py --no-mocks pass.
 -  - The built Team page Performance tab, a competition page and Home are checked in the Browser pane at 280, 360, 560, 768 and 1010px in EN, DE and FI.
 -  - The scatter name and difference label boxes are measured on every built Team page and none overlap.
-+  - dbt parse, SQLFluff on the changed SQL, pytest and the offline gates pass.
-+  - The new test returns the two fixtures on today's prod data, read-only.
-+  - The changed models' compiled SQL, run read-only on prod with the seed rows inlined, puts both fixtures under -1 and none under 104, and the new test then returns no row.
++  - npm run build in site_v2 (node tests, SEO audit, built-pages check), the full pytest, the offline gates and check_design_inventory.py --no-mocks (default widths, and --viewports 280,360,560,768,1010) pass.
++  - The tag and name boxes are measured on every built page with a tagged row, at 280, 360, 560, 768 and 1010px in EN, DE and FI, and none overlap and no names run past their column.
  
--amendments:
+ amendments:
 -  - "Implementation within the approved plan, 2026-11-01: removing teamLeagueMedian, approved in chat, 2026-11-01, also removes it from the Team page spec's i18n key list (team.spec.json), which the build's page-spec check reads."
 -  - "Implementation within the approved plan, 2026-11-01: the rank now leads the strip plot's right column (approved in chat, 2026-11-01), so the built-pages check reads the shown rank from that place instead of from under the value, and its test row is built the same way; the check still compares every row's shown rank with the served one."
 -  - "Approved in chat, 2026-11-01, after review: where the difference label, on the side opposite the name, would reach the y axis, it moves to the name's side, one line under the name; the built-pages check fails a built Team page whose scatter label is neither opposite the name across the dot nor under it, with a test row that fails when the placement is reverted; the Team page wireframe's Compared with the league row drops `league_median`, strip-only."
-+amendments: (none)
-diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
-index 8d9d6a42..03950b6b 100644
---- a/dbt_project/models/2_base/api_football/base.yml
-+++ b/dbt_project/models/2_base/api_football/base.yml
-@@ -129,7 +129,9 @@ models:
-       One row per fixture, from the generic stg_apif__fixtures_next model, deduplicated on
-       fixture_id. Where the provider's result differs from the league's official decision, the
-       score and status are the official ones from the fixture_result_corrections seed, and the
--      provider's stay on the row. Grain: fixture_id.
-+      provider's stay on the row. Where two clubs share a provider team id in a fixture, the
-+      home and away team ids are corrected from the fixture_team_id_overrides seed's
-+      reattribute_in_fixture rows. Grain: fixture_id.
-     config:
-       tags: ["base", "api_football", "fixture_context"]
-     tests:
-@@ -153,7 +155,7 @@ models:
-       - name: provider_shootout_away
-         description: "The provider's away shoot-out goals; differs from shootout_away only where the official result was corrected."
-       - name: winner_team_id
--        description: "{{ doc('winner_team') }} Here, the provider's team id."
-+        description: "{{ doc('winner_team') }} Here, the team id as home_team_id and away_team_id carry it."
-       - name: award_kind
-         description: "How an awarded result came about: not_played, played (to the end, the result decided afterwards) or abandoned. NULL where the result is not awarded."
-       - name: on_pitch_home
-@@ -250,7 +252,7 @@ models:
-         description: "{{ doc('fixture_api_id') }}"
-         tests: [not_null]
-       - name: team_id
--        description: "The provider's numeric team id for this row, after applying the known-defect corrections in the fixture_team_id_overrides seed (the same alias and reattribute-if-cohabiting logic as base_apif__fixture_players.team_id). Corrected before the (league_code, fixture_id, team_id) dedup, so a corrected row cannot collide with one the correct team already has."
-+        description: "The provider's numeric team id for this row, after applying the known-defect corrections in the fixture_team_id_overrides seed (the same alias, reattribute-if-cohabiting and reattribute-in-fixture logic as base_apif__fixture_players.team_id). Corrected before the (league_code, fixture_id, team_id) dedup, so a corrected row cannot collide with one the correct team already has."
-         tests: [not_null]
-       - name: has_stat_line
-         description: "{{ doc('has_stat_line') }}"
-@@ -302,7 +304,7 @@ models:
-         description: "{{ doc('fixture_api_id') }}"
-         tests: [not_null]
-       - name: team_id
--        description: "The provider's numeric team id for this player's side, after applying the known-defect corrections in the fixture_team_id_overrides seed: an unconditional alias swap for a duplicate id, or a reattribution when the correct id is a fixture participant and the wrong id is not; and the team the player's-team rule above decides, where his events name the other team of the match. Corrected before this model's own (league_code, fixture_id, team_id, player_id) dedup."
-+        description: "The provider's numeric team id for this player's side, after applying the known-defect corrections in the fixture_team_id_overrides seed: an unconditional alias swap for a duplicate id, a reattribution when the correct id is a fixture participant and the wrong id is not, or a replacement inside the one fixture a row names; and the team the player's-team rule above decides, where his events name the other team of the match. Corrected before this model's own (league_code, fixture_id, team_id, player_id) dedup."
-         tests: [not_null]
-       - name: player_id
-         description: "{{ doc('player_api_id') }}"
-diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
-index cf1b9ebd..b967083d 100644
---- a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
-@@ -86,12 +86,14 @@ fixture_participants as (
- -- seeds/fixture_team_id_overrides.csv. `alias` = unconditional duplicate-id replacement (one
- -- club under two provider ids); `reattribute_if_cohabiting` = replace only when the correct id is
- -- a fixture participant and the wrong id is not (a mis-attribution between two DISTINCT clubs, so
---- a club's own legitimate events are never touched).
-+-- a club's own legitimate events are never touched); `reattribute_in_fixture` = replace inside
-+-- the one fixture named, where two clubs share the id, and it outranks the other two.
- overrides as (
-     select
-         cast(wrong_team_api_id as int64) as wrong_team_api_id,
-         cast(correct_team_api_id as int64) as correct_team_api_id,
--        mode
-+        mode,
-+        cast(fixture_id as int64) as fixture_id
-     from {{ ref('fixture_team_id_overrides') }}
- ),
++  - "Implementation within the approved plan, 2026-11-01: the Fitted block row now names the tagged match row (approved in chat, 2026-11-01), so the design check's green fixture page, which stands for a loaded page as ruled, marks its tagged row fit-one like its other fitted blocks; without the mark its built-page test fails."
++  - "Implementation within the approved plan, 2026-11-01: the Tag row's source names the two earlier rulings in words instead of their issue numbers, because the comment history gate refuses an edited documentation line that carries an issue number; the approved sentence and the narrow-screen fix source are added unchanged. block_standard.md then holds one history line fewer, and the decision-history test's pin for it moves down from 48 to 47, as that test requires."
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index 46305904..4847f1ab 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -72,7 +72,7 @@
+ | Fact row value | `.frow .fvv b` | the value, bold 15px accent — the number the row is about | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules, Block 3 |
+ | Fact row context | `.frow .sub` | the context under the value, 12px muted | `font-size=12px; color=muted` | ruled | #129 the fact row |
+ | Fact row block | `.frow` | label and value side by side while the block's longest row fits on one line; otherwise every row stacks its value under its label | `fits` | ruled | the narrow-screen fix |
+-| Fitted block | `.header-in, .ctab, :has(> .frow), .fbar, .selbar` | a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded | `fit-marked` | ruled | the narrow-screen fix |
++| Fitted block | `.header-in, .ctab, :has(> .frow), .fbar, .selbar, .fxrow:has(.topmatch)` | a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded | `fit-marked` | ruled | the narrow-screen fix |
+ | Ordered-by number | `.ctab .n.pts` | the number a table is ordered by: bold 15px accent, everywhere, no per-block colour | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules |
+ | Row link | `a.ctab-row, a.fxrow, a.frow, a.brow, a.comp-row` | a row that leads somewhere is one link, the whole row; one hover tint for every row link, ink at 11% (twice the stripe); the press tint `sunk`; no underline inside a row | `hover(background-color)=ink@11%; press(background-color)=sunk; text-decoration-line=none` | ruled | #129 binding rules; #52; #127 (2026-09-14) |
+ | Chevron heading link | `a.cnm` | a heading that leads somewhere carries a chevron at rest and is never underlined | `text-decoration-line=none` | ruled | #52; #129 binding rules |
+@@ -110,7 +110,7 @@
+ | Metric switch | `.tsw-lbl` | "Show all metrics" at the top right of a metric comparison: off by default, the key metrics only; on, every metric in its place, the order never changing; a group heading with no key row hidden while off; the track neutral grey when on | `font-size=13px; font-weight=600; color=ink-2` | ruled | the match page review |
+ | Comparison team name | `.cmp .formhead .h` | each team's name over its column, 14px semi-bold ink | `font-size=14px; font-weight=600; color=ink` | ruled | the match page review |
+ | Column head | `.rcol .colhead` | a list column's name, 13px bold muted; one fact may follow after a middle dot (a team's formation); a second head inside the column opens its second list | `font-size=13px; font-weight=700; color=muted` | ruled | the played match page review |
+-| Tag | `.nexttag, .fxrow .topmatch` | Next (on the picker's title) and Top match (on the flagged row, before the kick-off): 10px bold capitals in an accent pill | `font-size=10px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink` | ruled | #129 Matchdays; #127 correction 2 |
++| Tag | `.nexttag, .fxrow .topmatch` | Next (on the picker's title) and Top match (on the flagged row, before the kick-off): 10px bold capitals in an accent pill. Narrow, a row's tag takes its own line above the home team, left-aligned | `font-size=10px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink` | ruled | the competition Matchdays design; the Home design; the narrow-screen fix |
+ | Matchday picker | `.mdnav .mdstep` | its own full-width line under the tab bar: ‹ MATCHDAY N › with the Next tag, the arrows pinned to the edges, the title centred, a 2px line under; one matchday on screen at a time; no script | `visible=1; border-bottom-width=2px` | ruled | #129 Matchdays |
+ | Picker title | `.mdstep .mdtitle .num` | 13px bold capitals ink | `font-size=13px; font-weight=700; text-transform=uppercase; color=ink` | ruled | #129 Matchdays |
+ | Picker arrow | `.mdstep .step` | a 34px target at each edge | `min-box=34px` | ruled | #129 Matchdays |
+diff --git a/site_v2/src/lib/fitBlocks.mjs b/site_v2/src/lib/fitBlocks.mjs
+index 4a390897..371d9794 100644
+--- a/site_v2/src/lib/fitBlocks.mjs
++++ b/site_v2/src/lib/fitBlocks.mjs
+@@ -3,7 +3,8 @@
+ // The script marks each block `fit-one` or `fit-two`; system.css draws the two forms. A table fits
+ // when every name keeps its longest word inside its own space; a block of fact rows fits when its
+ // longest row (label, gap, value) fits its width; the header row fits when it holds the menu; a
+-// Filter bar fits when each row of buttons does, and its dropdown row when each holds its longest choice.
++// Filter bar fits when each row of buttons does, and its dropdown row when each holds its longest choice;
++// a match row with a tag fits when its names keep their column beside the tag.
  
-@@ -113,11 +115,17 @@ attributed as (
-         recovered.raw_ingested_at,
-         recovered.event_type = 'Goal' and recovered.event_detail = 'Own Goal' as is_own_goal,
-         coalesce(
-+            fixture_override.correct_team_api_id,
-             alias_override.correct_team_api_id,
-             reattribute_override.correct_team_api_id,
-             recovered.team_id
-         ) as team_id
-     from recovered
-+    left join overrides as fixture_override
-+        on
-+            recovered.team_id = fixture_override.wrong_team_api_id
-+            and recovered.fixture_id = fixture_override.fixture_id
-+            and fixture_override.mode = 'reattribute_in_fixture'
-     left join overrides as alias_override
-         on
-             recovered.team_id = alias_override.wrong_team_api_id
-@@ -144,11 +152,17 @@ player_rows as (
-         player_row.fixture_id,
-         player_row.player_id,
-         coalesce(
-+            fixture_override.correct_team_api_id,
-             alias_override.correct_team_api_id,
-             reattribute_override.correct_team_api_id,
-             player_row.team_id
-         ) as team_id
-     from {{ ref('stg_apif__fixture_players') }} as player_row
-+    left join overrides as fixture_override
-+        on
-+            player_row.team_id = fixture_override.wrong_team_api_id
-+            and player_row.fixture_id = fixture_override.fixture_id
-+            and fixture_override.mode = 'reattribute_in_fixture'
-     left join overrides as alias_override
-         on
-             player_row.team_id = alias_override.wrong_team_api_id
-diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-index e3aab7ec..ca3b3170 100644
---- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-@@ -83,11 +83,13 @@ fixture_participants as (
- -- club's own legitimate lineups are never touched). Same seed and same two modes the events model
- -- has used since #526; it was simply never wired to this feed, which is how one stub team block --
- -- id 22722, name null -- put a lineup under a club that does not exist and stopped the nightly.
-+-- `reattribute_in_fixture` replaces the id inside the one fixture named, where two clubs share it.
- overrides as (
-     select
-         cast(wrong_team_api_id as int64) as wrong_team_api_id,
-         cast(correct_team_api_id as int64) as correct_team_api_id,
--        mode
-+        mode,
-+        cast(fixture_id as int64) as fixture_id
-     from {{ ref('fixture_team_id_overrides') }}
- ),
- 
-@@ -112,6 +114,7 @@ corrected as (
-         src.* except (team_id),
-         coalesce(
-             resolved_teams.team_id,
-+            fixture_override.correct_team_api_id,
-             alias_override.correct_team_api_id,
-             reattribute_override.correct_team_api_id,
-             src.team_id
-@@ -130,6 +133,11 @@ corrected as (
-         logical_or(src.goals_against is not null)
-             over (partition by src.league_code, src.fixture_id, src.raw_ingested_at) as fetch_is_complete
-     from src
-+    left join overrides as fixture_override
-+        on
-+            src.team_id = fixture_override.wrong_team_api_id
-+            and src.fixture_id = fixture_override.fixture_id
-+            and fixture_override.mode = 'reattribute_in_fixture'
-     left join overrides as alias_override
-         on
-             src.team_id = alias_override.wrong_team_api_id
-diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
-index 4bb370bc..f17afd0a 100644
---- a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
-@@ -81,12 +81,14 @@ fixture_participants as (
- -- seeds/fixture_team_id_overrides.csv. `alias` = unconditional duplicate-id replacement (one club
- -- under two provider ids); `reattribute_if_cohabiting` = replace only when the correct id is a
- -- fixture participant and the wrong id is not (a mis-attribution between two DISTINCT clubs, so a
---- club's own legitimate statistics are never touched).
-+-- club's own legitimate statistics are never touched); `reattribute_in_fixture` = replace inside
-+-- the one fixture named, where two clubs share the id, and it outranks the other two.
- overrides as (
-     select
-         cast(wrong_team_api_id as int64) as wrong_team_api_id,
-         cast(correct_team_api_id as int64) as correct_team_api_id,
--        mode
-+        mode,
-+        cast(fixture_id as int64) as fixture_id
-     from {{ ref('fixture_team_id_overrides') }}
- ),
- 
-@@ -98,11 +100,17 @@ corrected as (
-     select
-         pivoted.* except (team_id),
-         coalesce(
-+            fixture_override.correct_team_api_id,
-             alias_override.correct_team_api_id,
-             reattribute_override.correct_team_api_id,
-             pivoted.team_id
-         ) as team_id
-     from pivoted
-+    left join overrides as fixture_override
-+        on
-+            pivoted.team_id = fixture_override.wrong_team_api_id
-+            and pivoted.fixture_id = fixture_override.fixture_id
-+            and fixture_override.mode = 'reattribute_in_fixture'
-     left join overrides as alias_override
-         on
-             pivoted.team_id = alias_override.wrong_team_api_id
-diff --git a/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql b/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
-index 232eaea6..b5b68cf8 100644
---- a/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
-@@ -13,6 +13,33 @@ latest as (
-     ) = 1
- ),
- 
-+-- A team id two clubs share, corrected inside the one fixture named, from
-+-- seeds/fixture_team_id_overrides.csv. The match feeds read their participants from here.
-+fixture_overrides as (
-+    select
-+        cast(fixture_id as int64) as fixture_id,
-+        cast(wrong_team_api_id as int64) as wrong_team_api_id,
-+        cast(correct_team_api_id as int64) as correct_team_api_id
-+    from {{ ref('fixture_team_id_overrides') }}
-+    where mode = 'reattribute_in_fixture'
-+),
-+
-+corrected as (
-+    select
-+        latest.* except (home_team_id, away_team_id),
-+        coalesce(home_override.correct_team_api_id, latest.home_team_id) as home_team_id,
-+        coalesce(away_override.correct_team_api_id, latest.away_team_id) as away_team_id
-+    from latest
-+    left join fixture_overrides as home_override
-+        on
-+            latest.fixture_id = home_override.fixture_id
-+            and latest.home_team_id = home_override.wrong_team_api_id
-+    left join fixture_overrides as away_override
-+        on
-+            latest.fixture_id = away_override.fixture_id
-+            and latest.away_team_id = away_override.wrong_team_api_id
-+),
-+
- -- The league's official result where the provider's differs, from seeds/fixture_result_corrections.csv.
- result_corrections as (
-     select * from {{ ref('fixture_result_corrections') }}
-@@ -65,6 +92,6 @@ select
-                 when coalesce(c.goals_away, f.goals_away) > coalesce(c.goals_home, f.goals_home) then f.away_team_id
-             end
-     end as winner_team_id
--from latest as f
-+from corrected as f
- left join result_corrections as c
-     on f.fixture_id = c.fixture_id
-diff --git a/dbt_project/models/2_base/api_football/base_apif__lineups.sql b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
-index 8bdfa405..ed262c00 100644
---- a/dbt_project/models/2_base/api_football/base_apif__lineups.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
-@@ -36,7 +36,8 @@ overrides as (
-     select
-         cast(wrong_team_api_id as int64) as wrong_team_api_id,
-         cast(correct_team_api_id as int64) as correct_team_api_id,
--        mode
-+        mode,
-+        cast(fixture_id as int64) as fixture_id
-     from {{ ref('fixture_team_id_overrides') }}
- ),
- 
-@@ -44,11 +45,17 @@ corrected as (
-     select
-         src.* except (team_id),
-         coalesce(
-+            fixture_override.correct_team_api_id,
-             alias_override.correct_team_api_id,
-             reattribute_override.correct_team_api_id,
-             src.team_id
-         ) as team_id
-     from src
-+    left join overrides as fixture_override
-+        on
-+            src.team_id = fixture_override.wrong_team_api_id
-+            and src.fixture_id = fixture_override.fixture_id
-+            and fixture_override.mode = 'reattribute_in_fixture'
-     left join overrides as alias_override
-         on
-             src.team_id = alias_override.wrong_team_api_id
-diff --git a/dbt_project/models/2_base/api_football/base_apif__teams.sql b/dbt_project/models/2_base/api_football/base_apif__teams.sql
-index 7be7033c..27875d27 100644
---- a/dbt_project/models/2_base/api_football/base_apif__teams.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__teams.sql
-@@ -102,7 +102,8 @@ overrides as (
-     select
-         cast(wrong_team_api_id as int64) as wrong_team_api_id,
-         cast(correct_team_api_id as int64) as correct_team_api_id,
--        mode
-+        mode,
-+        cast(fixture_id as int64) as fixture_id
-     from {{ ref('fixture_team_id_overrides') }}
- ),
- 
-@@ -125,11 +126,17 @@ fixture_level_keys as (
-     select
-         stg_fixture_level.league_code,
-         coalesce(
-+            fixture_override.correct_team_api_id,
-             alias_override.correct_team_api_id,
-             reattribute_override.correct_team_api_id,
-             stg_fixture_level.team_api_id
-         ) as team_api_id
-     from stg_fixture_level
-+    left join overrides as fixture_override
-+        on
-+            stg_fixture_level.team_api_id = fixture_override.wrong_team_api_id
-+            and stg_fixture_level.fixture_id = fixture_override.fixture_id
-+            and fixture_override.mode = 'reattribute_in_fixture'
-     left join overrides as alias_override
-         on
-             stg_fixture_level.team_api_id = alias_override.wrong_team_api_id
-@@ -156,19 +163,30 @@ team_keys as (
- 
-     union all
- 
-+    -- The fixture list's keys take the per-fixture corrections base_apif__fixtures_next applies.
-     select
--        league_code,
--        home_team_id as team_api_id
-+        stg_fixtures.league_code,
-+        coalesce(home_override.correct_team_api_id, stg_fixtures.home_team_id) as team_api_id
-     from stg_fixtures
--    where home_team_id is not null
-+    left join overrides as home_override
-+        on
-+            stg_fixtures.home_team_id = home_override.wrong_team_api_id
-+            and stg_fixtures.fixture_id = home_override.fixture_id
-+            and home_override.mode = 'reattribute_in_fixture'
-+    where stg_fixtures.home_team_id is not null
- 
-     union all
- 
-     select
--        league_code,
--        away_team_id as team_api_id
-+        stg_fixtures.league_code,
-+        coalesce(away_override.correct_team_api_id, stg_fixtures.away_team_id) as team_api_id
-     from stg_fixtures
--    where away_team_id is not null
-+    left join overrides as away_override
-+        on
-+            stg_fixtures.away_team_id = away_override.wrong_team_api_id
-+            and stg_fixtures.fixture_id = away_override.fixture_id
-+            and away_override.mode = 'reattribute_in_fixture'
-+    where stg_fixtures.away_team_id is not null
- 
-     union all
- 
-diff --git a/dbt_project/seeds/fixture_team_id_overrides.csv b/dbt_project/seeds/fixture_team_id_overrides.csv
-index b3761336..b666ecd8 100644
---- a/dbt_project/seeds/fixture_team_id_overrides.csv
-+++ b/dbt_project/seeds/fixture_team_id_overrides.csv
-@@ -1,5 +1,7 @@
--wrong_team_api_id,correct_team_api_id,mode,note
--2263,10124,alias,Riga FC duplicate provider id 2263 -> canonical 10124 (#526)
--6424,25274,reattribute_if_cohabiting,ASKO Kara 25274 events mis-tagged to rival ASC Kara 6424 in CAFCL 2020-24 (#526)
--4767,1544,reattribute_if_cohabiting,"Macau 1544 rows mis-tagged to Mação 4767 (Portuguese municipality, name collision) in WCQAS fixtures 1100381/1100382 (#53)"
--22722,132,reattribute_if_cohabiting,"Chapecoense-sc 132 away lineup filed under phantom id 22722 (name null, epoch update timestamp) in BSA fixture 1492362"
-+wrong_team_api_id,correct_team_api_id,mode,fixture_id,note
-+2263,10124,alias,,Riga FC duplicate provider id 2263 -> canonical 10124 (#526)
-+6424,25274,reattribute_if_cohabiting,,ASKO Kara 25274 events mis-tagged to rival ASC Kara 6424 in CAFCL 2020-24 (#526)
-+4767,1544,reattribute_if_cohabiting,,"Macau 1544 rows mis-tagged to Mação 4767 (Portuguese municipality, name collision) in WCQAS fixtures 1100381/1100382 (#53)"
-+22722,132,reattribute_if_cohabiting,,"Chapecoense-sc 132 away lineup filed under phantom id 22722 (name null, epoch update timestamp) in BSA fixture 1492362"
-+104,-1,reattribute_in_fixture,1239850,"Red Star de Bangui (Central African Republic) filed under Red Star FC 93 104 in CAFCL 2024 1st preliminary round, Red Star v Djoliba; the provider has no id for it. CAF: https://www.cafonline.com/caf-champions-league/news/new-champions-league-season-kicks-off-with-high-stakes-preliminary-round-matches/"
-+104,-1,reattribute_in_fixture,1239851,"Red Star de Bangui (Central African Republic) filed under Red Star FC 93 104 in CAFCL 2024 1st preliminary round, Djoliba v Red Star; the provider has no id for it. CAF: https://www.cafonline.com/caf-champions-league/news/new-champions-league-season-kicks-off-with-high-stakes-preliminary-round-matches/"
-diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
-index 3a125a5c..beff039d 100644
---- a/dbt_project/seeds/schema.yml
-+++ b/dbt_project/seeds/schema.yml
-@@ -548,7 +548,8 @@ seeds:
-   - name: fixture_team_id_overrides
-     description: >
-       Corrections for known API-Football fixture-level team-id defects. Hand-authored, one row per
--      wrong source team id: what it should resolve to, and how to apply it. Applied to all three
-+      wrong source team id, or per wrong id and fixture for `reattribute_in_fixture`: what it
-+      should resolve to, and how to apply it. Applied to all three
-       fixture-level feeds — events, team statistics and player statistics — and to the team keys
-       the entity dimension takes from them, so one row corrects a mis-attribution everywhere it
-       appears rather than in whichever feed happened to be looked at.
-@@ -557,6 +558,9 @@ seeds:
-       `reattribute_if_cohabiting` replaces it only in fixtures where the correct team is a
-       participant and the wrong one is not: a mis-attribution between two DISTINCT clubs, so the
-       wrong club's own rows are never touched.
-+      `reattribute_in_fixture` replaces it only inside the one fixture the row names, in the
-+      fixture list too: two clubs share the provider's id there, so no participant check can tell
-+      them apart. It outranks the other two modes.
- 
-       Add a row only with EXTERNALLY verified evidence; never infer a duplicate from name
-       similarity within our own data.
-@@ -565,13 +569,19 @@ seeds:
-         wrong_team_api_id: int64
-         correct_team_api_id: int64
-         mode: string
-+        fixture_id: int64
-         note: string
-+    tests:
-+      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns: [wrong_team_api_id, fixture_id]
-+      - dbt_utils.expression_is_true:
-+          expression: "(fixture_id is not null) = (mode = 'reattribute_in_fixture')"
-+          name: fixture_team_id_overrides_fixture_id_only_in_fixture_mode
-     columns:
-       - name: wrong_team_api_id
-         description: "The team_api_id the provider's fixture-level feeds wrongly emit."
-         tests:
-           - not_null
--          - unique
-       - name: correct_team_api_id
-         description: >
-           The team_api_id the row should resolve to. Must exist in dim_team: this value is hand
-@@ -584,11 +594,13 @@ seeds:
-               to: ref('dim_team')
-               field: team_api_id
-       - name: mode
--        description: "alias = unconditional duplicate-id replacement; reattribute_if_cohabiting = participant-gated mis-attribution fix."
-+        description: "alias = unconditional duplicate-id replacement; reattribute_if_cohabiting = participant-gated mis-attribution fix; reattribute_in_fixture = replacement inside the one fixture named in fixture_id."
-         tests:
-           - not_null
-           - accepted_values:
--              values: ["alias", "reattribute_if_cohabiting"]
-+              values: ["alias", "reattribute_if_cohabiting", "reattribute_in_fixture"]
-+      - name: fixture_id
-+        description: "The fixture a reattribute_in_fixture row corrects; empty for the other two modes."
-       - name: note
-         description: "Human note + external-evidence reference for the correction (required — the governance control)."
-         tests:
-@@ -1272,7 +1284,8 @@ seeds:
-       A row is justified by a COLLISION (two real clubs sharing a label, e.g. "Rangers") or by a
-       name unique but incomplete against an external source ("Arsenal" for Arsenal FC); `note`
-       says which. Add one only where an authoritative external source disagrees with the provider,
--      and cite it — never taste, never a nickname, never a locale preference.
-+      and cite it — never taste, never a nickname, never a locale preference. A team id of our
-+      own, for a club the provider has no id for, has no provider name, so its row gives the name.
- 
-       It does NOT fold duplicate provider ids.
-     config:
-diff --git a/dbt_project/seeds/team_country_corrections.csv b/dbt_project/seeds/team_country_corrections.csv
-index a17aa3bc..8db3e0e5 100644
---- a/dbt_project/seeds/team_country_corrections.csv
-+++ b/dbt_project/seeds/team_country_corrections.csv
-@@ -1,4 +1,5 @@
- team_api_id,team_country,provider_country,source,note
-+-1,Central African Republic,,https://www.cafonline.com/caf-champions-league/news/new-champions-league-season-kicks-off-with-high-stakes-preliminary-round-matches/,Our own id; the provider has no row for Red Star de Bangui. CAF lists it under the Central African Republic.
- 162,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
- 184,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
- 190,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
-diff --git a/dbt_project/seeds/team_name_overrides.csv b/dbt_project/seeds/team_name_overrides.csv
-index a1382f27..7dafe24b 100644
---- a/dbt_project/seeds/team_name_overrides.csv
-+++ b/dbt_project/seeds/team_name_overrides.csv
-@@ -110,3 +110,4 @@ team_api_id,team_name,source,note
- 504,Hellas Verona FC,https://en.wikipedia.org/wiki/Hellas_Verona_F.C.,"Provider sends ""Hellas Verona"" without the FC suffix Wikipedia's article title carries."
- 801,Pisa SC,https://en.wikipedia.org/wiki/Pisa_S.C.,"Provider sends bare ""Pisa"", the city name, not the club."
- 488,US Sassuolo,https://en.wikipedia.org/wiki/US_Sassuolo_Calcio,"Provider sends bare ""Sassuolo"", the city name, not the club."
-+-1,Red Star,https://www.cafonline.com/caf-champions-league/news/new-champions-league-season-kicks-off-with-high-stakes-preliminary-round-matches/,"Our own id for Red Star de Bangui (Central African Republic), which the provider files under Red Star FC 93 104; CAF names it Red Star."
-diff --git a/dbt_project/tests/assert_base_team_stats_cleaned.sql b/dbt_project/tests/assert_base_team_stats_cleaned.sql
-index 897deb06..5e9c0770 100644
---- a/dbt_project/tests/assert_base_team_stats_cleaned.sql
-+++ b/dbt_project/tests/assert_base_team_stats_cleaned.sql
-@@ -53,7 +53,8 @@ overrides as (
-     select
-         cast(wrong_team_api_id as int64) as wrong_team_api_id,
-         cast(correct_team_api_id as int64) as correct_team_api_id,
--        mode
-+        mode,
-+        cast(fixture_id as int64) as fixture_id
-     from {{ ref('fixture_team_id_overrides') }}
- ),
- 
-@@ -61,11 +62,13 @@ stat_rows as (
-     select
-         s.league_code,
-         s.fixture_id,
--        coalesce(a.correct_team_api_id, r.correct_team_api_id, s.team_id) as team_id,
-+        coalesce(fo.correct_team_api_id, a.correct_team_api_id, r.correct_team_api_id, s.team_id) as team_id,
-         s.raw_ingested_at,
-         s.stat_type,
-         s.stat_value_raw
-     from {{ ref('stg_apif__fixture_statistics') }} as s
-+    left join overrides as fo
-+        on s.team_id = fo.wrong_team_api_id and s.fixture_id = fo.fixture_id and fo.mode = 'reattribute_in_fixture'
-     left join overrides as a
-         on s.team_id = a.wrong_team_api_id and a.mode = 'alias'
-     left join fixture_participants as p
-diff --git a/dbt_project/tests/assert_fixture_team_id_overrides_applied.sql b/dbt_project/tests/assert_fixture_team_id_overrides_applied.sql
-new file mode 100644
-index 00000000..28b10173
---- /dev/null
-+++ b/dbt_project/tests/assert_fixture_team_id_overrides_applied.sql
-@@ -0,0 +1,90 @@
-+-- Every reattribute_in_fixture row of fixture_team_id_overrides is applied. One row per broken row:
-+--   - wrong_id_still_carried: the fixture list or a match feed still files the fixture under the
-+--     wrong team id, named in model_name.
-+--   - correct_id_missing: the fixture list has no such fixture, or neither of its teams is the
-+--     correct id.
-+
-+{{ config(store_failures = true, severity = 'error') }}
-+
-+with overrides as (
-+    select
-+        cast(fixture_id as int64) as fixture_id,
-+        cast(wrong_team_api_id as int64) as wrong_team_api_id,
-+        cast(correct_team_api_id as int64) as correct_team_api_id
-+    from {{ ref('fixture_team_id_overrides') }}
-+    where mode = 'reattribute_in_fixture'
-+),
-+
-+fixtures as (
-+    select
-+        fixture_id,
-+        home_team_id,
-+        away_team_id
-+    from {{ ref('base_apif__fixtures_next') }}
-+),
-+
-+carried_teams as (
-+    select
-+        'base_apif__fixtures_next' as model_name,
-+        fixture_id,
-+        home_team_id as team_id
-+    from fixtures
-+    union all
-+    select
-+        'base_apif__fixtures_next' as model_name,
-+        fixture_id,
-+        away_team_id as team_id
-+    from fixtures
-+    union all
-+    select
-+        'base_apif__fixture_events' as model_name,
-+        fixture_id,
-+        team_id
-+    from {{ ref('base_apif__fixture_events') }}
-+    union all
-+    select
-+        'base_apif__fixture_players' as model_name,
-+        fixture_id,
-+        team_id
-+    from {{ ref('base_apif__fixture_players') }}
-+    union all
-+    select
-+        'base_apif__fixture_statistics' as model_name,
-+        fixture_id,
-+        team_id
-+    from {{ ref('base_apif__fixture_statistics') }}
-+    union all
-+    select
-+        'base_apif__lineups' as model_name,
-+        fixture_id,
-+        team_id
-+    from {{ ref('base_apif__lineups') }}
-+)
-+
-+select distinct
-+    o.fixture_id,
-+    o.wrong_team_api_id,
-+    o.correct_team_api_id,
-+    t.model_name,
-+    'wrong_id_still_carried' as problem
-+from overrides as o
-+inner join carried_teams as t
-+    on
-+        o.fixture_id = t.fixture_id
-+        and o.wrong_team_api_id = t.team_id
-+union all
-+select
-+    o.fixture_id,
-+    o.wrong_team_api_id,
-+    o.correct_team_api_id,
-+    'base_apif__fixtures_next' as model_name,
-+    'correct_id_missing' as problem
-+from overrides as o
-+left join fixtures as f
-+    on o.fixture_id = f.fixture_id
-+where
-+    f.fixture_id is null
-+    or (
-+        f.home_team_id is distinct from o.correct_team_api_id
-+        and f.away_team_id is distinct from o.correct_team_api_id
-+    )
+ /** The width of a text's longest word, given a function that measures one word. */
+ export function longestWord(text, measure) {
+@@ -42,6 +43,8 @@ function start() {
+     facts: (block) => [...block.children].filter((r) => r.classList.contains("frow") && shown(r))
+       .map((row) => ({ need: oneLine(row), room: row.clientWidth })),
+     header: (block) => [{ need: block.scrollWidth, room: block.clientWidth }],
++    tagged: (block) => [...block.querySelectorAll(":scope > .sides")]
++      .map((sides) => ({ need: sides.scrollWidth, room: sides.clientWidth })),
+     filter: (block) => [...block.children].filter((c) => c.matches(".seg:not(.sel)") && shown(c))
+       .map((seg) => ({ need: seg.scrollWidth, room: seg.clientWidth })),
+     selects: (block) => [...block.querySelectorAll(".sel-in")].filter(shown).map((sel) => {
+@@ -65,6 +68,7 @@ function start() {
+     ...[...document.querySelectorAll(".header-in")].map((b) => [b, "header"]),
+     ...[...document.querySelectorAll(".ctab")].map((b) => [b, "table"]),
+     ...[...new Set([...document.querySelectorAll(".frow")].map((r) => r.parentElement))].map((b) => [b, "facts"]),
++    ...[...document.querySelectorAll(".fxrow:has(> .topmatch)")].map((b) => [b, "tagged"]),
+     // the bar before its dropdown row: the row shows only once the bar has taken its narrow form
+     ...[...document.querySelectorAll(".fbar")].map((b) => [b, "filter"]),
+     ...[...document.querySelectorAll(".selbar")].map((b) => [b, "selects"]),
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index a80fd745..b9f707a0 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -452,8 +452,14 @@ a.cnm .nm { text-decoration: none; }
+   text-transform: uppercase; white-space: nowrap;
+ }
+ .nexttag { margin-left: 8px; }
+-.fxrow .topmatch { align-self: center; margin-right: 10px; }
+-.fxrow:has(.topmatch) { grid-template-columns: minmax(0, 1fr) max-content 41px; }
++/* The tag stands before the kick-off while the names keep their space beside it (fitBlocks.mjs marks
++   the row fit-one); otherwise, and without the script, it takes its own line above the home team. */
++.fxrow:has(.topmatch) { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
++.fxrow .topmatch { grid-column: 1 / -1; grid-row: 1; justify-self: start; }
++.fxrow:has(.topmatch) > .sides, .fxrow:has(.topmatch) > .when { grid-row: 2; }
++.fxrow.fit-one:has(.topmatch) { grid-template-columns: minmax(0, 1fr) max-content 41px; }
++.fxrow.fit-one .topmatch { grid-column: auto; grid-row: auto; align-self: center; margin-right: 10px; }
++.fxrow.fit-one:has(.topmatch) > .sides, .fxrow.fit-one:has(.topmatch) > .when { grid-row: auto; }
+ /* THE FOLD (components/ui/Fold.astro) — the revealed rows join the list they continue
+    (`display: contents`, so they also fill a grid's columns), and the control reads as one more row
+    under whatever is shown: "Show all {n}" with the chevron down, "Show less" with it up. */
+diff --git a/tests/fixtures/design_inventory/green.html b/tests/fixtures/design_inventory/green.html
+index cd98c0cc..b70f4527 100644
+--- a/tests/fixtures/design_inventory/green.html
++++ b/tests/fixtures/design_inventory/green.html
+@@ -29,7 +29,7 @@
+   </div>
+   <div class="md" data-md="4"><input class="md-in" type="radio" name="md" id="md-4" checked>
+     <nav class="mdnav" aria-label="Pick a matchday"><span class="mdstep"><label class="step prev" for="md-3" aria-label="Matchday 3"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2"/></svg></label><span class="mdtitle"><b class="num">Matchday 4</b> <span class="nexttag">Next</span></span><label class="step next" for="md-5" aria-label="Matchday 5"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2"/></svg></label></span></nav>
+-    <section><div class="sechead"><span class="eyebrow">Schedule</span></div><div class="fxgroup"><div class="dh">Fri 18 Sep</div><a class="fxrow" href="#n1"><span class="sides"><span class="side"><span class="crest xs"></span><span class="nm">Bayern München</span></span><span class="side"><span class="crest xs"></span><span class="nm">1. FC Union Berlin</span></span></span><span class="topmatch">Top match</span><span class="when"><b class="t">20:30</b><span class="rowtz">CEST</span></span></a></div></section>
++    <section><div class="sechead"><span class="eyebrow">Schedule</span></div><div class="fxgroup"><div class="dh">Fri 18 Sep</div><a class="fxrow fit-one" href="#n1"><span class="sides"><span class="side"><span class="crest xs"></span><span class="nm">Bayern München</span></span><span class="side"><span class="crest xs"></span><span class="nm">1. FC Union Berlin</span></span></span><span class="topmatch">Top match</span><span class="when"><b class="t">20:30</b><span class="rowtz">CEST</span></span></a></div></section>
+   </div>
+   <div class="md" data-md="5"><input class="md-in" type="radio" name="md" id="md-5">
+     <nav class="mdnav" aria-label="Pick a matchday"><span class="mdstep"><label class="step prev" for="md-4" aria-label="Matchday 4"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2"/></svg></label><span class="mdtitle"><b class="num">Matchday 5</b></span><span class="step next off"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2"/></svg></span></span></nav>
+diff --git a/tests/test_no_decision_history_in_docs.py b/tests/test_no_decision_history_in_docs.py
+index 65269190..364dfac3 100644
+--- a/tests/test_no_decision_history_in_docs.py
++++ b/tests/test_no_decision_history_in_docs.py
+@@ -58,7 +58,7 @@ PINNED = {
+     "docs/wireframes/13_player_career.md": 11,
+     "docs/wireframes/14_team_stats.md": 9,
+     "docs/wireframes/99_gaps_register.md": 29,
+-    "docs/wireframes/block_standard.md": 48,
++    "docs/wireframes/block_standard.md": 47,
+     "docs/wireframes/metrics_display.md": 30,
+     "site_v2/src/data/README.md": 5,
+ }
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -701,8 +218,7 @@ index 00000000..28b10173
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md |   28 +-
-#    .claude/task/review.md              |   29 +-
-#    .claude/task/review_input.patch     | 1188 ++++++++++++++++++-----------------
-#    3 files changed, 640 insertions(+), 605 deletions(-)
+#   .claude/task/acceptance_evidence.md    | 15 ++++++---------
+#    .claude/task/rendered_page_evidence.md | 25 ++++++++++++-------------
+#    2 files changed, 18 insertions(+), 22 deletions(-)
 # ============================================================================
