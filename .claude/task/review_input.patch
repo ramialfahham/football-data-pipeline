@@ -1,632 +1,660 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index db3cdfe4..f72d3d12 100644
+index f72d3d12..d5dd0f96 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,58 +1,86 @@
--# Task contract — player metric directions
-+# Task contract — Ball actions, a new player metric
+@@ -1,86 +1,70 @@
+-# Task contract — Ball actions, a new player metric
++# Task contract — the Team page's league strip plot and scatter labels
  
  objective: >
--  Appearances, minutes per appearance and the share of team goals carry the direction the
--  catalogue's own rule gives them (is more of it better, all else equal: yes), their
--  interpretations stop calling them neither good nor bad, and the `direction` description no
--  longer names a position-dependent share as neutral.
-+  The catalogue gains two player metrics: ball_actions_player, the passes, shots, dribbles,
-+  tackles, interceptions, blocks and saves a player made, and ball_actions_per90, the same per 90
-+  minutes played. The generator writes both into the player season models; the count is served in
-+  mart_player_profile and the per 90 in the position-peer comparison, as every existing count and
-+  per-90 metric is. A hand-worked answer key proves both values.
+-  The catalogue gains two player metrics: ball_actions_player, the passes, shots, dribbles,
+-  tackles, interceptions, blocks and saves a player made, and ball_actions_per90, the same per 90
+-  minutes played. The generator writes both into the player season models; the count is served in
+-  mart_player_profile and the per 90 in the position-peer comparison, as every existing count and
+-  per-90 metric is. A hand-worked answer key proves both values.
++  The Team page's "Compared with the league" strip plot drops the league median and shows the
++  team's rank first with its value under it, keeping the "better" marker (#241). The deserved
++  points scatter puts the difference label on the side of the dot opposite the team name, so the
++  two never overlap (#242). Five explainers become the approved one-sentence texts, and the block
++  standard's two strip plot rows say what the row now shows.
  
  refs: >
--  #136, the Player page review, where the catalogue's player metrics were listed (directions,
--  interpretation texts and the description sentence approved in chat, 2026-11-01; this MR's plan
--  approved in chat, 2026-11-01). The approved player metric labels ship with the page that first
--  shows each metric and are recorded on #136.
-+  #136, the Player page review, where the metric was defined (definition, texts, group and
-+  direction approved in chat, 2026-11-01, recorded on #136; this MR's plan approved in chat,
-+  2026-11-01).
+-  #136, the Player page review, where the metric was defined (definition, texts, group and
+-  direction approved in chat, 2026-11-01, recorded on #136; this MR's plan approved in chat,
+-  2026-11-01).
++  #241, the strip plot and the explainer texts; #242, the scatter label overlap. The plan and its
++  texts approved in chat, 2026-11-01.
  
  scope_paths:
-   - dbt_project/seeds/metric_catalogue.csv
-+  - dbt_project/seeds/metric_map.csv
-+  - dbt_project/seeds/player_season_answer_key.csv
-   - dbt_project/seeds/schema.yml
--  - docs/wireframes/11_team_squad.md
-+  - scripts/generate_metric_sql.py
-+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-+  - dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
-+  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
-+  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
-+  - dbt_project/models/4_intermediate/shared/int_player_competition_benchmark_metrics_long.sql
-+  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
-+  - dbt_project/models/5_marts/shared/mart_player_profile.sql
-+  - dbt_project/models/5_marts/shared/shared.yml
-+  - dbt_project/models/docs/metric_columns.md
-+  - docs/wireframes/12_player_stats.md
-+  - docs/wireframes/metrics_display.md
-+  - tests/test_no_decision_history_in_docs.py
-+  - tests/test_sentence_length_in_docs.py
+-  - dbt_project/seeds/metric_catalogue.csv
+-  - dbt_project/seeds/metric_map.csv
+-  - dbt_project/seeds/player_season_answer_key.csv
+-  - dbt_project/seeds/schema.yml
+-  - scripts/generate_metric_sql.py
+-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+-  - dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
+-  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+-  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
+-  - dbt_project/models/4_intermediate/shared/int_player_competition_benchmark_metrics_long.sql
+-  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+-  - dbt_project/models/5_marts/shared/mart_player_profile.sql
+-  - dbt_project/models/5_marts/shared/shared.yml
+-  - dbt_project/models/docs/metric_columns.md
+-  - docs/wireframes/12_player_stats.md
+-  - docs/wireframes/metrics_display.md
+-  - tests/test_no_decision_history_in_docs.py
+-  - tests/test_sentence_length_in_docs.py
++  - site_v2/src/components/team/TeamLeagueStrips.astro
++  - site_v2/src/components/team/TeamDeserved.astro
++  - site_v2/src/styles/system.css
++  - site_v2/src/i18n/strings.ts
++  - site_v2/src/specs/teams/team.spec.json
++  - site_v2/scripts/check-built-pages.mjs
++  - site_v2/scripts/check-built-pages.test.mjs
++  - docs/wireframes/block_standard.md
++  - docs/wireframes/02_team_profile.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
    - .claude/task/acceptance_evidence.md
++  - .claude/task/rendered_page_evidence.md
  
  impact_map: >
--  `metric_catalogue.csv` changes `direction` and `interpretation` on three player rows.
--  `direction` is read in SQL by mart_team_competition_benchmarks and mart_team_leaderboards,
--  both limited to team rows, and by scripts/export_metric_definitions_json.py (only as
--  lower_better) and the export's metric rows (team rows only); none of the three metrics is in
--  the player benchmark set (int_player_competition_benchmark_metrics_long.sql), so no served value
--  changes. `fetch_glossary` in scripts/export_site_data.py writes every catalogue row and column
--  to `metrics.json`, so the three rows' `direction` and `interpretation` change in that file; the
--  deploy's export list in .gitlab-ci.yml does not include `glossary`, and no page under site_v2/src
--  reads it. `schema.yml` changes one column
--  description of the catalogue seed.
--  blast_radius: none rendered; three catalogue rows.
-+  `.venv/Scripts/dbt.exe ls --project-dir dbt_project --select int_player_season__metrics+
-+  int_player_season_position__metrics+ int_player_competition_benchmark_metrics_long+
-+  mart_player_profile+ metric_catalogue+ player_season_answer_key+ --resource-type model` lists
-+  int_player_competition_benchmark_metrics_long, int_player_competition_benchmarks,
-+  int_player_season__metrics, int_player_season_position__metrics, mart_leaderboards,
-+  mart_player_competition_benchmarks, mart_player_profile, mart_team_competition_benchmarks,
-+  mart_team_leaderboards.
-+  The two season models and mart_player_profile gain columns; the benchmark models gain
-+  ball_actions_per90 rows for every player-season-position that clears the existing floors. The
-+  team marts and mart_leaderboards read the catalogue but select team rows or named boards, so
-+  they gain nothing. On prod data the season model keeps its 193,804 rows. The glossary export
-+  (metrics.json, not deployed) gains the two catalogue rows, and the player payload (`players`,
-+  not in the deploy's export list) gains `seasons[].ball_actions_player` and a
-+  `ball_actions_per90` benchmark member. No page reads any of it.
-+  blast_radius: two new columns and new benchmark rows; no existing value changes.
+-  `.venv/Scripts/dbt.exe ls --project-dir dbt_project --select int_player_season__metrics+
+-  int_player_season_position__metrics+ int_player_competition_benchmark_metrics_long+
+-  mart_player_profile+ metric_catalogue+ player_season_answer_key+ --resource-type model` lists
+-  int_player_competition_benchmark_metrics_long, int_player_competition_benchmarks,
+-  int_player_season__metrics, int_player_season_position__metrics, mart_leaderboards,
+-  mart_player_competition_benchmarks, mart_player_profile, mart_team_competition_benchmarks,
+-  mart_team_leaderboards.
+-  The two season models and mart_player_profile gain columns; the benchmark models gain
+-  ball_actions_per90 rows for every player-season-position that clears the existing floors. The
+-  team marts and mart_leaderboards read the catalogue but select team rows or named boards, so
+-  they gain nothing. On prod data the season model keeps its 193,804 rows. The glossary export
+-  (metrics.json, not deployed) gains the two catalogue rows, and the player payload (`players`,
+-  not in the deploy's export list) gains `seasons[].ball_actions_player` and a
+-  `ball_actions_per90` benchmark member. No page reads any of it.
+-  blast_radius: two new columns and new benchmark rows; no existing value changes.
++  No dbt model and no export change; no data file changes. Consumption only: two Team page
++  components, their CSS rules and five i18n keys. `teamLeagueMedian` is read only by
++  TeamLeagueStrips.astro and listed in the Team page spec (grep over site_v2/src); `compDeservedExplainer` is read by the Team
++  page's TeamDeserved.astro and the competition page's DeservedTable.astro;
++  `homeTopPlayersIntro` and `homeTopTeamsIntro` by Home's TopPlayers.astro and TopTeams.astro;
++  `teamPerfIntro` by the Team page; `teamVsLeagueIntro` by TeamLeagueStrips.astro. The `.rs-*`
++  rules are used only by TeamLeagueStrips.astro.
++  blast_radius: the Team page Performance tab (strip plot, scatter, two explainers), the
++  competition page's deserved points explainer and Home's two top-list explainers, in all three
++  locales. No served number changes.
  
  approved_design:
--  - none: no page output changes; the diff touches two seed files and no site file
-+  - none: no page output changes; no page shows either metric, and the labels ship with the page that first does
+-  - none: no page output changes; no page shows either metric, and the labels ship with the page that first does
++  - team: #134
++  - competition: #129
++  - home: #127
++
++acceptance_criteria:
++  - "On the built Team page, the Compared with the league rows show no median tick and no median value; the legend lists the team first, then the other clubs; each row's right column shows the rank first in bold with the value under it; the better marker remains."
++  - "On every built Team page with the deserved points scatter, in both the wide and the narrow chart, the bounding boxes of the team name and the difference label do not overlap, and the difference label stays inside the chart without reaching the y axis; the built-pages check holds the placement on every build."
++  - "teamVsLeagueIntro, compDeservedExplainer, homeTopPlayersIntro, homeTopTeamsIntro and teamPerfIntro render the approved one-sentence texts in EN, DE and FI; teamLeagueMedian is gone from strings.ts."
++  - "block_standard.md's Strip plot row and Strip plot value rows carry the approved texts, and check_design_inventory.py --no-mocks passes."
  
  decisions_taken: >
--  Approved in chat, 2026-11-01: appearances, minutes per appearance and contribution_player_pct
--  become higher_better; their interpretations lose the closing 'not good or bad' sentence, the
--  contribution share keeping its position caveat in brackets; the `direction` description's
--  neutral example is a narrative gap only; the deserved points gap stays neutral; the player
--  metric labels ship with the page that first shows each metric.
-+  Approved in chat, 2026-11-01: the definition (passes + shots + dribbles + tackles +
-+  interceptions + blocks + saves, duels left out), the count and per-90 forms, the ids, the
-+  description and interpretation texts, group Passing and direction higher_better; labels ship
-+  with the page that first shows the metric. The plan approved in chat, 2026-11-01: the count is
-+  served in mart_player_profile and the per 90 in the position-peer comparison for all four
-+  positions, like passes_per90.
+-  Approved in chat, 2026-11-01: the definition (passes + shots + dribbles + tackles +
+-  interceptions + blocks + saves, duels left out), the count and per-90 forms, the ids, the
+-  description and interpretation texts, group Passing and direction higher_better; labels ship
+-  with the page that first shows the metric. The plan approved in chat, 2026-11-01: the count is
+-  served in mart_player_profile and the per 90 in the position-peer comparison for all four
+-  positions, like passes_per90.
++  Approved in chat, 2026-11-01: the plan for #241 and #242, the five explainer texts in EN, DE and
++  FI, and the two block standard texts. The difference label takes the side of the dot opposite
++  the name, in both charts. The deserved points components keep passing the names the old
++  explainer used; t() ignores a name the text does not use. No new mechanism, no recurring cost.
  
  decisions_reserved:
    - "none: every decision of this task is approved, see decisions_taken"
  
- acceptance_criteria:
--  - "appearances, minutes_per_appearance and contribution_player_pct carry direction higher_better and an interpretation without the 'not good or bad' close; no other catalogue cell changes."
--  - "The catalogue's direction description reads: neutral is reserved for a metric with genuinely no better/worse pole, such as a narrative gap."
-+  - "The catalogue holds ball_actions_player and ball_actions_per90 with the approved formula, texts, group Passing and direction higher_better."
-+  - "int_player_season__metrics carries both, written by the generator; mart_player_profile serves the count and mart_player_competition_benchmarks serves the per 90 for all four positions."
-+  - "The answer key proves both values for the five hand-worked player-seasons."
-+  - "No existing column or row count changes."
+-acceptance_criteria:
+-  - "The catalogue holds ball_actions_player and ball_actions_per90 with the approved formula, texts, group Passing and direction higher_better."
+-  - "int_player_season__metrics carries both, written by the generator; mart_player_profile serves the count and mart_player_competition_benchmarks serves the per 90 for all four positions."
+-  - "The answer key proves both values for the five hand-worked player-seasons."
+-  - "No existing column or row count changes."
++done_when:
++  - npm run build in site_v2 (node tests, SEO audit, built-pages check), the full pytest, the offline gates and check_design_inventory.py --no-mocks pass.
++  - The built Team page Performance tab, a competition page and Home are checked in the Browser pane at 280, 360, 560, 768 and 1010px in EN, DE and FI.
++  - The scatter name and difference label boxes are measured on every built Team page and none overlap.
  
  amendments:
--  - "Approved in chat, 2026-11-01: the Team Squad wireframe's minutes-per-appearance row drops '(neutral)', so it no longer restates a direction the catalogue owns."
-+  - "Implementation within the approved plan, reported in chat, 2026-11-01: the generator gains one more layout, a null check split at its first 'and', used only when no other layout fits; it changes no existing metric's SQL."
-+  - "Approved in chat, 2026-11-01, strip-only: 12_player_stats.md and metrics_display.md stop restating the benchmark set's count, members and directions and point to the catalogue's direction column and to int_player_competition_benchmark_metrics_long; the benchmark model and yml descriptions drop the set's count. The two doc ratchet tests lower their pinned counts for the two files, as the tests require when a cleanup removes history lines or long sentences."
-+
-+  - "Approved in chat, 2026-11-01: the two rows' descriptions name the passes, shots and dribbles the player attempted and the tackles, interceptions, blocks and saves the player made; the interpretation reads as involvement in play on or off the ball, and the count adds the raw-count minutes caveat."
-+  - "Approved in chat, 2026-11-01: the per-90 description drops its second 'the player' to stay within the docs sentence limit."
+-  - "Implementation within the approved plan, reported in chat, 2026-11-01: the generator gains one more layout, a null check split at its first 'and', used only when no other layout fits; it changes no existing metric's SQL."
+-  - "Approved in chat, 2026-11-01, strip-only: 12_player_stats.md and metrics_display.md stop restating the benchmark set's count, members and directions and point to the catalogue's direction column and to int_player_competition_benchmark_metrics_long; the benchmark model and yml descriptions drop the set's count. The two doc ratchet tests lower their pinned counts for the two files, as the tests require when a cleanup removes history lines or long sentences."
+-
+-  - "Approved in chat, 2026-11-01: the two rows' descriptions name the passes, shots and dribbles the player attempted and the tackles, interceptions, blocks and saves the player made; the interpretation reads as involvement in play on or off the ball, and the count adds the raw-count minutes caveat."
+-  - "Approved in chat, 2026-11-01: the per-90 description drops its second 'the player' to stay within the docs sentence limit."
+-
+-done_when:
+-  - The generator and docs-sync checks, dbt parse, SQLFluff, pytest, the offline gates and the site's node tests pass.
+-  - The changed models run on prod data give the answer key's values and change no existing column or row count.
++  - "Implementation within the approved plan, 2026-11-01: removing teamLeagueMedian, approved in chat, 2026-11-01, also removes it from the Team page spec's i18n key list (team.spec.json), which the build's page-spec check reads."
++  - "Implementation within the approved plan, 2026-11-01: the rank now leads the strip plot's right column (approved in chat, 2026-11-01), so the built-pages check reads the shown rank from that place instead of from under the value, and its test row is built the same way; the check still compares every row's shown rank with the served one."
++  - "Approved in chat, 2026-11-01, after review: where the difference label, on the side opposite the name, would reach the y axis, it moves to the name's side, one line under the name; the built-pages check fails a built Team page whose scatter label is neither opposite the name across the dot nor under it, with a test row that fails when the placement is reverted; the Team page wireframe's Compared with the league row drops `league_median`, strip-only."
+diff --git a/docs/wireframes/02_team_profile.md b/docs/wireframes/02_team_profile.md
+index beb0933d..bd989d5f 100644
+--- a/docs/wireframes/02_team_profile.md
++++ b/docs/wireframes/02_team_profile.md
+@@ -98,7 +98,7 @@ The page has the site's one width, 960px, and a single column at every width.
+ | Tab explainer | the featured season's competition name and `season_label` | one sentence under the tab bar |
+ | Standing | `latest_rank`, `points_rank_prev_season`, `points_this_season`, `points_prev_season` | fact rows; the points and both "Season before" values come from the official table on the day of the team's Nth match |
+ | Deserved points | `played`, `shots_on_goal_difference_per_match`, `points`, `deserved_points`, `deserved_points_gap`, `deserved_scatter[]` | the competition page's explainer; the table's head reads "{competition}, after {n} matches"; the line joins the deserved points of the two teams at the ends of the axis |
+-| Compared with the league | `benchmarks[]`: `metric_value`, `rank`, `league_median`; `league_strip[]` | one strip per served metric with a value; the rank is the warehouse's, by the metric's direction |
++| Compared with the league | `benchmarks[]`: `metric_value`, `rank`; `league_strip[]` | one strip per served metric with a value; the rank is the warehouse's, by the metric's direction |
+ | Compared with last season | `benchmarks[]`: `metric_value`, `metric_value_prev_season`; `yoy_games_played_cutoff` | the trend compares the shown values by the metric's direction |
  
- done_when:
--  - The offline gates, pytest, the site's node tests and dbt parse pass.
-+  - The generator and docs-sync checks, dbt parse, SQLFluff, pytest, the offline gates and the site's node tests pass.
-+  - The changed models run on prod data give the answer key's values and change no existing column or row count.
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-index 90a42449..f6c2937e 100644
---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-@@ -121,6 +121,13 @@ select
-         sum(saves + goals_against),
-         null
-     ) as shots_on_goal_against_player,
-+    if(
-+        logical_and(
-+            window_is_complete and (passes + shots + dribbles + tackles + interceptions + blocks + saves) is not null
-+        ),
-+        sum(passes + shots + dribbles + tackles + interceptions + blocks + saves),
-+        null
-+    ) as ball_actions_player,
-     safe_divide(
-         if(logical_and(window_is_complete and passes_accurate is not null), sum(passes_accurate), null),
-         if(logical_and(window_is_complete and passes is not null), sum(passes), null)
-@@ -200,7 +207,25 @@ select
-     safe_divide(
-         if(logical_and(window_is_complete and saves is not null), sum(saves), null) * 90,
-         if(logical_and(window_is_complete and minutes is not null), sum(minutes), null)
--    ) as saves_per90
-+    ) as saves_per90,
-+    safe_divide(
-+        if(
-+            logical_and(
-+                window_is_complete
-+                and (passes + shots + dribbles + tackles + interceptions + blocks + saves) is not null
-+            ),
-+            sum(passes + shots + dribbles + tackles + interceptions + blocks + saves),
-+            null
-+        ) * 90,
-+        if(
-+            logical_and(
-+                window_is_complete
-+                and minutes is not null
-+            ),
-+            sum(minutes),
-+            null
-+        )
-+    ) as ball_actions_per90
-     -- end of generated metric sql
- from window_rows
- group by player_sk, league_sk, season_sk, league_code, season_api_year
-diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-index bb6b48cf..b605acce 100644
---- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-+++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-@@ -920,6 +920,8 @@ models:
-         description: "{{ doc('passes_player') }}"
-       - name: passes_accurate_player
-         description: "{{ doc('passes_accurate_player') }}"
-+      - name: ball_actions_player
-+        description: "{{ doc('ball_actions_player') }}"
-       - name: passes_key_player
-         description: "{{ doc('passes_key_player') }}"
-       - name: tackles_player
-@@ -984,6 +986,8 @@ models:
-         description: "{{ doc('dribbles_success_per90') }}"
-       - name: passes_per90
-         description: "{{ doc('passes_per90') }}"
-+      - name: ball_actions_per90
-+        description: "{{ doc('ball_actions_per90') }}"
-       - name: tackles_per90
-         description: "{{ doc('tackles_per90') }}"
-       - name: interceptions_per90
-diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
-index e002b7d0..ffbad3a1 100644
---- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
-@@ -96,7 +96,7 @@ models:
+ Both comparisons show the key metrics (`is_key_metric`) until the switch "Show all metrics" is on.
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index 7e1d93d5..46305904 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -102,8 +102,8 @@
+ | Competition row | `.lrow.tc` | one competition of a team's season: crest, name and a muted note, with the standing or the cup's outcome on the right. A table's row adds the W, D and L counts, goals and points below. Narrow, the standing opens the second line | `fits` | ruled | the Team page review |
+ | Competition row name | `.tc .tc-name` | 15px semi-bold ink; the note after it 12px muted | `font-size=15px; font-weight=600; color=ink` | ruled | the Team page review |
+ | Squad grid | `.sqgrid` | the squad's player rows in two columns where each keeps 280px, otherwise one | `fits` | ruled | the Team page review |
+-| Strip plot row | `.rs-row` | a metric's name, the league from its lowest to its highest value, and the team's value over its rank. Every other club is a light dot, the median a tick with its value, the team the solid dot. Narrow, the strip takes the second line | `fits` | ruled | the Team page review |
+-| Strip plot value | `.rs-val` | the team's value, 15px bold ink, its rank under it in 12px muted | `font-size=15px; font-weight=700; color=ink` | ruled | the Team page review |
++| Strip plot row | `.rs-row` | a metric's name, the league from its lowest to its highest value, and the team's rank over its value. Every other club is a light dot, the team the solid dot. Narrow, the strip takes the second line | `fits` | ruled | the Team page review |
++| Strip plot value | `.rs-val` | the team's rank, 15px bold ink, its value under it in 12px muted | `font-size=15px; font-weight=700; color=ink` | ruled | the Team page review |
+ | Scatter plot | `.dp-chart` | each team's shots on target difference per match against its points, with the deserved points line. Axis lines carry outward ticks and no grid. The marks keep their size at every width | `fits` | ruled | the Team page review |
+ | Trend | `.ctab.yoyt .n.tr` | ▲ in the accent when this season is better, ▼ in the loss red when worse, "–" when the shown values are equal | `font-size=13px` | ruled | the Team page review |
+ | Comparison element | `.cmp` | two teams' numbers on one metric list. Each team's name stands over its column. Each metric group's rows read value, name with the diverging bar, value | `fits` | ruled | the played match page review |
+diff --git a/site_v2/scripts/check-built-pages.mjs b/site_v2/scripts/check-built-pages.mjs
+index 46be3421..f202c7c0 100644
+--- a/site_v2/scripts/check-built-pages.mjs
++++ b/site_v2/scripts/check-built-pages.mjs
+@@ -21,6 +21,9 @@
+ //    team payload's featured season serves for that metric, through `ordinal`, the function the
+ //    block renders it with. A less-is-better metric is already ranked lowest-first by the warehouse,
+ //    so a page that flips it a second time fails.
++// 5. On every Team page, in each deserved points scatter, the difference label and the team's name
++//    stay apart: the label on the other side of the team's dot, anchored the other way, or on the
++//    name's side at least one line under the name.
+ //
+ // The parsing is regex over the emitted HTML, as audit-seo does it: the shapes are this repo's own
+ // components, and the pure functions below are unit-tested on string literals.
+@@ -236,7 +239,7 @@ export function expectedBoards(dataDir = DATA_DIR) {
+ const TEAM_RE = {
+   row: /<div(?=[^>]*\sclass="rs-row[ "])[^>]*>/g,
+   metric: /\sdata-metric="([^"]*)"/,
+-  rank: /<span class="rs-val">[^<]*<small>([^<]*)<\/small>/,
++  rank: /<span class="rs-val">([^<]*)<small>/,
+ };
  
-   - name: int_player_competition_benchmark_metrics_long
-     description: >
--      The 18 player competition-benchmark metrics in long form, per player-season and position: one
-+      The player competition-benchmark metrics in long form, per player-season and position: one
-       row per (player_sk, season_sk, position_group, metric_key) where the player enters the
-       benchmark, with the value and, for the 5 ratio metrics, its numerator and denominator. The
-       single source of the benchmark metric set and of the positions each metric is benchmarked for
-@@ -149,11 +149,11 @@ models:
-       - name: appearances
-         description: "The player's appearances in this position this competition-season."
-       - name: metric_key
--        description: "The benchmarked metric — a metric_catalogue player metric_id (the 18-metric set)."
-+        description: "The benchmarked metric — a metric_catalogue player metric_id."
-         tests:
-           - not_null
-           - accepted_values:
--              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
-+              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90", "dribbles_success_per90", "passes_per90", "ball_actions_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
-       - name: metric_value
-         description: "The player's in-position value for this metric. Rows without a value are left out, so this is never null."
-         tests: [not_null]
-@@ -190,11 +190,11 @@ models:
-           - accepted_values:
-               values: ["GK", "DEF", "MID", "ATT"]
-       - name: metric_key
--        description: "The benchmarked metric — a metric_catalogue player metric_id (the 18-metric set)."
-+        description: "The benchmarked metric — a metric_catalogue player metric_id."
-         tests:
-           - not_null
-           - accepted_values:
--              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
-+              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90", "dribbles_success_per90", "passes_per90", "ball_actions_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
-       - name: player_count
-         description: "Players with a non-null value for this metric in this league-season-position — the N for rank-of-N / percentile."
-         tests: [not_null]
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_competition_benchmark_metrics_long.sql b/dbt_project/models/4_intermediate/shared/int_player_competition_benchmark_metrics_long.sql
-index 40ca8c84..6fde8dc8 100644
---- a/dbt_project/models/4_intermediate/shared/int_player_competition_benchmark_metrics_long.sql
-+++ b/dbt_project/models/4_intermediate/shared/int_player_competition_benchmark_metrics_long.sql
-@@ -1,5 +1,5 @@
- {#
--  The 18 player competition-benchmark metrics in LONG form, per player-season and position: one row
-+  The player competition-benchmark metrics in LONG form, per player-season and position: one row
-   per (player_sk, season_sk, position_group, metric_key) where the player enters the benchmark, with
-   the value and, for the 5 ratio metrics, the numerator and denominator behind it. The single source
-   of the benchmark metric set and of the positions each metric is benchmarked for:
-@@ -44,6 +44,7 @@ from season as s,
-             s.saves_player, s.saves_player + s.goals_against_player
-         ),
-         ('passes_per90', ['GK', 'DEF', 'MID', 'ATT'], true, s.passes_per90, null, null),
-+        ('ball_actions_per90', ['GK', 'DEF', 'MID', 'ATT'], true, s.ball_actions_per90, null, null),
-         (
-             'passes_accuracy_player_pct', ['GK', 'DEF', 'MID', 'ATT'], true, s.passes_accuracy_player_pct,
-             s.passes_accurate_player, s.passes_player
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position.yml b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
-index 7aa517c2..bcbc3659 100644
---- a/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
-@@ -135,6 +135,8 @@ models:
-         description: "{{ doc('dribbles_success_per90') }}"
-       - name: passes_per90
-         description: "{{ doc('passes_per90') }}"
-+      - name: ball_actions_per90
-+        description: "{{ doc('ball_actions_per90') }}"
-       - name: tackles_per90
-         description: "{{ doc('tackles_per90') }}"
-       - name: interceptions_per90
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
-index 9985f3c7..33992be5 100644
---- a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
-+++ b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
-@@ -13,7 +13,7 @@
-   whole-season per-90 there.
- 
-   Grain: (player_sk, season_sk, position_group). No floor here — int_player_competition_benchmark_metrics_long
--  applies the floors and lists the 18 benchmark metrics (per-90 + rates).
-+  applies the floors and lists the benchmark metrics (per-90 + rates).
- #}
- 
- with legs as (
-@@ -184,7 +184,25 @@ select
-     safe_divide(
-         if(logical_and(window_is_complete and saves is not null), sum(saves), null) * 90,
-         if(logical_and(window_is_complete and minutes is not null), sum(minutes), null)
--    ) as saves_per90
-+    ) as saves_per90,
-+    safe_divide(
-+        if(
-+            logical_and(
-+                window_is_complete
-+                and (passes + shots + dribbles + tackles + interceptions + blocks + saves) is not null
-+            ),
-+            sum(passes + shots + dribbles + tackles + interceptions + blocks + saves),
-+            null
-+        ) * 90,
-+        if(
-+            logical_and(
-+                window_is_complete
-+                and minutes is not null
-+            ),
-+            sum(minutes),
-+            null
-+        )
-+    ) as ball_actions_per90
-     -- end of generated metric sql
- from window_rows
- group by player_sk, league_sk, season_sk, league_code, season_api_year, position_group
-diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
-index 219ca8c1..30b175b0 100644
---- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
-+++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
-@@ -147,6 +147,7 @@ select
-     a.passes_player,
-     a.passes_key_player,
-     a.passes_accurate_player,
-+    a.ball_actions_player,
-     a.tackles_player,
-     a.interceptions_player,
-     a.blocks_player,
-diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index 2f599b1f..04ddb02e 100644
---- a/dbt_project/models/5_marts/shared/shared.yml
-+++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -1869,6 +1869,8 @@ models:
-         description: "{{ doc('passes_key_player') }}"
-       - name: passes_accurate_player
-         description: "{{ doc('passes_accurate_player') }}"
-+      - name: ball_actions_player
-+        description: "{{ doc('ball_actions_player') }}"
-       - name: tackles_player
-         description: "{{ doc('tackles_player') }}"
-       - name: interceptions_player
-@@ -3362,11 +3364,11 @@ models:
-           - accepted_values:
-               values: ["GK", "DEF", "MID", "ATT"]
-       - name: metric_key
--        description: "The benchmarked metric — a metric_catalogue player metric_id (the 18-metric set)."
-+        description: "The benchmarked metric — a metric_catalogue player metric_id."
-         tests:
-           - not_null
-           - accepted_values:
--              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
-+              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90", "dribbles_success_per90", "passes_per90", "ball_actions_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
-       - name: metric_value
-         description: "The player's in-position value for this metric (always present — null values are not ranked)."
-         tests: [not_null]
-diff --git a/dbt_project/models/docs/metric_columns.md b/dbt_project/models/docs/metric_columns.md
-index d89d64df..f6e01ce2 100644
---- a/dbt_project/models/docs/metric_columns.md
-+++ b/dbt_project/models/docs/metric_columns.md
-@@ -61,6 +61,18 @@ through the matches played so far.
- {% enddocs %}
- 
- 
-+{% docs ball_actions_per90 %}
-+The passes, shots and dribbles the player attempted, and the tackles, interceptions, blocks and
-+saves made, per 90 minutes played.
-+{% enddocs %}
-+
-+
-+{% docs ball_actions_player %}
-+The passes, shots and dribbles the player attempted, and the tackles, interceptions, blocks and
-+saves the player made.
-+{% enddocs %}
-+
-+
- {% docs blocks_per90 %}
- Shots the player blocked per 90 minutes played.
- {% enddocs %}
-diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
-index ce13f801..86340491 100644
---- a/dbt_project/seeds/metric_catalogue.csv
-+++ b/dbt_project/seeds/metric_catalogue.csv
-@@ -106,3 +106,5 @@ fouls_per_match,team,metrics.fouls_per_match.label,Average number of fouls the t
- offsides_per_match,team,metrics.offsides_per_match.label,Average number of times the team's players were caught offside per match.,int_legs__team_match,sum(offsides),count(*),expression,decimal_1,discipline,false,lower_better,Offside calls - times caught beyond the last defender per game; low = better timed runs (high can reflect a side that plays on the shoulder),8,2
- cards_yellow_per_match,team,metrics.cards_yellow_per_match.label,Average number of yellow cards the team's players received per match.,int_legs__team_match,sum(cards_yellow),count(*),expression,decimal_1,discipline,false,lower_better,"Cautions - yellow cards per game; low = disciplined, high = a side that fouls to stop play",8,
- cards_red_per_match,team,metrics.cards_red_per_match.label,Average number of red cards the team's players received per match.,int_legs__team_match,sum(cards_red),count(*),expression,decimal_1,discipline,false,lower_better,Dismissals - red cards per game; low = keeps eleven on the pitch (rare enough that a single card dominates a short window),8,
-+ball_actions_player,player,playerMetrics.ballActions.label,"The passes, shots and dribbles the player attempted, and the tackles, interceptions, blocks and saves the player made.",int_legs__player_match,sum(passes + shots + dribbles + tackles + interceptions + blocks + saves),,expression,integer,passing,,higher_better,"How many actions the player takes; high = heavily involved in play, on or off the ball (position- and style-dependent: a deep midfielder has far more than a target striker; a raw count, so it also tracks minutes played).",3,
-+ball_actions_per90,player,playerMetrics.ballActionsPer90.label,"The passes, shots and dribbles the player attempted, and the tackles, interceptions, blocks and saves made, per 90 minutes played.",int_legs__player_match,sum(passes + shots + dribbles + tackles + interceptions + blocks + saves) * 90,sum(minutes),expression,decimal_1,passing,,higher_better,"How many actions the player takes; high = heavily involved in play, on or off the ball (position- and style-dependent: a deep midfielder has far more than a target striker).",3,
-diff --git a/dbt_project/seeds/metric_map.csv b/dbt_project/seeds/metric_map.csv
-index 516495b7..acdc4584 100644
---- a/dbt_project/seeds/metric_map.csv
-+++ b/dbt_project/seeds/metric_map.csv
-@@ -78,6 +78,7 @@ mart_player_career,assists_player,assists_player,,,
- mart_player_career,goals_player,goals_player,,,
- mart_player_career,minutes_per_appearance,minutes_per_appearance,,,
- mart_player_competition_benchmarks,metric_value,assists_per90,,,metric_key
-+mart_player_competition_benchmarks,metric_value,ball_actions_per90,,,metric_key
- mart_player_competition_benchmarks,metric_value,blocks_per90,,,metric_key
- mart_player_competition_benchmarks,metric_value,defensive_actions_per90,,,metric_key
- mart_player_competition_benchmarks,metric_value,dribbles_success_per90,,,metric_key
-@@ -148,6 +149,7 @@ mart_player_profile,assists_player_delta_yoy,assists_player,delta_yoy,,
- mart_player_profile,assists_player_prev_season,assists_player,prev_season,,
- mart_player_profile,assists_player_prev_season_full,assists_player,prev_season_full,,
- mart_player_profile,assists_player_this_season,assists_player,this_season,,
-+mart_player_profile,ball_actions_player,ball_actions_player,,,
- mart_player_profile,blocks_player,blocks_player,,,
- mart_player_profile,cards_red_player,cards_red_player,,,
- mart_player_profile,cards_yellow_player,cards_yellow_player,,,
-diff --git a/dbt_project/seeds/player_season_answer_key.csv b/dbt_project/seeds/player_season_answer_key.csv
-index 792ca54b..43f456ef 100644
---- a/dbt_project/seeds/player_season_answer_key.csv
-+++ b/dbt_project/seeds/player_season_answer_key.csv
-@@ -2,6 +2,8 @@ league_code,season,player_id,metric_id,numerator,denominator,working
- WC,2026,278,appearances,8,,"Kylian Mbappé, World Cup 2026: 8 matches. countif(minutes > 0) = 8; no match without minutes."
- WC,2026,278,assists_per90,360,698,"Kylian Mbappé, World Cup 2026: 8 matches. sum(assists) * 90 = 360; sum(minutes) = 698; assists blank in 1 match, 0 by the blank rule."
- WC,2026,278,assists_player,4,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(assists) = 4; assists blank in 1 match, 0 by the blank rule."
-+WC,2026,278,ball_actions_per90,27630,698,"Kylian Mbappé, World Cup 2026: 8 matches. sum(passes + shots + dribbles + tackles + interceptions + blocks + saves) * 90 = 27630 (234 + 36 + 36 + 1 + 0 + 0 + 0 = 307); sum(minutes) = 698; tackles blank in 7 matches, 0 by the blank rule; interceptions blank in 8 matches, 0 by the blank rule; blocks blank in 8 matches, 0 by the blank rule; saves blank in 8 matches, 0 by the blank rule."
-+WC,2026,278,ball_actions_player,307,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(passes + shots + dribbles + tackles + interceptions + blocks + saves) = 307 (234 + 36 + 36 + 1 + 0 + 0 + 0); tackles blank in 7 matches, 0 by the blank rule; interceptions blank in 8 matches, 0 by the blank rule; blocks blank in 8 matches, 0 by the blank rule; saves blank in 8 matches, 0 by the blank rule."
- WC,2026,278,blocks_per90,0,698,"Kylian Mbappé, World Cup 2026: 8 matches. sum(blocks) * 90 = 0; sum(minutes) = 698; blocks blank in 8 matches, 0 by the blank rule."
- WC,2026,278,blocks_player,0,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(blocks) = 0; blocks blank in 8 matches, 0 by the blank rule."
- WC,2026,278,cards_player,1,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(cards_yellow + cards_red) = 1."
-@@ -49,6 +51,8 @@ WC,2026,278,tackles_player,1,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(ta
- WC,2026,19599,appearances,8,,"Emiliano Martínez, World Cup 2026: 8 matches. countif(minutes > 0) = 8; no match without minutes."
- WC,2026,19599,assists_per90,0,810,"Emiliano Martínez, World Cup 2026: 8 matches. sum(assists) * 90 = 0; sum(minutes) = 810; assists blank in 2 matches, 0 by the blank rule."
- WC,2026,19599,assists_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(assists) = 0; assists blank in 2 matches, 0 by the blank rule."
-+WC,2026,19599,ball_actions_per90,23940,810,"Emiliano Martínez, World Cup 2026: 8 matches. sum(passes + shots + dribbles + tackles + interceptions + blocks + saves) * 90 = 23940 (246 + 0 + 0 + 0 + 0 + 0 + 20 = 266); sum(minutes) = 810; shots blank in 8 matches, 0 by the blank rule; dribbles blank in 8 matches, 0 by the blank rule; tackles blank in 8 matches, 0 by the blank rule; interceptions blank in 8 matches, 0 by the blank rule; blocks blank in 8 matches, 0 by the blank rule; saves blank in 3 matches, 0 by the blank rule."
-+WC,2026,19599,ball_actions_player,266,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(passes + shots + dribbles + tackles + interceptions + blocks + saves) = 266 (246 + 0 + 0 + 0 + 0 + 0 + 20); shots blank in 8 matches, 0 by the blank rule; dribbles blank in 8 matches, 0 by the blank rule; tackles blank in 8 matches, 0 by the blank rule; interceptions blank in 8 matches, 0 by the blank rule; blocks blank in 8 matches, 0 by the blank rule; saves blank in 3 matches, 0 by the blank rule."
- WC,2026,19599,blocks_per90,0,810,"Emiliano Martínez, World Cup 2026: 8 matches. sum(blocks) * 90 = 0; sum(minutes) = 810; blocks blank in 8 matches, 0 by the blank rule."
- WC,2026,19599,blocks_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(blocks) = 0; blocks blank in 8 matches, 0 by the blank rule."
- WC,2026,19599,cards_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(cards_yellow + cards_red) = 0."
-@@ -96,6 +100,8 @@ WC,2026,19599,tackles_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches.
- EURO,2024,1323,appearances,6,,"Dani Olmo, EURO 2024: 7 matches. countif(minutes > 0) = 6; 1 match named without minutes, which is no appearance."
- EURO,2024,1323,assists_per90,180,431,"Dani Olmo, EURO 2024: 7 matches. sum(assists) * 90 = 180; sum(minutes) = 431; assists blank in 1 match, 0 by the blank rule; minutes blank in 1 match, 0 by the blank rule."
- EURO,2024,1323,assists_player,2,,"Dani Olmo, EURO 2024: 7 matches. sum(assists) = 2; assists blank in 1 match, 0 by the blank rule."
-+EURO,2024,1323,ball_actions_per90,19350,431,"Dani Olmo, EURO 2024: 7 matches. sum(passes + shots + dribbles + tackles + interceptions + blocks + saves) * 90 = 19350 (179 + 10 + 19 + 4 + 2 + 1 + 0 = 215); sum(minutes) = 431; passes blank in 1 match, 0 by the blank rule; shots blank in 2 matches, 0 by the blank rule; dribbles blank in 1 match, 0 by the blank rule; tackles blank in 3 matches, 0 by the blank rule; interceptions blank in 5 matches, 0 by the blank rule; blocks blank in 6 matches, 0 by the blank rule; saves blank in 7 matches, 0 by the blank rule; minutes blank in 1 match, 0 by the blank rule."
-+EURO,2024,1323,ball_actions_player,215,,"Dani Olmo, EURO 2024: 7 matches. sum(passes + shots + dribbles + tackles + interceptions + blocks + saves) = 215 (179 + 10 + 19 + 4 + 2 + 1 + 0); passes blank in 1 match, 0 by the blank rule; shots blank in 2 matches, 0 by the blank rule; dribbles blank in 1 match, 0 by the blank rule; tackles blank in 3 matches, 0 by the blank rule; interceptions blank in 5 matches, 0 by the blank rule; blocks blank in 6 matches, 0 by the blank rule; saves blank in 7 matches, 0 by the blank rule."
- EURO,2024,1323,blocks_per90,90,431,"Dani Olmo, EURO 2024: 7 matches. sum(blocks) * 90 = 90; sum(minutes) = 431; blocks blank in 6 matches, 0 by the blank rule; minutes blank in 1 match, 0 by the blank rule."
- EURO,2024,1323,blocks_player,1,,"Dani Olmo, EURO 2024: 7 matches. sum(blocks) = 1; blocks blank in 6 matches, 0 by the blank rule."
- EURO,2024,1323,cards_player,1,,"Dani Olmo, EURO 2024: 7 matches. sum(cards_yellow + cards_red) = 1."
-@@ -143,6 +149,8 @@ EURO,2024,1323,tackles_player,4,,"Dani Olmo, EURO 2024: 7 matches. sum(tackles)
- PL,2024,306,appearances,38,,"Mohamed Salah, Premier League 2024-25: 38 matches. countif(minutes > 0) = 38; no match without minutes."
- PL,2024,306,assists_per90,1620,3377,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(assists) * 90 = 1620; sum(minutes) = 3377."
- PL,2024,306,assists_player,18,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(assists) = 18."
-+PL,2024,306,ball_actions_per90,127620,3377,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(passes + shots + dribbles + tackles + interceptions + blocks + saves) * 90 = 127620 (1153 + 104 + 130 + 22 + 9 + 0 + 0 = 1418); sum(minutes) = 3377; shots blank in 1 match, 0 by the blank rule; dribbles blank in 1 match, 0 by the blank rule; tackles blank in 23 matches, 0 by the blank rule; interceptions blank in 30 matches, 0 by the blank rule; blocks blank in 38 matches, 0 by the blank rule; saves blank in 38 matches, 0 by the blank rule."
-+PL,2024,306,ball_actions_player,1418,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(passes + shots + dribbles + tackles + interceptions + blocks + saves) = 1418 (1153 + 104 + 130 + 22 + 9 + 0 + 0); shots blank in 1 match, 0 by the blank rule; dribbles blank in 1 match, 0 by the blank rule; tackles blank in 23 matches, 0 by the blank rule; interceptions blank in 30 matches, 0 by the blank rule; blocks blank in 38 matches, 0 by the blank rule; saves blank in 38 matches, 0 by the blank rule."
- PL,2024,306,blocks_per90,0,3377,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(blocks) * 90 = 0; sum(minutes) = 3377; blocks blank in 38 matches, 0 by the blank rule."
- PL,2024,306,blocks_player,0,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(blocks) = 0; blocks blank in 38 matches, 0 by the blank rule."
- PL,2024,306,cards_player,1,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(cards_yellow + cards_red) = 1."
-@@ -190,6 +198,8 @@ PL,2024,306,tackles_player,22,,"Mohamed Salah, Premier League 2024-25: 38 matche
- BL1,2024,184,appearances,31,,"Harry Kane, Bundesliga 2024-25: 31 matches. countif(minutes > 0) = 31; no match without minutes."
- BL1,2024,184,assists_per90,720,2389,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(assists) * 90 = 720; sum(minutes) = 2389."
- BL1,2024,184,assists_player,8,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(assists) = 8."
-+BL1,2024,184,ball_actions_per90,69750,2389,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(passes + shots + dribbles + tackles + interceptions + blocks + saves) * 90 = 69750 (617 + 90 + 49 + 14 + 3 + 2 + 0 = 775); sum(minutes) = 2389; shots blank in 4 matches, 0 by the blank rule; dribbles blank in 10 matches, 0 by the blank rule; tackles blank in 21 matches, 0 by the blank rule; interceptions blank in 28 matches, 0 by the blank rule; blocks blank in 29 matches, 0 by the blank rule; saves blank in 31 matches, 0 by the blank rule."
-+BL1,2024,184,ball_actions_player,775,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(passes + shots + dribbles + tackles + interceptions + blocks + saves) = 775 (617 + 90 + 49 + 14 + 3 + 2 + 0); shots blank in 4 matches, 0 by the blank rule; dribbles blank in 10 matches, 0 by the blank rule; tackles blank in 21 matches, 0 by the blank rule; interceptions blank in 28 matches, 0 by the blank rule; blocks blank in 29 matches, 0 by the blank rule; saves blank in 31 matches, 0 by the blank rule."
- BL1,2024,184,blocks_per90,180,2389,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(blocks) * 90 = 180; sum(minutes) = 2389; blocks blank in 29 matches, 0 by the blank rule."
- BL1,2024,184,blocks_player,2,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(blocks) = 2; blocks blank in 29 matches, 0 by the blank rule."
- BL1,2024,184,cards_player,5,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(cards_yellow + cards_red) = 5."
-diff --git a/docs/wireframes/12_player_stats.md b/docs/wireframes/12_player_stats.md
-index 5025c7b9..25636745 100644
---- a/docs/wireframes/12_player_stats.md
-+++ b/docs/wireframes/12_player_stats.md
-@@ -109,17 +109,12 @@ Display reads it as a position among the player's positional peers:
- - `lower_better` metric → **mirror both**: position = `1 − percentile` **and** the caption rank =
-   `peer_count + 1 − rank`, so "top" / "1st" mark the better (low-value) end. The mart is direction-agnostic
-   (`percentile` ascending, `rank` descending), so both mirrors are a display-side step.
--  **Defined but dormant — 0 of the 18 metrics are `lower_better` today.**
- 
- Then, on a 0–100 scale: **above the median → "top X%"**, **below → "bottom X%"**, **at the median → "median"**
- (the dashed line). The strong extreme reads **"top 1%"**, never "top 0%" (the exact percentile→label rounding,
- and whether the extreme falls back to the `rank` "k of N" form, is a render detail confirmed at the wiring PR).
- 
--Since the catalogue-wide direction sweep (2026-07-21) **all 18 metrics are `higher_better`** — 0 neutral and
--0 lower_better — so a high position reads as quality on every row. (Superseded: this used to read "11 are
--`higher_better`, 7 are `neutral`" (`saves_per90`, `passes_per90`, `duels_won_per90`, `defensive_actions_per90`,
--`tackles_per90`, `interceptions_per90`, `blocks_per90`) and warned that for those "top" just meant *most*, not
--better. Those 7 now carry a direction, so the caveat no longer applies here.)
-+Each metric's direction is the catalogue's `direction` column.
- 
- **Bar colour: direction-aware** (CPO 2026-07-21, v2 design review). ONE bar language across every
- vs-population screen of a player — no bespoke percentile treatment. The Team page compares a team with
-@@ -143,12 +138,8 @@ added back here it renders uncoloured, exactly as the team rule already prescrib
- | `dribbles_success_player_pct` | `dribbles_success_player` | `dribbles_attempts_player` |
- | `duels_won_player_pct` | `duels_won_player` | `duels_player` |
- 
--The benchmarked set is the **18 metrics** of `int_player_competition_benchmark_metrics_long`, each ranked **within its own
--position group**: **GK** = saves_player, save %, passes, pass accuracy; **DEF / MID / ATT** = passes, pass accuracy,
--goals, assists, scorer points, shots on target, key passes, finishing, dribbles (count + %), duels won
--(count + %), defensive actions, tackles, interceptions, blocks. `finishing_efficiency_player_pct` and `duels_won_player_pct`
--are now catalogued (both `higher_better`, via #530b/#621) — they were the last blockers, so the screen can
--bind all 18 honestly.
-+The benchmarked set is the metrics of `int_player_competition_benchmark_metrics_long`, each ranked **within its own
-+position group**; that model lists the metrics and the positions each is compared on.
- 
- ### (5) Internal links
- 
-diff --git a/docs/wireframes/metrics_display.md b/docs/wireframes/metrics_display.md
-index 80a95de2..20d4d2a5 100644
---- a/docs/wireframes/metrics_display.md
-+++ b/docs/wireframes/metrics_display.md
-@@ -66,13 +66,9 @@ N" + vs-median, honest at N≈18) — never a percentile.
-    positional peers; its COLOUR (rule 5) says whether that end is the good one. The mart `percentile` is
-    direction-agnostic (by value ascending); read position = `percentile`
-    for `higher_better`/`neutral`, `1 − percentile` for `lower_better` (which also mirrors the caption rank to
--   `peer_count + 1 − rank`, since the mart's `rank` is value-descending; so "top"/"1st" mark the better end —
--   dormant, 0 such metrics today); then `>50 → top X%`, `<50 → bottom X%`, `=50 → median` (strong extreme =
--   "top 1%", never "top 0%"). Since the catalogue-wide direction sweep (2026-07-21) **all 18 benchmark metrics
--   are `higher_better`** — 0 neutral and 0 lower_better remain in this set — so "top" reads as quality on every
--   row. (Superseded: this rule used to split the set "11 higher_better / 7 neutral" and warn that for the
--   neutral volume/style metrics "top" meant *most*, not better. Those 7 per-90 volume metrics now carry a
--   direction, so the caveat no longer applies here.)
-+   `peer_count + 1 − rank`, since the mart's `rank` is value-descending; so "top"/"1st" mark the better end);
-+   then `>50 → top X%`, `<50 → bottom X%`, `=50 → median` (strong extreme =
-+   "top 1%", never "top 0%").
- 4. **Peers = position group** (GK / DEF / MID / ATT) — position-aware, set at the mart (CPO 2026-06-23).
- 5. **One bar, direction-aware colour** (CPO 2026-07-21, v2 design review). ONE bar language across every
-    vs-population screen of a player — no bespoke percentile treatment. The Team page compares a team with
-diff --git a/scripts/generate_metric_sql.py b/scripts/generate_metric_sql.py
-index 4dd04eb0..c292d707 100644
---- a/scripts/generate_metric_sql.py
-+++ b/scripts/generate_metric_sql.py
-@@ -83,7 +83,7 @@ COUNTS = (
- )
- COMPOSITES = (
-     "goals_open_play_player", "scorer_points_player", "defensive_actions_player", "cards_player",
--    "shots_on_goal_against_player",
-+    "shots_on_goal_against_player", "ball_actions_player",
- )
- RATIOS = (
-     "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct",
-@@ -92,7 +92,7 @@ RATIOS = (
- PER90 = (
-     "goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90",
-     "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90",
--    "defensive_actions_per90", "duels_won_per90", "saves_per90",
-+    "defensive_actions_per90", "duels_won_per90", "saves_per90", "ball_actions_per90",
- )
- WINDOW_COUNTS = (
-     "goals_player", "assists_player", "goals_against_player", "saves_player", "shots_player",
-@@ -190,7 +190,7 @@ def _gate(function: str, inner: str, over: str, entity: str, forfeit_counted: bo
- 
- def _pieces(expression: str, windowed: bool, entity: str = "player", forfeit_counted: bool = False) -> list:
-     """The expression split into plain text and gated aggregates, each aggregate as (inline, broken,
--    broken with its condition on a line of its own).
-+    broken with its condition on a line of its own, and that condition split at its first `and`).
- 
-     A gated aggregate is NULL unless every row it counts has its input (and, for a player, the
-     window is complete). On a team surface `count(*)` counts the rows the metric counts."""
-@@ -202,13 +202,17 @@ def _pieces(expression: str, windowed: bool, entity: str = "player", forfeit_cou
-         position = match.end()
-         if match.group(1) is None:
-             matches = f"count(*){over}" if forfeit_counted else f"countif(not is_awarded_result){over}"
--            pieces.append((matches, [matches], [matches]))
-+            pieces.append((matches, [matches], [matches], [matches]))
-             continue
-         requirement, value = _gate(match.group(1), match.group(2).strip(), over, entity, forfeit_counted)
-         condition = f"logical_and({requirement}){over}"
-+        first, _, rest = requirement.partition(" and ")
-+        split = [INDENT * 2 + first] + ([INDENT * 2 + "and " + rest] if rest else [])
-         pieces.append((f"if({condition}, {value}, null)",
-                        ["if(", INDENT + condition + ",", INDENT + value + ",", INDENT + "null", ")"],
-                        ["if(", INDENT + "logical_and(", INDENT * 2 + requirement, INDENT + f"){over},",
-+                        INDENT + value + ",", INDENT + "null", ")"],
-+                       ["if(", INDENT + "logical_and("] + split + [INDENT + f"){over},",
-                         INDENT + value + ",", INDENT + "null", ")"]))
-     if len(pieces) == 0:
-         raise Abort(f"no sum() or countif() in `{expression}`")
-@@ -220,13 +224,15 @@ def _inline(pieces: list) -> str:
-     return "".join(piece if isinstance(piece, str) else piece[0] for piece in pieces)
- 
- 
--def _broken(pieces: list, deep: bool = False) -> list[str]:
-+def _broken(pieces: list, deep: int = 0) -> list[str]:
-+    """`deep` 0 keeps each condition on one line, 1 gives it a line of its own, 2 also splits it at
-+    its first `and`."""
-     lines = [""]
-     for piece in pieces:
-         if isinstance(piece, str):
-             lines[-1] += piece
-         else:
--            form = piece[2] if deep else piece[1]
-+            form = piece[1 + deep]
-             lines[-1] += form[0]
-             lines.extend(form[1:])
-     return lines
-@@ -242,16 +248,16 @@ def _metric_lines(metric: str, numerator: str, denominator: str, windowed: bool,
-     forfeit_counted = entity == "team" and metric in FORFEIT_COUNTED
-     top = _pieces(numerator, windowed, entity, forfeit_counted)
-     if not denominator:
--        layouts = [[f"{_inline(top)} as {metric}"], _broken(top), _broken(top, deep=True)]
--        layouts[1][-1] += f" as {metric}"
--        layouts[2][-1] += f" as {metric}"
-+        layouts = [[f"{_inline(top)} as {metric}"], _broken(top), _broken(top, 1), _broken(top, 2)]
-+        for layout in layouts[1:]:
-+            layout[-1] += f" as {metric}"
-     else:
-         bottom = _pieces(denominator, windowed, entity, forfeit_counted)
-         layouts = [
-             [f"safe_divide({_inline(top)}, {_inline(bottom)}) as {metric}"],
-             ["safe_divide(", INDENT + _inline(top) + ",", INDENT + _inline(bottom), f") as {metric}"],
-         ]
--        for deep in (False, True):
-+        for deep in (0, 1, 2):
-             layout = ["safe_divide("] + [INDENT + line for line in _broken(top, deep)]
-             layout[-1] += ","
-             layouts.append(layout + [INDENT + line for line in _broken(bottom, deep)] + [f") as {metric}"])
-diff --git a/tests/test_no_decision_history_in_docs.py b/tests/test_no_decision_history_in_docs.py
-index 0d1f321a..65269190 100644
---- a/tests/test_no_decision_history_in_docs.py
-+++ b/tests/test_no_decision_history_in_docs.py
-@@ -54,12 +54,12 @@ PINNED = {
-     "docs/wireframes/09_chrome.md": 4,
-     "docs/wireframes/10_home.md": 126,
-     "docs/wireframes/11_team_squad.md": 12,
--    "docs/wireframes/12_player_stats.md": 14,
-+    "docs/wireframes/12_player_stats.md": 11,
-     "docs/wireframes/13_player_career.md": 11,
-     "docs/wireframes/14_team_stats.md": 9,
-     "docs/wireframes/99_gaps_register.md": 29,
-     "docs/wireframes/block_standard.md": 48,
--    "docs/wireframes/metrics_display.md": 32,
-+    "docs/wireframes/metrics_display.md": 30,
-     "site_v2/src/data/README.md": 5,
+ /** The league rows on one Team page, each with its metric and the rank it shows. A row is the HTML
+@@ -265,6 +268,40 @@ export function checkTeamPage(html, lang, served, path = "") {
+   return issues;
  }
  
-diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
-index d473c02d..a34bfc83 100644
---- a/tests/test_sentence_length_in_docs.py
-+++ b/tests/test_sentence_length_in_docs.py
-@@ -67,12 +67,12 @@ PINNED = {
-     "docs/wireframes/09_chrome.md": 7,
-     "docs/wireframes/10_home.md": 128,
-     "docs/wireframes/11_team_squad.md": 7,
--    "docs/wireframes/12_player_stats.md": 16,
-+    "docs/wireframes/12_player_stats.md": 13,
-     "docs/wireframes/13_player_career.md": 7,
-     "docs/wireframes/14_team_stats.md": 19,
-     "docs/wireframes/99_gaps_register.md": 65,
-     "docs/wireframes/block_standard.md": 11,
--    "docs/wireframes/metrics_display.md": 27,
-+    "docs/wireframes/metrics_display.md": 25,
-     "site_v2/src/data/README.md": 10,
++const SCATTER_RE = {
++  chart: /<svg class="dp-chart[ "]/g,
++  me: /<circle class="dp-me"[^>]*>/,
++  note: /<text class="dp-note"[^>]*>/,
++  name: /<text class="dp-name"[^>]*>/,
++};
++const attr = (tag, name) => tag?.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1] ?? null;
++const textMark = (tag) =>
++  tag && { x: Number(attr(tag, "x")), y: Number(attr(tag, "y")), fs: Number(attr(tag, "font-size")), anchor: attr(tag, "text-anchor") };
++
++/** The deserved points scatters on one Team page, each with the team's dot and its two labels. */
++export function scatterCharts(html) {
++  const starts = [...html.matchAll(SCATTER_RE.chart)];
++  return starts.map((m, i) => {
++    const svg = html.slice(m.index, starts[i + 1]?.index ?? html.length);
++    return {
++      cx: Number(attr(svg.match(SCATTER_RE.me)?.[0], "cx")),
++      note: textMark(svg.match(SCATTER_RE.note)?.[0]),
++      name: textMark(svg.match(SCATTER_RE.name)?.[0]),
++    };
++  });
++}
++
++/** Issues on one Team page: a scatter whose difference label and name are not kept apart. */
++export function checkScatterLabels(html, path = "") {
++  const issues = [];
++  scatterCharts(html).forEach(({ cx, note, name }, i) => {
++    const across = note && name && note.anchor !== name.anchor && (note.x - cx) * (name.x - cx) < 0;
++    const under = note && name && note.anchor === name.anchor && note.x === name.x && note.y - name.y >= name.fs;
++    if (!across && !under) issues.push(`${path}: scatter ${i + 1} puts the difference label beside the team's name`);
++  });
++  return issues;
++}
++
+ /** Each team payload's served league ranks, by slug: the featured season's `benchmarks`, rank by
+  *  metric key. */
+ export function expectedTeamRanks(dataDir = DATA_DIR) {
+@@ -279,6 +316,19 @@ export function expectedTeamRanks(dataDir = DATA_DIR) {
+   return ranks;
  }
  
++/** Whether any team payload's featured season serves a deserved points scatter with the team in it:
++ *  the scatter rule only runs on the charts SCATTER_RE finds, so a drifted shape would otherwise
++ *  check nothing and pass. */
++export function servesScatter(dataDir = DATA_DIR) {
++  const dir = join(dataDir, "teams");
++  if (!existsSync(dir)) return false;
++  return readdirSync(dir).filter((f) => f.endsWith(".json")).some((file) => {
++    const p = JSON.parse(readFileSync(join(dir, file), "utf8"));
++    const season = (p.seasons ?? []).find((s) => s.is_featured_season);
++    return (season?.deserved_scatter ?? []).some((d) => d.is_self);
++  });
++}
++
+ /** Issues when the team payloads serve ranks but no Team page or no league row was checked: the
+  *  rule only runs on the pages TEAM_PAGE finds and the rows that carry `rs-row`, so a drifted shape
+  *  would otherwise check nothing and pass. */
+@@ -340,6 +390,7 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
+   let rowsChecked = 0;
+   let teamPages = 0;
+   let teamRows = 0;
++  let scatters = 0;
+   const expected = expectedBoards(dataDir);
+   const teamRanks = expectedTeamRanks(dataDir);
+   const built = payloadIds(dataDir);
+@@ -360,6 +411,8 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
+       teamPages += 1;
+       teamRows += teamRankRows(html).length;
+       issues.push(...checkTeamPage(html, lang, teamRanks.get(slug), path));
++      scatters += scatterCharts(html).length;
++      issues.push(...checkScatterLabels(html, path));
+     }
+   }
+   const payloadFiles = built.size;
+@@ -368,6 +421,8 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
+   issues.push(...checkTabPagesFound({ fixturesPages, rankingsPages, expected }));
+   issues.push(...checkMatchRowsFound({ matchRows: rowsChecked, payloadFiles }));
+   issues.push(...checkTeamRowsFound({ teamPages, teamRows, expected: teamRanks }));
++  if (teamPages > 0 && scatters === 0 && servesScatter(dataDir))
++    issues.push("a team payload serves the deserved points scatter but no Team page carried one");
+   if (issues.length) {
+     console.error(`check-built-pages: ${issues.length} issue(s)`);
+     for (const i of issues) console.error(`  - ${i}`);
+@@ -379,7 +434,7 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
+         ? ` = the warehouse's ${manifest.source_counts?.fixtures_unplayed} unplayed and ${manifest.source_counts?.fixtures_played} played`
+         : " (no manifest: sample build)") +
+       `; ${fixturesPages} fixtures page(s), ${rankingsPages} rankings page(s), ${rowsChecked} match row(s)` +
+-      ` and ${teamRows} league row(s) on ${teamPages} team page(s) checked. OK.`,
++      ` and ${teamRows} league row(s) and ${scatters} scatter(s) on ${teamPages} team page(s) checked. OK.`,
+   );
+   return 0;
+ }
+diff --git a/site_v2/scripts/check-built-pages.test.mjs b/site_v2/scripts/check-built-pages.test.mjs
+index 0d4596e5..33463775 100644
+--- a/site_v2/scripts/check-built-pages.test.mjs
++++ b/site_v2/scripts/check-built-pages.test.mjs
+@@ -11,7 +11,7 @@ import { join } from "node:path";
+ import {
+   checkFixturesPage, checkMatchPageCount, checkMatchRowLinks, checkMatchRowsFound, checkRankingsPage, boards, isZeroValue,
+   main, matchRows, renderedBoards, rounds, checkTabPagesFound, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
+-  checkTeamPage, checkTeamRowsFound, teamRankRows, TEAM_PAGE,
++  checkTeamPage, checkTeamRowsFound, teamRankRows, TEAM_PAGE, checkScatterLabels, scatterCharts,
+ } from "./check-built-pages.mjs";
+ 
+ function round(n, { checked = false, next = false, rows = [] } = {}) {
+@@ -232,12 +232,12 @@ test("main fails a build whose pages name no match, and passes it once a row doe
+ });
+ 
+ // A "Compared with the league" row as TeamLeagueStrips.astro emits it: the name, the strip, then the
+-// value with the shown rank under it.
++// shown rank with the value under it.
+ function leagueRow(metric, value, rank, { nonkey = false } = {}) {
+   return (
+     `<div class="rs-row${nonkey ? " nonkey" : ""}" data-metric="${metric}"><span class="rs-name">x</span>` +
+     `<span class="rs-strip"><span class="rs-line"></span><span class="rs-dir">better</span></span>` +
+-    `<span class="rs-val">${value}<small>${rank}</small></span></div>`
++    `<span class="rs-val">${rank}<small>${value}</small></span></div>`
+   );
+ }
+ 
+@@ -310,6 +310,59 @@ test("team payloads with ranks but no Team page or no league row checked is an i
+   assert.deepEqual(checkTeamRowsFound({ teamPages: 0, teamRows: 0, expected: new Map() }), []);
+ });
+ 
++// A deserved points scatter as TeamDeserved.astro emits it: the team's dot, then the difference
++// label, then the name.
++function scatter({ cx = 100, note, name }) {
++  const text = (cls, m) => `<text class="${cls}" x="${m.x}" y="${m.y}" font-size="12" text-anchor="${m.anchor}">x</text>`;
++  return (
++    `<svg class="dp-chart dp-wide" viewBox="0 0 560 330" role="img"><line class="dp-axis" x1="46" x2="46" y1="12" y2="272"></line>` +
++    `<circle class="dp-me" cx="${cx}" cy="150" r="5" data-px="5"></circle>` + text("dp-note", note) + text("dp-name", name) + `</svg>`
++  );
++}
++
++test("the scatter's difference label sits across the dot from the name, or a line under it; beside it fails", () => {
++  const name = { x: 107, y: 154.2, anchor: "start" };
++  assert.deepEqual(checkScatterLabels(scatter({ note: { x: 93, y: 170, anchor: "end" }, name }), "p"), []);
++  assert.deepEqual(checkScatterLabels(scatter({ note: { x: 107, y: 169.2, anchor: "start" }, name }), "p"), []);
++  assert.match(checkScatterLabels(scatter({ note: { x: 107, y: 160, anchor: "start" }, name }), "p")[0],
++    /p: scatter 1 puts the difference label beside the team's name/);
++  assert.equal(checkScatterLabels(scatter({ note: { x: 107, y: 140, anchor: "start" }, name }), "p").length, 1);
++  assert.equal(checkScatterLabels(scatter({ note: { x: 93, y: 170, anchor: "start" }, name }), "p").length, 1);
++  const two = scatter({ note: { x: 93, y: 170, anchor: "end" }, name }) + scatter({ note: { x: 107, y: 160, anchor: "start" }, name });
++  assert.equal(scatterCharts(two).length, 2);
++  assert.match(checkScatterLabels(two, "p")[0], /scatter 2/);
++});
++
++test("main fails a Team page whose scatter is missing or puts the label beside the name", (t) => {
++  const root = mkdtempSync(join(tmpdir(), "check-built-pages-scatter-"));
++  try {
++    mkdirSync(join(root, "data", "teams"), { recursive: true });
++    const season = {
++      is_featured_season: true,
++      benchmarks: [{ metric_key: "fouls_per_match", rank: 1, team_count: 18 }],
++      deserved_scatter: [{ is_self: true, sotd: 1, points: 20, deserved: 18 }],
++    };
++    writeFileSync(join(root, "data", "teams", "85.json"), JSON.stringify({ slug: "psg", seasons: [season] }));
++    const write = (html) => {
++      mkdirSync(join(root, "dist", "en", "teams", "psg"), { recursive: true });
++      writeFileSync(join(root, "dist", "en", "teams", "psg", "index.html"), leagueRow("fouls_per_match", "6.1", "1st") + html);
++    };
++    const name = { x: 107, y: 154.2, anchor: "start" };
++    const errors = t.mock.method(console, "error", () => {});
++    t.mock.method(console, "log", () => {});
++    write("");
++    assert.equal(main(join(root, "dist"), join(root, "data")), 1);
++    assert.ok(errors.mock.calls.some((c) => /serves the deserved points scatter but no Team page carried one/.test(c.arguments[0])));
++    write(scatter({ note: { x: 107, y: 160, anchor: "start" }, name }));
++    assert.equal(main(join(root, "dist"), join(root, "data")), 1);
++    assert.ok(errors.mock.calls.some((c) => /beside the team's name/.test(c.arguments[0])));
++    write(scatter({ note: { x: 93, y: 170, anchor: "end" }, name }));
++    assert.equal(main(join(root, "dist"), join(root, "data")), 0);
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
+ test("a page with no round at all is an issue, not a pass", () => {
+   assert.match(checkFixturesPage("<html><body></body></html>", "p")[0], /no round on the page/);
+ });
+diff --git a/site_v2/src/components/team/TeamDeserved.astro b/site_v2/src/components/team/TeamDeserved.astro
+index a92c6aa5..5a44a0b5 100644
+--- a/site_v2/src/components/team/TeamDeserved.astro
++++ b/site_v2/src/components/team/TeamDeserved.astro
+@@ -2,7 +2,9 @@
+ // Deserved points: the competition page's explainer, a table of the team's four values (shots on
+ // target difference per match, points, deserved points, the difference), then the league's
+ // scatter plot: every team's shots on target difference per match against its points, the
+-// deserved points line, the team as the one solid dot with its difference as a dotted line. The
++// deserved points line, the team as the one solid dot with its difference as a dotted line, the
++// difference's label on the side of the dot opposite the team's name so the two never meet, or
++// under the name where it would reach the y axis. The
+ // line joins the served deserved points of the two teams at the ends of the axis; deserved points
+ // lie on it by the model. Marks keep their pixel size at every width (chartMarks.mjs). Present
+ // only where the model fitted the league (mart_team_profile, deserved_scatter).
+@@ -31,6 +33,7 @@ const names = {
+   sotName: metricInSentence(lang, "metrics.shots_on_target_per_match.label"),
+ };
+ const signed = (v: number | null | undefined) => signedDelta(v, "decimal_1", lang).value;
++const gapText = signed(s.deserved_points_gap);
+ 
+ const dots = (s.deserved_scatter ?? []).filter(
+   (d): d is ScatterDot & { sotd: number; points: number; deserved: number } =>
+@@ -62,10 +65,18 @@ function chart(W: number, H: number, fs: number) {
+   for (let y = 0; y <= y1; y += 3) yTicks.push(y);
+   const cx = sx(me.sotd), cy = sy(me.points), cl = sy(onLine(me.sotd));
+   const right = cx < (L + W - R) / 2;
++  const lx = right ? cx + 7 : cx - 7, anchor = right ? "start" : "end";
++  // The label's width estimated from its characters, generous so it moves before it meets the axis.
++  const under = right && cx - 7 - gapText.length * fs * 0.55 < L + 3;
+   return {
+     W, H, fs, L, R, T, B, sx, sy, xTicks, yTicks,
+     line: { x1: sx(x0), y1: sy(onLine(x0)), x2: sx(x1), y2: sy(onLine(x1)) },
+-    me: { cx, cy, cl, lx: right ? cx + 7 : cx - 7, anchor: right ? "start" : "end" },
++    me: {
++      cx, cy, cl, lx, anchor,
++      gx: under ? lx : right ? cx - 7 : cx + 7,
++      ganchor: under ? anchor : right ? "end" : "start",
++      gy: under ? cy + fs * 1.85 : (cy + cl) / 2 + fs * 0.35,
++    },
+   };
+ }
+ const charts = [{ cls: "dp-wide", c: chart(560, 330, 12) }, { cls: "dp-narrow", c: chart(280, 230, 11) }];
+@@ -116,7 +127,7 @@ const fmtTick = (x: number) => (x > 0 ? `+${integer(x, lang)}` : integer(x, lang
+           ))}
+           <line class="dp-gap" x1={c.me.cx} x2={c.me.cx} y1={c.me.cy} y2={c.me.cl} />
+           <circle class="dp-me" cx={c.me.cx} cy={c.me.cy} r="5" data-px="5" data-halo="2"><title>{tip(me)}</title></circle>
+-          <text class="dp-note" x={c.me.lx} y={(c.me.cy + c.me.cl) / 2 + c.fs * 0.35} font-size={c.fs} text-anchor={c.me.anchor}>{signed(s.deserved_points_gap)}</text>
++          <text class="dp-note" x={c.me.gx} y={c.me.gy} font-size={c.fs} text-anchor={c.me.ganchor}>{gapText}</text>
+           <text class="dp-name" x={c.me.lx} y={c.me.cy + c.fs * 0.35} font-size={c.fs} text-anchor={c.me.anchor}>{teamName}</text>
+         </svg>
+       ))}
+diff --git a/site_v2/src/components/team/TeamLeagueStrips.astro b/site_v2/src/components/team/TeamLeagueStrips.astro
+index 2b2a9627..d8b6c738 100644
+--- a/site_v2/src/components/team/TeamLeagueStrips.astro
++++ b/site_v2/src/components/team/TeamLeagueStrips.astro
+@@ -2,9 +2,8 @@
+ // Compared with the league: the served metric list (metric_rows.json, the catalogue's groups and
+ // order), each row a strip plot of the team's league this season. The line runs from the league's
+ // lowest to its highest value, values growing to the right; every other club is a small light dot,
+-// the team the one solid dot, the league median a tick with its value. The team's value and its
+-// rank (the mart's, by the metric's direction) stand on the right; "better" points the metric's
+-// way. A row without a value for the team is left out. The key metrics show; the switch shows
++// the team the one solid dot. The team's rank (the mart's, by the metric's direction) stands on the
++// right with its value under it; "better" points the metric's way. A row without a value for the team is left out. The key metrics show; the switch shows
+ // every row in its place. Data: mart_team_competition_benchmarks and its every-club strip.
+ import SectionHead from "../ui/SectionHead.astro";
+ import MetricSwitch from "../ui/MetricSwitch.astro";
+@@ -43,9 +42,8 @@ function place(v: number, lo: number, hi: number): number {
+     {needsSwitch(groups) && <MetricSwitch id="tsw-league" lang={lang} />}
+     <div class="rs-list">
+       <div class="rs-legend" aria-hidden="true">
+-        <span><i class="rs-k-club"></i>{t(lang, "teamOtherTeams", { competition: compName })}</span>
+-        <span><i class="rs-k-med"></i>{t(lang, "teamLeagueMedian")}</span>
+         <span><i class="rs-k-dot"></i>{teamName}</span>
++        <span><i class="rs-k-club"></i>{t(lang, "teamOtherTeams", { competition: compName })}</span>
+       </div>
+       {groups.map((g) => (
+         <div class:list={["fxgroup", "rkgroup", { nonkey: !g.hasKey }]}>
+@@ -57,18 +55,11 @@ function place(v: number, lo: number, hi: number): number {
+             const all = clubs.map((c) => c.value);
+             const lo = all.length ? Math.min(...all, v) : v;
+             const hi = all.length ? Math.max(...all, v) : v;
+-            const med = b.league_median;
+             return (
+               <div class:list={["rs-row", { nonkey: !r.is_key_metric }]} data-metric={r.metric_id}>
+                 <span class="rs-name">{boardTitle(lang, r.label_i18n_key, r.per_match)}</span>
+                 <span class="rs-strip">
+                   <span class="rs-line"></span>
+-                  {med != null && (
+-                    <>
+-                      <span class="rs-med" style={`left:${place(med, lo, hi)}%`}></span>
+-                      <span class="rs-medv" style={`left:${place(med, lo, hi)}%`}>{formatValue(med, r.format, lang)}</span>
+-                    </>
+-                  )}
+                   {clubs.filter((c) => !c.is_self).map((c) => (
+                     <span class="rs-club" style={`left:${place(c.value, lo, hi)}%`} title={`${c.name}: ${formatValue(c.value, r.format, lang)}`}></span>
+                   ))}
+@@ -76,7 +67,7 @@ function place(v: number, lo: number, hi: number): number {
+                   {r.direction === "higher_better" && <span class="rs-dir r">{t(lang, "teamBetterRight")}</span>}
+                   {r.direction === "lower_better" && <span class="rs-dir">{t(lang, "teamBetterLeft")}</span>}
+                 </span>
+-                <span class="rs-val">{formatValue(v, r.format, lang)}<small>{ordinal(b.rank, lang)}</small></span>
++                <span class="rs-val">{ordinal(b.rank, lang)}<small>{formatValue(v, r.format, lang)}</small></span>
+               </div>
+             );
+           })}
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index 73415377..5b11f7bc 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -84,7 +84,7 @@ const EN: Dict = {
+   tabOverview: "Overview",
+   tabPerformance: "Performance",
+   tabSquad: "Squad",
+-  teamPerfIntro: "{competition} {season}: {team} compared with the other teams and with the season before. Other competitions are not included.",
++  teamPerfIntro: "{competition} {season}: {team} compared with the other teams and with the season before, without other competitions.",
+   teamLeaguePhase: "League phase",
+   teamThrough: "Through",
+   teamKnockedOut: "Knocked out",
+@@ -103,8 +103,7 @@ const EN: Dict = {
+   teamOtherTeams: "Other {competition} teams",
+   teamScatterAria: "{pointsName} and {sotdName} per match of every {competition} team, with the {deservedName} line.",
+   teamVsLeague: "Compared with the league",
+-  teamVsLeagueIntro: "Each value is ranked against the other {competition} clubs this season. The median splits the league in two: half the clubs are above it, half below.",
+-  teamLeagueMedian: "League median",
++  teamVsLeagueIntro: "Each value is ranked against the other {competition} clubs this season.",
+   teamBetterLeft: "← better",
+   teamBetterRight: "better →",
+   teamVsLastSeason: "Compared with last season",
+@@ -221,7 +220,7 @@ const EN: Dict = {
+   // above; and it names no metric, because the sentence sits above all four boards and "top player"
+   // carries every one of them equally.
+   // The league list is the SHOWN group's members, injected from the data — not a fixed seven.
+-  homeTopPlayersIntro: "Current season. The top player from each league in the rankings: {leagues}.",
++  homeTopPlayersIntro: "The top player from each league in this season's rankings: {leagues}.",
+   homeTopTeams: "Top teams",
+   // ⭐ APPROVED COPY (#41), the second half dictated verbatim in all three locales. Nothing here
+   // is a draft and nothing is awaiting sign-off.
+@@ -234,7 +233,7 @@ const EN: Dict = {
+   // awaiting approval while it was the approved wording, and it justified a "Season to date"
+   // wording already rejected. Unapproved copy LOOKING approved and approved copy looking
+   // unapproved are the same accumulate-instead-of-replace failure. Replaced, not amended.
+-  homeTopTeamsIntro: "Current season. The top team from each league in the rankings: {leagues}.",
++  homeTopTeamsIntro: "The top team from each league in this season's rankings: {leagues}.",
+   // A metric's second line: a value averaged over matches, or a share named by its count.
+   perMatch: "per match",
+   percentage: "percentage",
+@@ -327,7 +326,7 @@ const EN: Dict = {
+   compTBC: "TBC",
+   compTopMatch: "Top match",
+   compSecDeserved: "{deservedName} table",
+-  compDeservedExplainer: "{deservedName} are the points a team's {sotdName} usually earns. {sotdNameStart} is the team's {sotName} minus its opponents' {sotName}. Teams with fewer points than deserved are better than the table says; teams with more are worse.",
++  compDeservedExplainer: "{deservedName} are the points a team's {sotdName} usually earns; a team with fewer is better than the table says.",
+   compSecTeamRankings: "Team rankings",
+   compSecPlayerRankings: "Player rankings",
+   compTeamRankingsIntro: "The leading teams {in} this season, metric by metric.",
+@@ -510,7 +509,7 @@ const DE: Dict = {
+   tabOverview: "Übersicht",
+   tabPerformance: "Leistung",
+   tabSquad: "Kader",
+-  teamPerfIntro: "{competition} {season}: {team} im Vergleich mit den anderen Mannschaften und mit der Vorsaison. Andere Wettbewerbe sind nicht enthalten.",
++  teamPerfIntro: "{competition} {season}: {team} im Vergleich mit den anderen Mannschaften und mit der Vorsaison, ohne andere Wettbewerbe.",
+   teamLeaguePhase: "Ligaphase",
+   teamThrough: "Weiter",
+   teamKnockedOut: "Ausgeschieden",
+@@ -529,8 +528,7 @@ const DE: Dict = {
+   teamOtherTeams: "Übrige Klubs der Liga",
+   teamScatterAria: "Punkte und Torschussdifferenz pro Spiel aller Mannschaften der Liga, mit der Linie der verdienten Punkte.",
+   teamVsLeague: "Im Vergleich zur Liga",
+-  teamVsLeagueIntro: "Alle Werte im Vergleich mit den übrigen Klubs der Liga in dieser Saison. Der Median teilt die Liga in zwei Hälften: Die eine Hälfte der Klubs liegt darüber, die andere darunter.",
+-  teamLeagueMedian: "Liga-Median",
++  teamVsLeagueIntro: "Alle Werte im Vergleich mit den übrigen Klubs der Liga in dieser Saison.",
+   teamBetterLeft: "← besser",
+   teamBetterRight: "besser →",
+   teamVsLastSeason: "Im Vergleich zur Vorsaison",
+@@ -609,11 +607,11 @@ const DE: Dict = {
+   // women's teams means changing this string properly.
+   // `Die Top-Mannschaft` below is NOT affected — Mannschaft is the standard German
+   // word for a women's team too. EN and FI are unaffected; Finnish has no grammatical gender.
+-  homeTopPlayersIntro: "Aktuelle Saison. Der Top-Spieler jeder Liga in den Ranglisten: {leagues}.",
++  homeTopPlayersIntro: "Der Top-Spieler jeder Liga in den Ranglisten dieser Saison: {leagues}.",
+   homeTopTeams: "Top-Mannschaften",
+   // Approved copy (#41). It mirrors the DE players line above — both approved together — and
+   // avoids "Führende", the German trap the "leader" rejection points at.
+-  homeTopTeamsIntro: "Aktuelle Saison. Die Top-Mannschaft jeder Liga in den Ranglisten: {leagues}.",
++  homeTopTeamsIntro: "Die Top-Mannschaft jeder Liga in den Ranglisten dieser Saison: {leagues}.",
+   perMatch: "pro Spiel",
+   percentage: "in Prozent",
+   homeNoFixtures: "Derzeit sind keine Spiele angesetzt.",
+@@ -692,7 +690,7 @@ const DE: Dict = {
+   compTBC: "Offen",
+   compTopMatch: "Topspiel",
+   compSecDeserved: "Tabelle nach verdienten Punkten",
+-  compDeservedExplainer: "{deservedName} sind die Punkte, die eine Mannschaft mit ihrer {sotdName} in der Regel holt. Die {sotdName} ist die Zahl der eigenen {sotName} minus die der Gegner. Teams mit weniger Punkten als verdient sind besser, als es die Tabelle zeigt; Teams mit mehr sind schlechter.",
++  compDeservedExplainer: "{deservedName} sind die Punkte, die eine Mannschaft mit ihrer {sotdName} in der Regel holt; ein Team mit weniger ist besser, als es die Tabelle zeigt.",
+   compSecTeamRankings: "Mannschafts-Ranglisten",
+   compSecPlayerRankings: "Spieler-Ranglisten",
+   compTeamRankingsIntro: "Die besten Mannschaften {in} in dieser Saison, Kennzahl für Kennzahl.",
+@@ -890,7 +888,7 @@ const FI: Dict = {
+   tabOverview: "Yleiskatsaus",
+   tabPerformance: "Suoritus",
+   tabSquad: "Kokoonpano",
+-  teamPerfIntro: "{competition} {season}: {team} verrattuna muihin joukkueisiin ja edelliseen kauteen. Muut kilpailut eivät ole mukana.",
++  teamPerfIntro: "{competition} {season}: {team} verrattuna muihin joukkueisiin ja edelliseen kauteen, ilman muita kilpailuja.",
+   teamLeaguePhase: "Liigavaihe",
+   teamThrough: "Jatkoon",
+   teamKnockedOut: "Pudonnut",
+@@ -909,8 +907,7 @@ const FI: Dict = {
+   teamOtherTeams: "Sarjan muut joukkueet",
+   teamScatterAria: "Sarjan kaikkien joukkueiden pisteet ja maalilaukausero per ottelu sekä ansaittujen pisteiden viiva.",
+   teamVsLeague: "Verrattuna sarjaan",
+-  teamVsLeagueIntro: "Kaikkia lukuja verrataan sarjan muihin joukkueisiin tällä kaudella. Mediaani jakaa sarjan kahtia: puolet joukkueista on sen yläpuolella, puolet alapuolella.",
+-  teamLeagueMedian: "Sarjan mediaani",
++  teamVsLeagueIntro: "Kaikkia lukuja verrataan sarjan muihin joukkueisiin tällä kaudella.",
+   teamBetterLeft: "← parempi",
+   teamBetterRight: "parempi →",
+   teamVsLastSeason: "Verrattuna edelliskauteen",
+@@ -980,11 +977,11 @@ const FI: Dict = {
+   seoHomeDesc: "Tulevat ottelut kaikista kattamistamme kilpailuista.",
+   homeNext: "Seuraavat ottelut",
+   homeTopPlayers: "Kärkipelaajat",
+-  homeTopPlayersIntro: "Tämä kausi. Kunkin sarjan kärkipelaaja ranking-listoilla: {leagues}.",
++  homeTopPlayersIntro: "Kunkin sarjan kärkipelaaja tämän kauden ranking-listoilla: {leagues}.",
+   homeTopTeams: "Kärkijoukkueet",
+   // Approved copy (#41), mirroring the FI players line above — `kärkipelaaja` there,
+   // `kärkijoukkue` here.
+-  homeTopTeamsIntro: "Tämä kausi. Kunkin sarjan kärkijoukkue ranking-listoilla: {leagues}.",
++  homeTopTeamsIntro: "Kunkin sarjan kärkijoukkue tämän kauden ranking-listoilla: {leagues}.",
+   perMatch: "ottelua kohden",
+   percentage: "prosentteina",
+   homeNoFixtures: "Ei otteluita tällä hetkellä.",
+@@ -1063,7 +1060,7 @@ const FI: Dict = {
+   compTBC: "Avoin",
+   compTopMatch: "Huippuottelu",
+   compSecDeserved: "Ansaittujen pisteiden taulukko",
+-  compDeservedExplainer: "{deservedName} ovat pisteet, jotka joukkueen {sotdName} yleensä tuo. {sotdNameStart} on joukkueen omat {sotName} miinus vastustajien {sotName}. Joukkue, jolla on vähemmän pisteitä kuin se ansaitsisi, on parempi kuin sarjataulukko kertoo; joukkue, jolla on enemmän, on huonompi.",
++  compDeservedExplainer: "{deservedName} ovat pisteet, jotka joukkueen {sotdName} yleensä tuo; joukkue, jolla on vähemmän, on parempi kuin sarjataulukko kertoo.",
+   compSecTeamRankings: "Joukkuerankingit",
+   compSecPlayerRankings: "Pelaajarankingit",
+   compTeamRankingsIntro: "Parhaat joukkueet {in} tällä kaudella, tilasto kerrallaan.",
+diff --git a/site_v2/src/specs/teams/team.spec.json b/site_v2/src/specs/teams/team.spec.json
+index e73268c7..d4c2e467 100644
+--- a/site_v2/src/specs/teams/team.spec.json
++++ b/site_v2/src/specs/teams/team.spec.json
+@@ -75,7 +75,6 @@
+       "i18n_keys": [
+         "teamVsLeague",
+         "teamVsLeagueIntro",
+-        "teamLeagueMedian",
+         "teamBetterLeft",
+         "teamBetterRight",
+         "teamVsLastSeason",
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index 54fb41b8..a80fd745 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -1041,22 +1041,18 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
+ .dp-k-club { width: 6px; height: 6px; background: color-mix(in srgb, var(--ink) 24%, transparent); }
+ 
+ /* The strip plot: a metric's name · the league from its lowest to its highest value, values growing
+-   to the right, every other club a light dot, the median a tick with its value, the team the solid
+-   dot · the team's value over its rank. Narrow, the strip takes the row's second line. */
++   to the right, every other club a light dot, the team the solid dot · the team's rank over its
++   value. Narrow, the strip takes the row's second line. */
+ .rs-list { container-type: inline-size; }
+ .rs-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--ink-2); margin: 2px 0 6px; }
+ .rs-legend span { display: inline-flex; align-items: center; gap: 6px; }
+ .rs-k-club { width: 6px; height: 6px; border-radius: 50%; background: color-mix(in srgb, var(--ink) 24%, transparent); }
+-.rs-k-med { width: 2px; height: 14px; background: var(--ink-2); }
+ .rs-k-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ink); }
+ .rs-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) 4.6rem; column-gap: 14px; align-items: center;
+   padding: 10px 0; border-bottom: 1px solid var(--line); }
+ .rs-name { font-size: 14px; color: var(--ink); line-height: 1.3; }
+-.rs-strip { position: relative; height: 14px; margin: 26px 0 14px; }
++.rs-strip { position: relative; height: 14px; margin: 10px 0 14px; }
+ .rs-line { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--div); }
+-.rs-med { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--ink-2); }
+-.rs-medv { position: absolute; top: -25px; transform: translateX(-50%); font-size: 11px; color: var(--ink-2);
+-  font-variant-numeric: tabular-nums; white-space: nowrap; }
+ .rs-club { position: absolute; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%;
+   background: color-mix(in srgb, var(--ink) 24%, transparent); }
+ .rs-dot { position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%;
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -640,8 +668,7 @@ index d473c02d..a34bfc83 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md |  20 +-
-#    .claude/task/review.md              |  50 +--
-#    .claude/task/review_input.patch     | 716 ++++++++++++++++++++++++++++++------
-#    3 files changed, 642 insertions(+), 144 deletions(-)
+#   .claude/task/acceptance_evidence.md    | 21 ++++++++++-----------
+#    .claude/task/rendered_page_evidence.md | 26 +++++++++++++-------------
+#    2 files changed, 23 insertions(+), 24 deletions(-)
 # ============================================================================

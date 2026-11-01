@@ -1,16 +1,16 @@
-# Rendered page evidence — the Teams page
+# Rendered page evidence — the Team page's strip plot and scatter labels
 
-Read on the full export (3,342 teams); the committed sample (778 rows) was rebuilt and measured
-again by the design check, 9 renders, 0 failures.
+Read on the committed sample build (`npm run build` in `site_v2`, 2,271 pages, 34 Team pages per
+language), served from `site_v2/dist` on the local port.
 
-Method: no screenshot, which this Browser pane cannot take. The page was read in the `v2` dev server through
-the DOM, with each element's bounding box and computed style, and measured in headless Chromium by
-`scripts/check_design_inventory.py` on the built `site_v2/dist`.
+Method: no screenshot, which this Browser pane cannot take. Each page was read in the Browser pane
+through the DOM (computed style, bounding boxes, `scrollWidth`) and, for the scatter on every Team
+page, in headless Chromium with the same box measurement.
 
-- **Widths and languages:** `/en/teams/`, `/de/mannschaften/` and `/fi/joukkueet/` were each loaded fresh at 280, 360, 768 and 1010px, plus DE at 560px. At every one, `document.documentElement.scrollWidth` equals the viewport, so nothing scrolls sideways (768px: 753, the scrollbar).
-- **Grid:** the lists' `grid-template-columns` is 1 column at 280px (248px), 1 at 560px (515px), 2 at 768px (344.5px × 2) and 2 at 1010px (448px × 2). Before the two-column cap it was three columns at 1010px (296px × 3).
-- **Group head:** "England" at 17px with a 2px rule under it; its count "868 teams" / "868 Mannschaften" / "868 joukkuetta" is at the right in 13px muted. At 280px the head is 33.5px tall, on one line.
-- **Filter bar:** buttons at 1010px; at 280px the two dropdowns show (`.selbar` visible) with no cut-off.
-- **Filter swaps:** all 21 type × region combinations were set through the radios. Under a region, the "All regions" top lists are hidden and that region's lists show: Top clubs 10 rows for Europe, 6 for the other regions, no fold; Top national teams 10 rows with the region's fold. The National teams by region block is hidden. Clubs + Oceania is removed from the choices. Under Clubs, the national blocks are hidden; under National teams, the club blocks are hidden.
-- **Fold inside the grid:** Top clubs shows 10 rows and "Show all 44" (EN), "Alle 44 anzeigen" (DE), "Näytä kaikki 44" (FI). The fold control spans both columns.
-- **Heading gap:** the first top-list row's crest started 22px under the "Top clubs" heading. With the top lists' grid pulled up by the row padding, `check_design_inventory.py --pages "Teams page"` measures 14px: 9 renders (375, 700, 1010 × EN, DE, FI), 0 failures. The full built run: 11 pages, 99 renders, 0 failures.
+- **Views:** the Team page Performance tab (`/en/teams/bayern-munchen/`, `/de/mannschaften/…`, `/fi/joukkueet/…`), the competition page (`/en|de|fi/bundesliga/`) and Home (`/en/`, `/de/`, `/fi/`), each at 280, 360, 560, 768 and 1010px: 45 views. At every one `document.documentElement.scrollWidth` equals the viewport (768px: 753, 1010px: 995, the scrollbar), so nothing scrolls sideways.
+- **Strip plot:** 33 rows, no `.rs-med`, `.rs-medv` or `.rs-k-med` node; the legend reads "Bayern München / Other Bundesliga teams" ("Übrige Klubs der Liga", "Sarjan muut joukkueet"); the right column reads "1st" (DE and FI "1.") at 15px/700 with "3.6" ("3,6") under it at 12px/400; the strip's top margin is 10px; 33 of 33 rows carry the "better" marker; no row overflows at any width.
+- **Explainers:** the Team page shows the approved `teamPerfIntro`, `compDeservedExplainer` and `teamVsLeagueIntro`, the competition page the approved `compDeservedExplainer`, Home the approved `homeTopPlayersIntro` and `homeTopTeamsIntro`, in each language at each width. EN at 280px: "Bundesliga 2026/27: Bayern München compared with the other teams and with the season before, without other competitions." and "Each value is ranked against the other Bundesliga clubs this season."
+- **Scatter, every Team page:** 102 Team pages (34 × EN, DE, FI) at 280, 360, 560, 768 and 1010px, 510 charts measured (narrow at 280 and 360, wide from 560): the team name's box and the difference label's box overlap on none, both sit inside the chart on all 510, and no label's box reaches the y axis line. Of the 204 built charts, 201 put the label across the dot from the name and 3 under the name.
+- **Left edge:** the 3 under the name are Borussia Mönchengladbach's narrow chart in EN, DE and FI, where the label opposite the name would cross the y axis (before this placement, its box ran 44.4–61.6px over the axis at 46.1px). Now at 280px (FI) the name's box is 73.3–192.3 × 1410.6–1423.6px and "−2,5" sits under it at 73.3–93.3 × 1425.2–1438.2px, 27px clear of the axis; at 360px (EN) the boxes are 1340.6–1357.6 and 1359.9–1376.9px high.
+- **Build check:** `check-built-pages` reads all 204 built scatters and passes; it fails a page whose label is neither across the dot from the name nor at least one line under it (its tests include the old beside-the-name placement).
+- **Design check:** `check_design_inventory.py --no-mocks`: 11 pages × 3 viewports × 3 languages, 99 renders, 0 failures, 0 warnings.

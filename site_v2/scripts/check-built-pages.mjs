@@ -21,6 +21,9 @@
 //    team payload's featured season serves for that metric, through `ordinal`, the function the
 //    block renders it with. A less-is-better metric is already ranked lowest-first by the warehouse,
 //    so a page that flips it a second time fails.
+// 5. On every Team page, in each deserved points scatter, the difference label and the team's name
+//    stay apart: the label on the other side of the team's dot, anchored the other way, or on the
+//    name's side at least one line under the name.
 //
 // The parsing is regex over the emitted HTML, as audit-seo does it: the shapes are this repo's own
 // components, and the pure functions below are unit-tested on string literals.
@@ -236,7 +239,7 @@ export function expectedBoards(dataDir = DATA_DIR) {
 const TEAM_RE = {
   row: /<div(?=[^>]*\sclass="rs-row[ "])[^>]*>/g,
   metric: /\sdata-metric="([^"]*)"/,
-  rank: /<span class="rs-val">[^<]*<small>([^<]*)<\/small>/,
+  rank: /<span class="rs-val">([^<]*)<small>/,
 };
 
 /** The league rows on one Team page, each with its metric and the rank it shows. A row is the HTML
@@ -265,6 +268,40 @@ export function checkTeamPage(html, lang, served, path = "") {
   return issues;
 }
 
+const SCATTER_RE = {
+  chart: /<svg class="dp-chart[ "]/g,
+  me: /<circle class="dp-me"[^>]*>/,
+  note: /<text class="dp-note"[^>]*>/,
+  name: /<text class="dp-name"[^>]*>/,
+};
+const attr = (tag, name) => tag?.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1] ?? null;
+const textMark = (tag) =>
+  tag && { x: Number(attr(tag, "x")), y: Number(attr(tag, "y")), fs: Number(attr(tag, "font-size")), anchor: attr(tag, "text-anchor") };
+
+/** The deserved points scatters on one Team page, each with the team's dot and its two labels. */
+export function scatterCharts(html) {
+  const starts = [...html.matchAll(SCATTER_RE.chart)];
+  return starts.map((m, i) => {
+    const svg = html.slice(m.index, starts[i + 1]?.index ?? html.length);
+    return {
+      cx: Number(attr(svg.match(SCATTER_RE.me)?.[0], "cx")),
+      note: textMark(svg.match(SCATTER_RE.note)?.[0]),
+      name: textMark(svg.match(SCATTER_RE.name)?.[0]),
+    };
+  });
+}
+
+/** Issues on one Team page: a scatter whose difference label and name are not kept apart. */
+export function checkScatterLabels(html, path = "") {
+  const issues = [];
+  scatterCharts(html).forEach(({ cx, note, name }, i) => {
+    const across = note && name && note.anchor !== name.anchor && (note.x - cx) * (name.x - cx) < 0;
+    const under = note && name && note.anchor === name.anchor && note.x === name.x && note.y - name.y >= name.fs;
+    if (!across && !under) issues.push(`${path}: scatter ${i + 1} puts the difference label beside the team's name`);
+  });
+  return issues;
+}
+
 /** Each team payload's served league ranks, by slug: the featured season's `benchmarks`, rank by
  *  metric key. */
 export function expectedTeamRanks(dataDir = DATA_DIR) {
@@ -277,6 +314,19 @@ export function expectedTeamRanks(dataDir = DATA_DIR) {
     ranks.set(p.slug, new Map((season?.benchmarks ?? []).map((b) => [b.metric_key, b.rank])));
   }
   return ranks;
+}
+
+/** Whether any team payload's featured season serves a deserved points scatter with the team in it:
+ *  the scatter rule only runs on the charts SCATTER_RE finds, so a drifted shape would otherwise
+ *  check nothing and pass. */
+export function servesScatter(dataDir = DATA_DIR) {
+  const dir = join(dataDir, "teams");
+  if (!existsSync(dir)) return false;
+  return readdirSync(dir).filter((f) => f.endsWith(".json")).some((file) => {
+    const p = JSON.parse(readFileSync(join(dir, file), "utf8"));
+    const season = (p.seasons ?? []).find((s) => s.is_featured_season);
+    return (season?.deserved_scatter ?? []).some((d) => d.is_self);
+  });
 }
 
 /** Issues when the team payloads serve ranks but no Team page or no league row was checked: the
@@ -340,6 +390,7 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
   let rowsChecked = 0;
   let teamPages = 0;
   let teamRows = 0;
+  let scatters = 0;
   const expected = expectedBoards(dataDir);
   const teamRanks = expectedTeamRanks(dataDir);
   const built = payloadIds(dataDir);
@@ -360,6 +411,8 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
       teamPages += 1;
       teamRows += teamRankRows(html).length;
       issues.push(...checkTeamPage(html, lang, teamRanks.get(slug), path));
+      scatters += scatterCharts(html).length;
+      issues.push(...checkScatterLabels(html, path));
     }
   }
   const payloadFiles = built.size;
@@ -368,6 +421,8 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
   issues.push(...checkTabPagesFound({ fixturesPages, rankingsPages, expected }));
   issues.push(...checkMatchRowsFound({ matchRows: rowsChecked, payloadFiles }));
   issues.push(...checkTeamRowsFound({ teamPages, teamRows, expected: teamRanks }));
+  if (teamPages > 0 && scatters === 0 && servesScatter(dataDir))
+    issues.push("a team payload serves the deserved points scatter but no Team page carried one");
   if (issues.length) {
     console.error(`check-built-pages: ${issues.length} issue(s)`);
     for (const i of issues) console.error(`  - ${i}`);
@@ -379,7 +434,7 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
         ? ` = the warehouse's ${manifest.source_counts?.fixtures_unplayed} unplayed and ${manifest.source_counts?.fixtures_played} played`
         : " (no manifest: sample build)") +
       `; ${fixturesPages} fixtures page(s), ${rankingsPages} rankings page(s), ${rowsChecked} match row(s)` +
-      ` and ${teamRows} league row(s) on ${teamPages} team page(s) checked. OK.`,
+      ` and ${teamRows} league row(s) and ${scatters} scatter(s) on ${teamPages} team page(s) checked. OK.`,
   );
   return 0;
 }

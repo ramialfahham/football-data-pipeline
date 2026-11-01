@@ -11,7 +11,7 @@ import { join } from "node:path";
 import {
   checkFixturesPage, checkMatchPageCount, checkMatchRowLinks, checkMatchRowsFound, checkRankingsPage, boards, isZeroValue,
   main, matchRows, renderedBoards, rounds, checkTabPagesFound, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
-  checkTeamPage, checkTeamRowsFound, teamRankRows, TEAM_PAGE,
+  checkTeamPage, checkTeamRowsFound, teamRankRows, TEAM_PAGE, checkScatterLabels, scatterCharts,
 } from "./check-built-pages.mjs";
 
 function round(n, { checked = false, next = false, rows = [] } = {}) {
@@ -232,12 +232,12 @@ test("main fails a build whose pages name no match, and passes it once a row doe
 });
 
 // A "Compared with the league" row as TeamLeagueStrips.astro emits it: the name, the strip, then the
-// value with the shown rank under it.
+// shown rank with the value under it.
 function leagueRow(metric, value, rank, { nonkey = false } = {}) {
   return (
     `<div class="rs-row${nonkey ? " nonkey" : ""}" data-metric="${metric}"><span class="rs-name">x</span>` +
     `<span class="rs-strip"><span class="rs-line"></span><span class="rs-dir">better</span></span>` +
-    `<span class="rs-val">${value}<small>${rank}</small></span></div>`
+    `<span class="rs-val">${rank}<small>${value}</small></span></div>`
   );
 }
 
@@ -308,6 +308,59 @@ test("team payloads with ranks but no Team page or no league row checked is an i
   assert.match(checkTeamRowsFound({ teamPages: 3, teamRows: 0, expected })[0], /no Team page carried a league row/);
   assert.deepEqual(checkTeamRowsFound({ teamPages: 3, teamRows: 20, expected }), []);
   assert.deepEqual(checkTeamRowsFound({ teamPages: 0, teamRows: 0, expected: new Map() }), []);
+});
+
+// A deserved points scatter as TeamDeserved.astro emits it: the team's dot, then the difference
+// label, then the name.
+function scatter({ cx = 100, note, name }) {
+  const text = (cls, m) => `<text class="${cls}" x="${m.x}" y="${m.y}" font-size="12" text-anchor="${m.anchor}">x</text>`;
+  return (
+    `<svg class="dp-chart dp-wide" viewBox="0 0 560 330" role="img"><line class="dp-axis" x1="46" x2="46" y1="12" y2="272"></line>` +
+    `<circle class="dp-me" cx="${cx}" cy="150" r="5" data-px="5"></circle>` + text("dp-note", note) + text("dp-name", name) + `</svg>`
+  );
+}
+
+test("the scatter's difference label sits across the dot from the name, or a line under it; beside it fails", () => {
+  const name = { x: 107, y: 154.2, anchor: "start" };
+  assert.deepEqual(checkScatterLabels(scatter({ note: { x: 93, y: 170, anchor: "end" }, name }), "p"), []);
+  assert.deepEqual(checkScatterLabels(scatter({ note: { x: 107, y: 169.2, anchor: "start" }, name }), "p"), []);
+  assert.match(checkScatterLabels(scatter({ note: { x: 107, y: 160, anchor: "start" }, name }), "p")[0],
+    /p: scatter 1 puts the difference label beside the team's name/);
+  assert.equal(checkScatterLabels(scatter({ note: { x: 107, y: 140, anchor: "start" }, name }), "p").length, 1);
+  assert.equal(checkScatterLabels(scatter({ note: { x: 93, y: 170, anchor: "start" }, name }), "p").length, 1);
+  const two = scatter({ note: { x: 93, y: 170, anchor: "end" }, name }) + scatter({ note: { x: 107, y: 160, anchor: "start" }, name });
+  assert.equal(scatterCharts(two).length, 2);
+  assert.match(checkScatterLabels(two, "p")[0], /scatter 2/);
+});
+
+test("main fails a Team page whose scatter is missing or puts the label beside the name", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "check-built-pages-scatter-"));
+  try {
+    mkdirSync(join(root, "data", "teams"), { recursive: true });
+    const season = {
+      is_featured_season: true,
+      benchmarks: [{ metric_key: "fouls_per_match", rank: 1, team_count: 18 }],
+      deserved_scatter: [{ is_self: true, sotd: 1, points: 20, deserved: 18 }],
+    };
+    writeFileSync(join(root, "data", "teams", "85.json"), JSON.stringify({ slug: "psg", seasons: [season] }));
+    const write = (html) => {
+      mkdirSync(join(root, "dist", "en", "teams", "psg"), { recursive: true });
+      writeFileSync(join(root, "dist", "en", "teams", "psg", "index.html"), leagueRow("fouls_per_match", "6.1", "1st") + html);
+    };
+    const name = { x: 107, y: 154.2, anchor: "start" };
+    const errors = t.mock.method(console, "error", () => {});
+    t.mock.method(console, "log", () => {});
+    write("");
+    assert.equal(main(join(root, "dist"), join(root, "data")), 1);
+    assert.ok(errors.mock.calls.some((c) => /serves the deserved points scatter but no Team page carried one/.test(c.arguments[0])));
+    write(scatter({ note: { x: 107, y: 160, anchor: "start" }, name }));
+    assert.equal(main(join(root, "dist"), join(root, "data")), 1);
+    assert.ok(errors.mock.calls.some((c) => /beside the team's name/.test(c.arguments[0])));
+    write(scatter({ note: { x: 93, y: 170, anchor: "end" }, name }));
+    assert.equal(main(join(root, "dist"), join(root, "data")), 0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("a page with no round at all is an issue, not a pass", () => {
