@@ -53,7 +53,8 @@ overrides as (
     select
         cast(wrong_team_api_id as int64) as wrong_team_api_id,
         cast(correct_team_api_id as int64) as correct_team_api_id,
-        mode
+        mode,
+        cast(fixture_id as int64) as fixture_id
     from {{ ref('fixture_team_id_overrides') }}
 ),
 
@@ -61,11 +62,13 @@ stat_rows as (
     select
         s.league_code,
         s.fixture_id,
-        coalesce(a.correct_team_api_id, r.correct_team_api_id, s.team_id) as team_id,
+        coalesce(fo.correct_team_api_id, a.correct_team_api_id, r.correct_team_api_id, s.team_id) as team_id,
         s.raw_ingested_at,
         s.stat_type,
         s.stat_value_raw
     from {{ ref('stg_apif__fixture_statistics') }} as s
+    left join overrides as fo
+        on s.team_id = fo.wrong_team_api_id and s.fixture_id = fo.fixture_id and fo.mode = 'reattribute_in_fixture'
     left join overrides as a
         on s.team_id = a.wrong_team_api_id and a.mode = 'alias'
     left join fixture_participants as p

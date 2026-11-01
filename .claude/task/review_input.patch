@@ -1,660 +1,693 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index f72d3d12..d5dd0f96 100644
+index d5dd0f96..03364d47 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,86 +1,70 @@
--# Task contract — Ball actions, a new player metric
-+# Task contract — the Team page's league strip plot and scatter labels
+@@ -1,70 +1,81 @@
+-# Task contract — the Team page's league strip plot and scatter labels
++# Task contract — Red Star de Bangui gets its own team id
  
  objective: >
--  The catalogue gains two player metrics: ball_actions_player, the passes, shots, dribbles,
--  tackles, interceptions, blocks and saves a player made, and ball_actions_per90, the same per 90
--  minutes played. The generator writes both into the player season models; the count is served in
--  mart_player_profile and the per 90 in the position-peer comparison, as every existing count and
--  per-90 metric is. A hand-worked answer key proves both values.
-+  The Team page's "Compared with the league" strip plot drops the league median and shows the
-+  team's rank first with its value under it, keeping the "better" marker (#241). The deserved
-+  points scatter puts the difference label on the side of the dot opposite the team name, so the
-+  two never overlap (#242). Five explainers become the approved one-sentence texts, and the block
-+  standard's two strip plot rows say what the row now shows.
+-  The Team page's "Compared with the league" strip plot drops the league median and shows the
+-  team's rank first with its value under it, keeping the "better" marker (#241). The deserved
+-  points scatter puts the difference label on the side of the dot opposite the team name, so the
+-  two never overlap (#242). Five explainers become the approved one-sentence texts, and the block
+-  standard's two strip plot rows say what the row now shows.
++  The provider files Red Star de Bangui (Central African Republic) under Red Star FC 93's team id
++  104 in two CAF Champions League 2024 matches, fixtures 1239850 and 1239851. Red Star de Bangui
++  has no provider id. It gets our own team id -1, named Red Star, country Central African
++  Republic, and both matches move to it in the fixture list and every match feed. Red Star FC 93
++  keeps all its own matches.
  
  refs: >
--  #136, the Player page review, where the metric was defined (definition, texts, group and
--  direction approved in chat, 2026-11-01, recorded on #136; this MR's plan approved in chat,
--  2026-11-01).
-+  #241, the strip plot and the explainer texts; #242, the scatter label overlap. The plan and its
-+  texts approved in chat, 2026-11-01.
+-  #241, the strip plot and the explainer texts; #242, the scatter label overlap. The plan and its
+-  texts approved in chat, 2026-11-01.
++  `#238`, Red Star FC 93 shows two CAF Champions League matches Red Star de Bangui played. Plan
++  (path A) approved in chat via plan mode.
  
  scope_paths:
--  - dbt_project/seeds/metric_catalogue.csv
--  - dbt_project/seeds/metric_map.csv
--  - dbt_project/seeds/player_season_answer_key.csv
--  - dbt_project/seeds/schema.yml
--  - scripts/generate_metric_sql.py
--  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
--  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
--  - dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
--  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
--  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
--  - dbt_project/models/4_intermediate/shared/int_player_competition_benchmark_metrics_long.sql
--  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
--  - dbt_project/models/5_marts/shared/mart_player_profile.sql
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/models/docs/metric_columns.md
--  - docs/wireframes/12_player_stats.md
--  - docs/wireframes/metrics_display.md
--  - tests/test_no_decision_history_in_docs.py
--  - tests/test_sentence_length_in_docs.py
-+  - site_v2/src/components/team/TeamLeagueStrips.astro
-+  - site_v2/src/components/team/TeamDeserved.astro
-+  - site_v2/src/styles/system.css
-+  - site_v2/src/i18n/strings.ts
-+  - site_v2/src/specs/teams/team.spec.json
-+  - site_v2/scripts/check-built-pages.mjs
-+  - site_v2/scripts/check-built-pages.test.mjs
-+  - docs/wireframes/block_standard.md
-+  - docs/wireframes/02_team_profile.md
+-  - site_v2/src/components/team/TeamLeagueStrips.astro
+-  - site_v2/src/components/team/TeamDeserved.astro
+-  - site_v2/src/styles/system.css
+-  - site_v2/src/i18n/strings.ts
+-  - site_v2/src/specs/teams/team.spec.json
+-  - site_v2/scripts/check-built-pages.mjs
+-  - site_v2/scripts/check-built-pages.test.mjs
+-  - docs/wireframes/block_standard.md
+-  - docs/wireframes/02_team_profile.md
++  - dbt_project/seeds/fixture_team_id_overrides.csv
++  - dbt_project/seeds/team_name_overrides.csv
++  - dbt_project/seeds/team_country_corrections.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
++  - dbt_project/models/2_base/api_football/base_apif__lineups.sql
++  - dbt_project/models/2_base/api_football/base_apif__teams.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/tests/assert_base_team_stats_cleaned.sql
++  - dbt_project/tests/assert_fixture_team_id_overrides_applied.sql
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
    - .claude/task/acceptance_evidence.md
-+  - .claude/task/rendered_page_evidence.md
+-  - .claude/task/rendered_page_evidence.md
  
  impact_map: >
--  `.venv/Scripts/dbt.exe ls --project-dir dbt_project --select int_player_season__metrics+
--  int_player_season_position__metrics+ int_player_competition_benchmark_metrics_long+
--  mart_player_profile+ metric_catalogue+ player_season_answer_key+ --resource-type model` lists
--  int_player_competition_benchmark_metrics_long, int_player_competition_benchmarks,
--  int_player_season__metrics, int_player_season_position__metrics, mart_leaderboards,
--  mart_player_competition_benchmarks, mart_player_profile, mart_team_competition_benchmarks,
--  mart_team_leaderboards.
--  The two season models and mart_player_profile gain columns; the benchmark models gain
--  ball_actions_per90 rows for every player-season-position that clears the existing floors. The
--  team marts and mart_leaderboards read the catalogue but select team rows or named boards, so
--  they gain nothing. On prod data the season model keeps its 193,804 rows. The glossary export
--  (metrics.json, not deployed) gains the two catalogue rows, and the player payload (`players`,
--  not in the deploy's export list) gains `seasons[].ball_actions_player` and a
--  `ball_actions_per90` benchmark member. No page reads any of it.
--  blast_radius: two new columns and new benchmark rows; no existing value changes.
-+  No dbt model and no export change; no data file changes. Consumption only: two Team page
-+  components, their CSS rules and five i18n keys. `teamLeagueMedian` is read only by
-+  TeamLeagueStrips.astro and listed in the Team page spec (grep over site_v2/src); `compDeservedExplainer` is read by the Team
-+  page's TeamDeserved.astro and the competition page's DeservedTable.astro;
-+  `homeTopPlayersIntro` and `homeTopTeamsIntro` by Home's TopPlayers.astro and TopTeams.astro;
-+  `teamPerfIntro` by the Team page; `teamVsLeagueIntro` by TeamLeagueStrips.astro. The `.rs-*`
-+  rules are used only by TeamLeagueStrips.astro.
-+  blast_radius: the Team page Performance tab (strip plot, scatter, two explainers), the
-+  competition page's deserved points explainer and Home's two top-list explainers, in all three
-+  locales. No served number changes.
+-  No dbt model and no export change; no data file changes. Consumption only: two Team page
+-  components, their CSS rules and five i18n keys. `teamLeagueMedian` is read only by
+-  TeamLeagueStrips.astro and listed in the Team page spec (grep over site_v2/src); `compDeservedExplainer` is read by the Team
+-  page's TeamDeserved.astro and the competition page's DeservedTable.astro;
+-  `homeTopPlayersIntro` and `homeTopTeamsIntro` by Home's TopPlayers.astro and TopTeams.astro;
+-  `teamPerfIntro` by the Team page; `teamVsLeagueIntro` by TeamLeagueStrips.astro. The `.rs-*`
+-  rules are used only by TeamLeagueStrips.astro.
+-  blast_radius: the Team page Performance tab (strip plot, scatter, two explainers), the
+-  competition page's deserved points explainer and Home's two top-list explainers, in all three
+-  locales. No served number changes.
++  writers: the six base models named in scope_paths are the only readers of
++  fixture_team_id_overrides; base_apif__teams_global is the only reader of team_name_overrides and
++  team_country_corrections.
++  downstream: `.venv/Scripts/dbt.exe ls --project-dir dbt_project --select
++  base_apif__fixtures_next+ base_apif__fixture_events+ base_apif__fixture_players+
++  base_apif__fixture_statistics+ base_apif__lineups+ base_apif__teams+ fixture_team_id_overrides+
++  team_name_overrides+ team_country_corrections+ --resource-type model` lists 79 models, 29 of them
++  marts: mart_competition_fixtures, mart_competition_index, mart_competition_season_summary,
++  mart_fixture_standing_context, mart_head_to_head, mart_leaderboards, mart_match_days,
++  mart_matchday_insights, mart_next_matchday, mart_player_career,
++  mart_player_competition_benchmarks, mart_player_fixture_stats, mart_player_momentum,
++  mart_player_profile, mart_player_season_record, mart_roster, mart_standings,
++  mart_team_competition_benchmarks, mart_team_competitions, mart_team_fixtures, mart_team_index,
++  mart_team_leaderboards, mart_team_market_value, mart_team_momentum_window, mart_team_profile,
++  mart_team_season, mart_team_season_insights, mart_team_season_record, mart_team_window_metrics.
++  layer_rules: the corrections are seeds applied in base, as the existing override modes are;
++  check_layer_contract.py applies unchanged.
++  deploy_order: seeds and models change together in the one prod build after merge; nothing
++  breaks before it, the two fixtures simply stay under 104 until then.
++  blast_radius: only rows of fixtures 1239850 and 1239851 change. Team 104 loses its two CAF
++  Champions League 2024 matches (played 2, W0 D1 L1 on today's prod); a new team -1 gains them,
++  with its events, line-ups, team and player statistics. No other fixture's team id moves, since
++  the new mode is keyed on the fixture id.
  
  approved_design:
--  - none: no page output changes; no page shows either metric, and the labels ship with the page that first does
-+  - team: #134
-+  - competition: #129
-+  - home: #127
-+
-+acceptance_criteria:
-+  - "On the built Team page, the Compared with the league rows show no median tick and no median value; the legend lists the team first, then the other clubs; each row's right column shows the rank first in bold with the value under it; the better marker remains."
-+  - "On every built Team page with the deserved points scatter, in both the wide and the narrow chart, the bounding boxes of the team name and the difference label do not overlap, and the difference label stays inside the chart without reaching the y axis; the built-pages check holds the placement on every build."
-+  - "teamVsLeagueIntro, compDeservedExplainer, homeTopPlayersIntro, homeTopTeamsIntro and teamPerfIntro render the approved one-sentence texts in EN, DE and FI; teamLeagueMedian is gone from strings.ts."
-+  - "block_standard.md's Strip plot row and Strip plot value rows carry the approved texts, and check_design_inventory.py --no-mocks passes."
+-  - team: #134
+-  - competition: #129
+-  - home: #127
+-
+-acceptance_criteria:
+-  - "On the built Team page, the Compared with the league rows show no median tick and no median value; the legend lists the team first, then the other clubs; each row's right column shows the rank first in bold with the value under it; the better marker remains."
+-  - "On every built Team page with the deserved points scatter, in both the wide and the narrow chart, the bounding boxes of the team name and the difference label do not overlap, and the difference label stays inside the chart without reaching the y axis; the built-pages check holds the placement on every build."
+-  - "teamVsLeagueIntro, compDeservedExplainer, homeTopPlayersIntro, homeTopTeamsIntro and teamPerfIntro render the approved one-sentence texts in EN, DE and FI; teamLeagueMedian is gone from strings.ts."
+-  - "block_standard.md's Strip plot row and Strip plot value rows carry the approved texts, and check_design_inventory.py --no-mocks passes."
++  - "none: no page output changes; the marts gain team -1 and lose 104's two CAF rows, and no page layout or field changes"
  
  decisions_taken: >
--  Approved in chat, 2026-11-01: the definition (passes + shots + dribbles + tackles +
--  interceptions + blocks + saves, duels left out), the count and per-90 forms, the ids, the
--  description and interpretation texts, group Passing and direction higher_better; labels ship
--  with the page that first shows the metric. The plan approved in chat, 2026-11-01: the count is
--  served in mart_player_profile and the per 90 in the position-peer comparison for all four
--  positions, like passes_per90.
-+  Approved in chat, 2026-11-01: the plan for #241 and #242, the five explainer texts in EN, DE and
-+  FI, and the two block standard texts. The difference label takes the side of the dot opposite
-+  the name, in both charts. The deserved points components keep passing the names the old
-+  explainer used; t() ignores a name the text does not use. No new mechanism, no recurring cost.
+-  Approved in chat, 2026-11-01: the plan for #241 and #242, the five explainer texts in EN, DE and
+-  FI, and the two block standard texts. The difference label takes the side of the dot opposite
+-  the name, in both charts. The deserved points components keep passing the names the old
+-  explainer used; t() ignores a name the text does not use. No new mechanism, no recurring cost.
++  Approved in chat via plan mode: path A. Team id -1 is ours, not the provider's, named Red Star
++  with country Central African Republic, both sourced to CAF's preliminary-round fixture list.
++  fixture_team_id_overrides gains a fixture_id column and a third mode, reattribute_in_fixture,
++  that replaces the wrong id with the correct one inside the named fixture only, and outranks the
++  other two modes. It is applied in the fixture list, the four match feeds, the team keys and the
++  team statistics test's own replay of the overrides. A new error test fails while a
++  reattribute_in_fixture row is not applied.
++  NEW MECHANISM declared: a team id the provider never sent (-1), and the per-fixture override
++  mode. Both are part of the approved plan.
  
  decisions_reserved:
    - "none: every decision of this task is approved, see decisions_taken"
++  - "Out of scope, each its own decision later: Newmarket, Victoria United and Warriors FC, whose provider ids show the same shared-id shape."
  
--acceptance_criteria:
--  - "The catalogue holds ball_actions_player and ball_actions_per90 with the approved formula, texts, group Passing and direction higher_better."
--  - "int_player_season__metrics carries both, written by the generator; mart_player_profile serves the count and mart_player_competition_benchmarks serves the per 90 for all four positions."
--  - "The answer key proves both values for the five hand-worked player-seasons."
--  - "No existing column or row count changes."
-+done_when:
-+  - npm run build in site_v2 (node tests, SEO audit, built-pages check), the full pytest, the offline gates and check_design_inventory.py --no-mocks pass.
-+  - The built Team page Performance tab, a competition page and Home are checked in the Browser pane at 280, 360, 560, 768 and 1010px in EN, DE and FI.
-+  - The scatter name and difference label boxes are measured on every built Team page and none overlap.
+ done_when:
+-  - npm run build in site_v2 (node tests, SEO audit, built-pages check), the full pytest, the offline gates and check_design_inventory.py --no-mocks pass.
+-  - The built Team page Performance tab, a competition page and Home are checked in the Browser pane at 280, 360, 560, 768 and 1010px in EN, DE and FI.
+-  - The scatter name and difference label boxes are measured on every built Team page and none overlap.
++  - dbt parse, SQLFluff on the changed SQL, pytest and the offline gates pass.
++  - The new test returns the two fixtures on today's prod data, read-only.
++  - The changed models' compiled SQL, run read-only on prod with the seed rows inlined, puts both fixtures under -1 and none under 104, and the new test then returns no row.
  
- amendments:
--  - "Implementation within the approved plan, reported in chat, 2026-11-01: the generator gains one more layout, a null check split at its first 'and', used only when no other layout fits; it changes no existing metric's SQL."
--  - "Approved in chat, 2026-11-01, strip-only: 12_player_stats.md and metrics_display.md stop restating the benchmark set's count, members and directions and point to the catalogue's direction column and to int_player_competition_benchmark_metrics_long; the benchmark model and yml descriptions drop the set's count. The two doc ratchet tests lower their pinned counts for the two files, as the tests require when a cleanup removes history lines or long sentences."
--
--  - "Approved in chat, 2026-11-01: the two rows' descriptions name the passes, shots and dribbles the player attempted and the tackles, interceptions, blocks and saves the player made; the interpretation reads as involvement in play on or off the ball, and the count adds the raw-count minutes caveat."
--  - "Approved in chat, 2026-11-01: the per-90 description drops its second 'the player' to stay within the docs sentence limit."
--
--done_when:
--  - The generator and docs-sync checks, dbt parse, SQLFluff, pytest, the offline gates and the site's node tests pass.
--  - The changed models run on prod data give the answer key's values and change no existing column or row count.
-+  - "Implementation within the approved plan, 2026-11-01: removing teamLeagueMedian, approved in chat, 2026-11-01, also removes it from the Team page spec's i18n key list (team.spec.json), which the build's page-spec check reads."
-+  - "Implementation within the approved plan, 2026-11-01: the rank now leads the strip plot's right column (approved in chat, 2026-11-01), so the built-pages check reads the shown rank from that place instead of from under the value, and its test row is built the same way; the check still compares every row's shown rank with the served one."
-+  - "Approved in chat, 2026-11-01, after review: where the difference label, on the side opposite the name, would reach the y axis, it moves to the name's side, one line under the name; the built-pages check fails a built Team page whose scatter label is neither opposite the name across the dot nor under it, with a test row that fails when the placement is reverted; the Team page wireframe's Compared with the league row drops `league_median`, strip-only."
-diff --git a/docs/wireframes/02_team_profile.md b/docs/wireframes/02_team_profile.md
-index beb0933d..bd989d5f 100644
---- a/docs/wireframes/02_team_profile.md
-+++ b/docs/wireframes/02_team_profile.md
-@@ -98,7 +98,7 @@ The page has the site's one width, 960px, and a single column at every width.
- | Tab explainer | the featured season's competition name and `season_label` | one sentence under the tab bar |
- | Standing | `latest_rank`, `points_rank_prev_season`, `points_this_season`, `points_prev_season` | fact rows; the points and both "Season before" values come from the official table on the day of the team's Nth match |
- | Deserved points | `played`, `shots_on_goal_difference_per_match`, `points`, `deserved_points`, `deserved_points_gap`, `deserved_scatter[]` | the competition page's explainer; the table's head reads "{competition}, after {n} matches"; the line joins the deserved points of the two teams at the ends of the axis |
--| Compared with the league | `benchmarks[]`: `metric_value`, `rank`, `league_median`; `league_strip[]` | one strip per served metric with a value; the rank is the warehouse's, by the metric's direction |
-+| Compared with the league | `benchmarks[]`: `metric_value`, `rank`; `league_strip[]` | one strip per served metric with a value; the rank is the warehouse's, by the metric's direction |
- | Compared with last season | `benchmarks[]`: `metric_value`, `metric_value_prev_season`; `yoy_games_played_cutoff` | the trend compares the shown values by the metric's direction |
+-amendments:
+-  - "Implementation within the approved plan, 2026-11-01: removing teamLeagueMedian, approved in chat, 2026-11-01, also removes it from the Team page spec's i18n key list (team.spec.json), which the build's page-spec check reads."
+-  - "Implementation within the approved plan, 2026-11-01: the rank now leads the strip plot's right column (approved in chat, 2026-11-01), so the built-pages check reads the shown rank from that place instead of from under the value, and its test row is built the same way; the check still compares every row's shown rank with the served one."
+-  - "Approved in chat, 2026-11-01, after review: where the difference label, on the side opposite the name, would reach the y axis, it moves to the name's side, one line under the name; the built-pages check fails a built Team page whose scatter label is neither opposite the name across the dot nor under it, with a test row that fails when the placement is reverted; the Team page wireframe's Compared with the league row drops `league_median`, strip-only."
++amendments: (none)
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 8d9d6a42..03950b6b 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -129,7 +129,9 @@ models:
+       One row per fixture, from the generic stg_apif__fixtures_next model, deduplicated on
+       fixture_id. Where the provider's result differs from the league's official decision, the
+       score and status are the official ones from the fixture_result_corrections seed, and the
+-      provider's stay on the row. Grain: fixture_id.
++      provider's stay on the row. Where two clubs share a provider team id in a fixture, the
++      home and away team ids are corrected from the fixture_team_id_overrides seed's
++      reattribute_in_fixture rows. Grain: fixture_id.
+     config:
+       tags: ["base", "api_football", "fixture_context"]
+     tests:
+@@ -153,7 +155,7 @@ models:
+       - name: provider_shootout_away
+         description: "The provider's away shoot-out goals; differs from shootout_away only where the official result was corrected."
+       - name: winner_team_id
+-        description: "{{ doc('winner_team') }} Here, the provider's team id."
++        description: "{{ doc('winner_team') }} Here, the team id as home_team_id and away_team_id carry it."
+       - name: award_kind
+         description: "How an awarded result came about: not_played, played (to the end, the result decided afterwards) or abandoned. NULL where the result is not awarded."
+       - name: on_pitch_home
+@@ -250,7 +252,7 @@ models:
+         description: "{{ doc('fixture_api_id') }}"
+         tests: [not_null]
+       - name: team_id
+-        description: "The provider's numeric team id for this row, after applying the known-defect corrections in the fixture_team_id_overrides seed (the same alias and reattribute-if-cohabiting logic as base_apif__fixture_players.team_id). Corrected before the (league_code, fixture_id, team_id) dedup, so a corrected row cannot collide with one the correct team already has."
++        description: "The provider's numeric team id for this row, after applying the known-defect corrections in the fixture_team_id_overrides seed (the same alias, reattribute-if-cohabiting and reattribute-in-fixture logic as base_apif__fixture_players.team_id). Corrected before the (league_code, fixture_id, team_id) dedup, so a corrected row cannot collide with one the correct team already has."
+         tests: [not_null]
+       - name: has_stat_line
+         description: "{{ doc('has_stat_line') }}"
+@@ -302,7 +304,7 @@ models:
+         description: "{{ doc('fixture_api_id') }}"
+         tests: [not_null]
+       - name: team_id
+-        description: "The provider's numeric team id for this player's side, after applying the known-defect corrections in the fixture_team_id_overrides seed: an unconditional alias swap for a duplicate id, or a reattribution when the correct id is a fixture participant and the wrong id is not; and the team the player's-team rule above decides, where his events name the other team of the match. Corrected before this model's own (league_code, fixture_id, team_id, player_id) dedup."
++        description: "The provider's numeric team id for this player's side, after applying the known-defect corrections in the fixture_team_id_overrides seed: an unconditional alias swap for a duplicate id, a reattribution when the correct id is a fixture participant and the wrong id is not, or a replacement inside the one fixture a row names; and the team the player's-team rule above decides, where his events name the other team of the match. Corrected before this model's own (league_code, fixture_id, team_id, player_id) dedup."
+         tests: [not_null]
+       - name: player_id
+         description: "{{ doc('player_api_id') }}"
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+index cf1b9ebd..b967083d 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+@@ -86,12 +86,14 @@ fixture_participants as (
+ -- seeds/fixture_team_id_overrides.csv. `alias` = unconditional duplicate-id replacement (one
+ -- club under two provider ids); `reattribute_if_cohabiting` = replace only when the correct id is
+ -- a fixture participant and the wrong id is not (a mis-attribution between two DISTINCT clubs, so
+--- a club's own legitimate events are never touched).
++-- a club's own legitimate events are never touched); `reattribute_in_fixture` = replace inside
++-- the one fixture named, where two clubs share the id, and it outranks the other two.
+ overrides as (
+     select
+         cast(wrong_team_api_id as int64) as wrong_team_api_id,
+         cast(correct_team_api_id as int64) as correct_team_api_id,
+-        mode
++        mode,
++        cast(fixture_id as int64) as fixture_id
+     from {{ ref('fixture_team_id_overrides') }}
+ ),
  
- Both comparisons show the key metrics (`is_key_metric`) until the switch "Show all metrics" is on.
-diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
-index 7e1d93d5..46305904 100644
---- a/docs/wireframes/block_standard.md
-+++ b/docs/wireframes/block_standard.md
-@@ -102,8 +102,8 @@
- | Competition row | `.lrow.tc` | one competition of a team's season: crest, name and a muted note, with the standing or the cup's outcome on the right. A table's row adds the W, D and L counts, goals and points below. Narrow, the standing opens the second line | `fits` | ruled | the Team page review |
- | Competition row name | `.tc .tc-name` | 15px semi-bold ink; the note after it 12px muted | `font-size=15px; font-weight=600; color=ink` | ruled | the Team page review |
- | Squad grid | `.sqgrid` | the squad's player rows in two columns where each keeps 280px, otherwise one | `fits` | ruled | the Team page review |
--| Strip plot row | `.rs-row` | a metric's name, the league from its lowest to its highest value, and the team's value over its rank. Every other club is a light dot, the median a tick with its value, the team the solid dot. Narrow, the strip takes the second line | `fits` | ruled | the Team page review |
--| Strip plot value | `.rs-val` | the team's value, 15px bold ink, its rank under it in 12px muted | `font-size=15px; font-weight=700; color=ink` | ruled | the Team page review |
-+| Strip plot row | `.rs-row` | a metric's name, the league from its lowest to its highest value, and the team's rank over its value. Every other club is a light dot, the team the solid dot. Narrow, the strip takes the second line | `fits` | ruled | the Team page review |
-+| Strip plot value | `.rs-val` | the team's rank, 15px bold ink, its value under it in 12px muted | `font-size=15px; font-weight=700; color=ink` | ruled | the Team page review |
- | Scatter plot | `.dp-chart` | each team's shots on target difference per match against its points, with the deserved points line. Axis lines carry outward ticks and no grid. The marks keep their size at every width | `fits` | ruled | the Team page review |
- | Trend | `.ctab.yoyt .n.tr` | ▲ in the accent when this season is better, ▼ in the loss red when worse, "–" when the shown values are equal | `font-size=13px` | ruled | the Team page review |
- | Comparison element | `.cmp` | two teams' numbers on one metric list. Each team's name stands over its column. Each metric group's rows read value, name with the diverging bar, value | `fits` | ruled | the played match page review |
-diff --git a/site_v2/scripts/check-built-pages.mjs b/site_v2/scripts/check-built-pages.mjs
-index 46be3421..f202c7c0 100644
---- a/site_v2/scripts/check-built-pages.mjs
-+++ b/site_v2/scripts/check-built-pages.mjs
-@@ -21,6 +21,9 @@
- //    team payload's featured season serves for that metric, through `ordinal`, the function the
- //    block renders it with. A less-is-better metric is already ranked lowest-first by the warehouse,
- //    so a page that flips it a second time fails.
-+// 5. On every Team page, in each deserved points scatter, the difference label and the team's name
-+//    stay apart: the label on the other side of the team's dot, anchored the other way, or on the
-+//    name's side at least one line under the name.
- //
- // The parsing is regex over the emitted HTML, as audit-seo does it: the shapes are this repo's own
- // components, and the pure functions below are unit-tested on string literals.
-@@ -236,7 +239,7 @@ export function expectedBoards(dataDir = DATA_DIR) {
- const TEAM_RE = {
-   row: /<div(?=[^>]*\sclass="rs-row[ "])[^>]*>/g,
-   metric: /\sdata-metric="([^"]*)"/,
--  rank: /<span class="rs-val">[^<]*<small>([^<]*)<\/small>/,
-+  rank: /<span class="rs-val">([^<]*)<small>/,
- };
+@@ -113,11 +115,17 @@ attributed as (
+         recovered.raw_ingested_at,
+         recovered.event_type = 'Goal' and recovered.event_detail = 'Own Goal' as is_own_goal,
+         coalesce(
++            fixture_override.correct_team_api_id,
+             alias_override.correct_team_api_id,
+             reattribute_override.correct_team_api_id,
+             recovered.team_id
+         ) as team_id
+     from recovered
++    left join overrides as fixture_override
++        on
++            recovered.team_id = fixture_override.wrong_team_api_id
++            and recovered.fixture_id = fixture_override.fixture_id
++            and fixture_override.mode = 'reattribute_in_fixture'
+     left join overrides as alias_override
+         on
+             recovered.team_id = alias_override.wrong_team_api_id
+@@ -144,11 +152,17 @@ player_rows as (
+         player_row.fixture_id,
+         player_row.player_id,
+         coalesce(
++            fixture_override.correct_team_api_id,
+             alias_override.correct_team_api_id,
+             reattribute_override.correct_team_api_id,
+             player_row.team_id
+         ) as team_id
+     from {{ ref('stg_apif__fixture_players') }} as player_row
++    left join overrides as fixture_override
++        on
++            player_row.team_id = fixture_override.wrong_team_api_id
++            and player_row.fixture_id = fixture_override.fixture_id
++            and fixture_override.mode = 'reattribute_in_fixture'
+     left join overrides as alias_override
+         on
+             player_row.team_id = alias_override.wrong_team_api_id
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+index e3aab7ec..ca3b3170 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+@@ -83,11 +83,13 @@ fixture_participants as (
+ -- club's own legitimate lineups are never touched). Same seed and same two modes the events model
+ -- has used since #526; it was simply never wired to this feed, which is how one stub team block --
+ -- id 22722, name null -- put a lineup under a club that does not exist and stopped the nightly.
++-- `reattribute_in_fixture` replaces the id inside the one fixture named, where two clubs share it.
+ overrides as (
+     select
+         cast(wrong_team_api_id as int64) as wrong_team_api_id,
+         cast(correct_team_api_id as int64) as correct_team_api_id,
+-        mode
++        mode,
++        cast(fixture_id as int64) as fixture_id
+     from {{ ref('fixture_team_id_overrides') }}
+ ),
  
- /** The league rows on one Team page, each with its metric and the rank it shows. A row is the HTML
-@@ -265,6 +268,40 @@ export function checkTeamPage(html, lang, served, path = "") {
-   return issues;
- }
+@@ -112,6 +114,7 @@ corrected as (
+         src.* except (team_id),
+         coalesce(
+             resolved_teams.team_id,
++            fixture_override.correct_team_api_id,
+             alias_override.correct_team_api_id,
+             reattribute_override.correct_team_api_id,
+             src.team_id
+@@ -130,6 +133,11 @@ corrected as (
+         logical_or(src.goals_against is not null)
+             over (partition by src.league_code, src.fixture_id, src.raw_ingested_at) as fetch_is_complete
+     from src
++    left join overrides as fixture_override
++        on
++            src.team_id = fixture_override.wrong_team_api_id
++            and src.fixture_id = fixture_override.fixture_id
++            and fixture_override.mode = 'reattribute_in_fixture'
+     left join overrides as alias_override
+         on
+             src.team_id = alias_override.wrong_team_api_id
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
+index 4bb370bc..f17afd0a 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
+@@ -81,12 +81,14 @@ fixture_participants as (
+ -- seeds/fixture_team_id_overrides.csv. `alias` = unconditional duplicate-id replacement (one club
+ -- under two provider ids); `reattribute_if_cohabiting` = replace only when the correct id is a
+ -- fixture participant and the wrong id is not (a mis-attribution between two DISTINCT clubs, so a
+--- club's own legitimate statistics are never touched).
++-- club's own legitimate statistics are never touched); `reattribute_in_fixture` = replace inside
++-- the one fixture named, where two clubs share the id, and it outranks the other two.
+ overrides as (
+     select
+         cast(wrong_team_api_id as int64) as wrong_team_api_id,
+         cast(correct_team_api_id as int64) as correct_team_api_id,
+-        mode
++        mode,
++        cast(fixture_id as int64) as fixture_id
+     from {{ ref('fixture_team_id_overrides') }}
+ ),
  
-+const SCATTER_RE = {
-+  chart: /<svg class="dp-chart[ "]/g,
-+  me: /<circle class="dp-me"[^>]*>/,
-+  note: /<text class="dp-note"[^>]*>/,
-+  name: /<text class="dp-name"[^>]*>/,
-+};
-+const attr = (tag, name) => tag?.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1] ?? null;
-+const textMark = (tag) =>
-+  tag && { x: Number(attr(tag, "x")), y: Number(attr(tag, "y")), fs: Number(attr(tag, "font-size")), anchor: attr(tag, "text-anchor") };
+@@ -98,11 +100,17 @@ corrected as (
+     select
+         pivoted.* except (team_id),
+         coalesce(
++            fixture_override.correct_team_api_id,
+             alias_override.correct_team_api_id,
+             reattribute_override.correct_team_api_id,
+             pivoted.team_id
+         ) as team_id
+     from pivoted
++    left join overrides as fixture_override
++        on
++            pivoted.team_id = fixture_override.wrong_team_api_id
++            and pivoted.fixture_id = fixture_override.fixture_id
++            and fixture_override.mode = 'reattribute_in_fixture'
+     left join overrides as alias_override
+         on
+             pivoted.team_id = alias_override.wrong_team_api_id
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql b/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
+index 232eaea6..b5b68cf8 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
+@@ -13,6 +13,33 @@ latest as (
+     ) = 1
+ ),
+ 
++-- A team id two clubs share, corrected inside the one fixture named, from
++-- seeds/fixture_team_id_overrides.csv. The match feeds read their participants from here.
++fixture_overrides as (
++    select
++        cast(fixture_id as int64) as fixture_id,
++        cast(wrong_team_api_id as int64) as wrong_team_api_id,
++        cast(correct_team_api_id as int64) as correct_team_api_id
++    from {{ ref('fixture_team_id_overrides') }}
++    where mode = 'reattribute_in_fixture'
++),
 +
-+/** The deserved points scatters on one Team page, each with the team's dot and its two labels. */
-+export function scatterCharts(html) {
-+  const starts = [...html.matchAll(SCATTER_RE.chart)];
-+  return starts.map((m, i) => {
-+    const svg = html.slice(m.index, starts[i + 1]?.index ?? html.length);
-+    return {
-+      cx: Number(attr(svg.match(SCATTER_RE.me)?.[0], "cx")),
-+      note: textMark(svg.match(SCATTER_RE.note)?.[0]),
-+      name: textMark(svg.match(SCATTER_RE.name)?.[0]),
-+    };
-+  });
-+}
++corrected as (
++    select
++        latest.* except (home_team_id, away_team_id),
++        coalesce(home_override.correct_team_api_id, latest.home_team_id) as home_team_id,
++        coalesce(away_override.correct_team_api_id, latest.away_team_id) as away_team_id
++    from latest
++    left join fixture_overrides as home_override
++        on
++            latest.fixture_id = home_override.fixture_id
++            and latest.home_team_id = home_override.wrong_team_api_id
++    left join fixture_overrides as away_override
++        on
++            latest.fixture_id = away_override.fixture_id
++            and latest.away_team_id = away_override.wrong_team_api_id
++),
 +
-+/** Issues on one Team page: a scatter whose difference label and name are not kept apart. */
-+export function checkScatterLabels(html, path = "") {
-+  const issues = [];
-+  scatterCharts(html).forEach(({ cx, note, name }, i) => {
-+    const across = note && name && note.anchor !== name.anchor && (note.x - cx) * (name.x - cx) < 0;
-+    const under = note && name && note.anchor === name.anchor && note.x === name.x && note.y - name.y >= name.fs;
-+    if (!across && !under) issues.push(`${path}: scatter ${i + 1} puts the difference label beside the team's name`);
-+  });
-+  return issues;
-+}
+ -- The league's official result where the provider's differs, from seeds/fixture_result_corrections.csv.
+ result_corrections as (
+     select * from {{ ref('fixture_result_corrections') }}
+@@ -65,6 +92,6 @@ select
+                 when coalesce(c.goals_away, f.goals_away) > coalesce(c.goals_home, f.goals_home) then f.away_team_id
+             end
+     end as winner_team_id
+-from latest as f
++from corrected as f
+ left join result_corrections as c
+     on f.fixture_id = c.fixture_id
+diff --git a/dbt_project/models/2_base/api_football/base_apif__lineups.sql b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
+index 8bdfa405..ed262c00 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__lineups.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
+@@ -36,7 +36,8 @@ overrides as (
+     select
+         cast(wrong_team_api_id as int64) as wrong_team_api_id,
+         cast(correct_team_api_id as int64) as correct_team_api_id,
+-        mode
++        mode,
++        cast(fixture_id as int64) as fixture_id
+     from {{ ref('fixture_team_id_overrides') }}
+ ),
+ 
+@@ -44,11 +45,17 @@ corrected as (
+     select
+         src.* except (team_id),
+         coalesce(
++            fixture_override.correct_team_api_id,
+             alias_override.correct_team_api_id,
+             reattribute_override.correct_team_api_id,
+             src.team_id
+         ) as team_id
+     from src
++    left join overrides as fixture_override
++        on
++            src.team_id = fixture_override.wrong_team_api_id
++            and src.fixture_id = fixture_override.fixture_id
++            and fixture_override.mode = 'reattribute_in_fixture'
+     left join overrides as alias_override
+         on
+             src.team_id = alias_override.wrong_team_api_id
+diff --git a/dbt_project/models/2_base/api_football/base_apif__teams.sql b/dbt_project/models/2_base/api_football/base_apif__teams.sql
+index 7be7033c..27875d27 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__teams.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__teams.sql
+@@ -102,7 +102,8 @@ overrides as (
+     select
+         cast(wrong_team_api_id as int64) as wrong_team_api_id,
+         cast(correct_team_api_id as int64) as correct_team_api_id,
+-        mode
++        mode,
++        cast(fixture_id as int64) as fixture_id
+     from {{ ref('fixture_team_id_overrides') }}
+ ),
+ 
+@@ -125,11 +126,17 @@ fixture_level_keys as (
+     select
+         stg_fixture_level.league_code,
+         coalesce(
++            fixture_override.correct_team_api_id,
+             alias_override.correct_team_api_id,
+             reattribute_override.correct_team_api_id,
+             stg_fixture_level.team_api_id
+         ) as team_api_id
+     from stg_fixture_level
++    left join overrides as fixture_override
++        on
++            stg_fixture_level.team_api_id = fixture_override.wrong_team_api_id
++            and stg_fixture_level.fixture_id = fixture_override.fixture_id
++            and fixture_override.mode = 'reattribute_in_fixture'
+     left join overrides as alias_override
+         on
+             stg_fixture_level.team_api_id = alias_override.wrong_team_api_id
+@@ -156,19 +163,30 @@ team_keys as (
+ 
+     union all
+ 
++    -- The fixture list's keys take the per-fixture corrections base_apif__fixtures_next applies.
+     select
+-        league_code,
+-        home_team_id as team_api_id
++        stg_fixtures.league_code,
++        coalesce(home_override.correct_team_api_id, stg_fixtures.home_team_id) as team_api_id
+     from stg_fixtures
+-    where home_team_id is not null
++    left join overrides as home_override
++        on
++            stg_fixtures.home_team_id = home_override.wrong_team_api_id
++            and stg_fixtures.fixture_id = home_override.fixture_id
++            and home_override.mode = 'reattribute_in_fixture'
++    where stg_fixtures.home_team_id is not null
+ 
+     union all
+ 
+     select
+-        league_code,
+-        away_team_id as team_api_id
++        stg_fixtures.league_code,
++        coalesce(away_override.correct_team_api_id, stg_fixtures.away_team_id) as team_api_id
+     from stg_fixtures
+-    where away_team_id is not null
++    left join overrides as away_override
++        on
++            stg_fixtures.away_team_id = away_override.wrong_team_api_id
++            and stg_fixtures.fixture_id = away_override.fixture_id
++            and away_override.mode = 'reattribute_in_fixture'
++    where stg_fixtures.away_team_id is not null
+ 
+     union all
+ 
+diff --git a/dbt_project/seeds/fixture_team_id_overrides.csv b/dbt_project/seeds/fixture_team_id_overrides.csv
+index b3761336..b666ecd8 100644
+--- a/dbt_project/seeds/fixture_team_id_overrides.csv
++++ b/dbt_project/seeds/fixture_team_id_overrides.csv
+@@ -1,5 +1,7 @@
+-wrong_team_api_id,correct_team_api_id,mode,note
+-2263,10124,alias,Riga FC duplicate provider id 2263 -> canonical 10124 (#526)
+-6424,25274,reattribute_if_cohabiting,ASKO Kara 25274 events mis-tagged to rival ASC Kara 6424 in CAFCL 2020-24 (#526)
+-4767,1544,reattribute_if_cohabiting,"Macau 1544 rows mis-tagged to Mação 4767 (Portuguese municipality, name collision) in WCQAS fixtures 1100381/1100382 (#53)"
+-22722,132,reattribute_if_cohabiting,"Chapecoense-sc 132 away lineup filed under phantom id 22722 (name null, epoch update timestamp) in BSA fixture 1492362"
++wrong_team_api_id,correct_team_api_id,mode,fixture_id,note
++2263,10124,alias,,Riga FC duplicate provider id 2263 -> canonical 10124 (#526)
++6424,25274,reattribute_if_cohabiting,,ASKO Kara 25274 events mis-tagged to rival ASC Kara 6424 in CAFCL 2020-24 (#526)
++4767,1544,reattribute_if_cohabiting,,"Macau 1544 rows mis-tagged to Mação 4767 (Portuguese municipality, name collision) in WCQAS fixtures 1100381/1100382 (#53)"
++22722,132,reattribute_if_cohabiting,,"Chapecoense-sc 132 away lineup filed under phantom id 22722 (name null, epoch update timestamp) in BSA fixture 1492362"
++104,-1,reattribute_in_fixture,1239850,"Red Star de Bangui (Central African Republic) filed under Red Star FC 93 104 in CAFCL 2024 1st preliminary round, Red Star v Djoliba; the provider has no id for it. CAF: https://www.cafonline.com/caf-champions-league/news/new-champions-league-season-kicks-off-with-high-stakes-preliminary-round-matches/"
++104,-1,reattribute_in_fixture,1239851,"Red Star de Bangui (Central African Republic) filed under Red Star FC 93 104 in CAFCL 2024 1st preliminary round, Djoliba v Red Star; the provider has no id for it. CAF: https://www.cafonline.com/caf-champions-league/news/new-champions-league-season-kicks-off-with-high-stakes-preliminary-round-matches/"
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index 3a125a5c..beff039d 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -548,7 +548,8 @@ seeds:
+   - name: fixture_team_id_overrides
+     description: >
+       Corrections for known API-Football fixture-level team-id defects. Hand-authored, one row per
+-      wrong source team id: what it should resolve to, and how to apply it. Applied to all three
++      wrong source team id, or per wrong id and fixture for `reattribute_in_fixture`: what it
++      should resolve to, and how to apply it. Applied to all three
+       fixture-level feeds — events, team statistics and player statistics — and to the team keys
+       the entity dimension takes from them, so one row corrects a mis-attribution everywhere it
+       appears rather than in whichever feed happened to be looked at.
+@@ -557,6 +558,9 @@ seeds:
+       `reattribute_if_cohabiting` replaces it only in fixtures where the correct team is a
+       participant and the wrong one is not: a mis-attribution between two DISTINCT clubs, so the
+       wrong club's own rows are never touched.
++      `reattribute_in_fixture` replaces it only inside the one fixture the row names, in the
++      fixture list too: two clubs share the provider's id there, so no participant check can tell
++      them apart. It outranks the other two modes.
+ 
+       Add a row only with EXTERNALLY verified evidence; never infer a duplicate from name
+       similarity within our own data.
+@@ -565,13 +569,19 @@ seeds:
+         wrong_team_api_id: int64
+         correct_team_api_id: int64
+         mode: string
++        fixture_id: int64
+         note: string
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [wrong_team_api_id, fixture_id]
++      - dbt_utils.expression_is_true:
++          expression: "(fixture_id is not null) = (mode = 'reattribute_in_fixture')"
++          name: fixture_team_id_overrides_fixture_id_only_in_fixture_mode
+     columns:
+       - name: wrong_team_api_id
+         description: "The team_api_id the provider's fixture-level feeds wrongly emit."
+         tests:
+           - not_null
+-          - unique
+       - name: correct_team_api_id
+         description: >
+           The team_api_id the row should resolve to. Must exist in dim_team: this value is hand
+@@ -584,11 +594,13 @@ seeds:
+               to: ref('dim_team')
+               field: team_api_id
+       - name: mode
+-        description: "alias = unconditional duplicate-id replacement; reattribute_if_cohabiting = participant-gated mis-attribution fix."
++        description: "alias = unconditional duplicate-id replacement; reattribute_if_cohabiting = participant-gated mis-attribution fix; reattribute_in_fixture = replacement inside the one fixture named in fixture_id."
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["alias", "reattribute_if_cohabiting"]
++              values: ["alias", "reattribute_if_cohabiting", "reattribute_in_fixture"]
++      - name: fixture_id
++        description: "The fixture a reattribute_in_fixture row corrects; empty for the other two modes."
+       - name: note
+         description: "Human note + external-evidence reference for the correction (required — the governance control)."
+         tests:
+@@ -1272,7 +1284,8 @@ seeds:
+       A row is justified by a COLLISION (two real clubs sharing a label, e.g. "Rangers") or by a
+       name unique but incomplete against an external source ("Arsenal" for Arsenal FC); `note`
+       says which. Add one only where an authoritative external source disagrees with the provider,
+-      and cite it — never taste, never a nickname, never a locale preference.
++      and cite it — never taste, never a nickname, never a locale preference. A team id of our
++      own, for a club the provider has no id for, has no provider name, so its row gives the name.
+ 
+       It does NOT fold duplicate provider ids.
+     config:
+diff --git a/dbt_project/seeds/team_country_corrections.csv b/dbt_project/seeds/team_country_corrections.csv
+index a17aa3bc..8db3e0e5 100644
+--- a/dbt_project/seeds/team_country_corrections.csv
++++ b/dbt_project/seeds/team_country_corrections.csv
+@@ -1,4 +1,5 @@
+ team_api_id,team_country,provider_country,source,note
++-1,Central African Republic,,https://www.cafonline.com/caf-champions-league/news/new-champions-league-season-kicks-off-with-high-stakes-preliminary-round-matches/,Our own id; the provider has no row for Red Star de Bangui. CAF lists it under the Central African Republic.
+ 162,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
+ 184,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
+ 190,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
+diff --git a/dbt_project/seeds/team_name_overrides.csv b/dbt_project/seeds/team_name_overrides.csv
+index a1382f27..7dafe24b 100644
+--- a/dbt_project/seeds/team_name_overrides.csv
++++ b/dbt_project/seeds/team_name_overrides.csv
+@@ -110,3 +110,4 @@ team_api_id,team_name,source,note
+ 504,Hellas Verona FC,https://en.wikipedia.org/wiki/Hellas_Verona_F.C.,"Provider sends ""Hellas Verona"" without the FC suffix Wikipedia's article title carries."
+ 801,Pisa SC,https://en.wikipedia.org/wiki/Pisa_S.C.,"Provider sends bare ""Pisa"", the city name, not the club."
+ 488,US Sassuolo,https://en.wikipedia.org/wiki/US_Sassuolo_Calcio,"Provider sends bare ""Sassuolo"", the city name, not the club."
++-1,Red Star,https://www.cafonline.com/caf-champions-league/news/new-champions-league-season-kicks-off-with-high-stakes-preliminary-round-matches/,"Our own id for Red Star de Bangui (Central African Republic), which the provider files under Red Star FC 93 104; CAF names it Red Star."
+diff --git a/dbt_project/tests/assert_base_team_stats_cleaned.sql b/dbt_project/tests/assert_base_team_stats_cleaned.sql
+index 897deb06..5e9c0770 100644
+--- a/dbt_project/tests/assert_base_team_stats_cleaned.sql
++++ b/dbt_project/tests/assert_base_team_stats_cleaned.sql
+@@ -53,7 +53,8 @@ overrides as (
+     select
+         cast(wrong_team_api_id as int64) as wrong_team_api_id,
+         cast(correct_team_api_id as int64) as correct_team_api_id,
+-        mode
++        mode,
++        cast(fixture_id as int64) as fixture_id
+     from {{ ref('fixture_team_id_overrides') }}
+ ),
+ 
+@@ -61,11 +62,13 @@ stat_rows as (
+     select
+         s.league_code,
+         s.fixture_id,
+-        coalesce(a.correct_team_api_id, r.correct_team_api_id, s.team_id) as team_id,
++        coalesce(fo.correct_team_api_id, a.correct_team_api_id, r.correct_team_api_id, s.team_id) as team_id,
+         s.raw_ingested_at,
+         s.stat_type,
+         s.stat_value_raw
+     from {{ ref('stg_apif__fixture_statistics') }} as s
++    left join overrides as fo
++        on s.team_id = fo.wrong_team_api_id and s.fixture_id = fo.fixture_id and fo.mode = 'reattribute_in_fixture'
+     left join overrides as a
+         on s.team_id = a.wrong_team_api_id and a.mode = 'alias'
+     left join fixture_participants as p
+diff --git a/dbt_project/tests/assert_fixture_team_id_overrides_applied.sql b/dbt_project/tests/assert_fixture_team_id_overrides_applied.sql
+new file mode 100644
+index 00000000..28b10173
+--- /dev/null
++++ b/dbt_project/tests/assert_fixture_team_id_overrides_applied.sql
+@@ -0,0 +1,90 @@
++-- Every reattribute_in_fixture row of fixture_team_id_overrides is applied. One row per broken row:
++--   - wrong_id_still_carried: the fixture list or a match feed still files the fixture under the
++--     wrong team id, named in model_name.
++--   - correct_id_missing: the fixture list has no such fixture, or neither of its teams is the
++--     correct id.
 +
- /** Each team payload's served league ranks, by slug: the featured season's `benchmarks`, rank by
-  *  metric key. */
- export function expectedTeamRanks(dataDir = DATA_DIR) {
-@@ -279,6 +316,19 @@ export function expectedTeamRanks(dataDir = DATA_DIR) {
-   return ranks;
- }
- 
-+/** Whether any team payload's featured season serves a deserved points scatter with the team in it:
-+ *  the scatter rule only runs on the charts SCATTER_RE finds, so a drifted shape would otherwise
-+ *  check nothing and pass. */
-+export function servesScatter(dataDir = DATA_DIR) {
-+  const dir = join(dataDir, "teams");
-+  if (!existsSync(dir)) return false;
-+  return readdirSync(dir).filter((f) => f.endsWith(".json")).some((file) => {
-+    const p = JSON.parse(readFileSync(join(dir, file), "utf8"));
-+    const season = (p.seasons ?? []).find((s) => s.is_featured_season);
-+    return (season?.deserved_scatter ?? []).some((d) => d.is_self);
-+  });
-+}
++{{ config(store_failures = true, severity = 'error') }}
 +
- /** Issues when the team payloads serve ranks but no Team page or no league row was checked: the
-  *  rule only runs on the pages TEAM_PAGE finds and the rows that carry `rs-row`, so a drifted shape
-  *  would otherwise check nothing and pass. */
-@@ -340,6 +390,7 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
-   let rowsChecked = 0;
-   let teamPages = 0;
-   let teamRows = 0;
-+  let scatters = 0;
-   const expected = expectedBoards(dataDir);
-   const teamRanks = expectedTeamRanks(dataDir);
-   const built = payloadIds(dataDir);
-@@ -360,6 +411,8 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
-       teamPages += 1;
-       teamRows += teamRankRows(html).length;
-       issues.push(...checkTeamPage(html, lang, teamRanks.get(slug), path));
-+      scatters += scatterCharts(html).length;
-+      issues.push(...checkScatterLabels(html, path));
-     }
-   }
-   const payloadFiles = built.size;
-@@ -368,6 +421,8 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
-   issues.push(...checkTabPagesFound({ fixturesPages, rankingsPages, expected }));
-   issues.push(...checkMatchRowsFound({ matchRows: rowsChecked, payloadFiles }));
-   issues.push(...checkTeamRowsFound({ teamPages, teamRows, expected: teamRanks }));
-+  if (teamPages > 0 && scatters === 0 && servesScatter(dataDir))
-+    issues.push("a team payload serves the deserved points scatter but no Team page carried one");
-   if (issues.length) {
-     console.error(`check-built-pages: ${issues.length} issue(s)`);
-     for (const i of issues) console.error(`  - ${i}`);
-@@ -379,7 +434,7 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
-         ? ` = the warehouse's ${manifest.source_counts?.fixtures_unplayed} unplayed and ${manifest.source_counts?.fixtures_played} played`
-         : " (no manifest: sample build)") +
-       `; ${fixturesPages} fixtures page(s), ${rankingsPages} rankings page(s), ${rowsChecked} match row(s)` +
--      ` and ${teamRows} league row(s) on ${teamPages} team page(s) checked. OK.`,
-+      ` and ${teamRows} league row(s) and ${scatters} scatter(s) on ${teamPages} team page(s) checked. OK.`,
-   );
-   return 0;
- }
-diff --git a/site_v2/scripts/check-built-pages.test.mjs b/site_v2/scripts/check-built-pages.test.mjs
-index 0d4596e5..33463775 100644
---- a/site_v2/scripts/check-built-pages.test.mjs
-+++ b/site_v2/scripts/check-built-pages.test.mjs
-@@ -11,7 +11,7 @@ import { join } from "node:path";
- import {
-   checkFixturesPage, checkMatchPageCount, checkMatchRowLinks, checkMatchRowsFound, checkRankingsPage, boards, isZeroValue,
-   main, matchRows, renderedBoards, rounds, checkTabPagesFound, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
--  checkTeamPage, checkTeamRowsFound, teamRankRows, TEAM_PAGE,
-+  checkTeamPage, checkTeamRowsFound, teamRankRows, TEAM_PAGE, checkScatterLabels, scatterCharts,
- } from "./check-built-pages.mjs";
- 
- function round(n, { checked = false, next = false, rows = [] } = {}) {
-@@ -232,12 +232,12 @@ test("main fails a build whose pages name no match, and passes it once a row doe
- });
- 
- // A "Compared with the league" row as TeamLeagueStrips.astro emits it: the name, the strip, then the
--// value with the shown rank under it.
-+// shown rank with the value under it.
- function leagueRow(metric, value, rank, { nonkey = false } = {}) {
-   return (
-     `<div class="rs-row${nonkey ? " nonkey" : ""}" data-metric="${metric}"><span class="rs-name">x</span>` +
-     `<span class="rs-strip"><span class="rs-line"></span><span class="rs-dir">better</span></span>` +
--    `<span class="rs-val">${value}<small>${rank}</small></span></div>`
-+    `<span class="rs-val">${rank}<small>${value}</small></span></div>`
-   );
- }
- 
-@@ -310,6 +310,59 @@ test("team payloads with ranks but no Team page or no league row checked is an i
-   assert.deepEqual(checkTeamRowsFound({ teamPages: 0, teamRows: 0, expected: new Map() }), []);
- });
- 
-+// A deserved points scatter as TeamDeserved.astro emits it: the team's dot, then the difference
-+// label, then the name.
-+function scatter({ cx = 100, note, name }) {
-+  const text = (cls, m) => `<text class="${cls}" x="${m.x}" y="${m.y}" font-size="12" text-anchor="${m.anchor}">x</text>`;
-+  return (
-+    `<svg class="dp-chart dp-wide" viewBox="0 0 560 330" role="img"><line class="dp-axis" x1="46" x2="46" y1="12" y2="272"></line>` +
-+    `<circle class="dp-me" cx="${cx}" cy="150" r="5" data-px="5"></circle>` + text("dp-note", note) + text("dp-name", name) + `</svg>`
-+  );
-+}
++with overrides as (
++    select
++        cast(fixture_id as int64) as fixture_id,
++        cast(wrong_team_api_id as int64) as wrong_team_api_id,
++        cast(correct_team_api_id as int64) as correct_team_api_id
++    from {{ ref('fixture_team_id_overrides') }}
++    where mode = 'reattribute_in_fixture'
++),
 +
-+test("the scatter's difference label sits across the dot from the name, or a line under it; beside it fails", () => {
-+  const name = { x: 107, y: 154.2, anchor: "start" };
-+  assert.deepEqual(checkScatterLabels(scatter({ note: { x: 93, y: 170, anchor: "end" }, name }), "p"), []);
-+  assert.deepEqual(checkScatterLabels(scatter({ note: { x: 107, y: 169.2, anchor: "start" }, name }), "p"), []);
-+  assert.match(checkScatterLabels(scatter({ note: { x: 107, y: 160, anchor: "start" }, name }), "p")[0],
-+    /p: scatter 1 puts the difference label beside the team's name/);
-+  assert.equal(checkScatterLabels(scatter({ note: { x: 107, y: 140, anchor: "start" }, name }), "p").length, 1);
-+  assert.equal(checkScatterLabels(scatter({ note: { x: 93, y: 170, anchor: "start" }, name }), "p").length, 1);
-+  const two = scatter({ note: { x: 93, y: 170, anchor: "end" }, name }) + scatter({ note: { x: 107, y: 160, anchor: "start" }, name });
-+  assert.equal(scatterCharts(two).length, 2);
-+  assert.match(checkScatterLabels(two, "p")[0], /scatter 2/);
-+});
++fixtures as (
++    select
++        fixture_id,
++        home_team_id,
++        away_team_id
++    from {{ ref('base_apif__fixtures_next') }}
++),
 +
-+test("main fails a Team page whose scatter is missing or puts the label beside the name", (t) => {
-+  const root = mkdtempSync(join(tmpdir(), "check-built-pages-scatter-"));
-+  try {
-+    mkdirSync(join(root, "data", "teams"), { recursive: true });
-+    const season = {
-+      is_featured_season: true,
-+      benchmarks: [{ metric_key: "fouls_per_match", rank: 1, team_count: 18 }],
-+      deserved_scatter: [{ is_self: true, sotd: 1, points: 20, deserved: 18 }],
-+    };
-+    writeFileSync(join(root, "data", "teams", "85.json"), JSON.stringify({ slug: "psg", seasons: [season] }));
-+    const write = (html) => {
-+      mkdirSync(join(root, "dist", "en", "teams", "psg"), { recursive: true });
-+      writeFileSync(join(root, "dist", "en", "teams", "psg", "index.html"), leagueRow("fouls_per_match", "6.1", "1st") + html);
-+    };
-+    const name = { x: 107, y: 154.2, anchor: "start" };
-+    const errors = t.mock.method(console, "error", () => {});
-+    t.mock.method(console, "log", () => {});
-+    write("");
-+    assert.equal(main(join(root, "dist"), join(root, "data")), 1);
-+    assert.ok(errors.mock.calls.some((c) => /serves the deserved points scatter but no Team page carried one/.test(c.arguments[0])));
-+    write(scatter({ note: { x: 107, y: 160, anchor: "start" }, name }));
-+    assert.equal(main(join(root, "dist"), join(root, "data")), 1);
-+    assert.ok(errors.mock.calls.some((c) => /beside the team's name/.test(c.arguments[0])));
-+    write(scatter({ note: { x: 93, y: 170, anchor: "end" }, name }));
-+    assert.equal(main(join(root, "dist"), join(root, "data")), 0);
-+  } finally {
-+    rmSync(root, { recursive: true, force: true });
-+  }
-+});
++carried_teams as (
++    select
++        'base_apif__fixtures_next' as model_name,
++        fixture_id,
++        home_team_id as team_id
++    from fixtures
++    union all
++    select
++        'base_apif__fixtures_next' as model_name,
++        fixture_id,
++        away_team_id as team_id
++    from fixtures
++    union all
++    select
++        'base_apif__fixture_events' as model_name,
++        fixture_id,
++        team_id
++    from {{ ref('base_apif__fixture_events') }}
++    union all
++    select
++        'base_apif__fixture_players' as model_name,
++        fixture_id,
++        team_id
++    from {{ ref('base_apif__fixture_players') }}
++    union all
++    select
++        'base_apif__fixture_statistics' as model_name,
++        fixture_id,
++        team_id
++    from {{ ref('base_apif__fixture_statistics') }}
++    union all
++    select
++        'base_apif__lineups' as model_name,
++        fixture_id,
++        team_id
++    from {{ ref('base_apif__lineups') }}
++)
 +
- test("a page with no round at all is an issue, not a pass", () => {
-   assert.match(checkFixturesPage("<html><body></body></html>", "p")[0], /no round on the page/);
- });
-diff --git a/site_v2/src/components/team/TeamDeserved.astro b/site_v2/src/components/team/TeamDeserved.astro
-index a92c6aa5..5a44a0b5 100644
---- a/site_v2/src/components/team/TeamDeserved.astro
-+++ b/site_v2/src/components/team/TeamDeserved.astro
-@@ -2,7 +2,9 @@
- // Deserved points: the competition page's explainer, a table of the team's four values (shots on
- // target difference per match, points, deserved points, the difference), then the league's
- // scatter plot: every team's shots on target difference per match against its points, the
--// deserved points line, the team as the one solid dot with its difference as a dotted line. The
-+// deserved points line, the team as the one solid dot with its difference as a dotted line, the
-+// difference's label on the side of the dot opposite the team's name so the two never meet, or
-+// under the name where it would reach the y axis. The
- // line joins the served deserved points of the two teams at the ends of the axis; deserved points
- // lie on it by the model. Marks keep their pixel size at every width (chartMarks.mjs). Present
- // only where the model fitted the league (mart_team_profile, deserved_scatter).
-@@ -31,6 +33,7 @@ const names = {
-   sotName: metricInSentence(lang, "metrics.shots_on_target_per_match.label"),
- };
- const signed = (v: number | null | undefined) => signedDelta(v, "decimal_1", lang).value;
-+const gapText = signed(s.deserved_points_gap);
- 
- const dots = (s.deserved_scatter ?? []).filter(
-   (d): d is ScatterDot & { sotd: number; points: number; deserved: number } =>
-@@ -62,10 +65,18 @@ function chart(W: number, H: number, fs: number) {
-   for (let y = 0; y <= y1; y += 3) yTicks.push(y);
-   const cx = sx(me.sotd), cy = sy(me.points), cl = sy(onLine(me.sotd));
-   const right = cx < (L + W - R) / 2;
-+  const lx = right ? cx + 7 : cx - 7, anchor = right ? "start" : "end";
-+  // The label's width estimated from its characters, generous so it moves before it meets the axis.
-+  const under = right && cx - 7 - gapText.length * fs * 0.55 < L + 3;
-   return {
-     W, H, fs, L, R, T, B, sx, sy, xTicks, yTicks,
-     line: { x1: sx(x0), y1: sy(onLine(x0)), x2: sx(x1), y2: sy(onLine(x1)) },
--    me: { cx, cy, cl, lx: right ? cx + 7 : cx - 7, anchor: right ? "start" : "end" },
-+    me: {
-+      cx, cy, cl, lx, anchor,
-+      gx: under ? lx : right ? cx - 7 : cx + 7,
-+      ganchor: under ? anchor : right ? "end" : "start",
-+      gy: under ? cy + fs * 1.85 : (cy + cl) / 2 + fs * 0.35,
-+    },
-   };
- }
- const charts = [{ cls: "dp-wide", c: chart(560, 330, 12) }, { cls: "dp-narrow", c: chart(280, 230, 11) }];
-@@ -116,7 +127,7 @@ const fmtTick = (x: number) => (x > 0 ? `+${integer(x, lang)}` : integer(x, lang
-           ))}
-           <line class="dp-gap" x1={c.me.cx} x2={c.me.cx} y1={c.me.cy} y2={c.me.cl} />
-           <circle class="dp-me" cx={c.me.cx} cy={c.me.cy} r="5" data-px="5" data-halo="2"><title>{tip(me)}</title></circle>
--          <text class="dp-note" x={c.me.lx} y={(c.me.cy + c.me.cl) / 2 + c.fs * 0.35} font-size={c.fs} text-anchor={c.me.anchor}>{signed(s.deserved_points_gap)}</text>
-+          <text class="dp-note" x={c.me.gx} y={c.me.gy} font-size={c.fs} text-anchor={c.me.ganchor}>{gapText}</text>
-           <text class="dp-name" x={c.me.lx} y={c.me.cy + c.fs * 0.35} font-size={c.fs} text-anchor={c.me.anchor}>{teamName}</text>
-         </svg>
-       ))}
-diff --git a/site_v2/src/components/team/TeamLeagueStrips.astro b/site_v2/src/components/team/TeamLeagueStrips.astro
-index 2b2a9627..d8b6c738 100644
---- a/site_v2/src/components/team/TeamLeagueStrips.astro
-+++ b/site_v2/src/components/team/TeamLeagueStrips.astro
-@@ -2,9 +2,8 @@
- // Compared with the league: the served metric list (metric_rows.json, the catalogue's groups and
- // order), each row a strip plot of the team's league this season. The line runs from the league's
- // lowest to its highest value, values growing to the right; every other club is a small light dot,
--// the team the one solid dot, the league median a tick with its value. The team's value and its
--// rank (the mart's, by the metric's direction) stand on the right; "better" points the metric's
--// way. A row without a value for the team is left out. The key metrics show; the switch shows
-+// the team the one solid dot. The team's rank (the mart's, by the metric's direction) stands on the
-+// right with its value under it; "better" points the metric's way. A row without a value for the team is left out. The key metrics show; the switch shows
- // every row in its place. Data: mart_team_competition_benchmarks and its every-club strip.
- import SectionHead from "../ui/SectionHead.astro";
- import MetricSwitch from "../ui/MetricSwitch.astro";
-@@ -43,9 +42,8 @@ function place(v: number, lo: number, hi: number): number {
-     {needsSwitch(groups) && <MetricSwitch id="tsw-league" lang={lang} />}
-     <div class="rs-list">
-       <div class="rs-legend" aria-hidden="true">
--        <span><i class="rs-k-club"></i>{t(lang, "teamOtherTeams", { competition: compName })}</span>
--        <span><i class="rs-k-med"></i>{t(lang, "teamLeagueMedian")}</span>
-         <span><i class="rs-k-dot"></i>{teamName}</span>
-+        <span><i class="rs-k-club"></i>{t(lang, "teamOtherTeams", { competition: compName })}</span>
-       </div>
-       {groups.map((g) => (
-         <div class:list={["fxgroup", "rkgroup", { nonkey: !g.hasKey }]}>
-@@ -57,18 +55,11 @@ function place(v: number, lo: number, hi: number): number {
-             const all = clubs.map((c) => c.value);
-             const lo = all.length ? Math.min(...all, v) : v;
-             const hi = all.length ? Math.max(...all, v) : v;
--            const med = b.league_median;
-             return (
-               <div class:list={["rs-row", { nonkey: !r.is_key_metric }]} data-metric={r.metric_id}>
-                 <span class="rs-name">{boardTitle(lang, r.label_i18n_key, r.per_match)}</span>
-                 <span class="rs-strip">
-                   <span class="rs-line"></span>
--                  {med != null && (
--                    <>
--                      <span class="rs-med" style={`left:${place(med, lo, hi)}%`}></span>
--                      <span class="rs-medv" style={`left:${place(med, lo, hi)}%`}>{formatValue(med, r.format, lang)}</span>
--                    </>
--                  )}
-                   {clubs.filter((c) => !c.is_self).map((c) => (
-                     <span class="rs-club" style={`left:${place(c.value, lo, hi)}%`} title={`${c.name}: ${formatValue(c.value, r.format, lang)}`}></span>
-                   ))}
-@@ -76,7 +67,7 @@ function place(v: number, lo: number, hi: number): number {
-                   {r.direction === "higher_better" && <span class="rs-dir r">{t(lang, "teamBetterRight")}</span>}
-                   {r.direction === "lower_better" && <span class="rs-dir">{t(lang, "teamBetterLeft")}</span>}
-                 </span>
--                <span class="rs-val">{formatValue(v, r.format, lang)}<small>{ordinal(b.rank, lang)}</small></span>
-+                <span class="rs-val">{ordinal(b.rank, lang)}<small>{formatValue(v, r.format, lang)}</small></span>
-               </div>
-             );
-           })}
-diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
-index 73415377..5b11f7bc 100644
---- a/site_v2/src/i18n/strings.ts
-+++ b/site_v2/src/i18n/strings.ts
-@@ -84,7 +84,7 @@ const EN: Dict = {
-   tabOverview: "Overview",
-   tabPerformance: "Performance",
-   tabSquad: "Squad",
--  teamPerfIntro: "{competition} {season}: {team} compared with the other teams and with the season before. Other competitions are not included.",
-+  teamPerfIntro: "{competition} {season}: {team} compared with the other teams and with the season before, without other competitions.",
-   teamLeaguePhase: "League phase",
-   teamThrough: "Through",
-   teamKnockedOut: "Knocked out",
-@@ -103,8 +103,7 @@ const EN: Dict = {
-   teamOtherTeams: "Other {competition} teams",
-   teamScatterAria: "{pointsName} and {sotdName} per match of every {competition} team, with the {deservedName} line.",
-   teamVsLeague: "Compared with the league",
--  teamVsLeagueIntro: "Each value is ranked against the other {competition} clubs this season. The median splits the league in two: half the clubs are above it, half below.",
--  teamLeagueMedian: "League median",
-+  teamVsLeagueIntro: "Each value is ranked against the other {competition} clubs this season.",
-   teamBetterLeft: "← better",
-   teamBetterRight: "better →",
-   teamVsLastSeason: "Compared with last season",
-@@ -221,7 +220,7 @@ const EN: Dict = {
-   // above; and it names no metric, because the sentence sits above all four boards and "top player"
-   // carries every one of them equally.
-   // The league list is the SHOWN group's members, injected from the data — not a fixed seven.
--  homeTopPlayersIntro: "Current season. The top player from each league in the rankings: {leagues}.",
-+  homeTopPlayersIntro: "The top player from each league in this season's rankings: {leagues}.",
-   homeTopTeams: "Top teams",
-   // ⭐ APPROVED COPY (#41), the second half dictated verbatim in all three locales. Nothing here
-   // is a draft and nothing is awaiting sign-off.
-@@ -234,7 +233,7 @@ const EN: Dict = {
-   // awaiting approval while it was the approved wording, and it justified a "Season to date"
-   // wording already rejected. Unapproved copy LOOKING approved and approved copy looking
-   // unapproved are the same accumulate-instead-of-replace failure. Replaced, not amended.
--  homeTopTeamsIntro: "Current season. The top team from each league in the rankings: {leagues}.",
-+  homeTopTeamsIntro: "The top team from each league in this season's rankings: {leagues}.",
-   // A metric's second line: a value averaged over matches, or a share named by its count.
-   perMatch: "per match",
-   percentage: "percentage",
-@@ -327,7 +326,7 @@ const EN: Dict = {
-   compTBC: "TBC",
-   compTopMatch: "Top match",
-   compSecDeserved: "{deservedName} table",
--  compDeservedExplainer: "{deservedName} are the points a team's {sotdName} usually earns. {sotdNameStart} is the team's {sotName} minus its opponents' {sotName}. Teams with fewer points than deserved are better than the table says; teams with more are worse.",
-+  compDeservedExplainer: "{deservedName} are the points a team's {sotdName} usually earns; a team with fewer is better than the table says.",
-   compSecTeamRankings: "Team rankings",
-   compSecPlayerRankings: "Player rankings",
-   compTeamRankingsIntro: "The leading teams {in} this season, metric by metric.",
-@@ -510,7 +509,7 @@ const DE: Dict = {
-   tabOverview: "Übersicht",
-   tabPerformance: "Leistung",
-   tabSquad: "Kader",
--  teamPerfIntro: "{competition} {season}: {team} im Vergleich mit den anderen Mannschaften und mit der Vorsaison. Andere Wettbewerbe sind nicht enthalten.",
-+  teamPerfIntro: "{competition} {season}: {team} im Vergleich mit den anderen Mannschaften und mit der Vorsaison, ohne andere Wettbewerbe.",
-   teamLeaguePhase: "Ligaphase",
-   teamThrough: "Weiter",
-   teamKnockedOut: "Ausgeschieden",
-@@ -529,8 +528,7 @@ const DE: Dict = {
-   teamOtherTeams: "Übrige Klubs der Liga",
-   teamScatterAria: "Punkte und Torschussdifferenz pro Spiel aller Mannschaften der Liga, mit der Linie der verdienten Punkte.",
-   teamVsLeague: "Im Vergleich zur Liga",
--  teamVsLeagueIntro: "Alle Werte im Vergleich mit den übrigen Klubs der Liga in dieser Saison. Der Median teilt die Liga in zwei Hälften: Die eine Hälfte der Klubs liegt darüber, die andere darunter.",
--  teamLeagueMedian: "Liga-Median",
-+  teamVsLeagueIntro: "Alle Werte im Vergleich mit den übrigen Klubs der Liga in dieser Saison.",
-   teamBetterLeft: "← besser",
-   teamBetterRight: "besser →",
-   teamVsLastSeason: "Im Vergleich zur Vorsaison",
-@@ -609,11 +607,11 @@ const DE: Dict = {
-   // women's teams means changing this string properly.
-   // `Die Top-Mannschaft` below is NOT affected — Mannschaft is the standard German
-   // word for a women's team too. EN and FI are unaffected; Finnish has no grammatical gender.
--  homeTopPlayersIntro: "Aktuelle Saison. Der Top-Spieler jeder Liga in den Ranglisten: {leagues}.",
-+  homeTopPlayersIntro: "Der Top-Spieler jeder Liga in den Ranglisten dieser Saison: {leagues}.",
-   homeTopTeams: "Top-Mannschaften",
-   // Approved copy (#41). It mirrors the DE players line above — both approved together — and
-   // avoids "Führende", the German trap the "leader" rejection points at.
--  homeTopTeamsIntro: "Aktuelle Saison. Die Top-Mannschaft jeder Liga in den Ranglisten: {leagues}.",
-+  homeTopTeamsIntro: "Die Top-Mannschaft jeder Liga in den Ranglisten dieser Saison: {leagues}.",
-   perMatch: "pro Spiel",
-   percentage: "in Prozent",
-   homeNoFixtures: "Derzeit sind keine Spiele angesetzt.",
-@@ -692,7 +690,7 @@ const DE: Dict = {
-   compTBC: "Offen",
-   compTopMatch: "Topspiel",
-   compSecDeserved: "Tabelle nach verdienten Punkten",
--  compDeservedExplainer: "{deservedName} sind die Punkte, die eine Mannschaft mit ihrer {sotdName} in der Regel holt. Die {sotdName} ist die Zahl der eigenen {sotName} minus die der Gegner. Teams mit weniger Punkten als verdient sind besser, als es die Tabelle zeigt; Teams mit mehr sind schlechter.",
-+  compDeservedExplainer: "{deservedName} sind die Punkte, die eine Mannschaft mit ihrer {sotdName} in der Regel holt; ein Team mit weniger ist besser, als es die Tabelle zeigt.",
-   compSecTeamRankings: "Mannschafts-Ranglisten",
-   compSecPlayerRankings: "Spieler-Ranglisten",
-   compTeamRankingsIntro: "Die besten Mannschaften {in} in dieser Saison, Kennzahl für Kennzahl.",
-@@ -890,7 +888,7 @@ const FI: Dict = {
-   tabOverview: "Yleiskatsaus",
-   tabPerformance: "Suoritus",
-   tabSquad: "Kokoonpano",
--  teamPerfIntro: "{competition} {season}: {team} verrattuna muihin joukkueisiin ja edelliseen kauteen. Muut kilpailut eivät ole mukana.",
-+  teamPerfIntro: "{competition} {season}: {team} verrattuna muihin joukkueisiin ja edelliseen kauteen, ilman muita kilpailuja.",
-   teamLeaguePhase: "Liigavaihe",
-   teamThrough: "Jatkoon",
-   teamKnockedOut: "Pudonnut",
-@@ -909,8 +907,7 @@ const FI: Dict = {
-   teamOtherTeams: "Sarjan muut joukkueet",
-   teamScatterAria: "Sarjan kaikkien joukkueiden pisteet ja maalilaukausero per ottelu sekä ansaittujen pisteiden viiva.",
-   teamVsLeague: "Verrattuna sarjaan",
--  teamVsLeagueIntro: "Kaikkia lukuja verrataan sarjan muihin joukkueisiin tällä kaudella. Mediaani jakaa sarjan kahtia: puolet joukkueista on sen yläpuolella, puolet alapuolella.",
--  teamLeagueMedian: "Sarjan mediaani",
-+  teamVsLeagueIntro: "Kaikkia lukuja verrataan sarjan muihin joukkueisiin tällä kaudella.",
-   teamBetterLeft: "← parempi",
-   teamBetterRight: "parempi →",
-   teamVsLastSeason: "Verrattuna edelliskauteen",
-@@ -980,11 +977,11 @@ const FI: Dict = {
-   seoHomeDesc: "Tulevat ottelut kaikista kattamistamme kilpailuista.",
-   homeNext: "Seuraavat ottelut",
-   homeTopPlayers: "Kärkipelaajat",
--  homeTopPlayersIntro: "Tämä kausi. Kunkin sarjan kärkipelaaja ranking-listoilla: {leagues}.",
-+  homeTopPlayersIntro: "Kunkin sarjan kärkipelaaja tämän kauden ranking-listoilla: {leagues}.",
-   homeTopTeams: "Kärkijoukkueet",
-   // Approved copy (#41), mirroring the FI players line above — `kärkipelaaja` there,
-   // `kärkijoukkue` here.
--  homeTopTeamsIntro: "Tämä kausi. Kunkin sarjan kärkijoukkue ranking-listoilla: {leagues}.",
-+  homeTopTeamsIntro: "Kunkin sarjan kärkijoukkue tämän kauden ranking-listoilla: {leagues}.",
-   perMatch: "ottelua kohden",
-   percentage: "prosentteina",
-   homeNoFixtures: "Ei otteluita tällä hetkellä.",
-@@ -1063,7 +1060,7 @@ const FI: Dict = {
-   compTBC: "Avoin",
-   compTopMatch: "Huippuottelu",
-   compSecDeserved: "Ansaittujen pisteiden taulukko",
--  compDeservedExplainer: "{deservedName} ovat pisteet, jotka joukkueen {sotdName} yleensä tuo. {sotdNameStart} on joukkueen omat {sotName} miinus vastustajien {sotName}. Joukkue, jolla on vähemmän pisteitä kuin se ansaitsisi, on parempi kuin sarjataulukko kertoo; joukkue, jolla on enemmän, on huonompi.",
-+  compDeservedExplainer: "{deservedName} ovat pisteet, jotka joukkueen {sotdName} yleensä tuo; joukkue, jolla on vähemmän, on parempi kuin sarjataulukko kertoo.",
-   compSecTeamRankings: "Joukkuerankingit",
-   compSecPlayerRankings: "Pelaajarankingit",
-   compTeamRankingsIntro: "Parhaat joukkueet {in} tällä kaudella, tilasto kerrallaan.",
-diff --git a/site_v2/src/specs/teams/team.spec.json b/site_v2/src/specs/teams/team.spec.json
-index e73268c7..d4c2e467 100644
---- a/site_v2/src/specs/teams/team.spec.json
-+++ b/site_v2/src/specs/teams/team.spec.json
-@@ -75,7 +75,6 @@
-       "i18n_keys": [
-         "teamVsLeague",
-         "teamVsLeagueIntro",
--        "teamLeagueMedian",
-         "teamBetterLeft",
-         "teamBetterRight",
-         "teamVsLastSeason",
-diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
-index 54fb41b8..a80fd745 100644
---- a/site_v2/src/styles/system.css
-+++ b/site_v2/src/styles/system.css
-@@ -1041,22 +1041,18 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
- .dp-k-club { width: 6px; height: 6px; background: color-mix(in srgb, var(--ink) 24%, transparent); }
- 
- /* The strip plot: a metric's name · the league from its lowest to its highest value, values growing
--   to the right, every other club a light dot, the median a tick with its value, the team the solid
--   dot · the team's value over its rank. Narrow, the strip takes the row's second line. */
-+   to the right, every other club a light dot, the team the solid dot · the team's rank over its
-+   value. Narrow, the strip takes the row's second line. */
- .rs-list { container-type: inline-size; }
- .rs-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--ink-2); margin: 2px 0 6px; }
- .rs-legend span { display: inline-flex; align-items: center; gap: 6px; }
- .rs-k-club { width: 6px; height: 6px; border-radius: 50%; background: color-mix(in srgb, var(--ink) 24%, transparent); }
--.rs-k-med { width: 2px; height: 14px; background: var(--ink-2); }
- .rs-k-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ink); }
- .rs-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) 4.6rem; column-gap: 14px; align-items: center;
-   padding: 10px 0; border-bottom: 1px solid var(--line); }
- .rs-name { font-size: 14px; color: var(--ink); line-height: 1.3; }
--.rs-strip { position: relative; height: 14px; margin: 26px 0 14px; }
-+.rs-strip { position: relative; height: 14px; margin: 10px 0 14px; }
- .rs-line { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--div); }
--.rs-med { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--ink-2); }
--.rs-medv { position: absolute; top: -25px; transform: translateX(-50%); font-size: 11px; color: var(--ink-2);
--  font-variant-numeric: tabular-nums; white-space: nowrap; }
- .rs-club { position: absolute; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%;
-   background: color-mix(in srgb, var(--ink) 24%, transparent); }
- .rs-dot { position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%;
++select distinct
++    o.fixture_id,
++    o.wrong_team_api_id,
++    o.correct_team_api_id,
++    t.model_name,
++    'wrong_id_still_carried' as problem
++from overrides as o
++inner join carried_teams as t
++    on
++        o.fixture_id = t.fixture_id
++        and o.wrong_team_api_id = t.team_id
++union all
++select
++    o.fixture_id,
++    o.wrong_team_api_id,
++    o.correct_team_api_id,
++    'base_apif__fixtures_next' as model_name,
++    'correct_id_missing' as problem
++from overrides as o
++left join fixtures as f
++    on o.fixture_id = f.fixture_id
++where
++    f.fixture_id is null
++    or (
++        f.home_team_id is distinct from o.correct_team_api_id
++        and f.away_team_id is distinct from o.correct_team_api_id
++    )
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -668,7 +701,8 @@ index 54fb41b8..a80fd745 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md    | 21 ++++++++++-----------
-#    .claude/task/rendered_page_evidence.md | 26 +++++++++++++-------------
-#    2 files changed, 23 insertions(+), 24 deletions(-)
+#   .claude/task/acceptance_evidence.md |   28 +-
+#    .claude/task/review.md              |   29 +-
+#    .claude/task/review_input.patch     | 1188 ++++++++++++++++++-----------------
+#    3 files changed, 640 insertions(+), 605 deletions(-)
 # ============================================================================

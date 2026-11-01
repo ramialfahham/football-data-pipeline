@@ -83,11 +83,13 @@ fixture_participants as (
 -- club's own legitimate lineups are never touched). Same seed and same two modes the events model
 -- has used since #526; it was simply never wired to this feed, which is how one stub team block --
 -- id 22722, name null -- put a lineup under a club that does not exist and stopped the nightly.
+-- `reattribute_in_fixture` replaces the id inside the one fixture named, where two clubs share it.
 overrides as (
     select
         cast(wrong_team_api_id as int64) as wrong_team_api_id,
         cast(correct_team_api_id as int64) as correct_team_api_id,
-        mode
+        mode,
+        cast(fixture_id as int64) as fixture_id
     from {{ ref('fixture_team_id_overrides') }}
 ),
 
@@ -112,6 +114,7 @@ corrected as (
         src.* except (team_id),
         coalesce(
             resolved_teams.team_id,
+            fixture_override.correct_team_api_id,
             alias_override.correct_team_api_id,
             reattribute_override.correct_team_api_id,
             src.team_id
@@ -130,6 +133,11 @@ corrected as (
         logical_or(src.goals_against is not null)
             over (partition by src.league_code, src.fixture_id, src.raw_ingested_at) as fetch_is_complete
     from src
+    left join overrides as fixture_override
+        on
+            src.team_id = fixture_override.wrong_team_api_id
+            and src.fixture_id = fixture_override.fixture_id
+            and fixture_override.mode = 'reattribute_in_fixture'
     left join overrides as alias_override
         on
             src.team_id = alias_override.wrong_team_api_id

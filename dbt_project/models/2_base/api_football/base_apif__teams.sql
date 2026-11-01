@@ -102,7 +102,8 @@ overrides as (
     select
         cast(wrong_team_api_id as int64) as wrong_team_api_id,
         cast(correct_team_api_id as int64) as correct_team_api_id,
-        mode
+        mode,
+        cast(fixture_id as int64) as fixture_id
     from {{ ref('fixture_team_id_overrides') }}
 ),
 
@@ -125,11 +126,17 @@ fixture_level_keys as (
     select
         stg_fixture_level.league_code,
         coalesce(
+            fixture_override.correct_team_api_id,
             alias_override.correct_team_api_id,
             reattribute_override.correct_team_api_id,
             stg_fixture_level.team_api_id
         ) as team_api_id
     from stg_fixture_level
+    left join overrides as fixture_override
+        on
+            stg_fixture_level.team_api_id = fixture_override.wrong_team_api_id
+            and stg_fixture_level.fixture_id = fixture_override.fixture_id
+            and fixture_override.mode = 'reattribute_in_fixture'
     left join overrides as alias_override
         on
             stg_fixture_level.team_api_id = alias_override.wrong_team_api_id
@@ -156,19 +163,30 @@ team_keys as (
 
     union all
 
+    -- The fixture list's keys take the per-fixture corrections base_apif__fixtures_next applies.
     select
-        league_code,
-        home_team_id as team_api_id
+        stg_fixtures.league_code,
+        coalesce(home_override.correct_team_api_id, stg_fixtures.home_team_id) as team_api_id
     from stg_fixtures
-    where home_team_id is not null
+    left join overrides as home_override
+        on
+            stg_fixtures.home_team_id = home_override.wrong_team_api_id
+            and stg_fixtures.fixture_id = home_override.fixture_id
+            and home_override.mode = 'reattribute_in_fixture'
+    where stg_fixtures.home_team_id is not null
 
     union all
 
     select
-        league_code,
-        away_team_id as team_api_id
+        stg_fixtures.league_code,
+        coalesce(away_override.correct_team_api_id, stg_fixtures.away_team_id) as team_api_id
     from stg_fixtures
-    where away_team_id is not null
+    left join overrides as away_override
+        on
+            stg_fixtures.away_team_id = away_override.wrong_team_api_id
+            and stg_fixtures.fixture_id = away_override.fixture_id
+            and away_override.mode = 'reattribute_in_fixture'
+    where stg_fixtures.away_team_id is not null
 
     union all
 

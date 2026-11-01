@@ -129,7 +129,9 @@ models:
       One row per fixture, from the generic stg_apif__fixtures_next model, deduplicated on
       fixture_id. Where the provider's result differs from the league's official decision, the
       score and status are the official ones from the fixture_result_corrections seed, and the
-      provider's stay on the row. Grain: fixture_id.
+      provider's stay on the row. Where two clubs share a provider team id in a fixture, the
+      home and away team ids are corrected from the fixture_team_id_overrides seed's
+      reattribute_in_fixture rows. Grain: fixture_id.
     config:
       tags: ["base", "api_football", "fixture_context"]
     tests:
@@ -153,7 +155,7 @@ models:
       - name: provider_shootout_away
         description: "The provider's away shoot-out goals; differs from shootout_away only where the official result was corrected."
       - name: winner_team_id
-        description: "{{ doc('winner_team') }} Here, the provider's team id."
+        description: "{{ doc('winner_team') }} Here, the team id as home_team_id and away_team_id carry it."
       - name: award_kind
         description: "How an awarded result came about: not_played, played (to the end, the result decided afterwards) or abandoned. NULL where the result is not awarded."
       - name: on_pitch_home
@@ -250,7 +252,7 @@ models:
         description: "{{ doc('fixture_api_id') }}"
         tests: [not_null]
       - name: team_id
-        description: "The provider's numeric team id for this row, after applying the known-defect corrections in the fixture_team_id_overrides seed (the same alias and reattribute-if-cohabiting logic as base_apif__fixture_players.team_id). Corrected before the (league_code, fixture_id, team_id) dedup, so a corrected row cannot collide with one the correct team already has."
+        description: "The provider's numeric team id for this row, after applying the known-defect corrections in the fixture_team_id_overrides seed (the same alias, reattribute-if-cohabiting and reattribute-in-fixture logic as base_apif__fixture_players.team_id). Corrected before the (league_code, fixture_id, team_id) dedup, so a corrected row cannot collide with one the correct team already has."
         tests: [not_null]
       - name: has_stat_line
         description: "{{ doc('has_stat_line') }}"
@@ -302,7 +304,7 @@ models:
         description: "{{ doc('fixture_api_id') }}"
         tests: [not_null]
       - name: team_id
-        description: "The provider's numeric team id for this player's side, after applying the known-defect corrections in the fixture_team_id_overrides seed: an unconditional alias swap for a duplicate id, or a reattribution when the correct id is a fixture participant and the wrong id is not; and the team the player's-team rule above decides, where his events name the other team of the match. Corrected before this model's own (league_code, fixture_id, team_id, player_id) dedup."
+        description: "The provider's numeric team id for this player's side, after applying the known-defect corrections in the fixture_team_id_overrides seed: an unconditional alias swap for a duplicate id, a reattribution when the correct id is a fixture participant and the wrong id is not, or a replacement inside the one fixture a row names; and the team the player's-team rule above decides, where his events name the other team of the match. Corrected before this model's own (league_code, fixture_id, team_id, player_id) dedup."
         tests: [not_null]
       - name: player_id
         description: "{{ doc('player_api_id') }}"

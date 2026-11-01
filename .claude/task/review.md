@@ -1,29 +1,26 @@
-# Review — fix/241-242-team-page — 2026-11-01
+# Review — fix/238-red-star-own-id
 
-diff_sha256: fb5b4bf173debb7e21cc90797c640e6485934fd5beee321221246f005afc3f27
+diff_sha256: 8522a29667dee2c56cc33a012870bc5c63dbee444e8e9d78e05f025e6e00f3ba
 
 rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 1 FAIL: 02_team_profile.md still listed `league_median` for the strip plot, and metrics_display.md (LOCKED) mentions a median mark. Round 2: 02_team_profile.md drops the field strip-only and is in scope_paths; metrics_display.md stays unchanged by CPO ruling, its median mark describing the player bar; both recorded in amendments, approved in chat, 2026-11-01. Resolved.
-- Every file in the diff is in scope_paths; approved_design names team, competition and home, which cover the changed output.
-- The edge-case label placement and the built-pages check rule are recorded as CPO approvals; no silent product decision, no new mechanism, dependency or recurring cost; no secrets.
+- All 14 changed paths are in scope_paths: three seeds, seeds/schema.yml, six base models, base.yml, two tests and contract.md.
+- The -1 id, its name and country, the reattribute_in_fixture mode and the new test are declared in decisions_taken; the new mechanism is declared; no metric, URL, label, cadence or recurring cost changes.
+- decisions_reserved is honest: only fixtures 1239850 and 1239851 are keyed, and the three other shared-id clubs are untouched.
+- impact_map carries the dbt ls lineage (79 models, 29 marts), deploy order and blast radius; approved_design none holds, as no page surface is touched.
+- Doc sync: the two yml files that describe the overrides are updated; no secrets, dates, decision history or bare issue numbers added.
 
-## bi-analyst-reviewer
+## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 FAIL: on Borussia Mönchengladbach's narrow chart the y axis line ran through the difference label's minus sign. Round 2: the label moves under the name where it would reach the axis; the evidence shows 3 of 204 charts use it, every label box clear of the axis and of the name, inside the chart. Resolved.
-- Binding rule: the strip plot no longer reads `league_median`; only rank and value render, no field is invented, null rank still shows the dash, no naked percentage.
-- The five explainers and the removed `teamLeagueMedian` match the approved texts; the spec and block_standard.md follow; the delta adds no user-visible string.
-
-## platform-reviewer
-VERDICT: PASS
-risks_checked:
-- Round 1 FAIL: no test pinned the scatter label placement. Round 2: check-built-pages.mjs rule 5 accepts only the label across the dot from the name or at least one line under it, is wired into main, fails closed on missing marks, and `servesScatter` stops it passing on zero charts; the tests fail the old beside-the-name placement, including through main. Resolved.
-- The rank regex reads the text before `<small>`, matching the new rank-first markup; the old layout or a missing rank fails.
-- No dependency, credential, workflow, hosting or build-size change; the new functions are pure or read-only and the main test cleans its temp tree.
+- Every team-id reader of the fixture list, the four match feeds and the team keys takes the correction; no other base model reads a fixture team id from staging.
+- The new joins are unique on (wrong id, fixture_id) by the seed test; null fixture_id never joins, so the older rows are untouched; the new mode outranks the other two and the player's-team resolution stays ahead of it, built from corrected events.
+- A negative id passes dim_team, the seed relationship tests and the still-needed tests; no sentinel or positive-id filter exists.
+- The new test fails on uncorrected data and passes on corrected data, as the prod reads show.
+- Round 2: the slug concern is cleared by the prod read; -1 takes red-star, 104 keeps red-star-fc-93, and no other team's slug changes.
 
 ## escalations
 (none)

@@ -36,7 +36,8 @@ overrides as (
     select
         cast(wrong_team_api_id as int64) as wrong_team_api_id,
         cast(correct_team_api_id as int64) as correct_team_api_id,
-        mode
+        mode,
+        cast(fixture_id as int64) as fixture_id
     from {{ ref('fixture_team_id_overrides') }}
 ),
 
@@ -44,11 +45,17 @@ corrected as (
     select
         src.* except (team_id),
         coalesce(
+            fixture_override.correct_team_api_id,
             alias_override.correct_team_api_id,
             reattribute_override.correct_team_api_id,
             src.team_id
         ) as team_id
     from src
+    left join overrides as fixture_override
+        on
+            src.team_id = fixture_override.wrong_team_api_id
+            and src.fixture_id = fixture_override.fixture_id
+            and fixture_override.mode = 'reattribute_in_fixture'
     left join overrides as alias_override
         on
             src.team_id = alias_override.wrong_team_api_id
