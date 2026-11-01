@@ -1,13 +1,11 @@
-# Verification — club regions on the Teams page
-
-Read on prod data on 2026-10-31. The compiled `mart_team_index` and the queries below ran against
-the prod datasets; the bytes of each were approved before it ran.
+# Verification — player metric directions
 
 criteria_demonstrated:
-  - The seed carries the five corrections: 3045 Dragon El Salvador, 5242 Al Shorta Iraq, 6414 Cano Sport Equatorial Guinea, 15565 GR / SIAF Djibouti, 19116 15 de Agosto Equatorial Guinea, each with its CONCACAF, AFC or CAF source. `base_apif__teams_global` takes the correction before the provider's country, so dim_team carries the corrected one once the seed is built. The 78 existing rows are unchanged apart from the empty `provider_country` field (compared field by field against main).
-  - The provider's latest country in `base_apif__teams` for the five ids is France, Sudan, Cyprus, Austria and Paraguay, each equal to the row's `provider_country`, so the warn test does not flag them. A row with an empty `provider_country` is flagged when the provider sends any country, as before.
-  - The compiled mart, run on prod data and compared with prod `mart_team_index` on team, country, region, country region, country order, order in country, ranks, entity type and league: one row differs, Auckland City, `region_key` and `country_region_key` NULL to OFC, `country_order` 144 unchanged. No team is added or lost.
+  - `metric_catalogue.csv`: appearances, minutes_per_appearance and contribution_player_pct read `higher_better`; their interpretations end without "not good or bad" (contribution keeps "(position-dependent: a defender's share is naturally low)"). A cell-by-cell comparison with main shows no other cell changed.
+  - `seeds/schema.yml`, the `direction` description: "`neutral` is reserved for a metric with genuinely no better/worse pole, such as a narrative gap."
+  - No served value changes: `direction` is read in SQL only by the two team marts (team rows), by `export_metric_definitions_json.py` only as `lower_better`, and by the export's metric rows (team rows); none of the three metrics is in the player benchmark set. The glossary export (`metrics.json`, every catalogue row) carries the three rows' new `direction` and `interpretation`; the deploy does not export it and no page reads it.
+  - `docs/wireframes/11_team_squad.md` no longer states a direction for minutes per appearance.
 
-dbt parse and SQLFluff (mart and test) pass. pytest: 1,619 passed, 2 skipped. The fast offline gates
-pass: layer contract, registry sync, competition type seed, UI metric labels, copy gate (1,170
-strings), description hygiene.
+dbt parse passes. pytest: 1,619 passed, 2 skipped. The site's node tests: 152 pass. The fast offline
+gates pass: layer contract, registry sync, competition type seed, UI metric labels, copy gate,
+description hygiene.
