@@ -63,7 +63,7 @@ through the matches played so far.
 
 {% docs ball_actions_per90 %}
 The passes, shots and dribbles the player attempted, and the tackles, interceptions, blocks and
-saves the player made, per 90 minutes played.
+saves made, per 90 minutes played.
 {% enddocs %}
 
 

@@ -79,6 +79,7 @@ amendments:
   - "Approved in chat, 2026-11-01, strip-only: 12_player_stats.md and metrics_display.md stop restating the benchmark set's count, members and directions and point to the catalogue's direction column and to int_player_competition_benchmark_metrics_long; the benchmark model and yml descriptions drop the set's count. The two doc ratchet tests lower their pinned counts for the two files, as the tests require when a cleanup removes history lines or long sentences."
 
   - "Approved in chat, 2026-11-01: the two rows' descriptions name the passes, shots and dribbles the player attempted and the tackles, interceptions, blocks and saves the player made; the interpretation reads as involvement in play on or off the ball, and the count adds the raw-count minutes caveat."
+  - "Approved in chat, 2026-11-01: the per-90 description drops its second 'the player' to stay within the docs sentence limit."
 
 done_when:
   - The generator and docs-sync checks, dbt parse, SQLFluff, pytest, the offline gates and the site's node tests pass.

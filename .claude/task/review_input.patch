@@ -1,8 +1,8 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index db3cdfe4..6ccb58ac 100644
+index db3cdfe4..f72d3d12 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,58 +1,85 @@
+@@ -1,58 +1,86 @@
 -# Task contract — player metric directions
 +# Task contract — Ball actions, a new player metric
  
@@ -114,6 +114,7 @@ index db3cdfe4..6ccb58ac 100644
 +  - "Approved in chat, 2026-11-01, strip-only: 12_player_stats.md and metrics_display.md stop restating the benchmark set's count, members and directions and point to the catalogue's direction column and to int_player_competition_benchmark_metrics_long; the benchmark model and yml descriptions drop the set's count. The two doc ratchet tests lower their pinned counts for the two files, as the tests require when a cleanup removes history lines or long sentences."
 +
 +  - "Approved in chat, 2026-11-01: the two rows' descriptions name the passes, shots and dribbles the player attempted and the tackles, interceptions, blocks and saves the player made; the interpretation reads as involvement in play on or off the ball, and the count adds the raw-count minutes caveat."
++  - "Approved in chat, 2026-11-01: the per-90 description drops its second 'the player' to stay within the docs sentence limit."
  
  done_when:
 -  - The offline gates, pytest, the site's node tests and dbt parse pass.
@@ -339,7 +340,7 @@ index 2f599b1f..04ddb02e 100644
          description: "The player's in-position value for this metric (always present — null values are not ranked)."
          tests: [not_null]
 diff --git a/dbt_project/models/docs/metric_columns.md b/dbt_project/models/docs/metric_columns.md
-index d89d64df..a3639d80 100644
+index d89d64df..f6e01ce2 100644
 --- a/dbt_project/models/docs/metric_columns.md
 +++ b/dbt_project/models/docs/metric_columns.md
 @@ -61,6 +61,18 @@ through the matches played so far.
@@ -348,7 +349,7 @@ index d89d64df..a3639d80 100644
  
 +{% docs ball_actions_per90 %}
 +The passes, shots and dribbles the player attempted, and the tackles, interceptions, blocks and
-+saves the player made, per 90 minutes played.
++saves made, per 90 minutes played.
 +{% enddocs %}
 +
 +
@@ -362,7 +363,7 @@ index d89d64df..a3639d80 100644
  Shots the player blocked per 90 minutes played.
  {% enddocs %}
 diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
-index ce13f801..fe5e3461 100644
+index ce13f801..86340491 100644
 --- a/dbt_project/seeds/metric_catalogue.csv
 +++ b/dbt_project/seeds/metric_catalogue.csv
 @@ -106,3 +106,5 @@ fouls_per_match,team,metrics.fouls_per_match.label,Average number of fouls the t
@@ -370,7 +371,7 @@ index ce13f801..fe5e3461 100644
  cards_yellow_per_match,team,metrics.cards_yellow_per_match.label,Average number of yellow cards the team's players received per match.,int_legs__team_match,sum(cards_yellow),count(*),expression,decimal_1,discipline,false,lower_better,"Cautions - yellow cards per game; low = disciplined, high = a side that fouls to stop play",8,
  cards_red_per_match,team,metrics.cards_red_per_match.label,Average number of red cards the team's players received per match.,int_legs__team_match,sum(cards_red),count(*),expression,decimal_1,discipline,false,lower_better,Dismissals - red cards per game; low = keeps eleven on the pitch (rare enough that a single card dominates a short window),8,
 +ball_actions_player,player,playerMetrics.ballActions.label,"The passes, shots and dribbles the player attempted, and the tackles, interceptions, blocks and saves the player made.",int_legs__player_match,sum(passes + shots + dribbles + tackles + interceptions + blocks + saves),,expression,integer,passing,,higher_better,"How many actions the player takes; high = heavily involved in play, on or off the ball (position- and style-dependent: a deep midfielder has far more than a target striker; a raw count, so it also tracks minutes played).",3,
-+ball_actions_per90,player,playerMetrics.ballActionsPer90.label,"The passes, shots and dribbles the player attempted, and the tackles, interceptions, blocks and saves the player made, per 90 minutes played.",int_legs__player_match,sum(passes + shots + dribbles + tackles + interceptions + blocks + saves) * 90,sum(minutes),expression,decimal_1,passing,,higher_better,"How many actions the player takes; high = heavily involved in play, on or off the ball (position- and style-dependent: a deep midfielder has far more than a target striker).",3,
++ball_actions_per90,player,playerMetrics.ballActionsPer90.label,"The passes, shots and dribbles the player attempted, and the tackles, interceptions, blocks and saves made, per 90 minutes played.",int_legs__player_match,sum(passes + shots + dribbles + tackles + interceptions + blocks + saves) * 90,sum(minutes),expression,decimal_1,passing,,higher_better,"How many actions the player takes; high = heavily involved in play, on or off the ball (position- and style-dependent: a deep midfielder has far more than a target striker).",3,
 diff --git a/dbt_project/seeds/metric_map.csv b/dbt_project/seeds/metric_map.csv
 index 516495b7..acdc4584 100644
 --- a/dbt_project/seeds/metric_map.csv
@@ -640,6 +641,7 @@ index d473c02d..a34bfc83 100644
 # depends on one.
 #
 #   .claude/task/acceptance_evidence.md |  20 +-
-#    .claude/task/review_input.patch     | 703 ++++++++++++++++++++++++++++++------
-#    2 files changed, 599 insertions(+), 124 deletions(-)
+#    .claude/task/review.md              |  50 +--
+#    .claude/task/review_input.patch     | 716 ++++++++++++++++++++++++++++++------
+#    3 files changed, 642 insertions(+), 144 deletions(-)
 # ============================================================================
