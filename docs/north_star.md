@@ -101,8 +101,8 @@ Each linked role has a brief in [`roles/`](roles/). A role is live only when som
 | Role | Responsibility | Wakes on |
 |------|----------------|----------|
 | CPO | Product, copy, naming, cost, anything permanent. Merges. | every decision class in `working_agreement.md` §10 |
-| [CTO / Tech Strategist](roles/cto.md) | Authority only: new mechanisms, dependencies, guard invariants, recurring cost, secrets. Owns no territory and reviews no implementation. | a property of the change. **12 rows**: the 9 guard paths, `*requirements*.txt`, `site_v2/package.json` + `package-lock.json` |
-| [Platform and Reliability](roles/platform_reliability.md) | The machinery: scripts, tests, hooks, CI, dependency pinning, the site build and hosting. | `scripts/**`, `tests/**`, `*requirements*.txt`, `.claude/hooks/**`, `.github/workflows/**`, `.gitlab-ci.yml`, the site build + hosting config |
+| [CTO / Tech Strategist](roles/cto.md) | Authority only: new mechanisms, dependencies, guard invariants, recurring cost, secrets. Owns no territory and reviews no implementation. | a property of the change. **16 rows**: the 13 guard paths, `*requirements*.txt`, `site_v2/package.json` + `package-lock.json` |
+| [Platform and Reliability](roles/platform_reliability.md) | The machinery: scripts, tests, hooks, CI, dependency pinning, the site build and hosting. | `scripts/**`, `tests/**`, `*requirements*.txt`, `.claude/hooks/**`, `.github/workflows/**`, `.gitlab-ci.yml`, `scripts/check_design_inventory.py`, `scripts/check_page_css.py`, `scripts/design_inventory.py`, `tests/test_design_inventory.py`, the site build + hosting config |
 | [Analytics Engineer](roles/analytics_engineer.md) | dbt models, data quality, layer architecture | `dbt_project/**`, `scripts/export_*.py` |
 | [Data Engineer](roles/data_engineer.md) | Ingestion, BigQuery, pipeline reliability | `ingestion/**`, the competition registry, the data contract |
 | [Football Analytics Expert](roles/football_analytics_expert.md) | Which metrics matter in football and why: domain truth | `metric_catalogue.csv` |

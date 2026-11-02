@@ -1,1908 +1,475 @@
-diff --git a/.claude/skills/validate-local/SKILL.md b/.claude/skills/validate-local/SKILL.md
-index faffd169..57691f7d 100644
---- a/.claude/skills/validate-local/SKILL.md
-+++ b/.claude/skills/validate-local/SKILL.md
-@@ -90,10 +90,10 @@ Expected: `check_layer_contract.py` prints `Layer contract checks passed.`;
+diff --git a/.claude/agents/cto-reviewer.md b/.claude/agents/cto-reviewer.md
+index 399c10cc..a2f1a2ce 100644
+--- a/.claude/agents/cto-reviewer.md
++++ b/.claude/agents/cto-reviewer.md
+@@ -27,13 +27,17 @@ your finding is "this code is wrong", it belongs to Platform. Yours is "this
+ should not exist, or not without an approval that is missing".
  
- ### Tier 1b — the measured design check (needs a browser and a built site)
+ > **Model:** pinned to `sonnet` in the frontmatter (the floor). You are overridden
+-> to `opus` at spawn time on any of the nine guard paths (`.claude/hooks/**`,
++> to `opus` at spawn time on any of the thirteen guard paths (`.claude/hooks/**`,
+ > `.claude/agents/**`, `.claude/commands/**`, `.claude/settings.json`,
+ > `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`,
+-> `.github/workflows/**`, `.gitlab-ci.yml`) — guard bypasses are the highest-stakes findings (the G3
++> `.github/workflows/**`, `.gitlab-ci.yml`, `scripts/check_design_inventory.py`,
++> `scripts/check_page_css.py`, `scripts/design_inventory.py`,
++> `tests/test_design_inventory.py`) — guard bypasses are the highest-stakes findings (the G3
+ > commit-gate bypasses were caught only at that depth, rounds 2-5).
+-> `platform-reviewer` is routed alongside you, also at opus, on exactly THREE of
+-> them: `.claude/hooks/**`, `.github/workflows/**` and `.gitlab-ci.yml`. **On the other six you are
++> `platform-reviewer` is routed alongside you, also at opus, on exactly SEVEN of
++> them: `.claude/hooks/**`, `.github/workflows/**`, `.gitlab-ci.yml`,
++> `scripts/check_design_inventory.py`, `scripts/check_page_css.py`,
++> `scripts/design_inventory.py` and `tests/test_design_inventory.py`. **On the other six you are
+ > the only required specialist**, with just the always-on `scope-auditor` beside
+ > you — including on `.claude/agents/**`, where the file under edit may be THIS
+ > ONE, and you are therefore the whole specialist guard against a builder
+@@ -73,8 +77,8 @@ should not exist, or not without an approval that is missing".
+ 6. **Credentials and secrets**: anything resembling a key, token, password or
+    credential in the diff, or a workflow permission widening → FAIL. You keep
+    this **in addition to** `platform-reviewer` and `scope-auditor`. The reason is
+-   coverage at depth: you are the only reviewer spawned at opus on all nine
+-   guard paths, and `.claude/settings.json`, `.mcp.json` and `.cursor/mcp.json`
++   coverage at depth. You are the only reviewer spawned at opus on all thirteen
++   guard paths. `.claude/settings.json`, `.mcp.json` and `.cursor/mcp.json`
+    are precisely the file class that carries env blocks and tokens. The first
+    version of the split moved this item away from you, which left a secret in
+    those files hunted only by `scope-auditor` — then pinned to haiku, the
+@@ -99,7 +103,9 @@ should not exist, or not without an approval that is missing".
+    the shape of that error: check the workflow, do not infer the coverage.
+ 7. **Guard authority**: any change under `.claude/hooks/`, `.claude/agents/`,
+    `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`,
+-   `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/` or `.gitlab-ci.yml` — does the contract
++   `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`, `.gitlab-ci.yml`,
++   `scripts/check_design_inventory.py`, `scripts/check_page_css.py`,
++   `scripts/design_inventory.py` or `tests/test_design_inventory.py` — does the contract
+    carry `protected_override` naming a real CPO approval, and does it also carry
+    a non-placeholder `impact_map`? Either missing → FAIL.
+ 8. **Undeclared thresholds** (2026-07-31, #868): a new mechanism and a recurring
+diff --git a/.claude/agents/platform-reviewer.md b/.claude/agents/platform-reviewer.md
+index d11ca231..72662627 100644
+--- a/.claude/agents/platform-reviewer.md
++++ b/.claude/agents/platform-reviewer.md
+@@ -27,8 +27,10 @@ page displays (`bi-analyst-reviewer`), what a number means
+ (`football-analytics-expert-reviewer`).
  
--`scripts/check_design_inventory.py` renders every design-mock generator and every built page
--type the block standard (`docs/wireframes/block_standard.md`) lists, at 375px, 700px and 1010px in
--headless Chromium — a built page in every locale the site publishes, a mock in EN and FI, the
--only two it carries — and measures every element against the inventory. It needs
-+`scripts/check_design_inventory.py` runs every `design-mocks/gen_*.py` and renders every page it
-+writes and every built page, at 280px to 1010px in headless Chromium. It measures every element
-+against the block standard (`docs/wireframes/block_standard.md`) and counts the gaps against
-+`tests/fixtures/design_inventory/baseline.json`. It needs
- `pip install -r requirements-ui.txt`, once `python -m playwright install chromium`, and a
- built site (`cd site_v2 && npm run build`; park any untracked export payload under
- `site_v2/src/data` first, or the SEO audit refuses the build). Without the built site, run it
+ > **Model:** pinned to `sonnet` in the frontmatter (the floor). You are overridden
+-> to `opus` at spawn time on the THREE guard paths you are routed to:
+-> `.claude/hooks/**`, `.github/workflows/**` and `.gitlab-ci.yml`. Guard bypasses are the
++> to `opus` at spawn time on the SEVEN guard paths you are routed to:
++> `.claude/hooks/**`, `.github/workflows/**`, `.gitlab-ci.yml`,
++> `scripts/check_design_inventory.py`, `scripts/check_page_css.py`,
++> `scripts/design_inventory.py` and `tests/test_design_inventory.py`. Guard bypasses are the
+ > highest-stakes findings (the G3 commit-gate bypasses were caught only at that
+ > depth, rounds 2-5) and those were fail-open and test-coverage findings, which are
+ > YOUR items — that is why you are there at all.
+diff --git a/.claude/hooks/task_contract_gate.py b/.claude/hooks/task_contract_gate.py
+index 3f3d9798..22922459 100644
+--- a/.claude/hooks/task_contract_gate.py
++++ b/.claude/hooks/task_contract_gate.py
+@@ -73,6 +73,12 @@ PROTECTED_FILES = (
+     # the protected set. A single FILE, not a prefix — ".gitlab-ci.yml" is the
+     # entire surface, and a prefix entry would match nothing.
+     ".gitlab-ci.yml",
++    # The design checks and the test that refuses a rising pin: weakening either one hides a gap
++    # the baseline counts.
++    "scripts/check_design_inventory.py",
++    "scripts/check_page_css.py",
++    "scripts/design_inventory.py",
++    "tests/test_design_inventory.py",
+ )
+ 
+ _EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
+diff --git a/.claude/review_routing.json b/.claude/review_routing.json
+index 35e66c0d..e18441c3 100644
+--- a/.claude/review_routing.json
++++ b/.claude/review_routing.json
+@@ -91,13 +91,15 @@
+     "detects it. A test now asserts every pattern string appears exactly once in",
+     "the raw file text. Found by the pre-CPO plan challenge, not in review.",
+     "",
+-    "GUARD PATHS: platform-reviewer joins cto-reviewer on exactly THREE of the",
+-    "nine — .claude/hooks/**, .github/workflows/** and .gitlab-ci.yml — and the",
+-    "docs must say THREE. The",
++    "GUARD PATHS: platform-reviewer joins cto-reviewer on exactly SEVEN of the",
++    "thirteen — .claude/hooks/**, .github/workflows/**, .gitlab-ci.yml and the four",
++    "design-check files (scripts/check_design_inventory.py, scripts/check_page_css.py,",
++    "scripts/design_inventory.py, tests/test_design_inventory.py) — and the",
++    "docs must say SEVEN. The",
+     "CTO rules on authority (is protected_override present, is this a new",
+     "mechanism, may this guard weaken); platform reviews the implementation (does",
+     "it fail open, do the tests cover it, is it re-run safe). Both carry the opus",
+-    "floor on those three. The other six go to cto-reviewer ALONE plus the",
++    "floor on those seven. The other six go to cto-reviewer ALONE plus the",
+     "always-on scope-auditor.",
+     "",
+     ".gitlab-ci.yml joined on the GitHub->GitLab migration (2026-08). It is the",
+@@ -106,7 +108,7 @@
+     "letting the CI gate move hosts and quietly lose two required reviewers is",
+     "exactly the silent-downgrade this file exists to prevent. Both rows are kept",
+     "while the GitHub repo still exists as a frozen mirror. When it is retired and",
+-    ".github/workflows/** is deleted, this returns to eight paths and TWO — update",
++    ".github/workflows/** is deleted, this returns to twelve paths and SIX — update",
+     "these counts in the same commit that deletes the row.",
+     "This was churned once and the churn is worth recording. Review round 1 caught",
+     "three documents claiming BOTH reviewers on all EIGHT guard paths while routing",
+@@ -173,6 +175,10 @@
+     ".claude/hooks/**": ["cto-reviewer", "platform-reviewer"],
+     ".github/workflows/**": ["cto-reviewer", "platform-reviewer"],
+     ".gitlab-ci.yml": ["cto-reviewer", "platform-reviewer"],
++    "scripts/check_design_inventory.py": ["cto-reviewer", "platform-reviewer"],
++    "scripts/check_page_css.py": ["cto-reviewer", "platform-reviewer"],
++    "scripts/design_inventory.py": ["cto-reviewer", "platform-reviewer"],
++    "tests/test_design_inventory.py": ["cto-reviewer", "platform-reviewer"],
+     ".claude/agents/**": ["cto-reviewer"],
+     ".claude/commands/**": ["cto-reviewer"],
+     ".claude/settings.json": ["cto-reviewer"],
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index e43dbe30..274435e8 100644
+index 274435e8..33d98421 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,28 +1,31 @@
--# Task contract — the component checks that count today's gaps
-+# Task contract — the component checks cover every page and mock
+@@ -1,62 +1,82 @@
+-# Task contract — the component checks cover every page and mock
++# Task contract — the design checks become protected paths
  
  objective: >
--  Step 1 of the component-system plan: checks that count the site's and the mocks' design gaps,
--  with no visual change. Static counts: CSS in a mock generator touching an element's class (every
--  generator is read, not only the block standard's pages), CSS outside system.css, width rules at
--  a width outside today's set, banned line-break and cut-off properties, and literal text in
--  components and pages. Rendered counts on the built sample site and the block standard's mocks at
--  280, 320, 360, 375, 700 and 1010px: sideways scroll, text overflowing its box, split words,
--  overlapping text and classes no block-standard row names. Each count is stored in a baseline
--  and the check fails when a count differs from it.
-+  Complete step 1 of the component-system plan: the gap-count checks cover every page and mock,
-+  today's and every future one, with no exception, and no visual change. Every built file each
-+  Pages-table row matches is checked; a built file no row matches, a mock generator that fails, a
-+  generator page no row names and a language a mock lacks are each counted as a gap. Every
-+  design-mocks/gen_*.py is found on disk and run with one interface, --out DIR, which writes all
-+  its pages. The element measurements run at the six count widths, and a miss is counted in the
-+  baseline. A test fails when a baseline count rises above main's or a new entry starts above
-+  zero.
+-  Complete step 1 of the component-system plan: the gap-count checks cover every page and mock,
+-  today's and every future one, with no exception, and no visual change. Every built file each
+-  Pages-table row matches is checked; a built file no row matches, a mock generator that fails, a
+-  generator page no row names and a language a mock lacks are each counted as a gap. Every
+-  design-mocks/gen_*.py is found on disk and run with one interface, --out DIR, which writes all
+-  its pages. The element measurements run at the six count widths, and a miss is counted in the
+-  baseline. A test fails when a baseline count rises above main's or a new entry starts above
+-  zero.
++  The three design-check scripts and the test that refuses a rising pin become protected paths,
++  so an edit that weakens a check needs a CPO-approved governance task and the CTO's review. The
++  protected-path list, the routing rows and every document that states them change together.
  
  refs: >
--  #243, the component-system plan, approved in chat, 2026-11-01. This task is its How step 1.
-+  #243, the component-system plan, approved in chat, 2026-11-01. This task completes its How
-+  step 1.
+-  #243, the component-system plan, approved in chat, 2026-11-01. This task completes its How
+-  step 1.
++  #243, the component-system plan, approved in chat, 2026-11-02 (step 1, its governance part).
  
  scope_paths:
-   - scripts/check_page_css.py
-   - scripts/check_design_inventory.py
-   - scripts/design_inventory.py
-   - tests/test_design_inventory.py
--  - tests/fixtures/design_inventory/baseline.json
--  - tests/fixtures/design_inventory/counts_red.html
-+  - tests/fixtures/design_inventory/*
-   - tests/test_no_decision_history_in_docs.py
+-  - scripts/check_page_css.py
+-  - scripts/check_design_inventory.py
+-  - scripts/design_inventory.py
+-  - tests/test_design_inventory.py
+-  - tests/fixtures/design_inventory/*
+-  - tests/test_no_decision_history_in_docs.py
++  - .claude/hooks/task_contract_gate.py
++  - .claude/review_routing.json
++  - .claude/agents/cto-reviewer.md
++  - .claude/agents/platform-reviewer.md
++  - .claude/task/TEMPLATE.md
++  - docs/working_agreement.md
++  - docs/roles/platform_reliability.md
++  - docs/north_star.md
++  - tests/test_governance_doc_parity.py
++  - tests/test_governance_hooks.py
+   - tests/test_sentence_length_in_docs.py
+-  - design-mocks/gen_*.py
+-  - design-mocks/README.md
 -  - docs/wireframes/block_standard.md
-+  - tests/test_sentence_length_in_docs.py
-+  - design-mocks/gen_*.py
-   - design-mocks/README.md
-+  - docs/wireframes/block_standard.md
-+  - .claude/skills/validate-local/SKILL.md
+-  - .claude/skills/validate-local/SKILL.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -33,25 +36,27 @@ approved_design:
+-  - .claude/task/acceptance_evidence.md
+-  - .claude/task/rendered_page_evidence.md
++
++protected_override: >
++  Approved in chat, 2026-11-02: the CPO approved this governance task's plan, which makes
++  scripts/check_design_inventory.py, scripts/check_page_css.py, scripts/design_inventory.py and
++  tests/test_design_inventory.py protected paths, routed to cto-reviewer and platform-reviewer.
++
++impact_map: >
++  fires_on: task_contract_gate.py runs on every Edit/Write/Bash PreToolUse event; `_is_protected`
++  is its only protected-path test. Only its PreToolUse Edit and Bash-write paths refuse an
++  ordinary task's edit to the four files, and treat them as structural (impact_map required).
++  The other readers of `_is_protected` refuse nothing: .claude/hooks/stop_gate.py:170 and the
++  Bash post-command check at task_contract_gate.py:691 use it to exempt a protected file from the
++  out-of-scope list when the contract carries protected_override. So in any governance task the
++  four files are now exempt from that out-of-scope net even when scope_paths does not list them,
++  as the nine guard paths already are. scripts/check_task_artifacts.py imports the module but
++  never calls `_is_protected`.
++  routing_readers: git_discipline.py (the commit gate's required-reviewer set),
++  check_task_artifacts.py (CI recompute), report_process_health.py, handover_in.py,
++  test_governance_doc_parity.py and test_governance_hooks.py. Four new `paths` rows add
++  cto-reviewer to those four files; platform-reviewer is already required on them through
++  scripts/** and tests/**. CI's fail-closed cover is these rows: check_task_artifacts.py fails an
++  MR whose review.md lacks a cto-reviewer verdict for an edit to the four files.
++  stops_being_enforced_if_wrong: a misspelt path protects nothing and fails open; the new hook
++  test (an ordinary contract's edit to each of the four is denied) catches it. The parity test
++  fails if any document's count or list disagrees with the gate and the routing.
++  on_failure: the hook denies the edit with the PROTECTED message; nothing else changes.
++  blast_radius: no open MR or task edits the four files (`glab mr list` → none open). Every later
++  task that edits them needs protected_override and an impact_map. baseline.json stays ordinary;
++  no CI job, page or data changes. `.gitlab-ci.yml` is not edited: `.ui_paths` already holds
++  tests/fixtures/design_inventory/*, which matches baseline.json.
+ 
+ approved_design:
    - "none: no page output changes"
  
  decisions_taken: >
--  Approved in chat, 2026-11-01 (the plan of #243) and 2026-11-02 (this step's plan): the checks
--  listed in the objective, their widths and languages, the baseline that may only fall, and these
--  readings. `overflow-wrap: break-word` and `word-break: break-word` are banned with the four named
--  properties, because they split a word. A break after a hyphen inside a word counts as a split
--  word. A count is stored per page, summed over widths and languages; classes are counted as
--  distinct names per page. The existing element measurements keep their three widths. The
--  rendered counts depend on the font (`system-ui`), so the baseline holds the numbers measured in
--  CI's Playwright image and a run on another platform prints its counts without comparing them.
--  NEW MECHANISM: the count baseline, the "each count only falls" line of #243's checklist, read
--  by the two existing checks; no new CI job, no CI file change, no new dependency. RECURRING
--  COST: validate:ui renders 183 more pages per run; measured on the MR pipeline and reported in
--  the MR.
-+  Approved in chat, 2026-11-02, with this task's plan: the check finds every page and mock on
-+  disk; anything it cannot check is counted as a gap, never skipped; a count may only fall; a new
-+  page or mock enters with zero gaps. A file matched by two rows belongs to the row with the
-+  literal path. The --out DIR option changes nothing else in a generator; its output is
-+  byte-identical. A mock without German or without the Finnish toggle is one gap per missing
-+  language. The 1px overflow margin and the 20% line trim are written into the block standard as
-+  the check's fixed rules. The six widths run in parallel processes. Not in this task, each its
-+  own later task: the font (How step 2), text written by scripts and generators, the build date
-+  the squad ages count from, and making the check files protected paths. NEW MECHANISM: the
-+  never-rises test and the generator interface. RECURRING COST: validate:ui renders every built
-+  page; measured on the MR pipeline and reported in the MR.
+-  Approved in chat, 2026-11-02, with this task's plan: the check finds every page and mock on
+-  disk; anything it cannot check is counted as a gap, never skipped; a count may only fall; a new
+-  page or mock enters with zero gaps. A file matched by two rows belongs to the row with the
+-  literal path. The --out DIR option changes nothing else in a generator; its output is
+-  byte-identical. A mock without German or without the Finnish toggle is one gap per missing
+-  language. The 1px overflow margin and the 20% line trim are written into the block standard as
+-  the check's fixed rules. The six widths run in parallel processes. Not in this task, each its
+-  own later task: the font (How step 2), text written by scripts and generators, the build date
+-  the squad ages count from, and making the check files protected paths. NEW MECHANISM: the
+-  never-rises test and the generator interface. RECURRING COST: validate:ui renders every built
+-  page; measured on the MR pipeline and reported in the MR.
++  Approved in chat, 2026-11-02: protect the three scripts and tests/test_design_inventory.py;
++  baseline.json stays an ordinary path, because compare_counts fails CI on any pin that differs
++  from the measurement and the protected test refuses any pin above main's, so a gap fix that
++  lowers a pin stays an ordinary task. The `.ui_paths` change in the plan's draft is not needed:
++  the existing tests/fixtures/design_inventory/* entry already matches baseline.json.
++  RECURRING COST, approved in chat, 2026-11-02 with the plan: the four new rows route to both
++  cto-reviewer and platform-reviewer, so both run at opus on an edit to them; measured 14 of 529
++  commits since 2026-09-01 touched the four files. The guard-path counts become 13, 7 shared with
++  platform, 6 the CTO reviews alone. NEW MECHANISM: none; four entries in the existing list.
  
  decisions_reserved:
    - "none: every decision of this task is approved, see decisions_taken"
  
  done_when:
--  - check_page_css.py and check_design_inventory.py --dist site_v2/dist print every count and pass against the baseline; the planted-defect page counts each defect kind.
--  - The full pytest, npm run build in site_v2 (sample data), the offline gates and check_design_inventory.py pass.
-+  - check_page_css.py and check_design_inventory.py --dist site_v2/dist pass against the baseline, and every built file and every generator is rendered or counted.
-+  - A planted page with no row, a planted failing generator and a raised pin each turn the tests red.
-+  - Every generator that runs today writes byte-identical output with --out.
-+  - The full pytest, npm run build in site_v2 (sample data), the offline gates and pre-commit pass.
-   - The baseline's rendered counts are the ones measured by validate:ui on the MR pipeline.
- 
--amendments: (none)
-+amendments:
-+  - "The validate-local skill's Tier 1b describes what the measured check renders; it is added to scope_paths so it states the check as changed by this task. Doc-sync of the approved plan (approved in chat, 2026-11-02); no new decision."
-diff --git a/design-mocks/README.md b/design-mocks/README.md
-index dc5ec85a..75f92975 100644
---- a/design-mocks/README.md
-+++ b/design-mocks/README.md
-@@ -34,12 +34,13 @@ head markup), `interaction.py` (the chevron and the interaction standard's text)
- element's CSS is `site_v2/src/styles/system.css`, inlined verbatim; the element, its rule and
- its measurements are `docs/wireframes/block_standard.md` (the block standard). Two scripts hold
- it: `scripts/check_page_css.py` fails a generator (or a module it imports) whose CSS string
--touches an inventory class, and `scripts/check_design_inventory.py` renders every generator the
--block standard lists at 375px, 700px and 1010px in EN and FI — the only two languages a mock carries; a
--built page is rendered in every locale the site publishes — and measures every element. A page-level
-+touches an inventory class, and `scripts/check_design_inventory.py` runs every `gen_*.py` here
-+and renders every page it writes, at 280px to 1010px, and measures every element. A page-level
- class that happens to share a name with an element's is renamed, not argued about. A generator
--the block standard does not list is not a page, so the lint counts that CSS against the baseline
--instead of failing it.
-+the block standard does not list is counted against the baseline, not failed.
-+
-+**Every generator takes `--out DIR`** and writes every page it draws (every state and variant)
-+into DIR; the check runs it that way. One that fails, or writes nothing there, is counted as a gap.
- 
- **Proposed seed shapes** live beside the generators and are read by them, because `!27` needs a
- clean tree: `competition_types.proposed.csv` (the shipped seed + `scope`, `label_i18n_key`,
-diff --git a/design-mocks/gen_block_standard.py b/design-mocks/gen_block_standard.py
-index b89eb3fc..730eba7e 100644
---- a/design-mocks/gen_block_standard.py
-+++ b/design-mocks/gen_block_standard.py
-@@ -278,6 +278,8 @@ def build():
- 
- 
- if __name__ == "__main__":
-+    if sys.argv[1:2] == ["--out"]:
-+        OUT = Path(sys.argv[2]) / OUT.name
-     guard()
-     OUT.write_text(build(), encoding="utf-8")
-     print("  wrote %s (%.0f KB)" % (OUT.name, OUT.stat().st_size / 1024))
-diff --git a/design-mocks/gen_competition_hub.py b/design-mocks/gen_competition_hub.py
-index bc24bf4d..837dba3e 100644
---- a/design-mocks/gen_competition_hub.py
-+++ b/design-mocks/gen_competition_hub.py
-@@ -465,8 +465,11 @@ def out_path(kind):
- 
- if __name__ == "__main__":
-     check_data()
--    wanted = sys.argv[1:] or list(KINDS)
-+    out_dir = Path(sys.argv[2]) if sys.argv[1:2] == ["--out"] else None
-+    wanted = list(KINDS) if out_dir else sys.argv[1:] or list(KINDS)
-     for kind in wanted:
-         path = out_path(kind)
-+        if out_dir:
-+            path = out_dir / path.name
-         path.write_text(build(kind), encoding="utf-8")
-         print("  wrote %s (%.0f KB)" % (path.name, path.stat().st_size / 1024))
-diff --git a/design-mocks/gen_competition_matchdays.py b/design-mocks/gen_competition_matchdays.py
-index e06b33bc..d9ff2435 100644
---- a/design-mocks/gen_competition_matchdays.py
-+++ b/design-mocks/gen_competition_matchdays.py
-@@ -306,6 +306,9 @@ def build():
- 
- 
- if __name__ == "__main__":
--    out = HERE / (sys.argv[1] if len(sys.argv) > 1 else "competition_matchdays_mock_v1.html")
-+    if sys.argv[1:2] == ["--out"]:
-+        out = Path(sys.argv[2]) / "competition_matchdays_mock_v1.html"
-+    else:
-+        out = HERE / (sys.argv[1] if len(sys.argv) > 1 else "competition_matchdays_mock_v1.html")
-     out.write_text(build(), encoding="utf-8")
-     print("wrote", out, "%.0f KB" % (out.stat().st_size / 1024))
-diff --git a/design-mocks/gen_competition_teams.py b/design-mocks/gen_competition_teams.py
-index c213ad26..399f7b1c 100644
---- a/design-mocks/gen_competition_teams.py
-+++ b/design-mocks/gen_competition_teams.py
-@@ -304,6 +304,9 @@ def build():
- 
- 
- if __name__ == "__main__":
--    out = HERE / (sys.argv[1] if len(sys.argv) > 1 else "competition_teams_mock_v1.html")
-+    if sys.argv[1:2] == ["--out"]:
-+        out = Path(sys.argv[2]) / "competition_teams_mock_v1.html"
-+    else:
-+        out = HERE / (sys.argv[1] if len(sys.argv) > 1 else "competition_teams_mock_v1.html")
-     out.write_text(build(), encoding="utf-8")
-     print("wrote", out, "%.0f KB" % (out.stat().st_size / 1024))
-diff --git a/design-mocks/gen_competitions.py b/design-mocks/gen_competitions.py
-index 2166457f..96c2cf6d 100644
---- a/design-mocks/gen_competitions.py
-+++ b/design-mocks/gen_competitions.py
-@@ -30,6 +30,7 @@ the repo (#55) and is guarded against the registry's own set.
- import csv
- import html
- import re
-+import sys
- from pathlib import Path
- 
- import yaml
-@@ -810,6 +811,8 @@ def check():
- 
- 
- if __name__ == "__main__":
-+    if sys.argv[1:2] == ["--out"]:
-+        OUT = Path(sys.argv[2]) / OUT.name
-     check_seed_matches_shipped()
-     check_registry_still_unedited()
-     check_confederation_enum()
-diff --git a/design-mocks/gen_home.py b/design-mocks/gen_home.py
-index 08db0dd5..dd549cd1 100644
---- a/design-mocks/gen_home.py
-+++ b/design-mocks/gen_home.py
-@@ -31,6 +31,8 @@ from gen_block_standard import ZONE, short, slug  # noqa: E402
- from rows import date_head, group_head, upcoming_row  # noqa: E402
- 
- OUT = HERE / "home_mock.html"
-+if __name__ == "__main__" and sys.argv[1:2] == ["--out"]:
-+    OUT = Path(sys.argv[2]) / OUT.name
- E = html.escape
- 
- # ------------------------------------------------------------ next matches
-diff --git a/design-mocks/gen_home_with_rules.py b/design-mocks/gen_home_with_rules.py
-index f982d5b0..5e4cfac1 100644
---- a/design-mocks/gen_home_with_rules.py
-+++ b/design-mocks/gen_home_with_rules.py
-@@ -39,6 +39,9 @@ T.board_html = lambda b: table_board(T, b)
- import gen_home  # noqa: E402,F401  (builds and writes design-mocks/home_mock.html at import)
- 
- html_ = gen_home.OUT.read_text(encoding="utf-8")
--out = HERE / (sys.argv[1] if len(sys.argv) > 1 else "home_with_rules_v1.html")
-+if sys.argv[1:2] == ["--out"]:
-+    out = Path(sys.argv[2]) / "home_with_rules_v1.html"
-+else:
-+    out = HERE / (sys.argv[1] if len(sys.argv) > 1 else "home_with_rules_v1.html")
- out.write_text(html_, encoding="utf-8")
- print("wrote", out.name)
-diff --git a/design-mocks/gen_interaction.py b/design-mocks/gen_interaction.py
-index d5961e06..83ce4291 100644
---- a/design-mocks/gen_interaction.py
-+++ b/design-mocks/gen_interaction.py
-@@ -5,6 +5,7 @@ Built from the same `interaction.py` the four page mocks import, so this page ca
- one thing while the pages do another.
- """
- import html
-+import sys
- from pathlib import Path
- 
- from rows import date_head, group_head, result_row, upcoming_row
-@@ -158,5 +159,7 @@ def build():
- 
- 
- if __name__ == "__main__":
-+    if sys.argv[1:2] == ["--out"]:
-+        OUT = Path(sys.argv[2]) / OUT.name
-     OUT.write_text(build(), encoding="utf-8")
-     print("  wrote %s (%.0f KB)" % (OUT.name, OUT.stat().st_size / 1024))
-diff --git a/design-mocks/gen_match_page.py b/design-mocks/gen_match_page.py
-index 58ea1694..38c0f4a9 100644
---- a/design-mocks/gen_match_page.py
-+++ b/design-mocks/gen_match_page.py
-@@ -21,6 +21,7 @@ import html
- import json
- import os
- import re
-+import subprocess
- import sys
- import unicodedata
- from datetime import date
-@@ -37,11 +38,12 @@ LEAGUE = "bundesliga"
- # seen meet) or "played" (a played match, state 3), set by MATCH_STATE. A played match has no built
- # page, so its render takes the next match page's shell: the stylesheet and the site header.
- STATE = os.environ.get("MATCH_STATE", "next")
--SLUG, FIXTURE_ID = {"next": ("2026-10-09-borussia-dortmund-vs-sv-werder-bremen", 1575176),
--                    "future": ("2026-10-31-bayern-munchen-vs-borussia-dortmund", 1575203),
--                    "future-unmet": ("2026-11-07-borussia-dortmund-vs-sv-elversberg", 1575212),
--                    "played": ("2026-10-09-borussia-dortmund-vs-sv-werder-bremen", 1575150),
--                    "played-pen": ("2026-10-09-borussia-dortmund-vs-sv-werder-bremen", 1550700)}[STATE]
-+STATES = {"next": ("2026-10-09-borussia-dortmund-vs-sv-werder-bremen", 1575176),
-+          "future": ("2026-10-31-bayern-munchen-vs-borussia-dortmund", 1575203),
-+          "future-unmet": ("2026-11-07-borussia-dortmund-vs-sv-elversberg", 1575212),
-+          "played": ("2026-10-09-borussia-dortmund-vs-sv-werder-bremen", 1575150),
-+          "played-pen": ("2026-10-09-borussia-dortmund-vs-sv-werder-bremen", 1550700)}
-+SLUG, FIXTURE_ID = STATES[STATE]
- PAGE = DIST / "en" / LEAGUE / "matches" / SLUG / "index.html"
- 
- E = html.escape
-@@ -1948,6 +1950,11 @@ def build():
- 
- 
- if __name__ == "__main__":
-+    if sys.argv[1:2] == ["--out"]:
-+        for state in STATES:
-+            subprocess.run([sys.executable, __file__, str(Path(sys.argv[2]) / ("match-page_%s.html" % state))],
-+                           env={**os.environ, "MATCH_STATE": state}, check=True)
-+        sys.exit(0)
-     out = HERE / (sys.argv[1] if len(sys.argv) > 1 else "match-page.html")
-     out.write_text(build(), encoding="utf-8")
-     print("wrote", out, "%.0f KB" % (out.stat().st_size / 1024))
-diff --git a/design-mocks/gen_matches.py b/design-mocks/gen_matches.py
-index fff17c9a..64cd7120 100644
---- a/design-mocks/gen_matches.py
-+++ b/design-mocks/gen_matches.py
-@@ -26,6 +26,7 @@ one carries `.on`, the competition tab bar's class for the page you are on.
- No JavaScript: the review surface is a static snapshot, so script never runs.
- """
- import html
-+import sys
- from pathlib import Path
- 
- from gen_block_standard import ACTIVE, ZONE, short, slug
-@@ -383,11 +384,14 @@ def check_data():
- 
- if __name__ == "__main__":
-     check_data()
-+    out_dir = Path(sys.argv[2]) if sys.argv[1:2] == ["--out"] else None
-     for page, out in (("next", OUT_NEXT), ("past", OUT_PAST)):
-+        if out_dir:
-+            out = out_dir / out.name
-         out.write_text(build(page), encoding="utf-8")
-         print("  wrote %s (%.0f KB)" % (out.name, out.stat().st_size / 1024))
-     # the old single stacked file must not survive alongside them
-     stale = Path(__file__).with_name("matches_mock.html")
--    if stale.exists():
-+    if not out_dir and stale.exists():
-         stale.unlink()
-         print("  removed %s (the stacked two-in-one file it replaces)" % stale.name)
-diff --git a/design-mocks/gen_matches_hub.py b/design-mocks/gen_matches_hub.py
-index 24ce46e8..34f4234a 100644
---- a/design-mocks/gen_matches_hub.py
-+++ b/design-mocks/gen_matches_hub.py
-@@ -22,6 +22,7 @@ day: a block may omit a level the page supplies (`rows.group_head`).
- """
- import json
- import os
-+import subprocess
- import sys
- from collections import OrderedDict
- from datetime import date
-@@ -210,6 +211,12 @@ def build():
- 
- 
- if __name__ == "__main__":
-+    if sys.argv[1:2] == ["--out"]:
-+        for day_data in sorted(HERE.glob("matches_*.json")):
-+            day = day_data.stem[len("matches_"):]
-+            subprocess.run([sys.executable, __file__, str(Path(sys.argv[2]) / ("matches-hub_%s.html" % day))],
-+                           env={**os.environ, "MATCHES_HUB_DAY": day}, check=True)
-+        sys.exit(0)
-     out = HERE / (sys.argv[1] if len(sys.argv) > 1 else "matches-hub.html")
-     out.write_text(build(), encoding="utf-8")
-     print("wrote", out, "%.0f KB" % (out.stat().st_size / 1024))
-diff --git a/design-mocks/gen_navmap.py b/design-mocks/gen_navmap.py
-index d1b22e1f..0334fd99 100644
---- a/design-mocks/gen_navmap.py
-+++ b/design-mocks/gen_navmap.py
-@@ -18,6 +18,7 @@ the one for deciding what the site IS.
- """
- import html
- import re
-+import sys
- from pathlib import Path
- 
- REPO = Path(__file__).resolve().parent.parent
-@@ -461,6 +462,8 @@ li.card.open { border-style: dashed; }
- 
- 
- if __name__ == "__main__":
-+    if sys.argv[1:2] == ["--out"]:
-+        OUT = Path(sys.argv[2]) / OUT.name
-     items, nav_is_link = menu_items()
-     print("  menu items derived: %s" % ", ".join(lbl for _k, lbl in items))
-     print("  menu renders as %s" % ("LINKS" if nav_is_link else "inert text"))
-diff --git a/design-mocks/gen_overview_after_teams.py b/design-mocks/gen_overview_after_teams.py
-index a5ff874a..b23e37f4 100644
---- a/design-mocks/gen_overview_after_teams.py
-+++ b/design-mocks/gen_overview_after_teams.py
-@@ -116,6 +116,9 @@ def build():
-        g.header_html(k), "", g.table_html(k), deserved_table_html(), facts_html(k))
- 
- 
--out = HERE / (sys.argv[1] if len(sys.argv) > 1 else "competition_overview_after_teams_v2.html")
-+if sys.argv[1:2] == ["--out"]:
-+    out = Path(sys.argv[2]) / "competition_overview_after_teams_v2.html"
-+else:
-+    out = HERE / (sys.argv[1] if len(sys.argv) > 1 else "competition_overview_after_teams_v2.html")
- out.write_text(build(), encoding="utf-8")
- print("wrote", out.name)
-diff --git a/design-mocks/gen_sitemap.py b/design-mocks/gen_sitemap.py
-index aaebab14..be7b9751 100644
---- a/design-mocks/gen_sitemap.py
-+++ b/design-mocks/gen_sitemap.py
-@@ -27,6 +27,7 @@ observed is obvious.
- import html
- import json
- import re
-+import sys
- from pathlib import Path
- 
- REPO = Path(__file__).resolve().parent.parent
-@@ -491,5 +492,7 @@ td { font-size: 13px; color: var(--ink-2); padding: 9px 10px 9px 0; border-botto
- 
- 
- if __name__ == "__main__":
-+    if sys.argv[1:2] == ["--out"]:
-+        OUT = Path(sys.argv[2]) / OUT.name
-     OUT.write_text(build(), encoding="utf-8")
-     print("  wrote %s (%.0f KB)" % (OUT.name, OUT.stat().st_size / 1024))
-diff --git a/design-mocks/gen_taxonomy.py b/design-mocks/gen_taxonomy.py
-index 6230cece..12e3313e 100644
---- a/design-mocks/gen_taxonomy.py
-+++ b/design-mocks/gen_taxonomy.py
-@@ -17,6 +17,7 @@ THREE LEVELS, all in `dbt_project/seeds/competition_types.csv` keyed by the regi
- cost, not a blocker, and the English below is a PROPOSAL, not approved copy.
- """
- import html
-+import sys
- from pathlib import Path
- 
- import yaml
-@@ -191,6 +192,8 @@ def build():
- 
- 
- if __name__ == "__main__":
-+    if sys.argv[1:2] == ["--out"]:
-+        OUT = Path(sys.argv[2]) / OUT.name
-     for key, _t, _d, _n, groups in OPTIONS:
-         if groups:
-             print("  option %s: %d groups -- %s" % (key, len(groups),
-diff --git a/design-mocks/gen_team_mock.py b/design-mocks/gen_team_mock.py
-index cb2c6b19..4fec2ea1 100644
---- a/design-mocks/gen_team_mock.py
-+++ b/design-mocks/gen_team_mock.py
-@@ -9,6 +9,7 @@ import json
- import math
- import re
- import shutil
-+import sys
- from datetime import datetime
- from pathlib import Path
- 
-@@ -1024,6 +1025,8 @@ def build():
- 
- 
- if __name__ == "__main__":
-+    if sys.argv[1:2] == ["--out"]:
-+        OUT = Path(sys.argv[2])
-     dst = OUT / "_astro"
-     if dst.exists():
-         shutil.rmtree(dst)
-diff --git a/design-mocks/gen_top_players.py b/design-mocks/gen_top_players.py
-index 2644c7c6..0575456b 100644
---- a/design-mocks/gen_top_players.py
-+++ b/design-mocks/gen_top_players.py
-@@ -374,6 +374,8 @@ def check_guards():
- 
- 
- if __name__ == "__main__":
-+    if sys.argv[1:2] == ["--out"]:
-+        OUT = Path(sys.argv[2]) / OUT.name
-     check_guards()
-     check_orders()
-     OUT.write_text(build(), encoding="utf-8")
-diff --git a/design-mocks/gen_top_teams.py b/design-mocks/gen_top_teams.py
-index a808919d..ddcd05bc 100644
---- a/design-mocks/gen_top_teams.py
-+++ b/design-mocks/gen_top_teams.py
-@@ -373,6 +373,8 @@ def check_guards():
- 
- 
- if __name__ == "__main__":
-+    if sys.argv[1:2] == ["--out"]:
-+        OUT = Path(sys.argv[2]) / OUT.name
-     check_guards()
-     check_orders()
-     OUT.write_text(build(), encoding="utf-8")
-diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
-index 1bb6d420..b6172466 100644
---- a/docs/wireframes/block_standard.md
-+++ b/docs/wireframes/block_standard.md
-@@ -6,21 +6,25 @@
- > rendered on every page it touches before it is ruled (#153). What a page SHOWS is the page's
- > wireframe and its GitLab issue; what an element IS, and how it measures, is this file.
- >
--> Two scripts read the two tables below and nothing else: `scripts/check_page_css.py` (the lint:
--> a `<style>` block, a `style=` attribute or a mock's CSS string touching a class named in the
--> Selector column fails) and `scripts/check_design_inventory.py` (the measured check: every page in
--> the Pages table rendered at 375px, 700px and 1010px in every locale the site publishes — EN, DE and FI
--> for a built page, EN and FI for a mock, which carries no German text — every element measured as its
--> `Measured as` column says). `scripts/design_inventory.py` parses both tables and fails closed on
--> a column, key, token or status it does not know. A rendered page that shows none of these elements
--> fails too.
-+> Two scripts read the two tables below and nothing else. `scripts/check_page_css.py` is the lint:
-+> a `<style>` block, a `style=` attribute or a mock's CSS string touching a Selector class fails.
-+> `scripts/check_design_inventory.py` is the measured check. It renders every built page and every
-+> page a `design-mocks/gen_*.py` writes, at 280, 320, 360, 375, 700 and 1010px. A built page is
-+> rendered in EN, DE and FI, and a mock in EN and, with its FI switch, in FI. Every element is
-+> measured as its `Measured as` column says.
-+> `scripts/design_inventory.py` parses both tables and fails closed on a column, key, token or
-+> status it does not know.
- >
- > Both scripts also count the site's design gaps, and `tests/fixtures/design_inventory/baseline.json`
- > pins each count. The lint counts CSS outside `system.css`, width rules, banned line-break
- > properties and literal text. The measured check counts sideways scroll, overflowing text, split
--> words, overlapping text and classes no row here names, at 280px to 1010px. A count that differs
--> from its pin fails. The rendered counts depend on the font, so they are compared only on the
--> platform the baseline names.
-+> words, overlapping text, classes no row here names and element misses. It also counts four
-+> coverage gaps: a built page no row owns, a generator that fails, a generator page no row names,
-+> and a language a mock does not carry. A count that differs from its pin fails. A pin may not
-+> rise above main's, so a new page or mock arrives with no gaps. The rendered counts depend on the
-+> font, so they are compared only on the platform the baseline names. Text overflows when it runs
-+> more than 1px past its box. Two lines overlap when they still cross with a fifth of each line's
-+> height trimmed at the top and the bottom.
- 
- ## How to read a row
- 
-@@ -147,24 +151,19 @@ Not measured, still the rule: a team's crest in the match header is 52px, and ev
- 
- ## Pages
- 
--Every design-mock generator that renders a page, and every built page type. `Source` is the
--command for a mock (`{out}` is where the check tells it to write; a generator with a fixed output
--name lists it as `URL` and the check copies it) or `site_v2/dist` for a built page; `URL` is the
--file the check opens (a glob for a built page: the first match in sorted order); `FI` governs the
-+Every built page type and every mock page. `Source` is `site_v2/dist` for a built page, or the
-+mock's generator, which the check runs as `gen_*.py --out DIR`, writing every page it draws into
-+DIR. `URL` is a glob under `site_v2/dist` that owns every file it matches (a literal URL wins over
-+a glob), or the file the generator writes. `FI` governs the
- MOCKS only — it says how the check reaches a mock's Finnish (`toggle`: the mock's FI switch;
- `none`: EN only) — while a built page's other locales come from its URL, so `path` on a built row
- means every locale the site publishes, German included;
--`Expect` names elements the page must show — a page showing none of the inventory fails anyway;
-+`Expect` names elements the page must show;
- an entry ending in a width condition (`Search field [>=1010px]`) is required at those widths only.
- The lint reads this table too: a mock generator listed here (and every module it imports) may
--carry no CSS that touches an inventory class; a generator not listed is not a page, and its CSS
--that touches an inventory class is counted against the baseline.
--
--Not listed, and why: `gen_block_standard.py` and `gen_interaction.py` are standards sheets that
--show elements inside demo frames, not page compositions; `gen_competitions.py` (the competitions
--index, #54) stops on the registry's `intercontinental_super_cup` type, which its proposed-taxonomy
--map does not carry — it joins this table when it runs again. `gen_navmap.py`, `gen_sitemap.py`
--and `gen_taxonomy.py` are diagrams.
-+carry no CSS that touches an inventory class; a generator not listed is counted against the
-+baseline. A page no row names is still rendered and measured, and counted as a gap. The renders
-+of record in `design-mocks/renders/` are not pages; the generators that wrote them are.
- 
- | Page | Kind | Source | URL | FI | Expect |
- |---|---|---|---|---|---|
-@@ -179,17 +178,17 @@ and `gen_taxonomy.py` are diagrams.
- | Teams page | built | `site_v2/dist` | `en/teams/index.html` | path | Page heading, Filter row, Block heading, Competition group head, Group count, Fold, Row link, Search field [>=1010px], Search button [<1010px] |
- | Matches page | built | `site_v2/dist` | `en/matches/index.html` | path | Page heading, Filter row, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row kick-off, Match row score, Search field [>=1010px], Search button [<1010px] |
- | Matches day page | built | `site_v2/dist` | `en/matches/*/index.html` | path | Page heading, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row score, Search field [>=1010px], Search button [<1010px] |
--| competition-overview | mock | `gen_overview_after_teams.py {out}` | `competition-overview.html` | toggle | Block heading, Table head, Table row, Ordered-by number, Fact row value, Tab bar |
--| competition-matchdays | mock | `gen_competition_matchdays.py {out}` | `competition-matchdays.html` | toggle | Block heading, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar |
--| competition-rankings | mock | `gen_competition_teams.py {out}` | `competition-rankings.html` | toggle | Block heading, Metric group heading, Board name, Board sub-line, Tab bar |
--| home | mock | `gen_home_with_rules.py {out}` | `home.html` | toggle | Block heading, Competition group head, Board name, Date heading |
--| competition-hub league | mock | `gen_competition_hub.py league` | `competition_hub_mock_league.html` | toggle | Block heading, Table head, Table row, Tab bar |
--| competition-hub groups | mock | `gen_competition_hub.py groups` | `competition_hub_mock_groups.html` | toggle | Table group heading, Table row |
--| competition-hub cup | mock | `gen_competition_hub.py cup` | `competition_hub_mock_cup.html` | toggle | Block heading, Tab bar |
--| competition-hub offseason | mock | `gen_competition_hub.py offseason` | `competition_hub_mock_offseason.html` | toggle | Block heading, Tab bar |
-+| competition-overview | mock | `gen_overview_after_teams.py` | `competition_overview_after_teams_v2.html` | toggle | Block heading, Table head, Table row, Ordered-by number, Fact row value, Tab bar |
-+| competition-matchdays | mock | `gen_competition_matchdays.py` | `competition_matchdays_mock_v1.html` | toggle | Block heading, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar |
-+| competition-rankings | mock | `gen_competition_teams.py` | `competition_teams_mock_v1.html` | toggle | Block heading, Metric group heading, Board name, Board sub-line, Tab bar |
-+| home | mock | `gen_home_with_rules.py` | `home_with_rules_v1.html` | toggle | Block heading, Competition group head, Board name, Date heading |
-+| competition-hub league | mock | `gen_competition_hub.py` | `competition_hub_mock_league.html` | toggle | Block heading, Table head, Table row, Tab bar |
-+| competition-hub groups | mock | `gen_competition_hub.py` | `competition_hub_mock_groups.html` | toggle | Table group heading, Table row |
-+| competition-hub cup | mock | `gen_competition_hub.py` | `competition_hub_mock_cup.html` | toggle | Block heading, Tab bar |
-+| competition-hub offseason | mock | `gen_competition_hub.py` | `competition_hub_mock_offseason.html` | toggle | Block heading, Tab bar |
- | matches next | mock | `gen_matches.py` | `matches_next_mock.html` | toggle | Competition group head, Date heading, Match row kick-off |
- | matches past | mock | `gen_matches.py` | `matches_past_mock.html` | toggle | Competition group head, Match row score |
--| matches hub | mock | `gen_matches_hub.py {out}` | `matches-hub.html` | toggle | Block heading, Matchday picker, Competition group head, Match row kick-off |
-+| matches hub | mock | `gen_matches_hub.py` | `matches-hub_2026-09-19.html` | toggle | Block heading, Matchday picker, Competition group head, Match row kick-off |
- | top players | mock | `gen_top_players.py` | `top_players_mock.html` | toggle | Legacy board value |
- | top teams | mock | `gen_top_teams.py` | `top_teams_mock.html` | toggle | Legacy board value |
- | home legacy | mock | `gen_home.py` | `home_mock.html` | toggle | Block heading, Competition group head, Legacy board value |
-diff --git a/scripts/check_design_inventory.py b/scripts/check_design_inventory.py
-index 7b8573af..8ae5bdc8 100644
---- a/scripts/check_design_inventory.py
-+++ b/scripts/check_design_inventory.py
-@@ -1,16 +1,17 @@
--"""The cross-page measured check: every page in the block standard, rendered and measured.
--
--Renders every design-mock generator the inventory lists into a temporary folder, serves that
--folder and the built site over HTTP, opens each page in headless Chromium at every viewport and
--language the inventory asks for, and measures every element of `docs/wireframes/block_standard.md`
--as its "Measured as" column says. One line per failure, and a page that shows none of the
--inventory's elements fails on its own.
--
--It also counts the gaps `COUNT_JS` names on every page at `COUNT_VIEWPORTS`, per page summed over
--widths and languages, and compares them with the baseline's `rendered` pins
--(`design_inventory.BASELINE`), in both directions. The counts depend on the font, so they are
--compared only on the platform the baseline names and only on a run over everything the inventory
--lists; any other run prints them. `--artifacts` also receives `counts.json`, the measured counts
-+"""The cross-page measured check: every built page and every mock, rendered and measured.
-+
-+Runs every `design-mocks/gen_*.py` with `--out DIR`, serves those folders and the built site over
-+HTTP, opens every page in headless Chromium at every viewport and language, measures every element
-+of `docs/wireframes/block_standard.md` as its "Measured as" column says, and counts the gaps
-+`COUNT_JS` names. A Pages-table row owns every file its URL matches; a page no row owns is still
-+rendered, under its own path.
-+
-+The counts are stored per page, summed over widths and languages, and compared with the baseline
-+(`design_inventory.BASELINE`) in both directions. `coverage`: a built page no row owns, a
-+generator that fails, a generator page no row names, and a language a mock lacks; compared on
-+every run over everything. `rendered`: the gap counts and the element misses, which depend on the
-+font, so compared only on the platform the baseline names; elsewhere an element miss fails as it
-+is and the gap counts are printed. `--artifacts` also receives `counts.json`, the measured counts
- with examples. Exit 0 clean, 1 on any failure or count off its pin, 2 when the inventory does not
- parse or the browser is missing.
- 
-@@ -28,11 +29,11 @@ import argparse
- import functools
- import json
- import os
--import shutil
- import subprocess
- import sys
- import tempfile
- import threading
-+from concurrent.futures import ProcessPoolExecutor
- from dataclasses import dataclass
- from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
- from pathlib import Path
-@@ -42,22 +43,22 @@ import design_inventory as di  # noqa: E402
- 
- REPO = di.REPO
- MOCKS = REPO / "design-mocks"
--# A phone, the width the menu goes inline, and the width the header's search field appears: the
--# narrowest desktop layout. `tests/test_design_inventory.py` ties the last to `system.css`.
--DEFAULT_VIEWPORTS = (375, 700, 1010)
-+# The narrowest phones, a phone, the width the menu goes inline, and the width the header's search
-+# field appears: the narrowest desktop layout. `tests/test_design_inventory.py` ties the last to
-+# `system.css`.
-+DEFAULT_VIEWPORTS = (280, 320, 360, 375, 700, 1010)
- # Every locale the site publishes. A language the check does not render is a language whose layout
- # can break green — the tab bar's rule names EN, DE and FI, so all three are measured.
- # `tests/test_design_inventory.py` pins this against the site's own `LOCALES`.
- DEFAULT_LANGS = ("en", "de", "fi")
- 
- # The design mocks carry English and a marked Finnish width probe in one file, toggled by CSS;
--# no other language exists in them to render.
-+# a language a mock does not carry is counted as a coverage gap.
- MOCK_LANGS = ("en", "fi")
- 
--# The widths the gap counts are taken at: the narrowest phones up to the desktop layout. The
--# element assertions above keep their own widths.
--COUNT_VIEWPORTS = (280, 320, 360, 375, 700, 1010)
- COUNTS = ("scroll", "overflow", "split", "overlap", "classes")
-+MISS = "miss · "
-+COVERAGE = ("page with no row", "generator fails", "mock page with no row", "language missing")
- 
- # One evaluation per rendered page: the gaps the baseline pins. `scroll`: the page, or a box in it,
- # scrolls sideways. `overflow`: a text node runs past the box it sits in sideways (an ellipsis cut
-@@ -295,6 +296,19 @@ MEASURE_JS = r"""
- """
- 
- 
-+POINTER_JS = r"""
-+(sel) => {
-+  const all = [...document.querySelectorAll(sel)];
-+  const i = all.findIndex((e) => e.getClientRects().length > 0);
-+  if (i < 0) return null;
-+  all[i].scrollIntoView({ block: 'center' });
-+  const r = all[i].getBoundingClientRect();
-+  return [r.left + r.width / 2, r.top + r.height / 2, i];
-+}
-+"""
-+STYLE_JS = "([sel, i, prop]) => getComputedStyle(document.querySelectorAll(sel)[i]).getPropertyValue(prop)"
-+
-+
- @dataclass
- class Failure:
-     page: str
-@@ -303,6 +317,7 @@ class Failure:
-     element: str
-     detail: str
-     level: str = "FAIL"
-+    measured: bool = False   # an element miss: counted against the baseline where it is compared
- 
-     def line(self) -> str:
-         return "%-5s %s · %d · %s · %s · %s" % (self.level, self.page, self.viewport, self.lang, self.element, self.detail)
-@@ -320,35 +335,106 @@ def serve(root: Path) -> tuple[ThreadingHTTPServer, str]:
-     return srv, "http://127.0.0.1:%d/" % srv.server_address[1]
- 
- 
--def render_mocks(pages: list[di.Page], tmp: Path) -> dict[str, str]:
--    """Run each mock generator once; return {page name: failure text} for the ones that failed."""
-+def generators(mocks: Path = MOCKS) -> list[str]:
-+    """Every mock generator on disk: the check finds them, no list names them."""
-+    return sorted(p.name for p in mocks.glob("gen_*.py"))
-+
-+
-+def run_generators(gens: list[str], tmp: Path, mocks: Path = MOCKS) -> tuple[dict[str, Path], dict[str, str]]:
-+    """Run each generator as `gen.py --out DIR`, DIR its own folder under `tmp`. Returns the folders
-+    of the ones that ran and {generator: why} for the ones that failed."""
-+    out: dict[str, Path] = {}
-     failed: dict[str, str] = {}
--    done: set[str] = set()
--    for p in pages:
--        if p.kind != "mock":
-+    for gen in gens:
-+        folder = tmp / Path(gen).stem
-+        folder.mkdir(parents=True)
-+        try:
-+            proc = subprocess.run([sys.executable, gen, "--out", str(folder)], cwd=str(mocks), capture_output=True,
-+                                  timeout=300)
-+        except subprocess.TimeoutExpired:
-+            failed[gen] = "timed out"
-             continue
--        args = p.source.split()
--        if "{out}" in args:
--            args = [str(tmp / p.url) if a == "{out}" else a for a in args]
--        key = " ".join(args)
--        if key not in done:
--            done.add(key)
--            try:
--                proc = subprocess.run([sys.executable, *args], cwd=str(MOCKS), capture_output=True, timeout=180)
--            except subprocess.TimeoutExpired:
--                failed[p.name] = "generator timed out: %s" % p.source
--                continue
--            if proc.returncode != 0:
--                tail = proc.stderr.decode("utf-8", "replace").strip().splitlines()[-1:] or ["?"]
--                failed[p.name] = "generator failed (%d): %s" % (proc.returncode, tail[-1])
--                continue
--        if "{out}" not in p.source:
--            src = MOCKS / p.url
--            if src.is_file():
--                shutil.copy(src, tmp / p.url)
--        if not (tmp / p.url).is_file() and p.name not in failed:
--            failed[p.name] = "generator wrote no %s" % p.url
--    return failed
-+        if proc.returncode != 0:
-+            tail = proc.stderr.decode("utf-8", "replace").strip().splitlines()[-1:] or ["?"]
-+            failed[gen] = "exit %d: %s" % (proc.returncode, tail[-1])
-+            continue
-+        if not any(folder.glob("*.html")):
-+            failed[gen] = "wrote no page into --out DIR"
-+            continue
-+        out[gen] = folder
-+    return out, failed
-+
-+
-+@dataclass
-+class Plan:
-+    """What one run renders: (page, language, server root, path under it), the coverage gaps, and
-+    the failures of the inventory itself (a row that matches nothing)."""
-+    targets: list[tuple[di.Page, str, str, str]]
-+    coverage: dict[str, dict[str, int]]
-+    failures: list[Failure]
-+
-+
-+def plan(pages: list[di.Page], langs: list[str], dist: Path | None, mock_out: dict[str, Path],
-+         mock_failed: dict[str, str], every_file: bool) -> Plan:
-+    """Every built file and every generator page, each owned by the row that names it. A file two
-+    rows match belongs to the row with the literal URL; two patterns matching one file is an
-+    inventory failure. With `every_file`, the files no row owns are rendered too, each under its own
-+    path, and counted as a gap."""
-+    targets: list[tuple[di.Page, str, str, str]] = []
-+    coverage: dict[str, dict[str, int]] = {k: {} for k in COVERAGE}
-+    failures: list[Failure] = []
-+    if dist is not None:
-+        owner: dict[Path, tuple[di.Page, str]] = {}
-+        for p in (p for p in pages if p.kind == "built"):
-+            for lang in langs:
-+                hits = resolve_all(p, dist, lang)
-+                if not hits:
-+                    failures.append(Failure(p.name, 0, lang, "(page)", "no file matches %s under %s" % (p.url, dist)))
-+                for f in hits:
-+                    was = owner.get(f)
-+                    if was is None or ("*" in was[0].url and "*" not in p.url):
-+                        owner[f] = (p, lang)
-+                    elif was[0] is not p and ("*" in p.url) == ("*" in was[0].url):
-+                        failures.append(Failure(p.name, 0, lang, "(page)", "%s is also matched by %s"
-+                                                % (f.relative_to(dist).as_posix(), was[0].name)))
-+        files = sorted(dist.rglob("*.html")) if every_file else sorted(owner)
-+        for f in files:
-+            rel = f.relative_to(dist).as_posix()
-+            if f in owner:
-+                p, lang = owner[f]
-+            else:
-+                lang = rel.split("/")[0] if rel.split("/")[0] in DEFAULT_LANGS else "en"
-+                if lang not in langs:
-+                    continue
-+                coverage["page with no row"][rel] = 1
-+                p = di.Page(rel, "built", "", rel, "path", ())
-+            targets.append((p, lang, "dist", rel))
-+    named = {(p.source, p.url): p for p in pages if p.kind == "mock"}
-+    for gen in sorted(set(mock_out) | set(mock_failed)):
-+        if gen in mock_failed:
-+            coverage["generator fails"][gen] = 1
-+            continue
-+        folder = mock_out[gen]
-+        written = {f.name for f in folder.glob("*.html")}
-+        for p in (p for p in pages if p.kind == "mock" and p.source == gen and p.url not in written):
-+            failures.append(Failure(p.name, 0, "-", "(generator)", "%s wrote no %s" % (gen, p.url)))
-+        for name in sorted(written):
-+            p = named.get((gen, name))
-+            if p is None:
-+                if not every_file:
-+                    continue
-+                key = "%s/%s" % (gen, name)
-+                coverage["mock page with no row"][key] = 1
-+                toggle = 'for="t-fi"' in (folder / name).read_text(encoding="utf-8", errors="replace")
-+                p = di.Page(key, "mock", gen, name, "toggle" if toggle else "none", ())
-+            carried = [lang for lang in MOCK_LANGS if lang == "en" or p.fi == "toggle"]
-+            missing = len([lang for lang in DEFAULT_LANGS if lang not in carried])
-+            if missing:
-+                coverage["language missing"][p.name] = missing
-+            for lang in langs:
-+                if lang in carried:
-+                    targets.append((p, lang, gen, name))
-+    return Plan(targets, {k: v for k, v in coverage.items() if v}, failures)
- 
- 
- ADDRESS_WORDS = REPO / "site_v2" / "src" / "i18n" / "address_words.json"
-@@ -380,11 +466,15 @@ def translate_path(rest: str, from_lang: str, to_lang: str) -> str:
-     return "/".join(segs)
- 
- 
--def resolve_built(page: di.Page, dist: Path, lang: str) -> Path | None:
-+def resolve_all(page: di.Page, dist: Path, lang: str) -> list[Path]:
-     url = page.url
-     if lang != "en" and url.startswith("en/"):
-         url = "%s/%s" % (lang, translate_path(url[len("en/"):], "en", lang))
--    hits = sorted(dist.glob(url))
-+    return sorted(dist.glob(url))
-+
-+
-+def resolve_built(page: di.Page, dist: Path, lang: str) -> Path | None:
-+    hits = resolve_all(page, dist, lang)
-     return hits[0] if hits else None
- 
- 
-@@ -452,22 +542,16 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
-                     break
-         pointer = [a for a in el.assertions if a.kind in ("hover", "press") and di.applies(a, viewport)]
-         if pointer and matches:
--            handle = None
--            for h in pw_page.query_selector_all(el.selector):
--                if h.bounding_box():
--                    handle = h
--                    break
--            if handle is None:
-+            # The first element with a box, scrolled to the middle; the mouse goes to its centre.
-+            centre = pw_page.evaluate(POINTER_JS, el.selector)
-+            if centre is None:
-                 continue
--            handle.evaluate("e => e.scrollIntoView({block: 'center'})")
-             for a in pointer:
--                if a.kind == "hover":
--                    handle.hover()
--                    measured = handle.evaluate("(e, p) => getComputedStyle(e).getPropertyValue(p)", a.prop)
--                else:
--                    handle.hover()
-+                pw_page.mouse.move(centre[0], centre[1])
-+                if a.kind == "press":
-                     pw_page.mouse.down()
--                    measured = handle.evaluate("(e, p) => getComputedStyle(e).getPropertyValue(p)", a.prop)
-+                measured = pw_page.evaluate(STYLE_JS, [el.selector, centre[2], a.prop])
-+                if a.kind == "press":
-                     pw_page.mouse.move(0, 0)
-                     pw_page.mouse.up()
-                 msg = di.compare(a, measured, tokens)
-@@ -494,15 +578,70 @@ def compare_rendered(rendered: dict[str, dict[str, int]], pinned: dict, full_run
-     return "", di.compare_counts(nonzero, pinned["pages"])
- 
- 
-+def compare_coverage(coverage: dict[str, dict[str, int]], pinned: dict[str, dict[str, int]],
-+                     full_run: bool) -> list[str]:
-+    """The coverage gaps off their pins. They do not depend on the font, so every run over
-+    everything compares them, on any platform."""
-+    return di.compare_counts(coverage, pinned) if full_run else []
-+
-+
-+def render_width(job: dict) -> dict:
-+    """One viewport, in its own process: open every target, measure its elements, count its gaps."""
-+    from playwright.sync_api import sync_playwright  # noqa: PLC0415
-+
-+    viewport, inv, spec, artifacts = job["viewport"], job["inv"], job["spec"], job["artifacts"]
-+    failures: list[Failure] = []
-+    counted: dict[str, dict] = {}
-+    covered: dict[str, set[str]] = {}
-+    renders = shots = 0
-+    with sync_playwright() as pw:
-+        browser = pw.chromium.launch()
-+        ctx = browser.new_context(viewport={"width": viewport, "height": 900}, device_scale_factor=1,
-+                                  reduced_motion="reduce")
-+        pw_page = ctx.new_page()
-+        for p, lang, root, path in job["targets"]:
-+            pw_page.goto(job["bases"][root] + path, wait_until="load")
-+            if p.kind == "mock" and lang == "fi":
-+                label = pw_page.query_selector('label[for="t-fi"]')
-+                if label is None:
-+                    failures.append(Failure(p.name, viewport, lang, "(page)", "no FI toggle on the page"))
-+                    continue
-+                label.click()
-+                if not pw_page.is_checked("#t-fi"):
-+                    failures.append(Failure(p.name, viewport, lang, "(page)", "the FI toggle did not switch"))
-+                    continue
-+            before = len(failures)
-+            measure_page(pw_page, inv, spec, p, viewport, lang, failures)
-+            renders += 1
-+            covered.setdefault(lang, set()).add(p.name)
-+            missed = [f for f in failures[before:] if f.level == "FAIL"]
-+            for f in missed:
-+                f.measured = True
-+            if artifacts and missed and shots < 20:
-+                pw_page.screenshot(path=str(Path(artifacts) / ("%s_%d_%s.png" % (p.name.replace("/", "_"), viewport, lang))),
-+                                   full_page=True)
-+                shots += 1
-+            # The pointer checks scroll the page, and a sticky header then lies over the content.
-+            pw_page.evaluate("window.scrollTo(0, 0); document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => r())))")
-+            found = pw_page.evaluate(COUNT_JS, job["registered"])
-+            page_counts = counted.setdefault(p.name, {"classes": set(), "examples": {}})
-+            page_counts["classes"].update(found["classes"])
-+            for k in COUNTS[:-1]:
-+                page_counts[k] = page_counts.get(k, 0) + found[k]
-+                shown = page_counts["examples"].setdefault(k, [])
-+                shown += ["%d %s %s" % (viewport, lang, e) for e in found["ex"][k][:20 - len(shown)]]
-+        ctx.close()
-+        browser.close()
-+    return {"failures": failures, "counted": counted, "covered": covered, "renders": renders}
-+
-+
- def main(argv=None) -> int:
-     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-     ap.add_argument("--inventory", default=str(di.DOC))
-     ap.add_argument("--dist", default=str(REPO / "site_v2" / "dist"))
-+    ap.add_argument("--mocks", default=str(MOCKS))
-     ap.add_argument("--pages", help="comma-separated page names to run (default: all)")
--    ap.add_argument("--viewports", help="widths for the element assertions and, unless --count-viewports "
--                    "is given, the gap counts (default: %s)" % ",".join(str(v) for v in DEFAULT_VIEWPORTS))
--    ap.add_argument("--count-viewports", help="widths for the gap counts (default: %s)"
--                    % ",".join(str(v) for v in COUNT_VIEWPORTS))
-+    ap.add_argument("--viewports", help="widths (default: %s)" % ",".join(str(v) for v in DEFAULT_VIEWPORTS))
-     ap.add_argument("--baseline", default=str(di.BASELINE))
-     ap.add_argument("--langs", default=",".join(DEFAULT_LANGS))
-     ap.add_argument("--no-built", action="store_true")
-@@ -537,129 +676,114 @@ def main(argv=None) -> int:
-         if missing:
-             ap.error("unknown page(s): %s" % ", ".join(sorted(missing)))
-     viewports = [int(v) for v in args.viewports.split(",")] if args.viewports else list(DEFAULT_VIEWPORTS)
--    if args.count_viewports:
--        count_viewports = [int(v) for v in args.count_viewports.split(",")]
--    else:
--        count_viewports = viewports if args.viewports else list(COUNT_VIEWPORTS)
-     langs = args.langs.split(",")
--    # The baseline pins a run over every page, width and language the inventory asks for; a narrower
--    # run prints its counts and compares none.
--    full_run = not (wanted or adhoc or args.no_built or args.no_mocks or args.viewports or args.count_viewports
--                    or args.langs != ",".join(DEFAULT_LANGS) or Path(args.inventory).resolve() != di.DOC.resolve())
-+    # The baseline pins a run over every page, width and language; a narrower run prints its counts
-+    # and compares none.
-+    full_run = not (wanted or adhoc or args.no_built or args.no_mocks or args.viewports
-+                    or args.langs != ",".join(DEFAULT_LANGS))
-     registered = sorted(di.class_tokens(inv.elements))
--    counted: dict[str, dict] = {}
--    count_renders = 0
--    props = list(di.PROPS)
-     spec = {
--        "props": props,
-+        "props": list(di.PROPS),
-         "tokens": list(di.TOKENS),
-         "elements": [{"name": e.name, "selector": e.selector, "kinds": [a.kind for a in e.assertions]} for e in inv.elements],
-     }
--    failures: list[Failure] = []
--    renders = 0
--    covered: dict[str, set[str]] = {}   # language -> the pages actually rendered in it
-     artifacts = Path(args.artifacts) if args.artifacts else None
-     if artifacts:
-         artifacts.mkdir(parents=True, exist_ok=True)
-+    try:
-+        with sync_playwright() as pw:
-+            pw.chromium.launch().close()
-+    except PlaywrightError as exc:
-+        print("cannot launch Chromium: %s" % str(exc).splitlines()[0], file=sys.stderr)
-+        return 2
- 
-+    mocks = Path(args.mocks)
-+    counted: dict[str, dict] = {}
-+    covered: dict[str, set[str]] = {}   # language -> the pages actually rendered in it
-+    renders = 0
-+    servers: list[ThreadingHTTPServer] = []
-     with tempfile.TemporaryDirectory() as td:
-         tmp = Path(td)
--        gen_failed = render_mocks(pages, tmp) if not args.no_mocks else {}
--        for name, why in gen_failed.items():
--            failures.append(Failure(name, 0, "-", "(generator)", why))
--        mock_srv, mock_base = serve(tmp)
--        dist = Path(args.dist)
--        dist_srv, dist_base = (serve(dist) if dist.is_dir() else (None, None))
--        # an ad-hoc page is served from its own folder, so a stylesheet beside it resolves
--        adhoc_srv: dict[Path, tuple] = {}
--        for _name, file in adhoc:
--            if file.parent not in adhoc_srv:
--                adhoc_srv[file.parent] = serve(file.parent)
-+        gens = [] if args.no_mocks else generators(mocks)
-+        if wanted:
-+            gens = [g for g in gens if any(p.kind == "mock" and p.source == g for p in pages)]
-+        mock_out, mock_failed = run_generators(gens, tmp, mocks)
-+        dist = None if args.no_built else Path(args.dist)
-+        failures: list[Failure] = []
-+        if dist is not None and not dist.is_dir():
-+            failures.append(Failure("(site)", 0, "-", "(page)", "no built site at %s (astro build first, or --no-built)" % dist))
-+            dist = None
-+        run = plan(pages, langs, dist, mock_out, mock_failed, every_file=not wanted)
-+        failures += run.failures
-+        targets = list(run.targets)
-+        bases: dict[str, str] = {}
-         try:
--            with sync_playwright() as pw:
--                try:
--                    browser = pw.chromium.launch()
--                except PlaywrightError as exc:
--                    print("cannot launch Chromium: %s" % str(exc).splitlines()[0], file=sys.stderr)
--                    return 2
--                for viewport in sorted(set(viewports) | set(count_viewports)):
--                    ctx = browser.new_context(viewport={"width": viewport, "height": 900}, device_scale_factor=1,
--                                              reduced_motion="reduce")
--                    pw_page = ctx.new_page()
--                    targets: list[tuple[di.Page, str, str]] = []
--                    for p in pages:
--                        if p.kind == "mock":
--                            if p.name in gen_failed:
--                                continue
--                            for lang in langs:
--                                if lang != "en" and p.fi == "none":
--                                    continue
--                                if lang not in MOCK_LANGS:
--                                    continue
--                                targets.append((p, lang, mock_base + p.url))
--                        else:
--                            if dist_base is None:
--                                failures.append(Failure(p.name, viewport, "-", "(page)", "no built site at %s (astro build first, or --no-built)" % dist))
--                                continue
--                            for lang in langs:
--                                hit = resolve_built(p, dist, lang)
--                                if hit is None:
--                                    failures.append(Failure(p.name, viewport, lang, "(page)", "no file matches %s under %s" % (p.url, dist)))
--                                    continue
--                                targets.append((p, lang, dist_base + hit.relative_to(dist).as_posix()))
--                    for name, file in adhoc:
--                        targets.append((di.Page(name, "mock", "", file.name, "none", ()), "en", adhoc_srv[file.parent][1] + file.name))
--                    for p, lang, url in targets:
--                        pw_page.goto(url, wait_until="load")
--                        if p.kind == "mock" and lang == "fi" and p.fi == "toggle":
--                            label = pw_page.query_selector('label[for="t-fi"]')
--                            if label is None:
--                                failures.append(Failure(p.name, viewport, lang, "(page)", "no FI toggle on the page"))
--                                continue
--                            label.click()
--                            if not pw_page.is_checked("#t-fi"):
--                                failures.append(Failure(p.name, viewport, lang, "(page)", "the FI toggle did not switch"))
--                                continue
--                        if viewport in viewports:
--                            before = len(failures)
--                            measure_page(pw_page, inv, spec, p, viewport, lang, failures)
--                            renders += 1
--                            covered.setdefault(lang, set()).add(p.name)
--                            if artifacts and any(f.level == "FAIL" for f in failures[before:]):
--                                pw_page.screenshot(path=str(artifacts / ("%s_%d_%s.png" % (p.name, viewport, lang))), full_page=True)
--                        if viewport in count_viewports:
--                            # The pointer checks scroll the page, and a sticky header then lies over the content.
--                            pw_page.evaluate("window.scrollTo(0, 0); document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => r())))")
--                            found = pw_page.evaluate(COUNT_JS, registered)
--                            count_renders += 1
--                            page_counts = counted.setdefault(p.name, {"classes": set(), "examples": {}})
--                            page_counts["classes"].update(found["classes"])
--                            for k in COUNTS[:-1]:
--                                page_counts[k] = page_counts.get(k, 0) + found[k]
--                                shown = page_counts["examples"].setdefault(k, [])
--                                shown += ["%d %s %s" % (viewport, lang, e) for e in found["ex"][k][:20 - len(shown)]]
--                    ctx.close()
--                browser.close()
-+            for root, folder in [("dist", dist)] + sorted(mock_out.items()):
-+                if folder is not None:
-+                    srv, bases[root] = serve(folder)
-+                    servers.append(srv)
-+            # an ad-hoc page is served from its own folder, so a stylesheet beside it resolves
-+            for name, file in adhoc:
-+                root = "page:%s" % file.parent
-+                if root not in bases:
-+                    srv, bases[root] = serve(file.parent)
-+                    servers.append(srv)
-+                targets.append((di.Page(name, "mock", "", file.name, "none", ()), "en", root, file.name))
-+            jobs = [{"viewport": v, "targets": targets, "bases": bases, "inv": inv, "spec": spec,
-+                     "registered": registered, "artifacts": str(artifacts) if artifacts else None} for v in viewports]
-+            if len(jobs) == 1:
-+                results = [render_width(jobs[0])]
-+            else:
-+                with ProcessPoolExecutor(max_workers=min(len(jobs), os.cpu_count() or 1)) as pool:
-+                    results = list(pool.map(render_width, jobs))
-         finally:
--            mock_srv.shutdown()
--            if dist_srv:
--                dist_srv.shutdown()
--            for srv, _base in adhoc_srv.values():
-+            for srv in servers:
-                 srv.shutdown()
- 
-+    for res in results:
-+        failures += res["failures"]
-+        renders += res["renders"]
-+        for lang, names in res["covered"].items():
-+            covered.setdefault(lang, set()).update(names)
-+        for name, c in res["counted"].items():
-+            into = counted.setdefault(name, {"classes": set(), "examples": {}})
-+            into["classes"].update(c["classes"])
-+            for k in COUNTS[:-1]:
-+                into[k] = into.get(k, 0) + c.get(k, 0)
-+                shown = into["examples"].setdefault(k, [])
-+                shown += c["examples"].get(k, [])[:20 - len(shown)]
-     rendered = {name: {k: (len(c["classes"]) if k == "classes" else c.get(k, 0)) for k in COUNTS}
-                 for name, c in counted.items()}
-+    for f in failures:
-+        if f.measured:
-+            key = MISS + f.element.split(" [")[0]
-+            rendered.setdefault(f.page, {})[key] = rendered.get(f.page, {}).get(key, 0) + 1
-+            shown = counted.setdefault(f.page, {"classes": set(), "examples": {}})["examples"].setdefault(key, [])
-+            if len(shown) < 20:
-+                shown.append("%d %s %s" % (f.viewport, f.lang, f.detail))
-     for name in sorted(rendered):
--        print("COUNT %s · %s" % (name, " · ".join("%s %d" % (k, rendered[name][k]) for k in COUNTS)))
--    note, off = compare_rendered(rendered, di.load_baseline(Path(args.baseline))["rendered"], full_run, sys.platform)
-+        print("COUNT %s · %s" % (name, " · ".join("%s %d" % (k, n) for k, n in rendered[name].items())))
-+    for group in sorted(run.coverage):
-+        print("COVERAGE %s: %d (%s)" % (group, sum(run.coverage[group].values()),
-+                                         ", ".join(sorted(run.coverage[group]))[:300]))
-+    baseline = di.load_baseline(Path(args.baseline))
-+    note, off = compare_rendered(rendered, baseline["rendered"], full_run, sys.platform)
-+    if not note:
-+        # The pins decide: a miss the baseline holds is a known gap, not a failure.
-+        failures = [f for f in failures if not f.measured]
-+    off += compare_coverage(run.coverage, baseline["coverage"], full_run)
-+    for gen, why in sorted(mock_failed.items()):
-+        failures.append(Failure(gen, 0, "-", "(generator)", why, "INFO"))
-     for line in off:
-         failures.append(Failure("(counts)", 0, "-", "(baseline)", line))
--        page, metric = line.split(" · ")[1:3]
--        for e in counted.get(page, {}).get("examples", {}).get(metric, [])[:5]:
--            failures.append(Failure(page, 0, "-", metric, "e.g. " + e, "INFO"))
-+        for page, c in counted.items():
-+            for metric, examples in c["examples"].items():
-+                if line.split(" · ", 1)[1].startswith("%s · %s · " % (page, metric)):
-+                    failures += [Failure(page, 0, "-", metric, "e.g. " + e, "INFO") for e in examples[:5]]
-     if artifacts is not None:
-         (artifacts / "counts.json").write_text(json.dumps(
-             {"platform": sys.platform, "pages": {name: {k: n for k, n in c.items() if n} for name, c in rendered.items()},
-+             "coverage": run.coverage,
-              "classes": {name: sorted(c["classes"]) for name, c in counted.items()},
-              "examples": {name: c["examples"] for name, c in counted.items()}}, indent=1, ensure_ascii=False), encoding="utf-8")
-     for f in failures:
-@@ -678,11 +802,11 @@ def main(argv=None) -> int:
-     if any(n < reached for _lang, n in per_lang):
-         caveat = " (pages per language: %s)" % ", ".join("%s %d" % (lang, n) for lang, n in per_lang)
-     print("%d pages · %d viewports · %d languages%s · %d renders · %d failures · %d warnings"
--          % (len(pages) + len(adhoc), len(viewports), len(langs), caveat, renders, len(hard),
-+          % (len(rendered), len(viewports), len(langs), caveat, renders, len(hard),
-              sum(1 for f in failures if f.level == "WARN")))
-     print("gap counts: %d pages counted at %s px · %s" % (
--        count_renders, ",".join(str(v) for v in count_viewports),
--        "not compared: %s" % note if note else "%d off the baseline" % len(off)))
-+        renders, ",".join(str(v) for v in viewports),
-+        ("rendered counts not compared: %s · " % note if note else "") + "%d off the baseline" % len(off)))
-     if artifacts and hard:
-         (artifacts / "failures.json").write_text(json.dumps([f.__dict__ for f in failures], indent=1), encoding="utf-8")
-     return 1 if hard else 0
-diff --git a/scripts/design_inventory.py b/scripts/design_inventory.py
-index 7b73b95d..9418176e 100644
---- a/scripts/design_inventory.py
-+++ b/scripts/design_inventory.py
-@@ -121,6 +121,7 @@ _PX = re.compile(r"^-?\d+(\.\d+)?px$")
- _STRIPE = re.compile(r"^(?P<colour>\S+) from (?P<n>\d+)$")
- _CALL = re.compile(r"^(?P<fn>hover|press)\((?P<prop>[a-z-]+)\)$")
- _WHEN = re.compile(r"^(?P<body>.*\S)\s+\[(?P<op>>=|<)(?P<px>\d+)px\]$")
-+_GENERATOR = re.compile(r"^gen_\w+\.py$")
- 
- 
- def _applies_when(when: str, viewport: int) -> bool:
-@@ -283,6 +284,8 @@ def load(path: Path = DOC) -> Inventory:
-             raise InventoryError("Pages: %s expects elements the inventory does not name: %s" % (name, ", ".join(unknown)))
-         if any(p.name == name for p in pages):
-             raise InventoryError("Pages: %s listed twice" % name)
-+        if kind == "mock" and not _GENERATOR.match(_strip_code(source)):
-+            raise InventoryError("Pages: %s: a mock's Source is its generator's file name, gen_*.py, got %r" % (name, source))
-         pages.append(Page(name, kind, _strip_code(source), _strip_code(url), fi, expected, expect_when))
-     if not pages:
-         raise InventoryError("Pages: no rows")
-@@ -304,8 +307,9 @@ BASELINE = REPO / "tests" / "fixtures" / "design_inventory" / "baseline.json"
- 
- 
- def load_baseline(path: Path = BASELINE) -> dict:
--    """The pinned gap counts: `static` (by check, then file or width) and `rendered` (the
--    platform it was measured on, then by page and count)."""
-+    """The pinned gap counts: `static` (by check, then file or width), `coverage` (by gap kind,
-+    then page or generator) and `rendered` (the platform it was measured on, then by page and
-+    count)."""
-     return json.loads(path.read_text(encoding="utf-8"))
- 
- 
-@@ -325,6 +329,26 @@ def compare_counts(measured: dict[str, dict[str, int]], pinned: dict[str, dict[s
-     return out
- 
- 
-+def _pins(baseline: dict) -> dict[tuple[str, str, str], int]:
-+    out = {}
-+    for section in ("static", "coverage"):
-+        for group, by_key in baseline.get(section, {}).items():
-+            for key, n in by_key.items():
-+                out[(section, group, key)] = n
-+    for page, by_count in baseline.get("rendered", {}).get("pages", {}).items():
-+        for count, n in by_count.items():
-+            out[("rendered", page, count)] = n
-+    return out
-+
-+
-+def rises(current: dict, base: dict) -> list[str]:
-+    """Every pin above the base's: a count that rose, and a new entry above zero. A new page or mock
-+    enters the baseline with no gaps."""
-+    now, was = _pins(current), _pins(base)
-+    return ["%s · %s · %s · %d, main %d" % (*key, now[key], was.get(key, 0))
-+            for key in sorted(now) if now[key] > was.get(key, 0)]
-+
-+
- def parse_css_color(s: str) -> tuple[float, float, float, float]:
-     """A computed colour as (r, g, b, a) on 0–255 / 0–1: rgb(), rgba(), color(srgb …), #hex."""
-     s = s.strip()
-diff --git a/tests/fixtures/design_inventory/baseline.json b/tests/fixtures/design_inventory/baseline.json
-index 9beb691c..9c8204ad 100644
---- a/tests/fixtures/design_inventory/baseline.json
-+++ b/tests/fixtures/design_inventory/baseline.json
-@@ -1,43 +1,16 @@
- {
-  "static": {
--  "mock_css": {
--   "design-mocks/gen_competitions.py": 13,
--   "design-mocks/gen_interaction.py": 3,
--   "design-mocks/gen_match_page.py": 33,
--   "design-mocks/gen_navmap.py": 6,
--   "design-mocks/gen_sitemap.py": 8,
--   "design-mocks/gen_taxonomy.py": 6,
--   "design-mocks/gen_team_mock.py": 73
--  },
--  "css_outside_system_css": {
--   "site_v2/src/components/fixture/MetricRow.astro": 2,
--   "site_v2/src/components/team/TeamLeagueStrips.astro": 2,
--   "site_v2/src/lib/fitBlocks.mjs": 2
--  },
--  "width_rules": {
--   "340px": 1,
--   "420px": 4,
--   "430px": 2,
--   "470px": 1,
--   "479.98px": 2,
--   "480px": 1,
--   "520px": 1,
--   "560px": 2,
--   "599.98px": 2,
--   "699.98px": 4,
--   "700px": 1,
--   "800px": 1,
--   "900px": 1,
--   "1010px": 1
--  },
--  "banned_properties": {
--   "site_v2/src/styles/system.css": 7
--  },
--  "literal_text": {
--   "site_v2/src/components/chrome/SiteFooter.astro": 3,
--   "site_v2/src/components/chrome/SiteHeader.astro": 2,
--   "site_v2/src/pages/index.astro": 2
--  }
-+  "mock_css": {"design-mocks/gen_competitions.py": 13, "design-mocks/gen_interaction.py": 3, "design-mocks/gen_match_page.py": 33, "design-mocks/gen_navmap.py": 6, "design-mocks/gen_sitemap.py": 8, "design-mocks/gen_taxonomy.py": 6, "design-mocks/gen_team_mock.py": 73},
-+  "css_outside_system_css": {"site_v2/src/components/fixture/MetricRow.astro": 2, "site_v2/src/components/team/TeamLeagueStrips.astro": 2, "site_v2/src/lib/fitBlocks.mjs": 2},
-+  "width_rules": {"340px": 1, "420px": 4, "430px": 2, "470px": 1, "479.98px": 2, "480px": 1, "520px": 1, "560px": 2, "599.98px": 2, "699.98px": 4, "700px": 1, "800px": 1, "900px": 1, "1010px": 1},
-+  "banned_properties": {"site_v2/src/styles/system.css": 7},
-+  "literal_text": {"site_v2/src/components/chrome/SiteFooter.astro": 3, "site_v2/src/components/chrome/SiteHeader.astro": 2, "site_v2/src/pages/index.astro": 2}
-+ },
-+ "coverage": {
-+  "generator fails": {"gen_block_standard.py": 1, "gen_competitions.py": 1, "gen_match_page.py": 1, "gen_navmap.py": 1, "gen_team_mock.py": 1},
-+  "language missing": {"competition-hub cup": 1, "competition-hub groups": 1, "competition-hub league": 1, "competition-hub offseason": 1, "competition-matchdays": 1, "competition-overview": 1, "competition-rankings": 1, "gen_interaction.py/interaction_standard.html": 2, "gen_matches_hub.py/matches-hub_2026-09-26.html": 1, "gen_sitemap.py/sitemap_overview.html": 2, "gen_taxonomy.py/taxonomy_options.html": 2, "home": 1, "home legacy": 1, "matches hub": 1, "matches next": 1, "matches past": 1, "top players": 1, "top teams": 1},
-+  "mock page with no row": {"gen_interaction.py/interaction_standard.html": 1, "gen_matches_hub.py/matches-hub_2026-09-26.html": 1, "gen_sitemap.py/sitemap_overview.html": 1, "gen_taxonomy.py/taxonomy_options.html": 1},
-+  "page with no row": {"de/2-bundesliga/index.html": 1, "de/afc-champions-league/index.html": 1, "de/africa-cup-of-nations/index.html": 1, "de/asian-cup/index.html": 1, "de/belgian-pro-league/index.html": 1, "de/brasileirao/index.html": 1, "de/caf-champions-league/index.html": 1, "de/champions-league/index.html": 1, "de/club-world-cup/index.html": 1, "de/concacaf-champions-cup/index.html": 1, "de/concacaf-nations-league/index.html": 1, "de/conference-league/index.html": 1, "de/copa-america/index.html": 1, "de/copa-del-rey/index.html": 1, "de/copa-libertadores/index.html": 1, "de/coppa-italia/index.html": 1, "de/coupe-de-france/index.html": 1, "de/dfb-pokal/index.html": 1, "de/ekstraklasa/index.html": 1, "de/eredivisie/index.html": 1, "de/euro/index.html": 1, "de/europa-league/index.html": 1, "de/fa-cup/index.html": 1, "de/gold-cup/index.html": 1, "de/j1-league/index.html": 1, "de/k-league-1/index.html": 1, "de/la-liga/index.html": 1, "de/liga-mx/index.html": 1, "de/liga-portugal/index.html": 1, "de/liga-profesional-argentina/index.html": 1, "de/ligue-1/index.html": 1, "de/mls/index.html": 1, "de/nations-league/index.html": 1, "de/premier-league/index.html": 1, "de/saudi-pro-league/index.html": 1, "de/serie-a/index.html": 1, "de/spieler/a-daghim-362564/index.html": 1, "de/spieler/a-nusa-314511/index.html": 1, "de/spieler/a-pavlovic-328033/index.html": 1, "de/spieler/a-raimondo-314254/index.html": 1, "de/spieler/aleix-garcia-47516/index.html": 1, "de/spieler/bernardo-18964/index.html": 1, "de/spieler/c-matsima-163039/index.html": 1, "de/spieler/c-tengstedt-162703/index.html": 1, "de/spieler/c-uzun-339887/index.html": 1, "de/spieler/d-raum-25158/index.html": 1, "de/spieler/d-upamecano-1149/index.html": 1, "de/spieler/e-fernandez-237087/index.html": 1, "de/spieler/e-haaland-1100/index.html": 1, "de/spieler/e-skhiri-21587/index.html": 1, "de/spieler/f-dahmen-25903/index.html": 1, "de/spieler/f-keidel-280070/index.html": 1, "de/spieler/f-thauvin-1922/index.html": 1, "de/spieler/f-uduokhai-25406/index.html": 1, "de/spieler/f-wirtz-203224/index.html": 1, "de/spieler/g-calo-32011/index.html": 1, "de/spieler/g-prestianni-362755/index.html": 1, "de/spieler/g-read-359390/index.html": 1, "de/spieler/h-kane-184/index.html": 1, "de/spieler/hennes-behrens-353143/index.html": 1, "de/spieler/i-matanovic-202696/index.html": 1, "de/spieler/j-brandt-984/index.html": 1, "de/spieler/j-kimmich-502/index.html": 1, "de/spieler/j-tah-972/index.html": 1, "de/spieler/kim-min-jae-2897/index.html": 1, "de/spieler/l-curda-163078/index.html": 1, "de/spieler/l-ferguson-44814/index.html": 1, "de/spieler/l-karius-1972/index.html": 1, "de/spieler/l-petkov-177452/index.html": 1, "de/spieler/lamine-yamal-386828/index.html": 1, "de/spieler/m-ginter-2915/index.html": 1, "de/spieler/m-gregoritsch-25297/index.html": 1, "de/spieler/m-grull-7073/index.html": 1, "de/spieler/m-moore-380690/index.html": 1, "de/spieler/m-olise-19617/index.html": 1, "de/spieler/m-vandevoordt-1924/index.html": 1, "de/spieler/m-willemsen-327347/index.html": 1, "de/spieler/miguel-gutierrez-162032/index.html": 1, "de/spieler/n-amiri-714/index.html": 1, "de/spieler/n-atubolu-178768/index.html": 1, "de/spieler/n-capaldo-5973/index.html": 1, "de/spieler/n-djouahra-47308/index.html": 1, "de/spieler/n-el-aynaoui-277003/index.html": 1, "de/spieler/n-fullkrug-25391/index.html": 1, "de/spieler/n-katic-1741/index.html": 1, "de/spieler/n-noll-203329/index.html": 1, "de/spieler/nacho-ferri-353943/index.html": 1, "de/spieler/p-dybala-875/index.html": 1, "de/spieler/p-gro-18970/index.html": 1, "de/spieler/p-schick-794/index.html": 1, "de/spieler/p-tietz-26171/index.html": 1, "de/spieler/r-onyedika-162219/index.html": 1, "de/spieler/r-schallenberg-88140/index.html": 1, "de/spieler/raphinha-1496/index.html": 1, "de/spieler/renato-veiga-336671/index.html": 1, "de/spieler/ruben-dias-567/index.html": 1, "de/spieler/s-becker-37938/index.html": 1, "de/spieler/s-inacio-478991/index.html": 1, "de/spieler/t-kleindienst-26256/index.html": 1, "de/spieler/t-krau-1156/index.html": 1, "de/spieler/t-rothe-324957/index.html": 1, "de/spieler/tomas-araujo-161939/index.html": 1, "de/spieler/v-pavlidis-36798/index.html": 1, "de/spieler/vitinha-128384/index.html": 1, "de/spieler/w-anton-25368/index.html": 1, "de/spieler/w-burger-37153/index.html": 1, "de/spieler/y-ebnoutalib-409190/index.html": 1, "de/spieler/y-suzuki-199143/index.html": 1, "de/super-lig/index.html": 1, "de/uefa-super-cup/index.html": 1, "de/veikkausliiga/index.html": 1, "de/world-cup-qualification-africa/index.html": 1, "de/world-cup-qualification-asia/index.html": 1, "de/world-cup-qualification-concacaf/index.html": 1, "de/world-cup-qualification-europe/index.html": 1, "de/world-cup-qualification-oceania/index.html": 1, "de/world-cup-qualification-playoffs/index.html": 1, "de/world-cup-qualification-south-america/index.html": 1, "de/world-cup/index.html": 1, "en/2-bundesliga/index.html": 1, "en/afc-champions-league/index.html": 1, "en/africa-cup-of-nations/index.html": 1, "en/asian-cup/index.html": 1, "en/belgian-pro-league/index.html": 1, "en/brasileirao/index.html": 1, "en/caf-champions-league/index.html": 1, "en/champions-league/index.html": 1, "en/club-world-cup/index.html": 1, "en/concacaf-champions-cup/index.html": 1, "en/concacaf-nations-league/index.html": 1, "en/conference-league/index.html": 1, "en/copa-america/index.html": 1, "en/copa-del-rey/index.html": 1, "en/copa-libertadores/index.html": 1, "en/coppa-italia/index.html": 1, "en/coupe-de-france/index.html": 1, "en/dfb-pokal/index.html": 1, "en/ekstraklasa/index.html": 1, "en/eredivisie/index.html": 1, "en/euro/index.html": 1, "en/europa-league/index.html": 1, "en/fa-cup/index.html": 1, "en/gold-cup/index.html": 1, "en/j1-league/index.html": 1, "en/k-league-1/index.html": 1, "en/la-liga/index.html": 1, "en/liga-mx/index.html": 1, "en/liga-portugal/index.html": 1, "en/liga-profesional-argentina/index.html": 1, "en/ligue-1/index.html": 1, "en/mls/index.html": 1, "en/nations-league/index.html": 1, "en/players/a-daghim-362564/index.html": 1, "en/players/a-nusa-314511/index.html": 1, "en/players/a-pavlovic-328033/index.html": 1, "en/players/a-raimondo-314254/index.html": 1, "en/players/aleix-garcia-47516/index.html": 1, "en/players/bernardo-18964/index.html": 1, "en/players/c-matsima-163039/index.html": 1, "en/players/c-tengstedt-162703/index.html": 1, "en/players/c-uzun-339887/index.html": 1, "en/players/d-raum-25158/index.html": 1, "en/players/d-upamecano-1149/index.html": 1, "en/players/e-fernandez-237087/index.html": 1, "en/players/e-haaland-1100/index.html": 1, "en/players/e-skhiri-21587/index.html": 1, "en/players/f-dahmen-25903/index.html": 1, "en/players/f-keidel-280070/index.html": 1, "en/players/f-thauvin-1922/index.html": 1, "en/players/f-uduokhai-25406/index.html": 1, "en/players/f-wirtz-203224/index.html": 1, "en/players/g-calo-32011/index.html": 1, "en/players/g-prestianni-362755/index.html": 1, "en/players/g-read-359390/index.html": 1, "en/players/h-kane-184/index.html": 1, "en/players/hennes-behrens-353143/index.html": 1, "en/players/i-matanovic-202696/index.html": 1, "en/players/j-brandt-984/index.html": 1, "en/players/j-kimmich-502/index.html": 1, "en/players/j-tah-972/index.html": 1, "en/players/kim-min-jae-2897/index.html": 1, "en/players/l-curda-163078/index.html": 1, "en/players/l-ferguson-44814/index.html": 1, "en/players/l-karius-1972/index.html": 1, "en/players/l-petkov-177452/index.html": 1, "en/players/lamine-yamal-386828/index.html": 1, "en/players/m-ginter-2915/index.html": 1, "en/players/m-gregoritsch-25297/index.html": 1, "en/players/m-grull-7073/index.html": 1, "en/players/m-moore-380690/index.html": 1, "en/players/m-olise-19617/index.html": 1, "en/players/m-vandevoordt-1924/index.html": 1, "en/players/m-willemsen-327347/index.html": 1, "en/players/miguel-gutierrez-162032/index.html": 1, "en/players/n-amiri-714/index.html": 1, "en/players/n-atubolu-178768/index.html": 1, "en/players/n-capaldo-5973/index.html": 1, "en/players/n-djouahra-47308/index.html": 1, "en/players/n-el-aynaoui-277003/index.html": 1, "en/players/n-fullkrug-25391/index.html": 1, "en/players/n-katic-1741/index.html": 1, "en/players/n-noll-203329/index.html": 1, "en/players/nacho-ferri-353943/index.html": 1, "en/players/p-dybala-875/index.html": 1, "en/players/p-gro-18970/index.html": 1, "en/players/p-schick-794/index.html": 1, "en/players/p-tietz-26171/index.html": 1, "en/players/r-onyedika-162219/index.html": 1, "en/players/r-schallenberg-88140/index.html": 1, "en/players/raphinha-1496/index.html": 1, "en/players/renato-veiga-336671/index.html": 1, "en/players/ruben-dias-567/index.html": 1, "en/players/s-becker-37938/index.html": 1, "en/players/s-inacio-478991/index.html": 1, "en/players/t-kleindienst-26256/index.html": 1, "en/players/t-krau-1156/index.html": 1, "en/players/t-rothe-324957/index.html": 1, "en/players/tomas-araujo-161939/index.html": 1, "en/players/v-pavlidis-36798/index.html": 1, "en/players/vitinha-128384/index.html": 1, "en/players/w-anton-25368/index.html": 1, "en/players/w-burger-37153/index.html": 1, "en/players/y-ebnoutalib-409190/index.html": 1, "en/players/y-suzuki-199143/index.html": 1, "en/premier-league/index.html": 1, "en/saudi-pro-league/index.html": 1, "en/serie-a/index.html": 1, "en/super-lig/index.html": 1, "en/uefa-super-cup/index.html": 1, "en/veikkausliiga/index.html": 1, "en/world-cup-qualification-africa/index.html": 1, "en/world-cup-qualification-asia/index.html": 1, "en/world-cup-qualification-concacaf/index.html": 1, "en/world-cup-qualification-europe/index.html": 1, "en/world-cup-qualification-oceania/index.html": 1, "en/world-cup-qualification-playoffs/index.html": 1, "en/world-cup-qualification-south-america/index.html": 1, "en/world-cup/index.html": 1, "fi/2-bundesliga/index.html": 1, "fi/afc-champions-league/index.html": 1, "fi/africa-cup-of-nations/index.html": 1, "fi/asian-cup/index.html": 1, "fi/belgian-pro-league/index.html": 1, "fi/brasileirao/index.html": 1, "fi/caf-champions-league/index.html": 1, "fi/champions-league/index.html": 1, "fi/club-world-cup/index.html": 1, "fi/concacaf-champions-cup/index.html": 1, "fi/concacaf-nations-league/index.html": 1, "fi/conference-league/index.html": 1, "fi/copa-america/index.html": 1, "fi/copa-del-rey/index.html": 1, "fi/copa-libertadores/index.html": 1, "fi/coppa-italia/index.html": 1, "fi/coupe-de-france/index.html": 1, "fi/dfb-pokal/index.html": 1, "fi/ekstraklasa/index.html": 1, "fi/eredivisie/index.html": 1, "fi/euro/index.html": 1, "fi/europa-league/index.html": 1, "fi/fa-cup/index.html": 1, "fi/gold-cup/index.html": 1, "fi/j1-league/index.html": 1, "fi/k-league-1/index.html": 1, "fi/la-liga/index.html": 1, "fi/liga-mx/index.html": 1, "fi/liga-portugal/index.html": 1, "fi/liga-profesional-argentina/index.html": 1, "fi/ligue-1/index.html": 1, "fi/mls/index.html": 1, "fi/nations-league/index.html": 1, "fi/pelaajat/a-daghim-362564/index.html": 1, "fi/pelaajat/a-nusa-314511/index.html": 1, "fi/pelaajat/a-pavlovic-328033/index.html": 1, "fi/pelaajat/a-raimondo-314254/index.html": 1, "fi/pelaajat/aleix-garcia-47516/index.html": 1, "fi/pelaajat/bernardo-18964/index.html": 1, "fi/pelaajat/c-matsima-163039/index.html": 1, "fi/pelaajat/c-tengstedt-162703/index.html": 1, "fi/pelaajat/c-uzun-339887/index.html": 1, "fi/pelaajat/d-raum-25158/index.html": 1, "fi/pelaajat/d-upamecano-1149/index.html": 1, "fi/pelaajat/e-fernandez-237087/index.html": 1, "fi/pelaajat/e-haaland-1100/index.html": 1, "fi/pelaajat/e-skhiri-21587/index.html": 1, "fi/pelaajat/f-dahmen-25903/index.html": 1, "fi/pelaajat/f-keidel-280070/index.html": 1, "fi/pelaajat/f-thauvin-1922/index.html": 1, "fi/pelaajat/f-uduokhai-25406/index.html": 1, "fi/pelaajat/f-wirtz-203224/index.html": 1, "fi/pelaajat/g-calo-32011/index.html": 1, "fi/pelaajat/g-prestianni-362755/index.html": 1, "fi/pelaajat/g-read-359390/index.html": 1, "fi/pelaajat/h-kane-184/index.html": 1, "fi/pelaajat/hennes-behrens-353143/index.html": 1, "fi/pelaajat/i-matanovic-202696/index.html": 1, "fi/pelaajat/j-brandt-984/index.html": 1, "fi/pelaajat/j-kimmich-502/index.html": 1, "fi/pelaajat/j-tah-972/index.html": 1, "fi/pelaajat/kim-min-jae-2897/index.html": 1, "fi/pelaajat/l-curda-163078/index.html": 1, "fi/pelaajat/l-ferguson-44814/index.html": 1, "fi/pelaajat/l-karius-1972/index.html": 1, "fi/pelaajat/l-petkov-177452/index.html": 1, "fi/pelaajat/lamine-yamal-386828/index.html": 1, "fi/pelaajat/m-ginter-2915/index.html": 1, "fi/pelaajat/m-gregoritsch-25297/index.html": 1, "fi/pelaajat/m-grull-7073/index.html": 1, "fi/pelaajat/m-moore-380690/index.html": 1, "fi/pelaajat/m-olise-19617/index.html": 1, "fi/pelaajat/m-vandevoordt-1924/index.html": 1, "fi/pelaajat/m-willemsen-327347/index.html": 1, "fi/pelaajat/miguel-gutierrez-162032/index.html": 1, "fi/pelaajat/n-amiri-714/index.html": 1, "fi/pelaajat/n-atubolu-178768/index.html": 1, "fi/pelaajat/n-capaldo-5973/index.html": 1, "fi/pelaajat/n-djouahra-47308/index.html": 1, "fi/pelaajat/n-el-aynaoui-277003/index.html": 1, "fi/pelaajat/n-fullkrug-25391/index.html": 1, "fi/pelaajat/n-katic-1741/index.html": 1, "fi/pelaajat/n-noll-203329/index.html": 1, "fi/pelaajat/nacho-ferri-353943/index.html": 1, "fi/pelaajat/p-dybala-875/index.html": 1, "fi/pelaajat/p-gro-18970/index.html": 1, "fi/pelaajat/p-schick-794/index.html": 1, "fi/pelaajat/p-tietz-26171/index.html": 1, "fi/pelaajat/r-onyedika-162219/index.html": 1, "fi/pelaajat/r-schallenberg-88140/index.html": 1, "fi/pelaajat/raphinha-1496/index.html": 1, "fi/pelaajat/renato-veiga-336671/index.html": 1, "fi/pelaajat/ruben-dias-567/index.html": 1, "fi/pelaajat/s-becker-37938/index.html": 1, "fi/pelaajat/s-inacio-478991/index.html": 1, "fi/pelaajat/t-kleindienst-26256/index.html": 1, "fi/pelaajat/t-krau-1156/index.html": 1, "fi/pelaajat/t-rothe-324957/index.html": 1, "fi/pelaajat/tomas-araujo-161939/index.html": 1, "fi/pelaajat/v-pavlidis-36798/index.html": 1, "fi/pelaajat/vitinha-128384/index.html": 1, "fi/pelaajat/w-anton-25368/index.html": 1, "fi/pelaajat/w-burger-37153/index.html": 1, "fi/pelaajat/y-ebnoutalib-409190/index.html": 1, "fi/pelaajat/y-suzuki-199143/index.html": 1, "fi/premier-league/index.html": 1, "fi/saudi-pro-league/index.html": 1, "fi/serie-a/index.html": 1, "fi/super-lig/index.html": 1, "fi/uefa-super-cup/index.html": 1, "fi/veikkausliiga/index.html": 1, "fi/world-cup-qualification-africa/index.html": 1, "fi/world-cup-qualification-asia/index.html": 1, "fi/world-cup-qualification-concacaf/index.html": 1, "fi/world-cup-qualification-europe/index.html": 1, "fi/world-cup-qualification-oceania/index.html": 1, "fi/world-cup-qualification-playoffs/index.html": 1, "fi/world-cup-qualification-south-america/index.html": 1, "fi/world-cup/index.html": 1, "index.html": 1}
-  },
-  "rendered": {
-   "platform": "linux",
-@@ -47,11 +20,11 @@
-    "Competition rankings": {"classes": 22},
-    "Competitions index": {"overflow": 24, "classes": 26},
-    "Home": {"overflow": 227, "split": 4, "classes": 23},
--   "Match page": {"scroll": 2, "classes": 53},
--   "Matches day page": {"classes": 31},
-+   "Match page": {"scroll": 1174, "overflow": 9, "split": 151, "overlap": 2, "classes": 58, "miss · List row": 53, "miss · Player row": 29, "miss · Result row": 24},
-+   "Matches day page": {"classes": 32, "miss · Fold": 378, "miss · Match row score": 414},
-    "Matches page": {"classes": 31},
-    "Played match page": {"scroll": 1, "classes": 51},
--   "Team page": {"overflow": 18, "split": 3, "classes": 87},
-+   "Team page": {"overflow": 570, "split": 32, "classes": 87, "miss · Name in whole words": 3},
-    "Teams page": {"split": 1, "classes": 33},
-    "competition-hub cup": {"classes": 22},
-    "competition-hub groups": {"classes": 24},
-@@ -60,8 +33,370 @@
-    "competition-matchdays": {"split": 2, "classes": 25},
-    "competition-overview": {"classes": 24},
-    "competition-rankings": {"split": 4, "classes": 19},
-+   "de/2-bundesliga/index.html": {"classes": 21},
-+   "de/afc-champions-league/index.html": {"classes": 21},
-+   "de/africa-cup-of-nations/index.html": {"classes": 21},
-+   "de/asian-cup/index.html": {"classes": 21},
-+   "de/belgian-pro-league/index.html": {"classes": 21},
-+   "de/brasileirao/index.html": {"classes": 21},
-+   "de/caf-champions-league/index.html": {"classes": 21},
-+   "de/champions-league/index.html": {"classes": 21},
-+   "de/club-world-cup/index.html": {"classes": 21},
-+   "de/concacaf-champions-cup/index.html": {"classes": 21},
-+   "de/concacaf-nations-league/index.html": {"classes": 21},
-+   "de/conference-league/index.html": {"classes": 21},
-+   "de/copa-america/index.html": {"classes": 21},
-+   "de/copa-del-rey/index.html": {"classes": 21},
-+   "de/copa-libertadores/index.html": {"classes": 21},
-+   "de/coppa-italia/index.html": {"classes": 21},
-+   "de/coupe-de-france/index.html": {"classes": 21},
-+   "de/dfb-pokal/index.html": {"classes": 21},
-+   "de/ekstraklasa/index.html": {"classes": 21},
-+   "de/eredivisie/index.html": {"classes": 21},
-+   "de/euro/index.html": {"classes": 21},
-+   "de/europa-league/index.html": {"classes": 21},
-+   "de/fa-cup/index.html": {"classes": 21},
-+   "de/gold-cup/index.html": {"classes": 21},
-+   "de/j1-league/index.html": {"classes": 21},
-+   "de/k-league-1/index.html": {"classes": 21},
-+   "de/la-liga/index.html": {"classes": 21},
-+   "de/liga-mx/index.html": {"classes": 21},
-+   "de/liga-portugal/index.html": {"classes": 21},
-+   "de/liga-profesional-argentina/index.html": {"classes": 21},
-+   "de/ligue-1/index.html": {"classes": 21},
-+   "de/mls/index.html": {"classes": 21},
-+   "de/nations-league/index.html": {"classes": 21},
-+   "de/premier-league/index.html": {"classes": 21},
-+   "de/saudi-pro-league/index.html": {"classes": 21},
-+   "de/serie-a/index.html": {"classes": 21},
-+   "de/spieler/a-daghim-362564/index.html": {"classes": 16},
-+   "de/spieler/a-nusa-314511/index.html": {"classes": 16},
-+   "de/spieler/a-pavlovic-328033/index.html": {"classes": 16},
-+   "de/spieler/a-raimondo-314254/index.html": {"classes": 16},
-+   "de/spieler/aleix-garcia-47516/index.html": {"classes": 16},
-+   "de/spieler/bernardo-18964/index.html": {"classes": 16},
-+   "de/spieler/c-matsima-163039/index.html": {"classes": 16},
-+   "de/spieler/c-tengstedt-162703/index.html": {"classes": 16},
-+   "de/spieler/c-uzun-339887/index.html": {"classes": 16},
-+   "de/spieler/d-raum-25158/index.html": {"classes": 16},
-+   "de/spieler/d-upamecano-1149/index.html": {"classes": 16},
-+   "de/spieler/e-fernandez-237087/index.html": {"classes": 16},
-+   "de/spieler/e-haaland-1100/index.html": {"classes": 16},
-+   "de/spieler/e-skhiri-21587/index.html": {"classes": 16},
-+   "de/spieler/f-dahmen-25903/index.html": {"classes": 16},
-+   "de/spieler/f-keidel-280070/index.html": {"classes": 16},
-+   "de/spieler/f-thauvin-1922/index.html": {"classes": 16},
-+   "de/spieler/f-uduokhai-25406/index.html": {"classes": 16},
-+   "de/spieler/f-wirtz-203224/index.html": {"classes": 16},
-+   "de/spieler/g-calo-32011/index.html": {"classes": 16},
-+   "de/spieler/g-prestianni-362755/index.html": {"classes": 16},
-+   "de/spieler/g-read-359390/index.html": {"classes": 16},
-+   "de/spieler/h-kane-184/index.html": {"classes": 16},
-+   "de/spieler/hennes-behrens-353143/index.html": {"classes": 16},
-+   "de/spieler/i-matanovic-202696/index.html": {"classes": 16},
-+   "de/spieler/j-brandt-984/index.html": {"classes": 16},
-+   "de/spieler/j-kimmich-502/index.html": {"classes": 16},
-+   "de/spieler/j-tah-972/index.html": {"classes": 16},
-+   "de/spieler/kim-min-jae-2897/index.html": {"classes": 16},
-+   "de/spieler/l-curda-163078/index.html": {"classes": 16},
-+   "de/spieler/l-ferguson-44814/index.html": {"classes": 16},
-+   "de/spieler/l-karius-1972/index.html": {"classes": 16},
-+   "de/spieler/l-petkov-177452/index.html": {"classes": 16},
-+   "de/spieler/lamine-yamal-386828/index.html": {"classes": 16},
-+   "de/spieler/m-ginter-2915/index.html": {"classes": 16},
-+   "de/spieler/m-gregoritsch-25297/index.html": {"classes": 16},
-+   "de/spieler/m-grull-7073/index.html": {"classes": 16},
-+   "de/spieler/m-moore-380690/index.html": {"classes": 16},
-+   "de/spieler/m-olise-19617/index.html": {"classes": 16},
-+   "de/spieler/m-vandevoordt-1924/index.html": {"classes": 16},
-+   "de/spieler/m-willemsen-327347/index.html": {"classes": 16},
-+   "de/spieler/miguel-gutierrez-162032/index.html": {"classes": 16},
-+   "de/spieler/n-amiri-714/index.html": {"classes": 16},
-+   "de/spieler/n-atubolu-178768/index.html": {"classes": 16},
-+   "de/spieler/n-capaldo-5973/index.html": {"classes": 16},
-+   "de/spieler/n-djouahra-47308/index.html": {"classes": 16},
-+   "de/spieler/n-el-aynaoui-277003/index.html": {"classes": 16},
-+   "de/spieler/n-fullkrug-25391/index.html": {"classes": 16},
-+   "de/spieler/n-katic-1741/index.html": {"classes": 16},
-+   "de/spieler/n-noll-203329/index.html": {"classes": 16},
-+   "de/spieler/nacho-ferri-353943/index.html": {"classes": 16},
-+   "de/spieler/p-dybala-875/index.html": {"classes": 16},
-+   "de/spieler/p-gro-18970/index.html": {"classes": 16},
-+   "de/spieler/p-schick-794/index.html": {"classes": 16},
-+   "de/spieler/p-tietz-26171/index.html": {"classes": 16},
-+   "de/spieler/r-onyedika-162219/index.html": {"classes": 16},
-+   "de/spieler/r-schallenberg-88140/index.html": {"classes": 16},
-+   "de/spieler/raphinha-1496/index.html": {"classes": 16},
-+   "de/spieler/renato-veiga-336671/index.html": {"classes": 16},
-+   "de/spieler/ruben-dias-567/index.html": {"classes": 16},
-+   "de/spieler/s-becker-37938/index.html": {"classes": 16},
-+   "de/spieler/s-inacio-478991/index.html": {"classes": 16},
-+   "de/spieler/t-kleindienst-26256/index.html": {"classes": 16},
-+   "de/spieler/t-krau-1156/index.html": {"classes": 16},
-+   "de/spieler/t-rothe-324957/index.html": {"classes": 16},
-+   "de/spieler/tomas-araujo-161939/index.html": {"classes": 16},
-+   "de/spieler/v-pavlidis-36798/index.html": {"classes": 16},
-+   "de/spieler/vitinha-128384/index.html": {"classes": 16},
-+   "de/spieler/w-anton-25368/index.html": {"classes": 16},
-+   "de/spieler/w-burger-37153/index.html": {"classes": 16},
-+   "de/spieler/y-ebnoutalib-409190/index.html": {"classes": 16},
-+   "de/spieler/y-suzuki-199143/index.html": {"classes": 16},
-+   "de/super-lig/index.html": {"classes": 21},
-+   "de/uefa-super-cup/index.html": {"classes": 21},
-+   "de/veikkausliiga/index.html": {"classes": 21},
-+   "de/world-cup-qualification-africa/index.html": {"classes": 21},
-+   "de/world-cup-qualification-asia/index.html": {"classes": 21},
-+   "de/world-cup-qualification-concacaf/index.html": {"classes": 21},
-+   "de/world-cup-qualification-europe/index.html": {"classes": 21},
-+   "de/world-cup-qualification-oceania/index.html": {"classes": 21},
-+   "de/world-cup-qualification-playoffs/index.html": {"classes": 21},
-+   "de/world-cup-qualification-south-america/index.html": {"classes": 21},
-+   "de/world-cup/index.html": {"classes": 21},
-+   "en/2-bundesliga/index.html": {"classes": 21},
-+   "en/afc-champions-league/index.html": {"classes": 21},
-+   "en/africa-cup-of-nations/index.html": {"classes": 21},
-+   "en/asian-cup/index.html": {"classes": 21},
-+   "en/belgian-pro-league/index.html": {"classes": 21},
-+   "en/brasileirao/index.html": {"classes": 21},
-+   "en/caf-champions-league/index.html": {"classes": 21},
-+   "en/champions-league/index.html": {"classes": 21},
-+   "en/club-world-cup/index.html": {"classes": 21},
-+   "en/concacaf-champions-cup/index.html": {"classes": 21},
-+   "en/concacaf-nations-league/index.html": {"classes": 21},
-+   "en/conference-league/index.html": {"classes": 21},
-+   "en/copa-america/index.html": {"classes": 21},
-+   "en/copa-del-rey/index.html": {"classes": 21},
-+   "en/copa-libertadores/index.html": {"classes": 21},
-+   "en/coppa-italia/index.html": {"classes": 21},
-+   "en/coupe-de-france/index.html": {"classes": 21},
-+   "en/dfb-pokal/index.html": {"classes": 21},
-+   "en/ekstraklasa/index.html": {"classes": 21},
-+   "en/eredivisie/index.html": {"classes": 21},
-+   "en/euro/index.html": {"classes": 21},
-+   "en/europa-league/index.html": {"classes": 21},
-+   "en/fa-cup/index.html": {"classes": 21},
-+   "en/gold-cup/index.html": {"classes": 21},
-+   "en/j1-league/index.html": {"classes": 21},
-+   "en/k-league-1/index.html": {"classes": 21},
-+   "en/la-liga/index.html": {"classes": 21},
-+   "en/liga-mx/index.html": {"classes": 21},
-+   "en/liga-portugal/index.html": {"classes": 21},
-+   "en/liga-profesional-argentina/index.html": {"classes": 21},
-+   "en/ligue-1/index.html": {"classes": 21},
-+   "en/mls/index.html": {"classes": 21},
-+   "en/nations-league/index.html": {"classes": 21},
-+   "en/players/a-daghim-362564/index.html": {"classes": 16},
-+   "en/players/a-nusa-314511/index.html": {"classes": 16},
-+   "en/players/a-pavlovic-328033/index.html": {"classes": 16},
-+   "en/players/a-raimondo-314254/index.html": {"classes": 16},
-+   "en/players/aleix-garcia-47516/index.html": {"classes": 16},
-+   "en/players/bernardo-18964/index.html": {"classes": 16},
-+   "en/players/c-matsima-163039/index.html": {"classes": 16},
-+   "en/players/c-tengstedt-162703/index.html": {"classes": 16},
-+   "en/players/c-uzun-339887/index.html": {"classes": 16},
-+   "en/players/d-raum-25158/index.html": {"classes": 16},
-+   "en/players/d-upamecano-1149/index.html": {"classes": 16},
-+   "en/players/e-fernandez-237087/index.html": {"classes": 16},
-+   "en/players/e-haaland-1100/index.html": {"classes": 16},
-+   "en/players/e-skhiri-21587/index.html": {"classes": 16},
-+   "en/players/f-dahmen-25903/index.html": {"classes": 16},
-+   "en/players/f-keidel-280070/index.html": {"classes": 16},
-+   "en/players/f-thauvin-1922/index.html": {"classes": 16},
-+   "en/players/f-uduokhai-25406/index.html": {"classes": 16},
-+   "en/players/f-wirtz-203224/index.html": {"classes": 16},
-+   "en/players/g-calo-32011/index.html": {"classes": 16},
-+   "en/players/g-prestianni-362755/index.html": {"classes": 16},
-+   "en/players/g-read-359390/index.html": {"classes": 16},
-+   "en/players/h-kane-184/index.html": {"classes": 16},
-+   "en/players/hennes-behrens-353143/index.html": {"classes": 16},
-+   "en/players/i-matanovic-202696/index.html": {"classes": 16},
-+   "en/players/j-brandt-984/index.html": {"classes": 16},
-+   "en/players/j-kimmich-502/index.html": {"classes": 16},
-+   "en/players/j-tah-972/index.html": {"classes": 16},
-+   "en/players/kim-min-jae-2897/index.html": {"classes": 16},
-+   "en/players/l-curda-163078/index.html": {"classes": 16},
-+   "en/players/l-ferguson-44814/index.html": {"classes": 16},
-+   "en/players/l-karius-1972/index.html": {"classes": 16},
-+   "en/players/l-petkov-177452/index.html": {"classes": 16},
-+   "en/players/lamine-yamal-386828/index.html": {"classes": 16},
-+   "en/players/m-ginter-2915/index.html": {"classes": 16},
-+   "en/players/m-gregoritsch-25297/index.html": {"classes": 16},
-+   "en/players/m-grull-7073/index.html": {"classes": 16},
-+   "en/players/m-moore-380690/index.html": {"classes": 16},
-+   "en/players/m-olise-19617/index.html": {"classes": 16},
-+   "en/players/m-vandevoordt-1924/index.html": {"classes": 16},
-+   "en/players/m-willemsen-327347/index.html": {"classes": 16},
-+   "en/players/miguel-gutierrez-162032/index.html": {"classes": 16},
-+   "en/players/n-amiri-714/index.html": {"classes": 16},
-+   "en/players/n-atubolu-178768/index.html": {"classes": 16},
-+   "en/players/n-capaldo-5973/index.html": {"classes": 16},
-+   "en/players/n-djouahra-47308/index.html": {"classes": 16},
-+   "en/players/n-el-aynaoui-277003/index.html": {"classes": 16},
-+   "en/players/n-fullkrug-25391/index.html": {"classes": 16},
-+   "en/players/n-katic-1741/index.html": {"classes": 16},
-+   "en/players/n-noll-203329/index.html": {"classes": 16},
-+   "en/players/nacho-ferri-353943/index.html": {"classes": 16},
-+   "en/players/p-dybala-875/index.html": {"classes": 16},
-+   "en/players/p-gro-18970/index.html": {"classes": 16},
-+   "en/players/p-schick-794/index.html": {"classes": 16},
-+   "en/players/p-tietz-26171/index.html": {"classes": 16},
-+   "en/players/r-onyedika-162219/index.html": {"classes": 16},
-+   "en/players/r-schallenberg-88140/index.html": {"classes": 16},
-+   "en/players/raphinha-1496/index.html": {"classes": 16},
-+   "en/players/renato-veiga-336671/index.html": {"classes": 16},
-+   "en/players/ruben-dias-567/index.html": {"classes": 16},
-+   "en/players/s-becker-37938/index.html": {"classes": 16},
-+   "en/players/s-inacio-478991/index.html": {"classes": 16},
-+   "en/players/t-kleindienst-26256/index.html": {"classes": 16},
-+   "en/players/t-krau-1156/index.html": {"classes": 16},
-+   "en/players/t-rothe-324957/index.html": {"classes": 16},
-+   "en/players/tomas-araujo-161939/index.html": {"classes": 16},
-+   "en/players/v-pavlidis-36798/index.html": {"classes": 16},
-+   "en/players/vitinha-128384/index.html": {"classes": 16},
-+   "en/players/w-anton-25368/index.html": {"classes": 16},
-+   "en/players/w-burger-37153/index.html": {"classes": 16},
-+   "en/players/y-ebnoutalib-409190/index.html": {"classes": 16},
-+   "en/players/y-suzuki-199143/index.html": {"classes": 16},
-+   "en/premier-league/index.html": {"classes": 21},
-+   "en/saudi-pro-league/index.html": {"classes": 21},
-+   "en/serie-a/index.html": {"classes": 21},
-+   "en/super-lig/index.html": {"classes": 21},
-+   "en/uefa-super-cup/index.html": {"classes": 21},
-+   "en/veikkausliiga/index.html": {"classes": 21},
-+   "en/world-cup-qualification-africa/index.html": {"classes": 21},
-+   "en/world-cup-qualification-asia/index.html": {"classes": 21},
-+   "en/world-cup-qualification-concacaf/index.html": {"classes": 21},
-+   "en/world-cup-qualification-europe/index.html": {"classes": 21},
-+   "en/world-cup-qualification-oceania/index.html": {"classes": 21},
-+   "en/world-cup-qualification-playoffs/index.html": {"classes": 21},
-+   "en/world-cup-qualification-south-america/index.html": {"classes": 21},
-+   "en/world-cup/index.html": {"classes": 21},
-+   "fi/2-bundesliga/index.html": {"classes": 21},
-+   "fi/afc-champions-league/index.html": {"classes": 21},
-+   "fi/africa-cup-of-nations/index.html": {"classes": 21},
-+   "fi/asian-cup/index.html": {"classes": 21},
-+   "fi/belgian-pro-league/index.html": {"classes": 21},
-+   "fi/brasileirao/index.html": {"classes": 21},
-+   "fi/caf-champions-league/index.html": {"classes": 21},
-+   "fi/champions-league/index.html": {"classes": 21},
-+   "fi/club-world-cup/index.html": {"classes": 21},
-+   "fi/concacaf-champions-cup/index.html": {"classes": 21},
-+   "fi/concacaf-nations-league/index.html": {"classes": 21},
-+   "fi/conference-league/index.html": {"classes": 21},
-+   "fi/copa-america/index.html": {"classes": 21},
-+   "fi/copa-del-rey/index.html": {"classes": 21},
-+   "fi/copa-libertadores/index.html": {"classes": 21},
-+   "fi/coppa-italia/index.html": {"classes": 21},
-+   "fi/coupe-de-france/index.html": {"classes": 21},
-+   "fi/dfb-pokal/index.html": {"classes": 21},
-+   "fi/ekstraklasa/index.html": {"classes": 21},
-+   "fi/eredivisie/index.html": {"classes": 21},
-+   "fi/euro/index.html": {"classes": 21},
-+   "fi/europa-league/index.html": {"classes": 21},
-+   "fi/fa-cup/index.html": {"classes": 21},
-+   "fi/gold-cup/index.html": {"classes": 21},
-+   "fi/j1-league/index.html": {"classes": 21},
-+   "fi/k-league-1/index.html": {"classes": 21},
-+   "fi/la-liga/index.html": {"classes": 21},
-+   "fi/liga-mx/index.html": {"classes": 21},
-+   "fi/liga-portugal/index.html": {"classes": 21},
-+   "fi/liga-profesional-argentina/index.html": {"classes": 21},
-+   "fi/ligue-1/index.html": {"classes": 21},
-+   "fi/mls/index.html": {"classes": 21},
-+   "fi/nations-league/index.html": {"classes": 21},
-+   "fi/pelaajat/a-daghim-362564/index.html": {"classes": 16},
-+   "fi/pelaajat/a-nusa-314511/index.html": {"classes": 16},
-+   "fi/pelaajat/a-pavlovic-328033/index.html": {"classes": 16},
-+   "fi/pelaajat/a-raimondo-314254/index.html": {"classes": 16},
-+   "fi/pelaajat/aleix-garcia-47516/index.html": {"classes": 16},
-+   "fi/pelaajat/bernardo-18964/index.html": {"classes": 16},
-+   "fi/pelaajat/c-matsima-163039/index.html": {"classes": 16},
-+   "fi/pelaajat/c-tengstedt-162703/index.html": {"classes": 16},
-+   "fi/pelaajat/c-uzun-339887/index.html": {"classes": 16},
-+   "fi/pelaajat/d-raum-25158/index.html": {"classes": 16},
-+   "fi/pelaajat/d-upamecano-1149/index.html": {"classes": 16},
-+   "fi/pelaajat/e-fernandez-237087/index.html": {"classes": 16},
-+   "fi/pelaajat/e-haaland-1100/index.html": {"classes": 16},
-+   "fi/pelaajat/e-skhiri-21587/index.html": {"classes": 16},
-+   "fi/pelaajat/f-dahmen-25903/index.html": {"classes": 16},
-+   "fi/pelaajat/f-keidel-280070/index.html": {"classes": 16},
-+   "fi/pelaajat/f-thauvin-1922/index.html": {"classes": 16},
-+   "fi/pelaajat/f-uduokhai-25406/index.html": {"classes": 16},
-+   "fi/pelaajat/f-wirtz-203224/index.html": {"classes": 16},
-+   "fi/pelaajat/g-calo-32011/index.html": {"classes": 16},
-+   "fi/pelaajat/g-prestianni-362755/index.html": {"classes": 16},
-+   "fi/pelaajat/g-read-359390/index.html": {"classes": 16},
-+   "fi/pelaajat/h-kane-184/index.html": {"classes": 16},
-+   "fi/pelaajat/hennes-behrens-353143/index.html": {"classes": 16},
-+   "fi/pelaajat/i-matanovic-202696/index.html": {"classes": 16},
-+   "fi/pelaajat/j-brandt-984/index.html": {"classes": 16},
-+   "fi/pelaajat/j-kimmich-502/index.html": {"classes": 16},
-+   "fi/pelaajat/j-tah-972/index.html": {"classes": 16},
-+   "fi/pelaajat/kim-min-jae-2897/index.html": {"classes": 16},
-+   "fi/pelaajat/l-curda-163078/index.html": {"classes": 16},
-+   "fi/pelaajat/l-ferguson-44814/index.html": {"classes": 16},
-+   "fi/pelaajat/l-karius-1972/index.html": {"classes": 16},
-+   "fi/pelaajat/l-petkov-177452/index.html": {"classes": 16},
-+   "fi/pelaajat/lamine-yamal-386828/index.html": {"classes": 16},
-+   "fi/pelaajat/m-ginter-2915/index.html": {"classes": 16},
-+   "fi/pelaajat/m-gregoritsch-25297/index.html": {"classes": 16},
-+   "fi/pelaajat/m-grull-7073/index.html": {"classes": 16},
-+   "fi/pelaajat/m-moore-380690/index.html": {"classes": 16},
-+   "fi/pelaajat/m-olise-19617/index.html": {"classes": 16},
-+   "fi/pelaajat/m-vandevoordt-1924/index.html": {"classes": 16},
-+   "fi/pelaajat/m-willemsen-327347/index.html": {"classes": 16},
-+   "fi/pelaajat/miguel-gutierrez-162032/index.html": {"classes": 16},
-+   "fi/pelaajat/n-amiri-714/index.html": {"classes": 16},
-+   "fi/pelaajat/n-atubolu-178768/index.html": {"classes": 16},
-+   "fi/pelaajat/n-capaldo-5973/index.html": {"classes": 16},
-+   "fi/pelaajat/n-djouahra-47308/index.html": {"classes": 16},
-+   "fi/pelaajat/n-el-aynaoui-277003/index.html": {"classes": 16},
-+   "fi/pelaajat/n-fullkrug-25391/index.html": {"classes": 16},
-+   "fi/pelaajat/n-katic-1741/index.html": {"classes": 16},
-+   "fi/pelaajat/n-noll-203329/index.html": {"classes": 16},
-+   "fi/pelaajat/nacho-ferri-353943/index.html": {"classes": 16},
-+   "fi/pelaajat/p-dybala-875/index.html": {"classes": 16},
-+   "fi/pelaajat/p-gro-18970/index.html": {"classes": 16},
-+   "fi/pelaajat/p-schick-794/index.html": {"classes": 16},
-+   "fi/pelaajat/p-tietz-26171/index.html": {"classes": 16},
-+   "fi/pelaajat/r-onyedika-162219/index.html": {"classes": 16},
-+   "fi/pelaajat/r-schallenberg-88140/index.html": {"classes": 16},
-+   "fi/pelaajat/raphinha-1496/index.html": {"classes": 16},
-+   "fi/pelaajat/renato-veiga-336671/index.html": {"classes": 16},
-+   "fi/pelaajat/ruben-dias-567/index.html": {"classes": 16},
-+   "fi/pelaajat/s-becker-37938/index.html": {"classes": 16},
-+   "fi/pelaajat/s-inacio-478991/index.html": {"classes": 16},
-+   "fi/pelaajat/t-kleindienst-26256/index.html": {"classes": 16},
-+   "fi/pelaajat/t-krau-1156/index.html": {"classes": 16},
-+   "fi/pelaajat/t-rothe-324957/index.html": {"classes": 16},
-+   "fi/pelaajat/tomas-araujo-161939/index.html": {"classes": 16},
-+   "fi/pelaajat/v-pavlidis-36798/index.html": {"classes": 16},
-+   "fi/pelaajat/vitinha-128384/index.html": {"classes": 16},
-+   "fi/pelaajat/w-anton-25368/index.html": {"classes": 16},
-+   "fi/pelaajat/w-burger-37153/index.html": {"classes": 16},
-+   "fi/pelaajat/y-ebnoutalib-409190/index.html": {"classes": 16},
-+   "fi/pelaajat/y-suzuki-199143/index.html": {"classes": 16},
-+   "fi/premier-league/index.html": {"classes": 21},
-+   "fi/saudi-pro-league/index.html": {"classes": 21},
-+   "fi/serie-a/index.html": {"classes": 21},
-+   "fi/super-lig/index.html": {"classes": 21},
-+   "fi/uefa-super-cup/index.html": {"classes": 21},
-+   "fi/veikkausliiga/index.html": {"classes": 21},
-+   "fi/world-cup-qualification-africa/index.html": {"classes": 21},
-+   "fi/world-cup-qualification-asia/index.html": {"classes": 21},
-+   "fi/world-cup-qualification-concacaf/index.html": {"classes": 21},
-+   "fi/world-cup-qualification-europe/index.html": {"classes": 21},
-+   "fi/world-cup-qualification-oceania/index.html": {"classes": 21},
-+   "fi/world-cup-qualification-playoffs/index.html": {"classes": 21},
-+   "fi/world-cup-qualification-south-america/index.html": {"classes": 21},
-+   "fi/world-cup/index.html": {"classes": 21},
-+   "gen_interaction.py/interaction_standard.html": {"scroll": 2, "split": 2, "classes": 17, "miss · Competition group head": 6},
-+   "gen_matches_hub.py/matches-hub_2026-09-26.html": {"scroll": 9, "classes": 27},
-+   "gen_sitemap.py/sitemap_overview.html": {"scroll": 4, "overflow": 5, "split": 28, "classes": 29, "miss · (page)": 6},
-+   "gen_taxonomy.py/taxonomy_options.html": {"scroll": 1, "overflow": 34, "split": 5, "classes": 14, "miss · (page)": 6},
-    "home": {"classes": 21},
-    "home legacy": {"split": 6, "classes": 23},
-+   "index.html": {"miss · (page)": 6},
-    "matches hub": {"scroll": 9, "classes": 27},
-    "matches next": {"classes": 21},
-    "matches past": {"classes": 22},
-diff --git a/tests/test_design_inventory.py b/tests/test_design_inventory.py
-index df5c35f5..b9a23f3c 100644
---- a/tests/test_design_inventory.py
-+++ b/tests/test_design_inventory.py
-@@ -48,7 +48,7 @@ PAGES = textwrap.dedent("""\
- 
-     | Page | Kind | Source | URL | FI | Expect |
-     |---|---|---|---|---|---|
--    | home | mock | `gen_home.py {out}` | `home.html` | toggle | Block heading |
-+    | home | mock | `gen_home.py` | `home.html` | toggle | Block heading |
-     """)
- 
- 
-@@ -437,9 +437,10 @@ def _run_check(tmp_path: Path, name: str) -> tuple[int, str]:
-     folder.mkdir(exist_ok=True)
-     shutil.copy(FIXTURES / ("%s.html" % name), folder / ("%s.html" % name))
-     shutil.copy(SYSTEM_CSS, folder / "system.css")
-+    # The fixtures reconstruct the competition page as it was ruled, at the widths it was ruled at.
-     proc = subprocess.run(
-         [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks", "--no-built",
--         "--page", "%s=%s" % (name, folder / ("%s.html" % name)), "--langs", "en"],
-+         "--page", "%s=%s" % (name, folder / ("%s.html" % name)), "--langs", "en", "--viewports", "375,700,1010"],
-         capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
-     )
-     return proc.returncode, proc.stdout + proc.stderr
-@@ -484,14 +485,160 @@ def test_the_gap_counts_count_each_defect_once(tmp_path):
-     assert "not compared: a narrower run than the baseline's" in out, out
- 
- 
--def test_the_rendered_baseline_names_only_inventory_pages_and_counts():
--    rendered = di.load_baseline()["rendered"]
-+def test_the_baseline_names_only_pages_the_check_renders_and_counts_it_knows():
-+    baseline = di.load_baseline()
-+    rendered = baseline["rendered"]
-     assert rendered["platform"] == "linux", "the baseline is measured in validate:ui's browser image"
-     names = {p.name for p in di.load().pages}
-     import check_design_inventory as cdi  # noqa: PLC0415
-     for page, by_count in rendered["pages"].items():
--        assert page in names, page
--        assert set(by_count) <= set(cdi.COUNTS) and all(n > 0 for n in by_count.values()), (page, by_count)
-+        assert page in names or page.endswith(".html"), page
-+        assert all(k in cdi.COUNTS or k.startswith(cdi.MISS) for k in by_count), (page, by_count)
-+        assert all(n > 0 for n in by_count.values()), (page, by_count)
-+    assert set(baseline["coverage"]) <= set(cdi.COVERAGE)
-+    assert set(baseline["coverage"].get("generator fails", {})) <= set(cdi.generators())
-+
-+
-+def test_every_mock_row_names_a_generator_on_disk():
-+    import check_design_inventory as cdi  # noqa: PLC0415
-+    gens = set(cdi.generators())
-+    for p in di.load().pages:
-+        if p.kind == "mock":
-+            assert p.source in gens, (p.name, p.source)
-+
-+
-+def test_the_check_owns_every_built_file_and_counts_the_rest(tmp_path):
-+    import check_design_inventory as cdi  # noqa: PLC0415
-+    dist = tmp_path / "dist"
-+    for rel in ("index.html", "en/index.html", "en/teams/a/index.html", "en/teams/b/index.html", "en/players/p/index.html"):
-+        (dist / rel).parent.mkdir(parents=True, exist_ok=True)
-+        (dist / rel).write_text("<p>x</p>", encoding="utf-8")
-+    pages = [di.Page("Home", "built", "site_v2/dist", "en/index.html", "path", ()),
-+             di.Page("Team page", "built", "site_v2/dist", "en/teams/*/index.html", "path", ()),
-+             di.Page("Team a", "built", "site_v2/dist", "en/teams/a/index.html", "path", ())]
-+    run = cdi.plan(pages, ["en"], dist, {}, {}, every_file=True)
-+    assert {path: p.name for p, _lang, _root, path in run.targets} == {
-+        "index.html": "index.html", "en/index.html": "Home", "en/teams/a/index.html": "Team a",
-+        "en/teams/b/index.html": "Team page", "en/players/p/index.html": "en/players/p/index.html"}
-+    assert run.coverage == {"page with no row": {"en/players/p/index.html": 1, "index.html": 1}}
-+    assert run.failures == []
-+    root = di.Page("Root", "built", "site_v2/dist", "index.html", "path", ())
-+    run = cdi.plan(pages + [root], ["en", "de", "fi"], dist, {}, {}, every_file=True)
-+    assert [f.detail for f in run.failures if f.page == "Root"] == [], "a row matching one file in every language is not a clash"
-+    pages.append(di.Page("Other", "built", "site_v2/dist", "en/*/b/index.html", "path", ()))
-+    pages.append(di.Page("Team a again", "built", "site_v2/dist", "en/teams/a/index.html", "path", ()))
-+    run = cdi.plan(pages, ["en"], dist, {}, {}, every_file=True)
-+    assert [f.detail for f in run.failures] == ["en/teams/b/index.html is also matched by Team page",
-+                                                "en/teams/a/index.html is also matched by Team a"]
-+
-+
-+def test_every_generator_is_run_and_one_that_fails_or_writes_nothing_is_counted(tmp_path):
-+    import check_design_inventory as cdi  # noqa: PLC0415
-+    mocks = tmp_path / "mocks"
-+    mocks.mkdir()
-+    (mocks / "gen_ok.py").write_text(
-+        "import pathlib, sys\nd = pathlib.Path(sys.argv[2])\n(d / 'a.html').write_text('<p>a</p>')\n"
-+        "(d / 'b.html').write_text('<label for=\"t-fi\"></label>')\n", encoding="utf-8")
-+    (mocks / "gen_bad.py").write_text("raise SystemExit('drift')\n", encoding="utf-8")
-+    (mocks / "gen_silent.py").write_text("pass\n", encoding="utf-8")
-+    (mocks / "helper.py").write_text("raise SystemExit('not a generator')\n", encoding="utf-8")
-+    assert cdi.generators(mocks) == ["gen_bad.py", "gen_ok.py", "gen_silent.py"]
-+    out, failed = cdi.run_generators(cdi.generators(mocks), tmp_path / "out", mocks)
-+    assert set(out) == {"gen_ok.py"}
-+    assert failed == {"gen_bad.py": "exit 1: drift", "gen_silent.py": "wrote no page into --out DIR"}
-+    pages = [di.Page("a page", "mock", "gen_ok.py", "a.html", "toggle", ()),
-+             di.Page("gone", "mock", "gen_ok.py", "c.html", "toggle", ())]
-+    run = cdi.plan(pages, ["en", "de", "fi"], None, out, failed, every_file=True)
-+    assert {(p.name, lang) for p, lang, _root, _path in run.targets} == {
-+        ("a page", "en"), ("a page", "fi"), ("gen_ok.py/b.html", "en"), ("gen_ok.py/b.html", "fi")}
-+    assert run.coverage == {"generator fails": {"gen_bad.py": 1, "gen_silent.py": 1},
-+                            "mock page with no row": {"gen_ok.py/b.html": 1},
-+                            "language missing": {"a page": 1, "gen_ok.py/b.html": 1}}
-+    assert [f.detail for f in run.failures] == ["gen_ok.py wrote no c.html"]
-+
-+
-+@needs_browser
-+def test_a_coverage_gap_or_a_miss_off_its_pin_fails_a_full_run(tmp_path):
-+    doc = _doc(tmp_path, GOOD_ROW, "\n## Pages\n\n| Page | Kind | Source | URL | FI | Expect |\n|---|---|---|---|---|---|\n"
-+               "| Home | built | `site_v2/dist` | `en/index.html` | path | Block heading |\n")
-+    dist = tmp_path / "dist"
-+    for rel in ("en/index.html", "de/index.html", "fi/index.html", "en/extra/index.html"):
-+        (dist / rel).parent.mkdir(parents=True, exist_ok=True)
-+        (dist / rel).write_text('<!doctype html><body><div class="sechead"><span class="eyebrow">Block</span></div></body>',
-+                                encoding="utf-8")
-+    mocks = tmp_path / "mocks"
-+    mocks.mkdir()
-+    (mocks / "gen_bad.py").write_text("raise SystemExit('drift')\n", encoding="utf-8")
-+
-+    def run(rendered: dict, coverage: dict, n: int) -> tuple[int, str, dict]:
-+        baseline, artifacts = tmp_path / ("baseline%d.json" % n), tmp_path / ("artifacts%d" % n)
-+        baseline.write_text(json.dumps({"static": {}, "coverage": coverage,
-+                                        "rendered": {"platform": sys.platform, "pages": rendered}}), encoding="utf-8")
-+        proc = subprocess.run(
-+            [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--inventory", str(doc),
-+             "--dist", str(dist), "--mocks", str(mocks), "--baseline", str(baseline), "--artifacts", str(artifacts)],
-+            capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"})
-+        return proc.returncode, proc.stdout + proc.stderr, json.loads((artifacts / "counts.json").read_text(encoding="utf-8"))
-+
-+    code, out, counts = run({}, {}, 1)
-+    assert code == 1, out
-+    assert "count rose · generator fails · gen_bad.py · 1, baseline 0" in out, out
-+    assert "count rose · page with no row · en/extra/index.html · 1, baseline 0" in out, out
-+    assert "INFO  gen_bad.py · 0 · - · (generator) · exit 1: drift" in out, out
-+    misses = counts["pages"]["Home"]["miss · Block heading"]
-+    assert misses > 0, counts["pages"]
-+    code, out, _ = run(counts["pages"], counts["coverage"], 2)
-+    assert code == 0, out
-+    counts["pages"]["Home"]["miss · Block heading"] -= 1
-+    code, out, _ = run(counts["pages"], counts["coverage"], 3)
-+    assert code == 1, out
-+    assert "count rose · Home · miss · Block heading · %d, baseline %d" % (misses, misses - 1) in out, out
-+
-+
-+def test_a_pin_may_not_rise_above_mains_and_a_new_entry_starts_at_zero():
-+    base = {"static": {"g": {"a": 2}}, "coverage": {}, "rendered": {"platform": "linux", "pages": {"Home": {"split": 3}}}}
-+    now = json.loads(json.dumps(base))
-+    now["static"]["g"]["a"] = 1
-+    assert di.rises(now, base) == []
-+    now["rendered"]["pages"]["Home"]["split"] = 4
-+    now["coverage"]["page with no row"] = {"en/new/index.html": 1}
-+    now["rendered"]["pages"]["New page"] = {"overflow": 0}
-+    assert di.rises(now, base) == ["coverage · page with no row · en/new/index.html · 1, main 0",
-+                                   "rendered · Home · split · 4, main 3"]
-+
-+
-+def _mains_baseline() -> dict:
-+    """The baseline on the branch this one merges into: the MR's base in an MR pipeline, the first
-+    parent on any other CI pipeline, the merge base with GitLab's main on a working copy."""
-+    def git(*args):
-+        return subprocess.run(["git", "-c", "safe.directory=*", *args], cwd=REPO, capture_output=True, text=True,
-+                              encoding="utf-8")
-+
-+    ref = os.environ.get("CI_MERGE_REQUEST_DIFF_BASE_SHA") or ("HEAD^1" if os.environ.get("CI") else "")
-+    if not ref:
-+        remote = "gitlab/main" if git("rev-parse", "--verify", "-q", "gitlab/main").returncode == 0 else "origin/main"
-+        ref = git("merge-base", "HEAD", remote).stdout.strip()
-+    assert ref, "no base to compare the baseline with"
-+    path ="%s:tests/fixtures/design_inventory/baseline.json" % ref
-+    proc = git("show", path)
-+    if proc.returncode and os.environ.get("CI"):
-+        # A shallow CI clone may not hold the base commit; fetch it.
-+        if ref == "HEAD^1":
-+            git("fetch", "--no-tags", "--deepen=1", "origin")
-+        else:
-+            git("fetch", "--no-tags", "--depth=1", "origin", ref)
-+        proc = git("show", path)
-+    assert proc.returncode == 0, "main's baseline is not in this clone (%s): %s" % (ref, proc.stderr.strip())
-+    return json.loads(proc.stdout)
-+
-+
-+def test_no_pin_rises_above_mains():
-+    current, base = di.load_baseline(), _mains_baseline()
-+    if "coverage" not in base:
-+        # Main's baseline predates the count over every page; this branch introduces it.
-+        return
-+    up = di.rises(current, base)
-+    assert up == [], "a pin rose above main's; a new gap is fixed, not pinned:\n" + "\n".join(up)
- 
- 
- def _built_page_check(tmp_path: Path, html: str) -> tuple[int, str]:
-diff --git a/tests/test_no_decision_history_in_docs.py b/tests/test_no_decision_history_in_docs.py
-index 364dfac3..e5356150 100644
---- a/tests/test_no_decision_history_in_docs.py
-+++ b/tests/test_no_decision_history_in_docs.py
-@@ -58,7 +58,7 @@ PINNED = {
-     "docs/wireframes/13_player_career.md": 11,
-     "docs/wireframes/14_team_stats.md": 9,
-     "docs/wireframes/99_gaps_register.md": 29,
--    "docs/wireframes/block_standard.md": 47,
-+    "docs/wireframes/block_standard.md": 46,
-     "docs/wireframes/metrics_display.md": 30,
-     "site_v2/src/data/README.md": 5,
+-  - check_page_css.py and check_design_inventory.py --dist site_v2/dist pass against the baseline, and every built file and every generator is rendered or counted.
+-  - A planted page with no row, a planted failing generator and a raised pin each turn the tests red.
+-  - Every generator that runs today writes byte-identical output with --out.
+-  - The full pytest, npm run build in site_v2 (sample data), the offline gates and pre-commit pass.
+-  - The baseline's rendered counts are the ones measured by validate:ui on the MR pipeline.
++  - An ordinary contract's Edit to each of the four files is denied by task_contract_gate.py with the PROTECTED message (new hook test).
++  - With protected_override and no impact_map, each of the four is denied for the missing impact_map.
++  - tests/test_governance_hooks.py, tests/test_governance_doc_parity.py and tests/test_design_inventory.py pass.
++  - The offline gates and pre-commit pass; an MR is open, never merged.
+ 
+ amendments:
+-  - "The validate-local skill's Tier 1b describes what the measured check renders; it is added to scope_paths so it states the check as changed by this task. Doc-sync of the approved plan (approved in chat, 2026-11-02); no new decision."
++  - "+ tests/test_sentence_length_in_docs.py — authority: the standing rule that a pin only moves down; content: cto-reviewer.md's long-sentence pin falls from 20 to 19, because its edited sentence on opus coverage was split to pass the sentence-length gate."
++  - "impact_map corrected after review round 1 — authority: cto-reviewer's FAIL; content: only the PreToolUse paths refuse the edit, CI's cover is the routing rows, and the out-of-scope net now exempts the four files in any task with protected_override. No scope or code change."
+diff --git a/docs/north_star.md b/docs/north_star.md
+index bb7b3d46..714e9a42 100644
+--- a/docs/north_star.md
++++ b/docs/north_star.md
+@@ -101,8 +101,8 @@ Each linked role has a brief in [`roles/`](roles/). A role is live only when som
+ | Role | Responsibility | Wakes on |
+ |------|----------------|----------|
+ | CPO | Product, copy, naming, cost, anything permanent. Merges. | every decision class in `working_agreement.md` §10 |
+-| [CTO / Tech Strategist](roles/cto.md) | Authority only: new mechanisms, dependencies, guard invariants, recurring cost, secrets. Owns no territory and reviews no implementation. | a property of the change. **12 rows**: the 9 guard paths, `*requirements*.txt`, `site_v2/package.json` + `package-lock.json` |
+-| [Platform and Reliability](roles/platform_reliability.md) | The machinery: scripts, tests, hooks, CI, dependency pinning, the site build and hosting. | `scripts/**`, `tests/**`, `*requirements*.txt`, `.claude/hooks/**`, `.github/workflows/**`, `.gitlab-ci.yml`, the site build + hosting config |
++| [CTO / Tech Strategist](roles/cto.md) | Authority only: new mechanisms, dependencies, guard invariants, recurring cost, secrets. Owns no territory and reviews no implementation. | a property of the change. **16 rows**: the 13 guard paths, `*requirements*.txt`, `site_v2/package.json` + `package-lock.json` |
++| [Platform and Reliability](roles/platform_reliability.md) | The machinery: scripts, tests, hooks, CI, dependency pinning, the site build and hosting. | `scripts/**`, `tests/**`, `*requirements*.txt`, `.claude/hooks/**`, `.github/workflows/**`, `.gitlab-ci.yml`, `scripts/check_design_inventory.py`, `scripts/check_page_css.py`, `scripts/design_inventory.py`, `tests/test_design_inventory.py`, the site build + hosting config |
+ | [Analytics Engineer](roles/analytics_engineer.md) | dbt models, data quality, layer architecture | `dbt_project/**`, `scripts/export_*.py` |
+ | [Data Engineer](roles/data_engineer.md) | Ingestion, BigQuery, pipeline reliability | `ingestion/**`, the competition registry, the data contract |
+ | [Football Analytics Expert](roles/football_analytics_expert.md) | Which metrics matter in football and why: domain truth | `metric_catalogue.csv` |
+diff --git a/docs/roles/platform_reliability.md b/docs/roles/platform_reliability.md
+index 16ae0c45..019fe19f 100644
+--- a/docs/roles/platform_reliability.md
++++ b/docs/roles/platform_reliability.md
+@@ -64,8 +64,9 @@ that carries it from a commit to a served page without anyone having to remember
+ recurring cost is *allowed* is the CTO's ruling. This role reviews the implementation of what was
+ allowed.
+ 
+-**On exactly three of the nine guard paths** — `.claude/hooks/**`, `.github/workflows/**` and
+-`.gitlab-ci.yml` — this
++**On exactly seven of the thirteen guard paths** — `.claude/hooks/**`, `.github/workflows/**`,
++`.gitlab-ci.yml`, `scripts/check_design_inventory.py`, `scripts/check_page_css.py`,
++`scripts/design_inventory.py` and `tests/test_design_inventory.py` — this
+ role and the CTO review the same diff for different things, both at the opus floor, because the G3
+ commit-gate bypasses were fail-open and test-coverage findings and those are this role's items. **On
+ the other six it is not routed at all** (`.claude/agents/**`, `.claude/commands/**`,
+diff --git a/docs/working_agreement.md b/docs/working_agreement.md
+index d9c14ffd..7ec74d40 100644
+--- a/docs/working_agreement.md
++++ b/docs/working_agreement.md
+@@ -133,7 +133,9 @@ extension of the contract without recorded CPO authority is drift.
+ 
+ The protected paths are `.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`,
+ `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`,
+-`.github/workflows/**` and `.gitlab-ci.yml`. A guard path is a protected path.
++`.github/workflows/**`, `.gitlab-ci.yml`, `scripts/check_design_inventory.py`,
++`scripts/check_page_css.py`, `scripts/design_inventory.py` and `tests/test_design_inventory.py`. A
++guard path is a protected path.
+ 
+ - A protected path is editable only in a dedicated, CPO-approved governance task.
+ - That task's contract carries both `protected_override` and a non-placeholder `impact_map`.
+@@ -179,8 +181,10 @@ Every substantive commit passes four serialized steps. The commit gate enforces
+   spawned at **opus**.
+ - `scope-auditor` is exempt from the opus promotion. It never runs below the **sonnet** floor.
+   Its tier is a recurring cost and a CPO decision (§10).
+-- For the guard paths, that means `cto-reviewer` on all nine, plus `platform-reviewer` on exactly
+-  three of them: `.claude/hooks/**`, `.github/workflows/**` and `.gitlab-ci.yml`.
++- For the guard paths, that means `cto-reviewer` on all thirteen, plus `platform-reviewer` on exactly
++  seven of them: `.claude/hooks/**`, `.github/workflows/**`, `.gitlab-ci.yml`,
++  `scripts/check_design_inventory.py`, `scripts/check_page_css.py`, `scripts/design_inventory.py`
++  and `tests/test_design_inventory.py`.
+ - The CTO rules on authority. Platform reviews the implementation.
+ - `platform-reviewer` is deliberately absent from the other six, `.claude/agents/**` above all. A
+   reviewer brief is a prompt, not machinery.
+diff --git a/tests/test_governance_doc_parity.py b/tests/test_governance_doc_parity.py
+index 11e01b00..59aa86cf 100644
+--- a/tests/test_governance_doc_parity.py
++++ b/tests/test_governance_doc_parity.py
+@@ -158,6 +158,7 @@ def normalise(rel: str) -> str:
+ NUMBER_WORD = {
+     "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+     "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
++    "thirteen": 13,
  }
+ 
+ 
+@@ -169,21 +170,21 @@ def _as_int(token: str) -> int | None:
+ 
+ 
+ # --------------------------------------------------------------------------- #
+-# Test 1 — the identity every "nine" depends on.
++# Test 1 — the identity every "thirteen" depends on.
+ # --------------------------------------------------------------------------- #
+ def test_every_protected_path_is_routed_to_the_cto():
+     """A guard path is a PROTECTED path that routes to the CTO, and the docs use
+     the two terms interchangeably. That only holds while the sets agree.
+ 
+-    Add a protected path and forget its routing row and the prose "nine" silently
+-    means two different things in two places: nine files the gate blocks, eight
++    Add a protected path and forget its routing row and the prose "thirteen" silently
++    means two different things in two places: thirteen files the gate blocks, twelve
+     the CTO reviews. This is the invariant the count tests below rest on, so it
+     is asserted before them."""
+     rows = _routing_paths()
+     missing = sorted(p for p in protected_paths() if "cto-reviewer" not in rows.get(p, []))
+     assert not missing, (
+         "PROTECTED paths with no `cto-reviewer` routing row: "
+-        f"{missing}. Every protected path must confer the CTO, or 'the nine guard "
++        f"{missing}. Every protected path must confer the CTO, or 'the thirteen guard "
+         "paths' stops meaning one thing. Add the row to .claude/review_routing.json "
+         "or remove the path from task_contract_gate.py."
+     )
+@@ -192,18 +193,20 @@ def test_every_protected_path_is_routed_to_the_cto():
+ def test_the_guard_path_counts_are_what_the_docs_claim():
+     """Pins the three derived numbers, so a change to either source shows up as a
+     failure here naming the new value, not as eleven quietly stale documents."""
+-    assert len(protected_paths()) == 9, (
++    assert len(protected_paths()) == 13, (
+         f"The guard set is now {sorted(protected_paths())}. Every prose site saying "
+-        "'nine' is stale; the count tests below name each one.")
+-    assert len(shared_guard_paths()) == 3, (
++        "'thirteen' is stale; the count tests below name each one.")
++    assert len(shared_guard_paths()) == 7, (
+         f"platform-reviewer now shares {sorted(shared_guard_paths())} with the CTO.")
+     assert len(cto_alone_guard_paths()) == 6, (
+         f"The CTO now reviews {sorted(cto_alone_guard_paths())} alone.")
+-    assert len(cto_routing_rows()) == 12, (
++    assert len(cto_routing_rows()) == 16, (
+         f"The CTO now has {len(cto_routing_rows())} routing rows, which is what "
+         "north_star.md's role table counts.")
+     assert shared_guard_paths() == {
+-        ".claude/hooks/**", ".github/workflows/**", ".gitlab-ci.yml"}, (
++        ".claude/hooks/**", ".github/workflows/**", ".gitlab-ci.yml",
++        "scripts/check_design_inventory.py", "scripts/check_page_css.py",
++        "scripts/design_inventory.py", "tests/test_design_inventory.py"}, (
+         "The set platform-reviewer shares with the CTO changed. Widening it is a "
+         "RECURRING COST (a second opus specialist on every commit touching those "
+         "paths) and therefore CPO-class — .claude/review_routing.json's own _doc "
+@@ -352,6 +355,10 @@ PROSE_SUBSETS = {
+         frozenset({".claude/settings.json", ".mcp.json", ".cursor/mcp.json"}):
+             "the config trio that carries env blocks and tokens",
+     },
++    ".claude/agents/platform-reviewer.md": {
++        frozenset({".claude/hooks/**", ".github/workflows/**", ".gitlab-ci.yml"}):
++            "the territory sentence, whose `scripts/` and `tests/` already hold the design checks",
++    },
+     ".claude/review_routing.json": {
+         frozenset({".mcp.json", ".cursor/mcp.json"}):
+             "the two MCP entry points, ruled command-class together (CPO 2026-06-18)",
+@@ -396,9 +403,9 @@ def _allowed_runs(rel: str) -> dict:
+     """Every path set a run in this file may legitimately be. A run that is none of
+     them is a partial or drifted list."""
+     allowed = {
+-        frozenset(protected_paths()): "all nine guard paths",
++        frozenset(protected_paths()): "all thirteen guard paths",
+         frozenset(cto_alone_guard_paths()): "the six the CTO reviews alone",
+-        frozenset(shared_guard_paths()): "the three platform shares",
++        frozenset(shared_guard_paths()): "the seven platform shares",
+     }
+     allowed.update(PROSE_SUBSETS.get(rel, {}))
+     return allowed
+@@ -419,7 +426,7 @@ def test_every_protected_path_list_is_complete(rel):
+         assert run in allowed, (
+             f"{rel}: a list of protected paths near {text[max(0, position - 70):position + 190]!r}\n"
+             f"  holds {sorted(run)}\n"
+-            f"  which is no derived set. Missing from the full nine: "
++            f"  which is no derived set. Missing from the full thirteen: "
+             f"{sorted(protected_paths() - run) or 'nothing'}. "
+             "Complete the list, or add it to PROSE_SUBSETS with the reason it is "
+             "legitimately a subset."
+@@ -474,7 +481,6 @@ CLAIM_SHAPES = (
+ HISTORICAL = (
+     "three documents claiming BOTH reviewers on all EIGHT guard paths",
+     'three documents claiming "both on all eight"',
+-    "this returns to eight paths and TWO",
+     "platform is routed to only two of the eight guard paths",
+     "spawned at **opus** on all eight",
+ )
+diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
+index 9d768889..571c8368 100644
+--- a/tests/test_governance_hooks.py
++++ b/tests/test_governance_hooks.py
+@@ -684,6 +684,10 @@ PINNED_CASES = [
+     # confers, or dropping one from the row leaves the suite green.
+     (".gitlab-ci.yml", "cto-reviewer"),
+     (".gitlab-ci.yml", "platform-reviewer"),
++    ("scripts/check_design_inventory.py", "cto-reviewer"),
++    ("scripts/check_page_css.py", "cto-reviewer"),
++    ("scripts/design_inventory.py", "cto-reviewer"),
++    ("tests/test_design_inventory.py", "cto-reviewer"),
+     ("docs/wireframes/02_team_profile.md", "bi-analyst-reviewer"),
+     ("site/i18n/de.json", "bi-analyst-reviewer"),
+     ("site_v2/src/lib/metricRows.ts", "bi-analyst-reviewer"),
+@@ -1670,6 +1674,18 @@ def test_agents_dir_is_protected(repo):
+     assert denied(out) and "PROTECTED" in out
+ 
+ 
++@pytest.mark.parametrize("rel", [
++    "scripts/check_design_inventory.py", "scripts/check_page_css.py",
++    "scripts/design_inventory.py", "tests/test_design_inventory.py",
++])
++def test_design_checks_are_protected_even_in_scope(repo, rel):
++    """The checks that hold the design baseline: an ordinary task cannot weaken them, even one
++    whose scope_paths names them."""
++    write_contract(repo, CONTRACT.replace("scope_paths:\n", f"scope_paths:\n  - {rel}\n"))
++    out, _ = run_hook("task_contract_gate.py", edit_event(repo, rel), repo)
++    assert denied(out) and "PROTECTED" in out
++
++
+ def test_commands_dir_is_protected(repo):
+     """Custom slash commands can embed shell, so a command file is protected like
+     a hook/agent definition."""
+@@ -2241,6 +2257,8 @@ def test_protected_path_allowed_with_override_and_impact_map(repo):
+     # covers both tuples.
+     ".claude/settings.json", ".claude/review_routing.json",
+     ".mcp.json", ".cursor/mcp.json", ".gitlab-ci.yml",
++    "scripts/check_design_inventory.py", "scripts/check_page_css.py",
++    "scripts/design_inventory.py", "tests/test_design_inventory.py",
+ ])
+ def test_every_protected_path_needs_an_impact_map(repo, rel):
+     scoped = CONTRACT_OVERRIDE_NO_IMPACT.replace(
 diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
-index a34bfc83..c9811cd9 100644
+index c9811cd9..fbcf8aa1 100644
 --- a/tests/test_sentence_length_in_docs.py
 +++ b/tests/test_sentence_length_in_docs.py
-@@ -31,7 +31,7 @@ PINNED = {
-     ".claude/agents/seo-expert-reviewer.md": 14,
-     ".claude/skills/onboard-competition/SKILL.md": 10,
-     ".claude/skills/onboard-endpoint/SKILL.md": 9,
--    ".claude/skills/validate-local/SKILL.md": 7,
-+    ".claude/skills/validate-local/SKILL.md": 6,
-     ".claude/skills/verify-competition-ingest/SKILL.md": 4,
-     ".github/workflows/README.md": 12,
-     "AGENTS.md": 2,
-@@ -71,7 +71,7 @@ PINNED = {
-     "docs/wireframes/13_player_career.md": 7,
-     "docs/wireframes/14_team_stats.md": 19,
-     "docs/wireframes/99_gaps_register.md": 65,
--    "docs/wireframes/block_standard.md": 11,
-+    "docs/wireframes/block_standard.md": 10,
-     "docs/wireframes/metrics_display.md": 25,
-     "site_v2/src/data/README.md": 10,
- }
+@@ -23,7 +23,7 @@ import sentence_length_gate as gate  # noqa: E402
+ PINNED = {
+     ".claude/agents/analytics-engineer-reviewer.md": 5,
+     ".claude/agents/bi-analyst-reviewer.md": 16,
+-    ".claude/agents/cto-reviewer.md": 20,
++    ".claude/agents/cto-reviewer.md": 19,
+     ".claude/agents/data-engineer-reviewer.md": 7,
+     ".claude/agents/football-analytics-expert-reviewer.md": 5,
+     ".claude/agents/platform-reviewer.md": 10,
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -1916,7 +483,6 @@ index a34bfc83..c9811cd9 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/review.md          |   41 +-
-#    .claude/task/review_input.patch | 2253 ++++++++++++++++++++++++---------------
-#    2 files changed, 1391 insertions(+), 903 deletions(-)
+#   .claude/task/TEMPLATE.md | 6 ++++--
+#    1 file changed, 4 insertions(+), 2 deletions(-)
 # ============================================================================

@@ -158,6 +158,7 @@ def normalise(rel: str) -> str:
 NUMBER_WORD = {
     "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
     "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+    "thirteen": 13,
 }
 
 
@@ -169,21 +170,21 @@ def _as_int(token: str) -> int | None:
 
 
 # --------------------------------------------------------------------------- #
-# Test 1 — the identity every "nine" depends on.
+# Test 1 — the identity every "thirteen" depends on.
 # --------------------------------------------------------------------------- #
 def test_every_protected_path_is_routed_to_the_cto():
     """A guard path is a PROTECTED path that routes to the CTO, and the docs use
     the two terms interchangeably. That only holds while the sets agree.
 
-    Add a protected path and forget its routing row and the prose "nine" silently
-    means two different things in two places: nine files the gate blocks, eight
+    Add a protected path and forget its routing row and the prose "thirteen" silently
+    means two different things in two places: thirteen files the gate blocks, twelve
     the CTO reviews. This is the invariant the count tests below rest on, so it
     is asserted before them."""
     rows = _routing_paths()
     missing = sorted(p for p in protected_paths() if "cto-reviewer" not in rows.get(p, []))
     assert not missing, (
         "PROTECTED paths with no `cto-reviewer` routing row: "
-        f"{missing}. Every protected path must confer the CTO, or 'the nine guard "
+        f"{missing}. Every protected path must confer the CTO, or 'the thirteen guard "
         "paths' stops meaning one thing. Add the row to .claude/review_routing.json "
         "or remove the path from task_contract_gate.py."
     )
@@ -192,18 +193,20 @@ def test_every_protected_path_is_routed_to_the_cto():
 def test_the_guard_path_counts_are_what_the_docs_claim():
     """Pins the three derived numbers, so a change to either source shows up as a
     failure here naming the new value, not as eleven quietly stale documents."""
-    assert len(protected_paths()) == 9, (
+    assert len(protected_paths()) == 13, (
         f"The guard set is now {sorted(protected_paths())}. Every prose site saying "
-        "'nine' is stale; the count tests below name each one.")
-    assert len(shared_guard_paths()) == 3, (
+        "'thirteen' is stale; the count tests below name each one.")
+    assert len(shared_guard_paths()) == 7, (
         f"platform-reviewer now shares {sorted(shared_guard_paths())} with the CTO.")
     assert len(cto_alone_guard_paths()) == 6, (
         f"The CTO now reviews {sorted(cto_alone_guard_paths())} alone.")
-    assert len(cto_routing_rows()) == 12, (
+    assert len(cto_routing_rows()) == 16, (
         f"The CTO now has {len(cto_routing_rows())} routing rows, which is what "
         "north_star.md's role table counts.")
     assert shared_guard_paths() == {
-        ".claude/hooks/**", ".github/workflows/**", ".gitlab-ci.yml"}, (
+        ".claude/hooks/**", ".github/workflows/**", ".gitlab-ci.yml",
+        "scripts/check_design_inventory.py", "scripts/check_page_css.py",
+        "scripts/design_inventory.py", "tests/test_design_inventory.py"}, (
         "The set platform-reviewer shares with the CTO changed. Widening it is a "
         "RECURRING COST (a second opus specialist on every commit touching those "
         "paths) and therefore CPO-class — .claude/review_routing.json's own _doc "
@@ -352,6 +355,10 @@ PROSE_SUBSETS = {
         frozenset({".claude/settings.json", ".mcp.json", ".cursor/mcp.json"}):
             "the config trio that carries env blocks and tokens",
     },
+    ".claude/agents/platform-reviewer.md": {
+        frozenset({".claude/hooks/**", ".github/workflows/**", ".gitlab-ci.yml"}):
+            "the territory sentence, whose `scripts/` and `tests/` already hold the design checks",
+    },
     ".claude/review_routing.json": {
         frozenset({".mcp.json", ".cursor/mcp.json"}):
             "the two MCP entry points, ruled command-class together (CPO 2026-06-18)",
@@ -396,9 +403,9 @@ def _allowed_runs(rel: str) -> dict:
     """Every path set a run in this file may legitimately be. A run that is none of
     them is a partial or drifted list."""
     allowed = {
-        frozenset(protected_paths()): "all nine guard paths",
+        frozenset(protected_paths()): "all thirteen guard paths",
         frozenset(cto_alone_guard_paths()): "the six the CTO reviews alone",
-        frozenset(shared_guard_paths()): "the three platform shares",
+        frozenset(shared_guard_paths()): "the seven platform shares",
     }
     allowed.update(PROSE_SUBSETS.get(rel, {}))
     return allowed
@@ -419,7 +426,7 @@ def test_every_protected_path_list_is_complete(rel):
         assert run in allowed, (
             f"{rel}: a list of protected paths near {text[max(0, position - 70):position + 190]!r}\n"
             f"  holds {sorted(run)}\n"
-            f"  which is no derived set. Missing from the full nine: "
+            f"  which is no derived set. Missing from the full thirteen: "
             f"{sorted(protected_paths() - run) or 'nothing'}. "
             "Complete the list, or add it to PROSE_SUBSETS with the reason it is "
             "legitimately a subset."
@@ -474,7 +481,6 @@ CLAIM_SHAPES = (
 HISTORICAL = (
     "three documents claiming BOTH reviewers on all EIGHT guard paths",
     'three documents claiming "both on all eight"',
-    "this returns to eight paths and TWO",
     "platform is routed to only two of the eight guard paths",
     "spawned at **opus** on all eight",
 )

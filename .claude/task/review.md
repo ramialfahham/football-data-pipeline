@@ -1,44 +1,36 @@
-# Review — feat/243-full-coverage
+# Review — chore/243-protect-design-checks
 
-diff_sha256: 27b448d7a1b78b7ce8214f089c5fed134ab542166ef4f413ddb545e95dae8f81
+diff_sha256: e57ab7f5bf6ca8cd22be1d4ac9ab69551d9e935b66c390ad0edf1a0d949abfc4
 
-rounds: 4
-
-rounds_cap_override: a fourth round to speed the check up and pin the counts CI measured, approved in chat, 2026-11-02
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 1 FAIL (the validate-local skill's Tier 1b still described the old check) is closed: the skill is in scope_paths by a clean-tree amendment and states the check as changed; the measured run time is not in it.
-- Every changed file is inside scope_paths; the new mechanisms (never-rises test, the --out generator interface, the process pool, the coverage section) and the recurring cost are declared in decisions_taken.
-- decisions_reserved is none and the diff decides no product, UX, metric, naming or URL matter; the --out option changes no generator output.
-- The bootstrap return in the never-rises test applies only while main's baseline has no coverage section, the case this branch introduces.
-- No secrets, no CI, workflow or permission file, no site_v2/src, ingestion, dbt model or export change.
-- Round 4: the hover and press checks move the mouse to the element's centre instead of waiting on Playwright's hover; the element, the property and the comparison are unchanged, and the change lowers the declared recurring cost.
-- Round 4: the rendered pins are filled from validate:ui's counts.json on the MR pipeline, closing the last done_when line.
+- Every patched file is in scope_paths; tests/test_sentence_length_in_docs.py is covered by a recorded amendment and its pin only falls, 20 to 19.
+- protected_override names the approval and its date and the four paths; the impact_map is evidenced with line references and now discloses the out-of-scope exemption.
+- decisions_taken declares the recurring cost with its measurement and no new mechanism; decisions_reserved is none and the diff decides nothing outside it.
+- Every document states 13 guard paths, 7 shared with platform, 6 the CTO reviews alone and 16 CTO rows; no stale count remains.
+- No secret, workflow, CI, site_v2/src or export change; approved_design none is honest.
+
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- Round 1 FAIL closed: the impact_map now states that only the PreToolUse Edit and Bash-write paths refuse the edit, that check_task_artifacts.py never calls _is_protected, and that CI's cover is the routing rows.
+- The out-of-scope exemption at stop_gate.py:170 and task_contract_gate.py:691 now covers the four files in any task with protected_override; it is the existing meaning of a protected path, it is disclosed, and the CI reviewer check still requires both verdicts.
+- The guards get stronger: an ordinary task cannot edit the four files even with them in scope, and a governance task needs an impact_map; the hook still fails open on data-only entries.
+- No new mechanism, no dependency, no credential; the recurring cost is declared with a measurement and its approval.
+- baseline.json staying ordinary holds: compare_counts fails any pin that differs from the measurement and the protected test refuses any pin above main's.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 findings closed: an end-to-end test runs main() on a temp inventory, site and mock folder and proves a coverage gap and a miss above its pin exit 1 and a pinned run exits 0; the base lookup fetches the base commit in a shallow CI clone with safe.directory set; each failing generator's reason prints.
-- Round 2 findings closed: an empty base ref fails the test instead of comparing the baseline with itself; a row matching one file in every language no longer clashes with itself, and two literal rows on one file fail, each pinned by the ownership test.
-- Fail-closed: a row matching nothing, a generator writing nothing, a missing site, a missing FI switch and a switch that does not switch are hard failures; comparisons are skipped only on a narrowed run.
-- Ownership: a literal URL beats a glob, two globs or two literals on one file fail, and a glob does not cross a path separator.
-- Process pool: jobs and results pickle, results come back in viewport order, servers close in finally.
-- Generators: imports present, absolute out paths, the stale-file unlink skipped under --out, gen_home's OUT redirected only when run directly.
-- Round 4: POINTER_JS selects the same element as the old bounding_box() test, the index addresses the element the mouse went to, and with reduced motion the style read right after the move is the final hover value; an obscured element now reads as a miss instead of hanging the run.
-- Round 4: a full local run gives identical counts before and after the pointer change; the next linux pipeline is the first check of the new path against the linux pins.
-- Unverified here: the job's time against the runner's job timeout; measured on the MR pipeline.
-
-## bi-analyst-reviewer
-VERDICT: PASS
-risks_checked:
-- Round 1 FAIL (the intro said every mock page renders in DE) is closed: a built page renders in EN, DE and FI, a mock in EN and, with its FI switch, FI, matching MOCK_LANGS and plan().
-- Widths, the four coverage gaps, element misses, the 1px overflow margin, the fifth-of-a-line trim and the never-rises rule match the code.
-- The Pages paragraph matches plan(): every file a glob matches is owned, a literal URL wins, a page no row names is rendered and counted; renders of record are not pages.
-- Every mock row's Source and URL matches the file its generator writes with --out.
-- No decision history, date, issue or MR number or credit in the added text; no site_v2/src or display-contract change.
-- Round 4: the pointer change and the pins change no doc claim; the Measured-as text still describes the pointer resting on, or pressing, the first visible match.
+- The hook change is four data entries; every caller of _is_protected picks them up, and main() still fails open; CI fails closed through the new routing rows.
+- Reverting the change turns the new hook test, the four impact_map cases and the four PINNED_CASES red; dropping platform from a row is caught by the parity test's shared-set assertion.
+- Every COUNT_SITES anchor matches 13, 7, 6 and 16; thirteen is in NUMBER_WORD; the removed HISTORICAL snippet no longer occurs and its replacement matches no claim shape.
+- The PROSE_SUBSETS entry excuses only the platform brief's territory sentence; a stale count there is still caught by its anchor.
+- The sentence-length pins are consistent with the split sentence.
+- Round 2 changed only the contract's impact_map and three message strings in the parity test, all text, after this verdict.
 
 ## escalations
 (none)

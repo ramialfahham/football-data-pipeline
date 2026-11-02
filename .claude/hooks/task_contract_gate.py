@@ -73,6 +73,12 @@ PROTECTED_FILES = (
     # the protected set. A single FILE, not a prefix — ".gitlab-ci.yml" is the
     # entire surface, and a prefix entry would match nothing.
     ".gitlab-ci.yml",
+    # The design checks and the test that refuses a rising pin: weakening either one hides a gap
+    # the baseline counts.
+    "scripts/check_design_inventory.py",
+    "scripts/check_page_css.py",
+    "scripts/design_inventory.py",
+    "tests/test_design_inventory.py",
 )
 
 _EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
