@@ -64,8 +64,9 @@ that carries it from a commit to a served page without anyone having to remember
 recurring cost is *allowed* is the CTO's ruling. This role reviews the implementation of what was
 allowed.
 
-**On exactly three of the nine guard paths** — `.claude/hooks/**`, `.github/workflows/**` and
-`.gitlab-ci.yml` — this
+**On exactly seven of the thirteen guard paths** — `.claude/hooks/**`, `.github/workflows/**`,
+`.gitlab-ci.yml`, `scripts/check_design_inventory.py`, `scripts/check_page_css.py`,
+`scripts/design_inventory.py` and `tests/test_design_inventory.py` — this
 role and the CTO review the same diff for different things, both at the opus floor, because the G3
 commit-gate bypasses were fail-open and test-coverage findings and those are this role's items. **On
 the other six it is not routed at all** (`.claude/agents/**`, `.claude/commands/**`,

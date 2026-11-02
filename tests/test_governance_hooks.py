@@ -684,6 +684,10 @@ PINNED_CASES = [
     # confers, or dropping one from the row leaves the suite green.
     (".gitlab-ci.yml", "cto-reviewer"),
     (".gitlab-ci.yml", "platform-reviewer"),
+    ("scripts/check_design_inventory.py", "cto-reviewer"),
+    ("scripts/check_page_css.py", "cto-reviewer"),
+    ("scripts/design_inventory.py", "cto-reviewer"),
+    ("tests/test_design_inventory.py", "cto-reviewer"),
     ("docs/wireframes/02_team_profile.md", "bi-analyst-reviewer"),
     ("site/i18n/de.json", "bi-analyst-reviewer"),
     ("site_v2/src/lib/metricRows.ts", "bi-analyst-reviewer"),
@@ -1670,6 +1674,18 @@ def test_agents_dir_is_protected(repo):
     assert denied(out) and "PROTECTED" in out
 
 
+@pytest.mark.parametrize("rel", [
+    "scripts/check_design_inventory.py", "scripts/check_page_css.py",
+    "scripts/design_inventory.py", "tests/test_design_inventory.py",
+])
+def test_design_checks_are_protected_even_in_scope(repo, rel):
+    """The checks that hold the design baseline: an ordinary task cannot weaken them, even one
+    whose scope_paths names them."""
+    write_contract(repo, CONTRACT.replace("scope_paths:\n", f"scope_paths:\n  - {rel}\n"))
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, rel), repo)
+    assert denied(out) and "PROTECTED" in out
+
+
 def test_commands_dir_is_protected(repo):
     """Custom slash commands can embed shell, so a command file is protected like
     a hook/agent definition."""
@@ -2241,6 +2257,8 @@ def test_protected_path_allowed_with_override_and_impact_map(repo):
     # covers both tuples.
     ".claude/settings.json", ".claude/review_routing.json",
     ".mcp.json", ".cursor/mcp.json", ".gitlab-ci.yml",
+    "scripts/check_design_inventory.py", "scripts/check_page_css.py",
+    "scripts/design_inventory.py", "tests/test_design_inventory.py",
 ])
 def test_every_protected_path_needs_an_impact_map(repo, rel):
     scoped = CONTRACT_OVERRIDE_NO_IMPACT.replace(

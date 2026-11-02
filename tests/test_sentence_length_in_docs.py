@@ -23,7 +23,7 @@ import sentence_length_gate as gate  # noqa: E402
 PINNED = {
     ".claude/agents/analytics-engineer-reviewer.md": 5,
     ".claude/agents/bi-analyst-reviewer.md": 16,
-    ".claude/agents/cto-reviewer.md": 20,
+    ".claude/agents/cto-reviewer.md": 19,
     ".claude/agents/data-engineer-reviewer.md": 7,
     ".claude/agents/football-analytics-expert-reviewer.md": 5,
     ".claude/agents/platform-reviewer.md": 10,

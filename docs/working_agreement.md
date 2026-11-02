@@ -133,7 +133,9 @@ extension of the contract without recorded CPO authority is drift.
 
 The protected paths are `.claude/hooks/**`, `.claude/agents/**`, `.claude/commands/**`,
 `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`,
-`.github/workflows/**` and `.gitlab-ci.yml`. A guard path is a protected path.
+`.github/workflows/**`, `.gitlab-ci.yml`, `scripts/check_design_inventory.py`,
+`scripts/check_page_css.py`, `scripts/design_inventory.py` and `tests/test_design_inventory.py`. A
+guard path is a protected path.
 
 - A protected path is editable only in a dedicated, CPO-approved governance task.
 - That task's contract carries both `protected_override` and a non-placeholder `impact_map`.
@@ -179,8 +181,10 @@ Every substantive commit passes four serialized steps. The commit gate enforces 
   spawned at **opus**.
 - `scope-auditor` is exempt from the opus promotion. It never runs below the **sonnet** floor.
   Its tier is a recurring cost and a CPO decision (§10).
-- For the guard paths, that means `cto-reviewer` on all nine, plus `platform-reviewer` on exactly
-  three of them: `.claude/hooks/**`, `.github/workflows/**` and `.gitlab-ci.yml`.
+- For the guard paths, that means `cto-reviewer` on all thirteen, plus `platform-reviewer` on exactly
+  seven of them: `.claude/hooks/**`, `.github/workflows/**`, `.gitlab-ci.yml`,
+  `scripts/check_design_inventory.py`, `scripts/check_page_css.py`, `scripts/design_inventory.py`
+  and `tests/test_design_inventory.py`.
 - The CTO rules on authority. Platform reviews the implementation.
 - `platform-reviewer` is deliberately absent from the other six, `.claude/agents/**` above all. A
   reviewer brief is a prompt, not machinery.
