@@ -8,16 +8,27 @@ the selector: a page-internal class that happens to share a name with an element
 collision to rename, not a case to reason about. The class list and the page list come from
 `docs/wireframes/block_standard.md` through `design_inventory.py`; nothing here is hand-listed.
 A data-driven bar width on a non-inventory class passes; a mock's harness CSS (toggles, the
-stage, the legend) passes because it names no inventory class; a generator the Pages table does
-not name (a diagram, a standards sheet) is not a page and is not linted.
+stage, the legend) passes because it names no inventory class.
 
-Exit 0 clean, 1 with findings (`path:line · where · token`), 2 when the inventory does not parse.
+It also counts five gaps, each pinned in the baseline (`design_inventory.BASELINE`, `static`):
+- `mock_css`: the same findings in every other `gen_*.py` generator and the modules it imports,
+  per file (a generator the Pages table does not name is not a page, so it is counted, not failed);
+- `css_outside_system_css`: a `<style>` block or a `style=` attribute in an `.astro` file, another
+  stylesheet, or a style write in a site script, per file;
+- `width_rules`: `@media` and `@container` rules per width they name, so a new width is a new key;
+- `banned_properties`: declarations that split a word or cut text off, per file;
+- `literal_text`: text written into a component or page template instead of the strings, per file.
+A count that differs from its pin fails, in both directions.
+
+Exit 0 clean, 1 with findings (`path:line · where · token`) or a count off its pin, 2 when the
+inventory does not parse.
 """
 
 from __future__ import annotations
 
 import argparse
 import ast
+import html
 import os
 import re
 import sys
@@ -119,8 +130,17 @@ def lint_css_file(path: Path, tokens: frozenset[str], root: Path = REPO) -> list
 def mock_modules(inv: di.Inventory, mocks: Path = MOCKS) -> list[Path]:
     """The generator behind every mock page in the inventory and, transitively, every sibling
     module one of them imports. A generator the Pages table does not name is not a page (a
-    diagram, a standards sheet) and is not linted."""
-    names = {p.source.split()[0] for p in inv.pages if p.kind == "mock" and p.source}
+    diagram, a standards sheet): its findings are counted, not failed."""
+    return _with_imports({p.source.split()[0] for p in inv.pages if p.kind == "mock" and p.source}, mocks)
+
+
+def unlisted_mock_modules(inv: di.Inventory, mocks: Path = MOCKS) -> list[Path]:
+    """Every other `gen_*.py` generator and the modules it imports, minus the page modules."""
+    listed = {p.name for p in mock_modules(inv, mocks)}
+    return [p for p in _with_imports({p.name for p in mocks.glob("gen_*.py")}, mocks) if p.name not in listed]
+
+
+def _with_imports(names: set[str], mocks: Path) -> list[Path]:
     todo = [mocks / n for n in sorted(names)]
     seen: dict[str, Path] = {}
     while todo:
@@ -185,19 +205,194 @@ def run(inventory: Path, site_src: Path = SITE_SRC, mocks: Path = MOCKS) -> tupl
     return findings, scanned
 
 
+_STYLE_OPEN = re.compile(r"<style\b", re.IGNORECASE)
+_STYLE_WRITE = re.compile(r"""\.style(?:\.[A-Za-z]\w*|\[[^\]]*\])?\s*=(?!=)|\.style\.setProperty\(|setAttribute\(\s*["']style["']""")
+_BANNED = re.compile(
+    r"(?<![\w-])(?:(?:-webkit-)?hyphens\s*:\s*auto|overflow-wrap\s*:\s*(?:anywhere|break-word)"
+    r"|word-wrap\s*:\s*break-word|word-break\s*:\s*(?:break-all|break-word)"
+    r"|text-overflow\s*:\s*ellipsis|(?:-webkit-)?line-clamp\s*:)", re.IGNORECASE)
+_WIDTH_RULE = re.compile(r"@(?:media|container)\b([^{;]*)\{")
+_WIDTH = re.compile(r"\b(?:min-|max-)?width\s*(?::|[<>]=?)\s*(\d+(?:\.\d+)?(?:px|em|rem))")
+_VOID = frozenset("area base br col embed hr img input link meta source track wbr".split())
+_VISIBLE_ATTR = re.compile(r"""(?<![\w:-])(?:placeholder|title|alt)\s*=\s*(?:"([^"]*)"|'([^']*)')""")
+_LETTER = re.compile(r"[^\W_]")
+_BLANKED = re.compile(r"<!--.*?-->|<(script|style)\b.*?</\1\s*>", re.DOTALL | re.IGNORECASE)
+
+
+def _blank(text: str) -> str:
+    return re.sub(r"[^\n]", " ", text)
+
+
+def _tag_end(s: str, i: int) -> int:
+    """Just past the `>` closing the tag that opens at `s[i]`, skipping quoted values and `{…}`."""
+    quote, depth, j = None, 0, i + 1
+    while j < len(s):
+        c = s[j]
+        if quote:
+            if c == quote:
+                quote = None
+        elif c in "\"'`":
+            quote = c
+        elif c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+        elif c == ">" and depth <= 0:
+            return j + 1
+        j += 1
+    return len(s)
+
+
+def _opens_element(tag: str) -> bool:
+    m = re.match(r"<([A-Za-z][\w.:-]*)", tag)
+    return tag == "<>" or bool(m and not tag.endswith("/>") and m.group(1).lower() not in _VOID)
+
+
+def literal_text(text: str) -> list[tuple[int, str]]:
+    """Every literal text in an Astro template: a run of text between tags (inside an expression's
+    markup too) and the literal value of a visible attribute, when it holds a letter or a digit.
+    The frontmatter, comments, scripts, styles and code inside `{…}` are not template text."""
+    start = 0
+    if text.startswith("---"):
+        end = text.find("\n---", 3)
+        start = end + 4 if end != -1 else 0
+    s = _blank(text[:start]) + _BLANKED.sub(lambda m: _blank(m.group(0)), text[start:])
+    out: list[tuple[int, str]] = []
+    run_at: int | None = None
+
+    def keep(at: int, raw: str) -> None:
+        value = " ".join(html.unescape(raw).split())
+        if _LETTER.search(value):
+            out.append((s.count("\n", 0, at) + 1, value))
+
+    def tag_at(i: int) -> int:
+        j = _tag_end(s, i)
+        for m in _VISIBLE_ATTR.finditer(s, i, j):
+            keep(m.start(), m.group(1) if m.group(1) is not None else m.group(2))
+        return j
+
+    stack = ["markup"]
+    i, n = 0, len(s)
+    while i < n:
+        c, nxt = s[i], s[i + 1:i + 2]
+        if stack[-1] == "markup":
+            if c == "{" or (c == "<" and (nxt.isalpha() or nxt in ("/", "!", ">"))):
+                if run_at is not None:
+                    keep(run_at, s[run_at:i])
+                    run_at = None
+                if c == "{":
+                    stack.append("code")
+                    i += 1
+                    continue
+                j = tag_at(i)
+                if nxt == "/":
+                    if len(stack) > 1:
+                        stack.pop()
+                elif _opens_element(s[i:j]):
+                    stack.append("markup")
+                i = j
+                continue
+            if run_at is None and not c.isspace():
+                run_at = i
+            i += 1
+            continue
+        if c in "\"'`":
+            j = i + 1
+            while j < n and s[j] != c:
+                j += 2 if s[j] == "\\" else 1
+            i = j + 1
+            continue
+        if s.startswith("//", i):
+            i = s.find("\n", i) if "\n" in s[i:] else n
+            continue
+        if s.startswith("/*", i):
+            j = s.find("*/", i + 2)
+            i = n if j == -1 else j + 2
+            continue
+        if c == "{":
+            stack.append("code")
+        elif c == "}":
+            if len(stack) > 1:
+                stack.pop()
+        elif c == "<" and (nxt.isalpha() or nxt == ">"):
+            j = tag_at(i)
+            if _opens_element(s[i:j]):
+                stack.append("markup")
+            i = j
+            continue
+        i += 1
+    if run_at is not None:
+        keep(run_at, s[run_at:])
+    return out
+
+
+def _stylesheets(site_src: Path, root: Path):
+    """(path, CSS) for every stylesheet under the site's source and every `<style>` block."""
+    for p in sorted(site_src.rglob("*.css")):
+        yield p.relative_to(root).as_posix(), _COMMENT.sub(" ", p.read_text(encoding="utf-8"))
+    for p in sorted(site_src.rglob("*.astro")):
+        for m in _STYLE_BLOCK.finditer(p.read_text(encoding="utf-8")):
+            yield p.relative_to(root).as_posix(), _COMMENT.sub(" ", m.group(1))
+
+
+def counts(inventory: Path, site_src: Path = SITE_SRC, mocks: Path = MOCKS) -> dict[str, dict[str, int]]:
+    """The five static gap counts, each by file (or, for width rules, by width)."""
+    inv = di.load(inventory)
+    root = site_src.parent.parent
+    system_css = (site_src / "styles" / "system.css").resolve()
+    tokens = di.class_tokens(inv.elements)
+    out: dict[str, dict[str, int]] = {k: {} for k in (
+        "mock_css", "css_outside_system_css", "width_rules", "banned_properties", "literal_text")}
+
+    def add(group: str, key: str, n: int) -> None:
+        if n:
+            out[group][key] = out[group].get(key, 0) + n
+
+    if mocks.is_dir():
+        for p in unlisted_mock_modules(inv, mocks):
+            add("mock_css", p.relative_to(root).as_posix(), len(lint_mock(p, tokens, root)))
+    for p in sorted(site_src.rglob("*")):
+        if not p.is_file():
+            continue
+        rel = p.relative_to(root).as_posix()
+        if p.suffix == ".astro":
+            text = p.read_text(encoding="utf-8")
+            add("css_outside_system_css", rel, len(_STYLE_OPEN.findall(text)))
+            add("css_outside_system_css", rel, sum(len(_STYLE_ATTR.findall(m.group(2))) for m in _TAG.finditer(text)))
+            add("css_outside_system_css", rel, len(_STYLE_WRITE.findall(text)))
+            add("literal_text", rel, len(literal_text(text)))
+        elif p.suffix in (".css", ".scss", ".sass", ".less") and p.resolve() != system_css:
+            add("css_outside_system_css", rel, 1)
+        elif p.suffix in (".ts", ".mjs", ".js") and ".test." not in p.name:
+            add("css_outside_system_css", rel, len(_STYLE_WRITE.findall(p.read_text(encoding="utf-8"))))
+    for rel, css in _stylesheets(site_src, root):
+        add("banned_properties", rel, len(_BANNED.findall(css)))
+        for m in _WIDTH_RULE.finditer(css):
+            for width in sorted(set(_WIDTH.findall(m.group(1)))):
+                add("width_rules", width, 1)
+    return out
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--inventory", default=str(di.DOC))
+    ap.add_argument("--baseline", default=str(di.BASELINE))
     args = ap.parse_args(argv)
     try:
         findings, scanned = run(Path(args.inventory))
+        measured = counts(Path(args.inventory))
     except di.InventoryError as exc:
         print("INVENTORY ERROR: %s" % exc, file=sys.stderr)
         return 2
     for f in findings:
         print("FAIL  " + f)
-    print("page-css lint: %d files scanned, %d finding(s)" % (scanned, len(findings)))
-    return 1 if findings else 0
+    off = di.compare_counts(measured, di.load_baseline(Path(args.baseline))["static"])
+    for line in off:
+        print("FAIL  " + line)
+    for group, by_key in measured.items():
+        print("count %s: %d (%s)" % (group, sum(by_key.values()), ", ".join("%s %d" % kv for kv in sorted(by_key.items())) or "none"))
+    print("page-css lint: %d files scanned, %d finding(s), %d count(s) off the baseline" % (scanned, len(findings), len(off)))
+    return 1 if findings or off else 0
 
 
 if __name__ == "__main__":

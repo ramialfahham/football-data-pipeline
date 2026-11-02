@@ -15,6 +15,7 @@ lint tests run everywhere.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -335,6 +336,82 @@ def test_the_lint_lints_only_the_generators_the_pages_table_names(tmp_path):
     assert named <= linted
     assert "rows.py" in linted and "interaction.py" in linted, "the shared row modules are imported by every page"
     assert "gen_navmap.py" not in linted and "gen_sitemap.py" not in linted, "a diagram is not a page"
+    counted = {p.name for p in lint.unlisted_mock_modules(inv)}
+    assert not counted & linted
+    assert {"gen_match_page.py", "gen_team_mock.py", "gen_navmap.py"} <= counted, "every other generator is counted"
+
+
+# ---------------------------------------------------------------- the static gap counts
+
+def test_the_static_counts_match_the_baseline():
+    measured = lint.counts(di.DOC)
+    off = di.compare_counts(measured, di.load_baseline()["static"])
+    assert off == [], "\n".join(off)
+
+
+def test_a_count_off_its_pin_fails_in_both_directions():
+    off = di.compare_counts({"g": {"a": 3, "b": 1}}, {"g": {"a": 2, "b": 1, "c": 4}})
+    assert off == ["count rose · g · a · 3, baseline 2", "count fell · g · c · 0, baseline 4: lower the baseline"]
+    assert di.compare_counts({"g": {"a": 1}}, {"g": {"a": 1}}) == []
+
+
+def test_the_lint_exits_red_on_a_count_off_its_pin(tmp_path, capsys):
+    baseline = di.load_baseline()
+    assert lint.main([]) == 0
+    capsys.readouterr()
+    baseline["static"]["literal_text"]["site_v2/src/pages/index.astro"] -= 1
+    lowered = tmp_path / "baseline.json"
+    lowered.write_text(json.dumps(baseline), encoding="utf-8")
+    assert lint.main(["--baseline", str(lowered)]) == 1
+    assert "FAIL  count rose · literal_text · site_v2/src/pages/index.astro · 2, baseline 1" in capsys.readouterr().out
+
+
+def test_the_rendered_counts_compare_only_on_a_full_run_on_the_baselines_platform():
+    import check_design_inventory as cdi  # noqa: PLC0415
+    pinned = {"platform": "linux", "pages": {"Home": {"split": 3, "classes": 23}}}
+    measured = {"Home": {"scroll": 0, "overflow": 0, "split": 4, "overlap": 0, "classes": 23}}
+    note, off = cdi.compare_rendered(measured, pinned, True, "linux")
+    assert note == "" and off == ["count rose · Home · split · 4, baseline 3"]
+    measured["Home"]["split"] = 3
+    assert cdi.compare_rendered(measured, pinned, True, "linux") == ("", [])
+    measured["Home"]["classes"] = 22
+    assert cdi.compare_rendered(measured, pinned, True, "linux")[1] == [
+        "count fell · Home · classes · 22, baseline 23: lower the baseline"]
+    assert cdi.compare_rendered(measured, pinned, True, "win32") == (
+        "the baseline is measured on linux, this run on win32", [])
+    assert cdi.compare_rendered(measured, pinned, False, "linux") == ("a narrower run than the baseline's", [])
+
+
+def test_the_static_counts_find_each_gap(tmp_path):
+    site, mocks = _tree(tmp_path)
+    (site / "styles" / "system.css").write_text(
+        "/* hyphens: auto */\n.a { hyphens: auto; overflow-wrap: anywhere; }\n.b { text-overflow: ellipsis; word-break: break-all; }\n"
+        ".c { overflow-wrap: break-word; -webkit-line-clamp: 2; overflow-wrap: normal; }\n"
+        "@media (min-width: 700px) { .a { color: red } }\n@media (max-width: 699.98px) { .a { color: red } }\n"
+        "@container (min-width: 700px) { .a { color: red } }\n@media (hover: hover) { .a { color: red } }\n", encoding="utf-8")
+    (site / "styles" / "page.css").write_text(".x { color: red }\n", encoding="utf-8")
+    (site / "A.astro").write_text(
+        '---\nconst label = "Not template text";\n---\n'
+        '<header class="brand">Brand<span class="iq">Name</span></header>\n'
+        '<!-- a comment -->\n<p>{t(lang, "key")} · {n}</p>\n'
+        '{items.map((x) => <li title="Literal title" alt={x.alt}>Item {x.n}</li>)}\n'
+        '<input placeholder="Search" aria-label="not shown" />\n'
+        '<div style={`width:${w}%`}></div>\n<style>\n.y { text-overflow: ellipsis; }\n</style>\n'
+        '<script>\nel.style.width = "1px"; if (el.style.width == "1px") {}\n</script>\n', encoding="utf-8")
+    (site / "fit.mjs").write_text("copy.style.cssText = 'x';\nnode.setAttribute('style', 'x');\n", encoding="utf-8")
+    (site / "fit.test.mjs").write_text("copy.style.cssText = 'x';\n", encoding="utf-8")
+    (mocks / "gen_home.py").write_text('CSS = """\n.stage { max-width: 375px }\n"""\n', encoding="utf-8")
+    (mocks / "gen_other.py").write_text('import shared\n', encoding="utf-8")
+    (mocks / "shared.py").write_text('CSS = """\n.sechead .eyebrow { color: red; }\n.sechead { color: red; }\n"""\n', encoding="utf-8")
+    c = lint.counts(_doc(tmp_path, GOOD_ROW), site, mocks)
+    assert c["mock_css"] == {"design-mocks/shared.py": 2}
+    assert c["css_outside_system_css"] == {"site_v2/src/A.astro": 3, "site_v2/src/fit.mjs": 2, "site_v2/src/styles/page.css": 1}
+    assert c["width_rules"] == {"700px": 2, "699.98px": 1}
+    assert c["banned_properties"] == {"site_v2/src/styles/system.css": 6, "site_v2/src/A.astro": 1}
+    found = lint.literal_text((site / "A.astro").read_text(encoding="utf-8"))
+    assert [v for _line, v in found] == ["Brand", "Name", "Literal title", "Item", "Search"], found
+    assert found[0][0] == 4
+    assert c["literal_text"] == {"site_v2/src/A.astro": 5}
 
 
 # ---------------------------------------------------------------- the measured check: RED proof
@@ -390,6 +467,31 @@ def test_the_check_goes_red_on_the_defects_it_exists_for(tmp_path):
     assert "measured 20×20" in out
     assert "scrollWidth" in out
     assert "row 1 measured" in out
+
+
+@needs_browser
+def test_the_gap_counts_count_each_defect_once(tmp_path):
+    folder = tmp_path / "pages"
+    folder.mkdir()
+    shutil.copy(FIXTURES / "counts_red.html", folder / "counts_red.html")
+    proc = subprocess.run(
+        [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks", "--no-built",
+         "--page", "red=%s" % (folder / "counts_red.html"), "--langs", "en", "--viewports", "320"],
+        capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+    )
+    out = proc.stdout + proc.stderr
+    assert "COUNT red · scroll 1 · overflow 2 · split 1 · overlap 2 · classes 7" in out, out
+    assert "not compared: a narrower run than the baseline's" in out, out
+
+
+def test_the_rendered_baseline_names_only_inventory_pages_and_counts():
+    rendered = di.load_baseline()["rendered"]
+    assert rendered["platform"] == "linux", "the baseline is measured in validate:ui's browser image"
+    names = {p.name for p in di.load().pages}
+    import check_design_inventory as cdi  # noqa: PLC0415
+    for page, by_count in rendered["pages"].items():
+        assert page in names, page
+        assert set(by_count) <= set(cdi.COUNTS) and all(n > 0 for n in by_count.values()), (page, by_count)
 
 
 def _built_page_check(tmp_path: Path, html: str) -> tuple[int, str]:

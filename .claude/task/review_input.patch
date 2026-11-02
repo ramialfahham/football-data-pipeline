@@ -1,224 +1,937 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index d5dd0f96..5021a7f7 100644
+index 5021a7f7..e43dbe30 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,26 +1,21 @@
--# Task contract — the Team page's league strip plot and scatter labels
-+# Task contract — the match row's tag on narrow screens
+@@ -1,61 +1,57 @@
+-# Task contract — the match row's tag on narrow screens
++# Task contract — the component checks that count today's gaps
  
  objective: >
--  The Team page's "Compared with the league" strip plot drops the league median and shows the
--  team's rank first with its value under it, keeping the "better" marker (#241). The deserved
--  points scatter puts the difference label on the side of the dot opposite the team name, so the
--  two never overlap (#242). Five explainers become the approved one-sentence texts, and the block
--  standard's two strip plot rows say what the row now shows.
-+  A match row's tag (Top match on Home and the competition matchdays, Next on the Team page) no
-+  longer covers a team name. A tagged row whose names fit keeps the tag before the kick-off; a row
-+  that does not fit takes its narrow form, the tag on its own line above the home team,
-+  left-aligned. The row is measured per page and language by the shared fit script.
+-  A match row's tag (Top match on Home and the competition matchdays, Next on the Team page) no
+-  longer covers a team name. A tagged row whose names fit keeps the tag before the kick-off; a row
+-  that does not fit takes its narrow form, the tag on its own line above the home team,
+-  left-aligned. The row is measured per page and language by the shared fit script.
++  Step 1 of the component-system plan: checks that count the site's and the mocks' design gaps,
++  with no visual change. Static counts: CSS in a mock generator touching an element's class (every
++  generator is read, not only the block standard's pages), CSS outside system.css, width rules at
++  a width outside today's set, banned line-break and cut-off properties, and literal text in
++  components and pages. Rendered counts on the built sample site and the block standard's mocks at
++  280, 320, 360, 375, 700 and 1010px: sideways scroll, text overflowing its box, split words,
++  overlapping text and classes no block-standard row names. Each count is stored in a baseline
++  and the check fails when a count differs from it.
  
  refs: >
--  #241, the strip plot and the explainer texts; #242, the scatter label overlap. The plan and its
--  texts approved in chat, 2026-11-01.
-+  #231, the rule that a team name never runs outside its space at 280–1010px. The narrow form and
-+  the plan approved in chat, 2026-11-01.
+-  #231, the rule that a team name never runs outside its space at 280–1010px. The narrow form and
+-  the plan approved in chat, 2026-11-01.
++  #243, the component-system plan, approved in chat, 2026-11-01. This task is its How step 1.
  
  scope_paths:
--  - site_v2/src/components/team/TeamLeagueStrips.astro
--  - site_v2/src/components/team/TeamDeserved.astro
-   - site_v2/src/styles/system.css
--  - site_v2/src/i18n/strings.ts
--  - site_v2/src/specs/teams/team.spec.json
--  - site_v2/scripts/check-built-pages.mjs
--  - site_v2/scripts/check-built-pages.test.mjs
-+  - site_v2/src/lib/fitBlocks.mjs
-   - docs/wireframes/block_standard.md
--  - docs/wireframes/02_team_profile.md
-+  - tests/fixtures/design_inventory/green.html
-+  - tests/test_no_decision_history_in_docs.py
+-  - site_v2/src/styles/system.css
+-  - site_v2/src/lib/fitBlocks.mjs
+-  - docs/wireframes/block_standard.md
+-  - tests/fixtures/design_inventory/green.html
++  - scripts/check_page_css.py
++  - scripts/check_design_inventory.py
++  - scripts/design_inventory.py
++  - tests/test_design_inventory.py
++  - tests/fixtures/design_inventory/baseline.json
++  - tests/fixtures/design_inventory/counts_red.html
+   - tests/test_no_decision_history_in_docs.py
++  - docs/wireframes/block_standard.md
++  - design-mocks/README.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -28,43 +23,39 @@ scope_paths:
+   - .claude/task/acceptance_evidence.md
    - .claude/task/rendered_page_evidence.md
  
- impact_map: >
--  No dbt model and no export change; no data file changes. Consumption only: two Team page
--  components, their CSS rules and five i18n keys. `teamLeagueMedian` is read only by
--  TeamLeagueStrips.astro and listed in the Team page spec (grep over site_v2/src); `compDeservedExplainer` is read by the Team
--  page's TeamDeserved.astro and the competition page's DeservedTable.astro;
--  `homeTopPlayersIntro` and `homeTopTeamsIntro` by Home's TopPlayers.astro and TopTeams.astro;
--  `teamPerfIntro` by the Team page; `teamVsLeagueIntro` by TeamLeagueStrips.astro. The `.rs-*`
--  rules are used only by TeamLeagueStrips.astro.
--  blast_radius: the Team page Performance tab (strip plot, scatter, two explainers), the
--  competition page's deserved points explainer and Home's two top-list explainers, in all three
--  locales. No served number changes.
-+  Consumption only; no dbt model, no export, no data file changes. The tag is drawn by
-+  site_v2/src/components/ui/MatchRow.astro, which only three callers give a tag: Home's
-+  HeroFixtures.astro (topMatch), the competition page's MatchdaySchedule.astro (topMatch) and the
-+  Team page's TeamFixtureGroup.astro (nextMatch); NextMatches.astro and MatchesDay.astro draw rows
-+  without one. The `.fxrow .topmatch` rules are read only by those rows. fitBlocks.mjs is loaded
-+  once by Layout.astro; the new block kind touches only `.fxrow` elements holding a `.topmatch`.
-+  blast_radius: the tagged match rows on Home, the competition matchdays and the Team pages, in
-+  all three locales. No served number changes.
- 
+-impact_map: >
+-  Consumption only; no dbt model, no export, no data file changes. The tag is drawn by
+-  site_v2/src/components/ui/MatchRow.astro, which only three callers give a tag: Home's
+-  HeroFixtures.astro (topMatch), the competition page's MatchdaySchedule.astro (topMatch) and the
+-  Team page's TeamFixtureGroup.astro (nextMatch); NextMatches.astro and MatchesDay.astro draw rows
+-  without one. The `.fxrow .topmatch` rules are read only by those rows. fitBlocks.mjs is loaded
+-  once by Layout.astro; the new block kind touches only `.fxrow` elements holding a `.topmatch`.
+-  blast_radius: the tagged match rows on Home, the competition matchdays and the Team pages, in
+-  all three locales. No served number changes.
+-
  approved_design:
--  - team: #134
+-  - home: #127
 -  - competition: #129
-   - home: #127
-+  - competition: #129
-+  - team: #134
- 
- acceptance_criteria:
--  - "On the built Team page, the Compared with the league rows show no median tick and no median value; the legend lists the team first, then the other clubs; each row's right column shows the rank first in bold with the value under it; the better marker remains."
--  - "On every built Team page with the deserved points scatter, in both the wide and the narrow chart, the bounding boxes of the team name and the difference label do not overlap, and the difference label stays inside the chart without reaching the y axis; the built-pages check holds the placement on every build."
--  - "teamVsLeagueIntro, compDeservedExplainer, homeTopPlayersIntro, homeTopTeamsIntro and teamPerfIntro render the approved one-sentence texts in EN, DE and FI; teamLeagueMedian is gone from strings.ts."
--  - "block_standard.md's Strip plot row and Strip plot value rows carry the approved texts, and check_design_inventory.py --no-mocks passes."
-+  - "On every built page whose match rows carry a Top match or Next tag (Home, competition matchdays, Team pages), at 280, 360, 560, 768 and 1010px in EN, DE and FI, no tag overlaps a team name or the kick-off, and no tagged row's names run past their column; measured over the built site."
-+  - "A tagged row whose names fit keeps the tag before the kick-off on the same line; a row that does not fit shows the tag on its own line above the home team, left-aligned, with names and kick-off below; at 1010px every tagged row has the wide form, and every visible tagged row carries fit-one or fit-two."
-+  - "block_standard.md's Tag row adds 'Narrow, a row's tag takes its own line above the home team, left-aligned' and the narrow-screen fix as a source; its Fitted block row adds `.fxrow:has(.topmatch)`; check_design_inventory.py --no-mocks passes at its default widths and at 280, 360, 560, 768 and 1010px."
+-  - team: #134
+-
+-acceptance_criteria:
+-  - "On every built page whose match rows carry a Top match or Next tag (Home, competition matchdays, Team pages), at 280, 360, 560, 768 and 1010px in EN, DE and FI, no tag overlaps a team name or the kick-off, and no tagged row's names run past their column; measured over the built site."
+-  - "A tagged row whose names fit keeps the tag before the kick-off on the same line; a row that does not fit shows the tag on its own line above the home team, left-aligned, with names and kick-off below; at 1010px every tagged row has the wide form, and every visible tagged row carries fit-one or fit-two."
+-  - "block_standard.md's Tag row adds 'Narrow, a row's tag takes its own line above the home team, left-aligned' and the narrow-screen fix as a source; its Fitted block row adds `.fxrow:has(.topmatch)`; check_design_inventory.py --no-mocks passes at its default widths and at 280, 360, 560, 768 and 1010px."
++  - "none: no page output changes"
  
  decisions_taken: >
--  Approved in chat, 2026-11-01: the plan for #241 and #242, the five explainer texts in EN, DE and
--  FI, and the two block standard texts. The difference label takes the side of the dot opposite
--  the name, in both charts. The deserved points components keep passing the names the old
--  explainer used; t() ignores a name the text does not use. No new mechanism, no recurring cost.
-+  Approved in chat, 2026-11-01: the narrow form (the tag on its own line above the home team,
-+  left-aligned), the plan, the acceptance criteria and the two block standard texts. No new
-+  mechanism: the tagged row joins the one shared fit script that #231 set for every narrow form,
-+  measured like the header row (the names' column holds its content). Without the script the row
-+  shows the narrow form, as #231 rules for every fitted block. No recurring cost.
+-  Approved in chat, 2026-11-01: the narrow form (the tag on its own line above the home team,
+-  left-aligned), the plan, the acceptance criteria and the two block standard texts. No new
+-  mechanism: the tagged row joins the one shared fit script that #231 set for every narrow form,
+-  measured like the header row (the names' column holds its content). Without the script the row
+-  shows the narrow form, as #231 rules for every fitted block. No recurring cost.
++  Approved in chat, 2026-11-01 (the plan of #243) and 2026-11-02 (this step's plan): the checks
++  listed in the objective, their widths and languages, the baseline that may only fall, and these
++  readings. `overflow-wrap: break-word` and `word-break: break-word` are banned with the four named
++  properties, because they split a word. A break after a hyphen inside a word counts as a split
++  word. A count is stored per page, summed over widths and languages; classes are counted as
++  distinct names per page. The existing element measurements keep their three widths. The
++  rendered counts depend on the font (`system-ui`), so the baseline holds the numbers measured in
++  CI's Playwright image and a run on another platform prints its counts without comparing them.
++  NEW MECHANISM: the count baseline, the "each count only falls" line of #243's checklist, read
++  by the two existing checks; no new CI job, no CI file change, no new dependency. RECURRING
++  COST: validate:ui renders 183 more pages per run; measured on the MR pipeline and reported in
++  the MR.
  
  decisions_reserved:
    - "none: every decision of this task is approved, see decisions_taken"
  
  done_when:
--  - npm run build in site_v2 (node tests, SEO audit, built-pages check), the full pytest, the offline gates and check_design_inventory.py --no-mocks pass.
--  - The built Team page Performance tab, a competition page and Home are checked in the Browser pane at 280, 360, 560, 768 and 1010px in EN, DE and FI.
--  - The scatter name and difference label boxes are measured on every built Team page and none overlap.
-+  - npm run build in site_v2 (node tests, SEO audit, built-pages check), the full pytest, the offline gates and check_design_inventory.py --no-mocks (default widths, and --viewports 280,360,560,768,1010) pass.
-+  - The tag and name boxes are measured on every built page with a tagged row, at 280, 360, 560, 768 and 1010px in EN, DE and FI, and none overlap and no names run past their column.
+-  - npm run build in site_v2 (node tests, SEO audit, built-pages check), the full pytest, the offline gates and check_design_inventory.py --no-mocks (default widths, and --viewports 280,360,560,768,1010) pass.
+-  - The tag and name boxes are measured on every built page with a tagged row, at 280, 360, 560, 768 and 1010px in EN, DE and FI, and none overlap and no names run past their column.
++  - check_page_css.py and check_design_inventory.py --dist site_v2/dist print every count and pass against the baseline; the planted-defect page counts each defect kind.
++  - The full pytest, npm run build in site_v2 (sample data), the offline gates and check_design_inventory.py pass.
++  - The baseline's rendered counts are the ones measured by validate:ui on the MR pipeline.
  
- amendments:
--  - "Implementation within the approved plan, 2026-11-01: removing teamLeagueMedian, approved in chat, 2026-11-01, also removes it from the Team page spec's i18n key list (team.spec.json), which the build's page-spec check reads."
--  - "Implementation within the approved plan, 2026-11-01: the rank now leads the strip plot's right column (approved in chat, 2026-11-01), so the built-pages check reads the shown rank from that place instead of from under the value, and its test row is built the same way; the check still compares every row's shown rank with the served one."
--  - "Approved in chat, 2026-11-01, after review: where the difference label, on the side opposite the name, would reach the y axis, it moves to the name's side, one line under the name; the built-pages check fails a built Team page whose scatter label is neither opposite the name across the dot nor under it, with a test row that fails when the placement is reverted; the Team page wireframe's Compared with the league row drops `league_median`, strip-only."
-+  - "Implementation within the approved plan, 2026-11-01: the Fitted block row now names the tagged match row (approved in chat, 2026-11-01), so the design check's green fixture page, which stands for a loaded page as ruled, marks its tagged row fit-one like its other fitted blocks; without the mark its built-page test fails."
-+  - "Implementation within the approved plan, 2026-11-01: the Tag row's source names the two earlier rulings in words instead of their issue numbers, because the comment history gate refuses an edited documentation line that carries an issue number; the approved sentence and the narrow-screen fix source are added unchanged. block_standard.md then holds one history line fewer, and the decision-history test's pin for it moves down from 48 to 47, as that test requires."
+-amendments:
+-  - "Implementation within the approved plan, 2026-11-01: the Fitted block row now names the tagged match row (approved in chat, 2026-11-01), so the design check's green fixture page, which stands for a loaded page as ruled, marks its tagged row fit-one like its other fitted blocks; without the mark its built-page test fails."
+-  - "Implementation within the approved plan, 2026-11-01: the Tag row's source names the two earlier rulings in words instead of their issue numbers, because the comment history gate refuses an edited documentation line that carries an issue number; the approved sentence and the narrow-screen fix source are added unchanged. block_standard.md then holds one history line fewer, and the decision-history test's pin for it moves down from 48 to 47, as that test requires."
++amendments: (none)
+diff --git a/design-mocks/README.md b/design-mocks/README.md
+index d8448df6..dc5ec85a 100644
+--- a/design-mocks/README.md
++++ b/design-mocks/README.md
+@@ -23,7 +23,7 @@ preview_start url http://127.0.0.1:8899/<file>.html
+ | `gen_home_with_rules.py` | Home with the page-wide rules of the #129 review: boards as single-value tables, 13px block names, the 14px heading gap, the accent on the ordered-by number, one hover tint — an overlay on `gen_home.py` | #127 (Home's corrections) | `scripts/check_design_inventory.py` |
+ | `gen_matches_hub.py` | `/{locale}/matches/`, the Matches hub: one day, every competition playing it, three matches per competition then Home's fold (ruled on #130), real fixtures of one day: 2026-09-19 by default (`matches_2026-09-19.json`, a league weekend), `MATCHES_HUB_DAY=2026-09-26` for an international weekend (`matches_2026-09-26.json`) | #130 | `scripts/check_design_inventory.py` |
+ | `gen_match_page.py` | `/{locale}/{slug}/{matches word}/{match}/`, the match page for its review: the built page (run `npm run build` first) under "Built today" and the proposed changes, numbered, under "Proposed", with each block's data source on a toggle; `MATCH_STATE=future`, `future-unmet` or `played` draws states 2 and 3 (a played match has no built page: the proposal alone, each approved instance under the block that uses it) | #132 | `scripts/check_page_css.py` |
+-| `gen_team_mock.py` | `/{locale}/{teams word}/{team}/`, the Team page as approved: Overview, Matches and Performance, drawn on a `site_v2/dist` built before the page's build | [the Team page design](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/134) | none |
++| `gen_team_mock.py` | `/{locale}/{teams word}/{team}/`, the Team page as approved: Overview, Matches and Performance, drawn on a `site_v2/dist` built before the page's build | [the Team page design](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/134) | `scripts/check_page_css.py` |
+ | `gen_matches.py` · `gen_home.py` · `gen_block_standard.py` | the "Next matches" block | #50 | `check_row_consistency.py` |
+ | `gen_interaction.py` | the interaction standard | #52 | `scan_clickables.py` |
+ 
+@@ -37,7 +37,9 @@ it: `scripts/check_page_css.py` fails a generator (or a module it imports) whose
+ touches an inventory class, and `scripts/check_design_inventory.py` renders every generator the
+ block standard lists at 375px, 700px and 1010px in EN and FI — the only two languages a mock carries; a
+ built page is rendered in every locale the site publishes — and measures every element. A page-level
+-class that happens to share a name with an element's is renamed, not argued about.
++class that happens to share a name with an element's is renamed, not argued about. A generator
++the block standard does not list is not a page, so the lint counts that CSS against the baseline
++instead of failing it.
+ 
+ **Proposed seed shapes** live beside the generators and are read by them, because `!27` needs a
+ clean tree: `competition_types.proposed.csv` (the shipped seed + `scope`, `label_i18n_key`,
 diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
-index 46305904..4847f1ab 100644
+index 4847f1ab..1bb6d420 100644
 --- a/docs/wireframes/block_standard.md
 +++ b/docs/wireframes/block_standard.md
-@@ -72,7 +72,7 @@
- | Fact row value | `.frow .fvv b` | the value, bold 15px accent — the number the row is about | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules, Block 3 |
- | Fact row context | `.frow .sub` | the context under the value, 12px muted | `font-size=12px; color=muted` | ruled | #129 the fact row |
- | Fact row block | `.frow` | label and value side by side while the block's longest row fits on one line; otherwise every row stacks its value under its label | `fits` | ruled | the narrow-screen fix |
--| Fitted block | `.header-in, .ctab, :has(> .frow), .fbar, .selbar` | a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded | `fit-marked` | ruled | the narrow-screen fix |
-+| Fitted block | `.header-in, .ctab, :has(> .frow), .fbar, .selbar, .fxrow:has(.topmatch)` | a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded | `fit-marked` | ruled | the narrow-screen fix |
- | Ordered-by number | `.ctab .n.pts` | the number a table is ordered by: bold 15px accent, everywhere, no per-block colour | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules |
- | Row link | `a.ctab-row, a.fxrow, a.frow, a.brow, a.comp-row` | a row that leads somewhere is one link, the whole row; one hover tint for every row link, ink at 11% (twice the stripe); the press tint `sunk`; no underline inside a row | `hover(background-color)=ink@11%; press(background-color)=sunk; text-decoration-line=none` | ruled | #129 binding rules; #52; #127 (2026-09-14) |
- | Chevron heading link | `a.cnm` | a heading that leads somewhere carries a chevron at rest and is never underlined | `text-decoration-line=none` | ruled | #52; #129 binding rules |
-@@ -110,7 +110,7 @@
- | Metric switch | `.tsw-lbl` | "Show all metrics" at the top right of a metric comparison: off by default, the key metrics only; on, every metric in its place, the order never changing; a group heading with no key row hidden while off; the track neutral grey when on | `font-size=13px; font-weight=600; color=ink-2` | ruled | the match page review |
- | Comparison team name | `.cmp .formhead .h` | each team's name over its column, 14px semi-bold ink | `font-size=14px; font-weight=600; color=ink` | ruled | the match page review |
- | Column head | `.rcol .colhead` | a list column's name, 13px bold muted; one fact may follow after a middle dot (a team's formation); a second head inside the column opens its second list | `font-size=13px; font-weight=700; color=muted` | ruled | the played match page review |
--| Tag | `.nexttag, .fxrow .topmatch` | Next (on the picker's title) and Top match (on the flagged row, before the kick-off): 10px bold capitals in an accent pill | `font-size=10px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink` | ruled | #129 Matchdays; #127 correction 2 |
-+| Tag | `.nexttag, .fxrow .topmatch` | Next (on the picker's title) and Top match (on the flagged row, before the kick-off): 10px bold capitals in an accent pill. Narrow, a row's tag takes its own line above the home team, left-aligned | `font-size=10px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink` | ruled | the competition Matchdays design; the Home design; the narrow-screen fix |
- | Matchday picker | `.mdnav .mdstep` | its own full-width line under the tab bar: ‹ MATCHDAY N › with the Next tag, the arrows pinned to the edges, the title centred, a 2px line under; one matchday on screen at a time; no script | `visible=1; border-bottom-width=2px` | ruled | #129 Matchdays |
- | Picker title | `.mdstep .mdtitle .num` | 13px bold capitals ink | `font-size=13px; font-weight=700; text-transform=uppercase; color=ink` | ruled | #129 Matchdays |
- | Picker arrow | `.mdstep .step` | a 34px target at each edge | `min-box=34px` | ruled | #129 Matchdays |
-diff --git a/site_v2/src/lib/fitBlocks.mjs b/site_v2/src/lib/fitBlocks.mjs
-index 4a390897..371d9794 100644
---- a/site_v2/src/lib/fitBlocks.mjs
-+++ b/site_v2/src/lib/fitBlocks.mjs
-@@ -3,7 +3,8 @@
- // The script marks each block `fit-one` or `fit-two`; system.css draws the two forms. A table fits
- // when every name keeps its longest word inside its own space; a block of fact rows fits when its
- // longest row (label, gap, value) fits its width; the header row fits when it holds the menu; a
--// Filter bar fits when each row of buttons does, and its dropdown row when each holds its longest choice.
-+// Filter bar fits when each row of buttons does, and its dropdown row when each holds its longest choice;
-+// a match row with a tag fits when its names keep their column beside the tag.
+@@ -14,6 +14,13 @@
+ > `Measured as` column says). `scripts/design_inventory.py` parses both tables and fails closed on
+ > a column, key, token or status it does not know. A rendered page that shows none of these elements
+ > fails too.
++>
++> Both scripts also count the site's design gaps, and `tests/fixtures/design_inventory/baseline.json`
++> pins each count. The lint counts CSS outside `system.css`, width rules, banned line-break
++> properties and literal text. The measured check counts sideways scroll, overflowing text, split
++> words, overlapping text and classes no row here names, at 280px to 1010px. A count that differs
++> from its pin fails. The rendered counts depend on the font, so they are compared only on the
++> platform the baseline names.
  
- /** The width of a text's longest word, given a function that measures one word. */
- export function longestWord(text, measure) {
-@@ -42,6 +43,8 @@ function start() {
-     facts: (block) => [...block.children].filter((r) => r.classList.contains("frow") && shown(r))
-       .map((row) => ({ need: oneLine(row), room: row.clientWidth })),
-     header: (block) => [{ need: block.scrollWidth, room: block.clientWidth }],
-+    tagged: (block) => [...block.querySelectorAll(":scope > .sides")]
-+      .map((sides) => ({ need: sides.scrollWidth, room: sides.clientWidth })),
-     filter: (block) => [...block.children].filter((c) => c.matches(".seg:not(.sel)") && shown(c))
-       .map((seg) => ({ need: seg.scrollWidth, room: seg.clientWidth })),
-     selects: (block) => [...block.querySelectorAll(".sel-in")].filter(shown).map((sel) => {
-@@ -65,6 +68,7 @@ function start() {
-     ...[...document.querySelectorAll(".header-in")].map((b) => [b, "header"]),
-     ...[...document.querySelectorAll(".ctab")].map((b) => [b, "table"]),
-     ...[...new Set([...document.querySelectorAll(".frow")].map((r) => r.parentElement))].map((b) => [b, "facts"]),
-+    ...[...document.querySelectorAll(".fxrow:has(> .topmatch)")].map((b) => [b, "tagged"]),
-     // the bar before its dropdown row: the row shows only once the bar has taken its narrow form
-     ...[...document.querySelectorAll(".fbar")].map((b) => [b, "filter"]),
-     ...[...document.querySelectorAll(".selbar")].map((b) => [b, "selects"]),
-diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
-index a80fd745..b9f707a0 100644
---- a/site_v2/src/styles/system.css
-+++ b/site_v2/src/styles/system.css
-@@ -452,8 +452,14 @@ a.cnm .nm { text-decoration: none; }
-   text-transform: uppercase; white-space: nowrap;
- }
- .nexttag { margin-left: 8px; }
--.fxrow .topmatch { align-self: center; margin-right: 10px; }
--.fxrow:has(.topmatch) { grid-template-columns: minmax(0, 1fr) max-content 41px; }
-+/* The tag stands before the kick-off while the names keep their space beside it (fitBlocks.mjs marks
-+   the row fit-one); otherwise, and without the script, it takes its own line above the home team. */
-+.fxrow:has(.topmatch) { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
-+.fxrow .topmatch { grid-column: 1 / -1; grid-row: 1; justify-self: start; }
-+.fxrow:has(.topmatch) > .sides, .fxrow:has(.topmatch) > .when { grid-row: 2; }
-+.fxrow.fit-one:has(.topmatch) { grid-template-columns: minmax(0, 1fr) max-content 41px; }
-+.fxrow.fit-one .topmatch { grid-column: auto; grid-row: auto; align-self: center; margin-right: 10px; }
-+.fxrow.fit-one:has(.topmatch) > .sides, .fxrow.fit-one:has(.topmatch) > .when { grid-row: auto; }
- /* THE FOLD (components/ui/Fold.astro) — the revealed rows join the list they continue
-    (`display: contents`, so they also fill a grid's columns), and the control reads as one more row
-    under whatever is shown: "Show all {n}" with the chevron down, "Show less" with it up. */
-diff --git a/tests/fixtures/design_inventory/green.html b/tests/fixtures/design_inventory/green.html
-index cd98c0cc..b70f4527 100644
---- a/tests/fixtures/design_inventory/green.html
-+++ b/tests/fixtures/design_inventory/green.html
-@@ -29,7 +29,7 @@
-   </div>
-   <div class="md" data-md="4"><input class="md-in" type="radio" name="md" id="md-4" checked>
-     <nav class="mdnav" aria-label="Pick a matchday"><span class="mdstep"><label class="step prev" for="md-3" aria-label="Matchday 3"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2"/></svg></label><span class="mdtitle"><b class="num">Matchday 4</b> <span class="nexttag">Next</span></span><label class="step next" for="md-5" aria-label="Matchday 5"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2"/></svg></label></span></nav>
--    <section><div class="sechead"><span class="eyebrow">Schedule</span></div><div class="fxgroup"><div class="dh">Fri 18 Sep</div><a class="fxrow" href="#n1"><span class="sides"><span class="side"><span class="crest xs"></span><span class="nm">Bayern München</span></span><span class="side"><span class="crest xs"></span><span class="nm">1. FC Union Berlin</span></span></span><span class="topmatch">Top match</span><span class="when"><b class="t">20:30</b><span class="rowtz">CEST</span></span></a></div></section>
-+    <section><div class="sechead"><span class="eyebrow">Schedule</span></div><div class="fxgroup"><div class="dh">Fri 18 Sep</div><a class="fxrow fit-one" href="#n1"><span class="sides"><span class="side"><span class="crest xs"></span><span class="nm">Bayern München</span></span><span class="side"><span class="crest xs"></span><span class="nm">1. FC Union Berlin</span></span></span><span class="topmatch">Top match</span><span class="when"><b class="t">20:30</b><span class="rowtz">CEST</span></span></a></div></section>
-   </div>
-   <div class="md" data-md="5"><input class="md-in" type="radio" name="md" id="md-5">
-     <nav class="mdnav" aria-label="Pick a matchday"><span class="mdstep"><label class="step prev" for="md-4" aria-label="Matchday 4"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2"/></svg></label><span class="mdtitle"><b class="num">Matchday 5</b></span><span class="step next off"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2"/></svg></span></span></nav>
-diff --git a/tests/test_no_decision_history_in_docs.py b/tests/test_no_decision_history_in_docs.py
-index 65269190..364dfac3 100644
---- a/tests/test_no_decision_history_in_docs.py
-+++ b/tests/test_no_decision_history_in_docs.py
-@@ -58,7 +58,7 @@ PINNED = {
-     "docs/wireframes/13_player_career.md": 11,
-     "docs/wireframes/14_team_stats.md": 9,
-     "docs/wireframes/99_gaps_register.md": 29,
--    "docs/wireframes/block_standard.md": 48,
-+    "docs/wireframes/block_standard.md": 47,
-     "docs/wireframes/metrics_display.md": 30,
-     "site_v2/src/data/README.md": 5,
- }
-
-# ============================================================================
-# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
-# ============================================================================
-# The files below changed on this branch and are DELIBERATELY kept out of the
-# diff: they are the review's own paperwork or the handover, which reviewers do
-# not judge (CPO 2026-08-01).
-#
-# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
-# and a path that appears in `scope_paths` but not in the diff is not, by itself,
-# a scope defect. Read them directly with Read/Grep if a claim in contract.md
-# depends on one.
-#
-#   .claude/task/acceptance_evidence.md    | 15 ++++++---------
-#    .claude/task/rendered_page_evidence.md | 25 ++++++++++++-------------
-#    2 files changed, 18 insertions(+), 22 deletions(-)
-# ============================================================================
+ ## How to read a row
+ 
+@@ -150,7 +157,8 @@ means every locale the site publishes, German included;
+ `Expect` names elements the page must show — a page showing none of the inventory fails anyway;
+ an entry ending in a width condition (`Search field [>=1010px]`) is required at those widths only.
+ The lint reads this table too: a mock generator listed here (and every module it imports) may
+-carry no CSS that touches an inventory class; a generator not listed is not a page.
++carry no CSS that touches an inventory class; a generator not listed is not a page, and its CSS
++that touches an inventory class is counted against the baseline.
+ 
+ Not listed, and why: `gen_block_standard.py` and `gen_interaction.py` are standards sheets that
+ show elements inside demo frames, not page compositions; `gen_competitions.py` (the competitions
+diff --git a/scripts/check_design_inventory.py b/scripts/check_design_inventory.py
+index e7a06808..7b8573af 100644
+--- a/scripts/check_design_inventory.py
++++ b/scripts/check_design_inventory.py
+@@ -4,8 +4,15 @@ Renders every design-mock generator the inventory lists into a temporary folder,
+ folder and the built site over HTTP, opens each page in headless Chromium at every viewport and
+ language the inventory asks for, and measures every element of `docs/wireframes/block_standard.md`
+ as its "Measured as" column says. One line per failure, and a page that shows none of the
+-inventory's elements fails on its own. Exit 0 clean, 1 on any failure, 2 when the inventory does
+-not parse or the browser is missing.
++inventory's elements fails on its own.
++
++It also counts the gaps `COUNT_JS` names on every page at `COUNT_VIEWPORTS`, per page summed over
++widths and languages, and compares them with the baseline's `rendered` pins
++(`design_inventory.BASELINE`), in both directions. The counts depend on the font, so they are
++compared only on the platform the baseline names and only on a run over everything the inventory
++lists; any other run prints them. `--artifacts` also receives `counts.json`, the measured counts
++with examples. Exit 0 clean, 1 on any failure or count off its pin, 2 when the inventory does not
++parse or the browser is missing.
+ 
+     python scripts/check_design_inventory.py --dist site_v2/dist
+     python scripts/check_design_inventory.py --no-built --pages competition-overview --viewports 375 --langs fi
+@@ -47,6 +54,125 @@ DEFAULT_LANGS = ("en", "de", "fi")
+ # no other language exists in them to render.
+ MOCK_LANGS = ("en", "fi")
+ 
++# The widths the gap counts are taken at: the narrowest phones up to the desktop layout. The
++# element assertions above keep their own widths.
++COUNT_VIEWPORTS = (280, 320, 360, 375, 700, 1010)
++COUNTS = ("scroll", "overflow", "split", "overlap", "classes")
++
++# One evaluation per rendered page: the gaps the baseline pins. `scroll`: the page, or a box in it,
++# scrolls sideways. `overflow`: a text node runs past the box it sits in sideways (an ellipsis cut
++# included). `split`: a word, a run without spaces, lies on two lines. `overlap`: two text nodes'
++# visible lines cross, SVG text included; each line is trimmed by a fifth top and bottom so two
++# tight lines that only touch are not counted. `classes`: the class names no inventory selector
++# uses. Text that is not displayed, fully transparent or clipped away is not read.
++COUNT_JS = r"""
++(registered) => {
++  const reg = new Set(registered);
++  const shownMemo = new Map();
++  const shown = (el) => {
++    if (!el) return true;
++    if (shownMemo.has(el)) return shownMemo.get(el);
++    const s = getComputedStyle(el);
++    const v = s.display !== 'none' && s.visibility !== 'hidden' && s.visibility !== 'collapse'
++      && parseFloat(s.opacity) !== 0 && shown(el.parentElement);
++    shownMemo.set(el, v);
++    return v;
++  };
++  const clipMemo = new Map();
++  const clipOf = (el) => {
++    if (!el || el === document.documentElement) return [-Infinity, -Infinity, Infinity, Infinity];
++    if (clipMemo.has(el)) return clipMemo.get(el);
++    let c = clipOf(el.parentElement);
++    const s = getComputedStyle(el);
++    if (s.overflowX !== 'visible' || s.overflowY !== 'visible' || s.clipPath !== 'none') {
++      const r = el.getBoundingClientRect();
++      c = [Math.max(c[0], r.left), Math.max(c[1], r.top), Math.min(c[2], r.right), Math.min(c[3], r.bottom)];
++    }
++    clipMemo.set(el, c);
++    return c;
++  };
++  const boxOf = (el) => {
++    for (let a = el; a && a !== document.body; a = a.parentElement) {
++      const d = getComputedStyle(a).display;
++      if (d !== 'contents' && d !== 'inline') return a;
++    }
++    return document.body;
++  };
++  const label = (el, txt) => {
++    const cls = typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\s+/).join('.') : '';
++    return el.tagName.toLowerCase() + cls + (txt ? ' "' + txt.trim().slice(0, 40) + '"' : '');
++  };
++  const ex = { scroll: [], overflow: [], split: [], overlap: [] };
++  let scroll = 0, overflow = 0, split = 0;
++  const root = document.documentElement;
++  if (root.scrollWidth > root.clientWidth + 1) { scroll++; ex.scroll.push('page ' + root.scrollWidth + '>' + root.clientWidth); }
++  for (const el of document.body.querySelectorAll('*')) {
++    const s = getComputedStyle(el);
++    if ((s.overflowX === 'auto' || s.overflowX === 'scroll') && el.scrollWidth > el.clientWidth + 1 && shown(el)) {
++      scroll++; ex.scroll.push(label(el, '') + ' ' + el.scrollWidth + '>' + el.clientWidth);
++    }
++  }
++  const lines = [];
++  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
++  let id = 0;
++  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
++    const txt = n.textContent;
++    const p = n.parentElement;
++    if (!txt.trim() || !p || p.closest('script,style,noscript,template') || !shown(p)) continue;
++    id++;
++    const inSvg = !!p.closest('svg');
++    let rects;
++    if (inSvg) {
++      const r = p.getBoundingClientRect();
++      rects = r.width > 0 && r.height > 0 ? [r] : [];
++    } else {
++      const range = document.createRange();
++      range.selectNodeContents(n);
++      rects = [...range.getClientRects()].filter((r) => r.width > 0.5 && r.height > 0.5);
++    }
++    const clip = clipOf(p);
++    const seen = rects.map((r) => [Math.max(r.left, clip[0]), Math.max(r.top, clip[1]), Math.min(r.right, clip[2]), Math.min(r.bottom, clip[3])])
++      .filter((r) => r[2] - r[0] > 1 && r[3] - r[1] > 1);
++    if (!seen.length) continue;
++    if (!inSvg) {
++      const box = boxOf(p).getBoundingClientRect();
++      if (rects.some((r) => r.left < box.left - 1 || r.right > box.right + 1)) { overflow++; ex.overflow.push(label(p, txt)); }
++      const tops = [];
++      for (const r of rects) if (!tops.some((t) => Math.abs(t - r.top) < 2)) tops.push(r.top);
++      if (tops.length > 1) {
++        const word = /\S+/g;
++        for (let m = word.exec(txt); m; m = word.exec(txt)) {
++          const wr = document.createRange();
++          wr.setStart(n, m.index);
++          wr.setEnd(n, m.index + m[0].length);
++          const wt = [];
++          for (const r of wr.getClientRects()) if (r.width > 0.5 && !wt.some((t) => Math.abs(t - r.top) < 2)) wt.push(r.top);
++          if (wt.length > 1) { split++; ex.split.push(label(p, m[0])); }
++        }
++      }
++    }
++    for (const r of seen) {
++      const h = r[3] - r[1];
++      lines.push({ id, l: r[0], r: r[2], t: r[1] + h * 0.2, b: r[3] - h * 0.2, el: p, txt });
++    }
++  }
++  lines.sort((a, b) => a.t - b.t);
++  const pairs = new Set();
++  for (let i = 0; i < lines.length; i++) {
++    const a = lines[i];
++    for (let j = i + 1; j < lines.length && lines[j].t < a.b; j++) {
++      const b = lines[j];
++      if (a.id === b.id || Math.min(a.r, b.r) - Math.max(a.l, b.l) <= 1) continue;
++      const key = Math.min(a.id, b.id) + ':' + Math.max(a.id, b.id);
++      if (!pairs.has(key)) { pairs.add(key); ex.overlap.push(label(a.el, a.txt) + ' x ' + label(b.el, b.txt)); }
++    }
++  }
++  const classes = new Set();
++  for (const el of document.querySelectorAll('[class]')) for (const c of el.classList) if (!reg.has(c)) classes.add(c);
++  return { scroll, overflow, split, overlap: pairs.size, classes: [...classes].sort(), ex };
++}
++"""
++
+ # One evaluation per rendered page: every element's visible matches, with the measurements its
+ # assertions need. Runs inside the page; returns plain JSON.
+ MEASURE_JS = r"""
+@@ -356,12 +482,28 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
+     return total
+ 
+ 
++def compare_rendered(rendered: dict[str, dict[str, int]], pinned: dict, full_run: bool,
++                     platform: str) -> tuple[str, list[str]]:
++    """(why the counts are not compared, or "") and the counts off their pins. Only a run over
++    everything the inventory lists, on the platform the baseline names, is compared."""
++    if not full_run:
++        return "a narrower run than the baseline's", []
++    if platform != pinned["platform"]:
++        return "the baseline is measured on %s, this run on %s" % (pinned["platform"], platform), []
++    nonzero = {name: {k: n for k, n in c.items() if n} for name, c in rendered.items()}
++    return "", di.compare_counts(nonzero, pinned["pages"])
++
++
+ def main(argv=None) -> int:
+     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+     ap.add_argument("--inventory", default=str(di.DOC))
+     ap.add_argument("--dist", default=str(REPO / "site_v2" / "dist"))
+     ap.add_argument("--pages", help="comma-separated page names to run (default: all)")
+-    ap.add_argument("--viewports", default=",".join(str(v) for v in DEFAULT_VIEWPORTS))
++    ap.add_argument("--viewports", help="widths for the element assertions and, unless --count-viewports "
++                    "is given, the gap counts (default: %s)" % ",".join(str(v) for v in DEFAULT_VIEWPORTS))
++    ap.add_argument("--count-viewports", help="widths for the gap counts (default: %s)"
++                    % ",".join(str(v) for v in COUNT_VIEWPORTS))
++    ap.add_argument("--baseline", default=str(di.BASELINE))
+     ap.add_argument("--langs", default=",".join(DEFAULT_LANGS))
+     ap.add_argument("--no-built", action="store_true")
+     ap.add_argument("--no-mocks", action="store_true")
+@@ -394,8 +536,19 @@ def main(argv=None) -> int:
+         missing = wanted - {p.name for p in inv.pages}
+         if missing:
+             ap.error("unknown page(s): %s" % ", ".join(sorted(missing)))
+-    viewports = [int(v) for v in args.viewports.split(",")]
++    viewports = [int(v) for v in args.viewports.split(",")] if args.viewports else list(DEFAULT_VIEWPORTS)
++    if args.count_viewports:
++        count_viewports = [int(v) for v in args.count_viewports.split(",")]
++    else:
++        count_viewports = viewports if args.viewports else list(COUNT_VIEWPORTS)
+     langs = args.langs.split(",")
++    # The baseline pins a run over every page, width and language the inventory asks for; a narrower
++    # run prints its counts and compares none.
++    full_run = not (wanted or adhoc or args.no_built or args.no_mocks or args.viewports or args.count_viewports
++                    or args.langs != ",".join(DEFAULT_LANGS) or Path(args.inventory).resolve() != di.DOC.resolve())
++    registered = sorted(di.class_tokens(inv.elements))
++    counted: dict[str, dict] = {}
++    count_renders = 0
+     props = list(di.PROPS)
+     spec = {
+         "props": props,
+@@ -429,7 +582,7 @@ def main(argv=None) -> int:
+                 except PlaywrightError as exc:
+                     print("cannot launch Chromium: %s" % str(exc).splitlines()[0], file=sys.stderr)
+                     return 2
+-                for viewport in viewports:
++                for viewport in sorted(set(viewports) | set(count_viewports)):
+                     ctx = browser.new_context(viewport={"width": viewport, "height": 900}, device_scale_factor=1,
+                                               reduced_motion="reduce")
+                     pw_page = ctx.new_page()
+@@ -467,12 +620,24 @@ def main(argv=None) -> int:
+                             if not pw_page.is_checked("#t-fi"):
+                                 failures.append(Failure(p.name, viewport, lang, "(page)", "the FI toggle did not switch"))
+                                 continue
+-                        before = len(failures)
+-                        measure_page(pw_page, inv, spec, p, viewport, lang, failures)
+-                        renders += 1
+-                        covered.setdefault(lang, set()).add(p.name)
+-                        if artifacts and any(f.level == "FAIL" for f in failures[before:]):
+-                            pw_page.screenshot(path=str(artifacts / ("%s_%d_%s.png" % (p.name, viewport, lang))), full_page=True)
++                        if viewport in viewports:
++                            before = len(failures)
++                            measure_page(pw_page, inv, spec, p, viewport, lang, failures)
++                            renders += 1
++                            covered.setdefault(lang, set()).add(p.name)
++                            if artifacts and any(f.level == "FAIL" for f in failures[before:]):
++                                pw_page.screenshot(path=str(artifacts / ("%s_%d_%s.png" % (p.name, viewport, lang))), full_page=True)
++                        if viewport in count_viewports:
++                            # The pointer checks scroll the page, and a sticky header then lies over the content.
++                            pw_page.evaluate("window.scrollTo(0, 0); document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => r())))")
++                            found = pw_page.evaluate(COUNT_JS, registered)
++                            count_renders += 1
++                            page_counts = counted.setdefault(p.name, {"classes": set(), "examples": {}})
++                            page_counts["classes"].update(found["classes"])
++                            for k in COUNTS[:-1]:
++                                page_counts[k] = page_counts.get(k, 0) + found[k]
++                                shown = page_counts["examples"].setdefault(k, [])
++                                shown += ["%d %s %s" % (viewport, lang, e) for e in found["ex"][k][:20 - len(shown)]]
+                     ctx.close()
+                 browser.close()
+         finally:
+@@ -482,6 +647,21 @@ def main(argv=None) -> int:
+             for srv, _base in adhoc_srv.values():
+                 srv.shutdown()
+ 
++    rendered = {name: {k: (len(c["classes"]) if k == "classes" else c.get(k, 0)) for k in COUNTS}
++                for name, c in counted.items()}
++    for name in sorted(rendered):
++        print("COUNT %s · %s" % (name, " · ".join("%s %d" % (k, rendered[name][k]) for k in COUNTS)))
++    note, off = compare_rendered(rendered, di.load_baseline(Path(args.baseline))["rendered"], full_run, sys.platform)
++    for line in off:
++        failures.append(Failure("(counts)", 0, "-", "(baseline)", line))
++        page, metric = line.split(" · ")[1:3]
++        for e in counted.get(page, {}).get("examples", {}).get(metric, [])[:5]:
++            failures.append(Failure(page, 0, "-", metric, "e.g. " + e, "INFO"))
++    if artifacts is not None:
++        (artifacts / "counts.json").write_text(json.dumps(
++            {"platform": sys.platform, "pages": {name: {k: n for k, n in c.items() if n} for name, c in rendered.items()},
++             "classes": {name: sorted(c["classes"]) for name, c in counted.items()},
++             "examples": {name: c["examples"] for name, c in counted.items()}}, indent=1, ensure_ascii=False), encoding="utf-8")
+     for f in failures:
+         print(f.line())
+     hard = [f for f in failures if f.level == "FAIL"]
+@@ -498,7 +678,11 @@ def main(argv=None) -> int:
+     if any(n < reached for _lang, n in per_lang):
+         caveat = " (pages per language: %s)" % ", ".join("%s %d" % (lang, n) for lang, n in per_lang)
+     print("%d pages · %d viewports · %d languages%s · %d renders · %d failures · %d warnings"
+-          % (len(pages) + len(adhoc), len(viewports), len(langs), caveat, renders, len(hard), len(failures) - len(hard)))
++          % (len(pages) + len(adhoc), len(viewports), len(langs), caveat, renders, len(hard),
++             sum(1 for f in failures if f.level == "WARN")))
++    print("gap counts: %d pages counted at %s px · %s" % (
++        count_renders, ",".join(str(v) for v in count_viewports),
++        "not compared: %s" % note if note else "%d off the baseline" % len(off)))
+     if artifacts and hard:
+         (artifacts / "failures.json").write_text(json.dumps([f.__dict__ for f in failures], indent=1), encoding="utf-8")
+     return 1 if hard else 0
+diff --git a/scripts/check_page_css.py b/scripts/check_page_css.py
+index d1b6dfff..e04f7884 100644
+--- a/scripts/check_page_css.py
++++ b/scripts/check_page_css.py
+@@ -8,16 +8,27 @@ the selector: a page-internal class that happens to share a name with an element
+ collision to rename, not a case to reason about. The class list and the page list come from
+ `docs/wireframes/block_standard.md` through `design_inventory.py`; nothing here is hand-listed.
+ A data-driven bar width on a non-inventory class passes; a mock's harness CSS (toggles, the
+-stage, the legend) passes because it names no inventory class; a generator the Pages table does
+-not name (a diagram, a standards sheet) is not a page and is not linted.
++stage, the legend) passes because it names no inventory class.
+ 
+-Exit 0 clean, 1 with findings (`path:line · where · token`), 2 when the inventory does not parse.
++It also counts five gaps, each pinned in the baseline (`design_inventory.BASELINE`, `static`):
++- `mock_css`: the same findings in every other `gen_*.py` generator and the modules it imports,
++  per file (a generator the Pages table does not name is not a page, so it is counted, not failed);
++- `css_outside_system_css`: a `<style>` block or a `style=` attribute in an `.astro` file, another
++  stylesheet, or a style write in a site script, per file;
++- `width_rules`: `@media` and `@container` rules per width they name, so a new width is a new key;
++- `banned_properties`: declarations that split a word or cut text off, per file;
++- `literal_text`: text written into a component or page template instead of the strings, per file.
++A count that differs from its pin fails, in both directions.
++
++Exit 0 clean, 1 with findings (`path:line · where · token`) or a count off its pin, 2 when the
++inventory does not parse.
+ """
+ 
+ from __future__ import annotations
+ 
+ import argparse
+ import ast
++import html
+ import os
+ import re
+ import sys
+@@ -119,8 +130,17 @@ def lint_css_file(path: Path, tokens: frozenset[str], root: Path = REPO) -> list
+ def mock_modules(inv: di.Inventory, mocks: Path = MOCKS) -> list[Path]:
+     """The generator behind every mock page in the inventory and, transitively, every sibling
+     module one of them imports. A generator the Pages table does not name is not a page (a
+-    diagram, a standards sheet) and is not linted."""
+-    names = {p.source.split()[0] for p in inv.pages if p.kind == "mock" and p.source}
++    diagram, a standards sheet): its findings are counted, not failed."""
++    return _with_imports({p.source.split()[0] for p in inv.pages if p.kind == "mock" and p.source}, mocks)
++
++
++def unlisted_mock_modules(inv: di.Inventory, mocks: Path = MOCKS) -> list[Path]:
++    """Every other `gen_*.py` generator and the modules it imports, minus the page modules."""
++    listed = {p.name for p in mock_modules(inv, mocks)}
++    return [p for p in _with_imports({p.name for p in mocks.glob("gen_*.py")}, mocks) if p.name not in listed]
++
++
++def _with_imports(names: set[str], mocks: Path) -> list[Path]:
+     todo = [mocks / n for n in sorted(names)]
+     seen: dict[str, Path] = {}
+     while todo:
+@@ -185,19 +205,194 @@ def run(inventory: Path, site_src: Path = SITE_SRC, mocks: Path = MOCKS) -> tupl
+     return findings, scanned
+ 
+ 
++_STYLE_OPEN = re.compile(r"<style\b", re.IGNORECASE)
++_STYLE_WRITE = re.compile(r"""\.style(?:\.[A-Za-z]\w*|\[[^\]]*\])?\s*=(?!=)|\.style\.setProperty\(|setAttribute\(\s*["']style["']""")
++_BANNED = re.compile(
++    r"(?<![\w-])(?:(?:-webkit-)?hyphens\s*:\s*auto|overflow-wrap\s*:\s*(?:anywhere|break-word)"
++    r"|word-wrap\s*:\s*break-word|word-break\s*:\s*(?:break-all|break-word)"
++    r"|text-overflow\s*:\s*ellipsis|(?:-webkit-)?line-clamp\s*:)", re.IGNORECASE)
++_WIDTH_RULE = re.compile(r"@(?:media|container)\b([^{;]*)\{")
++_WIDTH = re.compile(r"\b(?:min-|max-)?width\s*(?::|[<>]=?)\s*(\d+(?:\.\d+)?(?:px|em|rem))")
++_VOID = frozenset("area base br col embed hr img input link meta source track wbr".split())
++_VISIBLE_ATTR = re.compile(r"""(?<![\w:-])(?:placeholder|title|alt)\s*=\s*(?:"([^"]*)"|'([^']*)')""")
++_LETTER = re.compile(r"[^\W_]")
++_BLANKED = re.compile(r"<!--.*?-->|<(script|style)\b.*?</\1\s*>", re.DOTALL | re.IGNORECASE)
++
++
++def _blank(text: str) -> str:
++    return re.sub(r"[^\n]", " ", text)
++
++
++def _tag_end(s: str, i: int) -> int:
++    """Just past the `>` closing the tag that opens at `s[i]`, skipping quoted values and `{…}`."""
++    quote, depth, j = None, 0, i + 1
++    while j < len(s):
++        c = s[j]
++        if quote:
++            if c == quote:
++                quote = None
++        elif c in "\"'`":
++            quote = c
++        elif c == "{":
++            depth += 1
++        elif c == "}":
++            depth -= 1
++        elif c == ">" and depth <= 0:
++            return j + 1
++        j += 1
++    return len(s)
++
++
++def _opens_element(tag: str) -> bool:
++    m = re.match(r"<([A-Za-z][\w.:-]*)", tag)
++    return tag == "<>" or bool(m and not tag.endswith("/>") and m.group(1).lower() not in _VOID)
++
++
++def literal_text(text: str) -> list[tuple[int, str]]:
++    """Every literal text in an Astro template: a run of text between tags (inside an expression's
++    markup too) and the literal value of a visible attribute, when it holds a letter or a digit.
++    The frontmatter, comments, scripts, styles and code inside `{…}` are not template text."""
++    start = 0
++    if text.startswith("---"):
++        end = text.find("\n---", 3)
++        start = end + 4 if end != -1 else 0
++    s = _blank(text[:start]) + _BLANKED.sub(lambda m: _blank(m.group(0)), text[start:])
++    out: list[tuple[int, str]] = []
++    run_at: int | None = None
++
++    def keep(at: int, raw: str) -> None:
++        value = " ".join(html.unescape(raw).split())
++        if _LETTER.search(value):
++            out.append((s.count("\n", 0, at) + 1, value))
++
++    def tag_at(i: int) -> int:
++        j = _tag_end(s, i)
++        for m in _VISIBLE_ATTR.finditer(s, i, j):
++            keep(m.start(), m.group(1) if m.group(1) is not None else m.group(2))
++        return j
++
++    stack = ["markup"]
++    i, n = 0, len(s)
++    while i < n:
++        c, nxt = s[i], s[i + 1:i + 2]
++        if stack[-1] == "markup":
++            if c == "{" or (c == "<" and (nxt.isalpha() or nxt in ("/", "!", ">"))):
++                if run_at is not None:
++                    keep(run_at, s[run_at:i])
++                    run_at = None
++                if c == "{":
++                    stack.append("code")
++                    i += 1
++                    continue
++                j = tag_at(i)
++                if nxt == "/":
++                    if len(stack) > 1:
++                        stack.pop()
++                elif _opens_element(s[i:j]):
++                    stack.append("markup")
++                i = j
++                continue
++            if run_at is None and not c.isspace():
++                run_at = i
++            i += 1
++            continue
++        if c in "\"'`":
++            j = i + 1
++            while j < n and s[j] != c:
++                j += 2 if s[j] == "\\" else 1
++            i = j + 1
++            continue
++        if s.startswith("//", i):
++            i = s.find("\n", i) if "\n" in s[i:] else n
++            continue
++        if s.startswith("/*", i):
++            j = s.find("*/", i + 2)
++            i = n if j == -1 else j + 2
++            continue
++        if c == "{":
++            stack.append("code")
++        elif c == "}":
++            if len(stack) > 1:
++                stack.pop()
++        elif c == "<" and (nxt.isalpha() or nxt == ">"):
++            j = tag_at(i)
++            if _opens_element(s[i:j]):
++                stack.append("markup")
++            i = j
++            continue
++        i += 1
++    if run_at is not None:
++        keep(run_at, s[run_at:])
++    return out
++
++
++def _stylesheets(site_src: Path, root: Path):
++    """(path, CSS) for every stylesheet under the site's source and every `<style>` block."""
++    for p in sorted(site_src.rglob("*.css")):
++        yield p.relative_to(root).as_posix(), _COMMENT.sub(" ", p.read_text(encoding="utf-8"))
++    for p in sorted(site_src.rglob("*.astro")):
++        for m in _STYLE_BLOCK.finditer(p.read_text(encoding="utf-8")):
++            yield p.relative_to(root).as_posix(), _COMMENT.sub(" ", m.group(1))
++
++
++def counts(inventory: Path, site_src: Path = SITE_SRC, mocks: Path = MOCKS) -> dict[str, dict[str, int]]:
++    """The five static gap counts, each by file (or, for width rules, by width)."""
++    inv = di.load(inventory)
++    root = site_src.parent.parent
++    system_css = (site_src / "styles" / "system.css").resolve()
++    tokens = di.class_tokens(inv.elements)
++    out: dict[str, dict[str, int]] = {k: {} for k in (
++        "mock_css", "css_outside_system_css", "width_rules", "banned_properties", "literal_text")}
++
++    def add(group: str, key: str, n: int) -> None:
++        if n:
++            out[group][key] = out[group].get(key, 0) + n
++
++    if mocks.is_dir():
++        for p in unlisted_mock_modules(inv, mocks):
++            add("mock_css", p.relative_to(root).as_posix(), len(lint_mock(p, tokens, root)))
++    for p in sorted(site_src.rglob("*")):
++        if not p.is_file():
++            continue
++        rel = p.relative_to(root).as_posix()
++        if p.suffix == ".astro":
++            text = p.read_text(encoding="utf-8")
++            add("css_outside_system_css", rel, len(_STYLE_OPEN.findall(text)))
++            add("css_outside_system_css", rel, sum(len(_STYLE_ATTR.findall(m.group(2))) for m in _TAG.finditer(text)))
++            add("css_outside_system_css", rel, len(_STYLE_WRITE.findall(text)))
++            add("literal_text", rel, len(literal_text(text)))
++        elif p.suffix in (".css", ".scss", ".sass", ".less") and p.resolve() != system_css:
++            add("css_outside_system_css", rel, 1)
++        elif p.suffix in (".ts", ".mjs", ".js") and ".test." not in p.name:
++            add("css_outside_system_css", rel, len(_STYLE_WRITE.findall(p.read_text(encoding="utf-8"))))
++    for rel, css in _stylesheets(site_src, root):
++        add("banned_properties", rel, len(_BANNED.findall(css)))
++        for m in _WIDTH_RULE.finditer(css):
++            for width in sorted(set(_WIDTH.findall(m.group(1)))):
++                add("width_rules", width, 1)
++    return out
++
++
+ def main(argv=None) -> int:
+     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+     ap.add_argument("--inventory", default=str(di.DOC))
++    ap.add_argument("--baseline", default=str(di.BASELINE))
+     args = ap.parse_args(argv)
+     try:
+         findings, scanned = run(Path(args.inventory))
++        measured = counts(Path(args.inventory))
+     except di.InventoryError as exc:
+         print("INVENTORY ERROR: %s" % exc, file=sys.stderr)
+         return 2
+     for f in findings:
+         print("FAIL  " + f)
+-    print("page-css lint: %d files scanned, %d finding(s)" % (scanned, len(findings)))
+-    return 1 if findings else 0
++    off = di.compare_counts(measured, di.load_baseline(Path(args.baseline))["static"])
++    for line in off:
++        print("FAIL  " + line)
++    for group, by_key in measured.items():
++        print("count %s: %d (%s)" % (group, sum(by_key.values()), ", ".join("%s %d" % kv for kv in sorted(by_key.items())) or "none"))
++    print("page-css lint: %d files scanned, %d finding(s), %d count(s) off the baseline" % (scanned, len(findings), len(off)))
++    return 1 if findings or off else 0
+ 
+ 
+ if __name__ == "__main__":
+diff --git a/scripts/design_inventory.py b/scripts/design_inventory.py
+index 0e39abff..7b73b95d 100644
+--- a/scripts/design_inventory.py
++++ b/scripts/design_inventory.py
+@@ -40,6 +40,7 @@ Stdlib only, so the lint runs where no browser is installed.
+ from __future__ import annotations
+ 
+ import argparse
++import json
+ import re
+ import sys
+ from dataclasses import dataclass
+@@ -299,6 +300,31 @@ def class_tokens(elements: tuple[Element, ...]) -> frozenset[str]:
+     return frozenset(out)
+ 
+ 
++BASELINE = REPO / "tests" / "fixtures" / "design_inventory" / "baseline.json"
++
++
++def load_baseline(path: Path = BASELINE) -> dict:
++    """The pinned gap counts: `static` (by check, then file or width) and `rendered` (the
++    platform it was measured on, then by page and count)."""
++    return json.loads(path.read_text(encoding="utf-8"))
++
++
++def compare_counts(measured: dict[str, dict[str, int]], pinned: dict[str, dict[str, int]]) -> list[str]:
++    """One line per count that differs from its pin, in both directions: a count that rose is a new
++    gap, a count that fell is a fixed gap whose pin is not yet lowered. A key missing on one side is
++    zero there."""
++    out = []
++    for group in sorted(set(measured) | set(pinned)):
++        m, p = measured.get(group, {}), pinned.get(group, {})
++        for key in sorted(set(m) | set(p)):
++            now, was = m.get(key, 0), p.get(key, 0)
++            if now > was:
++                out.append("count rose · %s · %s · %d, baseline %d" % (group, key, now, was))
++            elif now < was:
++                out.append("count fell · %s · %s · %d, baseline %d: lower the baseline" % (group, key, now, was))
++    return out
++
++
+ def parse_css_color(s: str) -> tuple[float, float, float, float]:
+     """A computed colour as (r, g, b, a) on 0–255 / 0–1: rgb(), rgba(), color(srgb …), #hex."""
+     s = s.strip()
+diff --git a/tests/fixtures/design_inventory/baseline.json b/tests/fixtures/design_inventory/baseline.json
+new file mode 100644
+index 00000000..8ad4aa8f
+--- /dev/null
++++ b/tests/fixtures/design_inventory/baseline.json
+@@ -0,0 +1,46 @@
++{
++ "static": {
++  "mock_css": {
++   "design-mocks/gen_competitions.py": 13,
++   "design-mocks/gen_interaction.py": 3,
++   "design-mocks/gen_match_page.py": 33,
++   "design-mocks/gen_navmap.py": 6,
++   "design-mocks/gen_sitemap.py": 8,
++   "design-mocks/gen_taxonomy.py": 6,
++   "design-mocks/gen_team_mock.py": 73
++  },
++  "css_outside_system_css": {
++   "site_v2/src/components/fixture/MetricRow.astro": 2,
++   "site_v2/src/components/team/TeamLeagueStrips.astro": 2,
++   "site_v2/src/lib/fitBlocks.mjs": 2
++  },
++  "width_rules": {
++   "340px": 1,
++   "420px": 4,
++   "430px": 2,
++   "470px": 1,
++   "479.98px": 2,
++   "480px": 1,
++   "520px": 1,
++   "560px": 2,
++   "599.98px": 2,
++   "699.98px": 4,
++   "700px": 1,
++   "800px": 1,
++   "900px": 1,
++   "1010px": 1
++  },
++  "banned_properties": {
++   "site_v2/src/styles/system.css": 7
++  },
++  "literal_text": {
++   "site_v2/src/components/chrome/SiteFooter.astro": 3,
++   "site_v2/src/components/chrome/SiteHeader.astro": 2,
++   "site_v2/src/pages/index.astro": 2
++  }
++ },
++ "rendered": {
++  "platform": "linux",
++  "pages": {}
++ }
++}
+diff --git a/tests/fixtures/design_inventory/counts_red.html b/tests/fixtures/design_inventory/counts_red.html
+new file mode 100644
+index 00000000..007d909c
+--- /dev/null
++++ b/tests/fixtures/design_inventory/counts_red.html
+@@ -0,0 +1,29 @@
++<!doctype html>
++<html lang="en">
++<head>
++<meta charset="utf-8">
++<title>gap counts, one defect of each kind</title>
++<style>
++body { margin: 0; font: 15px/1.5 sans-serif; }
++.red-wide { width: 600px; }
++.red-nowrap { width: 40px; white-space: nowrap; }
++.red-cut { width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
++.red-split { width: 50px; overflow-wrap: anywhere; }
++.red-over { position: relative; height: 24px; }
++.red-over span { position: absolute; left: 0; top: 0; }
++.red-over span + span { left: 10px; }
++.red-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; }
++.red-fine { width: 120px; }
++</style>
++</head>
++<body>
++<div class="red-wide">A block wider than a phone</div>
++<div class="red-nowrap">Overflowing words here</div>
++<div class="red-cut">Cut off with an ellipsis</div>
++<div class="red-split">Extraordinarily</div>
++<div class="red-over"><span>First text</span><span>Second text</span></div>
++<svg width="200" height="40"><text x="0" y="20">Axis label</text><text x="10" y="22">Another</text></svg>
++<div class="red-sr">Text for a screen reader only, longer than its box</div>
++<div class="red-fine sechead">Text that wraps between its words</div>
++</body>
++</html>
+diff --git a/tests/test_design_inventory.py b/tests/test_design_inventory.py
+index f27cc39c..df5c35f5 100644
+--- a/tests/test_design_inventory.py
++++ b/tests/test_design_inventory.py
+@@ -15,6 +15,7 @@ lint tests run everywhere.
+ 
+ from __future__ import annotations
+ 
++import json
+ import os
+ import re
+ import shutil
+@@ -335,6 +336,82 @@ def test_the_lint_lints_only_the_generators_the_pages_table_names(tmp_path):
+     assert named <= linted
+     assert "rows.py" in linted and "interaction.py" in linted, "the shared row modules are imported by every page"
+     assert "gen_navmap.py" not in linted and "gen_sitemap.py" not in linted, "a diagram is not a page"
++    counted = {p.name for p in lint.unlisted_mock_modules(inv)}
++    assert not counted & linted
++    assert {"gen_match_page.py", "gen_team_mock.py", "gen_navmap.py"} <= counted, "every other generator is counted"
++
++
++# ---------------------------------------------------------------- the static gap counts
++
++def test_the_static_counts_match_the_baseline():
++    measured = lint.counts(di.DOC)
++    off = di.compare_counts(measured, di.load_baseline()["static"])
++    assert off == [], "\n".join(off)
++
++
++def test_a_count_off_its_pin_fails_in_both_directions():
++    off = di.compare_counts({"g": {"a": 3, "b": 1}}, {"g": {"a": 2, "b": 1, "c": 4}})
++    assert off == ["count rose · g · a · 3, baseline 2", "count fell · g · c · 0, baseline 4: lower the baseline"]
++    assert di.compare_counts({"g": {"a": 1}}, {"g": {"a": 1}}) == []
++
++
++def test_the_lint_exits_red_on_a_count_off_its_pin(tmp_path, capsys):
++    baseline = di.load_baseline()
++    assert lint.main([]) == 0
++    capsys.readouterr()
++    baseline["static"]["literal_text"]["site_v2/src/pages/index.astro"] -= 1
++    lowered = tmp_path / "baseline.json"
++    lowered.write_text(json.dumps(baseline), encoding="utf-8")
++    assert lint.main(["--baseline", str(lowered)]) == 1
++    assert "FAIL  count rose · literal_text · site_v2/src/pages/index.astro · 2, baseline 1" in capsys.readouterr().out
++
++
++def test_the_rendered_counts_compare_only_on_a_full_run_on_the_baselines_platform():
++    import check_design_inventory as cdi  # noqa: PLC0415
++    pinned = {"platform": "linux", "pages": {"Home": {"split": 3, "classes": 23}}}
++    measured = {"Home": {"scroll": 0, "overflow": 0, "split": 4, "overlap": 0, "classes": 23}}
++    note, off = cdi.compare_rendered(measured, pinned, True, "linux")
++    assert note == "" and off == ["count rose · Home · split · 4, baseline 3"]
++    measured["Home"]["split"] = 3
++    assert cdi.compare_rendered(measured, pinned, True, "linux") == ("", [])
++    measured["Home"]["classes"] = 22
++    assert cdi.compare_rendered(measured, pinned, True, "linux")[1] == [
++        "count fell · Home · classes · 22, baseline 23: lower the baseline"]
++    assert cdi.compare_rendered(measured, pinned, True, "win32") == (
++        "the baseline is measured on linux, this run on win32", [])
++    assert cdi.compare_rendered(measured, pinned, False, "linux") == ("a narrower run than the baseline's", [])
++
++
++def test_the_static_counts_find_each_gap(tmp_path):
++    site, mocks = _tree(tmp_path)
++    (site / "styles" / "system.css").write_text(
++        "/* hyphens: auto */\n.a { hyphens: auto; overflow-wrap: anywhere; }\n.b { text-overflow: ellipsis; word-break: break-all; }\n"
++        ".c { overflow-wrap: break-word; -webkit-line-clamp: 2; overflow-wrap: normal; }\n"
++        "@media (min-width: 700px) { .a { color: red } }\n@media (max-width: 699.98px) { .a { color: red } }\n"
++        "@container (min-width: 700px) { .a { color: red } }\n@media (hover: hover) { .a { color: red } }\n", encoding="utf-8")
++    (site / "styles" / "page.css").write_text(".x { color: red }\n", encoding="utf-8")
++    (site / "A.astro").write_text(
++        '---\nconst label = "Not template text";\n---\n'
++        '<header class="brand">Brand<span class="iq">Name</span></header>\n'
++        '<!-- a comment -->\n<p>{t(lang, "key")} · {n}</p>\n'
++        '{items.map((x) => <li title="Literal title" alt={x.alt}>Item {x.n}</li>)}\n'
++        '<input placeholder="Search" aria-label="not shown" />\n'
++        '<div style={`width:${w}%`}></div>\n<style>\n.y { text-overflow: ellipsis; }\n</style>\n'
++        '<script>\nel.style.width = "1px"; if (el.style.width == "1px") {}\n</script>\n', encoding="utf-8")
++    (site / "fit.mjs").write_text("copy.style.cssText = 'x';\nnode.setAttribute('style', 'x');\n", encoding="utf-8")
++    (site / "fit.test.mjs").write_text("copy.style.cssText = 'x';\n", encoding="utf-8")
++    (mocks / "gen_home.py").write_text('CSS = """\n.stage { max-width: 375px }\n"""\n', encoding="utf-8")
++    (mocks / "gen_other.py").write_text('import shared\n', encoding="utf-8")
++    (mocks / "shared.py").write_text('CSS = """\n.sechead .eyebrow { color: red; }\n.sechead { color: red; }\n"""\n', encoding="utf-8")
++    c = lint.counts(_doc(tmp_path, GOOD_ROW), site, mocks)
++    assert c["mock_css"] == {"design-mocks/shared.py": 2}
++    assert c["css_outside_system_css"] == {"site_v2/src/A.astro": 3, "site_v2/src/fit.mjs": 2, "site_v2/src/styles/page.css": 1}
++    assert c["width_rules"] == {"700px": 2, "699.98px": 1}
++    assert c["banned_properties"] == {"site_v2/src/styles/system.css": 6, "site_v2/src/A.astro": 1}
++    found = lint.literal_text((site / "A.astro").read_text(encoding="utf-8"))
++    assert [v for _line, v in found] == ["Brand", "Name", "Literal title", "Item", "Search"], found
++    assert found[0][0] == 4
++    assert c["literal_text"] == {"site_v2/src/A.astro": 5}
+ 
+ 
+ # ---------------------------------------------------------------- the measured check: RED proof
+@@ -392,6 +469,31 @@ def test_the_check_goes_red_on_the_defects_it_exists_for(tmp_path):
+     assert "row 1 measured" in out
+ 
+ 
++@needs_browser
++def test_the_gap_counts_count_each_defect_once(tmp_path):
++    folder = tmp_path / "pages"
++    folder.mkdir()
++    shutil.copy(FIXTURES / "counts_red.html", folder / "counts_red.html")
++    proc = subprocess.run(
++        [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks", "--no-built",
++         "--page", "red=%s" % (folder / "counts_red.html"), "--langs", "en", "--viewports", "320"],
++        capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
++    )
++    out = proc.stdout + proc.stderr
++    assert "COUNT red · scroll 1 · overflow 2 · split 1 · overlap 2 · classes 7" in out, out
++    assert "not compared: a narrower run than the baseline's" in out, out
++
++
++def test_the_rendered_baseline_names_only_inventory_pages_and_counts():
++    rendered = di.load_baseline()["rendered"]
++    assert rendered["platform"] == "linux", "the baseline is measured in validate:ui's browser image"
++    names = {p.name for p in di.load().pages}
++    import check_design_inventory as cdi  # noqa: PLC0415
++    for page, by_count in rendered["pages"].items():
++        assert page in names, page
++        assert set(by_count) <= set(cdi.COUNTS) and all(n > 0 for n in by_count.values()), (page, by_count)
++
++
+ def _built_page_check(tmp_path: Path, html: str) -> tuple[int, str]:
+     """The check on one BUILT page whose only Expect is the header's search, at 1010px. A
+     `visible=` assertion measures only what its selector finds, so removal is caught here or

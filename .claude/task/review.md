@@ -1,34 +1,37 @@
-# Review — fix/231-tag-narrow-form — 2026-11-01
+# Review — feat/243-component-checks
 
-diff_sha256: bcbf94d91bf68fd0f7a9674dffb5f5d4eab07080e6781cc71e1e9bdea79d1a2f
+diff_sha256: 3c8b3df4fdb170302462c4f1e5b7ab18c9d73fdb8c387d851fd5916d15ce0295
 
-rounds: 1
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every file in the diff is in scope_paths, and no file outside it changed.
-- The narrow form, the plan and the two block standard texts are named in decisions_taken as approved in chat, 2026-11-01; the Tag row sentence matches acceptance criterion 3; nothing else is decided in the diff.
-- The new "tagged" kind is a block type inside the existing shared fit script, declared as no new mechanism; no library, hook, service, run or API volume is added; no recurring cost.
-- The impact map's three callers were checked by grep: HeroFixtures.astro, MatchdaySchedule.astro and TeamFixtureGroup.astro are the only callers passing topMatch or nextMatch; approved_design names exactly their three pages.
-- The green.html fit-one mark and the history pin moving from 48 to 47 match the contract amendments and the diff.
-
-## bi-analyst-reviewer
-VERDICT: PASS
-risks_checked:
-- No data, export, component markup or user-visible string changes; the tag text still comes from compNextTag and compTopMatch.
-- The rendered evidence gives measured boxes over 108 pages at 280, 360, 560, 768 and 1010px: 52 failing views before, 0 of 1,620 after, the narrow tag at x=16 above the home name.
-- The fit-one overrides are strictly more specific than the narrow base rules, so the wide form wins when marked and the narrow form is the default without the script; no other file styles `.fxrow` or `.topmatch`.
-- No metric row, tier, order, percentage, null or window label is touched.
+- All changed files are inside scope_paths; the contract is unchanged in round 2, so no amendment needs authority.
+- Every reading the checks apply (the banned list with break-word, the widths, the languages, per-page counting, the baseline that only falls) is in decisions_taken with its approval; decisions_reserved is none and the diff decides nothing outside it.
+- The new mechanism (the count baseline read by the two existing checks) and the recurring cost (validate:ui renders 183 more pages per run) are declared; no CI job, CI file change or dependency is added.
+- Appendix A: no invented metric, no product decision written into docs, no unilateral mechanism; no page or export file is touched, so approved_design none holds.
+- The added Markdown sentences carry one topic each and no history; the round-2 doc sentence does not contradict decisions_taken.
+- Open work, not a defect: rendered.pages in baseline.json is empty until the CI-measured counts are filled in, as done_when requires.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- fit() in fitBlocks.mjs is idempotent for the "tagged" kind: it measures only the wide form, always finds a `.sides` child, and the ResizeObserver re-run settles without oscillating; hidden rows are re-measured on `change`.
-- The CSS cascade in system.css: the fit-one rules out-rank the narrow defaults, and DOM order puts the tag before the kick-off in the wide form.
-- The measure is valid: an unbreakable word wider than the `minmax(0, 1fr)` column makes `.sides` scrollWidth exceed clientWidth.
-- Coverage: the Fitted block row's fit-marked assertion fails a tagged row left unmarked; the narrow placement itself is pinned only by the task's measurement, as for every other fitted block.
-- check-built-pages.mjs reads the server-rendered class only, which fit-one does not touch; no dependency, credential, hook or CI change.
+- Round 1 FAIL (the exit-code wiring was untested) is closed: compare_rendered is a pure function pinned in rose, equal, fell, platform-mismatch and narrower-run cases, and lint.main is pinned to exit 0 on the real baseline and 1 with the FAIL line on a lowered pin.
+- Re-run safety: the artifacts folder and counts.json are overwritten safely; servers and temp folders are released in finally.
+- Fail-closed: a missing or malformed baseline exits 1 in both scripts; a page that fails to render leaves its pin unmatched or adds a hard failure.
+- The planted-defect test is consistent with counts_red.html and COUNT_JS; the per-gap static test fails if any regex is reverted.
+- All 14 width_rules entries match the @media and @container lines in system.css; static counts use posix paths and are platform-independent.
+- No dependency, credential, workflow, .gitlab-ci.yml or hosting change.
+- Open work, not a defect: until the rendered pins are filled from the MR pipeline's counts.json, validate:ui fails on Linux by design; that fill is reviewed as its own delta.
+
+## bi-analyst-reviewer
+VERDICT: PASS
+risks_checked:
+- The block_standard.md edits are prose about the checks; they add no wireframe block, inventory element, field or metric, and nothing under site_v2/src or the export changes.
+- The doc's list of lint counts and rendered counts matches counts(), COUNTS and COUNT_VIEWPORTS in the scripts; the Pages-table sentence matches unlisted_mock_modules and mock_modules.
+- Round-1 note closed: the doc now says the rendered counts are compared only on the platform the baseline names, which matches compare_rendered.
+- The added doc lines carry no date, issue or MR number, reviewer credit or story phrase.
 
 ## escalations
 (none)

@@ -23,7 +23,7 @@ preview_start url http://127.0.0.1:8899/<file>.html
 | `gen_home_with_rules.py` | Home with the page-wide rules of the #129 review: boards as single-value tables, 13px block names, the 14px heading gap, the accent on the ordered-by number, one hover tint — an overlay on `gen_home.py` | #127 (Home's corrections) | `scripts/check_design_inventory.py` |
 | `gen_matches_hub.py` | `/{locale}/matches/`, the Matches hub: one day, every competition playing it, three matches per competition then Home's fold (ruled on #130), real fixtures of one day: 2026-09-19 by default (`matches_2026-09-19.json`, a league weekend), `MATCHES_HUB_DAY=2026-09-26` for an international weekend (`matches_2026-09-26.json`) | #130 | `scripts/check_design_inventory.py` |
 | `gen_match_page.py` | `/{locale}/{slug}/{matches word}/{match}/`, the match page for its review: the built page (run `npm run build` first) under "Built today" and the proposed changes, numbered, under "Proposed", with each block's data source on a toggle; `MATCH_STATE=future`, `future-unmet` or `played` draws states 2 and 3 (a played match has no built page: the proposal alone, each approved instance under the block that uses it) | #132 | `scripts/check_page_css.py` |
-| `gen_team_mock.py` | `/{locale}/{teams word}/{team}/`, the Team page as approved: Overview, Matches and Performance, drawn on a `site_v2/dist` built before the page's build | [the Team page design](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/134) | none |
+| `gen_team_mock.py` | `/{locale}/{teams word}/{team}/`, the Team page as approved: Overview, Matches and Performance, drawn on a `site_v2/dist` built before the page's build | [the Team page design](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/134) | `scripts/check_page_css.py` |
 | `gen_matches.py` · `gen_home.py` · `gen_block_standard.py` | the "Next matches" block | #50 | `check_row_consistency.py` |
 | `gen_interaction.py` | the interaction standard | #52 | `scan_clickables.py` |
 
@@ -37,7 +37,9 @@ it: `scripts/check_page_css.py` fails a generator (or a module it imports) whose
 touches an inventory class, and `scripts/check_design_inventory.py` renders every generator the
 block standard lists at 375px, 700px and 1010px in EN and FI — the only two languages a mock carries; a
 built page is rendered in every locale the site publishes — and measures every element. A page-level
-class that happens to share a name with an element's is renamed, not argued about.
+class that happens to share a name with an element's is renamed, not argued about. A generator
+the block standard does not list is not a page, so the lint counts that CSS against the baseline
+instead of failing it.
 
 **Proposed seed shapes** live beside the generators and are read by them, because `!27` needs a
 clean tree: `competition_types.proposed.csv` (the shipped seed + `scope`, `label_i18n_key`,

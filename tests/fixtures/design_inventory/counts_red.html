@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>gap counts, one defect of each kind</title>
+<style>
+body { margin: 0; font: 15px/1.5 sans-serif; }
+.red-wide { width: 600px; }
+.red-nowrap { width: 40px; white-space: nowrap; }
+.red-cut { width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.red-split { width: 50px; overflow-wrap: anywhere; }
+.red-over { position: relative; height: 24px; }
+.red-over span { position: absolute; left: 0; top: 0; }
+.red-over span + span { left: 10px; }
+.red-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; }
+.red-fine { width: 120px; }
+</style>
+</head>
+<body>
+<div class="red-wide">A block wider than a phone</div>
+<div class="red-nowrap">Overflowing words here</div>
+<div class="red-cut">Cut off with an ellipsis</div>
+<div class="red-split">Extraordinarily</div>
+<div class="red-over"><span>First text</span><span>Second text</span></div>
+<svg width="200" height="40"><text x="0" y="20">Axis label</text><text x="10" y="22">Another</text></svg>
+<div class="red-sr">Text for a screen reader only, longer than its box</div>
+<div class="red-fine sechead">Text that wraps between its words</div>
+</body>
+</html>

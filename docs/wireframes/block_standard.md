@@ -14,6 +14,13 @@
 > `Measured as` column says). `scripts/design_inventory.py` parses both tables and fails closed on
 > a column, key, token or status it does not know. A rendered page that shows none of these elements
 > fails too.
+>
+> Both scripts also count the site's design gaps, and `tests/fixtures/design_inventory/baseline.json`
+> pins each count. The lint counts CSS outside `system.css`, width rules, banned line-break
+> properties and literal text. The measured check counts sideways scroll, overflowing text, split
+> words, overlapping text and classes no row here names, at 280px to 1010px. A count that differs
+> from its pin fails. The rendered counts depend on the font, so they are compared only on the
+> platform the baseline names.
 
 ## How to read a row
 
@@ -150,7 +157,8 @@ means every locale the site publishes, German included;
 `Expect` names elements the page must show — a page showing none of the inventory fails anyway;
 an entry ending in a width condition (`Search field [>=1010px]`) is required at those widths only.
 The lint reads this table too: a mock generator listed here (and every module it imports) may
-carry no CSS that touches an inventory class; a generator not listed is not a page.
+carry no CSS that touches an inventory class; a generator not listed is not a page, and its CSS
+that touches an inventory class is counted against the baseline.
 
 Not listed, and why: `gen_block_standard.py` and `gen_interaction.py` are standards sheets that
 show elements inside demo frames, not page compositions; `gen_competitions.py` (the competitions

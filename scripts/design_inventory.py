@@ -40,6 +40,7 @@ Stdlib only, so the lint runs where no browser is installed.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from dataclasses import dataclass
@@ -297,6 +298,31 @@ def class_tokens(elements: tuple[Element, ...]) -> frozenset[str]:
     for e in elements:
         out.update(_CLASS.findall(e.selector))
     return frozenset(out)
+
+
+BASELINE = REPO / "tests" / "fixtures" / "design_inventory" / "baseline.json"
+
+
+def load_baseline(path: Path = BASELINE) -> dict:
+    """The pinned gap counts: `static` (by check, then file or width) and `rendered` (the
+    platform it was measured on, then by page and count)."""
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def compare_counts(measured: dict[str, dict[str, int]], pinned: dict[str, dict[str, int]]) -> list[str]:
+    """One line per count that differs from its pin, in both directions: a count that rose is a new
+    gap, a count that fell is a fixed gap whose pin is not yet lowered. A key missing on one side is
+    zero there."""
+    out = []
+    for group in sorted(set(measured) | set(pinned)):
+        m, p = measured.get(group, {}), pinned.get(group, {})
+        for key in sorted(set(m) | set(p)):
+            now, was = m.get(key, 0), p.get(key, 0)
+            if now > was:
+                out.append("count rose · %s · %s · %d, baseline %d" % (group, key, now, was))
+            elif now < was:
+                out.append("count fell · %s · %s · %d, baseline %d: lower the baseline" % (group, key, now, was))
+    return out
 
 
 def parse_css_color(s: str) -> tuple[float, float, float, float]:
