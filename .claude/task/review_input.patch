@@ -723,10 +723,10 @@ index 0e39abff..7b73b95d 100644
      s = s.strip()
 diff --git a/tests/fixtures/design_inventory/baseline.json b/tests/fixtures/design_inventory/baseline.json
 new file mode 100644
-index 00000000..8ad4aa8f
+index 00000000..9beb691c
 --- /dev/null
 +++ b/tests/fixtures/design_inventory/baseline.json
-@@ -0,0 +1,46 @@
+@@ -0,0 +1,72 @@
 +{
 + "static": {
 +  "mock_css": {
@@ -770,7 +770,33 @@ index 00000000..8ad4aa8f
 + },
 + "rendered": {
 +  "platform": "linux",
-+  "pages": {}
++  "pages": {
++   "Competition matchdays": {"overflow": 15, "classes": 28},
++   "Competition overview": {"split": 19, "classes": 29},
++   "Competition rankings": {"classes": 22},
++   "Competitions index": {"overflow": 24, "classes": 26},
++   "Home": {"overflow": 227, "split": 4, "classes": 23},
++   "Match page": {"scroll": 2, "classes": 53},
++   "Matches day page": {"classes": 31},
++   "Matches page": {"classes": 31},
++   "Played match page": {"scroll": 1, "classes": 51},
++   "Team page": {"overflow": 18, "split": 3, "classes": 87},
++   "Teams page": {"split": 1, "classes": 33},
++   "competition-hub cup": {"classes": 22},
++   "competition-hub groups": {"classes": 24},
++   "competition-hub league": {"overflow": 112, "classes": 26},
++   "competition-hub offseason": {"overflow": 112, "classes": 25},
++   "competition-matchdays": {"split": 2, "classes": 25},
++   "competition-overview": {"classes": 24},
++   "competition-rankings": {"split": 4, "classes": 19},
++   "home": {"classes": 21},
++   "home legacy": {"split": 6, "classes": 23},
++   "matches hub": {"scroll": 9, "classes": 27},
++   "matches next": {"classes": 21},
++   "matches past": {"classes": 22},
++   "top players": {"classes": 16},
++   "top teams": {"split": 6, "classes": 16}
++  }
 + }
 +}
 diff --git a/tests/fixtures/design_inventory/counts_red.html b/tests/fixtures/design_inventory/counts_red.html
@@ -935,3 +961,20 @@ index f27cc39c..df5c35f5 100644
  def _built_page_check(tmp_path: Path, html: str) -> tuple[int, str]:
      """The check on one BUILT page whose only Expect is the header's search, at 1010px. A
      `visible=` assertion measures only what its selector finds, so removal is caught here or
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/review.md          |   41 +-
+#    .claude/task/review_input.patch | 1109 ++++++++++++++++++++++++++++++++-------
+#    2 files changed, 933 insertions(+), 217 deletions(-)
+# ============================================================================
