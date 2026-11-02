@@ -26,6 +26,7 @@ one carries `.on`, the competition tab bar's class for the page you are on.
 No JavaScript: the review surface is a static snapshot, so script never runs.
 """
 import html
+import sys
 from pathlib import Path
 
 from gen_block_standard import ACTIVE, ZONE, short, slug
@@ -383,11 +384,14 @@ def check_data():
 
 if __name__ == "__main__":
     check_data()
+    out_dir = Path(sys.argv[2]) if sys.argv[1:2] == ["--out"] else None
     for page, out in (("next", OUT_NEXT), ("past", OUT_PAST)):
+        if out_dir:
+            out = out_dir / out.name
         out.write_text(build(page), encoding="utf-8")
         print("  wrote %s (%.0f KB)" % (out.name, out.stat().st_size / 1024))
     # the old single stacked file must not survive alongside them
     stale = Path(__file__).with_name("matches_mock.html")
-    if stale.exists():
+    if not out_dir and stale.exists():
         stale.unlink()
         print("  removed %s (the stacked two-in-one file it replaces)" % stale.name)

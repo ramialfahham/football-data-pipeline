@@ -34,12 +34,13 @@ head markup), `interaction.py` (the chevron and the interaction standard's text)
 element's CSS is `site_v2/src/styles/system.css`, inlined verbatim; the element, its rule and
 its measurements are `docs/wireframes/block_standard.md` (the block standard). Two scripts hold
 it: `scripts/check_page_css.py` fails a generator (or a module it imports) whose CSS string
-touches an inventory class, and `scripts/check_design_inventory.py` renders every generator the
-block standard lists at 375px, 700px and 1010px in EN and FI — the only two languages a mock carries; a
-built page is rendered in every locale the site publishes — and measures every element. A page-level
+touches an inventory class, and `scripts/check_design_inventory.py` runs every `gen_*.py` here
+and renders every page it writes, at 280px to 1010px, and measures every element. A page-level
 class that happens to share a name with an element's is renamed, not argued about. A generator
-the block standard does not list is not a page, so the lint counts that CSS against the baseline
-instead of failing it.
+the block standard does not list is counted against the baseline, not failed.
+
+**Every generator takes `--out DIR`** and writes every page it draws (every state and variant)
+into DIR; the check runs it that way. One that fails, or writes nothing there, is counted as a gap.
 
 **Proposed seed shapes** live beside the generators and are read by them, because `!27` needs a
 clean tree: `competition_types.proposed.csv` (the shipped seed + `scope`, `label_i18n_key`,

@@ -31,7 +31,7 @@ PINNED = {
     ".claude/agents/seo-expert-reviewer.md": 14,
     ".claude/skills/onboard-competition/SKILL.md": 10,
     ".claude/skills/onboard-endpoint/SKILL.md": 9,
-    ".claude/skills/validate-local/SKILL.md": 7,
+    ".claude/skills/validate-local/SKILL.md": 6,
     ".claude/skills/verify-competition-ingest/SKILL.md": 4,
     ".github/workflows/README.md": 12,
     "AGENTS.md": 2,
@@ -71,7 +71,7 @@ PINNED = {
     "docs/wireframes/13_player_career.md": 7,
     "docs/wireframes/14_team_stats.md": 19,
     "docs/wireframes/99_gaps_register.md": 65,
-    "docs/wireframes/block_standard.md": 11,
+    "docs/wireframes/block_standard.md": 10,
     "docs/wireframes/metrics_display.md": 25,
     "site_v2/src/data/README.md": 10,
 }

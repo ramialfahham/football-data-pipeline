@@ -22,6 +22,7 @@ day: a block may omit a level the page supplies (`rows.group_head`).
 """
 import json
 import os
+import subprocess
 import sys
 from collections import OrderedDict
 from datetime import date
@@ -210,6 +211,12 @@ def build():
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["--out"]:
+        for day_data in sorted(HERE.glob("matches_*.json")):
+            day = day_data.stem[len("matches_"):]
+            subprocess.run([sys.executable, __file__, str(Path(sys.argv[2]) / ("matches-hub_%s.html" % day))],
+                           env={**os.environ, "MATCHES_HUB_DAY": day}, check=True)
+        sys.exit(0)
     out = HERE / (sys.argv[1] if len(sys.argv) > 1 else "matches-hub.html")
     out.write_text(build(), encoding="utf-8")
     print("wrote", out, "%.0f KB" % (out.stat().st_size / 1024))

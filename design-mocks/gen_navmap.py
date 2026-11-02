@@ -18,6 +18,7 @@ the one for deciding what the site IS.
 """
 import html
 import re
+import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -461,6 +462,8 @@ li.card.open { border-style: dashed; }
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["--out"]:
+        OUT = Path(sys.argv[2]) / OUT.name
     items, nav_is_link = menu_items()
     print("  menu items derived: %s" % ", ".join(lbl for _k, lbl in items))
     print("  menu renders as %s" % ("LINKS" if nav_is_link else "inert text"))

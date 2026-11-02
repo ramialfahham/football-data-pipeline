@@ -1,39 +1,38 @@
-# Review — feat/243-component-checks
+# Review — feat/243-full-coverage
 
-diff_sha256: a5626d4ca073cb18b067c9358df72266e9d2fc257d55938de48074b17ef27b09
+diff_sha256: b3a3507260fcb0923509945d5e46612435ee36e5f7958a809814e34aaaa847a0
 
 rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- All changed files are inside scope_paths; the contract is unchanged in round 2, so no amendment needs authority.
-- Every reading the checks apply (the banned list with break-word, the widths, the languages, per-page counting, the baseline that only falls) is in decisions_taken with its approval; decisions_reserved is none and the diff decides nothing outside it.
-- The new mechanism (the count baseline read by the two existing checks) and the recurring cost (validate:ui renders 183 more pages per run) are declared; no CI job, CI file change or dependency is added.
-- Appendix A: no invented metric, no product decision written into docs, no unilateral mechanism; no page or export file is touched, so approved_design none holds.
-- The added Markdown sentences carry one topic each and no history; the round-2 doc sentence does not contradict decisions_taken.
-- Round 3: rendered.pages now holds 25 entries from validate:ui's counts.json; keys are the five known counts, values positive, static section untouched; done_when's third line is met.
+- Round 1 FAIL (the validate-local skill's Tier 1b still described the old check) is closed: the skill is in scope_paths by a clean-tree amendment and states the check as changed; the measured run time is not in it.
+- Every changed file is inside scope_paths; the new mechanisms (never-rises test, the --out generator interface, the process pool, the coverage section) and the recurring cost are declared in decisions_taken.
+- decisions_reserved is none and the diff decides no product, UX, metric, naming or URL matter; the --out option changes no generator output.
+- The bootstrap return in the never-rises test applies only while main's baseline has no coverage section, the case this branch introduces.
+- No secrets, no CI, workflow or permission file, no site_v2/src, ingestion, dbt model or export change.
+- Open, not a defect: the rendered pins are filled from validate:ui's counts.json in the next commit, which the last done_when line needs before merge.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 FAIL (the exit-code wiring was untested) is closed: compare_rendered is a pure function pinned in rose, equal, fell, platform-mismatch and narrower-run cases, and lint.main is pinned to exit 0 on the real baseline and 1 with the FAIL line on a lowered pin.
-- Re-run safety: the artifacts folder and counts.json are overwritten safely; servers and temp folders are released in finally.
-- Fail-closed: a missing or malformed baseline exits 1 in both scripts; a page that fails to render leaves its pin unmatched or adds a hard failure.
-- The planted-defect test is consistent with counts_red.html and COUNT_JS; the per-gap static test fails if any regex is reverted.
-- All 14 width_rules entries match the @media and @container lines in system.css; static counts use posix paths and are platform-independent.
-- No dependency, credential, workflow, .gitlab-ci.yml or hosting change.
-- Round 3, prior finding 2 resolved: rendered.pages holds 25 entries; 25 class pins plus 17 other pins equal the 42 empty pins the first pipeline failed on; the shape matches what compare_rendered reads and the baseline-shape test asserts.
-- Remaining risk, not a defect: the pins come from one CI run; the next pipeline is the first repeat measurement and shows any page that is not deterministic.
+- Round 1 findings closed: an end-to-end test runs main() on a temp inventory, site and mock folder and proves a coverage gap and a miss above its pin exit 1 and a pinned run exits 0; the base lookup fetches the base commit in a shallow CI clone with safe.directory set; each failing generator's reason prints.
+- Round 2 findings closed: an empty base ref fails the test instead of comparing the baseline with itself; a row matching one file in every language no longer clashes with itself, and two literal rows on one file fail, each pinned by the ownership test.
+- Fail-closed: a row matching nothing, a generator writing nothing, a missing site, a missing FI switch and a switch that does not switch are hard failures; comparisons are skipped only on a narrowed run.
+- Ownership: a literal URL beats a glob, two globs or two literals on one file fail, and a glob does not cross a path separator.
+- Process pool: jobs and results pickle, results come back in viewport order, servers close in finally.
+- Generators: imports present, absolute out paths, the stale-file unlink skipped under --out, gen_home's OUT redirected only when run directly.
+- Unverified here: the pool's wall time on the Linux runner; measured on the MR pipeline.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- The block_standard.md edits are prose about the checks; they add no wireframe block, inventory element, field or metric, and nothing under site_v2/src or the export changes.
-- The doc's list of lint counts and rendered counts matches counts(), COUNTS and COUNT_VIEWPORTS in the scripts; the Pages-table sentence matches unlisted_mock_modules and mock_modules.
-- Round-1 note closed: the doc now says the rendered counts are compared only on the platform the baseline names, which matches compare_rendered.
-- The added doc lines carry no date, issue or MR number, reviewer credit or story phrase.
-- Round 3: the baseline pins record today's gaps (Home overflow 227, the two hub mocks 112 each) and hide none; no doc, page or display-contract file changed.
+- Round 1 FAIL (the intro said every mock page renders in DE) is closed: a built page renders in EN, DE and FI, a mock in EN and, with its FI switch, FI, matching MOCK_LANGS and plan().
+- Widths, the four coverage gaps, element misses, the 1px overflow margin, the fifth-of-a-line trim and the never-rises rule match the code.
+- The Pages paragraph matches plan(): every file a glob matches is owned, a literal URL wins, a page no row names is rendered and counted; renders of record are not pages.
+- Every mock row's Source and URL matches the file its generator writes with --out.
+- No decision history, date, issue or MR number or credit in the added text; no site_v2/src or display-contract change.
 
 ## escalations
 (none)

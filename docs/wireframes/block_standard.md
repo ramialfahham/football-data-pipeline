@@ -6,21 +6,25 @@
 > rendered on every page it touches before it is ruled (#153). What a page SHOWS is the page's
 > wireframe and its GitLab issue; what an element IS, and how it measures, is this file.
 >
-> Two scripts read the two tables below and nothing else: `scripts/check_page_css.py` (the lint:
-> a `<style>` block, a `style=` attribute or a mock's CSS string touching a class named in the
-> Selector column fails) and `scripts/check_design_inventory.py` (the measured check: every page in
-> the Pages table rendered at 375px, 700px and 1010px in every locale the site publishes — EN, DE and FI
-> for a built page, EN and FI for a mock, which carries no German text — every element measured as its
-> `Measured as` column says). `scripts/design_inventory.py` parses both tables and fails closed on
-> a column, key, token or status it does not know. A rendered page that shows none of these elements
-> fails too.
+> Two scripts read the two tables below and nothing else. `scripts/check_page_css.py` is the lint:
+> a `<style>` block, a `style=` attribute or a mock's CSS string touching a Selector class fails.
+> `scripts/check_design_inventory.py` is the measured check. It renders every built page and every
+> page a `design-mocks/gen_*.py` writes, at 280, 320, 360, 375, 700 and 1010px. A built page is
+> rendered in EN, DE and FI, and a mock in EN and, with its FI switch, in FI. Every element is
+> measured as its `Measured as` column says.
+> `scripts/design_inventory.py` parses both tables and fails closed on a column, key, token or
+> status it does not know.
 >
 > Both scripts also count the site's design gaps, and `tests/fixtures/design_inventory/baseline.json`
 > pins each count. The lint counts CSS outside `system.css`, width rules, banned line-break
 > properties and literal text. The measured check counts sideways scroll, overflowing text, split
-> words, overlapping text and classes no row here names, at 280px to 1010px. A count that differs
-> from its pin fails. The rendered counts depend on the font, so they are compared only on the
-> platform the baseline names.
+> words, overlapping text, classes no row here names and element misses. It also counts four
+> coverage gaps: a built page no row owns, a generator that fails, a generator page no row names,
+> and a language a mock does not carry. A count that differs from its pin fails. A pin may not
+> rise above main's, so a new page or mock arrives with no gaps. The rendered counts depend on the
+> font, so they are compared only on the platform the baseline names. Text overflows when it runs
+> more than 1px past its box. Two lines overlap when they still cross with a fifth of each line's
+> height trimmed at the top and the bottom.
 
 ## How to read a row
 
@@ -147,24 +151,19 @@ Not measured, still the rule: a team's crest in the match header is 52px, and ev
 
 ## Pages
 
-Every design-mock generator that renders a page, and every built page type. `Source` is the
-command for a mock (`{out}` is where the check tells it to write; a generator with a fixed output
-name lists it as `URL` and the check copies it) or `site_v2/dist` for a built page; `URL` is the
-file the check opens (a glob for a built page: the first match in sorted order); `FI` governs the
+Every built page type and every mock page. `Source` is `site_v2/dist` for a built page, or the
+mock's generator, which the check runs as `gen_*.py --out DIR`, writing every page it draws into
+DIR. `URL` is a glob under `site_v2/dist` that owns every file it matches (a literal URL wins over
+a glob), or the file the generator writes. `FI` governs the
 MOCKS only — it says how the check reaches a mock's Finnish (`toggle`: the mock's FI switch;
 `none`: EN only) — while a built page's other locales come from its URL, so `path` on a built row
 means every locale the site publishes, German included;
-`Expect` names elements the page must show — a page showing none of the inventory fails anyway;
+`Expect` names elements the page must show;
 an entry ending in a width condition (`Search field [>=1010px]`) is required at those widths only.
 The lint reads this table too: a mock generator listed here (and every module it imports) may
-carry no CSS that touches an inventory class; a generator not listed is not a page, and its CSS
-that touches an inventory class is counted against the baseline.
-
-Not listed, and why: `gen_block_standard.py` and `gen_interaction.py` are standards sheets that
-show elements inside demo frames, not page compositions; `gen_competitions.py` (the competitions
-index, #54) stops on the registry's `intercontinental_super_cup` type, which its proposed-taxonomy
-map does not carry — it joins this table when it runs again. `gen_navmap.py`, `gen_sitemap.py`
-and `gen_taxonomy.py` are diagrams.
+carry no CSS that touches an inventory class; a generator not listed is counted against the
+baseline. A page no row names is still rendered and measured, and counted as a gap. The renders
+of record in `design-mocks/renders/` are not pages; the generators that wrote them are.
 
 | Page | Kind | Source | URL | FI | Expect |
 |---|---|---|---|---|---|
@@ -179,17 +178,17 @@ and `gen_taxonomy.py` are diagrams.
 | Teams page | built | `site_v2/dist` | `en/teams/index.html` | path | Page heading, Filter row, Block heading, Competition group head, Group count, Fold, Row link, Search field [>=1010px], Search button [<1010px] |
 | Matches page | built | `site_v2/dist` | `en/matches/index.html` | path | Page heading, Filter row, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row kick-off, Match row score, Search field [>=1010px], Search button [<1010px] |
 | Matches day page | built | `site_v2/dist` | `en/matches/*/index.html` | path | Page heading, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row score, Search field [>=1010px], Search button [<1010px] |
-| competition-overview | mock | `gen_overview_after_teams.py {out}` | `competition-overview.html` | toggle | Block heading, Table head, Table row, Ordered-by number, Fact row value, Tab bar |
-| competition-matchdays | mock | `gen_competition_matchdays.py {out}` | `competition-matchdays.html` | toggle | Block heading, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar |
-| competition-rankings | mock | `gen_competition_teams.py {out}` | `competition-rankings.html` | toggle | Block heading, Metric group heading, Board name, Board sub-line, Tab bar |
-| home | mock | `gen_home_with_rules.py {out}` | `home.html` | toggle | Block heading, Competition group head, Board name, Date heading |
-| competition-hub league | mock | `gen_competition_hub.py league` | `competition_hub_mock_league.html` | toggle | Block heading, Table head, Table row, Tab bar |
-| competition-hub groups | mock | `gen_competition_hub.py groups` | `competition_hub_mock_groups.html` | toggle | Table group heading, Table row |
-| competition-hub cup | mock | `gen_competition_hub.py cup` | `competition_hub_mock_cup.html` | toggle | Block heading, Tab bar |
-| competition-hub offseason | mock | `gen_competition_hub.py offseason` | `competition_hub_mock_offseason.html` | toggle | Block heading, Tab bar |
+| competition-overview | mock | `gen_overview_after_teams.py` | `competition_overview_after_teams_v2.html` | toggle | Block heading, Table head, Table row, Ordered-by number, Fact row value, Tab bar |
+| competition-matchdays | mock | `gen_competition_matchdays.py` | `competition_matchdays_mock_v1.html` | toggle | Block heading, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar |
+| competition-rankings | mock | `gen_competition_teams.py` | `competition_teams_mock_v1.html` | toggle | Block heading, Metric group heading, Board name, Board sub-line, Tab bar |
+| home | mock | `gen_home_with_rules.py` | `home_with_rules_v1.html` | toggle | Block heading, Competition group head, Board name, Date heading |
+| competition-hub league | mock | `gen_competition_hub.py` | `competition_hub_mock_league.html` | toggle | Block heading, Table head, Table row, Tab bar |
+| competition-hub groups | mock | `gen_competition_hub.py` | `competition_hub_mock_groups.html` | toggle | Table group heading, Table row |
+| competition-hub cup | mock | `gen_competition_hub.py` | `competition_hub_mock_cup.html` | toggle | Block heading, Tab bar |
+| competition-hub offseason | mock | `gen_competition_hub.py` | `competition_hub_mock_offseason.html` | toggle | Block heading, Tab bar |
 | matches next | mock | `gen_matches.py` | `matches_next_mock.html` | toggle | Competition group head, Date heading, Match row kick-off |
 | matches past | mock | `gen_matches.py` | `matches_past_mock.html` | toggle | Competition group head, Match row score |
-| matches hub | mock | `gen_matches_hub.py {out}` | `matches-hub.html` | toggle | Block heading, Matchday picker, Competition group head, Match row kick-off |
+| matches hub | mock | `gen_matches_hub.py` | `matches-hub_2026-09-19.html` | toggle | Block heading, Matchday picker, Competition group head, Match row kick-off |
 | top players | mock | `gen_top_players.py` | `top_players_mock.html` | toggle | Legacy board value |
 | top teams | mock | `gen_top_teams.py` | `top_teams_mock.html` | toggle | Legacy board value |
 | home legacy | mock | `gen_home.py` | `home_mock.html` | toggle | Block heading, Competition group head, Legacy board value |

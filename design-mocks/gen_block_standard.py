@@ -278,6 +278,8 @@ def build():
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["--out"]:
+        OUT = Path(sys.argv[2]) / OUT.name
     guard()
     OUT.write_text(build(), encoding="utf-8")
     print("  wrote %s (%.0f KB)" % (OUT.name, OUT.stat().st_size / 1024))

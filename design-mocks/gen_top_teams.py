@@ -373,6 +373,8 @@ def check_guards():
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["--out"]:
+        OUT = Path(sys.argv[2]) / OUT.name
     check_guards()
     check_orders()
     OUT.write_text(build(), encoding="utf-8")

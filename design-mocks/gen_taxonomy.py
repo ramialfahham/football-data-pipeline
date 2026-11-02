@@ -17,6 +17,7 @@ THREE LEVELS, all in `dbt_project/seeds/competition_types.csv` keyed by the regi
 cost, not a blocker, and the English below is a PROPOSAL, not approved copy.
 """
 import html
+import sys
 from pathlib import Path
 
 import yaml
@@ -191,6 +192,8 @@ def build():
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["--out"]:
+        OUT = Path(sys.argv[2]) / OUT.name
     for key, _t, _d, _n, groups in OPTIONS:
         if groups:
             print("  option %s: %d groups -- %s" % (key, len(groups),

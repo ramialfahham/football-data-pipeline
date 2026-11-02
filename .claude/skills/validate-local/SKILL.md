@@ -90,10 +90,10 @@ Expected: `check_layer_contract.py` prints `Layer contract checks passed.`;
 
 ### Tier 1b — the measured design check (needs a browser and a built site)
 
-`scripts/check_design_inventory.py` renders every design-mock generator and every built page
-type the block standard (`docs/wireframes/block_standard.md`) lists, at 375px, 700px and 1010px in
-headless Chromium — a built page in every locale the site publishes, a mock in EN and FI, the
-only two it carries — and measures every element against the inventory. It needs
+`scripts/check_design_inventory.py` runs every `design-mocks/gen_*.py` and renders every page it
+writes and every built page, at 280px to 1010px in headless Chromium. It measures every element
+against the block standard (`docs/wireframes/block_standard.md`) and counts the gaps against
+`tests/fixtures/design_inventory/baseline.json`. It needs
 `pip install -r requirements-ui.txt`, once `python -m playwright install chromium`, and a
 built site (`cd site_v2 && npm run build`; park any untracked export payload under
 `site_v2/src/data` first, or the SEO audit refuses the build). Without the built site, run it

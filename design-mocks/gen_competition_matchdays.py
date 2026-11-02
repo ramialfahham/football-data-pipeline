@@ -306,6 +306,9 @@ def build():
 
 
 if __name__ == "__main__":
-    out = HERE / (sys.argv[1] if len(sys.argv) > 1 else "competition_matchdays_mock_v1.html")
+    if sys.argv[1:2] == ["--out"]:
+        out = Path(sys.argv[2]) / "competition_matchdays_mock_v1.html"
+    else:
+        out = HERE / (sys.argv[1] if len(sys.argv) > 1 else "competition_matchdays_mock_v1.html")
     out.write_text(build(), encoding="utf-8")
     print("wrote", out, "%.0f KB" % (out.stat().st_size / 1024))
