@@ -1,8 +1,10 @@
 # Review — feat/243-full-coverage
 
-diff_sha256: b3a3507260fcb0923509945d5e46612435ee36e5f7958a809814e34aaaa847a0
+diff_sha256: 27b448d7a1b78b7ce8214f089c5fed134ab542166ef4f413ddb545e95dae8f81
 
-rounds: 3
+rounds: 4
+
+rounds_cap_override: a fourth round to speed the check up and pin the counts CI measured, approved in chat, 2026-11-02
 
 ## scope-auditor
 VERDICT: PASS
@@ -12,7 +14,8 @@ risks_checked:
 - decisions_reserved is none and the diff decides no product, UX, metric, naming or URL matter; the --out option changes no generator output.
 - The bootstrap return in the never-rises test applies only while main's baseline has no coverage section, the case this branch introduces.
 - No secrets, no CI, workflow or permission file, no site_v2/src, ingestion, dbt model or export change.
-- Open, not a defect: the rendered pins are filled from validate:ui's counts.json in the next commit, which the last done_when line needs before merge.
+- Round 4: the hover and press checks move the mouse to the element's centre instead of waiting on Playwright's hover; the element, the property and the comparison are unchanged, and the change lowers the declared recurring cost.
+- Round 4: the rendered pins are filled from validate:ui's counts.json on the MR pipeline, closing the last done_when line.
 
 ## platform-reviewer
 VERDICT: PASS
@@ -23,7 +26,9 @@ risks_checked:
 - Ownership: a literal URL beats a glob, two globs or two literals on one file fail, and a glob does not cross a path separator.
 - Process pool: jobs and results pickle, results come back in viewport order, servers close in finally.
 - Generators: imports present, absolute out paths, the stale-file unlink skipped under --out, gen_home's OUT redirected only when run directly.
-- Unverified here: the pool's wall time on the Linux runner; measured on the MR pipeline.
+- Round 4: POINTER_JS selects the same element as the old bounding_box() test, the index addresses the element the mouse went to, and with reduced motion the style read right after the move is the final hover value; an obscured element now reads as a miss instead of hanging the run.
+- Round 4: a full local run gives identical counts before and after the pointer change; the next linux pipeline is the first check of the new path against the linux pins.
+- Unverified here: the job's time against the runner's job timeout; measured on the MR pipeline.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
@@ -33,6 +38,7 @@ risks_checked:
 - The Pages paragraph matches plan(): every file a glob matches is owned, a literal URL wins, a page no row names is rendered and counted; renders of record are not pages.
 - Every mock row's Source and URL matches the file its generator writes with --out.
 - No decision history, date, issue or MR number or credit in the added text; no site_v2/src or display-contract change.
+- Round 4: the pointer change and the pins change no doc claim; the Measured-as text still describes the pointer resting on, or pressing, the first visible match.
 
 ## escalations
 (none)

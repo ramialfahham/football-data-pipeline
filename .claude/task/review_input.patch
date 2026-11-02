@@ -582,7 +582,7 @@ index 1bb6d420..b6172466 100644
  | top teams | mock | `gen_top_teams.py` | `top_teams_mock.html` | toggle | Legacy board value |
  | home legacy | mock | `gen_home.py` | `home_mock.html` | toggle | Block heading, Competition group head, Legacy board value |
 diff --git a/scripts/check_design_inventory.py b/scripts/check_design_inventory.py
-index 7b8573af..4062044c 100644
+index 7b8573af..8ae5bdc8 100644
 --- a/scripts/check_design_inventory.py
 +++ b/scripts/check_design_inventory.py
 @@ -1,16 +1,17 @@
@@ -659,7 +659,27 @@ index 7b8573af..4062044c 100644
  
  # One evaluation per rendered page: the gaps the baseline pins. `scroll`: the page, or a box in it,
  # scrolls sideways. `overflow`: a text node runs past the box it sits in sideways (an ellipsis cut
-@@ -303,6 +304,7 @@ class Failure:
+@@ -295,6 +296,19 @@ MEASURE_JS = r"""
+ """
+ 
+ 
++POINTER_JS = r"""
++(sel) => {
++  const all = [...document.querySelectorAll(sel)];
++  const i = all.findIndex((e) => e.getClientRects().length > 0);
++  if (i < 0) return null;
++  all[i].scrollIntoView({ block: 'center' });
++  const r = all[i].getBoundingClientRect();
++  return [r.left + r.width / 2, r.top + r.height / 2, i];
++}
++"""
++STYLE_JS = "([sel, i, prop]) => getComputedStyle(document.querySelectorAll(sel)[i]).getPropertyValue(prop)"
++
++
+ @dataclass
+ class Failure:
+     page: str
+@@ -303,6 +317,7 @@ class Failure:
      element: str
      detail: str
      level: str = "FAIL"
@@ -667,7 +687,7 @@ index 7b8573af..4062044c 100644
  
      def line(self) -> str:
          return "%-5s %s · %d · %s · %s · %s" % (self.level, self.page, self.viewport, self.lang, self.element, self.detail)
-@@ -320,35 +322,106 @@ def serve(root: Path) -> tuple[ThreadingHTTPServer, str]:
+@@ -320,35 +335,106 @@ def serve(root: Path) -> tuple[ThreadingHTTPServer, str]:
      return srv, "http://127.0.0.1:%d/" % srv.server_address[1]
  
  
@@ -801,7 +821,7 @@ index 7b8573af..4062044c 100644
  
  
  ADDRESS_WORDS = REPO / "site_v2" / "src" / "i18n" / "address_words.json"
-@@ -380,11 +453,15 @@ def translate_path(rest: str, from_lang: str, to_lang: str) -> str:
+@@ -380,11 +466,15 @@ def translate_path(rest: str, from_lang: str, to_lang: str) -> str:
      return "/".join(segs)
  
  
@@ -819,7 +839,37 @@ index 7b8573af..4062044c 100644
      return hits[0] if hits else None
  
  
-@@ -494,15 +571,70 @@ def compare_rendered(rendered: dict[str, dict[str, int]], pinned: dict, full_run
+@@ -452,22 +542,16 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
+                     break
+         pointer = [a for a in el.assertions if a.kind in ("hover", "press") and di.applies(a, viewport)]
+         if pointer and matches:
+-            handle = None
+-            for h in pw_page.query_selector_all(el.selector):
+-                if h.bounding_box():
+-                    handle = h
+-                    break
+-            if handle is None:
++            # The first element with a box, scrolled to the middle; the mouse goes to its centre.
++            centre = pw_page.evaluate(POINTER_JS, el.selector)
++            if centre is None:
+                 continue
+-            handle.evaluate("e => e.scrollIntoView({block: 'center'})")
+             for a in pointer:
+-                if a.kind == "hover":
+-                    handle.hover()
+-                    measured = handle.evaluate("(e, p) => getComputedStyle(e).getPropertyValue(p)", a.prop)
+-                else:
+-                    handle.hover()
++                pw_page.mouse.move(centre[0], centre[1])
++                if a.kind == "press":
+                     pw_page.mouse.down()
+-                    measured = handle.evaluate("(e, p) => getComputedStyle(e).getPropertyValue(p)", a.prop)
++                measured = pw_page.evaluate(STYLE_JS, [el.selector, centre[2], a.prop])
++                if a.kind == "press":
+                     pw_page.mouse.move(0, 0)
+                     pw_page.mouse.up()
+                 msg = di.compare(a, measured, tokens)
+@@ -494,15 +578,70 @@ def compare_rendered(rendered: dict[str, dict[str, int]], pinned: dict, full_run
      return "", di.compare_counts(nonzero, pinned["pages"])
  
  
@@ -894,7 +944,7 @@ index 7b8573af..4062044c 100644
      ap.add_argument("--baseline", default=str(di.BASELINE))
      ap.add_argument("--langs", default=",".join(DEFAULT_LANGS))
      ap.add_argument("--no-built", action="store_true")
-@@ -537,129 +669,114 @@ def main(argv=None) -> int:
+@@ -537,129 +676,114 @@ def main(argv=None) -> int:
          if missing:
              ap.error("unknown page(s): %s" % ", ".join(sorted(missing)))
      viewports = [int(v) for v in args.viewports.split(",")] if args.viewports else list(DEFAULT_VIEWPORTS)
@@ -1108,7 +1158,7 @@ index 7b8573af..4062044c 100644
               "classes": {name: sorted(c["classes"]) for name, c in counted.items()},
               "examples": {name: c["examples"] for name, c in counted.items()}}, indent=1, ensure_ascii=False), encoding="utf-8")
      for f in failures:
-@@ -678,11 +795,11 @@ def main(argv=None) -> int:
+@@ -678,11 +802,11 @@ def main(argv=None) -> int:
      if any(n < reached for _lang, n in per_lang):
          caveat = " (pages per language: %s)" % ", ".join("%s %d" % (lang, n) for lang, n in per_lang)
      print("%d pages · %d viewports · %d languages%s · %d renders · %d failures · %d warnings"
@@ -1184,7 +1234,7 @@ index 7b73b95d..9418176e 100644
      """A computed colour as (r, g, b, a) on 0–255 / 0–1: rgb(), rgba(), color(srgb …), #hex."""
      s = s.strip()
 diff --git a/tests/fixtures/design_inventory/baseline.json b/tests/fixtures/design_inventory/baseline.json
-index 9beb691c..2a0e5b97 100644
+index 9beb691c..9c8204ad 100644
 --- a/tests/fixtures/design_inventory/baseline.json
 +++ b/tests/fixtures/design_inventory/baseline.json
 @@ -1,43 +1,16 @@
@@ -1242,6 +1292,392 @@ index 9beb691c..2a0e5b97 100644
   },
   "rendered": {
    "platform": "linux",
+@@ -47,11 +20,11 @@
+    "Competition rankings": {"classes": 22},
+    "Competitions index": {"overflow": 24, "classes": 26},
+    "Home": {"overflow": 227, "split": 4, "classes": 23},
+-   "Match page": {"scroll": 2, "classes": 53},
+-   "Matches day page": {"classes": 31},
++   "Match page": {"scroll": 1174, "overflow": 9, "split": 151, "overlap": 2, "classes": 58, "miss · List row": 53, "miss · Player row": 29, "miss · Result row": 24},
++   "Matches day page": {"classes": 32, "miss · Fold": 378, "miss · Match row score": 414},
+    "Matches page": {"classes": 31},
+    "Played match page": {"scroll": 1, "classes": 51},
+-   "Team page": {"overflow": 18, "split": 3, "classes": 87},
++   "Team page": {"overflow": 570, "split": 32, "classes": 87, "miss · Name in whole words": 3},
+    "Teams page": {"split": 1, "classes": 33},
+    "competition-hub cup": {"classes": 22},
+    "competition-hub groups": {"classes": 24},
+@@ -60,8 +33,370 @@
+    "competition-matchdays": {"split": 2, "classes": 25},
+    "competition-overview": {"classes": 24},
+    "competition-rankings": {"split": 4, "classes": 19},
++   "de/2-bundesliga/index.html": {"classes": 21},
++   "de/afc-champions-league/index.html": {"classes": 21},
++   "de/africa-cup-of-nations/index.html": {"classes": 21},
++   "de/asian-cup/index.html": {"classes": 21},
++   "de/belgian-pro-league/index.html": {"classes": 21},
++   "de/brasileirao/index.html": {"classes": 21},
++   "de/caf-champions-league/index.html": {"classes": 21},
++   "de/champions-league/index.html": {"classes": 21},
++   "de/club-world-cup/index.html": {"classes": 21},
++   "de/concacaf-champions-cup/index.html": {"classes": 21},
++   "de/concacaf-nations-league/index.html": {"classes": 21},
++   "de/conference-league/index.html": {"classes": 21},
++   "de/copa-america/index.html": {"classes": 21},
++   "de/copa-del-rey/index.html": {"classes": 21},
++   "de/copa-libertadores/index.html": {"classes": 21},
++   "de/coppa-italia/index.html": {"classes": 21},
++   "de/coupe-de-france/index.html": {"classes": 21},
++   "de/dfb-pokal/index.html": {"classes": 21},
++   "de/ekstraklasa/index.html": {"classes": 21},
++   "de/eredivisie/index.html": {"classes": 21},
++   "de/euro/index.html": {"classes": 21},
++   "de/europa-league/index.html": {"classes": 21},
++   "de/fa-cup/index.html": {"classes": 21},
++   "de/gold-cup/index.html": {"classes": 21},
++   "de/j1-league/index.html": {"classes": 21},
++   "de/k-league-1/index.html": {"classes": 21},
++   "de/la-liga/index.html": {"classes": 21},
++   "de/liga-mx/index.html": {"classes": 21},
++   "de/liga-portugal/index.html": {"classes": 21},
++   "de/liga-profesional-argentina/index.html": {"classes": 21},
++   "de/ligue-1/index.html": {"classes": 21},
++   "de/mls/index.html": {"classes": 21},
++   "de/nations-league/index.html": {"classes": 21},
++   "de/premier-league/index.html": {"classes": 21},
++   "de/saudi-pro-league/index.html": {"classes": 21},
++   "de/serie-a/index.html": {"classes": 21},
++   "de/spieler/a-daghim-362564/index.html": {"classes": 16},
++   "de/spieler/a-nusa-314511/index.html": {"classes": 16},
++   "de/spieler/a-pavlovic-328033/index.html": {"classes": 16},
++   "de/spieler/a-raimondo-314254/index.html": {"classes": 16},
++   "de/spieler/aleix-garcia-47516/index.html": {"classes": 16},
++   "de/spieler/bernardo-18964/index.html": {"classes": 16},
++   "de/spieler/c-matsima-163039/index.html": {"classes": 16},
++   "de/spieler/c-tengstedt-162703/index.html": {"classes": 16},
++   "de/spieler/c-uzun-339887/index.html": {"classes": 16},
++   "de/spieler/d-raum-25158/index.html": {"classes": 16},
++   "de/spieler/d-upamecano-1149/index.html": {"classes": 16},
++   "de/spieler/e-fernandez-237087/index.html": {"classes": 16},
++   "de/spieler/e-haaland-1100/index.html": {"classes": 16},
++   "de/spieler/e-skhiri-21587/index.html": {"classes": 16},
++   "de/spieler/f-dahmen-25903/index.html": {"classes": 16},
++   "de/spieler/f-keidel-280070/index.html": {"classes": 16},
++   "de/spieler/f-thauvin-1922/index.html": {"classes": 16},
++   "de/spieler/f-uduokhai-25406/index.html": {"classes": 16},
++   "de/spieler/f-wirtz-203224/index.html": {"classes": 16},
++   "de/spieler/g-calo-32011/index.html": {"classes": 16},
++   "de/spieler/g-prestianni-362755/index.html": {"classes": 16},
++   "de/spieler/g-read-359390/index.html": {"classes": 16},
++   "de/spieler/h-kane-184/index.html": {"classes": 16},
++   "de/spieler/hennes-behrens-353143/index.html": {"classes": 16},
++   "de/spieler/i-matanovic-202696/index.html": {"classes": 16},
++   "de/spieler/j-brandt-984/index.html": {"classes": 16},
++   "de/spieler/j-kimmich-502/index.html": {"classes": 16},
++   "de/spieler/j-tah-972/index.html": {"classes": 16},
++   "de/spieler/kim-min-jae-2897/index.html": {"classes": 16},
++   "de/spieler/l-curda-163078/index.html": {"classes": 16},
++   "de/spieler/l-ferguson-44814/index.html": {"classes": 16},
++   "de/spieler/l-karius-1972/index.html": {"classes": 16},
++   "de/spieler/l-petkov-177452/index.html": {"classes": 16},
++   "de/spieler/lamine-yamal-386828/index.html": {"classes": 16},
++   "de/spieler/m-ginter-2915/index.html": {"classes": 16},
++   "de/spieler/m-gregoritsch-25297/index.html": {"classes": 16},
++   "de/spieler/m-grull-7073/index.html": {"classes": 16},
++   "de/spieler/m-moore-380690/index.html": {"classes": 16},
++   "de/spieler/m-olise-19617/index.html": {"classes": 16},
++   "de/spieler/m-vandevoordt-1924/index.html": {"classes": 16},
++   "de/spieler/m-willemsen-327347/index.html": {"classes": 16},
++   "de/spieler/miguel-gutierrez-162032/index.html": {"classes": 16},
++   "de/spieler/n-amiri-714/index.html": {"classes": 16},
++   "de/spieler/n-atubolu-178768/index.html": {"classes": 16},
++   "de/spieler/n-capaldo-5973/index.html": {"classes": 16},
++   "de/spieler/n-djouahra-47308/index.html": {"classes": 16},
++   "de/spieler/n-el-aynaoui-277003/index.html": {"classes": 16},
++   "de/spieler/n-fullkrug-25391/index.html": {"classes": 16},
++   "de/spieler/n-katic-1741/index.html": {"classes": 16},
++   "de/spieler/n-noll-203329/index.html": {"classes": 16},
++   "de/spieler/nacho-ferri-353943/index.html": {"classes": 16},
++   "de/spieler/p-dybala-875/index.html": {"classes": 16},
++   "de/spieler/p-gro-18970/index.html": {"classes": 16},
++   "de/spieler/p-schick-794/index.html": {"classes": 16},
++   "de/spieler/p-tietz-26171/index.html": {"classes": 16},
++   "de/spieler/r-onyedika-162219/index.html": {"classes": 16},
++   "de/spieler/r-schallenberg-88140/index.html": {"classes": 16},
++   "de/spieler/raphinha-1496/index.html": {"classes": 16},
++   "de/spieler/renato-veiga-336671/index.html": {"classes": 16},
++   "de/spieler/ruben-dias-567/index.html": {"classes": 16},
++   "de/spieler/s-becker-37938/index.html": {"classes": 16},
++   "de/spieler/s-inacio-478991/index.html": {"classes": 16},
++   "de/spieler/t-kleindienst-26256/index.html": {"classes": 16},
++   "de/spieler/t-krau-1156/index.html": {"classes": 16},
++   "de/spieler/t-rothe-324957/index.html": {"classes": 16},
++   "de/spieler/tomas-araujo-161939/index.html": {"classes": 16},
++   "de/spieler/v-pavlidis-36798/index.html": {"classes": 16},
++   "de/spieler/vitinha-128384/index.html": {"classes": 16},
++   "de/spieler/w-anton-25368/index.html": {"classes": 16},
++   "de/spieler/w-burger-37153/index.html": {"classes": 16},
++   "de/spieler/y-ebnoutalib-409190/index.html": {"classes": 16},
++   "de/spieler/y-suzuki-199143/index.html": {"classes": 16},
++   "de/super-lig/index.html": {"classes": 21},
++   "de/uefa-super-cup/index.html": {"classes": 21},
++   "de/veikkausliiga/index.html": {"classes": 21},
++   "de/world-cup-qualification-africa/index.html": {"classes": 21},
++   "de/world-cup-qualification-asia/index.html": {"classes": 21},
++   "de/world-cup-qualification-concacaf/index.html": {"classes": 21},
++   "de/world-cup-qualification-europe/index.html": {"classes": 21},
++   "de/world-cup-qualification-oceania/index.html": {"classes": 21},
++   "de/world-cup-qualification-playoffs/index.html": {"classes": 21},
++   "de/world-cup-qualification-south-america/index.html": {"classes": 21},
++   "de/world-cup/index.html": {"classes": 21},
++   "en/2-bundesliga/index.html": {"classes": 21},
++   "en/afc-champions-league/index.html": {"classes": 21},
++   "en/africa-cup-of-nations/index.html": {"classes": 21},
++   "en/asian-cup/index.html": {"classes": 21},
++   "en/belgian-pro-league/index.html": {"classes": 21},
++   "en/brasileirao/index.html": {"classes": 21},
++   "en/caf-champions-league/index.html": {"classes": 21},
++   "en/champions-league/index.html": {"classes": 21},
++   "en/club-world-cup/index.html": {"classes": 21},
++   "en/concacaf-champions-cup/index.html": {"classes": 21},
++   "en/concacaf-nations-league/index.html": {"classes": 21},
++   "en/conference-league/index.html": {"classes": 21},
++   "en/copa-america/index.html": {"classes": 21},
++   "en/copa-del-rey/index.html": {"classes": 21},
++   "en/copa-libertadores/index.html": {"classes": 21},
++   "en/coppa-italia/index.html": {"classes": 21},
++   "en/coupe-de-france/index.html": {"classes": 21},
++   "en/dfb-pokal/index.html": {"classes": 21},
++   "en/ekstraklasa/index.html": {"classes": 21},
++   "en/eredivisie/index.html": {"classes": 21},
++   "en/euro/index.html": {"classes": 21},
++   "en/europa-league/index.html": {"classes": 21},
++   "en/fa-cup/index.html": {"classes": 21},
++   "en/gold-cup/index.html": {"classes": 21},
++   "en/j1-league/index.html": {"classes": 21},
++   "en/k-league-1/index.html": {"classes": 21},
++   "en/la-liga/index.html": {"classes": 21},
++   "en/liga-mx/index.html": {"classes": 21},
++   "en/liga-portugal/index.html": {"classes": 21},
++   "en/liga-profesional-argentina/index.html": {"classes": 21},
++   "en/ligue-1/index.html": {"classes": 21},
++   "en/mls/index.html": {"classes": 21},
++   "en/nations-league/index.html": {"classes": 21},
++   "en/players/a-daghim-362564/index.html": {"classes": 16},
++   "en/players/a-nusa-314511/index.html": {"classes": 16},
++   "en/players/a-pavlovic-328033/index.html": {"classes": 16},
++   "en/players/a-raimondo-314254/index.html": {"classes": 16},
++   "en/players/aleix-garcia-47516/index.html": {"classes": 16},
++   "en/players/bernardo-18964/index.html": {"classes": 16},
++   "en/players/c-matsima-163039/index.html": {"classes": 16},
++   "en/players/c-tengstedt-162703/index.html": {"classes": 16},
++   "en/players/c-uzun-339887/index.html": {"classes": 16},
++   "en/players/d-raum-25158/index.html": {"classes": 16},
++   "en/players/d-upamecano-1149/index.html": {"classes": 16},
++   "en/players/e-fernandez-237087/index.html": {"classes": 16},
++   "en/players/e-haaland-1100/index.html": {"classes": 16},
++   "en/players/e-skhiri-21587/index.html": {"classes": 16},
++   "en/players/f-dahmen-25903/index.html": {"classes": 16},
++   "en/players/f-keidel-280070/index.html": {"classes": 16},
++   "en/players/f-thauvin-1922/index.html": {"classes": 16},
++   "en/players/f-uduokhai-25406/index.html": {"classes": 16},
++   "en/players/f-wirtz-203224/index.html": {"classes": 16},
++   "en/players/g-calo-32011/index.html": {"classes": 16},
++   "en/players/g-prestianni-362755/index.html": {"classes": 16},
++   "en/players/g-read-359390/index.html": {"classes": 16},
++   "en/players/h-kane-184/index.html": {"classes": 16},
++   "en/players/hennes-behrens-353143/index.html": {"classes": 16},
++   "en/players/i-matanovic-202696/index.html": {"classes": 16},
++   "en/players/j-brandt-984/index.html": {"classes": 16},
++   "en/players/j-kimmich-502/index.html": {"classes": 16},
++   "en/players/j-tah-972/index.html": {"classes": 16},
++   "en/players/kim-min-jae-2897/index.html": {"classes": 16},
++   "en/players/l-curda-163078/index.html": {"classes": 16},
++   "en/players/l-ferguson-44814/index.html": {"classes": 16},
++   "en/players/l-karius-1972/index.html": {"classes": 16},
++   "en/players/l-petkov-177452/index.html": {"classes": 16},
++   "en/players/lamine-yamal-386828/index.html": {"classes": 16},
++   "en/players/m-ginter-2915/index.html": {"classes": 16},
++   "en/players/m-gregoritsch-25297/index.html": {"classes": 16},
++   "en/players/m-grull-7073/index.html": {"classes": 16},
++   "en/players/m-moore-380690/index.html": {"classes": 16},
++   "en/players/m-olise-19617/index.html": {"classes": 16},
++   "en/players/m-vandevoordt-1924/index.html": {"classes": 16},
++   "en/players/m-willemsen-327347/index.html": {"classes": 16},
++   "en/players/miguel-gutierrez-162032/index.html": {"classes": 16},
++   "en/players/n-amiri-714/index.html": {"classes": 16},
++   "en/players/n-atubolu-178768/index.html": {"classes": 16},
++   "en/players/n-capaldo-5973/index.html": {"classes": 16},
++   "en/players/n-djouahra-47308/index.html": {"classes": 16},
++   "en/players/n-el-aynaoui-277003/index.html": {"classes": 16},
++   "en/players/n-fullkrug-25391/index.html": {"classes": 16},
++   "en/players/n-katic-1741/index.html": {"classes": 16},
++   "en/players/n-noll-203329/index.html": {"classes": 16},
++   "en/players/nacho-ferri-353943/index.html": {"classes": 16},
++   "en/players/p-dybala-875/index.html": {"classes": 16},
++   "en/players/p-gro-18970/index.html": {"classes": 16},
++   "en/players/p-schick-794/index.html": {"classes": 16},
++   "en/players/p-tietz-26171/index.html": {"classes": 16},
++   "en/players/r-onyedika-162219/index.html": {"classes": 16},
++   "en/players/r-schallenberg-88140/index.html": {"classes": 16},
++   "en/players/raphinha-1496/index.html": {"classes": 16},
++   "en/players/renato-veiga-336671/index.html": {"classes": 16},
++   "en/players/ruben-dias-567/index.html": {"classes": 16},
++   "en/players/s-becker-37938/index.html": {"classes": 16},
++   "en/players/s-inacio-478991/index.html": {"classes": 16},
++   "en/players/t-kleindienst-26256/index.html": {"classes": 16},
++   "en/players/t-krau-1156/index.html": {"classes": 16},
++   "en/players/t-rothe-324957/index.html": {"classes": 16},
++   "en/players/tomas-araujo-161939/index.html": {"classes": 16},
++   "en/players/v-pavlidis-36798/index.html": {"classes": 16},
++   "en/players/vitinha-128384/index.html": {"classes": 16},
++   "en/players/w-anton-25368/index.html": {"classes": 16},
++   "en/players/w-burger-37153/index.html": {"classes": 16},
++   "en/players/y-ebnoutalib-409190/index.html": {"classes": 16},
++   "en/players/y-suzuki-199143/index.html": {"classes": 16},
++   "en/premier-league/index.html": {"classes": 21},
++   "en/saudi-pro-league/index.html": {"classes": 21},
++   "en/serie-a/index.html": {"classes": 21},
++   "en/super-lig/index.html": {"classes": 21},
++   "en/uefa-super-cup/index.html": {"classes": 21},
++   "en/veikkausliiga/index.html": {"classes": 21},
++   "en/world-cup-qualification-africa/index.html": {"classes": 21},
++   "en/world-cup-qualification-asia/index.html": {"classes": 21},
++   "en/world-cup-qualification-concacaf/index.html": {"classes": 21},
++   "en/world-cup-qualification-europe/index.html": {"classes": 21},
++   "en/world-cup-qualification-oceania/index.html": {"classes": 21},
++   "en/world-cup-qualification-playoffs/index.html": {"classes": 21},
++   "en/world-cup-qualification-south-america/index.html": {"classes": 21},
++   "en/world-cup/index.html": {"classes": 21},
++   "fi/2-bundesliga/index.html": {"classes": 21},
++   "fi/afc-champions-league/index.html": {"classes": 21},
++   "fi/africa-cup-of-nations/index.html": {"classes": 21},
++   "fi/asian-cup/index.html": {"classes": 21},
++   "fi/belgian-pro-league/index.html": {"classes": 21},
++   "fi/brasileirao/index.html": {"classes": 21},
++   "fi/caf-champions-league/index.html": {"classes": 21},
++   "fi/champions-league/index.html": {"classes": 21},
++   "fi/club-world-cup/index.html": {"classes": 21},
++   "fi/concacaf-champions-cup/index.html": {"classes": 21},
++   "fi/concacaf-nations-league/index.html": {"classes": 21},
++   "fi/conference-league/index.html": {"classes": 21},
++   "fi/copa-america/index.html": {"classes": 21},
++   "fi/copa-del-rey/index.html": {"classes": 21},
++   "fi/copa-libertadores/index.html": {"classes": 21},
++   "fi/coppa-italia/index.html": {"classes": 21},
++   "fi/coupe-de-france/index.html": {"classes": 21},
++   "fi/dfb-pokal/index.html": {"classes": 21},
++   "fi/ekstraklasa/index.html": {"classes": 21},
++   "fi/eredivisie/index.html": {"classes": 21},
++   "fi/euro/index.html": {"classes": 21},
++   "fi/europa-league/index.html": {"classes": 21},
++   "fi/fa-cup/index.html": {"classes": 21},
++   "fi/gold-cup/index.html": {"classes": 21},
++   "fi/j1-league/index.html": {"classes": 21},
++   "fi/k-league-1/index.html": {"classes": 21},
++   "fi/la-liga/index.html": {"classes": 21},
++   "fi/liga-mx/index.html": {"classes": 21},
++   "fi/liga-portugal/index.html": {"classes": 21},
++   "fi/liga-profesional-argentina/index.html": {"classes": 21},
++   "fi/ligue-1/index.html": {"classes": 21},
++   "fi/mls/index.html": {"classes": 21},
++   "fi/nations-league/index.html": {"classes": 21},
++   "fi/pelaajat/a-daghim-362564/index.html": {"classes": 16},
++   "fi/pelaajat/a-nusa-314511/index.html": {"classes": 16},
++   "fi/pelaajat/a-pavlovic-328033/index.html": {"classes": 16},
++   "fi/pelaajat/a-raimondo-314254/index.html": {"classes": 16},
++   "fi/pelaajat/aleix-garcia-47516/index.html": {"classes": 16},
++   "fi/pelaajat/bernardo-18964/index.html": {"classes": 16},
++   "fi/pelaajat/c-matsima-163039/index.html": {"classes": 16},
++   "fi/pelaajat/c-tengstedt-162703/index.html": {"classes": 16},
++   "fi/pelaajat/c-uzun-339887/index.html": {"classes": 16},
++   "fi/pelaajat/d-raum-25158/index.html": {"classes": 16},
++   "fi/pelaajat/d-upamecano-1149/index.html": {"classes": 16},
++   "fi/pelaajat/e-fernandez-237087/index.html": {"classes": 16},
++   "fi/pelaajat/e-haaland-1100/index.html": {"classes": 16},
++   "fi/pelaajat/e-skhiri-21587/index.html": {"classes": 16},
++   "fi/pelaajat/f-dahmen-25903/index.html": {"classes": 16},
++   "fi/pelaajat/f-keidel-280070/index.html": {"classes": 16},
++   "fi/pelaajat/f-thauvin-1922/index.html": {"classes": 16},
++   "fi/pelaajat/f-uduokhai-25406/index.html": {"classes": 16},
++   "fi/pelaajat/f-wirtz-203224/index.html": {"classes": 16},
++   "fi/pelaajat/g-calo-32011/index.html": {"classes": 16},
++   "fi/pelaajat/g-prestianni-362755/index.html": {"classes": 16},
++   "fi/pelaajat/g-read-359390/index.html": {"classes": 16},
++   "fi/pelaajat/h-kane-184/index.html": {"classes": 16},
++   "fi/pelaajat/hennes-behrens-353143/index.html": {"classes": 16},
++   "fi/pelaajat/i-matanovic-202696/index.html": {"classes": 16},
++   "fi/pelaajat/j-brandt-984/index.html": {"classes": 16},
++   "fi/pelaajat/j-kimmich-502/index.html": {"classes": 16},
++   "fi/pelaajat/j-tah-972/index.html": {"classes": 16},
++   "fi/pelaajat/kim-min-jae-2897/index.html": {"classes": 16},
++   "fi/pelaajat/l-curda-163078/index.html": {"classes": 16},
++   "fi/pelaajat/l-ferguson-44814/index.html": {"classes": 16},
++   "fi/pelaajat/l-karius-1972/index.html": {"classes": 16},
++   "fi/pelaajat/l-petkov-177452/index.html": {"classes": 16},
++   "fi/pelaajat/lamine-yamal-386828/index.html": {"classes": 16},
++   "fi/pelaajat/m-ginter-2915/index.html": {"classes": 16},
++   "fi/pelaajat/m-gregoritsch-25297/index.html": {"classes": 16},
++   "fi/pelaajat/m-grull-7073/index.html": {"classes": 16},
++   "fi/pelaajat/m-moore-380690/index.html": {"classes": 16},
++   "fi/pelaajat/m-olise-19617/index.html": {"classes": 16},
++   "fi/pelaajat/m-vandevoordt-1924/index.html": {"classes": 16},
++   "fi/pelaajat/m-willemsen-327347/index.html": {"classes": 16},
++   "fi/pelaajat/miguel-gutierrez-162032/index.html": {"classes": 16},
++   "fi/pelaajat/n-amiri-714/index.html": {"classes": 16},
++   "fi/pelaajat/n-atubolu-178768/index.html": {"classes": 16},
++   "fi/pelaajat/n-capaldo-5973/index.html": {"classes": 16},
++   "fi/pelaajat/n-djouahra-47308/index.html": {"classes": 16},
++   "fi/pelaajat/n-el-aynaoui-277003/index.html": {"classes": 16},
++   "fi/pelaajat/n-fullkrug-25391/index.html": {"classes": 16},
++   "fi/pelaajat/n-katic-1741/index.html": {"classes": 16},
++   "fi/pelaajat/n-noll-203329/index.html": {"classes": 16},
++   "fi/pelaajat/nacho-ferri-353943/index.html": {"classes": 16},
++   "fi/pelaajat/p-dybala-875/index.html": {"classes": 16},
++   "fi/pelaajat/p-gro-18970/index.html": {"classes": 16},
++   "fi/pelaajat/p-schick-794/index.html": {"classes": 16},
++   "fi/pelaajat/p-tietz-26171/index.html": {"classes": 16},
++   "fi/pelaajat/r-onyedika-162219/index.html": {"classes": 16},
++   "fi/pelaajat/r-schallenberg-88140/index.html": {"classes": 16},
++   "fi/pelaajat/raphinha-1496/index.html": {"classes": 16},
++   "fi/pelaajat/renato-veiga-336671/index.html": {"classes": 16},
++   "fi/pelaajat/ruben-dias-567/index.html": {"classes": 16},
++   "fi/pelaajat/s-becker-37938/index.html": {"classes": 16},
++   "fi/pelaajat/s-inacio-478991/index.html": {"classes": 16},
++   "fi/pelaajat/t-kleindienst-26256/index.html": {"classes": 16},
++   "fi/pelaajat/t-krau-1156/index.html": {"classes": 16},
++   "fi/pelaajat/t-rothe-324957/index.html": {"classes": 16},
++   "fi/pelaajat/tomas-araujo-161939/index.html": {"classes": 16},
++   "fi/pelaajat/v-pavlidis-36798/index.html": {"classes": 16},
++   "fi/pelaajat/vitinha-128384/index.html": {"classes": 16},
++   "fi/pelaajat/w-anton-25368/index.html": {"classes": 16},
++   "fi/pelaajat/w-burger-37153/index.html": {"classes": 16},
++   "fi/pelaajat/y-ebnoutalib-409190/index.html": {"classes": 16},
++   "fi/pelaajat/y-suzuki-199143/index.html": {"classes": 16},
++   "fi/premier-league/index.html": {"classes": 21},
++   "fi/saudi-pro-league/index.html": {"classes": 21},
++   "fi/serie-a/index.html": {"classes": 21},
++   "fi/super-lig/index.html": {"classes": 21},
++   "fi/uefa-super-cup/index.html": {"classes": 21},
++   "fi/veikkausliiga/index.html": {"classes": 21},
++   "fi/world-cup-qualification-africa/index.html": {"classes": 21},
++   "fi/world-cup-qualification-asia/index.html": {"classes": 21},
++   "fi/world-cup-qualification-concacaf/index.html": {"classes": 21},
++   "fi/world-cup-qualification-europe/index.html": {"classes": 21},
++   "fi/world-cup-qualification-oceania/index.html": {"classes": 21},
++   "fi/world-cup-qualification-playoffs/index.html": {"classes": 21},
++   "fi/world-cup-qualification-south-america/index.html": {"classes": 21},
++   "fi/world-cup/index.html": {"classes": 21},
++   "gen_interaction.py/interaction_standard.html": {"scroll": 2, "split": 2, "classes": 17, "miss · Competition group head": 6},
++   "gen_matches_hub.py/matches-hub_2026-09-26.html": {"scroll": 9, "classes": 27},
++   "gen_sitemap.py/sitemap_overview.html": {"scroll": 4, "overflow": 5, "split": 28, "classes": 29, "miss · (page)": 6},
++   "gen_taxonomy.py/taxonomy_options.html": {"scroll": 1, "overflow": 34, "split": 5, "classes": 14, "miss · (page)": 6},
+    "home": {"classes": 21},
+    "home legacy": {"split": 6, "classes": 23},
++   "index.html": {"miss · (page)": 6},
+    "matches hub": {"scroll": 9, "classes": 27},
+    "matches next": {"classes": 21},
+    "matches past": {"classes": 22},
 diff --git a/tests/test_design_inventory.py b/tests/test_design_inventory.py
 index df5c35f5..b9a23f3c 100644
 --- a/tests/test_design_inventory.py
@@ -1467,3 +1903,20 @@ index a34bfc83..c9811cd9 100644
      "docs/wireframes/metrics_display.md": 25,
      "site_v2/src/data/README.md": 10,
  }
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/review.md          |   41 +-
+#    .claude/task/review_input.patch | 2253 ++++++++++++++++++++++++---------------
+#    2 files changed, 1391 insertions(+), 903 deletions(-)
+# ============================================================================

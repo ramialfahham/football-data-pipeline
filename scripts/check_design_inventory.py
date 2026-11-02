@@ -296,6 +296,19 @@ MEASURE_JS = r"""
 """
 
 
+POINTER_JS = r"""
+(sel) => {
+  const all = [...document.querySelectorAll(sel)];
+  const i = all.findIndex((e) => e.getClientRects().length > 0);
+  if (i < 0) return null;
+  all[i].scrollIntoView({ block: 'center' });
+  const r = all[i].getBoundingClientRect();
+  return [r.left + r.width / 2, r.top + r.height / 2, i];
+}
+"""
+STYLE_JS = "([sel, i, prop]) => getComputedStyle(document.querySelectorAll(sel)[i]).getPropertyValue(prop)"
+
+
 @dataclass
 class Failure:
     page: str
@@ -529,22 +542,16 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
                     break
         pointer = [a for a in el.assertions if a.kind in ("hover", "press") and di.applies(a, viewport)]
         if pointer and matches:
-            handle = None
-            for h in pw_page.query_selector_all(el.selector):
-                if h.bounding_box():
-                    handle = h
-                    break
-            if handle is None:
+            # The first element with a box, scrolled to the middle; the mouse goes to its centre.
+            centre = pw_page.evaluate(POINTER_JS, el.selector)
+            if centre is None:
                 continue
-            handle.evaluate("e => e.scrollIntoView({block: 'center'})")
             for a in pointer:
-                if a.kind == "hover":
-                    handle.hover()
-                    measured = handle.evaluate("(e, p) => getComputedStyle(e).getPropertyValue(p)", a.prop)
-                else:
-                    handle.hover()
+                pw_page.mouse.move(centre[0], centre[1])
+                if a.kind == "press":
                     pw_page.mouse.down()
-                    measured = handle.evaluate("(e, p) => getComputedStyle(e).getPropertyValue(p)", a.prop)
+                measured = pw_page.evaluate(STYLE_JS, [el.selector, centre[2], a.prop])
+                if a.kind == "press":
                     pw_page.mouse.move(0, 0)
                     pw_page.mouse.up()
                 msg = di.compare(a, measured, tokens)
