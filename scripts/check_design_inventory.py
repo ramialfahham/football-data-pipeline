@@ -4,8 +4,15 @@ Renders every design-mock generator the inventory lists into a temporary folder,
 folder and the built site over HTTP, opens each page in headless Chromium at every viewport and
 language the inventory asks for, and measures every element of `docs/wireframes/block_standard.md`
 as its "Measured as" column says. One line per failure, and a page that shows none of the
-inventory's elements fails on its own. Exit 0 clean, 1 on any failure, 2 when the inventory does
-not parse or the browser is missing.
+inventory's elements fails on its own.
+
+It also counts the gaps `COUNT_JS` names on every page at `COUNT_VIEWPORTS`, per page summed over
+widths and languages, and compares them with the baseline's `rendered` pins
+(`design_inventory.BASELINE`), in both directions. The counts depend on the font, so they are
+compared only on the platform the baseline names and only on a run over everything the inventory
+lists; any other run prints them. `--artifacts` also receives `counts.json`, the measured counts
+with examples. Exit 0 clean, 1 on any failure or count off its pin, 2 when the inventory does not
+parse or the browser is missing.
 
     python scripts/check_design_inventory.py --dist site_v2/dist
     python scripts/check_design_inventory.py --no-built --pages competition-overview --viewports 375 --langs fi
@@ -46,6 +53,125 @@ DEFAULT_LANGS = ("en", "de", "fi")
 # The design mocks carry English and a marked Finnish width probe in one file, toggled by CSS;
 # no other language exists in them to render.
 MOCK_LANGS = ("en", "fi")
+
+# The widths the gap counts are taken at: the narrowest phones up to the desktop layout. The
+# element assertions above keep their own widths.
+COUNT_VIEWPORTS = (280, 320, 360, 375, 700, 1010)
+COUNTS = ("scroll", "overflow", "split", "overlap", "classes")
+
+# One evaluation per rendered page: the gaps the baseline pins. `scroll`: the page, or a box in it,
+# scrolls sideways. `overflow`: a text node runs past the box it sits in sideways (an ellipsis cut
+# included). `split`: a word, a run without spaces, lies on two lines. `overlap`: two text nodes'
+# visible lines cross, SVG text included; each line is trimmed by a fifth top and bottom so two
+# tight lines that only touch are not counted. `classes`: the class names no inventory selector
+# uses. Text that is not displayed, fully transparent or clipped away is not read.
+COUNT_JS = r"""
+(registered) => {
+  const reg = new Set(registered);
+  const shownMemo = new Map();
+  const shown = (el) => {
+    if (!el) return true;
+    if (shownMemo.has(el)) return shownMemo.get(el);
+    const s = getComputedStyle(el);
+    const v = s.display !== 'none' && s.visibility !== 'hidden' && s.visibility !== 'collapse'
+      && parseFloat(s.opacity) !== 0 && shown(el.parentElement);
+    shownMemo.set(el, v);
+    return v;
+  };
+  const clipMemo = new Map();
+  const clipOf = (el) => {
+    if (!el || el === document.documentElement) return [-Infinity, -Infinity, Infinity, Infinity];
+    if (clipMemo.has(el)) return clipMemo.get(el);
+    let c = clipOf(el.parentElement);
+    const s = getComputedStyle(el);
+    if (s.overflowX !== 'visible' || s.overflowY !== 'visible' || s.clipPath !== 'none') {
+      const r = el.getBoundingClientRect();
+      c = [Math.max(c[0], r.left), Math.max(c[1], r.top), Math.min(c[2], r.right), Math.min(c[3], r.bottom)];
+    }
+    clipMemo.set(el, c);
+    return c;
+  };
+  const boxOf = (el) => {
+    for (let a = el; a && a !== document.body; a = a.parentElement) {
+      const d = getComputedStyle(a).display;
+      if (d !== 'contents' && d !== 'inline') return a;
+    }
+    return document.body;
+  };
+  const label = (el, txt) => {
+    const cls = typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\s+/).join('.') : '';
+    return el.tagName.toLowerCase() + cls + (txt ? ' "' + txt.trim().slice(0, 40) + '"' : '');
+  };
+  const ex = { scroll: [], overflow: [], split: [], overlap: [] };
+  let scroll = 0, overflow = 0, split = 0;
+  const root = document.documentElement;
+  if (root.scrollWidth > root.clientWidth + 1) { scroll++; ex.scroll.push('page ' + root.scrollWidth + '>' + root.clientWidth); }
+  for (const el of document.body.querySelectorAll('*')) {
+    const s = getComputedStyle(el);
+    if ((s.overflowX === 'auto' || s.overflowX === 'scroll') && el.scrollWidth > el.clientWidth + 1 && shown(el)) {
+      scroll++; ex.scroll.push(label(el, '') + ' ' + el.scrollWidth + '>' + el.clientWidth);
+    }
+  }
+  const lines = [];
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  let id = 0;
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const txt = n.textContent;
+    const p = n.parentElement;
+    if (!txt.trim() || !p || p.closest('script,style,noscript,template') || !shown(p)) continue;
+    id++;
+    const inSvg = !!p.closest('svg');
+    let rects;
+    if (inSvg) {
+      const r = p.getBoundingClientRect();
+      rects = r.width > 0 && r.height > 0 ? [r] : [];
+    } else {
+      const range = document.createRange();
+      range.selectNodeContents(n);
+      rects = [...range.getClientRects()].filter((r) => r.width > 0.5 && r.height > 0.5);
+    }
+    const clip = clipOf(p);
+    const seen = rects.map((r) => [Math.max(r.left, clip[0]), Math.max(r.top, clip[1]), Math.min(r.right, clip[2]), Math.min(r.bottom, clip[3])])
+      .filter((r) => r[2] - r[0] > 1 && r[3] - r[1] > 1);
+    if (!seen.length) continue;
+    if (!inSvg) {
+      const box = boxOf(p).getBoundingClientRect();
+      if (rects.some((r) => r.left < box.left - 1 || r.right > box.right + 1)) { overflow++; ex.overflow.push(label(p, txt)); }
+      const tops = [];
+      for (const r of rects) if (!tops.some((t) => Math.abs(t - r.top) < 2)) tops.push(r.top);
+      if (tops.length > 1) {
+        const word = /\S+/g;
+        for (let m = word.exec(txt); m; m = word.exec(txt)) {
+          const wr = document.createRange();
+          wr.setStart(n, m.index);
+          wr.setEnd(n, m.index + m[0].length);
+          const wt = [];
+          for (const r of wr.getClientRects()) if (r.width > 0.5 && !wt.some((t) => Math.abs(t - r.top) < 2)) wt.push(r.top);
+          if (wt.length > 1) { split++; ex.split.push(label(p, m[0])); }
+        }
+      }
+    }
+    for (const r of seen) {
+      const h = r[3] - r[1];
+      lines.push({ id, l: r[0], r: r[2], t: r[1] + h * 0.2, b: r[3] - h * 0.2, el: p, txt });
+    }
+  }
+  lines.sort((a, b) => a.t - b.t);
+  const pairs = new Set();
+  for (let i = 0; i < lines.length; i++) {
+    const a = lines[i];
+    for (let j = i + 1; j < lines.length && lines[j].t < a.b; j++) {
+      const b = lines[j];
+      if (a.id === b.id || Math.min(a.r, b.r) - Math.max(a.l, b.l) <= 1) continue;
+      const key = Math.min(a.id, b.id) + ':' + Math.max(a.id, b.id);
+      if (!pairs.has(key)) { pairs.add(key); ex.overlap.push(label(a.el, a.txt) + ' x ' + label(b.el, b.txt)); }
+    }
+  }
+  const classes = new Set();
+  for (const el of document.querySelectorAll('[class]')) for (const c of el.classList) if (!reg.has(c)) classes.add(c);
+  return { scroll, overflow, split, overlap: pairs.size, classes: [...classes].sort(), ex };
+}
+"""
 
 # One evaluation per rendered page: every element's visible matches, with the measurements its
 # assertions need. Runs inside the page; returns plain JSON.
@@ -356,12 +482,28 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
     return total
 
 
+def compare_rendered(rendered: dict[str, dict[str, int]], pinned: dict, full_run: bool,
+                     platform: str) -> tuple[str, list[str]]:
+    """(why the counts are not compared, or "") and the counts off their pins. Only a run over
+    everything the inventory lists, on the platform the baseline names, is compared."""
+    if not full_run:
+        return "a narrower run than the baseline's", []
+    if platform != pinned["platform"]:
+        return "the baseline is measured on %s, this run on %s" % (pinned["platform"], platform), []
+    nonzero = {name: {k: n for k, n in c.items() if n} for name, c in rendered.items()}
+    return "", di.compare_counts(nonzero, pinned["pages"])
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--inventory", default=str(di.DOC))
     ap.add_argument("--dist", default=str(REPO / "site_v2" / "dist"))
     ap.add_argument("--pages", help="comma-separated page names to run (default: all)")
-    ap.add_argument("--viewports", default=",".join(str(v) for v in DEFAULT_VIEWPORTS))
+    ap.add_argument("--viewports", help="widths for the element assertions and, unless --count-viewports "
+                    "is given, the gap counts (default: %s)" % ",".join(str(v) for v in DEFAULT_VIEWPORTS))
+    ap.add_argument("--count-viewports", help="widths for the gap counts (default: %s)"
+                    % ",".join(str(v) for v in COUNT_VIEWPORTS))
+    ap.add_argument("--baseline", default=str(di.BASELINE))
     ap.add_argument("--langs", default=",".join(DEFAULT_LANGS))
     ap.add_argument("--no-built", action="store_true")
     ap.add_argument("--no-mocks", action="store_true")
@@ -394,8 +536,19 @@ def main(argv=None) -> int:
         missing = wanted - {p.name for p in inv.pages}
         if missing:
             ap.error("unknown page(s): %s" % ", ".join(sorted(missing)))
-    viewports = [int(v) for v in args.viewports.split(",")]
+    viewports = [int(v) for v in args.viewports.split(",")] if args.viewports else list(DEFAULT_VIEWPORTS)
+    if args.count_viewports:
+        count_viewports = [int(v) for v in args.count_viewports.split(",")]
+    else:
+        count_viewports = viewports if args.viewports else list(COUNT_VIEWPORTS)
     langs = args.langs.split(",")
+    # The baseline pins a run over every page, width and language the inventory asks for; a narrower
+    # run prints its counts and compares none.
+    full_run = not (wanted or adhoc or args.no_built or args.no_mocks or args.viewports or args.count_viewports
+                    or args.langs != ",".join(DEFAULT_LANGS) or Path(args.inventory).resolve() != di.DOC.resolve())
+    registered = sorted(di.class_tokens(inv.elements))
+    counted: dict[str, dict] = {}
+    count_renders = 0
     props = list(di.PROPS)
     spec = {
         "props": props,
@@ -429,7 +582,7 @@ def main(argv=None) -> int:
                 except PlaywrightError as exc:
                     print("cannot launch Chromium: %s" % str(exc).splitlines()[0], file=sys.stderr)
                     return 2
-                for viewport in viewports:
+                for viewport in sorted(set(viewports) | set(count_viewports)):
                     ctx = browser.new_context(viewport={"width": viewport, "height": 900}, device_scale_factor=1,
                                               reduced_motion="reduce")
                     pw_page = ctx.new_page()
@@ -467,12 +620,24 @@ def main(argv=None) -> int:
                             if not pw_page.is_checked("#t-fi"):
                                 failures.append(Failure(p.name, viewport, lang, "(page)", "the FI toggle did not switch"))
                                 continue
-                        before = len(failures)
-                        measure_page(pw_page, inv, spec, p, viewport, lang, failures)
-                        renders += 1
-                        covered.setdefault(lang, set()).add(p.name)
-                        if artifacts and any(f.level == "FAIL" for f in failures[before:]):
-                            pw_page.screenshot(path=str(artifacts / ("%s_%d_%s.png" % (p.name, viewport, lang))), full_page=True)
+                        if viewport in viewports:
+                            before = len(failures)
+                            measure_page(pw_page, inv, spec, p, viewport, lang, failures)
+                            renders += 1
+                            covered.setdefault(lang, set()).add(p.name)
+                            if artifacts and any(f.level == "FAIL" for f in failures[before:]):
+                                pw_page.screenshot(path=str(artifacts / ("%s_%d_%s.png" % (p.name, viewport, lang))), full_page=True)
+                        if viewport in count_viewports:
+                            # The pointer checks scroll the page, and a sticky header then lies over the content.
+                            pw_page.evaluate("window.scrollTo(0, 0); document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => r())))")
+                            found = pw_page.evaluate(COUNT_JS, registered)
+                            count_renders += 1
+                            page_counts = counted.setdefault(p.name, {"classes": set(), "examples": {}})
+                            page_counts["classes"].update(found["classes"])
+                            for k in COUNTS[:-1]:
+                                page_counts[k] = page_counts.get(k, 0) + found[k]
+                                shown = page_counts["examples"].setdefault(k, [])
+                                shown += ["%d %s %s" % (viewport, lang, e) for e in found["ex"][k][:20 - len(shown)]]
                     ctx.close()
                 browser.close()
         finally:
@@ -482,6 +647,21 @@ def main(argv=None) -> int:
             for srv, _base in adhoc_srv.values():
                 srv.shutdown()
 
+    rendered = {name: {k: (len(c["classes"]) if k == "classes" else c.get(k, 0)) for k in COUNTS}
+                for name, c in counted.items()}
+    for name in sorted(rendered):
+        print("COUNT %s · %s" % (name, " · ".join("%s %d" % (k, rendered[name][k]) for k in COUNTS)))
+    note, off = compare_rendered(rendered, di.load_baseline(Path(args.baseline))["rendered"], full_run, sys.platform)
+    for line in off:
+        failures.append(Failure("(counts)", 0, "-", "(baseline)", line))
+        page, metric = line.split(" · ")[1:3]
+        for e in counted.get(page, {}).get("examples", {}).get(metric, [])[:5]:
+            failures.append(Failure(page, 0, "-", metric, "e.g. " + e, "INFO"))
+    if artifacts is not None:
+        (artifacts / "counts.json").write_text(json.dumps(
+            {"platform": sys.platform, "pages": {name: {k: n for k, n in c.items() if n} for name, c in rendered.items()},
+             "classes": {name: sorted(c["classes"]) for name, c in counted.items()},
+             "examples": {name: c["examples"] for name, c in counted.items()}}, indent=1, ensure_ascii=False), encoding="utf-8")
     for f in failures:
         print(f.line())
     hard = [f for f in failures if f.level == "FAIL"]
@@ -498,7 +678,11 @@ def main(argv=None) -> int:
     if any(n < reached for _lang, n in per_lang):
         caveat = " (pages per language: %s)" % ", ".join("%s %d" % (lang, n) for lang, n in per_lang)
     print("%d pages · %d viewports · %d languages%s · %d renders · %d failures · %d warnings"
-          % (len(pages) + len(adhoc), len(viewports), len(langs), caveat, renders, len(hard), len(failures) - len(hard)))
+          % (len(pages) + len(adhoc), len(viewports), len(langs), caveat, renders, len(hard),
+             sum(1 for f in failures if f.level == "WARN")))
+    print("gap counts: %d pages counted at %s px · %s" % (
+        count_renders, ",".join(str(v) for v in count_viewports),
+        "not compared: %s" % note if note else "%d off the baseline" % len(off)))
     if artifacts and hard:
         (artifacts / "failures.json").write_text(json.dumps([f.__dict__ for f in failures], indent=1), encoding="utf-8")
     return 1 if hard else 0

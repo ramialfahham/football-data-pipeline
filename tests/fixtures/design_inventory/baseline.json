@@ -1,0 +1,72 @@
+{
+ "static": {
+  "mock_css": {
+   "design-mocks/gen_competitions.py": 13,
+   "design-mocks/gen_interaction.py": 3,
+   "design-mocks/gen_match_page.py": 33,
+   "design-mocks/gen_navmap.py": 6,
+   "design-mocks/gen_sitemap.py": 8,
+   "design-mocks/gen_taxonomy.py": 6,
+   "design-mocks/gen_team_mock.py": 73
+  },
+  "css_outside_system_css": {
+   "site_v2/src/components/fixture/MetricRow.astro": 2,
+   "site_v2/src/components/team/TeamLeagueStrips.astro": 2,
+   "site_v2/src/lib/fitBlocks.mjs": 2
+  },
+  "width_rules": {
+   "340px": 1,
+   "420px": 4,
+   "430px": 2,
+   "470px": 1,
+   "479.98px": 2,
+   "480px": 1,
+   "520px": 1,
+   "560px": 2,
+   "599.98px": 2,
+   "699.98px": 4,
+   "700px": 1,
+   "800px": 1,
+   "900px": 1,
+   "1010px": 1
+  },
+  "banned_properties": {
+   "site_v2/src/styles/system.css": 7
+  },
+  "literal_text": {
+   "site_v2/src/components/chrome/SiteFooter.astro": 3,
+   "site_v2/src/components/chrome/SiteHeader.astro": 2,
+   "site_v2/src/pages/index.astro": 2
+  }
+ },
+ "rendered": {
+  "platform": "linux",
+  "pages": {
+   "Competition matchdays": {"overflow": 15, "classes": 28},
+   "Competition overview": {"split": 19, "classes": 29},
+   "Competition rankings": {"classes": 22},
+   "Competitions index": {"overflow": 24, "classes": 26},
+   "Home": {"overflow": 227, "split": 4, "classes": 23},
+   "Match page": {"scroll": 2, "classes": 53},
+   "Matches day page": {"classes": 31},
+   "Matches page": {"classes": 31},
+   "Played match page": {"scroll": 1, "classes": 51},
+   "Team page": {"overflow": 18, "split": 3, "classes": 87},
+   "Teams page": {"split": 1, "classes": 33},
+   "competition-hub cup": {"classes": 22},
+   "competition-hub groups": {"classes": 24},
+   "competition-hub league": {"overflow": 112, "classes": 26},
+   "competition-hub offseason": {"overflow": 112, "classes": 25},
+   "competition-matchdays": {"split": 2, "classes": 25},
+   "competition-overview": {"classes": 24},
+   "competition-rankings": {"split": 4, "classes": 19},
+   "home": {"classes": 21},
+   "home legacy": {"split": 6, "classes": 23},
+   "matches hub": {"scroll": 9, "classes": 27},
+   "matches next": {"classes": 21},
+   "matches past": {"classes": 22},
+   "top players": {"classes": 16},
+   "top teams": {"split": 6, "classes": 16}
+  }
+ }
+}
