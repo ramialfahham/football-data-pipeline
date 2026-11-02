@@ -121,6 +121,7 @@ _PX = re.compile(r"^-?\d+(\.\d+)?px$")
 _STRIPE = re.compile(r"^(?P<colour>\S+) from (?P<n>\d+)$")
 _CALL = re.compile(r"^(?P<fn>hover|press)\((?P<prop>[a-z-]+)\)$")
 _WHEN = re.compile(r"^(?P<body>.*\S)\s+\[(?P<op>>=|<)(?P<px>\d+)px\]$")
+_GENERATOR = re.compile(r"^gen_\w+\.py$")
 
 
 def _applies_when(when: str, viewport: int) -> bool:
@@ -283,6 +284,8 @@ def load(path: Path = DOC) -> Inventory:
             raise InventoryError("Pages: %s expects elements the inventory does not name: %s" % (name, ", ".join(unknown)))
         if any(p.name == name for p in pages):
             raise InventoryError("Pages: %s listed twice" % name)
+        if kind == "mock" and not _GENERATOR.match(_strip_code(source)):
+            raise InventoryError("Pages: %s: a mock's Source is its generator's file name, gen_*.py, got %r" % (name, source))
         pages.append(Page(name, kind, _strip_code(source), _strip_code(url), fi, expected, expect_when))
     if not pages:
         raise InventoryError("Pages: no rows")
@@ -304,8 +307,9 @@ BASELINE = REPO / "tests" / "fixtures" / "design_inventory" / "baseline.json"
 
 
 def load_baseline(path: Path = BASELINE) -> dict:
-    """The pinned gap counts: `static` (by check, then file or width) and `rendered` (the
-    platform it was measured on, then by page and count)."""
+    """The pinned gap counts: `static` (by check, then file or width), `coverage` (by gap kind,
+    then page or generator) and `rendered` (the platform it was measured on, then by page and
+    count)."""
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -323,6 +327,26 @@ def compare_counts(measured: dict[str, dict[str, int]], pinned: dict[str, dict[s
             elif now < was:
                 out.append("count fell · %s · %s · %d, baseline %d: lower the baseline" % (group, key, now, was))
     return out
+
+
+def _pins(baseline: dict) -> dict[tuple[str, str, str], int]:
+    out = {}
+    for section in ("static", "coverage"):
+        for group, by_key in baseline.get(section, {}).items():
+            for key, n in by_key.items():
+                out[(section, group, key)] = n
+    for page, by_count in baseline.get("rendered", {}).get("pages", {}).items():
+        for count, n in by_count.items():
+            out[("rendered", page, count)] = n
+    return out
+
+
+def rises(current: dict, base: dict) -> list[str]:
+    """Every pin above the base's: a count that rose, and a new entry above zero. A new page or mock
+    enters the baseline with no gaps."""
+    now, was = _pins(current), _pins(base)
+    return ["%s · %s · %s · %d, main %d" % (*key, now[key], was.get(key, 0))
+            for key in sorted(now) if now[key] > was.get(key, 0)]
 
 
 def parse_css_color(s: str) -> tuple[float, float, float, float]:

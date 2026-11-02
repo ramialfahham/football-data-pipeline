@@ -39,6 +39,9 @@ T.board_html = lambda b: table_board(T, b)
 import gen_home  # noqa: E402,F401  (builds and writes design-mocks/home_mock.html at import)
 
 html_ = gen_home.OUT.read_text(encoding="utf-8")
-out = HERE / (sys.argv[1] if len(sys.argv) > 1 else "home_with_rules_v1.html")
+if sys.argv[1:2] == ["--out"]:
+    out = Path(sys.argv[2]) / "home_with_rules_v1.html"
+else:
+    out = HERE / (sys.argv[1] if len(sys.argv) > 1 else "home_with_rules_v1.html")
 out.write_text(html_, encoding="utf-8")
 print("wrote", out.name)

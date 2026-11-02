@@ -31,6 +31,8 @@ from gen_block_standard import ZONE, short, slug  # noqa: E402
 from rows import date_head, group_head, upcoming_row  # noqa: E402
 
 OUT = HERE / "home_mock.html"
+if __name__ == "__main__" and sys.argv[1:2] == ["--out"]:
+    OUT = Path(sys.argv[2]) / OUT.name
 E = html.escape
 
 # ------------------------------------------------------------ next matches

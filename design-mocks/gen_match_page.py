@@ -21,6 +21,7 @@ import html
 import json
 import os
 import re
+import subprocess
 import sys
 import unicodedata
 from datetime import date
@@ -37,11 +38,12 @@ LEAGUE = "bundesliga"
 # seen meet) or "played" (a played match, state 3), set by MATCH_STATE. A played match has no built
 # page, so its render takes the next match page's shell: the stylesheet and the site header.
 STATE = os.environ.get("MATCH_STATE", "next")
-SLUG, FIXTURE_ID = {"next": ("2026-10-09-borussia-dortmund-vs-sv-werder-bremen", 1575176),
-                    "future": ("2026-10-31-bayern-munchen-vs-borussia-dortmund", 1575203),
-                    "future-unmet": ("2026-11-07-borussia-dortmund-vs-sv-elversberg", 1575212),
-                    "played": ("2026-10-09-borussia-dortmund-vs-sv-werder-bremen", 1575150),
-                    "played-pen": ("2026-10-09-borussia-dortmund-vs-sv-werder-bremen", 1550700)}[STATE]
+STATES = {"next": ("2026-10-09-borussia-dortmund-vs-sv-werder-bremen", 1575176),
+          "future": ("2026-10-31-bayern-munchen-vs-borussia-dortmund", 1575203),
+          "future-unmet": ("2026-11-07-borussia-dortmund-vs-sv-elversberg", 1575212),
+          "played": ("2026-10-09-borussia-dortmund-vs-sv-werder-bremen", 1575150),
+          "played-pen": ("2026-10-09-borussia-dortmund-vs-sv-werder-bremen", 1550700)}
+SLUG, FIXTURE_ID = STATES[STATE]
 PAGE = DIST / "en" / LEAGUE / "matches" / SLUG / "index.html"
 
 E = html.escape
@@ -1948,6 +1950,11 @@ def build():
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["--out"]:
+        for state in STATES:
+            subprocess.run([sys.executable, __file__, str(Path(sys.argv[2]) / ("match-page_%s.html" % state))],
+                           env={**os.environ, "MATCH_STATE": state}, check=True)
+        sys.exit(0)
     out = HERE / (sys.argv[1] if len(sys.argv) > 1 else "match-page.html")
     out.write_text(build(), encoding="utf-8")
     print("wrote", out, "%.0f KB" % (out.stat().st_size / 1024))

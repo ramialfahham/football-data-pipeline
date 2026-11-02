@@ -116,6 +116,9 @@ def build():
        g.header_html(k), "", g.table_html(k), deserved_table_html(), facts_html(k))
 
 
-out = HERE / (sys.argv[1] if len(sys.argv) > 1 else "competition_overview_after_teams_v2.html")
+if sys.argv[1:2] == ["--out"]:
+    out = Path(sys.argv[2]) / "competition_overview_after_teams_v2.html"
+else:
+    out = HERE / (sys.argv[1] if len(sys.argv) > 1 else "competition_overview_after_teams_v2.html")
 out.write_text(build(), encoding="utf-8")
 print("wrote", out.name)

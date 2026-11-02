@@ -30,6 +30,7 @@ the repo (#55) and is guarded against the registry's own set.
 import csv
 import html
 import re
+import sys
 from pathlib import Path
 
 import yaml
@@ -810,6 +811,8 @@ def check():
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["--out"]:
+        OUT = Path(sys.argv[2]) / OUT.name
     check_seed_matches_shipped()
     check_registry_still_unedited()
     check_confederation_enum()

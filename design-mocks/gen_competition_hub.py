@@ -465,8 +465,11 @@ def out_path(kind):
 
 if __name__ == "__main__":
     check_data()
-    wanted = sys.argv[1:] or list(KINDS)
+    out_dir = Path(sys.argv[2]) if sys.argv[1:2] == ["--out"] else None
+    wanted = list(KINDS) if out_dir else sys.argv[1:] or list(KINDS)
     for kind in wanted:
         path = out_path(kind)
+        if out_dir:
+            path = out_dir / path.name
         path.write_text(build(kind), encoding="utf-8")
         print("  wrote %s (%.0f KB)" % (path.name, path.stat().st_size / 1024))

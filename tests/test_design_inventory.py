@@ -48,7 +48,7 @@ PAGES = textwrap.dedent("""\
 
     | Page | Kind | Source | URL | FI | Expect |
     |---|---|---|---|---|---|
-    | home | mock | `gen_home.py {out}` | `home.html` | toggle | Block heading |
+    | home | mock | `gen_home.py` | `home.html` | toggle | Block heading |
     """)
 
 
@@ -437,9 +437,10 @@ def _run_check(tmp_path: Path, name: str) -> tuple[int, str]:
     folder.mkdir(exist_ok=True)
     shutil.copy(FIXTURES / ("%s.html" % name), folder / ("%s.html" % name))
     shutil.copy(SYSTEM_CSS, folder / "system.css")
+    # The fixtures reconstruct the competition page as it was ruled, at the widths it was ruled at.
     proc = subprocess.run(
         [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks", "--no-built",
-         "--page", "%s=%s" % (name, folder / ("%s.html" % name)), "--langs", "en"],
+         "--page", "%s=%s" % (name, folder / ("%s.html" % name)), "--langs", "en", "--viewports", "375,700,1010"],
         capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
     )
     return proc.returncode, proc.stdout + proc.stderr
@@ -484,14 +485,160 @@ def test_the_gap_counts_count_each_defect_once(tmp_path):
     assert "not compared: a narrower run than the baseline's" in out, out
 
 
-def test_the_rendered_baseline_names_only_inventory_pages_and_counts():
-    rendered = di.load_baseline()["rendered"]
+def test_the_baseline_names_only_pages_the_check_renders_and_counts_it_knows():
+    baseline = di.load_baseline()
+    rendered = baseline["rendered"]
     assert rendered["platform"] == "linux", "the baseline is measured in validate:ui's browser image"
     names = {p.name for p in di.load().pages}
     import check_design_inventory as cdi  # noqa: PLC0415
     for page, by_count in rendered["pages"].items():
-        assert page in names, page
-        assert set(by_count) <= set(cdi.COUNTS) and all(n > 0 for n in by_count.values()), (page, by_count)
+        assert page in names or page.endswith(".html"), page
+        assert all(k in cdi.COUNTS or k.startswith(cdi.MISS) for k in by_count), (page, by_count)
+        assert all(n > 0 for n in by_count.values()), (page, by_count)
+    assert set(baseline["coverage"]) <= set(cdi.COVERAGE)
+    assert set(baseline["coverage"].get("generator fails", {})) <= set(cdi.generators())
+
+
+def test_every_mock_row_names_a_generator_on_disk():
+    import check_design_inventory as cdi  # noqa: PLC0415
+    gens = set(cdi.generators())
+    for p in di.load().pages:
+        if p.kind == "mock":
+            assert p.source in gens, (p.name, p.source)
+
+
+def test_the_check_owns_every_built_file_and_counts_the_rest(tmp_path):
+    import check_design_inventory as cdi  # noqa: PLC0415
+    dist = tmp_path / "dist"
+    for rel in ("index.html", "en/index.html", "en/teams/a/index.html", "en/teams/b/index.html", "en/players/p/index.html"):
+        (dist / rel).parent.mkdir(parents=True, exist_ok=True)
+        (dist / rel).write_text("<p>x</p>", encoding="utf-8")
+    pages = [di.Page("Home", "built", "site_v2/dist", "en/index.html", "path", ()),
+             di.Page("Team page", "built", "site_v2/dist", "en/teams/*/index.html", "path", ()),
+             di.Page("Team a", "built", "site_v2/dist", "en/teams/a/index.html", "path", ())]
+    run = cdi.plan(pages, ["en"], dist, {}, {}, every_file=True)
+    assert {path: p.name for p, _lang, _root, path in run.targets} == {
+        "index.html": "index.html", "en/index.html": "Home", "en/teams/a/index.html": "Team a",
+        "en/teams/b/index.html": "Team page", "en/players/p/index.html": "en/players/p/index.html"}
+    assert run.coverage == {"page with no row": {"en/players/p/index.html": 1, "index.html": 1}}
+    assert run.failures == []
+    root = di.Page("Root", "built", "site_v2/dist", "index.html", "path", ())
+    run = cdi.plan(pages + [root], ["en", "de", "fi"], dist, {}, {}, every_file=True)
+    assert [f.detail for f in run.failures if f.page == "Root"] == [], "a row matching one file in every language is not a clash"
+    pages.append(di.Page("Other", "built", "site_v2/dist", "en/*/b/index.html", "path", ()))
+    pages.append(di.Page("Team a again", "built", "site_v2/dist", "en/teams/a/index.html", "path", ()))
+    run = cdi.plan(pages, ["en"], dist, {}, {}, every_file=True)
+    assert [f.detail for f in run.failures] == ["en/teams/b/index.html is also matched by Team page",
+                                                "en/teams/a/index.html is also matched by Team a"]
+
+
+def test_every_generator_is_run_and_one_that_fails_or_writes_nothing_is_counted(tmp_path):
+    import check_design_inventory as cdi  # noqa: PLC0415
+    mocks = tmp_path / "mocks"
+    mocks.mkdir()
+    (mocks / "gen_ok.py").write_text(
+        "import pathlib, sys\nd = pathlib.Path(sys.argv[2])\n(d / 'a.html').write_text('<p>a</p>')\n"
+        "(d / 'b.html').write_text('<label for=\"t-fi\"></label>')\n", encoding="utf-8")
+    (mocks / "gen_bad.py").write_text("raise SystemExit('drift')\n", encoding="utf-8")
+    (mocks / "gen_silent.py").write_text("pass\n", encoding="utf-8")
+    (mocks / "helper.py").write_text("raise SystemExit('not a generator')\n", encoding="utf-8")
+    assert cdi.generators(mocks) == ["gen_bad.py", "gen_ok.py", "gen_silent.py"]
+    out, failed = cdi.run_generators(cdi.generators(mocks), tmp_path / "out", mocks)
+    assert set(out) == {"gen_ok.py"}
+    assert failed == {"gen_bad.py": "exit 1: drift", "gen_silent.py": "wrote no page into --out DIR"}
+    pages = [di.Page("a page", "mock", "gen_ok.py", "a.html", "toggle", ()),
+             di.Page("gone", "mock", "gen_ok.py", "c.html", "toggle", ())]
+    run = cdi.plan(pages, ["en", "de", "fi"], None, out, failed, every_file=True)
+    assert {(p.name, lang) for p, lang, _root, _path in run.targets} == {
+        ("a page", "en"), ("a page", "fi"), ("gen_ok.py/b.html", "en"), ("gen_ok.py/b.html", "fi")}
+    assert run.coverage == {"generator fails": {"gen_bad.py": 1, "gen_silent.py": 1},
+                            "mock page with no row": {"gen_ok.py/b.html": 1},
+                            "language missing": {"a page": 1, "gen_ok.py/b.html": 1}}
+    assert [f.detail for f in run.failures] == ["gen_ok.py wrote no c.html"]
+
+
+@needs_browser
+def test_a_coverage_gap_or_a_miss_off_its_pin_fails_a_full_run(tmp_path):
+    doc = _doc(tmp_path, GOOD_ROW, "\n## Pages\n\n| Page | Kind | Source | URL | FI | Expect |\n|---|---|---|---|---|---|\n"
+               "| Home | built | `site_v2/dist` | `en/index.html` | path | Block heading |\n")
+    dist = tmp_path / "dist"
+    for rel in ("en/index.html", "de/index.html", "fi/index.html", "en/extra/index.html"):
+        (dist / rel).parent.mkdir(parents=True, exist_ok=True)
+        (dist / rel).write_text('<!doctype html><body><div class="sechead"><span class="eyebrow">Block</span></div></body>',
+                                encoding="utf-8")
+    mocks = tmp_path / "mocks"
+    mocks.mkdir()
+    (mocks / "gen_bad.py").write_text("raise SystemExit('drift')\n", encoding="utf-8")
+
+    def run(rendered: dict, coverage: dict, n: int) -> tuple[int, str, dict]:
+        baseline, artifacts = tmp_path / ("baseline%d.json" % n), tmp_path / ("artifacts%d" % n)
+        baseline.write_text(json.dumps({"static": {}, "coverage": coverage,
+                                        "rendered": {"platform": sys.platform, "pages": rendered}}), encoding="utf-8")
+        proc = subprocess.run(
+            [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--inventory", str(doc),
+             "--dist", str(dist), "--mocks", str(mocks), "--baseline", str(baseline), "--artifacts", str(artifacts)],
+            capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+        return proc.returncode, proc.stdout + proc.stderr, json.loads((artifacts / "counts.json").read_text(encoding="utf-8"))
+
+    code, out, counts = run({}, {}, 1)
+    assert code == 1, out
+    assert "count rose · generator fails · gen_bad.py · 1, baseline 0" in out, out
+    assert "count rose · page with no row · en/extra/index.html · 1, baseline 0" in out, out
+    assert "INFO  gen_bad.py · 0 · - · (generator) · exit 1: drift" in out, out
+    misses = counts["pages"]["Home"]["miss · Block heading"]
+    assert misses > 0, counts["pages"]
+    code, out, _ = run(counts["pages"], counts["coverage"], 2)
+    assert code == 0, out
+    counts["pages"]["Home"]["miss · Block heading"] -= 1
+    code, out, _ = run(counts["pages"], counts["coverage"], 3)
+    assert code == 1, out
+    assert "count rose · Home · miss · Block heading · %d, baseline %d" % (misses, misses - 1) in out, out
+
+
+def test_a_pin_may_not_rise_above_mains_and_a_new_entry_starts_at_zero():
+    base = {"static": {"g": {"a": 2}}, "coverage": {}, "rendered": {"platform": "linux", "pages": {"Home": {"split": 3}}}}
+    now = json.loads(json.dumps(base))
+    now["static"]["g"]["a"] = 1
+    assert di.rises(now, base) == []
+    now["rendered"]["pages"]["Home"]["split"] = 4
+    now["coverage"]["page with no row"] = {"en/new/index.html": 1}
+    now["rendered"]["pages"]["New page"] = {"overflow": 0}
+    assert di.rises(now, base) == ["coverage · page with no row · en/new/index.html · 1, main 0",
+                                   "rendered · Home · split · 4, main 3"]
+
+
+def _mains_baseline() -> dict:
+    """The baseline on the branch this one merges into: the MR's base in an MR pipeline, the first
+    parent on any other CI pipeline, the merge base with GitLab's main on a working copy."""
+    def git(*args):
+        return subprocess.run(["git", "-c", "safe.directory=*", *args], cwd=REPO, capture_output=True, text=True,
+                              encoding="utf-8")
+
+    ref = os.environ.get("CI_MERGE_REQUEST_DIFF_BASE_SHA") or ("HEAD^1" if os.environ.get("CI") else "")
+    if not ref:
+        remote = "gitlab/main" if git("rev-parse", "--verify", "-q", "gitlab/main").returncode == 0 else "origin/main"
+        ref = git("merge-base", "HEAD", remote).stdout.strip()
+    assert ref, "no base to compare the baseline with"
+    path ="%s:tests/fixtures/design_inventory/baseline.json" % ref
+    proc = git("show", path)
+    if proc.returncode and os.environ.get("CI"):
+        # A shallow CI clone may not hold the base commit; fetch it.
+        if ref == "HEAD^1":
+            git("fetch", "--no-tags", "--deepen=1", "origin")
+        else:
+            git("fetch", "--no-tags", "--depth=1", "origin", ref)
+        proc = git("show", path)
+    assert proc.returncode == 0, "main's baseline is not in this clone (%s): %s" % (ref, proc.stderr.strip())
+    return json.loads(proc.stdout)
+
+
+def test_no_pin_rises_above_mains():
+    current, base = di.load_baseline(), _mains_baseline()
+    if "coverage" not in base:
+        # Main's baseline predates the count over every page; this branch introduces it.
+        return
+    up = di.rises(current, base)
+    assert up == [], "a pin rose above main's; a new gap is fixed, not pinned:\n" + "\n".join(up)
 
 
 def _built_page_check(tmp_path: Path, html: str) -> tuple[int, str]:

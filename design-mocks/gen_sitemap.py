@@ -27,6 +27,7 @@ observed is obvious.
 import html
 import json
 import re
+import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -491,5 +492,7 @@ td { font-size: 13px; color: var(--ink-2); padding: 9px 10px 9px 0; border-botto
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["--out"]:
+        OUT = Path(sys.argv[2]) / OUT.name
     OUT.write_text(build(), encoding="utf-8")
     print("  wrote %s (%.0f KB)" % (OUT.name, OUT.stat().st_size / 1024))

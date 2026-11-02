@@ -5,6 +5,7 @@ Built from the same `interaction.py` the four page mocks import, so this page ca
 one thing while the pages do another.
 """
 import html
+import sys
 from pathlib import Path
 
 from rows import date_head, group_head, result_row, upcoming_row
@@ -158,5 +159,7 @@ def build():
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["--out"]:
+        OUT = Path(sys.argv[2]) / OUT.name
     OUT.write_text(build(), encoding="utf-8")
     print("  wrote %s (%.0f KB)" % (OUT.name, OUT.stat().st_size / 1024))

@@ -9,6 +9,7 @@ import json
 import math
 import re
 import shutil
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -1024,6 +1025,8 @@ def build():
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["--out"]:
+        OUT = Path(sys.argv[2])
     dst = OUT / "_astro"
     if dst.exists():
         shutil.rmtree(dst)
