@@ -235,8 +235,8 @@ test("main fails a build whose pages name no match, and passes it once a row doe
 // shown rank with the value under it.
 function leagueRow(metric, value, rank, { nonkey = false } = {}) {
   return (
-    `<div class="rs-row${nonkey ? " nonkey" : ""}" data-metric="${metric}"><span class="rs-name">x</span>` +
-    `<span class="rs-strip"><span class="rs-line"></span><span class="rs-dir">better</span></span>` +
+    `<div class="rs-row${nonkey ? " nonkey" : ""}" data-metric="${metric}"><span class="chart-name">x</span>` +
+    `<span class="rs-band"><span class="chart-axis"></span><span class="chart-tick">better</span></span>` +
     `<span class="rs-val">${rank}<small>${value}</small></span></div>`
   );
 }
@@ -313,22 +313,25 @@ test("team payloads with ranks but no Team page or no league row checked is an i
 // A deserved points scatter as TeamDeserved.astro emits it: the team's dot, then the difference
 // label, then the name.
 function scatter({ cx = 100, note, name }) {
-  const text = (cls, m) => `<text class="${cls}" x="${m.x}" y="${m.y}" font-size="12" text-anchor="${m.anchor}">x</text>`;
+  const text = (cls, role, m) =>
+    `<text class="${cls}" data-fix="" data-role="${role}" x="${cx}" y="150" dx="${m.dx}" dy="${m.dy}" text-anchor="${m.anchor}">x</text>`;
   return (
-    `<svg class="dp-chart dp-wide" viewBox="0 0 560 330" role="img"><line class="dp-axis" x1="46" x2="46" y1="12" y2="272"></line>` +
-    `<circle class="dp-me" cx="${cx}" cy="150" r="5" data-px="5"></circle>` + text("dp-note", note) + text("dp-name", name) + `</svg>`
+    `<svg class="dp-chart chart-wide" viewBox="0 0 560 330" role="img"><line class="chart-axis" x1="46" x2="46" y1="12" y2="272"></line>` +
+    `<circle class="chart-dot chart-me" data-fix="" cx="${cx}" cy="150"></circle>` + text("chart-note", "gap", note) +
+    text("chart-label", "name", name) + `</svg>`
   );
 }
 
 test("the scatter's difference label sits across the dot from the name, or a line under it; beside it fails", () => {
-  const name = { x: 107, y: 154.2, anchor: "start" };
-  assert.deepEqual(checkScatterLabels(scatter({ note: { x: 93, y: 170, anchor: "end" }, name }), "p"), []);
-  assert.deepEqual(checkScatterLabels(scatter({ note: { x: 107, y: 169.2, anchor: "start" }, name }), "p"), []);
-  assert.match(checkScatterLabels(scatter({ note: { x: 107, y: 160, anchor: "start" }, name }), "p")[0],
+  const name = { dx: "0.6em", dy: "0.35em", anchor: "start" };
+  assert.deepEqual(checkScatterLabels(scatter({ note: { dx: "-0.6em", dy: "0.35em", anchor: "end" }, name }), "p"), []);
+  assert.deepEqual(checkScatterLabels(scatter({ note: { dx: "0.6em", dy: "1.85em", anchor: "start" }, name }), "p"), []);
+  assert.match(checkScatterLabels(scatter({ note: { dx: "0.6em", dy: "0.8em", anchor: "start" }, name }), "p")[0],
     /p: scatter 1 puts the difference label beside the team's name/);
-  assert.equal(checkScatterLabels(scatter({ note: { x: 107, y: 140, anchor: "start" }, name }), "p").length, 1);
-  assert.equal(checkScatterLabels(scatter({ note: { x: 93, y: 170, anchor: "start" }, name }), "p").length, 1);
-  const two = scatter({ note: { x: 93, y: 170, anchor: "end" }, name }) + scatter({ note: { x: 107, y: 160, anchor: "start" }, name });
+  assert.equal(checkScatterLabels(scatter({ note: { dx: "0.6em", dy: "-0.6em", anchor: "start" }, name }), "p").length, 1);
+  assert.equal(checkScatterLabels(scatter({ note: { dx: "-0.6em", dy: "0.35em", anchor: "start" }, name }), "p").length, 1);
+  const two = scatter({ note: { dx: "-0.6em", dy: "0.35em", anchor: "end" }, name }) +
+    scatter({ note: { dx: "0.6em", dy: "0.8em", anchor: "start" }, name });
   assert.equal(scatterCharts(two).length, 2);
   assert.match(checkScatterLabels(two, "p")[0], /scatter 2/);
 });
@@ -347,16 +350,16 @@ test("main fails a Team page whose scatter is missing or puts the label beside t
       mkdirSync(join(root, "dist", "en", "teams", "psg"), { recursive: true });
       writeFileSync(join(root, "dist", "en", "teams", "psg", "index.html"), leagueRow("fouls_per_match", "6.1", "1st") + html);
     };
-    const name = { x: 107, y: 154.2, anchor: "start" };
+    const name = { dx: "0.6em", dy: "0.35em", anchor: "start" };
     const errors = t.mock.method(console, "error", () => {});
     t.mock.method(console, "log", () => {});
     write("");
     assert.equal(main(join(root, "dist"), join(root, "data")), 1);
     assert.ok(errors.mock.calls.some((c) => /serves the deserved points scatter but no Team page carried one/.test(c.arguments[0])));
-    write(scatter({ note: { x: 107, y: 160, anchor: "start" }, name }));
+    write(scatter({ note: { dx: "0.6em", dy: "0.8em", anchor: "start" }, name }));
     assert.equal(main(join(root, "dist"), join(root, "data")), 1);
     assert.ok(errors.mock.calls.some((c) => /beside the team's name/.test(c.arguments[0])));
-    write(scatter({ note: { x: 93, y: 170, anchor: "end" }, name }));
+    write(scatter({ note: { dx: "-0.6em", dy: "0.35em", anchor: "end" }, name }));
     assert.equal(main(join(root, "dist"), join(root, "data")), 0);
   } finally {
     rmSync(root, { recursive: true, force: true });

@@ -26,13 +26,7 @@ const groups = comparisonGroups(home.match_stats, away.match_stats, ["goals"]);
     <>
       <p class="bsub">{t(lang, "matchStatsIntro")}</p>
       {needsSwitch(groups) && <MetricSwitch id="tsw-stats" lang={lang} />}
-      <div class="cmp">
-        <div class="formhead">
-          <div class="fh home"><div class="h">{home.name}</div></div>
-          <div class="fh away"><div class="h">{away.name}</div></div>
-        </div>
-        <MetricComparison groups={groups} home={home.match_stats} away={away.match_stats} lang={lang} oneMatch />
-      </div>
+      <MetricComparison names={[home.name, away.name]} groups={groups} home={home.match_stats} away={away.match_stats} lang={lang} oneMatch />
     </>
   ) : (
     <p class="bsub">{t(lang, "matchStatsNotRecorded")}</p>

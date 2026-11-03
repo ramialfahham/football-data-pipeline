@@ -34,20 +34,13 @@ const groups = comparisonGroups(home.form, away.form);
     <SectionHead label={t(lang, "secForm")} />
     <p class="bsub">{intro}</p>
     {needsSwitch(groups) && <MetricSwitch id="tsw-form" lang={lang} />}
-    <div class="cmp">
-      <div class="formhead">
-        {[home, away].map((side, i) => (
-          <div class:list={["fh", i === 0 ? "home" : "away"]}>
-            <div class="h">{side.name}</div>
-            {results(side).length > 0 && (
-              <div class="pills">
-                {results(side).map((r) => <span class:list={["pill", r]}>{t(lang, LETTER[r])}</span>)}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-      <MetricComparison groups={groups} home={home.form} away={away.form} lang={lang} />
-    </div>
+    <MetricComparison names={[home.name, away.name]} groups={groups} home={home.form} away={away.form} lang={lang}>
+      {results(home).length > 0 && (
+        <div class="pills" slot="home">{results(home).map((r) => <span class:list={["pill", r]}>{t(lang, LETTER[r])}</span>)}</div>
+      )}
+      {results(away).length > 0 && (
+        <div class="pills" slot="away">{results(away).map((r) => <span class:list={["pill", r]}>{t(lang, LETTER[r])}</span>)}</div>
+      )}
+    </MetricComparison>
   </section>
 )}

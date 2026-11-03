@@ -1,35 +1,58 @@
-# Review — fix/34-hooks-repo-root
+# Review — feat/227-chart-theme
 
-diff_sha256: 0aa967ffeb55522656bbc9e353200f212f410ba9a58610ea7f3d1fbba45b273b
+diff_sha256: edc35d9eb960ca3cf74ac49eec5690f4d142c3088883175f563e14e17055a585
 
-rounds: 3
+rounds: 7
+
+rounds_cap_override: approved in chat, 2026-11-03: one round, platform-reviewer only, for a test-only fix to the round-3 finding; then two rounds, platform-reviewer only, for the baseline lowered to CI's measurement and the screenshot pins from CI's artifact; then one round, platform-reviewer only, for the scatter label fix the second pipeline's Linux run required.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every changed file is in scope_paths; .claude/settings.json, memory_budget_gate.py and handover_in.py are untouched.
-- The guard-invariant change is declared as THRESHOLD in decisions_taken and both amendments name their authority.
-- worktree_root returns None only for a target outside CLAUDE_PROJECT_DIR in no worktree of this repository; the nested `git init`, no-repo and `.git/` cases inside it return the fallback.
-- The round-3 shell-write fallback change widens judgment only and matches what_changes.
-- docs/agent_guardrails.md states current behaviour only; no secrets, no escalations.log entry, no page or dbt surface.
+- Round 1 FAIL closed: .claude/skills/validate-local/SKILL.md is in scope_paths by a recorded amendment and its CI mapping table lists both chart checks under validate:ui, matching the job.
+- Every file of the patch is in scope_paths; the pins are in scope and not yet committed, as the contract states for the first pipeline.
+- protected_override names the approval for the validate:ui change; the CI diff adds the two checks, their tests, one artifacts path and the new *ui_paths entries only.
+- The comparison element's look, green only for the better value, the legend-style team names, no tooltips and the ruled chart rows are each in decisions_taken with their 2026-11-03 approval; the three new mechanisms are declared with no recurring cost; decisions_reserved is closed.
+- approved_design names team #134 and match #132, the two changed pages; TeamLastSeason.astro is not touched.
+- No secret or widened permission; the new block_standard rows state what each element is, with no history.
+- Rounds 3 and 4 changed only scripts/check_chart_screenshots.py and its tests and tests/test_check_chart_components.py, after this verdict.
 
-## cto-reviewer
+## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Round-1 finding closed: a nested `git init` over a protected folder walks up to the holding worktree and is judged; pinned by test_a_nested_git_init_does_not_exempt_a_protected_folder.
-- The declared threshold, an action in a worktree judged by that worktree's contract, is allowed: protected paths still need protected_override, and the commit gate and the CI recompute are unchanged.
-- Shell and Edit paths use the same fallback; a write into the main checkout's `.git/` from a worktree is judged, pinned by a test.
-- Fail-open holds: git errors return the fallback; the stop gate's `.venv` lookup falls through to its own interpreter.
-- No new mechanism, dependency, credential or recurring cost beyond local `git rev-parse` calls.
+- The built match page renders the comparison as cmp-team, the family group heading and cmp-row with the better value green; group and row order unchanged; the form pills sit under both team names on an upcoming match page.
+- Tooltips: the scatter circles' titles and the strip dots' title attributes are gone; only the document head title remains on the built Team page.
+- Binding rule: only class names, markup and layout change; every value comes from the same served fields as on main; no data field or sample data added.
+- Locked metric contract: comparisonGroups order kept, nonkey only on groups without a key row, nulls still render as the dash, no percentage format change, no metric added or removed.
+- Theme tokens resolve on body.fx per theme; the block_standard chart rows match system.css (legend 12px ink-2, tick 11px, name 14px ink, team name 12px 400 ink-2).
+- Rounds 2 to 4 changed nothing in site_v2/src or docs/wireframes after this verdict.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- worktree_root traced case by case: main checkout, nested and sibling worktree, nested foreign repo, unrelated repo outside, `.git/`, and a fallback that is no git repository; the walk always terminates.
-- Round-1 findings closed: absolute shell writes resolve their own worktree, and the comment-history, sentence-length and host-fingerprint gates each have a worktree test that fails on main's hooks.
-- Round-2 finding closed: the shell-write resolver falls back to `_repo_root()`; test_a_shell_write_into_the_main_git_dir_from_a_worktree_is_judged_by_main pins it.
-- Decode errors and ValueError fall back; the stop gate's `.venv` fallback to the main checkout is pinned by a test.
-- Commit gate and `--staged-hash` resolve from the same cwd; scripts/check_task_artifacts.py passes its own root, so CI is unaffected.
+- Round 1 FAILs closed: only Linux pins are valid on every platform, so a foreign manifest fails; --artifacts writes only on Linux; main() is tested for a changed, missing, foreign, unchanged and off-Linux run and for zero scatter measurements.
+- Round 2 FAIL closed: every manifest entry's PNG must exist with its hash and no unnamed PNG may sit in the pins, on every platform; write() removes stale PNGs; each case has a test that fails on revert.
+- Round 3 FAIL closed: two tests parse .gitlab-ci.yml and fail if a chart step, its order after the design check, its --artifacts folder in artifacts.paths or its *ui_paths entries go missing; they run in validate:ui and test:python.
+- CI fails closed: every new step exits non-zero on a finding or a crash; no allow_failure; the first pipeline fails on the missing pins and keeps a Linux manifest as its artifact.
+- Re-run and interruption are safe; no dependency change; no credential; no new page or external request; baseline.json only lowers one width pin.
+- Recorded risks, no defect: hash-exact screenshots on shared runners and a mutable image tag could flake; a class written only inside a template literal would not mark a component as a chart.
+- Round 5: baseline.json lowers exactly the four counts the MR's first validate:ui run reported as fallen (Match page classes 58 to 45 and split 151 to 148, Played match page classes 51 to 38, Team page classes 87 to 60); nothing else changes, and compare_counts fails any pin off CI's measurement in either direction.
+- Round 6: chartMarks.mjs place() searches the label's height in quarter steps over the same range and, under the name, may raise the name only to a height where it meets nothing; the search is bounded, adopts a position only with strictly fewer hits, resets both texts on every call and leaves the built HTML the static checks read unchanged; the Linux failure on de/mannschaften/borussia-monchengladbach at 360px is reproduced with a tall-box font (3 findings) and gone with the change (0).
+- Round 7: tests/fixtures/chart_screenshots holds a Linux manifest naming exactly the 18 screenshots the check takes and those 18 PNGs, copied unchanged from validate:ui job 17707191364 (0 colour and 0 label findings, only the missing manifest); pin_findings finds no mismatch; the next validate:ui on the same image compares against them, and a look change fails it.
+
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- Round 1 FAIL closed: screenshot_verdict fails any manifest not taken on Linux before the platform gate, missing pins fail on Linux, --update off Linux writes nothing; each pinned by a test.
+- Guard authority: protected_override and a concrete impact_map cover the validate:ui change; no existing step, rule or allow_failure is removed or loosened.
+- New mechanisms: the chart theme and the two checks are declared with their approval; ChartLegend.astro is a component inside the theme; nothing undeclared.
+- Dependencies none, credentials none; recurring cost none on the existing self-hosted runner, the added job time disclosed in the impact_map.
+- Rounds 3 and 4 changed only the screenshot check and the chart tests, inside this ruling, after this verdict.
 
 ## escalations
-(none)
+- question: may the review take a fourth round past the cap of three, for a test-only fix to the round-3 platform finding?
+  CPO ANSWER: approved in chat, 2026-11-03, one round, platform-reviewer only.
+- question: may the review take two more rounds, platform-reviewer only, for the baseline lowered to CI's measurement and the screenshot pins from CI's artifact?
+  CPO ANSWER: approved in chat, 2026-11-03, both rounds, platform-reviewer only.
+- question: may the review take one more round, platform-reviewer only, for the scatter label fix the second pipeline's Linux run required?
+  CPO ANSWER: approved in chat, 2026-11-03, one more round, platform-reviewer only.

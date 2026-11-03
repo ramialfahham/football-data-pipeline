@@ -113,13 +113,28 @@
 | Competition row | `.lrow.tc` | one competition of a team's season: crest, name and a muted note, with the standing or the cup's outcome on the right. A table's row adds the W, D and L counts, goals and points below. Narrow, the standing opens the second line | `fits` | ruled | the Team page review |
 | Competition row name | `.tc .tc-name` | 15px semi-bold ink; the note after it 12px muted | `font-size=15px; font-weight=600; color=ink` | ruled | the Team page review |
 | Squad grid | `.sqgrid` | the squad's player rows in two columns where each keeps 280px, otherwise one | `fits` | ruled | the Team page review |
-| Strip plot row | `.rs-row` | a metric's name, the league from its lowest to its highest value, and the team's rank over its value. Every other club is a light dot, the team the solid dot. Narrow, the strip takes the second line | `fits` | ruled | the Team page review |
-| Strip plot value | `.rs-val` | the team's rank, 15px bold ink, its value under it in 12px muted | `font-size=15px; font-weight=700; color=ink` | ruled | the Team page review |
-| Scatter plot | `.dp-chart` | each team's shots on target difference per match against its points, with the deserved points line. Axis lines carry outward ticks and no grid. The marks keep their size at every width | `fits` | ruled | the Team page review |
+| Strip plot row | `.rs-row` | a metric's name, the league's values with every team's mark, and the team's rank over its value; drawn by `team/TeamLeagueStrips.astro` | `fits` | ruled | the Team page review |
+| Strip plot value | `.rs-val` | the team's rank over its value; drawn by `team/TeamLeagueStrips.astro` | `font-size=15px; font-weight=700; color=ink` | ruled | the Team page review |
+| Scatter plot | `.dp-chart` | each team's shots on target difference per match against its points, with the deserved points line; drawn by `team/TeamDeserved.astro` | `fits` | ruled | the Team page review |
 | Trend | `.ctab.yoyt .n.tr` | ▲ in the accent when this season is better, ▼ in the loss red when worse, "–" when the shown values are equal | `font-size=13px` | ruled | the Team page review |
-| Comparison element | `.cmp` | two teams' numbers on one metric list. Each team's name stands over its column. Each metric group's rows read value, name with the diverging bar, value | `fits` | ruled | the played match page review |
+| Comparison element | `.cmp` | two teams' numbers on one metric list, each metric's two values, name and bar; drawn by `fixture/MetricComparison.astro` | `fits` | ruled | the played match page review |
 | Metric switch | `.tsw-lbl` | "Show all metrics" at the top right of a metric comparison: off by default, the key metrics only; on, every metric in its place, the order never changing; a group heading with no key row hidden while off; the track neutral grey when on | `font-size=13px; font-weight=600; color=ink-2` | ruled | the match page review |
-| Comparison team name | `.cmp .formhead .h` | each team's name over its column, 14px semi-bold ink | `font-size=14px; font-weight=600; color=ink` | ruled | the match page review |
+| Comparison team name | `.cmp .formhead .h` | each team's name over its column, in the chart legend's style | `font-size=12px; font-weight=400; color=ink-2` | ruled | the chart theme |
+| Comparison parts | `.cmp .cmp-team, .cmp-home, .cmp-away, .cmp-row, .cmp-val, .cmp-mid, .cmp-label` | the comparison element's parts, drawn by `fixture/MetricComparison.astro` and `fixture/MetricRow.astro` | `fits` | ruled | the match page review |
+| Switched-off row | `.nonkey` | a row or group heading that Show all metrics hides while off | `fits` | ruled | the match page review |
+| Chart | `.chart, .chart .chart-wide, .chart .chart-narrow` | every chart's box. Under 480px every chart takes its narrow form. The look is in `system.css` (Charts), the layout numbers in `lib/chartTheme.ts` | `fits` | ruled | the chart theme |
+| Chart legend | `.chart-legend .chart-key` | above its chart, one key per mark: the mark, then its name; drawn by `ui/ChartLegend.astro` | `font-size=12px; color=ink-2` | ruled | the chart theme |
+| Chart axis | `.chart-axis` | an axis line and its outward ticks; a strip plot's line | `fits` | ruled | the chart theme |
+| Chart tick label | `.chart-tick, .chart-tick.chart-end` | a tick label, an axis title's second line, a strip plot's direction note | `font-size=11px` | ruled | the chart theme |
+| Chart note | `.chart-note` | an axis title and the label of the team's difference | `font-size=12px` | ruled | the chart theme |
+| Chart label | `.chart-label` | the team's name beside its mark | `font-size=12px` | ruled | the chart theme |
+| Chart name | `.chart-name` | a strip plot row's metric name | `font-size=14px; color=ink` | ruled | the chart theme |
+| Chart mark | `.chart-dot, .chart-dot.chart-me` | every other team's mark and the team's mark, the same in every chart and its legend | `fits` | ruled | the chart theme |
+| Chart bar | `.chart-bar, .chart-bar > .chart-better` | two bars meeting at the centre, each its value's share of the larger | `fits` | ruled | the chart theme |
+| Chart line | `.chart-line, .chart-ref, .chart-gap` | a reference line the values are read against, and the dotted line of the team's distance from it | `fits` | ruled | the chart theme |
+| Comparison better value | `.cmp-val.chart-better` | the better team's value | `color=accent` | ruled | the match page review |
+| Comparison better bar | `.cmp .chart-bar > .chart-better > span` | the better team's bar | `background-color=accent` | ruled | the match page review |
+| Strip plot band | `.rs-row .rs-band` | a strip plot row's strip: its line with every team's mark on it | `fits` | ruled | the chart theme |
 | Column head | `.rcol .colhead` | a list column's name, 13px bold muted; one fact may follow after a middle dot (a team's formation); a second head inside the column opens its second list | `font-size=13px; font-weight=700; color=muted` | ruled | the played match page review |
 | Tag | `.nexttag, .fxrow .topmatch` | Next (on the picker's title) and Top match (on the flagged row, before the kick-off): 10px bold capitals in an accent pill. Narrow, a row's tag takes its own line above the home team, left-aligned | `font-size=10px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink` | ruled | the competition Matchdays design; the Home design; the narrow-screen fix |
 | Matchday picker | `.mdnav .mdstep` | its own full-width line under the tab bar: ‹ MATCHDAY N › with the Next tag, the arrows pinned to the edges, the title centred, a 2px line under; one matchday on screen at a time; no script | `visible=1; border-bottom-width=2px` | ruled | #129 Matchdays |

@@ -2,7 +2,7 @@
  "static": {
   "mock_css": {"design-mocks/gen_competitions.py": 13, "design-mocks/gen_interaction.py": 3, "design-mocks/gen_match_page.py": 33, "design-mocks/gen_navmap.py": 6, "design-mocks/gen_sitemap.py": 8, "design-mocks/gen_taxonomy.py": 6, "design-mocks/gen_team_mock.py": 73},
   "css_outside_system_css": {"site_v2/src/components/fixture/MetricRow.astro": 2, "site_v2/src/components/team/TeamLeagueStrips.astro": 2, "site_v2/src/lib/fitBlocks.mjs": 2},
-  "width_rules": {"340px": 1, "420px": 4, "430px": 2, "470px": 1, "479.98px": 2, "480px": 1, "520px": 1, "560px": 2, "599.98px": 2, "699.98px": 4, "700px": 1, "800px": 1, "900px": 1, "1010px": 1},
+  "width_rules": {"340px": 1, "420px": 4, "430px": 2, "470px": 1, "479.98px": 1, "480px": 1, "520px": 1, "560px": 2, "599.98px": 2, "699.98px": 4, "700px": 1, "800px": 1, "900px": 1, "1010px": 1},
   "banned_properties": {"site_v2/src/styles/system.css": 7},
   "literal_text": {"site_v2/src/components/chrome/SiteFooter.astro": 3, "site_v2/src/components/chrome/SiteHeader.astro": 2, "site_v2/src/pages/index.astro": 2}
  },
@@ -20,11 +20,11 @@
    "Competition rankings": {"classes": 22},
    "Competitions index": {"overflow": 24, "classes": 26},
    "Home": {"overflow": 227, "split": 4, "classes": 23},
-   "Match page": {"scroll": 1174, "overflow": 9, "split": 151, "overlap": 2, "classes": 58, "miss · List row": 53, "miss · Player row": 29, "miss · Result row": 24},
+   "Match page": {"scroll": 1174, "overflow": 9, "split": 148, "overlap": 2, "classes": 45, "miss · List row": 53, "miss · Player row": 29, "miss · Result row": 24},
    "Matches day page": {"classes": 32, "miss · Fold": 378, "miss · Match row score": 414},
    "Matches page": {"classes": 31},
-   "Played match page": {"scroll": 1, "classes": 51},
-   "Team page": {"overflow": 570, "split": 32, "classes": 87, "miss · Name in whole words": 3},
+   "Played match page": {"scroll": 1, "classes": 38},
+   "Team page": {"overflow": 570, "split": 32, "classes": 60, "miss · Name in whole words": 3},
    "Teams page": {"split": 1, "classes": 33},
    "competition-hub cup": {"classes": 22},
    "competition-hub groups": {"classes": 24},

@@ -36,18 +36,14 @@ const aWidth = barWidth(av, hv);
 const sub = metricSubline(lang, def.label_i18n_key, def.per_match && !oneMatch);
 ---
 
-<div class:list={["mrow", { nonkey: !def.is_key_metric }]}>
-  <div class:list={["mval", "home", { better: better === "home" }]}>{hDisp}</div>
-  <div class="mmid">
-    <div class="mlabel">{metricLabel(lang, def.label_i18n_key)}{sub && <small>{sub}</small>}</div>
-    <div class="mbar" aria-hidden="true">
-      <div class="bside home">
-        <span class:list={["fill", { better: better === "home" }]} style={`width:${hWidth}%`}></span>
-      </div>
-      <div class="bside away">
-        <span class:list={["fill", { better: better === "away" }]} style={`width:${aWidth}%`}></span>
-      </div>
+<div class:list={["cmp-row", { nonkey: !def.is_key_metric }]}>
+  <div class:list={["cmp-val", "cmp-home", { "chart-better": better === "home" }]}>{hDisp}</div>
+  <div class="cmp-mid">
+    <div class="cmp-label"><span class="chart-name">{metricLabel(lang, def.label_i18n_key)}</span>{sub && <span class="chart-tick">{sub}</span>}</div>
+    <div class="chart-bar" aria-hidden="true">
+      <span class:list={[{ "chart-better": better === "home" }]}><span style={`width:${hWidth}%`}></span></span>
+      <span class:list={[{ "chart-better": better === "away" }]}><span style={`width:${aWidth}%`}></span></span>
     </div>
   </div>
-  <div class:list={["mval", "away", { better: better === "away" }]}>{aDisp}</div>
+  <div class:list={["cmp-val", "cmp-away", { "chart-better": better === "away" }]}>{aDisp}</div>
 </div>

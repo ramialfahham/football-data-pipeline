@@ -1,8 +1,10 @@
 ---
-// The team comparison for one window (W1 or W2). Rows, groups and their order are served from the
-// catalogue (src/data/metric_rows.json, src/data/metric_groups.json), grouped by comparisonGroups().
-// A row whose value is missing on one side shows "-" there. No reordering by value. Rows that are
-// not key metrics, and a group heading with no key row, carry `nonkey` for the Show all metrics switch.
+// The comparison element, the one component that draws it: each team's name over its column (the
+// `home` and `away` slots add what stands under a name), then the metric list for one window (W1 or
+// W2). Rows, groups and their order are served from the catalogue (src/data/metric_rows.json,
+// src/data/metric_groups.json), grouped by comparisonGroups(). A row whose value is missing on one
+// side shows "-" there. No reordering by value. Rows that are not key metrics, and a group heading
+// with no key row, carry `nonkey` for the Show all metrics switch.
 import MetricRow from "./MetricRow.astro";
 import { metricLabel } from "../../i18n/strings";
 import type { ComparisonGroup } from "../../lib/comparisonGroups";
@@ -10,20 +12,27 @@ import type { WindowStats } from "../../lib/types";
 import type { Lang } from "../../lib/format";
 
 interface Props {
+  names: [string, string];
   groups: ComparisonGroup[];
   home?: WindowStats | null;
   away?: WindowStats | null;
   lang: Lang;
   oneMatch?: boolean;
 }
-const { groups, home, away, lang, oneMatch = false } = Astro.props;
+const { names, groups, home, away, lang, oneMatch = false } = Astro.props;
 ---
 
-{groups.map(({ key, rows, hasKey }) => (
-  <>
-    <div class:list={["mgroup", { nonkey: !hasKey }]}>{metricLabel(lang, `metricGroups.${key}.label`)}</div>
-    {rows.map((def) => (
-      <MetricRow def={def} home={home} away={away} lang={lang} oneMatch={oneMatch} />
-    ))}
-  </>
-))}
+<div class="cmp">
+  <div class="formhead">
+    <div class="cmp-team cmp-home"><div class="h">{names[0]}</div><slot name="home" /></div>
+    <div class="cmp-team cmp-away"><div class="h">{names[1]}</div><slot name="away" /></div>
+  </div>
+  {groups.map(({ key, rows, hasKey }) => (
+    <div class:list={["fxgroup", "rkgroup", { nonkey: !hasKey }]}>
+      <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${key}.label`)}</span></div>
+      {rows.map((def) => (
+        <MetricRow def={def} home={home} away={away} lang={lang} oneMatch={oneMatch} />
+      ))}
+    </div>
+  ))}
+</div>
