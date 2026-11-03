@@ -1,10 +1,10 @@
 # Review — feat/227-chart-theme
 
-diff_sha256: 64f527f3308b8d8837731f844d6666a8f9d5e643effa7c53d92534ae3821b037
+diff_sha256: 02435df0d1a1f1867dd79300d6ae049011b8c6e9434e577a934268d12ad619fb
 
-rounds: 5
+rounds: 6
 
-rounds_cap_override: approved in chat, 2026-11-03: one round, platform-reviewer only, for a test-only fix to the round-3 finding; then two rounds, platform-reviewer only, for the baseline lowered to CI's measurement and the screenshot pins from CI's artifact.
+rounds_cap_override: approved in chat, 2026-11-03: one round, platform-reviewer only, for a test-only fix to the round-3 finding; then two rounds, platform-reviewer only, for the baseline lowered to CI's measurement and the screenshot pins from CI's artifact; then one round, platform-reviewer only, for the scatter label fix the second pipeline's Linux run required.
 
 ## scope-auditor
 VERDICT: PASS
@@ -36,6 +36,8 @@ risks_checked:
 - CI fails closed: every new step exits non-zero on a finding or a crash; no allow_failure; the first pipeline fails on the missing pins and keeps a Linux manifest as its artifact.
 - Re-run and interruption are safe; no dependency change; no credential; no new page or external request; baseline.json only lowers one width pin.
 - Recorded risks, no defect: hash-exact screenshots on shared runners and a mutable image tag could flake; a class written only inside a template literal would not mark a component as a chart.
+- Round 5: baseline.json lowers exactly the four counts the MR's first validate:ui run reported as fallen (Match page classes 58 to 45 and split 151 to 148, Played match page classes 51 to 38, Team page classes 87 to 60); nothing else changes, and compare_counts fails any pin off CI's measurement in either direction.
+- Round 6: chartMarks.mjs place() searches the label's height in quarter steps over the same range and, under the name, may raise the name only to a height where it meets nothing; the search is bounded, adopts a position only with strictly fewer hits, resets both texts on every call and leaves the built HTML the static checks read unchanged; the Linux failure on de/mannschaften/borussia-monchengladbach at 360px is reproduced with a tall-box font (3 findings) and gone with the change (0).
 
 ## cto-reviewer
 VERDICT: PASS
@@ -51,5 +53,5 @@ risks_checked:
   CPO ANSWER: approved in chat, 2026-11-03, one round, platform-reviewer only.
 - question: may the review take two more rounds, platform-reviewer only, for the baseline lowered to CI's measurement and the screenshot pins from CI's artifact?
   CPO ANSWER: approved in chat, 2026-11-03, both rounds, platform-reviewer only.
-- question: may the review take two more rounds, platform-reviewer only, for the baseline lowered to CI's measurement and the screenshot pins from CI's artifact?
-  CPO ANSWER: approved in chat, 2026-11-03, both rounds, platform-reviewer only.
+- question: may the review take one more round, platform-reviewer only, for the scatter label fix the second pipeline's Linux run required?
+  CPO ANSWER: approved in chat, 2026-11-03, one more round, platform-reviewer only.

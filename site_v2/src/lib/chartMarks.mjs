@@ -32,35 +32,51 @@ function dotMeets(dot, r) {
   return (nx - cx) ** 2 + (ny - cy) ** 2 < rad * rad;
 }
 
-function hits(svg, label, box) {
-  const r = rect(label);
+function hits(svg, el, box, skip) {
+  const r = rect(el);
   let n = 0;
   if (r.left < box.left || r.right > box.right || r.top < box.top || r.bottom > box.bottom) n++;
   for (const line of svg.querySelectorAll("line")) if (segmentMeets(svg, line, r)) n++;
   for (const dot of svg.querySelectorAll("circle")) if (dotMeets(dot, r)) n++;
-  for (const text of svg.querySelectorAll("text")) if (text !== label && meets(rect(text), r)) n++;
+  for (const text of svg.querySelectorAll("text")) if (text !== el && text !== skip && meets(rect(text), r)) n++;
   return n;
 }
 
+// Under the name, the two labels stack beside the dot; where the drawing has no room below the name
+// (a dot near the x axis), the name may rise, provided it then meets nothing itself.
+const LIFTS = [0, 0.25, 0.5, 0.75, 1];
+
 function place(svg, k) {
   const label = svg.querySelector('[data-role="gap"]');
+  const name = svg.querySelector('[data-role="name"]');
   const dot = svg.querySelector(".chart-me");
   if (!label || !dot) return;
-  label.dataset.y0 ??= label.getAttribute("y");
-  const y0 = Number(label.dataset.y0);
+  for (const t of [label, name]) if (t) t.dataset.y0 ??= t.getAttribute("y");
   const box = rect(svg);
-  const set = (y) => { label.setAttribute("y", String(y)); scale(label, k); };
-  set(y0);
+  const set = (t, y) => { t.setAttribute("y", String(y)); scale(t, k); };
+  const under = !!name && label.getAttribute("text-anchor") === name.getAttribute("text-anchor")
+    && label.getAttribute("dx") === name.getAttribute("dx");
+  const y0 = Number(label.dataset.y0);
+  set(label, y0);
+  if (name) set(name, Number(name.dataset.y0));
   const start = rect(label), h = start.bottom - start.top, d = rect(dot);
   const toDot = ((d.top + d.bottom) / 2 - (start.top + start.bottom) / 2) * k;
-  let best = { y: y0, n: hits(svg, label, box) };
-  for (let i = 0; best.n && i <= 16; i++) {
-    const y = y0 + toDot + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * h * 0.5 * k;
-    set(y);
-    const n = hits(svg, label, box);
-    if (n < best.n) best = { y, n };
+  let best = { lift: 0, y: y0, n: hits(svg, label, box) };
+  for (const lift of under ? LIFTS : [0]) {
+    if (!best.n) break;
+    if (lift) {
+      set(name, Number(name.dataset.y0) - lift * h * k);
+      if (hits(svg, name, box, label)) continue;
+    }
+    for (let i = 0; best.n && i <= 32; i++) {
+      const y = y0 + toDot + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * h * 0.25 * k;
+      set(label, y);
+      const n = hits(svg, label, box);
+      if (n < best.n) best = { lift, y, n };
+    }
   }
-  set(best.y);
+  if (name) set(name, Number(name.dataset.y0) - best.lift * h * k);
+  set(label, best.y);
 }
 
 function fit() {
