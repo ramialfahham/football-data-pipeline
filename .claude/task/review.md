@@ -1,8 +1,8 @@
 # Review — feat/227-chart-theme
 
-diff_sha256: 02435df0d1a1f1867dd79300d6ae049011b8c6e9434e577a934268d12ad619fb
+diff_sha256: edc35d9eb960ca3cf74ac49eec5690f4d142c3088883175f563e14e17055a585
 
-rounds: 6
+rounds: 7
 
 rounds_cap_override: approved in chat, 2026-11-03: one round, platform-reviewer only, for a test-only fix to the round-3 finding; then two rounds, platform-reviewer only, for the baseline lowered to CI's measurement and the screenshot pins from CI's artifact; then one round, platform-reviewer only, for the scatter label fix the second pipeline's Linux run required.
 
@@ -38,6 +38,7 @@ risks_checked:
 - Recorded risks, no defect: hash-exact screenshots on shared runners and a mutable image tag could flake; a class written only inside a template literal would not mark a component as a chart.
 - Round 5: baseline.json lowers exactly the four counts the MR's first validate:ui run reported as fallen (Match page classes 58 to 45 and split 151 to 148, Played match page classes 51 to 38, Team page classes 87 to 60); nothing else changes, and compare_counts fails any pin off CI's measurement in either direction.
 - Round 6: chartMarks.mjs place() searches the label's height in quarter steps over the same range and, under the name, may raise the name only to a height where it meets nothing; the search is bounded, adopts a position only with strictly fewer hits, resets both texts on every call and leaves the built HTML the static checks read unchanged; the Linux failure on de/mannschaften/borussia-monchengladbach at 360px is reproduced with a tall-box font (3 findings) and gone with the change (0).
+- Round 7: tests/fixtures/chart_screenshots holds a Linux manifest naming exactly the 18 screenshots the check takes and those 18 PNGs, copied unchanged from validate:ui job 17707191364 (0 colour and 0 label findings, only the missing manifest); pin_findings finds no mismatch; the next validate:ui on the same image compares against them, and a look change fails it.
 
 ## cto-reviewer
 VERDICT: PASS
