@@ -4,9 +4,12 @@
 // lowest to its highest value, values growing to the right; every other club is a small light dot,
 // the team the one solid dot. The team's rank (the mart's, by the metric's direction) stands on the
 // right with its value under it; "better" points the metric's way. A row without a value for the team is left out. The key metrics show; the switch shows
-// every row in its place. Data: mart_team_competition_benchmarks and its every-club strip.
+// every row in its place. Look from the chart theme (system.css). Data:
+// mart_team_competition_benchmarks and its every-club strip.
 import SectionHead from "../ui/SectionHead.astro";
 import MetricSwitch from "../ui/MetricSwitch.astro";
+import ChartLegend from "../ui/ChartLegend.astro";
+import { stripInset } from "../../lib/chartTheme";
 import type { Lang } from "../../lib/format";
 import { formatValue, ordinal } from "../../lib/format";
 import { t, metricLabel, boardTitle } from "../../i18n/strings";
@@ -29,9 +32,9 @@ const groups = comparisonGroups(values, null).map((g) => ({ ...g, rows: g.rows.m
   .map((g) => ({ ...g, rows: g.rows.filter((r) => bench.get(r.metric_id)?.metric_value != null) }))
   .filter((g) => g.rows.length > 0);
 
-// A value's place on the line, inside 3%–97% so no dot is cut at an end.
+// A value's place on the line, inside the inset at each end so no dot is cut.
 function place(v: number, lo: number, hi: number): number {
-  return hi === lo ? 50 : 3 + ((v - lo) / (hi - lo)) * 94;
+  return hi === lo ? 50 : stripInset + ((v - lo) / (hi - lo)) * (100 - 2 * stripInset);
 }
 ---
 
@@ -40,11 +43,11 @@ function place(v: number, lo: number, hi: number): number {
     <SectionHead label={t(lang, "teamVsLeague")} />
     <p class="bsub">{t(lang, "teamVsLeagueIntro", { competition: compName })}</p>
     {needsSwitch(groups) && <MetricSwitch id="tsw-league" lang={lang} />}
-    <div class="rs-list">
-      <div class="rs-legend" aria-hidden="true">
-        <span><i class="rs-k-dot"></i>{teamName}</span>
-        <span><i class="rs-k-club"></i>{t(lang, "teamOtherTeams", { competition: compName })}</span>
-      </div>
+    <div class="chart">
+      <ChartLegend keys={[
+        { mark: "team", label: teamName },
+        { mark: "other", label: t(lang, "teamOtherTeams", { competition: compName }) },
+      ]} />
       {groups.map((g) => (
         <div class:list={["fxgroup", "rkgroup", { nonkey: !g.hasKey }]}>
           <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${g.key}.label`)}</span></div>
@@ -57,15 +60,15 @@ function place(v: number, lo: number, hi: number): number {
             const hi = all.length ? Math.max(...all, v) : v;
             return (
               <div class:list={["rs-row", { nonkey: !r.is_key_metric }]} data-metric={r.metric_id}>
-                <span class="rs-name">{boardTitle(lang, r.label_i18n_key, r.per_match)}</span>
-                <span class="rs-strip">
-                  <span class="rs-line"></span>
+                <span class="chart-name">{boardTitle(lang, r.label_i18n_key, r.per_match)}</span>
+                <span class="rs-band">
+                  <span class="chart-axis"></span>
                   {clubs.filter((c) => !c.is_self).map((c) => (
-                    <span class="rs-club" style={`left:${place(c.value, lo, hi)}%`} title={`${c.name}: ${formatValue(c.value, r.format, lang)}`}></span>
+                    <span style={`left:${place(c.value, lo, hi)}%`}><i class="chart-dot"></i></span>
                   ))}
-                  <span class="rs-dot" style={`left:${place(v, lo, hi)}%`} title={`${teamName}: ${formatValue(v, r.format, lang)}`}></span>
-                  {r.direction === "higher_better" && <span class="rs-dir r">{t(lang, "teamBetterRight")}</span>}
-                  {r.direction === "lower_better" && <span class="rs-dir">{t(lang, "teamBetterLeft")}</span>}
+                  <span style={`left:${place(v, lo, hi)}%`}><i class="chart-dot chart-me"></i></span>
+                  {r.direction === "higher_better" && <span class="chart-tick chart-end">{t(lang, "teamBetterRight")}</span>}
+                  {r.direction === "lower_better" && <span class="chart-tick">{t(lang, "teamBetterLeft")}</span>}
                 </span>
                 <span class="rs-val">{ordinal(b.rank, lang)}<small>{formatValue(v, r.format, lang)}</small></span>
               </div>

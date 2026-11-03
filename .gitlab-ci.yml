@@ -377,6 +377,11 @@ workflow:
   - scripts/design_inventory.py
   - tests/test_design_inventory.py
   - tests/fixtures/design_inventory/*
+  - scripts/check_chart_components.py
+  - scripts/check_chart_screenshots.py
+  - tests/test_check_chart_components.py
+  - tests/test_check_chart_screenshots.py
+  - tests/fixtures/chart_screenshots/*
   - requirements-ui.txt
   - .gitlab-ci.yml
 
@@ -507,10 +512,14 @@ validate:ui:
     # screenshots never appear. Either step red is the job red.
     - python scripts/check_design_inventory.py --dist site_v2/dist --artifacts artifacts/design_inventory
     - python -m pytest tests/test_design_inventory.py -q
+    - python scripts/check_chart_components.py
+    - python scripts/check_chart_screenshots.py --dist site_v2/dist --artifacts artifacts/chart_screenshots
+    - python -m pytest tests/test_check_chart_components.py tests/test_check_chart_screenshots.py -q
   artifacts:
     when: on_failure
     paths:
       - artifacts/design_inventory
+      - artifacts/chart_screenshots
     expire_in: 7 days
   rules:
     - *not_on_schedule

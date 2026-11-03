@@ -102,6 +102,9 @@ with `--no-built` for the mocks alone. The lint above (`check_page_css.py`) need
 ```bash
 python scripts/check_design_inventory.py --dist site_v2/dist
 python -m pytest tests/test_design_inventory.py -q     # the RED proof runs where Chromium is
+python scripts/check_chart_components.py
+python scripts/check_chart_screenshots.py --dist site_v2/dist   # off Linux: colours and labels, no screenshot comparison
+python -m pytest tests/test_check_chart_components.py tests/test_check_chart_screenshots.py -q
 ```
 
 ### Tier 2 — needs BigQuery auth (run if `bq` works locally)
@@ -159,6 +162,8 @@ was a live-looking claim about a pipeline that does not run.
 | `check_ui_i18n_metrics.py` + JSON validity | `validate:ui` |
 | `check_page_css.py` | `validate:ui` |
 | `check_design_inventory.py --dist site_v2/dist` + `pytest tests/test_design_inventory.py` (the RED proof, with Chromium) | `validate:ui` (needs `build:site-v2`, on the Playwright image) |
+| `check_chart_components.py` + `pytest tests/test_check_chart_components.py` | `validate:ui` |
+| `check_chart_screenshots.py --dist site_v2/dist` + `pytest tests/test_check_chart_screenshots.py` (screenshots compared on Linux only) | `validate:ui` (needs `build:site-v2`, on the Playwright image) |
 | `pytest tests/` | `test:python` |
 | gitleaks secret scan | `validate:secrets` |
 | `sqlfluff lint models` | `data:build:mr` |

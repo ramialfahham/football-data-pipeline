@@ -270,13 +270,14 @@ export function checkTeamPage(html, lang, served, path = "") {
 
 const SCATTER_RE = {
   chart: /<svg class="dp-chart[ "]/g,
-  me: /<circle class="dp-me"[^>]*>/,
-  note: /<text class="dp-note"[^>]*>/,
-  name: /<text class="dp-name"[^>]*>/,
+  me: /<circle class="chart-dot chart-me"[^>]*>/,
+  note: /<text[^>]*\sdata-role="gap"[^>]*>/,
+  name: /<text[^>]*\sdata-role="name"[^>]*>/,
 };
 const attr = (tag, name) => tag?.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1] ?? null;
+const em = (tag, name) => parseFloat(attr(tag, name) ?? "0");
 const textMark = (tag) =>
-  tag && { x: Number(attr(tag, "x")), y: Number(attr(tag, "y")), fs: Number(attr(tag, "font-size")), anchor: attr(tag, "text-anchor") };
+  tag && { x: Number(attr(tag, "x")), dx: em(tag, "dx"), dy: em(tag, "dy"), anchor: attr(tag, "text-anchor") };
 
 /** The deserved points scatters on one Team page, each with the team's dot and its two labels. */
 export function scatterCharts(html) {
@@ -294,9 +295,9 @@ export function scatterCharts(html) {
 /** Issues on one Team page: a scatter whose difference label and name are not kept apart. */
 export function checkScatterLabels(html, path = "") {
   const issues = [];
-  scatterCharts(html).forEach(({ cx, note, name }, i) => {
-    const across = note && name && note.anchor !== name.anchor && (note.x - cx) * (name.x - cx) < 0;
-    const under = note && name && note.anchor === name.anchor && note.x === name.x && note.y - name.y >= name.fs;
+  scatterCharts(html).forEach(({ note, name }, i) => {
+    const across = note && name && note.anchor !== name.anchor && note.dx * name.dx < 0;
+    const under = note && name && note.anchor === name.anchor && note.x === name.x && note.dx === name.dx && note.dy - name.dy >= 1;
     if (!across && !under) issues.push(`${path}: scatter ${i + 1} puts the difference label beside the team's name`);
   });
   return issues;

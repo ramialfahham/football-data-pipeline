@@ -1,781 +1,1895 @@
-diff --git a/.claude/hooks/_command_utils.py b/.claude/hooks/_command_utils.py
-index 97b06928..46b6f253 100644
---- a/.claude/hooks/_command_utils.py
-+++ b/.claude/hooks/_command_utils.py
-@@ -13,7 +13,9 @@ return without blocking, so a hook bug never breaks the user's workflow.
- from __future__ import annotations
+diff --git a/.claude/skills/validate-local/SKILL.md b/.claude/skills/validate-local/SKILL.md
+index 57691f7d..3035ee51 100644
+--- a/.claude/skills/validate-local/SKILL.md
++++ b/.claude/skills/validate-local/SKILL.md
+@@ -102,6 +102,9 @@ with `--no-built` for the mocks alone. The lint above (`check_page_css.py`) need
+ ```bash
+ python scripts/check_design_inventory.py --dist site_v2/dist
+ python -m pytest tests/test_design_inventory.py -q     # the RED proof runs where Chromium is
++python scripts/check_chart_components.py
++python scripts/check_chart_screenshots.py --dist site_v2/dist   # off Linux: colours and labels, no screenshot comparison
++python -m pytest tests/test_check_chart_components.py tests/test_check_chart_screenshots.py -q
+ ```
  
- import json
-+import os
- import re
-+import subprocess
- import sys
- 
- # Shell operators that separate one simple-command from the next.
-@@ -67,6 +69,73 @@ def strip_quoted_and_heredoc(command: str) -> str:
-         return command or ""
- 
- 
-+def _git_location(folder: str) -> tuple[int, list[str]]:
-+    r = subprocess.run(
-+        ["git", "-C", folder, "rev-parse", "--git-common-dir", "--show-toplevel"],
-+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10,
-+    )
-+    return r.returncode, r.stdout.splitlines()
-+
-+
-+def _same_path(a: str, b: str) -> bool:
-+    return os.path.normcase(os.path.realpath(a)) == os.path.normcase(os.path.realpath(b))
-+
-+
-+def _same_repo(common: str, fallback: str) -> bool:
-+    code, theirs = _git_location(fallback)
-+    return code == 0 and bool(theirs) and _same_path(common, os.path.join(fallback, theirs[0]))
-+
-+
-+def worktree_root(target: str, fallback: str) -> str | None:
-+    """Root of the worktree of `fallback`'s repository that holds `target`, a file or folder
-+    that need not exist yet.
-+
-+    A nested foreign repository is judged by the worktree that holds it, so creating one never
-+    exempts a path. Any other target is judged by `fallback` when it lies inside it; outside it,
-+    None: this repo's hooks have nothing to judge there. The root is spelled like `target`, so a
-+    relpath from it stays inside.
-+    """
-+    folder = os.path.abspath(target)
-+    while not os.path.isdir(folder):
-+        parent = os.path.dirname(folder)
-+        if parent == folder:
-+            return None
-+        folder = parent
-+    try:
-+        while True:
-+            code, lines = _git_location(folder)
-+            if code != 0 or len(lines) < 2:
-+                break
-+            root = next((d for d in _ancestors(folder) if _same_path(d, lines[1])), None)
-+            if root is None:
-+                return fallback
-+            if _same_path(root, fallback) or _same_repo(os.path.join(folder, lines[0]), fallback):
-+                return root
-+            if os.path.dirname(root) == root:
-+                break
-+            folder = os.path.dirname(root)
-+    except (OSError, subprocess.SubprocessError, ValueError):
-+        return fallback
-+    return fallback if any(_same_path(d, fallback) for d in _ancestors(folder)) else None
-+
-+
-+def _ancestors(folder: str):
-+    while True:
-+        yield folder
-+        parent = os.path.dirname(folder)
-+        if parent == folder:
-+            return
-+        folder = parent
-+
-+
-+def cwd_root(event: dict, fallback: str) -> str:
-+    """Root of the worktree the event's working directory is in, else `fallback`."""
-+    cwd = event.get("cwd")
-+    if isinstance(cwd, str) and cwd:
-+        return worktree_root(cwd, fallback) or fallback
-+    return fallback
-+
-+
- def emit_context(event_name: str, text: str) -> None:
-     """Inject additional context for the model (non-blocking)."""
-     print(json.dumps({
-diff --git a/.claude/hooks/comment_history_gate.py b/.claude/hooks/comment_history_gate.py
-index d90ae70b..cf621a6b 100644
---- a/.claude/hooks/comment_history_gate.py
-+++ b/.claude/hooks/comment_history_gate.py
-@@ -39,7 +39,7 @@ import sys
- from collections.abc import Iterator
- 
- sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
--from _command_utils import emit_deny, read_event  # noqa: E402
-+from _command_utils import emit_deny, read_event, worktree_root  # noqa: E402
- 
- # Trees whose files are code. `.github/` is dormant and deliberately unedited; `docs/` is prose.
- TREES = (
-@@ -388,9 +388,9 @@ def main() -> int:
-     try:
-         tool_input = event.get("tool_input") or {}
-         file_path = tool_input.get("file_path") or ""
--        if not file_path:
-+        root = worktree_root(file_path, _repo_root()) if file_path else None
-+        if root is None:
-             return 0
--        root = _repo_root()
-         try:
-             rel = os.path.relpath(os.path.abspath(file_path), root)
-         except ValueError:
-diff --git a/.claude/hooks/git_discipline.py b/.claude/hooks/git_discipline.py
-index 42728968..b726a656 100644
---- a/.claude/hooks/git_discipline.py
-+++ b/.claude/hooks/git_discipline.py
-@@ -24,6 +24,7 @@ import sys
- sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
- from _command_utils import (  # noqa: E402
-     bash_command,
-+    cwd_root,
-     emit_context,
-     emit_deny,
-     read_event,
-@@ -823,7 +824,7 @@ def main() -> int:
-     _CLI_MODE = "--staged-hash" in sys.argv or "--review-patch" in sys.argv
-     if "--staged-hash" in sys.argv:
-         import hashlib
--        blob = _staged_diff_bytes(_repo_root())
-+        blob = _staged_diff_bytes(cwd_root({"cwd": os.getcwd()}, _repo_root()))
-         # ⚠ REFUSE TO EMIT A HASH THAT WAS NOT COMPUTED. Printing sha256(b"") here is what made
-         # the earlier draft's "fail-closed" claim false: the number would be pasted into
-         # review.md, the gate would recompute the same empty value, the two would agree, and the
-@@ -843,9 +844,10 @@ def main() -> int:
-         print(hashlib.sha256(blob).hexdigest())
-         return 0
-     if "--review-patch" in sys.argv:
--        sys.stdout.buffer.write(_review_patch_bytes(_repo_root()))
-+        sys.stdout.buffer.write(_review_patch_bytes(cwd_root({"cwd": os.getcwd()}, _repo_root())))
-         return 0
--    cmd = bash_command(read_event())
-+    event = read_event()
-+    cmd = bash_command(event)
-     if not cmd:
-         return 0
-     stripped = strip_quoted_and_heredoc(cmd)
-@@ -921,7 +923,7 @@ def main() -> int:
-                 )
-                 return 0
-             try:
--                reason = _commit_gate(_repo_root())
-+                reason = _commit_gate(cwd_root(event, _repo_root()))
-             except Exception as exc:
-                 # STILL FAILS OPEN — the house rule is unchanged and deliberate: a hook
-                 # bug must never block the user's workflow.
-diff --git a/.claude/hooks/host_fingerprint_gate.py b/.claude/hooks/host_fingerprint_gate.py
-index 1d312f1f..ebea1f30 100644
---- a/.claude/hooks/host_fingerprint_gate.py
-+++ b/.claude/hooks/host_fingerprint_gate.py
-@@ -33,7 +33,7 @@ import sys
- from collections.abc import Iterator
- 
- sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
--from _command_utils import emit_deny, read_event  # noqa: E402
-+from _command_utils import emit_deny, read_event, worktree_root  # noqa: E402
- 
- _OCTET = r"(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)"
- # Four octets not glued to a word character, and not one part of a longer dotted number
-@@ -92,10 +92,11 @@ def main() -> int:
-     try:
-         tool_input = event.get("tool_input") or {}
-         file_path = tool_input.get("file_path") or ""
--        if not file_path:
-+        root = worktree_root(file_path, _repo_root()) if file_path else None
-+        if root is None:
-             return 0
-         try:
--            rel = os.path.relpath(os.path.abspath(file_path), _repo_root())
-+            rel = os.path.relpath(os.path.abspath(file_path), root)
-         except ValueError:
-             return 0
-         if rel.startswith(".."):
-diff --git a/.claude/hooks/sentence_length_gate.py b/.claude/hooks/sentence_length_gate.py
-index e795a0ab..0ac1d54e 100644
---- a/.claude/hooks/sentence_length_gate.py
-+++ b/.claude/hooks/sentence_length_gate.py
-@@ -25,7 +25,7 @@ import re
- import sys
- 
- sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
--from _command_utils import emit_deny, read_event  # noqa: E402
-+from _command_utils import emit_deny, read_event, worktree_root  # noqa: E402
- from comment_history_gate import is_doc_path  # noqa: E402
- from memory_budget_gate import resulting_text  # noqa: E402
- 
-@@ -140,9 +140,9 @@ def main() -> int:
-     try:
-         tool_input = event.get("tool_input") or {}
-         file_path = tool_input.get("file_path") or ""
--        if not file_path:
-+        root = worktree_root(file_path, _repo_root()) if file_path else None
-+        if root is None:
-             return 0
--        root = _repo_root()
-         try:
-             rel = os.path.relpath(os.path.abspath(file_path), root)
-         except ValueError:
-diff --git a/.claude/hooks/stop_gate.py b/.claude/hooks/stop_gate.py
-index 798b7c74..0aea61b4 100644
---- a/.claude/hooks/stop_gate.py
-+++ b/.claude/hooks/stop_gate.py
-@@ -44,7 +44,7 @@ from task_contract_gate import (  # noqa: E402
-     _read_contract,
-     _repo_root,
- )
--from _command_utils import read_event  # noqa: E402
-+from _command_utils import cwd_root, read_event  # noqa: E402
- 
- # Offline, no network, no warehouse. Ordered cheapest-first so an early failure
- # reports fast.
-@@ -98,15 +98,30 @@ def _gate_python(root: str) -> str:
- 
-     The hook is started with whatever `python` is on PATH. On a fresh machine that is the system
-     Python, which lacks the packages the gates import (PyYAML), so every gate reported a false
--    failure. `scripts/bootstrap.py` creates `.venv` with every requirement.
-+    failure. `scripts/bootstrap.py` creates `.venv` with every requirement. A worktree has none of
-+    its own, so the main checkout's comes next.
-     """
--    for rel in (os.path.join(".venv", "Scripts", "python.exe"), os.path.join(".venv", "bin", "python")):
--        candidate = os.path.join(root, rel)
--        if os.path.isfile(candidate):
--            return candidate
-+    for base in filter(None, (root, _main_checkout(root))):
-+        for rel in (os.path.join(".venv", "Scripts", "python.exe"), os.path.join(".venv", "bin", "python")):
-+            candidate = os.path.join(base, rel)
-+            if os.path.isfile(candidate):
-+                return candidate
-     return sys.executable
- 
- 
-+def _main_checkout(root: str) -> str | None:
-+    try:
-+        r = subprocess.run(["git", "-C", root, "rev-parse", "--git-common-dir"],
-+                           capture_output=True, text=True, encoding="utf-8", errors="replace",
-+                           timeout=10)
-+    except (OSError, subprocess.SubprocessError, ValueError):
-+        return None
-+    common = r.stdout.strip()
-+    if r.returncode != 0 or not common:
-+        return None
-+    return os.path.dirname(os.path.abspath(os.path.join(root, common)))
-+
-+
- def _failing_gates(root: str, python: str) -> list[tuple[str, str]]:
-     """(script, first meaningful output line) for each fast gate that fails.
- 
-@@ -141,7 +156,7 @@ def main() -> int:
-     if event.get("stop_hook_active"):
-         return 0
-     try:
--        root = _repo_root()
-+        root = cwd_root(event, _repo_root())
- 
-         # PARKED WORK. First, and regardless of whether the tree is dirty — see `_parked_stashes`.
-         parked = _parked_stashes(root)
-diff --git a/.claude/hooks/task_contract_gate.py b/.claude/hooks/task_contract_gate.py
-index 22922459..6de62155 100644
---- a/.claude/hooks/task_contract_gate.py
-+++ b/.claude/hooks/task_contract_gate.py
-@@ -41,10 +41,12 @@ import sys
- sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
- from _command_utils import (  # noqa: E402
-     bash_command,
-+    cwd_root,
-     emit_context,
-     emit_deny,
-     read_event,
-     strip_quoted_and_heredoc,
-+    worktree_root,
- )
- 
- CONTRACT_REL = ".claude/task/contract.md"
-@@ -646,7 +648,6 @@ def _gate_bash_pre(event: dict, root: str) -> None:
-             "family)."
-         )
-         return
--    contract = _read_contract(root)
-     for target in _shell_write_targets(cmd):
-         if "$" in target or "`" in target:
-             emit_deny(
-@@ -655,9 +656,14 @@ def _gate_bash_pre(event: dict, root: str) -> None:
-                 "redirect to an absolute path outside the repo."
-             )
-             return
--        rel = _rel_in_repo(target if os.path.isabs(target) else os.path.join(root, target), root)
-+        path = target if os.path.isabs(target) else os.path.join(root, target)
-+        target_root = worktree_root(path, _repo_root())
-+        if target_root is None:
-+            continue
-+        rel = _rel_in_repo(path, target_root)
-         if rel is None or rel.startswith(TASK_DIR_REL):
-             continue
-+        contract = _read_contract(target_root)
-         if _is_protected(rel) and not (contract and contract["protected_override"]):
-             _deny_protected(rel)
-             return
-@@ -676,7 +682,7 @@ def _gate_bash_pre(event: dict, root: str) -> None:
-         if _is_structural(rel) and not contract.get("impact_map_present"):
-             _deny_missing_impact_map(rel)
-             return
--        if _is_page_surface(rel) and _page_surface_refused(rel, contract, root):
-+        if _is_page_surface(rel) and _page_surface_refused(rel, contract, target_root):
-             return
- 
- 
-@@ -707,11 +713,17 @@ def _gate_bash_post(event: dict, root: str) -> None:
- def main() -> int:
-     try:
-         event = read_event()
--        root = _repo_root()
-         if not isinstance(event, dict):      # `null` / `[]`: valid JSON, not an event
-             return 0
-         hook = event.get("hook_event_name") or ""
-         tool = event.get("tool_name") or ""
-+        if tool in _EDIT_TOOLS:
-+            path = (event.get("tool_input") or {}).get("file_path") or ""
-+            root = worktree_root(path, _repo_root()) if path else _repo_root()
-+            if root is None:
-+                return 0
-+        else:
-+            root = cwd_root(event, _repo_root())
-         if hook == "PostToolUse" and tool == "Bash":
-             _gate_bash_post(event, root)
-         elif tool == "Artifact" and hook != "PostToolUse":
-diff --git a/.claude/hooks/tracker_snapshot_gate.py b/.claude/hooks/tracker_snapshot_gate.py
-index fc8c0df2..30be3111 100644
---- a/.claude/hooks/tracker_snapshot_gate.py
-+++ b/.claude/hooks/tracker_snapshot_gate.py
-@@ -19,7 +19,7 @@ import os
- import sys
- 
- sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
--from _command_utils import emit_deny, read_event  # noqa: E402
-+from _command_utils import emit_deny, read_event, worktree_root  # noqa: E402
- 
- GOVERNED = "docs/tracker/"
- 
-@@ -32,8 +32,11 @@ def _repo_root() -> str:
- 
- 
- def is_governed(file_path: str) -> bool:
-+    root = worktree_root(file_path, _repo_root())
-+    if root is None:
-+        return False
-     try:
--        rel = os.path.relpath(os.path.abspath(file_path), _repo_root())
-+        rel = os.path.relpath(os.path.abspath(file_path), root)
-     except ValueError:
-         return False
-     # Case-folded: on Windows `Docs/Tracker/` is the same folder, and relpath keeps the caller's
+ ### Tier 2 — needs BigQuery auth (run if `bq` works locally)
+@@ -159,6 +162,8 @@ was a live-looking claim about a pipeline that does not run.
+ | `check_ui_i18n_metrics.py` + JSON validity | `validate:ui` |
+ | `check_page_css.py` | `validate:ui` |
+ | `check_design_inventory.py --dist site_v2/dist` + `pytest tests/test_design_inventory.py` (the RED proof, with Chromium) | `validate:ui` (needs `build:site-v2`, on the Playwright image) |
++| `check_chart_components.py` + `pytest tests/test_check_chart_components.py` | `validate:ui` |
++| `check_chart_screenshots.py --dist site_v2/dist` + `pytest tests/test_check_chart_screenshots.py` (screenshots compared on Linux only) | `validate:ui` (needs `build:site-v2`, on the Playwright image) |
+ | `pytest tests/` | `test:python` |
+ | gitleaks secret scan | `validate:secrets` |
+ | `sqlfluff lint models` | `data:build:mr` |
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 33d98421..2a5ec219 100644
+index 2a5ec219..8ee9db46 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,82 +1,79 @@
--# Task contract — the design checks become protected paths
-+# Task contract — hooks judge the worktree the action targets
+@@ -1,79 +1,118 @@
+-# Task contract — hooks judge the worktree the action targets
++# Task contract — the chart theme and its checks
  
  objective: >
--  The three design-check scripts and the test that refuses a rising pin become protected paths,
--  so an edit that weakens a check needs a CPO-approved governance task and the CTO's review. The
--  protected-path list, the routing rows and every document that states them change together.
-+  The governance hooks find the repository from the target of each action instead of from
-+  CLAUDE_PROJECT_DIR: an edit's own file, a shell command's working directory. A session working
-+  in a git worktree is then judged against that worktree's contract, review and staged diff.
-+  CLAUDE_PROJECT_DIR stays the fallback when the target resolves to no worktree.
+-  The governance hooks find the repository from the target of each action instead of from
+-  CLAUDE_PROJECT_DIR: an edit's own file, a shell command's working directory. A session working
+-  in a git worktree is then judged against that worktree's contract, review and staged diff.
+-  CLAUDE_PROJECT_DIR stays the fallback when the target resolves to no worktree.
++  Issue #227 steps 3 to 5: one chart theme in code that every chart component reads, the scatter
++  plot, the strip plot and the comparison element moved onto it, the site's tooltips removed, and
++  checks that hold it: no chart component writes a look of its own and no site file draws a
++  tooltip, every chart mark has its theme colour, the scatter plot's difference label meets
++  nothing, and a changed chart look fails CI until its MR updates the pinned screenshots.
  
  refs: >
--  #243, the component-system plan, approved in chat, 2026-11-02 (step 1, its governance part).
-+  #34 and #59, approved in chat, 2026-11-03.
+-  #34 and #59, approved in chat, 2026-11-03.
++  #227, its step 3 plan approved in chat, 2026-11-02; step 2's measurement is the issue's comment.
  
  scope_paths:
-+  - .claude/hooks/_command_utils.py
-   - .claude/hooks/task_contract_gate.py
--  - .claude/review_routing.json
--  - .claude/agents/cto-reviewer.md
--  - .claude/agents/platform-reviewer.md
--  - .claude/task/TEMPLATE.md
--  - docs/working_agreement.md
--  - docs/roles/platform_reliability.md
--  - docs/north_star.md
--  - tests/test_governance_doc_parity.py
--  - tests/test_governance_hooks.py
--  - tests/test_sentence_length_in_docs.py
-+  - .claude/hooks/stop_gate.py
-+  - .claude/hooks/git_discipline.py
-+  - .claude/hooks/comment_history_gate.py
-+  - .claude/hooks/sentence_length_gate.py
-+  - .claude/hooks/host_fingerprint_gate.py
-+  - .claude/hooks/tracker_snapshot_gate.py
-+  - tests/test_hooks_resolve_worktree.py
-+  - docs/agent_guardrails.md
+-  - .claude/hooks/_command_utils.py
+-  - .claude/hooks/task_contract_gate.py
+-  - .claude/hooks/stop_gate.py
+-  - .claude/hooks/git_discipline.py
+-  - .claude/hooks/comment_history_gate.py
+-  - .claude/hooks/sentence_length_gate.py
+-  - .claude/hooks/host_fingerprint_gate.py
+-  - .claude/hooks/tracker_snapshot_gate.py
+-  - tests/test_hooks_resolve_worktree.py
+-  - docs/agent_guardrails.md
++  - site_v2/src/styles/system.css
++  - site_v2/src/lib/chartTheme.ts
++  - site_v2/src/lib/chartMarks.mjs
++  - site_v2/src/components/ui/ChartLegend.astro
++  - site_v2/src/components/team/TeamDeserved.astro
++  - site_v2/src/components/team/TeamLeagueStrips.astro
++  - site_v2/src/components/fixture/MetricComparison.astro
++  - site_v2/src/components/fixture/MetricRow.astro
++  - site_v2/src/components/fixture/FormSegment.astro
++  - site_v2/src/components/fixture/MatchStats.astro
++  - site_v2/scripts/check-built-pages.mjs
++  - site_v2/scripts/check-built-pages.test.mjs
++  - docs/wireframes/block_standard.md
++  - tests/fixtures/design_inventory/baseline.json
++  - scripts/check_chart_components.py
++  - tests/test_check_chart_components.py
++  - scripts/check_chart_screenshots.py
++  - tests/test_check_chart_screenshots.py
++  - tests/fixtures/chart_screenshots/*
++  - .gitlab-ci.yml
++  - .claude/skills/validate-local/SKILL.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
++  - .claude/task/acceptance_evidence.md
++  - .claude/task/rendered_page_evidence.md
  
  protected_override: >
--  Approved in chat, 2026-11-02: the CPO approved this governance task's plan, which makes
--  scripts/check_design_inventory.py, scripts/check_page_css.py, scripts/design_inventory.py and
--  tests/test_design_inventory.py protected paths, routed to cto-reviewer and platform-reviewer.
-+  Approved in chat, 2026-11-03: the CPO approved fixing #34 and #59 in one MR, editing the
-+  hooks under .claude/hooks/ listed in scope_paths, routed to cto-reviewer and platform-reviewer.
+-  Approved in chat, 2026-11-03: the CPO approved fixing #34 and #59 in one MR, editing the
+-  hooks under .claude/hooks/ listed in scope_paths, routed to cto-reviewer and platform-reviewer.
++  Approved in chat, 2026-11-02: the CPO approved the #227 step 3 plan, which adds the chart checks
++  and their artifacts folder to the validate:ui job in .gitlab-ci.yml.
  
  impact_map: >
--  fires_on: task_contract_gate.py runs on every Edit/Write/Bash PreToolUse event; `_is_protected`
--  is its only protected-path test. Only its PreToolUse Edit and Bash-write paths refuse an
--  ordinary task's edit to the four files, and treat them as structural (impact_map required).
--  The other readers of `_is_protected` refuse nothing: .claude/hooks/stop_gate.py:170 and the
--  Bash post-command check at task_contract_gate.py:691 use it to exempt a protected file from the
--  out-of-scope list when the contract carries protected_override. So in any governance task the
--  four files are now exempt from that out-of-scope net even when scope_paths does not list them,
--  as the nine guard paths already are. scripts/check_task_artifacts.py imports the module but
--  never calls `_is_protected`.
--  routing_readers: git_discipline.py (the commit gate's required-reviewer set),
--  check_task_artifacts.py (CI recompute), report_process_health.py, handover_in.py,
--  test_governance_doc_parity.py and test_governance_hooks.py. Four new `paths` rows add
--  cto-reviewer to those four files; platform-reviewer is already required on them through
--  scripts/** and tests/**. CI's fail-closed cover is these rows: check_task_artifacts.py fails an
--  MR whose review.md lacks a cto-reviewer verdict for an edit to the four files.
--  stops_being_enforced_if_wrong: a misspelt path protects nothing and fails open; the new hook
--  test (an ordinary contract's edit to each of the four is denied) catches it. The parity test
--  fails if any document's count or list disagrees with the gate and the routing.
--  on_failure: the hook denies the edit with the PROTECTED message; nothing else changes.
--  blast_radius: no open MR or task edits the four files (`glab mr list` → none open). Every later
--  task that edits them needs protected_override and an impact_map. baseline.json stays ordinary;
--  no CI job, page or data changes. `.gitlab-ci.yml` is not edited: `.ui_paths` already holds
--  tests/fixtures/design_inventory/*, which matches baseline.json.
--
--approved_design:
--  - "none: no page output changes"
-+  fires_on: task_contract_gate.py on every PreToolUse Edit/Write/MultiEdit/NotebookEdit, Bash and
-+  Artifact event and every PostToolUse Bash event; git_discipline.py on every PreToolUse Bash
-+  event, its commit gate on `git commit`; stop_gate.py on Stop; comment_history_gate.py,
-+  sentence_length_gate.py, host_fingerprint_gate.py and tracker_snapshot_gate.py on PreToolUse
-+  edits. All are registered in .claude/settings.json, which does not change.
-+  imports: stop_gate.py imports `_repo_root`, `_read_contract`, `_dirty_outside_task_dir`,
-+  `_matches_scope` and `_is_protected` from task_contract_gate.py; scripts/check_task_artifacts.py
-+  imports git_discipline.py and task_contract_gate.py for the CI recompute and passes its own root,
-+  so CI is unaffected. Every hook imports `_command_utils.py`; the two new helpers are additive.
-+  what_changes: each hook's root comes from `git rev-parse --show-toplevel` at the target when
-+  the target is in a worktree of the same repository as CLAUDE_PROJECT_DIR. Any other target
-+  inside CLAUDE_PROJECT_DIR (no repository, a nested foreign `.git`, inside `.git/`) is judged by
-+  the existing `_repo_root()`, as today; any other target outside it is not judged, as today.
-+  stop_gate.py runs the gates with the resolved worktree's `.venv`, else the main checkout's
-+  (the parent of `git rev-parse --git-common-dir`), else its own interpreter.
-+  stops_being_enforced_if_wrong: a resolver that returns None too eagerly would silently stop the
-+  contract gate and the commit gate for work inside the repo. The tests pin an edit inside the
-+  main checkout judged exactly as before, and both directions of the worktree case.
-+  on_failure: every hook keeps failing open; a git error falls back to the old root, never to
-+  no judgment.
+-  fires_on: task_contract_gate.py on every PreToolUse Edit/Write/MultiEdit/NotebookEdit, Bash and
+-  Artifact event and every PostToolUse Bash event; git_discipline.py on every PreToolUse Bash
+-  event, its commit gate on `git commit`; stop_gate.py on Stop; comment_history_gate.py,
+-  sentence_length_gate.py, host_fingerprint_gate.py and tracker_snapshot_gate.py on PreToolUse
+-  edits. All are registered in .claude/settings.json, which does not change.
+-  imports: stop_gate.py imports `_repo_root`, `_read_contract`, `_dirty_outside_task_dir`,
+-  `_matches_scope` and `_is_protected` from task_contract_gate.py; scripts/check_task_artifacts.py
+-  imports git_discipline.py and task_contract_gate.py for the CI recompute and passes its own root,
+-  so CI is unaffected. Every hook imports `_command_utils.py`; the two new helpers are additive.
+-  what_changes: each hook's root comes from `git rev-parse --show-toplevel` at the target when
+-  the target is in a worktree of the same repository as CLAUDE_PROJECT_DIR. Any other target
+-  inside CLAUDE_PROJECT_DIR (no repository, a nested foreign `.git`, inside `.git/`) is judged by
+-  the existing `_repo_root()`, as today; any other target outside it is not judged, as today.
+-  stop_gate.py runs the gates with the resolved worktree's `.venv`, else the main checkout's
+-  (the parent of `git rev-parse --git-common-dir`), else its own interpreter.
+-  stops_being_enforced_if_wrong: a resolver that returns None too eagerly would silently stop the
+-  contract gate and the commit gate for work inside the repo. The tests pin an edit inside the
+-  main checkout judged exactly as before, and both directions of the worktree case.
+-  on_failure: every hook keeps failing open; a git error falls back to the old root, never to
+-  no judgment.
++  pages: TeamDeserved.astro and TeamLeagueStrips.astro have one importer,
++  site_v2/src/pages/[lang]/[teams]/[team].astro (lines 145-146), so every Team page in every
++  language changes in its Performance tab; `grep -rln "TeamDeserved|TeamLeagueStrips|chartMarks"
++  site_v2/src` returns only TeamDeserved.astro and that page. TeamLastSeason.astro and its rules are
++  unchanged (`git diff gitlab/main -- site_v2/src/components/team/TeamLastSeason.astro` is empty).
++  The comparison element (MetricComparison.astro and MetricRow.astro, framed by FormSegment.astro
++  and MatchStats.astro on every match page, `[fixture].astro` lines 168 and 196) takes the chart
++  family's look: its frame moves into MetricComparison.astro, its bar becomes the theme's
++  .chart-bar, its groups the family's group heading. `grep -rlnE "cmp-bar|cmp-side|cmp-group"
++  site_v2/src` returns nothing.
++  data: none; no model, export or committed payload changes, no BigQuery query.
++  readers_of_the_classes: site_v2/scripts/check-built-pages.mjs and its test read dp-chart, the
++  scatter's team dot and labels, rs-row and rs-val; each renamed class is renamed there.
++  design_check: the Team and match pages' rendered and static pins may only move down;
++  baseline.json takes CI's measurement. No mock generator is added or edited.
++  ci (protected): validate:ui gains the chart-component check, the chart screenshot check and their
++  tests after the design-inventory tests, and one artifacts path; same image, same playwright pin,
++  nothing installed. fires_on: the existing *ui_paths rules (site_v2/**, .gitlab-ci.yml); the new
++  scripts, tests and fixtures are added to *ui_paths. on_failure: the job fails and keeps the new
++  screenshots as its artifact. stops_being_enforced_if_wrong: a check that never runs fails open;
++  each new test has a RED proof, and the first MR pipeline fails on the missing pins before they
++  are committed.
++  blast_radius: every Team page's Performance tab and every match page's comparison element;
++  validate:ui's run time grows by the screenshot check, about 2 minutes locally (18 screenshots and
++  1,224 label measurements).
++
++approved_design:
++  - team: #134
++  - match: #132
++
++acceptance_criteria:
++  - "One theme in code, in one place, that every chart component reads and none overrides: axis lines and ticks; grid; the text of tick labels, axis titles, names and values (from the text styles, #230), in screen pixels at every width; colours, including when a chart may use the accent green; the legend; no tooltips; the phone and desktop sizes, and the width at which every chart takes its narrow form."
++  - "The marks for the team and the other teams, the same in every chart, in screen pixels at every width. The theme also says how a chart of two teams side by side, as on the match page, marks each."
++  - "The theme is approved by the CPO's merge of this MR, on the built pages."
++  - "Scatter plot (`.dp-chart`, Team page, Deserved points), re-derived from the theme."
++  - "Strip plot (`.rs-row`, Team page, Compared with the league), re-derived from the theme."
++  - "Comparison element (`.cmp`, match page), brought into the theme."
++  - "Each chart type is drawn by one shared component; no page draws a chart of that type itself."
++  - "A chart component sets no size, colour or font of its own; a check fails one that does."
++  - "The site shows no tooltip; a check fails a title attribute or an SVG title in any site file."
++  - "The charts on the built pages are pinned as screenshots at phone and desktop widths. A change to any chart's look fails the check until its MR updates the screenshots, so the change shows in the MR and the CPO's merge approves it."
++  - "Each chart type's row in `docs/wireframes/block_standard.md` names its selector, its purpose and its component, and no look."
  
  decisions_taken: >
--  Approved in chat, 2026-11-02: protect the three scripts and tests/test_design_inventory.py;
--  baseline.json stays an ordinary path, because compare_counts fails CI on any pin that differs
--  from the measurement and the protected test refuses any pin above main's, so a gap fix that
--  lowers a pin stays an ordinary task. The `.ui_paths` change in the plan's draft is not needed:
--  the existing tests/fixtures/design_inventory/* entry already matches baseline.json.
--  RECURRING COST, approved in chat, 2026-11-02 with the plan: the four new rows route to both
--  cto-reviewer and platform-reviewer, so both run at opus on an edit to them; measured 14 of 529
--  commits since 2026-09-01 touched the four files. The guard-path counts become 13, 7 shared with
--  platform, 6 the CTO reviews alone. NEW MECHANISM: none; four entries in the existing list.
-+  The approved plan: a shared resolver in _command_utils.py; the contract, stop and commit gates
-+  and the four edit-time gates use it; `--staged-hash` and `--review-patch` resolve from the
-+  caller's working directory. Not changed: memory_budget_gate.py (CLAUDE_PROJECT_DIR only picks
-+  its `--report` default folder), handover_in.py (it only places the SessionStart cache),
-+  .claude/settings.json. A same-repository check keeps files in other git repositories unjudged,
-+  as they are today. A Bash command is resolved from the event's `cwd`; a leading `cd X &&` inside
-+  the command is not parsed. Cost: one or two `git rev-parse` calls per hook run.
-+  THRESHOLD: a guard invariant changes. An action in a worktree of this repository is judged by
-+  that worktree's contract, review and staged diff instead of CLAUDE_PROJECT_DIR's; where the
-+  worktree's contract is wider, the action is allowed there. Every target that is not in such a
-+  worktree is judged exactly as before. The cto-reviewer rules on it.
+-  The approved plan: a shared resolver in _command_utils.py; the contract, stop and commit gates
+-  and the four edit-time gates use it; `--staged-hash` and `--review-patch` resolve from the
+-  caller's working directory. Not changed: memory_budget_gate.py (CLAUDE_PROJECT_DIR only picks
+-  its `--report` default folder), handover_in.py (it only places the SessionStart cache),
+-  .claude/settings.json. A same-repository check keeps files in other git repositories unjudged,
+-  as they are today. A Bash command is resolved from the event's `cwd`; a leading `cd X &&` inside
+-  the command is not parsed. Cost: one or two `git rev-parse` calls per hook run.
+-  THRESHOLD: a guard invariant changes. An action in a worktree of this repository is judged by
+-  that worktree's contract, review and staged diff instead of CLAUDE_PROJECT_DIR's; where the
+-  worktree's contract is wider, the action is allowed there. Every target that is not in such a
+-  worktree is judged exactly as before. The cto-reviewer rules on it.
++  Approved in chat, 2026-11-02, with the step 3 plan: look values (colours, line widths, dot and bar
++  sizes, text sizes) live in system.css and one layout file, site_v2/src/lib/chartTheme.ts, holds
++  only the drawings' layout numbers; text sizes are the current ones until #230 sets the scale.
++  Approved in chat, 2026-11-03: the comparison element is built in the chart family's look as
++  mocked (today's bars, the theme's 5px bar mark, the better side green and the other in ink,
++  values 15px bold, names 14px ink centred, the family's group heading with its 26px gap, the team
++  names in the legend style); the last-season table is a table, not a chart, and stays as on main;
++  the site has no tooltips; green is used only for the better of two values; the gallery page is
++  not part of this MR; no checkpoint before the merge, the CPO's merge is the approval. The design
++  standard allows no new proposed row, so the chart rows are ruled, citing the chart theme.
++  NEW MECHANISM, approved in chat, 2026-11-02 with the plan: (1) the chart theme, chartTheme.ts and
++  the Charts section of system.css; (2) the chart-component check,
++  scripts/check_chart_components.py, which also fails any tooltip on the site; (3) the chart
++  screenshot check, scripts/check_chart_screenshots.py, with its colour and scatter-label steps, in
++  validate:ui. RECURRING COST: none; it runs in the existing validate:ui job on the existing
++  runner.
  
  decisions_reserved:
--  - "none: every decision of this task is approved, see decisions_taken"
-+  - none: the plan is CPO-approved, approved in chat, 2026-11-03, and no page output changes
+-  - none: the plan is CPO-approved, approved in chat, 2026-11-03, and no page output changes
++  - "none: every decision of this task is approved, see decisions_taken; the theme's approval is the CPO's merge."
  
  done_when:
--  - An ordinary contract's Edit to each of the four files is denied by task_contract_gate.py with the PROTECTED message (new hook test).
--  - With protected_override and no impact_map, each of the four is denied for the missing impact_map.
--  - tests/test_governance_hooks.py, tests/test_governance_doc_parity.py and tests/test_design_inventory.py pass.
--  - The offline gates and pre-commit pass; an MR is open, never merged.
-+  - tests/test_hooks_resolve_worktree.py passes; its worktree tests fail against main's hooks
-+  - the full pytest suite and the offline gates pass
-+  - required reviewers PASS; review.md bound to the staged diff
+-  - tests/test_hooks_resolve_worktree.py passes; its worktree tests fail against main's hooks
+-  - the full pytest suite and the offline gates pass
+-  - required reviewers PASS; review.md bound to the staged diff
++  - "cd site_v2 && npm test and npm run build pass: node tests, page specs, SEO audit, built-pages check."
++  - "python scripts/check_page_css.py, python scripts/check_chart_components.py and python scripts/check_chart_screenshots.py pass, and python -m pytest tests/test_design_inventory.py tests/test_check_chart_components.py tests/test_check_chart_screenshots.py passes, each new test with a RED proof."
++  - "The MR pipeline's validate:ui passes with the committed screenshots and baseline."
++  - "An MR is open, never merged."
  
  amendments:
--  - "+ tests/test_sentence_length_in_docs.py — authority: the standing rule that a pin only moves down; content: cto-reviewer.md's long-sentence pin falls from 20 to 19, because its edited sentence on opus coverage was split to pass the sentence-length gate."
--  - "impact_map corrected after review round 1 — authority: cto-reviewer's FAIL; content: only the PreToolUse paths refuse the edit, CI's cover is the routing rows, and the out-of-scope net now exempts the four files in any task with protected_override. No scope or code change."
-+  - 2026-11-03: stop_gate.py takes `.venv` from the resolved worktree, else the main checkout,
-+    with a test for a worktree without `.venv` — authority: approved in chat, 2026-11-03.
-+  - 2026-11-03: a target inside CLAUDE_PROJECT_DIR that is not in a worktree of this repository
-+    is judged by the fallback, with a test for `git init` over a protected folder — authority:
-+    the cto-reviewer's round-1 finding; it narrows the change to the approved plan.
-diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
-index 49277e52..238acfdd 100644
---- a/docs/agent_guardrails.md
-+++ b/docs/agent_guardrails.md
-@@ -37,6 +37,9 @@ match, because a hook that cries wolf gets ignored.
- | `stop_gate.py` | Stop | Blocks the end of a turn once when the tree does not match the contract or an offline gate in `FAST_GATES` fails. |
- | `handover_in.py` | SessionStart | Injects the handover issue into every session, from GitLab or, when GitLab is down, from `.claude/handover.cache.md`. Capped at 16,000 characters; says when it truncates. The handover is rewritten at the end of every session (`CLAUDE.md`). |
+-  - 2026-11-03: stop_gate.py takes `.venv` from the resolved worktree, else the main checkout,
+-    with a test for a worktree without `.venv` — authority: approved in chat, 2026-11-03.
+-  - 2026-11-03: a target inside CLAUDE_PROJECT_DIR that is not in a worktree of this repository
+-    is judged by the fallback, with a test for `git init` over a protected folder — authority:
+-    the cto-reviewer's round-1 finding; it narrows the change to the approved plan.
++  - "2026-11-03: rewritten — authority: CPO rulings approved in chat, 2026-11-03 (the comparison element built in the family's look; the last-season table out; no tooltips; the gallery out of this MR; the CPO's merge is the approval); content: scope loses the gallery generator, its README row and renders, .claude/launch.json, the seven mock generators and TeamLastSeason.astro; acceptance criteria follow the rulings (tooltip and gallery items rewritten, the trend item replaced by the comparison element item, a no-tooltip item added); decisions_reserved closed."
++  - "2026-11-03: + .claude/skills/validate-local/SKILL.md — authority: the skill's own rule that a gate added to a CI job is added to its CI mapping table, raised by scope-auditor in review round 1; content: rows for the chart-component check and the chart screenshot check under validate:ui."
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index 6d2f393a..48c2c13a 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -377,6 +377,11 @@ workflow:
+   - scripts/design_inventory.py
+   - tests/test_design_inventory.py
+   - tests/fixtures/design_inventory/*
++  - scripts/check_chart_components.py
++  - scripts/check_chart_screenshots.py
++  - tests/test_check_chart_components.py
++  - tests/test_check_chart_screenshots.py
++  - tests/fixtures/chart_screenshots/*
+   - requirements-ui.txt
+   - .gitlab-ci.yml
  
-+A hook judges the git worktree its action targets: an edit's file, else the working directory.
-+Any other target inside `CLAUDE_PROJECT_DIR` is judged against it, and one outside it is not.
-+
- Hooks fail open: an error or an unreadable event lets the call through. The review gate is the
- exception: when it cannot resolve the base branch, it denies.
- 
-diff --git a/tests/test_hooks_resolve_worktree.py b/tests/test_hooks_resolve_worktree.py
+@@ -507,10 +512,14 @@ validate:ui:
+     # screenshots never appear. Either step red is the job red.
+     - python scripts/check_design_inventory.py --dist site_v2/dist --artifacts artifacts/design_inventory
+     - python -m pytest tests/test_design_inventory.py -q
++    - python scripts/check_chart_components.py
++    - python scripts/check_chart_screenshots.py --dist site_v2/dist --artifacts artifacts/chart_screenshots
++    - python -m pytest tests/test_check_chart_components.py tests/test_check_chart_screenshots.py -q
+   artifacts:
+     when: on_failure
+     paths:
+       - artifacts/design_inventory
++      - artifacts/chart_screenshots
+     expire_in: 7 days
+   rules:
+     - *not_on_schedule
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index b6172466..55e569d1 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -113,13 +113,28 @@
+ | Competition row | `.lrow.tc` | one competition of a team's season: crest, name and a muted note, with the standing or the cup's outcome on the right. A table's row adds the W, D and L counts, goals and points below. Narrow, the standing opens the second line | `fits` | ruled | the Team page review |
+ | Competition row name | `.tc .tc-name` | 15px semi-bold ink; the note after it 12px muted | `font-size=15px; font-weight=600; color=ink` | ruled | the Team page review |
+ | Squad grid | `.sqgrid` | the squad's player rows in two columns where each keeps 280px, otherwise one | `fits` | ruled | the Team page review |
+-| Strip plot row | `.rs-row` | a metric's name, the league from its lowest to its highest value, and the team's rank over its value. Every other club is a light dot, the team the solid dot. Narrow, the strip takes the second line | `fits` | ruled | the Team page review |
+-| Strip plot value | `.rs-val` | the team's rank, 15px bold ink, its value under it in 12px muted | `font-size=15px; font-weight=700; color=ink` | ruled | the Team page review |
+-| Scatter plot | `.dp-chart` | each team's shots on target difference per match against its points, with the deserved points line. Axis lines carry outward ticks and no grid. The marks keep their size at every width | `fits` | ruled | the Team page review |
++| Strip plot row | `.rs-row` | a metric's name, the league's values with every team's mark, and the team's rank over its value; drawn by `team/TeamLeagueStrips.astro` | `fits` | ruled | the Team page review |
++| Strip plot value | `.rs-val` | the team's rank over its value; drawn by `team/TeamLeagueStrips.astro` | `font-size=15px; font-weight=700; color=ink` | ruled | the Team page review |
++| Scatter plot | `.dp-chart` | each team's shots on target difference per match against its points, with the deserved points line; drawn by `team/TeamDeserved.astro` | `fits` | ruled | the Team page review |
+ | Trend | `.ctab.yoyt .n.tr` | ▲ in the accent when this season is better, ▼ in the loss red when worse, "–" when the shown values are equal | `font-size=13px` | ruled | the Team page review |
+-| Comparison element | `.cmp` | two teams' numbers on one metric list. Each team's name stands over its column. Each metric group's rows read value, name with the diverging bar, value | `fits` | ruled | the played match page review |
++| Comparison element | `.cmp` | two teams' numbers on one metric list, each metric's two values, name and bar; drawn by `fixture/MetricComparison.astro` | `fits` | ruled | the played match page review |
+ | Metric switch | `.tsw-lbl` | "Show all metrics" at the top right of a metric comparison: off by default, the key metrics only; on, every metric in its place, the order never changing; a group heading with no key row hidden while off; the track neutral grey when on | `font-size=13px; font-weight=600; color=ink-2` | ruled | the match page review |
+-| Comparison team name | `.cmp .formhead .h` | each team's name over its column, 14px semi-bold ink | `font-size=14px; font-weight=600; color=ink` | ruled | the match page review |
++| Comparison team name | `.cmp .formhead .h` | each team's name over its column, in the chart legend's style | `font-size=12px; font-weight=400; color=ink-2` | ruled | the chart theme |
++| Comparison parts | `.cmp .cmp-team, .cmp-home, .cmp-away, .cmp-row, .cmp-val, .cmp-mid, .cmp-label` | the comparison element's parts, drawn by `fixture/MetricComparison.astro` and `fixture/MetricRow.astro` | `fits` | ruled | the match page review |
++| Switched-off row | `.nonkey` | a row or group heading that Show all metrics hides while off | `fits` | ruled | the match page review |
++| Chart | `.chart, .chart .chart-wide, .chart .chart-narrow` | every chart's box. Under 480px every chart takes its narrow form. The look is in `system.css` (Charts), the layout numbers in `lib/chartTheme.ts` | `fits` | ruled | the chart theme |
++| Chart legend | `.chart-legend .chart-key` | above its chart, one key per mark: the mark, then its name; drawn by `ui/ChartLegend.astro` | `font-size=12px; color=ink-2` | ruled | the chart theme |
++| Chart axis | `.chart-axis` | an axis line and its outward ticks; a strip plot's line | `fits` | ruled | the chart theme |
++| Chart tick label | `.chart-tick, .chart-tick.chart-end` | a tick label, an axis title's second line, a strip plot's direction note | `font-size=11px` | ruled | the chart theme |
++| Chart note | `.chart-note` | an axis title and the label of the team's difference | `font-size=12px` | ruled | the chart theme |
++| Chart label | `.chart-label` | the team's name beside its mark | `font-size=12px` | ruled | the chart theme |
++| Chart name | `.chart-name` | a strip plot row's metric name | `font-size=14px; color=ink` | ruled | the chart theme |
++| Chart mark | `.chart-dot, .chart-dot.chart-me` | every other team's mark and the team's mark, the same in every chart and its legend | `fits` | ruled | the chart theme |
++| Chart bar | `.chart-bar, .chart-bar > .chart-better` | two bars meeting at the centre, each its value's share of the larger | `fits` | ruled | the chart theme |
++| Chart line | `.chart-line, .chart-ref, .chart-gap` | a reference line the values are read against, and the dotted line of the team's distance from it | `fits` | ruled | the chart theme |
++| Comparison better value | `.cmp-val.chart-better` | the better team's value | `color=accent` | ruled | the match page review |
++| Comparison better bar | `.cmp .chart-bar > .chart-better > span` | the better team's bar | `background-color=accent` | ruled | the match page review |
++| Strip plot band | `.rs-row .rs-band` | a strip plot row's strip: its line with every team's mark on it | `fits` | ruled | the chart theme |
+ | Column head | `.rcol .colhead` | a list column's name, 13px bold muted; one fact may follow after a middle dot (a team's formation); a second head inside the column opens its second list | `font-size=13px; font-weight=700; color=muted` | ruled | the played match page review |
+ | Tag | `.nexttag, .fxrow .topmatch` | Next (on the picker's title) and Top match (on the flagged row, before the kick-off): 10px bold capitals in an accent pill. Narrow, a row's tag takes its own line above the home team, left-aligned | `font-size=10px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink` | ruled | the competition Matchdays design; the Home design; the narrow-screen fix |
+ | Matchday picker | `.mdnav .mdstep` | its own full-width line under the tab bar: ‹ MATCHDAY N › with the Next tag, the arrows pinned to the edges, the title centred, a 2px line under; one matchday on screen at a time; no script | `visible=1; border-bottom-width=2px` | ruled | #129 Matchdays |
+diff --git a/scripts/check_chart_components.py b/scripts/check_chart_components.py
 new file mode 100644
-index 00000000..f9474769
+index 00000000..2d34aa29
 --- /dev/null
-+++ b/tests/test_hooks_resolve_worktree.py
-@@ -0,0 +1,256 @@
-+"""The governance hooks judge the worktree an action targets, not CLAUDE_PROJECT_DIR.
++++ b/scripts/check_chart_components.py
+@@ -0,0 +1,160 @@
++"""The chart-component check: a chart component sets no size, colour or font of its own.
 +
-+A main checkout and a real `git worktree add` under `.claude/worktrees/` carry different
-+contracts. CLAUDE_PROJECT_DIR always names the main checkout, the way it does for a session
-+opened there that works in a worktree.
++A chart component is any `site_v2/src/**/*.astro` file that writes a class of the chart theme's
++two families, `chart`/`chart-*` and `cmp`/`cmp-*`; no list names them. In one, every look comes
++from the theme in `site_v2/src/styles/system.css` and every layout number from
++`site_v2/src/lib/chartTheme.ts`, so the check fails:
++- a presentation attribute that sets a look on any element: fill, stroke, stroke-width,
++  stroke-dasharray, opacity, color, font-size, font-family, font-weight, r, rx, ry, width, height;
++- a `style=` other than one data-driven position, `left:${…}%` or `width:${…}%`;
++- a `<style>` block.
++It also fails a colour or a pixel size written in `chartTheme.ts`, which holds layout numbers only.
++
++The site has no tooltips, so in every file under `site_v2/src` the check also fails a `title=`
++attribute on an HTML or SVG element (a component's own `title` prop is not one), a `<title>`
++anywhere but in a page's `<head>`, and a script that sets a title.
++
++Exit 0 clean, 1 with findings (`path:line · tag · what`).
 +"""
 +
 +from __future__ import annotations
 +
-+import json
-+import os
-+import subprocess
++import re
 +import sys
++from pathlib import Path
++
++REPO = Path(__file__).resolve().parent.parent
++SITE_SRC = REPO / "site_v2" / "src"
++THEME = SITE_SRC / "lib" / "chartTheme.ts"
++
++LOOK_ATTRS = ("fill", "stroke", "stroke-width", "stroke-dasharray", "opacity", "color", "font-size",
++              "font-family", "font-weight", "r", "rx", "ry", "width", "height")
++_LOOK = re.compile(r"(?<![\w:-])(%s)\s*=" % "|".join(re.escape(a) for a in LOOK_ATTRS))
++_STYLE = re.compile(r"(?<![\w:-])style\s*=\s*(\"[^\"]*\"|'[^']*'|\{`[^`]*`\}|\{[^}]*\})")
++_POSITION = re.compile(r"^\{`(?:left|width):\$\{[^}]+\}%`\}$")
++_STYLE_BLOCK = re.compile(r"<style\b", re.IGNORECASE)
++_CLASS_TOKEN = re.compile(r"""["'\s\[]((?:chart|cmp)(?:-[\w-]+)?)["'\s\]]""")
++_CLASS_ATTR = re.compile(r"""\bclass(?::list)?\s*=\s*(?:"[^"]*"|'[^']*'|\{)""")
++_THEME_LOOK = re.compile(r"#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(|\bvar\(--|\d+(?:\.\d+)?px\b")
++_TITLE_ATTR = re.compile(r"(?<![\w:-])title\s*=")
++_TITLE_TAG = re.compile(r"<title\b", re.IGNORECASE)
++_HEAD = re.compile(r"<head\b.*?</head>", re.IGNORECASE | re.DOTALL)
++_TITLE_SET = re.compile(r"""setAttribute\(\s*["']title["']|\.title\s*=(?!=)""")
++_SCRIPTS = re.compile(r"<script\b[^>]*>(.*?)</script>", re.IGNORECASE | re.DOTALL)
++
++
++def _frontmatter_end(text: str) -> int:
++    if not text.startswith("---"):
++        return 0
++    end = text.find("\n---", 3)
++    return 0 if end < 0 else end + 4
++
++
++def tags(text: str):
++    """(offset, tag name, attribute text) for every opening tag in an Astro template, `{…}` and
++    quoted values skipped when finding the tag's end."""
++    i = _frontmatter_end(text)
++    while True:
++        m = re.compile(r"<([a-zA-Z][\w.-]*)\b").search(text, i)
++        if not m:
++            return
++        quote, depth, j = None, 0, m.end()
++        while j < len(text):
++            c = text[j]
++            if quote:
++                if c == quote:
++                    quote = None
++            elif c in "\"'`":
++                quote = c
++            elif c == "{":
++                depth += 1
++            elif c == "}":
++                depth -= 1
++            elif c == ">" and depth <= 0:
++                break
++            j += 1
++        yield m.start(), m.group(1), text[m.end():j]
++        i = j + 1
++
++
++def is_chart_component(text: str) -> bool:
++    body = text[_frontmatter_end(text):]
++    for _, _, attrs in tags(body):
++        for m in _CLASS_ATTR.finditer(attrs):
++            if _CLASS_TOKEN.search(attrs[m.start():m.start() + 400]):
++                return True
++    return False
++
++
++def lint_component(path: Path, root: Path = REPO) -> list[str]:
++    rel = path.relative_to(root).as_posix()
++    text = path.read_text(encoding="utf-8")
++    line = lambda at: text.count("\n", 0, at) + 1  # noqa: E731
++    out = []
++    for m in _STYLE_BLOCK.finditer(text):
++        out.append("%s:%d · <style> · a style block" % (rel, line(m.start())))
++    for at, tag, attrs in tags(text):
++        for a in _LOOK.finditer(attrs):
++            out.append("%s:%d · <%s> · %s" % (rel, line(at), tag, a.group(1)))
++        for s in _STYLE.finditer(attrs):
++            if not _POSITION.match(s.group(1)):
++                out.append("%s:%d · <%s> · style=%s" % (rel, line(at), tag, s.group(1)))
++    return out
++
++
++def lint_theme(path: Path = THEME, root: Path = REPO) -> list[str]:
++    rel = path.relative_to(root).as_posix()
++    out = []
++    for n, text in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
++        code = text.split("//", 1)[0]
++        for m in _THEME_LOOK.finditer(code):
++            out.append("%s:%d · layout file · %s" % (rel, n, m.group(0)))
++    return out
++
++
++def lint_tooltips(path: Path, root: Path = REPO) -> list[str]:
++    rel = path.relative_to(root).as_posix()
++    text = path.read_text(encoding="utf-8")
++    line = lambda at: text.count("\n", 0, at) + 1  # noqa: E731
++    out = []
++    if path.suffix == ".astro":
++        heads = [m.span() for m in _HEAD.finditer(text)]
++        comments = [m.span() for m in re.finditer(r"<!--.*?-->", text, re.DOTALL)]
++        for at, tag, attrs in tags(text):
++            if tag[0].islower() and _TITLE_ATTR.search(attrs):
++                out.append("%s:%d · <%s> · a title attribute, a tooltip" % (rel, line(at), tag))
++        for m in _TITLE_TAG.finditer(text, _frontmatter_end(text)):
++            if any(a <= m.start() < b for a, b in comments):
++                continue
++            if not any(a <= m.start() < b for a, b in heads):
++                out.append("%s:%d · <title> · outside the page's head, a tooltip" % (rel, line(m.start())))
++        code = "".join(m.group(1) for m in _SCRIPTS.finditer(text))
++    else:
++        code = text
++    for m in _TITLE_SET.finditer(code):
++        out.append("%s · script · sets a title, a tooltip: %s" % (rel, m.group(0)))
++    return out
++
++
++def run(site_src: Path = SITE_SRC, theme: Path = THEME, root: Path = REPO) -> tuple[list[str], list[str]]:
++    components = sorted(p for p in site_src.rglob("*.astro") if is_chart_component(p.read_text(encoding="utf-8")))
++    findings = [f for p in components for f in lint_component(p, root)] + lint_theme(theme, root)
++    for p in sorted(site_src.rglob("*")):
++        if p.suffix in (".astro", ".ts", ".mjs", ".js") and p.is_file():
++            findings += lint_tooltips(p, root)
++    return findings, [p.relative_to(root).as_posix() for p in components]
++
++
++def main() -> int:
++    findings, components = run()
++    for f in findings:
++        print(f)
++    if findings:
++        print("check_chart_components: %d finding(s) in %d chart component(s)" % (len(findings), len(components)))
++        return 1
++    print("check_chart_components: %d chart component(s) clean: %s" % (len(components), ", ".join(components)))
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/scripts/check_chart_screenshots.py b/scripts/check_chart_screenshots.py
+new file mode 100644
+index 00000000..a8ab29f4
+--- /dev/null
++++ b/scripts/check_chart_screenshots.py
+@@ -0,0 +1,301 @@
++"""The chart screenshot check: the site's charts pinned as screenshots of the built pages, each chart
++mark in the colour the theme gives it, and the scatter plot's difference label clear of everything.
++
++Serves the built site, opens it in headless Chromium and checks:
++- colours: on the pages in `CHARTS`, in both themes, every mark in `MARKS` must compute to its
++  theme colour, read from the page's own tokens; a selector that matches nothing fails, so a
++  renamed class cannot pass by matching nothing;
++- screenshots: each chart in `CHARTS` at 375px and 1010px, in English dark, English light and
++  Finnish dark, as a reader reaches it (a click on its tab), is compared by the SHA-256 of its PNG
++  with `tests/fixtures/chart_screenshots/` (`manifest.json` names the platform the pins were taken
++  on and each file's hash). The site uses the system font, which differs per operating system, so
++  pins are taken on Linux only: a manifest from any other platform fails everywhere, and a run
++  off Linux compares nothing. The pages are built from the committed data, so a change to that data
++  changes the pins too. On every platform each PNG in the pins must match its hash in the manifest
++  and no PNG may be missing from it, so a changed look shows in the MR as a changed image. On any
++  difference on Linux the new screenshots and manifest are written to `--artifacts`, so a changed
++  look reaches the pins only as committed files in its MR;
++- scatter labels: on every built page that draws a scatter plot, in every language and at every
++  width in `LABEL_WIDTHS`, the difference label meets no line (the deserved points line, the dotted
++  distance line, an axis or a tick), no dot, no other text and stays inside the drawing; a run that
++  measures no scatter plot fails.
++
++    python scripts/check_chart_screenshots.py --artifacts artifacts/chart_screenshots
++    python scripts/check_chart_screenshots.py --update      # Linux only: rewrite the pins
++
++Exit 0 clean, 1 on a colour, screenshot or label finding, 2 when the pins cannot be written here.
++"""
++
++from __future__ import annotations
++
++import argparse
++import hashlib
++import json
++import sys
++from pathlib import Path
++
++sys.path.insert(0, str(Path(__file__).resolve().parent))
++from check_design_inventory import serve  # noqa: E402
++
++REPO = Path(__file__).resolve().parent.parent
++DIST = REPO / "site_v2" / "dist"
++PINS = REPO / "tests" / "fixtures" / "chart_screenshots"
++PLATFORM = sys.platform
++PIN_PLATFORM = "linux"
++VIEWPORTS = (375, 1010)
++STATES = (("en", "dark"), ("en", "light"), ("fi", "dark"))
++TEAM = {"en": "en/teams/1-fc-koln/", "fi": "fi/joukkueet/1-fc-koln/"}
++MATCH = {"en": "en/bundesliga/matches/2026-09-05-tsg-1899-hoffenheim-vs-borussia-dortmund/",
++         "fi": "fi/bundesliga/ottelut/2026-09-05-tsg-1899-hoffenheim-vs-borussia-dortmund/"}
++CHARTS = (("scatter", TEAM, ".chart", 0), ("strip", TEAM, ".chart", 1), ("comparison", MATCH, ".cmp", 0))
++MARKS = {
++    "team": (
++        ("svg .chart-dot.chart-me", "fill", "--chart-team"),
++        ("svg .chart-dot:not(.chart-me)", "fill", "--chart-other"),
++        (".rs-band .chart-dot.chart-me", "background-color", "--chart-team"),
++        (".rs-band .chart-dot:not(.chart-me)", "background-color", "--chart-other"),
++    ),
++    "match": (
++        (".cmp-val.chart-better", "color", "--chart-better"),
++        (".chart-bar > .chart-better > span", "background-color", "--chart-better"),
++    ),
++}
++
++COLOUR_JS = """([marks]) => {
++  const out = [], host = document.body, theme = host.dataset.theme;
++  const probe = document.createElement('i');
++  host.appendChild(probe);
++  for (const [sel, prop, token] of marks) {
++    probe.style.color = `var(${token})`;
++    const want = getComputedStyle(probe).color;
++    const els = [...host.querySelectorAll(sel)];
++    if (!els.length) out.push(`${theme} · ${sel} · matches nothing`);
++    for (const e of els) {
++      const got = getComputedStyle(e).getPropertyValue(prop);
++      if (got !== want) { out.push(`${theme} · ${sel} · ${prop} ${got}, the theme's ${token} is ${want}`); break; }
++    }
++  }
++  probe.remove();
++  return out;
++}"""
++# The way a reader reaches a chart: shown already, or shown by a click on one of the page's tabs.
++REACH_JS = """([sel, n]) => {
++  const shown = () => { const el = document.querySelectorAll(sel)[n]; return !!el && el.getBoundingClientRect().width > 0; };
++  if (shown()) return true;
++  for (const tab of document.querySelectorAll('label[for]')) {
++    const input = document.getElementById(tab.htmlFor);
++    if (!input || input.type !== 'radio') continue;
++    tab.click();
++    if (shown()) return true;
++  }
++  return false;
++}"""
++PAINTED_JS = "() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))"
++THEME_JS = "(t) => { document.body.dataset.theme = t; }"
++LABEL_WIDTHS = (280, 320, 360, 375, 414, 479, 480, 560, 700, 768, 900, 1010)
++SCATTER_SHOWN = "() => [...document.querySelectorAll('svg.dp-chart')].some((s) => s.getBoundingClientRect().width > 0)"
++LABEL_JS = """() => {
++  const svg = [...document.querySelectorAll('svg.dp-chart')].find((s) => s.getBoundingClientRect().width > 0);
++  const label = svg && svg.querySelector('[data-role="gap"]');
++  if (!label) return null;
++  const R = label.getBoundingClientRect(), m = svg.getScreenCTM(), out = [];
++  const at = (l, x, y) => new DOMPoint(+l.getAttribute(x), +l.getAttribute(y)).matrixTransform(m);
++  const side = (p, q, s) => (s.x - p.x) * (q.y - p.y) - (s.y - p.y) * (q.x - p.x);
++  const cross = (p, q, s, u) => (side(s, u, p) > 0) !== (side(s, u, q) > 0) && (side(p, q, s) > 0) !== (side(p, q, u) > 0);
++  const Q = { l: R.left - 1, t: R.top - 1, r: R.right + 1, b: R.bottom + 1 };
++  const inQ = (p) => p.x > Q.l && p.x < Q.r && p.y > Q.t && p.y < Q.b;
++  const corners = [{ x: Q.l, y: Q.t }, { x: Q.r, y: Q.t }, { x: Q.r, y: Q.b }, { x: Q.l, y: Q.b }];
++  const lineMeets = (l) => { const a = at(l, 'x1', 'y1'), b = at(l, 'x2', 'y2');
++    return inQ(a) || inQ(b) || corners.some((s, i) => cross(a, b, s, corners[(i + 1) % 4])); };
++  const name = (l) => l.classList.contains('chart-ref') ? 'the deserved points line'
++    : l.classList.contains('chart-gap') ? 'the dotted distance line' : 'an axis or tick';
++  for (const l of svg.querySelectorAll('line')) if (lineMeets(l)) out.push(name(l));
++  for (const c of svg.querySelectorAll('circle')) {
++    const d = c.getBoundingClientRect(), cx = (d.left + d.right) / 2, cy = (d.top + d.bottom) / 2, r = (d.right - d.left) / 2;
++    const nx = Math.max(R.left, Math.min(cx, R.right)), ny = Math.max(R.top, Math.min(cy, R.bottom));
++    if ((nx - cx) ** 2 + (ny - cy) ** 2 < r * r) out.push('a dot');
++  }
++  for (const t of svg.querySelectorAll('text')) {
++    const b = t.getBoundingClientRect();
++    if (t !== label && b.left < R.right && R.left < b.right && b.top < R.bottom && R.top < b.bottom) out.push('the text "' + t.textContent + '"');
++  }
++  const S = svg.getBoundingClientRect();
++  if (R.left < S.left || R.right > S.right || R.top < S.top || R.bottom > S.bottom) out.push('the edge of the drawing');
++  return [...new Set(out)];
++}"""
++# A reader's click on a tab label, then the measurement, in one task: no frame is rendered in between,
++# so only what the click itself runs counts, as in a page the browser is not painting.
++READER_JS = """() => {
++  const shown = %s;
++  const measure = %s;
++  for (const tab of document.querySelectorAll('label[for]')) {
++    const input = document.getElementById(tab.htmlFor);
++    if (!input || input.type !== 'radio') continue;
++    tab.click();
++    if (shown()) return measure();
++  }
++  return null;
++}""" % (SCATTER_SHOWN, LABEL_JS)
++
++
++def colour_findings(page, base: str) -> list[str]:
++    out = []
++    for kind, pages in (("team", TEAM), ("match", MATCH)):
++        page.set_viewport_size({"width": 1010, "height": 900})
++        page.goto(base + pages["en"], wait_until="load")
++        for theme in ("dark", "light"):
++            page.evaluate(THEME_JS, theme)
++            out += ["%s · %s" % (pages["en"], f) for f in page.evaluate(COLOUR_JS, [[list(m) for m in MARKS[kind]]])]
++    return out
++
++
++def screenshots(page, base: str) -> tuple[dict[str, bytes], list[str]]:
++    shots, missing = {}, []
++    for name, pages, sel, n in CHARTS:
++        for vw in VIEWPORTS:
++            for lang, theme in STATES:
++                page.set_viewport_size({"width": vw, "height": 4000})
++                page.goto(base + pages[lang], wait_until="load")
++                page.evaluate(THEME_JS, theme)
++                if not page.evaluate(REACH_JS, [sel, n]):
++                    missing.append("%s · %s · no tab shows it" % (pages[lang], name))
++                    continue
++                page.evaluate(PAINTED_JS)
++                shots["%s-%s-%s-%d.png" % (name, lang, theme, vw)] = page.locator(sel).nth(n).screenshot(animations="disabled")
++    return shots, missing
++
++
++def scatter_pages(dist: Path) -> list[str]:
++    """Every built page that draws a scatter plot, found by its markup, not by a list of paths."""
++    return sorted(p.parent.relative_to(dist).as_posix() for p in dist.glob("*/*/*/index.html")
++                  if 'class="dp-chart' in p.read_text(encoding="utf-8"))
++
++
++def label_findings(page, base: str, pages: list[str]) -> tuple[list[str], int]:
++    """Every (page, width) whose difference label meets something in a reader's flow (a fresh load
++    at that width, a click on the tab that shows the scatter plot, the measurement), and how many
++    were measured. The script is never run again or injected."""
++    out, measured = [], 0
++    for path in pages:
++        for w in LABEL_WIDTHS:
++            page.set_viewport_size({"width": w, "height": 812})
++            page.goto(base + path + "/", wait_until="domcontentloaded")
++            hits = page.evaluate(READER_JS)
++            if hits is None:
++                out.append("%s · %dpx · no tab shows a scatter plot" % (path, w))
++                continue
++            measured += 1
++            if hits:
++                out.append("%s · %dpx · the difference label meets %s" % (path, w, ", ".join(hits)))
++    return out, measured
++
++
++def manifest_of(shots: dict[str, bytes], platform: str | None = None) -> dict:
++    return {"platform": platform or PLATFORM, "shots": {n: hashlib.sha256(b).hexdigest() for n, b in sorted(shots.items())}}
++
++
++def compare(pinned: dict, now: dict) -> list[str]:
++    """Every pin that differs from this run: changed, new, or gone."""
++    was, got = pinned.get("shots", {}), now["shots"]
++    return ([n + " · changed" for n in sorted(was) if n in got and was[n] != got[n]]
++            + [n + " · new" for n in sorted(got) if n not in was]
++            + [n + " · gone" for n in sorted(was) if n not in got])
++
++
++def pin_findings(pins: Path, pinned: dict) -> list[str]:
++    """The committed pins must be the screenshots the manifest names: each entry's PNG present with
++    that hash, and no PNG the manifest does not name, so a changed look shows as a changed image."""
++    shots = pinned.get("shots", {})
++    out = []
++    for name, digest in sorted(shots.items()):
++        png = pins / name
++        if not png.is_file():
++            out.append(name + " · in the manifest, not in the pins")
++        elif hashlib.sha256(png.read_bytes()).hexdigest() != digest:
++            out.append(name + " · does not match its hash in the manifest")
++    out += [p.name + " · in the pins, not in the manifest" for p in sorted(pins.glob("*.png")) if p.name not in shots]
++    return out
++
++
++def write(folder: Path, shots: dict[str, bytes], manifest: dict) -> None:
++    folder.mkdir(parents=True, exist_ok=True)
++    for stale in folder.glob("*.png"):
++        if stale.name not in shots:
++            stale.unlink()
++    for name, png in shots.items():
++        (folder / name).write_bytes(png)
++    (folder / "manifest.json").write_text(json.dumps(manifest, indent=1) + "\n", encoding="utf-8")
++
++
++def measure(dist: Path) -> tuple[list[str], dict[str, bytes], list[str], list[str], int]:
++    """Colour findings, screenshots, charts no tab shows, label findings and label measurements."""
++    from playwright.sync_api import sync_playwright
++
++    srv, base = serve(dist)
++    try:
++        with sync_playwright() as pw:
++            browser = pw.chromium.launch()
++            page = browser.new_page(viewport={"width": 1010, "height": 900})
++            colours = colour_findings(page, base)
++            shots, missing = screenshots(page, base)
++            labels, measured = label_findings(page, base, scatter_pages(dist))
++            browser.close()
++    finally:
++        srv.shutdown()
++    return colours, shots, missing, labels, measured
++
++
++def screenshot_verdict(pinned: dict, now: dict, platform: str) -> tuple[list[str], bool]:
++    """The screenshot findings and whether the screenshots were compared. Only pins taken on Linux
++    are valid, on every platform, so a pin set from another machine can never switch the comparison
++    off; a run on another platform compares nothing, since its font differs."""
++    if pinned and pinned.get("platform") != PIN_PLATFORM:
++        return ["manifest.json · taken on %s; pins are taken on %s only" % (pinned.get("platform"), PIN_PLATFORM)], False
++    if not platform.startswith(PIN_PLATFORM):
++        return [], False
++    return (compare(pinned, now) if pinned else ["manifest.json · missing"]), True
++
++
++def main(argv=None) -> int:
++    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
++    ap.add_argument("--dist", default=str(DIST), help="the built site")
++    ap.add_argument("--pins", default=str(PINS))
++    ap.add_argument("--artifacts", help="where the new screenshots go on a difference")
++    ap.add_argument("--update", action="store_true", help="rewrite the pins (Linux only)")
++    args = ap.parse_args(argv)
++    pins = Path(args.pins)
++    on_pin_platform = PLATFORM.startswith(PIN_PLATFORM)
++    if args.update and not on_pin_platform:
++        print("check_chart_screenshots: the pins are taken on Linux only (the system font differs); this is %s" % PLATFORM)
++        return 2
++    colours, shots, missing, labels, measured = measure(Path(args.dist))
++    if not measured:
++        labels = labels + ["no scatter plot was measured"]
++    findings = ["colour · " + f for f in colours] + ["chart · " + f for f in missing] + ["scatter label · " + f for f in labels]
++    for f in findings:
++        print("FAIL  " + f)
++    print("check_chart_screenshots: %d colour finding(s), %d scatter label finding(s) over %d measurements"
++          % (len(colours), len(labels), measured))
++    now = manifest_of(shots)
++    if args.update:
++        write(pins, shots, now)
++        print("check_chart_screenshots: %d pins written to %s" % (len(shots), pins))
++        return 1 if findings else 0
++    manifest = pins / "manifest.json"
++    pinned = json.loads(manifest.read_text(encoding="utf-8")) if manifest.is_file() else {}
++    diffs, compared = screenshot_verdict(pinned, now, PLATFORM)
++    diffs = pin_findings(pins, pinned) + diffs
++    for d in diffs:
++        print("FAIL  screenshot · " + d)
++    if not compared and not diffs:
++        print("check_chart_screenshots: %d screenshots not compared: the pins are taken on %s, this is %s"
++              % (len(shots), PIN_PLATFORM, PLATFORM))
++    if diffs and args.artifacts and on_pin_platform:
++        write(Path(args.artifacts), shots, now)
++        print("check_chart_screenshots: the new screenshots are in %s" % args.artifacts)
++    print("check_chart_screenshots: %d screenshot difference(s) over %d screenshots" % (len(diffs), len(shots)))
++    return 1 if findings or diffs else 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/site_v2/scripts/check-built-pages.mjs b/site_v2/scripts/check-built-pages.mjs
+index f202c7c0..903d9d93 100644
+--- a/site_v2/scripts/check-built-pages.mjs
++++ b/site_v2/scripts/check-built-pages.mjs
+@@ -270,13 +270,14 @@ export function checkTeamPage(html, lang, served, path = "") {
+ 
+ const SCATTER_RE = {
+   chart: /<svg class="dp-chart[ "]/g,
+-  me: /<circle class="dp-me"[^>]*>/,
+-  note: /<text class="dp-note"[^>]*>/,
+-  name: /<text class="dp-name"[^>]*>/,
++  me: /<circle class="chart-dot chart-me"[^>]*>/,
++  note: /<text[^>]*\sdata-role="gap"[^>]*>/,
++  name: /<text[^>]*\sdata-role="name"[^>]*>/,
+ };
+ const attr = (tag, name) => tag?.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1] ?? null;
++const em = (tag, name) => parseFloat(attr(tag, name) ?? "0");
+ const textMark = (tag) =>
+-  tag && { x: Number(attr(tag, "x")), y: Number(attr(tag, "y")), fs: Number(attr(tag, "font-size")), anchor: attr(tag, "text-anchor") };
++  tag && { x: Number(attr(tag, "x")), dx: em(tag, "dx"), dy: em(tag, "dy"), anchor: attr(tag, "text-anchor") };
+ 
+ /** The deserved points scatters on one Team page, each with the team's dot and its two labels. */
+ export function scatterCharts(html) {
+@@ -294,9 +295,9 @@ export function scatterCharts(html) {
+ /** Issues on one Team page: a scatter whose difference label and name are not kept apart. */
+ export function checkScatterLabels(html, path = "") {
+   const issues = [];
+-  scatterCharts(html).forEach(({ cx, note, name }, i) => {
+-    const across = note && name && note.anchor !== name.anchor && (note.x - cx) * (name.x - cx) < 0;
+-    const under = note && name && note.anchor === name.anchor && note.x === name.x && note.y - name.y >= name.fs;
++  scatterCharts(html).forEach(({ note, name }, i) => {
++    const across = note && name && note.anchor !== name.anchor && note.dx * name.dx < 0;
++    const under = note && name && note.anchor === name.anchor && note.x === name.x && note.dx === name.dx && note.dy - name.dy >= 1;
+     if (!across && !under) issues.push(`${path}: scatter ${i + 1} puts the difference label beside the team's name`);
+   });
+   return issues;
+diff --git a/site_v2/scripts/check-built-pages.test.mjs b/site_v2/scripts/check-built-pages.test.mjs
+index 33463775..de054623 100644
+--- a/site_v2/scripts/check-built-pages.test.mjs
++++ b/site_v2/scripts/check-built-pages.test.mjs
+@@ -235,8 +235,8 @@ test("main fails a build whose pages name no match, and passes it once a row doe
+ // shown rank with the value under it.
+ function leagueRow(metric, value, rank, { nonkey = false } = {}) {
+   return (
+-    `<div class="rs-row${nonkey ? " nonkey" : ""}" data-metric="${metric}"><span class="rs-name">x</span>` +
+-    `<span class="rs-strip"><span class="rs-line"></span><span class="rs-dir">better</span></span>` +
++    `<div class="rs-row${nonkey ? " nonkey" : ""}" data-metric="${metric}"><span class="chart-name">x</span>` +
++    `<span class="rs-band"><span class="chart-axis"></span><span class="chart-tick">better</span></span>` +
+     `<span class="rs-val">${rank}<small>${value}</small></span></div>`
+   );
+ }
+@@ -313,22 +313,25 @@ test("team payloads with ranks but no Team page or no league row checked is an i
+ // A deserved points scatter as TeamDeserved.astro emits it: the team's dot, then the difference
+ // label, then the name.
+ function scatter({ cx = 100, note, name }) {
+-  const text = (cls, m) => `<text class="${cls}" x="${m.x}" y="${m.y}" font-size="12" text-anchor="${m.anchor}">x</text>`;
++  const text = (cls, role, m) =>
++    `<text class="${cls}" data-fix="" data-role="${role}" x="${cx}" y="150" dx="${m.dx}" dy="${m.dy}" text-anchor="${m.anchor}">x</text>`;
+   return (
+-    `<svg class="dp-chart dp-wide" viewBox="0 0 560 330" role="img"><line class="dp-axis" x1="46" x2="46" y1="12" y2="272"></line>` +
+-    `<circle class="dp-me" cx="${cx}" cy="150" r="5" data-px="5"></circle>` + text("dp-note", note) + text("dp-name", name) + `</svg>`
++    `<svg class="dp-chart chart-wide" viewBox="0 0 560 330" role="img"><line class="chart-axis" x1="46" x2="46" y1="12" y2="272"></line>` +
++    `<circle class="chart-dot chart-me" data-fix="" cx="${cx}" cy="150"></circle>` + text("chart-note", "gap", note) +
++    text("chart-label", "name", name) + `</svg>`
+   );
+ }
+ 
+ test("the scatter's difference label sits across the dot from the name, or a line under it; beside it fails", () => {
+-  const name = { x: 107, y: 154.2, anchor: "start" };
+-  assert.deepEqual(checkScatterLabels(scatter({ note: { x: 93, y: 170, anchor: "end" }, name }), "p"), []);
+-  assert.deepEqual(checkScatterLabels(scatter({ note: { x: 107, y: 169.2, anchor: "start" }, name }), "p"), []);
+-  assert.match(checkScatterLabels(scatter({ note: { x: 107, y: 160, anchor: "start" }, name }), "p")[0],
++  const name = { dx: "0.6em", dy: "0.35em", anchor: "start" };
++  assert.deepEqual(checkScatterLabels(scatter({ note: { dx: "-0.6em", dy: "0.35em", anchor: "end" }, name }), "p"), []);
++  assert.deepEqual(checkScatterLabels(scatter({ note: { dx: "0.6em", dy: "1.85em", anchor: "start" }, name }), "p"), []);
++  assert.match(checkScatterLabels(scatter({ note: { dx: "0.6em", dy: "0.8em", anchor: "start" }, name }), "p")[0],
+     /p: scatter 1 puts the difference label beside the team's name/);
+-  assert.equal(checkScatterLabels(scatter({ note: { x: 107, y: 140, anchor: "start" }, name }), "p").length, 1);
+-  assert.equal(checkScatterLabels(scatter({ note: { x: 93, y: 170, anchor: "start" }, name }), "p").length, 1);
+-  const two = scatter({ note: { x: 93, y: 170, anchor: "end" }, name }) + scatter({ note: { x: 107, y: 160, anchor: "start" }, name });
++  assert.equal(checkScatterLabels(scatter({ note: { dx: "0.6em", dy: "-0.6em", anchor: "start" }, name }), "p").length, 1);
++  assert.equal(checkScatterLabels(scatter({ note: { dx: "-0.6em", dy: "0.35em", anchor: "start" }, name }), "p").length, 1);
++  const two = scatter({ note: { dx: "-0.6em", dy: "0.35em", anchor: "end" }, name }) +
++    scatter({ note: { dx: "0.6em", dy: "0.8em", anchor: "start" }, name });
+   assert.equal(scatterCharts(two).length, 2);
+   assert.match(checkScatterLabels(two, "p")[0], /scatter 2/);
+ });
+@@ -347,16 +350,16 @@ test("main fails a Team page whose scatter is missing or puts the label beside t
+       mkdirSync(join(root, "dist", "en", "teams", "psg"), { recursive: true });
+       writeFileSync(join(root, "dist", "en", "teams", "psg", "index.html"), leagueRow("fouls_per_match", "6.1", "1st") + html);
+     };
+-    const name = { x: 107, y: 154.2, anchor: "start" };
++    const name = { dx: "0.6em", dy: "0.35em", anchor: "start" };
+     const errors = t.mock.method(console, "error", () => {});
+     t.mock.method(console, "log", () => {});
+     write("");
+     assert.equal(main(join(root, "dist"), join(root, "data")), 1);
+     assert.ok(errors.mock.calls.some((c) => /serves the deserved points scatter but no Team page carried one/.test(c.arguments[0])));
+-    write(scatter({ note: { x: 107, y: 160, anchor: "start" }, name }));
++    write(scatter({ note: { dx: "0.6em", dy: "0.8em", anchor: "start" }, name }));
+     assert.equal(main(join(root, "dist"), join(root, "data")), 1);
+     assert.ok(errors.mock.calls.some((c) => /beside the team's name/.test(c.arguments[0])));
+-    write(scatter({ note: { x: 93, y: 170, anchor: "end" }, name }));
++    write(scatter({ note: { dx: "-0.6em", dy: "0.35em", anchor: "end" }, name }));
+     assert.equal(main(join(root, "dist"), join(root, "data")), 0);
+   } finally {
+     rmSync(root, { recursive: true, force: true });
+diff --git a/site_v2/src/components/fixture/FormSegment.astro b/site_v2/src/components/fixture/FormSegment.astro
+index 35b6fbd6..8fbd4147 100644
+--- a/site_v2/src/components/fixture/FormSegment.astro
++++ b/site_v2/src/components/fixture/FormSegment.astro
+@@ -34,20 +34,13 @@ const groups = comparisonGroups(home.form, away.form);
+     <SectionHead label={t(lang, "secForm")} />
+     <p class="bsub">{intro}</p>
+     {needsSwitch(groups) && <MetricSwitch id="tsw-form" lang={lang} />}
+-    <div class="cmp">
+-      <div class="formhead">
+-        {[home, away].map((side, i) => (
+-          <div class:list={["fh", i === 0 ? "home" : "away"]}>
+-            <div class="h">{side.name}</div>
+-            {results(side).length > 0 && (
+-              <div class="pills">
+-                {results(side).map((r) => <span class:list={["pill", r]}>{t(lang, LETTER[r])}</span>)}
+-              </div>
+-            )}
+-          </div>
+-        ))}
+-      </div>
+-      <MetricComparison groups={groups} home={home.form} away={away.form} lang={lang} />
+-    </div>
++    <MetricComparison names={[home.name, away.name]} groups={groups} home={home.form} away={away.form} lang={lang}>
++      {results(home).length > 0 && (
++        <div class="pills" slot="home">{results(home).map((r) => <span class:list={["pill", r]}>{t(lang, LETTER[r])}</span>)}</div>
++      )}
++      {results(away).length > 0 && (
++        <div class="pills" slot="away">{results(away).map((r) => <span class:list={["pill", r]}>{t(lang, LETTER[r])}</span>)}</div>
++      )}
++    </MetricComparison>
+   </section>
+ )}
+diff --git a/site_v2/src/components/fixture/MatchStats.astro b/site_v2/src/components/fixture/MatchStats.astro
+index d2804fee..1c522d75 100644
+--- a/site_v2/src/components/fixture/MatchStats.astro
++++ b/site_v2/src/components/fixture/MatchStats.astro
+@@ -26,13 +26,7 @@ const groups = comparisonGroups(home.match_stats, away.match_stats, ["goals"]);
+     <>
+       <p class="bsub">{t(lang, "matchStatsIntro")}</p>
+       {needsSwitch(groups) && <MetricSwitch id="tsw-stats" lang={lang} />}
+-      <div class="cmp">
+-        <div class="formhead">
+-          <div class="fh home"><div class="h">{home.name}</div></div>
+-          <div class="fh away"><div class="h">{away.name}</div></div>
+-        </div>
+-        <MetricComparison groups={groups} home={home.match_stats} away={away.match_stats} lang={lang} oneMatch />
+-      </div>
++      <MetricComparison names={[home.name, away.name]} groups={groups} home={home.match_stats} away={away.match_stats} lang={lang} oneMatch />
+     </>
+   ) : (
+     <p class="bsub">{t(lang, "matchStatsNotRecorded")}</p>
+diff --git a/site_v2/src/components/fixture/MetricComparison.astro b/site_v2/src/components/fixture/MetricComparison.astro
+index 994d2ba4..87f7d318 100644
+--- a/site_v2/src/components/fixture/MetricComparison.astro
++++ b/site_v2/src/components/fixture/MetricComparison.astro
+@@ -1,8 +1,10 @@
+ ---
+-// The team comparison for one window (W1 or W2). Rows, groups and their order are served from the
+-// catalogue (src/data/metric_rows.json, src/data/metric_groups.json), grouped by comparisonGroups().
+-// A row whose value is missing on one side shows "-" there. No reordering by value. Rows that are
+-// not key metrics, and a group heading with no key row, carry `nonkey` for the Show all metrics switch.
++// The comparison element, the one component that draws it: each team's name over its column (the
++// `home` and `away` slots add what stands under a name), then the metric list for one window (W1 or
++// W2). Rows, groups and their order are served from the catalogue (src/data/metric_rows.json,
++// src/data/metric_groups.json), grouped by comparisonGroups(). A row whose value is missing on one
++// side shows "-" there. No reordering by value. Rows that are not key metrics, and a group heading
++// with no key row, carry `nonkey` for the Show all metrics switch.
+ import MetricRow from "./MetricRow.astro";
+ import { metricLabel } from "../../i18n/strings";
+ import type { ComparisonGroup } from "../../lib/comparisonGroups";
+@@ -10,20 +12,27 @@ import type { WindowStats } from "../../lib/types";
+ import type { Lang } from "../../lib/format";
+ 
+ interface Props {
++  names: [string, string];
+   groups: ComparisonGroup[];
+   home?: WindowStats | null;
+   away?: WindowStats | null;
+   lang: Lang;
+   oneMatch?: boolean;
+ }
+-const { groups, home, away, lang, oneMatch = false } = Astro.props;
++const { names, groups, home, away, lang, oneMatch = false } = Astro.props;
+ ---
+ 
+-{groups.map(({ key, rows, hasKey }) => (
+-  <>
+-    <div class:list={["mgroup", { nonkey: !hasKey }]}>{metricLabel(lang, `metricGroups.${key}.label`)}</div>
+-    {rows.map((def) => (
+-      <MetricRow def={def} home={home} away={away} lang={lang} oneMatch={oneMatch} />
+-    ))}
+-  </>
+-))}
++<div class="cmp">
++  <div class="formhead">
++    <div class="cmp-team cmp-home"><div class="h">{names[0]}</div><slot name="home" /></div>
++    <div class="cmp-team cmp-away"><div class="h">{names[1]}</div><slot name="away" /></div>
++  </div>
++  {groups.map(({ key, rows, hasKey }) => (
++    <div class:list={["fxgroup", "rkgroup", { nonkey: !hasKey }]}>
++      <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${key}.label`)}</span></div>
++      {rows.map((def) => (
++        <MetricRow def={def} home={home} away={away} lang={lang} oneMatch={oneMatch} />
++      ))}
++    </div>
++  ))}
++</div>
+diff --git a/site_v2/src/components/fixture/MetricRow.astro b/site_v2/src/components/fixture/MetricRow.astro
+index f087bac4..e79737f1 100644
+--- a/site_v2/src/components/fixture/MetricRow.astro
++++ b/site_v2/src/components/fixture/MetricRow.astro
+@@ -36,18 +36,14 @@ const aWidth = barWidth(av, hv);
+ const sub = metricSubline(lang, def.label_i18n_key, def.per_match && !oneMatch);
+ ---
+ 
+-<div class:list={["mrow", { nonkey: !def.is_key_metric }]}>
+-  <div class:list={["mval", "home", { better: better === "home" }]}>{hDisp}</div>
+-  <div class="mmid">
+-    <div class="mlabel">{metricLabel(lang, def.label_i18n_key)}{sub && <small>{sub}</small>}</div>
+-    <div class="mbar" aria-hidden="true">
+-      <div class="bside home">
+-        <span class:list={["fill", { better: better === "home" }]} style={`width:${hWidth}%`}></span>
+-      </div>
+-      <div class="bside away">
+-        <span class:list={["fill", { better: better === "away" }]} style={`width:${aWidth}%`}></span>
+-      </div>
++<div class:list={["cmp-row", { nonkey: !def.is_key_metric }]}>
++  <div class:list={["cmp-val", "cmp-home", { "chart-better": better === "home" }]}>{hDisp}</div>
++  <div class="cmp-mid">
++    <div class="cmp-label"><span class="chart-name">{metricLabel(lang, def.label_i18n_key)}</span>{sub && <span class="chart-tick">{sub}</span>}</div>
++    <div class="chart-bar" aria-hidden="true">
++      <span class:list={[{ "chart-better": better === "home" }]}><span style={`width:${hWidth}%`}></span></span>
++      <span class:list={[{ "chart-better": better === "away" }]}><span style={`width:${aWidth}%`}></span></span>
+     </div>
+   </div>
+-  <div class:list={["mval", "away", { better: better === "away" }]}>{aDisp}</div>
++  <div class:list={["cmp-val", "cmp-away", { "chart-better": better === "away" }]}>{aDisp}</div>
+ </div>
+diff --git a/site_v2/src/components/team/TeamDeserved.astro b/site_v2/src/components/team/TeamDeserved.astro
+index 5a44a0b5..8e82ce9c 100644
+--- a/site_v2/src/components/team/TeamDeserved.astro
++++ b/site_v2/src/components/team/TeamDeserved.astro
+@@ -6,9 +6,12 @@
+ // difference's label on the side of the dot opposite the team's name so the two never meet, or
+ // under the name where it would reach the y axis. The
+ // line joins the served deserved points of the two teams at the ends of the axis; deserved points
+-// lie on it by the model. Marks keep their pixel size at every width (chartMarks.mjs). Present
+-// only where the model fitted the league (mart_team_profile, deserved_scatter).
++// lie on it by the model. Look from the chart theme (system.css), layout from chartTheme.ts; text
++// and marks keep their size at every width (chartMarks.mjs). Present only where the model fitted
++// the league (mart_team_profile, deserved_scatter).
+ import SectionHead from "../ui/SectionHead.astro";
++import ChartLegend from "../ui/ChartLegend.astro";
++import { scatter, offset } from "../../lib/chartTheme";
+ import type { Lang } from "../../lib/format";
+ import { decimal1, integer, signedDelta } from "../../lib/format";
+ import { t, metricLabel, metricInSentence } from "../../i18n/strings";
+@@ -50,9 +53,9 @@ const rows = [
+ // Drawing geometry: axes round outward to whole numbers, the y axis in steps of 3 points.
+ const lo = dots.length ? [...dots].sort((a, b) => a.sotd - b.sotd)[0] : null;
+ const hi = dots.length ? [...dots].sort((a, b) => b.sotd - a.sotd)[0] : null;
+-function chart(W: number, H: number, fs: number) {
++function chart(W: number, H: number, L: number) {
+   if (!lo || !hi || !me) return null;
+-  const L = W > 400 ? 46 : 34, R = 14, T = 12, B = 58;
++  const { right: R, top: T, bottom: B, labelChar } = scatter;
+   const x0 = Math.floor(lo.sotd) - 1, x1 = Math.ceil(hi.sotd) + 1;
+   const y1 = Math.ceil((Math.max(...dots.map((d) => Math.max(d.points, d.deserved))) + 2) / 3) * 3;
+   const sx = (x: number) => L + ((x - x0) / (x1 - x0)) * (W - L - R);
+@@ -65,23 +68,20 @@ function chart(W: number, H: number, fs: number) {
+   for (let y = 0; y <= y1; y += 3) yTicks.push(y);
+   const cx = sx(me.sotd), cy = sy(me.points), cl = sy(onLine(me.sotd));
+   const right = cx < (L + W - R) / 2;
+-  const lx = right ? cx + 7 : cx - 7, anchor = right ? "start" : "end";
+-  // The label's width estimated from its characters, generous so it moves before it meets the axis.
+-  const under = right && cx - 7 - gapText.length * fs * 0.55 < L + 3;
++  const toRight = (side: boolean) => (side ? offset.beside : `-${offset.beside}`);
++  const under = right && cx - (gapText.length + 1) * labelChar < L;
+   return {
+-    W, H, fs, L, R, T, B, sx, sy, xTicks, yTicks,
++    W, H, L, R, T, B, sx, sy, xTicks, yTicks,
+     line: { x1: sx(x0), y1: sy(onLine(x0)), x2: sx(x1), y2: sy(onLine(x1)) },
+     me: {
+-      cx, cy, cl, lx, anchor,
+-      gx: under ? lx : right ? cx - 7 : cx + 7,
+-      ganchor: under ? anchor : right ? "end" : "start",
+-      gy: under ? cy + fs * 1.85 : (cy + cl) / 2 + fs * 0.35,
++      cx, cy, cl,
++      dx: toRight(right), anchor: right ? "start" : "end",
++      gdx: toRight(under ? right : !right), ganchor: (under ? right : !right) ? "start" : "end",
++      gy: under ? cy : (cy + cl) / 2, gdy: under ? offset.under : offset.middle,
+     },
+   };
+ }
+-const charts = [{ cls: "dp-wide", c: chart(560, 330, 12) }, { cls: "dp-narrow", c: chart(280, 230, 11) }];
+-const tip = (d: ScatterDot & { sotd: number; points: number; deserved: number }) =>
+-  `${d.name ?? ""} · ${metricLabel(lang, SOTD)} ${signed(d.sotd)} ${t(lang, "perMatch")} · ${metricLabel(lang, POINTS)} ${integer(d.points, lang)} · ${metricLabel(lang, DESERVED)} ${decimal1(d.deserved, lang)}`;
++const charts = scatter.forms.map((f) => ({ cls: f.cls, c: chart(f.width, f.height, f.left) }));
+ const fmtTick = (x: number) => (x > 0 ? `+${integer(x, lang)}` : integer(x, lang));
+ ---
+ 
+@@ -95,40 +95,40 @@ const fmtTick = (x: number) => (x > 0 ? `+${integer(x, lang)}` : integer(x, lang
+         <div class="ctab-row"><span class="tm"><span class="nm">{r.name}{r.sub && <span class="dpm-sub">{r.sub}</span>}</span></span><span class="n dpm-v">{r.value}</span></div>
+       ))}
+     </div>
+-    <div class="dp-wrap">
+-      <div class="dp-legend" aria-hidden="true">
+-        <span><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" class="dp-fit" /></svg>{metricLabel(lang, DESERVED)}</span>
+-        <span><svg width="10" height="14"><line x1="5" y1="1" x2="5" y2="13" class="dp-gap" /></svg>{metricLabel(lang, GAP)}</span>
+-        <span><i class="dp-k-me"></i>{teamName}</span>
+-        <span><i class="dp-k-club"></i>{t(lang, "teamOtherTeams", { competition: compName })}</span>
+-      </div>
++    <div class="chart">
++      <ChartLegend keys={[
++        { mark: "ref", label: metricLabel(lang, DESERVED) },
++        { mark: "gap", label: metricLabel(lang, GAP) },
++        { mark: "team", label: teamName },
++        { mark: "other", label: t(lang, "teamOtherTeams", { competition: compName }) },
++      ]} />
+       {charts.map(({ cls, c }) => c && (
+         <svg class:list={["dp-chart", cls]} viewBox={`0 0 ${c.W} ${c.H}`} role="img" aria-label={t(lang, "teamScatterAria", { competition: compName, pointsName: metricLabel(lang, POINTS), sotdName: metricInSentence(lang, SOTD), deservedName: metricInSentence(lang, DESERVED) })}>
+-          <line class="dp-axis" x1={c.L} x2={c.W - c.R} y1={c.H - c.B} y2={c.H - c.B} />
+-          <line class="dp-axis" x1={c.L} x2={c.L} y1={c.T} y2={c.H - c.B} />
++          <line class="chart-axis" x1={c.L} x2={c.W - c.R} y1={c.H - c.B} y2={c.H - c.B} />
++          <line class="chart-axis" x1={c.L} x2={c.L} y1={c.T} y2={c.H - c.B} />
+           {c.xTicks.map((x) => (
+             <>
+-              <line class="dp-axis" x1={c.sx(x)} x2={c.sx(x)} y1={c.H - c.B} y2={c.H - c.B + 4} />
+-              <text class="dp-tick" x={c.sx(x)} y={c.H - c.B + c.fs + 6} font-size={c.fs} text-anchor="middle">{fmtTick(x)}</text>
++              <line class="chart-axis" x1={c.sx(x)} x2={c.sx(x)} y1={c.H - c.B} y2={c.H - c.B + scatter.tick} />
++              <text class="chart-tick" data-fix="" x={c.sx(x)} y={c.H - c.B + scatter.tick} dy={offset.belowAxis} text-anchor="middle">{fmtTick(x)}</text>
+             </>
+           ))}
+           {c.yTicks.map((y) => (
+             <>
+-              <line class="dp-axis" x1={c.L - 4} x2={c.L} y1={c.sy(y)} y2={c.sy(y)} />
+-              <text class="dp-tick" x={c.L - 7} y={c.sy(y) + c.fs * 0.35} font-size={c.fs} text-anchor="end">{integer(y, lang)}</text>
++              <line class="chart-axis" x1={c.L - scatter.tick} x2={c.L} y1={c.sy(y)} y2={c.sy(y)} />
++              <text class="chart-tick" data-fix="" x={c.L - scatter.tick} y={c.sy(y)} dx={`-${offset.beside}`} dy={offset.middle} text-anchor="end">{integer(y, lang)}</text>
+             </>
+           ))}
+-          <text class="dp-title" x={(c.L + c.W - c.R) / 2} y={c.H - 20} font-size={c.fs} text-anchor="middle">{metricLabel(lang, SOTD)}</text>
+-          <text class="dp-tick" x={(c.L + c.W - c.R) / 2} y={c.H - 5} font-size={c.fs - 1} text-anchor="middle">{t(lang, "perMatch")}</text>
+-          <text class="dp-title" transform={`translate(13 ${(c.T + c.H - c.B) / 2}) rotate(-90)`} font-size={c.fs} text-anchor="middle">{metricLabel(lang, POINTS)}</text>
+-          <line class="dp-fit" x1={c.line.x1} y1={c.line.y1} x2={c.line.x2} y2={c.line.y2} />
++          <text class="chart-note" data-fix="" x={(c.L + c.W - c.R) / 2} y={c.H - c.B + scatter.tick} dy={offset.axisTitle} text-anchor="middle">{metricLabel(lang, SOTD)}</text>
++          <text class="chart-tick" data-fix="" x={(c.L + c.W - c.R) / 2} y={c.H - c.B + scatter.tick} dy={offset.axisSubtitle} text-anchor="middle">{t(lang, "perMatch")}</text>
++          <text class="chart-note" data-fix={`translate(${scatter.yTitleX} ${(c.T + c.H - c.B) / 2}) rotate(-90)`} transform={`translate(${scatter.yTitleX} ${(c.T + c.H - c.B) / 2}) rotate(-90)`} text-anchor="middle">{metricLabel(lang, POINTS)}</text>
++          <line class="chart-ref" x1={c.line.x1} y1={c.line.y1} x2={c.line.x2} y2={c.line.y2} />
+           {dots.filter((d) => !d.is_self).map((d) => (
+-            <circle class="dp-club" cx={c.sx(d.sotd)} cy={c.sy(d.points)} r="3" data-px="3"><title>{tip(d)}</title></circle>
++            <circle class="chart-dot" data-fix="" cx={c.sx(d.sotd)} cy={c.sy(d.points)}></circle>
+           ))}
+-          <line class="dp-gap" x1={c.me.cx} x2={c.me.cx} y1={c.me.cy} y2={c.me.cl} />
+-          <circle class="dp-me" cx={c.me.cx} cy={c.me.cy} r="5" data-px="5" data-halo="2"><title>{tip(me)}</title></circle>
+-          <text class="dp-note" x={c.me.gx} y={c.me.gy} font-size={c.fs} text-anchor={c.me.ganchor}>{gapText}</text>
+-          <text class="dp-name" x={c.me.lx} y={c.me.cy + c.fs * 0.35} font-size={c.fs} text-anchor={c.me.anchor}>{teamName}</text>
++          <line class="chart-gap" x1={c.me.cx} x2={c.me.cx} y1={c.me.cy} y2={c.me.cl} />
++          <circle class="chart-dot chart-me" data-fix="" cx={c.me.cx} cy={c.me.cy}></circle>
++          <text class="chart-note" data-fix="" data-role="gap" x={c.me.cx} y={c.me.gy} dx={c.me.gdx} dy={c.me.gdy} text-anchor={c.me.ganchor}>{gapText}</text>
++          <text class="chart-label" data-fix="" data-role="name" x={c.me.cx} y={c.me.cy} dx={c.me.dx} dy={offset.middle} text-anchor={c.me.anchor}>{teamName}</text>
+         </svg>
+       ))}
+     </div>
+diff --git a/site_v2/src/components/team/TeamLeagueStrips.astro b/site_v2/src/components/team/TeamLeagueStrips.astro
+index d8b6c738..5413f63f 100644
+--- a/site_v2/src/components/team/TeamLeagueStrips.astro
++++ b/site_v2/src/components/team/TeamLeagueStrips.astro
+@@ -4,9 +4,12 @@
+ // lowest to its highest value, values growing to the right; every other club is a small light dot,
+ // the team the one solid dot. The team's rank (the mart's, by the metric's direction) stands on the
+ // right with its value under it; "better" points the metric's way. A row without a value for the team is left out. The key metrics show; the switch shows
+-// every row in its place. Data: mart_team_competition_benchmarks and its every-club strip.
++// every row in its place. Look from the chart theme (system.css). Data:
++// mart_team_competition_benchmarks and its every-club strip.
+ import SectionHead from "../ui/SectionHead.astro";
+ import MetricSwitch from "../ui/MetricSwitch.astro";
++import ChartLegend from "../ui/ChartLegend.astro";
++import { stripInset } from "../../lib/chartTheme";
+ import type { Lang } from "../../lib/format";
+ import { formatValue, ordinal } from "../../lib/format";
+ import { t, metricLabel, boardTitle } from "../../i18n/strings";
+@@ -29,9 +32,9 @@ const groups = comparisonGroups(values, null).map((g) => ({ ...g, rows: g.rows.m
+   .map((g) => ({ ...g, rows: g.rows.filter((r) => bench.get(r.metric_id)?.metric_value != null) }))
+   .filter((g) => g.rows.length > 0);
+ 
+-// A value's place on the line, inside 3%–97% so no dot is cut at an end.
++// A value's place on the line, inside the inset at each end so no dot is cut.
+ function place(v: number, lo: number, hi: number): number {
+-  return hi === lo ? 50 : 3 + ((v - lo) / (hi - lo)) * 94;
++  return hi === lo ? 50 : stripInset + ((v - lo) / (hi - lo)) * (100 - 2 * stripInset);
+ }
+ ---
+ 
+@@ -40,11 +43,11 @@ function place(v: number, lo: number, hi: number): number {
+     <SectionHead label={t(lang, "teamVsLeague")} />
+     <p class="bsub">{t(lang, "teamVsLeagueIntro", { competition: compName })}</p>
+     {needsSwitch(groups) && <MetricSwitch id="tsw-league" lang={lang} />}
+-    <div class="rs-list">
+-      <div class="rs-legend" aria-hidden="true">
+-        <span><i class="rs-k-dot"></i>{teamName}</span>
+-        <span><i class="rs-k-club"></i>{t(lang, "teamOtherTeams", { competition: compName })}</span>
+-      </div>
++    <div class="chart">
++      <ChartLegend keys={[
++        { mark: "team", label: teamName },
++        { mark: "other", label: t(lang, "teamOtherTeams", { competition: compName }) },
++      ]} />
+       {groups.map((g) => (
+         <div class:list={["fxgroup", "rkgroup", { nonkey: !g.hasKey }]}>
+           <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${g.key}.label`)}</span></div>
+@@ -57,15 +60,15 @@ function place(v: number, lo: number, hi: number): number {
+             const hi = all.length ? Math.max(...all, v) : v;
+             return (
+               <div class:list={["rs-row", { nonkey: !r.is_key_metric }]} data-metric={r.metric_id}>
+-                <span class="rs-name">{boardTitle(lang, r.label_i18n_key, r.per_match)}</span>
+-                <span class="rs-strip">
+-                  <span class="rs-line"></span>
++                <span class="chart-name">{boardTitle(lang, r.label_i18n_key, r.per_match)}</span>
++                <span class="rs-band">
++                  <span class="chart-axis"></span>
+                   {clubs.filter((c) => !c.is_self).map((c) => (
+-                    <span class="rs-club" style={`left:${place(c.value, lo, hi)}%`} title={`${c.name}: ${formatValue(c.value, r.format, lang)}`}></span>
++                    <span style={`left:${place(c.value, lo, hi)}%`}><i class="chart-dot"></i></span>
+                   ))}
+-                  <span class="rs-dot" style={`left:${place(v, lo, hi)}%`} title={`${teamName}: ${formatValue(v, r.format, lang)}`}></span>
+-                  {r.direction === "higher_better" && <span class="rs-dir r">{t(lang, "teamBetterRight")}</span>}
+-                  {r.direction === "lower_better" && <span class="rs-dir">{t(lang, "teamBetterLeft")}</span>}
++                  <span style={`left:${place(v, lo, hi)}%`}><i class="chart-dot chart-me"></i></span>
++                  {r.direction === "higher_better" && <span class="chart-tick chart-end">{t(lang, "teamBetterRight")}</span>}
++                  {r.direction === "lower_better" && <span class="chart-tick">{t(lang, "teamBetterLeft")}</span>}
+                 </span>
+                 <span class="rs-val">{ordinal(b.rank, lang)}<small>{formatValue(v, r.format, lang)}</small></span>
+               </div>
+diff --git a/site_v2/src/components/ui/ChartLegend.astro b/site_v2/src/components/ui/ChartLegend.astro
+new file mode 100644
+index 00000000..578a2282
+--- /dev/null
++++ b/site_v2/src/components/ui/ChartLegend.astro
+@@ -0,0 +1,13 @@
++---
++// The one chart legend, above its chart: a key per mark, each followed by its name. The keys are the
++// chart's own marks: the team's dot, the other teams' dot, a reference line, a gap line.
++interface Props {
++  keys: { mark: "team" | "other" | "ref" | "gap"; label: string }[];
++}
++const { keys } = Astro.props;
++const MARK = { team: "chart-dot chart-me", other: "chart-dot", ref: "chart-line chart-ref", gap: "chart-line chart-gap" };
++---
++
++<div class="chart-legend" aria-hidden="true">
++  {keys.map((k) => <span class="chart-key"><i class={MARK[k.mark]}></i>{k.label}</span>)}
++</div>
+diff --git a/site_v2/src/lib/chartMarks.mjs b/site_v2/src/lib/chartMarks.mjs
+index 52003776..0e0f8d9f 100644
+--- a/site_v2/src/lib/chartMarks.mjs
++++ b/site_v2/src/lib/chartMarks.mjs
+@@ -1,20 +1,84 @@
+-// A chart's marks keep their pixel size at every width: each circle carrying `data-px` (its radius
+-// in pixels) and `data-halo` (its halo in pixels) is rescaled to the drawing's current width.
++// A chart drawing's text and marks keep their system.css size at every width: each element carrying
++// `data-fix` (its own transform, if any) is scaled back by the drawing's current scale around its
++// anchor point. A label marked `data-role="gap"` then takes the height nearest the team's dot, on
++// the side the build gave it, where it meets no line, dot, axis or other label: its size is fixed
++// on screen while the drawing scales, so no height chosen at build time is clear at every width.
++
++function scale(el, k) {
++  const x = Number(el.getAttribute("cx") ?? el.getAttribute("x") ?? 0);
++  const y = Number(el.getAttribute("cy") ?? el.getAttribute("y") ?? 0);
++  el.setAttribute("transform", `${el.dataset.fix} translate(${x} ${y}) scale(${k}) translate(${-x} ${-y})`.trim());
++}
++
++const rect = (el) => el.getBoundingClientRect();
++const meets = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
++
++function segmentMeets(svg, line, r, pad = 1) {
++  const m = svg.getScreenCTM();
++  const at = (x, y) => new DOMPoint(Number(line.getAttribute(x)), Number(line.getAttribute(y))).matrixTransform(m);
++  const a = at("x1", "y1"), b = at("x2", "y2");
++  const l = r.left - pad, t = r.top - pad, rr = r.right + pad, bb = r.bottom + pad;
++  const inside = (p) => p.x > l && p.x < rr && p.y > t && p.y < bb;
++  if (inside(a) || inside(b)) return true;
++  const side = (p, q, s) => (s.x - p.x) * (q.y - p.y) - (s.y - p.y) * (q.x - p.x);
++  const cross = (p, q, s, u) => (side(s, u, p) > 0) !== (side(s, u, q) > 0) && (side(p, q, s) > 0) !== (side(p, q, u) > 0);
++  const c = [{ x: l, y: t }, { x: rr, y: t }, { x: rr, y: bb }, { x: l, y: bb }];
++  return c.some((s, i) => cross(a, b, s, c[(i + 1) % 4]));
++}
++
++function dotMeets(dot, r) {
++  const d = rect(dot), cx = (d.left + d.right) / 2, cy = (d.top + d.bottom) / 2, rad = (d.right - d.left) / 2;
++  const nx = Math.max(r.left, Math.min(cx, r.right)), ny = Math.max(r.top, Math.min(cy, r.bottom));
++  return (nx - cx) ** 2 + (ny - cy) ** 2 < rad * rad;
++}
++
++function hits(svg, label, box) {
++  const r = rect(label);
++  let n = 0;
++  if (r.left < box.left || r.right > box.right || r.top < box.top || r.bottom > box.bottom) n++;
++  for (const line of svg.querySelectorAll("line")) if (segmentMeets(svg, line, r)) n++;
++  for (const dot of svg.querySelectorAll("circle")) if (dotMeets(dot, r)) n++;
++  for (const text of svg.querySelectorAll("text")) if (text !== label && meets(rect(text), r)) n++;
++  return n;
++}
++
++function place(svg, k) {
++  const label = svg.querySelector('[data-role="gap"]');
++  const dot = svg.querySelector(".chart-me");
++  if (!label || !dot) return;
++  label.dataset.y0 ??= label.getAttribute("y");
++  const y0 = Number(label.dataset.y0);
++  const box = rect(svg);
++  const set = (y) => { label.setAttribute("y", String(y)); scale(label, k); };
++  set(y0);
++  const start = rect(label), h = start.bottom - start.top, d = rect(dot);
++  const toDot = ((d.top + d.bottom) / 2 - (start.top + start.bottom) / 2) * k;
++  let best = { y: y0, n: hits(svg, label, box) };
++  for (let i = 0; best.n && i <= 16; i++) {
++    const y = y0 + toDot + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * h * 0.5 * k;
++    set(y);
++    const n = hits(svg, label, box);
++    if (n < best.n) best = { y, n };
++  }
++  set(best.y);
++}
+ 
+ function fit() {
+-  for (const svg of document.querySelectorAll("svg.dp-chart")) {
++  for (const svg of document.querySelectorAll(".chart svg[viewBox]")) {
+     const w = svg.getBoundingClientRect().width;
+     if (!w) continue;
+     const k = svg.viewBox.baseVal.width / w;
+-    for (const c of svg.querySelectorAll("circle[data-px]")) {
+-      c.setAttribute("r", String(Number(c.dataset.px) * k));
+-      if (c.dataset.halo) c.setAttribute("stroke-width", String(Number(c.dataset.halo) * 2 * k));
+-    }
++    for (const el of svg.querySelectorAll("[data-fix]")) scale(el, k);
++    place(svg, k);
+   }
+ }
+ 
+ if (typeof document !== "undefined") {
+-  new ResizeObserver(fit).observe(document.body);
++  // A tab or a toggle shows a drawing on its `change`, fitted at once; each drawing is also watched,
++  // so a change of width fits it. A resize is reported only on a rendered frame, which a page the
++  // browser is not painting never gets.
+   document.addEventListener("change", fit);
++  const watch = new ResizeObserver(fit);
++  for (const svg of document.querySelectorAll(".chart svg[viewBox]")) watch.observe(svg);
+   fit();
+ }
+diff --git a/site_v2/src/lib/chartTheme.ts b/site_v2/src/lib/chartTheme.ts
+new file mode 100644
+index 00000000..9bd68804
+--- /dev/null
++++ b/site_v2/src/lib/chartTheme.ts
+@@ -0,0 +1,29 @@
++// The charts' layout numbers: each drawing's size and margins in drawing units, and a text's offset
++// from the point it labels in em of its own size. Every look value (colour, line, dot and text
++// size) is in system.css.
++
++export const scatter = {
++  forms: [
++    { cls: "chart-wide", width: 560, height: 330, left: 46 },
++    { cls: "chart-narrow", width: 280, height: 230, left: 44 },
++  ],
++  right: 14,
++  top: 12,
++  bottom: 58,
++  tick: 4,
++  yTitleX: 11,
++  // A label character's width, generous so a label moves before it meets the axis.
++  labelChar: 7.7,
++};
++
++export const offset = {
++  belowAxis: "1.2em",
++  axisTitle: "2.5em",
++  axisSubtitle: "3.9em",
++  beside: "0.6em",
++  middle: "0.35em",
++  under: "1.85em",
++};
++
++// A strip plot keeps this share of its width free at each end, in percent, so no dot is cut.
++export const stripInset = 3;
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index b9f707a0..70448f26 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -136,25 +136,16 @@ section { margin-top: 36px; }
+  * ============================================================ */
+ .cmp { margin-top: 22px; }
+ .cmp-head,
+-.mrow { display: grid; grid-template-columns: 1fr 1.5fr 1fr; align-items: center; gap: 12px; }
++.cmp-row { display: grid; grid-template-columns: 1fr 1.5fr 1fr; align-items: center; gap: 12px; }
+ .cmp-head { padding-bottom: 10px; border-bottom: 1px solid var(--line); margin-bottom: 2px; }
+ .cmp-head .h { font-size: 12px; font-weight: 700; color: var(--muted); text-align: center; letter-spacing: .02em; }
+-.mgroup { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); text-align: center; padding: 22px 0 8px; }
+-.mrow { padding: 10px 0; }
+-.mmid { display: flex; flex-direction: column; align-items: center; gap: 9px; min-width: 0; }
+-.mlabel { font-size: 13px; color: var(--muted); line-height: 1.25; text-align: center; }
+-.mlabel small { display: block; font-size: 11px; opacity: .8; }
+-.mval { font-size: 18px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; text-align: center; }
+-.mval.better { color: var(--accent); }
+-.mval .sub { display: block; font-size: 11px; font-weight: 600; color: var(--muted); }
+-.mbar { display: flex; align-items: center; height: 5px; width: 100%; max-width: 250px; }
+-.bside { flex: 1; height: 100%; display: flex; background: var(--track); border-radius: 3px; }
+-.bside.home { justify-content: flex-end; margin-right: 1px; }
+-.bside.away { justify-content: flex-start; margin-left: 1px; }
+-.bside.home .fill { border-radius: 3px 0 0 3px; }
+-.bside.away .fill { border-radius: 0 3px 3px 0; }
+-.fill { height: 100%; background: var(--ink); transition: width .45s cubic-bezier(.4, 0, .2, 1); }
+-.fill.better { background: var(--accent); }
++.cmp-row { padding: 10px 0; }
++.cmp-mid { display: flex; flex-direction: column; align-items: center; gap: 9px; min-width: 0; }
++.cmp-label { line-height: 1.25; text-align: center; }
++.cmp-label > span { display: block; }
++.cmp-val { font-size: var(--chart-text-value); font-weight: 700; color: var(--chart-team); font-variant-numeric: tabular-nums; text-align: center; }
++.cmp-val.chart-better { color: var(--chart-better); }
++.cmp-val .sub { display: block; font-size: 11px; font-weight: 600; color: var(--muted); }
+ 
+ /* ---- two-column sections ---- */
+ .split { display: grid; grid-template-columns: 1fr; gap: 8px 30px; margin-top: 4px; }
+@@ -894,24 +885,24 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+ .mp .mast .resline { font-size: 13px; color: var(--muted); margin-top: 14px; }
+ .mp .mast .resline b { color: var(--ink-2); font-weight: 600; }
+ 
+-/* Form comparison: one head row of each team's name over its pills; each metric group under the
+-   Rankings tab's group heading; a row is number · name · number with the bar the full width beneath. */
+-.mp .formhead { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--line); margin-bottom: 2px; }
+-.mp .formhead .fh { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+-.mp .formhead .fh.home { align-items: flex-start; text-align: left; }
+-.mp .formhead .fh.away { align-items: flex-end; text-align: right; }
+-.mp .formhead .h { font-size: 14px; font-weight: 600; color: var(--ink); }
+-.mp .formhead .pills { width: 100%; max-width: 140px; }
+-.mp .formhead .away .pills { justify-content: flex-end; }
+-.mp .formhead .pill { width: auto; height: auto; flex: 0 1 24px; min-width: 0; aspect-ratio: 1; }
+-.mp .mgroup { font-size: 17px; font-weight: 700; line-height: 1.2; letter-spacing: normal; text-transform: none; color: var(--ink);
+-              text-align: left; padding: 34px 0 0; margin-bottom: 26px; }
+-.mp .mrow { grid-template-columns: 4.6ch 1fr 4.6ch; grid-template-areas: "home lab away" "bar bar bar"; column-gap: 12px; row-gap: 6px; }
+-.mp .mrow .mmid { display: contents; }
+-.mp .mrow .mlabel { grid-area: lab; }
+-.mp .mrow .mbar { grid-area: bar; max-width: none; }
+-.mp .mrow .mval.home { grid-area: home; text-align: left; }
+-.mp .mrow .mval.away { grid-area: away; text-align: right; }
++/* The comparison element: one head row of each team's name, in the chart legend's style, over its
++   pills; each metric group under the chart family's group heading; a row is number · name · number
++   with the chart bar the full width beneath. */
++.cmp .formhead { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin: 2px 0 8px; }
++.cmp .formhead .cmp-team { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
++.cmp .formhead .cmp-team.cmp-home { align-items: flex-start; text-align: left; }
++.cmp .formhead .cmp-team.cmp-away { align-items: flex-end; text-align: right; }
++.cmp .formhead .h { font-size: var(--chart-text); font-weight: 400; color: var(--chart-line); }
++.cmp .formhead .pills { width: 100%; max-width: 140px; }
++.cmp .formhead .cmp-away .pills { justify-content: flex-end; }
++.cmp .formhead .pill { width: auto; height: auto; flex: 0 1 24px; min-width: 0; aspect-ratio: 1; }
++.cmp .rkgroup > .gh { margin-bottom: 15px; }
++.cmp .cmp-row { grid-template-columns: 4.6ch 1fr 4.6ch; grid-template-areas: "home lab away" "bar bar bar"; column-gap: 12px; row-gap: 6px; }
++.cmp .cmp-row .cmp-mid { display: contents; }
++.cmp .cmp-row .cmp-label { grid-area: lab; }
++.cmp .cmp-row .chart-bar { grid-area: bar; }
++.cmp .cmp-row .cmp-val.cmp-home { grid-area: home; text-align: left; }
++.cmp .cmp-row .cmp-val.cmp-away { grid-area: away; text-align: right; }
+ 
+ /* Show all metrics: off, the rows and headings marked `nonkey` after the switch are hidden. */
+ .tsw:not(:checked) ~ * .nonkey { display: none; }
+@@ -1024,53 +1015,72 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
+ .ctab.dpm .tm .nm { font-weight: 400; }
+ .ctab.dpm .n.dpm-v { font-size: 15px; font-weight: 700; color: var(--ink); }
+ .dpm-sub { display: block; font-size: 12px; color: var(--muted); font-weight: 400; }
+-.dp-wrap { container-type: inline-size; margin-top: 18px; }
+-.dp-wrap .dp-narrow { display: none; }
++.ctab.dpm + .chart { margin-top: 18px; }
++
++/* ============================================================ *
++ *  CHARTS — the theme every chart reads. Its look values are    *
++ *  here; its layout numbers are in lib/chartTheme.ts. SVG text  *
++ *  and marks keep these sizes at every width (chartMarks.mjs).  *
++ * ============================================================ */
++.fx {
++  --chart-axis: var(--muted);                                          /* axis lines, ticks, tick labels */
++  --chart-line: var(--ink-2);                                          /* reference lines, notes, titles */
++  --chart-team: var(--ink);                                            /* the team's mark and name */
++  --chart-other: color-mix(in srgb, var(--ink) 24%, transparent);      /* every other team's mark */
++  --chart-better: var(--accent);                                       /* the better value of two */
++  --chart-dot-team: 10px; --chart-dot-other: 6px; --chart-halo: 2px; --chart-bar: 5px;
++  --chart-text-tick: 11px; --chart-text: 12px; --chart-text-name: 14px; --chart-text-value: 15px;
++}
++.chart { container-type: inline-size; }
++.chart .chart-narrow { display: none; }
+ @container (max-width: 479.98px) {
+-  .dp-wrap .dp-wide { display: none; }
+-  .dp-wrap .dp-narrow { display: block; }
++  .chart .chart-wide { display: none; }
++  .chart .chart-narrow { display: block; }
++  .chart .rs-row { grid-template-columns: minmax(0, 1fr) 4.2rem; row-gap: 6px; }
++  .chart .rs-row .rs-band { grid-column: 1 / -1; grid-row: 2; }
+ }
++.chart-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: var(--chart-text); color: var(--chart-line); margin: 2px 0 8px; }
++.chart-key { display: inline-flex; align-items: center; gap: 6px; }
++.chart-line { display: inline-block; }
++.chart-line.chart-ref { width: 22px; border-top: 1.5px solid var(--chart-line); }
++.chart-line.chart-gap { width: 1px; height: 12px; background: repeating-linear-gradient(var(--chart-line) 0 2px, transparent 2px 4px); }
+ .dp-chart { width: 100%; height: auto; display: block; font-family: inherit; }
+-.dp-chart text { font-family: inherit; }
+-.dp-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--ink-2); margin: 0 0 8px; }
+-.dp-legend span { display: inline-flex; align-items: center; gap: 6px; }
+-.dp-axis { stroke: var(--muted); stroke-width: 1; }
+-.dp-tick { fill: var(--muted); }
+-.dp-title, .dp-note { fill: var(--ink-2); }
+-.dp-name { fill: var(--ink); }
+-.dp-fit { stroke: var(--ink-2); stroke-width: 1.5; }
+-.dp-gap { stroke: var(--ink-2); stroke-width: 1; stroke-dasharray: 2 2; }
+-.dp-club { fill: color-mix(in srgb, var(--ink) 24%, transparent); }
+-.dp-me { fill: var(--ink); stroke: var(--page); paint-order: stroke; stroke-width: 4; }
+-.dp-k-me, .dp-k-club { display: inline-block; border-radius: 50%; }
+-.dp-k-me { width: 10px; height: 10px; background: var(--ink); }
+-.dp-k-club { width: 6px; height: 6px; background: color-mix(in srgb, var(--ink) 24%, transparent); }
++.chart svg text { font-family: inherit; }
++.chart svg line { vector-effect: non-scaling-stroke; }
++.chart-axis { stroke: var(--chart-axis); stroke-width: 1px; }
++.chart-ref { stroke: var(--chart-line); stroke-width: 1.5px; }
++.chart-gap { stroke: var(--chart-line); stroke-width: 1px; stroke-dasharray: 2 2; }
++.chart-tick { fill: var(--chart-axis); color: var(--chart-axis); font-size: var(--chart-text-tick); }
++.chart-note { fill: var(--chart-line); font-size: var(--chart-text); }
++.chart-label { fill: var(--chart-team); font-size: var(--chart-text); }
++.chart-name { font-size: var(--chart-text-name); color: var(--chart-team); line-height: 1.3; }
++.chart-dot { display: inline-block; border-radius: 50%; r: calc(var(--chart-dot-other) / 2);
++  width: var(--chart-dot-other); height: var(--chart-dot-other); fill: var(--chart-other); background: var(--chart-other); }
++.chart-dot.chart-me { r: calc(var(--chart-dot-team) / 2); width: var(--chart-dot-team); height: var(--chart-dot-team);
++  fill: var(--chart-team); background: var(--chart-team);
++  stroke: var(--page); stroke-width: calc(var(--chart-halo) * 2); paint-order: stroke; box-shadow: 0 0 0 var(--chart-halo) var(--page); }
++/* The bar: two sides meeting at the centre, each filled to its value's share of the larger. */
++.chart-bar { display: flex; align-items: center; height: var(--chart-bar); width: 100%; }
++.chart-bar > span { flex: 1; height: 100%; display: flex; background: var(--track); border-radius: 3px; }
++.chart-bar > span:first-child { justify-content: flex-end; margin-right: 1px; }
++.chart-bar > span:last-child { justify-content: flex-start; margin-left: 1px; }
++.chart-bar > span > span { height: 100%; background: var(--chart-team); }
++.chart-bar > span:first-child > span { border-radius: 3px 0 0 3px; }
++.chart-bar > span:last-child > span { border-radius: 0 3px 3px 0; }
++.chart-bar > .chart-better > span { background: var(--chart-better); }
+ 
+ /* The strip plot: a metric's name · the league from its lowest to its highest value, values growing
+    to the right, every other club a light dot, the team the solid dot · the team's rank over its
+    value. Narrow, the strip takes the row's second line. */
+-.rs-list { container-type: inline-size; }
+-.rs-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--ink-2); margin: 2px 0 6px; }
+-.rs-legend span { display: inline-flex; align-items: center; gap: 6px; }
+-.rs-k-club { width: 6px; height: 6px; border-radius: 50%; background: color-mix(in srgb, var(--ink) 24%, transparent); }
+-.rs-k-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ink); }
+ .rs-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) 4.6rem; column-gap: 14px; align-items: center;
+   padding: 10px 0; border-bottom: 1px solid var(--line); }
+-.rs-name { font-size: 14px; color: var(--ink); line-height: 1.3; }
+-.rs-strip { position: relative; height: 14px; margin: 10px 0 14px; }
+-.rs-line { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--div); }
+-.rs-club { position: absolute; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%;
+-  background: color-mix(in srgb, var(--ink) 24%, transparent); }
+-.rs-dot { position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%;
+-  background: var(--ink); box-shadow: 0 0 0 2px var(--page); }
+-.rs-dir { position: absolute; top: 16px; left: 0; font-size: 11px; color: var(--muted); white-space: nowrap; }
+-.rs-dir.r { left: auto; right: 0; }
+-.rs-val { text-align: right; font-size: 15px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.25; }
+-.rs-val small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
+-@container (max-width: 479.98px) {
+-  .rs-row { grid-template-columns: minmax(0, 1fr) 4.2rem; row-gap: 6px; }
+-  .rs-row .rs-strip { grid-column: 1 / -1; grid-row: 2; }
+-}
++.rs-band { position: relative; height: 14px; margin: 10px 0 14px; }
++.rs-band > .chart-axis { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--chart-axis); }
++.rs-band > span:not([class]) { position: absolute; top: 50%; translate: -50% -50%; display: flex; }
++.rs-band > .chart-tick { position: absolute; top: 16px; left: 0; white-space: nowrap; }
++.rs-band > .chart-tick.chart-end { left: auto; right: 0; }
++.rs-val { text-align: right; font-size: var(--chart-text-value); font-weight: 700; color: var(--chart-team); font-variant-numeric: tabular-nums; line-height: 1.25; }
++.rs-val small { display: block; font-size: var(--chart-text); font-weight: 400; color: var(--muted); }
+ 
+ /* Compared with last season: a table of this season, last season and the trend; ▲ in the accent when
+    better, ▼ in the loss red when worse, "–" when equal. The stripes count the rows on screen. */
+diff --git a/tests/fixtures/design_inventory/baseline.json b/tests/fixtures/design_inventory/baseline.json
+index 9c8204ad..e5e88c16 100644
+--- a/tests/fixtures/design_inventory/baseline.json
++++ b/tests/fixtures/design_inventory/baseline.json
+@@ -2,7 +2,7 @@
+  "static": {
+   "mock_css": {"design-mocks/gen_competitions.py": 13, "design-mocks/gen_interaction.py": 3, "design-mocks/gen_match_page.py": 33, "design-mocks/gen_navmap.py": 6, "design-mocks/gen_sitemap.py": 8, "design-mocks/gen_taxonomy.py": 6, "design-mocks/gen_team_mock.py": 73},
+   "css_outside_system_css": {"site_v2/src/components/fixture/MetricRow.astro": 2, "site_v2/src/components/team/TeamLeagueStrips.astro": 2, "site_v2/src/lib/fitBlocks.mjs": 2},
+-  "width_rules": {"340px": 1, "420px": 4, "430px": 2, "470px": 1, "479.98px": 2, "480px": 1, "520px": 1, "560px": 2, "599.98px": 2, "699.98px": 4, "700px": 1, "800px": 1, "900px": 1, "1010px": 1},
++  "width_rules": {"340px": 1, "420px": 4, "430px": 2, "470px": 1, "479.98px": 1, "480px": 1, "520px": 1, "560px": 2, "599.98px": 2, "699.98px": 4, "700px": 1, "800px": 1, "900px": 1, "1010px": 1},
+   "banned_properties": {"site_v2/src/styles/system.css": 7},
+   "literal_text": {"site_v2/src/components/chrome/SiteFooter.astro": 3, "site_v2/src/components/chrome/SiteHeader.astro": 2, "site_v2/src/pages/index.astro": 2}
+  },
+diff --git a/tests/test_check_chart_components.py b/tests/test_check_chart_components.py
+new file mode 100644
+index 00000000..d82f7d91
+--- /dev/null
++++ b/tests/test_check_chart_components.py
+@@ -0,0 +1,92 @@
++"""The chart-component check: green on the tree, red on each look a chart component may not set."""
++
++import sys
++from pathlib import Path
++
++sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
++import check_chart_components as ccc  # noqa: E402
++
++CHART = '---\nconst x = 1;\n---\n<div class="chart">%s</div>\n'
++
++
++def _site(tmp_path: Path, body: str, name: str = "Chart.astro") -> Path:
++    src = tmp_path / "site_v2" / "src"
++    (src / "components").mkdir(parents=True)
++    (src / "lib").mkdir()
++    (src / "lib" / "chartTheme.ts").write_text("export const scatter = { width: 560, gap: \"0.6em\" };\n", encoding="utf-8")
++    (src / "components" / name).write_text(body, encoding="utf-8")
++    return src
++
++
++def _run(src: Path, root: Path):
++    return ccc.run(src, src / "lib" / "chartTheme.ts", root)
++
++
++def test_the_tree_is_clean_and_finds_every_chart_component():
++    findings, components = ccc.run()
++    assert findings == []
++    assert components == [
++        "site_v2/src/components/fixture/MetricComparison.astro",
++        "site_v2/src/components/fixture/MetricRow.astro",
++        "site_v2/src/components/team/TeamDeserved.astro",
++        "site_v2/src/components/team/TeamLeagueStrips.astro",
++        "site_v2/src/components/ui/ChartLegend.astro",
++    ]
++
++
++def test_a_theme_class_and_a_data_position_pass(tmp_path):
++    src = _site(tmp_path, CHART % '<span style={`left:${p}%`}><i class="chart-dot"></i></span><text x={c.x} dy="0.6em">a</text>')
++    assert _run(src, tmp_path) == ([], ["site_v2/src/components/Chart.astro"])
++
++
++def test_a_look_attribute_fails(tmp_path):
++    for attr in ('font-size="12"', 'fill="#fff"', 'r="3"', "stroke-width={2}", 'width="22"'):
++        src = _site(tmp_path / attr.split("=")[0], CHART % ("<circle %s></circle>" % attr))
++        findings, _ = _run(src, tmp_path / attr.split("=")[0])
++        assert len(findings) == 1 and attr.split("=")[0] in findings[0], attr
++
++
++def test_a_style_other_than_a_data_position_fails(tmp_path):
++    for style in ('style="left:5px"', 'style={`color:${c}`}', 'style={`left:${p}px`}'):
++        src = _site(tmp_path / str(abs(hash(style))), CHART % ("<span %s></span>" % style))
++        findings, _ = _run(src, tmp_path / str(abs(hash(style))))
++        assert len(findings) == 1 and "style=" in findings[0], style
++
++
++def test_a_style_block_fails(tmp_path):
++    src = _site(tmp_path, CHART % "" + "<style>.chart { color: red; }</style>\n")
++    findings, _ = _run(src, tmp_path)
++    assert any("style block" in f for f in findings)
++
++
++def test_a_component_without_a_theme_class_is_not_a_chart(tmp_path):
++    src = _site(tmp_path, '<div class="lrow"><svg width="22" height="8"></svg></div>\n')
++    assert _run(src, tmp_path) == ([], [])
++
++
++def test_a_tooltip_fails_anywhere_on_the_site(tmp_path):
++    cases = {
++        "attr": '<div class="lrow"><span title="Team: 3">x</span></div>\n',
++        "svg": '<svg viewBox="0 0 10 10"><circle cx="1" cy="1"><title>Team</title></circle></svg>\n',
++        "script": '<div class="lrow"></div>\n<script>document.querySelector("i").setAttribute("title", "x");</script>\n',
++    }
++    for name, body in cases.items():
++        src = _site(tmp_path / name, body, "Row.astro")
++        findings, _ = _run(src, tmp_path / name)
++        assert len(findings) == 1 and "tooltip" in findings[0], (name, findings)
++
++
++def test_the_page_title_and_a_component_title_prop_pass(tmp_path):
++    body = ('---\n// the page\'s <title> comes from the strings\n---\n'
++            '<html><head><title>{title}</title></head><body><Layout title={title} /><!-- <title> --></body></html>\n')
++    src = _site(tmp_path, body, "Page.astro")
++    assert _run(src, tmp_path) == ([], [])
++
++
++def test_a_colour_or_a_pixel_size_in_the_layout_file_fails(tmp_path):
++    src = _site(tmp_path, CHART % "")
++    theme = src / "lib" / "chartTheme.ts"
++    for look in ('dot: "6px"', 'axis: "#8b9099"', 'line: "var(--ink)"'):
++        theme.write_text("export const t = { %s };\n" % look, encoding="utf-8")
++        findings, _ = _run(src, tmp_path)
++        assert len(findings) == 1 and "layout file" in findings[0], look
+diff --git a/tests/test_check_chart_screenshots.py b/tests/test_check_chart_screenshots.py
+new file mode 100644
+index 00000000..50b02f2b
+--- /dev/null
++++ b/tests/test_check_chart_screenshots.py
+@@ -0,0 +1,228 @@
++"""The chart screenshot check: pins compared by hash, pins written on Linux only, every chart mark's
++computed colour held to the theme, and the scatter plot's difference label placed in a reader's flow,
++each red on the defect it guards against."""
++
++import re
++import sys
++from pathlib import Path
 +
 +import pytest
 +
-+HOOKS = os.path.join(os.path.dirname(__file__), "..", ".claude", "hooks")
++sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
++import check_chart_screenshots as ccs  # noqa: E402
 +
-+ROUTING = {
-+    "always": ["scope-auditor"],
-+    "paths": {},
-+    "artifact_only": [".claude/task/**"],
-+    "artifact_only_never": [".claude/task/contract.md"],
-+    "hash_exclude_paths": [".claude/task/review.md", ".claude/task/review_input.patch"],
-+    "review_exclude_paths": [".claude/task/review.md", ".claude/task/review_input.patch"],
-+}
++DIST = ccs.DIST
 +
 +
-+def _contract(scoped: str) -> str:
-+    return (
-+        "# Task contract — test\nobjective: >\n  test\nrefs: test\n\n"
-+        f"scope_paths:\n  - {scoped}\n\n"
-+        "decisions_taken: >\n  test\ndecisions_reserved:\n  - none\n"
-+        "done_when:\n  - test\namendments: (none)\n"
-+    )
++def _chromium_available() -> bool:
++    try:
++        from playwright.sync_api import sync_playwright
++
++        with sync_playwright() as pw:
++            pw.chromium.launch().close()
++        return True
++    except Exception:
++        return False
 +
 +
-+def _git(cwd, *args) -> None:
-+    subprocess.run(["git", *args], cwd=str(cwd), check=True, capture_output=True)
++needs_site = pytest.mark.skipif(not (DIST / "en").is_dir() or not _chromium_available(),
++                                reason="needs the built site and Playwright's Chromium")
 +
 +
-+def _commit_all(cwd, msg: str) -> None:
-+    _git(cwd, "add", "-A")
-+    _git(cwd, "commit", "-qm", msg)
++def test_compare_names_every_changed_new_and_gone_pin():
++    pinned = {"platform": "linux", "shots": {"a.png": "1", "b.png": "2", "c.png": "3"}}
++    now = {"platform": "linux", "shots": {"a.png": "1", "b.png": "9", "d.png": "4"}}
++    assert ccs.compare(pinned, now) == ["b.png · changed", "d.png · new", "c.png · gone"]
++    assert ccs.compare(pinned, pinned) == []
 +
 +
-+@pytest.fixture()
-+def trees(tmp_path):
-+    main = tmp_path / "main"
-+    (main / ".claude" / "task").mkdir(parents=True)
-+    (main / "notes").mkdir()
-+    _git(main, "init", "-q", "-b", "main")
-+    _git(main, "config", "user.email", "t@t")
-+    _git(main, "config", "user.name", "t")
-+    (main / ".gitignore").write_text(".claude/worktrees/\n.venv/\n")
-+    (main / ".claude" / "review_routing.json").write_text(json.dumps(ROUTING))
-+    (main / ".claude" / "task" / "contract.md").write_text(_contract("notes/a.txt"))
-+    (main / "notes" / "a.txt").write_text("a")
-+    (main / "notes" / "b.txt").write_text("b")
-+    _commit_all(main, "init")
-+    wt = main / ".claude" / "worktrees" / "w"
-+    _git(main, "worktree", "add", "-q", "-b", "feature", str(wt))
-+    (wt / ".claude" / "task" / "contract.md").write_text(_contract("notes/b.txt"))
-+    _commit_all(wt, "worktree contract")
-+    return main, wt
++def test_the_manifest_holds_the_platform_and_each_hash():
++    m = ccs.manifest_of({"b.png": b"x", "a.png": b"y"}, "linux")
++    assert m["platform"] == "linux" and list(m["shots"]) == ["a.png", "b.png"]
++    assert len(m["shots"]["a.png"]) == 64
 +
 +
-+def run_hook(script: str, event: dict, project_dir, env_extra: dict | None = None):
-+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(project_dir), **(env_extra or {}))
-+    r = subprocess.run(
-+        [sys.executable, os.path.join(HOOKS, script)],
-+        input=json.dumps(event), capture_output=True, text=True, env=env,
-+        cwd=str(project_dir), timeout=60,
-+    )
-+    return r.stdout
++def _ci():
++    yaml = pytest.importorskip("yaml")
++    return yaml.safe_load((ccs.REPO / ".gitlab-ci.yml").read_text(encoding="utf-8"))
 +
 +
-+def edit(path) -> dict:
-+    return {"hook_event_name": "PreToolUse", "tool_name": "Edit",
-+            "tool_input": {"file_path": str(path)}}
++def test_validate_ui_runs_both_chart_checks_and_their_tests_after_the_design_check():
++    job = _ci()["validate:ui"]
++    script = " ".join(job["script"])
++    steps = ["scripts/check_chart_components.py", "scripts/check_chart_screenshots.py --dist site_v2/dist",
++             "tests/test_check_chart_components.py tests/test_check_chart_screenshots.py"]
++    for step in steps:
++        assert step in script, step
++    assert script.index("tests/test_design_inventory.py") < script.index(steps[0])
++    folder = script.split("check_chart_screenshots.py", 1)[1].split("--artifacts", 1)[1].split()[0]
++    assert folder in job["artifacts"]["paths"]
 +
 +
-+def bash(cmd: str, cwd=None, hook_event: str = "PreToolUse") -> dict:
-+    event = {"hook_event_name": hook_event, "tool_name": "Bash", "tool_input": {"command": cmd}}
-+    if cwd is not None:
-+        event["cwd"] = str(cwd)
-+    return event
++def test_the_ui_paths_trigger_validate_ui_on_the_chart_checks_and_their_pins():
++    paths = _ci()[".ui_paths"]
++    for p in ("scripts/check_chart_components.py", "scripts/check_chart_screenshots.py",
++              "tests/test_check_chart_components.py", "tests/test_check_chart_screenshots.py",
++              "tests/fixtures/chart_screenshots/*"):
++        assert p in paths, p
 +
 +
-+def denied(out: str) -> bool:
-+    return '"permissionDecision": "deny"' in out
++def _measured(monkeypatch, shots, labels=(), measured=1224):
++    monkeypatch.setattr(ccs, "measure", lambda dist: ([], shots, [], list(labels), measured))
 +
 +
-+def test_each_edit_is_judged_by_its_own_worktree_contract(trees):
-+    main, wt = trees
-+    assert not denied(run_hook("task_contract_gate.py", edit(wt / "notes" / "b.txt"), main))
-+    out = run_hook("task_contract_gate.py", edit(wt / "notes" / "a.txt"), main)
-+    assert denied(out) and "notes/a.txt" in out
++def _pin(folder: Path, shots: dict, platform: str = "linux") -> None:
++    ccs.write(folder, shots, ccs.manifest_of(shots, platform))
 +
 +
-+def test_an_edit_inside_the_main_checkout_is_judged_as_before(trees):
-+    main, _ = trees
-+    assert not denied(run_hook("task_contract_gate.py", edit(main / "notes" / "a.txt"), main))
-+    out = run_hook("task_contract_gate.py", edit(main / "notes" / "b.txt"), main)
-+    assert denied(out) and "notes/b.txt" in out
++def test_a_changed_chart_fails_on_linux_and_writes_the_new_screenshots(tmp_path, monkeypatch):
++    pins, out = tmp_path / "pins", tmp_path / "out"
++    _pin(pins, {"scatter-en-dark-375.png": b"old"})
++    _measured(monkeypatch, {"scatter-en-dark-375.png": b"new"})
++    monkeypatch.setattr(ccs, "PLATFORM", "linux")
++    assert ccs.main(["--pins", str(pins), "--artifacts", str(out)]) == 1
++    assert (out / "scatter-en-dark-375.png").read_bytes() == b"new"
++    assert '"platform": "linux"' in (out / "manifest.json").read_text(encoding="utf-8")
 +
 +
-+def test_a_shell_write_is_judged_by_the_worktree_it_runs_in(trees):
-+    main, wt = trees
-+    assert not denied(run_hook("task_contract_gate.py", bash("echo x > notes/b.txt", wt), main))
-+    assert denied(run_hook("task_contract_gate.py", bash("echo x > notes/a.txt", wt), main))
++def test_unchanged_charts_pass_on_linux(tmp_path, monkeypatch):
++    _pin(tmp_path, {"a.png": b"same"})
++    _measured(monkeypatch, {"a.png": b"same"})
++    monkeypatch.setattr(ccs, "PLATFORM", "linux")
++    assert ccs.main(["--pins", str(tmp_path)]) == 0
 +
 +
-+def test_a_shell_write_into_the_main_checkout_from_a_worktree_is_judged_by_main(trees):
-+    main, wt = trees
-+    out = run_hook("task_contract_gate.py", bash(f"echo x > {(main / 'notes' / 'b.txt').as_posix()}", wt), main)
-+    assert denied(out) and "notes/b.txt" in out
++def test_missing_pins_fail_on_linux(tmp_path, monkeypatch):
++    _measured(monkeypatch, {"a.png": b"x"})
++    monkeypatch.setattr(ccs, "PLATFORM", "linux")
++    assert ccs.main(["--pins", str(tmp_path)]) == 1
 +
 +
-+def test_a_shell_write_into_the_main_git_dir_from_a_worktree_is_judged_by_main(trees):
-+    main, wt = trees
-+    out = run_hook("task_contract_gate.py", bash(f"echo x >> {(main / '.git' / 'config').as_posix()}", wt), main)
-+    assert denied(out) and ".git/config" in out
++@pytest.mark.parametrize("running", ["linux", "win32", "darwin"])
++def test_pins_from_another_platform_fail_everywhere(tmp_path, monkeypatch, running):
++    _pin(tmp_path, {"a.png": b"same"}, platform="win32")
++    _measured(monkeypatch, {"a.png": b"same"})
++    monkeypatch.setattr(ccs, "PLATFORM", running)
++    assert ccs.main(["--pins", str(tmp_path)]) == 1
 +
 +
-+def test_without_a_cwd_the_shell_write_falls_back_to_the_project_dir(trees):
-+    main, _ = trees
-+    assert denied(run_hook("task_contract_gate.py", bash("echo x > notes/b.txt"), main))
++def test_off_linux_the_screenshots_are_not_compared_and_no_artifact_is_written(tmp_path, monkeypatch):
++    pins, out = tmp_path / "pins", tmp_path / "out"
++    _pin(pins, {"a.png": b"old"})
++    _measured(monkeypatch, {"a.png": b"new"})
++    monkeypatch.setattr(ccs, "PLATFORM", "win32")
++    assert ccs.main(["--pins", str(pins), "--artifacts", str(out)]) == 0
++    assert not out.exists()
 +
 +
-+def test_a_cwd_outside_any_repo_falls_back_to_the_project_dir(trees, tmp_path):
-+    main, _ = trees
-+    outside = tmp_path / "outside"
-+    outside.mkdir()
-+    assert denied(run_hook("task_contract_gate.py", bash("echo x > notes/b.txt", outside), main))
++@pytest.mark.parametrize("running", ["linux", "win32"])
++def test_a_manifest_whose_images_differ_from_its_hashes_fails(tmp_path, monkeypatch, running):
++    _pin(tmp_path, {"a.png": b"old"})
++    (tmp_path / "a.png").write_bytes(b"stale image beside a new hash")
++    _measured(monkeypatch, {"a.png": b"old"})
++    monkeypatch.setattr(ccs, "PLATFORM", running)
++    assert ccs.main(["--pins", str(tmp_path)]) == 1
 +
 +
-+def test_a_file_outside_any_repo_is_not_judged(trees, tmp_path):
-+    main, _ = trees
-+    outside = tmp_path / "outside" / "note.md"
-+    outside.parent.mkdir()
-+    assert not denied(run_hook("task_contract_gate.py", edit(outside), main))
++@pytest.mark.parametrize("running", ["linux", "win32"])
++def test_a_pinned_image_missing_or_unnamed_fails(tmp_path, monkeypatch, running):
++    _pin(tmp_path, {"a.png": b"x", "b.png": b"y"})
++    (tmp_path / "b.png").unlink()
++    (tmp_path / "c.png").write_bytes(b"z")
++    _measured(monkeypatch, {"a.png": b"x", "b.png": b"y"})
++    monkeypatch.setattr(ccs, "PLATFORM", running)
++    assert ccs.main(["--pins", str(tmp_path)]) == 1
++    assert ccs.pin_findings(tmp_path, ccs.manifest_of({"a.png": b"x", "b.png": b"y"}, "linux")) == [
++        "b.png · in the manifest, not in the pins", "c.png · in the pins, not in the manifest"]
 +
 +
-+def test_a_file_in_an_unrelated_repo_is_not_judged(trees, tmp_path):
-+    main, _ = trees
-+    other = tmp_path / "other"
-+    other.mkdir()
-+    _git(other, "init", "-q")
-+    assert not denied(run_hook("task_contract_gate.py", edit(other / "x.txt"), main))
++def test_writing_the_pins_removes_an_image_no_longer_taken(tmp_path):
++    _pin(tmp_path, {"a.png": b"x", "gone.png": b"y"})
++    ccs.write(tmp_path, {"a.png": b"x"}, ccs.manifest_of({"a.png": b"x"}, "linux"))
++    assert sorted(p.name for p in tmp_path.glob("*.png")) == ["a.png"]
 +
 +
-+def test_a_nested_git_init_does_not_exempt_a_protected_folder(trees):
-+    main, _ = trees
-+    hooks = main / ".claude" / "hooks"
-+    hooks.mkdir()
-+    _git(hooks, "init", "-q")
-+    out = run_hook("task_contract_gate.py", edit(hooks / "task_contract_gate.py"), main)
-+    assert denied(out) and ".claude/hooks/task_contract_gate.py" in out
++def test_a_run_that_measures_no_scatter_plot_fails(tmp_path, monkeypatch):
++    _pin(tmp_path, {"a.png": b"same"})
++    _measured(monkeypatch, {"a.png": b"same"}, measured=0)
++    monkeypatch.setattr(ccs, "PLATFORM", "linux")
++    assert ccs.main(["--pins", str(tmp_path)]) == 1
 +
 +
-+def test_where_git_cannot_answer_the_project_dir_still_judges(trees):
-+    main, _ = trees
-+    out = run_hook("task_contract_gate.py", edit(main / ".git" / "info" / "x.txt"), main)
-+    assert denied(out) and ".git/info/x.txt" in out
++@pytest.mark.parametrize("running", ["win32", "darwin"])
++def test_pins_are_never_written_off_linux(tmp_path, monkeypatch, running):
++    monkeypatch.setattr(ccs, "PLATFORM", running)
++    assert ccs.main(["--update", "--pins", str(tmp_path)]) == 2
++    assert not any(tmp_path.iterdir())
 +
 +
-+def test_the_commit_gate_reads_the_worktree_it_runs_in(trees):
-+    main, wt = trees
-+    (wt / "notes" / "b.txt").write_text("changed")
-+    _git(wt, "add", "notes/b.txt")
-+    out = run_hook("git_discipline.py", bash('git commit -m "x"', wt), main)
-+    assert denied(out) and "no review artifact" in out
++def _on_built_site(run, html=None, css=None, init=None):
++    """Run `run(page, base)` on the served built site; `html` and `css` rewrite every page and
++    stylesheet on the way in, `init` runs before the page's own scripts."""
++    from playwright.sync_api import sync_playwright
++
++    srv, base = ccs.serve(DIST)
++    try:
++        with sync_playwright() as pw:
++            browser = pw.chromium.launch()
++            page = browser.new_page(viewport={"width": 1010, "height": 812})
++            if init:
++                page.add_init_script(init)
++            def served(url: str) -> str:
++                path = DIST / url.split("://", 1)[1].split("/", 1)[1].split("?")[0]
++                return (path / "index.html" if path.is_dir() else path).read_text(encoding="utf-8")
++
++            for pattern, edit, kind in (("**/*/", html, "text/html"), ("**/_astro/*.css", css, "text/css")):
++                if edit:
++                    page.route(pattern, lambda route, _request=None, edit=edit, kind=kind: route.fulfill(
++                        body=edit(served(route.request.url)), content_type=kind))
++            found = run(page, base)
++            browser.close()
++    finally:
++        srv.shutdown()
++    return found
 +
 +
-+def test_staged_hash_hashes_the_worktree_it_runs_in(trees):
-+    main, wt = trees
-+    (wt / "notes" / "b.txt").write_text("changed")
-+    _git(wt, "add", "notes/b.txt")
-+
-+    def staged_hash(project_dir) -> str:
-+        env = dict(os.environ, CLAUDE_PROJECT_DIR=str(project_dir), GOVERNANCE_BASE="main")
-+        r = subprocess.run(
-+            [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--staged-hash"],
-+            capture_output=True, text=True, env=env, cwd=str(wt), timeout=60,
-+        )
-+        assert r.returncode == 0, r.stderr
-+        return r.stdout.strip()
-+
-+    assert staged_hash(main) == staged_hash(wt)
++def _reader(path, width):
++    def run(page, base):
++        page.set_viewport_size({"width": width, "height": 812})
++        page.goto(base + path, wait_until="domcontentloaded")
++        return page.evaluate(ccs.READER_JS)
++    return run
 +
 +
-+def test_the_stop_gate_judges_the_worktree_it_runs_in(trees):
-+    main, wt = trees
-+    (main / "stray.txt").write_text("drift")
-+    stop = {"hook_event_name": "Stop", "cwd": str(wt)}
-+    assert '"decision": "block"' not in run_hook("stop_gate.py", stop, main)
-+    (wt / "stray.txt").write_text("drift")
-+    out = run_hook("stop_gate.py", stop, main)
-+    assert '"decision": "block"' in out and "stray.txt" in out
++@needs_site
++def test_every_scatter_page_is_found_by_its_markup():
++    pages = ccs.scatter_pages(DIST)
++    assert "en/teams/1-fc-koln" in pages and "fi/joukkueet/1-fc-koln" in pages and len(pages) % 3 == 0
 +
 +
-+def test_a_worktree_without_a_venv_runs_the_gates_with_the_main_checkouts(trees):
-+    import venv
-+
-+    main, wt = trees
-+    venv.create(main / ".venv", with_pip=False)
-+    (wt / "scripts").mkdir()
-+    (wt / "scripts" / "check_layer_contract.py").write_text(
-+        "import os, sys\n"
-+        f"venv = os.path.realpath({str(main / '.venv')!r})\n"
-+        "if os.path.normcase(os.path.realpath(sys.prefix)) != os.path.normcase(venv):\n"
-+        "    print('- ran outside the main checkout .venv')\n"
-+        "    sys.exit(1)\n"
-+    )
-+    _commit_all(wt, "fast gate stub")
-+    (wt / "notes" / "b.txt").write_text("changed")
-+    out = run_hook("stop_gate.py", {"hook_event_name": "Stop", "cwd": str(wt)}, wt)
-+    assert out.strip() == "", out
++@needs_site
++def test_every_mark_on_the_built_pages_has_its_theme_colour():
++    assert _on_built_site(ccs.colour_findings) == []
 +
 +
-+def test_the_tracker_gate_judges_the_worktree_file(trees):
-+    main, wt = trees
-+    assert denied(run_hook("tracker_snapshot_gate.py", edit(wt / "docs" / "tracker" / "x.md"), main))
++@needs_site
++def test_a_better_colour_rule_another_rule_outranks_fails():
++    found = _on_built_site(ccs.colour_findings, css=lambda s: s.replace(".cmp-val.chart-better{", ":where(.cmp-val.chart-better){"))
++    assert any(".cmp-val.chart-better · color" in f for f in found), found
 +
 +
-+def write(path, content: str) -> dict:
-+    return {"hook_event_name": "PreToolUse", "tool_name": "Write",
-+            "tool_input": {"file_path": str(path), "content": content}}
++@needs_site
++def test_a_renamed_mark_class_fails_for_matching_nothing():
++    found = _on_built_site(ccs.colour_findings, html=lambda h: re.sub(r'<span class="chart-better"><span style=',
++                                                                         '<span class="better"><span style=', h))
++    assert any(".chart-bar > .chart-better > span · matches nothing" in f for f in found), found
 +
 +
-+def test_the_comment_history_gate_judges_the_worktree_file(trees):
-+    main, wt = trees
-+    line = "x = 1  " + chr(35) + " see " + "!" + "132\n"
-+    assert denied(run_hook("comment_history_gate.py", write(wt / "scripts" / "x.py", line), main))
++@needs_site
++def test_a_reader_clicking_the_tab_sees_a_placed_difference_label():
++    assert _on_built_site(_reader("en/teams/1-fc-koln/", 375)) == []
 +
 +
-+@pytest.fixture()
-+def sibling(trees, tmp_path):
-+    main, _ = trees
-+    path = tmp_path / "sibling"
-+    _git(main, "worktree", "add", "-q", "-b", "sibling", str(path))
-+    return path
-+
-+
-+def test_the_sentence_length_gate_judges_a_sibling_worktree_file(trees, sibling):
-+    main, _ = trees
-+    sentence = " ".join(["word"] * 26) + ".\n"
-+    assert denied(run_hook("sentence_length_gate.py", write(sibling / "docs" / "a.md", sentence), main))
-+
-+
-+def test_the_host_fingerprint_gate_judges_a_sibling_worktree_file(trees, sibling):
-+    main, _ = trees
-+    address = ".".join(["203", "0", "113", "7"])
-+    out = run_hook("host_fingerprint_gate.py", write(sibling / "docs" / "a.md", f"at {address}\n"), main)
-+    assert denied(out) and "docs/a.md" in out
++@needs_site
++def test_a_chart_script_that_waits_for_a_rendered_frame_fails_the_reader_flow():
++    blocked = """(() => { const add = EventTarget.prototype.addEventListener;
++      EventTarget.prototype.addEventListener = function (type, fn, opts) { if (type !== 'change') add.call(this, type, fn, opts); }; })()"""
++    found = _on_built_site(_reader("en/teams/1-fc-koln/", 375), init=blocked)
++    assert "the deserved points line" in found, found
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/acceptance_evidence.md    |   21 +-
+#    .claude/task/rendered_page_evidence.md |   54 +-
+#    .claude/task/review.md                 |   56 +-
+#    .claude/task/review_input.patch        | 2362 +++++++++++++++++++++++---------
+#    4 files changed, 1830 insertions(+), 663 deletions(-)
+# ============================================================================
