@@ -33,7 +33,7 @@ import sys
 from collections.abc import Iterator
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _command_utils import emit_deny, read_event  # noqa: E402
+from _command_utils import emit_deny, read_event, worktree_root  # noqa: E402
 
 _OCTET = r"(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)"
 # Four octets not glued to a word character, and not one part of a longer dotted number
@@ -92,10 +92,11 @@ def main() -> int:
     try:
         tool_input = event.get("tool_input") or {}
         file_path = tool_input.get("file_path") or ""
-        if not file_path:
+        root = worktree_root(file_path, _repo_root()) if file_path else None
+        if root is None:
             return 0
         try:
-            rel = os.path.relpath(os.path.abspath(file_path), _repo_root())
+            rel = os.path.relpath(os.path.abspath(file_path), root)
         except ValueError:
             return 0
         if rel.startswith(".."):

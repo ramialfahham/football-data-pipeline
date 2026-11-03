@@ -1,36 +1,35 @@
-# Review — chore/243-protect-design-checks
+# Review — fix/34-hooks-repo-root
 
-diff_sha256: e57ab7f5bf6ca8cd22be1d4ac9ab69551d9e935b66c390ad0edf1a0d949abfc4
+diff_sha256: 0aa967ffeb55522656bbc9e353200f212f410ba9a58610ea7f3d1fbba45b273b
 
-rounds: 2
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every patched file is in scope_paths; tests/test_sentence_length_in_docs.py is covered by a recorded amendment and its pin only falls, 20 to 19.
-- protected_override names the approval and its date and the four paths; the impact_map is evidenced with line references and now discloses the out-of-scope exemption.
-- decisions_taken declares the recurring cost with its measurement and no new mechanism; decisions_reserved is none and the diff decides nothing outside it.
-- Every document states 13 guard paths, 7 shared with platform, 6 the CTO reviews alone and 16 CTO rows; no stale count remains.
-- No secret, workflow, CI, site_v2/src or export change; approved_design none is honest.
+- Every changed file is in scope_paths; .claude/settings.json, memory_budget_gate.py and handover_in.py are untouched.
+- The guard-invariant change is declared as THRESHOLD in decisions_taken and both amendments name their authority.
+- worktree_root returns None only for a target outside CLAUDE_PROJECT_DIR in no worktree of this repository; the nested `git init`, no-repo and `.git/` cases inside it return the fallback.
+- The round-3 shell-write fallback change widens judgment only and matches what_changes.
+- docs/agent_guardrails.md states current behaviour only; no secrets, no escalations.log entry, no page or dbt surface.
 
 ## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 FAIL closed: the impact_map now states that only the PreToolUse Edit and Bash-write paths refuse the edit, that check_task_artifacts.py never calls _is_protected, and that CI's cover is the routing rows.
-- The out-of-scope exemption at stop_gate.py:170 and task_contract_gate.py:691 now covers the four files in any task with protected_override; it is the existing meaning of a protected path, it is disclosed, and the CI reviewer check still requires both verdicts.
-- The guards get stronger: an ordinary task cannot edit the four files even with them in scope, and a governance task needs an impact_map; the hook still fails open on data-only entries.
-- No new mechanism, no dependency, no credential; the recurring cost is declared with a measurement and its approval.
-- baseline.json staying ordinary holds: compare_counts fails any pin that differs from the measurement and the protected test refuses any pin above main's.
+- Round-1 finding closed: a nested `git init` over a protected folder walks up to the holding worktree and is judged; pinned by test_a_nested_git_init_does_not_exempt_a_protected_folder.
+- The declared threshold, an action in a worktree judged by that worktree's contract, is allowed: protected paths still need protected_override, and the commit gate and the CI recompute are unchanged.
+- Shell and Edit paths use the same fallback; a write into the main checkout's `.git/` from a worktree is judged, pinned by a test.
+- Fail-open holds: git errors return the fallback; the stop gate's `.venv` lookup falls through to its own interpreter.
+- No new mechanism, dependency, credential or recurring cost beyond local `git rev-parse` calls.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- The hook change is four data entries; every caller of _is_protected picks them up, and main() still fails open; CI fails closed through the new routing rows.
-- Reverting the change turns the new hook test, the four impact_map cases and the four PINNED_CASES red; dropping platform from a row is caught by the parity test's shared-set assertion.
-- Every COUNT_SITES anchor matches 13, 7, 6 and 16; thirteen is in NUMBER_WORD; the removed HISTORICAL snippet no longer occurs and its replacement matches no claim shape.
-- The PROSE_SUBSETS entry excuses only the platform brief's territory sentence; a stale count there is still caught by its anchor.
-- The sentence-length pins are consistent with the split sentence.
-- Round 2 changed only the contract's impact_map and three message strings in the parity test, all text, after this verdict.
+- worktree_root traced case by case: main checkout, nested and sibling worktree, nested foreign repo, unrelated repo outside, `.git/`, and a fallback that is no git repository; the walk always terminates.
+- Round-1 findings closed: absolute shell writes resolve their own worktree, and the comment-history, sentence-length and host-fingerprint gates each have a worktree test that fails on main's hooks.
+- Round-2 finding closed: the shell-write resolver falls back to `_repo_root()`; test_a_shell_write_into_the_main_git_dir_from_a_worktree_is_judged_by_main pins it.
+- Decode errors and ValueError fall back; the stop gate's `.venv` fallback to the main checkout is pinned by a test.
+- Commit gate and `--staged-hash` resolve from the same cwd; scripts/check_task_artifacts.py passes its own root, so CI is unaffected.
 
 ## escalations
 (none)

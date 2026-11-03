@@ -25,7 +25,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _command_utils import emit_deny, read_event  # noqa: E402
+from _command_utils import emit_deny, read_event, worktree_root  # noqa: E402
 from comment_history_gate import is_doc_path  # noqa: E402
 from memory_budget_gate import resulting_text  # noqa: E402
 
@@ -140,9 +140,9 @@ def main() -> int:
     try:
         tool_input = event.get("tool_input") or {}
         file_path = tool_input.get("file_path") or ""
-        if not file_path:
+        root = worktree_root(file_path, _repo_root()) if file_path else None
+        if root is None:
             return 0
-        root = _repo_root()
         try:
             rel = os.path.relpath(os.path.abspath(file_path), root)
         except ValueError:

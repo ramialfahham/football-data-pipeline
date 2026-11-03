@@ -19,7 +19,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _command_utils import emit_deny, read_event  # noqa: E402
+from _command_utils import emit_deny, read_event, worktree_root  # noqa: E402
 
 GOVERNED = "docs/tracker/"
 
@@ -32,8 +32,11 @@ def _repo_root() -> str:
 
 
 def is_governed(file_path: str) -> bool:
+    root = worktree_root(file_path, _repo_root())
+    if root is None:
+        return False
     try:
-        rel = os.path.relpath(os.path.abspath(file_path), _repo_root())
+        rel = os.path.relpath(os.path.abspath(file_path), root)
     except ValueError:
         return False
     # Case-folded: on Windows `Docs/Tracker/` is the same folder, and relpath keeps the caller's

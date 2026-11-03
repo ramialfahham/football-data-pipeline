@@ -44,7 +44,7 @@ from task_contract_gate import (  # noqa: E402
     _read_contract,
     _repo_root,
 )
-from _command_utils import read_event  # noqa: E402
+from _command_utils import cwd_root, read_event  # noqa: E402
 
 # Offline, no network, no warehouse. Ordered cheapest-first so an early failure
 # reports fast.
@@ -98,13 +98,28 @@ def _gate_python(root: str) -> str:
 
     The hook is started with whatever `python` is on PATH. On a fresh machine that is the system
     Python, which lacks the packages the gates import (PyYAML), so every gate reported a false
-    failure. `scripts/bootstrap.py` creates `.venv` with every requirement.
+    failure. `scripts/bootstrap.py` creates `.venv` with every requirement. A worktree has none of
+    its own, so the main checkout's comes next.
     """
-    for rel in (os.path.join(".venv", "Scripts", "python.exe"), os.path.join(".venv", "bin", "python")):
-        candidate = os.path.join(root, rel)
-        if os.path.isfile(candidate):
-            return candidate
+    for base in filter(None, (root, _main_checkout(root))):
+        for rel in (os.path.join(".venv", "Scripts", "python.exe"), os.path.join(".venv", "bin", "python")):
+            candidate = os.path.join(base, rel)
+            if os.path.isfile(candidate):
+                return candidate
     return sys.executable
+
+
+def _main_checkout(root: str) -> str | None:
+    try:
+        r = subprocess.run(["git", "-C", root, "rev-parse", "--git-common-dir"],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=10)
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+    common = r.stdout.strip()
+    if r.returncode != 0 or not common:
+        return None
+    return os.path.dirname(os.path.abspath(os.path.join(root, common)))
 
 
 def _failing_gates(root: str, python: str) -> list[tuple[str, str]]:
@@ -141,7 +156,7 @@ def main() -> int:
     if event.get("stop_hook_active"):
         return 0
     try:
-        root = _repo_root()
+        root = cwd_root(event, _repo_root())
 
         # PARKED WORK. First, and regardless of whether the tree is dirty — see `_parked_stashes`.
         parked = _parked_stashes(root)

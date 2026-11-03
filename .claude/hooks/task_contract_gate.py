@@ -41,10 +41,12 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _command_utils import (  # noqa: E402
     bash_command,
+    cwd_root,
     emit_context,
     emit_deny,
     read_event,
     strip_quoted_and_heredoc,
+    worktree_root,
 )
 
 CONTRACT_REL = ".claude/task/contract.md"
@@ -646,7 +648,6 @@ def _gate_bash_pre(event: dict, root: str) -> None:
             "family)."
         )
         return
-    contract = _read_contract(root)
     for target in _shell_write_targets(cmd):
         if "$" in target or "`" in target:
             emit_deny(
@@ -655,9 +656,14 @@ def _gate_bash_pre(event: dict, root: str) -> None:
                 "redirect to an absolute path outside the repo."
             )
             return
-        rel = _rel_in_repo(target if os.path.isabs(target) else os.path.join(root, target), root)
+        path = target if os.path.isabs(target) else os.path.join(root, target)
+        target_root = worktree_root(path, _repo_root())
+        if target_root is None:
+            continue
+        rel = _rel_in_repo(path, target_root)
         if rel is None or rel.startswith(TASK_DIR_REL):
             continue
+        contract = _read_contract(target_root)
         if _is_protected(rel) and not (contract and contract["protected_override"]):
             _deny_protected(rel)
             return
@@ -676,7 +682,7 @@ def _gate_bash_pre(event: dict, root: str) -> None:
         if _is_structural(rel) and not contract.get("impact_map_present"):
             _deny_missing_impact_map(rel)
             return
-        if _is_page_surface(rel) and _page_surface_refused(rel, contract, root):
+        if _is_page_surface(rel) and _page_surface_refused(rel, contract, target_root):
             return
 
 
@@ -707,11 +713,17 @@ def _gate_bash_post(event: dict, root: str) -> None:
 def main() -> int:
     try:
         event = read_event()
-        root = _repo_root()
         if not isinstance(event, dict):      # `null` / `[]`: valid JSON, not an event
             return 0
         hook = event.get("hook_event_name") or ""
         tool = event.get("tool_name") or ""
+        if tool in _EDIT_TOOLS:
+            path = (event.get("tool_input") or {}).get("file_path") or ""
+            root = worktree_root(path, _repo_root()) if path else _repo_root()
+            if root is None:
+                return 0
+        else:
+            root = cwd_root(event, _repo_root())
         if hook == "PostToolUse" and tool == "Bash":
             _gate_bash_post(event, root)
         elif tool == "Artifact" and hook != "PostToolUse":

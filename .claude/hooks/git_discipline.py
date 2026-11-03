@@ -24,6 +24,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _command_utils import (  # noqa: E402
     bash_command,
+    cwd_root,
     emit_context,
     emit_deny,
     read_event,
@@ -823,7 +824,7 @@ def main() -> int:
     _CLI_MODE = "--staged-hash" in sys.argv or "--review-patch" in sys.argv
     if "--staged-hash" in sys.argv:
         import hashlib
-        blob = _staged_diff_bytes(_repo_root())
+        blob = _staged_diff_bytes(cwd_root({"cwd": os.getcwd()}, _repo_root()))
         # ⚠ REFUSE TO EMIT A HASH THAT WAS NOT COMPUTED. Printing sha256(b"") here is what made
         # the earlier draft's "fail-closed" claim false: the number would be pasted into
         # review.md, the gate would recompute the same empty value, the two would agree, and the
@@ -843,9 +844,10 @@ def main() -> int:
         print(hashlib.sha256(blob).hexdigest())
         return 0
     if "--review-patch" in sys.argv:
-        sys.stdout.buffer.write(_review_patch_bytes(_repo_root()))
+        sys.stdout.buffer.write(_review_patch_bytes(cwd_root({"cwd": os.getcwd()}, _repo_root())))
         return 0
-    cmd = bash_command(read_event())
+    event = read_event()
+    cmd = bash_command(event)
     if not cmd:
         return 0
     stripped = strip_quoted_and_heredoc(cmd)
@@ -921,7 +923,7 @@ def main() -> int:
                 )
                 return 0
             try:
-                reason = _commit_gate(_repo_root())
+                reason = _commit_gate(cwd_root(event, _repo_root()))
             except Exception as exc:
                 # STILL FAILS OPEN — the house rule is unchanged and deliberate: a hook
                 # bug must never block the user's workflow.
