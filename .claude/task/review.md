@@ -1,10 +1,10 @@
 # Review — feat/227-chart-theme
 
-diff_sha256: 48a6cd59ae74cbbfb240a38b396eac3563cee2681763a1d3d62b2df0a929c39b
+diff_sha256: 64f527f3308b8d8837731f844d6666a8f9d5e643effa7c53d92534ae3821b037
 
-rounds: 4
+rounds: 5
 
-rounds_cap_override: approved in chat, 2026-11-03, one round, platform-reviewer only, for a test-only fix to the round-3 finding.
+rounds_cap_override: approved in chat, 2026-11-03: one round, platform-reviewer only, for a test-only fix to the round-3 finding; then two rounds, platform-reviewer only, for the baseline lowered to CI's measurement and the screenshot pins from CI's artifact.
 
 ## scope-auditor
 VERDICT: PASS
@@ -49,3 +49,7 @@ risks_checked:
 ## escalations
 - question: may the review take a fourth round past the cap of three, for a test-only fix to the round-3 platform finding?
   CPO ANSWER: approved in chat, 2026-11-03, one round, platform-reviewer only.
+- question: may the review take two more rounds, platform-reviewer only, for the baseline lowered to CI's measurement and the screenshot pins from CI's artifact?
+  CPO ANSWER: approved in chat, 2026-11-03, both rounds, platform-reviewer only.
+- question: may the review take two more rounds, platform-reviewer only, for the baseline lowered to CI's measurement and the screenshot pins from CI's artifact?
+  CPO ANSWER: approved in chat, 2026-11-03, both rounds, platform-reviewer only.
