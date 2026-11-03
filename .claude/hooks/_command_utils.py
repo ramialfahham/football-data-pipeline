@@ -13,7 +13,9 @@ return without blocking, so a hook bug never breaks the user's workflow.
 from __future__ import annotations
 
 import json
+import os
 import re
+import subprocess
 import sys
 
 # Shell operators that separate one simple-command from the next.
@@ -65,6 +67,73 @@ def strip_quoted_and_heredoc(command: str) -> str:
         return _QUOTED.sub(" ", head)
     except Exception:
         return command or ""
+
+
+def _git_location(folder: str) -> tuple[int, list[str]]:
+    r = subprocess.run(
+        ["git", "-C", folder, "rev-parse", "--git-common-dir", "--show-toplevel"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10,
+    )
+    return r.returncode, r.stdout.splitlines()
+
+
+def _same_path(a: str, b: str) -> bool:
+    return os.path.normcase(os.path.realpath(a)) == os.path.normcase(os.path.realpath(b))
+
+
+def _same_repo(common: str, fallback: str) -> bool:
+    code, theirs = _git_location(fallback)
+    return code == 0 and bool(theirs) and _same_path(common, os.path.join(fallback, theirs[0]))
+
+
+def worktree_root(target: str, fallback: str) -> str | None:
+    """Root of the worktree of `fallback`'s repository that holds `target`, a file or folder
+    that need not exist yet.
+
+    A nested foreign repository is judged by the worktree that holds it, so creating one never
+    exempts a path. Any other target is judged by `fallback` when it lies inside it; outside it,
+    None: this repo's hooks have nothing to judge there. The root is spelled like `target`, so a
+    relpath from it stays inside.
+    """
+    folder = os.path.abspath(target)
+    while not os.path.isdir(folder):
+        parent = os.path.dirname(folder)
+        if parent == folder:
+            return None
+        folder = parent
+    try:
+        while True:
+            code, lines = _git_location(folder)
+            if code != 0 or len(lines) < 2:
+                break
+            root = next((d for d in _ancestors(folder) if _same_path(d, lines[1])), None)
+            if root is None:
+                return fallback
+            if _same_path(root, fallback) or _same_repo(os.path.join(folder, lines[0]), fallback):
+                return root
+            if os.path.dirname(root) == root:
+                break
+            folder = os.path.dirname(root)
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return fallback
+    return fallback if any(_same_path(d, fallback) for d in _ancestors(folder)) else None
+
+
+def _ancestors(folder: str):
+    while True:
+        yield folder
+        parent = os.path.dirname(folder)
+        if parent == folder:
+            return
+        folder = parent
+
+
+def cwd_root(event: dict, fallback: str) -> str:
+    """Root of the worktree the event's working directory is in, else `fallback`."""
+    cwd = event.get("cwd")
+    if isinstance(cwd, str) and cwd:
+        return worktree_root(cwd, fallback) or fallback
+    return fallback
 
 
 def emit_context(event_name: str, text: str) -> None:

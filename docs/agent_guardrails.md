@@ -37,6 +37,9 @@ match, because a hook that cries wolf gets ignored.
 | `stop_gate.py` | Stop | Blocks the end of a turn once when the tree does not match the contract or an offline gate in `FAST_GATES` fails. |
 | `handover_in.py` | SessionStart | Injects the handover issue into every session, from GitLab or, when GitLab is down, from `.claude/handover.cache.md`. Capped at 16,000 characters; says when it truncates. The handover is rewritten at the end of every session (`CLAUDE.md`). |
 
+A hook judges the git worktree its action targets: an edit's file, else the working directory.
+Any other target inside `CLAUDE_PROJECT_DIR` is judged against it, and one outside it is not.
+
 Hooks fail open: an error or an unreadable event lets the call through. The review gate is the
 exception: when it cannot resolve the base branch, it denies.
 
