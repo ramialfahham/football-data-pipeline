@@ -595,7 +595,8 @@ def render_width(job: dict) -> dict:
     covered: dict[str, set[str]] = {}
     renders = shots = 0
     with sync_playwright() as pw:
-        browser = pw.chromium.launch()
+        # Hinting rounds Linux text to whole pixels, a layout phones and Windows do not produce.
+        browser = pw.chromium.launch(args=["--font-render-hinting=none"])
         ctx = browser.new_context(viewport={"width": viewport, "height": 900}, device_scale_factor=1,
                                   reduced_motion="reduce")
         pw_page = ctx.new_page()

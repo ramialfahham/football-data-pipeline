@@ -26,6 +26,9 @@ scope_paths:
   - docs/design/components.yml
   - docs/wireframes/block_standard.md
   - scripts/check_component_registry.py
+  - scripts/check_design_inventory.py
+  - scripts/check_chart_screenshots.py
+  - tests/test_check_chart_screenshots.py
   - tests/test_check_component_registry.py
   - tests/fixtures/component_registry/*
   - tests/fixtures/design_inventory/baseline.json
@@ -43,6 +46,7 @@ scope_paths:
   - docs/roles/platform_reliability.md
   - tests/test_governance_doc_parity.py
   - tests/test_governance_hooks.py
+  - tests/test_sentence_length_in_docs.py
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -55,7 +59,10 @@ protected_override: >
   docs/design/components.yml a protected path (task_contract_gate.py, review_routing.json and the
   reviewer briefs that count the guard paths). Approved in chat, 2026-11-04 (#243, with the table):
   tests/test_design_inventory.py's test_no_pin_rises_above_mains allows the nine listed counts that
-  rise only because Inter is wider, each only while main still holds its old value.
+  rise only because Inter is wider, each only while main still holds its old value. Approved in
+  chat, 2026-11-04: scripts/check_design_inventory.py and scripts/check_chart_screenshots.py launch
+  Chromium with --font-render-hinting=none, to test whether CI's whole-pixel text causes the rises
+  outside the nine.
 
 impact_map: >
   kick-off column: `.fxrow.fit-one:has(.topmatch)` styles only a match row with a Top match tag
@@ -80,11 +87,23 @@ impact_map: >
   stops_being_enforced_if_wrong: while main holds a listed count's old value, that count may rise
   by any amount and no test caps it; "only because Inter is wider" is checked by no test. The cap
   is review: the commit that lands baseline.json goes back to cto-reviewer and platform-reviewer
-  as a delta against the #243 table, all nine must have moved and nothing else may have risen, and
-  a figure above that table goes back to the CPO. compare_counts still fails any count off its pin
+  as a delta against the first CI measurement and the flagged one. A listed count may stay at main's
+  value, nothing outside the nine may have risen, and a figure above the Windows table on #243 goes
+  back to the CPO. compare_counts still fails any count off its pin
   in both directions, and a new test proves a rise outside the list and a listed rise on another
   main value both fail. The exception stops matching after the first main pipeline, unless a count
   returns to exactly its old value, which reopens that entry; the next MR removes it.
+  measuring flag (protected): both checks launch Chromium with --font-render-hinting=none, so text
+  takes fractional widths on Linux as it does on Windows. fires_on: validate:ui. on_failure: a count
+  off its pin still fails compare_counts, and a changed chart still fails its screenshot pin.
+  stops_being_enforced_if_wrong: the flag changes how every count is measured, so main's pins were
+  taken without it. A count outside the nine that rises under the flag is not a pass: it goes back
+  to the coordinating session. The flag can also lower a count, and rises() then compares a flagged
+  count with main's unflagged pin, so a rise the flag clears passes unrecorded: the MR lists every
+  count that rose without the flag and clears with it, both figures, for the CPO. No test pins the
+  flag; removing it moves the counts, which the pins then catch. The flag stays only if the CPO
+  keeps it once that list is in front of him; if any of the three remains, the result goes back to
+  the coordinating session.
   scatter label: chartMarks.mjs places the scatter plot's team label against measured text; it
   re-places it once the page's fonts have loaded, as fitBlocks.mjs already re-fits; it runs on
   the Team page's Performance tab only.
@@ -192,4 +211,6 @@ done_when:
 
 amendments:
   - 2026-11-04: + site_v2/src/lib/chartMarks.mjs, site_v2/src/components/fixture/PlayerRow.astro, site_v2/src/components/fixture/RecentMatch.astro, site_v2/src/components/fixture/HeadToHead.astro — authority: approved in chat, 2026-11-04 (Inter's narrow rows, recorded on #243; the scatter label's re-placement after the font loads); content: the narrow-row wrapping, the scatter label re-placement, the stated readings of approved_design, the recurring-cost line and the corrected CI line.
+  - 2026-11-04: + scripts/check_design_inventory.py, scripts/check_chart_screenshots.py, tests/test_check_chart_screenshots.py — authority: approved in chat, 2026-11-04; content: the launch flag, in the chart test's browser too so check and test measure one layout, and the sentences that named the system font, and no site change.
+  - 2026-11-04: + tests/test_sentence_length_in_docs.py — authority: the test's own rule that a pin moves down with a cleanup; content: .claude/agents/cto-reviewer.md 19 to 17 and docs/roles/platform_reliability.md 9 to 7, the sentences this MR split, and no pin raised.
   - 2026-11-04: + tests/test_design_inventory.py — authority: approved in chat, 2026-11-04 (the nine-count pin exception, recorded on #243); content: the listed exception in test_no_pin_rises_above_mains, its test, and the result row's 45% limit and narrow gaps in the impact map.

@@ -140,10 +140,10 @@ index 3035ee51..20363b9b 100644
  | gitleaks secret scan | `validate:secrets` |
  | `sqlfluff lint models` | `data:build:mr` |
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 8ee9db46..cd4b9208 100644
+index 8ee9db46..14e68732 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,37 +1,48 @@
+@@ -1,37 +1,52 @@
 -# Task contract — the chart theme and its checks
 +# Task contract — the component registry and the Inter font
  
@@ -188,14 +188,16 @@ index 8ee9db46..cd4b9208 100644
 +  - tests/fixtures/font_coverage/*
 +  - docs/design/components.yml
    - docs/wireframes/block_standard.md
-+  - scripts/check_component_registry.py
-+  - tests/test_check_component_registry.py
-+  - tests/fixtures/component_registry/*
-   - tests/fixtures/design_inventory/baseline.json
+-  - tests/fixtures/design_inventory/baseline.json
 -  - scripts/check_chart_components.py
 -  - tests/test_check_chart_components.py
--  - scripts/check_chart_screenshots.py
--  - tests/test_check_chart_screenshots.py
++  - scripts/check_component_registry.py
++  - scripts/check_design_inventory.py
+   - scripts/check_chart_screenshots.py
+   - tests/test_check_chart_screenshots.py
++  - tests/test_check_component_registry.py
++  - tests/fixtures/component_registry/*
++  - tests/fixtures/design_inventory/baseline.json
 +  - tests/test_design_inventory.py
    - tests/fixtures/chart_screenshots/*
    - .gitlab-ci.yml
@@ -210,10 +212,11 @@ index 8ee9db46..cd4b9208 100644
 +  - docs/roles/platform_reliability.md
 +  - tests/test_governance_doc_parity.py
 +  - tests/test_governance_hooks.py
++  - tests/test_sentence_length_in_docs.py
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -39,80 +50,146 @@ scope_paths:
+@@ -39,80 +54,163 @@ scope_paths:
    - .claude/task/rendered_page_evidence.md
  
  protected_override: >
@@ -224,7 +227,10 @@ index 8ee9db46..cd4b9208 100644
 +  docs/design/components.yml a protected path (task_contract_gate.py, review_routing.json and the
 +  reviewer briefs that count the guard paths). Approved in chat, 2026-11-04 (#243, with the table):
 +  tests/test_design_inventory.py's test_no_pin_rises_above_mains allows the nine listed counts that
-+  rise only because Inter is wider, each only while main still holds its old value.
++  rise only because Inter is wider, each only while main still holds its old value. Approved in
++  chat, 2026-11-04: scripts/check_design_inventory.py and scripts/check_chart_screenshots.py launch
++  Chromium with --font-render-hinting=none, to test whether CI's whole-pixel text causes the rises
++  outside the nine.
  
  impact_map: >
 -  pages: TeamDeserved.astro and TeamLeagueStrips.astro have one importer,
@@ -259,11 +265,23 @@ index 8ee9db46..cd4b9208 100644
 +  stops_being_enforced_if_wrong: while main holds a listed count's old value, that count may rise
 +  by any amount and no test caps it; "only because Inter is wider" is checked by no test. The cap
 +  is review: the commit that lands baseline.json goes back to cto-reviewer and platform-reviewer
-+  as a delta against the #243 table, all nine must have moved and nothing else may have risen, and
-+  a figure above that table goes back to the CPO. compare_counts still fails any count off its pin
++  as a delta against the first CI measurement and the flagged one. A listed count may stay at main's
++  value, nothing outside the nine may have risen, and a figure above the Windows table on #243 goes
++  back to the CPO. compare_counts still fails any count off its pin
 +  in both directions, and a new test proves a rise outside the list and a listed rise on another
 +  main value both fail. The exception stops matching after the first main pipeline, unless a count
 +  returns to exactly its old value, which reopens that entry; the next MR removes it.
++  measuring flag (protected): both checks launch Chromium with --font-render-hinting=none, so text
++  takes fractional widths on Linux as it does on Windows. fires_on: validate:ui. on_failure: a count
++  off its pin still fails compare_counts, and a changed chart still fails its screenshot pin.
++  stops_being_enforced_if_wrong: the flag changes how every count is measured, so main's pins were
++  taken without it. A count outside the nine that rises under the flag is not a pass: it goes back
++  to the coordinating session. The flag can also lower a count, and rises() then compares a flagged
++  count with main's unflagged pin, so a rise the flag clears passes unrecorded: the MR lists every
++  count that rose without the flag and clears with it, both figures, for the CPO. No test pins the
++  flag; removing it moves the counts, which the pins then catch. The flag stays only if the CPO
++  keeps it once that list is in front of him; if any of the three remains, the result goes back to
++  the coordinating session.
 +  scatter label: chartMarks.mjs places the scatter plot's team label against measured text; it
 +  re-places it once the page's fonts have loaded, as fitBlocks.mjs already re-fits; it runs on
 +  the Team page's Performance tab only.
@@ -419,6 +437,8 @@ index 8ee9db46..cd4b9208 100644
 -  - "2026-11-03: rewritten — authority: CPO rulings approved in chat, 2026-11-03 (the comparison element built in the family's look; the last-season table out; no tooltips; the gallery out of this MR; the CPO's merge is the approval); content: scope loses the gallery generator, its README row and renders, .claude/launch.json, the seven mock generators and TeamLastSeason.astro; acceptance criteria follow the rulings (tooltip and gallery items rewritten, the trend item replaced by the comparison element item, a no-tooltip item added); decisions_reserved closed."
 -  - "2026-11-03: + .claude/skills/validate-local/SKILL.md — authority: the skill's own rule that a gate added to a CI job is added to its CI mapping table, raised by scope-auditor in review round 1; content: rows for the chart-component check and the chart screenshot check under validate:ui."
 +  - 2026-11-04: + site_v2/src/lib/chartMarks.mjs, site_v2/src/components/fixture/PlayerRow.astro, site_v2/src/components/fixture/RecentMatch.astro, site_v2/src/components/fixture/HeadToHead.astro — authority: approved in chat, 2026-11-04 (Inter's narrow rows, recorded on #243; the scatter label's re-placement after the font loads); content: the narrow-row wrapping, the scatter label re-placement, the stated readings of approved_design, the recurring-cost line and the corrected CI line.
++  - 2026-11-04: + scripts/check_design_inventory.py, scripts/check_chart_screenshots.py, tests/test_check_chart_screenshots.py — authority: approved in chat, 2026-11-04; content: the launch flag, in the chart test's browser too so check and test measure one layout, and the sentences that named the system font, and no site change.
++  - 2026-11-04: + tests/test_sentence_length_in_docs.py — authority: the test's own rule that a pin moves down with a cleanup; content: .claude/agents/cto-reviewer.md 19 to 17 and docs/roles/platform_reliability.md 9 to 7, the sentences this MR split, and no pin raised.
 +  - 2026-11-04: + tests/test_design_inventory.py — authority: approved in chat, 2026-11-04 (the nine-count pin exception, recorded on #243); content: the listed exception in test_no_pin_rises_above_mains, its test, and the result row's 45% limit and narrow gaps in the impact map.
 diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
 index 48c2c13a..4e3ecb51 100644
@@ -455,7 +475,7 @@ index 48c2c13a..4e3ecb51 100644
      paths:
 diff --git a/docs/design/components.yml b/docs/design/components.yml
 new file mode 100644
-index 00000000..a731e002
+index 00000000..407da87c
 --- /dev/null
 +++ b/docs/design/components.yml
 @@ -0,0 +1,525 @@
@@ -634,7 +654,7 @@ index 00000000..a731e002
 +    used-on: [Home, Matches, Competition matchdays, Team page]
 +    parts:
 +      name: {class: nm, selector: ".fxrow .side .nm", text: 15-400-ink, element: Match row name, rule: "a club's name, 15px ink, wraps and never truncates", measured: "font-size=15px; color=ink; white-space=normal", ruled-on: "#50"}
-+      kick-off: {class: t, selector: ".fxrow .when .t", text: 16-700-ink, breaks: never, element: Match row kick-off, rule: "the kick-off in the venue's clock, 16px bold ink, on one line inside its column; \"TBC\" when no time", measured: "font-size=16px; font-weight=700; color=ink; one-line; fits", ruled-on: "#50; #129 Matchdays; #146; #243 registry"}
++      kick-off: {class: t, selector: ".fxrow .when .t", text: 16-700-ink, breaks: never, element: Match row kick-off, rule: "the kick-off in the venue's clock, 16px bold ink, on one line inside its column; \"TBC\" when no time", measured: "font-size=16px; font-weight=700; color=ink; one-line; fits", ruled-on: "#50; #129 Matchdays; #146; the component registry"}
 +      zone: {class: rowtz, selector: ".fxrow .when .rowtz", text: 10.5-600-muted, element: Match row zone, rule: "the zone label under the kick-off, on every unplayed row, 10.5px muted", measured: "font-size=10.5px; color=muted", ruled-on: "#50; #146"}
 +      score: {class: winner, selector: ".fxrow .side .g.winner", text: 15-700-ink, element: Match row score, rule: "a played row is the row plus the score; the winner by weight, never hue", measured: "font-weight=700; color=ink", ruled-on: "#50; #129 Matchdays"}
 +      sides: {class: sides}
@@ -759,7 +779,7 @@ index 00000000..a731e002
 +      row: {class: resrow, element: Result row, rule: "result chip · score · opponent (crest, name, H or A) · competition · date. One line where its list is 420px wide or more, two lines below", measured: fits, ruled-on: the match page review}
 +      score: {class: rscore, selector: ".resrow .rscore", text: 15-700-ink, element: Result row score, rule: "the score from the row's side, 15px bold ink", measured: "font-size=15px; font-weight=700; color=ink", ruled-on: the match page review}
 +      name: {class: ropp, selector: ".resrow .ropp", text: 15-400-ink, element: Result row name, rule: "the club, 15px ink, wrapping, never cut off", measured: "font-size=15px; color=ink; white-space=normal", ruled-on: the match page review}
-+      meta: {class: rmeta, selector: ".resrow:not(.goal) .rmeta", text: 12-400-muted, element: Result row meta, rule: "the competition's name and the date, 12px muted; the name wraps between words, the date never splits", measured: "font-size=12px; color=muted", ruled-on: "the match page review; #243 registry"}
++      meta: {class: rmeta, selector: ".resrow:not(.goal) .rmeta", text: 12-400-muted, element: Result row meta, rule: "the competition's name and the date, 12px muted; the name wraps between words, the date never splits", measured: "font-size=12px; color=muted", ruled-on: "the match page review; the component registry"}
 +      meeting: {class: meet, selector: ".resrow.meet", element: Meeting row, rule: "a meeting of the two teams: the result row without its chip. The score is in the match's order, the home side first, the date with its year", measured: fits, ruled-on: the match page review}
 +      goal: {class: goal, selector: ".resrow.goal", element: Goal row, rule: "a goal: the score after it, then the scorer with the crest of the side it counts for. The second line holds the minute with the assist, own goal or penalty. Without minutes the row has no score", measured: fits, ruled-on: the played match page review}
 +      goal-meta: {class: rmeta, selector: ".resrow.goal .rmeta", text: 14-400-ink-2, element: Goal row meta, rule: "the goal's minute and its assist, own goal or penalty: 14px ink-2, larger and lighter than a list row's second line", measured: "font-size=14px; color=ink-2", ruled-on: the played match page review}
@@ -783,7 +803,7 @@ index 00000000..a731e002
 +    file: [site_v2/src/components/fixture/PlayerRow.astro, site_v2/src/components/fixture/MatchLineups.astro, site_v2/src/components/team/TeamSquad.astro]
 +    used-on: [match page, Team page]
 +    parts:
-+      row: {class: plrow, element: Player row, rule: "photo · name over position · goals and assists on the right at every width, taking two lines below 375px when the row is short of room; on a line-up, the minutes played", measured: fits, ruled-on: "the match page review; #243 registry"}
++      row: {class: plrow, element: Player row, rule: "photo · name over position · goals and assists on the right at every width; two lines below 375px when the row is short of room; on a line-up, the minutes played", measured: fits, ruled-on: "the match page review; the component registry"}
 +      name: {class: nm, selector: ".plrow .pname .nm", text: 15-400-ink, element: Player row name, rule: "15px regular ink, wrapping, never cut off", measured: "font-size=15px; font-weight=400; color=ink; white-space=normal", ruled-on: the match page review}
 +      position: {class: ps, selector: ".plrow .pname .ps", text: 12-400-muted, element: Player row position, rule: "12px muted. On a line-up the substitution follows after a middle dot. It is the minute a starter went off, or a substitute came on and for whom", measured: "font-size=12px; color=muted", ruled-on: the match page review}
 +      number: {class: pstat, selector: ".plrow .pstat b", text: 15-700-ink, element: Player row number, rule: 15px bold ink, measured: "font-size=15px; font-weight=700; color=ink", ruled-on: the match page review}
@@ -1027,7 +1047,7 @@ index 019fe19f..2e8862ef 100644
  here is fed to the reviewer on every run, which is how review round 2 caught it.
  
 diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
-index 55e569d1..669231a6 100644
+index 55e569d1..313be1cb 100644
 --- a/docs/wireframes/block_standard.md
 +++ b/docs/wireframes/block_standard.md
 @@ -6,6 +6,8 @@
@@ -1043,26 +1063,26 @@ index 55e569d1..669231a6 100644
  
  | Element | Selector | Rule | Measured as | Status | Ruled on |
  |---|---|---|---|---|---|
-+| Page shell parts | `.legacy-width, .mp` | the page shell's other parts: registered, no text of their own |  | ruled | #243 registry |
++| Page shell parts | `.legacy-width, .mp` | the page shell's other parts: registered, no text of their own |  | ruled | the component registry |
 +| Search field | `.header-actions .searchbox` | the header's search field with its placeholder, one on every page from 1010px, where it replaces the search button; on one line in every language, nothing spilling out of it | `visible=1 [>=1010px]; visible=0 [<1010px]; one-line; fits` | ruled | `09_chrome.md` (≥ 1010px: the full field) |
 +| Search button | `.iconbtn.search-m` | the header's icon-only search button below 1010px, a 34px target; gone from 1010px | `visible=1 [<1010px]; visible=0 [>=1010px]; min-box=34px` | ruled | `09_chrome.md` (phone: the search icon) |
 +| Header row | `.header-in` | the header's brand, menu and controls fit its row; the menu stands in the row when it fits there, otherwise the menu button | `fits` | ruled | the narrow-screen fix |
-+| Site header brand | `.site-header .brand` | the site header's brand, in the 18-800-ink text style, never broken | `font-size=18px; font-weight=800; color=ink; one-line; fits` | ruled | #243 registry |
-+| Site header brand iq | `.site-header .iq` | the site header's brand iq, in the 18-700-ink-2 text style, never broken | `font-size=18px; font-weight=700; color=ink-2; one-line; fits` | ruled | #243 registry |
-+| Site header parts | `.site-header, .drawer, .hamburger, .ico, .on` | the site header's other parts: registered, no text of their own |  | ruled | #243 registry |
-+| Site footer meta | `.fmeta` | the site footer's meta, in the 11.5-400-muted text style | `font-size=11.5px; font-weight=400; color=muted` | ruled | #243 registry |
-+| Site footer imprint | `.imp` | the site footer's imprint, in the 12.5-400-muted text style | `font-size=12.5px; font-weight=400; color=muted` | ruled | #243 registry |
-+| Site footer brand | `.site-footer .brand` | the site footer's brand, in the 15-800-ink text style, never broken | `font-size=15px; font-weight=800; color=ink; one-line; fits` | ruled | #243 registry |
-+| Site footer parts | `.site-footer, .flinks` | the site footer's other parts: registered, no text of their own |  | ruled | #243 registry |
++| Site header brand | `.site-header .brand` | the site header's brand, in the 18-800-ink text style, never broken | `font-size=18px; font-weight=800; color=ink; one-line; fits` | ruled | the component registry |
++| Site header brand iq | `.site-header .iq` | the site header's brand iq, in the 18-700-ink-2 text style, never broken | `font-size=18px; font-weight=700; color=ink-2; one-line; fits` | ruled | the component registry |
++| Site header parts | `.site-header, .drawer, .hamburger, .ico, .on` | the site header's other parts: registered, no text of their own |  | ruled | the component registry |
++| Site footer meta | `.fmeta` | the site footer's meta, in the 11.5-400-muted text style | `font-size=11.5px; font-weight=400; color=muted` | ruled | the component registry |
++| Site footer imprint | `.imp` | the site footer's imprint, in the 12.5-400-muted text style | `font-size=12.5px; font-weight=400; color=muted` | ruled | the component registry |
++| Site footer brand | `.site-footer .brand` | the site footer's brand, in the 15-800-ink text style, never broken | `font-size=15px; font-weight=800; color=ink; one-line; fits` | ruled | the component registry |
++| Site footer parts | `.site-footer, .flinks` | the site footer's other parts: registered, no text of their own |  | ruled | the component registry |
 +| Navigation link | `nav.trail a.lnk` | a link known by its place: the logo, the menu, search, the breadcrumb, the tabs, the picker and the filters. A breadcrumb level has a 44px touch area | `min-box=44px` | ruled | the match page review |
 +| Breadcrumb current page | `.crumb .here` | the page you are on differs from the links at rest; the shipped site has the current page `ink-2` and the links muted, #52's mock had the two inverted | `color=ink-2` | proposed | put to the CPO on the #153 MR; measured, never fails, until ruled |
-+| Breadcrumb separator | `.sep` | the breadcrumb's separator, in the 13-400-muted text style, never broken | `font-size=13px; font-weight=400; color=muted; one-line; fits` | ruled | #243 registry |
-+| Breadcrumb parts | `.lvl, .far` | the breadcrumb's other parts: registered, no text of their own |  | ruled | #243 registry |
++| Breadcrumb separator | `.sep` | the breadcrumb's separator, in the 13-400-muted text style, never broken | `font-size=13px; font-weight=400; color=muted; one-line; fits` | ruled | the component registry |
++| Breadcrumb parts | `.lvl, .far` | the breadcrumb's other parts: registered, no text of their own |  | ruled | the component registry |
 +| Page heading | `.crumb + h1` | a menu page's heading under its breadcrumb, the menu item's word: the Competitions page's and the Matches page's, 30px bold ink | `font-size=30px; font-weight=700; color=ink` | ruled | #130 (the Competitions page's heading, as it ships) |
-+| Entity header parts | `.thead, .tid` | the entity header's other parts: registered, no text of their own |  | ruled | #243 registry |
++| Entity header parts | `.thead, .tid` | the entity header's other parts: registered, no text of their own |  | ruled | the component registry |
 +| Tab bar | `nav.tabs` | the tabs share the row and fit in one row at 375px in EN, DE and FI, no sideways scrolling | `fits` | ruled | #129 header |
 +| Tab | `nav.tabs .tab` | one line each, never wrapped; the side padding is what the label needs | `one-line` | ruled | #129 header |
-+| Tab bar parts | `.comp-tabs, .tab-in` | the tab bar's other parts: registered, no text of their own |  | ruled | #243 registry |
++| Tab bar parts | `.comp-tabs, .tab-in` | the tab bar's other parts: registered, no text of their own |  | ruled | the component registry |
  | Block | `section` | 36px above each block; every content block has a name; a block with nothing to show is absent | `margin-top=36px` | ruled | #129 binding rules |
  | Block heading | `.sechead .eyebrow` | the block's name: 13px capitals, bold, muted, over a 1px rule | `font-size=13px; font-weight=700; text-transform=uppercase; color=muted` | ruled | #129 binding rules (13px, from 11) |
  | Block heading gap | `.sechead` | one distance from the block name's rule to the block's first line: 14px, nothing added by the content — a date heading, a fact row, a group or a table opening the block carries no space of its own; the name starts at the block's left edge | `gap(next)=14px; left-edge=section` | ruled | #129 binding rules; #127 correction 3 |
@@ -1078,10 +1098,10 @@ index 55e569d1..669231a6 100644
 -| Table group name | `.ctab-section > .gh .nm` | 14px bold ink | `font-size=14px; font-weight=700; color=ink` | ruled | #129 Table |
 +| Date heading | `.fxgroup .dh` | the date once per day, over its rows: 12px bold capitals, muted | `font-size=12px; font-weight=700; text-transform=uppercase; color=muted` | ruled | #127 (2026-09-14); #50 |
 +| Match row name | `.fxrow .side .nm` | a club's name, 15px ink, wraps and never truncates | `font-size=15px; color=ink; white-space=normal` | ruled | #50 |
-+| Match row kick-off | `.fxrow .when .t` | the kick-off in the venue's clock, 16px bold ink, on one line inside its column; "TBC" when no time | `font-size=16px; font-weight=700; color=ink; one-line; fits` | ruled | #50; #129 Matchdays; #146; #243 registry |
++| Match row kick-off | `.fxrow .when .t` | the kick-off in the venue's clock, 16px bold ink, on one line inside its column; "TBC" when no time | `font-size=16px; font-weight=700; color=ink; one-line; fits` | ruled | #50; #129 Matchdays; #146; the component registry |
 +| Match row zone | `.fxrow .when .rowtz` | the zone label under the kick-off, on every unplayed row, 10.5px muted | `font-size=10.5px; color=muted` | ruled | #50; #146 |
 +| Match row score | `.fxrow .side .g.winner` | a played row is the row plus the score; the winner by weight, never hue | `font-weight=700; color=ink` | ruled | #50; #129 Matchdays |
-+| Match row parts | `.sides, .played` | the match row's other parts: registered, no text of their own |  | ruled | #243 registry |
++| Match row parts | `.sides, .played` | the match row's other parts: registered, no text of their own |  | ruled | the component registry |
  | Table head | `.ctab-head` | the head row with the column labels (or, on a board, the board's name); its 1px rule is the table's only line; it starts at the block's left edge | `border-bottom-width=1px; left-edge=section` | ruled | #129 Table; 2026-09-17 ("head only") |
  | Table head label | `.ctab-head .h:not(.rk)` | 11px bold muted | `font-size=11px; font-weight=700; color=muted` | ruled | #129 Table |
  | Table row | `.ctab-row` | striped rows counted from the head, the first plain, the stripe ink at 5%; no line under a row; the row's tracks are the head's (one fixed track list per table kind) | `border-bottom-width=0px; stripe=ink@5% from 2; tracks=head` | ruled | #129 Table; 2026-09-17 ("head only") |
@@ -1089,7 +1109,7 @@ index 55e569d1..669231a6 100644
  | Table narrow row | `.ctab.fit-two .ctab-row` | a row that does not fit on one line takes two: rank, crest and name, then each number under its head | `tracks=head` | ruled | the narrow-screen fix |
 -| Name in whole words | `.ctab .tm .nm, .fxrow .side .nm, .club .cn` | a team name wraps only between words; no word splits or runs past the name's space | `whole-words` | ruled | the narrow-screen fix |
 +| Ordered-by number | `.ctab .n.pts` | the number a table is ordered by: bold 15px accent, everywhere, no per-block colour | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules |
-+| Table parts | `.ctab` | the table's other parts: registered, no text of their own |  | ruled | #243 registry |
++| Table parts | `.ctab` | the table's other parts: registered, no text of their own |  | ruled | the component registry |
  | Board name | `.ctab.rkt .ctab-head .nmh .bt .nm` | a board is a single-value table; its name sits in the head row with the chevron, 14px bold ink, not capitals, at the block's left edge | `font-size=14px; font-weight=700; color=ink; text-transform=none` | ruled | #129 board rules; #127 correction 1 |
  | Board name cell | `.ctab.rkt .ctab-head .nmh` | at the block's left edge | `left-edge=section` | ruled | #127 correction 3 |
  | Board sub-line | `.ctab.rkt .tm .ent .sub` | a player's club under the name, 12px muted | `font-size=12px; color=muted` | ruled | #129 Rankings |
@@ -1103,13 +1123,13 @@ index 55e569d1..669231a6 100644
 -| Date heading | `.fxgroup .dh` | the date once per day, over its rows: 12px bold capitals, muted | `font-size=12px; font-weight=700; text-transform=uppercase; color=muted` | ruled | #127 (2026-09-14); #50 |
 +| Table group heading | `.ctab-section > .gh` | the level-2 heading over one table of a group stage ("Group A"): 14px bold, a 1px line | `border-bottom-width=1px; left-edge=section` | ruled | #129 Table (rejected for Rankings, kept for tables) |
 +| Table group name | `.ctab-section > .gh .nm` | 14px bold ink | `font-size=14px; font-weight=700; color=ink` | ruled | #129 Table |
-+| Standings table goal difference | `.ctab .n.gd` | the standings table's goal difference, in the 13-400-ink-2 text style, never broken | `font-size=13px; font-weight=400; color=ink-2; one-line; fits` | ruled | #243 registry |
-+| Standings table wdl head | `.ctab-head .h.wdl` | the standings table's wdl head, in the 11-700-muted text style, never broken | `font-size=11px; font-weight=700; color=muted; one-line; fits` | ruled | #243 registry |
-+| Standings table wdl | `.ctab .n.wdl` | the standings table's wdl, in the 13-400-muted text style, never broken | `font-size=13px; font-weight=400; color=muted; one-line; fits` | ruled | #243 registry |
-+| Deserved points table shots head | `.ctab-head .hs` | the deserved points table's shots head, in the 11-600-muted text style | `font-size=11px; font-weight=600; color=muted` | ruled | #243 registry |
-+| Deserved points table parts | `.dpt` | the deserved points table's other parts: registered, no text of their own |  | ruled | #243 registry |
++| Standings table goal difference | `.ctab .n.gd` | the standings table's goal difference, in the 13-400-ink-2 text style, never broken | `font-size=13px; font-weight=400; color=ink-2; one-line; fits` | ruled | the component registry |
++| Standings table wdl head | `.ctab-head .h.wdl` | the standings table's wdl head, in the 11-700-muted text style, never broken | `font-size=11px; font-weight=700; color=muted; one-line; fits` | ruled | the component registry |
++| Standings table wdl | `.ctab .n.wdl` | the standings table's wdl, in the 13-400-muted text style, never broken | `font-size=13px; font-weight=400; color=muted; one-line; fits` | ruled | the component registry |
++| Deserved points table shots head | `.ctab-head .hs` | the deserved points table's shots head, in the 11-600-muted text style | `font-size=11px; font-weight=600; color=muted` | ruled | the component registry |
++| Deserved points table parts | `.dpt` | the deserved points table's other parts: registered, no text of their own |  | ruled | the component registry |
 +| Trend | `.ctab.yoyt .n.tr` | ▲ in the accent when this season is better, ▼ in the loss red when worse, "–" when the shown values are equal | `font-size=13px` | ruled | the Team page review |
-+| Last-season table parts | `.yoy-list` | the last-season table's other parts: registered, no text of their own |  | ruled | #243 registry |
++| Last-season table parts | `.yoy-list` | the last-season table's other parts: registered, no text of their own |  | ruled | the component registry |
  | Fact row label | `.frow .fl` | label, 14px ink regular | `font-size=14px; color=ink; font-weight=400` | ruled | #129 the fact row |
  | Fact row value | `.frow .fvv b` | the value, bold 15px accent — the number the row is about | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules, Block 3 |
  | Fact row context | `.frow .sub` | the context under the value, 12px muted | `font-size=12px; color=muted` | ruled | #129 the fact row |
@@ -1117,7 +1137,7 @@ index 55e569d1..669231a6 100644
 -| Fitted block | `.header-in, .ctab, :has(> .frow), .fbar, .selbar, .fxrow:has(.topmatch)` | a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded | `fit-marked` | ruled | the narrow-screen fix |
 -| Ordered-by number | `.ctab .n.pts` | the number a table is ordered by: bold 15px accent, everywhere, no per-block colour | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules |
 -| Row link | `a.ctab-row, a.fxrow, a.frow, a.brow, a.comp-row` | a row that leads somewhere is one link, the whole row; one hover tint for every row link, ink at 11% (twice the stripe); the press tint `sunk`; no underline inside a row | `hover(background-color)=ink@11%; press(background-color)=sunk; text-decoration-line=none` | ruled | #129 binding rules; #52; #127 (2026-09-14) |
-+| Fact row parts | `.facts, .fv` | the fact row's other parts: registered, no text of their own |  | ruled | #243 registry |
++| Fact row parts | `.facts, .fv` | the fact row's other parts: registered, no text of their own |  | ruled | the component registry |
  | Chevron heading link | `a.cnm` | a heading that leads somewhere carries a chevron at rest and is never underlined | `text-decoration-line=none` | ruled | #52; #129 binding rules |
  | Chevron | `a.cnm .chev` | 15px, muted at rest | `color=muted` | ruled | #52 |
 -| Prose link | `p a, .lede a, .sub a, .bnote a` | the one place an underline stays: a link inside running text | `text-decoration-line=underline` | ruled | #52 |
@@ -1128,24 +1148,24 @@ index 55e569d1..669231a6 100644
 +| Match header winner | `.mast .winner` | the winning side's goals by weight, never by hue | `font-weight=700` | ruled | the played match page review |
 +| Match header team goals | `.mast .team .sg` | under 700px a team's goals close its line, 24px ink, the winner's bold | `font-size=24px; color=ink` | ruled | the played match page review |
 +| Match header result line | `.mast .resline` | the line under the score, 13px muted: after penalties the score after extra time, its numbers bold; on an award, how it came about | `font-size=13px; color=muted` | ruled | the played match page review |
-+| Match header kick off | `.mast .kick` | the match header's kick off, in the 13-400-muted text style | `font-size=13px; font-weight=400; color=muted` | ruled | #243 registry |
-+| Match header dash | `.mast .dash` | the match header's dash, in the 40-400-muted text style, never broken | `font-size=40px; font-weight=400; color=muted; one-line; fits` | ruled | #243 registry |
-+| Match header parts | `.vh, .played` | the match header's other parts: registered, no text of their own |  | ruled | #243 registry |
++| Match header kick off | `.mast .kick` | the match header's kick off, in the 13-400-muted text style | `font-size=13px; font-weight=400; color=muted` | ruled | the component registry |
++| Match header dash | `.mast .dash` | the match header's dash, in the 40-400-muted text style, never broken | `font-size=40px; font-weight=400; color=muted; one-line; fits` | ruled | the component registry |
++| Match header parts | `.vh, .played` | the match header's other parts: registered, no text of their own |  | ruled | the component registry |
  | List row | `.lrow` | one row of a list, a line between rows, nothing cut off. Its name is 15px, its second line 12px muted, its numbers 15px bold | `fits` | ruled | the match page review |
  | Result chip | `.resrow .pill` | one match's W, D or L from a team's side, in the page's language, on the result colour | `font-size=12px; font-weight=700; color=pill-ink` | ruled | the match page review |
  | Result row | `.resrow` | result chip · score · opponent (crest, name, H or A) · competition · date. One line where its list is 420px wide or more, two lines below | `fits` | ruled | the match page review |
  | Result row score | `.resrow .rscore` | the score from the row's side, 15px bold ink | `font-size=15px; font-weight=700; color=ink` | ruled | the match page review |
  | Result row name | `.resrow .ropp` | the club, 15px ink, wrapping, never cut off | `font-size=15px; color=ink; white-space=normal` | ruled | the match page review |
 -| Result row meta | `.resrow:not(.goal) .rmeta` | the competition's name and the date, 12px muted | `font-size=12px; color=muted` | ruled | the match page review |
-+| Result row meta | `.resrow:not(.goal) .rmeta` | the competition's name and the date, 12px muted; the name wraps between words, the date never splits | `font-size=12px; color=muted` | ruled | the match page review; #243 registry |
++| Result row meta | `.resrow:not(.goal) .rmeta` | the competition's name and the date, 12px muted; the name wraps between words, the date never splits | `font-size=12px; color=muted` | ruled | the match page review; the component registry |
  | Meeting row | `.resrow.meet` | a meeting of the two teams: the result row without its chip. The score is in the match's order, the home side first, the date with its year | `fits` | ruled | the match page review |
 -| Player row | `.plrow` | photo · name over position · goals and assists on the right at every width; on a line-up, the minutes played | `fits` | ruled | the match page review |
 +| Goal row | `.resrow.goal` | a goal: the score after it, then the scorer with the crest of the side it counts for. The second line holds the minute with the assist, own goal or penalty. Without minutes the row has no score | `fits` | ruled | the played match page review |
 +| Goal row meta | `.resrow.goal .rmeta` | the goal's minute and its assist, own goal or penalty: 14px ink-2, larger and lighter than a list row's second line | `font-size=14px; color=ink-2` | ruled | the played match page review |
-+| Result row home away | `.resrow .ha` | the result row's home away, in the 11-600-muted text style, never broken | `font-size=11px; font-weight=600; color=muted; one-line; fits` | ruled | #243 registry |
-+| Result row parts | `.rlist, .scorer` | the result row's other parts: registered, no text of their own |  | ruled | #243 registry |
-+| Form parts | `.W, .D, .L` | the form's other parts: registered, no text of their own |  | ruled | #243 registry |
-+| Player row | `.plrow` | photo · name over position · goals and assists on the right at every width, taking two lines below 375px when the row is short of room; on a line-up, the minutes played | `fits` | ruled | the match page review; #243 registry |
++| Result row home away | `.resrow .ha` | the result row's home away, in the 11-600-muted text style, never broken | `font-size=11px; font-weight=600; color=muted; one-line; fits` | ruled | the component registry |
++| Result row parts | `.rlist, .scorer` | the result row's other parts: registered, no text of their own |  | ruled | the component registry |
++| Form parts | `.W, .D, .L` | the form's other parts: registered, no text of their own |  | ruled | the component registry |
++| Player row | `.plrow` | photo · name over position · goals and assists on the right at every width; two lines below 375px when the row is short of room; on a line-up, the minutes played | `fits` | ruled | the match page review; the component registry |
  | Player row name | `.plrow .pname .nm` | 15px regular ink, wrapping, never cut off | `font-size=15px; font-weight=400; color=ink; white-space=normal` | ruled | the match page review |
  | Player row position | `.plrow .pname .ps` | 12px muted. On a line-up the substitution follows after a middle dot. It is the minute a starter went off, or a substitute came on and for whom | `font-size=12px; color=muted` | ruled | the match page review |
  | Player row number | `.plrow .pstat b` | 15px bold ink | `font-size=15px; font-weight=700; color=ink` | ruled | the match page review |
@@ -1157,10 +1177,10 @@ index 55e569d1..669231a6 100644
 -| Goal row meta | `.resrow.goal .rmeta` | the goal's minute and its assist, own goal or penalty: 14px ink-2, larger and lighter than a list row's second line | `font-size=14px; color=ink-2` | ruled | the played match page review |
 -| Tab explainer | `.bsub.tab-intro` | a tab's opening sentence under the tab bar, in the block explainer's style: 13px muted | `font-size=13px; color=muted` | ruled | the Team page review |
 +| Column head | `.rcol .colhead` | a list column's name, 13px bold muted; one fact may follow after a middle dot (a team's formation); a second head inside the column opens its second list | `font-size=13px; font-weight=700; color=muted` | ruled | the played match page review |
-+| Two columns parts | `.rsplit, .sheets, .off` | the two columns's other parts: registered, no text of their own |  | ruled | #243 registry |
++| Two columns parts | `.rsplit, .sheets, .off` | the two columns's other parts: registered, no text of their own |  | ruled | the component registry |
  | Competition row | `.lrow.tc` | one competition of a team's season: crest, name and a muted note, with the standing or the cup's outcome on the right. A table's row adds the W, D and L counts, goals and points below. Narrow, the standing opens the second line | `fits` | ruled | the Team page review |
  | Competition row name | `.tc .tc-name` | 15px semi-bold ink; the note after it 12px muted | `font-size=15px; font-weight=600; color=ink` | ruled | the Team page review |
-+| Competition row chip | `.cchip` | the competition row's chip, in the 12.5-700-pill-ink text style, never broken | `font-size=12.5px; font-weight=700; color=pill-ink` | ruled | #243 registry |
++| Competition row chip | `.cchip` | the competition row's chip, in the 12.5-700-pill-ink text style, never broken | `font-size=12.5px; font-weight=700; color=pill-ink` | ruled | the component registry |
  | Squad grid | `.sqgrid` | the squad's player rows in two columns where each keeps 280px, otherwise one | `fits` | ruled | the Team page review |
  | Strip plot row | `.rs-row` | a metric's name, the league's values with every team's mark, and the team's rank over its value; drawn by `team/TeamLeagueStrips.astro` | `fits` | ruled | the Team page review |
  | Strip plot value | `.rs-val` | the team's rank over its value; drawn by `team/TeamLeagueStrips.astro` | `font-size=15px; font-weight=700; color=ink` | ruled | the Team page review |
@@ -1187,7 +1207,7 @@ index 55e569d1..669231a6 100644
 -| Strip plot band | `.rs-row .rs-band` | a strip plot row's strip: its line with every team's mark on it | `fits` | ruled | the chart theme |
 -| Column head | `.rcol .colhead` | a list column's name, 13px bold muted; one fact may follow after a middle dot (a team's formation); a second head inside the column opens its second list | `font-size=13px; font-weight=700; color=muted` | ruled | the played match page review |
 -| Tag | `.nexttag, .fxrow .topmatch` | Next (on the picker's title) and Top match (on the flagged row, before the kick-off): 10px bold capitals in an accent pill. Narrow, a row's tag takes its own line above the home team, left-aligned | `font-size=10px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink` | ruled | the competition Matchdays design; the Home design; the narrow-screen fix |
-+| Chart parts | `.chart-dot:not(.chart-me), .chart-dot.chart-me` | the chart's other parts: registered, no text of their own |  | ruled | #243 registry |
++| Chart parts | `.chart-dot:not(.chart-me), .chart-dot.chart-me` | the chart's other parts: registered, no text of their own |  | ruled | the component registry |
 +| Schedule block | `.md > section` | the Matchdays tab's only block, under its round's picker line: its name, then the date heading per day and the match rows; one round's block on screen at a time, no script | `visible=1; margin-top=36px` | ruled | #129 Matchdays |
  | Matchday picker | `.mdnav .mdstep` | its own full-width line under the tab bar: ‹ MATCHDAY N › with the Next tag, the arrows pinned to the edges, the title centred, a 2px line under; one matchday on screen at a time; no script | `visible=1; border-bottom-width=2px` | ruled | #129 Matchdays |
  | Picker title | `.mdstep .mdtitle .num` | 13px bold capitals ink | `font-size=13px; font-weight=700; text-transform=uppercase; color=ink` | ruled | #129 Matchdays |
@@ -1196,23 +1216,23 @@ index 55e569d1..669231a6 100644
 -| Tab | `nav.tabs .tab` | one line each, never wrapped; the side padding is what the label needs | `one-line` | ruled | #129 header |
 -| Breadcrumb current page | `.crumb .here` | the page you are on differs from the links at rest; the shipped site has the current page `ink-2` and the links muted, #52's mock had the two inverted | `color=ink-2` | proposed | put to the CPO on the #153 MR; measured, never fails, until ruled |
 -| Page heading | `.crumb + h1` | a menu page's heading under its breadcrumb, the menu item's word: the Competitions page's and the Matches page's, 30px bold ink | `font-size=30px; font-weight=700; color=ink` | ruled | #130 (the Competitions page's heading, as it ships) |
-+| Matchday picker parts | `.md-in, .next` | the matchday picker's other parts: registered, no text of their own |  | ruled | #243 registry |
++| Matchday picker parts | `.md-in, .next` | the matchday picker's other parts: registered, no text of their own |  | ruled | the component registry |
  | Filter row | `.seg` | a filter by type and one by region on the Competitions and Matches pages, each a sunk ground holding its buttons or its dropdown | `background-color=sunk` | ruled | the Filter bar design |
  | Filter button | `.seg .seg-btn` | 13px, each on one line | `font-size=13px; one-line` | ruled | the Filter bar design |
  | Filter bar | `.fbar` | the buttons while each row of them fits on one line, otherwise a dropdown per filter. A filter offers only the choices its rows carry, and none that would leave no row | `fits` | ruled | the Filter bar design |
  | Filter dropdown | `.seg.sel .sel-in` | 13px bold ink; side by side while each holds its longest choice, stacked full width below that | `font-size=13px; font-weight=700; color=ink; fits` | ruled | the Filter bar design |
-+| Filter bar parts | `.seg-in, .categories` | the filter bar's other parts: registered, no text of their own |  | ruled | #243 registry |
++| Filter bar parts | `.seg-in, .categories` | the filter bar's other parts: registered, no text of their own |  | ruled | the component registry |
  | Fold | `.fold-ctl` | Under a list's shown rows: "Show all {n}" closed, "Show less" open, with the chevron down or up: 13px semi-bold ink-2 | `font-size=13px; font-weight=600; color=ink-2` | ruled | the shared fold review |
 -| Search field | `.header-actions .searchbox` | the header's search field with its placeholder, one on every page from 1010px, where it replaces the search button; on one line in every language, nothing spilling out of it | `visible=1 [>=1010px]; visible=0 [<1010px]; one-line; fits` | ruled | `09_chrome.md` (≥ 1010px: the full field) |
 -| Search button | `.iconbtn.search-m` | the header's icon-only search button below 1010px, a 34px target; gone from 1010px | `visible=1 [<1010px]; visible=0 [>=1010px]; min-box=34px` | ruled | `09_chrome.md` (phone: the search icon) |
-+| Fold label | `.lbl` | the fold's label, in the 13-600-ink-2 text style, never broken | `font-size=13px; font-weight=600; color=ink-2; one-line; fits` | ruled | #243 registry |
-+| Fold parts | `.closed, .opened, .fold-in, .fold-rest` | the fold's other parts: registered, no text of their own |  | ruled | #243 registry |
-+| Competition list name | `.comp-row .comp-name` | the competition list's name, in the 14-600-ink text style | `font-size=14px; font-weight=600; color=ink` | ruled | #243 registry |
-+| Competition list region | `.comp-row .comp-region` | the competition list's region, in the 12-400-muted text style | `font-size=12px; font-weight=400; color=muted` | ruled | #243 registry |
-+| Competition list parts | `.compindex, .comp-grid, .comp-category, .comp-meta` | the competition list's other parts: registered, no text of their own |  | ruled | #243 registry |
-+| Team list parts | `.teamindex, .tblock, .tgroups-region, .tview-all, .tview-region` | the team list's other parts: registered, no text of their own |  | ruled | #243 registry |
-+| Fitted block parts | `.fit-one` | the fitted block's other parts: registered, no text of their own |  | ruled | #243 registry |
-+| Unbreakable unit parts | `.nb` | the unbreakable unit's other parts: registered, no text of their own |  | ruled | #243 registry |
++| Fold label | `.lbl` | the fold's label, in the 13-600-ink-2 text style, never broken | `font-size=13px; font-weight=600; color=ink-2; one-line; fits` | ruled | the component registry |
++| Fold parts | `.closed, .opened, .fold-in, .fold-rest` | the fold's other parts: registered, no text of their own |  | ruled | the component registry |
++| Competition list name | `.comp-row .comp-name` | the competition list's name, in the 14-600-ink text style | `font-size=14px; font-weight=600; color=ink` | ruled | the component registry |
++| Competition list region | `.comp-row .comp-region` | the competition list's region, in the 12-400-muted text style | `font-size=12px; font-weight=400; color=muted` | ruled | the component registry |
++| Competition list parts | `.compindex, .comp-grid, .comp-category, .comp-meta` | the competition list's other parts: registered, no text of their own |  | ruled | the component registry |
++| Team list parts | `.teamindex, .tblock, .tgroups-region, .tview-all, .tview-region` | the team list's other parts: registered, no text of their own |  | ruled | the component registry |
++| Fitted block parts | `.fit-one` | the fitted block's other parts: registered, no text of their own |  | ruled | the component registry |
++| Unbreakable unit parts | `.nb` | the unbreakable unit's other parts: registered, no text of their own |  | ruled | the component registry |
 +| Name in whole words | `.ctab .tm .nm, .fxrow .side .nm, .club .cn` | a team name wraps only between words; no word splits or runs past the name's space | `whole-words` | ruled | the narrow-screen fix |
 +| Legacy board value | `.brow .v b` | the legacy Home mocks' boards: the value follows the ordered-by number | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules |
 +| Fitted block | `.header-in, .ctab, :has(> .frow), .fbar, .selbar, .fxrow:has(.topmatch)` | a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded | `fit-marked` | ruled | the narrow-screen fix |
@@ -1254,9 +1274,50 @@ index 7ec74d40..ddf294b6 100644
    reviewer brief is a prompt, not machinery.
  - The orchestrator applies this rule at spawn time. No hook enforces it.
  - Never state this rule in prose without checking it against the routing rows. Fix a mismatch on
+diff --git a/scripts/check_chart_screenshots.py b/scripts/check_chart_screenshots.py
+index a8ab29f4..92eabc64 100644
+--- a/scripts/check_chart_screenshots.py
++++ b/scripts/check_chart_screenshots.py
+@@ -8,7 +8,7 @@ Serves the built site, opens it in headless Chromium and checks:
+ - screenshots: each chart in `CHARTS` at 375px and 1010px, in English dark, English light and
+   Finnish dark, as a reader reaches it (a click on its tab), is compared by the SHA-256 of its PNG
+   with `tests/fixtures/chart_screenshots/` (`manifest.json` names the platform the pins were taken
+-  on and each file's hash). The site uses the system font, which differs per operating system, so
++  on and each file's hash). Text renders differently on each operating system, so
+   pins are taken on Linux only: a manifest from any other platform fails everywhere, and a run
+   off Linux compares nothing. The pages are built from the committed data, so a change to that data
+   changes the pins too. On every platform each PNG in the pins must match its hash in the manifest
+@@ -234,7 +234,8 @@ def measure(dist: Path) -> tuple[list[str], dict[str, bytes], list[str], list[st
+     srv, base = serve(dist)
+     try:
+         with sync_playwright() as pw:
+-            browser = pw.chromium.launch()
++            # The same text widths as the design check.
++            browser = pw.chromium.launch(args=["--font-render-hinting=none"])
+             page = browser.new_page(viewport={"width": 1010, "height": 900})
+             colours = colour_findings(page, base)
+             shots, missing = screenshots(page, base)
+@@ -248,7 +249,7 @@ def measure(dist: Path) -> tuple[list[str], dict[str, bytes], list[str], list[st
+ def screenshot_verdict(pinned: dict, now: dict, platform: str) -> tuple[list[str], bool]:
+     """The screenshot findings and whether the screenshots were compared. Only pins taken on Linux
+     are valid, on every platform, so a pin set from another machine can never switch the comparison
+-    off; a run on another platform compares nothing, since its font differs."""
++    off; a run on another platform compares nothing, since its text renders differently."""
+     if pinned and pinned.get("platform") != PIN_PLATFORM:
+         return ["manifest.json · taken on %s; pins are taken on %s only" % (pinned.get("platform"), PIN_PLATFORM)], False
+     if not platform.startswith(PIN_PLATFORM):
+@@ -266,7 +267,7 @@ def main(argv=None) -> int:
+     pins = Path(args.pins)
+     on_pin_platform = PLATFORM.startswith(PIN_PLATFORM)
+     if args.update and not on_pin_platform:
+-        print("check_chart_screenshots: the pins are taken on Linux only (the system font differs); this is %s" % PLATFORM)
++        print("check_chart_screenshots: the pins are taken on Linux only (text renders differently per system); this is %s" % PLATFORM)
+         return 2
+     colours, shots, missing, labels, measured = measure(Path(args.dist))
+     if not measured:
 diff --git a/scripts/check_component_registry.py b/scripts/check_component_registry.py
 new file mode 100644
-index 00000000..dace4281
+index 00000000..93ba3ea6
 --- /dev/null
 +++ b/scripts/check_component_registry.py
 @@ -0,0 +1,401 @@
@@ -1309,7 +1370,7 @@ index 00000000..dace4281
 +    "lines-unmeasured": "the part never breaks, and its mixed text sizes defeat the line count",
 +}
 +FITS = "fits"
-+RULED_ON = "#243 registry"
++RULED_ON = "the component registry"
 +HEADER = "| Element | Selector | Rule | Measured as | Status | Ruled on |"
 +
 +TOKENS = ("page", "surface", "sunk", "line", "div", "ink", "ink-2", "muted", "accent",
@@ -1661,6 +1722,20 @@ index 00000000..dace4281
 +
 +if __name__ == "__main__":
 +    sys.exit(main())
+diff --git a/scripts/check_design_inventory.py b/scripts/check_design_inventory.py
+index 8ae5bdc8..04d03287 100644
+--- a/scripts/check_design_inventory.py
++++ b/scripts/check_design_inventory.py
+@@ -595,7 +595,8 @@ def render_width(job: dict) -> dict:
+     covered: dict[str, set[str]] = {}
+     renders = shots = 0
+     with sync_playwright() as pw:
+-        browser = pw.chromium.launch()
++        # Hinting rounds Linux text to whole pixels, a layout phones and Windows do not produce.
++        browser = pw.chromium.launch(args=["--font-render-hinting=none"])
+         ctx = browser.new_context(viewport={"width": viewport, "height": 900}, device_scale_factor=1,
+                                   reduced_motion="reduce")
+         pw_page = ctx.new_page()
 diff --git a/site_v2/scripts/check-font-coverage.mjs b/site_v2/scripts/check-font-coverage.mjs
 new file mode 100644
 index 00000000..35e43df4
@@ -2178,6 +2253,19 @@ index 00000000..0432795e
 + "/fi/joukkueet/vfb-stuttgart/": {"U+0087": 1},
 + "/fi/nations-league/ottelut/2026-11-13-serbia-vs-germany/": {"U+0087": 1}
 +}
+diff --git a/tests/test_check_chart_screenshots.py b/tests/test_check_chart_screenshots.py
+index 50b02f2b..4d38824a 100644
+--- a/tests/test_check_chart_screenshots.py
++++ b/tests/test_check_chart_screenshots.py
+@@ -164,7 +164,7 @@ def _on_built_site(run, html=None, css=None, init=None):
+     srv, base = ccs.serve(DIST)
+     try:
+         with sync_playwright() as pw:
+-            browser = pw.chromium.launch()
++            browser = pw.chromium.launch(args=["--font-render-hinting=none"])
+             page = browser.new_page(viewport={"width": 1010, "height": 812})
+             if init:
+                 page.add_init_script(init)
 diff --git a/tests/test_check_component_registry.py b/tests/test_check_component_registry.py
 new file mode 100644
 index 00000000..8dd069e7
@@ -2546,6 +2634,28 @@ index 571c8368..83f95d39 100644
  ])
  def test_every_protected_path_needs_an_impact_map(repo, rel):
      scoped = CONTRACT_OVERRIDE_NO_IMPACT.replace(
+diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
+index fbcf8aa1..1bd8cd12 100644
+--- a/tests/test_sentence_length_in_docs.py
++++ b/tests/test_sentence_length_in_docs.py
+@@ -23,7 +23,7 @@ import sentence_length_gate as gate  # noqa: E402
+ PINNED = {
+     ".claude/agents/analytics-engineer-reviewer.md": 5,
+     ".claude/agents/bi-analyst-reviewer.md": 16,
+-    ".claude/agents/cto-reviewer.md": 19,
++    ".claude/agents/cto-reviewer.md": 17,
+     ".claude/agents/data-engineer-reviewer.md": 7,
+     ".claude/agents/football-analytics-expert-reviewer.md": 5,
+     ".claude/agents/platform-reviewer.md": 10,
+@@ -56,7 +56,7 @@ PINNED = {
+     "docs/roles/data_journalist.md": 5,
+     "docs/roles/football_analytics_expert.md": 1,
+     "docs/roles/legal_counsel.md": 5,
+-    "docs/roles/platform_reliability.md": 9,
++    "docs/roles/platform_reliability.md": 7,
+     "docs/roles/product_analyst.md": 4,
+     "docs/roles/seo_expert.md": 11,
+     "docs/roles/ui_expert.md": 1,
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -2562,6 +2672,7 @@ index 571c8368..83f95d39 100644
 #   .claude/task/TEMPLATE.md               |    4 +-
 #    .claude/task/acceptance_evidence.md    |   32 +-
 #    .claude/task/rendered_page_evidence.md |  109 +-
-#    .claude/task/review_input.patch        | 4226 ++++++++++++++++++--------------
-#    4 files changed, 2473 insertions(+), 1898 deletions(-)
+#    .claude/task/review.md                 |   65 +-
+#    .claude/task/review_input.patch        | 4318 ++++++++++++++++++--------------
+#    5 files changed, 2589 insertions(+), 1939 deletions(-)
 # ============================================================================

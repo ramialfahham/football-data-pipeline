@@ -47,7 +47,7 @@ GAPS = {
     "lines-unmeasured": "the part never breaks, and its mixed text sizes defeat the line count",
 }
 FITS = "fits"
-RULED_ON = "#243 registry"
+RULED_ON = "the component registry"
 HEADER = "| Element | Selector | Rule | Measured as | Status | Ruled on |"
 
 TOKENS = ("page", "surface", "sunk", "line", "div", "ink", "ink-2", "muted", "accent",
