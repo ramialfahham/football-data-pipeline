@@ -1,8 +1,8 @@
 # Review — claude/feat-243-registry-de2b6b
 
-diff_sha256: 28381883c8a9ea19b4c947230860be2fc5f1c74021500f2961985f05413bcc3e
+diff_sha256: a2bae9f398a5e6f5ce2c4d74e26e1cb9c22e65711e708a7367ea3b23fbcc2699
 
-rounds: 5
+rounds: 6
 
 rounds_cap_override: approved in chat, 2026-11-04: rounds past three for this MR, for the launch flag in the two measuring scripts, the doc-pin fix and the pins from CI's measurement.
 
@@ -42,3 +42,4 @@ risks_checked:
 - The reader tests' result under the flag on Linux is proved only by CI.
 - Round 5, the pin commit: static, coverage and platform are unchanged; 382 page lines change; exactly nine rose and each main value matches INTER_RISES.
 - The chart check runs only once the design steps pass, so its pins follow in a further commit.
+- Round 6, the chart pins: the manifest stays on linux with the same 18 names, the folder holds exactly those PNGs, and `pin_findings` fails closed on a mismatch.
