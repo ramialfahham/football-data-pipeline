@@ -266,7 +266,7 @@ violations as (
     from rows_in_context
     where
         position_code = 'G' and team_keepers_with_minutes = 1 and minutes >= 90
-        and goals_against != team_goals_conceded
+        and team_goals_conceded is not null and goals_against is distinct from team_goals_conceded
     union all
     select league_code, fixture_id, team_id, player_id, 'keepers_goals_conceded_above_team', ''
     from rows_in_context
