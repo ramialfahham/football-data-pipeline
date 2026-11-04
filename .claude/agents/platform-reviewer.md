@@ -34,9 +34,9 @@ page displays (`bi-analyst-reviewer`), what a number means
 > highest-stakes findings (the G3 commit-gate bypasses were caught only at that
 > depth, rounds 2-5) and those were fail-open and test-coverage findings, which are
 > YOUR items — that is why you are there at all.
-> You are deliberately NOT routed to the other six guard paths
+> You are deliberately NOT routed to the other seven guard paths
 > (`.claude/agents/**`, `.claude/commands/**`, `.claude/settings.json`,
-> `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`). Two reasons, and
+> `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `docs/design/components.yml`). Two reasons, and
 > the second one binds: a brief or a routing table is a prompt rather than
 > machinery, so none of your hunt items reach it and your verdict would be a rubber
 > stamp; and adding you there would put two opus specialists where one ran, which

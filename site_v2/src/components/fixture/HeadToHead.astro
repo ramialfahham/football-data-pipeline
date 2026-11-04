@@ -52,7 +52,7 @@ const rows = meetings.map((m) => {
             <span class="club"><Crest name={r.second.name} crest={r.second.crest} size="xs" /><span class="cn">{r.second.name}</span></span>
           </span>
           <span class="rmeta">
-            {r.comp && <><span class="nb">{r.comp}</span> · </>}
+            {r.comp && <>{r.comp}&nbsp;· </>}
             <span class="nb">{r.date}</span>
           </span>
         </div>

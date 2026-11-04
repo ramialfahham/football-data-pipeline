@@ -20,6 +20,14 @@
  *  Dark is default; light = the token swap below.                    *
  * ================================================================ */
 
+@font-face {
+  font-family: "Inter";
+  src: url("../assets/fonts/InterVariable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 *,
 *::before,
 *::after { box-sizing: border-box; }
@@ -34,7 +42,7 @@
   --sp: 8px;
   margin: 0;
   background: var(--page); color: var(--ink);
-  font: 400 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 400 15px/1.5 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   container-type: inline-size;
 }
@@ -448,7 +456,7 @@ a.cnm .nm { text-decoration: none; }
 .fxrow:has(.topmatch) { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
 .fxrow .topmatch { grid-column: 1 / -1; grid-row: 1; justify-self: start; }
 .fxrow:has(.topmatch) > .sides, .fxrow:has(.topmatch) > .when { grid-row: 2; }
-.fxrow.fit-one:has(.topmatch) { grid-template-columns: minmax(0, 1fr) max-content 41px; }
+.fxrow.fit-one:has(.topmatch) { grid-template-columns: minmax(0, 1fr) max-content auto; }
 .fxrow.fit-one .topmatch { grid-column: auto; grid-row: auto; align-self: center; margin-right: 10px; }
 .fxrow.fit-one:has(.topmatch) > .sides, .fxrow.fit-one:has(.topmatch) > .when { grid-row: auto; }
 /* THE FOLD (components/ui/Fold.astro) — the revealed rows join the list they continue
@@ -933,21 +941,23 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .lrow:not(:last-child) { border-bottom: 1px solid var(--line); }
 
 /* Result row: result chip · score · opponent (crest, name, H or A) · competition · date. One line
-   where the list is 420px wide or more, two lines below; the name wraps, never cut off. */
+   where the list is 420px wide or more, two lines below; the name wraps, never cut off. On one line
+   the competition and date take at most 45% of the row, so a long competition cannot cover the name.
+   On the narrowest rows the gaps tighten so a long word fits. */
 .resrow { display: grid; grid-template-columns: 24px 42px 1fr; grid-template-areas: "res score opp" ". . meta";
-          column-gap: 11px; row-gap: 2px; align-items: center; align-content: start; padding: 8px 0; font-size: 13px; }
+          column-gap: clamp(8px, 3cqw, 20px); row-gap: 2px; align-items: center; align-content: start; padding: 8px 0; font-size: 13px; }
 .resrow .pill { grid-area: res; }
 .resrow .rscore { grid-area: score; font-size: 15px; }
 .resrow .ropp { grid-area: opp; font-size: 15px; white-space: normal; overflow: visible; text-overflow: clip; }
 .resrow .rmeta { grid-area: meta; text-align: left; white-space: normal; }
 @container (min-width: 420px) {
-  .resrow { grid-template-columns: 24px 42px 1fr auto; grid-template-areas: "res score opp meta"; }
+  .resrow { grid-template-columns: 24px 42px 1fr fit-content(45%); grid-template-areas: "res score opp meta"; column-gap: 11px; }
   .resrow .rmeta { text-align: right; }
 }
 /* A meeting of the two teams: the row without the chip, which would take one side. */
 .resrow.meet { grid-template-columns: 42px 1fr; grid-template-areas: "score opp" ". meta"; }
 @container (min-width: 420px) {
-  .resrow.meet { grid-template-columns: 42px 1fr auto; grid-template-areas: "score opp meta"; }
+  .resrow.meet { grid-template-columns: 42px 1fr fit-content(45%); grid-template-areas: "score opp meta"; }
 }
 /* A goal: its minute and assist are part of the goal, so its second line is larger and lighter than
    a list row's. A scorer without a minute has no running score. */
@@ -962,14 +972,15 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .club { display: inline-flex; align-items: center; gap: 10px; vertical-align: middle; max-width: 100%; }
 .ropp > .club:only-child { vertical-align: top; }
 
-/* Player row: photo · name over position · numbers on the right at every width; the name wraps. */
+/* Player row: photo · name over position · numbers on the right at every width; the name wraps, and
+   where the row is short of room the goals and the assists take two lines. */
 .plrow { display: grid; grid-template-columns: 34px 1fr auto; grid-template-areas: "photo name stat" "photo pos stat";
          column-gap: 12px; row-gap: 2px; align-items: center; align-content: start; padding: 9px 0; }
 .plrow .pphoto { grid-area: photo; }
 .plrow .pname { display: contents; }
 .plrow .pname .nm { grid-area: name; font-size: 15px; font-weight: 400; color: var(--ink); white-space: normal; overflow: visible; text-overflow: clip; }
 .plrow .pname .ps { grid-area: pos; font-size: 12px; color: var(--muted); }
-.plrow .pstat { grid-area: stat; align-self: center; text-align: right; font-size: 12px; }
+.plrow .pstat { grid-area: stat; align-self: center; text-align: right; font-size: 12px; white-space: normal; }
 .plrow .pstat b { font-size: 15px; }
 
 /* ---- team page ---- */

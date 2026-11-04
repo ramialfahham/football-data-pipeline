@@ -97,4 +97,5 @@ if (typeof document !== "undefined") {
   const watch = new ResizeObserver(fit);
   for (const svg of document.querySelectorAll(".chart svg[viewBox]")) watch.observe(svg);
   fit();
+  document.fonts.ready.then(fit);
 }

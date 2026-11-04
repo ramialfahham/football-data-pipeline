@@ -688,6 +688,7 @@ PINNED_CASES = [
     ("scripts/check_page_css.py", "cto-reviewer"),
     ("scripts/design_inventory.py", "cto-reviewer"),
     ("tests/test_design_inventory.py", "cto-reviewer"),
+    ("docs/design/components.yml", "cto-reviewer"),
     ("docs/wireframes/02_team_profile.md", "bi-analyst-reviewer"),
     ("site/i18n/de.json", "bi-analyst-reviewer"),
     ("site_v2/src/lib/metricRows.ts", "bi-analyst-reviewer"),
@@ -2259,6 +2260,7 @@ def test_protected_path_allowed_with_override_and_impact_map(repo):
     ".mcp.json", ".cursor/mcp.json", ".gitlab-ci.yml",
     "scripts/check_design_inventory.py", "scripts/check_page_css.py",
     "scripts/design_inventory.py", "tests/test_design_inventory.py",
+    "docs/design/components.yml",
 ])
 def test_every_protected_path_needs_an_impact_map(repo, rel):
     scoped = CONTRACT_OVERRIDE_NO_IMPACT.replace(

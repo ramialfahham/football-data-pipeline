@@ -64,15 +64,15 @@ that carries it from a commit to a served page without anyone having to remember
 recurring cost is *allowed* is the CTO's ruling. This role reviews the implementation of what was
 allowed.
 
-**On exactly seven of the thirteen guard paths** — `.claude/hooks/**`, `.github/workflows/**`,
-`.gitlab-ci.yml`, `scripts/check_design_inventory.py`, `scripts/check_page_css.py`,
-`scripts/design_inventory.py` and `tests/test_design_inventory.py` — this
-role and the CTO review the same diff for different things, both at the opus floor, because the G3
-commit-gate bypasses were fail-open and test-coverage findings and those are this role's items. **On
-the other six it is not routed at all** (`.claude/agents/**`, `.claude/commands/**`,
-`.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`): a brief or
-a config is a prompt rather than machinery, and a second opus specialist there is a recurring cost
-only the CPO may approve. Do not restate this from memory — check
+**On exactly seven of the fourteen guard paths** this role and the CTO review the same diff. The
+seven are `.claude/hooks/**`, `.github/workflows/**`, `.gitlab-ci.yml`,
+`scripts/check_design_inventory.py`, `scripts/check_page_css.py`, `scripts/design_inventory.py` and
+`tests/test_design_inventory.py`. The two roles review it for different things, both at the opus
+floor. The G3 commit-gate bypasses were fail-open and test-coverage findings, and those are this
+role's items. **On the other seven it is not routed at all**: `.claude/agents/**`,
+`.claude/commands/**`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`,
+`.cursor/mcp.json`, `docs/design/components.yml`. A brief or a config is a prompt rather than
+machinery. A second opus specialist there is a recurring cost only the CPO may approve. Do not restate this from memory — check
 `.claude/review_routing.json`. This file is `platform-reviewer.md`'s third Input, so a wrong claim
 here is fed to the reviewer on every run, which is how review round 2 caught it.
 

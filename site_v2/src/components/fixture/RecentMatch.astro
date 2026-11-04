@@ -33,7 +33,7 @@ const Row = href ? "a" : "div";
       {ha && <span class="ha">{ha}</span>}
     </span>
     <span class="rmeta">
-      {comp && <><span class="nb">{comp}</span> · </>}
+      {comp && <>{comp}&nbsp;· </>}
       <span class="nb">{formatShortDate(match.played_kickoff_datetime, lang)}</span>
     </span>
   </div>

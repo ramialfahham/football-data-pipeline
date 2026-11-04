@@ -382,6 +382,11 @@ workflow:
   - tests/test_check_chart_components.py
   - tests/test_check_chart_screenshots.py
   - tests/fixtures/chart_screenshots/*
+  - docs/design/components.yml
+  - scripts/check_component_registry.py
+  - tests/test_check_component_registry.py
+  - tests/fixtures/component_registry/*
+  - tests/fixtures/font_coverage/*
   - requirements-ui.txt
   - .gitlab-ci.yml
 
@@ -507,6 +512,8 @@ validate:ui:
       done
     - python scripts/check_ui_i18n_metrics.py
     - python scripts/check_page_css.py
+    - python scripts/check_component_registry.py
+    - node site_v2/scripts/check-font-coverage.mjs --dist site_v2/dist
     # The check before its tests: the tests' green fixture reads the live stylesheet, so with
     # them first a stylesheet defect stops the job at the fixture and the per-page lines and
     # screenshots never appear. Either step red is the job red.
@@ -515,6 +522,7 @@ validate:ui:
     - python scripts/check_chart_components.py
     - python scripts/check_chart_screenshots.py --dist site_v2/dist --artifacts artifacts/chart_screenshots
     - python -m pytest tests/test_check_chart_components.py tests/test_check_chart_screenshots.py -q
+    - python -m pytest tests/test_check_component_registry.py -q
   artifacts:
     when: on_failure
     paths:
