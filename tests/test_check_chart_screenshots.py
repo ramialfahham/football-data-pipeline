@@ -164,7 +164,7 @@ def _on_built_site(run, html=None, css=None, init=None):
     srv, base = ccs.serve(DIST)
     try:
         with sync_playwright() as pw:
-            browser = pw.chromium.launch()
+            browser = pw.chromium.launch(args=["--font-render-hinting=none"])
             page = browser.new_page(viewport={"width": 1010, "height": 812})
             if init:
                 page.add_init_script(init)

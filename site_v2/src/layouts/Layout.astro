@@ -5,6 +5,7 @@
 // dark is the default theme (the token block); light is `data-theme="light"`.
 // Foundation shell (#825): a global header + footer now wrap every page's <slot>.
 import "../styles/system.css";
+import interUrl from "../assets/fonts/InterVariable.woff2?url";
 import SiteHeader from "../components/chrome/SiteHeader.astro";
 import type { Section } from "../lib/menu";
 import SiteFooter from "../components/chrome/SiteFooter.astro";
@@ -70,6 +71,7 @@ const jsonLd = graph.length ? JSON.stringify({ "@context": "https://schema.org",
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="preload" href={interUrl} as="font" type="font/woff2" crossorigin />
     {/* Indexability comes from ONE switch (src/config/indexability.mjs), shared with robots.txt and
         the build-time audit, so the two can never disagree. Astro expression comment, not `<!-- -->`,
         which would be emitted into every built page. */}

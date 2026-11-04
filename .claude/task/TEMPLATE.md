@@ -17,7 +17,7 @@ scope_paths:
 # (.claude/hooks/, .claude/agents/, .claude/commands/, .claude/settings.json,
 # .claude/review_routing.json, .mcp.json, .cursor/mcp.json, .github/workflows/,
 # .gitlab-ci.yml, scripts/check_design_inventory.py, scripts/check_page_css.py,
-# scripts/design_inventory.py, tests/test_design_inventory.py).
+# scripts/design_inventory.py, tests/test_design_inventory.py, docs/design/components.yml).
 # Name the approval — where and when; never quote his words. What makes it his is
 # the MR head declaring the locked file and his merge (working_agreement §11).
 # Never point at escalations.log — it is frozen. A protected path ALSO requires an
@@ -32,7 +32,7 @@ scope_paths:
 # .claude/agents/, .claude/commands/, .claude/settings.json,
 # .claude/review_routing.json, .mcp.json, .cursor/mcp.json, .github/workflows/,
 # .gitlab-ci.yml, scripts/check_design_inventory.py, scripts/check_page_css.py,
-# scripts/design_inventory.py, tests/test_design_inventory.py —
+# scripts/design_inventory.py, tests/test_design_inventory.py, docs/design/components.yml —
 # added 2026-07-22, because a guard's blast radius is every future task in the
 # repo, wider than most models). The contract gate DENIES the first such edit
 # until this is present.

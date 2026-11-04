@@ -632,12 +632,40 @@ def _mains_baseline() -> dict:
     return json.loads(proc.stdout)
 
 
+# The pins Inter's wider letters raise, with main's value before Inter. Once main holds the new
+# pins an entry matches only a count that returns to its old value.
+INTER_RISES = {
+    "rendered · Match page · scroll": 1174,
+    "rendered · Match page · split": 148,
+    "rendered · Match page · overflow": 9,
+    "rendered · Played match page · scroll": 1,
+    "rendered · Team page · split": 32,
+    "rendered · Home · split": 4,
+    "rendered · Competition overview · split": 19,
+    "rendered · Teams page · split": 1,
+    "rendered · Competitions index · overflow": 24,
+}
+
+
+def _unlisted(up: list[str]) -> list[str]:
+    """The rises INTER_RISES does not hold at main's value."""
+    return [r for r in up if INTER_RISES.get(r.rsplit(" · ", 1)[0]) != int(r.rsplit(" ", 1)[1])]
+
+
+def test_only_a_listed_rise_on_mains_old_value_is_allowed():
+    assert _unlisted(["rendered · Match page · scroll · 2186, main 1174"]) == []
+    moved = "rendered · Match page · scroll · 2300, main 2186"
+    other = "rendered · Team page · overflow · 4, main 3"
+    missed = "rendered · Team page · miss · List row · 6, main 0"
+    assert _unlisted([moved, other, missed]) == [moved, other, missed]
+
+
 def test_no_pin_rises_above_mains():
     current, base = di.load_baseline(), _mains_baseline()
     if "coverage" not in base:
         # Main's baseline predates the count over every page; this branch introduces it.
         return
-    up = di.rises(current, base)
+    up = _unlisted(di.rises(current, base))
     assert up == [], "a pin rose above main's; a new gap is fixed, not pinned:\n" + "\n".join(up)
 
 

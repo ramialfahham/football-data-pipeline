@@ -1,0 +1,525 @@
+# The site's components: each one's parts, the text style or mark of each part, where its text may
+# break, its wide form, at most one narrow form and the units that never split. The format is #243's.
+# scripts/check_component_registry.py validates this file, generates the element table of
+# docs/wireframes/block_standard.md from it and counts its gaps. The sets hold the values system.css
+# uses; #230 decides the scale. A part's `gap` names a known gap; the check's GAPS says what each means.
+sets:
+  text:
+    10.5-600-muted: {size: 10.5px, weight: 600, colour: muted}
+    11-400-muted: {size: 11px, weight: 400, colour: muted}
+    11-600-muted: {size: 11px, weight: 600, colour: muted}
+    11-700-muted: {size: 11px, weight: 700, colour: muted}
+    11.5-400-muted: {size: 11.5px, weight: 400, colour: muted}
+    12-400-ink-2: {size: 12px, weight: 400, colour: ink-2}
+    12-400-muted: {size: 12px, weight: 400, colour: muted}
+    12-700-muted-caps: {size: 12px, weight: 700, colour: muted, case: upper}
+    12-700-pill-ink: {size: 12px, weight: 700, colour: pill-ink}
+    12.5-400-muted: {size: 12.5px, weight: 400, colour: muted}
+    12.5-700-pill-ink: {size: 12.5px, weight: 700, colour: pill-ink}
+    13-400-ink-2: {size: 13px, weight: 400, colour: ink-2}
+    13-400-muted: {size: 13px, weight: 400, colour: muted}
+    13-600-ink-2: {size: 13px, weight: 600, colour: ink-2}
+    13-600-muted: {size: 13px, weight: 600, colour: muted}
+    13-700-ink: {size: 13px, weight: 700, colour: ink}
+    13-700-ink-caps: {size: 13px, weight: 700, colour: ink, case: upper}
+    13-700-muted: {size: 13px, weight: 700, colour: muted}
+    13-700-muted-caps: {size: 13px, weight: 700, colour: muted, case: upper}
+    14-400-ink: {size: 14px, weight: 400, colour: ink}
+    14-400-ink-2: {size: 14px, weight: 400, colour: ink-2}
+    14-600-ink: {size: 14px, weight: 600, colour: ink}
+    14-700-ink: {size: 14px, weight: 700, colour: ink}
+    15-400-ink: {size: 15px, weight: 400, colour: ink}
+    15-600-ink: {size: 15px, weight: 600, colour: ink}
+    15-700-accent: {size: 15px, weight: 700, colour: accent}
+    15-700-ink: {size: 15px, weight: 700, colour: ink}
+    15-800-ink: {size: 15px, weight: 800, colour: ink}
+    16-700-ink: {size: 16px, weight: 700, colour: ink}
+    17-700-ink: {size: 17px, weight: 700, colour: ink}
+    18-700-ink-2: {size: 18px, weight: 700, colour: ink-2}
+    18-800-ink: {size: 18px, weight: 800, colour: ink}
+    30-700-ink: {size: 30px, weight: 700, colour: ink}
+    40-400-ink: {size: 40px, weight: 400, colour: ink}
+    40-400-muted: {size: 40px, weight: 400, colour: muted}
+  marks:
+    team-dot: {size: 10px, colour: chart-team}
+    other-dot: {size: 6px, colour: chart-other}
+    bar: {size: 5px, colour: chart-team}
+    better-bar: {size: 5px, colour: chart-better}
+  spacing: ["-12px", "-9px", "-8px", "-6px", "-3px", "-1px", 1px, 2px, 3px, 4px, 5px, 6px, 7px, 8px, 9px, 10px, 11px, 12px, 13px, 14px, 15px, 16px, 18px, 20px, 22px, 24px, 26px, 28px, 30px, 34px, 36px, 40px, 48px, "clamp(12px, 4.5vw, 18px)", "clamp(16px, 3.5vw, 28px)", "clamp(16px, 4cqw, 28px)", "clamp(6px, 2cqw, 16px)", "clamp(8px, 3cqw, 20px)", "var(--gap)"]
+  colours: [accent, chart-axis, chart-better, chart-line, chart-other, chart-team, draw, ink, ink-2, line, loss, muted, page, pill-ink, sunk, surface, track, win, "#f26d6d", "#fff"]
+  switch:
+    w340: 340px
+    w420: 420px
+    w430: 430px
+    w470: 470px
+    w480: 480px
+    w520: 520px
+    w560: 560px
+    w600: 600px
+    w700: 700px
+    w800: 800px
+    w900: 900px
+    w1010: 1010px
+
+components:
+  page-shell:
+    name: Page shell
+    file: site_v2/src/layouts/Layout.astro
+    used-on: [every page]
+    parts:
+      root: {class: fx, gap: mock-css}
+      column: {class: inner, gap: mock-css}
+      page: {class: page, gap: mock-css}
+      legacy-width: {class: legacy-width}
+      match-page: {class: mp}
+    wide: "header, the page's content column, footer"
+  header:
+    name: Site header
+    file: site_v2/src/components/chrome/SiteHeader.astro
+    used-on: [every page]
+    parts:
+      search-field: {class: searchbox, selector: ".header-actions .searchbox", breaks: never, element: Search field, rule: "the header's search field with its placeholder, one on every page from 1010px, where it replaces the search button; on one line in every language, nothing spilling out of it", measured: "visible=1 [>=1010px]; visible=0 [<1010px]; one-line; fits", ruled-on: "`09_chrome.md` (≥ 1010px: the full field)"}
+      search-button: {class: search-m, selector: ".iconbtn.search-m", element: Search button, rule: "the header's icon-only search button below 1010px, a 34px target; gone from 1010px", measured: "visible=1 [<1010px]; visible=0 [>=1010px]; min-box=34px", ruled-on: "`09_chrome.md` (phone: the search icon)"}
+      row: {class: header-in, element: Header row, rule: "the header's brand, menu and controls fit its row; the menu stands in the row when it fits there, otherwise the menu button", measured: fits, ruled-on: the narrow-screen fix}
+      box: {class: site-header}
+      brand: {class: brand, selector: ".site-header .brand", text: 18-800-ink, breaks: never}
+      brand-iq: {class: iq, selector: ".site-header .iq", text: 18-700-ink-2, breaks: never}
+      menu: {class: mainnav, gap: mock-css}
+      drawer: {class: drawer}
+      menu-button: {class: hamburger}
+      icon: {class: ico}
+      current: {class: "on"}
+    wide: "brand | menu | search field, theme, language"
+    narrow: {below: w1010, form: "brand | search button, theme, menu button; the menu in a drawer"}
+    never-split: [Matchday Pilot]
+  footer:
+    name: Site footer
+    file: site_v2/src/components/chrome/SiteFooter.astro
+    used-on: [every page]
+    parts:
+      box: {class: site-footer}
+      links: {class: flinks}
+      meta: {class: fmeta, text: 11.5-400-muted, breaks: between words}
+      imprint: {class: imp, text: 12.5-400-muted, breaks: between words}
+      brand: {class: brand, selector: ".site-footer .brand", text: 15-800-ink, breaks: never}
+    wide: "brand, links, meta line"
+  breadcrumb:
+    name: Breadcrumb
+    file: site_v2/src/components/fixture/Breadcrumb.astro
+    used-on: [every page but Home]
+    parts:
+      link: {class: lnk, selector: nav.trail a.lnk, element: Navigation link, rule: "a link known by its place: the logo, the menu, search, the breadcrumb, the tabs, the picker and the filters. A breadcrumb level has a 44px touch area", measured: "min-box=44px", ruled-on: the match page review}
+      current: {class: here, selector: ".crumb .here", text: 13-400-ink-2, element: Breadcrumb current page, rule: "the page you are on differs from the links at rest; the shipped site has the current page `ink-2` and the links muted, #52's mock had the two inverted", measured: "color=ink-2", status: proposed, ruled-on: "put to the CPO on the #153 MR; measured, never fails, until ruled"}
+      separator: {class: sep, text: 13-400-muted, breaks: never}
+      level: {class: lvl}
+      far-level: {class: far}
+    wide: "levels separated by ›, the current page last"
+    narrow: {below: w700, form: "one line that scrolls sideways, the far levels hidden"}
+  page-heading:
+    name: Page heading
+    file: ["site_v2/src/pages/[lang]/[competitions]/index.astro", "site_v2/src/pages/[lang]/[teams]/index.astro", site_v2/src/components/matches/MatchesDay.astro]
+    used-on: [Competitions, Matches, Teams]
+    parts:
+      heading: {class: crumb, selector: ".crumb + h1", text: 30-700-ink, element: Page heading, rule: "a menu page's heading under its breadcrumb, the menu item's word: the Competitions page's and the Matches page's, 30px bold ink", measured: "font-size=30px; font-weight=700; color=ink", ruled-on: "#130 (the Competitions page's heading, as it ships)"}
+    wide: "the menu item's word"
+  entity-header:
+    name: Entity header
+    file: [site_v2/src/components/competition/CompetitionHeader.astro, site_v2/src/components/team/TeamHeader.astro]
+    used-on: [Competition pages, Team page]
+    parts:
+      head: {class: thead}
+      identity: {class: tid}
+      meta: {class: meta, gap: mock-css}
+    wide: "crest | name over meta line"
+  tabs:
+    name: Tab bar
+    file: [site_v2/src/components/competition/CompetitionTabs.astro, site_v2/src/components/team/Tabs.astro]
+    used-on: [Competition pages, Team page]
+    parts:
+      bar: {class: tabs, selector: nav.tabs, element: Tab bar, rule: "the tabs share the row and fit in one row at 375px in EN, DE and FI, no sideways scrolling", measured: fits, ruled-on: "#129 header"}
+      tab: {class: tab, selector: nav.tabs .tab, breaks: never, element: Tab, rule: "one line each, never wrapped; the side padding is what the label needs", measured: one-line, ruled-on: "#129 header"}
+      tabs: {class: comp-tabs}
+      switch: {class: tab-in}
+    wide: the tabs in one row
+    narrow: {below: w430, form: the tabs at 13px}
+  block:
+    name: Block
+    file: site_v2/src/components/ui/SectionHead.astro
+    used-on: [every page]
+    parts:
+      block: {class: section, selector: section, element: Block, rule: "36px above each block; every content block has a name; a block with nothing to show is absent", measured: "margin-top=36px", ruled-on: "#129 binding rules"}
+      heading: {class: eyebrow, selector: ".sechead .eyebrow", text: 13-700-muted-caps, element: Block heading, rule: "the block's name: 13px capitals, bold, muted, over a 1px rule", measured: "font-size=13px; font-weight=700; text-transform=uppercase; color=muted", ruled-on: "#129 binding rules (13px, from 11)"}
+      heading-gap: {class: sechead, element: Block heading gap, rule: "one distance from the block name's rule to the block's first line: 14px, nothing added by the content — a date heading, a fact row, a group or a table opening the block carries no space of its own; the name starts at the block's left edge", measured: "gap(next)=14px; left-edge=section", ruled-on: "#129 binding rules; #127 correction 3"}
+      explainer: {class: bsub, text: 13-400-muted, element: Block explainer, rule: "the one sentence under a block name, 13px muted", measured: "font-size=13px; color=muted", ruled-on: "#129 Deserved points"}
+      tab-explainer: {class: tab-intro, selector: ".bsub.tab-intro", element: Tab explainer, rule: "a tab's opening sentence under the tab bar, in the block explainer's style: 13px muted", measured: "font-size=13px; color=muted", ruled-on: the Team page review}
+    wide: "name over its rule, explainer, content"
+  group:
+    name: Group
+    file: [site_v2/src/components/home/HeroFixtures.astro, site_v2/src/components/fixture/NextMatches.astro, site_v2/src/components/team/TeamFixtureGroup.astro, site_v2/src/components/competition/RankingsBlock.astro, site_v2/src/components/teams/TeamIndex.astro]
+    used-on: [Home, Matches, Competition pages, Team page, Teams page, match page]
+    parts:
+      head: {class: gh, selector: ".fxgroup:not(.rkgroup) > .gh", element: Competition group head, rule: "the level-1 heading over a competition's match rows: crest · name · chevron, 17px bold, a 2px line under it, 34px above the group; on Home, inside the Next matches block, it keeps its line", measured: "border-bottom-width=2px; left-edge=section", ruled-on: "#50; #129; 2026-09-17 (\"Home with line\")"}
+      name: {class: nm, selector: ".fxgroup:not(.rkgroup) > .gh .nm", text: 17-700-ink, element: Competition group name, rule: 17px bold ink, measured: "font-size=17px; font-weight=700; color=ink", ruled-on: "#50"}
+      count: {class: cnt, selector: ".fxgroup > .gh .cnt", text: 13-600-muted, element: Group count, rule: "the team count at the right of a group head: 13px semi-bold muted", measured: "font-size=13px; font-weight=600; color=muted", ruled-on: the Teams page review}
+      spacing: {class: fxgroup, selector: ".fxgroup + .fxgroup", element: Group spacing, rule: "34px from one group's last row to the next group's heading", measured: "gap(prev)=34px", ruled-on: "#50"}
+      metric-head: {class: gh, selector: ".rkgroup > .gh", element: Metric group heading, rule: "the level-1 heading over a metric group's boards on the Rankings tab: the competition group head's size and air, without its line; 26px to its first board", measured: "border-bottom-width=0px; gap(next)=26px; left-edge=section", ruled-on: "#129 Rankings; 2026-09-17 (\"Rankings without\")"}
+      metric-name: {class: nm, selector: ".rkgroup > .gh .nm", text: 17-700-ink, element: Metric group name, rule: "17px bold ink, a clear step over the 14px board names", measured: "font-size=17px; font-weight=700; color=ink", ruled-on: "#129 Rankings"}
+      date: {class: dh, selector: ".fxgroup .dh", text: 12-700-muted-caps, element: Date heading, rule: "the date once per day, over its rows: 12px bold capitals, muted", measured: "font-size=12px; font-weight=700; text-transform=uppercase; color=muted", ruled-on: "#127 (2026-09-14); #50"}
+      logo: {class: clogo, gap: mock-css}
+    wide: "group head (crest · name · chevron · count) over its rows"
+  match-row:
+    name: Match row
+    file: site_v2/src/components/ui/MatchRow.astro
+    used-on: [Home, Matches, Competition matchdays, Team page]
+    parts:
+      name: {class: nm, selector: ".fxrow .side .nm", text: 15-400-ink, element: Match row name, rule: "a club's name, 15px ink, wraps and never truncates", measured: "font-size=15px; color=ink; white-space=normal", ruled-on: "#50"}
+      kick-off: {class: t, selector: ".fxrow .when .t", text: 16-700-ink, breaks: never, element: Match row kick-off, rule: "the kick-off in the venue's clock, 16px bold ink, on one line inside its column; \"TBC\" when no time", measured: "font-size=16px; font-weight=700; color=ink; one-line; fits", ruled-on: "#50; #129 Matchdays; #146; the component registry"}
+      zone: {class: rowtz, selector: ".fxrow .when .rowtz", text: 10.5-600-muted, element: Match row zone, rule: "the zone label under the kick-off, on every unplayed row, 10.5px muted", measured: "font-size=10.5px; color=muted", ruled-on: "#50; #146"}
+      score: {class: winner, selector: ".fxrow .side .g.winner", text: 15-700-ink, element: Match row score, rule: "a played row is the row plus the score; the winner by weight, never hue", measured: "font-weight=700; color=ink", ruled-on: "#50; #129 Matchdays"}
+      sides: {class: sides}
+      played: {class: played}
+    wide: "home side | kick-off or score | away side"
+    narrow: {below: fits, form: "a row's tag on its own line above the home team"}
+    never-split: ["15:30", TBC]
+  table:
+    name: Table
+    file: [site_v2/src/components/competition/StandingsTable.astro, site_v2/src/components/competition/DeservedTable.astro, site_v2/src/components/competition/RankingBoard.astro, site_v2/src/components/team/TeamDeserved.astro, site_v2/src/components/team/TeamLastSeason.astro]
+    used-on: [Competition pages, Team page, Home]
+    parts:
+      head: {class: ctab-head, element: Table head, rule: "the head row with the column labels (or, on a board, the board's name); its 1px rule is the table's only line; it starts at the block's left edge", measured: "border-bottom-width=1px; left-edge=section", ruled-on: "#129 Table; 2026-09-17 (\"head only\")"}
+      head-label: {class: h, selector: ".ctab-head .h:not(.rk)", text: 11-700-muted, element: Table head label, rule: 11px bold muted, measured: "font-size=11px; font-weight=700; color=muted", ruled-on: "#129 Table"}
+      row: {class: ctab-row, element: Table row, rule: "striped rows counted from the head, the first plain, the stripe ink at 5%; no line under a row; the row's tracks are the head's (one fixed track list per table kind)", measured: "border-bottom-width=0px; stripe=ink@5% from 2; tracks=head", ruled-on: "#129 Table; 2026-09-17 (\"head only\")"}
+      name: {class: nm, selector: ".ctab .tm .nm", text: 14-600-ink, element: Table name cell, rule: "14px semi-bold ink, wraps and never truncates", measured: "font-size=14px; font-weight=600; color=ink; white-space=normal", ruled-on: "#129 Table"}
+      narrow-row: {class: ctab-row, selector: ".ctab.fit-two .ctab-row", element: Table narrow row, rule: "a row that does not fit on one line takes two: rank, crest and name, then each number under its head", measured: "tracks=head", ruled-on: the narrow-screen fix}
+      ordered-by: {class: pts, selector: ".ctab .n.pts", text: 15-700-accent, element: Ordered-by number, rule: "the number a table is ordered by: bold 15px accent, everywhere, no per-block colour", measured: "font-size=15px; font-weight=700; color=accent", ruled-on: "#129 binding rules"}
+      box: {class: ctab}
+    wide: "rank | crest and name | numbers under their heads"
+    narrow: {below: w600, form: "rank, crest and name, then each number under its head"}
+  board:
+    name: Board
+    file: site_v2/src/components/competition/RankingBoard.astro
+    used-on: [Competition rankings, Home]
+    parts:
+      name: {class: nm, selector: ".ctab.rkt .ctab-head .nmh .bt .nm", text: 14-700-ink, element: Board name, rule: "a board is a single-value table; its name sits in the head row with the chevron, 14px bold ink, not capitals, at the block's left edge", measured: "font-size=14px; font-weight=700; color=ink; text-transform=none", ruled-on: "#129 board rules; #127 correction 1"}
+      name-cell: {class: nmh, selector: ".ctab.rkt .ctab-head .nmh", element: Board name cell, rule: "at the block's left edge", measured: "left-edge=section", ruled-on: "#127 correction 3"}
+      sub-line: {class: sub, selector: ".ctab.rkt .tm .ent .sub", text: 12-400-muted, element: Board sub-line, rule: "a player's club under the name, 12px muted", measured: "font-size=12px; color=muted", ruled-on: "#129 Rankings"}
+      spacing: {class: board, selector: ".board + .board", element: Board spacing, rule: 26px between boards, measured: "gap(prev)=26px", ruled-on: "#40, #41 (the shipped board)"}
+    wide: "a single-value table, its name in the head row"
+    narrow: {below: w480, form: a name and its sub-line each on its own line}
+  standings:
+    name: Standings table
+    file: site_v2/src/components/competition/StandingsTable.astro
+    used-on: [Competition overview]
+    parts:
+      group-head: {class: gh, selector: ".ctab-section > .gh", element: Table group heading, rule: "the level-2 heading over one table of a group stage (\"Group A\"): 14px bold, a 1px line", measured: "border-bottom-width=1px; left-edge=section", ruled-on: "#129 Table (rejected for Rankings, kept for tables)"}
+      group-name: {class: nm, selector: ".ctab-section > .gh .nm", element: Table group name, rule: 14px bold ink, measured: "font-size=14px; font-weight=700; color=ink", ruled-on: "#129 Table"}
+      goal-difference: {class: gd, selector: ".ctab .n.gd", text: 13-400-ink-2, breaks: never}
+      wdl-head: {class: wdl, selector: ".ctab-head .h.wdl", text: 11-700-muted, breaks: never}
+      wdl: {class: wdl, selector: ".ctab .n.wdl", text: 13-400-muted, breaks: never}
+    wide: "the table with W, D, L, goal difference and points"
+    narrow: {below: w470, form: "without the W, D and L columns"}
+  deserved-table:
+    name: Deserved points table
+    file: site_v2/src/components/competition/DeservedTable.astro
+    used-on: [Competition overview]
+    parts:
+      table: {class: dpt}
+      shots-head: {class: hs, selector: ".ctab-head .hs", text: 11-600-muted, breaks: between words}
+    wide: the table of deserved points
+  last-season:
+    name: Last-season table
+    file: site_v2/src/components/team/TeamLastSeason.astro
+    used-on: [Team page]
+    parts:
+      trend: {class: tr, selector: ".ctab.yoyt .n.tr", element: Trend, rule: "▲ in the accent when this season is better, ▼ in the loss red when worse, \"–\" when the shown values are equal", measured: "font-size=13px", ruled-on: the Team page review}
+      list: {class: yoy-list}
+      head: {class: yoyt-head, gap: mock-css}
+      up: {class: up, gap: mock-css}
+      down: {class: down, gap: mock-css}
+      flat: {class: flat, gap: mock-css}
+      now: {class: now, gap: mock-css}
+      prev: {class: prev, gap: mock-css}
+    wide: "metric | this season | last season | trend"
+    narrow: {below: w420, form: the narrow columns}
+  fact-row:
+    name: Fact row
+    file: [site_v2/src/components/competition/SeasonFacts.astro, site_v2/src/components/team/TeamHighsLows.astro, site_v2/src/components/team/TeamStanding.astro]
+    used-on: [Competition overview, Team page]
+    parts:
+      label: {class: fl, selector: ".frow .fl", text: 14-400-ink, element: Fact row label, rule: "label, 14px ink regular", measured: "font-size=14px; color=ink; font-weight=400", ruled-on: "#129 the fact row"}
+      value: {class: fvv, selector: ".frow .fvv b", text: 15-700-accent, element: Fact row value, rule: "the value, bold 15px accent — the number the row is about", measured: "font-size=15px; font-weight=700; color=accent", ruled-on: "#129 binding rules, Block 3"}
+      context: {class: sub, selector: ".frow .sub", text: 12-400-muted, element: Fact row context, rule: "the context under the value, 12px muted", measured: "font-size=12px; color=muted", ruled-on: "#129 the fact row"}
+      block: {class: frow, element: Fact row block, rule: "label and value side by side while the block's longest row fits on one line; otherwise every row stacks its value under its label", measured: fits, ruled-on: the narrow-screen fix}
+      rows: {class: facts}
+      value-cell: {class: fv}
+    wide: "label | value over context"
+    narrow: {below: fits, form: "every row's value under its label"}
+  heading-link:
+    name: Chevron heading link
+    file: site_v2/src/components/fixture/Chevron.astro
+    used-on: [every page with a group head]
+    parts:
+      link: {class: cnm, selector: a.cnm, element: Chevron heading link, rule: a heading that leads somewhere carries a chevron at rest and is never underlined, measured: "text-decoration-line=none", ruled-on: "#52; #129 binding rules"}
+      chevron: {class: chev, selector: a.cnm .chev, element: Chevron, rule: "15px, muted at rest", measured: "color=muted", ruled-on: "#52"}
+    wide: "the heading text, then the chevron"
+  masthead:
+    name: Match header
+    file: site_v2/src/components/fixture/Masthead.astro
+    used-on: [match page]
+    parts:
+      team-link: {class: team, selector: ".mast a.team", element: Header team link, rule: "a team in the match header leads to its team page: one link with the chevron at rest, never underlined", measured: "text-decoration-line=none", ruled-on: the match page review}
+      competition: {class: gh, selector: ".mast .mcomp > .gh", element: Match header competition head, rule: "the competition group head opening the match header: a heading link to the competition's page, the 2px line under it", measured: "border-bottom-width=2px", ruled-on: the match page review}
+      score: {class: score, selector: ".mast .vs.score", text: 40-400-ink, element: Match header score, rule: "a played match's final score where \"vs\" stands, regular weight, ink; from 700px only, below which each team's goals close its line", measured: "font-weight=400; color=ink", ruled-on: the played match page review}
+      winner: {class: winner, selector: ".mast .winner", gap: style-varies, element: Match header winner, rule: "the winning side's goals by weight, never by hue", measured: "font-weight=700", ruled-on: the played match page review}
+      team-goals: {class: sg, selector: ".mast .team .sg", gap: style-varies, element: Match header team goals, rule: "under 700px a team's goals close its line, 24px ink, the winner's bold", measured: "font-size=24px; color=ink", ruled-on: the played match page review}
+      result-line: {class: resline, selector: ".mast .resline", text: 13-400-muted, element: Match header result line, rule: "the line under the score, 13px muted: after penalties the score after extra time, its numbers bold; on an award, how it came about", measured: "font-size=13px; color=muted", ruled-on: the played match page review}
+      kick-off: {class: kick, selector: ".mast .kick", text: 13-400-muted, breaks: between words}
+      dash: {class: dash, selector: ".mast .dash", text: 40-400-muted, breaks: never}
+      hidden-label: {class: vh}
+      teams: {class: teams, gap: mock-css}
+      team-name: {class: tname, gap: mock-css}
+      standing: {class: stand, gap: mock-css}
+      played: {class: played}
+    wide: "home team | score or vs | away team, the result line under"
+    narrow: {below: w700, form: "each team on its own line, its goals closing the line"}
+  list-row:
+    name: List row
+    file: [site_v2/src/components/fixture/RecentMatch.astro, site_v2/src/components/fixture/HeadToHead.astro, site_v2/src/components/fixture/MatchGoals.astro, site_v2/src/components/fixture/PlayerRow.astro, site_v2/src/components/team/TeamCompetitions.astro]
+    used-on: [match page, Team page]
+    parts:
+      row: {class: lrow, element: List row, rule: "one row of a list, a line between rows, nothing cut off. Its name is 15px, its second line 12px muted, its numbers 15px bold", measured: fits, ruled-on: the match page review}
+    wide: "one row of a list, a line between rows"
+  result-row:
+    name: Result row
+    file: [site_v2/src/components/fixture/RecentMatch.astro, site_v2/src/components/fixture/HeadToHead.astro, site_v2/src/components/fixture/MatchGoals.astro]
+    used-on: [match page, Team page]
+    parts:
+      chip: {class: pill, selector: ".resrow .pill", text: 12-700-pill-ink, element: Result chip, rule: "one match's W, D or L from a team's side, in the page's language, on the result colour", measured: "font-size=12px; font-weight=700; color=pill-ink", ruled-on: the match page review}
+      row: {class: resrow, element: Result row, rule: "result chip · score · opponent (crest, name, H or A) · competition · date. One line where its list is 420px wide or more, two lines below", measured: fits, ruled-on: the match page review}
+      score: {class: rscore, selector: ".resrow .rscore", text: 15-700-ink, element: Result row score, rule: "the score from the row's side, 15px bold ink", measured: "font-size=15px; font-weight=700; color=ink", ruled-on: the match page review}
+      name: {class: ropp, selector: ".resrow .ropp", text: 15-400-ink, element: Result row name, rule: "the club, 15px ink, wrapping, never cut off", measured: "font-size=15px; color=ink; white-space=normal", ruled-on: the match page review}
+      meta: {class: rmeta, selector: ".resrow:not(.goal) .rmeta", text: 12-400-muted, element: Result row meta, rule: "the competition's name and the date, 12px muted; the name wraps between words, the date never splits", measured: "font-size=12px; color=muted", ruled-on: "the match page review; the component registry"}
+      meeting: {class: meet, selector: ".resrow.meet", element: Meeting row, rule: "a meeting of the two teams: the result row without its chip. The score is in the match's order, the home side first, the date with its year", measured: fits, ruled-on: the match page review}
+      goal: {class: goal, selector: ".resrow.goal", element: Goal row, rule: "a goal: the score after it, then the scorer with the crest of the side it counts for. The second line holds the minute with the assist, own goal or penalty. Without minutes the row has no score", measured: fits, ruled-on: the played match page review}
+      goal-meta: {class: rmeta, selector: ".resrow.goal .rmeta", text: 14-400-ink-2, element: Goal row meta, rule: "the goal's minute and its assist, own goal or penalty: 14px ink-2, larger and lighter than a list row's second line", measured: "font-size=14px; color=ink-2", ruled-on: the played match page review}
+      list: {class: rlist}
+      home-away: {class: ha, selector: ".resrow .ha", text: 11-600-muted, breaks: never}
+      scorer: {class: scorer}
+    wide: "chip · score · opponent · competition · date on one line"
+    narrow: {below: w420, form: two lines}
+  form:
+    name: Form
+    file: site_v2/src/components/fixture/FormSegment.astro
+    used-on: [match page]
+    parts:
+      chips: {class: pills, gap: mock-css}
+      win: {class: W}
+      draw: {class: D}
+      loss: {class: L}
+    wide: "a team's last results as chips"
+  player-row:
+    name: Player row
+    file: [site_v2/src/components/fixture/PlayerRow.astro, site_v2/src/components/fixture/MatchLineups.astro, site_v2/src/components/team/TeamSquad.astro]
+    used-on: [match page, Team page]
+    parts:
+      row: {class: plrow, element: Player row, rule: "photo · name over position · goals and assists on the right at every width; two lines below 375px when the row is short of room; on a line-up, the minutes played", measured: fits, ruled-on: "the match page review; the component registry"}
+      name: {class: nm, selector: ".plrow .pname .nm", text: 15-400-ink, element: Player row name, rule: "15px regular ink, wrapping, never cut off", measured: "font-size=15px; font-weight=400; color=ink; white-space=normal", ruled-on: the match page review}
+      position: {class: ps, selector: ".plrow .pname .ps", text: 12-400-muted, element: Player row position, rule: "12px muted. On a line-up the substitution follows after a middle dot. It is the minute a starter went off, or a substitute came on and for whom", measured: "font-size=12px; color=muted", ruled-on: the match page review}
+      number: {class: pstat, selector: ".plrow .pstat b", text: 15-700-ink, element: Player row number, rule: 15px bold ink, measured: "font-size=15px; font-weight=700; color=ink", ruled-on: the match page review}
+      photo: {class: pphoto, gap: mock-css}
+    wide: "photo · name over position · numbers at the right"
+  split:
+    name: Two columns
+    file: [site_v2/src/components/fixture/SplitSection.astro, site_v2/src/components/fixture/MatchLineups.astro]
+    used-on: [match page]
+    parts:
+      column-head: {class: colhead, selector: ".rcol .colhead", text: 13-700-muted, element: Column head, rule: "a list column's name, 13px bold muted; one fact may follow after a middle dot (a team's formation); a second head inside the column opens its second list", measured: "font-size=13px; font-weight=700; color=muted", ruled-on: the played match page review}
+      columns: {class: rsplit}
+      sheets: {class: sheets}
+      "off": {class: "off"}
+    wide: "the two teams' lists side by side, a head over each"
+    narrow: {below: w560, form: one column}
+  competition-row:
+    name: Competition row
+    file: site_v2/src/components/team/TeamCompetitions.astro
+    used-on: [Team page]
+    parts:
+      row: {class: tc, selector: ".lrow.tc", element: Competition row, rule: "one competition of a team's season: crest, name and a muted note, with the standing or the cup's outcome on the right. A table's row adds the W, D and L counts, goals and points below. Narrow, the standing opens the second line", measured: fits, ruled-on: the Team page review}
+      name: {class: tc-name, selector: ".tc .tc-name", text: 15-600-ink, element: Competition row name, rule: "15px semi-bold ink; the note after it 12px muted", measured: "font-size=15px; font-weight=600; color=ink", ruled-on: the Team page review}
+      chip: {class: cchip, selector: ".cchip", text: 12.5-700-pill-ink, breaks: never, gap: lines-unmeasured}
+      chips: {class: cchips, gap: mock-css}
+      list: {class: tcomps, gap: mock-css}
+      inner: {class: tcin, gap: mock-css}
+      crest: {class: tc-crest, gap: mock-css}
+      context: {class: tc-ctx, gap: mock-css}
+      extra: {class: tc-extra, gap: mock-css}
+      numbers: {class: tc-nums, gap: mock-css}
+      rank: {class: tc-rank2, gap: mock-css}
+      right: {class: tc-right, gap: mock-css}
+    wide: "crest, name and note | standing or outcome; W, D, L, goals and points below"
+    narrow: {below: w340, form: the standing opens the second line}
+  squad:
+    name: Squad grid
+    file: site_v2/src/components/team/TeamSquad.astro
+    used-on: [Team page]
+    parts:
+      grid: {class: sqgrid, element: Squad grid, rule: "the squad's player rows in two columns where each keeps 280px, otherwise one", measured: fits, ruled-on: the Team page review}
+    wide: player rows in two columns
+    narrow: {below: fits, form: one column}
+  strip-plot:
+    name: Strip plot
+    file: site_v2/src/components/team/TeamLeagueStrips.astro
+    used-on: [Team page]
+    parts:
+      row: {class: rs-row, element: Strip plot row, rule: "a metric's name, the league's values with every team's mark, and the team's rank over its value; drawn by `team/TeamLeagueStrips.astro`", measured: fits, ruled-on: the Team page review}
+      value: {class: rs-val, element: Strip plot value, rule: "the team's rank over its value; drawn by `team/TeamLeagueStrips.astro`", measured: "font-size=15px; font-weight=700; color=ink", ruled-on: the Team page review}
+      band: {class: rs-band, selector: ".rs-row .rs-band", element: Strip plot band, rule: "a strip plot row's strip: its line with every team's mark on it", measured: fits, ruled-on: the chart theme}
+    wide: "name | strip | rank over value"
+    narrow: {below: w480, form: "name | rank over value, the strip on its own line"}
+    never-split: [14th, "1.1", "better →"]
+  scatter-plot:
+    name: Scatter plot
+    file: site_v2/src/components/team/TeamDeserved.astro
+    used-on: [Team page]
+    parts:
+      plot: {class: dp-chart, element: Scatter plot, rule: "each team's shots on target difference per match against its points, with the deserved points line; drawn by `team/TeamDeserved.astro`", measured: fits, ruled-on: the Team page review}
+      table: {class: dpm, gap: mock-css}
+      table-sub: {class: dpm-sub, gap: mock-css}
+      table-value: {class: dpm-v, gap: mock-css}
+    wide: the scatter with its axes and the deserved points line
+    narrow: {below: w480, form: the narrow drawing}
+  comparison:
+    name: Comparison element
+    file: [site_v2/src/components/fixture/MetricComparison.astro, site_v2/src/components/fixture/MetricRow.astro]
+    used-on: [match page]
+    parts:
+      element: {class: cmp, element: Comparison element, rule: "two teams' numbers on one metric list, each metric's two values, name and bar; drawn by `fixture/MetricComparison.astro`", measured: fits, ruled-on: the played match page review}
+      team-name: {class: h, selector: ".cmp .formhead .h", text: 12-400-ink-2, element: Comparison team name, rule: "each team's name over its column, in the chart legend's style", measured: "font-size=12px; font-weight=400; color=ink-2", ruled-on: the chart theme}
+      parts: {class: cmp-row, selector: ".cmp .cmp-team, .cmp-home, .cmp-away, .cmp-row, .cmp-val, .cmp-mid, .cmp-label", element: Comparison parts, rule: "the comparison element's parts, drawn by `fixture/MetricComparison.astro` and `fixture/MetricRow.astro`", measured: fits, ruled-on: the match page review}
+      switched-off: {class: nonkey, element: Switched-off row, rule: a row or group heading that Show all metrics hides while off, measured: fits, ruled-on: the match page review}
+      better-value: {class: chart-better, selector: ".cmp-val.chart-better", text: 15-700-accent, element: Comparison better value, rule: "the better team's value", measured: "color=accent", ruled-on: the match page review}
+      better-bar: {class: chart-better, selector: ".cmp .chart-bar > .chart-better > span", mark: better-bar, element: Comparison better bar, rule: "the better team's bar", measured: "background-color=accent", ruled-on: the match page review}
+    wide: "value | name | value, the bar beneath"
+  metric-switch:
+    name: Metric switch
+    file: site_v2/src/components/ui/MetricSwitch.astro
+    used-on: [match page, Team page]
+    parts:
+      label: {class: tsw-lbl, text: 13-600-ink-2, element: Metric switch, rule: "\"Show all metrics\" at the top right of a metric comparison: off by default, the key metrics only; on, every metric in its place, the order never changing; a group heading with no key row hidden while off; the track neutral grey when on", measured: "font-size=13px; font-weight=600; color=ink-2", ruled-on: the match page review}
+      switch: {class: tsw, gap: mock-css}
+      track: {class: tsw-track, gap: mock-css}
+      knob: {class: tsw-knob, gap: mock-css}
+    wide: "label | track"
+  chart:
+    name: Chart
+    file: [site_v2/src/lib/chartTheme.ts, site_v2/src/components/ui/ChartLegend.astro]
+    used-on: [match page, Team page]
+    parts:
+      box: {class: chart, selector: ".chart, .chart .chart-wide, .chart .chart-narrow", element: Chart, rule: "every chart's box. Under 480px every chart takes its narrow form. The look is in `system.css` (Charts), the layout numbers in `lib/chartTheme.ts`", measured: fits, ruled-on: the chart theme}
+      legend: {class: chart-legend, selector: ".chart-legend .chart-key", element: Chart legend, rule: "above its chart, one key per mark: the mark, then its name; drawn by `ui/ChartLegend.astro`", measured: "font-size=12px; color=ink-2", ruled-on: the chart theme}
+      axis: {class: chart-axis, element: Chart axis, rule: "an axis line and its outward ticks; a strip plot's line", measured: fits, ruled-on: the chart theme}
+      tick: {class: chart-tick, selector: ".chart-tick, .chart-tick.chart-end", text: 11-400-muted, element: Chart tick label, rule: "a tick label, an axis title's second line, a strip plot's direction note", measured: "font-size=11px", ruled-on: the chart theme}
+      note: {class: chart-note, element: Chart note, rule: "an axis title and the label of the team's difference", measured: "font-size=12px", ruled-on: the chart theme}
+      label: {class: chart-label, element: Chart label, rule: "the team's name beside its mark", measured: "font-size=12px", ruled-on: the chart theme}
+      name: {class: chart-name, text: 14-400-ink, element: Chart name, rule: "a strip plot row's metric name", measured: "font-size=14px; color=ink", ruled-on: the chart theme}
+      mark: {class: chart-dot, selector: ".chart-dot, .chart-dot.chart-me", element: Chart mark, rule: "every other team's mark and the team's mark, the same in every chart and its legend", measured: fits, ruled-on: the chart theme}
+      bar: {class: chart-bar, selector: ".chart-bar, .chart-bar > .chart-better", mark: bar, element: Chart bar, rule: "two bars meeting at the centre, each its value's share of the larger", measured: fits, ruled-on: the chart theme}
+      line: {class: chart-line, selector: ".chart-line, .chart-ref, .chart-gap", element: Chart line, rule: "a reference line the values are read against, and the dotted line of the team's distance from it", measured: fits, ruled-on: the chart theme}
+      other-mark: {class: chart-dot, selector: ".chart-dot:not(.chart-me)", mark: other-dot}
+      team-mark: {class: chart-me, selector: ".chart-dot.chart-me", mark: team-dot}
+    wide: "the wide drawing, the legend above"
+    narrow: {below: w480, form: the narrow drawing}
+  matchday-picker:
+    name: Matchday picker
+    file: [site_v2/src/components/competition/MatchdaySchedule.astro, site_v2/src/components/matches/MatchesDay.astro]
+    used-on: [Competition matchdays, Matches]
+    parts:
+      block: {class: md, selector: ".md > section", element: Schedule block, rule: "the Matchdays tab's only block, under its round's picker line: its name, then the date heading per day and the match rows; one round's block on screen at a time, no script", measured: "visible=1; margin-top=36px", ruled-on: "#129 Matchdays"}
+      picker: {class: mdstep, selector: ".mdnav .mdstep", element: Matchday picker, rule: "its own full-width line under the tab bar: ‹ MATCHDAY N › with the Next tag, the arrows pinned to the edges, the title centred, a 2px line under; one matchday on screen at a time; no script", measured: "visible=1; border-bottom-width=2px", ruled-on: "#129 Matchdays"}
+      title: {class: num, selector: ".mdstep .mdtitle .num", text: 13-700-ink-caps, element: Picker title, rule: 13px bold capitals ink, measured: "font-size=13px; font-weight=700; text-transform=uppercase; color=ink", ruled-on: "#129 Matchdays"}
+      arrow: {class: step, selector: ".mdstep .step", element: Picker arrow, rule: a 34px target at each edge, measured: "min-box=34px", ruled-on: "#129 Matchdays"}
+      inner: {class: md-in}
+      next: {class: next}
+      previous: {class: prev, gap: mock-css}
+    wide: "‹ MATCHDAY N › on its own line, the round's block under"
+    never-split: [Matchday 9]
+  filter-bar:
+    name: Filter bar
+    file: site_v2/src/components/competitions/FilterRows.astro
+    used-on: [Competitions, Matches, Teams, Team page]
+    parts:
+      row: {class: seg, element: Filter row, rule: "a filter by type and one by region on the Competitions and Matches pages, each a sunk ground holding its buttons or its dropdown", measured: "background-color=sunk", ruled-on: the Filter bar design}
+      button: {class: seg-btn, selector: ".seg .seg-btn", gap: style-varies, breaks: never, element: Filter button, rule: "13px, each on one line", measured: "font-size=13px; one-line", ruled-on: the Filter bar design}
+      bar: {class: fbar, element: Filter bar, rule: "the buttons while each row of them fits on one line, otherwise a dropdown per filter. A filter offers only the choices its rows carry, and none that would leave no row", measured: fits, ruled-on: the Filter bar design}
+      dropdown: {class: sel-in, selector: ".seg.sel .sel-in", text: 13-700-ink, element: Filter dropdown, rule: "13px bold ink; side by side while each holds its longest choice, stacked full width below that", measured: "font-size=13px; font-weight=700; color=ink; fits", ruled-on: the Filter bar design}
+      input: {class: seg-in}
+      categories: {class: categories}
+    wide: "the buttons, one row per filter"
+    narrow: {below: fits, form: a dropdown per filter}
+  fold:
+    name: Fold
+    file: site_v2/src/components/ui/Fold.astro
+    used-on: [Home, Matches, Teams, Team page]
+    parts:
+      control: {class: fold-ctl, text: 13-600-ink-2, element: Fold, rule: "Under a list's shown rows: \"Show all {n}\" closed, \"Show less\" open, with the chevron down or up: 13px semi-bold ink-2", measured: "font-size=13px; font-weight=600; color=ink-2", ruled-on: the shared fold review}
+      closed: {class: closed}
+      opened: {class: opened}
+      box: {class: fold-in}
+      rest: {class: fold-rest}
+      label: {class: lbl, text: 13-600-ink-2, breaks: never}
+    wide: "the shown rows, then Show all {n}"
+  competition-index:
+    name: Competition list
+    file: site_v2/src/components/competitions/CompetitionIndexGrid.astro
+    used-on: [Competitions]
+    parts:
+      index: {class: compindex}
+      grid: {class: comp-grid}
+      category: {class: comp-category}
+      name: {class: comp-name, selector: ".comp-row .comp-name", text: 14-600-ink, breaks: between words}
+      meta: {class: comp-meta}
+      region: {class: comp-region, selector: ".comp-row .comp-region", text: 12-400-muted, breaks: between words}
+    wide: "competition rows grouped by category, in columns"
+  team-index:
+    name: Team list
+    file: site_v2/src/components/teams/TeamIndex.astro
+    used-on: [Teams]
+    parts:
+      index: {class: teamindex}
+      block: {class: tblock}
+      regions: {class: tgroups-region}
+      all: {class: tview-all}
+      region: {class: tview-region}
+    wide: "team rows grouped by competition, in columns"
+  fitted-block:
+    name: Fitted block
+    file: site_v2/src/lib/fitBlocks.mjs
+    used-on: [every page with a narrow form]
+    parts:
+      one: {class: fit-one}
+    wide: the block as it fits
+  crest:
+    name: Crest
+    file: site_v2/src/components/ui/Crest.astro
+    used-on: [every page]
+    parts:
+      crest: {class: crest, gap: mock-css}
+      small: {class: xs, gap: mock-css}
+    wide: "a team's or competition's crest, 24px; 52px in the match header"
+  unit:
+    name: Unbreakable unit
+    file: [site_v2/src/components/fixture/Masthead.astro, site_v2/src/components/competition/SeasonFacts.astro, site_v2/src/components/fixture/HeadToHead.astro, site_v2/src/components/fixture/MatchGoals.astro]
+    used-on: [match page, Competition overview, Team page]
+    parts:
+      unit: {class: nb, gap: style-varies, breaks: never}
+    wide: text that never breaks inside itself
+    never-split: [Matchday 9, 28 July 1993]
+
+rules:
+  Name in whole words: {selector: ".ctab .tm .nm, .fxrow .side .nm, .club .cn", rule: "a team name wraps only between words; no word splits or runs past the name's space", measured: whole-words, ruled-on: the narrow-screen fix}
+  Legacy board value: {selector: ".brow .v b", rule: "the legacy Home mocks' boards: the value follows the ordered-by number", measured: "font-size=15px; font-weight=700; color=accent", ruled-on: "#129 binding rules"}
+  Fitted block: {selector: ".header-in, .ctab, :has(> .frow), .fbar, .selbar, .fxrow:has(.topmatch)", rule: "a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded", measured: fit-marked, ruled-on: the narrow-screen fix}
+  Row link: {selector: "a.ctab-row, a.fxrow, a.frow, a.brow, a.comp-row", rule: "a row that leads somewhere is one link, the whole row; one hover tint for every row link, ink at 11% (twice the stripe); the press tint `sunk`; no underline inside a row", measured: "hover(background-color)=ink@11%; press(background-color)=sunk; text-decoration-line=none", ruled-on: "#129 binding rules; #52; #127 (2026-09-14)"}
+  Prose link: {selector: "p a, .lede a, .sub a, .bnote a", rule: "the one place an underline stays: a link inside running text", measured: "text-decoration-line=underline", ruled-on: "#52"}
+  Tag: {selector: ".nexttag, .fxrow .topmatch", rule: "Next (on the picker's title) and Top match (on the flagged row, before the kick-off): 10px bold capitals in an accent pill. Narrow, a row's tag takes its own line above the home team, left-aligned", measured: "font-size=10px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink", ruled-on: "the competition Matchdays design; the Home design; the narrow-screen fix"}
+  Page width: {selector: "body:not(.legacy-width) :is(.header-in, .footer-in)", rule: "the header row and the footer share the content column's one width, 960px; a page awaiting its new design keeps the earlier widths", measured: "max-width=960px", ruled-on: the page width review}

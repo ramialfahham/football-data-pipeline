@@ -81,6 +81,8 @@ PROTECTED_FILES = (
     "scripts/check_page_css.py",
     "scripts/design_inventory.py",
     "tests/test_design_inventory.py",
+    # The component registry: an edit adds a component, part or set value to the site's design.
+    "docs/design/components.yml",
 )
 
 _EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}

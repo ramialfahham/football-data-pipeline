@@ -8,7 +8,7 @@ Serves the built site, opens it in headless Chromium and checks:
 - screenshots: each chart in `CHARTS` at 375px and 1010px, in English dark, English light and
   Finnish dark, as a reader reaches it (a click on its tab), is compared by the SHA-256 of its PNG
   with `tests/fixtures/chart_screenshots/` (`manifest.json` names the platform the pins were taken
-  on and each file's hash). The site uses the system font, which differs per operating system, so
+  on and each file's hash). Text renders differently on each operating system, so
   pins are taken on Linux only: a manifest from any other platform fails everywhere, and a run
   off Linux compares nothing. The pages are built from the committed data, so a change to that data
   changes the pins too. On every platform each PNG in the pins must match its hash in the manifest
@@ -234,7 +234,8 @@ def measure(dist: Path) -> tuple[list[str], dict[str, bytes], list[str], list[st
     srv, base = serve(dist)
     try:
         with sync_playwright() as pw:
-            browser = pw.chromium.launch()
+            # The same text widths as the design check.
+            browser = pw.chromium.launch(args=["--font-render-hinting=none"])
             page = browser.new_page(viewport={"width": 1010, "height": 900})
             colours = colour_findings(page, base)
             shots, missing = screenshots(page, base)
@@ -248,7 +249,7 @@ def measure(dist: Path) -> tuple[list[str], dict[str, bytes], list[str], list[st
 def screenshot_verdict(pinned: dict, now: dict, platform: str) -> tuple[list[str], bool]:
     """The screenshot findings and whether the screenshots were compared. Only pins taken on Linux
     are valid, on every platform, so a pin set from another machine can never switch the comparison
-    off; a run on another platform compares nothing, since its font differs."""
+    off; a run on another platform compares nothing, since its text renders differently."""
     if pinned and pinned.get("platform") != PIN_PLATFORM:
         return ["manifest.json · taken on %s; pins are taken on %s only" % (pinned.get("platform"), PIN_PLATFORM)], False
     if not platform.startswith(PIN_PLATFORM):
@@ -266,7 +267,7 @@ def main(argv=None) -> int:
     pins = Path(args.pins)
     on_pin_platform = PLATFORM.startswith(PIN_PLATFORM)
     if args.update and not on_pin_platform:
-        print("check_chart_screenshots: the pins are taken on Linux only (the system font differs); this is %s" % PLATFORM)
+        print("check_chart_screenshots: the pins are taken on Linux only (text renders differently per system); this is %s" % PLATFORM)
         return 2
     colours, shots, missing, labels, measured = measure(Path(args.dist))
     if not measured:
