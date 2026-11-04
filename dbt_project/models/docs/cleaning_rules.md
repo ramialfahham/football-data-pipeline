@@ -5,7 +5,11 @@ match stats are good enough.
 - Blank rule. A blank count is a zero only where the provider counted that stat in the match or a
   second source proves the zero; every other blank stays blank. Counted in the match: for a team,
   the other team's line has a value for it; for a player, another player in the match has one,
-  and for a goalkeeper's saves and goals conceded, another goalkeeper. The score proves it: a team
+  and for a goalkeeper's saves, another goalkeeper. A goalkeeper's goals conceded come from the
+  match. The only goalkeeper of a whole match has all the team conceded. One who came on or went
+  off has those between the minute on and off, read from the substitution or a sending-off. That
+  value stays blank unless the events hold every goal and none falls in a change's minute. The
+  score proves it: a team
   that scored none means its players scored and assisted none, and a team that conceded none means
   its players conceded none. The match events prove it: every goal listed and none assisted means
   no assists, goals that are all own goals by the opponent mean the team's players scored none, no

@@ -245,9 +245,11 @@ events as (
         fixture_id,
         team_id,
         player_id,
+        minute_elapsed,
         event_type,
         event_detail,
         assist_player_name,
+        assist_player_id,
         is_goal,
         is_own_goal,
         is_missed_penalty,
@@ -300,6 +302,53 @@ player_events as (
     group by fixture_id, team_id, player_id
 ),
 
+-- A substitution names the player who went off and, as its assist, the player who came on.
+player_changes as (
+    select
+        fixture_id,
+        player_id,
+        max(minute_on) as minute_on,
+        min(minute_off) as minute_off
+    from (
+        select
+            fixture_id,
+            assist_player_id as player_id,
+            minute_elapsed as minute_on,
+            cast(null as int64) as minute_off
+        from events
+        where event_type = 'subst'
+        union all
+        select
+            fixture_id,
+            player_id,
+            cast(null as int64) as minute_on,
+            minute_elapsed as minute_off
+        from events
+        where event_type = 'subst' or (event_type = 'Card' and coalesce(event_detail, '') != 'Yellow Card')
+    )
+    where player_id is not null
+    group by fixture_id, player_id
+),
+
+-- An own goal is filed under the team it counts for, so every goal under the opponent is conceded.
+keeper_spells as (
+    select
+        d.fixture_id,
+        d.player_id,
+        count(e.minute_elapsed) as goal_events_conceded,
+        countif(
+            e.minute_elapsed > coalesce(c.minute_on, -1) and e.minute_elapsed < coalesce(c.minute_off, 999)
+        ) as goals_conceded_in_spell,
+        countif(e.minute_elapsed = c.minute_on or e.minute_elapsed = c.minute_off) as goals_at_a_change
+    from delivered as d
+    inner join player_changes as c
+        on d.fixture_id = c.fixture_id and d.player_id = c.player_id
+    left join events as e
+        on d.fixture_id = e.fixture_id and d.team_id != e.team_id and e.is_goal
+    where d.position_code = 'G'
+    group by d.fixture_id, d.player_id
+),
+
 -- The saves check judges the opponent's shots as the team cleaning judged them, before its own
 -- corrections: a figure the cleaning had to correct was never vouched for.
 team_lines as (
@@ -340,6 +389,9 @@ in_context as (
         ol.shots_on_target_before_correction as opponent_shots_on_target,
         pe.goals as event_goals,
         pe.goals_penalty as event_goals_penalty,
+        ks.goal_events_conceded,
+        ks.goals_conceded_in_spell,
+        ks.goals_at_a_change,
         if(d.team_id = f.home_team_id, f.goals_home, f.goals_away) as team_goals_for,
         if(d.team_id = f.home_team_id, f.goals_away, f.goals_home) as team_goals_conceded,
         fe.fixture_id is not null as has_events,
@@ -377,6 +429,8 @@ in_context as (
             and ol.team_id = if(d.team_id = f.home_team_id, f.away_team_id, f.home_team_id)
     left join player_events as pe
         on d.fixture_id = pe.fixture_id and d.team_id = pe.team_id and d.player_id = pe.player_id
+    left join keeper_spells as ks
+        on d.fixture_id = ks.fixture_id and d.player_id = ks.player_id
 ),
 
 -- What the provider counted in the match, read from its own values before any change.
@@ -389,8 +443,6 @@ counted as (
         countif(shots_on_target is not null) over fixture > 0 as shots_on_target_counted,
         countif(goals is not null) over fixture > 0 as goals_counted,
         countif(goals_against is not null) over fixture > 0 as goals_against_counted,
-        countif(position_code = 'G' and goals_against is not null) over fixture > 0
-            as goals_against_counted_by_keepers,
         countif(assists is not null) over fixture > 0 as assists_counted,
         countif(saves is not null) over fixture > 0 as saves_counted,
         countif(position_code = 'G' and saves is not null) over fixture > 0 as saves_counted_by_keepers,
@@ -438,8 +490,10 @@ counted as (
         team_match as (partition by league_code, fixture_id, team_id)
 ),
 
--- 1. The blank rule. A keeper's saves and goals conceded are counted only by another keeper's
--- value, so an outfield player's zero cannot hand a keeper a clean sheet.
+-- 1. The blank rule. A keeper's saves are counted only by another keeper's value, so an outfield
+-- player's zero cannot hand a keeper a clean sheet. A keeper's blank goals conceded come from the
+-- match: all of them for the only keeper of a whole match, those of the spell for a keeper who came
+-- on or went off, read only when the events hold every goal and none falls in a change's minute.
 filled as (
     select
         *,
@@ -454,8 +508,18 @@ filled as (
         ) as goals_filled,
         coalesce(
             goals_against,
+            if(position_code = 'G' and team_keepers_with_minutes = 1 and minutes >= 90, team_goals_conceded, null),
             if(
-                if(position_code = 'G', goals_against_counted_by_keepers, goals_against_counted)
+                position_code = 'G' and minutes > 0 and has_events
+                and goals_at_a_change = 0 and goal_events_conceded = team_goals_conceded,
+                goals_conceded_in_spell, null
+            ),
+            if(
+                if(
+                    position_code = 'G',
+                    coalesce(minutes, if(minutes_counted and not has_positive_stat, 0, null)) = 0,
+                    goals_against_counted
+                )
                 or team_goals_conceded = 0,
                 0, null
             )

@@ -4,9 +4,10 @@
 
   - blank_where_counted: a stat is blank although the provider delivered a value for it to someone
     else in the match (read from stg_apif__fixture_players, the fetch base kept), and no correction
-    on the row left it blank. Exempt as the rules say: a keeper's saves and goals conceded are
-    counted only by another keeper; a player who did something (a positive stat, or a goal in the
-    events) keeps blank minutes; accurate passes stay blank in a match with no pass data.
+    on the row left it blank. Exempt as the rules say: a keeper's saves are counted only by another
+    keeper; a keeper who played, but not the whole match alone, may keep blank goals conceded when
+    the team conceded; a player who did something (a positive stat, or a goal in the events) keeps
+    blank minutes; accurate passes stay blank in a match with no pass data.
   - part_above_whole, open_play_goals_above_shots_on_target, penalty_goals_above_goals,
     penalties_scored_not_penalty_goals, card_maximum, goals_conceded_above_team,
     keepers_goals_conceded_above_team, sole_keeper_goals_conceded, saves_above_ceiling,
@@ -153,7 +154,6 @@ rows_in_context as (
         countif(d.{{ stat }} is not null) over fixture as {{ stat }}_values_in_match,
         {% endfor %}
         countif(p.position_code = 'G' and d.saves is not null) over fixture as keeper_saves_values,
-        countif(p.position_code = 'G' and d.goals_against is not null) over fixture as keeper_goals_against_values,
         coalesce(
             sum(if(d.passes is not null and d.passes_accurate is not null, d.passes, null)) over fixture > 0,
             false
@@ -213,8 +213,14 @@ violations as (
         r.{{ stat }} is null
         and r.{{ stat }}_values_in_match > 0
         and c.stat is null
-        {% if stat in ['saves', 'goals_against'] %}
-        and not (r.position_code = 'G' and r.keeper_{{ stat }}_values = 0)
+        {% if stat == 'saves' %}
+        and not (r.position_code = 'G' and r.keeper_saves_values = 0)
+        {% endif %}
+        {% if stat == 'goals_against' %}
+        and not (
+            r.position_code = 'G' and r.team_goals_conceded > 0
+            and (r.minutes is null or r.minutes between 1 and 89 or (r.minutes > 0 and r.team_keepers_with_minutes > 1))
+        )
         {% endif %}
         {% if stat == 'minutes' %}
         and not r.did_something
