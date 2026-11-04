@@ -1,8 +1,8 @@
 # Review — claude/feat-243-registry-de2b6b
 
-diff_sha256: 2a42da3ebed03f8b932eeda55e8d98a2e8ad6296f19186a1064ea8a5882d7667
+diff_sha256: 28381883c8a9ea19b4c947230860be2fc5f1c74021500f2961985f05413bcc3e
 
-rounds: 4
+rounds: 5
 
 rounds_cap_override: approved in chat, 2026-11-04: rounds past three for this MR, for the launch flag in the two measuring scripts, the doc-pin fix and the pins from CI's measurement.
 
@@ -29,6 +29,8 @@ risks_checked:
 - Round 4 FAIL closed: the pin commit's delta no longer needs all nine to move.
 - The same MR may carry the flag and the exception: the exception's keys are main's values, which the flag leaves unchanged.
 - No new authority beyond the approval recorded in protected_override.
+- Round 5, the pin commit: all page rows compared with main; only the nine rise, and none is above the Windows table.
+- The list of counts the flag cleared must reach the MR, and the CPO decides the flag.
 
 ## platform-reviewer
 VERDICT: PASS
@@ -38,3 +40,5 @@ risks_checked:
 - block_standard.md matches components.yml row by row, read by hand; the generator's sync check runs in the tests.
 - The lowered pins match the two documents' counts.
 - The reader tests' result under the flag on Linux is proved only by CI.
+- Round 5, the pin commit: static, coverage and platform are unchanged; 382 page lines change; exactly nine rose and each main value matches INTER_RISES.
+- The chart check runs only once the design steps pass, so its pins follow in a further commit.
