@@ -517,7 +517,14 @@ validate:ui:
     # The check before its tests: the tests' green fixture reads the live stylesheet, so with
     # them first a stylesheet defect stops the job at the fixture and the per-page lines and
     # screenshots never appear. Either step red is the job red.
-    - python scripts/check_design_inventory.py --dist site_v2/dist --artifacts artifacts/design_inventory
+    # A merge request renders the narrowest and the widest width in English and German against its own pins;
+    # main, a manual run and a local run render every width and language against the full baseline.
+    - |
+      SCOPE=""
+      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
+        SCOPE="--viewports 280,1010 --langs en,de --baseline tests/fixtures/design_inventory/baseline_quick.json"
+      fi
+      python scripts/check_design_inventory.py --dist site_v2/dist --artifacts artifacts/design_inventory $SCOPE
     - python -m pytest tests/test_design_inventory.py -q
     - python scripts/check_chart_components.py
     - python scripts/check_chart_screenshots.py --dist site_v2/dist --artifacts artifacts/chart_screenshots

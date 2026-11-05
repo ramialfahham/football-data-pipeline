@@ -15,7 +15,12 @@ is and the gap counts are printed. `--artifacts` also receives `counts.json`, th
 with examples. Exit 0 clean, 1 on any failure or count off its pin, 2 when the inventory does not
 parse or the browser is missing.
 
+A baseline file may name the `viewports` and `langs` it was measured over (every one when it names
+none); a run over exactly those is compared with it, any other narrower run is not.
+`baseline_quick.json` is the pin set of the merge request run.
+
     python scripts/check_design_inventory.py --dist site_v2/dist
+    python scripts/check_design_inventory.py --dist site_v2/dist --viewports 280,1010 --langs en,de --baseline tests/fixtures/design_inventory/baseline_quick.json
     python scripts/check_design_inventory.py --no-built --pages competition-overview --viewports 375 --langs fi
     python scripts/check_design_inventory.py --page overview=design-mocks/renders/competition-overview_2026-09-16_01.html
 
@@ -566,6 +571,13 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
     return total
 
 
+def in_baseline_scope(baseline: dict, viewports: list[int], langs: list[str]) -> bool:
+    """Whether a run over these widths and languages is the run the baseline pins: the ones it
+    names, every one when it names none."""
+    return (sorted(viewports) == sorted(baseline.get("viewports", DEFAULT_VIEWPORTS))
+            and sorted(langs) == sorted(baseline.get("langs", DEFAULT_LANGS)))
+
+
 def compare_rendered(rendered: dict[str, dict[str, int]], pinned: dict, full_run: bool,
                      platform: str) -> tuple[str, list[str]]:
     """(why the counts are not compared, or "") and the counts off their pins. Only a run over
@@ -678,10 +690,11 @@ def main(argv=None) -> int:
             ap.error("unknown page(s): %s" % ", ".join(sorted(missing)))
     viewports = [int(v) for v in args.viewports.split(",")] if args.viewports else list(DEFAULT_VIEWPORTS)
     langs = args.langs.split(",")
-    # The baseline pins a run over every page, width and language; a narrower run prints its counts
-    # and compares none.
-    full_run = not (wanted or adhoc or args.no_built or args.no_mocks or args.viewports
-                    or args.langs != ",".join(DEFAULT_LANGS))
+    baseline = di.load_baseline(Path(args.baseline))
+    # The baseline pins a run over every page, over the widths and languages it names (all of them
+    # when it names none); a run over anything less prints its counts and compares none.
+    full_run = not (wanted or adhoc or args.no_built or args.no_mocks) \
+        and in_baseline_scope(baseline, viewports, langs)
     registered = sorted(di.class_tokens(inv.elements))
     spec = {
         "props": list(di.PROPS),
@@ -767,7 +780,6 @@ def main(argv=None) -> int:
     for group in sorted(run.coverage):
         print("COVERAGE %s: %d (%s)" % (group, sum(run.coverage[group].values()),
                                          ", ".join(sorted(run.coverage[group]))[:300]))
-    baseline = di.load_baseline(Path(args.baseline))
     note, off = compare_rendered(rendered, baseline["rendered"], full_run, sys.platform)
     if not note:
         # The pins decide: a miss the baseline holds is a known gap, not a failure.

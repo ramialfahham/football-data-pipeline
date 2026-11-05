@@ -1,118 +1,384 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 1abdbc28..5a56f249 100644
+index 5a56f249..70faec86 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,12 +1,12 @@
--# Task contract — fill a goalkeeper's blank goals against
-+# Task contract — the only keeper of a whole match has the team's goals conceded
+@@ -1,67 +1,82 @@
+-# Task contract — the only keeper of a whole match has the team's goals conceded
++# Task contract — merge requests run a quick design check, main runs the full one
  
  objective: >
--  Issue #247: a goalkeeper's blank goals against takes the team's goals conceded when the keeper
--  played the whole match alone, and the goals conceded between the minute on and off when the
--  keeper came on or went off; where neither can be read it stays blank and is never counted as 0.
-+  Issue #247, follow-up: the only goalkeeper of a whole match has the team's goals conceded at any
-+  gap from the provider's value, as the blank rule already says; the limit of 2 stays for every
-+  other contradiction.
+-  Issue #247, follow-up: the only goalkeeper of a whole match has the team's goals conceded at any
+-  gap from the provider's value, as the blank rule already says; the limit of 2 stays for every
+-  other contradiction.
++  Issue #252: on merge requests validate:ui runs the design check at two widths (280 and 1010 px)
++  in English and German over every built page and every mock, compared with its own pinned counts;
++  main, web runs and the local default keep the full 6 widths x 3 languages and the full baseline.
++  Cuts the check from about 40 minutes to about 10, so a failing pin shows in minutes, not after a
++  40-minute run.
  
  refs: >
--  #247, approved in chat, 2026-11-03; its plan approved in chat, 2026-11-04.
-+  #247; the rule and its plan approved in chat, 2026-11-04.
+-  #247; the rule and its plan approved in chat, 2026-11-04.
++  #252, approved in chat 2026-11-05 (quick check on merge requests, full check on main).
  
  scope_paths:
-   - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-@@ -43,26 +43,25 @@ impact_map: >
-   deploy_order: no column added or removed, so nothing downstream breaks before the merge; the
-   values change at the first nightly after the merge.
-   blast_radius: goalkeeper goals against, saves percentage and the goalkeeper benchmarks change
--  where a blank is filled or a wrong 0 goes; 2026 BL1, UCL and UNL hold 141 blank lines. Outfield
--  players and team numbers are unchanged.
-+  only for the only keeper of a whole match whose provider value is more than 2 from the score;
-+  today those lines are blank. Outfield players and team numbers are unchanged.
+-  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+-  - dbt_project/tests/assert_base_player_stats_cleaned.sql
+-  - dbt_project/seeds/player_match_cleaning_answer_key.csv
+-  - dbt_project/models/docs/cleaning_rules.md
+-  - .claude/task/**
++  - scripts/check_design_inventory.py
++  - tests/test_design_inventory.py
++  - tests/fixtures/design_inventory/baseline_quick.json
++  - docs/wireframes/block_standard.md
++  - .gitlab-ci.yml
++  - .claude/task/contract.md
++  - .claude/task/review.md
++  - .claude/task/review_input.patch
++  - .claude/task/acceptance_evidence.md
++  - .claude/task/rendered_page_evidence.md
++
++protected_override: >
++  Approved in chat, 2026-11-05: the quick design check on merge requests. Edits
++  .gitlab-ci.yml (validate:ui passes the quick scope and baseline on merge_request_event) and
++  scripts/check_design_inventory.py (a baseline names the widths and languages it pins, and a run
++  that matches them is compared), tests/test_design_inventory.py and the new pin file under
++  tests/fixtures/design_inventory/.
+ 
+ impact_map: >
+-  writers: base_apif__fixture_players is written by dbt only; it reads stg_apif__fixture_players,
+-  base_apif__fixtures_next, base_apif__fixture_events and base_apif__fixture_statistics, all
++  readers: validate:ui in .gitlab-ci.yml runs check_design_inventory.py; the validate-local skill
++  runs it with no flag; tests/test_design_inventory.py drives it as a subprocess and calls
++  compare_rendered and compare_coverage. `grep -rl check_design_inventory` (excluding .claude/task)
++  returns 22 files: the check, its test and .gitlab-ci.yml; tests/test_governance_doc_parity.py,
++  tests/test_governance_hooks.py, tests/test_address_words.py; site_v2/src/lib/addressWords.mjs;
++  design-mocks/README.md; scripts/design_inventory.py, check_component_registry.py,
++  check_chart_screenshots.py; requirements-ui.txt; docs/working_agreement.md,
++  docs/wireframes/block_standard.md, docs/wireframes/00_overview.md,
++  docs/roles/platform_reliability.md, docs/north_star.md; the validate-local skill;
++  .claude/hooks/task_contract_gate.py, .claude/review_routing.json, .claude/agents/cto-reviewer.md
++  and platform-reviewer.md. They name the script in text or as a protected path; none imports
++  its main().
++  fires_on: a merge request pipeline passes --viewports 280,1010 --langs en,de --baseline
++  tests/fixtures/design_inventory/baseline_quick.json. main, web and local runs pass none, so they
++  read baseline.json, whose scope is the default, and run exactly as today; a test pins that the
++  flags sit only inside the merge_request_event branch.
++  on_failure: a run whose widths and languages differ from its baseline's scope is still a
++  narrower run: compared with nothing, element misses fail as before. The quick baseline is
++  measured on linux, so off linux its rendered counts are not compared. The quick pins cannot
++  rise above main's copy of the file (a test, as for baseline.json), and the file's scope must
++  match the flags in .gitlab-ci.yml (a test).
++  stops_being_enforced_if_wrong: a defect visible only at a width or language the quick scope
++  does not render (320, 360, 375, 700 px, Finnish) passes the merge request and fails on main's
++  full run, which still compares every pin. A merge request that moves a rendered count must move
++  both pin files, and baseline.json is measured only by main's or a manual run, so a wrong full
++  pin shows after the merge, not before it.
++  deploy_order: none; no data, no deploy, no new dependency, no recurring cost. build:site-v2 is
+   unchanged.
+-  downstream: `dbt ls --select base_apif__fixture_players+ --resource-type model` lists 48 models:
+-  base_apif__lineups, base_apif__players, dim_player, fct_fixture_lineup, fct_fixture_player_stats,
+-  int_legs__player_match, int_legs__team_from_players, int_player_club_season__metrics,
+-  int_player_competition_benchmark_metrics_long, int_player_competition_benchmarks,
+-  int_player_match__metrics, int_player_momentum__metrics, int_player_profile__contribution,
+-  int_player_profile__yoy, int_player_season__metrics, int_player_season__team,
+-  int_player_season_position__metrics, int_player_season_record,
+-  int_team_competition_benchmark_metrics_long, int_team_competition_benchmarks,
+-  int_team_momentum__metrics, int_team_profile__yoy, int_team_season__deserved_vs_actual,
+-  int_team_season__metrics, int_team_season__metrics_cumulative, int_team_season_record,
+-  mart_competition_fixtures, mart_leaderboards, mart_match_days, mart_matchday_insights,
+-  mart_player_career, mart_player_competition_benchmarks, mart_player_fixture_stats,
+-  mart_player_momentum, mart_player_profile, mart_player_season_record, mart_roster,
+-  mart_team_competition_benchmarks, mart_team_competitions, mart_team_index,
+-  mart_team_leaderboards, mart_team_momentum_window, mart_team_profile, mart_team_season,
+-  mart_team_season_insights, mart_team_season_record, mart_team_window_metrics. Only the player
+-  chain reads the column: fct_fixture_player_stats, int_legs__player_match,
+-  int_player_club_season__metrics, int_player_momentum__metrics, int_player_season_record,
+-  mart_player_fixture_stats (grep of `goals_against` over dbt_project/models/*player*).
+-  layer_rules: base holds cleaning (dbt_project/docs/layering.md); check_layer_contract applies; no
+-  new model, no partition or cluster key.
+-  deploy_order: no column added or removed, so nothing downstream breaks before the merge; the
+-  values change at the first nightly after the merge.
+-  blast_radius: goalkeeper goals against, saves percentage and the goalkeeper benchmarks change
+-  only for the only keeper of a whole match whose provider value is more than 2 from the score;
+-  today those lines are blank. Outfield players and team numbers are unchanged.
++  blast_radius: validate:ui duration and what a merge request pipeline can catch; no page output
++  changes.
  
  approved_design:
    - none: no page output changes
  
  decisions_taken: >
--  The issue's rules, as approved. A goalkeeper's blank is a zero only without minutes or when the
--  team conceded none. The minute on and off come from the keeper's substitution event (player went
--  off, assist came on; `is_substitute` is false for both keepers) or a card other than a yellow
--  card. A goal in the same minute as the change leaves the value blank. No new mechanism and no
--  recurring cost.
-+  As approved. For the only keeper with minutes who played 90 or more, the score decides whatever
-+  the provider sent, and the correction stays listed under matched_to_team_goals_conceded. The
-+  sole-keeper check of the cleaned test also fails on a blank. No new mechanism and no recurring
-+  cost.
+-  As approved. For the only keeper with minutes who played 90 or more, the score decides whatever
+-  the provider sent, and the correction stays listed under matched_to_team_goals_conceded. The
+-  sole-keeper check of the cleaned test also fails on a blank. No new mechanism and no recurring
+-  cost.
++  The quick scope is the narrowest and the widest width in English and German; English because
++  the mocks exist only in English and Finnish, German because it is the longest text. A merge
++  request that renders less than main is the approved trade, approved in chat 2026-11-05. The
++  baseline file names its own scope (a second pin file) so the compare logic stays one code path.
++  No new dependency, no recurring cost (the job gets shorter).
  
  decisions_reserved:
--  - none: the rules are the approved issue's; any line left blank is reported to the CPO, not forced
-+  - none: the rule is approved
+-  - none: the rule is approved
++  - none: the width and language choice is stated and changeable in one line of .gitlab-ci.yml.
  
  done_when:
-   - dbt parse passes and SQLFluff reports nothing new on the model
-   - the answer-key and cleaned tests pass in data:build:mr
--  - the 2026 count of blank lines in BL1, UCL and UNL is reported from the MR's dataset, each remaining blank with its reason
--  - the 437 lines with a provider value at 90 minutes are unchanged
-+  - the 2026 count of blank keeper lines in BL1, UCL and UNL goes from 1 to 0 in the MR's dataset
-+  - only the counted lines change and outfield values are unchanged
+-  - dbt parse passes and SQLFluff reports nothing new on the model
+-  - the answer-key and cleaned tests pass in data:build:mr
+-  - the 2026 count of blank keeper lines in BL1, UCL and UNL goes from 1 to 0 in the MR's dataset
+-  - only the counted lines change and outfield values are unchanged
++  - python -m pytest tests/test_design_inventory.py -q is green.
++  - A local run with --viewports 280,1010 --langs en,de --baseline baseline_quick.json prints that rendered counts are not compared off linux, and a run with the default scope still compares.
++  - The merge request pipeline's validate:ui time is quoted in the MR, with the quick pins taken from a linux run's counts.json.
  
  amendments: (none)
-diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-index f64af26e..6cec67a1 100644
---- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-@@ -678,7 +678,7 @@ against_results as (
-             when
-                 position_code = 'G' and team_keepers_with_minutes = 1 and minutes >= 90
-                 and goals_against_filled != team_goals_conceded
--                then if(abs(goals_against_filled - team_goals_conceded) <= 2, team_goals_conceded, null)
-+                then team_goals_conceded
-             when goals_against_filled <= team_goals_conceded then goals_against_filled
-             when goals_against_filled - team_goals_conceded <= 2 then team_goals_conceded
-         end as goals_against_checked,
-diff --git a/dbt_project/models/docs/cleaning_rules.md b/dbt_project/models/docs/cleaning_rules.md
-index 78ec6be1..f375c242 100644
---- a/dbt_project/models/docs/cleaning_rules.md
-+++ b/dbt_project/models/docs/cleaning_rules.md
-@@ -47,8 +47,9 @@ match stats are good enough.
-     competitions. The current season comes first. A match not played has no line-ups to research.
- - Contradictions. A match stat that contradicts a result, a stat that passes its own check, or its
-   own total is corrected to the nearest value consistent with it when the gap is at most 2. It is
--  left blank when the gap is larger or when neither side passes its check. A result is corrected
--  only to the league's official decision, with its source; match stats never correct a result.
-+  left blank when the gap is larger or when neither side passes its check. The only goalkeeper of
-+  a whole match is set to the score at any gap. A result is corrected only to the league's
-+  official decision, with its source; match stats never correct a result.
- - Every correction is listed on its row in stat_corrections, under one of these rules:
-   goals_from_events (a player's goals taken from the goal events);
-   penalty_goals_limited_to_goals; penalties_scored_matched_to_penalty_goals;
-diff --git a/dbt_project/seeds/player_match_cleaning_answer_key.csv b/dbt_project/seeds/player_match_cleaning_answer_key.csv
-index f509364b..09e39cdc 100644
---- a/dbt_project/seeds/player_match_cleaning_answer_key.csv
-+++ b/dbt_project/seeds/player_match_cleaning_answer_key.csv
-@@ -14,7 +14,7 @@ fixture_id,team_id,player_id,stat,expected_value,rule,working
- 1550091,495,37137,saves,2,,"His 2 saves are within the opponent's 4 shots on target, which its 2 open-play goals do not exceed: 2 stays, no rule fires."
- 1570347,540,2813,goals_against,2,,"He played the whole match, 90 minutes; his 2 conceded are his team's 2 and stay."
- 1570347,540,2813,saves,6,,"The opponent had 8 shots on target and missed no penalty; 6 saves stay."
--1387886,81,36827,goals_against,,matched_to_team_goals_conceded,"The only keeper with minutes, 90 of them; the provider says 0 conceded, the score says 5. A gap of 5 is over 2, so it stays blank."
-+1387886,81,36827,goals_against,5,matched_to_team_goals_conceded,"The only keeper with minutes, 90 of them; the provider says 0 conceded, the score says 5. The only keeper of a whole match has what the team conceded, at any gap."
- 1575153,163,38753,passes_key,1,limited_to_whole,"2 key passes from 1 delivered pass: a key pass is a pass, so key passes become 1 (a gap of 1)."
- 1174745,815,270487,passes_accurate,,limited_to_whole,"The match's pass values sum below its passes (0.72), so they are counts: 40 accurate of 12 passes is a gap of 28, over 2, so blank."
- 872251,413,36887,dribbles,1,raised_to_part,"Dribble attempts blank while others in the match have values, so the blank rule reads 0; but he completed 1 dribble, so attempts are raised to 1."
-@@ -45,3 +45,4 @@ fixture_id,team_id,player_id,stat,expected_value,rule,working
- 1635737,1026,263057,goals_against,1,,"Went off in minute 52; of the 2 goals conceded, the one in minute 5 came before the change."
- 1635737,1026,7573,goals_against,1,,"Same match: came on in minute 52; of the 2 goals conceded, the one in minute 89 came after the change."
- 1636235,489,386298,goals_against,,,"Came on in minute 32 and a goal fell in that same minute, so the events cannot say whose it was: blank, never 0."
-+1528901,1116,126530,goals_against,3,matched_to_team_goals_conceded,"The only keeper with minutes, 90 of them; the provider says 0 conceded, the team lost 0-3. The score decides at any gap."
-diff --git a/dbt_project/tests/assert_base_player_stats_cleaned.sql b/dbt_project/tests/assert_base_player_stats_cleaned.sql
-index d522b39d..8e367d86 100644
---- a/dbt_project/tests/assert_base_player_stats_cleaned.sql
-+++ b/dbt_project/tests/assert_base_player_stats_cleaned.sql
-@@ -266,7 +266,7 @@ violations as (
-     from rows_in_context
-     where
-         position_code = 'G' and team_keepers_with_minutes = 1 and minutes >= 90
--        and goals_against != team_goals_conceded
-+        and team_goals_conceded is not null and goals_against is distinct from team_goals_conceded
-     union all
-     select league_code, fixture_id, team_id, player_id, 'keepers_goals_conceded_above_team', ''
-     from rows_in_context
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index 4e3ecb51..2625a828 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -517,7 +517,14 @@ validate:ui:
+     # The check before its tests: the tests' green fixture reads the live stylesheet, so with
+     # them first a stylesheet defect stops the job at the fixture and the per-page lines and
+     # screenshots never appear. Either step red is the job red.
+-    - python scripts/check_design_inventory.py --dist site_v2/dist --artifacts artifacts/design_inventory
++    # A merge request renders the narrowest and the widest width in English and German against its own pins;
++    # main, a manual run and a local run render every width and language against the full baseline.
++    - |
++      SCOPE=""
++      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
++        SCOPE="--viewports 280,1010 --langs en,de --baseline tests/fixtures/design_inventory/baseline_quick.json"
++      fi
++      python scripts/check_design_inventory.py --dist site_v2/dist --artifacts artifacts/design_inventory $SCOPE
+     - python -m pytest tests/test_design_inventory.py -q
+     - python scripts/check_chart_components.py
+     - python scripts/check_chart_screenshots.py --dist site_v2/dist --artifacts artifacts/chart_screenshots
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index 313be1cb..29e91d5c 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -24,7 +24,9 @@
+ > coverage gaps: a built page no row owns, a generator that fails, a generator page no row names,
+ > and a language a mock does not carry. A count that differs from its pin fails. A pin may not
+ > rise above main's, so a new page or mock arrives with no gaps. The rendered counts depend on the
+-> font, so they are compared only on the platform the baseline names. Text overflows when it runs
++> font, so they are compared only on the platform the baseline names. A merge request renders the
++> narrowest and the widest width in EN and DE against `baseline_quick.json`; main renders every
++> width against `baseline.json`. Text overflows when it runs
+ > more than 1px past its box. Two lines overlap when they still cross with a fifth of each line's
+ > height trimmed at the top and the bottom.
+ 
+diff --git a/scripts/check_design_inventory.py b/scripts/check_design_inventory.py
+index 04d03287..fd5f0bf8 100644
+--- a/scripts/check_design_inventory.py
++++ b/scripts/check_design_inventory.py
+@@ -15,7 +15,12 @@ is and the gap counts are printed. `--artifacts` also receives `counts.json`, th
+ with examples. Exit 0 clean, 1 on any failure or count off its pin, 2 when the inventory does not
+ parse or the browser is missing.
+ 
++A baseline file may name the `viewports` and `langs` it was measured over (every one when it names
++none); a run over exactly those is compared with it, any other narrower run is not.
++`baseline_quick.json` is the pin set of the merge request run.
++
+     python scripts/check_design_inventory.py --dist site_v2/dist
++    python scripts/check_design_inventory.py --dist site_v2/dist --viewports 280,1010 --langs en,de --baseline tests/fixtures/design_inventory/baseline_quick.json
+     python scripts/check_design_inventory.py --no-built --pages competition-overview --viewports 375 --langs fi
+     python scripts/check_design_inventory.py --page overview=design-mocks/renders/competition-overview_2026-09-16_01.html
+ 
+@@ -566,6 +571,13 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
+     return total
+ 
+ 
++def in_baseline_scope(baseline: dict, viewports: list[int], langs: list[str]) -> bool:
++    """Whether a run over these widths and languages is the run the baseline pins: the ones it
++    names, every one when it names none."""
++    return (sorted(viewports) == sorted(baseline.get("viewports", DEFAULT_VIEWPORTS))
++            and sorted(langs) == sorted(baseline.get("langs", DEFAULT_LANGS)))
++
++
+ def compare_rendered(rendered: dict[str, dict[str, int]], pinned: dict, full_run: bool,
+                      platform: str) -> tuple[str, list[str]]:
+     """(why the counts are not compared, or "") and the counts off their pins. Only a run over
+@@ -678,10 +690,11 @@ def main(argv=None) -> int:
+             ap.error("unknown page(s): %s" % ", ".join(sorted(missing)))
+     viewports = [int(v) for v in args.viewports.split(",")] if args.viewports else list(DEFAULT_VIEWPORTS)
+     langs = args.langs.split(",")
+-    # The baseline pins a run over every page, width and language; a narrower run prints its counts
+-    # and compares none.
+-    full_run = not (wanted or adhoc or args.no_built or args.no_mocks or args.viewports
+-                    or args.langs != ",".join(DEFAULT_LANGS))
++    baseline = di.load_baseline(Path(args.baseline))
++    # The baseline pins a run over every page, over the widths and languages it names (all of them
++    # when it names none); a run over anything less prints its counts and compares none.
++    full_run = not (wanted or adhoc or args.no_built or args.no_mocks) \
++        and in_baseline_scope(baseline, viewports, langs)
+     registered = sorted(di.class_tokens(inv.elements))
+     spec = {
+         "props": list(di.PROPS),
+@@ -767,7 +780,6 @@ def main(argv=None) -> int:
+     for group in sorted(run.coverage):
+         print("COVERAGE %s: %d (%s)" % (group, sum(run.coverage[group].values()),
+                                          ", ".join(sorted(run.coverage[group]))[:300]))
+-    baseline = di.load_baseline(Path(args.baseline))
+     note, off = compare_rendered(rendered, baseline["rendered"], full_run, sys.platform)
+     if not note:
+         # The pins decide: a miss the baseline holds is a known gap, not a failure.
+diff --git a/tests/fixtures/design_inventory/baseline_quick.json b/tests/fixtures/design_inventory/baseline_quick.json
+new file mode 100644
+index 00000000..9e1102c5
+--- /dev/null
++++ b/tests/fixtures/design_inventory/baseline_quick.json
+@@ -0,0 +1,9 @@
++{
++  "viewports": [280, 1010],
++  "langs": ["en", "de"],
++  "coverage": {},
++  "rendered": {
++    "platform": "linux",
++    "pages": {}
++  }
++}
+diff --git a/tests/test_design_inventory.py b/tests/test_design_inventory.py
+index aab5d85e..6e260eb5 100644
+--- a/tests/test_design_inventory.py
++++ b/tests/test_design_inventory.py
+@@ -382,6 +382,34 @@ def test_the_rendered_counts_compare_only_on_a_full_run_on_the_baselines_platfor
+     assert cdi.compare_rendered(measured, pinned, False, "linux") == ("a narrower run than the baseline's", [])
+ 
+ 
++def test_a_run_is_compared_only_over_the_widths_and_languages_its_baseline_names():
++    import check_design_inventory as cdi  # noqa: PLC0415
++    every = (list(cdi.DEFAULT_VIEWPORTS), list(cdi.DEFAULT_LANGS))
++    assert cdi.in_baseline_scope({}, *every)
++    assert not cdi.in_baseline_scope({}, [280, 1010], ["de"])
++    quick = {"viewports": [280, 1010], "langs": ["de"]}
++    assert cdi.in_baseline_scope(quick, [1010, 280], ["de"])
++    assert not cdi.in_baseline_scope(quick, *every)
++    assert not cdi.in_baseline_scope(quick, [280, 1010], ["de", "en"])
++    assert not cdi.in_baseline_scope(quick, [280], ["de"])
++
++
++def test_the_merge_request_run_names_the_scope_of_its_pin_file():
++    quick = di.load_baseline(REPO / "tests" / "fixtures" / "design_inventory" / "baseline_quick.json")
++    ci = (REPO / ".gitlab-ci.yml").read_text(encoding="utf-8")
++    import check_design_inventory as cdi  # noqa: PLC0415
++    flags = "--viewports %s --langs %s --baseline tests/fixtures/design_inventory/baseline_quick.json" % (
++        ",".join(str(v) for v in quick["viewports"]), ",".join(quick["langs"]))
++    step = re.search(r'SCOPE=""\n\s*if \[ "\$CI_PIPELINE_SOURCE" = "merge_request_event" \]; then\n(.*?)\n\s*fi\n(.*?\$SCOPE)',
++                     ci, re.S)
++    assert step, "validate:ui no longer sets the quick scope only on a merge request pipeline"
++    assert flags in step.group(1)
++    assert "--viewports" not in step.group(2) and "--langs" not in step.group(2) and "--baseline" not in step.group(2), (
++        "the unconditional design check run must read no scope, so main renders every width and language")
++    assert quick["rendered"]["platform"] == "linux"
++    assert set(quick["viewports"]) <= set(cdi.DEFAULT_VIEWPORTS) and set(quick["langs"]) <= set(cdi.DEFAULT_LANGS)
++
++
+ def test_the_static_counts_find_each_gap(tmp_path):
+     site, mocks = _tree(tmp_path)
+     (site / "styles" / "system.css").write_text(
+@@ -485,8 +513,16 @@ def test_the_gap_counts_count_each_defect_once(tmp_path):
+     assert "not compared: a narrower run than the baseline's" in out, out
+ 
+ 
+-def test_the_baseline_names_only_pages_the_check_renders_and_counts_it_knows():
+-    baseline = di.load_baseline()
++def test_the_full_baseline_names_no_scope():
++    full = di.load_baseline()
++    assert "viewports" not in full and "langs" not in full, (
++        "main's run reads baseline.json over every width and language; a scope named here would "
++        "make it a narrower run that compares nothing")
++
++
++@pytest.mark.parametrize("name", ["baseline.json", "baseline_quick.json"])
++def test_the_baseline_names_only_pages_the_check_renders_and_counts_it_knows(name):
++    baseline = di.load_baseline(REPO / "tests" / "fixtures" / "design_inventory" / name)
+     rendered = baseline["rendered"]
+     assert rendered["platform"] == "linux", "the baseline is measured in validate:ui's browser image"
+     names = {p.name for p in di.load().pages}
+@@ -595,6 +631,38 @@ def test_a_coverage_gap_or_a_miss_off_its_pin_fails_a_full_run(tmp_path):
+     assert "count rose · Home · miss · Block heading · %d, baseline %d" % (misses, misses - 1) in out, out
+ 
+ 
++@needs_browser
++def test_a_narrower_run_is_compared_only_with_a_baseline_that_names_its_scope(tmp_path):
++    doc = _doc(tmp_path, GOOD_ROW, "\n## Pages\n\n| Page | Kind | Source | URL | FI | Expect |\n|---|---|---|---|---|---|\n"
++               "| Home | built | `site_v2/dist` | `en/index.html` | path | Block heading |\n")
++    dist = tmp_path / "dist"
++    for rel in ("en/index.html", "en/extra/index.html"):
++        (dist / rel).parent.mkdir(parents=True, exist_ok=True)
++        (dist / rel).write_text('<!doctype html><body><div class="sechead"><span class="eyebrow">Block</span></div></body>',
++                                encoding="utf-8")
++    mocks = tmp_path / "mocks"
++    mocks.mkdir()
++
++    def run(scope: dict) -> tuple[int, str]:
++        baseline = tmp_path / "baseline.json"
++        baseline.write_text(json.dumps({**scope, "static": {}, "coverage": {},
++                                        "rendered": {"platform": sys.platform, "pages": {}}}), encoding="utf-8")
++        proc = subprocess.run(
++            [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--inventory", str(doc),
++             "--dist", str(dist), "--mocks", str(mocks), "--baseline", str(baseline),
++             "--viewports", "1010", "--langs", "en"],
++            capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"})
++        return proc.returncode, proc.stdout + proc.stderr
++
++    code, out = run({"viewports": [1010], "langs": ["en"]})
++    assert code == 1, out
++    assert "count rose · page with no row · en/extra/index.html · 1, baseline 0" in out, out
++    assert "not compared" not in out, out
++    code, out = run({})
++    assert "not compared: a narrower run than the baseline's" in out, out
++    assert "count rose" not in out, out
++
++
+ def test_a_pin_may_not_rise_above_mains_and_a_new_entry_starts_at_zero():
+     base = {"static": {"g": {"a": 2}}, "coverage": {}, "rendered": {"platform": "linux", "pages": {"Home": {"split": 3}}}}
+     now = json.loads(json.dumps(base))
+@@ -607,9 +675,10 @@ def test_a_pin_may_not_rise_above_mains_and_a_new_entry_starts_at_zero():
+                                    "rendered · Home · split · 4, main 3"]
+ 
+ 
+-def _mains_baseline() -> dict:
++def _mains_baseline(name: str = "baseline.json") -> dict | None:
+     """The baseline on the branch this one merges into: the MR's base in an MR pipeline, the first
+-    parent on any other CI pipeline, the merge base with GitLab's main on a working copy."""
++    parent on any other CI pipeline, the merge base with GitLab's main on a working copy. None for
++    a pin file other than baseline.json that the base does not hold yet."""
+     def git(*args):
+         return subprocess.run(["git", "-c", "safe.directory=*", *args], cwd=REPO, capture_output=True, text=True,
+                               encoding="utf-8")
+@@ -619,7 +688,7 @@ def _mains_baseline() -> dict:
+         remote = "gitlab/main" if git("rev-parse", "--verify", "-q", "gitlab/main").returncode == 0 else "origin/main"
+         ref = git("merge-base", "HEAD", remote).stdout.strip()
+     assert ref, "no base to compare the baseline with"
+-    path ="%s:tests/fixtures/design_inventory/baseline.json" % ref
++    path = "%s:tests/fixtures/design_inventory/%s" % (ref, name)
+     proc = git("show", path)
+     if proc.returncode and os.environ.get("CI"):
+         # A shallow CI clone may not hold the base commit; fetch it.
+@@ -628,6 +697,8 @@ def _mains_baseline() -> dict:
+         else:
+             git("fetch", "--no-tags", "--depth=1", "origin", ref)
+         proc = git("show", path)
++    if proc.returncode and name != "baseline.json" and re.search(r"does not exist in|exists on disk, but not in", proc.stderr):
++        return None
+     assert proc.returncode == 0, "main's baseline is not in this clone (%s): %s" % (ref, proc.stderr.strip())
+     return json.loads(proc.stdout)
+ 
+@@ -669,6 +740,16 @@ def test_no_pin_rises_above_mains():
+     assert up == [], "a pin rose above main's; a new gap is fixed, not pinned:\n" + "\n".join(up)
+ 
+ 
++def test_no_quick_pin_rises_above_mains():
++    base = _mains_baseline("baseline_quick.json")
++    if base is None:
++        # Main holds no quick pins yet; this branch introduces them.
++        return
++    current = di.load_baseline(REPO / "tests" / "fixtures" / "design_inventory" / "baseline_quick.json")
++    up = di.rises(current, base)
++    assert up == [], "a quick pin rose above main's; a new gap is fixed, not pinned:\n" + "\n".join(up)
++
++
+ def _built_page_check(tmp_path: Path, html: str) -> tuple[int, str]:
+     """The check on one BUILT page whose only Expect is the header's search, at 1010px. A
+     `visible=` assertion measures only what its selector finds, so removal is caught here or
