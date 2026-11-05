@@ -1,8 +1,10 @@
 # Review — worktree-feat-design-check-scope
 
-diff_sha256: 04dcd678b762f372fddb54c1e8fe4c7797a020f4a966efd1753d9e68b377daec
+diff_sha256: 2603c88f351424087d7aec3335d32d952c5c1ed1279a6567ebd9a13846ba596d
 
-rounds: 3
+rounds: 4
+
+rounds_cap_override: the pin fill is data taken unchanged from CI's own artifact and the delta review found nothing; continue approved in chat, 2026-11-05.
 
 ## scope-auditor
 VERDICT: PASS
@@ -21,6 +23,7 @@ risks_checked:
 - Ratchet: a quick pin cannot rise above main's copy of the file; the first fill is the one unratcheted step and gets a delta re-review against the first pipeline's counts.json.
 - Cost: merge request build minutes fall; main and web runs are unchanged. No credentials, no permission widening.
 - The approved trade is declared: a defect at 320, 360, 375 or 700 px or in Finnish, or a wrong full pin, shows on main after the merge.
+- Delta round 4, the quick pin fill: the pins equal the first merge request pipeline's counts.json section by section (834 rendered lines, 274 coverage lines), none is padded, none exceeds the same key in baseline.json, and the scope keys and platform match the CI flags and runner. The fill makes the guard real; no mechanism, dependency or cost is added.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
