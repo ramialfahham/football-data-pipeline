@@ -430,8 +430,8 @@ seeds:
       - name: is_key_metric
         description: >
           Whether the metric is one of its entity's key metrics: a page that shows fewer metrics shows
-          the key ones, and the order never changes with it. Set on every team row; blank on player
-          rows until their key metrics are set.
+          the key ones, and the order never changes with it. Set on every team row; on a player row,
+          true on a key metric and blank otherwise.
         tests:
           - not_null:
               config:
@@ -1273,6 +1273,31 @@ seeds:
         description: "The metric's denominator worked out by hand. Blank for a metric with no denominator."
       - name: working
         description: "The hand working: the player-season, the matches counted, each sum, and every cleaning rule that changed an input."
+        tests: [not_null]
+
+  - name: player_window_answer_key
+    description: >
+      Hand-worked values for a real player over a whole window of the Player page, added up from
+      the player's cleaned match lines by the catalogue formula, so that which competitions a window
+      holds is checked against a known answer. assert_player_window_answer_key fails when
+      int_player_window__metrics returns anything other than the numerator over the denominator.
+    columns:
+      - name: player_id
+        description: "{{ doc('player_api_id') }}"
+        tests: [not_null]
+      - name: window_type
+        description: "this_season, last_season or current_competitions."
+        tests: [not_null]
+      - name: metric_id
+        description: "The metric, or minutes, the case checks."
+        tests: [not_null]
+      - name: numerator
+        description: "The value's numerator worked out by hand."
+        tests: [not_null]
+      - name: denominator
+        description: "The value's denominator worked out by hand. Blank for a value with no denominator."
+      - name: working
+        description: "The hand working: the competitions counted and each sum."
         tests: [not_null]
 
   - name: team_name_overrides

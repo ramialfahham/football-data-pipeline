@@ -455,6 +455,11 @@ Goals the player scored, not counting penalties, as a share of the player's shot
 {% enddocs %}
 
 
+{% docs fouls_per90 %}
+Fouls the player committed per 90 minutes played.
+{% enddocs %}
+
+
 {% docs fouls_per_match %}
 Average number of fouls the team's players committed per match.
 {% enddocs %}
@@ -483,6 +488,11 @@ Goals the team conceded.
 {% docs goals_against_delta_yoy__team %}
 Goals the team conceded. The change from the previous season to the current one, compared at
 the same point of the campaign: the current value minus the previous one.
+{% enddocs %}
+
+
+{% docs goals_against_per90 %}
+Goals the team conceded while the player was in goal, per 90 minutes played.
 {% enddocs %}
 
 
@@ -648,6 +658,11 @@ The team's position in its league table.
 
 {% docs minutes_per_appearance %}
 Average minutes the player was on the pitch per match in which the player played.
+{% enddocs %}
+
+
+{% docs offsides_per90 %}
+Times the player was caught offside per 90 minutes played.
 {% enddocs %}
 
 
@@ -1020,6 +1035,11 @@ compared at the same point of the campaign: the current value minus the previous
 {% enddocs %}
 
 
+{% docs shots_on_goal_player_pct %}
+The player's shots on target as a share of all the player's shots.
+{% enddocs %}
+
+
 {% docs shots_on_goal_player_prev_season__player %}
 Shots on target the player had. Value for the season before, through the same number of matches
 as the current season has played so far. So the two are compared at the same point of a
@@ -1037,6 +1057,11 @@ because a part season against a full one would mislead.
 {% docs shots_on_goal_player_this_season__player %}
 Shots on target the player had. Value for the season now in progress, accumulated through the
 matches played so far.
+{% enddocs %}
+
+
+{% docs shots_per90 %}
+Shots the player took per 90 minutes played.
 {% enddocs %}
 
 

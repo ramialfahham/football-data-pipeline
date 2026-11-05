@@ -1,82 +1,147 @@
-# Task contract — merge requests run a quick design check, main runs the full one
+# Task contract — Player page data: every value on both tabs served by a tested model
 
 objective: >
-  Issue #252: on merge requests validate:ui runs the design check at two widths (280 and 1010 px)
-  in English and German over every built page and every mock, compared with its own pinned counts;
-  main, web runs and the local default keep the full 6 widths x 3 languages and the full baseline.
-  Cuts the check from about 40 minutes to about 10, so a failing pin shows in minutes, not after a
-  40-minute run.
+  Issue #256: build the marts the Player page (#136) reads, so its tab builds start from finished
+  tables instead of hand-pulled mock data. Data only: no site, no system.css, no components.yml,
+  no export.
 
 refs: >
-  #252, approved in chat 2026-11-05 (quick check on merge requests, full check on main).
+  #256, plan approved in chat 2026-11-05. Design: #136.
 
 scope_paths:
-  - scripts/check_design_inventory.py
-  - tests/test_design_inventory.py
-  - tests/fixtures/design_inventory/baseline_quick.json
-  - docs/wireframes/block_standard.md
-  - .gitlab-ci.yml
+  - dbt_project/seeds/metric_catalogue.csv
+  - dbt_project/seeds/metric_map.csv
+  - dbt_project/seeds/player_season_answer_key.csv
+  - dbt_project/seeds/player_window_answer_key.csv
+  - dbt_project/seeds/schema.yml
+  - dbt_project/macros/player_benchmark_metrics.sql
+  - dbt_project/macros/competition_type_order.sql
+  - dbt_project/macros/team_seasons_without_player_data.sql
+  - dbt_project/models/2_base/api_football/base_apif__squads.sql
+  - dbt_project/models/2_base/api_football/base.yml
+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+  - dbt_project/models/4_intermediate/shared/int_competition_season__club_windows.sql
+  - dbt_project/models/4_intermediate/shared/int_team__current_national_competitions.sql
+  - dbt_project/models/4_intermediate/shared/int_player__page_profile.sql
+  - dbt_project/models/4_intermediate/shared/int_player_page__window_seasons.sql
+  - dbt_project/models/4_intermediate/shared/int_player_window__metrics.sql
+  - dbt_project/models/4_intermediate/shared/int_player_squad_window__metrics.sql
+  - dbt_project/models/4_intermediate/shared/int_player_page.yml
+  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+  - dbt_project/models/4_intermediate/shared/int_player_competition_benchmark_metrics_long.sql
+  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+  - dbt_project/tests/assert_player_page_windows.sql
+  - dbt_project/models/5_marts/shared/mart_player_profile.sql
+  - dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
+  - dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
+  - dbt_project/models/5_marts/shared/mart_player_window_metrics.sql
+  - dbt_project/models/5_marts/shared/mart_player_squad_benchmarks.sql
+  - dbt_project/models/5_marts/shared/mart_team_competitions.sql
+  - dbt_project/models/5_marts/shared/shared.yml
+  - dbt_project/models/docs/metric_rules.md
+  - dbt_project/models/docs/metric_columns.md
+  - dbt_project/tests/assert_player_metrics_follow_catalogue_formula.sql
+  - dbt_project/tests/assert_player_window_answer_key.sql
+  - dbt_project/tests/assert_player_season_answer_key.sql
+  - dbt_project/docs/layering.md
+  - scripts/generate_metric_sql.py
+  - tests/test_catalogue_order.py
+  - tests/test_no_decision_history_in_code.py
+  - tests/test_generate_metric_sql.py
+  - tests/test_metric_map.py
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
   - .claude/task/acceptance_evidence.md
   - .claude/task/rendered_page_evidence.md
 
-protected_override: >
-  Approved in chat, 2026-11-05: the quick design check on merge requests. Edits
-  .gitlab-ci.yml (validate:ui passes the quick scope and baseline on merge_request_event) and
-  scripts/check_design_inventory.py (a baseline names the widths and languages it pins, and a run
-  that matches them is compared), tests/test_design_inventory.py and the new pin file under
-  tests/fixtures/design_inventory/.
-
 impact_map: >
-  readers: validate:ui in .gitlab-ci.yml runs check_design_inventory.py; the validate-local skill
-  runs it with no flag; tests/test_design_inventory.py drives it as a subprocess and calls
-  compare_rendered and compare_coverage. `grep -rl check_design_inventory` (excluding .claude/task)
-  returns 22 files: the check, its test and .gitlab-ci.yml; tests/test_governance_doc_parity.py,
-  tests/test_governance_hooks.py, tests/test_address_words.py; site_v2/src/lib/addressWords.mjs;
-  design-mocks/README.md; scripts/design_inventory.py, check_component_registry.py,
-  check_chart_screenshots.py; requirements-ui.txt; docs/working_agreement.md,
-  docs/wireframes/block_standard.md, docs/wireframes/00_overview.md,
-  docs/roles/platform_reliability.md, docs/north_star.md; the validate-local skill;
-  .claude/hooks/task_contract_gate.py, .claude/review_routing.json, .claude/agents/cto-reviewer.md
-  and platform-reviewer.md. They name the script in text or as a protected path; none imports
-  its main().
-  fires_on: a merge request pipeline passes --viewports 280,1010 --langs en,de --baseline
-  tests/fixtures/design_inventory/baseline_quick.json. main, web and local runs pass none, so they
-  read baseline.json, whose scope is the default, and run exactly as today; a test pins that the
-  flags sit only inside the merge_request_event branch.
-  on_failure: a run whose widths and languages differ from its baseline's scope is still a
-  narrower run: compared with nothing, element misses fail as before. The quick baseline is
-  measured on linux, so off linux its rendered counts are not compared. The quick pins cannot
-  rise above main's copy of the file (a test, as for baseline.json), and the file's scope must
-  match the flags in .gitlab-ci.yml (a test).
-  stops_being_enforced_if_wrong: a defect visible only at a width or language the quick scope
-  does not render (320, 360, 375, 700 px, Finnish) passes the merge request and fails on main's
-  full run, which still compares every pin. A merge request that moves a rendered count must move
-  both pin files, and baseline.json is measured only by main's or a manual run, so a wrong full
-  pin shows after the merge, not before it.
-  deploy_order: none; no data, no deploy, no new dependency, no recurring cost. build:site-v2 is
-  unchanged.
-  blast_radius: validate:ui duration and what a merge request pipeline can catch; no page output
-  changes.
+  writers: dbt only. RAW_APIF_SQUADS is written by ingestion/api_football/loads/squads.py and is
+  unchanged. New models read it through stg_apif__squads.
+  lineage: `dbt ls --resource-type model --select metric_catalogue+ int_player_season__metrics+
+  int_player_season_position__metrics+ mart_player_profile+ mart_player_fixture_stats+
+  int_player_competition_benchmark_metrics_long+` returns
+  4_intermediate.domestic_league.team_season.int_player_season__metrics,
+  4_intermediate.shared.int_player_competition_benchmark_metrics_long,
+  4_intermediate.shared.int_player_competition_benchmarks,
+  4_intermediate.shared.int_player_season_position__metrics,
+  5_marts.shared.mart_leaderboards, 5_marts.shared.mart_player_competition_benchmarks,
+  5_marts.shared.mart_player_fixture_stats, 5_marts.shared.mart_player_profile,
+  5_marts.shared.mart_team_competition_benchmarks, 5_marts.shared.mart_team_leaderboards,
+  5_marts.shared.mart_team_momentum_window.
+  consumption: scripts/export_site_data.py reads mart_player_profile (is_featured_season, select
+  star), mart_player_competition_benchmarks and mart_player_fixture_stats, and the catalogue's
+  metric_order through the board order. New columns are not picked by its shapes. New benchmark
+  metrics add entries to player payloads; no player page is built on the site.
+  ci_layer_rules: scripts/check_layer_contract.py (intermediates never ref marts, no per-model
+  materialisation, base refs staging or base only), scripts/generate_metric_sql.py --check,
+  scripts/sync_metric_docs_blocks.py --check, scripts/check_description_hygiene.py.
+  deploy_order: one merge; the nightly dbt build creates the new tables. No backfill, no ingest
+  change, no new dependency.
+  blast_radius: mart_player_profile gains columns, and is_featured_season changes only where two
+  competitions tied (1,386 players today, an arbitrary pick). mart_player_competition_benchmarks
+  gains five metrics and columns; rank stays by value descending, as the locked display contract
+  reads it, and the new rank_best_first ranks by direction. mart_player_fixture_stats gains two columns. mart_team_competitions gives the same output.
+  Two new marts, six new intermediates and base models. Rankings board order is unchanged:
+  metric_order keeps the relative order of every board.
 
 approved_design:
   - none: no page output changes
 
 decisions_taken: >
-  The quick scope is the narrowest and the widest width in English and German; English because
-  the mocks exist only in English and Finnish, German because it is the longest text. A merge
-  request that renders less than main is the approved trade, approved in chat 2026-11-05. The
-  baseline file names its own scope (a second pin file) so the compare logic stays one code path.
-  No new dependency, no recurring cost (the job gets shorter).
+  Plan, readings and the R6 text approved in chat 2026-11-05, recorded on #256. Model names follow
+  mart_<entity>_<subject> and int_<domain>__<purpose>. A match with no player stats keeps the
+  existing rule R4 until the open decision on #256 is made.
+  The catalogue changes are the approved Metrics section of #136, copied as they stand.
+  New rows, id: formula; group, direction, format, order:
+  shots_per90: sum(shots) * 90 / sum(minutes); shooting, higher_better, decimal_1, 2.
+  shots_on_goal_player_pct: sum(shots_on_target) / sum(shots); shooting, higher_better, percent, 5.
+  fouls_per90: sum(fouls) * 90 / sum(minutes); discipline, lower_better, decimal_1, 2.
+  offsides_per90: sum(offsides) * 90 / sum(minutes); discipline, lower_better, decimal_1, 6.
+  goals_against_per90: sum(goals_against) * 90 / sum(minutes); goalkeeping, lower_better, decimal_1, 5.
+  Descriptions and interpretations are #136's text word for word.
+  is_key_metric true: scorer_points_per90, shots_on_goal_per90, passes_per90, ball_actions_per90,
+  passes_key_per90, duels_won_per90, defensive_actions_per90.
+  metric_order, each per-90 after its total as #136 rules:
+  goals: goals_player, goals_per90, assists_player, assists_per90, scorer_points_player, scorer_points_per90.
+  shooting: shots_player, shots_per90, shots_on_goal_player, shots_on_goal_per90,
+  shots_on_goal_player_pct, finishing_efficiency_player_pct.
+  passing: passes_player, passes_per90, passes_accuracy_player_pct, ball_actions_player,
+  ball_actions_per90, passes_key_player, passes_key_per90.
+  one_on_one: dribbles_attempts_player, duels_player, duels_won_player, duels_won_per90,
+  duels_won_player_pct, dribbles_success_player, dribbles_success_per90, dribbles_success_player_pct.
+  defending: defensive_actions_player, defensive_actions_per90, tackles_player, tackles_per90,
+  interceptions_player, interceptions_per90, blocks_player, blocks_per90.
+  goalkeeping: saves_player, saves_per90, saves_player_pct, goals_against_player, goals_against_per90.
+  discipline: fouls_player, fouls_per90, cards_yellow_player, cards_red_player, offsides_player,
+  offsides_per90.
+  docs/wireframes/12_player_stats.md stays as it is: #136 retires it in the tab build.
 
 decisions_reserved:
-  - none: the width and language choice is stated and changeable in one line of .gitlab-ci.yml.
+  - Whether the cards use line-ups and goal records for a match with no player stats, and the two sentences in #136 it touches.
+  - What the Club tab shows for a player with no club football.
+
+acceptance_criteria:
+  - Every player has a season label, age, current club, position taken from match data, and a full name even when first or last name is missing.
+  - A player in two leagues in the same year gets one featured season, chosen by the latest match.
+  - Each player is marked with the tabs they have. National team comes from match data and the squad lists.
+  - The four cards are served as totals, across the club competitions of the featured season, and across the current competitions.
+  - Each nation has its current competitions, running now, otherwise the most recently finished.
+  - The five new metrics, seven key metrics and new metric order are in the catalogue, as #136 sets out.
+  - Fouls, offsides and goals against rank lowest-first.
+  - Each position group has one player count for the explainer, and competitions come in the page's filter order.
+  - Squad is served, with the teammates with at least a third of the team's minutes, each player's rank, the median and the count.
+  - Each player has this season and last season over all club competitions at any club, with minutes on both sides.
+  - Each match carries ball actions and which tab it belongs to.
+  - Every new metric value has a value test against a hand-worked answer.
+  - A match with no player stats gives a blank, as the existing rule says, until the open decision is made.
 
 done_when:
-  - python -m pytest tests/test_design_inventory.py -q is green.
-  - A local run with --viewports 280,1010 --langs en,de --baseline baseline_quick.json prints that rendered counts are not compared off linux, and a run with the default scope still compares.
-  - The merge request pipeline's validate:ui time is quoted in the MR, with the quick pins taken from a linux run's counts.json.
+  - dbt parse and dbt compile succeed from the repo root.
+  - python -m pytest tests -q is green.
+  - The offline gates in FAST_GATES pass.
+  - CI's data:build:mr is green with every model inside BigQuery's 300-second limit.
 
 amendments: (none)

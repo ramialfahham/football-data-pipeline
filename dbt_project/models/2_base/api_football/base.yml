@@ -517,6 +517,29 @@ models:
         description: "{{ doc('season_api_year') }}"
         tests: [not_null]
 
+  - name: base_apif__squads
+    description: >
+      The provider's current squad lists, deduped from stg_apif__squads: which player a team lists
+      in a competition, on the latest snapshot. Grain: (league_code, team_api_id, player_api_id).
+    config:
+      tags: ["base", "api_football", "squads"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, team_api_id, player_api_id]
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: team_api_id
+        description: "{{ doc('team_api_id') }}"
+        tests: [not_null]
+      - name: player_api_id
+        description: "{{ doc('player_api_id') }}"
+        tests: [not_null]
+      - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
+        tests: [not_null]
+
   - name: base_apif__transfers
     description: >
       Dated player transfers (moves), deduped from stg_apif__transfers. By-team fetching

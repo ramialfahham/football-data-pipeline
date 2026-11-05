@@ -87,12 +87,13 @@ COMPOSITES = (
 )
 RATIOS = (
     "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct",
-    "saves_player_pct", "finishing_efficiency_player_pct",
+    "saves_player_pct", "finishing_efficiency_player_pct", "shots_on_goal_player_pct",
 )
 PER90 = (
     "goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90",
     "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90",
-    "defensive_actions_per90", "duels_won_per90", "saves_per90", "ball_actions_per90",
+    "defensive_actions_per90", "duels_won_per90", "saves_per90", "ball_actions_per90", "shots_per90",
+    "fouls_per90", "offsides_per90", "goals_against_per90",
 )
 WINDOW_COUNTS = (
     "goals_player", "assists_player", "goals_against_player", "saves_player", "shots_player",
@@ -110,12 +111,13 @@ MATCH_BOARDS = (
     "defensive_actions_player", "fouls_player",
 )
 POSITION_COUNTS = (
-    "appearances", "goals_player", "goals_penalty_player", "assists_player", "shots_on_goal_player",
-    "passes_player",
+    "appearances", "goals_player", "goals_penalty_player", "assists_player", "shots_player",
+    "shots_on_goal_player", "passes_player",
     "passes_accurate_player", "passes_key_player", "tackles_player", "interceptions_player",
     "blocks_player", "duels_player", "duels_won_player", "dribbles_attempts_player",
     "dribbles_success_player", "saves_player", "goals_against_player",
 )
+PAGE_WINDOW = POSITION_COUNTS + ("minutes_per_appearance",) + RATIOS + PER90
 
 
 @dataclass(frozen=True)
@@ -140,8 +142,10 @@ SURFACES = (
     Surface("4_intermediate/shared/int_player_profile__contribution.sql",
             ("scorer_points_player",)),
     Surface("4_intermediate/shared/int_player_match__metrics.sql", MATCH_BOARDS),
+    Surface("4_intermediate/shared/int_player_window__metrics.sql", PAGE_WINDOW),
+    Surface("4_intermediate/shared/int_player_squad_window__metrics.sql", PAGE_WINDOW),
     Surface("5_marts/shared/mart_player_fixture_stats.sql",
-            ("passes_accuracy_player_pct",), windowed=True),
+            ("passes_accuracy_player_pct", "ball_actions_player"), windowed=True),
     Surface("4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql",
             TEAM_SEASON, windowed=True, entity="team"),
     Surface("4_intermediate/shared/int_team_momentum__metrics.sql", TEAM_FORM, entity="team"),

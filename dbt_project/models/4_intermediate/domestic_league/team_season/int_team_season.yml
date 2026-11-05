@@ -988,6 +988,16 @@ models:
         description: "{{ doc('passes_per90') }}"
       - name: ball_actions_per90
         description: "{{ doc('ball_actions_per90') }}"
+      - name: shots_on_goal_player_pct
+        description: "{{ doc('shots_on_goal_player_pct') }}"
+      - name: shots_per90
+        description: "{{ doc('shots_per90') }}"
+      - name: fouls_per90
+        description: "{{ doc('fouls_per90') }}"
+      - name: offsides_per90
+        description: "{{ doc('offsides_per90') }}"
+      - name: goals_against_per90
+        description: "{{ doc('goals_against_per90') }}"
       - name: tackles_per90
         description: "{{ doc('tackles_per90') }}"
       - name: interceptions_per90

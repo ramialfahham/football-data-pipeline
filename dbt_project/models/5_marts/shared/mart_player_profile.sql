@@ -102,6 +102,17 @@ types as (
         competition_type,
         entity_type
     from {{ ref('competition_types') }}
+),
+
+page as (
+    select * from {{ ref('int_player__page_profile') }}
+),
+
+season_labels as (
+    select
+        season_sk,
+        season_label
+    from {{ ref('dim_competition_season') }}
 )
 
 select
@@ -112,12 +123,16 @@ select
     a.league_sk,
     a.league_code,
     a.season_api_year,
+    sl.season_label,
     reg.competition_type,
     ct.entity_type,
     -- identity + descriptors (not catalogue metrics)
     p.player_name,
     p.player_first_name,
     p.player_last_name,
+    coalesce(concat(p.player_first_name, ' ', p.player_last_name), p.player_name) as player_full_name,
+    date_diff(current_date(), p.player_birth_date, year)
+    - if(format_date('%m%d', current_date()) < format_date('%m%d', p.player_birth_date), 1, 0) as player_age,
     p.player_nationality,
     p.player_birth_date,
     p.player_birth_place,
@@ -127,6 +142,15 @@ select
     p.player_position,
     p.player_photo_url,
     mp.position_code,
+    -- the Player page's choices, one set per player, the same on each of the player's rows
+    pg.position_group,
+    pg.has_club_tab,
+    pg.has_national_team_tab,
+    pg.national_team_sk,
+    pg.featured_team_sk,
+    pg.current_club_team_sk,
+    cc.team_name as current_club_name,
+    cc.team_logo_url as current_club_logo_url,
     -- team affiliation (GAP-16): the most-recent-match club this competition-season + the current-club
     -- flag (the player's single most-recent finished match overall); identity from dim_team.
     ta.team_sk,
@@ -200,20 +224,8 @@ select
     c.scorer_points_player,
     c.team_goals_season,
     c.contribution_player_pct,
-    -- The season this player's page opens on (#846). Exactly one row per player is true: the most
-    -- recent CLUB season, preferring a domestic league over a cup, and falling back to the most
-    -- recent season of any kind for a player with no club football at all. Scoped to club because
-    -- #848 made the three main tabs club-only; on pure recency a player who has just played a
-    -- tournament opens on it, which is why M. Rogers opened on World Cup 2026 with England rather
-    -- than the Premier League with Aston Villa. Last in the list because ST06 puts calculations
-    -- after simple targets.
-    row_number() over (
-        partition by a.player_sk
-        order by
-            case when ct.entity_type = 'club' then 0 else 1 end asc,
-            case when reg.competition_type = 'domestic_league' then 0 else 1 end asc,
-            a.season_api_year desc
-    ) = 1 as is_featured_season
+    -- The season this player's page opens on: int_player__page_profile chooses it.
+    coalesce(a.season_sk = pg.featured_season_sk, false) as is_featured_season
 from season as a
 left join players as p
     on a.player_sk = p.player_sk
@@ -243,3 +255,9 @@ left join registry as reg
     on a.league_code = reg.league_code
 left join types as ct
     on reg.competition_type = ct.competition_type
+left join page as pg
+    on a.player_sk = pg.player_sk
+left join season_labels as sl
+    on a.season_sk = sl.season_sk
+left join teams as cc
+    on pg.current_club_team_sk = cc.team_sk

@@ -7,7 +7,7 @@
 
   One row per disagreeing value (surface, metric, grain, model value, expected value), plus one per
   grain present on one side only. The match-level mart carries the pass accuracy of the player's
-  own match as a whole percentage (passes_accuracy_percent), checked the same way.
+  own match as a whole percentage (passes_accuracy_percent) and its ball actions, checked the same way.
 #}
 {{ config(store_failures = true, severity = 'error') }}
 -- depends_on: {{ ref('metric_catalogue') }}
@@ -22,6 +22,8 @@
 -- depends_on: {{ ref('int_player_season_record') }}
 -- depends_on: {{ ref('int_player_profile__contribution') }}
 -- depends_on: {{ ref('int_player_match__metrics') }}
+-- depends_on: {{ ref('int_player_window__metrics') }}
+-- depends_on: {{ ref('int_player_squad_window__metrics') }}
 -- depends_on: {{ ref('mart_player_fixture_stats') }}
 -- depends_on: {{ ref('fct_fixture_player_stats') }}
 
@@ -40,6 +42,10 @@
      'grain': ['player_sk', 'team_sk', 'season_sk'], 'windowed': false},
     {'model': 'int_player_match__metrics', 'rows': 'match_rows',
      'grain': ['fixture_sk', 'player_sk'], 'windowed': false},
+    {'model': 'int_player_window__metrics', 'rows': 'page_window_rows',
+     'grain': ['player_sk', 'window_type'], 'windowed': false},
+    {'model': 'int_player_squad_window__metrics', 'rows': 'squad_window_rows',
+     'grain': ['squad_sk', 'player_sk'], 'windowed': false},
 ] %}
 {% set member_floor = 60 %}
 {% set checks = [] %}
@@ -182,6 +188,90 @@ match_rows as (
     from legs
 ),
 
+page_window_seasons as (
+    select * from {{ ref('int_player_page__window_seasons') }}
+),
+
+page_window_legs as (
+    select
+        w.window_type,
+        legs.*
+    from page_window_seasons as w
+    inner join legs
+        on
+            w.player_sk = legs.player_sk
+            and w.season_sk = legs.season_sk
+            and (w.team_sk is null or w.team_sk = legs.team_sk)
+),
+
+page_window_gaps as (
+    select distinct
+        l.player_sk,
+        l.window_type
+    from page_window_legs as l
+    inner join page_window_seasons as w
+        on l.player_sk = w.player_sk and l.window_type = w.window_type
+    inner join team_matches_without_player_data as u
+        on l.team_sk = u.team_sk and w.season_sk = u.season_sk
+),
+
+page_window_rows as (
+    select
+        l.*,
+        g.player_sk is null as window_is_complete
+    from page_window_legs as l
+    left join page_window_gaps as g
+        on l.player_sk = g.player_sk and l.window_type = g.window_type
+),
+
+squad_keys as (
+    select distinct
+        squad_sk,
+        page_tab,
+        team_sk,
+        anchor_season_sk
+    from {{ ref('int_player_squad_window__metrics') }}
+),
+
+squad_seasons as (
+    select
+        k.squad_sk,
+        k.team_sk,
+        w.season_sk
+    from squad_keys as k
+    inner join {{ ref('int_competition_season__club_windows') }} as w
+        on k.anchor_season_sk = w.anchor_season_sk
+    where w.window_type = 'this_season'
+    union all
+    select
+        k.squad_sk,
+        k.team_sk,
+        c.season_sk
+    from squad_keys as k
+    inner join {{ ref('int_team__current_national_competitions') }} as c
+        on k.team_sk = c.team_sk
+    where k.page_tab = 'national_team'
+),
+
+squad_gaps as (
+    select distinct s.squad_sk
+    from squad_seasons as s
+    inner join team_matches_without_player_data as u
+        on s.team_sk = u.team_sk and s.season_sk = u.season_sk
+),
+
+squad_window_rows as (
+    select
+        s.squad_sk,
+        legs.*,
+        g.squad_sk is null as window_is_complete
+    from squad_seasons as s
+    inner join legs
+        on s.team_sk = legs.team_sk and s.season_sk = legs.season_sk
+    left join squad_gaps as g
+        on s.squad_sk = g.squad_sk
+),
+
 {% for check in checks %}
 {% set s = check.surface %}
 {{ s.model }}__expected as (
@@ -236,6 +326,8 @@ match_level as (
         s.player_sk,
         cast(round(100 * safe_divide(s.passes_accurate, s.passes)) as int64) as expected_percent,
         fs.passes_accuracy_percent as fixture_stats_percent,
+        s.passes + s.shots + s.dribbles + s.tackles + s.interceptions + s.blocks + s.saves as expected_ball_actions,
+        fs.ball_actions_player as fixture_stats_ball_actions,
         fs.fixture_sk is not null as in_fixture_stats
     from {{ ref('fct_fixture_player_stats') }} as s
     inner join {{ ref('int_legs__player_match') }} as l
@@ -268,3 +360,14 @@ select
     cast(expected_percent as float64) as expected_value
 from match_level
 where in_fixture_stats and fixture_stats_percent is distinct from expected_percent
+
+union all
+
+select
+    'mart_player_fixture_stats' as surface,
+    'ball_actions_player' as metric_id,
+    to_json_string(struct(fixture_sk, team_sk, player_sk)) as grain,
+    cast(fixture_stats_ball_actions as float64) as model_value,
+    cast(expected_ball_actions as float64) as expected_value
+from match_level
+where in_fixture_stats and fixture_stats_ball_actions is distinct from expected_ball_actions
