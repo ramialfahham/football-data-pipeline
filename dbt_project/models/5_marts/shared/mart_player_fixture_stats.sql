@@ -9,7 +9,8 @@
   The stat line keeps the keys the export has always read. Its one derived
   value, passes_accuracy_percent, is the catalogue's pass accuracy over the
   player's own match (written by scripts/generate_metric_sql.py), as a whole
-  percentage.
+  percentage. ball_actions_player is the catalogue's ball actions over the same match. page_tab is
+  the Player page tab the match belongs to.
 
   Many competitions do not provide statistics_players from the API, so a row
   without a stat line (has_stat_line false) is common: its statistics are
@@ -42,7 +43,15 @@ match_rates as (
                 sum(passes) over w,
                 null
             )
-        ) as passes_accuracy_player_pct
+        ) as passes_accuracy_player_pct,
+        if(
+            logical_and(
+                window_is_complete
+                and (passes + shots + dribbles + tackles + interceptions + blocks + saves) is not null
+            ) over w,
+            sum(passes + shots + dribbles + tackles + interceptions + blocks + saves) over w,
+            null
+        ) as ball_actions_player
         -- end of generated metric sql
     from stats
     window w as (partition by fixture_sk, team_sk, player_sk)
@@ -61,6 +70,15 @@ fixtures as (
         goals_away
     from {{ ref('fct_fixture') }}
     where status_short in ('FT', 'AET', 'PEN')
+),
+
+competition_tabs as (
+    select
+        reg.league_code,
+        if(typ.entity_type = 'club', 'club', 'national_team') as page_tab
+    from {{ ref('competition_registry') }} as reg
+    inner join {{ ref('competition_types') }} as typ
+        on reg.competition_type = typ.competition_type
 ),
 
 players as (
@@ -125,6 +143,7 @@ select
     a.team_sk,
     a.player_sk,
     f.league_code,
+    ct.page_tab,
     f.season_api_year,
     f.kickoff_datetime,
     f.round_name,
@@ -157,6 +176,7 @@ select
     s.passes as passes_total,
     s.passes_key,
     cast(round(100 * r.passes_accuracy_player_pct) as int64) as passes_accuracy_percent,
+    r.ball_actions_player,
     s.tackles as tackles_total,
     s.blocks as tackles_blocks,
     s.interceptions as tackles_interceptions,
@@ -186,6 +206,8 @@ select
 from appearances as a
 inner join fixtures as f
     on a.fixture_sk = f.fixture_sk
+left join competition_tabs as ct
+    on f.league_code = ct.league_code
 left join stats as s
     on a.fixture_sk = s.fixture_sk and a.team_sk = s.team_sk and a.player_sk = s.player_sk
 left join match_rates as r

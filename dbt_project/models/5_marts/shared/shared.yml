@@ -686,6 +686,13 @@ models:
         description: "{{ doc('passes_key_player') }}"
       - name: passes_accuracy_percent
         description: "{{ doc('passes_accuracy_percent') }}"
+      - name: ball_actions_player
+        description: "{{ doc('ball_actions_player') }}"
+      - name: page_tab
+        description: "The Player page tab the match belongs to: club or national_team."
+        tests:
+          - accepted_values:
+              values: ["club", "national_team"]
       - name: tackles_total
         description: "{{ doc('tackles_player') }}"
       - name: tackles_blocks
@@ -1754,11 +1761,49 @@ models:
         description: >
           True on the one season that represents this player: their most recent CLUB season,
           preferring a domestic league, falling back to their most recent season of any kind when
-          they have no club football at all.
+          they have no club football at all. Two competitions of the same kind in one year go to
+          the one with the latest match.
 
           Exactly one row per player is true, by construction. Both that and the no-row-true case
           are asserted by tests/assert_one_featured_season_per_entity.sql.
         tests: [not_null]
+      - name: season_label
+        description: "The season's name as the site shows it, from dim_competition_season."
+      - name: player_full_name
+        description: "First and last name; the provider's short name when either is missing."
+      - name: player_age
+        description: "The player's age in whole years today. NULL without a birth date."
+      - name: position_group
+        description: "GK, DEF, MID or ATT: the player's most frequent position in the featured season, the same on each of the player's rows."
+        tests:
+          - accepted_values:
+              values: ["GK", "DEF", "MID", "ATT"]
+      - name: has_club_tab
+        description: "True when the player has played club football."
+      - name: has_national_team_tab
+        description: "True when the player is in a nation's squad for a current competition: on a team sheet, a stat line or the provider's squad list."
+      - name: national_team_sk
+        description: "The nation of the National team tab. NULL when the player has none."
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: featured_team_sk
+        description: "The club of the latest match in the featured season's club competitions."
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: current_club_team_sk
+        description: "The club of the player's latest club match."
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: current_club_name
+        description: "{{ doc('team_name') }} Here it is the current club."
+      - name: current_club_logo_url
+        description: "{{ doc('team_logo_url') }} Here it is the current club."
       - name: competition_type
         description: >
           {{ doc('competition_type') }} Carried here so a league can be told from a cup without
@@ -3293,7 +3338,8 @@ models:
       (player_sk, season_sk, position_group, metric_key).
 
       DIRECTION-AGNOSTIC: rank is by value descending and percentile by value, so neither says
-      whether high is good — that comes from the metric's catalogue direction.
+      whether high is good — that comes from the metric's catalogue direction. rank_best_first
+      follows that direction: 1 is the best value, the lowest on a lower_better metric.
 
       A player qualifying in two positions appears once per position;
       int_player_competition_benchmark_metrics_long decides which metrics apply.
@@ -3320,11 +3366,11 @@ models:
       - dbt_utils.expression_is_true:
           expression: "metric_key != 'finishing_efficiency_player_pct' or metric_value is null or (metric_value between 0 and 1)"
           name: mart_competition_benchmarks_player_finishing_in_range
-      # GAP-21 (#391): the 5 ratio metrics carry their volume (num/den) for the no-naked-% triple; the 13
-      # per-90 metrics do not. num AND den are non-null EXACTLY on the ratio rows (and, since a ranked row
+      # The ratio metrics carry their volume (num/den) so a percentage is never shown bare; the per-90
+      # metrics do not. num AND den are non-null EXACTLY on the ratio rows (and, since a ranked row
       # always has a non-null metric_value, safe_divide guarantees a non-null, non-zero den there).
       - dbt_utils.expression_is_true:
-          expression: "(metric_key in ('saves_player_pct', 'passes_accuracy_player_pct', 'finishing_efficiency_player_pct', 'dribbles_success_player_pct', 'duels_won_player_pct')) = (metric_numerator is not null and metric_denominator is not null)"
+          expression: "(metric_key in ('shots_on_goal_player_pct', 'saves_player_pct', 'passes_accuracy_player_pct', 'finishing_efficiency_player_pct', 'dribbles_success_player_pct', 'duels_won_player_pct')) = (metric_numerator is not null and metric_denominator is not null)"
           name: mart_competition_benchmarks_player_ratio_atoms_present
     columns:
       - name: player_benchmark_sk
@@ -3368,7 +3414,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90", "dribbles_success_per90", "passes_per90", "ball_actions_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
+              values: ["shots_per90", "shots_on_goal_player_pct", "fouls_per90", "offsides_per90", "goals_against_per90", "goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90", "dribbles_success_per90", "passes_per90", "ball_actions_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
       - name: metric_value
         description: "The player's in-position value for this metric (always present — null values are not ranked)."
         tests: [not_null]
@@ -3377,8 +3423,8 @@ models:
           The count behind a RATIO metric's percentage — duels_won_player for duels_won_player_pct, for example
           — so the rate can always be shown with the volume it rests on.
 
-          Non-null ONLY on the five ratio rows (saves_player_pct, passes_accuracy_player_pct, finishing_efficiency_player_pct,
-          dribbles_success_player_pct, duels_won_player_pct), and NULL on the per-90 rows, which have no such
+          Non-null ONLY on the ratio rows (saves_player_pct, passes_accuracy_player_pct, finishing_efficiency_player_pct,
+          dribbles_success_player_pct, duels_won_player_pct, shots_on_goal_player_pct), and NULL on the per-90 rows, which have no such
           pair. From int_player_season_position__metrics, gated identically to metric_value.
       - name: metric_denominator
         description: >
@@ -3395,6 +3441,21 @@ models:
       - name: peer_count
         description: "N — players ranked for this metric in this league-season-position."
         tests: [not_null]
+      - name: rank_best_first
+        description: "Rank by the metric's catalogue direction: 1 is the best value, the lowest on a lower_better metric. The rank the Player page shows, k of peer_count."
+        tests: [not_null]
+      - name: position_player_count
+        description: "Players who entered this league-season-position, whatever the metric: the count the explainer states."
+        tests: [not_null]
+      - name: season_label
+        description: "The season's name as the site shows it, from dim_competition_season."
+      - name: page_tab
+        description: "The Player page tab whose filter shows this competition: club or national_team. NULL when no filter shows it."
+        tests:
+          - accepted_values:
+              values: ["club", "national_team"]
+      - name: competition_order
+        description: "The competition's place in the tab's filter, domestic league first. NULL when page_tab is."
       - name: rank
         description: "Rank by value desc (1 = highest), k of peer_count. Positional — orient with the catalogue direction at display."
         tests: [not_null]
@@ -3414,6 +3475,138 @@ models:
         description: "{{ doc('player_nationality') }}"
       - name: player_photo_url
         description: "{{ doc('player_photo_url') }}"
+
+  - name: mart_player_window_metrics
+    description: >
+      What a Player page shows for a whole tab, in long form: the four cards, and on the Club tab
+      each metric of the player's position, this season against the whole of last season. The Club
+      tab's window is the club competitions of the featured season at any club; the National team
+      tab's is the nation's current competitions. Grain: (player_sk, page_tab, metric_key).
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["marts", "football", "player"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [player_sk, page_tab, metric_key]
+      - dbt_utils.expression_is_true:
+          expression: "is_card or is_comparison"
+          name: mart_player_window_metrics_row_is_shown
+    columns:
+      - name: player_sk
+        description: "{{ doc('player_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: page_tab
+        description: "club or national_team."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["club", "national_team"]
+      - name: team_sk
+        description: "{{ doc('team_sk') }} The club of the featured season, or the nation."
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: metric_key
+        description: "A metric_catalogue player metric_id."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["appearances", "minutes_per_appearance", "goals_player", "assists_player", "goals_against_player", "saves_per90", "saves_player_pct", "goals_against_per90", "passes_per90", "ball_actions_per90", "passes_accuracy_player_pct", "goals_per90", "assists_per90", "scorer_points_per90", "shots_per90", "shots_on_goal_per90", "shots_on_goal_player_pct", "passes_key_per90", "finishing_efficiency_player_pct", "dribbles_success_per90", "dribbles_success_player_pct", "duels_won_per90", "duels_won_player_pct", "defensive_actions_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "fouls_per90", "offsides_per90"]
+      - name: is_card
+        description: "True on a metric the tab's four cards show."
+        tests: [not_null]
+      - name: is_comparison
+        description: "True on a metric the Compared with last season block shows."
+        tests: [not_null]
+      - name: minutes
+        description: "Minutes the player played in the tab's window."
+      - name: minutes_prev_season
+        description: "Minutes the player played over the whole of last season, at any club. NULL on the National team tab."
+      - name: metric_value
+        description: "The metric over the tab's window. Blank by rule R4."
+      - name: metric_value_prev_season
+        description: "The metric over the whole of last season. NULL on a card that is no comparison row, and on the National team tab."
+
+  - name: mart_player_squad_benchmarks
+    description: >
+      The Squad comparison of the Player page, in long form: every player of a squad who played at
+      least a third of the team's minutes in the window, on each outfield metric, with the rank from
+      the most to the least, the median and the squad's count. Grain: (squad_sk, player_sk,
+      metric_key).
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["marts", "football", "player"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [squad_sk, player_sk, metric_key]
+      - dbt_utils.expression_is_true:
+          expression: "rank between 1 and squad_player_count"
+          name: mart_player_squad_benchmarks_rank_in_range
+    columns:
+      - name: squad_sk
+        description: "The squad's key, from its tab, team and anchor season."
+        tests: [not_null]
+      - name: page_tab
+        description: "club or national_team."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["club", "national_team"]
+      - name: team_sk
+        description: "{{ doc('team_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: anchor_season_sk
+        description: "The featured season a club squad's window is drawn around. NULL for a nation."
+        tests:
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: player_sk
+        description: "{{ doc('player_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: minutes
+        description: "Minutes the player played for the team in the window."
+        tests: [not_null]
+      - name: metric_key
+        description: "A metric_catalogue player metric_id."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["passes_per90", "ball_actions_per90", "passes_accuracy_player_pct", "goals_per90", "assists_per90", "scorer_points_per90", "shots_per90", "shots_on_goal_per90", "shots_on_goal_player_pct", "passes_key_per90", "finishing_efficiency_player_pct", "dribbles_success_per90", "dribbles_success_player_pct", "duels_won_per90", "duels_won_player_pct", "defensive_actions_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "fouls_per90", "offsides_per90"]
+      - name: metric_value
+        description: "The player's value for the team in the window."
+        tests: [not_null]
+      - name: squad_player_count
+        description: "Players in the squad who reached the floor: the count the explainer states."
+        tests: [not_null]
+      - name: squad_median
+        description: "The median of the squad's values on this metric."
+        tests: [not_null]
+      - name: rank
+        description: "Rank from the highest value to the lowest, whatever the metric's direction."
+        tests: [not_null]
+      - name: has_squad_filter
+        description: "True on a row of a player whose page shows this squad: an outfield player, on their own team and window."
+        tests: [not_null]
 
   - name: mart_player_career
     description: >

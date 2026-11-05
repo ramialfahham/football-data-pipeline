@@ -70,6 +70,7 @@ select
     if(logical_and(window_is_complete and goals is not null), sum(goals), null) as goals_player,
     if(logical_and(window_is_complete and goals_penalty is not null), sum(goals_penalty), null) as goals_penalty_player,
     if(logical_and(window_is_complete and assists is not null), sum(assists), null) as assists_player,
+    if(logical_and(window_is_complete and shots is not null), sum(shots), null) as shots_player,
     if(
         logical_and(window_is_complete and shots_on_target is not null),
         sum(shots_on_target),
@@ -125,6 +126,10 @@ select
         if(logical_and(window_is_complete and (goals - goals_penalty) is not null), sum(goals - goals_penalty), null),
         if(logical_and(window_is_complete and shots_on_target is not null), sum(shots_on_target), null)
     ) as finishing_efficiency_player_pct,
+    safe_divide(
+        if(logical_and(window_is_complete and shots_on_target is not null), sum(shots_on_target), null),
+        if(logical_and(window_is_complete and shots is not null), sum(shots), null)
+    ) as shots_on_goal_player_pct,
     safe_divide(
         if(logical_and(window_is_complete and goals is not null), sum(goals), null) * 90,
         if(logical_and(window_is_complete and minutes is not null), sum(minutes), null)
@@ -202,7 +207,23 @@ select
             sum(minutes),
             null
         )
-    ) as ball_actions_per90
+    ) as ball_actions_per90,
+    safe_divide(
+        if(logical_and(window_is_complete and shots is not null), sum(shots), null) * 90,
+        if(logical_and(window_is_complete and minutes is not null), sum(minutes), null)
+    ) as shots_per90,
+    safe_divide(
+        if(logical_and(window_is_complete and fouls is not null), sum(fouls), null) * 90,
+        if(logical_and(window_is_complete and minutes is not null), sum(minutes), null)
+    ) as fouls_per90,
+    safe_divide(
+        if(logical_and(window_is_complete and offsides is not null), sum(offsides), null) * 90,
+        if(logical_and(window_is_complete and minutes is not null), sum(minutes), null)
+    ) as offsides_per90,
+    safe_divide(
+        if(logical_and(window_is_complete and goals_against is not null), sum(goals_against), null) * 90,
+        if(logical_and(window_is_complete and minutes is not null), sum(minutes), null)
+    ) as goals_against_per90
     -- end of generated metric sql
 from window_rows
 group by player_sk, league_sk, season_sk, league_code, season_api_year, position_group

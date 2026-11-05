@@ -20,9 +20,9 @@ How every metric is computed:
 - R4 A metric is blank when any match it counts lacks an input; a player's metric also when its
   window holds a played team match with no player data at all.
 - R5 A ratio over zero is blank.
-- R6 Year-over-year exists for domestic league seasons only: a team's season through N matches
-  against its previous season through its first N; a player's through N appearances against the
-  previous season at the same club through its first N. It is blank when either side is.
+- R6 A team's year-over-year exists for domestic league seasons only: its season through N matches
+  against its previous season through its first N. A player's covers all club competitions at any
+  club: this season so far against the whole of last season. Either is blank when either side is.
 - R7 Results the league publishes (the score, the league table) are taken as published, never
   computed. The one exception: teams level on points stand in the order of the league's own
   tie-break rule. A count of results or a playing-time fact (minutes, starts) is a fact, not
@@ -39,7 +39,7 @@ finishing one also from 10 shots on target, and the pass-accuracy and finishing 
 outfield players. A team enters a ranking from its first finished match. A ranking that lists the
 most first leaves out a zero. A player enters a benchmark from 270 minutes in a position, the
 finishing one also from 10 shots on target there; a benchmark compares players of one position
-group, goalkeepers on saves and passing and outfield players on every benchmark metric but saves.
+group, goalkeepers on saves, goals against and passing and outfield players on every other metric.
 A team enters a benchmark from 3 finished matches.
 {% enddocs %}
 

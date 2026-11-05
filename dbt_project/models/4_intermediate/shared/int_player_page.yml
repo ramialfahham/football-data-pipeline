@@ -1,0 +1,427 @@
+version: 2
+
+models:
+  - name: int_competition_season__club_windows
+    description: >
+      The club competitions a player's season and the season before it are made of. For each club
+      competition-season: this_season is every club competition-season whose dates overlap it, and
+      last_season every one overlapping its previous season and not already in this_season. Grain:
+      (anchor_season_sk, window_type, season_sk).
+    config:
+      tags: ["intermediate", "football", "player"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [anchor_season_sk, window_type, season_sk]
+    columns:
+      - name: anchor_season_sk
+        description: "The competition-season the windows are drawn around. {{ doc('season_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: window_type
+        description: "this_season or last_season."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["this_season", "last_season"]
+      - name: season_sk
+        description: "A competition-season in the window. {{ doc('season_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+
+  - name: int_team__current_national_competitions
+    description: >
+      A nation's current competitions: every national-team competition of the nation between its
+      first and last match, or the most recently finished one when none is running. Grain:
+      (team_sk, season_sk).
+    config:
+      tags: ["intermediate", "football", "team"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [team_sk, season_sk]
+    columns:
+      - name: team_sk
+        description: "{{ doc('team_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: season_sk
+        description: "{{ doc('season_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: first_match_at
+        description: "Kickoff of the competition's first fixture."
+        tests: [not_null]
+      - name: last_match_at
+        description: "Kickoff of the competition's last fixture listed so far."
+        tests: [not_null]
+      - name: is_running
+        description: "True while the competition's last listed fixture is still to come."
+        tests: [not_null]
+      - name: window_is_complete
+        description: "False when any of the nation's current competitions holds a match of the nation with no player data."
+        tests: [not_null]
+
+  - name: int_player__page_profile
+    description: >
+      One row per player: the choices the Player page opens on. The featured season, the position,
+      the current club, the club of the featured season, the nation and which tabs the player has.
+      Grain: (player_sk).
+    config:
+      tags: ["intermediate", "football", "player"]
+    columns:
+      - name: player_sk
+        description: "{{ doc('player_sk') }}"
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: featured_season_sk
+        description: "The season the player's page opens on: the most recent club season, a domestic league before a cup."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: featured_entity_type
+        description: "club, or national for a player with no club football."
+        tests: [not_null]
+      - name: position_group
+        description: "GK, DEF, MID or ATT: the player's most frequent position in the featured season."
+        tests:
+          - accepted_values:
+              values: ["GK", "DEF", "MID", "ATT"]
+      - name: current_club_team_sk
+        description: "The club of the player's latest club match. NULL for a player with no club football."
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: featured_team_sk
+        description: "The club of the latest match in the featured season's club competitions."
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: national_team_sk
+        description: "The nation whose squad the player is in for a current competition. NULL when there is none."
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: has_national_team_tab
+        description: "True when the player is in a nation's squad for a current competition."
+        tests: [not_null]
+      - name: has_club_tab
+        description: "True when the player has played club football."
+        tests: [not_null]
+
+  - name: int_player_page__window_seasons
+    description: >
+      The competition-seasons of each window on a player's page: the club competitions of this and
+      last season, and the nation's current competitions. Grain: (player_sk, window_type, season_sk).
+    config:
+      tags: ["intermediate", "football", "player"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [player_sk, window_type, season_sk]
+    columns:
+      - name: player_sk
+        description: "{{ doc('player_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: window_type
+        description: "this_season, last_season or current_competitions."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["this_season", "last_season", "current_competitions"]
+      - name: season_sk
+        description: "{{ doc('season_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: team_sk
+        description: "{{ doc('team_sk') }} The nation on a current_competitions row. NULL on a club window, which follows the player across clubs."
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: competition_type
+        description: "{{ doc('competition_type') }}"
+        tests: [not_null]
+      - name: last_match_at
+        description: "Kickoff of the competition's last fixture listed so far."
+        tests: [not_null]
+
+  - name: int_player_window__metrics
+    description: >
+      A player's metrics over each window of the page, at any club, each by its metric_catalogue
+      formula over the window's matches. A window holding a team match with no player data has
+      blank metrics. Grain: (player_sk, window_type).
+    config:
+      tags: ["intermediate", "football", "player"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [player_sk, window_type]
+    columns:
+      - name: player_sk
+        description: "{{ doc('player_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: window_type
+        description: "this_season, last_season or current_competitions."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["this_season", "last_season", "current_competitions"]
+      - name: minutes
+        description: "Minutes the player played in the window."
+      - name: appearances
+        description: "{{ doc('appearances') }}"
+      - name: goals_player
+        description: "{{ doc('goals_player') }}"
+      - name: goals_penalty_player
+        description: "{{ doc('goals_penalty_player') }}"
+      - name: assists_player
+        description: "{{ doc('assists_player') }}"
+      - name: shots_player
+        description: "{{ doc('shots_player') }}"
+      - name: shots_on_goal_player
+        description: "{{ doc('shots_on_goal_player') }}"
+      - name: passes_player
+        description: "{{ doc('passes_player') }}"
+      - name: passes_accurate_player
+        description: "{{ doc('passes_accurate_player') }}"
+      - name: passes_key_player
+        description: "{{ doc('passes_key_player') }}"
+      - name: tackles_player
+        description: "{{ doc('tackles_player') }}"
+      - name: interceptions_player
+        description: "{{ doc('interceptions_player') }}"
+      - name: blocks_player
+        description: "{{ doc('blocks_player') }}"
+      - name: duels_player
+        description: "{{ doc('duels_player') }}"
+      - name: duels_won_player
+        description: "{{ doc('duels_won_player') }}"
+      - name: dribbles_attempts_player
+        description: "{{ doc('dribbles_attempts_player') }}"
+      - name: dribbles_success_player
+        description: "{{ doc('dribbles_success_player') }}"
+      - name: saves_player
+        description: "{{ doc('saves_player') }}"
+      - name: goals_against_player
+        description: "{{ doc('goals_against_player') }}"
+      - name: minutes_per_appearance
+        description: "{{ doc('minutes_per_appearance') }}"
+      - name: passes_accuracy_player_pct
+        description: "{{ doc('passes_accuracy_player_pct') }}"
+      - name: duels_won_player_pct
+        description: "{{ doc('duels_won_player_pct') }}"
+      - name: dribbles_success_player_pct
+        description: "{{ doc('dribbles_success_player_pct') }}"
+      - name: saves_player_pct
+        description: "{{ doc('saves_player_pct') }}"
+      - name: finishing_efficiency_player_pct
+        description: "{{ doc('finishing_efficiency_player_pct') }}"
+      - name: shots_on_goal_player_pct
+        description: "{{ doc('shots_on_goal_player_pct') }}"
+      - name: goals_per90
+        description: "{{ doc('goals_per90') }}"
+      - name: assists_per90
+        description: "{{ doc('assists_per90') }}"
+      - name: scorer_points_per90
+        description: "{{ doc('scorer_points_per90') }}"
+      - name: shots_on_goal_per90
+        description: "{{ doc('shots_on_goal_per90') }}"
+      - name: passes_key_per90
+        description: "{{ doc('passes_key_per90') }}"
+      - name: dribbles_success_per90
+        description: "{{ doc('dribbles_success_per90') }}"
+      - name: passes_per90
+        description: "{{ doc('passes_per90') }}"
+      - name: tackles_per90
+        description: "{{ doc('tackles_per90') }}"
+      - name: interceptions_per90
+        description: "{{ doc('interceptions_per90') }}"
+      - name: blocks_per90
+        description: "{{ doc('blocks_per90') }}"
+      - name: defensive_actions_per90
+        description: "{{ doc('defensive_actions_per90') }}"
+      - name: duels_won_per90
+        description: "{{ doc('duels_won_per90') }}"
+      - name: saves_per90
+        description: "{{ doc('saves_per90') }}"
+      - name: ball_actions_per90
+        description: "{{ doc('ball_actions_per90') }}"
+      - name: shots_per90
+        description: "{{ doc('shots_per90') }}"
+      - name: fouls_per90
+        description: "{{ doc('fouls_per90') }}"
+      - name: offsides_per90
+        description: "{{ doc('offsides_per90') }}"
+      - name: goals_against_per90
+        description: "{{ doc('goals_against_per90') }}"
+
+  - name: int_player_squad_window__metrics
+    description: >
+      Every player of each squad a Player page compares against, with their metrics for that team
+      over the window, each by its metric_catalogue formula. A squad is a club over the club
+      competitions of a featured season, or a nation over its current competitions. Grain:
+      (squad_sk, player_sk).
+    config:
+      tags: ["intermediate", "football", "player"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [squad_sk, player_sk]
+    columns:
+      - name: page_tab
+        description: "club or national_team."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["club", "national_team"]
+      - name: team_sk
+        description: "{{ doc('team_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: anchor_season_sk
+        description: "The featured season a club squad's window is drawn around. NULL for a nation."
+        tests:
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: squad_sk
+        description: "The squad's key, from its tab, team and anchor season."
+        tests: [not_null]
+      - name: player_sk
+        description: "{{ doc('player_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: team_matches
+        description: "Matches the team played in the window."
+        tests: [not_null]
+      - name: minutes
+        description: "Minutes the player played for the team in the window."
+      - name: appearances
+        description: "{{ doc('appearances') }}"
+      - name: goals_player
+        description: "{{ doc('goals_player') }}"
+      - name: goals_penalty_player
+        description: "{{ doc('goals_penalty_player') }}"
+      - name: assists_player
+        description: "{{ doc('assists_player') }}"
+      - name: shots_player
+        description: "{{ doc('shots_player') }}"
+      - name: shots_on_goal_player
+        description: "{{ doc('shots_on_goal_player') }}"
+      - name: passes_player
+        description: "{{ doc('passes_player') }}"
+      - name: passes_accurate_player
+        description: "{{ doc('passes_accurate_player') }}"
+      - name: passes_key_player
+        description: "{{ doc('passes_key_player') }}"
+      - name: tackles_player
+        description: "{{ doc('tackles_player') }}"
+      - name: interceptions_player
+        description: "{{ doc('interceptions_player') }}"
+      - name: blocks_player
+        description: "{{ doc('blocks_player') }}"
+      - name: duels_player
+        description: "{{ doc('duels_player') }}"
+      - name: duels_won_player
+        description: "{{ doc('duels_won_player') }}"
+      - name: dribbles_attempts_player
+        description: "{{ doc('dribbles_attempts_player') }}"
+      - name: dribbles_success_player
+        description: "{{ doc('dribbles_success_player') }}"
+      - name: saves_player
+        description: "{{ doc('saves_player') }}"
+      - name: goals_against_player
+        description: "{{ doc('goals_against_player') }}"
+      - name: minutes_per_appearance
+        description: "{{ doc('minutes_per_appearance') }}"
+      - name: passes_accuracy_player_pct
+        description: "{{ doc('passes_accuracy_player_pct') }}"
+      - name: duels_won_player_pct
+        description: "{{ doc('duels_won_player_pct') }}"
+      - name: dribbles_success_player_pct
+        description: "{{ doc('dribbles_success_player_pct') }}"
+      - name: saves_player_pct
+        description: "{{ doc('saves_player_pct') }}"
+      - name: finishing_efficiency_player_pct
+        description: "{{ doc('finishing_efficiency_player_pct') }}"
+      - name: shots_on_goal_player_pct
+        description: "{{ doc('shots_on_goal_player_pct') }}"
+      - name: goals_per90
+        description: "{{ doc('goals_per90') }}"
+      - name: assists_per90
+        description: "{{ doc('assists_per90') }}"
+      - name: scorer_points_per90
+        description: "{{ doc('scorer_points_per90') }}"
+      - name: shots_on_goal_per90
+        description: "{{ doc('shots_on_goal_per90') }}"
+      - name: passes_key_per90
+        description: "{{ doc('passes_key_per90') }}"
+      - name: dribbles_success_per90
+        description: "{{ doc('dribbles_success_per90') }}"
+      - name: passes_per90
+        description: "{{ doc('passes_per90') }}"
+      - name: tackles_per90
+        description: "{{ doc('tackles_per90') }}"
+      - name: interceptions_per90
+        description: "{{ doc('interceptions_per90') }}"
+      - name: blocks_per90
+        description: "{{ doc('blocks_per90') }}"
+      - name: defensive_actions_per90
+        description: "{{ doc('defensive_actions_per90') }}"
+      - name: duels_won_per90
+        description: "{{ doc('duels_won_per90') }}"
+      - name: saves_per90
+        description: "{{ doc('saves_per90') }}"
+      - name: ball_actions_per90
+        description: "{{ doc('ball_actions_per90') }}"
+      - name: shots_per90
+        description: "{{ doc('shots_per90') }}"
+      - name: fouls_per90
+        description: "{{ doc('fouls_per90') }}"
+      - name: offsides_per90
+        description: "{{ doc('offsides_per90') }}"
+      - name: goals_against_per90
+        description: "{{ doc('goals_against_per90') }}"

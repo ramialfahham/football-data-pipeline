@@ -273,12 +273,7 @@ select
     row_number() over (
         partition by r.team_sk, r.season_api_year
         order by
-            case reg.competition_type
-                when 'domestic_league' then 1
-                when 'domestic_cup' then 2
-                when 'domestic_super_cup' then 3
-                else 4
-            end asc,
+            {{ competition_type_order('reg.competition_type') }} asc,
             r.kickoff_datetime desc,
             r.league_code asc
     ) as competition_order
