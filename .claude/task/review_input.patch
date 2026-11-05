@@ -1,118 +1,1517 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 1abdbc28..5a56f249 100644
+index 5a56f249..70faec86 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,12 +1,12 @@
--# Task contract — fill a goalkeeper's blank goals against
-+# Task contract — the only keeper of a whole match has the team's goals conceded
+@@ -1,67 +1,82 @@
+-# Task contract — the only keeper of a whole match has the team's goals conceded
++# Task contract — merge requests run a quick design check, main runs the full one
  
  objective: >
--  Issue #247: a goalkeeper's blank goals against takes the team's goals conceded when the keeper
--  played the whole match alone, and the goals conceded between the minute on and off when the
--  keeper came on or went off; where neither can be read it stays blank and is never counted as 0.
-+  Issue #247, follow-up: the only goalkeeper of a whole match has the team's goals conceded at any
-+  gap from the provider's value, as the blank rule already says; the limit of 2 stays for every
-+  other contradiction.
+-  Issue #247, follow-up: the only goalkeeper of a whole match has the team's goals conceded at any
+-  gap from the provider's value, as the blank rule already says; the limit of 2 stays for every
+-  other contradiction.
++  Issue #252: on merge requests validate:ui runs the design check at two widths (280 and 1010 px)
++  in English and German over every built page and every mock, compared with its own pinned counts;
++  main, web runs and the local default keep the full 6 widths x 3 languages and the full baseline.
++  Cuts the check from about 40 minutes to about 10, so a failing pin shows in minutes, not after a
++  40-minute run.
  
  refs: >
--  #247, approved in chat, 2026-11-03; its plan approved in chat, 2026-11-04.
-+  #247; the rule and its plan approved in chat, 2026-11-04.
+-  #247; the rule and its plan approved in chat, 2026-11-04.
++  #252, approved in chat 2026-11-05 (quick check on merge requests, full check on main).
  
  scope_paths:
-   - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-@@ -43,26 +43,25 @@ impact_map: >
-   deploy_order: no column added or removed, so nothing downstream breaks before the merge; the
-   values change at the first nightly after the merge.
-   blast_radius: goalkeeper goals against, saves percentage and the goalkeeper benchmarks change
--  where a blank is filled or a wrong 0 goes; 2026 BL1, UCL and UNL hold 141 blank lines. Outfield
--  players and team numbers are unchanged.
-+  only for the only keeper of a whole match whose provider value is more than 2 from the score;
-+  today those lines are blank. Outfield players and team numbers are unchanged.
+-  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+-  - dbt_project/tests/assert_base_player_stats_cleaned.sql
+-  - dbt_project/seeds/player_match_cleaning_answer_key.csv
+-  - dbt_project/models/docs/cleaning_rules.md
+-  - .claude/task/**
++  - scripts/check_design_inventory.py
++  - tests/test_design_inventory.py
++  - tests/fixtures/design_inventory/baseline_quick.json
++  - docs/wireframes/block_standard.md
++  - .gitlab-ci.yml
++  - .claude/task/contract.md
++  - .claude/task/review.md
++  - .claude/task/review_input.patch
++  - .claude/task/acceptance_evidence.md
++  - .claude/task/rendered_page_evidence.md
++
++protected_override: >
++  Approved in chat, 2026-11-05: the quick design check on merge requests. Edits
++  .gitlab-ci.yml (validate:ui passes the quick scope and baseline on merge_request_event) and
++  scripts/check_design_inventory.py (a baseline names the widths and languages it pins, and a run
++  that matches them is compared), tests/test_design_inventory.py and the new pin file under
++  tests/fixtures/design_inventory/.
+ 
+ impact_map: >
+-  writers: base_apif__fixture_players is written by dbt only; it reads stg_apif__fixture_players,
+-  base_apif__fixtures_next, base_apif__fixture_events and base_apif__fixture_statistics, all
++  readers: validate:ui in .gitlab-ci.yml runs check_design_inventory.py; the validate-local skill
++  runs it with no flag; tests/test_design_inventory.py drives it as a subprocess and calls
++  compare_rendered and compare_coverage. `grep -rl check_design_inventory` (excluding .claude/task)
++  returns 22 files: the check, its test and .gitlab-ci.yml; tests/test_governance_doc_parity.py,
++  tests/test_governance_hooks.py, tests/test_address_words.py; site_v2/src/lib/addressWords.mjs;
++  design-mocks/README.md; scripts/design_inventory.py, check_component_registry.py,
++  check_chart_screenshots.py; requirements-ui.txt; docs/working_agreement.md,
++  docs/wireframes/block_standard.md, docs/wireframes/00_overview.md,
++  docs/roles/platform_reliability.md, docs/north_star.md; the validate-local skill;
++  .claude/hooks/task_contract_gate.py, .claude/review_routing.json, .claude/agents/cto-reviewer.md
++  and platform-reviewer.md. They name the script in text or as a protected path; none imports
++  its main().
++  fires_on: a merge request pipeline passes --viewports 280,1010 --langs en,de --baseline
++  tests/fixtures/design_inventory/baseline_quick.json. main, web and local runs pass none, so they
++  read baseline.json, whose scope is the default, and run exactly as today; a test pins that the
++  flags sit only inside the merge_request_event branch.
++  on_failure: a run whose widths and languages differ from its baseline's scope is still a
++  narrower run: compared with nothing, element misses fail as before. The quick baseline is
++  measured on linux, so off linux its rendered counts are not compared. The quick pins cannot
++  rise above main's copy of the file (a test, as for baseline.json), and the file's scope must
++  match the flags in .gitlab-ci.yml (a test).
++  stops_being_enforced_if_wrong: a defect visible only at a width or language the quick scope
++  does not render (320, 360, 375, 700 px, Finnish) passes the merge request and fails on main's
++  full run, which still compares every pin. A merge request that moves a rendered count must move
++  both pin files, and baseline.json is measured only by main's or a manual run, so a wrong full
++  pin shows after the merge, not before it.
++  deploy_order: none; no data, no deploy, no new dependency, no recurring cost. build:site-v2 is
+   unchanged.
+-  downstream: `dbt ls --select base_apif__fixture_players+ --resource-type model` lists 48 models:
+-  base_apif__lineups, base_apif__players, dim_player, fct_fixture_lineup, fct_fixture_player_stats,
+-  int_legs__player_match, int_legs__team_from_players, int_player_club_season__metrics,
+-  int_player_competition_benchmark_metrics_long, int_player_competition_benchmarks,
+-  int_player_match__metrics, int_player_momentum__metrics, int_player_profile__contribution,
+-  int_player_profile__yoy, int_player_season__metrics, int_player_season__team,
+-  int_player_season_position__metrics, int_player_season_record,
+-  int_team_competition_benchmark_metrics_long, int_team_competition_benchmarks,
+-  int_team_momentum__metrics, int_team_profile__yoy, int_team_season__deserved_vs_actual,
+-  int_team_season__metrics, int_team_season__metrics_cumulative, int_team_season_record,
+-  mart_competition_fixtures, mart_leaderboards, mart_match_days, mart_matchday_insights,
+-  mart_player_career, mart_player_competition_benchmarks, mart_player_fixture_stats,
+-  mart_player_momentum, mart_player_profile, mart_player_season_record, mart_roster,
+-  mart_team_competition_benchmarks, mart_team_competitions, mart_team_index,
+-  mart_team_leaderboards, mart_team_momentum_window, mart_team_profile, mart_team_season,
+-  mart_team_season_insights, mart_team_season_record, mart_team_window_metrics. Only the player
+-  chain reads the column: fct_fixture_player_stats, int_legs__player_match,
+-  int_player_club_season__metrics, int_player_momentum__metrics, int_player_season_record,
+-  mart_player_fixture_stats (grep of `goals_against` over dbt_project/models/*player*).
+-  layer_rules: base holds cleaning (dbt_project/docs/layering.md); check_layer_contract applies; no
+-  new model, no partition or cluster key.
+-  deploy_order: no column added or removed, so nothing downstream breaks before the merge; the
+-  values change at the first nightly after the merge.
+-  blast_radius: goalkeeper goals against, saves percentage and the goalkeeper benchmarks change
+-  only for the only keeper of a whole match whose provider value is more than 2 from the score;
+-  today those lines are blank. Outfield players and team numbers are unchanged.
++  blast_radius: validate:ui duration and what a merge request pipeline can catch; no page output
++  changes.
  
  approved_design:
    - none: no page output changes
  
  decisions_taken: >
--  The issue's rules, as approved. A goalkeeper's blank is a zero only without minutes or when the
--  team conceded none. The minute on and off come from the keeper's substitution event (player went
--  off, assist came on; `is_substitute` is false for both keepers) or a card other than a yellow
--  card. A goal in the same minute as the change leaves the value blank. No new mechanism and no
--  recurring cost.
-+  As approved. For the only keeper with minutes who played 90 or more, the score decides whatever
-+  the provider sent, and the correction stays listed under matched_to_team_goals_conceded. The
-+  sole-keeper check of the cleaned test also fails on a blank. No new mechanism and no recurring
-+  cost.
+-  As approved. For the only keeper with minutes who played 90 or more, the score decides whatever
+-  the provider sent, and the correction stays listed under matched_to_team_goals_conceded. The
+-  sole-keeper check of the cleaned test also fails on a blank. No new mechanism and no recurring
+-  cost.
++  The quick scope is the narrowest and the widest width in English and German; English because
++  the mocks exist only in English and Finnish, German because it is the longest text. A merge
++  request that renders less than main is the approved trade, approved in chat 2026-11-05. The
++  baseline file names its own scope (a second pin file) so the compare logic stays one code path.
++  No new dependency, no recurring cost (the job gets shorter).
  
  decisions_reserved:
--  - none: the rules are the approved issue's; any line left blank is reported to the CPO, not forced
-+  - none: the rule is approved
+-  - none: the rule is approved
++  - none: the width and language choice is stated and changeable in one line of .gitlab-ci.yml.
  
  done_when:
-   - dbt parse passes and SQLFluff reports nothing new on the model
-   - the answer-key and cleaned tests pass in data:build:mr
--  - the 2026 count of blank lines in BL1, UCL and UNL is reported from the MR's dataset, each remaining blank with its reason
--  - the 437 lines with a provider value at 90 minutes are unchanged
-+  - the 2026 count of blank keeper lines in BL1, UCL and UNL goes from 1 to 0 in the MR's dataset
-+  - only the counted lines change and outfield values are unchanged
+-  - dbt parse passes and SQLFluff reports nothing new on the model
+-  - the answer-key and cleaned tests pass in data:build:mr
+-  - the 2026 count of blank keeper lines in BL1, UCL and UNL goes from 1 to 0 in the MR's dataset
+-  - only the counted lines change and outfield values are unchanged
++  - python -m pytest tests/test_design_inventory.py -q is green.
++  - A local run with --viewports 280,1010 --langs en,de --baseline baseline_quick.json prints that rendered counts are not compared off linux, and a run with the default scope still compares.
++  - The merge request pipeline's validate:ui time is quoted in the MR, with the quick pins taken from a linux run's counts.json.
  
  amendments: (none)
-diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-index f64af26e..6cec67a1 100644
---- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-@@ -678,7 +678,7 @@ against_results as (
-             when
-                 position_code = 'G' and team_keepers_with_minutes = 1 and minutes >= 90
-                 and goals_against_filled != team_goals_conceded
--                then if(abs(goals_against_filled - team_goals_conceded) <= 2, team_goals_conceded, null)
-+                then team_goals_conceded
-             when goals_against_filled <= team_goals_conceded then goals_against_filled
-             when goals_against_filled - team_goals_conceded <= 2 then team_goals_conceded
-         end as goals_against_checked,
-diff --git a/dbt_project/models/docs/cleaning_rules.md b/dbt_project/models/docs/cleaning_rules.md
-index 78ec6be1..f375c242 100644
---- a/dbt_project/models/docs/cleaning_rules.md
-+++ b/dbt_project/models/docs/cleaning_rules.md
-@@ -47,8 +47,9 @@ match stats are good enough.
-     competitions. The current season comes first. A match not played has no line-ups to research.
- - Contradictions. A match stat that contradicts a result, a stat that passes its own check, or its
-   own total is corrected to the nearest value consistent with it when the gap is at most 2. It is
--  left blank when the gap is larger or when neither side passes its check. A result is corrected
--  only to the league's official decision, with its source; match stats never correct a result.
-+  left blank when the gap is larger or when neither side passes its check. The only goalkeeper of
-+  a whole match is set to the score at any gap. A result is corrected only to the league's
-+  official decision, with its source; match stats never correct a result.
- - Every correction is listed on its row in stat_corrections, under one of these rules:
-   goals_from_events (a player's goals taken from the goal events);
-   penalty_goals_limited_to_goals; penalties_scored_matched_to_penalty_goals;
-diff --git a/dbt_project/seeds/player_match_cleaning_answer_key.csv b/dbt_project/seeds/player_match_cleaning_answer_key.csv
-index f509364b..09e39cdc 100644
---- a/dbt_project/seeds/player_match_cleaning_answer_key.csv
-+++ b/dbt_project/seeds/player_match_cleaning_answer_key.csv
-@@ -14,7 +14,7 @@ fixture_id,team_id,player_id,stat,expected_value,rule,working
- 1550091,495,37137,saves,2,,"His 2 saves are within the opponent's 4 shots on target, which its 2 open-play goals do not exceed: 2 stays, no rule fires."
- 1570347,540,2813,goals_against,2,,"He played the whole match, 90 minutes; his 2 conceded are his team's 2 and stay."
- 1570347,540,2813,saves,6,,"The opponent had 8 shots on target and missed no penalty; 6 saves stay."
--1387886,81,36827,goals_against,,matched_to_team_goals_conceded,"The only keeper with minutes, 90 of them; the provider says 0 conceded, the score says 5. A gap of 5 is over 2, so it stays blank."
-+1387886,81,36827,goals_against,5,matched_to_team_goals_conceded,"The only keeper with minutes, 90 of them; the provider says 0 conceded, the score says 5. The only keeper of a whole match has what the team conceded, at any gap."
- 1575153,163,38753,passes_key,1,limited_to_whole,"2 key passes from 1 delivered pass: a key pass is a pass, so key passes become 1 (a gap of 1)."
- 1174745,815,270487,passes_accurate,,limited_to_whole,"The match's pass values sum below its passes (0.72), so they are counts: 40 accurate of 12 passes is a gap of 28, over 2, so blank."
- 872251,413,36887,dribbles,1,raised_to_part,"Dribble attempts blank while others in the match have values, so the blank rule reads 0; but he completed 1 dribble, so attempts are raised to 1."
-@@ -45,3 +45,4 @@ fixture_id,team_id,player_id,stat,expected_value,rule,working
- 1635737,1026,263057,goals_against,1,,"Went off in minute 52; of the 2 goals conceded, the one in minute 5 came before the change."
- 1635737,1026,7573,goals_against,1,,"Same match: came on in minute 52; of the 2 goals conceded, the one in minute 89 came after the change."
- 1636235,489,386298,goals_against,,,"Came on in minute 32 and a goal fell in that same minute, so the events cannot say whose it was: blank, never 0."
-+1528901,1116,126530,goals_against,3,matched_to_team_goals_conceded,"The only keeper with minutes, 90 of them; the provider says 0 conceded, the team lost 0-3. The score decides at any gap."
-diff --git a/dbt_project/tests/assert_base_player_stats_cleaned.sql b/dbt_project/tests/assert_base_player_stats_cleaned.sql
-index d522b39d..8e367d86 100644
---- a/dbt_project/tests/assert_base_player_stats_cleaned.sql
-+++ b/dbt_project/tests/assert_base_player_stats_cleaned.sql
-@@ -266,7 +266,7 @@ violations as (
-     from rows_in_context
-     where
-         position_code = 'G' and team_keepers_with_minutes = 1 and minutes >= 90
--        and goals_against != team_goals_conceded
-+        and team_goals_conceded is not null and goals_against is distinct from team_goals_conceded
-     union all
-     select league_code, fixture_id, team_id, player_id, 'keepers_goals_conceded_above_team', ''
-     from rows_in_context
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index 4e3ecb51..2625a828 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -517,7 +517,14 @@ validate:ui:
+     # The check before its tests: the tests' green fixture reads the live stylesheet, so with
+     # them first a stylesheet defect stops the job at the fixture and the per-page lines and
+     # screenshots never appear. Either step red is the job red.
+-    - python scripts/check_design_inventory.py --dist site_v2/dist --artifacts artifacts/design_inventory
++    # A merge request renders the narrowest and the widest width in English and German against its own pins;
++    # main, a manual run and a local run render every width and language against the full baseline.
++    - |
++      SCOPE=""
++      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
++        SCOPE="--viewports 280,1010 --langs en,de --baseline tests/fixtures/design_inventory/baseline_quick.json"
++      fi
++      python scripts/check_design_inventory.py --dist site_v2/dist --artifacts artifacts/design_inventory $SCOPE
+     - python -m pytest tests/test_design_inventory.py -q
+     - python scripts/check_chart_components.py
+     - python scripts/check_chart_screenshots.py --dist site_v2/dist --artifacts artifacts/chart_screenshots
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index 313be1cb..29e91d5c 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -24,7 +24,9 @@
+ > coverage gaps: a built page no row owns, a generator that fails, a generator page no row names,
+ > and a language a mock does not carry. A count that differs from its pin fails. A pin may not
+ > rise above main's, so a new page or mock arrives with no gaps. The rendered counts depend on the
+-> font, so they are compared only on the platform the baseline names. Text overflows when it runs
++> font, so they are compared only on the platform the baseline names. A merge request renders the
++> narrowest and the widest width in EN and DE against `baseline_quick.json`; main renders every
++> width against `baseline.json`. Text overflows when it runs
+ > more than 1px past its box. Two lines overlap when they still cross with a fifth of each line's
+ > height trimmed at the top and the bottom.
+ 
+diff --git a/scripts/check_design_inventory.py b/scripts/check_design_inventory.py
+index 04d03287..fd5f0bf8 100644
+--- a/scripts/check_design_inventory.py
++++ b/scripts/check_design_inventory.py
+@@ -15,7 +15,12 @@ is and the gap counts are printed. `--artifacts` also receives `counts.json`, th
+ with examples. Exit 0 clean, 1 on any failure or count off its pin, 2 when the inventory does not
+ parse or the browser is missing.
+ 
++A baseline file may name the `viewports` and `langs` it was measured over (every one when it names
++none); a run over exactly those is compared with it, any other narrower run is not.
++`baseline_quick.json` is the pin set of the merge request run.
++
+     python scripts/check_design_inventory.py --dist site_v2/dist
++    python scripts/check_design_inventory.py --dist site_v2/dist --viewports 280,1010 --langs en,de --baseline tests/fixtures/design_inventory/baseline_quick.json
+     python scripts/check_design_inventory.py --no-built --pages competition-overview --viewports 375 --langs fi
+     python scripts/check_design_inventory.py --page overview=design-mocks/renders/competition-overview_2026-09-16_01.html
+ 
+@@ -566,6 +571,13 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
+     return total
+ 
+ 
++def in_baseline_scope(baseline: dict, viewports: list[int], langs: list[str]) -> bool:
++    """Whether a run over these widths and languages is the run the baseline pins: the ones it
++    names, every one when it names none."""
++    return (sorted(viewports) == sorted(baseline.get("viewports", DEFAULT_VIEWPORTS))
++            and sorted(langs) == sorted(baseline.get("langs", DEFAULT_LANGS)))
++
++
+ def compare_rendered(rendered: dict[str, dict[str, int]], pinned: dict, full_run: bool,
+                      platform: str) -> tuple[str, list[str]]:
+     """(why the counts are not compared, or "") and the counts off their pins. Only a run over
+@@ -678,10 +690,11 @@ def main(argv=None) -> int:
+             ap.error("unknown page(s): %s" % ", ".join(sorted(missing)))
+     viewports = [int(v) for v in args.viewports.split(",")] if args.viewports else list(DEFAULT_VIEWPORTS)
+     langs = args.langs.split(",")
+-    # The baseline pins a run over every page, width and language; a narrower run prints its counts
+-    # and compares none.
+-    full_run = not (wanted or adhoc or args.no_built or args.no_mocks or args.viewports
+-                    or args.langs != ",".join(DEFAULT_LANGS))
++    baseline = di.load_baseline(Path(args.baseline))
++    # The baseline pins a run over every page, over the widths and languages it names (all of them
++    # when it names none); a run over anything less prints its counts and compares none.
++    full_run = not (wanted or adhoc or args.no_built or args.no_mocks) \
++        and in_baseline_scope(baseline, viewports, langs)
+     registered = sorted(di.class_tokens(inv.elements))
+     spec = {
+         "props": list(di.PROPS),
+@@ -767,7 +780,6 @@ def main(argv=None) -> int:
+     for group in sorted(run.coverage):
+         print("COVERAGE %s: %d (%s)" % (group, sum(run.coverage[group].values()),
+                                          ", ".join(sorted(run.coverage[group]))[:300]))
+-    baseline = di.load_baseline(Path(args.baseline))
+     note, off = compare_rendered(rendered, baseline["rendered"], full_run, sys.platform)
+     if not note:
+         # The pins decide: a miss the baseline holds is a known gap, not a failure.
+diff --git a/tests/fixtures/design_inventory/baseline_quick.json b/tests/fixtures/design_inventory/baseline_quick.json
+new file mode 100644
+index 00000000..a5d4435e
+--- /dev/null
++++ b/tests/fixtures/design_inventory/baseline_quick.json
+@@ -0,0 +1,1125 @@
++{
++ "viewports": [
++  280,
++  1010
++ ],
++ "langs": [
++  "en",
++  "de"
++ ],
++ "coverage": {
++  "page with no row": {
++   "de/2-bundesliga/index.html": 1,
++   "de/afc-champions-league/index.html": 1,
++   "de/africa-cup-of-nations/index.html": 1,
++   "de/asian-cup/index.html": 1,
++   "de/belgian-pro-league/index.html": 1,
++   "de/brasileirao/index.html": 1,
++   "de/caf-champions-league/index.html": 1,
++   "de/champions-league/index.html": 1,
++   "de/club-world-cup/index.html": 1,
++   "de/concacaf-champions-cup/index.html": 1,
++   "de/concacaf-nations-league/index.html": 1,
++   "de/conference-league/index.html": 1,
++   "de/copa-america/index.html": 1,
++   "de/copa-del-rey/index.html": 1,
++   "de/copa-libertadores/index.html": 1,
++   "de/coppa-italia/index.html": 1,
++   "de/coupe-de-france/index.html": 1,
++   "de/dfb-pokal/index.html": 1,
++   "de/ekstraklasa/index.html": 1,
++   "de/eredivisie/index.html": 1,
++   "de/euro/index.html": 1,
++   "de/europa-league/index.html": 1,
++   "de/fa-cup/index.html": 1,
++   "de/gold-cup/index.html": 1,
++   "de/j1-league/index.html": 1,
++   "de/k-league-1/index.html": 1,
++   "de/la-liga/index.html": 1,
++   "de/liga-mx/index.html": 1,
++   "de/liga-portugal/index.html": 1,
++   "de/liga-profesional-argentina/index.html": 1,
++   "de/ligue-1/index.html": 1,
++   "de/mls/index.html": 1,
++   "de/nations-league/index.html": 1,
++   "de/premier-league/index.html": 1,
++   "de/saudi-pro-league/index.html": 1,
++   "de/serie-a/index.html": 1,
++   "de/spieler/a-daghim-362564/index.html": 1,
++   "de/spieler/a-nusa-314511/index.html": 1,
++   "de/spieler/a-pavlovic-328033/index.html": 1,
++   "de/spieler/a-raimondo-314254/index.html": 1,
++   "de/spieler/aleix-garcia-47516/index.html": 1,
++   "de/spieler/bernardo-18964/index.html": 1,
++   "de/spieler/c-matsima-163039/index.html": 1,
++   "de/spieler/c-tengstedt-162703/index.html": 1,
++   "de/spieler/c-uzun-339887/index.html": 1,
++   "de/spieler/d-raum-25158/index.html": 1,
++   "de/spieler/d-upamecano-1149/index.html": 1,
++   "de/spieler/e-fernandez-237087/index.html": 1,
++   "de/spieler/e-haaland-1100/index.html": 1,
++   "de/spieler/e-skhiri-21587/index.html": 1,
++   "de/spieler/f-dahmen-25903/index.html": 1,
++   "de/spieler/f-keidel-280070/index.html": 1,
++   "de/spieler/f-thauvin-1922/index.html": 1,
++   "de/spieler/f-uduokhai-25406/index.html": 1,
++   "de/spieler/f-wirtz-203224/index.html": 1,
++   "de/spieler/g-calo-32011/index.html": 1,
++   "de/spieler/g-prestianni-362755/index.html": 1,
++   "de/spieler/g-read-359390/index.html": 1,
++   "de/spieler/h-kane-184/index.html": 1,
++   "de/spieler/hennes-behrens-353143/index.html": 1,
++   "de/spieler/i-matanovic-202696/index.html": 1,
++   "de/spieler/j-brandt-984/index.html": 1,
++   "de/spieler/j-kimmich-502/index.html": 1,
++   "de/spieler/j-tah-972/index.html": 1,
++   "de/spieler/kim-min-jae-2897/index.html": 1,
++   "de/spieler/l-curda-163078/index.html": 1,
++   "de/spieler/l-ferguson-44814/index.html": 1,
++   "de/spieler/l-karius-1972/index.html": 1,
++   "de/spieler/l-petkov-177452/index.html": 1,
++   "de/spieler/lamine-yamal-386828/index.html": 1,
++   "de/spieler/m-ginter-2915/index.html": 1,
++   "de/spieler/m-gregoritsch-25297/index.html": 1,
++   "de/spieler/m-grull-7073/index.html": 1,
++   "de/spieler/m-moore-380690/index.html": 1,
++   "de/spieler/m-olise-19617/index.html": 1,
++   "de/spieler/m-vandevoordt-1924/index.html": 1,
++   "de/spieler/m-willemsen-327347/index.html": 1,
++   "de/spieler/miguel-gutierrez-162032/index.html": 1,
++   "de/spieler/n-amiri-714/index.html": 1,
++   "de/spieler/n-atubolu-178768/index.html": 1,
++   "de/spieler/n-capaldo-5973/index.html": 1,
++   "de/spieler/n-djouahra-47308/index.html": 1,
++   "de/spieler/n-el-aynaoui-277003/index.html": 1,
++   "de/spieler/n-fullkrug-25391/index.html": 1,
++   "de/spieler/n-katic-1741/index.html": 1,
++   "de/spieler/n-noll-203329/index.html": 1,
++   "de/spieler/nacho-ferri-353943/index.html": 1,
++   "de/spieler/p-dybala-875/index.html": 1,
++   "de/spieler/p-gro-18970/index.html": 1,
++   "de/spieler/p-schick-794/index.html": 1,
++   "de/spieler/p-tietz-26171/index.html": 1,
++   "de/spieler/r-onyedika-162219/index.html": 1,
++   "de/spieler/r-schallenberg-88140/index.html": 1,
++   "de/spieler/raphinha-1496/index.html": 1,
++   "de/spieler/renato-veiga-336671/index.html": 1,
++   "de/spieler/ruben-dias-567/index.html": 1,
++   "de/spieler/s-becker-37938/index.html": 1,
++   "de/spieler/s-inacio-478991/index.html": 1,
++   "de/spieler/t-kleindienst-26256/index.html": 1,
++   "de/spieler/t-krau-1156/index.html": 1,
++   "de/spieler/t-rothe-324957/index.html": 1,
++   "de/spieler/tomas-araujo-161939/index.html": 1,
++   "de/spieler/v-pavlidis-36798/index.html": 1,
++   "de/spieler/vitinha-128384/index.html": 1,
++   "de/spieler/w-anton-25368/index.html": 1,
++   "de/spieler/w-burger-37153/index.html": 1,
++   "de/spieler/y-ebnoutalib-409190/index.html": 1,
++   "de/spieler/y-suzuki-199143/index.html": 1,
++   "de/super-lig/index.html": 1,
++   "de/uefa-super-cup/index.html": 1,
++   "de/veikkausliiga/index.html": 1,
++   "de/world-cup/index.html": 1,
++   "de/world-cup-qualification-africa/index.html": 1,
++   "de/world-cup-qualification-asia/index.html": 1,
++   "de/world-cup-qualification-concacaf/index.html": 1,
++   "de/world-cup-qualification-europe/index.html": 1,
++   "de/world-cup-qualification-oceania/index.html": 1,
++   "de/world-cup-qualification-playoffs/index.html": 1,
++   "de/world-cup-qualification-south-america/index.html": 1,
++   "en/2-bundesliga/index.html": 1,
++   "en/afc-champions-league/index.html": 1,
++   "en/africa-cup-of-nations/index.html": 1,
++   "en/asian-cup/index.html": 1,
++   "en/belgian-pro-league/index.html": 1,
++   "en/brasileirao/index.html": 1,
++   "en/caf-champions-league/index.html": 1,
++   "en/champions-league/index.html": 1,
++   "en/club-world-cup/index.html": 1,
++   "en/concacaf-champions-cup/index.html": 1,
++   "en/concacaf-nations-league/index.html": 1,
++   "en/conference-league/index.html": 1,
++   "en/copa-america/index.html": 1,
++   "en/copa-del-rey/index.html": 1,
++   "en/copa-libertadores/index.html": 1,
++   "en/coppa-italia/index.html": 1,
++   "en/coupe-de-france/index.html": 1,
++   "en/dfb-pokal/index.html": 1,
++   "en/ekstraklasa/index.html": 1,
++   "en/eredivisie/index.html": 1,
++   "en/euro/index.html": 1,
++   "en/europa-league/index.html": 1,
++   "en/fa-cup/index.html": 1,
++   "en/gold-cup/index.html": 1,
++   "en/j1-league/index.html": 1,
++   "en/k-league-1/index.html": 1,
++   "en/la-liga/index.html": 1,
++   "en/liga-mx/index.html": 1,
++   "en/liga-portugal/index.html": 1,
++   "en/liga-profesional-argentina/index.html": 1,
++   "en/ligue-1/index.html": 1,
++   "en/mls/index.html": 1,
++   "en/nations-league/index.html": 1,
++   "en/players/a-daghim-362564/index.html": 1,
++   "en/players/a-nusa-314511/index.html": 1,
++   "en/players/a-pavlovic-328033/index.html": 1,
++   "en/players/a-raimondo-314254/index.html": 1,
++   "en/players/aleix-garcia-47516/index.html": 1,
++   "en/players/bernardo-18964/index.html": 1,
++   "en/players/c-matsima-163039/index.html": 1,
++   "en/players/c-tengstedt-162703/index.html": 1,
++   "en/players/c-uzun-339887/index.html": 1,
++   "en/players/d-raum-25158/index.html": 1,
++   "en/players/d-upamecano-1149/index.html": 1,
++   "en/players/e-fernandez-237087/index.html": 1,
++   "en/players/e-haaland-1100/index.html": 1,
++   "en/players/e-skhiri-21587/index.html": 1,
++   "en/players/f-dahmen-25903/index.html": 1,
++   "en/players/f-keidel-280070/index.html": 1,
++   "en/players/f-thauvin-1922/index.html": 1,
++   "en/players/f-uduokhai-25406/index.html": 1,
++   "en/players/f-wirtz-203224/index.html": 1,
++   "en/players/g-calo-32011/index.html": 1,
++   "en/players/g-prestianni-362755/index.html": 1,
++   "en/players/g-read-359390/index.html": 1,
++   "en/players/h-kane-184/index.html": 1,
++   "en/players/hennes-behrens-353143/index.html": 1,
++   "en/players/i-matanovic-202696/index.html": 1,
++   "en/players/j-brandt-984/index.html": 1,
++   "en/players/j-kimmich-502/index.html": 1,
++   "en/players/j-tah-972/index.html": 1,
++   "en/players/kim-min-jae-2897/index.html": 1,
++   "en/players/l-curda-163078/index.html": 1,
++   "en/players/l-ferguson-44814/index.html": 1,
++   "en/players/l-karius-1972/index.html": 1,
++   "en/players/l-petkov-177452/index.html": 1,
++   "en/players/lamine-yamal-386828/index.html": 1,
++   "en/players/m-ginter-2915/index.html": 1,
++   "en/players/m-gregoritsch-25297/index.html": 1,
++   "en/players/m-grull-7073/index.html": 1,
++   "en/players/m-moore-380690/index.html": 1,
++   "en/players/m-olise-19617/index.html": 1,
++   "en/players/m-vandevoordt-1924/index.html": 1,
++   "en/players/m-willemsen-327347/index.html": 1,
++   "en/players/miguel-gutierrez-162032/index.html": 1,
++   "en/players/n-amiri-714/index.html": 1,
++   "en/players/n-atubolu-178768/index.html": 1,
++   "en/players/n-capaldo-5973/index.html": 1,
++   "en/players/n-djouahra-47308/index.html": 1,
++   "en/players/n-el-aynaoui-277003/index.html": 1,
++   "en/players/n-fullkrug-25391/index.html": 1,
++   "en/players/n-katic-1741/index.html": 1,
++   "en/players/n-noll-203329/index.html": 1,
++   "en/players/nacho-ferri-353943/index.html": 1,
++   "en/players/p-dybala-875/index.html": 1,
++   "en/players/p-gro-18970/index.html": 1,
++   "en/players/p-schick-794/index.html": 1,
++   "en/players/p-tietz-26171/index.html": 1,
++   "en/players/r-onyedika-162219/index.html": 1,
++   "en/players/r-schallenberg-88140/index.html": 1,
++   "en/players/raphinha-1496/index.html": 1,
++   "en/players/renato-veiga-336671/index.html": 1,
++   "en/players/ruben-dias-567/index.html": 1,
++   "en/players/s-becker-37938/index.html": 1,
++   "en/players/s-inacio-478991/index.html": 1,
++   "en/players/t-kleindienst-26256/index.html": 1,
++   "en/players/t-krau-1156/index.html": 1,
++   "en/players/t-rothe-324957/index.html": 1,
++   "en/players/tomas-araujo-161939/index.html": 1,
++   "en/players/v-pavlidis-36798/index.html": 1,
++   "en/players/vitinha-128384/index.html": 1,
++   "en/players/w-anton-25368/index.html": 1,
++   "en/players/w-burger-37153/index.html": 1,
++   "en/players/y-ebnoutalib-409190/index.html": 1,
++   "en/players/y-suzuki-199143/index.html": 1,
++   "en/premier-league/index.html": 1,
++   "en/saudi-pro-league/index.html": 1,
++   "en/serie-a/index.html": 1,
++   "en/super-lig/index.html": 1,
++   "en/uefa-super-cup/index.html": 1,
++   "en/veikkausliiga/index.html": 1,
++   "en/world-cup/index.html": 1,
++   "en/world-cup-qualification-africa/index.html": 1,
++   "en/world-cup-qualification-asia/index.html": 1,
++   "en/world-cup-qualification-concacaf/index.html": 1,
++   "en/world-cup-qualification-europe/index.html": 1,
++   "en/world-cup-qualification-oceania/index.html": 1,
++   "en/world-cup-qualification-playoffs/index.html": 1,
++   "en/world-cup-qualification-south-america/index.html": 1,
++   "index.html": 1
++  },
++  "generator fails": {
++   "gen_block_standard.py": 1,
++   "gen_competitions.py": 1,
++   "gen_match_page.py": 1,
++   "gen_navmap.py": 1,
++   "gen_team_mock.py": 1
++  },
++  "mock page with no row": {
++   "gen_interaction.py/interaction_standard.html": 1,
++   "gen_matches_hub.py/matches-hub_2026-09-26.html": 1,
++   "gen_sitemap.py/sitemap_overview.html": 1,
++   "gen_taxonomy.py/taxonomy_options.html": 1
++  },
++  "language missing": {
++   "competition-hub cup": 1,
++   "competition-hub groups": 1,
++   "competition-hub league": 1,
++   "competition-hub offseason": 1,
++   "competition-matchdays": 1,
++   "competition-rankings": 1,
++   "home legacy": 1,
++   "home": 1,
++   "gen_interaction.py/interaction_standard.html": 2,
++   "matches next": 1,
++   "matches past": 1,
++   "matches hub": 1,
++   "gen_matches_hub.py/matches-hub_2026-09-26.html": 1,
++   "competition-overview": 1,
++   "gen_sitemap.py/sitemap_overview.html": 2,
++   "gen_taxonomy.py/taxonomy_options.html": 2,
++   "top players": 1,
++   "top teams": 1
++  }
++ },
++ "rendered": {
++  "platform": "linux",
++  "pages": {
++   "de/2-bundesliga/index.html": {
++    "classes": 5
++   },
++   "Match page": {
++    "scroll": 1137,
++    "overflow": 6,
++    "split": 104,
++    "classes": 15
++   },
++   "de/afc-champions-league/index.html": {
++    "classes": 5
++   },
++   "de/africa-cup-of-nations/index.html": {
++    "classes": 5
++   },
++   "de/asian-cup/index.html": {
++    "classes": 5
++   },
++   "de/belgian-pro-league/index.html": {
++    "classes": 5
++   },
++   "de/brasileirao/index.html": {
++    "classes": 5
++   },
++   "Competition overview": {
++    "split": 8,
++    "classes": 6
++   },
++   "Played match page": {
++    "scroll": 2,
++    "classes": 13
++   },
++   "Competition matchdays": {
++    "classes": 7
++   },
++   "Competition rankings": {
++    "classes": 6
++   },
++   "de/caf-champions-league/index.html": {
++    "classes": 5
++   },
++   "de/champions-league/index.html": {
++    "classes": 5
++   },
++   "de/club-world-cup/index.html": {
++    "classes": 5
++   },
++   "de/concacaf-champions-cup/index.html": {
++    "classes": 5
++   },
++   "de/concacaf-nations-league/index.html": {
++    "classes": 5
++   },
++   "de/conference-league/index.html": {
++    "classes": 5
++   },
++   "de/copa-america/index.html": {
++    "classes": 5
++   },
++   "de/copa-del-rey/index.html": {
++    "classes": 5
++   },
++   "de/copa-libertadores/index.html": {
++    "classes": 5
++   },
++   "de/coppa-italia/index.html": {
++    "classes": 5
++   },
++   "de/coupe-de-france/index.html": {
++    "classes": 5
++   },
++   "de/dfb-pokal/index.html": {
++    "classes": 5
++   },
++   "de/ekstraklasa/index.html": {
++    "classes": 5
++   },
++   "de/eredivisie/index.html": {
++    "classes": 5
++   },
++   "de/euro/index.html": {
++    "classes": 5
++   },
++   "de/europa-league/index.html": {
++    "classes": 5
++   },
++   "de/fa-cup/index.html": {
++    "classes": 5
++   },
++   "de/gold-cup/index.html": {
++    "classes": 5
++   },
++   "Home": {
++    "split": 6,
++    "classes": 6
++   },
++   "de/j1-league/index.html": {
++    "classes": 5
++   },
++   "de/k-league-1/index.html": {
++    "classes": 5
++   },
++   "de/la-liga/index.html": {
++    "classes": 5
++   },
++   "de/liga-mx/index.html": {
++    "classes": 5
++   },
++   "de/liga-portugal/index.html": {
++    "classes": 5
++   },
++   "de/liga-profesional-argentina/index.html": {
++    "classes": 5
++   },
++   "de/ligue-1/index.html": {
++    "classes": 5
++   },
++   "Team page": {
++    "overflow": 2,
++    "split": 13,
++    "classes": 30,
++    "miss · Name in whole words": 1
++   },
++   "Teams page": {
++    "split": 1,
++    "classes": 5
++   },
++   "de/mls/index.html": {
++    "classes": 5
++   },
++   "de/nations-league/index.html": {
++    "classes": 5
++   },
++   "de/premier-league/index.html": {
++    "classes": 5
++   },
++   "de/saudi-pro-league/index.html": {
++    "classes": 5
++   },
++   "de/serie-a/index.html": {
++    "classes": 5
++   },
++   "Matches day page": {
++    "classes": 7,
++    "miss · Fold": 84,
++    "miss · Match row score": 92
++   },
++   "Matches page": {
++    "classes": 7
++   },
++   "de/spieler/a-daghim-362564/index.html": {
++    "classes": 3
++   },
++   "de/spieler/a-nusa-314511/index.html": {
++    "classes": 3
++   },
++   "de/spieler/a-pavlovic-328033/index.html": {
++    "classes": 3
++   },
++   "de/spieler/a-raimondo-314254/index.html": {
++    "classes": 3
++   },
++   "de/spieler/aleix-garcia-47516/index.html": {
++    "classes": 3
++   },
++   "de/spieler/bernardo-18964/index.html": {
++    "classes": 3
++   },
++   "de/spieler/c-matsima-163039/index.html": {
++    "classes": 3
++   },
++   "de/spieler/c-tengstedt-162703/index.html": {
++    "classes": 3
++   },
++   "de/spieler/c-uzun-339887/index.html": {
++    "classes": 3
++   },
++   "de/spieler/d-raum-25158/index.html": {
++    "classes": 3
++   },
++   "de/spieler/d-upamecano-1149/index.html": {
++    "classes": 3
++   },
++   "de/spieler/e-fernandez-237087/index.html": {
++    "classes": 3
++   },
++   "de/spieler/e-haaland-1100/index.html": {
++    "classes": 3
++   },
++   "de/spieler/e-skhiri-21587/index.html": {
++    "classes": 3
++   },
++   "de/spieler/f-dahmen-25903/index.html": {
++    "classes": 3
++   },
++   "de/spieler/f-keidel-280070/index.html": {
++    "classes": 3
++   },
++   "de/spieler/f-thauvin-1922/index.html": {
++    "classes": 3
++   },
++   "de/spieler/f-uduokhai-25406/index.html": {
++    "classes": 3
++   },
++   "de/spieler/f-wirtz-203224/index.html": {
++    "classes": 3
++   },
++   "de/spieler/g-calo-32011/index.html": {
++    "classes": 3
++   },
++   "de/spieler/g-prestianni-362755/index.html": {
++    "classes": 3
++   },
++   "de/spieler/g-read-359390/index.html": {
++    "classes": 3
++   },
++   "de/spieler/h-kane-184/index.html": {
++    "classes": 3
++   },
++   "de/spieler/hennes-behrens-353143/index.html": {
++    "classes": 3
++   },
++   "de/spieler/i-matanovic-202696/index.html": {
++    "classes": 3
++   },
++   "de/spieler/j-brandt-984/index.html": {
++    "classes": 3
++   },
++   "de/spieler/j-kimmich-502/index.html": {
++    "classes": 3
++   },
++   "de/spieler/j-tah-972/index.html": {
++    "classes": 3
++   },
++   "de/spieler/kim-min-jae-2897/index.html": {
++    "classes": 3
++   },
++   "de/spieler/l-curda-163078/index.html": {
++    "classes": 3
++   },
++   "de/spieler/l-ferguson-44814/index.html": {
++    "classes": 3
++   },
++   "de/spieler/l-karius-1972/index.html": {
++    "classes": 3
++   },
++   "de/spieler/l-petkov-177452/index.html": {
++    "classes": 3
++   },
++   "de/spieler/lamine-yamal-386828/index.html": {
++    "classes": 3
++   },
++   "de/spieler/m-ginter-2915/index.html": {
++    "classes": 3
++   },
++   "de/spieler/m-gregoritsch-25297/index.html": {
++    "classes": 3
++   },
++   "de/spieler/m-grull-7073/index.html": {
++    "classes": 3
++   },
++   "de/spieler/m-moore-380690/index.html": {
++    "classes": 3
++   },
++   "de/spieler/m-olise-19617/index.html": {
++    "classes": 3
++   },
++   "de/spieler/m-vandevoordt-1924/index.html": {
++    "classes": 3
++   },
++   "de/spieler/m-willemsen-327347/index.html": {
++    "classes": 3
++   },
++   "de/spieler/miguel-gutierrez-162032/index.html": {
++    "classes": 3
++   },
++   "de/spieler/n-amiri-714/index.html": {
++    "classes": 3
++   },
++   "de/spieler/n-atubolu-178768/index.html": {
++    "classes": 3
++   },
++   "de/spieler/n-capaldo-5973/index.html": {
++    "classes": 3
++   },
++   "de/spieler/n-djouahra-47308/index.html": {
++    "classes": 3
++   },
++   "de/spieler/n-el-aynaoui-277003/index.html": {
++    "classes": 3
++   },
++   "de/spieler/n-fullkrug-25391/index.html": {
++    "classes": 3
++   },
++   "de/spieler/n-katic-1741/index.html": {
++    "classes": 3
++   },
++   "de/spieler/n-noll-203329/index.html": {
++    "classes": 3
++   },
++   "de/spieler/nacho-ferri-353943/index.html": {
++    "classes": 3
++   },
++   "de/spieler/p-dybala-875/index.html": {
++    "classes": 3
++   },
++   "de/spieler/p-gro-18970/index.html": {
++    "classes": 3
++   },
++   "de/spieler/p-schick-794/index.html": {
++    "classes": 3
++   },
++   "de/spieler/p-tietz-26171/index.html": {
++    "classes": 3
++   },
++   "de/spieler/r-onyedika-162219/index.html": {
++    "classes": 3
++   },
++   "de/spieler/r-schallenberg-88140/index.html": {
++    "classes": 3
++   },
++   "de/spieler/raphinha-1496/index.html": {
++    "classes": 3
++   },
++   "de/spieler/renato-veiga-336671/index.html": {
++    "classes": 3
++   },
++   "de/spieler/ruben-dias-567/index.html": {
++    "classes": 3
++   },
++   "de/spieler/s-becker-37938/index.html": {
++    "classes": 3
++   },
++   "de/spieler/s-inacio-478991/index.html": {
++    "classes": 3
++   },
++   "de/spieler/t-kleindienst-26256/index.html": {
++    "classes": 3
++   },
++   "de/spieler/t-krau-1156/index.html": {
++    "classes": 3
++   },
++   "de/spieler/t-rothe-324957/index.html": {
++    "classes": 3
++   },
++   "de/spieler/tomas-araujo-161939/index.html": {
++    "classes": 3
++   },
++   "de/spieler/v-pavlidis-36798/index.html": {
++    "classes": 3
++   },
++   "de/spieler/vitinha-128384/index.html": {
++    "classes": 3
++   },
++   "de/spieler/w-anton-25368/index.html": {
++    "classes": 3
++   },
++   "de/spieler/w-burger-37153/index.html": {
++    "classes": 3
++   },
++   "de/spieler/y-ebnoutalib-409190/index.html": {
++    "classes": 3
++   },
++   "de/spieler/y-suzuki-199143/index.html": {
++    "classes": 3
++   },
++   "de/super-lig/index.html": {
++    "classes": 5
++   },
++   "de/uefa-super-cup/index.html": {
++    "classes": 5
++   },
++   "de/veikkausliiga/index.html": {
++    "classes": 5
++   },
++   "Competitions index": {
++    "overflow": 16,
++    "classes": 5
++   },
++   "de/world-cup/index.html": {
++    "classes": 5
++   },
++   "de/world-cup-qualification-africa/index.html": {
++    "classes": 5
++   },
++   "de/world-cup-qualification-asia/index.html": {
++    "classes": 5
++   },
++   "de/world-cup-qualification-concacaf/index.html": {
++    "classes": 5
++   },
++   "de/world-cup-qualification-europe/index.html": {
++    "classes": 5
++   },
++   "de/world-cup-qualification-oceania/index.html": {
++    "classes": 5
++   },
++   "de/world-cup-qualification-playoffs/index.html": {
++    "classes": 5
++   },
++   "de/world-cup-qualification-south-america/index.html": {
++    "classes": 5
++   },
++   "en/2-bundesliga/index.html": {
++    "classes": 5
++   },
++   "en/afc-champions-league/index.html": {
++    "classes": 5
++   },
++   "en/africa-cup-of-nations/index.html": {
++    "classes": 5
++   },
++   "en/asian-cup/index.html": {
++    "classes": 5
++   },
++   "en/belgian-pro-league/index.html": {
++    "classes": 5
++   },
++   "en/brasileirao/index.html": {
++    "classes": 5
++   },
++   "en/caf-champions-league/index.html": {
++    "classes": 5
++   },
++   "en/champions-league/index.html": {
++    "classes": 5
++   },
++   "en/club-world-cup/index.html": {
++    "classes": 5
++   },
++   "en/concacaf-champions-cup/index.html": {
++    "classes": 5
++   },
++   "en/concacaf-nations-league/index.html": {
++    "classes": 5
++   },
++   "en/conference-league/index.html": {
++    "classes": 5
++   },
++   "en/copa-america/index.html": {
++    "classes": 5
++   },
++   "en/copa-del-rey/index.html": {
++    "classes": 5
++   },
++   "en/copa-libertadores/index.html": {
++    "classes": 5
++   },
++   "en/coppa-italia/index.html": {
++    "classes": 5
++   },
++   "en/coupe-de-france/index.html": {
++    "classes": 5
++   },
++   "en/dfb-pokal/index.html": {
++    "classes": 5
++   },
++   "en/ekstraklasa/index.html": {
++    "classes": 5
++   },
++   "en/eredivisie/index.html": {
++    "classes": 5
++   },
++   "en/euro/index.html": {
++    "classes": 5
++   },
++   "en/europa-league/index.html": {
++    "classes": 5
++   },
++   "en/fa-cup/index.html": {
++    "classes": 5
++   },
++   "en/gold-cup/index.html": {
++    "classes": 5
++   },
++   "en/j1-league/index.html": {
++    "classes": 5
++   },
++   "en/k-league-1/index.html": {
++    "classes": 5
++   },
++   "en/la-liga/index.html": {
++    "classes": 5
++   },
++   "en/liga-mx/index.html": {
++    "classes": 5
++   },
++   "en/liga-portugal/index.html": {
++    "classes": 5
++   },
++   "en/liga-profesional-argentina/index.html": {
++    "classes": 5
++   },
++   "en/ligue-1/index.html": {
++    "classes": 5
++   },
++   "en/mls/index.html": {
++    "classes": 5
++   },
++   "en/nations-league/index.html": {
++    "classes": 5
++   },
++   "en/players/a-daghim-362564/index.html": {
++    "classes": 3
++   },
++   "en/players/a-nusa-314511/index.html": {
++    "classes": 3
++   },
++   "en/players/a-pavlovic-328033/index.html": {
++    "classes": 3
++   },
++   "en/players/a-raimondo-314254/index.html": {
++    "classes": 3
++   },
++   "en/players/aleix-garcia-47516/index.html": {
++    "classes": 3
++   },
++   "en/players/bernardo-18964/index.html": {
++    "classes": 3
++   },
++   "en/players/c-matsima-163039/index.html": {
++    "classes": 3
++   },
++   "en/players/c-tengstedt-162703/index.html": {
++    "classes": 3
++   },
++   "en/players/c-uzun-339887/index.html": {
++    "classes": 3
++   },
++   "en/players/d-raum-25158/index.html": {
++    "classes": 3
++   },
++   "en/players/d-upamecano-1149/index.html": {
++    "classes": 3
++   },
++   "en/players/e-fernandez-237087/index.html": {
++    "classes": 3
++   },
++   "en/players/e-haaland-1100/index.html": {
++    "classes": 3
++   },
++   "en/players/e-skhiri-21587/index.html": {
++    "classes": 3
++   },
++   "en/players/f-dahmen-25903/index.html": {
++    "classes": 3
++   },
++   "en/players/f-keidel-280070/index.html": {
++    "classes": 3
++   },
++   "en/players/f-thauvin-1922/index.html": {
++    "classes": 3
++   },
++   "en/players/f-uduokhai-25406/index.html": {
++    "classes": 3
++   },
++   "en/players/f-wirtz-203224/index.html": {
++    "classes": 3
++   },
++   "en/players/g-calo-32011/index.html": {
++    "classes": 3
++   },
++   "en/players/g-prestianni-362755/index.html": {
++    "classes": 3
++   },
++   "en/players/g-read-359390/index.html": {
++    "classes": 3
++   },
++   "en/players/h-kane-184/index.html": {
++    "classes": 3
++   },
++   "en/players/hennes-behrens-353143/index.html": {
++    "classes": 3
++   },
++   "en/players/i-matanovic-202696/index.html": {
++    "classes": 3
++   },
++   "en/players/j-brandt-984/index.html": {
++    "classes": 3
++   },
++   "en/players/j-kimmich-502/index.html": {
++    "classes": 3
++   },
++   "en/players/j-tah-972/index.html": {
++    "classes": 3
++   },
++   "en/players/kim-min-jae-2897/index.html": {
++    "classes": 3
++   },
++   "en/players/l-curda-163078/index.html": {
++    "classes": 3
++   },
++   "en/players/l-ferguson-44814/index.html": {
++    "classes": 3
++   },
++   "en/players/l-karius-1972/index.html": {
++    "classes": 3
++   },
++   "en/players/l-petkov-177452/index.html": {
++    "classes": 3
++   },
++   "en/players/lamine-yamal-386828/index.html": {
++    "classes": 3
++   },
++   "en/players/m-ginter-2915/index.html": {
++    "classes": 3
++   },
++   "en/players/m-gregoritsch-25297/index.html": {
++    "classes": 3
++   },
++   "en/players/m-grull-7073/index.html": {
++    "classes": 3
++   },
++   "en/players/m-moore-380690/index.html": {
++    "classes": 3
++   },
++   "en/players/m-olise-19617/index.html": {
++    "classes": 3
++   },
++   "en/players/m-vandevoordt-1924/index.html": {
++    "classes": 3
++   },
++   "en/players/m-willemsen-327347/index.html": {
++    "classes": 3
++   },
++   "en/players/miguel-gutierrez-162032/index.html": {
++    "classes": 3
++   },
++   "en/players/n-amiri-714/index.html": {
++    "classes": 3
++   },
++   "en/players/n-atubolu-178768/index.html": {
++    "classes": 3
++   },
++   "en/players/n-capaldo-5973/index.html": {
++    "classes": 3
++   },
++   "en/players/n-djouahra-47308/index.html": {
++    "classes": 3
++   },
++   "en/players/n-el-aynaoui-277003/index.html": {
++    "classes": 3
++   },
++   "en/players/n-fullkrug-25391/index.html": {
++    "classes": 3
++   },
++   "en/players/n-katic-1741/index.html": {
++    "classes": 3
++   },
++   "en/players/n-noll-203329/index.html": {
++    "classes": 3
++   },
++   "en/players/nacho-ferri-353943/index.html": {
++    "classes": 3
++   },
++   "en/players/p-dybala-875/index.html": {
++    "classes": 3
++   },
++   "en/players/p-gro-18970/index.html": {
++    "classes": 3
++   },
++   "en/players/p-schick-794/index.html": {
++    "classes": 3
++   },
++   "en/players/p-tietz-26171/index.html": {
++    "classes": 3
++   },
++   "en/players/r-onyedika-162219/index.html": {
++    "classes": 3
++   },
++   "en/players/r-schallenberg-88140/index.html": {
++    "classes": 3
++   },
++   "en/players/raphinha-1496/index.html": {
++    "classes": 3
++   },
++   "en/players/renato-veiga-336671/index.html": {
++    "classes": 3
++   },
++   "en/players/ruben-dias-567/index.html": {
++    "classes": 3
++   },
++   "en/players/s-becker-37938/index.html": {
++    "classes": 3
++   },
++   "en/players/s-inacio-478991/index.html": {
++    "classes": 3
++   },
++   "en/players/t-kleindienst-26256/index.html": {
++    "classes": 3
++   },
++   "en/players/t-krau-1156/index.html": {
++    "classes": 3
++   },
++   "en/players/t-rothe-324957/index.html": {
++    "classes": 3
++   },
++   "en/players/tomas-araujo-161939/index.html": {
++    "classes": 3
++   },
++   "en/players/v-pavlidis-36798/index.html": {
++    "classes": 3
++   },
++   "en/players/vitinha-128384/index.html": {
++    "classes": 3
++   },
++   "en/players/w-anton-25368/index.html": {
++    "classes": 3
++   },
++   "en/players/w-burger-37153/index.html": {
++    "classes": 3
++   },
++   "en/players/y-ebnoutalib-409190/index.html": {
++    "classes": 3
++   },
++   "en/players/y-suzuki-199143/index.html": {
++    "classes": 3
++   },
++   "en/premier-league/index.html": {
++    "classes": 5
++   },
++   "en/saudi-pro-league/index.html": {
++    "classes": 5
++   },
++   "en/serie-a/index.html": {
++    "classes": 5
++   },
++   "en/super-lig/index.html": {
++    "classes": 5
++   },
++   "en/uefa-super-cup/index.html": {
++    "classes": 5
++   },
++   "en/veikkausliiga/index.html": {
++    "classes": 5
++   },
++   "en/world-cup/index.html": {
++    "classes": 5
++   },
++   "en/world-cup-qualification-africa/index.html": {
++    "classes": 5
++   },
++   "en/world-cup-qualification-asia/index.html": {
++    "classes": 5
++   },
++   "en/world-cup-qualification-concacaf/index.html": {
++    "classes": 5
++   },
++   "en/world-cup-qualification-europe/index.html": {
++    "classes": 5
++   },
++   "en/world-cup-qualification-oceania/index.html": {
++    "classes": 5
++   },
++   "en/world-cup-qualification-playoffs/index.html": {
++    "classes": 5
++   },
++   "en/world-cup-qualification-south-america/index.html": {
++    "classes": 5
++   },
++   "index.html": {
++    "miss · (page)": 2
++   },
++   "competition-hub cup": {
++    "classes": 14
++   },
++   "competition-hub groups": {
++    "classes": 14
++   },
++   "competition-hub league": {
++    "overflow": 20,
++    "classes": 16
++   },
++   "competition-hub offseason": {
++    "overflow": 20,
++    "classes": 16
++   },
++   "competition-matchdays": {
++    "classes": 15
++   },
++   "competition-rankings": {
++    "split": 1,
++    "classes": 14
++   },
++   "home legacy": {
++    "split": 3,
++    "classes": 17
++   },
++   "home": {
++    "classes": 15
++   },
++   "gen_interaction.py/interaction_standard.html": {
++    "scroll": 1,
++    "classes": 15,
++    "miss · Competition group head": 2
++   },
++   "matches next": {
++    "classes": 17
++   },
++   "matches past": {
++    "classes": 17
++   },
++   "matches hub": {
++    "scroll": 1,
++    "classes": 16
++   },
++   "gen_matches_hub.py/matches-hub_2026-09-26.html": {
++    "scroll": 1,
++    "classes": 16
++   },
++   "competition-overview": {
++    "classes": 14
++   },
++   "gen_sitemap.py/sitemap_overview.html": {
++    "scroll": 1,
++    "overflow": 4,
++    "split": 12,
++    "classes": 29,
++    "miss · (page)": 2
++   },
++   "gen_taxonomy.py/taxonomy_options.html": {
++    "scroll": 1,
++    "overflow": 2,
++    "split": 1,
++    "classes": 14,
++    "miss · (page)": 2
++   },
++   "top players": {
++    "classes": 16
++   },
++   "top teams": {
++    "split": 3,
++    "classes": 16
++   }
++  }
++ }
++}
+diff --git a/tests/test_design_inventory.py b/tests/test_design_inventory.py
+index aab5d85e..6e260eb5 100644
+--- a/tests/test_design_inventory.py
++++ b/tests/test_design_inventory.py
+@@ -382,6 +382,34 @@ def test_the_rendered_counts_compare_only_on_a_full_run_on_the_baselines_platfor
+     assert cdi.compare_rendered(measured, pinned, False, "linux") == ("a narrower run than the baseline's", [])
+ 
+ 
++def test_a_run_is_compared_only_over_the_widths_and_languages_its_baseline_names():
++    import check_design_inventory as cdi  # noqa: PLC0415
++    every = (list(cdi.DEFAULT_VIEWPORTS), list(cdi.DEFAULT_LANGS))
++    assert cdi.in_baseline_scope({}, *every)
++    assert not cdi.in_baseline_scope({}, [280, 1010], ["de"])
++    quick = {"viewports": [280, 1010], "langs": ["de"]}
++    assert cdi.in_baseline_scope(quick, [1010, 280], ["de"])
++    assert not cdi.in_baseline_scope(quick, *every)
++    assert not cdi.in_baseline_scope(quick, [280, 1010], ["de", "en"])
++    assert not cdi.in_baseline_scope(quick, [280], ["de"])
++
++
++def test_the_merge_request_run_names_the_scope_of_its_pin_file():
++    quick = di.load_baseline(REPO / "tests" / "fixtures" / "design_inventory" / "baseline_quick.json")
++    ci = (REPO / ".gitlab-ci.yml").read_text(encoding="utf-8")
++    import check_design_inventory as cdi  # noqa: PLC0415
++    flags = "--viewports %s --langs %s --baseline tests/fixtures/design_inventory/baseline_quick.json" % (
++        ",".join(str(v) for v in quick["viewports"]), ",".join(quick["langs"]))
++    step = re.search(r'SCOPE=""\n\s*if \[ "\$CI_PIPELINE_SOURCE" = "merge_request_event" \]; then\n(.*?)\n\s*fi\n(.*?\$SCOPE)',
++                     ci, re.S)
++    assert step, "validate:ui no longer sets the quick scope only on a merge request pipeline"
++    assert flags in step.group(1)
++    assert "--viewports" not in step.group(2) and "--langs" not in step.group(2) and "--baseline" not in step.group(2), (
++        "the unconditional design check run must read no scope, so main renders every width and language")
++    assert quick["rendered"]["platform"] == "linux"
++    assert set(quick["viewports"]) <= set(cdi.DEFAULT_VIEWPORTS) and set(quick["langs"]) <= set(cdi.DEFAULT_LANGS)
++
++
+ def test_the_static_counts_find_each_gap(tmp_path):
+     site, mocks = _tree(tmp_path)
+     (site / "styles" / "system.css").write_text(
+@@ -485,8 +513,16 @@ def test_the_gap_counts_count_each_defect_once(tmp_path):
+     assert "not compared: a narrower run than the baseline's" in out, out
+ 
+ 
+-def test_the_baseline_names_only_pages_the_check_renders_and_counts_it_knows():
+-    baseline = di.load_baseline()
++def test_the_full_baseline_names_no_scope():
++    full = di.load_baseline()
++    assert "viewports" not in full and "langs" not in full, (
++        "main's run reads baseline.json over every width and language; a scope named here would "
++        "make it a narrower run that compares nothing")
++
++
++@pytest.mark.parametrize("name", ["baseline.json", "baseline_quick.json"])
++def test_the_baseline_names_only_pages_the_check_renders_and_counts_it_knows(name):
++    baseline = di.load_baseline(REPO / "tests" / "fixtures" / "design_inventory" / name)
+     rendered = baseline["rendered"]
+     assert rendered["platform"] == "linux", "the baseline is measured in validate:ui's browser image"
+     names = {p.name for p in di.load().pages}
+@@ -595,6 +631,38 @@ def test_a_coverage_gap_or_a_miss_off_its_pin_fails_a_full_run(tmp_path):
+     assert "count rose · Home · miss · Block heading · %d, baseline %d" % (misses, misses - 1) in out, out
+ 
+ 
++@needs_browser
++def test_a_narrower_run_is_compared_only_with_a_baseline_that_names_its_scope(tmp_path):
++    doc = _doc(tmp_path, GOOD_ROW, "\n## Pages\n\n| Page | Kind | Source | URL | FI | Expect |\n|---|---|---|---|---|---|\n"
++               "| Home | built | `site_v2/dist` | `en/index.html` | path | Block heading |\n")
++    dist = tmp_path / "dist"
++    for rel in ("en/index.html", "en/extra/index.html"):
++        (dist / rel).parent.mkdir(parents=True, exist_ok=True)
++        (dist / rel).write_text('<!doctype html><body><div class="sechead"><span class="eyebrow">Block</span></div></body>',
++                                encoding="utf-8")
++    mocks = tmp_path / "mocks"
++    mocks.mkdir()
++
++    def run(scope: dict) -> tuple[int, str]:
++        baseline = tmp_path / "baseline.json"
++        baseline.write_text(json.dumps({**scope, "static": {}, "coverage": {},
++                                        "rendered": {"platform": sys.platform, "pages": {}}}), encoding="utf-8")
++        proc = subprocess.run(
++            [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--inventory", str(doc),
++             "--dist", str(dist), "--mocks", str(mocks), "--baseline", str(baseline),
++             "--viewports", "1010", "--langs", "en"],
++            capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"})
++        return proc.returncode, proc.stdout + proc.stderr
++
++    code, out = run({"viewports": [1010], "langs": ["en"]})
++    assert code == 1, out
++    assert "count rose · page with no row · en/extra/index.html · 1, baseline 0" in out, out
++    assert "not compared" not in out, out
++    code, out = run({})
++    assert "not compared: a narrower run than the baseline's" in out, out
++    assert "count rose" not in out, out
++
++
+ def test_a_pin_may_not_rise_above_mains_and_a_new_entry_starts_at_zero():
+     base = {"static": {"g": {"a": 2}}, "coverage": {}, "rendered": {"platform": "linux", "pages": {"Home": {"split": 3}}}}
+     now = json.loads(json.dumps(base))
+@@ -607,9 +675,10 @@ def test_a_pin_may_not_rise_above_mains_and_a_new_entry_starts_at_zero():
+                                    "rendered · Home · split · 4, main 3"]
+ 
+ 
+-def _mains_baseline() -> dict:
++def _mains_baseline(name: str = "baseline.json") -> dict | None:
+     """The baseline on the branch this one merges into: the MR's base in an MR pipeline, the first
+-    parent on any other CI pipeline, the merge base with GitLab's main on a working copy."""
++    parent on any other CI pipeline, the merge base with GitLab's main on a working copy. None for
++    a pin file other than baseline.json that the base does not hold yet."""
+     def git(*args):
+         return subprocess.run(["git", "-c", "safe.directory=*", *args], cwd=REPO, capture_output=True, text=True,
+                               encoding="utf-8")
+@@ -619,7 +688,7 @@ def _mains_baseline() -> dict:
+         remote = "gitlab/main" if git("rev-parse", "--verify", "-q", "gitlab/main").returncode == 0 else "origin/main"
+         ref = git("merge-base", "HEAD", remote).stdout.strip()
+     assert ref, "no base to compare the baseline with"
+-    path ="%s:tests/fixtures/design_inventory/baseline.json" % ref
++    path = "%s:tests/fixtures/design_inventory/%s" % (ref, name)
+     proc = git("show", path)
+     if proc.returncode and os.environ.get("CI"):
+         # A shallow CI clone may not hold the base commit; fetch it.
+@@ -628,6 +697,8 @@ def _mains_baseline() -> dict:
+         else:
+             git("fetch", "--no-tags", "--depth=1", "origin", ref)
+         proc = git("show", path)
++    if proc.returncode and name != "baseline.json" and re.search(r"does not exist in|exists on disk, but not in", proc.stderr):
++        return None
+     assert proc.returncode == 0, "main's baseline is not in this clone (%s): %s" % (ref, proc.stderr.strip())
+     return json.loads(proc.stdout)
+ 
+@@ -669,6 +740,16 @@ def test_no_pin_rises_above_mains():
+     assert up == [], "a pin rose above main's; a new gap is fixed, not pinned:\n" + "\n".join(up)
+ 
+ 
++def test_no_quick_pin_rises_above_mains():
++    base = _mains_baseline("baseline_quick.json")
++    if base is None:
++        # Main holds no quick pins yet; this branch introduces them.
++        return
++    current = di.load_baseline(REPO / "tests" / "fixtures" / "design_inventory" / "baseline_quick.json")
++    up = di.rises(current, base)
++    assert up == [], "a quick pin rose above main's; a new gap is fixed, not pinned:\n" + "\n".join(up)
++
++
+ def _built_page_check(tmp_path: Path, html: str) -> tuple[int, str]:
+     """The check on one BUILT page whose only Expect is the header's search, at 1010px. A
+     `visible=` assertion measures only what its selector finds, so removal is caught here or
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/review.md          |  44 ++--
+#    .claude/task/review_input.patch | 462 +++++++++++++++++++++++++++++++---------
+#    2 files changed, 395 insertions(+), 111 deletions(-)
+# ============================================================================

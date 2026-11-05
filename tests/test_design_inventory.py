@@ -382,6 +382,34 @@ def test_the_rendered_counts_compare_only_on_a_full_run_on_the_baselines_platfor
     assert cdi.compare_rendered(measured, pinned, False, "linux") == ("a narrower run than the baseline's", [])
 
 
+def test_a_run_is_compared_only_over_the_widths_and_languages_its_baseline_names():
+    import check_design_inventory as cdi  # noqa: PLC0415
+    every = (list(cdi.DEFAULT_VIEWPORTS), list(cdi.DEFAULT_LANGS))
+    assert cdi.in_baseline_scope({}, *every)
+    assert not cdi.in_baseline_scope({}, [280, 1010], ["de"])
+    quick = {"viewports": [280, 1010], "langs": ["de"]}
+    assert cdi.in_baseline_scope(quick, [1010, 280], ["de"])
+    assert not cdi.in_baseline_scope(quick, *every)
+    assert not cdi.in_baseline_scope(quick, [280, 1010], ["de", "en"])
+    assert not cdi.in_baseline_scope(quick, [280], ["de"])
+
+
+def test_the_merge_request_run_names_the_scope_of_its_pin_file():
+    quick = di.load_baseline(REPO / "tests" / "fixtures" / "design_inventory" / "baseline_quick.json")
+    ci = (REPO / ".gitlab-ci.yml").read_text(encoding="utf-8")
+    import check_design_inventory as cdi  # noqa: PLC0415
+    flags = "--viewports %s --langs %s --baseline tests/fixtures/design_inventory/baseline_quick.json" % (
+        ",".join(str(v) for v in quick["viewports"]), ",".join(quick["langs"]))
+    step = re.search(r'SCOPE=""\n\s*if \[ "\$CI_PIPELINE_SOURCE" = "merge_request_event" \]; then\n(.*?)\n\s*fi\n(.*?\$SCOPE)',
+                     ci, re.S)
+    assert step, "validate:ui no longer sets the quick scope only on a merge request pipeline"
+    assert flags in step.group(1)
+    assert "--viewports" not in step.group(2) and "--langs" not in step.group(2) and "--baseline" not in step.group(2), (
+        "the unconditional design check run must read no scope, so main renders every width and language")
+    assert quick["rendered"]["platform"] == "linux"
+    assert set(quick["viewports"]) <= set(cdi.DEFAULT_VIEWPORTS) and set(quick["langs"]) <= set(cdi.DEFAULT_LANGS)
+
+
 def test_the_static_counts_find_each_gap(tmp_path):
     site, mocks = _tree(tmp_path)
     (site / "styles" / "system.css").write_text(
@@ -485,8 +513,16 @@ def test_the_gap_counts_count_each_defect_once(tmp_path):
     assert "not compared: a narrower run than the baseline's" in out, out
 
 
-def test_the_baseline_names_only_pages_the_check_renders_and_counts_it_knows():
-    baseline = di.load_baseline()
+def test_the_full_baseline_names_no_scope():
+    full = di.load_baseline()
+    assert "viewports" not in full and "langs" not in full, (
+        "main's run reads baseline.json over every width and language; a scope named here would "
+        "make it a narrower run that compares nothing")
+
+
+@pytest.mark.parametrize("name", ["baseline.json", "baseline_quick.json"])
+def test_the_baseline_names_only_pages_the_check_renders_and_counts_it_knows(name):
+    baseline = di.load_baseline(REPO / "tests" / "fixtures" / "design_inventory" / name)
     rendered = baseline["rendered"]
     assert rendered["platform"] == "linux", "the baseline is measured in validate:ui's browser image"
     names = {p.name for p in di.load().pages}
@@ -595,6 +631,38 @@ def test_a_coverage_gap_or_a_miss_off_its_pin_fails_a_full_run(tmp_path):
     assert "count rose · Home · miss · Block heading · %d, baseline %d" % (misses, misses - 1) in out, out
 
 
+@needs_browser
+def test_a_narrower_run_is_compared_only_with_a_baseline_that_names_its_scope(tmp_path):
+    doc = _doc(tmp_path, GOOD_ROW, "\n## Pages\n\n| Page | Kind | Source | URL | FI | Expect |\n|---|---|---|---|---|---|\n"
+               "| Home | built | `site_v2/dist` | `en/index.html` | path | Block heading |\n")
+    dist = tmp_path / "dist"
+    for rel in ("en/index.html", "en/extra/index.html"):
+        (dist / rel).parent.mkdir(parents=True, exist_ok=True)
+        (dist / rel).write_text('<!doctype html><body><div class="sechead"><span class="eyebrow">Block</span></div></body>',
+                                encoding="utf-8")
+    mocks = tmp_path / "mocks"
+    mocks.mkdir()
+
+    def run(scope: dict) -> tuple[int, str]:
+        baseline = tmp_path / "baseline.json"
+        baseline.write_text(json.dumps({**scope, "static": {}, "coverage": {},
+                                        "rendered": {"platform": sys.platform, "pages": {}}}), encoding="utf-8")
+        proc = subprocess.run(
+            [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--inventory", str(doc),
+             "--dist", str(dist), "--mocks", str(mocks), "--baseline", str(baseline),
+             "--viewports", "1010", "--langs", "en"],
+            capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+        return proc.returncode, proc.stdout + proc.stderr
+
+    code, out = run({"viewports": [1010], "langs": ["en"]})
+    assert code == 1, out
+    assert "count rose · page with no row · en/extra/index.html · 1, baseline 0" in out, out
+    assert "not compared" not in out, out
+    code, out = run({})
+    assert "not compared: a narrower run than the baseline's" in out, out
+    assert "count rose" not in out, out
+
+
 def test_a_pin_may_not_rise_above_mains_and_a_new_entry_starts_at_zero():
     base = {"static": {"g": {"a": 2}}, "coverage": {}, "rendered": {"platform": "linux", "pages": {"Home": {"split": 3}}}}
     now = json.loads(json.dumps(base))
@@ -607,9 +675,10 @@ def test_a_pin_may_not_rise_above_mains_and_a_new_entry_starts_at_zero():
                                    "rendered · Home · split · 4, main 3"]
 
 
-def _mains_baseline() -> dict:
+def _mains_baseline(name: str = "baseline.json") -> dict | None:
     """The baseline on the branch this one merges into: the MR's base in an MR pipeline, the first
-    parent on any other CI pipeline, the merge base with GitLab's main on a working copy."""
+    parent on any other CI pipeline, the merge base with GitLab's main on a working copy. None for
+    a pin file other than baseline.json that the base does not hold yet."""
     def git(*args):
         return subprocess.run(["git", "-c", "safe.directory=*", *args], cwd=REPO, capture_output=True, text=True,
                               encoding="utf-8")
@@ -619,7 +688,7 @@ def _mains_baseline() -> dict:
         remote = "gitlab/main" if git("rev-parse", "--verify", "-q", "gitlab/main").returncode == 0 else "origin/main"
         ref = git("merge-base", "HEAD", remote).stdout.strip()
     assert ref, "no base to compare the baseline with"
-    path ="%s:tests/fixtures/design_inventory/baseline.json" % ref
+    path = "%s:tests/fixtures/design_inventory/%s" % (ref, name)
     proc = git("show", path)
     if proc.returncode and os.environ.get("CI"):
         # A shallow CI clone may not hold the base commit; fetch it.
@@ -628,6 +697,8 @@ def _mains_baseline() -> dict:
         else:
             git("fetch", "--no-tags", "--depth=1", "origin", ref)
         proc = git("show", path)
+    if proc.returncode and name != "baseline.json" and re.search(r"does not exist in|exists on disk, but not in", proc.stderr):
+        return None
     assert proc.returncode == 0, "main's baseline is not in this clone (%s): %s" % (ref, proc.stderr.strip())
     return json.loads(proc.stdout)
 
@@ -667,6 +738,16 @@ def test_no_pin_rises_above_mains():
         return
     up = _unlisted(di.rises(current, base))
     assert up == [], "a pin rose above main's; a new gap is fixed, not pinned:\n" + "\n".join(up)
+
+
+def test_no_quick_pin_rises_above_mains():
+    base = _mains_baseline("baseline_quick.json")
+    if base is None:
+        # Main holds no quick pins yet; this branch introduces them.
+        return
+    current = di.load_baseline(REPO / "tests" / "fixtures" / "design_inventory" / "baseline_quick.json")
+    up = di.rises(current, base)
+    assert up == [], "a quick pin rose above main's; a new gap is fixed, not pinned:\n" + "\n".join(up)
 
 
 def _built_page_check(tmp_path: Path, html: str) -> tuple[int, str]:

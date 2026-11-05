@@ -24,7 +24,9 @@
 > coverage gaps: a built page no row owns, a generator that fails, a generator page no row names,
 > and a language a mock does not carry. A count that differs from its pin fails. A pin may not
 > rise above main's, so a new page or mock arrives with no gaps. The rendered counts depend on the
-> font, so they are compared only on the platform the baseline names. Text overflows when it runs
+> font, so they are compared only on the platform the baseline names. A merge request renders the
+> narrowest and the widest width in EN and DE against `baseline_quick.json`; main renders every
+> width against `baseline.json`. Text overflows when it runs
 > more than 1px past its box. Two lines overlap when they still cross with a fifth of each line's
 > height trimmed at the top and the bottom.
 
