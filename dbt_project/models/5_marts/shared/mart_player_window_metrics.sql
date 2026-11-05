@@ -147,8 +147,8 @@ select
     r.is_card,
     r.is_comparison,
     t.minutes,
-    if(r.page_tab = 'club', lm.minutes, null) as minutes_prev_season,
     r.metric_value,
+    if(r.page_tab = 'club', lm.minutes, null) as minutes_prev_season,
     if(r.page_tab = 'club' and r.is_comparison, l.metric_value, null) as metric_value_prev_season
 from rows_shown as r
 inner join tab_windows as t

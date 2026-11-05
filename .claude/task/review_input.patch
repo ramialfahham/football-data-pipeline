@@ -1377,7 +1377,7 @@ index 33992be5..1ae6b694 100644
  group by player_sk, league_sk, season_sk, league_code, season_api_year, position_group
 diff --git a/dbt_project/models/4_intermediate/shared/int_player_squad_window__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_squad_window__metrics.sql
 new file mode 100644
-index 00000000..060a517f
+index 00000000..3e9d5640
 --- /dev/null
 +++ b/dbt_project/models/4_intermediate/shared/int_player_squad_window__metrics.sql
 @@ -0,0 +1,290 @@
@@ -1414,10 +1414,10 @@ index 00000000..060a517f
 +
 +squads as (
 +    select
-+        concat(page_tab, '|', cast(team_sk as string), '|', coalesce(anchor_season_sk, 'current')) as squad_sk,
 +        page_tab,
 +        team_sk,
-+        anchor_season_sk
++        anchor_season_sk,
++        concat(page_tab, '|', cast(team_sk as string), '|', coalesce(anchor_season_sk, 'current')) as squad_sk
 +    from squad_keys
 +),
 +
@@ -1460,10 +1460,10 @@ index 00000000..060a517f
 +
 +window_rows as (
 +    select
++        legs.*,
 +        s.squad_sk,
 +        t.team_matches,
-+        t.window_is_complete,
-+        legs.*
++        t.window_is_complete
 +    from squad_seasons as s
 +    inner join {{ ref('int_legs__player_match') }} as legs
 +        on s.team_sk = legs.team_sk and s.season_sk = legs.season_sk
@@ -1664,16 +1664,16 @@ index 00000000..060a517f
 +)
 +
 +select
++    m.*,
 +    s.page_tab,
 +    s.team_sk,
-+    s.anchor_season_sk,
-+    m.*
++    s.anchor_season_sk
 +from metrics as m
 +inner join squads as s
 +    on m.squad_sk = s.squad_sk
 diff --git a/dbt_project/models/4_intermediate/shared/int_player_window__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_window__metrics.sql
 new file mode 100644
-index 00000000..3682124c
+index 00000000..ec1f6444
 --- /dev/null
 +++ b/dbt_project/models/4_intermediate/shared/int_player_window__metrics.sql
 @@ -0,0 +1,220 @@
@@ -1693,8 +1693,8 @@ index 00000000..3682124c
 +
 +window_legs as (
 +    select
-+        w.window_type,
-+        legs.*
++        legs.*,
++        w.window_type
 +    from window_seasons as w
 +    inner join {{ ref('int_legs__player_match') }} as legs
 +        on
@@ -2345,7 +2345,7 @@ index 00000000..8d3e71c2
 +    on m.player_sk = p.player_sk
 diff --git a/dbt_project/models/5_marts/shared/mart_player_window_metrics.sql b/dbt_project/models/5_marts/shared/mart_player_window_metrics.sql
 new file mode 100644
-index 00000000..0e434aee
+index 00000000..ac6c6586
 --- /dev/null
 +++ b/dbt_project/models/5_marts/shared/mart_player_window_metrics.sql
 @@ -0,0 +1,159 @@
@@ -2498,8 +2498,8 @@ index 00000000..0e434aee
 +    r.is_card,
 +    r.is_comparison,
 +    t.minutes,
-+    if(r.page_tab = 'club', lm.minutes, null) as minutes_prev_season,
 +    r.metric_value,
++    if(r.page_tab = 'club', lm.minutes, null) as minutes_prev_season,
 +    if(r.page_tab = 'club' and r.is_comparison, l.metric_value, null) as metric_value_prev_season
 +from rows_shown as r
 +inner join tab_windows as t
@@ -3548,3 +3548,20 @@ index 4de99912..135cf0d7 100644
  PINNED_FILES = 177
  
  HASH = chr(35)
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/review.md          |   53 +-
+#    .claude/task/review_input.patch | 4987 +++++++++++++++++++++++++++------------
+#    2 files changed, 3536 insertions(+), 1504 deletions(-)
+# ============================================================================

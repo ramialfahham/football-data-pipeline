@@ -31,10 +31,10 @@ squad_keys as (
 
 squads as (
     select
-        concat(page_tab, '|', cast(team_sk as string), '|', coalesce(anchor_season_sk, 'current')) as squad_sk,
         page_tab,
         team_sk,
-        anchor_season_sk
+        anchor_season_sk,
+        concat(page_tab, '|', cast(team_sk as string), '|', coalesce(anchor_season_sk, 'current')) as squad_sk
     from squad_keys
 ),
 
@@ -77,10 +77,10 @@ squad_totals as (
 
 window_rows as (
     select
+        legs.*,
         s.squad_sk,
         t.team_matches,
-        t.window_is_complete,
-        legs.*
+        t.window_is_complete
     from squad_seasons as s
     inner join {{ ref('int_legs__player_match') }} as legs
         on s.team_sk = legs.team_sk and s.season_sk = legs.season_sk
@@ -281,10 +281,10 @@ metrics as (
 )
 
 select
+    m.*,
     s.page_tab,
     s.team_sk,
-    s.anchor_season_sk,
-    m.*
+    s.anchor_season_sk
 from metrics as m
 inner join squads as s
     on m.squad_sk = s.squad_sk

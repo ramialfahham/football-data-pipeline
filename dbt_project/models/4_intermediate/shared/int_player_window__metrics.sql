@@ -14,8 +14,8 @@ with window_seasons as (
 
 window_legs as (
     select
-        w.window_type,
-        legs.*
+        legs.*,
+        w.window_type
     from window_seasons as w
     inner join {{ ref('int_legs__player_match') }} as legs
         on

@@ -1,8 +1,8 @@
 # Review — claude/feat-136-player-data-4a65b7
 
-diff_sha256: a8d363b6627cf5d72a4f1bc95535d733247ad4a30be9f85ba378f5c75f81dd9c
+diff_sha256: bc4a60afafce8c669c0b65a1dc5549b7af86c1e59279bfef6499c0d4d4ee9d69
 
-rounds: 2
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
@@ -12,6 +12,7 @@ risks_checked:
 - decisions_taken lists the five new rows, the seven key flags and the metric order, and they match the seed diff.
 - docs/wireframes/12_player_stats.md still says five ratio metrics; the contract declares it stays because #136 retires it in the tab build.
 - No credentials, new mechanism, recurring cost or reserved decision in the diff.
+- Round 3: the lint fix only reorders select lists in three models; expressions, joins and the contract are unchanged.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
@@ -21,6 +22,7 @@ risks_checked:
 - Same-window rule: each ratio's numerator and denominator run over the same window rows under the same completeness gate.
 - Rule R4: one macro serves the window, squad and national models, and a competition the player did not play in still counts.
 - Grain, relationship and value tests exist on all new models; the formula test covers both new metric surfaces.
+- Round 3: column sets, join keys and grain are unchanged by the lint fix; no name collision from a wildcard moving first; unions were not reordered, and readers use names, not positions.
 
 ## football-analytics-expert-reviewer
 VERDICT: PASS
