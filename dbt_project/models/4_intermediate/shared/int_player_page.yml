@@ -4,9 +4,9 @@ models:
   - name: int_competition_season__club_windows
     description: >
       The club competitions a player's season and the season before it are made of. For each club
-      competition-season: this_season is every club competition-season whose dates overlap it, and
-      last_season every one overlapping its previous season and not already in this_season. Grain:
-      (anchor_season_sk, window_type, season_sk).
+      competition-season: this_season is every club edition of the same season, and last_season
+      every one of its previous season not already in this_season, as competition_season_map places
+      them. Grain: (anchor_season_sk, window_type, season_sk).
     config:
       tags: ["intermediate", "football", "player"]
     tests:

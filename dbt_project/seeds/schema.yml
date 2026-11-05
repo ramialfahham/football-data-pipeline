@@ -1275,6 +1275,42 @@ seeds:
         description: "The hand working: the player-season, the matches counted, each sum, and every cleaning rule that changed an input."
         tests: [not_null]
 
+  - name: competition_season_map
+    description: >
+      Our own placing of every club competition edition in a season, reviewed by hand, so no season
+      depends on the provider's labels or dates. A season is a league season plus every club
+      competition edition that belongs to it. A split-year season runs from 1 July to 30 June, a
+      calendar-year season from 1 January to 31 December. An edition belongs to one season as a
+      whole; the Super Cup and qualifiers open the new season. Each edition carries both seasons,
+      because a split-year league and a calendar-year league read it differently: the CONCACAF
+      Champions Cup 2026 is 2025/26 for Liga MX and 2026 for MLS. A new edition needs a row.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season_api_year]
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: season_type
+        description: "The edition's own kind of season: split_year or calendar_year."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["split_year", "calendar_year"]
+      - name: split_year_season
+        description: "The split-year season the edition belongs to, by its start year: 2025 is 2025/26."
+        tests: [not_null]
+      - name: calendar_year_season
+        description: "The calendar-year season the edition belongs to."
+        tests: [not_null]
+      - name: previous_season_api_year
+        description: "The provider year of the same competition's season before this one. Blank on the first edition held."
+      - name: note
+        description: "Why the row reads as it does, where a plain date reading would not explain it."
+
   - name: player_window_answer_key
     description: >
       Hand-worked values for a real player over a whole window of the Player page, added up from

@@ -1,44 +1,24 @@
-# Review — claude/feat-136-player-data-4a65b7
+# Review — feat/season-mapping
 
-diff_sha256: bc4a60afafce8c669c0b65a1dc5549b7af86c1e59279bfef6499c0d4d4ee9d69
+diff_sha256: 04ad54ff432d8ceb904061a254f43192aee662d3e3bf7fb01c74aaf010cb93b4
 
-rounds: 3
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 1 failed on doc-sync: the rank change made layering.md and the locked display contract false. Round 2 confirms rank is back to value descending, rank_best_first carries the direction-aware rank, and the layering.md row is updated.
-- Every path in the patch is in scope_paths; approved_design none holds, as neither site_v2/src nor the export changes.
-- decisions_taken lists the five new rows, the seven key flags and the metric order, and they match the seed diff.
-- docs/wireframes/12_player_stats.md still says five ratio metrics; the contract declares it stays because #136 retires it in the tab build.
-- No credentials, new mechanism, recurring cost or reserved decision in the diff.
-- Round 3: the lint fix only reorders select lists in three models; expressions, joins and the contract are unchanged.
+- Round 1 failed because J1 2027's previous season sat in decisions_reserved while the seed and a test used it. Round 2: decisions_taken records it under the approved definition, and the seed row and test case match.
+- Reserved label corrections stay open; season_label is untouched, as the diff only adds columns to dim_competition_season.
+- Scope, impact map, doc-sync, secrets and approved_design none hold from round 1.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 failed on two findings: the contract quoted no catalogue row, and the rank contract went stale. Both resolved: the contract matches the seed, and rank stays value descending with rank_best_first tested in assert_player_page_windows.
-- Layer placement: base refs staging only, no intermediate refs a mart, no competition literal above staging.
-- Same-window rule: each ratio's numerator and denominator run over the same window rows under the same completeness gate.
-- Rule R4: one macro serves the window, squad and national models, and a competition the player did not play in still counts.
-- Grain, relationship and value tests exist on all new models; the formula test covers both new metric surfaces.
-- Round 3: column sets, join keys and grain are unchanged by the lint fix; no name collision from a wildcard moving first; unions were not reordered, and readers use names, not positions.
-
-## football-analytics-expert-reviewer
-VERDICT: PASS
-risks_checked:
-- The five new rows checked against pitch meaning, description, formula and direction sibling; name, description and formula agree on each.
-- shots_on_goal_player_pct: the numerator is a subset of the denominator on cleaned data.
-- metric_order is unique and gapless per player group, and the relative order of the rows already ordered is kept.
-- Exactly seven player rows carry is_key_metric true.
-
-## platform-reviewer
-VERDICT: PASS
-risks_checked:
-- generate_metric_sql.py renders in memory before writing and aborts on a missing metric; the drift tests pin the new surfaces.
-- The history-comment pin moves from 707 to 704, matching three removed lines; the test still fails on a rise.
-- No hook, workflow, requirements or site config in the diff.
-- metric_order keeps the passing boards' order that test_catalogue_order pins.
+- All 236 seed rows read against the definition: split-year and calendar-year values, the winter and 2025 Club World Cup rows, J1 and the June qualifiers. No placing error.
+- Previous-season chain: each row points to the competition's edition before it; the two gaps are intended.
+- All 33 club league codes have rows; national codes are absent; the coverage test catches a missing edition.
+- Window logic: the join keeps the grain, the anti-join keeps the two windows disjoint, and every case in assert_season_map_places_known_editions traces to its expected value.
+- Layer placement and dim change: core reads a seed, the map's unique key prevents fan-out, other dim readers select named columns.
 
 ## escalations
 (none)
