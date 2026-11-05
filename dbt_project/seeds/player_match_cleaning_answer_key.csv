@@ -14,7 +14,7 @@ fixture_id,team_id,player_id,stat,expected_value,rule,working
 1550091,495,37137,saves,2,,"His 2 saves are within the opponent's 4 shots on target, which its 2 open-play goals do not exceed: 2 stays, no rule fires."
 1570347,540,2813,goals_against,2,,"He played the whole match, 90 minutes; his 2 conceded are his team's 2 and stay."
 1570347,540,2813,saves,6,,"The opponent had 8 shots on target and missed no penalty; 6 saves stay."
-1387886,81,36827,goals_against,,matched_to_team_goals_conceded,"The only keeper with minutes, 90 of them; the provider says 0 conceded, the score says 5. A gap of 5 is over 2, so it stays blank."
+1387886,81,36827,goals_against,5,matched_to_team_goals_conceded,"The only keeper with minutes, 90 of them; the provider says 0 conceded, the score says 5. The only keeper of a whole match has what the team conceded, at any gap."
 1575153,163,38753,passes_key,1,limited_to_whole,"2 key passes from 1 delivered pass: a key pass is a pass, so key passes become 1 (a gap of 1)."
 1174745,815,270487,passes_accurate,,limited_to_whole,"The match's pass values sum below its passes (0.72), so they are counts: 40 accurate of 12 passes is a gap of 28, over 2, so blank."
 872251,413,36887,dribbles,1,raised_to_part,"Dribble attempts blank while others in the match have values, so the blank rule reads 0; but he completed 1 dribble, so attempts are raised to 1."
@@ -45,3 +45,4 @@ fixture_id,team_id,player_id,stat,expected_value,rule,working
 1635737,1026,263057,goals_against,1,,"Went off in minute 52; of the 2 goals conceded, the one in minute 5 came before the change."
 1635737,1026,7573,goals_against,1,,"Same match: came on in minute 52; of the 2 goals conceded, the one in minute 89 came after the change."
 1636235,489,386298,goals_against,,,"Came on in minute 32 and a goal fell in that same minute, so the events cannot say whose it was: blank, never 0."
+1528901,1116,126530,goals_against,3,matched_to_team_goals_conceded,"The only keeper with minutes, 90 of them; the provider says 0 conceded, the team lost 0-3. The score decides at any gap."

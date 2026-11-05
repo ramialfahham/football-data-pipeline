@@ -47,8 +47,9 @@ match stats are good enough.
     competitions. The current season comes first. A match not played has no line-ups to research.
 - Contradictions. A match stat that contradicts a result, a stat that passes its own check, or its
   own total is corrected to the nearest value consistent with it when the gap is at most 2. It is
-  left blank when the gap is larger or when neither side passes its check. A result is corrected
-  only to the league's official decision, with its source; match stats never correct a result.
+  left blank when the gap is larger or when neither side passes its check. The only goalkeeper of
+  a whole match is set to the score at any gap. A result is corrected only to the league's
+  official decision, with its source; match stats never correct a result.
 - Every correction is listed on its row in stat_corrections, under one of these rules:
   goals_from_events (a player's goals taken from the goal events);
   penalty_goals_limited_to_goals; penalties_scored_matched_to_penalty_goals;

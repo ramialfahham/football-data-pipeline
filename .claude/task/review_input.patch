@@ -1,477 +1,118 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 14e68732..1abdbc28 100644
+index 1abdbc28..5a56f249 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,216 +1,68 @@
--# Task contract — the component registry and the Inter font
-+# Task contract — fill a goalkeeper's blank goals against
+@@ -1,12 +1,12 @@
+-# Task contract — fill a goalkeeper's blank goals against
++# Task contract — the only keeper of a whole match has the team's goals conceded
  
  objective: >
--  Issue #243 step 3, first MR: the Inter font, self-hosted, with a check that fails on any
--  character the site uses that Inter lacks; docs/design/components.yml in the approved format,
--  listing every component the site uses today with its current values, from which the block
--  standard's element table is generated; and the six checks of the format note, each counting
--  today's gaps and only allowed to fall. Nothing visual changes beyond the font.
-+  Issue #247: a goalkeeper's blank goals against takes the team's goals conceded when the keeper
-+  played the whole match alone, and the goals conceded between the minute on and off when the
-+  keeper came on or went off; where neither can be read it stays blank and is never counted as 0.
+-  Issue #247: a goalkeeper's blank goals against takes the team's goals conceded when the keeper
+-  played the whole match alone, and the goals conceded between the minute on and off when the
+-  keeper came on or went off; where neither can be read it stays blank and is never counted as 0.
++  Issue #247, follow-up: the only goalkeeper of a whole match has the team's goals conceded at any
++  gap from the provider's value, as the blank rule already says; the limit of 2 stays for every
++  other contradiction.
  
  refs: >
--  #243, the registry format and the font approved in chat, 2026-11-02 (the issue's two notes);
--  this MR's plan approved in chat, 2026-11-03. Set values stay today's until #230 decides them.
-+  #247, approved in chat, 2026-11-03; its plan approved in chat, 2026-11-04.
+-  #247, approved in chat, 2026-11-03; its plan approved in chat, 2026-11-04.
++  #247; the rule and its plan approved in chat, 2026-11-04.
  
  scope_paths:
--  - site_v2/src/assets/fonts/InterVariable.woff2
--  - site_v2/src/assets/fonts/OFL.txt
--  - site_v2/src/styles/system.css
--  - site_v2/src/layouts/Layout.astro
--  - site_v2/src/lib/chartMarks.mjs
--  - site_v2/src/components/fixture/PlayerRow.astro
--  - site_v2/src/components/fixture/RecentMatch.astro
--  - site_v2/src/components/fixture/HeadToHead.astro
--  - site_v2/scripts/check-font-coverage.mjs
--  - site_v2/scripts/check-font-coverage.test.mjs
--  - tests/fixtures/font_coverage/*
--  - docs/design/components.yml
--  - docs/wireframes/block_standard.md
--  - scripts/check_component_registry.py
--  - scripts/check_design_inventory.py
--  - scripts/check_chart_screenshots.py
--  - tests/test_check_chart_screenshots.py
--  - tests/test_check_component_registry.py
--  - tests/fixtures/component_registry/*
--  - tests/fixtures/design_inventory/baseline.json
--  - tests/test_design_inventory.py
--  - tests/fixtures/chart_screenshots/*
--  - .gitlab-ci.yml
--  - .claude/hooks/task_contract_gate.py
--  - .claude/review_routing.json
--  - .claude/agents/cto-reviewer.md
--  - .claude/agents/platform-reviewer.md
--  - .claude/task/TEMPLATE.md
--  - .claude/skills/validate-local/SKILL.md
--  - docs/working_agreement.md
--  - docs/north_star.md
--  - docs/roles/platform_reliability.md
--  - tests/test_governance_doc_parity.py
--  - tests/test_governance_hooks.py
--  - tests/test_sentence_length_in_docs.py
--  - .claude/task/contract.md
--  - .claude/task/review.md
--  - .claude/task/review_input.patch
--  - .claude/task/acceptance_evidence.md
--  - .claude/task/rendered_page_evidence.md
--
--protected_override: >
--  Approved in chat, 2026-11-03: the CPO approved the #243 step 3 plan for this MR, which adds the
--  registry check and the font check to the validate:ui job in .gitlab-ci.yml and makes
--  docs/design/components.yml a protected path (task_contract_gate.py, review_routing.json and the
--  reviewer briefs that count the guard paths). Approved in chat, 2026-11-04 (#243, with the table):
--  tests/test_design_inventory.py's test_no_pin_rises_above_mains allows the nine listed counts that
--  rise only because Inter is wider, each only while main still holds its old value. Approved in
--  chat, 2026-11-04: scripts/check_design_inventory.py and scripts/check_chart_screenshots.py launch
--  Chromium with --font-render-hinting=none, to test whether CI's whole-pixel text causes the rises
--  outside the nine.
-+  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-+  - dbt_project/tests/assert_base_player_stats_cleaned.sql
-+  - dbt_project/seeds/player_match_cleaning_answer_key.csv
-+  - dbt_project/models/docs/cleaning_rules.md
-+  - .claude/task/**
- 
- impact_map: >
--  kick-off column: `.fxrow.fit-one:has(.topmatch)` styles only a match row with a Top match tag
--  that fitBlocks.mjs marks fit-one (Home, Matches, a competition's Matchdays, the Team page's Next
--  matches); its third track becomes `auto`, the track every other match row's kick-off already has.
--  narrow rows: `.plrow .pstat` is written by PlayerRow.astro (Players to watch, a match page) and
--  MatchLineups.astro (a line-up's minutes, one unit, so unchanged); the goals and assists may wrap
--  between their two units. A result row's competition name is written only by RecentMatch.astro
--  (a match page's and the Team page's recent matches, the Team page's Matches tab) and HeadToHead.astro (a match
--  page's meetings); it loses its never-split `nb`, so it wraps between words while the date stays
--  one unit, and the dot after it stays on the competition's line. MatchGoals.astro's markup is
--  unchanged, but its timed goal rows are `.resrow.meet`, so the 45% limit below reaches them and a
--  goal's minute and assist may wrap between units. Two changes to every result row in system.css:
--  on the one-line form the competition and date take at most 45% of the row (`fit-content(45%)`,
--  was `auto`), so a long competition no longer covers the name; below the 420px switch the row's
--  gaps are `clamp(8px, 3cqw, 20px)`, an existing set value, 8px on the narrowest rows, about 10px at
--  375px, at most 12.6px just under the switch, and 11px at and above it as before; no new width.
--  pin exception (protected): test_no_pin_rises_above_mains in tests/test_design_inventory.py skips
--  nine named rises, each keyed to main's old value. fires_on: validate:ui and test:python, which
--  runs the same test on every non-scheduled pipeline. on_failure: any rise outside the nine, or
--  one of the nine against a different main value, still fails the test.
--  stops_being_enforced_if_wrong: while main holds a listed count's old value, that count may rise
--  by any amount and no test caps it; "only because Inter is wider" is checked by no test. The cap
--  is review: the commit that lands baseline.json goes back to cto-reviewer and platform-reviewer
--  as a delta against the first CI measurement and the flagged one. A listed count may stay at main's
--  value, nothing outside the nine may have risen, and a figure above the Windows table on #243 goes
--  back to the CPO. compare_counts still fails any count off its pin
--  in both directions, and a new test proves a rise outside the list and a listed rise on another
--  main value both fail. The exception stops matching after the first main pipeline, unless a count
--  returns to exactly its old value, which reopens that entry; the next MR removes it.
--  measuring flag (protected): both checks launch Chromium with --font-render-hinting=none, so text
--  takes fractional widths on Linux as it does on Windows. fires_on: validate:ui. on_failure: a count
--  off its pin still fails compare_counts, and a changed chart still fails its screenshot pin.
--  stops_being_enforced_if_wrong: the flag changes how every count is measured, so main's pins were
--  taken without it. A count outside the nine that rises under the flag is not a pass: it goes back
--  to the coordinating session. The flag can also lower a count, and rises() then compares a flagged
--  count with main's unflagged pin, so a rise the flag clears passes unrecorded: the MR lists every
--  count that rose without the flag and clears with it, both figures, for the CPO. No test pins the
--  flag; removing it moves the counts, which the pins then catch. The flag stays only if the CPO
--  keeps it once that list is in front of him; if any of the three remains, the result goes back to
--  the coordinating session.
--  scatter label: chartMarks.mjs places the scatter plot's team label against measured text; it
--  re-places it once the page's fonts have loaded, as fitBlocks.mjs already re-fits; it runs on
--  the Team page's Performance tab only.
--  pages: system.css is imported globally by site_v2/src/layouts/Layout.astro, and Layout.astro is
--  imported by 11 files under site_v2/src (`grep -rl "layouts/Layout.astro" site_v2/src | wc -l`),
--  every page template; so every built page in every language changes font and nothing else. The
--  font file is imported by Layout.astro with `?url`, so Vite emits it under _astro/, which
--  firebase.json already serves with an immutable cache header; firebase.json is unchanged.
--  mocks: the design-mocks generators inline system.css as text; the @font-face's relative URL
--  does not resolve from a mock, so mocks keep their fallback font and their counts.
--  data: none; no model, export or committed payload changes, no BigQuery query.
--  design_check: block_standard.md's element table is regenerated from components.yml; every
--  existing row keeps its name and selector, and its rule and measurement except the Match row
--  kick-off, Player row and Result row meta rows, which carry the decisions below; new rows are
--  ruled with today's measured values, so check_design_inventory.py's counts may only fall.
--  baseline.json and the chart screenshot pins take CI's measurement in Inter; a rise is fixed,
--  never pinned, except the nine counts of the listed exception.
--  ci (protected): validate:ui gains `python scripts/check_component_registry.py`, its pytest and
--  `node site_v2/scripts/check-font-coverage.mjs --dist site_v2/dist`; the font check's node test
--  runs where every site_v2 node test runs, in build:site-v2's prebuild `npm test`; same images,
--  same pins, nothing installed (the font check uses Node's built-in Brotli). fires_on: the
--  existing *ui_paths rules; the new scripts, fixtures and docs/design/components.yml join
--  *ui_paths. on_failure: the job fails. stops_being_enforced_if_wrong: a check that never runs
--  fails open; each new test has a RED proof.
--  guards (protected): task_contract_gate.py's PROTECTED_FILES gains docs/design/components.yml;
--  its readers are the contract gate itself and stop_gate.py (`_is_protected`), so an edit to the
--  registry then needs protected_override and impact_map; review_routing.json routes the path to
--  cto-reviewer (opus); the guard-path counts move 13 -> 14 and cto-alone 6 -> 7, pinned by
--  tests/test_governance_doc_parity.py across the briefs, the routing _doc, working_agreement.md,
--  platform_reliability.md and north_star.md.
--  blast_radius: every built page's font; the Player page work (#136, no commits yet) adds its
--  components to the protected registry in its own MR; validate:ui gains the static checks (seconds)
--  and the measured check's new rows.
-+  writers: base_apif__fixture_players is written by dbt only; it reads stg_apif__fixture_players,
-+  base_apif__fixtures_next, base_apif__fixture_events and base_apif__fixture_statistics, all
-+  unchanged.
-+  downstream: `dbt ls --select base_apif__fixture_players+ --resource-type model` lists 48 models:
-+  base_apif__lineups, base_apif__players, dim_player, fct_fixture_lineup, fct_fixture_player_stats,
-+  int_legs__player_match, int_legs__team_from_players, int_player_club_season__metrics,
-+  int_player_competition_benchmark_metrics_long, int_player_competition_benchmarks,
-+  int_player_match__metrics, int_player_momentum__metrics, int_player_profile__contribution,
-+  int_player_profile__yoy, int_player_season__metrics, int_player_season__team,
-+  int_player_season_position__metrics, int_player_season_record,
-+  int_team_competition_benchmark_metrics_long, int_team_competition_benchmarks,
-+  int_team_momentum__metrics, int_team_profile__yoy, int_team_season__deserved_vs_actual,
-+  int_team_season__metrics, int_team_season__metrics_cumulative, int_team_season_record,
-+  mart_competition_fixtures, mart_leaderboards, mart_match_days, mart_matchday_insights,
-+  mart_player_career, mart_player_competition_benchmarks, mart_player_fixture_stats,
-+  mart_player_momentum, mart_player_profile, mart_player_season_record, mart_roster,
-+  mart_team_competition_benchmarks, mart_team_competitions, mart_team_index,
-+  mart_team_leaderboards, mart_team_momentum_window, mart_team_profile, mart_team_season,
-+  mart_team_season_insights, mart_team_season_record, mart_team_window_metrics. Only the player
-+  chain reads the column: fct_fixture_player_stats, int_legs__player_match,
-+  int_player_club_season__metrics, int_player_momentum__metrics, int_player_season_record,
-+  mart_player_fixture_stats (grep of `goals_against` over dbt_project/models/*player*).
-+  layer_rules: base holds cleaning (dbt_project/docs/layering.md); check_layer_contract applies; no
-+  new model, no partition or cluster key.
-+  deploy_order: no column added or removed, so nothing downstream breaks before the merge; the
-+  values change at the first nightly after the merge.
-+  blast_radius: goalkeeper goals against, saves percentage and the goalkeeper benchmarks change
-+  where a blank is filled or a wrong 0 goes; 2026 BL1, UCL and UNL hold 141 blank lines. Outfield
-+  players and team numbers are unchanged.
+   - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+@@ -43,26 +43,25 @@ impact_map: >
+   deploy_order: no column added or removed, so nothing downstream breaks before the merge; the
+   values change at the first nightly after the merge.
+   blast_radius: goalkeeper goals against, saves percentage and the goalkeeper benchmarks change
+-  where a blank is filled or a wrong 0 goes; 2026 BL1, UCL and UNL hold 141 blank lines. Outfield
+-  players and team numbers are unchanged.
++  only for the only keeper of a whole match whose provider value is more than 2 from the score;
++  today those lines are blank. Outfield players and team numbers are unchanged.
  
  approved_design:
--  - home: #127
--  - competitions: #128
--  - competition: #129
--  - matches: #130
--  - match: #132
--  - teams: #133
--  - team: #134
--
--acceptance_criteria:
--  - "One registry lists every component: its parts, the text style of each part, its narrow form and its unbreakable units. The block standard is generated from it."
--  - "Inter, self-hosted under the SIL Open Font License, replaces `system-ui` so every device and CI measure the same letter widths."
--  - "A check fails on any character the site uses that Inter lacks."
--  - "A page uses only classes a component lists."
--  - "Every text matches the set style its part names."
--  - "The stylesheet uses only values from the sets."
--  - "A component has one wide form and at most one narrow form, at one switch width from the set."
--  - "Text breaks only where its part allows; the never-split units are checked at every width in EN, DE and FI."
--  - "The file is protected: a new component, part or set value needs the CPO's approval."
--  - "Each check counts today's gaps, and each count may only fall; nothing visual changes beyond the font."
-+  - none: no page output changes
+   - none: no page output changes
  
  decisions_taken: >
--  Approved in chat, 2026-11-02 (#243 notes): the registry format and the font. Approved in chat,
--  2026-11-03, with this MR's plan: the font file is InterVariable.woff2 from the official Inter 4.1
--  release with its licence; the sets hold today's values under neutral value-based names until
--  #230; a part may carry `selector`, `rule`, `measured` and `ruled-on` so the generated table keeps
--  its columns and every existing row's text, and cross-page rows sit under a top-level `rules:`
--  key; checks 1, 2 and 5 run through the generated rows in the existing measured check, checks 3
--  and 4 in scripts/check_component_registry.py, check 6 through the protected-path list.
--  NEW MECHANISM, approved in chat, 2026-11-03 with the plan: (1) scripts/check_component_registry.py,
--  which generates the element table and counts checks 3 and 4; (2)
--  site_v2/scripts/check-font-coverage.mjs. No new dependency. RECURRING COST: both checks run in the
--  existing validate:ui job on the existing runner; and because docs/design/components.yml becomes a
--  guard path, every future MR that edits it routes one cto-reviewer review at opus.
--
--  Approved in chat, 2026-11-04: the font's approval on #243 covers every page, the Player page
--  included, and the competition stats page (`[competition]/[stats]/index.astro`) belongs to #129,
--  the competition page's design. `approved_design` cannot name the Player page: the gate takes only
--  pages in docs/wireframes/approved_designs.yml, which has no Player entry until #136's design is
--  approved. This MR changes the Player page's font and nothing else on it.
--
--  Approved in chat, 2026-11-03: the site loads one font file, InterVariable.woff2; italic text is
--  slanted by the browser (recorded on #243). The font check counts each missing character per page as
--  a pinned gap that may only fall; the garbled player names are their own issue. The core-document
--  count edits (working_agreement.md §2 "the other seven"; north_star.md "17 rows: the 14 guard
--  paths"). The top-match row's kick-off column, fixed at 41px, sizes to its text as every other
--  match row's does, because Inter's "17:30" runs 5px past 41px; the Match row kick-off row asserts
--  one-line and fits, and every part that never breaks asserts fits.
--
--  Approved in chat, 2026-11-04 (recorded on #243): Inter's narrow rows — below 375px a player row's
--  goals and assists may take two lines, and a result row's opponent and its competition and date
--  wrap between words. The scatter label is re-placed once the fonts have loaded. The result row's
--  45% limit and its narrow gaps serve that decision and change no approved design; both are listed
--  in the MR head.
--
--  Approved in chat, 2026-11-04 (#243, with the table): this MR sets the design check's pins to CI's
--  measurement for nine counts that rise only because Inter is wider: Match page scroll, split and
--  overflow; Played match page scroll; Team page, Home, Competition overview and Teams page split;
--  Competitions index overflow. Every other rise still fails. The exception is removed in the next MR.
-+  The issue's rules, as approved. A goalkeeper's blank is a zero only without minutes or when the
-+  team conceded none. The minute on and off come from the keeper's substitution event (player went
-+  off, assist came on; `is_substitute` is false for both keepers) or a card other than a yellow
-+  card. A goal in the same minute as the change leaves the value blank. No new mechanism and no
-+  recurring cost.
+-  The issue's rules, as approved. A goalkeeper's blank is a zero only without minutes or when the
+-  team conceded none. The minute on and off come from the keeper's substitution event (player went
+-  off, assist came on; `is_substitute` is false for both keepers) or a card other than a yellow
+-  card. A goal in the same minute as the change leaves the value blank. No new mechanism and no
+-  recurring cost.
++  As approved. For the only keeper with minutes who played 90 or more, the score decides whatever
++  the provider sent, and the correction stays listed under matched_to_team_goals_conceded. The
++  sole-keeper check of the cleaned test also fails on a blank. No new mechanism and no recurring
++  cost.
  
  decisions_reserved:
--  - "The set values (sizes, weights, colours, spacings, switch widths): #230, the CPO's; this MR carries today's values."
-+  - none: the rules are the approved issue's; any line left blank is reported to the CPO, not forced
+-  - none: the rules are the approved issue's; any line left blank is reported to the CPO, not forced
++  - none: the rule is approved
  
  done_when:
--  - "cd site_v2 && npm test && npm run build pass, and node scripts/check-font-coverage.mjs --dist dist passes on the build."
--  - "python scripts/check_component_registry.py passes (table in sync with the registry, counts on their pins), python scripts/check_page_css.py passes, and python -m pytest tests/test_check_component_registry.py tests/test_design_inventory.py tests/test_governance_doc_parity.py tests/test_governance_hooks.py passes, each new test with a RED proof."
--  - "The narrow local design check on the Team page and the played match page at 375 and 1010px shows no element miss on the new rows."
--  - "On every built match page and Team page in EN, DE and FI, no result row or player row runs past its box at 320, 360, 375, 700 and 1010px, and at 280px no more than on main, measured on one machine against main's build."
--  - "The MR pipeline's validate:ui passes with the committed baselines."
--  - "An MR is open, never merged."
-+  - dbt parse passes and SQLFluff reports nothing new on the model
-+  - the answer-key and cleaned tests pass in data:build:mr
-+  - the 2026 count of blank lines in BL1, UCL and UNL is reported from the MR's dataset, each remaining blank with its reason
-+  - the 437 lines with a provider value at 90 minutes are unchanged
+   - dbt parse passes and SQLFluff reports nothing new on the model
+   - the answer-key and cleaned tests pass in data:build:mr
+-  - the 2026 count of blank lines in BL1, UCL and UNL is reported from the MR's dataset, each remaining blank with its reason
+-  - the 437 lines with a provider value at 90 minutes are unchanged
++  - the 2026 count of blank keeper lines in BL1, UCL and UNL goes from 1 to 0 in the MR's dataset
++  - only the counted lines change and outfield values are unchanged
  
--amendments:
--  - 2026-11-04: + site_v2/src/lib/chartMarks.mjs, site_v2/src/components/fixture/PlayerRow.astro, site_v2/src/components/fixture/RecentMatch.astro, site_v2/src/components/fixture/HeadToHead.astro — authority: approved in chat, 2026-11-04 (Inter's narrow rows, recorded on #243; the scatter label's re-placement after the font loads); content: the narrow-row wrapping, the scatter label re-placement, the stated readings of approved_design, the recurring-cost line and the corrected CI line.
--  - 2026-11-04: + scripts/check_design_inventory.py, scripts/check_chart_screenshots.py, tests/test_check_chart_screenshots.py — authority: approved in chat, 2026-11-04; content: the launch flag, in the chart test's browser too so check and test measure one layout, and the sentences that named the system font, and no site change.
--  - 2026-11-04: + tests/test_sentence_length_in_docs.py — authority: the test's own rule that a pin moves down with a cleanup; content: .claude/agents/cto-reviewer.md 19 to 17 and docs/roles/platform_reliability.md 9 to 7, the sentences this MR split, and no pin raised.
--  - 2026-11-04: + tests/test_design_inventory.py — authority: approved in chat, 2026-11-04 (the nine-count pin exception, recorded on #243); content: the listed exception in test_no_pin_rises_above_mains, its test, and the result row's 45% limit and narrow gaps in the impact map.
-+amendments: (none)
+ amendments: (none)
 diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-index ca3b3170..f64af26e 100644
+index f64af26e..6cec67a1 100644
 --- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
 +++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-@@ -245,9 +245,11 @@ events as (
-         fixture_id,
-         team_id,
-         player_id,
-+        minute_elapsed,
-         event_type,
-         event_detail,
-         assist_player_name,
-+        assist_player_id,
-         is_goal,
-         is_own_goal,
-         is_missed_penalty,
-@@ -300,6 +302,53 @@ player_events as (
-     group by fixture_id, team_id, player_id
- ),
- 
-+-- A substitution names the player who went off and, as its assist, the player who came on.
-+player_changes as (
-+    select
-+        fixture_id,
-+        player_id,
-+        max(minute_on) as minute_on,
-+        min(minute_off) as minute_off
-+    from (
-+        select
-+            fixture_id,
-+            assist_player_id as player_id,
-+            minute_elapsed as minute_on,
-+            cast(null as int64) as minute_off
-+        from events
-+        where event_type = 'subst'
-+        union all
-+        select
-+            fixture_id,
-+            player_id,
-+            cast(null as int64) as minute_on,
-+            minute_elapsed as minute_off
-+        from events
-+        where event_type = 'subst' or (event_type = 'Card' and coalesce(event_detail, '') != 'Yellow Card')
-+    )
-+    where player_id is not null
-+    group by fixture_id, player_id
-+),
-+
-+-- An own goal is filed under the team it counts for, so every goal under the opponent is conceded.
-+keeper_spells as (
-+    select
-+        d.fixture_id,
-+        d.player_id,
-+        count(e.minute_elapsed) as goal_events_conceded,
-+        countif(
-+            e.minute_elapsed > coalesce(c.minute_on, -1) and e.minute_elapsed < coalesce(c.minute_off, 999)
-+        ) as goals_conceded_in_spell,
-+        countif(e.minute_elapsed = c.minute_on or e.minute_elapsed = c.minute_off) as goals_at_a_change
-+    from delivered as d
-+    inner join player_changes as c
-+        on d.fixture_id = c.fixture_id and d.player_id = c.player_id
-+    left join events as e
-+        on d.fixture_id = e.fixture_id and d.team_id != e.team_id and e.is_goal
-+    where d.position_code = 'G'
-+    group by d.fixture_id, d.player_id
-+),
-+
- -- The saves check judges the opponent's shots as the team cleaning judged them, before its own
- -- corrections: a figure the cleaning had to correct was never vouched for.
- team_lines as (
-@@ -340,6 +389,9 @@ in_context as (
-         ol.shots_on_target_before_correction as opponent_shots_on_target,
-         pe.goals as event_goals,
-         pe.goals_penalty as event_goals_penalty,
-+        ks.goal_events_conceded,
-+        ks.goals_conceded_in_spell,
-+        ks.goals_at_a_change,
-         if(d.team_id = f.home_team_id, f.goals_home, f.goals_away) as team_goals_for,
-         if(d.team_id = f.home_team_id, f.goals_away, f.goals_home) as team_goals_conceded,
-         fe.fixture_id is not null as has_events,
-@@ -377,6 +429,8 @@ in_context as (
-             and ol.team_id = if(d.team_id = f.home_team_id, f.away_team_id, f.home_team_id)
-     left join player_events as pe
-         on d.fixture_id = pe.fixture_id and d.team_id = pe.team_id and d.player_id = pe.player_id
-+    left join keeper_spells as ks
-+        on d.fixture_id = ks.fixture_id and d.player_id = ks.player_id
- ),
- 
- -- What the provider counted in the match, read from its own values before any change.
-@@ -389,8 +443,6 @@ counted as (
-         countif(shots_on_target is not null) over fixture > 0 as shots_on_target_counted,
-         countif(goals is not null) over fixture > 0 as goals_counted,
-         countif(goals_against is not null) over fixture > 0 as goals_against_counted,
--        countif(position_code = 'G' and goals_against is not null) over fixture > 0
--            as goals_against_counted_by_keepers,
-         countif(assists is not null) over fixture > 0 as assists_counted,
-         countif(saves is not null) over fixture > 0 as saves_counted,
-         countif(position_code = 'G' and saves is not null) over fixture > 0 as saves_counted_by_keepers,
-@@ -438,8 +490,10 @@ counted as (
-         team_match as (partition by league_code, fixture_id, team_id)
- ),
- 
---- 1. The blank rule. A keeper's saves and goals conceded are counted only by another keeper's
---- value, so an outfield player's zero cannot hand a keeper a clean sheet.
-+-- 1. The blank rule. A keeper's saves are counted only by another keeper's value, so an outfield
-+-- player's zero cannot hand a keeper a clean sheet. A keeper's blank goals conceded come from the
-+-- match: all of them for the only keeper of a whole match, those of the spell for a keeper who came
-+-- on or went off, read only when the events hold every goal and none falls in a change's minute.
- filled as (
-     select
-         *,
-@@ -454,8 +508,18 @@ filled as (
-         ) as goals_filled,
-         coalesce(
-             goals_against,
-+            if(position_code = 'G' and team_keepers_with_minutes = 1 and minutes >= 90, team_goals_conceded, null),
-             if(
--                if(position_code = 'G', goals_against_counted_by_keepers, goals_against_counted)
-+                position_code = 'G' and minutes > 0 and has_events
-+                and goals_at_a_change = 0 and goal_events_conceded = team_goals_conceded,
-+                goals_conceded_in_spell, null
-+            ),
-+            if(
-+                if(
-+                    position_code = 'G',
-+                    coalesce(minutes, if(minutes_counted and not has_positive_stat, 0, null)) = 0,
-+                    goals_against_counted
-+                )
-                 or team_goals_conceded = 0,
-                 0, null
-             )
+@@ -678,7 +678,7 @@ against_results as (
+             when
+                 position_code = 'G' and team_keepers_with_minutes = 1 and minutes >= 90
+                 and goals_against_filled != team_goals_conceded
+-                then if(abs(goals_against_filled - team_goals_conceded) <= 2, team_goals_conceded, null)
++                then team_goals_conceded
+             when goals_against_filled <= team_goals_conceded then goals_against_filled
+             when goals_against_filled - team_goals_conceded <= 2 then team_goals_conceded
+         end as goals_against_checked,
 diff --git a/dbt_project/models/docs/cleaning_rules.md b/dbt_project/models/docs/cleaning_rules.md
-index c7f92594..78ec6be1 100644
+index 78ec6be1..f375c242 100644
 --- a/dbt_project/models/docs/cleaning_rules.md
 +++ b/dbt_project/models/docs/cleaning_rules.md
-@@ -5,7 +5,11 @@ match stats are good enough.
- - Blank rule. A blank count is a zero only where the provider counted that stat in the match or a
-   second source proves the zero; every other blank stays blank. Counted in the match: for a team,
-   the other team's line has a value for it; for a player, another player in the match has one,
--  and for a goalkeeper's saves and goals conceded, another goalkeeper. The score proves it: a team
-+  and for a goalkeeper's saves, another goalkeeper. A goalkeeper's goals conceded come from the
-+  match. The only goalkeeper of a whole match has all the team conceded. One who came on or went
-+  off has those between the minute on and off, read from the substitution or a sending-off. That
-+  value stays blank unless the events hold every goal and none falls in a change's minute. The
-+  score proves it: a team
-   that scored none means its players scored and assisted none, and a team that conceded none means
-   its players conceded none. The match events prove it: every goal listed and none assisted means
-   no assists, goals that are all own goals by the opponent mean the team's players scored none, no
+@@ -47,8 +47,9 @@ match stats are good enough.
+     competitions. The current season comes first. A match not played has no line-ups to research.
+ - Contradictions. A match stat that contradicts a result, a stat that passes its own check, or its
+   own total is corrected to the nearest value consistent with it when the gap is at most 2. It is
+-  left blank when the gap is larger or when neither side passes its check. A result is corrected
+-  only to the league's official decision, with its source; match stats never correct a result.
++  left blank when the gap is larger or when neither side passes its check. The only goalkeeper of
++  a whole match is set to the score at any gap. A result is corrected only to the league's
++  official decision, with its source; match stats never correct a result.
+ - Every correction is listed on its row in stat_corrections, under one of these rules:
+   goals_from_events (a player's goals taken from the goal events);
+   penalty_goals_limited_to_goals; penalties_scored_matched_to_penalty_goals;
 diff --git a/dbt_project/seeds/player_match_cleaning_answer_key.csv b/dbt_project/seeds/player_match_cleaning_answer_key.csv
-index f538d11b..f509364b 100644
+index f509364b..09e39cdc 100644
 --- a/dbt_project/seeds/player_match_cleaning_answer_key.csv
 +++ b/dbt_project/seeds/player_match_cleaning_answer_key.csv
-@@ -39,3 +39,9 @@ fixture_id,team_id,player_id,stat,expected_value,rule,working
- 1451034,169,25926,shots_on_target,2,raised_to_open_play_goals,"Eintracht Frankfurt 5-1 Galatasaray. The per-player count (3 goals) and the own goal credited to the team make 4, not 5; the events (four goals, every scorer with a row, and the own goal) make 5 and give him 2 goals, neither a penalty. 1 shot on target against 2 open-play goals, a gap of 1: raised to 2."
- 1451034,169,25926,shots,2,raised_to_shots_on_target,"Same player: 1 shot against his 2 shots on target, a gap of 1: raised to 2."
- 1180382,119,50077,saves,,opponent_shots_on_target_unverified,"Athletico Paranaense 1-0 Internacional. His 2 saves against the other team's 0 shots on target and no missed penalty, a ceiling of 0; that figure fails its own check (below the other team's 1 open-play goal), so it cannot cap the saves: blank."
-+1647392,2745,404919,goals_against,2,,"The only keeper with minutes, 90 of them; the provider left goals conceded blank and the team conceded 2."
-+1635632,327,39055,goals_against,0,,"Went off at half-time, minute 45; all 5 goals conceded came later, the first in minute 47."
-+1635632,327,39178,goals_against,5,,"Same match: came on in minute 45 and conceded all 5."
-+1635737,1026,263057,goals_against,1,,"Went off in minute 52; of the 2 goals conceded, the one in minute 5 came before the change."
-+1635737,1026,7573,goals_against,1,,"Same match: came on in minute 52; of the 2 goals conceded, the one in minute 89 came after the change."
-+1636235,489,386298,goals_against,,,"Came on in minute 32 and a goal fell in that same minute, so the events cannot say whose it was: blank, never 0."
+@@ -14,7 +14,7 @@ fixture_id,team_id,player_id,stat,expected_value,rule,working
+ 1550091,495,37137,saves,2,,"His 2 saves are within the opponent's 4 shots on target, which its 2 open-play goals do not exceed: 2 stays, no rule fires."
+ 1570347,540,2813,goals_against,2,,"He played the whole match, 90 minutes; his 2 conceded are his team's 2 and stay."
+ 1570347,540,2813,saves,6,,"The opponent had 8 shots on target and missed no penalty; 6 saves stay."
+-1387886,81,36827,goals_against,,matched_to_team_goals_conceded,"The only keeper with minutes, 90 of them; the provider says 0 conceded, the score says 5. A gap of 5 is over 2, so it stays blank."
++1387886,81,36827,goals_against,5,matched_to_team_goals_conceded,"The only keeper with minutes, 90 of them; the provider says 0 conceded, the score says 5. The only keeper of a whole match has what the team conceded, at any gap."
+ 1575153,163,38753,passes_key,1,limited_to_whole,"2 key passes from 1 delivered pass: a key pass is a pass, so key passes become 1 (a gap of 1)."
+ 1174745,815,270487,passes_accurate,,limited_to_whole,"The match's pass values sum below its passes (0.72), so they are counts: 40 accurate of 12 passes is a gap of 28, over 2, so blank."
+ 872251,413,36887,dribbles,1,raised_to_part,"Dribble attempts blank while others in the match have values, so the blank rule reads 0; but he completed 1 dribble, so attempts are raised to 1."
+@@ -45,3 +45,4 @@ fixture_id,team_id,player_id,stat,expected_value,rule,working
+ 1635737,1026,263057,goals_against,1,,"Went off in minute 52; of the 2 goals conceded, the one in minute 5 came before the change."
+ 1635737,1026,7573,goals_against,1,,"Same match: came on in minute 52; of the 2 goals conceded, the one in minute 89 came after the change."
+ 1636235,489,386298,goals_against,,,"Came on in minute 32 and a goal fell in that same minute, so the events cannot say whose it was: blank, never 0."
++1528901,1116,126530,goals_against,3,matched_to_team_goals_conceded,"The only keeper with minutes, 90 of them; the provider says 0 conceded, the team lost 0-3. The score decides at any gap."
 diff --git a/dbt_project/tests/assert_base_player_stats_cleaned.sql b/dbt_project/tests/assert_base_player_stats_cleaned.sql
-index 7d7b53c7..d522b39d 100644
+index d522b39d..8e367d86 100644
 --- a/dbt_project/tests/assert_base_player_stats_cleaned.sql
 +++ b/dbt_project/tests/assert_base_player_stats_cleaned.sql
-@@ -4,9 +4,10 @@
- 
-   - blank_where_counted: a stat is blank although the provider delivered a value for it to someone
-     else in the match (read from stg_apif__fixture_players, the fetch base kept), and no correction
--    on the row left it blank. Exempt as the rules say: a keeper's saves and goals conceded are
--    counted only by another keeper; a player who did something (a positive stat, or a goal in the
--    events) keeps blank minutes; accurate passes stay blank in a match with no pass data.
-+    on the row left it blank. Exempt as the rules say: a keeper's saves are counted only by another
-+    keeper; a keeper who played, but not the whole match alone, may keep blank goals conceded when
-+    the team conceded; a player who did something (a positive stat, or a goal in the events) keeps
-+    blank minutes; accurate passes stay blank in a match with no pass data.
-   - part_above_whole, open_play_goals_above_shots_on_target, penalty_goals_above_goals,
-     penalties_scored_not_penalty_goals, card_maximum, goals_conceded_above_team,
-     keepers_goals_conceded_above_team, sole_keeper_goals_conceded, saves_above_ceiling,
-@@ -153,7 +154,6 @@ rows_in_context as (
-         countif(d.{{ stat }} is not null) over fixture as {{ stat }}_values_in_match,
-         {% endfor %}
-         countif(p.position_code = 'G' and d.saves is not null) over fixture as keeper_saves_values,
--        countif(p.position_code = 'G' and d.goals_against is not null) over fixture as keeper_goals_against_values,
-         coalesce(
-             sum(if(d.passes is not null and d.passes_accurate is not null, d.passes, null)) over fixture > 0,
-             false
-@@ -213,8 +213,14 @@ violations as (
-         r.{{ stat }} is null
-         and r.{{ stat }}_values_in_match > 0
-         and c.stat is null
--        {% if stat in ['saves', 'goals_against'] %}
--        and not (r.position_code = 'G' and r.keeper_{{ stat }}_values = 0)
-+        {% if stat == 'saves' %}
-+        and not (r.position_code = 'G' and r.keeper_saves_values = 0)
-+        {% endif %}
-+        {% if stat == 'goals_against' %}
-+        and not (
-+            r.position_code = 'G' and r.team_goals_conceded > 0
-+            and (r.minutes is null or r.minutes between 1 and 89 or (r.minutes > 0 and r.team_keepers_with_minutes > 1))
-+        )
-         {% endif %}
-         {% if stat == 'minutes' %}
-         and not r.did_something
+@@ -266,7 +266,7 @@ violations as (
+     from rows_in_context
+     where
+         position_code = 'G' and team_keepers_with_minutes = 1 and minutes >= 90
+-        and goals_against != team_goals_conceded
++        and team_goals_conceded is not null and goals_against is distinct from team_goals_conceded
+     union all
+     select league_code, fixture_id, team_id, player_id, 'keepers_goals_conceded_above_team', ''
+     from rows_in_context

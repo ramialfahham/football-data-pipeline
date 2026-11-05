@@ -1,12 +1,12 @@
-# Task contract — fill a goalkeeper's blank goals against
+# Task contract — the only keeper of a whole match has the team's goals conceded
 
 objective: >
-  Issue #247: a goalkeeper's blank goals against takes the team's goals conceded when the keeper
-  played the whole match alone, and the goals conceded between the minute on and off when the
-  keeper came on or went off; where neither can be read it stays blank and is never counted as 0.
+  Issue #247, follow-up: the only goalkeeper of a whole match has the team's goals conceded at any
+  gap from the provider's value, as the blank rule already says; the limit of 2 stays for every
+  other contradiction.
 
 refs: >
-  #247, approved in chat, 2026-11-03; its plan approved in chat, 2026-11-04.
+  #247; the rule and its plan approved in chat, 2026-11-04.
 
 scope_paths:
   - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
@@ -43,26 +43,25 @@ impact_map: >
   deploy_order: no column added or removed, so nothing downstream breaks before the merge; the
   values change at the first nightly after the merge.
   blast_radius: goalkeeper goals against, saves percentage and the goalkeeper benchmarks change
-  where a blank is filled or a wrong 0 goes; 2026 BL1, UCL and UNL hold 141 blank lines. Outfield
-  players and team numbers are unchanged.
+  only for the only keeper of a whole match whose provider value is more than 2 from the score;
+  today those lines are blank. Outfield players and team numbers are unchanged.
 
 approved_design:
   - none: no page output changes
 
 decisions_taken: >
-  The issue's rules, as approved. A goalkeeper's blank is a zero only without minutes or when the
-  team conceded none. The minute on and off come from the keeper's substitution event (player went
-  off, assist came on; `is_substitute` is false for both keepers) or a card other than a yellow
-  card. A goal in the same minute as the change leaves the value blank. No new mechanism and no
-  recurring cost.
+  As approved. For the only keeper with minutes who played 90 or more, the score decides whatever
+  the provider sent, and the correction stays listed under matched_to_team_goals_conceded. The
+  sole-keeper check of the cleaned test also fails on a blank. No new mechanism and no recurring
+  cost.
 
 decisions_reserved:
-  - none: the rules are the approved issue's; any line left blank is reported to the CPO, not forced
+  - none: the rule is approved
 
 done_when:
   - dbt parse passes and SQLFluff reports nothing new on the model
   - the answer-key and cleaned tests pass in data:build:mr
-  - the 2026 count of blank lines in BL1, UCL and UNL is reported from the MR's dataset, each remaining blank with its reason
-  - the 437 lines with a provider value at 90 minutes are unchanged
+  - the 2026 count of blank keeper lines in BL1, UCL and UNL goes from 1 to 0 in the MR's dataset
+  - only the counted lines change and outfield values are unchanged
 
 amendments: (none)

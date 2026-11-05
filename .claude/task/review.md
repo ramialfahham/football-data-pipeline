@@ -1,24 +1,22 @@
-# Review — fix/247-keeper-goals-against
+# Review — fix/247-sole-keeper-score
 
-diff_sha256: 2c495c2409cc8c0b43c3a5fccaa377d617d661fb333577be832ca0bb5eba2c41
+diff_sha256: c4954873fa444b09acd2b57308d96e8842555b026422562e884a8ad17ed459ae
 
-rounds: 4
-
-rounds_cap_override: approved in chat, 2026-11-04: one more round, for the test exemption and the rule text fixed after round 3.
+rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- All four changed files are in scope_paths; no amendment was needed.
-- The rules in the diff match decisions_taken; nothing in decisions_reserved is decided; no new mechanism or recurring cost.
-- The impact map carries the pasted lineage, the readers of the column and a counted blast radius; the change fills blanks and narrows no coverage.
-- cleaning_rules.md moves with the code; no stale reference to the removed columns; approved_design none holds, no site or export file is touched.
+- All five changed paths are in scope_paths; no amendment was needed.
+- The rule extension is recorded as approved in the contract; no new mechanism, metric, label or recurring cost.
+- cleaning_rules.md, the answer-key seed and the cleaned test move with the model; approved_design none holds, no site or export file is touched.
+- The impact map carries the lineage, the readers of the column and a blast radius that fits a one-line model change.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Rounds 2 and 3 FAIL closed: a keeper with no minutes data keeps a blank rather than a 0, and the test exempts only keepers who played without being the sole keeper of a whole match; the rule text states when the value stays blank.
-- Layer placement, grain and fan-out: the new CTEs sit in base, read only inputs the model already read, and cannot duplicate rows.
-- Event semantics against base_apif__fixture_events: subst and Card literals, own goals under the benefiting team, shoot-out kicks outside is_goal, a null-minute goal and a goal in a change's minute both leave the value blank.
-- Test and model agree case by case; the answer-key rows cover both fills and the same-minute blank.
-- Residual risk for the blank-line report: a keeper whose substitution event is missing but who has a later card would count from kick-off; no evidence it occurs.
+- Model case by case: a null filled value or score returns first, the multi-keeper branch is untouched, the sole keeper gets the score at any gap, every other case keeps the limit of 2.
+- Null handling: a null score stays blank in the model and is skipped by the test's guard; the test now flags a blank sole keeper where the score is known.
+- The minutes basis of model and test selects the same rows; the correction stays listed under matched_to_team_goals_conceded.
+- The two answer-key rows follow the new branch, checked against the rule text and logic, not warehouse data; no other test pins the old blank.
+- Logic stays in base; no metric, competition identifier, frontend or export change.

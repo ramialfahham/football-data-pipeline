@@ -678,7 +678,7 @@ against_results as (
             when
                 position_code = 'G' and team_keepers_with_minutes = 1 and minutes >= 90
                 and goals_against_filled != team_goals_conceded
-                then if(abs(goals_against_filled - team_goals_conceded) <= 2, team_goals_conceded, null)
+                then team_goals_conceded
             when goals_against_filled <= team_goals_conceded then goals_against_filled
             when goals_against_filled - team_goals_conceded <= 2 then team_goals_conceded
         end as goals_against_checked,
