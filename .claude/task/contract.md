@@ -1,77 +1,63 @@
-# Task contract — own season mapping: every club competition edition in one season
+# Task contract — remove the Inter allowance from the rising-pin test
 
 objective: >
-  Issue #257: a reviewed seed places every club competition edition in a season and feeds
-  dim_competition_season, and the Player page windows read it, so "This season" and "Last season"
-  no longer depend on provider labels or dates.
+  Remove INTER_RISES, its helper _unlisted and the test of that helper from
+  tests/test_design_inventory.py, so test_no_pin_rises_above_mains again refuses every pin above
+  main's. main's baseline.json holds the Inter counts, so the allowance has nothing left to allow.
 
 refs: >
-  #257, approved in chat 2026-11-05. Follows #256.
+  #243. The head of !378, merged 2026-11-04, names this removal as the follow-up MR.
 
 scope_paths:
-  - dbt_project/seeds/competition_season_map.csv
-  - dbt_project/seeds/schema.yml
-  - dbt_project/models/3_core/dim_competition_season.sql
-  - dbt_project/models/3_core/core.yml
-  - dbt_project/models/4_intermediate/shared/int_competition_season__club_windows.sql
-  - dbt_project/models/4_intermediate/shared/int_player_page.yml
-  - dbt_project/tests/assert_season_map_covers_club_editions.sql
-  - dbt_project/tests/assert_season_map_places_known_editions.sql
+  - tests/test_design_inventory.py
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
-  - .claude/task/acceptance_evidence.md
-  - .claude/task/rendered_page_evidence.md
+
+protected_override: >
+  Approved by the CPO's merge of !378 on 2026-11-04, whose head states that the next MR removes
+  INTER_RISES. Edits tests/test_design_inventory.py only, and only by deletion, plus one call that
+  stops going through the deleted helper.
 
 impact_map: >
-  writers: dbt only; no ingestion change. dim_competition_season gains columns from the new seed.
-  lineage: `dbt ls --resource-type model --select int_competition_season__club_windows+` returns
-  4_intermediate.shared.int_competition_season__club_windows,
-  4_intermediate.shared.int_player__page_profile,
-  4_intermediate.shared.int_player_page__window_seasons,
-  4_intermediate.shared.int_player_squad_window__metrics,
-  4_intermediate.shared.int_player_window__metrics,
-  5_marts.shared.mart_player_competition_benchmarks, 5_marts.shared.mart_player_profile,
-  5_marts.shared.mart_player_squad_benchmarks, 5_marts.shared.mart_player_window_metrics.
-  dim_competition_season readers (dim_player_team_season_mapping,
-  dim_team_competition_season_mapping, fct_standings, mart_roster and the marts above) select named
-  columns, so the added columns reach none of them.
-  consumption: the export does not read the two new marts yet; no page shows these windows.
-  ci_layer_rules: scripts/check_layer_contract.py, scripts/check_description_hygiene.py,
-  scripts/check_relationships_coverage.py.
-  deploy_order: one merge; the nightly dbt build loads the seed and rebuilds. No backfill.
-  blast_radius: the this_season and last_season members change for calendar-year leagues and for
-  split-year leagues with a calendar-year continental cup, and so the numbers in
-  mart_player_window_metrics, mart_player_squad_benchmarks and page_tab in
-  mart_player_competition_benchmarks. featured_team_sk can change with them. Kane's last season
-  stays as the answer key holds it. season_label does not change.
+  readers: `grep -rIln "INTER_RISES\|_unlisted\|test_only_a_listed_rise"` returns
+  tests/test_design_inventory.py and .claude/task/acceptance_evidence.md. The second is the #243
+  task's evidence record; no gate reads it unless a diff touches site_v2/src. Inside the test file
+  only test_no_pin_rises_above_mains and test_only_a_listed_rise_on_mains_old_value_is_allowed
+  call _unlisted. No script imports either name.
+  fires_on: validate:ui runs `python -m pytest tests/test_design_inventory.py -q`, and test:python
+  runs it through `pytest tests/ -v`. The file is in .ui_paths, so this MR's pipeline runs the
+  quick validate:ui.
+  evidence_main_needs_no_allowance: pipeline 3032797643 on 0e048d28, job 17778131723, is main's
+  last full validate:ui: 387 pages, 6 viewports, 3 languages, 13830 renders, 0 failures, success.
+  `git diff --stat 0e048d28 gitlab/main` over tests/fixtures/design_inventory/,
+  tests/test_design_inventory.py and scripts/check_design_inventory.py is empty, and later main
+  pipelines skipped validate:ui because they changed no ui path. All nine pins on main sit above
+  the listed value (2184/1174, 223/148, 12/9, 2/1, 47/32, 13/4, 21/19, 3/1, 42/24). _unlisted
+  excused a rise only from a main value equal to the listed one, so it excuses nothing today.
+  on_failure: a pin above main's fails test_no_pin_rises_above_mains with its message, as it did
+  before !378. This removal cannot turn a green run red, because no rise exists between this
+  branch and main.
+  stops_being_enforced_if_wrong: nothing; the change tightens the ratchet. Deleting the helper's
+  test loses no coverage of di.rises, which test_a_pin_may_not_rise_above_mains_and_a_new_entry_starts_at_zero
+  covers.
+  deploy_order: none; no data, no deploy, no new dependency, no recurring cost.
+  blast_radius: one test file. No pin, baseline file, script or page output changes.
 
 approved_design:
   - none: no page output changes
 
 decisions_taken: >
-  The definition of season and previous season, the split-year and calendar-year columns, and the
-  Club World Cup 2025 at the end of 2024/25: approved in chat 2026-11-05, recorded on #257.
-  Winter Club World Cup editions belong to the season they were played in, approved in chat
-  2026-11-05. J1 2027's previous season is J1 2026 and J1 2027 is the first split-year J1 season: both
-  follow the approved definition, the same league's season before it, approved in chat 2026-11-05.
-  Seed and column names follow the warehouse's patterns and go to the CPO in the MR head.
+  Removal only, as !378's head stated. No new mechanism, no new dependency, no recurring cost. The
+  coverage guard in test_no_pin_rises_above_mains stays: it serves a different purpose. The record
+  in .claude/task/acceptance_evidence.md stays: it belongs to the #243 task.
 
 decisions_reserved:
-  - season_label corrections for J1 2027, the CONCACAF Champions Cup and the AFC Champions League 2016 to 2021.
-
-acceptance_criteria:
-  - Every club competition edition belongs to a season by our own reviewed mapping, not by provider labels or dates.
-  - An edition stays whole in one season. The Super Cup and qualifiers open the new season.
-  - Each edition carries its split-year season and its calendar-year season, and each season its kind and previous season.
-  - dim_competition_season serves the mapping.
-  - A player's this season and last season read the mapping. KuPS's UEFA 2025 is no longer in Veikkausliiga 2026, and Liga MX's CONCACAF Champions Cup 2026 is in Liga MX 2025/26.
-  - A test fails when a club edition with fixtures has no mapping row.
+  - none: the removal was named in !378's head, and no pin, page or rule changes.
 
 done_when:
-  - dbt parse succeeds from the repo root.
-  - python -m pytest tests -q is green.
-  - The offline gates in FAST_GATES pass.
-  - CI's data:build:mr is green.
+  - grep for INTER_RISES and _unlisted in tests/test_design_inventory.py returns nothing.
+  - python -m pytest tests/test_design_inventory.py -q is green.
+  - The MR pipeline, quick validate:ui included, is green.
 
 amendments: (none)
