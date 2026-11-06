@@ -198,6 +198,21 @@ models:
       - name: season_label
         description: "The season as a page names it: the start and end year for a competition whose season runs across two years (2026/27), the year alone for one played within a calendar year (2026). Follows the registry's season_type."
         tests: [not_null]
+      - name: season_type
+        description: "split_year, 1 July to 30 June, or calendar_year, 1 January to 31 December, from competition_season_map. NULL on an edition the map does not hold."
+        tests:
+          - accepted_values:
+              values: ["split_year", "calendar_year"]
+      - name: split_year_season
+        description: "The split-year season the edition belongs to, by its start year: 2025 is 2025/26. A season is a league season plus every club competition edition that belongs to it, and an edition belongs to one season as a whole."
+      - name: calendar_year_season
+        description: "The calendar-year season the edition belongs to."
+      - name: previous_season_sk
+        description: "{{ doc('season_sk') }} Here it is the same competition's season before this one. NULL on the first edition held."
+        tests:
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
       - name: season_start_date
         description: "Season start date from API-Football."
       - name: season_end_date

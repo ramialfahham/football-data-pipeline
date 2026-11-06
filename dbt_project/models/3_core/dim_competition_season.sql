@@ -6,9 +6,21 @@ import_competition_registry as (
     select * from {{ ref('competition_registry') }}
 ),
 
+import_competition_season_map as (
+    select * from {{ ref('competition_season_map') }}
+),
+
 labelled as (
     select
         seasons.*,
+        map.season_type,
+        map.split_year_season,
+        map.calendar_year_season,
+        if(
+            map.previous_season_api_year is null,
+            null,
+            {{ dbt_utils.generate_surrogate_key(['seasons.league_api_id', 'map.previous_season_api_year']) }}
+        ) as previous_season_sk,
         case registry.season_type
             when 'split_year'
                 then concat(
@@ -21,6 +33,8 @@ labelled as (
     from import_base_apif__competition_seasons as seasons
     left join import_competition_registry as registry
         on seasons.league_code = registry.league_code
+    left join import_competition_season_map as map
+        on seasons.league_code = map.league_code and seasons.season_api_year = map.season_api_year
 )
 
 select
@@ -30,6 +44,10 @@ select
     league_api_id,
     season_api_year,
     season_label,
+    season_type,
+    split_year_season,
+    calendar_year_season,
+    previous_season_sk,
     season_start_date,
     season_end_date,
     season_is_current,
