@@ -1036,9 +1036,9 @@ models:
       - name: team_name_snapshot
         description: "The team's name as the events feed spelled it when this row was ingested. It is kept as a record of what the feed said, NOT as a name to display: it is neither corrected nor kept in step with the team dimension, so join on team_api_id for a current name."
       - name: player_name_snapshot
-        description: "The player's name as the events feed spelled it when this row was ingested. It is kept as a record of what the feed said, NOT as a name to display: it is neither corrected nor kept in step with the player dimension, and it is the only name available for an event the feed gives no player id for."
+        description: "The player's name as the events feed spelled it when this row was ingested, with text sent in the wrong character set repaired. It is kept as a record of what the feed said, NOT as a name to display: it is not kept in step with the player dimension, and it is the only name available for an event the feed gives no player id for."
       - name: assist_player_name
-        description: "The assisting player's name as the events feed spells it, and the only name available for an assist the feed gives no id for."
+        description: "The assisting player's name as the events feed spells it, with text sent in the wrong character set repaired. It is the only name available for an assist the feed gives no id for."
       - name: assist_player_sk
         description: "{{ doc('player_sk') }} Here it is the assisting player. NULL where the event has no assist or the assist has no id."
         tests:

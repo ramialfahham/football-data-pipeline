@@ -18,6 +18,11 @@ test("npm run build runs astro build, then the SEO check, then the built-pages c
   );
 });
 
+test("npm run build reads the data through the exported-text check before astro build", () => {
+  const { scripts } = JSON.parse(readFileSync(join(SITE_ROOT, "package.json"), "utf8"));
+  assert.ok(scripts.prebuild.split("&&").map((step) => step.trim()).includes("node scripts/check-exported-text.mjs"));
+});
+
 test("astro.config.mjs runs no check inside astro build", () => {
   const config = readFileSync(join(SITE_ROOT, "astro.config.mjs"), "utf8");
   assert.doesNotMatch(config, /from\s+["']\.\/integrations\//);

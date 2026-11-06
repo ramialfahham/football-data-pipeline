@@ -101,21 +101,34 @@ src as (
     select * from assist_events_src
     union all
     select * from lineups_src
+),
+
+latest as (
+    select
+        player_api_id,
+        player_name,
+        player_first_name,
+        player_last_name,
+        player_birth_date,
+        player_nationality,
+        player_photo_url,
+        raw_ingested_at
+    from src
+    qualify row_number() over (
+        partition by player_api_id
+        order by
+            source_priority asc,
+            raw_ingested_at desc
+    ) = 1
 )
 
 select
     player_api_id,
-    player_name,
-    player_first_name,
-    player_last_name,
     player_birth_date,
-    player_nationality,
     player_photo_url,
-    raw_ingested_at
-from src
-qualify row_number() over (
-    partition by player_api_id
-    order by
-        source_priority asc,
-        raw_ingested_at desc
-) = 1
+    raw_ingested_at,
+    {{ repair_garbled_text('player_name') }} as player_name,
+    {{ repair_garbled_text('player_first_name') }} as player_first_name,
+    {{ repair_garbled_text('player_last_name') }} as player_last_name,
+    {{ repair_garbled_text('player_nationality') }} as player_nationality
+from latest

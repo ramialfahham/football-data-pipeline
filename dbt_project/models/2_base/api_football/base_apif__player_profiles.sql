@@ -51,24 +51,42 @@ corrected as (
     from renamed
     left join import_country_name_overrides as overrides
         on renamed.player_birth_country_raw = overrides.provider_country
+),
+
+latest as (
+    select
+        player_api_id,
+        player_name,
+        player_first_name,
+        player_last_name,
+        player_birth_date,
+        player_birth_place,
+        player_birth_country,
+        player_nationality,
+        player_height,
+        player_weight,
+        player_position,
+        player_photo_url,
+        raw_ingested_at
+    from corrected
+    qualify row_number() over (
+        partition by player_api_id
+        order by raw_ingested_at desc
+    ) = 1
 )
 
 select
     player_api_id,
-    player_name,
-    player_first_name,
-    player_last_name,
     player_birth_date,
     player_birth_place,
     player_birth_country,
-    player_nationality,
     player_height,
     player_weight,
     player_position,
     player_photo_url,
-    raw_ingested_at
-from corrected
-qualify row_number() over (
-    partition by player_api_id
-    order by raw_ingested_at desc
-) = 1
+    raw_ingested_at,
+    {{ repair_garbled_text('player_name') }} as player_name,
+    {{ repair_garbled_text('player_first_name') }} as player_first_name,
+    {{ repair_garbled_text('player_last_name') }} as player_last_name,
+    {{ repair_garbled_text('player_nationality') }} as player_nationality
+from latest
