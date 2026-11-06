@@ -4,6 +4,8 @@ No BigQuery — exercises slugify, payload shaping and manifest building with
 fabricated rows so python-ci validates the logic offline.
 """
 
+import json
+
 import pytest
 
 from scripts.export_site_data import (
@@ -11,9 +13,6 @@ from scripts.export_site_data import (
     _display_group_of_type,
     _fixture_side,
     form_block,
-    _shape_benchmark_member,
-    _shape_benchmarks,
-    _shape_career_row,
     _shape_team_benchmark_member,
     build_manifest,
     deserved_scatter_index,
@@ -30,6 +29,7 @@ from scripts.export_site_data import (
     shape_next_match,
     shape_leaderboards,
     shape_player_payload,
+    shape_player_peers,
     shape_team_payload,
     shape_top_players,
     player_slug_with_id,
@@ -113,25 +113,53 @@ def test_every_leaderboard_read_takes_the_season_rows_only():
     assert "window_type = 'match'" in played and "season_to_date" not in played
 
 
-def test_player_payload_reads_the_match_log_from_the_player_in_a_match_mart(monkeypatch):
-    """The match log is the stat-line rows of mart_player_fixture_stats, with the team's score under the
-    keys the payload has always carried."""
+def test_player_payloads_read_only_the_named_players_and_the_marked_matches(monkeypatch):
+    """The export selects on the warehouse's flags: the featured season, the tab's window, the
+    filters a page shows. A squad is read whole, and a peer file holds the competition's players."""
     seen = []
 
     def fake_query(client, sql):
         seen.append(sql)
-        if "mart_player_profile" in sql:
-            return [{"player_sk": 7, "player_name": "P7", "season_api_year": 2026, "league_code": "BL1",
-                     "is_featured_season": True}]
+        if "from `football-data-pipeline-gcp.marts.mart_player_profile`" in sql:
+            return [{"player_sk": 7, "player_name": "P7", "has_club_tab": True, "current_club_team_sk": 5}]
+        if "distinct player_sk, squad_sk" in sql:
+            return [{"player_sk": 7, "squad_sk": "s1"}]
+        if "squad_sk in ('s1')" in sql:
+            return [{"player_sk": 7, "squad_sk": "s1", "team_sk": 5, "page_tab": "club",
+                     "metric_key": "goals_per90", "metric_value": 0.5}]
+        if "page_tab is not null" in sql:
+            return [{"player_sk": 7, "page_tab": "club", "competition_order": 1, "league_code": "BL1",
+                     "season_api_year": 2026, "position_group": "ATT", "metric_key": "goals_per90"}]
+        if "concat(league_code" in sql:
+            return [{"league_code": "BL1", "season_api_year": 2026, "position_group": "ATT",
+                     "metric_key": "goals_per90", "metric_value": 0.5}]
         return []
 
     monkeypatch.setattr(export_site_data, "_query", fake_query)
-    export_site_data.fetch_player_payloads(object(), sample=1)
+    payloads, peers = export_site_data.fetch_player_payloads(object(), [7, 8], sample=1)
 
+    assert [p["player_id"] for p in payloads] == [7]
+    assert [p["position_group"] for p in peers] == ["ATT"]
+    (profile_sql,) = [s for s in seen if "mart_player_profile" in s]
+    assert "is_featured_season and player_sk in (7)" in profile_sql
     (log_sql,) = [s for s in seen if "mart_player_fixture_stats" in s]
-    assert "mart_player_match_log" not in " ".join(seen)
-    assert "where has_stat_line and player_sk in (7)" in log_sql
+    assert "is_in_page_window and player_sk in (7)" in log_sql
     assert "team_goals_for as goals_for" in log_sql and "team_goals_against as goals_against" in log_sql
+    (peer_sql,) = [s for s in seen if "concat(league_code" in s]
+    assert "cast(season_api_year as string)" in peer_sql
+    assert "in ('BL1|2026|ATT')" in peer_sql
+    (next_sql,) = [s for s in seen if "mart_team_fixtures" in s]
+    assert "upcoming_rank = 1 and team_sk in (5)" in next_sql
+
+
+def test_player_payloads_read_nothing_for_no_players(monkeypatch):
+    monkeypatch.setattr(export_site_data, "_query", lambda *_: pytest.fail("no query expected"))
+    assert export_site_data.fetch_player_payloads(object(), []) == ([], [])
+
+
+def test_the_players_entity_refuses_a_run_with_no_boards(tmp_path):
+    with pytest.raises(ValueError, match="no player boards"):
+        export_site_data.export_all(tmp_path, ("players",), 0, client=object())
 
 
 def test_fetch_glossary_reads_catalogue_seed():
@@ -1124,193 +1152,154 @@ def test_shape_team_payload_benchmarks_default_empty_without_rows():
     assert p["seasons"][0]["benchmarks"] == []
 
 
-def test_shape_player_payload_orders_match_log_desc():
-    profiles = [
-        {"player_sk": 1090, "season_api_year": 2025, "league_code": "BL1",
-         "player_name": "Jamal Musiala", "player_photo_url": "ph",
-         "player_nationality": "Germany", "player_birth_date": "2003-02-26",
-         "position_code": "M", "goals_player": 12},
+def _player_profile(**kw):
+    return {"player_sk": 184, "player_name": "H. Kane", "player_full_name": "Harry Edward Kane",
+            "player_age": 33, "player_nationality": "England", "player_height": "188 cm",
+            "player_photo_url": "p.png", "position_group": "ATT", "has_club_tab": True,
+            "has_national_team_tab": True, "national_team_sk": 10, "current_club_team_sk": 157,
+            "season_label": "2026/27", **kw}
+
+
+_PLAYER_TEAMS = {157: {"team_id": 157, "name": "Bayern München", "crest": "b.png", "slug": "bayern-munchen"},
+                 10: {"team_id": 10, "name": "England", "crest": "e.png", "slug": "england"}}
+
+
+def _player_match(fixture_sk, kickoff, page_tab="club", **kw):
+    return {"player_sk": 184, "fixture_sk": fixture_sk, "page_tab": page_tab, "league_code": "BL1",
+            "kickoff_datetime": kickoff, "is_home": True, "goals_for": 2, "goals_against": 1,
+            "result": "W", "opponent_name": "Mainz", "opponent_logo_url": "m.png",
+            "minutes_played": 90, "goals_total": 1, "goals_assists": 0, "ball_actions_player": 40,
+            "match_involvement": "played", **kw}
+
+
+def _shape_player(profile=None, windows=(), benchmarks=(), squads=(), matches=(), next_rows=()):
+    return shape_player_payload(profile or _player_profile(), list(windows), list(benchmarks),
+                                list(squads), list(matches), list(next_rows), _PLAYER_TEAMS)
+
+
+def test_player_payload_header_comes_from_the_profile_and_the_slug_from_the_board_name():
+    p = _shape_player()
+    assert p["slug"] == player_slug_with_id("H. Kane", 184)
+    assert p["name"] == "Harry Edward Kane"
+    assert p["club"]["slug"] == "bayern-munchen"
+    assert [t["tab"] for t in p["tabs"]] == ["club", "national_team"]
+    assert p["tabs"][1]["team"]["name"] == "England"
+
+
+def test_player_payload_carries_only_the_tabs_the_data_marks():
+    p = _shape_player(_player_profile(has_club_tab=False, current_club_team_sk=None))
+    assert p["club"] is None
+    assert [t["tab"] for t in p["tabs"]] == ["national_team"]
+    assert [t["tab"] for t in _shape_player(_player_profile(has_national_team_tab=False))["tabs"]] == ["club"]
+
+
+def test_player_cards_keep_a_blank_and_stay_on_their_tab():
+    windows = [
+        {"page_tab": "club", "metric_key": "appearances", "is_card": True, "metric_value": 12.0},
+        {"page_tab": "club", "metric_key": "goals_player", "is_card": True, "metric_value": None},
+        {"page_tab": "national_team", "metric_key": "appearances", "is_card": True, "metric_value": 3.0},
     ]
-    matches = [
-        {"player_sk": 1090, "kickoff_datetime": "2025-09-01T18:30:00",
-         "opponent_name": "A", "goals_total": 1},
-        {"player_sk": 1090, "kickoff_datetime": "2025-10-01T18:30:00",
-         "opponent_name": "B", "goals_total": 0},
-    ]
-    p = shape_player_payload(_mark_featured(profiles), matches)
-    assert p["player_id"] == 1090
-    assert p["slug"] == "jamal-musiala-1090"
-    assert p["position"] == "M"
-    assert p["birth_date"] == "2003-02-26"
-    assert [m["opponent_name"] for m in p["match_log"]] == ["B", "A"]  # latest first
+    club, nation = _shape_player(windows=windows)["tabs"]
+    assert club["cards"] == {"appearances": 12.0, "goals_player": None}
+    assert nation["cards"] == {"appearances": 3.0}
 
 
-def test_shape_player_payload_current_team_and_per_season_team():
-    # GAP-16: dbt (int_player_season__team) flags the current club via is_current_team; the export
-    # SELECTS current_team by that flag and never re-ranks. Here 2024 is flagged (not the latest
-    # 2025 season) on purpose — to prove the export reads the flag, not its own "latest season".
-    profiles = [
-        {"player_sk": 7, "season_api_year": 2025, "league_code": "PD", "player_name": "Player X",
-         "team_sk": 541, "is_current_team": False,
-         "team_name": "Real Madrid", "team_logo_url": "rm.png", "team_country": "Spain"},
-        {"player_sk": 7, "season_api_year": 2024, "league_code": "BL1", "player_name": "Player X",
-         "team_sk": 157, "is_current_team": True,
-         "team_name": "Bayern", "team_logo_url": "fcb.png", "team_country": "Germany"},
-        {"player_sk": 7, "season_api_year": 2023, "league_code": "BL1", "player_name": "Player X",
-         "team_sk": None, "is_current_team": False},   # no finished leg -> honest absence
-    ]
-    p = shape_player_payload(_mark_featured(profiles), [])
-    assert p["current_team"] == {"team_id": 157, "name": "Bayern",
-                                 "crest": "fcb.png", "country": "Germany"}
-    teams = [s["team"] for s in p["seasons"]]   # seasons are year-desc: 2025, 2024, 2023
-    assert teams[0]["team_id"] == 541           # 2025 PD
-    assert teams[1]["team_id"] == 157           # 2024 BL1
-    assert teams[2] is None                     # 2023: no team
-    # internal keys never leak into the published season rows
-    assert all("team_sk" not in s and "is_current_team" not in s for s in p["seasons"])
+def test_player_last_season_is_absent_without_last_season_minutes_and_on_the_national_tab():
+    row = {"page_tab": "club", "metric_key": "goals_per90", "is_comparison": True, "minutes": 982,
+           "metric_value": 0.9, "minutes_prev_season": 3958, "metric_value_prev_season": 1.1}
+    club, nation = _shape_player(windows=[row])["tabs"]
+    assert club["last_season"] == {"minutes": 982, "minutes_prev": 3958, "metrics": [
+        {"metric_key": "goals_per90", "value": 0.9, "value_prev": 1.1}]}
+    assert nation["last_season"] is None
+    gone = _shape_player(windows=[{**row, "minutes_prev_season": None}])["tabs"][0]
+    assert gone["last_season"] is None
 
 
-def test_shape_benchmark_member_carries_mart_columns_and_ratio_atoms():
-    # GAP-21: a RATIO metric row keeps numerator/denominator (for the {num} of {den} · {pct}% triple);
-    # a per-90 row has null num/den. The export copies straight from the mart — no computation.
-    ratio = {
-        "metric_key": "duels_won_player_pct", "metric_value": 0.54, "percentile": 0.70,
-        "rank": 12, "peer_count": 41, "peer_median": 0.5, "vs_median_delta": 0.04,
-        "position_group": "ATT", "minutes": 2470, "appearances": 29,
-        "metric_numerator": 96, "metric_denominator": 178,
-    }
-    m = _shape_benchmark_member(ratio)
-    assert m == {
-        "metric_key": "duels_won_player_pct", "metric_value": 0.54, "percentile": 0.70,
-        "rank": 12, "peer_count": 41, "peer_median": 0.5, "vs_median_delta": 0.04,
-        "numerator": 96, "denominator": 178,
-    }
-    per90 = {**ratio, "metric_key": "goals_per90", "metric_value": 0.82,
-             "metric_numerator": None, "metric_denominator": None}
-    m90 = _shape_benchmark_member(per90)
-    assert m90["numerator"] is None and m90["denominator"] is None
-    # grain/internal keys never leak into the member
-    for internal in ("position_group", "minutes", "appearances",
-                     "metric_numerator", "metric_denominator"):
-        assert internal not in m
+def test_player_competition_filters_follow_the_marts_order_and_show_the_best_first_rank():
+    def row(order, league, key, **kw):
+        return {"page_tab": "club", "competition_order": order, "league_code": league,
+                "season_api_year": 2026, "season_label": "2026/27", "position_group": "ATT",
+                "position_player_count": 35, "metric_key": key, "metric_value": 0.5,
+                "rank_best_first": 3, "peer_median": 0.3, **kw}
+    club = _shape_player(benchmarks=[row(2, "UCL", "goals_per90"), row(1, "BL1", "passes_per90"),
+                                     row(1, "BL1", "fouls_per90", rank_best_first=1)])["tabs"][0]
+    assert [c["league_code"] for c in club["competitions"]] == ["BL1", "UCL"]
+    first = club["competitions"][0]
+    assert first["player_count"] == 35 and first["season_label"] == "2026/27"
+    assert first["metrics"][0] == {"metric_key": "fouls_per90", "value": 0.5, "rank": 1, "median": 0.3}
 
 
-def test_shape_benchmarks_groups_by_position_and_orders_by_metric_key():
-    def row(pos, key, **kw):
-        base = {"position_group": pos, "metric_key": key, "metric_value": 1.0,
-                "percentile": 0.5, "rank": 1, "peer_count": 10, "peer_median": 1.0,
-                "vs_median_delta": 0.0, "minutes": 2000, "appearances": 24,
-                "metric_numerator": None, "metric_denominator": None}
-        base.update(kw)
-        return base
-    # one player benchmarked in two positions; metrics deliberately out of key order
-    rows = [
-        row("MID", "passes_per90"),
-        row("ATT", "goals_per90"),
-        row("ATT", "assists_per90"),
-        row("MID", "duels_won_player_pct", metric_numerator=50, metric_denominator=90),
-    ]
-    groups = _shape_benchmarks(rows)
-    # position groups sorted (ATT before MID)
-    assert [g["position_group"] for g in groups] == ["ATT", "MID"]
-    # minutes/appearances carried at the group level (the position's sample)
-    assert groups[0]["minutes"] == 2000 and groups[0]["appearances"] == 24
-    # metrics ordered byte-stable by metric_key
-    assert [m["metric_key"] for m in groups[0]["metrics"]] == ["assists_per90", "goals_per90"]
-    assert [m["metric_key"] for m in groups[1]["metrics"]] == ["duels_won_player_pct", "passes_per90"]
-    # the ratio metric's atoms survive
-    duels = groups[1]["metrics"][0]
-    assert duels["numerator"] == 50 and duels["denominator"] == 90
+def test_player_squad_filter_leaves_the_player_out_of_the_dots_and_is_absent_without_a_squad():
+    def row(player, value, rank):
+        return {"page_tab": "club", "team_sk": 157, "player_sk": player, "metric_key": "goals_per90",
+                "metric_value": value, "squad_player_count": 3, "squad_median": 0.4, "rank": rank}
+    club, nation = _shape_player(squads=[row(184, 0.9, 1), row(2, 0.4, 2), row(3, 0.1, 3)])["tabs"]
+    assert club["squad"]["team"]["name"] == "Bayern München" and club["squad"]["player_count"] == 3
+    assert club["squad"]["metrics"] == [{"metric_key": "goals_per90", "value": 0.9, "rank": 1,
+                                         "median": 0.4, "others": [0.1, 0.4]}]
+    assert nation["squad"] is None
 
 
-def test_shape_player_payload_attaches_benchmarks_per_season():
-    profiles = [
-        {"player_sk": 7, "season_api_year": 2025, "league_code": "PD",
-         "player_name": "X", "position_code": "F"},
-        {"player_sk": 7, "season_api_year": 2024, "league_code": "BL1",
-         "player_name": "X", "position_code": "F"},
-    ]
-    benchmarks = [
-        {"player_sk": 7, "league_code": "PD", "season_api_year": 2025, "position_group": "ATT",
-         "metric_key": "goals_per90", "metric_value": 0.9, "percentile": 0.99, "rank": 1,
-         "peer_count": 40, "peer_median": 0.3, "vs_median_delta": 0.6,
-         "minutes": 2500, "appearances": 30, "metric_numerator": None, "metric_denominator": None},
-    ]
-    p = shape_player_payload(_mark_featured(profiles), [], benchmarks)
-    s2025, s2024 = p["seasons"][0], p["seasons"][1]
-    assert s2025["benchmarks"][0]["position_group"] == "ATT"
-    assert s2025["benchmarks"][0]["metrics"][0]["metric_key"] == "goals_per90"
-    # a season with no benchmark rows renders an empty list (honest absence)
-    assert s2024["benchmarks"] == []
-    # default (no benchmark_rows) also yields empty benchmarks
-    p2 = shape_player_payload(_mark_featured(profiles), [])
-    assert all(s["benchmarks"] == [] for s in p2["seasons"])
+def test_player_recent_matches_are_latest_first_and_played_only():
+    matches = [_player_match(1, "2026-09-01"), _player_match(2, "2026-10-01"),
+               _player_match(3, "2026-11-01", match_involvement="on_bench"),
+               _player_match(4, "2026-11-02", match_involvement=None)]
+    club = _shape_player(matches=matches)["tabs"][0]
+    assert [m["played_fixture_sk"] for m in club["recent_matches"]] == [2, 1]
+    assert club["recent_matches"][0]["home_away"] == "home"
+    assert club["recent_matches"][0]["ball_actions"] == 40
+    assert club["recent_matches"][0]["on_bench"] is False
 
 
-def test_shape_career_row_carries_mart_columns():
-    # GAP-22: one mart_player_career row -> a career entry. Counts + club identity copied straight from the
-    # mart (no computation); the club identity reuses _player_team_block; internal + player-identity keys drop.
-    row = {
-        "player_sk": 7, "team_sk": 157, "season_sk": 900, "league_sk": 78,
-        "player_career_sk": "hash", "season_api_year": 2024, "league_code": "BL1",
-        "player_name": "Harry Kane", "entity_type": "club",
-        "team_name": "Bayern", "team_logo_url": "fcb.png", "team_country": "Germany",
-        "appearances": 32, "goals_player": 26, "assists_player": 8, "national_appearances_total": 12,
-        "last_kickoff_at": "2024-05-18T15:30:00", "club_latest_kickoff_at": "2024-05-18T15:30:00",
-    }
-    assert _shape_career_row(row) == {
-        "season": 2024, "competition": "BL1", "entity_type": "club",
-        "team": {"team_id": 157, "name": "Bayern", "crest": "fcb.png", "country": "Germany"},
-        "appearances": 32, "goals": 26, "assists": 8,
-    }
-    m = _shape_career_row(row)
-    for internal in ("player_sk", "team_sk", "season_sk", "league_sk", "player_career_sk",
-                     "player_name", "national_appearances_total", "last_kickoff_at",
-                     "club_latest_kickoff_at"):
-        assert internal not in m
+def test_a_national_squad_member_with_no_minutes_lists_the_bench_and_a_club_player_does_not():
+    bench = {"minutes_played": None, "match_involvement": "on_bench"}
+    matches = [_player_match(1, "2026-09-01", "national_team", **bench),
+               _player_match(2, "2026-10-01", "national_team", match_involvement=None),
+               _player_match(4, "2026-10-03", "club", **bench)]
+    club, nation = _shape_player(matches=matches)["tabs"]
+    assert [m["played_fixture_sk"] for m in nation["recent_matches"]] == [1]
+    assert nation["recent_matches"][0]["on_bench"] is True
+    assert club["recent_matches"] == []
 
 
-def test_shape_player_payload_attaches_career_and_national_total_omits_null_team():
-    # GAP-22: the career log is TOP-LEVEL (whole career, not per-season). Order is a pure sort by the mart's
-    # club_latest_kickoff_at (club-block order + contiguity) then last_kickoff_at (within-club season order) —
-    # no client-side aggregation. A RETURN SPELL (Spurs -> Bayern -> back to Spurs) proves contiguity: both
-    # Spurs rows group together even though Bayern's season falls between them chronologically. National-entity
-    # rows (with a resolved team) are ordered the same way (own team block); an unresolved-identity row (null
-    # team_name = broken FK) is omitted; national_appearances_total is the precomputed per-player total.
-    def row(team_sk, year, comp, name, entity, apps, last, club_latest):
-        return {"player_sk": 9, "team_sk": team_sk, "season_api_year": year, "league_code": comp,
-                "entity_type": entity, "team_name": name, "team_logo_url": "x.png",
-                "team_country": "X", "appearances": apps, "goals_player": 1, "assists_player": 1,
-                "national_appearances_total": 23,
-                "last_kickoff_at": last, "club_latest_kickoff_at": club_latest}
-    profiles = [
-        {"player_sk": 9, "season_api_year": 2024, "league_code": "PL", "player_name": "Kane",
-         "position_code": "F"},
-    ]
-    career = [
-        row(47, 2020, "PL", "Spurs", "club", 35, "2020-07-15T19:00:00", "2024-05-19T15:00:00"),
-        row(157, 2022, "BL1", "Bayern", "club", 32, "2022-05-14T15:30:00", "2022-05-14T15:30:00"),
-        row(47, 2024, "PL", "Spurs", "club", 30, "2024-05-19T15:00:00", "2024-05-19T15:00:00"),
-        # two national-team seasons (a real multi-national player) — resolved team, ordered like a club block
-        row(500, 2021, "WC", "England", "national", 8, "2021-07-11T20:00:00", "2023-07-09T20:00:00"),
-        row(500, 2023, "WC", "England", "national", 10, "2023-07-09T20:00:00", "2023-07-09T20:00:00"),
-        # unresolved identity (null team_name = broken FK) -> omitted from career[]
-        {"player_sk": 9, "team_sk": 999, "season_api_year": 2019, "league_code": "WC",
-         "entity_type": "national", "team_name": None, "appearances": 5, "goals_player": 0, "assists_player": 0,
-         "national_appearances_total": 23, "last_kickoff_at": "2019-06-01T20:00:00",
-         "club_latest_kickoff_at": "2019-06-01T20:00:00"},
-    ]
-    p = shape_player_payload(_mark_featured(profiles), [], None, career)
-    # club_latest desc: Spurs (May 2024), England (Jul 2023), Bayern (May 2022). Spurs rows contiguous
-    # (2024, 2020), then England (2023, 2021), then Bayern; the null-team row is omitted.
-    assert [(c["team"]["team_id"], c["season"]) for c in p["career"]] == [
-        (47, 2024), (47, 2020), (500, 2023), (500, 2021), (157, 2022)
-    ]
-    assert len(p["career"]) == 5
-    assert p["national_appearances_total"] == 23
-    # empty default (no career_rows) -> empty career + None total
-    p2 = shape_player_payload(_mark_featured(profiles), [])
-    assert p2["career"] == [] and p2["national_appearances_total"] is None
+def test_player_next_matches_are_the_tabs_own_team_in_the_marts_order():
+    def row(team, fixture, order):
+        return {"team_sk": team, "fixture_sk": fixture, "league_code": "BL1", "upcoming_rank": 1,
+                "upcoming_order": order, "kickoff_datetime": "2026-11-07"}
+    club, nation = _shape_player(next_rows=[row(157, 2, 2), row(157, 1, 1), row(10, 3, 1)])["tabs"]
+    assert [m["fixture_id"] for m in club["next_matches"]] == [1, 2]
+    assert [m["fixture_id"] for m in nation["next_matches"]] == [3]
+
+
+def test_player_peers_make_one_sorted_file_per_competition_season_and_position():
+    rows = [{"league_code": "BL1", "season_api_year": 2026, "position_group": "ATT",
+             "metric_key": "goals_per90", "metric_value": v} for v in (0.9, 0.1)]
+    rows.append({"league_code": "BL1", "season_api_year": 2026, "position_group": "MID",
+                 "metric_key": "goals_per90", "metric_value": 0.2})
+    att, mid = shape_player_peers(rows)
+    assert (att["league_code"], att["season"], att["position_group"]) == ("BL1", 2026, "ATT")
+    assert att["values"] == {"goals_per90": [0.1, 0.9]}
+    assert mid["values"] == {"goals_per90": [0.2]}
+
+
+def test_linked_players_are_those_of_the_home_and_competition_boards(tmp_path):
+    (tmp_path / "landing.json").write_text(json.dumps(
+        {"top_players": [{"rows": [{"player_id": 3}, {"player_id": None}]}]}), encoding="utf-8")
+    comp = tmp_path / "competitions" / "BL1"
+    comp.mkdir(parents=True)
+    (comp / "2026.json").write_text(json.dumps(
+        {"player_boards": [{"rows": [{"player_id": 3}, {"player_id": 1}]}]}), encoding="utf-8")
+    assert export_site_data.linked_player_ids(tmp_path) == [1, 3]
+    assert export_site_data.linked_player_ids(tmp_path / "empty") == []
+
+
+def test_player_metric_rows_hold_the_seven_key_metrics_in_catalogue_order():
+    rows = export_site_data.fetch_player_metric_rows()["rows"]
+    assert [r["metric_id"] for r in rows if r["is_key_metric"]] == [
+        "scorer_points_per90", "shots_on_goal_per90", "passes_per90", "ball_actions_per90",
+        "passes_key_per90", "duels_won_per90", "defensive_actions_per90"]
+    fouls = next(r for r in rows if r["metric_id"] == "fouls_per90")
+    assert fouls["direction"] == "lower_better"
 
 
 def test_build_manifest_counts_by_type():
@@ -1442,27 +1431,6 @@ def test_fetch_team_index_orders_by_name_and_reads_the_region_facts_from_the_see
 def test_shape_team_index_refuses_rows_that_disagree_on_the_page_flag():
     with pytest.raises(ValueError, match="national_teams_first"):
         shape_team_index([_team_index_row(), _team_index_row(national_teams_first=True)])
-
-
-def test_shape_player_payload_opens_on_the_featured_club_season_not_the_latest():
-    """#846 criterion 1: a player fresh off a summer tournament still opens on their club season.
-
-    Both rows are real football. The WC row is the more recent one, which is what the export used
-    to pick and why a player's top-level identity came from their national side. Nothing here
-    ranks anything: the mart flags the club season and the export reads the flag.
-    """
-    profiles = [
-        {"player_sk": 7, "season_sk": 2, "season_api_year": 2026, "league_code": "WC",
-         "player_name": "M. Rogers", "position_code": "M", "is_featured_season": False},
-        {"player_sk": 7, "season_sk": 1, "season_api_year": 2025, "league_code": "PL",
-         "player_name": "M. Rogers", "position_code": "D", "is_featured_season": True},
-    ]
-    p = shape_player_payload(profiles, [])
-    # identity comes from the club season, not the tournament
-    assert p["position"] == "D"
-    # and the tournament season is still served — it is not the one the page OPENS on
-    assert [s["league_code"] for s in p["seasons"]] == ["WC", "PL"]
-    assert [s["is_featured_season"] for s in p["seasons"]] == [False, True]
 
 
 def test_featured_season_row_refuses_to_choose():
