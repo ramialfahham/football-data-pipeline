@@ -1,33 +1,25 @@
-# Review — feat/259-player-export — 2026-11-06
+# Review — feat/256-fill-from-lineups — 2026-11-06
 
-diff_sha256: a9d50c4cefcd1c7023f2c325b7334b9189f9f184a4963bd3278eb54dc0d25f04
+diff_sha256: d8bcba833e999e53a4a57d63c8420a72c15e497cb63c32138fea0a7c1ad28081
 
-rounds: 2
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 1 doc-sync: docs/site_architecture.md carries the approved Player row and dbt_project/docs/layering.md names is_in_page_window.
-- docs/wireframes/03_player_profile.md stays until the next MR retires it, as the contract states; no page output changes here, so no reader acts on it.
-- All changed files are in scope_paths; players is not in deploy:export, so the export's cadence and volume do not change.
-- The reserved decisions stay undecided: the payload carries the blanks.
+- Round 2 finding: the impact_map now says the export's player log shows filled values while its rows and has_stat_line stay, which agrees with blast_radius.
+- match_involvement for filled rows is stated in the contract and agrees with the mart.
+- dbt_project/seeds/schema.yml is in scope_paths; the two descriptions carry the CPO-approved text and add no mechanism, metric or label.
+- Round 1 and 2 checks stand: every changed file is in scope_paths, documentation matches the new meaning of has_stat_line, the tests are narrowed by is_from_lineups with the filled rows compared against their own base, and metric_rules.md R4 matches done_when.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 point 1: match_involvement is served by the mart with an accepted_values test, and the export only filters on it.
-- Round 1 point 2: assert_player_page_windows now compares each tab's played matches with its Appearances card, over the same status filter, window join and stat rows, so a mismatch fails it.
-- Grain: int_player_page__window_seasons is unique per player, window type and season, so the join cannot fan out the mart.
-- No metric is created or redefined, and no competition is hardcoded.
-
-## platform-reviewer
-VERDICT: PASS
-risks_checked:
-- Round 1 finding: the peer query casts season_api_year, and a test fails if the cast goes; the same query shape validated on a dry run.
-- export_all raises before any query or write when no boards exist, with a test that reaches the raise.
-- fetch_player_metric_rows carries the metric_order guard of fetch_metric_rows.
-- The linked-set duplication with builtPlayers.mjs stays accepted: both read the same two sources.
+- assert_stat_facts_equal_base compares the fact in two slices, one per base; has_stat_line is false for filled rows, so mart_team_momentum_window.has_player_stats does not move.
+- assert_player_page_windows: Appearances and match_involvement played read the same minutes on the same fact rows, and a blank-minutes row blanks the card, so the check skips it.
+- assert_team_goals_equal_players_goals holds on filled matches: player goals and team goals_own come from the same corrected events.
+- Seed descriptions match the models and tests that use the seeds; the union column order, the macro and the five inline copies, and the competition-agnostic rule were checked with no defect.
 
 ## escalations
-- question: the exact text of the Player row in docs/site_architecture.md, a core document.
+- question: the exact text of the descriptions of fixture_goal_corrections and player_match_cleaning_answer_key.
   CPO ANSWER: approved in chat, 2026-11-06, relayed by the coordinating session.

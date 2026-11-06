@@ -320,6 +320,30 @@ models:
       - name: stat_corrections.rule
         description: "{{ doc('stat_corrections_rule') }}"
 
+  - name: base_apif__fixture_players_from_lineups
+    description: >
+      One row per player on a confirmed or researched team sheet of a played team match with no
+      player statistics, in the columns of base_apif__fixture_players. Minutes come from the sheet
+      and the substitutions, goals and assists from the goal events. Every other statistic is
+      blank. fct_fixture_player_stats adds these rows to the provider's.
+      Grain: (league_code, fixture_id, team_id, player_id).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, fixture_id, team_id, player_id]
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
+        tests: [not_null]
+      - name: team_id
+        description: "The provider's numeric team id for this player's side, as base_apif__lineups carries it."
+        tests: [not_null]
+      - name: player_id
+        description: "{{ doc('player_api_id') }}"
+        tests: [not_null]
+
   - name: base_apif__lineups
     description: >
       One row per player the team sheets name for a match: the starting eleven and the bench, from

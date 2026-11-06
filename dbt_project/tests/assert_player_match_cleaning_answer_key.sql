@@ -1,9 +1,9 @@
 {#
   Hand-worked cases, one or more per cleaning rule, from the provider's raw values of real matches
   (seeds/player_match_cleaning_answer_key.csv: the row, the stat, the value worked out by hand and
-  the rule it tests). base_apif__fixture_players must return exactly that value; a blank expected
-  value means the rule must leave the stat blank. Returns each case whose value differs, and each
-  case whose row is missing.
+  the rule it tests). base_apif__fixture_players or base_apif__fixture_players_from_lineups must
+  return exactly that value; a blank expected value means the rule must leave the stat blank.
+  Returns each case whose value differs, and each case whose row is missing.
 #}
 {{ config(store_failures = true, severity = 'error') }}
 
@@ -20,7 +20,9 @@ with answer_key as (
 ),
 
 players as (
-    select * from {{ ref('base_apif__fixture_players') }}
+    select * except (stat_corrections) from {{ ref('base_apif__fixture_players') }}
+    union all
+    select * from {{ ref('base_apif__fixture_players_from_lineups') }}
 )
 
 select

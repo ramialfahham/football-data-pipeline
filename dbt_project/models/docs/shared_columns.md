@@ -225,7 +225,8 @@ the team 2 points instead of 1. A shoot-out in a cup or play-off round is false.
 
 {% docs has_stat_line__player %}
 True where the provider sent a statistics line for this player in this match. False for a player
-only the line-ups name: every statistic of that row is NULL.
+only the line-ups name: a statistic of that row is NULL unless the team sheet or the goal events
+give it.
 {% enddocs %}
 
 

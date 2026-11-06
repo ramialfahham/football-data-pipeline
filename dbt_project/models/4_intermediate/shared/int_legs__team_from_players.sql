@@ -12,6 +12,7 @@
 
 with player_legs as (
     select * from {{ ref('int_legs__player_match') }}
+    where not is_from_lineups
 )
 
 select
