@@ -1,40 +1,27 @@
-# Review — feat/136-player-cards-data — 2026-11-06
+# Review — feat/256-lineup-research
 
-diff_sha256: 1de85133b7f6870345018c4da811f3c37d5435baed13eb1e7555bcd7cbf6b1a1
+diff_sha256: 64f37727e5813f1685d23ef8e47bd0bb51ccb77622b0828564a25f4b6782528a
 
-rounds: 4
-rounds_cap_override: approved in chat, 2026-11-06: one answer-key seed fix after the MR build found a stale expected value.
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 2 findings closed: the fill's zeros follow a per-stat flag, as the amendment says; base.yml and layering.md state the 0-minute case and the carded sheet player.
-- decisions_reserved records the seed description and both rule names as approved in chat, 2026-11-06, relayed by the coordinating session.
-- Seed rows carry source_kind, an https source and a note; the 23 matches left in dispute are named in the amendment for a follow-up MR.
-- No credentials in the patch, no site or export change, no new mechanism or recurring cost; every file is inside scope_paths and the impact map carries both pasted lineages.
-- Round 4: the answer-key seed is in scope_paths, its change is a test expectation, and it decides no new rule.
+- Round 1 escalated whether the stop of 2026-11-06 covers the 17 matches read from uefa.com and resultados.rfef.es; #176 note 4181862000 (approved in chat, 2026-11-07) lets them in, makes no new reads, and keeps the leagues' permission and the legal check open for them.
+- The diff holds only the contract and the seed, both in scope_paths, and the task artifacts.
+- The reworded notes of 1589428 and 1607628 match the contract's rule on formations and positions; no new rule.
+- No new mechanism and no recurring cost; no secrets; no page or export touched; the Line-ups rule already covers researched sheets.
+- The reserved decisions stay undecided: the four matches left out, the resumption of research, the permission and legal check, the Sevilla and N. Pinto cards.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- stats_counted_in_match is one row per fixture, so its join cannot fan out, and a stat the provider did not count stays blank.
-- The dispute check reads delivered rows per team, sheets unnest separately, and cards need full events in both player bases.
-- assert_card_corrections_applied gains off_the_sheet, reading all sheets and the stat lines; no Red Card row lacks a minute.
-- Team cards can move in a researched match where the provider's team value was blank, because base_apif__fixture_statistics reads card events; the MR head states it. The 8% limit has little headroom at CDR 2023.
-- Round 4: 1644381 is researched, so 0 and 1 follow from the seed; 1311842 is unsettled, so Ekpolo is blank and Longbottom's own card stands. No model or test logic changed.
-
-## platform-reviewer
-VERDICT: PASS
-risks_checked:
-- PAGE_WINDOW and the generated SQL agree, and metric_map.csv holds the two new rows in sorted position.
-- The two metrics exist in the catalogue and in metric_columns.md; the export takes every is_card row with no code change.
-- No test or script assumes the old metric list; no dependency, workflow or hook changed.
-- Round 1 verdict: scripts/ and metric_map.csv have not changed since, and the seed's emptiness that it checked no longer applies.
+- The seed hunk adds 1,089 rows and removes none; every row has the seed's shape, one https official source and a note.
+- 52 team sheets with eleven starters each; no starter with a minute on; no repeated player id within a match.
+- All 253 substitutions pair with a player on the same sheet at a matching minute off, extra minutes and chains included.
+- One formation per team; the 85 reworded notes end alike and no other field or row moved.
+- Researched sheets feed base_apif__fixture_players_from_lineups, fct_fixture_player_stats and the marts as the contract's blast radius says; int_legs__team_from_players filters is_from_lineups, so team totals do not move.
 
 ## escalations
-- question: a fourth review round, past the cap, for the answer-key fix.
-  CPO ANSWER: approved in chat, 2026-11-06.
-- question: the seed description of fixture_card_corrections and the rule names cards_need_research and cards_from_research.
-  CPO ANSWER: approved in chat, 2026-11-06, relayed by the coordinating session.
-- question: the Cards line in cleaning_rules.md, and that no name rule places a card.
-  CPO ANSWER: approved in chat, 2026-11-06, relayed by the coordinating session, recorded on #256.
+scope-auditor, round 1: the 17 matches read from uefa.com and resultados.rfef.es.
+CPO ANSWER: all 26 go in, #176 note 4181862000, approved in chat, 2026-11-07.
