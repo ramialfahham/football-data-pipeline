@@ -564,8 +564,9 @@ models:
       match the rows and their values are the stat lines'.
 
       A row without a stat line is common: many competitions do not supply player statistics. Its
-      statistics are NULL, meaning unavailable, never zero. One player's matches over time are the
-      rows where has_stat_line is true, ordered by kickoff_datetime.
+      statistics are NULL, meaning unavailable, never zero, but for what its team sheet and the goal
+      events give. One player's matches over time are the rows where has_stat_line is true or
+      minutes_played has a value, ordered by kickoff_datetime.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [fixture_sk, team_sk, player_sk]

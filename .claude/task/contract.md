@@ -1,23 +1,43 @@
-# Task contract — the Player page's data: window flag and export
+# Task contract — fill a player's match from line-ups and goal events
 
 objective: >
-  Issue #259, step 2. mart_player_fixture_stats marks the matches of the season a Player page shows,
-  and the export writes the payload the approved design (#136) reads: header, tabs, cards, next
-  matches, the comparisons, last season and recent matches, for the players the site links to. No
-  page reads it yet, so no page output changes.
+  Issue #256, note 4176079595. R4 loses its second half. For a played team match with no player
+  data, a player's inputs come from that match's line-ups and goal events, as a cleaning step in
+  the models. Metrics that need provider stats stay blank by R4's remaining sentence.
 
 refs: >
-  #259, plan approved in chat 2026-11-06. Design: #136. Models: !382 (#256), !383 (#257).
+  #256 note 4176079595; plan approved in chat 2026-11-06.
 
 scope_paths:
+  - dbt_project/models/docs/metric_rules.md
+  - dbt_project/models/2_base/api_football/base_apif__fixture_players_from_lineups.sql
+  - dbt_project/models/2_base/api_football/base.yml
+  - dbt_project/models/3_core/fct_fixture_player_stats.sql
+  - dbt_project/models/3_core/core.yml
+  - dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
+  - dbt_project/models/4_intermediate/shared/int_legs__team_from_players.sql
+  - dbt_project/models/4_intermediate/shared/int_legs.yml
+  - dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
+  - dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
+  - dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
+  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+  - dbt_project/models/4_intermediate/shared/int_player_season_record.sql
+  - dbt_project/models/4_intermediate/shared/int_team__current_national_competitions.sql
+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
   - dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
   - dbt_project/models/5_marts/shared/shared.yml
-  - scripts/export_site_data.py
-  - tests/test_export_site_data.py
-  - tests/test_no_decision_history_in_code.py
-  - dbt_project/tests/assert_player_page_windows.sql
+  - dbt_project/models/docs/shared_columns.md
   - dbt_project/docs/layering.md
-  - docs/site_architecture.md
+  - dbt_project/macros/team_seasons_without_player_data.sql
+  - dbt_project/seeds/fixture_goal_corrections.csv
+  - dbt_project/seeds/player_match_cleaning_answer_key.csv
+  - dbt_project/seeds/schema.yml
+  - dbt_project/tests/assert_mart_player_fixture_stats_keeps_every_stat_line.sql
+  - dbt_project/tests/assert_stat_facts_equal_base.sql
+  - dbt_project/tests/assert_player_metrics_follow_catalogue_formula.sql
+  - dbt_project/tests/assert_player_match_cleaning_answer_key.sql
+  - dbt_project/tests/assert_players_from_lineups_goals_add_up.sql
+  - tests/**
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -25,50 +45,76 @@ scope_paths:
   - .claude/task/rendered_page_evidence.md
 
 impact_map: >
-  writers: dbt only. mart_player_fixture_stats gains two columns, is_in_page_window and
-  match_involvement, and season_sk inside its fixtures step. No ingestion change.
-  lineage: `dbt ls --resource-type model --select mart_player_fixture_stats+` returns
-  5_marts.shared.mart_player_fixture_stats, 5_marts.shared.mart_team_momentum_window. The second
-  reads fixture_sk and team_sk only (mart_team_momentum_window.sql line 52), so the new column
-  reaches nothing. `dbt ls --resource-type model --select +int_player_page__window_seasons` holds no
-  mart, so the new ref makes no cycle.
-  consumption: scripts/export_site_data.py is the mart's other reader. `--entities players` is not in
-  deploy:export, and the Player page reads boards, not players/*.json, until the next MR.
-  player_metric_rows.json is written by the metric_rows entity and committed with the page.
-  ci_layer_rules: scripts/check_layer_contract.py, scripts/check_description_hygiene.py.
-  deploy_order: one merge; the nightly dbt build adds the column. The sample export that needs it
-  runs after that, for the next MR.
-  blast_radius: no number changes; the mart gains a boolean. The grain holds because a player's
-  window seasons are unique per window type, and a club season and a national one never coincide.
-  The old player payload (seasons, match_log, career) has no reader: `grep -rn "match_log"
-  site_v2/src --include=*.astro` returns nothing.
+  writers: base_apif__fixture_players_from_lineups is new and is written only by dbt. It reads
+  base_apif__lineups, base_apif__fixture_events, base_apif__fixture_players and
+  base_apif__fixtures_next. base_apif__lineups already reads base_apif__fixture_players, so the fill
+  cannot live inside that model. fct_fixture_player_stats gains a union and the column
+  is_from_lineups; its only writer stays dbt, and it stays a full table rebuild.
+
+  downstream: `dbt ls --select fct_fixture_player_stats+ --resource-type model` lists
+  int_legs__player_match, int_legs__team_from_players, int_player__page_profile,
+  int_player_club_season__metrics, int_player_competition_benchmark_metrics_long,
+  int_player_competition_benchmarks, int_player_match__metrics, int_player_momentum__metrics,
+  int_player_page__window_seasons, int_player_profile__contribution, int_player_profile__yoy,
+  int_player_season__metrics, int_player_season__team, int_player_season_position__metrics,
+  int_player_season_record, int_player_squad_window__metrics, int_player_window__metrics,
+  int_team__current_national_competitions, int_team_competition_benchmark_metrics_long,
+  int_team_competition_benchmarks, int_team_momentum__metrics, int_team_profile__yoy,
+  int_team_season__deserved_vs_actual, int_team_season__metrics,
+  int_team_season__metrics_cumulative, int_team_season_record, mart_competition_fixtures,
+  mart_leaderboards, mart_match_days, mart_matchday_insights, mart_player_career,
+  mart_player_competition_benchmarks, mart_player_fixture_stats, mart_player_momentum,
+  mart_player_profile, mart_player_season_record, mart_player_squad_benchmarks,
+  mart_player_window_metrics, mart_team_competition_benchmarks, mart_team_competitions,
+  mart_team_index, mart_team_leaderboards, mart_team_momentum_window, mart_team_profile,
+  mart_team_season, mart_team_season_insights, mart_team_season_record, mart_team_window_metrics.
+  Every team model in that list reads the players through int_legs__team_from_players, which
+  leaves the filled rows out, so team values do not move. mart_player_fixture_stats carries a
+  filled row's values with has_stat_line false: has_stat_line keeps its meaning, the provider sent
+  a statistics line. So mart_team_momentum_window.has_player_stats, its only model reader, does
+  not move. The export's player log reads the mart without that filter: its rows and has_stat_line
+  stay, and filled values appear where blanks stood. match_involvement says played for a filled row
+  with minutes, and neither played nor on_bench for one with blank minutes. The tests that compare
+  the fact with its base or the mart with the fact, assert_stat_facts_equal_base and
+  assert_mart_player_fixture_stats_keeps_every_stat_line, learn the filled rows.
+
+  layer_rules: check_layer_contract.py. The new model is 2_base and reads only base models and
+  seeds. Core reads base. No model declares partition_by or cluster_by. No per-competition file.
+
+  deploy_order: one MR, no raw change, no ingest change. The MR build writes its own ci_mr tables.
+  After the merge, the next build of main and the 04:00 nightly rebuild prod.
+
+  blast_radius: player metrics, player marts and the player rows of the export change. Values
+  appear where blanks stood, in competitions with filled matches: 6,480 matches can be filled, 569
+  of them this season. Goals, assists, minutes, appearances, starts and a keeper's goals conceded
+  move. Team metrics do not. Visible: the Team page Squad tab, leaderboards, top players on match
+  previews, and the minutes on the team sheet of a filled Match page. No layout change.
 
 approved_design:
-  - player: #136
+  - none: no site or export file changes; values appear in existing slots, named in the plan
 
 decisions_taken: >
-  From the plan on #259. Recent matches cover the season shown, so the mart gets a flag (decision 2).
-  The set of players with a page does not change, so the export writes the players the Home and
-  competition boards link to, read from the landing and competition payloads of the same run
-  (decision 1). Peer values go in one shared file per competition, season and position, because a
-  player's file would otherwise repeat them for every peer. Player metric rows are written beside
-  metric_rows.json as player_metric_rows.json, leaving that file and its readers untouched. The plan
-  said "in metric_rows.json"; a separate file changes no shipped build input in this MR. No new
-  mechanism, no new dependency, no recurring cost: players joins the export in the next MR.
-  The mart also serves match_involvement, played or on_bench, so the export only filters. A squad
-  member with 0 minutes listing the matches "On the bench" is the design on #136. The Player row of
-  docs/site_architecture.md changes with the exact text the CPO approves. Wireframe 03's data
-  section stays until the next MR retires the file: #136 states its design wins over wireframes 03,
-  12 and 13, and the plan on #259 takes every wireframe line to the CPO before that MR.
+  R4's text is the one approved on #256, note 4176079595. The plan approved in chat 2026-11-06
+  names these readings. A team match with no usable line-up still blanks the player's window,
+  because its input is missing. Only confirmed or researched sheets fill. Cards are not filled; a
+  sending-off only ends a player's minutes. A shoot-out match counts 120 minutes only where an event
+  stands past minute 90. A new match with a usable line-up and wrong goal events fails the build
+  until it is researched. The new model name and is_from_lineups stood in that plan. The fact
+  unions two bases of one endpoint, as that plan names; the layer contract's union rule is about
+  competitions. By the Blank rule, minutes stay blank in a match whose sheets show no substitution
+  and for a substitute with no minute on who scored or assisted. NEW MECHANISM:
+  none; this is one more cleaning step, approved on #256. RECURRING COST: one small base table in
+  the nightly, measured in the MR build.
 
 decisions_reserved:
-  - Whether the cards use line-ups and goal records for a match with no player stats (#256, open). The payload carries the blank.
-  - What the Club tab shows for a player with no club football (#256, open). The payload carries only the tabs the data marks.
-  - Which further players get a page (#259, not in scope).
+  - none: the Club tab question for players with no club football stays open on #256, outside this task
 
 done_when:
-  - python -m pytest tests passes.
-  - dbt parse and sqlfluff pass on mart_player_fixture_stats.
-  - data:build:mr is green, assert_player_page_windows included, which holds each tab's played matches equal to its Appearances card.
+  - metric_rules.md R4 reads exactly "R4 A metric is blank when any match it counts lacks an input."
+  - dbt parse passes; SQLFluff passes on every changed model.
+  - pytest tests passes.
+  - data:build:mr is green, with assert_players_from_lineups_goals_add_up and
+    assert_player_match_cleaning_answer_key passing.
+  - The new blank counts stand on #256.
 
 amendments: (none)

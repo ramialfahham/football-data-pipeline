@@ -204,6 +204,8 @@ models:
         description: "{{ doc('round_name') }}"
       - name: competition_type
         description: "{{ doc('competition_type') }}"
+      - name: is_from_lineups
+        description: "True where the row comes from the team sheet and the goal events, because the provider sent no player statistics for this team match."
       - name: minutes
         description: "{{ doc('minutes_played') }}"
       - name: is_starter

@@ -13,7 +13,6 @@
 -- depends_on: {{ ref('metric_catalogue') }}
 -- depends_on: {{ ref('int_legs__player_match') }}
 -- depends_on: {{ ref('int_legs__team_match') }}
--- depends_on: {{ ref('int_legs__team_from_players') }}
 -- depends_on: {{ ref('int_team_momentum_window') }}
 -- depends_on: {{ ref('int_player_club_season__metrics') }}
 -- depends_on: {{ ref('int_player_season__metrics') }}
@@ -106,7 +105,7 @@ team_matches_without_player_data as (
         tm.season_api_year,
         tm.kickoff_datetime
     from {{ ref('int_legs__team_match') }} as tm
-    left join {{ ref('int_legs__team_from_players') }} as tp
+    left join {{ ref('int_legs__player_match') }} as tp
         on tm.fixture_sk = tp.fixture_sk and tm.team_sk = tp.team_sk
     where not tm.is_awarded_result and tp.fixture_sk is null
 ),

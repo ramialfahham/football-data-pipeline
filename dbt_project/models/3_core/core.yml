@@ -774,7 +774,7 @@ models:
         description: "{{ doc('raw_ingested_at') }}"
 
   - name: fct_fixture_player_stats
-    description: "Per-player, per-fixture statistics, as cleaned and named in base_apif__fixture_players, whose description holds the cleaning rules. Grain: (fixture_sk, team_sk, player_sk). Core keys and constrains the fact grain."
+    description: "Per-player, per-fixture statistics, as cleaned and named in base_apif__fixture_players, whose description holds the cleaning rules, and the rows of base_apif__fixture_players_from_lineups. Grain: (fixture_sk, team_sk, player_sk). Core keys and constrains the fact grain."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -892,6 +892,9 @@ models:
         description: "{{ doc('penalty_missed') }}"
       - name: penalties_saved
         description: "{{ doc('penalty_saved') }}"
+      - name: is_from_lineups
+        description: "True where the row comes from the team sheet and the goal events, because the provider sent no player statistics for this team match. Every statistic those two sources cannot give is blank on such a row."
+        tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
 

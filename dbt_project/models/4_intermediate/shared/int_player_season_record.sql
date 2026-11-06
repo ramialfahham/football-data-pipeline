@@ -35,7 +35,7 @@ first_match_without_player_data as (
         tm.season_api_year,
         min(tm.kickoff_datetime) as kickoff_datetime
     from {{ ref('int_legs__team_match') }} as tm
-    left join {{ ref('int_legs__team_from_players') }} as tp
+    left join {{ ref('int_legs__player_match') }} as tp
         on tm.fixture_sk = tp.fixture_sk and tm.team_sk = tp.team_sk
     where not tm.is_awarded_result and tp.fixture_sk is null
     group by tm.team_sk, tm.league_code, tm.season_api_year

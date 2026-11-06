@@ -16,7 +16,7 @@
 
   Many competitions do not provide statistics_players from the API, so a row
   without a stat line (has_stat_line false) is common: its statistics are
-  unavailable, never zero.
+  unavailable, never zero, but for what its team sheet and the goal events give.
 
   Grain: (fixture_sk, team_sk, player_sk).
 #}
@@ -138,7 +138,7 @@ appearances as (
         coalesce(stats.fixture_sk, lineups.fixture_sk) as fixture_sk,
         coalesce(stats.team_sk, lineups.team_sk) as team_sk,
         coalesce(stats.player_sk, lineups.player_sk) as player_sk,
-        stats.player_sk is not null as has_stat_line,
+        coalesce(not stats.is_from_lineups, false) as has_stat_line,
         coalesce(stats.position_code, lineups.position_code) as position_code,
         coalesce(stats.shirt_number, lineups.shirt_number) as shirt_number,
         if(lineups.player_sk is not null, not lineups.is_starter, stats.is_substitute) as is_substitute,
@@ -213,7 +213,11 @@ select
     if(a.team_sk = f.home_team_sk, f.goals_away, f.goals_home) as team_goals_against,
     case
         when s.minutes > 0 then 'played'
-        when not a.is_starter and a.minute_on is null then 'on_bench'
+        when
+            not a.is_starter
+            and a.minute_on is null
+            and not coalesce(s.is_from_lineups and s.minutes is null, false)
+            then 'on_bench'
     end as match_involvement,
     case
         when f.goals_home > f.goals_away then if(a.team_sk = f.home_team_sk, 'W', 'L')

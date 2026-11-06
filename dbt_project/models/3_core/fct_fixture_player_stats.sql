@@ -1,5 +1,13 @@
 with src as (
-    select * from {{ ref('base_apif__fixture_players') }}
+    select
+        * except (stat_corrections),
+        false as is_from_lineups
+    from {{ ref('base_apif__fixture_players') }}
+    union all
+    select
+        *,
+        true as is_from_lineups
+    from {{ ref('base_apif__fixture_players_from_lineups') }}
 )
 
 select
@@ -46,5 +54,6 @@ select
     penalties_scored,
     penalties_missed,
     penalties_saved,
+    is_from_lineups,
     src.raw_ingested_at
 from src

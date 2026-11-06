@@ -55,6 +55,7 @@ select
     f.round_name,
     reg.competition_type,
     typ.entity_type,
+    ps.is_from_lineups,
     ps.minutes,
     ps.is_starter,
     ps.is_substitute,

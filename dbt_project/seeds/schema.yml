@@ -672,7 +672,7 @@ seeds:
 
   - name: fixture_goal_corrections
     description: >
-      Every goal of a match whose provider goal events do not add up to its score, one row per goal,
+      Every goal of a match whose provider goal events are wrong or missing, one row per goal,
       researched and sourced; a match with no goal has one row at goal_order 0 and no goal fields.
       Applied in base_apif__fixture_events: the match's goals are these, and
       the provider's goal events stay beside them, not counted. assert_result_corrections_applied
@@ -1081,8 +1081,8 @@ seeds:
 
   - name: player_match_cleaning_answer_key
     description: >
-      Hand-worked answers for the player-match cleaning in base_apif__fixture_players: real player
-      matches, at least one per cleaning rule, each value worked out by hand from the provider's
+      Hand-worked answers for the player-match cleaning in base_apif__fixture_players and
+      base_apif__fixture_players_from_lineups: real player matches, at least one per cleaning rule, each value worked out by hand from the provider's
       raw values (the player's own line, the other values in his match, both teams' statistics
       lines, the match events and the score). assert_player_match_cleaning_answer_key fails when
       the model returns anything else. A blank expected_value means the rule must leave the stat
@@ -1110,7 +1110,7 @@ seeds:
         description: "{{ doc('player_api_id') }}"
         tests: [not_null]
       - name: stat
-        description: "The base_apif__fixture_players column the case checks."
+        description: "The column the case checks."
         tests: [not_null]
       - name: expected_value
         description: "The value worked out by hand. Blank where the rule must leave the stat blank."

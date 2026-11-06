@@ -14,7 +14,7 @@ with expected as (
     from {{ ref('fct_fixture_player_stats') }} as s
     inner join {{ ref('fct_fixture') }} as f
         on s.fixture_sk = f.fixture_sk
-    where f.status_short in ('FT', 'AET', 'PEN')
+    where f.status_short in ('FT', 'AET', 'PEN') and not s.is_from_lineups
 ),
 
 served as (

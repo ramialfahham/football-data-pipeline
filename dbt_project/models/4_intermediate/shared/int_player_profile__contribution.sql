@@ -50,7 +50,7 @@ team_seasons_without_player_data as (
         tl.team_sk,
         tl.season_sk
     from team_legs as tl
-    left join {{ ref('int_legs__team_from_players') }} as tp
+    left join {{ ref('int_legs__player_match') }} as tp
         on tl.fixture_sk = tp.fixture_sk and tl.team_sk = tp.team_sk
     where not tl.is_awarded_result and tp.fixture_sk is null
 ),
