@@ -4,7 +4,8 @@
   a nation with no current competition though one has started;
   a player whose featured season is not one of the seasons the player played;
   a lower_better benchmark whose rank_best_first 1 is not its lowest value;
-  a squad row under the floor of a third of the team's minutes.
+  a squad row under the floor of a third of the team's minutes;
+  a tab whose played matches differ from its Appearances card.
 #}
 {{ config(store_failures = true, severity = 'error') }}
 
@@ -72,6 +73,28 @@ squad_under_floor as (
     inner join {{ ref('int_player_squad_window__metrics') }} as s
         on b.squad_sk = s.squad_sk and b.player_sk = s.player_sk
     where s.minutes * 3 < s.team_matches * 90
+),
+
+played_in_window as (
+    select
+        player_sk,
+        page_tab,
+        countif(match_involvement = 'played') as played
+    from {{ ref('mart_player_fixture_stats') }}
+    where is_in_page_window
+    group by player_sk, page_tab
+),
+
+played_differs_from_card as (
+    select
+        'played matches differ from the Appearances card' as failure,
+        concat(cast(w.player_sk as string), ' ', w.page_tab) as grain
+    from {{ ref('mart_player_window_metrics') }} as w
+    left join played_in_window as m
+        on w.player_sk = m.player_sk and w.page_tab = m.page_tab
+    where
+        w.metric_key = 'appearances'
+        and w.metric_value != coalesce(m.played, 0)
 )
 
 select * from double_counted
@@ -83,3 +106,5 @@ union all
 select * from lower_better_ranks
 union all
 select * from squad_under_floor
+union all
+select * from played_differs_from_card

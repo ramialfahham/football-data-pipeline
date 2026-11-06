@@ -327,7 +327,7 @@ Canonical mart inventory (exhaustive) for this project:
 | `mart_team_momentum_window` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | W1 momentum-window drill-down legs (team). |
 | `mart_team_season_record` | (upcoming_fixture_sk, team_sk) | W2 season-record aggregate (team). |
 | `mart_player_season_record` | (upcoming_fixture_sk, team_sk, player_sk) | W2 season-record aggregate (player). |
-| `mart_player_fixture_stats` | (fixture_sk, team_sk, player_sk) | A player in a finished match: every player the stat lines or the line-ups name, with the match context. A player's match log is its rows with a stat line. |
+| `mart_player_fixture_stats` | (fixture_sk, team_sk, player_sk) | A player in a finished match: every player the stat lines or the line-ups name, with the match context. `is_in_page_window` marks the matches of the season a Player page shows. |
 | `mart_fixture_standing_context` | (fixture_sk, team_sk) | Pre-fixture standings / rank context. |
 | `mart_head_to_head` | (team_sk, opponent_team_sk) | Head-to-head history per team pair. |
 | `mart_roster` | (team_sk, league_code, season_api_year, player_sk) | Identity-only club squad list from `dim_player_team_season_mapping` ⋈ `dim_player`; club-scoped via `competition_types`. No per-club stat columns of its own; the Squad tab's per-player stats come from `mart_player_career` (#480), joined onto the roster at the export. |

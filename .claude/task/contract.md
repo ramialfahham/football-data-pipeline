@@ -1,40 +1,23 @@
-# Task contract — repair garbled player names and stop them shipping
+# Task contract — the Player page's data: window flag and export
 
 objective: >
-  Issue #248: the provider sends some player names as UTF-8 read as Latin-1 or Windows-1252. Base
-  repairs them so every name downstream is correct, and a check fails the build when exported data
-  holds wrongly decoded text.
+  Issue #259, step 2. mart_player_fixture_stats marks the matches of the season a Player page shows,
+  and the export writes the payload the approved design (#136) reads: header, tabs, cards, next
+  matches, the comparisons, last season and recent matches, for the players the site links to. No
+  page reads it yet, so no page output changes.
 
 refs: >
-  #248, plan approved in chat 2026-11-06. Found by #243.
+  #259, plan approved in chat 2026-11-06. Design: #136. Models: !382 (#256), !383 (#257).
 
 scope_paths:
-  - dbt_project/macros/repair_garbled_text.sql
-  - dbt_project/models/2_base/api_football/base_apif__players.sql
-  - dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
-  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
-  - dbt_project/tests/assert_garbled_text_repair.sql
-  - dbt_project/models/3_core/core.yml
-  - dbt_project/models/docs/shared_columns.md
-  - site_v2/scripts/check-exported-text.mjs
-  - site_v2/scripts/check-exported-text.test.mjs
-  - site_v2/scripts/build-wiring.test.mjs
-  - site_v2/package.json
-  - site_v2/src/data/fixtures/1528965.json
-  - site_v2/src/data/fixtures/1553193.json
-  - site_v2/src/data/fixtures/1635716.json
-  - site_v2/src/data/fixtures/1638563.json
-  - site_v2/src/data/teams/165.json
-  - site_v2/src/data/teams/169.json
-  - site_v2/src/data/teams/172.json
-  - site_v2/src/data/teams/173.json
-  - site_v2/src/data/teams/182.json
-  - site_v2/src/data/teams/192.json
-  - site_v2/src/data/teams/211.json
-  - site_v2/src/data/teams/867.json
-  - tests/fixtures/font_coverage/baseline.json
-  - tests/fixtures/design_inventory/baseline.json
-  - tests/fixtures/design_inventory/baseline_quick.json
+  - dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
+  - dbt_project/models/5_marts/shared/shared.yml
+  - scripts/export_site_data.py
+  - tests/test_export_site_data.py
+  - tests/test_no_decision_history_in_code.py
+  - dbt_project/tests/assert_player_page_windows.sql
+  - dbt_project/docs/layering.md
+  - docs/site_architecture.md
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -42,53 +25,50 @@ scope_paths:
   - .claude/task/rendered_page_evidence.md
 
 impact_map: >
-  writers: dbt only; no ingestion change, raw stays as received. The garbling comes from the
-  provider: one string holds a broken and a correct letter together, which no wrong decode on our
-  side produces.
-  lineage: `dbt ls --resource-type model --select base_apif__players+1 base_apif__player_profiles+1
-  base_apif__fixture_events+1` returns base_apif__fixture_events, base_apif__fixture_players,
-  base_apif__fixture_statistics, base_apif__lineups, base_apif__player_profiles, base_apif__players,
-  dim_player, fct_fixture_event; the full `+` selection is 84 models. No model joins or tests on a
-  name: `grep -rn "player_name" dbt_project/tests` is empty, and base_apif__fixture_players,
-  base_apif__fixture_statistics and base_apif__lineups read event ids, types and the assist's
-  presence, never the name's text. The repair keeps a null a null, so assisted_goal_events holds.
-  consumption: dim_player feeds every player name the export reads, and
-  mart_competition_fixtures falls back to fct_fixture_event's names. The export builds player slugs
-  from the name, so the slug of each repaired name changes with its name.
+  writers: dbt only. mart_player_fixture_stats gains two columns, is_in_page_window and
+  match_involvement, and season_sk inside its fixtures step. No ingestion change.
+  lineage: `dbt ls --resource-type model --select mart_player_fixture_stats+` returns
+  5_marts.shared.mart_player_fixture_stats, 5_marts.shared.mart_team_momentum_window. The second
+  reads fixture_sk and team_sk only (mart_team_momentum_window.sql line 52), so the new column
+  reaches nothing. `dbt ls --resource-type model --select +int_player_page__window_seasons` holds no
+  mart, so the new ref makes no cycle.
+  consumption: scripts/export_site_data.py is the mart's other reader. `--entities players` is not in
+  deploy:export, and the Player page reads boards, not players/*.json, until the next MR.
+  player_metric_rows.json is written by the metric_rows entity and committed with the page.
   ci_layer_rules: scripts/check_layer_contract.py, scripts/check_description_hygiene.py.
-  deploy_order: one merge; the nightly dbt build rebuilds. No backfill, no raw write.
-  blast_radius: measured on prod: 415 players in dim_player, 38 distinct event names, and the two
-  nationalities Côte d'Ivoire and Türkiye change their text; no number changes. The other text
-  columns of dim_player, dim_coach, dim_team, fct_fixture, fct_fixture_event, dim_league and
-  dim_country hold no garbled value. Offline run of the rule on all 494 flagged values: 493
-  repaired, 0 failures, and the 494th, a correct name, left alone.
+  deploy_order: one merge; the nightly dbt build adds the column. The sample export that needs it
+  runs after that, for the next MR.
+  blast_radius: no number changes; the mart gains a boolean. The grain holds because a player's
+  window seasons are unique per window type, and a club season and a national one never coincide.
+  The old player payload (seasons, match_log, career) has no reader: `grep -rn "match_log"
+  site_v2/src --include=*.astro` returns nothing.
 
 approved_design:
-  - match: #132
-  - team: #134
+  - player: #136
 
 decisions_taken: >
-  The plan on #248, approved in chat 2026-11-06. New mechanisms, both declared there: the dbt macro
-  repair_garbled_text, and check-exported-text.mjs in the site's prebuild. No recurring cost: the
-  macro runs inside three existing base builds. The rule covers Latin letters only, and its accepted
-  limit is stated on the plan: garbled Cyrillic passes unrepaired, and the check catches it only when
-  it holds a control character, so that German text such as a sharp s before a closing quote never
-  fails the build. Nationality is repaired with the names, because it carries the same defect.
-  Player URLs of repaired names change at the next deploy; the site is unlisted and noindex. The
-  page designs do not change, only the letters of the names in the data.
+  From the plan on #259. Recent matches cover the season shown, so the mart gets a flag (decision 2).
+  The set of players with a page does not change, so the export writes the players the Home and
+  competition boards link to, read from the landing and competition payloads of the same run
+  (decision 1). Peer values go in one shared file per competition, season and position, because a
+  player's file would otherwise repeat them for every peer. Player metric rows are written beside
+  metric_rows.json as player_metric_rows.json, leaving that file and its readers untouched. The plan
+  said "in metric_rows.json"; a separate file changes no shipped build input in this MR. No new
+  mechanism, no new dependency, no recurring cost: players joins the export in the next MR.
+  The mart also serves match_involvement, played or on_bench, so the export only filters. A squad
+  member with 0 minutes listing the matches "On the bench" is the design on #136. The Player row of
+  docs/site_architecture.md changes with the exact text the CPO approves. Wireframe 03's data
+  section stays until the next MR retires the file: #136 states its design wins over wireframes 03,
+  12 and 13, and the plan on #259 takes every wireframe line to the CPO before that MR.
 
 decisions_reserved:
-  - Player 275169's provider name carrying a leading "0" and spaces is another defect, reported to the CPO after this MR.
-
-acceptance_criteria:
-  - Every player name on the site shows its own letters: "A. Maksimović", "M. Ljubičić", "K. Urbański", "J. Potočnik", "A. Voitinovičius", "L. Jovanović", "M. Cvetković", "N. Kovač".
-  - A check fails the build when exported data holds text decoded in the wrong character set.
+  - Whether the cards use line-ups and goal records for a match with no player stats (#256, open). The payload carries the blank.
+  - What the Club tab shows for a player with no club football (#256, open). The payload carries only the tabs the data marks.
+  - Which further players get a page (#259, not in scope).
 
 done_when:
-  - dbt_project/tests/assert_garbled_text_repair.sql passes in data:build:mr.
-  - check-exported-text.mjs passes on the committed sample and its node tests prove a garbled value fails.
-  - npm run build in site_v2 passes; the whole pytest tests passes; SQLFluff passes on the changed models.
-  - The prod comparison of the three base models shows every changed row is a repair.
+  - python -m pytest tests passes.
+  - dbt parse and sqlfluff pass on mart_player_fixture_stats.
+  - data:build:mr is green, assert_player_page_windows included, which holds each tab's played matches equal to its Appearances card.
 
-amendments:
-  - 2026-11-06: + dbt_project/models/3_core/core.yml, dbt_project/models/docs/shared_columns.md — authority: the plan on #248, approved in chat 2026-11-06; content: the column descriptions state the repair that plan approved.
+amendments: (none)

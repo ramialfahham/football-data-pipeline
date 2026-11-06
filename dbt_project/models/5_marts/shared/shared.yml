@@ -693,6 +693,13 @@ models:
         tests:
           - accepted_values:
               values: ["club", "national_team"]
+      - name: is_in_page_window
+        description: "True for a match of the season the Player page shows: the club competitions of the featured season, or the nation's current competitions."
+      - name: match_involvement
+        description: "played when the player has minutes; on_bench for a substitute who never came on; NULL when the row says neither."
+        tests:
+          - accepted_values:
+              values: ["played", "on_bench"]
       - name: tackles_total
         description: "{{ doc('tackles_player') }}"
       - name: tackles_blocks

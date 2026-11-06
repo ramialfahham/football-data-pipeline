@@ -503,64 +503,6 @@ def shape_team_payload(
     }
 
 
-def _player_team_block(row: dict) -> dict | None:
-    """The player's affiliated club for a profile row -> {team_id, name, crest, country},
-    or None when the player-season has no team (honest absence). team_sk + is_current_team
-    are computed in dbt (int_player_season__team); identity is joined from dim_team. The
-    export only selects/reshapes — it never decides which club is current."""
-    team_sk = row.get("team_sk")
-    if team_sk is None:
-        return None
-    return {
-        "team_id": int(team_sk),
-        "name": row.get("team_name"),
-        "crest": row.get("team_logo_url"),
-        "country": row.get("team_country"),
-    }
-
-
-def _shape_benchmark_member(row: dict) -> dict:
-    """One mart_player_competition_benchmarks row -> a Stats-screen metric entry (GAP-21).
-    Select/reshape only — the "top X%"/"median"/"bottom X%" label and the good/bad reading are
-    applied at render from the catalogue direction (the mart is direction-agnostic). numerator +
-    denominator come straight from the mart (non-null only for the 5 ratio metrics) so the
-    no-naked-% triple {num} of {den} · {pct}% can render; the export never computes them."""
-    return {
-        "metric_key": row.get("metric_key"),
-        "metric_value": row.get("metric_value"),
-        "percentile": row.get("percentile"),
-        "rank": row.get("rank"),
-        "peer_count": row.get("peer_count"),
-        "peer_median": row.get("peer_median"),
-        "vs_median_delta": row.get("vs_median_delta"),
-        "numerator": row.get("metric_numerator"),
-        "denominator": row.get("metric_denominator"),
-    }
-
-
-def _shape_benchmarks(rows: list[dict]) -> list[dict]:
-    """A season's mart_player_competition_benchmarks rows -> position-group blocks (GAP-21). Grouped
-    by position_group (a player benchmarked in >1 role appears once per role); minutes + appearances
-    are the position's sample (constant across its metrics); metrics ordered byte-stable by metric_key
-    (the frontend re-orders per the metrics_display block order and selects the position). No derivation."""
-    by_pos: dict = {}
-    for r in rows:
-        by_pos.setdefault(r.get("position_group"), []).append(r)
-    out = []
-    for pos in sorted(by_pos):
-        prs = by_pos[pos]
-        out.append({
-            "position_group": pos,
-            "minutes": prs[0].get("minutes"),
-            "appearances": prs[0].get("appearances"),
-            "metrics": [
-                _shape_benchmark_member(r)
-                for r in sorted(prs, key=lambda r: r.get("metric_key") or "")
-            ],
-        })
-    return out
-
-
 def _shape_team_benchmark_member(row: dict) -> dict:
     """One mart_team_competition_benchmarks row -> a Team-Stats metric entry (GAP-23). Select/reshape
     only: the rank already follows the metric's catalogue direction in the mart. No num/den atoms — the
@@ -588,107 +530,171 @@ def _shape_team_benchmarks(rows: list[dict]) -> list[dict]:
     ]
 
 
-def _shape_career_row(row: dict) -> dict:
-    """One mart_player_career row -> a Career-screen entry (GAP-22): the player's counts at one club in one
-    competition-season. Select/reshape only — club grouping and the per-club/career subtotals are frontend
-    display (the export computes nothing); national_appearances_total is a precomputed per-player total carried
-    at the payload top level. entity_type (club/national) is carried raw so the frontend splits the sections;
-    the club identity reuses _player_team_block. Internal keys (player_sk / season_sk / league_sk /
-    player_career_sk) + player identity (already top-level) are dropped."""
+def _player_cards(window_rows: list[dict]) -> dict:
+    """A tab's cards: metric key -> value, blank where the warehouse leaves it blank."""
+    return {r["metric_key"]: r.get("metric_value") for r in window_rows if r.get("is_card")}
+
+
+def _player_last_season(window_rows: list[dict]) -> dict | None:
+    """Compared with last season: both sides' minutes and each metric's two values. None when the
+    player has no club minutes last season."""
+    rows = sorted((r for r in window_rows if r.get("is_comparison")), key=lambda r: r["metric_key"])
+    if not rows or rows[0].get("minutes_prev_season") is None:
+        return None
     return {
-        "season": row.get("season_api_year"),
-        "competition": row.get("league_code"),
-        "entity_type": row.get("entity_type"),
-        "team": _player_team_block(row),
-        "appearances": row.get("appearances"),
-        "goals": row.get("goals_player"),
-        "assists": row.get("assists_player"),
+        "minutes": rows[0].get("minutes"),
+        "minutes_prev": rows[0].get("minutes_prev_season"),
+        "metrics": [
+            {"metric_key": r["metric_key"], "value": r.get("metric_value"),
+             "value_prev": r.get("metric_value_prev_season")}
+            for r in rows
+        ],
     }
+
+
+def _player_competition_filters(benchmark_rows: list[dict]) -> list[dict]:
+    """A tab's competition filters in the mart's competition_order, each with the player's value,
+    rank and median per metric. The other players' values are in the competition's peer file."""
+    by_order: dict = {}
+    for r in benchmark_rows:
+        by_order.setdefault(r["competition_order"], []).append(r)
+    out = []
+    for order in sorted(by_order):
+        rows = sorted(by_order[order], key=lambda r: r["metric_key"])
+        out.append({
+            "league_code": rows[0].get("league_code"),
+            "season": rows[0].get("season_api_year"),
+            "season_label": rows[0].get("season_label"),
+            "position_group": rows[0].get("position_group"),
+            "player_count": rows[0].get("position_player_count"),
+            "metrics": [
+                {"metric_key": r["metric_key"], "value": r.get("metric_value"),
+                 "rank": r.get("rank_best_first"), "median": r.get("peer_median")}
+                for r in rows
+            ],
+        })
+    return out
+
+
+def _player_squad_filter(player_id: int, squad_rows: list[dict], teams: dict) -> dict | None:
+    """The Squad filter: the player's rank and the squad's median per metric, with the teammates'
+    values for the strip. None when the player's page shows no Squad."""
+    own = sorted((r for r in squad_rows if r["player_sk"] == player_id), key=lambda r: r["metric_key"])
+    if not own:
+        return None
+    others: dict = {}
+    for r in squad_rows:
+        if r["player_sk"] != player_id:
+            others.setdefault(r["metric_key"], []).append(r.get("metric_value"))
+    return {
+        "team": teams.get(int(own[0]["team_sk"])),
+        "player_count": own[0].get("squad_player_count"),
+        "metrics": [
+            {"metric_key": r["metric_key"], "value": r.get("metric_value"), "rank": r.get("rank"),
+             "median": r.get("squad_median"), "others": sorted(others.get(r["metric_key"], []))}
+            for r in own
+        ],
+    }
+
+
+def _player_recent_row(row: dict) -> dict:
+    """A Recent matches row: the Team page's result row plus the player's own numbers."""
+    return {
+        "played_fixture_sk": int(row["fixture_sk"]),
+        "played_league_code": row.get("league_code"),
+        "played_kickoff_datetime": row.get("kickoff_datetime"),
+        "home_away": "home" if row.get("is_home") else "away",
+        "goals_for": row.get("goals_for"),
+        "goals_against": row.get("goals_against"),
+        "result": row.get("result"),
+        "opponent_name": row.get("opponent_name"),
+        "opponent_logo_url": row.get("opponent_logo_url"),
+        "minutes": row.get("minutes_played"),
+        "goals": row.get("goals_total"),
+        "assists": row.get("goals_assists"),
+        "ball_actions": row.get("ball_actions_player"),
+        "on_bench": row.get("match_involvement") == "on_bench",
+    }
+
+
+def _player_recent_matches(page_tab: str, match_rows: list[dict]) -> list[dict]:
+    """A tab's played matches, latest first. A squad member with none on the National team tab
+    lists the matches on the bench."""
+    latest = sorted(match_rows, key=lambda r: (r["kickoff_datetime"], r["fixture_sk"]), reverse=True)
+    played = [_player_recent_row(r) for r in latest if r.get("match_involvement") == "played"]
+    if played or page_tab != "national_team":
+        return played
+    return [_player_recent_row(r) for r in latest if r.get("match_involvement") == "on_bench"]
 
 
 def shape_player_payload(
-    profile_rows: list[dict],
+    profile: dict,
+    window_rows: list[dict],
+    benchmark_rows: list[dict],
+    squad_rows: list[dict],
     match_rows: list[dict],
-    benchmark_rows: list[dict] | None = None,
-    career_rows: list[dict] | None = None,
+    next_rows: list[dict],
+    teams: dict,
 ) -> dict:
-    """One player's profile rows + match-log rows (+ benchmark rows + career rows) -> the player page payload."""
-    featured = _featured_season_row(profile_rows)
-    player_id = int(featured["player_sk"])
-    seasons = sorted(
-        profile_rows,
-        key=lambda r: (r.get("season_api_year") or 0, r.get("league_code") or ""),
-        reverse=True,
-    )
-    matches = sorted(
-        match_rows,
-        key=lambda r: (r.get("kickoff_datetime") or datetime.min),
-        reverse=True,
-    )
-    # GAP-21: per-(competition, season) benchmark rows, grouped into position-group blocks (§12).
-    benchmarks_by_season: dict = {}
-    for br in benchmark_rows or []:
-        benchmarks_by_season.setdefault(
-            (br.get("league_code"), br.get("season_api_year")), []
-        ).append(br)
-    # Per-season club + the single current club. is_current_team is the dbt flag
-    # (int_player_season__team) — the export selects by it, it never re-ranks.
-    current_team = None
-    seasons_out = []
-    for r in seasons:
-        team = _player_team_block(r)
-        if current_team is None and r.get("is_current_team"):
-            current_team = team
-        s = _strip_identity(r)
-        for k in ("team_sk", "is_current_team"):
-            s.pop(k, None)
-        s["team"] = team
-        s["benchmarks"] = _shape_benchmarks(
-            benchmarks_by_season.get((s.get("league_code"), s.get("season_api_year")), [])
-        )
-        seasons_out.append(s)
-    # GAP-22: the whole per-club career log (one member per club x competition x season), attached TOP-LEVEL
-    # because the Career screen (13) shows the full career, not a per-season slice. Omit unresolved-identity
-    # rows (null team_name = a broken team_sk FK, guarded upstream by the relationships DQ test). Order is a
-    # pure SORT by two mart-shipped recency signals (no client-side aggregation): primary =
-    # club_latest_kickoff_at (the club's latest match, precomputed in mart_player_career) so a club's rows are
-    # CONTIGUOUS and clubs sort most-recent-first; then last_kickoff_at (within-club season order); then
-    # team_sk (deterministic tie-break) — all descending. Handles a mid-season transfer / return spell
-    # correctly. The frontend groups the already-club-contiguous rows and sums each club/career subtotal
-    # (display only). national_appearances_total is the precomputed per-player total (constant across the
-    # rows); None when the player has no career rows (honest absence — the frontend decides page generation).
-    career = [
-        _shape_career_row(r)
-        for r in sorted(
-            (cr for cr in (career_rows or []) if cr.get("team_name") is not None),
-            key=lambda cr: (
-                cr.get("club_latest_kickoff_at") or datetime.min,
-                cr.get("last_kickoff_at") or datetime.min,
-                cr["team_sk"],
-            ),
-            reverse=True,
-        )
-    ]
-    national_appearances_total = (
-        career_rows[0].get("national_appearances_total") if career_rows else None
-    )
+    """One player's rows from the page's marts -> the Player page payload. Every choice is the
+    warehouse's: the tabs, the club, the nation, the windows and the ranks. squad_rows hold each of
+    the player's squads whole; next_rows hold the next matches of the club and the nation."""
+    player_id = int(profile["player_sk"])
+    club_id, nation_id = profile.get("current_club_team_sk"), profile.get("national_team_sk")
+
+    def rows_of(rows: list[dict], page_tab: str) -> list[dict]:
+        return [r for r in rows if r.get("page_tab") == page_tab]
+
+    def next_matches(team_id) -> list[dict]:
+        rows = sorted((r for r in next_rows if r.get("team_sk") == team_id), key=lambda r: r["upcoming_order"])
+        return [_shape_schedule_fixture(r) for r in rows]
+
+    def tab(page_tab: str, team_id) -> dict:
+        windows = rows_of(window_rows, page_tab)
+        return {
+            "tab": page_tab,
+            "team": teams.get(int(team_id)) if team_id is not None else None,
+            "cards": _player_cards(windows),
+            "next_matches": next_matches(team_id),
+            "competitions": _player_competition_filters(rows_of(benchmark_rows, page_tab)),
+            "squad": _player_squad_filter(player_id, rows_of(squad_rows, page_tab), teams),
+            "last_season": _player_last_season(windows) if page_tab == "club" else None,
+            "recent_matches": _player_recent_matches(page_tab, rows_of(match_rows, page_tab)),
+        }
+
+    tabs = []
+    if profile.get("has_club_tab"):
+        tabs.append(tab("club", club_id))
+    if profile.get("has_national_team_tab"):
+        tabs.append(tab("national_team", nation_id))
     return {
         "type": "player",
         "player_id": player_id,
-        "slug": player_slug_with_id(featured.get("player_name"), player_id),
-        "name": featured.get("player_name"),
-        "nationality": featured.get("player_nationality"),
-        "birth_date": featured.get("player_birth_date"),
-        "photo": featured.get("player_photo_url"),
-        # From the FEATURED season, not the most recent one: modal position is per season, so a
-        # player fresh off a tournament was showing the position they played for their country.
-        "position": featured.get("position_code"),
-        "current_team": current_team,
-        "seasons": seasons_out,
-        "match_log": matches,
-        "career": career,
-        "national_appearances_total": national_appearances_total,
+        "slug": player_slug_with_id(profile.get("player_name"), player_id),
+        "name": profile.get("player_full_name"),
+        "photo": profile.get("player_photo_url"),
+        "nationality": profile.get("player_nationality"),
+        "age": profile.get("player_age"),
+        "height": profile.get("player_height"),
+        "position_group": profile.get("position_group"),
+        "season_label": profile.get("season_label"),
+        "club": teams.get(int(club_id)) if club_id is not None else None,
+        "tabs": tabs,
     }
+
+
+def shape_player_peers(rows: list[dict]) -> list[dict]:
+    """One file per competition, season and position: every entered player's value per metric, the
+    dots of the strip. Shared by all the position's players, so no player's file repeats them."""
+    groups: dict = {}
+    for r in rows:
+        key = (r["league_code"], r["season_api_year"], r["position_group"])
+        groups.setdefault(key, {}).setdefault(r["metric_key"], []).append(r["metric_value"])
+    return [
+        {"type": "player_peers", "league_code": league, "season": season, "position_group": position,
+         "values": {k: sorted(v) for k, v in sorted(values.items())}}
+        for (league, season, position), values in sorted(groups.items())
+    ]
 
 
 def form_block(w1: dict | None, w2: dict | None) -> dict | None:
@@ -1155,62 +1161,110 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
     ]
 
 
-_PLAYER_MATCH_LOG_COLUMNS = (
-    "player_sk, fixture_sk, team_sk, opponent_team_sk, league_code, season_api_year, "
-    "kickoff_datetime, round_name, is_home, team_goals_for as goals_for, "
-    "team_goals_against as goals_against, player_name, player_photo_url, team_name, "
-    "team_logo_url, opponent_name, opponent_logo_url, position_code, minutes_played, "
-    "is_starter, is_substitute, goals_total, goals_assists, saves, shots_total, shots_on, "
-    "passes_total, passes_key, passes_accuracy_percent, tackles_total, tackles_interceptions, "
-    "duels_total, duels_won, dribbles_attempts, dribbles_success, fouls_drawn, "
-    "fouls_committed, cards_yellow, cards_red, result"
+_PLAYER_PROFILE_COLUMNS = (
+    "player_sk, player_name, player_full_name, player_age, player_nationality, player_height, "
+    "player_photo_url, position_group, has_club_tab, has_national_team_tab, national_team_sk, "
+    "current_club_team_sk, season_label"
+)
+_PLAYER_MATCH_COLUMNS = (
+    "player_sk, fixture_sk, page_tab, league_code, kickoff_datetime, is_home, "
+    "team_goals_for as goals_for, team_goals_against as goals_against, result, opponent_name, "
+    "opponent_logo_url, minutes_played, goals_total, goals_assists, ball_actions_player, "
+    "match_involvement"
+)
+_PLAYER_BENCHMARK_COLUMNS = (
+    "player_sk, page_tab, competition_order, league_code, season_api_year, season_label, "
+    "position_group, position_player_count, metric_key, metric_value, rank_best_first, peer_median"
+)
+_PLAYER_SQUAD_COLUMNS = (
+    "squad_sk, page_tab, team_sk, player_sk, metric_key, metric_value, squad_player_count, "
+    "squad_median, rank"
+)
+_PLAYER_WINDOW_COLUMNS = (
+    "player_sk, page_tab, metric_key, is_card, is_comparison, minutes, metric_value, "
+    "minutes_prev_season, metric_value_prev_season"
 )
 
 
-def fetch_player_payloads(client, sample: int = 0) -> list[dict]:
-    profiles = _query(
-        client, f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_player_profile`"
-    )
-    by_player = _group_by(profiles, "player_sk")
-    player_ids = list(by_player.keys())[:sample] if sample else list(by_player.keys())
-    wanted = set(player_ids)
-    log_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_player_fixture_stats`"
-    log_select = f"select {_PLAYER_MATCH_LOG_COLUMNS} from {log_table} where has_stat_line"
-    if sample:
-        # Don't pull the whole match log for a sample run — scope it to the
-        # sampled players (player_sk is an int64 surrogate, safe to inline).
-        id_list = ", ".join(str(int(pid)) for pid in player_ids)
-        log_sql = f"{log_select} and player_sk in ({id_list})"
-    else:
-        log_sql = log_select
-    logs = _query(client, log_sql)
-    by_player_log = _group_by(logs, "player_sk")
-    # GAP-21: per-player benchmark rows from mart_player_competition_benchmarks (scoped to the
-    # sampled players on a sample run, like the match log). Selection only.
-    bench_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_player_competition_benchmarks`"
-    if sample:
-        bench_sql = f"select * from {bench_table} where player_sk in ({id_list})"
-    else:
-        bench_sql = f"select * from {bench_table}"
-    by_player_bench = _group_by(_query(client, bench_sql), "player_sk")
-    # GAP-22: per-player career rows from mart_player_career (scoped to the sampled players on a sample run,
-    # like the match log + benchmark rows). Selection only.
-    career_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_player_career`"
-    if sample:
-        career_sql = f"select * from {career_table} where player_sk in ({id_list})"
-    else:
-        career_sql = f"select * from {career_table}"
-    by_player_career = _group_by(_query(client, career_sql), "player_sk")
-    return [
+def linked_player_ids(out_root: pathlib.Path) -> list[int]:
+    """The players the site links to: those on the Home and competition boards of this export. The
+    site makes a page for exactly these (`site_v2/src/lib/builtPlayers.mjs`)."""
+    ids: set[int] = set()
+    landing = out_root / "landing.json"
+    boards = json.loads(landing.read_text(encoding="utf-8")).get("top_players", []) if landing.exists() else []
+    for path in (out_root / "competitions").glob("*/*.json"):
+        boards += json.loads(path.read_text(encoding="utf-8")).get("player_boards") or []
+    for board in boards:
+        ids.update(int(row["player_id"]) for row in board["rows"] if row.get("player_id") is not None)
+    return sorted(ids)
+
+
+def fetch_player_payloads(client, player_ids: list[int], sample: int = 0) -> tuple[list[dict], list[dict]]:
+    """The named players' page payloads, and the peer files their competition filters read."""
+    ids = player_ids[:sample] if sample else player_ids
+    if not ids:
+        return [], []
+    id_list = ", ".join(str(int(pid)) for pid in ids)
+
+    def marts(columns: str, table: str, where: str) -> list[dict]:
+        return _query(client, f"select {columns} from `{GCP_PROJECT}.{MARTS_DATASET}.{table}` where {where}")
+
+    profiles = marts(_PLAYER_PROFILE_COLUMNS, "mart_player_profile",
+                     f"is_featured_season and player_sk in ({id_list})")
+    windows = _group_by(marts(_PLAYER_WINDOW_COLUMNS, "mart_player_window_metrics",
+                              f"player_sk in ({id_list})"), "player_sk")
+    matches = _group_by(marts(_PLAYER_MATCH_COLUMNS, "mart_player_fixture_stats",
+                              f"is_in_page_window and player_sk in ({id_list})"), "player_sk")
+    bench_rows = marts(_PLAYER_BENCHMARK_COLUMNS, "mart_player_competition_benchmarks",
+                       f"page_tab is not null and player_sk in ({id_list})")
+    benchmarks = _group_by(bench_rows, "player_sk")
+    squad_of: dict = {}
+    for r in marts("distinct player_sk, squad_sk", "mart_player_squad_benchmarks",
+                   f"has_squad_filter and player_sk in ({id_list})"):
+        squad_of.setdefault(r["player_sk"], []).append(r["squad_sk"])
+    squad_keys = sorted({s for keys in squad_of.values() for s in keys})
+    squads: dict = {}
+    if squad_keys:
+        wanted = ", ".join(f"'{s}'" for s in squad_keys)
+        squads = _group_by(marts(_PLAYER_SQUAD_COLUMNS, "mart_player_squad_benchmarks",
+                                 f"squad_sk in ({wanted})"), "squad_sk")
+
+    team_ids = sorted({int(p[k]) for p in profiles for k in ("current_club_team_sk", "national_team_sk")
+                       if p.get(k) is not None}
+                      | {int(r["team_sk"]) for rows in squads.values() for r in rows})
+    teams: dict = {}
+    next_rows: dict = {}
+    if team_ids:
+        team_list = ", ".join(str(t) for t in team_ids)
+        for r in marts("distinct team_sk, team_name, team_logo_url, team_slug", "mart_team_profile",
+                       f"team_sk in ({team_list})"):
+            teams[int(r["team_sk"])] = {"team_id": int(r["team_sk"]), "name": r.get("team_name"),
+                                        "crest": r.get("team_logo_url"), "slug": r.get("team_slug")}
+        next_rows = _group_by(marts("*", "mart_team_fixtures",
+                                    f"upcoming_rank = 1 and team_sk in ({team_list})"), "team_sk")
+
+    payloads = [
         shape_player_payload(
-            by_player[pid],
-            by_player_log.get(pid, []),
-            by_player_bench.get(pid, []),
-            by_player_career.get(pid, []),
+            p,
+            windows.get(p["player_sk"], []),
+            benchmarks.get(p["player_sk"], []),
+            [r for key in squad_of.get(p["player_sk"], []) for r in squads[key]],
+            matches.get(p["player_sk"], []),
+            [r for k in ("current_club_team_sk", "national_team_sk") for r in next_rows.get(p.get(k), [])],
+            teams,
         )
-        for pid in player_ids
-        if pid in wanted
+        for p in profiles
     ]
+    peers: list[dict] = []
+    groups = sorted({f"{r['league_code']}|{r['season_api_year']}|{r['position_group']}" for r in bench_rows})
+    if groups:
+        wanted = ", ".join(f"'{g}'" for g in groups)
+        peers = shape_player_peers(marts(
+            "league_code, season_api_year, position_group, metric_key, metric_value",
+            "mart_player_competition_benchmarks",
+            f"concat(league_code, '|', cast(season_api_year as string), '|', position_group) in ({wanted})",
+        ))
+    return payloads, peers
 
 
 def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None = None) -> list[dict]:
@@ -2465,6 +2519,30 @@ def fetch_metric_rows(seed_path: str = CATALOGUE_SEED_PATH, map_path: str = METR
         for r in rows]}
 
 
+def fetch_player_metric_rows(seed_path: str = CATALOGUE_SEED_PATH, map_path: str = METRIC_MAP_PATH) -> dict:
+    """player_metric_rows.json — the rows of the Player page's comparisons: every metric
+    mart_player_competition_benchmarks serves, in group order and then its place, each with its key
+    flag. A selection from the seeds, no BigQuery."""
+    import csv
+
+    with open(map_path, encoding="utf-8") as f:
+        served = {r["metric_id"] for r in csv.DictReader(f)
+                  if r["table_name"] == "mart_player_competition_benchmarks"}
+    with open(seed_path, encoding="utf-8") as f:
+        rows = [r for r in csv.DictReader(f)
+                if r["entity"] == "player" and r["metric_id"] in served and r["metric_order"]]
+    rows.sort(key=lambda r: (int(r["metric_group_order"]), int(r["metric_order"])))
+    return {"type": "player_metric_rows", "rows": [
+        {"metric_id": r["metric_id"],
+         "label_i18n_key": r["label_i18n_key"],
+         "metric_group": r["metric_group"],
+         "metric_order": int(r["metric_order"]),
+         "direction": r["direction"],
+         "format": r["format"],
+         "is_key_metric": r["is_key_metric"] == "true"}
+        for r in rows]}
+
+
 # --------------------------------------------------------------------------- #
 # Orchestration
 # --------------------------------------------------------------------------- #
@@ -2502,11 +2580,6 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
             e = write_entity(out_root, "teams", p["team_id"], p)
             entries.append(e)
             slug_map[p["slug"]] = {"type": "team", "id": p["team_id"]}
-    if "players" in entities:
-        for p in fetch_player_payloads(client, sample):
-            e = write_entity(out_root, "players", p["player_id"], p)
-            entries.append(e)
-            slug_map[p["slug"]] = {"type": "player", "id": p["player_id"]}
     if "fixtures" in entities:
         for p in fetch_fixture_payloads(client, sample, source_counts):
             e = write_entity(out_root, "fixtures", p["fixture_id"], p)
@@ -2550,6 +2623,9 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
         sha = write_file(out_root, "metric_rows.json", fetch_metric_rows())
         entries.append({"type": "metric_rows", "id": "metric_rows", "slug": None,
                         "path": "metric_rows.json", "sha256": sha})
+        sha = write_file(out_root, "player_metric_rows.json", fetch_player_metric_rows())
+        entries.append({"type": "player_metric_rows", "id": "player_metric_rows", "slug": None,
+                        "path": "player_metric_rows.json", "sha256": sha})
     if "landing" in entities:
         sha = write_file(out_root, "landing.json", fetch_landing_payload(client))
         entries.append({"type": "landing", "id": "landing", "slug": None,
@@ -2565,6 +2641,21 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
     if "matches" in entities:
         for p in fetch_match_day_payloads(client):
             entries.append(write_entity(out_root, "matches", p["day"], p))
+    # After landing and competitions: their boards name the players who get a page.
+    if "players" in entities:
+        linked = linked_player_ids(out_root)
+        if not linked:
+            raise ValueError(f"no player boards in {out_root}: export landing and competitions first")
+        payloads, peers = fetch_player_payloads(client, linked, sample)
+        for p in payloads:
+            e = write_entity(out_root, "players", p["player_id"], p)
+            entries.append(e)
+            slug_map[p["slug"]] = {"type": "player", "id": p["player_id"]}
+        for p in peers:
+            relpath = f"player_peers/{p['league_code']}/{p['season']}/{p['position_group']}.json"
+            sha = write_file(out_root, relpath, p)
+            entries.append({"type": "player_peers", "id": relpath, "slug": None,
+                            "path": relpath, "sha256": sha})
 
     # Full league_code -> {name, slug} map (registry-only) — the frontend's competition lookup for
     # every active league. Always emitted (site_v2/src/data/competitions.json consumes it, even on a

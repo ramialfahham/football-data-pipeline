@@ -10,7 +10,9 @@
   value, passes_accuracy_percent, is the catalogue's pass accuracy over the
   player's own match (written by scripts/generate_metric_sql.py), as a whole
   percentage. ball_actions_player is the catalogue's ball actions over the same match. page_tab is
-  the Player page tab the match belongs to.
+  the Player page tab the match belongs to; is_in_page_window marks a match of the season that tab
+  shows. match_involvement says whether the player played or stayed on the bench, blank when a row
+  says neither.
 
   Many competitions do not provide statistics_players from the API, so a row
   without a stat line (has_stat_line false) is common: its statistics are
@@ -60,6 +62,7 @@ match_rates as (
 fixtures as (
     select
         fixture_sk,
+        season_sk,
         league_code,
         season_api_year,
         kickoff_datetime,
@@ -79,6 +82,15 @@ competition_tabs as (
     from {{ ref('competition_registry') }} as reg
     inner join {{ ref('competition_types') }} as typ
         on reg.competition_type = typ.competition_type
+),
+
+page_windows as (
+    select
+        player_sk,
+        season_sk,
+        team_sk
+    from {{ ref('int_player_page__window_seasons') }}
+    where window_type in ('this_season', 'current_competitions')
 ),
 
 players as (
@@ -194,10 +206,15 @@ select
     s.penalties_scored as penalty_scored,
     s.penalties_missed as penalty_missed,
     s.penalties_saved as penalty_saved,
+    pw.player_sk is not null as is_in_page_window,
     a.team_sk = f.home_team_sk as is_home,
     if(a.team_sk = f.home_team_sk, f.away_team_sk, f.home_team_sk) as opponent_team_sk,
     if(a.team_sk = f.home_team_sk, f.goals_home, f.goals_away) as team_goals_for,
     if(a.team_sk = f.home_team_sk, f.goals_away, f.goals_home) as team_goals_against,
+    case
+        when s.minutes > 0 then 'played'
+        when not a.is_starter and a.minute_on is null then 'on_bench'
+    end as match_involvement,
     case
         when f.goals_home > f.goals_away then if(a.team_sk = f.home_team_sk, 'W', 'L')
         when f.goals_home < f.goals_away then if(a.team_sk = f.home_team_sk, 'L', 'W')
@@ -208,6 +225,11 @@ inner join fixtures as f
     on a.fixture_sk = f.fixture_sk
 left join competition_tabs as ct
     on f.league_code = ct.league_code
+left join page_windows as pw
+    on
+        a.player_sk = pw.player_sk
+        and f.season_sk = pw.season_sk
+        and (pw.team_sk is null or a.team_sk = pw.team_sk)
 left join stats as s
     on a.fixture_sk = s.fixture_sk and a.team_sk = s.team_sk and a.player_sk = s.player_sk
 left join match_rates as r

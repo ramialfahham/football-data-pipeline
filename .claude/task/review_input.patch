@@ -1,608 +1,1358 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 7e72d628..bdde0f5b 100644
+index bdde0f5b..e61fabde 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,32 +1,94 @@
--# Task contract — list the Player page's approved design
-+# Task contract — repair garbled player names and stop them shipping
+@@ -1,40 +1,23 @@
+-# Task contract — repair garbled player names and stop them shipping
++# Task contract — the Player page's data: window flag and export
  
  objective: >
--  Issue #259, its first line: `player: 136` enters docs/wireframes/approved_designs.yml, so the
--  contract gate accepts the Player page's build contracts. The CPO's merge is the approval.
-+  Issue #248: the provider sends some player names as UTF-8 read as Latin-1 or Windows-1252. Base
-+  repairs them so every name downstream is correct, and a check fails the build when exported data
-+  holds wrongly decoded text.
+-  Issue #248: the provider sends some player names as UTF-8 read as Latin-1 or Windows-1252. Base
+-  repairs them so every name downstream is correct, and a check fails the build when exported data
+-  holds wrongly decoded text.
++  Issue #259, step 2. mart_player_fixture_stats marks the matches of the season a Player page shows,
++  and the export writes the payload the approved design (#136) reads: header, tabs, cards, next
++  matches, the comparisons, last season and recent matches, for the players the site links to. No
++  page reads it yet, so no page output changes.
  
  refs: >
--  #259, plan approved in chat 2026-11-06. Design: #136.
-+  #248, plan approved in chat 2026-11-06. Found by #243.
+-  #248, plan approved in chat 2026-11-06. Found by #243.
++  #259, plan approved in chat 2026-11-06. Design: #136. Models: !382 (#256), !383 (#257).
  
  scope_paths:
--  - docs/wireframes/approved_designs.yml
-+  - dbt_project/macros/repair_garbled_text.sql
-+  - dbt_project/models/2_base/api_football/base_apif__players.sql
-+  - dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
-+  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
-+  - dbt_project/tests/assert_garbled_text_repair.sql
-+  - dbt_project/models/3_core/core.yml
-+  - dbt_project/models/docs/shared_columns.md
-+  - site_v2/scripts/check-exported-text.mjs
-+  - site_v2/scripts/check-exported-text.test.mjs
-+  - site_v2/scripts/build-wiring.test.mjs
-+  - site_v2/package.json
-+  - site_v2/src/data/fixtures/1528965.json
-+  - site_v2/src/data/fixtures/1553193.json
-+  - site_v2/src/data/fixtures/1635716.json
-+  - site_v2/src/data/fixtures/1638563.json
-+  - site_v2/src/data/teams/165.json
-+  - site_v2/src/data/teams/169.json
-+  - site_v2/src/data/teams/172.json
-+  - site_v2/src/data/teams/173.json
-+  - site_v2/src/data/teams/182.json
-+  - site_v2/src/data/teams/192.json
-+  - site_v2/src/data/teams/211.json
-+  - site_v2/src/data/teams/867.json
-+  - tests/fixtures/font_coverage/baseline.json
-+  - tests/fixtures/design_inventory/baseline.json
-+  - tests/fixtures/design_inventory/baseline_quick.json
+-  - dbt_project/macros/repair_garbled_text.sql
+-  - dbt_project/models/2_base/api_football/base_apif__players.sql
+-  - dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
+-  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+-  - dbt_project/tests/assert_garbled_text_repair.sql
+-  - dbt_project/models/3_core/core.yml
+-  - dbt_project/models/docs/shared_columns.md
+-  - site_v2/scripts/check-exported-text.mjs
+-  - site_v2/scripts/check-exported-text.test.mjs
+-  - site_v2/scripts/build-wiring.test.mjs
+-  - site_v2/package.json
+-  - site_v2/src/data/fixtures/1528965.json
+-  - site_v2/src/data/fixtures/1553193.json
+-  - site_v2/src/data/fixtures/1635716.json
+-  - site_v2/src/data/fixtures/1638563.json
+-  - site_v2/src/data/teams/165.json
+-  - site_v2/src/data/teams/169.json
+-  - site_v2/src/data/teams/172.json
+-  - site_v2/src/data/teams/173.json
+-  - site_v2/src/data/teams/182.json
+-  - site_v2/src/data/teams/192.json
+-  - site_v2/src/data/teams/211.json
+-  - site_v2/src/data/teams/867.json
+-  - tests/fixtures/font_coverage/baseline.json
+-  - tests/fixtures/design_inventory/baseline.json
+-  - tests/fixtures/design_inventory/baseline_quick.json
++  - dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - scripts/export_site_data.py
++  - tests/test_export_site_data.py
++  - tests/test_no_decision_history_in_code.py
++  - dbt_project/tests/assert_player_page_windows.sql
++  - dbt_project/docs/layering.md
++  - docs/site_architecture.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-   - .claude/task/acceptance_evidence.md
+@@ -42,53 +25,50 @@ scope_paths:
    - .claude/task/rendered_page_evidence.md
  
-+impact_map: >
-+  writers: dbt only; no ingestion change, raw stays as received. The garbling comes from the
-+  provider: one string holds a broken and a correct letter together, which no wrong decode on our
-+  side produces.
-+  lineage: `dbt ls --resource-type model --select base_apif__players+1 base_apif__player_profiles+1
-+  base_apif__fixture_events+1` returns base_apif__fixture_events, base_apif__fixture_players,
-+  base_apif__fixture_statistics, base_apif__lineups, base_apif__player_profiles, base_apif__players,
-+  dim_player, fct_fixture_event; the full `+` selection is 84 models. No model joins or tests on a
-+  name: `grep -rn "player_name" dbt_project/tests` is empty, and base_apif__fixture_players,
-+  base_apif__fixture_statistics and base_apif__lineups read event ids, types and the assist's
-+  presence, never the name's text. The repair keeps a null a null, so assisted_goal_events holds.
-+  consumption: dim_player feeds every player name the export reads, and
-+  mart_competition_fixtures falls back to fct_fixture_event's names. The export builds player slugs
-+  from the name, so the slug of each repaired name changes with its name.
-+  ci_layer_rules: scripts/check_layer_contract.py, scripts/check_description_hygiene.py.
-+  deploy_order: one merge; the nightly dbt build rebuilds. No backfill, no raw write.
-+  blast_radius: measured on prod: 415 players in dim_player, 38 distinct event names, and the two
-+  nationalities Côte d'Ivoire and Türkiye change their text; no number changes. The other text
-+  columns of dim_player, dim_coach, dim_team, fct_fixture, fct_fixture_event, dim_league and
-+  dim_country hold no garbled value. Offline run of the rule on all 494 flagged values: 493
-+  repaired, 0 failures, and the 494th, a correct name, left alone.
-+
+ impact_map: >
+-  writers: dbt only; no ingestion change, raw stays as received. The garbling comes from the
+-  provider: one string holds a broken and a correct letter together, which no wrong decode on our
+-  side produces.
+-  lineage: `dbt ls --resource-type model --select base_apif__players+1 base_apif__player_profiles+1
+-  base_apif__fixture_events+1` returns base_apif__fixture_events, base_apif__fixture_players,
+-  base_apif__fixture_statistics, base_apif__lineups, base_apif__player_profiles, base_apif__players,
+-  dim_player, fct_fixture_event; the full `+` selection is 84 models. No model joins or tests on a
+-  name: `grep -rn "player_name" dbt_project/tests` is empty, and base_apif__fixture_players,
+-  base_apif__fixture_statistics and base_apif__lineups read event ids, types and the assist's
+-  presence, never the name's text. The repair keeps a null a null, so assisted_goal_events holds.
+-  consumption: dim_player feeds every player name the export reads, and
+-  mart_competition_fixtures falls back to fct_fixture_event's names. The export builds player slugs
+-  from the name, so the slug of each repaired name changes with its name.
++  writers: dbt only. mart_player_fixture_stats gains two columns, is_in_page_window and
++  match_involvement, and season_sk inside its fixtures step. No ingestion change.
++  lineage: `dbt ls --resource-type model --select mart_player_fixture_stats+` returns
++  5_marts.shared.mart_player_fixture_stats, 5_marts.shared.mart_team_momentum_window. The second
++  reads fixture_sk and team_sk only (mart_team_momentum_window.sql line 52), so the new column
++  reaches nothing. `dbt ls --resource-type model --select +int_player_page__window_seasons` holds no
++  mart, so the new ref makes no cycle.
++  consumption: scripts/export_site_data.py is the mart's other reader. `--entities players` is not in
++  deploy:export, and the Player page reads boards, not players/*.json, until the next MR.
++  player_metric_rows.json is written by the metric_rows entity and committed with the page.
+   ci_layer_rules: scripts/check_layer_contract.py, scripts/check_description_hygiene.py.
+-  deploy_order: one merge; the nightly dbt build rebuilds. No backfill, no raw write.
+-  blast_radius: measured on prod: 415 players in dim_player, 38 distinct event names, and the two
+-  nationalities Côte d'Ivoire and Türkiye change their text; no number changes. The other text
+-  columns of dim_player, dim_coach, dim_team, fct_fixture, fct_fixture_event, dim_league and
+-  dim_country hold no garbled value. Offline run of the rule on all 494 flagged values: 493
+-  repaired, 0 failures, and the 494th, a correct name, left alone.
++  deploy_order: one merge; the nightly dbt build adds the column. The sample export that needs it
++  runs after that, for the next MR.
++  blast_radius: no number changes; the mart gains a boolean. The grain holds because a player's
++  window seasons are unique per window type, and a club season and a national one never coincide.
++  The old player payload (seasons, match_log, career) has no reader: `grep -rn "match_log"
++  site_v2/src --include=*.astro` returns nothing.
+ 
  approved_design:
--  - none: no page output changes
-+  - match: #132
-+  - team: #134
+-  - match: #132
+-  - team: #134
++  - player: #136
  
  decisions_taken: >
--  One line in the list of approved designs, approved with the plan on #259. No new mechanism, no
--  recurring cost.
-+  The plan on #248, approved in chat 2026-11-06. New mechanisms, both declared there: the dbt macro
-+  repair_garbled_text, and check-exported-text.mjs in the site's prebuild. No recurring cost: the
-+  macro runs inside three existing base builds. The rule covers Latin letters only, and its accepted
-+  limit is stated on the plan: garbled Cyrillic passes unrepaired, and the check catches it only when
-+  it holds a control character, so that German text such as a sharp s before a closing quote never
-+  fails the build. Nationality is repaired with the names, because it carries the same defect.
-+  Player URLs of repaired names change at the next deploy; the site is unlisted and noindex. The
-+  page designs do not change, only the letters of the names in the data.
+-  The plan on #248, approved in chat 2026-11-06. New mechanisms, both declared there: the dbt macro
+-  repair_garbled_text, and check-exported-text.mjs in the site's prebuild. No recurring cost: the
+-  macro runs inside three existing base builds. The rule covers Latin letters only, and its accepted
+-  limit is stated on the plan: garbled Cyrillic passes unrepaired, and the check catches it only when
+-  it holds a control character, so that German text such as a sharp s before a closing quote never
+-  fails the build. Nationality is repaired with the names, because it carries the same defect.
+-  Player URLs of repaired names change at the next deploy; the site is unlisted and noindex. The
+-  page designs do not change, only the letters of the names in the data.
++  From the plan on #259. Recent matches cover the season shown, so the mart gets a flag (decision 2).
++  The set of players with a page does not change, so the export writes the players the Home and
++  competition boards link to, read from the landing and competition payloads of the same run
++  (decision 1). Peer values go in one shared file per competition, season and position, because a
++  player's file would otherwise repeat them for every peer. Player metric rows are written beside
++  metric_rows.json as player_metric_rows.json, leaving that file and its readers untouched. The plan
++  said "in metric_rows.json"; a separate file changes no shipped build input in this MR. No new
++  mechanism, no new dependency, no recurring cost: players joins the export in the next MR.
++  The mart also serves match_involvement, played or on_bench, so the export only filters. A squad
++  member with 0 minutes listing the matches "On the bench" is the design on #136. The Player row of
++  docs/site_architecture.md changes with the exact text the CPO approves. Wireframe 03's data
++  section stays until the next MR retires the file: #136 states its design wins over wireframes 03,
++  12 and 13, and the plan on #259 takes every wireframe line to the CPO before that MR.
  
  decisions_reserved:
--  - none: this lists a design the CPO approved on #136 and changes nothing else
-+  - Player 275169's provider name carrying a leading "0" and spaces is another defect, reported to the CPO after this MR.
-+
-+acceptance_criteria:
-+  - Every player name on the site shows its own letters: "A. Maksimović", "M. Ljubičić", "K. Urbański", "J. Potočnik", "A. Voitinovičius", "L. Jovanović", "M. Cvetković", "N. Kovač".
-+  - A check fails the build when exported data holds text decoded in the wrong character set.
+-  - Player 275169's provider name carrying a leading "0" and spaces is another defect, reported to the CPO after this MR.
+-
+-acceptance_criteria:
+-  - Every player name on the site shows its own letters: "A. Maksimović", "M. Ljubičić", "K. Urbański", "J. Potočnik", "A. Voitinovičius", "L. Jovanović", "M. Cvetković", "N. Kovač".
+-  - A check fails the build when exported data holds text decoded in the wrong character set.
++  - Whether the cards use line-ups and goal records for a match with no player stats (#256, open). The payload carries the blank.
++  - What the Club tab shows for a player with no club football (#256, open). The payload carries only the tabs the data marks.
++  - Which further players get a page (#259, not in scope).
  
  done_when:
--  - docs/wireframes/approved_designs.yml holds `player: 136`.
--  - pytest tests passes.
-+  - dbt_project/tests/assert_garbled_text_repair.sql passes in data:build:mr.
-+  - check-exported-text.mjs passes on the committed sample and its node tests prove a garbled value fails.
-+  - npm run build in site_v2 passes; the whole pytest tests passes; SQLFluff passes on the changed models.
-+  - The prod comparison of the three base models shows every changed row is a repair.
+-  - dbt_project/tests/assert_garbled_text_repair.sql passes in data:build:mr.
+-  - check-exported-text.mjs passes on the committed sample and its node tests prove a garbled value fails.
+-  - npm run build in site_v2 passes; the whole pytest tests passes; SQLFluff passes on the changed models.
+-  - The prod comparison of the three base models shows every changed row is a repair.
++  - python -m pytest tests passes.
++  - dbt parse and sqlfluff pass on mart_player_fixture_stats.
++  - data:build:mr is green, assert_player_page_windows included, which holds each tab's played matches equal to its Appearances card.
  
--amendments: (none)
-+amendments:
-+  - 2026-11-06: + dbt_project/models/3_core/core.yml, dbt_project/models/docs/shared_columns.md — authority: the plan on #248, approved in chat 2026-11-06; content: the column descriptions state the repair that plan approved.
-diff --git a/dbt_project/macros/repair_garbled_text.sql b/dbt_project/macros/repair_garbled_text.sql
-new file mode 100644
-index 00000000..6f90c66f
---- /dev/null
-+++ b/dbt_project/macros/repair_garbled_text.sql
-@@ -0,0 +1,38 @@
-+{#
-+  The provider sends some names as UTF-8 already read as Latin-1 or Windows-1252. A sequence that
-+  a wrong decode leaves goes back to its bytes and is read as UTF-8; every other character stays,
-+  so a string that mixes broken and correct letters repairs whole. Control and invisible characters
-+  go last, with a space before one at the end: some names keep a stray one after the repair. The
-+  empty match at the end keeps an empty string empty.
-+
-+  The leads stop at Latin letters and the punctuation block, because a wider rule rewrites correct
-+  text: U+00E1, U+0161 and a no-break space are the middle of a real name, so a three-byte sequence
-+  never continues with a Windows-1252 letter first.
-+#}
-+{%- macro repair_garbled_text(text) -%}
-+{%- set windows_1252 -%}
-+\x{20AC}\x{201A}\x{0192}\x{201E}\x{2026}\x{2020}\x{2021}\x{02C6}\x{2030}\x{0160}\x{2039}\x{0152}\x{017D}\x{2018}\x{2019}\x{201C}\x{201D}\x{2022}\x{2013}\x{2014}\x{02DC}\x{2122}\x{0161}\x{203A}\x{0153}\x{017E}\x{0178}
-+{%- endset -%}
-+{%- set garbled -%}
-+[\x{00C2}-\x{00CB}][\x{0080}-\x{00BF}{{ windows_1252 }}]|[\x{00E1}\x{00E2}][\x{0080}-\x{00BF}\x{20AC}][\x{0080}-\x{00BF}{{ windows_1252 }}]
-+{%- endset -%}
-+{%- set windows_1252_text -%}
-+\U000020AC\U0000201A\U00000192\U0000201E\U00002026\U00002020\U00002021\U000002C6\U00002030\U00000160\U00002039\U00000152\U0000017D\U00002018\U00002019\U0000201C\U0000201D\U00002022\U00002013\U00002014\U000002DC\U00002122\U00000161\U0000203A\U00000153\U0000017E\U00000178
-+{%- endset -%}
-+{%- set byte_text -%}
-+\x80\x82\x83\x84\x85\x86\x87\x88\x89\x8a\x8b\x8c\x8e\x91\x92\x93\x94\x95\x96\x97\x98\x99\x9a\x9b\x9c\x9e\x9f
-+{%- endset -%}
-+regexp_replace(
-+    (
-+        select string_agg(if(char_length(piece) > 1, decoded, piece), '' order by piece_position)
-+        from unnest(regexp_extract_all({{ text }}, r'(?s){{ garbled }}|.|$')) as piece with offset as piece_position,
-+            unnest([
-+                safe_convert_bytes_to_string(
-+                    safe.code_points_to_bytes(to_code_points(translate(piece, '{{ windows_1252_text }}', '{{ byte_text }}')))
-+                )
-+            ]) as decoded
-+    ),
-+    r'\s*[\p{Cc}\p{Cf}]+$|[\p{Cc}\p{Cf}]',
-+    ''
-+)
-+{%- endmacro %}
-diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
-index b967083d..5af947dc 100644
---- a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
-@@ -436,8 +436,6 @@ select
-     g.minute_elapsed,
-     g.minute_extra,
-     g.player_id,
--    g.player_name,
--    g.assist_player_name,
-     g.assist_player_id,
-     g.event_type,
-     g.event_detail,
-@@ -449,6 +447,8 @@ select
-     g.goal_correction_source,
-     g.is_shootout_kick,
-     g.is_own_goal,
-+    {{ repair_garbled_text('g.player_name') }} as player_name,
-+    {{ repair_garbled_text('g.assist_player_name') }} as assist_player_name,
-     g.is_goal_event and g.goal_correction_source is null as is_provider_goal,
-     g.is_goal_event and not g.is_replaced and not (g.is_nameless and n.fixture_id is not null) as is_goal,
-     coalesce(g.event_type = 'Goal' and g.event_detail = 'Missed Penalty', false) and not g.is_shootout_kick
-diff --git a/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql b/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
-index 834a3dca..e6367d4e 100644
---- a/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
-@@ -51,24 +51,42 @@ corrected as (
-     from renamed
-     left join import_country_name_overrides as overrides
-         on renamed.player_birth_country_raw = overrides.provider_country
+-amendments:
+-  - 2026-11-06: + dbt_project/models/3_core/core.yml, dbt_project/models/docs/shared_columns.md — authority: the plan on #248, approved in chat 2026-11-06; content: the column descriptions state the repair that plan approved.
++amendments: (none)
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index af2f2201..b55b3cb1 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -327,7 +327,7 @@ Canonical mart inventory (exhaustive) for this project:
+ | `mart_team_momentum_window` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | W1 momentum-window drill-down legs (team). |
+ | `mart_team_season_record` | (upcoming_fixture_sk, team_sk) | W2 season-record aggregate (team). |
+ | `mart_player_season_record` | (upcoming_fixture_sk, team_sk, player_sk) | W2 season-record aggregate (player). |
+-| `mart_player_fixture_stats` | (fixture_sk, team_sk, player_sk) | A player in a finished match: every player the stat lines or the line-ups name, with the match context. A player's match log is its rows with a stat line. |
++| `mart_player_fixture_stats` | (fixture_sk, team_sk, player_sk) | A player in a finished match: every player the stat lines or the line-ups name, with the match context. `is_in_page_window` marks the matches of the season a Player page shows. |
+ | `mart_fixture_standing_context` | (fixture_sk, team_sk) | Pre-fixture standings / rank context. |
+ | `mart_head_to_head` | (team_sk, opponent_team_sk) | Head-to-head history per team pair. |
+ | `mart_roster` | (team_sk, league_code, season_api_year, player_sk) | Identity-only club squad list from `dim_player_team_season_mapping` ⋈ `dim_player`; club-scoped via `competition_types`. No per-club stat columns of its own; the Squad tab's per-player stats come from `mart_player_career` (#480), joined onto the roster at the export. |
+diff --git a/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql b/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
+index 3c7d7fb2..b21c4d2f 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
+@@ -10,7 +10,9 @@
+   value, passes_accuracy_percent, is the catalogue's pass accuracy over the
+   player's own match (written by scripts/generate_metric_sql.py), as a whole
+   percentage. ball_actions_player is the catalogue's ball actions over the same match. page_tab is
+-  the Player page tab the match belongs to.
++  the Player page tab the match belongs to; is_in_page_window marks a match of the season that tab
++  shows. match_involvement says whether the player played or stayed on the bench, blank when a row
++  says neither.
+ 
+   Many competitions do not provide statistics_players from the API, so a row
+   without a stat line (has_stat_line false) is common: its statistics are
+@@ -60,6 +62,7 @@ match_rates as (
+ fixtures as (
+     select
+         fixture_sk,
++        season_sk,
+         league_code,
+         season_api_year,
+         kickoff_datetime,
+@@ -81,6 +84,15 @@ competition_tabs as (
+         on reg.competition_type = typ.competition_type
+ ),
+ 
++page_windows as (
++    select
++        player_sk,
++        season_sk,
++        team_sk
++    from {{ ref('int_player_page__window_seasons') }}
++    where window_type in ('this_season', 'current_competitions')
 +),
 +
-+latest as (
-+    select
-+        player_api_id,
-+        player_name,
-+        player_first_name,
-+        player_last_name,
-+        player_birth_date,
-+        player_birth_place,
-+        player_birth_country,
-+        player_nationality,
-+        player_height,
-+        player_weight,
-+        player_position,
-+        player_photo_url,
-+        raw_ingested_at
-+    from corrected
-+    qualify row_number() over (
-+        partition by player_api_id
-+        order by raw_ingested_at desc
-+    ) = 1
- )
- 
- select
-     player_api_id,
--    player_name,
--    player_first_name,
--    player_last_name,
-     player_birth_date,
-     player_birth_place,
-     player_birth_country,
--    player_nationality,
-     player_height,
-     player_weight,
-     player_position,
-     player_photo_url,
--    raw_ingested_at
--from corrected
--qualify row_number() over (
--    partition by player_api_id
--    order by raw_ingested_at desc
--) = 1
-+    raw_ingested_at,
-+    {{ repair_garbled_text('player_name') }} as player_name,
-+    {{ repair_garbled_text('player_first_name') }} as player_first_name,
-+    {{ repair_garbled_text('player_last_name') }} as player_last_name,
-+    {{ repair_garbled_text('player_nationality') }} as player_nationality
-+from latest
-diff --git a/dbt_project/models/2_base/api_football/base_apif__players.sql b/dbt_project/models/2_base/api_football/base_apif__players.sql
-index 79de9615..a74262f7 100644
---- a/dbt_project/models/2_base/api_football/base_apif__players.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__players.sql
-@@ -101,21 +101,34 @@ src as (
-     select * from assist_events_src
-     union all
-     select * from lineups_src
-+),
-+
-+latest as (
-+    select
-+        player_api_id,
-+        player_name,
-+        player_first_name,
-+        player_last_name,
-+        player_birth_date,
-+        player_nationality,
-+        player_photo_url,
-+        raw_ingested_at
-+    from src
-+    qualify row_number() over (
-+        partition by player_api_id
-+        order by
-+            source_priority asc,
-+            raw_ingested_at desc
-+    ) = 1
- )
- 
- select
-     player_api_id,
--    player_name,
--    player_first_name,
--    player_last_name,
-     player_birth_date,
--    player_nationality,
-     player_photo_url,
--    raw_ingested_at
--from src
--qualify row_number() over (
--    partition by player_api_id
--    order by
--        source_priority asc,
--        raw_ingested_at desc
--) = 1
-+    raw_ingested_at,
-+    {{ repair_garbled_text('player_name') }} as player_name,
-+    {{ repair_garbled_text('player_first_name') }} as player_first_name,
-+    {{ repair_garbled_text('player_last_name') }} as player_last_name,
-+    {{ repair_garbled_text('player_nationality') }} as player_nationality
-+from latest
-diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
-index c39b5e1d..64bee87b 100644
---- a/dbt_project/models/3_core/core.yml
-+++ b/dbt_project/models/3_core/core.yml
-@@ -1036,9 +1036,9 @@ models:
-       - name: team_name_snapshot
-         description: "The team's name as the events feed spelled it when this row was ingested. It is kept as a record of what the feed said, NOT as a name to display: it is neither corrected nor kept in step with the team dimension, so join on team_api_id for a current name."
-       - name: player_name_snapshot
--        description: "The player's name as the events feed spelled it when this row was ingested. It is kept as a record of what the feed said, NOT as a name to display: it is neither corrected nor kept in step with the player dimension, and it is the only name available for an event the feed gives no player id for."
-+        description: "The player's name as the events feed spelled it when this row was ingested, with text sent in the wrong character set repaired. It is kept as a record of what the feed said, NOT as a name to display: it is not kept in step with the player dimension, and it is the only name available for an event the feed gives no player id for."
-       - name: assist_player_name
--        description: "The assisting player's name as the events feed spells it, and the only name available for an assist the feed gives no id for."
-+        description: "The assisting player's name as the events feed spells it, with text sent in the wrong character set repaired. It is the only name available for an assist the feed gives no id for."
-       - name: assist_player_sk
-         description: "{{ doc('player_sk') }} Here it is the assisting player. NULL where the event has no assist or the assist has no id."
+ players as (
+     select
+         player_sk,
+@@ -194,10 +206,15 @@ select
+     s.penalties_scored as penalty_scored,
+     s.penalties_missed as penalty_missed,
+     s.penalties_saved as penalty_saved,
++    pw.player_sk is not null as is_in_page_window,
+     a.team_sk = f.home_team_sk as is_home,
+     if(a.team_sk = f.home_team_sk, f.away_team_sk, f.home_team_sk) as opponent_team_sk,
+     if(a.team_sk = f.home_team_sk, f.goals_home, f.goals_away) as team_goals_for,
+     if(a.team_sk = f.home_team_sk, f.goals_away, f.goals_home) as team_goals_against,
++    case
++        when s.minutes > 0 then 'played'
++        when not a.is_starter and a.minute_on is null then 'on_bench'
++    end as match_involvement,
+     case
+         when f.goals_home > f.goals_away then if(a.team_sk = f.home_team_sk, 'W', 'L')
+         when f.goals_home < f.goals_away then if(a.team_sk = f.home_team_sk, 'L', 'W')
+@@ -208,6 +225,11 @@ inner join fixtures as f
+     on a.fixture_sk = f.fixture_sk
+ left join competition_tabs as ct
+     on f.league_code = ct.league_code
++left join page_windows as pw
++    on
++        a.player_sk = pw.player_sk
++        and f.season_sk = pw.season_sk
++        and (pw.team_sk is null or a.team_sk = pw.team_sk)
+ left join stats as s
+     on a.fixture_sk = s.fixture_sk and a.team_sk = s.team_sk and a.player_sk = s.player_sk
+ left join match_rates as r
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 47292962..1f8dbff3 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -693,6 +693,13 @@ models:
          tests:
-diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
-index 353894e5..97117e31 100644
---- a/dbt_project/models/docs/shared_columns.md
-+++ b/dbt_project/models/docs/shared_columns.md
-@@ -767,8 +767,8 @@ gives one.
- {% enddocs %}
+           - accepted_values:
+               values: ["club", "national_team"]
++      - name: is_in_page_window
++        description: "True for a match of the season the Player page shows: the club competitions of the featured season, or the nation's current competitions."
++      - name: match_involvement
++        description: "played when the player has minutes; on_bench for a substitute who never came on; NULL when the row says neither."
++        tests:
++          - accepted_values:
++              values: ["played", "on_bench"]
+       - name: tackles_total
+         description: "{{ doc('tackles_player') }}"
+       - name: tackles_blocks
+diff --git a/dbt_project/tests/assert_player_page_windows.sql b/dbt_project/tests/assert_player_page_windows.sql
+index 291468ce..8d9f4bd1 100644
+--- a/dbt_project/tests/assert_player_page_windows.sql
++++ b/dbt_project/tests/assert_player_page_windows.sql
+@@ -4,7 +4,8 @@
+   a nation with no current competition though one has started;
+   a player whose featured season is not one of the seasons the player played;
+   a lower_better benchmark whose rank_best_first 1 is not its lowest value;
+-  a squad row under the floor of a third of the team's minutes.
++  a squad row under the floor of a third of the team's minutes;
++  a tab whose played matches differ from its Appearances card.
+ #}
+ {{ config(store_failures = true, severity = 'error') }}
  
- {% docs player_name %}
--The player's display name as the provider gives it and dim_player publishes it, copied
--unchanged wherever a player is shown.
-+The player's display name as the provider gives it, with text sent in the wrong character set
-+repaired. dim_player publishes it, and it is copied unchanged wherever a player is shown.
- {% enddocs %}
- 
- {% docs player_photo_url %}
-@@ -778,7 +778,7 @@ NULL when no photo is ingested for the player.
- 
- {% docs player_nationality %}
- The player's nationality as dim_player publishes it: the provider's string, not a coded value.
--NULL when none is ingested for the player.
-+Text sent in the wrong character set is repaired. NULL when none is ingested for the player.
- {% enddocs %}
- 
- {% docs player_birth_date %}
-diff --git a/dbt_project/tests/assert_garbled_text_repair.sql b/dbt_project/tests/assert_garbled_text_repair.sql
-new file mode 100644
-index 00000000..b7a3e1b1
---- /dev/null
-+++ b/dbt_project/tests/assert_garbled_text_repair.sql
-@@ -0,0 +1,46 @@
-+-- Fixed examples of repair_garbled_text: each row fails when the repair of `sent` differs from
-+-- `shown`. The Latin-1 form, the Windows-1252 form, a stray control character, invisible marks, and
-+-- correct text that must stay as it is.
-+with examples as (
-+    select * from unnest([
-+        struct('A. MaksimoviÄ\u0087' as sent, 'A. Maksimović' as shown),
-+        struct('M. LjubiÄ\u008diÄ\u0087', 'M. Ljubičić'),
-+        struct('K. UrbaÅ\u0084ski', 'K. Urbański'),
-+        struct('J. PotoÄ\u008dnik', 'J. Potočnik'),
-+        struct('A. VoitinoviÄ\u008dius', 'A. Voitinovičius'),
-+        struct('L. JovanoviÄ\u0087', 'L. Jovanović'),
-+        struct('M. CvetkoviÄ\u0087', 'M. Cvetković'),
-+        struct('N. Kovač \u008d', 'N. Kovač'),
-+        struct('D. Pejičić\u0087', 'D. Pejičić'),
-+        struct('F. KneÅ¾eviÄ‡', 'F. Knežević'),
-+        struct('Dominik MartinoviÄ‡', 'Dominik Martinović'),
-+        struct('Alpaslan Ã–ztÃ¼rk', 'Alpaslan Öztürk'),
-+        struct('Æ\u008f. QarÉ™hmÉ™dov', 'Ə. Qarəhmədov'),
-+        struct('DavÃ­ðsson', 'Davíðsson'),
-+        struct('CÃ´te d\'Ivoire', 'Côte d\'Ivoire'),
-+        struct('N. Lâ\u0080\u0099Huillier', 'N. L’Huillier'),
-+        struct('Nguyá»\u0085n Sá»¹', 'Nguyễn Sỹ'),
-+        struct('Y. Kassahâ\u0080\u008eâ\u0080\u008f', 'Y. Kassah'),
-+        struct('Tomáš Vaclík', 'Tomáš Vaclík'),
-+        struct('Jürgen Müller', 'Jürgen Müller'),
-+        struct('Åkesson', 'Åkesson'),
-+        struct('Plain Name', 'Plain Name'),
-+        struct('', ''),
-+        struct(cast(null as string), cast(null as string))
-+    ])
+@@ -72,6 +73,28 @@ squad_under_floor as (
+     inner join {{ ref('int_player_squad_window__metrics') }} as s
+         on b.squad_sk = s.squad_sk and b.player_sk = s.player_sk
+     where s.minutes * 3 < s.team_matches * 90
 +),
 +
-+repairs as (
++played_in_window as (
 +    select
-+        sent,
-+        shown,
-+        {{ repair_garbled_text('sent') }} as repaired
-+    from examples
-+)
++        player_sk,
++        page_tab,
++        countif(match_involvement = 'played') as played
++    from {{ ref('mart_player_fixture_stats') }}
++    where is_in_page_window
++    group by player_sk, page_tab
++),
 +
-+select
-+    sent,
-+    shown,
-+    repaired
-+from repairs
-+where repaired is distinct from shown
-diff --git a/site_v2/package.json b/site_v2/package.json
-index d74536ff..97543cae 100644
---- a/site_v2/package.json
-+++ b/site_v2/package.json
-@@ -7,7 +7,7 @@
-   },
-   "scripts": {
-     "test": "node --test",
--    "prebuild": "npm test && node scripts/check-page-specs.mjs",
-+    "prebuild": "npm test && node scripts/check-page-specs.mjs && node scripts/check-exported-text.mjs",
-     "dev": "astro dev",
-     "build": "astro build && node scripts/audit-seo.mjs && node scripts/check-built-pages.mjs",
-     "preview": "astro preview"
-diff --git a/site_v2/scripts/build-wiring.test.mjs b/site_v2/scripts/build-wiring.test.mjs
-index 77dac260..e7f9316e 100644
---- a/site_v2/scripts/build-wiring.test.mjs
-+++ b/site_v2/scripts/build-wiring.test.mjs
-@@ -18,6 +18,11 @@ test("npm run build runs astro build, then the SEO check, then the built-pages c
-   );
- });
++played_differs_from_card as (
++    select
++        'played matches differ from the Appearances card' as failure,
++        concat(cast(w.player_sk as string), ' ', w.page_tab) as grain
++    from {{ ref('mart_player_window_metrics') }} as w
++    left join played_in_window as m
++        on w.player_sk = m.player_sk and w.page_tab = m.page_tab
++    where
++        w.metric_key = 'appearances'
++        and w.metric_value != coalesce(m.played, 0)
+ )
  
-+test("npm run build reads the data through the exported-text check before astro build", () => {
-+  const { scripts } = JSON.parse(readFileSync(join(SITE_ROOT, "package.json"), "utf8"));
-+  assert.ok(scripts.prebuild.split("&&").map((step) => step.trim()).includes("node scripts/check-exported-text.mjs"));
-+});
+ select * from double_counted
+@@ -83,3 +106,5 @@ union all
+ select * from lower_better_ranks
+ union all
+ select * from squad_under_floor
++union all
++select * from played_differs_from_card
+diff --git a/docs/site_architecture.md b/docs/site_architecture.md
+index 998f90fd..58eb83e3 100644
+--- a/docs/site_architecture.md
++++ b/docs/site_architecture.md
+@@ -280,7 +280,7 @@ every file. The `fetch_*` function for a file holds its live list of marts.
+ | Competition page, all three tabs | `competitions/{league_code}/{season}.json` (the page shows the latest season served) | Header: `mart_competition_index`. The table: `mart_standings`, with `table_kind`. The deserved points table: `mart_team_profile`. The season in numbers: `mart_competition_season_summary`. The Matchdays tab, the header's round and the match-that-matters flag: `mart_competition_fixtures`. The Rankings tab's boards, the top five per board: `mart_team_leaderboards` and `mart_leaderboards`. Read `fetch_competition_payloads` for the live list. |
+ | Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_window_metrics` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H), `mart_team_momentum_window` (the form list), `mart_player_momentum` (top players). Read `fetch_fixture_payloads`. **Not** `mart_matchday_insights`, the retired MVP's presentation pivot of the momentum mart. v2 reads the source marts directly. A played match's payload reads `mart_competition_fixtures` (result, goals, line-up state), `mart_leaderboards` (match boards), `mart_team_window_metrics` (one match) and `mart_player_fixture_stats` (line-ups). Read `fetch_played_fixture_payloads`. |
+ | Team profile ⭐ | `teams/{team_api_id}.json` | `mart_team_profile`, `mart_team_fixtures` (next match, last five), `mart_roster` (the squad), `mart_team_competition_benchmarks`, `mart_player_career` (squad season stats). Read `fetch_team_payloads`. |
+-| Player profile ⭐ | `players/{player_api_id}.json` | `mart_player_profile`, `mart_player_fixture_stats` (the rows with a stat line), `mart_player_competition_benchmarks`, `mart_player_career`. Read `fetch_player_payloads`. The page is a stub and does not read `players/`. It takes its players from `landing.json` and the competition files. |
++| Player profile ⭐ | `players/{player_api_id}.json`, `player_peers/{league_code}/{season}/{position_group}.json`, `player_metric_rows.json` | `mart_player_profile`, `mart_player_window_metrics`, `mart_player_competition_benchmarks`, `mart_player_squad_benchmarks`, `mart_player_fixture_stats` (the matches of the season shown), `mart_team_fixtures` (next matches), `mart_team_profile` (team names and slugs). Read `fetch_player_payloads`. The page is a stub and does not read `players/`. It takes its players from `landing.json` and the competition files. |
+ | Standings | within the competition file | `mart_standings` (league and group tables, incl. WC group letters) |
+ | Leaderboards | `leaderboards/{league_code}/{season}.json` | `mart_leaderboards`, player catalogue metrics |
+ | Head-to-head | `h2h/{pair_key}.json` (not exported) | `mart_head_to_head` |
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index 87493529..0211a3b4 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -503,64 +503,6 @@ def shape_team_payload(
+     }
+ 
+ 
+-def _player_team_block(row: dict) -> dict | None:
+-    """The player's affiliated club for a profile row -> {team_id, name, crest, country},
+-    or None when the player-season has no team (honest absence). team_sk + is_current_team
+-    are computed in dbt (int_player_season__team); identity is joined from dim_team. The
+-    export only selects/reshapes — it never decides which club is current."""
+-    team_sk = row.get("team_sk")
+-    if team_sk is None:
+-        return None
+-    return {
+-        "team_id": int(team_sk),
+-        "name": row.get("team_name"),
+-        "crest": row.get("team_logo_url"),
+-        "country": row.get("team_country"),
+-    }
+-
+-
+-def _shape_benchmark_member(row: dict) -> dict:
+-    """One mart_player_competition_benchmarks row -> a Stats-screen metric entry (GAP-21).
+-    Select/reshape only — the "top X%"/"median"/"bottom X%" label and the good/bad reading are
+-    applied at render from the catalogue direction (the mart is direction-agnostic). numerator +
+-    denominator come straight from the mart (non-null only for the 5 ratio metrics) so the
+-    no-naked-% triple {num} of {den} · {pct}% can render; the export never computes them."""
+-    return {
+-        "metric_key": row.get("metric_key"),
+-        "metric_value": row.get("metric_value"),
+-        "percentile": row.get("percentile"),
+-        "rank": row.get("rank"),
+-        "peer_count": row.get("peer_count"),
+-        "peer_median": row.get("peer_median"),
+-        "vs_median_delta": row.get("vs_median_delta"),
+-        "numerator": row.get("metric_numerator"),
+-        "denominator": row.get("metric_denominator"),
+-    }
+-
+-
+-def _shape_benchmarks(rows: list[dict]) -> list[dict]:
+-    """A season's mart_player_competition_benchmarks rows -> position-group blocks (GAP-21). Grouped
+-    by position_group (a player benchmarked in >1 role appears once per role); minutes + appearances
+-    are the position's sample (constant across its metrics); metrics ordered byte-stable by metric_key
+-    (the frontend re-orders per the metrics_display block order and selects the position). No derivation."""
+-    by_pos: dict = {}
+-    for r in rows:
+-        by_pos.setdefault(r.get("position_group"), []).append(r)
+-    out = []
+-    for pos in sorted(by_pos):
+-        prs = by_pos[pos]
+-        out.append({
+-            "position_group": pos,
+-            "minutes": prs[0].get("minutes"),
+-            "appearances": prs[0].get("appearances"),
+-            "metrics": [
+-                _shape_benchmark_member(r)
+-                for r in sorted(prs, key=lambda r: r.get("metric_key") or "")
+-            ],
+-        })
+-    return out
+-
+-
+ def _shape_team_benchmark_member(row: dict) -> dict:
+     """One mart_team_competition_benchmarks row -> a Team-Stats metric entry (GAP-23). Select/reshape
+     only: the rank already follows the metric's catalogue direction in the mart. No num/den atoms — the
+@@ -588,109 +530,173 @@ def _shape_team_benchmarks(rows: list[dict]) -> list[dict]:
+     ]
+ 
+ 
+-def _shape_career_row(row: dict) -> dict:
+-    """One mart_player_career row -> a Career-screen entry (GAP-22): the player's counts at one club in one
+-    competition-season. Select/reshape only — club grouping and the per-club/career subtotals are frontend
+-    display (the export computes nothing); national_appearances_total is a precomputed per-player total carried
+-    at the payload top level. entity_type (club/national) is carried raw so the frontend splits the sections;
+-    the club identity reuses _player_team_block. Internal keys (player_sk / season_sk / league_sk /
+-    player_career_sk) + player identity (already top-level) are dropped."""
++def _player_cards(window_rows: list[dict]) -> dict:
++    """A tab's cards: metric key -> value, blank where the warehouse leaves it blank."""
++    return {r["metric_key"]: r.get("metric_value") for r in window_rows if r.get("is_card")}
 +
- test("astro.config.mjs runs no check inside astro build", () => {
-   const config = readFileSync(join(SITE_ROOT, "astro.config.mjs"), "utf8");
-   assert.doesNotMatch(config, /from\s+["']\.\/integrations\//);
-diff --git a/site_v2/scripts/check-exported-text.mjs b/site_v2/scripts/check-exported-text.mjs
-new file mode 100644
-index 00000000..e0760641
---- /dev/null
-+++ b/site_v2/scripts/check-exported-text.mjs
-@@ -0,0 +1,65 @@
-+#!/usr/bin/env node
-+// The exported-text check: no value in `src/data` is text decoded in the wrong character set. The
-+// provider sends such text and `repair_garbled_text` repairs it in base, so a value that reaches
-+// this check is one the repair missed. `prebuild` runs it, so a build of the committed sample and
-+// a build of the full export both stop here.
-+//
-+//   node scripts/check-exported-text.mjs [dataDir]
 +
-+import { readdirSync, readFileSync } from "node:fs";
-+import { join, relative } from "node:path";
-+import { fileURLToPath, pathToFileURL } from "node:url";
++def _player_last_season(window_rows: list[dict]) -> dict | None:
++    """Compared with last season: both sides' minutes and each metric's two values. None when the
++    player has no club minutes last season."""
++    rows = sorted((r for r in window_rows if r.get("is_comparison")), key=lambda r: r["metric_key"])
++    if not rows or rows[0].get("minutes_prev_season") is None:
++        return None
+     return {
+-        "season": row.get("season_api_year"),
+-        "competition": row.get("league_code"),
+-        "entity_type": row.get("entity_type"),
+-        "team": _player_team_block(row),
+-        "appearances": row.get("appearances"),
+-        "goals": row.get("goals_player"),
+-        "assists": row.get("assists_player"),
++        "minutes": rows[0].get("minutes"),
++        "minutes_prev": rows[0].get("minutes_prev_season"),
++        "metrics": [
++            {"metric_key": r["metric_key"], "value": r.get("metric_value"),
++             "value_prev": r.get("metric_value_prev_season")}
++            for r in rows
++        ],
+     }
+ 
+ 
++def _player_competition_filters(benchmark_rows: list[dict]) -> list[dict]:
++    """A tab's competition filters in the mart's competition_order, each with the player's value,
++    rank and median per metric. The other players' values are in the competition's peer file."""
++    by_order: dict = {}
++    for r in benchmark_rows:
++        by_order.setdefault(r["competition_order"], []).append(r)
++    out = []
++    for order in sorted(by_order):
++        rows = sorted(by_order[order], key=lambda r: r["metric_key"])
++        out.append({
++            "league_code": rows[0].get("league_code"),
++            "season": rows[0].get("season_api_year"),
++            "season_label": rows[0].get("season_label"),
++            "position_group": rows[0].get("position_group"),
++            "player_count": rows[0].get("position_player_count"),
++            "metrics": [
++                {"metric_key": r["metric_key"], "value": r.get("metric_value"),
++                 "rank": r.get("rank_best_first"), "median": r.get("peer_median")}
++                for r in rows
++            ],
++        })
++    return out
 +
-+export const DATA_DIR = join(fileURLToPath(new URL(".", import.meta.url)), "..", "src", "data");
 +
-+const WINDOWS_1252 = "€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ";
-+const CONTINUATION = `[\\u0080-\\u00BF${WINDOWS_1252}]`;
++def _player_squad_filter(player_id: int, squad_rows: list[dict], teams: dict) -> dict | None:
++    """The Squad filter: the player's rank and the squad's median per metric, with the teammates'
++    values for the strip. None when the player's page shows no Squad."""
++    own = sorted((r for r in squad_rows if r["player_sk"] == player_id), key=lambda r: r["metric_key"])
++    if not own:
++        return None
++    others: dict = {}
++    for r in squad_rows:
++        if r["player_sk"] != player_id:
++            others.setdefault(r["metric_key"], []).append(r.get("metric_value"))
++    return {
++        "team": teams.get(int(own[0]["team_sk"])),
++        "player_count": own[0].get("squad_player_count"),
++        "metrics": [
++            {"metric_key": r["metric_key"], "value": r.get("metric_value"), "rank": r.get("rank"),
++             "median": r.get("squad_median"), "others": sorted(others.get(r["metric_key"], []))}
++            for r in own
++        ],
++    }
 +
-+// The same sequences as the macro, plus the two marks of a failed decode: a C1 control character
-+// and the replacement character.
-+export const GARBLED = new RegExp(
-+  `[\\u00C2-\\u00CB]${CONTINUATION}|[\\u00E1\\u00E2][\\u0080-\\u00BF€]${CONTINUATION}|[\\u0080-\\u009F\\uFFFD]`,
-+);
 +
-+/** Every string in a parsed JSON value that holds garbled text, keys included, with its path. */
-+export function garbledValues(value, path = "$") {
-+  if (typeof value === "string") return GARBLED.test(value) ? [{ path, text: value }] : [];
-+  if (Array.isArray(value)) return value.flatMap((item, i) => garbledValues(item, `${path}[${i}]`));
-+  if (value === null || typeof value !== "object") return [];
-+  return Object.entries(value).flatMap(([key, item]) => [
-+    ...garbledValues(key, `${path}.<key>`),
-+    ...garbledValues(item, `${path}.${key}`),
-+  ]);
-+}
++def _player_recent_row(row: dict) -> dict:
++    """A Recent matches row: the Team page's result row plus the player's own numbers."""
++    return {
++        "played_fixture_sk": int(row["fixture_sk"]),
++        "played_league_code": row.get("league_code"),
++        "played_kickoff_datetime": row.get("kickoff_datetime"),
++        "home_away": "home" if row.get("is_home") else "away",
++        "goals_for": row.get("goals_for"),
++        "goals_against": row.get("goals_against"),
++        "result": row.get("result"),
++        "opponent_name": row.get("opponent_name"),
++        "opponent_logo_url": row.get("opponent_logo_url"),
++        "minutes": row.get("minutes_played"),
++        "goals": row.get("goals_total"),
++        "assists": row.get("goals_assists"),
++        "ball_actions": row.get("ball_actions_player"),
++        "on_bench": row.get("match_involvement") == "on_bench",
++    }
 +
-+function jsonFiles(dir) {
-+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-+    const path = join(dir, entry.name);
-+    if (entry.isDirectory()) return jsonFiles(path);
-+    return entry.name.endsWith(".json") ? [path] : [];
-+  });
-+}
 +
-+/** Each garbled value under `dataDir`, with its file; the count of files read. */
-+export function scanData(dataDir) {
-+  const files = jsonFiles(dataDir);
-+  const findings = files.flatMap((file) =>
-+    garbledValues(JSON.parse(readFileSync(file, "utf8"))).map((hit) => ({ file: relative(dataDir, file), ...hit })),
-+  );
-+  return { files: files.length, findings };
-+}
++def _player_recent_matches(page_tab: str, match_rows: list[dict]) -> list[dict]:
++    """A tab's played matches, latest first. A squad member with none on the National team tab
++    lists the matches on the bench."""
++    latest = sorted(match_rows, key=lambda r: (r["kickoff_datetime"], r["fixture_sk"]), reverse=True)
++    played = [_player_recent_row(r) for r in latest if r.get("match_involvement") == "played"]
++    if played or page_tab != "national_team":
++        return played
++    return [_player_recent_row(r) for r in latest if r.get("match_involvement") == "on_bench"]
 +
-+function main() {
-+  const dataDir = process.argv[2] ?? DATA_DIR;
-+  const { files, findings } = scanData(dataDir);
-+  if (findings.length > 0) {
-+    console.error(`check-exported-text: ${findings.length} value(s) decoded in the wrong character set:\n`);
-+    for (const { file, path, text } of findings) console.error(`  - ${file} ${path}: ${JSON.stringify(text)}`);
-+    process.exit(1);
-+  }
-+  console.log(`check-exported-text: ${files} file(s) read, no garbled text. OK.`);
-+}
 +
-+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-+  main();
-+}
-diff --git a/site_v2/scripts/check-exported-text.test.mjs b/site_v2/scripts/check-exported-text.test.mjs
-new file mode 100644
-index 00000000..5966e954
---- /dev/null
-+++ b/site_v2/scripts/check-exported-text.test.mjs
-@@ -0,0 +1,67 @@
-+import { test } from "node:test";
-+import assert from "node:assert/strict";
-+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-+import { tmpdir } from "node:os";
-+import { join } from "node:path";
-+import { spawnSync } from "node:child_process";
-+import { fileURLToPath } from "node:url";
-+import { GARBLED, garbledValues, scanData } from "./check-exported-text.mjs";
+ def shape_player_payload(
+-    profile_rows: list[dict],
++    profile: dict,
++    window_rows: list[dict],
++    benchmark_rows: list[dict],
++    squad_rows: list[dict],
+     match_rows: list[dict],
+-    benchmark_rows: list[dict] | None = None,
+-    career_rows: list[dict] | None = None,
++    next_rows: list[dict],
++    teams: dict,
+ ) -> dict:
+-    """One player's profile rows + match-log rows (+ benchmark rows + career rows) -> the player page payload."""
+-    featured = _featured_season_row(profile_rows)
+-    player_id = int(featured["player_sk"])
+-    seasons = sorted(
+-        profile_rows,
+-        key=lambda r: (r.get("season_api_year") or 0, r.get("league_code") or ""),
+-        reverse=True,
+-    )
+-    matches = sorted(
+-        match_rows,
+-        key=lambda r: (r.get("kickoff_datetime") or datetime.min),
+-        reverse=True,
+-    )
+-    # GAP-21: per-(competition, season) benchmark rows, grouped into position-group blocks (§12).
+-    benchmarks_by_season: dict = {}
+-    for br in benchmark_rows or []:
+-        benchmarks_by_season.setdefault(
+-            (br.get("league_code"), br.get("season_api_year")), []
+-        ).append(br)
+-    # Per-season club + the single current club. is_current_team is the dbt flag
+-    # (int_player_season__team) — the export selects by it, it never re-ranks.
+-    current_team = None
+-    seasons_out = []
+-    for r in seasons:
+-        team = _player_team_block(r)
+-        if current_team is None and r.get("is_current_team"):
+-            current_team = team
+-        s = _strip_identity(r)
+-        for k in ("team_sk", "is_current_team"):
+-            s.pop(k, None)
+-        s["team"] = team
+-        s["benchmarks"] = _shape_benchmarks(
+-            benchmarks_by_season.get((s.get("league_code"), s.get("season_api_year")), [])
+-        )
+-        seasons_out.append(s)
+-    # GAP-22: the whole per-club career log (one member per club x competition x season), attached TOP-LEVEL
+-    # because the Career screen (13) shows the full career, not a per-season slice. Omit unresolved-identity
+-    # rows (null team_name = a broken team_sk FK, guarded upstream by the relationships DQ test). Order is a
+-    # pure SORT by two mart-shipped recency signals (no client-side aggregation): primary =
+-    # club_latest_kickoff_at (the club's latest match, precomputed in mart_player_career) so a club's rows are
+-    # CONTIGUOUS and clubs sort most-recent-first; then last_kickoff_at (within-club season order); then
+-    # team_sk (deterministic tie-break) — all descending. Handles a mid-season transfer / return spell
+-    # correctly. The frontend groups the already-club-contiguous rows and sums each club/career subtotal
+-    # (display only). national_appearances_total is the precomputed per-player total (constant across the
+-    # rows); None when the player has no career rows (honest absence — the frontend decides page generation).
+-    career = [
+-        _shape_career_row(r)
+-        for r in sorted(
+-            (cr for cr in (career_rows or []) if cr.get("team_name") is not None),
+-            key=lambda cr: (
+-                cr.get("club_latest_kickoff_at") or datetime.min,
+-                cr.get("last_kickoff_at") or datetime.min,
+-                cr["team_sk"],
+-            ),
+-            reverse=True,
+-        )
+-    ]
+-    national_appearances_total = (
+-        career_rows[0].get("national_appearances_total") if career_rows else None
+-    )
++    """One player's rows from the page's marts -> the Player page payload. Every choice is the
++    warehouse's: the tabs, the club, the nation, the windows and the ranks. squad_rows hold each of
++    the player's squads whole; next_rows hold the next matches of the club and the nation."""
++    player_id = int(profile["player_sk"])
++    club_id, nation_id = profile.get("current_club_team_sk"), profile.get("national_team_sk")
 +
-+const SCRIPT = fileURLToPath(new URL("./check-exported-text.mjs", import.meta.url));
++    def rows_of(rows: list[dict], page_tab: str) -> list[dict]:
++        return [r for r in rows if r.get("page_tab") == page_tab]
 +
-+for (const [form, text] of [
-+  ["the Latin-1 form", "A. MaksimoviÄ\u0087"],
-+  ["the Windows-1252 form", "Dominik MartinoviÄ‡"],
-+  ["a lead with a printable continuation", "Rafael LuÃ­s"],
-+  ["a three-byte sequence", "N. Lâ\u0080\u0099Huillier"],
-+  ["a stray control character", "N. Kovač \u008D"],
-+  ["the replacement character", "K. Urba�ski"],
-+]) {
-+  test(`${form} is garbled`, () => assert.match(text, GARBLED));
-+}
++    def next_matches(team_id) -> list[dict]:
++        rows = sorted((r for r in next_rows if r.get("team_sk") == team_id), key=lambda r: r["upcoming_order"])
++        return [_shape_schedule_fixture(r) for r in rows]
 +
-+for (const [what, text] of [
-+  ["a correct name with carons", "M. Ljubičić"],
-+  ["a correct name beside a no-break space", "Tomáš Vaclík"],
-+  ["German umlauts and a sharp s before a closing quote", "„Fuß“ für Mönchengladbach"],
-+  ["Finnish letters", "Pääsarja Ässät"],
-+  ["a typographic apostrophe", "N. L’Huillier"],
-+  ["Vietnamese letters", "Nguyễn Sỹ Đức"],
-+]) {
-+  test(`${what} is not garbled`, () => assert.doesNotMatch(text, GARBLED));
-+}
++    def tab(page_tab: str, team_id) -> dict:
++        windows = rows_of(window_rows, page_tab)
++        return {
++            "tab": page_tab,
++            "team": teams.get(int(team_id)) if team_id is not None else None,
++            "cards": _player_cards(windows),
++            "next_matches": next_matches(team_id),
++            "competitions": _player_competition_filters(rows_of(benchmark_rows, page_tab)),
++            "squad": _player_squad_filter(player_id, rows_of(squad_rows, page_tab), teams),
++            "last_season": _player_last_season(windows) if page_tab == "club" else None,
++            "recent_matches": _player_recent_matches(page_tab, rows_of(match_rows, page_tab)),
++        }
 +
-+test("garbledValues finds a value at any depth, and a garbled key, with their paths", () => {
-+  const found = garbledValues({ a: [{ name: "L. JovanoviÄ\u0087" }], "LuÃ­s": 1, ok: "Plain", n: null });
-+  assert.deepEqual(found.map((f) => f.path), ["$.a[0].name", "$.<key>"]);
-+});
++    tabs = []
++    if profile.get("has_club_tab"):
++        tabs.append(tab("club", club_id))
++    if profile.get("has_national_team_tab"):
++        tabs.append(tab("national_team", nation_id))
+     return {
+         "type": "player",
+         "player_id": player_id,
+-        "slug": player_slug_with_id(featured.get("player_name"), player_id),
+-        "name": featured.get("player_name"),
+-        "nationality": featured.get("player_nationality"),
+-        "birth_date": featured.get("player_birth_date"),
+-        "photo": featured.get("player_photo_url"),
+-        # From the FEATURED season, not the most recent one: modal position is per season, so a
+-        # player fresh off a tournament was showing the position they played for their country.
+-        "position": featured.get("position_code"),
+-        "current_team": current_team,
+-        "seasons": seasons_out,
+-        "match_log": matches,
+-        "career": career,
+-        "national_appearances_total": national_appearances_total,
++        "slug": player_slug_with_id(profile.get("player_name"), player_id),
++        "name": profile.get("player_full_name"),
++        "photo": profile.get("player_photo_url"),
++        "nationality": profile.get("player_nationality"),
++        "age": profile.get("player_age"),
++        "height": profile.get("player_height"),
++        "position_group": profile.get("position_group"),
++        "season_label": profile.get("season_label"),
++        "club": teams.get(int(club_id)) if club_id is not None else None,
++        "tabs": tabs,
+     }
+ 
+ 
++def shape_player_peers(rows: list[dict]) -> list[dict]:
++    """One file per competition, season and position: every entered player's value per metric, the
++    dots of the strip. Shared by all the position's players, so no player's file repeats them."""
++    groups: dict = {}
++    for r in rows:
++        key = (r["league_code"], r["season_api_year"], r["position_group"])
++        groups.setdefault(key, {}).setdefault(r["metric_key"], []).append(r["metric_value"])
++    return [
++        {"type": "player_peers", "league_code": league, "season": season, "position_group": position,
++         "values": {k: sorted(v) for k, v in sorted(values.items())}}
++        for (league, season, position), values in sorted(groups.items())
++    ]
 +
-+function dataDir(payload) {
-+  const dir = mkdtempSync(join(tmpdir(), "exported-text-"));
-+  mkdirSync(join(dir, "teams"));
-+  writeFileSync(join(dir, "teams", "1.json"), JSON.stringify(payload));
-+  return dir;
-+}
 +
-+test("scanData reads nested folders and names the file", () => {
-+  const dir = dataDir({ name: "J. PotoÄ\u008Dnik" });
-+  try {
-+    const { files, findings } = scanData(dir);
-+    assert.equal(files, 1);
-+    assert.deepEqual(findings.map((f) => f.file), [join("teams", "1.json")]);
-+  } finally {
-+    rmSync(dir, { recursive: true });
-+  }
-+});
+ def form_block(w1: dict | None, w2: dict | None) -> dict | None:
+     """The side's form block: the momentum row or the season-record row the warehouse flags with
+     is_form_window, or None when neither is flagged."""
+@@ -1155,62 +1161,110 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
+     ]
+ 
+ 
+-_PLAYER_MATCH_LOG_COLUMNS = (
+-    "player_sk, fixture_sk, team_sk, opponent_team_sk, league_code, season_api_year, "
+-    "kickoff_datetime, round_name, is_home, team_goals_for as goals_for, "
+-    "team_goals_against as goals_against, player_name, player_photo_url, team_name, "
+-    "team_logo_url, opponent_name, opponent_logo_url, position_code, minutes_played, "
+-    "is_starter, is_substitute, goals_total, goals_assists, saves, shots_total, shots_on, "
+-    "passes_total, passes_key, passes_accuracy_percent, tackles_total, tackles_interceptions, "
+-    "duels_total, duels_won, dribbles_attempts, dribbles_success, fouls_drawn, "
+-    "fouls_committed, cards_yellow, cards_red, result"
++_PLAYER_PROFILE_COLUMNS = (
++    "player_sk, player_name, player_full_name, player_age, player_nationality, player_height, "
++    "player_photo_url, position_group, has_club_tab, has_national_team_tab, national_team_sk, "
++    "current_club_team_sk, season_label"
++)
++_PLAYER_MATCH_COLUMNS = (
++    "player_sk, fixture_sk, page_tab, league_code, kickoff_datetime, is_home, "
++    "team_goals_for as goals_for, team_goals_against as goals_against, result, opponent_name, "
++    "opponent_logo_url, minutes_played, goals_total, goals_assists, ball_actions_player, "
++    "match_involvement"
++)
++_PLAYER_BENCHMARK_COLUMNS = (
++    "player_sk, page_tab, competition_order, league_code, season_api_year, season_label, "
++    "position_group, position_player_count, metric_key, metric_value, rank_best_first, peer_median"
++)
++_PLAYER_SQUAD_COLUMNS = (
++    "squad_sk, page_tab, team_sk, player_sk, metric_key, metric_value, squad_player_count, "
++    "squad_median, rank"
++)
++_PLAYER_WINDOW_COLUMNS = (
++    "player_sk, page_tab, metric_key, is_card, is_comparison, minutes, metric_value, "
++    "minutes_prev_season, metric_value_prev_season"
+ )
+ 
+ 
+-def fetch_player_payloads(client, sample: int = 0) -> list[dict]:
+-    profiles = _query(
+-        client, f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_player_profile`"
+-    )
+-    by_player = _group_by(profiles, "player_sk")
+-    player_ids = list(by_player.keys())[:sample] if sample else list(by_player.keys())
+-    wanted = set(player_ids)
+-    log_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_player_fixture_stats`"
+-    log_select = f"select {_PLAYER_MATCH_LOG_COLUMNS} from {log_table} where has_stat_line"
+-    if sample:
+-        # Don't pull the whole match log for a sample run — scope it to the
+-        # sampled players (player_sk is an int64 surrogate, safe to inline).
+-        id_list = ", ".join(str(int(pid)) for pid in player_ids)
+-        log_sql = f"{log_select} and player_sk in ({id_list})"
+-    else:
+-        log_sql = log_select
+-    logs = _query(client, log_sql)
+-    by_player_log = _group_by(logs, "player_sk")
+-    # GAP-21: per-player benchmark rows from mart_player_competition_benchmarks (scoped to the
+-    # sampled players on a sample run, like the match log). Selection only.
+-    bench_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_player_competition_benchmarks`"
+-    if sample:
+-        bench_sql = f"select * from {bench_table} where player_sk in ({id_list})"
+-    else:
+-        bench_sql = f"select * from {bench_table}"
+-    by_player_bench = _group_by(_query(client, bench_sql), "player_sk")
+-    # GAP-22: per-player career rows from mart_player_career (scoped to the sampled players on a sample run,
+-    # like the match log + benchmark rows). Selection only.
+-    career_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_player_career`"
+-    if sample:
+-        career_sql = f"select * from {career_table} where player_sk in ({id_list})"
+-    else:
+-        career_sql = f"select * from {career_table}"
+-    by_player_career = _group_by(_query(client, career_sql), "player_sk")
+-    return [
++def linked_player_ids(out_root: pathlib.Path) -> list[int]:
++    """The players the site links to: those on the Home and competition boards of this export. The
++    site makes a page for exactly these (`site_v2/src/lib/builtPlayers.mjs`)."""
++    ids: set[int] = set()
++    landing = out_root / "landing.json"
++    boards = json.loads(landing.read_text(encoding="utf-8")).get("top_players", []) if landing.exists() else []
++    for path in (out_root / "competitions").glob("*/*.json"):
++        boards += json.loads(path.read_text(encoding="utf-8")).get("player_boards") or []
++    for board in boards:
++        ids.update(int(row["player_id"]) for row in board["rows"] if row.get("player_id") is not None)
++    return sorted(ids)
 +
-+test("the command fails on garbled text and passes on clean text", () => {
-+  const bad = dataDir({ name: "J. PotoÄ\u008Dnik" });
-+  const good = dataDir({ name: "J. Potočnik" });
-+  try {
-+    assert.equal(spawnSync(process.execPath, [SCRIPT, bad]).status, 1);
-+    assert.equal(spawnSync(process.execPath, [SCRIPT, good]).status, 0);
-+  } finally {
-+    rmSync(bad, { recursive: true });
-+    rmSync(good, { recursive: true });
-+  }
-+});
-diff --git a/tests/fixtures/font_coverage/baseline.json b/tests/fixtures/font_coverage/baseline.json
-index 0432795e..0967ef42 100644
---- a/tests/fixtures/font_coverage/baseline.json
-+++ b/tests/fixtures/font_coverage/baseline.json
-@@ -1,23 +1 @@
--{
-- "/de/champions-league/spiele/2026-10-21-real-madrid-vs-rb-leipzig/": {"U+0087": 1},
-- "/de/dfb-pokal/spiele/2026-10-27-1-fc-koln-vs-1-fc-union-berlin/": {"U+0087": 1, "U+008D": 1},
-- "/de/ekstraklasa/spiele/2026-10-18-gornik-zabrze-vs-piast-gliwice/": {"U+0084": 1},
-- "/de/mannschaften/1-fc-union-berlin/": {"U+0087": 1, "U+008D": 1},
-- "/de/mannschaften/rb-leipzig/": {"U+0087": 1},
-- "/de/mannschaften/vfb-stuttgart/": {"U+0087": 1},
-- "/de/nations-league/spiele/2026-11-13-serbia-vs-germany/": {"U+0087": 1},
-- "/en/champions-league/matches/2026-10-21-real-madrid-vs-rb-leipzig/": {"U+0087": 1},
-- "/en/dfb-pokal/matches/2026-10-27-1-fc-koln-vs-1-fc-union-berlin/": {"U+0087": 1, "U+008D": 1},
-- "/en/ekstraklasa/matches/2026-10-18-gornik-zabrze-vs-piast-gliwice/": {"U+0084": 1},
-- "/en/nations-league/matches/2026-11-13-serbia-vs-germany/": {"U+0087": 1},
-- "/en/teams/1-fc-union-berlin/": {"U+0087": 1, "U+008D": 1},
-- "/en/teams/rb-leipzig/": {"U+0087": 1},
-- "/en/teams/vfb-stuttgart/": {"U+0087": 1},
-- "/fi/champions-league/ottelut/2026-10-21-real-madrid-vs-rb-leipzig/": {"U+0087": 1},
-- "/fi/dfb-pokal/ottelut/2026-10-27-1-fc-koln-vs-1-fc-union-berlin/": {"U+0087": 1, "U+008D": 1},
-- "/fi/ekstraklasa/ottelut/2026-10-18-gornik-zabrze-vs-piast-gliwice/": {"U+0084": 1},
-- "/fi/joukkueet/1-fc-union-berlin/": {"U+0087": 1, "U+008D": 1},
-- "/fi/joukkueet/rb-leipzig/": {"U+0087": 1},
-- "/fi/joukkueet/vfb-stuttgart/": {"U+0087": 1},
-- "/fi/nations-league/ottelut/2026-11-13-serbia-vs-germany/": {"U+0087": 1}
--}
-+{}
-
-# ============================================================================
-# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
-# ============================================================================
-# The files below changed and are DELIBERATELY excluded from the diff body:
-# they are generated/sample data, and pasting them has measured at ~89% of the
-# review payload. They are still reviewed content and still bind your verdict.
-#
-# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
-# particular: whether a field displayed by a component actually EXISTS in the
-# exported sample is checked by opening these files, not by reading a diff.
-#
-#   site_v2/src/data/fixtures/1528965.json |  2 +-
-#    site_v2/src/data/fixtures/1553193.json |  2 +-
-#    site_v2/src/data/fixtures/1635716.json |  2 +-
-#    site_v2/src/data/fixtures/1638563.json |  2 +-
-#    site_v2/src/data/teams/165.json        | 20 ++++++++++----------
-#    site_v2/src/data/teams/169.json        | 16 ++++++++--------
-#    site_v2/src/data/teams/172.json        | 12 ++++++------
-#    site_v2/src/data/teams/173.json        | 16 ++++++++--------
-#    site_v2/src/data/teams/182.json        | 12 ++++++------
-#    site_v2/src/data/teams/192.json        |  8 ++++----
-#    site_v2/src/data/teams/211.json        | 16 ++++++++--------
-#    site_v2/src/data/teams/867.json        |  4 ++--
-#    12 files changed, 56 insertions(+), 56 deletions(-)
-# ============================================================================
++
++def fetch_player_payloads(client, player_ids: list[int], sample: int = 0) -> tuple[list[dict], list[dict]]:
++    """The named players' page payloads, and the peer files their competition filters read."""
++    ids = player_ids[:sample] if sample else player_ids
++    if not ids:
++        return [], []
++    id_list = ", ".join(str(int(pid)) for pid in ids)
++
++    def marts(columns: str, table: str, where: str) -> list[dict]:
++        return _query(client, f"select {columns} from `{GCP_PROJECT}.{MARTS_DATASET}.{table}` where {where}")
++
++    profiles = marts(_PLAYER_PROFILE_COLUMNS, "mart_player_profile",
++                     f"is_featured_season and player_sk in ({id_list})")
++    windows = _group_by(marts(_PLAYER_WINDOW_COLUMNS, "mart_player_window_metrics",
++                              f"player_sk in ({id_list})"), "player_sk")
++    matches = _group_by(marts(_PLAYER_MATCH_COLUMNS, "mart_player_fixture_stats",
++                              f"is_in_page_window and player_sk in ({id_list})"), "player_sk")
++    bench_rows = marts(_PLAYER_BENCHMARK_COLUMNS, "mart_player_competition_benchmarks",
++                       f"page_tab is not null and player_sk in ({id_list})")
++    benchmarks = _group_by(bench_rows, "player_sk")
++    squad_of: dict = {}
++    for r in marts("distinct player_sk, squad_sk", "mart_player_squad_benchmarks",
++                   f"has_squad_filter and player_sk in ({id_list})"):
++        squad_of.setdefault(r["player_sk"], []).append(r["squad_sk"])
++    squad_keys = sorted({s for keys in squad_of.values() for s in keys})
++    squads: dict = {}
++    if squad_keys:
++        wanted = ", ".join(f"'{s}'" for s in squad_keys)
++        squads = _group_by(marts(_PLAYER_SQUAD_COLUMNS, "mart_player_squad_benchmarks",
++                                 f"squad_sk in ({wanted})"), "squad_sk")
++
++    team_ids = sorted({int(p[k]) for p in profiles for k in ("current_club_team_sk", "national_team_sk")
++                       if p.get(k) is not None}
++                      | {int(r["team_sk"]) for rows in squads.values() for r in rows})
++    teams: dict = {}
++    next_rows: dict = {}
++    if team_ids:
++        team_list = ", ".join(str(t) for t in team_ids)
++        for r in marts("distinct team_sk, team_name, team_logo_url, team_slug", "mart_team_profile",
++                       f"team_sk in ({team_list})"):
++            teams[int(r["team_sk"])] = {"team_id": int(r["team_sk"]), "name": r.get("team_name"),
++                                        "crest": r.get("team_logo_url"), "slug": r.get("team_slug")}
++        next_rows = _group_by(marts("*", "mart_team_fixtures",
++                                    f"upcoming_rank = 1 and team_sk in ({team_list})"), "team_sk")
++
++    payloads = [
+         shape_player_payload(
+-            by_player[pid],
+-            by_player_log.get(pid, []),
+-            by_player_bench.get(pid, []),
+-            by_player_career.get(pid, []),
++            p,
++            windows.get(p["player_sk"], []),
++            benchmarks.get(p["player_sk"], []),
++            [r for key in squad_of.get(p["player_sk"], []) for r in squads[key]],
++            matches.get(p["player_sk"], []),
++            [r for k in ("current_club_team_sk", "national_team_sk") for r in next_rows.get(p.get(k), [])],
++            teams,
+         )
+-        for pid in player_ids
+-        if pid in wanted
++        for p in profiles
+     ]
++    peers: list[dict] = []
++    groups = sorted({f"{r['league_code']}|{r['season_api_year']}|{r['position_group']}" for r in bench_rows})
++    if groups:
++        wanted = ", ".join(f"'{g}'" for g in groups)
++        peers = shape_player_peers(marts(
++            "league_code, season_api_year, position_group, metric_key, metric_value",
++            "mart_player_competition_benchmarks",
++            f"concat(league_code, '|', cast(season_api_year as string), '|', position_group) in ({wanted})",
++        ))
++    return payloads, peers
+ 
+ 
+ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None = None) -> list[dict]:
+@@ -2465,6 +2519,30 @@ def fetch_metric_rows(seed_path: str = CATALOGUE_SEED_PATH, map_path: str = METR
+         for r in rows]}
+ 
+ 
++def fetch_player_metric_rows(seed_path: str = CATALOGUE_SEED_PATH, map_path: str = METRIC_MAP_PATH) -> dict:
++    """player_metric_rows.json — the rows of the Player page's comparisons: every metric
++    mart_player_competition_benchmarks serves, in group order and then its place, each with its key
++    flag. A selection from the seeds, no BigQuery."""
++    import csv
++
++    with open(map_path, encoding="utf-8") as f:
++        served = {r["metric_id"] for r in csv.DictReader(f)
++                  if r["table_name"] == "mart_player_competition_benchmarks"}
++    with open(seed_path, encoding="utf-8") as f:
++        rows = [r for r in csv.DictReader(f)
++                if r["entity"] == "player" and r["metric_id"] in served and r["metric_order"]]
++    rows.sort(key=lambda r: (int(r["metric_group_order"]), int(r["metric_order"])))
++    return {"type": "player_metric_rows", "rows": [
++        {"metric_id": r["metric_id"],
++         "label_i18n_key": r["label_i18n_key"],
++         "metric_group": r["metric_group"],
++         "metric_order": int(r["metric_order"]),
++         "direction": r["direction"],
++         "format": r["format"],
++         "is_key_metric": r["is_key_metric"] == "true"}
++        for r in rows]}
++
++
+ # --------------------------------------------------------------------------- #
+ # Orchestration
+ # --------------------------------------------------------------------------- #
+@@ -2502,11 +2580,6 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
+             e = write_entity(out_root, "teams", p["team_id"], p)
+             entries.append(e)
+             slug_map[p["slug"]] = {"type": "team", "id": p["team_id"]}
+-    if "players" in entities:
+-        for p in fetch_player_payloads(client, sample):
+-            e = write_entity(out_root, "players", p["player_id"], p)
+-            entries.append(e)
+-            slug_map[p["slug"]] = {"type": "player", "id": p["player_id"]}
+     if "fixtures" in entities:
+         for p in fetch_fixture_payloads(client, sample, source_counts):
+             e = write_entity(out_root, "fixtures", p["fixture_id"], p)
+@@ -2550,6 +2623,9 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
+         sha = write_file(out_root, "metric_rows.json", fetch_metric_rows())
+         entries.append({"type": "metric_rows", "id": "metric_rows", "slug": None,
+                         "path": "metric_rows.json", "sha256": sha})
++        sha = write_file(out_root, "player_metric_rows.json", fetch_player_metric_rows())
++        entries.append({"type": "player_metric_rows", "id": "player_metric_rows", "slug": None,
++                        "path": "player_metric_rows.json", "sha256": sha})
+     if "landing" in entities:
+         sha = write_file(out_root, "landing.json", fetch_landing_payload(client))
+         entries.append({"type": "landing", "id": "landing", "slug": None,
+@@ -2565,6 +2641,21 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
+     if "matches" in entities:
+         for p in fetch_match_day_payloads(client):
+             entries.append(write_entity(out_root, "matches", p["day"], p))
++    # After landing and competitions: their boards name the players who get a page.
++    if "players" in entities:
++        linked = linked_player_ids(out_root)
++        if not linked:
++            raise ValueError(f"no player boards in {out_root}: export landing and competitions first")
++        payloads, peers = fetch_player_payloads(client, linked, sample)
++        for p in payloads:
++            e = write_entity(out_root, "players", p["player_id"], p)
++            entries.append(e)
++            slug_map[p["slug"]] = {"type": "player", "id": p["player_id"]}
++        for p in peers:
++            relpath = f"player_peers/{p['league_code']}/{p['season']}/{p['position_group']}.json"
++            sha = write_file(out_root, relpath, p)
++            entries.append({"type": "player_peers", "id": relpath, "slug": None,
++                            "path": relpath, "sha256": sha})
+ 
+     # Full league_code -> {name, slug} map (registry-only) — the frontend's competition lookup for
+     # every active league. Always emitted (site_v2/src/data/competitions.json consumes it, even on a
+diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
+index b3fa3fb7..9af8f491 100644
+--- a/tests/test_export_site_data.py
++++ b/tests/test_export_site_data.py
+@@ -4,6 +4,8 @@ No BigQuery — exercises slugify, payload shaping and manifest building with
+ fabricated rows so python-ci validates the logic offline.
+ """
+ 
++import json
++
+ import pytest
+ 
+ from scripts.export_site_data import (
+@@ -11,9 +13,6 @@ from scripts.export_site_data import (
+     _display_group_of_type,
+     _fixture_side,
+     form_block,
+-    _shape_benchmark_member,
+-    _shape_benchmarks,
+-    _shape_career_row,
+     _shape_team_benchmark_member,
+     build_manifest,
+     deserved_scatter_index,
+@@ -30,6 +29,7 @@ from scripts.export_site_data import (
+     shape_next_match,
+     shape_leaderboards,
+     shape_player_payload,
++    shape_player_peers,
+     shape_team_payload,
+     shape_top_players,
+     player_slug_with_id,
+@@ -113,25 +113,53 @@ def test_every_leaderboard_read_takes_the_season_rows_only():
+     assert "window_type = 'match'" in played and "season_to_date" not in played
+ 
+ 
+-def test_player_payload_reads_the_match_log_from_the_player_in_a_match_mart(monkeypatch):
+-    """The match log is the stat-line rows of mart_player_fixture_stats, with the team's score under the
+-    keys the payload has always carried."""
++def test_player_payloads_read_only_the_named_players_and_the_marked_matches(monkeypatch):
++    """The export selects on the warehouse's flags: the featured season, the tab's window, the
++    filters a page shows. A squad is read whole, and a peer file holds the competition's players."""
+     seen = []
+ 
+     def fake_query(client, sql):
+         seen.append(sql)
+-        if "mart_player_profile" in sql:
+-            return [{"player_sk": 7, "player_name": "P7", "season_api_year": 2026, "league_code": "BL1",
+-                     "is_featured_season": True}]
++        if "from `football-data-pipeline-gcp.marts.mart_player_profile`" in sql:
++            return [{"player_sk": 7, "player_name": "P7", "has_club_tab": True, "current_club_team_sk": 5}]
++        if "distinct player_sk, squad_sk" in sql:
++            return [{"player_sk": 7, "squad_sk": "s1"}]
++        if "squad_sk in ('s1')" in sql:
++            return [{"player_sk": 7, "squad_sk": "s1", "team_sk": 5, "page_tab": "club",
++                     "metric_key": "goals_per90", "metric_value": 0.5}]
++        if "page_tab is not null" in sql:
++            return [{"player_sk": 7, "page_tab": "club", "competition_order": 1, "league_code": "BL1",
++                     "season_api_year": 2026, "position_group": "ATT", "metric_key": "goals_per90"}]
++        if "concat(league_code" in sql:
++            return [{"league_code": "BL1", "season_api_year": 2026, "position_group": "ATT",
++                     "metric_key": "goals_per90", "metric_value": 0.5}]
+         return []
+ 
+     monkeypatch.setattr(export_site_data, "_query", fake_query)
+-    export_site_data.fetch_player_payloads(object(), sample=1)
++    payloads, peers = export_site_data.fetch_player_payloads(object(), [7, 8], sample=1)
+ 
++    assert [p["player_id"] for p in payloads] == [7]
++    assert [p["position_group"] for p in peers] == ["ATT"]
++    (profile_sql,) = [s for s in seen if "mart_player_profile" in s]
++    assert "is_featured_season and player_sk in (7)" in profile_sql
+     (log_sql,) = [s for s in seen if "mart_player_fixture_stats" in s]
+-    assert "mart_player_match_log" not in " ".join(seen)
+-    assert "where has_stat_line and player_sk in (7)" in log_sql
++    assert "is_in_page_window and player_sk in (7)" in log_sql
+     assert "team_goals_for as goals_for" in log_sql and "team_goals_against as goals_against" in log_sql
++    (peer_sql,) = [s for s in seen if "concat(league_code" in s]
++    assert "cast(season_api_year as string)" in peer_sql
++    assert "in ('BL1|2026|ATT')" in peer_sql
++    (next_sql,) = [s for s in seen if "mart_team_fixtures" in s]
++    assert "upcoming_rank = 1 and team_sk in (5)" in next_sql
++
++
++def test_player_payloads_read_nothing_for_no_players(monkeypatch):
++    monkeypatch.setattr(export_site_data, "_query", lambda *_: pytest.fail("no query expected"))
++    assert export_site_data.fetch_player_payloads(object(), []) == ([], [])
++
++
++def test_the_players_entity_refuses_a_run_with_no_boards(tmp_path):
++    with pytest.raises(ValueError, match="no player boards"):
++        export_site_data.export_all(tmp_path, ("players",), 0, client=object())
+ 
+ 
+ def test_fetch_glossary_reads_catalogue_seed():
+@@ -1124,193 +1152,154 @@ def test_shape_team_payload_benchmarks_default_empty_without_rows():
+     assert p["seasons"][0]["benchmarks"] == []
+ 
+ 
+-def test_shape_player_payload_orders_match_log_desc():
+-    profiles = [
+-        {"player_sk": 1090, "season_api_year": 2025, "league_code": "BL1",
+-         "player_name": "Jamal Musiala", "player_photo_url": "ph",
+-         "player_nationality": "Germany", "player_birth_date": "2003-02-26",
+-         "position_code": "M", "goals_player": 12},
+-    ]
+-    matches = [
+-        {"player_sk": 1090, "kickoff_datetime": "2025-09-01T18:30:00",
+-         "opponent_name": "A", "goals_total": 1},
+-        {"player_sk": 1090, "kickoff_datetime": "2025-10-01T18:30:00",
+-         "opponent_name": "B", "goals_total": 0},
+-    ]
+-    p = shape_player_payload(_mark_featured(profiles), matches)
+-    assert p["player_id"] == 1090
+-    assert p["slug"] == "jamal-musiala-1090"
+-    assert p["position"] == "M"
+-    assert p["birth_date"] == "2003-02-26"
+-    assert [m["opponent_name"] for m in p["match_log"]] == ["B", "A"]  # latest first
+-
+-
+-def test_shape_player_payload_current_team_and_per_season_team():
+-    # GAP-16: dbt (int_player_season__team) flags the current club via is_current_team; the export
+-    # SELECTS current_team by that flag and never re-ranks. Here 2024 is flagged (not the latest
+-    # 2025 season) on purpose — to prove the export reads the flag, not its own "latest season".
+-    profiles = [
+-        {"player_sk": 7, "season_api_year": 2025, "league_code": "PD", "player_name": "Player X",
+-         "team_sk": 541, "is_current_team": False,
+-         "team_name": "Real Madrid", "team_logo_url": "rm.png", "team_country": "Spain"},
+-        {"player_sk": 7, "season_api_year": 2024, "league_code": "BL1", "player_name": "Player X",
+-         "team_sk": 157, "is_current_team": True,
+-         "team_name": "Bayern", "team_logo_url": "fcb.png", "team_country": "Germany"},
+-        {"player_sk": 7, "season_api_year": 2023, "league_code": "BL1", "player_name": "Player X",
+-         "team_sk": None, "is_current_team": False},   # no finished leg -> honest absence
+-    ]
+-    p = shape_player_payload(_mark_featured(profiles), [])
+-    assert p["current_team"] == {"team_id": 157, "name": "Bayern",
+-                                 "crest": "fcb.png", "country": "Germany"}
+-    teams = [s["team"] for s in p["seasons"]]   # seasons are year-desc: 2025, 2024, 2023
+-    assert teams[0]["team_id"] == 541           # 2025 PD
+-    assert teams[1]["team_id"] == 157           # 2024 BL1
+-    assert teams[2] is None                     # 2023: no team
+-    # internal keys never leak into the published season rows
+-    assert all("team_sk" not in s and "is_current_team" not in s for s in p["seasons"])
+-
+-
+-def test_shape_benchmark_member_carries_mart_columns_and_ratio_atoms():
+-    # GAP-21: a RATIO metric row keeps numerator/denominator (for the {num} of {den} · {pct}% triple);
+-    # a per-90 row has null num/den. The export copies straight from the mart — no computation.
+-    ratio = {
+-        "metric_key": "duels_won_player_pct", "metric_value": 0.54, "percentile": 0.70,
+-        "rank": 12, "peer_count": 41, "peer_median": 0.5, "vs_median_delta": 0.04,
+-        "position_group": "ATT", "minutes": 2470, "appearances": 29,
+-        "metric_numerator": 96, "metric_denominator": 178,
+-    }
+-    m = _shape_benchmark_member(ratio)
+-    assert m == {
+-        "metric_key": "duels_won_player_pct", "metric_value": 0.54, "percentile": 0.70,
+-        "rank": 12, "peer_count": 41, "peer_median": 0.5, "vs_median_delta": 0.04,
+-        "numerator": 96, "denominator": 178,
+-    }
+-    per90 = {**ratio, "metric_key": "goals_per90", "metric_value": 0.82,
+-             "metric_numerator": None, "metric_denominator": None}
+-    m90 = _shape_benchmark_member(per90)
+-    assert m90["numerator"] is None and m90["denominator"] is None
+-    # grain/internal keys never leak into the member
+-    for internal in ("position_group", "minutes", "appearances",
+-                     "metric_numerator", "metric_denominator"):
+-        assert internal not in m
+-
+-
+-def test_shape_benchmarks_groups_by_position_and_orders_by_metric_key():
+-    def row(pos, key, **kw):
+-        base = {"position_group": pos, "metric_key": key, "metric_value": 1.0,
+-                "percentile": 0.5, "rank": 1, "peer_count": 10, "peer_median": 1.0,
+-                "vs_median_delta": 0.0, "minutes": 2000, "appearances": 24,
+-                "metric_numerator": None, "metric_denominator": None}
+-        base.update(kw)
+-        return base
+-    # one player benchmarked in two positions; metrics deliberately out of key order
+-    rows = [
+-        row("MID", "passes_per90"),
+-        row("ATT", "goals_per90"),
+-        row("ATT", "assists_per90"),
+-        row("MID", "duels_won_player_pct", metric_numerator=50, metric_denominator=90),
+-    ]
+-    groups = _shape_benchmarks(rows)
+-    # position groups sorted (ATT before MID)
+-    assert [g["position_group"] for g in groups] == ["ATT", "MID"]
+-    # minutes/appearances carried at the group level (the position's sample)
+-    assert groups[0]["minutes"] == 2000 and groups[0]["appearances"] == 24
+-    # metrics ordered byte-stable by metric_key
+-    assert [m["metric_key"] for m in groups[0]["metrics"]] == ["assists_per90", "goals_per90"]
+-    assert [m["metric_key"] for m in groups[1]["metrics"]] == ["duels_won_player_pct", "passes_per90"]
+-    # the ratio metric's atoms survive
+-    duels = groups[1]["metrics"][0]
+-    assert duels["numerator"] == 50 and duels["denominator"] == 90
+-
+-
+-def test_shape_player_payload_attaches_benchmarks_per_season():
+-    profiles = [
+-        {"player_sk": 7, "season_api_year": 2025, "league_code": "PD",
+-         "player_name": "X", "position_code": "F"},
+-        {"player_sk": 7, "season_api_year": 2024, "league_code": "BL1",
+-         "player_name": "X", "position_code": "F"},
+-    ]
+-    benchmarks = [
+-        {"player_sk": 7, "league_code": "PD", "season_api_year": 2025, "position_group": "ATT",
+-         "metric_key": "goals_per90", "metric_value": 0.9, "percentile": 0.99, "rank": 1,
+-         "peer_count": 40, "peer_median": 0.3, "vs_median_delta": 0.6,
+-         "minutes": 2500, "appearances": 30, "metric_numerator": None, "metric_denominator": None},
+-    ]
+-    p = shape_player_payload(_mark_featured(profiles), [], benchmarks)
+-    s2025, s2024 = p["seasons"][0], p["seasons"][1]
+-    assert s2025["benchmarks"][0]["position_group"] == "ATT"
+-    assert s2025["benchmarks"][0]["metrics"][0]["metric_key"] == "goals_per90"
+-    # a season with no benchmark rows renders an empty list (honest absence)
+-    assert s2024["benchmarks"] == []
+-    # default (no benchmark_rows) also yields empty benchmarks
+-    p2 = shape_player_payload(_mark_featured(profiles), [])
+-    assert all(s["benchmarks"] == [] for s in p2["seasons"])
+-
+-
+-def test_shape_career_row_carries_mart_columns():
+-    # GAP-22: one mart_player_career row -> a career entry. Counts + club identity copied straight from the
+-    # mart (no computation); the club identity reuses _player_team_block; internal + player-identity keys drop.
+-    row = {
+-        "player_sk": 7, "team_sk": 157, "season_sk": 900, "league_sk": 78,
+-        "player_career_sk": "hash", "season_api_year": 2024, "league_code": "BL1",
+-        "player_name": "Harry Kane", "entity_type": "club",
+-        "team_name": "Bayern", "team_logo_url": "fcb.png", "team_country": "Germany",
+-        "appearances": 32, "goals_player": 26, "assists_player": 8, "national_appearances_total": 12,
+-        "last_kickoff_at": "2024-05-18T15:30:00", "club_latest_kickoff_at": "2024-05-18T15:30:00",
+-    }
+-    assert _shape_career_row(row) == {
+-        "season": 2024, "competition": "BL1", "entity_type": "club",
+-        "team": {"team_id": 157, "name": "Bayern", "crest": "fcb.png", "country": "Germany"},
+-        "appearances": 32, "goals": 26, "assists": 8,
+-    }
+-    m = _shape_career_row(row)
+-    for internal in ("player_sk", "team_sk", "season_sk", "league_sk", "player_career_sk",
+-                     "player_name", "national_appearances_total", "last_kickoff_at",
+-                     "club_latest_kickoff_at"):
+-        assert internal not in m
+-
+-
+-def test_shape_player_payload_attaches_career_and_national_total_omits_null_team():
+-    # GAP-22: the career log is TOP-LEVEL (whole career, not per-season). Order is a pure sort by the mart's
+-    # club_latest_kickoff_at (club-block order + contiguity) then last_kickoff_at (within-club season order) —
+-    # no client-side aggregation. A RETURN SPELL (Spurs -> Bayern -> back to Spurs) proves contiguity: both
+-    # Spurs rows group together even though Bayern's season falls between them chronologically. National-entity
+-    # rows (with a resolved team) are ordered the same way (own team block); an unresolved-identity row (null
+-    # team_name = broken FK) is omitted; national_appearances_total is the precomputed per-player total.
+-    def row(team_sk, year, comp, name, entity, apps, last, club_latest):
+-        return {"player_sk": 9, "team_sk": team_sk, "season_api_year": year, "league_code": comp,
+-                "entity_type": entity, "team_name": name, "team_logo_url": "x.png",
+-                "team_country": "X", "appearances": apps, "goals_player": 1, "assists_player": 1,
+-                "national_appearances_total": 23,
+-                "last_kickoff_at": last, "club_latest_kickoff_at": club_latest}
+-    profiles = [
+-        {"player_sk": 9, "season_api_year": 2024, "league_code": "PL", "player_name": "Kane",
+-         "position_code": "F"},
+-    ]
+-    career = [
+-        row(47, 2020, "PL", "Spurs", "club", 35, "2020-07-15T19:00:00", "2024-05-19T15:00:00"),
+-        row(157, 2022, "BL1", "Bayern", "club", 32, "2022-05-14T15:30:00", "2022-05-14T15:30:00"),
+-        row(47, 2024, "PL", "Spurs", "club", 30, "2024-05-19T15:00:00", "2024-05-19T15:00:00"),
+-        # two national-team seasons (a real multi-national player) — resolved team, ordered like a club block
+-        row(500, 2021, "WC", "England", "national", 8, "2021-07-11T20:00:00", "2023-07-09T20:00:00"),
+-        row(500, 2023, "WC", "England", "national", 10, "2023-07-09T20:00:00", "2023-07-09T20:00:00"),
+-        # unresolved identity (null team_name = broken FK) -> omitted from career[]
+-        {"player_sk": 9, "team_sk": 999, "season_api_year": 2019, "league_code": "WC",
+-         "entity_type": "national", "team_name": None, "appearances": 5, "goals_player": 0, "assists_player": 0,
+-         "national_appearances_total": 23, "last_kickoff_at": "2019-06-01T20:00:00",
+-         "club_latest_kickoff_at": "2019-06-01T20:00:00"},
+-    ]
+-    p = shape_player_payload(_mark_featured(profiles), [], None, career)
+-    # club_latest desc: Spurs (May 2024), England (Jul 2023), Bayern (May 2022). Spurs rows contiguous
+-    # (2024, 2020), then England (2023, 2021), then Bayern; the null-team row is omitted.
+-    assert [(c["team"]["team_id"], c["season"]) for c in p["career"]] == [
+-        (47, 2024), (47, 2020), (500, 2023), (500, 2021), (157, 2022)
++def _player_profile(**kw):
++    return {"player_sk": 184, "player_name": "H. Kane", "player_full_name": "Harry Edward Kane",
++            "player_age": 33, "player_nationality": "England", "player_height": "188 cm",
++            "player_photo_url": "p.png", "position_group": "ATT", "has_club_tab": True,
++            "has_national_team_tab": True, "national_team_sk": 10, "current_club_team_sk": 157,
++            "season_label": "2026/27", **kw}
++
++
++_PLAYER_TEAMS = {157: {"team_id": 157, "name": "Bayern München", "crest": "b.png", "slug": "bayern-munchen"},
++                 10: {"team_id": 10, "name": "England", "crest": "e.png", "slug": "england"}}
++
++
++def _player_match(fixture_sk, kickoff, page_tab="club", **kw):
++    return {"player_sk": 184, "fixture_sk": fixture_sk, "page_tab": page_tab, "league_code": "BL1",
++            "kickoff_datetime": kickoff, "is_home": True, "goals_for": 2, "goals_against": 1,
++            "result": "W", "opponent_name": "Mainz", "opponent_logo_url": "m.png",
++            "minutes_played": 90, "goals_total": 1, "goals_assists": 0, "ball_actions_player": 40,
++            "match_involvement": "played", **kw}
++
++
++def _shape_player(profile=None, windows=(), benchmarks=(), squads=(), matches=(), next_rows=()):
++    return shape_player_payload(profile or _player_profile(), list(windows), list(benchmarks),
++                                list(squads), list(matches), list(next_rows), _PLAYER_TEAMS)
++
++
++def test_player_payload_header_comes_from_the_profile_and_the_slug_from_the_board_name():
++    p = _shape_player()
++    assert p["slug"] == player_slug_with_id("H. Kane", 184)
++    assert p["name"] == "Harry Edward Kane"
++    assert p["club"]["slug"] == "bayern-munchen"
++    assert [t["tab"] for t in p["tabs"]] == ["club", "national_team"]
++    assert p["tabs"][1]["team"]["name"] == "England"
++
++
++def test_player_payload_carries_only_the_tabs_the_data_marks():
++    p = _shape_player(_player_profile(has_club_tab=False, current_club_team_sk=None))
++    assert p["club"] is None
++    assert [t["tab"] for t in p["tabs"]] == ["national_team"]
++    assert [t["tab"] for t in _shape_player(_player_profile(has_national_team_tab=False))["tabs"]] == ["club"]
++
++
++def test_player_cards_keep_a_blank_and_stay_on_their_tab():
++    windows = [
++        {"page_tab": "club", "metric_key": "appearances", "is_card": True, "metric_value": 12.0},
++        {"page_tab": "club", "metric_key": "goals_player", "is_card": True, "metric_value": None},
++        {"page_tab": "national_team", "metric_key": "appearances", "is_card": True, "metric_value": 3.0},
+     ]
+-    assert len(p["career"]) == 5
+-    assert p["national_appearances_total"] == 23
+-    # empty default (no career_rows) -> empty career + None total
+-    p2 = shape_player_payload(_mark_featured(profiles), [])
+-    assert p2["career"] == [] and p2["national_appearances_total"] is None
++    club, nation = _shape_player(windows=windows)["tabs"]
++    assert club["cards"] == {"appearances": 12.0, "goals_player": None}
++    assert nation["cards"] == {"appearances": 3.0}
++
++
++def test_player_last_season_is_absent_without_last_season_minutes_and_on_the_national_tab():
++    row = {"page_tab": "club", "metric_key": "goals_per90", "is_comparison": True, "minutes": 982,
++           "metric_value": 0.9, "minutes_prev_season": 3958, "metric_value_prev_season": 1.1}
++    club, nation = _shape_player(windows=[row])["tabs"]
++    assert club["last_season"] == {"minutes": 982, "minutes_prev": 3958, "metrics": [
++        {"metric_key": "goals_per90", "value": 0.9, "value_prev": 1.1}]}
++    assert nation["last_season"] is None
++    gone = _shape_player(windows=[{**row, "minutes_prev_season": None}])["tabs"][0]
++    assert gone["last_season"] is None
++
++
++def test_player_competition_filters_follow_the_marts_order_and_show_the_best_first_rank():
++    def row(order, league, key, **kw):
++        return {"page_tab": "club", "competition_order": order, "league_code": league,
++                "season_api_year": 2026, "season_label": "2026/27", "position_group": "ATT",
++                "position_player_count": 35, "metric_key": key, "metric_value": 0.5,
++                "rank_best_first": 3, "peer_median": 0.3, **kw}
++    club = _shape_player(benchmarks=[row(2, "UCL", "goals_per90"), row(1, "BL1", "passes_per90"),
++                                     row(1, "BL1", "fouls_per90", rank_best_first=1)])["tabs"][0]
++    assert [c["league_code"] for c in club["competitions"]] == ["BL1", "UCL"]
++    first = club["competitions"][0]
++    assert first["player_count"] == 35 and first["season_label"] == "2026/27"
++    assert first["metrics"][0] == {"metric_key": "fouls_per90", "value": 0.5, "rank": 1, "median": 0.3}
++
++
++def test_player_squad_filter_leaves_the_player_out_of_the_dots_and_is_absent_without_a_squad():
++    def row(player, value, rank):
++        return {"page_tab": "club", "team_sk": 157, "player_sk": player, "metric_key": "goals_per90",
++                "metric_value": value, "squad_player_count": 3, "squad_median": 0.4, "rank": rank}
++    club, nation = _shape_player(squads=[row(184, 0.9, 1), row(2, 0.4, 2), row(3, 0.1, 3)])["tabs"]
++    assert club["squad"]["team"]["name"] == "Bayern München" and club["squad"]["player_count"] == 3
++    assert club["squad"]["metrics"] == [{"metric_key": "goals_per90", "value": 0.9, "rank": 1,
++                                         "median": 0.4, "others": [0.1, 0.4]}]
++    assert nation["squad"] is None
++
++
++def test_player_recent_matches_are_latest_first_and_played_only():
++    matches = [_player_match(1, "2026-09-01"), _player_match(2, "2026-10-01"),
++               _player_match(3, "2026-11-01", match_involvement="on_bench"),
++               _player_match(4, "2026-11-02", match_involvement=None)]
++    club = _shape_player(matches=matches)["tabs"][0]
++    assert [m["played_fixture_sk"] for m in club["recent_matches"]] == [2, 1]
++    assert club["recent_matches"][0]["home_away"] == "home"
++    assert club["recent_matches"][0]["ball_actions"] == 40
++    assert club["recent_matches"][0]["on_bench"] is False
++
++
++def test_a_national_squad_member_with_no_minutes_lists_the_bench_and_a_club_player_does_not():
++    bench = {"minutes_played": None, "match_involvement": "on_bench"}
++    matches = [_player_match(1, "2026-09-01", "national_team", **bench),
++               _player_match(2, "2026-10-01", "national_team", match_involvement=None),
++               _player_match(4, "2026-10-03", "club", **bench)]
++    club, nation = _shape_player(matches=matches)["tabs"]
++    assert [m["played_fixture_sk"] for m in nation["recent_matches"]] == [1]
++    assert nation["recent_matches"][0]["on_bench"] is True
++    assert club["recent_matches"] == []
++
++
++def test_player_next_matches_are_the_tabs_own_team_in_the_marts_order():
++    def row(team, fixture, order):
++        return {"team_sk": team, "fixture_sk": fixture, "league_code": "BL1", "upcoming_rank": 1,
++                "upcoming_order": order, "kickoff_datetime": "2026-11-07"}
++    club, nation = _shape_player(next_rows=[row(157, 2, 2), row(157, 1, 1), row(10, 3, 1)])["tabs"]
++    assert [m["fixture_id"] for m in club["next_matches"]] == [1, 2]
++    assert [m["fixture_id"] for m in nation["next_matches"]] == [3]
++
++
++def test_player_peers_make_one_sorted_file_per_competition_season_and_position():
++    rows = [{"league_code": "BL1", "season_api_year": 2026, "position_group": "ATT",
++             "metric_key": "goals_per90", "metric_value": v} for v in (0.9, 0.1)]
++    rows.append({"league_code": "BL1", "season_api_year": 2026, "position_group": "MID",
++                 "metric_key": "goals_per90", "metric_value": 0.2})
++    att, mid = shape_player_peers(rows)
++    assert (att["league_code"], att["season"], att["position_group"]) == ("BL1", 2026, "ATT")
++    assert att["values"] == {"goals_per90": [0.1, 0.9]}
++    assert mid["values"] == {"goals_per90": [0.2]}
++
++
++def test_linked_players_are_those_of_the_home_and_competition_boards(tmp_path):
++    (tmp_path / "landing.json").write_text(json.dumps(
++        {"top_players": [{"rows": [{"player_id": 3}, {"player_id": None}]}]}), encoding="utf-8")
++    comp = tmp_path / "competitions" / "BL1"
++    comp.mkdir(parents=True)
++    (comp / "2026.json").write_text(json.dumps(
++        {"player_boards": [{"rows": [{"player_id": 3}, {"player_id": 1}]}]}), encoding="utf-8")
++    assert export_site_data.linked_player_ids(tmp_path) == [1, 3]
++    assert export_site_data.linked_player_ids(tmp_path / "empty") == []
++
++
++def test_player_metric_rows_hold_the_seven_key_metrics_in_catalogue_order():
++    rows = export_site_data.fetch_player_metric_rows()["rows"]
++    assert [r["metric_id"] for r in rows if r["is_key_metric"]] == [
++        "scorer_points_per90", "shots_on_goal_per90", "passes_per90", "ball_actions_per90",
++        "passes_key_per90", "duels_won_per90", "defensive_actions_per90"]
++    fouls = next(r for r in rows if r["metric_id"] == "fouls_per90")
++    assert fouls["direction"] == "lower_better"
+ 
+ 
+ def test_build_manifest_counts_by_type():
+@@ -1444,27 +1433,6 @@ def test_shape_team_index_refuses_rows_that_disagree_on_the_page_flag():
+         shape_team_index([_team_index_row(), _team_index_row(national_teams_first=True)])
+ 
+ 
+-def test_shape_player_payload_opens_on_the_featured_club_season_not_the_latest():
+-    """#846 criterion 1: a player fresh off a summer tournament still opens on their club season.
+-
+-    Both rows are real football. The WC row is the more recent one, which is what the export used
+-    to pick and why a player's top-level identity came from their national side. Nothing here
+-    ranks anything: the mart flags the club season and the export reads the flag.
+-    """
+-    profiles = [
+-        {"player_sk": 7, "season_sk": 2, "season_api_year": 2026, "league_code": "WC",
+-         "player_name": "M. Rogers", "position_code": "M", "is_featured_season": False},
+-        {"player_sk": 7, "season_sk": 1, "season_api_year": 2025, "league_code": "PL",
+-         "player_name": "M. Rogers", "position_code": "D", "is_featured_season": True},
+-    ]
+-    p = shape_player_payload(profiles, [])
+-    # identity comes from the club season, not the tournament
+-    assert p["position"] == "D"
+-    # and the tournament season is still served — it is not the one the page OPENS on
+-    assert [s["league_code"] for s in p["seasons"]] == ["WC", "PL"]
+-    assert [s["is_featured_season"] for s in p["seasons"]] == [False, True]
+-
+-
+ def test_featured_season_row_refuses_to_choose():
+     """#846 criterion 3: the export decides nothing.
+ 
+diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
+index 135cf0d7..72419a46 100644
+--- a/tests/test_no_decision_history_in_code.py
++++ b/tests/test_no_decision_history_in_code.py
+@@ -30,7 +30,7 @@ sys.path.insert(0, HOOKS)
+ import comment_history_gate as gate  # noqa: E402
+ 
+ # The pin. A sweep MR lowers these two numbers and nothing else may move them.
+-PINNED_LINES = 704
++PINNED_LINES = 703
+ PINNED_FILES = 177
+ 
+ HASH = chr(35)
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -616,7 +1366,7 @@ index 0432795e..0967ef42 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md |  23 +-
-#    .claude/task/review_input.patch     | 622 ++++++++++++++++++++++++++++++++----
-#    2 files changed, 559 insertions(+), 86 deletions(-)
+#   .claude/task/review.md          |   52 +-
+#    .claude/task/review_input.patch | 1811 +++++++++++++++++++++++++++------------
+#    2 files changed, 1266 insertions(+), 597 deletions(-)
 # ============================================================================
