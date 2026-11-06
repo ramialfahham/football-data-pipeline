@@ -1,19 +1,47 @@
 {#
   One row per player on a confirmed or researched team sheet of a played team match with no player
-  statistics, in the columns of base_apif__fixture_players. The sheet gives who played and the
-  substitutions their minutes; the goal events give the goals and assists. Everything else stays
-  blank. The cleaning_rules doc block in models/docs/cleaning_rules.md applies as written.
+  statistics, and one per sheet player with a card and no stat line of a match that has them, in
+  the columns of base_apif__fixture_players. The sheet gives who played and the substitutions their
+  minutes; the goal events give the goals and assists, the card events the cards. Everything else
+  stays blank, but for a row of 0 minutes in a team with stat lines: a count the provider counted
+  in the match is 0. The cleaning_rules doc block in models/docs/cleaning_rules.md applies as
+  written.
 
   This is its own model because base_apif__lineups reads base_apif__fixture_players.
 
   Grain: (league_code, fixture_id, team_id, player_id).
 #}
 
+{% set unfilled_stats = [
+    'offsides', 'shots', 'shots_on_target', 'saves', 'passes', 'passes_key', 'passes_accurate',
+    'tackles', 'blocks', 'interceptions', 'duels', 'duels_won', 'dribbles', 'dribbles_success',
+    'dribbles_against', 'fouls', 'fouls_against', 'penalties_won', 'penalties_committed',
+    'penalties_missed', 'penalties_saved'
+] %}
+{% set filled_stats = ['goals', 'goals_penalty', 'assists'] %}
+
 with team_matches_with_stats as (
     select distinct
         fixture_id,
         team_id
     from {{ ref('base_apif__fixture_players') }}
+),
+
+players_with_a_stat_line as (
+    select distinct
+        fixture_id,
+        player_id
+    from {{ ref('base_apif__fixture_players') }}
+),
+
+stats_counted_in_match as (
+    select
+        {%- for stat in unfilled_stats + filled_stats %}
+        logical_or({{ stat }} is not null) as {{ stat }}_counted,
+        {%- endfor %}
+        fixture_id
+    from {{ ref('base_apif__fixture_players') }}
+    group by fixture_id
 ),
 
 fixtures as (
@@ -44,15 +72,17 @@ sheets as (
         l.raw_ingested_at,
         f.status_short,
         if(l.team_id = f.home_team_id, f.goals_home, f.goals_away) as team_goals_for,
-        if(l.team_id = f.home_team_id, f.goals_away, f.goals_home) as team_goals_conceded
+        if(l.team_id = f.home_team_id, f.goals_away, f.goals_home) as team_goals_conceded,
+        s.fixture_id is null as team_has_no_stats,
+        p.fixture_id is null as has_no_stat_line
     from {{ ref('base_apif__lineups') }} as l
     inner join fixtures as f
         on l.fixture_id = f.fixture_id
     left join team_matches_with_stats as s
         on l.fixture_id = s.fixture_id and l.team_id = s.team_id
-    where
-        l.lineup_state in ('confirmed', 'researched')
-        and s.fixture_id is null
+    left join players_with_a_stat_line as p
+        on l.fixture_id = p.fixture_id and l.player_id = p.player_id
+    where l.lineup_state in ('confirmed', 'researched')
 ),
 
 events as (
@@ -63,11 +93,13 @@ events as (
         minute_elapsed,
         event_type,
         event_detail,
+        event_comments,
         assist_player_id,
         assist_player_name,
         is_goal,
         is_own_goal,
-        is_shootout_kick
+        is_shootout_kick,
+        has_full_events
     from {{ ref('base_apif__fixture_events') }}
 ),
 
@@ -75,9 +107,40 @@ match_events as (
     select
         fixture_id,
         countif(is_goal and assist_player_name is not null) as assisted_goal_events,
-        coalesce(logical_or(minute_elapsed > 90 and not is_shootout_kick), false) as has_extra_time_event
+        coalesce(logical_or(minute_elapsed > 90 and not is_shootout_kick), false) as has_extra_time_event,
+        logical_or(has_full_events) as has_full_events
     from events
     group by fixture_id
+),
+
+player_cards as (
+    select
+        fixture_id,
+        team_id,
+        player_id,
+        countif(event_detail = 'Yellow Card') as yellow_cards,
+        countif(event_detail = 'Red Card') as red_cards
+    from events
+    where event_type = 'Card' and player_id is not null
+    group by fixture_id, team_id, player_id
+),
+
+-- A card with no player on the sheet could be anyone's, so nobody of the team without a card is
+-- proven at 0. The provider marks a coach's card "Not on pitch". A researched match is settled.
+team_cards_off_sheet as (
+    select distinct
+        e.fixture_id,
+        e.team_id
+    from events as e
+    left join sheets as s
+        on e.fixture_id = s.fixture_id and e.team_id = s.team_id and e.player_id = s.player_id
+    left join {{ ref('fixture_card_corrections') }} as r
+        on e.fixture_id = r.fixture_id
+    where
+        e.event_type = 'Card'
+        and coalesce(e.event_comments, '') != 'Not on pitch'
+        and s.player_id is null
+        and r.fixture_id is null
 ),
 
 team_events as (
@@ -142,6 +205,9 @@ played_spells as (
         coalesce(g.goals, 0) as event_goals,
         coalesce(g.goals_penalty, 0) as event_goals_penalty,
         coalesce(a.assists, 0) as event_assists,
+        coalesce(c.yellow_cards, 0) as event_yellow_cards,
+        coalesce(c.red_cards, 0) as event_red_cards,
+        coalesce(m.has_full_events, false) and (x.fixture_id is null or c.player_id is not null) as cards_are_proven,
         nullif(least(coalesce(s.minute_off, 999), coalesce(o.minute_sent_off, 999)), 999) as minute_gone,
         if(s.status_short = 'AET' or (s.status_short = 'PEN' and coalesce(m.has_extra_time_event, false)), 120, 90)
             as match_minutes
@@ -154,6 +220,10 @@ played_spells as (
         on s.fixture_id = g.fixture_id and s.team_id = g.team_id and s.player_id = g.player_id
     left join player_assists as a
         on s.fixture_id = a.fixture_id and s.team_id = a.team_id and s.player_id = a.player_id
+    left join player_cards as c
+        on s.fixture_id = c.fixture_id and s.team_id = c.team_id and s.player_id = c.player_id
+    left join team_cards_off_sheet as x
+        on s.fixture_id = x.fixture_id and s.team_id = x.team_id
     left join sendings_off as o
         on s.fixture_id = o.fixture_id and s.player_id = o.player_id
 ),
@@ -228,16 +298,22 @@ cleaned as (
         g.position_code,
         g.raw_ingested_at,
         not g.is_starter as is_substitute,
+        {%- for stat in unfilled_stats %}
+        if(not g.team_has_no_stats and g.minutes = 0 and n.{{ stat }}_counted, 0, null) as {{ stat }},
+        {%- endfor %}
         case
             when g.team_goals_for = 0 then 0
+            when not g.team_has_no_stats and g.minutes = 0 and n.goals_counted then 0
             when g.goals_add_up then g.event_goals
         end as goals,
         case
             when g.team_goals_for = 0 then 0
+            when not g.team_has_no_stats and g.minutes = 0 and n.goals_penalty_counted then 0
             when g.goals_add_up then g.event_goals_penalty
         end as goals_penalty,
         case
             when g.team_goals_for = 0 then 0
+            when not g.team_has_no_stats and g.minutes = 0 and n.assists_counted then 0
             when
                 g.goals_add_up
                 and g.assists_on_sheet = g.team_assisted_goal_events
@@ -252,7 +328,9 @@ cleaned as (
                 then g.team_goals_conceded
             when k.goal_events_conceded = g.team_goals_conceded and k.goals_at_a_change = 0
                 then k.goals_conceded_in_spell
-        end as goals_against
+        end as goals_against,
+        if(g.cards_are_proven, least(g.event_yellow_cards, 2), null) as cards_yellow,
+        if(g.cards_are_proven, least(g.event_red_cards, 1), null) as cards_red
     from goals_checked as g
     left join keeper_spells as k
         on
@@ -260,6 +338,9 @@ cleaned as (
             and g.fixture_id = k.fixture_id
             and g.team_id = k.team_id
             and g.player_id = k.player_id
+    left join stats_counted_in_match as n
+        on g.fixture_id = n.fixture_id
+    where g.team_has_no_stats or (g.has_no_stat_line and g.event_yellow_cards + g.event_red_cards > 0)
 )
 
 select
@@ -272,33 +353,33 @@ select
     position_code,
     cast(null as bool) as is_captain,
     is_substitute,
-    cast(null as int64) as offsides,
-    cast(null as int64) as shots,
-    cast(null as int64) as shots_on_target,
+    offsides,
+    shots,
+    shots_on_target,
     goals,
     goals_penalty,
     goals_against,
     assists,
-    cast(null as int64) as saves,
-    cast(null as int64) as passes,
-    cast(null as int64) as passes_key,
-    cast(null as int64) as passes_accurate,
-    cast(null as int64) as tackles,
-    cast(null as int64) as blocks,
-    cast(null as int64) as interceptions,
-    cast(null as int64) as duels,
-    cast(null as int64) as duels_won,
-    cast(null as int64) as dribbles,
-    cast(null as int64) as dribbles_success,
-    cast(null as int64) as dribbles_against,
-    cast(null as int64) as fouls,
-    cast(null as int64) as fouls_against,
-    cast(null as int64) as cards_yellow,
-    cast(null as int64) as cards_red,
-    cast(null as int64) as penalties_won,
-    cast(null as int64) as penalties_committed,
+    saves,
+    passes,
+    passes_key,
+    passes_accurate,
+    tackles,
+    blocks,
+    interceptions,
+    duels,
+    duels_won,
+    dribbles,
+    dribbles_success,
+    dribbles_against,
+    fouls,
+    fouls_against,
+    cards_yellow,
+    cards_red,
+    penalties_won,
+    penalties_committed,
     goals_penalty as penalties_scored,
-    cast(null as int64) as penalties_missed,
-    cast(null as int64) as penalties_saved,
+    penalties_missed,
+    penalties_saved,
     raw_ingested_at
 from cleaned

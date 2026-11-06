@@ -137,6 +137,12 @@ metrics as (
             sum(goals_against),
             null
         ) as goals_against_player,
+        if(
+            logical_and(window_is_complete and cards_yellow is not null),
+            sum(cards_yellow),
+            null
+        ) as cards_yellow_player,
+        if(logical_and(window_is_complete and cards_red is not null), sum(cards_red), null) as cards_red_player,
         safe_divide(
             if(logical_and(window_is_complete and minutes is not null), sum(minutes), null),
             if(logical_and(window_is_complete and (minutes > 0) is not null), countif(minutes > 0), null)

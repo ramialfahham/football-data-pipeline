@@ -32,7 +32,7 @@ held as (
         fixture_id,
         event_index
     from {{ ref('base_apif__fixture_events') }}
-    where goal_correction_source is null
+    where goal_correction_source is null and card_correction_source is null
     union all
     select
         'fct_fixture_event' as model_name,
@@ -40,7 +40,7 @@ held as (
         fixture_api_id as fixture_id,
         event_index
     from {{ ref('fct_fixture_event') }}
-    where goal_correction_source is null
+    where goal_correction_source is null and card_correction_source is null
 )
 
 select

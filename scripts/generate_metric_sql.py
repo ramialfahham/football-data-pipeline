@@ -117,7 +117,9 @@ POSITION_COUNTS = (
     "blocks_player", "duels_player", "duels_won_player", "dribbles_attempts_player",
     "dribbles_success_player", "saves_player", "goals_against_player",
 )
-PAGE_WINDOW = POSITION_COUNTS + ("minutes_per_appearance",) + RATIOS + PER90
+PAGE_WINDOW = (
+    POSITION_COUNTS + ("cards_yellow_player", "cards_red_player", "minutes_per_appearance") + RATIOS + PER90
+)
 
 
 @dataclass(frozen=True)

@@ -1,6 +1,7 @@
 {#
-  A team's rows in base_apif__fixture_players_from_lineups hold every goal of its score: its
-  players' goals plus the own goals filed under it. Returns one row per team match that misses the
+  A team's rows in base_apif__fixture_players_from_lineups hold every goal of its score, where the
+  provider sent no stat line for the team: its players' goals plus the own goals filed under it.
+  Returns one row per team match that misses the
   score, a match with no goal events included: a blank goals value is a miss. The fix is sourced
   goals in fixture_goal_corrections.
 #}
@@ -25,15 +26,25 @@ own_goals as (
     group by fixture_id, team_id
 ),
 
+provider_teams as (
+    select distinct
+        fixture_id,
+        team_id
+    from {{ ref('base_apif__fixture_players') }}
+),
+
 teams as (
     select
-        league_code,
-        fixture_id,
-        team_id,
-        countif(goals is null) as players_with_blank_goals,
-        coalesce(sum(goals), 0) as player_goals
-    from {{ ref('base_apif__fixture_players_from_lineups') }}
-    group by league_code, fixture_id, team_id
+        l.league_code,
+        l.fixture_id,
+        l.team_id,
+        countif(l.goals is null) as players_with_blank_goals,
+        coalesce(sum(l.goals), 0) as player_goals
+    from {{ ref('base_apif__fixture_players_from_lineups') }} as l
+    left join provider_teams as p
+        on l.fixture_id = p.fixture_id and l.team_id = p.team_id
+    where p.fixture_id is null
+    group by l.league_code, l.fixture_id, l.team_id
 )
 
 select

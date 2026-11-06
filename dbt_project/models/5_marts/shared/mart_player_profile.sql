@@ -225,7 +225,8 @@ select
     c.team_goals_season,
     c.contribution_player_pct,
     -- The season this player's page opens on: int_player__page_profile chooses it.
-    coalesce(a.season_sk = pg.featured_season_sk, false) as is_featured_season
+    coalesce(a.season_sk = pg.featured_season_sk, false) as is_featured_season,
+    coalesce(pg.has_player_page, false) as has_player_page
 from season as a
 left join players as p
     on a.player_sk = p.player_sk

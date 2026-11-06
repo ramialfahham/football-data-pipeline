@@ -12,6 +12,10 @@
   a team sheet or a stat line of one of its matches, or on the provider's squad list for it.
   national_team_sk is that nation, the one of the latest match when there are two.
 
+  has_player_page reads a club match's season from competition_season_map, by its competition's
+  season type. A national-team competition has no placing there, so its matches count from the
+  start of last split-year season.
+
   Grain: (player_sk).
 #}
 
@@ -155,6 +159,33 @@ national_team as (
         partition by player_sk
         order by named_at desc nulls last, team_sk asc
     ) = 1
+),
+
+current_seasons as (
+    select
+        extract(year from date_sub(current_date(), interval 6 month)) as split_year_season,
+        extract(year from current_date()) as calendar_year_season
+),
+
+players_with_a_page as (
+    select l.player_sk
+    from legs as l
+    cross join current_seasons as c
+    left join {{ ref('dim_competition_season') }} as d
+        on l.season_sk = d.season_sk
+    where
+        l.minutes > 0
+        and if(
+            l.entity_type = 'club',
+            if(
+                d.season_type = 'split_year',
+                d.split_year_season >= c.split_year_season - 1,
+                d.calendar_year_season >= c.calendar_year_season - 1
+            ),
+            date(l.kickoff_datetime) >= date(c.split_year_season - 1, 7, 1)
+        )
+    group by l.player_sk
+    having count(*) >= 3
 )
 
 select
@@ -166,7 +197,8 @@ select
     ft.featured_team_sk,
     nt.national_team_sk,
     nt.player_sk is not null as has_national_team_tab,
-    cc.player_sk is not null as has_club_tab
+    cc.player_sk is not null as has_club_tab,
+    pp.player_sk is not null and (nt.player_sk is not null or cc.player_sk is not null) as has_player_page
 from featured as fe
 left join featured_position as fp
     on fe.player_sk = fp.player_sk
@@ -176,3 +208,5 @@ left join featured_team as ft
     on fe.player_sk = ft.player_sk
 left join national_team as nt
     on fe.player_sk = nt.player_sk
+left join players_with_a_page as pp
+    on fe.player_sk = pp.player_sk

@@ -21,3 +21,4 @@ where
     player_event.team_id != player_row.team_id
     and not (player_event.event_type = 'Goal' and player_event.event_detail = 'Own Goal')
     and player_event.goal_correction_source is null
+    and player_event.card_correction_source is null
