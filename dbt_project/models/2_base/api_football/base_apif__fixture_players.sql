@@ -248,6 +248,7 @@ events as (
         minute_elapsed,
         event_type,
         event_detail,
+        event_comments,
         assist_player_name,
         assist_player_id,
         is_goal,
@@ -263,6 +264,137 @@ fixtures_with_events as (
     from events
     where has_full_events
     group by fixture_id
+),
+
+matches_with_researched_cards as (
+    select distinct fixture_id
+    from {{ ref('fixture_card_corrections') }}
+),
+
+researched_cards as (
+    select
+        e.fixture_id,
+        e.player_id,
+        countif(e.event_detail = 'Yellow Card') as yellow_cards,
+        countif(e.event_detail = 'Red Card') as red_cards
+    from events as e
+    inner join matches_with_researched_cards as m
+        on e.fixture_id = m.fixture_id
+    where e.event_type = 'Card' and e.player_id is not null
+    group by e.fixture_id, e.player_id
+),
+
+-- The provider marks a coach's card "Not on pitch".
+player_cards as (
+    select
+        fixture_id,
+        player_id,
+        any_value(team_id) as team_id,
+        countif(event_detail = 'Yellow Card') as yellow_cards,
+        countif(event_detail = 'Red Card') as red_cards
+    from events
+    where
+        event_type = 'Card'
+        and coalesce(event_comments, '') != 'Not on pitch'
+        and has_full_events
+        and player_id is not null
+    group by fixture_id, player_id
+),
+
+team_cards as (
+    select
+        fixture_id,
+        team_id,
+        count(*) as card_events,
+        countif(player_id is null) as cards_without_id
+    from events
+    where event_type = 'Card' and coalesce(event_comments, '') != 'Not on pitch' and has_full_events
+    group by fixture_id, team_id
+),
+
+team_stat_cards as (
+    select
+        fixture_id,
+        team_id,
+        sum(coalesce(cards_yellow, 0) + coalesce(cards_red, 0)) as stat_cards
+    from delivered
+    group by fixture_id, team_id
+),
+
+latest_sheets as (
+    select
+        fixture_id,
+        start_xi_json,
+        substitutes_json
+    from {{ ref('stg_apif__lineups') }}
+    where fixture_id is not null and team_id is not null
+    qualify row_number() over (partition by fixture_id, team_id order by raw_ingested_at desc) = 1
+),
+
+sheet_players as (
+    select
+        s.fixture_id,
+        safe_cast(json_value(player_el, '$.player.id') as int64) as player_id
+    from latest_sheets as s,
+        unnest(json_query_array(s.start_xi_json)) as player_el
+    union distinct
+    select
+        s.fixture_id,
+        safe_cast(json_value(player_el, '$.player.id') as int64) as player_id
+    from latest_sheets as s,
+        unnest(json_query_array(s.substitutes_json)) as player_el
+    union distinct
+    select
+        fixture_id,
+        player_id
+    from {{ ref('fixture_lineup_corrections') }}
+),
+
+-- The Cards line of the cleaning_rules doc block. Where a team's stat lines hold every card and
+-- its events only lack an id, the stat lines place them.
+disputed_players as (
+    select
+        d.fixture_id,
+        d.player_id
+    from delivered as d
+    inner join fixtures_with_events as e
+        on d.fixture_id = e.fixture_id
+    inner join team_stat_cards as s
+        on d.fixture_id = s.fixture_id and d.team_id = s.team_id
+    left join player_cards as c
+        on d.fixture_id = c.fixture_id and d.player_id = c.player_id
+    left join team_cards as t
+        on d.fixture_id = t.fixture_id and d.team_id = t.team_id
+    where
+        (
+            coalesce(d.cards_yellow, 0) != coalesce(c.yellow_cards, 0)
+            or coalesce(d.cards_red, 0) != coalesce(c.red_cards, 0)
+        )
+        and (coalesce(t.cards_without_id, 0) = 0 or t.card_events != s.stat_cards)
+),
+
+-- A card with no player on the sheet could be anyone's, so nobody of the team without a card is
+-- proven at 0.
+teams_with_an_ownerless_card as (
+    select
+        t.fixture_id,
+        t.team_id
+    from team_cards as t
+    inner join team_stat_cards as s
+        on t.fixture_id = s.fixture_id and t.team_id = s.team_id
+    where t.cards_without_id > 0 and t.card_events != s.stat_cards
+    union distinct
+    select
+        c.fixture_id,
+        c.team_id
+    from player_cards as c
+    inner join team_stat_cards as s
+        on c.fixture_id = s.fixture_id and c.team_id = s.team_id
+    left join delivered as d
+        on c.fixture_id = d.fixture_id and c.player_id = d.player_id
+    left join sheet_players as p
+        on c.fixture_id = p.fixture_id and c.player_id = p.player_id
+    where d.player_id is null and p.player_id is null
 ),
 
 team_events as (
@@ -407,7 +539,19 @@ in_context as (
         coalesce(oe.own_goals, 0) as opponent_own_goals,
         coalesce(oe.penalty_goal_events, 0) as opponent_penalty_goal_events,
         coalesce(oe.penalty_events, 0) as opponent_penalty_events,
-        coalesce(oe.missed_penalty_events, 0) as opponent_missed_penalty_events
+        coalesce(oe.missed_penalty_events, 0) as opponent_missed_penalty_events,
+        rm.fixture_id is null
+        and (
+            dp.fixture_id is not null
+            or (
+                ot.fixture_id is not null
+                and pc.fixture_id is null
+                and coalesce(d.cards_yellow, 0) + coalesce(d.cards_red, 0) = 0
+            )
+        ) as cards_need_research,
+        rm.fixture_id is not null as cards_are_researched,
+        coalesce(rc.yellow_cards, 0) as researched_yellow_cards,
+        coalesce(rc.red_cards, 0) as researched_red_cards
     from delivered as d
     left join fixtures as f
         on d.fixture_id = f.fixture_id
@@ -431,6 +575,16 @@ in_context as (
         on d.fixture_id = pe.fixture_id and d.team_id = pe.team_id and d.player_id = pe.player_id
     left join keeper_spells as ks
         on d.fixture_id = ks.fixture_id and d.player_id = ks.player_id
+    left join disputed_players as dp
+        on d.fixture_id = dp.fixture_id and d.player_id = dp.player_id
+    left join teams_with_an_ownerless_card as ot
+        on d.fixture_id = ot.fixture_id and d.team_id = ot.team_id
+    left join player_cards as pc
+        on d.fixture_id = pc.fixture_id and d.player_id = pc.player_id
+    left join matches_with_researched_cards as rm
+        on d.fixture_id = rm.fixture_id
+    left join researched_cards as rc
+        on d.fixture_id = rc.fixture_id and d.player_id = rc.player_id
 ),
 
 -- What the provider counted in the match, read from its own values before any change.
@@ -555,10 +709,16 @@ filled as (
         coalesce(dribbles_against, if(dribbles_against_counted, 0, null)) as dribbles_against_filled,
         coalesce(fouls, if(fouls_counted, 0, null)) as fouls_filled,
         coalesce(fouls_against, if(fouls_against_counted, 0, null)) as fouls_against_filled,
-        coalesce(cards_yellow, if(cards_yellow_counted or (has_events and team_card_events = 0), 0, null))
-            as cards_yellow_filled,
-        coalesce(cards_red, if(cards_red_counted or (has_events and team_card_events = 0), 0, null))
-            as cards_red_filled,
+        if(
+            cards_are_researched,
+            researched_yellow_cards,
+            coalesce(cards_yellow, if(cards_yellow_counted or (has_events and team_card_events = 0), 0, null))
+        ) as cards_yellow_filled,
+        if(
+            cards_are_researched,
+            researched_red_cards,
+            coalesce(cards_red, if(cards_red_counted or (has_events and team_card_events = 0), 0, null))
+        ) as cards_red_filled,
         coalesce(
             penalties_won, if(penalties_won_counted or (has_events and team_penalty_events = 0), 0, null)
         ) as penalties_won_filled,
@@ -773,10 +933,12 @@ against_whole as (
             when duels_won_filled - duels_clean <= 2 then duels_clean
         end as duels_won_clean,
         case
+            when cards_need_research then null
             when cards_yellow_filled is null or cards_yellow_filled <= 2 then cards_yellow_filled
             when cards_yellow_filled - 2 <= 2 then 2
         end as cards_yellow_clean,
         case
+            when cards_need_research then null
             when cards_red_filled is null or cards_red_filled <= 1 then cards_red_filled
             when cards_red_filled - 1 <= 2 then 1
         end as cards_red_clean
@@ -911,11 +1073,21 @@ select
                 ),
                 struct(
                     'cards_yellow', cards_yellow, cards_yellow_clean,
-                    if(cards_yellow_clean is distinct from cards_yellow_filled, 'limited_to_card_maximum', null)
+                    case
+                        when cards_need_research then 'cards_need_research'
+                        when cards_are_researched and cards_yellow_clean is distinct from cards_yellow
+                            then 'cards_from_research'
+                        when cards_yellow_clean is distinct from cards_yellow_filled then 'limited_to_card_maximum'
+                    end
                 ),
                 struct(
                     'cards_red', cards_red, cards_red_clean,
-                    if(cards_red_clean is distinct from cards_red_filled, 'limited_to_card_maximum', null)
+                    case
+                        when cards_need_research then 'cards_need_research'
+                        when cards_are_researched and cards_red_clean is distinct from cards_red
+                            then 'cards_from_research'
+                        when cards_red_clean is distinct from cards_red_filled then 'limited_to_card_maximum'
+                    end
                 )
             ]) as correction
         where correction.rule is not null

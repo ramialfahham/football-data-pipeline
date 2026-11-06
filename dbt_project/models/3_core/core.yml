@@ -893,7 +893,7 @@ models:
       - name: penalties_saved
         description: "{{ doc('penalty_saved') }}"
       - name: is_from_lineups
-        description: "True where the row comes from the team sheet and the goal events, because the provider sent no player statistics for this team match. Every statistic those two sources cannot give is blank on such a row."
+        description: "True where the row comes from the team sheet and the match events, because the provider sent no player statistics for this team match. Every statistic those two sources cannot give is blank on such a row."
         tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
@@ -1064,6 +1064,8 @@ models:
       - name: is_shootout_kick
         description: "TRUE for a penalty shoot-out kick, scored or missed. A shoot-out kick is never a goal."
         tests: [not_null]
+      - name: card_correction_source
+        description: "On a card from fixture_card_corrections, the source's https URLs; NULL on every event the provider sent."
       - name: goal_correction_source
         description: "On a goal from fixture_goal_corrections, the source's https URLs; NULL on every event the provider sent. A match with such goals counts only them: is_goal is FALSE on its provider goal events."
       - name: raw_ingested_at

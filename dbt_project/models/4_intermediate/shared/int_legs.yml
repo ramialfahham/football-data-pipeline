@@ -205,7 +205,7 @@ models:
       - name: competition_type
         description: "{{ doc('competition_type') }}"
       - name: is_from_lineups
-        description: "True where the row comes from the team sheet and the goal events, because the provider sent no player statistics for this team match."
+        description: "True where the row comes from the team sheet and the match events, because the provider sent no player statistics for this team match."
       - name: minutes
         description: "{{ doc('minutes_played') }}"
       - name: is_starter

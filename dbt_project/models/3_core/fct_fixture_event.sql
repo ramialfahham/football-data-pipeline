@@ -37,5 +37,6 @@ select
     is_own_goal,
     is_shootout_kick,
     goal_correction_source,
+    card_correction_source,
     src.raw_ingested_at
 from src

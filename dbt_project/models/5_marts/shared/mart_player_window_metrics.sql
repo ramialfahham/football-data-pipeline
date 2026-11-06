@@ -1,5 +1,5 @@
 {#
-  What a Player page shows for a whole tab, in long form: the four cards, and on the Club tab each
+  What a Player page shows for a whole tab, in long form: the six cards, and on the Club tab each
   metric of the player's position this season against last season. The Club tab's window is the club
   competitions of the featured season at any club; the National team tab's is the nation's current
   competitions. metric_value_prev_season is the same metric over the whole of last season. A blank
@@ -83,7 +83,9 @@ cards as (
             ('goals_player', 'outfield', cast(t.goals_player as float64), 0),
             ('assists_player', 'outfield', cast(t.assists_player as float64), 0),
             ('saves_player_pct', 'goalkeeper', t.saves_player_pct, null),
-            ('goals_against_player', 'goalkeeper', cast(t.goals_against_player as float64), 0)
+            ('goals_against_player', 'goalkeeper', cast(t.goals_against_player as float64), 0),
+            ('cards_yellow_player', 'all', cast(t.cards_yellow_player as float64), 0),
+            ('cards_red_player', 'all', cast(t.cards_red_player as float64), 0)
         ]) as m
     where
         m.shown_for = 'all'

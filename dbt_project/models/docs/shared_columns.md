@@ -223,9 +223,15 @@ the team 2 points instead of 1. A shoot-out in a cup or play-off round is false.
 {% enddocs %}
 
 
+{% docs has_player_page %}
+True when the player gets a Player page. That takes 3 matches played this season or last, in any
+competition we hold, club or national team, and at least one tab. A match played means minutes
+above 0.
+{% enddocs %}
+
 {% docs has_stat_line__player %}
 True where the provider sent a statistics line for this player in this match. False for a player
-only the line-ups name: a statistic of that row is NULL unless the team sheet or the goal events
+only the line-ups name: a statistic of that row is NULL unless the team sheet or the match events
 give it.
 {% enddocs %}
 

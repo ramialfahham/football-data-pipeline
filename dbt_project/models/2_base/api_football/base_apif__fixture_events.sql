@@ -352,11 +352,40 @@ goal_corrections as (
         cast(null as int64) as resolved_player_team_id,
         c.team_id,
         cast(null as string) as team_name,
-        c.source as goal_correction_source
+        c.source as goal_correction_source,
+        cast(null as string) as card_correction_source
     from {{ ref('fixture_goal_corrections') }} as c
     inner join {{ ref('base_apif__fixtures_next') }} as f
         on c.fixture_id = f.fixture_id
     where c.goal_order > 0
+),
+
+-- Every card of a match from seeds/fixture_card_corrections.csv, at a position past the goals.
+card_corrections as (
+    select
+        f.league_code,
+        c.fixture_id,
+        20000 + c.card_order as event_index,
+        c.minute_elapsed,
+        c.minute_extra,
+        c.player_id,
+        c.player_name,
+        cast(null as string) as assist_player_name,
+        cast(null as int64) as assist_player_id,
+        'Card' as event_type,
+        c.event_detail,
+        cast(null as string) as event_comments,
+        f.raw_ingested_at,
+        false as is_own_goal,
+        cast(null as int64) as resolved_player_team_id,
+        c.team_id,
+        cast(null as string) as team_name,
+        cast(null as string) as goal_correction_source,
+        c.source as card_correction_source
+    from {{ ref('fixture_card_corrections') }} as c
+    inner join {{ ref('base_apif__fixtures_next') }} as f
+        on c.fixture_id = f.fixture_id
+    where c.card_order > 0
 ),
 
 -- A match with a row at goal_order 0 had no goal.
@@ -365,13 +394,24 @@ corrected_matches as (
     from {{ ref('fixture_goal_corrections') }}
 ),
 
+card_corrected_matches as (
+    select distinct fixture_id
+    from {{ ref('fixture_card_corrections') }}
+),
+
 all_events as (
     select
-        *,
-        cast(null as string) as goal_correction_source
-    from resolved
+        r.*,
+        cast(null as string) as goal_correction_source,
+        cast(null as string) as card_correction_source
+    from resolved as r
+    left join card_corrected_matches as m
+        on r.fixture_id = m.fixture_id
+    where m.fixture_id is null or r.event_type is distinct from 'Card'
     union all
     select * from goal_corrections
+    union all
+    select * from card_corrections
 ),
 
 -- A shoot-out kick is no goal: the provider labels most, and files the rest at a negative minute.
@@ -445,6 +485,7 @@ select
     g.team_id,
     g.team_name,
     g.goal_correction_source,
+    g.card_correction_source,
     g.is_shootout_kick,
     g.is_own_goal,
     {{ repair_garbled_text('g.player_name') }} as player_name,

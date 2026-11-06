@@ -1,25 +1,40 @@
-# Review — feat/256-fill-from-lineups — 2026-11-06
+# Review — feat/136-player-cards-data — 2026-11-06
 
-diff_sha256: d8bcba833e999e53a4a57d63c8420a72c15e497cb63c32138fea0a7c1ad28081
+diff_sha256: 1de85133b7f6870345018c4da811f3c37d5435baed13eb1e7555bcd7cbf6b1a1
 
-rounds: 3
+rounds: 4
+rounds_cap_override: approved in chat, 2026-11-06: one answer-key seed fix after the MR build found a stale expected value.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 2 finding: the impact_map now says the export's player log shows filled values while its rows and has_stat_line stay, which agrees with blast_radius.
-- match_involvement for filled rows is stated in the contract and agrees with the mart.
-- dbt_project/seeds/schema.yml is in scope_paths; the two descriptions carry the CPO-approved text and add no mechanism, metric or label.
-- Round 1 and 2 checks stand: every changed file is in scope_paths, documentation matches the new meaning of has_stat_line, the tests are narrowed by is_from_lineups with the filled rows compared against their own base, and metric_rules.md R4 matches done_when.
+- Round 2 findings closed: the fill's zeros follow a per-stat flag, as the amendment says; base.yml and layering.md state the 0-minute case and the carded sheet player.
+- decisions_reserved records the seed description and both rule names as approved in chat, 2026-11-06, relayed by the coordinating session.
+- Seed rows carry source_kind, an https source and a note; the 23 matches left in dispute are named in the amendment for a follow-up MR.
+- No credentials in the patch, no site or export change, no new mechanism or recurring cost; every file is inside scope_paths and the impact map carries both pasted lineages.
+- Round 4: the answer-key seed is in scope_paths, its change is a test expectation, and it decides no new rule.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- assert_stat_facts_equal_base compares the fact in two slices, one per base; has_stat_line is false for filled rows, so mart_team_momentum_window.has_player_stats does not move.
-- assert_player_page_windows: Appearances and match_involvement played read the same minutes on the same fact rows, and a blank-minutes row blanks the card, so the check skips it.
-- assert_team_goals_equal_players_goals holds on filled matches: player goals and team goals_own come from the same corrected events.
-- Seed descriptions match the models and tests that use the seeds; the union column order, the macro and the five inline copies, and the competition-agnostic rule were checked with no defect.
+- stats_counted_in_match is one row per fixture, so its join cannot fan out, and a stat the provider did not count stays blank.
+- The dispute check reads delivered rows per team, sheets unnest separately, and cards need full events in both player bases.
+- assert_card_corrections_applied gains off_the_sheet, reading all sheets and the stat lines; no Red Card row lacks a minute.
+- Team cards can move in a researched match where the provider's team value was blank, because base_apif__fixture_statistics reads card events; the MR head states it. The 8% limit has little headroom at CDR 2023.
+- Round 4: 1644381 is researched, so 0 and 1 follow from the seed; 1311842 is unsettled, so Ekpolo is blank and Longbottom's own card stands. No model or test logic changed.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- PAGE_WINDOW and the generated SQL agree, and metric_map.csv holds the two new rows in sorted position.
+- The two metrics exist in the catalogue and in metric_columns.md; the export takes every is_card row with no code change.
+- No test or script assumes the old metric list; no dependency, workflow or hook changed.
+- Round 1 verdict: scripts/ and metric_map.csv have not changed since, and the seed's emptiness that it checked no longer applies.
 
 ## escalations
-- question: the exact text of the descriptions of fixture_goal_corrections and player_match_cleaning_answer_key.
+- question: a fourth review round, past the cap, for the answer-key fix.
+  CPO ANSWER: approved in chat, 2026-11-06.
+- question: the seed description of fixture_card_corrections and the rule names cards_need_research and cards_from_research.
   CPO ANSWER: approved in chat, 2026-11-06, relayed by the coordinating session.
+- question: the Cards line in cleaning_rules.md, and that no name rule places a card.
+  CPO ANSWER: approved in chat, 2026-11-06, relayed by the coordinating session, recorded on #256.

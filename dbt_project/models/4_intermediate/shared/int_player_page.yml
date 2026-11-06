@@ -133,6 +133,9 @@ models:
       - name: has_club_tab
         description: "True when the player has played club football."
         tests: [not_null]
+      - name: has_player_page
+        description: "{{ doc('has_player_page') }}"
+        tests: [not_null]
 
   - name: int_player_page__window_seasons
     description: >
@@ -242,6 +245,10 @@ models:
         description: "{{ doc('saves_player') }}"
       - name: goals_against_player
         description: "{{ doc('goals_against_player') }}"
+      - name: cards_yellow_player
+        description: "{{ doc('cards_yellow_player') }}"
+      - name: cards_red_player
+        description: "{{ doc('cards_red_player') }}"
       - name: minutes_per_appearance
         description: "{{ doc('minutes_per_appearance') }}"
       - name: passes_accuracy_player_pct
@@ -375,6 +382,10 @@ models:
         description: "{{ doc('saves_player') }}"
       - name: goals_against_player
         description: "{{ doc('goals_against_player') }}"
+      - name: cards_yellow_player
+        description: "{{ doc('cards_yellow_player') }}"
+      - name: cards_red_player
+        description: "{{ doc('cards_red_player') }}"
       - name: minutes_per_appearance
         description: "{{ doc('minutes_per_appearance') }}"
       - name: passes_accuracy_player_pct

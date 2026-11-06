@@ -24,6 +24,8 @@ match stats are good enough.
   events add up to the score only without such events. Where a match's goal events stay wrong, its
   goals come from sourced research in the fixture_goal_corrections seed. A player's goals come from
   the per-player count or the goal events, whichever adds up to the score.
+- Cards. A player's yellow and red cards are exact. Where his stat line and the card events
+  disagree, or a card's player is not on the sheet, the match's cards come from sourced research.
 - A player's team. Where his statistics row and his match events, own goals aside, name different
   teams of the match, the squad list for the season decides, and his other matches decide where it
   names both teams or neither; the side it contradicts, his row or his events, moves to the team
@@ -60,7 +62,8 @@ match stats are good enough.
   penalties it missed); opponent_shots_on_target_unverified (saves above that ceiling left blank,
   because the opponent's figure fails its own check); limited_to_whole (a part lowered to its
   whole); raised_to_part (a whole raised to its part); limited_to_card_maximum (at most two yellow
-  cards and one red card); limited_to_team_goals (a player's assists at most the team's goals
+  cards and one red card); cards_need_research (a match's cards left blank until sourced research
+  stands); cards_from_research (a match's cards taken from sourced research); limited_to_team_goals (a player's assists at most the team's goals
   minus the player's own); own_goals_left_out (shots inside the box less the own goals the
   provider counted as the team's shots); split_does_not_add_up (a split of shots that does not add
   up to the total, left blank, shots on target excepted).

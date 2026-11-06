@@ -16,7 +16,7 @@
 
   Many competitions do not provide statistics_players from the API, so a row
   without a stat line (has_stat_line false) is common: its statistics are
-  unavailable, never zero, but for what its team sheet and the goal events give.
+  unavailable, never zero, but for what its team sheet and the match events give.
 
   Grain: (fixture_sk, team_sk, player_sk).
 #}

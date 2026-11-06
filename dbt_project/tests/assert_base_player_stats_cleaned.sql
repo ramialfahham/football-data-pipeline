@@ -36,7 +36,8 @@
     'goals_from_events', 'penalty_goals_limited_to_goals', 'penalties_scored_matched_to_penalty_goals',
     'raised_to_open_play_goals', 'raised_to_shots_on_target', 'matched_to_team_goals_conceded',
     'limited_to_opponent_shots_on_target', 'opponent_shots_on_target_unverified', 'limited_to_whole',
-    'limited_to_card_maximum', 'raised_to_part', 'limited_to_team_goals'
+    'limited_to_card_maximum', 'cards_need_research', 'cards_from_research', 'raised_to_part',
+    'limited_to_team_goals'
 ] %}
 
 with players as (

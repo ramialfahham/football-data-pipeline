@@ -564,7 +564,7 @@ models:
       match the rows and their values are the stat lines'.
 
       A row without a stat line is common: many competitions do not supply player statistics. Its
-      statistics are NULL, meaning unavailable, never zero, but for what its team sheet and the goal
+      statistics are NULL, meaning unavailable, never zero, but for what its team sheet and the match
       events give. One player's matches over time are the rows where has_stat_line is true or
       minutes_played has a value, ordered by kickoff_datetime.
     tests:
@@ -1774,6 +1774,9 @@ models:
 
           Exactly one row per player is true, by construction. Both that and the no-row-true case
           are asserted by tests/assert_one_featured_season_per_entity.sql.
+        tests: [not_null]
+      - name: has_player_page
+        description: "{{ doc('has_player_page') }}"
         tests: [not_null]
       - name: season_label
         description: "The season's name as the site shows it, from dim_competition_season."
@@ -3486,7 +3489,7 @@ models:
 
   - name: mart_player_window_metrics
     description: >
-      What a Player page shows for a whole tab, in long form: the four cards, and on the Club tab
+      What a Player page shows for a whole tab, in long form: the six cards, and on the Club tab
       each metric of the player's position, this season against the whole of last season. The Club
       tab's window is the club competitions of the featured season at any club; the National team
       tab's is the nation's current competitions. Grain: (player_sk, page_tab, metric_key).
@@ -3527,9 +3530,9 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["appearances", "minutes_per_appearance", "goals_player", "assists_player", "goals_against_player", "saves_per90", "saves_player_pct", "goals_against_per90", "passes_per90", "ball_actions_per90", "passes_accuracy_player_pct", "goals_per90", "assists_per90", "scorer_points_per90", "shots_per90", "shots_on_goal_per90", "shots_on_goal_player_pct", "passes_key_per90", "finishing_efficiency_player_pct", "dribbles_success_per90", "dribbles_success_player_pct", "duels_won_per90", "duels_won_player_pct", "defensive_actions_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "fouls_per90", "offsides_per90"]
+              values: ["appearances", "minutes_per_appearance", "goals_player", "assists_player", "goals_against_player", "cards_yellow_player", "cards_red_player", "saves_per90", "saves_player_pct", "goals_against_per90", "passes_per90", "ball_actions_per90", "passes_accuracy_player_pct", "goals_per90", "assists_per90", "scorer_points_per90", "shots_per90", "shots_on_goal_per90", "shots_on_goal_player_pct", "passes_key_per90", "finishing_efficiency_player_pct", "dribbles_success_per90", "dribbles_success_player_pct", "duels_won_per90", "duels_won_player_pct", "defensive_actions_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "fouls_per90", "offsides_per90"]
       - name: is_card
-        description: "True on a metric the tab's four cards show."
+        description: "True on a metric the tab's six cards show."
         tests: [not_null]
       - name: is_comparison
         description: "True on a metric the Compared with last season block shows."
