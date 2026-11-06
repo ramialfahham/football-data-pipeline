@@ -7,7 +7,7 @@
   },
   "scripts": {
     "test": "node --test",
-    "prebuild": "npm test && node scripts/check-page-specs.mjs",
+    "prebuild": "npm test && node scripts/check-page-specs.mjs && node scripts/check-exported-text.mjs",
     "dev": "astro dev",
     "build": "astro build && node scripts/audit-seo.mjs && node scripts/check-built-pages.mjs",
     "preview": "astro preview"

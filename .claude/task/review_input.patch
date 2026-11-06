@@ -1,89 +1,622 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 5eba8d1a..7e72d628 100644
+index 7e72d628..bdde0f5b 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,63 +1,32 @@
--# Task contract — remove the Inter allowance from the rising-pin test
-+# Task contract — list the Player page's approved design
+@@ -1,32 +1,94 @@
+-# Task contract — list the Player page's approved design
++# Task contract — repair garbled player names and stop them shipping
  
  objective: >
--  Remove INTER_RISES, its helper _unlisted and the test of that helper from
--  tests/test_design_inventory.py, so test_no_pin_rises_above_mains again refuses every pin above
--  main's. main's baseline.json holds the Inter counts, so the allowance has nothing left to allow.
-+  Issue #259, its first line: `player: 136` enters docs/wireframes/approved_designs.yml, so the
-+  contract gate accepts the Player page's build contracts. The CPO's merge is the approval.
+-  Issue #259, its first line: `player: 136` enters docs/wireframes/approved_designs.yml, so the
+-  contract gate accepts the Player page's build contracts. The CPO's merge is the approval.
++  Issue #248: the provider sends some player names as UTF-8 read as Latin-1 or Windows-1252. Base
++  repairs them so every name downstream is correct, and a check fails the build when exported data
++  holds wrongly decoded text.
  
  refs: >
--  #243. The head of !378, merged 2026-11-04, names this removal as the follow-up MR.
-+  #259, plan approved in chat 2026-11-06. Design: #136.
+-  #259, plan approved in chat 2026-11-06. Design: #136.
++  #248, plan approved in chat 2026-11-06. Found by #243.
  
  scope_paths:
--  - tests/test_design_inventory.py
-+  - docs/wireframes/approved_designs.yml
+-  - docs/wireframes/approved_designs.yml
++  - dbt_project/macros/repair_garbled_text.sql
++  - dbt_project/models/2_base/api_football/base_apif__players.sql
++  - dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++  - dbt_project/tests/assert_garbled_text_repair.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/docs/shared_columns.md
++  - site_v2/scripts/check-exported-text.mjs
++  - site_v2/scripts/check-exported-text.test.mjs
++  - site_v2/scripts/build-wiring.test.mjs
++  - site_v2/package.json
++  - site_v2/src/data/fixtures/1528965.json
++  - site_v2/src/data/fixtures/1553193.json
++  - site_v2/src/data/fixtures/1635716.json
++  - site_v2/src/data/fixtures/1638563.json
++  - site_v2/src/data/teams/165.json
++  - site_v2/src/data/teams/169.json
++  - site_v2/src/data/teams/172.json
++  - site_v2/src/data/teams/173.json
++  - site_v2/src/data/teams/182.json
++  - site_v2/src/data/teams/192.json
++  - site_v2/src/data/teams/211.json
++  - site_v2/src/data/teams/867.json
++  - tests/fixtures/font_coverage/baseline.json
++  - tests/fixtures/design_inventory/baseline.json
++  - tests/fixtures/design_inventory/baseline_quick.json
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
--
--protected_override: >
--  Approved by the CPO's merge of !378 on 2026-11-04, whose head states that the next MR removes
--  INTER_RISES. Edits tests/test_design_inventory.py only, and only by deletion, plus one call that
--  stops going through the deleted helper.
--
--impact_map: >
--  readers: `grep -rIln "INTER_RISES\|_unlisted\|test_only_a_listed_rise"` returns
--  tests/test_design_inventory.py and .claude/task/acceptance_evidence.md. The second is the #243
--  task's evidence record; no gate reads it unless a diff touches site_v2/src. Inside the test file
--  only test_no_pin_rises_above_mains and test_only_a_listed_rise_on_mains_old_value_is_allowed
--  call _unlisted. No script imports either name.
--  fires_on: validate:ui runs `python -m pytest tests/test_design_inventory.py -q`, and test:python
--  runs it through `pytest tests/ -v`. The file is in .ui_paths, so this MR's pipeline runs the
--  quick validate:ui.
--  evidence_main_needs_no_allowance: pipeline 3032797643 on 0e048d28, job 17778131723, is main's
--  last full validate:ui: 387 pages, 6 viewports, 3 languages, 13830 renders, 0 failures, success.
--  `git diff --stat 0e048d28 gitlab/main` over tests/fixtures/design_inventory/,
--  tests/test_design_inventory.py and scripts/check_design_inventory.py is empty, and later main
--  pipelines skipped validate:ui because they changed no ui path. All nine pins on main sit above
--  the listed value (2184/1174, 223/148, 12/9, 2/1, 47/32, 13/4, 21/19, 3/1, 42/24). _unlisted
--  excused a rise only from a main value equal to the listed one, so it excuses nothing today.
--  on_failure: a pin above main's fails test_no_pin_rises_above_mains with its message, as it did
--  before !378. This removal cannot turn a green run red, because no rise exists between this
--  branch and main.
--  stops_being_enforced_if_wrong: nothing; the change tightens the ratchet. Deleting the helper's
--  test loses no coverage of di.rises, which test_a_pin_may_not_rise_above_mains_and_a_new_entry_starts_at_zero
--  covers.
--  deploy_order: none; no data, no deploy, no new dependency, no recurring cost.
--  blast_radius: one test file. No pin, baseline file, script or page output changes.
-+  - .claude/task/acceptance_evidence.md
-+  - .claude/task/rendered_page_evidence.md
+   - .claude/task/acceptance_evidence.md
+   - .claude/task/rendered_page_evidence.md
  
++impact_map: >
++  writers: dbt only; no ingestion change, raw stays as received. The garbling comes from the
++  provider: one string holds a broken and a correct letter together, which no wrong decode on our
++  side produces.
++  lineage: `dbt ls --resource-type model --select base_apif__players+1 base_apif__player_profiles+1
++  base_apif__fixture_events+1` returns base_apif__fixture_events, base_apif__fixture_players,
++  base_apif__fixture_statistics, base_apif__lineups, base_apif__player_profiles, base_apif__players,
++  dim_player, fct_fixture_event; the full `+` selection is 84 models. No model joins or tests on a
++  name: `grep -rn "player_name" dbt_project/tests` is empty, and base_apif__fixture_players,
++  base_apif__fixture_statistics and base_apif__lineups read event ids, types and the assist's
++  presence, never the name's text. The repair keeps a null a null, so assisted_goal_events holds.
++  consumption: dim_player feeds every player name the export reads, and
++  mart_competition_fixtures falls back to fct_fixture_event's names. The export builds player slugs
++  from the name, so the slug of each repaired name changes with its name.
++  ci_layer_rules: scripts/check_layer_contract.py, scripts/check_description_hygiene.py.
++  deploy_order: one merge; the nightly dbt build rebuilds. No backfill, no raw write.
++  blast_radius: measured on prod: 415 players in dim_player, 38 distinct event names, and the two
++  nationalities Côte d'Ivoire and Türkiye change their text; no number changes. The other text
++  columns of dim_player, dim_coach, dim_team, fct_fixture, fct_fixture_event, dim_league and
++  dim_country hold no garbled value. Offline run of the rule on all 494 flagged values: 493
++  repaired, 0 failures, and the 494th, a correct name, left alone.
++
  approved_design:
-   - none: no page output changes
+-  - none: no page output changes
++  - match: #132
++  - team: #134
  
  decisions_taken: >
--  Removal only, as !378's head stated. No new mechanism, no new dependency, no recurring cost. The
--  coverage guard in test_no_pin_rises_above_mains stays: it serves a different purpose. The record
--  in .claude/task/acceptance_evidence.md stays: it belongs to the #243 task.
-+  One line in the list of approved designs, approved with the plan on #259. No new mechanism, no
-+  recurring cost.
+-  One line in the list of approved designs, approved with the plan on #259. No new mechanism, no
+-  recurring cost.
++  The plan on #248, approved in chat 2026-11-06. New mechanisms, both declared there: the dbt macro
++  repair_garbled_text, and check-exported-text.mjs in the site's prebuild. No recurring cost: the
++  macro runs inside three existing base builds. The rule covers Latin letters only, and its accepted
++  limit is stated on the plan: garbled Cyrillic passes unrepaired, and the check catches it only when
++  it holds a control character, so that German text such as a sharp s before a closing quote never
++  fails the build. Nationality is repaired with the names, because it carries the same defect.
++  Player URLs of repaired names change at the next deploy; the site is unlisted and noindex. The
++  page designs do not change, only the letters of the names in the data.
  
  decisions_reserved:
--  - none: the removal was named in !378's head, and no pin, page or rule changes.
-+  - none: this lists a design the CPO approved on #136 and changes nothing else
+-  - none: this lists a design the CPO approved on #136 and changes nothing else
++  - Player 275169's provider name carrying a leading "0" and spaces is another defect, reported to the CPO after this MR.
++
++acceptance_criteria:
++  - Every player name on the site shows its own letters: "A. Maksimović", "M. Ljubičić", "K. Urbański", "J. Potočnik", "A. Voitinovičius", "L. Jovanović", "M. Cvetković", "N. Kovač".
++  - A check fails the build when exported data holds text decoded in the wrong character set.
  
  done_when:
--  - grep for INTER_RISES and _unlisted in tests/test_design_inventory.py returns nothing.
--  - python -m pytest tests/test_design_inventory.py -q is green.
--  - The MR pipeline, quick validate:ui included, is green.
-+  - docs/wireframes/approved_designs.yml holds `player: 136`.
-+  - pytest tests passes.
+-  - docs/wireframes/approved_designs.yml holds `player: 136`.
+-  - pytest tests passes.
++  - dbt_project/tests/assert_garbled_text_repair.sql passes in data:build:mr.
++  - check-exported-text.mjs passes on the committed sample and its node tests prove a garbled value fails.
++  - npm run build in site_v2 passes; the whole pytest tests passes; SQLFluff passes on the changed models.
++  - The prod comparison of the three base models shows every changed row is a repair.
  
- amendments: (none)
-diff --git a/docs/wireframes/approved_designs.yml b/docs/wireframes/approved_designs.yml
-index 1a793b8b..ffc72d6f 100644
---- a/docs/wireframes/approved_designs.yml
-+++ b/docs/wireframes/approved_designs.yml
-@@ -8,3 +8,4 @@ matches: 130
- match: 132
- teams: 133
- team: 134
-+player: 136
+-amendments: (none)
++amendments:
++  - 2026-11-06: + dbt_project/models/3_core/core.yml, dbt_project/models/docs/shared_columns.md — authority: the plan on #248, approved in chat 2026-11-06; content: the column descriptions state the repair that plan approved.
+diff --git a/dbt_project/macros/repair_garbled_text.sql b/dbt_project/macros/repair_garbled_text.sql
+new file mode 100644
+index 00000000..6f90c66f
+--- /dev/null
++++ b/dbt_project/macros/repair_garbled_text.sql
+@@ -0,0 +1,38 @@
++{#
++  The provider sends some names as UTF-8 already read as Latin-1 or Windows-1252. A sequence that
++  a wrong decode leaves goes back to its bytes and is read as UTF-8; every other character stays,
++  so a string that mixes broken and correct letters repairs whole. Control and invisible characters
++  go last, with a space before one at the end: some names keep a stray one after the repair. The
++  empty match at the end keeps an empty string empty.
++
++  The leads stop at Latin letters and the punctuation block, because a wider rule rewrites correct
++  text: U+00E1, U+0161 and a no-break space are the middle of a real name, so a three-byte sequence
++  never continues with a Windows-1252 letter first.
++#}
++{%- macro repair_garbled_text(text) -%}
++{%- set windows_1252 -%}
++\x{20AC}\x{201A}\x{0192}\x{201E}\x{2026}\x{2020}\x{2021}\x{02C6}\x{2030}\x{0160}\x{2039}\x{0152}\x{017D}\x{2018}\x{2019}\x{201C}\x{201D}\x{2022}\x{2013}\x{2014}\x{02DC}\x{2122}\x{0161}\x{203A}\x{0153}\x{017E}\x{0178}
++{%- endset -%}
++{%- set garbled -%}
++[\x{00C2}-\x{00CB}][\x{0080}-\x{00BF}{{ windows_1252 }}]|[\x{00E1}\x{00E2}][\x{0080}-\x{00BF}\x{20AC}][\x{0080}-\x{00BF}{{ windows_1252 }}]
++{%- endset -%}
++{%- set windows_1252_text -%}
++\U000020AC\U0000201A\U00000192\U0000201E\U00002026\U00002020\U00002021\U000002C6\U00002030\U00000160\U00002039\U00000152\U0000017D\U00002018\U00002019\U0000201C\U0000201D\U00002022\U00002013\U00002014\U000002DC\U00002122\U00000161\U0000203A\U00000153\U0000017E\U00000178
++{%- endset -%}
++{%- set byte_text -%}
++\x80\x82\x83\x84\x85\x86\x87\x88\x89\x8a\x8b\x8c\x8e\x91\x92\x93\x94\x95\x96\x97\x98\x99\x9a\x9b\x9c\x9e\x9f
++{%- endset -%}
++regexp_replace(
++    (
++        select string_agg(if(char_length(piece) > 1, decoded, piece), '' order by piece_position)
++        from unnest(regexp_extract_all({{ text }}, r'(?s){{ garbled }}|.|$')) as piece with offset as piece_position,
++            unnest([
++                safe_convert_bytes_to_string(
++                    safe.code_points_to_bytes(to_code_points(translate(piece, '{{ windows_1252_text }}', '{{ byte_text }}')))
++                )
++            ]) as decoded
++    ),
++    r'\s*[\p{Cc}\p{Cf}]+$|[\p{Cc}\p{Cf}]',
++    ''
++)
++{%- endmacro %}
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+index b967083d..5af947dc 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+@@ -436,8 +436,6 @@ select
+     g.minute_elapsed,
+     g.minute_extra,
+     g.player_id,
+-    g.player_name,
+-    g.assist_player_name,
+     g.assist_player_id,
+     g.event_type,
+     g.event_detail,
+@@ -449,6 +447,8 @@ select
+     g.goal_correction_source,
+     g.is_shootout_kick,
+     g.is_own_goal,
++    {{ repair_garbled_text('g.player_name') }} as player_name,
++    {{ repair_garbled_text('g.assist_player_name') }} as assist_player_name,
+     g.is_goal_event and g.goal_correction_source is null as is_provider_goal,
+     g.is_goal_event and not g.is_replaced and not (g.is_nameless and n.fixture_id is not null) as is_goal,
+     coalesce(g.event_type = 'Goal' and g.event_detail = 'Missed Penalty', false) and not g.is_shootout_kick
+diff --git a/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql b/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
+index 834a3dca..e6367d4e 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
+@@ -51,24 +51,42 @@ corrected as (
+     from renamed
+     left join import_country_name_overrides as overrides
+         on renamed.player_birth_country_raw = overrides.provider_country
++),
++
++latest as (
++    select
++        player_api_id,
++        player_name,
++        player_first_name,
++        player_last_name,
++        player_birth_date,
++        player_birth_place,
++        player_birth_country,
++        player_nationality,
++        player_height,
++        player_weight,
++        player_position,
++        player_photo_url,
++        raw_ingested_at
++    from corrected
++    qualify row_number() over (
++        partition by player_api_id
++        order by raw_ingested_at desc
++    ) = 1
+ )
+ 
+ select
+     player_api_id,
+-    player_name,
+-    player_first_name,
+-    player_last_name,
+     player_birth_date,
+     player_birth_place,
+     player_birth_country,
+-    player_nationality,
+     player_height,
+     player_weight,
+     player_position,
+     player_photo_url,
+-    raw_ingested_at
+-from corrected
+-qualify row_number() over (
+-    partition by player_api_id
+-    order by raw_ingested_at desc
+-) = 1
++    raw_ingested_at,
++    {{ repair_garbled_text('player_name') }} as player_name,
++    {{ repair_garbled_text('player_first_name') }} as player_first_name,
++    {{ repair_garbled_text('player_last_name') }} as player_last_name,
++    {{ repair_garbled_text('player_nationality') }} as player_nationality
++from latest
+diff --git a/dbt_project/models/2_base/api_football/base_apif__players.sql b/dbt_project/models/2_base/api_football/base_apif__players.sql
+index 79de9615..a74262f7 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__players.sql
+@@ -101,21 +101,34 @@ src as (
+     select * from assist_events_src
+     union all
+     select * from lineups_src
++),
++
++latest as (
++    select
++        player_api_id,
++        player_name,
++        player_first_name,
++        player_last_name,
++        player_birth_date,
++        player_nationality,
++        player_photo_url,
++        raw_ingested_at
++    from src
++    qualify row_number() over (
++        partition by player_api_id
++        order by
++            source_priority asc,
++            raw_ingested_at desc
++    ) = 1
+ )
+ 
+ select
+     player_api_id,
+-    player_name,
+-    player_first_name,
+-    player_last_name,
+     player_birth_date,
+-    player_nationality,
+     player_photo_url,
+-    raw_ingested_at
+-from src
+-qualify row_number() over (
+-    partition by player_api_id
+-    order by
+-        source_priority asc,
+-        raw_ingested_at desc
+-) = 1
++    raw_ingested_at,
++    {{ repair_garbled_text('player_name') }} as player_name,
++    {{ repair_garbled_text('player_first_name') }} as player_first_name,
++    {{ repair_garbled_text('player_last_name') }} as player_last_name,
++    {{ repair_garbled_text('player_nationality') }} as player_nationality
++from latest
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index c39b5e1d..64bee87b 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -1036,9 +1036,9 @@ models:
+       - name: team_name_snapshot
+         description: "The team's name as the events feed spelled it when this row was ingested. It is kept as a record of what the feed said, NOT as a name to display: it is neither corrected nor kept in step with the team dimension, so join on team_api_id for a current name."
+       - name: player_name_snapshot
+-        description: "The player's name as the events feed spelled it when this row was ingested. It is kept as a record of what the feed said, NOT as a name to display: it is neither corrected nor kept in step with the player dimension, and it is the only name available for an event the feed gives no player id for."
++        description: "The player's name as the events feed spelled it when this row was ingested, with text sent in the wrong character set repaired. It is kept as a record of what the feed said, NOT as a name to display: it is not kept in step with the player dimension, and it is the only name available for an event the feed gives no player id for."
+       - name: assist_player_name
+-        description: "The assisting player's name as the events feed spells it, and the only name available for an assist the feed gives no id for."
++        description: "The assisting player's name as the events feed spells it, with text sent in the wrong character set repaired. It is the only name available for an assist the feed gives no id for."
+       - name: assist_player_sk
+         description: "{{ doc('player_sk') }} Here it is the assisting player. NULL where the event has no assist or the assist has no id."
+         tests:
+diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
+index 353894e5..97117e31 100644
+--- a/dbt_project/models/docs/shared_columns.md
++++ b/dbt_project/models/docs/shared_columns.md
+@@ -767,8 +767,8 @@ gives one.
+ {% enddocs %}
+ 
+ {% docs player_name %}
+-The player's display name as the provider gives it and dim_player publishes it, copied
+-unchanged wherever a player is shown.
++The player's display name as the provider gives it, with text sent in the wrong character set
++repaired. dim_player publishes it, and it is copied unchanged wherever a player is shown.
+ {% enddocs %}
+ 
+ {% docs player_photo_url %}
+@@ -778,7 +778,7 @@ NULL when no photo is ingested for the player.
+ 
+ {% docs player_nationality %}
+ The player's nationality as dim_player publishes it: the provider's string, not a coded value.
+-NULL when none is ingested for the player.
++Text sent in the wrong character set is repaired. NULL when none is ingested for the player.
+ {% enddocs %}
+ 
+ {% docs player_birth_date %}
+diff --git a/dbt_project/tests/assert_garbled_text_repair.sql b/dbt_project/tests/assert_garbled_text_repair.sql
+new file mode 100644
+index 00000000..b7a3e1b1
+--- /dev/null
++++ b/dbt_project/tests/assert_garbled_text_repair.sql
+@@ -0,0 +1,46 @@
++-- Fixed examples of repair_garbled_text: each row fails when the repair of `sent` differs from
++-- `shown`. The Latin-1 form, the Windows-1252 form, a stray control character, invisible marks, and
++-- correct text that must stay as it is.
++with examples as (
++    select * from unnest([
++        struct('A. MaksimoviÄ\u0087' as sent, 'A. Maksimović' as shown),
++        struct('M. LjubiÄ\u008diÄ\u0087', 'M. Ljubičić'),
++        struct('K. UrbaÅ\u0084ski', 'K. Urbański'),
++        struct('J. PotoÄ\u008dnik', 'J. Potočnik'),
++        struct('A. VoitinoviÄ\u008dius', 'A. Voitinovičius'),
++        struct('L. JovanoviÄ\u0087', 'L. Jovanović'),
++        struct('M. CvetkoviÄ\u0087', 'M. Cvetković'),
++        struct('N. Kovač \u008d', 'N. Kovač'),
++        struct('D. Pejičić\u0087', 'D. Pejičić'),
++        struct('F. KneÅ¾eviÄ‡', 'F. Knežević'),
++        struct('Dominik MartinoviÄ‡', 'Dominik Martinović'),
++        struct('Alpaslan Ã–ztÃ¼rk', 'Alpaslan Öztürk'),
++        struct('Æ\u008f. QarÉ™hmÉ™dov', 'Ə. Qarəhmədov'),
++        struct('DavÃ­ðsson', 'Davíðsson'),
++        struct('CÃ´te d\'Ivoire', 'Côte d\'Ivoire'),
++        struct('N. Lâ\u0080\u0099Huillier', 'N. L’Huillier'),
++        struct('Nguyá»\u0085n Sá»¹', 'Nguyễn Sỹ'),
++        struct('Y. Kassahâ\u0080\u008eâ\u0080\u008f', 'Y. Kassah'),
++        struct('Tomáš Vaclík', 'Tomáš Vaclík'),
++        struct('Jürgen Müller', 'Jürgen Müller'),
++        struct('Åkesson', 'Åkesson'),
++        struct('Plain Name', 'Plain Name'),
++        struct('', ''),
++        struct(cast(null as string), cast(null as string))
++    ])
++),
++
++repairs as (
++    select
++        sent,
++        shown,
++        {{ repair_garbled_text('sent') }} as repaired
++    from examples
++)
++
++select
++    sent,
++    shown,
++    repaired
++from repairs
++where repaired is distinct from shown
+diff --git a/site_v2/package.json b/site_v2/package.json
+index d74536ff..97543cae 100644
+--- a/site_v2/package.json
++++ b/site_v2/package.json
+@@ -7,7 +7,7 @@
+   },
+   "scripts": {
+     "test": "node --test",
+-    "prebuild": "npm test && node scripts/check-page-specs.mjs",
++    "prebuild": "npm test && node scripts/check-page-specs.mjs && node scripts/check-exported-text.mjs",
+     "dev": "astro dev",
+     "build": "astro build && node scripts/audit-seo.mjs && node scripts/check-built-pages.mjs",
+     "preview": "astro preview"
+diff --git a/site_v2/scripts/build-wiring.test.mjs b/site_v2/scripts/build-wiring.test.mjs
+index 77dac260..e7f9316e 100644
+--- a/site_v2/scripts/build-wiring.test.mjs
++++ b/site_v2/scripts/build-wiring.test.mjs
+@@ -18,6 +18,11 @@ test("npm run build runs astro build, then the SEO check, then the built-pages c
+   );
+ });
+ 
++test("npm run build reads the data through the exported-text check before astro build", () => {
++  const { scripts } = JSON.parse(readFileSync(join(SITE_ROOT, "package.json"), "utf8"));
++  assert.ok(scripts.prebuild.split("&&").map((step) => step.trim()).includes("node scripts/check-exported-text.mjs"));
++});
++
+ test("astro.config.mjs runs no check inside astro build", () => {
+   const config = readFileSync(join(SITE_ROOT, "astro.config.mjs"), "utf8");
+   assert.doesNotMatch(config, /from\s+["']\.\/integrations\//);
+diff --git a/site_v2/scripts/check-exported-text.mjs b/site_v2/scripts/check-exported-text.mjs
+new file mode 100644
+index 00000000..e0760641
+--- /dev/null
++++ b/site_v2/scripts/check-exported-text.mjs
+@@ -0,0 +1,65 @@
++#!/usr/bin/env node
++// The exported-text check: no value in `src/data` is text decoded in the wrong character set. The
++// provider sends such text and `repair_garbled_text` repairs it in base, so a value that reaches
++// this check is one the repair missed. `prebuild` runs it, so a build of the committed sample and
++// a build of the full export both stop here.
++//
++//   node scripts/check-exported-text.mjs [dataDir]
++
++import { readdirSync, readFileSync } from "node:fs";
++import { join, relative } from "node:path";
++import { fileURLToPath, pathToFileURL } from "node:url";
++
++export const DATA_DIR = join(fileURLToPath(new URL(".", import.meta.url)), "..", "src", "data");
++
++const WINDOWS_1252 = "€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ";
++const CONTINUATION = `[\\u0080-\\u00BF${WINDOWS_1252}]`;
++
++// The same sequences as the macro, plus the two marks of a failed decode: a C1 control character
++// and the replacement character.
++export const GARBLED = new RegExp(
++  `[\\u00C2-\\u00CB]${CONTINUATION}|[\\u00E1\\u00E2][\\u0080-\\u00BF€]${CONTINUATION}|[\\u0080-\\u009F\\uFFFD]`,
++);
++
++/** Every string in a parsed JSON value that holds garbled text, keys included, with its path. */
++export function garbledValues(value, path = "$") {
++  if (typeof value === "string") return GARBLED.test(value) ? [{ path, text: value }] : [];
++  if (Array.isArray(value)) return value.flatMap((item, i) => garbledValues(item, `${path}[${i}]`));
++  if (value === null || typeof value !== "object") return [];
++  return Object.entries(value).flatMap(([key, item]) => [
++    ...garbledValues(key, `${path}.<key>`),
++    ...garbledValues(item, `${path}.${key}`),
++  ]);
++}
++
++function jsonFiles(dir) {
++  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
++    const path = join(dir, entry.name);
++    if (entry.isDirectory()) return jsonFiles(path);
++    return entry.name.endsWith(".json") ? [path] : [];
++  });
++}
++
++/** Each garbled value under `dataDir`, with its file; the count of files read. */
++export function scanData(dataDir) {
++  const files = jsonFiles(dataDir);
++  const findings = files.flatMap((file) =>
++    garbledValues(JSON.parse(readFileSync(file, "utf8"))).map((hit) => ({ file: relative(dataDir, file), ...hit })),
++  );
++  return { files: files.length, findings };
++}
++
++function main() {
++  const dataDir = process.argv[2] ?? DATA_DIR;
++  const { files, findings } = scanData(dataDir);
++  if (findings.length > 0) {
++    console.error(`check-exported-text: ${findings.length} value(s) decoded in the wrong character set:\n`);
++    for (const { file, path, text } of findings) console.error(`  - ${file} ${path}: ${JSON.stringify(text)}`);
++    process.exit(1);
++  }
++  console.log(`check-exported-text: ${files} file(s) read, no garbled text. OK.`);
++}
++
++if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
++  main();
++}
+diff --git a/site_v2/scripts/check-exported-text.test.mjs b/site_v2/scripts/check-exported-text.test.mjs
+new file mode 100644
+index 00000000..5966e954
+--- /dev/null
++++ b/site_v2/scripts/check-exported-text.test.mjs
+@@ -0,0 +1,67 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
++import { tmpdir } from "node:os";
++import { join } from "node:path";
++import { spawnSync } from "node:child_process";
++import { fileURLToPath } from "node:url";
++import { GARBLED, garbledValues, scanData } from "./check-exported-text.mjs";
++
++const SCRIPT = fileURLToPath(new URL("./check-exported-text.mjs", import.meta.url));
++
++for (const [form, text] of [
++  ["the Latin-1 form", "A. MaksimoviÄ\u0087"],
++  ["the Windows-1252 form", "Dominik MartinoviÄ‡"],
++  ["a lead with a printable continuation", "Rafael LuÃ­s"],
++  ["a three-byte sequence", "N. Lâ\u0080\u0099Huillier"],
++  ["a stray control character", "N. Kovač \u008D"],
++  ["the replacement character", "K. Urba�ski"],
++]) {
++  test(`${form} is garbled`, () => assert.match(text, GARBLED));
++}
++
++for (const [what, text] of [
++  ["a correct name with carons", "M. Ljubičić"],
++  ["a correct name beside a no-break space", "Tomáš Vaclík"],
++  ["German umlauts and a sharp s before a closing quote", "„Fuß“ für Mönchengladbach"],
++  ["Finnish letters", "Pääsarja Ässät"],
++  ["a typographic apostrophe", "N. L’Huillier"],
++  ["Vietnamese letters", "Nguyễn Sỹ Đức"],
++]) {
++  test(`${what} is not garbled`, () => assert.doesNotMatch(text, GARBLED));
++}
++
++test("garbledValues finds a value at any depth, and a garbled key, with their paths", () => {
++  const found = garbledValues({ a: [{ name: "L. JovanoviÄ\u0087" }], "LuÃ­s": 1, ok: "Plain", n: null });
++  assert.deepEqual(found.map((f) => f.path), ["$.a[0].name", "$.<key>"]);
++});
++
++function dataDir(payload) {
++  const dir = mkdtempSync(join(tmpdir(), "exported-text-"));
++  mkdirSync(join(dir, "teams"));
++  writeFileSync(join(dir, "teams", "1.json"), JSON.stringify(payload));
++  return dir;
++}
++
++test("scanData reads nested folders and names the file", () => {
++  const dir = dataDir({ name: "J. PotoÄ\u008Dnik" });
++  try {
++    const { files, findings } = scanData(dir);
++    assert.equal(files, 1);
++    assert.deepEqual(findings.map((f) => f.file), [join("teams", "1.json")]);
++  } finally {
++    rmSync(dir, { recursive: true });
++  }
++});
++
++test("the command fails on garbled text and passes on clean text", () => {
++  const bad = dataDir({ name: "J. PotoÄ\u008Dnik" });
++  const good = dataDir({ name: "J. Potočnik" });
++  try {
++    assert.equal(spawnSync(process.execPath, [SCRIPT, bad]).status, 1);
++    assert.equal(spawnSync(process.execPath, [SCRIPT, good]).status, 0);
++  } finally {
++    rmSync(bad, { recursive: true });
++    rmSync(good, { recursive: true });
++  }
++});
+diff --git a/tests/fixtures/font_coverage/baseline.json b/tests/fixtures/font_coverage/baseline.json
+index 0432795e..0967ef42 100644
+--- a/tests/fixtures/font_coverage/baseline.json
++++ b/tests/fixtures/font_coverage/baseline.json
+@@ -1,23 +1 @@
+-{
+- "/de/champions-league/spiele/2026-10-21-real-madrid-vs-rb-leipzig/": {"U+0087": 1},
+- "/de/dfb-pokal/spiele/2026-10-27-1-fc-koln-vs-1-fc-union-berlin/": {"U+0087": 1, "U+008D": 1},
+- "/de/ekstraklasa/spiele/2026-10-18-gornik-zabrze-vs-piast-gliwice/": {"U+0084": 1},
+- "/de/mannschaften/1-fc-union-berlin/": {"U+0087": 1, "U+008D": 1},
+- "/de/mannschaften/rb-leipzig/": {"U+0087": 1},
+- "/de/mannschaften/vfb-stuttgart/": {"U+0087": 1},
+- "/de/nations-league/spiele/2026-11-13-serbia-vs-germany/": {"U+0087": 1},
+- "/en/champions-league/matches/2026-10-21-real-madrid-vs-rb-leipzig/": {"U+0087": 1},
+- "/en/dfb-pokal/matches/2026-10-27-1-fc-koln-vs-1-fc-union-berlin/": {"U+0087": 1, "U+008D": 1},
+- "/en/ekstraklasa/matches/2026-10-18-gornik-zabrze-vs-piast-gliwice/": {"U+0084": 1},
+- "/en/nations-league/matches/2026-11-13-serbia-vs-germany/": {"U+0087": 1},
+- "/en/teams/1-fc-union-berlin/": {"U+0087": 1, "U+008D": 1},
+- "/en/teams/rb-leipzig/": {"U+0087": 1},
+- "/en/teams/vfb-stuttgart/": {"U+0087": 1},
+- "/fi/champions-league/ottelut/2026-10-21-real-madrid-vs-rb-leipzig/": {"U+0087": 1},
+- "/fi/dfb-pokal/ottelut/2026-10-27-1-fc-koln-vs-1-fc-union-berlin/": {"U+0087": 1, "U+008D": 1},
+- "/fi/ekstraklasa/ottelut/2026-10-18-gornik-zabrze-vs-piast-gliwice/": {"U+0084": 1},
+- "/fi/joukkueet/1-fc-union-berlin/": {"U+0087": 1, "U+008D": 1},
+- "/fi/joukkueet/rb-leipzig/": {"U+0087": 1},
+- "/fi/joukkueet/vfb-stuttgart/": {"U+0087": 1},
+- "/fi/nations-league/ottelut/2026-11-13-serbia-vs-germany/": {"U+0087": 1}
+-}
++{}
+
+# ============================================================================
+# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
+# ============================================================================
+# The files below changed and are DELIBERATELY excluded from the diff body:
+# they are generated/sample data, and pasting them has measured at ~89% of the
+# review payload. They are still reviewed content and still bind your verdict.
+#
+# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
+# particular: whether a field displayed by a component actually EXISTS in the
+# exported sample is checked by opening these files, not by reading a diff.
+#
+#   site_v2/src/data/fixtures/1528965.json |  2 +-
+#    site_v2/src/data/fixtures/1553193.json |  2 +-
+#    site_v2/src/data/fixtures/1635716.json |  2 +-
+#    site_v2/src/data/fixtures/1638563.json |  2 +-
+#    site_v2/src/data/teams/165.json        | 20 ++++++++++----------
+#    site_v2/src/data/teams/169.json        | 16 ++++++++--------
+#    site_v2/src/data/teams/172.json        | 12 ++++++------
+#    site_v2/src/data/teams/173.json        | 16 ++++++++--------
+#    site_v2/src/data/teams/182.json        | 12 ++++++------
+#    site_v2/src/data/teams/192.json        |  8 ++++----
+#    site_v2/src/data/teams/211.json        | 16 ++++++++--------
+#    site_v2/src/data/teams/867.json        |  4 ++--
+#    12 files changed, 56 insertions(+), 56 deletions(-)
+# ============================================================================
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/acceptance_evidence.md |  23 +-
+#    .claude/task/review_input.patch     | 622 ++++++++++++++++++++++++++++++++----
+#    2 files changed, 559 insertions(+), 86 deletions(-)
+# ============================================================================

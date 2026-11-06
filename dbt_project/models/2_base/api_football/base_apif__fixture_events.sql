@@ -436,8 +436,6 @@ select
     g.minute_elapsed,
     g.minute_extra,
     g.player_id,
-    g.player_name,
-    g.assist_player_name,
     g.assist_player_id,
     g.event_type,
     g.event_detail,
@@ -449,6 +447,8 @@ select
     g.goal_correction_source,
     g.is_shootout_kick,
     g.is_own_goal,
+    {{ repair_garbled_text('g.player_name') }} as player_name,
+    {{ repair_garbled_text('g.assist_player_name') }} as assist_player_name,
     g.is_goal_event and g.goal_correction_source is null as is_provider_goal,
     g.is_goal_event and not g.is_replaced and not (g.is_nameless and n.fixture_id is not null) as is_goal,
     coalesce(g.event_type = 'Goal' and g.event_detail = 'Missed Penalty', false) and not g.is_shootout_kick

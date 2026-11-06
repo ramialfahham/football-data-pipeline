@@ -767,8 +767,8 @@ gives one.
 {% enddocs %}
 
 {% docs player_name %}
-The player's display name as the provider gives it and dim_player publishes it, copied
-unchanged wherever a player is shown.
+The player's display name as the provider gives it, with text sent in the wrong character set
+repaired. dim_player publishes it, and it is copied unchanged wherever a player is shown.
 {% enddocs %}
 
 {% docs player_photo_url %}
@@ -778,7 +778,7 @@ NULL when no photo is ingested for the player.
 
 {% docs player_nationality %}
 The player's nationality as dim_player publishes it: the provider's string, not a coded value.
-NULL when none is ingested for the player.
+Text sent in the wrong character set is repaired. NULL when none is ingested for the player.
 {% enddocs %}
 
 {% docs player_birth_date %}
