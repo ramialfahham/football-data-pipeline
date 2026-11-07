@@ -118,7 +118,7 @@ parsed as (
         raw_ingested_at,
         is_starter,
         sheet_index,
-        nullif(safe_cast(json_value(player_el, '$.player.id') as int64), 0) as player_id,
+        {{ player_id_override("nullif(safe_cast(json_value(player_el, '$.player.id') as int64), 0)") }} as player_id,
         json_value(player_el, '$.player.name') as player_name,
         safe_cast(json_value(player_el, '$.player.number') as int64) as shirt_number,
         json_value(player_el, '$.player.pos') as position_code,

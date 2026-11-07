@@ -790,8 +790,8 @@ Text sent in the wrong character set is repaired. NULL when none is ingested for
 
 {% docs player_birth_date %}
 The player's birth date as dim_player publishes it, parsed from the provider's birth date
-field. NULL when that field was missing or not parseable; age is derived at render time and
-never stored.
+field. NULL when that field was missing, not parseable or impossible (under 13 years before the
+record was ingested); age is derived at render time and never stored.
 {% enddocs %}
 
 {% docs opponent_name %}

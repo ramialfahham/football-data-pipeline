@@ -48,6 +48,13 @@ with players as (
 -- zero the cleaning filled in from a second source. Joined to base on the fetch it kept. Where the
 -- provider lists a player twice in that fetch, base keeps one row by its own rule, so a value counts
 -- as delivered only if both rows carry it, and a positive value in either counts as having played.
+stat_rows as (
+    select
+        * except (player_id),
+        {{ player_id_override('player_id') }} as player_id
+    from {{ ref('stg_apif__fixture_players') }}
+),
+
 delivered as (
     select
         league_code,
@@ -60,7 +67,7 @@ delivered as (
         greatest(
             {% for stat, name in provider_names.items() if stat != 'minutes' %}coalesce(max({{ name }}), 0), {% endfor %}0
         ) > 0 as has_positive_stat
-    from {{ ref('stg_apif__fixture_players') }}
+    from stat_rows
     group by league_code, fixture_id, player_id, raw_ingested_at
 ),
 
