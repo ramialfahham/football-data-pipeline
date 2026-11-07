@@ -1,249 +1,104 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index b4b233d5..dac8c04a 100644
+index dac8c04a..cce8d7ea 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,97 +1,62 @@
--# Task contract — false player birth dates, details that change between builds, and their tests
-+# Task contract — Compared with last season follows the registry's table and group heading rules
+@@ -1,20 +1,16 @@
+-# Task contract — Compared with last season follows the registry's table and group heading rules
++# Task contract — a table that opens with the name keeps it in the first column in its narrow form
  
  objective: >
--  Issue #260. A birth date that cannot be true is cleared in base. base_apif__players gets a fixed
--  tie order, so two builds of the same data agree. A player whose records conflict shows a value
--  checked against an outside source, or no value. Two dbt tests fail the build when either defect
--  comes back.
-+  Issue #263. The Team page's Compared with last season block follows the registry's Table and
-+  Metric group heading rules (`docs/design/components.yml`): each metric group's table has its own
-+  head row, rows striped from the second, names 14px semi-bold, 26px from the group heading to the
-+  table. The Player page (#259) reuses the block.
+-  Issue #263. The Team page's Compared with last season block follows the registry's Table and
+-  Metric group heading rules (`docs/design/components.yml`): each metric group's table has its own
+-  head row, rows striped from the second, names 14px semi-bold, 26px from the group heading to the
+-  table. The Player page (#259) reuses the block.
++  Issue #264. In a table whose rows start with the name, the two-line narrow form keeps the name in
++  the first column, as the registry's Table narrow row says. Today the form places the name from the
++  second column, written for tables that open with a rank, so Compared with last season on the Team
++  page puts its names over the number columns at 280px in DE and FI. The Player page (#259) reuses it.
  
  refs: >
--  #260, plan approved in chat 2026-11-06.
-+  #263, approved in chat 2026-11-07. Design: #134.
+-  #263, approved in chat 2026-11-07. Design: #134.
++  #264, approved in chat 2026-11-07. Design: #134.
  
  scope_paths:
--  - dbt_project/macros/possible_birth_date.sql
--  - dbt_project/macros/bio_correction.sql
--  - dbt_project/models/2_base/api_football/base_apif__players.sql
--  - dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
--  - dbt_project/models/2_base/api_football/base.yml
--  - dbt_project/macros/player_id_override.sql
--  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
--  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
--  - dbt_project/models/2_base/api_football/base_apif__lineups.sql
--  - dbt_project/models/2_base/api_football/base_apif__player_team_season.sql
--  - dbt_project/models/2_base/api_football/base_apif__squads.sql
--  - dbt_project/models/2_base/api_football/base_apif__transfers.sql
--  - dbt_project/seeds/player_id_overrides.csv
--  - dbt_project/seeds/fixture_card_corrections.csv
--  - dbt_project/seeds/fixture_lineup_corrections.csv
--  - dbt_project/tests/assert_player_id_overrides_merged.sql
--  - dbt_project/tests/assert_base_player_stats_cleaned.sql
--  - dbt_project/models/docs/shared_columns.md
--  - dbt_project/seeds/player_bio_corrections.csv
--  - dbt_project/seeds/schema.yml
--  - dbt_project/tests/assert_player_birth_date_possible.sql
--  - dbt_project/tests/assert_player_bio_conflicts_settled.sql
--  - site_v2/src/data/teams/211.json
-+  - site_v2/src/components/team/TeamLastSeason.astro
-+  - site_v2/src/styles/system.css
-+  - docs/design/components.yml
-+  - docs/wireframes/block_standard.md
-+  - tests/fixtures/component_registry/*
-+  - tests/fixtures/design_inventory/*
+-  - site_v2/src/components/team/TeamLastSeason.astro
+   - site_v2/src/styles/system.css
+-  - docs/design/components.yml
+-  - docs/wireframes/block_standard.md
+-  - tests/fixtures/component_registry/*
+   - tests/fixtures/design_inventory/*
    - .claude/task/contract.md
    - .claude/task/review.md
-   - .claude/task/review_input.patch
+@@ -22,41 +18,37 @@ scope_paths:
    - .claude/task/acceptance_evidence.md
-+  - .claude/task/rendered_page_evidence.md
-+
-+protected_override: >
-+  docs/design/components.yml, one line: the last-season table's `yoyt-head` part goes, because its
-+  class leaves the code; no rule changes (approved in chat, 2026-11-07).
+   - .claude/task/rendered_page_evidence.md
+ 
+-protected_override: >
+-  docs/design/components.yml, one line: the last-season table's `yoyt-head` part goes, because its
+-  class leaves the code; no rule changes (approved in chat, 2026-11-07).
++protected_override: none.
  
  impact_map: >
--  writers: dbt only. No ingestion code changes. The 249 missing profiles were fetched once through
--  load_player_profiles_global, so RAW_APIF_PLAYER_PROFILES holds them before this MR.
--  lineage: `dbt ls --resource-type model --select base_apif__players+ base_apif__player_profiles+`
--  returns 2_base.api_football.base_apif__player_profiles, base_apif__players, 3_core.dim_player,
--  5_marts.shared.mart_competition_fixtures, mart_leaderboards, mart_match_days, mart_player_career,
--  mart_player_competition_benchmarks, mart_player_fixture_stats, mart_player_profile, mart_roster,
--  mart_team_competitions, mart_team_index, mart_team_momentum_window.
--  consumption: mart_player_profile derives age from player_birth_date and mart_roster carries it;
--  the squad row leaves the age out when the date is empty, per wireframe 11.
--  ci_layer_rules: scripts/check_layer_contract.py, scripts/check_description_hygiene.py.
--  deploy_order: one merge; the nightly dbt build applies it. A deploy after that carries the values.
--  blast_radius: 573 players lose a false birth date. About 249 tied players get one stable row. The
--  corrections seed changes the players it lists. base_apif__players gains two boolean columns that
--  no reader selects by position.
-+  writers: none in the warehouse.
-+  lineage: no dbt model changes, so no lineage moves.
-+  consumption: the Team page's Performance tab, block Compared with last season. The shared
-+  classes it changes (`.ctab.yoyt`) have no other reader on main.
-+  ci_layer_rules: scripts/check_page_css.py, scripts/check_design_inventory.py,
-+  scripts/check_component_registry.py.
-+  deploy_order: before the Player page (#259). One merge.
-+  blast_radius: one block of the Team page changes look: a head row in each metric group, the
-+  stripe moves to the second row, names turn semi-bold, 26px under each group heading.
+   writers: none in the warehouse.
+   lineage: no dbt model changes, so no lineage moves.
+-  consumption: the Team page's Performance tab, block Compared with last season. The shared
+-  classes it changes (`.ctab.yoyt`) have no other reader on main.
++  consumption: every `.ctab` whose rows open with the name cell, in its narrow form (fit-two, or no
++  fit mark below a 600px container). Today: Compared with last season and the Team page's deserved
++  points table (`.dpm`), which is marked fit-one at every listed width, so it does not change.
+   ci_layer_rules: scripts/check_page_css.py, scripts/check_design_inventory.py,
+   scripts/check_component_registry.py.
+   deploy_order: before the Player page (#259). One merge.
+-  blast_radius: one block of the Team page changes look: a head row in each metric group, the
+-  stripe moves to the second row, names turn semi-bold, 26px under each group heading.
++  blast_radius: the Team page's Performance tab at the widths where Compared with last season takes
++  two lines: its names move back to the first column.
  
  approved_design:
    - team: #134
  
--acceptance_criteria:
--  - No player shows a birth date that cannot be true; the three squad members dated 2026-07-06 in the sample show no date and no age on the built team page.
--  - A player's name, birth date and nationality do not change between two builds of the same data.
--  - A player whose records conflict shows a value checked against an outside source, or no value when none can be found.
--  - A test fails the build on an impossible birth date.
--  - A test fails the build on a conflict nobody has settled.
--
  decisions_taken: >
--  From the plan on #260, approved in chat 2026-11-06. New mechanism, declared: the seed
--  player_bio_corrections. It holds one row per player and field, because an empty value there means
--  "no value found" and a wide row could not tell that from "this field is not corrected". New
--  mechanism, declared: two singular tests that fail the build. A failure on either skips what is
--  built on the tested models in the nightly; the plan states this. Recurring cost: none measurable.
--  The conflict flags are computed from rows base_apif__players already reads. The plan named
--  dim_player as the place corrections apply; they apply in the two base models, because every
--  correction seed in the project applies in base and dim_player publishes base unchanged, and the
--  result is the same: a correction wins over every source.
-+  The registry is the standard and the page follows it; no registry rule changes (approved in chat,
-+  2026-11-07). A head whose labels wrap aligns them at the top, so every group heading keeps its
-+  26px to the first label in every language.
+-  The registry is the standard and the page follows it; no registry rule changes (approved in chat,
+-  2026-11-07). A head whose labels wrap aligns them at the top, so every group heading keeps its
+-  26px to the first label in every language.
++  The registry is the standard and the page follows it; no registry change (approved in chat,
++  2026-11-07).
  
--decisions_reserved:
--  - One name form for every player (initial or full), which stays mixed.
--  - Country spellings in player nationality, which country_name_overrides does not reach today.
-+decisions_reserved: none.
+ decisions_reserved: none.
  
  done_when:
    - python -m pytest tests passes.
--  - dbt parse and sqlfluff pass on the changed models.
--  - data:build:mr is green, both new tests included, each shown to fail on a fixed bad example.
--  - The old-against-new comparison shows every changed row is a cleared date, a repaired tie or a correction.
-+  - npm run build and the design check pass in site_v2.
-+  - The Team page's Performance tab passes the Table and Metric group heading rules at every listed width and language.
-+
-+acceptance_criteria:
-+  - "Each metric group's table in Compared with last season has its own head row, and its rows line up with it."
-+  - "Rows are striped from the second row, with the switch off and on."
-+  - "Names in the table are 14px semi-bold ink."
-+  - "Each metric group heading sits 26px above its table."
-+  - "Measured on the Team page with the Performance tab open at 280, 320, 360, 375, 700 and 1010px in EN, DE and FI."
+   - npm run build and the design check pass in site_v2.
+-  - The Team page's Performance tab passes the Table and Metric group heading rules at every listed width and language.
++  - On the Team page's Performance tab, every name of Compared with last season starts in the first column at every listed width and language.
  
--amendments: >
--  Both approved in chat, 2026-11-06, and recorded on #260. A profile value no longer settles a
--  conflict: every conflict needs a checked correction. A new seed, player_id_overrides, merges one
--  player's two provider ids, in the form of fixture_team_id_overrides with alias: first rows the 8
--  pairs sorted as the same person. New mechanism, declared. It applies wherever a player id enters
--  base: fixture_players, fixture_events, lineups, players, player_profiles, player_team_season,
--  squads and transfers. No fetch holds both ids of a pair for one match, so no row is dropped.
--  The id kept is the one with a birth date, otherwise the lower. The seed description's text was
--  approved in chat, 2026-11-06. A test proves a merged player has one page and summed stats. The
--  researched rows of fixture_card_corrections and fixture_lineup_corrections name the id kept.
-+amendments: (none)
-diff --git a/docs/design/components.yml b/docs/design/components.yml
-index 407da87c..3d155f4d 100644
---- a/docs/design/components.yml
-+++ b/docs/design/components.yml
-@@ -233,7 +233,6 @@ components:
-     parts:
-       trend: {class: tr, selector: ".ctab.yoyt .n.tr", element: Trend, rule: "▲ in the accent when this season is better, ▼ in the loss red when worse, \"–\" when the shown values are equal", measured: "font-size=13px", ruled-on: the Team page review}
-       list: {class: yoy-list}
--      head: {class: yoyt-head, gap: mock-css}
-       up: {class: up, gap: mock-css}
-       down: {class: down, gap: mock-css}
-       flat: {class: flat, gap: mock-css}
-diff --git a/site_v2/src/components/team/TeamLastSeason.astro b/site_v2/src/components/team/TeamLastSeason.astro
-index ca000273..ff21b6eb 100644
---- a/site_v2/src/components/team/TeamLastSeason.astro
-+++ b/site_v2/src/components/team/TeamLastSeason.astro
-@@ -39,18 +39,16 @@ const shown = (v: unknown, format: Parameters<typeof formatValue>[1]) =>
-     <p class="bsub">{t(lang, "teamVsLastSeasonIntro", { n: integer(s.yoy_games_played_cutoff, lang) })}</p>
-     {needsSwitch(groups) && <MetricSwitch id="tsw-season" lang={lang} />}
-     <div class="yoy-list">
--      <div class="ctab yoyt yoyt-head">
--        <div class="ctab-head">
--          <span class="h nmh"></span>
--          <span class="h">{t(lang, "teamThisSeasonHead")}</span>
--          <span class="h">{t(lang, "teamLastSeasonHead")}</span>
--          <span class="h tr">{t(lang, "teamTrend")}</span>
--        </div>
--      </div>
-       {groups.map((g) => (
-         <div class:list={["fxgroup", "rkgroup", { nonkey: !g.hasKey }]}>
-           <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${g.key}.label`)}</span></div>
-           <div class="ctab yoyt">
-+            <div class="ctab-head">
-+              <span class="h nmh"></span>
-+              <span class="h">{t(lang, "teamThisSeasonHead")}</span>
-+              <span class="h">{t(lang, "teamLastSeasonHead")}</span>
-+              <span class="h tr">{t(lang, "teamTrend")}</span>
-+            </div>
-             {g.rows.map((r) => {
-               const a = shown(now[r.metric_id], r.format);
-               const b = shown(prev[r.metric_id], r.format);
+ acceptance_criteria:
+-  - "Each metric group's table in Compared with last season has its own head row, and its rows line up with it."
+-  - "Rows are striped from the second row, with the switch off and on."
+-  - "Names in the table are 14px semi-bold ink."
+-  - "Each metric group heading sits 26px above its table."
++  - "In the narrow form of a table whose rows open with the name, the name spans from the first column."
++  - "A table that opens with a rank keeps its narrow form unchanged."
+   - "Measured on the Team page with the Performance tab open at 280, 320, 360, 375, 700 and 1010px in EN, DE and FI."
+ 
+ amendments: (none)
 diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
-index 45ca0e39..184a787d 100644
+index 184a787d..c7524a56 100644
 --- a/site_v2/src/styles/system.css
 +++ b/site_v2/src/styles/system.css
-@@ -1095,18 +1095,17 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
- 
- /* Compared with last season: a table of this season, last season and the trend; ▲ in the accent when
-    better, ▼ in the loss red when worse, "–" when equal. The stripes count the rows on screen. */
--.ctab.yoyt, .ctab.yoyt.ctab { --cols: minmax(0, 1fr) 3.4rem 3.4rem 2.8rem; margin-top: 0; }
-+.ctab.yoyt, .ctab.yoyt.ctab { --cols: minmax(0, 1fr) 3.4rem 3.4rem 2.8rem; margin-top: 26px; }
- @container (min-width: 420px) { .ctab.yoyt, .ctab.yoyt.ctab { --cols: minmax(0, 1fr) 4.6rem 4.6rem 3rem; } }
-+.ctab.yoyt .ctab-head { align-items: start; }
- .ctab.yoyt .ctab-head .h { white-space: normal; line-height: 1.2; }
- .ctab.yoyt .h.tr { text-align: center; }
--.ctab.yoyt .tm .nm { font-weight: 400; }
- .ctab.yoyt .n.now { font-size: 15px; font-weight: 700; color: var(--ink); }
- .ctab.yoyt .n.prev { font-size: 15px; color: var(--ink-2); }
- .ctab.yoyt .n.tr { font-size: 13px; text-align: center; padding-left: 0; }
- .ctab.yoyt .tr.up { color: var(--accent); }
- .ctab.yoyt .tr.down { color: var(--loss); }
- .ctab.yoyt .tr.flat { color: var(--muted); }
--.yoyt-head { margin-top: 6px; }
- .tsw:not(:checked) ~ * .ctab.yoyt .ctab-row { background: transparent; }
- .tsw:not(:checked) ~ * .ctab.yoyt .ctab-row:nth-child(odd of :not(.nonkey)) { background: color-mix(in srgb, var(--ink) 5%, transparent); }
- 
-diff --git a/tests/fixtures/component_registry/baseline.json b/tests/fixtures/component_registry/baseline.json
-index 4909ef2c..5eaed6f6 100644
---- a/tests/fixtures/component_registry/baseline.json
-+++ b/tests/fixtures/component_registry/baseline.json
-@@ -2,6 +2,6 @@
-  "stylesheet values": {"size": 8},
-  "forms": {"crest": 1, "fact-row": 1, "header": 1, "table": 1},
-  "unlisted classes": {"system.css": 36},
-- "part gaps": {"lines-unmeasured": 1, "mock-css": 35, "style-varies": 4},
-+ "part gaps": {"lines-unmeasured": 1, "mock-css": 34, "style-varies": 4},
-  "set sizes": {"colours": 20, "marks": 4, "spacing": 39, "switch": 12, "text": 35}
+@@ -788,10 +788,12 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+    per language; without the script a narrow table takes two lines. */
+ .ctab.fit-two .ctab-row > .rk { grid-row: 1; }
+ .ctab.fit-two .ctab-row > .tm { grid-column: 2 / -1; grid-row: 1; }
++.ctab.fit-two .ctab-row > .tm:first-child { grid-column: 1 / -1; }
+ .ctab.fit-two .ctab-row > .n { grid-row: 2; padding-top: 4px; }
+ @container (max-width: 599.98px) {
+   .ctab:not(.fit-one) .ctab-row > .rk { grid-row: 1; }
+   .ctab:not(.fit-one) .ctab-row > .tm { grid-column: 2 / -1; grid-row: 1; }
++  .ctab:not(.fit-one) .ctab-row > .tm:first-child { grid-column: 1 / -1; }
+   .ctab:not(.fit-one) .ctab-row > .n { grid-row: 2; padding-top: 4px; }
  }
-diff --git a/tests/fixtures/design_inventory/baseline.json b/tests/fixtures/design_inventory/baseline.json
-index b7e01711..77de6cf7 100644
---- a/tests/fixtures/design_inventory/baseline.json
-+++ b/tests/fixtures/design_inventory/baseline.json
-@@ -24,7 +24,7 @@
-    "Matches day page": {"classes": 7, "miss · Fold": 378, "miss · Match row score": 414},
-    "Matches page": {"classes": 7},
-    "Played match page": {"scroll": 2, "classes": 13},
--   "Team page": {"overflow": 3, "split": 47, "classes": 30, "miss · Name in whole words": 3},
-+   "Team page": {"overflow": 3, "split": 47, "classes": 29, "miss · Name in whole words": 3},
-    "Teams page": {"split": 3, "classes": 5},
-    "competition-hub cup": {"classes": 14},
-    "competition-hub groups": {"classes": 14},
-diff --git a/tests/fixtures/design_inventory/baseline_quick.json b/tests/fixtures/design_inventory/baseline_quick.json
-index a5d4435e..28d0b526 100644
---- a/tests/fixtures/design_inventory/baseline_quick.json
-+++ b/tests/fixtures/design_inventory/baseline_quick.json
-@@ -406,7 +406,7 @@
-    "Team page": {
-     "overflow": 2,
-     "split": 13,
--    "classes": 30,
-+    "classes": 29,
-     "miss · Name in whole words": 1
-    },
-    "Teams page": {
+ 
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -257,7 +112,7 @@ index a5d4435e..28d0b526 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md    | 14 ++---
-#    .claude/task/rendered_page_evidence.md | 99 ++++++----------------------------
-#    2 files changed, 24 insertions(+), 89 deletions(-)
+#   .claude/task/acceptance_evidence.md    | 12 +++++-------
+#    .claude/task/rendered_page_evidence.md | 33 +++++++++++++++++----------------
+#    2 files changed, 22 insertions(+), 23 deletions(-)
 # ============================================================================
