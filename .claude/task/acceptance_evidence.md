@@ -1,7 +1,9 @@
-# Verification — a table that opens with the name keeps it in the first column in its narrow form
+# Verification — the Team page's Performance tab passes every registry rule the design check measures
 
 criteria_demonstrated:
-  - **Name in the first column:** in the narrow form (fit-two, or no mark below a 600px container), a row whose first cell is the name spans it from column 1. On the Team page at 280px, DE and FI, the names of Compared with last season moved from 79px to 0px from the row's left (rendered page evidence).
-  - **Rank tables unchanged:** a row that opens with the rank keeps its name in column 2; the Bundesliga page's 36 rows at 280px in DE measure column 2.
-  - **Every width and language:** Team page, Performance tab, 280, 320, 360, 375, 700 and 1010px in EN, DE and FI: every name starts at the row's left edge.
-  - **Gates:** whole `pytest tests`, `npm test`, `npm run build` with its audits (175 node tests; 1,734 Python tests, the 2 chart-screenshot tests that ran during the build pass alone, 25 of 25), `check_component_registry.py` and `check_page_css.py` pass.
+  - **Deserved points names:** 14px, weight 600. Table name cell failures: 0, against 612 on main, with the Performance tab open.
+  - **Strip group headings:** 26.0px above the first line of the first row at every width and language, with the switch off and on. Metric group heading failures: 0, against 612 on main.
+  - **Last-season head labels:** no overflow and no overlap in EN, DE or FI.
+  - **Deserved points chart:** the team's name crosses no axis label. No overlap at 280, 320 or 360px on any page, against 6 on main at 280px.
+  - **Measured:** the design check on a build whose Team pages open on the Performance tab, at 280, 320, 360, 375, 700 and 1010px in EN, DE and FI (rendered page evidence). As shipped, the Team page matches its baseline exactly.
+  - **Gates:** `npm run build` with its audits, `check_component_registry.py` and `check_page_css.py` pass; whole `pytest tests` (1,736) and `npm test` (175) pass.

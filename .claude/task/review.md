@@ -1,23 +1,24 @@
-# Review — fix/264-narrow-table-name-first
+# Review — fix/266-team-performance-registry
 
-diff_sha256: 17ac5282be947637c939e243b832a723076a6b8be2099210c0f7079752dcbc66
+diff_sha256: 4179d04b29fede849f4a74cfe2ea8d0ac13fda099487b558167bf10be0c6fd4e
 
-rounds: 1
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- The diff is `system.css` and the contract, both in scope_paths; no locked file, no registry rule change, no §10 decision class touched.
-- Two CSS rules matching the registry's Table narrow row; no new class, token, mechanism, metric, label or cost.
-- Impact map names the two name-first tables and the approved design covering the Team page.
+- Every changed path (system.css, TeamDeserved.astro, chartTheme.ts, task files) is in scope_paths; the parked design-check change is absent from the diff.
+- The CSS moves the page to registry values already stated (Metric group heading 26px, Table name cell 600); no registry, wording, metric or URL change; decisions_taken records the approval.
+- The chart label placement only positions the two existing labels from values already in the payload; named in objective, criteria and blast_radius; approved_design team #134 covers the only page changed.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Specificity: both `.tm:first-child` rules outrank the rule they override and the pinned nth-child placements, so they fire.
-- Rank tables (Standings, RankingBoard, DeservedTable) open with `.rk` and are not matched; the evidence's 36 Bundesliga rows stay in column 2.
-- Name-first tables are exactly TeamLastSeason and TeamDeserved; numbers keep their columns under their heads; no field, label or number added.
-- Rendered evidence: names move from 79px to 0px at 280px in DE and FI, 0px at every listed width and language.
+- Binding rule: the placement reads only teamName, the served deserved_points_gap and the existing scatter dots; no field, label or string added; nulls still hide the section.
+- Placement traced for both gap signs: beside where the name fits, otherwise name and difference stacked centred with the same x, dx 0 and anchor, difference at least 1.1em under the name, which `checkScatterLabels` accepts; the runtime `place()` takes its under path.
+- Registry fidelity of the CSS: dpm names fall back to 600, 16px heading margin plus the row's 10px padding gives 26px, yoyt tracks change only below the 420px container.
+- Rendered evidence names its tools (headless Chromium count script, Browser-pane geometry, design check on a build opened on Performance) and claims no screenshot.
 
 ## escalations
-(none)
+- question: the every-tab design check raises the Team page's split pin (47 → 56, the #249 hyphen class), which the rising-pin tests forbid; fix here, allow a one-time rise, or hold the check change back?
+  CPO ANSWER: answered through the coordinating session, 2026-11-07: hold the check change back; it is parked on parked/266-every-tab-check and lands with #249.

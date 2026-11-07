@@ -23,6 +23,8 @@ export const offset = {
   beside: "0.6em",
   middle: "0.35em",
   under: "1.85em",
+  stackNear: "1.35em",
+  stackFar: "2.45em",
 };
 
 // A strip plot keeps this share of its width free at each end, in percent, so no dot is cut.

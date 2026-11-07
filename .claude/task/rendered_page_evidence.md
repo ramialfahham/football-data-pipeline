@@ -1,22 +1,36 @@
-# Rendered page evidence — a table that opens with the name, in its narrow form
+# Rendered page evidence — the Team page's Performance tab against the registry
 
-Method: the dev server (`npm run dev` in `site_v2`, the committed sample data) in the Browser pane. Each page
-loads in a same-origin iframe at the listed width with no border. The Performance tab is checked, and a resize
-event lets `fitBlocks.mjs` mark each table. For every visible row of a table whose rows open with the name
-cell, it records the table's mark (fit-one, fit-two) and the name cell's left edge against its row's, read with
-`getBoundingClientRect`.
+## The design check with the Performance tab open
 
-Page: Bayern München, the Team page, Performance tab. The tables are Compared with last season (`yoyt`) and
-the deserved points table (`dpm`).
+`npm run build` in `site_v2` (the committed sample data). The 102 built Team pages are then switched in `dist` to
+open on the Performance tab: the `checked` attribute moves from `#tab-overview` to `#tab-performance`. `dist` is a
+build artifact. `scripts/check_design_inventory.py --pages "Team page" --no-mocks` then runs at 280, 320, 360, 375,
+700 and 1010px in EN, DE and FI.
 
-| Run | Main, before | This branch |
+| Rule | Main | This branch |
 |---|---|---|
-| DE 280 | fit-two names 79px from the row's left | all 18 names at 0px: 4 dpm fit-one, 8 yoyt fit-one, 6 yoyt fit-two |
-| FI 280 | fit-two names 79px from the row's left | all 18 names at 0px: 4 dpm fit-one, 5 yoyt fit-one, 9 yoyt fit-two |
-| FI 320 | (not measured) | all names at 0px: 2 yoyt rows fit-two |
-| EN 280–1010, DE 320–1010, FI 360–1010 | fit-one | every table fit-one, all names at 0px |
+| Table name cell (deserved points, weight 600) | 612 fails, measured 400 | 0 |
+| Metric group heading (26px to the first line of a strip row) | 612 fails, measured 10.0, 12.1 or 10.8px | 0 |
+| Overflow and overlap ("Vorsaison" past its column and over "Trend") | 1,483 overflow, 746 overlap | 3 overflow (the long Gladbach title, as on main's baseline), 0 overlap |
 
-- **Main, before:** on main at 280px in DE, two fit-two tables placed the name in grid column 2, at the first number column; FI had three.
-- **This branch:** every name starts in column 1 at all 18 width-and-language runs.
-- **The deserved points table** is fit-one at every width, so it does not change.
-- **Rank tables:** the Bundesliga page at 280px in DE has 36 visible rows, all opening with the rank. Their names stay in column 2, unchanged.
+- **What is left:** the "expected on this page" misses (Competition row, Result row and the rest) are Overview elements, which do not show while the Performance tab is open.
+- **As shipped (Overview open):** the same check gives the Team page's baseline exactly: overflow 3, split 47, classes 29, Name in whole words 3.
+
+## Overlaps, every page
+
+The check's own count script ran in headless Chromium over every built page (`en/*/*`, `de/*/*`, `fi/*/*`) with
+every tab opened, at 280, 320 and 360px. It found no overlap on any page. Before the fix, at 280px, it found 6, all
+in the narrow deserved points chart: "Borussia Dortmund" over the y tick "18" and "Manchester United FC" over "6",
+in all three languages.
+
+- **Dortmund now:** at 280px the name and the difference stack centred on the dot, "+4.7" above it and "Borussia Dortmund" below it, inside the plot.
+- **Other names:** a name that fits beside its dot on neither side stacks the same way; the rest keep their side.
+- **Page check:** the scatter label rule in `check-built-pages.mjs` passes on all 102 Team pages.
+
+## Geometry in the Browser pane
+
+The dev server, the Bayern München Team page, Performance tab checked, at all six widths in EN, DE and FI:
+
+- **Strip group headings:** each sits 26.0px above its first row's first line of text, for all 14 headings per run, with the switch off and on.
+- **Compared with last season:** no head label overflows its column or overlaps the next one.
+- **Deserved points:** names are weight 600.
