@@ -1095,18 +1095,17 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
 
 /* Compared with last season: a table of this season, last season and the trend; ▲ in the accent when
    better, ▼ in the loss red when worse, "–" when equal. The stripes count the rows on screen. */
-.ctab.yoyt, .ctab.yoyt.ctab { --cols: minmax(0, 1fr) 3.4rem 3.4rem 2.8rem; margin-top: 0; }
+.ctab.yoyt, .ctab.yoyt.ctab { --cols: minmax(0, 1fr) 3.4rem 3.4rem 2.8rem; margin-top: 26px; }
 @container (min-width: 420px) { .ctab.yoyt, .ctab.yoyt.ctab { --cols: minmax(0, 1fr) 4.6rem 4.6rem 3rem; } }
+.ctab.yoyt .ctab-head { align-items: start; }
 .ctab.yoyt .ctab-head .h { white-space: normal; line-height: 1.2; }
 .ctab.yoyt .h.tr { text-align: center; }
-.ctab.yoyt .tm .nm { font-weight: 400; }
 .ctab.yoyt .n.now { font-size: 15px; font-weight: 700; color: var(--ink); }
 .ctab.yoyt .n.prev { font-size: 15px; color: var(--ink-2); }
 .ctab.yoyt .n.tr { font-size: 13px; text-align: center; padding-left: 0; }
 .ctab.yoyt .tr.up { color: var(--accent); }
 .ctab.yoyt .tr.down { color: var(--loss); }
 .ctab.yoyt .tr.flat { color: var(--muted); }
-.yoyt-head { margin-top: 6px; }
 .tsw:not(:checked) ~ * .ctab.yoyt .ctab-row { background: transparent; }
 .tsw:not(:checked) ~ * .ctab.yoyt .ctab-row:nth-child(odd of :not(.nonkey)) { background: color-mix(in srgb, var(--ink) 5%, transparent); }
 
