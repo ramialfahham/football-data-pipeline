@@ -6,4 +6,5 @@ criteria_demonstrated:
   - **Last-season head labels:** no overflow and no overlap in EN, DE or FI.
   - **Deserved points chart:** the team's name crosses no axis label. No overlap at 280, 320 or 360px on any page, against 6 on main at 280px.
   - **Measured:** the design check on a build whose Team pages open on the Performance tab, at 280, 320, 360, 375, 700 and 1010px in EN, DE and FI (rendered page evidence). As shipped, the Team page matches its baseline exactly.
+  - **Chart screenshots:** the 6 strip pins and the manifest are CI's own (validate:ui, Linux). Compared row by row with the old pins: at 375px the new image is the old one with six 16px bands under the group headings and no other pixel changed; at 1010px the same bands, with the value 2px higher in each row. Scatter and comparison pins unchanged.
   - **Gates:** `npm run build` with its audits, `check_component_registry.py` and `check_page_css.py` pass; whole `pytest tests` (1,736) and `npm test` (175) pass.

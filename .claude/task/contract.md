@@ -16,6 +16,7 @@ scope_paths:
   - site_v2/src/components/team/*
   - site_v2/src/lib/chartTheme.ts
   - tests/fixtures/design_inventory/*
+  - tests/fixtures/chart_screenshots/*
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
