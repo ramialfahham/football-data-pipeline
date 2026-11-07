@@ -1,104 +1,219 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index dac8c04a..cce8d7ea 100644
+index cce8d7ea..d7e65d53 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,20 +1,16 @@
--# Task contract — Compared with last season follows the registry's table and group heading rules
-+# Task contract — a table that opens with the name keeps it in the first column in its narrow form
+@@ -1,17 +1,22 @@
+-# Task contract — a table that opens with the name keeps it in the first column in its narrow form
++# Task contract — the Team page's Performance tab passes every registry rule the design check measures
  
  objective: >
--  Issue #263. The Team page's Compared with last season block follows the registry's Table and
--  Metric group heading rules (`docs/design/components.yml`): each metric group's table has its own
--  head row, rows striped from the second, names 14px semi-bold, 26px from the group heading to the
--  table. The Player page (#259) reuses the block.
-+  Issue #264. In a table whose rows start with the name, the two-line narrow form keeps the name in
-+  the first column, as the registry's Table narrow row says. Today the form places the name from the
-+  second column, written for tables that open with a rank, so Compared with last season on the Team
-+  page puts its names over the number columns at 280px in DE and FI. The Player page (#259) reuses it.
+-  Issue #264. In a table whose rows start with the name, the two-line narrow form keeps the name in
+-  the first column, as the registry's Table narrow row says. Today the form places the name from the
+-  second column, written for tables that open with a rank, so Compared with last season on the Team
+-  page puts its names over the number columns at 280px in DE and FI. The Player page (#259) reuses it.
++  Issue #266. With the Performance tab open, the Team page fails three registry rules: the deserved
++  points table sets its names to weight 400 (Table name cell: 600), the metric group headings over the
++  strips sit 10–12px above their first row (Metric group heading: 26px), and Compared with last
++  season's head label "Vorsaison" is wider than its column at narrow widths and overlaps "Trend". In
++  the narrow deserved points chart a long team name runs across the y-axis numbers. The page follows
++  the registry. The Player page (#259) reuses the strips and the table.
  
  refs: >
--  #263, approved in chat 2026-11-07. Design: #134.
-+  #264, approved in chat 2026-11-07. Design: #134.
+-  #264, approved in chat 2026-11-07. Design: #134.
++  #266, approved in chat 2026-11-07. Design: #134.
  
  scope_paths:
--  - site_v2/src/components/team/TeamLastSeason.astro
    - site_v2/src/styles/system.css
--  - docs/design/components.yml
--  - docs/wireframes/block_standard.md
--  - tests/fixtures/component_registry/*
++  - site_v2/src/components/team/*
++  - site_v2/src/lib/chartTheme.ts
    - tests/fixtures/design_inventory/*
++  - tests/fixtures/chart_screenshots/*
    - .claude/task/contract.md
    - .claude/task/review.md
-@@ -22,41 +18,37 @@ scope_paths:
-   - .claude/task/acceptance_evidence.md
-   - .claude/task/rendered_page_evidence.md
- 
--protected_override: >
--  docs/design/components.yml, one line: the last-season table's `yoyt-head` part goes, because its
--  class leaves the code; no rule changes (approved in chat, 2026-11-07).
-+protected_override: none.
- 
+   - .claude/task/review_input.patch
+@@ -23,14 +28,18 @@ protected_override: none.
  impact_map: >
    writers: none in the warehouse.
    lineage: no dbt model changes, so no lineage moves.
--  consumption: the Team page's Performance tab, block Compared with last season. The shared
--  classes it changes (`.ctab.yoyt`) have no other reader on main.
-+  consumption: every `.ctab` whose rows open with the name cell, in its narrow form (fit-two, or no
-+  fit mark below a 600px container). Today: Compared with last season and the Team page's deserved
-+  points table (`.dpm`), which is marked fit-one at every listed width, so it does not change.
+-  consumption: every `.ctab` whose rows open with the name cell, in its narrow form (fit-two, or no
+-  fit mark below a 600px container). Today: Compared with last season and the Team page's deserved
+-  points table (`.dpm`), which is marked fit-one at every listed width, so it does not change.
++  consumption: `.ctab.dpm` and the deserved points chart (TeamDeserved), the strip group heading and
++  `.rs-val` (TeamLeagueStrips) and `.ctab.yoyt` (TeamLastSeason), all on the Team page's Performance
++  tab. The match page's metric comparison (`.cmp .rkgroup`) has no `.rs-row` and does not change.
    ci_layer_rules: scripts/check_page_css.py, scripts/check_design_inventory.py,
-   scripts/check_component_registry.py.
+-  scripts/check_component_registry.py.
++  scripts/check_component_registry.py, site_v2/scripts/check-built-pages.mjs.
    deploy_order: before the Player page (#259). One merge.
--  blast_radius: one block of the Team page changes look: a head row in each metric group, the
--  stripe moves to the second row, names turn semi-bold, 26px under each group heading.
-+  blast_radius: the Team page's Performance tab at the widths where Compared with last season takes
-+  two lines: its names move back to the first column.
+-  blast_radius: the Team page's Performance tab at the widths where Compared with last season takes
+-  two lines: its names move back to the first column.
++  blast_radius: the Team page's Performance tab only: deserved points names turn semi-bold, 16px more
++  air under each strip group heading, the strip value sits at the row's top (2px up in the wide row),
++  and the last-season table's value columns widen from 3.4rem to 4.2rem and the trend from 2.8rem to
++  3.2rem below a 420px container. In the deserved points chart the team's name sits on the side of
++  its dot where it fits; where neither side fits, the name and the difference stack centred on the
++  dot, inside the plot. Today that is the long names in the narrow chart.
  
  approved_design:
    - team: #134
- 
- decisions_taken: >
--  The registry is the standard and the page follows it; no registry rule changes (approved in chat,
--  2026-11-07). A head whose labels wrap aligns them at the top, so every group heading keeps its
--  26px to the first label in every language.
-+  The registry is the standard and the page follows it; no registry change (approved in chat,
-+  2026-11-07).
- 
- decisions_reserved: none.
- 
+@@ -44,11 +53,13 @@ decisions_reserved: none.
  done_when:
    - python -m pytest tests passes.
    - npm run build and the design check pass in site_v2.
--  - The Team page's Performance tab passes the Table and Metric group heading rules at every listed width and language.
-+  - On the Team page's Performance tab, every name of Compared with last season starts in the first column at every listed width and language.
+-  - On the Team page's Performance tab, every name of Compared with last season starts in the first column at every listed width and language.
++  - On a build whose Team pages open on the Performance tab, the design check reports none of the three failures, and no page overlaps at 280, 320 or 360px.
  
  acceptance_criteria:
--  - "Each metric group's table in Compared with last season has its own head row, and its rows line up with it."
--  - "Rows are striped from the second row, with the switch off and on."
--  - "Names in the table are 14px semi-bold ink."
--  - "Each metric group heading sits 26px above its table."
-+  - "In the narrow form of a table whose rows open with the name, the name spans from the first column."
-+  - "A table that opens with a rank keeps its narrow form unchanged."
+-  - "In the narrow form of a table whose rows open with the name, the name spans from the first column."
+-  - "A table that opens with a rank keeps its narrow form unchanged."
++  - "Names in the deserved points table are 14px semi-bold ink."
++  - "Each metric group heading over the strips sits 26px above the first line of its first row."
++  - "Compared with last season's head labels fit their columns: no overflow and no overlap in EN, DE and FI."
++  - "In the deserved points chart the team's name crosses no axis label."
    - "Measured on the Team page with the Performance tab open at 280, 320, 360, 375, 700 and 1010px in EN, DE and FI."
  
  amendments: (none)
+diff --git a/site_v2/src/components/team/TeamDeserved.astro b/site_v2/src/components/team/TeamDeserved.astro
+index 8e82ce9c..6d9e5313 100644
+--- a/site_v2/src/components/team/TeamDeserved.astro
++++ b/site_v2/src/components/team/TeamDeserved.astro
+@@ -67,17 +67,31 @@ function chart(W: number, H: number, L: number) {
+   const yTicks = [];
+   for (let y = 0; y <= y1; y += 3) yTicks.push(y);
+   const cx = sx(me.sotd), cy = sy(me.points), cl = sy(onLine(me.sotd));
+-  const right = cx < (L + W - R) / 2;
++  // The name goes on the dot's open side, and on the other side when it would cross the plot's edge.
++  // When neither side holds it, the name and the difference stack centred over or under the dot, on
++  // the side away from the gap line where the plot has room, the difference under the name.
++  const nameW = (teamName.length + 1) * labelChar;
++  const fitsRight = cx + nameW <= W - R, fitsLeft = cx - nameW >= L;
++  const right = cx < (L + W - R) / 2 ? fitsRight || !fitsLeft : fitsRight && !fitsLeft;
++  const beside = fitsRight || fitsLeft;
++  const stackH = 5 * labelChar;
++  const above = cl >= cy ? cy - stackH >= T : cy + stackH > H - B;
+   const toRight = (side: boolean) => (side ? offset.beside : `-${offset.beside}`);
+-  const under = right && cx - (gapText.length + 1) * labelChar < L;
++  const under = beside && right && cx - (gapText.length + 1) * labelChar < L;
++  const sx0 = Math.min(Math.max(cx, L + nameW / 2), W - R - nameW / 2);
++  const stack = (near: boolean) => (above ? `-${near ? offset.stackNear : offset.stackFar}` : near ? offset.stackNear : offset.stackFar);
+   return {
+     W, H, L, R, T, B, sx, sy, xTicks, yTicks,
+     line: { x1: sx(x0), y1: sy(onLine(x0)), x2: sx(x1), y2: sy(onLine(x1)) },
+-    me: {
+-      cx, cy, cl,
+-      dx: toRight(right), anchor: right ? "start" : "end",
++    me: beside ? {
++      cx, cy, cl, nx: cx, gx: cx,
++      dx: toRight(right), anchor: right ? "start" : "end", ndy: offset.middle,
+       gdx: toRight(under ? right : !right), ganchor: (under ? right : !right) ? "start" : "end",
+       gy: under ? cy : (cy + cl) / 2, gdy: under ? offset.under : offset.middle,
++    } : {
++      cx, cy, cl, nx: sx0, gx: sx0,
++      dx: "0", anchor: "middle", ndy: stack(!above),
++      gdx: "0", ganchor: "middle", gy: cy, gdy: stack(above),
+     },
+   };
+ }
+@@ -127,8 +141,8 @@ const fmtTick = (x: number) => (x > 0 ? `+${integer(x, lang)}` : integer(x, lang
+           ))}
+           <line class="chart-gap" x1={c.me.cx} x2={c.me.cx} y1={c.me.cy} y2={c.me.cl} />
+           <circle class="chart-dot chart-me" data-fix="" cx={c.me.cx} cy={c.me.cy}></circle>
+-          <text class="chart-note" data-fix="" data-role="gap" x={c.me.cx} y={c.me.gy} dx={c.me.gdx} dy={c.me.gdy} text-anchor={c.me.ganchor}>{gapText}</text>
+-          <text class="chart-label" data-fix="" data-role="name" x={c.me.cx} y={c.me.cy} dx={c.me.dx} dy={offset.middle} text-anchor={c.me.anchor}>{teamName}</text>
++          <text class="chart-note" data-fix="" data-role="gap" x={c.me.gx} y={c.me.gy} dx={c.me.gdx} dy={c.me.gdy} text-anchor={c.me.ganchor}>{gapText}</text>
++          <text class="chart-label" data-fix="" data-role="name" x={c.me.nx} y={c.me.cy} dx={c.me.dx} dy={c.me.ndy} text-anchor={c.me.anchor}>{teamName}</text>
+         </svg>
+       ))}
+     </div>
+diff --git a/site_v2/src/lib/chartTheme.ts b/site_v2/src/lib/chartTheme.ts
+index 9bd68804..064b69d8 100644
+--- a/site_v2/src/lib/chartTheme.ts
++++ b/site_v2/src/lib/chartTheme.ts
+@@ -23,6 +23,8 @@ export const offset = {
+   beside: "0.6em",
+   middle: "0.35em",
+   under: "1.85em",
++  stackNear: "1.35em",
++  stackFar: "2.45em",
+ };
+ 
+ // A strip plot keeps this share of its width free at each end, in percent, so no dot is cut.
 diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
-index 184a787d..c7524a56 100644
+index c7524a56..688a29c8 100644
 --- a/site_v2/src/styles/system.css
 +++ b/site_v2/src/styles/system.css
-@@ -788,10 +788,12 @@ a.comp-row:focus-visible { outline-offset: -2px; }
-    per language; without the script a narrow table takes two lines. */
- .ctab.fit-two .ctab-row > .rk { grid-row: 1; }
- .ctab.fit-two .ctab-row > .tm { grid-column: 2 / -1; grid-row: 1; }
-+.ctab.fit-two .ctab-row > .tm:first-child { grid-column: 1 / -1; }
- .ctab.fit-two .ctab-row > .n { grid-row: 2; padding-top: 4px; }
- @container (max-width: 599.98px) {
-   .ctab:not(.fit-one) .ctab-row > .rk { grid-row: 1; }
-   .ctab:not(.fit-one) .ctab-row > .tm { grid-column: 2 / -1; grid-row: 1; }
-+  .ctab:not(.fit-one) .ctab-row > .tm:first-child { grid-column: 1 / -1; }
-   .ctab:not(.fit-one) .ctab-row > .n { grid-row: 2; padding-top: 4px; }
+@@ -1025,7 +1025,6 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
+ /* Deserved points: the team's four values as a two-column table, then the scatter plot. */
+ .ctab.dpm, .ctab.dpm.ctab { --cols: minmax(0, 1fr) 4.2rem; margin-top: 10px; }
+ .ctab.dpm .ctab-head .nmh { text-align: left; padding-left: 0; }
+-.ctab.dpm .tm .nm { font-weight: 400; }
+ .ctab.dpm .n.dpm-v { font-size: 15px; font-weight: 700; color: var(--ink); }
+ .dpm-sub { display: block; font-size: 12px; color: var(--muted); font-weight: 400; }
+ .ctab.dpm + .chart { margin-top: 18px; }
+@@ -1046,6 +1045,8 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
  }
+ .chart { container-type: inline-size; }
+ .chart .chart-narrow { display: none; }
++/* 26px from a metric group heading to the first line of its first strip row. */
++.chart .rkgroup:has(> .rs-row) > .gh { margin-bottom: 16px; }
+ @container (max-width: 479.98px) {
+   .chart .chart-wide { display: none; }
+   .chart .chart-narrow { display: block; }
+@@ -1092,12 +1093,12 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
+ .rs-band > span:not([class]) { position: absolute; top: 50%; translate: -50% -50%; display: flex; }
+ .rs-band > .chart-tick { position: absolute; top: 16px; left: 0; white-space: nowrap; }
+ .rs-band > .chart-tick.chart-end { left: auto; right: 0; }
+-.rs-val { text-align: right; font-size: var(--chart-text-value); font-weight: 700; color: var(--chart-team); font-variant-numeric: tabular-nums; line-height: 1.25; }
++.rs-val { align-self: start; text-align: right; font-size: var(--chart-text-value); font-weight: 700; color: var(--chart-team); font-variant-numeric: tabular-nums; line-height: 1.25; }
+ .rs-val small { display: block; font-size: var(--chart-text); font-weight: 400; color: var(--muted); }
  
+ /* Compared with last season: a table of this season, last season and the trend; ▲ in the accent when
+    better, ▼ in the loss red when worse, "–" when equal. The stripes count the rows on screen. */
+-.ctab.yoyt, .ctab.yoyt.ctab { --cols: minmax(0, 1fr) 3.4rem 3.4rem 2.8rem; margin-top: 26px; }
++.ctab.yoyt, .ctab.yoyt.ctab { --cols: minmax(0, 1fr) 4.2rem 4.2rem 3.2rem; margin-top: 26px; }
+ @container (min-width: 420px) { .ctab.yoyt, .ctab.yoyt.ctab { --cols: minmax(0, 1fr) 4.6rem 4.6rem 3rem; } }
+ .ctab.yoyt .ctab-head { align-items: start; }
+ .ctab.yoyt .ctab-head .h { white-space: normal; line-height: 1.2; }
+diff --git a/tests/fixtures/chart_screenshots/manifest.json b/tests/fixtures/chart_screenshots/manifest.json
+index 1fd342c2..e0155b4a 100644
+--- a/tests/fixtures/chart_screenshots/manifest.json
++++ b/tests/fixtures/chart_screenshots/manifest.json
+@@ -13,11 +13,11 @@
+   "scatter-en-light-375.png": "f717ac95e082f084bc6a9810c4afce18efb8e89a87d94b784c5d5339b344690c",
+   "scatter-fi-dark-1010.png": "9e787e4d8a348d532db21c82754d2a6f1184d51c200c91f84747948d0e7ed095",
+   "scatter-fi-dark-375.png": "7a0a5721f8b8285670975bf002761dc073da2e79e6269407b27f88e6145265fa",
+-  "strip-en-dark-1010.png": "a433edd1090d2c7a7c2f3e840be2a95d482a8e579b0ff8b9abd00adeca565bfc",
+-  "strip-en-dark-375.png": "a812d1bbb6f61bbf42f7463efa80a76bddf9351a0e6bdf60a5160dd3ef6b9ef7",
+-  "strip-en-light-1010.png": "1f6557b605c2a1184a0029b9c55b210db60ba16b4c3d680f0fc559a10456803b",
+-  "strip-en-light-375.png": "2b0577b644b9dae8497748d1c016c235eaa2c27223d204f106613ee2bc9af43e",
+-  "strip-fi-dark-1010.png": "8a7b8d2149b28abbbaa9286d879cc0ad5e965d908ca65a979c586fe7d3d0c2e0",
+-  "strip-fi-dark-375.png": "3be8fd3045fb75ba11dc51b2ec9b82552e7677392d036da4e2243faee5f6f7ac"
++  "strip-en-dark-1010.png": "441c2bdcba113396c3039be403a6383dd57cc38205c1a889673025e048dbcf37",
++  "strip-en-dark-375.png": "a11a780f90b4b678e179375c8e1769430ec19318e0aa4c6f567a13eff31922cf",
++  "strip-en-light-1010.png": "f8e61cbebdfbf31e92dd28f0939f314b1545347599a19ea06d02288c4a623605",
++  "strip-en-light-375.png": "96845f2b9488c2d8f1a63a55865ce8522f1cd6ac7a190646eba72fba7ea9553e",
++  "strip-fi-dark-1010.png": "e66bd18e579e8426d0e27d0dd2b0b03c1dd06a380550a1c736acb3014047ca9c",
++  "strip-fi-dark-375.png": "34b36609c1606e177d8a21a55e74d745aee26372a88c7b49b8b26831fa2a7710"
+  }
+ }
+diff --git a/tests/fixtures/chart_screenshots/strip-en-dark-1010.png b/tests/fixtures/chart_screenshots/strip-en-dark-1010.png
+index 7377d2ac..0ddb5a0f 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-en-dark-1010.png and b/tests/fixtures/chart_screenshots/strip-en-dark-1010.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-en-dark-375.png b/tests/fixtures/chart_screenshots/strip-en-dark-375.png
+index 8c37eb1c..7ab29243 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-en-dark-375.png and b/tests/fixtures/chart_screenshots/strip-en-dark-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-en-light-1010.png b/tests/fixtures/chart_screenshots/strip-en-light-1010.png
+index 8c35a93b..5b06969f 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-en-light-1010.png and b/tests/fixtures/chart_screenshots/strip-en-light-1010.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-en-light-375.png b/tests/fixtures/chart_screenshots/strip-en-light-375.png
+index 34c83143..93f88db1 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-en-light-375.png and b/tests/fixtures/chart_screenshots/strip-en-light-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-fi-dark-1010.png b/tests/fixtures/chart_screenshots/strip-fi-dark-1010.png
+index 75f03d5f..56b03c4c 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-fi-dark-1010.png and b/tests/fixtures/chart_screenshots/strip-fi-dark-1010.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-fi-dark-375.png b/tests/fixtures/chart_screenshots/strip-fi-dark-375.png
+index 25658bb1..a222ca11 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-fi-dark-375.png and b/tests/fixtures/chart_screenshots/strip-fi-dark-375.png differ
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -112,7 +227,9 @@ index 184a787d..c7524a56 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md    | 12 +++++-------
-#    .claude/task/rendered_page_evidence.md | 33 +++++++++++++++++----------------
-#    2 files changed, 22 insertions(+), 23 deletions(-)
+#   .claude/task/acceptance_evidence.md    |  13 +-
+#    .claude/task/rendered_page_evidence.md |  50 +++++---
+#    .claude/task/review.md                 |  23 ++--
+#    .claude/task/review_input.patch        | 214 ++++++++++++++++++++++-----------
+#    4 files changed, 196 insertions(+), 104 deletions(-)
 # ============================================================================
