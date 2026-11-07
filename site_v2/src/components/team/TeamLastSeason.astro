@@ -39,18 +39,16 @@ const shown = (v: unknown, format: Parameters<typeof formatValue>[1]) =>
     <p class="bsub">{t(lang, "teamVsLastSeasonIntro", { n: integer(s.yoy_games_played_cutoff, lang) })}</p>
     {needsSwitch(groups) && <MetricSwitch id="tsw-season" lang={lang} />}
     <div class="yoy-list">
-      <div class="ctab yoyt yoyt-head">
-        <div class="ctab-head">
-          <span class="h nmh"></span>
-          <span class="h">{t(lang, "teamThisSeasonHead")}</span>
-          <span class="h">{t(lang, "teamLastSeasonHead")}</span>
-          <span class="h tr">{t(lang, "teamTrend")}</span>
-        </div>
-      </div>
       {groups.map((g) => (
         <div class:list={["fxgroup", "rkgroup", { nonkey: !g.hasKey }]}>
           <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${g.key}.label`)}</span></div>
           <div class="ctab yoyt">
+            <div class="ctab-head">
+              <span class="h nmh"></span>
+              <span class="h">{t(lang, "teamThisSeasonHead")}</span>
+              <span class="h">{t(lang, "teamLastSeasonHead")}</span>
+              <span class="h tr">{t(lang, "teamTrend")}</span>
+            </div>
             {g.rows.map((r) => {
               const a = shown(now[r.metric_id], r.format);
               const b = shown(prev[r.metric_id], r.format);

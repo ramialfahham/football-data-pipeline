@@ -233,7 +233,6 @@ components:
     parts:
       trend: {class: tr, selector: ".ctab.yoyt .n.tr", element: Trend, rule: "▲ in the accent when this season is better, ▼ in the loss red when worse, \"–\" when the shown values are equal", measured: "font-size=13px", ruled-on: the Team page review}
       list: {class: yoy-list}
-      head: {class: yoyt-head, gap: mock-css}
       up: {class: up, gap: mock-css}
       down: {class: down, gap: mock-css}
       flat: {class: flat, gap: mock-css}

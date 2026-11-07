@@ -1,933 +1,249 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 8add2c3b..b4b233d5 100644
+index b4b233d5..dac8c04a 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,66 +1,97 @@
--# Task contract — researched line-ups of the 26 matches behind the blank squads
-+# Task contract — false player birth dates, details that change between builds, and their tests
+@@ -1,97 +1,62 @@
+-# Task contract — false player birth dates, details that change between builds, and their tests
++# Task contract — Compared with last season follows the registry's table and group heading rules
  
  objective: >
--  fixture_lineup_corrections gains the researched line-ups of 26 of the 30 matches behind the 41
--  blank squads: both team sheets of each match, every player with the provider's id, starter or
--  bench, the minutes on and off and whom each substitute replaced, from the competition's official
--  match record (resultados.rfef.es, uefa.com, veikkausliiga.com, kleague.com). Their sheets then
--  feed base_apif__fixture_players_from_lineups, so the clubs' players gain these matches.
-+  Issue #260. A birth date that cannot be true is cleared in base. base_apif__players gets a fixed
-+  tie order, so two builds of the same data agree. A player whose records conflict shows a value
-+  checked against an outside source, or no value. Two dbt tests fail the build when either defect
-+  comes back.
+-  Issue #260. A birth date that cannot be true is cleared in base. base_apif__players gets a fixed
+-  tie order, so two builds of the same data agree. A player whose records conflict shows a value
+-  checked against an outside source, or no value. Two dbt tests fail the build when either defect
+-  comes back.
++  Issue #263. The Team page's Compared with last season block follows the registry's Table and
++  Metric group heading rules (`docs/design/components.yml`): each metric group's table has its own
++  head row, rows striped from the second, names 14px semi-bold, 26px from the group heading to the
++  table. The Player page (#259) reuses the block.
  
  refs: >
--  #176 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/176): the sources, the
--  order and the id rule. #256 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/256):
--  the squads a match with no player rows blanks. Researching the 30 matches: approved in chat,
--  2026-11-06.
-+  #260, plan approved in chat 2026-11-06.
+-  #260, plan approved in chat 2026-11-06.
++  #263, approved in chat 2026-11-07. Design: #134.
  
  scope_paths:
-+  - dbt_project/macros/possible_birth_date.sql
-+  - dbt_project/macros/bio_correction.sql
-+  - dbt_project/models/2_base/api_football/base_apif__players.sql
-+  - dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
-+  - dbt_project/models/2_base/api_football/base.yml
-+  - dbt_project/macros/player_id_override.sql
-+  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-+  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
-+  - dbt_project/models/2_base/api_football/base_apif__lineups.sql
-+  - dbt_project/models/2_base/api_football/base_apif__player_team_season.sql
-+  - dbt_project/models/2_base/api_football/base_apif__squads.sql
-+  - dbt_project/models/2_base/api_football/base_apif__transfers.sql
-+  - dbt_project/seeds/player_id_overrides.csv
-+  - dbt_project/seeds/fixture_card_corrections.csv
-   - dbt_project/seeds/fixture_lineup_corrections.csv
-+  - dbt_project/tests/assert_player_id_overrides_merged.sql
-+  - dbt_project/tests/assert_base_player_stats_cleaned.sql
-+  - dbt_project/models/docs/shared_columns.md
-+  - dbt_project/seeds/player_bio_corrections.csv
-+  - dbt_project/seeds/schema.yml
-+  - dbt_project/tests/assert_player_birth_date_possible.sql
-+  - dbt_project/tests/assert_player_bio_conflicts_settled.sql
-+  - site_v2/src/data/teams/211.json
+-  - dbt_project/macros/possible_birth_date.sql
+-  - dbt_project/macros/bio_correction.sql
+-  - dbt_project/models/2_base/api_football/base_apif__players.sql
+-  - dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
+-  - dbt_project/models/2_base/api_football/base.yml
+-  - dbt_project/macros/player_id_override.sql
+-  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+-  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+-  - dbt_project/models/2_base/api_football/base_apif__lineups.sql
+-  - dbt_project/models/2_base/api_football/base_apif__player_team_season.sql
+-  - dbt_project/models/2_base/api_football/base_apif__squads.sql
+-  - dbt_project/models/2_base/api_football/base_apif__transfers.sql
+-  - dbt_project/seeds/player_id_overrides.csv
+-  - dbt_project/seeds/fixture_card_corrections.csv
+-  - dbt_project/seeds/fixture_lineup_corrections.csv
+-  - dbt_project/tests/assert_player_id_overrides_merged.sql
+-  - dbt_project/tests/assert_base_player_stats_cleaned.sql
+-  - dbt_project/models/docs/shared_columns.md
+-  - dbt_project/seeds/player_bio_corrections.csv
+-  - dbt_project/seeds/schema.yml
+-  - dbt_project/tests/assert_player_birth_date_possible.sql
+-  - dbt_project/tests/assert_player_bio_conflicts_settled.sql
+-  - site_v2/src/data/teams/211.json
++  - site_v2/src/components/team/TeamLastSeason.astro
++  - site_v2/src/styles/system.css
++  - docs/design/components.yml
++  - docs/wireframes/block_standard.md
++  - tests/fixtures/component_registry/*
++  - tests/fixtures/design_inventory/*
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
    - .claude/task/acceptance_evidence.md
++  - .claude/task/rendered_page_evidence.md
++
++protected_override: >
++  docs/design/components.yml, one line: the last-season table's `yoyt-head` part goes, because its
++  class leaves the code; no rule changes (approved in chat, 2026-11-07).
  
  impact_map: >
--  writers: the seed rows, built from the official match records and the provider's sheets;
--  base_apif__lineups applies them, replacing the provider's sheets of each listed match, and
--  base_apif__fixture_players reads their player ids. Nothing else changes.
--  downstream: `dbt ls --select fixture_lineup_corrections+ --resource-type model` starts at
--  base_apif__fixture_players and base_apif__lineups, then base_apif__fixture_players_from_lineups,
--  fct_fixture_lineup, fct_fixture_player_stats, base_apif__players, dim_player, and every reader of
--  those: the int_legs models, the player and team season and window models,
--  mart_player_fixture_stats and mart_competition_fixtures.
--  layer_rules: the seed is configuration applied in base, on the existing pattern.
--  deploy_order: dbt seed precedes the models in data:build:main and fdp-nightly.
--  blast_radius: only the 26 listed matches: their line-ups, formations and lineup_state turn from
--  not_available to researched, and the 52 team matches gain 1,089 player rows in
--  base_apif__fixture_players_from_lineups, so those players' appearances, minutes, goals, assists
--  and cards count these matches. The research list loses them.
-+  writers: dbt only. No ingestion code changes. The 249 missing profiles were fetched once through
-+  load_player_profiles_global, so RAW_APIF_PLAYER_PROFILES holds them before this MR.
-+  lineage: `dbt ls --resource-type model --select base_apif__players+ base_apif__player_profiles+`
-+  returns 2_base.api_football.base_apif__player_profiles, base_apif__players, 3_core.dim_player,
-+  5_marts.shared.mart_competition_fixtures, mart_leaderboards, mart_match_days, mart_player_career,
-+  mart_player_competition_benchmarks, mart_player_fixture_stats, mart_player_profile, mart_roster,
-+  mart_team_competitions, mart_team_index, mart_team_momentum_window.
-+  consumption: mart_player_profile derives age from player_birth_date and mart_roster carries it;
-+  the squad row leaves the age out when the date is empty, per wireframe 11.
-+  ci_layer_rules: scripts/check_layer_contract.py, scripts/check_description_hygiene.py.
-+  deploy_order: one merge; the nightly dbt build applies it. A deploy after that carries the values.
-+  blast_radius: 573 players lose a false birth date. About 249 tied players get one stable row. The
-+  corrections seed changes the players it lists. base_apif__players gains two boolean columns that
-+  no reader selects by position.
+-  writers: dbt only. No ingestion code changes. The 249 missing profiles were fetched once through
+-  load_player_profiles_global, so RAW_APIF_PLAYER_PROFILES holds them before this MR.
+-  lineage: `dbt ls --resource-type model --select base_apif__players+ base_apif__player_profiles+`
+-  returns 2_base.api_football.base_apif__player_profiles, base_apif__players, 3_core.dim_player,
+-  5_marts.shared.mart_competition_fixtures, mart_leaderboards, mart_match_days, mart_player_career,
+-  mart_player_competition_benchmarks, mart_player_fixture_stats, mart_player_profile, mart_roster,
+-  mart_team_competitions, mart_team_index, mart_team_momentum_window.
+-  consumption: mart_player_profile derives age from player_birth_date and mart_roster carries it;
+-  the squad row leaves the age out when the date is empty, per wireframe 11.
+-  ci_layer_rules: scripts/check_layer_contract.py, scripts/check_description_hygiene.py.
+-  deploy_order: one merge; the nightly dbt build applies it. A deploy after that carries the values.
+-  blast_radius: 573 players lose a false birth date. About 249 tied players get one stable row. The
+-  corrections seed changes the players it lists. base_apif__players gains two boolean columns that
+-  no reader selects by position.
++  writers: none in the warehouse.
++  lineage: no dbt model changes, so no lineage moves.
++  consumption: the Team page's Performance tab, block Compared with last season. The shared
++  classes it changes (`.ctab.yoyt`) have no other reader on main.
++  ci_layer_rules: scripts/check_page_css.py, scripts/check_design_inventory.py,
++  scripts/check_component_registry.py.
++  deploy_order: before the Player page (#259). One merge.
++  blast_radius: one block of the Team page changes look: a head row in each metric group, the
++  stripe moves to the second row, names turn semi-bold, 26px under each group heading.
  
--decisions_taken: >
--  Researching the 30 matches, an exception to the parking in #216: approved in chat, 2026-11-06.
--  The rules of batches 1 to 5 apply as written: the official minute and pairing where the provider
--  differs, half-time substitutions keep the provider's 46', formations and pitch positions are the
--  provider's, and where it has none the row takes the official one or stays blank. Player ids are
--  the provider's. A match the official record cannot complete stays out.
-+approved_design:
-+  - team: #134
+ approved_design:
+   - team: #134
  
--  Every row was read before research stopped on 2026-11-06 (#176 note 4181292451). 17 of the 26
--  matches come from sites that note stops: uefa.com 11, resultados.rfef.es 6. Note 4181311140 keeps
--  researched rows in use on main and in the card research and does not name these line-ups, so the
--  MR head declares it and the merge decides.
-+acceptance_criteria:
-+  - No player shows a birth date that cannot be true; the three squad members dated 2026-07-06 in the sample show no date and no age on the built team page.
-+  - A player's name, birth date and nationality do not change between two builds of the same data.
-+  - A player whose records conflict shows a value checked against an outside source, or no value when none can be found.
-+  - A test fails the build on an impossible birth date.
-+  - A test fails the build on a conflict nobody has settled.
+-acceptance_criteria:
+-  - No player shows a birth date that cannot be true; the three squad members dated 2026-07-06 in the sample show no date and no age on the built team page.
+-  - A player's name, birth date and nationality do not change between two builds of the same data.
+-  - A player whose records conflict shows a value checked against an outside source, or no value when none can be found.
+-  - A test fails the build on an impossible birth date.
+-  - A test fails the build on a conflict nobody has settled.
+-
+ decisions_taken: >
+-  From the plan on #260, approved in chat 2026-11-06. New mechanism, declared: the seed
+-  player_bio_corrections. It holds one row per player and field, because an empty value there means
+-  "no value found" and a wide row could not tell that from "this field is not corrected". New
+-  mechanism, declared: two singular tests that fail the build. A failure on either skips what is
+-  built on the tested models in the nightly; the plan states this. Recurring cost: none measurable.
+-  The conflict flags are computed from rows base_apif__players already reads. The plan named
+-  dim_player as the place corrections apply; they apply in the two base models, because every
+-  correction seed in the project applies in base and dim_player publishes base unchanged, and the
+-  result is the same: a correction wins over every source.
++  The registry is the standard and the page follows it; no registry rule changes (approved in chat,
++  2026-11-07). A head whose labels wrap aligns them at the top, so every group heading keeps its
++  26px to the first label in every language.
  
--  THRESHOLD DECLARATIONS: NEW MECHANISM: none; rows in the existing seed. RECURRING COST: none
--  measurable; 1,089 seed rows.
-+decisions_taken: >
-+  From the plan on #260, approved in chat 2026-11-06. New mechanism, declared: the seed
-+  player_bio_corrections. It holds one row per player and field, because an empty value there means
-+  "no value found" and a wide row could not tell that from "this field is not corrected". New
-+  mechanism, declared: two singular tests that fail the build. A failure on either skips what is
-+  built on the tested models in the nightly; the plan states this. Recurring cost: none measurable.
-+  The conflict flags are computed from rows base_apif__players already reads. The plan named
-+  dim_player as the place corrections apply; they apply in the two base models, because every
-+  correction seed in the project applies in base and dim_player publishes base unchanged, and the
-+  result is the same: a correction wins over every source.
- 
- decisions_reserved:
--  - The four matches of the 30 left out, and the rest of #216.
--  - Whether line-up research resumes, and on which sites (#176, #262).
--  - The written permission of the leagues and the legal check before go-live (#176 note 4181311140).
--  - Sevilla's nameless 38' yellow in 1645578 and the second id of N. Pinto in 1623421: card research and #260, not this MR.
-+  - One name form for every player (initial or full), which stays mixed.
-+  - Country spellings in player nationality, which country_name_overrides does not reach today.
+-decisions_reserved:
+-  - One name form for every player (initial or full), which stays mixed.
+-  - Country spellings in player nationality, which country_name_overrides does not reach today.
++decisions_reserved: none.
  
  done_when:
--  - dbt parse passes; the seed's tests pass.
--  - The branch's base_apif__lineups on prod data turns every listed match researched, assert_lineup_researched_matches_hold and assert_players_from_lineups_goals_add_up return no rows, and the research list loses exactly those matches.
--  - data:build:mr is green on the MR.
-+  - python -m pytest tests passes.
-+  - dbt parse and sqlfluff pass on the changed models.
-+  - data:build:mr is green, both new tests included, each shown to fail on a fixed bad example.
-+  - The old-against-new comparison shows every changed row is a cleared date, a repaired tie or a correction.
+   - python -m pytest tests passes.
+-  - dbt parse and sqlfluff pass on the changed models.
+-  - data:build:mr is green, both new tests included, each shown to fail on a fixed bad example.
+-  - The old-against-new comparison shows every changed row is a cleared date, a repaired tie or a correction.
++  - npm run build and the design check pass in site_v2.
++  - The Team page's Performance tab passes the Table and Metric group heading rules at every listed width and language.
++
++acceptance_criteria:
++  - "Each metric group's table in Compared with last season has its own head row, and its rows line up with it."
++  - "Rows are striped from the second row, with the switch off and on."
++  - "Names in the table are 14px semi-bold ink."
++  - "Each metric group heading sits 26px above its table."
++  - "Measured on the Team page with the Performance tab open at 280, 320, 360, 375, 700 and 1010px in EN, DE and FI."
  
- amendments: >
--  none.
-+  Both approved in chat, 2026-11-06, and recorded on #260. A profile value no longer settles a
-+  conflict: every conflict needs a checked correction. A new seed, player_id_overrides, merges one
-+  player's two provider ids, in the form of fixture_team_id_overrides with alias: first rows the 8
-+  pairs sorted as the same person. New mechanism, declared. It applies wherever a player id enters
-+  base: fixture_players, fixture_events, lineups, players, player_profiles, player_team_season,
-+  squads and transfers. No fetch holds both ids of a pair for one match, so no row is dropped.
-+  The id kept is the one with a birth date, otherwise the lower. The seed description's text was
-+  approved in chat, 2026-11-06. A test proves a merged player has one page and summed stats. The
-+  researched rows of fixture_card_corrections and fixture_lineup_corrections name the id kept.
-diff --git a/dbt_project/macros/bio_correction.sql b/dbt_project/macros/bio_correction.sql
-new file mode 100644
-index 00000000..5090603d
---- /dev/null
-+++ b/dbt_project/macros/bio_correction.sql
-@@ -0,0 +1,4 @@
-+{#- A correction row wins even when its value is empty: empty means no source states the value. -#}
-+{% macro bio_correction(correction_alias, value) -%}
-+if({{ correction_alias }}.player_api_id is null, {{ value }}, {{ correction_alias }}.corrected_value)
-+{%- endmacro %}
-diff --git a/dbt_project/macros/player_id_override.sql b/dbt_project/macros/player_id_override.sql
-new file mode 100644
-index 00000000..5e40d9a9
---- /dev/null
-+++ b/dbt_project/macros/player_id_override.sql
-@@ -0,0 +1,11 @@
-+{#- The id a player keeps when the provider holds that player under two. -#}
-+{% macro player_id_override(player_id) -%}
-+    coalesce(
-+        (
-+            select override.correct_player_api_id
-+            from {{ ref('player_id_overrides') }} as override
-+            where override.wrong_player_api_id = {{ player_id }}
-+        ),
-+        {{ player_id }}
-+    )
-+{%- endmacro %}
-diff --git a/dbt_project/macros/possible_birth_date.sql b/dbt_project/macros/possible_birth_date.sql
-new file mode 100644
-index 00000000..ca1903f3
---- /dev/null
-+++ b/dbt_project/macros/possible_birth_date.sql
-@@ -0,0 +1,8 @@
-+{#- A date under 13 years before the record was ingested is the provider's placeholder: empty. -#}
-+{% macro possible_birth_date(birth_date, ingested_at) -%}
-+    if(
-+        {{ birth_date }} > date_sub(date({{ ingested_at }}), interval 13 year),
-+        cast(null as date),
-+        {{ birth_date }}
-+    )
-+{%- endmacro %}
-diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
-index e2136c19..79389e34 100644
---- a/dbt_project/models/2_base/api_football/base.yml
-+++ b/dbt_project/models/2_base/api_football/base.yml
-@@ -434,6 +434,10 @@ models:
-       - name: player_api_id
-         description: "{{ doc('player_api_id') }}"
-         tests: [not_null]
-+      - name: has_conflicting_birth_date
-+        description: "True when the player's rows from the chosen source and latest ingest hold two real birth dates. A row in player_bio_corrections settles it."
-+      - name: has_conflicting_nationality
-+        description: "True when the player's rows from the chosen source and latest ingest hold two real nationalities. A row in player_bio_corrections settles it."
+-amendments: >
+-  Both approved in chat, 2026-11-06, and recorded on #260. A profile value no longer settles a
+-  conflict: every conflict needs a checked correction. A new seed, player_id_overrides, merges one
+-  player's two provider ids, in the form of fixture_team_id_overrides with alias: first rows the 8
+-  pairs sorted as the same person. New mechanism, declared. It applies wherever a player id enters
+-  base: fixture_players, fixture_events, lineups, players, player_profiles, player_team_season,
+-  squads and transfers. No fetch holds both ids of a pair for one match, so no row is dropped.
+-  The id kept is the one with a birth date, otherwise the lower. The seed description's text was
+-  approved in chat, 2026-11-06. A test proves a merged player has one page and summed stats. The
+-  researched rows of fixture_card_corrections and fixture_lineup_corrections name the id kept.
++amendments: (none)
+diff --git a/docs/design/components.yml b/docs/design/components.yml
+index 407da87c..3d155f4d 100644
+--- a/docs/design/components.yml
++++ b/docs/design/components.yml
+@@ -233,7 +233,6 @@ components:
+     parts:
+       trend: {class: tr, selector: ".ctab.yoyt .n.tr", element: Trend, rule: "▲ in the accent when this season is better, ▼ in the loss red when worse, \"–\" when the shown values are equal", measured: "font-size=13px", ruled-on: the Team page review}
+       list: {class: yoy-list}
+-      head: {class: yoyt-head, gap: mock-css}
+       up: {class: up, gap: mock-css}
+       down: {class: down, gap: mock-css}
+       flat: {class: flat, gap: mock-css}
+diff --git a/site_v2/src/components/team/TeamLastSeason.astro b/site_v2/src/components/team/TeamLastSeason.astro
+index ca000273..ff21b6eb 100644
+--- a/site_v2/src/components/team/TeamLastSeason.astro
++++ b/site_v2/src/components/team/TeamLastSeason.astro
+@@ -39,18 +39,16 @@ const shown = (v: unknown, format: Parameters<typeof formatValue>[1]) =>
+     <p class="bsub">{t(lang, "teamVsLastSeasonIntro", { n: integer(s.yoy_games_played_cutoff, lang) })}</p>
+     {needsSwitch(groups) && <MetricSwitch id="tsw-season" lang={lang} />}
+     <div class="yoy-list">
+-      <div class="ctab yoyt yoyt-head">
+-        <div class="ctab-head">
+-          <span class="h nmh"></span>
+-          <span class="h">{t(lang, "teamThisSeasonHead")}</span>
+-          <span class="h">{t(lang, "teamLastSeasonHead")}</span>
+-          <span class="h tr">{t(lang, "teamTrend")}</span>
+-        </div>
+-      </div>
+       {groups.map((g) => (
+         <div class:list={["fxgroup", "rkgroup", { nonkey: !g.hasKey }]}>
+           <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${g.key}.label`)}</span></div>
+           <div class="ctab yoyt">
++            <div class="ctab-head">
++              <span class="h nmh"></span>
++              <span class="h">{t(lang, "teamThisSeasonHead")}</span>
++              <span class="h">{t(lang, "teamLastSeasonHead")}</span>
++              <span class="h tr">{t(lang, "teamTrend")}</span>
++            </div>
+             {g.rows.map((r) => {
+               const a = shown(now[r.metric_id], r.format);
+               const b = shown(prev[r.metric_id], r.format);
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index 45ca0e39..184a787d 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -1095,18 +1095,17 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
  
-   - name: base_apif__player_profiles
-     description: >
-diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
-index 16397d90..43927836 100644
---- a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
-@@ -7,10 +7,10 @@ with src as (
-         minute_extra,
-         team_id,
-         team_name,
--        player_id,
-+        {{ player_id_override('player_id') }} as player_id,
-         player_name,
-         assist_player_name,
--        assist_player_id,
-+        {{ player_id_override('assist_player_id') }} as assist_player_id,
-         event_type,
-         event_detail,
-         event_comments,
-@@ -150,7 +150,7 @@ attributed as (
- player_rows as (
-     select distinct
-         player_row.fixture_id,
--        player_row.player_id,
-+        {{ player_id_override('player_row.player_id') }} as player_id,
-         coalesce(
-             fixture_override.correct_team_api_id,
-             alias_override.correct_team_api_id,
-diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-index 2a059c81..bcc31aeb 100644
---- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-@@ -16,7 +16,7 @@ with src as (
-         league_code,
-         fixture_id,
-         team_id,
--        player_id,
-+        {{ player_id_override('player_id') }} as player_id,
-         minutes_played,
-         shirt_number,
-         position_code,
-@@ -334,13 +334,13 @@ latest_sheets as (
- sheet_players as (
-     select
-         s.fixture_id,
--        safe_cast(json_value(player_el, '$.player.id') as int64) as player_id
-+        {{ player_id_override("safe_cast(json_value(player_el, '$.player.id') as int64)") }} as player_id
-     from latest_sheets as s,
-         unnest(json_query_array(s.start_xi_json)) as player_el
-     union distinct
-     select
-         s.fixture_id,
--        safe_cast(json_value(player_el, '$.player.id') as int64) as player_id
-+        {{ player_id_override("safe_cast(json_value(player_el, '$.player.id') as int64)") }} as player_id
-     from latest_sheets as s,
-         unnest(json_query_array(s.substitutes_json)) as player_el
-     union distinct
-diff --git a/dbt_project/models/2_base/api_football/base_apif__lineups.sql b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
-index ed262c00..b72c19f9 100644
---- a/dbt_project/models/2_base/api_football/base_apif__lineups.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
-@@ -118,7 +118,7 @@ parsed as (
-         raw_ingested_at,
-         is_starter,
-         sheet_index,
--        nullif(safe_cast(json_value(player_el, '$.player.id') as int64), 0) as player_id,
-+        {{ player_id_override("nullif(safe_cast(json_value(player_el, '$.player.id') as int64), 0)") }} as player_id,
-         json_value(player_el, '$.player.name') as player_name,
-         safe_cast(json_value(player_el, '$.player.number') as int64) as shirt_number,
-         json_value(player_el, '$.player.pos') as position_code,
-diff --git a/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql b/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
-index e6367d4e..cf6eeb4a 100644
---- a/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
-@@ -15,6 +15,10 @@ import_country_name_overrides as (
-     select * from {{ ref('country_name_overrides') }}
- ),
+ /* Compared with last season: a table of this season, last season and the trend; ▲ in the accent when
+    better, ▼ in the loss red when worse, "–" when equal. The stripes count the rows on screen. */
+-.ctab.yoyt, .ctab.yoyt.ctab { --cols: minmax(0, 1fr) 3.4rem 3.4rem 2.8rem; margin-top: 0; }
++.ctab.yoyt, .ctab.yoyt.ctab { --cols: minmax(0, 1fr) 3.4rem 3.4rem 2.8rem; margin-top: 26px; }
+ @container (min-width: 420px) { .ctab.yoyt, .ctab.yoyt.ctab { --cols: minmax(0, 1fr) 4.6rem 4.6rem 3rem; } }
++.ctab.yoyt .ctab-head { align-items: start; }
+ .ctab.yoyt .ctab-head .h { white-space: normal; line-height: 1.2; }
+ .ctab.yoyt .h.tr { text-align: center; }
+-.ctab.yoyt .tm .nm { font-weight: 400; }
+ .ctab.yoyt .n.now { font-size: 15px; font-weight: 700; color: var(--ink); }
+ .ctab.yoyt .n.prev { font-size: 15px; color: var(--ink-2); }
+ .ctab.yoyt .n.tr { font-size: 13px; text-align: center; padding-left: 0; }
+ .ctab.yoyt .tr.up { color: var(--accent); }
+ .ctab.yoyt .tr.down { color: var(--loss); }
+ .ctab.yoyt .tr.flat { color: var(--muted); }
+-.yoyt-head { margin-top: 6px; }
+ .tsw:not(:checked) ~ * .ctab.yoyt .ctab-row { background: transparent; }
+ .tsw:not(:checked) ~ * .ctab.yoyt .ctab-row:nth-child(odd of :not(.nonkey)) { background: color-mix(in srgb, var(--ink) 5%, transparent); }
  
-+import_player_bio_corrections as (
-+    select * from {{ ref('player_bio_corrections') }}
-+),
-+
- renamed as (
-     select
-         player_name,
-@@ -29,7 +33,7 @@ renamed as (
-         position as player_position,
-         player_photo_url,
-         raw_ingested_at,
--        safe_cast(player_id as int64) as player_api_id
-+        {{ player_id_override('safe_cast(player_id as int64)') }} as player_api_id
-     from src
- ),
- 
-@@ -71,8 +75,53 @@ latest as (
-     from corrected
-     qualify row_number() over (
-         partition by player_api_id
--        order by raw_ingested_at desc
-+        order by
-+            player_birth_date is null asc,
-+            raw_ingested_at desc,
-+            player_nationality is null asc,
-+            player_birth_date asc,
-+            player_nationality asc,
-+            player_name asc,
-+            player_first_name asc,
-+            player_last_name asc,
-+            player_birth_place asc,
-+            player_birth_country asc,
-+            player_height asc,
-+            player_weight asc,
-+            player_position asc,
-+            player_photo_url asc
-     ) = 1
-+),
-+
-+bio_corrected as (
-+    select
-+        latest.player_api_id,
-+        latest.player_name,
-+        latest.player_first_name,
-+        latest.player_last_name,
-+        latest.player_birth_place,
-+        latest.player_birth_country,
-+        latest.player_height,
-+        latest.player_weight,
-+        latest.player_position,
-+        latest.player_photo_url,
-+        latest.raw_ingested_at,
-+        safe_cast(
-+            {{ bio_correction(
-+                'birth_date_fix',
-+                'cast(' ~ possible_birth_date('latest.player_birth_date', 'latest.raw_ingested_at') ~ ' as string)'
-+            ) }} as date
-+        ) as player_birth_date,
-+        {{ bio_correction('nationality_fix', 'latest.player_nationality') }} as player_nationality
-+    from latest
-+    left join import_player_bio_corrections as birth_date_fix
-+        on
-+            latest.player_api_id = birth_date_fix.player_api_id
-+            and birth_date_fix.corrected_field = 'player_birth_date'
-+    left join import_player_bio_corrections as nationality_fix
-+        on
-+            latest.player_api_id = nationality_fix.player_api_id
-+            and nationality_fix.corrected_field = 'player_nationality'
- )
- 
- select
-@@ -89,4 +138,4 @@ select
-     {{ repair_garbled_text('player_first_name') }} as player_first_name,
-     {{ repair_garbled_text('player_last_name') }} as player_last_name,
-     {{ repair_garbled_text('player_nationality') }} as player_nationality
--from latest
-+from bio_corrected
-diff --git a/dbt_project/models/2_base/api_football/base_apif__player_team_season.sql b/dbt_project/models/2_base/api_football/base_apif__player_team_season.sql
-index cf84f306..5bf1f2f9 100644
---- a/dbt_project/models/2_base/api_football/base_apif__player_team_season.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__player_team_season.sql
-@@ -4,7 +4,10 @@
- -- is single-source ROSTERED, never derived from facts.
- -- Grain: (league_code, player_id, team_id, season_year). league_code flows through.
- with src as (
--    select * from {{ ref('stg_apif__players') }}
-+    select
-+        * except (player_id),
-+        {{ player_id_override('player_id') }} as player_id
-+    from {{ ref('stg_apif__players') }}
- )
- 
- select
-diff --git a/dbt_project/models/2_base/api_football/base_apif__players.sql b/dbt_project/models/2_base/api_football/base_apif__players.sql
-index a74262f7..c8b684c2 100644
---- a/dbt_project/models/2_base/api_football/base_apif__players.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__players.sql
-@@ -11,15 +11,16 @@
- -- and the facts, not here. Feeds dim_player 1:1. Grain: player_api_id.
- with players_src as (
-     select
--        safe_cast(player_id as int64) as player_api_id,
-+        {{ player_id_override('safe_cast(player_id as int64)') }} as player_api_id,
-         player_name,
-         player_firstname as player_first_name,
-         player_lastname as player_last_name,
--        birth_date as player_birth_date,
-+        {{ possible_birth_date('birth_date', 'raw_ingested_at') }} as player_birth_date,
-         nationality as player_nationality,
-         player_photo_url,
-         raw_ingested_at,
--        1 as source_priority
-+        1 as source_priority,
-+        season_year as tie_recency
-     from {{ ref('stg_apif__players') }}
-     where player_id is not null
- ),
-@@ -28,7 +29,7 @@ with players_src as (
- -- Only id, name and photo are known from this source.
- fixture_players_src as (
-     select
--        player_id as player_api_id,
-+        {{ player_id_override('player_id') }} as player_api_id,
-         player_name,
-         cast(null as string) as player_first_name,
-         cast(null as string) as player_last_name,
-@@ -36,7 +37,8 @@ fixture_players_src as (
-         cast(null as string) as player_nationality,
-         player_photo_url,
-         raw_ingested_at,
--        2 as source_priority
-+        2 as source_priority,
-+        fixture_id as tie_recency
-     from {{ ref('stg_apif__fixture_players') }}
-     where player_id is not null and player_id != 0
- ),
-@@ -52,7 +54,8 @@ fixture_events_src as (
-         cast(null as string) as player_nationality,
-         cast(null as string) as player_photo_url,
-         raw_ingested_at,
--        3 as source_priority
-+        3 as source_priority,
-+        fixture_id as tie_recency
-     from {{ ref('base_apif__fixture_events') }}
-     where
-         safe_cast(player_id as int64) is not null
-@@ -70,7 +73,8 @@ assist_events_src as (
-         cast(null as string) as player_nationality,
-         cast(null as string) as player_photo_url,
-         raw_ingested_at,
--        4 as source_priority
-+        4 as source_priority,
-+        fixture_id as tie_recency
-     from {{ ref('base_apif__fixture_events') }}
-     where
-         assist_player_id is not null
-@@ -87,7 +91,8 @@ lineups_src as (
-         cast(null as string) as player_nationality,
-         cast(null as string) as player_photo_url,
-         raw_ingested_at,
--        5 as source_priority
-+        5 as source_priority,
-+        fixture_id as tie_recency
-     from {{ ref('base_apif__lineups') }}
- ),
- 
-@@ -103,6 +108,12 @@ src as (
-     select * from lineups_src
- ),
- 
-+import_player_bio_corrections as (
-+    select * from {{ ref('player_bio_corrections') }}
-+),
-+
-+-- Rows tied on source and ingest time can disagree: a player has one /players row per team and
-+-- season, all stamped by one batch. The order below settles every tie the same way on every build.
- latest as (
-     select
-         player_api_id,
-@@ -112,14 +123,54 @@ latest as (
-         player_birth_date,
-         player_nationality,
-         player_photo_url,
--        raw_ingested_at
-+        raw_ingested_at,
-+        count(distinct player_birth_date) over (
-+            partition by player_api_id, source_priority, raw_ingested_at
-+        ) > 1 as has_conflicting_birth_date,
-+        count(distinct player_nationality) over (
-+            partition by player_api_id, source_priority, raw_ingested_at
-+        ) > 1 as has_conflicting_nationality
-     from src
-     qualify row_number() over (
-         partition by player_api_id
-         order by
-             source_priority asc,
--            raw_ingested_at desc
-+            raw_ingested_at desc,
-+            player_birth_date is null asc,
-+            player_nationality is null asc,
-+            tie_recency desc,
-+            player_birth_date asc,
-+            player_nationality asc,
-+            player_name asc,
-+            player_first_name asc,
-+            player_last_name asc,
-+            player_photo_url asc
-     ) = 1
-+),
-+
-+corrected as (
-+    select
-+        latest.player_api_id,
-+        latest.player_name,
-+        latest.player_first_name,
-+        latest.player_last_name,
-+        latest.player_photo_url,
-+        latest.raw_ingested_at,
-+        latest.has_conflicting_birth_date,
-+        latest.has_conflicting_nationality,
-+        safe_cast(
-+            {{ bio_correction('birth_date_fix', 'cast(latest.player_birth_date as string)') }} as date
-+        ) as player_birth_date,
-+        {{ bio_correction('nationality_fix', 'latest.player_nationality') }} as player_nationality
-+    from latest
-+    left join import_player_bio_corrections as birth_date_fix
-+        on
-+            latest.player_api_id = birth_date_fix.player_api_id
-+            and birth_date_fix.corrected_field = 'player_birth_date'
-+    left join import_player_bio_corrections as nationality_fix
-+        on
-+            latest.player_api_id = nationality_fix.player_api_id
-+            and nationality_fix.corrected_field = 'player_nationality'
- )
- 
- select
-@@ -127,8 +178,10 @@ select
-     player_birth_date,
-     player_photo_url,
-     raw_ingested_at,
-+    has_conflicting_birth_date,
-+    has_conflicting_nationality,
-     {{ repair_garbled_text('player_name') }} as player_name,
-     {{ repair_garbled_text('player_first_name') }} as player_first_name,
-     {{ repair_garbled_text('player_last_name') }} as player_last_name,
-     {{ repair_garbled_text('player_nationality') }} as player_nationality
--from latest
-+from corrected
-diff --git a/dbt_project/models/2_base/api_football/base_apif__squads.sql b/dbt_project/models/2_base/api_football/base_apif__squads.sql
-index 056eef6b..7cdb010e 100644
---- a/dbt_project/models/2_base/api_football/base_apif__squads.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__squads.sql
-@@ -4,7 +4,10 @@
- #}
- 
- with src as (
--    select * from {{ ref('stg_apif__squads') }}
-+    select
-+        * except (player_id),
-+        {{ player_id_override('player_id') }} as player_id
-+    from {{ ref('stg_apif__squads') }}
-     where team_id is not null and player_id is not null
- )
- 
-diff --git a/dbt_project/models/2_base/api_football/base_apif__transfers.sql b/dbt_project/models/2_base/api_football/base_apif__transfers.sql
-index a7dcc103..5040988f 100644
---- a/dbt_project/models/2_base/api_football/base_apif__transfers.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__transfers.sql
-@@ -10,7 +10,10 @@
- -- league_code is pinned deterministically (latest ingest, then league_code asc).
- -- Grain: (player_id, team_in_id, team_out_id, transfer_date).
- with src as (
--    select * from {{ ref('stg_apif__transfers') }}
-+    select
-+        * except (player_id),
-+        {{ player_id_override('player_id') }} as player_id
-+    from {{ ref('stg_apif__transfers') }}
-     where
-         player_id is not null
-         and transfer_date is not null
-diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
-index a98e6173..27b39bc7 100644
---- a/dbt_project/models/docs/shared_columns.md
-+++ b/dbt_project/models/docs/shared_columns.md
-@@ -790,8 +790,8 @@ Text sent in the wrong character set is repaired. NULL when none is ingested for
- 
- {% docs player_birth_date %}
- The player's birth date as dim_player publishes it, parsed from the provider's birth date
--field. NULL when that field was missing or not parseable; age is derived at render time and
--never stored.
-+field. NULL when that field was missing, not parseable or impossible (under 13 years before the
-+record was ingested); age is derived at render time and never stored.
- {% enddocs %}
- 
- {% docs opponent_name %}
-diff --git a/dbt_project/seeds/fixture_card_corrections.csv b/dbt_project/seeds/fixture_card_corrections.csv
-index d02c9a3a..4cbb5eb8 100644
---- a/dbt_project/seeds/fixture_card_corrections.csv
-+++ b/dbt_project/seeds/fixture_card_corrections.csv
-@@ -390,7 +390,7 @@ fixture_id,card_order,team_id,player_id,player_name,minute_elapsed,minute_extra,
- 1495662,5,650,55756,S. Lindholm,53,,Yellow Card,official,https://www.veikkausliiga.com/tilastot/2026/veikkausliiga/ottelut/4036871/seuranta/,"VPS-Ilves, VL, 2026-04-24: every card checked against the Veikkausliiga match record"
- 1495674,1,1168,546354,P. Juvanteny,5,,Yellow Card,official,https://www.veikkausliiga.com/tilastot/2026/veikkausliiga/ottelut/4036883/seuranta/,"Turku PS-HJK Helsinki, VL, 2026-05-08: every card checked against the Veikkausliiga match record"
- 1495674,2,649,425780,P. Mentu,63,,Yellow Card,official,https://www.veikkausliiga.com/tilastot/2026/veikkausliiga/ottelut/4036883/seuranta/,"Turku PS-HJK Helsinki, VL, 2026-05-08: every card checked against the Veikkausliiga match record"
--1495674,3,1168,586554,E. Turkki,90,1,Yellow Card,official,https://www.veikkausliiga.com/tilastot/2026/veikkausliiga/ottelut/4036883/seuranta/,"Turku PS-HJK Helsinki, VL, 2026-05-08: every card checked against the Veikkausliiga match record"
-+1495674,3,1168,444355,E. Turkki,90,1,Yellow Card,official,https://www.veikkausliiga.com/tilastot/2026/veikkausliiga/ottelut/4036883/seuranta/,"Turku PS-HJK Helsinki, VL, 2026-05-08: every card checked against the Veikkausliiga match record"
- 1495710,1,1166,21002,R. Sans,15,,Yellow Card,official,https://www.veikkausliiga.com/tilastot/2026/veikkausliiga/ottelut/4036919/seuranta/,"Lahti-Turku PS, VL, 2026-06-23: every card checked against the Veikkausliiga match record"
- 1495710,2,1166,628426,J. Muller,27,,Yellow Card,official,https://www.veikkausliiga.com/tilastot/2026/veikkausliiga/ottelut/4036919/seuranta/,"Lahti-Turku PS, VL, 2026-06-23: every card checked against the Veikkausliiga match record"
- 1495710,3,1168,316465,O. Haggstrom,51,,Yellow Card,official,https://www.veikkausliiga.com/tilastot/2026/veikkausliiga/ottelut/4036919/seuranta/,"Lahti-Turku PS, VL, 2026-06-23: every card checked against the Veikkausliiga match record"
-diff --git a/dbt_project/seeds/fixture_lineup_corrections.csv b/dbt_project/seeds/fixture_lineup_corrections.csv
-index d35736d8..e41bc4e9 100644
---- a/dbt_project/seeds/fixture_lineup_corrections.csv
-+++ b/dbt_project/seeds/fixture_lineup_corrections.csv
-@@ -5521,7 +5521,7 @@ fixture_id,team_id,player_id,player_name,is_starter,shirt_number,position_code,g
- 1493097,438,669581,S. Prima,false,27,F,,4-2-3-1,,,,,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614459,"Deportivo Riestra-Velez Sarsfield, Liga Profesional Clausura 2026, 2026-08-29: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the provider names no player leaving where L. Piola came on for T. Aguirre at 90+6'."
- 1493097,438,665052,L. Piola,false,30,F,,4-2-3-1,90,6,650878,,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614459,"Deportivo Riestra-Velez Sarsfield, Liga Profesional Clausura 2026, 2026-08-29: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the provider names no player leaving where L. Piola came on for T. Aguirre at 90+6'."
- 1493097,438,524416,M. Arias,false,35,F,,4-2-3-1,,,,,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614459,"Deportivo Riestra-Velez Sarsfield, Liga Profesional Clausura 2026, 2026-08-29: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the provider names no player leaving where L. Piola came on for T. Aguirre at 90+6'."
--1493097,438,654052,J. Policella,false,37,,,4-2-3-1,,,,,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614459,"Deportivo Riestra-Velez Sarsfield, Liga Profesional Clausura 2026, 2026-08-29: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the provider names no player leaving where L. Piola came on for T. Aguirre at 90+6'."
-+1493097,438,645347,J. Policella,false,37,,,4-2-3-1,,,,,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614459,"Deportivo Riestra-Velez Sarsfield, Liga Profesional Clausura 2026, 2026-08-29: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the provider names no player leaving where L. Piola came on for T. Aguirre at 90+6'."
- 1493097,438,650878,T. Aguirre,false,39,F,,4-2-3-1,69,,472576,90,6,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614459,"Deportivo Riestra-Velez Sarsfield, Liga Profesional Clausura 2026, 2026-08-29: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the provider names no player leaving where L. Piola came on for T. Aguirre at 90+6'."
- 1493097,438,645338,A. Pereyra,false,47,D,,4-2-3-1,,,,,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614459,"Deportivo Riestra-Velez Sarsfield, Liga Profesional Clausura 2026, 2026-08-29: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the provider names no player leaving where L. Piola came on for T. Aguirre at 90+6'."
- 1493097,438,642900,L. Feler,false,48,M,,4-2-3-1,69,,6065,,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614459,"Deportivo Riestra-Velez Sarsfield, Liga Profesional Clausura 2026, 2026-08-29: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the provider names no player leaving where L. Piola came on for T. Aguirre at 90+6'."
-@@ -5739,13 +5739,13 @@ fixture_id,team_id,player_id,player_name,is_starter,shirt_number,position_code,g
- 1493166,438,2473,M. Lanzini,true,22,M,4:2,4-2-3-1,,,,9,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614520,"Velez Sarsfield-Platense, Liga Profesional Clausura 2026, 2026-10-05: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the official sheet pairs I. Gomez for M. Amarfil at 65', where the provider's pairs differ."
- 1493166,438,6028,R. Aliendro,true,29,M,3:2,4-2-3-1,,,,,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614520,"Velez Sarsfield-Platense, Liga Profesional Clausura 2026, 2026-10-05: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the official sheet pairs I. Gomez for M. Amarfil at 65', where the provider's pairs differ."
- 1493166,438,475730,T. Silvero,true,32,D,2:3,4-2-3-1,,,,,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614520,"Velez Sarsfield-Platense, Liga Profesional Clausura 2026, 2026-10-05: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the official sheet pairs I. Gomez for M. Amarfil at 65', where the provider's pairs differ."
--1493166,438,654052,J. Policella,true,37,,4:1,4-2-3-1,,,,14,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614520,"Velez Sarsfield-Platense, Liga Profesional Clausura 2026, 2026-10-05: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the official sheet pairs I. Gomez for M. Amarfil at 65', where the provider's pairs differ."
-+1493166,438,645347,J. Policella,true,37,,4:1,4-2-3-1,,,,14,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614520,"Velez Sarsfield-Platense, Liga Profesional Clausura 2026, 2026-10-05: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the official sheet pairs I. Gomez for M. Amarfil at 65', where the provider's pairs differ."
- 1493166,438,650878,T. Aguirre,true,39,M,4:3,4-2-3-1,,,,71,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614520,"Velez Sarsfield-Platense, Liga Profesional Clausura 2026, 2026-10-05: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the official sheet pairs I. Gomez for M. Amarfil at 65', where the provider's pairs differ."
- 1493166,438,95314,R. Martinez,true,77,F,5:1,4-2-3-1,,,,,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614520,"Velez Sarsfield-Platense, Liga Profesional Clausura 2026, 2026-10-05: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the official sheet pairs I. Gomez for M. Amarfil at 65', where the provider's pairs differ."
- 1493166,438,44435,C. Baeza,false,5,M,,4-2-3-1,,,,,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614520,"Velez Sarsfield-Platense, Liga Profesional Clausura 2026, 2026-10-05: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the official sheet pairs I. Gomez for M. Amarfil at 65', where the provider's pairs differ."
- 1493166,438,2561,D. Valdes,false,10,M,,4-2-3-1,9,,2473,,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614520,"Velez Sarsfield-Platense, Liga Profesional Clausura 2026, 2026-10-05: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the official sheet pairs I. Gomez for M. Amarfil at 65', where the provider's pairs differ."
- 1493166,438,516770,D. Godoy,false,15,F,,4-2-3-1,,,,,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614520,"Velez Sarsfield-Platense, Liga Profesional Clausura 2026, 2026-10-05: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the official sheet pairs I. Gomez for M. Amarfil at 65', where the provider's pairs differ."
--1493166,438,606035,S. Escobar,false,18,D,,4-2-3-1,14,,654052,,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614520,"Velez Sarsfield-Platense, Liga Profesional Clausura 2026, 2026-10-05: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the official sheet pairs I. Gomez for M. Amarfil at 65', where the provider's pairs differ."
-+1493166,438,606035,S. Escobar,false,18,D,,4-2-3-1,14,,645347,,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614520,"Velez Sarsfield-Platense, Liga Profesional Clausura 2026, 2026-10-05: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the official sheet pairs I. Gomez for M. Amarfil at 65', where the provider's pairs differ."
- 1493166,438,515537,L. Cristaldo,false,19,D,,4-2-3-1,,,,,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614520,"Velez Sarsfield-Platense, Liga Profesional Clausura 2026, 2026-10-05: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the official sheet pairs I. Gomez for M. Amarfil at 65', where the provider's pairs differ."
- 1493166,438,475728,J. Gordon,false,21,D,,4-2-3-1,,,,,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614520,"Velez Sarsfield-Platense, Liga Profesional Clausura 2026, 2026-10-05: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the official sheet pairs I. Gomez for M. Amarfil at 65', where the provider's pairs differ."
- 1493166,438,289450,F. Sanguinetti,false,23,G,,4-2-3-1,,,,,,official,https://www.ligaprofesional.ar/ficha-partido/?competition=724&season=2026&match=2614520,"Velez Sarsfield-Platense, Liga Profesional Clausura 2026, 2026-10-05: both starting elevens and every substitution checked against the league's official match sheet; formations, pitch positions and unused substitutes are the provider's; the official sheet pairs I. Gomez for M. Amarfil at 65', where the provider's pairs differ."
-diff --git a/dbt_project/seeds/player_bio_corrections.csv b/dbt_project/seeds/player_bio_corrections.csv
-new file mode 100644
-index 00000000..88e13d52
---- /dev/null
-+++ b/dbt_project/seeds/player_bio_corrections.csv
-@@ -0,0 +1,22 @@
-+player_api_id,corrected_field,corrected_value,provider_values,source,note
-+44157,player_birth_date,1993-08-27,1993-08-27 / 1993-08-28,https://en.wikipedia.org/wiki/Abdullah_Al-Dossari_(born_1993),Wikipedia and Soccerway agree.
-+44282,player_birth_date,,1992-03-28 / 1992-05-28,no source found,Sources disagree and no primary page states the date.
-+82559,player_nationality,England,Scotland / England,https://en.wikipedia.org/wiki/Scott_McManus,Born in Prestwich; no caps for any country.
-+101358,player_nationality,Turkey,Türkiye / Turkey,https://www.fussballtransfers.com/spieler/kemal-cingirt,One country spelled two ways.
-+110362,player_nationality,Hong Kong,"Hong Kong / Hong Kong, China",https://en.wikipedia.org/wiki/Alex_Chin,One country spelled two ways.
-+263441,player_nationality,Finland,Finland / Sweden,https://en.wikipedia.org/wiki/Oliver_Pettersson,Played for Finland at under-19 to under-21 level.
-+284411,player_birth_date,2004-06-03,2004-06-03 / 2004-04-03,https://en.wikipedia.org/wiki/Remy_Coddington,Bermuda international; the other date swaps day and month.
-+296515,player_birth_date,,1992-02-10 / 1991-12-06,no source found,One site states a date and no second page confirms it.
-+301185,player_birth_date,2000-03-25,2000-03-25 / 2000-05-25,https://www.fotmob.com/players/1227333/naser-al-shikali,FotMob and FootballTransfers agree.
-+327575,player_birth_date,,2001-01-01 / 2001-01-02,no source found,Outside sources give 2001-01-01 and 2001-01-03; no primary page settles it.
-+334599,player_birth_date,2002-04-19,2002-04-19 / 2001-09-20,https://www.livesoccertv.com/player/j-putz/382568/,LiveSoccerTV and Soccerway agree.
-+334964,player_nationality,,Morocco / France,no source found,Sources disagree and he has no caps for either country.
-+349701,player_birth_date,2004-07-04,2004-04-04 / 2004-07-04,https://ie.soccerway.com/player/gualandris-matteo/vRTmOtwT,Soccerway and LiveSoccerTV agree.
-+366103,player_nationality,,Serbia / Montenegro,no source found,Sources disagree and he has no caps for either country.
-+367496,player_nationality,,Portugal / Andorra,no source found,No page states his nationality.
-+383418,player_birth_date,,2003-01-01 / 2002-01-05,no source found,The provider merges two Egyptian players of this name; each date belongs to one of them.
-+399559,player_birth_date,2001-04-04,2001-04-28 / 2001-04-04,https://guiseleyafc.co.uk/?p=41019,His club's page and FotMob agree.
-+413021,player_nationality,Ghana,Ghana / Netherlands,https://kaweah.freedombox.rocks/kiwix/wikipedia_en_all_maxi_2023-10/Obed_Yeboah,Dutch-Ghanaian with no caps; Ghana is the provider's profile value and is true.
-+434252,player_nationality,Ghana,Libya / Ghana,https://africa.espn.com/football/player/bio/_/id/377574/andoh-kelvin,ESPN and the Ghanaian press agree; he plays in Libya.
-+295722,player_nationality,,England / Italy,no source found,The player could not be identified outside the provider.
-+448837,player_birth_date,,2006-04-03 / 2006-04-13,no source found,Sources disagree and no primary page states the date.
-diff --git a/dbt_project/seeds/player_id_overrides.csv b/dbt_project/seeds/player_id_overrides.csv
-new file mode 100644
-index 00000000..c088cfe1
---- /dev/null
-+++ b/dbt_project/seeds/player_id_overrides.csv
-@@ -0,0 +1,9 @@
-+wrong_player_api_id,correct_player_api_id,mode,note
-+330722,330295,alias,"Same birth date 2002-07-25, SC Braga; 82 matches pair the two ids across sheet and stat line."
-+371383,32451,alias,"Same birth date 1999-12-08; 56 matches pair the two ids across sheet and stat line."
-+532925,29847,alias,"Same birth date 1993-02-26, Tractor shirt 11; the events under this id name Danial Esmaeilifar."
-+542861,410840,alias,"Same birth date 2006-10-16; 21 matches pair the two ids across sheet and stat line."
-+287096,263441,alias,"Oliver Pettersson: Ilves, Gnistan and HJK under both ids; one such player (https://en.wikipedia.org/wiki/Oliver_Pettersson)."
-+586554,444355,alias,"Eetu Turkki: Turku PS shirt 3 under both ids; one such player (https://en.wikipedia.org/wiki/Eetu_Turkki)."
-+654052,645347,alias,"Juan Cruz Policella: Velez Sarsfield shirt 37 under both ids; 12 shared matches and no second Policella at the club."
-+581809,474582,alias,"Toshikazu Teruuchi: Urawa shirt 27 under both ids; one such player (https://africa.espn.com/football/player/bio/_/id/386963/toshikazu-teruuchi)."
-diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
-index 013ae3a2..aa494070 100644
---- a/dbt_project/seeds/schema.yml
-+++ b/dbt_project/seeds/schema.yml
-@@ -1488,6 +1488,79 @@ seeds:
-         tests:
-           - not_null
- 
-+  - name: player_id_overrides
-+    description: >
-+      One player the provider holds under two ids, one row per duplicate id, naming the id the
-+      player keeps.
-+    config:
-+      column_types:
-+        wrong_player_api_id: int64
-+        correct_player_api_id: int64
-+        mode: string
-+        note: string
-+    columns:
-+      - name: wrong_player_api_id
-+        description: "The duplicate id."
-+        tests:
-+          - not_null
-+          - unique
-+      - name: correct_player_api_id
-+        description: "The id the player keeps."
-+        tests:
-+          - not_null
-+      - name: mode
-+        description: "alias: the duplicate id is replaced everywhere."
-+        tests:
-+          - not_null
-+          - accepted_values:
-+              values: ["alias"]
-+      - name: note
-+        description: "What proves the two ids are one person."
-+        tests:
-+          - not_null
-+
-+  - name: player_bio_corrections
-+    description: >
-+      A player's birth date or nationality where the provider's records conflict: one row per
-+      player and field. Applied in `base_apif__players` and `base_apif__player_profiles`, and it
-+      wins over both. An empty value means no outside source states it, so the player shows none.
-+    config:
-+      column_types:
-+        player_api_id: int64
-+        corrected_field: string
-+        corrected_value: string
-+        provider_values: string
-+        source: string
-+        note: string
-+    tests:
-+      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns: [player_api_id, corrected_field]
-+    columns:
-+      - name: player_api_id
-+        description: "The player this row corrects."
-+        tests:
-+          - not_null
-+      - name: corrected_field
-+        description: "The field corrected: player_birth_date or player_nationality."
-+        tests:
-+          - not_null
-+          - accepted_values:
-+              values: ["player_birth_date", "player_nationality"]
-+      - name: corrected_value
-+        description: "The value the player shows; empty when no outside source states it."
-+      - name: provider_values
-+        description: "The conflicting values the provider sent when the row was written."
-+        tests:
-+          - not_null
-+      - name: source
-+        description: "URL of the page that states the value, or \"no source found\"."
-+        tests:
-+          - not_null
-+      - name: note
-+        description: "Why this value was chosen."
-+        tests:
-+          - not_null
-+
-   - name: league_name_overrides
-     description: >
-       Corrections to a COMPETITION's display name: one row per competition whose provider name is
-diff --git a/dbt_project/tests/assert_base_player_stats_cleaned.sql b/dbt_project/tests/assert_base_player_stats_cleaned.sql
-index 296d5e07..43782601 100644
---- a/dbt_project/tests/assert_base_player_stats_cleaned.sql
-+++ b/dbt_project/tests/assert_base_player_stats_cleaned.sql
-@@ -48,6 +48,13 @@ with players as (
- -- zero the cleaning filled in from a second source. Joined to base on the fetch it kept. Where the
- -- provider lists a player twice in that fetch, base keeps one row by its own rule, so a value counts
- -- as delivered only if both rows carry it, and a positive value in either counts as having played.
-+stat_rows as (
-+    select
-+        * except (player_id),
-+        {{ player_id_override('player_id') }} as player_id
-+    from {{ ref('stg_apif__fixture_players') }}
-+),
-+
- delivered as (
-     select
-         league_code,
-@@ -60,7 +67,7 @@ delivered as (
-         greatest(
-             {% for stat, name in provider_names.items() if stat != 'minutes' %}coalesce(max({{ name }}), 0), {% endfor %}0
-         ) > 0 as has_positive_stat
--    from {{ ref('stg_apif__fixture_players') }}
-+    from stat_rows
-     group by league_code, fixture_id, player_id, raw_ingested_at
- ),
- 
-diff --git a/dbt_project/tests/assert_player_bio_conflicts_settled.sql b/dbt_project/tests/assert_player_bio_conflicts_settled.sql
-new file mode 100644
-index 00000000..a32caf82
---- /dev/null
-+++ b/dbt_project/tests/assert_player_bio_conflicts_settled.sql
-@@ -0,0 +1,25 @@
-+-- A player whose tied records hold two real values needs a checked correction: a profile can be
-+-- wrong too, so it settles nothing here.
-+with corrections as (
-+    select
-+        player_api_id,
-+        corrected_field
-+    from {{ ref('player_bio_corrections') }}
-+)
-+
-+select
-+    players.player_api_id,
-+    players.has_conflicting_birth_date,
-+    players.has_conflicting_nationality
-+from {{ ref('base_apif__players') }} as players
-+left join corrections as birth_date_fix
-+    on
-+        players.player_api_id = birth_date_fix.player_api_id
-+        and birth_date_fix.corrected_field = 'player_birth_date'
-+left join corrections as nationality_fix
-+    on
-+        players.player_api_id = nationality_fix.player_api_id
-+        and nationality_fix.corrected_field = 'player_nationality'
-+where
-+    (players.has_conflicting_birth_date and birth_date_fix.player_api_id is null)
-+    or (players.has_conflicting_nationality and nationality_fix.player_api_id is null)
-diff --git a/dbt_project/tests/assert_player_birth_date_possible.sql b/dbt_project/tests/assert_player_birth_date_possible.sql
-new file mode 100644
-index 00000000..91be6c55
---- /dev/null
-+++ b/dbt_project/tests/assert_player_birth_date_possible.sql
-@@ -0,0 +1,6 @@
-+-- A published birth date under 13 years ago cannot be true.
-+select
-+    player_api_id,
-+    player_birth_date
-+from {{ ref('dim_player') }}
-+where player_birth_date > date_sub(current_date(), interval 13 year)
-diff --git a/dbt_project/tests/assert_player_id_overrides_merged.sql b/dbt_project/tests/assert_player_id_overrides_merged.sql
-new file mode 100644
-index 00000000..7a0d36ba
---- /dev/null
-+++ b/dbt_project/tests/assert_player_id_overrides_merged.sql
-@@ -0,0 +1,97 @@
-+-- A merged player has one page and one set of stats: the wrong id is gone everywhere, the id kept
-+-- holds the matches of both, and no fetch lists both ids in one match, where one row would be lost.
-+with overrides as (
-+    select
-+        wrong_player_api_id,
-+        correct_player_api_id
-+    from {{ ref('player_id_overrides') }}
-+),
-+
-+left_behind as (
-+    select
-+        'dim_player' as found_in,
-+        player_sk as player_id
-+    from {{ ref('dim_player') }}
-+    union all
-+    select
-+        'mart_player_profile',
-+        player_sk
-+    from {{ ref('mart_player_profile') }}
-+    union all
-+    select
-+        'fct_fixture_player_stats',
-+        player_sk
-+    from {{ ref('fct_fixture_player_stats') }}
-+    union all
-+    select
-+        'fct_fixture_lineup',
-+        player_sk
-+    from {{ ref('fct_fixture_lineup') }}
-+    union all
-+    select
-+        'fct_fixture_event',
-+        player_sk
-+    from {{ ref('fct_fixture_event') }}
-+    union all
-+    select
-+        'fct_fixture_event assist',
-+        assist_player_sk
-+    from {{ ref('fct_fixture_event') }}
-+),
-+
-+provider_matches as (
-+    select
-+        overrides.correct_player_api_id as player_id,
-+        count(distinct stat_rows.fixture_id) as matches
-+    from overrides
-+    inner join {{ ref('stg_apif__fixture_players') }} as stat_rows
-+        on stat_rows.player_id in (overrides.wrong_player_api_id, overrides.correct_player_api_id)
-+    group by overrides.correct_player_api_id
-+),
-+
-+both_ids_in_one_fetch as (
-+    select overrides.correct_player_api_id as player_id
-+    from overrides
-+    inner join {{ ref('stg_apif__fixture_players') }} as stat_rows
-+        on stat_rows.player_id in (overrides.wrong_player_api_id, overrides.correct_player_api_id)
-+    group by overrides.correct_player_api_id, stat_rows.fixture_id, stat_rows.raw_ingested_at
-+    having count(distinct stat_rows.player_id) > 1
-+),
-+
-+merged_matches as (
-+    select
-+        player_id,
-+        count(distinct fixture_id) as matches
-+    from {{ ref('base_apif__fixture_players') }}
-+    group by player_id
-+)
-+
-+select
-+    left_behind.found_in,
-+    left_behind.player_id,
-+    0 as expected_matches,
-+    0 as merged_matches
-+from left_behind
-+inner join overrides
-+    on left_behind.player_id = overrides.wrong_player_api_id
-+
-+union all
-+
-+select
-+    'matches not summed' as found_in,
-+    provider_matches.player_id,
-+    provider_matches.matches as expected_matches,
-+    coalesce(merged_matches.matches, 0) as merged_matches
-+from provider_matches
-+left join merged_matches
-+    on provider_matches.player_id = merged_matches.player_id
-+where provider_matches.matches != coalesce(merged_matches.matches, 0)
-+
-+union all
-+
-+select
-+    'both ids in one fetch' as found_in,
-+    both_ids_in_one_fetch.player_id,
-+    0 as expected_matches,
-+    0 as merged_matches
-+from both_ids_in_one_fetch
-
-# ============================================================================
-# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
-# ============================================================================
-# The files below changed and are DELIBERATELY excluded from the diff body:
-# they are generated/sample data, and pasting them has measured at ~89% of the
-# review payload. They are still reviewed content and still bind your verdict.
-#
-# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
-# particular: whether a field displayed by a component actually EXISTS in the
-# exported sample is checked by opening these files, not by reading a diff.
-#
-#   site_v2/src/data/teams/211.json | 6 +++---
-#    1 file changed, 3 insertions(+), 3 deletions(-)
-# ============================================================================
+diff --git a/tests/fixtures/component_registry/baseline.json b/tests/fixtures/component_registry/baseline.json
+index 4909ef2c..5eaed6f6 100644
+--- a/tests/fixtures/component_registry/baseline.json
++++ b/tests/fixtures/component_registry/baseline.json
+@@ -2,6 +2,6 @@
+  "stylesheet values": {"size": 8},
+  "forms": {"crest": 1, "fact-row": 1, "header": 1, "table": 1},
+  "unlisted classes": {"system.css": 36},
+- "part gaps": {"lines-unmeasured": 1, "mock-css": 35, "style-varies": 4},
++ "part gaps": {"lines-unmeasured": 1, "mock-css": 34, "style-varies": 4},
+  "set sizes": {"colours": 20, "marks": 4, "spacing": 39, "switch": 12, "text": 35}
+ }
+diff --git a/tests/fixtures/design_inventory/baseline.json b/tests/fixtures/design_inventory/baseline.json
+index b7e01711..77de6cf7 100644
+--- a/tests/fixtures/design_inventory/baseline.json
++++ b/tests/fixtures/design_inventory/baseline.json
+@@ -24,7 +24,7 @@
+    "Matches day page": {"classes": 7, "miss · Fold": 378, "miss · Match row score": 414},
+    "Matches page": {"classes": 7},
+    "Played match page": {"scroll": 2, "classes": 13},
+-   "Team page": {"overflow": 3, "split": 47, "classes": 30, "miss · Name in whole words": 3},
++   "Team page": {"overflow": 3, "split": 47, "classes": 29, "miss · Name in whole words": 3},
+    "Teams page": {"split": 3, "classes": 5},
+    "competition-hub cup": {"classes": 14},
+    "competition-hub groups": {"classes": 14},
+diff --git a/tests/fixtures/design_inventory/baseline_quick.json b/tests/fixtures/design_inventory/baseline_quick.json
+index a5d4435e..28d0b526 100644
+--- a/tests/fixtures/design_inventory/baseline_quick.json
++++ b/tests/fixtures/design_inventory/baseline_quick.json
+@@ -406,7 +406,7 @@
+    "Team page": {
+     "overflow": 2,
+     "split": 13,
+-    "classes": 30,
++    "classes": 29,
+     "miss · Name in whole words": 1
+    },
+    "Teams page": {
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -941,6 +257,7 @@ index 00000000..7a0d36ba
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md | 20 +++++++-------------
-#    1 file changed, 7 insertions(+), 13 deletions(-)
+#   .claude/task/acceptance_evidence.md    | 14 ++---
+#    .claude/task/rendered_page_evidence.md | 99 ++++++----------------------------
+#    2 files changed, 24 insertions(+), 89 deletions(-)
 # ============================================================================
