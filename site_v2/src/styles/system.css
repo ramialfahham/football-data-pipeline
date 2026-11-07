@@ -788,10 +788,12 @@ a.comp-row:focus-visible { outline-offset: -2px; }
    per language; without the script a narrow table takes two lines. */
 .ctab.fit-two .ctab-row > .rk { grid-row: 1; }
 .ctab.fit-two .ctab-row > .tm { grid-column: 2 / -1; grid-row: 1; }
+.ctab.fit-two .ctab-row > .tm:first-child { grid-column: 1 / -1; }
 .ctab.fit-two .ctab-row > .n { grid-row: 2; padding-top: 4px; }
 @container (max-width: 599.98px) {
   .ctab:not(.fit-one) .ctab-row > .rk { grid-row: 1; }
   .ctab:not(.fit-one) .ctab-row > .tm { grid-column: 2 / -1; grid-row: 1; }
+  .ctab:not(.fit-one) .ctab-row > .tm:first-child { grid-column: 1 / -1; }
   .ctab:not(.fit-one) .ctab-row > .n { grid-row: 2; padding-top: 4px; }
 }
 

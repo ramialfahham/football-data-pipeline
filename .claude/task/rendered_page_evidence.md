@@ -1,21 +1,22 @@
-# Rendered page evidence — Compared with last season on the Team page
+# Rendered page evidence — a table that opens with the name, in its narrow form
 
-Method: this branch's dev server (`npm run dev` in `site_v2`, the committed sample data) in the Browser pane.
-Each page loads in a same-origin iframe at the listed width with no border. The Performance tab is checked,
-then the metric switch is set off and on in turn. The geometry is read with `getBoundingClientRect` and
-`getComputedStyle`. The gap is measured as the design check measures `gap(next)`: from the group heading's
-bottom to the top of the table's first line of text. The box gap is from the heading's bottom to the table's top.
+Method: the dev server (`npm run dev` in `site_v2`, the committed sample data) in the Browser pane. Each page
+loads in a same-origin iframe at the listed width with no border. The Performance tab is checked, and a resize
+event lets `fitBlocks.mjs` mark each table. For every visible row of a table whose rows open with the name
+cell, it records the table's mark (fit-one, fit-two) and the name cell's left edge against its row's, read with
+`getBoundingClientRect`.
 
-Page: Bayern München, the Team page, Performance tab. The switch-off view shows 6 metric groups and the
-switch-on view shows 8. All 18 runs (280, 320, 360, 375, 700 and 1010px, in EN, DE and FI) give the same values:
+Page: Bayern München, the Team page, Performance tab. The tables are Compared with last season (`yoyt`) and
+the deserved points table (`dpm`).
 
-| Measure | Switch off | Switch on |
+| Run | Main, before | This branch |
 |---|---|---|
-| Groups / head rows inside their table | 6 / 6 | 8 / 8 |
-| Gap, text / box | 26px / 26px in every group | 26px / 26px in every group |
-| Stripes per group, 1 = tinted | `01 · 010 · 010 · 01 · 0 · 010` | `010 · 0101010 · 01010 · 010101 · 0101 · 01 · 01 · 0101` |
-| Name cell | 14px, 600 | 14px, 600 |
+| DE 280 | fit-two names 79px from the row's left | all 18 names at 0px: 4 dpm fit-one, 8 yoyt fit-one, 6 yoyt fit-two |
+| FI 280 | fit-two names 79px from the row's left | all 18 names at 0px: 4 dpm fit-one, 5 yoyt fit-one, 9 yoyt fit-two |
+| FI 320 | (not measured) | all names at 0px: 2 yoyt rows fit-two |
+| EN 280–1010, DE 320–1010, FI 360–1010 | fit-one | every table fit-one, all names at 0px |
 
-- **Uneven head:** every group's head holds labels of different heights. At 700 and 1010px in FI, "Viime kausi" takes two lines beside "Tämä kausi" on one. The gap stays 26px, because the head aligns its labels at the top.
-- **Before the fix:** on this machine, the same FI page at 700 and 1010px measured a 31.6px gap, with the labels centred.
-- **Other pages:** Borussia Dortmund (EN) and Inter (FI) were measured the same way at all six widths. All four rules hold, and none of the pages scrolls sideways.
+- **Main, before:** on main at 280px in DE, two fit-two tables placed the name in grid column 2, at the first number column; FI had three.
+- **This branch:** every name starts in column 1 at all 18 width-and-language runs.
+- **The deserved points table** is fit-one at every width, so it does not change.
+- **Rank tables:** the Bundesliga page at 280px in DE has 36 visible rows, all opening with the rank. Their names stay in column 2, unchanged.
