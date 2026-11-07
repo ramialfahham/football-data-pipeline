@@ -1,27 +1,36 @@
-# Review — feat/256-lineup-research
+# Review — feat/260-player-bio
 
-diff_sha256: 64f37727e5813f1685d23ef8e47bd0bb51ccb77622b0828564a25f4b6782528a
+diff_sha256: 6c335323a3dd2edddf7baac26d030fc60f4b402b88ca29fe22adf0777e631604
 
 rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 1 escalated whether the stop of 2026-11-06 covers the 17 matches read from uefa.com and resultados.rfef.es; #176 note 4181862000 (approved in chat, 2026-11-07) lets them in, makes no new reads, and keeps the leagues' permission and the legal check open for them.
-- The diff holds only the contract and the seed, both in scope_paths, and the task artifacts.
-- The reworded notes of 1589428 and 1607628 match the contract's rule on formations and positions; no new rule.
-- No new mechanism and no recurring cost; no secrets; no page or export touched; the Line-ups rule already covers researched sheets.
-- The reserved decisions stay undecided: the four matches left out, the resumption of research, the permission and legal check, the Sevilla and N. Pinto cards.
+- Every path in the patch is in scope_paths, assert_base_player_stats_cleaned.sql included; contract.md is the only changed file outside dbt_project and site_v2.
+- player_id_overrides holds exactly 8 rows and its description matches the approved text word for word.
+- The reserved decisions stay undecided: name form and country spellings. The nationality rows are per-player corrections, not a spelling rule.
+- New mechanisms, the two seeds and three singular tests, are declared. No recurring cost, ingestion change, extra run or new library.
+- No secret, no host address, no chat words, no decision history in repo files.
+- 211.json changes three birth dates to null, players 164707, 164877 and 164880, matching the acceptance criterion.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- The seed hunk adds 1,089 rows and removes none; every row has the seed's shape, one https official source and a note.
-- 52 team sheets with eleven starters each; no starter with a minute on; no repeated player id within a match.
-- All 253 substitutions pair with a player on the same sheet at a matching minute off, extra minutes and chains included.
-- One formation per team; the 85 reworded notes end alike and no other field or row moved.
-- Researched sheets feed base_apif__fixture_players_from_lineups, fct_fixture_player_stats and the marts as the contract's blast radius says; int_legs__team_from_players filters is_from_lineups, so team totals do not move.
+- Round 1 failed on three points: assert_base_player_stats_cleaned compared raw ids to merged ids, the profile tie order was not total, and the merged test could not see two ids in one fetch. All three are fixed.
+- Every place a player id enters base goes through player_id_override; the 8 wrong ids remain only in player_id_overrides.csv.
+- The tests comparing seeds to base use kept ids and do not break; no model's grain gains a duplicate.
+- The tie orders in base_apif__players and base_apif__player_profiles are total on their output columns.
+- assert_player_birth_date_possible cannot fail on a date the macro kept, and still catches the 2026 placeholders.
+- An empty correction clears the field in both base models.
+- Three proposals rejected with measurements, each accepted: staging holds every fetch, so a row count would fail on correct data; base cleans stats, so a raw sum would too, and the check is matches, not summed stat values; the 8 wrong ids hold no transfer rows.
 
-## escalations
-scope-auditor, round 1: the 17 matches read from uefa.com and resultados.rfef.es.
-CPO ANSWER: all 26 go in, #176 note 4181862000, approved in chat, 2026-11-07.
+## bi-analyst-reviewer
+VERDICT: PASS
+risks_checked:
+- The three changed rows, 164707, 164877 and 164880, read null with every other field intact and the same keys as their neighbours.
+- No under-13 birth date remains in the file.
+- TeamSquad.astro leaves the age out on a null date, as wireframe 11 says; it is the only reader of birth_date.
+- The export passes player_birth_date straight through, so the sample matches what it would produce.
+- The three rows sit in the 2017/18 block, which no page renders, so criterion 1 holds trivially for them; the featured squad already renders null-date members without an age.
+- No new label, wording or number on a display surface.

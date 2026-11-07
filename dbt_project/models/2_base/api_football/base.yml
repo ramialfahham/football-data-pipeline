@@ -434,6 +434,10 @@ models:
       - name: player_api_id
         description: "{{ doc('player_api_id') }}"
         tests: [not_null]
+      - name: has_conflicting_birth_date
+        description: "True when the player's rows from the chosen source and latest ingest hold two real birth dates. A row in player_bio_corrections settles it."
+      - name: has_conflicting_nationality
+        description: "True when the player's rows from the chosen source and latest ingest hold two real nationalities. A row in player_bio_corrections settles it."
 
   - name: base_apif__player_profiles
     description: >

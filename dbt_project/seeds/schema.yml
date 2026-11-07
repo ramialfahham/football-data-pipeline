@@ -1488,6 +1488,79 @@ seeds:
         tests:
           - not_null
 
+  - name: player_id_overrides
+    description: >
+      One player the provider holds under two ids, one row per duplicate id, naming the id the
+      player keeps.
+    config:
+      column_types:
+        wrong_player_api_id: int64
+        correct_player_api_id: int64
+        mode: string
+        note: string
+    columns:
+      - name: wrong_player_api_id
+        description: "The duplicate id."
+        tests:
+          - not_null
+          - unique
+      - name: correct_player_api_id
+        description: "The id the player keeps."
+        tests:
+          - not_null
+      - name: mode
+        description: "alias: the duplicate id is replaced everywhere."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["alias"]
+      - name: note
+        description: "What proves the two ids are one person."
+        tests:
+          - not_null
+
+  - name: player_bio_corrections
+    description: >
+      A player's birth date or nationality where the provider's records conflict: one row per
+      player and field. Applied in `base_apif__players` and `base_apif__player_profiles`, and it
+      wins over both. An empty value means no outside source states it, so the player shows none.
+    config:
+      column_types:
+        player_api_id: int64
+        corrected_field: string
+        corrected_value: string
+        provider_values: string
+        source: string
+        note: string
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [player_api_id, corrected_field]
+    columns:
+      - name: player_api_id
+        description: "The player this row corrects."
+        tests:
+          - not_null
+      - name: corrected_field
+        description: "The field corrected: player_birth_date or player_nationality."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["player_birth_date", "player_nationality"]
+      - name: corrected_value
+        description: "The value the player shows; empty when no outside source states it."
+      - name: provider_values
+        description: "The conflicting values the provider sent when the row was written."
+        tests:
+          - not_null
+      - name: source
+        description: "URL of the page that states the value, or \"no source found\"."
+        tests:
+          - not_null
+      - name: note
+        description: "Why this value was chosen."
+        tests:
+          - not_null
+
   - name: league_name_overrides
     description: >
       Corrections to a COMPETITION's display name: one row per competition whose provider name is

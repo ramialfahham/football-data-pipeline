@@ -7,10 +7,10 @@ with src as (
         minute_extra,
         team_id,
         team_name,
-        player_id,
+        {{ player_id_override('player_id') }} as player_id,
         player_name,
         assist_player_name,
-        assist_player_id,
+        {{ player_id_override('assist_player_id') }} as assist_player_id,
         event_type,
         event_detail,
         event_comments,
@@ -150,7 +150,7 @@ attributed as (
 player_rows as (
     select distinct
         player_row.fixture_id,
-        player_row.player_id,
+        {{ player_id_override('player_row.player_id') }} as player_id,
         coalesce(
             fixture_override.correct_team_api_id,
             alias_override.correct_team_api_id,

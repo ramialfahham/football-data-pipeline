@@ -16,7 +16,7 @@ with src as (
         league_code,
         fixture_id,
         team_id,
-        player_id,
+        {{ player_id_override('player_id') }} as player_id,
         minutes_played,
         shirt_number,
         position_code,
@@ -334,13 +334,13 @@ latest_sheets as (
 sheet_players as (
     select
         s.fixture_id,
-        safe_cast(json_value(player_el, '$.player.id') as int64) as player_id
+        {{ player_id_override("safe_cast(json_value(player_el, '$.player.id') as int64)") }} as player_id
     from latest_sheets as s,
         unnest(json_query_array(s.start_xi_json)) as player_el
     union distinct
     select
         s.fixture_id,
-        safe_cast(json_value(player_el, '$.player.id') as int64) as player_id
+        {{ player_id_override("safe_cast(json_value(player_el, '$.player.id') as int64)") }} as player_id
     from latest_sheets as s,
         unnest(json_query_array(s.substitutes_json)) as player_el
     union distinct

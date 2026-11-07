@@ -4,7 +4,10 @@
 -- is single-source ROSTERED, never derived from facts.
 -- Grain: (league_code, player_id, team_id, season_year). league_code flows through.
 with src as (
-    select * from {{ ref('stg_apif__players') }}
+    select
+        * except (player_id),
+        {{ player_id_override('player_id') }} as player_id
+    from {{ ref('stg_apif__players') }}
 )
 
 select

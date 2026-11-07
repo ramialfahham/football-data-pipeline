@@ -10,7 +10,10 @@
 -- league_code is pinned deterministically (latest ingest, then league_code asc).
 -- Grain: (player_id, team_in_id, team_out_id, transfer_date).
 with src as (
-    select * from {{ ref('stg_apif__transfers') }}
+    select
+        * except (player_id),
+        {{ player_id_override('player_id') }} as player_id
+    from {{ ref('stg_apif__transfers') }}
     where
         player_id is not null
         and transfer_date is not null

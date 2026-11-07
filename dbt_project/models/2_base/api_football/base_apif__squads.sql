@@ -4,7 +4,10 @@
 #}
 
 with src as (
-    select * from {{ ref('stg_apif__squads') }}
+    select
+        * except (player_id),
+        {{ player_id_override('player_id') }} as player_id
+    from {{ ref('stg_apif__squads') }}
     where team_id is not null and player_id is not null
 )
 
