@@ -5,9 +5,11 @@ Local hooks can be bypassed by a misbehaving or misconfigured agent; this
 check keeps the gate honest at the PR boundary. For the diff between the PR
 branch and the base, it verifies:
 
+  - the PR touches exactly one task folder, `.claude/task/<issue>-<slug>/`, that is not a merged
+    task's folder, and adds or changes no old shared `.claude/task/` file;
   - artifact-only PRs (only bookkeeping paths) pass — but a PR touching
-    .claude/task/contract.md is NEVER artifact-only (it authorizes scope; F10/#409);
-  - otherwise .claude/task/contract.md and .claude/task/review.md must exist;
+    a task's contract.md is NEVER artifact-only (it authorizes scope; F10/#409);
+  - otherwise the task folder's contract.md and review.md must exist;
   - review.md carries a well-formed 64-hex diff_sha256 that MATCHES the recomputed
     hash of `git diff base...HEAD` excluding the bookkeeping artifacts — binding the
     review to this PR's code + contract (F11/#409);
@@ -39,8 +41,6 @@ import subprocess
 import sys
 
 ROUTING = ".claude/review_routing.json"
-CONTRACT = ".claude/task/contract.md"
-REVIEW = ".claude/task/review.md"
 
 # The CI backstop and the local hooks MUST agree, so CI IMPORTS the hooks' own
 # logic rather than re-implementing it. The round-cap placeholder set, the
@@ -53,14 +53,14 @@ import git_discipline as _gd            # noqa: E402
 import task_contract_gate as _tcg       # noqa: E402
 
 
-def design_errors(paths: list[str], root: str, base: str) -> list[str]:
+def design_errors(paths: list[str], root: str, base: str, folder: str) -> list[str]:
     """A diff on the page surface needs the contract's approved_design, and every design it names
     must stand in the approved-designs list on the base ref. Fails closed when the list cannot be
     read there."""
     page_paths = [p for p in paths if _tcg._is_page_surface(p)]
     if not page_paths:
         return []
-    contract = _tcg._read_contract(root)
+    contract = _tcg._parse_contract(os.path.join(root, folder + _tcg.CONTRACT_NAME))
     design = (contract or {}).get("approved_design") or {}
     if not design.get("present"):
         return [f"the diff changes the page surface ({page_paths[0]}) but the contract names no "
@@ -139,6 +139,11 @@ def main() -> int:
     with open(ROUTING, encoding="utf-8") as f:
         routing = json.load(f)
 
+    state = _tcg.task_folder(os.getcwd(), args.base, args.base)
+    if state["errors"]:
+        print("check_task_artifacts: FAIL\n  - " + "\n  - ".join(state["errors"]))
+        return 1
+
     artifact_pats = routing.get("artifact_only") or []
     # F10 (#409): a PR touching contract.md is never artifact-exempt (it authorizes scope).
     never = routing.get("artifact_only_never") or []
@@ -150,15 +155,21 @@ def main() -> int:
         return 0
 
     errors: list[str] = []
-    if not os.path.isfile(CONTRACT):
-        errors.append(f"missing {CONTRACT} (every code PR carries its task contract)")
-    if not os.path.isfile(REVIEW):
-        errors.append(f"missing {REVIEW} (every code PR carries its review verdicts)")
+    folder = state["folder"]
+    if folder is None:
+        errors.append(f"missing {_tcg.CONTRACT_REL}: the PR touches no task folder (every "
+                      "code PR carries its task contract)")
+    else:
+        contract, review = folder + _tcg.CONTRACT_NAME, folder + _gd.REVIEW_NAME
+        if not os.path.isfile(contract):
+            errors.append(f"missing {contract} (every code PR carries its task contract)")
+        if not os.path.isfile(review):
+            errors.append(f"missing {review} (every code PR carries its review verdicts)")
     if errors:
         print("check_task_artifacts: FAIL\n  - " + "\n  - ".join(errors))
         return 1
 
-    text = open(REVIEW, encoding="utf-8", errors="replace").read()
+    text = open(review, encoding="utf-8", errors="replace").read()
     m = re.search(r"diff_sha256:\s*([0-9a-fA-F]{64})", text)
     if not m:
         errors.append("review.md has no well-formed diff_sha256")
@@ -191,7 +202,7 @@ def main() -> int:
     rounds_err = _rounds_error(text)
     if rounds_err:
         errors.append(rounds_err)
-    errors.extend(design_errors(paths, os.getcwd(), args.base))
+    errors.extend(design_errors(paths, os.getcwd(), args.base, folder))
     if "VERDICT: FAIL" in text:
         errors.append("review.md contains VERDICT: FAIL — unresolved findings")
     # SECONDARY (coarse) backstop only — F12/#421. The per-section loop below is the

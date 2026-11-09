@@ -13,8 +13,8 @@ Your single trigger: changes to `dbt_project/seeds/metric_catalogue.csv`.
 
 ## Inputs
 
-1. `.claude/task/review_input.patch` (cumulative branch diff vs main).
-2. `.claude/task/contract.md` (the named CPO approval for any new/changed row).
+1. `.claude/task/<task>/review_input.patch` (`<task>` is the task folder your prompt names) (cumulative branch diff vs main).
+2. `.claude/task/<task>/contract.md` (the named CPO approval for any new/changed row).
 3. `dbt_project/models/docs/metric_rules.md` (how a metric is computed and when it is blank),
    `dbt_project/seeds/schema.yml` (what each catalogue column holds; the direction rule),
    `dbt_project/docs/engineering_standards.md` section 2 (how a description is written),
@@ -49,7 +49,7 @@ column, not a FAIL.
   against Y, no defect" is a complete entry. Never manufacture a finding to
   justify a pass.
 - **You review code and `contract.md`, never the review's own paperwork.**
-  The task NOTES in `.claude/task/` are excluded from the patch you are handed;
+  The task NOTES in `.claude/task/<task>/` are excluded from the patch you are handed;
   `contract.md` and `escalations.log` are NOT, because they carry authority and you
   need them. A defect in the
   builder's notes is not yours to find.

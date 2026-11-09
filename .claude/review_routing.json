@@ -23,7 +23,8 @@
     "review_input.patch must be generated. Measured on #370 before this: 839",
     "lines of code inside a 38,932-line reviewed diff, 96% of it the patch file",
     "re-embedding its own previous contents.",
-    "LISTED FILE BY FILE, never as the `.claude/task/` directory. TWO files there",
+    "LISTED FILE BY FILE, never as the `.claude/task/` directory; each task's files sit in",
+    "its own folder, so a per-file entry is a `.claude/task/*/<file>` pattern. TWO files there",
     "carry AUTHORITY and must reach the reviewers: contract.md (scope_paths and",
     "acceptance_criteria) and escalations.log (the durable record of CPO rulings",
     "that protected_override cites). 'Does the claimed ruling actually exist' is a",
@@ -207,26 +208,27 @@
     "docs/tracker/**"
   ],
   "artifact_only_never": [
-    ".claude/task/contract.md"
+    ".claude/task/contract.md",
+    ".claude/task/*/contract.md"
   ],
   "hash_exclude_paths": [
-    ".claude/task/review.md",
-    ".claude/task/review_input.patch",
+    ".claude/task/*/review.md",
+    ".claude/task/*/review_input.patch",
     ".claude/task/escalations.log",
-    ".claude/task/audit_reviewer_outputs.md",
+    ".claude/task/*/audit_reviewer_outputs.md",
     ".claude/task/TEMPLATE.md",
     ".claude/task/REVIEW_TEMPLATE.md",
     ".claude/active_work.md",
-    ".claude/task/acceptance_evidence.md",
-    ".claude/task/rendered_page_evidence.md",
+    ".claude/task/*/acceptance_evidence.md",
+    ".claude/task/*/rendered_page_evidence.md",
     "docs/tracker/**"
   ],
   "review_exclude_paths": [
-    ".claude/task/review.md",
-    ".claude/task/review_input.patch",
-    ".claude/task/acceptance_evidence.md",
-    ".claude/task/rendered_page_evidence.md",
-    ".claude/task/audit_reviewer_outputs.md",
+    ".claude/task/*/review.md",
+    ".claude/task/*/review_input.patch",
+    ".claude/task/*/acceptance_evidence.md",
+    ".claude/task/*/rendered_page_evidence.md",
+    ".claude/task/*/audit_reviewer_outputs.md",
     ".claude/task/TEMPLATE.md",
     ".claude/task/REVIEW_TEMPLATE.md",
     ".claude/active_work.md",

@@ -18,14 +18,14 @@ the CTO.
 
 ## Inputs
 
-1. `.claude/task/review_input.patch` (cumulative branch diff vs main).
-2. `.claude/task/contract.md`.
+1. `.claude/task/<task>/review_input.patch` (`<task>` is the task folder your prompt names) (cumulative branch diff vs main).
+2. `.claude/task/<task>/contract.md`.
 3. The locked contracts: `docs/wireframes/metrics_display.md` (team table,
    player bundles, window & scope rules, rulings log),
    `docs/wireframes/00_overview.md` (binding rule),
    `docs/ui_design_brief.md` §6, `docs/roles/bi_analyst.md`,
    working_agreement.md Appendix A.
-4. `.claude/task/rendered_page_evidence.md` — REQUIRED whenever the diff touches
+4. `.claude/task/<task>/rendered_page_evidence.md` — REQUIRED whenever the diff touches
    `site_v2/src/**` with a rendering-affecting change (markup/CSS/component —
    not e.g. an i18n-string-only edit). The builder produces this before
    spawning you: what was checked, at which viewport widths, and what was
@@ -99,7 +99,7 @@ the CTO.
   against Y, no defect" is a complete entry. Never manufacture a finding to
   justify a pass.
 - **You review code and `contract.md`, never the review's own paperwork.**
-  The task NOTES in `.claude/task/` are excluded from the patch you are handed,
+  The task NOTES in `.claude/task/<task>/` are excluded from the patch you are handed,
   including the evidence artifacts; `contract.md` and `escalations.log` are NOT,
   because they carry authority. Read `rendered_page_evidence.md` from the working
   tree as EVIDENCE about the built page; do not review its prose.

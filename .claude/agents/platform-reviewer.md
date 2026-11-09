@@ -46,8 +46,8 @@ page displays (`bi-analyst-reviewer`), what a number means
 
 ## Inputs
 
-1. `.claude/task/review_input.patch` (cumulative branch diff vs main).
-2. `.claude/task/contract.md`.
+1. `.claude/task/<task>/review_input.patch` (`<task>` is the task folder your prompt names) (cumulative branch diff vs main).
+2. `.claude/task/<task>/contract.md`.
 3. `docs/roles/platform_reliability.md`, `docs/agent_guardrails.md`,
    working_agreement.md §4 (quality bar) + §10 + Appendix A.
 
@@ -93,7 +93,7 @@ page displays (`bi-analyst-reviewer`), what a number means
   against Y, no defect" is a complete entry. Never manufacture a finding to
   justify a pass.
 - **You review code and `contract.md`, never the review's own paperwork.**
-  The task NOTES in `.claude/task/` are excluded from the patch you are handed;
+  The task NOTES in `.claude/task/<task>/` are excluded from the patch you are handed;
   `contract.md` and `escalations.log` are NOT, because they carry authority and you
   need them. A defect in the
   builder's notes is not yours to find.

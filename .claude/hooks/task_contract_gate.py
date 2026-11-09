@@ -2,7 +2,8 @@
 """Task-contract gate (governance G2).
 
 Drift is made mechanically impossible: every unit of work declares a contract
-(`.claude/task/contract.md`) with a file-scope allowlist, and this gate denies:
+(`.claude/task/<issue>-<slug>/contract.md`, one folder per task) with a file-scope allowlist, and
+this gate denies:
 
   PreToolUse Edit|Write|MultiEdit
     - any repo-file edit when no contract exists
@@ -11,6 +12,8 @@ Drift is made mechanically impossible: every unit of work declares a contract
       carries an explicit `protected_override` naming the product owner's approval
     - edits to the contract itself while the tree is dirty (clean-tree rule:
       amendments are discrete events, never mixed into code changes)
+    - a write to another task's folder, a merged task's folder, or the old shared
+      `.claude/task/` files (`task_folder` says which folder is this branch's)
     - any edit on the STRUCTURAL SURFACE (raw writers `ingestion/**`, dbt models
       `dbt_project/models/**`, consumption `scripts/export_*.py` / `site*/`) when
       the contract carries no non-placeholder `impact_map` — the end-to-end
@@ -49,8 +52,11 @@ from _command_utils import (  # noqa: E402
     worktree_root,
 )
 
-CONTRACT_REL = ".claude/task/contract.md"
 TASK_DIR_REL = ".claude/task/"
+CONTRACT_NAME = "contract.md"
+CONTRACT_REL = TASK_DIR_REL + "<issue>-<slug>/" + CONTRACT_NAME
+TASK_TEMPLATES = frozenset({TASK_DIR_REL + "TEMPLATE.md", TASK_DIR_REL + "REVIEW_TEMPLATE.md"})
+TASK_ID_RE = re.compile(r"^[0-9]+(?:-[a-z0-9]+)+$")
 # .claude/agents/: the reviewer definitions are governance artifacts like the
 # routing file — the builder must never be able to weaken its own adversary
 # inside an ordinary task contract. .claude/commands/: custom slash commands can
@@ -315,10 +321,120 @@ def _rel_in_repo(path: str, root: str) -> str | None:
     return rel
 
 
-def _read_contract(root: str) -> dict | None:
+def task_id_of(rel: str) -> str | None:
+    """The folder name in `.claude/task/<id>/...`, or None for any other path."""
+    if not rel.startswith(TASK_DIR_REL):
+        return None
+    head, sep, _ = rel[len(TASK_DIR_REL):].partition("/")
+    return head if sep and head else None
+
+
+def is_legacy_artifact(rel: str) -> bool:
+    """A file directly in `.claude/task/` other than the two templates."""
+    if not rel.startswith(TASK_DIR_REL):
+        return False
+    rest = rel[len(TASK_DIR_REL):]
+    return bool(rest) and "/" not in rest and rel not in TASK_TEMPLATES
+
+
+def _git_z(root: str, args: list[str]) -> list[str] | None:
+    try:
+        r = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=30)
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+    if r.returncode != 0:
+        return None
+    return [p.replace("\\", "/") for p in r.stdout.split("\0") if p]
+
+
+def _status_paths(root: str) -> list[str]:
+    """Every path `git status` reports, both sides of a rename included."""
+    paths, orig_next = [], False
+    for entry in _git_z(root, ["status", "--porcelain", "-uall", "-z"]) or []:
+        if orig_next:
+            paths.append(entry)
+            orig_next = False
+            continue
+        paths.append(entry[3:])
+        orig_next = entry[:1] in ("R", "C")
+    return paths
+
+
+def _committed_paths(root: str, base_ref: str | None) -> list[str]:
+    """Paths the branch changed since it left the base: `base...HEAD`, the range CI checks.
+    Without an explicit base, the commit gate's own base (`git_discipline._base_commit`); when
+    that cannot be resolved, the whole history, like the commit gate's own fallback."""
+    if base_ref:
+        rng = [f"{base_ref}...HEAD"]
+    else:
+        try:
+            from git_discipline import _base_commit
+            rng = [_base_commit(root), "HEAD"]
+        except Exception:
+            roots = (_git_z(root, ["rev-list", "--max-parents=0", "HEAD"]) or [""])[0].split()
+            if not roots:
+                return []
+            rng = [roots[0], "HEAD"]
+    return _git_z(root, ["diff", "--name-only", "-z", "--no-renames", *rng]) or []
+
+
+def _on_ref(root: str, ref: str | None, rel: str) -> bool:
+    if not ref:
+        return False
+    try:
+        r = subprocess.run(["git", "cat-file", "-e", f"{ref}:{rel}"], cwd=root,
+                           capture_output=True, timeout=10)
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return False
+    return r.returncode == 0
+
+
+def task_folder(root: str, base_ref: str | None = None, tip_ref: str | None = None) -> dict:
+    """This branch's task folder: the one `.claude/task/<id>/` that the branch's commits since the
+    base and its working tree touch. CI's tree is clean, so there it is the MR diff alone.
+
+    `folder` is None when the branch has none yet or touches more than one. `errors` names each
+    break of the rule: two folders, a name that is not `<issue>-<slug>`, a folder already on the
+    base (a merged task's), or an old shared `.claude/task/` file added or changed (deleting one is
+    allowed). `tip_ref` is the ref a merged folder is looked up on, the base by default."""
+    paths = sorted(set(_committed_paths(root, base_ref)) | set(_status_paths(root)))
+    ids = sorted({i for i in map(task_id_of, paths) if i})
+    tip = tip_ref or base_ref or default_base_ref(root)
+    errors, usable = [], []
+    for i in ids:
+        if not TASK_ID_RE.match(i):
+            errors.append(f"`{TASK_DIR_REL}{i}/` is not a task folder name; use `<issue>-<slug>`, "
+                          f"e.g. `{TASK_DIR_REL}257-season-mapping/`")
+        elif _on_ref(root, tip, TASK_DIR_REL + i):
+            errors.append(f"`{TASK_DIR_REL}{i}/` is a merged task's folder on `{tip}`; it is never "
+                          "touched again, so this task needs a folder of its own")
+        else:
+            usable.append(i)
+    if len(ids) > 1:
+        errors.append("this branch touches " + ", ".join(f"`{TASK_DIR_REL}{i}/`" for i in ids)
+                      + "; a branch carries exactly one task folder")
+    for p in paths:
+        if is_legacy_artifact(p) and os.path.exists(os.path.join(root, p)):
+            errors.append(f"`{p}` is the old shared layout; a task's files go in its own folder, "
+                          f"`{CONTRACT_REL}`")
+    folder = TASK_DIR_REL + usable[0] + "/" if len(ids) == 1 and usable else None
+    return {"folder": folder, "errors": errors}
+
+
+def _read_contract(root: str, base_ref: str | None = None,
+                   tip_ref: str | None = None) -> dict | None:
+    """The contract in this branch's task folder, parsed. None when there is no folder or no
+    contract in it."""
+    folder = task_folder(root, base_ref, tip_ref)["folder"]
+    if folder is None:
+        return None
+    return _parse_contract(os.path.join(root, folder + CONTRACT_NAME))
+
+
+def _parse_contract(path: str) -> dict | None:
     """Parse scope_paths, protected_override, and whether a non-placeholder
     impact_map section is present. None when absent."""
-    path = os.path.join(root, CONTRACT_REL)
     if not os.path.isfile(path):
         return None
     scope, in_scope_block, override = [], False, False
@@ -424,13 +540,53 @@ def _dirty_outside_task_dir(root: str) -> list[str]:
     return files
 
 
-def _deny_no_contract(rel: str) -> None:
+def _deny_no_contract(rel: str, root: str) -> None:
+    errors = task_folder(root)["errors"]
+    if errors:
+        emit_deny(
+            f"CONTRACT GATE: `{rel}` may not be edited: this branch breaks the one-task-folder "
+            "rule: " + "; ".join(errors) + ". See docs/working_agreement.md §2."
+        )
+        return
     emit_deny(
         f"CONTRACT GATE: no task contract exists, so `{rel}` may not be edited. "
         f"Write {CONTRACT_REL} first (objective, scope_paths, decisions_reserved, "
         "done_when — template: .claude/task/TEMPLATE.md), state it to the CPO, then "
         "proceed. See docs/working_agreement.md §2."
     )
+
+
+def _task_path_refusal(rel: str, root: str) -> str | None:
+    """Why a write to `rel` under `.claude/task/` is refused, or None. The first file of a new
+    task is allowed when its folder name is valid and not a merged task's."""
+    if rel in TASK_TEMPLATES:
+        return None
+    if is_legacy_artifact(rel):
+        return (f"`{rel}` is the old shared layout; write it in this task's own folder, "
+                f"`{TASK_DIR_REL}<issue>-<slug>/`")
+    tid = task_id_of(rel)
+    if tid is None:
+        return None
+    state = task_folder(root)
+    if state["errors"]:
+        return "this branch breaks the one-task-folder rule: " + "; ".join(state["errors"])
+    if state["folder"] is None:
+        if not TASK_ID_RE.match(tid):
+            return (f"`{TASK_DIR_REL}{tid}/` is not a task folder name; use `<issue>-<slug>`, "
+                    f"e.g. `{TASK_DIR_REL}257-season-mapping/`")
+        base = default_base_ref(root)
+        if _on_ref(root, base, TASK_DIR_REL + tid):
+            return (f"`{TASK_DIR_REL}{tid}/` is a merged task's folder on `{base}`; it is never "
+                    "touched again, so this task needs a folder of its own")
+        return None
+    if state["folder"] != TASK_DIR_REL + tid + "/":
+        return (f"`{rel}` is in another task's folder; this branch's task folder is "
+                f"`{state['folder']}`")
+    return None
+
+
+def _deny_task_folder(why: str) -> None:
+    emit_deny(f"CONTRACT GATE: {why}. See docs/working_agreement.md §2.")
 
 
 def _deny_out_of_scope(rel: str) -> None:
@@ -527,20 +683,23 @@ def _gate_file_edit(event: dict, root: str) -> None:
     rel = _rel_in_repo(path, root)
     if rel is None:                          # outside repo: memory, plans, temp
         return
-    contract = _read_contract(root)
-
-    if rel == CONTRACT_REL:
-        dirty = _dirty_outside_task_dir(root)
-        if dirty:
-            emit_deny(
-                "CONTRACT GATE: the contract may only be (re)written on a CLEAN "
-                "tree — amendments are discrete events, never mixed into code "
-                "changes. Dirty files: " + ", ".join(dirty[:10]) +
-                ". Commit or revert them first. See docs/working_agreement.md §2."
-            )
-        return
     if rel.startswith(TASK_DIR_REL):
+        refusal = _task_path_refusal(rel, root)
+        if refusal:
+            _deny_task_folder(refusal)
+            return
+        tid = task_id_of(rel)
+        if tid and rel == TASK_DIR_REL + tid + "/" + CONTRACT_NAME:
+            dirty = _dirty_outside_task_dir(root)
+            if dirty:
+                emit_deny(
+                    "CONTRACT GATE: the contract may only be (re)written on a CLEAN "
+                    "tree — amendments are discrete events, never mixed into code "
+                    "changes. Dirty files: " + ", ".join(dirty[:10]) +
+                    ". Commit or revert them first. See docs/working_agreement.md §2."
+                )
         return
+    contract = _read_contract(root)
     if _is_protected(rel):
         if contract and contract["protected_override"] and _matches_scope(rel, contract["scope"]):
             # The impact_map check below this block is unreachable once we
@@ -561,7 +720,7 @@ def _gate_file_edit(event: dict, root: str) -> None:
         _deny_protected(rel)
         return
     if contract is None:
-        _deny_no_contract(rel)
+        _deny_no_contract(rel, root)
         return
     if not _matches_scope(rel, contract["scope"]):
         _deny_out_of_scope(rel)
@@ -663,14 +822,20 @@ def _gate_bash_pre(event: dict, root: str) -> None:
         if target_root is None:
             continue
         rel = _rel_in_repo(path, target_root)
-        if rel is None or rel.startswith(TASK_DIR_REL):
+        if rel is None:
+            continue
+        if rel.startswith(TASK_DIR_REL):
+            refusal = _task_path_refusal(rel, target_root)
+            if refusal:
+                _deny_task_folder(refusal)
+                return
             continue
         contract = _read_contract(target_root)
         if _is_protected(rel) and not (contract and contract["protected_override"]):
             _deny_protected(rel)
             return
         if contract is None:
-            _deny_no_contract(rel)
+            _deny_no_contract(rel, target_root)
             return
         if not _matches_scope(rel, contract["scope"]):
             _deny_out_of_scope(rel)

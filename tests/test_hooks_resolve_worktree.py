@@ -20,9 +20,9 @@ ROUTING = {
     "always": ["scope-auditor"],
     "paths": {},
     "artifact_only": [".claude/task/**"],
-    "artifact_only_never": [".claude/task/contract.md"],
-    "hash_exclude_paths": [".claude/task/review.md", ".claude/task/review_input.patch"],
-    "review_exclude_paths": [".claude/task/review.md", ".claude/task/review_input.patch"],
+    "artifact_only_never": [".claude/task/*/contract.md"],
+    "hash_exclude_paths": [".claude/task/*/review.md", ".claude/task/*/review_input.patch"],
+    "review_exclude_paths": [".claude/task/*/review.md", ".claude/task/*/review_input.patch"],
 }
 
 
@@ -47,21 +47,22 @@ def _commit_all(cwd, msg: str) -> None:
 @pytest.fixture()
 def trees(tmp_path):
     main = tmp_path / "main"
-    (main / ".claude" / "task").mkdir(parents=True)
+    (main / ".claude" / "task" / "1-main").mkdir(parents=True)
     (main / "notes").mkdir()
     _git(main, "init", "-q", "-b", "main")
     _git(main, "config", "user.email", "t@t")
     _git(main, "config", "user.name", "t")
     (main / ".gitignore").write_text(".claude/worktrees/\n.venv/\n")
     (main / ".claude" / "review_routing.json").write_text(json.dumps(ROUTING))
-    (main / ".claude" / "task" / "contract.md").write_text(_contract("notes/a.txt"))
     (main / "notes" / "a.txt").write_text("a")
     (main / "notes" / "b.txt").write_text("b")
     _commit_all(main, "init")
     wt = main / ".claude" / "worktrees" / "w"
     _git(main, "worktree", "add", "-q", "-b", "feature", str(wt))
-    (wt / ".claude" / "task" / "contract.md").write_text(_contract("notes/b.txt"))
+    (wt / ".claude" / "task" / "2-wt").mkdir(parents=True)
+    (wt / ".claude" / "task" / "2-wt" / "contract.md").write_text(_contract("notes/b.txt"))
     _commit_all(wt, "worktree contract")
+    (main / ".claude" / "task" / "1-main" / "contract.md").write_text(_contract("notes/a.txt"))
     return main, wt
 
 
