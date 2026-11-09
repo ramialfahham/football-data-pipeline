@@ -20,7 +20,7 @@
 > Both scripts also count the site's design gaps, and `tests/fixtures/design_inventory/baseline.json`
 > pins each count. The lint counts CSS outside `system.css`, width rules, banned line-break
 > properties and literal text. The measured check counts sideways scroll, overflowing text, split
-> words, overlapping text, classes no row here names and element misses. It also counts four
+> words, overlapping text, classes the component registry does not list and element misses. It also counts four
 > coverage gaps: a built page no row owns, a generator that fails, a generator page no row names,
 > and a language a mock does not carry. A count that differs from its pin fails. A pin may not
 > rise above main's, so a new page or mock arrives with no gaps. The rendered counts depend on the

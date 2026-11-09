@@ -43,11 +43,14 @@ from dataclasses import dataclass
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import yaml
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import design_inventory as di  # noqa: E402
 
 REPO = di.REPO
 MOCKS = REPO / "design-mocks"
+REGISTRY = REPO / "docs" / "design" / "components.yml"
 # The narrowest phones, a phone, the width the menu goes inline, and the width the header's search
 # field appears: the narrowest desktop layout. `tests/test_design_inventory.py` ties the last to
 # `system.css`.
@@ -71,7 +74,7 @@ COVERAGE = ("page with no row", "generator fails", "mock page with no row", "lan
 # included). `split`: a word, a run without spaces, lies on two lines. `overlap`: two text nodes'
 # visible lines cross, SVG text included; each line is trimmed by a fifth top and bottom so two
 # tight lines that only touch are not counted. `classes`: the class names no inventory selector
-# uses. Text that is not displayed, fully transparent or clipped away is not read.
+# uses and the component registry does not list. Text that is not displayed, fully transparent or clipped away is not read.
 COUNT_JS = r"""
 (registered) => {
   const reg = new Set(registered);
@@ -723,9 +726,17 @@ def render_width(job: dict) -> dict:
     return {"failures": failures, "counted": counted, "covered": covered, "renders": renders}
 
 
+def registry_classes(path: Path = REGISTRY) -> frozenset[str]:
+    """Every class the component registry lists, a part with no rule yet included: that part is the
+    registry's own gap, counted once in its gap count."""
+    reg = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    return frozenset(part["class"] for comp in reg["components"].values() for part in comp["parts"].values())
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--inventory", default=str(di.DOC))
+    ap.add_argument("--registry", default=str(REGISTRY))
     ap.add_argument("--dist", default=str(REPO / "site_v2" / "dist"))
     ap.add_argument("--mocks", default=str(MOCKS))
     ap.add_argument("--pages", help="comma-separated page names to run (default: all)")
@@ -770,7 +781,7 @@ def main(argv=None) -> int:
     # when it names none); a run over anything less prints its counts and compares none.
     full_run = not (wanted or adhoc or args.no_built or args.no_mocks) \
         and in_baseline_scope(baseline, viewports, langs)
-    registered = sorted(di.class_tokens(inv.elements))
+    registered = sorted(di.class_tokens(inv.elements) | registry_classes(Path(args.registry)))
     spec = {
         "props": list(di.PROPS),
         "tokens": list(di.TOKENS),

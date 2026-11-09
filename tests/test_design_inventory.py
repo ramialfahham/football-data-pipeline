@@ -514,6 +514,28 @@ def test_the_gap_counts_count_each_defect_once(tmp_path):
 
 
 @needs_browser
+def test_a_class_the_component_registry_lists_is_not_counted_as_unknown(tmp_path):
+    page = tmp_path / "probe.html"
+    page.write_text('<!doctype html><html lang="en"><body><span class="zz-listed">a</span>'
+                    '<span class="zz-unlisted">b</span><span class="crest">c</span></body></html>', encoding="utf-8")
+    registry = tmp_path / "components.yml"
+    registry.write_text("components:\n  probe:\n    parts:\n      listed: {class: zz-listed, gap: mock-css}\n",
+                        encoding="utf-8")
+
+    def classes(*extra):
+        art = tmp_path / ("art" + str(len(extra)))
+        subprocess.run(
+            [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks", "--no-built",
+             "--page", "probe=%s" % page, "--langs", "en", "--viewports", "320", "--artifacts", str(art), *extra],
+            capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+        )
+        return json.loads((art / "counts.json").read_text(encoding="utf-8"))["classes"]["probe"]
+
+    assert classes() == ["zz-listed", "zz-unlisted"]
+    assert classes("--registry", str(registry)) == ["crest", "zz-unlisted"]
+
+
+@needs_browser
 def test_the_gap_counts_open_every_tab_and_count_a_shared_defect_once(tmp_path):
     folder = tmp_path / "pages"
     folder.mkdir()
