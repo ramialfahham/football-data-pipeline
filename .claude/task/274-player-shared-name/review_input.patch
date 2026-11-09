@@ -1,0 +1,177 @@
+diff --git a/.claude/task/274-player-shared-name/contract.md b/.claude/task/274-player-shared-name/contract.md
+new file mode 100644
+index 00000000..fc6b6c8a
+--- /dev/null
++++ b/.claude/task/274-player-shared-name/contract.md
+@@ -0,0 +1,43 @@
++# Task contract — the shared-name flag the Player page title reads
++
++objective: >
++  Issue #274. The Player page title carries the position when two players of one name play at one
++  club. Whether a player shares a name at a club is a fact about the warehouse's players, so
++  mart_player_profile carries it as `shares_name_at_club`, tested, and the export only selects it.
++
++refs: >
++  #274. The title rule: #259, approved in chat, 2026-11-06. The column's place: the Player page
++  review (#259), consumption layer rule.
++
++scope_paths:
++  - .claude/task/274-player-shared-name/
++  - dbt_project/models/5_marts/shared/mart_player_profile.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/tests/assert_player_shares_name_at_club.sql
++
++impact_map: >
++  writers: mart_player_profile, written by the nightly prod build (fdp-nightly) and data:build:mr.
++  downstream: `dbt ls --select mart_player_profile+ --resource-type model` lists only
++  football_data_pipeline.5_marts.shared.mart_player_profile: a leaf. Its one reader outside dbt is
++  scripts/export_site_data.py, which selects named columns; the new column is unread until the
++  Player page MR (#259) selects it.
++  layer_rules: check_layer_contract.py (marts read core, intermediate and seeds only; no
++  partition_by or cluster_by); the mart already reads dim_player and int_player__page_profile.
++  deploy_order: before the Player page (#259). A new column on a table the nightly rebuilds; until
++  the merge the deployed mart has no such column and nothing reads it.
++  blast_radius: one new boolean column; every existing column and row is unchanged. The full name
++  moves into the players step and is read from there, with the same expression.
++
++decisions_taken: >
++  The flag is computed among players with a page, by the full name the page shows and the current
++  club the page links: two such players with one name at one club are both true. A player with no
++  page, no full name or no current club is false.
++
++decisions_reserved: none.
++
++done_when:
++  - dbt parse passes; sqlfluff lint of the model passes as on main.
++  - data:build:mr builds the mart and its tests pass.
++  - python -m pytest tests passes.
++
++amendments: (none)
+diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+index 5b1b35a9..5d7ba7fc 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+@@ -24,7 +24,10 @@ with season as (
+ ),
+ 
+ players as (
+-    select * from {{ ref('dim_player') }}
++    select
++        *,
++        coalesce(concat(player_first_name, ' ', player_last_name), player_name) as player_full_name
++    from {{ ref('dim_player') }}
+ ),
+ 
+ -- Most-frequent position that season (role badge); nulls excluded.
+@@ -113,6 +116,21 @@ season_labels as (
+         season_sk,
+         season_label
+     from {{ ref('dim_competition_season') }}
++),
++
++-- Players with a page who share their full name with another at their current club: the page
++-- title tells them apart.
++shared_names as (
++    select
++        pg.player_sk,
++        count(*) over (partition by pl.player_full_name, pg.current_club_team_sk) > 1 as shares_name_at_club
++    from page as pg
++    inner join players as pl
++        on pg.player_sk = pl.player_sk
++    where
++        pg.has_player_page
++        and pg.current_club_team_sk is not null
++        and pl.player_full_name is not null
+ )
+ 
+ select
+@@ -130,7 +148,7 @@ select
+     p.player_name,
+     p.player_first_name,
+     p.player_last_name,
+-    coalesce(concat(p.player_first_name, ' ', p.player_last_name), p.player_name) as player_full_name,
++    p.player_full_name,
+     date_diff(current_date(), p.player_birth_date, year)
+     - if(format_date('%m%d', current_date()) < format_date('%m%d', p.player_birth_date), 1, 0) as player_age,
+     p.player_nationality,
+@@ -226,7 +244,8 @@ select
+     c.contribution_player_pct,
+     -- The season this player's page opens on: int_player__page_profile chooses it.
+     coalesce(a.season_sk = pg.featured_season_sk, false) as is_featured_season,
+-    coalesce(pg.has_player_page, false) as has_player_page
++    coalesce(pg.has_player_page, false) as has_player_page,
++    coalesce(sn.shares_name_at_club, false) as shares_name_at_club
+ from season as a
+ left join players as p
+     on a.player_sk = p.player_sk
+@@ -262,3 +281,5 @@ left join season_labels as sl
+     on a.season_sk = sl.season_sk
+ left join teams as cc
+     on pg.current_club_team_sk = cc.team_sk
++left join shared_names as sn
++    on a.player_sk = sn.player_sk
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 99ee9682..5936947c 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -1778,6 +1778,12 @@ models:
+       - name: has_player_page
+         description: "{{ doc('has_player_page') }}"
+         tests: [not_null]
++      - name: shares_name_at_club
++        description: >
++          True when the player has a page and another player with a page has the same full name and
++          the same current club; the page title then names the player's position. The same on every
++          row of a player. Checked by tests/assert_player_shares_name_at_club.sql.
++        tests: [not_null]
+       - name: season_label
+         description: "The season's name as the site shows it, from dim_competition_season."
+       - name: player_full_name
+diff --git a/dbt_project/tests/assert_player_shares_name_at_club.sql b/dbt_project/tests/assert_player_shares_name_at_club.sql
+new file mode 100644
+index 00000000..3e010d24
+--- /dev/null
++++ b/dbt_project/tests/assert_player_shares_name_at_club.sql
+@@ -0,0 +1,42 @@
++{#
++  One failing row per player whose shares_name_at_club disagrees with a count of the players with a
++  page by full name and current club, or differs between the player's rows.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with players as (
++    select
++        player_sk,
++        any_value(player_full_name) as player_full_name,
++        any_value(current_club_team_sk) as current_club_team_sk,
++        logical_or(has_player_page) as has_player_page,
++        count(distinct shares_name_at_club) as flag_values,
++        logical_or(shares_name_at_club) as shares_name_at_club
++    from {{ ref('mart_player_profile') }}
++    group by player_sk
++),
++
++namesakes as (
++    select
++        player_full_name,
++        current_club_team_sk,
++        count(*) as players
++    from players
++    where has_player_page and player_full_name is not null and current_club_team_sk is not null
++    group by player_full_name, current_club_team_sk
++)
++
++select
++    p.player_sk,
++    p.player_full_name,
++    p.current_club_team_sk,
++    p.shares_name_at_club,
++    p.flag_values
++from players as p
++left join namesakes as n
++    on
++        p.player_full_name = n.player_full_name
++        and p.current_club_team_sk = n.current_club_team_sk
++where
++    p.flag_values > 1
++    or p.shares_name_at_club != (p.has_player_page and coalesce(n.players, 0) > 1)

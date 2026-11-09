@@ -1778,6 +1778,12 @@ models:
       - name: has_player_page
         description: "{{ doc('has_player_page') }}"
         tests: [not_null]
+      - name: shares_name_at_club
+        description: >
+          True when the player has a page and another player with a page has the same full name and
+          the same current club; the page title then names the player's position. The same on every
+          row of a player. Checked by tests/assert_player_shares_name_at_club.sql.
+        tests: [not_null]
       - name: season_label
         description: "The season's name as the site shows it, from dim_competition_season."
       - name: player_full_name
