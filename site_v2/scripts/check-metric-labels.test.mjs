@@ -26,11 +26,13 @@ const LOCALES = ["EN", "DE", "FI"];
 function labelBlock(loc) {
   const m = strings.match(/const METRIC_TERMS: Record<string, string> = \{([\s\S]*?)\n\};/);
   assert.ok(m, "METRIC_TERMS not found in strings.ts");
+  const per90 = strings.match(/const PER_90 = new Set\(\[([\s\S]*?)\]\);/);
+  assert.ok(per90, "PER_90 not found in strings.ts");
   const chrome = chromeBlock(loc);
   const out = new Map();
   for (const [, key, term] of m[1].matchAll(/"([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)":\s*"([A-Za-z0-9_]+)"/g)) {
     const name = chrome.get(term);
-    if (name !== undefined) out.set(key, name);
+    if (name !== undefined) out.set(key, per90[1].includes(`"${key}"`) ? `${name} ${chrome.get("per90")}` : name);
   }
   return out;
 }
@@ -40,7 +42,10 @@ const metricTermKeys = new Set([...strings.match(/const METRIC_TERMS: Record<str
   .matchAll(/:\s*"([A-Za-z0-9_]+)"/g)].map((x) => x[1]));
 
 const labels = Object.fromEntries(LOCALES.map((l) => [l, labelBlock(l)]));
-const servedRows = JSON.parse(readFileSync(join(SITE, "src/data/metric_rows.json"), "utf8")).rows;
+const servedRows = [
+  ...JSON.parse(readFileSync(join(SITE, "src/data/metric_rows.json"), "utf8")).rows,
+  ...JSON.parse(readFileSync(join(SITE, "src/data/player_metric_rows.json"), "utf8")).rows,
+];
 const rowKeys = [
   ...servedRows.map((r) => r.label_i18n_key),
   ...[...rowsSrc.matchAll(/label_i18n_key:\s*"(metrics\.[A-Za-z0-9_]+\.label)"/g)].map((m) => m[1]),

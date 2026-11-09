@@ -1,0 +1,2688 @@
+diff --git a/.claude/task/259-player-page/contract.md b/.claude/task/259-player-page/contract.md
+new file mode 100644
+index 00000000..b526d74e
+--- /dev/null
++++ b/.claude/task/259-player-page/contract.md
+@@ -0,0 +1,136 @@
++# Task contract — the Player page: both tabs on the site
++
++objective: >
++  Issue #259, step 3. The Player page replaces its stub with the Club and National team tabs of the
++  approved design (#136), read from the payload the export writes, with sample data for the players
++  the boards link to. Every row of Players to watch links to the player's page when this build makes
++  one, and `players` joins the deploy export.
++
++refs: >
++  #259, plan approved in chat 2026-11-06. Design: #136, its cards rule approved in chat 2026-11-06.
++  Data: !387.
++
++scope_paths:
++  - site_v2/src/pages/*player*.astro
++  - site_v2/src/pages/*fixture*.astro
++  - site_v2/src/components/player/*
++  - site_v2/src/components/fixture/PlayerRow.astro
++  - site_v2/src/components/competition/RankingBoard.astro
++  - site_v2/src/components/ui/*
++  - site_v2/src/components/competitions/*
++  - site_v2/src/lib/*
++  - site_v2/src/styles/system.css
++  - site_v2/src/i18n/strings.ts
++  - site_v2/src/specs/players/player.spec.json
++  - site_v2/src/config/indexability.mjs
++  - site_v2/src/data/players/*
++  - site_v2/src/data/player_peers/*
++  - site_v2/src/data/player_metric_rows.json
++  - site_v2/src/data/player_pages.json
++  - site_v2/src/data/README.md
++  - site_v2/scripts/*
++  - .gitignore
++  - .gitlab-ci.yml
++  - docs/design/components.yml
++  - docs/wireframes/block_standard.md
++  - docs/wireframes/00_overview.md
++  - docs/wireframes/03_player_profile.md
++  - docs/wireframes/12_player_stats.md
++  - docs/wireframes/13_player_career.md
++  - docs/site_architecture.md
++  - docs/wireframes/metrics_display.md
++  - scripts/export_site_data.py
++  - tests/test_export_site_data.py
++  - scripts/check_page_css.py
++  - scripts/check_copy_gate.py
++  - tests/test_check_copy_gate.py
++  - tests/fixtures/design_inventory/*
++  - tests/fixtures/font_coverage/*
++  - tests/test_no_decision_history_in_code.py
++  - tests/test_no_decision_history_in_docs.py
++  - tests/test_design_inventory.py
++  - tests/test_check_chart_components.py
++  - .claude/task/259-player-page/
++
++protected_override: >
++  docs/design/components.yml: the card and the chart parts of the Player page are registered, the
++  card with its six-card rule. .gitlab-ci.yml, job deploy:export only: `players` joins its
++  `--entities` list; nothing else in the file changes. The plan naming both edits approved in chat,
++  2026-11-06; the cards rule approved in chat, 2026-11-06, on #136. tests/test_design_inventory.py,
++  one line: the Player page leaves the list of pages that keep the earlier widths, because its
++  design is approved (`00_overview.md`, "a page whose new design is not yet approved keeps the
++  earlier widths"); the list is then empty. docs/design/components.yml also names the Player page in
++  the Tab bar's files and used-on, and registers its Recent matches rows as Result row parts
++  (approved in chat, 2026-11-09).
++
++impact_map: >
++  writers: none in the warehouse. scripts/export_site_data.py reads the set of players with a page
++  from mart_player_profile's flag and writes player_pages.json; deploy:export now also runs its
++  players entity. Reads marts only and writes no BigQuery table.
++  lineage: `git diff --stat gitlab/main -- dbt_project/` is empty on this branch, so no lineage
++  moves; the export selects mart_player_profile.shares_name_at_club, added by !404.
++  consumption: the Player page reads site_v2/src/data/players/*.json, player_peers/** and
++  player_metric_rows.json. builtPlayers.mjs reads player_pages.json. Every link to a player follows
++  that list: the board rows, the squad rows and the match page's Players to watch rows, which gain a
++  link. The shared parts of system.css, fitBlocks.mjs and filterBar.mjs
++  serve the Team, Competition and match pages too, so their design counts are measured.
++  ci_layer_rules: scripts/check_page_css.py, scripts/check_design_inventory.py,
++  scripts/check_component_registry.py, audit-seo.mjs, check-exported-text.mjs.
++  deploy_order: after !389, which serves the two card counts and the page flag, !391, !392, !393
++  and !394, which align the shared last-season table, the strips and the tab to the registry, !395,
++  which keeps hyphen-joined words whole and opens every tab in the design check, and !399, which
++  counts a class the registry lists as known, and !404, which serves the shared-name flag. One
++  merge.
++  The next manual deploy runs the export with players, about 15,700 pages per language.
++  blast_radius: the Player stub goes and with it the STUB_PAGES entry. INDEXABLE stays false. The Player
++  pages arrive with no design gap, every tab measured, so no design pin rises.
++
++approved_design:
++  - player: #136
++  - match: #132
++  - home: #127
++  - competition: #129
++
++decisions_taken: >
++  From the plan on #259. A player gets a page after 3 matches played this season or last (#259,
++  note 4178916887, approved in chat, 2026-11-06), which replaces the board-based set. A player with
++  no club match in our data has no Club tab, and the page opens on National team (approved in chat,
++  2026-11-06). Where the approved title passes the audit's limit it takes a shorter form (approved
++  in chat, 2026-11-06), then the shorter forms of #259. The page's new texts use the term table on
++  #243, and check_copy_gate.py accepts a listed unit symbol that matches across languages (both
++  approved in chat, 2026-11-06). Two locked files change, declared above (decision 3). "Metric Glossary ›" stays out until #168 (decision 5).
++  Wireframes 03, 12 and 13 retire as 11 and 14 did: the file stays, with one line under its title,
++  and its overview row changes, with text the CPO approves first (decision 6). The mock is the copy
++  approved with the six-card rule. Two players of one name at one club get their position beside the
++  club in the title; two players of one name keep the name as the heading (both approved in chat,
++  2026-11-06). The registry is the standard: where the mock differs from a registered rule, the page
++  follows the rule, with no page-only variant (approved in chat, 2026-11-07).
++
++decisions_reserved: none.
++
++done_when:
++  - python -m pytest tests passes.
++  - npm run build and the design check pass in site_v2.
++  - Every criterion below is shown in the Browser pane at every listed width and language.
++
++acceptance_criteria:
++  - "The header shows photo, full name, position, club (linked), nation, age, height and season. A missing value drops with its separator."
++  - "Club tab: This season, Next matches, Compared with other players, Compared with last season, Recent matches."
++  - "National team tab: Current competitions, Next matches, Compared with other players, Recent matches, including the 0-minutes squad member case."
++  - "Goalkeepers get their own cards and metric groups, with no switch and no Squad button."
++  - "Every card block shows six cards as ruled on #136: Yellow cards and Red cards are the fifth and sixth, a 0 included, in one row of six while all fit, then three across, otherwise two across."
++  - "Every text from #136 is in `strings.ts` in EN, DE and FI, the page title and meta description included."
++  - "The page matches the mock at 280, 320, 360, 375, 700 and 1010px in EN, DE and FI, with no sideways scroll, overflow or split word."
++  - "Every row of Players to watch on the match page links to the player's page when this build makes one."
++  - "The card is a registered component, and the separators are in `block_standard.md`."
++  - "The stub is gone: `stub: true` and the `STUB_PAGES` entry are removed."
++  - "Wireframes 03, 12 and 13 are retired."
++  - "All MRs are green, and both design baselines match CI's measurement."
++
++amendments: >
++  2026-11-09, approved in chat: components.yml also names the Player page under the Tab bar and its
++  Recent matches rows as Result row parts; approved_design adds Home #127 and Competition #129, whose
++  board rows link to a player only when the player has a page; the baselines criterion reads "both
++  design baselines match CI's measurement". 2026-11-09, approved in chat: the Player page's
++  comparison blocks follow the team rule for a percentage's volume, and metrics_display.md states
++  it.
+diff --git a/.gitignore b/.gitignore
+index 3b092ad5..6f24691b 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -428,6 +428,116 @@ site_v2/src/data/fixtures/*.json
+ # committed build, and the teams and fixtures above are what it links to.
+ site_v2/src/data/competitions/**/*.json
+ !site_v2/src/data/competitions/BL1/2026.json
++# The Player page's sample: the players the Home and Bundesliga boards link to, and their peer
++# files. Replace as a set, from one export, like the teams above (src/data/README.md).
++site_v2/src/data/players/*.json
++!site_v2/src/data/players/184.json
++!site_v2/src/data/players/502.json
++!site_v2/src/data/players/567.json
++!site_v2/src/data/players/714.json
++!site_v2/src/data/players/794.json
++!site_v2/src/data/players/875.json
++!site_v2/src/data/players/972.json
++!site_v2/src/data/players/984.json
++!site_v2/src/data/players/1100.json
++!site_v2/src/data/players/1149.json
++!site_v2/src/data/players/1156.json
++!site_v2/src/data/players/1496.json
++!site_v2/src/data/players/1741.json
++!site_v2/src/data/players/1922.json
++!site_v2/src/data/players/1924.json
++!site_v2/src/data/players/1972.json
++!site_v2/src/data/players/2897.json
++!site_v2/src/data/players/2915.json
++!site_v2/src/data/players/5973.json
++!site_v2/src/data/players/7073.json
++!site_v2/src/data/players/18964.json
++!site_v2/src/data/players/18970.json
++!site_v2/src/data/players/19617.json
++!site_v2/src/data/players/21587.json
++!site_v2/src/data/players/25158.json
++!site_v2/src/data/players/25297.json
++!site_v2/src/data/players/25368.json
++!site_v2/src/data/players/25391.json
++!site_v2/src/data/players/25406.json
++!site_v2/src/data/players/25903.json
++!site_v2/src/data/players/26171.json
++!site_v2/src/data/players/26256.json
++!site_v2/src/data/players/32011.json
++!site_v2/src/data/players/36798.json
++!site_v2/src/data/players/37153.json
++!site_v2/src/data/players/37938.json
++!site_v2/src/data/players/44814.json
++!site_v2/src/data/players/47308.json
++!site_v2/src/data/players/47516.json
++!site_v2/src/data/players/88140.json
++!site_v2/src/data/players/128384.json
++!site_v2/src/data/players/161939.json
++!site_v2/src/data/players/162032.json
++!site_v2/src/data/players/162219.json
++!site_v2/src/data/players/162703.json
++!site_v2/src/data/players/163039.json
++!site_v2/src/data/players/163078.json
++!site_v2/src/data/players/177452.json
++!site_v2/src/data/players/178768.json
++!site_v2/src/data/players/199143.json
++!site_v2/src/data/players/202696.json
++!site_v2/src/data/players/203224.json
++!site_v2/src/data/players/203329.json
++!site_v2/src/data/players/237087.json
++!site_v2/src/data/players/277003.json
++!site_v2/src/data/players/280070.json
++!site_v2/src/data/players/314254.json
++!site_v2/src/data/players/314511.json
++!site_v2/src/data/players/324957.json
++!site_v2/src/data/players/327347.json
++!site_v2/src/data/players/328033.json
++!site_v2/src/data/players/336671.json
++!site_v2/src/data/players/339887.json
++!site_v2/src/data/players/353143.json
++!site_v2/src/data/players/353943.json
++!site_v2/src/data/players/359390.json
++!site_v2/src/data/players/362564.json
++!site_v2/src/data/players/362755.json
++!site_v2/src/data/players/380690.json
++!site_v2/src/data/players/386828.json
++!site_v2/src/data/players/409190.json
++!site_v2/src/data/players/478991.json
++site_v2/src/data/player_peers/**/*.json
++!site_v2/src/data/player_peers/AFCON/2025/MID.json
++!site_v2/src/data/player_peers/BL1/2026/ATT.json
++!site_v2/src/data/player_peers/BL1/2026/DEF.json
++!site_v2/src/data/player_peers/BL1/2026/GK.json
++!site_v2/src/data/player_peers/BL1/2026/MID.json
++!site_v2/src/data/player_peers/ED/2026/ATT.json
++!site_v2/src/data/player_peers/ED/2026/DEF.json
++!site_v2/src/data/player_peers/ED/2026/MID.json
++!site_v2/src/data/player_peers/L1/2026/ATT.json
++!site_v2/src/data/player_peers/L1/2026/MID.json
++!site_v2/src/data/player_peers/LP/2026/ATT.json
++!site_v2/src/data/player_peers/LP/2026/DEF.json
++!site_v2/src/data/player_peers/LP/2026/MID.json
++!site_v2/src/data/player_peers/PD/2026/ATT.json
++!site_v2/src/data/player_peers/PD/2026/DEF.json
++!site_v2/src/data/player_peers/PL/2026/ATT.json
++!site_v2/src/data/player_peers/PL/2026/DEF.json
++!site_v2/src/data/player_peers/PL/2026/MID.json
++!site_v2/src/data/player_peers/SA/2026/ATT.json
++!site_v2/src/data/player_peers/SA/2026/MID.json
++!site_v2/src/data/player_peers/UCL/2026/ATT.json
++!site_v2/src/data/player_peers/UCL/2026/DEF.json
++!site_v2/src/data/player_peers/UCL/2026/GK.json
++!site_v2/src/data/player_peers/UCL/2026/MID.json
++!site_v2/src/data/player_peers/UECL/2026/ATT.json
++!site_v2/src/data/player_peers/UECL/2026/DEF.json
++!site_v2/src/data/player_peers/UECL/2026/MID.json
++!site_v2/src/data/player_peers/UEL/2026/ATT.json
++!site_v2/src/data/player_peers/UEL/2026/DEF.json
++!site_v2/src/data/player_peers/UEL/2026/MID.json
++!site_v2/src/data/player_peers/UNL/2026/ATT.json
++!site_v2/src/data/player_peers/UNL/2026/DEF.json
++!site_v2/src/data/player_peers/UNL/2026/MID.json
++!site_v2/src/data/player_peers/WC/2026/MID.json
+ 
+ # CPO working documents dropped in the repo ROOT (exports of planning conversations, briefs).
+ # Not project source, so not committed -- and not deleted either: the contract and stop gates flag
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index 258eced6..93369bed 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -1062,7 +1062,7 @@ deploy:export:
+     # The --entities list is LOAD-BEARING: every data set a built page reads, and no
+     # other (competitions.json is always emitted). Reads marts and seeds only; writes
+     # no BigQuery table.
+-    - python scripts/export_site_data.py --entities teams,fixtures,competitions,competition_index,teams_index,landing,matches,metric_groups,metric_rows --out site_v2/export_data
++    - python scripts/export_site_data.py --entities teams,fixtures,competitions,competition_index,teams_index,landing,players,matches,metric_groups,metric_rows --out site_v2/export_data
+   artifacts:
+     paths:
+       - site_v2/export_data
+diff --git a/docs/design/components.yml b/docs/design/components.yml
+index ceb128d5..f582bb7d 100644
+--- a/docs/design/components.yml
++++ b/docs/design/components.yml
+@@ -133,8 +133,8 @@ components:
+     wide: "crest | name over meta line"
+   tabs:
+     name: Tab bar
+-    file: [site_v2/src/components/competition/CompetitionTabs.astro, site_v2/src/components/team/Tabs.astro]
+-    used-on: [Competition pages, Team page]
++    file: [site_v2/src/components/competition/CompetitionTabs.astro, site_v2/src/components/team/Tabs.astro, "site_v2/src/pages/[lang]/[players]/[player].astro"]
++    used-on: [Competition pages, Team page, Player page]
+     parts:
+       bar: {class: tabs, selector: nav.tabs, element: Tab bar, rule: "the tabs share the row and fit in one row at 375px in EN, DE and FI, no sideways scrolling", measured: fits, ruled-on: "#129 header"}
+       tab: {class: tab, selector: nav.tabs .tab, breaks: never, element: Tab, rule: "one line each, never wrapped; the side padding is what the label needs", measured: one-line, ruled-on: "#129 header"}
+@@ -302,6 +302,9 @@ components:
+       goal: {class: goal, selector: ".resrow.goal", element: Goal row, rule: "a goal: the score after it, then the scorer with the crest of the side it counts for. The second line holds the minute with the assist, own goal or penalty. Without minutes the row has no score", measured: fits, ruled-on: the played match page review}
+       goal-meta: {class: rmeta, selector: ".resrow.goal .rmeta", text: 14-400-ink-2, element: Goal row meta, rule: "the goal's minute and its assist, own goal or penalty: 14px ink-2, larger and lighter than a list row's second line", measured: "font-size=14px; color=ink-2", ruled-on: the played match page review}
+       list: {class: rlist}
++      player-list: {class: pm, selector: ".rlist.pm"}
++      player-competition: {class: rm-c}
++      player-line: {class: rm-p}
+       home-away: {class: ha, selector: ".resrow .ha", text: 11-600-muted, breaks: never}
+       scorer: {class: scorer}
+     wide: "chip · score · opponent · competition · date on one line"
+@@ -367,15 +370,38 @@ components:
+     narrow: {below: fits, form: one column}
+   strip-plot:
+     name: Strip plot
+-    file: site_v2/src/components/team/TeamLeagueStrips.astro
+-    used-on: [Team page]
+-    parts:
++    file: [site_v2/src/components/team/TeamLeagueStrips.astro, site_v2/src/components/player/PlayerComparison.astro]
++    used-on: [Team page, Player page]
++    parts:
++      plot: {class: rs-plot}
++      peers: {class: rs-peers}
++      median: {class: rs-tick}
++      median-value: {class: rs-tick-value}
++      median-key: {class: rs-tick-key}
++      panels: {class: cmp-panels}
++      panel: {class: cmp-p}
+       row: {class: rs-row, element: Strip plot row, rule: "a metric's name, the league's values with every team's mark, and the team's rank over its value; drawn by `team/TeamLeagueStrips.astro`", measured: fits, ruled-on: the Team page review}
+       value: {class: rs-val, element: Strip plot value, rule: "the team's rank over its value; drawn by `team/TeamLeagueStrips.astro`", measured: "font-size=15px; font-weight=700; color=ink", ruled-on: the Team page review}
+       band: {class: rs-band, selector: ".rs-row .rs-band", element: Strip plot band, rule: "a strip plot row's strip: its line with every team's mark on it", measured: fits, ruled-on: the chart theme}
+     wide: "name | strip | rank over value"
+     narrow: {below: w480, form: "name | rank over value, the strip on its own line"}
+     never-split: [14th, "1.1", "better →"]
++  card:
++    name: Card
++    file: site_v2/src/components/ui/StatCards.astro
++    used-on: [Player page]
++    parts:
++      block: {class: kpis}
++      grid: {class: kpi-row}
++      card: {class: kpi}
++      body: {class: kpi-in}
++      number: {class: kpi-v}
++      text: {class: kpi-t}
++      label: {class: kpi-l}
++      block-narrow: {class: narrow, selector: ".kpis.narrow"}
++      block-tight: {class: tight, selector: ".kpis.tight"}
++    wide: "six cards in one row, always, a 0 included; the number centred over its label, a label on at most two lines and never broken inside a word; at most 240px wide"
++    narrow: {below: fits, form: "three across with 10px side padding, otherwise two across; below 100px card width the number is 24px and the label 12px"}
+   scatter-plot:
+     name: Scatter plot
+     file: site_v2/src/components/team/TeamDeserved.astro
+diff --git a/docs/site_architecture.md b/docs/site_architecture.md
+index 58eb83e3..8da012e8 100644
+--- a/docs/site_architecture.md
++++ b/docs/site_architecture.md
+@@ -57,7 +57,6 @@ The scheme is written here with the English words.
+ ```
+ 
+ Every address in the block above has a built page, except the country hub and the season archive.
+-The player page is a stub.
+ 
+ Planned, not designed yet; each address is provisional until its page's review (§ Address words):
+ 
+@@ -280,7 +279,7 @@ every file. The `fetch_*` function for a file holds its live list of marts.
+ | Competition page, all three tabs | `competitions/{league_code}/{season}.json` (the page shows the latest season served) | Header: `mart_competition_index`. The table: `mart_standings`, with `table_kind`. The deserved points table: `mart_team_profile`. The season in numbers: `mart_competition_season_summary`. The Matchdays tab, the header's round and the match-that-matters flag: `mart_competition_fixtures`. The Rankings tab's boards, the top five per board: `mart_team_leaderboards` and `mart_leaderboards`. Read `fetch_competition_payloads` for the live list. |
+ | Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_window_metrics` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H), `mart_team_momentum_window` (the form list), `mart_player_momentum` (top players). Read `fetch_fixture_payloads`. **Not** `mart_matchday_insights`, the retired MVP's presentation pivot of the momentum mart. v2 reads the source marts directly. A played match's payload reads `mart_competition_fixtures` (result, goals, line-up state), `mart_leaderboards` (match boards), `mart_team_window_metrics` (one match) and `mart_player_fixture_stats` (line-ups). Read `fetch_played_fixture_payloads`. |
+ | Team profile ⭐ | `teams/{team_api_id}.json` | `mart_team_profile`, `mart_team_fixtures` (next match, last five), `mart_roster` (the squad), `mart_team_competition_benchmarks`, `mart_player_career` (squad season stats). Read `fetch_team_payloads`. |
+-| Player profile ⭐ | `players/{player_api_id}.json`, `player_peers/{league_code}/{season}/{position_group}.json`, `player_metric_rows.json` | `mart_player_profile`, `mart_player_window_metrics`, `mart_player_competition_benchmarks`, `mart_player_squad_benchmarks`, `mart_player_fixture_stats` (the matches of the season shown), `mart_team_fixtures` (next matches), `mart_team_profile` (team names and slugs). Read `fetch_player_payloads`. The page is a stub and does not read `players/`. It takes its players from `landing.json` and the competition files. |
++| Player profile ⭐ | `players/{player_api_id}.json`, `player_peers/{league_code}/{season}/{position_group}.json`, `player_metric_rows.json`, `player_pages.json` | `mart_player_profile`, `mart_player_window_metrics`, `mart_player_competition_benchmarks`, `mart_player_squad_benchmarks`, `mart_player_fixture_stats` (the matches of the season shown), `mart_team_fixtures` (next matches), `mart_team_profile` (team names and slugs). Read `fetch_player_payloads`. |
+ | Standings | within the competition file | `mart_standings` (league and group tables, incl. WC group letters) |
+ | Leaderboards | `leaderboards/{league_code}/{season}.json` | `mart_leaderboards`, player catalogue metrics |
+ | Head-to-head | `h2h/{pair_key}.json` (not exported) | `mart_head_to_head` |
+diff --git a/docs/wireframes/00_overview.md b/docs/wireframes/00_overview.md
+index 4791a8d5..776810c3 100644
+--- a/docs/wireframes/00_overview.md
++++ b/docs/wireframes/00_overview.md
+@@ -132,7 +132,7 @@ keeps the earlier widths, 680px and 1100px, through the `legacyWidth` prop of `L
+ | 01 | [01_fixture_page.md](01_fixture_page.md) | Fixture page ⭐ | **spec'd** | 1 |
+ | — | [metrics_display.md](metrics_display.md) | Metric display contract (team + player, LOCKED) | **ruled** | 1 |
+ | 02 | [02_team_profile.md](02_team_profile.md) | Team page: Overview · Matches · Performance | **built**; **approved on [its GitLab issue](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/134)** — the authority for the page | 2 |
+-| 03 | [03_player_profile.md](03_player_profile.md) | Player profile ⭐ | **spec'd** | 2 |
++| 03 | [03_player_profile.md](03_player_profile.md) | Player page: Club · National team | **retired**: **approved on [its GitLab issue](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/136)** ("The approved design"), the authority for the page | ⁑ |
+ | 04 | 04_competition_hub.md | Competition page: Overview · Matchdays · Rankings | **Fully approved on GitLab #129** ("The approved design", three tabs) — the authority for the page. No wireframe file: the issue's block list and its data-model tables are the field contract; the elements and their measurements are [block_standard.md](block_standard.md). Built: the Overview (#149), the Matchdays tab (#150) and the Rankings tab (#151), each at its address word ([site_architecture.md](../site_architecture.md) "Address words") | 3 |
+ | 05 | 05_leaderboards.md | Leaderboards + per-metric stats pages | pending | 3 |
+ | 06 | 06_head_to_head.md | Head-to-head page | pending | 3 |
+@@ -141,8 +141,8 @@ keeps the earlier widths, 680px and 1100px, through the `legacyWidth` prop of `L
+ | 09 | [09_chrome.md](09_chrome.md) | Nav/header/footer/search/locale/404 | **spec'd + built** 2026-07-26 (header/footer/nav/search-chrome/theme-toggle; locale-switch mechanism + 404 page deferred) | 4 |
+ | 10 | [10_home.md](10_home.md) | Home (pins the homepage spec → unblocks `landing.json`) | **built**, three blocks; **approved on GitLab #127** (2026-09-13, "The approved design") — the authority for Home; the wireframe is corrected to it and #143 builds the Home-owned changes | 5 |
+ | 11 | [11_team_squad.md](11_team_squad.md) | Team → Squad | **retired**: the squad is the last block of the Team page's Overview ([02](02_team_profile.md)) | ⁑ |
+-| 12 | [12_player_stats.md](12_player_stats.md) | Player → Stats (percentile vs peers) | **spec'd** | #391 ⁑ |
+-| 13 | [13_player_career.md](13_player_career.md) | Player → Career (clubs · competitions · seasons) | **spec'd** | #391 ⁑ |
++| 12 | [12_player_stats.md](12_player_stats.md) | Player → Stats | **retired**: each tab of the Player page compares the player with other players | ⁑ |
++| 13 | [13_player_career.md](13_player_career.md) | Player → Career | **retired**: the Player page has no Career tab | ⁑ |
+ | 14 | [14_team_stats.md](14_team_stats.md) | Team → Stats | **retired**: the Team page's Performance tab compares the team with its league ([02](02_team_profile.md)) | ⁑ |
+ | 15 | — | Matches page and its day pages | **built**; **approved on GitLab #130** ("The approved design") with the reach ruled on #131 — the authority for the page. No wireframe file: the issue is the field contract; the elements and their measurements are [block_standard.md](block_standard.md) | #160 |
+ | 99 | [99_gaps_register.md](99_gaps_register.md) | Data-gap register | live | 1+ |
+diff --git a/docs/wireframes/03_player_profile.md b/docs/wireframes/03_player_profile.md
+index 43cbf605..eb5db141 100644
+--- a/docs/wireframes/03_player_profile.md
++++ b/docs/wireframes/03_player_profile.md
+@@ -1,5 +1,7 @@
+ # 03 — Player profile ⭐ (#391)
+ 
++> **Retired.** The Player page's approved design is on [its GitLab issue](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/136).
++
+ > Field-bound against `shape_player_payload` / `mart_player_profile` /
+ > `mart_player_fixture_stats`. Stat rows follow the LOCKED
+ > player bundles in [`metrics_display.md`](metrics_display.md) — 9 bundled rows,
+diff --git a/docs/wireframes/12_player_stats.md b/docs/wireframes/12_player_stats.md
+index 25636745..9ec1c066 100644
+--- a/docs/wireframes/12_player_stats.md
++++ b/docs/wireframes/12_player_stats.md
+@@ -1,5 +1,7 @@
+ # 12 — Player → Stats (percentile vs peers)
+ 
++> **Retired.** The Player page has no Stats tab: each tab compares the player with other players ([its GitLab issue](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/136)).
++
+ > A sub-screen of the player page (03). Field-bound against `mart_player_competition_benchmarks` — **built**
+ > (the player benchmark chain: #559 per-90 metric layer → #561 engine + mart; entity-renamed in #500). The
+ > benchmark payload is **wired** — every key in §5 is carried by the player export
+diff --git a/docs/wireframes/13_player_career.md b/docs/wireframes/13_player_career.md
+index b3074f77..e860724a 100644
+--- a/docs/wireframes/13_player_career.md
++++ b/docs/wireframes/13_player_career.md
+@@ -1,5 +1,7 @@
+ # 13 — Player → Career (clubs · competitions · seasons)
+ 
++> **Retired.** The Player page has no Career tab ([its GitLab issue](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/136)).
++
+ > A sub-screen of the player page (03). Field-bound against `mart_player_career` — **built** (#630, #480 §8.3:
+ > the per-club player-season foundation `int_player_club_season__metrics` → the rebuilt career mart). The mart
+ > is **wired** — every key in §5 is carried by the player export ([GAP-22](99_gaps_register.md), shipped
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index e8b9cbc2..72bb311f 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -137,7 +137,7 @@
+ | Goal row | `.resrow.goal` | a goal: the score after it, then the scorer with the crest of the side it counts for. The second line holds the minute with the assist, own goal or penalty. Without minutes the row has no score | `fits` | ruled | the played match page review |
+ | Goal row meta | `.resrow.goal .rmeta` | the goal's minute and its assist, own goal or penalty: 14px ink-2, larger and lighter than a list row's second line | `font-size=14px; color=ink-2` | ruled | the played match page review |
+ | Result row home away | `.resrow .ha` | the result row's home away, in the 11-600-muted text style, never broken | `font-size=11px; font-weight=600; color=muted; one-line; fits` | ruled | the component registry |
+-| Result row parts | `.rlist, .scorer` | the result row's other parts: registered, no text of their own |  | ruled | the component registry |
++| Result row parts | `.rlist, .rlist.pm, .rm-c, .rm-p, .scorer` | the result row's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Form parts | `.W, .D, .L` | the form's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Player row | `.plrow` | photo · name over position · goals and assists on the right at every width; two lines below 375px when the row is short of room; on a line-up, the minutes played | `fits` | ruled | the match page review; the component registry |
+ | Player row name | `.plrow .pname .nm` | 15px regular ink, wrapping, never cut off | `font-size=15px; font-weight=400; color=ink; white-space=normal` | ruled | the match page review |
+@@ -152,6 +152,8 @@
+ | Strip plot row | `.rs-row` | a metric's name, the league's values with every team's mark, and the team's rank over its value; drawn by `team/TeamLeagueStrips.astro` | `fits` | ruled | the Team page review |
+ | Strip plot value | `.rs-val` | the team's rank over its value; drawn by `team/TeamLeagueStrips.astro` | `font-size=15px; font-weight=700; color=ink` | ruled | the Team page review |
+ | Strip plot band | `.rs-row .rs-band` | a strip plot row's strip: its line with every team's mark on it | `fits` | ruled | the chart theme |
++| Strip plot parts | `.rs-plot, .rs-peers, .rs-tick, .rs-tick-value, .rs-tick-key, .cmp-panels, .cmp-p` | the strip plot's other parts: registered, no text of their own |  | ruled | the component registry |
++| Card parts | `.kpis, .kpi-row, .kpi, .kpi-in, .kpi-v, .kpi-t, .kpi-l, .kpis.narrow, .kpis.tight` | the card's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Scatter plot | `.dp-chart` | each team's shots on target difference per match against its points, with the deserved points line; drawn by `team/TeamDeserved.astro` | `fits` | ruled | the Team page review |
+ | Comparison element | `.cmp` | two teams' numbers on one metric list, each metric's two values, name and bar; drawn by `fixture/MetricComparison.astro` | `fits` | ruled | the played match page review |
+ | Comparison team name | `.cmp .formhead .h` | each team's name over its column, in the chart legend's style | `font-size=12px; font-weight=400; color=ink-2` | ruled | the chart theme |
+@@ -208,6 +210,12 @@ note); a name, a "Matchday N" and a date never break inside themselves
+ Not measured, still the rule: a team's crest in the match header is 52px, and every other crest is
+ 24px.
+ 
++## Separators
++
++A middle dot with a space either side separates items of one line. Items in their own columns are
++separated by space. An en dash joins a score and stands for a missing value. The em dash is not
++used.
++
+ ## Pages
+ 
+ Every built page type and every mock page. `Source` is `site_v2/dist` for a built page, or the
+@@ -235,6 +243,8 @@ of record in `design-mocks/renders/` are not pages; the generators that wrote th
+ | Played match page | built | `site_v2/dist` | `en/bundesliga/matches/2026-09-05-tsg-1899-hoffenheim-vs-borussia-dortmund/index.html` | path | Match header winner, Goal row meta, Comparison element, Metric switch, Comparison team name, Column head, Search field [>=1010px], Search button [<1010px] |
+ | Team page | built | `site_v2/dist` | `en/teams/*/index.html` | path | Block heading, Tab bar, Competition row, Result row, Match row kick-off, Tag, Fact row value, Player row, Squad grid, Search field [>=1010px], Search button [<1010px] |
+ | Teams page | built | `site_v2/dist` | `en/teams/index.html` | path | Page heading, Filter row, Block heading, Competition group head, Group count, Fold, Row link, Search field [>=1010px], Search button [<1010px] |
++| Player page | built | `site_v2/dist` | `en/players/h-kane-184/index.html` | path | Block heading, Tab bar, Strip plot row, Result row, Match row kick-off, Search field [>=1010px], Search button [<1010px] |
++| Player pages | built | `site_v2/dist` | `en/players/*/index.html` | path | Block heading, Search field [>=1010px], Search button [<1010px] |
+ | Matches page | built | `site_v2/dist` | `en/matches/index.html` | path | Page heading, Filter row, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row kick-off, Match row score, Search field [>=1010px], Search button [<1010px] |
+ | Matches day page | built | `site_v2/dist` | `en/matches/*/index.html` | path | Page heading, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row score, Search field [>=1010px], Search button [<1010px] |
+ | competition-overview | mock | `gen_overview_after_teams.py` | `competition_overview_after_teams_v2.html` | toggle | Block heading, Table head, Table row, Ordered-by number, Fact row value, Tab bar |
+diff --git a/docs/wireframes/metrics_display.md b/docs/wireframes/metrics_display.md
+index 20d4d2a5..06ccc34e 100644
+--- a/docs/wireframes/metrics_display.md
++++ b/docs/wireframes/metrics_display.md
+@@ -19,9 +19,9 @@ Every catalogue row says whether it is a key metric (`is_key_metric`). Team and
+ ## Composite-row patterns (ruled)
+ 
+ - **No naked percentage** — every % must have its volume visible nearby. Two
+-  mechanisms by surface: team comparisons use an **adjacent count row** in the
+-  same block (Duels before Duels won percentage); player bundles use the **inline full
+-  triple** `{num} of {den} · {pct}%`.
++  mechanisms by surface. Team comparisons and the Player page's comparison blocks use an
++  **adjacent count row** in the same block. Duels comes before Duels won percentage, and Duels won
++  per 90 before Duels won percentage. Player bundles use the **inline full triple** `{num} of {den} · {pct}%`.
+ - **Context pairs travel together**: a count and its percentage are key together
+   (Duels before Duels won percentage), never separated.
+ - **Aggregates with breakdown**: defensive actions render as one number with the
+@@ -83,6 +83,9 @@ N" + vs-median, honest at N≈18) — never a percentile.
+ 6. **Ratio metrics keep their volume (no naked %).** The five ratio metrics (`saves_player_pct`, `passes_accuracy_player_pct`,
+    `finishing_efficiency_player_pct`, `dribbles_success_player_pct`, `duels_won_player_pct`) render the triple `{num} of {den} ·
+    {pct}%` — consistent with the player-row contract below; the wiring PR (GAP-21) carries the num/den atoms.
++   On the Player page's comparison blocks, each ratio follows its count per 90 in the same group instead. Team
++   comparisons do the same. These blocks are Compared with other players and Compared with last season. The
++   goalkeeper Saves card shows the percentage alone.
+ 
+ ## Team metrics — LOCKED (CPO, 2026-06-11)
+ 
+diff --git a/scripts/check_copy_gate.py b/scripts/check_copy_gate.py
+index 54ed75f4..62297194 100644
+--- a/scripts/check_copy_gate.py
++++ b/scripts/check_copy_gate.py
+@@ -23,8 +23,8 @@ The checks, each traceable to a real defect:
+      is flagged with both spellings so a human can settle it.
+   4. UNTRANSLATED VALUES. A non-EN locale carrying a value byte-identical to EN
+      for a key whose EN value contains a lowercase alphabetic word. Numbers,
+-     symbols, brand names and pure abbreviations are exempt, because those are
+-     legitimately identical across locales.
++     symbols, brand names, pure abbreviations and the unit symbols in UNIT_SYMBOLS
++     are exempt, because those are legitimately identical across locales.
+   5. SEED KEYS RESOLVABLE. Every `label_i18n_key` the warehouse seeds publish
+      (competition kinds, confederations, round names) exists in every locale. Check 2 sees
+      only keys that are already in EN, and check 1-4 see only keys the pages
+@@ -64,6 +64,9 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
+ STRINGS = REPO_ROOT / "site_v2" / "src" / "i18n" / "strings.ts"
+ CORPUS_DIR = REPO_ROOT / "site" / "i18n"
+ LOCALES = ("en", "de", "fi")
++# Unit symbols that are the same word in more than one language. Each entry is the product owner's
++# decision; the list is the only way in.
++UNIT_SYMBOLS = frozenset({"min"})
+ # Floor under the extraction, enforced in the gate itself (see main()). The fixture
+ # page alone needs about two dozen labels, so anything under this means the regex
+ # broke rather than the copy shrank.
+@@ -266,7 +269,7 @@ def main() -> int:
+                 continue
+             # exempt: no lowercase word at all (numbers, symbols, abbreviations),
+             # or a single token that is a brand/abbreviation
+-            if not re.search(r"[a-z]{3,}", en_val):
++            if not re.search(r"[a-z]{3,}", en_val) or en_val in UNIT_SYMBOLS:
+                 continue
+             if len(en_val.split()) == 1 and en_val[0].isupper():
+                 continue
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index 15b1e8d9..4e969183 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -677,6 +677,7 @@ def shape_player_payload(
+         "season_label": profile.get("season_label"),
+         "club": teams.get(int(club_id)) if club_id is not None else None,
+         "tabs": tabs,
++        "shares_name_at_club": bool(profile.get("shares_name_at_club")),
+     }
+ 
+ 
+@@ -1159,7 +1160,7 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
+ _PLAYER_PROFILE_COLUMNS = (
+     "player_sk, player_name, player_full_name, player_age, player_nationality, player_height, "
+     "player_photo_url, position_group, has_club_tab, has_national_team_tab, national_team_sk, "
+-    "current_club_team_sk, season_label"
++    "current_club_team_sk, season_label, shares_name_at_club"
+ )
+ _PLAYER_MATCH_COLUMNS = (
+     "player_sk, fixture_sk, page_tab, league_code, kickoff_datetime, is_home, "
+@@ -1181,9 +1182,19 @@ _PLAYER_WINDOW_COLUMNS = (
+ )
+ 
+ 
++def page_player_ids(client) -> list[int]:
++    """The players with a page, by the warehouse's flag."""
++    rows = _query(client, f"""
++        select distinct player_sk
++        from `{GCP_PROJECT}.{MARTS_DATASET}.mart_player_profile`
++        where has_player_page
++    """)
++    return sorted(int(r["player_sk"]) for r in rows)
++
++
+ def linked_player_ids(out_root: pathlib.Path) -> list[int]:
+-    """The players the site links to: those on the Home and competition boards of this export. The
+-    site makes a page for exactly these (`site_v2/src/lib/builtPlayers.mjs`)."""
++    """The players on the Home and competition boards of this export: a sample takes these first,
++    so its pages are the ones its boards link to."""
+     ids: set[int] = set()
+     landing = out_root / "landing.json"
+     boards = json.loads(landing.read_text(encoding="utf-8")).get("top_players", []) if landing.exists() else []
+@@ -2631,14 +2642,22 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
+             entries.append(write_entity(out_root, "matches", p["day"], p))
+     # After landing and competitions: their boards name the players who get a page.
+     if "players" in entities:
+-        linked = linked_player_ids(out_root)
+-        if not linked:
+-            raise ValueError(f"no player boards in {out_root}: export landing and competitions first")
+-        payloads, peers = fetch_player_payloads(client, linked, sample)
++        ids = page_player_ids(client)
++        if not ids:
++            raise ValueError("no player has a page: mart_player_profile.has_player_page is false on every row")
++        on_boards = set(linked_player_ids(out_root))
++        ids.sort(key=lambda i: (i not in on_boards, i))
++        payloads, peers = fetch_player_payloads(client, ids, sample)
++        payloads = sorted(payloads, key=lambda p: p["player_id"])
++        peers = sorted(peers, key=lambda p: (p["league_code"], p["season"], p["position_group"]))
+         for p in payloads:
+             e = write_entity(out_root, "players", p["player_id"], p)
+             entries.append(e)
+             slug_map[p["slug"]] = {"type": "player", "id": p["player_id"]}
++        pages = {str(p["player_id"]): p["slug"] for p in payloads}
++        sha = write_file(out_root, "player_pages.json", {"type": "player_pages", "pages": pages})
++        entries.append({"type": "player_pages", "id": "player_pages", "slug": None,
++                        "path": "player_pages.json", "sha256": sha})
+         for p in peers:
+             relpath = f"player_peers/{p['league_code']}/{p['season']}/{p['position_group']}.json"
+             sha = write_file(out_root, relpath, p)
+diff --git a/site_v2/scripts/audit-seo.mjs b/site_v2/scripts/audit-seo.mjs
+index 8f3b381a..8d7cc343 100644
+--- a/site_v2/scripts/audit-seo.mjs
++++ b/site_v2/scripts/audit-seo.mjs
+@@ -307,6 +307,16 @@ export function sharesHeader(a, b, h1Of) {
+   return h1 !== undefined && h1 === h1Of.get(a) && h1 === h1Of.get(b);
+ }
+ 
++/** Whether both paths are player pages. Two players can share a name: the heading stays the name,
++ *  and the address, the title and the description keep the pages apart. */
++export function arePlayerPages(a, b) {
++  const isPlayer = (path) => {
++    const [lang, section, slug, rest] = path.split("/").filter(Boolean);
++    return Boolean(slug) && !rest && section === WORDS.players?.[lang];
++  };
++  return isPlayer(a) && isPlayer(b);
++}
++
+ /**
+  * Pure: audit the whole generated set.
+  *
+@@ -403,9 +413,10 @@ export function auditSet(pages, opts) {
+         if (!value) continue;
+         const k = `${l} ${value}`;
+         const first = seen[field].get(k);
+-        // The one h1 that may repeat: an entity page and its tab pages share one header by design
+-        // (the competition page's Overview, Matchdays and Rankings); the title carries the tab.
+-        if (first && first !== path && !(field === "h1" && sharesHeader(first, path, h1Of)))
++        // An h1 may repeat in two cases: an entity page and its tab pages share one header by design
++        // (the competition page's Overview, Matchdays and Rankings), where the title carries the tab;
++        // and two players can share a name.
++        if (first && first !== path && !(field === "h1" && (sharesHeader(first, path, h1Of) || arePlayerPages(first, path))))
+           add(path, `${field} is not unique within "${l}" — same as ${first}: ${JSON.stringify(value)}`);
+         else if (!first) seen[field].set(k, path);
+       }
+diff --git a/site_v2/scripts/audit-seo.test.mjs b/site_v2/scripts/audit-seo.test.mjs
+index 3e3b2592..c25f5b7b 100644
+--- a/site_v2/scripts/audit-seo.test.mjs
++++ b/site_v2/scripts/audit-seo.test.mjs
+@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
+ import { readFileSync } from "node:fs";
+ import {
+   parseHead, resolveHref, auditSet, decode, emptyPaths, entityKey, isRootRedirect,
+-  specRouteRegex, readSpecExpectations, titleWidthPx, TITLE_PX_BUDGET, TITLE_PX_HARD,
++  arePlayerPages, specRouteRegex, readSpecExpectations, titleWidthPx, TITLE_PX_BUDGET, TITLE_PX_HARD,
+   MIN_EXPECTED_PAGES, routeSpecificity, specForPath, specTie, isTabOf, sharesHeader, keepDeadLinks,
+ } from "./audit-seo.mjs";
+ 
+@@ -382,6 +382,28 @@ test("SELF-CHECK: a broken parser reports ITSELF rather than passing everything"
+   assert.match(auditSet([], OPTS)[0], /parsed 0 pages/);
+ });
+ 
++test("two player pages may share a heading; no other pair may", () => {
++  assert.equal(arePlayerPages("/en/players/k-hashimoto-2599/", "/en/players/k-hashimoto-265828/"), true);
++  assert.equal(arePlayerPages("/fi/pelaajat/s-savic-39/", "/fi/pelaajat/s-savic-80207/"), true);
++  assert.equal(arePlayerPages("/en/players/a-1/", "/en/teams/a/"), false);
++  assert.equal(arePlayerPages("/en/players/", "/en/players/a-1/"), false);
++});
++
++test("auditSet: two player pages pass with one heading, and their titles and descriptions are still checked", () => {
++  const player = (path, title, description) =>
++    ({ path, head: head({ title, description, canonical: `${SITE}${path}`, ogUrl: `${SITE}${path}`, alternates: {} }) });
++  const a = "/en/players/k-hashimoto-2599/";
++  const b = "/en/players/k-hashimoto-265828/";
++  const twins = auditSet([player(a, "A", "da"), player(b, "B", "db")], OPTS);
++  assert.ok(!twins.some((i) => i.includes("h1 is not unique")), twins.join("\n"));
++  const sameTitle = auditSet([player(a, "T", "da"), player(b, "T", "db")], OPTS);
++  assert.ok(sameTitle.some((i) => i.includes('title is not unique within "en"')), sameTitle.join("\n"));
++  const sameDescription = auditSet([player(a, "A", "d"), player(b, "B", "d")], OPTS);
++  assert.ok(sameDescription.some((i) => i.includes('description is not unique within "en"')), sameDescription.join("\n"));
++  const notPlayers = auditSet([player("/en/teams/a/", "A", "da"), player("/en/teams/b/", "B", "db")], OPTS);
++  assert.ok(notPlayers.some((i) => i.includes("h1 is not unique")), notPlayers.join("\n"));
++});
++
+ test("titleWidthPx measures WIDTH, not characters — the whole point of the check", () => {
+   // Two strings of identical length occupying very different space. A character count cannot tell
+   // these apart, which is why the German and Finnish overruns had to be found by hand.
+diff --git a/site_v2/scripts/check-metric-labels.test.mjs b/site_v2/scripts/check-metric-labels.test.mjs
+index a25c0b43..fe036abf 100644
+--- a/site_v2/scripts/check-metric-labels.test.mjs
++++ b/site_v2/scripts/check-metric-labels.test.mjs
+@@ -42,7 +42,10 @@ function labelBlock(loc) {
+ }
+ 
+ const labels = Object.fromEntries(LOCALES.map((l) => [l, labelBlock(l)]));
+-const servedRows = JSON.parse(readFileSync(join(SITE, "src/data/metric_rows.json"), "utf8")).rows;
++const servedRows = [
++  ...JSON.parse(readFileSync(join(SITE, "src/data/metric_rows.json"), "utf8")).rows,
++  ...JSON.parse(readFileSync(join(SITE, "src/data/player_metric_rows.json"), "utf8")).rows,
++];
+ const rowKeys = [
+   ...servedRows.map((r) => r.label_i18n_key),
+   ...[...rowsSrc.matchAll(/label_i18n_key:\s*"(metrics\.[A-Za-z0-9_]+\.label)"/g)].map((m) => m[1]),
+@@ -358,6 +361,9 @@ const NOT_THE_METRIC = {
+   secGoals: "the match page's Goals section lists the goals scored, not the goals metric",
+   goals: "the word after a goal count (2 Tore), not the goals metric",
+   goalsWord: "the word after a goal count, not the goals metric",
++  assists: "the word after an assist count (2 Vorlagen), not the assists metric",
++  playerAssists: "the word after an assist count (2 Vorlagen), not the assists metric",
++  saves: "the word after a save count (3 Paraden), not the saves metric",
+ };
+ 
+ test("no page string spells a catalogue metric name; it comes from METRIC_LABELS", () => {
+diff --git a/site_v2/src/components/competition/RankingBoard.astro b/site_v2/src/components/competition/RankingBoard.astro
+index 5ce806e3..0d3d4e2f 100644
+--- a/site_v2/src/components/competition/RankingBoard.astro
++++ b/site_v2/src/components/competition/RankingBoard.astro
+@@ -15,6 +15,7 @@ import type { Lang } from "../../lib/format";
+ import { boardTitle } from "../../i18n/strings";
+ import { localeHref, word } from "../../lib/href";
+ import type { CompetitionBoard, LandingRankedBoard, MatchLeaderBoard } from "../../lib/types";
++import { hasPlayerPage } from "../../lib/builtPlayers.mjs";
+ 
+ interface Props {
+   board: CompetitionBoard | MatchLeaderBoard | LandingRankedBoard;
+@@ -31,7 +32,7 @@ const title = boardTitle(lang, board.label_i18n_key, "per_match" in board ? boar
+ 
+ function href(slug: string | null | undefined): string | undefined {
+   if (rowHref) return rowHref(slug);
+-  if (!slug) return undefined;
++  if (!slug || (entity === "player" && !hasPlayerPage(slug))) return undefined;
+   return localeHref(lang, `${word(lang, entity === "team" ? "teams" : "players")}/${slug}/`);
+ }
+ const Row = (slug: string | null | undefined) => (href(slug) ? "a" : "div");
+diff --git a/site_v2/src/components/fixture/PlayerRow.astro b/site_v2/src/components/fixture/PlayerRow.astro
+index ce013f04..229d4db2 100644
+--- a/site_v2/src/components/fixture/PlayerRow.astro
++++ b/site_v2/src/components/fixture/PlayerRow.astro
+@@ -1,9 +1,12 @@
+ ---
+ // One Players to watch row, the player row: photo · name over position · goals and assists (a
+-// goalkeeper's saves). A count the warehouse leaves blank shows as a dash.
++// goalkeeper's saves). A count the warehouse leaves blank shows as a dash. The row links to the
++// player's page when this build makes one.
+ import { DASH, integer } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { t, positionLabel } from "../../i18n/strings";
++import { builtPlayers } from "../../lib/builtPlayers.mjs";
++import { localeHref, word as addressWord } from "../../lib/href";
+ import type { TopPlayer } from "../../lib/types";
+ 
+ interface Props {
+@@ -20,9 +23,11 @@ const initials = (player.player_name ?? "")
+   .toUpperCase();
+ const count = (v: number | null | undefined) => (v == null ? DASH : integer(v, lang));
+ const word = (v: number | null | undefined, one: string, many: string) => t(lang, v === 1 ? one : many);
++const slug = builtPlayers().get(player.player_sk);
++const Row = slug ? "a" : "div";
+ ---
+ 
+-<div class="lrow">
++<Row class="lrow" href={slug ? localeHref(lang, `${addressWord(lang, "players")}/${slug}/`) : undefined}>
+   <div class="plrow">
+     <span class="pphoto">
+       {player.player_photo_url
+@@ -44,4 +49,4 @@ const word = (v: number | null | undefined, one: string, many: string) => t(lang
+       )}
+     </span>
+   </div>
+-</div>
++</Row>
+diff --git a/site_v2/src/components/player/PlayerComparison.astro b/site_v2/src/components/player/PlayerComparison.astro
+new file mode 100644
+index 00000000..89acb3ef
+--- /dev/null
++++ b/site_v2/src/components/player/PlayerComparison.astro
+@@ -0,0 +1,157 @@
++---
++// Compared with other players: a filter of the competitions where the player reaches the minutes
++// floor, then Squad; its explainer, the switch, the legend, and each metric as a strip of the peer
++// set: every player a light dot, the player the solid dot, the median tick with its value, the rank
++// and value on the right. A goalkeeper's metrics all show, with no switch. Look from system.css.
++import SectionHead from "../ui/SectionHead.astro";
++import MetricSwitch from "../ui/MetricSwitch.astro";
++import ChartLegend from "../ui/ChartLegend.astro";
++import Chevron from "../fixture/Chevron.astro";
++import { stripInset } from "../../lib/chartTheme";
++import { formatValue, integer, ordinal } from "../../lib/format";
++import { t, metricLabel, boardTitle } from "../../i18n/strings";
++import { competitionInfo } from "../../lib/teamFixtures";
++import { medianAnchor, placeOnLine, playerGroups, positionWord, teamBeforeCompound } from "../../lib/playerPage";
++import type { Lang } from "../../lib/format";
++import type { PlayerMetric, PlayerTab } from "../../lib/playerPage";
++
++interface Props {
++  tab: PlayerTab;
++  /** metric -> every value of the competition's peer set, by the competition's list index. */
++  peers: Record<string, number[]>[];
++  name: string;
++  positionGroup: string | null;
++  lang: Lang;
++}
++const { tab, peers, name, positionGroup, lang } = Astro.props;
++
++// system.css carries one rule per slot.
++const COMPARISON_SLOTS = 8;
++const isGoalkeeper = positionGroup === "GK";
++const prefix = tab.tab === "club" ? "club" : "national";
++const positionText = positionWord(lang, "One", positionGroup);
++const self = positionText
++  ? `${name} · ${positionText.charAt(0).toLocaleUpperCase(lang)}${positionText.slice(1)}`
++  : name;
++const teamName = tab.squad?.team?.name ?? "";
++
++const comparisons = [
++  ...tab.competitions.map((c, i) => {
++    const comp = competitionInfo(c.league_code).name;
++    return {
++      label: comp,
++      metrics: c.metrics,
++      strip: (m: PlayerMetric) => peers[i]?.[m.metric_key] ?? [],
++      intro: t(lang, "playerPeerIntro", {
++        player: name,
++        n: integer(c.player_count, lang),
++        positions: positionWord(lang, "Peers", c.position_group),
++        comp,
++        season: c.season_label ?? "",
++      }),
++      others: t(lang, "playerOthers", { positions: positionWord(lang, "Others", c.position_group) }),
++    };
++  }),
++  ...(tab.squad && !isGoalkeeper
++    ? [{
++      label: t(lang, "playerSquad"),
++      metrics: tab.squad.metrics,
++      strip: (m: PlayerMetric) => m.others ?? [],
++      intro: t(lang, tab.tab === "club" ? "playerSquadClubIntro" : "playerSquadNationalIntro", {
++        player: name,
++        n: integer(tab.squad.player_count, lang),
++        team: teamBeforeCompound(lang, teamName),
++        season: tab.competitions[0]?.season_label ?? "",
++      }),
++      others: t(lang, "playerOtherTeam", { team: teamName }),
++    }]
++    : []),
++].map((c, i) => {
++  const byKey = new Map(c.metrics.map((m) => [m.metric_key, m]));
++  return { ...c, slot: i + 1, byKey, groups: playerGroups((id) => byKey.get(id)?.value != null, isGoalkeeper) };
++}).filter((c) => c.groups.length > 0);
++
++if (comparisons.length > COMPARISON_SLOTS) {
++  throw new Error(`PlayerComparison: ${comparisons.length} comparisons, system.css has rules for ${COMPARISON_SLOTS}`);
++}
++const allRows = comparisons.flatMap((c) => c.groups.flatMap((g) => g.rows));
++const showSwitch = !isGoalkeeper && allRows.some((r) => r.is_key_metric) && allRows.some((r) => !r.is_key_metric);
++const group = `${prefix}-compare`;
++const at = (x: number, lo: number, hi: number) => `${Number(placeOnLine(x, lo, hi, stripInset).toFixed(1))}%`;
++const aria = t(lang, "playerComparedWith");
++---
++
++{comparisons.length > 0 && (
++  <section>
++    <SectionHead label={t(lang, "playerVsOthers")} />
++    {comparisons.map((c) => (
++      <input class="seg-in" type="radio" name={group} id={`${group}-${c.slot}`} value={c.slot} data-cmp={c.slot} checked={c.slot === 1} />
++    ))}
++    {comparisons.length > 1 && (
++      <div class="fbar">
++        <div class="seg" role="group" aria-label={aria}>
++          {comparisons.map((c) => <label class="seg-btn" for={`${group}-${c.slot}`} data-cmp={c.slot}>{c.label}</label>)}
++        </div>
++        <div class="selbar">
++          <div class="seg sel">
++            <select class="sel-in" data-filter={group} aria-label={aria}>
++              {comparisons.map((c) => <option value={c.slot} selected={c.slot === 1}>{c.label}</option>)}
++            </select>
++            <Chevron />
++          </div>
++        </div>
++      </div>
++    )}
++    <div class="cmp-panels">
++      {comparisons.map((c) => <p class="bsub cmp-p" data-cmp={c.slot}>{`${c.intro} ${t(lang, "playerPer90")}`}</p>)}
++    </div>
++    {showSwitch && <MetricSwitch id={`${group}-switch`} lang={lang} />}
++    <div class="cmp-panels">
++      {comparisons.map((c) => (
++        <div class="cmp-p" data-cmp={c.slot}>
++          <div class="chart">
++            <ChartLegend keys={[
++              { mark: "team", label: self },
++              { mark: "other", label: c.others },
++              { mark: "median", label: t(lang, "playerMedian") },
++            ]} />
++            {c.groups.map((g) => (
++              <div class:list={["fxgroup", "rkgroup", { nonkey: showSwitch && !g.hasKey }]}>
++                <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${g.key}.label`)}</span></div>
++                {g.rows.map((r) => {
++                  const m = c.byKey.get(r.metric_id)!;
++                  const v = m.value as number;
++                  const all = c.strip(m);
++                  const lo = Math.min(...all, v);
++                  const hi = Math.max(...all, v);
++                  const median = m.median != null ? at(m.median, lo, hi) : null;
++                  return (
++                    <div class:list={["rs-row", { nonkey: showSwitch && !r.is_key_metric }]} data-metric={r.metric_id}>
++                      <span class="chart-name">{boardTitle(lang, r.label_i18n_key, false)}</span>
++                      <span class="rs-band">
++                        <svg class="rs-plot" aria-hidden="true" focusable="false">
++                          <line class="chart-axis" x1="0" x2="100%" y1="50%" y2="50%"></line>
++                          <g class="rs-peers">{all.map((x) => <circle cx={at(x, lo, hi)}></circle>)}</g>
++                          {median != null && <line class="rs-tick" x1={median} x2={median} y1="2" y2="12"></line>}
++                          {median != null && (
++                            <text class="rs-tick-value" x={median} y="27" text-anchor={medianAnchor(parseFloat(median))}>{formatValue(m.median, r.format, lang)}</text>
++                          )}
++                          <circle class="chart-dot chart-me" cx={at(v, lo, hi)} cy="50%"></circle>
++                        </svg>
++                      </span>
++                      <span class="rs-val">{ordinal(m.rank, lang)}<small>{formatValue(v, r.format, lang)}</small></span>
++                    </div>
++                  );
++                })}
++              </div>
++            ))}
++          </div>
++        </div>
++      ))}
++    </div>
++  </section>
++)}
++
++<script>
++  import "../../lib/filterBar.mjs";
++</script>
+diff --git a/site_v2/src/components/player/PlayerHeader.astro b/site_v2/src/components/player/PlayerHeader.astro
+new file mode 100644
+index 00000000..5b3ad972
+--- /dev/null
++++ b/site_v2/src/components/player/PlayerHeader.astro
+@@ -0,0 +1,48 @@
++---
++// The player's header: photo, full name and one line: position · club · nation · age · height ·
++// season. A missing value drops with its separator, and each item stays whole.
++import Crest from "../ui/Crest.astro";
++import { t } from "../../i18n/strings";
++import { localeHref, word } from "../../lib/href";
++import { positionWord, teamHasPage } from "../../lib/playerPage";
++import type { Lang } from "../../lib/format";
++import type { Player } from "../../lib/playerPage";
++
++interface Props {
++  player: Player;
++  lang: Lang;
++}
++const { player, lang } = Astro.props;
++
++const position = positionWord(lang, "One", player.position_group);
++const club = player.club;
++const clubHref = club?.slug && teamHasPage(club.team_id)
++  ? localeHref(lang, `${word(lang, "teams")}/${club.slug}/`)
++  : undefined;
++const after = [
++  player.nationality,
++  player.age != null ? t(lang, "playerAge", { age: player.age }) : null,
++  player.height ? t(lang, "playerHeight", { n: player.height }) : null,
++  player.season_label ? t(lang, "compSeason", { season: player.season_label }) : null,
++].filter((p): p is string => Boolean(p));
++const first = position ? position.charAt(0).toLocaleUpperCase(lang) + position.slice(1) : null;
++---
++
++<header class="thead">
++  <Crest name={player.name} crest={player.photo} />
++  <div class="tid">
++    <h1>{player.name}</h1>
++    <div class="meta">
++      {first && <span class="nb">{first}</span>}
++      {club?.name && (
++        <>
++          {first && <>&nbsp;· </>}
++          <b class="nb">{clubHref ? <a class="lnk" href={clubHref}>{club.name}</a> : club.name}</b>
++        </>
++      )}
++      {after.map((item, i) => (
++        <>{(i > 0 || first || club?.name) && <>&nbsp;· </>}<span class="nb">{item}</span></>
++      ))}
++    </div>
++  </div>
++</header>
+diff --git a/site_v2/src/components/player/PlayerLastSeason.astro b/site_v2/src/components/player/PlayerLastSeason.astro
+new file mode 100644
+index 00000000..54d739f9
+--- /dev/null
++++ b/site_v2/src/components/player/PlayerLastSeason.astro
+@@ -0,0 +1,82 @@
++---
++// Compared with last season (Club tab): this season so far against the whole of last season, over
++// all club competitions, in the served metric list. The Team page's table and trend. Absent when the
++// player has no club minutes last season or every value is blank.
++import SectionHead from "../ui/SectionHead.astro";
++import MetricSwitch from "../ui/MetricSwitch.astro";
++import { DASH, formatValue, integer } from "../../lib/format";
++import { t, metricLabel, boardTitle } from "../../i18n/strings";
++import { betterSide } from "../../lib/bars";
++import { playerGroups } from "../../lib/playerPage";
++import type { Lang } from "../../lib/format";
++import type { PlayerLastSeason as LastSeason } from "../../lib/playerPage";
++
++interface Props {
++  lastSeason: LastSeason | null;
++  name: string;
++  isGoalkeeper: boolean;
++  lang: Lang;
++}
++const { lastSeason, name, isGoalkeeper, lang } = Astro.props;
++
++const byKey = new Map((lastSeason?.metrics ?? []).map((m) => [m.metric_key, m]));
++const has = (id: string) => byKey.get(id)?.value != null || byKey.get(id)?.value_prev != null;
++const groups = lastSeason?.minutes_prev ? playerGroups(has, isGoalkeeper) : [];
++const showSwitch = !isGoalkeeper && groups.flatMap((g) => g.rows).some((r) => r.is_key_metric)
++  && groups.flatMap((g) => g.rows).some((r) => !r.is_key_metric);
++const shown = (v: number | null | undefined, format: Parameters<typeof formatValue>[1]) =>
++  typeof v === "number" ? formatValue(v, format, lang) : DASH;
++---
++
++{groups.length > 0 && (
++  <section>
++    <SectionHead label={t(lang, "teamVsLastSeason")} />
++    <p class="bsub">
++      {t(lang, "playerLastSeasonIntro", {
++        player: name,
++        now: integer(lastSeason!.minutes, lang),
++        prev: integer(lastSeason!.minutes_prev, lang),
++        per90: t(lang, "playerPer90"),
++      })}
++    </p>
++    {showSwitch && <MetricSwitch id="player-last-season-switch" lang={lang} />}
++    <div class="yoy-list">
++      {groups.map((g) => (
++        <div class:list={["fxgroup", "rkgroup", { nonkey: showSwitch && !g.hasKey }]}>
++          <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${g.key}.label`)}</span></div>
++          <div class="ctab yoyt">
++            <div class="ctab-head">
++              <span class="h nmh"></span>
++              <span class="h">{t(lang, "teamThisSeasonHead")}</span>
++              <span class="h">{t(lang, "teamLastSeasonHead")}</span>
++              <span class="h tr">{t(lang, "teamTrend")}</span>
++            </div>
++            {g.rows.map((r) => {
++              const m = byKey.get(r.metric_id)!;
++              const a = shown(m.value, r.format);
++              const b = shown(m.value_prev, r.format);
++              const blank = a === DASH || b === DASH;
++              const side = blank || a === b ? null : betterSide(m.value as number, m.value_prev as number, r.direction);
++              return (
++                <div class:list={["ctab-row", { nonkey: showSwitch && !r.is_key_metric }]}>
++                  <span class="tm"><span class="nm">{boardTitle(lang, r.label_i18n_key, false)}</span></span>
++                  <span class="n now">{a}</span>
++                  <span class="n prev">{b}</span>
++                  {blank || (r.direction === "neutral" && a !== b) ? (
++                    <span class="n tr"></span>
++                  ) : side === "home" ? (
++                    <span class="n tr up" role="img" aria-label={t(lang, "teamTrendBetter")}>▲</span>
++                  ) : side === "away" ? (
++                    <span class="n tr down" role="img" aria-label={t(lang, "teamTrendWorse")}>▼</span>
++                  ) : (
++                    <span class="n tr flat" role="img" aria-label={t(lang, "teamTrendSame")}>–</span>
++                  )}
++                </div>
++              );
++            })}
++          </div>
++        </div>
++      ))}
++    </div>
++  </section>
++)}
+diff --git a/site_v2/src/components/player/PlayerRecent.astro b/site_v2/src/components/player/PlayerRecent.astro
+new file mode 100644
+index 00000000..9f0d37a8
+--- /dev/null
++++ b/site_v2/src/components/player/PlayerRecent.astro
+@@ -0,0 +1,75 @@
++---
++// Recent matches: the Team page's result row with the player's own line under it: minutes, goals and
++// assists above 0, ball actions, or On the bench. Five rows show, the fold holds the rest. fitBlocks
++// keeps a row on one line while every row fits; otherwise the score sits right after the chip.
++import Crest from "../ui/Crest.astro";
++import Fold from "../ui/Fold.astro";
++import SectionHead from "../ui/SectionHead.astro";
++import { formatShortDate, integer } from "../../lib/format";
++import { t } from "../../i18n/strings";
++import { matchPageHref } from "../../lib/href";
++import { competitionInfo } from "../../lib/teamFixtures";
++import type { Lang } from "../../lib/format";
++import type { PlayerMatch } from "../../lib/playerPage";
++
++interface Props {
++  matches: PlayerMatch[];
++  id: string;
++  lang: Lang;
++}
++const { matches, id, lang } = Astro.props;
++
++const SHOWN = 5;
++const LETTER: Record<string, string> = { W: "compColWins", D: "compColDraws", L: "compColLosses" };
++const ha = (m: PlayerMatch) => (m.home_away === "home" ? t(lang, "haHome") : m.home_away === "away" ? t(lang, "haAway") : "");
++const count = (n: number, one: string, many: string) => ({ n: integer(n, lang), word: n === 1 ? one : many });
++const line = (m: PlayerMatch) => [
++  m.minutes != null ? { n: integer(m.minutes, lang), word: t(lang, "playerMin") } : null,
++  m.goals ? count(m.goals, t(lang, "goalOne"), t(lang, "goals")) : null,
++  m.assists ? count(m.assists, t(lang, "playerAssist"), t(lang, "playerAssists")) : null,
++  m.ball_actions != null ? count(m.ball_actions, t(lang, "playerBallAction"), t(lang, "playerBallActions")) : null,
++].filter((p): p is { n: string; word: string } => p !== null);
++const rows = matches.map((m) => ({
++  m,
++  result: m.result && LETTER[m.result] ? m.result : null,
++  href: matchPageHref(lang, m.played_fixture_sk),
++  parts: m.on_bench ? [] : line(m),
++}));
++---
++
++{rows.length > 0 && (
++  <section>
++    <SectionHead label={t(lang, "secRecent")} />
++    <div class="rlist pm">
++      {[rows.slice(0, SHOWN), rows.slice(SHOWN)].map((part, i) => {
++        const list = part.map(({ m, result, href, parts }) => {
++          const Row = href ? "a" : "div";
++          return (
++            <Row class="lrow" href={href}>
++              <div class="resrow">
++                {result && <span class:list={["pill", result]}>{t(lang, LETTER[result])}</span>}
++                <span class="rscore">{m.goals_for}–{m.goals_against}</span>
++                <span class="ropp">
++                  <span class="club"><Crest name={m.opponent_name} crest={m.opponent_logo_url} size="xs" /><span class="cn">{m.opponent_name}</span></span>
++                  {ha(m) && <span class="ha">{ha(m)}</span>}
++                </span>
++                <span class="rmeta">
++                  <span class="rm-c">
++                    <span class="nb">{competitionInfo(m.played_league_code ?? "").name}</span> · <span class="nb">{formatShortDate(m.played_kickoff_datetime, lang)}</span>
++                  </span>
++                  {(m.on_bench || parts.length > 0) && <span class="rm-p">
++                    {m.on_bench
++                      ? <span class="nb">{t(lang, "playerOnBench")}</span>
++                      : parts.map((p, k) => <>{k > 0 && " · "}<span class="nb"><b>{p.n}</b>{` ${p.word}`}</span></>)}
++                  </span>}
++                </span>
++              </div>
++            </Row>
++          );
++        });
++        if (i === 0) return list;
++        return part.length > 0 ? <Fold id={id} n={rows.length} lang={lang}>{list}</Fold> : null;
++      })}
++    </div>
++  </section>
++)}
+diff --git a/site_v2/src/components/ui/ChartLegend.astro b/site_v2/src/components/ui/ChartLegend.astro
+index 578a2282..d29c685a 100644
+--- a/site_v2/src/components/ui/ChartLegend.astro
++++ b/site_v2/src/components/ui/ChartLegend.astro
+@@ -2,10 +2,10 @@
+ // The one chart legend, above its chart: a key per mark, each followed by its name. The keys are the
+ // chart's own marks: the team's dot, the other teams' dot, a reference line, a gap line.
+ interface Props {
+-  keys: { mark: "team" | "other" | "ref" | "gap"; label: string }[];
++  keys: { mark: "team" | "other" | "ref" | "gap" | "median"; label: string }[];
+ }
+ const { keys } = Astro.props;
+-const MARK = { team: "chart-dot chart-me", other: "chart-dot", ref: "chart-line chart-ref", gap: "chart-line chart-gap" };
++const MARK = { median: "rs-tick-key", team: "chart-dot chart-me", other: "chart-dot", ref: "chart-line chart-ref", gap: "chart-line chart-gap" };
+ ---
+ 
+ <div class="chart-legend" aria-hidden="true">
+diff --git a/site_v2/src/components/ui/StatCards.astro b/site_v2/src/components/ui/StatCards.astro
+new file mode 100644
+index 00000000..54104597
+--- /dev/null
++++ b/site_v2/src/components/ui/StatCards.astro
+@@ -0,0 +1,21 @@
++---
++// The card block: separate cards of equal width, the number centred over its label. fitBlocks.mjs
++// picks the form that fits: one row, then three across, otherwise two across.
++interface Props {
++  cards: { value: string; label: string }[];
++}
++const { cards } = Astro.props;
++---
++
++<div class="kpis">
++  <div class="kpi-row" data-n={cards.length}>
++    {cards.map((c) => (
++      <div class="kpi">
++        <div class="kpi-in">
++          <span class="kpi-v">{c.value}</span>
++          <span class="kpi-t"><span class="kpi-l">{c.label}</span></span>
++        </div>
++      </div>
++    ))}
++  </div>
++</div>
+diff --git a/site_v2/src/config/indexability.mjs b/site_v2/src/config/indexability.mjs
+index f951d940..f832fbdd 100644
+--- a/site_v2/src/config/indexability.mjs
++++ b/site_v2/src/config/indexability.mjs
+@@ -35,26 +35,10 @@ export const INDEXABLE = false;
+  * no machine-readable signal and this does: the audit refuses to pass with `INDEXABLE === true`
+  * while this array is non-empty.
+  *
+- * ⚠ NO LONGER EMPTY. It was empty from #367 (the landing page graduated to a real page with its
+- * next-matches block) until the competition hub scaffold below, and emptying it again is a
+- * precondition of go-live — not go-live itself; the other gates on `INDEXABLE` above are all still
+- * open. Adding an entry here is how a scaffold ships honestly; it should not stay for long,
+- * because that is what re-blocks #377.
+- *
+- * The competition page (`[lang]/[competition]/index.astro`) was the first entry here, as the
+- * scaffold Next matches' competition heading needed a destination for; it left the list when its
+- * Overview tab was built to the design approved on GitLab #129.
+- *
+- * `[lang]/[players]/[player].astro` — the player profile, added with the Home page's Top players
+- * block (**#40**), whose every board row links to its player. `audit-seo.mjs` check 8 fails the
+- * build on an internal href that resolves to no emitted page, so the block cannot ship without
+- * this route; it was green before only because no page in the site emitted a player href at all.
+- * **#845** owns the real Player Overview. Its page count is driven by the players the Home block
+- * happens to link to, so like the competition entry above it is ONE row however many pages emit.
++ * Emptying it is a precondition of go-live, not go-live itself. Adding an entry here is how a
++ * scaffold ships honestly; it should not stay for long, because that is what re-blocks #377.
+  */
+-export const STUB_PAGES = [
+-  "[lang]/[players]/[player].astro",
+-];
++export const STUB_PAGES = [];
+ 
+ /**
+  * Emitted paths kept OUT of the sitemap even when indexable.
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index 5b11f7bc..13de3f11 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -295,8 +295,42 @@ const EN: Dict = {
+   // ⚠ THE CLUB IS IN THE TITLE FOR UNIQUENESS, not decoration. audit-seo check 5 requires titles to
+   // be unique within a locale, and 1.6% of provider FULL names collide (site_architecture.md:93) —
+   // which is also why the slug still carries the player id. The club disambiguates the two.
+-  seoPlayerTitle: "{player} ({club}): Overview",
+-  seoPlayerDesc: "Overview page for {player} of {club}.",
++  seoPlayerTitle: "{player} ({club}): Stats, Performance & Matches",
++  seoPlayerTitleClub: "{player} ({club}): Stats",
++  seoPlayerTitleName: "{player}: Stats",
++  seoPlayerDesc: "{player}, {position} for {club}: {apps} appearances, {goals} and {assists} in {season}. Performance compared with other players and with last season.",
++  seoPlayerDescGk: "{player}, goalkeeper for {club}: {apps} appearances, {saves}% saves and {ga} {goalsAgainst} in {season}. Performance compared with other goalkeepers and with last season.",
++  seoPlayerDescPlain: "{player}, {position} for {club}: stats, performance and matches in {season}.",
++  seoPlayerGoals: "{n} goals",
++  seoPlayerGoalOne: "{n} goal",
++  seoPlayerAssists: "{n} assists",
++  seoPlayerAssistOne: "{n} assist",
++  playerTabClub: "Club",
++  playerTabNational: "National team",
++  playerTabsAria: "Player sections",
++  playerAge: "Age {age}",
++  playerHeight: "{n} cm",
++  playerCurrentCompetitions: "Current competitions",
++  playerVsOthers: "Compared with other players",
++  playerComparedWith: "Compared with",
++  playerSquad: "Squad",
++  playerMedian: "Median",
++  playerMin: "min",
++  playerAssist: "assist",
++  playerAssists: "assists",
++  playerBallAction: "ball action",
++  playerBallActions: "ball actions",
++  playerOnBench: "On the bench",
++  playerPer90: "Values are per 90 minutes, so playing time doesn't tilt them.",
++  playerPeerIntro: "{player}'s performance, ranked among the {n} {positions} who played at least 270 minutes in {comp} {season}.",
++  playerSquadClubIntro: "{player}'s performance, ranked among the {n} {team} players who played at least a third of the team's minutes in all {season} club competitions.",
++  playerSquadNationalIntro: "{player}'s performance, ranked among the {n} {team} players who played at least a third of the team's minutes in the current competitions.",
++  playerLastSeasonIntro: "{player}'s performance this season ({now} minutes) against last season ({prev}), across all club competitions. {per90} Early on, a few games can swing the numbers; they settle as the minutes add up.",
++  playerOthers: "Other {positions}",
++  playerOtherTeam: "Other {team} players",
++  playerPosOneATT: "forward", playerPosOneMID: "midfielder", playerPosOneDEF: "defender", playerPosOneGK: "goalkeeper",
++  playerPosPeersATT: "forwards", playerPosPeersMID: "midfielders", playerPosPeersDEF: "defenders", playerPosPeersGK: "goalkeepers",
++  playerPosOthersATT: "forwards", playerPosOthersMID: "midfielders", playerPosOthersDEF: "defenders", playerPosOthersGK: "goalkeepers",
+   filterAll: "All",
+   filterClubs: "Clubs",
+   filterNational: "National teams",
+@@ -660,8 +694,42 @@ const DE: Dict = {
+   dayPickerAria: "Tag wählen",
+   seoCompetitionStatsTitle: "{competition}: Statistiken {season}",
+   seoCompetitionStatsDesc: "Die besten Mannschaften und Spieler von {competition} {season} in jeder Statistik: Tore, {sotName}, Passspiel, Zweikämpfe, Defensive, Disziplin und Torwartspiel.",
+-  seoPlayerTitle: "{player} ({club}): Überblick",
+-  seoPlayerDesc: "Überblicksseite für {player} von {club}.",
++  seoPlayerTitle: "{player} ({club}): Statistiken, Leistung & Spiele",
++  seoPlayerTitleClub: "{player} ({club}): Statistiken",
++  seoPlayerTitleName: "{player}: Statistiken",
++  seoPlayerDesc: "{player}, {position} bei {club}: {apps} Einsätze, {goals} und {assists} in der Saison {season}. Leistung im Vergleich zu anderen Spielern und zur Vorsaison.",
++  seoPlayerDescGk: "{player}, Torhüter bei {club}: {apps} Einsätze, {saves} % {savesWord} und {ga} Gegentore in der Saison {season}. Leistung im Vergleich zu anderen Torhütern und zur Vorsaison.",
++  seoPlayerDescPlain: "{player}, {position} bei {club}: Statistiken, Leistung und Spiele in der Saison {season}.",
++  seoPlayerGoals: "{n} Tore",
++  seoPlayerGoalOne: "{n} Tor",
++  seoPlayerAssists: "{n} Vorlagen",
++  seoPlayerAssistOne: "{n} Vorlage",
++  playerTabClub: "Verein",
++  playerTabNational: "Nationalmannschaft",
++  playerTabsAria: "Spielerbereiche",
++  playerAge: "Alter {age}",
++  playerHeight: "{n} cm",
++  playerCurrentCompetitions: "Laufende Wettbewerbe",
++  playerVsOthers: "Im Vergleich zu anderen Spielern",
++  playerComparedWith: "Im Vergleich zu",
++  playerSquad: "Kader",
++  playerMedian: "Median",
++  playerMin: "Min.",
++  playerAssist: "Vorlage",
++  playerAssists: "Vorlagen",
++  playerBallAction: "Ballaktion",
++  playerBallActions: "Ballaktionen",
++  playerOnBench: "Auf der Bank",
++  playerPer90: "Alle Werte gelten pro 90 Minuten, die Spielzeit verzerrt sie also nicht.",
++  playerPeerIntro: "Die Leistung von {player} im Vergleich der {n} {positions}, die im Wettbewerb {comp} {season} mindestens 270 Minuten gespielt haben.",
++  playerSquadClubIntro: "Die Leistung von {player} im Vergleich der {n} Spieler von {team}, die in allen Vereinswettbewerben {season} mindestens ein Drittel der Spielminuten bestritten haben.",
++  playerSquadNationalIntro: "Die Leistung von {player} im Vergleich der {n} Spieler von {team}, die in den laufenden Wettbewerben mindestens ein Drittel der Spielminuten bestritten haben.",
++  playerLastSeasonIntro: "Die Leistung von {player} in dieser Saison ({now} Minuten) im Vergleich zur Vorsaison ({prev}), über alle Vereinswettbewerbe. {per90} Zu Saisonbeginn können ein paar Spiele die Zahlen stark bewegen; mit jeder Minute werden sie verlässlicher.",
++  playerOthers: "Andere {positions}",
++  playerOtherTeam: "Andere Spieler von {team}",
++  playerPosOneATT: "Stürmer", playerPosOneMID: "Mittelfeldspieler", playerPosOneDEF: "Verteidiger", playerPosOneGK: "Torhüter",
++  playerPosPeersATT: "Stürmer", playerPosPeersMID: "Mittelfeldspieler", playerPosPeersDEF: "Verteidiger", playerPosPeersGK: "Torhüter",
++  playerPosOthersATT: "Stürmer", playerPosOthersMID: "Mittelfeldspieler", playerPosOthersDEF: "Verteidiger", playerPosOthersGK: "Torhüter",
+   filterAll: "Alle",
+   filterClubs: "Vereine",
+   filterNational: "Nationalmannschaften",
+@@ -1030,8 +1098,42 @@ const FI: Dict = {
+   dayPickerAria: "Valitse päivä",
+   seoCompetitionStatsTitle: "{competition}: tilastot {season}",
+   seoCompetitionStatsDesc: "Kilpailun {competition} {season} parhaat joukkueet ja pelaajat jokaisessa tilastossa: maalit, {sotName}, syötöt, kaksinkamppailut, puolustus, kurinpito ja maalivahtipeli.",
+-  seoPlayerTitle: "{player} ({club}): yleiskatsaus",
+-  seoPlayerDesc: "Yleiskatsaussivu pelaajalle {player}, joukkue {club}.",
++  seoPlayerTitle: "{player} ({club}): tilastot, suorituskyky ja ottelut",
++  seoPlayerTitleClub: "{player} ({club}): tilastot",
++  seoPlayerTitleName: "{player}: tilastot",
++  seoPlayerDesc: "{player}, {position}, {club}: {apps} ottelua, {goals} ja {assists} kaudella {season}. Suorituskyky verrattuna muihin pelaajiin ja viime kauteen.",
++  seoPlayerDescGk: "{player}, maalivahti, {club}: {apps} ottelua, torjuntaprosentti {saves} ja {ga} päästettyä maalia kaudella {season}. Suorituskyky verrattuna muihin maalivahteihin ja viime kauteen.",
++  seoPlayerDescPlain: "{player}, {position}, {club}: tilastot, suorituskyky ja ottelut kaudella {season}.",
++  seoPlayerGoals: "{n} maalia",
++  seoPlayerGoalOne: "{n} maali",
++  seoPlayerAssists: "{n} maalisyöttöä",
++  seoPlayerAssistOne: "{n} maalisyöttö",
++  playerTabClub: "Seura",
++  playerTabNational: "Maajoukkue",
++  playerTabsAria: "Pelaajan osiot",
++  playerAge: "Ikä {age}",
++  playerHeight: "{n} cm",
++  playerCurrentCompetitions: "Käynnissä olevat kilpailut",
++  playerVsOthers: "Verrattuna muihin pelaajiin",
++  playerComparedWith: "Verrattuna",
++  playerSquad: "Pelaajisto",
++  playerMedian: "Mediaani",
++  playerMin: "min",
++  playerAssist: "maalisyöttö",
++  playerAssists: "maalisyöttöä",
++  playerBallAction: "pallotoiminto",
++  playerBallActions: "pallotoimintoa",
++  playerOnBench: "Penkillä",
++  playerPer90: "Arvot ovat per 90 minuuttia, joten peliajan määrä ei vääristä niitä.",
++  playerPeerIntro: "{player}: suorituskykyä verrataan niihin {n} {positions}, jotka ovat pelanneet vähintään 270 minuuttia kilpailussa {comp} {season}.",
++  playerSquadClubIntro: "{player}: suorituskykyä verrataan niihin {n} {team}pelaajaan, jotka ovat pelanneet vähintään kolmanneksen joukkueen minuuteista kauden {season} seurakilpailuissa.",
++  playerSquadNationalIntro: "{player}: suorituskykyä verrataan niihin {n} {team}pelaajaan, jotka ovat pelanneet vähintään kolmanneksen joukkueen minuuteista käynnissä olevissa kilpailuissa.",
++  playerLastSeasonIntro: "{player}: suorituskyky tällä kaudella ({now} minuuttia) verrattuna viime kauteen ({prev}), kaikki seurakilpailut mukaan lukien. {per90} Kauden alussa muutama ottelu voi heiluttaa lukuja paljon; ne tasaantuvat minuuttien kertyessä.",
++  playerOthers: "Muut {positions}",
++  playerOtherTeam: "Muut {team}-pelaajat",
++  playerPosOneATT: "hyökkääjä", playerPosOneMID: "keskikenttäpelaaja", playerPosOneDEF: "puolustaja", playerPosOneGK: "maalivahti",
++  playerPosPeersATT: "hyökkääjään", playerPosPeersMID: "keskikenttäpelaajaan", playerPosPeersDEF: "puolustajaan", playerPosPeersGK: "maalivahtiin",
++  playerPosOthersATT: "hyökkääjät", playerPosOthersMID: "keskikenttäpelaajat", playerPosOthersDEF: "puolustajat", playerPosOthersGK: "maalivahdit",
+   filterAll: "Kaikki",
+   filterClubs: "Seurat",
+   filterNational: "Maajoukkueet",
+@@ -1299,6 +1401,30 @@ const METRIC_LABELS_EN: MetricLabels = {
+   "playerMetrics.cards.yellow": "Yellow cards",
+   "playerMetrics.cards.red": "Red cards",
+   "playerMetrics.savePct.saves": "Saves",
++  "playerMetrics.appearances.label": "Appearances",
++  "playerMetrics.goalsConceded.label": "Goals against",
++  "playerMetrics.savePct.label": "Saves",
++  "playerMetrics.goalsPer90.label": "Goals per 90",
++  "playerMetrics.assistsPer90.label": "Assists per 90",
++  "playerMetrics.scorerPointsPer90.label": "Goals and assists per 90",
++  "playerMetrics.shotsPer90.label": "Shots per 90",
++  "playerMetrics.shotsOnTargetPer90.label": "Shots on target per 90",
++  "playerMetrics.shootingAccuracy.label": "Shooting accuracy",
++  "playerMetrics.passesPer90.label": "Passes per 90",
++  "playerMetrics.ballActionsPer90.label": "Ball actions per 90",
++  "playerMetrics.keyPassesPer90.label": "Key passes per 90",
++  "playerMetrics.duelsWonPer90.label": "Duels won per 90",
++  "playerMetrics.duels.wonPct": "Duels won",
++  "playerMetrics.dribblesSuccessPer90.label": "Dribbles completed per 90",
++  "playerMetrics.dribbles.successPct": "Dribbles completed",
++  "playerMetrics.defensiveActionsPer90.label": "Defensive actions per 90",
++  "playerMetrics.tacklesPer90.label": "Tackles per 90",
++  "playerMetrics.interceptionsPer90.label": "Interceptions per 90",
++  "playerMetrics.blocksPer90.label": "Blocks per 90",
++  "playerMetrics.savesPer90.label": "Saves per 90",
++  "playerMetrics.goalsConcededPer90.label": "Goals against per 90",
++  "playerMetrics.foulsPer90.label": "Fouls per 90",
++  "playerMetrics.offsidesPer90.label": "Offsides per 90",
+   // The metric GROUPS (#152): a group is defined by its key and order in the catalogue and by
+   // these names, keyed `metricGroups.<metric_group>.label`. The key set is bound to
+   // `src/data/metric_groups.json` by `check-metric-labels.test.mjs`.
+@@ -1358,7 +1484,7 @@ const METRIC_LABELS_DE: MetricLabels = {
+   "metrics.deserved_points.label": "Verdiente Punkte",
+   "metrics.deserved_points_gap.label": "Differenz zu den verdienten Punkten",
+   "playerMetrics.scorerPoints.goals": "Tore",
+-  "playerMetrics.scorerPoints.assists": "Torvorlagen",
++  "playerMetrics.scorerPoints.assists": "Vorlagen",
+   "playerMetrics.passAccuracy.total": "Pässe",
+   "playerMetrics.keyPasses.label": "Schlüsselpässe",
+   "playerMetrics.shots.label": "Schüsse",
+@@ -1374,6 +1500,30 @@ const METRIC_LABELS_DE: MetricLabels = {
+   "playerMetrics.cards.yellow": "Gelbe Karten",
+   "playerMetrics.cards.red": "Rote Karten",
+   "playerMetrics.savePct.saves": "Gehaltene Schüsse",
++  "playerMetrics.appearances.label": "Einsätze",
++  "playerMetrics.goalsConceded.label": "Gegentore",
++  "playerMetrics.savePct.label": "Paraden",
++  "playerMetrics.goalsPer90.label": "Tore pro 90 Minuten",
++  "playerMetrics.assistsPer90.label": "Vorlagen pro 90 Minuten",
++  "playerMetrics.scorerPointsPer90.label": "Scorerpunkte pro 90 Minuten",
++  "playerMetrics.shotsPer90.label": "Schüsse pro 90 Minuten",
++  "playerMetrics.shotsOnTargetPer90.label": "Schüsse aufs Tor pro 90 Minuten",
++  "playerMetrics.shootingAccuracy.label": "Schussgenauigkeit",
++  "playerMetrics.passesPer90.label": "Pässe pro 90 Minuten",
++  "playerMetrics.ballActionsPer90.label": "Ballaktionen pro 90 Minuten",
++  "playerMetrics.keyPassesPer90.label": "Schlüsselpässe pro 90 Minuten",
++  "playerMetrics.duelsWonPer90.label": "Gewonnene Zweikämpfe pro 90 Minuten",
++  "playerMetrics.duels.wonPct": "Gewonnene Zweikämpfe",
++  "playerMetrics.dribblesSuccessPer90.label": "Erfolgreiche Dribblings pro 90 Minuten",
++  "playerMetrics.dribbles.successPct": "Erfolgreiche Dribblings",
++  "playerMetrics.defensiveActionsPer90.label": "Defensivaktionen pro 90 Minuten",
++  "playerMetrics.tacklesPer90.label": "Tacklings pro 90 Minuten",
++  "playerMetrics.interceptionsPer90.label": "Abgefangene Pässe pro 90 Minuten",
++  "playerMetrics.blocksPer90.label": "Geblockte Bälle pro 90 Minuten",
++  "playerMetrics.savesPer90.label": "Paraden pro 90 Minuten",
++  "playerMetrics.goalsConcededPer90.label": "Gegentore pro 90 Minuten",
++  "playerMetrics.foulsPer90.label": "Fouls pro 90 Minuten",
++  "playerMetrics.offsidesPer90.label": "Abseits pro 90 Minuten",
+   "metricGroups.goals.label": "Tore",
+   "metricGroups.shooting.label": "Schüsse",
+   "metricGroups.passing.label": "Pässe",
+@@ -1443,6 +1593,30 @@ const METRIC_LABELS_FI: MetricLabels = {
+   "playerMetrics.cards.yellow": "Keltaiset kortit",
+   "playerMetrics.cards.red": "Punaiset kortit",
+   "playerMetrics.savePct.saves": "Torjunnat",
++  "playerMetrics.appearances.label": "Pelatut ottelut",
++  "playerMetrics.goalsConceded.label": "Päästetyt maalit",
++  "playerMetrics.savePct.label": "Torjunnat",
++  "playerMetrics.goalsPer90.label": "Maalit per 90 minuuttia",
++  "playerMetrics.assistsPer90.label": "Maalisyötöt per 90 minuuttia",
++  "playerMetrics.scorerPointsPer90.label": "Tehopisteet per 90 minuuttia",
++  "playerMetrics.shotsPer90.label": "Laukaukset per 90 minuuttia",
++  "playerMetrics.shotsOnTargetPer90.label": "Laukaukset maalia kohti per 90 minuuttia",
++  "playerMetrics.shootingAccuracy.label": "Laukaustarkkuus",
++  "playerMetrics.passesPer90.label": "Syötöt per 90 minuuttia",
++  "playerMetrics.ballActionsPer90.label": "Pallotoiminnot per 90 minuuttia",
++  "playerMetrics.keyPassesPer90.label": "Avainsyötöt per 90 minuuttia",
++  "playerMetrics.duelsWonPer90.label": "Voitetut kaksinkamppailut per 90 minuuttia",
++  "playerMetrics.duels.wonPct": "Voitetut kaksinkamppailut",
++  "playerMetrics.dribblesSuccessPer90.label": "Onnistuneet harhautukset per 90 minuuttia",
++  "playerMetrics.dribbles.successPct": "Onnistuneet harhautukset",
++  "playerMetrics.defensiveActionsPer90.label": "Puolustustoimet per 90 minuuttia",
++  "playerMetrics.tacklesPer90.label": "Taklaukset per 90 minuuttia",
++  "playerMetrics.interceptionsPer90.label": "Katkot per 90 minuuttia",
++  "playerMetrics.blocksPer90.label": "Blokit per 90 minuuttia",
++  "playerMetrics.savesPer90.label": "Torjunnat per 90 minuuttia",
++  "playerMetrics.goalsConcededPer90.label": "Päästetyt maalit per 90 minuuttia",
++  "playerMetrics.foulsPer90.label": "Rikkeet per 90 minuuttia",
++  "playerMetrics.offsidesPer90.label": "Paitsiot per 90 minuuttia",
+   "metricGroups.goals.label": "Maalit",
+   "metricGroups.shooting.label": "Laukaukset",
+   "metricGroups.passing.label": "Syötöt",
+@@ -1492,6 +1666,9 @@ const SHARE_NAMED_BY_ITS_COUNT = new Set([
+   "metrics.duels_won_pct.label",
+   "metrics.dribbles_success_pct.label",
+   "metrics.saves_pct.label",
++  "playerMetrics.duels.wonPct",
++  "playerMetrics.dribbles.successPct",
++  "playerMetrics.savePct.label",
+ ]);
+ 
+ /** A metric's second line: "per match" for a per-match value (the served fact, never read from an
+diff --git a/site_v2/src/lib/builtPlayers.mjs b/site_v2/src/lib/builtPlayers.mjs
+index 802557ce..a1acabc1 100644
+--- a/site_v2/src/lib/builtPlayers.mjs
++++ b/site_v2/src/lib/builtPlayers.mjs
+@@ -1,31 +1,16 @@
+-// The player pages this build makes: the players the Home and competition boards link to, which is
+-// the set the player route emits from the same two sources. A row links to a player only when the
+-// player's page is in this list, by the served slug.
++// The player pages this build makes: player_pages.json, which the export writes beside the payloads
++// from the warehouse's flag. The player route emits exactly these. A row links to a player only when
++// the player's page is in this list.
+ 
+-import { readdirSync, readFileSync, existsSync } from "node:fs";
++import { readFileSync, existsSync } from "node:fs";
+ import { join } from "node:path";
+ 
+-/** player id -> the served slug, from landing.json's Top players and every competition payload's
+- *  player boards. */
++/** player id -> the served slug. */
+ export function readBuiltPlayers(dataDir) {
+-  const built = new Map();
+-  const take = (row) => {
+-    if (row?.slug && row.player_id != null && !built.has(Number(row.player_id))) built.set(Number(row.player_id), row.slug);
+-  };
+-  const landing = join(dataDir, "landing.json");
+-  if (existsSync(landing)) {
+-    for (const board of JSON.parse(readFileSync(landing, "utf8")).top_players ?? []) for (const row of board.rows) take(row);
+-  }
+-  const comps = join(dataDir, "competitions");
+-  if (existsSync(comps)) {
+-    for (const code of readdirSync(comps)) {
+-      for (const file of readdirSync(join(comps, code)).filter((name) => name.endsWith(".json"))) {
+-        const payload = JSON.parse(readFileSync(join(comps, code, file), "utf8"));
+-        for (const board of payload.player_boards ?? []) for (const row of board.rows) take(row);
+-      }
+-    }
+-  }
+-  return built;
++  const path = join(dataDir, "player_pages.json");
++  if (!existsSync(path)) return new Map();
++  const pages = JSON.parse(readFileSync(path, "utf8")).pages;
++  return new Map(Object.entries(pages).map(([id, slug]) => [Number(id), slug]));
+ }
+ 
+ let cached;
+@@ -34,3 +19,11 @@ export function builtPlayers() {
+   cached ??= readBuiltPlayers(join(process.cwd(), "src/data"));
+   return cached;
+ }
++
++let slugs;
++
++/** Whether this build makes the page at a served slug. */
++export function hasPlayerPage(slug) {
++  slugs ??= new Set(builtPlayers().values());
++  return slugs.has(slug);
++}
+diff --git a/site_v2/src/lib/builtPlayers.test.mjs b/site_v2/src/lib/builtPlayers.test.mjs
+index 1db90f62..7ee23def 100644
+--- a/site_v2/src/lib/builtPlayers.test.mjs
++++ b/site_v2/src/lib/builtPlayers.test.mjs
+@@ -1,29 +1,21 @@
+-// Pins the list of player pages a build makes: every player a Home or competition board links to,
+-// keyed by player id, with the served slug a squad row needs to link to the page.
++// Pins the list of player pages a build makes: the export's player_pages.json, keyed by player id,
++// with the served slug a row needs to link to the page.
+ 
+ import { test } from "node:test";
+ import assert from "node:assert/strict";
+-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
++import { mkdtempSync, writeFileSync } from "node:fs";
+ import { tmpdir } from "node:os";
+ import { join } from "node:path";
+ import { readBuiltPlayers } from "./builtPlayers.mjs";
+ 
+-test("every board player is one built player page, keyed by player id", () => {
++test("every listed player is one built page, keyed by player id", () => {
+   const dir = mkdtempSync(join(tmpdir(), "players-"));
+-  writeFileSync(join(dir, "landing.json"), JSON.stringify({ top_players: [
+-    { rows: [{ player_id: 1, slug: "a-1" }, { player_id: 2, slug: "b-2" }] },
+-    { rows: [{ player_id: 1, slug: "a-1" }, { slug: "no-id" }] },
+-  ] }));
+-  mkdirSync(join(dir, "competitions", "BL1"), { recursive: true });
+-  writeFileSync(join(dir, "competitions", "BL1", "2026.json"), JSON.stringify({ player_boards: [
+-    { rows: [{ player_id: 3, slug: "c-3" }, { player_id: 2, slug: "b-2" }] },
+-  ] }));
++  writeFileSync(join(dir, "player_pages.json"), JSON.stringify({ pages: { 1: "a-1", 2: "b-2" } }));
+   const built = readBuiltPlayers(dir);
+-  assert.deepEqual([...built.entries()], [[1, "a-1"], [2, "b-2"], [3, "c-3"]],
+-    "a player on two boards is one page; a row without an id links nowhere");
+-  assert.equal(built.has(4), false, "a player no board names has no page");
++  assert.deepEqual([...built.entries()], [[1, "a-1"], [2, "b-2"]]);
++  assert.equal(built.has(3), false, "a player the list does not name has no page");
+ });
+ 
+-test("a build without boards makes no player page", () => {
++test("a build without the list makes no player page", () => {
+   assert.equal(readBuiltPlayers(mkdtempSync(join(tmpdir(), "players-"))).size, 0);
+ });
+diff --git a/site_v2/src/lib/filterBar.mjs b/site_v2/src/lib/filterBar.mjs
+index b53e2670..3e9aa7c1 100644
+--- a/site_v2/src/lib/filterBar.mjs
++++ b/site_v2/src/lib/filterBar.mjs
+@@ -55,6 +55,10 @@ function start() {
+         }
+       }
+       if (t instanceof HTMLInputElement && names.includes(t.name)) sync();
++      else if (t instanceof HTMLInputElement) {
++        const sel = bar.querySelector(`select[data-filter="${t.name}"]`);
++        if (sel) sel.value = t.value;
++      }
+     });
+     sync();
+   }
+diff --git a/site_v2/src/lib/fitBlocks.mjs b/site_v2/src/lib/fitBlocks.mjs
+index e90af641..c47a025f 100644
+--- a/site_v2/src/lib/fitBlocks.mjs
++++ b/site_v2/src/lib/fitBlocks.mjs
+@@ -5,7 +5,9 @@
+ // longest row (label, gap, value) fits its width; the header row fits when it holds the menu; a
+ // Filter bar fits when each row of buttons does, and its dropdown row when each holds its longest choice;
+ // a match row with a tag fits when its names keep their column beside the tag, each longest word
+-// inside its own space.
++// inside its own space; a list of a player's matches fits when every row holds all its parts on one
++// line. A card block has three forms: it takes the first of one row and three across where every card
++// holds its number and its longest word.
+ 
+ /** The width of a text's longest word, given a function that measures one word. */
+ export function longestWord(text, measure) {
+@@ -56,9 +58,47 @@ function start() {
+       const longest = Math.max(0, ...[...sel.options].map((o) => width(o.text)));
+       return { need: longest + parseFloat(s.paddingLeft) + parseFloat(s.paddingRight), room: sel.clientWidth };
+     }),
++    rows: (block) => [...block.querySelectorAll(".resrow")].filter(shown).map((row) => {
++      const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
++      const need = [...row.children].reduce((sum, part) => sum + oneLine(part), 0) + gap * (row.children.length - 1) + 12;
++      return { need, room: row.clientWidth };
++    }),
++    cards: (block) => {
++      const grid = block.firstElementChild;
++      const tiles = [...grid.children].filter(shown);
++      const gap = parseFloat(getComputedStyle(grid).columnGap) || 0;
++      const cols = parseInt(getComputedStyle(grid).getPropertyValue("--cols"), 10) || tiles.length;
++      const room = Math.min(240, (grid.clientWidth - (cols - 1) * gap) / cols);
++      return tiles.map((tile) => {
++        const inner = getComputedStyle(tile.firstElementChild);
++        const pad = parseFloat(inner.paddingLeft) + parseFloat(inner.paddingRight) + 2;
++        // A label may take two lines and never breaks inside a word.
++        const text = [...tile.querySelectorAll(".kpi-l, .kpi-n")].map((el) => {
++          const width = wordWidth(el);
++          return Math.max(longestWord(el.textContent, width), width(el.textContent.trim()) / 2);
++        });
++        const value = tile.querySelector(".kpi-v");
++        return { need: pad + Math.max(wordWidth(value)(value.textContent.trim()), ...text), room };
++      });
++    },
+   };
+   const fit = (block, kind) => {
+     if (!shown(block)) return;
++    if (kind === "cards") {
++      block.classList.toggle("narrow", block.clientWidth < 300);
++      const take = (form) => {
++        block.classList.remove("fit-one", "fit-two", "tight");
++        if (form) block.classList.add(form);
++        block.classList.toggle("tight", block.querySelector(".kpi").clientWidth < 100);
++        return measures.cards(block);
++      };
++      for (const form of ["fit-one", "fit-two"]) {
++        const rows = take(form);
++        if (rows.length && fitsOneLine(rows)) return;
++      }
++      take(null);
++      return;
++    }
+     block.classList.remove("fit-two");
+     block.classList.add("fit-one");
+     const rows = measures[kind](block);
+@@ -72,6 +112,8 @@ function start() {
+     ...[...document.querySelectorAll(".ctab")].map((b) => [b, "table"]),
+     ...[...new Set([...document.querySelectorAll(".frow")].map((r) => r.parentElement))].map((b) => [b, "facts"]),
+     ...[...document.querySelectorAll(".fxrow:has(> .topmatch)")].map((b) => [b, "tagged"]),
++    ...[...document.querySelectorAll(".kpis")].map((b) => [b, "cards"]),
++    ...[...document.querySelectorAll(".rlist.pm")].map((b) => [b, "rows"]),
+     // the bar before its dropdown row: the row shows only once the bar has taken its narrow form
+     ...[...document.querySelectorAll(".fbar")].map((b) => [b, "filter"]),
+     ...[...document.querySelectorAll(".selbar")].map((b) => [b, "selects"]),
+diff --git a/site_v2/src/lib/playerPage.ts b/site_v2/src/lib/playerPage.ts
+new file mode 100644
+index 00000000..658c6399
+--- /dev/null
++++ b/site_v2/src/lib/playerPage.ts
+@@ -0,0 +1,123 @@
++// What the Player page reads: the payload's shape, the served metric rows in their groups, and the
++// words a position takes in a sentence. Selection and wording only; every value is served.
++import { existsSync } from "node:fs";
++import { join } from "node:path";
++import metricGroups from "../data/metric_groups.json";
++import playerMetricRows from "../data/player_metric_rows.json";
++import { t } from "../i18n/strings";
++import type { Lang } from "./format";
++import type { FormMatch, TeamRef, TeamScheduleFixture } from "./types";
++
++export interface PlayerMetric {
++  metric_key: string;
++  value: number | null;
++  rank: number | null;
++  median: number | null;
++  others?: number[];
++}
++export interface PlayerCompetition {
++  league_code: string;
++  season: number;
++  season_label: string | null;
++  position_group: string;
++  player_count: number | null;
++  metrics: PlayerMetric[];
++}
++export interface PlayerSquad {
++  team: TeamRef;
++  player_count: number | null;
++  metrics: PlayerMetric[];
++}
++export interface PlayerLastSeason {
++  minutes: number | null;
++  minutes_prev: number | null;
++  metrics: { metric_key: string; value: number | null; value_prev: number | null }[];
++}
++export interface PlayerMatch extends FormMatch {
++  minutes: number | null;
++  goals: number | null;
++  assists: number | null;
++  ball_actions: number | null;
++  on_bench: boolean;
++}
++export interface PlayerTab {
++  tab: "club" | "national_team";
++  team: TeamRef | null;
++  cards: Record<string, number | null>;
++  next_matches: TeamScheduleFixture[];
++  competitions: PlayerCompetition[];
++  squad: PlayerSquad | null;
++  last_season: PlayerLastSeason | null;
++  recent_matches: PlayerMatch[];
++}
++export interface Player {
++  player_id: number;
++  slug: string;
++  name: string | null;
++  photo: string | null;
++  nationality: string | null;
++  age: number | null;
++  height: string | null;
++  position_group: string | null;
++  season_label: string | null;
++  club: TeamRef | null;
++  shares_name_at_club?: boolean;
++  tabs: PlayerTab[];
++}
++
++export interface PlayerMetricRow {
++  metric_id: string;
++  label_i18n_key: string;
++  metric_group: string;
++  metric_order: number;
++  direction: string;
++  format: "decimal_1" | "decimal_0" | "percent" | "integer";
++  is_key_metric: boolean;
++}
++export interface PlayerMetricGroup {
++  key: string;
++  rows: PlayerMetricRow[];
++  hasKey: boolean;
++}
++
++/** The served rows among `has`, under the catalogue's groups in their order; a goalkeeper's own
++ *  group opens the list. */
++export function playerGroups(has: (metricId: string) => boolean, isGoalkeeper = false): PlayerMetricGroup[] {
++  const served = playerMetricRows.rows as PlayerMetricRow[];
++  return [...metricGroups.groups]
++    .sort((a, b) => Number(isGoalkeeper && b.key === "goalkeeping") - Number(isGoalkeeper && a.key === "goalkeeping") || a.order - b.order)
++    .map((g) => {
++      const rows = served
++        .filter((r) => r.metric_group === g.key && has(r.metric_id))
++        .sort((a, b) => a.metric_order - b.metric_order);
++      return { key: g.key, rows, hasKey: rows.some((r) => r.is_key_metric) };
++    })
++    .filter((g) => g.rows.length > 0);
++}
++
++/** Whether this build makes the team's page: the route emits one per file in src/data/teams. */
++export function teamHasPage(teamId: number | null | undefined): boolean {
++  return teamId != null && existsSync(join(process.cwd(), "src/data/teams", `${teamId}.json`));
++}
++
++/** A position in a sentence: `One` a person, `Peers` the explainer's form, `Others` the legend's. */
++export function positionWord(lang: Lang, form: "One" | "Peers" | "Others", group: string | null | undefined): string {
++  return group ? t(lang, `playerPos${form}${group}`) : "";
++}
++
++/** The team before Finnish "-pelaajaan": joined to a one-word name, set apart after several words. */
++export function teamBeforeCompound(lang: Lang, team: string): string {
++  if (lang !== "fi") return team;
++  return team.includes(" ") ? `${team} -` : `${team}-`;
++}
++
++/** Where a metric's value sits on its line, inside the inset at each end so no dot is cut. */
++export function placeOnLine(v: number, lo: number, hi: number, inset: number): number {
++  return hi === lo ? 50 : inset + ((v - lo) / (hi - lo)) * (100 - 2 * inset);
++}
++
++/** How a median's value stands on its tick: centred, and held inside the line at each end. */
++export function medianAnchor(left: number): "start" | "middle" | "end" {
++  const edge = 8;
++  return left < edge ? "start" : left > 100 - edge ? "end" : "middle";
++}
+diff --git a/site_v2/src/pages/[lang]/[players]/[player].astro b/site_v2/src/pages/[lang]/[players]/[player].astro
+index 80023566..97c12abb 100644
+--- a/site_v2/src/pages/[lang]/[players]/[player].astro
++++ b/site_v2/src/pages/[lang]/[players]/[player].astro
+@@ -1,113 +1,175 @@
+ ---
+-// Player page — SCAFFOLD (spec: src/specs/players/player.spec.json, "stub": true).
+-//
+-// This ships the URL section 3 of docs/site_architecture.md already reserves for a player
+-// (/{locale}/{players word}/{player-slug}/), with a real canonical, a real hreflang set and a
+-// locale-distinct title — all true facts about a URL that exists — and NO content blocks. The
+-// Player Overview owns the real content (#845) and its open design decisions are untouched here.
+-//
+-// WHY IT EXISTS NOW: the Top players block (#40) makes every board row a link to its player, and
+-// audit-seo.mjs check 8 fails the build on an internal href that resolves to no emitted page. No
+-// page in site_v2 emitted a player href before this one, which is why check 8 was green without a
+-// player route. A destination that does not exist yet is BUILT, not routed around — 10_home.md
+-// section 0: "do not reorder the build because a destination page does not exist yet."
+-//
+-// Listed in STUB_PAGES (src/config/indexability.mjs), which is the expiry trigger: the SEO audit
+-// refuses INDEXABLE === true while that array is non-empty, so this cannot quietly become a thin
+-// page in the index.
+-//
+-// SOURCE IS THE PAGES THAT LINK HERE — landing.json's Top players boards and every competition
+-// payload's Player rankings boards — and deliberately so: the set of players with a page is
+-// exactly the set the site links to, which is exactly what check 8 requires and nothing more. It
+-// adds no export entity and no committed payload — `--entities players` exists but is not run by
+-// deploy:export, and inventing a players/ payload to feed a page with no content would be building
+-// #845's plumbing without #845's design. Every value here is a served payload field; nothing on
+-// this page is derived, the slug least of all (the export assigns it).
++// The Player page. URL: /{lang}/{players word}/{player-slug}/ (site_architecture.md). The header,
++// then a tab per football the data marks: Club (This season, Next matches, Compared with other
++// players, Compared with last season, Recent matches) and National team (Current competitions, Next
++// matches, Compared with other players, Recent matches). The season shown is the featured one. The
++// page composes the shared elements; it holds no styling and derives no facts.
+ import Layout from "../../../layouts/Layout.astro";
+-import { t } from "../../../i18n/strings";
++import PlayerHeader from "../../../components/player/PlayerHeader.astro";
++import PlayerComparison from "../../../components/player/PlayerComparison.astro";
++import PlayerLastSeason from "../../../components/player/PlayerLastSeason.astro";
++import PlayerRecent from "../../../components/player/PlayerRecent.astro";
++import SectionHead from "../../../components/ui/SectionHead.astro";
++import StatCards from "../../../components/ui/StatCards.astro";
++import TeamFixtureGroup from "../../../components/team/TeamFixtureGroup.astro";
++import { t, metricInSentence, metricLabel } from "../../../i18n/strings";
+ import { localeHref, LOCALES, word } from "../../../lib/href";
++import { DASH, formatValue, integer } from "../../../lib/format";
++import { builtPlayers } from "../../../lib/builtPlayers.mjs";
++import { titleWidthPx, TITLE_PX_HARD } from "../../../../scripts/audit-seo.mjs";
++import { positionWord } from "../../../lib/playerPage";
+ import type { Lang } from "../../../lib/format";
+-import type { CompetitionPayload, Landing } from "../../../lib/types";
+-import landing from "../../../data/landing.json";
+-
+-/** What this stub shows of a player: the served name and club, keyed by the served slug. */
+-interface LinkedPlayer {
+-  slug: string;
+-  name: string | null;
+-  club: string | null;
+-}
++import type { Player, PlayerTab } from "../../../lib/playerPage";
++import { readFileSync } from "node:fs";
++import { join } from "node:path";
+ 
+ export function getStaticPaths() {
+-  // One page per LINKED player per locale, ITERATED not enumerated: a board that changes its
+-  // leaders changes this set on the next export with no code change here.
+-  // Deduped by slug, because a player can lead more than one board — Dybala held rank 1 on both
+-  // assists and key passes in one export — and two identical params would be a duplicate
+-  // route, not two pages.
+-  const data = landing as unknown as Landing;
+-  const rows = new Map<string, LinkedPlayer>();
+-  const take = (row: { slug: string | null; name: string | null; club?: string | null }) => {
+-    if (row.slug && !rows.has(row.slug)) rows.set(row.slug, { slug: row.slug, name: row.name, club: row.club ?? null });
+-  };
+-  for (const board of data.top_players ?? []) for (const row of board.rows) take(row);
+-  const payloads = import.meta.glob<CompetitionPayload>("/src/data/competitions/*/*.json", {
+-    eager: true,
+-    import: "default",
+-  });
+-  for (const payload of Object.values(payloads)) {
+-    for (const board of payload.player_boards ?? []) for (const row of board.rows) take(row);
+-  }
+-  return [...rows.values()].flatMap((player) =>
++  // One page per player the boards link to, per locale. Only the id travels as a prop: Astro holds
++  // every route's props until the build ends.
++  return [...builtPlayers()].flatMap(([id, slug]) =>
+     LOCALES.map((lang) => ({
+-      params: { lang, players: word(lang, "players"), player: player.slug },
+-      props: { player, lang },
++      params: { lang, players: word(lang, "players"), player: slug },
++      props: { id, lang },
+     })),
+   );
+ }
+ 
+ interface Props {
+-  player: LinkedPlayer;
++  id: number;
+   lang: Lang;
+ }
+-const { player, lang } = Astro.props;
++const { id, lang } = Astro.props;
++const dataDir = join(process.cwd(), "src/data");
++const player = JSON.parse(readFileSync(join(dataDir, "players", `${id}.json`), "utf8")) as Player;
+ 
+ const name = player.name ?? "";
+-const club = player.club ?? "";
++const isGoalkeeper = player.position_group === "GK";
++const tabs = player.tabs;
++const primary = tabs[0];
++const team = player.club?.name ?? primary?.team?.name ?? player.nationality ?? "";
++const season = player.season_label ?? "";
+ 
+-// Through t() with the served fields as parameters, never concatenated: a concatenated title is
+-// locale-independent, which is how all three locales came to ship byte-identical titles before
+-// #844's gate existed. The descriptive words are the entire locale signal.
+-// The CLUB is in the title for UNIQUENESS, not decoration — audit check 5 requires titles unique
+-// within a locale and 1.6% of provider full names collide (site_architecture.md:93).
+-const title = t(lang, "seoPlayerTitle", { player: name, club });
+-const description = t(lang, "seoPlayerDesc", { player: name, club });
++const CARDS = [
++  { key: "appearances", label: metricLabel(lang, "playerMetrics.appearances.label"), format: "integer" },
++  { key: "minutes_per_appearance", label: metricLabel(lang, "playerMetrics.minutesPerAppearance.label"), format: "decimal_0" },
++  ...(isGoalkeeper
++    ? [
++      { key: "saves_player_pct", label: metricLabel(lang, "playerMetrics.savePct.label"), format: "percent" },
++      { key: "goals_against_player", label: metricLabel(lang, "playerMetrics.goalsConceded.label"), format: "integer" },
++    ]
++    : [
++      { key: "goals_player", label: metricLabel(lang, "playerMetrics.scorerPoints.goals"), format: "integer" },
++      { key: "assists_player", label: metricLabel(lang, "playerMetrics.scorerPoints.assists"), format: "integer" },
++    ]),
++  { key: "cards_yellow_player", label: metricLabel(lang, "playerMetrics.cards.yellow"), format: "integer" },
++  { key: "cards_red_player", label: metricLabel(lang, "playerMetrics.cards.red"), format: "integer" },
++] as const;
++const cardsOf = (tab: PlayerTab) => CARDS.map((c) => ({
++  value: tab.cards[c.key] == null ? DASH : formatValue(tab.cards[c.key], c.format, lang),
++  label: c.label,
++}));
++const peersOf = (tab: PlayerTab) => tab.competitions.map((c) => (JSON.parse(readFileSync(
++  join(dataDir, "player_peers", c.league_code, String(c.season), `${c.position_group}.json`), "utf8",
++)) as { values: Record<string, number[]> }).values);
++
++const description = (() => {
++  const apps = primary?.cards.appearances;
++  const position = positionWord(lang, "One", player.position_group);
++  const base = { player: name, position, club: team, season };
++  const stat = (key: string) => primary?.cards[key];
++  if (apps && isGoalkeeper && stat("saves_player_pct") != null && stat("goals_against_player") != null) {
++    return t(lang, "seoPlayerDescGk", {
++      ...base,
++      apps: integer(apps, lang),
++      saves: formatValue(stat("saves_player_pct"), "percent", lang).replace("%", ""),
++      ga: integer(stat("goals_against_player"), lang),
++      goalsAgainst: metricInSentence(lang, "playerMetrics.goalsConceded.label"),
++      savesWord: metricInSentence(lang, "playerMetrics.savePct.label"),
++    });
++  }
++  const goals = stat("goals_player");
++  const assists = stat("assists_player");
++  if (apps && !isGoalkeeper && goals != null && assists != null) {
++    return t(lang, "seoPlayerDesc", {
++      ...base,
++      apps: integer(apps, lang),
++      goals: t(lang, goals === 1 ? "seoPlayerGoalOne" : "seoPlayerGoals", { n: integer(goals, lang) }),
++      assists: t(lang, assists === 1 ? "seoPlayerAssistOne" : "seoPlayerAssists", { n: integer(assists, lang) }),
++    });
++  }
++  return t(lang, "seoPlayerDescPlain", base);
++})();
+ 
+-// schema.org/Person — a footballer is a person, and there is no narrower type for one. Selection
+-// only; every value is a served payload field. Undefined rather than null on a missing value: the
+-// audit fails a JSON-LD node carrying empty or placeholder values, and an absent key is honest
+-// where an empty string is not.
++const titleClub = player.shares_name_at_club ? `${team}, ${positionWord(lang, "One", player.position_group)}` : team;
++const withClub = team ? ["seoPlayerTitle", "seoPlayerTitleClub"].map((key) => t(lang, key, { player: name, club: titleClub })) : [];
++const title = withClub.find((text) => titleWidthPx(text) <= TITLE_PX_HARD) ?? t(lang, "seoPlayerTitleName", { player: name });
+ const entity = {
+   "@type": "Person",
+   name: name || undefined,
+-  affiliation: club || undefined,
++  affiliation: team || undefined,
++  ...(player.photo ? { image: player.photo } : {}),
+ };
+-
+-// Two items, not three. The competition stub's trail passes through the competitions index because
+-// that page is its hub; there is no player hub to pass through, and inventing one in a breadcrumb
+-// would point at a URL the build does not emit.
+ const crumbs = [
+   { name: t(lang, "crumbHome"), href: localeHref(lang) },
+   { name },
+ ];
++const TAB = {
++  club: { id: "tab-club", page: "club", label: "playerTabClub", head: "teamThisSeasonHead" },
++  national_team: { id: "tab-national", page: "national", label: "playerTabNational", head: "playerCurrentCompetitions" },
++} as const;
+ ---
+ 
+-<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs} section="players" legacyWidth>
++<Layout
++  lang={lang}
++  title={title}
++  description={description}
++  entity={entity}
++  crumbs={crumbs}
++  image={player.photo ?? undefined}
++  section="players"
++>
+   <div class="inner">
+     <nav class="crumb" aria-label={t(lang, "crumbAria")}>
+       <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
+       <span class="sep">›</span>
++      <span>{t(lang, "navPlayers")}</span>
++      <span class="sep">›</span>
+       <span class="here">{name}</span>
+     </nav>
+ 
+-    <h1>{name}</h1>
++    <PlayerHeader player={player} lang={lang} />
++
++    {tabs.map((tab, i) => <input type="radio" name="player-tab" id={TAB[tab.tab].id} class="tab-in" checked={i === 0} />)}
++    <nav class="tabs comp-tabs" aria-label={t(lang, "playerTabsAria")}>
++      {tabs.map((tab) => <label class="tab" for={TAB[tab.tab].id}>{t(lang, TAB[tab.tab].label)}</label>)}
++    </nav>
++
++    {tabs.map((tab) => (
++      <div class="page" data-page={TAB[tab.tab].page}>
++        <section>
++          <SectionHead label={t(lang, TAB[tab.tab].head)} />
++          <StatCards cards={cardsOf(tab)} />
++        </section>
++        {tab.next_matches.length > 0 && tab.team && (
++          <section>
++            <SectionHead label={t(lang, "homeNext")} />
++            {tab.next_matches.map((fx) => (
++              <TeamFixtureGroup
++                code={fx.league_code}
++                fixtures={[fx]}
++                team={{ team_id: tab.team!.team_id, name: tab.team!.name ?? "", slug: tab.team!.slug, crest: tab.team!.crest ?? null }}
++                lang={lang}
++                nextId={tab.next_matches[0].fixture_id}
++              />
++            ))}
++          </section>
++        )}
++        <PlayerComparison tab={tab} peers={peersOf(tab)} name={name} positionGroup={player.position_group} lang={lang} />
++        {tab.tab === "club" && (
++          <PlayerLastSeason lastSeason={tab.last_season} name={name} isGoalkeeper={isGoalkeeper} lang={lang} />
++        )}
++        <PlayerRecent matches={tab.recent_matches} id={`${TAB[tab.tab].page}-recent-fold`} lang={lang} />
++      </div>
++    ))}
+   </div>
+ </Layout>
+diff --git a/site_v2/src/specs/players/player.spec.json b/site_v2/src/specs/players/player.spec.json
+index af3f3c80..693d1f94 100644
+--- a/site_v2/src/specs/players/player.spec.json
++++ b/site_v2/src/specs/players/player.spec.json
+@@ -2,7 +2,6 @@
+   "$schema": "../page-spec.schema.json",
+   "page": "[lang]/[players]/[player].astro",
+   "entity": "player",
+-  "stub": true,
+   "seo": {
+     "canonical": "self",
+     "hreflang": "all-locales",
+@@ -13,10 +12,41 @@
+       "inbound_hub": "home",
+       "outbound": []
+     },
+-    "minimum_data": "A row on a Home Top players board or on a competition page's Player rankings board — i.e. the player leads one of the four Home boards in their league's current season, or is in the top five of one of the thirteen boards of a competition-season the site carries; both are mart_leaderboards' decision (assert_mart_leaderboards_every_home_board_has_a_leader guards the Home half). That is deliberately the narrowest gate that satisfies the reason this page exists: audit-seo check 8 requires a page for every player the site links to, and those two blocks are the only pages that link to one today. It is NOT the rule for which players deserve a page — that is #845's minimum-data question, and it must stay a rule over the served mart rather than a list in the frontend.",
+-    "page_count_driver": "count(distinct slug over landing.json .top_players[].rows[] and competitions/*/*.json .player_boards[].rows[]) x count(locales)",
++    "minimum_data": "3 matches played this season or last, in any competition the site holds, club or national team, with at least one tab: mart_player_profile.has_player_page.",
++    "page_count_driver": "count(player_pages.json .pages) x count(locales)",
+     "url_permanence": "permanent",
+-    "url_permanence_note": "The URL is permanent and is the one site_architecture.md section 3 already reserves for the player profile. The SLUG is {kebab-name}-{player_api_id} and still carries the id because 18.5% of provider player names collide (1.6% on the full name), so the team scheme does not transfer unchanged; moving player slugs into the warehouse the way team slugs moved is its own work (#843/#852). The id suffix is what anchors identity across a name correction. STUB: this ships the URL, its canonical, its hreflang set and a locale-distinct title, and NO content blocks. #845 owns the real Player Overview. Listed in STUB_PAGES, which blocks INDEXABLE === true until it is filled. Its inbound link is live on the day it ships, unlike the competition stub's: the Home page's Top players block is what makes this page necessary."
++    "url_permanence_note": "The URL is permanent and is the one site_architecture.md section 3 already reserves for the player profile. The SLUG is {kebab-name}-{player_api_id} and still carries the id because 18.5% of provider player names collide (1.6% on the full name), so the team scheme does not transfer unchanged; moving player slugs into the warehouse the way team slugs moved is its own work (#843/#852). The id suffix is what anchors identity across a name correction."
+   },
+-  "blocks": []
++  "blocks": [
++    {
++      "block": "Player header and tabs",
++      "mart": "mart_player_profile",
++      "i18n_keys": ["seoPlayerTitleClub", "seoPlayerTitleName", "crumbHome", "navPlayers", "compSeason", "playerAge", "playerHeight", "playerTabClub", "playerTabNational", "playerTabsAria"]
++    },
++    {
++      "block": "This season and Current competitions",
++      "mart": "mart_player_window_metrics",
++      "i18n_keys": ["teamThisSeasonHead", "playerCurrentCompetitions"]
++    },
++    {
++      "block": "Next matches",
++      "mart": "mart_team_fixtures",
++      "i18n_keys": ["homeNext"]
++    },
++    {
++      "block": "Compared with other players",
++      "mart": "mart_player_competition_benchmarks",
++      "i18n_keys": ["playerVsOthers", "playerComparedWith", "playerSquad", "playerMedian", "playerPer90", "playerPeerIntro", "playerSquadClubIntro", "playerSquadNationalIntro", "playerOthers", "playerOtherTeam", "showAllMetrics"]
++    },
++    {
++      "block": "Compared with last season",
++      "mart": "mart_player_window_metrics",
++      "i18n_keys": ["teamVsLastSeason", "playerLastSeasonIntro", "playerPer90", "teamThisSeasonHead", "teamLastSeasonHead", "teamTrend", "showAllMetrics"]
++    },
++    {
++      "block": "Recent matches",
++      "mart": "mart_player_fixture_stats",
++      "i18n_keys": ["secRecent", "playerMin", "playerAssist", "playerAssists", "playerBallAction", "playerBallActions", "playerOnBench", "homeShowAll", "homeShowLess"]
++    }
++  ]
+ }
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index acac835e..837dce32 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -229,12 +229,16 @@ section { margin-top: 36px; }
+ .tab:hover { color: var(--ink-2); }
+ #tab-overview:checked ~ .tabs .tab[for="tab-overview"],
+ #tab-matches:checked ~ .tabs .tab[for="tab-matches"],
+-#tab-performance:checked ~ .tabs .tab[for="tab-performance"] { color: var(--ink); font-weight: 700; border-bottom-color: var(--ink); }
++#tab-performance:checked ~ .tabs .tab[for="tab-performance"],
++#tab-club:checked ~ .tabs .tab[for="tab-club"],
++#tab-national:checked ~ .tabs .tab[for="tab-national"] { color: var(--ink); font-weight: 700; border-bottom-color: var(--ink); }
+ .fx .tab-in:focus-visible ~ .tabs { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+ .page { display: none; }
+ #tab-overview:checked ~ .page[data-page="overview"],
+ #tab-matches:checked ~ .page[data-page="matches"],
+-#tab-performance:checked ~ .page[data-page="performance"] { display: block; }
++#tab-performance:checked ~ .page[data-page="performance"],
++#tab-club:checked ~ .page[data-page="club"],
++#tab-national:checked ~ .page[data-page="national"] { display: block; }
+ 
+ /* ================================================================ *
+  *  FOUNDATION SHELL — global header/footer + responsive layout system   *
+@@ -889,7 +893,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+ .mp .mast .team .sg { display: none; }
+ @media (max-width: 699.98px) {
+   .mp .mast .teams.played .team { grid-template-columns: auto 1fr auto; }
+-  .mp .mast .team .sg { display: block; grid-column: 3; grid-row: 1 / span 2; align-self: center; font-size: 24px; font-weight: 400; color: var(--ink); }
++  .mp .mast .team .sg { display: block; grid-column: 3; grid-row: 1 / span 2; align-self: center; font-weight: 400; color: var(--ink); }
+ }
+ /* The line under the score: after penalties, the score after extra time; on an award, how it came about. */
+ .mp .mast .resline { font-size: 13px; color: var(--muted); margin-top: 14px; }
+@@ -1113,4 +1117,61 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
+ .tsw:not(:checked) ~ * .ctab.yoyt .ctab-row { background: transparent; }
+ .tsw:not(:checked) ~ * .ctab.yoyt .ctab-row:nth-child(odd of :not(.nonkey)) { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+ 
++/* The card: separate cards of equal width, at most 240px, the number centred over its label. One
++   row while all fit, then three across, otherwise two across; fitBlocks.mjs marks the form. */
++.kpis { container: kpis / inline-size; }
++.kpi-row { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 240px)); gap: 12px; }
++.kpi-row[data-n="6"] { --cols: 2; }
++.kpis.fit-two .kpi-row[data-n="6"] { --cols: 3; }
++.kpis.fit-one .kpi-row[data-n="6"] { --cols: 6; }
++.kpi { container: kpi / inline-size; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; }
++.kpi-in { display: grid; justify-items: center; text-align: center; padding: 12px 14px; row-gap: 6px; }
++.kpi-v { font-size: 30px; font-weight: 700; line-height: 1; color: var(--ink); }
++.kpi-t { display: flex; flex-direction: column; align-items: center; gap: 2px; }
++.kpi-l { font-size: 13px; font-weight: 600; line-height: 1.25; color: var(--ink-2); }
++.kpis.fit-two .kpi-in { padding-inline: 10px; }
++.kpis.narrow .kpi-row { gap: 8px; }
++.kpis.tight .kpi-in { padding: 10px 4px; }
++.kpis.tight .kpi-l { font-size: 12px; }
++.mp .mast .team .sg, .kpis.tight .kpi-v { font-size: 24px; }
++
++/* A comparison shows the panel of its filter. */
++.cmp-p { display: none; }
++.fbar + .cmp-panels .bsub { margin-top: 14px; }
++.seg-in[data-cmp="1"]:checked ~ .cmp-panels .cmp-p[data-cmp="1"],
++.seg-in[data-cmp="2"]:checked ~ .cmp-panels .cmp-p[data-cmp="2"],
++.seg-in[data-cmp="3"]:checked ~ .cmp-panels .cmp-p[data-cmp="3"],
++.seg-in[data-cmp="4"]:checked ~ .cmp-panels .cmp-p[data-cmp="4"],
++.seg-in[data-cmp="5"]:checked ~ .cmp-panels .cmp-p[data-cmp="5"],
++.seg-in[data-cmp="6"]:checked ~ .cmp-panels .cmp-p[data-cmp="6"],
++.seg-in[data-cmp="7"]:checked ~ .cmp-panels .cmp-p[data-cmp="7"],
++.seg-in[data-cmp="8"]:checked ~ .cmp-panels .cmp-p[data-cmp="8"] { display: block; }
++.seg-in[data-cmp="1"]:checked ~ .fbar .seg-btn[data-cmp="1"],
++.seg-in[data-cmp="2"]:checked ~ .fbar .seg-btn[data-cmp="2"],
++.seg-in[data-cmp="3"]:checked ~ .fbar .seg-btn[data-cmp="3"],
++.seg-in[data-cmp="4"]:checked ~ .fbar .seg-btn[data-cmp="4"],
++.seg-in[data-cmp="5"]:checked ~ .fbar .seg-btn[data-cmp="5"],
++.seg-in[data-cmp="6"]:checked ~ .fbar .seg-btn[data-cmp="6"],
++.seg-in[data-cmp="7"]:checked ~ .fbar .seg-btn[data-cmp="7"],
++.seg-in[data-cmp="8"]:checked ~ .fbar .seg-btn[data-cmp="8"] {
++  background: var(--surface); color: var(--ink); font-weight: 700; box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
++}
++.rs-plot { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
++.rs-peers circle { cy: 50%; r: calc(var(--chart-dot-other) / 2); fill: var(--chart-other); }
++.rs-tick { stroke: var(--chart-line); stroke-width: 1px; }
++.rs-tick-value { fill: var(--chart-axis); font-size: var(--chart-text); font-variant-numeric: tabular-nums; }
++.rs-tick-key { display: inline-block; width: 0; height: 10px; border-left: 1px solid var(--chart-line); }
++
++/* A player's match row: the score right after the chip and the competition and the player's line
++   under it; one line while every row fits. */
++.rlist.pm .resrow { grid-template-columns: 24px auto 1fr; grid-template-areas: "res score opp" ". meta meta"; }
++.rlist.pm .resrow .rmeta { text-align: left; }
++.rlist.pm:not(.fit-one) .resrow .rscore { text-align: left; }
++.rlist.pm .resrow .rm-c, .rlist.pm .resrow .rm-p { display: block; }
++.rlist.pm .resrow .rm-p b { color: var(--ink); font-weight: 700; }
++.rlist.pm.fit-one .resrow { grid-template-columns: 24px 42px 1fr auto; grid-template-areas: "res score opp meta"; }
++.rlist.pm.fit-one .resrow .rmeta { text-align: right; }
++.rlist.pm.fit-one .resrow .rm-c, .rlist.pm.fit-one .resrow .rm-p { display: inline; }
++.rlist.pm.fit-one .resrow .rm-p::before { content: " · "; }
++
+ @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+diff --git a/tests/fixtures/design_inventory/baseline.json b/tests/fixtures/design_inventory/baseline.json
+index 43098488..a2068850 100644
+--- a/tests/fixtures/design_inventory/baseline.json
++++ b/tests/fixtures/design_inventory/baseline.json
+@@ -10,7 +10,7 @@
+   "generator fails": {"gen_block_standard.py": 1, "gen_competitions.py": 1, "gen_match_page.py": 1, "gen_navmap.py": 1, "gen_team_mock.py": 1},
+   "language missing": {"competition-hub cup": 1, "competition-hub groups": 1, "competition-hub league": 1, "competition-hub offseason": 1, "competition-matchdays": 1, "competition-overview": 1, "competition-rankings": 1, "gen_interaction.py/interaction_standard.html": 2, "gen_matches_hub.py/matches-hub_2026-09-26.html": 1, "gen_sitemap.py/sitemap_overview.html": 2, "gen_taxonomy.py/taxonomy_options.html": 2, "home": 1, "home legacy": 1, "matches hub": 1, "matches next": 1, "matches past": 1, "top players": 1, "top teams": 1},
+   "mock page with no row": {"gen_interaction.py/interaction_standard.html": 1, "gen_matches_hub.py/matches-hub_2026-09-26.html": 1, "gen_sitemap.py/sitemap_overview.html": 1, "gen_taxonomy.py/taxonomy_options.html": 1},
+-  "page with no row": {"de/2-bundesliga/index.html": 1, "de/afc-champions-league/index.html": 1, "de/africa-cup-of-nations/index.html": 1, "de/asian-cup/index.html": 1, "de/belgian-pro-league/index.html": 1, "de/brasileirao/index.html": 1, "de/caf-champions-league/index.html": 1, "de/champions-league/index.html": 1, "de/club-world-cup/index.html": 1, "de/concacaf-champions-cup/index.html": 1, "de/concacaf-nations-league/index.html": 1, "de/conference-league/index.html": 1, "de/copa-america/index.html": 1, "de/copa-del-rey/index.html": 1, "de/copa-libertadores/index.html": 1, "de/coppa-italia/index.html": 1, "de/coupe-de-france/index.html": 1, "de/dfb-pokal/index.html": 1, "de/ekstraklasa/index.html": 1, "de/eredivisie/index.html": 1, "de/euro/index.html": 1, "de/europa-league/index.html": 1, "de/fa-cup/index.html": 1, "de/gold-cup/index.html": 1, "de/j1-league/index.html": 1, "de/k-league-1/index.html": 1, "de/la-liga/index.html": 1, "de/liga-mx/index.html": 1, "de/liga-portugal/index.html": 1, "de/liga-profesional-argentina/index.html": 1, "de/ligue-1/index.html": 1, "de/mls/index.html": 1, "de/nations-league/index.html": 1, "de/premier-league/index.html": 1, "de/saudi-pro-league/index.html": 1, "de/serie-a/index.html": 1, "de/spieler/a-daghim-362564/index.html": 1, "de/spieler/a-nusa-314511/index.html": 1, "de/spieler/a-pavlovic-328033/index.html": 1, "de/spieler/a-raimondo-314254/index.html": 1, "de/spieler/aleix-garcia-47516/index.html": 1, "de/spieler/bernardo-18964/index.html": 1, "de/spieler/c-matsima-163039/index.html": 1, "de/spieler/c-tengstedt-162703/index.html": 1, "de/spieler/c-uzun-339887/index.html": 1, "de/spieler/d-raum-25158/index.html": 1, "de/spieler/d-upamecano-1149/index.html": 1, "de/spieler/e-fernandez-237087/index.html": 1, "de/spieler/e-haaland-1100/index.html": 1, "de/spieler/e-skhiri-21587/index.html": 1, "de/spieler/f-dahmen-25903/index.html": 1, "de/spieler/f-keidel-280070/index.html": 1, "de/spieler/f-thauvin-1922/index.html": 1, "de/spieler/f-uduokhai-25406/index.html": 1, "de/spieler/f-wirtz-203224/index.html": 1, "de/spieler/g-calo-32011/index.html": 1, "de/spieler/g-prestianni-362755/index.html": 1, "de/spieler/g-read-359390/index.html": 1, "de/spieler/h-kane-184/index.html": 1, "de/spieler/hennes-behrens-353143/index.html": 1, "de/spieler/i-matanovic-202696/index.html": 1, "de/spieler/j-brandt-984/index.html": 1, "de/spieler/j-kimmich-502/index.html": 1, "de/spieler/j-tah-972/index.html": 1, "de/spieler/kim-min-jae-2897/index.html": 1, "de/spieler/l-curda-163078/index.html": 1, "de/spieler/l-ferguson-44814/index.html": 1, "de/spieler/l-karius-1972/index.html": 1, "de/spieler/l-petkov-177452/index.html": 1, "de/spieler/lamine-yamal-386828/index.html": 1, "de/spieler/m-ginter-2915/index.html": 1, "de/spieler/m-gregoritsch-25297/index.html": 1, "de/spieler/m-grull-7073/index.html": 1, "de/spieler/m-moore-380690/index.html": 1, "de/spieler/m-olise-19617/index.html": 1, "de/spieler/m-vandevoordt-1924/index.html": 1, "de/spieler/m-willemsen-327347/index.html": 1, "de/spieler/miguel-gutierrez-162032/index.html": 1, "de/spieler/n-amiri-714/index.html": 1, "de/spieler/n-atubolu-178768/index.html": 1, "de/spieler/n-capaldo-5973/index.html": 1, "de/spieler/n-djouahra-47308/index.html": 1, "de/spieler/n-el-aynaoui-277003/index.html": 1, "de/spieler/n-fullkrug-25391/index.html": 1, "de/spieler/n-katic-1741/index.html": 1, "de/spieler/n-noll-203329/index.html": 1, "de/spieler/nacho-ferri-353943/index.html": 1, "de/spieler/p-dybala-875/index.html": 1, "de/spieler/p-gro-18970/index.html": 1, "de/spieler/p-schick-794/index.html": 1, "de/spieler/p-tietz-26171/index.html": 1, "de/spieler/r-onyedika-162219/index.html": 1, "de/spieler/r-schallenberg-88140/index.html": 1, "de/spieler/raphinha-1496/index.html": 1, "de/spieler/renato-veiga-336671/index.html": 1, "de/spieler/ruben-dias-567/index.html": 1, "de/spieler/s-becker-37938/index.html": 1, "de/spieler/s-inacio-478991/index.html": 1, "de/spieler/t-kleindienst-26256/index.html": 1, "de/spieler/t-krau-1156/index.html": 1, "de/spieler/t-rothe-324957/index.html": 1, "de/spieler/tomas-araujo-161939/index.html": 1, "de/spieler/v-pavlidis-36798/index.html": 1, "de/spieler/vitinha-128384/index.html": 1, "de/spieler/w-anton-25368/index.html": 1, "de/spieler/w-burger-37153/index.html": 1, "de/spieler/y-ebnoutalib-409190/index.html": 1, "de/spieler/y-suzuki-199143/index.html": 1, "de/super-lig/index.html": 1, "de/uefa-super-cup/index.html": 1, "de/veikkausliiga/index.html": 1, "de/world-cup-qualification-africa/index.html": 1, "de/world-cup-qualification-asia/index.html": 1, "de/world-cup-qualification-concacaf/index.html": 1, "de/world-cup-qualification-europe/index.html": 1, "de/world-cup-qualification-oceania/index.html": 1, "de/world-cup-qualification-playoffs/index.html": 1, "de/world-cup-qualification-south-america/index.html": 1, "de/world-cup/index.html": 1, "en/2-bundesliga/index.html": 1, "en/afc-champions-league/index.html": 1, "en/africa-cup-of-nations/index.html": 1, "en/asian-cup/index.html": 1, "en/belgian-pro-league/index.html": 1, "en/brasileirao/index.html": 1, "en/caf-champions-league/index.html": 1, "en/champions-league/index.html": 1, "en/club-world-cup/index.html": 1, "en/concacaf-champions-cup/index.html": 1, "en/concacaf-nations-league/index.html": 1, "en/conference-league/index.html": 1, "en/copa-america/index.html": 1, "en/copa-del-rey/index.html": 1, "en/copa-libertadores/index.html": 1, "en/coppa-italia/index.html": 1, "en/coupe-de-france/index.html": 1, "en/dfb-pokal/index.html": 1, "en/ekstraklasa/index.html": 1, "en/eredivisie/index.html": 1, "en/euro/index.html": 1, "en/europa-league/index.html": 1, "en/fa-cup/index.html": 1, "en/gold-cup/index.html": 1, "en/j1-league/index.html": 1, "en/k-league-1/index.html": 1, "en/la-liga/index.html": 1, "en/liga-mx/index.html": 1, "en/liga-portugal/index.html": 1, "en/liga-profesional-argentina/index.html": 1, "en/ligue-1/index.html": 1, "en/mls/index.html": 1, "en/nations-league/index.html": 1, "en/players/a-daghim-362564/index.html": 1, "en/players/a-nusa-314511/index.html": 1, "en/players/a-pavlovic-328033/index.html": 1, "en/players/a-raimondo-314254/index.html": 1, "en/players/aleix-garcia-47516/index.html": 1, "en/players/bernardo-18964/index.html": 1, "en/players/c-matsima-163039/index.html": 1, "en/players/c-tengstedt-162703/index.html": 1, "en/players/c-uzun-339887/index.html": 1, "en/players/d-raum-25158/index.html": 1, "en/players/d-upamecano-1149/index.html": 1, "en/players/e-fernandez-237087/index.html": 1, "en/players/e-haaland-1100/index.html": 1, "en/players/e-skhiri-21587/index.html": 1, "en/players/f-dahmen-25903/index.html": 1, "en/players/f-keidel-280070/index.html": 1, "en/players/f-thauvin-1922/index.html": 1, "en/players/f-uduokhai-25406/index.html": 1, "en/players/f-wirtz-203224/index.html": 1, "en/players/g-calo-32011/index.html": 1, "en/players/g-prestianni-362755/index.html": 1, "en/players/g-read-359390/index.html": 1, "en/players/h-kane-184/index.html": 1, "en/players/hennes-behrens-353143/index.html": 1, "en/players/i-matanovic-202696/index.html": 1, "en/players/j-brandt-984/index.html": 1, "en/players/j-kimmich-502/index.html": 1, "en/players/j-tah-972/index.html": 1, "en/players/kim-min-jae-2897/index.html": 1, "en/players/l-curda-163078/index.html": 1, "en/players/l-ferguson-44814/index.html": 1, "en/players/l-karius-1972/index.html": 1, "en/players/l-petkov-177452/index.html": 1, "en/players/lamine-yamal-386828/index.html": 1, "en/players/m-ginter-2915/index.html": 1, "en/players/m-gregoritsch-25297/index.html": 1, "en/players/m-grull-7073/index.html": 1, "en/players/m-moore-380690/index.html": 1, "en/players/m-olise-19617/index.html": 1, "en/players/m-vandevoordt-1924/index.html": 1, "en/players/m-willemsen-327347/index.html": 1, "en/players/miguel-gutierrez-162032/index.html": 1, "en/players/n-amiri-714/index.html": 1, "en/players/n-atubolu-178768/index.html": 1, "en/players/n-capaldo-5973/index.html": 1, "en/players/n-djouahra-47308/index.html": 1, "en/players/n-el-aynaoui-277003/index.html": 1, "en/players/n-fullkrug-25391/index.html": 1, "en/players/n-katic-1741/index.html": 1, "en/players/n-noll-203329/index.html": 1, "en/players/nacho-ferri-353943/index.html": 1, "en/players/p-dybala-875/index.html": 1, "en/players/p-gro-18970/index.html": 1, "en/players/p-schick-794/index.html": 1, "en/players/p-tietz-26171/index.html": 1, "en/players/r-onyedika-162219/index.html": 1, "en/players/r-schallenberg-88140/index.html": 1, "en/players/raphinha-1496/index.html": 1, "en/players/renato-veiga-336671/index.html": 1, "en/players/ruben-dias-567/index.html": 1, "en/players/s-becker-37938/index.html": 1, "en/players/s-inacio-478991/index.html": 1, "en/players/t-kleindienst-26256/index.html": 1, "en/players/t-krau-1156/index.html": 1, "en/players/t-rothe-324957/index.html": 1, "en/players/tomas-araujo-161939/index.html": 1, "en/players/v-pavlidis-36798/index.html": 1, "en/players/vitinha-128384/index.html": 1, "en/players/w-anton-25368/index.html": 1, "en/players/w-burger-37153/index.html": 1, "en/players/y-ebnoutalib-409190/index.html": 1, "en/players/y-suzuki-199143/index.html": 1, "en/premier-league/index.html": 1, "en/saudi-pro-league/index.html": 1, "en/serie-a/index.html": 1, "en/super-lig/index.html": 1, "en/uefa-super-cup/index.html": 1, "en/veikkausliiga/index.html": 1, "en/world-cup-qualification-africa/index.html": 1, "en/world-cup-qualification-asia/index.html": 1, "en/world-cup-qualification-concacaf/index.html": 1, "en/world-cup-qualification-europe/index.html": 1, "en/world-cup-qualification-oceania/index.html": 1, "en/world-cup-qualification-playoffs/index.html": 1, "en/world-cup-qualification-south-america/index.html": 1, "en/world-cup/index.html": 1, "fi/2-bundesliga/index.html": 1, "fi/afc-champions-league/index.html": 1, "fi/africa-cup-of-nations/index.html": 1, "fi/asian-cup/index.html": 1, "fi/belgian-pro-league/index.html": 1, "fi/brasileirao/index.html": 1, "fi/caf-champions-league/index.html": 1, "fi/champions-league/index.html": 1, "fi/club-world-cup/index.html": 1, "fi/concacaf-champions-cup/index.html": 1, "fi/concacaf-nations-league/index.html": 1, "fi/conference-league/index.html": 1, "fi/copa-america/index.html": 1, "fi/copa-del-rey/index.html": 1, "fi/copa-libertadores/index.html": 1, "fi/coppa-italia/index.html": 1, "fi/coupe-de-france/index.html": 1, "fi/dfb-pokal/index.html": 1, "fi/ekstraklasa/index.html": 1, "fi/eredivisie/index.html": 1, "fi/euro/index.html": 1, "fi/europa-league/index.html": 1, "fi/fa-cup/index.html": 1, "fi/gold-cup/index.html": 1, "fi/j1-league/index.html": 1, "fi/k-league-1/index.html": 1, "fi/la-liga/index.html": 1, "fi/liga-mx/index.html": 1, "fi/liga-portugal/index.html": 1, "fi/liga-profesional-argentina/index.html": 1, "fi/ligue-1/index.html": 1, "fi/mls/index.html": 1, "fi/nations-league/index.html": 1, "fi/pelaajat/a-daghim-362564/index.html": 1, "fi/pelaajat/a-nusa-314511/index.html": 1, "fi/pelaajat/a-pavlovic-328033/index.html": 1, "fi/pelaajat/a-raimondo-314254/index.html": 1, "fi/pelaajat/aleix-garcia-47516/index.html": 1, "fi/pelaajat/bernardo-18964/index.html": 1, "fi/pelaajat/c-matsima-163039/index.html": 1, "fi/pelaajat/c-tengstedt-162703/index.html": 1, "fi/pelaajat/c-uzun-339887/index.html": 1, "fi/pelaajat/d-raum-25158/index.html": 1, "fi/pelaajat/d-upamecano-1149/index.html": 1, "fi/pelaajat/e-fernandez-237087/index.html": 1, "fi/pelaajat/e-haaland-1100/index.html": 1, "fi/pelaajat/e-skhiri-21587/index.html": 1, "fi/pelaajat/f-dahmen-25903/index.html": 1, "fi/pelaajat/f-keidel-280070/index.html": 1, "fi/pelaajat/f-thauvin-1922/index.html": 1, "fi/pelaajat/f-uduokhai-25406/index.html": 1, "fi/pelaajat/f-wirtz-203224/index.html": 1, "fi/pelaajat/g-calo-32011/index.html": 1, "fi/pelaajat/g-prestianni-362755/index.html": 1, "fi/pelaajat/g-read-359390/index.html": 1, "fi/pelaajat/h-kane-184/index.html": 1, "fi/pelaajat/hennes-behrens-353143/index.html": 1, "fi/pelaajat/i-matanovic-202696/index.html": 1, "fi/pelaajat/j-brandt-984/index.html": 1, "fi/pelaajat/j-kimmich-502/index.html": 1, "fi/pelaajat/j-tah-972/index.html": 1, "fi/pelaajat/kim-min-jae-2897/index.html": 1, "fi/pelaajat/l-curda-163078/index.html": 1, "fi/pelaajat/l-ferguson-44814/index.html": 1, "fi/pelaajat/l-karius-1972/index.html": 1, "fi/pelaajat/l-petkov-177452/index.html": 1, "fi/pelaajat/lamine-yamal-386828/index.html": 1, "fi/pelaajat/m-ginter-2915/index.html": 1, "fi/pelaajat/m-gregoritsch-25297/index.html": 1, "fi/pelaajat/m-grull-7073/index.html": 1, "fi/pelaajat/m-moore-380690/index.html": 1, "fi/pelaajat/m-olise-19617/index.html": 1, "fi/pelaajat/m-vandevoordt-1924/index.html": 1, "fi/pelaajat/m-willemsen-327347/index.html": 1, "fi/pelaajat/miguel-gutierrez-162032/index.html": 1, "fi/pelaajat/n-amiri-714/index.html": 1, "fi/pelaajat/n-atubolu-178768/index.html": 1, "fi/pelaajat/n-capaldo-5973/index.html": 1, "fi/pelaajat/n-djouahra-47308/index.html": 1, "fi/pelaajat/n-el-aynaoui-277003/index.html": 1, "fi/pelaajat/n-fullkrug-25391/index.html": 1, "fi/pelaajat/n-katic-1741/index.html": 1, "fi/pelaajat/n-noll-203329/index.html": 1, "fi/pelaajat/nacho-ferri-353943/index.html": 1, "fi/pelaajat/p-dybala-875/index.html": 1, "fi/pelaajat/p-gro-18970/index.html": 1, "fi/pelaajat/p-schick-794/index.html": 1, "fi/pelaajat/p-tietz-26171/index.html": 1, "fi/pelaajat/r-onyedika-162219/index.html": 1, "fi/pelaajat/r-schallenberg-88140/index.html": 1, "fi/pelaajat/raphinha-1496/index.html": 1, "fi/pelaajat/renato-veiga-336671/index.html": 1, "fi/pelaajat/ruben-dias-567/index.html": 1, "fi/pelaajat/s-becker-37938/index.html": 1, "fi/pelaajat/s-inacio-478991/index.html": 1, "fi/pelaajat/t-kleindienst-26256/index.html": 1, "fi/pelaajat/t-krau-1156/index.html": 1, "fi/pelaajat/t-rothe-324957/index.html": 1, "fi/pelaajat/tomas-araujo-161939/index.html": 1, "fi/pelaajat/v-pavlidis-36798/index.html": 1, "fi/pelaajat/vitinha-128384/index.html": 1, "fi/pelaajat/w-anton-25368/index.html": 1, "fi/pelaajat/w-burger-37153/index.html": 1, "fi/pelaajat/y-ebnoutalib-409190/index.html": 1, "fi/pelaajat/y-suzuki-199143/index.html": 1, "fi/premier-league/index.html": 1, "fi/saudi-pro-league/index.html": 1, "fi/serie-a/index.html": 1, "fi/super-lig/index.html": 1, "fi/uefa-super-cup/index.html": 1, "fi/veikkausliiga/index.html": 1, "fi/world-cup-qualification-africa/index.html": 1, "fi/world-cup-qualification-asia/index.html": 1, "fi/world-cup-qualification-concacaf/index.html": 1, "fi/world-cup-qualification-europe/index.html": 1, "fi/world-cup-qualification-oceania/index.html": 1, "fi/world-cup-qualification-playoffs/index.html": 1, "fi/world-cup-qualification-south-america/index.html": 1, "fi/world-cup/index.html": 1, "index.html": 1}
++  "page with no row": {"de/2-bundesliga/index.html": 1, "de/afc-champions-league/index.html": 1, "de/africa-cup-of-nations/index.html": 1, "de/asian-cup/index.html": 1, "de/belgian-pro-league/index.html": 1, "de/brasileirao/index.html": 1, "de/caf-champions-league/index.html": 1, "de/champions-league/index.html": 1, "de/club-world-cup/index.html": 1, "de/concacaf-champions-cup/index.html": 1, "de/concacaf-nations-league/index.html": 1, "de/conference-league/index.html": 1, "de/copa-america/index.html": 1, "de/copa-del-rey/index.html": 1, "de/copa-libertadores/index.html": 1, "de/coppa-italia/index.html": 1, "de/coupe-de-france/index.html": 1, "de/dfb-pokal/index.html": 1, "de/ekstraklasa/index.html": 1, "de/eredivisie/index.html": 1, "de/euro/index.html": 1, "de/europa-league/index.html": 1, "de/fa-cup/index.html": 1, "de/gold-cup/index.html": 1, "de/j1-league/index.html": 1, "de/k-league-1/index.html": 1, "de/la-liga/index.html": 1, "de/liga-mx/index.html": 1, "de/liga-portugal/index.html": 1, "de/liga-profesional-argentina/index.html": 1, "de/ligue-1/index.html": 1, "de/mls/index.html": 1, "de/nations-league/index.html": 1, "de/premier-league/index.html": 1, "de/saudi-pro-league/index.html": 1, "de/serie-a/index.html": 1, "de/super-lig/index.html": 1, "de/uefa-super-cup/index.html": 1, "de/veikkausliiga/index.html": 1, "de/world-cup-qualification-africa/index.html": 1, "de/world-cup-qualification-asia/index.html": 1, "de/world-cup-qualification-concacaf/index.html": 1, "de/world-cup-qualification-europe/index.html": 1, "de/world-cup-qualification-oceania/index.html": 1, "de/world-cup-qualification-playoffs/index.html": 1, "de/world-cup-qualification-south-america/index.html": 1, "de/world-cup/index.html": 1, "en/2-bundesliga/index.html": 1, "en/afc-champions-league/index.html": 1, "en/africa-cup-of-nations/index.html": 1, "en/asian-cup/index.html": 1, "en/belgian-pro-league/index.html": 1, "en/brasileirao/index.html": 1, "en/caf-champions-league/index.html": 1, "en/champions-league/index.html": 1, "en/club-world-cup/index.html": 1, "en/concacaf-champions-cup/index.html": 1, "en/concacaf-nations-league/index.html": 1, "en/conference-league/index.html": 1, "en/copa-america/index.html": 1, "en/copa-del-rey/index.html": 1, "en/copa-libertadores/index.html": 1, "en/coppa-italia/index.html": 1, "en/coupe-de-france/index.html": 1, "en/dfb-pokal/index.html": 1, "en/ekstraklasa/index.html": 1, "en/eredivisie/index.html": 1, "en/euro/index.html": 1, "en/europa-league/index.html": 1, "en/fa-cup/index.html": 1, "en/gold-cup/index.html": 1, "en/j1-league/index.html": 1, "en/k-league-1/index.html": 1, "en/la-liga/index.html": 1, "en/liga-mx/index.html": 1, "en/liga-portugal/index.html": 1, "en/liga-profesional-argentina/index.html": 1, "en/ligue-1/index.html": 1, "en/mls/index.html": 1, "en/nations-league/index.html": 1, "en/premier-league/index.html": 1, "en/saudi-pro-league/index.html": 1, "en/serie-a/index.html": 1, "en/super-lig/index.html": 1, "en/uefa-super-cup/index.html": 1, "en/veikkausliiga/index.html": 1, "en/world-cup-qualification-africa/index.html": 1, "en/world-cup-qualification-asia/index.html": 1, "en/world-cup-qualification-concacaf/index.html": 1, "en/world-cup-qualification-europe/index.html": 1, "en/world-cup-qualification-oceania/index.html": 1, "en/world-cup-qualification-playoffs/index.html": 1, "en/world-cup-qualification-south-america/index.html": 1, "en/world-cup/index.html": 1, "fi/2-bundesliga/index.html": 1, "fi/afc-champions-league/index.html": 1, "fi/africa-cup-of-nations/index.html": 1, "fi/asian-cup/index.html": 1, "fi/belgian-pro-league/index.html": 1, "fi/brasileirao/index.html": 1, "fi/caf-champions-league/index.html": 1, "fi/champions-league/index.html": 1, "fi/club-world-cup/index.html": 1, "fi/concacaf-champions-cup/index.html": 1, "fi/concacaf-nations-league/index.html": 1, "fi/conference-league/index.html": 1, "fi/copa-america/index.html": 1, "fi/copa-del-rey/index.html": 1, "fi/copa-libertadores/index.html": 1, "fi/coppa-italia/index.html": 1, "fi/coupe-de-france/index.html": 1, "fi/dfb-pokal/index.html": 1, "fi/ekstraklasa/index.html": 1, "fi/eredivisie/index.html": 1, "fi/euro/index.html": 1, "fi/europa-league/index.html": 1, "fi/fa-cup/index.html": 1, "fi/gold-cup/index.html": 1, "fi/j1-league/index.html": 1, "fi/k-league-1/index.html": 1, "fi/la-liga/index.html": 1, "fi/liga-mx/index.html": 1, "fi/liga-portugal/index.html": 1, "fi/liga-profesional-argentina/index.html": 1, "fi/ligue-1/index.html": 1, "fi/mls/index.html": 1, "fi/nations-league/index.html": 1, "fi/premier-league/index.html": 1, "fi/saudi-pro-league/index.html": 1, "fi/serie-a/index.html": 1, "fi/super-lig/index.html": 1, "fi/uefa-super-cup/index.html": 1, "fi/veikkausliiga/index.html": 1, "fi/world-cup-qualification-africa/index.html": 1, "fi/world-cup-qualification-asia/index.html": 1, "fi/world-cup-qualification-concacaf/index.html": 1, "fi/world-cup-qualification-europe/index.html": 1, "fi/world-cup-qualification-oceania/index.html": 1, "fi/world-cup-qualification-playoffs/index.html": 1, "fi/world-cup-qualification-south-america/index.html": 1, "fi/world-cup/index.html": 1, "index.html": 1}
+  },
+  "rendered": {
+   "platform": "linux",
+diff --git a/tests/fixtures/design_inventory/baseline_quick.json b/tests/fixtures/design_inventory/baseline_quick.json
+index 48e8faf0..42890050 100644
+--- a/tests/fixtures/design_inventory/baseline_quick.json
++++ b/tests/fixtures/design_inventory/baseline_quick.json
+@@ -45,78 +45,6 @@
+    "de/premier-league/index.html": 1,
+    "de/saudi-pro-league/index.html": 1,
+    "de/serie-a/index.html": 1,
+-   "de/spieler/a-daghim-362564/index.html": 1,
+-   "de/spieler/a-nusa-314511/index.html": 1,
+-   "de/spieler/a-pavlovic-328033/index.html": 1,
+-   "de/spieler/a-raimondo-314254/index.html": 1,
+-   "de/spieler/aleix-garcia-47516/index.html": 1,
+-   "de/spieler/bernardo-18964/index.html": 1,
+-   "de/spieler/c-matsima-163039/index.html": 1,
+-   "de/spieler/c-tengstedt-162703/index.html": 1,
+-   "de/spieler/c-uzun-339887/index.html": 1,
+-   "de/spieler/d-raum-25158/index.html": 1,
+-   "de/spieler/d-upamecano-1149/index.html": 1,
+-   "de/spieler/e-fernandez-237087/index.html": 1,
+-   "de/spieler/e-haaland-1100/index.html": 1,
+-   "de/spieler/e-skhiri-21587/index.html": 1,
+-   "de/spieler/f-dahmen-25903/index.html": 1,
+-   "de/spieler/f-keidel-280070/index.html": 1,
+-   "de/spieler/f-thauvin-1922/index.html": 1,
+-   "de/spieler/f-uduokhai-25406/index.html": 1,
+-   "de/spieler/f-wirtz-203224/index.html": 1,
+-   "de/spieler/g-calo-32011/index.html": 1,
+-   "de/spieler/g-prestianni-362755/index.html": 1,
+-   "de/spieler/g-read-359390/index.html": 1,
+-   "de/spieler/h-kane-184/index.html": 1,
+-   "de/spieler/hennes-behrens-353143/index.html": 1,
+-   "de/spieler/i-matanovic-202696/index.html": 1,
+-   "de/spieler/j-brandt-984/index.html": 1,
+-   "de/spieler/j-kimmich-502/index.html": 1,
+-   "de/spieler/j-tah-972/index.html": 1,
+-   "de/spieler/kim-min-jae-2897/index.html": 1,
+-   "de/spieler/l-curda-163078/index.html": 1,
+-   "de/spieler/l-ferguson-44814/index.html": 1,
+-   "de/spieler/l-karius-1972/index.html": 1,
+-   "de/spieler/l-petkov-177452/index.html": 1,
+-   "de/spieler/lamine-yamal-386828/index.html": 1,
+-   "de/spieler/m-ginter-2915/index.html": 1,
+-   "de/spieler/m-gregoritsch-25297/index.html": 1,
+-   "de/spieler/m-grull-7073/index.html": 1,
+-   "de/spieler/m-moore-380690/index.html": 1,
+-   "de/spieler/m-olise-19617/index.html": 1,
+-   "de/spieler/m-vandevoordt-1924/index.html": 1,
+-   "de/spieler/m-willemsen-327347/index.html": 1,
+-   "de/spieler/miguel-gutierrez-162032/index.html": 1,
+-   "de/spieler/n-amiri-714/index.html": 1,
+-   "de/spieler/n-atubolu-178768/index.html": 1,
+-   "de/spieler/n-capaldo-5973/index.html": 1,
+-   "de/spieler/n-djouahra-47308/index.html": 1,
+-   "de/spieler/n-el-aynaoui-277003/index.html": 1,
+-   "de/spieler/n-fullkrug-25391/index.html": 1,
+-   "de/spieler/n-katic-1741/index.html": 1,
+-   "de/spieler/n-noll-203329/index.html": 1,
+-   "de/spieler/nacho-ferri-353943/index.html": 1,
+-   "de/spieler/p-dybala-875/index.html": 1,
+-   "de/spieler/p-gro-18970/index.html": 1,
+-   "de/spieler/p-schick-794/index.html": 1,
+-   "de/spieler/p-tietz-26171/index.html": 1,
+-   "de/spieler/r-onyedika-162219/index.html": 1,
+-   "de/spieler/r-schallenberg-88140/index.html": 1,
+-   "de/spieler/raphinha-1496/index.html": 1,
+-   "de/spieler/renato-veiga-336671/index.html": 1,
+-   "de/spieler/ruben-dias-567/index.html": 1,
+-   "de/spieler/s-becker-37938/index.html": 1,
+-   "de/spieler/s-inacio-478991/index.html": 1,
+-   "de/spieler/t-kleindienst-26256/index.html": 1,
+-   "de/spieler/t-krau-1156/index.html": 1,
+-   "de/spieler/t-rothe-324957/index.html": 1,
+-   "de/spieler/tomas-araujo-161939/index.html": 1,
+-   "de/spieler/v-pavlidis-36798/index.html": 1,
+-   "de/spieler/vitinha-128384/index.html": 1,
+-   "de/spieler/w-anton-25368/index.html": 1,
+-   "de/spieler/w-burger-37153/index.html": 1,
+-   "de/spieler/y-ebnoutalib-409190/index.html": 1,
+-   "de/spieler/y-suzuki-199143/index.html": 1,
+    "de/super-lig/index.html": 1,
+    "de/uefa-super-cup/index.html": 1,
+    "de/veikkausliiga/index.html": 1,
+@@ -161,78 +89,6 @@
+    "en/ligue-1/index.html": 1,
+    "en/mls/index.html": 1,
+    "en/nations-league/index.html": 1,
+-   "en/players/a-daghim-362564/index.html": 1,
+-   "en/players/a-nusa-314511/index.html": 1,
+-   "en/players/a-pavlovic-328033/index.html": 1,
+-   "en/players/a-raimondo-314254/index.html": 1,
+-   "en/players/aleix-garcia-47516/index.html": 1,
+-   "en/players/bernardo-18964/index.html": 1,
+-   "en/players/c-matsima-163039/index.html": 1,
+-   "en/players/c-tengstedt-162703/index.html": 1,
+-   "en/players/c-uzun-339887/index.html": 1,
+-   "en/players/d-raum-25158/index.html": 1,
+-   "en/players/d-upamecano-1149/index.html": 1,
+-   "en/players/e-fernandez-237087/index.html": 1,
+-   "en/players/e-haaland-1100/index.html": 1,
+-   "en/players/e-skhiri-21587/index.html": 1,
+-   "en/players/f-dahmen-25903/index.html": 1,
+-   "en/players/f-keidel-280070/index.html": 1,
+-   "en/players/f-thauvin-1922/index.html": 1,
+-   "en/players/f-uduokhai-25406/index.html": 1,
+-   "en/players/f-wirtz-203224/index.html": 1,
+-   "en/players/g-calo-32011/index.html": 1,
+-   "en/players/g-prestianni-362755/index.html": 1,
+-   "en/players/g-read-359390/index.html": 1,
+-   "en/players/h-kane-184/index.html": 1,
+-   "en/players/hennes-behrens-353143/index.html": 1,
+-   "en/players/i-matanovic-202696/index.html": 1,
+-   "en/players/j-brandt-984/index.html": 1,
+-   "en/players/j-kimmich-502/index.html": 1,
+-   "en/players/j-tah-972/index.html": 1,
+-   "en/players/kim-min-jae-2897/index.html": 1,
+-   "en/players/l-curda-163078/index.html": 1,
+-   "en/players/l-ferguson-44814/index.html": 1,
+-   "en/players/l-karius-1972/index.html": 1,
+-   "en/players/l-petkov-177452/index.html": 1,
+-   "en/players/lamine-yamal-386828/index.html": 1,
+-   "en/players/m-ginter-2915/index.html": 1,
+-   "en/players/m-gregoritsch-25297/index.html": 1,
+-   "en/players/m-grull-7073/index.html": 1,
+-   "en/players/m-moore-380690/index.html": 1,
+-   "en/players/m-olise-19617/index.html": 1,
+-   "en/players/m-vandevoordt-1924/index.html": 1,
+-   "en/players/m-willemsen-327347/index.html": 1,
+-   "en/players/miguel-gutierrez-162032/index.html": 1,
+-   "en/players/n-amiri-714/index.html": 1,
+-   "en/players/n-atubolu-178768/index.html": 1,
+-   "en/players/n-capaldo-5973/index.html": 1,
+-   "en/players/n-djouahra-47308/index.html": 1,
+-   "en/players/n-el-aynaoui-277003/index.html": 1,
+-   "en/players/n-fullkrug-25391/index.html": 1,
+-   "en/players/n-katic-1741/index.html": 1,
+-   "en/players/n-noll-203329/index.html": 1,
+-   "en/players/nacho-ferri-353943/index.html": 1,
+-   "en/players/p-dybala-875/index.html": 1,
+-   "en/players/p-gro-18970/index.html": 1,
+-   "en/players/p-schick-794/index.html": 1,
+-   "en/players/p-tietz-26171/index.html": 1,
+-   "en/players/r-onyedika-162219/index.html": 1,
+-   "en/players/r-schallenberg-88140/index.html": 1,
+-   "en/players/raphinha-1496/index.html": 1,
+-   "en/players/renato-veiga-336671/index.html": 1,
+-   "en/players/ruben-dias-567/index.html": 1,
+-   "en/players/s-becker-37938/index.html": 1,
+-   "en/players/s-inacio-478991/index.html": 1,
+-   "en/players/t-kleindienst-26256/index.html": 1,
+-   "en/players/t-krau-1156/index.html": 1,
+-   "en/players/t-rothe-324957/index.html": 1,
+-   "en/players/tomas-araujo-161939/index.html": 1,
+-   "en/players/v-pavlidis-36798/index.html": 1,
+-   "en/players/vitinha-128384/index.html": 1,
+-   "en/players/w-anton-25368/index.html": 1,
+-   "en/players/w-burger-37153/index.html": 1,
+-   "en/players/y-ebnoutalib-409190/index.html": 1,
+-   "en/players/y-suzuki-199143/index.html": 1,
+    "en/premier-league/index.html": 1,
+    "en/saudi-pro-league/index.html": 1,
+    "en/serie-a/index.html": 1,
+diff --git a/tests/test_check_chart_components.py b/tests/test_check_chart_components.py
+index d82f7d91..3e4583a9 100644
+--- a/tests/test_check_chart_components.py
++++ b/tests/test_check_chart_components.py
+@@ -28,6 +28,7 @@ def test_the_tree_is_clean_and_finds_every_chart_component():
+     assert components == [
+         "site_v2/src/components/fixture/MetricComparison.astro",
+         "site_v2/src/components/fixture/MetricRow.astro",
++        "site_v2/src/components/player/PlayerComparison.astro",
+         "site_v2/src/components/team/TeamDeserved.astro",
+         "site_v2/src/components/team/TeamLeagueStrips.astro",
+         "site_v2/src/components/ui/ChartLegend.astro",
+diff --git a/tests/test_check_copy_gate.py b/tests/test_check_copy_gate.py
+new file mode 100644
+index 00000000..5cc10c6a
+--- /dev/null
++++ b/tests/test_check_copy_gate.py
+@@ -0,0 +1,39 @@
++import os
++import sys
++
++import pytest
++
++sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
++import check_copy_gate as gate  # noqa: E402
++
++
++def _strings(en_unit: str, other_unit: str) -> str:
++    """A synthetic strings.ts whose only word-shaped value is `unit`, EN against DE and FI."""
++    out = []
++    for loc, unit in (("EN", en_unit), ("DE", "Min."), ("FI", other_unit)):
++        body = "".join(f'  key{i}: "v{i}",\n' for i in range(40)) + f'  unit: "{unit}",\n'
++        out.append(f"const {loc}: Dict = {{\n{body}}};\n")
++    for loc in ("EN", "DE", "FI"):
++        body = "".join(f'  "metrics.m{i}.label": "m{i}",\n' for i in range(18))
++        out.append(f"const METRIC_LABELS_{loc}: MetricLabels = {{\n{body}}};\n")
++    return "\n".join(out)
++
++
++def _untranslated(tmp_path, monkeypatch, capsys, en_unit, other_unit):
++    path = tmp_path / "strings.ts"
++    path.write_text(_strings(en_unit, other_unit), encoding="utf-8")
++    monkeypatch.setattr(gate, "STRINGS", path)
++    monkeypatch.setattr(gate, "_seed_label_keys", lambda *_a: {})
++    gate.main()
++    return [line for line in capsys.readouterr().out.splitlines() if "untranslated: fi.unit" in line]
++
++
++def test_a_listed_unit_symbol_may_read_the_same_in_two_languages(tmp_path, monkeypatch, capsys):
++    assert "min" in gate.UNIT_SYMBOLS
++    assert _untranslated(tmp_path, monkeypatch, capsys, "min", "min") == []
++
++
++@pytest.mark.parametrize("word", ["mins", "minutes", "min."])
++def test_a_word_not_on_the_list_still_fails_when_left_untranslated(tmp_path, monkeypatch, capsys, word):
++    assert word not in gate.UNIT_SYMBOLS
++    assert len(_untranslated(tmp_path, monkeypatch, capsys, word, word)) == 1
+diff --git a/tests/test_design_inventory.py b/tests/test_design_inventory.py
+index dc1e1ef9..68a50518 100644
+--- a/tests/test_design_inventory.py
++++ b/tests/test_design_inventory.py
+@@ -125,7 +125,7 @@ def test_the_content_column_header_and_footer_share_the_page_width():
+     pages = SYSTEM_CSS.parent.parent / "pages"
+     keep = sorted(p.relative_to(pages).as_posix() for p in pages.rglob("*.astro")
+                   if re.search(r"\blegacyWidth\b", p.read_text(encoding="utf-8")))
+-    assert keep == ["[lang]/[players]/[player].astro"], keep
++    assert keep == [], keep
+ 
+ 
+ def test_a_width_condition_limits_an_assertion_to_its_viewports(tmp_path):
+diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
+index e1cad20d..572c1750 100644
+--- a/tests/test_export_site_data.py
++++ b/tests/test_export_site_data.py
+@@ -134,11 +134,59 @@ def test_player_payloads_read_nothing_for_no_players(monkeypatch):
+     assert export_site_data.fetch_player_payloads(object(), []) == ([], [])
+ 
+ 
+-def test_the_players_entity_refuses_a_run_with_no_boards(tmp_path):
+-    with pytest.raises(ValueError, match="no player boards"):
++def test_the_players_entity_refuses_a_run_with_no_player_pages(tmp_path, monkeypatch):
++    monkeypatch.setattr(export_site_data, "_query", lambda *_: [])
++    with pytest.raises(ValueError, match="no player has a page"):
+         export_site_data.export_all(tmp_path, ("players",), 0, client=object())
+ 
+ 
++def test_the_shared_name_flag_is_the_marts_and_is_selected():
++    assert "shares_name_at_club" in export_site_data._PLAYER_PROFILE_COLUMNS
++    assert not hasattr(export_site_data, "mark_shared_names")
++
++
++def test_the_player_files_do_not_depend_on_the_order_the_warehouse_returns(tmp_path, monkeypatch):
++    monkeypatch.setattr(export_site_data, "page_player_ids", lambda _c: [1, 5, 9])
++    monkeypatch.setattr(export_site_data, "_competitions_index", lambda _c: {})
++    peers = [{"league_code": c, "season": 2026, "position_group": "MID", "rows": []} for c in ("PL", "BL1")]
++    written = []
++    for order in ([9, 1, 5], [5, 9, 1]):
++        out = tmp_path / str(order[0])
++        monkeypatch.setattr(export_site_data, "fetch_player_payloads", lambda _c, _ids, _s, order=order: (
++            [{"type": "player", "player_id": i, "slug": f"p-{i}"} for i in order], list(reversed(peers)) if order[0] == 5 else peers))
++        export_site_data.export_all(out, ("players",), 0, client=object())
++        written.append(((out / "player_pages.json").read_bytes(), (out / "slug_map.json").read_bytes(),
++                        [e["path"] for e in json.loads((out / "manifest.json").read_text(encoding="utf-8"))["entries"]]))
++    assert written[0] == written[1]
++    assert list(json.loads(written[0][0])["pages"]) == ["1", "5", "9"]
++
++
++def test_the_players_with_a_page_are_the_warehouses_flag(monkeypatch):
++    seen = []
++    monkeypatch.setattr(export_site_data, "_query",
++                        lambda _c, sql: seen.append(sql) or [{"player_sk": 3}, {"player_sk": 1}])
++    assert export_site_data.page_player_ids(object()) == [1, 3]
++    assert "where has_player_page" in seen[0]
++
++
++def test_a_sample_takes_the_board_players_first_and_lists_its_pages(tmp_path, monkeypatch):
++    (tmp_path / "landing.json").write_text(json.dumps(
++        {"top_players": [{"rows": [{"player_id": 9}]}]}), encoding="utf-8")
++    monkeypatch.setattr(export_site_data, "page_player_ids", lambda _c: [1, 9])
++    asked = []
++
++    def payloads(_client, ids, sample):
++        asked.extend(ids[:sample])
++        return [{"type": "player", "player_id": i, "slug": f"p-{i}"} for i in ids[:sample]], []
++
++    monkeypatch.setattr(export_site_data, "fetch_player_payloads", payloads)
++    monkeypatch.setattr(export_site_data, "_competitions_index", lambda _c: {})
++    export_site_data.export_all(tmp_path, ("players",), 1, client=object())
++    assert asked == [9]
++    pages = json.loads((tmp_path / "player_pages.json").read_text(encoding="utf-8"))
++    assert pages["pages"] == {"9": "p-9"}
++
++
+ def test_fetch_glossary_reads_catalogue_seed():
+     g = fetch_glossary()                       # reads the real seed (offline, no BQ)
+     assert g["type"] == "glossary"
+@@ -1236,7 +1284,7 @@ def test_player_peers_make_one_sorted_file_per_competition_season_and_position()
+     assert mid["values"] == {"goals_per90": [0.2]}
+ 
+ 
+-def test_linked_players_are_those_of_the_home_and_competition_boards(tmp_path):
++def test_board_players_are_those_of_the_home_and_competition_boards(tmp_path):
+     (tmp_path / "landing.json").write_text(json.dumps(
+         {"top_players": [{"rows": [{"player_id": 3}, {"player_id": None}]}]}), encoding="utf-8")
+     comp = tmp_path / "competitions" / "BL1"
+diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
+index 849db628..3c64d985 100644
+--- a/tests/test_no_decision_history_in_code.py
++++ b/tests/test_no_decision_history_in_code.py
+@@ -20,8 +20,8 @@ HOOKS = os.path.join(REPO, ".claude", "hooks")
+ sys.path.insert(0, HOOKS)
+ import comment_history_gate as gate  # noqa: E402
+ 
+-PINNED_LINES = 397
+-PINNED_FILES = 123
++PINNED_LINES = 389
++PINNED_FILES = 122
+ 
+ HASH = chr(35)
+ 
+diff --git a/tests/test_no_decision_history_in_docs.py b/tests/test_no_decision_history_in_docs.py
+index 2673876e..182dfa94 100644
+--- a/tests/test_no_decision_history_in_docs.py
++++ b/tests/test_no_decision_history_in_docs.py
+@@ -42,7 +42,7 @@ PINNED = {
+     "docs/roles/data_engineer.md": 1,
+     "docs/roles/platform_reliability.md": 2,
+     "docs/roles/seo_expert.md": 3,
+-    "docs/wireframes/00_overview.md": 19,
++    "docs/wireframes/00_overview.md": 17,
+     "docs/wireframes/01_fixture_page.md": 4,
+     "docs/wireframes/03_player_profile.md": 3,
+     "docs/wireframes/08_browse.md": 25,
+
+# ============================================================================
+# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
+# ============================================================================
+# The files below changed and are DELIBERATELY excluded from the diff body:
+# they are generated/sample data, and pasting them has measured at ~89% of the
+# review payload. They are still reviewed content and still bind your verdict.
+#
+# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
+# particular: whether a field displayed by a component actually EXISTS in the
+# exported sample is checked by opening these files, not by reading a diff.
+#
+#   site_v2/src/data/README.md                        |   21 +-
+#    site_v2/src/data/player_metric_rows.json          |  221 ++
+#    site_v2/src/data/player_pages.json                |   77 +
+#    site_v2/src/data/player_peers/AFCON/2025/MID.json |  810 +++++++
+#    site_v2/src/data/player_peers/BL1/2026/ATT.json   |  792 +++++++
+#    site_v2/src/data/player_peers/BL1/2026/DEF.json   | 1616 ++++++++++++++
+#    site_v2/src/data/player_peers/BL1/2026/GK.json    |  146 ++
+#    site_v2/src/data/player_peers/BL1/2026/MID.json   | 1833 +++++++++++++++
+#    site_v2/src/data/player_peers/ED/2026/ATT.json    |  894 ++++++++
+#    site_v2/src/data/player_peers/ED/2026/DEF.json    | 1816 +++++++++++++++
+#    site_v2/src/data/player_peers/ED/2026/MID.json    | 2017 +++++++++++++++++
+#    site_v2/src/data/player_peers/L1/2026/ATT.json    |  915 ++++++++
+#    site_v2/src/data/player_peers/L1/2026/MID.json    | 1793 +++++++++++++++
+#    site_v2/src/data/player_peers/LP/2026/ATT.json    |  820 +++++++
+#    site_v2/src/data/player_peers/LP/2026/DEF.json    | 1694 ++++++++++++++
+#    site_v2/src/data/player_peers/LP/2026/MID.json    | 2121 ++++++++++++++++++
+#    site_v2/src/data/player_peers/PD/2026/ATT.json    | 1140 ++++++++++
+#    site_v2/src/data/player_peers/PD/2026/DEF.json    | 2317 +++++++++++++++++++
+#    site_v2/src/data/player_peers/PL/2026/ATT.json    |  646 ++++++
+#    site_v2/src/data/player_peers/PL/2026/DEF.json    | 1813 +++++++++++++++
+#    site_v2/src/data/player_peers/PL/2026/MID.json    | 2454 +++++++++++++++++++++
+#    site_v2/src/data/player_peers/SA/2026/ATT.json    | 1219 ++++++++++
+#    site_v2/src/data/player_peers/SA/2026/MID.json    | 2356 ++++++++++++++++++++
+#    site_v2/src/data/player_peers/UCL/2026/ATT.json   |  725 ++++++
+#    site_v2/src/data/player_peers/UCL/2026/DEF.json   | 1978 +++++++++++++++++
+#    site_v2/src/data/player_peers/UCL/2026/GK.json    |  249 +++
+#    site_v2/src/data/player_peers/UCL/2026/MID.json   | 1760 +++++++++++++++
+#    site_v2/src/data/player_peers/UECL/2026/ATT.json  |  807 +++++++
+#    site_v2/src/data/player_peers/UECL/2026/DEF.json  | 1960 ++++++++++++++++
+#    site_v2/src/data/player_peers/UECL/2026/MID.json  | 1951 ++++++++++++++++
+#    site_v2/src/data/player_peers/UEL/2026/ATT.json   |  310 +++
+#    site_v2/src/data/player_peers/UEL/2026/DEF.json   | 1385 ++++++++++++
+#    site_v2/src/data/player_peers/UEL/2026/MID.json   | 1189 ++++++++++
+#    site_v2/src/data/player_peers/UNL/2026/ATT.json   |  523 +++++
+#    site_v2/src/data/player_peers/UNL/2026/DEF.json   | 2211 +++++++++++++++++++
+#    site_v2/src/data/player_peers/UNL/2026/MID.json   | 1465 ++++++++++++
+#    site_v2/src/data/player_peers/WC/2026/MID.json    | 1933 ++++++++++++++++
+#    site_v2/src/data/players/1100.json                | 1738 +++++++++++++++
+#    site_v2/src/data/players/1149.json                | 1724 +++++++++++++++
+#    site_v2/src/data/players/1156.json                |  910 ++++++++
+#    site_v2/src/data/players/128384.json              | 1784 +++++++++++++++
+#    site_v2/src/data/players/1496.json                | 1001 +++++++++
+#    site_v2/src/data/players/161939.json              |  749 +++++++
+#    site_v2/src/data/players/162032.json              |  982 +++++++++
+#    site_v2/src/data/players/162219.json              | 1218 ++++++++++
+#    site_v2/src/data/players/162703.json              |  870 ++++++++
+#    site_v2/src/data/players/163039.json              |  877 ++++++++
+#    site_v2/src/data/players/163078.json              |  864 ++++++++
+#    site_v2/src/data/players/1741.json                | 1556 +++++++++++++
+#    site_v2/src/data/players/177452.json              | 1412 ++++++++++++
+#    site_v2/src/data/players/178768.json              |  368 +++
+#    site_v2/src/data/players/184.json                 | 1867 ++++++++++++++++
+#    site_v2/src/data/players/18964.json               |  263 +++
+#    site_v2/src/data/players/18970.json               | 1081 +++++++++
+#    site_v2/src/data/players/1922.json                | 1012 +++++++++
+#    site_v2/src/data/players/1924.json                |  459 ++++
+#    site_v2/src/data/players/19617.json               | 1686 ++++++++++++++
+#    site_v2/src/data/players/1972.json                |  300 +++
+#    site_v2/src/data/players/199143.json              | 1182 ++++++++++
+#    site_v2/src/data/players/202696.json              | 1652 ++++++++++++++
+#    site_v2/src/data/players/203224.json              | 1532 +++++++++++++
+#    site_v2/src/data/players/203329.json              |  268 +++
+#    site_v2/src/data/players/21587.json               | 1301 +++++++++++
+#    site_v2/src/data/players/237087.json              |  998 +++++++++
+#    site_v2/src/data/players/25158.json               | 1165 ++++++++++
+#    site_v2/src/data/players/25297.json               | 1391 ++++++++++++
+#    site_v2/src/data/players/25368.json               | 1621 ++++++++++++++
+#    site_v2/src/data/players/25391.json               |  868 ++++++++
+#    site_v2/src/data/players/25406.json               |  833 +++++++
+#    site_v2/src/data/players/25903.json               |  416 ++++
+#    site_v2/src/data/players/26171.json               |  887 ++++++++
+#    site_v2/src/data/players/26256.json               |  231 ++
+#    site_v2/src/data/players/277003.json              | 1770 +++++++++++++++
+#    site_v2/src/data/players/280070.json              |  937 ++++++++
+#    site_v2/src/data/players/2897.json                | 1414 ++++++++++++
+#    site_v2/src/data/players/2915.json                | 1144 ++++++++++
+#    site_v2/src/data/players/314254.json              |  905 ++++++++
+#    site_v2/src/data/players/314511.json              | 1538 +++++++++++++
+#    site_v2/src/data/players/32011.json               |  905 ++++++++
+#    site_v2/src/data/players/324957.json              |  905 ++++++++
+#    site_v2/src/data/players/327347.json              |  875 ++++++++
+#    site_v2/src/data/players/328033.json              | 1522 +++++++++++++
+#    site_v2/src/data/players/336671.json              | 1545 +++++++++++++
+#    site_v2/src/data/players/339887.json              | 1046 +++++++++
+#    site_v2/src/data/players/353143.json              |  915 ++++++++
+#    site_v2/src/data/players/353943.json              | 1095 +++++++++
+#    site_v2/src/data/players/359390.json              | 1105 ++++++++++
+#    site_v2/src/data/players/362564.json              | 1046 +++++++++
+#    site_v2/src/data/players/362755.json              |  674 ++++++
+#    site_v2/src/data/players/36798.json               | 1373 ++++++++++++
+#    site_v2/src/data/players/37153.json               | 1089 +++++++++
+#    site_v2/src/data/players/37938.json               |  777 +++++++
+#    site_v2/src/data/players/380690.json              |  926 ++++++++
+#    site_v2/src/data/players/386828.json              | 1495 +++++++++++++
+#    site_v2/src/data/players/409190.json              | 1080 +++++++++
+#    site_v2/src/data/players/44814.json               | 1529 +++++++++++++
+#    site_v2/src/data/players/47308.json               |  855 +++++++
+#    site_v2/src/data/players/47516.json               | 1127 ++++++++++
+#    site_v2/src/data/players/478991.json              |  315 +++
+#    site_v2/src/data/players/502.json                 | 1517 +++++++++++++
+#    site_v2/src/data/players/567.json                 | 1558 +++++++++++++
+#    site_v2/src/data/players/5973.json                |  887 ++++++++
+#    site_v2/src/data/players/7073.json                |  932 ++++++++
+#    site_v2/src/data/players/714.json                 |  919 ++++++++
+#    site_v2/src/data/players/794.json                 | 1133 ++++++++++
+#    site_v2/src/data/players/875.json                 |  963 ++++++++
+#    site_v2/src/data/players/88140.json               |  233 ++
+#    site_v2/src/data/players/972.json                 | 1627 ++++++++++++++
+#    site_v2/src/data/players/984.json                 | 1174 ++++++++++
+#    109 files changed, 125888 insertions(+), 5 deletions(-)
+# ============================================================================
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../task/259-player-page/acceptance_evidence.md    |   19 +
+#    .../task/259-player-page/rendered_page_evidence.md |   59 +
+#    .claude/task/259-player-page/review.md             |   46 +
+#    .claude/task/259-player-page/review_input.patch    | 2512 ++++++++++++++++++++
+#    4 files changed, 2636 insertions(+)
+# ============================================================================

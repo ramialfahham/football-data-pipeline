@@ -1,0 +1,75 @@
+---
+// Recent matches: the Team page's result row with the player's own line under it: minutes, goals and
+// assists above 0, ball actions, or On the bench. Five rows show, the fold holds the rest. fitBlocks
+// keeps a row on one line while every row fits; otherwise the score sits right after the chip.
+import Crest from "../ui/Crest.astro";
+import Fold from "../ui/Fold.astro";
+import SectionHead from "../ui/SectionHead.astro";
+import { formatShortDate, integer } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import { matchPageHref } from "../../lib/href";
+import { competitionInfo } from "../../lib/teamFixtures";
+import type { Lang } from "../../lib/format";
+import type { PlayerMatch } from "../../lib/playerPage";
+
+interface Props {
+  matches: PlayerMatch[];
+  id: string;
+  lang: Lang;
+}
+const { matches, id, lang } = Astro.props;
+
+const SHOWN = 5;
+const LETTER: Record<string, string> = { W: "winsShort", D: "drawsShort", L: "lossesShort" };
+const ha = (m: PlayerMatch) => (m.home_away === "home" ? t(lang, "home") : m.home_away === "away" ? t(lang, "away") : "");
+const count = (n: number, one: string, many: string) => ({ n: integer(n, lang), word: n === 1 ? one : many });
+const line = (m: PlayerMatch) => [
+  m.minutes != null ? { n: integer(m.minutes, lang), word: t(lang, "minutesShort") } : null,
+  m.goals ? count(m.goals, t(lang, "goalsOne"), t(lang, "goalsMany")) : null,
+  m.assists ? count(m.assists, t(lang, "assistsOne"), t(lang, "assistsMany")) : null,
+  m.ball_actions != null ? count(m.ball_actions, t(lang, "ballActionsOne"), t(lang, "ballActionsMany")) : null,
+].filter((p): p is { n: string; word: string } => p !== null);
+const rows = matches.map((m) => ({
+  m,
+  result: m.result && LETTER[m.result] ? m.result : null,
+  href: matchPageHref(lang, m.played_fixture_sk),
+  parts: m.on_bench ? [] : line(m),
+}));
+---
+
+{rows.length > 0 && (
+  <section>
+    <SectionHead label={t(lang, "secRecent")} />
+    <div class="rlist pm">
+      {[rows.slice(0, SHOWN), rows.slice(SHOWN)].map((part, i) => {
+        const list = part.map(({ m, result, href, parts }) => {
+          const Row = href ? "a" : "div";
+          return (
+            <Row class="lrow" href={href}>
+              <div class="resrow">
+                {result && <span class:list={["pill", result]}>{t(lang, LETTER[result])}</span>}
+                <span class="rscore">{m.goals_for}–{m.goals_against}</span>
+                <span class="ropp">
+                  <span class="club"><Crest name={m.opponent_name} crest={m.opponent_logo_url} size="xs" /><span class="cn">{m.opponent_name}</span></span>
+                  {ha(m) && <span class="ha">{ha(m)}</span>}
+                </span>
+                <span class="rmeta">
+                  <span class="rm-c">
+                    <span class="nb">{competitionInfo(m.played_league_code ?? "").name}</span> · <span class="nb">{formatShortDate(m.played_kickoff_datetime, lang)}</span>
+                  </span>
+                  {(m.on_bench || parts.length > 0) && <span class="rm-p">
+                    {m.on_bench
+                      ? <span class="nb">{t(lang, "playerOnBench")}</span>
+                      : parts.map((p, k) => <>{k > 0 && " · "}<span class="nb"><b>{p.n}</b>{` ${p.word}`}</span></>)}
+                  </span>}
+                </span>
+              </div>
+            </Row>
+          );
+        });
+        if (i === 0) return list;
+        return part.length > 0 ? <Fold id={id} n={rows.length} lang={lang}>{list}</Fold> : null;
+      })}
+    </div>
+  </section>
+)}

@@ -132,7 +132,7 @@ keeps the earlier widths, 680px and 1100px, through the `legacyWidth` prop of `L
 | 01 | [01_fixture_page.md](01_fixture_page.md) | Fixture page ⭐ | **spec'd** | 1 |
 | — | [metrics_display.md](metrics_display.md) | Metric display contract (team + player, LOCKED) | **ruled** | 1 |
 | 02 | [02_team_profile.md](02_team_profile.md) | Team page: Overview · Matches · Performance | **built**; **approved on [its GitLab issue](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/134)** — the authority for the page | 2 |
-| 03 | [03_player_profile.md](03_player_profile.md) | Player profile ⭐ | **spec'd** | 2 |
+| 03 | [03_player_profile.md](03_player_profile.md) | Player page: Club · National team | **retired**: **approved on [its GitLab issue](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/136)** ("The approved design"), the authority for the page | ⁑ |
 | 04 | 04_competition_hub.md | Competition page: Overview · Matchdays · Rankings | **Fully approved on GitLab #129** ("The approved design", three tabs) — the authority for the page. No wireframe file: the issue's block list and its data-model tables are the field contract; the elements and their measurements are [block_standard.md](block_standard.md). Built: the Overview (#149), the Matchdays tab (#150) and the Rankings tab (#151), each at its address word ([site_architecture.md](../site_architecture.md) "Address words") | 3 |
 | 05 | 05_leaderboards.md | Leaderboards + per-metric stats pages | pending | 3 |
 | 06 | 06_head_to_head.md | Head-to-head page | pending | 3 |
@@ -141,8 +141,8 @@ keeps the earlier widths, 680px and 1100px, through the `legacyWidth` prop of `L
 | 09 | [09_chrome.md](09_chrome.md) | Nav/header/footer/search/locale/404 | **spec'd + built** 2026-07-26 (header/footer/nav/search-chrome/theme-toggle; locale-switch mechanism + 404 page deferred) | 4 |
 | 10 | [10_home.md](10_home.md) | Home (pins the homepage spec → unblocks `landing.json`) | **built**, three blocks; **approved on GitLab #127** (2026-09-13, "The approved design") — the authority for Home; the wireframe is corrected to it and #143 builds the Home-owned changes | 5 |
 | 11 | [11_team_squad.md](11_team_squad.md) | Team → Squad | **retired**: the squad is the last block of the Team page's Overview ([02](02_team_profile.md)) | ⁑ |
-| 12 | [12_player_stats.md](12_player_stats.md) | Player → Stats (percentile vs peers) | **spec'd** | #391 ⁑ |
-| 13 | [13_player_career.md](13_player_career.md) | Player → Career (clubs · competitions · seasons) | **spec'd** | #391 ⁑ |
+| 12 | [12_player_stats.md](12_player_stats.md) | Player → Stats | **retired**: each tab of the Player page compares the player with other players | ⁑ |
+| 13 | [13_player_career.md](13_player_career.md) | Player → Career | **retired**: the Player page has no Career tab | ⁑ |
 | 14 | [14_team_stats.md](14_team_stats.md) | Team → Stats | **retired**: the Team page's Performance tab compares the team with its league ([02](02_team_profile.md)) | ⁑ |
 | 15 | — | Matches page and its day pages | **built**; **approved on GitLab #130** ("The approved design") with the reach ruled on #131 — the authority for the page. No wireframe file: the issue is the field contract; the elements and their measurements are [block_standard.md](block_standard.md) | #160 |
 | 99 | [99_gaps_register.md](99_gaps_register.md) | Data-gap register | live | 1+ |

@@ -53,6 +53,7 @@ sides as (
         league_code,
         season_api_year,
         home_team_sk as team_sk,
+        away_team_sk as opponent_team_sk,
         round_name,
         round_label_i18n_key,
         round_number,
@@ -68,6 +69,7 @@ sides as (
         league_code,
         season_api_year,
         away_team_sk as team_sk,
+        home_team_sk as opponent_team_sk,
         round_name,
         round_label_i18n_key,
         round_number,
@@ -147,13 +149,15 @@ reached as (
     ) = 1
 ),
 
+-- The reached round's tie is the one holding the reached fixture, found by its opponent. When
+-- the fixture names no opponent, the round's latest tie.
 reached_ties as (
     select
         r.team_sk,
         r.league_code,
         r.season_api_year,
-        any_value(t.legs_played) as legs_played,
-        any_value(t.won) as won
+        t.legs_played,
+        t.won
     from reached as r
     inner join ties as t
         on
@@ -161,7 +165,13 @@ reached_ties as (
             and r.season_api_year = t.season_api_year
             and r.round_name = t.round_name
             and r.team_sk = t.team_sk
-    group by r.team_sk, r.league_code, r.season_api_year
+    qualify row_number() over (
+        partition by r.team_sk, r.league_code, r.season_api_year
+        order by
+            coalesce(t.opponent_team_sk = r.opponent_team_sk, false) desc,
+            t.last_kickoff_datetime desc,
+            t.opponent_team_sk asc
+    ) = 1
 ),
 
 -- how many ties each round of ties holds: a final is one tie, K League's play-off "Final" two
@@ -175,13 +185,14 @@ round_ties as (
     group by league_code, season_api_year, round_name
 ),
 
--- the tie of the round before the reached one: a team waiting for an FA Cup replay is not through
+-- the tie of the round before the reached one: a team waiting for an FA Cup replay is not through.
+-- Where that round name holds two ties, the latest.
 previous_ties as (
     select
         r.team_sk,
         r.league_code,
         r.season_api_year,
-        any_value(t.won) as previous_won
+        t.won as previous_won
     from reached as r
     inner join ties as t
         on
@@ -189,7 +200,10 @@ previous_ties as (
             and r.season_api_year = t.season_api_year
             and r.previous_round_name = t.round_name
             and r.team_sk = t.team_sk
-    group by r.team_sk, r.league_code, r.season_api_year
+    qualify row_number() over (
+        partition by r.team_sk, r.league_code, r.season_api_year
+        order by t.last_kickoff_datetime desc, t.opponent_team_sk asc
+    ) = 1
 ),
 
 standings as (

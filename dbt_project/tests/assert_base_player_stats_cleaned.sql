@@ -315,8 +315,8 @@ team_goal_sources as (
         r.league_code,
         r.fixture_id,
         r.team_id,
-        any_value(r.team_goals_for) as score,
-        any_value(r.team_own_goals) as own_goals,
+        min(r.team_goals_for) as score,
+        min(r.team_own_goals) as own_goals,
         sum(r.goals) as cleaned_goals,
         logical_and(r.goals is not null) as all_goals_known,
         sum(
@@ -328,8 +328,8 @@ team_goal_sources as (
         ) as count_goals,
         logical_and(c.stat is not null or r.goals is not null) as count_known,
         sum(coalesce(pge.goals, 0)) as placed_event_goals,
-        any_value(coalesce(te.goal_events, 0)) as goal_events,
-        any_value(coalesce(te.goal_events_without_scorer, 0)) as goal_events_without_scorer,
+        min(coalesce(te.goal_events, 0)) as goal_events,
+        min(coalesce(te.goal_events_without_scorer, 0)) as goal_events_without_scorer,
         logical_or(fe.fixture_id is not null) as has_events
     from rows_in_context as r
     left join (

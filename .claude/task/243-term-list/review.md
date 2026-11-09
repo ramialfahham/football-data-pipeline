@@ -1,10 +1,10 @@
 # Review — claude/xenodochial-kilby-b778e1
 
-diff_sha256: 53108b998b59127841b8802d7dd755a1c0e096736c1a80140e3786760da46dc5
+diff_sha256: ae0a0bad502886bfb12c205e6b980a52d963f2366028c38ebc89076b11440a47
 
-rounds: 5
+rounds: 6
 
-rounds_cap_override: merge from main and the Top teams note fix; each delta is one line, approved in chat, 2026-11-09
+rounds_cap_override: merges from main, the Player page strings under the term table and the Top teams note fix, approved in chat, 2026-11-09
 
 ## scope-auditor
 VERDICT: PASS
@@ -15,6 +15,7 @@ risks_checked:
 - components.yml is covered by protected_override; APPROVED_IDENTICAL is declared as a new mechanism; no slug, href, secret or warehouse change.
 - Merge from main: the only change to the branch is the decision-history pin, 471/145 to 391/123, a fall; no scope, decision or doc-sync surface.
 - Top teams note: one reworded sentence in a mock's legend, still marking the probe strings as not approved copy; no decision taken.
+- Player page merge: every changed path is in scope_paths or an amendment; the per-90 rule, the teamScatterAria text and the scope additions (tests/test_check_copy_gate.py, the two chart pins and their manifest) are recorded with their approval; no retired key has a reader.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
@@ -24,6 +25,7 @@ risks_checked:
 - Wording follows the term table on every changed surface; no data field, metric, row order or tier changes.
 - Merge from main: the delta is a test constant that renders nothing; no display or i18n surface changes.
 - Top teams note: developer legend text in a mock, not site copy; removing the hyphenated word removes its wrap point.
+- Player page merge: every key the Player components read exists in EN, DE and FI; the 18 per-90 names equal main's approved names character for character; teamScatterAria DE and FI are grammatical and match the contract; the re-pinned chart screenshots scatter-fi-dark-375.png and strip-fi-dark-375.png show the approved Finnish wording.
 
 ## platform-reviewer
 VERDICT: PASS
@@ -34,6 +36,7 @@ risks_checked:
 - No dependency, workflow or network change.
 - Merge from main: the pin test is unchanged in shape and still two-sided, so a wrong recount fails it; the pin only falls.
 - Top teams note: the design check and its baseline are untouched; the reworded text measures split 3, equal to main.
+- Player page merge: the copy gate fails closed without PER_90 and the new tests fail on a regression; test_check_copy_gate.py reaches its unit check again; the pin falls to 383/122; the chart manifest changes only the scatter-fi-dark-375.png and strip-fi-dark-375.png hashes, which the pin check re-hashes on every platform.
 
 ## cto-reviewer
 VERDICT: PASS
@@ -43,6 +46,7 @@ risks_checked:
 - No dependency, recurring cost, credential or guard-invariant change.
 - Merge from main: no guard path is in the branch diff against the new main; the decision-history ratchet tightens.
 - Top teams note: a string literal in a non-guard file; no mechanism, dependency, cost, baseline or pin change.
+- Player page merge: the per-90 composition returns with its names built and its approval recorded; the components.yml result-row edit is covered by protected_override; no new mechanism, dependency, cost or guard change.
 
 ## escalations
 (none)

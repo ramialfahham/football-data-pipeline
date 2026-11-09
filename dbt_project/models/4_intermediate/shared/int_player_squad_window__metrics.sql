@@ -92,7 +92,7 @@ metrics as (
     select
         squad_sk,
         player_sk,
-        any_value(team_matches) as team_matches,
+        {{ one_value('team_matches') }} as team_matches,
         if(logical_and(window_is_complete and minutes is not null), sum(minutes), null) as minutes,
         -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
         if(logical_and(window_is_complete and (minutes > 0) is not null), countif(minutes > 0), null) as appearances,

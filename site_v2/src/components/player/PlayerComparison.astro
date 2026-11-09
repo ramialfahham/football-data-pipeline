@@ -1,0 +1,157 @@
+---
+// Compared with other players: a filter of the competitions where the player reaches the minutes
+// floor, then Squad; its explainer, the switch, the legend, and each metric as a strip of the peer
+// set: every player a light dot, the player the solid dot, the median tick with its value, the rank
+// and value on the right. A goalkeeper's metrics all show, with no switch. Look from system.css.
+import SectionHead from "../ui/SectionHead.astro";
+import MetricSwitch from "../ui/MetricSwitch.astro";
+import ChartLegend from "../ui/ChartLegend.astro";
+import Chevron from "../fixture/Chevron.astro";
+import { stripInset } from "../../lib/chartTheme";
+import { formatValue, integer, ordinal } from "../../lib/format";
+import { t, metricLabel, boardTitle } from "../../i18n/strings";
+import { competitionInfo } from "../../lib/teamFixtures";
+import { medianAnchor, placeOnLine, playerGroups, positionWord, teamBeforeCompound } from "../../lib/playerPage";
+import type { Lang } from "../../lib/format";
+import type { PlayerMetric, PlayerTab } from "../../lib/playerPage";
+
+interface Props {
+  tab: PlayerTab;
+  /** metric -> every value of the competition's peer set, by the competition's list index. */
+  peers: Record<string, number[]>[];
+  name: string;
+  positionGroup: string | null;
+  lang: Lang;
+}
+const { tab, peers, name, positionGroup, lang } = Astro.props;
+
+// system.css carries one rule per slot.
+const COMPARISON_SLOTS = 8;
+const isGoalkeeper = positionGroup === "GK";
+const prefix = tab.tab === "club" ? "club" : "national";
+const positionText = positionWord(lang, "One", positionGroup);
+const self = positionText
+  ? `${name} · ${positionText.charAt(0).toLocaleUpperCase(lang)}${positionText.slice(1)}`
+  : name;
+const teamName = tab.squad?.team?.name ?? "";
+
+const comparisons = [
+  ...tab.competitions.map((c, i) => {
+    const comp = competitionInfo(c.league_code).name;
+    return {
+      label: comp,
+      metrics: c.metrics,
+      strip: (m: PlayerMetric) => peers[i]?.[m.metric_key] ?? [],
+      intro: t(lang, "playerPeerIntro", {
+        player: name,
+        n: integer(c.player_count, lang),
+        positions: positionWord(lang, "Peers", c.position_group),
+        comp,
+        season: c.season_label ?? "",
+      }),
+      others: t(lang, "playerOthers", { positions: positionWord(lang, "Others", c.position_group) }),
+    };
+  }),
+  ...(tab.squad && !isGoalkeeper
+    ? [{
+      label: t(lang, "tabSquad"),
+      metrics: tab.squad.metrics,
+      strip: (m: PlayerMetric) => m.others ?? [],
+      intro: t(lang, tab.tab === "club" ? "playerSquadClubIntro" : "playerSquadNationalIntro", {
+        player: name,
+        n: integer(tab.squad.player_count, lang),
+        team: teamBeforeCompound(lang, teamName),
+        season: tab.competitions[0]?.season_label ?? "",
+      }),
+      others: t(lang, "playerOtherTeam", { team: teamName }),
+    }]
+    : []),
+].map((c, i) => {
+  const byKey = new Map(c.metrics.map((m) => [m.metric_key, m]));
+  return { ...c, slot: i + 1, byKey, groups: playerGroups((id) => byKey.get(id)?.value != null, isGoalkeeper) };
+}).filter((c) => c.groups.length > 0);
+
+if (comparisons.length > COMPARISON_SLOTS) {
+  throw new Error(`PlayerComparison: ${comparisons.length} comparisons, system.css has rules for ${COMPARISON_SLOTS}`);
+}
+const allRows = comparisons.flatMap((c) => c.groups.flatMap((g) => g.rows));
+const showSwitch = !isGoalkeeper && allRows.some((r) => r.is_key_metric) && allRows.some((r) => !r.is_key_metric);
+const group = `${prefix}-compare`;
+const at = (x: number, lo: number, hi: number) => `${Number(placeOnLine(x, lo, hi, stripInset).toFixed(1))}%`;
+const aria = t(lang, "playerComparedWith");
+---
+
+{comparisons.length > 0 && (
+  <section>
+    <SectionHead label={t(lang, "playerVsOthers")} />
+    {comparisons.map((c) => (
+      <input class="seg-in" type="radio" name={group} id={`${group}-${c.slot}`} value={c.slot} data-cmp={c.slot} checked={c.slot === 1} />
+    ))}
+    {comparisons.length > 1 && (
+      <div class="fbar">
+        <div class="seg" role="group" aria-label={aria}>
+          {comparisons.map((c) => <label class="seg-btn" for={`${group}-${c.slot}`} data-cmp={c.slot}>{c.label}</label>)}
+        </div>
+        <div class="selbar">
+          <div class="seg sel">
+            <select class="sel-in" data-filter={group} aria-label={aria}>
+              {comparisons.map((c) => <option value={c.slot} selected={c.slot === 1}>{c.label}</option>)}
+            </select>
+            <Chevron />
+          </div>
+        </div>
+      </div>
+    )}
+    <div class="cmp-panels">
+      {comparisons.map((c) => <p class="bsub cmp-p" data-cmp={c.slot}>{`${c.intro} ${t(lang, "playerPer90")}`}</p>)}
+    </div>
+    {showSwitch && <MetricSwitch id={`${group}-switch`} lang={lang} />}
+    <div class="cmp-panels">
+      {comparisons.map((c) => (
+        <div class="cmp-p" data-cmp={c.slot}>
+          <div class="chart">
+            <ChartLegend keys={[
+              { mark: "team", label: self },
+              { mark: "other", label: c.others },
+              { mark: "median", label: t(lang, "median") },
+            ]} />
+            {c.groups.map((g) => (
+              <div class:list={["fxgroup", "rkgroup", { nonkey: showSwitch && !g.hasKey }]}>
+                <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${g.key}.label`)}</span></div>
+                {g.rows.map((r) => {
+                  const m = c.byKey.get(r.metric_id)!;
+                  const v = m.value as number;
+                  const all = c.strip(m);
+                  const lo = Math.min(...all, v);
+                  const hi = Math.max(...all, v);
+                  const median = m.median != null ? at(m.median, lo, hi) : null;
+                  return (
+                    <div class:list={["rs-row", { nonkey: showSwitch && !r.is_key_metric }]} data-metric={r.metric_id}>
+                      <span class="chart-name">{boardTitle(lang, r.label_i18n_key, false)}</span>
+                      <span class="rs-band">
+                        <svg class="rs-plot" aria-hidden="true" focusable="false">
+                          <line class="chart-axis" x1="0" x2="100%" y1="50%" y2="50%"></line>
+                          <g class="rs-peers">{all.map((x) => <circle cx={at(x, lo, hi)}></circle>)}</g>
+                          {median != null && <line class="rs-tick" x1={median} x2={median} y1="2" y2="12"></line>}
+                          {median != null && (
+                            <text class="rs-tick-value" x={median} y="27" text-anchor={medianAnchor(parseFloat(median))}>{formatValue(m.median, r.format, lang)}</text>
+                          )}
+                          <circle class="chart-dot chart-me" cx={at(v, lo, hi)} cy="50%"></circle>
+                        </svg>
+                      </span>
+                      <span class="rs-val">{ordinal(m.rank, lang)}<small>{formatValue(v, r.format, lang)}</small></span>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+)}
+
+<script>
+  import "../../lib/filterBar.mjs";
+</script>

@@ -1,9 +1,12 @@
 ---
 // One Players to watch row, the player row: photo · name over position · goals and assists (a
-// goalkeeper's saves). A count the warehouse leaves blank shows as a dash.
+// goalkeeper's saves). A count the warehouse leaves blank shows as a dash. The row links to the
+// player's page when this build makes one.
 import { DASH, integer } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t, positionLabel } from "../../i18n/strings";
+import { builtPlayers } from "../../lib/builtPlayers.mjs";
+import { localeHref, word as addressWord } from "../../lib/href";
 import type { TopPlayer } from "../../lib/types";
 
 interface Props {
@@ -20,9 +23,11 @@ const initials = (player.player_name ?? "")
   .toUpperCase();
 const count = (v: number | null | undefined) => (v == null ? DASH : integer(v, lang));
 const word = (v: number | null | undefined, one: string, many: string) => t(lang, v === 1 ? one : many);
+const slug = builtPlayers().get(player.player_sk);
+const Row = slug ? "a" : "div";
 ---
 
-<div class="lrow">
+<Row class="lrow" href={slug ? localeHref(lang, `${addressWord(lang, "players")}/${slug}/`) : undefined}>
   <div class="plrow">
     <span class="pphoto">
       {player.player_photo_url
@@ -44,4 +49,4 @@ const word = (v: number | null | undefined, one: string, many: string) => t(lang
       )}
     </span>
   </div>
-</div>
+</Row>

@@ -1,5 +1,7 @@
 # 13 — Player → Career (clubs · competitions · seasons)
 
+> **Retired.** The Player page has no Career tab ([its GitLab issue](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/136)).
+
 > A sub-screen of the player page (03). Field-bound against `mart_player_career` — **built** (#630, #480 §8.3:
 > the per-club player-season foundation `int_player_club_season__metrics` → the rebuilt career mart). The mart
 > is **wired** — every key in §5 is carried by the player export ([GAP-22](99_gaps_register.md), shipped

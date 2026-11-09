@@ -709,15 +709,17 @@ def _copy_gate():
 
 def _strings_fixture(chrome_values='"v{i}"', metric_values='"m{i}"', metric_n=18,
                      metric_locales=("EN", "DE", "FI")):
-    """A synthetic strings.ts: three healthy chrome dicts, metric-term words for `metric_locales`, one METRIC_TERMS block."""
+    """A synthetic strings.ts: three healthy chrome dicts, metric-term words for `metric_locales`, one METRIC_TERMS block, one PER_90 block."""
     out = []
     for loc in ("EN", "DE", "FI"):
         body = "".join(f"  key{i}: {chrome_values.format(i=i)},\n" for i in range(40))
         if loc in metric_locales:
             body += "".join(f"  term{i}: {metric_values.format(i=i)},\n" for i in range(metric_n))
+            body += '  per90: "p90",\n'
         out.append(f"const {loc}: Dict = {{\n{body}}};\n")
     body = "".join(f'  "metrics.m{i}.label": "term{i}",\n' for i in range(metric_n))
     out.append(f"const METRIC_TERMS: Record<string, string> = {{\n{body}}};\n")
+    out.append('const PER_90 = new Set([\n  "metrics.m0.label",\n]);\n')
     return "\n".join(out)
 
 
@@ -761,6 +763,24 @@ def test_copy_gate_fails_when_the_metric_terms_block_is_absent(tmp_path, monkeyp
 
     assert gate._metric_labels(text) == {}
     assert gate.main() == 1, "a strings.ts with no METRIC_TERMS block must fail the gate"
+
+
+def test_copy_gate_fails_when_the_per_90_block_is_absent(tmp_path, monkeypatch):
+    """A per-90 name without its PER_90 list would lose the per-90 word unseen, so the gate fails."""
+    gate = _copy_gate()
+    f = tmp_path / "strings.ts"
+    text = _strings_fixture().split("const PER_90")[0]
+    f.write_text(text, encoding="utf-8")
+    monkeypatch.setattr(gate, "STRINGS", f)
+
+    assert gate._metric_labels(text) == {}
+    assert gate.main() == 1, "a strings.ts with no PER_90 block must fail the gate"
+
+
+def test_copy_gate_names_a_per_90_metric_with_the_per_90_word():
+    text = _strings_fixture()
+    assert _copy_gate()._metric_labels(text)["de"]["metrics.m0.label"] == "m0 p90"
+    assert _copy_gate()._metric_labels(text)["de"]["metrics.m1.label"] == "m1"
 
 
 def test_copy_gate_metric_parser_agrees_with_the_real_consumers():

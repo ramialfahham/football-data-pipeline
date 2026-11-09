@@ -80,6 +80,17 @@ models:
       - name: country_name
         description: "The canonical English name the product displays. ASCII only."
         tests: [not_null, unique]
+      - name: confederation
+        description: >
+          The football confederation the country's association belongs to, as a full or associate
+          member, from the countries seed. NULL when it belongs to none; the seed's
+          confederation_note says why.
+        tests:
+          - relationships:
+              to: ref('confederations')
+              field: confederation
+          - dbt_utils.expression_is_true:
+              expression: "!= 'FIFA'"
 
   - name: dim_region
     description: >
@@ -694,6 +705,13 @@ models:
             - season_sk
             - team_sk
             - group_name
+      - dbt_utils.unique_combination_of_columns:
+          name: fct_standings_one_section_per_load_and_order
+          combination_of_columns:
+            - season_sk
+            - team_sk
+            - raw_ingested_at
+            - standing_section_order
     columns:
       - name: standing_sk
         description: "Surrogate key from (league_code, season, team_id, group_name)."
@@ -721,6 +739,9 @@ models:
         description: "{{ doc('team_api_id') }}"
       - name: group_name
         description: "Standings section/table name from the API ($.group): the league name for a single-table league (e.g. 'Premier League'), the group for a group stage (e.g. 'Group A'), or the phase for a split-season league (e.g. '… Championship Round'). Part of the grain."
+      - name: standing_section_order
+        description: "The section's position in the provider's standings list for the season, 1 for the first. The provider lists the current or final phase first, so a team's lowest value is its current table."
+        tests: [not_null]
       - name: group_description
         description: "Standings zone label assigned by the API ($.description, e.g. 'Promotion - Champions League', 'Relegation - Bundesliga 2'). Null for mid-table teams. Annotation only — NOT a grain key (use group_name for table identity)."
       - name: standing_rank

@@ -1,0 +1,21 @@
+---
+// The card block: separate cards of equal width, the number centred over its label. fitBlocks.mjs
+// picks the form that fits: one row, then three across, otherwise two across.
+interface Props {
+  cards: { value: string; label: string }[];
+}
+const { cards } = Astro.props;
+---
+
+<div class="kpis">
+  <div class="kpi-row" data-n={cards.length}>
+    {cards.map((c) => (
+      <div class="kpi">
+        <div class="kpi-in">
+          <span class="kpi-v">{c.value}</span>
+          <span class="kpi-t"><span class="kpi-l">{c.label}</span></span>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>

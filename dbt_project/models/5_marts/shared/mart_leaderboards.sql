@@ -417,7 +417,9 @@ select
                 case when league_leader_order = 1 then 0 else 1 end,
                 sort_value desc,
                 minutes asc nulls last,
-                player_sk asc
+                player_sk asc,
+                season_api_year desc,
+                league_code asc
         )
     end as board_leader_order,
     'season_to_date' as window_type,

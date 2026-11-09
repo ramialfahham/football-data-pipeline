@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   parseHead, resolveHref, auditSet, decode, emptyPaths, entityKey, isRootRedirect,
-  specRouteRegex, readSpecExpectations, titleWidthPx, TITLE_PX_BUDGET, TITLE_PX_HARD,
+  arePlayerPages, specRouteRegex, readSpecExpectations, titleWidthPx, TITLE_PX_BUDGET, TITLE_PX_HARD,
   MIN_EXPECTED_PAGES, routeSpecificity, specForPath, specTie, isTabOf, sharesHeader, keepDeadLinks,
 } from "./audit-seo.mjs";
 
@@ -380,6 +380,28 @@ test("SELF-CHECK: a broken parser reports ITSELF rather than passing everything"
   assert.match(auditSet(blindOg, OPTS)[0], /only 0 of 5 pages yielded an og:title/);
 
   assert.match(auditSet([], OPTS)[0], /parsed 0 pages/);
+});
+
+test("two player pages may share a heading; no other pair may", () => {
+  assert.equal(arePlayerPages("/en/players/k-hashimoto-2599/", "/en/players/k-hashimoto-265828/"), true);
+  assert.equal(arePlayerPages("/fi/pelaajat/s-savic-39/", "/fi/pelaajat/s-savic-80207/"), true);
+  assert.equal(arePlayerPages("/en/players/a-1/", "/en/teams/a/"), false);
+  assert.equal(arePlayerPages("/en/players/", "/en/players/a-1/"), false);
+});
+
+test("auditSet: two player pages pass with one heading, and their titles and descriptions are still checked", () => {
+  const player = (path, title, description) =>
+    ({ path, head: head({ title, description, canonical: `${SITE}${path}`, ogUrl: `${SITE}${path}`, alternates: {} }) });
+  const a = "/en/players/k-hashimoto-2599/";
+  const b = "/en/players/k-hashimoto-265828/";
+  const twins = auditSet([player(a, "A", "da"), player(b, "B", "db")], OPTS);
+  assert.ok(!twins.some((i) => i.includes("h1 is not unique")), twins.join("\n"));
+  const sameTitle = auditSet([player(a, "T", "da"), player(b, "T", "db")], OPTS);
+  assert.ok(sameTitle.some((i) => i.includes('title is not unique within "en"')), sameTitle.join("\n"));
+  const sameDescription = auditSet([player(a, "A", "d"), player(b, "B", "d")], OPTS);
+  assert.ok(sameDescription.some((i) => i.includes('description is not unique within "en"')), sameDescription.join("\n"));
+  const notPlayers = auditSet([player("/en/teams/a/", "A", "da"), player("/en/teams/b/", "B", "db")], OPTS);
+  assert.ok(notPlayers.some((i) => i.includes("h1 is not unique")), notPlayers.join("\n"));
 });
 
 test("titleWidthPx measures WIDTH, not characters — the whole point of the check", () => {

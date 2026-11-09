@@ -28,6 +28,7 @@ def test_the_tree_is_clean_and_finds_every_chart_component():
     assert components == [
         "site_v2/src/components/fixture/MetricComparison.astro",
         "site_v2/src/components/fixture/MetricRow.astro",
+        "site_v2/src/components/player/PlayerComparison.astro",
         "site_v2/src/components/team/TeamDeserved.astro",
         "site_v2/src/components/team/TeamLeagueStrips.astro",
         "site_v2/src/components/ui/ChartLegend.astro",

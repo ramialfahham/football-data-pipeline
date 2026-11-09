@@ -1,113 +1,175 @@
 ---
-// Player page — SCAFFOLD (spec: src/specs/players/player.spec.json, "stub": true).
-//
-// This ships the URL section 3 of docs/site_architecture.md already reserves for a player
-// (/{locale}/{players word}/{player-slug}/), with a real canonical, a real hreflang set and a
-// locale-distinct title — all true facts about a URL that exists — and NO content blocks. The
-// Player Overview owns the real content (#845) and its open design decisions are untouched here.
-//
-// WHY IT EXISTS NOW: the Top players block (#40) makes every board row a link to its player, and
-// audit-seo.mjs check 8 fails the build on an internal href that resolves to no emitted page. No
-// page in site_v2 emitted a player href before this one, which is why check 8 was green without a
-// player route. A destination that does not exist yet is BUILT, not routed around — 10_home.md
-// section 0: "do not reorder the build because a destination page does not exist yet."
-//
-// Listed in STUB_PAGES (src/config/indexability.mjs), which is the expiry trigger: the SEO audit
-// refuses INDEXABLE === true while that array is non-empty, so this cannot quietly become a thin
-// page in the index.
-//
-// SOURCE IS THE PAGES THAT LINK HERE — landing.json's Top players boards and every competition
-// payload's Player rankings boards — and deliberately so: the set of players with a page is
-// exactly the set the site links to, which is exactly what check 8 requires and nothing more. It
-// adds no export entity and no committed payload — `--entities players` exists but is not run by
-// deploy:export, and inventing a players/ payload to feed a page with no content would be building
-// #845's plumbing without #845's design. Every value here is a served payload field; nothing on
-// this page is derived, the slug least of all (the export assigns it).
+// The Player page. URL: /{lang}/{players word}/{player-slug}/ (site_architecture.md). The header,
+// then a tab per football the data marks: Club (This season, Next matches, Compared with other
+// players, Compared with last season, Recent matches) and National team (Current competitions, Next
+// matches, Compared with other players, Recent matches). The season shown is the featured one. The
+// page composes the shared elements; it holds no styling and derives no facts.
 import Layout from "../../../layouts/Layout.astro";
-import { t } from "../../../i18n/strings";
+import PlayerHeader from "../../../components/player/PlayerHeader.astro";
+import PlayerComparison from "../../../components/player/PlayerComparison.astro";
+import PlayerLastSeason from "../../../components/player/PlayerLastSeason.astro";
+import PlayerRecent from "../../../components/player/PlayerRecent.astro";
+import SectionHead from "../../../components/ui/SectionHead.astro";
+import StatCards from "../../../components/ui/StatCards.astro";
+import TeamFixtureGroup from "../../../components/team/TeamFixtureGroup.astro";
+import { t, metricInSentence, metricLabel } from "../../../i18n/strings";
 import { localeHref, LOCALES, word } from "../../../lib/href";
+import { DASH, formatValue, integer } from "../../../lib/format";
+import { builtPlayers } from "../../../lib/builtPlayers.mjs";
+import { titleWidthPx, TITLE_PX_HARD } from "../../../../scripts/audit-seo.mjs";
+import { positionWord } from "../../../lib/playerPage";
 import type { Lang } from "../../../lib/format";
-import type { CompetitionPayload, Landing } from "../../../lib/types";
-import landing from "../../../data/landing.json";
-
-/** What this stub shows of a player: the served name and club, keyed by the served slug. */
-interface LinkedPlayer {
-  slug: string;
-  name: string | null;
-  club: string | null;
-}
+import type { Player, PlayerTab } from "../../../lib/playerPage";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 export function getStaticPaths() {
-  // One page per LINKED player per locale, ITERATED not enumerated: a board that changes its
-  // leaders changes this set on the next export with no code change here.
-  // Deduped by slug, because a player can lead more than one board — Dybala held rank 1 on both
-  // assists and key passes in one export — and two identical params would be a duplicate
-  // route, not two pages.
-  const data = landing as unknown as Landing;
-  const rows = new Map<string, LinkedPlayer>();
-  const take = (row: { slug: string | null; name: string | null; club?: string | null }) => {
-    if (row.slug && !rows.has(row.slug)) rows.set(row.slug, { slug: row.slug, name: row.name, club: row.club ?? null });
-  };
-  for (const board of data.top_players ?? []) for (const row of board.rows) take(row);
-  const payloads = import.meta.glob<CompetitionPayload>("/src/data/competitions/*/*.json", {
-    eager: true,
-    import: "default",
-  });
-  for (const payload of Object.values(payloads)) {
-    for (const board of payload.player_boards ?? []) for (const row of board.rows) take(row);
-  }
-  return [...rows.values()].flatMap((player) =>
+  // One page per player the boards link to, per locale. Only the id travels as a prop: Astro holds
+  // every route's props until the build ends.
+  return [...builtPlayers()].flatMap(([id, slug]) =>
     LOCALES.map((lang) => ({
-      params: { lang, players: word(lang, "players"), player: player.slug },
-      props: { player, lang },
+      params: { lang, players: word(lang, "players"), player: slug },
+      props: { id, lang },
     })),
   );
 }
 
 interface Props {
-  player: LinkedPlayer;
+  id: number;
   lang: Lang;
 }
-const { player, lang } = Astro.props;
+const { id, lang } = Astro.props;
+const dataDir = join(process.cwd(), "src/data");
+const player = JSON.parse(readFileSync(join(dataDir, "players", `${id}.json`), "utf8")) as Player;
 
 const name = player.name ?? "";
-const club = player.club ?? "";
+const isGoalkeeper = player.position_group === "GK";
+const tabs = player.tabs;
+const primary = tabs[0];
+const team = player.club?.name ?? primary?.team?.name ?? player.nationality ?? "";
+const season = player.season_label ?? "";
 
-// Through t() with the served fields as parameters, never concatenated: a concatenated title is
-// locale-independent, which is how all three locales came to ship byte-identical titles before
-// #844's gate existed. The descriptive words are the entire locale signal.
-// The CLUB is in the title for UNIQUENESS, not decoration — audit check 5 requires titles unique
-// within a locale and 1.6% of provider full names collide (site_architecture.md:93).
-const title = t(lang, "seoPlayerTitle", { player: name, club });
-const description = t(lang, "seoPlayerDesc", { player: name, club });
+const CARDS = [
+  { key: "appearances", label: metricLabel(lang, "playerMetrics.appearances.label"), format: "integer" },
+  { key: "minutes_per_appearance", label: metricLabel(lang, "playerMetrics.minutesPerAppearance.label"), format: "decimal_0" },
+  ...(isGoalkeeper
+    ? [
+      { key: "saves_player_pct", label: metricLabel(lang, "playerMetrics.savePct.label"), format: "percent" },
+      { key: "goals_against_player", label: metricLabel(lang, "playerMetrics.goalsConceded.label"), format: "integer" },
+    ]
+    : [
+      { key: "goals_player", label: metricLabel(lang, "playerMetrics.scorerPoints.goals"), format: "integer" },
+      { key: "assists_player", label: metricLabel(lang, "playerMetrics.scorerPoints.assists"), format: "integer" },
+    ]),
+  { key: "cards_yellow_player", label: metricLabel(lang, "playerMetrics.cards.yellow"), format: "integer" },
+  { key: "cards_red_player", label: metricLabel(lang, "playerMetrics.cards.red"), format: "integer" },
+] as const;
+const cardsOf = (tab: PlayerTab) => CARDS.map((c) => ({
+  value: tab.cards[c.key] == null ? DASH : formatValue(tab.cards[c.key], c.format, lang),
+  label: c.label,
+}));
+const peersOf = (tab: PlayerTab) => tab.competitions.map((c) => (JSON.parse(readFileSync(
+  join(dataDir, "player_peers", c.league_code, String(c.season), `${c.position_group}.json`), "utf8",
+)) as { values: Record<string, number[]> }).values);
 
-// schema.org/Person — a footballer is a person, and there is no narrower type for one. Selection
-// only; every value is a served payload field. Undefined rather than null on a missing value: the
-// audit fails a JSON-LD node carrying empty or placeholder values, and an absent key is honest
-// where an empty string is not.
+const description = (() => {
+  const apps = primary?.cards.appearances;
+  const position = positionWord(lang, "One", player.position_group);
+  const base = { player: name, position, club: team, season };
+  const stat = (key: string) => primary?.cards[key];
+  if (apps && isGoalkeeper && stat("saves_player_pct") != null && stat("goals_against_player") != null) {
+    return t(lang, "seoPlayerDescGk", {
+      ...base,
+      apps: integer(apps, lang),
+      saves: formatValue(stat("saves_player_pct"), "percent", lang).replace("%", ""),
+      ga: integer(stat("goals_against_player"), lang),
+      goalsAgainst: metricInSentence(lang, "playerMetrics.goalsConceded.label"),
+      savesWord: metricInSentence(lang, "playerMetrics.savePct.label"),
+    });
+  }
+  const goals = stat("goals_player");
+  const assists = stat("assists_player");
+  if (apps && !isGoalkeeper && goals != null && assists != null) {
+    return t(lang, "seoPlayerDesc", {
+      ...base,
+      apps: integer(apps, lang),
+      goals: t(lang, goals === 1 ? "seoPlayerGoalOne" : "seoPlayerGoals", { n: integer(goals, lang) }),
+      assists: t(lang, assists === 1 ? "seoPlayerAssistOne" : "seoPlayerAssists", { n: integer(assists, lang) }),
+    });
+  }
+  return t(lang, "seoPlayerDescPlain", base);
+})();
+
+const titleClub = player.shares_name_at_club ? `${team}, ${positionWord(lang, "One", player.position_group)}` : team;
+const withClub = team ? ["seoPlayerTitle", "seoPlayerTitleClub"].map((key) => t(lang, key, { player: name, club: titleClub })) : [];
+const title = withClub.find((text) => titleWidthPx(text) <= TITLE_PX_HARD) ?? t(lang, "seoPlayerTitleName", { player: name });
 const entity = {
   "@type": "Person",
   name: name || undefined,
-  affiliation: club || undefined,
+  affiliation: team || undefined,
+  ...(player.photo ? { image: player.photo } : {}),
 };
-
-// Two items, not three. The competition stub's trail passes through the competitions index because
-// that page is its hub; there is no player hub to pass through, and inventing one in a breadcrumb
-// would point at a URL the build does not emit.
 const crumbs = [
   { name: t(lang, "crumbHome"), href: localeHref(lang) },
   { name },
 ];
+const TAB = {
+  club: { id: "tab-club", page: "club", label: "playerTabClub", head: "teamThisSeasonHead" },
+  national_team: { id: "tab-national", page: "national", label: "playerTabNational", head: "playerCurrentCompetitions" },
+} as const;
 ---
 
-<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs} section="players" legacyWidth>
+<Layout
+  lang={lang}
+  title={title}
+  description={description}
+  entity={entity}
+  crumbs={crumbs}
+  image={player.photo ?? undefined}
+  section="players"
+>
   <div class="inner">
     <nav class="crumb" aria-label={t(lang, "crumbAria")}>
       <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
       <span class="sep">›</span>
+      <span>{t(lang, "navPlayers")}</span>
+      <span class="sep">›</span>
       <span class="here">{name}</span>
     </nav>
 
-    <h1>{name}</h1>
+    <PlayerHeader player={player} lang={lang} />
+
+    {tabs.map((tab, i) => <input type="radio" name="player-tab" id={TAB[tab.tab].id} class="tab-in" checked={i === 0} />)}
+    <nav class="tabs comp-tabs" aria-label={t(lang, "playerTabsAria")}>
+      {tabs.map((tab) => <label class="tab" for={TAB[tab.tab].id}>{t(lang, TAB[tab.tab].label)}</label>)}
+    </nav>
+
+    {tabs.map((tab) => (
+      <div class="page" data-page={TAB[tab.tab].page}>
+        <section>
+          <SectionHead label={t(lang, TAB[tab.tab].head)} />
+          <StatCards cards={cardsOf(tab)} />
+        </section>
+        {tab.next_matches.length > 0 && tab.team && (
+          <section>
+            <SectionHead label={t(lang, "homeNext")} />
+            {tab.next_matches.map((fx) => (
+              <TeamFixtureGroup
+                code={fx.league_code}
+                fixtures={[fx]}
+                team={{ team_id: tab.team!.team_id, name: tab.team!.name ?? "", slug: tab.team!.slug, crest: tab.team!.crest ?? null }}
+                lang={lang}
+                nextId={tab.next_matches[0].fixture_id}
+              />
+            ))}
+          </section>
+        )}
+        <PlayerComparison tab={tab} peers={peersOf(tab)} name={name} positionGroup={player.position_group} lang={lang} />
+        {tab.tab === "club" && (
+          <PlayerLastSeason lastSeason={tab.last_season} name={name} isGoalkeeper={isGoalkeeper} lang={lang} />
+        )}
+        <PlayerRecent matches={tab.recent_matches} id={`${TAB[tab.tab].page}-recent-fold`} lang={lang} />
+      </div>
+    ))}
   </div>
 </Layout>

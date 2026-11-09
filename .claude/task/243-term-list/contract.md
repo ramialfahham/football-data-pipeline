@@ -40,6 +40,10 @@ scope_paths:
   - docs/wireframes/01_fixture_page.md
   - docs/metric_layer.md
   - docs/wireframes/metrics_display.md
+  - tests/test_check_copy_gate.py
+  - tests/fixtures/chart_screenshots/scatter-fi-dark-375.png
+  - tests/fixtures/chart_screenshots/strip-fi-dark-375.png
+  - tests/fixtures/chart_screenshots/manifest.json
 
 protected_override: >
   docs/design/components.yml: #243 note 4179410849, approved in chat 2026-11-06, makes the full or
@@ -78,6 +82,11 @@ decisions_taken:
     2026-11-09, starting with seoFixtureTitle in DE and FI and minutesShort in FI.
   - formIntro, formIntroPrev, playersIntro and playersIntroPrev read "jeder Mannschaft" in German,
     the article the table's word needs, approved in chat, 2026-11-09.
+  - A per-90 metric name is its term followed by the per-90 word, as the approved Player page names
+    read, approved in chat, 2026-11-09.
+  - teamScatterAria reads in German "{pointsName} und {sotdName} pro Spiel aller Mannschaften der
+    Liga, mit der Linie der verdienten Punkte." and in Finnish "Sarjan kaikkien joukkueiden pisteet
+    ja {sotdName} ottelua kohden sekä ansaittujen pisteiden viiva.", approved in chat, 2026-11-09.
   - A warehouse-served key stays even where two now hold the same text (roundOf32, roundWcOf32):
     merging it needs a seed change and a fresh export, which this task does not make.
 
@@ -113,3 +122,5 @@ amendments:
     docs/wireframes/09_chrome.md, docs/wireframes/02_team_profile.md,
     docs/wireframes/01_fixture_page.md, docs/metric_layer.md and docs/wireframes/metrics_display.md
     (their words and keys follow the term table), approved in chat, 2026-11-09.
+  - Scope adds tests/test_check_copy_gate.py and tests/fixtures/chart_screenshots/
+    (scatter-fi-dark-375.png, strip-fi-dark-375.png, manifest.json), approved in chat, 2026-11-09.

@@ -11,6 +11,7 @@ with src as (
         goals_diff,
         form,
         group_name,
+        standing_section_order,
         group_description,
         played_all,
         wins_all,
@@ -33,7 +34,7 @@ deduped_standings as (
     from src
     qualify row_number() over (
         partition by league_code, season, team_id, group_name
-        order by raw_ingested_at desc
+        order by raw_ingested_at desc, standing_section_order asc
     ) = 1
 ),
 
@@ -52,6 +53,7 @@ select
     s.team_name,
     s.form,
     s.group_name,
+    s.standing_section_order,
     s.group_description,
     s.standing_rank as provider_standing_rank,
     s.points as provider_points,

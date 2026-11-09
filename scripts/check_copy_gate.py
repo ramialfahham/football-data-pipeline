@@ -23,8 +23,8 @@ The checks, each traceable to a real defect:
      is flagged with both spellings so a human can settle it.
   4. UNTRANSLATED VALUES. A non-EN locale carrying a value byte-identical to EN
      for a key whose EN value contains a lowercase alphabetic word. Numbers,
-     symbols, brand names and pure abbreviations are exempt, because those are
-     legitimately identical across locales.
+     symbols, brand names, pure abbreviations and the unit symbols in UNIT_SYMBOLS
+     are exempt, because those are legitimately identical across locales.
   5. SEED KEYS RESOLVABLE. Every `label_i18n_key` the warehouse seeds publish
      (competition kinds, confederations, round names) exists in every locale. Check 2 sees
      only keys that are already in EN, and check 1-4 see only keys the pages
@@ -64,6 +64,9 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 STRINGS = REPO_ROOT / "site_v2" / "src" / "i18n" / "strings.ts"
 CORPUS_DIR = REPO_ROOT / "site" / "i18n"
 LOCALES = ("en", "de", "fi")
+# Unit symbols that are the same word in more than one language. Each entry is the product owner's
+# decision; the list is the only way in.
+UNIT_SYMBOLS = frozenset({"min"})
 # Floor under the extraction, enforced in the gate itself (see main()). The fixture
 # page alone needs about two dozen labels, so anything under this means the regex
 # broke rather than the copy shrank.
@@ -102,11 +105,13 @@ APPROVED_IDENTICAL: dict[tuple[str, str], tuple[str, str]] = {
 }
 
 # A SECOND string class this gate has to see: metric display names. `METRIC_TERMS` maps the
-# catalogue's `label_i18n_key` to the term that names the metric. Its keys are QUOTED and DOTTED, which `_ENTRY_RE` above cannot match by
+# catalogue's `label_i18n_key` to the term that names the metric, and `PER_90` lists the keys that
+# add the per-90 word; a missing `PER_90` fails like a missing map. Their keys are QUOTED and DOTTED, which `_ENTRY_RE` above cannot match by
 # design — it requires a bare identifier. This parser resolves each metric's name in every locale,
 # so a term a locale lacks shows as a missing metric name.
 _METRIC_TERMS_RE = re.compile(
     r"^const\s+METRIC_TERMS:\s*Record<string,\s*string>\s*=\s*\{(.*?)^\};", re.S | re.M)
+_PER_90_RE = re.compile(r"^const\s+PER_90\s*=\s*new Set\(\[(.*?)\]\);", re.S | re.M)
 # ANY quoted dotted key, not just `metrics.*.label`. The catalogue's PLAYER metrics live in a
 # second namespace (`playerMetrics.scorerPoints.goals`), and while this was anchored on `metrics\.`
 # those labels skipped all four checks below — a Finnish board title missing from the map would have
@@ -126,12 +131,16 @@ def _dicts(text: str) -> dict[str, dict[str, str]]:
 
 def _metric_labels(text: str) -> dict[str, dict[str, str]]:
     block = _METRIC_TERMS_RE.search(text)
-    if not block:
+    per90_block = _PER_90_RE.search(text)
+    if not block or not per90_block:
         return {}
     terms = dict(_METRIC_ENTRY_RE.findall(block.group(1)))
+    per90 = set(re.findall(r'"([^"]+)"', per90_block.group(1)))
     out: dict[str, dict[str, str]] = {}
     for loc, words in _dicts(text).items():
-        out[loc] = {key: words[term] for key, term in terms.items() if term in words}
+        out[loc] = {key: words[term] + (f" {words['per90']}" if key in per90 else "")
+                    for key, term in terms.items()
+                    if term in words and (key not in per90 or "per90" in words)}
     return out
 
 
@@ -258,7 +267,7 @@ def main() -> int:
                 continue
             # exempt: no lowercase word at all (numbers, symbols, abbreviations),
             # or a single token that is a brand/abbreviation
-            if not re.search(r"[a-z]{3,}", en_val):
+            if not re.search(r"[a-z]{3,}", en_val) or en_val in UNIT_SYMBOLS:
                 continue
             if len(en_val.split()) == 1 and en_val[0].isupper():
                 continue
