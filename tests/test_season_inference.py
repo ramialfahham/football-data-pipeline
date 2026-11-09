@@ -1,8 +1,4 @@
-"""Tests for season_inference.py — the July 1 split-year boundary and rolling window.
-
-The July 1 boundary is subtle: get it wrong by one day and every competition ingests
-the previous season instead of the current one. This has caused real bugs.
-"""
+"""Tests for season_inference.py: the July 1 split-year boundary and the rolling window."""
 
 from datetime import datetime
 
@@ -15,10 +11,6 @@ from ingestion.api_football.season_inference import (
 from ingestion.api_football.settings import DEFAULT_SEASON_WINDOW_YEARS
 
 
-# ---------------------------------------------------------------------------
-# _infer_competition_season_start_year — July 1 boundary
-# ---------------------------------------------------------------------------
-
 class TestInferCompetitionSeasonStartYear:
     def test_july_1_starts_new_season(self):
         assert _infer_competition_season_start_year(datetime(2024, 7, 1)) == 2024
@@ -27,11 +19,9 @@ class TestInferCompetitionSeasonStartYear:
         assert _infer_competition_season_start_year(datetime(2024, 6, 30)) == 2023
 
     def test_mid_season_january(self):
-        # January 2025 is mid 2024/25 season
         assert _infer_competition_season_start_year(datetime(2025, 1, 15)) == 2024
 
     def test_last_day_of_season(self):
-        # June 30 is last day before next season boundary
         assert _infer_competition_season_start_year(datetime(2025, 6, 30)) == 2024
 
     def test_first_day_of_new_season(self):
@@ -41,15 +31,10 @@ class TestInferCompetitionSeasonStartYear:
         assert _infer_competition_season_start_year(datetime(2024, 12, 31)) == 2024
 
     def test_no_argument_returns_int(self):
-        # Just verify it returns an integer without crashing
         result = _infer_competition_season_start_year()
         assert isinstance(result, int)
         assert 2000 <= result <= 2100
 
-
-# ---------------------------------------------------------------------------
-# effective_season_min / effective_season_max — rolling window
-# ---------------------------------------------------------------------------
 
 class TestEffectiveSeasonWindow:
     def test_window_is_default_season_window_years_wide(self, monkeypatch):
@@ -69,10 +54,6 @@ class TestEffectiveSeasonWindow:
         )
         assert effective_season_min() == 2025 - (DEFAULT_SEASON_WINDOW_YEARS - 1)
 
-
-# ---------------------------------------------------------------------------
-# season_year — explicit override beats inference
-# ---------------------------------------------------------------------------
 
 class TestSeasonYear:
     def test_env_override_wins(self, monkeypatch):

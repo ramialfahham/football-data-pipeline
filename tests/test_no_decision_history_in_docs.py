@@ -1,12 +1,7 @@
-"""A document says WHAT and WHY, never who decided or when — the guard, both halves.
+"""Guards documents against history lines: an edit-time hook and a per-document count that only falls.
 
-Half one is the edit-time hook `.claude/hooks/comment_history_gate.py`: for a Markdown document it
-refuses an `Edit`, `Write` or `MultiEdit` that ADDS a line carrying history (a date, a reviewer
-credit, a review round, an issue or MR number, a story phrase). Half two is the pin below:
-each document's count of such lines, which may only move down, in the open.
-
-Everything imports the hook's definitions, so the CI count and the edit-time refusal cannot drift
-apart. Sample lines are built at runtime from pieces, so this file holds no flagged line itself.
+Everything imports the hook's definitions, and sample lines are built from pieces so this file
+holds no flagged line itself.
 """
 
 from __future__ import annotations
@@ -22,7 +17,7 @@ HOOKS = os.path.join(REPO, ".claude", "hooks")
 sys.path.insert(0, HOOKS)
 import comment_history_gate as gate  # noqa: E402
 
-# The pin: flagged lines per document. A cleanup lowers a number or removes a row; nothing adds one.
+# Flagged lines per document; a cleanup lowers a number or removes a row, nothing adds one.
 PINNED = {
     ".claude/agents/analytics-engineer-reviewer.md": 1,
     ".claude/agents/bi-analyst-reviewer.md": 6,
@@ -108,7 +103,7 @@ def test_every_document_matches_the_pin_in_both_directions():
 
 
 def test_every_guarded_document_is_readable():
-    """`count_docs` skips a file it cannot open; the pin must never pass because a path was skipped."""
+    """`count_docs` skips a file it cannot open; the pin must not pass because a path was skipped."""
     unreadable = [p for p in _tracked_docs()
                   if gate.is_doc_path(p) and not os.path.isfile(os.path.join(REPO, p))]
     assert not unreadable, f"tracked documents the pin cannot read: {unreadable}"
@@ -119,8 +114,6 @@ def test_claude_md_holds_no_history():
     assert gate.doc_flagged_lines(text, "CLAUDE.md") == []
     assert "CLAUDE.md" not in PINNED
 
-
-# --- one definition ----------------------------------------------------------------------------
 
 def test_definition_is_imported_not_copied():
     src = pathlib.Path(__file__).read_text(encoding="utf-8")

@@ -1,44 +1,7 @@
-"""The alert-policy apply recipe must apply EVERY declared policy (GitLab #61).
+"""Runs the apply recipe in `deploy/nightly/README.md` against a stubbed Monitoring API.
 
-WHY THIS EXISTS
----------------
-`deploy/nightly/README.md` documents how the Cloud Monitoring alert policies get created. Its
-apply step used to end in `for i in 0 1` — a literal index list — over a generator that writes
-one payload per policy declared in `deploy/nightly/alert-policy.json`. The file later grew to
-three. Index 2 was generated and never sent.
-
-The policy that went missing was `fdp freshness sentinel itself stopped`: the one that fires
-when the freshness sentinel itself dies. So the dropped alert was precisely the alert whose
-absence nothing else can reveal. It FAILS OPEN — the broken state looks identical to the
-working one — and it sat undeployed until found by accident.
-
-HOW IT IS SHAPED, AND TWO REJECTED ATTEMPTS
--------------------------------------------
-This test went through two wrong versions before this one, both caught in review, and the
-progression is the useful part:
-
-  v1 matched the SHAPE OF THE RETIRED BASH RECIPE (`for i in 0 1`, `{0..1}`, `polN.json`). The
-     fixed recipe is Python, so every pattern was already unreachable.
-  v2 parsed the recipe with `ast` and forbade a number, slice, `islice` or `break` in the loop
-     expression. Better, but still a shape test: four rewrites reproduce #61 while passing
-     all of it — hoisting the slice into a variable
-     (`policies_to_apply = ...[:2]`), a `continue` that skips one policy, a filter baked into a
-     generator expression, and a second statement that undoes the loop afterwards.
-
-The lesson both times: a static check on a snippet tests how the code LOOKS, and the defect is
-about what it DOES. Any shape test can be walked around by writing the same bug differently.
-
-So this version RUNS the documented recipe against a stubbed Monitoring API and asserts the
-only thing that actually matters: **every policy declared in `alert-policy.json` receives a
-write.** Truncation, filtering, early exit, hoisting and post-hoc deletion all fail it
-identically, because they all end in a declared policy that never got written.
-
-Running repo-controlled, version-controlled, reviewed documentation under `exec` is deliberate.
-It is the only way to test a runbook snippet's behaviour rather than its spelling, and it has
-the side benefit of proving the documented commands are executable at all — a runbook that does
-not run is the failure mode this whole area keeps producing.
-
-`tests/test_nightly_entrypoint_parity.py` is the precedent for pinning a deploy artefact.
+Every policy declared in `alert-policy.json` must receive a write; running the snippet under `exec`
+tests its behaviour rather than its spelling.
 """
 
 from __future__ import annotations
@@ -109,19 +72,7 @@ def _run_recipe(
     existing: list[dict],
     policies: list[dict] | None = None,
 ) -> list[tuple[str, str, dict | None]]:
-    """Execute the documented recipe against a stubbed API. Returns every request it made.
-
-    `existing` is what the fake API reports as already deployed, so the caller can drive both
-    the create path (empty) and the update path (everything already there).
-
-    `policies` replaces the CONTENT of `alert-policy.json` for the run. This is what makes the
-    suite count-independent, and it is not a refinement — it is the whole difference between
-    catching #61 and re-shipping it. A test that only ever runs against the real file cannot
-    tell "iterates every policy" from "hardcoded to a bound that equals today's count", and the
-    second is precisely what #61 was: `for i in 0 1` was CORRECT on the day it was written,
-    when the file declared two. Running against a set of a different size makes any baked-in
-    count fail at the moment it is written instead of silently, later, when a policy is added.
-    """
+    """Run the recipe on a stubbed API; `policies` replaces the file's content so a baked-in count fails."""
     calls: list[tuple[str, str, dict | None]] = []
 
     def fake_urlopen(req, *args, **kwargs):  # noqa: ANN001 - mirrors urlopen's loose signature
@@ -143,8 +94,7 @@ def _run_recipe(
     os.environ["TOKEN"] = "fake-token-for-tests"
 
     with tempfile.TemporaryDirectory() as tmp:
-        # The recipe opens `deploy/nightly/alert-policy.json` by relative path, so the run
-        # happens in a directory where that path holds whatever this call is testing against.
+        # The recipe opens `deploy/nightly/alert-policy.json` by relative path.
         root = Path(tmp)
         target = root / "deploy" / "nightly" / "alert-policy.json"
         target.parent.mkdir(parents=True)
@@ -202,7 +152,6 @@ def _written_display_names(calls, method: str) -> set[str]:
 
 
 def test_recipe_creates_every_declared_policy_on_an_empty_project():
-    """THE LOAD-BEARING CHECK, create path. Nothing declared may be silently skipped."""
     declared = set(_declared_policy_names())
     calls = _run_recipe(existing=[])
     created = _written_display_names(calls, "POST")
@@ -217,7 +166,6 @@ def test_recipe_creates_every_declared_policy_on_an_empty_project():
 
 
 def test_recipe_updates_every_declared_policy_and_creates_nothing_when_all_exist():
-    """THE LOAD-BEARING CHECK, update path. This is the idempotency claim, executed."""
     declared = _declared_policy_names()
     existing = [
         {"displayName": name, "name": "%s/alertPolicies/%d" % (_FAKE_PROJECT, i)}
@@ -240,21 +188,12 @@ def test_recipe_updates_every_declared_policy_and_creates_nothing_when_all_exist
     )
 
 
-# Sizes the count-independence tests run at. MORE THAN ONE, ON PURPOSE.
-#
-# An earlier version used 5 everywhere, which had simply MOVED the hardcoded number rather
-# than removed it: a bound of exactly 5 - the size the suite itself
-# had standardised on - was invisible to every test. The same defect as #61, one layer up.
-#
-# No finite set of sizes proves a universal property. What this does is make a surviving bound
-# absurd: it would have to be >= 17 to pass, which is not a number anyone writes by accident
-# while a file declares 3. The odd/even mix also kills parity-based skips.
+# Several sizes, odd and even, so no single baked-in bound or parity-based skip can pass them all.
 _SIZES = [1, 2, 3, 5, 8, 17]
 
 
 @pytest.mark.parametrize("size", _SIZES)
 def test_recipe_applies_every_policy_at_any_set_size(size: int):
-    """COUNT-INDEPENDENCE, create path, across sizes so no single constant can hide."""
     synthetic = _synthetic_policies(size)
     declared = {p["displayName"] for p in synthetic}
     created = _written_display_names(_run_recipe(existing=[], policies=synthetic), "POST")
@@ -266,7 +205,6 @@ def test_recipe_applies_every_policy_at_any_set_size(size: int):
 
 @pytest.mark.parametrize("size", _SIZES)
 def test_recipe_reconciles_every_policy_at_any_set_size(size: int):
-    """COUNT-INDEPENDENCE, update path, across sizes. Kills a bound inside the PATCH branch."""
     synthetic = _synthetic_policies(size)
     declared = {p["displayName"] for p in synthetic}
     calls = _run_recipe(existing=_as_existing(synthetic), policies=synthetic)
@@ -279,17 +217,7 @@ def test_recipe_reconciles_every_policy_at_any_set_size(size: int):
 
 
 def test_recipe_applies_a_policy_set_LARGER_than_todays_file():
-    """COUNT-INDEPENDENCE, and the single most important test in this file.
-
-    Every other test compares the recipe against the real `alert-policy.json`, so a bound that
-    happens to equal today's count — `[:3]` against three declared policies, or a hardcoded
-    list of today's three names — passes them all. That is not a hypothetical: it is #61's
-    exact mechanism. `for i in 0 1` was CORRECT when it was written, and became a silent
-    data-loss bug only when a third policy was added.
-
-    Running against a synthetic set of a DIFFERENT size makes any baked-in count fail the
-    moment it is written, which is the only time it is cheap to fix.
-    """
+    """A bound that equals today's policy count passes every test that uses the real file."""
     synthetic = _synthetic_policies(5)
     declared = {p["displayName"] for p in synthetic}
     calls = _run_recipe(existing=[], policies=synthetic)
@@ -304,11 +232,7 @@ def test_recipe_applies_a_policy_set_LARGER_than_todays_file():
 
 
 def test_recipe_applies_a_policy_set_SMALLER_than_todays_file():
-    """The other side of count-independence: it must not invent policies either.
-
-    Catches a recipe that stopped reading the file and hardcoded today's names as literals -
-    which the deleted static check used to catch, and which a larger-set test alone does not.
-    """
+    """Catches a recipe that hardcodes today's policy names instead of reading the file."""
     synthetic = _synthetic_policies(1)
     declared = {p["displayName"] for p in synthetic}
     calls = _run_recipe(existing=[], policies=synthetic)
@@ -322,11 +246,7 @@ def test_recipe_applies_a_policy_set_SMALLER_than_todays_file():
 
 
 def _as_existing(policies: list[dict]) -> list[dict]:
-    """Turn declared policies into what the API would report as already deployed.
-
-    The ids are deliberately distinct per policy so a test can check that each PATCH is aimed
-    at the RIGHT one - see test_every_patch_targets_the_resource_named_in_its_own_body.
-    """
+    """Declared policies as the API would report them deployed, with distinct ids per policy."""
     return [
         {"displayName": p["displayName"], "name": "%s/alertPolicies/%d" % (_FAKE_PROJECT, 100 + i)}
         for i, p in enumerate(policies)
@@ -334,18 +254,7 @@ def _as_existing(policies: list[dict]) -> list[dict]:
 
 
 def test_every_patch_targets_the_resource_named_in_its_own_body():
-    """Each PATCH must hit the id of the policy it is carrying, not merely SOME id.
-
-    Every other assertion in this file reads `body["displayName"]` and ignores the URL. That
-    leaves a worse bug than #61 completely uncovered: a recipe that derives the target id
-    wrongly - `list(existing.values())[0]["name"]` instead of `existing[name]["name"]` - still
-    sends one PATCH per declared policy, each carrying its own correct displayName, so the
-    counts and the name sets all come out right. In production every PATCH lands on the SAME
-    alert policy: one gets overwritten repeatedly and the rest silently go stale forever, while
-    the recipe prints "updated" for each of them.
-
-    #61 left one policy undeployed. This would leave N-1 permanently unreconciled.
-    """
+    """Each PATCH must hit the id of the policy it carries, which name counts alone do not show."""
     synthetic = _synthetic_policies(4)
     existing = _as_existing(synthetic)
     id_by_name = {e["displayName"]: e["name"].rsplit("/", 1)[1] for e in existing}
@@ -373,14 +282,7 @@ def test_every_patch_targets_the_resource_named_in_its_own_body():
 
 
 def test_recipe_updates_a_policy_set_LARGER_than_todays_file():
-    """COUNT-INDEPENDENCE ON THE UPDATE BRANCH.
-
-    The create-path tests above pass `existing=[]`, so they never enter `if name in existing`.
-    A bound placed inside THAT branch — `if patch_count >= 3: continue` — passes them and also
-    passes the real-file update test, because the real file has exactly three pre-existing
-    policies and the counter runs out exactly as the loop ends. It then silently stops
-    reconciling the fourth policy forever. Same #61 shape, one branch over.
-    """
+    """A bound inside the update branch is invisible to a set the size of today's file."""
     synthetic = _synthetic_policies(5)
     declared = {p["displayName"] for p in synthetic}
     calls = _run_recipe(existing=_as_existing(synthetic), policies=synthetic)
@@ -397,11 +299,7 @@ def test_recipe_updates_a_policy_set_LARGER_than_todays_file():
 
 
 def test_recipe_reconciles_a_MIXED_set_of_existing_and_new_policies():
-    """The real steady state: a policy is added to the file and everything else already exists.
-
-    This is the exact situation #61 was discovered in, and neither an all-new nor an all-existing
-    test reproduces it - the bug needs both branches live in one run to show itself.
-    """
+    """A policy added to the file while the rest exist needs both branches live in one run."""
     synthetic = _synthetic_policies(5)
     declared = {p["displayName"] for p in synthetic}
     already = _as_existing(synthetic[:2])
@@ -424,7 +322,7 @@ def test_recipe_reconciles_a_MIXED_set_of_existing_and_new_policies():
 
 
 def test_recipe_never_deletes_anything():
-    """A 'cleanup' pass that removes a policy after applying it reproduces #61 from the far end."""
+    """A cleanup pass that removes a policy after applying it would undo the apply."""
     for existing in ([], [{"displayName": n, "name": "%s/alertPolicies/%d" % (_FAKE_PROJECT, i)}
                           for i, n in enumerate(_declared_policy_names())]):
         calls = _run_recipe(existing=existing)
@@ -460,7 +358,6 @@ def test_recipe_strips_underscore_prefixed_keys_before_sending():
 
 
 def test_recipe_python_block_is_valid_python():
-    """A runbook whose documented snippet does not parse is a runbook that fails at 3am."""
     try:
         ast.parse(_recipe_python_source())
     except SyntaxError as exc:  # pragma: no cover - the message is the point
@@ -471,7 +368,6 @@ def test_recipe_python_block_is_valid_python():
 
 
 def test_prose_states_no_policy_count_that_disagrees_with_the_file():
-    """The second half of the original rot: 'holds BOTH policies' over a three-policy file."""
     declared = len(_declared_policy_names())
     words = {2: "both", 3: "three", 4: "four", 5: "five"}
     section = _section().lower()

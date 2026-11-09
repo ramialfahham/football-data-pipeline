@@ -1,11 +1,4 @@
-"""Unit tests for the Matches page's export: one payload per day from `mart_match_days` (#160).
-
-No BigQuery: fabricated rows only. What is pinned is what the consumption-layer contract allows
-the export to do and nothing more. It groups rows by day and competition and carries the mart's
-day facts (neighbours, opening day) and the match rows unchanged. It never decides which match is
-in reach, which day opens or which competition comes first: the mart decides the first two and
-the page the third.
-"""
+"""Unit tests, on fabricated rows, for the Matches page export that groups `mart_match_days` by day."""
 
 from scripts import export_site_data
 from scripts.export_site_data import _competition_fixture, shape_match_day_payloads
@@ -47,8 +40,7 @@ def test_one_payload_per_day_with_the_marts_day_facts():
 
 
 def test_rows_keep_the_served_day_row_order_and_the_match_row_shape():
-    """Rows arrive shuffled; the payload keeps day_row_order, the mart's order, and each row is the
-    competition payload's match row, unchanged, so the site's one match row renders it."""
+    """The site renders one match-row shape, so each row must equal the competition payload's row."""
     rows = [
         _row(3, "BL1", "2026-09-26", 3, opening=True),
         _row(1, "BL1", "2026-09-26", 1, opening=True),
@@ -76,8 +68,7 @@ def test_a_played_row_carries_its_score():
 
 
 def test_the_fetch_reads_the_mart_whole_and_selects_nothing(monkeypatch):
-    """The reach, the neighbours and the opening day are the mart's: the query joins the day rows to
-    their match rows and filters, ranks and windows nothing."""
+    """Reach, neighbours and opening day belong to the mart, so the query must not filter or rank."""
     captured = []
 
     def fake_query(client, sql):

@@ -1,13 +1,4 @@
-"""Tests for loads/coaches.py.
-
-All BigQuery and HTTP interactions are mocked — no live GCP connection required.
-
-Was `test_injuries_coaches.py` until #33 item 15 removed the `/injuries` ingest: the endpoint
-had no consumer anywhere in the warehouse, and `RAW_APIF_INJURIES` was the largest raw table at
-1.975 GiB. `TestLoadInjuries` went with the loader it tested. Coaches was added in the same
-commit as injuries (`983d12c`) and DID get a consumer — `stg_apif__coaches` -> `base_apif__coaches`
--> `dim_coach` — which is why it stays.
-"""
+"""Tests for loads/coaches.py, with BigQuery and HTTP mocked."""
 
 from __future__ import annotations
 
@@ -167,7 +158,6 @@ class TestLoadCoaches:
         assert any("coaches BQ" in e for e in ctx.errors)
 
     def test_multiple_coaches_per_team_all_captured(self):
-        """A team can have multiple coaches returned (e.g. current + caretakers)."""
         ctx = _make_ctx()
         two_coaches = [{"id": 1, "name": "A"}, {"id": 2, "name": "B"}]
 

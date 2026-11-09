@@ -1,20 +1,4 @@
-"""Pin the safety guarantees of scripts/cleanup_orphan_relations.py (#84).
-
-WHY THIS EXISTS
----------------
-This is the only script in the repo that can delete production relations in bulk, and it decides
-what to delete by SUBTRACTION: everything the manifest does not claim. That shape has one
-catastrophic failure mode. If the manifest is empty, truncated, or read from the wrong path, the
-expected set collapses, every relation in production looks orphaned, and a `--confirm` run drops
-the warehouse. `MANIFEST_FLOOR` exists for exactly that, so it is tested by driving it, not by
-reading it (#904).
-
-The other guarantees are the ones a reviewer would otherwise have to take on trust: dry-run really
-is the default, a live model can never be selected, and the dataset allowlist really is a fence
-rather than a comment.
-
-Every test runs against a fake BigQuery client. Nothing here touches the real warehouse.
-"""
+"""Pin the safety guarantees of scripts/cleanup_orphan_relations.py against a fake BigQuery client."""
 
 from __future__ import annotations
 
@@ -28,7 +12,6 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 def _load_script():
-    """Import `scripts/cleanup_orphan_relations.py` as a module."""
     spec = importlib.util.spec_from_file_location(
         "cleanup_orphan_relations", ROOT / "scripts" / "cleanup_orphan_relations.py"
     )
@@ -215,14 +198,7 @@ def test_declared_sources_protect_raw_tables(tmp_path):
 
 
 def test_a_snapshot_is_keyed_on_target_schema_not_schema(tmp_path):
-    """Snapshots declare their dataset with `target_schema`; `schema` is absent on them.
-
-    `dbt_project.yml` sets `snapshots: +target_schema: snapshots` and says in the comment above it
-    that the value is applied verbatim, never through `generate_schema_name.sql`. Reading
-    `config.schema` here returns None and files every snapshot under DEFAULT_DATASET instead. That
-    is inert today (no snapshots exist, and `snapshots` is not in ALLOWED_DATASETS) but a snapshot
-    is an SCD2 history table, so the mapping must be right before the first one lands.
-    """
+    """Snapshots declare their dataset with `target_schema`, and `schema` is absent on them."""
     manifest = _write_manifest(
         tmp_path,
         nodes={
@@ -323,9 +299,7 @@ def test_view_over_a_live_table_resolves():
 
 
 def test_brokenness_is_transitive():
-    """The real case: base_apif__bl1_teams names only relations that exist, but one of them is a
-    view over a dropped raw table, so a query against it errors. A one-level check calls this live
-    and would put it in the phase advertised as risk-free."""
+    """A view naming only existing relations is still broken when one of them is a view over a dropped table."""
     warehouse = {
         ("dbt_analytics", "base_apif__bl1_teams"): "VIEW",
         ("staging", "stg_apif__bl1_teams"): "VIEW",
@@ -347,13 +321,7 @@ def test_unknown_reference_is_assumed_live_not_broken():
 
 
 def test_a_view_calling_a_udf_is_live_not_broken():
-    """The real defect: `marts.mart_fixture_index` calls `dbt_analytics.url_fixture_slug`.
-
-    A UDF call is written exactly like a table reference, and neither `bq ls` nor
-    `Client.list_tables` returns routines, so the reference used to look like a missing table and
-    flip `resolves()` to False. That put a view which validates and returns 1.5 MB into the phase
-    advertised as risk-free. Reproduced here in the same shape: live tables plus a UDF call.
-    """
+    """A UDF call reads like a table reference, and `list_tables` does not return routines."""
     warehouse = {
         ("marts", "mart_fixture_index"): "VIEW",
         ("core", "fct_fixture"): "TABLE",
@@ -388,12 +356,7 @@ def test_a_udf_reference_does_not_rescue_a_genuinely_broken_view():
 
 
 def test_a_routine_is_never_returned_as_an_orphan(tmp_path):
-    """Routines must never enter the droppable set.
-
-    `find_orphans()` iterates the warehouse map, so if routines were folded in there to make
-    `resolves()` work, every UDF would read as an orphan relation and be selected for deletion -
-    worse than the bug being fixed. They are held in a separate set for exactly this reason.
-    """
+    """Routines live in a separate set, because `find_orphans()` would otherwise select every UDF for deletion."""
     manifest = _write_manifest(tmp_path)
     expected = cleanup.load_expected(manifest)
     warehouse = {("marts", "some_orphan_view"): "VIEW"}
@@ -405,7 +368,7 @@ def test_a_routine_is_never_returned_as_an_orphan(tmp_path):
 
 
 def test_classify_passes_routines_through():
-    """A regression guard on the wiring, not just on `resolves()` in isolation."""
+    """Guards the wiring of routines into `classify()`, not just `resolves()` in isolation."""
     warehouse = {
         ("marts", "calls_a_udf"): "VIEW",
         ("core", "fct_fixture"): "TABLE",
@@ -530,18 +493,7 @@ def test_confirm_all_drops_every_orphan(tmp_path):
 
 
 def test_main_does_not_drop_a_udf_calling_view_in_phase_broken(tmp_path):
-    """END-TO-END through main(), which is the only thing that pins the WIRING.
-
-    `classify()` and `list_routines()` are each tested in isolation above, and both pass even if
-    `main()` never fetches routines or never threads them into `classify()`. Measured: reverting
-    exactly those two lines in `main()` leaves every other test in this file GREEN. That is how
-    the production defect reached the operator in the first place — the misclassification happened
-    in the script people run, not in a unit under test.
-
-    So this asserts the consequence that actually matters: `--phase broken --confirm` must not
-    delete a view that only looked broken because it calls a UDF, while still deleting one that is
-    genuinely broken.
-    """
+    """Only a run through `main()` pins that routines are fetched and threaded into `classify()`."""
     manifest = _write_manifest(
         tmp_path, nodes={"fct_fixture": _model("fct_fixture", schema="core")}
     )

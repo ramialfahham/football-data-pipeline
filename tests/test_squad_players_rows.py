@@ -1,11 +1,4 @@
-"""Tests for RAW_APIF_PLAYERS one-row-per-(team, season) writes (the >100 MB load fix).
-
-The players snapshot is written as one small row per (team, season) — not one giant
-per-league row — so no single row can approach BigQuery's 100 MB per-row JSON limit,
-for any league (mirrors RAW_APIF_FIXTURE_DETAILS, one row per fixture). These tests
-cover the loader grain (one row per team×season, none lost) against a committed real
-/players slice, and the atomic multi-row writer.
-"""
+"""RAW_APIF_PLAYERS gets one row per (team, season) so no row nears BigQuery's 100 MB limit."""
 
 from __future__ import annotations
 
@@ -34,14 +27,12 @@ def test_writes_one_row_per_team_season_from_real_payload(monkeypatch):
     }
 
     def fake_fetch(headers, team_id, season, errors, error_context=""):
-        # (rows, complete) — a successful fetch is complete and supersedes as before (#896).
+        # (rows, complete): a successful fetch is complete.
         return by_key.get((team_id, season), []), True
 
     monkeypatch.setattr(sq, "players_response_for_team", fake_fetch)
     monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", False)
-    # The fetch-side skip reads BQ for captured (team, season); the fake ctx has no client, so
-    # stub the reader to "nothing captured" — the single season here is the reference season and
-    # is fetched regardless.
+    # The fake ctx has no BigQuery client, so the captured-seasons reader returns nothing.
     monkeypatch.setattr(sq, "captured_player_team_seasons", lambda ctx: set())
 
     captured: dict = {}
@@ -96,7 +87,7 @@ def test_no_rows_means_no_write(monkeypatch):
 
 
 def test_quota_cut_logs_partial_warning(monkeypatch):
-    # A quota cut mid-fetch must NOT report a silent success — a PARTIAL warning is logged.
+    # A quota cut mid-fetch logs a PARTIAL warning rather than reporting silent success.
     monkeypatch.setattr(sq.errors_quota, "_http_quota_exhausted", False)
     monkeypatch.setattr(sq, "captured_player_team_seasons", lambda ctx: set())
 
@@ -145,7 +136,7 @@ def test_multi_row_loader_writes_one_job_with_shared_ingested_at(monkeypatch):
         client, "RAW_APIF_PLAYERS", payloads, league_code="CWC", append=True
     )
     assert written == 2
-    assert len(client.calls) == 1  # ONE atomic load job for the whole snapshot
+    assert len(client.calls) == 1  # one atomic load job for the whole snapshot
     call = client.calls[0]
     assert call["write_disposition"] == "WRITE_APPEND"
     rows = [json.loads(line) for line in call["data"].splitlines() if line.strip()]
@@ -208,8 +199,7 @@ def test_plan_empty_inputs():
 
 
 # --- captured_player_team_seasons: BigQuery read of already-stored (team, season) pairs ---
-# Fake client so the Python row-handling runs with NO network; the JSON-path SQL itself is
-# validated against real RAW_APIF_PLAYERS separately (mirrors test_player_squads_catchup).
+# Fake client so the row handling runs with no network.
 
 
 class _FakeResult:
@@ -260,8 +250,7 @@ def test_captured_player_team_seasons_failopen_on_query_error():
 
 
 def test_captured_player_team_seasons_query_is_fully_qualified():
-    # Regression guard: a bare table name fails at runtime; the read must reference
-    # project.dataset.RAW_APIF_PLAYERS (matches _fq in loads/player_universe.py).
+    # A bare table name fails at runtime; the read must reference project.dataset.RAW_APIF_PLAYERS.
     ctx = _skip_ctx(rows=[])
     sq.captured_player_team_seasons(ctx)
     assert f"{GCP_PROJECT_ID}.{DATASET_ID}." in ctx.client.last_sql

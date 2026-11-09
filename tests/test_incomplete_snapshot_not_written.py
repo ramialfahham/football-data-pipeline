@@ -1,41 +1,6 @@
-"""#896 for the four per-league snapshot loaders (#33 item 8a).
+"""Tests that the transfers, coaches, standings and teams loaders write no snapshot from a partial fetch.
 
-WHY THIS EXISTS
----------------
-`transfers`, `coaches`, `standings` and `teams` each write ONE row per league, and staging reads
-the latest row per `league_code`. Each used to abandon its fetch loop when the daily quota latched
-and then write the partial payload as if it were whole:
-
-    for x in ...:
-        if errors_quota._http_quota_exhausted:
-            break                      # loop abandoned, nothing recorded
-        ...
-    load_json_to_bq(..., append=True)  # partial written as if complete
-
-Raw is append-only, so this is recoverable: the partial wins in staging, but the complete prior
-row survives in `raw` and the next good run supersedes it. It was NOT recoverable under #33 item
-8b, where the partial write also DELETED the complete prior row — that merge was reversed
-(raw appends and never deletes).
-
-⚠ THE REVERSAL IS NOT A REASON TO DROP THIS GUARD, and that is the point worth keeping. Staging
-reads latest-per-league, so a partial snapshot still hides the good one from every model
-downstream. Append-only changed the consequence from permanent loss to a wrong warehouse until
-the next good run; it did not make writing a known-partial payload correct.
-
-The failure is invisible without them: a partial snapshot is a well-formed payload. Nothing throws,
-no row count looks wrong, and the pipeline reports success.
-
-HOW THESE ARE SHAPED
---------------------
-The assertion is "did the loader call its BigQuery write", via a recording double — never on log
-text, which a reword defeats. Each loader gets three cases: a clean run still writes; a body-level
-error on any one team/season writes nothing; a mid-loop daily-quota cut writes nothing.
-
-THE ONE THING THESE MUST NOT OVER-ASSERT: an EMPTY response with no error is a COMPLETE answer.
-About 23 of 1,265 teams genuinely have no coach on every run, which is why COACHES never gates
-completeness. `test_empty_but_clean_response_still_counts_as_complete` pins that, so a future
-"tighten the guard" cannot start discarding good snapshots for leagues with legitimately empty
-responses.
+An empty response with no error is a complete answer and must not be treated as partial.
 """
 
 from __future__ import annotations
@@ -87,23 +52,10 @@ def _reset_quota():
 
 # --- the four loaders, driven through a common table of how each is invoked ---
 
-# Each loader is described by (how to install a fake fetch, how to invoke it). Splitting those
-# two is not tidiness — the first version folded them into one `run(ctx, monkeypatch, responses)`
-# helper, and the quota-cut test then had to call it with an EMPTY response list while separately
-# installing its own fetch. `run` re-patched over that fetch with one that popped from the empty
-# list, so `standings` and `teams` were exercising an IndexError path, not a quota cut, and both
-# passed with the guard disabled. The break-it check caught it; the tests did not.
+# Installing the fake fetch and invoking the loader are separate steps so a test's own fetch is never re-patched.
 
 def _patch_transfers(module, monkeypatch, fetch):
-    """Patch the HTTP layer UNDER the real helper, never the helper itself.
-
-    The first version replaced `transfers.transfers_response_for_team` with a hand-rolled
-    stand-in that returned `(rows, not d.get("errors"))`. That looked equivalent and was not:
-    it never ran `fixture_scheduling.py`'s real `result_is_complete(data)` — the actual #896
-    guard for RAW_APIF_TRANSFERS, the 6.99 GiB table this whole change exists for — and it
-    reimplemented only the body-error half, missing the latched-quota half entirely. Reverting
-    the real guard to `complete = True` left the entire suite green.
-    """
+    """Patch the HTTP layer under the real helper so its real `result_is_complete` check runs."""
     monkeypatch.setattr(fixture_scheduling, "fetch_merged_paged", lambda *a, **k: fetch())
 
 
@@ -127,9 +79,7 @@ def _invoke_teams(ctx):
     teams.load_teams_merge_and_extend_ids(ctx, "BL1", 78, [2024, 2025], 2025, set())
 
 
-# SINGLE-ITEM invocations: exactly one team / one season, so the loop body runs ONCE.
-# These exist because of a masking bug, not for variety — see
-# test_a_quota_cut_on_a_single_iteration_is_caught.
+# Single-item invocations: one team or season, so the loop body runs once.
 def _invoke_transfers_one(ctx):
     transfers.load_transfers_batch(ctx, "BL1", {1})
 
@@ -178,8 +128,7 @@ def test_a_clean_run_still_writes(name, module, patch, invoke, invoke_one, monke
 
 @pytest.mark.parametrize("name, module, patch, invoke, invoke_one", LOADERS, ids=[x[0] for x in LOADERS])
 def test_a_body_level_error_discards_the_snapshot(name, module, patch, invoke, invoke_one, monkeypatch):
-    """A per-minute rate limit is HTTP 200 with the error in the body — the shape that looks
-    like success. One of these anywhere in the loop makes the league snapshot partial."""
+    """A per-minute rate limit is HTTP 200 with the error in the body, so it looks like success."""
     writes = _Writes()
     monkeypatch.setattr(module, "load_json_to_bq", writes)
     patch(module, monkeypatch, _sequence([_ok(), _errored()]))
@@ -200,13 +149,7 @@ def test_a_body_level_error_discards_the_snapshot(name, module, patch, invoke, i
 
 @pytest.mark.parametrize("name, module, patch, invoke, invoke_one", LOADERS, ids=[x[0] for x in LOADERS])
 def test_a_mid_loop_quota_cut_discards_the_snapshot(name, module, patch, invoke, invoke_one, monkeypatch):
-    """The daily quota latches: `fetch_json` short-circuits to an empty body with NO error, so
-    the body-error check alone would miss it. This is the second of the two signals
-    `result_is_complete` exists to combine.
-
-    The fake returns a CLEAN payload every time and merely sets the quota flag on the first
-    call — so if the loader were checking only for body errors, it would see nothing wrong.
-    """
+    """A latched daily quota yields an empty body with no error, so a body-error check alone misses it."""
     writes = _Writes()
     monkeypatch.setattr(module, "load_json_to_bq", writes)
 
@@ -231,20 +174,7 @@ def test_a_mid_loop_quota_cut_discards_the_snapshot(name, module, patch, invoke,
 def test_a_quota_cut_on_a_single_iteration_is_caught(
     name, module, patch, invoke, invoke_one, monkeypatch
 ):
-    """The quota half of `result_is_complete` — pinned where nothing else can supply the verdict.
-
-    `test_a_mid_loop_quota_cut_discards_the_snapshot` above runs two iterations, and every one
-    of these loaders has a PRE-EXISTING top-of-loop `if _http_quota_exhausted: break` that fires
-    on the second one. That masks the new code for all four loaders: drop the quota half of the
-    new check — keep only `if data.get("errors")` — and
-    those four cases still pass, because the old top-of-loop guard catches it independently.
-
-    With exactly ONE team / ONE season the loop body runs once, so the top-of-loop check never
-    gets a second iteration to fire on. The only thing that can mark the run incomplete is the
-    new `result_is_complete` call, which is precisely what needs pinning: the daily quota
-    short-circuits `fetch_json` to an empty body with NO error, so a body-error check alone is
-    blind to it.
-    """
+    """With one item the top-of-loop quota break never fires, so only `result_is_complete` can mark it partial."""
     writes = _Writes()
     monkeypatch.setattr(module, "load_json_to_bq", writes)
 
@@ -271,14 +201,7 @@ def test_a_quota_cut_on_a_single_iteration_is_caught(
     ids=["clean", "body-error"],
 )
 def test_transfers_helper_reports_completeness_itself(payload, expected_complete, monkeypatch):
-    """Pin `transfers_response_for_team`'s OWN completeness signal, directly.
-
-    The loader-level tests above reach this function through `load_transfers_batch`, and
-    `load_transfers_batch` has a pre-existing per-iteration quota check of its own. The
-    loader-level transfers cases could pass on THAT check while this function's new
-    `result_is_complete` call was reverted — right answer, wrong code path. This test calls
-    the helper directly, so nothing else can supply the verdict for it.
-    """
+    """Called directly, so the loader's own per-iteration quota check cannot supply the verdict."""
     monkeypatch.setattr(fixture_scheduling, "fetch_merged_paged", lambda *a, **k: payload)
 
     rows, complete = fixture_scheduling.transfers_response_for_team({}, 1, [])
@@ -293,12 +216,7 @@ def test_transfers_helper_reports_completeness_itself(payload, expected_complete
 
 
 def test_empty_but_clean_response_still_counts_as_complete(monkeypatch):
-    """An empty response with NO error is a COMPLETE answer and must still be written.
-
-    Measured over five nightlies: ~23 of 1,265 teams genuinely have no coach on every run, which
-    is why COACHES is reported and never gates. If the guard treated "empty" as "incomplete",
-    those leagues would stop being written entirely — trading one silent failure for another.
-    """
+    """An empty response with no error is complete, as some teams genuinely have no coach."""
     writes = _Writes()
     monkeypatch.setattr(coaches, "load_json_to_bq", writes)
     _patch_fetch(coaches, monkeypatch, lambda: _ok(response=[]))

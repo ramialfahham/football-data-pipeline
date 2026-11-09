@@ -1,12 +1,4 @@
-"""The address words (docs/site_architecture.md "Address words") against the registry and the
-design check.
-
-`site_v2/src/i18n/address_words.json` is the one list of words; a competition slug sits in the same
-address position as a top word, so rule 5 says no slug may equal a word. The site build refuses a
-clash over the exported competitions; this refuses it at the registry, in the MR that adds the
-league. The design check opens a built page's German and Finnish files through the same words, so
-its translation is pinned to the cases `site_v2/src/lib/addressWords.test.mjs` pins for the site.
-"""
+"""No registry slug may equal an address word; the design check translates paths like the site."""
 
 from __future__ import annotations
 

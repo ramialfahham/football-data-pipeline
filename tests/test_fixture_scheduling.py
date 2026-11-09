@@ -114,10 +114,7 @@ class TestFixtureNeedsAnyEndpoint:
         assert not _fixture_needs_any_endpoint(1, _covered_all(1), cov, finished_fixture_ids=set())
 
     def test_finished_fixture_needs_stats_regardless_of_coverage_flag(self):
-        # When the reference season is upcoming (e.g. any future tournament), the API
-        # reports fixture_statistics=false. Finished fixtures from prior seasons must
-        # still enter the fanout loop for stats — the flag reflects the reference season,
-        # not whether historical data exists.
+        # The flag reflects the reference season, not whether historical data exists.
         cov = {
             "fixture_lineups": True,
             "fixture_events": True,
@@ -125,7 +122,7 @@ class TestFixtureNeedsAnyEndpoint:
             "fixture_players": True,
         }
         covered = _covered_all(100)
-        covered["fx_stats"] = set()  # stats not yet fetched
+        covered["fx_stats"] = set()
 
         finished = {100}
         assert _fixture_needs_any_endpoint(100, covered, cov, finished_fixture_ids=finished), (
@@ -133,8 +130,7 @@ class TestFixtureNeedsAnyEndpoint:
         )
 
     def test_upcoming_fixture_respects_stats_coverage_flag(self):
-        # An unplayed fixture should respect the coverage flag — do not spend quota
-        # on an endpoint the competition genuinely does not support.
+        # No quota is spent on an endpoint the competition does not support.
         cov = {
             "fixture_lineups": True,
             "fixture_events": True,
@@ -142,33 +138,29 @@ class TestFixtureNeedsAnyEndpoint:
             "fixture_players": True,
         }
         covered = _covered_all(200)
-        covered["fx_stats"] = set()  # stats not covered, but fixture is not finished
+        covered["fx_stats"] = set()
 
-        finished = set()  # fixture 200 is NOT finished
-        # Since stats flag is False and fixture is not finished, stats endpoint is disabled.
-        # If lineups/events/players/preds are all covered, the fixture doesn't need a fetch.
+        finished = set()
         assert not _fixture_needs_any_endpoint(200, covered, cov, finished_fixture_ids=finished)
 
     def test_endpoint_disabled_by_coverage_does_not_block_completion(self):
-        # events=False: a fixture that has everything else covered is considered complete,
-        # because an endpoint the competition does not support must not block the fanout.
+        # An endpoint the competition does not support must not block the fanout.
         cov = {
             "fixture_lineups": True,
-            "fixture_events": False,   # competition doesn't support events
+            "fixture_events": False,
             "fixture_statistics": True,
             "fixture_players": True,
         }
         covered = {key: {300} for key, _, _ in _FANOUT_ENTITY_KEYS}
-        covered["events"] = set()  # events not covered, but flag is False
+        covered["events"] = set()
 
         assert not _fixture_needs_any_endpoint(300, covered, cov, finished_fixture_ids=set())
 
     def test_partial_coverage_still_needs_fetch(self):
-        # lineups covered, but events not → still needs a fetch
         cov = {"fixture_lineups": True, "fixture_events": True, "fixture_statistics": True,
                "fixture_players": True}
         covered = _covered_nothing()
-        covered["lineups"] = {50}  # only lineups covered
+        covered["lineups"] = {50}
 
         assert _fixture_needs_any_endpoint(50, covered, cov, finished_fixture_ids=set())
 
@@ -211,8 +203,7 @@ class TestBuildGlobalFanoutQueue:
         assert build_global_fanout_queue([inp]) == []
 
     def test_finished_fixtures_before_upcoming(self):
-        # Fixture 10 = finished, missing. Fixture 20 = upcoming, missing.
-        # Finished must appear before upcoming in queue regardless of kickoff date.
+        # Finished comes before upcoming regardless of kickoff date.
         inp = _make_input(
             "BL1",
             fixture_ids={10, 20},
@@ -232,7 +223,6 @@ class TestBuildGlobalFanoutQueue:
         assert lc_fids.index(finished_entry) < lc_fids.index(upcoming_entry)
 
     def test_finished_gaps_ordered_oldest_first(self):
-        # Within finished tier, oldest kickoff date first.
         inp = _make_input(
             "BL1",
             fixture_ids={1, 2, 3},
@@ -240,34 +230,32 @@ class TestBuildGlobalFanoutQueue:
             finished_ids={1, 2, 3},
             kickoff_by_id={
                 1: date(2025, 3, 15),
-                2: date(2024, 8, 10),  # oldest
+                2: date(2024, 8, 10),
                 3: date(2025, 1, 5),
             },
         )
         queue = build_global_fanout_queue([inp])
         fids = [fid for _, fid in queue]
-        assert fids == [2, 3, 1]  # sorted by kickoff ascending
+        assert fids == [2, 3, 1]
 
     def test_upcoming_ordered_nearest_first(self):
-        # Within upcoming tier, nearest kickoff first.
         inp = _make_input(
             "BL1",
             fixture_ids={10, 11, 12},
             covered_ids=set(),
             finished_ids=set(),
             kickoff_by_id={
-                10: date(2026, 6, 1),  # nearest
+                10: date(2026, 6, 1),
                 11: date(2026, 8, 15),
                 12: date(2026, 7, 4),
             },
         )
         queue = build_global_fanout_queue([inp])
         fids = [fid for _, fid in queue]
-        assert fids == [10, 12, 11]  # sorted by kickoff ascending
+        assert fids == [10, 12, 11]
 
     def test_cross_competition_interleaving(self):
-        # BL1 has two finished gaps; WC has one older finished gap.
-        # WC's older finished gap must appear before BL1's newer ones.
+        # The older finished gap of one competition precedes the newer ones of another.
         inp_bl1 = _make_input(
             "BL1",
             fixture_ids={1, 2},
@@ -280,11 +268,10 @@ class TestBuildGlobalFanoutQueue:
             fixture_ids={100},
             covered_ids=set(),
             finished_ids={100},
-            kickoff_by_id={100: date(2024, 12, 1)},  # much older
+            kickoff_by_id={100: date(2024, 12, 1)},
         )
         queue = build_global_fanout_queue([inp_bl1, inp_wc])
         fids_lcs = [(lc, fid) for lc, fid in queue]
-        # WC fixture 100 (Dec 2024) must come before BL1 fixtures (Apr 2025)
         wc_idx = next(i for i, (lc, fid) in enumerate(fids_lcs) if lc == "WC")
         bl1_idxs = [i for i, (lc, fid) in enumerate(fids_lcs) if lc == "BL1"]
         assert all(wc_idx < bi for bi in bl1_idxs)
@@ -293,7 +280,7 @@ class TestBuildGlobalFanoutQueue:
         inp = _make_input(
             "BL1",
             fixture_ids={1, 2},
-            covered_ids={1},  # fixture 1 is already covered
+            covered_ids={1},
             finished_ids={1, 2},
             kickoff_by_id={1: date(2025, 1, 1), 2: date(2025, 2, 1)},
         )

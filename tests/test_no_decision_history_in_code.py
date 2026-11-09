@@ -1,13 +1,4 @@
-"""A code comment says WHY, never who decided or when — the guard, both halves.
-
-Half one is the edit-time hook `.claude/hooks/comment_history_gate.py`: it denies an `Edit`,
-`Write` or `MultiEdit` whose written text adds a comment line carrying decision history to a code
-file. Half two is the pin below: the count of such lines already in the tree, which may only move
-in the open — a sweep MR lowers the pin, and nothing else moves it.
-
-Everything here imports the hook's own definition of a flagged line and of a code tree, so the CI
-count and the edit-time deny cannot drift apart; `test_definition_is_imported_not_copied` pins
-that. The rule these guard is in `dbt_project/docs/engineering_standards.md`, section 1.2.
+"""Tests for the comment-history guard: the edit-time hook and the pin on the tree's flagged lines.
 
 The sample lines used in the tests are BUILT at runtime from pieces, never written as literals,
 because a literal `"x = 1  <hash> <marker>"` in this file would itself be a flagged line — the
@@ -29,16 +20,14 @@ HOOKS = os.path.join(REPO, ".claude", "hooks")
 sys.path.insert(0, HOOKS)
 import comment_history_gate as gate  # noqa: E402
 
-# The pin. A sweep MR lowers these two numbers and nothing else may move them.
-PINNED_LINES = 703
-PINNED_FILES = 177
+PINNED_LINES = 477
+PINNED_FILES = 145
 
 HASH = chr(35)
 
 
 def history_line(marker_text: str) -> str:
-    """A code line whose trailing comment carries `marker_text`, assembled so that THIS file holds
-    no flagged line."""
+    """A code line whose trailing comment carries `marker_text`, assembled so this file holds no flagged line."""
     return f"x = 1  {HASH} {marker_text}"
 
 
@@ -114,9 +103,7 @@ def test_definition_is_imported_not_copied():
 
 
 def test_block_comment_continuation_lines_are_comment_lines():
-    """A wrapped `/* … */` block whose inner lines carry no marker character was invisible to a
-    per-line check — `site_v2/src/styles/system.css` narrated what an MR shipped on such a line.
-    Every line between the opener and its closer is a comment line, per language."""
+    """Every line between a block opener and its closer is a comment line, per language."""
     slash, star = chr(47), chr(42)
     opener, closer = slash + star, star + slash
     css = "\n".join([".a { color: red; }", opener + " the ring is drawn inside, and the reason is measured",
@@ -134,8 +121,7 @@ def test_block_comment_continuation_lines_are_comment_lines():
 
 
 def test_a_line_that_closes_one_block_and_opens_another_keeps_the_state():
-    """A line reading `*/ .b{} /* reopens` leaves the second block open, so its continuation lines
-    reach both the deny and the pin: every opener is matched to its closer in order, on the line."""
+    """Openers and closers on one line pair in order, so a line that reopens a block leaves it open."""
     slash, star = chr(47), chr(42)
     opener, closer = slash + star, star + slash
     css = "\n".join([".a { color: red; }",
@@ -156,9 +142,7 @@ def test_a_line_that_closes_one_block_and_opens_another_keeps_the_state():
 
 
 def test_two_comment_syntaxes_on_one_line_pick_the_leftmost_open_block():
-    """`.sql` carries `/* */` and `{# #}`, `.astro` carries `/* */` and `<!-- -->`. When both
-    appear on one line the walk must pair each opener with its own closer, in position order —
-    a walk that let the last-checked syntax win would leave the wrong block open."""
+    """When two comment syntaxes share a line, each opener must pair with its own closer in position order."""
     slash, star = chr(47), chr(42)
     c_open, c_close = slash + star, star + slash
     j_open, j_close = "{" + HASH, HASH + "}"

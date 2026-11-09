@@ -1,8 +1,4 @@
-"""Offline tests for the governance hooks (G2): task_contract_gate, stop_gate,
-git_discipline flag denies. Each test drives the hook script as Claude Code does
-— event JSON on stdin, CLAUDE_PROJECT_DIR env — against a throwaway git repo.
-No BigQuery, no network.
-"""
+"""Offline tests that run the governance hook scripts against a throwaway git repo."""
 
 from __future__ import annotations
 
@@ -40,9 +36,7 @@ done_when:
 amendments: (none)
 """
 
-# The default CONTRACT carries an impact_map so structural-path tests (which edit
-# dbt_project/models/allowed.sql) are allowed; the missing-map deny is exercised
-# with CONTRACT_NO_IMPACT. (#518 / Appendix A6 — the impact-map gate.)
+# The default CONTRACT carries an impact_map so edits to structural paths are allowed.
 _IMPACT_BLOCK = (
     "impact_map: >\n"
     "  writers: loader_x. downstream (dbt ls --select allowed+): none (leaf).\n"
@@ -60,11 +54,7 @@ CONTRACT_OVERRIDE = CONTRACT.replace(
     "scope_paths:\n", "scope_paths:\n  - .claude/hooks/some_hook.py\n"
 )
 
-# An override WITHOUT an impact_map. Without this fixture the suite covered only the
-# ALLOW direction of the protected-path gate: CONTRACT_OVERRIDE derives from
-# CONTRACT, which already carries _IMPACT_BLOCK, so
-# `test_protected_path_allowed_with_override` would have passed identically whether
-# or not the map was ever checked. A one-sided test passes while broken.
+# CONTRACT_OVERRIDE derives from CONTRACT, so only this variant tests the deny direction.
 CONTRACT_OVERRIDE_NO_IMPACT = CONTRACT_NO_IMPACT.replace(
     "decisions_taken:",
     'protected_override: >\n  CPO approval test\ndecisions_taken:',
@@ -99,11 +89,7 @@ def denied(out: str) -> bool:
 
 @pytest.fixture(scope="session")
 def _repo_template(tmp_path_factory):
-    """The throwaway repo, built ONCE per session. Every `repo` below copies this
-    instead of running `git init` + 2 configs + add + commit per test — six
-    subprocess spawns each, over ~200 tests, which is what made the suite take
-    ~11 minutes. A git repo is path-independent, so a copied `.git` keeps the
-    initial commit and each copy mutates in isolation."""
+    """Built once per session; each `repo` copies it, since a git repo is path-independent."""
     base = tmp_path_factory.mktemp("repo_template")
     subprocess.run(["git", "init", "-q"], cwd=base, check=True)
     subprocess.run(["git", "config", "user.email", "t@t"], cwd=base, check=True)
@@ -129,9 +115,7 @@ def write_contract(repo, text: str = CONTRACT) -> None:
     subprocess.run(["git", "commit", "-qm", "contract"], cwd=repo, check=True)
 
 
-# --------------------------------------------------------------------------- #
-# task_contract_gate — file edits
-# --------------------------------------------------------------------------- #
+# --- task_contract_gate: file edits ---
 def test_no_contract_denies_repo_edit(repo):
     out, _ = run_hook("task_contract_gate.py", edit_event(repo, "dbt_project/models/allowed.sql"), repo)
     assert denied(out) and "no task contract" in out
@@ -193,9 +177,7 @@ def test_contract_amendment_allowed_on_clean_tree(repo):
     assert out.strip() == ""
 
 
-# --------------------------------------------------------------------------- #
-# task_contract_gate — impact-map gate (structural surface, #518 / Appendix A6)
-# --------------------------------------------------------------------------- #
+# --- task_contract_gate: impact-map gate ---
 def test_structural_edit_denied_without_impact_map(repo):
     write_contract(repo, CONTRACT_NO_IMPACT)
     out, _ = run_hook("task_contract_gate.py", edit_event(repo, "dbt_project/models/allowed.sql"), repo)
@@ -203,7 +185,7 @@ def test_structural_edit_denied_without_impact_map(repo):
 
 
 def test_structural_edit_allowed_with_impact_map(repo):
-    write_contract(repo)  # default CONTRACT carries an impact_map
+    write_contract(repo)
     out, _ = run_hook("task_contract_gate.py", edit_event(repo, "dbt_project/models/allowed.sql"), repo)
     assert out.strip() == ""
 
@@ -222,18 +204,14 @@ def test_ingestion_edit_denied_without_impact_map(repo):
 
 
 @pytest.mark.parametrize("spelling", [
-    "impact_map: {v}\n",              # inline
-    "impact_map: >\n  {v}\n",         # block scalar
-    "impact_map:\n  - {v}\n",         # dash list — the spelling the first fix missed,
-])                                    # and the one every other key in the real contract uses
+    "impact_map: {v}\n",
+    "impact_map: >\n  {v}\n",
+    "impact_map:\n  - {v}\n",
+])
 @pytest.mark.parametrize("value", [
     "none", "None", "N/A", "n/a", "TBD", "todo", "(none)",
 ])
 def test_nullish_impact_map_does_not_satisfy(repo, value, spelling):
-    """`impact_map: none` used to satisfy the requirement. The nullish set
-    rejected `(none)` but not `none`, `n/a` or `TBD`, and did not case-fold — the
-    same hole class fixed in the sibling helper, left standing in the function
-    that is load-bearing on every guard edit in the repo."""
     write_contract(repo, CONTRACT_NO_IMPACT.replace(
         "decisions_taken:", spelling.format(v=value) + "decisions_taken:"))
     out, _ = run_hook("task_contract_gate.py",
@@ -243,10 +221,6 @@ def test_nullish_impact_map_does_not_satisfy(repo, value, spelling):
 
 @pytest.mark.parametrize("header", [">-", "|-", ">+", "|+", "|2", "|2-"])
 def test_block_scalar_header_impact_map_does_not_satisfy(repo, header):
-    """A YAML chomping or indentation suffix used to walk straight through the
-    nullish word list, which had `>` and `|` but not `>-`. Not contrived: this
-    repo's own workflow files write `>-`. Matched by pattern now, because
-    enumerating literals loses by one variant every time."""
     write_contract(repo, CONTRACT_NO_IMPACT.replace(
         "decisions_taken:", f"impact_map: {header}\n  none\ndecisions_taken:"))
     out, _ = run_hook("task_contract_gate.py",
@@ -256,7 +230,6 @@ def test_block_scalar_header_impact_map_does_not_satisfy(repo, header):
 
 @pytest.mark.parametrize("header", [">-", "|-", ">+", "|2"])
 def test_block_scalar_header_decisions_reserved_does_not_satisfy(repo, header):
-    """The same bypass on the artifact gate's half."""
     write_contract(repo, CONTRACT.replace(
         "decisions_reserved:\n  - none",
         f"decisions_reserved: {header}\n  none",
@@ -266,16 +239,12 @@ def test_block_scalar_header_decisions_reserved_does_not_satisfy(repo, header):
 
 
 @pytest.mark.parametrize("spelling", [
-    "impact_map: writers: loader_x; blast_radius: none (leaf)\n",   # inline
-    "impact_map: >\n  writers: loader_x; blast_radius: none (leaf)\n",   # block
-    "impact_map: >-\n  writers: loader_x; blast_radius: none (leaf)\n",  # chomped block
-    "impact_map:\n  - writers: loader_x; blast_radius: none (leaf)\n",   # dash list
+    "impact_map: writers: loader_x; blast_radius: none (leaf)\n",
+    "impact_map: >\n  writers: loader_x; blast_radius: none (leaf)\n",
+    "impact_map: >-\n  writers: loader_x; blast_radius: none (leaf)\n",
+    "impact_map:\n  - writers: loader_x; blast_radius: none (leaf)\n",
 ])
 def test_real_impact_map_is_allowed_in_every_spelling(repo, spelling):
-    """The ALLOW half. The nullish tests covered three spellings of DENY while
-    the only ALLOW fixture was the plain block scalar, so a fix that rejected too
-    much would have passed — one-sided coverage, the third instance of the class
-    in this file."""
     write_contract(repo, CONTRACT_NO_IMPACT.replace(
         "decisions_taken:", spelling + "decisions_taken:"))
     out, _ = run_hook("task_contract_gate.py",
@@ -284,7 +253,6 @@ def test_real_impact_map_is_allowed_in_every_spelling(repo, spelling):
 
 
 def test_placeholder_impact_map_does_not_satisfy(repo):
-    """A literally-copied `<placeholder>` is not a real map — still denied."""
     write_contract(repo, CONTRACT_NO_IMPACT.replace(
         "decisions_taken:", "impact_map: <fill me in>\ndecisions_taken:"))
     out, _ = run_hook("task_contract_gate.py", edit_event(repo, "dbt_project/models/allowed.sql"), repo)
@@ -292,15 +260,12 @@ def test_placeholder_impact_map_does_not_satisfy(repo):
 
 
 def test_out_of_scope_structural_edit_denied_for_scope_first(repo):
-    """An out-of-scope structural path fails the scope check before the map check."""
     write_contract(repo, CONTRACT_NO_IMPACT)
     out, _ = run_hook("task_contract_gate.py", edit_event(repo, "dbt_project/models/other.sql"), repo)
     assert denied(out) and "OUTSIDE" in out
 
 
-# --------------------------------------------------------------------------- #
-# task_contract_gate — shell coverage
-# --------------------------------------------------------------------------- #
+# --- task_contract_gate: shell coverage ---
 def test_shell_redirect_to_repo_file_denied(repo):
     write_contract(repo)
     out, _ = run_hook("task_contract_gate.py", bash_event("echo x > dbt_project/models/other.sql"), repo)
@@ -351,9 +316,7 @@ def test_post_bash_quiet_when_clean(repo):
     assert out.strip() == ""
 
 
-# --------------------------------------------------------------------------- #
-# stop_gate
-# --------------------------------------------------------------------------- #
+# --- stop_gate ---
 def test_stop_blocked_on_out_of_scope_changes(repo):
     write_contract(repo)
     (repo / "stray.md").write_text("drift")
@@ -376,19 +339,14 @@ def test_stop_never_loops(repo):
 
 # --- parked work in the stash ---
 def _stash(repo, label: str) -> None:
-    """Park one tracked change under `label`. Leaves the tree CLEAN, which is the whole point."""
+    """Park one tracked change under `label`, leaving the tree clean."""
     (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 2")
     subprocess.run(["git", "stash", "push", "-m", label, "--", "dbt_project/models/allowed.sql"],
                    cwd=repo, check=True, capture_output=True)
 
 
 def test_stop_blocked_by_a_parked_stash_even_on_a_clean_tree(repo):
-    """The case the check exists for: work parked in the stash, tree clean.
-
-    ⚠ CLEAN TREE IS LOAD-BEARING. The FAST_GATES correctness check short-circuits on a clean tree
-    to save 2.9s per conversational turn, so a stash check placed there would never fire on the
-    one case that matters. This asserts it fires anyway, i.e. it runs before that short-circuit.
-    """
+    """The FAST_GATES check short-circuits on a clean tree, so the stash check must run before it."""
     write_contract(repo)
     _stash(repo, "parked: some real work")
     assert subprocess.run(["git", "status", "--porcelain"], cwd=repo, capture_output=True,
@@ -399,10 +357,7 @@ def test_stop_blocked_by_a_parked_stash_even_on_a_clean_tree(repo):
 
 
 def test_stop_blocks_a_temp_stash_too(repo):
-    """No label is exempt. The first draft let a `TEMP-` stash pass for 24h, on the premise that
-    the contract stash-dance would otherwise be blocked; the dance is intra-turn and the gate is
-    turn-end, so the only `TEMP-` stash the gate can see is a forgotten one — the #41 case — and
-    `TEMP-40-mrB` sat under that label for days. This pins the exemption's absence."""
+    """No stash label is exempt, because a `TEMP-` stash seen at turn end is a forgotten one."""
     write_contract(repo)
     _stash(repo, "TEMP-contract-amend")
     out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
@@ -418,9 +373,7 @@ def test_stop_passes_on_an_empty_stash(repo):
 
 
 def test_stop_stash_check_precedes_the_dirty_tree_short_circuit():
-    """Pins the ORDERING, by structure: the parked-stash check must run before the
-    `_dirty_outside_task_dir` short-circuit in `main()`. A mutation that moves it below turns this
-    red, which the behavioural test above also catches — this one names the cause."""
+    """The parked-stash check must run before the `_dirty_outside_task_dir` short-circuit in `main()`."""
     src = pathlib.Path(HOOKS, "stop_gate.py").read_text(encoding="utf-8")
     body = src[src.index("def main("):]
     assert body.index("_parked_stashes(root)") < body.index("_dirty_outside_task_dir(root)"), (
@@ -429,9 +382,7 @@ def test_stop_stash_check_precedes_the_dirty_tree_short_circuit():
     )
 
 
-# --------------------------------------------------------------------------- #
-# git_discipline — flag denies
-# --------------------------------------------------------------------------- #
+# --- git_discipline: flag denies ---
 @pytest.mark.parametrize("cmd", [
     "git commit --amend",
     "git commit --no-verify -m x",
@@ -454,15 +405,7 @@ def test_normal_commit_not_denied(repo):
     assert not denied(out)
 
 
-# --------------------------------------------------------------------------- #
-# The REAL routing file. Everything below this block uses a synthetic fixture,
-# which is correct for testing the gate's mechanics — but it meant nothing ever
-# tested the routing DATA. A routing change once shipped that missed six tracked
-# files, including `site_v2/src/lib/metricRows.ts` (the locked 16-row display
-# contract), because it was "verified" by a one-off manual evaluation
-# against two paths that did not exist. These tests load the real file and
-# enumerate the real tree, so that class of miss fails the build instead.
-# --------------------------------------------------------------------------- #
+# --- the real routing file: these tests load it and enumerate the real tree ---
 REAL_ROUTING_PATH = os.path.join(
     os.path.dirname(__file__), "..", ".claude", "review_routing.json")
 
@@ -473,36 +416,19 @@ def real_routing() -> dict:
 
 
 def required_reviewers(routing: dict, path: str) -> set:
-    """Calls the REAL matcher, imported from the hook. Not a reimplementation.
-
-    An earlier version mirrored it by hand and added `pat.endswith("/**") and
-    path.startswith(...)`, a clause the hook and the CI backstop do not have —
-    so the test was strictly MORE PERMISSIVE than the two things it certifies,
-    and would go green on a route the gate does not enforce. They agree today
-    only because no `/**` pattern has an fnmatch metacharacter in its prefix,
-    and this tree's own directories are `[lang]`, `[competition]`, `[fixture]`,
-    so that is luck rather than design. Testing a model of the system instead of
-    the system is the exact root cause these tests exist to fix."""
+    """Calls the hook's own matcher, so the test cannot be more permissive than the gate."""
     return _gd()._required_reviewers([path], routing)
 
 
 def _gd():
-    """The hook module. Its `main()` is `__main__`-guarded, so importing is
-    side-effect free."""
+    """The hook module; its `main()` is `__main__`-guarded, so importing has no side effects."""
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".claude", "hooks"))
     import git_discipline
     return git_discipline
 
 
 def tracked(prefix: str) -> list[str]:
-    """NUL-separated, like `git_discipline.py` and `check_task_artifacts.py`.
-
-    Without `-z`, a tracked path containing a space splits into fragments and a
-    non-ASCII one comes back quote-escaped (`"site_v2/src/caf\\303\\251.astro"`),
-    so it fails the prefix filter and silently leaves the coverage set — the
-    under-enumeration bug this repo already fixed twice in the hooks themselves.
-    A test whose one promise is "every tracked file is covered" must not
-    under-enumerate."""
+    """NUL-separated, because without `-z` paths with spaces or non-ASCII characters drop out."""
     r = subprocess.run(["git", "ls-files", "-z", prefix], capture_output=True, text=True,
                        cwd=os.path.join(os.path.dirname(__file__), ".."))
     assert r.returncode == 0, f"git ls-files failed: {r.stderr}"
@@ -510,9 +436,7 @@ def tracked(prefix: str) -> list[str]:
 
 
 def test_every_reviewer_brief_carries_the_identical_delta_section():
-    """The delta-re-review rule must read the same in all six briefs; a reviewer
-    that received a drifted copy would apply a different rule. Enumerated from the
-    real agents directory, not a hand list."""
+    """A drifted copy of the delta-re-review rule would make a reviewer apply a different rule."""
     import glob
     agents_dir = os.path.join(os.path.dirname(__file__), "..", ".claude", "agents")
     briefs = sorted(glob.glob(os.path.join(agents_dir, "*.md")))
@@ -535,7 +459,6 @@ def test_ci_backstop_requires_rounds(ci_repo):
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
     subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
     real_hash = branch_hash(ci_repo)
-    # a complete review EXCEPT the rounds line
     (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
         "# Review\ndiff_sha256: " + real_hash + "\n\n" + GOOD_BODY)
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
@@ -545,29 +468,22 @@ def test_ci_backstop_requires_rounds(ci_repo):
 
 
 def test_ci_backstop_reuses_the_canonical_hook_logic():
-    """The CI backstop must not re-implement the round cap or the nullish/
-    structural logic — it diverged once (the override placeholder set, the
-    `(none)` spelling, the export regex) and nothing caught it. Assert CI calls
-    the hooks' own functions, and that the two nullish sets are identical, so a
-    future hand-copy is impossible to land green."""
+    """The CI backstop must call the hooks' own round and nullish logic, not a hand copy."""
     import importlib
-    gd = _gd()                                  # inserts .claude/hooks on the path
+    gd = _gd()
     sys.path.insert(0, SCRIPTS)
     ci = importlib.import_module("check_task_artifacts")
     tcg = importlib.import_module("task_contract_gate")
-    # CI's round check IS the hook's, not a copy
     assert ci._rounds_error.__doc__ is not None
     assert ci._rounds_error("rounds: 1\n") is None
     assert ci._rounds_error("rounds: 4\nrounds_cap_override: tbd\n") is not None
     assert ci._rounds_error("rounds: 4\nrounds_cap_override: real reason\n") is None
-    # the two nullish sets agree, exactly
     assert set(gd._NULLISH_WORDS) == set(tcg._NULLISH), (
         "git_discipline._NULLISH_WORDS has drifted from task_contract_gate._NULLISH")
 
 
 def test_empty_cap_override_does_not_absorb_the_next_line(repo):
-    """`rounds_cap_override:` with no inline value must NOT capture the following
-    `## header` as its reason."""
+    """An empty `rounds_cap_override:` must not capture the following `## header` as its reason."""
     setup_review_repo(repo)
     write_review(repo, staged_hash(repo), GOOD_BODY,
                  rounds="rounds: 4\nrounds_cap_override:\n")
@@ -577,8 +493,6 @@ def test_empty_cap_override_does_not_absorb_the_next_line(repo):
 
 @pytest.mark.parametrize("word", ["tbd", "none", "(none)", "n/a", "todo", "-"])
 def test_word_placeholder_cap_override_rejected(repo, word):
-    """The word-placeholders, not just `<...>`, must be rejected — the CI copy
-    used to accept them."""
     setup_review_repo(repo)
     write_review(repo, staged_hash(repo), GOOD_BODY,
                  rounds=f"rounds: 4\nrounds_cap_override: {word}\n")
@@ -595,13 +509,7 @@ def test_real_routing_parses_and_has_the_required_keys():
 
 
 def test_every_tracked_frontend_source_file_gets_the_display_reviewer():
-    """The binding rule (00_overview.md, "the whole point") says a block may
-    reference only fields that exist in the export. The display reviewer (the
-    bi-analyst) enforces it. If ANY file that can render a field escapes that
-    reviewer, a fabricated metric ships unseen — which was once exactly the plan.
-
-    Enumerated from `git ls-files`, not from a hand-written list, because the
-    hand-written list is what was wrong."""
+    """A frontend file that can render a field must not escape the display reviewer."""
     r = real_routing()
     files = [f for f in tracked("site_v2") if f.startswith("site_v2/src/")]
     assert files, "no tracked files under site_v2/src — has the tree moved?"
@@ -611,17 +519,7 @@ def test_every_tracked_frontend_source_file_gets_the_display_reviewer():
 
 
 def test_every_tracked_frontend_non_source_file_gets_platform_review():
-    """The POSITIVE mirror, and the coverage that `site_v2/**` used to guarantee
-    for free. The CTO split replaced that glob with six file names and two
-    directory globs, because fnmatch's `*` crosses `/` and `site_v2/*.json` would
-    also match `site_v2/src/data/*.json`. Enumeration is exact but not
-    self-extending: without this test the next root-level build file
-    (`vitest.config.ts`, `.npmrc`, a postcss config) routes to NOBODY and the suite
-    stays green.
-
-    A hand-written list is what was wrong the last three times, as this file's own
-    docstrings say three times over. `site_v2/.gitignore` is included
-    deliberately — a path covered today does not lose coverage in a split."""
+    """Routing names build files individually, so a new root-level build file must not route to nobody."""
     r = real_routing()
     outside = [f for f in tracked("site_v2") if not f.startswith("site_v2/src/")]
     assert outside, "no tracked files outside site_v2/src — has the tree moved?"
@@ -633,16 +531,7 @@ def test_every_tracked_frontend_non_source_file_gets_platform_review():
 
 
 def test_frontend_build_config_does_not_get_the_display_reviewer():
-    """The other direction. A guard that cries wolf gets ignored, so a dependency
-    bump or a build-config edit must NOT demand a display review.
-
-    Enumerated from `git ls-files`, like the direction above. This was a
-    three-item hand list — `astro.config.mjs`, `package.json`, `tsconfig.json` —
-    which already missed the two other tracked non-source files
-    (`package-lock.json`, `.gitignore`) and would miss whatever lands outside
-    `src` next. Writing one direction from the real tree and the other from a
-    literal is the same defect at half scale, in the file whose whole thesis is
-    "enumerate the real tree"."""
+    """A dependency bump or build-config edit must not demand a display review."""
     r = real_routing()
     outside = [f for f in tracked("site_v2") if not f.startswith("site_v2/src/")]
     assert outside, "no tracked files outside site_v2/src — has the tree moved?"
@@ -651,9 +540,7 @@ def test_frontend_build_config_does_not_get_the_display_reviewer():
     assert not stray, f"non-source file demanding a display review: {stray}"
 
 
-# One representative path per routing pattern, each asserting the reviewer THAT
-# pattern is responsible for. A module constant rather than an inline literal
-# because the coverage test below derives from it — see its docstring.
+# One representative path per routing pattern, with the reviewer that pattern confers.
 PINNED_CASES = [
     ("dbt_project/models/5_marts/shared/mart_team_profile.sql", "analytics-engineer-reviewer"),
     ("dbt_project/seeds/metric_catalogue.csv", "football-analytics-expert-reviewer"),
@@ -661,15 +548,10 @@ PINNED_CASES = [
     ("docs/competition_registry.yml", "data-engineer-reviewer"),
     ("docs/data_contract.md", "data-engineer-reviewer"),
     ("scripts/export_site_data.py", "analytics-engineer-reviewer"),
-    # The CTO split (#868): the territory moved to the platform reviewer, so these
-    # four pins moved with it. The CTO is no longer routed to scripts/, tests/ or
-    # site_v2/ at all — it is woken by a PROPERTY of the change.
     ("scripts/sync_dbt_vars.py", "platform-reviewer"),
     ("tests/test_governance_hooks.py", "platform-reviewer"),
     ("requirements.txt", "cto-reviewer"),
-    # Pins the `*requirements*.txt` correction: fnmatch full-string-matches, so
-    # the old `requirements*.txt` anchored at the start of the path and this file
-    # never reached the dependency threshold at all.
+    # fnmatch full-string-matches, so the pattern needs the leading `*`.
     ("ingestion/api_football/requirements.txt", "platform-reviewer"),
     (".claude/hooks/task_contract_gate.py", "cto-reviewer"),
     (".claude/hooks/git_discipline.py", "platform-reviewer"),
@@ -681,9 +563,7 @@ PINNED_CASES = [
     (".cursor/mcp.json", "cto-reviewer"),
     (".github/workflows/ci-data-build.yml", "cto-reviewer"),
     (".github/workflows/ci-validate.yml", "platform-reviewer"),
-    # The GitLab twin of the two rows above — pinned per reviewer for the same
-    # reason: an exact-match pattern needs a case asserting EACH reviewer it
-    # confers, or dropping one from the row leaves the suite green.
+    # An exact-match pattern needs one case per reviewer it confers.
     (".gitlab-ci.yml", "cto-reviewer"),
     (".gitlab-ci.yml", "platform-reviewer"),
     ("scripts/check_design_inventory.py", "cto-reviewer"),
@@ -694,9 +574,7 @@ PINNED_CASES = [
     ("docs/wireframes/02_team_profile.md", "bi-analyst-reviewer"),
     ("site/i18n/de.json", "bi-analyst-reviewer"),
     ("site_v2/src/lib/metricRows.ts", "bi-analyst-reviewer"),
-    # site_v2/** is gone and the build surface is enumerated by NAME, because
-    # fnmatch's `*` crosses `/` and `site_v2/*.json` would also match
-    # site_v2/src/data/*.json, re-creating the 48-file overlap the split removed.
+    # The build surface is named file by file because fnmatch's `*` crosses `/`.
     ("site_v2/package.json", "cto-reviewer"),
     ("site_v2/package-lock.json", "platform-reviewer"),
     ("site_v2/astro.config.mjs", "platform-reviewer"),
@@ -711,28 +589,12 @@ PINNED_CASES = [
 
 @pytest.mark.parametrize("path,expected", PINNED_CASES)
 def test_real_routing_still_covers_every_pre_existing_surface(path, expected):
-    """A routing edit must be additive: widening one route cannot silently
-    narrow another. Every pattern in the table is pinned — enforced, not
-    claimed, by the test below."""
+    """Widening one route must not silently narrow another."""
     assert expected in required_reviewers(real_routing(), path)
 
 
 def test_every_routing_pattern_is_pinned_by_the_test_above():
-    """Guards the guard: if a new route is added and nobody pins it, fail here
-    rather than let the pin test quietly cover a shrinking share of the table.
-
-    DERIVED from `PINNED_CASES`, never a second hand-written list. It was such a
-    list, and it had already drifted: `site_v2/**` and
-    `dbt_project/seeds/competition_registry.csv` sat in it with no case pinning
-    them, so deleting either route left the whole suite green — frontend build
-    config would have lost platform review silently. A hand-typed copy of a list
-    is a list that desynchronises.
-
-    A pattern counts as pinned only when some case both MATCHES it and asserts a
-    reviewer that pattern actually confers. Matching alone is not enough:
-    `site_v2/src/lib/metricRows.ts` matches `site_v2/**` too, but it asserts the
-    display reviewer, which says nothing about whether `site_v2/**` still routes
-    to the CTO."""
+    """A pattern is pinned only when a case both matches it and asserts a reviewer it confers."""
     routing = real_routing()
     unpinned = [
         pattern for pattern, reviewers in routing["paths"].items()
@@ -743,14 +605,7 @@ def test_every_routing_pattern_is_pinned_by_the_test_above():
 
 
 def test_copy_gate_parses_the_real_strings_file():
-    """Pins the fragile part of `scripts/check_copy_gate.py`: the regex that pulls
-    dictionary entries out of `strings.ts`. If it silently matches nothing, the
-    gate reports a clean pass over zero strings, which is worse than no gate.
-
-    strings.ts's own header explains why every value is double-quoted: the build
-    gate `check-page-specs.mjs` extracts keys on the double quote, so rewriting an
-    entry as a backtick template drops it from the checked set. The same fragility
-    applies here, so it is pinned here (#868)."""
+    """If the entry regex silently matches nothing, the gate passes over zero strings."""
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
     try:
         import check_copy_gate as gate
@@ -789,22 +644,7 @@ def _fake_git(files_by_sha: dict[str, list[str]]):
 
 
 def test_health_report_surfaces_a_dead_reviewer(monkeypatch):
-    """The dead-role flag is the whole reason `activation()` was rewritten, and it
-    was unreachable in the first version: a `Counter` only holds keys it was
-    incremented for, so it could never yield a zero and the branch never ran —
-    while a dead role existed in the repo. Seeding from the agent briefs UNION the
-    routed names fixed it.
-
-    HERMETIC, and that is load-bearing rather than tidiness. The first version
-    called `activation(n=6)` against real history and asserted `total` was non-zero.
-    `python-ci.yml` runs `pytest tests/` behind `actions/checkout@v4` with the
-    default `fetch-depth: 1`, so on a `pull_request` HEAD is `refs/pull/N/merge`
-    with no parents fetched: `git log -n 6` yields one sha and `diff-tree` prints
-    nothing for a merge without `-m`, so `total == 0` and the assertion would have
-    reddened **every PR in the repo, including this branch's own**. The irony was
-    that `report_process_health.py` documents exactly that shape and handles it,
-    while the test asserted it could not happen. Faking `_git` also removes seven
-    subprocess spawns and lets one test pin the counting as well as the roster."""
+    """Hermetic: a shallow CI clone has no usable history, so `_git` is faked."""
     health = _health()
     monkeypatch.setattr(health, "_git", _fake_git({
         "sha1": ["dbt_project/models/x.sql"],
@@ -827,9 +667,7 @@ def test_health_report_surfaces_a_dead_reviewer(monkeypatch):
 
 
 def test_health_report_survives_a_shallow_clone(monkeypatch, capsys):
-    """The branch that closed the `ZeroDivisionError` was the one thing nothing
-    exercised. An empty range is the realistic CI shape (see the test above), so
-    `main()` must report and exit 0 rather than divide by zero."""
+    """An empty commit range is the realistic CI shape, so `main()` must report and exit 0."""
     health = _health()
     monkeypatch.setattr(health, "_git", _fake_git({}))
     assert health.main() == 0
@@ -837,19 +675,7 @@ def test_health_report_survives_a_shallow_clone(monkeypatch, capsys):
 
 
 def test_copy_gate_floor_is_in_the_gate_not_only_in_this_test(tmp_path, monkeypatch):
-    """Pins `check_copy_gate.MIN_KEYS`, the floor INSIDE the gate.
-
-    The test above asserts >= 20 against the real `strings.ts`, which proves the
-    regex works today but says nothing about the gate: set `MIN_KEYS = 0`, or delete
-    the `thin` block, and the suite stayed green while `main()` would print
-    "COPY GATE ok: 0 strings" and return 0 over a broken regex. That is the exact
-    failure the floor exists to prevent, and it was the floor's own coverage gap —
-    the same finding class as the two above, which is why it is pinned by driving
-    `main()` rather than by inspecting a constant.
-
-    A dictionary whose values are backtick templates matches `_DICT_RE` but yields
-    ZERO entries from `_ENTRY_RE` — the fragility `strings.ts`'s own header warns
-    about, since `check-page-specs.mjs` extracts keys on the double quote too."""
+    """Backtick-template values match `_DICT_RE` but yield zero entries, so the gate's own floor must fail."""
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
     try:
         import check_copy_gate as gate
@@ -883,10 +709,7 @@ def _copy_gate():
 
 def _strings_fixture(chrome_values='"v{i}"', metric_values='"m{i}"', metric_n=18,
                      metric_locales=("EN", "DE", "FI")):
-    """A synthetic strings.ts: three healthy chrome dicts plus METRIC_LABELS blocks for
-    `metric_locales`. Omitting a locale from that tuple is how a missing block is
-    reproduced, rather than regex-deleting it after the fact (`re` is deliberately not
-    imported in this module)."""
+    """A synthetic strings.ts: three healthy chrome dicts plus METRIC_LABELS blocks for `metric_locales`."""
     out = []
     for loc in ("EN", "DE", "FI"):
         body = "".join(f"  key{i}: {chrome_values.format(i=i)},\n" for i in range(40))
@@ -900,17 +723,7 @@ def _strings_fixture(chrome_values='"v{i}"', metric_values='"m{i}"', metric_n=18
 
 
 def test_copy_gate_metric_floor_is_in_the_gate_not_only_in_a_test(tmp_path, monkeypatch):
-    """Pins `check_copy_gate.MIN_METRIC_KEYS` (#370), the SECOND floor.
-
-    The sibling test above passes for the OLD reason and gives this none: its fixture
-    has no METRIC_LABELS block at all, so the CHROME floor fires and `main()` returns
-    before the metric block is ever reached. So `MIN_METRIC_KEYS = 0`, or deleting the
-    `thin_metrics` branch, broke no test — a second unpinned floor added while the
-    comment beside it cited the first one's lesson.
-
-    The fixture therefore keeps the chrome dicts HEALTHY (40 double-quoted entries, so
-    the chrome floor passes) and breaks only the metric values, using backtick
-    templates: `_METRIC_DICT_RE` still matches while `_METRIC_ENTRY_RE` yields zero."""
+    """Keeps the chrome dicts healthy so only the metric floor can fire; backtick values yield zero entries."""
     gate = _copy_gate()
     broken = tmp_path / "strings.ts"
     broken.write_text(_strings_fixture(metric_values="`m{i}`"), encoding="utf-8")
@@ -928,12 +741,9 @@ def test_copy_gate_metric_floor_is_in_the_gate_not_only_in_a_test(tmp_path, monk
 
 
 def test_copy_gate_fails_when_a_metric_labels_block_is_absent(tmp_path, monkeypatch):
-    """The other new branch: `missing_metric_locales`. A locale losing its whole
-    METRIC_LABELS block must FAIL rather than let that locale's metric names go
-    unchecked."""
+    """A locale losing its whole METRIC_LABELS block must fail rather than go unchecked."""
     gate = _copy_gate()
     partial = tmp_path / "strings.ts"
-    # FI keeps its chrome dict but loses its metric block entirely
     text = _strings_fixture(metric_locales=("EN", "DE"))
     partial.write_text(text, encoding="utf-8")
     monkeypatch.setattr(gate, "STRINGS", partial)
@@ -943,13 +753,7 @@ def test_copy_gate_fails_when_a_metric_labels_block_is_absent(tmp_path, monkeypa
 
 
 def test_copy_gate_metric_parser_agrees_with_the_real_consumers():
-    """Third parser, same anchor. `"metrics.X.label"` is parsed by three hand-written
-    regexes: this gate's `_METRIC_ENTRY_RE`, `check-page-specs.mjs`'s inline one, and
-    `check-metric-labels.test.mjs`'s. The two JS ones are pinned to each other in that
-    test file; this pins the PYTHON one to the keys the page actually asks for, so all
-    three are tied to a common anchor rather than merely agreeing by luck. The drift
-    class is the one the platform brief names for the hand-copied reviewer
-    matcher."""
+    """The Python parser must see every `metrics.X.label` key the page asks for, as the JS parsers do."""
     import pathlib
     import re as _re
 
@@ -973,23 +777,7 @@ def test_copy_gate_metric_parser_agrees_with_the_real_consumers():
 
 
 def test_copy_gate_sees_the_player_metric_namespace_too():
-    """`_METRIC_ENTRY_RE` must see `playerMetrics.*`, not only the `metrics.*.label` shape.
-
-    ⛔ WHAT THIS PINS, AND WHY NO OTHER TEST IN THIS FILE CAN. #40's Home boards are titled from the
-    catalogue's PLAYER namespace — `playerMetrics.scorerPoints.goals` and three more — and while the
-    regex was anchored on the `metrics.` prefix those four labels were invisible to this gate. They
-    skipped the em dash, locale-completeness, terminology and untranslated checks entirely, so a
-    Finnish label missing from the map would have rendered a BLANK board title (`metricLabel()`
-    falls back to English, then to "") while the gate printed `COPY GATE ok`.
-
-    Every fixture in `_strings_fixture()` emits `metrics.mN.label` keys only, and `MIN_METRIC_KEYS`
-    (15) still clears at the 18 `metrics.*` labels, so reverting the widening leaves every other
-    test here green — exactly the hole this test exists to close.
-
-    The board list is read from the export and its labels from the catalogue, the two places that
-    already own them, rather than copied into this file: the same anchor the JS side uses in
-    `site_v2/scripts/check-metric-labels.test.mjs`.
-    """
+    """`_METRIC_ENTRY_RE` must see `playerMetrics.*`, not only `metrics.*.label`; board labels come from the catalogue."""
     import csv
     import pathlib
     import re as _re
@@ -1025,9 +813,7 @@ def test_copy_gate_sees_the_player_metric_namespace_too():
 
 
 def test_copy_gate_sees_metric_labels_as_ordinary_copy(tmp_path, monkeypatch):
-    """The point of merging the metric labels into `dicts`: an em dash in a metric NAME
-    is still an em dash. Without the merge these 54 strings would be parsed and then
-    ignored, which is the failure mode that makes a gate worse than none."""
+    """Metric labels are merged into `dicts`, so an em dash in a metric name is reported like any other."""
     gate = _copy_gate()
     f = tmp_path / "strings.ts"
     text = _strings_fixture().replace('"metrics.m3.label": "m3"', '"metrics.m3.label": "a — b"')
@@ -1037,7 +823,7 @@ def test_copy_gate_sees_metric_labels_as_ordinary_copy(tmp_path, monkeypatch):
 
 
 def _seed_fixture(tmp_path, keys):
-    """A one-file seed carrying `label_i18n_key` values, the shape check 5 reads."""
+    """A one-file seed carrying `label_i18n_key` values."""
     p = tmp_path / "competition_types.csv"
     p.write_text("competition_type,label_i18n_key,label_en\n"
                  + "".join(f"t{i},{k},Label {i}\n" for i, k in enumerate(keys)),
@@ -1046,11 +832,7 @@ def _seed_fixture(tmp_path, keys):
 
 
 def test_copy_gate_fails_on_a_seed_key_no_locale_carries(tmp_path, monkeypatch):
-    """Check 5 (#128, #144). A competition kind can sit in the seed with an English label and
-    no string in ANY locale — check 2 is blind to it (it compares de/fi against en, and en has
-    no such key either) and checks 1-4 see only keys already in the file. Six kinds were in that
-    state when the check was added. The seed is the list of keys that can reach a page; the gate
-    reads it."""
+    """A seed key present in no locale is invisible to the locale-comparison checks, so the gate reads the seed."""
     gate = _copy_gate()
     f = tmp_path / "strings.ts"
     f.write_text(_strings_fixture(), encoding="utf-8")
@@ -1065,9 +847,7 @@ def test_copy_gate_fails_on_a_seed_key_no_locale_carries(tmp_path, monkeypatch):
 
 
 def test_copy_gate_passes_when_every_seed_key_resolves(tmp_path, monkeypatch):
-    """The other side: seed keys the file carries in all three locales are not findings, and a
-    blank `label_i18n_key` cell is left to the seed's own not_null test rather than reported
-    here twice."""
+    """A blank `label_i18n_key` cell is left to the seed's own not_null test."""
     gate = _copy_gate()
     f = tmp_path / "strings.ts"
     f.write_text(_strings_fixture(), encoding="utf-8")
@@ -1078,10 +858,7 @@ def test_copy_gate_passes_when_every_seed_key_resolves(tmp_path, monkeypatch):
 
 
 def test_copy_gate_fails_closed_on_a_seed_without_the_key_column(tmp_path, monkeypatch):
-    """A renamed or missing `label_i18n_key` column must FAIL, not read as zero keys to check —
-    a gate over zero keys always passes, the floor `MIN_KEYS` already holds on the strings side.
-    The reader raises; `main()` turns it into the gate's own FAIL line and exit 1, never a bare
-    traceback. Same for an absent seed file."""
+    """A gate over zero keys always passes, so a missing column or file must end in the gate's FAIL line."""
     gate = _copy_gate()
     f = tmp_path / "strings.ts"
     f.write_text(_strings_fixture(), encoding="utf-8")
@@ -1097,8 +874,7 @@ def test_copy_gate_fails_closed_on_a_seed_without_the_key_column(tmp_path, monke
     monkeypatch.setattr(gate, "SEED_LABEL_FILES", (tmp_path / "does_not_exist.csv",))
     assert gate.main() == 1, "an absent seed file must fail the gate with its own message"
 
-    # Not UTF-8 (a Windows "save as" writes cp1252): a decode error is a ValueError, not an
-    # OSError, and must land on the same FAIL line.
+    # A decode error is a ValueError, not an OSError, and must land on the same FAIL line.
     latin = tmp_path / "competition_types.csv"
     latin.write_bytes("competition_type,label_i18n_key,label_en\nt0,key1,Nationale Superpokale \xe4\n".encode("cp1252"))
     monkeypatch.setattr(gate, "SEED_LABEL_FILES", (latin,))
@@ -1106,9 +882,7 @@ def test_copy_gate_fails_closed_on_a_seed_without_the_key_column(tmp_path, monke
 
 
 def test_copy_gate_reads_the_real_seeds():
-    """Pins the three seed paths and that every key they publish resolves today, so the check
-    cannot be silently pointed at a file that does not exist (an absent file must raise, not
-    pass over zero keys)."""
+    """An absent seed file must raise, not pass over zero keys."""
     gate = _copy_gate()
     keys = gate._seed_label_keys()
     assert set(keys) == {"competition_types.csv", "confederations.csv", "round_names.csv"}
@@ -1122,15 +896,7 @@ def test_copy_gate_reads_the_real_seeds():
 
 
 def test_routing_has_no_duplicate_keys():
-    """`paths` is a JSON OBJECT, so two identical pattern keys are not a merge —
-    `json.load` keeps the LAST one and the other reviewer requirement vanishes
-    with no signal. Neither consumer detects it and no other test would either,
-    because the parsed dict looks perfectly well-formed.
-
-    Live risk since the CTO split (#868): five patterns are deliberately shared
-    between the CTO and the platform reviewer, and the natural way to write that
-    change is one key per role. `object_pairs_hook` sees the raw pairs BEFORE the
-    dict collapses them, so this is exact rather than a regex guess."""
+    """`json.load` keeps the last of two identical keys, silently dropping the other reviewer requirement."""
     def reject_dupes(pairs):
         seen = set()
         for key, _ in pairs:
@@ -1143,14 +909,7 @@ def test_routing_has_no_duplicate_keys():
 
 
 def test_frontend_source_gets_no_authority_or_platform_review():
-    """The regression guard for what motivated the CTO split (#868). Before it,
-    `site_v2/**` routed to the CTO while `site_v2/src/**` routed to the display
-    reviewer, so 48 distinct tracked files demanded BOTH and a CTO reviewed Astro
-    markup — the wrong altitude, and it spent the one role with architectural
-    authority on line review.
-
-    Enumerated from `git ls-files`, like its two siblings above, because a
-    hand-written list is what was wrong the last three times."""
+    """Frontend source goes to the display reviewer only, not to the authority or platform reviewers."""
     r = real_routing()
     files = [f for f in tracked("site_v2") if f.startswith("site_v2/src/")]
     assert files, "no tracked files under site_v2/src — has the tree moved?"
@@ -1160,9 +919,7 @@ def test_frontend_source_gets_no_authority_or_platform_review():
     assert not stray, f"frontend source pulling in authority/platform review: {stray}"
 
 
-# --------------------------------------------------------------------------- #
-# git_discipline — the review/commit gate (G3)
-# --------------------------------------------------------------------------- #
+# --- git_discipline: the review/commit gate ---
 ROUTING = {
     "always": ["scope-auditor"],
     "paths": {"dbt_project/**": ["analytics-engineer-reviewer"]},
@@ -1176,8 +933,7 @@ ROUTING = {
         ".claude/task/*/acceptance_evidence.md",
         ".claude/task/*/rendered_page_evidence.md",
     ],
-    # Mirrors the REAL review_exclude_paths. escalations.log is deliberately ABSENT:
-    # it is authority, not a note, so reviewers must receive it.
+    # escalations.log is absent on purpose: reviewers must receive it.
     "review_exclude_paths": [
         ".claude/task/*/review.md",
         ".claude/task/*/review_input.patch",
@@ -1199,8 +955,6 @@ def setup_review_repo(repo, stage_path="dbt_project/models/allowed.sql"):
 
 
 def staged_hash(repo) -> str:
-    # Compute via the hook's own --staged-hash so the test's expected value always
-    # equals what the commit gate computes (F11: excludes bookkeeping, --no-renames).
     env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
     r = subprocess.run(
         [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--staged-hash"],
@@ -1264,10 +1018,7 @@ def test_commit_denied_when_required_reviewer_missing(repo):
 
 
 def test_commit_allowed_on_pass_with_one_thing_examined(repo):
-    """A PASS may find nothing. One entry under risks_checked:
-    is enough — the floor dropped from 2 to 1, because requiring two on correct
-    code obliged the reviewer to invent, and what it invented was findings about
-    the builder's own paperwork (#370 spent seven rounds that way)."""
+    """One entry under risks_checked: is enough for a PASS."""
     setup_review_repo(repo)
     body = GOOD_BODY.replace("- risk two checked\n\n## analytics", "\n## analytics", 1)
     write_review(repo, staged_hash(repo), body)
@@ -1276,9 +1027,7 @@ def test_commit_allowed_on_pass_with_one_thing_examined(repo):
 
 
 def test_commit_denied_on_pass_with_nothing_examined(repo):
-    """The floor is 1, not 0. A bare PASS with nothing under risks_checked: is
-    still denied — that is the rubber stamp the original two-risk rule existed
-    to prevent, and it survives the relaxation to one."""
+    """A bare PASS with nothing under risks_checked: is a rubber stamp."""
     setup_review_repo(repo)
     body = GOOD_BODY.replace(
         "risks_checked:\n- risk one checked\n- risk two checked\n\n## analytics",
@@ -1289,8 +1038,7 @@ def test_commit_denied_on_pass_with_nothing_examined(repo):
 
 
 def test_bullets_before_risks_marker_do_not_satisfy_quota(repo):
-    """Risks count anchors to the risks_checked: marker — stray bullets above it
-    must not pass for checked risks."""
+    """Risks are counted from the risks_checked: marker, so stray bullets above it do not count."""
     setup_review_repo(repo)
     body = GOOD_BODY.replace(
         "VERDICT: PASS\nrisks_checked:\n- risk one checked\n- risk two checked\n\n## analytics",
@@ -1316,16 +1064,7 @@ def test_artifact_only_commit_exempt_from_review(repo):
     assert not denied(out)
 
 
-# --------------------------------------------------------------------------- #
-# Acceptance gate (Quality Assurance, #868)
-#
-# Every reviewer reads the diff and asks whether the code is right; none asked
-# whether the finished thing does what the ticket asked. The player Overview
-# built, passed BOTH its reviewers, and still opened on the wrong season. These
-# tests pin the gate that would have caught it, in both directions — it must fire
-# on the user-facing surface and must NOT fire anywhere else, because a guard that
-# cries wolf gets ignored (review_routing.json's own _doc).
-# --------------------------------------------------------------------------- #
+# --- acceptance gate: fires on the user-facing surface and nowhere else ---
 FRONTEND_PATH = "site_v2/src/pages/x.astro"
 
 
@@ -1363,8 +1102,6 @@ def test_acceptance_gate_denies_when_evidence_file_is_missing(repo):
 
 
 def test_acceptance_gate_denies_when_a_criterion_is_undemonstrated(repo):
-    """Two declared, one shown. An undemonstrated criterion is an unverified
-    claim, which is exactly how the Overview passed."""
     _stage_frontend(repo, contract=CRITERIA_CONTRACT, evidence=(
         "criteria_demonstrated:\n"
         "  - read from dist/en/players/x/index.html: opens on 2025/26 Bundesliga\n"
@@ -1374,8 +1111,6 @@ def test_acceptance_gate_denies_when_a_criterion_is_undemonstrated(repo):
 
 
 def test_acceptance_gate_rejects_placeholder_evidence(repo):
-    """A `<placeholder>` and a bare `none` must not satisfy the quota — the same
-    rule the contract gate applies to impact_map, reused rather than re-invented."""
     _stage_frontend(repo, contract=CRITERIA_CONTRACT, evidence=(
         "criteria_demonstrated:\n  - <what it showed>\n  - none\n"))
     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
@@ -1392,14 +1127,7 @@ def test_acceptance_gate_passes_when_every_criterion_is_demonstrated(repo):
 
 
 def test_acceptance_gate_does_not_fire_off_the_user_facing_surface(repo):
-    """The narrow trigger. A warehouse or tooling change has no page to
-    demonstrate, so demanding evidence there would be the cry-wolf failure.
-
-    The staged content must DIFFER from HEAD. The first version of this test wrote
-    `select 1`, byte-identical to what `_repo_template` already committed, so
-    `git diff --staged --name-only` was EMPTY, `_commit_gate` returned at its
-    `if not paths` guard, and the gate under test was never reached — the test
-    would have passed with `ACCEPTANCE_TRIGGER = ""`, i.e. firing on everything."""
+    """The staged content must differ from HEAD, or `_commit_gate` returns before reaching the gate."""
     _stage_frontend(repo, contract="objective: >\n  a model\nscope_paths:\n  - x\n")
     subprocess.run(["git", "reset"], cwd=repo, check=True, capture_output=True)
     target = repo / "dbt_project" / "models" / "warehouse_only.sql"
@@ -1416,21 +1144,11 @@ def test_acceptance_gate_does_not_fire_off_the_user_facing_surface(repo):
 
 
 def test_acceptance_gate_delegates_when_there_is_no_contract(tmp_path):
-    """The contract gate owns the missing-contract case, so this one returns None
-    rather than inventing a second deny for it.
-
-    Calls `_acceptance_gate` DIRECTLY. The first version drove the whole hook and
-    asserted only `not denied(out)`, which proved nothing: delete the guard and
-    `open()` raises FileNotFoundError, `main()` swallows it in the fail-open
-    wrapper, and the commit is still not denied — so the test passed either way and
-    its own coverage claim was false. Reaching into the hook is the same move
-    `required_reviewers` already makes for the routing matcher."""
+    """Calls `_acceptance_gate` directly, since `main()` swallows errors in its fail-open wrapper."""
     gd = _gd()
     frontend = ["site_v2/src/pages/x.astro"]
     assert gd._acceptance_gate(str(tmp_path), frontend, TASK) is None, (
         "with no contract.md the gate must DELEGATE (return None), never deny")
-    # The mirror, so the assertion above cannot be satisfied by a gate that returns
-    # None unconditionally: with a contract present but no criteria, it MUST deny.
     task = tmp_path / ".claude" / "task" / TASK_ID
     task.mkdir(parents=True)
     (task / "contract.md").write_text("objective: >\n  a page\n", encoding="utf-8")
@@ -1438,14 +1156,7 @@ def test_acceptance_gate_delegates_when_there_is_no_contract(tmp_path):
 
 
 def test_acceptance_gate_rejects_evidence_too_short_to_be_a_reading(repo):
-    """Pins `_MIN_EVIDENCE_CHARS`. Without this, deleting the length filter or
-    setting the constant to 0 broke NO test: the placeholder test never reaches the
-    filter (`_bullets` drops `<...>` and `none` first) and the distinctness test
-    uses lines that clear the floor. So the branch added to fix the first finding
-    was itself unpinned gate behaviour — the same finding class, on its own fix.
-
-    `- ok` and `- fine` are non-placeholder, distinct, and four characters: proof
-    of nothing."""
+    """`- ok` and `- fine` are non-placeholder and distinct, so only `_MIN_EVIDENCE_CHARS` rejects them."""
     _stage_frontend(repo, contract=CRITERIA_CONTRACT, evidence=(
         "criteria_demonstrated:\n  - ok\n  - fine\n"))
     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
@@ -1454,9 +1165,7 @@ def test_acceptance_gate_rejects_evidence_too_short_to_be_a_reading(repo):
 
 
 def test_acceptance_gate_rejects_repeated_identical_evidence(repo):
-    """A count alone is satisfied by two bullets both reading "checked". The quota
-    is a floor, not proof, so identical and too-short lines are rejected — "the
-    proof is written by the builder and read by a bullet counter"."""
+    """A bare count would accept two identical bullets, so identical lines are rejected."""
     _stage_frontend(repo, contract=CRITERIA_CONTRACT, evidence=(
         "criteria_demonstrated:\n  - checked and it works fine\n"
         "  - checked and it works fine\n"))
@@ -1464,12 +1173,9 @@ def test_acceptance_gate_rejects_repeated_identical_evidence(repo):
     assert denied(out) and "identical" in out.lower()
 
 
-# --------------------------------------------------------------------------- #
-# Round cap — the commit gate bounds the loop.
-# --------------------------------------------------------------------------- #
+# --- round cap ---
 def test_commit_denied_without_a_rounds_line(repo):
     setup_review_repo(repo)
-    # write_review injects rounds by default; pass an empty string to omit it
     write_review(repo, staged_hash(repo), GOOD_BODY, rounds="")
     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
     assert denied(out) and "rounds:" in out
@@ -1514,8 +1220,7 @@ def test_placeholder_cap_override_does_not_satisfy(repo):
 
 
 def test_contract_commit_not_artifact_exempt(repo):
-    """F10/#409: a commit touching contract.md is NEVER artifact-exempt — it
-    authorizes scope, so it must go through review (here: denied for lack of one)."""
+    """A commit touching contract.md authorizes scope, so it is never artifact-exempt."""
     setup_review_repo(repo)
     subprocess.run(["git", "reset"], cwd=repo, check=True, capture_output=True)
     (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text("# contract\nscope_paths:\n  - x\n")
@@ -1525,15 +1230,12 @@ def test_contract_commit_not_artifact_exempt(repo):
 
 
 def test_hash_excludes_bookkeeping_but_binds_contract(repo):
-    """F11/#409: the review hash covers code + contract.md, not bookkeeping artifacts."""
-    setup_review_repo(repo)  # stages dbt_project/models/allowed.sql
+    setup_review_repo(repo)
     h_code = staged_hash(repo)
-    assert h_code  # non-empty
-    # adding a bookkeeping artifact does NOT change the hash (excluded)
+    assert h_code
     (repo / ".claude" / "task" / TASK_ID / "escalations.log").write_text("log entry")
     subprocess.run(["git", "add", TASK + "escalations.log"], cwd=repo, check=True)
     assert staged_hash(repo) == h_code
-    # adding contract.md DOES change the hash (it is bound to the review)
     (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text("# contract\n")
     subprocess.run(["git", "add", TASK + "contract.md"], cwd=repo, check=True)
     assert staged_hash(repo) != h_code
@@ -1561,8 +1263,6 @@ def test_answer_elsewhere_does_not_mask_unanswered_escalation(repo):
 
 
 def test_preamble_escalation_not_masked(repo):
-    """An ESCALATE before the first ## header belongs to the _preamble
-    pseudo-section and must pair there."""
     setup_review_repo(repo)
     body = (
         "VERDICT: ESCALATE\n- question: x?\n\n" + GOOD_BODY +
@@ -1579,9 +1279,7 @@ def test_preamble_escalation_not_masked(repo):
     'git commit -m "ok" && git push origin main',
 ])
 def test_commit_chained_with_sibling_commands_denied(repo, cmd):
-    """The hash is verified at PreToolUse time; sibling commands in the same
-    call could restage content before the commit runs. `git commit` must be the
-    sole command in the Bash call."""
+    """The hash is verified at PreToolUse time, so a sibling command could restage content before the commit."""
     setup_review_repo(repo)
     write_review(repo, staged_hash(repo), GOOD_BODY)
     out, _ = run_hook("git_discipline.py", bash_event(cmd), repo)
@@ -1614,24 +1312,23 @@ def test_plain_commit_with_quoted_message_not_form_blocked(repo):
 
 
 @pytest.mark.parametrize("cmd", [
-    'git commit -qam "sneak"',                       # POSIX short-option bundle
+    'git commit -qam "sneak"',
     'git commit -sam "sneak"',
-    'git commit --inc -m "sneak"',                   # long-option prefix abbreviation
-    'git commit -p -m "sneak"',                      # commit-time staging via patch
+    'git commit --inc -m "sneak"',
+    'git commit -p -m "sneak"',
     'git commit --interactive',
-    'git -C . commit -a -m "sneak"',                 # git global options before commit
+    'git -C . commit -a -m "sneak"',
     'git -c user.name=x commit --all -m "sneak"',
     'git --no-pager commit -am "sneak"',
-    'git -p commit -am "sneak"',                     # valueless short global flag
+    'git -p commit -am "sneak"',
     'git -P commit -am "sneak"',
-    'git --git-dir .git commit -am "sneak"',         # space-separated global value
+    'git --git-dir .git commit -am "sneak"',
     'git --work-tree . commit -a -m "sneak"',
-    'git commit -m "sneak" "dbt_project/models/allowed file.sql"',  # QUOTED pathspec
-    'git commit -m "unclosed',                       # unparseable quoting: fail-closed
+    'git commit -m "sneak" "dbt_project/models/allowed file.sql"',
+    'git commit -m "unclosed',
 ])
 def test_bundled_abbreviated_and_global_option_forms_denied(repo, cmd):
-    """Allowlist inversion: spellings a denylist regex misses must still be
-    form-blocked — only exactly `git commit` enters the gate's allowed path."""
+    """Only exactly `git commit` enters the allowed path, so spellings a denylist regex misses are blocked."""
     setup_review_repo(repo)
     write_review(repo, staged_hash(repo), GOOD_BODY)
     out, _ = run_hook("git_discipline.py", bash_event(cmd), repo)
@@ -1652,8 +1349,6 @@ def test_allowed_commit_flag_set_not_form_blocked(repo, cmd):
 
 
 def test_non_ascii_staged_path_still_requires_reviewer(repo):
-    """quotePath-escaped paths must not drop a required reviewer: the -z
-    enumeration keeps the path matchable by routing."""
     setup_review_repo(repo, stage_path="dbt_project/models/täst.sql")
     body = GOOD_BODY.split("## analytics-engineer-reviewer")[0]
     write_review(repo, staged_hash(repo), body)
@@ -1661,9 +1356,7 @@ def test_non_ascii_staged_path_still_requires_reviewer(repo):
     assert denied(out) and "analytics-engineer-reviewer" in out
 
 
-# --------------------------------------------------------------------------- #
-# task_contract_gate — G3 additions
-# --------------------------------------------------------------------------- #
+# --- task_contract_gate: protected paths and untracked files ---
 def test_routing_file_is_protected(repo):
     write_contract(repo)
     out, _ = run_hook("task_contract_gate.py", edit_event(repo, ".claude/review_routing.json"), repo)
@@ -1671,8 +1364,6 @@ def test_routing_file_is_protected(repo):
 
 
 def test_agents_dir_is_protected(repo):
-    """Reviewer definitions are governance artifacts — protected like the routing
-    file."""
     write_contract(repo)
     out, _ = run_hook("task_contract_gate.py", edit_event(repo, ".claude/agents/scope-auditor.md"), repo)
     assert denied(out) and "PROTECTED" in out
@@ -1683,23 +1374,18 @@ def test_agents_dir_is_protected(repo):
     "scripts/design_inventory.py", "tests/test_design_inventory.py",
 ])
 def test_design_checks_are_protected_even_in_scope(repo, rel):
-    """The checks that hold the design baseline: an ordinary task cannot weaken them, even one
-    whose scope_paths names them."""
     write_contract(repo, CONTRACT.replace("scope_paths:\n", f"scope_paths:\n  - {rel}\n"))
     out, _ = run_hook("task_contract_gate.py", edit_event(repo, rel), repo)
     assert denied(out) and "PROTECTED" in out
 
 
 def test_commands_dir_is_protected(repo):
-    """Custom slash commands can embed shell, so a command file is protected like
-    a hook/agent definition."""
     write_contract(repo)
     out, _ = run_hook("task_contract_gate.py", edit_event(repo, ".claude/commands/status.md"), repo)
     assert denied(out) and "PROTECTED" in out
 
 
 def test_untracked_dir_files_in_scope_not_flagged(repo):
-    """-uall: files inside an untracked directory are matched individually."""
     write_contract(repo, CONTRACT.replace(
         "scope_paths:\n", "scope_paths:\n  - newdir/\n"))
     (repo / "newdir").mkdir()
@@ -1716,36 +1402,18 @@ def test_untracked_dir_files_out_of_scope_flagged_by_file(repo):
     assert "VIOLATION" in out and "newdir/stray.md" in out
 
 
-# --------------------------------------------------------------------------- #
-# check_task_artifacts.py — the CI backstop (fail-closed)
-# --------------------------------------------------------------------------- #
+# --- check_task_artifacts.py: the CI backstop ---
 SCRIPTS = os.path.join(os.path.dirname(__file__), "..", "scripts")
 
 
 def _ci_module():
-    """The real script, imported. Same pattern as
-    `test_ci_backstop_reuses_the_canonical_hook_logic` above."""
     import importlib
 
     sys.path.insert(0, SCRIPTS)
     return importlib.import_module("check_task_artifacts")
 
 
-# --------------------------------------------------------------------------- #
-# `default_base()` — which remote the bare command diffs against (GitLab #24).
-#
-# `origin` names two different repositories. Inside GitLab CI it is the GitLab
-# project, which is why `.gitlab-ci.yml` passes `--base origin/...` and is right
-# to. On a working copy here it is the GitHub remote — a read-only mirror of
-# `main` pushed from GitLab, so at best one mirror cycle behind; before the
-# mirror it was dozens of commits behind `gitlab/main` — so the bare command
-# diffed against a stale tree and reported four required reviewers that were
-# not required at all.
-#
-# These pin the resolution rather than the literal string, so if `origin` ever
-# becomes the system of record again the behaviour is a one-line change with a
-# test that says what it guarantees.
-# --------------------------------------------------------------------------- #
+# --- default_base(): which remote the bare command diffs against ---
 def _add_remote(repo, name: str) -> None:
     subprocess.run(["git", "remote", "add", name, f"https://example.invalid/{name}.git"],
                    cwd=repo, check=True)
@@ -1768,8 +1436,6 @@ def test_default_base_prefers_the_live_remote_over_the_mirror_origin(repo, monke
 
 
 def test_governance_base_env_still_overrides_everything(repo, monkeypatch):
-    """The documented escape hatch. It is what makes the preference reversible
-    without a code change if `origin` becomes the live remote again."""
     ci = _ci_module()
     monkeypatch.chdir(repo)
     _add_remote(repo, "gitlab")
@@ -1778,8 +1444,7 @@ def test_governance_base_env_still_overrides_everything(repo, monkeypatch):
 
 
 def test_default_base_falls_back_when_git_cannot_be_queried(repo, monkeypatch):
-    """Fail-safe, not fail-open-to-nothing: an unreadable remote list returns the
-    historical default rather than raising inside a CI gate."""
+    """An unreadable remote list returns the default rather than raising inside a CI gate."""
     ci = _ci_module()
     monkeypatch.chdir(repo)
     monkeypatch.delenv("GOVERNANCE_BASE", raising=False)
@@ -1800,12 +1465,7 @@ def run_ci_check(repo) -> tuple[int, str]:
 
 
 def branch_hash(repo, base="main") -> str:
-    """The F11 hash CI recomputes: sha256 of `git diff --raw base...HEAD` excluding the
-    bookkeeping artifacts, mirroring check_task_artifacts.py.
-
-    ⚠ `--raw` since #63 — CONTENT IDENTITY (mode, blob SHAs, status, path), not the rendered
-    patch, whose bytes vary with git version, platform and diff settings. This helper mirrors
-    the script by hand, so it has to move in the same commit or the mirror lies."""
+    """sha256 of `git diff --raw base...HEAD` minus bookkeeping artifacts, mirroring check_task_artifacts.py."""
     import hashlib
     excludes = ROUTING["hash_exclude_paths"]
     pathspec = ["--", "."] + [f":(exclude){p}" for p in excludes]
@@ -1844,9 +1504,6 @@ def test_ci_check_passes_artifact_only_pr(ci_repo):
 
 
 def test_ci_check_passes_with_complete_artifacts(ci_repo):
-    # F11: review.md must carry the hash of the actual PR diff (code + contract,
-    # bookkeeping excluded). Commit code+contract first, then write review.md with the
-    # recomputed hash, then commit it — CI recomputes the same and passes.
     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
     (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
@@ -1862,8 +1519,6 @@ def test_ci_check_passes_with_complete_artifacts(ci_repo):
 
 
 def test_ci_check_contract_only_pr_not_artifact_exempt(ci_repo):
-    """F10/#409: a contract-only PR is no longer artifact-exempt at CI — it must carry
-    a review (here it doesn't, so CI fails). Closes the #407 contract-only-merge hole."""
     (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
     subprocess.run(["git", "commit", "-qm", "contract only"], cwd=ci_repo, check=True)
@@ -1872,8 +1527,6 @@ def test_ci_check_contract_only_pr_not_artifact_exempt(ci_repo):
 
 
 def test_ci_check_fails_on_stale_review_hash(ci_repo):
-    """F11/#409: a review.md whose hash does not match this PR's diff (the #405
-    false-green) is now rejected by CI."""
     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
     (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
     (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
@@ -1886,40 +1539,20 @@ def test_ci_check_fails_on_stale_review_hash(ci_repo):
 
 
 def test_local_staged_hash_equals_ci_recompute(ci_repo):
-    """F11/#409 — the LOAD-BEARING invariant: the local commit gate's --staged-hash
-    (computed on the staged tree, pre-commit) must equal the CI recompute
-    (`git diff base...HEAD`, post-commit). If this ever diverges, a locally-passing
-    commit would be falsely rejected by CI. Exercises ALL three diff shapes:
-    a MODIFIED base-resident file (allowed.sql — its index line carries a non-zero OLD
-    blob, the one vector where pre/post-commit could diverge), a NEW file (contract.md),
-    and a bookkeeping artifact that must be excluded (escalations.log)."""
-    (ci_repo / "dbt_project" / "models" / "allowed.sql").write_text("select 7\n")  # MODIFY base file
-    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)  # add
-    (ci_repo / ".claude" / "task" / TASK_ID / "escalations.log").write_text("noise\n")  # excluded
+    """The local pre-commit hash must equal the CI post-commit recompute over a modified, a new and an excluded file."""
+    (ci_repo / "dbt_project" / "models" / "allowed.sql").write_text("select 7\n")
+    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
+    (ci_repo / ".claude" / "task" / TASK_ID / "escalations.log").write_text("noise\n")
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
-    local = staged_hash(ci_repo)            # what the local gate checks
+    local = staged_hash(ci_repo)
     subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
-    ci = branch_hash(ci_repo)               # what CI recomputes
+    ci = branch_hash(ci_repo)
     assert local == ci, f"local {local} != ci {ci}"
 
 
 def test_review_hash_is_invariant_to_diff_rendering_settings(ci_repo):
-    """#63 — the hash must NOT move when a PRESENTATION setting moves.
-
-    ⚠ THIS IS THE POINT OF THE WHOLE CHANGE, and it FAILS against the pre-#63 implementation.
-    That version hashed `git diff`'s rendered patch, so anything altering the rendering altered
-    the hash: measured on the real repo, identical commits gave 0c1ef8af at -U3 and ca1afb7d at
-    -U0. `diff.context` is a per-repo git setting a machine can legitimately carry, which is how
-    two machines hashed the same content differently and `validate:governance` could not pass.
-
-    Cross-platform stability is the real requirement and cannot be tested from one machine; this
-    is its closest honest proxy — same content, same git, one rendering knob turned.
-    """
-    # ⚠ The changed line must sit BETWEEN unchanged ones, or the control is vacuous: with a new
-    # or wholly-rewritten file every line is a change, there is no context to include or exclude,
-    # and the two settings render identically. An earlier draft of this test did exactly that and
-    # passed against the very defect it exists to catch — found by running it against the old
-    # implementation rather than trusting it green.
+    """The hash must not move when a diff rendering setting such as `diff.context` moves."""
+    # The changed line must sit between unchanged ones, or there is no context for the setting to alter.
     model = ci_repo / "dbt_project" / "models" / "allowed.sql"
     model.write_text("".join("select %d\n" % i for i in range(1, 11)))
     (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
@@ -1927,7 +1560,7 @@ def test_review_hash_is_invariant_to_diff_rendering_settings(ci_repo):
     subprocess.run(["git", "commit", "-qm", "ten lines"], cwd=ci_repo, check=True)
 
     lines = model.read_text().splitlines(keepends=True)
-    lines[4] = "select 99\n"                      # one line, mid-file, context on both sides
+    lines[4] = "select 99\n"
     model.write_text("".join(lines))
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
 
@@ -1944,26 +1577,10 @@ def test_review_hash_is_invariant_to_diff_rendering_settings(ci_repo):
 
 
 def test_staged_hash_refuses_to_emit_a_hash_it_could_not_compute(tmp_path):
-    """#63 — an uncomputable hash must STOP the workflow, not resolve to a constant.
-
-    ⚠ THE HOLE THIS CLOSES WAS REAL AND WAS REPRODUCED. An earlier draft returned b"" when the
-    base could not be resolved and called that fail-closed. It was the opposite: `--staged-hash`
-    printed sha256(b"") = e3b0c442… with EXIT 0, that value went into review.md, the gate
-    recomputed the same empty value from the same broken call, the two AGREED, and the commit
-    passed bound to ZERO bytes — no code, not even contract.md. Deterministic, not a race.
-
-    A directory that is not a git repository is the cheapest reproduction of "the base does not
-    resolve"; the real-world cases `_base_commit` names are a --single-branch clone, a shallow
-    checkout, and two histories with no common ancestor.
-    """
+    """An uncomputable hash must stop the workflow, not resolve to the digest of empty input."""
     import hashlib
     empty = hashlib.sha256(b"").hexdigest()
-    # ⚠ CLAUDE_PROJECT_DIR MUST BE REMOVED, not merely left to `cwd`. `_repo_root()` prefers the
-    # env var over the working directory, so inheriting it points the hook at the REAL repository,
-    # where the base resolves fine and it exits 0 — the test would go green for a reason unrelated
-    # to the defect in any environment that exports it, which is the normal case for this repo.
-    # It happens to be unset on the machine this was written on, which is exactly why the hole
-    # was invisible from here.
+    # `_repo_root()` prefers CLAUDE_PROJECT_DIR over the cwd, so it must be removed to leave the hook with no repository.
     env = {k: v for k, v in os.environ.items() if k != "CLAUDE_PROJECT_DIR"}
     r = subprocess.run(
         [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--staged-hash"],
@@ -1978,13 +1595,7 @@ def test_staged_hash_refuses_to_emit_a_hash_it_could_not_compute(tmp_path):
 
 
 def test_commit_gate_denies_when_the_hash_cannot_be_computed(monkeypatch, ci_repo):
-    """#63 — the gate's own half of the same hole: deny explicitly, never by accidental mismatch.
-
-    ⚠ `ci_repo`, not `repo`: the plain fixture carries no `review_routing.json`, and a missing
-    routing file disables the review requirement ENTIRELY, so the gate returns None long before
-    the hash is computed and the test would pass for a reason that has nothing to do with the
-    defect. Found by running it.
-    """
+    """Uses `ci_repo` because without `review_routing.json` the gate returns before computing the hash."""
     repo = ci_repo
     (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 1\n")
     (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
@@ -2006,22 +1617,10 @@ def test_commit_gate_denies_when_the_hash_cannot_be_computed(monkeypatch, ci_rep
 
 
 def test_base_resolution_prefers_the_remote_tracking_ref_over_a_stale_local_main(ci_repo):
-    """#63 — a local `main` is a CACHED COPY and goes stale; the remote-tracking ref is the truth.
-
-    ⚠ This pins the half of the fix that had no test. `ci_repo` creates a local `main` and NO
-    remotes, so `gitlab/main` and `origin/main` both fail to resolve and every preference order
-    gives the same answer — reverting the reorder left the whole suite green. The fixture is
-    given a real `refs/remotes/gitlab/main` here, ahead of a deliberately
-    stale local `main`, so the order is observable.
-
-    Measured on the live repo when this was found: local `main` sat at 57175fc while `gitlab/main`
-    was a2b4184, two merges newer. The reviewers' patch listed files from an already-merged task,
-    and the hash could not have matched CI's no matter what bytes were fed to it.
-    """
+    """A local `main` goes stale, so the remote-tracking ref must win; `ci_repo` has no remotes, so one is added."""
     stale = subprocess.run(["git", "rev-parse", "main"], cwd=ci_repo,
                            capture_output=True, text=True, check=True).stdout.strip()
 
-    # advance the remote-tracking ref two commits past the stale local `main`
     for n in (1, 2):
         (ci_repo / "dbt_project" / "models" / f"upstream{n}.sql").write_text(f"select {n}\n")
         subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
@@ -2054,27 +1653,11 @@ def test_base_resolution_prefers_the_remote_tracking_ref_over_a_stale_local_main
 
 
 def test_governance_base_env_var_overrides_the_base(ci_repo):
-    """#63 — the escape hatch the deny message promises must actually exist.
-
-    ⚠ It did not. An earlier draft's deny told the operator to "set GOVERNANCE_BASE" while
-    `_base_commit` read no environment variable at all, so `git commit` was locked with a remedy
-    that did nothing — and for two histories with no common ancestor the other suggested remedy
-    (fetch the base branch) does not help either. A deny with no escape is the workflow lock the
-    fail-open house rule exists to prevent. `scripts/check_task_artifacts.py:106` already
-    honoured it, so this also closes a local/CI split.
-
-    ⚠ THE REF MUST HAVE DIVERGED. An earlier version of this test pointed GOVERNANCE_BASE at a
-    direct ANCESTOR of HEAD, where the tip and the merge-base are the same commit — so it could
-    not tell the two apart and stayed green against a hook that used the tip. The CI twin spells
-    the base `f"{args.base}...HEAD"` (three-dot, merge-base), so a tip-resolving hook diverges from
-    CI the moment the override names a branch that has moved on, which is the documented use of
-    the variable — the third test of its task that passed either way.
-    """
+    """The override ref must have diverged from HEAD, or tip and merge-base coincide and the test cannot tell them apart."""
     (ci_repo / "dbt_project" / "models" / "allowed.sql").write_text("select 1\n")
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
     subprocess.run(["git", "commit", "-qm", "branch work"], cwd=ci_repo, check=True)
 
-    # an upstream ref that has MOVED ON since this branch was cut: shares an ancestor, is not one
     subprocess.run(["git", "checkout", "-q", "-b", "upstream", "main"], cwd=ci_repo, check=True)
     (ci_repo / "dbt_project" / "models" / "upstream_only.sql").write_text("select 99\n")
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
@@ -2114,20 +1697,13 @@ def test_governance_base_env_var_overrides_the_base(ci_repo):
 
 
 def test_an_empty_cumulative_diff_is_not_reported_as_a_failure_to_compute(ci_repo):
-    """#63 — `None` (could not compute) and `b""` (nothing changed) are different states.
-
-    ⚠ An earlier draft tested `if not blob`, which is true for both, so a legitimately empty
-    cumulative diff was reported as "the base commit did not resolve" — a cause that was not
-    observed, with two remedies that do not apply. Reachable in practice because `_staged_paths`
-    is HEAD-vs-index while the hash is base-vs-index: staging a revert of an earlier commit on the
-    same branch arrives with staged paths and no net change.
-    """
+    """`None` (could not compute) and `b""` (nothing changed) are different states; a staged revert is net-zero."""
     model = ci_repo / "dbt_project" / "models" / "allowed.sql"
     original = model.read_text()
     model.write_text("select 999\n")
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
     subprocess.run(["git", "commit", "-qm", "change it"], cwd=ci_repo, check=True)
-    model.write_text(original)                      # revert -> net-zero vs the base
+    model.write_text(original)
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
 
     r = subprocess.run(
@@ -2142,14 +1718,7 @@ def test_an_empty_cumulative_diff_is_not_reported_as_a_failure_to_compute(ci_rep
 
 
 def test_local_staged_hash_equals_ci_recompute_on_a_multi_commit_branch(ci_repo):
-    """#63, second half — the same invariant as the single-commit test, after TWO commits.
-
-    ⚠ FAILS against the pre-#63 implementation, which diffed a bare `--staged` (HEAD-vs-index).
-    Once a second commit lands, the index equals HEAD, so that diff is EMPTY while CI still sees
-    the whole branch — the local number was the hash of nothing. This was a documented trap
-    ("on a SECOND commit, --staged-hash is the WRONG number") rather than a mystery, and it cost
-    wasted rebind cycles. Diffing from the base makes it simply false.
-    """
+    """After a second commit the index equals HEAD, so the local hash must still cover the whole branch."""
     (ci_repo / "dbt_project" / "models" / "allowed.sql").write_text("select 7\n")
     (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
@@ -2159,8 +1728,8 @@ def test_local_staged_hash_equals_ci_recompute_on_a_multi_commit_branch(ci_repo)
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
     subprocess.run(["git", "commit", "-qm", "second"], cwd=ci_repo, check=True)
 
-    local = staged_hash(ci_repo)     # what the commit gate would check
-    ci = branch_hash(ci_repo)        # what CI recomputes over the whole branch
+    local = staged_hash(ci_repo)
+    ci = branch_hash(ci_repo)
     assert local == ci, (
         f"local {local[:16]} != ci {ci[:16]} on a two-commit branch — the local gate is hashing "
         "only the last increment, so a locally-passing commit is rejected by CI (#63)")
@@ -2180,7 +1749,6 @@ def test_ci_check_fails_on_missing_required_reviewer(ci_repo):
 
 
 def test_ci_check_requires_reviewer_for_non_ascii_path(ci_repo):
-    """CI mirror of the -z enumeration fix."""
     (ci_repo / "dbt_project" / "models" / "täst.sql").write_text(
         "select 1", encoding="utf-8")
     (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
@@ -2195,7 +1763,6 @@ def test_ci_check_requires_reviewer_for_non_ascii_path(ci_repo):
 
 
 def test_ci_check_fails_on_preamble_escalation(ci_repo):
-    """CI mirror of the _preamble pseudo-section rule."""
     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
     (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
     body = (
@@ -2212,8 +1779,6 @@ def test_ci_check_fails_on_preamble_escalation(ci_repo):
 
 
 def test_ci_check_fails_on_per_section_unanswered_escalation(ci_repo):
-    """Per-section pairing: an answer in one section must not mask another
-    section's unanswered ESCALATE — the global count alone would pass this body."""
     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
     (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
     body = GOOD_BODY + (
@@ -2229,15 +1794,9 @@ def test_ci_check_fails_on_per_section_unanswered_escalation(ci_repo):
     assert code == 1 and "escalations" in out
 
 
-# --------------------------------------------------------------------------- #
-# Protected paths are STRUCTURAL — authority and understanding are two gates.
-# Every one of these runs both directions on purpose.
-# --------------------------------------------------------------------------- #
+# --- protected paths also need an impact_map ---
 
 def test_protected_path_denied_with_override_but_no_impact_map(repo):
-    """THE missing direction. `protected_override` answers "may you"; the
-    impact_map answers "do you know what breaks". A guard's blast radius is
-    every future task in the repo, wider than most models."""
     write_contract(repo, CONTRACT_OVERRIDE_NO_IMPACT)
     out, _ = run_hook("task_contract_gate.py",
                       edit_event(repo, ".claude/hooks/some_hook.py"), repo)
@@ -2245,8 +1804,6 @@ def test_protected_path_denied_with_override_but_no_impact_map(repo):
 
 
 def test_protected_path_allowed_with_override_and_impact_map(repo):
-    """The paired ALLOW, stated explicitly rather than inherited from a fixture
-    that happened to carry a map."""
     write_contract(repo, CONTRACT_OVERRIDE)
     out, _ = run_hook("task_contract_gate.py",
                       edit_event(repo, ".claude/hooks/some_hook.py"), repo)
@@ -2254,12 +1811,8 @@ def test_protected_path_allowed_with_override_and_impact_map(repo):
 
 
 @pytest.mark.parametrize("rel", [
-    # PROTECTED_PREFIXES …
     ".claude/hooks/h.py", ".claude/agents/a.md",
     ".claude/commands/c.md", ".github/workflows/w.yml",
-    # … and PROTECTED_FILES, which the first version of this test omitted while
-    # calling itself exhaustive. The change went into `_is_protected`, which
-    # covers both tuples.
     ".claude/settings.json", ".claude/review_routing.json",
     ".mcp.json", ".cursor/mcp.json", ".gitlab-ci.yml",
     "scripts/check_design_inventory.py", "scripts/check_page_css.py",
@@ -2274,25 +1827,12 @@ def test_every_protected_path_needs_an_impact_map(repo, rel):
     assert denied(out) and "impact_map" in out
 
 
-# The `if:` conditions these CI tests know how to reason about, classified by what
-# they evaluate to ON A SCHEDULED PIPELINE (source=schedule, branch=main).
-#
-# An UNRECOGNISED condition is a hard error, never a silent "doesn't match". Treating
-# unknown as false is what makes a guard test quietly stop guarding: someone writes
-# `$CI_COMMIT_BRANCH == "main"` (same meaning, different spelling), the recogniser
-# shrugs, and a job that DOES run on a schedule is reported safe. That gap opened
-# once the deploy jobs stopped routing through *not_on_schedule and came to depend
-# entirely on hand-written conditions.
-# Each `if:` condition mapped to the PIPELINE CONTEXTS in which it holds. Contexts:
+# Each `if:` condition mapped to the pipeline contexts in which it holds. Contexts:
 #   schedule  — a scheduled pipeline (runs on main)
 #   web       — a manual dispatch from the UI (runs on main)
 #   mr        — a merge-request pipeline (CI_COMMIT_BRANCH is unset)
 #   push_main — an ordinary push to main
-#
-# Note `$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` is true in THREE of them — that single
-# fact is what makes both the schedule trap and the web trap possible, and why a
-# `changes:` filter saves neither (GitLab evaluates `changes:` as TRUE on any pipeline
-# that is not a push or an MR, so it is ignored throughout these tests).
+# `changes:` is ignored because GitLab evaluates it as true on any pipeline that is not a push or an MR.
 _CONDITION_TRUTH = {
     '$CI_PIPELINE_SOURCE == "schedule"': {"schedule"},
     '$CI_PIPELINE_SOURCE == "web"': {"web"},
@@ -2304,7 +1844,7 @@ _CONDITION_TRUTH = {
 
 
 def _ci_cond(rule: dict) -> str | None:
-    """Normalise a rule's `if:` — quote style and whitespace only, never semantics."""
+    """Normalise a rule's `if:` for quote style and whitespace only."""
     cond = rule.get("if")
     if cond is None:
         return None
@@ -2312,14 +1852,9 @@ def _ci_cond(rule: dict) -> str | None:
 
 
 def _matches(cond: str | None, context: str) -> bool:
-    """Does this condition hold in `context`? An UNRECOGNISED condition RAISES.
-
-    Never assume an unknown condition is false. Treating unknown as "does not match" is
-    how a guard test quietly stops guarding: someone writes an equivalent condition a
-    different way, the recogniser shrugs, and a job that DOES run is reported safe.
-    """
+    """An unrecognised condition raises, because assuming it is false would let a guard test stop guarding."""
     if cond is None:
-        return True  # a rule with no `if:` always matches
+        return True
     if cond in _CONDITION_TRUTH:
         return context in _CONDITION_TRUTH[cond]
     raise AssertionError(
@@ -2330,7 +1865,7 @@ def _matches(cond: str | None, context: str) -> bool:
 
 
 def _when_in(job: dict, context: str) -> str:
-    """The effective `when:` for `job` in `context` — first match wins, else never."""
+    """The effective `when:` for `job` in `context`; the first matching rule wins, else never."""
     for rule in (job.get("rules") or [{}]):
         if _matches(_ci_cond(rule), context):
             return rule.get("when", "on_success")
@@ -2338,19 +1873,7 @@ def _when_in(job: dict, context: str) -> str:
 
 
 def test_a_web_dispatch_never_auto_starts_a_warehouse_build():
-    """Asking for one manual job must not silently start an expensive one.
-
-    `data:nightly` is reachable ONLY by web dispatch (no schedule exists yet — creating
-    one is deferred while nothing reads the data). But `data:build:main` is also on
-    main, and `changes:` evaluates TRUE on any non-push pipeline, so before this pin it
-    matched on a web dispatch and ran `on_success` — AUTOMATICALLY. Clicking "run
-    pipeline" to get a nightly therefore also started a full prod warehouse build.
-
-    That is the same mechanic as the schedule trap, on a source nobody re-checked when
-    `data:nightly` gave web dispatch a second purpose. It was caught by evaluating the
-    rules before triggering the run, rather than by reading the bill afterwards.
-
-    A web dispatch may OFFER expensive work as a button. It may not start it."""
+    """A web dispatch may offer expensive warehouse work as a button but must not start it."""
     import pathlib
 
     import yaml
@@ -2358,18 +1881,8 @@ def test_a_web_dispatch_never_auto_starts_a_warehouse_build():
     root = pathlib.Path(__file__).resolve().parents[1]
     ci = yaml.safe_load((root / ".gitlab-ci.yml").read_text(encoding="utf-8"))
 
-    # Jobs that write to or scan the warehouse. Identified by what they RUN, so a new
-    # job cannot dodge this by not being in the list.
-    #
-    # Anchored to the START of a line, NOT a substring search. The first version of this
-    # matched `"dbt build" in script` and flagged deploy:site-v2 — which runs npm and
-    # firebase and no dbt at all — because `.gcp_auth`'s echo says "sqlfluff lint, dbt
-    # build, singular DQ tests" in its error message. A detector that reads prose as
-    # commands produces false positives that get "fixed" by weakening the real config.
-    # Matches a dbt invocation in COMMAND POSITION — at the start of a line or after a
-    # shell separator — so a chained `cd x && dbt deps && dbt build` is caught too, and
-    # `run`/`snapshot` are included because they write to the warehouse just as `build`
-    # does. `deps`, `parse` and `compile` are deliberately absent: they touch no data.
+    # Warehouse jobs are identified by what they run. The regex matches a dbt command in command
+    # position, not prose in an echo; `deps`, `parse` and `compile` are absent because they touch no data.
     import re as _re
     _dbt_cmd = _re.compile(
         r"(?m)(?:^|&&|;|\|)\s*\(?\s*(?:cd \S+\s*&&\s*)*"
@@ -2395,8 +1908,6 @@ def test_a_web_dispatch_never_auto_starts_a_warehouse_build():
         f"only {checked} warehouse-spending jobs recognised — this test has probably "
         f"stopped seeing them, which makes it pass vacuously")
 
-    # And the other direction: narrowing the web path must NOT have disabled the
-    # automatic prod build on an ordinary push to main.
     assert _when_in(ci["data:build:main"], "push_main") == "on_success", (
         "data:build:main no longer runs automatically on a push to main. The fix was "
         "meant to narrow WEB dispatches only — prod must still rebuild on merge, or it "
@@ -2404,30 +1915,9 @@ def test_a_web_dispatch_never_auto_starts_a_warehouse_build():
 
 
 def test_the_firebase_deploy_is_reachable_only_by_deliberate_dispatch():
-    """A deploy must not appear as a play button on ordinary MR and push pipelines.
+    """`when: manual` alone excludes nothing by source, so a deploy job must be unreachable except by web dispatch.
 
-    `deploy-site-v2.yml`'s ONLY GitHub trigger was `workflow_dispatch`, so the workflow
-    never attached to a push or a pull request — reaching it meant deliberately
-    dispatching it. `when: manual` alone does NOT reproduce that: it excludes nothing
-    by source, so an unscoped manual job shows up on every merge request and every
-    push to main, one click from deploying whatever that branch happens to build.
-
-    That shipped in an earlier revision. Manual-ness is not the gate; being
-    unreachable except by deliberate dispatch is. Nothing else in the suite checks
-    job REACHABILITY by pipeline source.
-
-    TWO jobs are excluded BY NAME: GitLab #74's `build:nightly-image` and
-    `deploy:nightly-image` (kaniko build + gcloud repoint, split across two jobs
-    because no single image carries both toolchains), which are deliberately the
-    other shape — no button, an automatic rebuild+redeploy reachable on `push_main`
-    and nothing else (pinned separately, right below). An earlier version excluded
-    by PROPERTY instead — "has no `when: manual` rule anywhere" — and that
-    construction is self-disabling: a Firebase job rewritten
-    with an unconditional `if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` and no
-    `when:` at all (defaulting to `on_success`, strictly worse than the original
-    play-button defect) would ALSO have no `when: manual` and silently escape this
-    test. A name exclusion cannot be satisfied by accident; a new deploy job added
-    later is checked by this test by default, not opted out of it by construction."""
+    The two nightly-image jobs are excluded by name, since a property-based exclusion could be met by accident."""
     import pathlib
 
     import yaml
@@ -2435,10 +1925,8 @@ def test_the_firebase_deploy_is_reachable_only_by_deliberate_dispatch():
     root = pathlib.Path(__file__).resolve().parents[1]
     ci = yaml.safe_load((root / ".gitlab-ci.yml").read_text(encoding="utf-8"))
 
-    # Contexts an ordinary contributor produces without intending to deploy.
     everyday = ("mr", "push_main", "schedule")
 
-    # The deliberate exceptions, by name — see the docstring for why not by property.
     auto_deploy_jobs = {"build:nightly-image", "deploy:nightly-image"}
 
     deploy_jobs = [k for k, v in ci.items()
@@ -2461,16 +1949,7 @@ def test_the_firebase_deploy_is_reachable_only_by_deliberate_dispatch():
 
 
 def test_the_nightly_image_jobs_are_reachable_only_on_a_push_to_main():
-    """The mirror of the test above, for the TWO jobs meant to run automatically.
-
-    GitLab #74: `build:nightly-image` and `deploy:nightly-image` must NOT be reachable
-    on an MR, a schedule, or a web dispatch (all three would either build/redeploy on a
-    branch that never merged, run twice in one night, or offer a button next to the
-    Firebase ones the test above specifically forbids) — and MUST run automatically,
-    `on_success`, on an ordinary push to main, or the #74 defect (the image never
-    tracking `main`) is back with a green pipeline hiding it. Pinned by NAME, the same
-    reason the test above excludes these jobs by name rather than by a property a
-    future job could satisfy by accident in either direction."""
+    """The nightly-image jobs run automatically on a push to main and are unreachable from MR, schedule or web."""
     import pathlib
 
     import yaml
@@ -2492,23 +1971,14 @@ def test_the_nightly_image_jobs_are_reachable_only_on_a_push_to_main():
             f"(when={_when_in(job, 'push_main')!r}) — the #74 defect (image never "
             f"tracks main) is back, just with a green pipeline instead of a red one.")
 
-    # The two jobs' rules must be IDENTICAL, not just each individually correct —
-    # `deploy:nightly-image` `needs: ["build:nightly-image"]`, and GitLab refuses to
-    # construct a pipeline where a `needs:` target's own `rules:` excluded it. Drift
-    # between the two blocks is a pipeline-creation failure, not a silent gap, but a
-    # failure at the worst possible time (04:00, on the one qualifying merge that
-    # exposes it) is still worth catching here instead.
+    # GitLab refuses to build a pipeline where a `needs:` target's own `rules:` excluded it.
     assert ci["build:nightly-image"]["rules"] == ci["deploy:nightly-image"]["rules"], (
         "build:nightly-image and deploy:nightly-image have DIFFERENT rules: — "
         "deploy:nightly-image needs: [build:nightly-image], so if a pipeline ever "
         "creates one without the other, GitLab refuses to construct it at all.")
 
-    # The contract leans on `needs:` and a shared `resource_group` for correct
-    # ordering, but nothing asserted either was actually
-    # present — deleting one is silent. Without `needs: ["build:nightly-image"]`, the
-    # two same-stage jobs could run concurrently and `deploy:nightly-image` could pin a
-    # tag `build:nightly-image` has not pushed yet; without the shared group, two
-    # concurrent builds race on the same Artifact Registry tag.
+    # Without `needs:` the deploy could pin a tag the build has not pushed yet; without the shared
+    # resource_group two concurrent builds race on the same Artifact Registry tag.
     assert ci["deploy:nightly-image"].get("needs") == ["build:nightly-image"], (
         "deploy:nightly-image must `needs: [\"build:nightly-image\"]` — without it, "
         f"the two jobs can run concurrently. needs={ci['deploy:nightly-image'].get('needs')!r}")
@@ -2519,13 +1989,8 @@ def test_the_nightly_image_jobs_are_reachable_only_on_a_push_to_main():
         f"got build={build_rg!r}, deploy={deploy_rg!r}. Without it, concurrent pipelines "
         "can build/deploy this image at the same time.")
 
-    # A job scheduled off `needs:` starts as soon as its OWN edges finish, regardless of
-    # stage — this file's own `.python` comment gives that
-    # mechanic as the REASON `needs: []` exists elsewhere. An earlier version of
-    # `build:nightly-image` needed only validate:governance + test:python, so a push whose
-    # secrets scan (gitleaks) or lint FAILED could still have its content built into the image
-    # and pushed to Artifact Registry before either job finished — the same failure CLASS as
-    # the credential-leak defect this branch already found once, via a different gap.
+    # A job scheduled off `needs:` starts as soon as its own edges finish, regardless of stage, so
+    # every gate must be an edge or a failing push could still be built into the image.
     required_gates = {"validate:governance", "test:python", "validate:secrets", "lint:python"}
     build_needs = set(ci["build:nightly-image"].get("needs") or [])
     missing = required_gates - build_needs
@@ -2536,17 +2001,7 @@ def test_the_nightly_image_jobs_are_reachable_only_on_a_push_to_main():
 
 
 def test_data_paths_image_covers_what_the_nightly_image_actually_runs():
-    """`.data_paths_image` is hand-derived from the Dockerfile and entrypoint.sh, and a hand
-    derivation has already been shown to miss things (`scripts/sync_dbt_vars.py`, imported
-    by `check_registry_var_sync.py` but not matched by `scripts/check_*.py`). This is the one
-    path anchor in the file with no test, and when it next
-    misses an entry, the failure is silent — `deploy:nightly-image` just does not fire, and the
-    #74 defect (image never tracks `main`) is back for that one path with a green pipeline.
-
-    Parses `entrypoint.sh` for every `python scripts/*.py` invocation — the actual, current set
-    of check scripts the image runs — rather than trusting a hand-written list, the same
-    "read the real tree, not the imagined one" principle `.data_paths_prod`'s own sibling test
-    applies to dbt compile inputs."""
+    """A path missing from `.data_paths_image` fails silently, since the image just does not rebuild."""
     import pathlib
     import re
     import fnmatch
@@ -2570,13 +2025,7 @@ def test_data_paths_image_covers_what_the_nightly_image_actually_runs():
             f"entrypoint.sh runs {script!r}, but no pattern in .data_paths_image matches it — "
             f"a change there would not rebuild the image. patterns={image_paths!r}")
 
-    # Non-script inputs entrypoint.sh's own header and script body name explicitly: the image
-    # build itself, and the two files under deploy/nightly/ the container actually needs at
-    # runtime (the runbook is docs-only and deliberately excluded — see .data_paths_image's
-    # own comment).
-    # `.gcloudignore` deliberately NOT here — round-1 review of the kaniko redesign found
-    # it has no effect on what kaniko builds (it's a `gcloud` CLI construct, consulted only
-    # by the human-run `--source .` fallback, never by `build:nightly-image`).
+    # Non-script inputs: the image build itself and the two deploy/nightly files the container needs at runtime.
     for fixed in ("Dockerfile", ".dockerignore",
                   "deploy/nightly/entrypoint.sh", "deploy/nightly/profiles.yml"):
         assert fixed in image_paths, (
@@ -2589,22 +2038,7 @@ def test_data_paths_image_covers_what_the_nightly_image_actually_runs():
 
 
 def test_every_job_using_gcp_auth_declares_id_tokens():
-    """`*gcp_auth` is useless without `id_tokens:` on the SAME job.
-
-    GitLab populates `$GITLAB_OIDC_TOKEN` only for a job that declares `id_tokens:`
-    itself — it is not inherited from a `default:` block and not implied by expanding
-    the auth anchor. A job that calls `*gcp_auth` without it dies on the third guard
-    ("GITLAB_OIDC_TOKEN is empty") before doing any work.
-
-    This shipped as a real defect and was caught in review, not by any static check:
-    `data:nightly`, `deploy:export` and `deploy:site-v2` were all written with
-    `<<: *python` alone. The nightly would have failed at auth EVERY night once a
-    schedule existed — the pipeline red, prod never built, and the failure looking
-    like a credential problem rather than a missing two-line block.
-
-    The `aud` is asserted too, not just presence: GitLab signs the token with that
-    value and Google rejects the exchange on any mismatch with the provider's
-    allowed audience, which is a silent-until-runtime failure of its own."""
+    """GitLab sets `$GITLAB_OIDC_TOKEN` only for a job that declares `id_tokens:` itself, and Google rejects a wrong `aud`."""
     import pathlib
 
     import yaml
@@ -2617,8 +2051,7 @@ def test_every_job_using_gcp_auth_declares_id_tokens():
     for name, job in ci.items():
         if name.startswith(".") or not isinstance(job, dict) or "script" not in job:
             continue
-        # The auth anchor expands inline, so its body is what identifies a consumer —
-        # matching on the anchor NAME would miss it entirely after expansion.
+        # The anchor expands inline, so its body identifies a consumer, not its name.
         if not any("GITLAB_OIDC_TOKEN" in step for step in (job.get("script") or [])):
             continue
         checked += 1
@@ -2637,19 +2070,7 @@ def test_every_job_using_gcp_auth_declares_id_tokens():
 
 
 def test_every_job_except_the_nightly_is_guarded_against_schedules():
-    """A scheduled pipeline must fire the nightly and NOTHING else.
-
-    This is the most expensive mistake available in `.gitlab-ci.yml`, and it fails
-    SILENTLY — no job turns red, the BigQuery bill just doubles. A scheduled pipeline
-    runs with `CI_COMMIT_BRANCH == main`, so it satisfies every
-    `if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` rule in the file, including
-    `data:build:main` — a full prod warehouse build. A `changes:` filter does NOT save
-    you: GitLab evaluates `changes:` as TRUE on any pipeline that is not a push or a
-    merge request, so `data:build:main`'s `*data_paths_prod` does not hold it back.
-
-    Rules are first-match-wins, so the guard is only a guard if it comes FIRST. A later
-    `when: never` can be outvoted by an earlier matching clause, which is exactly the
-    kind of ordering bug a reader skims past."""
+    """A scheduled pipeline runs on main, so any job matching the default branch would silently double the build."""
     import pathlib
 
     import yaml
@@ -2663,19 +2084,7 @@ def test_every_job_except_the_nightly_is_guarded_against_schedules():
     assert nightly in jobs, f"{nightly} is missing — the schedule has nothing to run"
 
     def runs_on_a_schedule(job: dict) -> bool:
-        """Evaluate `rules:` as GitLab would, for a scheduled pipeline on main.
-
-        Deliberately SEMANTIC rather than positional. An earlier version asserted the
-        guard was literally `rules[0]`, which broke as soon as a job became correctly
-        schedule-safe a different way (`if: web` first, `when: never` fallback). What
-        matters is the PROPERTY — can a schedule reach this job — not the spelling.
-
-        Models the two behaviours that make this trap real:
-          · a scheduled pipeline is on main, so `$CI_COMMIT_BRANCH ==
-            $CI_DEFAULT_BRANCH` MATCHES;
-          · `changes:` evaluates TRUE on any non-push/non-MR pipeline, so a path
-            filter does NOT hold a job back — it is ignored here for that reason.
-        """
+        """Evaluate `rules:` as GitLab would for a scheduled pipeline on main, whatever the rule order."""
         return _when_in(job, "schedule") != "never"
 
     for name, job in jobs.items():
@@ -2689,28 +2098,14 @@ def test_every_job_except_the_nightly_is_guarded_against_schedules():
             f"`*not_on_schedule` first, or scope the job to an explicit source. "
             f"rules={job.get('rules')!r}")
 
-    # The other half, or the check above would be trivially satisfiable by guarding
-    # everything and never building anything.
     assert runs_on_a_schedule(jobs[nightly]), (
         f"{nightly} does not run on a schedule — the nightly build would never fire")
 
 
 def test_ci_writes_the_dbt_profile_where_sqlfluff_looks_for_it():
-    """dbt and sqlfluff resolve the profile by DIFFERENT means, and CI runs both.
+    """dbt honours `DBT_PROFILES_DIR` but sqlfluff reads `profiles_dir` from `dbt_project/.sqlfluff`, so the two must agree.
 
-    dbt honours `DBT_PROFILES_DIR`; sqlfluff's dbt templater reads `profiles_dir` from
-    the COMMITTED `dbt_project/.sqlfluff`. Point dbt at a project-local directory and
-    `dbt deps` still passes while the very next command, `sqlfluff lint`, dies with
-    "Could not find profile named 'football_data_pipeline'".
-
-    That is not hypothetical: it is what GitLab job 15752046768 did. Three adversarial
-    review rounds, a YAML parse check and `glab ci lint` all passed over it, because
-    nothing static sees that two tools disagree about where a file lives unless it is
-    told to compare them. This test is that comparison, and it is deliberately TEXTUAL
-    (no GCP credentials, no dbt invocation) so it runs in the offline suite.
-
-    `.gitlab-ci.yml:71` warns the next reader not to "tidy" the path into a project-local
-    directory. A comment is not a guard — this is."""
+    The comparison is textual so it runs offline."""
     import configparser
     import pathlib
     import re as _re
@@ -2720,19 +2115,16 @@ def test_ci_writes_the_dbt_profile_where_sqlfluff_looks_for_it():
     root = pathlib.Path(__file__).resolve().parents[1]
     ci = yaml.safe_load((root / ".gitlab-ci.yml").read_text(encoding="utf-8"))
 
-    # 1. The override that caused the incident must not come back.
     assert "DBT_PROFILES_DIR" not in (ci.get("variables") or {}), (
         "DBT_PROFILES_DIR is set again in .gitlab-ci.yml `variables:`. It moves dbt "
         "WITHOUT moving sqlfluff, whose profiles_dir is pinned in dbt_project/.sqlfluff. "
         "Write the profile to the default ~/.dbt instead.")
 
-    # 2. Where the CI actually writes the profile.
     written = _re.search(r"cat\s*>\s*(\S+)/profiles\.yml", ci[".dbt_profile"])
     assert written, ".dbt_profile no longer writes a profiles.yml — this test is stale"
     ci_dir = written.group(1).rstrip("/")
 
-    # 3. Where sqlfluff will look for it. Read as config, not grepped, so a moved
-    #    key or a changed section is a failure rather than a silent pass.
+    # Read as config, not grepped, so a moved key or changed section fails instead of passing silently.
     cfg = configparser.ConfigParser()
     cfg.read(root / "dbt_project" / ".sqlfluff", encoding="utf-8")
     lint_dir = cfg["sqlfluff:templater:dbt"]["profiles_dir"].strip().rstrip("/")
@@ -2743,21 +2135,8 @@ def test_ci_writes_the_dbt_profile_where_sqlfluff_looks_for_it():
         f"lint` will fail. Change the CI path, NOT .sqlfluff — local development reads "
         f"that file too.")
 
-    # 4. COMPLETENESS *AND ORDER*, pinned per consumer rather than on the anchor alone.
-    #    GitLab runs a job's `script:` items strictly in list order, so writing the
-    #    profile AFTER the command that needs it reproduces the original failure exactly.
-    #    An earlier version of this test asserted only that the marker appeared SOMEWHERE
-    #    in the job — presence, not position — while its comment and the contract both
-    #    promised "first". Reordering a job would have broken CI with this test still
-    #    green. A guard that looks like an order check but is not is worse than none,
-    #    so the index comparison below is the point of this block.
-    #    `\(?` matters: `data:build:mr` invokes dbt inside a SUBSHELL
-    #    (`(cd /tmp/main-src/dbt_project && dbt deps && dbt compile ...)`) and a regex
-    #    anchored on the tool name or a bare `cd ... &&` misses it entirely. That was a
-    #    non-live blind spot — the same job's plainly formatted
-    #    `cd dbt_project && dbt deps` anchored the check correctly — but a
-    #    future edit that removed the plain line would have exempted the job silently,
-    #    which is the vacuous-pass shape this block exists to avoid.
+    # GitLab runs `script:` items in list order, so the profile must be written before the first dbt/sqlfluff call.
+    # `\(?` matters: `data:build:mr` invokes dbt inside a subshell.
     marker = f"cat > {ci_dir}/profiles.yml"
     runs_tool = _re.compile(r"(?m)^\s*\(?\s*(cd \S+ && )?(dbt|sqlfluff)\s")
     for name, job in ci.items():
@@ -2779,9 +2158,7 @@ def test_ci_writes_the_dbt_profile_where_sqlfluff_looks_for_it():
 
 
 def test_shell_redirect_to_protected_path_needs_an_impact_map(repo):
-    """The gate was enforced on the Edit path only, so a redirect reached a
-    protected file with no trace, and neither the post-command check nor the
-    stop gate flags a protected+override file afterwards."""
+    """Neither the post-command check nor the stop gate flags a protected file afterwards, so the redirect is gated."""
     write_contract(repo, CONTRACT_OVERRIDE_NO_IMPACT)
     out, _ = run_hook("task_contract_gate.py",
                       bash_event("echo x >> .claude/hooks/some_hook.py"), repo)
@@ -2796,7 +2173,6 @@ def test_shell_redirect_to_protected_path_allowed_with_impact_map(repo):
 
 
 def test_ordinary_doc_still_needs_no_impact_map(repo):
-    """The widened surface must not swallow ordinary files."""
     scoped = CONTRACT_NO_IMPACT.replace(
         "scope_paths:\n", "scope_paths:\n  - docs/plain.md\n")
     write_contract(repo, scoped)
@@ -2804,19 +2180,14 @@ def test_ordinary_doc_still_needs_no_impact_map(repo):
     assert not denied(out)
 
 
-# --------------------------------------------------------------------------- #
-# The Artifact gate — design was the only surface with no gate at all, which is
-# why three mocks were produced and rejected in one day.
-# --------------------------------------------------------------------------- #
+# --- the Artifact gate ---
 
 def artifact_event(path="/tmp/mock.html", hook_event="PreToolUse") -> dict:
     return {"hook_event_name": hook_event, "tool_name": "Artifact",
             "tool_input": {"file_path": path}}
 
 
-# A contract whose decisions_reserved is a real reservation, not the template's
-# bare `- none`. The gate requires this: a contract exists in nearly every
-# session, so contract-existence alone would make the gate fire almost never.
+# A contract whose decisions_reserved is a real reservation, not the template's bare `- none`.
 CONTRACT_RESERVED = CONTRACT.replace(
     "decisions_reserved:\n  - none",
     "decisions_reserved:\n  - what the Overview shows for a goalkeeper",
@@ -2829,7 +2200,6 @@ def test_artifact_denied_without_contract(repo):
 
 
 def test_artifact_denied_when_nothing_is_reserved(repo):
-    """The default contract's `- none` is the template speaking, not an author."""
     write_contract(repo)
     out, _ = run_hook("task_contract_gate.py", artifact_event(), repo)
     assert denied(out) and "decisions_reserved" in out
@@ -2842,7 +2212,6 @@ def test_artifact_allowed_with_a_real_reservation(repo):
 
 
 def test_artifact_allowed_when_nothing_open_is_stated_as_a_sentence(repo):
-    """"Nothing is open" stays legitimate — it just has to be checkable."""
     write_contract(repo, CONTRACT.replace(
         "decisions_reserved:\n  - none",
         "decisions_reserved:\n  - none: the design is CPO-approved as mock "
@@ -2853,14 +2222,9 @@ def test_artifact_allowed_when_nothing_open_is_stated_as_a_sentence(repo):
 
 
 @pytest.mark.parametrize("reserved", [
-    # The YAML block indicators. `decisions_reserved: >` used to satisfy the gate
-    # ON THE KEY LINE, so the body was never read. Five of seven keys in this
-    # repo's own contract are written `key: >`.
     "decisions_reserved: >\n  none",
     "decisions_reserved: |\n  none",
-    # The TEMPLATE's own two-line placeholder. It ends in `;`, not `>`, so the
-    # anchored `^<.*>$` placeholder pattern missed it entirely: a contract copied
-    # from the template and never filled in satisfied the gate.
+    # The template's own two-line placeholder ends in `;`, not `>`.
     "decisions_reserved:\n  - <every known ambiguity / CPO-class question (§10)"
     " that may surface;\n     escalate each blinded (§11) — never decide>",
     "decisions_reserved:\n  - (none)",
@@ -2873,10 +2237,7 @@ def test_artifact_denied_on_every_empty_spelling(repo, reserved):
 
 
 def test_unclosed_bracket_does_not_swallow_a_later_real_reservation(repo):
-    """An entry legitimately opening with `<` used to latch an "inside a
-    placeholder" flag that nothing cleared, hiding every real reservation after
-    it and then reporting the block as still holding the template's bare
-    `- none`, which was neither true nor actionable."""
+    """An entry opening with `<` must not hide the real reservations after it."""
     write_contract(repo, CONTRACT.replace(
         "decisions_reserved:\n  - none",
         "decisions_reserved:\n  - <2s page load is a product call\n"
@@ -2887,8 +2248,6 @@ def test_unclosed_bracket_does_not_swallow_a_later_real_reservation(repo):
 
 
 def test_artifact_allowed_when_a_block_scalar_carries_real_content(repo):
-    """The `key: >` form must still WORK when it has a body — the fix rejects the
-    bare indicator, not the spelling."""
     write_contract(repo, CONTRACT.replace(
         "decisions_reserved:\n  - none",
         "decisions_reserved: >\n  what the Overview shows for a goalkeeper",
@@ -2897,16 +2256,9 @@ def test_artifact_allowed_when_a_block_scalar_carries_real_content(repo):
     assert not denied(out)
 
 
-# --------------------------------------------------------------------------- #
-# Key ordering. `decisions_reserved:` must CLOSE the preceding block like every
-# other top-level key. Every pre-existing fixture happens to carry
-# `decisions_taken:` in between, which is exactly why nothing caught this.
-# --------------------------------------------------------------------------- #
+# --- key ordering: `decisions_reserved:` must close the preceding block like every other top-level key ---
 
 def test_reserved_block_cannot_forge_an_impact_map(repo):
-    """`impact_map: <placeholder>` immediately followed by `decisions_reserved:`
-    left the impact block open, so the first reservation was scored as impact-map
-    content and satisfied the requirement that is this task's headline change."""
     contract = CONTRACT_NO_IMPACT.replace(
         "decisions_taken: >\n  test\n",
         "impact_map: <fill me in>\ndecisions_reserved:\n  - a real open question\n"
@@ -2919,10 +2271,6 @@ def test_reserved_block_cannot_forge_an_impact_map(repo):
 
 
 def test_scope_paths_closes_an_open_impact_block(repo):
-    """The third forgeable key ordering. `scope_paths:` did not close an impact
-    block opened above it, so any indented non-item line inside the scope list
-    was scored as impact-map content and forged the map — the requirement that is
-    load-bearing on every guard edit."""
     contract = (
         "# Task contract — test\n"
         "objective: >\n  test\n"
@@ -2942,9 +2290,6 @@ def test_scope_paths_closes_an_open_impact_block(repo):
 
 
 def test_reserved_block_cannot_append_to_scope_paths(repo):
-    """`scope_paths:` immediately followed by `decisions_reserved:` left the scope
-    block open, so reservations matched the list-item pattern and were appended to
-    the allowlist."""
     contract = CONTRACT.replace(
         "decisions_taken: >\n  test\n", ""
     ).replace(
@@ -2958,10 +2303,7 @@ def test_reserved_block_cannot_append_to_scope_paths(repo):
 
 
 def test_artifact_gate_does_not_apply_scope_to_the_artifact_path(repo):
-    """Non-vacuous version: an IN-REPO path that is OUTSIDE scope_paths. An
-    implementation that reused `_gate_file_edit` would deny this. The earlier
-    version used an out-of-repo path, which `_rel_in_repo` returns None for, so
-    it passed under either implementation."""
+    """An in-repo path outside scope_paths, so an implementation reusing `_gate_file_edit` would deny it."""
     write_contract(repo, CONTRACT_RESERVED)
     out, _ = run_hook("task_contract_gate.py",
                       artifact_event(str(repo / "dbt_project" / "models" / "other.sql")), repo)
@@ -2978,17 +2320,14 @@ def blocked(out: str) -> bool:
     return '"decision": "block"' in out
 
 
-# --------------------------------------------------------------------------- #
-# Fail-open: a hook bug must never wedge a session.
-# --------------------------------------------------------------------------- #
+# --- fail-open: a hook bug must never wedge a session ---
 
 @pytest.mark.parametrize("script", [
     "task_contract_gate.py", "handover_in.py",
 ])
 @pytest.mark.parametrize("junk", ["", "not json", "null", "[]", '{"tool_name": 5}'])
 def test_hooks_fail_open_on_malformed_input(repo, script, junk, tmp_path):
-    # The handover hook reads GitLab; a failing fake keeps this test off the network and the
-    # same on every machine, whether or not a real `glab` is installed there.
+    # A failing fake `glab` keeps the handover hook off the network on every machine.
     base = _fake_glab(tmp_path, fail=True) if script == "handover_in.py" else os.environ
     env = dict(base, CLAUDE_PROJECT_DIR=str(repo))
     r = subprocess.run(
@@ -2999,16 +2338,10 @@ def test_hooks_fail_open_on_malformed_input(repo, script, junk, tmp_path):
     assert not denied(r.stdout) and not blocked(r.stdout)
 
 
-# --------------------------------------------------------------------------- #
-# handover_in — the delivery half. The handover is a GitLab issue read through
-# `glab`; these tests put a fake `glab` first on PATH, so they never reach
-# GitLab and can make it unreachable at will.
-# --------------------------------------------------------------------------- #
+# --- handover_in: these tests put a fake `glab` first on PATH ---
 
 def _fake_glab(tmp_path, body=None, fail=False, sleep=0):
-    """A `glab` that answers with `body` as the issue's description, or exits 1,
-    after `sleep` seconds, and writes the arguments it was called with to
-    `glab_args.txt`. Returns the environment to run the hook in."""
+    """A `glab` that answers `body` as the issue description or exits 1, and records its arguments."""
     bindir = tmp_path / "fakebin"
     bindir.mkdir()
     impl = bindir / "glab_fake.py"
@@ -3051,8 +2384,7 @@ def test_handover_injected_from_the_issue_and_saved(repo, tmp_path):
 
 
 def test_handover_cache_lands_at_the_project_root_from_a_subdirectory(repo, tmp_path):
-    """A session started below the repo root must save and find the same copy.
-    `cwd` alone once made the hook look in the subdirectory."""
+    """A session started below the repo root must save and find the same copy."""
     sub = repo / "dbt_project" / "models"
     ctx = _handover(repo, _fake_glab(tmp_path, "THE GOAL: ship the site."), event={}, cwd=sub)
     assert "THE GOAL: ship the site." in ctx
@@ -3080,9 +2412,7 @@ def test_an_empty_saved_copy_counts_as_none(repo, tmp_path):
 
 
 def test_the_handover_check_refuses_a_host_address_or_an_oversize_draft(tmp_path):
-    """The handover is written to a public issue that no hook sees, so the pre-publish check is
-    what still refuses a server's address in it. The address is assembled at run time: a literal
-    one in this file is exactly what the tree test forbids."""
+    """The address is assembled at run time because a literal one in this file is forbidden."""
     tool = os.path.join(os.path.dirname(__file__), "..", "design-mocks", "check_handover.py")
     drafts = {
         "clean": "# Active work\nNothing open. The runner is ci-runner-01.\n",
@@ -3099,9 +2429,7 @@ def test_the_handover_check_refuses_a_host_address_or_an_oversize_draft(tmp_path
 
 
 def test_a_hanging_gitlab_read_times_out(tmp_path, monkeypatch):
-    """The timeout is what lets the saved copy be used when GitLab hangs rather
-    than refuses: without it the hook waits until the harness kills it, and the
-    session gets no handover and no message."""
+    """Without the timeout a hanging GitLab holds the hook until the harness kills it, so no saved copy is used."""
     spec = importlib.util.spec_from_file_location("handover_in_under_test", os.path.join(HOOKS, "handover_in.py"))
     hook = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(hook)
@@ -3112,39 +2440,23 @@ def test_a_hanging_gitlab_read_times_out(tmp_path, monkeypatch):
 
 
 def test_handover_announces_truncation(repo, tmp_path):
-    """Silent truncation is how a handover looks complete while its tail is
-    missing — the failure that hid 86% of the file before it was cut down."""
     ctx = _handover(repo, _fake_glab(tmp_path, "y" * 20000))
     assert "TRUNCATED" in ctx
 
 
 def test_handover_under_the_cap_is_not_called_truncated_when_multibyte(repo, tmp_path):
-    """The cap is CHARACTERS. Reading characters while deciding truncation from
-    the file's SIZE IN BYTES meant any handover under the character cap but over
-    the byte cap was injected whole AND labelled truncated. A pure-ASCII fixture
-    cannot catch that, because there the two units coincide — which is why the
-    first version of the truncation test passed against the bug.
-
-    '⭐' is 3 bytes and 1 character: 15,900 of them is comfortably under the
-    16,000-character cap and comfortably over 16,000 bytes."""
+    """The cap counts characters; a multibyte text under it but over the byte count must not be truncated."""
     text = "⭐" * 15900
-    assert len(text) < 16000 < len(text.encode("utf-8"))      # the fixture is the point
+    assert len(text) < 16000 < len(text.encode("utf-8"))
     ctx = _handover(repo, _fake_glab(tmp_path, text))
     assert "TRUNCATED" not in ctx
-    assert text in ctx                                        # and nothing was dropped
+    assert text in ctx
 
 
-# ---------------------------------------------------------------------------
-# Reviewers stop reviewing the review's own paperwork.
-# Three changes, three invariants. #370 ran twelve rounds because the paperwork
-# was inside both the reviewed patch AND the hash, and a PASS required two
-# findings — so a typo fix voided every verdict and bought another round.
-# ---------------------------------------------------------------------------
+# --- the review's own paperwork is outside the reviewed patch and the hash ---
 
 def test_editing_an_evidence_artifact_does_not_change_the_staged_hash(repo):
-    """CHANGE 2. Correcting a note must not restart the review. The two evidence
-    artifacts are in hash_exclude_paths, so a PASS survives an edit to them.
-    Fails on revert: put either file back in the hash and the digests differ."""
+    """The evidence artifacts are in hash_exclude_paths, so editing them must not void a PASS."""
     setup_review_repo(repo)
     before = staged_hash(repo)
     for name in ("acceptance_evidence.md", "rendered_page_evidence.md"):
@@ -3157,10 +2469,7 @@ def test_editing_an_evidence_artifact_does_not_change_the_staged_hash(repo):
 
 
 def test_editing_the_contract_DOES_change_the_staged_hash(repo):
-    """The guard that must survive change 2 (F10/F11, #409). contract.md carries
-    scope_paths and acceptance_criteria, so widening scope after the reviewers
-    passed has to break the hash. If this ever goes green, the exclusion list has
-    been widened too far."""
+    """contract.md carries scope_paths and acceptance_criteria, so widening scope after review must break the hash."""
     setup_review_repo(repo)
     before = staged_hash(repo)
     (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(
@@ -3183,12 +2492,8 @@ def _review_patch(repo) -> str:
 
 
 def test_review_patch_excludes_the_tasks_own_paperwork(repo):
-    """CHANGE 1. Reviewers see code and contract.md, never the notes about the
-    work. Measured on #370 before this: 839 lines of code inside a 38,932-line
-    reviewed diff."""
+    """Reviewers see code and contract.md, never the notes about the work."""
     setup_review_repo(repo)
-    # Create EVERY file that should be hidden, so all the assertions below bite.
-    # Three of the four used to assert nothing because the files did not exist.
     hidden = ("acceptance_evidence.md", "rendered_page_evidence.md",
               "review.md", "review_input.patch")
     for i, name in enumerate(hidden):
@@ -3198,18 +2503,13 @@ def test_review_patch_excludes_the_tasks_own_paperwork(repo):
     patch = _review_patch(repo)
     for i, name in enumerate(hidden):
         assert f"HIDDEN_MARKER_{i}" not in patch, f"{name}'s content reached the patch"
-        # Match the DIFF HEADER, not the bare filename: review_routing.json is itself
-        # in the patch and lists these paths as data, so a substring check on the name
-        # false-positives on correct output.
+        # Match the diff header, because review_routing.json lists these names as data.
         assert f"diff --git a/{TASK}{name}" not in patch, f"{name} is in the diff"
     assert "HANDOVER_MARKER" not in patch
 
 
 def test_review_patch_DOES_deliver_the_rulings_log(repo):
-    """The other authority file. `escalations.log` is the frozen record of past
-    rulings that a `protected_override` may cite, so a reviewer that cannot see it
-    cannot check whether a claimed ruling exists — a check that has fired. It was
-    once wrongly excluded; this pins the mechanism, not just the routing data."""
+    """A `protected_override` may cite `escalations.log`, so reviewers must be able to see it."""
     setup_review_repo(repo)
     (repo / ".claude" / "task" / TASK_ID / "escalations.log").write_text("LOG_MARKER\n")
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
@@ -3219,16 +2519,11 @@ def test_review_patch_DOES_deliver_the_rulings_log(repo):
 
 
 def test_review_patch_is_cumulative_not_just_the_last_increment(repo):
-    """Every brief promises "the cumulative branch diff vs main", because two
-    individually clean commits can cumulatively drift. `git diff --staged` alone is
-    index-vs-HEAD, so on a branch that already has a commit the reviewers would get
-    only the newest slice. Fails on revert to a bare `--staged`."""
+    """`git diff --staged` alone is index-vs-HEAD, which would give reviewers only the newest slice."""
     setup_review_repo(repo)
     subprocess.run(["git", "branch", "-f", "main", "HEAD"], cwd=repo, check=True)
     subprocess.run(["git", "checkout", "-q", "-b", "feat/two-commits"], cwd=repo, check=True)
-    # The two changes MUST be in different files. Putting both markers on one line
-    # makes the test vacuous: a staged-only diff shows the whole changed line, so the
-    # earlier marker appears in it as well and the assertion passes on the bug.
+    # The two changes must be in different files, or a staged-only diff would show both markers.
     first = repo / "dbt_project" / "models" / "committed.sql"
     first.write_text("select 1 as FIRST_COMMIT_MARKER\n")
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
@@ -3243,9 +2538,7 @@ def test_review_patch_is_cumulative_not_just_the_last_increment(repo):
 
 
 def test_review_patch_still_contains_the_code_and_the_contract(repo):
-    """The other direction, so change 1 cannot be satisfied by excluding
-    everything: the reviewers must still receive the code diff, and contract.md
-    because that is what the auditor and the CTO check authority against."""
+    """Reviewers must still receive the code diff and contract.md, which they check authority against."""
     setup_review_repo(repo)
     (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 1 as CODE_MARKER\n")
     (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text("objective: CONTRACT_MARKER\n")
@@ -3259,16 +2552,7 @@ def test_review_patch_still_contains_the_code_and_the_contract(repo):
 
 
 def test_every_task_artifact_is_classified(repo):
-    """Stops `review_exclude_paths` from decaying as artifacts are added.
-
-    Every tracked file in `.claude/task/` must be either excluded from what the
-    reviewers read, or contract.md, which they MUST read. A new artifact that is
-    neither fails here, so it gets classified deliberately instead of silently
-    becoming reviewable surface — which is how #370's paperwork ended up inside
-    its own review.
-
-    This reads the REAL routing file, not the fixture: the fixture cannot catch a
-    file that exists only in the repo."""
+    """Every tracked `.claude/task/` file is either excluded from review or an authority file reviewers must read."""
     excluded = real_routing().get("review_exclude_paths") or []
     files = tracked(".claude/task/")
     assert files, "no tracked files under .claude/task/ — has the tree moved?"
@@ -3276,7 +2560,6 @@ def test_every_task_artifact_is_classified(repo):
     def hidden(p):
         return any(fnmatch.fnmatch(p, pat) for pat in excluded)
 
-    # The two files there that carry AUTHORITY and must reach the reviewers.
     authority = (".claude/task/*/contract.md", ".claude/task/escalations.log")
     unclassified = [p for p in files
                     if not hidden(p) and not any(fnmatch.fnmatch(p, a) for a in authority)]
@@ -3284,10 +2567,6 @@ def test_every_task_artifact_is_classified(repo):
         "these .claude/task/ files are neither hidden from reviewers nor one of the "
         f"two authority files, so reviewers will review their own paperwork: {unclassified}"
     )
-    # And the other direction: an authority file must never be hidden. escalations.log
-    # was once excluded here — a protected_override may cite it as the locatable
-    # record, so a reviewer that cannot see it cannot check whether a claimed ruling
-    # exists.
     hidden_authority = sorted(
         p for p in (TASK + "contract.md", ".claude/task/escalations.log") if hidden(p))
     assert not hidden_authority, (
@@ -3296,13 +2575,7 @@ def test_every_task_artifact_is_classified(repo):
 
 
 def test_real_routing_hides_the_evidence_artifacts_from_the_hash(repo):
-    """Pins the REAL routing data for change 2, not the synthetic fixture.
-
-    Every test of the hash exclusion used the fixture, so deleting the two
-    evidence artifacts from the real
-    `hash_exclude_paths` left the whole suite green — the change was demonstrated
-    once by hand and then unprotected. The same gap shipped a routing change that
-    missed six tracked files, which is why `real_routing()` exists at all."""
+    """Reads the real routing data, since the synthetic fixture cannot catch a deleted exclusion."""
     excl = real_routing().get("hash_exclude_paths") or []
     for p in (TASK + "acceptance_evidence.md",
               TASK + "rendered_page_evidence.md"):
@@ -3317,8 +2590,7 @@ def test_real_routing_hides_the_evidence_artifacts_from_the_hash(repo):
 
 
 def _ci_repo_with_review(ci_repo, body: str):
-    """Commit code + contract, then a review.md carrying the recomputed PR hash and
-    `body`. Mirrors test_ci_check_passes_with_complete_artifacts."""
+    """Commit code and contract, then a review.md carrying the recomputed PR hash and `body`."""
     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
     (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
@@ -3332,23 +2604,14 @@ def _ci_repo_with_review(ci_repo, body: str):
 
 
 def test_ci_twin_accepts_a_pass_with_one_thing_examined(ci_repo):
-    """The CI twin's floor must equal the local hook's, and nothing pinned it.
-
-    The floor lives in TWO places — `git_discipline._commit_gate` and
-    `check_task_artifacts.py` — and for one review round they disagreed: the hook
-    allowed one entry while fail-closed CI still demanded two, so a review with one
-    entry committed locally and then reddened the PR. Every
-    existing CI-path test used a two-entry body, so all 248 stayed green through that
-    divergence. Fails on revert of the CI floor to 2."""
+    """The floor lives in both `git_discipline._commit_gate` and `check_task_artifacts.py` and must be equal."""
     body = GOOD_BODY.replace("- risk two checked\n", "", 1)
     code, out = _ci_repo_with_review(ci_repo, body)
     assert code == 0, out
 
 
 def test_ci_twin_denies_a_pass_with_nothing_examined(ci_repo):
-    """The other direction, so the floor cannot be satisfied by deleting it: zero
-    entries is still a rubber stamp and still fails CI. Pins the message text too,
-    so the two copies cannot drift in what they tell the builder."""
+    """Zero entries is a rubber stamp, and the message text must match the hook's."""
     body = GOOD_BODY.replace("- risk one checked\n- risk two checked\n", "", 1)
     code, out = _ci_repo_with_review(ci_repo, body)
     assert code == 1, out
@@ -3356,14 +2619,7 @@ def test_ci_twin_denies_a_pass_with_nothing_examined(ci_repo):
 
 
 def test_review_patch_fails_LOUD_when_git_fails(tmp_path):
-    """The most dangerous behaviour of the new path, and nothing pinned it.
-
-    `--review-patch`'s documented usage redirects stdout into review_input.patch, and
-    a redirect truncates its target BEFORE the process runs. So a git failure that
-    returned empty bytes and exit 0 would leave a zero-byte patch that reads to a
-    reviewer as "nothing changed" — and nothing downstream can detect it, because
-    review_input.patch is in both exclusion lists. Reverting the `raise` leaves the
-    rest of the suite green.
+    """A redirect truncates review_input.patch before the run, so a silent git failure would read as no changes.
 
     A directory with a routing file but no `.git` makes every git call fail."""
     (tmp_path / ".claude").mkdir()
@@ -3379,16 +2635,13 @@ def test_review_patch_fails_LOUD_when_git_fails(tmp_path):
 
 
 def test_review_patch_refuses_a_base_that_shares_no_history(tmp_path, _repo_template):
-    """`main` exists but has no common ancestor with HEAD. The old code fell back to
-    a bare `--staged` here, silently handing reviewers the last increment only. It
-    must refuse instead — loud or large, never narrower."""
+    """A `main` with no common ancestor must be refused, never narrowed to the last increment."""
     dst = tmp_path / "unrelated"
     shutil.copytree(_repo_template, dst)
     setup_review_repo(dst)
     subprocess.run(["git", "commit", "-qm", "one"], cwd=dst, check=True)
     start = subprocess.run(["git", "branch", "--show-current"], cwd=dst,
                            capture_output=True, text=True, check=True).stdout.strip()
-    # An orphan branch named main: no shared history with the current HEAD.
     subprocess.run(["git", "checkout", "-q", "--orphan", "main"], cwd=dst, check=True)
     (dst / "unrelated.txt").write_text("x\n")
     subprocess.run(["git", "add", "-A"], cwd=dst, check=True)
@@ -3405,13 +2658,6 @@ def test_review_patch_refuses_a_base_that_shares_no_history(tmp_path, _repo_temp
     assert "common ancestor" in r.stderr, r.stderr
 
 
-# --------------------------------------------------------------------------- #
-# Wiring the unwired guards
-#
-# Every test below pins a behaviour that was ADDED because its absence was
-# invisible. That is the whole class: a guard that silently does nothing looks
-# exactly like a guard that is satisfied, so only a test can tell them apart.
-# --------------------------------------------------------------------------- #
 def _routing_with(**extra) -> dict:
     r = json.loads(json.dumps(ROUTING))
     r.update(extra)
@@ -3419,34 +2665,19 @@ def _routing_with(**extra) -> dict:
 
 
 def test_unparseable_routing_announces_itself_instead_of_silently_disabling_review(repo):
-    """A stray comma in review_routing.json switches the review requirement OFF.
-
-    `_load_routing` returns None on any parse error, and None means "gate not active"
-    in `_commit_gate`. Before this, that happened in total silence — the most
-    consequential quiet failure in the file, because the symptom is the ABSENCE of a
-    message nobody was watching for.
-    """
-    # Something must be STAGED: `_commit_gate` returns before reading routing when the
-    # index is empty ("nothing staged: let git complain"), so an unstaged test would
-    # pass for the wrong reason.
+    """`_load_routing` returns None on a parse error, which `_commit_gate` reads as gate not active."""
+    # Something must be staged: `_commit_gate` returns before reading routing when the index is empty.
     (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 1\n")
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
-    (repo / ".claude" / "review_routing.json").write_text('{"always": ["x",]}')  # trailing comma
+    (repo / ".claude" / "review_routing.json").write_text('{"always": ["x",]}')
     out, _ = run_hook("git_discipline.py", bash_event('git commit -m "x"'), repo)
     assert "REVIEW ROUTING UNREADABLE" in out, out
     assert "DISABLED" in out
-    # Still fails OPEN: it warns, it does not block.
     assert not denied(out), "the canary must not turn a parse error into a hard block"
 
 
 def test_routing_canary_never_pollutes_cli_stdout(repo):
-    """STDOUT IS TWO CHANNELS and conflating them corrupts an artifact.
-
-    As a hook, stdout carries the JSON protocol and a canary belongs there. As a CLI
-    (`--review-patch`, `--staged-hash`), stdout IS the product — the patch reviewers read
-    and that gets committed. The first version of the canary printed in both, appending a
-    JSON blob to `review_input.patch` — reproduced before it was fixed.
-    """
+    """As a hook, stdout carries the JSON protocol; as a CLI it is the product, so the canary goes to stderr."""
     setup_review_repo(repo)
     (repo / ".claude" / "review_routing.json").write_text('{"always": ["x",]}')
     env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
@@ -3458,7 +2689,6 @@ def test_routing_canary_never_pollutes_cli_stdout(repo):
         assert "hookSpecificOutput" not in r.stdout, (
             f"{flag} emitted hook JSON into its product: {r.stdout[:200]}")
         assert "REVIEW ROUTING UNREADABLE" not in r.stdout, r.stdout[:200]
-    # The warning is not swallowed — it goes to stderr, where it cannot corrupt the patch.
     r = subprocess.run(
         [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--review-patch"],
         cwd=str(repo), capture_output=True, text=True, env=env, timeout=60,
@@ -3467,22 +2697,11 @@ def test_routing_canary_never_pollutes_cli_stdout(repo):
 
 
 def test_manifest_failure_is_loud_not_silent(repo):
-    """Summarised paths are removed from the body ON THE PROMISE of a manifest.
-
-    Swallowing an error here hides them with nothing said — the exact coverage loss the
-    key exists to prevent. `_base_commit` already refuses rather than narrowing a diff;
-    this must refuse too.
-
-    An earlier version of this test asserted `"raise" in inspect.getsource(...)` and was
-    VACUOUS: the word appears in the function's own comment, so swapping the raise for a
-    `return b""` left it green, and it never called the function at all. This one drives
-    the real failure branch.
-    """
+    """Summarised paths leave the body on the promise of a manifest, so a manifest error must raise."""
     setup_review_repo(repo)
     sys.path.insert(0, HOOKS)
     import git_discipline  # noqa: E402
-    # Malformed pathspec magic — `git diff --stat` exits non-zero on it, which is the
-    # branch under test. Nothing else in the call can fail this way.
+    # Malformed pathspec magic makes `git diff --stat` exit non-zero.
     with pytest.raises(Exception) as exc:
         git_discipline._summary_manifest(str(repo), [":(attr:!!bad)x"])
     assert "manifest" in str(exc.value).lower(), (
@@ -3490,24 +2709,14 @@ def test_manifest_failure_is_loud_not_silent(repo):
 
 
 def test_fast_gates_and_validate_local_agree(repo):
-    """Two files described the same set and disagreed, each naming the other as source.
-
-    `validate-local` claimed "the first five" of its block run at turn end — which
-    included `check_task_artifacts.py` (which must NOT, it needs a fetched origin/main
-    and a current review.md) and omitted `check_ui_i18n_metrics.py` (which does).
-    Prose cannot hold this; a test can.
-    """
+    """The FAST_GATES list and the validate-local skill describe the same turn-end set."""
     root = os.path.join(os.path.dirname(__file__), "..")
     sys.path.insert(0, HOOKS)
     import stop_gate  # noqa: E402
     skill = open(os.path.join(root, ".claude", "skills", "validate-local", "SKILL.md"),
                  encoding="utf-8").read()
 
-    # SET EQUALITY over the MARKED region, not membership over the whole file. The first
-    # version of this test asserted each name appeared somewhere in SKILL.md — and each
-    # appears three times (the bash block, this list, the CI mapping table), so deleting
-    # the turn-end sentence outright left it green, as did the broken form it was written
-    # to catch. Membership over a file that repeats the names is close to no assertion.
+    # Set equality over the marked region: each name appears several times elsewhere in SKILL.md.
     block = re.search(r"<!-- FAST_GATES:START -->(.*?)<!-- FAST_GATES:END -->",
                       skill, re.S)
     assert block, (
@@ -3524,7 +2733,6 @@ def test_fast_gates_and_validate_local_agree(repo):
     for rel in stop_gate.FAST_GATES:
         assert os.path.isfile(os.path.join(root, rel)), f"{rel} does not exist"
 
-    # The one that must stay out, pinned by name so a future edit cannot quietly add it.
     assert not any("check_task_artifacts" in g for g in stop_gate.FAST_GATES), (
         "check_task_artifacts needs a fetched origin/main and a current review.md; in "
         "FAST_GATES it would block every turn end during the build phase"
@@ -3532,12 +2740,7 @@ def test_fast_gates_and_validate_local_agree(repo):
 
 
 def test_missing_routing_file_stays_silent(repo):
-    """A MISSING routing file is a legitimate state — another repo, no governance.
-
-    Only a file that EXISTS and will not parse is a defect. Warning on absence would
-    fire in every repo without this system, which is the cry-wolf failure that teaches
-    an agent to ignore the guardrail.
-    """
+    """A missing routing file is a legitimate state; only one that exists and will not parse is a defect."""
     path = repo / ".claude" / "review_routing.json"
     if path.exists():
         path.unlink()
@@ -3546,10 +2749,7 @@ def test_missing_routing_file_stays_silent(repo):
 
 
 def test_review_patch_excludes_summarise_paths_from_the_body(repo):
-    """`review_summarise_paths` keeps generated data OUT of the pasted diff.
-
-    Measured motivation: 30,480 of 34,074 patch lines (89%) were committed sample JSON.
-    """
+    """`review_summarise_paths` keeps generated data out of the pasted diff."""
     (repo / ".claude" / "review_routing.json").write_text(
         json.dumps(_routing_with(review_summarise_paths=["data/**"])))
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
@@ -3565,17 +2765,11 @@ def test_review_patch_excludes_summarise_paths_from_the_body(repo):
     )
     assert r.returncode == 0, r.stderr
     assert "UNIQUE_MARKER_IN_BODY" not in r.stdout, "sample data was pasted into the body"
-    # Real code is still pasted.
     assert "select 42" in r.stdout, "excluding sample data must not drop real code"
 
 
 def test_summarised_paths_are_announced_not_hidden(repo):
-    """Excluding the body must NOT hide that the files changed.
-
-    Silence here would quietly delete the display reviewer's core hunt item — whether a
-    displayed field exists in the exported sample — trading payload for coverage. That
-    is the difference between `review_summarise_paths` and `review_exclude_paths`.
-    """
+    """Excluding the body must not hide that the files changed, unlike `review_exclude_paths`."""
     (repo / ".claude" / "review_routing.json").write_text(
         json.dumps(_routing_with(review_summarise_paths=["data/**"])))
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
@@ -3594,7 +2788,6 @@ def test_summarised_paths_are_announced_not_hidden(repo):
 
 
 def test_no_manifest_when_no_summarised_path_changed(repo):
-    """An empty section every time trains the reader to skip the header."""
     (repo / ".claude" / "review_routing.json").write_text(
         json.dumps(_routing_with(review_summarise_paths=["data/**"])))
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
@@ -3610,13 +2803,7 @@ def test_no_manifest_when_no_summarised_path_changed(repo):
 
 
 def test_summarised_paths_still_bind_the_review_hash(repo):
-    """Not pasting a file must not stop it invalidating a reviewer's verdict.
-
-    `review_summarise_paths` answers "what is READ"; `hash_exclude_paths` answers "what
-    BINDS the verdict". Conflating them would let sample data change after review with
-    the recorded hash still matching — reviewer-unseen content reaching a commit, which
-    is exactly what the hash exists to prevent.
-    """
+    """`review_summarise_paths` sets what is read and `hash_exclude_paths` what binds the verdict; they must not merge."""
     (repo / ".claude" / "review_routing.json").write_text(
         json.dumps(_routing_with(review_summarise_paths=["data/**"])))
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
@@ -3634,23 +2821,7 @@ def test_summarised_paths_still_bind_the_review_hash(repo):
     )
 
 
-# --------------------------------------------------------------------------- #
-# review_exclude_paths — hidden, but ANNOUNCED (GitLab #25)
-# --------------------------------------------------------------------------- #
-# Exclusion deletes the file from the patch, so a reviewer cannot tell a file that was
-# never edited from one edited and deliberately hidden. Both look identical: absent.
-# Reviewers drew the false inference three times (active_work.md twice, TEMPLATE.md
-# once), each costing a round, each withdrawn on the evidence. They were reasoning
-# correctly from what they were given.
-#
-# MEASURED against the pre-#25 hook, not predicted: THREE of the four go red
-# (`..._are_named`, `..._without_pasting_them`, `..._does_not_reach_the_review_hash`).
-# The last two fail on their trailer precondition rather than on their own assertion,
-# which is deliberate — each would otherwise pass by the trailer simply being absent,
-# and a test that green-lights the absence of the thing it exists to check is decoration.
-# `test_no_trailer_when_no_excluded_path_changed` is the one that cannot go red before the
-# fix, because it asserts the trailer is missing; it guards the new code against emitting
-# an empty section, which only becomes possible once the trailer exists.
+# --- review_exclude_paths: excluded files are hidden but announced in a trailer ---
 def _stage_excluded_edit(repo, body: str = "handover body\n") -> None:
     """Stage a change to a `review_exclude_paths` member, plus real code alongside it."""
     (repo / ".claude" / "active_work.md").write_text(body)
@@ -3665,11 +2836,7 @@ def _commit_routing(repo) -> None:
 
 
 def test_excluded_paths_that_changed_are_named(repo):
-    """The #25 defect. An excluded file that IS edited must be announced, not vanish.
-
-    Absence has to stop being ambiguous: a reviewer seeing a path in `scope_paths` and not
-    in the patch must be able to tell "hidden on purpose" from "never touched".
-    """
+    """A reviewer must be able to tell a file hidden on purpose from one never touched."""
     _commit_routing(repo)
     _stage_excluded_edit(repo)
     patch = _review_patch(repo)
@@ -3683,9 +2850,7 @@ def test_excluded_paths_that_changed_are_named(repo):
 
 
 def test_the_trailer_names_files_without_pasting_them(repo):
-    """Announcing is not un-excluding. The rule that reviewers never judge the review's
-    own paperwork has to survive this change, so the trailer carries names and counts
-    and no content."""
+    """The trailer carries names and counts and no content."""
     _commit_routing(repo)
     _stage_excluded_edit(repo, "UNIQUE_MARKER_INSIDE_EXCLUDED_FILE\n")
     patch = _review_patch(repo)
@@ -3697,8 +2862,6 @@ def test_the_trailer_names_files_without_pasting_them(repo):
 
 
 def test_no_trailer_when_no_excluded_path_changed(repo):
-    """An empty section every time trains the reader to skip the header, and then a real
-    one gets skipped too. Same rule `_summary_manifest` already follows."""
     _commit_routing(repo)
     (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 7\n")
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
@@ -3707,14 +2870,7 @@ def test_no_trailer_when_no_excluded_path_changed(repo):
 
 
 def test_the_trailer_does_not_reach_the_review_hash(repo):
-    """`--review-patch` and `--staged-hash` must stay separate products.
-
-    They resolve different lists through different functions (`review_exclude_paths` via
-    `_review_patch_bytes`, `hash_exclude_paths` via `_staged_diff_bytes`). If the trailer
-    ever fed the hash, every verdict would be invalidated by a handover edit reviewers are
-    not even shown. Asserted with a trailer demonstrably present, so it cannot pass by the
-    trailer simply being absent.
-    """
+    """`--review-patch` and `--staged-hash` resolve different lists, so the trailer must not feed the hash."""
     _commit_routing(repo)
     (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 42\n")
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
@@ -3734,39 +2890,20 @@ def test_the_trailer_does_not_reach_the_review_hash(repo):
 
 
 def test_excluded_trailer_failure_is_loud_not_silent(repo):
-    """A trailer that can silently not appear re-creates the ambiguity it exists to remove.
-
-    The sibling has this test (`test_manifest_failure_is_loud_not_silent`) because an
-    earlier version of it was VACUOUS — it asserted `"raise" in inspect.getsource(...)`,
-    which the function's own comment satisfied. This one drives the real failure branch, so
-    wrapping the `_staged_stat` call in `try/except: return b""` goes red here.
-
-    It asserts on the STRUCTURAL `section` token in the message, not on the prose reason,
-    so rewording the explanation cannot silently unpin it.
-    """
+    """A trailer that can silently not appear re-creates the ambiguity it exists to remove."""
     setup_review_repo(repo)
     sys.path.insert(0, HOOKS)
     import git_discipline  # noqa: E402
-    # Malformed pathspec magic — `git diff --stat` exits non-zero on it, which is the
-    # branch under test. Nothing else in the call can fail this way.
+    # Malformed pathspec magic makes `git diff --stat` exit non-zero.
     with pytest.raises(Exception) as exc:
         git_discipline._excluded_trailer(str(repo), [":(attr:!!bad)x"])
-    # The FULL section phrase, not the bare word: the trailer's own reason string ends
-    # "…which is the defect this trailer exists to remove", so asserting on `"trailer"`
-    # alone would survive `section` being emptied and quietly stop pinning anything.
-    # Its manifest twin has no such overlap.
+    # The full phrase, because the trailer's reason string also contains the bare word "trailer".
     assert "review patch trailer" in str(exc.value).lower(), (
         f"raised, but not identified as the trailer section: {exc.value}")
 
 
 def _install_fast_gate(repo, body: str) -> None:
-    """Write a stub fast gate and COMMIT it, then write the contract.
-
-    Committing matters: the stop gate checks scope FIRST, so an uncommitted stub under
-    `scripts/` is itself an out-of-scope dirty file and the scope check fires before
-    correctness is ever reached. That is correct behaviour — it just makes an
-    uncommitted stub test the wrong thing.
-    """
+    """Commit a stub fast gate, because an uncommitted one is out of scope and the scope check fires first."""
     scripts = repo / "scripts"
     scripts.mkdir(exist_ok=True)
     (scripts / "check_layer_contract.py").write_text(body)
@@ -3776,9 +2913,8 @@ def _install_fast_gate(repo, body: str) -> None:
 
 
 def test_stop_gate_blocks_on_a_failing_fast_gate(repo):
-    """Turn-end correctness. Before this, nothing verified that anything WORKS."""
     _install_fast_gate(repo, "import sys\nprint('- deliberate failure for the test')\nsys.exit(1)\n")
-    # Dirty an IN-SCOPE file: correctness is only reached once the scope check passes.
+    # Dirty an in-scope file: correctness is only reached once the scope check passes.
     (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 5\n")
     out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
     assert '"decision": "block"' in out, out
@@ -3794,17 +2930,14 @@ def test_stop_gate_passes_when_fast_gates_pass(repo):
 
 
 def test_stop_gate_skips_correctness_on_a_clean_tree(repo):
-    """A conversational turn must not pay ~3s, and a clean tree cannot have broken
-    a gate that was already passing."""
+    """A clean tree cannot have broken a passing gate, so a conversational turn skips the cost."""
     _install_fast_gate(repo, "import sys\nprint('would fail')\nsys.exit(1)\n")
-    # Tree left CLEAN: nothing modified after the contract commit.
     out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
     assert out.strip() == "", "correctness ran on a clean tree"
 
 
 def test_stop_gate_ignores_absent_fast_gates(repo):
-    """Missing checker scripts are legitimate (other branches, worktrees). Reporting
-    them would be the cry-wolf failure the hook house-rules warn about."""
+    """Missing checker scripts are legitimate on other branches and worktrees."""
     write_contract(repo)
     (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 8\n")
     out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
@@ -3812,8 +2945,7 @@ def test_stop_gate_ignores_absent_fast_gates(repo):
 
 
 def test_stop_gate_reports_scope_violation_before_correctness(repo):
-    """An out-of-scope tree is the more actionable failure and must be reported first;
-    reporting both at once buries it."""
+    """An out-of-scope tree is the more actionable failure, so it is reported alone and first."""
     _install_fast_gate(repo, "import sys\nsys.exit(1)\n")
     (repo / "stray.txt").write_text("out of scope\n")
     out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
@@ -3832,8 +2964,7 @@ _GATE_PASSES_ONLY_IN_REPO_VENV = (
 
 
 def test_stop_gate_runs_gates_with_the_repo_venv(repo):
-    """On a fresh machine the hook starts under the system Python, which lacks the gates' packages;
-    the repo's `.venv` (created by scripts/bootstrap.py) has them, so the gates must run there."""
+    """The hook starts under the system Python, which lacks the gates' packages, so gates must run in the repo `.venv`."""
     import venv
 
     (repo / ".gitignore").write_text(".venv/\n")
@@ -3845,7 +2976,7 @@ def test_stop_gate_runs_gates_with_the_repo_venv(repo):
 
 
 def test_stop_gate_without_a_venv_runs_gates_with_its_own_python(repo):
-    """Before setup has run there is no `.venv`: the gates run as before, and a failure still blocks."""
+    """With no `.venv` the gates run under the hook's own Python, and a failure still blocks."""
     _install_fast_gate(repo, _GATE_PASSES_ONLY_IN_REPO_VENV)
     (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 10\n")
     out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
@@ -3854,9 +2985,7 @@ def test_stop_gate_without_a_venv_runs_gates_with_its_own_python(repo):
     assert sys.executable in out.replace("\\\\", "\\")
 
 
-# --------------------------------------------------------------------------- #
-# task_contract_gate — approved-design gate (the page surface)
-# --------------------------------------------------------------------------- #
+# --- task_contract_gate: approved-design gate for the page surface ---
 _PAGE_CONTRACT = CONTRACT.replace(
     "scope_paths:\n",
     "scope_paths:\n  - site_v2/src/pages/home.astro\n  - scripts/export_site_data.py\n",

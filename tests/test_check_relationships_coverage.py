@@ -1,12 +1,4 @@
-"""Tests for `scripts/check_relationships_coverage.py`.
-
-Each rule is driven through `main()` against a synthetic models tree and shown RED on the
-defect it exists for, and the same tree without the defect is shown green — a gate that fires
-on everything is as useless as one that fires on nothing. The last test runs the gate on the
-real tree inside `test:python`, so a foreign key added without `relationships` or a declared
-soft link fails every merge request from here on — the same shape as
-`test_materialisation_policy.py` and `test_persist_docs_policy.py`.
-"""
+"""Tests for `scripts/check_relationships_coverage.py`, run through `main()` on synthetic trees."""
 from __future__ import annotations
 
 import os
@@ -72,7 +64,7 @@ def _tree(tmp_path, mart_body: str, core_body: str = CORE):
 
 
 def _lower_floors(monkeypatch):
-    """The synthetic tree is tiny by design; the floors are tested on their own below."""
+    """The synthetic tree is tiny, so the floors are lowered and tested separately."""
     monkeypatch.setattr(gate, "MIN_MODELS", 0)
     monkeypatch.setattr(gate, "MIN_CORE_KEYS", 0)
     monkeypatch.setattr(gate, "MIN_FOREIGN_KEYS", 0)
@@ -107,7 +99,7 @@ def test_an_empty_soft_link_does_not_count(tmp_path, monkeypatch):
 
 
 def test_a_soft_link_is_printed_even_when_another_column_fails(tmp_path, monkeypatch, capsys):
-    """The docstring promises a soft link is never silent; a red run must print it too."""
+    """A soft link is never silent, so a red run must print it too."""
     _lower_floors(monkeypatch)
     body = (MART % {"opponent": SOFT}).replace(
         "      - name: team_season_sk\n        tests: [unique]",
@@ -130,8 +122,7 @@ def test_an_undeclared_sk_that_is_not_the_models_own_key_is_red(tmp_path, monkey
 
 
 def test_an_own_key_needs_no_parent(tmp_path, monkeypatch, capsys):
-    """`team_season_sk` is unique in mart_x and names no core key: an own key, not a finding.
-    The entity prefix rule is what keeps it from resolving to `season_sk`."""
+    """The entity prefix rule keeps `team_season_sk` from resolving to `season_sk`."""
     _lower_floors(monkeypatch)
     core = CORE + (
         "  - name: dim_competition_season\n"
@@ -179,8 +170,7 @@ def test_an_unparseable_file_fails_closed_and_names_it(tmp_path, monkeypatch, ca
 
 
 def test_the_real_tree_is_covered(capsys):
-    """The gate on the repo itself, in `test:python`; `validate:governance` runs the same script
-    as a line of its own, so the rule holds even if one of the two jobs is ever narrowed."""
+    """The gate on the repo itself."""
     assert gate.main() == 0
     out = capsys.readouterr().out
     assert out.startswith("OK:")

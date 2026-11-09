@@ -1,6 +1,4 @@
-"""The chart screenshot check: pins compared by hash, pins written on Linux only, every chart mark's
-computed colour held to the theme, and the scatter plot's difference label placed in a reader's flow,
-each red on the defect it guards against."""
+"""Tests for scripts/check_chart_screenshots.py: pin comparison, mark colours and label placement."""
 
 import re
 import sys
@@ -157,8 +155,7 @@ def test_pins_are_never_written_off_linux(tmp_path, monkeypatch, running):
 
 
 def _on_built_site(run, html=None, css=None, init=None):
-    """Run `run(page, base)` on the served built site; `html` and `css` rewrite every page and
-    stylesheet on the way in, `init` runs before the page's own scripts."""
+    """Run `run(page, base)` on the served built site, with `html`/`css` rewriting responses."""
     from playwright.sync_api import sync_playwright
 
     srv, base = ccs.serve(DIST)

@@ -1,10 +1,4 @@
-"""Tests for `scripts/generate_metric_sql.py`.
-
-The first test is the drift check: the SQL in the player and team models must be exactly what the
-catalogue generates, so a hand edit inside a generated block, or a catalogue change the models did
-not follow, fails `test:python`. The others drive the generator against a synthetic catalogue and
-model and assert one thing it must do or refuse.
-"""
+"""Tests for `scripts/generate_metric_sql.py`, including drift of the generated model SQL."""
 from __future__ import annotations
 
 import csv

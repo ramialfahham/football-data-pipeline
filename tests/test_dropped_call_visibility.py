@@ -1,17 +1,6 @@
-"""A run that drops API calls must not look clean (#898).
+"""A run that drops API calls must not look clean: drops are detected, retried, counted and gated.
 
-One nightly dropped 26 API calls and reported `conclusion: success`. So did 9 other runs in the
-preceding fortnight. Four independent causes, each pinned here:
-
-1. The per-minute limit arrives as HTTP 200 with the error in the body, so `raise_for_status()` saw
-   a healthy response and the 429 retry branch never fired. Zero retries.
-2. `_payload_shows_daily_limit_exceeded` requires "day", so the per-minute class set no flag.
-3. (not fixed here, out of scope) the completeness gate covers fanout entities only.
-4. `ctx.errors` never reached the job summary.
-
-The threshold policy: visible on every run, fail only when the same endpoint drops on two
-consecutive runs. A single bad run must stay green, because failing skips the
-dbt build and daily freshness is a hard requirement.
+Fail only when the same endpoint drops on two consecutive runs, since failing skips the dbt build.
 """
 
 from __future__ import annotations
@@ -35,7 +24,7 @@ def _clean_run_state():
     errors_quota.reset_minute_rate_limit_counts()
 
 
-# The exact message the provider sends, copied from a nightly log.
+# The exact messages the provider sends.
 _MINUTE_LIMIT = {
     "rateLimit": "Too many requests. You have exceeded the limit of requests per minute of your subscription."
 }
@@ -50,29 +39,20 @@ class TestPerMinuteDetection:
         assert errors_quota._payload_shows_minute_rate_limit({"errors": _DAILY_LIMIT}) is False
 
     def test_minute_message_is_not_a_daily_limit(self):
-        # The two detectors must not overlap: treating a per-minute limit as the daily cap would
-        # abort every remaining call in the run.
+        # Treating a per-minute limit as the daily cap would abort every remaining call in the run.
         assert errors_quota._payload_shows_daily_limit_exceeded({"errors": _MINUTE_LIMIT}) is False
 
     def test_clean_response_is_neither(self):
         assert errors_quota._payload_shows_minute_rate_limit({"errors": []}) is False
 
     def test_detection_never_sets_the_daily_exhausted_flag(self):
-        # THE DANGEROUS ONE. `_http_quota_exhausted` stops all remaining HTTP for the run. That is
-        # right for a daily cap and catastrophic for a limit that clears within the minute.
+        # `_http_quota_exhausted` stops all HTTP for the run, which is wrong for a per-minute limit.
         errors_quota._payload_shows_minute_rate_limit({"errors": _MINUTE_LIMIT})
         assert errors_quota._http_quota_exhausted is False
 
 
 class TestDroppedCallsAreCountedByEndpoint:
-    """Counted at the HTTP layer, once per call whose final attempt was still rejected.
-
-    An earlier version counted inside `append_api_errors`, keyed off the caller's context
-    string, and double-counted. `loads/fixtures.py` appends per season AND again on the merged
-    envelope, and `_merge_merged_paged` carries the earlier seasons' error text forward, so the
-    same drop was counted twice. Counting where the call happens removes the whole class: the tally
-    no longer depends on how many times any caller reports the same error.
-    """
+    """Counted at the HTTP layer, so the tally ignores how often a caller reports an error."""
 
     def test_counts_per_endpoint(self):
         errors_quota.record_minute_rate_limit("/players")
@@ -93,14 +73,12 @@ class TestDroppedCallsAreCountedByEndpoint:
         assert errors_quota.minute_rate_limit_counts() == {}
 
     def test_append_api_errors_does_not_count(self):
-        # REGRESSION GUARD for the double-count. `append_api_errors` must stay a pure reporter:
-        # it is called twice against overlapping error data in loads/fixtures.py, so any counting
-        # side effect there double-counts by construction.
+        # `append_api_errors` is called twice on overlapping errors, so counting there double-counts.
         sink: list[str] = []
         errors_quota.append_api_errors({"errors": _MINUTE_LIMIT}, "fixtures BL1 season=2026", sink)
         errors_quota.append_api_errors({"errors": _MINUTE_LIMIT}, "fixtures BL1", sink)
         assert errors_quota.minute_rate_limit_counts() == {}
-        assert len(sink) == 2  # reporting behaviour itself is unchanged
+        assert len(sink) == 2
 
 
 class TestRetryOnPerMinuteLimit:
@@ -120,7 +98,6 @@ class TestRetryOnPerMinuteLimit:
         return _R()
 
     def test_a_dropped_call_is_counted_once(self, monkeypatch):
-        # One HTTP call, rejected on both attempts, counts exactly one drop against its path.
         def fake_get(url, headers=None, params=None, timeout=None):
             return self._response({"errors": _MINUTE_LIMIT, "response": []})
 
@@ -132,7 +109,6 @@ class TestRetryOnPerMinuteLimit:
         assert errors_quota.minute_rate_limit_counts() == {"/players": 1}
 
     def test_a_call_rescued_by_the_retry_is_not_counted_as_dropped(self, monkeypatch):
-        # Rejected then successful means no data was lost, so it must NOT inflate the drop count.
         calls = {"n": 0}
 
         def fake_get(url, headers=None, params=None, timeout=None):
@@ -149,8 +125,7 @@ class TestRetryOnPerMinuteLimit:
         assert errors_quota.minute_rate_limit_counts() == {}
 
     def test_body_level_limit_is_retried_once(self, monkeypatch):
-        # THE #898 REGRESSION TEST. Before the fix this returned on the first call with zero
-        # retries, because status 200 skipped the 429 branch and raise_for_status() passed.
+        # Status 200 skips the 429 branch, so the body-level limit needs its own retry.
         calls = {"n": 0}
 
         def fake_get(url, headers=None, params=None, timeout=None):
@@ -168,8 +143,7 @@ class TestRetryOnPerMinuteLimit:
         assert data["response"] == [{"player": {"id": 1}}]
 
     def test_retry_is_attempted_only_once(self, monkeypatch):
-        # A second failure returns the failed body rather than looping. The caller then sees a
-        # body-level error, which #896's `result_is_complete` reads as incomplete.
+        # A second failure returns the failed body, which `result_is_complete` reads as incomplete.
         calls = {"n": 0}
 
         def fake_get(url, headers=None, params=None, timeout=None):
@@ -185,8 +159,7 @@ class TestRetryOnPerMinuteLimit:
         assert http_client._payload_shows_minute_rate_limit(data) is True
 
     def test_daily_limit_is_not_retried(self, monkeypatch):
-        # Once the daily cap is gone a retry cannot help, and it must still latch the flag that
-        # stops the rest of the run.
+        # A retry cannot help once the daily cap is gone, and the stop-the-run flag must latch.
         calls = {"n": 0}
 
         def fake_get(url, headers=None, params=None, timeout=None):
@@ -218,8 +191,7 @@ class TestRetryOnPerMinuteLimit:
 
 class TestStagnationGate:
     def test_one_bad_run_does_not_fail(self):
-        # The whole point of the threshold policy: a transient limit self-heals, and failing
-        # would skip the dbt build and cost daily freshness.
+        # A transient limit self-heals, and failing would skip the dbt build and cost freshness.
         assert detect_stagnant_dropped_calls({"players": 11}, {}) == []
         assert detect_stagnant_dropped_calls({"players": 11}, {"coaches": 3}) == []
 
@@ -228,11 +200,10 @@ class TestStagnationGate:
         assert out == [{"endpoint": "players", "prior_count": 11, "count": 4}]
 
     def test_healed_endpoint_does_not_fail(self):
-        # Dropped last run, clean this run: healing, which is exactly what must NOT alarm.
         assert detect_stagnant_dropped_calls({}, {"players": 11}) == []
 
     def test_no_prior_run_is_silent(self):
-        # First run, or a run after the snapshot was skipped. Fail-open, no false alarm.
+        # First run, or a run after the snapshot was skipped: fail open.
         assert detect_stagnant_dropped_calls({"players": 11}, None) == []
 
     def test_reports_every_stagnant_endpoint(self):
@@ -244,16 +215,7 @@ class TestStagnationGate:
 
 
 class TestGateRespectsTheOperatorKillSwitches:
-    """An earlier version ORed this signal into the exit condition in the orchestrator,
-    bypassing both documented escape hatches.
-
-    The pre-existing `stagnant_statistics` signal is subordinate to `report["skipped"]`
-    (API_FOOTBALL_SKIP_COMPLETENESS_CHECK) and to `fail_on_incomplete()`
-    (API_FOOTBALL_FAIL_ON_INCOMPLETE=0, the documented backfill override). A second stagnation
-    signal sharing the same exit code must be subordinate to the same two, or an operator running
-    the documented backfill playbook gets exit 3 anyway. A backfill is heavy on calls and is
-    exactly when this would fire.
-    """
+    """Like `stagnant_statistics`, it must obey `report["skipped"]` and `fail_on_incomplete()`."""
 
     _REPORT = {"leagues": {}}
 
@@ -296,7 +258,6 @@ class TestGateRespectsTheOperatorKillSwitches:
         assert out["hard_fail"] is False
 
     def test_absent_dropped_call_args_change_nothing(self, monkeypatch):
-        # The parameters are optional, so every existing caller keeps its behaviour.
         monkeypatch.delenv("API_FOOTBALL_FAIL_ON_INCOMPLETE", raising=False)
         out = evaluate_completeness_outcome(self._REPORT)
         assert out["stagnant_dropped_calls"] == []

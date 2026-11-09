@@ -1,10 +1,4 @@
-"""metric_bindings: the live match-preview wiring, plus the byte-identity guard for its JSON.
-
-The live match-preview data file (site/match-preview/metric_definitions.json) is generated
-from metric_bindings.csv (wiring) + metric_catalogue.csv (definition). These tests keep the
-wiring well-formed and lock the generated file to a fresh regeneration, so future steps cannot
-silently change what the live site renders.
-"""
+"""metric_bindings: the live match-preview wiring, plus the byte-identity guard for its JSON."""
 
 from __future__ import annotations
 
@@ -52,7 +46,6 @@ def test_match_preview_bindings_are_paired() -> None:
 
 
 def test_regenerated_json_matches_committed() -> None:
-    """Running the export (default sources) must reproduce the committed data file exactly."""
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "metric_definitions.json"
         subprocess.run(

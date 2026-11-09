@@ -121,11 +121,7 @@ def test_fetch_key_writes_the_key_and_never_prints_it(tmp_path: Path, monkeypatc
 
 
 def test_pre_commit_installs_the_push_and_open_mr_hook():
-    """The setup's `pre-commit install` is the only thing that puts the auto-push hook into a clone.
-
-    Dropping `post-commit` from the install types, or the hook itself, leaves every test and the
-    setup job green while new clones silently stop pushing and opening a merge request.
-    """
+    """`pre-commit install` is the only thing that puts the auto-push hook into a clone."""
     config = yaml.safe_load((Path(bootstrap.ROOT) / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
 
     assert "post-commit" in config.get("default_install_hook_types", []), (

@@ -118,11 +118,8 @@ class TestSeasonsForIngestion:
         assert seasons == [2023, 2024, 2025]
 
     def test_full_profile_history_seasons_authoritative_below_default_floor(self, monkeypatch):
-        # history_seasons is AUTHORITATIVE: under the full profile it reaches its full
-        # configured depth even when the default-window floor would be higher (e.g. after
-        # July 1, when effective_season_min would clamp to 2017). Regression for removing the
-        # max(global_lo, competition_lo) clamp — PL must reach 2016 deterministically (hs=11,
-        # provider current=2026).
+        # Under the full profile history_seasons reaches its full depth even when
+        # effective_season_min would clamp higher.
         monkeypatch.delenv("API_FOOTBALL_SEASON", raising=False)
         monkeypatch.delenv("API_FOOTBALL_SEASONS", raising=False)
         monkeypatch.setenv("API_FOOTBALL_INGEST_PROFILE", "full")

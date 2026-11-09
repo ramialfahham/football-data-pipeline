@@ -1,9 +1,4 @@
-"""The match page's Form comparison rows are the catalogue's, and the site reads a copy of them.
-
-`site_v2/src/data/metric_rows.json` is a committed build input the export writes from
-`metric_catalogue.csv`: every team metric `mart_team_window_metrics` serves that has a place (`metric_order`),
-minus the Results group, which the page shows elsewhere, each with its key flag. These tests lock the committed file to a fresh regeneration, hold
-the row set to that, and hold each group to the catalogue's rising `metric_order`.
+"""The match page's Form comparison rows come from the catalogue and the committed copy must match.
 """
 from __future__ import annotations
 

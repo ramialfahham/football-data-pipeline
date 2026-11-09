@@ -7,12 +7,7 @@ import ingestion.api_football.loads as loads_pkg
 
 class TestApiFootballLoadsImport(unittest.TestCase):
     def test_all_loader_modules_import(self) -> None:
-        """
-        Smoke-test import wiring for ingestion loaders.
-
-        This catches missing imports (for example merge helpers) before
-        runtime pipeline execution.
-        """
+        """Catches a missing import in a loader before runtime pipeline execution."""
         module_names = sorted(
             name
             for _, name, ispkg in pkgutil.iter_modules(loads_pkg.__path__)

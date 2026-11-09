@@ -1,8 +1,6 @@
 """The governance hooks judge the worktree an action targets, not CLAUDE_PROJECT_DIR.
 
-A main checkout and a real `git worktree add` under `.claude/worktrees/` carry different
-contracts. CLAUDE_PROJECT_DIR always names the main checkout, the way it does for a session
-opened there that works in a worktree.
+CLAUDE_PROJECT_DIR always names the main checkout, and each worktree carries its own contract.
 """
 
 from __future__ import annotations

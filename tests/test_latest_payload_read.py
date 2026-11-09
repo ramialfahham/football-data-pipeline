@@ -1,23 +1,7 @@
-"""`read_latest_payload_json` must prune partitions, and must keep returning the same value (#890).
+"""`read_latest_payload_json` must prune partitions, asserted on the SQL a fake client records.
 
-WHY THIS EXISTS
----------------
-The function returns ONE row and used to scan the whole raw table to find it: `ORDER BY ingested_at
-DESC LIMIT 1` cannot prune partitions, because to rank rows BigQuery has to read every partition,
-on the widest column in the warehouse. Measured by dry run on `RAW_APIF_TRANSFERS`, league BL1:
-
-    ORDER BY ingested_at DESC LIMIT 1                 6.634 GiB
-    MAX(ingested_at) alone                            0.013 MiB
-    payload WHERE ingested_at = <literal>             2.95  MiB
-    payload WHERE ingested_at = (SELECT MAX(...))     6.634 GiB   <- a subquery does NOT prune
-
-That last line is why the fix is two round trips and not one clever query, and it is the thing a
-future reader is most likely to "simplify" back into a single statement. So the shape is asserted
-here, not just the return value: if the emitted SQL stops carrying an equality predicate on the
-partition column, the scan silently returns to gigabytes and nothing else in the repo would notice.
-That is exactly how the May 2026 partition fix was lost (see #547, #892).
-
-No BigQuery access: a fake client records the SQL it is asked to run.
+Neither `ORDER BY ... LIMIT 1` nor a subquery predicate prunes, so the payload read needs an
+equality predicate on a literal timestamp.
 """
 
 from __future__ import annotations
@@ -103,11 +87,7 @@ PAYLOAD = {"response": [{"id": 1}]}
 
 
 def test_reads_in_two_steps_and_prunes_on_the_partition_column():
-    """The whole point: the payload query must carry an equality predicate on the partition column.
-
-    An `ORDER BY ... LIMIT 1` or a subquery predicate would both pass a return-value assertion while
-    scanning gigabytes, so the SQL shape is what is asserted here.
-    """
+    """A wrong query shape would still return the right value, so the SQL itself is asserted."""
     table = _Table([_Field("payload"), _Field("league_code"),
                     _Field("ingested_at", "TIMESTAMP")])
     client = _FakeClient(table, [_Result([("2026-08-02T07:24:45",)]),
@@ -134,7 +114,6 @@ def test_reads_in_two_steps_and_prunes_on_the_partition_column():
 
 
 def test_league_code_is_a_parameter_not_interpolated():
-    """The identifier is bound, not formatted into the SQL text."""
     table = _Table([_Field("payload"), _Field("league_code"),
                     _Field("ingested_at", "TIMESTAMP")])
     client = _FakeClient(table, [_Result([("2026-08-02T07:24:45",)]),
@@ -147,7 +126,7 @@ def test_league_code_is_a_parameter_not_interpolated():
 
 
 def test_timestamp_parameter_type_follows_the_column_type():
-    """A DATETIME column needs a DATETIME parameter; a mismatch is a query error, not a wrong row."""
+    """A DATETIME column needs a DATETIME parameter; a mismatch is a query error."""
     table = _Table([_Field("payload"), _Field("league_code"),
                     _Field("ingested_datetime", "DATETIME")])
     client = _FakeClient(table, [_Result([("2026-08-02T07:24:45",)]),
@@ -168,13 +147,7 @@ def test_timestamp_parameter_type_follows_the_column_type():
     ],
 )
 def test_no_rows_for_the_league_returns_none_without_a_second_query(lookup_result):
-    """An unknown league must not cost a payload scan.
-
-    Both shapes are covered on purpose. A real `MAX()` over no matching rows returns ONE row holding
-    NULL, not zero rows — the first case is what BigQuery actually does and the one that matters.
-    The zero-row case is kept because `_scalar` is a general helper and a future caller may use it
-    with a non-aggregate query, where an empty result IS the real shape.
-    """
+    """`MAX()` over no matching rows returns one NULL row; `_scalar` must also handle zero rows."""
     table = _Table([_Field("payload"), _Field("league_code"),
                     _Field("ingested_at", "TIMESTAMP")])
     client = _FakeClient(table, [lookup_result])
@@ -184,7 +157,7 @@ def test_no_rows_for_the_league_returns_none_without_a_second_query(lookup_resul
 
 
 def test_table_without_an_ingest_time_column_keeps_the_single_query_path():
-    """Nothing to prune to, so behaviour is unchanged rather than broken."""
+    """With no ingest-time column there is nothing to prune on."""
     table = _Table([_Field("payload"), _Field("league_code")])
     client = _FakeClient(table, [_Result([(json.dumps(PAYLOAD),)])])
 
@@ -195,7 +168,6 @@ def test_table_without_an_ingest_time_column_keeps_the_single_query_path():
 
 @pytest.mark.parametrize("value", [PAYLOAD, json.dumps(PAYLOAD)])
 def test_payload_is_returned_as_a_dict_whether_stored_as_json_or_string(value):
-    """The return contract every caller depends on is unchanged by the two-step read."""
     table = _Table([_Field("payload"), _Field("league_code"),
                     _Field("ingested_at", "TIMESTAMP")])
     client = _FakeClient(table, [_Result([("2026-08-02T07:24:45",)]), _Result([(value,)])])

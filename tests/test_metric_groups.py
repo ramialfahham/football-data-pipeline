@@ -1,13 +1,4 @@
-"""The metric groups are defined once, in the catalogue, and the site reads a copy of that.
-
-`site_v2/src/data/metric_groups.json` is a committed build input the export writes from
-`metric_catalogue.csv` (key and order, one row per group). These tests lock the committed file to
-a fresh regeneration from the seed — the `test_metric_bindings.py` pattern — so a group renamed or
-reordered in the seed cannot ship while the site still lists the old set, and check the seed's
-own group facts offline: every group has one order, and the orders are the positions 1..N. The
-same rule runs in the warehouse as `assert_metric_group_order_is_one_per_group`; this copy is
-what fails a merge request before a build.
-"""
+"""The committed `metric_groups.json` must match a fresh regeneration from the catalogue seed."""
 from __future__ import annotations
 
 import csv
@@ -31,8 +22,7 @@ def _rows() -> list[dict[str, str]]:
 
 def test_the_committed_file_is_a_fresh_regeneration_from_the_seed():
     fresh = export._payload_bytes(export.fetch_metric_groups()).decode("utf-8")
-    # `read_text` folds a CRLF checkout to LF, as `test_metric_bindings.py` does: the bytes
-    # git hands a Windows working tree differ from the export's, the content must not
+    # `read_text` folds a CRLF checkout to LF, so only the content is compared.
     assert COMMITTED_JSON.read_text(encoding="utf-8") == fresh, (
         "site_v2/src/data/metric_groups.json differs from the seed. Regenerate it: "
         "python scripts/export_site_data.py --entities metric_groups, then copy metric_groups.json."
@@ -68,7 +58,7 @@ def test_a_group_has_exactly_one_order_in_the_seed():
 
 
 def test_the_seed_is_not_empty():
-    """Anti-vacuous floor: 87 rows and 10 groups when written."""
+    """Anti-vacuous floor: the other tests would pass on an empty seed."""
     rows = _rows()
     assert len(rows) >= 60
     assert len({r["metric_group"] for r in rows}) >= 8

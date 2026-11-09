@@ -1,28 +1,6 @@
-"""The Cloud Run entrypoint must stay a faithful port of `data:nightly` (GitLab #39 Stage 1).
+"""The Cloud Run entrypoint must run the same ordered steps as the `data:nightly` CI job.
 
-WHY THIS EXISTS
----------------
-Stage 1 moves the nightly out of GitLab CI onto Cloud Run, and deliberately leaves the CI job
-in place as a fallback until the new path has proven itself. That means TWO copies of the
-nightly exist for a while, and they can drift.
-
-Drift here is silent and expensive. If a step is added to one and not the other — a new
-contract check, a seed, a different dbt target — the nightly keeps exiting 0 while quietly
-doing less than it claims. That is the same failure shape as the two outages this whole change
-exists to prevent: nothing turns red, the data is just wrong or stale.
-
-Both this file and the CI job are deleted together in the follow-up governance MR that removes
-`data:nightly` from `.gitlab-ci.yml` (a protected path, so it needs its own task).
-
-HOW IT IS SHAPED
-----------------
-It compares the ORDERED list of meaningful commands, extracted from each source, rather than
-matching text. A text match would fail on indentation, `$CI_PROJECT_DIR` vs `/tmp`, and the
-`[nightly]` log prefixes — none of which are drift. What it asserts is that both run the same
-things in the same order.
-
-The one thing it must NOT do is compare the two files as strings; they are legitimately
-different in wording, and a test that fails on wording gets deleted rather than fixed.
+It compares ordered command lists, never the files as strings, because their wording differs.
 """
 
 from __future__ import annotations
@@ -42,10 +20,8 @@ REPO = Path(__file__).resolve().parents[1]
 ENTRYPOINT = REPO / "deploy" / "nightly" / "entrypoint.sh"
 CI_CONFIG = REPO / ".gitlab-ci.yml"
 
-# The steps that define what the nightly DOES, in the order it must do them. Each entry is a
-# regex matched against a command line from either source. Anything not matching one of these
-# (echo, cd, export, the gate plumbing) is not a step and is ignored — those legitimately
-# differ between a CI runner and a container.
+# The steps that define the nightly, in order, each a regex over a command line from either
+# source; commands matching none (echo, cd, export, gate plumbing) differ legitimately.
 STEPS = [
     ("ingest", r"python -m ingestion\.api_football\.main"),
     ("layer contract check", r"python scripts/check_layer_contract\.py"),
@@ -68,13 +44,7 @@ def _commands(text: str) -> list[str]:
 
 
 def _ci_nightly_script() -> list[str]:
-    """The `data:nightly` script block, read from the real .gitlab-ci.yml.
-
-    Parsed as YAML rather than sliced by line number, so the test does not break the first time
-    somebody adds a line above the job. The `!reference`/anchor tags in this file are not
-    resolvable by safe_load, so unknown tags are ignored — the anchors carry auth and profile
-    setup, not pipeline steps.
-    """
+    """The `data:nightly` script lines, parsed as YAML with unknown tags ignored."""
     class _Ignore(yaml.SafeLoader):
         pass
 
@@ -119,18 +89,7 @@ def test_entrypoint_runs_the_same_steps_in_the_same_order_as_ci():
 
 
 def _run_entrypoint(tmp_path, new_data: str) -> list[str]:
-    """RUN the entrypoint with `python` and `dbt` stubbed out, and return what it invoked.
-
-    Executing it is the point. An earlier version of this test asserted the ORDER of three
-    regex matches in the file — gate before `exit 0` before `dbt build` — and that was
-    decoration: changing the condition to `if [ "$NEW_DATA" != "true" ] || true; then`
-    makes the gate fire on EVERY run, silently killing the nightly build forever, while all
-    three markers keep their positions and the test stays green. Textual position cannot see
-    boolean structure. This runs the real script and observes what it actually does.
-
-    Nothing real executes: the stubs log their arguments and exit 0, and the `python` stub is
-    what writes the `new_data` signal, exactly as `write_ci_output()` does in production.
-    """
+    """Run the entrypoint with stubbed `python` and `dbt` and return what they were invoked with."""
     bindir = tmp_path / "bin"
     bindir.mkdir()
     trace = tmp_path / "trace.log"
@@ -172,8 +131,7 @@ def _run_entrypoint(tmp_path, new_data: str) -> list[str]:
 
 @pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash to execute the entrypoint")
 def test_a_quiet_night_exits_before_dbt(tmp_path):
-    """`new_data=false` must cost nothing. This is the `$0 night` contract — the difference
-    between a cheap no-op and a full prod warehouse build every 24h."""
+    """`new_data=false` must exit before dbt, so a quiet night costs nothing."""
     invoked = _run_entrypoint(tmp_path, "false")
 
     assert any("ingestion.api_football.main" in line for line in invoked), (
@@ -189,8 +147,7 @@ def test_a_quiet_night_exits_before_dbt(tmp_path):
 
 @pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash to execute the entrypoint")
 def test_new_data_runs_the_full_prod_build(tmp_path):
-    """The mirror case. Without it, a gate that ALWAYS exits early would pass the test above —
-    which is exactly the regression that made the previous version of this test decoration."""
+    """The mirror case: without it a gate that always exits early would pass the test above."""
     invoked = _run_entrypoint(tmp_path, "true")
 
     joined = "\n".join(invoked)
@@ -209,8 +166,7 @@ def test_new_data_runs_the_full_prod_build(tmp_path):
 
 
 def test_the_entrypoint_never_targets_a_non_prod_dataset():
-    """The container ships only the prod profile, so a stray `--target ci` would fail at 04:00
-    rather than at build time. Cheaper to catch here."""
+    """The container ships only the prod profile, so any other target would fail at 04:00."""
     text = ENTRYPOINT.read_text(encoding="utf-8")
     stray = re.findall(r"--target\s+(\w+)", text)
     assert stray and set(stray) == {"prod"}, (
@@ -220,22 +176,7 @@ def test_the_entrypoint_never_targets_a_non_prod_dataset():
 
 
 def test_the_alert_policies_carry_only_fields_the_api_accepts():
-    """#39 Stage 2 deploy artefact. Lives here because this file already owns "the nightly's
-    deploy artefacts stay honest", and a separate module for one check is churn.
-
-    `alert-policy.json` carries `_`-prefixed comment keys for the reader, and the runbook strips
-    exactly those before POSTing because the Monitoring API rejects unknown fields. The failure
-    this catches is a comment added WITHOUT the underscore — `"note": "..."` sails through the
-    stripper and 400s the create call, at the moment someone is rebuilding alerting.
-
-    An earlier version instead asserted that no `_` key survived `strip()`, which was
-    tautological: the value tested WAS the output of `strip()`. Worse, the break-it check that
-    "proved" it edited `strip()` — the test's own helper — rather than the subject. Breaking the
-    harness is not breaking the subject.
-
-    It does NOT claim the deployed policies match this file; nothing applies it automatically.
-    That gap is stated in the README rather than implied away by a test.
-    """
+    """Comment keys must start with `_` so the runbook strips them; any other unknown field 400s."""
     raw = json.loads((REPO / "deploy" / "nightly" / "alert-policy.json").read_text(encoding="utf-8"))
 
     def strip(o):
@@ -272,37 +213,15 @@ def test_the_alert_policies_carry_only_fields_the_api_accepts():
 
 
 def test_no_policy_refers_to_another_policy_by_a_name_that_does_not_exist():
-    """FIX THE CLASS, not the instance.
-
-    Renaming a policy left stale references behind THREE times, none found by anything
-    mechanical:
-      1. `deploy/nightly/README.md` quick-reference table
-      2. `deploy/nightly/README.md` "open incidents" curl filter
-      3. `alert-policy.json`'s own `fdp-nightly execution failed` documentation, pointing at the
-         renamed sibling
-
-    The third is the one that made a manual sweep clearly insufficient: it is JSON referencing
-    JSON, so a README-vs-JSON comparison could never see it. These strings are what Cloud
-    Monitoring renders on the incident page, so a wrong name there sends an on-call engineer
-    looking for a policy that does not exist, mid-incident.
-
-    Any backticked `fdp ...` name appearing in a policy's documentation or comments must be a
-    real declared policy — or the one explicitly-known exception below.
-    """
+    """A backticked `fdp...` name in the policy file must be a declared policy or an exception."""
     path = REPO / "deploy" / "nightly" / "alert-policy.json"
     raw = json.loads(path.read_text(encoding="utf-8"))
     declared = {p["displayName"] for p in raw["policies"]}
 
-    # Deployed but deliberately NOT in this file: the superseded 25h job-success policy, kept
-    # as a bridge until the sentinel runs. Documented in README.md; absent here so that
-    # re-applying the file cannot recreate it.
+    # Deployed but deliberately absent from the file, so re-applying it cannot recreate it.
     KNOWN_UNVERSIONED = {"fdp-nightly stale (no success in 25h)"}
 
-    # Cloud Run JOB names are a different namespace from policy display names and are
-    # legitimately referenced in the runbook commands inside `documentation.content`. Listed
-    # rather than pattern-matched: the first version of this guard matched every backticked
-    # `fdp…` token and flagged `fdp-freshness`, a real job, as a missing policy. A guard that
-    # cries wolf gets deleted, which would put us back to no guard at all.
+    # Cloud Run job names are a separate namespace from policy names and appear in runbook commands.
     JOB_NAMES = {"fdp-nightly", "fdp-freshness"}
 
     referenced: set[str] = set()
@@ -320,8 +239,7 @@ def test_no_policy_refers_to_another_policy_by_a_name_that_does_not_exist():
 
 
 def test_the_shipped_profile_has_only_the_prod_target():
-    """If a `ci` or `dev` target ever appears in the image's profile, a mistyped --target stops
-    failing loudly and starts writing the wrong dataset instead."""
+    """A second target would turn a mistyped --target into a write to the wrong dataset."""
     profile = yaml.safe_load(
         (REPO / "deploy" / "nightly" / "profiles.yml").read_text(encoding="utf-8")
     )

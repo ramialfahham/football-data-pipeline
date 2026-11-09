@@ -1,10 +1,4 @@
-"""Every surface shows its metrics in the catalogue's order and only filters.
-
-The catalogue's `metric_order` is a metric's place in its group; `metric_group_order` places the
-group. The export's board lists say which boards a surface shows, and `_in_catalogue_order` puts
-them in the catalogue's order. These tests fail when a shown metric has no place, or when a payload
-leaves the catalogue's order.
-"""
+"""Every surface shows its metrics in the catalogue's `metric_group_order` then `metric_order`."""
 from __future__ import annotations
 
 import csv
@@ -85,8 +79,7 @@ def _fixture_row() -> dict:
 
 
 def test_the_fetched_rankings_and_leaderboards_follow_the_catalogue(monkeypatch):
-    """The warehouse serves the boards in the board lists' own order; the payloads carry the
-    catalogue's."""
+    """The warehouse serves boards in the board lists' order; the payloads must use the catalogue's."""
     def fake_query(client, sql):
         if "mart_team_leaderboards" in sql:
             return [_board_row(k, "team") for k in export._COMPETITION_TEAM_BOARDS]

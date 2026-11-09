@@ -1,24 +1,6 @@
-"""An incomplete fetch must never be written (#896).
+"""An incomplete fetch must never be written, because a written row marks its key captured.
 
-The original defect: `_delete_superseded_player_rows` deleted the prior row for a (team, season)
-keyed on what the NEW row claimed, with no check that the fetch had succeeded. A per-minute rate
-limit arrives as HTTP 200 with the error in the body, so a rejected call looked like an
-empty-but-valid squad and destroyed the good rows it failed to replace. Measured on one nightly:
-UCL 340 went 25 players to 0, UEL 573 24 to 0, UECL 20034 23 to 0, and APD 463 46 to 40
-when the limit hit mid-pagination.
-
-No existing test could catch this class and none could be written against the old signals: the
-TABLE GREW while the data was destroyed, so row-count, freshness and not-null checks all passed.
-
-⚠ THE DELETES ARE GONE (raw appends and never deletes; the removal is pinned by
-`tests/test_raw_merge_on_write.py`). This file keeps its subject anyway, narrowed to the half
-that still exists and still matters: an incomplete fetch is not WRITTEN. That is not the same
-guarantee as "not deleted", and it is not made redundant by append-only — a written row marks the
-key captured, so a rate-limited empty answer would still turn a transient failure into a permanent
-hole that no later run re-fetches.
-
-These tests pin both halves of the rule, because pinning only the refusal would let a fix that
-never writes anything pass.
+Both halves are pinned: the refusal, and that a complete fetch is still written.
 """
 
 from __future__ import annotations
@@ -59,9 +41,7 @@ def _wire(monkeypatch, fetch):
 
 class TestIncompleteFetchDoesNotSupersede:
     def test_rate_limited_empty_response_does_not_delete_prior_rows(self, monkeypatch):
-        # THE #896 REGRESSION TEST, in the shape that destroyed UCL 340 / UEL 573 / UECL 20034:
-        # the provider returns 200 with a rateLimit error in the body, so rows are empty and the
-        # response looks successful. The key must never reach the delete.
+        # The provider returns 200 with a rateLimit error in the body, so the response looks successful.
         captured = _wire(monkeypatch, lambda *a, **k: ([], False))
         ctx = _ctx()
         sq.load_squad_players_batch(ctx, "UCL", [2026], {340})
@@ -70,8 +50,7 @@ class TestIncompleteFetchDoesNotSupersede:
         assert any("SKIPPED on an incomplete fetch" in e for e in ctx.errors)
 
     def test_partial_pagination_does_not_supersede(self, monkeypatch):
-        # The APD/463 shape: NON-EMPTY but partial, because the limit hit mid-pagination and only
-        # 40 of 46 players came back. An is-it-empty check cannot catch this; completeness can.
+        # Non-empty but partial: the limit hit mid-pagination, so an emptiness check cannot catch it.
         captured = _wire(
             monkeypatch, lambda *a, **k: ([{"player": {"id": i}} for i in range(40)], False)
         )
@@ -81,9 +60,7 @@ class TestIncompleteFetchDoesNotSupersede:
         assert captured["load_calls"] == 0
 
     def test_incomplete_key_is_not_marked_captured(self, monkeypatch):
-        # Withholding the WRITE matters as much as withholding the delete. A written row marks the
-        # (team, season) captured, and a historical season would then never be re-fetched, turning
-        # a transient failure into a permanent hole.
+        # A written row marks the (team, season) captured, so a historical season would never be re-fetched.
         captured = _wire(monkeypatch, lambda *a, **k: ([], False))
         sq.load_squad_players_batch(_ctx(), "UCL", [2025], {340})
         assert captured["rows"] is None
@@ -105,7 +82,6 @@ class TestIncompleteFetchDoesNotSupersede:
 
 class TestCompleteFetchIsStillWritten:
     def test_successful_fetch_is_written_as_before(self, monkeypatch):
-        # The other half of the rule. Without this, a fix that never writes anything passes.
         captured = _wire(monkeypatch, lambda *a, **k: ([{"player": {"id": 7}}], True))
         ctx = _ctx()
         sq.load_squad_players_batch(ctx, "UCL", [2026], {340})
@@ -115,21 +91,13 @@ class TestCompleteFetchIsStillWritten:
         assert ctx.errors == []
 
     def test_empty_but_complete_response_is_still_written(self, monkeypatch):
-        # An empty response with NO error is the provider genuinely reporting no players, and
-        # is indistinguishable from one. It is written. Refusing to
-        # write on emptiness would strand 3,539 historical team-seasons outside the fetch
-        # cache and re-fetch them every night, about +42 min per run, permanently.
-        #
-        # ⚠ This is the exact case that made the delete lethal, and it is why the answer was to
-        # remove the delete rather than to narrow this rule: the empty answer still lands, but
-        # the fuller earlier row is still there for base to prefer. Do not "fix" this by
-        # refusing empty responses — that trades a data loss for a quota bill and was measured.
+        # An empty response with no error is a genuine "no players"; refusing it would re-fetch
+        # every such historical team-season each night.
         captured = _wire(monkeypatch, lambda *a, **k: ([], True))
         sq.load_squad_players_batch(_ctx(), "UCL", [2026], {340})
 
         assert captured["load_calls"] == 1
-        # The row IS written, carrying the key with an empty players_payload. That is the point:
-        # the key counts as captured so it is not re-fetched nightly.
+        # The key is written with an empty players_payload so it counts as captured.
         assert captured["keys"] == ["340-2026"]
         assert captured["rows"][0]["response"][0]["players_payload"] == []
 
@@ -144,8 +112,7 @@ class TestResultIsComplete:
         errors_quota.reset_http_quota_exhausted()
 
     def test_body_level_error_is_incomplete(self, monkeypatch):
-        # The per-minute limit is HTTP 200 with the error in the body, which is exactly why
-        # http_client's 429 branch never fires for it.
+        # The per-minute limit is HTTP 200 with the error in the body, so http_client's 429 branch never fires.
         monkeypatch.setattr(
             http_client,
             "fetch_json",
@@ -181,8 +148,7 @@ class TestResultIsComplete:
         assert http_client.result_is_complete(out) is True
 
     def test_quota_cut_mid_pagination_is_incomplete(self, monkeypatch):
-        # A quota-exhausted call returns an empty body with NO errors, so the error signal alone
-        # would misread it as a genuine empty. The quota flag has to be part of completeness.
+        # A quota-exhausted call returns an empty body with no errors, so the quota flag must be part of completeness.
         calls = {"n": 0}
 
         def fake_fetch_json(path, headers, params=None):
@@ -212,17 +178,7 @@ class TestResultIsComplete:
 
 
 class TestReturnedKeySetIsStable:
-    """Regression guard for a defect the first version of the fix had.
-
-    `fetch_merged_paged`'s returned dict is copied wholesale into the stored raw payload by
-    `_merge_merged_paged` (standings, fixtures) and by the manual envelope comprehension in
-    loads/teams.py, each of which excludes only a fixed key list. A new
-    top-level key therefore lands in RAW_APIF_STANDINGS, RAW_APIF_TEAMS and
-    RAW_APIF_FIXTURES_NEXT. The first attempt at #896 added a `complete` key here and would have
-    done exactly that, with a value frozen at the first season of a multi-season merge.
-
-    This is why completeness is a function, not a key.
-    """
+    """`fetch_merged_paged`'s dict is copied into the raw payload, so a new top-level key would land in raw tables."""
 
     @pytest.fixture(autouse=True)
     def _reset_quota(self):
@@ -255,8 +211,7 @@ class TestReturnedKeySetIsStable:
         assert set(out) == self.EXPECTED
 
     def test_provider_meta_keys_still_pass_through(self, monkeypatch):
-        # The exclusion is about keys WE add. Genuine provider envelope fields must still flow
-        # through, because that pass-through is what the stored raw payload is built from.
+        # Provider envelope fields must still flow through, because the stored raw payload is built from them.
         monkeypatch.setattr(
             http_client,
             "fetch_json",
@@ -288,11 +243,9 @@ class _RecordingClient:
 
 
 def _wire_batch(monkeypatch, data: dict) -> dict:
-    """Run the REAL _fetch_and_persist_batch with no network and no BigQuery.
+    """Run the real _fetch_and_persist_batch with no network and no BigQuery.
 
-    `_delete_fixtures` is deliberately NOT stubbed, because it no longer exists. Any DML would
-    now have to travel through `ctx.client.query`, so the recording client catches a delete
-    reintroduced under any name — which patching a known helper never could.
+    Any DML must travel through `ctx.client.query`, so the recording client catches a delete under any name.
     """
     captured: dict = {"inserted": None}
 
@@ -310,24 +263,11 @@ def _wire_batch(monkeypatch, data: dict) -> dict:
 
 
 class TestFixtureDetailsRetryKeepsBothVersions:
-    """The fixture-details half of the append-only ruling (GitLab #75).
-
-    This table is the one that cost real data. Its row bundles lineups, events, statistics and
-    player stats TOGETHER, so a retry chasing late statistics could return richer in one section
-    and poorer in another. The delete made the poorer answer the only surviving one: fixture
-    1564795 went 27 events to 17, an entire penalty shootout, unrecoverable.
-
-    Raw keeps both versions; base decides (docs/data_contract.md, "Fixture details").
-    """
+    """A fixture-details row bundles several sections, so a retry can be poorer in one; raw keeps both versions."""
 
     def test_a_retried_fixture_is_appended_and_nothing_is_deleted(self, monkeypatch):
-        # THE case the ruling exists for. 111 was retried (previously empty statistics) and the
-        # provider answered cleanly. Before the reversal this deleted the stored payload first.
-        # Now the new version is appended alongside the old one.
-        #
-        # 222 was also retried and NOT returned. Under the old code that omission needed its own
-        # special case, or its stored row was superseded with nothing. Append-only removes the
-        # case rather than guarding it: an id the provider skipped is simply not written.
+        # 111 is retried and answered cleanly, so its new version is appended beside the old one.
+        # 222 is retried and not returned, so it is simply not written.
         data = {"response": [_fixture_obj(111)], "errors": []}
         captured = _wire_batch(monkeypatch, data)
         client = _RecordingClient()
@@ -345,11 +285,8 @@ class TestFixtureDetailsRetryKeepsBothVersions:
         )
 
     def test_incomplete_fetch_is_discarded_whole(self, monkeypatch):
-        # #896, unchanged and still needed. Not written with an EMPTY response on purpose: an
-        # empty body returns early at `if not response` even unguarded, so a test built that way
-        # would pass for the wrong reason and prove nothing (this repo has shipped three such
-        # tests — #63). Here the batch is PARTIAL: 111 came back, 222 did not, and the per-minute
-        # limit is reported in the body. The whole batch is discarded and retried next run.
+        # The batch is partial, not empty, because an empty body returns early at `if not response`
+        # and would pass without the guard; the whole batch is discarded and retried next run.
         data = {"response": [_fixture_obj(111)], "errors": {"rateLimit": "Too many requests"}}
         captured = _wire_batch(monkeypatch, data)
         client = _RecordingClient()
@@ -366,10 +303,8 @@ class TestFixtureDetailsRetryKeepsBothVersions:
         assert any("INCOMPLETE" in e for e in ctx.errors), ctx.errors
 
     def test_the_fixture_write_is_an_append(self, monkeypatch):
-        # "Both versions land" is TWO properties: no delete, and an APPEND. A write disposition
-        # flipped to WRITE_TRUNCATE would destroy every fixture in the table for every
-        # competition while issuing no DELETE at all, and the two tests above would stay green.
-        # Exercises the REAL `_insert_fixture_rows`; only the BigQuery load job is doubled.
+        # A write disposition of WRITE_TRUNCATE would destroy the table without issuing a DELETE.
+        # The real `_insert_fixture_rows` runs; only the BigQuery load job is doubled.
         captured: dict = {}
 
         class _LoadClient:

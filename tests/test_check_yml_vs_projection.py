@@ -1,11 +1,4 @@
-"""Tests for `scripts/check_yml_vs_projection.py`.
-
-Each test drives the gate against a synthetic project and a synthetic catalogue and asserts one
-thing it must refuse, or one thing it must accept. The real-tree test at the end runs only when a
-COMPLETE catalogue is on disk — on a dev machine `dbt_project/target/catalog.json` is whatever the
-last local `dbt docs generate` wrote, and the gate's own partial-catalogue abort would fire on it,
-which would be the abort working, not the tree failing.
-"""
+"""Tests for `scripts/check_yml_vs_projection.py` against a synthetic project and catalogue."""
 from __future__ import annotations
 
 import json
@@ -69,8 +62,7 @@ def _catalog(tmp_path, columns: dict[str, list[str]], name: str = "catalog.json"
 
 @pytest.fixture(autouse=True)
 def _point_at_tmp(monkeypatch, tmp_path):
-    """Every test supplies a one-or-two model project, so both floors would fire on all of them
-    and mask what is being tested. They keep their real values in the two floor tests."""
+    """Tiny test projects would trip both floors, so they are lowered here."""
     monkeypatch.setattr(gate, "REPO_ROOT", tmp_path)
     monkeypatch.setattr(gate, "DBT_DIR", tmp_path / "dbt_project")
     monkeypatch.setattr(gate, "MODELS_DIR", tmp_path / "dbt_project" / "models")
@@ -98,9 +90,8 @@ def test_every_listed_column_present_is_green(tmp_path, capsys):
 STRUCT_YML = YML + "      - name: recent_meetings\n        description: A struct.\n" \
                    "      - name: recent_meetings.goals_for\n        description: A field.\n"
 
-# What dbt-bigquery's catalogue holds for a STRUCT column: the parent and every leaf path
-# (`INFORMATION_SCHEMA.COLUMN_FIELD_PATHS`), which is how the dotted entries in the repo's
-# own ymls came to be written by `declare_missing_columns.py` in the first place.
+# dbt-bigquery's catalogue holds a STRUCT column's parent and every leaf path
+# (`INFORMATION_SCHEMA.COLUMN_FIELD_PATHS`).
 STRUCT_COLUMNS = ["thing_sk", "league_code", "recent_meetings", "recent_meetings.goals_for",
                   "recent_meetings.result"]
 
@@ -139,8 +130,7 @@ def test_column_names_match_case_insensitively(tmp_path):
 
 
 def test_a_partial_catalogue_aborts_and_names_the_model(tmp_path, capsys):
-    """An on-disk model the catalogue does not hold means the catalogue is not this
-    warehouse's; judging the rest against it would be a smaller answer presented as the answer."""
+    """A model on disk that the catalogue lacks means the catalogue is not this warehouse's."""
     _project(tmp_path, {"marts.yml": YML}, models={"mart_thing": "5_marts", "mart_other": "5_marts"})
     cat = _catalog(tmp_path, {"mart_thing": ["thing_sk", "league_code"]})
     assert gate.main(cat) == 1
