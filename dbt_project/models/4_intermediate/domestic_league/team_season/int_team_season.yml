@@ -207,10 +207,11 @@ models:
 
   - name: int_team_season__standings_primary
     description: >
-      Deduplicated standings snapshot per team-season: one row per (team_sk, season_sk)
-      chosen by latest raw_ingested_at, then the provider's first-listed section
-      (standing_section_order), when the core fact has multiple rows (e.g. a split season's
-      phases). fct_standings tests that these keys are unique per team-season.
+      A team's table this season, the one its shown rank and form come from: one row per
+      (team_sk, season_sk). It is the section the team's latest played round names, otherwise
+      the section in which it has played most; a ranking is never a team's table, and the
+      provider's section order decides what is still tied. mart_team_competitions reads the
+      section from here.
     config:
       tags: ["intermediate", "football", "team_season"]
     tests:
@@ -233,6 +234,9 @@ models:
           - relationships:
               to: ref('dim_competition_season')
               field: season_sk
+      - name: group_name
+        description: "The standings section that is the team's table this season."
+        tests: [not_null]
       - name: standing_rank
         description: "The official place from the chosen row, read from int_standings__official_rank (the source of mart_team_season.latest_rank)."
       - name: form

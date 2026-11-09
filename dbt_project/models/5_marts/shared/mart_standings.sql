@@ -19,8 +19,8 @@
   carried verbatim in group_description and never interpreted.
 
   table_kind says what kind of table a section is (league, group, conference, split_round,
-  ranking), resolved from the section name through the standings_table_kinds seed
-  (int_standings__section_kinds) so that a
+  ranking), resolved per league-season by int_standings__section_kinds from the section's name
+  through the standings_table_kinds seed and from its teams, so that a
   page can render one table per group, drop the provider's cross-group ranking tables and head
   a split season's rounds — and never matches on a name itself. A name no seed pattern matches
   is the competition's own league table.
@@ -51,6 +51,8 @@ teams as (
 
 section_kinds as (
     select
+        league_code,
+        season_api_year,
         group_name,
         table_kind
     from {{ ref('int_standings__section_kinds') }}
@@ -87,4 +89,7 @@ left join competitions as reg
 left join teams as t
     on s.team_sk = t.team_sk
 left join section_kinds as k
-    on s.group_name = k.group_name
+    on
+        s.league_code = k.league_code
+        and s.season_api_year = k.season_api_year
+        and s.group_name = k.group_name
