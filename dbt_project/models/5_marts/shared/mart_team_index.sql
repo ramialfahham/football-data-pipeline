@@ -12,6 +12,10 @@
   season, wins and goal difference; countries without points follow A to Z, teams without a
   country last.
 
+  club_order puts every club in one line: the clubs with a top_club_rank by region_rank, then that
+  rank, then the other clubs by country_order and team_order_in_country; a shared place goes by
+  team name, then slug.
+
   National teams: the furthest round at the latest finished World Cup, then at the region's
   latest finished championship (each round in order, the winner above the final), then points
   per match and goal difference per match in the team's World Cup qualifier table matches;
@@ -349,6 +353,36 @@ club_orders as (
         on c.team_sk = l.team_sk
 ),
 
+club_places as (
+    select
+        c.team_sk,
+        row_number() over (
+            order by
+                tc.top_club_rank is null asc,
+                if(tc.top_club_rank is not null, rg.region_rank, null) asc nulls last,
+                tc.top_club_rank asc,
+                if(tc.top_club_rank is null, co.country_order, null) asc,
+                if(tc.top_club_rank is null, c.team_country, null) asc,
+                if(tc.top_club_rank is null, cl.team_order_in_country, null) asc,
+                t.team_name asc,
+                t.team_slug asc,
+                c.team_sk asc
+        ) as club_order
+    from clubs as c
+    inner join teams as t
+        on c.team_sk = t.team_sk
+    left join top_clubs as tc
+        on c.team_sk = tc.team_sk
+    left join team_regions as r
+        on c.team_sk = r.team_sk
+    left join regions as rg
+        on r.region_key = rg.confederation
+    left join country_orders as co
+        on c.team_country is not distinct from co.team_country
+    left join club_orders as cl
+        on c.team_sk = cl.team_sk
+),
+
 world_cups as (
     select
         s.league_code,
@@ -543,6 +577,7 @@ select
     co.country_region_key,
     co.country_order,
     cl.team_order_in_country,
+    cp.club_order,
     n.national_team_rank,
     n.national_team_region_rank,
     n.world_cup_stage,
@@ -573,6 +608,8 @@ left join country_orders as co
         and not k.is_national
 left join club_orders as cl
     on t.team_sk = cl.team_sk
+left join club_places as cp
+    on t.team_sk = cp.team_sk
 left join national_orders as n
     on t.team_sk = n.team_sk
 left join regions as rg

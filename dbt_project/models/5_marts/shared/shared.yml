@@ -3914,6 +3914,9 @@ models:
       - dbt_utils.expression_is_true:
           expression: "coalesce(world_cup_stage between 1 and 7, true) and coalesce(championship_stage between 1 and 7, true)"
           name: team_index_stages_in_range
+      - dbt_utils.expression_is_true:
+          expression: "(entity_type = 'club') = (club_order is not null)"
+          name: team_index_club_order_exactly_on_clubs
     columns:
       - name: team_sk
         description: "{{ doc('team_sk') }}"
@@ -3972,6 +3975,9 @@ models:
         description: "The place of the club's country among the countries; NULL for a national team."
       - name: team_order_in_country
         description: "The club's place inside its country: the covered league by tier and table, then the other clubs A to Z; NULL for a national team."
+      - name: club_order
+        description: "The club's place among all clubs: the clubs with a top_club_rank by region_rank, then that rank, then the others by country_order and team_order_in_country; a shared place goes by team name, then slug. NULL for a national team."
+        tests: [unique]
       - name: national_team_rank
         description: "The national team's place in the world; level teams share it; NULL for a club."
       - name: national_team_region_rank
@@ -3989,3 +3995,132 @@ models:
           - not_null
           - accepted_values:
               values: ["club", "national"]
+
+  - name: mart_player_index
+    description: >
+      The Players page: one row per player with a Player page, with the orders its two blocks show.
+      World's best: the latest edition of each award in player_award_results; the Goalkeepers list
+      holds the Yashin Trophy nominees, the other lists the Ballon d'Or nominees by their page
+      position; inside a list, the current club in mart_team_index.club_order, then the published
+      placing, then the name.
+      Players by nation: one group per nationality; nations by their national team's
+      national_team_rank, then the nations it does not hold A to Z, then the players with no
+      nationality. Inside a nation, its national team's regulars by their minutes for it, then the
+      others by club_order, players with no club last, then club minutes this season.
+      Grain: (player_sk).
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["marts", "football", "player"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [player_nationality, order_in_nation]
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [worlds_best_list, worlds_best_order]
+          config:
+            where: "worlds_best_list is not null"
+      - dbt_utils.expression_is_true:
+          expression: "(award is null) = (award_edition_year is null)"
+          name: player_index_award_has_its_edition
+      - dbt_utils.expression_is_true:
+          expression: "(worlds_best_list is null) = (worlds_best_order is null) and (worlds_best_list is null or award is not null)"
+          name: player_index_worlds_best_order_exactly_on_its_lists
+      - dbt_utils.expression_is_true:
+          expression: "coalesce(worlds_best_list = 'GK', false) = coalesce(award = 'yashin_trophy', false)"
+          name: player_index_goalkeepers_are_the_yashin_nominees
+      - dbt_utils.expression_is_true:
+          expression: "is_national_team_regular = coalesce(national_team_minutes * 3 >= national_team_match_minutes, false)"
+          name: player_index_regular_is_a_third_of_the_minutes
+      - dbt_utils.expression_is_true:
+          expression: "(current_club_team_sk is null) = (club_order is null)"
+          name: player_index_every_club_has_its_order
+    columns:
+      - name: player_sk
+        description: "{{ doc('player_sk') }}"
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: league_code
+        description: "The competition of the season the player's page opens on."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_league')
+              field: league_code
+      - name: player_name
+        description: "{{ doc('player_name') }}"
+        tests: [not_null]
+      - name: player_photo_url
+        description: "{{ doc('player_photo_url') }}"
+      - name: position_group
+        description: "GK, DEF, MID or ATT: the player's most frequent position in the season his page opens on. NULL without a recorded position."
+        tests:
+          - accepted_values:
+              values: ["GK", "DEF", "MID", "ATT"]
+      - name: player_nationality
+        description: "{{ doc('player_nationality') }}"
+        tests:
+          - relationships:
+              to: ref('dim_country')
+              field: country_name
+      - name: nationality_team_sk
+        description: "The national team of the player's nationality. NULL when the player has no nationality or the nation has no national team in our competitions."
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: region_key
+        description: "The player's region: the confederation of the country of his nationality, from dim_country. NULL without a nationality or for a country in no confederation."
+        tests:
+          - relationships:
+              to: ref('confederations')
+              field: confederation
+      - name: national_team_rank
+        description: "The place of the nation's national team in the world, from mart_team_index. NULL when the nation has no team there."
+      - name: nation_order
+        description: "The place of the player's nation among the nations: by national_team_rank, then the nations without one A to Z, then no nationality last. One value per nation."
+        tests: [not_null]
+      - name: national_team_minutes
+        description: "The player's minutes for his nation's national team since 1 July 2025. NULL when he has not played for it in that time."
+      - name: national_team_match_minutes
+        description: "The national team's own minutes over its matches with player data since 1 July 2025: 90 a match, 120 after extra time. NULL when the player has not played for it in that time."
+      - name: is_national_team_regular
+        description: "True when the player played at least a third of his national team's minutes since 1 July 2025."
+        tests: [not_null]
+      - name: current_club_team_sk
+        description: "The club of the player's latest club match. NULL when he has played no club football."
+        tests:
+          - relationships:
+              to: ref('mart_team_index')
+              field: team_sk
+      - name: current_club_name
+        description: "That club's name."
+      - name: club_order
+        description: "That club's place in mart_team_index.club_order. NULL without a club."
+      - name: club_minutes_this_season
+        description: "The player's minutes in club competitions this season, the season his page opens on and the other club competitions of the same season."
+        tests: [not_null]
+      - name: award
+        description: "ballon_dor or yashin_trophy when the player is a nominee of that award's latest edition; yashin_trophy when he is a nominee of both. NULL otherwise."
+        tests:
+          - accepted_values:
+              values: ["ballon_dor", "yashin_trophy"]
+      - name: award_edition_year
+        description: "The year of that award's latest edition."
+      - name: award_placing
+        description: "The player's published placing in that edition. NULL for a nominee the published ranking does not place."
+      - name: worlds_best_list
+        description: "The World's best list the player is in: GK for a Yashin Trophy nominee, his position for a Ballon d'Or nominee who is not a goalkeeper. NULL otherwise."
+        tests:
+          - accepted_values:
+              values: ["GK", "DEF", "MID", "ATT"]
+      - name: worlds_best_order
+        description: "The player's place in his World's best list: club_order, then award_placing, then name. NULL outside the lists."
+      - name: order_in_nation
+        description: "The player's place in his nation's group: the national team's regulars by national_team_minutes, then club_order, players with no club last, then club_minutes_this_season, then name."
+        tests: [not_null]

@@ -20,6 +20,7 @@ from scripts.export_site_data import (
     shape_competition_index,
     shape_competition_payload,
     shape_team_index,
+    shape_player_index,
     shape_season_summary,
     shape_fixture_payload,
     shape_next_match,
@@ -1422,6 +1423,59 @@ def test_fetch_team_index_orders_by_name_and_reads_the_mart_alone(monkeypatch):
 def test_shape_team_index_refuses_rows_that_disagree_on_the_page_flag():
     with pytest.raises(ValueError, match="national_teams_first"):
         shape_team_index([_team_index_row(), _team_index_row(national_teams_first=True)])
+
+
+def _player_index_row(**over) -> dict:
+    row = {
+        "player_sk": 184, "player_name": "Harry Kane", "player_photo_url": "https://x/184.png",
+        "position_group": "ATT", "player_nationality": "England", "region_key": "UEFA",
+        "nation_order": 4, "order_in_nation": 1, "current_club_name": "Bayern München",
+        "award": None, "award_edition_year": None, "worlds_best_list": None, "worlds_best_order": None,
+    }
+    return {**row, **over}
+
+
+def test_shape_player_index_keeps_the_served_order_and_lists_the_nominees():
+    rows = [_player_index_row(player_sk=2, player_name="B Two", nation_order=1, award="yashin_trophy",
+                              award_edition_year=2026, worlds_best_list="GK", worlds_best_order=1),
+            _player_index_row(player_sk=1, player_name="A One", nation_order=2, award="ballon_dor",
+                              award_edition_year=2026, worlds_best_list="ATT", worlds_best_order=2),
+            _player_index_row(player_sk=3, player_name="C Three", nation_order=2, order_in_nation=2,
+                              award="ballon_dor", award_edition_year=2026, worlds_best_list="ATT",
+                              worlds_best_order=1),
+            _player_index_row(player_sk=4, player_nationality=None, region_key=None, nation_order=3,
+                              current_club_name=None)]
+    shaped = shape_player_index(rows)
+    assert shaped["type"] == "players_index"
+    assert [p["player_id"] for p in shaped["players"]] == [2, 1, 3, 4]
+    assert [(w["list"], w["order"], w["player_id"]) for w in shaped["worlds_best"]] == [
+        ("ATT", 1, 3), ("ATT", 2, 1), ("GK", 1, 2)]
+    assert shaped["worlds_best"][2] == {"player_id": 2, "list": "GK", "award": "yashin_trophy",
+                                        "edition_year": 2026, "order": 1}
+    first = shaped["players"][0]
+    assert first == {"player_id": 2, "slug": player_slug_with_id("B Two", 2), "name": "B Two",
+                     "photo": "https://x/184.png", "position_group": "ATT", "nation": "England",
+                     "region_key": "UEFA", "nation_order": 1, "order_in_nation": 1,
+                     "club": "Bayern München"}
+    last = shaped["players"][3]
+    assert last["nation"] is None and last["region_key"] is None and last["club"] is None
+
+
+def test_fetch_player_index_reads_the_mart_alone_in_the_served_order(monkeypatch):
+    seen = []
+
+    def fake_query(client, sql):
+        seen.append(" ".join(sql.split()))
+        return [_player_index_row()]
+
+    monkeypatch.setattr(export_site_data, "_query", fake_query)
+    payload = export_site_data.fetch_player_index(object())
+    (sql,) = seen
+    assert payload["type"] == "players_index" and len(payload["players"]) == 1
+    assert "marts.mart_player_index`" in sql and "join" not in sql
+    assert sql.endswith("order by nation_order, order_in_nation")
+    selected = {c.strip() for c in sql.split(" from ")[0].removeprefix("select ").split(",")}
+    assert selected == set(_player_index_row())
 
 
 def test_featured_season_row_refuses_to_choose():
