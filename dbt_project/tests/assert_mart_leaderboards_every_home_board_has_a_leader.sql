@@ -31,13 +31,21 @@ with import_mart_leaderboards as (
     where window_type = 'season_to_date'
 ),
 
-import_competition_registry as (
-    select * from {{ ref('competition_registry') }}
+import_dim_competition_season as (
+    select * from {{ ref('dim_competition_season') }}
+),
+
+latest_seasons as (
+    select
+        league_code,
+        competition_group
+    from import_dim_competition_season
+    qualify row_number() over (partition by league_code order by season_api_year desc) = 1
 ),
 
 elite_leagues as (
     select league_code
-    from import_competition_registry
+    from latest_seasons
     where competition_group = 'elite'
 ),
 

@@ -26,11 +26,11 @@ with cml as (
     select * from {{ ref('int_team_season__metrics_cumulative') }}
 ),
 
-registry as (
+competitions as (
     select
         league_code,
         competition_type
-    from {{ ref('competition_registry') }}
+    from {{ ref('dim_league') }}
 ),
 
 -- domestic-league cumulative rows only (YoY is meaningful for league formats; cups/tournaments
@@ -38,7 +38,7 @@ registry as (
 dom as (
     select c.*
     from cml as c
-    inner join registry as r
+    inner join competitions as r
         on c.league_code = r.league_code
     where r.competition_type = 'domestic_league'
 ),

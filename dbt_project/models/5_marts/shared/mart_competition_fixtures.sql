@@ -102,8 +102,17 @@ teams as (
         team_sk,
         team_name,
         team_slug,
-        team_logo_url
+        team_logo_url,
+        team_country
     from {{ ref('dim_team') }}
+),
+
+competition_seasons as (
+    select
+        league_code,
+        season_api_year,
+        season_label
+    from {{ ref('dim_competition_season') }}
 ),
 
 played as (
@@ -455,6 +464,7 @@ select
     f.fixture_sk,
     f.league_code,
     f.season_api_year,
+    cs.season_label,
     f.round_name,
     rn.round_label_i18n_key,
     rn.round_number,
@@ -473,11 +483,13 @@ select
     h.team_slug as home_team_slug,
     h.team_logo_url as home_team_logo_url,
     hf.team_formation as home_team_formation,
+    h.team_country as home_team_country,
     f.away_team_sk,
     a.team_name as away_team_name,
     a.team_slug as away_team_slug,
     a.team_logo_url as away_team_logo_url,
     af.team_formation as away_team_formation,
+    a.team_country as away_team_country,
     f.venue_name_snapshot as venue_name,
     f.award_kind,
     f.awarded_to_team_sk,
@@ -563,3 +575,7 @@ left join formations as af
         and f.away_team_sk = af.team_sk
 left join lineup_states as ls
     on f.fixture_sk = ls.fixture_sk
+left join competition_seasons as cs
+    on
+        f.league_code = cs.league_code
+        and f.season_api_year = cs.season_api_year

@@ -22,7 +22,7 @@ set -euo pipefail
 export PYTHONPATH=.
 
 # How the `new_data` signal survives the platform change, again. `write_ci_output()`
-# (ingestion/api_football/completeness.py:769) writes `key=value` to whatever
+# (ingestion/api_football/completeness.py) writes `key=value` to whatever
 # $CI_STEP_OUTPUT points at — it is read from the environment, not hardcoded to a CI
 # vendor, which is why this port needs no Python change at all. GitLab set it to
 # $CI_PROJECT_DIR/.ci-step-output; here it is a tmpfile.

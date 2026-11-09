@@ -3,10 +3,9 @@
 Two artifacts are kept in lockstep with the registry:
   1. ``active_competition_league_codes`` in dbt_project.yml (active/in_progress codes).
   2. ``seeds/competition_registry.csv`` — the registry's own fields, projected into the warehouse
-     so the website never has to read an authoring file to render a page (#62). Models join it on
-     league_code to resolve a competition's type (and, via the competition_types seed, its
-     club/national entity_type), its parent competition (qualifier → tournament, domestic cup →
-     league), and its display fields: confederation, slug, sort_order, tier, season_type.
+     so the website never has to read an authoring file to render a page (#62). dim_league reads
+     it on league_code for a competition's type, its parent competition (qualifier → tournament,
+     domestic cup → league), and its display fields: confederation, slug, sort_order, season_type.
      See SEED_COLUMNS for the column list and for why ``country`` is not among them.
 
 Run this after updating docs/competition_registry.yml (adding/removing a competition or
@@ -53,9 +52,7 @@ SEED_COLUMNS: tuple[str, ...] = (
     "confederation",
     "slug",
     "sort_order",
-    "tier",
     "season_type",
-    "competition_group",
 )
 
 
@@ -93,10 +90,8 @@ def _registry_seed_rows() -> list[tuple[str, ...]]:
     """Return sorted rows of SEED_COLUMNS for every competition with league_code and
     competition_type set.
 
-    A field absent from a competition becomes '', the convention parent_competition already used
-    for "no parent". That is load-bearing for `tier`, which is declared on exactly the 16
-    domestic_league competitions and on no other competition_type — structurally N/A for a cup
-    rather than missing data, which is why the seed does not test it `not_null`.
+    A field absent from a competition becomes '', the convention parent_competition uses for
+    "no parent".
     """
     data = yaml.safe_load(REGISTRY_PATH.read_text(encoding="utf-8"))
     comps = data.get("competitions") or []

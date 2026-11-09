@@ -1,12 +1,4 @@
-"""Competition registry: parses competition_registry.yml → Competition objects.
-
-Authoritative source for which competitions are active and how to ingest them.
-selected_competitions() is the pipeline entry point for deciding what to ingest.
-
-The registry YAML lives at docs/competition_registry.yml (overridable via
-API_FOOTBALL_COMPETITION_REGISTRY_PATH). Adding a new competition requires only
-a registry entry — no code changes.
-"""
+"""Parse competition_registry.yml into Competition objects and select those to ingest."""
 
 from __future__ import annotations
 
@@ -32,11 +24,11 @@ class Competition:
         None  # from registry; used to bound season discovery for non-split-year competitions
     )
     history_seasons: int | None = (
-        None  # the approved backfill window (number of season start years); a cost decision
+        None  # backfill window as a number of season start years
     )
     # hard: incomplete fanout fails the run; soft: report only
     ingest_completeness_gate: str = "soft"
-    # A cost switch (§10): False = skip ingestion entirely without changing status
+    # False skips ingestion entirely without changing status
     ingest_active: bool = True
 
 

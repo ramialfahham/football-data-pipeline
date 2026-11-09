@@ -36,27 +36,29 @@ teams as (
     from {{ ref('dim_team') }}
 ),
 
-registry as (
+competitions as (
     select
         league_code,
         competition_type,
+        entity_type,
         parent_competition,
-        confederation,
-        tier
-    from {{ ref('competition_registry') }}
+        confederation
+    from {{ ref('dim_league') }}
 ),
 
-competition_types as (
+competition_seasons as (
     select
-        competition_type,
-        entity_type
-    from {{ ref('competition_types') }}
+        league_code,
+        season_api_year,
+        tier
+    from {{ ref('dim_competition_season') }}
 ),
 
 regions as (
     select
         confederation,
         region_rank,
+        label_i18n_key,
         top_club_competition,
         continental_championship
     from {{ ref('confederations') }}
@@ -214,12 +216,10 @@ top_clubs as (
 team_kinds as (
     select
         tc.team_sk,
-        logical_or(ct.entity_type = 'national') as is_national
+        logical_or(reg.entity_type = 'national') as is_national
     from team_competitions as tc
-    inner join registry as reg
+    inner join competitions as reg
         on tc.league_code = reg.league_code
-    inner join competition_types as ct
-        on reg.competition_type = ct.competition_type
     group by tc.team_sk
 ),
 
@@ -229,7 +229,7 @@ team_regions as (
         tc.team_sk,
         reg.confederation as region_key
     from team_competitions as tc
-    inner join registry as reg
+    inner join competitions as reg
         on tc.league_code = reg.league_code
     inner join regions as g
         on reg.confederation = g.confederation
@@ -253,7 +253,7 @@ covered_leagues as (
     select
         tc.team_sk,
         tc.league_code,
-        reg.tier as league_tier,
+        cs.tier as league_tier,
         tc.standing_group_name,
         tc.standing_rank as league_position
     from team_competitions as tc
@@ -261,10 +261,12 @@ covered_leagues as (
         on
             tc.league_code = ls.league_code
             and tc.season_api_year = ls.season_api_year
-    inner join registry as reg
-        on tc.league_code = reg.league_code
+    inner join competition_seasons as cs
+        on
+            tc.league_code = cs.league_code
+            and tc.season_api_year = cs.season_api_year
     qualify row_number() over (
-        partition by tc.team_sk order by reg.tier asc, tc.league_code asc
+        partition by tc.team_sk order by cs.tier asc, tc.league_code asc
     ) = 1
 ),
 
@@ -392,7 +394,7 @@ world_cups as (
         s.league_code,
         s.season_api_year
     from finished_seasons as s
-    inner join registry as reg
+    inner join competitions as reg
         on s.league_code = reg.league_code
     where reg.competition_type = 'world_championship' and s.recency = 1
 ),
@@ -438,9 +440,9 @@ qualifier_seasons as (
         f.league_code,
         max(f.season_api_year) as season_api_year
     from fixtures as f
-    inner join registry as reg
+    inner join competitions as reg
         on f.league_code = reg.league_code
-    inner join registry as parent
+    inner join competitions as parent
         on reg.parent_competition = parent.league_code
     inner join round_names as r
         on
@@ -549,7 +551,7 @@ tournament_days as (
         min(f.fixture_date) as first_day,
         max(f.fixture_date) as final_day
     from fixtures as f
-    inner join registry as reg
+    inner join competitions as reg
         on f.league_code = reg.league_code
     left join regions as g
         on f.league_code = g.continental_championship
@@ -586,6 +588,8 @@ select
     n.world_cup_stage,
     n.championship_stage,
     b.national_teams_first,
+    rg.region_rank,
+    rg.label_i18n_key as region_label_i18n_key,
     coalesce(tc.cup_region_key, r.region_key, co.country_region_key) as region_key,
     if(k.is_national, 'national', 'club') as entity_type
 from teams as t
@@ -611,4 +615,6 @@ left join club_orders as cl
     on t.team_sk = cl.team_sk
 left join national_orders as n
     on t.team_sk = n.team_sk
+left join regions as rg
+    on coalesce(tc.cup_region_key, r.region_key, co.country_region_key) = rg.confederation
 cross join block_order as b

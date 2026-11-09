@@ -16,8 +16,8 @@ models:
       One row per competition: its identity, type, region, crest and the facts needed to put a
       list of competitions in order. Grain: league_code.
 
-      Composed from the registry, competition-type and confederation seeds, dim_league and
-      fct_fixture, so everything about a competition is available from one place.
+      Composed from dim_league, the competition-type and confederation seeds and fct_fixture, so
+      everything about a competition is available from one place.
 
       It carries the ordering INPUTS as facts — next_kickoff_datetime, last_kickoff_datetime,
       region_rank — and deliberately does not pre-bake an ORDER BY: sorting is arrangement, not a
@@ -32,7 +32,7 @@ models:
           - not_null
           - unique
           - relationships:
-              to: ref('competition_registry')
+              to: ref('dim_league')
               field: league_code
       - name: competition_type
         description: "{{ doc('competition_type') }}"
@@ -48,7 +48,7 @@ models:
           - accepted_values:
               values: ["club", "national"]
       - name: slug
-        description: "From competition_registry.slug — the row's link target."
+        description: "From dim_league.slug — the row's link target."
         tests: [not_null]
       - name: category_label_en
         description: "From competition_types.label_en — the category heading text."
@@ -57,12 +57,14 @@ models:
         description: "From competition_types.label_i18n_key — the category heading's i18n key."
         tests: [not_null]
       - name: confederation
-        description: "From competition_registry.confederation — also a page filter axis."
+        description: "From dim_league.confederation — also a page filter axis."
         tests:
           - not_null
           - relationships:
               to: ref('confederations')
               field: confederation
+      - name: tier
+        description: "The league's level in its country in its latest season, from dim_competition_season: 1 for the top flight. NULL for every competition that is not a domestic league."
       - name: region_rank
         description: "From confederations.region_rank — the one hand-set ordering input."
         tests: [not_null]
@@ -76,7 +78,7 @@ models:
       - name: region_label_en
         description: >
           The competition's country if it has one (league_country), otherwise its region's English
-          label (the confederation's label_en). Never both and never neither: every registry row's
+          label (the confederation's label_en). Never both and never neither: every competition's
           confederation is foreign-key guaranteed to resolve, so exactly one of the two is always
           available.
         tests: [not_null]
@@ -911,6 +913,8 @@ models:
           expression: "saves_pct_prev_season is null or (saves_pct_prev_season between 0 and 1)"
           name: team_profile_saves_pct_prev_season_in_range
     columns:
+      - name: season_label
+        description: "The season's name as the site shows it, from dim_competition_season."
       - name: is_featured_season
         description: >
           True on the one season that represents this team: its most recent domestic-league
@@ -1445,6 +1449,10 @@ models:
           - relationships:
               to: ref('dim_player')
               field: player_sk
+      - name: player_name
+        description: "{{ doc('player_name') }}"
+      - name: player_photo_url
+        description: "{{ doc('player_photo_url') }}"
       - name: league_code
         description: "{{ doc('league_code') }}"
         tests: [not_null]
@@ -1606,6 +1614,8 @@ models:
               field: team_sk
       - name: team_name
         description: "Denormalised from dim_team."
+      - name: team_slug
+        description: "{{ doc('team_slug') }}"
       - name: team_logo_url
         description: "{{ doc('team_logo_url') }}"
       - name: standing_rank
@@ -1778,6 +1788,12 @@ models:
       - name: has_player_page
         description: "{{ doc('has_player_page') }}"
         tests: [not_null]
+      - name: shares_name_at_club
+        description: >
+          True when the player has a page and another player with a page has the same full name and
+          the same current club; the page title then names the player's position. The same on every
+          row of a player. Checked by tests/assert_player_shares_name_at_club.sql.
+        tests: [not_null]
       - name: season_label
         description: "The season's name as the site shows it, from dim_competition_season."
       - name: player_full_name
@@ -1818,15 +1834,13 @@ models:
       - name: competition_type
         description: >
           {{ doc('competition_type') }} Carried here so a league can be told from a cup without
-          re-joining the registry, which is what lets the featured-season rule prefer one.
+          re-joining dim_league, which is what lets the featured-season rule prefer one.
       - name: entity_type
         description: >
           {{ doc('entity_type') }} It is what scopes the featured season to club football.
 
-          The defect has a silent form here: a league_code present in the registry but carrying a
-          blank competition_type, which the sync and both registry guards skip on the same
-          condition. The not_null test is here because such a NULL would not fail loudly on its
-          own: it reads as non-club, so the player would quietly open on the wrong season.
+          The not_null test is here because a NULL would not fail loudly on its own: it reads as
+          non-club, so the player would quietly open on the wrong season.
         tests:
           - not_null
           - accepted_values:
@@ -2467,6 +2481,11 @@ models:
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
         tests: [not_null]
+      - name: competition_group
+        description: "The row's league's group in this season, from dim_competition_season: the set of leagues it is ranked alongside, such as elite. It selects the leagues on the home page's Top players board. NULL for a competition that is not a domestic league."
+        tests:
+          - accepted_values:
+              values: ["elite", "europe", "international", "calendar", "secondary"]
       - name: player_name
         description: "{{ doc('player_name') }}"
       - name: player_nationality
@@ -2667,6 +2686,11 @@ models:
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
         tests: [not_null]
+      - name: competition_group
+        description: "The row's league's group in this season, from dim_competition_season: the set of leagues it is ranked alongside, such as elite. It selects the leagues on the home page's Top teams board. NULL for a competition that is not a domestic league."
+        tests:
+          - accepted_values:
+              values: ["elite", "europe", "international", "calendar", "secondary"]
       - name: team_name
         description: "Denormalised from dim_team."
       - name: team_slug
@@ -2856,6 +2880,8 @@ models:
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
         tests: [not_null]
+      - name: season_label
+        description: "The season's name as the site shows it, from dim_competition_season."
       - name: round_name
         description: "{{ doc('round_name') }}"
         tests: [not_null]
@@ -2916,6 +2942,8 @@ models:
         description: "The home team's crest URL from dim_team."
       - name: home_team_formation
         description: "{{ doc('team_formation') }} Here, the home team's; NULL unless lineup_state is confirmed or researched."
+      - name: home_team_country
+        description: "{{ doc('team_country') }} Here, the home team's."
       - name: away_team_sk
         description: "{{ doc('away_team_sk') }}"
         tests:
@@ -2932,6 +2960,8 @@ models:
         description: "The away team's crest URL from dim_team."
       - name: away_team_formation
         description: "{{ doc('team_formation') }} Here, the away team's; NULL unless lineup_state is confirmed or researched."
+      - name: away_team_country
+        description: "{{ doc('team_country') }} Here, the away team's."
       - name: fixture_slug
         description: "The match's permanent URL segment: the kick-off date, the home team's slug, -vs-, the away team's slug, e.g. YYYY-MM-DD-bayern-munchen-vs-1-fc-union-berlin. Present on every row: both teams resolve on dim_team, whose slug is never null."
         tests: [not_null]
@@ -3191,7 +3221,7 @@ models:
       those are in mart_player_career. Age is not stored, because a stored age stops being true;
       derive it from player_birth_date.
 
-      Scoped to club competitions via the registry and competition_types, never a flag on
+      Scoped to club competitions via dim_league's entity_type, never a flag on
       dim_team. dim_player is LEFT-joined, so a membership with no player entity fails the
       relationships test rather than vanishing.
     config:
@@ -3889,11 +3919,15 @@ models:
           - relationships:
               to: ref('confederations')
               field: confederation
+      - name: region_rank
+        description: "The region's place in the platform's region order, from confederations.region_rank. NULL when region_key is NULL."
+      - name: region_label_i18n_key
+        description: "The copy key that names the region, from confederations.label_i18n_key. NULL when region_key is NULL."
       - name: league_code
         description: "The domestic league the club plays in this season, the top tier when it plays in two; NULL for a national team or a club in no covered league."
         tests:
           - relationships:
-              to: ref('competition_registry')
+              to: ref('dim_league')
               field: league_code
       - name: league_tier
         description: "That league's tier, 1 for a top flight."

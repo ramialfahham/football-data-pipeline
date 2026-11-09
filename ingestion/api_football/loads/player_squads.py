@@ -1,17 +1,6 @@
-"""Fetch /players/squads per team (batched) → RAW_APIF_SQUADS.
+"""Fetch /players/squads per team and append one snapshot row per league to RAW_APIF_SQUADS.
 
-The current squad of each team (id, name, age, number, position, photo) in one call per
-team. Distinct from loads/squads.py, which pulls /players per team×season into
-RAW_APIF_PLAYERS (season roster + stats); this is the cheaper present-day squad endpoint and
-is the only one that carries the shirt number. Each run appends a fresh complete snapshot row
-per league. No cross-run merge with prior BQ data.
-
-The snapshot is stamped with the team's last-recorded ``season`` so per-season coverage is exact
-and the raw row is self-describing. Two capture paths feed this table:
-- in-season (Phase 3b): full-mode comps capture every run;
-- catch-up (Phase 3c): finished (poll-mode) comps whose teams are not already covered for that
-  season — keyed by team, deduped across comps, club and national teams alike. See
-  ``select_squad_catchup_team_ids`` / ``captured_team_seasons``.
+The snapshot is stamped with ``season`` because ``captured_team_seasons`` reads it back.
 """
 
 from __future__ import annotations
@@ -50,11 +39,8 @@ def load_player_squads_batch(
                 ctx.errors,
                 error_context=f"player_squads {league_code} team_id={team_id}",
             )
-            # #896 applied to the CAPTURE side. Withhold the entry, not just the
-            # write: `captured_team_seasons` reads `$.team_id` PRESENCE over all rows, so storing a
-            # rate-limited empty squad marks this team done and no later run ever re-fetches it.
-            # Nothing is deleted here — the damage is a permanent hole, which is why no row-count,
-            # freshness or not-null check could ever see it.
+            # `captured_team_seasons` reads `$.team_id` presence, so storing an incomplete squad
+            # would mark the team done and no later run would re-fetch it.
             if not complete:
                 ctx.errors.append(
                     f"player_squads {league_code} team {team_id}: INCOMPLETE fetch — team SKIPPED, "
@@ -72,12 +58,8 @@ def load_player_squads_batch(
     if not squads_payload["response"]:
         return
     if require_complete and quota_cut:
-        # The catch-up snapshot must be COMPLETE per competition. stg_apif__squads selects the
-        # latest snapshot per league_code, and a finished comp is skip-if-present (never re-fetched
-        # whole), so persisting a partial row here would silently drop the unwritten teams from
-        # staging. Discard the partial; the whole comp re-captures on the next run once quota frees
-        # up. (In-season Phase 3b passes require_complete=False — it re-fetches whole every run, so
-        # its partials are healed by the next complete snapshot.)
+        # stg_apif__squads selects the latest snapshot per league_code and a finished comp is never
+        # re-fetched whole, so a partial row would drop the unwritten teams from staging.
         ctx.errors.append(
             f"player_squads {league_code}: quota cut the catch-up mid-comp; partial discarded, retries next run"
         )
@@ -101,17 +83,10 @@ def select_squad_catchup_team_ids(
     active_team_ids: set[int],
     already_captured: set[tuple[int, int]],
 ) -> list[tuple[str, int, set[int]]]:
-    """Pure policy: which finished-comp teams still need a squad snapshot.
+    """Return the ``finished_comps`` shape with only the team_ids still needing a squad snapshot.
 
-    A squad is a team property, so capture each team once even if it appears in several
-    finished competitions, and never if it is already covered:
-    - skip teams active in any full-mode comp this run (captured in-season);
-    - skip teams already stored for that season;
-    - dedupe across comps (the first finished comp that owns a team wins).
-
-    ``finished_comps`` is an ordered list of ``(league_code, season, team_ids)``. Returns the
-    same shape with only the team_ids still to fetch, dropping comps that need nothing.
-    Deterministic — no I/O.
+    Skips teams active in a full-mode comp, teams already stored for that season, and teams
+    already owned by an earlier finished comp.
     """
     seen: set[int] = set()
     plan: list[tuple[str, int, set[int]]] = []
@@ -132,15 +107,11 @@ def select_squad_catchup_team_ids(
 
 
 def captured_team_seasons(ctx: PipelineContext) -> set[tuple[int, int]]:
-    """Read ``(team_id, season)`` pairs already stored in RAW_APIF_SQUADS (season-stamped rows).
+    """Read ``(team_id, season)`` pairs already stored in RAW_APIF_SQUADS.
 
-    Lets the catch-up skip teams whose squad we already hold for that season. Returns an empty
-    set if the table does not exist yet or the read fails (then the catch-up captures everything,
-    which is the safe direction — a duplicate snapshot, never a silent miss).
+    Returns an empty set when the read fails, so the catch-up over-captures rather than misses.
     """
-    # Fully-qualified read: raw_table() returns the bare name; a raw client query
-    # needs project.dataset (the write path qualifies internally). Matches _fq in
-    # loads/player_universe.py / coverage.py.
+    # raw_table() returns the bare name, but a raw client query needs project.dataset.
     table = f"{GCP_PROJECT_ID}.{DATASET_ID}.{raw_table('SQUADS')}"
     sql = f"""
         SELECT DISTINCT

@@ -26,12 +26,10 @@ with upcoming as (
         f.season_api_year,
         f.kickoff_datetime,
         reg.competition_type,
-        typ.entity_type
+        reg.entity_type
     from {{ ref('fct_fixture') }} as f
-    left join {{ ref('competition_registry') }} as reg
+    left join {{ ref('dim_league') }} as reg
         on f.league_code = reg.league_code
-    left join {{ ref('competition_types') }} as typ
-        on reg.competition_type = typ.competition_type
     where
         f.status_short in ('NS', 'TBD')
         and f.fixture_date >= current_date()
@@ -78,7 +76,7 @@ earlier_legs as (
             s.team_sk = l.team_sk
             and s.entity_type = l.entity_type
             and l.kickoff_datetime < s.kickoff_datetime
-    left join {{ ref('competition_registry') }} as reg
+    left join {{ ref('dim_league') }} as reg
         on l.league_code = reg.league_code
 ),
 

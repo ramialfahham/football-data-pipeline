@@ -1,14 +1,6 @@
-"""Fetch /standings for all configured seasons → RAW_*_STANDINGS.
+"""Fetch /standings for all configured seasons into RAW_*_STANDINGS.
 
-Each run fetches all seasons and writes a fresh complete snapshot row; the API returns
-the full standings history on every call.
-
-APPEND ONLY (raw appends and never deletes). The run appends its
-snapshot and removes nothing, so every earlier snapshot survives. `stg_apif__standings`
-selects the newest row per league_code, so the older ones are simply not selected — they
-are there for the case this rule exists for, a later answer that carries LESS than the one
-it would have replaced. The merge-on-write of #33 item 8b was removed here; see
-docs/data_contract.md, "Raw appends and never deletes".
+Each run appends a complete snapshot and deletes nothing; staging reads the newest per league.
 """
 
 from __future__ import annotations
@@ -33,9 +25,8 @@ def load_standings_if_enabled(
         ctx.errors.append(
             f"standings {league_code}: coverage metadata reported unsupported; attempting fetch anyway"
         )
-    # #896: one row per league covering ALL configured seasons, read latest-per-league in
-    # staging. Lose one season to a quota cut and the merged payload silently becomes a
-    # shorter history that supersedes the full one. Complete or discard.
+    # The row covers all configured seasons and staging reads latest-per-league, so a partial
+    # snapshot must be discarded rather than written.
     complete = True
     standings_merged: dict | None = None
     for season in seasons_list:
@@ -67,10 +58,6 @@ def load_standings_if_enabled(
         )
         return
     try:
-        # Append only. The delete that used to follow this write is gone (raw appends and
-        # never deletes). `stg_apif__standings` already selects the newest row
-        # per league_code, so the older rows are simply not selected — and they are still there
-        # if a later snapshot turns out to be worse than what we already held.
         load_json_to_bq(
             ctx.client,
             raw_table("STANDINGS"),

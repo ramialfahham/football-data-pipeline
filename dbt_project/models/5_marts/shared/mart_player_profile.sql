@@ -24,7 +24,10 @@ with season as (
 ),
 
 players as (
-    select * from {{ ref('dim_player') }}
+    select
+        *,
+        coalesce(concat(player_first_name, ' ', player_last_name), player_name) as player_full_name
+    from {{ ref('dim_player') }}
 ),
 
 -- Most-frequent position that season (role badge); nulls excluded.
@@ -90,18 +93,12 @@ contribution as (
 -- join mart_player_career already uses. Needed because the season a player's page opens on is a
 -- CLUB season (#848 made Overview, Performance and Career club-only), and a player-season row on
 -- its own cannot tell club football from national.
-registry as (
+competitions as (
     select
         league_code,
-        competition_type
-    from {{ ref('competition_registry') }}
-),
-
-types as (
-    select
         competition_type,
         entity_type
-    from {{ ref('competition_types') }}
+    from {{ ref('dim_league') }}
 ),
 
 page as (
@@ -113,6 +110,21 @@ season_labels as (
         season_sk,
         season_label
     from {{ ref('dim_competition_season') }}
+),
+
+-- Players with a page who share their full name with another at their current club: the page
+-- title tells them apart.
+shared_names as (
+    select
+        pg.player_sk,
+        count(*) over (partition by pl.player_full_name, pg.current_club_team_sk) > 1 as shares_name_at_club
+    from page as pg
+    inner join players as pl
+        on pg.player_sk = pl.player_sk
+    where
+        pg.has_player_page
+        and pg.current_club_team_sk is not null
+        and pl.player_full_name is not null
 )
 
 select
@@ -125,12 +137,12 @@ select
     a.season_api_year,
     sl.season_label,
     reg.competition_type,
-    ct.entity_type,
+    reg.entity_type,
     -- identity + descriptors (not catalogue metrics)
     p.player_name,
     p.player_first_name,
     p.player_last_name,
-    coalesce(concat(p.player_first_name, ' ', p.player_last_name), p.player_name) as player_full_name,
+    p.player_full_name,
     date_diff(current_date(), p.player_birth_date, year)
     - if(format_date('%m%d', current_date()) < format_date('%m%d', p.player_birth_date), 1, 0) as player_age,
     p.player_nationality,
@@ -226,7 +238,8 @@ select
     c.contribution_player_pct,
     -- The season this player's page opens on: int_player__page_profile chooses it.
     coalesce(a.season_sk = pg.featured_season_sk, false) as is_featured_season,
-    coalesce(pg.has_player_page, false) as has_player_page
+    coalesce(pg.has_player_page, false) as has_player_page,
+    coalesce(sn.shares_name_at_club, false) as shares_name_at_club
 from season as a
 left join players as p
     on a.player_sk = p.player_sk
@@ -252,13 +265,13 @@ left join contribution as c
         a.player_sk = c.player_sk
         and ta.team_sk = c.team_sk
         and a.season_sk = c.season_sk
-left join registry as reg
+left join competitions as reg
     on a.league_code = reg.league_code
-left join types as ct
-    on reg.competition_type = ct.competition_type
 left join page as pg
     on a.player_sk = pg.player_sk
 left join season_labels as sl
     on a.season_sk = sl.season_sk
 left join teams as cc
     on pg.current_club_team_sk = cc.team_sk
+left join shared_names as sn
+    on a.player_sk = sn.player_sk

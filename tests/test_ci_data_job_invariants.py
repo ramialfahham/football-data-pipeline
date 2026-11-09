@@ -93,7 +93,7 @@ def test_ci_never_disables_the_ingest_lock():
     assert offenders == [], (
         "API_FOOTBALL_SKIP_INGEST_LOCK is set in .gitlab-ci.yml. It disables the BigQuery "
         "ingest lease, and docs/operations_guide.md:149 restricts it to local debugging. CI "
-        "ingests write the production `raw` dataset (ingestion/api_football/settings.py:31), so "
+        "ingests write the production `raw` dataset (ingestion/api_football/settings.py), so "
         f"this is production. Offending: {offenders}"
     )
 

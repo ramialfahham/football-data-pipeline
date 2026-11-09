@@ -23,12 +23,10 @@ nations_with_a_started_competition as (
     select distinct team_sk
     from {{ ref('fct_fixture') }} as f,
         unnest([f.home_team_sk, f.away_team_sk]) as team_sk
-    inner join {{ ref('competition_registry') }} as reg
-        on f.league_code = reg.league_code
-    inner join {{ ref('competition_types') }} as typ
-        on reg.competition_type = typ.competition_type
+    inner join {{ ref('dim_league') }} as leagues
+        on f.league_code = leagues.league_code
     where
-        typ.entity_type = 'national'
+        leagues.entity_type = 'national'
         and team_sk is not null
         and f.kickoff_datetime <= current_timestamp()
 ),

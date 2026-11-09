@@ -1,13 +1,4 @@
-"""Global constants, env var helpers, ingest profile, and API provider configuration.
-
-Exposes four groups of names:
-
-1. GCP constants — project ID, dataset, and BigQuery table naming.
-2. Provider / auth — resolves base URL and auth headers for API-Sports or RapidAPI.
-3. Ingest profile — reads API_FOOTBALL_INGEST_PROFILE and sets env var defaults for the
-   full/paid profile (multi-season, no pacing, high page caps).
-4. Env helpers — typed accessors (_env_int, _env_truthy) used across the package.
-"""
+"""Global constants, env var helpers, ingest profile, and API provider configuration."""
 
 from __future__ import annotations
 
@@ -33,29 +24,17 @@ DATASET_ID = (os.getenv("API_FOOTBALL_BIGQUERY_DATASET", "raw").strip() or "raw"
 APISPORTS_BASE = "https://v3.football.api-sports.io"
 RAPIDAPI_BASE = "https://api-football-v1.p.rapidapi.com/v3"
 
-# Default rolling window: the number of API ``season`` start years (including the active
-# campaign) ingested when a competition does NOT set ``history_seasons`` in the registry (see
-# ``season_inference._infer_competition_season_start_year`` and ``seasons._seasons_for_ingestion``).
-# A competition's explicit ``history_seasons`` is authoritative and overrides this default.
+# Season years ingested, including the active one, when a competition sets no ``history_seasons``.
 DEFAULT_SEASON_WINDOW_YEARS = 10
 
 
 def raw_table(entity: str) -> str:
-    """BigQuery table name (not project-qualified): ``RAW_APIF_FIXTURES_NEXT``.
-
-    Convention: RAW_APIF_{entity} — all competitions share the same tables,
-    discriminated by a league_code STRING column in every row.
-    """
+    """Unqualified shared table name ``RAW_APIF_{entity}``; rows carry a league_code column."""
     return f"RAW_APIF_{entity}"
 
 
 def raw_league_table(league_code: str, entity: str) -> str:
-    """Per-competition BigQuery table name: ``RAW_APIF_{LC}_{entity}``.
-
-    Retained for per-competition operational tracking tables (INGEST_CURSOR)
-    that are intentionally not unified — they hold pipeline state, not API data.
-    Do NOT use this for API data tables; use raw_table(entity) instead.
-    """
+    """Per-competition table name ``RAW_APIF_{LC}_{entity}``, only for pipeline-state tables."""
     return f"RAW_APIF_{league_code}_{entity}"
 
 
@@ -112,28 +91,15 @@ def _ingest_profile_name() -> str:
         return raw
     if _env_truthy("API_FOOTBALL_PAID_FULL_LOAD"):
         return "full"
-    # Default mirrors a paid / warehouse run: all API-listed seasons + generous caps.
-    # Opt into free-tier pacing with API_FOOTBALL_INGEST_PROFILE=default (or economy).
+    # Free-tier pacing is opt-in via API_FOOTBALL_INGEST_PROFILE=default (or economy).
     return "full"
 
 
 def _apply_ingest_profile_defaults() -> None:
-    """
-    **Full** profile = standard paid / warehouse ingestion: multi-season pull within the
-    default season window (``DEFAULT_SEASON_WINDOW_YEARS``) unless a competition's
-    history_seasons widens it, a 250 ms pause between requests, and high pagination caps.
+    """Set paid-profile env defaults for the full profile; explicitly exported vars still win.
 
-    The pause protects the provider's **per-minute** limit, not the daily quota (docs/data_contract.md
-    "Provider behaviour"). It defaults here rather than in a workflow so nothing can inherit zero
-    pacing by omission.
-    Only uses ``os.environ.setdefault`` so anything you export explicitly still wins.
-
-    **Economy** profile (``INGEST_PROFILE=default`` / ``economy`` / ``free``): no bundled
-    defaults here—single inferred season and conservative request pacing from other
-    env defaults.
-
-    When ``API_FOOTBALL_INGEST_PROFILE`` is unset, :func:`_ingest_profile_name` returns
-    ``full`` so this function normally runs.
+    The 250 ms pause protects the provider's per-minute limit, and defaults here so nothing
+    inherits zero pacing by omission.
     """
     prof = _ingest_profile_name()
     if prof not in ("full", "paid", "complete"):

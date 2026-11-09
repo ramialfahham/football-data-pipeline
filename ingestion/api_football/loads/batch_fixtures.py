@@ -1,37 +1,6 @@
-"""Batch fixture ingestion: full sub-data via GET /fixtures?ids=ID1-...-ID20.
+"""Fetch finished-fixture details, 20 per /fixtures?ids= call, into RAW_APIF_FIXTURE_DETAILS.
 
-Step 2 of the documented two-step ingestion pattern (Step 1 is loads/fixtures.py).
-One API call per 20 finished fixtures returns events, lineups, statistics, and players
-embedded in the response — replacing the old 5-endpoint-per-fixture fanout.
-
-Storage model: one row per fixture PER FETCH in RAW_APIF_FIXTURE_DETAILS (unified, all leagues).
-  league_code STRING    — competition discriminator
-  fixture_id  INT64     — for per-fixture lookups (partitioned by DATE(ingested_at))
-  payload     JSON      — the single fixture object from $.response[n]
-  ingested_at TIMESTAMP — when this row was written (UTC)
-
-APPEND ONLY. On the first fetch of a fixture a row is inserted. On retry (empty stats
-within STATS_RETRY_DAYS of kickoff, the player stats' second fetch, or their newer-format
-refetch) another row is
-inserted and NOTHING is removed, so a retried fixture holds one row per attempt.
-Staging models read payload directly and
-faithfully — no $.response unnesting, no dedup — and base resolves the versions by
-entity key with latest-ingest-wins.
-
-⚠ Raw therefore holds every version the provider ever gave us, including versions that
-contradict each other. That is deliberate.
-The delete that used to run here destroyed 29 real events across 5 fixtures because a
-retry chasing late statistics returned fewer events, and one row bundles lineups, events,
-statistics and player stats together.
-
-Coverage is the `coverage.read_coverage` result the orchestrator reads before this step, for
-every league: a fixture is done once ANY stored row for it carries non-empty statistics
-and no refetch of its player stats is due. That LOGICAL_OR aggregation is what makes
-the multi-row state safe to read.
-
-Rate limiting: on top of the pause after every call (API_FOOTBALL_REQUEST_PAUSE_MS), this loop
-sleeps API_FOOTBALL_BATCH_SLEEP_MS (default 250 ms) between batches. The provider's limits are in
-docs/data_contract.md "Provider behaviour".
+Raw is append-only, so a retried fixture holds one row per attempt and base resolves the versions.
 """
 
 from __future__ import annotations
@@ -50,11 +19,10 @@ from ..quota import append_api_errors
 from ..settings import GCP_PROJECT_ID, DATASET_ID, _env_int, raw_table
 from .context import CompetitionRunResult, PipelineContext
 
-# API-Football documented limit: up to 20 fixture IDs per /fixtures?ids=... call.
+# The provider accepts at most 20 fixture IDs per /fixtures?ids= call.
 _BATCH_SIZE = 20
 
-# Retry fixtures with empty statistics for this many days after kickoff.
-# The API documents up to 48 hours delay; 3 days gives one extra day of buffer.
+# Days after kickoff during which empty statistics are retried; the provider delays up to 48 hours.
 _STATS_RETRY_DAYS = 3
 
 
@@ -64,9 +32,7 @@ def _needs_fetch(
     kickoff_by_id: dict[int, date],
     retry_cutoff: date,
 ) -> bool:
-    """Return True if this finished fixture needs a (re-)fetch.
-
-    `covered` is this league's entry of `coverage.read_coverage`.
+    """Whether a finished fixture needs a (re-)fetch; `covered` is this league's coverage entry.
 
     Decision table:
       Never fetched                            → fetch
@@ -84,7 +50,6 @@ def _needs_fetch(
         return True
     if has_statistics[fixture_id]:
         return False  # statistics present — done
-    # Empty statistics — retry only within the 3-day window from kickoff.
     kickoff = kickoff_by_id.get(fixture_id)
     if kickoff is None:
         return False
@@ -92,7 +57,6 @@ def _needs_fetch(
 
 
 def _finished_fixture_ids(fixtures_response: list[dict]) -> set[int]:
-    """Return fixture IDs whose status is FT, AET, or PEN (match has ended)."""
     out: set[int] = set()
     for row in fixtures_response or []:
         fx = row.get("fixture") or {}
@@ -109,17 +73,6 @@ def _finished_fixture_ids(fixtures_response: list[dict]) -> set[int]:
     return out
 
 
-# REMOVED: `_delete_fixtures`, the delete-on-retry. This is the one that cost real
-# data. A fixture row bundles lineups, events, statistics and player stats TOGETHER, so a retry
-# chasing late statistics could come back richer in one section and poorer in another, and the
-# delete made the poorer answer the only surviving one. MEASURED on fixture 1564795: 27 events
-# stored, 17 returned by the retry, an entire penalty shootout destroyed and unrecoverable
-# because the provider no longer returns it.
-#
-# Raw keeps both versions, for every raw table: both payloads land and base decides
-# (docs/data_contract.md, "Fixture details"). Do NOT restore the delete as a regression fix.
-
-
 def _insert_fixture_rows(
     client: bigquery.Client,
     table_name: str,
@@ -127,14 +80,7 @@ def _insert_fixture_rows(
     ingested_at: datetime,
     league_code: str,
 ) -> None:
-    """Append one row per fixture to RAW_APIF_FIXTURE_DETAILS.
-
-    Each row:
-      league_code = competition key
-      fixture_id  = top-level merge key, extracted from payload $.fixture.id
-      payload     = full fixture object
-      ingested_at = UTC timestamp of this write
-    """
+    """Append one row per fixture to RAW_APIF_FIXTURE_DETAILS; fixture_id comes from the payload."""
     table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
     ts = ingested_at.isoformat()
 
@@ -180,24 +126,12 @@ def _fetch_and_persist_batch(
     league_code: str,
     fixture_ids: list[int],
 ) -> None:
-    """Call GET /fixtures?ids=... and append one row per fixture returned.
-
-    Nothing is deleted. A retried fixture gains a second row and base resolves the two by
-    entity key (see the note above `_insert_fixture_rows`).
-
-    #896 still applies, and still returns before the write: a batch the provider did not answer
-    cleanly is discarded whole and retried next run. It is no longer the thing standing between
-    a shrunken answer and permanent loss — append-only is — but writing a known-partial payload
-    would still put a worse row in front of base for no reason, and the fixture would look
-    touched when it was not.
-    """
+    """Fetch one batch and append a row per fixture; an incompletely answered batch is discarded."""
     ids_param = "-".join(str(fid) for fid in fixture_ids)
     data = fetch_json("/fixtures", headers=ctx.headers, params={"ids": ids_param})
     append_api_errors(data, f"fixture_details {league_code}", ctx.errors)
 
-    # #896: an incomplete fetch must never be written. Checked immediately after the fetch —
-    # the quota flag is process-global and latches for the rest of the run, so a later check
-    # would misreport this batch.
+    # Checked right after the fetch because the quota flag is process-global and latches.
     if not result_is_complete(data):
         ctx.errors.append(
             f"fixture_details {league_code}: INCOMPLETE fetch — batch DISCARDED, prior "
@@ -227,30 +161,13 @@ def run_batch_fixture_fanout_and_persist(
     results: list[CompetitionRunResult],
     all_covered: dict[str, dict[str, dict[int, bool]]],
 ) -> None:
-    """Fetch full sub-data for all finished fixtures across all competitions, idle ones included.
-
-    Two-step process per competition:
-      1. Look the league up in `all_covered`, the `read_coverage()` result read before this step, to
-         determine which finished fixtures are done. Fixtures missing entirely, due their
-         player stats' second fetch or newer-format refetch, or with empty stats within the
-         3-day retry window are
-         queued for fetching.
-      2. Batch-fetch 20 fixture IDs at a time via GET /fixtures?ids=ID1-...-ID20.
-         Each fixture in the response is appended as one row in FIXTURE_DETAILS.
-         Re-fetched fixtures keep their earlier row as well.
-
-    All competitions are planned before any HTTP calls are made.
-    """
+    """Plan every competition's fetches from `all_covered` before making any HTTP call."""
     from ..fixture_scheduling import _fixture_kickoff_by_id
 
     today = date.today()
     retry_cutoff = today - timedelta(days=_STATS_RETRY_DAYS)
     sleep_s = _env_int("API_FOOTBALL_BATCH_SLEEP_MS", 250) / 1000.0
 
-    # -----------------------------------------------------------------------
-    # Planning pass — determine what needs fetching for each competition.
-    # No HTTP calls yet.
-    # -----------------------------------------------------------------------
     plan: list[tuple[str, list[int], set[int]]] = []  # (league_code, to_fetch, retry_ids)
     for result in results:
         response = result.fixtures_merged.get("response", [])
@@ -287,9 +204,6 @@ def run_batch_fixture_fanout_and_persist(
         flush=True,
     )
 
-    # -----------------------------------------------------------------------
-    # Fetch pass — one batch at a time, sleeping between calls.
-    # -----------------------------------------------------------------------
     first_call = True
     for league_code, fixture_ids, retry_ids in plan:
         for i in range(0, len(fixture_ids), _BATCH_SIZE):

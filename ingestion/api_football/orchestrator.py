@@ -1,13 +1,4 @@
-"""Top-level orchestrator: reads the competition registry and runs ingestion for each active competition.
-
-Entry point for the Cloud Function (and local runs via main.py). Acquires a BigQuery
-ingest lock to prevent concurrent runs, then iterates over selected competitions from
-the registry. Results land in unified RAW_APIF_{entity} tables (shared by all competitions,
-discriminated by the league_code STRING column) in the raw BigQuery dataset.
-
-To add a new competition: add it to docs/competition_registry.yml with status=active
-(or in_progress with API_FOOTBALL_INCLUDE_IN_PROGRESS=1). No code changes required.
-"""
+"""Entry point: takes the ingest lock and ingests each selected registry competition."""
 
 from __future__ import annotations
 
@@ -141,26 +132,12 @@ def _load_api_football(request):
 
         # Phase 1: full cheap phases or poll-only (catalog + latest-season fixtures).
         #
-        # Fanout coverage is read ONCE here, for every league, and passed into the loop.
-        # read_coverage() scans all of RAW_APIF_FIXTURE_DETAILS with no league or time
-        # filter; it used to be reached from inside resolve_ingest_mode, i.e. once per
-        # competition, which made ingestion reads O(competitions^2) — 45 scans of a
-        # multi-GiB table every run, growing quadratically as leagues are added (#33 item 1).
-        #
-        # ⚠ This is deliberately NOT a run-wide cache. Phase 2 WRITES FIXTURE_DETAILS, and
-        # the completeness check below MUST see those writes — that is what it checks. It
-        # therefore keeps its own, separate read. Hoisting further (one read for the whole
-        # run) would make every run report fanout gaps that the same run had just filled.
-        # Phase 2 itself reuses this read: nothing writes FIXTURE_DETAILS before Phase 2.
+        # Fanout coverage is read once for every league, not per competition. It is not a
+        # run-wide cache: Phase 2 writes FIXTURE_DETAILS and the completeness check below must see
+        # those writes, so it keeps its own read.
         phase1_covered = read_coverage(ctx.client)
-        # #33 item 14 — the re-fetch cadence for coaches and transfers, read ONCE for every
-        # league and passed into the loops below. Same reason as read_coverage above: reading
-        # this per competition would reintroduce exactly the O(competitions^2) shape item 1
-        # removed. Two grouped queries against tables 8b shrank to 0.178 and 0.008 GiB.
-        #
-        # Unlike phase1_covered this IS safe to hoist for the whole run: nothing in this run
-        # writes COACHES or TRANSFERS before these loops, so there are no same-run writes for
-        # a later read to miss.
+        # Re-fetch cadence for coaches and transfers, read once; nothing in this run writes those
+        # tables before the loops, so hoisting it for the whole run is safe.
         coaches_last_ingest = latest_ingest_per_league(ctx.client, raw_table("COACHES"))
         transfers_last_ingest = latest_ingest_per_league(ctx.client, raw_table("TRANSFERS"))
         results = []
@@ -204,19 +181,13 @@ def _load_api_football(request):
                 results.append(result)
 
         # Phase 2: batch fixture sub-data fetch across all competitions, idle ones included.
-        # Calls GET /fixtures?ids=ID1-...-ID20 (up to 20 per call) to retrieve
-        # events, lineups, statistics, and players for finished fixtures.
-        # Results land in RAW_APIF_FIXTURE_DETAILS.
         if results or idle_results:
             run_batch_fixture_fanout_and_persist(ctx, results + idle_results, phase1_covered)
 
         # Phase 3: squad /players batch per competition.
         #
-        # The captured (team, season) set is read ONCE here rather than once per
-        # competition. That query UNNESTs all of RAW_APIF_PLAYERS and was the second
-        # O(competitions^2) read in this loop (#33 item 1). Unlike Phase 1's coverage
-        # hoist this set is MUTATED as the loop writes, because this loader writes the
-        # very table the set describes — see load_squad_players_batch.
+        # The captured (team, season) set is read once, not per competition, and is mutated as
+        # the loop writes the table it describes (see load_squad_players_batch).
         squads_captured = captured_player_team_seasons(ctx)
         for result in results:
             run_squads_for_competition(ctx, result, already_captured=squads_captured)
@@ -239,17 +210,12 @@ def _load_api_football(request):
                 ctx, result, transfers_last_ingest=transfers_last_ingest
             )
 
-        # Phase 5: global per-player bio + career (profiles + teams) over the current
-        # universe (players rostered season >= MIN_SEASON, gathered from RAW_APIF_PLAYERS;
-        # already-ingested players skipped). Quota-guarded — the first run is the backfill,
-        # resumed on later runs.
+        # Phase 5: global per-player bio + career (profiles + teams) over the current universe
+        # (players rostered season >= MIN_SEASON, gathered from RAW_APIF_PLAYERS; already-ingested
+        # players skipped). Quota-guarded; the first run is the backfill, resumed on later runs.
         #
-        # Both loaders need the SAME player universe, and computing it UNNESTs all of
-        # RAW_APIF_PLAYERS. Nothing writes that table between them — profiles writes
-        # RAW_APIF_PLAYER_PROFILES, teams writes RAW_APIF_PLAYER_TEAMS — so the second
-        # run of that query returned an identical answer for full price (#33 item 1).
-        # A failure here is non-fatal: `universe=None` makes each loader compute its own,
-        # which is exactly the previous behaviour.
+        # Both loaders need the same universe and nothing writes RAW_APIF_PLAYERS between them,
+        # so it is computed once. On failure `universe=None` makes each loader compute its own.
         try:
             shared_universe = query_player_universe(ctx.client)
         except Exception as e:
@@ -267,22 +233,14 @@ def _load_api_football(request):
                 tail += f" ... (+{len(uniq) - 40} more distinct notes)"
             msg += f" Notes: {tail}"
 
-        # ONE read of the previous run's snapshot, three keys out of it. These three
-        # readers each used to issue their own identical query (#33 item 1). Read BEFORE
-        # persisting this run's counts, or every comparison is against itself.
+        # One read of the previous run's snapshot, taken before this run's counts are persisted.
         prior_snapshot = read_prior_snapshot(client)
         prior_stats_missing = load_prior_fixture_statistics_missing(client, prior_snapshot)
         prior_dropped = load_prior_dropped_calls(client, prior_snapshot)
         prior_per_team = load_prior_per_team_missing(client, prior_snapshot)
         dropped_calls = minute_rate_limit_counts()
-        # #898 cause 3: the per-team endpoints (players, squads, transfers, coaches) had no
-        # completeness check at all. Two-step read on purpose — see _latest_snapshot_timestamps.
-        #
-        # Expected comes from THIS RUN, not from BigQuery. `results` holds only the competitions
-        # that ran the full phases; poll-mode ones never fetch teams, players, squads or transfers,
-        # so they cannot be judged and must not appear. `team_ids` is the exact set the loaders
-        # iterated and `max(seasons_list)` is the exact reference season
-        # `load_squad_players_batch` was called with, so expectation and fetch cannot drift apart.
+        # Expected comes from this run's `results`, which holds only full-phase competitions;
+        # poll-mode ones fetch no per-team data and cannot be judged.
         per_team = read_per_team_coverage(
             client, per_team_expectations_from_results(results)
         )
@@ -299,10 +257,7 @@ def _load_api_football(request):
             prior_per_team_missing=prior_per_team,
             skipped_per_team=ctx.skipped_per_team,
         )
-        # NEVER SILENT. The gate exempts pairs that were deliberately skipped this run (#33 item
-        # 14's 7-day cadence), and an exemption nobody can see is how a real gap hides behind the
-        # cadence. The text lives in `skipped_exemption_note` so a test can assert it — nothing
-        # drives this function end to end.
+        # The gate exempts pairs skipped by the re-fetch cadence, so the exemption is printed.
         exemption_note = skipped_exemption_note(outcome.get("skipped_per_team_exempt"))
         if exemption_note:
             print(exemption_note, flush=True)
@@ -314,13 +269,8 @@ def _load_api_football(request):
             per_team_missing=per_team_missing,
         )
 
-        # Always render the markdown summary so the per-competition coverage
-        # state is visible on every workflow run page.
         notes: list[str] = []
         notes.append(f"Loaded {ctx.tables_loaded} API-Football tables.")
-        # #898: a run that dropped calls must not look like a clean one. Before this, ctx.errors
-        # reached only a stdout line that was deduped and truncated at 40 entries, so 10 of 18
-        # nightly runs reported success while dropping calls.
         if dropped_calls:
             notes.append(
                 f"DROPPED {sum(dropped_calls.values())} API call(s) to the per-minute rate limit: "
@@ -334,9 +284,7 @@ def _load_api_football(request):
                     for s in outcome["stagnant_dropped_calls"]
                 )
             )
-        # #898 cause 3. Reported on EVERY run, including COACHES, which never gates. Reporting a
-        # number that never fails is the point: it is how a slow drift becomes visible before it
-        # becomes a hole.
+        # Reported on every run, including COACHES, which never gates, so slow drift stays visible.
         per_team_notes = [
             f"{lc}/{entity} {info['missing_count']}/{info['expected_count']}"
             for lc, block in sorted(per_team.items())
@@ -391,10 +339,8 @@ def _load_api_football(request):
                     )
                 )
             if outcome["stagnant_dropped_calls"]:
-                # A single bad run stays green on purpose: the per-minute limit self-heals, and
-                # failing skips the dbt build (every post-ingest step is gated on this step
-                # succeeding), which would cost daily freshness. Two runs running means it is not
-                # healing, and that IS worth a day of staleness.
+                # A single bad run stays green because the limit self-heals and failing skips the
+                # dbt build; two runs running means it is not healing.
                 parts.append(
                     "dropped calls not healing: "
                     + ", ".join(

@@ -710,16 +710,14 @@ competition, so it reads well and sorts badly — never parsed into a value here
 
 {% docs competition_type %}
 The competition's type (domestic_league, domestic_cup, continental_cup, world_championship, …),
-resolved from league_code through the competition_registry seed; joins competition_types.
+resolved from league_code through dim_league; joins competition_types.
 {% enddocs %}
 
 {% docs entity_type %}
 Whether the competition this row belongs to is club or national-team football: `club` or
-`national`, resolved from league_code through the competition_registry and competition_types
-seeds. Never NULL for a tracked competition, since every active league_code is in the registry
-and every registry type maps to one of the two; a NULL would mean the registry does not know
-the row's competition, which the not_null tests on the match-leg and form models treat as a
-defect rather than a value.
+`national`, resolved from league_code through dim_league. Never NULL for a tracked competition,
+since dim_league tests its entity_type not null. A NULL means dim_league does not know the row's
+competition. The not_null tests on the match-leg and form models treat that as a defect.
 {% enddocs %}
 
 {% docs result %}

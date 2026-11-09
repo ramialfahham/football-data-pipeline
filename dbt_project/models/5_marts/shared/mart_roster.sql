@@ -2,8 +2,7 @@
   mart_roster — the club roster identity for the Squad tab (feeds it alongside mart_player_career; content_architecture §3).
   One row per rostered player per (club team, competition-season), from
   dim_player_team_season_mapping joined to dim_player for identity. Scoped to CLUB
-  competitions (entity_type = 'club', resolved league_code -> competition_registry ->
-  competition_types — mirrors mart_standings; never a dim_team flag, per the
+  competitions (entity_type = 'club', read from dim_league — mirrors mart_standings; never a dim_team flag, per the
   dim_team-is-a-pure-entity ruling).
 
   Identity only: name, listed position, nationality, birth_date, photo. This mart carries NO
@@ -28,18 +27,12 @@ players as (
     select * from {{ ref('dim_player') }}
 ),
 
-registry as (
+competitions as (
     select
         league_code,
-        competition_type
-    from {{ ref('competition_registry') }}
-),
-
-types as (
-    select
         competition_type,
         entity_type
-    from {{ ref('competition_types') }}
+    from {{ ref('dim_league') }}
 )
 
 select
@@ -50,7 +43,7 @@ select
     m.league_code,
     m.season_api_year,
     reg.competition_type,
-    typ.entity_type,
+    reg.entity_type,
     p.player_name,
     p.player_position,
     p.player_nationality,
@@ -59,8 +52,6 @@ select
 from mapping as m
 left join players as p
     on m.player_sk = p.player_sk
-left join registry as reg
+left join competitions as reg
     on m.league_code = reg.league_code
-left join types as typ
-    on reg.competition_type = typ.competition_type
-where typ.entity_type = 'club'
+where reg.entity_type = 'club'

@@ -34,7 +34,7 @@ expected as (
         ) as expected_order,
         count(*) over (partition by s.competition_order) as n_competitions_at_order
     from served as s
-    left join {{ ref('competition_registry') }} as r
+    left join {{ ref('dim_league') }} as r
         on s.league_code = r.league_code
     left join {{ ref('confederations') }} as c
         on r.confederation = c.confederation

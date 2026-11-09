@@ -1,29 +1,7 @@
-"""Fetch /players per team×season (batched) → RAW_APIF_PLAYERS.
+"""Fetch /players per team and season (batched) and append one row per fetch to RAW_APIF_PLAYERS.
 
-Storage model: ONE row per (team, season) PER FETCH (each row's ``response`` carries a single
-``{team_id, season, players_payload}`` entry), not one giant per-league row — so no row
-approaches BigQuery's 100 MB per-row JSON limit, for any league.
-
-APPEND ONLY (raw appends and never deletes). Each run appends the
-freshly-fetched per-(team,season) rows and removes nothing, so a key that is re-fetched
-accumulates one row per fetch. Staging reads all rows faithfully (no latest-snapshot qualify)
-and base assembles current-per-entity by entity-key dedup with latest-ingest-wins, so the extra
-rows merge there rather than duplicating. The per-key delete this loader used to issue was the
-best-shaped one in the codebase and still destroyed four squads in one night; see the note
-where it was removed, below.
-
-ONLY A COMPLETE FETCH IS WRITTEN (#896), and that guard is unchanged. A response carrying a
-body-level error, or cut short by the quota flag mid-pagination, is not written at all — because
-a written row marks the (team, season) captured in ``captured_player_team_seasons``, and a
-historical season would then never be re-fetched, turning a transient failure into a permanent
-hole. An empty response with NO error is a complete answer ("no players") and is written; under
-append-only that no longer costs anything, because the earlier fuller row is still there for base
-to prefer.
-
-Fetch-side skip: only the live (reference) season is re-fetched every run (its per-season
-stats keep accumulating); finished team-seasons already in RAW_APIF_PLAYERS are immutable and
-never re-requested — see ``plan_player_team_season_fetch`` / ``captured_player_team_seasons``.
-This is the API-cost twin of the merge above (bounded storage did NOT bound the fetch).
+Raw is append-only: a re-fetched key accumulates rows, and base dedups with latest-ingest-wins.
+Only a complete fetch is written, because a written row marks the (team, season) as captured.
 """
 
 from __future__ import annotations
@@ -37,27 +15,10 @@ from ..fixture_scheduling import players_response_for_team
 from .context import PipelineContext
 
 
-# REMOVED: `_delete_superseded_player_rows`, the per-(team, season) merge. It was the
-# best-shaped delete in the codebase — keyed at the right grain, quota-cut safe — and it still
-# destroyed four squads in one night, because an empty error-free /players response counts as a
-# complete answer and superseded the roster it could not replace. Correct grain does not rescue a
-# delete whose trigger cannot tell "no players" from "we lost the players".
-#
-# The rule: raw appends and never deletes, for every table. Base decides —
-# `base_apif__player_team_season` and `base_apif__players` already dedup on entity keys with
-# latest-ingest-wins, so a second row for a key merges rather than duplicating.
-# Do NOT restore this as a regression fix; see `.claude/task/escalations.log`.
-
-
 def captured_player_team_seasons(ctx: PipelineContext) -> set[tuple[int, int]]:
-    """Read ``(team_id, season)`` pairs already stored in RAW_APIF_PLAYERS.
+    """Return the ``(team_id, season)`` pairs already in RAW_APIF_PLAYERS; empty on a failed read.
 
-    The fetch-side twin of the storage-side merge: a finished season's /players response is
-    immutable, so ``load_squad_players_batch`` skips team-seasons we already hold and fetches
-    only the delta. Mirrors ``captured_team_seasons`` in loads/player_squads.py and the
-    RAW_APIF_PLAYERS unnest in loads/player_universe.py. Returns an empty set if the table does
-    not exist yet or the read fails (then everything is fetched — a duplicate download, never a
-    silent miss)."""
+    An empty set means everything is fetched again: a duplicate download, never a silent miss."""
     table = f"{GCP_PROJECT_ID}.{DATASET_ID}.{raw_table('PLAYERS')}"
     sql = f"""
         SELECT DISTINCT
@@ -83,12 +44,7 @@ def plan_player_team_season_fetch(
     reference_season: int,
     already_captured: set[tuple[int, int]],
 ) -> list[tuple[int, int]]:
-    """Pure policy: which ``(season, team_id)`` /players pulls this run still needs.
-
-    The reference (current) season is always re-fetched — its per-season stats keep accumulating
-    as matches are played. Every earlier season is immutable, so it is fetched only when the
-    ``(team_id, season)`` is not already held. Deterministic, no I/O; keys are returned in
-    ``(season, sorted team_id)`` order."""
+    """The reference season is always re-fetched, earlier seasons only when not already held."""
     plan: list[tuple[int, int]] = []
     for season in seasons_list:
         for team_id in sorted(team_ids):
@@ -107,16 +63,8 @@ def load_squad_players_batch(
 ) -> None:
     """Fetch and store the /players roster per (team, season) for one competition.
 
-    `already_captured` is the run's single `captured_player_team_seasons()` result, read
-    ONCE by the caller before the per-competition loop. That query UNNESTs all of
-    RAW_APIF_PLAYERS, and this function runs once per competition, so reading it here was
-    the second O(competitions^2) term (#33 item 1).
-
-    ⚠ It is MUTATED, not just read. This loader WRITES RAW_APIF_PLAYERS, so unlike the
-    fanout-coverage hoist the set genuinely goes stale between competitions — and national
-    teams really do appear in more than one competition. Every key written below is added
-    to it, which keeps it exactly as accurate as re-reading would. Passing None preserves
-    the old read-it-yourself behaviour for any caller that has no run-level set.
+    `already_captured` is the run-level set read once by the caller; this function adds every
+    key it writes, so teams shared between competitions are not re-fetched. None reads it here.
     """
     if os.getenv("API_FOOTBALL_SKIP_PLAYERS", "").strip().lower() in ("1", "true", "yes"):
         ctx.errors.append(
@@ -124,9 +72,7 @@ def load_squad_players_batch(
         )
         return
 
-    # Fetch-side skip: only the live season (stats still accumulating) + un-captured historical
-    # (team, season) — finished seasons already in RAW_APIF_PLAYERS are immutable and never
-    # re-requested. Mirrors the fixtures fanout's to_fetch/covered split.
+    # Finished seasons already in RAW_APIF_PLAYERS are immutable and never re-requested.
     ref = (
         reference_season
         if reference_season is not None
@@ -160,13 +106,8 @@ def load_squad_players_batch(
                     f"players {league_code} team_id={team_id} season={season}"
                 ),
             )
-            # An incomplete fetch is not written (#896). Nothing is deleted any more, but the guard
-            # still matters for a second reason that append-only does not cover: writing the row
-            # would mark the (team, season) captured in `captured_player_team_seasons`, and a
-            # historical season would then never be re-fetched, turning a transient rate limit into
-            # a permanent hole. Before this guard a rate-limited response also deleted the good rows
-            # it failed to replace: in one night UCL 340 went 25 players to 0, UEL 573 24 to 0,
-            # UECL 20034 23 to 0, and APD 463 46 to 40 when the limit hit mid-pagination.
+            # A written row marks the (team, season) captured, so a historical season would never
+            # be re-fetched and a transient failure would become a permanent hole.
             if not complete:
                 incomplete_keys.append(f"{team_id}-{season}")
                 continue
@@ -190,10 +131,7 @@ def load_squad_players_batch(
 
     if rows:
         try:
-            # Append only. The per-key delete that used to follow this write is gone (raw
-            # appends and never deletes). `stg_apif__players` already reads
-            # ALL rows with no latest-snapshot qualify, and base assembles current-per-entity, so
-            # an extra row per (team, season) merges there instead of duplicating.
+            # Append only: base assembles current-per-entity, so an extra row per key merges there.
             load_json_payload_rows_to_bq(
                 ctx.client,
                 raw_table("PLAYERS"),
@@ -202,12 +140,7 @@ def load_squad_players_batch(
                 append=True,
             )
             ctx.add_loaded(1)
-            # Keep the caller's hoisted set exact. Without this, the next competition in
-            # the run would not see these (team, season) keys and would re-fetch any it
-            # shares — national teams appear in club AND national competitions, so this
-            # fires in practice. Only done on a SUCCESSFUL write: on the exception path
-            # below the rows are not stored, so they are not captured, and re-fetching
-            # them next competition is the correct behaviour.
+            # Only after a successful write: on failure the rows are not stored, so not captured.
             for key in written_keys:
                 team_str, _, season_str = key.partition("-")
                 already_captured.add((int(team_str), int(season_str)))

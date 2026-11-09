@@ -221,6 +221,16 @@ def test_build_nav_groups_and_country_hubs():
     assert all(c["country"] != "Europe" for c in nav["countries"])
 
 
+def test_fetch_nav_takes_each_leagues_tier_from_the_competition_mart(monkeypatch):
+    monkeypatch.setattr(export_site_data, "_warehouse_competitions", lambda client: [
+        {"league_code": "BL1", "tier": 2}, {"league_code": "BL2", "tier": 1},
+    ])
+    nav = export_site_data.fetch_nav(object())
+    germany = next(c for c in nav["countries"] if c["country"] == "Germany")
+    order = [c["league_code"] for c in germany["competitions"]]
+    assert order.index("BL2") < order.index("BL1"), "the mart's tier orders the hub, not the YAML"
+
+
 def test_shape_top_players_selects_by_rank_and_joins_names():
     # Selection only: ordered by the warehouse's top_player_rank, with join keys and the rank dropped.
     rows = [
@@ -292,7 +302,7 @@ def test_shape_competition_payload_carries_the_served_season_label_as_is():
 
 def test_fetched_competition_payloads_take_the_label_of_their_own_season(monkeypatch):
     def fake_query(client, sql):
-        if "dim_competition_season" in sql:
+        if "season_label" in sql and "mart_competition_fixtures" in sql:
             return [{"league_code": "BL1", "season_api_year": 2025, "season_label": "2025/26"},
                     {"league_code": "BL1", "season_api_year": 2026, "season_label": "2026/27"}]
         if "mart_competition_season_summary" in sql:
@@ -594,19 +604,17 @@ def test_fixture_payloads_read_the_match_and_each_teams_next_match_from_the_mart
     def fake_query(client, sql):
         captured.append(sql)
         if "mart_competition_fixtures" in sql and "status_short in" in sql:
-            return [page]
+            return [{**page, "home_team_country": "Germany", "away_team_country": "Germany"}]
         if "mart_competition_fixtures" in sql and "next_match" in sql:
             return [team1_next, page]
-        if "core.dim_team" in sql:
-            return [{"team_sk": 1, "team_country": "Germany"}, {"team_sk": 2, "team_country": "Germany"}]
-        if "core.dim_league" in sql:
-            return [{"league_code": "BL1", "league_name": "Bundesliga"}]
+        if "mart_competition_index" in sql:
+            return [{"league_code": "BL1", "competition_name": "Bundesliga"}]
         return []
 
     monkeypatch.setattr(export_site_data, "_query", fake_query)
     (p,) = export_site_data.fetch_fixture_payloads(object())
 
-    assert not any("core.fct_fixture" in s for s in captured), "the match is read from the mart"
+    assert not any(".core." in s for s in captured), "every read is a mart"
     assert p["venue"] == "Arena 20" and p["league_name"] == "Bundesliga" and p["slug"] == "slug-20"
     assert p["home"]["name"] == "T1" and p["home"]["crest"] == "c1" and p["home"]["country"] == "Germany"
     assert p["is_next_round"] is False, "the served flag says which page this fixture gets"
@@ -630,10 +638,9 @@ def test_fixture_payloads_carry_the_served_window_round_slugs_and_season_players
         if "mart_team_season_record" in sql:
             return [{**keys, "team_sk": 2, "window_type": "prev_season", "goals_per_match": 2.0, "is_form_window": True}]
         if "mart_player_season_record" in sql:
-            return [{**keys, "team_sk": 1, "player_sk": 7, "top_player_rank": 1, "goals_total": 3, "goals_assists": 1,
+            return [{**keys, "team_sk": 1, "player_sk": 7, "player_name": "P7", "player_photo_url": "u7",
+                     "top_player_rank": 1, "goals_total": 3, "goals_assists": 1,
                      "window_type": "season_to_date", "league_code": "BL1"}]
-        if "core.dim_player" in sql:
-            return [{"player_sk": 7, "player_name": "P7", "player_photo_url": "u7"}]
         return []
 
     monkeypatch.setattr(export_site_data, "_query", fake_query)
@@ -984,13 +991,10 @@ def test_each_team_season_carries_its_competitions_season_label():
 
 def test_a_team_export_reads_each_seasons_label_from_the_warehouse(monkeypatch):
     profile = [{"team_sk": 1, "season_api_year": 2026, "league_code": "PL", "team_name": "City",
-                "is_featured_season": True}]
-    labels = [{"league_code": "PL", "season_api_year": 2026, "season_label": "2026/27"}]
+                "season_label": "2026/27", "is_featured_season": True}]
 
     def fake_query(client, sql):
-        if "mart_team_profile" in sql:
-            return profile
-        return labels if "dim_competition_season" in sql else []
+        return profile if "mart_team_profile" in sql else []
 
     monkeypatch.setattr(export_site_data, "_query", fake_query)
     (payload,) = export_site_data.fetch_team_payloads(client=None, sample=1)
@@ -1319,17 +1323,17 @@ def test_build_manifest_records_what_the_warehouse_held():
     assert m["source_counts"] == {"fixtures_unplayed": 4321}
 
 
-def test_competitions_index_covers_registry_leagues_with_slug_and_name():
+def test_competitions_index_maps_every_served_competition_to_its_slug_and_name(monkeypatch):
     # site_v2/src/data/competitions.json carries this; the fixture page resolves its URL from it.
-    idx = _competitions_index()
-    assert idx, "registry produced no competitions"
-    for lc, meta in idx.items():
-        assert isinstance(lc, str) and lc
-        assert meta.get("slug"), f"{lc} has no slug"
-        assert "name" in meta
-    # known active leagues resolve (registry-backed)
-    assert idx["PL"]["slug"] == "premier-league"
-    assert idx["BL1"]["slug"]
+    monkeypatch.setattr(export_site_data, "_warehouse_competitions", lambda client: [
+        {"league_code": "BL1", "name": "Bundesliga", "slug": "bundesliga", "confederation": "UEFA"},
+        {"league_code": "PL", "name": "Premier League", "slug": "premier-league",
+         "confederation": "UEFA"},
+    ])
+    assert _competitions_index(object()) == {
+        "BL1": {"name": "Bundesliga", "slug": "bundesliga"},
+        "PL": {"name": "Premier League", "slug": "premier-league"},
+    }
 
 
 def test_shape_competition_index_projects_the_keep_list_and_changes_nothing():
@@ -1398,9 +1402,9 @@ def test_shape_team_index_projects_in_input_order_and_lifts_the_page_flag():
     assert zeta["region_rank"] == 1 and zeta["country_order"] == 2
 
 
-def test_fetch_team_index_orders_by_name_and_reads_the_region_facts_from_the_seed(monkeypatch):
-    # The name order is the order of teams sharing a place, and the seed's region rank and label
-    # key order and name the region groups; without either the page changes on every export.
+def test_fetch_team_index_orders_by_name_and_reads_the_mart_alone(monkeypatch):
+    # The name order is the order of teams sharing a place; the mart serves the region rank and
+    # label key that order and name the region groups.
     seen = []
 
     def fake_query(client, sql):
@@ -1411,10 +1415,8 @@ def test_fetch_team_index_orders_by_name_and_reads_the_region_facts_from_the_see
     payload = export_site_data.fetch_team_index(object())
     (sql,) = seen
     assert payload["type"] == "teams_index"
-    assert "mart_team_index` as t" in sql
-    assert "confederations` as g on t.region_key = g.confederation" in sql
-    assert "g.region_rank, g.label_i18n_key as region_label_i18n_key" in sql
-    assert sql.endswith("order by t.team_name, t.team_slug")
+    assert "marts.mart_team_index`" in sql and "join" not in sql
+    assert sql.endswith("order by team_name, team_slug")
 
 
 def test_shape_team_index_refuses_rows_that_disagree_on_the_page_flag():

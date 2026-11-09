@@ -16,4 +16,4 @@ criteria_demonstrated:
   - **Gates:**
     - Passing: whole `pytest tests` (1,757), `npm test` (186), `npm run build` with its audits, `check_component_registry.py` and `check_page_css.py`.
     - Design check over every built page, every tab: the Player pages at 0 on every count, every other page at its pin.
-    - Both design baselines: no pin moves, so neither file changes; CI's merge-request run compares them on Linux.
+    - Both design baselines match CI's measurement. The merge request's Linux run measured every count at its pin except the 144 Player stub pages that had no inventory row ("page with no row", EN and DE), which the Player page rows now own; those 144 leave `baseline_quick.json`, and the same pages in EN, DE and FI (216) leave `baseline.json`. The coverage counts do not depend on the platform.

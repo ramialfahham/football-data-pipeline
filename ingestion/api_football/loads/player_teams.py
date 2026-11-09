@@ -1,11 +1,4 @@
-"""Fetch /players/teams per player → RAW_APIF_PLAYER_TEAMS (global per-player phase).
-
-Career club/national history per player ({team, seasons[]} list), one call per player over the
-current universe (see loads/player_universe.py). Players are grouped by provenance league_code
-and landed one snapshot row per league, mirroring the team-keyed loaders. Already-ingested
-players are skipped; the first run is the backfill, bounded by the daily quota guard and
-resumed on later runs.
-"""
+"""Fetch /players/teams per player into RAW_APIF_PLAYER_TEAMS, one snapshot row per league."""
 
 from __future__ import annotations
 
@@ -23,12 +16,8 @@ def load_player_teams_global(
     ctx: PipelineContext,
     universe: list[tuple[int, str]] | None,
 ) -> None:
-    """`universe` is the run's shared `_query_universe()` result — the same answer
-    load_player_profiles_global just used, and nothing writes RAW_APIF_PLAYERS between the
-    two phases, so re-running that full UNNEST bought nothing (#33 item 1).
-
-    REQUIRED (it may be None, but it must be PASSED) — see load_player_profiles_global for
-    why a default would make the hoist silently revertible.
+    """`universe` is the run's shared `_query_universe()` result; it has no default so the shared
+    read cannot be silently dropped.
     """
     if os.getenv("API_FOOTBALL_SKIP_PLAYER_TEAMS", "").strip().lower() in ("1", "true", "yes"):
         ctx.errors.append(
@@ -54,9 +43,8 @@ def load_player_teams_global(
                     ctx.errors,
                     error_context=f"player_teams {league_code} player_id={player_id}",
                 )
-                # #896 applied to the CAPTURE side, same reader and same permanence as
-                # player_profiles: `_existing_player_ids` keys on `$.player_id` presence, so an
-                # empty career stored from a rate-limited call is never re-fetched.
+                # `_existing_player_ids` keys on `$.player_id` presence, so storing an incomplete
+                # career would retire the player permanently.
                 if not complete:
                     ctx.errors.append(
                         f"player_teams {league_code} player {player_id}: INCOMPLETE fetch — "

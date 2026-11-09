@@ -73,27 +73,60 @@ def test_seed_header_matches_the_declared_columns():
     )
 
 
-def test_tier_is_declared_exactly_for_domestic_leagues():
-    """`tier` is structurally N/A off a league, so it is checked in both directions on the committed seed."""
-    league_without_tier = []
-    non_league_with_tier = []
-    for row in _seed_rows():
-        is_league = row["competition_type"] == "domestic_league"
-        has_tier = bool((row.get("tier") or "").strip())
-        if is_league and not has_tier:
-            league_without_tier.append(row["league_code"])
-        if not is_league and has_tier:
-            non_league_with_tier.append((row["league_code"], row["competition_type"]))
+SEASON_MAP = ROOT / "dbt_project" / "seeds" / "competition_season_map.csv"
+SEASON_COLUMNS = ("tier", "competition_group")
 
-    assert not league_without_tier, (
-        "domestic_league competitions with no `tier` in the seed: "
-        f"{sorted(league_without_tier)}. Every league declares its division in "
-        "docs/competition_registry.yml; a blank here means the projection dropped it."
+
+def _season_map_rows() -> list[dict[str, str]]:
+    with SEASON_MAP.open(encoding="utf-8", newline="") as f:
+        return list(csv.DictReader(f))
+
+
+def _competition_types() -> dict[str, str]:
+    return {row["league_code"]: row["competition_type"] for row in _seed_rows()}
+
+
+def test_tier_and_group_are_registry_free():
+    """A league's tier and group can change between seasons, so competition_season_map holds them
+    per season and the registry seed carries neither."""
+    for column in SEASON_COLUMNS:
+        assert column not in WRITER_COLUMNS
+        assert column in _season_map_rows()[0]
+
+
+def test_tier_and_group_sit_only_on_domestic_league_seasons():
+    """A cup or tournament has no division and is not ranked against leagues, so its rows carry
+    neither. A domestic league's first season carries both, and a later blank carries the previous
+    season's value forward in dim_competition_season."""
+    types = _competition_types()
+    first_season: dict[str, dict[str, str]] = {}
+    non_league_with_value = []
+    for row in _season_map_rows():
+        is_league = types.get(row["league_code"]) == "domestic_league"
+        if not is_league and any((row.get(c) or "").strip() for c in SEASON_COLUMNS):
+            non_league_with_value.append((row["league_code"], row["season_api_year"]))
+        if is_league:
+            seen = first_season.get(row["league_code"])
+            if seen is None or int(row["season_api_year"]) < int(seen["season_api_year"]):
+                first_season[row["league_code"]] = row
+
+    league_codes = {code for code, kind in types.items() if kind == "domestic_league"}
+    assert league_codes <= set(first_season), (
+        f"domestic leagues with no row in competition_season_map: "
+        f"{sorted(league_codes - set(first_season))}"
     )
-    assert not non_league_with_tier, (
-        "non-league competitions carrying a `tier`: " f"{sorted(non_league_with_tier)}. "
-        "A cup or tournament has no division, so `tier` must be empty. If a competition type "
-        "genuinely gains divisions, change this rule deliberately rather than widening it."
+    first_without_value = sorted(
+        (code, column)
+        for code, row in first_season.items()
+        for column in SEASON_COLUMNS
+        if not (row.get(column) or "").strip()
+    )
+    assert not first_without_value, (
+        f"a domestic league's first season must set tier and competition_group: "
+        f"{first_without_value}"
+    )
+    assert not non_league_with_value, (
+        f"non-league rows carrying tier or competition_group: {sorted(non_league_with_value)}"
     )
 
 
@@ -102,37 +135,12 @@ COMPETITION_GROUPS = frozenset(
 )
 
 
-def test_competition_group_is_declared_exactly_for_domestic_leagues():
-    """A blank group is legitimate off a league, so `not_null` is wrong and both directions are checked here."""
-    league_without_group = []
-    non_league_with_group = []
-    for row in _seed_rows():
-        is_league = row["competition_type"] == "domestic_league"
-        has_group = bool((row.get("competition_group") or "").strip())
-        if is_league and not has_group:
-            league_without_group.append(row["league_code"])
-        if not is_league and has_group:
-            non_league_with_group.append((row["league_code"], row["competition_type"]))
-
-    assert not league_without_group, (
-        "domestic_league competitions with no `competition_group` in the seed: "
-        f"{sorted(league_without_group)}. A league with no group is selected by no surface and "
-        "fails silently — nothing renders to reveal it. Assign one in "
-        "docs/competition_registry.yml and re-run scripts/sync_dbt_vars.py."
-    )
-    assert not non_league_with_group, (
-        f"non-league competitions carrying a `competition_group`: {sorted(non_league_with_group)}. "
-        "Groups rank leagues against each other; a cup or tournament is not a candidate, so this "
-        "must be empty."
-    )
-
-
 def test_competition_group_uses_only_the_declared_names():
-    """A typo'd group passes the completeness check and still selects nothing."""
+    """A typo'd group passes the season-map checks and still selects nothing."""
     unknown = sorted(
         {
             (row["league_code"], row["competition_group"])
-            for row in _seed_rows()
+            for row in _season_map_rows()
             if (row.get("competition_group") or "").strip()
             and row["competition_group"] not in COMPETITION_GROUPS
         }

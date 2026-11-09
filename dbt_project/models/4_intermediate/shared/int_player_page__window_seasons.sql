@@ -49,5 +49,5 @@ select
 from windows as w
 inner join season_ends as e
     on w.season_sk = e.season_sk
-inner join {{ ref('competition_registry') }} as reg
+inner join {{ ref('dim_league') }} as reg
     on e.league_code = reg.league_code
