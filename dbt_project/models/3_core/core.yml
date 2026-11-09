@@ -80,6 +80,17 @@ models:
       - name: country_name
         description: "The canonical English name the product displays. ASCII only."
         tests: [not_null, unique]
+      - name: confederation
+        description: >
+          The football confederation the country's association belongs to, as a full or associate
+          member, from the countries seed. NULL when it belongs to none; the seed's
+          confederation_note says why.
+        tests:
+          - relationships:
+              to: ref('confederations')
+              field: confederation
+          - dbt_utils.expression_is_true:
+              expression: "!= 'FIFA'"
 
   - name: dim_region
     description: >

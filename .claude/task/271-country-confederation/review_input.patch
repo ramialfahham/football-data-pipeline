@@ -1,0 +1,948 @@
+diff --git a/.claude/task/271-country-confederation/contract.md b/.claude/task/271-country-confederation/contract.md
+new file mode 100644
+index 00000000..52cddee4
+--- /dev/null
++++ b/.claude/task/271-country-confederation/contract.md
+@@ -0,0 +1,79 @@
++# Task contract — a country's football confederation is stored, never inferred
++
++objective: >
++  Issue #271. Every country in `dim_country` carries its football confederation as stored data,
++  or a note saying it belongs to none. Every team's region in `mart_team_index` is its country's
++  stored confederation, and nothing infers it from the competitions a team plays.
++
++refs: >
++  #271. Plan and its three decisions approved in chat, 2026-11-09, through the coordinating
++  session. #280 holds the three wrong-club ids found in the region diff.
++
++scope_paths:
++  - .claude/task/271-country-confederation/
++  - dbt_project/seeds/countries.csv
++  - dbt_project/seeds/team_country_corrections.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/models/3_core/dim_country.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/5_marts/shared/mart_team_index.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/docs/layering.md
++  - tests/test_sentence_length_in_docs.py
++
++impact_map: >
++  writers: countries.csv is the only source of dim_country. mart_team_index is the only writer
++  of a team's region_key and country_region_key. team_country_corrections feeds
++  base_apif__teams_global, the only writer of dim_team.team_country.
++  downstream: `dbt ls --select countries+ mart_team_index+ --resource-type model` (run 2026-11-09)
++  gives: dim_country mart_team_index. team_country_corrections reaches base_apif__teams_global+:
++  dim_team and every mart that carries a team's country (the lineage pasted in #269's contract).
++  Consumption: scripts/export_site_data.py reads mart_team_index for teams_index.json
++  (region_key, region_rank, country_region_key, country_order and the national team ranks).
++  layer_rules: the mart reads core (dim_country, dim_team) and seeds. dim_country publishes a
++  seed. dim_league stays the only reader of competition_registry. All are checked by
++  check_layer_contract.py. No partition_by or cluster_by. No per-competition file.
++  deploy_order: additive. One new column on dim_country (confederation). The mart_team_index
++  column set is unchanged; its region values change. The merge rebuilds both in data:build:main.
++  blast_radius: measured on prod, 2026-11-09. Shown teams whose region changes:
++  - 6 Guadeloupe, 3 Martinique and 1 French Guiana clubs: UEFA to CONCACAF.
++  - 3 Reunion clubs: UEFA to CAF.
++  - 3 Tahiti and 2 New Caledonia clubs: UEFA to OFC.
++  - Victoria United: CAF to CONCACAF. Warriors FC: CAF to AFC. Newmarket: UEFA to AFC. (#280)
++  - The 61 Coupe de France clubs with no country get sourced countries. The overseas ones among
++    them move with their territory, and a Mayotte club has no region.
++  country_region_key and country_order follow the same stored values. The MR head lists every
++  changed team.
++
++decisions_taken: >
++  The plan was approved in chat on 2026-11-09 through the coordinating session.
++  countries.csv carries a confederation and a confederation_note. The note is filled only on a row
++  with no confederation, and a test requires exactly one of the two.
++  No confederation: Falkland Islands, Great Britain, Guernsey, Isle of Man, Jersey, Mayotte,
++  Monaco, Northern Cyprus and Yugoslavia (dissolved).
++  Associate members store their confederation: Reunion and Zanzibar CAF, Kiribati OFC.
++  Non-FIFA full members store theirs: Bonaire, French Guiana, Guadeloupe, Martinique, Saint Martin
++  and Sint Maarten CONCACAF; Tahiti and New Caledonia OFC.
++  A team's region and its country's region both come from dim_country via team_country. The
++  team_regions inference and the club and national-team country-region votes are removed.
++  top_club_rank still ranks a club within its continental club competition (cup_region_key),
++  because that ranks a competition, not a membership.
++  Every shown team's country has a confederation. The only exemption is a country whose row
++  records none with its note. A shown team with no country fails the test.
++  The 61 shown Coupe de France clubs the provider sends no country for get one sourced row each in
++  team_country_corrections.
++  Fan-visible: the regions above change on the Teams hub. They apply #271's own rule, so the
++  coordinating session decided them on 2026-11-09; the MR head lists every change.
++  No new mechanism and no recurring cost.
++
++decisions_reserved:
++  - none: the three decisions were settled on 2026-11-09; a club whose country cannot be sourced goes to the coordinating session before any row is written.
++
++done_when:
++  - check_layer_contract.py, check_description_hygiene.py, sqlfluff on the changed models, dbt parse, and the offline Python suite all pass locally.
++  - data:build:mr is green, including the new tests on dim_country, countries and mart_team_index.
++  - Measured on the ci_mr datasets, every shown team's region equals its country's stored confederation. Russia is UEFA in dim_country. Every region change against prod is in the MR head.
++
++amendments:
++  - 2026-11-09: + dbt_project/docs/layering.md. Authority: the CPO's approval in this task's session, 2026-11-09. Content: strip the one sentence saying dim_country carries no confederation column; nothing else changes.
++  - 2026-11-09: + tests/test_sentence_length_in_docs.py. Authority: the same approval. Content: layering.md's long-sentence pin moves from 43 to 42, because the stripped sentence was one of them.
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index afe2e5b1..97d9a653 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -217,7 +217,7 @@ Patterns that look like dimensions but are not:
+ - **Degenerate dimension.** A natural key with no independent attributes (e.g. a round name, an invoice number): keep the key on the fact; do not build a table.
+ - **Closed enum.** A small, stable vocabulary (fixture status, event type, card colour): enforce with `accepted_values` on the fact; a dim adds maintenance without adding information.
+ - **Attribute masquerading as entity.** Country, nationality, position, language: keep as attributes until a consumer needs rollups or hierarchies (e.g. continent, confederation, position group). Promote to a dim when the rollup logic appears, not before.
+-  - ⚠ **COUNTRY IS AN EXPLICIT, RECORDED EXCEPTION TO THIS BULLET — not a case of it being satisfied.** `dim_country` and `dim_region` (#69, 2026-08-17) shipped with **no reader at all**. `dim_country` gained real ones the same day, once #69 step 5 landed — the four FK `relationships` tests in `core.yml` (`league_country`, `team_country`, `player_birth_country`, `coach_birth_country`, each `to: ref('dim_country')`). **`dim_region` still has none**: `mart_competition_index` (#62 step 3, MR !65) resolves its region sub-line from `confederations`, the seed `dim_region.sql` itself is published from — a sibling consumer, not a consumer of `dim_region` — so `grep -rn "ref('dim_region')" dbt_project/models/` returns zero hits and the exception below is still live for that dim alone. The rollup this bullet names as the trigger — confederation on the country — is STILL what `dim_country` leaves out either way: it carries no confederation column, because there is no source for one at the country grain (the registry gives a confederation per COMPETITION, not per country). The reason the exception was granted is a different problem from the one this bullet guards: country was free text in four dims, spelled up to three ways for the same country, with no list of what "valid" looked like, and that absence is what made a `single_country` boolean look like a solution. The ruling: countries, continents and regions never share one column behind a single-country flag. The ruling is in `escalations.log` (2026-08-17, `feat/69-country-region-dims`). **The bullet still stands for everything else** — position, language and nationality are still attributes, and the next promotion still needs either the rollup or its own ruling.
++  - ⚠ **COUNTRY IS AN EXPLICIT, RECORDED EXCEPTION TO THIS BULLET — not a case of it being satisfied.** `dim_country` and `dim_region` (#69, 2026-08-17) shipped with **no reader at all**. `dim_country` gained real ones the same day, once #69 step 5 landed — the four FK `relationships` tests in `core.yml` (`league_country`, `team_country`, `player_birth_country`, `coach_birth_country`, each `to: ref('dim_country')`). **`dim_region` still has none**: `mart_competition_index` (#62 step 3, MR !65) resolves its region sub-line from `confederations`, the seed `dim_region.sql` itself is published from — a sibling consumer, not a consumer of `dim_region` — so `grep -rn "ref('dim_region')" dbt_project/models/` returns zero hits and the exception below is still live for that dim alone. The reason the exception was granted is a different problem from the one this bullet guards: country was free text in four dims, spelled up to three ways for the same country, with no list of what "valid" looked like, and that absence is what made a `single_country` boolean look like a solution. The ruling: countries, continents and regions never share one column behind a single-country flag. The ruling is in `escalations.log` (2026-08-17, `feat/69-country-region-dims`). **The bullet still stands for everything else** — position, language and nationality are still attributes, and the next promotion still needs either the rollup or its own ruling.
+ - **Entity requiring cross-source resolution.** If consolidating the entity requires reconciling identifiers across sources (e.g. venue from `/teams` vs `/fixtures`), that work lives in `2_base`; `3_core` receives the already-conformed version.
+ 
+ **Relationship (mapping) dimensions.** A `dim_…_mapping` may also be a *conformed relationship table* resolving a many-to-many association between existing dimensions — e.g. `dim_player_team_season_mapping`, recording which players were rostered to which team in which season. This is the one sanctioned exception to qualification rule #1 (Entity) and to the degenerate-dimension exclusion: the "thing" it represents is the association itself, so it legitimately carries only the participating keys (plus lineage), with no independent descriptive attributes. It must still satisfy **Reuse** and **Conformance**, and — like every core table — have a single **tested, unique grain key** (its surrogate over the full grain). That uniquely-keyed grain is precisely what qualifies it as a system-of-record object; on that key it is a clean one-row-per-key lookup. The `_mapping` suffix marks its grain and role: each row is an *association across dimensions*, not a single entity, so joining on one participating key (e.g. `player_sk`) resolves a many-to-many relationship and returns many rows by design.
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index f2045aad..0f65665e 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -80,6 +80,17 @@ models:
+       - name: country_name
+         description: "The canonical English name the product displays. ASCII only."
+         tests: [not_null, unique]
++      - name: confederation
++        description: >
++          The football confederation the country's association belongs to, as a full or associate
++          member, from the countries seed. NULL when it belongs to none; the seed's
++          confederation_note says why.
++        tests:
++          - relationships:
++              to: ref('confederations')
++              field: confederation
++          - dbt_utils.expression_is_true:
++              expression: "!= 'FIFA'"
+ 
+   - name: dim_region
+     description: >
+diff --git a/dbt_project/models/3_core/dim_country.sql b/dbt_project/models/3_core/dim_country.sql
+index fab7e6f6..817008a7 100644
+--- a/dbt_project/models/3_core/dim_country.sql
++++ b/dbt_project/models/3_core/dim_country.sql
+@@ -22,6 +22,7 @@
+     country_name (#69 step 5); and by
+     mart_competition_index.region_label, which relationship (this dim, or dim_region) is populated
+     for a competition IS the answer to whether its sub-line shows a country or a region (#62 step 3).
++    mart_team_index reads confederation: a team's region is its country's confederation.
+ #}
+ 
+ with import_countries as (
+@@ -30,5 +31,6 @@ with import_countries as (
+ 
+ select
+     country_key,
+-    country_name
++    country_name,
++    confederation
+ from import_countries
+diff --git a/dbt_project/models/5_marts/shared/mart_team_index.sql b/dbt_project/models/5_marts/shared/mart_team_index.sql
+index bf1ec1d1..87f3dd59 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_index.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_index.sql
+@@ -41,8 +41,7 @@ competitions as (
+         league_code,
+         competition_type,
+         entity_type,
+-        parent_competition,
+-        confederation
++        parent_competition
+     from {{ ref('dim_league') }}
+ ),
+ 
+@@ -64,6 +63,16 @@ regions as (
+     from {{ ref('confederations') }}
+ ),
+ 
++country_confederations as (
++    select
++        countries.country_name as team_country,
++        countries.confederation as region_key,
++        regions.region_rank
++    from {{ ref('dim_country') }} as countries
++    inner join regions
++        on countries.confederation = regions.confederation
++),
++
+ team_competitions as (
+     select * from {{ ref('mart_team_competitions') }}
+ ),
+@@ -223,21 +232,14 @@ team_kinds as (
+     group by tc.team_sk
+ ),
+ 
+--- a team's region: the confederation of the competitions it plays most, FIFA's left out
++-- a team's region: its country's confederation
+ team_regions as (
+     select
+-        tc.team_sk,
+-        reg.confederation as region_key
+-    from team_competitions as tc
+-    inner join competitions as reg
+-        on tc.league_code = reg.league_code
+-    inner join regions as g
+-        on reg.confederation = g.confederation
+-    where reg.confederation != 'FIFA'
+-    group by tc.team_sk, reg.confederation, g.region_rank
+-    qualify row_number() over (
+-        partition by tc.team_sk order by count(*) desc, g.region_rank asc
+-    ) = 1
++        t.team_sk,
++        cc.region_key
++    from teams as t
++    inner join country_confederations as cc
++        on t.team_country = cc.team_country
+ ),
+ 
+ latest_league_seasons as (
+@@ -275,7 +277,6 @@ clubs as (
+         t.team_sk,
+         t.team_name,
+         t.team_country,
+-        coalesce(c.cup_region_key, r.region_key) as region_key,
+         coalesce(c.cup_points, 0) as cup_points,
+         coalesce(c.latest_season_points, 0) as latest_season_points,
+         coalesce(c.cup_wins, 0) as cup_wins,
+@@ -285,8 +286,6 @@ clubs as (
+         on t.team_sk = st.team_sk
+     inner join team_kinds as k
+         on t.team_sk = k.team_sk
+-    left join team_regions as r
+-        on t.team_sk = r.team_sk
+     left join top_clubs as c
+         on t.team_sk = c.team_sk
+     where not k.is_national
+@@ -303,52 +302,12 @@ countries as (
+     group by team_country
+ ),
+ 
+-club_country_regions as (
+-    select
+-        c.team_country,
+-        c.region_key as country_region_key,
+-        g.region_rank as country_region_rank
+-    from clubs as c
+-    inner join regions as g
+-        on c.region_key = g.confederation
+-    where c.team_country is not null
+-    group by c.team_country, c.region_key, g.region_rank
+-    qualify row_number() over (
+-        partition by c.team_country order by count(*) desc, g.region_rank asc
+-    ) = 1
+-),
+-
+-national_country_regions as (
+-    select
+-        t.team_country,
+-        r.region_key as country_region_key,
+-        g.region_rank as country_region_rank
+-    from teams as t
+-    inner join team_kinds as k
+-        on t.team_sk = k.team_sk
+-    inner join team_regions as r
+-        on t.team_sk = r.team_sk
+-    inner join regions as g
+-        on r.region_key = g.confederation
+-    where
+-        k.is_national
+-        and t.team_country is not null
+-    qualify row_number() over (
+-        partition by t.team_country order by g.region_rank asc
+-    ) = 1
+-),
+-
+--- a country none of whose clubs has a region takes its national team's
+ country_regions as (
+     select
+-        coalesce(c.team_country, n.team_country) as team_country,
+-        if(c.team_country is not null, c.country_region_key, n.country_region_key)
+-            as country_region_key,
+-        if(c.team_country is not null, c.country_region_rank, n.country_region_rank)
+-            as country_region_rank
+-    from club_country_regions as c
+-    full outer join national_country_regions as n
+-        on c.team_country = n.team_country
++        team_country,
++        region_key as country_region_key,
++        region_rank as country_region_rank
++    from country_confederations
+ ),
+ 
+ country_orders as (
+@@ -359,7 +318,7 @@ country_orders as (
+             order by
+                 c.team_country is null asc,
+                 c.country_points = 0 asc,
+-                if(c.country_points > 0, cr.country_region_rank, null) asc,
++                if(c.country_points > 0, cr.country_region_rank, null) asc nulls last,
+                 c.country_points desc,
+                 c.country_latest_season_points desc,
+                 c.country_wins desc,
+@@ -590,7 +549,7 @@ select
+     b.national_teams_first,
+     rg.region_rank,
+     rg.label_i18n_key as region_label_i18n_key,
+-    coalesce(tc.cup_region_key, r.region_key, co.country_region_key) as region_key,
++    r.region_key,
+     if(k.is_national, 'national', 'club') as entity_type
+ from teams as t
+ inner join shown_teams as st
+@@ -616,5 +575,5 @@ left join club_orders as cl
+ left join national_orders as n
+     on t.team_sk = n.team_sk
+ left join regions as rg
+-    on coalesce(tc.cup_region_key, r.region_key, co.country_region_key) = rg.confederation
++    on r.region_key = rg.confederation
+ cross join block_order as b
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 1121b5d1..afd49087 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -3921,8 +3921,15 @@ models:
+         description: "{{ doc('team_logo_url') }}"
+       - name: team_country
+         description: "{{ doc('team_country') }}"
++        tests:
++          - not_null
++          - dbt_utils.relationships_where:
++              to: ref('dim_country')
++              field: country_name
++              from_condition: "region_key is null"
++              to_condition: "confederation is null"
+       - name: region_key
+-        description: "The team's region: for a club with cup_points, its top club competition's region; otherwise the confederation of the competitions it plays most, FIFA's left out; for a club with neither, its country's region."
++        description: "The team's region: its country's confederation, from dim_country. NULL only for a team whose country belongs to no confederation."
+         tests:
+           - relationships:
+               to: ref('confederations')
+@@ -3948,7 +3955,7 @@ models:
+       - name: top_club_rank
+         description: "The club's place among its region's clubs by cup_points; level clubs share it; NULL without cup points."
+       - name: country_region_key
+-        description: "The region of the club's country, the region most of its clubs play in; when none of them has one, its national team's region."
++        description: "The club's country's confederation, from dim_country; NULL for a national team or a country that belongs to no confederation."
+       - name: country_order
+         description: "The place of the club's country among the countries; NULL for a national team."
+       - name: team_order_in_country
+diff --git a/dbt_project/seeds/countries.csv b/dbt_project/seeds/countries.csv
+index c1cc1196..41665bfc 100644
+--- a/dbt_project/seeds/countries.csv
++++ b/dbt_project/seeds/countries.csv
+@@ -1,230 +1,230 @@
+-country_key,country_name
+-afghanistan,Afghanistan
+-albania,Albania
+-algeria,Algeria
+-american-samoa,American Samoa
+-andorra,Andorra
+-angola,Angola
+-anguilla,Anguilla
+-antigua-and-barbuda,Antigua and Barbuda
+-argentina,Argentina
+-armenia,Armenia
+-aruba,Aruba
+-australia,Australia
+-austria,Austria
+-azerbaijan,Azerbaijan
+-bahamas,Bahamas
+-bahrain,Bahrain
+-bangladesh,Bangladesh
+-barbados,Barbados
+-belarus,Belarus
+-belgium,Belgium
+-belize,Belize
+-benin,Benin
+-bermuda,Bermuda
+-bhutan,Bhutan
+-bolivia,Bolivia
+-bonaire,Bonaire
+-bosnia-and-herzegovina,Bosnia and Herzegovina
+-botswana,Botswana
+-brazil,Brazil
+-british-virgin-islands,British Virgin Islands
+-brunei,Brunei
+-bulgaria,Bulgaria
+-burkina-faso,Burkina Faso
+-burundi,Burundi
+-cambodia,Cambodia
+-cameroon,Cameroon
+-canada,Canada
+-cape-verde,Cape Verde
+-cayman-islands,Cayman Islands
+-central-african-republic,Central African Republic
+-chad,Chad
+-chile,Chile
+-china,China
+-chinese-taipei,Chinese Taipei
+-colombia,Colombia
+-comoros,Comoros
+-congo,Congo
+-cook-islands,Cook Islands
+-costa-rica,Costa Rica
+-croatia,Croatia
+-cuba,Cuba
+-curacao,Curacao
+-cyprus,Cyprus
+-czechia,Czechia
+-denmark,Denmark
+-djibouti,Djibouti
+-dominica,Dominica
+-dominican-republic,Dominican Republic
+-dr-congo,DR Congo
+-east-timor,East Timor
+-ecuador,Ecuador
+-egypt,Egypt
+-el-salvador,El Salvador
+-england,England
+-equatorial-guinea,Equatorial Guinea
+-eritrea,Eritrea
+-estonia,Estonia
+-eswatini,Eswatini
+-ethiopia,Ethiopia
+-falkland-islands,Falkland Islands
+-faroe-islands,Faroe Islands
+-fiji,Fiji
+-finland,Finland
+-france,France
+-french-guiana,French Guiana
+-gabon,Gabon
+-gambia,Gambia
+-georgia,Georgia
+-germany,Germany
+-ghana,Ghana
+-gibraltar,Gibraltar
+-great-britain,Great Britain
+-greece,Greece
+-grenada,Grenada
+-guadeloupe,Guadeloupe
+-guam,Guam
+-guatemala,Guatemala
+-guernsey,Guernsey
+-guinea,Guinea
+-guinea-bissau,Guinea-Bissau
+-guyana,Guyana
+-haiti,Haiti
+-honduras,Honduras
+-hong-kong,Hong Kong
+-hungary,Hungary
+-iceland,Iceland
+-india,India
+-indonesia,Indonesia
+-iran,Iran
+-iraq,Iraq
+-isle-of-man,Isle of Man
+-israel,Israel
+-italy,Italy
+-ivory-coast,Ivory Coast
+-jamaica,Jamaica
+-japan,Japan
+-jersey,Jersey
+-jordan,Jordan
+-kazakhstan,Kazakhstan
+-kenya,Kenya
+-kiribati,Kiribati
+-kosovo,Kosovo
+-kuwait,Kuwait
+-kyrgyzstan,Kyrgyzstan
+-laos,Laos
+-latvia,Latvia
+-lebanon,Lebanon
+-lesotho,Lesotho
+-liberia,Liberia
+-libya,Libya
+-liechtenstein,Liechtenstein
+-lithuania,Lithuania
+-luxembourg,Luxembourg
+-macao,Macao
+-madagascar,Madagascar
+-malawi,Malawi
+-malaysia,Malaysia
+-maldives,Maldives
+-mali,Mali
+-malta,Malta
+-martinique,Martinique
+-mauritania,Mauritania
+-mauritius,Mauritius
+-mayotte,Mayotte
+-mexico,Mexico
+-moldova,Moldova
+-monaco,Monaco
+-mongolia,Mongolia
+-montenegro,Montenegro
+-montserrat,Montserrat
+-morocco,Morocco
+-mozambique,Mozambique
+-myanmar,Myanmar
+-namibia,Namibia
+-nepal,Nepal
+-netherlands,Netherlands
+-new-caledonia,New Caledonia
+-new-zealand,New Zealand
+-nicaragua,Nicaragua
+-niger,Niger
+-nigeria,Nigeria
+-north-korea,North Korea
+-north-macedonia,North Macedonia
+-northern-cyprus,Northern Cyprus
+-northern-ireland,Northern Ireland
+-norway,Norway
+-oman,Oman
+-pakistan,Pakistan
+-palestine,Palestine
+-panama,Panama
+-papua-new-guinea,Papua New Guinea
+-paraguay,Paraguay
+-peru,Peru
+-philippines,Philippines
+-poland,Poland
+-portugal,Portugal
+-puerto-rico,Puerto Rico
+-qatar,Qatar
+-republic-of-ireland,Republic of Ireland
+-reunion,Reunion
+-romania,Romania
+-russia,Russia
+-rwanda,Rwanda
+-saint-kitts-and-nevis,Saint Kitts and Nevis
+-saint-lucia,Saint Lucia
+-saint-martin,Saint Martin
+-saint-vincent-and-the-grenadines,Saint Vincent and the Grenadines
+-samoa,Samoa
+-san-marino,San Marino
+-sao-tome-and-principe,Sao Tome and Principe
+-saudi-arabia,Saudi Arabia
+-scotland,Scotland
+-senegal,Senegal
+-serbia,Serbia
+-seychelles,Seychelles
+-sierra-leone,Sierra Leone
+-singapore,Singapore
+-sint-maarten,Sint Maarten
+-slovakia,Slovakia
+-slovenia,Slovenia
+-solomon-islands,Solomon Islands
+-somalia,Somalia
+-south-africa,South Africa
+-south-korea,South Korea
+-south-sudan,South Sudan
+-spain,Spain
+-sri-lanka,Sri Lanka
+-sudan,Sudan
+-suriname,Suriname
+-sweden,Sweden
+-switzerland,Switzerland
+-syria,Syria
+-tahiti,Tahiti
+-tajikistan,Tajikistan
+-tanzania,Tanzania
+-thailand,Thailand
+-togo,Togo
+-tonga,Tonga
+-trinidad-and-tobago,Trinidad and Tobago
+-tunisia,Tunisia
+-turkey,Turkey
+-turkmenistan,Turkmenistan
+-turks-and-caicos-islands,Turks and Caicos Islands
+-uganda,Uganda
+-ukraine,Ukraine
+-united-arab-emirates,United Arab Emirates
+-united-states-of-america,United States of America
+-uruguay,Uruguay
+-us-virgin-islands,US Virgin Islands
+-uzbekistan,Uzbekistan
+-vanuatu,Vanuatu
+-venezuela,Venezuela
+-vietnam,Vietnam
+-wales,Wales
+-yemen,Yemen
+-yugoslavia,Yugoslavia
+-zambia,Zambia
+-zanzibar,Zanzibar
+-zimbabwe,Zimbabwe
++country_key,country_name,confederation,confederation_note
++afghanistan,Afghanistan,AFC,
++albania,Albania,UEFA,
++algeria,Algeria,CAF,
++american-samoa,American Samoa,OFC,
++andorra,Andorra,UEFA,
++angola,Angola,CAF,
++anguilla,Anguilla,CONCACAF,
++antigua-and-barbuda,Antigua and Barbuda,CONCACAF,
++argentina,Argentina,CONMEBOL,
++armenia,Armenia,UEFA,
++aruba,Aruba,CONCACAF,
++australia,Australia,AFC,
++austria,Austria,UEFA,
++azerbaijan,Azerbaijan,UEFA,
++bahamas,Bahamas,CONCACAF,
++bahrain,Bahrain,AFC,
++bangladesh,Bangladesh,AFC,
++barbados,Barbados,CONCACAF,
++belarus,Belarus,UEFA,
++belgium,Belgium,UEFA,
++belize,Belize,CONCACAF,
++benin,Benin,CAF,
++bermuda,Bermuda,CONCACAF,
++bhutan,Bhutan,AFC,
++bolivia,Bolivia,CONMEBOL,
++bonaire,Bonaire,CONCACAF,
++bosnia-and-herzegovina,Bosnia and Herzegovina,UEFA,
++botswana,Botswana,CAF,
++brazil,Brazil,CONMEBOL,
++british-virgin-islands,British Virgin Islands,CONCACAF,
++brunei,Brunei,AFC,
++bulgaria,Bulgaria,UEFA,
++burkina-faso,Burkina Faso,CAF,
++burundi,Burundi,CAF,
++cambodia,Cambodia,AFC,
++cameroon,Cameroon,CAF,
++canada,Canada,CONCACAF,
++cape-verde,Cape Verde,CAF,
++cayman-islands,Cayman Islands,CONCACAF,
++central-african-republic,Central African Republic,CAF,
++chad,Chad,CAF,
++chile,Chile,CONMEBOL,
++china,China,AFC,
++chinese-taipei,Chinese Taipei,AFC,
++colombia,Colombia,CONMEBOL,
++comoros,Comoros,CAF,
++congo,Congo,CAF,
++cook-islands,Cook Islands,OFC,
++costa-rica,Costa Rica,CONCACAF,
++croatia,Croatia,UEFA,
++cuba,Cuba,CONCACAF,
++curacao,Curacao,CONCACAF,
++cyprus,Cyprus,UEFA,
++czechia,Czechia,UEFA,
++denmark,Denmark,UEFA,
++djibouti,Djibouti,CAF,
++dominica,Dominica,CONCACAF,
++dominican-republic,Dominican Republic,CONCACAF,
++dr-congo,DR Congo,CAF,
++east-timor,East Timor,AFC,
++ecuador,Ecuador,CONMEBOL,
++egypt,Egypt,CAF,
++el-salvador,El Salvador,CONCACAF,
++england,England,UEFA,
++equatorial-guinea,Equatorial Guinea,CAF,
++eritrea,Eritrea,CAF,
++estonia,Estonia,UEFA,
++eswatini,Eswatini,CAF,
++ethiopia,Ethiopia,CAF,
++falkland-islands,Falkland Islands,,Its football association is a member of no confederation.
++faroe-islands,Faroe Islands,UEFA,
++fiji,Fiji,OFC,
++finland,Finland,UEFA,
++france,France,UEFA,
++french-guiana,French Guiana,CONCACAF,
++gabon,Gabon,CAF,
++gambia,Gambia,CAF,
++georgia,Georgia,UEFA,
++germany,Germany,UEFA,
++ghana,Ghana,CAF,
++gibraltar,Gibraltar,UEFA,
++great-britain,Great Britain,,An Olympic team only; there is no British football association.
++greece,Greece,UEFA,
++grenada,Grenada,CONCACAF,
++guadeloupe,Guadeloupe,CONCACAF,
++guam,Guam,AFC,
++guatemala,Guatemala,CONCACAF,
++guernsey,Guernsey,,"The Guernsey FA is affiliated to The FA in England, not to a confederation."
++guinea,Guinea,CAF,
++guinea-bissau,Guinea-Bissau,CAF,
++guyana,Guyana,CONCACAF,
++haiti,Haiti,CONCACAF,
++honduras,Honduras,CONCACAF,
++hong-kong,Hong Kong,AFC,
++hungary,Hungary,UEFA,
++iceland,Iceland,UEFA,
++india,India,AFC,
++indonesia,Indonesia,AFC,
++iran,Iran,AFC,
++iraq,Iraq,AFC,
++isle-of-man,Isle of Man,,"The Isle of Man FA is affiliated to The FA in England, not to a confederation."
++israel,Israel,UEFA,
++italy,Italy,UEFA,
++ivory-coast,Ivory Coast,CAF,
++jamaica,Jamaica,CONCACAF,
++japan,Japan,AFC,
++jersey,Jersey,,The Jersey FA is affiliated to The FA in England; UEFA declined its membership.
++jordan,Jordan,AFC,
++kazakhstan,Kazakhstan,UEFA,
++kenya,Kenya,CAF,
++kiribati,Kiribati,OFC,
++kosovo,Kosovo,UEFA,
++kuwait,Kuwait,AFC,
++kyrgyzstan,Kyrgyzstan,AFC,
++laos,Laos,AFC,
++latvia,Latvia,UEFA,
++lebanon,Lebanon,AFC,
++lesotho,Lesotho,CAF,
++liberia,Liberia,CAF,
++libya,Libya,CAF,
++liechtenstein,Liechtenstein,UEFA,
++lithuania,Lithuania,UEFA,
++luxembourg,Luxembourg,UEFA,
++macao,Macao,AFC,
++madagascar,Madagascar,CAF,
++malawi,Malawi,CAF,
++malaysia,Malaysia,AFC,
++maldives,Maldives,AFC,
++mali,Mali,CAF,
++malta,Malta,UEFA,
++martinique,Martinique,CONCACAF,
++mauritania,Mauritania,CAF,
++mauritius,Mauritius,CAF,
++mayotte,Mayotte,,"The Ligue de Mayotte is part of the French federation, not a member of CAF."
++mexico,Mexico,CONCACAF,
++moldova,Moldova,UEFA,
++monaco,Monaco,,It has no national football association; its clubs play in the French system.
++mongolia,Mongolia,AFC,
++montenegro,Montenegro,UEFA,
++montserrat,Montserrat,CONCACAF,
++morocco,Morocco,CAF,
++mozambique,Mozambique,CAF,
++myanmar,Myanmar,AFC,
++namibia,Namibia,CAF,
++nepal,Nepal,AFC,
++netherlands,Netherlands,UEFA,
++new-caledonia,New Caledonia,OFC,
++new-zealand,New Zealand,OFC,
++nicaragua,Nicaragua,CONCACAF,
++niger,Niger,CAF,
++nigeria,Nigeria,CAF,
++north-korea,North Korea,AFC,
++north-macedonia,North Macedonia,UEFA,
++northern-cyprus,Northern Cyprus,,Its football association is a member of no confederation.
++northern-ireland,Northern Ireland,UEFA,
++norway,Norway,UEFA,
++oman,Oman,AFC,
++pakistan,Pakistan,AFC,
++palestine,Palestine,AFC,
++panama,Panama,CONCACAF,
++papua-new-guinea,Papua New Guinea,OFC,
++paraguay,Paraguay,CONMEBOL,
++peru,Peru,CONMEBOL,
++philippines,Philippines,AFC,
++poland,Poland,UEFA,
++portugal,Portugal,UEFA,
++puerto-rico,Puerto Rico,CONCACAF,
++qatar,Qatar,AFC,
++republic-of-ireland,Republic of Ireland,UEFA,
++reunion,Reunion,CAF,
++romania,Romania,UEFA,
++russia,Russia,UEFA,
++rwanda,Rwanda,CAF,
++saint-kitts-and-nevis,Saint Kitts and Nevis,CONCACAF,
++saint-lucia,Saint Lucia,CONCACAF,
++saint-martin,Saint Martin,CONCACAF,
++saint-vincent-and-the-grenadines,Saint Vincent and the Grenadines,CONCACAF,
++samoa,Samoa,OFC,
++san-marino,San Marino,UEFA,
++sao-tome-and-principe,Sao Tome and Principe,CAF,
++saudi-arabia,Saudi Arabia,AFC,
++scotland,Scotland,UEFA,
++senegal,Senegal,CAF,
++serbia,Serbia,UEFA,
++seychelles,Seychelles,CAF,
++sierra-leone,Sierra Leone,CAF,
++singapore,Singapore,AFC,
++sint-maarten,Sint Maarten,CONCACAF,
++slovakia,Slovakia,UEFA,
++slovenia,Slovenia,UEFA,
++solomon-islands,Solomon Islands,OFC,
++somalia,Somalia,CAF,
++south-africa,South Africa,CAF,
++south-korea,South Korea,AFC,
++south-sudan,South Sudan,CAF,
++spain,Spain,UEFA,
++sri-lanka,Sri Lanka,AFC,
++sudan,Sudan,CAF,
++suriname,Suriname,CONCACAF,
++sweden,Sweden,UEFA,
++switzerland,Switzerland,UEFA,
++syria,Syria,AFC,
++tahiti,Tahiti,OFC,
++tajikistan,Tajikistan,AFC,
++tanzania,Tanzania,CAF,
++thailand,Thailand,AFC,
++togo,Togo,CAF,
++tonga,Tonga,OFC,
++trinidad-and-tobago,Trinidad and Tobago,CONCACAF,
++tunisia,Tunisia,CAF,
++turkey,Turkey,UEFA,
++turkmenistan,Turkmenistan,AFC,
++turks-and-caicos-islands,Turks and Caicos Islands,CONCACAF,
++uganda,Uganda,CAF,
++ukraine,Ukraine,UEFA,
++united-arab-emirates,United Arab Emirates,AFC,
++united-states-of-america,United States of America,CONCACAF,
++uruguay,Uruguay,CONMEBOL,
++us-virgin-islands,US Virgin Islands,CONCACAF,
++uzbekistan,Uzbekistan,AFC,
++vanuatu,Vanuatu,OFC,
++venezuela,Venezuela,CONMEBOL,
++vietnam,Vietnam,AFC,
++wales,Wales,UEFA,
++yemen,Yemen,AFC,
++yugoslavia,Yugoslavia,,Dissolved; its football association was a UEFA member.
++zambia,Zambia,CAF,
++zanzibar,Zanzibar,CAF,
++zimbabwe,Zimbabwe,CAF,
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index 4a1e6183..cdf92a71 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -1724,10 +1724,17 @@ seeds:
+       NOT A LIST OF UN MEMBER STATES, and joining it to one drops real rows: it also carries
+       football associations (England, Scotland), player-producing territories (Jersey), one
+       unrecognised state and one historical country.
++
++      Each row carries its football confederation, or a note saying why it belongs to none.
+     config:
+       column_types:
+         country_key: string
+         country_name: string
++        confederation: string
++        confederation_note: string
++    tests:
++      - dbt_utils.expression_is_true:
++          expression: "(confederation is null) = (confederation_note is not null)"
+     columns:
+       - name: country_key
+         description: >
+@@ -1741,3 +1748,13 @@ seeds:
+         tests:
+           - not_null
+           - unique
++      - name: confederation
++        description: >
++          The football confederation the country's association belongs to, as a full or associate
++          member: a `confederations` code other than FIFA. Empty when it belongs to none.
++        tests:
++          - relationships:
++              to: ref('confederations')
++              field: confederation
++      - name: confederation_note
++        description: "Why the country belongs to no confederation; empty when it belongs to one."
+diff --git a/dbt_project/seeds/team_country_corrections.csv b/dbt_project/seeds/team_country_corrections.csv
+index 547ac27f..6ace2210 100644
+--- a/dbt_project/seeds/team_country_corrections.csv
++++ b/dbt_project/seeds/team_country_corrections.csv
+@@ -9,6 +9,7 @@ team_api_id,team_country,provider_country,source,note
+ 862,Italy,,https://www.legab.it/news/trentaduesimi-coppa-italia-si-parte-con-la-b,Provider sends no country; Lega B lists Pordenone in the Coppa Italia.
+ 878,Italy,,https://www.legab.it/seriebkt/alessandria-como-perugia-e-ternana-si-parte,Provider sends no country; Lega B lists Alessandria in the Coppa Italia.
+ 1301,France,,https://www.lfp.fr/article/ligue-2-bkt-le-calendrier-de-la-saison-2026-2027,Provider sends no country; the LFP lists Rodez Aveyron Football in Ligue 2 BKT.
++1307,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists US Créteil Lusitanos.
+ 1496,South Sudan,Sudan,https://inside.fifa.com/associations/SSD,Provider files the South Sudan national team under Sudan; FIFA lists the South Sudan Football Federation.
+ 1537,India,,https://inside.fifa.com/associations/IND,Provider sends no country in its Asian Cup rows; FIFA lists the All India Football Federation.
+ 1538,Malaysia,,https://inside.fifa.com/associations/MAS,Provider sends no country in its Asian Cup rows; FIFA lists the Football Association of Malaysia.
+@@ -19,9 +20,22 @@ team_api_id,team_country,provider_country,source,note
+ 2732,Iran,,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Naft Tehran as IRN in the AFC Champions League.
+ 2772,Thailand,,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Chonburi FC as THA in the AFC Champions League.
+ 3045,El Salvador,France,https://www.concacaf.com/competitions/champions-cup/news/saprissa-defeats-dragon-breaks-team-sccl-record,Provider sends France; plays in the CONCACAF Champions League for El Salvador.
++3085,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists FC Morteau Montlebon.
++3114,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists SC Schiltigheim.
++3167,Martinique,,https://www.fff.fr/article/3845-les-qualifies-en-outre-mer.html,Provider sends no country; the FFF's 2021-22 Coupe de France report on the overseas regional finals lists Club Colonial in Martinique.
++3204,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists Moulins Yzeure Foot 03 Auv..
++3211,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists Plancoët Arguenon.
++3242,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists Vierzon FC.
++3259,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists Côte Chaude Sportif.
++3265,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists AVS Frontignan AC.
++3298,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists FC Sarrebourg.
++3301,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists FC Soleil Bischheim.
++3308,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists Sénart-Moissy.
++3316,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists AS Étaples.
+ 3467,India,,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Mohun Bagan as IND in the AFC Champions League.
+ 3668,Vietnam,,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Becamex Binh Duong as VIE in the AFC Champions League.
+ 3772,Australia,,https://footballnsw.com.au/club/sydney-fc-boys-youth/,"Provider sends no country; reserve side of Sydney FC, which Football NSW lists in the NPL NSW."
++4398,Guadeloupe,,https://www.fff.fr/article/3845-les-qualifies-en-outre-mer.html,Provider sends no country; the FFF's 2021-22 Coupe de France report on the overseas regional finals lists Solidarité Scolaire in Guadeloupe.
+ 4460,Hong Kong,,https://inside.fifa.com/associations/HKG,"Provider sends no country in its Asian Cup rows; FIFA lists the Football Association of Hong Kong, China."
+ 5242,Iraq,Sudan,https://www.the-afc.com/en/club/afc_champions_league_elite.html/news/md1-al-shorta-irq-1-1-al-sadd-sc-qat,Provider sends Sudan; plays in the AFC Champions League Elite for Iraq.
+ 5258,Spain,,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
+@@ -48,6 +62,11 @@ team_api_id,team_country,provider_country,source,note
+ 8951,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+ 8960,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+ 8963,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
++9251,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists AC Amiens.
++9270,French Guiana,,https://www.fff.fr/article/3845-les-qualifies-en-outre-mer.html,Provider sends no country; the FFF's 2021-22 Coupe de France report on the overseas regional finals lists CSC de Cayenne in Guyane.
++9289,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists RC Lons-le-Saunier.
++9296,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists Nanterre ES.
++9300,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists Olympique Lumbrois.
+ 9335,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; the DFB lists the club as Türkgücü München in the DFB-Pokal.
+ 9375,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
+ 9397,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
+@@ -64,10 +83,23 @@ team_api_id,team_country,provider_country,source,note
+ 9835,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
+ 9852,France,,https://epreuves.fff.fr/competition/engagement/12-coupe-de-france-credit-agricole/phase/1/8/resultats-et-calendrier,Provider sends no country; the FFF lists Lourdes FC in the Coupe de France.
+ 9883,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
++9947,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists AS Muret.
++9961,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists US Trégunc.
++9968,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists Ain Sud Foot.
+ 10985,Sint Maarten,Saint-Martin,https://www.concacaf.com/inside-concacaf/member-associations/sint-maarten,Provider files the Sint Maarten national team under Saint Martin; Concacaf lists Sint Maarten as its own member association.
+ 12003,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+ 12089,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+ 12888,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
++13584,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists Luçon FC.
++13585,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists USJA Carquefou.
++13604,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists ES Guérétoise.
++13608,Mayotte,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists Jumeaux de M'Zoisia (Mayotte).
++13611,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists RS Magny.
++13612,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists CS Mainvilliers.
++13659,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists AS Morhange.
++13663,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists RC de Vichy.
++13673,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists AS Trouville Deauville.
++15112,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists J3S Amilly Football.
+ 15332,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
+ 15565,Djibouti,Austria,https://www.cafonline.com/caf-champions-league/news/2020-21-first-preliminary-round-first-leg-results-x2960/,Provider sends Austria; entered the CAF Champions League for Djibouti.
+ 16988,England,,https://www.thefa.com/news/2021/aug/07/emirates-fa-cup-extra-preliminary-round-wrap-07082021,Provider sends no country; The FA lists the club as Kensington & Ealing Borough in the Emirates FA Cup.
+@@ -87,5 +119,34 @@ team_api_id,team_country,provider_country,source,note
+ 18101,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
+ 18102,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
+ 18103,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
++18123,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists Bresse Jura Foot.
++18124,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists Cergy Pontoise FC.
++18125,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists RC Champigneulles.
++18127,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists JS Chemin Bas d'Avignon.
++18128,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists FC Chusclan Laudun.
++18129,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists Calonne Ricouart FCC.
++18130,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists Dutemple FC Valenciennes.
++18131,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists ES Anzin-St-Aubin.
++18132,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists ES Bully-les-Mines.
++18133,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists Espérance Aulnaysienne.
++18134,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists US Esquelbecq.
++18135,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists FC 93 BBG.
++18136,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists ESM Hamel.
++18137,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists FC Langlade.
++18138,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists Limens JSA.
++18139,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists U Lorraine Plantières.
++18140,Reunion,,https://www.fff.fr/article/3845-les-qualifies-en-outre-mer.html,Provider sends no country; the FFF's 2021-22 Coupe de France report on the overseas regional finals lists ASC Makes in La Réunion.
++18141,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists US des Mineurs Waziers.
++18142,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists ES Molsheim Ernolsheim.
++18143,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists AS Montchat Lyon.
++18144,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists FC Nogentais.
++18150,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists FC St Julien.
++18151,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists FR Saint-Marcel.
++18152,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists RC Salouel.
++18154,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists US Thionville Lusitanos.
++18156,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists US Blavozy.
++18157,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists FC Val-de-Reuil.
++18158,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists FC Eloyes.
++18160,French Guiana,,https://www.fff.fr/article/3845-les-qualifies-en-outre-mer.html,"Provider sends no country; the FFF's 2021-22 Coupe de France report on the overseas regional finals lists ASC Ouest, of Saint-Laurent du Maroni, in Guyane."
+ 19116,Equatorial Guinea,Paraguay,https://www.cafonline.com/caf-champions-league/news/africa-s-elite-learn-their-path-to-the-group-stages-of-the-totalenergies-caf-champions-league-202627/,Provider sends Paraguay; plays in the CAF Champions League for Equatorial Guinea.
+ 19866,South Sudan,,https://www.cafonline.com/media/bufbzcow/club-licensing-cl-licensed-clubs-2022-2023.pdf,Provider sends no country; CAF lists Zalan FC under South Sudan.
+diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
+index 179d7317..4b1b92d9 100644
+--- a/tests/test_sentence_length_in_docs.py
++++ b/tests/test_sentence_length_in_docs.py
+@@ -34,7 +34,7 @@ PINNED = {
+     "CLAUDE.md": 27,
+     "README.md": 9,
+     "dbt_project/docs/engineering_standards.md": 34,
+-    "dbt_project/docs/layering.md": 43,
++    "dbt_project/docs/layering.md": 42,
+     "dbt_project/models/1_staging/api_football/README.md": 1,
+     "dbt_project/models/docs/cleaning_rules.md": 5,
+     "dbt_project/models/docs/metric_columns.md": 15,
