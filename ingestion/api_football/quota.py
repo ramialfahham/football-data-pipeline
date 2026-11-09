@@ -14,15 +14,8 @@ _last_requests_remaining: int | None = None
 _http_quota_exhausted: bool = False
 _pipeline_errors_for_quota: list[str] | None = None
 
-# Per-endpoint count of calls the provider rejected on its PER-MINUTE limit this run (#898).
-# Keyed by API path ("/players", "/coachs", ...) and incremented in ONE place: fetch_json, once per
-# HTTP call whose final attempt was still rejected. Reset per run by the orchestrator.
-#
-# ⚠ It is counted at the HTTP layer ON PURPOSE. The first version counted inside
-# `append_api_errors`, keyed off the caller's context string, and double-counted: loads/fixtures.py
-# appends per season AND again on the merged envelope, which `_merge_merged_paged` carries the
-# earlier seasons' error text into. Counting where the call actually happens makes the number
-# independent of how many times any caller chooses to report the same error.
+# Per-endpoint count of calls rejected on the per-minute limit, incremented only in fetch_json so
+# callers that report the same error more than once cannot double-count.
 _minute_rate_limited_calls: dict[str, int] = {}
 
 
@@ -36,7 +29,7 @@ def reset_minute_rate_limit_counts() -> None:
 
 
 def record_minute_rate_limit(endpoint: str) -> None:
-    """Count one dropped call. Called only from ``fetch_json``, after its retry is exhausted."""
+    """Count one dropped call; called only from ``fetch_json`` after its retry is exhausted."""
     _minute_rate_limited_calls[endpoint] = _minute_rate_limited_calls.get(endpoint, 0) + 1
 
 
@@ -61,17 +54,7 @@ def _payload_shows_daily_limit_exceeded(data: dict) -> bool:
 
 
 def _payload_shows_minute_rate_limit(data: dict) -> bool:
-    """The PER-MINUTE limit, which is a different class from the daily one (#898).
-
-    It arrives as HTTP 200 with the error in the body:
-    ``rateLimit: Too many requests. You have exceeded the limit of requests per minute of your
-    subscription.`` The daily detector above requires "day" and never matches it, which is why the
-    class was invisible everywhere.
-
-    ⚠ A match must NEVER set ``_http_quota_exhausted``. That flag stops all remaining HTTP for the
-    run, which is correct for a daily cap that will not recover and catastrophic for a limit that
-    clears within the minute.
-    """
+    """Per-minute limit (HTTP 200, error in body); it recovers, so never set the exhausted flag."""
     for msg in _flatten_api_errors(data.get("errors")):
         low = str(msg).lower()
         if "minute" in low and ("limit" in low or "too many requests" in low):
@@ -130,18 +113,13 @@ def _flatten_api_errors(raw) -> list[str]:
 
 
 def append_api_errors(data: dict, context: str, sink: list[str]) -> None:
-    """Record API body errors next to a pipeline step (guide: prefer body over HTTP code alone)."""
+    """Record API body errors next to a pipeline step."""
     for msg in _flatten_api_errors(data.get("errors")):
         sink.append(f"{context}: {msg}")
 
 
 def _request_pause_seconds() -> float:
-    """
-    Pause after each successful HTTP response.
-
-    When ``API_FOOTBALL_REQUEST_PAUSE_MS`` is unset, default **6600 ms** (~9 calls/min)
-    to stay under common free-tier **10 requests/minute** limits. Set to ``0`` for no pause (paid / CI).
-    """
+    """Pause after each response; default 6600 ms keeps under a 10 requests/minute limit."""
     raw = os.getenv("API_FOOTBALL_REQUEST_PAUSE_MS")
     if raw is None or str(raw).strip() == "":
         return 6.6

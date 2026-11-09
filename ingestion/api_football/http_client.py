@@ -21,19 +21,10 @@ from .quota import (
 
 
 def fetch_json(path: str, headers: dict, params: dict | None = None) -> dict:
-    """
-    GET JSON from API-Football. Retries 429 / 5xx once with backoff (guide: safe single retry).
+    """GET JSON from API-Football, retrying 429, 5xx and the per-minute rate limit once.
 
-    Also retries once on the PER-MINUTE rate limit, which the provider delivers as HTTP 200 with
-    the error in the body rather than as a 429 (#898). Before this, `raise_for_status()` saw a
-    healthy response and the call was dropped with ZERO retries, which is how 10 of 18 nightly runs
-    lost calls while reporting success.
-
-    BEST EFFORT, deliberately. A per-minute window can take up to 60s to clear and this waits
-    `Retry-After` or 3s, so it will not rescue every call. Waiting out a full minute per drop would
-    trade run time for a case #897's pacing should already have made rare. The guarantees live
-    elsewhere: #897 makes limits rare, #896 makes a drop non-destructive, and the counter below
-    makes what remains visible.
+    The per-minute limit arrives as HTTP 200 with the error in the body. The retry is best effort:
+    it waits `Retry-After` or 3s, which may not outlast the window.
     """
     if errors_quota._http_quota_exhausted:
         return {"errors": [], "response": [], "results": 0, "paging": {}}
@@ -65,44 +56,24 @@ def fetch_json(path: str, headers: dict, params: dict | None = None) -> dict:
         if _payload_shows_daily_limit_exceeded(data):
             _flag_daily_quota_exhausted_once()
             return data
-        # The per-minute limit is a 200 carrying a 429's meaning, so give it a 429's single retry.
-        # Checked AFTER the daily test: once the daily cap is gone a retry cannot help.
+        # Checked after the daily test: once the daily cap is gone a retry cannot help.
         if _payload_shows_minute_rate_limit(data):
             if attempt == 0:
                 ra = response.headers.get("Retry-After", "")
                 time.sleep(float(ra) if ra.isdigit() else 3.0)
                 continue
-            # Retry exhausted and still rejected, so this call is genuinely dropped. Counted here,
-            # at the one place an HTTP call happens, so the tally cannot be inflated by a caller
-            # that reports the same error twice.
+            # Counted here, the one place an HTTP call happens, so callers cannot double-count.
             record_minute_rate_limit(path)
         return data
     raise AssertionError("fetch_json: unreachable")
 
 
 def result_is_complete(data: dict) -> bool:
-    """Whether a just-returned fetch result is safe to supersede stored data with (#896).
+    """Whether a fetch result is safe to supersede stored data with.
 
-    True only when the provider reported no body-level error AND the run's daily-quota flag is not
-    set. BOTH signals are required, because the two failure shapes look different:
-    a per-minute rate limit arrives as HTTP 200 with the error in the body (so ``response`` is empty
-    or partial while the call looks successful), whereas once the daily quota is gone
-    ``fetch_json`` short-circuits and returns an empty body with NO error at all. Either signal
-    alone misses one of them.
-
-    Call this IMMEDIATELY after the fetch, before issuing another one: the quota flag is
-    process-global and latches for the rest of the run.
-
-    Deliberately a function rather than a key on the returned dict. ``_merge_merged_paged`` and the
-    manual envelope comprehension in loads/teams.py copies every key it does
-    not explicitly exclude straight into the stored raw payload, so an extra key would be persisted
-    into three raw tables. It would also be WRONG there: ``_merge_merged_paged`` copies from the
-    FIRST source only, so the value would freeze at the first season of a multi-season loop and a
-    run whose fourth season was rate-limited would still record the snapshot as complete.
-
-    An empty response with no error counts as COMPLETE: that is the provider reporting no rows, and
-    it is indistinguishable from one — a deliberate rule. Stopping at the deliberate page cap
-    also counts as complete, because that cap has always bounded the stored snapshot.
+    Both signals are needed: a per-minute limit is an in-body error on a 200, while an exhausted
+    daily quota makes ``fetch_json`` return an empty body with no error. Call it immediately after
+    the fetch, since the quota flag is process-global and latches for the rest of the run.
     """
     return not (data.get("errors") or []) and not errors_quota._http_quota_exhausted
 
@@ -122,14 +93,10 @@ def fetch_merged_paged(
     paginate: bool = True,
     max_pages: int | None = None,
 ) -> dict:
-    """
-    Fetch API list endpoints. When ``paginate`` is True, merges all ``page=`` results (e.g. ``/players``).
-    When False, sends ``base_params`` only — many endpoints (and free-tier plans) reject ``page``.
+    """Fetch a list endpoint, merging all ``page=`` results when ``paginate`` is True.
 
-    The returned dict's KEY SET IS PART OF THE CONTRACT — do not add to it. Three loaders build the
-    raw payload they persist by copying every key except a fixed exclusion list, so a new key lands
-    in RAW_APIF_STANDINGS, RAW_APIF_TEAMS and RAW_APIF_FIXTURES_NEXT. To ask
-    whether a result may supersede stored data, call :func:`result_is_complete` (#896).
+    Do not add keys to the returned dict: loaders copy every key except a fixed exclusion list
+    into the raw payload. Use :func:`result_is_complete` to ask whether a result is complete.
     """
     if not paginate:
         data = fetch_json(path, headers, params=dict(base_params))

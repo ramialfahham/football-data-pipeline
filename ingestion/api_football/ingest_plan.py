@@ -15,10 +15,8 @@ from .completeness import (
     FINISHED_STATUS_SHORT,
     _fixture_ids_from_fixtures_payload,
 )
-# read_coverage is deliberately NOT imported here. This module is reached once per
-# competition, so a call to it from this file is the O(competitions^2) defect #33 item 1
-# removed. The caller reads coverage once and passes it in; `ruff` will flag the import
-# as unused if someone adds it back without a call site.
+# read_coverage is not imported here: this module runs once per competition, so the caller
+# reads coverage once and passes it in.
 from .coverage import covered_for_league
 from .fixture_scheduling import (
     _coverage_for_season,
@@ -86,11 +84,7 @@ def _finished_fanout_has_gaps(
 ) -> bool:
     """Does this league have finished fixtures still missing fanout data?
 
-    Takes ALREADY-READ coverage rather than reading it. `read_coverage()` scans all of
-    RAW_APIF_FIXTURE_DETAILS with no league or time filter, and this function is reached
-    once per competition, so reading it here made ingestion reads O(competitions^2) —
-    45 scans of a multi-GiB table per run. The caller reads once and passes the result in
-    (#33 item 1). `covered_for_league` is a pure dict lookup, so this is now in-memory work.
+    Takes already-read coverage because `read_coverage()` scans all of RAW_APIF_FIXTURE_DETAILS.
     """
     finished_ids = _fixture_ids_from_fixtures_payload(
         fixtures_payload,
@@ -112,10 +106,7 @@ def resolve_ingest_mode(
 ) -> tuple[IngestMode, str]:
     """Read latest raw payloads and return (mode, reason) for this competition.
 
-    `all_covered` is the run's single `read_coverage()` result, read ONCE by the caller
-    before the per-competition loop. It is a required argument on purpose: defaulting it
-    to None and reading lazily here would silently restore the per-competition scan this
-    change exists to remove (#33 item 1).
+    `all_covered` has no default so a lazy read cannot restore a per-competition coverage scan.
     """
     try:
         fx_payload = read_latest_payload_json(
