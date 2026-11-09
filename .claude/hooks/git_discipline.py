@@ -31,7 +31,7 @@ from _command_utils import (  # noqa: E402
     simple_commands,
     strip_quoted_and_heredoc,
 )
-from task_contract_gate import CONTRACT_NAME, CONTRACT_REL, task_folder  # noqa: E402
+from task_contract_gate import CONTRACT_NAME, CONTRACT_REL, merge_heads, task_folder  # noqa: E402
 
 _MR_MERGE = re.compile(r"glab\s+mr\s+(?:merge|accept)\b")
 _BRANCH_CREATE = re.compile(r"git\s+(?:checkout\s+-b|switch\s+(?:-c|--create))\b")
@@ -141,8 +141,15 @@ def _staged_paths(root: str) -> list[str]:
     # -z (NUL-split): with core.quotePath, non-ASCII paths come out quoted
     # and escaped, match no routing pattern, and would silently drop a
     # required reviewer.
+    # During a merge, HEAD is the pre-merge tip, so the paths come from the merge result's base.
+    base = []
+    if merge_heads(root):
+        try:
+            base = [_base_commit(root)]
+        except Exception:
+            base = []
     out = subprocess.run(
-        ["git", "diff", "--staged", "--name-only", "-z"], cwd=root,
+        ["git", "diff", "--staged", "--name-only", "-z", *base], cwd=root,
         capture_output=True, text=True, timeout=30,
     ).stdout
     return [p.replace("\\", "/") for p in out.split("\0") if p]
@@ -403,6 +410,9 @@ def _base_commit(root: str) -> str:
                            text=True, timeout=30)
         return r.returncode, r.stdout.strip()
 
+    # During a merge, the base of the merge result: what CI diffs from once the merge is committed.
+    heads = merge_heads(root)
+
     # ⚠ GOVERNANCE_BASE FIRST — the escape hatch, and it must exist because the gate now DENIES
     # when the base cannot be resolved (#63). An earlier draft's deny message told the operator to
     # "set GOVERNANCE_BASE" while this function read no environment variable at all: half the
@@ -430,7 +440,7 @@ def _base_commit(root: str) -> str:
         # defect the merge-base logic exists to remove, and an escape hatch that reads the ref
         # directly reintroduces it. Every other base path in the repo is merge-based, including
         # the ref loop below.
-        code, base = _git("merge-base", "HEAD", resolved)
+        code, base = _git("merge-base", resolved, "HEAD", *heads)
         if code == 0 and base:
             return base
         raise RuntimeError(
@@ -451,7 +461,7 @@ def _base_commit(root: str) -> str:
     for ref in ("gitlab/main", "origin/main", "main"):
         if _git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")[0] != 0:
             continue
-        code, base = _git("merge-base", "HEAD", ref)
+        code, base = _git("merge-base", ref, "HEAD", *heads)
         if code == 0 and base:
             return base
         # The ref exists but shares no history with HEAD. Do not guess — a silently
