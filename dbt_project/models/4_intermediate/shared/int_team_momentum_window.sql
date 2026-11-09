@@ -17,7 +17,7 @@
     and this edition (season_api_year) before kickoff — used once the team has a tournament leg
     (group-stage MD2 onward, including knockout).
   - window_type='qualifiers': when the team has NO tournament leg yet (its opener / pre-MD1),
-    every finished leg in the tournament's qualifier competitions (registry parent_competition =
+    every finished leg in the tournament's qualifier competitions (dim_league parent_competition =
     this league_code) before kickoff, no season cap (a qualifying campaign spans seasons).
   A tournament side with neither tournament nor qualifier legs yields no rows (the mart renders
   the empty-form state). `qualifying`-type previews keep last_5 here (#483). This selection also
@@ -54,12 +54,8 @@ with upcoming as (
         and fixture_date >= current_date()
 ),
 
-registry as (
-    select * from {{ ref('competition_registry') }}
-),
-
-types as (
-    select * from {{ ref('competition_types') }}
+competitions as (
+    select * from {{ ref('dim_league') }}
 ),
 
 upcoming_with_type as (
@@ -71,12 +67,10 @@ upcoming_with_type as (
         u.season_api_year,
         u.kickoff_datetime,
         reg.competition_type,
-        typ.entity_type
+        reg.entity_type
     from upcoming as u
-    left join registry as reg
+    left join competitions as reg
         on u.league_code = reg.league_code
-    left join types as typ
-        on reg.competition_type = typ.competition_type
 ),
 
 -- Each team's latest finished match, whose season bounds a club's team window.
@@ -184,7 +178,7 @@ candidate_legs as (
             s.team_sk = l.team_sk
             and s.entity_type = l.entity_type
             and s.kickoff_datetime > l.kickoff_datetime
-    left join registry as legreg
+    left join competitions as legreg
         on l.league_code = legreg.league_code
 ),
 
@@ -232,7 +226,7 @@ match_legs as (
         l.cards_red,
         false as is_tournament
     from {{ ref('int_legs__team_match') }} as l
-    left join registry as legreg
+    left join competitions as legreg
         on l.league_code = legreg.league_code
 ),
 

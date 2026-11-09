@@ -227,7 +227,7 @@ Canonical dimension inventory for this project:
 | Dim | Grain | Source staging model | Notes |
 |-----|-------|----------------------|-------|
 | `dim_date` | day | generated via `dbt_utils.date_spine` | Global; not league-scoped. |
-| `dim_league` | league_api_id | `base_apif__league_entity` | One row per configured league; surrogate key is the API integer directly. |
+| `dim_league` | league_api_id | `base_apif__league_entity`, with the `competition_registry` and `competition_types` seeds | One row per configured league; surrogate key is the API integer directly. |
 | `dim_competition_season` | (league_api_id, season_api_year) | `base_apif__competition_seasons` | Carries API coverage flags that drive downstream conditional logic. |
 | `dim_team` | team_api_id | `base_apif__teams_global` | Pure global entity (identity only); surrogate key is the API integer directly. Carries no competition/season affiliation — membership lives in `dim_team_competition_season_mapping`, per-match facts in `fct_fixture`. |
 | `dim_player` | player_api_id | `base_apif__players` | Pure global entity (identity only); surrogate key is the API integer directly. Not league-scoped and carries no team/season affiliation — roster membership lives in `dim_player_team_season_mapping`, appearances in the facts. |
@@ -237,6 +237,8 @@ Canonical dimension inventory for this project:
 | `dim_coach_team_mapping` | (coach_sk, team_api_id, start_date) | `base_apif__coach_career` | Relationship (mapping) dim: coach↔team managerial stints (clubs managed) with start/end dates. `team_sk` is a SOFT link — the career team set (youth / reserve / untracked clubs) exceeds `dim_team`, so no strict FK; the provider `team_api_id` + `team_name` are kept. Keys + dates; many rows per coach. |
 
 All league-scoped dimensions carry `league_code` in both natural and surrogate keys so additional leagues can be added without collisions.
+
+`dim_league` is the only reader of the `competition_registry` seed. Models and tests read the dim; exports read marts only. `check_layer_contract.py` enforces both.
 
 ### Fact qualification rules
 
@@ -375,7 +377,7 @@ drift bug):
 - Entity derivation (e.g. player→team affiliation) or identity generation (slugs are
   published URL identity — they must come from the warehouse so every frontend links
   identically).
-- Taxonomy mappings (competition groupings etc. — those are seeds/registry fields).
+- Taxonomy mappings (competition groupings etc. — those are `dim_league` and `dim_competition_season` columns).
 
 The test: **would this value deserve a DQ test, or need to be byte-identical across
 two frontends? Then it belongs in dbt.** If no mart serves a value a page needs,

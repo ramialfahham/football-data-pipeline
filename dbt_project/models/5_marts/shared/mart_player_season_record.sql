@@ -148,16 +148,31 @@ matched as (
             and sf.season_api_year = s.season_api_year - 1
 ),
 
+players as (
+    select
+        player_sk,
+        player_name,
+        player_photo_url
+    from {{ ref('dim_player') }}
+),
+
 chosen as (
-    select *
-    from matched
-    qualify priority = min(priority) over (partition by upcoming_fixture_sk, team_sk)
+    select
+        m.*,
+        p.player_name,
+        p.player_photo_url
+    from matched as m
+    left join players as p
+        on m.player_sk = p.player_sk
+    qualify m.priority = min(m.priority) over (partition by m.upcoming_fixture_sk, m.team_sk)
 )
 
 select
     upcoming_fixture_sk,
     team_sk,
     player_sk,
+    player_name,
+    player_photo_url,
     league_code,
     entity_type,
     season_api_year,

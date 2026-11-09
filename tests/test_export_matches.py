@@ -78,6 +78,9 @@ def test_the_fetch_reads_the_mart_whole_and_selects_nothing(monkeypatch):
         return []
 
     monkeypatch.setattr(export_site_data, "_query", fake_query)
+    monkeypatch.setattr(export_site_data, "_warehouse_competitions", lambda client: [
+        {"league_code": "BL1", "name": "Bundesliga", "slug": "bundesliga", "confederation": "UEFA"},
+    ])
     monkeypatch.setattr(export_site_data, "_warehouse_competition_meta",
                         lambda client: {"BL1": {"name": "Bundesliga", "region_rank": 1}})
     monkeypatch.setattr(export_site_data, "_competition_page_meta",

@@ -1,0 +1,4180 @@
+diff --git a/.claude/skills/onboard-competition/SKILL.md b/.claude/skills/onboard-competition/SKILL.md
+index f47a8e42..94fa3d98 100644
+--- a/.claude/skills/onboard-competition/SKILL.md
++++ b/.claude/skills/onboard-competition/SKILL.md
+@@ -50,8 +50,6 @@ The ID must be discovered via a live name-based API search (Step 0b).
+ | `current_season` | `2026` | API season identifier — confirm from Step 0b |
+ | `history_seasons` | `1` | default 1; bump to 2 if the league's prior season feeds form fallback |
+ | `confederation` | `CONCACAF` | UEFA / CONMEBOL / CONCACAF / CAF / AFC / OFC / FIFA |
+-| `tier` | `1` | domestic leagues only; pyramid level (1 = top flight) |
+-| `competition_group` | `calendar` | **domestic leagues only** — which leagues this one is ranked alongside. `elite` \| `europe` \| `international` \| `calendar` \| `secondary`. Never guess: apply the assignment rule in the registry header. `elite` is a CPO judgement and is NEVER extended by onboarding |
+ | `slug` | `mls` | stable, locale-independent URL slug — never changes once published |
+ | `sort_order` | `120` | display order within the competition's group (see registry header) |
+ | `notes` | free text | rationale, e.g. "WC 2026 host coverage for USA + Canada" |
+@@ -191,8 +189,6 @@ status section (`ACTIVE` or `IN PROGRESS`):
+     country: "{COUNTRY}"
+     competition_type: "domestic_league"
+     confederation: "{CONFEDERATION}"
+-    tier: {TIER}                      # domestic_league only — omit for other types
+-    competition_group: "{COMPETITION_GROUP}"   # domestic_league only — omit for other types
+     slug: "{SLUG}"
+     sort_order: {SORT_ORDER}
+     provider: "api_football"
+@@ -212,6 +208,13 @@ status section (`ACTIVE` or `IN PROGRESS`):
+ unified raw tables (`RAW_APIF_{entity}`). The ingestion loader reads the
+ registry at startup and populates `league_code` automatically.
+ 
++A club competition also needs one row per season in
++`dbt_project/seeds/competition_season_map.csv`. A domestic league sets `tier` (1 = top flight)
++and `competition_group` on its first season row; a later row left blank keeps the previous
++season's values. Assign the group in this order: `elite` is a CPO judgement and onboarding never
++extends it; `secondary` when the tier is not 1; `calendar` when the season type is calendar_year;
++`europe` when the confederation is UEFA; `international` otherwise.
++
+ ### Step 3 — Sync active competition vars
+ 
+ ```bash
+diff --git a/.claude/task/83-competition-dim/contract.md b/.claude/task/83-competition-dim/contract.md
+new file mode 100644
+index 00000000..bbab9952
+--- /dev/null
++++ b/.claude/task/83-competition-dim/contract.md
+@@ -0,0 +1,173 @@
++# Task contract — competition facts in core dims; the export reads marts only
++
++objective: >
++  Issue #83: dim_league publishes the competition facts that are fixed for a competition and is
++  the only reader of the competition_registry seed. dim_competition_season publishes the facts that
++  can change between seasons (tier, competition_group), held per season in competition_season_map.
++  Every model and dbt test reads the dims; scripts/export_site_data.py reads the marts dataset only.
++  A CI check holds both lines.
++
++refs: >
++  #83. Plan approved in chat 2026-11-07; the revised plan, the removal of tier and
++  competition_group from the registry, build_nav taking tier from mart_competition_index, and the
++  two layering.md lines approved in chat, 2026-11-09. The name dim_league approved in chat,
++  2026-11-09.
++
++scope_paths:
++  - docs/competition_registry.yml
++  - dbt_project/seeds/competition_registry.csv
++  - dbt_project/seeds/competition_season_map.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/models/3_core/dim_league.sql
++  - dbt_project/models/3_core/dim_competition_season.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/docs/shared_columns.md
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_legs.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_state.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++  - dbt_project/models/4_intermediate/shared/int_competition_season__club_windows.sql
++  - dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
++  - dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
++  - dbt_project/models/4_intermediate/shared/int_player_page__window_seasons.sql
++  - dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
++  - dbt_project/models/4_intermediate/shared/int_team__current_national_competitions.sql
++  - dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
++  - dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
++  - dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
++  - dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
++  - dbt_project/models/5_marts/shared/mart_competition_index.sql
++  - dbt_project/models/5_marts/shared/mart_leaderboards.sql
++  - dbt_project/models/5_marts/shared/mart_next_matchday.sql
++  - dbt_project/models/5_marts/shared/mart_player_career.sql
++  - dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
++  - dbt_project/models/5_marts/shared/mart_player_profile.sql
++  - dbt_project/models/5_marts/shared/mart_player_season_record.sql
++  - dbt_project/models/5_marts/shared/mart_roster.sql
++  - dbt_project/models/5_marts/shared/mart_standings.sql
++  - dbt_project/models/5_marts/shared/mart_team_competitions.sql
++  - dbt_project/models/5_marts/shared/mart_team_index.sql
++  - dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
++  - dbt_project/models/5_marts/shared/mart_team_profile.sql
++  - dbt_project/models/5_marts/shared/mart_team_season_record.sql
++  - dbt_project/models/5_marts/shared/mart_team_window_metrics.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/tests/assert_lineup_research_list.sql
++  - dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
++  - dbt_project/tests/assert_mart_next_matchday_competition_order_follows_the_key.sql
++  - dbt_project/tests/assert_player_page_windows.sql
++  - dbt_project/tests/assert_season_map_covers_club_editions.sql
++  - dbt_project/tests/assert_team_benchmark_prev_season_matches_yoy.sql
++  - dbt_project/tests/assert_team_form_window_follows_the_rule.sql
++  - dbt_project/tests/assert_team_index_cup_rounds_scored.sql
++  - dbt_project/tests/assert_team_index_one_winner_per_cup_season.sql
++  - dbt_project/tests/assert_team_index_stage_answer_key.sql
++  - dbt_project/tests/assert_team_yoy_pairs_the_same_games_played.sql
++  - dbt_project/tests/assert_tournament_form_window.sql
++  - dbt_project/docs/layering.md
++  - scripts/export_site_data.py
++  - scripts/sync_dbt_vars.py
++  - scripts/check_registry_var_sync.py
++  - scripts/check_layer_contract.py
++  - .claude/skills/onboard-competition/SKILL.md
++  - tests/test_check_layer_contract.py
++  - tests/test_registry_seed_projection.py
++  - tests/test_export_site_data.py
++  - tests/test_export_landing.py
++  - tests/test_export_matches.py
++  - tests/test_catalogue_order.py
++  - tests/test_sentence_length_in_docs.py
++  - tests/test_no_decision_history_in_code.py
++  - .claude/task/83-competition-dim/contract.md
++  - .claude/task/83-competition-dim/review.md
++  - .claude/task/83-competition-dim/review_input.patch
++  - .claude/task/83-competition-dim/acceptance_evidence.md
++
++impact_map: >
++  writers: dbt only; no ingestion change. The registry YAML loses tier and competition_group;
++  sync_dbt_vars.py stops projecting them, so the competition_registry seed loses both columns.
++  competition_season_map gains tier and competition_group per (league_code, season_api_year),
++  filled for every existing domestic-league row with today's registry value (19 leagues, all
++  already mapped). dim_league gains the fixed facts from the seed and competition_types;
++  dim_competition_season gains tier and competition_group from the map, a blank season taking the
++  latest earlier season's value. Prod measured 2026-11-07: dim_league 48 rows, 48 distinct
++  league_code, the same 48 codes as the seed both ways.
++  lineage: `dbt ls --resource-type model --select dim_league+ dim_competition_season+
++  competition_registry+ competition_season_map+` returns 72 models: dim_competition_season
++  dim_league dim_player_team_season_mapping fct_standings int_competition_season__club_windows
++  int_legs__player_match int_legs__team_from_players int_legs__team_match int_player__page_profile
++  int_player_club_season__metrics int_player_competition_benchmark_metrics_long
++  int_player_competition_benchmarks int_player_match__metrics int_player_momentum__metrics
++  int_player_page__window_seasons int_player_profile__contribution int_player_profile__yoy
++  int_player_season__metrics int_player_season__team int_player_season_position__metrics
++  int_player_season_record int_player_squad_window__metrics int_player_window__metrics
++  int_standings__official_rank int_standings__section_kinds int_team__current_national_competitions
++  int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
++  int_team_momentum__metrics int_team_momentum_window int_team_profile__streaks int_team_profile__yoy
++  int_team_season__biggest_results int_team_season__deserved_vs_actual int_team_season__longest_runs
++  int_team_season__metrics int_team_season__metrics_cumulative int_team_season__standings_primary
++  int_team_season__table_by_time int_team_season__table_legs int_team_season__table_state
++  int_team_season_record mart_competition_fixtures mart_competition_index
++  mart_competition_season_summary mart_fixture_standing_context mart_head_to_head mart_leaderboards
++  mart_match_days mart_matchday_insights mart_next_matchday mart_player_career
++  mart_player_competition_benchmarks mart_player_fixture_stats mart_player_momentum
++  mart_player_profile mart_player_season_record mart_player_squad_benchmarks
++  mart_player_window_metrics mart_roster mart_standings mart_team_competition_benchmarks
++  mart_team_competitions mart_team_fixtures mart_team_index mart_team_leaderboards
++  mart_team_momentum_window mart_team_profile mart_team_season mart_team_season_insights
++  mart_team_season_record mart_team_window_metrics.
++  consumption: scripts/export_site_data.py reads only the marts dataset. Competition slug, name,
++  confederation and tier come from mart_competition_index; the home boards' pool from
++  competition_group on mart_leaderboards and mart_team_leaderboards; season labels from
++  mart_team_profile and mart_competition_fixtures; fixture team countries from
++  mart_competition_fixtures; top-player names and photos from mart_player_season_record; standings
++  team slugs from mart_standings; the Teams page's region rank and label key from mart_team_index.
++  Prod measured 2026-11-09: every fixture league_code is in mart_competition_index, every
++  standings season has fixtures, one standings team has no fixture (hence mart_standings.team_slug).
++  ci_layer_rules: scripts/check_layer_contract.py (gains the seed-reader and marts-only export
++  rules), scripts/check_registry_var_sync.py, scripts/check_description_hygiene.py,
++  scripts/check_relationships_coverage.py.
++  deploy_order: one merge; the nightly loads the seeds and rebuilds every model before the export
++  reads the marts. No backfill.
++  blast_radius: no value changes. dim_league, dim_competition_season and seven marts gain columns;
++  every other changed model reads the same values from a dim that it read from a seed, checked by
++  comparing each changed model with prod both ways in the MR build. Exported payloads keep their
++  content; competitions.json lists its keys in league_code order, and leaderboards/*.json (read by
++  no page) carries the warehouse competition name.
++
++approved_design:
++  - none: no page output changes
++
++decisions_taken: >
++  The revised plan on #83, approved in chat 2026-11-09: fixed facts on dim_league, tier and
++  competition_group per season on dim_competition_season from competition_season_map with
++  carry-forward, both removed from the registry; build_nav orders by mart_competition_index.tier,
++  then the YAML's sort_order; the export reads marts only. The two layering.md lines are the text
++  approved in chat, 2026-11-09. The CI rules extend the existing check_layer_contract.py, approved
++  in the same plan. No new mechanism and no recurring cost: dry runs on #83 put the nightly change
++  at about zero.
++
++decisions_reserved:
++  - Whether nav.json and build_nav are removed (no page reads nav.json).
++  - How the home pool rotates between groups (#101).
++  - Whether sort_order leaves the registry (only build_nav reads it).
++
++acceptance_criteria:
++  - One core table publishes every competition fact that is fixed for a competition, one row per competition: type, club or national, parent competition, confederation, slug and season type.
++  - The competition-season table publishes each season's tier and group, from the per-season map, a blank season taking the previous season's value.
++  - The registry no longer holds tier or group.
++  - Keys are tested unique and not null, and a competition with a blank type fails the build.
++  - No model or dbt test reads the `competition_registry` seed except dim_league, and a CI check fails any new reader.
++  - The export reads only the marts dataset, and a CI check fails any other read.
++  - Every page's exported data is unchanged.
++
++done_when:
++  - dbt parse succeeds from the repo root.
++  - python scripts/check_layer_contract.py passes, and fails on a planted seed reader and a planted core read in the export (pytest).
++  - python -m pytest tests -q is green.
++  - SQLFluff lint adds no violation on any changed model.
++  - The offline gates in FAST_GATES pass.
++  - CI's data:build:mr is green, and every changed model equals prod both ways.
++
++amendments:
++  - 2026-11-09: the four relationship tests in dbt_project/seeds/schema.yml that pointed at the competition_registry seed point at dim_league, and check_layer_contract.py scans every dbt_project file except target, dbt_packages and logs, with no exemption; authority: acceptance criterion 5 and the layering.md line approved in chat, 2026-11-09, applied as written.
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index 43b087dc..afe2e5b1 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -227,7 +227,7 @@ Canonical dimension inventory for this project:
+ | Dim | Grain | Source staging model | Notes |
+ |-----|-------|----------------------|-------|
+ | `dim_date` | day | generated via `dbt_utils.date_spine` | Global; not league-scoped. |
+-| `dim_league` | league_api_id | `base_apif__league_entity` | One row per configured league; surrogate key is the API integer directly. |
++| `dim_league` | league_api_id | `base_apif__league_entity`, with the `competition_registry` and `competition_types` seeds | One row per configured league; surrogate key is the API integer directly. |
+ | `dim_competition_season` | (league_api_id, season_api_year) | `base_apif__competition_seasons` | Carries API coverage flags that drive downstream conditional logic. |
+ | `dim_team` | team_api_id | `base_apif__teams_global` | Pure global entity (identity only); surrogate key is the API integer directly. Carries no competition/season affiliation — membership lives in `dim_team_competition_season_mapping`, per-match facts in `fct_fixture`. |
+ | `dim_player` | player_api_id | `base_apif__players` | Pure global entity (identity only); surrogate key is the API integer directly. Not league-scoped and carries no team/season affiliation — roster membership lives in `dim_player_team_season_mapping`, appearances in the facts. |
+@@ -238,6 +238,8 @@ Canonical dimension inventory for this project:
+ 
+ All league-scoped dimensions carry `league_code` in both natural and surrogate keys so additional leagues can be added without collisions.
+ 
++`dim_league` is the only reader of the `competition_registry` seed. Models and tests read the dim; exports read marts only. `check_layer_contract.py` enforces both.
++
+ ### Fact qualification rules
+ 
+ A table earns `fct_` status only when **all three** conditions hold:
+@@ -375,7 +377,7 @@ drift bug):
+ - Entity derivation (e.g. player→team affiliation) or identity generation (slugs are
+   published URL identity — they must come from the warehouse so every frontend links
+   identically).
+-- Taxonomy mappings (competition groupings etc. — those are seeds/registry fields).
++- Taxonomy mappings (competition groupings etc. — those are `dim_league` and `dim_competition_season` columns).
+ 
+ The test: **would this value deserve a DQ test, or need to be byte-identical across
+ two frontends? Then it belongs in dbt.** If no mart serves a value a page needs,
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index 1db4ec2c..e5c7b2d6 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -101,7 +101,7 @@ models:
+       tags: ["core", "dimension"]
+     columns:
+       - name: region_key
+-        description: "Confederation code, matching `competition_registry.confederation`."
++        description: "Confederation code, matching `dim_league.confederation`."
+         tests: [not_null, unique]
+       - name: region_name
+         description: "English display name for the region, e.g. UEFA -> Europe."
+@@ -111,7 +111,7 @@ models:
+         tests: [not_null, unique]
+ 
+   - name: dim_league
+-    description: "Canonical league dimension. Grain: league_api_id. Sourced from base_apif__league_entity (latest season row per league_api_id); surrogate key is the API integer directly."
++    description: "Canonical competition dimension, for leagues, cups and tournaments alike. Grain: league_api_id, one row per league_code. Provider fields come from base_apif__league_entity (latest season row per league_api_id); our own classification comes from the competition_registry and competition_types seeds. This is the only model that reads the competition_registry seed: every other model reads competition facts here. Surrogate key is the API integer directly."
+     meta:
+       owner: "data-platform"
+       domain: "football"
+@@ -124,7 +124,7 @@ models:
+         tests: [not_null, unique]
+       - name: league_code
+         description: "{{ doc('league_code') }}"
+-        tests: [not_null]
++        tests: [not_null, unique]
+       - name: league_api_id
+         description: "{{ doc('league_api_id') }}"
+         tests: [not_null]
+@@ -154,11 +154,46 @@ models:
+         description: "League logo URL."
+       - name: country_flag_url
+         description: "Country flag URL. NULL for international competitions — the provider returns a flag only for the single-country ones (21 of 45), so this is deliberately untested for nullity."
++      - name: competition_type
++        description: "{{ doc('competition_type') }}"
++        tests:
++          - not_null
++          - relationships:
++              to: ref('competition_types')
++              field: competition_type
++      - name: entity_type
++        description: "{{ doc('entity_type') }}"
++        tests:
++          - not_null
++          - accepted_values:
++              values: ['club', 'national']
++      - name: parent_competition
++        description: "The league_code of the competition this one leads to or belongs under: a qualifier's tournament (WCQEU to WC), a domestic cup's league (DFBP to BL1). NULL when it has none."
++        tests:
++          - relationships:
++              to: ref('dim_league')
++              field: league_code
++      - name: confederation
++        description: "The confederation the competition belongs to: AFC, CAF, CONCACAF, CONMEBOL, OFC, UEFA, or FIFA for worldwide competitions. It is the platform's region key; the confederations seed holds its label."
++        tests:
++          - not_null
++          - relationships:
++              to: ref('confederations')
++              field: confederation
++      - name: slug
++        description: "The competition's part of every page address, for example bundesliga. Assigned once and never derived from the name, so renaming a competition does not move its pages."
++        tests: [not_null, unique]
++      - name: season_type
++        description: "How the competition's seasons run: split_year across two calendar years (the Bundesliga's 2025/26), calendar_year inside one (MLS 2026)."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ['split_year', 'calendar_year']
+       - name: raw_ingested_at
+         description: "{{ doc('raw_ingested_at') }}"
+ 
+   - name: dim_competition_season
+-    description: "Canonical competition-season dimension with per-season coverage flags. Grain: (league_api_id, season_api_year). Sourced from base_apif__competition_seasons, with the season label from the competition_registry seed's season_type. Coverage flags describe which API-Football endpoints return data for that league-season and drive conditional logic downstream. Season expansion/parsing is performed in staging."
++    description: "Canonical competition-season dimension with per-season coverage flags. Grain: (league_api_id, season_api_year). Sourced from base_apif__competition_seasons, with the season label from dim_league's season_type. Coverage flags describe which API-Football endpoints return data for that league-season and drive conditional logic downstream. Season expansion/parsing is performed in staging."
+     meta:
+       owner: "data-platform"
+       domain: "football"
+@@ -196,7 +231,7 @@ models:
+         description: "{{ doc('season_api_year') }}"
+         tests: [not_null]
+       - name: season_label
+-        description: "The season as a page names it: the start and end year for a competition whose season runs across two years (2026/27), the year alone for one played within a calendar year (2026). Follows the registry's season_type."
++        description: "The season as a page names it: the start and end year for a competition whose season runs across two years (2026/27), the year alone for one played within a calendar year (2026). Follows dim_league's season_type."
+         tests: [not_null]
+       - name: season_type
+         description: "split_year, 1 July to 30 June, or calendar_year, 1 January to 31 December, from competition_season_map. NULL on an edition the map does not hold."
+@@ -207,6 +242,13 @@ models:
+         description: "The split-year season the edition belongs to, by its start year: 2025 is 2025/26. A season is a league season plus every club competition edition that belongs to it, and an edition belongs to one season as a whole."
+       - name: calendar_year_season
+         description: "The calendar-year season the edition belongs to."
++      - name: tier
++        description: "The league's level in its country in this season: 1 for the top flight, 2 for the division below. From competition_season_map; a season the map leaves blank keeps the latest earlier season's value. NULL for every competition that is not a domestic league, because a cup or a tournament has no level."
++      - name: competition_group
++        description: "The set of leagues this league is ranked alongside in this season when a page shows one entry per league: elite (the seven strongest European top flights), europe, international, calendar or secondary. From competition_season_map; a season the map leaves blank keeps the latest earlier season's value. NULL for every competition that is not a domestic league."
++        tests:
++          - accepted_values:
++              values: ['elite', 'europe', 'international', 'calendar', 'secondary']
+       - name: previous_season_sk
+         description: "{{ doc('season_sk') }} Here it is the same competition's season before this one. NULL on the first edition held."
+         tests:
+@@ -404,12 +446,10 @@ models:
+         description: "{{ doc('league_code') }}"
+         tests:
+           - not_null
+-          # Every rostered competition must be registered. Without this, a league_code
+-          # present here but absent from competition_registry would be silently dropped by
+-          # downstream club/national filters that resolve entity_type via the registry → types
+-          # seeds (e.g. mart_roster's `where entity_type = 'club'`). Verified clean today.
++          # A league_code missing from dim_league would be dropped silently by the club/national
++          # filters that read entity_type there (e.g. mart_roster's `where entity_type = 'club'`).
+           - relationships:
+-              to: ref('competition_registry')
++              to: ref('dim_league')
+               field: league_code
+       - name: season_api_year
+         description: "{{ doc('season_api_year') }} Here it is the roster's season."
+diff --git a/dbt_project/models/3_core/dim_competition_season.sql b/dbt_project/models/3_core/dim_competition_season.sql
+index 3a8e640c..6e751da3 100644
+--- a/dbt_project/models/3_core/dim_competition_season.sql
++++ b/dbt_project/models/3_core/dim_competition_season.sql
+@@ -2,8 +2,8 @@ with import_base_apif__competition_seasons as (
+     select * from {{ ref('base_apif__competition_seasons') }}
+ ),
+ 
+-import_competition_registry as (
+-    select * from {{ ref('competition_registry') }}
++import_dim_league as (
++    select * from {{ ref('dim_league') }}
+ ),
+ 
+ import_competition_season_map as (
+@@ -16,12 +16,14 @@ labelled as (
+         map.season_type,
+         map.split_year_season,
+         map.calendar_year_season,
++        map.tier as map_tier,
++        map.competition_group as map_competition_group,
+         if(
+             map.previous_season_api_year is null,
+             null,
+             {{ dbt_utils.generate_surrogate_key(['seasons.league_api_id', 'map.previous_season_api_year']) }}
+         ) as previous_season_sk,
+-        case registry.season_type
++        case leagues.season_type
+             when 'split_year'
+                 then concat(
+                     cast(seasons.season_api_year as string),
+@@ -31,8 +33,8 @@ labelled as (
+             when 'calendar_year' then cast(seasons.season_api_year as string)
+         end as season_label
+     from import_base_apif__competition_seasons as seasons
+-    left join import_competition_registry as registry
+-        on seasons.league_code = registry.league_code
++    left join import_dim_league as leagues
++        on seasons.league_code = leagues.league_code
+     left join import_competition_season_map as map
+         on seasons.league_code = map.league_code and seasons.season_api_year = map.season_api_year
+ )
+@@ -47,6 +49,15 @@ select
+     season_type,
+     split_year_season,
+     calendar_year_season,
++    -- A season the map leaves blank keeps the competition's latest earlier value.
++    last_value(map_tier ignore nulls) over (
++        partition by league_code order by season_api_year
++        rows between unbounded preceding and current row
++    ) as tier,
++    last_value(map_competition_group ignore nulls) over (
++        partition by league_code order by season_api_year
++        rows between unbounded preceding and current row
++    ) as competition_group,
+     previous_season_sk,
+     season_start_date,
+     season_end_date,
+diff --git a/dbt_project/models/3_core/dim_league.sql b/dbt_project/models/3_core/dim_league.sql
+index a83fa592..701990c9 100644
+--- a/dbt_project/models/3_core/dim_league.sql
++++ b/dbt_project/models/3_core/dim_league.sql
+@@ -1,15 +1,33 @@
+ with import_base_apif__league_entity as (
+     select * from {{ ref('base_apif__league_entity') }}
++),
++
++import_competition_registry as (
++    select * from {{ ref('competition_registry') }}
++),
++
++import_competition_types as (
++    select * from {{ ref('competition_types') }}
+ )
+ 
+ select
+-    cast(league_api_id as int64) as league_sk,
+-    league_code,
+-    league_api_id,
+-    league_name,
+-    league_type,
+-    league_country,
+-    league_logo_url,
+-    country_flag_url,
+-    raw_ingested_at
+-from import_base_apif__league_entity
++    cast(leagues.league_api_id as int64) as league_sk,
++    leagues.league_code,
++    leagues.league_api_id,
++    leagues.league_name,
++    leagues.league_type,
++    leagues.league_country,
++    leagues.league_logo_url,
++    leagues.country_flag_url,
++    registry.competition_type,
++    types.entity_type,
++    registry.parent_competition,
++    registry.confederation,
++    registry.slug,
++    registry.season_type,
++    leagues.raw_ingested_at
++from import_base_apif__league_entity as leagues
++left join import_competition_registry as registry
++    on leagues.league_code = registry.league_code
++left join import_competition_types as types
++    on registry.competition_type = types.competition_type
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+index bc249dde..e84359ee 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+@@ -781,11 +781,11 @@ models:
+               to: ref('dim_competition_season')
+               field: season_sk
+       - name: league_code
+-        description: "{{ doc('league_code') }} Here every value must be a DOMESTIC LEAGUE in the registry, asserted by join rather than by an accepted_values list, which would break the zero-file rule the moment a league is onboarded."
++        description: "{{ doc('league_code') }} Here every value must be a DOMESTIC LEAGUE in dim_league, asserted by join rather than by an accepted_values list, which would break the zero-file rule the moment a league is onboarded."
+         tests:
+           - dbt_utils.relationships_where:
+               name: int_team_season_deserved_domestic_leagues_only
+-              to: ref('competition_registry')
++              to: ref('dim_league')
+               field: league_code
+               to_condition: "competition_type = 'domestic_league'"
+       - name: actual_rank
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql
+index 09aca653..b380c46a 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql
+@@ -30,7 +30,7 @@
+   8.29-21.46 for the tournament types, over 224 rows). The previous gate assumed knockouts carry no
+   standing and would drop out on their own; group-stage tournaments DO carry standings, just not
+   comparable ones, so it checked that a position EXISTS rather than that it is the same KIND of
+-  number. The registry join now restricts this explicitly. A tournament-appropriate version is
++  number. The dim_league join restricts this explicitly. A tournament-appropriate version is
+   wanted eventually and is deliberately NOT designed here.
+ 
+   Composes int_team_season__metrics (the gated shots_on_goal_difference_per_match plus the season points and
+@@ -92,11 +92,11 @@ with metrics as (
+     from {{ ref('int_team_season__metrics') }}
+ ),
+ 
+-registry as (
++competitions as (
+     select
+         league_code,
+         competition_type
+-    from {{ ref('competition_registry') }}
++    from {{ ref('dim_league') }}
+ ),
+ 
+ -- domestic-league rows only: a group-stage tournament's standing is a within-group position, which
+@@ -104,7 +104,7 @@ registry as (
+ domestic as (
+     select m.*
+     from metrics as m
+-    inner join registry as r
++    inner join competitions as r
+         on m.league_code = r.league_code
+     where r.competition_type = 'domestic_league'
+ ),
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_legs.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_legs.sql
+index 026b91ac..20f1c1ea 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_legs.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_legs.sql
+@@ -8,9 +8,9 @@
+   Grain: (league_code, season_api_year, team_sk, leg_key).
+ #}
+ 
+-with registry as (
++with competitions as (
+     select league_code
+-    from {{ ref('competition_registry') }}
++    from {{ ref('dim_league') }}
+     where competition_type = 'domestic_league'
+ ),
+ 
+@@ -38,7 +38,7 @@ league_legs as (
+         rk.round_stage_kind,
+         case l.result when 'W' then 3 when 'D' then 1 else 0 end + if(l.is_table_shootout_win, 1, 0) as points
+     from {{ ref('int_legs__team_match') }} as l
+-    inner join registry as r
++    inner join competitions as r
+         on l.league_code = r.league_code
+     left join round_kinds as rk
+         on
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_state.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_state.sql
+index 15f81587..a73ee6f1 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_state.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_state.sql
+@@ -13,9 +13,9 @@
+   Grain: (league_code, season_api_year, group_name, table_at, team_sk).
+ #}
+ 
+-with registry as (
++with competitions as (
+     select league_code
+-    from {{ ref('competition_registry') }}
++    from {{ ref('dim_league') }}
+     where competition_type = 'domestic_league'
+ ),
+ 
+@@ -34,7 +34,7 @@ sections as (
+     from {{ ref('fct_standings') }} as s
+     inner join {{ ref('int_standings__section_kinds') }} as k
+         on s.group_name = k.group_name
+-    inner join registry as r
++    inner join competitions as r
+         on s.league_code = r.league_code
+     where k.table_kind != 'ranking'
+ ),
+diff --git a/dbt_project/models/4_intermediate/shared/int_competition_season__club_windows.sql b/dbt_project/models/4_intermediate/shared/int_competition_season__club_windows.sql
+index a5299756..aa35f6dc 100644
+--- a/dbt_project/models/4_intermediate/shared/int_competition_season__club_windows.sql
++++ b/dbt_project/models/4_intermediate/shared/int_competition_season__club_windows.sql
+@@ -16,11 +16,9 @@ with seasons as (
+         d.split_year_season,
+         d.calendar_year_season
+     from {{ ref('dim_competition_season') }} as d
+-    inner join {{ ref('competition_registry') }} as reg
+-        on d.league_code = reg.league_code
+-    inner join {{ ref('competition_types') }} as typ
+-        on reg.competition_type = typ.competition_type
+-    where typ.entity_type = 'club' and d.season_type is not null
++    inner join {{ ref('dim_league') }} as leagues
++        on d.league_code = leagues.league_code
++    where leagues.entity_type = 'club' and d.season_type is not null
+ ),
+ 
+ this_season as (
+diff --git a/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql b/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
+index 68658fa2..862d1d1f 100644
+--- a/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
++++ b/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
+@@ -18,12 +18,8 @@ fixtures as (
+     select * from {{ ref('fct_fixture') }}
+ ),
+ 
+-registry as (
+-    select * from {{ ref('competition_registry') }}
+-),
+-
+-types as (
+-    select * from {{ ref('competition_types') }}
++competitions as (
++    select * from {{ ref('dim_league') }}
+ ),
+ 
+ finished as (
+@@ -54,7 +50,7 @@ select
+     f.kickoff_datetime,
+     f.round_name,
+     reg.competition_type,
+-    typ.entity_type,
++    reg.entity_type,
+     ps.is_from_lineups,
+     ps.minutes,
+     ps.is_starter,
+@@ -92,7 +88,5 @@ select
+ from player_stats as ps
+ inner join finished as f
+     on ps.fixture_sk = f.fixture_sk
+-left join registry as reg
++left join competitions as reg
+     on ps.league_code = reg.league_code
+-left join types as typ
+-    on reg.competition_type = typ.competition_type
+diff --git a/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql b/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
+index 2c6fac9d..123cfbe9 100644
+--- a/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
++++ b/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
+@@ -22,12 +22,8 @@ team_stats as (
+     select * from {{ ref('fct_fixture_team_stats') }}
+ ),
+ 
+-registry as (
+-    select * from {{ ref('competition_registry') }}
+-),
+-
+-types as (
+-    select * from {{ ref('competition_types') }}
++competitions as (
++    select * from {{ ref('dim_league') }}
+ ),
+ 
+ round_kinds as (
+@@ -175,9 +171,7 @@ with_stats as (
+ select
+     ws.*,
+     reg.competition_type,
+-    typ.entity_type
++    reg.entity_type
+ from with_stats as ws
+-left join registry as reg
++left join competitions as reg
+     on ws.league_code = reg.league_code
+-left join types as typ
+-    on reg.competition_type = typ.competition_type
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_page__window_seasons.sql b/dbt_project/models/4_intermediate/shared/int_player_page__window_seasons.sql
+index 53d8ac48..8bdc6432 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_page__window_seasons.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_page__window_seasons.sql
+@@ -49,5 +49,5 @@ select
+ from windows as w
+ inner join season_ends as e
+     on w.season_sk = e.season_sk
+-inner join {{ ref('competition_registry') }} as reg
++inner join {{ ref('dim_league') }} as reg
+     on e.league_code = reg.league_code
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql b/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
+index 11490740..7d875bb4 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
+@@ -42,17 +42,17 @@ with std as (
+     from {{ ref('int_player_season_record') }}
+ ),
+ 
+-registry as (
++competitions as (
+     select
+         league_code,
+         competition_type
+-    from {{ ref('competition_registry') }}
++    from {{ ref('dim_league') }}
+ ),
+ 
+ dom as (
+     select s.*
+     from std as s
+-    inner join registry as r
++    inner join competitions as r
+         on s.league_code = r.league_code
+     where r.competition_type = 'domestic_league'
+ ),
+diff --git a/dbt_project/models/4_intermediate/shared/int_team__current_national_competitions.sql b/dbt_project/models/4_intermediate/shared/int_team__current_national_competitions.sql
+index 256ec0bb..917cdd45 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team__current_national_competitions.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team__current_national_competitions.sql
+@@ -15,11 +15,9 @@ with seasons as (
+         min(f.kickoff_datetime) as first_match_at,
+         max(f.kickoff_datetime) as last_match_at
+     from {{ ref('fct_fixture') }} as f
+-    inner join {{ ref('competition_registry') }} as reg
+-        on f.league_code = reg.league_code
+-    inner join {{ ref('competition_types') }} as typ
+-        on reg.competition_type = typ.competition_type
+-    where typ.entity_type = 'national'
++    inner join {{ ref('dim_league') }} as leagues
++        on f.league_code = leagues.league_code
++    where leagues.entity_type = 'national'
+     group by f.season_sk, f.league_code, f.season_api_year
+ ),
+ 
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
+index 4d912c14..2646ca11 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
+@@ -63,17 +63,17 @@ with season as (
+     where season_games_played >= {{ var('team_min_matches') }}
+ ),
+ 
+-registry as (
++competitions as (
+     select
+         league_code,
+         competition_type
+-    from {{ ref('competition_registry') }}
++    from {{ ref('dim_league') }}
+ ),
+ 
+ domestic_cumulative as (
+     select c.*
+     from {{ ref('int_team_season__metrics_cumulative') }} as c
+-    inner join registry as r
++    inner join competitions as r
+         on c.league_code = r.league_code
+     where r.competition_type = 'domestic_league'
+ ),
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql b/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
+index 83c89b98..a9443829 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
+@@ -17,7 +17,7 @@
+     and this edition (season_api_year) before kickoff — used once the team has a tournament leg
+     (group-stage MD2 onward, including knockout).
+   - window_type='qualifiers': when the team has NO tournament leg yet (its opener / pre-MD1),
+-    every finished leg in the tournament's qualifier competitions (registry parent_competition =
++    every finished leg in the tournament's qualifier competitions (dim_league parent_competition =
+     this league_code) before kickoff, no season cap (a qualifying campaign spans seasons).
+   A tournament side with neither tournament nor qualifier legs yields no rows (the mart renders
+   the empty-form state). `qualifying`-type previews keep last_5 here (#483). This selection also
+@@ -54,12 +54,8 @@ with upcoming as (
+         and fixture_date >= current_date()
+ ),
+ 
+-registry as (
+-    select * from {{ ref('competition_registry') }}
+-),
+-
+-types as (
+-    select * from {{ ref('competition_types') }}
++competitions as (
++    select * from {{ ref('dim_league') }}
+ ),
+ 
+ upcoming_with_type as (
+@@ -71,12 +67,10 @@ upcoming_with_type as (
+         u.season_api_year,
+         u.kickoff_datetime,
+         reg.competition_type,
+-        typ.entity_type
++        reg.entity_type
+     from upcoming as u
+-    left join registry as reg
++    left join competitions as reg
+         on u.league_code = reg.league_code
+-    left join types as typ
+-        on reg.competition_type = typ.competition_type
+ ),
+ 
+ -- Each team's latest finished match, whose season bounds a club's team window.
+@@ -184,7 +178,7 @@ candidate_legs as (
+             s.team_sk = l.team_sk
+             and s.entity_type = l.entity_type
+             and s.kickoff_datetime > l.kickoff_datetime
+-    left join registry as legreg
++    left join competitions as legreg
+         on l.league_code = legreg.league_code
+ ),
+ 
+@@ -232,7 +226,7 @@ match_legs as (
+         l.cards_red,
+         false as is_tournament
+     from {{ ref('int_legs__team_match') }} as l
+-    left join registry as legreg
++    left join competitions as legreg
+         on l.league_code = legreg.league_code
+ ),
+ 
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql b/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
+index 90348aef..8947b504 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
+@@ -26,11 +26,11 @@ with cml as (
+     select * from {{ ref('int_team_season__metrics_cumulative') }}
+ ),
+ 
+-registry as (
++competitions as (
+     select
+         league_code,
+         competition_type
+-    from {{ ref('competition_registry') }}
++    from {{ ref('dim_league') }}
+ ),
+ 
+ -- domestic-league cumulative rows only (YoY is meaningful for league formats; cups/tournaments
+@@ -38,7 +38,7 @@ registry as (
+ dom as (
+     select c.*
+     from cml as c
+-    inner join registry as r
++    inner join competitions as r
+         on c.league_code = r.league_code
+     where r.competition_type = 'domestic_league'
+ ),
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql b/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
+index b56589ad..d589d4cd 100644
+--- a/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
++++ b/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
+@@ -102,10 +102,19 @@ teams as (
+         team_sk,
+         team_name,
+         team_slug,
+-        team_logo_url
++        team_logo_url,
++        team_country
+     from {{ ref('dim_team') }}
+ ),
+ 
++competition_seasons as (
++    select
++        league_code,
++        season_api_year,
++        season_label
++    from {{ ref('dim_competition_season') }}
++),
++
+ played as (
+     select distinct fixture_sk
+     from {{ ref('int_legs__team_match') }}
+@@ -455,6 +464,7 @@ select
+     f.fixture_sk,
+     f.league_code,
+     f.season_api_year,
++    cs.season_label,
+     f.round_name,
+     rn.round_label_i18n_key,
+     rn.round_number,
+@@ -473,11 +483,13 @@ select
+     h.team_slug as home_team_slug,
+     h.team_logo_url as home_team_logo_url,
+     hf.team_formation as home_team_formation,
++    h.team_country as home_team_country,
+     f.away_team_sk,
+     a.team_name as away_team_name,
+     a.team_slug as away_team_slug,
+     a.team_logo_url as away_team_logo_url,
+     af.team_formation as away_team_formation,
++    a.team_country as away_team_country,
+     f.venue_name_snapshot as venue_name,
+     f.award_kind,
+     f.awarded_to_team_sk,
+@@ -563,3 +575,7 @@ left join formations as af
+         and f.away_team_sk = af.team_sk
+ left join lineup_states as ls
+     on f.fixture_sk = ls.fixture_sk
++left join competition_seasons as cs
++    on
++        f.league_code = cs.league_code
++        and f.season_api_year = cs.season_api_year
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_index.sql b/dbt_project/models/5_marts/shared/mart_competition_index.sql
+index d0b60a45..795a55bb 100644
+--- a/dbt_project/models/5_marts/shared/mart_competition_index.sql
++++ b/dbt_project/models/5_marts/shared/mart_competition_index.sql
+@@ -28,11 +28,7 @@
+     entity name rather than chrome.
+ #}
+ 
+-with import_competition_registry as (
+-    select * from {{ ref('competition_registry') }}
+-),
+-
+-import_competition_types as (
++with import_competition_types as (
+     select * from {{ ref('competition_types') }}
+ ),
+ 
+@@ -44,6 +40,10 @@ import_dim_league as (
+     select * from {{ ref('dim_league') }}
+ ),
+ 
++import_dim_competition_season as (
++    select * from {{ ref('dim_competition_season') }}
++),
++
+ import_fct_fixture as (
+     select * from {{ ref('fct_fixture') }}
+ ),
+@@ -83,22 +83,33 @@ last_fixture as (
+     group by league_code
+ ),
+ 
++latest_season as (
++    select
++        league_code,
++        tier
++    from import_dim_competition_season
++    qualify row_number() over (partition by league_code order by season_api_year desc) = 1
++),
++
+ -- A blank display_group means "not browsable" and the seed uses it deliberately for the three
+ -- friendly types (#54 note 3). Excluded here rather than given a heading. Today this removes
+ -- ZERO rows -- no registry competition carries a friendly type -- but the rule is the seed's,
+ -- not this model's, and encoding it here keeps the page correct the day one is onboarded.
+ browsable as (
+     select
+-        registry.league_code,
+-        registry.competition_type,
+-        registry.slug,
+-        registry.confederation,
+-        types.entity_type,
++        leagues.league_code,
++        leagues.competition_type,
++        leagues.slug,
++        leagues.confederation,
++        leagues.entity_type,
++        leagues.league_name,
++        leagues.league_logo_url,
++        leagues.league_country,
+         types.label_en as category_label_en,
+         types.label_i18n_key as category_label_i18n_key
+-    from import_competition_registry as registry
++    from import_dim_league as leagues
+     inner join import_competition_types as types
+-        on registry.competition_type = types.competition_type
++        on leagues.competition_type = types.competition_type
+     where
+         types.display_group is not null
+         and trim(types.display_group) != ''
+@@ -112,9 +123,10 @@ select
+     browsable.category_label_en,
+     browsable.category_label_i18n_key,
+     browsable.confederation,
++    latest_season.tier,
+     confed.region_rank,
+-    leagues.league_name as competition_name,
+-    leagues.league_logo_url as logo_url,
++    browsable.league_name as competition_name,
++    browsable.league_logo_url as logo_url,
+     next_fixture.next_kickoff_datetime,
+     last_fixture.last_kickoff_datetime,
+     current_round.current_round_label_i18n_key,
+@@ -127,18 +139,18 @@ select
+     -- sentinel into NULL, never a corrected string), so testing it directly replaces the
+     -- competition_types.single_country flag that was considered and rejected -- there is no
+     -- second taxonomy statement to keep in sync with the FK.
+-    coalesce(leagues.league_country, confed.label_en) as region_label_en,
++    coalesce(browsable.league_country, confed.label_en) as region_label_en,
+     case
+-        when leagues.league_country is null then confed.label_i18n_key
++        when browsable.league_country is null then confed.label_i18n_key
+     end as region_label_i18n_key
+ from browsable
+ left join import_confederations as confed
+     on browsable.confederation = confed.confederation
+-left join import_dim_league as leagues
+-    on browsable.league_code = leagues.league_code
+ left join next_fixture
+     on browsable.league_code = next_fixture.league_code
+ left join last_fixture
+     on browsable.league_code = last_fixture.league_code
+ left join current_round
+     on browsable.league_code = current_round.league_code
++left join latest_season
++    on browsable.league_code = latest_season.league_code
+diff --git a/dbt_project/models/5_marts/shared/mart_leaderboards.sql b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
+index 374028fa..0432bbd4 100644
+--- a/dbt_project/models/5_marts/shared/mart_leaderboards.sql
++++ b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
+@@ -105,6 +105,13 @@ teams as (
+     from {{ ref('dim_team') }}
+ ),
+ 
++competition_seasons as (
++    select
++        season_sk,
++        competition_group
++    from {{ ref('dim_competition_season') }}
++),
++
+ base as (
+     select
+         s.player_sk,
+@@ -144,10 +151,12 @@ base as (
+         s.team_sk,
+         t.team_name,
+         t.team_slug,
+-        t.team_logo_url
++        t.team_logo_url,
++        cs.competition_group
+     from season as s
+     left join players as p on s.player_sk = p.player_sk
+     left join teams as t on s.team_sk = t.team_sk
++    left join competition_seasons as cs on s.season_sk = cs.season_sk
+ ),
+ 
+ ranked as (
+@@ -212,10 +221,12 @@ match_base as (
+         p.player_photo_url,
+         t.team_name,
+         t.team_slug,
+-        t.team_logo_url
++        t.team_logo_url,
++        cs.competition_group
+     from match_metrics as m
+     left join players as p on m.player_sk = p.player_sk
+     left join teams as t on m.team_sk = t.team_sk
++    left join competition_seasons as cs on m.season_sk = cs.season_sk
+ ),
+ 
+ -- One match's boards: the same DENSE_RANK as a season board, and the same tie-break at the cut,
+@@ -229,6 +240,7 @@ match_ranked as (
+         league_sk,
+         league_code,
+         season_api_year,
++        competition_group,
+         minutes,
+         team_sk,
+         player_name,
+@@ -264,6 +276,7 @@ match_rows as (
+         league_sk,
+         league_code,
+         season_api_year,
++        competition_group,
+         minutes,
+         team_sk,
+         player_name,
+@@ -346,6 +359,7 @@ select
+     sort_value,
+     league_code,
+     season_api_year,
++    competition_group,
+     season_sk,
+     league_sk,
+     player_sk,
+@@ -422,6 +436,7 @@ select
+     sort_value,
+     league_code,
+     season_api_year,
++    competition_group,
+     season_sk,
+     league_sk,
+     player_sk,
+diff --git a/dbt_project/models/5_marts/shared/mart_next_matchday.sql b/dbt_project/models/5_marts/shared/mart_next_matchday.sql
+index b2c32d8d..b9cb01cc 100644
+--- a/dbt_project/models/5_marts/shared/mart_next_matchday.sql
++++ b/dbt_project/models/5_marts/shared/mart_next_matchday.sql
+@@ -89,7 +89,7 @@ competition_keys as (
+         min(c.region_rank) as region_rank,
+         min(m.kickoff_datetime) as first_kickoff
+     from next_matchday as m
+-    left join {{ ref('competition_registry') }} as r
++    left join {{ ref('dim_league') }} as r
+         on m.league_code = r.league_code
+     left join {{ ref('confederations') }} as c
+         on r.confederation = c.confederation
+diff --git a/dbt_project/models/5_marts/shared/mart_player_career.sql b/dbt_project/models/5_marts/shared/mart_player_career.sql
+index f0bc2ea2..54f57a04 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_career.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_career.sql
+@@ -1,8 +1,8 @@
+ {#
+   Player Career log (content_architecture §4; #480 §8.3). One row per (player, CLUB, competition-season):
+   the player's appearances / goals / assists at that club that competition-season + player identity
+-  (dim_player) + club identity (dim_team) + the competition's entity_type (club / national, via the
+-  registry -> competition_types seeds). This is the Transfermarkt-shaped career table — a mid-season
++  (dim_player) + club identity (dim_team) + the competition's entity_type (club / national, from
++  dim_league). This is the Transfermarkt-shaped career table — a mid-season
+   transfer shows as two rows (two clubs, one season). Club and national rows are handled uniformly:
+   a "national" row is a season in a competition whose entity_type is national.
+ 
+@@ -44,18 +44,11 @@ teams as (
+     from {{ ref('dim_team') }}
+ ),
+ 
+-registry as (
++competitions as (
+     select
+         league_code,
+-        competition_type
+-    from {{ ref('competition_registry') }}
+-),
+-
+-types as (
+-    select
+-        competition_type,
+         entity_type
+-    from {{ ref('competition_types') }}
++    from {{ ref('dim_league') }}
+ ),
+ 
+ typed as (
+@@ -72,10 +65,9 @@ typed as (
+         cs.goals_player,
+         cs.assists_player,
+         cs.last_kickoff_at,
+-        types.entity_type
++        competitions.entity_type
+     from club_season as cs
+-    left join registry on cs.league_code = registry.league_code
+-    left join types on registry.competition_type = types.competition_type
++    left join competitions on cs.league_code = competitions.league_code
+ ),
+ 
+ with_caps as (
+diff --git a/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql b/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
+index 59e2e58e..efde0e8b 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
+@@ -77,11 +77,9 @@ fixtures as (
+ 
+ competition_tabs as (
+     select
+-        reg.league_code,
+-        if(typ.entity_type = 'club', 'club', 'national_team') as page_tab
+-    from {{ ref('competition_registry') }} as reg
+-    inner join {{ ref('competition_types') }} as typ
+-        on reg.competition_type = typ.competition_type
++        leagues.league_code,
++        if(leagues.entity_type = 'club', 'club', 'national_team') as page_tab
++    from {{ ref('dim_league') }} as leagues
+ ),
+ 
+ page_windows as (
+diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+index 5b1b35a9..c6b7cd93 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+@@ -90,18 +90,12 @@ contribution as (
+ -- join mart_player_career already uses. Needed because the season a player's page opens on is a
+ -- CLUB season (#848 made Overview, Performance and Career club-only), and a player-season row on
+ -- its own cannot tell club football from national.
+-registry as (
++competitions as (
+     select
+         league_code,
+-        competition_type
+-    from {{ ref('competition_registry') }}
+-),
+-
+-types as (
+-    select
+         competition_type,
+         entity_type
+-    from {{ ref('competition_types') }}
++    from {{ ref('dim_league') }}
+ ),
+ 
+ page as (
+@@ -125,7 +119,7 @@ select
+     a.season_api_year,
+     sl.season_label,
+     reg.competition_type,
+-    ct.entity_type,
++    reg.entity_type,
+     -- identity + descriptors (not catalogue metrics)
+     p.player_name,
+     p.player_first_name,
+@@ -252,10 +246,8 @@ left join contribution as c
+         a.player_sk = c.player_sk
+         and ta.team_sk = c.team_sk
+         and a.season_sk = c.season_sk
+-left join registry as reg
++left join competitions as reg
+     on a.league_code = reg.league_code
+-left join types as ct
+-    on reg.competition_type = ct.competition_type
+ left join page as pg
+     on a.player_sk = pg.player_sk
+ left join season_labels as sl
+diff --git a/dbt_project/models/5_marts/shared/mart_player_season_record.sql b/dbt_project/models/5_marts/shared/mart_player_season_record.sql
+index 76e62f9a..a2de8c05 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_season_record.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_season_record.sql
+@@ -148,16 +148,31 @@ matched as (
+             and sf.season_api_year = s.season_api_year - 1
+ ),
+ 
++players as (
++    select
++        player_sk,
++        player_name,
++        player_photo_url
++    from {{ ref('dim_player') }}
++),
++
+ chosen as (
+-    select *
+-    from matched
+-    qualify priority = min(priority) over (partition by upcoming_fixture_sk, team_sk)
++    select
++        m.*,
++        p.player_name,
++        p.player_photo_url
++    from matched as m
++    left join players as p
++        on m.player_sk = p.player_sk
++    qualify m.priority = min(m.priority) over (partition by m.upcoming_fixture_sk, m.team_sk)
+ )
+ 
+ select
+     upcoming_fixture_sk,
+     team_sk,
+     player_sk,
++    player_name,
++    player_photo_url,
+     league_code,
+     entity_type,
+     season_api_year,
+diff --git a/dbt_project/models/5_marts/shared/mart_roster.sql b/dbt_project/models/5_marts/shared/mart_roster.sql
+index 85b759b3..3cffd82a 100644
+--- a/dbt_project/models/5_marts/shared/mart_roster.sql
++++ b/dbt_project/models/5_marts/shared/mart_roster.sql
+@@ -2,8 +2,7 @@
+   mart_roster — the club roster identity for the Squad tab (feeds it alongside mart_player_career; content_architecture §3).
+   One row per rostered player per (club team, competition-season), from
+   dim_player_team_season_mapping joined to dim_player for identity. Scoped to CLUB
+-  competitions (entity_type = 'club', resolved league_code -> competition_registry ->
+-  competition_types — mirrors mart_standings; never a dim_team flag, per the
++  competitions (entity_type = 'club', read from dim_league — mirrors mart_standings; never a dim_team flag, per the
+   dim_team-is-a-pure-entity ruling).
+ 
+   Identity only: name, listed position, nationality, birth_date, photo. This mart carries NO
+@@ -28,18 +27,12 @@ players as (
+     select * from {{ ref('dim_player') }}
+ ),
+ 
+-registry as (
++competitions as (
+     select
+         league_code,
+-        competition_type
+-    from {{ ref('competition_registry') }}
+-),
+-
+-types as (
+-    select
+         competition_type,
+         entity_type
+-    from {{ ref('competition_types') }}
++    from {{ ref('dim_league') }}
+ )
+ 
+ select
+@@ -50,7 +43,7 @@ select
+     m.league_code,
+     m.season_api_year,
+     reg.competition_type,
+-    typ.entity_type,
++    reg.entity_type,
+     p.player_name,
+     p.player_position,
+     p.player_nationality,
+@@ -59,8 +52,6 @@ select
+ from mapping as m
+ left join players as p
+     on m.player_sk = p.player_sk
+-left join registry as reg
++left join competitions as reg
+     on m.league_code = reg.league_code
+-left join types as typ
+-    on reg.competition_type = typ.competition_type
+-where typ.entity_type = 'club'
++where reg.entity_type = 'club'
+diff --git a/dbt_project/models/5_marts/shared/mart_standings.sql b/dbt_project/models/5_marts/shared/mart_standings.sql
+index 733a12a5..099b401d 100644
+--- a/dbt_project/models/5_marts/shared/mart_standings.sql
++++ b/dbt_project/models/5_marts/shared/mart_standings.sql
+@@ -26,7 +26,7 @@
+   is the competition's own league table.
+ 
+   league_code discriminates the competition and is not a BigQuery partition or cluster key;
+-  competition_type / entity_type come from the registry + types seeds. Lives in shared/
++  competition_type / entity_type come from dim_league. Lives in shared/
+   because the output shape is uniform across competition types.
+ 
+   Grain: (league_code, season_api_year, group_name, team_sk).
+@@ -36,18 +36,15 @@ with standings as (
+     select * from {{ ref('int_standings__official_rank') }}
+ ),
+ 
+-registry as (
+-    select * from {{ ref('competition_registry') }}
+-),
+-
+-types as (
+-    select * from {{ ref('competition_types') }}
++competitions as (
++    select * from {{ ref('dim_league') }}
+ ),
+ 
+ teams as (
+     select
+         team_sk,
+         team_name,
++        team_slug,
+         team_logo_url
+     from {{ ref('dim_team') }}
+ ),
+@@ -66,10 +63,11 @@ select
+     s.season_api_year,
+     s.group_name,
+     reg.competition_type,
+-    typ.entity_type,
++    reg.entity_type,
+     s.team_sk,
+     s.team_api_id,
+     t.team_name,
++    t.team_slug,
+     t.team_logo_url,
+     s.standing_rank,
+     s.points,
+@@ -84,10 +82,8 @@ select
+     s.group_description,
+     coalesce(k.table_kind, 'league') as table_kind
+ from standings as s
+-left join registry as reg
++left join competitions as reg
+     on s.league_code = reg.league_code
+-left join types as typ
+-    on reg.competition_type = typ.competition_type
+ left join teams as t
+     on s.team_sk = t.team_sk
+ left join section_kinds as k
+diff --git a/dbt_project/models/5_marts/shared/mart_team_competitions.sql b/dbt_project/models/5_marts/shared/mart_team_competitions.sql
+index 257e17ec..3aad2ffc 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_competitions.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_competitions.sql
+@@ -40,18 +40,12 @@ ties as (
+     select * from {{ ref('int_knockout_ties') }}
+ ),
+ 
+-registry as (
++competitions as (
+     select
+         league_code,
+-        competition_type
+-    from {{ ref('competition_registry') }}
+-),
+-
+-types as (
+-    select
+         competition_type,
+         entity_type
+-    from {{ ref('competition_types') }}
++    from {{ ref('dim_league') }}
+ ),
+ 
+ sides as (
+@@ -233,7 +227,7 @@ select
+     r.league_code,
+     r.season_api_year,
+     reg.competition_type,
+-    typ.entity_type,
++    reg.entity_type,
+     s.group_name as standing_group_name,
+     s.standing_rank,
+     s.played,
+@@ -303,7 +297,5 @@ left join standings as s
+         r.team_sk = s.team_sk
+         and r.league_code = s.league_code
+         and r.season_api_year = s.season_api_year
+-left join registry as reg
++left join competitions as reg
+     on r.league_code = reg.league_code
+-left join types as typ
+-    on reg.competition_type = typ.competition_type
+diff --git a/dbt_project/models/5_marts/shared/mart_team_index.sql b/dbt_project/models/5_marts/shared/mart_team_index.sql
+index 67fa4de4..bf1ec1d1 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_index.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_index.sql
+@@ -36,27 +36,29 @@ teams as (
+     from {{ ref('dim_team') }}
+ ),
+ 
+-registry as (
++competitions as (
+     select
+         league_code,
+         competition_type,
++        entity_type,
+         parent_competition,
+-        confederation,
+-        tier
+-    from {{ ref('competition_registry') }}
++        confederation
++    from {{ ref('dim_league') }}
+ ),
+ 
+-competition_types as (
++competition_seasons as (
+     select
+-        competition_type,
+-        entity_type
+-    from {{ ref('competition_types') }}
++        league_code,
++        season_api_year,
++        tier
++    from {{ ref('dim_competition_season') }}
+ ),
+ 
+ regions as (
+     select
+         confederation,
+         region_rank,
++        label_i18n_key,
+         top_club_competition,
+         continental_championship
+     from {{ ref('confederations') }}
+@@ -214,12 +216,10 @@ top_clubs as (
+ team_kinds as (
+     select
+         tc.team_sk,
+-        logical_or(ct.entity_type = 'national') as is_national
++        logical_or(reg.entity_type = 'national') as is_national
+     from team_competitions as tc
+-    inner join registry as reg
++    inner join competitions as reg
+         on tc.league_code = reg.league_code
+-    inner join competition_types as ct
+-        on reg.competition_type = ct.competition_type
+     group by tc.team_sk
+ ),
+ 
+@@ -229,7 +229,7 @@ team_regions as (
+         tc.team_sk,
+         reg.confederation as region_key
+     from team_competitions as tc
+-    inner join registry as reg
++    inner join competitions as reg
+         on tc.league_code = reg.league_code
+     inner join regions as g
+         on reg.confederation = g.confederation
+@@ -253,7 +253,7 @@ covered_leagues as (
+     select
+         tc.team_sk,
+         tc.league_code,
+-        reg.tier as league_tier,
++        cs.tier as league_tier,
+         tc.standing_group_name,
+         tc.standing_rank as league_position
+     from team_competitions as tc
+@@ -261,10 +261,12 @@ covered_leagues as (
+         on
+             tc.league_code = ls.league_code
+             and tc.season_api_year = ls.season_api_year
+-    inner join registry as reg
+-        on tc.league_code = reg.league_code
++    inner join competition_seasons as cs
++        on
++            tc.league_code = cs.league_code
++            and tc.season_api_year = cs.season_api_year
+     qualify row_number() over (
+-        partition by tc.team_sk order by reg.tier asc, tc.league_code asc
++        partition by tc.team_sk order by cs.tier asc, tc.league_code asc
+     ) = 1
+ ),
+ 
+@@ -392,7 +394,7 @@ world_cups as (
+         s.league_code,
+         s.season_api_year
+     from finished_seasons as s
+-    inner join registry as reg
++    inner join competitions as reg
+         on s.league_code = reg.league_code
+     where reg.competition_type = 'world_championship' and s.recency = 1
+ ),
+@@ -438,9 +440,9 @@ qualifier_seasons as (
+         f.league_code,
+         max(f.season_api_year) as season_api_year
+     from fixtures as f
+-    inner join registry as reg
++    inner join competitions as reg
+         on f.league_code = reg.league_code
+-    inner join registry as parent
++    inner join competitions as parent
+         on reg.parent_competition = parent.league_code
+     inner join round_names as r
+         on
+@@ -549,7 +551,7 @@ tournament_days as (
+         min(f.fixture_date) as first_day,
+         max(f.fixture_date) as final_day
+     from fixtures as f
+-    inner join registry as reg
++    inner join competitions as reg
+         on f.league_code = reg.league_code
+     left join regions as g
+         on f.league_code = g.continental_championship
+@@ -586,6 +588,8 @@ select
+     n.world_cup_stage,
+     n.championship_stage,
+     b.national_teams_first,
++    rg.region_rank,
++    rg.label_i18n_key as region_label_i18n_key,
+     coalesce(tc.cup_region_key, r.region_key, co.country_region_key) as region_key,
+     if(k.is_national, 'national', 'club') as entity_type
+ from teams as t
+@@ -611,4 +615,6 @@ left join club_orders as cl
+     on t.team_sk = cl.team_sk
+ left join national_orders as n
+     on t.team_sk = n.team_sk
++left join regions as rg
++    on coalesce(tc.cup_region_key, r.region_key, co.country_region_key) = rg.confederation
+ cross join block_order as b
+diff --git a/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql b/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
+index 257659e9..48bfd09d 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
+@@ -104,6 +104,13 @@ teams as (
+     from {{ ref('dim_team') }}
+ ),
+ 
++competition_seasons as (
++    select
++        season_sk,
++        competition_group
++    from {{ ref('dim_competition_season') }}
++),
++
+ base as (
+     select
+         l.team_sk,
+@@ -117,6 +124,7 @@ base as (
+         t.team_name,
+         t.team_slug,
+         t.team_logo_url,
++        cs.competition_group,
+         case
+             when l.metric_key in (
+                 {% for key in most_first_by_ruling %}
+@@ -128,6 +136,7 @@ base as (
+         end as rank_order
+     from long as l
+     left join teams as t on l.team_sk = t.team_sk
++    left join competition_seasons as cs on l.season_sk = cs.season_sk
+     -- inner: a board whose metric the catalogue does not define has no direction and no rows,
+     -- which assert_mart_team_leaderboards_all_boards_present then reports as a missing board
+     inner join catalogue as c on l.metric_key = c.metric_id
+@@ -183,6 +192,7 @@ select
+     metric_value as sort_value,
+     league_code,
+     season_api_year,
++    competition_group,
+     season_sk,
+     league_sk,
+     team_sk,
+diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+index a2abb075..ed386668 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+@@ -31,11 +31,18 @@ teams as (
+     select * from {{ ref('dim_team') }}
+ ),
+ 
+-registry as (
++competitions as (
+     select
+         league_code,
+         competition_type
+-    from {{ ref('competition_registry') }}
++    from {{ ref('dim_league') }}
++),
++
++competition_seasons as (
++    select
++        season_sk,
++        season_label
++    from {{ ref('dim_competition_season') }}
+ ),
+ 
+ yoy as (
+@@ -229,6 +236,7 @@ select
+     br.heaviest_defeat_goals_for,
+     br.heaviest_defeat_goals_against,
+     br.heaviest_defeat_kickoff_datetime,
++    cs.season_label,
+     -- The season this team's page opens on (#846). Exactly one row per team is true: the most
+     -- recent DOMESTIC LEAGUE season, falling back to the most recent season of any type for a team
+     -- with no league season. A warehouse fact, so the export and the page
+@@ -245,7 +253,7 @@ left join team_season as ts
+     on m.team_season_sk = ts.team_season_sk
+ left join teams as t
+     on m.team_sk = t.team_sk
+-left join registry as reg
++left join competitions as reg
+     on m.league_code = reg.league_code
+ left join yoy as y
+     on
+@@ -273,3 +281,5 @@ left join opponents as bw
+     on br.biggest_win_opponent_team_sk = bw.team_sk
+ left join opponents as hd
+     on br.heaviest_defeat_opponent_team_sk = hd.team_sk
++left join competition_seasons as cs
++    on m.season_sk = cs.season_sk
+diff --git a/dbt_project/models/5_marts/shared/mart_team_season_record.sql b/dbt_project/models/5_marts/shared/mart_team_season_record.sql
+index 4362424d..e1bfd89a 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_season_record.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_season_record.sql
+@@ -113,7 +113,7 @@ chosen as (
+ 
+ domestic_leagues as (
+     select league_code
+-    from {{ ref('competition_registry') }}
++    from {{ ref('dim_league') }}
+     where competition_type = 'domestic_league'
+ )
+ 
+diff --git a/dbt_project/models/5_marts/shared/mart_team_window_metrics.sql b/dbt_project/models/5_marts/shared/mart_team_window_metrics.sql
+index 9b119be8..085deb18 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_window_metrics.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_window_metrics.sql
+@@ -28,7 +28,7 @@ fixtures as (
+ 
+ domestic_leagues as (
+     select league_code
+-    from {{ ref('competition_registry') }}
++    from {{ ref('dim_league') }}
+     where competition_type = 'domestic_league'
+ ),
+ 
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 99ee9682..f8298ff1 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -16,8 +16,8 @@ models:
+       One row per competition: its identity, type, region, crest and the facts needed to put a
+       list of competitions in order. Grain: league_code.
+ 
+-      Composed from the registry, competition-type and confederation seeds, dim_league and
+-      fct_fixture, so everything about a competition is available from one place.
++      Composed from dim_league, the competition-type and confederation seeds and fct_fixture, so
++      everything about a competition is available from one place.
+ 
+       It carries the ordering INPUTS as facts — next_kickoff_datetime, last_kickoff_datetime,
+       region_rank — and deliberately does not pre-bake an ORDER BY: sorting is arrangement, not a
+@@ -32,7 +32,7 @@ models:
+           - not_null
+           - unique
+           - relationships:
+-              to: ref('competition_registry')
++              to: ref('dim_league')
+               field: league_code
+       - name: competition_type
+         description: "{{ doc('competition_type') }}"
+@@ -48,7 +48,7 @@ models:
+           - accepted_values:
+               values: ["club", "national"]
+       - name: slug
+-        description: "From competition_registry.slug — the row's link target."
++        description: "From dim_league.slug — the row's link target."
+         tests: [not_null]
+       - name: category_label_en
+         description: "From competition_types.label_en — the category heading text."
+@@ -57,12 +57,14 @@ models:
+         description: "From competition_types.label_i18n_key — the category heading's i18n key."
+         tests: [not_null]
+       - name: confederation
+-        description: "From competition_registry.confederation — also a page filter axis."
++        description: "From dim_league.confederation — also a page filter axis."
+         tests:
+           - not_null
+           - relationships:
+               to: ref('confederations')
+               field: confederation
++      - name: tier
++        description: "The league's level in its country in its latest season, from dim_competition_season: 1 for the top flight. NULL for every competition that is not a domestic league."
+       - name: region_rank
+         description: "From confederations.region_rank — the one hand-set ordering input."
+         tests: [not_null]
+@@ -76,7 +78,7 @@ models:
+       - name: region_label_en
+         description: >
+           The competition's country if it has one (league_country), otherwise its region's English
+-          label (the confederation's label_en). Never both and never neither: every registry row's
++          label (the confederation's label_en). Never both and never neither: every competition's
+           confederation is foreign-key guaranteed to resolve, so exactly one of the two is always
+           available.
+         tests: [not_null]
+@@ -911,6 +913,8 @@ models:
+           expression: "saves_pct_prev_season is null or (saves_pct_prev_season between 0 and 1)"
+           name: team_profile_saves_pct_prev_season_in_range
+     columns:
++      - name: season_label
++        description: "The season's name as the site shows it, from dim_competition_season."
+       - name: is_featured_season
+         description: >
+           True on the one season that represents this team: its most recent domestic-league
+@@ -1445,6 +1449,10 @@ models:
+           - relationships:
+               to: ref('dim_player')
+               field: player_sk
++      - name: player_name
++        description: "{{ doc('player_name') }}"
++      - name: player_photo_url
++        description: "{{ doc('player_photo_url') }}"
+       - name: league_code
+         description: "{{ doc('league_code') }}"
+         tests: [not_null]
+@@ -1606,6 +1614,8 @@ models:
+               field: team_sk
+       - name: team_name
+         description: "Denormalised from dim_team."
++      - name: team_slug
++        description: "{{ doc('team_slug') }}"
+       - name: team_logo_url
+         description: "{{ doc('team_logo_url') }}"
+       - name: standing_rank
+@@ -1818,15 +1828,13 @@ models:
+       - name: competition_type
+         description: >
+           {{ doc('competition_type') }} Carried here so a league can be told from a cup without
+-          re-joining the registry, which is what lets the featured-season rule prefer one.
++          re-joining dim_league, which is what lets the featured-season rule prefer one.
+       - name: entity_type
+         description: >
+           {{ doc('entity_type') }} It is what scopes the featured season to club football.
+ 
+-          The defect has a silent form here: a league_code present in the registry but carrying a
+-          blank competition_type, which the sync and both registry guards skip on the same
+-          condition. The not_null test is here because such a NULL would not fail loudly on its
+-          own: it reads as non-club, so the player would quietly open on the wrong season.
++          The not_null test is here because a NULL would not fail loudly on its own: it reads as
++          non-club, so the player would quietly open on the wrong season.
+         tests:
+           - not_null
+           - accepted_values:
+@@ -2467,6 +2475,11 @@ models:
+       - name: season_api_year
+         description: "{{ doc('season_api_year') }}"
+         tests: [not_null]
++      - name: competition_group
++        description: "The row's league's group in this season, from dim_competition_season: the set of leagues it is ranked alongside, such as elite. It selects the leagues on the home page's Top players board. NULL for a competition that is not a domestic league."
++        tests:
++          - accepted_values:
++              values: ["elite", "europe", "international", "calendar", "secondary"]
+       - name: player_name
+         description: "{{ doc('player_name') }}"
+       - name: player_nationality
+@@ -2667,6 +2680,11 @@ models:
+       - name: season_api_year
+         description: "{{ doc('season_api_year') }}"
+         tests: [not_null]
++      - name: competition_group
++        description: "The row's league's group in this season, from dim_competition_season: the set of leagues it is ranked alongside, such as elite. It selects the leagues on the home page's Top teams board. NULL for a competition that is not a domestic league."
++        tests:
++          - accepted_values:
++              values: ["elite", "europe", "international", "calendar", "secondary"]
+       - name: team_name
+         description: "Denormalised from dim_team."
+       - name: team_slug
+@@ -2856,6 +2874,8 @@ models:
+       - name: season_api_year
+         description: "{{ doc('season_api_year') }}"
+         tests: [not_null]
++      - name: season_label
++        description: "The season's name as the site shows it, from dim_competition_season."
+       - name: round_name
+         description: "{{ doc('round_name') }}"
+         tests: [not_null]
+@@ -2916,6 +2936,8 @@ models:
+         description: "The home team's crest URL from dim_team."
+       - name: home_team_formation
+         description: "{{ doc('team_formation') }} Here, the home team's; NULL unless lineup_state is confirmed or researched."
++      - name: home_team_country
++        description: "{{ doc('team_country') }} Here, the home team's."
+       - name: away_team_sk
+         description: "{{ doc('away_team_sk') }}"
+         tests:
+@@ -2932,6 +2954,8 @@ models:
+         description: "The away team's crest URL from dim_team."
+       - name: away_team_formation
+         description: "{{ doc('team_formation') }} Here, the away team's; NULL unless lineup_state is confirmed or researched."
++      - name: away_team_country
++        description: "{{ doc('team_country') }} Here, the away team's."
+       - name: fixture_slug
+         description: "The match's permanent URL segment: the kick-off date, the home team's slug, -vs-, the away team's slug, e.g. YYYY-MM-DD-bayern-munchen-vs-1-fc-union-berlin. Present on every row: both teams resolve on dim_team, whose slug is never null."
+         tests: [not_null]
+@@ -3191,7 +3215,7 @@ models:
+       those are in mart_player_career. Age is not stored, because a stored age stops being true;
+       derive it from player_birth_date.
+ 
+-      Scoped to club competitions via the registry and competition_types, never a flag on
++      Scoped to club competitions via dim_league's entity_type, never a flag on
+       dim_team. dim_player is LEFT-joined, so a membership with no player entity fails the
+       relationships test rather than vanishing.
+     config:
+@@ -3889,11 +3913,15 @@ models:
+           - relationships:
+               to: ref('confederations')
+               field: confederation
++      - name: region_rank
++        description: "The region's place in the platform's region order, from confederations.region_rank. NULL when region_key is NULL."
++      - name: region_label_i18n_key
++        description: "The copy key that names the region, from confederations.label_i18n_key. NULL when region_key is NULL."
+       - name: league_code
+         description: "The domestic league the club plays in this season, the top tier when it plays in two; NULL for a national team or a club in no covered league."
+         tests:
+           - relationships:
+-              to: ref('competition_registry')
++              to: ref('dim_league')
+               field: league_code
+       - name: league_tier
+         description: "That league's tier, 1 for a top flight."
+diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
+index 27b39bc7..1f60a427 100644
+--- a/dbt_project/models/docs/shared_columns.md
++++ b/dbt_project/models/docs/shared_columns.md
+@@ -710,16 +710,14 @@ competition, so it reads well and sorts badly — never parsed into a value here
+ 
+ {% docs competition_type %}
+ The competition's type (domestic_league, domestic_cup, continental_cup, world_championship, …),
+-resolved from league_code through the competition_registry seed; joins competition_types.
++resolved from league_code through dim_league; joins competition_types.
+ {% enddocs %}
+ 
+ {% docs entity_type %}
+ Whether the competition this row belongs to is club or national-team football: `club` or
+-`national`, resolved from league_code through the competition_registry and competition_types
+-seeds. Never NULL for a tracked competition, since every active league_code is in the registry
+-and every registry type maps to one of the two; a NULL would mean the registry does not know
+-the row's competition, which the not_null tests on the match-leg and form models treat as a
+-defect rather than a value.
++`national`, resolved from league_code through dim_league. Never NULL for a tracked competition,
++since dim_league tests its entity_type not null. A NULL means dim_league does not know the row's
++competition. The not_null tests on the match-leg and form models treat that as a defect.
+ {% enddocs %}
+ 
+ {% docs result %}
+diff --git a/dbt_project/seeds/competition_registry.csv b/dbt_project/seeds/competition_registry.csv
+index 9e801db2..e2ba3e58 100644
+--- a/dbt_project/seeds/competition_registry.csv
++++ b/dbt_project/seeds/competition_registry.csv
+@@ -1,49 +1,49 @@
+-league_code,competition_type,parent_competition,confederation,slug,sort_order,tier,season_type,competition_group
+-ACN,continental_championship,,AFC,asian-cup,50,,calendar_year,
+-AFCCL,continental_cup,,AFC,afc-champions-league,70,,split_year,
+-AFCON,continental_championship,,CAF,africa-cup-of-nations,40,,calendar_year,
+-APD,domestic_league,,CONMEBOL,liga-profesional-argentina,100,1,calendar_year,calendar
+-BL1,domestic_league,,UEFA,bundesliga,30,1,split_year,elite
+-BL2,domestic_league,,UEFA,2-bundesliga,60,2,split_year,secondary
+-BPL,domestic_league,,UEFA,belgian-pro-league,170,1,split_year,europe
+-BSA,domestic_league,,CONMEBOL,brasileirao,90,1,calendar_year,calendar
+-CAFCL,continental_cup,,CAF,caf-champions-league,80,,split_year,
+-CCCU,continental_cup,,CONCACAF,concacaf-champions-cup,90,,split_year,
+-CDF,domestic_cup,L1,UEFA,coupe-de-france,50,,split_year,
+-CDR,domestic_cup,PD,UEFA,copa-del-rey,20,,split_year,
+-CIT,domestic_cup,SA,UEFA,coppa-italia,40,,split_year,
+-CNL,continental_championship,,CONCACAF,concacaf-nations-league,80,,calendar_year,
+-COAM,continental_championship,,CONMEBOL,copa-america,30,,calendar_year,
+-CWC,club_world_cup,,FIFA,club-world-cup,60,,calendar_year,
+-DFBP,domestic_cup,BL1,UEFA,dfb-pokal,30,,split_year,
+-ED,domestic_league,,UEFA,eredivisie,70,1,split_year,elite
+-EKS,domestic_league,,UEFA,ekstraklasa,190,1,split_year,europe
+-EURO,continental_championship,,UEFA,euro,20,,calendar_year,
+-FAC,domestic_cup,PL,UEFA,fa-cup,10,,split_year,
+-GCUP,continental_championship,,CONCACAF,gold-cup,60,,calendar_year,
+-J1,domestic_league,,AFC,j1-league,140,1,calendar_year,calendar
+-KL1,domestic_league,,AFC,k-league-1,150,1,calendar_year,calendar
+-L1,domestic_league,,UEFA,ligue-1,50,1,split_year,elite
+-LIBER,continental_cup,,CONMEBOL,copa-libertadores,50,,calendar_year,
+-LMX,domestic_league,,CONCACAF,liga-mx,110,1,split_year,international
+-LP,domestic_league,,UEFA,liga-portugal,80,1,split_year,elite
+-MLS,domestic_league,,CONCACAF,mls,120,1,calendar_year,calendar
+-PD,domestic_league,,UEFA,la-liga,20,1,split_year,elite
+-PL,domestic_league,,UEFA,premier-league,10,1,split_year,elite
+-SA,domestic_league,,UEFA,serie-a,40,1,split_year,elite
+-SPL,domestic_league,,AFC,saudi-pro-league,130,1,split_year,international
+-TSL,domestic_league,,UEFA,super-lig,180,1,split_year,europe
+-UCL,continental_cup,,UEFA,champions-league,10,,split_year,
+-UECL,continental_cup,,UEFA,conference-league,30,,split_year,
+-UEL,continental_cup,,UEFA,europa-league,20,,split_year,
+-UESC,continental_super_cup,,UEFA,uefa-super-cup,40,,calendar_year,
+-UNL,continental_championship,,UEFA,nations-league,70,,split_year,
+-VL,domestic_league,,UEFA,veikkausliiga,160,1,calendar_year,calendar
+-WC,world_championship,,FIFA,world-cup,10,,calendar_year,
+-WCQAF,qualifying,WC,CAF,world-cup-qualification-africa,110,,calendar_year,
+-WCQAS,qualifying,WC,AFC,world-cup-qualification-asia,120,,calendar_year,
+-WCQCA,qualifying,WC,CONCACAF,world-cup-qualification-concacaf,130,,calendar_year,
+-WCQEU,qualifying,WC,UEFA,world-cup-qualification-europe,90,,calendar_year,
+-WCQIP,qualifying,WC,FIFA,world-cup-qualification-playoffs,150,,calendar_year,
+-WCQOC,qualifying,WC,OFC,world-cup-qualification-oceania,140,,calendar_year,
+-WCQSA,qualifying,WC,CONMEBOL,world-cup-qualification-south-america,100,,calendar_year,
++league_code,competition_type,parent_competition,confederation,slug,sort_order,season_type
++ACN,continental_championship,,AFC,asian-cup,50,calendar_year
++AFCCL,continental_cup,,AFC,afc-champions-league,70,split_year
++AFCON,continental_championship,,CAF,africa-cup-of-nations,40,calendar_year
++APD,domestic_league,,CONMEBOL,liga-profesional-argentina,100,calendar_year
++BL1,domestic_league,,UEFA,bundesliga,30,split_year
++BL2,domestic_league,,UEFA,2-bundesliga,60,split_year
++BPL,domestic_league,,UEFA,belgian-pro-league,170,split_year
++BSA,domestic_league,,CONMEBOL,brasileirao,90,calendar_year
++CAFCL,continental_cup,,CAF,caf-champions-league,80,split_year
++CCCU,continental_cup,,CONCACAF,concacaf-champions-cup,90,split_year
++CDF,domestic_cup,L1,UEFA,coupe-de-france,50,split_year
++CDR,domestic_cup,PD,UEFA,copa-del-rey,20,split_year
++CIT,domestic_cup,SA,UEFA,coppa-italia,40,split_year
++CNL,continental_championship,,CONCACAF,concacaf-nations-league,80,calendar_year
++COAM,continental_championship,,CONMEBOL,copa-america,30,calendar_year
++CWC,club_world_cup,,FIFA,club-world-cup,60,calendar_year
++DFBP,domestic_cup,BL1,UEFA,dfb-pokal,30,split_year
++ED,domestic_league,,UEFA,eredivisie,70,split_year
++EKS,domestic_league,,UEFA,ekstraklasa,190,split_year
++EURO,continental_championship,,UEFA,euro,20,calendar_year
++FAC,domestic_cup,PL,UEFA,fa-cup,10,split_year
++GCUP,continental_championship,,CONCACAF,gold-cup,60,calendar_year
++J1,domestic_league,,AFC,j1-league,140,calendar_year
++KL1,domestic_league,,AFC,k-league-1,150,calendar_year
++L1,domestic_league,,UEFA,ligue-1,50,split_year
++LIBER,continental_cup,,CONMEBOL,copa-libertadores,50,calendar_year
++LMX,domestic_league,,CONCACAF,liga-mx,110,split_year
++LP,domestic_league,,UEFA,liga-portugal,80,split_year
++MLS,domestic_league,,CONCACAF,mls,120,calendar_year
++PD,domestic_league,,UEFA,la-liga,20,split_year
++PL,domestic_league,,UEFA,premier-league,10,split_year
++SA,domestic_league,,UEFA,serie-a,40,split_year
++SPL,domestic_league,,AFC,saudi-pro-league,130,split_year
++TSL,domestic_league,,UEFA,super-lig,180,split_year
++UCL,continental_cup,,UEFA,champions-league,10,split_year
++UECL,continental_cup,,UEFA,conference-league,30,split_year
++UEL,continental_cup,,UEFA,europa-league,20,split_year
++UESC,continental_super_cup,,UEFA,uefa-super-cup,40,calendar_year
++UNL,continental_championship,,UEFA,nations-league,70,split_year
++VL,domestic_league,,UEFA,veikkausliiga,160,calendar_year
++WC,world_championship,,FIFA,world-cup,10,calendar_year
++WCQAF,qualifying,WC,CAF,world-cup-qualification-africa,110,calendar_year
++WCQAS,qualifying,WC,AFC,world-cup-qualification-asia,120,calendar_year
++WCQCA,qualifying,WC,CONCACAF,world-cup-qualification-concacaf,130,calendar_year
++WCQEU,qualifying,WC,UEFA,world-cup-qualification-europe,90,calendar_year
++WCQIP,qualifying,WC,FIFA,world-cup-qualification-playoffs,150,calendar_year
++WCQOC,qualifying,WC,OFC,world-cup-qualification-oceania,140,calendar_year
++WCQSA,qualifying,WC,CONMEBOL,world-cup-qualification-south-america,100,calendar_year
+diff --git a/dbt_project/seeds/competition_season_map.csv b/dbt_project/seeds/competition_season_map.csv
+index cf2fdf22..eb1dca75 100644
+--- a/dbt_project/seeds/competition_season_map.csv
++++ b/dbt_project/seeds/competition_season_map.csv
+@@ -1,237 +1,237 @@
+-league_code,season_api_year,season_type,split_year_season,calendar_year_season,previous_season_api_year,note
+-AFCCL,2016,calendar_year,2015,2016,,
+-AFCCL,2017,calendar_year,2016,2017,2016,
+-AFCCL,2018,calendar_year,2017,2018,2017,
+-AFCCL,2019,calendar_year,2018,2019,2018,
+-AFCCL,2020,calendar_year,2019,2020,2019,
+-AFCCL,2021,calendar_year,2020,2021,2020,
+-AFCCL,2022,calendar_year,2021,2022,2021,
+-AFCCL,2023,split_year,2023,2023,2022,
+-AFCCL,2024,split_year,2024,2024,2023,
+-AFCCL,2025,split_year,2025,2025,2024,
+-AFCCL,2026,split_year,2026,2026,2025,
+-APD,2022,calendar_year,2021,2022,,
+-APD,2023,calendar_year,2022,2023,2022,
+-APD,2024,calendar_year,2023,2024,2023,
+-APD,2025,calendar_year,2024,2025,2024,
+-APD,2026,calendar_year,2025,2026,2025,
+-BL1,2016,split_year,2016,2016,,
+-BL1,2017,split_year,2017,2017,2016,
+-BL1,2018,split_year,2018,2018,2017,
+-BL1,2019,split_year,2019,2019,2018,
+-BL1,2020,split_year,2020,2020,2019,
+-BL1,2021,split_year,2021,2021,2020,
+-BL1,2022,split_year,2022,2022,2021,
+-BL1,2023,split_year,2023,2023,2022,
+-BL1,2024,split_year,2024,2024,2023,
+-BL1,2025,split_year,2025,2025,2024,
+-BL1,2026,split_year,2026,2026,2025,
+-BL2,2021,split_year,2021,2021,,
+-BL2,2022,split_year,2022,2022,2021,
+-BL2,2023,split_year,2023,2023,2022,
+-BL2,2024,split_year,2024,2024,2023,
+-BL2,2025,split_year,2025,2025,2024,
+-BL2,2026,split_year,2026,2026,2025,
+-BPL,2022,split_year,2022,2022,,
+-BPL,2023,split_year,2023,2023,2022,
+-BPL,2024,split_year,2024,2024,2023,
+-BPL,2025,split_year,2025,2025,2024,
+-BPL,2026,split_year,2026,2026,2025,
+-BSA,2022,calendar_year,2021,2022,,
+-BSA,2023,calendar_year,2022,2023,2022,
+-BSA,2024,calendar_year,2023,2024,2023,
+-BSA,2025,calendar_year,2024,2025,2024,
+-BSA,2026,calendar_year,2025,2026,2025,
+-CAFCL,2019,split_year,2019,2019,,
+-CAFCL,2020,split_year,2020,2020,2019,
+-CAFCL,2021,split_year,2021,2021,2020,
+-CAFCL,2022,split_year,2022,2022,2021,
+-CAFCL,2023,split_year,2023,2023,2022,
+-CAFCL,2024,split_year,2024,2024,2023,
+-CAFCL,2025,split_year,2025,2025,2024,
+-CAFCL,2026,split_year,2026,2026,2025,
+-CCCU,2017,split_year,2016,2016,,
+-CCCU,2018,calendar_year,2017,2018,2017,
+-CCCU,2019,calendar_year,2018,2019,2018,
+-CCCU,2020,calendar_year,2019,2020,2019,
+-CCCU,2021,calendar_year,2020,2021,2020,
+-CCCU,2022,calendar_year,2021,2022,2021,
+-CCCU,2023,calendar_year,2022,2023,2022,
+-CCCU,2024,calendar_year,2023,2024,2023,
+-CCCU,2025,calendar_year,2024,2025,2024,
+-CCCU,2026,calendar_year,2025,2026,2025,
+-CDF,2021,split_year,2021,2021,,
+-CDF,2022,split_year,2022,2022,2021,
+-CDF,2023,split_year,2023,2023,2022,
+-CDF,2024,split_year,2024,2024,2023,
+-CDF,2025,split_year,2025,2025,2024,
+-CDF,2026,split_year,2026,2026,2025,
+-CDR,2021,split_year,2021,2021,,
+-CDR,2022,split_year,2022,2022,2021,
+-CDR,2023,split_year,2023,2023,2022,
+-CDR,2024,split_year,2024,2024,2023,
+-CDR,2025,split_year,2025,2025,2024,
+-CDR,2026,split_year,2026,2026,2025,
+-CIT,2021,split_year,2021,2021,,
+-CIT,2022,split_year,2022,2022,2021,
+-CIT,2023,split_year,2023,2023,2022,
+-CIT,2024,split_year,2024,2024,2023,
+-CIT,2025,split_year,2025,2025,2024,
+-CIT,2026,split_year,2026,2026,2025,
+-CWC,2016,calendar_year,2016,2016,,
+-CWC,2017,calendar_year,2017,2017,2016,
+-CWC,2019,calendar_year,2019,2019,2017,
+-CWC,2020,calendar_year,2020,2021,2019,Played in the winter break of the season
+-CWC,2021,calendar_year,2021,2022,2020,Played in the winter break of the season
+-CWC,2022,calendar_year,2022,2023,2021,Played in the winter break of the season
+-CWC,2023,calendar_year,2023,2023,2022,
+-CWC,2025,calendar_year,2024,2025,2023,The end of the 2024/25 season
+-DFBP,2021,split_year,2021,2021,,
+-DFBP,2022,split_year,2022,2022,2021,
+-DFBP,2023,split_year,2023,2023,2022,
+-DFBP,2024,split_year,2024,2024,2023,
+-DFBP,2025,split_year,2025,2025,2024,
+-DFBP,2026,split_year,2026,2026,2025,
+-ED,2022,split_year,2022,2022,,
+-ED,2023,split_year,2023,2023,2022,
+-ED,2024,split_year,2024,2024,2023,
+-ED,2025,split_year,2025,2025,2024,
+-ED,2026,split_year,2026,2026,2025,
+-EKS,2022,split_year,2022,2022,,
+-EKS,2023,split_year,2023,2023,2022,
+-EKS,2024,split_year,2024,2024,2023,
+-EKS,2025,split_year,2025,2025,2024,
+-EKS,2026,split_year,2026,2026,2025,
+-FAC,2021,split_year,2021,2021,,
+-FAC,2022,split_year,2022,2022,2021,
+-FAC,2023,split_year,2023,2023,2022,
+-FAC,2024,split_year,2024,2024,2023,
+-FAC,2025,split_year,2025,2025,2024,
+-FAC,2026,split_year,2026,2026,2025,
+-J1,2022,calendar_year,2021,2022,,
+-J1,2023,calendar_year,2022,2023,2022,
+-J1,2024,calendar_year,2023,2024,2023,
+-J1,2025,calendar_year,2024,2025,2024,
+-J1,2026,calendar_year,2025,2026,2025,Transition tournament between the two calendars
+-J1,2027,split_year,2026,2026,2026,First season on the summer-to-spring calendar
+-KL1,2022,calendar_year,2021,2022,,
+-KL1,2023,calendar_year,2022,2023,2022,
+-KL1,2024,calendar_year,2023,2024,2023,
+-KL1,2025,calendar_year,2024,2025,2024,
+-KL1,2026,calendar_year,2025,2026,2025,
+-L1,2016,split_year,2016,2016,,
+-L1,2017,split_year,2017,2017,2016,
+-L1,2018,split_year,2018,2018,2017,
+-L1,2019,split_year,2019,2019,2018,
+-L1,2020,split_year,2020,2020,2019,
+-L1,2021,split_year,2021,2021,2020,
+-L1,2022,split_year,2022,2022,2021,
+-L1,2023,split_year,2023,2023,2022,
+-L1,2024,split_year,2024,2024,2023,
+-L1,2025,split_year,2025,2025,2024,
+-L1,2026,split_year,2026,2026,2025,
+-LIBER,2019,calendar_year,2018,2019,,
+-LIBER,2020,calendar_year,2019,2020,2019,
+-LIBER,2021,calendar_year,2020,2021,2020,
+-LIBER,2022,calendar_year,2021,2022,2021,
+-LIBER,2023,calendar_year,2022,2023,2022,
+-LIBER,2024,calendar_year,2023,2024,2023,
+-LIBER,2025,calendar_year,2024,2025,2024,
+-LIBER,2026,calendar_year,2025,2026,2025,
+-LMX,2022,split_year,2022,2022,,
+-LMX,2023,split_year,2023,2023,2022,
+-LMX,2024,split_year,2024,2024,2023,
+-LMX,2025,split_year,2025,2025,2024,
+-LMX,2026,split_year,2026,2026,2025,
+-LP,2021,split_year,2021,2021,,
+-LP,2022,split_year,2022,2022,2021,
+-LP,2023,split_year,2023,2023,2022,
+-LP,2024,split_year,2024,2024,2023,
+-LP,2025,split_year,2025,2025,2024,
+-LP,2026,split_year,2026,2026,2025,
+-MLS,2022,calendar_year,2021,2022,,
+-MLS,2023,calendar_year,2022,2023,2022,
+-MLS,2024,calendar_year,2023,2024,2023,
+-MLS,2025,calendar_year,2024,2025,2024,
+-MLS,2026,calendar_year,2025,2026,2025,
+-PD,2016,split_year,2016,2016,,
+-PD,2017,split_year,2017,2017,2016,
+-PD,2018,split_year,2018,2018,2017,
+-PD,2019,split_year,2019,2019,2018,
+-PD,2020,split_year,2020,2020,2019,
+-PD,2021,split_year,2021,2021,2020,
+-PD,2022,split_year,2022,2022,2021,
+-PD,2023,split_year,2023,2023,2022,
+-PD,2024,split_year,2024,2024,2023,
+-PD,2025,split_year,2025,2025,2024,
+-PD,2026,split_year,2026,2026,2025,
+-PL,2016,split_year,2016,2016,,
+-PL,2017,split_year,2017,2017,2016,
+-PL,2018,split_year,2018,2018,2017,
+-PL,2019,split_year,2019,2019,2018,
+-PL,2020,split_year,2020,2020,2019,
+-PL,2021,split_year,2021,2021,2020,
+-PL,2022,split_year,2022,2022,2021,
+-PL,2023,split_year,2023,2023,2022,
+-PL,2024,split_year,2024,2024,2023,
+-PL,2025,split_year,2025,2025,2024,
+-PL,2026,split_year,2026,2026,2025,
+-SA,2016,split_year,2016,2016,,
+-SA,2017,split_year,2017,2017,2016,
+-SA,2018,split_year,2018,2018,2017,
+-SA,2019,split_year,2019,2019,2018,
+-SA,2020,split_year,2020,2020,2019,
+-SA,2021,split_year,2021,2021,2020,
+-SA,2022,split_year,2022,2022,2021,
+-SA,2023,split_year,2023,2023,2022,
+-SA,2024,split_year,2024,2024,2023,
+-SA,2025,split_year,2025,2025,2024,
+-SA,2026,split_year,2026,2026,2025,
+-SPL,2021,split_year,2021,2021,,
+-SPL,2022,split_year,2022,2022,2021,
+-SPL,2023,split_year,2023,2023,2022,
+-SPL,2024,split_year,2024,2024,2023,
+-SPL,2025,split_year,2025,2025,2024,
+-SPL,2026,split_year,2026,2026,2025,
+-TSL,2022,split_year,2022,2022,,
+-TSL,2023,split_year,2023,2023,2022,
+-TSL,2024,split_year,2024,2024,2023,
+-TSL,2025,split_year,2025,2025,2024,
+-TSL,2026,split_year,2026,2026,2025,
+-UCL,2017,split_year,2017,2017,,June qualifiers open the new season
+-UCL,2018,split_year,2018,2018,2017,June qualifiers open the new season
+-UCL,2019,split_year,2019,2019,2018,June qualifiers open the new season
+-UCL,2020,split_year,2020,2020,2019,
+-UCL,2021,split_year,2021,2021,2020,June qualifiers open the new season
+-UCL,2022,split_year,2022,2022,2021,June qualifiers open the new season
+-UCL,2023,split_year,2023,2023,2022,June qualifiers open the new season
+-UCL,2024,split_year,2024,2024,2023,
+-UCL,2025,split_year,2025,2025,2024,
+-UCL,2026,split_year,2026,2026,2025,
+-UECL,2021,split_year,2021,2021,,
+-UECL,2022,split_year,2022,2022,2021,
+-UECL,2023,split_year,2023,2023,2022,
+-UECL,2024,split_year,2024,2024,2023,
+-UECL,2025,split_year,2025,2025,2024,
+-UECL,2026,split_year,2026,2026,2025,
+-UEL,2017,split_year,2017,2017,,June qualifiers open the new season
+-UEL,2018,split_year,2018,2018,2017,June qualifiers open the new season
+-UEL,2019,split_year,2019,2019,2018,June qualifiers open the new season
+-UEL,2020,split_year,2020,2020,2019,
+-UEL,2021,split_year,2021,2021,2020,
+-UEL,2022,split_year,2022,2022,2021,
+-UEL,2023,split_year,2023,2023,2022,
+-UEL,2024,split_year,2024,2024,2023,
+-UEL,2025,split_year,2025,2025,2024,
+-UEL,2026,split_year,2026,2026,2025,
+-UESC,2021,split_year,2021,2021,,
+-UESC,2022,split_year,2022,2022,2021,
+-UESC,2023,split_year,2023,2023,2022,
+-UESC,2024,split_year,2024,2024,2023,
+-UESC,2025,split_year,2025,2025,2024,
+-UESC,2026,split_year,2026,2026,2025,
+-VL,2022,calendar_year,2021,2022,,
+-VL,2023,calendar_year,2022,2023,2022,
+-VL,2024,calendar_year,2023,2024,2023,
+-VL,2025,calendar_year,2024,2025,2024,
+-VL,2026,calendar_year,2025,2026,2025,
++league_code,season_api_year,season_type,split_year_season,calendar_year_season,previous_season_api_year,tier,competition_group,note
++AFCCL,2016,calendar_year,2015,2016,,,,
++AFCCL,2017,calendar_year,2016,2017,2016,,,
++AFCCL,2018,calendar_year,2017,2018,2017,,,
++AFCCL,2019,calendar_year,2018,2019,2018,,,
++AFCCL,2020,calendar_year,2019,2020,2019,,,
++AFCCL,2021,calendar_year,2020,2021,2020,,,
++AFCCL,2022,calendar_year,2021,2022,2021,,,
++AFCCL,2023,split_year,2023,2023,2022,,,
++AFCCL,2024,split_year,2024,2024,2023,,,
++AFCCL,2025,split_year,2025,2025,2024,,,
++AFCCL,2026,split_year,2026,2026,2025,,,
++APD,2022,calendar_year,2021,2022,,1,calendar,
++APD,2023,calendar_year,2022,2023,2022,1,calendar,
++APD,2024,calendar_year,2023,2024,2023,1,calendar,
++APD,2025,calendar_year,2024,2025,2024,1,calendar,
++APD,2026,calendar_year,2025,2026,2025,1,calendar,
++BL1,2016,split_year,2016,2016,,1,elite,
++BL1,2017,split_year,2017,2017,2016,1,elite,
++BL1,2018,split_year,2018,2018,2017,1,elite,
++BL1,2019,split_year,2019,2019,2018,1,elite,
++BL1,2020,split_year,2020,2020,2019,1,elite,
++BL1,2021,split_year,2021,2021,2020,1,elite,
++BL1,2022,split_year,2022,2022,2021,1,elite,
++BL1,2023,split_year,2023,2023,2022,1,elite,
++BL1,2024,split_year,2024,2024,2023,1,elite,
++BL1,2025,split_year,2025,2025,2024,1,elite,
++BL1,2026,split_year,2026,2026,2025,1,elite,
++BL2,2021,split_year,2021,2021,,2,secondary,
++BL2,2022,split_year,2022,2022,2021,2,secondary,
++BL2,2023,split_year,2023,2023,2022,2,secondary,
++BL2,2024,split_year,2024,2024,2023,2,secondary,
++BL2,2025,split_year,2025,2025,2024,2,secondary,
++BL2,2026,split_year,2026,2026,2025,2,secondary,
++BPL,2022,split_year,2022,2022,,1,europe,
++BPL,2023,split_year,2023,2023,2022,1,europe,
++BPL,2024,split_year,2024,2024,2023,1,europe,
++BPL,2025,split_year,2025,2025,2024,1,europe,
++BPL,2026,split_year,2026,2026,2025,1,europe,
++BSA,2022,calendar_year,2021,2022,,1,calendar,
++BSA,2023,calendar_year,2022,2023,2022,1,calendar,
++BSA,2024,calendar_year,2023,2024,2023,1,calendar,
++BSA,2025,calendar_year,2024,2025,2024,1,calendar,
++BSA,2026,calendar_year,2025,2026,2025,1,calendar,
++CAFCL,2019,split_year,2019,2019,,,,
++CAFCL,2020,split_year,2020,2020,2019,,,
++CAFCL,2021,split_year,2021,2021,2020,,,
++CAFCL,2022,split_year,2022,2022,2021,,,
++CAFCL,2023,split_year,2023,2023,2022,,,
++CAFCL,2024,split_year,2024,2024,2023,,,
++CAFCL,2025,split_year,2025,2025,2024,,,
++CAFCL,2026,split_year,2026,2026,2025,,,
++CCCU,2017,split_year,2016,2016,,,,
++CCCU,2018,calendar_year,2017,2018,2017,,,
++CCCU,2019,calendar_year,2018,2019,2018,,,
++CCCU,2020,calendar_year,2019,2020,2019,,,
++CCCU,2021,calendar_year,2020,2021,2020,,,
++CCCU,2022,calendar_year,2021,2022,2021,,,
++CCCU,2023,calendar_year,2022,2023,2022,,,
++CCCU,2024,calendar_year,2023,2024,2023,,,
++CCCU,2025,calendar_year,2024,2025,2024,,,
++CCCU,2026,calendar_year,2025,2026,2025,,,
++CDF,2021,split_year,2021,2021,,,,
++CDF,2022,split_year,2022,2022,2021,,,
++CDF,2023,split_year,2023,2023,2022,,,
++CDF,2024,split_year,2024,2024,2023,,,
++CDF,2025,split_year,2025,2025,2024,,,
++CDF,2026,split_year,2026,2026,2025,,,
++CDR,2021,split_year,2021,2021,,,,
++CDR,2022,split_year,2022,2022,2021,,,
++CDR,2023,split_year,2023,2023,2022,,,
++CDR,2024,split_year,2024,2024,2023,,,
++CDR,2025,split_year,2025,2025,2024,,,
++CDR,2026,split_year,2026,2026,2025,,,
++CIT,2021,split_year,2021,2021,,,,
++CIT,2022,split_year,2022,2022,2021,,,
++CIT,2023,split_year,2023,2023,2022,,,
++CIT,2024,split_year,2024,2024,2023,,,
++CIT,2025,split_year,2025,2025,2024,,,
++CIT,2026,split_year,2026,2026,2025,,,
++CWC,2016,calendar_year,2016,2016,,,,
++CWC,2017,calendar_year,2017,2017,2016,,,
++CWC,2019,calendar_year,2019,2019,2017,,,
++CWC,2020,calendar_year,2020,2021,2019,,,Played in the winter break of the season
++CWC,2021,calendar_year,2021,2022,2020,,,Played in the winter break of the season
++CWC,2022,calendar_year,2022,2023,2021,,,Played in the winter break of the season
++CWC,2023,calendar_year,2023,2023,2022,,,
++CWC,2025,calendar_year,2024,2025,2023,,,The end of the 2024/25 season
++DFBP,2021,split_year,2021,2021,,,,
++DFBP,2022,split_year,2022,2022,2021,,,
++DFBP,2023,split_year,2023,2023,2022,,,
++DFBP,2024,split_year,2024,2024,2023,,,
++DFBP,2025,split_year,2025,2025,2024,,,
++DFBP,2026,split_year,2026,2026,2025,,,
++ED,2022,split_year,2022,2022,,1,elite,
++ED,2023,split_year,2023,2023,2022,1,elite,
++ED,2024,split_year,2024,2024,2023,1,elite,
++ED,2025,split_year,2025,2025,2024,1,elite,
++ED,2026,split_year,2026,2026,2025,1,elite,
++EKS,2022,split_year,2022,2022,,1,europe,
++EKS,2023,split_year,2023,2023,2022,1,europe,
++EKS,2024,split_year,2024,2024,2023,1,europe,
++EKS,2025,split_year,2025,2025,2024,1,europe,
++EKS,2026,split_year,2026,2026,2025,1,europe,
++FAC,2021,split_year,2021,2021,,,,
++FAC,2022,split_year,2022,2022,2021,,,
++FAC,2023,split_year,2023,2023,2022,,,
++FAC,2024,split_year,2024,2024,2023,,,
++FAC,2025,split_year,2025,2025,2024,,,
++FAC,2026,split_year,2026,2026,2025,,,
++J1,2022,calendar_year,2021,2022,,1,calendar,
++J1,2023,calendar_year,2022,2023,2022,1,calendar,
++J1,2024,calendar_year,2023,2024,2023,1,calendar,
++J1,2025,calendar_year,2024,2025,2024,1,calendar,
++J1,2026,calendar_year,2025,2026,2025,1,calendar,Transition tournament between the two calendars
++J1,2027,split_year,2026,2026,2026,1,calendar,First season on the summer-to-spring calendar
++KL1,2022,calendar_year,2021,2022,,1,calendar,
++KL1,2023,calendar_year,2022,2023,2022,1,calendar,
++KL1,2024,calendar_year,2023,2024,2023,1,calendar,
++KL1,2025,calendar_year,2024,2025,2024,1,calendar,
++KL1,2026,calendar_year,2025,2026,2025,1,calendar,
++L1,2016,split_year,2016,2016,,1,elite,
++L1,2017,split_year,2017,2017,2016,1,elite,
++L1,2018,split_year,2018,2018,2017,1,elite,
++L1,2019,split_year,2019,2019,2018,1,elite,
++L1,2020,split_year,2020,2020,2019,1,elite,
++L1,2021,split_year,2021,2021,2020,1,elite,
++L1,2022,split_year,2022,2022,2021,1,elite,
++L1,2023,split_year,2023,2023,2022,1,elite,
++L1,2024,split_year,2024,2024,2023,1,elite,
++L1,2025,split_year,2025,2025,2024,1,elite,
++L1,2026,split_year,2026,2026,2025,1,elite,
++LIBER,2019,calendar_year,2018,2019,,,,
++LIBER,2020,calendar_year,2019,2020,2019,,,
++LIBER,2021,calendar_year,2020,2021,2020,,,
++LIBER,2022,calendar_year,2021,2022,2021,,,
++LIBER,2023,calendar_year,2022,2023,2022,,,
++LIBER,2024,calendar_year,2023,2024,2023,,,
++LIBER,2025,calendar_year,2024,2025,2024,,,
++LIBER,2026,calendar_year,2025,2026,2025,,,
++LMX,2022,split_year,2022,2022,,1,international,
++LMX,2023,split_year,2023,2023,2022,1,international,
++LMX,2024,split_year,2024,2024,2023,1,international,
++LMX,2025,split_year,2025,2025,2024,1,international,
++LMX,2026,split_year,2026,2026,2025,1,international,
++LP,2021,split_year,2021,2021,,1,elite,
++LP,2022,split_year,2022,2022,2021,1,elite,
++LP,2023,split_year,2023,2023,2022,1,elite,
++LP,2024,split_year,2024,2024,2023,1,elite,
++LP,2025,split_year,2025,2025,2024,1,elite,
++LP,2026,split_year,2026,2026,2025,1,elite,
++MLS,2022,calendar_year,2021,2022,,1,calendar,
++MLS,2023,calendar_year,2022,2023,2022,1,calendar,
++MLS,2024,calendar_year,2023,2024,2023,1,calendar,
++MLS,2025,calendar_year,2024,2025,2024,1,calendar,
++MLS,2026,calendar_year,2025,2026,2025,1,calendar,
++PD,2016,split_year,2016,2016,,1,elite,
++PD,2017,split_year,2017,2017,2016,1,elite,
++PD,2018,split_year,2018,2018,2017,1,elite,
++PD,2019,split_year,2019,2019,2018,1,elite,
++PD,2020,split_year,2020,2020,2019,1,elite,
++PD,2021,split_year,2021,2021,2020,1,elite,
++PD,2022,split_year,2022,2022,2021,1,elite,
++PD,2023,split_year,2023,2023,2022,1,elite,
++PD,2024,split_year,2024,2024,2023,1,elite,
++PD,2025,split_year,2025,2025,2024,1,elite,
++PD,2026,split_year,2026,2026,2025,1,elite,
++PL,2016,split_year,2016,2016,,1,elite,
++PL,2017,split_year,2017,2017,2016,1,elite,
++PL,2018,split_year,2018,2018,2017,1,elite,
++PL,2019,split_year,2019,2019,2018,1,elite,
++PL,2020,split_year,2020,2020,2019,1,elite,
++PL,2021,split_year,2021,2021,2020,1,elite,
++PL,2022,split_year,2022,2022,2021,1,elite,
++PL,2023,split_year,2023,2023,2022,1,elite,
++PL,2024,split_year,2024,2024,2023,1,elite,
++PL,2025,split_year,2025,2025,2024,1,elite,
++PL,2026,split_year,2026,2026,2025,1,elite,
++SA,2016,split_year,2016,2016,,1,elite,
++SA,2017,split_year,2017,2017,2016,1,elite,
++SA,2018,split_year,2018,2018,2017,1,elite,
++SA,2019,split_year,2019,2019,2018,1,elite,
++SA,2020,split_year,2020,2020,2019,1,elite,
++SA,2021,split_year,2021,2021,2020,1,elite,
++SA,2022,split_year,2022,2022,2021,1,elite,
++SA,2023,split_year,2023,2023,2022,1,elite,
++SA,2024,split_year,2024,2024,2023,1,elite,
++SA,2025,split_year,2025,2025,2024,1,elite,
++SA,2026,split_year,2026,2026,2025,1,elite,
++SPL,2021,split_year,2021,2021,,1,international,
++SPL,2022,split_year,2022,2022,2021,1,international,
++SPL,2023,split_year,2023,2023,2022,1,international,
++SPL,2024,split_year,2024,2024,2023,1,international,
++SPL,2025,split_year,2025,2025,2024,1,international,
++SPL,2026,split_year,2026,2026,2025,1,international,
++TSL,2022,split_year,2022,2022,,1,europe,
++TSL,2023,split_year,2023,2023,2022,1,europe,
++TSL,2024,split_year,2024,2024,2023,1,europe,
++TSL,2025,split_year,2025,2025,2024,1,europe,
++TSL,2026,split_year,2026,2026,2025,1,europe,
++UCL,2017,split_year,2017,2017,,,,June qualifiers open the new season
++UCL,2018,split_year,2018,2018,2017,,,June qualifiers open the new season
++UCL,2019,split_year,2019,2019,2018,,,June qualifiers open the new season
++UCL,2020,split_year,2020,2020,2019,,,
++UCL,2021,split_year,2021,2021,2020,,,June qualifiers open the new season
++UCL,2022,split_year,2022,2022,2021,,,June qualifiers open the new season
++UCL,2023,split_year,2023,2023,2022,,,June qualifiers open the new season
++UCL,2024,split_year,2024,2024,2023,,,
++UCL,2025,split_year,2025,2025,2024,,,
++UCL,2026,split_year,2026,2026,2025,,,
++UECL,2021,split_year,2021,2021,,,,
++UECL,2022,split_year,2022,2022,2021,,,
++UECL,2023,split_year,2023,2023,2022,,,
++UECL,2024,split_year,2024,2024,2023,,,
++UECL,2025,split_year,2025,2025,2024,,,
++UECL,2026,split_year,2026,2026,2025,,,
++UEL,2017,split_year,2017,2017,,,,June qualifiers open the new season
++UEL,2018,split_year,2018,2018,2017,,,June qualifiers open the new season
++UEL,2019,split_year,2019,2019,2018,,,June qualifiers open the new season
++UEL,2020,split_year,2020,2020,2019,,,
++UEL,2021,split_year,2021,2021,2020,,,
++UEL,2022,split_year,2022,2022,2021,,,
++UEL,2023,split_year,2023,2023,2022,,,
++UEL,2024,split_year,2024,2024,2023,,,
++UEL,2025,split_year,2025,2025,2024,,,
++UEL,2026,split_year,2026,2026,2025,,,
++UESC,2021,split_year,2021,2021,,,,
++UESC,2022,split_year,2022,2022,2021,,,
++UESC,2023,split_year,2023,2023,2022,,,
++UESC,2024,split_year,2024,2024,2023,,,
++UESC,2025,split_year,2025,2025,2024,,,
++UESC,2026,split_year,2026,2026,2025,,,
++VL,2022,calendar_year,2021,2022,,1,calendar,
++VL,2023,calendar_year,2022,2023,2022,1,calendar,
++VL,2024,calendar_year,2023,2024,2023,1,calendar,
++VL,2025,calendar_year,2024,2025,2024,1,calendar,
++VL,2026,calendar_year,2025,2026,2025,1,calendar,
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index aa494070..850686ca 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -114,7 +114,7 @@ seeds:
+         tests:
+           - unique
+           - relationships:
+-              to: ref('competition_registry')
++              to: ref('dim_league')
+               field: league_code
+       - name: continental_championship
+         description: >
+@@ -123,7 +123,7 @@ seeds:
+         tests:
+           - unique
+           - relationships:
+-              to: ref('competition_registry')
++              to: ref('dim_league')
+               field: league_code
+ 
+   - name: standings_table_kinds
+@@ -179,7 +179,7 @@ seeds:
+         description: "The competition whose own name the row gives; empty for the general name."
+         tests:
+           - relationships:
+-              to: ref('competition_registry')
++              to: ref('dim_league')
+               field: league_code
+       - name: season_api_year
+         description: "The season the row's name holds for; empty when it holds for every season."
+@@ -210,8 +210,8 @@ seeds:
+   - name: competition_registry
+     description: >
+       Every competition the platform tracks, with the fields the registry authors by hand:
+-      competition type, parent competition, confederation, URL slug, ordering, division tier and
+-      season shape. One row per league_code.
++      competition type, parent competition, confederation, URL slug, ordering and season shape.
++      One row per league_code.
+ 
+       GENERATED, do not hand-edit — scripts/sync_dbt_vars.py writes it from
+       docs/competition_registry.yml, the authoring surface.
+@@ -272,13 +272,6 @@ seeds:
+           ordering them against each other needs something else.
+         tests:
+           - not_null
+-      - name: tier
+-        description: >
+-          Division level within its country: 1 for a top flight, 2 for a second tier. EMPTY for
+-          every competition that is not a domestic_league, because a cup or a tournament has no
+-          division — structurally not applicable rather than missing, which is why there is no
+-          not_null test. Non-empty exactly when competition_type is domestic_league;
+-          tests/test_registry_seed_projection.py pins that both ways.
+       - name: season_type
+         description: >
+           Whether a season sits inside one calendar year ("calendar_year", e.g. MLS, Brasileirão)
+@@ -286,21 +279,6 @@ seeds:
+           the boundaries of a season window.
+         tests:
+           - not_null
+-      - name: competition_group
+-        description: >
+-          Which leagues this one is ranked alongside when a surface shows one entry per league.
+-          "elite" the seven strongest European top flights; "europe" the remaining European top
+-          flights on a SPLIT-YEAR season; "international" top flights outside Europe on a
+-          split-year season; "calendar" top flights whose season sits inside one calendar year,
+-          wherever they are (which is why Finland is here and not in "europe"); "secondary" below
+-          a country's top flight. Mutually exclusive and exhaustive over domestic leagues.
+-
+-          Authored, not derived: "elite" is a strength judgement no other column expresses, and
+-          several leagues match every structural rule for it yet sit outside it. EMPTY for anything
+-          that is not a domestic_league — a cup is not ranked against leagues, so this is
+-          structurally N/A rather than missing, which is why there is no not_null test. Non-empty
+-          exactly when competition_type is domestic_league; tests/test_registry_seed_projection.py
+-          pins that both ways and pins the permitted values.
+ 
+   - name: metric_catalogue
+     description: "{{ doc('metric_catalogue') }}"
+@@ -1116,7 +1094,7 @@ seeds:
+         tests:
+           - not_null
+           - relationships:
+-              to: ref('competition_registry')
++              to: ref('dim_league')
+               field: league_code
+       - name: from_season
+         description: "{{ doc('season_api_year') }} Here, the first season the version holds."
+@@ -1377,6 +1355,25 @@ seeds:
+         tests: [not_null]
+       - name: previous_season_api_year
+         description: "The provider year of the same competition's season before this one. Blank on the first edition held."
++      - name: tier
++        description: >
++          The league's division level within its country in this season: 1 for a top flight, 2 for
++          a second tier. EMPTY for every competition that is not a domestic_league, because a cup
++          has no division. A blank on a domestic league's row takes the previous season's value in
++          dim_competition_season.
++      - name: competition_group
++        description: >
++          Which leagues this one is ranked alongside in this season when a surface shows one entry
++          per league. "elite" the seven strongest European top flights; "europe" the remaining
++          European top flights on a SPLIT-YEAR season; "international" top flights outside Europe
++          on a split-year season; "calendar" top flights whose season sits inside one calendar
++          year; "secondary" below a country's top flight. Authored, not derived: "elite" is a
++          strength judgement no other column expresses. EMPTY for every competition that is not a
++          domestic_league. A blank on a domestic league's row takes the previous season's value in
++          dim_competition_season.
++        tests:
++          - accepted_values:
++              values: ["elite", "europe", "international", "calendar", "secondary"]
+       - name: note
+         description: "Why the row reads as it does, where a plain date reading would not explain it."
+ 
+diff --git a/dbt_project/tests/assert_lineup_research_list.sql b/dbt_project/tests/assert_lineup_research_list.sql
+index c9fc8d7e..b82009fa 100644
+--- a/dbt_project/tests/assert_lineup_research_list.sql
++++ b/dbt_project/tests/assert_lineup_research_list.sql
+@@ -13,7 +13,7 @@ with registry as (
+     select
+         league_code,
+         competition_type
+-    from {{ ref('competition_registry') }}
++    from {{ ref('dim_league') }}
+ ),
+ 
+ fixtures as (
+diff --git a/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql b/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
+index 7618f523..da90986b 100644
+--- a/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
++++ b/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
+@@ -31,13 +31,21 @@ with import_mart_leaderboards as (
+     where window_type = 'season_to_date'
+ ),
+ 
+-import_competition_registry as (
+-    select * from {{ ref('competition_registry') }}
++import_dim_competition_season as (
++    select * from {{ ref('dim_competition_season') }}
++),
++
++latest_seasons as (
++    select
++        league_code,
++        competition_group
++    from import_dim_competition_season
++    qualify row_number() over (partition by league_code order by season_api_year desc) = 1
+ ),
+ 
+ elite_leagues as (
+     select league_code
+-    from import_competition_registry
++    from latest_seasons
+     where competition_group = 'elite'
+ ),
+ 
+diff --git a/dbt_project/tests/assert_mart_next_matchday_competition_order_follows_the_key.sql b/dbt_project/tests/assert_mart_next_matchday_competition_order_follows_the_key.sql
+index 12bb6c57..d392d0a9 100644
+--- a/dbt_project/tests/assert_mart_next_matchday_competition_order_follows_the_key.sql
++++ b/dbt_project/tests/assert_mart_next_matchday_competition_order_follows_the_key.sql
+@@ -34,7 +34,7 @@ expected as (
+         ) as expected_order,
+         count(*) over (partition by s.competition_order) as n_competitions_at_order
+     from served as s
+-    left join {{ ref('competition_registry') }} as r
++    left join {{ ref('dim_league') }} as r
+         on s.league_code = r.league_code
+     left join {{ ref('confederations') }} as c
+         on r.confederation = c.confederation
+diff --git a/dbt_project/tests/assert_player_page_windows.sql b/dbt_project/tests/assert_player_page_windows.sql
+index 8d9f4bd1..dc90bae7 100644
+--- a/dbt_project/tests/assert_player_page_windows.sql
++++ b/dbt_project/tests/assert_player_page_windows.sql
+@@ -23,12 +23,10 @@ nations_with_a_started_competition as (
+     select distinct team_sk
+     from {{ ref('fct_fixture') }} as f,
+         unnest([f.home_team_sk, f.away_team_sk]) as team_sk
+-    inner join {{ ref('competition_registry') }} as reg
+-        on f.league_code = reg.league_code
+-    inner join {{ ref('competition_types') }} as typ
+-        on reg.competition_type = typ.competition_type
++    inner join {{ ref('dim_league') }} as leagues
++        on f.league_code = leagues.league_code
+     where
+-        typ.entity_type = 'national'
++        leagues.entity_type = 'national'
+         and team_sk is not null
+         and f.kickoff_datetime <= current_timestamp()
+ ),
+diff --git a/dbt_project/tests/assert_season_map_covers_club_editions.sql b/dbt_project/tests/assert_season_map_covers_club_editions.sql
+index 5b401927..b42f77b8 100644
+--- a/dbt_project/tests/assert_season_map_covers_club_editions.sql
++++ b/dbt_project/tests/assert_season_map_covers_club_editions.sql
+@@ -8,10 +8,8 @@ select distinct
+     f.league_code,
+     f.season_api_year
+ from {{ ref('fct_fixture') }} as f
+-inner join {{ ref('competition_registry') }} as reg
+-    on f.league_code = reg.league_code
+-inner join {{ ref('competition_types') }} as typ
+-    on reg.competition_type = typ.competition_type
++inner join {{ ref('dim_league') }} as leagues
++    on f.league_code = leagues.league_code
+ left join {{ ref('competition_season_map') }} as m
+     on f.league_code = m.league_code and f.season_api_year = m.season_api_year
+-where typ.entity_type = 'club' and m.league_code is null
++where leagues.entity_type = 'club' and m.league_code is null
+diff --git a/dbt_project/tests/assert_team_benchmark_prev_season_matches_yoy.sql b/dbt_project/tests/assert_team_benchmark_prev_season_matches_yoy.sql
+index ca3d7b58..5902c328 100644
+--- a/dbt_project/tests/assert_team_benchmark_prev_season_matches_yoy.sql
++++ b/dbt_project/tests/assert_team_benchmark_prev_season_matches_yoy.sql
+@@ -75,7 +75,7 @@ registry as (
+     select
+         league_code,
+         competition_type
+-    from {{ ref('competition_registry') }}
++    from {{ ref('dim_league') }}
+ ),
+ 
+ outside_domestic as (
+diff --git a/dbt_project/tests/assert_team_form_window_follows_the_rule.sql b/dbt_project/tests/assert_team_form_window_follows_the_rule.sql
+index ea26c143..5e910bce 100644
+--- a/dbt_project/tests/assert_team_form_window_follows_the_rule.sql
++++ b/dbt_project/tests/assert_team_form_window_follows_the_rule.sql
+@@ -26,12 +26,10 @@ with upcoming as (
+         f.season_api_year,
+         f.kickoff_datetime,
+         reg.competition_type,
+-        typ.entity_type
++        reg.entity_type
+     from {{ ref('fct_fixture') }} as f
+-    left join {{ ref('competition_registry') }} as reg
++    left join {{ ref('dim_league') }} as reg
+         on f.league_code = reg.league_code
+-    left join {{ ref('competition_types') }} as typ
+-        on reg.competition_type = typ.competition_type
+     where
+         f.status_short in ('NS', 'TBD')
+         and f.fixture_date >= current_date()
+@@ -78,7 +76,7 @@ earlier_legs as (
+             s.team_sk = l.team_sk
+             and s.entity_type = l.entity_type
+             and l.kickoff_datetime < s.kickoff_datetime
+-    left join {{ ref('competition_registry') }} as reg
++    left join {{ ref('dim_league') }} as reg
+         on l.league_code = reg.league_code
+ ),
+ 
+diff --git a/dbt_project/tests/assert_team_index_cup_rounds_scored.sql b/dbt_project/tests/assert_team_index_cup_rounds_scored.sql
+index 5f6f9385..ad32511c 100644
+--- a/dbt_project/tests/assert_team_index_cup_rounds_scored.sql
++++ b/dbt_project/tests/assert_team_index_cup_rounds_scored.sql
+@@ -12,7 +12,7 @@ with regions as (
+ 
+ world_championships as (
+     select league_code
+-    from {{ ref('competition_registry') }}
++    from {{ ref('dim_league') }}
+     where competition_type = 'world_championship'
+ ),
+ 
+diff --git a/dbt_project/tests/assert_team_index_one_winner_per_cup_season.sql b/dbt_project/tests/assert_team_index_one_winner_per_cup_season.sql
+index 797a2f6c..2946fcfb 100644
+--- a/dbt_project/tests/assert_team_index_one_winner_per_cup_season.sql
++++ b/dbt_project/tests/assert_team_index_one_winner_per_cup_season.sql
+@@ -10,7 +10,7 @@ with regions as (
+ 
+ world_championships as (
+     select league_code
+-    from {{ ref('competition_registry') }}
++    from {{ ref('dim_league') }}
+     where competition_type = 'world_championship'
+ ),
+ 
+diff --git a/dbt_project/tests/assert_team_index_stage_answer_key.sql b/dbt_project/tests/assert_team_index_stage_answer_key.sql
+index 0136bb4a..fe1c45af 100644
+--- a/dbt_project/tests/assert_team_index_stage_answer_key.sql
++++ b/dbt_project/tests/assert_team_index_stage_answer_key.sql
+@@ -17,7 +17,7 @@ registry as (
+     select
+         league_code,
+         competition_type
+-    from {{ ref('competition_registry') }}
++    from {{ ref('dim_league') }}
+ ),
+ 
+ team_index as (
+diff --git a/dbt_project/tests/assert_team_yoy_pairs_the_same_games_played.sql b/dbt_project/tests/assert_team_yoy_pairs_the_same_games_played.sql
+index 7798516f..e3da00bd 100644
+--- a/dbt_project/tests/assert_team_yoy_pairs_the_same_games_played.sql
++++ b/dbt_project/tests/assert_team_yoy_pairs_the_same_games_played.sql
+@@ -24,7 +24,7 @@ with domestic_legs as (
+             order by l.kickoff_datetime asc, l.fixture_sk asc
+         ) as match_number
+     from {{ ref('int_legs__team_match') }} as l
+-    inner join {{ ref('competition_registry') }} as r
++    inner join {{ ref('dim_league') }} as r
+         on l.league_code = r.league_code
+     where r.competition_type = 'domestic_league'
+ ),
+diff --git a/dbt_project/tests/assert_tournament_form_window.sql b/dbt_project/tests/assert_tournament_form_window.sql
+index 613b7eeb..8d17e4c4 100644
+--- a/dbt_project/tests/assert_tournament_form_window.sql
++++ b/dbt_project/tests/assert_tournament_form_window.sql
+@@ -34,7 +34,7 @@ registry as (
+         league_code,
+         competition_type,
+         parent_competition
+-    from {{ ref('competition_registry') }}
++    from {{ ref('dim_league') }}
+ ),
+ 
+ provenance_failures as (
+diff --git a/docs/competition_registry.yml b/docs/competition_registry.yml
+index d0d4a100..7b79a0ff 100644
+--- a/docs/competition_registry.yml
++++ b/docs/competition_registry.yml
+@@ -30,28 +30,8 @@
+ #                   dbt: not_null -> fails `dbt build`
+ #   season_type   : calendar_year | split_year — whether a season sits inside one year or spans two
+ #                   dbt: not_null -> fails `dbt build`
+-#   tier          : league pyramid level (domestic_league only; 1 = top flight)
+-#                   deliberately BLANK for every other competition_type — a cup has no division,
+-#                   so this is structurally N/A rather than missing data
+-#                   ⚠ NO dbt TEST, precisely because a blank is legitimate here. The rule that
+-#                   makes it safe — non-empty iff domestic_league — is a PYTHON test
+-#                   (tests/test_registry_seed_projection.py), which runs in the `test:python` CI
+-#                   job, NOT in `dbt build`. Setting a wrong tier fails there, not in the warehouse.
+-#   competition_group : which leagues this one is ranked ALONGSIDE when a surface shows one entry
+-#                   per league. elite | europe | international | calendar | secondary.
+-#                   Same shape as `tier`, so it has the same guard: blank off a domestic_league,
+-#                   NO dbt test, pinned both ways plus its vocabulary by that same Python test.
+-#                   ⚠ AUTHORED, NOT DERIVED — the grouping is a judgement call.
+-#                   Assigning a NEWLY onboarded league, in order:
+-#                       elite      — never changes when a league is added; it is a strength call
+-#                                    and several leagues match every structural rule for it while
+-#                                    being deliberately outside it
+-#                       secondary  — tier is not 1
+-#                       calendar   — season_type is calendar_year
+-#                       europe     — confederation is UEFA
+-#                       international — everything else
+-#                   That order reproduces today's grouping exactly, but it is GUIDANCE for a human,
+-#                   not code: sync_dbt_vars.py projects this field and computes nothing.
++#   A league's tier and competition_group can change between seasons, so they are not registry
++#                   fields: dbt_project/seeds/competition_season_map.csv holds them per season.
+ # ⚠ `country` is NOT projected (#69). dim_league already carries provider country and flag, and
+ # this field holds a region word ("Europe", "International") for multi-country competitions, so
+ # projecting it would make a third copy of a concept the warehouse already models.
+@@ -73,14 +53,12 @@ competitions:
+     country: "Germany"
+     competition_type: "domestic_league"
+     confederation: "UEFA"
+-    tier: 1
+     slug: "bundesliga"
+     sort_order: 30
+     provider: "api_football"
+     provider_league_code: "D1"      # as it appears in api-football payload
+     provider_league_id: 78
+     season_type: "split_year"
+-    competition_group: "elite"
+     current_season: "2024"
+     history_seasons: 10             # backfill window: last N season start years
+     status: "active"
+@@ -274,14 +252,12 @@ competitions:
+     country: "England"
+     competition_type: "domestic_league"
+     confederation: "UEFA"
+-    tier: 1
+     slug: "premier-league"
+     sort_order: 10
+     provider: "api_football"
+     provider_league_code: null
+     provider_league_id: 39
+     season_type: "split_year"
+-    competition_group: "elite"
+     current_season: "2025"
+     history_seasons: 11
+     status: "active"
+@@ -294,14 +270,12 @@ competitions:
+     country: "Spain"
+     competition_type: "domestic_league"
+     confederation: "UEFA"
+-    tier: 1
+     slug: "la-liga"
+     sort_order: 20
+     provider: "api_football"
+     provider_league_code: null
+     provider_league_id: 140
+     season_type: "split_year"
+-    competition_group: "elite"
+     current_season: "2025"
+     history_seasons: 10
+     status: "active"
+@@ -314,14 +288,12 @@ competitions:
+     country: "Germany"
+     competition_type: "domestic_league"
+     confederation: "UEFA"
+-    tier: 2
+     slug: "2-bundesliga"
+     sort_order: 60
+     provider: "api_football"
+     provider_league_code: null
+     provider_league_id: 79
+     season_type: "split_year"
+-    competition_group: "secondary"
+     current_season: "2025"
+     history_seasons: 5
+     status: "active"
+@@ -334,14 +306,12 @@ competitions:
+     country: "Italy"
+     competition_type: "domestic_league"
+     confederation: "UEFA"
+-    tier: 1
+     slug: "serie-a"
+     sort_order: 40
+     provider: "api_football"
+     provider_league_code: null
+     provider_league_id: 135
+     season_type: "split_year"
+-    competition_group: "elite"
+     current_season: "2025"
+     history_seasons: 11
+     status: "active"
+@@ -354,14 +324,12 @@ competitions:
+     country: "France"
+     competition_type: "domestic_league"
+     confederation: "UEFA"
+-    tier: 1
+     slug: "ligue-1"
+     sort_order: 50
+     provider: "api_football"
+     provider_league_code: null
+     provider_league_id: 61
+     season_type: "split_year"
+-    competition_group: "elite"
+     current_season: "2025"
+     history_seasons: 11
+     status: "active"
+@@ -374,14 +342,12 @@ competitions:
+     country: "Finland"
+     competition_type: "domestic_league"
+     confederation: "UEFA"
+-    tier: 1
+     slug: "veikkausliiga"
+     sort_order: 160
+     provider: "api_football"
+     provider_league_code: null
+     provider_league_id: 244
+     season_type: "calendar_year"
+-    competition_group: "calendar"
+     current_season: "2026"
+     history_seasons: 5
+     status: "active"
+@@ -395,14 +361,12 @@ competitions:
+     country: "Mexico"
+     competition_type: "domestic_league"
+     confederation: "CONCACAF"
+-    tier: 1
+     slug: "liga-mx"
+     sort_order: 110
+     provider: "api_football"
+     provider_league_code: null
+     provider_league_id: 262
+     season_type: "split_year"
+-    competition_group: "international"
+     current_season: "2025"
+     history_seasons: 5
+     status: "active"
+@@ -416,14 +380,12 @@ competitions:
+     country: "Portugal"
+     competition_type: "domestic_league"
+     confederation: "UEFA"
+-    tier: 1
+     slug: "liga-portugal"
+     sort_order: 80
+     provider: "api_football"
+     provider_league_code: null
+     provider_league_id: 94
+     season_type: "split_year"
+-    competition_group: "elite"
+     current_season: "2025"
+     history_seasons: 5
+     status: "active"
+@@ -437,14 +399,12 @@ competitions:
+     country: "United States"
+     competition_type: "domestic_league"
+     confederation: "CONCACAF"
+-    tier: 1
+     slug: "mls"
+     sort_order: 120
+     provider: "api_football"
+     provider_league_code: null
+     provider_league_id: 253
+     season_type: "calendar_year"
+-    competition_group: "calendar"
+     current_season: "2026"
+     history_seasons: 5
+     status: "active"
+@@ -458,14 +418,12 @@ competitions:
+     country: "Saudi Arabia"
+     competition_type: "domestic_league"
+     confederation: "AFC"
+-    tier: 1
+     slug: "saudi-pro-league"
+     sort_order: 130
+     provider: "api_football"
+     provider_league_code: null
+     provider_league_id: 307
+     season_type: "split_year"
+-    competition_group: "international"
+     current_season: "2025"
+     history_seasons: 5
+     status: "active"
+@@ -479,14 +437,12 @@ competitions:
+     country: "Netherlands"
+     competition_type: "domestic_league"
+     confederation: "UEFA"
+-    tier: 1
+     slug: "eredivisie"
+     sort_order: 70
+     provider: "api_football"
+     provider_league_code: null
+     provider_league_id: 88
+     season_type: "split_year"
+-    competition_group: "elite"
+     current_season: "2025"
+     history_seasons: 5
+     status: "active"
+@@ -500,14 +456,12 @@ competitions:
+     country: "Belgium"
+     competition_type: "domestic_league"
+     confederation: "UEFA"
+-    tier: 1
+     slug: "belgian-pro-league"
+     sort_order: 170
+     provider: "api_football"
+     provider_league_code: null
+     provider_league_id: 144
+     season_type: "split_year"
+-    competition_group: "europe"
+     current_season: "2025"
+     history_seasons: 5
+     status: "active"
+@@ -521,14 +475,12 @@ competitions:
+     country: "Turkey"
+     competition_type: "domestic_league"
+     confederation: "UEFA"
+-    tier: 1
+     slug: "super-lig"
+     sort_order: 180
+     provider: "api_football"
+     provider_league_code: null
+     provider_league_id: 203
+     season_type: "split_year"
+-    competition_group: "europe"
+     current_season: "2025"
+     history_seasons: 5
+     status: "active"
+@@ -542,14 +494,12 @@ competitions:
+     country: "Poland"
+     competition_type: "domestic_league"
+     confederation: "UEFA"
+-    tier: 1
+     slug: "ekstraklasa"
+     sort_order: 190
+     provider: "api_football"
+     provider_league_code: null
+     provider_league_id: 106
+     season_type: "split_year"
+-    competition_group: "europe"
+     current_season: "2025"
+     history_seasons: 5
+     status: "active"
+@@ -799,14 +749,12 @@ competitions:
+     country: "Brazil"
+     competition_type: "domestic_league"
+     confederation: "CONMEBOL"
+-    tier: 1
+     slug: "brasileirao"
+     sort_order: 90
+     provider: "api_football"
+     provider_league_code: null
+     provider_league_id: 71
+     season_type: "calendar_year"
+-    competition_group: "calendar"
+     current_season: "2025"
+     history_seasons: 5
+     status: "in_progress"
+@@ -820,14 +768,12 @@ competitions:
+     country: "Argentina"
+     competition_type: "domestic_league"
+     confederation: "CONMEBOL"
+-    tier: 1
+     slug: "liga-profesional-argentina"
+     sort_order: 100
+     provider: "api_football"
+     provider_league_code: null
+     provider_league_id: 128
+     season_type: "calendar_year"
+-    competition_group: "calendar"
+     current_season: "2025"
+     history_seasons: 5
+     status: "in_progress"
+@@ -841,14 +787,12 @@ competitions:
+     country: "Japan"
+     competition_type: "domestic_league"
+     confederation: "AFC"
+-    tier: 1
+     slug: "j1-league"
+     sort_order: 140
+     provider: "api_football"
+     provider_league_code: null
+     provider_league_id: 98
+     season_type: "calendar_year"
+-    competition_group: "calendar"
+     current_season: "2025"
+     history_seasons: 5
+     status: "in_progress"
+@@ -862,14 +806,12 @@ competitions:
+     country: "South Korea"
+     competition_type: "domestic_league"
+     confederation: "AFC"
+-    tier: 1
+     slug: "k-league-1"
+     sort_order: 150
+     provider: "api_football"
+     provider_league_code: null
+     provider_league_id: 292
+     season_type: "calendar_year"
+-    competition_group: "calendar"
+     current_season: "2025"
+     history_seasons: 5
+     status: "in_progress"
+diff --git a/scripts/check_layer_contract.py b/scripts/check_layer_contract.py
+index 306849ca..e4ba28ca 100644
+--- a/scripts/check_layer_contract.py
++++ b/scripts/check_layer_contract.py
+@@ -64,6 +64,28 @@ STAGING_FORBIDDEN_REF = re.compile(
+     re.IGNORECASE,
+ )
+ 
++# The competition_registry seed is ingest config. dim_league is its only reader; models and
++# tests read the dim, exports read marts.
++# See dbt_project/docs/layering.md §3_core.
++DBT_PROJECT = REPO_ROOT / "dbt_project"
++DBT_TESTS = DBT_PROJECT / "tests"
++SCRIPTS_DIR = REPO_ROOT / "scripts"
++REGISTRY_SEED_READER = DBT_MODELS / "3_core" / "dim_league.sql"
++DBT_SKIP_DIRS = ("target", "dbt_packages", "logs")
++REGISTRY_SEED_REF = re.compile(
++    r"""ref\s*\(\s*(?:['"][^'"]+['"]\s*,\s*)?['"]competition_registry['"]\s*\)""",
++    re.IGNORECASE,
++)
++REGISTRY_SEED_TABLE = re.compile(r"\.competition_registry\b", re.IGNORECASE)
++
++# The site export reads the marts dataset only: the marts are the data API.
++EXPORT_SITE_DATA = SCRIPTS_DIR / "export_site_data.py"
++EXPORT_MARTS_DATASET = re.compile(r"""^MARTS_DATASET\s*=\s*['"]marts['"]\s*$""", re.MULTILINE)
++EXPORT_NON_MART_READ = (
++    re.compile(r"\{GCP_PROJECT\}\.(?!\{MARTS_DATASET\})"),
++    re.compile(r"football-data-pipeline-gcp\.(?!marts\.)"),
++)
++
+ def check_core_forbidden_patterns(errors: list[str]) -> None:
+     for sql_path in sorted(CORE_DIR.glob("*.sql")):
+         content = sql_path.read_text(encoding="utf-8")
+@@ -199,6 +221,47 @@ def check_intermediate_no_mart_refs(errors: list[str]) -> None:
+             )
+ 
+ 
++def check_registry_seed_readers(errors: list[str]) -> None:
++    allowed = {REGISTRY_SEED_READER.resolve()}
++    dbt_files = [
++        path
++        for pattern in ("*.sql", "*.yml", "*.yaml")
++        for path in DBT_PROJECT.rglob(pattern)
++        if not set(path.relative_to(DBT_PROJECT).parts) & set(DBT_SKIP_DIRS)
++    ]
++    for path in sorted(dbt_files):
++        if path.resolve() in allowed:
++            continue
++        if REGISTRY_SEED_REF.search(path.read_text(encoding="utf-8")):
++            rel = path.relative_to(REPO_ROOT).as_posix()
++            errors.append(
++                f"{rel}: reads the competition_registry seed; read dim_league instead. "
++                "dim_league is the seed's only reader (dbt_project/docs/layering.md §3_core)."
++            )
++    for path in sorted(SCRIPTS_DIR.glob("export_*.py")):
++        if REGISTRY_SEED_TABLE.search(path.read_text(encoding="utf-8")):
++            rel = path.relative_to(REPO_ROOT).as_posix()
++            errors.append(
++                f"{rel}: queries the competition_registry seed; read a mart instead "
++                "(dbt_project/docs/layering.md §3_core)."
++            )
++
++
++def check_export_reads_marts_only(errors: list[str]) -> None:
++    if not EXPORT_SITE_DATA.is_file():
++        return
++    rel = EXPORT_SITE_DATA.relative_to(REPO_ROOT).as_posix()
++    source = EXPORT_SITE_DATA.read_text(encoding="utf-8")
++    if not EXPORT_MARTS_DATASET.search(source):
++        errors.append(f'{rel}: MARTS_DATASET must be "marts".')
++    for number, line in enumerate(source.splitlines(), start=1):
++        if any(pattern.search(line) for pattern in EXPORT_NON_MART_READ):
++            errors.append(
++                f"{rel}:{number}: reads outside the marts dataset; read a mart instead "
++                "(dbt_project/docs/layering.md §3_core)."
++            )
++
++
+ def check_staging_inventory(errors: list[str]) -> None:
+     # Generic staging models live directly under api_football/ (unified raw table architecture).
+     # Per-competition subdirectories are no longer permitted — the zero-file rule means adding
+@@ -283,6 +346,8 @@ def main() -> int:
+     check_base_layer(errors)
+     check_core_forbidden_patterns(errors)
+     check_intermediate_no_mart_refs(errors)
++    check_registry_seed_readers(errors)
++    check_export_reads_marts_only(errors)
+     check_staging_inventory(errors)
+     check_staging_purity(errors)
+     check_staging_no_refs(errors)
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index 0211a3b4..15b1e8d9 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -35,11 +35,6 @@ from datetime import datetime, timezone
+ 
+ GCP_PROJECT = "football-data-pipeline-gcp"
+ MARTS_DATASET = "marts"
+-# Seeds carry no `+schema`, so they ride the profile's own `dataset:` rather than a layer dataset —
+-# prod's is `dbt_analytics` (CLAUDE.md). Verified, not assumed: a dry run against
+-# `marts.competition_registry` fails "not found", against `dbt_analytics.competition_registry` it
+-# validates at 260 bytes.
+-SEEDS_DATASET = "dbt_analytics"
+ DEFAULT_OUT = "artifacts/site_data"
+ ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
+                 "leaderboards", "glossary", "metric_groups", "metric_rows", "landing",
+@@ -120,7 +115,8 @@ _CTX_DROP = {"fixture_sk", "team_sk", "season_sk"}
+ _H2H_DROP = {"team_sk", "opponent_team_sk", "pair_key", "is_canonical"}
+ _FW_DROP = {"upcoming_fixture_sk", "team_sk", "entity_type", "season_api_year", "window_type"}
+ _TOPPLAYER_DROP = {"upcoming_fixture_sk", "team_sk", "is_home", "entity_type",
+-                   "season_api_year", "league_code", "top_player_rank"}
++                   "season_api_year", "league_code", "top_player_rank",
++                   "player_name", "player_photo_url"}
+ 
+ # The competition_type -> nav group MAPPING now lives in the competition_types seed
+ # (display_group column, GAP-19.3), read via _display_group_of_type() — no hardcoded
+@@ -419,6 +415,7 @@ def shape_team_payload(
+     seasons_out = []
+     for r in seasons:
+         s = _strip_identity(r)
++        s.pop("season_label", None)
+         s["season_label"] = (season_labels or {}).get((s.get("league_code"), s.get("season_api_year")))
+         frs = fixtures_by_season.get((s.get("league_code"), s.get("season_api_year")), [])
+         nxt = next((fr for fr in frs if fr.get("upcoming_rank") == 1), None)
+@@ -738,7 +735,7 @@ def shape_next_match(row: dict | None, fixture_id: int) -> dict | None:
+ def shape_top_players(rows: list[dict], names: dict, limit: int = 5) -> list[dict]:
+     """Top N players for a fixture side, SELECTED by the warehouse top_player_rank
+     (goals plus assists, then goals, then fewer minutes, computed in mart_player_season_record; the
+-    export does not rank). Names/photos joined from dim_player. Relies on the mart column
++    export does not rank). Names/photos are the mart's own columns. Relies on the mart column
+     being present (ship-the-mart-first); a Python ranking fallback is intentionally
+     NOT provided — re-deriving the rank here would violate the consumption-layer
+     contract (anti-pattern A5)."""
+@@ -1145,11 +1142,9 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
+         id_list = ", ".join(str(int(t)) for t in team_ids)
+         recent_sql += f" and team_sk in ({id_list})"
+     recent_by_team = _group_by(_query(client, recent_sql), "team_sk")
+-    # The season as each competition names it (split-year or calendar-year), from the warehouse.
++    # The season as each competition names it (split-year or calendar-year), served on the profile.
+     season_labels = {
+-        (r["league_code"], int(r["season_api_year"])): r.get("season_label")
+-        for r in _query(client, f"select league_code, season_api_year, season_label "
+-                                f"from `{GCP_PROJECT}.core.dim_competition_season`")
++        (r["league_code"], int(r["season_api_year"])): r.get("season_label") for r in rows
+     }
+     return [
+         shape_team_payload(
+@@ -1277,8 +1272,8 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
+         select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name, round_order,
+                is_next_round,
+                status_short, venue_name as venue_name_snapshot, home_team_sk, away_team_sk, fixture_slug,
+-               home_team_name, home_team_slug, home_team_logo_url,
+-               away_team_name, away_team_slug, away_team_logo_url
++               home_team_name, home_team_slug, home_team_logo_url, home_team_country,
++               away_team_name, away_team_slug, away_team_logo_url, away_team_country
+         from `{marts}.mart_competition_fixtures`
+         where status_short in ('NS', 'TBD') and fixture_date >= current_date()
+     """)
+@@ -1291,16 +1286,7 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
+         return []
+     fid_in = ", ".join(str(int(f["fixture_sk"])) for f in fixtures)
+ 
+-    teams = {
+-        int(r["team_sk"]): r
+-        for r in _query(client, f"select team_sk, team_name, team_logo_url, team_country "
+-                                f"from `{GCP_PROJECT}.core.dim_team`")
+-    }
+-    leagues = {
+-        r["league_code"]: r.get("league_name")
+-        for r in _query(client, f"select league_code, league_name "
+-                                f"from `{GCP_PROJECT}.core.dim_league`")
+-    }
++    leagues = {c["league_code"]: c.get("name") for c in _warehouse_competitions(client)}
+     w1 = {
+         (int(r["fixture_sk"]), int(r["team_sk"])): r
+         for r in _query(client, f"select * from `{marts}.mart_team_window_metrics` "
+@@ -1345,9 +1331,7 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
+                             f"where upcoming_fixture_sk in ({fid_in}) and top_player_rank <= 5"):
+         season_players.setdefault((int(r["upcoming_fixture_sk"]), int(r["team_sk"])), []).append(r)
+     player_names = {
+-        int(r["player_sk"]): r
+-        for r in _query(client, f"select player_sk, player_name, player_photo_url "
+-                                f"from `{GCP_PROJECT}.core.dim_player`")
++        int(r["player_sk"]): r for rows in season_players.values() for r in rows
+     }
+ 
+     team_in = ", ".join(sorted({str(int(f[k])) for f in fixtures for k in ("home_team_sk", "away_team_sk")}))
+@@ -1367,7 +1351,7 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
+         fid, team_id = int(f["fixture_sk"]), int(f[f"{side}_team_sk"])
+         identity = {"team_name": f.get(f"{side}_team_name"), "team_logo_url": f.get(f"{side}_team_logo_url"),
+                     "team_slug": f.get(f"{side}_team_slug"),
+-                    "team_country": (teams.get(team_id) or {}).get("team_country")}
++                    "team_country": f.get(f"{side}_team_country")}
+         return _fixture_side(
+             team_id, identity, form_block(w1.get((fid, team_id)), w2.get((fid, team_id))),
+             ctx.get((fid, team_id)),
+@@ -1582,10 +1566,7 @@ def fetch_played_fixture_payloads(client, sample: int = 0, source_counts: dict |
+     if sample:
+         played += f" order by fixture_sk limit {int(sample)}"
+ 
+-    leagues = {
+-        r["league_code"]: r.get("league_name")
+-        for r in _query(client, f"select league_code, league_name from `{GCP_PROJECT}.core.dim_league`")
+-    }
++    leagues = {c["league_code"]: c.get("name") for c in _warehouse_competitions(client)}
+     next_matches: dict = {}
+     for r in _query(client, f"""
+         select {_COMPETITION_FIXTURE_COLUMNS}, is_home_team_next_match, is_away_team_next_match
+@@ -1653,9 +1634,26 @@ def _registry_competitions(registry_path: str = REGISTRY_PATH) -> list[dict]:
+     ]
+ 
+ 
+-def fetch_nav(registry_path: str = REGISTRY_PATH) -> dict:
+-    """nav.json — registry-driven hybrid navigation (no BigQuery)."""
+-    return build_nav(_registry_competitions(registry_path))
++def fetch_nav(client, registry_path: str = REGISTRY_PATH) -> dict:
++    """nav.json — registry-driven hybrid navigation; each league's tier is mart_competition_index's."""
++    tiers = {c["league_code"]: c.get("tier") for c in _warehouse_competitions(client)}
++    competitions = _registry_competitions(registry_path)
++    for c in competitions:
++        c["tier"] = tiers.get(c["league_code"])
++    return build_nav(competitions)
++
++
++def _warehouse_competitions(client) -> list[dict]:
++    """Every competition's league_code, name, slug, confederation and tier, from
++    `mart_competition_index`: the site reads competition facts from the warehouse."""
++    return [
++        {"league_code": row["league_code"], "name": row.get("competition_name"),
++         "slug": row.get("slug"), "confederation": row.get("confederation"),
++         "tier": row.get("tier")}
++        for row in _query(client, f"select league_code, competition_name, slug, confederation, tier "
++                                  f"from `{GCP_PROJECT}.{MARTS_DATASET}.mart_competition_index` "
++                                  f"order by league_code")
++    ]
+ 
+ 
+ def _warehouse_competition_meta(client) -> dict[str, dict]:
+@@ -1684,14 +1682,13 @@ def _warehouse_competition_meta(client) -> dict[str, dict]:
+ 
+     ONE helper, both consumers — `fetch_landing_payload`'s `meta` (the fixtures hero's group
+     headings and both board blocks' league names) and `_competitions_index`
+-    (`competitions.json`, which TeamHeader renders on every team page). They read the registry for
+-    everything else and overlay this; splitting the rule across the two call sites is what let one
+-    of them drift."""
++    (`competitions.json`, which TeamHeader renders on every team page). Splitting the rule across
++    the two call sites is what let one of them drift."""
+     served = {}
+     for row in _query(client, f"select league_code, competition_name, region_rank "
+                               f"from `{GCP_PROJECT}.{MARTS_DATASET}.mart_competition_index`"):
+-        # A NULL name is left to the registry rather than blanking the heading. Nothing is
+-        # renamed here and no name is composed — the served string is carried across as-is.
++        # Nothing is renamed here and no name is composed — the served string is carried across
++        # as-is.
+         entry = {"region_rank": row.get("region_rank")}
+         if row.get("competition_name"):
+             entry["name"] = row["competition_name"]
+@@ -1699,24 +1696,18 @@ def _warehouse_competition_meta(client) -> dict[str, dict]:
+     return served
+ 
+ 
+-def _competitions_index(client=None, registry_path: str = REGISTRY_PATH) -> dict:
+-    """league_code -> {name, slug} for every registry competition.
++def _competitions_index(client) -> dict:
++    """league_code -> {name, slug} for every competition.
+ 
+     The frontend's competition slug/name lookup for ALL active leagues
+     (site_v2/src/data/competitions.json): the fixture page resolves its URL competition segment from
+     it and TeamHeader reads the display name. Same shape already built inline for leaderboards.
+ 
+-    The SLUG is the registry's — it is an assigned identifier, not a display string. The NAME is
+-    the warehouse's whenever a client is given; see `_warehouse_competition_meta` for why. Without
+-    a client this falls back to registry names, which is the offline shape the unit test uses —
+-    never the shape a real export runs, because `export_all` always has a client."""
+-    served = _warehouse_competition_meta(client) if client is not None else {}
++    Both come from `mart_competition_index`: the slug is dim_league's assigned identifier, the name
++    the standardised one (see `_warehouse_competition_meta` for why it is not the registry's)."""
+     return {
+-        c["league_code"]: {
+-            "name": served.get(c["league_code"], {}).get("name") or c.get("name"),
+-            "slug": c.get("slug"),
+-        }
+-        for c in _registry_competitions(registry_path)
++        c["league_code"]: {"name": c.get("name"), "slug": c.get("slug")}
++        for c in _warehouse_competitions(client)
+     }
+ 
+ 
+@@ -1774,15 +1765,12 @@ def shape_team_index(rows: list[dict]) -> dict:
+ 
+ def fetch_team_index(client) -> dict:
+     """teams_index.json -- mart_team_index, one row per team with a page, with its region's
+-    region_rank and label key from the confederations seed. Ordered by team name: the page lists
+-    teams that share a place in this order."""
++    region_rank and label key. Ordered by team name: the page lists teams that share a place in
++    this order."""
+     rows = _query(
+         client,
+-        f"select t.*, g.region_rank, g.label_i18n_key as region_label_i18n_key "
+-        f"from `{GCP_PROJECT}.{MARTS_DATASET}.mart_team_index` as t "
+-        f"left join `{GCP_PROJECT}.{SEEDS_DATASET}.confederations` as g "
+-        f"on t.region_key = g.confederation "
+-        f"order by t.team_name, t.team_slug",
++        f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_team_index` "
++        f"order by team_name, team_slug",
+     )
+     return shape_team_index(rows)
+ 
+@@ -1860,12 +1848,12 @@ def shape_match_day_payloads(rows: list[dict], competitions: dict[str, dict]) ->
+     return out
+ 
+ 
+-def fetch_match_day_payloads(client, registry_path: str = REGISTRY_PATH) -> list[dict]:
++def fetch_match_day_payloads(client) -> list[dict]:
+     """matches/{yyyy-mm-dd}.json -- the Matches page's days, from `mart_match_days` (which decides
+     the reach, each day's neighbours and the opening day) joined to the match rows. A competition
+     carries the name and region rank the site displays (`_warehouse_competition_meta`), its crest
+-    and kind (`_competition_page_meta`), and the registry's slug and confederation, the same
+-    sources every other page reads them from."""
++    and kind (`_competition_page_meta`), and its slug and confederation
++    (`_warehouse_competitions`), the same sources every other page reads them from."""
+     marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
+     rows = _query(client, f"""
+         select d.match_day, d.day_row_order, d.is_opening_day, d.previous_day, d.next_day,
+@@ -1873,16 +1861,16 @@ def fetch_match_day_payloads(client, registry_path: str = REGISTRY_PATH) -> list
+         from `{marts}.mart_match_days` as d
+         inner join `{marts}.mart_competition_fixtures` as c on d.fixture_sk = c.fixture_sk
+     """)
+-    registry = {c["league_code"]: c for c in _registry_competitions(registry_path)}
++    identity = {c["league_code"]: c for c in _warehouse_competitions(client)}
+     served = _warehouse_competition_meta(client)
+     page_meta = _competition_page_meta(client)
+     competitions = {
+         lc: {
+-            "name": (served.get(lc) or {}).get("name") or (registry.get(lc) or {}).get("name"),
+-            "slug": (registry.get(lc) or {}).get("slug"),
++            "name": (served.get(lc) or {}).get("name") or (identity.get(lc) or {}).get("name"),
++            "slug": (identity.get(lc) or {}).get("slug"),
+             "crest": (page_meta.get(lc) or {}).get("logo_url"),
+             "entity_type": (page_meta.get(lc) or {}).get("entity_type"),
+-            "confederation": (registry.get(lc) or {}).get("confederation"),
++            "confederation": (identity.get(lc) or {}).get("confederation"),
+             "region_rank": (served.get(lc) or {}).get("region_rank"),
+         }
+         for lc in {r["league_code"] for r in rows}
+@@ -1899,7 +1887,7 @@ def _group2(rows: list[dict], k1: str, k2: str) -> dict:
+ 
+ _STANDING_DROP = {"standing_sk", "season_sk", "league_sk", "competition_type",
+                   "entity_type", "team_api_id", "season_api_year", "league_code",
+-                  "group_description"}
++                  "group_description", "team_slug"}
+ 
+ 
+ _COMPETITION_PAGE_META = ("logo_url", "region_label_en", "region_label_i18n_key",
+@@ -1919,7 +1907,7 @@ def _competition_page_meta(client) -> dict[str, dict]:
+     }
+ 
+ 
+-def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REGISTRY_PATH) -> list[dict]:
++def fetch_competition_payloads(client, sample: int = 0) -> list[dict]:
+     """competitions/{league_code}/{season}.json — one per competition-season with standings.
+ 
+     Every block is a mart read whole or filtered by served columns: the standings row as
+@@ -1931,7 +1919,7 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
+     marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
+     meta = {
+         c["league_code"]: {"name": c.get("name"), "slug": c.get("slug")}
+-        for c in _registry_competitions(registry_path)
++        for c in _warehouse_competitions(client)
+     }
+     for league_code, served in _warehouse_competition_meta(client).items():
+         if league_code in meta:
+@@ -1942,15 +1930,10 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
+     for m in meta.values():
+         m.pop("region_rank", None)
+ 
+-    teams = {
+-        int(r["team_sk"]): r
+-        for r in _query(client, f"select team_sk, team_name, team_slug, team_logo_url "
+-                                f"from `{GCP_PROJECT}.core.dim_team`")
+-    }
+     season_labels = {
+         (r["league_code"], int(r["season_api_year"])): r.get("season_label")
+-        for r in _query(client, f"select league_code, season_api_year, season_label "
+-                                f"from `{GCP_PROJECT}.core.dim_competition_season`")
++        for r in _query(client, f"select distinct league_code, season_api_year, season_label "
++                                f"from `{marts}.mart_competition_fixtures`")
+     }
+     standings = _group2(
+         _query(client, f"select * from `{marts}.mart_standings`"),
+@@ -1958,7 +1941,8 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
+     )
+     deserved = _group2(
+         _query(client, f"""
+-            select league_code, season_api_year, team_sk, points, deserved_points,
++            select league_code, season_api_year, team_sk, team_name, team_slug, team_logo_url,
++                   points, deserved_points,
+                    deserved_points_gap, deserved_rank, shots_on_goal_difference_per_match
+             from `{marts}.mart_team_profile`
+         """),
+@@ -2006,6 +1990,14 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
+     """)
+     fixtures = _group2(fixture_rows, "league_code", "season_api_year")
+     slugs = {int(r["fixture_sk"]): r.get("fixture_slug") for r in fixture_rows}
++    # Team identity for the season summary, from the match rows that name every team it lists.
++    teams = {
++        int(r[f"{side}_team_sk"]): {
++            "team_sk": r[f"{side}_team_sk"], "team_name": r.get(f"{side}_team_name"),
++            "team_slug": r.get(f"{side}_team_slug"), "team_logo_url": r.get(f"{side}_team_logo_url"),
++        }
++        for r in fixture_rows for side in ("home", "away") if r.get(f"{side}_team_sk") is not None
++    }
+ 
+     # A competition-season has a page when any block has something to show: a cup has no
+     # standings but a next round, a season summary and its rounds.
+@@ -2017,14 +2009,14 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
+ 
+     def _standing(r: dict) -> dict:
+         row = _drop(r, _STANDING_DROP)
+-        row["team_slug"] = (teams.get(int(r["team_sk"])) or {}).get("team_slug")
++        row["team_slug"] = r.get("team_slug")
+         return row
+ 
+     _fixture = _competition_fixture
+ 
+     def _deserved(r: dict) -> dict:
+         return {
+-            **_team_ref(teams.get(int(r["team_sk"]))),
++            **_team_ref(r),
+             "points": r.get("points"),
+             "deserved_points": r.get("deserved_points"),
+             "deserved_points_gap": r.get("deserved_points_gap"),
+@@ -2066,10 +2058,10 @@ def shape_leaderboards(rows: list[dict], metrics=_LEADERBOARD_METRICS,
+     return boards
+ 
+ 
+-def fetch_leaderboard_payloads(client, sample: int = 0, registry_path: str = REGISTRY_PATH) -> list[dict]:
++def fetch_leaderboard_payloads(client, sample: int = 0) -> list[dict]:
+     meta = {
+         c["league_code"]: {"name": c.get("name"), "slug": c.get("slug")}
+-        for c in _registry_competitions(registry_path)
++        for c in _warehouse_competitions(client)
+     }
+     grouped = _group2(
+         _query(client, f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_leaderboards` "
+@@ -2366,7 +2358,7 @@ def shape_landing_payload(
+     return payload
+ 
+ 
+-def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
++def fetch_landing_payload(client) -> dict:
+     """landing.json: Next matches, Top players and Top teams.
+ 
+     Next matches reads `mart_next_matchday` joined to `mart_competition_fixtures`, with the
+@@ -2377,7 +2369,7 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
+         c["league_code"]: {
+             "name": c.get("name"), "slug": c.get("slug"),
+         }
+-        for c in _registry_competitions(registry_path)
++        for c in _warehouse_competitions(client)
+     }
+ 
+     # ⚠ THE DISPLAY NAME IS OVERWRITTEN FROM THE MART — see `_warehouse_competition_meta`, which
+@@ -2407,8 +2399,8 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
+     upcoming = group_upcoming_fixtures(fixtures, meta)
+ 
+     # Top players (#40). One player per league across the `elite` group, current season only.
+-    # ⚠ Every part of the selection AND the order is a SERVED column: `competition_group` from the
+-    # registry seed, `is_current_season` and `league_leader_order` from the mart. The WHERE filters
++    # ⚠ Every part of the selection AND the order is a SERVED column: the row's own season's
++    # `competition_group`, `is_current_season` and `league_leader_order` from the mart. The WHERE filters
+     # facts and the ORDER BY reads them back in the ruled order; neither computes anything. Picking
+     # the season in Python is what #846 moved out of this file, and picking the league's
+     # representative is what the ranking ruling moved out of it.
+@@ -2433,12 +2425,10 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
+                l.player_sk, l.player_name,
+                l.team_name, l.team_slug, l.team_logo_url
+         from `{GCP_PROJECT}.{MARTS_DATASET}.mart_leaderboards` as l
+-        join `{GCP_PROJECT}.{SEEDS_DATASET}.competition_registry` as r
+-            on l.league_code = r.league_code
+         where l.window_type = 'season_to_date'
+           and l.is_current_season
+           and l.league_leader_order = 1
+-          and r.competition_group = 'elite'
++          and l.competition_group = 'elite'
+           and l.metric_key in ({", ".join(f"'{k}'" for k in _HOME_PLAYER_BOARDS)})
+         order by l.board_leader_order
+     """)
+@@ -2452,11 +2442,9 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
+         select t.metric_key, t.league_code, t.sort_value,
+                t.team_sk, t.team_name, t.team_slug, t.team_logo_url
+         from `{GCP_PROJECT}.{MARTS_DATASET}.mart_team_leaderboards` as t
+-        join `{GCP_PROJECT}.{SEEDS_DATASET}.competition_registry` as r
+-            on t.league_code = r.league_code
+         where t.is_current_season
+           and t.league_leader_order = 1
+-          and r.competition_group = 'elite'
++          and t.competition_group = 'elite'
+           and t.metric_key in ({", ".join(f"'{k}'" for k in _HOME_TEAM_BOARDS)})
+         order by t.board_leader_order
+     """)
+@@ -2600,7 +2588,7 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
+                 slug_map[f"{p['slug']}-{p['season']}"] = {
+                     "type": "competition", "league_code": p["league_code"], "season": p["season"]}
+     if "nav" in entities:
+-        nav = fetch_nav()
++        nav = fetch_nav(client)
+         sha = write_file(out_root, "nav.json", nav)
+         entries.append({"type": "nav", "id": "nav", "slug": None,
+                         "path": "nav.json", "sha256": sha})
+@@ -2657,7 +2645,7 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
+             entries.append({"type": "player_peers", "id": relpath, "slug": None,
+                             "path": relpath, "sha256": sha})
+ 
+-    # Full league_code -> {name, slug} map (registry-only) — the frontend's competition lookup for
++    # Full league_code -> {name, slug} map — the frontend's competition lookup for
+     # every active league. Always emitted (site_v2/src/data/competitions.json consumes it, even on a
+     # teams-only run: the team page reads the competition display name from it).
+     sha = write_file(out_root, "competitions.json", _competitions_index(client))
+diff --git a/scripts/sync_dbt_vars.py b/scripts/sync_dbt_vars.py
+index 743c1b93..c3c24176 100644
+--- a/scripts/sync_dbt_vars.py
++++ b/scripts/sync_dbt_vars.py
+@@ -3,10 +3,9 @@
+ Two artifacts are kept in lockstep with the registry:
+   1. ``active_competition_league_codes`` in dbt_project.yml (active/in_progress codes).
+   2. ``seeds/competition_registry.csv`` — the registry's own fields, projected into the warehouse
+-     so the website never has to read an authoring file to render a page (#62). Models join it on
+-     league_code to resolve a competition's type (and, via the competition_types seed, its
+-     club/national entity_type), its parent competition (qualifier → tournament, domestic cup →
+-     league), and its display fields: confederation, slug, sort_order, tier, season_type.
++     so the website never has to read an authoring file to render a page (#62). dim_league reads
++     it on league_code for a competition's type, its parent competition (qualifier → tournament,
++     domestic cup → league), and its display fields: confederation, slug, sort_order, season_type.
+      See SEED_COLUMNS for the column list and for why ``country`` is not among them.
+ 
+ Run this after updating docs/competition_registry.yml (adding/removing a competition or
+@@ -53,9 +52,7 @@ SEED_COLUMNS: tuple[str, ...] = (
+     "confederation",
+     "slug",
+     "sort_order",
+-    "tier",
+     "season_type",
+-    "competition_group",
+ )
+ 
+ 
+@@ -93,10 +90,8 @@ def _registry_seed_rows() -> list[tuple[str, ...]]:
+     """Return sorted rows of SEED_COLUMNS for every competition with league_code and
+     competition_type set.
+ 
+-    A field absent from a competition becomes '', the convention parent_competition already used
+-    for "no parent". That is load-bearing for `tier`, which is declared on exactly the 16
+-    domestic_league competitions and on no other competition_type — structurally N/A for a cup
+-    rather than missing data, which is why the seed does not test it `not_null`.
++    A field absent from a competition becomes '', the convention parent_competition uses for
++    "no parent".
+     """
+     data = yaml.safe_load(REGISTRY_PATH.read_text(encoding="utf-8"))
+     comps = data.get("competitions") or []
+diff --git a/tests/test_check_layer_contract.py b/tests/test_check_layer_contract.py
+new file mode 100644
+index 00000000..4b49fc8c
+--- /dev/null
++++ b/tests/test_check_layer_contract.py
+@@ -0,0 +1,181 @@
++import importlib.util
++import pathlib
++
++ROOT = pathlib.Path(__file__).resolve().parents[1]
++
++
++def _load_layer_contract():
++    spec = importlib.util.spec_from_file_location(
++        "check_layer_contract", ROOT / "scripts" / "check_layer_contract.py"
++    )
++    mod = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(mod)
++    return mod
++
++
++def _plant(mod, monkeypatch, tmp_path):
++    project = tmp_path / "dbt_project"
++    models = project / "models"
++    tests = project / "tests"
++    scripts = tmp_path / "scripts"
++    for d in (models / "3_core", models / "5_marts", tests, scripts, project / "seeds",
++              project / "macros", project / "target"):
++        d.mkdir(parents=True)
++    reader = models / "3_core" / "dim_league.sql"
++    reader.write_text("select * from {{ ref('competition_registry') }}", encoding="utf-8")
++    (project / "seeds" / "schema.yml").write_text("to: ref('dim_league')", encoding="utf-8")
++    monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
++    monkeypatch.setattr(mod, "DBT_PROJECT", project)
++    monkeypatch.setattr(mod, "DBT_MODELS", models)
++    monkeypatch.setattr(mod, "DBT_TESTS", tests)
++    monkeypatch.setattr(mod, "SCRIPTS_DIR", scripts)
++    monkeypatch.setattr(mod, "REGISTRY_SEED_READER", reader)
++    return models, tests, scripts
++
++
++def _errors(mod):
++    errors: list[str] = []
++    mod.check_registry_seed_readers(errors)
++    return errors
++
++
++def test_the_repo_has_one_reader_of_the_registry_seed():
++    assert _errors(_load_layer_contract()) == []
++
++
++def test_dim_league_alone_passes(monkeypatch, tmp_path):
++    mod = _load_layer_contract()
++    _plant(mod, monkeypatch, tmp_path)
++    assert _errors(mod) == []
++
++
++def test_a_mart_reading_the_seed_fails(monkeypatch, tmp_path):
++    mod = _load_layer_contract()
++    models, _, _ = _plant(mod, monkeypatch, tmp_path)
++    (models / "5_marts" / "mart_x.sql").write_text(
++        "select * from {{ ref( \"competition_registry\" ) }}", encoding="utf-8"
++    )
++    errors = _errors(mod)
++    assert len(errors) == 1 and "mart_x.sql" in errors[0]
++
++
++def test_a_yml_relationship_to_the_seed_fails(monkeypatch, tmp_path):
++    mod = _load_layer_contract()
++    models, _, _ = _plant(mod, monkeypatch, tmp_path)
++    (models / "5_marts" / "marts.yml").write_text(
++        "to: ref('competition_registry')", encoding="utf-8"
++    )
++    errors = _errors(mod)
++    assert len(errors) == 1 and "marts.yml" in errors[0]
++
++
++def test_a_singular_test_reading_the_seed_fails(monkeypatch, tmp_path):
++    mod = _load_layer_contract()
++    _, tests, _ = _plant(mod, monkeypatch, tmp_path)
++    (tests / "assert_x.sql").write_text(
++        "select 1 from {{ ref('competition_registry') }}", encoding="utf-8"
++    )
++    errors = _errors(mod)
++    assert len(errors) == 1 and "assert_x.sql" in errors[0]
++
++
++def test_a_macro_reading_the_seed_fails(monkeypatch, tmp_path):
++    mod = _load_layer_contract()
++    models, _, _ = _plant(mod, monkeypatch, tmp_path)
++    (models.parent / "macros" / "m.sql").write_text(
++        "{{ ref('competition_registry') }}", encoding="utf-8"
++    )
++    errors = _errors(mod)
++    assert len(errors) == 1 and "m.sql" in errors[0]
++
++
++def test_a_seed_relationship_test_reading_the_seed_fails(monkeypatch, tmp_path):
++    mod = _load_layer_contract()
++    models, _, _ = _plant(mod, monkeypatch, tmp_path)
++    (models.parent / "seeds" / "schema.yml").write_text(
++        "to: ref('competition_registry')", encoding="utf-8"
++    )
++    errors = _errors(mod)
++    assert len(errors) == 1 and "schema.yml" in errors[0]
++
++
++def test_the_two_argument_ref_form_fails(monkeypatch, tmp_path):
++    mod = _load_layer_contract()
++    models, _, _ = _plant(mod, monkeypatch, tmp_path)
++    (models / "5_marts" / "mart_y.sql").write_text(
++        "select * from {{ ref('football', 'competition_registry') }}", encoding="utf-8"
++    )
++    assert len(_errors(mod)) == 1
++
++
++def test_compiled_target_files_are_ignored(monkeypatch, tmp_path):
++    mod = _load_layer_contract()
++    models, _, _ = _plant(mod, monkeypatch, tmp_path)
++    (models.parent / "target" / "compiled.sql").write_text(
++        "{{ ref('competition_registry') }}", encoding="utf-8"
++    )
++    assert _errors(mod) == []
++
++
++def test_an_export_querying_the_seed_table_fails(monkeypatch, tmp_path):
++    mod = _load_layer_contract()
++    _, _, scripts = _plant(mod, monkeypatch, tmp_path)
++    (scripts / "export_x.py").write_text(
++        'SQL = "join `p.dbt_analytics.competition_registry` as r"', encoding="utf-8"
++    )
++    errors = _errors(mod)
++    assert len(errors) == 1 and "export_x.py" in errors[0]
++
++
++def _export_errors(mod, monkeypatch, tmp_path, source):
++    export = tmp_path / "export_site_data.py"
++    export.write_text(source, encoding="utf-8")
++    monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
++    monkeypatch.setattr(mod, "EXPORT_SITE_DATA", export)
++    errors: list[str] = []
++    mod.check_export_reads_marts_only(errors)
++    return errors
++
++
++_MARTS = 'MARTS_DATASET = "marts"\n'
++
++
++def test_the_repo_export_reads_marts_only():
++    errors: list[str] = []
++    _load_layer_contract().check_export_reads_marts_only(errors)
++    assert errors == []
++
++
++def test_an_export_reading_marts_passes(monkeypatch, tmp_path):
++    source = _MARTS + 'SQL = f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_x`"\n'
++    assert _export_errors(_load_layer_contract(), monkeypatch, tmp_path, source) == []
++
++
++def test_an_export_reading_core_fails(monkeypatch, tmp_path):
++    source = _MARTS + 'SQL = f"select * from `{GCP_PROJECT}.core.dim_team`"\n'
++    errors = _export_errors(_load_layer_contract(), monkeypatch, tmp_path, source)
++    assert len(errors) == 1 and ":2:" in errors[0]
++
++
++def test_an_export_reading_a_seed_dataset_fails(monkeypatch, tmp_path):
++    source = _MARTS + 'SQL = f"join `{GCP_PROJECT}.{SEEDS_DATASET}.confederations`"\n'
++    assert len(_export_errors(_load_layer_contract(), monkeypatch, tmp_path, source)) == 1
++
++
++def test_a_hardcoded_non_mart_table_fails(monkeypatch, tmp_path):
++    source = _MARTS + 'SQL = "select * from `football-data-pipeline-gcp.core.dim_team`"\n'
++    assert len(_export_errors(_load_layer_contract(), monkeypatch, tmp_path, source)) == 1
++
++
++def test_a_marts_dataset_pointing_elsewhere_fails(monkeypatch, tmp_path):
++    source = 'MARTS_DATASET = "core"\n'
++    assert len(_export_errors(_load_layer_contract(), monkeypatch, tmp_path, source)) == 1
++
++
++def test_naming_the_registry_file_in_an_export_passes(monkeypatch, tmp_path):
++    mod = _load_layer_contract()
++    _, _, scripts = _plant(mod, monkeypatch, tmp_path)
++    (scripts / "export_x.py").write_text(
++        'REGISTRY_PATH = "docs/competition_registry.yml"', encoding="utf-8"
++    )
++    assert _errors(mod) == []
+diff --git a/tests/test_export_landing.py b/tests/test_export_landing.py
+index f71a174d..7f308c62 100644
+--- a/tests/test_export_landing.py
++++ b/tests/test_export_landing.py
+@@ -121,6 +121,11 @@ def test_the_hero_reads_the_next_matchday_mart_whole_in_the_served_order(monkeyp
+         return []
+ 
+     monkeypatch.setattr(export_site_data, "_query", fake_query)
++    monkeypatch.setattr(export_site_data, "_warehouse_competitions", lambda client: [
++        {"league_code": "BL1", "name": "Bundesliga", "slug": "bundesliga", "confederation": "UEFA"},
++        {"league_code": "MLS", "name": "Major League Soccer", "slug": "mls",
++         "confederation": "CONCACAF"},
++    ])
+     monkeypatch.setattr(export_site_data, "_warehouse_competition_meta", lambda client: {})
+     monkeypatch.setattr(export_site_data, "_competition_page_meta",
+                         lambda client: {"BL1": {"logo_url": "https://x/bl1.png"}})
+@@ -419,32 +424,23 @@ class _FakeClient:
+ def test_the_competition_display_name_comes_from_the_warehouse_not_the_registry():
+     """The name is mart_competition_index's, not the registry's, which names BL1 differently."""
+     client = _FakeClient([
+-        {"league_code": "BL1", "competition_name": "Bundesliga", "region_rank": 1},
++        {"league_code": "BL1", "competition_name": "Bundesliga", "slug": "bundesliga",
++         "confederation": "UEFA"},
+     ])
+     index = _competitions_index(client)
+-    assert index["BL1"]["name"] == "Bundesliga"
+-    # Every registry competition is still present — the overlay narrows nothing.
+-    assert len(index) > 40
+-
+-
+-def test_the_overlay_never_takes_the_slug_even_if_the_warehouse_offers_one(monkeypatch):
+-    """The slug is the URL, so the overlay never takes it from the warehouse even when offered."""
+-    # The helper is patched to offer a slug; otherwise none reaches the overlay.
+-    monkeypatch.setattr(
+-        export_site_data, "_warehouse_competition_meta",
+-        lambda client: {"BL1": {"name": "Bundesliga", "slug": "warehouse-must-not-win-this"}},
+-    )
+-    index = _competitions_index(object())
+-    assert index["BL1"]["name"] == "Bundesliga"
+-    assert index["BL1"]["slug"] == "bundesliga"
++    assert index == {"BL1": {"name": "Bundesliga", "slug": "bundesliga"}}
++    assert "mart_competition_index" in client.sql
+ 
+ 
+-def test_a_competition_the_warehouse_does_not_name_keeps_the_registry_name():
+-    """A league with no served row or a NULL name keeps the registry's name, never a blank."""
+-    client = _FakeClient([{"league_code": "BL1", "competition_name": None, "region_rank": 1}])
++def test_the_export_lists_the_competitions_the_warehouse_serves_and_no_registry_row():
++    """A competition the mart does not serve is not in the index, and the slug is the mart's."""
++    client = _FakeClient([
++        {"league_code": "BL1", "competition_name": "Bundesliga", "slug": "served-slug",
++         "confederation": "UEFA"},
++    ])
+     index = _competitions_index(client)
+-    assert index["BL1"]["name"] == "1. Fußball-Bundesliga"
+-    assert index["PL"]["name"] == "Premier League"
++    assert set(index) == {"BL1"}
++    assert index["BL1"]["slug"] == "served-slug"
+ 
+ 
+ def test_the_warehouse_meta_carries_the_name_and_the_region_rank_together():
+diff --git a/tests/test_export_matches.py b/tests/test_export_matches.py
+index 82a43851..79053483 100644
+--- a/tests/test_export_matches.py
++++ b/tests/test_export_matches.py
+@@ -78,6 +78,9 @@ def test_the_fetch_reads_the_mart_whole_and_selects_nothing(monkeypatch):
+         return []
+ 
+     monkeypatch.setattr(export_site_data, "_query", fake_query)
++    monkeypatch.setattr(export_site_data, "_warehouse_competitions", lambda client: [
++        {"league_code": "BL1", "name": "Bundesliga", "slug": "bundesliga", "confederation": "UEFA"},
++    ])
+     monkeypatch.setattr(export_site_data, "_warehouse_competition_meta",
+                         lambda client: {"BL1": {"name": "Bundesliga", "region_rank": 1}})
+     monkeypatch.setattr(export_site_data, "_competition_page_meta",
+diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
+index 12f52cc6..e1cad20d 100644
+--- a/tests/test_export_site_data.py
++++ b/tests/test_export_site_data.py
+@@ -173,6 +173,16 @@ def test_build_nav_groups_and_country_hubs():
+     assert all(c["country"] != "Europe" for c in nav["countries"])
+ 
+ 
++def test_fetch_nav_takes_each_leagues_tier_from_the_competition_mart(monkeypatch):
++    monkeypatch.setattr(export_site_data, "_warehouse_competitions", lambda client: [
++        {"league_code": "BL1", "tier": 2}, {"league_code": "BL2", "tier": 1},
++    ])
++    nav = export_site_data.fetch_nav(object())
++    germany = next(c for c in nav["countries"] if c["country"] == "Germany")
++    order = [c["league_code"] for c in germany["competitions"]]
++    assert order.index("BL2") < order.index("BL1"), "the mart's tier orders the hub, not the YAML"
++
++
+ def test_shape_top_players_selects_by_rank_and_joins_names():
+     # Selection only: ordered by the warehouse's top_player_rank, with join keys and the rank dropped.
+     rows = [
+@@ -244,7 +254,7 @@ def test_shape_competition_payload_carries_the_served_season_label_as_is():
+ 
+ def test_fetched_competition_payloads_take_the_label_of_their_own_season(monkeypatch):
+     def fake_query(client, sql):
+-        if "dim_competition_season" in sql:
++        if "season_label" in sql and "mart_competition_fixtures" in sql:
+             return [{"league_code": "BL1", "season_api_year": 2025, "season_label": "2025/26"},
+                     {"league_code": "BL1", "season_api_year": 2026, "season_label": "2026/27"}]
+         if "mart_competition_season_summary" in sql:
+@@ -546,19 +556,17 @@ def test_fixture_payloads_read_the_match_and_each_teams_next_match_from_the_mart
+     def fake_query(client, sql):
+         captured.append(sql)
+         if "mart_competition_fixtures" in sql and "status_short in" in sql:
+-            return [page]
++            return [{**page, "home_team_country": "Germany", "away_team_country": "Germany"}]
+         if "mart_competition_fixtures" in sql and "next_match" in sql:
+             return [team1_next, page]
+-        if "core.dim_team" in sql:
+-            return [{"team_sk": 1, "team_country": "Germany"}, {"team_sk": 2, "team_country": "Germany"}]
+-        if "core.dim_league" in sql:
+-            return [{"league_code": "BL1", "league_name": "Bundesliga"}]
++        if "mart_competition_index" in sql:
++            return [{"league_code": "BL1", "competition_name": "Bundesliga"}]
+         return []
+ 
+     monkeypatch.setattr(export_site_data, "_query", fake_query)
+     (p,) = export_site_data.fetch_fixture_payloads(object())
+ 
+-    assert not any("core.fct_fixture" in s for s in captured), "the match is read from the mart"
++    assert not any(".core." in s for s in captured), "every read is a mart"
+     assert p["venue"] == "Arena 20" and p["league_name"] == "Bundesliga" and p["slug"] == "slug-20"
+     assert p["home"]["name"] == "T1" and p["home"]["crest"] == "c1" and p["home"]["country"] == "Germany"
+     assert p["is_next_round"] is False, "the served flag says which page this fixture gets"
+@@ -582,10 +590,9 @@ def test_fixture_payloads_carry_the_served_window_round_slugs_and_season_players
+         if "mart_team_season_record" in sql:
+             return [{**keys, "team_sk": 2, "window_type": "prev_season", "goals_per_match": 2.0, "is_form_window": True}]
+         if "mart_player_season_record" in sql:
+-            return [{**keys, "team_sk": 1, "player_sk": 7, "top_player_rank": 1, "goals_total": 3, "goals_assists": 1,
++            return [{**keys, "team_sk": 1, "player_sk": 7, "player_name": "P7", "player_photo_url": "u7",
++                     "top_player_rank": 1, "goals_total": 3, "goals_assists": 1,
+                      "window_type": "season_to_date", "league_code": "BL1"}]
+-        if "core.dim_player" in sql:
+-            return [{"player_sk": 7, "player_name": "P7", "player_photo_url": "u7"}]
+         return []
+ 
+     monkeypatch.setattr(export_site_data, "_query", fake_query)
+@@ -936,13 +943,10 @@ def test_each_team_season_carries_its_competitions_season_label():
+ 
+ def test_a_team_export_reads_each_seasons_label_from_the_warehouse(monkeypatch):
+     profile = [{"team_sk": 1, "season_api_year": 2026, "league_code": "PL", "team_name": "City",
+-                "is_featured_season": True}]
+-    labels = [{"league_code": "PL", "season_api_year": 2026, "season_label": "2026/27"}]
++                "season_label": "2026/27", "is_featured_season": True}]
+ 
+     def fake_query(client, sql):
+-        if "mart_team_profile" in sql:
+-            return profile
+-        return labels if "dim_competition_season" in sql else []
++        return profile if "mart_team_profile" in sql else []
+ 
+     monkeypatch.setattr(export_site_data, "_query", fake_query)
+     (payload,) = export_site_data.fetch_team_payloads(client=None, sample=1)
+@@ -1271,17 +1275,17 @@ def test_build_manifest_records_what_the_warehouse_held():
+     assert m["source_counts"] == {"fixtures_unplayed": 4321}
+ 
+ 
+-def test_competitions_index_covers_registry_leagues_with_slug_and_name():
++def test_competitions_index_maps_every_served_competition_to_its_slug_and_name(monkeypatch):
+     # site_v2/src/data/competitions.json carries this; the fixture page resolves its URL from it.
+-    idx = _competitions_index()
+-    assert idx, "registry produced no competitions"
+-    for lc, meta in idx.items():
+-        assert isinstance(lc, str) and lc
+-        assert meta.get("slug"), f"{lc} has no slug"
+-        assert "name" in meta
+-    # known active leagues resolve (registry-backed)
+-    assert idx["PL"]["slug"] == "premier-league"
+-    assert idx["BL1"]["slug"]
++    monkeypatch.setattr(export_site_data, "_warehouse_competitions", lambda client: [
++        {"league_code": "BL1", "name": "Bundesliga", "slug": "bundesliga", "confederation": "UEFA"},
++        {"league_code": "PL", "name": "Premier League", "slug": "premier-league",
++         "confederation": "UEFA"},
++    ])
++    assert _competitions_index(object()) == {
++        "BL1": {"name": "Bundesliga", "slug": "bundesliga"},
++        "PL": {"name": "Premier League", "slug": "premier-league"},
++    }
+ 
+ 
+ def test_shape_competition_index_projects_the_keep_list_and_changes_nothing():
+@@ -1350,9 +1354,9 @@ def test_shape_team_index_projects_in_input_order_and_lifts_the_page_flag():
+     assert zeta["region_rank"] == 1 and zeta["country_order"] == 2
+ 
+ 
+-def test_fetch_team_index_orders_by_name_and_reads_the_region_facts_from_the_seed(monkeypatch):
+-    # The name order is the order of teams sharing a place, and the seed's region rank and label
+-    # key order and name the region groups; without either the page changes on every export.
++def test_fetch_team_index_orders_by_name_and_reads_the_mart_alone(monkeypatch):
++    # The name order is the order of teams sharing a place; the mart serves the region rank and
++    # label key that order and name the region groups.
+     seen = []
+ 
+     def fake_query(client, sql):
+@@ -1363,10 +1367,8 @@ def test_fetch_team_index_orders_by_name_and_reads_the_region_facts_from_the_see
+     payload = export_site_data.fetch_team_index(object())
+     (sql,) = seen
+     assert payload["type"] == "teams_index"
+-    assert "mart_team_index` as t" in sql
+-    assert "confederations` as g on t.region_key = g.confederation" in sql
+-    assert "g.region_rank, g.label_i18n_key as region_label_i18n_key" in sql
+-    assert sql.endswith("order by t.team_name, t.team_slug")
++    assert "marts.mart_team_index`" in sql and "join" not in sql
++    assert sql.endswith("order by team_name, team_slug")
+ 
+ 
+ def test_shape_team_index_refuses_rows_that_disagree_on_the_page_flag():
+diff --git a/tests/test_registry_seed_projection.py b/tests/test_registry_seed_projection.py
+index d5412916..65d8cfa1 100644
+--- a/tests/test_registry_seed_projection.py
++++ b/tests/test_registry_seed_projection.py
+@@ -73,27 +73,60 @@ def test_seed_header_matches_the_declared_columns():
+     )
+ 
+ 
+-def test_tier_is_declared_exactly_for_domestic_leagues():
+-    """`tier` is structurally N/A off a league, so it is checked in both directions on the committed seed."""
+-    league_without_tier = []
+-    non_league_with_tier = []
+-    for row in _seed_rows():
+-        is_league = row["competition_type"] == "domestic_league"
+-        has_tier = bool((row.get("tier") or "").strip())
+-        if is_league and not has_tier:
+-            league_without_tier.append(row["league_code"])
+-        if not is_league and has_tier:
+-            non_league_with_tier.append((row["league_code"], row["competition_type"]))
+-
+-    assert not league_without_tier, (
+-        "domestic_league competitions with no `tier` in the seed: "
+-        f"{sorted(league_without_tier)}. Every league declares its division in "
+-        "docs/competition_registry.yml; a blank here means the projection dropped it."
++SEASON_MAP = ROOT / "dbt_project" / "seeds" / "competition_season_map.csv"
++SEASON_COLUMNS = ("tier", "competition_group")
++
++
++def _season_map_rows() -> list[dict[str, str]]:
++    with SEASON_MAP.open(encoding="utf-8", newline="") as f:
++        return list(csv.DictReader(f))
++
++
++def _competition_types() -> dict[str, str]:
++    return {row["league_code"]: row["competition_type"] for row in _seed_rows()}
++
++
++def test_tier_and_group_are_registry_free():
++    """A league's tier and group can change between seasons, so competition_season_map holds them
++    per season and the registry seed carries neither."""
++    for column in SEASON_COLUMNS:
++        assert column not in WRITER_COLUMNS
++        assert column in _season_map_rows()[0]
++
++
++def test_tier_and_group_sit_only_on_domestic_league_seasons():
++    """A cup or tournament has no division and is not ranked against leagues, so its rows carry
++    neither. A domestic league's first season carries both, and a later blank carries the previous
++    season's value forward in dim_competition_season."""
++    types = _competition_types()
++    first_season: dict[str, dict[str, str]] = {}
++    non_league_with_value = []
++    for row in _season_map_rows():
++        is_league = types.get(row["league_code"]) == "domestic_league"
++        if not is_league and any((row.get(c) or "").strip() for c in SEASON_COLUMNS):
++            non_league_with_value.append((row["league_code"], row["season_api_year"]))
++        if is_league:
++            seen = first_season.get(row["league_code"])
++            if seen is None or int(row["season_api_year"]) < int(seen["season_api_year"]):
++                first_season[row["league_code"]] = row
++
++    league_codes = {code for code, kind in types.items() if kind == "domestic_league"}
++    assert league_codes <= set(first_season), (
++        f"domestic leagues with no row in competition_season_map: "
++        f"{sorted(league_codes - set(first_season))}"
++    )
++    first_without_value = sorted(
++        (code, column)
++        for code, row in first_season.items()
++        for column in SEASON_COLUMNS
++        if not (row.get(column) or "").strip()
+     )
+-    assert not non_league_with_tier, (
+-        "non-league competitions carrying a `tier`: " f"{sorted(non_league_with_tier)}. "
+-        "A cup or tournament has no division, so `tier` must be empty. If a competition type "
+-        "genuinely gains divisions, change this rule deliberately rather than widening it."
++    assert not first_without_value, (
++        f"a domestic league's first season must set tier and competition_group: "
++        f"{first_without_value}"
++    )
++    assert not non_league_with_value, (
++        f"non-league rows carrying tier or competition_group: {sorted(non_league_with_value)}"
+     )
+ 
+ 
+@@ -102,37 +135,12 @@ COMPETITION_GROUPS = frozenset(
+ )
+ 
+ 
+-def test_competition_group_is_declared_exactly_for_domestic_leagues():
+-    """A blank group is legitimate off a league, so `not_null` is wrong and both directions are checked here."""
+-    league_without_group = []
+-    non_league_with_group = []
+-    for row in _seed_rows():
+-        is_league = row["competition_type"] == "domestic_league"
+-        has_group = bool((row.get("competition_group") or "").strip())
+-        if is_league and not has_group:
+-            league_without_group.append(row["league_code"])
+-        if not is_league and has_group:
+-            non_league_with_group.append((row["league_code"], row["competition_type"]))
+-
+-    assert not league_without_group, (
+-        "domestic_league competitions with no `competition_group` in the seed: "
+-        f"{sorted(league_without_group)}. A league with no group is selected by no surface and "
+-        "fails silently — nothing renders to reveal it. Assign one in "
+-        "docs/competition_registry.yml and re-run scripts/sync_dbt_vars.py."
+-    )
+-    assert not non_league_with_group, (
+-        f"non-league competitions carrying a `competition_group`: {sorted(non_league_with_group)}. "
+-        "Groups rank leagues against each other; a cup or tournament is not a candidate, so this "
+-        "must be empty."
+-    )
+-
+-
+ def test_competition_group_uses_only_the_declared_names():
+-    """A typo'd group passes the completeness check and still selects nothing."""
++    """A typo'd group passes the season-map checks and still selects nothing."""
+     unknown = sorted(
+         {
+             (row["league_code"], row["competition_group"])
+-            for row in _seed_rows()
++            for row in _season_map_rows()
+             if (row.get("competition_group") or "").strip()
+             and row["competition_group"] not in COMPETITION_GROUPS
+         }
+diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
+index c8334b07..179d7317 100644
+--- a/tests/test_sentence_length_in_docs.py
++++ b/tests/test_sentence_length_in_docs.py
+@@ -39,7 +39,7 @@ PINNED = {
+     "dbt_project/models/docs/cleaning_rules.md": 5,
+     "dbt_project/models/docs/metric_columns.md": 15,
+     "dbt_project/models/docs/metric_rules.md": 2,
+-    "dbt_project/models/docs/shared_columns.md": 35,
++    "dbt_project/models/docs/shared_columns.md": 33,
+     "deploy/nightly/README.md": 19,
+     "design-mocks/README.md": 15,
+     "docs/data_contract.md": 31,
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/83-competition-dim/review.md          |   40 +
+#    .claude/task/83-competition-dim/review_input.patch | 4243 ++++++++++++++++++++
+#    2 files changed, 4283 insertions(+)
+# ============================================================================

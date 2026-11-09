@@ -34,7 +34,7 @@ registry as (
         league_code,
         competition_type,
         parent_competition
-    from {{ ref('competition_registry') }}
+    from {{ ref('dim_league') }}
 ),
 
 provenance_failures as (

@@ -77,11 +77,9 @@ fixtures as (
 
 competition_tabs as (
     select
-        reg.league_code,
-        if(typ.entity_type = 'club', 'club', 'national_team') as page_tab
-    from {{ ref('competition_registry') }} as reg
-    inner join {{ ref('competition_types') }} as typ
-        on reg.competition_type = typ.competition_type
+        leagues.league_code,
+        if(leagues.entity_type = 'club', 'club', 'national_team') as page_tab
+    from {{ ref('dim_league') }} as leagues
 ),
 
 page_windows as (

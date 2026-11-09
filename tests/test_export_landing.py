@@ -121,6 +121,11 @@ def test_the_hero_reads_the_next_matchday_mart_whole_in_the_served_order(monkeyp
         return []
 
     monkeypatch.setattr(export_site_data, "_query", fake_query)
+    monkeypatch.setattr(export_site_data, "_warehouse_competitions", lambda client: [
+        {"league_code": "BL1", "name": "Bundesliga", "slug": "bundesliga", "confederation": "UEFA"},
+        {"league_code": "MLS", "name": "Major League Soccer", "slug": "mls",
+         "confederation": "CONCACAF"},
+    ])
     monkeypatch.setattr(export_site_data, "_warehouse_competition_meta", lambda client: {})
     monkeypatch.setattr(export_site_data, "_competition_page_meta",
                         lambda client: {"BL1": {"logo_url": "https://x/bl1.png"}})
@@ -419,32 +424,23 @@ class _FakeClient:
 def test_the_competition_display_name_comes_from_the_warehouse_not_the_registry():
     """The name is mart_competition_index's, not the registry's, which names BL1 differently."""
     client = _FakeClient([
-        {"league_code": "BL1", "competition_name": "Bundesliga", "region_rank": 1},
+        {"league_code": "BL1", "competition_name": "Bundesliga", "slug": "bundesliga",
+         "confederation": "UEFA"},
     ])
     index = _competitions_index(client)
-    assert index["BL1"]["name"] == "Bundesliga"
-    # Every registry competition is still present — the overlay narrows nothing.
-    assert len(index) > 40
+    assert index == {"BL1": {"name": "Bundesliga", "slug": "bundesliga"}}
+    assert "mart_competition_index" in client.sql
 
 
-def test_the_overlay_never_takes_the_slug_even_if_the_warehouse_offers_one(monkeypatch):
-    """The slug is the URL, so the overlay never takes it from the warehouse even when offered."""
-    # The helper is patched to offer a slug; otherwise none reaches the overlay.
-    monkeypatch.setattr(
-        export_site_data, "_warehouse_competition_meta",
-        lambda client: {"BL1": {"name": "Bundesliga", "slug": "warehouse-must-not-win-this"}},
-    )
-    index = _competitions_index(object())
-    assert index["BL1"]["name"] == "Bundesliga"
-    assert index["BL1"]["slug"] == "bundesliga"
-
-
-def test_a_competition_the_warehouse_does_not_name_keeps_the_registry_name():
-    """A league with no served row or a NULL name keeps the registry's name, never a blank."""
-    client = _FakeClient([{"league_code": "BL1", "competition_name": None, "region_rank": 1}])
+def test_the_export_lists_the_competitions_the_warehouse_serves_and_no_registry_row():
+    """A competition the mart does not serve is not in the index, and the slug is the mart's."""
+    client = _FakeClient([
+        {"league_code": "BL1", "competition_name": "Bundesliga", "slug": "served-slug",
+         "confederation": "UEFA"},
+    ])
     index = _competitions_index(client)
-    assert index["BL1"]["name"] == "1. Fußball-Bundesliga"
-    assert index["PL"]["name"] == "Premier League"
+    assert set(index) == {"BL1"}
+    assert index["BL1"]["slug"] == "served-slug"
 
 
 def test_the_warehouse_meta_carries_the_name_and_the_region_rank_together():

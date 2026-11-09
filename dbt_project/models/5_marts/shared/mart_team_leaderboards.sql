@@ -104,6 +104,13 @@ teams as (
     from {{ ref('dim_team') }}
 ),
 
+competition_seasons as (
+    select
+        season_sk,
+        competition_group
+    from {{ ref('dim_competition_season') }}
+),
+
 base as (
     select
         l.team_sk,
@@ -117,6 +124,7 @@ base as (
         t.team_name,
         t.team_slug,
         t.team_logo_url,
+        cs.competition_group,
         case
             when l.metric_key in (
                 {% for key in most_first_by_ruling %}
@@ -128,6 +136,7 @@ base as (
         end as rank_order
     from long as l
     left join teams as t on l.team_sk = t.team_sk
+    left join competition_seasons as cs on l.season_sk = cs.season_sk
     -- inner: a board whose metric the catalogue does not define has no direction and no rows,
     -- which assert_mart_team_leaderboards_all_boards_present then reports as a missing board
     inner join catalogue as c on l.metric_key = c.metric_id
@@ -183,6 +192,7 @@ select
     metric_value as sort_value,
     league_code,
     season_api_year,
+    competition_group,
     season_sk,
     league_sk,
     team_sk,

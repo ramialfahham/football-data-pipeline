@@ -13,9 +13,9 @@
   Grain: (league_code, season_api_year, group_name, table_at, team_sk).
 #}
 
-with registry as (
+with competitions as (
     select league_code
-    from {{ ref('competition_registry') }}
+    from {{ ref('dim_league') }}
     where competition_type = 'domestic_league'
 ),
 
@@ -34,7 +34,7 @@ sections as (
     from {{ ref('fct_standings') }} as s
     inner join {{ ref('int_standings__section_kinds') }} as k
         on s.group_name = k.group_name
-    inner join registry as r
+    inner join competitions as r
         on s.league_code = r.league_code
     where k.table_kind != 'ranking'
 ),

@@ -63,17 +63,17 @@ with season as (
     where season_games_played >= {{ var('team_min_matches') }}
 ),
 
-registry as (
+competitions as (
     select
         league_code,
         competition_type
-    from {{ ref('competition_registry') }}
+    from {{ ref('dim_league') }}
 ),
 
 domestic_cumulative as (
     select c.*
     from {{ ref('int_team_season__metrics_cumulative') }} as c
-    inner join registry as r
+    inner join competitions as r
         on c.league_code = r.league_code
     where r.competition_type = 'domestic_league'
 ),

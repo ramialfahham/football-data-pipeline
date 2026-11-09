@@ -8,9 +8,9 @@
   Grain: (league_code, season_api_year, team_sk, leg_key).
 #}
 
-with registry as (
+with competitions as (
     select league_code
-    from {{ ref('competition_registry') }}
+    from {{ ref('dim_league') }}
     where competition_type = 'domestic_league'
 ),
 
@@ -38,7 +38,7 @@ league_legs as (
         rk.round_stage_kind,
         case l.result when 'W' then 3 when 'D' then 1 else 0 end + if(l.is_table_shootout_win, 1, 0) as points
     from {{ ref('int_legs__team_match') }} as l
-    inner join registry as r
+    inner join competitions as r
         on l.league_code = r.league_code
     left join round_kinds as rk
         on

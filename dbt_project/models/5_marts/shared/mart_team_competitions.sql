@@ -40,18 +40,12 @@ ties as (
     select * from {{ ref('int_knockout_ties') }}
 ),
 
-registry as (
+competitions as (
     select
         league_code,
-        competition_type
-    from {{ ref('competition_registry') }}
-),
-
-types as (
-    select
         competition_type,
         entity_type
-    from {{ ref('competition_types') }}
+    from {{ ref('dim_league') }}
 ),
 
 sides as (
@@ -233,7 +227,7 @@ select
     r.league_code,
     r.season_api_year,
     reg.competition_type,
-    typ.entity_type,
+    reg.entity_type,
     s.group_name as standing_group_name,
     s.standing_rank,
     s.played,
@@ -303,7 +297,5 @@ left join standings as s
         r.team_sk = s.team_sk
         and r.league_code = s.league_code
         and r.season_api_year = s.season_api_year
-left join registry as reg
+left join competitions as reg
     on r.league_code = reg.league_code
-left join types as typ
-    on reg.competition_type = typ.competition_type
