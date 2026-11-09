@@ -72,6 +72,9 @@ models:
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
+      - name: standing_section_order
+        description: "The section's position in the provider's standings list for the season, 1 for the first. The provider lists the current or final phase first."
+        tests: [not_null]
       - name: goals_for_all
         description: Goals scored across all matches of the section, as the provider's standings row reports them ($.all.goals.for).
       - name: goals_against_all

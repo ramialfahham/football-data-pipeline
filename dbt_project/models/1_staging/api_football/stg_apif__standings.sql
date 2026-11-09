@@ -10,13 +10,15 @@ expanded_standings as (
         src.ingested_at as raw_ingested_at,
         league_block,
         stage_group,
+        section_offset,
         team_row,
         to_json_string(json_query(src.payload, '$.errors')) as api_errors_json,
         safe_cast(json_value(src.payload, '$.results') as int64) as api_reported_result_count,
         to_json_string(json_query(src.payload, '$.parameters')) as request_parameters_json
     from src,
         unnest(json_query_array(json_query(src.payload, '$.response'), '$')) as league_block,
-        unnest(json_query_array(json_query(league_block, '$.league.standings'), '$')) as stage_group,
+        unnest(json_query_array(json_query(league_block, '$.league.standings'), '$')) as stage_group
+        with offset as section_offset,
         unnest(json_query_array(stage_group, '$')) as team_row
 )
 
@@ -39,6 +41,8 @@ select
     -- league ("Premier League"), the group for a group stage ("Group A"), or a phase
     -- for split-season leagues ("… Championship Round"). It is the true table identity.
     json_value(team_row, '$.group') as group_name,
+    -- The provider lists a season's current or final phase first.
+    section_offset + 1 as standing_section_order,
     -- $.description is zone annotation text ("Promotion - Champions League",
     -- "Relegation"), NOT a group identity. Kept as an attribute; never a grain key.
     json_value(team_row, '$.description') as group_description,

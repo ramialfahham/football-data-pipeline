@@ -2362,6 +2362,11 @@ models:
           config:
             where: "window_type = 'season_to_date'"
       - dbt_utils.unique_combination_of_columns:
+          name: mart_leaderboards_board_order_keys_unique
+          combination_of_columns: [metric_key, player_sk, season_api_year, league_code]
+          config:
+            where: "window_type = 'season_to_date' and league_leader_order = 1"
+      - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [fixture_sk, player_sk, metric_key]
           config:
             where: "window_type = 'match'"
@@ -2438,7 +2443,8 @@ models:
       - name: board_leader_order
         description: >
           The order the league leaders appear in on this board, across every league, by the same
-          rule: best value, then fewer minutes, then player_sk. league_leader_order says WHO
+          rule: best value, then fewer minutes, then player_sk, then the newer season, then
+          league_code. league_leader_order says WHO
           represents a league; this says in what ORDER those representatives are shown, so a
           consumer orders by one served column and compares nothing itself. NULL on any row that is
           not a league leader. It is a GLOBAL position, not a position within whatever set a
@@ -2601,6 +2607,11 @@ models:
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [team_sk, season_sk, metric_key]
+      - dbt_utils.unique_combination_of_columns:
+          name: mart_team_leaderboards_board_order_keys_unique
+          combination_of_columns: [metric_key, team_sk, season_api_year, league_code]
+          config:
+            where: "league_leader_order = 1"
       - dbt_utils.expression_is_true:
           expression: "rank between 1 and 10"
           name: mart_team_leaderboards_rank_in_range
@@ -2652,7 +2663,8 @@ models:
       - name: board_leader_order
         description: >
           The order the league leaders appear in on this board, across every league, by the same
-          rule: best rate, then team_sk. league_leader_order says WHICH team represents a league;
+          rule: best rate, then team_sk, then the newer season, then league_code. league_leader_order
+          says WHICH team represents a league;
           this says in what ORDER those representatives are shown, so a consumer orders by one served
           column and compares nothing itself. NULL on any row that is not a league leader. It is a
           GLOBAL position, not a position within whatever set a consumer shows, so filtered to a

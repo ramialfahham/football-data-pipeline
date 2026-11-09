@@ -134,7 +134,7 @@ rows_shown as (
         player_sk,
         page_tab,
         metric_key,
-        any_value(metric_value) as metric_value,
+        {{ one_value('metric_value') }} as metric_value,
         logical_or(is_card) as is_card,
         logical_or(is_comparison) as is_comparison
     from all_rows

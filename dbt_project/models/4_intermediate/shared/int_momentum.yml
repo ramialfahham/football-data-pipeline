@@ -193,7 +193,7 @@ models:
           greater than 0), so 0 means named in the matchday squad and never brought on. NULL when a
           leg's minutes are unknown or a window leg of the side has no player data at all.
       - name: position_code
-        description: "Player position from fct_fixture_player_stats."
+        description: "Player position in the window, from fct_fixture_player_stats: the most frequent, then the one from the most recent match, then the code."
       - name: goals_player
         description: "{{ doc('goals_player') }}"
       - name: goals_against_player

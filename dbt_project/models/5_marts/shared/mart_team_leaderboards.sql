@@ -228,7 +228,9 @@ select
             order by
                 case when league_leader_order = 1 then 0 else 1 end,
                 sort_key asc,
-                team_sk asc
+                team_sk asc,
+                season_api_year desc,
+                league_code asc
         )
     end as board_leader_order
 from ranked

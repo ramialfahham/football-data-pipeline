@@ -208,7 +208,9 @@ models:
   - name: int_team_season__standings_primary
     description: >
       Deduplicated standings snapshot per team-season: one row per (team_sk, season_sk)
-      chosen by latest raw_ingested_at when the core fact has multiple rows (e.g. parallel groups).
+      chosen by latest raw_ingested_at, then the provider's first-listed section
+      (standing_section_order), when the core fact has multiple rows (e.g. a split season's
+      phases). fct_standings tests that these keys are unique per team-season.
     config:
       tags: ["intermediate", "football", "team_season"]
     tests:

@@ -190,7 +190,7 @@ row_teams as (
     select
         fixture_id,
         player_id,
-        any_value(team_id) as team_id
+        {{ one_value('team_id') }} as team_id
     from player_rows
     group by fixture_id, player_id
     having count(*) = 1

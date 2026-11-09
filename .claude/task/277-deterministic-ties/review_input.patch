@@ -1,0 +1,1658 @@
+diff --git a/.claude/task/277-deterministic-ties/contract.md b/.claude/task/277-deterministic-ties/contract.md
+new file mode 100644
+index 00000000..2e87da95
+--- /dev/null
++++ b/.claude/task/277-deterministic-ties/contract.md
+@@ -0,0 +1,154 @@
++# Task contract — every build picks the same row: deterministic tie-breaks
++
++objective: >
++  Issue #277: every row a model picks among several is picked by a stated rule, and no model or
++  test uses any_value or approx_quantiles, so two builds of the same data give the same output.
++  A CI check bans both functions; tests pin each one-value-per-group assumption and each order.
++
++refs: >
++  #277, plan and rules ruled by the coordinating session on 2026-11-09 (correctness fixes picking
++  the right row where today's pick is arbitrary). Found by the prod comparison for #83 (!403).
++
++scope_paths:
++  - dbt_project/models/1_staging/api_football/stg_apif__standings.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++  - dbt_project/models/2_base/api_football/base_apif__standings.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/3_core/fct_standings.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/4_intermediate/shared/int_standings__official_rank.yml
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++  - dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_momentum.yml
++  - dbt_project/models/4_intermediate/shared/int_player_season_record.sql
++  - dbt_project/models/4_intermediate/shared/int_season_record.yml
++  - dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
++  - dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++  - dbt_project/models/4_intermediate/shared/int_legs__team_from_players.sql
++  - dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
++  - dbt_project/models/4_intermediate/shared/int_player_squad_window__metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_team_profile__streaks.sql
++  - dbt_project/models/5_marts/shared/mart_player_profile.sql
++  - dbt_project/models/5_marts/shared/mart_leaderboards.sql
++  - dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
++  - dbt_project/models/5_marts/shared/mart_team_competitions.sql
++  - dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
++  - dbt_project/models/5_marts/shared/mart_competition_index.sql
++  - dbt_project/models/5_marts/shared/mart_competition_season_summary.sql
++  - dbt_project/models/5_marts/shared/mart_player_window_metrics.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/tests/assert_base_player_stats_cleaned.sql
++  - dbt_project/tests/assert_lineup_researched_matches_hold.sql
++  - dbt_project/tests/assert_player_shares_name_at_club.sql
++  - dbt_project/tests/assert_result_corrections_applied.sql
++  - dbt_project/tests/assert_team_form_window_follows_the_rule.sql
++  - dbt_project/tests/assert_card_events_name_one_team_per_player.sql
++  - dbt_project/tests/assert_team_benchmark_rank_follows_direction.sql
++  - dbt_project/tests/assert_player_position_follows_the_rule.sql
++  - dbt_project/tests/assert_cup_status_follows_the_reached_tie.sql
++  - dbt_project/macros/one_value.sql
++  - dbt_project/docs/engineering_standards.md
++  - dbt_project/docs/layering.md
++  - scripts/check_layer_contract.py
++  - tests/test_check_layer_contract.py
++  - tests/test_one_value_macro.py
++  - tests/test_no_decision_history_in_code.py
++  - tests/test_sentence_length_in_docs.py
++  - .claude/task/277-deterministic-ties/contract.md
++  - .claude/task/277-deterministic-ties/review.md
++  - .claude/task/277-deterministic-ties/review_input.patch
++
++impact_map: >
++  writers: dbt only; no ingestion change. stg_apif__standings gains standing_section_order, the
++  section's position in the provider's standings list for that season; it flows through
++  base_apif__standings and fct_standings. Every other change rewrites how an existing column is
++  picked or aggregated; no grain changes.
++  lineage: `dbt ls --resource-type model --select stg_apif__standings+ base_apif__fixture_events+
++  int_player_momentum__metrics+ int_player_season_record+ int_player_competition_benchmarks+
++  int_team_competition_benchmarks+ int_legs__team_from_players+ int_player_profile__contribution+
++  int_player_squad_window__metrics+ int_team_profile__streaks+ mart_player_profile+
++  mart_leaderboards+ mart_team_leaderboards+ mart_team_competitions+ mart_competition_fixtures+
++  mart_competition_index+ mart_competition_season_summary+ mart_player_window_metrics+` returns 86
++  models: base_apif__fixture_events base_apif__fixture_players
++  base_apif__fixture_players_from_lineups base_apif__fixture_statistics base_apif__lineups
++  base_apif__players base_apif__standings base_apif__teams base_apif__teams_global dim_player
++  dim_player_team_season_mapping dim_team fct_fixture_event fct_fixture_lineup
++  fct_fixture_player_stats fct_fixture_team_stats fct_standings int_legs__player_match
++  int_legs__team_from_players int_legs__team_match int_player__page_profile
++  int_player_club_season__metrics int_player_competition_benchmark_metrics_long
++  int_player_competition_benchmarks int_player_match__metrics int_player_momentum__metrics
++  int_player_page__window_seasons int_player_profile__contribution int_player_profile__yoy
++  int_player_season__metrics int_player_season__team int_player_season_position__metrics
++  int_player_season_record int_player_squad_window__metrics int_player_window__metrics
++  int_standings__official_rank int_standings__section_kinds int_team__current_national_competitions
++  int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
++  int_team_momentum__metrics int_team_momentum_window int_team_profile__streaks
++  int_team_profile__yoy int_team_season__biggest_results int_team_season__deserved_vs_actual
++  int_team_season__longest_runs int_team_season__metrics int_team_season__metrics_cumulative
++  int_team_season__standings_primary int_team_season__table_by_time int_team_season__table_legs
++  int_team_season__table_state int_team_season_record mart_competition_fixtures
++  mart_competition_index mart_competition_season_summary mart_fixture_standing_context
++  mart_head_to_head mart_leaderboards mart_match_days mart_matchday_insights mart_next_matchday
++  mart_player_career mart_player_competition_benchmarks mart_player_fixture_stats
++  mart_player_momentum mart_player_profile mart_player_season_record mart_player_squad_benchmarks
++  mart_player_window_metrics mart_roster mart_standings mart_team_competition_benchmarks
++  mart_team_competitions mart_team_fixtures mart_team_index mart_team_leaderboards
++  mart_team_market_value mart_team_momentum_window mart_team_profile mart_team_season
++  mart_team_season_insights mart_team_season_record mart_team_window_metrics stg_apif__standings.
++  consumption: no export change; the export reads the same columns.
++  ci_layer_rules: scripts/check_layer_contract.py (gains the any_value / approx_quantiles ban),
++  scripts/check_description_hygiene.py, scripts/check_relationships_coverage.py.
++  deploy_order: one merge; the nightly rebuilds every model. No backfill.
++  blast_radius: values change only where today's pick is arbitrary. Measured in prod: 323
++  team-seasons with tied standings rows (rank and form of the latest table); 37,394 of 239,216
++  player-seasons with more than one position, 4,085 with a tied modal position; 10 team-board and
++  some player-board rows whose board order is a tie across seasons; benchmark quartiles where
++  approx_quantiles was off and peer means by at most 2.1e-14; 37 team-rounds with two knockout
++  ties under one round name. Every other changed column replaces any_value by min or max over a
++  group that holds one value, so it does not change. Exact differences come from the MR build
++  compared with prod.
++
++approved_design:
++  - none: no page output changes
++
++decisions_taken: >
++  The rules, ruled by the coordinating session on 2026-11-09 as correctness fixes: standings take
++  the latest load, then the provider's section order; position is the most frequent in the
++  group, then the most recent match's, then the code; board_leader_order ends with
++  season_api_year descending, then league_code, in both leaderboard marts; peer and league means
++  are exact (bignumeric) and quartiles exact with percentile_disc, the exact form of the same
++  definition approx_quantiles approximated (measured equal on 14,942 of 15,029 medians, where
++  percentile_cont is equal on 8,777); a reached knockout round names the tie that contains the
++  reached fixture, joined on its opponent, else the latest tie; the previous round's tie is the
++  latest tie under that round name. The ban extends the existing check_layer_contract.py. The one
++  new mechanism is the one_value macro (amendment 1); no recurring cost.
++
++decisions_reserved:
++  - The round-names fault itself (#278).
++
++acceptance_criteria:
++  - A team's primary standings row is the one the source itself marks as latest, by a stated rule, so its rank and form are the same on every build.
++  - A player's position for a season or a form window is chosen by a stated rule, the same on every build.
++  - A league leader's place on a team board is fixed when the same team leads with the same value in two seasons.
++  - Peer means and quartiles in the player and team benchmarks are exact and the same on every build.
++  - A team's reached knockout round names the tie that contains its reached fixture.
++  - No model or test uses any_value or approx_quantiles, and CI fails a new use.
++  - Where a column replaced by min() or max() holds one value per group, a test fails if it ever holds two.
++  - Every row picked by an order holds a test that the order keys are unique within the group.
++
++done_when:
++  - dbt parse succeeds from the repo root.
++  - python scripts/check_layer_contract.py passes, and fails on a planted any_value (pytest).
++  - python -m pytest tests -q is green.
++  - SQLFluff adds no violation on any changed model.
++  - The benchmark models' slot time is measured against the 300 s limit.
++  - CI's data:build:mr is green; every changed model and everything downstream is compared with prod both ways, and every difference is listed.
++
++amendments:
++  - 2026-11-09: + dbt_project/macros/one_value.sql, tests/test_one_value_macro.py — authority: approved in chat, 2026-11-09 (a new mechanism); content: one_value(column) returns min(column) and fails the build with error() when a group holds two values, used at every model site where any_value held one value per group.
++  - 2026-11-09: + dbt_project/docs/engineering_standards.md, dbt_project/docs/layering.md — authority: approved in chat, 2026-11-09, word for word; content: the ban's rule line in engineering_standards.md §1.1, and any_value dropped from layering.md's staging example.
++  - 2026-11-09: + dbt_project/tests/assert_player_position_follows_the_rule.sql, dbt_project/tests/assert_cup_status_follows_the_reached_tie.sql — authority: acceptance criteria 2 and 5 (test with the change); content: a data test per new rule, each failing when a picked position or tie is one the rule does not pick.
+diff --git a/dbt_project/docs/engineering_standards.md b/dbt_project/docs/engineering_standards.md
+index b08d789c..cb2abfa5 100644
+--- a/dbt_project/docs/engineering_standards.md
++++ b/dbt_project/docs/engineering_standards.md
+@@ -27,6 +27,7 @@ Use it together with [`layering.md`](layering.md) (BigQuery dataset layout and l
+ - Prefer named CTE chains over inline subqueries. Avoid `from ( ... )` when the same logic can be expressed as a named CTE.
+ - Keep each CTE single-purpose (import, explode/flatten, dedupe/rank, final projection) and use stable, descriptive CTE names.
+ - For BigQuery array expansion, prefer explicit `cross join unnest(...)` style over implicit comma joins where practical.
++- No `any_value` or `approx_quantiles`: pick a row by a stated order, or use `min`/`max` where the group holds one value. `check_layer_contract.py` enforces it.
+ 
+ ## 1.2) Code Comments (every language in the repo — Python, SQL, Astro, TypeScript, YAML)
+ 
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index afe2e5b1..5daa5bc1 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -163,7 +163,7 @@ Allowed:
+ Not allowed:
+ - **Entity-grain deduplication** — any `qualify`/`row_number()`/`distinct` that collapses rows
+   on entity keys. Dedup is a base concern (`2_base`), if it happens at all.
+-- **Aggregation or pivoting** — `group by`, `sum`/`max`/`any_value` to reshape many rows into
++- **Aggregation or pivoting** — `group by`, `sum`/`max` to reshape many rows into
+   one (e.g. a statistics pivot). Reshaping is business logic; do it in base.
+ - Unions across leagues/competitions/sources.
+ - Cross-domain joins (joining two different entities). Lateral `unnest(...)` of the model's
+diff --git a/dbt_project/macros/one_value.sql b/dbt_project/macros/one_value.sql
+new file mode 100644
+index 00000000..31a2c229
+--- /dev/null
++++ b/dbt_project/macros/one_value.sql
+@@ -0,0 +1,11 @@
++{#
++  The one value a group holds, as min(column); the build fails if the group holds two. For a
++  column the group key fixes, so a wrong join or grain fails loudly instead of picking one value.
++#}
++{% macro one_value(column) -%}
++    if(
++        count(distinct {{ column }}) > 1,
++        error('one_value: {{ column | replace("'", "") }} holds two values in one group'),
++        min({{ column }})
++    )
++{%- endmacro %}
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+index 3a78ed0b..48bba545 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++++ b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+@@ -72,6 +72,9 @@ models:
+       - name: raw_ingested_at
+         description: "{{ doc('raw_ingested_at') }}"
+         tests: [not_null]
++      - name: standing_section_order
++        description: "The section's position in the provider's standings list for the season, 1 for the first. The provider lists the current or final phase first."
++        tests: [not_null]
+       - name: goals_for_all
+         description: Goals scored across all matches of the section, as the provider's standings row reports them ($.all.goals.for).
+       - name: goals_against_all
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__standings.sql b/dbt_project/models/1_staging/api_football/stg_apif__standings.sql
+index 19df1503..3eb253ac 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__standings.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__standings.sql
+@@ -10,13 +10,15 @@ expanded_standings as (
+         src.ingested_at as raw_ingested_at,
+         league_block,
+         stage_group,
++        section_offset,
+         team_row,
+         to_json_string(json_query(src.payload, '$.errors')) as api_errors_json,
+         safe_cast(json_value(src.payload, '$.results') as int64) as api_reported_result_count,
+         to_json_string(json_query(src.payload, '$.parameters')) as request_parameters_json
+     from src,
+         unnest(json_query_array(json_query(src.payload, '$.response'), '$')) as league_block,
+-        unnest(json_query_array(json_query(league_block, '$.league.standings'), '$')) as stage_group,
++        unnest(json_query_array(json_query(league_block, '$.league.standings'), '$')) as stage_group
++        with offset as section_offset,
+         unnest(json_query_array(stage_group, '$')) as team_row
+ )
+ 
+@@ -39,6 +41,8 @@ select
+     -- league ("Premier League"), the group for a group stage ("Group A"), or a phase
+     -- for split-season leagues ("… Championship Round"). It is the true table identity.
+     json_value(team_row, '$.group') as group_name,
++    -- The provider lists a season's current or final phase first.
++    section_offset + 1 as standing_section_order,
+     -- $.description is zone annotation text ("Promotion - Champions League",
+     -- "Relegation"), NOT a group identity. Kept as an attribute; never a grain key.
+     json_value(team_row, '$.description') as group_description,
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 79389e34..be803fdc 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -198,6 +198,9 @@ models:
+       - name: team_id
+         description: "{{ doc('team_api_id') }}"
+         tests: [not_null]
++      - name: standing_section_order
++        description: "The section's position in the provider's standings list for the season, 1 for the first."
++        tests: [not_null]
+       - name: standing_rank
+         description: "The team's position in this standings table (1 = leader), from the official standings row ($.rank)."
+         tests: [not_null]
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+index 43927836..daf71594 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+@@ -190,7 +190,7 @@ row_teams as (
+     select
+         fixture_id,
+         player_id,
+-        any_value(team_id) as team_id
++        {{ one_value('team_id') }} as team_id
+     from player_rows
+     group by fixture_id, player_id
+     having count(*) = 1
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+index bcc31aeb..ae81fb82 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+@@ -98,7 +98,7 @@ resolved_teams as (
+     select
+         fixture_id,
+         player_id,
+-        any_value(resolved_player_team_id) as team_id
++        {{ one_value('resolved_player_team_id') }} as team_id
+     from {{ ref('base_apif__fixture_events') }}
+     where resolved_player_team_id is not null
+     group by fixture_id, player_id
+@@ -289,7 +289,7 @@ player_cards as (
+     select
+         fixture_id,
+         player_id,
+-        any_value(team_id) as team_id,
++        {{ one_value('team_id') }} as team_id,
+         countif(event_detail = 'Yellow Card') as yellow_cards,
+         countif(event_detail = 'Red Card') as red_cards
+     from events
+@@ -766,14 +766,15 @@ goal_sources as (
+         team_id,
+         coalesce(
+             logical_and(goals_filled is not null)
+-            and sum(goals_filled) + any_value(team_own_goals) = any_value(team_goals_for),
++            and sum(goals_filled) + {{ one_value('team_own_goals') }} = {{ one_value('team_goals_for') }},
+             false
+         ) as count_adds_up,
+         coalesce(
+-            any_value(has_events)
+-            and any_value(team_goal_events_without_scorer) = 0
+-            and any_value(team_goal_events) + any_value(team_own_goals) = any_value(team_goals_for)
+-            and sum(coalesce(event_goals, 0)) = any_value(team_goal_events),
++            {{ one_value('has_events') }}
++            and {{ one_value('team_goal_events_without_scorer') }} = 0
++            and {{ one_value('team_goal_events') }} + {{ one_value('team_own_goals') }}
++            = {{ one_value('team_goals_for') }}
++            and sum(coalesce(event_goals, 0)) = {{ one_value('team_goal_events') }},
+             false
+         ) as events_add_up,
+         countif(goals_filled is distinct from coalesce(event_goals, 0)) > 0 as sources_differ
+diff --git a/dbt_project/models/2_base/api_football/base_apif__standings.sql b/dbt_project/models/2_base/api_football/base_apif__standings.sql
+index 293e9205..3f39e715 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__standings.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__standings.sql
+@@ -11,6 +11,7 @@ with src as (
+         goals_diff,
+         form,
+         group_name,
++        standing_section_order,
+         group_description,
+         played_all,
+         wins_all,
+@@ -33,7 +34,7 @@ deduped_standings as (
+     from src
+     qualify row_number() over (
+         partition by league_code, season, team_id, group_name
+-        order by raw_ingested_at desc
++        order by raw_ingested_at desc, standing_section_order asc
+     ) = 1
+ ),
+ 
+@@ -52,6 +53,7 @@ select
+     s.team_name,
+     s.form,
+     s.group_name,
++    s.standing_section_order,
+     s.group_description,
+     s.standing_rank as provider_standing_rank,
+     s.points as provider_points,
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index e5c7b2d6..d8224f5b 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -678,6 +678,13 @@ models:
+             - season_sk
+             - team_sk
+             - group_name
++      - dbt_utils.unique_combination_of_columns:
++          name: fct_standings_one_section_per_load_and_order
++          combination_of_columns:
++            - season_sk
++            - team_sk
++            - raw_ingested_at
++            - standing_section_order
+     columns:
+       - name: standing_sk
+         description: "Surrogate key from (league_code, season, team_id, group_name)."
+@@ -705,6 +712,9 @@ models:
+         description: "{{ doc('team_api_id') }}"
+       - name: group_name
+         description: "Standings section/table name from the API ($.group): the league name for a single-table league (e.g. 'Premier League'), the group for a group stage (e.g. 'Group A'), or the phase for a split-season league (e.g. '… Championship Round'). Part of the grain."
++      - name: standing_section_order
++        description: "The section's position in the provider's standings list for the season, 1 for the first. The provider lists the current or final phase first, so a team's lowest value is its current table."
++        tests: [not_null]
+       - name: group_description
+         description: "Standings zone label assigned by the API ($.description, e.g. 'Promotion - Champions League', 'Relegation - Bundesliga 2'). Null for mid-table teams. Annotation only — NOT a grain key (use group_name for table identity)."
+       - name: standing_rank
+diff --git a/dbt_project/models/3_core/fct_standings.sql b/dbt_project/models/3_core/fct_standings.sql
+index 61bdb2a5..e0b8f284 100644
+--- a/dbt_project/models/3_core/fct_standings.sql
++++ b/dbt_project/models/3_core/fct_standings.sql
+@@ -20,6 +20,7 @@ select
+     cs.season as season_api_year,
+     cs.team_id as team_api_id,
+     cs.group_name,
++    cs.standing_section_order,
+     cs.group_description,
+     cs.standing_rank,
+     cs.points,
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+index e84359ee..560ddb59 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+@@ -208,7 +208,9 @@ models:
+   - name: int_team_season__standings_primary
+     description: >
+       Deduplicated standings snapshot per team-season: one row per (team_sk, season_sk)
+-      chosen by latest raw_ingested_at when the core fact has multiple rows (e.g. parallel groups).
++      chosen by latest raw_ingested_at, then the provider's first-listed section
++      (standing_section_order), when the core fact has multiple rows (e.g. a split season's
++      phases). fct_standings tests that these keys are unique per team-season.
+     config:
+       tags: ["intermediate", "football", "team_season"]
+     tests:
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
+index 14e59b1c..726764b2 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
+@@ -1,7 +1,8 @@
+ {#
+   One row per (team_sk, season_sk) for table display and marts.
+   int_standings__official_rank grain can include multiple rows (e.g. group_description);
+-  keep the row with latest raw_ingested_at.
++  keep the row with latest raw_ingested_at, then the provider's first-listed section (the
++  current or final phase; a tournament's group before its cross-group ranking).
+ #}
+ 
+ with import_int_standings__official_rank as (
+@@ -16,5 +17,6 @@ select
+     group_description
+ from import_int_standings__official_rank
+ qualify row_number() over (
+-    partition by team_sk, season_sk order by raw_ingested_at desc nulls last
++    partition by team_sk, season_sk
++    order by raw_ingested_at desc nulls last, standing_section_order asc
+ ) = 1
+diff --git a/dbt_project/models/4_intermediate/shared/int_legs__team_from_players.sql b/dbt_project/models/4_intermediate/shared/int_legs__team_from_players.sql
+index 0ab3175d..6539d3bc 100644
+--- a/dbt_project/models/4_intermediate/shared/int_legs__team_from_players.sql
++++ b/dbt_project/models/4_intermediate/shared/int_legs__team_from_players.sql
+@@ -18,13 +18,13 @@ with player_legs as (
+ select
+     fixture_sk,
+     team_sk,
+-    any_value(league_code) as league_code,
+-    any_value(season_api_year) as season_api_year,
+-    any_value(competition_type) as competition_type,
+-    any_value(entity_type) as entity_type,
+-    any_value(kickoff_datetime) as kickoff_datetime,
+-    any_value(round_order) as round_order,
+-    any_value(opponent_team_sk) as opponent_team_sk,
++    {{ one_value('league_code') }} as league_code,
++    {{ one_value('season_api_year') }} as season_api_year,
++    {{ one_value('competition_type') }} as competition_type,
++    {{ one_value('entity_type') }} as entity_type,
++    {{ one_value('kickoff_datetime') }} as kickoff_datetime,
++    {{ one_value('round_order') }} as round_order,
++    {{ one_value('opponent_team_sk') }} as opponent_team_sk,
+     count(*) as players_with_stats,
+     if(logical_and(passes_key is not null), sum(passes_key), null) as passes_key,
+     if(logical_and(tackles is not null), sum(tackles), null) as tackles,
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum.yml b/dbt_project/models/4_intermediate/shared/int_momentum.yml
+index 899977f0..00e82b9f 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum.yml
++++ b/dbt_project/models/4_intermediate/shared/int_momentum.yml
+@@ -193,7 +193,7 @@ models:
+           greater than 0), so 0 means named in the matchday squad and never brought on. NULL when a
+           leg's minutes are unknown or a window leg of the side has no player data at all.
+       - name: position_code
+-        description: "Player position from fct_fixture_player_stats."
++        description: "Player position in the window, from fct_fixture_player_stats: the most frequent, then the one from the most recent match, then the code."
+       - name: goals_player
+         description: "{{ doc('goals_player') }}"
+       - name: goals_against_player
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql b/dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
+index c853c7f3..b4c7c118 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
+@@ -14,17 +14,50 @@
+ 
+ with metrics as (
+     select * from {{ ref('int_player_competition_benchmark_metrics_long') }}
++),
++
++-- Exact quartiles: each is a value from the distribution, the same on every build.
++quartiles as (
++    select distinct
++        league_code,
++        season_api_year,
++        position_group,
++        metric_key,
++        percentile_disc(metric_value, 0.25) over peers as peer_p25,
++        percentile_disc(metric_value, 0.5) over peers as peer_median,
++        percentile_disc(metric_value, 0.75) over peers as peer_p75
++    from metrics
++    where metric_value is not null
++    window peers as (partition by league_code, season_api_year, position_group, metric_key)
++),
++
++-- The mean is summed in exact decimals, so the order of the rows cannot change it.
++summary as (
++    select
++        league_code,
++        season_api_year,
++        position_group,
++        metric_key,
++        cast(avg(cast(metric_value as bignumeric)) as float64) as peer_mean,
++        count(metric_value) as player_count
++    from metrics
++    group by league_code, season_api_year, position_group, metric_key
+ )
+ 
+ select
+-    league_code,
+-    season_api_year,
+-    position_group,
+-    metric_key,
+-    count(metric_value) as player_count,
+-    avg(metric_value) as peer_mean,
+-    approx_quantiles(metric_value, 4)[offset(1)] as peer_p25,
+-    approx_quantiles(metric_value, 4)[offset(2)] as peer_median,
+-    approx_quantiles(metric_value, 4)[offset(3)] as peer_p75
+-from metrics
+-group by league_code, season_api_year, position_group, metric_key
++    s.league_code,
++    s.season_api_year,
++    s.position_group,
++    s.metric_key,
++    s.player_count,
++    s.peer_mean,
++    q.peer_p25,
++    q.peer_median,
++    q.peer_p75
++from summary as s
++left join quartiles as q
++    on
++        s.league_code = q.league_code
++        and s.season_api_year = q.season_api_year
++        and s.position_group = q.position_group
++        and s.metric_key = q.metric_key
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
+index ba0a9173..0d2358a5 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
+@@ -71,6 +71,39 @@ window_rows as (
+             and wl.team_sk = p.team_sk
+     inner join window_completeness as wc
+         on wl.upcoming_fixture_sk = wc.upcoming_fixture_sk and wl.team_sk = wc.team_sk
++),
++
++position_counts as (
++    select
++        *,
++        count(*) over (
++            partition by
++                upcoming_fixture_sk, team_sk, player_sk, season_api_year, entity_type, window_type,
++                position_code
++        ) as position_legs,
++        max(kickoff_datetime) over (
++            partition by
++                upcoming_fixture_sk, team_sk, player_sk, season_api_year, entity_type, window_type,
++                position_code
++        ) as position_last_kickoff
++    from window_rows
++),
++
++-- The window's position: the most frequent, then the one from the most recent match, then the
++-- code, so every build picks the same one. position_pick = 1 marks one leg holding it.
++ranked_rows as (
++    select
++        *,
++        row_number() over (
++            partition by upcoming_fixture_sk, team_sk, player_sk, season_api_year, entity_type, window_type
++            order by
++                position_code is null,
++                position_legs desc,
++                position_last_kickoff desc,
++                position_code asc,
++                fixture_sk asc
++        ) as position_pick
++    from position_counts
+ )
+ 
+ select
+@@ -81,7 +114,7 @@ select
+     entity_type,
+     window_type,
+     if(logical_and(window_is_complete and minutes is not null), countif(minutes > 0), null) as games_in_window,
+-    any_value(position_code) as position_code,
++    max(if(position_pick = 1, position_code, null)) as position_code,
+     -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
+     if(logical_and(window_is_complete and goals is not null), sum(goals), null) as goals_player,
+     if(logical_and(window_is_complete and assists is not null), sum(assists), null) as assists_player,
+@@ -142,7 +175,7 @@ select
+         if(logical_and(window_is_complete and duels is not null), sum(duels), null)
+     ) as duels_won_player_pct
+     -- end of generated metric sql
+-from window_rows
++from ranked_rows
+ group by
+     upcoming_fixture_sk,
+     team_sk,
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql b/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
+index dfe314f4..dc69cce2 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
+@@ -75,8 +75,8 @@ involvements as (
+         player_sk,
+         team_sk,
+         season_sk,
+-        any_value(league_code) as league_code,
+-        any_value(season_api_year) as season_api_year,
++        {{ one_value('league_code') }} as league_code,
++        {{ one_value('season_api_year') }} as season_api_year,
+         -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
+         if(
+             logical_and(window_is_complete and (goals + assists) is not null),
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_record.sql b/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
+index fba61a96..f87e489d 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
+@@ -65,7 +65,7 @@ running as (
+         kickoff_datetime,
+         round_order,
+         minutes,
+-        any_value(position_code) over w as position_code,
++        array_agg(position_code) over w as positions_to_date,
+         countif(minutes > 0) over w as match_number,
+         if(logical_and(window_is_complete and minutes is not null) over w, sum(minutes) over w, null)
+             as minutes_to_date,
+@@ -208,10 +208,20 @@ running as (
+ )
+ 
+ select
+-    * except (minutes, match_number, minutes_to_date),
++    * except (minutes, match_number, minutes_to_date, positions_to_date),
+     minutes_to_date as minutes,
+     'season_to_date' as window_type,
+     match_number,
+-    match_number as games_played
++    match_number as games_played,
++    -- The position to date: the most frequent, then the one from the most recent match, then
++    -- the code, so every build picks the same one.
++    (
++        select pc
++        from unnest(positions_to_date) as pc with offset as position_index
++        where pc is not null
++        group by pc
++        order by count(*) desc, max(position_index) desc, pc asc
++        limit 1
++    ) as position_code
+ from running
+ where minutes > 0
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_squad_window__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_squad_window__metrics.sql
+index 3bf250e3..4bed0621 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_squad_window__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_squad_window__metrics.sql
+@@ -92,7 +92,7 @@ metrics as (
+     select
+         squad_sk,
+         player_sk,
+-        any_value(team_matches) as team_matches,
++        {{ one_value('team_matches') }} as team_matches,
+         if(logical_and(window_is_complete and minutes is not null), sum(minutes), null) as minutes,
+         -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
+         if(logical_and(window_is_complete and (minutes > 0) is not null), countif(minutes > 0), null) as appearances,
+diff --git a/dbt_project/models/4_intermediate/shared/int_season_record.yml b/dbt_project/models/4_intermediate/shared/int_season_record.yml
+index ef021413..1c73f157 100644
+--- a/dbt_project/models/4_intermediate/shared/int_season_record.yml
++++ b/dbt_project/models/4_intermediate/shared/int_season_record.yml
+@@ -178,7 +178,7 @@ models:
+           greater than 0 — not matchday selections.
+         tests: [not_null]
+       - name: position_code
+-        description: "Player position (any_value over the window)."
++        description: "Player position to date: the most frequent so far, then the one from the most recent match, then the code."
+       - name: entity_type
+         description: "{{ doc('entity_type') }}"
+       - name: kickoff_datetime
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
+index 7a4198c7..36b2343b 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
+@@ -16,16 +16,45 @@
+ with benchmark_metrics as (
+     select * from {{ ref('int_team_competition_benchmark_metrics_long') }}
+     where metric_value is not null
++),
++
++-- Exact quartiles: each is a value from the distribution, the same on every build.
++quartiles as (
++    select distinct
++        league_code,
++        season_api_year,
++        metric_key,
++        percentile_disc(metric_value, 0.25) over league_teams as league_p25,
++        percentile_disc(metric_value, 0.5) over league_teams as league_median,
++        percentile_disc(metric_value, 0.75) over league_teams as league_p75
++    from benchmark_metrics
++    window league_teams as (partition by league_code, season_api_year, metric_key)
++),
++
++-- The mean is summed in exact decimals, so the order of the rows cannot change it.
++summary as (
++    select
++        league_code,
++        season_api_year,
++        metric_key,
++        cast(avg(cast(metric_value as bignumeric)) as float64) as league_mean,
++        count(metric_value) as team_count
++    from benchmark_metrics
++    group by league_code, season_api_year, metric_key
+ )
+ 
+ select
+-    league_code,
+-    season_api_year,
+-    metric_key,
+-    count(metric_value) as team_count,
+-    avg(metric_value) as league_mean,
+-    approx_quantiles(metric_value, 4)[offset(1)] as league_p25,
+-    approx_quantiles(metric_value, 4)[offset(2)] as league_median,
+-    approx_quantiles(metric_value, 4)[offset(3)] as league_p75
+-from benchmark_metrics
+-group by league_code, season_api_year, metric_key
++    s.league_code,
++    s.season_api_year,
++    s.metric_key,
++    s.team_count,
++    s.league_mean,
++    q.league_p25,
++    q.league_median,
++    q.league_p75
++from summary as s
++inner join quartiles as q
++    on
++        s.league_code = q.league_code
++        and s.season_api_year = q.season_api_year
++        and s.metric_key = q.metric_key
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_profile__streaks.sql b/dbt_project/models/4_intermediate/shared/int_team_profile__streaks.sql
+index a48d5c05..8c2e9f0c 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_profile__streaks.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_profile__streaks.sql
+@@ -50,8 +50,8 @@ agg as (
+     select
+         team_sk,
+         season_sk,
+-        any_value(league_code) as league_code,
+-        any_value(season_api_year) as season_api_year,
++        {{ one_value('league_code') }} as league_code,
++        {{ one_value('season_api_year') }} as season_api_year,
+         count(*) as matches_in_season,
+         min(if(result = 'L', recency_rank, null)) as first_loss_rank,
+         min(if(result != 'W', recency_rank, null)) as first_nonwin_rank,
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql b/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
+index d589d4cd..5233b41c 100644
+--- a/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
++++ b/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
+@@ -445,7 +445,7 @@ formations as (
+     select
+         fixture_sk,
+         team_sk,
+-        any_value(team_formation) as team_formation
++        {{ one_value('team_formation') }} as team_formation
+     from {{ ref('fct_fixture_lineup') }}
+     where lineup_state in ('confirmed', 'researched')
+     group by fixture_sk, team_sk
+@@ -454,7 +454,7 @@ formations as (
+ lineup_states as (
+     select
+         fixture_sk,
+-        any_value(lineup_state) as lineup_state
++        {{ one_value('lineup_state') }} as lineup_state
+     from {{ ref('fct_fixture_lineup') }}
+     where lineup_state in ('confirmed', 'researched')
+     group by fixture_sk
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_index.sql b/dbt_project/models/5_marts/shared/mart_competition_index.sql
+index 795a55bb..a6b71837 100644
+--- a/dbt_project/models/5_marts/shared/mart_competition_index.sql
++++ b/dbt_project/models/5_marts/shared/mart_competition_index.sql
+@@ -56,9 +56,9 @@ import_mart_next_matchday as (
+ current_round as (
+     select
+         league_code,
+-        any_value(round_label_i18n_key) as current_round_label_i18n_key,
+-        any_value(round_number) as current_round_number,
+-        any_value(round_letter) as current_round_letter
++        {{ one_value('round_label_i18n_key') }} as current_round_label_i18n_key,
++        {{ one_value('round_number') }} as current_round_number,
++        {{ one_value('round_letter') }} as current_round_letter
+     from import_mart_next_matchday
+     group by league_code
+ ),
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_season_summary.sql b/dbt_project/models/5_marts/shared/mart_competition_season_summary.sql
+index 85fa2b4b..abfe6178 100644
+--- a/dbt_project/models/5_marts/shared/mart_competition_season_summary.sql
++++ b/dbt_project/models/5_marts/shared/mart_competition_season_summary.sql
+@@ -72,8 +72,8 @@ season_totals as (
+     select
+         league_code,
+         season_api_year,
+-        any_value(competition_type) as competition_type,
+-        any_value(entity_type) as entity_type,
++        {{ one_value('competition_type') }} as competition_type,
++        {{ one_value('entity_type') }} as entity_type,
+         count(*) as matches_played,
+         sum(goals_home + goals_away) as total_goals,
+         countif(home_result = 'W') as home_wins,
+diff --git a/dbt_project/models/5_marts/shared/mart_leaderboards.sql b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
+index 0432bbd4..3b8c7032 100644
+--- a/dbt_project/models/5_marts/shared/mart_leaderboards.sql
++++ b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
+@@ -417,7 +417,9 @@ select
+                 case when league_leader_order = 1 then 0 else 1 end,
+                 sort_value desc,
+                 minutes asc nulls last,
+-                player_sk asc
++                player_sk asc,
++                season_api_year desc,
++                league_code asc
+         )
+     end as board_leader_order,
+     'season_to_date' as window_type,
+diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+index d8fe8fa3..e3ad4301 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+@@ -30,12 +30,14 @@ players as (
+     from {{ ref('dim_player') }}
+ ),
+ 
+--- Most-frequent position that season (role badge); nulls excluded.
++-- Most-frequent position that season (role badge); nulls excluded. On a tie, the position of
++-- the most recent match, then the code.
+ positions as (
+     select
+         s.player_sk,
+         f.season_sk,
+-        s.position_code
++        s.position_code,
++        f.kickoff_datetime
+     from {{ ref('fct_fixture_player_stats') }} as s
+     inner join {{ ref('fct_fixture') }} as f
+         on s.fixture_sk = f.fixture_sk
+@@ -56,7 +58,7 @@ modal_position as (
+         position_code
+     qualify row_number() over (
+         partition by player_sk, season_sk
+-        order by count(*) desc
++        order by count(*) desc, max(kickoff_datetime) desc, position_code asc
+     ) = 1
+ ),
+ 
+diff --git a/dbt_project/models/5_marts/shared/mart_player_window_metrics.sql b/dbt_project/models/5_marts/shared/mart_player_window_metrics.sql
+index 0e3109ae..44f5c816 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_window_metrics.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_window_metrics.sql
+@@ -134,7 +134,7 @@ rows_shown as (
+         player_sk,
+         page_tab,
+         metric_key,
+-        any_value(metric_value) as metric_value,
++        {{ one_value('metric_value') }} as metric_value,
+         logical_or(is_card) as is_card,
+         logical_or(is_comparison) as is_comparison
+     from all_rows
+diff --git a/dbt_project/models/5_marts/shared/mart_team_competitions.sql b/dbt_project/models/5_marts/shared/mart_team_competitions.sql
+index 3aad2ffc..b1a0b0bc 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_competitions.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_competitions.sql
+@@ -53,6 +53,7 @@ sides as (
+         league_code,
+         season_api_year,
+         home_team_sk as team_sk,
++        away_team_sk as opponent_team_sk,
+         round_name,
+         round_label_i18n_key,
+         round_number,
+@@ -68,6 +69,7 @@ sides as (
+         league_code,
+         season_api_year,
+         away_team_sk as team_sk,
++        home_team_sk as opponent_team_sk,
+         round_name,
+         round_label_i18n_key,
+         round_number,
+@@ -147,13 +149,15 @@ reached as (
+     ) = 1
+ ),
+ 
++-- The reached round's tie is the one holding the reached fixture, found by its opponent. When
++-- the fixture names no opponent, the round's latest tie.
+ reached_ties as (
+     select
+         r.team_sk,
+         r.league_code,
+         r.season_api_year,
+-        any_value(t.legs_played) as legs_played,
+-        any_value(t.won) as won
++        t.legs_played,
++        t.won
+     from reached as r
+     inner join ties as t
+         on
+@@ -161,7 +165,13 @@ reached_ties as (
+             and r.season_api_year = t.season_api_year
+             and r.round_name = t.round_name
+             and r.team_sk = t.team_sk
+-    group by r.team_sk, r.league_code, r.season_api_year
++    qualify row_number() over (
++        partition by r.team_sk, r.league_code, r.season_api_year
++        order by
++            coalesce(t.opponent_team_sk = r.opponent_team_sk, false) desc,
++            t.last_kickoff_datetime desc,
++            t.opponent_team_sk asc
++    ) = 1
+ ),
+ 
+ -- how many ties each round of ties holds: a final is one tie, K League's play-off "Final" two
+@@ -175,13 +185,14 @@ round_ties as (
+     group by league_code, season_api_year, round_name
+ ),
+ 
+--- the tie of the round before the reached one: a team waiting for an FA Cup replay is not through
++-- the tie of the round before the reached one: a team waiting for an FA Cup replay is not through.
++-- Where that round name holds two ties, the latest.
+ previous_ties as (
+     select
+         r.team_sk,
+         r.league_code,
+         r.season_api_year,
+-        any_value(t.won) as previous_won
++        t.won as previous_won
+     from reached as r
+     inner join ties as t
+         on
+@@ -189,7 +200,10 @@ previous_ties as (
+             and r.season_api_year = t.season_api_year
+             and r.previous_round_name = t.round_name
+             and r.team_sk = t.team_sk
+-    group by r.team_sk, r.league_code, r.season_api_year
++    qualify row_number() over (
++        partition by r.team_sk, r.league_code, r.season_api_year
++        order by t.last_kickoff_datetime desc, t.opponent_team_sk asc
++    ) = 1
+ ),
+ 
+ standings as (
+diff --git a/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql b/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
+index 48bfd09d..d5cfc406 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
+@@ -228,7 +228,9 @@ select
+             order by
+                 case when league_leader_order = 1 then 0 else 1 end,
+                 sort_key asc,
+-                team_sk asc
++                team_sk asc,
++                season_api_year desc,
++                league_code asc
+         )
+     end as board_leader_order
+ from ranked
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index c52db6ed..82d8b51f 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -2353,6 +2353,11 @@ models:
+           combination_of_columns: [player_sk, season_sk, metric_key]
+           config:
+             where: "window_type = 'season_to_date'"
++      - dbt_utils.unique_combination_of_columns:
++          name: mart_leaderboards_board_order_keys_unique
++          combination_of_columns: [metric_key, player_sk, season_api_year, league_code]
++          config:
++            where: "window_type = 'season_to_date' and league_leader_order = 1"
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [fixture_sk, player_sk, metric_key]
+           config:
+@@ -2430,7 +2435,8 @@ models:
+       - name: board_leader_order
+         description: >
+           The order the league leaders appear in on this board, across every league, by the same
+-          rule: best value, then fewer minutes, then player_sk. league_leader_order says WHO
++          rule: best value, then fewer minutes, then player_sk, then the newer season, then
++          league_code. league_leader_order says WHO
+           represents a league; this says in what ORDER those representatives are shown, so a
+           consumer orders by one served column and compares nothing itself. NULL on any row that is
+           not a league leader. It is a GLOBAL position, not a position within whatever set a
+@@ -2593,6 +2599,11 @@ models:
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [team_sk, season_sk, metric_key]
++      - dbt_utils.unique_combination_of_columns:
++          name: mart_team_leaderboards_board_order_keys_unique
++          combination_of_columns: [metric_key, team_sk, season_api_year, league_code]
++          config:
++            where: "league_leader_order = 1"
+       - dbt_utils.expression_is_true:
+           expression: "rank between 1 and 10"
+           name: mart_team_leaderboards_rank_in_range
+@@ -2644,7 +2655,8 @@ models:
+       - name: board_leader_order
+         description: >
+           The order the league leaders appear in on this board, across every league, by the same
+-          rule: best rate, then team_sk. league_leader_order says WHICH team represents a league;
++          rule: best rate, then team_sk, then the newer season, then league_code. league_leader_order
++          says WHICH team represents a league;
+           this says in what ORDER those representatives are shown, so a consumer orders by one served
+           column and compares nothing itself. NULL on any row that is not a league leader. It is a
+           GLOBAL position, not a position within whatever set a consumer shows, so filtered to a
+diff --git a/dbt_project/tests/assert_base_player_stats_cleaned.sql b/dbt_project/tests/assert_base_player_stats_cleaned.sql
+index 43782601..d522e2ae 100644
+--- a/dbt_project/tests/assert_base_player_stats_cleaned.sql
++++ b/dbt_project/tests/assert_base_player_stats_cleaned.sql
+@@ -315,8 +315,8 @@ team_goal_sources as (
+         r.league_code,
+         r.fixture_id,
+         r.team_id,
+-        any_value(r.team_goals_for) as score,
+-        any_value(r.team_own_goals) as own_goals,
++        min(r.team_goals_for) as score,
++        min(r.team_own_goals) as own_goals,
+         sum(r.goals) as cleaned_goals,
+         logical_and(r.goals is not null) as all_goals_known,
+         sum(
+@@ -328,8 +328,8 @@ team_goal_sources as (
+         ) as count_goals,
+         logical_and(c.stat is not null or r.goals is not null) as count_known,
+         sum(coalesce(pge.goals, 0)) as placed_event_goals,
+-        any_value(coalesce(te.goal_events, 0)) as goal_events,
+-        any_value(coalesce(te.goal_events_without_scorer, 0)) as goal_events_without_scorer,
++        min(coalesce(te.goal_events, 0)) as goal_events,
++        min(coalesce(te.goal_events_without_scorer, 0)) as goal_events_without_scorer,
+         logical_or(fe.fixture_id is not null) as has_events
+     from rows_in_context as r
+     left join (
+diff --git a/dbt_project/tests/assert_card_events_name_one_team_per_player.sql b/dbt_project/tests/assert_card_events_name_one_team_per_player.sql
+new file mode 100644
+index 00000000..608fdbaf
+--- /dev/null
++++ b/dbt_project/tests/assert_card_events_name_one_team_per_player.sql
+@@ -0,0 +1,17 @@
++{#
++  base_apif__fixture_players takes a carded player's team as min(team_id) over their card events in a
++  match. That is exact only while a player's cards in one match name one team; this fails any
++  player whose cards name two.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++select
++    fixture_id,
++    player_id,
++    count(distinct team_id) as teams
++from {{ ref('base_apif__fixture_events') }}
++where
++    event_type = 'Card'
++    and player_id is not null
++group by fixture_id, player_id
++having count(distinct team_id) > 1
+diff --git a/dbt_project/tests/assert_cup_status_follows_the_reached_tie.sql b/dbt_project/tests/assert_cup_status_follows_the_reached_tie.sql
+new file mode 100644
+index 00000000..1923a35e
+--- /dev/null
++++ b/dbt_project/tests/assert_cup_status_follows_the_reached_tie.sql
+@@ -0,0 +1,171 @@
++{#
++  mart_team_competitions' cup_status follows one tie of the reached round: the tie against the
++  opponent of the team's latest fixture in that round, or the round's latest tie when that fixture
++  names no opponent. While that tie is unplayed, the team is through when it won the latest tie of
++  the round before, or when the round before is a table. This recomputes both ties from
++  mart_competition_fixtures and int_knockout_ties. Each failing row is a cup_status the ties do not
++  give.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with sides as (
++    select
++        league_code,
++        season_api_year,
++        home_team_sk as team_sk,
++        away_team_sk as opponent_team_sk,
++        round_name,
++        round_sequence,
++        kickoff_datetime,
++        fixture_sk
++    from {{ ref('mart_competition_fixtures') }}
++    where home_team_sk is not null
++    union all
++    select
++        league_code,
++        season_api_year,
++        away_team_sk as team_sk,
++        home_team_sk as opponent_team_sk,
++        round_name,
++        round_sequence,
++        kickoff_datetime,
++        fixture_sk
++    from {{ ref('mart_competition_fixtures') }}
++    where away_team_sk is not null
++),
++
++ties as (
++    select * from {{ ref('int_knockout_ties') }}
++),
++
++-- A team's tie in a round that no other tie of its in that round follows.
++latest_ties as (
++    select a.*
++    from ties as a
++    left join ties as b
++        on
++            a.league_code = b.league_code
++            and a.season_api_year = b.season_api_year
++            and a.round_name = b.round_name
++            and a.team_sk = b.team_sk
++            and (
++                a.last_kickoff_datetime < b.last_kickoff_datetime
++                or (a.last_kickoff_datetime = b.last_kickoff_datetime and a.opponent_team_sk > b.opponent_team_sk)
++            )
++    where b.team_sk is null
++),
++
++reached_fixtures as (
++    select
++        c.team_sk,
++        c.league_code,
++        c.season_api_year,
++        c.cup_status,
++        c.reached_round_name,
++        s.round_sequence,
++        s.opponent_team_sk
++    from {{ ref('mart_team_competitions') }} as c
++    inner join sides as s
++        on
++            c.team_sk = s.team_sk
++            and c.league_code = s.league_code
++            and c.season_api_year = s.season_api_year
++            and c.reached_round_name = s.round_name
++    where c.reached_round_stage_kind in ('knockout', 'final')
++    qualify row_number() over (
++        partition by c.team_sk, c.league_code, c.season_api_year
++        order by s.round_sequence desc, s.kickoff_datetime desc, s.fixture_sk desc
++    ) = 1
++),
++
++reached_ties as (
++    select
++        r.*,
++        coalesce(own.won, latest.won) as won,
++        coalesce(own.legs_played, latest.legs_played) as legs_played
++    from reached_fixtures as r
++    left join ties as own
++        on
++            r.league_code = own.league_code
++            and r.season_api_year = own.season_api_year
++            and r.reached_round_name = own.round_name
++            and r.team_sk = own.team_sk
++            and r.opponent_team_sk = own.opponent_team_sk
++    left join latest_ties as latest
++        on
++            r.league_code = latest.league_code
++            and r.season_api_year = latest.season_api_year
++            and r.reached_round_name = latest.round_name
++            and r.team_sk = latest.team_sk
++            and own.team_sk is null
++),
++
++team_rounds as (
++    select distinct
++        s.team_sk,
++        s.league_code,
++        s.season_api_year,
++        s.round_name,
++        s.round_sequence,
++        k.round_stage_kind
++    from sides as s
++    left join {{ ref('int_round_names') }} as k
++        on
++            s.league_code = k.league_code
++            and s.season_api_year = k.season_api_year
++            and s.round_name = k.round_name
++    where coalesce(k.round_stage_kind, '') != 'placement'
++),
++
++waiting as (
++    select
++        r.team_sk,
++        r.league_code,
++        r.season_api_year,
++        r.cup_status,
++        p.round_stage_kind = 'table' or coalesce(previous_tie.won, false) as is_through
++    from reached_ties as r
++    inner join team_rounds as p
++        on
++            r.team_sk = p.team_sk
++            and r.league_code = p.league_code
++            and r.season_api_year = p.season_api_year
++            and r.round_sequence > p.round_sequence
++    left join latest_ties as previous_tie
++        on
++            p.league_code = previous_tie.league_code
++            and p.season_api_year = previous_tie.season_api_year
++            and p.round_name = previous_tie.round_name
++            and p.team_sk = previous_tie.team_sk
++    where r.won is null and r.legs_played = 0
++    qualify row_number() over (
++        partition by r.team_sk, r.league_code, r.season_api_year
++        order by p.round_sequence desc
++    ) = 1
++)
++
++select
++    team_sk,
++    league_code,
++    season_api_year,
++    cup_status,
++    won as tie_won,
++    legs_played as tie_legs_played
++from reached_ties
++where
++    (won = false and cup_status is distinct from 'knocked_out')
++    or (won and coalesce(cup_status not in ('winners', 'through'), true))
++    or (won is null and legs_played > 0 and cup_status is not null)
++    or (won is null and cup_status in ('knocked_out', 'winners'))
++
++union all
++
++select
++    team_sk,
++    league_code,
++    season_api_year,
++    cup_status,
++    null as tie_won,
++    0 as tie_legs_played
++from waiting
++where coalesce(cup_status = 'through', false) != coalesce(is_through, false)
+diff --git a/dbt_project/tests/assert_lineup_researched_matches_hold.sql b/dbt_project/tests/assert_lineup_researched_matches_hold.sql
+index 82c5fd42..19c40dad 100644
+--- a/dbt_project/tests/assert_lineup_researched_matches_hold.sql
++++ b/dbt_project/tests/assert_lineup_researched_matches_hold.sql
+@@ -24,8 +24,7 @@ seeded as (
+ applied as (
+     select
+         lineups.fixture_id,
+-        logical_and(lineups.lineup_state = 'researched') as is_researched,
+-        any_value(lineups.failed_checks) as failed_checks
++        logical_and(lineups.lineup_state = 'researched') as is_researched
+     from {{ ref('base_apif__lineups') }} as lineups
+     inner join seeded
+         on lineups.fixture_id = seeded.fixture_id
+@@ -46,9 +45,11 @@ sources as (
+ ),
+ 
+ failing as (
+-    select distinct applied.fixture_id
+-    from applied,
+-        unnest(applied.failed_checks) as failed_check
++    select distinct lineups.fixture_id
++    from {{ ref('base_apif__lineups') }} as lineups
++    inner join seeded
++        on lineups.fixture_id = seeded.fixture_id
++    cross join unnest(lineups.failed_checks) as failed_check
+     where failed_check != 'squad_lists'
+ )
+ 
+diff --git a/dbt_project/tests/assert_player_position_follows_the_rule.sql b/dbt_project/tests/assert_player_position_follows_the_rule.sql
+new file mode 100644
+index 00000000..0c182f6b
+--- /dev/null
++++ b/dbt_project/tests/assert_player_position_follows_the_rule.sql
+@@ -0,0 +1,188 @@
++{#
++  A player's position is the one played most often, then the one from the most recent match, then
++  the code. This recomputes it where a model picks one: the season on mart_player_profile, the
++  season to date on int_player_season_record (its last row), and the form window on
++  int_player_momentum__metrics. A position is the rule's pick when no other position beats it.
++  Each failing row is a picked position that differs from the rule's.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with profile_positions as (
++    select
++        s.player_sk,
++        f.season_sk,
++        s.position_code,
++        count(*) as legs,
++        max(f.kickoff_datetime) as last_kickoff
++    from {{ ref('fct_fixture_player_stats') }} as s
++    inner join {{ ref('fct_fixture') }} as f
++        on s.fixture_sk = f.fixture_sk
++    where
++        f.status_short in ('FT', 'AET', 'PEN')
++        and s.position_code is not null
++    group by s.player_sk, f.season_sk, s.position_code
++),
++
++profile_expected as (
++    select
++        a.player_sk,
++        a.season_sk,
++        a.position_code
++    from profile_positions as a
++    left join profile_positions as b
++        on
++            a.player_sk = b.player_sk
++            and a.season_sk = b.season_sk
++            and (
++                a.legs < b.legs
++                or (a.legs = b.legs and a.last_kickoff < b.last_kickoff)
++                or (a.legs = b.legs and a.last_kickoff = b.last_kickoff and a.position_code > b.position_code)
++            )
++    where b.player_sk is null
++),
++
++season_last_rows as (
++    select
++        team_sk,
++        player_sk,
++        league_code,
++        season_api_year,
++        kickoff_datetime,
++        fixture_sk,
++        position_code
++    from {{ ref('int_player_season_record') }}
++    qualify row_number() over (
++        partition by team_sk, player_sk, league_code, season_api_year
++        order by kickoff_datetime desc, fixture_sk desc
++    ) = 1
++),
++
++-- The legs up to the model's last row: a later leg with unknown minutes has no row of its own.
++season_positions as (
++    select
++        l.team_sk,
++        l.player_sk,
++        l.league_code,
++        l.season_api_year,
++        l.position_code,
++        count(*) as legs,
++        max(l.kickoff_datetime) as last_kickoff
++    from {{ ref('int_legs__player_match') }} as l
++    inner join season_last_rows as r
++        on
++            l.team_sk = r.team_sk
++            and l.player_sk = r.player_sk
++            and l.league_code = r.league_code
++            and l.season_api_year = r.season_api_year
++            and (
++                l.kickoff_datetime < r.kickoff_datetime
++                or (l.kickoff_datetime = r.kickoff_datetime and l.fixture_sk <= r.fixture_sk)
++            )
++    where
++        (l.minutes > 0 or l.minutes is null)
++        and l.position_code is not null
++    group by l.team_sk, l.player_sk, l.league_code, l.season_api_year, l.position_code
++),
++
++season_expected as (
++    select
++        a.team_sk,
++        a.player_sk,
++        a.league_code,
++        a.season_api_year,
++        a.position_code
++    from season_positions as a
++    left join season_positions as b
++        on
++            a.team_sk = b.team_sk
++            and a.player_sk = b.player_sk
++            and a.league_code = b.league_code
++            and a.season_api_year = b.season_api_year
++            and (
++                a.legs < b.legs
++                or (a.legs = b.legs and a.last_kickoff < b.last_kickoff)
++                or (a.legs = b.legs and a.last_kickoff = b.last_kickoff and a.position_code > b.position_code)
++            )
++    where b.player_sk is null
++),
++
++window_positions as (
++    select
++        w.upcoming_fixture_sk,
++        w.team_sk,
++        p.player_sk,
++        p.position_code,
++        count(*) as legs,
++        max(p.kickoff_datetime) as last_kickoff
++    from {{ ref('int_team_momentum_window') }} as w
++    inner join {{ ref('int_legs__player_match') }} as p
++        on
++            w.leg_fixture_sk = p.fixture_sk
++            and w.team_sk = p.team_sk
++    where
++        w.window_type != 'match'
++        and w.upcoming_fixture_sk is not null
++        and p.position_code is not null
++    group by w.upcoming_fixture_sk, w.team_sk, p.player_sk, p.position_code
++),
++
++window_expected as (
++    select
++        a.upcoming_fixture_sk,
++        a.team_sk,
++        a.player_sk,
++        a.position_code
++    from window_positions as a
++    left join window_positions as b
++        on
++            a.upcoming_fixture_sk = b.upcoming_fixture_sk
++            and a.team_sk = b.team_sk
++            and a.player_sk = b.player_sk
++            and (
++                a.legs < b.legs
++                or (a.legs = b.legs and a.last_kickoff < b.last_kickoff)
++                or (a.legs = b.legs and a.last_kickoff = b.last_kickoff and a.position_code > b.position_code)
++            )
++    where b.player_sk is null
++)
++
++select
++    'mart_player_profile' as model_name,
++    to_json_string(struct(p.player_sk, p.season_sk)) as group_key,
++    p.position_code as picked_position,
++    e.position_code as rule_position
++from {{ ref('mart_player_profile') }} as p
++left join profile_expected as e
++    on p.player_sk = e.player_sk and p.season_sk = e.season_sk
++where p.position_code is distinct from e.position_code
++
++union all
++
++select
++    'int_player_season_record' as model_name,
++    to_json_string(struct(r.team_sk, r.player_sk, r.league_code, r.season_api_year)) as group_key,
++    r.position_code as picked_position,
++    e.position_code as rule_position
++from season_last_rows as r
++left join season_expected as e
++    on
++        r.team_sk = e.team_sk
++        and r.player_sk = e.player_sk
++        and r.league_code = e.league_code
++        and r.season_api_year = e.season_api_year
++where r.position_code is distinct from e.position_code
++
++union all
++
++select
++    'int_player_momentum__metrics' as model_name,
++    to_json_string(struct(m.upcoming_fixture_sk, m.team_sk, m.player_sk)) as group_key,
++    m.position_code as picked_position,
++    e.position_code as rule_position
++from {{ ref('int_player_momentum__metrics') }} as m
++left join window_expected as e
++    on
++        m.upcoming_fixture_sk = e.upcoming_fixture_sk
++        and m.team_sk = e.team_sk
++        and m.player_sk = e.player_sk
++where m.position_code is distinct from e.position_code
+diff --git a/dbt_project/tests/assert_player_shares_name_at_club.sql b/dbt_project/tests/assert_player_shares_name_at_club.sql
+index 3e010d24..17c740af 100644
+--- a/dbt_project/tests/assert_player_shares_name_at_club.sql
++++ b/dbt_project/tests/assert_player_shares_name_at_club.sql
+@@ -7,8 +7,8 @@
+ with players as (
+     select
+         player_sk,
+-        any_value(player_full_name) as player_full_name,
+-        any_value(current_club_team_sk) as current_club_team_sk,
++        min(player_full_name) as player_full_name,
++        min(current_club_team_sk) as current_club_team_sk,
+         logical_or(has_player_page) as has_player_page,
+         count(distinct shares_name_at_club) as flag_values,
+         logical_or(shares_name_at_club) as shares_name_at_club
+diff --git a/dbt_project/tests/assert_result_corrections_applied.sql b/dbt_project/tests/assert_result_corrections_applied.sql
+index f3450900..21763277 100644
+--- a/dbt_project/tests/assert_result_corrections_applied.sql
++++ b/dbt_project/tests/assert_result_corrections_applied.sql
+@@ -50,8 +50,8 @@ goal_counts as (
+         countif(c.goal_order = 0) > 0 and count(*) > 1 as no_goal_row_with_goals,
+         countif(c.goal_order > 0 and c.team_id = f.home_team_id) as seed_home,
+         countif(c.goal_order > 0 and c.team_id = f.away_team_id) as seed_away,
+-        any_value(if(f.award_kind in ('played', 'abandoned'), f.on_pitch_home, f.goals_home)) as score_home,
+-        any_value(if(f.award_kind in ('played', 'abandoned'), f.on_pitch_away, f.goals_away)) as score_away
++        min(if(f.award_kind in ('played', 'abandoned'), f.on_pitch_home, f.goals_home)) as score_home,
++        min(if(f.award_kind in ('played', 'abandoned'), f.on_pitch_away, f.goals_away)) as score_away
+     from goal_corrections as c
+     left join fixtures as f
+         on c.fixture_id = f.fixture_id
+diff --git a/dbt_project/tests/assert_team_benchmark_rank_follows_direction.sql b/dbt_project/tests/assert_team_benchmark_rank_follows_direction.sql
+index 63ec22fc..5bab472d 100644
+--- a/dbt_project/tests/assert_team_benchmark_rank_follows_direction.sql
++++ b/dbt_project/tests/assert_team_benchmark_rank_follows_direction.sql
+@@ -27,7 +27,7 @@ per_metric as (
+         b.league_code,
+         b.season_api_year,
+         b.metric_key,
+-        any_value(c.direction) as direction,
++        min(c.direction) as direction,
+         min(b.metric_value) as lowest_value,
+         max(b.metric_value) as highest_value,
+         min(if(b.rank = 1, b.metric_value, null)) as rank_one_value
+diff --git a/dbt_project/tests/assert_team_form_window_follows_the_rule.sql b/dbt_project/tests/assert_team_form_window_follows_the_rule.sql
+index 5e910bce..325efa69 100644
+--- a/dbt_project/tests/assert_team_form_window_follows_the_rule.sql
++++ b/dbt_project/tests/assert_team_form_window_follows_the_rule.sql
+@@ -84,7 +84,7 @@ side_kinds as (
+     select
+         upcoming_fixture_sk,
+         team_sk,
+-        any_value(competition_type) as competition_type,
++        min(competition_type) as competition_type,
+         countif(league_code = upcoming_league_code and season_api_year = upcoming_season_api_year)
+             as legs_in_this_edition
+     from earlier_legs
+diff --git a/scripts/check_layer_contract.py b/scripts/check_layer_contract.py
+index e4ba28ca..a91d0ecf 100644
+--- a/scripts/check_layer_contract.py
++++ b/scripts/check_layer_contract.py
+@@ -301,6 +301,28 @@ def _strip_sql_comments(sql: str) -> str:
+     return _SQL_LINE_COMMENT.sub("", _SQL_BLOCK_COMMENT.sub(" ", sql))
+ 
+ 
++# Two builds of the same data must give the same output: these aggregates may return a different
++# value on each run. Pick by a stated order, or min/max where a group holds one value.
++NONDETERMINISTIC_AGGREGATE = re.compile(r"\b(any_value|approx_quantiles)\s*\(", re.IGNORECASE)
++_JINJA_COMMENT = re.compile(r"\{#.*?#\}", re.DOTALL)
++
++
++def check_no_nondeterministic_aggregates(errors: list[str]) -> None:
++    files = [
++        path
++        for path in DBT_PROJECT.rglob("*.sql")
++        if not set(path.relative_to(DBT_PROJECT).parts) & set(DBT_SKIP_DIRS)
++    ]
++    for path in sorted(files):
++        sql = _strip_sql_comments(_JINJA_COMMENT.sub(" ", path.read_text(encoding="utf-8")))
++        for match in NONDETERMINISTIC_AGGREGATE.finditer(sql):
++            rel = path.relative_to(DBT_PROJECT.parent).as_posix()
++            errors.append(
++                f"{rel}: {match.group(1)}() may return a different value on each build; pick by a "
++                "stated order, or use min/max where the group holds one value."
++            )
++
++
+ def check_staging_purity(errors: list[str]) -> None:
+     layering_ref = "See dbt_project/docs/layering.md §1_staging."
+     for sql_path in sorted(STAGING_API_DIR.glob("*.sql")):
+@@ -348,6 +370,7 @@ def main() -> int:
+     check_intermediate_no_mart_refs(errors)
+     check_registry_seed_readers(errors)
+     check_export_reads_marts_only(errors)
++    check_no_nondeterministic_aggregates(errors)
+     check_staging_inventory(errors)
+     check_staging_purity(errors)
+     check_staging_no_refs(errors)
+diff --git a/tests/test_check_layer_contract.py b/tests/test_check_layer_contract.py
+index 4b49fc8c..5afd426f 100644
+--- a/tests/test_check_layer_contract.py
++++ b/tests/test_check_layer_contract.py
+@@ -1,6 +1,8 @@
+ import importlib.util
+ import pathlib
+ 
++import pytest
++
+ ROOT = pathlib.Path(__file__).resolve().parents[1]
+ 
+ 
+@@ -179,3 +181,50 @@ def test_naming_the_registry_file_in_an_export_passes(monkeypatch, tmp_path):
+         'REGISTRY_PATH = "docs/competition_registry.yml"', encoding="utf-8"
+     )
+     assert _errors(mod) == []
++
++
++def _aggregate_errors(mod, monkeypatch, tmp_path, relpath, sql):
++    project = tmp_path / "dbt_project"
++    path = project / relpath
++    path.parent.mkdir(parents=True, exist_ok=True)
++    path.write_text(sql, encoding="utf-8")
++    monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
++    monkeypatch.setattr(mod, "DBT_PROJECT", project)
++    errors: list[str] = []
++    mod.check_no_nondeterministic_aggregates(errors)
++    return errors
++
++
++def test_the_repo_has_no_nondeterministic_aggregate():
++    errors: list[str] = []
++    _load_layer_contract().check_no_nondeterministic_aggregates(errors)
++    assert errors == []
++
++
++@pytest.mark.parametrize("call", ["ANY_VALUE (a)", "any_value(a)", "approx_quantiles(a, 4)"])
++@pytest.mark.parametrize("relpath", ["models/5_marts/mart_x.sql", "tests/assert_x.sql",
++                                     "macros/m.sql"])
++def test_a_banned_aggregate_fails(monkeypatch, tmp_path, call, relpath):
++    errors = _aggregate_errors(_load_layer_contract(), monkeypatch, tmp_path, relpath,
++                               f"select {call} from t group by b")
++    assert len(errors) == 1 and relpath.rsplit("/", 1)[-1] in errors[0]
++
++
++def test_main_fails_on_a_planted_banned_aggregate(monkeypatch, tmp_path):
++    mod = _load_layer_contract()
++    project = tmp_path / "dbt_project"
++    (project / "models").mkdir(parents=True)
++    (project / "models" / "mart_x.sql").write_text("select any_value(a) from t", encoding="utf-8")
++    monkeypatch.setattr(mod, "DBT_PROJECT", project)
++    assert mod.main() == 1
++
++
++def test_a_commented_mention_passes(monkeypatch, tmp_path):
++    sql = "-- any_value(a) is banned\n{# approx_quantiles(a, 4) #}\nselect min(a) from t"
++    assert _aggregate_errors(_load_layer_contract(), monkeypatch, tmp_path,
++                             "macros/m.sql", sql) == []
++
++
++def test_compiled_target_sql_is_ignored(monkeypatch, tmp_path):
++    assert _aggregate_errors(_load_layer_contract(), monkeypatch, tmp_path,
++                             "target/compiled.sql", "select any_value(a) from t") == []
+diff --git a/tests/test_one_value_macro.py b/tests/test_one_value_macro.py
+new file mode 100644
+index 00000000..7b666adf
+--- /dev/null
++++ b/tests/test_one_value_macro.py
+@@ -0,0 +1,29 @@
++"""one_value(column) renders min(column) behind a guard that calls error() when a group holds two
++values. BigQuery's error() fails the query, so a group with two values fails the build."""
++
++import pathlib
++import re
++
++import jinja2
++
++MACRO = pathlib.Path(__file__).resolve().parents[1] / "dbt_project" / "macros" / "one_value.sql"
++
++
++def _render(column: str) -> str:
++    env = jinja2.Environment()
++    module = env.from_string(MACRO.read_text(encoding="utf-8")).module
++    return " ".join(str(module.one_value(column)).split())
++
++
++def test_two_values_reach_error_and_one_value_reaches_min():
++    sql = _render("team_id")
++    match = re.fullmatch(r"if\( count\(distinct team_id\) > 1, error\('(.+)'\), min\(team_id\) \)", sql)
++    assert match, sql
++    assert "team_id" in match.group(1)
++
++
++def test_a_quoted_column_expression_keeps_the_error_message_a_valid_string():
++    sql = _render("if(kind in ('a', 'b'), x, y)")
++    message = re.search(r"error\('([^']*)'\)", sql)
++    assert message and "'" not in message.group(1), sql
++    assert sql.endswith("min(if(kind in ('a', 'b'), x, y)) )")
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../task/277-deterministic-ties/review_input.patch | 1658 ++++++++++++++++++++
+#    1 file changed, 1658 insertions(+)
+# ============================================================================

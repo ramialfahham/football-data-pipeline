@@ -163,7 +163,7 @@ Allowed:
 Not allowed:
 - **Entity-grain deduplication** — any `qualify`/`row_number()`/`distinct` that collapses rows
   on entity keys. Dedup is a base concern (`2_base`), if it happens at all.
-- **Aggregation or pivoting** — `group by`, `sum`/`max`/`any_value` to reshape many rows into
+- **Aggregation or pivoting** — `group by`, `sum`/`max` to reshape many rows into
   one (e.g. a statistics pivot). Reshaping is business logic; do it in base.
 - Unions across leagues/competitions/sources.
 - Cross-domain joins (joining two different entities). Lateral `unnest(...)` of the model's

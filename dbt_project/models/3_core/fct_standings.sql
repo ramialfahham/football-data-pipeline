@@ -20,6 +20,7 @@ select
     cs.season as season_api_year,
     cs.team_id as team_api_id,
     cs.group_name,
+    cs.standing_section_order,
     cs.group_description,
     cs.standing_rank,
     cs.points,

@@ -50,8 +50,8 @@ goal_counts as (
         countif(c.goal_order = 0) > 0 and count(*) > 1 as no_goal_row_with_goals,
         countif(c.goal_order > 0 and c.team_id = f.home_team_id) as seed_home,
         countif(c.goal_order > 0 and c.team_id = f.away_team_id) as seed_away,
-        any_value(if(f.award_kind in ('played', 'abandoned'), f.on_pitch_home, f.goals_home)) as score_home,
-        any_value(if(f.award_kind in ('played', 'abandoned'), f.on_pitch_away, f.goals_away)) as score_away
+        min(if(f.award_kind in ('played', 'abandoned'), f.on_pitch_home, f.goals_home)) as score_home,
+        min(if(f.award_kind in ('played', 'abandoned'), f.on_pitch_away, f.goals_away)) as score_away
     from goal_corrections as c
     left join fixtures as f
         on c.fixture_id = f.fixture_id

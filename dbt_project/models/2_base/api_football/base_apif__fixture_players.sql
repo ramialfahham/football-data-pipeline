@@ -98,7 +98,7 @@ resolved_teams as (
     select
         fixture_id,
         player_id,
-        any_value(resolved_player_team_id) as team_id
+        {{ one_value('resolved_player_team_id') }} as team_id
     from {{ ref('base_apif__fixture_events') }}
     where resolved_player_team_id is not null
     group by fixture_id, player_id
@@ -289,7 +289,7 @@ player_cards as (
     select
         fixture_id,
         player_id,
-        any_value(team_id) as team_id,
+        {{ one_value('team_id') }} as team_id,
         countif(event_detail = 'Yellow Card') as yellow_cards,
         countif(event_detail = 'Red Card') as red_cards
     from events
@@ -766,14 +766,15 @@ goal_sources as (
         team_id,
         coalesce(
             logical_and(goals_filled is not null)
-            and sum(goals_filled) + any_value(team_own_goals) = any_value(team_goals_for),
+            and sum(goals_filled) + {{ one_value('team_own_goals') }} = {{ one_value('team_goals_for') }},
             false
         ) as count_adds_up,
         coalesce(
-            any_value(has_events)
-            and any_value(team_goal_events_without_scorer) = 0
-            and any_value(team_goal_events) + any_value(team_own_goals) = any_value(team_goals_for)
-            and sum(coalesce(event_goals, 0)) = any_value(team_goal_events),
+            {{ one_value('has_events') }}
+            and {{ one_value('team_goal_events_without_scorer') }} = 0
+            and {{ one_value('team_goal_events') }} + {{ one_value('team_own_goals') }}
+            = {{ one_value('team_goals_for') }}
+            and sum(coalesce(event_goals, 0)) = {{ one_value('team_goal_events') }},
             false
         ) as events_add_up,
         countif(goals_filled is distinct from coalesce(event_goals, 0)) > 0 as sources_differ

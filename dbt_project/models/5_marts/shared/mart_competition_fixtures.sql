@@ -445,7 +445,7 @@ formations as (
     select
         fixture_sk,
         team_sk,
-        any_value(team_formation) as team_formation
+        {{ one_value('team_formation') }} as team_formation
     from {{ ref('fct_fixture_lineup') }}
     where lineup_state in ('confirmed', 'researched')
     group by fixture_sk, team_sk
@@ -454,7 +454,7 @@ formations as (
 lineup_states as (
     select
         fixture_sk,
-        any_value(lineup_state) as lineup_state
+        {{ one_value('lineup_state') }} as lineup_state
     from {{ ref('fct_fixture_lineup') }}
     where lineup_state in ('confirmed', 'researched')
     group by fixture_sk

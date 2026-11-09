@@ -7,8 +7,8 @@
 with players as (
     select
         player_sk,
-        any_value(player_full_name) as player_full_name,
-        any_value(current_club_team_sk) as current_club_team_sk,
+        min(player_full_name) as player_full_name,
+        min(current_club_team_sk) as current_club_team_sk,
         logical_or(has_player_page) as has_player_page,
         count(distinct shares_name_at_club) as flag_values,
         logical_or(shares_name_at_club) as shares_name_at_club

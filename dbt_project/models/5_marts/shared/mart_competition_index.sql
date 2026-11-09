@@ -56,9 +56,9 @@ import_mart_next_matchday as (
 current_round as (
     select
         league_code,
-        any_value(round_label_i18n_key) as current_round_label_i18n_key,
-        any_value(round_number) as current_round_number,
-        any_value(round_letter) as current_round_letter
+        {{ one_value('round_label_i18n_key') }} as current_round_label_i18n_key,
+        {{ one_value('round_number') }} as current_round_number,
+        {{ one_value('round_letter') }} as current_round_letter
     from import_mart_next_matchday
     group by league_code
 ),

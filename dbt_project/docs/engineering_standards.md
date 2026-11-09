@@ -27,6 +27,7 @@ Use it together with [`layering.md`](layering.md) (BigQuery dataset layout and l
 - Prefer named CTE chains over inline subqueries. Avoid `from ( ... )` when the same logic can be expressed as a named CTE.
 - Keep each CTE single-purpose (import, explode/flatten, dedupe/rank, final projection) and use stable, descriptive CTE names.
 - For BigQuery array expansion, prefer explicit `cross join unnest(...)` style over implicit comma joins where practical.
+- No `any_value` or `approx_quantiles`: pick a row by a stated order, or use `min`/`max` where the group holds one value. `check_layer_contract.py` enforces it.
 
 ## 1.2) Code Comments (every language in the repo — Python, SQL, Astro, TypeScript, YAML)
 
