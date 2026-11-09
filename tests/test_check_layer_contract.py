@@ -1,6 +1,8 @@
 import importlib.util
 import pathlib
 
+import pytest
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
@@ -179,3 +181,50 @@ def test_naming_the_registry_file_in_an_export_passes(monkeypatch, tmp_path):
         'REGISTRY_PATH = "docs/competition_registry.yml"', encoding="utf-8"
     )
     assert _errors(mod) == []
+
+
+def _aggregate_errors(mod, monkeypatch, tmp_path, relpath, sql):
+    project = tmp_path / "dbt_project"
+    path = project / relpath
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(sql, encoding="utf-8")
+    monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(mod, "DBT_PROJECT", project)
+    errors: list[str] = []
+    mod.check_no_nondeterministic_aggregates(errors)
+    return errors
+
+
+def test_the_repo_has_no_nondeterministic_aggregate():
+    errors: list[str] = []
+    _load_layer_contract().check_no_nondeterministic_aggregates(errors)
+    assert errors == []
+
+
+@pytest.mark.parametrize("call", ["ANY_VALUE (a)", "any_value(a)", "approx_quantiles(a, 4)"])
+@pytest.mark.parametrize("relpath", ["models/5_marts/mart_x.sql", "tests/assert_x.sql",
+                                     "macros/m.sql"])
+def test_a_banned_aggregate_fails(monkeypatch, tmp_path, call, relpath):
+    errors = _aggregate_errors(_load_layer_contract(), monkeypatch, tmp_path, relpath,
+                               f"select {call} from t group by b")
+    assert len(errors) == 1 and relpath.rsplit("/", 1)[-1] in errors[0]
+
+
+def test_main_fails_on_a_planted_banned_aggregate(monkeypatch, tmp_path):
+    mod = _load_layer_contract()
+    project = tmp_path / "dbt_project"
+    (project / "models").mkdir(parents=True)
+    (project / "models" / "mart_x.sql").write_text("select any_value(a) from t", encoding="utf-8")
+    monkeypatch.setattr(mod, "DBT_PROJECT", project)
+    assert mod.main() == 1
+
+
+def test_a_commented_mention_passes(monkeypatch, tmp_path):
+    sql = "-- any_value(a) is banned\n{# approx_quantiles(a, 4) #}\nselect min(a) from t"
+    assert _aggregate_errors(_load_layer_contract(), monkeypatch, tmp_path,
+                             "macros/m.sql", sql) == []
+
+
+def test_compiled_target_sql_is_ignored(monkeypatch, tmp_path):
+    assert _aggregate_errors(_load_layer_contract(), monkeypatch, tmp_path,
+                             "target/compiled.sql", "select any_value(a) from t") == []

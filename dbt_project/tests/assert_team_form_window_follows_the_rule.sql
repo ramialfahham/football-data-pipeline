@@ -84,7 +84,7 @@ side_kinds as (
     select
         upcoming_fixture_sk,
         team_sk,
-        any_value(competition_type) as competition_type,
+        min(competition_type) as competition_type,
         countif(league_code = upcoming_league_code and season_api_year = upcoming_season_api_year)
             as legs_in_this_edition
     from earlier_legs

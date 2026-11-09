@@ -30,12 +30,14 @@ players as (
     from {{ ref('dim_player') }}
 ),
 
--- Most-frequent position that season (role badge); nulls excluded.
+-- Most-frequent position that season (role badge); nulls excluded. On a tie, the position of
+-- the most recent match, then the code.
 positions as (
     select
         s.player_sk,
         f.season_sk,
-        s.position_code
+        s.position_code,
+        f.kickoff_datetime
     from {{ ref('fct_fixture_player_stats') }} as s
     inner join {{ ref('fct_fixture') }} as f
         on s.fixture_sk = f.fixture_sk
@@ -56,7 +58,7 @@ modal_position as (
         position_code
     qualify row_number() over (
         partition by player_sk, season_sk
-        order by count(*) desc
+        order by count(*) desc, max(kickoff_datetime) desc, position_code asc
     ) = 1
 ),
 

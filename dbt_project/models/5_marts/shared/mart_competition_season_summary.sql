@@ -72,8 +72,8 @@ season_totals as (
     select
         league_code,
         season_api_year,
-        any_value(competition_type) as competition_type,
-        any_value(entity_type) as entity_type,
+        {{ one_value('competition_type') }} as competition_type,
+        {{ one_value('entity_type') }} as entity_type,
         count(*) as matches_played,
         sum(goals_home + goals_away) as total_goals,
         countif(home_result = 'W') as home_wins,

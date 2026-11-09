@@ -14,17 +14,50 @@
 
 with metrics as (
     select * from {{ ref('int_player_competition_benchmark_metrics_long') }}
+),
+
+-- Exact quartiles: each is a value from the distribution, the same on every build.
+quartiles as (
+    select distinct
+        league_code,
+        season_api_year,
+        position_group,
+        metric_key,
+        percentile_disc(metric_value, 0.25) over peers as peer_p25,
+        percentile_disc(metric_value, 0.5) over peers as peer_median,
+        percentile_disc(metric_value, 0.75) over peers as peer_p75
+    from metrics
+    where metric_value is not null
+    window peers as (partition by league_code, season_api_year, position_group, metric_key)
+),
+
+-- The mean is summed in exact decimals, so the order of the rows cannot change it.
+summary as (
+    select
+        league_code,
+        season_api_year,
+        position_group,
+        metric_key,
+        cast(avg(cast(metric_value as bignumeric)) as float64) as peer_mean,
+        count(metric_value) as player_count
+    from metrics
+    group by league_code, season_api_year, position_group, metric_key
 )
 
 select
-    league_code,
-    season_api_year,
-    position_group,
-    metric_key,
-    count(metric_value) as player_count,
-    avg(metric_value) as peer_mean,
-    approx_quantiles(metric_value, 4)[offset(1)] as peer_p25,
-    approx_quantiles(metric_value, 4)[offset(2)] as peer_median,
-    approx_quantiles(metric_value, 4)[offset(3)] as peer_p75
-from metrics
-group by league_code, season_api_year, position_group, metric_key
+    s.league_code,
+    s.season_api_year,
+    s.position_group,
+    s.metric_key,
+    s.player_count,
+    s.peer_mean,
+    q.peer_p25,
+    q.peer_median,
+    q.peer_p75
+from summary as s
+left join quartiles as q
+    on
+        s.league_code = q.league_code
+        and s.season_api_year = q.season_api_year
+        and s.position_group = q.position_group
+        and s.metric_key = q.metric_key

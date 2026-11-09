@@ -75,8 +75,8 @@ involvements as (
         player_sk,
         team_sk,
         season_sk,
-        any_value(league_code) as league_code,
-        any_value(season_api_year) as season_api_year,
+        {{ one_value('league_code') }} as league_code,
+        {{ one_value('season_api_year') }} as season_api_year,
         -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
         if(
             logical_and(window_is_complete and (goals + assists) is not null),

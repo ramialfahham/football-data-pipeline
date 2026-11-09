@@ -71,6 +71,39 @@ window_rows as (
             and wl.team_sk = p.team_sk
     inner join window_completeness as wc
         on wl.upcoming_fixture_sk = wc.upcoming_fixture_sk and wl.team_sk = wc.team_sk
+),
+
+position_counts as (
+    select
+        *,
+        count(*) over (
+            partition by
+                upcoming_fixture_sk, team_sk, player_sk, season_api_year, entity_type, window_type,
+                position_code
+        ) as position_legs,
+        max(kickoff_datetime) over (
+            partition by
+                upcoming_fixture_sk, team_sk, player_sk, season_api_year, entity_type, window_type,
+                position_code
+        ) as position_last_kickoff
+    from window_rows
+),
+
+-- The window's position: the most frequent, then the one from the most recent match, then the
+-- code, so every build picks the same one. position_pick = 1 marks one leg holding it.
+ranked_rows as (
+    select
+        *,
+        row_number() over (
+            partition by upcoming_fixture_sk, team_sk, player_sk, season_api_year, entity_type, window_type
+            order by
+                position_code is null,
+                position_legs desc,
+                position_last_kickoff desc,
+                position_code asc,
+                fixture_sk asc
+        ) as position_pick
+    from position_counts
 )
 
 select
@@ -81,7 +114,7 @@ select
     entity_type,
     window_type,
     if(logical_and(window_is_complete and minutes is not null), countif(minutes > 0), null) as games_in_window,
-    any_value(position_code) as position_code,
+    max(if(position_pick = 1, position_code, null)) as position_code,
     -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
     if(logical_and(window_is_complete and goals is not null), sum(goals), null) as goals_player,
     if(logical_and(window_is_complete and assists is not null), sum(assists), null) as assists_player,
@@ -142,7 +175,7 @@ select
         if(logical_and(window_is_complete and duels is not null), sum(duels), null)
     ) as duels_won_player_pct
     -- end of generated metric sql
-from window_rows
+from ranked_rows
 group by
     upcoming_fixture_sk,
     team_sk,

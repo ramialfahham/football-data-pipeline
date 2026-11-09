@@ -198,6 +198,9 @@ models:
       - name: team_id
         description: "{{ doc('team_api_id') }}"
         tests: [not_null]
+      - name: standing_section_order
+        description: "The section's position in the provider's standings list for the season, 1 for the first."
+        tests: [not_null]
       - name: standing_rank
         description: "The team's position in this standings table (1 = leader), from the official standings row ($.rank)."
         tests: [not_null]

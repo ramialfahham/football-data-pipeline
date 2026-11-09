@@ -50,8 +50,8 @@ agg as (
     select
         team_sk,
         season_sk,
-        any_value(league_code) as league_code,
-        any_value(season_api_year) as season_api_year,
+        {{ one_value('league_code') }} as league_code,
+        {{ one_value('season_api_year') }} as season_api_year,
         count(*) as matches_in_season,
         min(if(result = 'L', recency_rank, null)) as first_loss_rank,
         min(if(result != 'W', recency_rank, null)) as first_nonwin_rank,

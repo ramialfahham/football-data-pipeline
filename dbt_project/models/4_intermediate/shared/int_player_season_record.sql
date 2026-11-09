@@ -65,7 +65,7 @@ running as (
         kickoff_datetime,
         round_order,
         minutes,
-        any_value(position_code) over w as position_code,
+        array_agg(position_code) over w as positions_to_date,
         countif(minutes > 0) over w as match_number,
         if(logical_and(window_is_complete and minutes is not null) over w, sum(minutes) over w, null)
             as minutes_to_date,
@@ -208,10 +208,20 @@ running as (
 )
 
 select
-    * except (minutes, match_number, minutes_to_date),
+    * except (minutes, match_number, minutes_to_date, positions_to_date),
     minutes_to_date as minutes,
     'season_to_date' as window_type,
     match_number,
-    match_number as games_played
+    match_number as games_played,
+    -- The position to date: the most frequent, then the one from the most recent match, then
+    -- the code, so every build picks the same one.
+    (
+        select pc
+        from unnest(positions_to_date) as pc with offset as position_index
+        where pc is not null
+        group by pc
+        order by count(*) desc, max(position_index) desc, pc asc
+        limit 1
+    ) as position_code
 from running
 where minutes > 0

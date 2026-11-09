@@ -24,8 +24,7 @@ seeded as (
 applied as (
     select
         lineups.fixture_id,
-        logical_and(lineups.lineup_state = 'researched') as is_researched,
-        any_value(lineups.failed_checks) as failed_checks
+        logical_and(lineups.lineup_state = 'researched') as is_researched
     from {{ ref('base_apif__lineups') }} as lineups
     inner join seeded
         on lineups.fixture_id = seeded.fixture_id
@@ -46,9 +45,11 @@ sources as (
 ),
 
 failing as (
-    select distinct applied.fixture_id
-    from applied,
-        unnest(applied.failed_checks) as failed_check
+    select distinct lineups.fixture_id
+    from {{ ref('base_apif__lineups') }} as lineups
+    inner join seeded
+        on lineups.fixture_id = seeded.fixture_id
+    cross join unnest(lineups.failed_checks) as failed_check
     where failed_check != 'squad_lists'
 )
 

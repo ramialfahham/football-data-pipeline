@@ -27,7 +27,7 @@ per_metric as (
         b.league_code,
         b.season_api_year,
         b.metric_key,
-        any_value(c.direction) as direction,
+        min(c.direction) as direction,
         min(b.metric_value) as lowest_value,
         max(b.metric_value) as highest_value,
         min(if(b.rank = 1, b.metric_value, null)) as rank_one_value

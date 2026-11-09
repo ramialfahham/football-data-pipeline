@@ -301,6 +301,28 @@ def _strip_sql_comments(sql: str) -> str:
     return _SQL_LINE_COMMENT.sub("", _SQL_BLOCK_COMMENT.sub(" ", sql))
 
 
+# Two builds of the same data must give the same output: these aggregates may return a different
+# value on each run. Pick by a stated order, or min/max where a group holds one value.
+NONDETERMINISTIC_AGGREGATE = re.compile(r"\b(any_value|approx_quantiles)\s*\(", re.IGNORECASE)
+_JINJA_COMMENT = re.compile(r"\{#.*?#\}", re.DOTALL)
+
+
+def check_no_nondeterministic_aggregates(errors: list[str]) -> None:
+    files = [
+        path
+        for path in DBT_PROJECT.rglob("*.sql")
+        if not set(path.relative_to(DBT_PROJECT).parts) & set(DBT_SKIP_DIRS)
+    ]
+    for path in sorted(files):
+        sql = _strip_sql_comments(_JINJA_COMMENT.sub(" ", path.read_text(encoding="utf-8")))
+        for match in NONDETERMINISTIC_AGGREGATE.finditer(sql):
+            rel = path.relative_to(DBT_PROJECT.parent).as_posix()
+            errors.append(
+                f"{rel}: {match.group(1)}() may return a different value on each build; pick by a "
+                "stated order, or use min/max where the group holds one value."
+            )
+
+
 def check_staging_purity(errors: list[str]) -> None:
     layering_ref = "See dbt_project/docs/layering.md §1_staging."
     for sql_path in sorted(STAGING_API_DIR.glob("*.sql")):
@@ -348,6 +370,7 @@ def main() -> int:
     check_intermediate_no_mart_refs(errors)
     check_registry_seed_readers(errors)
     check_export_reads_marts_only(errors)
+    check_no_nondeterministic_aggregates(errors)
     check_staging_inventory(errors)
     check_staging_purity(errors)
     check_staging_no_refs(errors)
