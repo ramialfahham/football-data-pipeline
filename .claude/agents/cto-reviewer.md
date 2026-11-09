@@ -46,8 +46,8 @@ should not exist, or not without an approval that is missing".
 
 ## Inputs
 
-1. `.claude/task/review_input.patch` (cumulative branch diff vs main).
-2. `.claude/task/contract.md`.
+1. `.claude/task/<task>/review_input.patch` (`<task>` is the task folder your prompt names) (cumulative branch diff vs main).
+2. `.claude/task/<task>/contract.md`.
 3. `docs/roles/cto.md`, `docs/agent_guardrails.md`,
    working_agreement.md §4 (quality bar) + §10 + Appendix A.
 
@@ -126,7 +126,7 @@ should not exist, or not without an approval that is missing".
   against Y, no defect" is a complete entry. Never manufacture a finding to
   justify a pass.
 - **You review code and `contract.md`, never the review's own paperwork.**
-  The task NOTES in `.claude/task/` are excluded from the patch you are handed;
+  The task NOTES in `.claude/task/<task>/` are excluded from the patch you are handed;
   `contract.md` and `escalations.log` are NOT. Your authority
   questions are answered from `contract.md`, which you DO see.
 - Ambiguous classification → ESCALATE (§10 meta-rule).

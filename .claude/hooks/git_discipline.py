@@ -31,6 +31,7 @@ from _command_utils import (  # noqa: E402
     simple_commands,
     strip_quoted_and_heredoc,
 )
+from task_contract_gate import CONTRACT_NAME, CONTRACT_REL, task_folder  # noqa: E402
 
 _MR_MERGE = re.compile(r"glab\s+mr\s+(?:merge|accept)\b")
 _BRANCH_CREATE = re.compile(r"git\s+(?:checkout\s+-b|switch\s+(?:-c|--create))\b")
@@ -50,7 +51,7 @@ _COMMIT_VALUE_FLAGS = {"-m", "--message", "-F", "--file"}
 _HOOKSPATH = re.compile(r"git\s+config\b.*core\.hookspath", re.IGNORECASE)
 
 ROUTING_REL = ".claude/review_routing.json"
-REVIEW_REL = ".claude/task/review.md"
+REVIEW_NAME = "review.md"
 
 
 def _commit_form_violation(raw: str) -> str | None:
@@ -219,7 +220,7 @@ def _review_patch_bytes(root: str) -> bytes:
     commit. This is a SEPARATE exclusion list from
     `hash_exclude_paths`: what a reviewer reads and what invalidates their verdict are
     different questions, and conflating them is what made a typo fix cost a full round.
-    Used by `--review-patch`, which is how `.claude/task/review_input.patch` must be
+    Used by `--review-patch`, which is how the task folder's `review_input.patch` must be
     generated; generating it by hand is how it came to re-embed its own history."""
     routing = _load_routing(root) or {}
     excludes = routing.get("review_exclude_paths") or []
@@ -592,8 +593,7 @@ def _is_placeholder(s: str) -> bool:
 
 
 ACCEPTANCE_TRIGGER = "site_v2/src/"
-CRITERIA_REL = ".claude/task/contract.md"
-EVIDENCE_REL = ".claude/task/acceptance_evidence.md"
+EVIDENCE_NAME = "acceptance_evidence.md"
 
 
 def _bullets(block: str) -> list[str]:
@@ -637,7 +637,7 @@ def _block(text: str, key: str) -> str:
     return "\n".join(buf)
 
 
-def _acceptance_gate(root: str, paths: list[str]) -> str | None:
+def _acceptance_gate(root: str, paths: list[str], folder: str | None = None) -> str | None:
     """Reason to deny on missing acceptance evidence, or None.
 
     Quality Assurance exists as a required EVIDENCE ARTIFACT with a gate, not as
@@ -660,7 +660,10 @@ def _acceptance_gate(root: str, paths: list[str]) -> str | None:
     """
     if not any(p.startswith(ACCEPTANCE_TRIGGER) for p in paths):
         return None
-    contract = os.path.join(root, CRITERIA_REL)
+    folder = folder or task_folder(root)["folder"]
+    if folder is None:
+        return None                      # no task folder: the contract gate owns that
+    contract = os.path.join(root, folder + CONTRACT_NAME)
     if not os.path.isfile(contract):
         return None                      # no contract: the contract gate owns that
     criteria = _bullets(_block(
@@ -674,10 +677,11 @@ def _acceptance_gate(root: str, paths: list[str]) -> str | None:
             "Reviewers check whether the code is right; nothing else checks "
             "whether it does what was asked."
         )
-    evidence_path = os.path.join(root, EVIDENCE_REL)
+    evidence_rel = folder + EVIDENCE_NAME
+    evidence_path = os.path.join(root, evidence_rel)
     if not os.path.isfile(evidence_path):
         return (
-            f"ACCEPTANCE GATE: {EVIDENCE_REL} is missing. Demonstrate each of the "
+            f"ACCEPTANCE GATE: {evidence_rel} is missing. Demonstrate each of the "
             f"{len(criteria)} acceptance criteria against the BUILT output (never "
             "source, never outerHTML — both have certified a defect as fixed while "
             "it was still shipping) under a `criteria_demonstrated:` marker."
@@ -695,7 +699,7 @@ def _acceptance_gate(root: str, paths: list[str]) -> str | None:
                   f"output (under {_MIN_EVIDENCE_CHARS} characters)." if dropped else "")
         return (
             f"ACCEPTANCE GATE: {len(criteria)} acceptance criteria declared, "
-            f"{len(substantive)} demonstrated in {EVIDENCE_REL}.{detail} Every criterion "
+            f"{len(substantive)} demonstrated in {evidence_rel}.{detail} Every criterion "
             "needs its own evidence line read from the built output. An undemonstrated "
             "criterion is an unverified claim."
         )
@@ -706,7 +710,7 @@ def _acceptance_gate(root: str, paths: list[str]) -> str | None:
     if len(set(lowered)) < len(lowered):
         dupes = sorted({s for s in lowered if lowered.count(s) > 1})
         return (
-            f"ACCEPTANCE GATE: {EVIDENCE_REL} repeats identical evidence lines "
+            f"ACCEPTANCE GATE: {evidence_rel} repeats identical evidence lines "
             f"({dupes[:2]}). Each criterion needs its OWN reading of the built "
             "output; a repeated line means one criterion went undemonstrated."
         )
@@ -722,16 +726,27 @@ def _commit_gate(root: str) -> str | None:
     routing = _load_routing(root)
     if routing is None:
         return None                      # no routing file: gate not active (fail open)
+    state = task_folder(root)
+    if state["errors"]:
+        return ("TASK FOLDER GATE: " + "; ".join(state["errors"])
+                + ". See docs/working_agreement.md §2.")
     if _artifact_only(paths, routing):
         return None                      # bookkeeping commit: exempt
-    acceptance_msg = _acceptance_gate(root, paths)
+    folder = state["folder"]
+    if folder is None:
+        return (
+            "REVIEW GATE: this branch has no task folder, so there is no contract or review "
+            f"to commit against. Write {CONTRACT_REL} first. See docs/working_agreement.md §2."
+        )
+    acceptance_msg = _acceptance_gate(root, paths, folder)
     if acceptance_msg:
         return acceptance_msg
-    review_path = os.path.join(root, REVIEW_REL)
+    review_rel = folder + REVIEW_NAME
+    review_path = os.path.join(root, review_rel)
     if not os.path.isfile(review_path):
         return (
             "REVIEW GATE: no review artifact. Run the review cycle first "
-            "(stage -> blinded reviewers -> write .claude/task/review.md per "
+            f"(stage -> blinded reviewers -> write {review_rel} per "
             ".claude/task/REVIEW_TEMPLATE.md), then commit."
         )
     text = open(review_path, encoding="utf-8", errors="replace").read()

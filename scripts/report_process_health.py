@@ -29,7 +29,7 @@ import sys
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 ESCALATIONS = REPO_ROOT / ".claude" / "task" / "escalations.log"
-REVIEW_REL = ".claude/task/review.md"
+REVIEW_PATHSPECS = (".claude/task/review.md", ":(glob).claude/task/*/review.md")
 ROUTING = REPO_ROOT / ".claude" / "review_routing.json"
 
 # Computed from the log at run time, never hardcoded. An earlier draft carried a
@@ -77,10 +77,13 @@ def rulings() -> dict:
 def rounds_history() -> list[int]:
     """Every `rounds:` value review.md has ever carried, from its own git log.
     A branch that needed three rounds cost three times the reviewer spend of one."""
-    log = _git("log", "--format=%H", "--", REVIEW_REL).split()
-    seen = []
-    for sha in log:
-        blob = _git("show", f"{sha}:{REVIEW_REL}")
+    log = _git("log", "--format=%H", "--name-only", "--", *REVIEW_PATHSPECS).split()
+    seen, sha = [], ""
+    for token in log:
+        if re.fullmatch(r"[0-9a-f]{40}", token):
+            sha = token
+            continue
+        blob = _git("show", f"{sha}:{token}")
         m = re.search(r"^[^\S\n]*rounds:[^\S\n]*(\d+)", blob, flags=re.M)
         if m:
             seen.append(int(m.group(1)))

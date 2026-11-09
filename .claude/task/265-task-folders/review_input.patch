@@ -1,0 +1,2961 @@
+diff --git a/.claude/agents/analytics-engineer-reviewer.md b/.claude/agents/analytics-engineer-reviewer.md
+index 2f385502..be99272b 100644
+--- a/.claude/agents/analytics-engineer-reviewer.md
++++ b/.claude/agents/analytics-engineer-reviewer.md
+@@ -14,8 +14,8 @@ and pass.
+ 
+ ## Inputs
+ 
+-1. `.claude/task/review_input.patch` — the cumulative branch diff vs main.
+-2. `.claude/task/contract.md` — the task contract.
++1. `.claude/task/<task>/review_input.patch` (`<task>` is the task folder your prompt names) — the cumulative branch diff vs main.
++2. `.claude/task/<task>/contract.md` — the task contract.
+ 3. The governing contracts: `dbt_project/docs/layering.md` (every layer
+    section INCLUDING §Consumption layer), `dbt_project/docs/engineering_standards.md`,
+    `docs/roles/analytics_engineer.md`, working_agreement.md Appendix A.
+@@ -63,7 +63,7 @@ and pass.
+   against Y, no defect" is a complete entry. Never manufacture a finding to
+   justify a pass.
+ - **You review code and `contract.md`, never the review's own paperwork.**
+-  The task NOTES in `.claude/task/` are excluded from the patch you are handed;
++  The task NOTES in `.claude/task/<task>/` are excluded from the patch you are handed;
+   `contract.md` and `escalations.log` are NOT, because they carry authority and you
+   need them. A defect in the
+   builder's notes is not yours to find.
+diff --git a/.claude/agents/bi-analyst-reviewer.md b/.claude/agents/bi-analyst-reviewer.md
+index 564c7648..a6b7aa6d 100644
+--- a/.claude/agents/bi-analyst-reviewer.md
++++ b/.claude/agents/bi-analyst-reviewer.md
+@@ -18,14 +18,14 @@ the CTO.
+ 
+ ## Inputs
+ 
+-1. `.claude/task/review_input.patch` (cumulative branch diff vs main).
+-2. `.claude/task/contract.md`.
++1. `.claude/task/<task>/review_input.patch` (`<task>` is the task folder your prompt names) (cumulative branch diff vs main).
++2. `.claude/task/<task>/contract.md`.
+ 3. The locked contracts: `docs/wireframes/metrics_display.md` (team table,
+    player bundles, window & scope rules, rulings log),
+    `docs/wireframes/00_overview.md` (binding rule),
+    `docs/ui_design_brief.md` §6, `docs/roles/bi_analyst.md`,
+    working_agreement.md Appendix A.
+-4. `.claude/task/rendered_page_evidence.md` — REQUIRED whenever the diff touches
++4. `.claude/task/<task>/rendered_page_evidence.md` — REQUIRED whenever the diff touches
+    `site_v2/src/**` with a rendering-affecting change (markup/CSS/component —
+    not e.g. an i18n-string-only edit). The builder produces this before
+    spawning you: what was checked, at which viewport widths, and what was
+@@ -99,7 +99,7 @@ the CTO.
+   against Y, no defect" is a complete entry. Never manufacture a finding to
+   justify a pass.
+ - **You review code and `contract.md`, never the review's own paperwork.**
+-  The task NOTES in `.claude/task/` are excluded from the patch you are handed,
++  The task NOTES in `.claude/task/<task>/` are excluded from the patch you are handed,
+   including the evidence artifacts; `contract.md` and `escalations.log` are NOT,
+   because they carry authority. Read `rendered_page_evidence.md` from the working
+   tree as EVIDENCE about the built page; do not review its prose.
+diff --git a/.claude/agents/cto-reviewer.md b/.claude/agents/cto-reviewer.md
+index 97560538..e85bdccf 100644
+--- a/.claude/agents/cto-reviewer.md
++++ b/.claude/agents/cto-reviewer.md
+@@ -46,8 +46,8 @@ should not exist, or not without an approval that is missing".
+ 
+ ## Inputs
+ 
+-1. `.claude/task/review_input.patch` (cumulative branch diff vs main).
+-2. `.claude/task/contract.md`.
++1. `.claude/task/<task>/review_input.patch` (`<task>` is the task folder your prompt names) (cumulative branch diff vs main).
++2. `.claude/task/<task>/contract.md`.
+ 3. `docs/roles/cto.md`, `docs/agent_guardrails.md`,
+    working_agreement.md §4 (quality bar) + §10 + Appendix A.
+ 
+@@ -126,7 +126,7 @@ should not exist, or not without an approval that is missing".
+   against Y, no defect" is a complete entry. Never manufacture a finding to
+   justify a pass.
+ - **You review code and `contract.md`, never the review's own paperwork.**
+-  The task NOTES in `.claude/task/` are excluded from the patch you are handed;
++  The task NOTES in `.claude/task/<task>/` are excluded from the patch you are handed;
+   `contract.md` and `escalations.log` are NOT. Your authority
+   questions are answered from `contract.md`, which you DO see.
+ - Ambiguous classification → ESCALATE (§10 meta-rule).
+diff --git a/.claude/agents/data-engineer-reviewer.md b/.claude/agents/data-engineer-reviewer.md
+index f2e161b3..98eb8717 100644
+--- a/.claude/agents/data-engineer-reviewer.md
++++ b/.claude/agents/data-engineer-reviewer.md
+@@ -19,8 +19,8 @@ diff here as the next incident until proven otherwise.
+ 
+ ## Inputs
+ 
+-1. `.claude/task/review_input.patch` (cumulative branch diff vs main).
+-2. `.claude/task/contract.md`.
++1. `.claude/task/<task>/review_input.patch` (`<task>` is the task folder your prompt names) (cumulative branch diff vs main).
++2. `.claude/task/<task>/contract.md`.
+ 3. `docs/data_contract.md`, `docs/operations_guide.md`,
+    `docs/roles/data_engineer.md`, working_agreement.md §5/§10/Appendix A.
+ 
+@@ -75,7 +75,7 @@ diff here as the next incident until proven otherwise.
+   against Y, no defect" is a complete entry. Never manufacture a finding to
+   justify a pass.
+ - **You review code and `contract.md`, never the review's own paperwork.**
+-  The task NOTES in `.claude/task/` are excluded from the patch you are handed;
++  The task NOTES in `.claude/task/<task>/` are excluded from the patch you are handed;
+   `contract.md` and `escalations.log` are NOT, because they carry authority and you
+   need them. A defect in the
+   builder's notes is not yours to find.
+diff --git a/.claude/agents/football-analytics-expert-reviewer.md b/.claude/agents/football-analytics-expert-reviewer.md
+index f39550b0..489a1d43 100644
+--- a/.claude/agents/football-analytics-expert-reviewer.md
++++ b/.claude/agents/football-analytics-expert-reviewer.md
+@@ -13,8 +13,8 @@ Your single trigger: changes to `dbt_project/seeds/metric_catalogue.csv`.
+ 
+ ## Inputs
+ 
+-1. `.claude/task/review_input.patch` (cumulative branch diff vs main).
+-2. `.claude/task/contract.md` (the named CPO approval for any new/changed row).
++1. `.claude/task/<task>/review_input.patch` (`<task>` is the task folder your prompt names) (cumulative branch diff vs main).
++2. `.claude/task/<task>/contract.md` (the named CPO approval for any new/changed row).
+ 3. `dbt_project/models/docs/metric_rules.md` (how a metric is computed and when it is blank),
+    `dbt_project/seeds/schema.yml` (what each catalogue column holds; the direction rule),
+    `dbt_project/docs/engineering_standards.md` section 2 (how a description is written),
+@@ -49,7 +49,7 @@ column, not a FAIL.
+   against Y, no defect" is a complete entry. Never manufacture a finding to
+   justify a pass.
+ - **You review code and `contract.md`, never the review's own paperwork.**
+-  The task NOTES in `.claude/task/` are excluded from the patch you are handed;
++  The task NOTES in `.claude/task/<task>/` are excluded from the patch you are handed;
+   `contract.md` and `escalations.log` are NOT, because they carry authority and you
+   need them. A defect in the
+   builder's notes is not yours to find.
+diff --git a/.claude/agents/platform-reviewer.md b/.claude/agents/platform-reviewer.md
+index 0f9ff8ed..1d0ffc52 100644
+--- a/.claude/agents/platform-reviewer.md
++++ b/.claude/agents/platform-reviewer.md
+@@ -46,8 +46,8 @@ page displays (`bi-analyst-reviewer`), what a number means
+ 
+ ## Inputs
+ 
+-1. `.claude/task/review_input.patch` (cumulative branch diff vs main).
+-2. `.claude/task/contract.md`.
++1. `.claude/task/<task>/review_input.patch` (`<task>` is the task folder your prompt names) (cumulative branch diff vs main).
++2. `.claude/task/<task>/contract.md`.
+ 3. `docs/roles/platform_reliability.md`, `docs/agent_guardrails.md`,
+    working_agreement.md §4 (quality bar) + §10 + Appendix A.
+ 
+@@ -93,7 +93,7 @@ page displays (`bi-analyst-reviewer`), what a number means
+   against Y, no defect" is a complete entry. Never manufacture a finding to
+   justify a pass.
+ - **You review code and `contract.md`, never the review's own paperwork.**
+-  The task NOTES in `.claude/task/` are excluded from the patch you are handed;
++  The task NOTES in `.claude/task/<task>/` are excluded from the patch you are handed;
+   `contract.md` and `escalations.log` are NOT, because they carry authority and you
+   need them. A defect in the
+   builder's notes is not yours to find.
+diff --git a/.claude/agents/scope-auditor.md b/.claude/agents/scope-auditor.md
+index 4e03f7c1..671b5e49 100644
+--- a/.claude/agents/scope-auditor.md
++++ b/.claude/agents/scope-auditor.md
+@@ -15,10 +15,10 @@ pass. Do not convert an absence of findings into a finding.
+ 
+ ## Inputs (read these, in this order)
+ 
+-1. `.claude/task/review_input.patch` — the CUMULATIVE branch diff vs main. You
++1. `.claude/task/<task>/review_input.patch` (`<task>` is the task folder your prompt names) — the CUMULATIVE branch diff vs main. You
+    judge the whole branch, not one commit: two individually clean commits can
+    cumulatively drift.
+-2. `.claude/task/contract.md` — the task contract (objective, scope_paths,
++2. `.claude/task/<task>/contract.md` — the task contract (objective, scope_paths,
+    decisions_taken, decisions_reserved, amendments).
+ 3. `docs/working_agreement.md` — §10 decision-rights table, §11 escalation
+    protocol, Appendix A historical anti-patterns.
+@@ -91,7 +91,7 @@ pass. Do not convert an absence of findings into a finding.
+   against Y, no defect" is a complete entry. Never manufacture a finding to
+   justify a pass.
+ - **You review the code diff and `contract.md`, never the review's own
+-  paperwork.** The task NOTES in `.claude/task/` are excluded from the patch you
++  paperwork.** The task NOTES in `.claude/task/<task>/` are excluded from the patch you
+   are handed, so the phrasing of the evidence artifacts is not yours to audit.
+   `contract.md` IS in the patch — it carries the scope and the named approval a
+   `protected_override` rests on (where and when, never his words). That approval is
+diff --git a/.claude/agents/seo-expert-reviewer.md b/.claude/agents/seo-expert-reviewer.md
+index fc95d230..1331bf33 100644
+--- a/.claude/agents/seo-expert-reviewer.md
++++ b/.claude/agents/seo-expert-reviewer.md
+@@ -20,8 +20,8 @@ no such thing as a small SEO bug here.
+ 
+ ## Inputs
+ 
+-1. `.claude/task/review_input.patch` (cumulative branch diff vs main).
+-2. `.claude/task/contract.md`.
++1. `.claude/task/<task>/review_input.patch` (`<task>` is the task folder your prompt names) (cumulative branch diff vs main).
++2. `.claude/task/<task>/contract.md`.
+ 3. The locked contracts: `docs/site_architecture.md` (§2 hard constraints, §3 URL
+    scheme + slugs + locale routing, §6 SEO surface), `docs/content_architecture.md`
+    (§2 entity types + page-count drivers, §4 tab sets, §5 navigation graph),
+@@ -78,7 +78,7 @@ no such thing as a small SEO bug here.
+   against Y, no defect" is a complete entry. Never manufacture a finding to
+   justify a pass.
+ - **You review code and `contract.md`, never the review's own paperwork.**
+-  The task NOTES in `.claude/task/` are excluded from the patch you are handed;
++  The task NOTES in `.claude/task/<task>/` are excluded from the patch you are handed;
+   `contract.md` and `escalations.log` are NOT, because they carry authority.
+ - Ambiguous which §10 class a decision falls in → ESCALATE (§10 meta-rule).
+ 
+diff --git a/.claude/hooks/git_discipline.py b/.claude/hooks/git_discipline.py
+index b726a656..f2e50c27 100644
+--- a/.claude/hooks/git_discipline.py
++++ b/.claude/hooks/git_discipline.py
+@@ -31,6 +31,7 @@ from _command_utils import (  # noqa: E402
+     simple_commands,
+     strip_quoted_and_heredoc,
+ )
++from task_contract_gate import CONTRACT_NAME, CONTRACT_REL, task_folder  # noqa: E402
+ 
+ _MR_MERGE = re.compile(r"glab\s+mr\s+(?:merge|accept)\b")
+ _BRANCH_CREATE = re.compile(r"git\s+(?:checkout\s+-b|switch\s+(?:-c|--create))\b")
+@@ -50,7 +51,7 @@ _COMMIT_VALUE_FLAGS = {"-m", "--message", "-F", "--file"}
+ _HOOKSPATH = re.compile(r"git\s+config\b.*core\.hookspath", re.IGNORECASE)
+ 
+ ROUTING_REL = ".claude/review_routing.json"
+-REVIEW_REL = ".claude/task/review.md"
++REVIEW_NAME = "review.md"
+ 
+ 
+ def _commit_form_violation(raw: str) -> str | None:
+@@ -219,7 +220,7 @@ def _review_patch_bytes(root: str) -> bytes:
+     commit. This is a SEPARATE exclusion list from
+     `hash_exclude_paths`: what a reviewer reads and what invalidates their verdict are
+     different questions, and conflating them is what made a typo fix cost a full round.
+-    Used by `--review-patch`, which is how `.claude/task/review_input.patch` must be
++    Used by `--review-patch`, which is how the task folder's `review_input.patch` must be
+     generated; generating it by hand is how it came to re-embed its own history."""
+     routing = _load_routing(root) or {}
+     excludes = routing.get("review_exclude_paths") or []
+@@ -592,8 +593,7 @@ def _is_placeholder(s: str) -> bool:
+ 
+ 
+ ACCEPTANCE_TRIGGER = "site_v2/src/"
+-CRITERIA_REL = ".claude/task/contract.md"
+-EVIDENCE_REL = ".claude/task/acceptance_evidence.md"
++EVIDENCE_NAME = "acceptance_evidence.md"
+ 
+ 
+ def _bullets(block: str) -> list[str]:
+@@ -637,7 +637,7 @@ def _block(text: str, key: str) -> str:
+     return "\n".join(buf)
+ 
+ 
+-def _acceptance_gate(root: str, paths: list[str]) -> str | None:
++def _acceptance_gate(root: str, paths: list[str], folder: str | None = None) -> str | None:
+     """Reason to deny on missing acceptance evidence, or None.
+ 
+     Quality Assurance exists as a required EVIDENCE ARTIFACT with a gate, not as
+@@ -660,7 +660,10 @@ def _acceptance_gate(root: str, paths: list[str]) -> str | None:
+     """
+     if not any(p.startswith(ACCEPTANCE_TRIGGER) for p in paths):
+         return None
+-    contract = os.path.join(root, CRITERIA_REL)
++    folder = folder or task_folder(root)["folder"]
++    if folder is None:
++        return None                      # no task folder: the contract gate owns that
++    contract = os.path.join(root, folder + CONTRACT_NAME)
+     if not os.path.isfile(contract):
+         return None                      # no contract: the contract gate owns that
+     criteria = _bullets(_block(
+@@ -674,10 +677,11 @@ def _acceptance_gate(root: str, paths: list[str]) -> str | None:
+             "Reviewers check whether the code is right; nothing else checks "
+             "whether it does what was asked."
+         )
+-    evidence_path = os.path.join(root, EVIDENCE_REL)
++    evidence_rel = folder + EVIDENCE_NAME
++    evidence_path = os.path.join(root, evidence_rel)
+     if not os.path.isfile(evidence_path):
+         return (
+-            f"ACCEPTANCE GATE: {EVIDENCE_REL} is missing. Demonstrate each of the "
++            f"ACCEPTANCE GATE: {evidence_rel} is missing. Demonstrate each of the "
+             f"{len(criteria)} acceptance criteria against the BUILT output (never "
+             "source, never outerHTML — both have certified a defect as fixed while "
+             "it was still shipping) under a `criteria_demonstrated:` marker."
+@@ -695,7 +699,7 @@ def _acceptance_gate(root: str, paths: list[str]) -> str | None:
+                   f"output (under {_MIN_EVIDENCE_CHARS} characters)." if dropped else "")
+         return (
+             f"ACCEPTANCE GATE: {len(criteria)} acceptance criteria declared, "
+-            f"{len(substantive)} demonstrated in {EVIDENCE_REL}.{detail} Every criterion "
++            f"{len(substantive)} demonstrated in {evidence_rel}.{detail} Every criterion "
+             "needs its own evidence line read from the built output. An undemonstrated "
+             "criterion is an unverified claim."
+         )
+@@ -706,7 +710,7 @@ def _acceptance_gate(root: str, paths: list[str]) -> str | None:
+     if len(set(lowered)) < len(lowered):
+         dupes = sorted({s for s in lowered if lowered.count(s) > 1})
+         return (
+-            f"ACCEPTANCE GATE: {EVIDENCE_REL} repeats identical evidence lines "
++            f"ACCEPTANCE GATE: {evidence_rel} repeats identical evidence lines "
+             f"({dupes[:2]}). Each criterion needs its OWN reading of the built "
+             "output; a repeated line means one criterion went undemonstrated."
+         )
+@@ -722,16 +726,27 @@ def _commit_gate(root: str) -> str | None:
+     routing = _load_routing(root)
+     if routing is None:
+         return None                      # no routing file: gate not active (fail open)
++    state = task_folder(root)
++    if state["errors"]:
++        return ("TASK FOLDER GATE: " + "; ".join(state["errors"])
++                + ". See docs/working_agreement.md §2.")
+     if _artifact_only(paths, routing):
+         return None                      # bookkeeping commit: exempt
+-    acceptance_msg = _acceptance_gate(root, paths)
++    folder = state["folder"]
++    if folder is None:
++        return (
++            "REVIEW GATE: this branch has no task folder, so there is no contract or review "
++            f"to commit against. Write {CONTRACT_REL} first. See docs/working_agreement.md §2."
++        )
++    acceptance_msg = _acceptance_gate(root, paths, folder)
+     if acceptance_msg:
+         return acceptance_msg
+-    review_path = os.path.join(root, REVIEW_REL)
++    review_rel = folder + REVIEW_NAME
++    review_path = os.path.join(root, review_rel)
+     if not os.path.isfile(review_path):
+         return (
+             "REVIEW GATE: no review artifact. Run the review cycle first "
+-            "(stage -> blinded reviewers -> write .claude/task/review.md per "
++            f"(stage -> blinded reviewers -> write {review_rel} per "
+             ".claude/task/REVIEW_TEMPLATE.md), then commit."
+         )
+     text = open(review_path, encoding="utf-8", errors="replace").read()
+diff --git a/.claude/hooks/task_contract_gate.py b/.claude/hooks/task_contract_gate.py
+index 0da16f0e..bb817e89 100644
+--- a/.claude/hooks/task_contract_gate.py
++++ b/.claude/hooks/task_contract_gate.py
+@@ -2,7 +2,8 @@
+ """Task-contract gate (governance G2).
+ 
+ Drift is made mechanically impossible: every unit of work declares a contract
+-(`.claude/task/contract.md`) with a file-scope allowlist, and this gate denies:
++(`.claude/task/<issue>-<slug>/contract.md`, one folder per task) with a file-scope allowlist, and
++this gate denies:
+ 
+   PreToolUse Edit|Write|MultiEdit
+     - any repo-file edit when no contract exists
+@@ -11,6 +12,8 @@ Drift is made mechanically impossible: every unit of work declares a contract
+       carries an explicit `protected_override` naming the product owner's approval
+     - edits to the contract itself while the tree is dirty (clean-tree rule:
+       amendments are discrete events, never mixed into code changes)
++    - a write to another task's folder, a merged task's folder, or the old shared
++      `.claude/task/` files (`task_folder` says which folder is this branch's)
+     - any edit on the STRUCTURAL SURFACE (raw writers `ingestion/**`, dbt models
+       `dbt_project/models/**`, consumption `scripts/export_*.py` / `site*/`) when
+       the contract carries no non-placeholder `impact_map` — the end-to-end
+@@ -49,8 +52,11 @@ from _command_utils import (  # noqa: E402
+     worktree_root,
+ )
+ 
+-CONTRACT_REL = ".claude/task/contract.md"
+ TASK_DIR_REL = ".claude/task/"
++CONTRACT_NAME = "contract.md"
++CONTRACT_REL = TASK_DIR_REL + "<issue>-<slug>/" + CONTRACT_NAME
++TASK_TEMPLATES = frozenset({TASK_DIR_REL + "TEMPLATE.md", TASK_DIR_REL + "REVIEW_TEMPLATE.md"})
++TASK_ID_RE = re.compile(r"^[0-9]+(?:-[a-z0-9]+)+$")
+ # .claude/agents/: the reviewer definitions are governance artifacts like the
+ # routing file — the builder must never be able to weaken its own adversary
+ # inside an ordinary task contract. .claude/commands/: custom slash commands can
+@@ -315,10 +321,120 @@ def _rel_in_repo(path: str, root: str) -> str | None:
+     return rel
+ 
+ 
+-def _read_contract(root: str) -> dict | None:
++def task_id_of(rel: str) -> str | None:
++    """The folder name in `.claude/task/<id>/...`, or None for any other path."""
++    if not rel.startswith(TASK_DIR_REL):
++        return None
++    head, sep, _ = rel[len(TASK_DIR_REL):].partition("/")
++    return head if sep and head else None
++
++
++def is_legacy_artifact(rel: str) -> bool:
++    """A file directly in `.claude/task/` other than the two templates."""
++    if not rel.startswith(TASK_DIR_REL):
++        return False
++    rest = rel[len(TASK_DIR_REL):]
++    return bool(rest) and "/" not in rest and rel not in TASK_TEMPLATES
++
++
++def _git_z(root: str, args: list[str]) -> list[str] | None:
++    try:
++        r = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True,
++                           encoding="utf-8", errors="replace", timeout=30)
++    except (OSError, subprocess.SubprocessError, ValueError):
++        return None
++    if r.returncode != 0:
++        return None
++    return [p.replace("\\", "/") for p in r.stdout.split("\0") if p]
++
++
++def _status_paths(root: str) -> list[str]:
++    """Every path `git status` reports, both sides of a rename included."""
++    paths, orig_next = [], False
++    for entry in _git_z(root, ["status", "--porcelain", "-uall", "-z"]) or []:
++        if orig_next:
++            paths.append(entry)
++            orig_next = False
++            continue
++        paths.append(entry[3:])
++        orig_next = entry[:1] in ("R", "C")
++    return paths
++
++
++def _committed_paths(root: str, base_ref: str | None) -> list[str]:
++    """Paths the branch changed since it left the base: `base...HEAD`, the range CI checks.
++    Without an explicit base, the commit gate's own base (`git_discipline._base_commit`); when
++    that cannot be resolved, the whole history, like the commit gate's own fallback."""
++    if base_ref:
++        rng = [f"{base_ref}...HEAD"]
++    else:
++        try:
++            from git_discipline import _base_commit
++            rng = [_base_commit(root), "HEAD"]
++        except Exception:
++            roots = (_git_z(root, ["rev-list", "--max-parents=0", "HEAD"]) or [""])[0].split()
++            if not roots:
++                return []
++            rng = [roots[0], "HEAD"]
++    return _git_z(root, ["diff", "--name-only", "-z", "--no-renames", *rng]) or []
++
++
++def _on_ref(root: str, ref: str | None, rel: str) -> bool:
++    if not ref:
++        return False
++    try:
++        r = subprocess.run(["git", "cat-file", "-e", f"{ref}:{rel}"], cwd=root,
++                           capture_output=True, timeout=10)
++    except (OSError, subprocess.SubprocessError, ValueError):
++        return False
++    return r.returncode == 0
++
++
++def task_folder(root: str, base_ref: str | None = None, tip_ref: str | None = None) -> dict:
++    """This branch's task folder: the one `.claude/task/<id>/` that the branch's commits since the
++    base and its working tree touch. CI's tree is clean, so there it is the MR diff alone.
++
++    `folder` is None when the branch has none yet or touches more than one. `errors` names each
++    break of the rule: two folders, a name that is not `<issue>-<slug>`, a folder already on the
++    base (a merged task's), or an old shared `.claude/task/` file added or changed (deleting one is
++    allowed). `tip_ref` is the ref a merged folder is looked up on, the base by default."""
++    paths = sorted(set(_committed_paths(root, base_ref)) | set(_status_paths(root)))
++    ids = sorted({i for i in map(task_id_of, paths) if i})
++    tip = tip_ref or base_ref or default_base_ref(root)
++    errors, usable = [], []
++    for i in ids:
++        if not TASK_ID_RE.match(i):
++            errors.append(f"`{TASK_DIR_REL}{i}/` is not a task folder name; use `<issue>-<slug>`, "
++                          f"e.g. `{TASK_DIR_REL}257-season-mapping/`")
++        elif _on_ref(root, tip, TASK_DIR_REL + i):
++            errors.append(f"`{TASK_DIR_REL}{i}/` is a merged task's folder on `{tip}`; it is never "
++                          "touched again, so this task needs a folder of its own")
++        else:
++            usable.append(i)
++    if len(ids) > 1:
++        errors.append("this branch touches " + ", ".join(f"`{TASK_DIR_REL}{i}/`" for i in ids)
++                      + "; a branch carries exactly one task folder")
++    for p in paths:
++        if is_legacy_artifact(p) and os.path.exists(os.path.join(root, p)):
++            errors.append(f"`{p}` is the old shared layout; a task's files go in its own folder, "
++                          f"`{CONTRACT_REL}`")
++    folder = TASK_DIR_REL + usable[0] + "/" if len(ids) == 1 and usable else None
++    return {"folder": folder, "errors": errors}
++
++
++def _read_contract(root: str, base_ref: str | None = None,
++                   tip_ref: str | None = None) -> dict | None:
++    """The contract in this branch's task folder, parsed. None when there is no folder or no
++    contract in it."""
++    folder = task_folder(root, base_ref, tip_ref)["folder"]
++    if folder is None:
++        return None
++    return _parse_contract(os.path.join(root, folder + CONTRACT_NAME))
++
++
++def _parse_contract(path: str) -> dict | None:
+     """Parse scope_paths, protected_override, and whether a non-placeholder
+     impact_map section is present. None when absent."""
+-    path = os.path.join(root, CONTRACT_REL)
+     if not os.path.isfile(path):
+         return None
+     scope, in_scope_block, override = [], False, False
+@@ -424,7 +540,14 @@ def _dirty_outside_task_dir(root: str) -> list[str]:
+     return files
+ 
+ 
+-def _deny_no_contract(rel: str) -> None:
++def _deny_no_contract(rel: str, root: str) -> None:
++    errors = task_folder(root)["errors"]
++    if errors:
++        emit_deny(
++            f"CONTRACT GATE: `{rel}` may not be edited: this branch breaks the one-task-folder "
++            "rule: " + "; ".join(errors) + ". See docs/working_agreement.md §2."
++        )
++        return
+     emit_deny(
+         f"CONTRACT GATE: no task contract exists, so `{rel}` may not be edited. "
+         f"Write {CONTRACT_REL} first (objective, scope_paths, decisions_reserved, "
+@@ -433,6 +556,39 @@ def _deny_no_contract(rel: str) -> None:
+     )
+ 
+ 
++def _task_path_refusal(rel: str, root: str) -> str | None:
++    """Why a write to `rel` under `.claude/task/` is refused, or None. The first file of a new
++    task is allowed when its folder name is valid and not a merged task's."""
++    if rel in TASK_TEMPLATES:
++        return None
++    if is_legacy_artifact(rel):
++        return (f"`{rel}` is the old shared layout; write it in this task's own folder, "
++                f"`{TASK_DIR_REL}<issue>-<slug>/`")
++    tid = task_id_of(rel)
++    if tid is None:
++        return None
++    state = task_folder(root)
++    if state["errors"]:
++        return "this branch breaks the one-task-folder rule: " + "; ".join(state["errors"])
++    if state["folder"] is None:
++        if not TASK_ID_RE.match(tid):
++            return (f"`{TASK_DIR_REL}{tid}/` is not a task folder name; use `<issue>-<slug>`, "
++                    f"e.g. `{TASK_DIR_REL}257-season-mapping/`")
++        base = default_base_ref(root)
++        if _on_ref(root, base, TASK_DIR_REL + tid):
++            return (f"`{TASK_DIR_REL}{tid}/` is a merged task's folder on `{base}`; it is never "
++                    "touched again, so this task needs a folder of its own")
++        return None
++    if state["folder"] != TASK_DIR_REL + tid + "/":
++        return (f"`{rel}` is in another task's folder; this branch's task folder is "
++                f"`{state['folder']}`")
++    return None
++
++
++def _deny_task_folder(why: str) -> None:
++    emit_deny(f"CONTRACT GATE: {why}. See docs/working_agreement.md §2.")
++
++
+ def _deny_out_of_scope(rel: str) -> None:
+     emit_deny(
+         f"CONTRACT GATE: `{rel}` is OUTSIDE the contract's scope_paths. Out of "
+@@ -527,20 +683,23 @@ def _gate_file_edit(event: dict, root: str) -> None:
+     rel = _rel_in_repo(path, root)
+     if rel is None:                          # outside repo: memory, plans, temp
+         return
+-    contract = _read_contract(root)
+-
+-    if rel == CONTRACT_REL:
+-        dirty = _dirty_outside_task_dir(root)
+-        if dirty:
+-            emit_deny(
+-                "CONTRACT GATE: the contract may only be (re)written on a CLEAN "
+-                "tree — amendments are discrete events, never mixed into code "
+-                "changes. Dirty files: " + ", ".join(dirty[:10]) +
+-                ". Commit or revert them first. See docs/working_agreement.md §2."
+-            )
+-        return
+     if rel.startswith(TASK_DIR_REL):
++        refusal = _task_path_refusal(rel, root)
++        if refusal:
++            _deny_task_folder(refusal)
++            return
++        tid = task_id_of(rel)
++        if tid and rel == TASK_DIR_REL + tid + "/" + CONTRACT_NAME:
++            dirty = _dirty_outside_task_dir(root)
++            if dirty:
++                emit_deny(
++                    "CONTRACT GATE: the contract may only be (re)written on a CLEAN "
++                    "tree — amendments are discrete events, never mixed into code "
++                    "changes. Dirty files: " + ", ".join(dirty[:10]) +
++                    ". Commit or revert them first. See docs/working_agreement.md §2."
++                )
+         return
++    contract = _read_contract(root)
+     if _is_protected(rel):
+         if contract and contract["protected_override"] and _matches_scope(rel, contract["scope"]):
+             # The impact_map check below this block is unreachable once we
+@@ -561,7 +720,7 @@ def _gate_file_edit(event: dict, root: str) -> None:
+         _deny_protected(rel)
+         return
+     if contract is None:
+-        _deny_no_contract(rel)
++        _deny_no_contract(rel, root)
+         return
+     if not _matches_scope(rel, contract["scope"]):
+         _deny_out_of_scope(rel)
+@@ -663,14 +822,20 @@ def _gate_bash_pre(event: dict, root: str) -> None:
+         if target_root is None:
+             continue
+         rel = _rel_in_repo(path, target_root)
+-        if rel is None or rel.startswith(TASK_DIR_REL):
++        if rel is None:
++            continue
++        if rel.startswith(TASK_DIR_REL):
++            refusal = _task_path_refusal(rel, target_root)
++            if refusal:
++                _deny_task_folder(refusal)
++                return
+             continue
+         contract = _read_contract(target_root)
+         if _is_protected(rel) and not (contract and contract["protected_override"]):
+             _deny_protected(rel)
+             return
+         if contract is None:
+-            _deny_no_contract(rel)
++            _deny_no_contract(rel, target_root)
+             return
+         if not _matches_scope(rel, contract["scope"]):
+             _deny_out_of_scope(rel)
+diff --git a/.claude/review_routing.json b/.claude/review_routing.json
+index e769bdf0..87f37e09 100644
+--- a/.claude/review_routing.json
++++ b/.claude/review_routing.json
+@@ -23,7 +23,8 @@
+     "review_input.patch must be generated. Measured on #370 before this: 839",
+     "lines of code inside a 38,932-line reviewed diff, 96% of it the patch file",
+     "re-embedding its own previous contents.",
+-    "LISTED FILE BY FILE, never as the `.claude/task/` directory. TWO files there",
++    "LISTED FILE BY FILE, never as the `.claude/task/` directory; each task's files sit in",
++    "its own folder, so a per-file entry is a `.claude/task/*/<file>` pattern. TWO files there",
+     "carry AUTHORITY and must reach the reviewers: contract.md (scope_paths and",
+     "acceptance_criteria) and escalations.log (the durable record of CPO rulings",
+     "that protected_override cites). 'Does the claimed ruling actually exist' is a",
+@@ -207,26 +208,27 @@
+     "docs/tracker/**"
+   ],
+   "artifact_only_never": [
+-    ".claude/task/contract.md"
++    ".claude/task/contract.md",
++    ".claude/task/*/contract.md"
+   ],
+   "hash_exclude_paths": [
+-    ".claude/task/review.md",
+-    ".claude/task/review_input.patch",
++    ".claude/task/*/review.md",
++    ".claude/task/*/review_input.patch",
+     ".claude/task/escalations.log",
+-    ".claude/task/audit_reviewer_outputs.md",
++    ".claude/task/*/audit_reviewer_outputs.md",
+     ".claude/task/TEMPLATE.md",
+     ".claude/task/REVIEW_TEMPLATE.md",
+     ".claude/active_work.md",
+-    ".claude/task/acceptance_evidence.md",
+-    ".claude/task/rendered_page_evidence.md",
++    ".claude/task/*/acceptance_evidence.md",
++    ".claude/task/*/rendered_page_evidence.md",
+     "docs/tracker/**"
+   ],
+   "review_exclude_paths": [
+-    ".claude/task/review.md",
+-    ".claude/task/review_input.patch",
+-    ".claude/task/acceptance_evidence.md",
+-    ".claude/task/rendered_page_evidence.md",
+-    ".claude/task/audit_reviewer_outputs.md",
++    ".claude/task/*/review.md",
++    ".claude/task/*/review_input.patch",
++    ".claude/task/*/acceptance_evidence.md",
++    ".claude/task/*/rendered_page_evidence.md",
++    ".claude/task/*/audit_reviewer_outputs.md",
+     ".claude/task/TEMPLATE.md",
+     ".claude/task/REVIEW_TEMPLATE.md",
+     ".claude/active_work.md",
+diff --git a/.claude/task/265-task-folders/contract.md b/.claude/task/265-task-folders/contract.md
+new file mode 100644
+index 00000000..73433b4e
+--- /dev/null
++++ b/.claude/task/265-task-folders/contract.md
+@@ -0,0 +1,88 @@
++# Task contract — each task writes to its own folder
++
++objective: >
++  Issue #265. Each task writes its contract, review and evidence files to `.claude/task/<issue>-<slug>/`
++  instead of the shared `.claude/task/`, so several MRs can be open at once and merge in any order.
++
++refs: >
++  #265, approved in chat 2026-11-07 (plan and protected-path go).
++
++scope_paths:
++  - .claude/task/265-task-folders/
++  - .claude/task/contract.md
++  - .claude/task/review.md
++  - .claude/task/review_input.patch
++  - .claude/task/acceptance_evidence.md
++  - .claude/task/audit_reviewer_outputs.md
++  - .claude/task/rendered_page_evidence.md
++  - .claude/task/TEMPLATE.md
++  - .claude/hooks/task_contract_gate.py
++  - .claude/hooks/git_discipline.py
++  - .claude/hooks/stop_gate.py
++  - .claude/review_routing.json
++  - .claude/agents/analytics-engineer-reviewer.md
++  - .claude/agents/bi-analyst-reviewer.md
++  - .claude/agents/cto-reviewer.md
++  - .claude/agents/data-engineer-reviewer.md
++  - .claude/agents/football-analytics-expert-reviewer.md
++  - .claude/agents/platform-reviewer.md
++  - .claude/agents/scope-auditor.md
++  - .claude/agents/seo-expert-reviewer.md
++  - scripts/check_task_artifacts.py
++  - scripts/report_process_health.py
++  - tests/test_task_folders.py
++  - tests/test_governance_hooks.py
++  - tests/test_hooks_resolve_worktree.py
++  - tests/test_governance_doc_parity.py
++  - docs/working_agreement.md
++  - docs/agent_guardrails.md
++
++protected_override: >
++  Approved in chat, 2026-11-07: the CPO approved the plan and then typed the go for the protected
++  paths in this task's own session (hooks, review routing, reviewer briefs).
++
++impact_map: >
++  task_contract_gate.py: fires PreToolUse Edit|Write|MultiEdit|NotebookEdit|Bash|Artifact and
++  PostToolUse Bash (.claude/settings.json). Imported by stop_gate.py (_read_contract,
++  _dirty_outside_task_dir, _matches_scope, _is_protected), by scripts/check_task_artifacts.py
++  (_read_contract, _is_page_surface, unapproved_designs, default_base_ref) and by
++  tests/test_governance_hooks.py. If the resolver is wrong, _read_contract returns None and every
++  in-repo edit is denied (fail closed for edits), or it returns another task's contract and the
++  scope check reads the wrong allowlist. On an exception the hook fails open (house rule); the
++  commit gate and CI are the backstops.
++  git_discipline.py: fires PreToolUse Bash on every git command; the commit gate reads review.md,
++  the contract's acceptance_criteria and acceptance_evidence.md. Imported by check_task_artifacts.py
++  (_rounds_gate). If the folder is wrong, the commit gate reads no review.md and denies (fail
++  closed). The review hash (_staged_diff_bytes) is unchanged; only its exclusion list moves to
++  per-folder patterns, which select the same paths on an unchanged diff.
++  stop_gate.py: Stop hook; reads the contract through _read_contract, so it follows the resolver.
++  review_routing.json: read by git_discipline (artifact_only, hash and review exclusions, routing)
++  and check_task_artifacts.py. A wrong exclusion pattern changes the review hash (CI and local
++  compute it from the same list, so they still agree) or hides/shows a file to reviewers.
++  test_every_task_artifact_is_classified pins the review exclusions.
++  agents/*.md: prompts only; they name where the patch and contract are read.
++  CI: validate:governance runs check_task_artifacts.py with --base origin/<target>; no
++  .gitlab-ci.yml change. Branches still on the old layout fail CI after this merges (no task
++  folder), which is fail closed and forces the replay step.
++
++approved_design:
++  - none: no page output changes; the diff touches no site_v2/src/ file or export script
++
++decisions_taken: >
++  NEW MECHANISM: per-task artifact folders, approved in chat 2026-11-07 (plan approved, then the
++  typed go for protected paths). Folder name `<issue>-<slug>` was left to the builder by the
++  coordinating session's brief. A merged task's folder stays in place and later branches may not
++  touch it. No compatibility path for the old layout: branches still on it when this merges replay
++  once into their own folder. RECURRING COST: none (no new run, no new reviewer row).
++
++decisions_reserved:
++  - When this MR merges relative to the queued Player page, term list and comment sweep MRs is the
++    coordinating session's call; the recommendation is after them, so they need no migration.
++
++done_when:
++  - .venv/Scripts/python.exe -m pytest tests/ -q passes.
++  - tests/test_task_folders.py pins two tasks side by side, a missing folder and another task's folder.
++  - python scripts/check_task_artifacts.py resolves 265-task-folders and passes after the review lock.
++  - An Edit to .claude/task/999-other/x.md in this worktree is denied by the live hook.
++
++amendments: (none)
+diff --git a/.claude/task/acceptance_evidence.md b/.claude/task/acceptance_evidence.md
+deleted file mode 100644
+index 9868f4fc..00000000
+--- a/.claude/task/acceptance_evidence.md
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Verification — no word breaks at its hyphen, and the design check opens every tab
+-
+-criteria_demonstrated:
+-  - **No break at a hyphen:** with every tab open, at 280–1010px in EN, DE and FI, split counts fall to 0 on the Team page (56), Home (13) and the Teams page (3), and to 2 on the Match page (223); the 2 and the Competition overview's 21 have no hyphen.
+-  - **Real hyphen kept:** the build wraps the word in the no-break span and changes no character; no span lands in an attribute, title, option, SVG text or script on any built page; `wholeWords.test.mjs` pins it.
+-  - **Top-match row:** its measure counts each name's longest word; the Team page's 3 Name in whole words failures fall to 0.
+-  - **Every tab:** the check opens every tab of a Tab bar and counts a shared defect once; `test_the_gap_counts_open_every_tab_and_count_a_shared_defect_once` and `test_a_page_is_judged_across_its_tabs_and_a_failure_in_every_tab_counts_once` pin it, and `test_a_tab_bar_with_no_tab_to_open_fails_instead_of_measuring_one_tab` pins that a Tab bar without tab inputs fails.
+-  - **Tokenizer:** a raw-text element's end is found in the page itself, so a letter that lengthens when lowercased (`İ`) cannot shift it; a word already in a no-break span is not wrapped again; both pinned in `wholeWords.test.mjs`.
+-  - **Registry:** the Unbreakable unit names the build step, every page and a hyphen-joined word; `check_component_registry.py` passes.
+-  - **No pin rises:** every page's count is at or below main's; the pins that fall are lowered from CI's measurement.
+-  - **Gates:** `npm run build` with its audits, `check_component_registry.py` and `check_page_css.py` pass; `pytest tests` and `npm test` pass.
+diff --git a/.claude/task/audit_reviewer_outputs.md b/.claude/task/audit_reviewer_outputs.md
+deleted file mode 100644
+index 8f46093d..00000000
+--- a/.claude/task/audit_reviewer_outputs.md
++++ /dev/null
+@@ -1,72 +0,0 @@
+-# G4 audit — raw blinded reviewer outputs (fidelity trail)
+-
+-> The four cold reviewer passes that generated the findings in
+-> `docs/audits/2026-06_alignment_audit.md`. Preserved verbatim (tables only;
+-> prose trimmed) so the scope-auditor faithfulness pass and the CPO can diff the
+-> compiled doc against source. Builder added provenance + dedup + the F39/F40
+-> corrections during compilation — those are the only builder edits.
+-
+-agentIds (re-openable): analytics-engineer = a49937a964aaf31ef ·
+-cto = a0ade1dee09ec9a47 · data-engineer = a172531cdf2b89ff4 ·
+-scope-auditor (decisions/provenance pass) = acd84d3dac64b6ecd.
+-
+----
+-
+-## analytics-engineer-reviewer (→ doc §A: F1–F9, F27, F29, F30)
+-
+-- violation `base_apif__transfers.sql:3` — `where league_code = 'BL1'` in 2_base; new leagues silently zero rows. → F1
+-- violation `base_apif__players.sql:25` — "BL1 only for now" comment; non-BL1 transfer identities omitted. → F2
+-- violation `mart_team_market_value.sql:14` + `shared.yml:881` — `where league_code = 'WC'` hardcoded mart + accepted_values test. → F3
+-- violation `export_site_data.py:191-209` — `shape_top_players` ranks in Python (A5). → F4
+-- violation `export_site_data.py:86-93/96-105/161` — slug generation in Python (A5, GAP-19). → F5
+-- violation `export_site_data.py:61-74` — `_GROUP_OF_TYPE` taxonomy map in Python (A5). → F6
+-- violation `export_site_data.py:373-463` — multi-mart fixture payload assembly in Python (A4 borderline). → F7 (escalate)
+-- violation `int_team_season__full_season_metrics.sql:125-128` — `save_ratio_season` same-window mismatch; not covered by GAP-17. → F8
+-- violation `int_team_season__full_season_metrics.sql:116-120` — `finishing_efficiency_season` same-window mismatch. → F9
+-- stale-doc `layering.md:239-248` — mart inventory lists 5, 19 exist. → F27
+-- stale-doc `int_player_season__metrics.sql:9` — retired consumer `int_matchday__fixture_player_insights` (#321); possibly orphaned. → F29
+-- stale-doc `int_team_season.yml:68` — same stale consumer reference. → F30
+-- ok: staging purity; core no stg refs; intermediate no mart refs; catalogue trace; W1/W2 same-window respected; legacy export no metric math.
+-
+-## cto-reviewer (→ doc §B: F10–F20; also confirmed F27)
+-
+-- violation `check_task_artifacts.py:79` + routing `:40-43` — `artifact_only` exempts `contract.md` from review. → F10
+-- violation `check_task_artifacts.py:6-8` — CI cannot bind review.md to PR diff (hardening candidate c). → F11
+-- violation `check_task_artifacts.py:97-98` — global ESCALATE/ANSWER count redundant/weaker than per-section. → F12
+-- violation `pages-match-preview.yml:17-22` — dead per-competition staging path triggers (zero-file conflict). → F13
+-- violation `scaffold_domestic_league_staging.py:1-34` — generates per-competition staging; zero-file violation; obsolete. → F14
+-- violation `add_footer_i18n_keys.py:53-69` — one-time migration, no __main__ guard, not atomic. → F15
+-- unapproved-decision `slack_bridge/*.py` + `_paused/slack-executor-bridge.yml` — new bridge service (A3), no approval. → F16
+-- unapproved-decision `squad_watch.py:1-45` — new API-call-volume mechanism, no budget approval. → F17
+-- unapproved-decision `board-request-sync.yml` — GraphQL mutations via PAT on every PR/issue event. → F18
+-- unapproved-decision `ci-failure-watchdog.yml:1,17-18` — auto-rerun + `actions:write`/`issues:write` widening. → F19
+-- unapproved-decision `requirements.txt:1-4` — `requests`/`functions-framework`/`beautifulsoup4`/`pandas` unpinned. → F20
+-- stale-doc `agent_guardrails.md:88-100` — global-hooks/portable_guardrails inventory unverifiable. → F35
+-- stale-doc `agent_guardrails.md:66-69` — `cto-reviewer` called "dormant" but active. → F36
+-- ok: all 5 CI checks fail closed; all 5 hooks fail open; `restore_from_time_travel.py` dry-run-default re-run safe.
+-
+-## data-engineer-reviewer (→ doc §C: F21–F26; F31–F34)
+-
+-- violation `tests/fixtures/apif/` absent — no sample-based parser tests (CPO rule 2026-06-12). → F21
+-- violation `registry.py:133` — `supporting_leagues` guard checks an unused competition_type → silent form-data gap (WC + 7 comps). → F22
+-- violation `competition_registry.yml:974-986` — AFCCL `provider_league_id: 17` active but note says "legacy ID, spot-check". → F23
+-- violation `coaches.py:64`/`injuries.py:74` vs `data_contract.md` — `RAW_APIF_COACHES`/`_INJURIES` not in contract. → F24
+-- unapproved-decision `competition_registry.yml:57` + `settings.py:38` — BL1 `history_seasons: 10` (max), no quoted approval. → F25
+-- unapproved-decision `registry.py:198-199` — `ingest_active` defaults True (should fail-safe False). → F26
+-- stale-doc `operations_guide.md:223` vs `dbt-scheduled.yml:5` — "twice daily" vs single 04:00 cron. → F31
+-- stale-doc `catalog.py:32-34` — comment says WRITE_TRUNCATE; call is append=True. → F32
+-- stale-doc `fixture_scheduling.py:388` — docstring counts "predictions" (no-API-predictions); dead code. → F33
+-- stale-doc `competition_registry.yml:924-925` — header "PLANNED" but entries in_progress/active. → F34
+-- ok: FIXTURE_DETAILS merge-on-write idempotent; no WRITE_TRUNCATE on data tables; registry↔seed↔vars sync (45 comps); no API-predictions in live code.
+-
+-## scope-auditor — decisions/provenance pass (→ doc §D: F27, F28, F37, F38; F39 corrected; F40 corrected)
+-
+-- stale-doc `layering.md:239-247` — mart inventory 5 vs 19. → F27 (dup of analytics-engineer)
+-- stale-doc `layering.md:175-185` — fact inventory 6 vs 7; `fct_team_market_value_snapshot` undocumented. → F28
+-- unapproved-decision `export_site_data.py:80-93` — slug transliteration choice (NFKD/ASCII-strip) implemented ahead of parked CPO ruling. → folded into F5
+-- unapproved-decision `int_team_profile__streaks.sql:1-83` + `mart_team_profile.sql:117-123` — streak features not in catalogue / no wireframe sign-off. → F38
+-- stale-doc `01_fixture_page.md:139-156` — claimed `metrics_display.md` MISSING. **BUILDER CORRECTION: file is PRESENT** → F39 (reviewer error, no action).
+-- stale-doc `working_agreement.md §2 (33-34)` — protected-paths list omits `.claude/agents/**`. → F37
+-- ok `analytics_engineer.md` — found CURRENT (handover assumed stale). **BUILDER NOTE: corrects the stale assumption** → F40.
+-- ok: Appendix A current; metric_catalogue has no invented metrics; no UDFs/on-run-start/custom-materializations/per-competition dirs found.
+-- GAP register already logged: GAP-09/10/11 (approved 2026-06-11), GAP-17 (pending, MVP frozen), GAP-18 (before WC 2026), GAP-19 (consumption audit incl. slugs).
+diff --git a/.claude/task/contract.md b/.claude/task/contract.md
+deleted file mode 100644
+index 0ad342fa..00000000
+--- a/.claude/task/contract.md
++++ /dev/null
+@@ -1,100 +0,0 @@
+-# Task contract — no word breaks at its hyphen, and the design check opens every tab
+-
+-objective: >
+-  Issue #249. Across the site a word joined by a hyphen breaks at the hyphen on a narrow screen:
+-  "Saint-" at a line's end and "Germain" on the next, in team, player, competition, venue and region
+-  names and in prose. One build step keeps each such word whole: every letter-hyphen-letter word in
+-  a page's body text is wrapped in the registered no-break span (`.nb`), so the text a reader copies,
+-  searches and a search engine indexes keeps its real hyphen. A Top-match row takes its one-line
+-  form only while each name's longest word fits its space, as a table does. The design check opens
+-  every tab of every page's Tab bar and counts a defect shared by tabs once, so a gap on a tab that
+-  does not open first is measured; a page that shows a Tab bar with no tab to open fails. The
+-  registry's Unbreakable unit states the build step. The Player page (#259) follows with no gap.
+-
+-refs: >
+-  #249, route approved in chat 2026-11-07. Every-tab check: parked/266-every-tab-check, approved in
+-  chat 2026-11-07.
+-
+-scope_paths:
+-  - site_v2/src/middleware.ts
+-  - site_v2/src/lib/wholeWords.mjs
+-  - site_v2/src/lib/wholeWords.test.mjs
+-  - site_v2/src/lib/fitBlocks.mjs
+-  - site_v2/src/lib/fitBlocks.test.mjs
+-  - site_v2/src/styles/system.css
+-  - docs/design/components.yml
+-  - docs/wireframes/block_standard.md
+-  - scripts/check_design_inventory.py
+-  - tests/test_design_inventory.py
+-  - tests/fixtures/design_inventory/*
+-  - tests/fixtures/component_registry/*
+-  - tests/fixtures/chart_screenshots/*
+-  - .claude/task/contract.md
+-  - .claude/task/review.md
+-  - .claude/task/review_input.patch
+-  - .claude/task/acceptance_evidence.md
+-  - .claude/task/rendered_page_evidence.md
+-
+-protected_override: >
+-  scripts/check_design_inventory.py and tests/test_design_inventory.py: the check opens every tab of
+-  a page (TABS_JS, OPEN_TAB_JS), counts a node, box or pair shared by tabs once, and judges a page's
+-  rules across its tabs (finish_page); two tests and the fixture counts_tabs.html pin it. Approved
+-  in chat, 2026-11-07, to land with #249. site_v2/src/middleware.ts is a new build mechanism, the
+-  route approved in chat, 2026-11-07. docs/design/components.yml, the Unbreakable unit only: its
+-  files, used-on and wide text name the build step, and never-split gains a hyphen-joined word;
+-  block_standard.md is regenerated from it.
+-
+-impact_map: >
+-  writers: none in the warehouse.
+-  lineage: no dbt model changes, so no lineage moves.
+-  consumption: every built page passes the middleware; only text between tags inside `<body>`
+-  changes, never `<head>`, attributes, script, style, SVG, select, option, textarea or template.
+-  fitBlocks.mjs's `tagged` measure serves the Top-match row on Home, the Competition overview and
+-  the Team page. The Player row's gap (system.css) serves Players to watch on the match page, the
+-  line-ups and the Team page's squad. The design check's counts feed both design baselines.
+-  ci_layer_rules: scripts/check_design_inventory.py, scripts/check_page_css.py,
+-  scripts/check_component_registry.py, site_v2/scripts/check-built-pages.mjs,
+-  site_v2/scripts/check-font-coverage.mjs, site_v2/scripts/audit-seo.mjs.
+-  deploy_order: after !394, before the Player page (#259). One merge.
+-  blast_radius: every page's body text: a hyphen-joined word moves whole to the next line instead
+-  of breaking after its hyphen; the visible text, the copied text and the indexed text are
+-  unchanged. A Top-match row whose name has a word wider than its space takes the two-line form,
+-  the tag above. The Player row's gaps take the Result row's value, clamp(8px, 3cqw, 20px), in
+-  place of a fixed 12px: 8px on the narrowest rows, so a long hyphen-joined name keeps the numbers
+-  inside the row, and 13px in the widest. Both design baselines
+-  fall for the pages with hyphen breaks today.
+-  ci_cost: the design check in validate:ui opens every tab: +36 s on a merge request (227 → 263 s)
+-  and +76 s on main (665 → 741 s), measured on one build; accepted in chat, 2026-11-08.
+-
+-approved_design:
+-  - home: #127
+-  - competitions: #128
+-  - competition: #129
+-  - matches: #130
+-  - match: #132
+-  - teams: #133
+-  - team: #134
+-  - player: #136
+-
+-decisions_taken: >
+-  The registry is the standard; "Name in whole words" already says a name wraps only between words,
+-  and a hyphen-joined word counts as one word, so no new rule; the Unbreakable unit names the build
+-  step that applies it. The no-break span, not the non-breaking hyphen character, so copy, find and
+-  search keep the real hyphen (both approved in chat, 2026-11-07). A tab is a tab of the registered
+-  Tab bar; the matchday picker is not a Tab bar.
+-
+-decisions_reserved: none.
+-
+-done_when:
+-  - python -m pytest tests passes.
+-  - npm test, npm run build and its audits pass in site_v2.
+-  - The design check opening every tab reports no pin above main's on any page.
+-
+-acceptance_criteria:
+-  - "No letter-hyphen-letter word breaks at its hyphen on any built page, in any tab, at 280, 320, 360, 375, 700 and 1010px in EN, DE and FI."
+-  - "The copied and indexed text keeps the real hyphen: the page's text content is unchanged by the build step."
+-  - "A Top-match row takes its one-line form only while every name's longest word fits its space."
+-  - "The design check opens every tab of every page and counts a defect shared by tabs once."
+-  - "No design pin rises above main's; the pins that fall are lowered from CI's measurement."
+-
+-amendments: (none)
+diff --git a/.claude/task/rendered_page_evidence.md b/.claude/task/rendered_page_evidence.md
+deleted file mode 100644
+index 3e186fbb..00000000
+--- a/.claude/task/rendered_page_evidence.md
++++ /dev/null
+@@ -1,62 +0,0 @@
+-# Rendered page evidence — no word breaks at its hyphen, and the design check opens every tab
+-
+-## The design check, every tab of every page
+-
+-`npm run build` in `site_v2` (the committed sample data), then `scripts/check_design_inventory.py --no-mocks` on
+-this branch, which opens every tab, at 280, 320, 360, 375, 700 and 1010px in EN, DE and FI. Windows; on main the
+-same run gives main's Linux pins on every page except the Team page, whose tabs it now opens.
+-
+-| Page | Split on main's pin | Every tab, main | Every tab, this branch |
+-|---|---|---|---|
+-| Match page | 223 | 223 | 2 |
+-| Team page | 47 | 56 | 0 |
+-| Home | 13 | 13 | 0 |
+-| Teams page | 3 | 3 | 0 |
+-| Competition overview | 21 | 21 | 21 |
+-
+-- **What is left:** the Competition overview's 21 are the deserved points table's head labels breaking inside a plain word ("verdienten", "Difference"), and the Match page's 2 are a score ("0–0.") breaking at its en dash in the match header; neither has a hyphen, both are within main's pins.
+-- **Team page, Name in whole words:** 3 failures on main ("Saint-Germain", 102px, in an 82–91px name space of the Top-match row), 0 here.
+-- **No pin rises:** every other count equals main's; no new failure.
+-
+-## The baselines
+-
+-- **`baseline_quick.json`:** the merge request's validate:ui run on Linux reported five counts that fell and nothing else: Home split 6 → 0, Match page split 104 → 0, Team page split 13 → 0 and "Name in whole words" 1 → 0, Teams page split 1 → 0. Those five pins are lowered.
+-- **`baseline.json`:** a merge request runs only the quick scope, so the full scope was run on this build on Windows. Its built-page counts differ from the full baseline only in Home split 13 → 0, Match page split 223 → 2, Team page split 47 → 0 and "Name in whole words" 3 → 0, and Teams page split 3 → 0. Every other built-page count equals the Linux pin, including the Matches day page's 378 and 414. Those five pins are lowered. The mocks' counts differ on Windows and are left as they are: this branch changes no mock, and the Linux run kept every mock at its quick pin.
+-
+-## The build step
+-
+-- **Where it acts:** on the build, 0 spans inside an attribute, `<title>`, `<option>`, SVG `<text>` or `<script>` (a grep over every built page).
+-- **What it keeps:** the Paris Saint-Germain Team page has its `<title>` "Paris Saint-Germain FC: Stats, Form, Squad & Fixtures" unchanged and 38 `<span class="nb">Saint-Germain</span>` in its body.
+-- **Text:** the visible text is unchanged; the unit test compares a page's text before and after.
+-
+-## Build cost at full scale
+-
+-The parked Player page state with every player page (57,423 pages, 4.1 GB), built twice per state on this machine,
+-with the build's node process sampled every 10 seconds:
+-
+-| | Without the step | With the step |
+-|---|---|---|
+-| Peak memory | 695 MB | 741 MB |
+-| Build time, run 1 / run 2 | 462 s / 298 s | 431 s / 378 s |
+-
+-- **The step itself:** run alone over all 57,424 built pages, 23.9 s in all, 0.42 ms per page, 56 ms at most; the output grows by 0.10%.
+-- **Why the memory stays flat:** the middleware sees one page's response at a time and lets it go, so the step works per page by construction.
+-- **Time:** the two runs of one state differ more than the two states do, so the build time is within this machine's noise; the step's own 24 s is the measure.
+-
+-## CI time of the design check
+-
+-The check of main and the check of this branch, each run on this branch's build on one machine, at the scope a
+-merge request runs (280 and 1010px, EN and DE, `baseline_quick.json`) and at the full scope main runs:
+-
+-| Scope | Main's check | This branch's check |
+-|---|---|---|
+-| Merge request | 227 s | 263 s (+36 s, +16%) |
+-| Full | 665 s | 741 s (+76 s, +11%) |
+-
+-- **In CI:** validate:ui takes about 11 minutes on a merge request and 36 to 41 minutes on main's last four pipelines.
+-
+-## Player row
+-
+-Players to watch at 280px in DE, every match page: before the gap change, 3 rows ran 4–8px past their box
+-("Francis-Ikechukwu Onyeka", "Don-Angelo … Annum-Assamoah", "S. Idumbo-Muzambo"); after it, none. The row's gap,
+-measured on the DFB-Pokal match pages: 8px at 280, 10.3px at 375, 9.2px at 700, 13.1px at 1010 (main: 12px).
+diff --git a/.claude/task/review.md b/.claude/task/review.md
+deleted file mode 100644
+index b83a93cc..00000000
+--- a/.claude/task/review.md
++++ /dev/null
+@@ -1,41 +0,0 @@
+-# Review — fix/249-hyphen-names-every-tab
+-
+-diff_sha256: 144205037c98b7e847d4db176158c5a3d69d2303f1a9fc6885e7bc6e8b8a6a4d
+-
+-rounds: 5
+-rounds_cap_override: approved in chat, 2026-11-09: rounds past three for the unit test that pins the no-break span match, and for the design baselines lowered after the first push.
+-
+-## scope-auditor
+-VERDICT: PASS
+-risks_checked:
+-- Every changed path is in scope_paths; counts_tabs.html falls under tests/fixtures/design_inventory/*.
+-- protected_override names check_design_inventory.py, test_design_inventory.py, middleware.ts and the components.yml Unbreakable unit, each with its approval; the components.yml hunk touches only that unit.
+-- impact_map declares the new build mechanism and the recurring CI cost (+36 s per merge request, +76 s on main), accepted with its date.
+-- The round 4 change is one test case that pins existing behaviour; no mechanism, cost or page output change; decisions_taken and decisions_reserved unchanged.
+-- The round 5 baseline edits only lower or drop pins for the pages this change fixes; the evidence states that the full baseline comes from a local full run, as a merge request runs only the quick scope.
+-
+-## bi-analyst-reviewer
+-VERDICT: PASS
+-risks_checked:
+-- The middleware rewrites only text/html responses and only text between tags inside `<body>`; head, attributes, script, style, SVG, select and template are skipped, so the copied and indexed text keeps its real hyphen.
+-- The NB match starts with whitespace, so `data-class="nb"` is not read as the no-break span; `class="nb"` and `class="x nb"` are.
+-- The .plrow gap takes the expression .lrow and .teams already use; no registry row pins the Player row's gap.
+-- No field, metric, percentage or label is added to site_v2/src; the rendered evidence reports counts from the built pages.
+-
+-## platform-reviewer
+-VERDICT: PASS
+-risks_checked:
+-- The no-tab test carries @needs_browser and asserts the FAIL line and exit code 1.
+-- The new wholeWords case feeds `data-class="nb"` and `title="x nb"` and asserts the inner wrap; it fails with the leading `\s` removed (9 pass, 1 fail).
+-- The every-tab check fails closed on a Tab bar with no tab to open; shared defects are counted once through a per-page set reset on each load; failure screenshots are capped at 20.
+-- counts_tabs.html gives its counts only when a hidden tab is opened and a shared element is counted once, so reverting either behaviour fails its test.
+-- The middleware passes non-HTML responses through and keeps status, statusText and headers; its cost is one linear tokenization per page.
+-- The baselines change exactly the five pins each: the quick ones as the Linux run measured, the full ones from a full local run whose other built-page counts equal the Linux pins; both files keep their format, and a wrong full pin fails main's validate:ui in either direction.
+-
+-## cto-reviewer
+-VERDICT: PASS
+-risks_checked:
+-- The middleware is a new build mechanism with no new package; its approval is named in protected_override; measured at 0.42 ms per page and 695 → 741 MB peak at 57,423 pages.
+-- The design check changes make it fail closed more often, not less.
+-- The recurring cost is build minutes only (+36 s per merge request, +76 s on main), declared in impact_map with its acceptance; no API, BigQuery or hosting effect.
+-- No secret-like content, workflow, settings or permission change in the diff.
+diff --git a/.claude/task/review_input.patch b/.claude/task/review_input.patch
+deleted file mode 100644
+index d2b8fec8..00000000
+--- a/.claude/task/review_input.patch
++++ /dev/null
+@@ -1,790 +0,0 @@
+-diff --git a/.claude/task/contract.md b/.claude/task/contract.md
+-index d7e65d53..0ad342fa 100644
+---- a/.claude/task/contract.md
+-+++ b/.claude/task/contract.md
+-@@ -1,21 +1,33 @@
+--# Task contract — the Team page's Performance tab passes every registry rule the design check measures
+-+# Task contract — no word breaks at its hyphen, and the design check opens every tab
+- 
+- objective: >
+--  Issue #266. With the Performance tab open, the Team page fails three registry rules: the deserved
+--  points table sets its names to weight 400 (Table name cell: 600), the metric group headings over the
+--  strips sit 10–12px above their first row (Metric group heading: 26px), and Compared with last
+--  season's head label "Vorsaison" is wider than its column at narrow widths and overlaps "Trend". In
+--  the narrow deserved points chart a long team name runs across the y-axis numbers. The page follows
+--  the registry. The Player page (#259) reuses the strips and the table.
+-+  Issue #249. Across the site a word joined by a hyphen breaks at the hyphen on a narrow screen:
+-+  "Saint-" at a line's end and "Germain" on the next, in team, player, competition, venue and region
+-+  names and in prose. One build step keeps each such word whole: every letter-hyphen-letter word in
+-+  a page's body text is wrapped in the registered no-break span (`.nb`), so the text a reader copies,
+-+  searches and a search engine indexes keeps its real hyphen. A Top-match row takes its one-line
+-+  form only while each name's longest word fits its space, as a table does. The design check opens
+-+  every tab of every page's Tab bar and counts a defect shared by tabs once, so a gap on a tab that
+-+  does not open first is measured; a page that shows a Tab bar with no tab to open fails. The
+-+  registry's Unbreakable unit states the build step. The Player page (#259) follows with no gap.
+- 
+- refs: >
+--  #266, approved in chat 2026-11-07. Design: #134.
+-+  #249, route approved in chat 2026-11-07. Every-tab check: parked/266-every-tab-check, approved in
+-+  chat 2026-11-07.
+- 
+- scope_paths:
+-+  - site_v2/src/middleware.ts
+-+  - site_v2/src/lib/wholeWords.mjs
+-+  - site_v2/src/lib/wholeWords.test.mjs
+-+  - site_v2/src/lib/fitBlocks.mjs
+-+  - site_v2/src/lib/fitBlocks.test.mjs
+-   - site_v2/src/styles/system.css
+--  - site_v2/src/components/team/*
+--  - site_v2/src/lib/chartTheme.ts
+-+  - docs/design/components.yml
+-+  - docs/wireframes/block_standard.md
+-+  - scripts/check_design_inventory.py
+-+  - tests/test_design_inventory.py
+-   - tests/fixtures/design_inventory/*
+-+  - tests/fixtures/component_registry/*
+-   - tests/fixtures/chart_screenshots/*
+-   - .claude/task/contract.md
+-   - .claude/task/review.md
+-@@ -23,43 +35,66 @@ scope_paths:
+-   - .claude/task/acceptance_evidence.md
+-   - .claude/task/rendered_page_evidence.md
+- 
+--protected_override: none.
+-+protected_override: >
+-+  scripts/check_design_inventory.py and tests/test_design_inventory.py: the check opens every tab of
+-+  a page (TABS_JS, OPEN_TAB_JS), counts a node, box or pair shared by tabs once, and judges a page's
+-+  rules across its tabs (finish_page); two tests and the fixture counts_tabs.html pin it. Approved
+-+  in chat, 2026-11-07, to land with #249. site_v2/src/middleware.ts is a new build mechanism, the
+-+  route approved in chat, 2026-11-07. docs/design/components.yml, the Unbreakable unit only: its
+-+  files, used-on and wide text name the build step, and never-split gains a hyphen-joined word;
+-+  block_standard.md is regenerated from it.
+- 
+- impact_map: >
+-   writers: none in the warehouse.
+-   lineage: no dbt model changes, so no lineage moves.
+--  consumption: `.ctab.dpm` and the deserved points chart (TeamDeserved), the strip group heading and
+--  `.rs-val` (TeamLeagueStrips) and `.ctab.yoyt` (TeamLastSeason), all on the Team page's Performance
+--  tab. The match page's metric comparison (`.cmp .rkgroup`) has no `.rs-row` and does not change.
+--  ci_layer_rules: scripts/check_page_css.py, scripts/check_design_inventory.py,
+--  scripts/check_component_registry.py, site_v2/scripts/check-built-pages.mjs.
+--  deploy_order: before the Player page (#259). One merge.
+--  blast_radius: the Team page's Performance tab only: deserved points names turn semi-bold, 16px more
+--  air under each strip group heading, the strip value sits at the row's top (2px up in the wide row),
+--  and the last-season table's value columns widen from 3.4rem to 4.2rem and the trend from 2.8rem to
+--  3.2rem below a 420px container. In the deserved points chart the team's name sits on the side of
+--  its dot where it fits; where neither side fits, the name and the difference stack centred on the
+--  dot, inside the plot. Today that is the long names in the narrow chart.
+-+  consumption: every built page passes the middleware; only text between tags inside `<body>`
+-+  changes, never `<head>`, attributes, script, style, SVG, select, option, textarea or template.
+-+  fitBlocks.mjs's `tagged` measure serves the Top-match row on Home, the Competition overview and
+-+  the Team page. The Player row's gap (system.css) serves Players to watch on the match page, the
+-+  line-ups and the Team page's squad. The design check's counts feed both design baselines.
+-+  ci_layer_rules: scripts/check_design_inventory.py, scripts/check_page_css.py,
+-+  scripts/check_component_registry.py, site_v2/scripts/check-built-pages.mjs,
+-+  site_v2/scripts/check-font-coverage.mjs, site_v2/scripts/audit-seo.mjs.
+-+  deploy_order: after !394, before the Player page (#259). One merge.
+-+  blast_radius: every page's body text: a hyphen-joined word moves whole to the next line instead
+-+  of breaking after its hyphen; the visible text, the copied text and the indexed text are
+-+  unchanged. A Top-match row whose name has a word wider than its space takes the two-line form,
+-+  the tag above. The Player row's gaps take the Result row's value, clamp(8px, 3cqw, 20px), in
+-+  place of a fixed 12px: 8px on the narrowest rows, so a long hyphen-joined name keeps the numbers
+-+  inside the row, and 13px in the widest. Both design baselines
+-+  fall for the pages with hyphen breaks today.
+-+  ci_cost: the design check in validate:ui opens every tab: +36 s on a merge request (227 → 263 s)
+-+  and +76 s on main (665 → 741 s), measured on one build; accepted in chat, 2026-11-08.
+- 
+- approved_design:
+-+  - home: #127
+-+  - competitions: #128
+-+  - competition: #129
+-+  - matches: #130
+-+  - match: #132
+-+  - teams: #133
+-   - team: #134
+-+  - player: #136
+- 
+- decisions_taken: >
+--  The registry is the standard and the page follows it; no registry change (approved in chat,
+--  2026-11-07).
+-+  The registry is the standard; "Name in whole words" already says a name wraps only between words,
+-+  and a hyphen-joined word counts as one word, so no new rule; the Unbreakable unit names the build
+-+  step that applies it. The no-break span, not the non-breaking hyphen character, so copy, find and
+-+  search keep the real hyphen (both approved in chat, 2026-11-07). A tab is a tab of the registered
+-+  Tab bar; the matchday picker is not a Tab bar.
+- 
+- decisions_reserved: none.
+- 
+- done_when:
+-   - python -m pytest tests passes.
+--  - npm run build and the design check pass in site_v2.
+--  - On a build whose Team pages open on the Performance tab, the design check reports none of the three failures, and no page overlaps at 280, 320 or 360px.
+-+  - npm test, npm run build and its audits pass in site_v2.
+-+  - The design check opening every tab reports no pin above main's on any page.
+- 
+- acceptance_criteria:
+--  - "Names in the deserved points table are 14px semi-bold ink."
+--  - "Each metric group heading over the strips sits 26px above the first line of its first row."
+--  - "Compared with last season's head labels fit their columns: no overflow and no overlap in EN, DE and FI."
+--  - "In the deserved points chart the team's name crosses no axis label."
+--  - "Measured on the Team page with the Performance tab open at 280, 320, 360, 375, 700 and 1010px in EN, DE and FI."
+-+  - "No letter-hyphen-letter word breaks at its hyphen on any built page, in any tab, at 280, 320, 360, 375, 700 and 1010px in EN, DE and FI."
+-+  - "The copied and indexed text keeps the real hyphen: the page's text content is unchanged by the build step."
+-+  - "A Top-match row takes its one-line form only while every name's longest word fits its space."
+-+  - "The design check opens every tab of every page and counts a defect shared by tabs once."
+-+  - "No design pin rises above main's; the pins that fall are lowered from CI's measurement."
+- 
+- amendments: (none)
+-diff --git a/docs/design/components.yml b/docs/design/components.yml
+-index 3d155f4d..ceb128d5 100644
+---- a/docs/design/components.yml
+-+++ b/docs/design/components.yml
+-@@ -507,12 +507,12 @@ components:
+-     wide: "a team's or competition's crest, 24px; 52px in the match header"
+-   unit:
+-     name: Unbreakable unit
+--    file: [site_v2/src/components/fixture/Masthead.astro, site_v2/src/components/competition/SeasonFacts.astro, site_v2/src/components/fixture/HeadToHead.astro, site_v2/src/components/fixture/MatchGoals.astro]
+--    used-on: [match page, Competition overview, Team page]
+-+    file: [site_v2/src/components/fixture/Masthead.astro, site_v2/src/components/competition/SeasonFacts.astro, site_v2/src/components/fixture/HeadToHead.astro, site_v2/src/components/fixture/MatchGoals.astro, site_v2/src/middleware.ts, site_v2/src/lib/wholeWords.mjs]
+-+    used-on: [every page]
+-     parts:
+-       unit: {class: nb, gap: style-varies, breaks: never}
+--    wide: text that never breaks inside itself
+--    never-split: [Matchday 9, 28 July 1993]
+-+    wide: text that never breaks inside itself; the build wraps every hyphen-joined word of a page's body text in it
+-+    never-split: [Matchday 9, 28 July 1993, Saint-Germain]
+- 
+- rules:
+-   Name in whole words: {selector: ".ctab .tm .nm, .fxrow .side .nm, .club .cn", rule: "a team name wraps only between words; no word splits or runs past the name's space", measured: whole-words, ruled-on: the narrow-screen fix}
+-diff --git a/scripts/check_design_inventory.py b/scripts/check_design_inventory.py
+-index fd5f0bf8..a03630c1 100644
+---- a/scripts/check_design_inventory.py
+-+++ b/scripts/check_design_inventory.py
+-@@ -65,8 +65,9 @@ COUNTS = ("scroll", "overflow", "split", "overlap", "classes")
+- MISS = "miss · "
+- COVERAGE = ("page with no row", "generator fails", "mock page with no row", "language missing")
+- 
+--# One evaluation per rendered page: the gaps the baseline pins. `scroll`: the page, or a box in it,
+--# scrolls sideways. `overflow`: a text node runs past the box it sits in sideways (an ellipsis cut
+-+# One evaluation per rendered page and tab: the gaps the baseline pins, each counted once across the
+-+# page's tabs (a text node, a scrolling box or an overlapping pair already counted in an earlier tab is
+-+# not counted again). `scroll`: the page, or a box in it, scrolls sideways. `overflow`: a text node runs past the box it sits in sideways (an ellipsis cut
+- # included). `split`: a word, a run without spaces, lies on two lines. `overlap`: two text nodes'
+- # visible lines cross, SVG text included; each line is trimmed by a fifth top and bottom so two
+- # tight lines that only touch are not counted. `classes`: the class names no inventory selector
+-@@ -74,6 +75,7 @@ COVERAGE = ("page with no row", "generator fails", "mock page with no row", "lan
+- COUNT_JS = r"""
+- (registered) => {
+-   const reg = new Set(registered);
+-+  const counted = window.__diCounted || (window.__diCounted = { nodes: new WeakSet(), boxes: new WeakSet(), pairs: new Set(), page: false });
+-   const shownMemo = new Map();
+-   const shown = (el) => {
+-     if (!el) return true;
+-@@ -111,21 +113,27 @@ COUNT_JS = r"""
+-   const ex = { scroll: [], overflow: [], split: [], overlap: [] };
+-   let scroll = 0, overflow = 0, split = 0;
+-   const root = document.documentElement;
+--  if (root.scrollWidth > root.clientWidth + 1) { scroll++; ex.scroll.push('page ' + root.scrollWidth + '>' + root.clientWidth); }
+-+  if (root.scrollWidth > root.clientWidth + 1 && !counted.page) {
+-+    counted.page = true; scroll++; ex.scroll.push('page ' + root.scrollWidth + '>' + root.clientWidth);
+-+  }
+-   for (const el of document.body.querySelectorAll('*')) {
+-     const s = getComputedStyle(el);
+--    if ((s.overflowX === 'auto' || s.overflowX === 'scroll') && el.scrollWidth > el.clientWidth + 1 && shown(el)) {
+--      scroll++; ex.scroll.push(label(el, '') + ' ' + el.scrollWidth + '>' + el.clientWidth);
+-+    if ((s.overflowX === 'auto' || s.overflowX === 'scroll') && el.scrollWidth > el.clientWidth + 1 && shown(el)
+-+        && !counted.boxes.has(el)) {
+-+      counted.boxes.add(el); scroll++; ex.scroll.push(label(el, '') + ' ' + el.scrollWidth + '>' + el.clientWidth);
+-     }
+-   }
+-   const lines = [];
+-   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+--  let id = 0;
+-+  const ids = window.__diIds || (window.__diIds = new WeakMap());
+-+  let next = window.__diNextId || 0;
+-   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+-     const txt = n.textContent;
+-     const p = n.parentElement;
+-     if (!txt.trim() || !p || p.closest('script,style,noscript,template') || !shown(p)) continue;
+--    id++;
+-+    if (!ids.has(n)) ids.set(n, ++next);
+-+    const id = ids.get(n);
+-+    const fresh = !counted.nodes.has(n);
+-     const inSvg = !!p.closest('svg');
+-     let rects;
+-     if (inSvg) {
+-@@ -140,7 +148,8 @@ COUNT_JS = r"""
+-     const seen = rects.map((r) => [Math.max(r.left, clip[0]), Math.max(r.top, clip[1]), Math.min(r.right, clip[2]), Math.min(r.bottom, clip[3])])
+-       .filter((r) => r[2] - r[0] > 1 && r[3] - r[1] > 1);
+-     if (!seen.length) continue;
+--    if (!inSvg) {
+-+    counted.nodes.add(n);
+-+    if (!inSvg && fresh) {
+-       const box = boxOf(p).getBoundingClientRect();
+-       if (rects.some((r) => r.left < box.left - 1 || r.right > box.right + 1)) { overflow++; ex.overflow.push(label(p, txt)); }
+-       const tops = [];
+-@@ -162,6 +171,7 @@ COUNT_JS = r"""
+-       lines.push({ id, l: r[0], r: r[2], t: r[1] + h * 0.2, b: r[3] - h * 0.2, el: p, txt });
+-     }
+-   }
+-+  window.__diNextId = next;
+-   lines.sort((a, b) => a.t - b.t);
+-   const pairs = new Set();
+-   for (let i = 0; i < lines.length; i++) {
+-@@ -170,7 +180,9 @@ COUNT_JS = r"""
+-       const b = lines[j];
+-       if (a.id === b.id || Math.min(a.r, b.r) - Math.max(a.l, b.l) <= 1) continue;
+-       const key = Math.min(a.id, b.id) + ':' + Math.max(a.id, b.id);
+--      if (!pairs.has(key)) { pairs.add(key); ex.overlap.push(label(a.el, a.txt) + ' x ' + label(b.el, b.txt)); }
+-+      if (!pairs.has(key) && !counted.pairs.has(key)) {
+-+        pairs.add(key); counted.pairs.add(key); ex.overlap.push(label(a.el, a.txt) + ' x ' + label(b.el, b.txt));
+-+      }
+-     }
+-   }
+-   const classes = new Set();
+-@@ -313,6 +325,25 @@ POINTER_JS = r"""
+- """
+- STYLE_JS = "([sel, i, prop]) => getComputedStyle(document.querySelectorAll(sel)[i]).getPropertyValue(prop)"
+- 
+-+# A page's tabs are radio inputs (`input.tab-in`); the ones not open on load, in page order.
+-+TABS_JS = "() => [...document.querySelectorAll('input.tab-in[type=radio]')].filter((r) => !r.checked && r.id).map((r) => r.id)"
+-+# The in-page tabs a shown Tab bar (`nav.tabs`) offers, the labels of its radio inputs (a tab that
+-+# links to another page is that page's own); more than one with none to open means the check would
+-+# measure the first tab alone.
+-+TAB_BAR_JS = "() => [...document.querySelectorAll('nav.tabs')].filter((n) => n.getClientRects().length).reduce((n, bar) => Math.max(n, bar.querySelectorAll('label.tab').length), 0)"
+-+
+-+# Open one tab as a reader's click does, let the site's script re-fit its blocks, then settle.
+-+OPEN_TAB_JS = r"""
+-+(id) => {
+-+  const r = document.getElementById(id);
+-+  r.checked = true;
+-+  r.dispatchEvent(new Event('change', { bubbles: true }));
+-+  window.dispatchEvent(new Event('resize'));
+-+  window.scrollTo(0, 0);
+-+  return document.fonts.ready.then(() => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res))));
+-+}
+-+"""
+-+
+- 
+- @dataclass
+- class Failure:
+-@@ -484,12 +515,19 @@ def resolve_built(page: di.Page, dist: Path, lang: str) -> Path | None:
+- 
+- 
+- def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport: int, lang: str,
+--                 failures: list[Failure]) -> int:
+--    """Measure one rendered page; append failures; return the number of visible inventory matches."""
+-+                 failures: list[Failure], acc: dict | None = None) -> int:
+-+    """Measure one rendered page in its current tab; append failures; return the number of visible
+-+    inventory matches. With `acc`, the page's tabs are measured one after another: a failure already
+-+    found in an earlier tab is not added again, and the checks that ask whether an element is on the
+-+    page are left to `finish_page`, which judges them across every tab."""
+-     data = pw_page.evaluate(MEASURE_JS, spec)
+-     tokens = data["tokens"]
+-     total = 0
+-     seen: set[str] = set()
+-+    own = acc is None
+-+    if own:
+-+        acc = {"seen": set(), "visible": {}, "total": 0, "found": set()}
+-+    start = len(failures)
+-     for el in inv.elements:
+-         res = data["elements"].get(el.name, {})
+-         level = "FAIL" if el.status == "ruled" else "WARN"
+-@@ -508,9 +546,10 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
+-                 continue
+-             if a.kind == "visible":
+-                 if res.get("inDom", 0):
+--                    msg = di.compare(a, len(matches), tokens)
+--                    if msg:
+--                        failures.append(Failure(page.name, viewport, lang, el.name, msg, level))
+-+                    key = (el.name, a.raw)
+-+                    best = acc["visible"].get(key)
+-+                    if best is None or len(matches) > best[2]:
+-+                        acc["visible"][key] = (el.name, a, len(matches), tokens, level)
+-                 continue
+-             if a.kind == "stripe":
+-                 for t_i, rows in enumerate(res.get("stripes", []), start=1):
+-@@ -563,12 +602,32 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
+-                 if msg:
+-                     failures.append(Failure(page.name, viewport, lang, "%s [%s #1]" % (el.name, el.selector), msg, level))
+-             pw_page.mouse.move(0, 0)
+-+    fresh = []
+-+    for f in failures[start:]:
+-+        key = (f.element, f.detail, f.level)
+-+        if key not in acc["found"]:
+-+            acc["found"].add(key)
+-+            fresh.append(f)
+-+    failures[start:] = fresh
+-+    acc["seen"] |= seen
+-+    acc["total"] += total
+-+    if own:
+-+        finish_page(acc, page, viewport, lang, failures)
+-+    return total
+-+
+-+
+-+def finish_page(acc: dict, page: di.Page, viewport: int, lang: str, failures: list[Failure]) -> None:
+-+    """The checks that ask whether an element is on the page, judged across every tab measured: an
+-+    element counts as shown when one tab shows it, at the most matches any tab shows."""
+-+    for name, a, count, tokens, level in acc["visible"].values():
+-+        msg = di.compare(a, count, tokens)
+-+        if msg:
+-+            failures.append(Failure(page.name, viewport, lang, name, msg, level))
+-     for name in page.expected_at(viewport):
+--        if name not in seen:
+-+        if name not in acc["seen"]:
+-             failures.append(Failure(page.name, viewport, lang, name, "expected on this page · measured 0 matches"))
+--    if total == 0:
+-+    if acc["total"] == 0:
+-         failures.append(Failure(page.name, viewport, lang, "(page)", "expected inventory elements · measured 0 — is the URL right?"))
+--    return total
+- 
+- 
+- def in_baseline_scope(baseline: dict, viewports: list[int], langs: list[str]) -> bool:
+-@@ -598,7 +657,8 @@ def compare_coverage(coverage: dict[str, dict[str, int]], pinned: dict[str, dict
+- 
+- 
+- def render_width(job: dict) -> dict:
+--    """One viewport, in its own process: open every target, measure its elements, count its gaps."""
+-+    """One viewport, in its own process: open every target and each of its tabs, measure its
+-+    elements, count its gaps."""
+-     from playwright.sync_api import sync_playwright  # noqa: PLC0415
+- 
+-     viewport, inv, spec, artifacts = job["viewport"], job["inv"], job["spec"], job["artifacts"]
+-@@ -624,25 +684,40 @@ def render_width(job: dict) -> dict:
+-                     failures.append(Failure(p.name, viewport, lang, "(page)", "the FI toggle did not switch"))
+-                     continue
+-             before = len(failures)
+--            measure_page(pw_page, inv, spec, p, viewport, lang, failures)
+-+            acc = {"seen": set(), "visible": {}, "total": 0, "found": set()}
+-+            page_counts = counted.setdefault(p.name, {"classes": set(), "examples": {}})
+-+            tabs = pw_page.evaluate(TABS_JS)
+-+            if not tabs and pw_page.evaluate(TAB_BAR_JS) > 1:
+-+                failures.append(Failure(p.name, viewport, lang, "(page)",
+-+                                        "a Tab bar with no tab to open · only the first tab is measured"))
+-+            for tab in [None] + tabs:
+-+                if tab is not None:
+-+                    pw_page.evaluate(OPEN_TAB_JS, tab)
+-+                state = len(failures)
+-+                measure_page(pw_page, inv, spec, p, viewport, lang, failures, acc)
+-+                if artifacts and any(f.level == "FAIL" for f in failures[state:]) and shots < 20:
+-+                    pw_page.screenshot(path=str(Path(artifacts) / ("%s_%d_%s%s.png" % (
+-+                        p.name.replace("/", "_"), viewport, lang, "_" + tab if tab else ""))), full_page=True)
+-+                    shots += 1
+-+                # The pointer checks scroll the page, and a sticky header then lies over the content.
+-+                pw_page.evaluate("window.scrollTo(0, 0); document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => r())))")
+-+                found = pw_page.evaluate(COUNT_JS, job["registered"])
+-+                page_counts["classes"].update(found["classes"])
+-+                for k in COUNTS[:-1]:
+-+                    page_counts[k] = page_counts.get(k, 0) + found[k]
+-+                    shown = page_counts["examples"].setdefault(k, [])
+-+                    shown += ["%d %s %s" % (viewport, lang, e) for e in found["ex"][k][:20 - len(shown)]]
+-+            state = len(failures)
+-+            finish_page(acc, p, viewport, lang, failures)
+-+            if artifacts and any(f.level == "FAIL" for f in failures[state:]) and shots < 20:
+-+                pw_page.screenshot(path=str(Path(artifacts) / ("%s_%d_%s_page.png" % (
+-+                    p.name.replace("/", "_"), viewport, lang))), full_page=True)
+-+                shots += 1
+-             renders += 1
+-             covered.setdefault(lang, set()).add(p.name)
+--            missed = [f for f in failures[before:] if f.level == "FAIL"]
+--            for f in missed:
+--                f.measured = True
+--            if artifacts and missed and shots < 20:
+--                pw_page.screenshot(path=str(Path(artifacts) / ("%s_%d_%s.png" % (p.name.replace("/", "_"), viewport, lang))),
+--                                   full_page=True)
+--                shots += 1
+--            # The pointer checks scroll the page, and a sticky header then lies over the content.
+--            pw_page.evaluate("window.scrollTo(0, 0); document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => r())))")
+--            found = pw_page.evaluate(COUNT_JS, job["registered"])
+--            page_counts = counted.setdefault(p.name, {"classes": set(), "examples": {}})
+--            page_counts["classes"].update(found["classes"])
+--            for k in COUNTS[:-1]:
+--                page_counts[k] = page_counts.get(k, 0) + found[k]
+--                shown = page_counts["examples"].setdefault(k, [])
+--                shown += ["%d %s %s" % (viewport, lang, e) for e in found["ex"][k][:20 - len(shown)]]
+-+            for f in failures[before:]:
+-+                if f.level == "FAIL":
+-+                    f.measured = True
+-         ctx.close()
+-         browser.close()
+-     return {"failures": failures, "counted": counted, "covered": covered, "renders": renders}
+-diff --git a/site_v2/src/lib/fitBlocks.mjs b/site_v2/src/lib/fitBlocks.mjs
+-index 371d9794..e90af641 100644
+---- a/site_v2/src/lib/fitBlocks.mjs
+-+++ b/site_v2/src/lib/fitBlocks.mjs
+-@@ -4,7 +4,8 @@
+- // when every name keeps its longest word inside its own space; a block of fact rows fits when its
+- // longest row (label, gap, value) fits its width; the header row fits when it holds the menu; a
+- // Filter bar fits when each row of buttons does, and its dropdown row when each holds its longest choice;
+--// a match row with a tag fits when its names keep their column beside the tag.
+-+// a match row with a tag fits when its names keep their column beside the tag, each longest word
+-+// inside its own space.
+- 
+- /** The width of a text's longest word, given a function that measures one word. */
+- export function longestWord(text, measure) {
+-@@ -37,14 +38,16 @@ function start() {
+-     copy.remove();
+-     return w;
+-   };
+-+  const names = (block, selector) => [...block.querySelectorAll(selector)].filter(shown)
+-+    .map((nm) => ({ need: longestWord(nm.textContent, wordWidth(nm)), room: nm.clientWidth }));
+-   const measures = {
+--    table: (block) => [...block.querySelectorAll(".ctab-row .tm .nm")].filter(shown)
+--      .map((nm) => ({ need: longestWord(nm.textContent, wordWidth(nm)), room: nm.clientWidth })),
+-+    table: (block) => names(block, ".ctab-row .tm .nm"),
+-     facts: (block) => [...block.children].filter((r) => r.classList.contains("frow") && shown(r))
+-       .map((row) => ({ need: oneLine(row), room: row.clientWidth })),
+-     header: (block) => [{ need: block.scrollWidth, room: block.clientWidth }],
+-     tagged: (block) => [...block.querySelectorAll(":scope > .sides")]
+--      .map((sides) => ({ need: sides.scrollWidth, room: sides.clientWidth })),
+-+      .map((sides) => ({ need: sides.scrollWidth, room: sides.clientWidth }))
+-+      .concat(names(block, ":scope > .sides .side .nm")),
+-     filter: (block) => [...block.children].filter((c) => c.matches(".seg:not(.sel)") && shown(c))
+-       .map((seg) => ({ need: seg.scrollWidth, room: seg.clientWidth })),
+-     selects: (block) => [...block.querySelectorAll(".sel-in")].filter(shown).map((sel) => {
+-diff --git a/site_v2/src/lib/wholeWords.mjs b/site_v2/src/lib/wholeWords.mjs
+-new file mode 100644
+-index 00000000..1775df0e
+---- /dev/null
+-+++ b/site_v2/src/lib/wholeWords.mjs
+-@@ -0,0 +1,52 @@
+-+// A word joined by a hyphen never breaks at the hyphen: each word of a page's body text with a
+-+// letter, a hyphen and a letter in it is wrapped in the no-break span, so the word moves whole to the
+-+// next line while the text a reader copies, searches or a search engine indexes keeps its real
+-+// hyphen. Only text between tags inside <body> changes. Tags and attributes stay as they are, and so
+-+// does everything inside the elements below: raw text, SVG text (a span is not SVG), a select's
+-+// options (a span is dropped there) and content that is not rendered as it stands.
+-+
+-+const RAW = new Set(["script", "style", "textarea", "title"]);
+-+const SKIP = new Set(["svg", "select", "template", "noscript", "math"]);
+-+const JOINED = /[\p{L}\p{M}]-[\p{L}\p{M}]/u;
+-+const TOKEN = /<!--[\s\S]*?-->|<\/?([A-Za-z][\w:-]*)[^>]*>|[^<]+|</g;
+-+const NB = /\sclass\s*=\s*["'](?:[^"']*\s)?nb[\s"']/i;
+-+
+-+const keep = (text) => text.replace(/\S+/g, (word) => (JOINED.test(word) ? `<span class="nb">${word}</span>` : word));
+-+
+-+/** The page with every hyphen-joined word of its body text kept whole. */
+-+export function keepHyphenWords(html) {
+-+  const open = html.search(/<body[\s>]/i);
+-+  if (open < 0) return html;
+-+  let out = html.slice(0, open);
+-+  let skip = [];
+-+  // Each open span, and whether it is already a no-break span, whose text needs no second one.
+-+  const spans = [];
+-+  TOKEN.lastIndex = open;
+-+  for (let m = TOKEN.exec(html); m; m = TOKEN.exec(html)) {
+-+    const [part, tag] = m;
+-+    if (!tag) {
+-+      out += !skip.length && !spans.includes(true) && part !== "<" && !part.startsWith("<!--") ? keep(part) : part;
+-+      continue;
+-+    }
+-+    out += part;
+-+    const name = tag.toLowerCase();
+-+    const closing = part.startsWith("</");
+-+    if (name === "span") {
+-+      if (closing) spans.pop();
+-+      else if (!part.endsWith("/>")) spans.push(NB.test(part));
+-+    } else if (!closing && RAW.has(name)) {
+-+      const end = new RegExp(`</${name}`, "gi");
+-+      end.lastIndex = TOKEN.lastIndex;
+-+      const found = end.exec(html);
+-+      const stop = found ? found.index : html.length;
+-+      out += html.slice(TOKEN.lastIndex, stop);
+-+      TOKEN.lastIndex = stop;
+-+    } else if (SKIP.has(name) && !part.endsWith("/>")) {
+-+      if (!closing) skip.push(name);
+-+      else if (skip.includes(name)) skip = skip.slice(0, skip.lastIndexOf(name));
+-+    } else if (closing && name === "body") {
+-+      return out + html.slice(TOKEN.lastIndex);
+-+    }
+-+  }
+-+  return out;
+-+}
+-diff --git a/site_v2/src/lib/wholeWords.test.mjs b/site_v2/src/lib/wholeWords.test.mjs
+-new file mode 100644
+-index 00000000..fdff6c30
+---- /dev/null
+-+++ b/site_v2/src/lib/wholeWords.test.mjs
+-@@ -0,0 +1,64 @@
+-+// Pins what the build step changes: a hyphen-joined word of the body text is wrapped whole, and
+-+// nothing else moves — the head, attributes, scripts, SVG text and options stay as they are, and the
+-+// text itself keeps its real hyphen.
+-+
+-+import { test } from "node:test";
+-+import assert from "node:assert/strict";
+-+import { keepHyphenWords } from "./wholeWords.mjs";
+-+
+-+const page = (body, head = "<title>Paris Saint-Germain</title>") => `<!DOCTYPE html><html><head>${head}</head><body>${body}</body></html>`;
+-+const bodyOf = (html) => html.slice(html.indexOf("<body>") + 6, html.indexOf("</body>"));
+-+const textOf = (html) => html.replace(/<[^>]*>/g, "");
+-+
+-+test("a hyphen-joined word is wrapped whole, the rest of the text as it is", () => {
+-+  const out = keepHyphenWords(page('<span class="nm">Paris Saint-Germain FC</span>'));
+-+  assert.equal(bodyOf(out), '<span class="nm">Paris <span class="nb">Saint-Germain</span> FC</span>');
+-+});
+-+
+-+test("the punctuation that clings to the word stays with it", () => {
+-+  const out = keepHyphenWords(page("<p>Spain-pelaajaan, DFB-Pokal: and Rot-Weiß.</p>"));
+-+  assert.equal(bodyOf(out), '<p><span class="nb">Spain-pelaajaan,</span> <span class="nb">DFB-Pokal:</span> and <span class="nb">Rot-Weiß.</span></p>');
+-+});
+-+
+-+test("only a hyphen between two letters joins a word", () => {
+-+  const html = page("<p>2-1 at U-21, a - b, Matchday 9 – 10</p>");
+-+  assert.equal(keepHyphenWords(html), html);
+-+});
+-+
+-+test("the head, attributes, scripts, styles, SVG text and options are left as they are", () => {
+-+  const body = '<a href="/en/teams/paris-saint-germain/" title="Saint-Germain">x</a>'
+-+    + "<script>const s = '<b>Saint-Germain</b>';</script><style>.a-b{}</style>"
+-+    + '<svg><text>Saint-Germain</text><svg/></svg><select><option>Saint-Germain</option></select>'
+-+    + "<template><i>Saint-Germain</i></template><textarea>Saint-Germain</textarea>";
+-+  const html = page(body);
+-+  assert.equal(keepHyphenWords(html), html);
+-+});
+-+
+-+test("text after a skipped element is kept whole again", () => {
+-+  const out = keepHyphenWords(page("<svg><text>Saint-Germain</text></svg><p>Al-Nassr</p>"));
+-+  assert.equal(bodyOf(out), '<svg><text>Saint-Germain</text></svg><p><span class="nb">Al-Nassr</span></p>');
+-+});
+-+
+-+test("the page's text is the same before and after", () => {
+-+  const html = page("<h1>Paris Saint-Germain</h1><p>Keski-Amerikka &amp; Etelä-Amerikka</p><!-- a-b -->");
+-+  assert.equal(textOf(keepHyphenWords(html)), textOf(html));
+-+});
+-+
+-+test("a letter that grows when lowercased does not shift where a script ends", () => {
+-+  const out = keepHyphenWords(page(`<p>${"İ".repeat(12)}</p><script>let a = 1;</script><div class="x">Al-Nassr</div>`));
+-+  assert.equal(bodyOf(out), `<p>${"İ".repeat(12)}</p><script>let a = 1;</script><div class="x"><span class="nb">Al-Nassr</span></div>`);
+-+});
+-+
+-+test("a word already inside a no-break span is not wrapped again", () => {
+-+  const html = page('<span class="nb">DFB-Pokal <span class="tc-ctx">x</span> Al-Ahli</span><span class="x nb">Rot-Weiß</span><span>Al-Nassr</span>');
+-+  assert.equal(bodyOf(keepHyphenWords(html)), '<span class="nb">DFB-Pokal <span class="tc-ctx">x</span> Al-Ahli</span><span class="x nb">Rot-Weiß</span><span><span class="nb">Al-Nassr</span></span>');
+-+});
+-+
+-+test("a span whose other attribute names nb is not a no-break span", () => {
+-+  const html = page('<span data-class="nb">Al-Nassr</span><span title="x nb">Rot-Weiß</span>');
+-+  assert.equal(bodyOf(keepHyphenWords(html)), '<span data-class="nb"><span class="nb">Al-Nassr</span></span><span title="x nb"><span class="nb">Rot-Weiß</span></span>');
+-+});
+-+
+-+test("a page without a body is returned as it is", () => {
+-+  assert.equal(keepHyphenWords("User-agent: *"), "User-agent: *");
+-+});
+-diff --git a/site_v2/src/middleware.ts b/site_v2/src/middleware.ts
+-new file mode 100644
+-index 00000000..20d84681
+---- /dev/null
+-+++ b/site_v2/src/middleware.ts
+-@@ -0,0 +1,10 @@
+-+// Every page leaves the build with its hyphen-joined words kept whole (lib/wholeWords.mjs).
+-+import { defineMiddleware } from "astro:middleware";
+-+import { keepHyphenWords } from "./lib/wholeWords.mjs";
+-+
+-+export const onRequest = defineMiddleware(async (_context, next) => {
+-+  const response = await next();
+-+  if (!(response.headers.get("content-type") ?? "").includes("text/html")) return response;
+-+  const html = keepHyphenWords(await response.text());
+-+  return new Response(html, { status: response.status, statusText: response.statusText, headers: response.headers });
+-+});
+-diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+-index 688a29c8..acac835e 100644
+---- a/site_v2/src/styles/system.css
+-+++ b/site_v2/src/styles/system.css
+-@@ -975,9 +975,10 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+- .ropp > .club:only-child { vertical-align: top; }
+- 
+- /* Player row: photo · name over position · numbers on the right at every width; the name wraps, and
+--   where the row is short of room the goals and the assists take two lines. */
+-+   where the row is short of room the goals and the assists take two lines. On the narrowest rows the
+-+   gaps tighten so a long word fits, as the result row's do. */
+- .plrow { display: grid; grid-template-columns: 34px 1fr auto; grid-template-areas: "photo name stat" "photo pos stat";
+--         column-gap: 12px; row-gap: 2px; align-items: center; align-content: start; padding: 9px 0; }
+-+         column-gap: clamp(8px, 3cqw, 20px); row-gap: 2px; align-items: center; align-content: start; padding: 9px 0; }
+- .plrow .pphoto { grid-area: photo; }
+- .plrow .pname { display: contents; }
+- .plrow .pname .nm { grid-area: name; font-size: 15px; font-weight: 400; color: var(--ink); white-space: normal; overflow: visible; text-overflow: clip; }
+-diff --git a/tests/fixtures/design_inventory/baseline.json b/tests/fixtures/design_inventory/baseline.json
+-index 77de6cf7..757af7e5 100644
+---- a/tests/fixtures/design_inventory/baseline.json
+-+++ b/tests/fixtures/design_inventory/baseline.json
+-@@ -19,13 +19,13 @@
+-    "Competition overview": {"split": 21, "classes": 6},
+-    "Competition rankings": {"classes": 6},
+-    "Competitions index": {"overflow": 42, "classes": 5},
+--   "Home": {"split": 13, "classes": 6},
+--   "Match page": {"scroll": 2184, "overflow": 12, "split": 223, "classes": 15},
+-+   "Home": {"classes": 6},
+-+   "Match page": {"scroll": 2184, "overflow": 12, "split": 2, "classes": 15},
+-    "Matches day page": {"classes": 7, "miss · Fold": 378, "miss · Match row score": 414},
+-    "Matches page": {"classes": 7},
+-    "Played match page": {"scroll": 2, "classes": 13},
+--   "Team page": {"overflow": 3, "split": 47, "classes": 29, "miss · Name in whole words": 3},
+--   "Teams page": {"split": 3, "classes": 5},
+-+   "Team page": {"overflow": 3, "classes": 29},
+-+   "Teams page": {"classes": 5},
+-    "competition-hub cup": {"classes": 14},
+-    "competition-hub groups": {"classes": 14},
+-    "competition-hub league": {"overflow": 112, "classes": 16},
+-diff --git a/tests/fixtures/design_inventory/baseline_quick.json b/tests/fixtures/design_inventory/baseline_quick.json
+-index 28d0b526..b6707888 100644
+---- a/tests/fixtures/design_inventory/baseline_quick.json
+-+++ b/tests/fixtures/design_inventory/baseline_quick.json
+-@@ -292,7 +292,6 @@
+-    "Match page": {
+-     "scroll": 1137,
+-     "overflow": 6,
+--    "split": 104,
+-     "classes": 15
+-    },
+-    "de/afc-champions-league/index.html": {
+-@@ -379,7 +378,6 @@
+-     "classes": 5
+-    },
+-    "Home": {
+--    "split": 6,
+-     "classes": 6
+-    },
+-    "de/j1-league/index.html": {
+-@@ -405,12 +403,9 @@
+-    },
+-    "Team page": {
+-     "overflow": 2,
+--    "split": 13,
+--    "classes": 29,
+--    "miss · Name in whole words": 1
+-+    "classes": 29
+-    },
+-    "Teams page": {
+--    "split": 1,
+-     "classes": 5
+-    },
+-    "de/mls/index.html": {
+-diff --git a/tests/fixtures/design_inventory/counts_tabs.html b/tests/fixtures/design_inventory/counts_tabs.html
+-new file mode 100644
+-index 00000000..561de3ea
+---- /dev/null
+-+++ b/tests/fixtures/design_inventory/counts_tabs.html
+-@@ -0,0 +1,22 @@
+-+<!doctype html>
+-+<html lang="en">
+-+<head>
+-+<meta charset="utf-8">
+-+<title>gap counts, a defect behind a closed tab</title>
+-+<style>
+-+body { margin: 0; font: 15px/1.5 sans-serif; }
+-+.tab-in { position: absolute; opacity: 0; }
+-+.page { display: none; }
+-+#tab-a:checked ~ .page[data-page="a"], #tab-b:checked ~ .page[data-page="b"] { display: block; }
+-+.red-nowrap { width: 40px; white-space: nowrap; }
+-+.red-split { width: 50px; overflow-wrap: anywhere; }
+-+</style>
+-+</head>
+-+<body>
+-+<div class="red-nowrap">Shared overflowing words</div>
+-+<input type="radio" name="t" id="tab-a" class="tab-in" checked>
+-+<input type="radio" name="t" id="tab-b" class="tab-in">
+-+<div class="page" data-page="a"><p>Open on load, nothing wrong here</p></div>
+-+<div class="page" data-page="b"><div class="red-nowrap">Hidden overflowing words</div><div class="red-split">Extraordinarily</div></div>
+-+</body>
+-+</html>
+-diff --git a/tests/test_design_inventory.py b/tests/test_design_inventory.py
+-index d5c9ec4b..b3982e16 100644
+---- a/tests/test_design_inventory.py
+-+++ b/tests/test_design_inventory.py
+-@@ -513,6 +513,77 @@ def test_the_gap_counts_count_each_defect_once(tmp_path):
+-     assert "not compared: a narrower run than the baseline's" in out, out
+- 
+- 
+-+@needs_browser
+-+def test_the_gap_counts_open_every_tab_and_count_a_shared_defect_once(tmp_path):
+-+    folder = tmp_path / "pages"
+-+    folder.mkdir()
+-+    shutil.copy(FIXTURES / "counts_tabs.html", folder / "counts_tabs.html")
+-+    proc = subprocess.run(
+-+        [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks", "--no-built",
+-+         "--page", "tabs=%s" % (folder / "counts_tabs.html"), "--langs", "en", "--viewports", "320"],
+-+        capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+-+    )
+-+    out = proc.stdout + proc.stderr
+-+    assert "COUNT tabs · scroll 0 · overflow 2 · split 1 · overlap 0" in out, out
+-+    assert "a Tab bar with no tab to open" not in out, out
+-+
+-+
+-+@needs_browser
+-+def test_a_tab_bar_with_no_tab_to_open_fails_instead_of_measuring_one_tab(tmp_path):
+-+    folder = tmp_path / "pages"
+-+    folder.mkdir()
+-+    (folder / "bar.html").write_text(
+-+        '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>t</title></head><body>'
+-+        '<nav class="tabs"><label class="tab">Overview</label><label class="tab">Matches</label></nav>'
+-+        "<p>One tab only</p></body></html>", encoding="utf-8")
+-+    proc = subprocess.run(
+-+        [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks", "--no-built",
+-+         "--page", "bar=%s" % (folder / "bar.html"), "--langs", "en", "--viewports", "320"],
+-+        capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+-+    )
+-+    out = proc.stdout + proc.stderr
+-+    assert "FAIL  bar · 320 · en · (page) · a Tab bar with no tab to open" in out, out
+-+    assert proc.returncode == 1, out
+-+
+-+
+-+def test_a_page_is_judged_across_its_tabs_and_a_failure_in_every_tab_counts_once():
+-+    import check_design_inventory as cdi  # noqa: PLC0415
+-+
+-+    size = di.Assertion(kind="font-size", prop=None, expected="14px", raw="font-size=14px")
+-+    shown = di.Assertion(kind="visible", prop=None, expected="1", raw="visible=1")
+-+    inv = di.Inventory((di.Element("Shared", ".shared", "", (size,), "ruled", ""),
+-+                        di.Element("Tabbed", ".tabbed", "", (shown,), "ruled", "")), ())
+-+    page = di.Page("tabs", "built", "", "", "", ("Tabbed",))
+-+
+-+    def tab(tabbed_open):
+-+        match = {"style": {"font-size": "13px"}, "rect": [0, 0, 10, 10]}
+-+        return {"tokens": {}, "elements": {
+-+            "Shared": {"matches": [match], "inDom": 1},
+-+            "Tabbed": {"matches": [match] if tabbed_open else [], "inDom": 1}}}
+-+
+-+    class Page:
+-+        def __init__(self, states):
+-+            self.states = iter(states)
+-+
+-+        def evaluate(self, _js, _arg=None):
+-+            return next(self.states)
+-+
+-+    failures, acc = [], {"seen": set(), "visible": {}, "total": 0, "found": set()}
+-+    pw = Page([tab(False), tab(True)])
+-+    for _ in range(2):
+-+        cdi.measure_page(pw, inv, {}, page, 375, "en", failures, acc)
+-+    cdi.finish_page(acc, page, 375, "en", failures)
+-+    assert [f.element for f in failures] == ["Shared [.shared #1]"], [f.line() for f in failures]
+-+
+-+    failures, acc = [], {"seen": set(), "visible": {}, "total": 0, "found": set()}
+-+    pw = Page([tab(False), tab(False)])
+-+    for _ in range(2):
+-+        cdi.measure_page(pw, inv, {}, page, 375, "en", failures, acc)
+-+    cdi.finish_page(acc, page, 375, "en", failures)
+-+    assert sorted(f.detail.split(" · ")[0] for f in failures if f.element == "Tabbed") == [
+-+        "expected on this page", "expected visible=1"], [f.line() for f in failures]
+-+
+-+
+- def test_the_full_baseline_names_no_scope():
+-     full = di.load_baseline()
+-     assert "viewports" not in full and "langs" not in full, (
+-
+-# ============================================================================
+-# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+-# ============================================================================
+-# The files below changed on this branch and are DELIBERATELY kept out of the
+-# diff: they are the review's own paperwork or the handover, which reviewers do
+-# not judge (CPO 2026-08-01).
+-#
+-# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+-# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+-# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+-# depends on one.
+-#
+-#   .claude/task/acceptance_evidence.md    |  17 +-
+-#    .claude/task/rendered_page_evidence.md |  76 ++-
+-#    .claude/task/review.md                 |  41 +-
+-#    .claude/task/review_input.patch        | 882 ++++++++++++++++++++++++++-------
+-#    4 files changed, 773 insertions(+), 243 deletions(-)
+-# ============================================================================
+diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
+index 238acfdd..7f2e6d89 100644
+--- a/docs/agent_guardrails.md
++++ b/docs/agent_guardrails.md
+@@ -25,9 +25,9 @@ match, because a hook that cries wolf gets ignored.
+ 
+ | Hook | Fires on | Does |
+ |---|---|---|
+-| `git_discipline.py` | PreToolUse Bash | Blocks `glab mr merge`, `git commit --amend`/`--no-verify`/`-n` and `core.hooksPath` repointing; asks the branch-consolidation questions on branch creation. On `git commit` it is the **review gate**: denies the commit unless the review cycle passed and `.claude/task/review.md` is bound to the staged diff (`working_agreement.md` §2). On a diff touching `site_v2/src/` it also requires the contract's `acceptance_criteria:`, each demonstrated in `.claude/task/acceptance_evidence.md`. `scripts/check_task_artifacts.py` repeats the check in CI. |
++| `git_discipline.py` | PreToolUse Bash | Blocks `glab mr merge`, `git commit --amend`/`--no-verify`/`-n` and `core.hooksPath` repointing; asks the branch-consolidation questions on branch creation. On `git commit` it is the **review gate**: denies the commit unless the review passed and the task folder's `review.md` binds the staged diff (`working_agreement.md` §2). On a diff touching `site_v2/src/` it also requires the contract's `acceptance_criteria:`, each demonstrated in the task folder's `acceptance_evidence.md`. `scripts/check_task_artifacts.py` repeats the check in CI. |
+ | `git_workflow.py` | PostToolUse Bash | After a commit, reminds: push the feature branch, open the MR. |
+-| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit, Bash, Artifact; PostToolUse Bash | Denies an edit with no task contract or outside `scope_paths`. Denies an edit on a protected path without `protected_override`, on the structural surface without an `impact_map`, or on the page surface without an `approved_design`; the gate, and `scripts/check_task_artifacts.py` in CI, check each page and issue it names against `docs/wireframes/approved_designs.yml` on `main`. An `approved_design` line `none: no page output changes` is checked by `scope-auditor` alone, by no machine: it is this gate's weakest link. Denies a shell write to an out-of-scope file, and an `Artifact` publish without a real `decisions_reserved`. After every Bash call, it names the out-of-scope changes to revert. The rules are `working_agreement.md` §2. |
++| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit, Bash, Artifact; PostToolUse Bash | Denies an edit with no task contract or outside `scope_paths`. Each task keeps its files in its own folder, `.claude/task/<issue>-<slug>/`: the one folder the branch touches. It denies a write to another task's folder, a merged task's folder or the old shared `.claude/task/` files. `scripts/check_task_artifacts.py` refuses the same in CI. Denies an edit on a protected path without `protected_override`, on the structural surface without an `impact_map`, or on the page surface without an `approved_design`; the gate, and `scripts/check_task_artifacts.py` in CI, check each page and issue it names against `docs/wireframes/approved_designs.yml` on `main`. An `approved_design` line `none: no page output changes` is checked by `scope-auditor` alone, by no machine: it is this gate's weakest link. Denies a shell write to an out-of-scope file, and an `Artifact` publish without a real `decisions_reserved`. After every Bash call, it names the out-of-scope changes to revert. The rules are `working_agreement.md` §2. |
+ | `dbt_layer_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit | Injects the layer contract when a dbt model or a consumption file (`scripts/export_*.py`, `site/`, `site_v2/`) is edited. `scripts/check_layer_contract.py` enforces it in CI. |
+ | `comment_history_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit | Denies an edit that adds history to a code comment or a Markdown document. History is a date, an issue or MR number, a review credit or round, or a story phrase. `tests/test_no_decision_history_in_code.py` and `tests/test_no_decision_history_in_docs.py` pin the lines left; the counts only go down. |
+ | `sentence_length_gate.py` | PreToolUse Edit/Write/MultiEdit | Denies an edit that adds a sentence over 25 words to a Markdown document, or over 20 in a numbered step. `tests/test_sentence_length_in_docs.py` pins the long sentences left; the counts only go down. |
+@@ -46,7 +46,7 @@ exception: when it cannot resolve the base branch, it denies.
+ ## Reviewer agents — `.claude/agents/` (protected)
+ 
+ Read-only agents, spawned cold in step 2 of the review cycle (`working_agreement.md` §2). Each
+-judges the cumulative branch diff in `.claude/task/review_input.patch` and starts from the
++judges the cumulative branch diff in the task folder's `review_input.patch` and starts from the
+ assumption that there is a defect. Which agent reviews which path is
+ `.claude/review_routing.json`; each agent's model is its `model:` line.
+ 
+diff --git a/docs/working_agreement.md b/docs/working_agreement.md
+index ddf294b6..8e6eca46 100644
+--- a/docs/working_agreement.md
++++ b/docs/working_agreement.md
+@@ -57,7 +57,9 @@ which question; this document does not restate it. Memory answers none of them.
+ 
+ ### Task contract
+ 
+-Every unit of work begins with a **task contract** at `.claude/task/contract.md`. The builder
++Every unit of work begins with a **task contract** at `.claude/task/<issue>-<slug>/contract.md`, in
++a folder of its own. Each task's artifacts live in its folder.
++A branch touches one task folder, never a merged one. The builder
+ writes it before touching any file and commits it with the branch, so the MR shows it.
+ `.claude/task/TEMPLATE.md` holds its format.
+ 
+@@ -83,7 +85,7 @@ escalated, never answered by drawing it.
+ - The builder drafts them, and the CPO approves them **before any code**.
+ - After approval they are locked. Only the CPO may change them.
+ - The commit gate denies a commit without them.
+-- The commit gate also denies a commit until `.claude/task/acceptance_evidence.md` demonstrates
++- The commit gate also denies a commit until `acceptance_evidence.md` in the task folder demonstrates
+   every criterion under a `criteria_demonstrated:` marker. The evidence is read from the built
+   output.
+ 
+@@ -158,7 +160,7 @@ Every substantive commit passes four serialized steps. The commit gate enforces
+ | 1. Code Lock | The builder declares the implementation complete and stages everything with `git add`. No further edits happen in this cycle. |
+ | 2. Blinding | The required reviewers are spawned cold and judge the cumulative branch diff. |
+ | 3. Cross-Examination | Each reviewer returns an adversarial verdict. |
+-| 4. Lock | The verdicts, the review hash and the round count go into `.claude/task/review.md`. |
++| 4. Lock | The verdicts, the review hash and the round count go into the task folder's `review.md`. |
+ 
+ **Blinding.**
+ 
+@@ -166,9 +168,9 @@ Every substantive commit passes four serialized steps. The commit gate enforces
+   `scope-auditor` always, plus the path-routed specialists.
+ - Each reviewer gets read-only tools and no builder context.
+ - Each reviewer judges the cumulative branch diff from the base branch, never the staged
+-  increment alone. The diff is in `.claude/task/review_input.patch`.
++  increment alone. The diff is in the task folder's `review_input.patch`.
+ - `git_discipline.py --review-patch` generates that patch. Nobody writes it by hand.
+-- The patch leaves out the task notes in `.claude/task/` that `review_exclude_paths` lists.
++- The patch leaves out the task notes that `review_exclude_paths` lists.
+ - `contract.md` stays in the patch. It carries the scope, the acceptance criteria and the approval
+   behind a `protected_override`.
+ - A reviewer never approves a §10 decision.
+@@ -208,7 +210,7 @@ Every substantive commit passes four serialized steps. The commit gate enforces
+ 
+ **Lock.**
+ 
+-- `.claude/task/review.md` holds the verdicts, the review hash and a `rounds:` count. Its format
++- The task folder's `review.md` holds the verdicts, the review hash and a `rounds:` count. Its format
+   is `.claude/task/REVIEW_TEMPLATE.md`.
+ - The review hash is the SHA-256 that `python .claude/hooks/git_discipline.py --staged-hash`
+   prints. It covers the cumulative branch diff: the code and `contract.md`.
+diff --git a/scripts/check_task_artifacts.py b/scripts/check_task_artifacts.py
+index c75fdc41..f0e56c33 100644
+--- a/scripts/check_task_artifacts.py
++++ b/scripts/check_task_artifacts.py
+@@ -5,9 +5,11 @@ Local hooks can be bypassed by a misbehaving or misconfigured agent; this
+ check keeps the gate honest at the PR boundary. For the diff between the PR
+ branch and the base, it verifies:
+ 
++  - the PR touches exactly one task folder, `.claude/task/<issue>-<slug>/`, that is not a merged
++    task's folder, and adds or changes no old shared `.claude/task/` file;
+   - artifact-only PRs (only bookkeeping paths) pass — but a PR touching
+-    .claude/task/contract.md is NEVER artifact-only (it authorizes scope; F10/#409);
+-  - otherwise .claude/task/contract.md and .claude/task/review.md must exist;
++    a task's contract.md is NEVER artifact-only (it authorizes scope; F10/#409);
++  - otherwise the task folder's contract.md and review.md must exist;
+   - review.md carries a well-formed 64-hex diff_sha256 that MATCHES the recomputed
+     hash of `git diff base...HEAD` excluding the bookkeeping artifacts — binding the
+     review to this PR's code + contract (F11/#409);
+@@ -39,8 +41,6 @@ import subprocess
+ import sys
+ 
+ ROUTING = ".claude/review_routing.json"
+-CONTRACT = ".claude/task/contract.md"
+-REVIEW = ".claude/task/review.md"
+ 
+ # The CI backstop and the local hooks MUST agree, so CI IMPORTS the hooks' own
+ # logic rather than re-implementing it. The round-cap placeholder set, the
+@@ -53,14 +53,14 @@ import git_discipline as _gd            # noqa: E402
+ import task_contract_gate as _tcg       # noqa: E402
+ 
+ 
+-def design_errors(paths: list[str], root: str, base: str) -> list[str]:
++def design_errors(paths: list[str], root: str, base: str, folder: str) -> list[str]:
+     """A diff on the page surface needs the contract's approved_design, and every design it names
+     must stand in the approved-designs list on the base ref. Fails closed when the list cannot be
+     read there."""
+     page_paths = [p for p in paths if _tcg._is_page_surface(p)]
+     if not page_paths:
+         return []
+-    contract = _tcg._read_contract(root)
++    contract = _tcg._parse_contract(os.path.join(root, folder + _tcg.CONTRACT_NAME))
+     design = (contract or {}).get("approved_design") or {}
+     if not design.get("present"):
+         return [f"the diff changes the page surface ({page_paths[0]}) but the contract names no "
+@@ -139,6 +139,11 @@ def main() -> int:
+     with open(ROUTING, encoding="utf-8") as f:
+         routing = json.load(f)
+ 
++    state = _tcg.task_folder(os.getcwd(), args.base, args.base)
++    if state["errors"]:
++        print("check_task_artifacts: FAIL\n  - " + "\n  - ".join(state["errors"]))
++        return 1
++
+     artifact_pats = routing.get("artifact_only") or []
+     # F10 (#409): a PR touching contract.md is never artifact-exempt (it authorizes scope).
+     never = routing.get("artifact_only_never") or []
+@@ -150,15 +155,21 @@ def main() -> int:
+         return 0
+ 
+     errors: list[str] = []
+-    if not os.path.isfile(CONTRACT):
+-        errors.append(f"missing {CONTRACT} (every code PR carries its task contract)")
+-    if not os.path.isfile(REVIEW):
+-        errors.append(f"missing {REVIEW} (every code PR carries its review verdicts)")
++    folder = state["folder"]
++    if folder is None:
++        errors.append(f"missing {_tcg.CONTRACT_REL}: the PR touches no task folder (every "
++                      "code PR carries its task contract)")
++    else:
++        contract, review = folder + _tcg.CONTRACT_NAME, folder + _gd.REVIEW_NAME
++        if not os.path.isfile(contract):
++            errors.append(f"missing {contract} (every code PR carries its task contract)")
++        if not os.path.isfile(review):
++            errors.append(f"missing {review} (every code PR carries its review verdicts)")
+     if errors:
+         print("check_task_artifacts: FAIL\n  - " + "\n  - ".join(errors))
+         return 1
+ 
+-    text = open(REVIEW, encoding="utf-8", errors="replace").read()
++    text = open(review, encoding="utf-8", errors="replace").read()
+     m = re.search(r"diff_sha256:\s*([0-9a-fA-F]{64})", text)
+     if not m:
+         errors.append("review.md has no well-formed diff_sha256")
+@@ -191,7 +202,7 @@ def main() -> int:
+     rounds_err = _rounds_error(text)
+     if rounds_err:
+         errors.append(rounds_err)
+-    errors.extend(design_errors(paths, os.getcwd(), args.base))
++    errors.extend(design_errors(paths, os.getcwd(), args.base, folder))
+     if "VERDICT: FAIL" in text:
+         errors.append("review.md contains VERDICT: FAIL — unresolved findings")
+     # SECONDARY (coarse) backstop only — F12/#421. The per-section loop below is the
+diff --git a/scripts/report_process_health.py b/scripts/report_process_health.py
+index fd8ee8ff..2208f99d 100644
+--- a/scripts/report_process_health.py
++++ b/scripts/report_process_health.py
+@@ -29,7 +29,7 @@ import sys
+ 
+ REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
+ ESCALATIONS = REPO_ROOT / ".claude" / "task" / "escalations.log"
+-REVIEW_REL = ".claude/task/review.md"
++REVIEW_PATHSPECS = (".claude/task/review.md", ":(glob).claude/task/*/review.md")
+ ROUTING = REPO_ROOT / ".claude" / "review_routing.json"
+ 
+ # Computed from the log at run time, never hardcoded. An earlier draft carried a
+@@ -77,10 +77,13 @@ def rulings() -> dict:
+ def rounds_history() -> list[int]:
+     """Every `rounds:` value review.md has ever carried, from its own git log.
+     A branch that needed three rounds cost three times the reviewer spend of one."""
+-    log = _git("log", "--format=%H", "--", REVIEW_REL).split()
+-    seen = []
+-    for sha in log:
+-        blob = _git("show", f"{sha}:{REVIEW_REL}")
++    log = _git("log", "--format=%H", "--name-only", "--", *REVIEW_PATHSPECS).split()
++    seen, sha = [], ""
++    for token in log:
++        if re.fullmatch(r"[0-9a-f]{40}", token):
++            sha = token
++            continue
++        blob = _git("show", f"{sha}:{token}")
+         m = re.search(r"^[^\S\n]*rounds:[^\S\n]*(\d+)", blob, flags=re.M)
+         if m:
+             seen.append(int(m.group(1)))
+diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
+index 83f95d39..2cf89c80 100644
+--- a/tests/test_governance_hooks.py
++++ b/tests/test_governance_hooks.py
+@@ -19,6 +19,8 @@ import sys
+ import pytest
+ 
+ HOOKS = os.path.join(os.path.dirname(__file__), "..", ".claude", "hooks")
++TASK_ID = "1-test"
++TASK = ".claude/task/" + TASK_ID + "/"
+ 
+ CONTRACT_NO_IMPACT = """# Task contract — test
+ objective: >
+@@ -106,7 +108,7 @@ def _repo_template(tmp_path_factory):
+     subprocess.run(["git", "init", "-q"], cwd=base, check=True)
+     subprocess.run(["git", "config", "user.email", "t@t"], cwd=base, check=True)
+     subprocess.run(["git", "config", "user.name", "t"], cwd=base, check=True)
+-    (base / ".claude" / "task").mkdir(parents=True)
++    (base / ".claude" / "task" / TASK_ID).mkdir(parents=True)
+     (base / "dbt_project" / "models").mkdir(parents=True)
+     (base / "dbt_project" / "models" / "allowed.sql").write_text("select 1")
+     subprocess.run(["git", "add", "-A"], cwd=base, check=True)
+@@ -122,7 +124,7 @@ def repo(_repo_template, tmp_path):
+ 
+ 
+ def write_contract(repo, text: str = CONTRACT) -> None:
+-    (repo / ".claude" / "task" / "contract.md").write_text(text)
++    (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(text)
+     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+     subprocess.run(["git", "commit", "-qm", "contract"], cwd=repo, check=True)
+ 
+@@ -162,7 +164,7 @@ def test_outside_repo_path_ungoverned(repo):
+ 
+ 
+ def test_task_dir_always_allowed(repo):
+-    out, _ = run_hook("task_contract_gate.py", edit_event(repo, ".claude/task/review.md"), repo)
++    out, _ = run_hook("task_contract_gate.py", edit_event(repo, TASK + "review.md"), repo)
+     assert out.strip() == ""
+ 
+ 
+@@ -181,13 +183,13 @@ def test_protected_path_allowed_with_override(repo):
+ def test_contract_amendment_denied_on_dirty_tree(repo):
+     write_contract(repo)
+     (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 2")
+-    out, _ = run_hook("task_contract_gate.py", edit_event(repo, ".claude/task/contract.md"), repo)
++    out, _ = run_hook("task_contract_gate.py", edit_event(repo, TASK + "contract.md"), repo)
+     assert denied(out) and "CLEAN" in out
+ 
+ 
+ def test_contract_amendment_allowed_on_clean_tree(repo):
+     write_contract(repo)
+-    out, _ = run_hook("task_contract_gate.py", edit_event(repo, ".claude/task/contract.md"), repo)
++    out, _ = run_hook("task_contract_gate.py", edit_event(repo, TASK + "contract.md"), repo)
+     assert out.strip() == ""
+ 
+ 
+@@ -529,12 +531,12 @@ def test_every_reviewer_brief_carries_the_identical_delta_section():
+ 
+ def test_ci_backstop_requires_rounds(ci_repo):
+     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
+-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
++    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
+     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+     subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
+     real_hash = branch_hash(ci_repo)
+     # a complete review EXCEPT the rounds line
+-    (ci_repo / ".claude" / "task" / "review.md").write_text(
++    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
+         "# Review\ndiff_sha256: " + real_hash + "\n\n" + GOOD_BODY)
+     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+     subprocess.run(["git", "commit", "-qm", "review"], cwd=ci_repo, check=True)
+@@ -1165,22 +1167,22 @@ ROUTING = {
+     "always": ["scope-auditor"],
+     "paths": {"dbt_project/**": ["analytics-engineer-reviewer"]},
+     "artifact_only": [".claude/task/**", ".claude/active_work.md"],
+-    "artifact_only_never": [".claude/task/contract.md"],
++    "artifact_only_never": [".claude/task/*/contract.md"],
+     "hash_exclude_paths": [
+-        ".claude/task/review.md",
+-        ".claude/task/review_input.patch",
+-        ".claude/task/escalations.log",
++        ".claude/task/*/review.md",
++        ".claude/task/*/review_input.patch",
++        ".claude/task/*/escalations.log",
+         ".claude/active_work.md",
+-        ".claude/task/acceptance_evidence.md",
+-        ".claude/task/rendered_page_evidence.md",
++        ".claude/task/*/acceptance_evidence.md",
++        ".claude/task/*/rendered_page_evidence.md",
+     ],
+     # Mirrors the REAL review_exclude_paths. escalations.log is deliberately ABSENT:
+     # it is authority, not a note, so reviewers must receive it.
+     "review_exclude_paths": [
+-        ".claude/task/review.md",
+-        ".claude/task/review_input.patch",
+-        ".claude/task/acceptance_evidence.md",
+-        ".claude/task/rendered_page_evidence.md",
++        ".claude/task/*/review.md",
++        ".claude/task/*/review_input.patch",
++        ".claude/task/*/acceptance_evidence.md",
++        ".claude/task/*/rendered_page_evidence.md",
+         ".claude/active_work.md",
+     ],
+ }
+@@ -1208,7 +1210,7 @@ def staged_hash(repo) -> str:
+ 
+ 
+ def write_review(repo, hash_hex, body, rounds="rounds: 1\n"):
+-    (repo / ".claude" / "task" / "review.md").write_text(
++    (repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
+         f"# Review\ndiff_sha256: {hash_hex}\n{rounds}\n{body}\n"
+     )
+ 
+@@ -1223,6 +1225,7 @@ COMMIT_CMD = 'git commit -m "feat: x"'
+ 
+ 
+ def test_commit_denied_without_review_artifact(repo):
++    (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
+     setup_review_repo(repo)
+     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+     assert denied(out) and "no review artifact" in out
+@@ -1307,8 +1310,8 @@ def test_commit_allowed_with_complete_review(repo):
+ def test_artifact_only_commit_exempt_from_review(repo):
+     setup_review_repo(repo)
+     subprocess.run(["git", "reset"], cwd=repo, check=True, capture_output=True)
+-    (repo / ".claude" / "task" / "notes.md").write_text("bookkeeping")
+-    subprocess.run(["git", "add", ".claude/task/notes.md"], cwd=repo, check=True)
++    (repo / ".claude" / "task" / TASK_ID / "notes.md").write_text("bookkeeping")
++    subprocess.run(["git", "add", TASK + "notes.md"], cwd=repo, check=True)
+     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+     assert not denied(out)
+ 
+@@ -1330,9 +1333,9 @@ def _stage_frontend(repo, contract: str | None, evidence: str | None = None):
+     """Stage a user-facing change, optionally with a contract and evidence file."""
+     setup_review_repo(repo, stage_path=FRONTEND_PATH)
+     if contract is not None:
+-        (repo / ".claude" / "task" / "contract.md").write_text(contract, encoding="utf-8")
++        (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(contract, encoding="utf-8")
+     if evidence is not None:
+-        (repo / ".claude" / "task" / "acceptance_evidence.md").write_text(
++        (repo / ".claude" / "task" / TASK_ID / "acceptance_evidence.md").write_text(
+             evidence, encoding="utf-8")
+     write_review(repo, staged_hash(repo), GOOD_BODY)
+ 
+@@ -1424,14 +1427,14 @@ def test_acceptance_gate_delegates_when_there_is_no_contract(tmp_path):
+     `required_reviewers` already makes for the routing matcher."""
+     gd = _gd()
+     frontend = ["site_v2/src/pages/x.astro"]
+-    assert gd._acceptance_gate(str(tmp_path), frontend) is None, (
++    assert gd._acceptance_gate(str(tmp_path), frontend, TASK) is None, (
+         "with no contract.md the gate must DELEGATE (return None), never deny")
+     # The mirror, so the assertion above cannot be satisfied by a gate that returns
+     # None unconditionally: with a contract present but no criteria, it MUST deny.
+-    task = tmp_path / ".claude" / "task"
++    task = tmp_path / ".claude" / "task" / TASK_ID
+     task.mkdir(parents=True)
+     (task / "contract.md").write_text("objective: >\n  a page\n", encoding="utf-8")
+-    assert gd._acceptance_gate(str(tmp_path), frontend) is not None
++    assert gd._acceptance_gate(str(tmp_path), frontend, TASK) is not None
+ 
+ 
+ def test_acceptance_gate_rejects_evidence_too_short_to_be_a_reading(repo):
+@@ -1515,8 +1518,8 @@ def test_contract_commit_not_artifact_exempt(repo):
+     authorizes scope, so it must go through review (here: denied for lack of one)."""
+     setup_review_repo(repo)
+     subprocess.run(["git", "reset"], cwd=repo, check=True, capture_output=True)
+-    (repo / ".claude" / "task" / "contract.md").write_text("# contract\nscope_paths:\n  - x\n")
+-    subprocess.run(["git", "add", ".claude/task/contract.md"], cwd=repo, check=True)
++    (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text("# contract\nscope_paths:\n  - x\n")
++    subprocess.run(["git", "add", TASK + "contract.md"], cwd=repo, check=True)
+     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
+     assert denied(out) and "no review artifact" in out
+ 
+@@ -1527,12 +1530,12 @@ def test_hash_excludes_bookkeeping_but_binds_contract(repo):
+     h_code = staged_hash(repo)
+     assert h_code  # non-empty
+     # adding a bookkeeping artifact does NOT change the hash (excluded)
+-    (repo / ".claude" / "task" / "escalations.log").write_text("log entry")
+-    subprocess.run(["git", "add", ".claude/task/escalations.log"], cwd=repo, check=True)
++    (repo / ".claude" / "task" / TASK_ID / "escalations.log").write_text("log entry")
++    subprocess.run(["git", "add", TASK + "escalations.log"], cwd=repo, check=True)
+     assert staged_hash(repo) == h_code
+     # adding contract.md DOES change the hash (it is bound to the review)
+-    (repo / ".claude" / "task" / "contract.md").write_text("# contract\n")
+-    subprocess.run(["git", "add", ".claude/task/contract.md"], cwd=repo, check=True)
++    (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text("# contract\n")
++    subprocess.run(["git", "add", TASK + "contract.md"], cwd=repo, check=True)
+     assert staged_hash(repo) != h_code
+ 
+ 
+@@ -1825,6 +1828,7 @@ def ci_repo(repo):
+ 
+ def test_ci_check_fails_without_review(ci_repo):
+     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
++    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
+     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+     subprocess.run(["git", "commit", "-qm", "code"], cwd=ci_repo, check=True)
+     code, out = run_ci_check(ci_repo)
+@@ -1832,7 +1836,7 @@ def test_ci_check_fails_without_review(ci_repo):
+ 
+ 
+ def test_ci_check_passes_artifact_only_pr(ci_repo):
+-    (ci_repo / ".claude" / "task" / "notes.md").write_text("bookkeeping")
++    (ci_repo / ".claude" / "task" / TASK_ID / "notes.md").write_text("bookkeeping")
+     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+     subprocess.run(["git", "commit", "-qm", "artifacts"], cwd=ci_repo, check=True)
+     code, out = run_ci_check(ci_repo)
+@@ -1844,11 +1848,11 @@ def test_ci_check_passes_with_complete_artifacts(ci_repo):
+     # bookkeeping excluded). Commit code+contract first, then write review.md with the
+     # recomputed hash, then commit it — CI recomputes the same and passes.
+     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
+-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
++    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
+     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+     subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
+     real_hash = branch_hash(ci_repo)
+-    (ci_repo / ".claude" / "task" / "review.md").write_text(
++    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
+         "# Review\ndiff_sha256: " + real_hash + "\nrounds: 1\n\n" + GOOD_BODY
+     )
+     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+@@ -1860,7 +1864,7 @@ def test_ci_check_passes_with_complete_artifacts(ci_repo):
+ def test_ci_check_contract_only_pr_not_artifact_exempt(ci_repo):
+     """F10/#409: a contract-only PR is no longer artifact-exempt at CI — it must carry
+     a review (here it doesn't, so CI fails). Closes the #407 contract-only-merge hole."""
+-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
++    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
+     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+     subprocess.run(["git", "commit", "-qm", "contract only"], cwd=ci_repo, check=True)
+     code, out = run_ci_check(ci_repo)
+@@ -1871,8 +1875,8 @@ def test_ci_check_fails_on_stale_review_hash(ci_repo):
+     """F11/#409: a review.md whose hash does not match this PR's diff (the #405
+     false-green) is now rejected by CI."""
+     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
+-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+-    (ci_repo / ".claude" / "task" / "review.md").write_text(
++    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
++    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
+         "# Review\ndiff_sha256: " + "b" * 64 + "\n\n" + GOOD_BODY
+     )
+     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+@@ -1890,8 +1894,8 @@ def test_local_staged_hash_equals_ci_recompute(ci_repo):
+     blob, the one vector where pre/post-commit could diverge), a NEW file (contract.md),
+     and a bookkeeping artifact that must be excluded (escalations.log)."""
+     (ci_repo / "dbt_project" / "models" / "allowed.sql").write_text("select 7\n")  # MODIFY base file
+-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)  # add
+-    (ci_repo / ".claude" / "task" / "escalations.log").write_text("noise\n")  # excluded
++    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)  # add
++    (ci_repo / ".claude" / "task" / TASK_ID / "escalations.log").write_text("noise\n")  # excluded
+     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+     local = staged_hash(ci_repo)            # what the local gate checks
+     subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
+@@ -1918,7 +1922,7 @@ def test_review_hash_is_invariant_to_diff_rendering_settings(ci_repo):
+     # implementation rather than trusting it green.
+     model = ci_repo / "dbt_project" / "models" / "allowed.sql"
+     model.write_text("".join("select %d\n" % i for i in range(1, 11)))
+-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
++    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
+     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+     subprocess.run(["git", "commit", "-qm", "ten lines"], cwd=ci_repo, check=True)
+ 
+@@ -1983,7 +1987,7 @@ def test_commit_gate_denies_when_the_hash_cannot_be_computed(monkeypatch, ci_rep
+     """
+     repo = ci_repo
+     (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 1\n")
+-    (repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
++    (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
+     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+     write_review(repo, "a" * 64, GOOD_BODY)
+ 
+@@ -2147,7 +2151,7 @@ def test_local_staged_hash_equals_ci_recompute_on_a_multi_commit_branch(ci_repo)
+     wasted rebind cycles. Diffing from the base makes it simply false.
+     """
+     (ci_repo / "dbt_project" / "models" / "allowed.sql").write_text("select 7\n")
+-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
++    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
+     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+     subprocess.run(["git", "commit", "-qm", "first"], cwd=ci_repo, check=True)
+ 
+@@ -2164,9 +2168,9 @@ def test_local_staged_hash_equals_ci_recompute_on_a_multi_commit_branch(ci_repo)
+ 
+ def test_ci_check_fails_on_missing_required_reviewer(ci_repo):
+     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
+-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
++    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
+     body = GOOD_BODY.split("## analytics-engineer-reviewer")[0]
+-    (ci_repo / ".claude" / "task" / "review.md").write_text(
++    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
+         "# Review\ndiff_sha256: " + "a" * 64 + "\n\n" + body
+     )
+     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+@@ -2179,9 +2183,9 @@ def test_ci_check_requires_reviewer_for_non_ascii_path(ci_repo):
+     """CI mirror of the -z enumeration fix."""
+     (ci_repo / "dbt_project" / "models" / "täst.sql").write_text(
+         "select 1", encoding="utf-8")
+-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
++    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
+     body = GOOD_BODY.split("## analytics-engineer-reviewer")[0]
+-    (ci_repo / ".claude" / "task" / "review.md").write_text(
++    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
+         "# Review\ndiff_sha256: " + "a" * 64 + "\n\n" + body
+     )
+     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+@@ -2193,12 +2197,12 @@ def test_ci_check_requires_reviewer_for_non_ascii_path(ci_repo):
+ def test_ci_check_fails_on_preamble_escalation(ci_repo):
+     """CI mirror of the _preamble pseudo-section rule."""
+     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
+-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
++    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
+     body = (
+         "VERDICT: ESCALATE\n- question: x?\n\n" + GOOD_BODY +
+         "\n## notes\nCPO ANSWER: for something else entirely\n"
+     )
+-    (ci_repo / ".claude" / "task" / "review.md").write_text(
++    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
+         "# Review\ndiff_sha256: " + "a" * 64 + "\n\n" + body
+     )
+     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+@@ -2211,12 +2215,12 @@ def test_ci_check_fails_on_per_section_unanswered_escalation(ci_repo):
+     """Per-section pairing: an answer in one section must not mask another
+     section's unanswered ESCALATE — the global count alone would pass this body."""
+     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
+-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
++    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
+     body = GOOD_BODY + (
+         "\n## escalations\nVERDICT: ESCALATE\n- question: x?\n"
+         "\n## notes\nCPO ANSWER: for something else entirely\n"
+     )
+-    (ci_repo / ".claude" / "task" / "review.md").write_text(
++    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
+         "# Review\ndiff_sha256: " + "a" * 64 + "\n\n" + body
+     )
+     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+@@ -3144,7 +3148,7 @@ def test_editing_an_evidence_artifact_does_not_change_the_staged_hash(repo):
+     setup_review_repo(repo)
+     before = staged_hash(repo)
+     for name in ("acceptance_evidence.md", "rendered_page_evidence.md"):
+-        (repo / ".claude" / "task" / name).write_text("evidence, rewritten\n")
++        (repo / ".claude" / "task" / TASK_ID / name).write_text("evidence, rewritten\n")
+     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+     assert staged_hash(repo) == before, (
+         "editing an evidence artifact changed the review hash, which voids every "
+@@ -3159,7 +3163,7 @@ def test_editing_the_contract_DOES_change_the_staged_hash(repo):
+     been widened too far."""
+     setup_review_repo(repo)
+     before = staged_hash(repo)
+-    (repo / ".claude" / "task" / "contract.md").write_text(
++    (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(
+         "objective: something else entirely\nscope_paths:\n  - anywhere/**\n")
+     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+     assert staged_hash(repo) != before, (
+@@ -3188,7 +3192,7 @@ def test_review_patch_excludes_the_tasks_own_paperwork(repo):
+     hidden = ("acceptance_evidence.md", "rendered_page_evidence.md",
+               "review.md", "review_input.patch")
+     for i, name in enumerate(hidden):
+-        (repo / ".claude" / "task" / name).write_text(f"HIDDEN_MARKER_{i}\n")
++        (repo / ".claude" / "task" / TASK_ID / name).write_text(f"HIDDEN_MARKER_{i}\n")
+     (repo / ".claude" / "active_work.md").write_text("HANDOVER_MARKER\n")
+     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+     patch = _review_patch(repo)
+@@ -3197,7 +3201,7 @@ def test_review_patch_excludes_the_tasks_own_paperwork(repo):
+         # Match the DIFF HEADER, not the bare filename: review_routing.json is itself
+         # in the patch and lists these paths as data, so a substring check on the name
+         # false-positives on correct output.
+-        assert f"diff --git a/.claude/task/{name}" not in patch, f"{name} is in the diff"
++        assert f"diff --git a/{TASK}{name}" not in patch, f"{name} is in the diff"
+     assert "HANDOVER_MARKER" not in patch
+ 
+ 
+@@ -3207,7 +3211,7 @@ def test_review_patch_DOES_deliver_the_rulings_log(repo):
+     cannot check whether a claimed ruling exists — a check that has fired. It was
+     once wrongly excluded; this pins the mechanism, not just the routing data."""
+     setup_review_repo(repo)
+-    (repo / ".claude" / "task" / "escalations.log").write_text("LOG_MARKER\n")
++    (repo / ".claude" / "task" / TASK_ID / "escalations.log").write_text("LOG_MARKER\n")
+     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+     assert "LOG_MARKER" in _review_patch(repo), (
+         "escalations.log did not reach the reviewers — they cannot verify a cited ruling"
+@@ -3244,7 +3248,7 @@ def test_review_patch_still_contains_the_code_and_the_contract(repo):
+     because that is what the auditor and the CTO check authority against."""
+     setup_review_repo(repo)
+     (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 1 as CODE_MARKER\n")
+-    (repo / ".claude" / "task" / "contract.md").write_text("objective: CONTRACT_MARKER\n")
++    (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text("objective: CONTRACT_MARKER\n")
+     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+     patch = _review_patch(repo)
+     assert "CODE_MARKER" in patch
+@@ -3265,12 +3269,17 @@ def test_every_task_artifact_is_classified(repo):
+ 
+     This reads the REAL routing file, not the fixture: the fixture cannot catch a
+     file that exists only in the repo."""
+-    excluded = set(real_routing().get("review_exclude_paths") or [])
++    excluded = real_routing().get("review_exclude_paths") or []
+     files = tracked(".claude/task/")
+     assert files, "no tracked files under .claude/task/ — has the tree moved?"
++
++    def hidden(p):
++        return any(fnmatch.fnmatch(p, pat) for pat in excluded)
++
+     # The two files there that carry AUTHORITY and must reach the reviewers.
+-    authority = {".claude/task/contract.md", ".claude/task/escalations.log"}
+-    unclassified = [p for p in files if p not in excluded and p not in authority]
++    authority = (".claude/task/*/contract.md", ".claude/task/escalations.log")
++    unclassified = [p for p in files
++                    if not hidden(p) and not any(fnmatch.fnmatch(p, a) for a in authority)]
+     assert not unclassified, (
+         "these .claude/task/ files are neither hidden from reviewers nor one of the "
+         f"two authority files, so reviewers will review their own paperwork: {unclassified}"
+@@ -3279,7 +3288,8 @@ def test_every_task_artifact_is_classified(repo):
+     # was once excluded here — a protected_override may cite it as the locatable
+     # record, so a reviewer that cannot see it cannot check whether a claimed ruling
+     # exists.
+-    hidden_authority = sorted(authority & excluded)
++    hidden_authority = sorted(
++        p for p in (TASK + "contract.md", ".claude/task/escalations.log") if hidden(p))
+     assert not hidden_authority, (
+         f"authority files hidden from reviewers: {hidden_authority}"
+     )
+@@ -3293,14 +3303,14 @@ def test_real_routing_hides_the_evidence_artifacts_from_the_hash(repo):
+     `hash_exclude_paths` left the whole suite green — the change was demonstrated
+     once by hand and then unprotected. The same gap shipped a routing change that
+     missed six tracked files, which is why `real_routing()` exists at all."""
+-    excl = set(real_routing().get("hash_exclude_paths") or [])
+-    for p in (".claude/task/acceptance_evidence.md",
+-              ".claude/task/rendered_page_evidence.md"):
+-        assert p in excl, (
++    excl = real_routing().get("hash_exclude_paths") or []
++    for p in (TASK + "acceptance_evidence.md",
++              TASK + "rendered_page_evidence.md"):
++        assert any(fnmatch.fnmatch(p, pat) for pat in excl), (
+             f"{p} is back inside diff_sha256 — editing it now voids every "
+             "reviewer's PASS and buys a fresh round"
+         )
+-    assert ".claude/task/contract.md" not in excl, (
++    assert not any(fnmatch.fnmatch(TASK + "contract.md", pat) for pat in excl), (
+         "contract.md left the review hash — scope and acceptance_criteria could be "
+         "widened after every reviewer passed (F10/F11, #409)"
+     )
+@@ -3310,10 +3320,10 @@ def _ci_repo_with_review(ci_repo, body: str):
+     """Commit code + contract, then a review.md carrying the recomputed PR hash and
+     `body`. Mirrors test_ci_check_passes_with_complete_artifacts."""
+     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
+-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
++    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
+     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+     subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
+-    (ci_repo / ".claude" / "task" / "review.md").write_text(
++    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
+         "# Review\ndiff_sha256: " + branch_hash(ci_repo) + "\nrounds: 1\n\n" + body
+     )
+     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+@@ -3866,7 +3876,9 @@ def test_page_surface_edit_denied_without_approved_design(repo, rel):
+ 
+ def _approve_on_base(repo, monkeypatch, text: str = "home: 127\nmatch: 132\n") -> None:
+     """Commit the approved-designs list on a base ref only, so the working branch has no copy."""
+-    subprocess.run(["git", "checkout", "-q", "-b", "base_main"], cwd=repo, check=True)
++    root = subprocess.run(["git", "rev-list", "--max-parents=0", "HEAD"], cwd=repo,
++                          capture_output=True, text=True, check=True).stdout.split()[0]
++    subprocess.run(["git", "checkout", "-q", "-b", "base_main", root], cwd=repo, check=True)
+     path = repo / "docs" / "wireframes" / "approved_designs.yml"
+     path.parent.mkdir(parents=True, exist_ok=True)
+     path.write_text(text)
+@@ -3946,7 +3958,9 @@ def test_every_design_on_a_contract_line_is_checked(repo, monkeypatch, block, na
+ 
+ @pytest.mark.parametrize("named, allowed", [("match: #132", True), ("player: #136", False)])
+ def test_a_list_with_a_non_utf8_byte_still_gates(repo, monkeypatch, named, allowed):
+-    subprocess.run(["git", "checkout", "-q", "-b", "base_main"], cwd=repo, check=True)
++    root = subprocess.run(["git", "rev-list", "--max-parents=0", "HEAD"], cwd=repo,
++                          capture_output=True, text=True, check=True).stdout.split()[0]
++    subprocess.run(["git", "checkout", "-q", "-b", "base_main", root], cwd=repo, check=True)
+     path = repo / "docs" / "wireframes" / "approved_designs.yml"
+     path.parent.mkdir(parents=True, exist_ok=True)
+     path.write_bytes(b"# caf\xe9 \x97 list\nmatch: 132\n")
+@@ -4024,34 +4038,35 @@ def test_ci_design_check_passes_a_design_on_main_and_fails_the_rest(repo, monkey
+     ci = _ci_module()
+     _approve_on_base(repo, monkeypatch)
+     write_contract(repo, _with_design("  - home: #127\n  - player: #136"))
+-    errors = ci.design_errors(["site_v2/src/pages/home.astro"], str(repo), "base_main")
++    errors = ci.design_errors(["site_v2/src/pages/home.astro"], str(repo), "base_main", TASK)
+     assert len(errors) == 1 and "`player: #136`" in errors[0] and "base_main" in errors[0]
+ 
+ 
+ def test_ci_design_check_fails_closed_when_the_list_cannot_be_read(repo):
+     ci = _ci_module()
+     write_contract(repo, _with_design("  - home: #127"))
+-    errors = ci.design_errors(["site_v2/src/pages/home.astro"], str(repo), "no_such_ref")
++    errors = ci.design_errors(["site_v2/src/pages/home.astro"], str(repo), "no_such_ref", TASK)
+     assert len(errors) == 1 and "`home: #127`" in errors[0]
+ 
+ 
+ def test_ci_design_check_fails_a_page_diff_without_the_field(repo):
+     ci = _ci_module()
+     write_contract(repo, _PAGE_CONTRACT)
+-    errors = ci.design_errors(["scripts/export_site_data.py"], str(repo), "no_such_ref")
++    errors = ci.design_errors(["scripts/export_site_data.py"], str(repo), "no_such_ref", TASK)
+     assert len(errors) == 1 and "names no approved design" in errors[0]
+ 
+ 
+ def test_ci_design_check_ignores_a_diff_off_the_page_surface(repo):
+     ci = _ci_module()
+     write_contract(repo, CONTRACT)
+-    assert ci.design_errors(["docs/allowed_dir/page.md"], str(repo), "no_such_ref") == []
++    assert ci.design_errors(["docs/allowed_dir/page.md"], str(repo), "no_such_ref", TASK) == []
+ 
+ 
+ def test_ci_design_check_needs_no_list_for_a_none_line(repo):
+     ci = _ci_module()
+     write_contract(repo, _with_design("  - none: no page output changes"))
+-    assert ci.design_errors(["site_v2/src/pages/home.astro"], str(repo), "no_such_ref") == []
++    assert ci.design_errors(["site_v2/src/pages/home.astro"], str(repo), "no_such_ref",
++                            TASK) == []
+ 
+ 
+ def test_ci_check_runs_the_design_check_on_a_page_diff(ci_repo):
+@@ -4060,8 +4075,8 @@ def test_ci_check_runs_the_design_check_on_a_page_diff(ci_repo):
+     (ci_repo / "site_v2" / "src" / "pages" / "home.astro").write_text("<h1>x</h1>\n")
+     (ci_repo / "docs" / "wireframes").mkdir(parents=True, exist_ok=True)
+     (ci_repo / "docs" / "wireframes" / "approved_designs.yml").write_text("home: 127\n")
+-    (ci_repo / ".claude" / "task" / "contract.md").write_text(_with_design("  - home: #127"))
+-    (ci_repo / ".claude" / "task" / "review.md").write_text("diff_sha256: " + "0" * 64 + "\nrounds: 1\n")
++    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(_with_design("  - home: #127"))
++    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text("diff_sha256: " + "0" * 64 + "\nrounds: 1\n")
+     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
+     subprocess.run(["git", "commit", "-qm", "page"], cwd=ci_repo, check=True)
+     r = subprocess.run(
+diff --git a/tests/test_hooks_resolve_worktree.py b/tests/test_hooks_resolve_worktree.py
+index f9474769..852a3c47 100644
+--- a/tests/test_hooks_resolve_worktree.py
++++ b/tests/test_hooks_resolve_worktree.py
+@@ -20,9 +20,9 @@ ROUTING = {
+     "always": ["scope-auditor"],
+     "paths": {},
+     "artifact_only": [".claude/task/**"],
+-    "artifact_only_never": [".claude/task/contract.md"],
+-    "hash_exclude_paths": [".claude/task/review.md", ".claude/task/review_input.patch"],
+-    "review_exclude_paths": [".claude/task/review.md", ".claude/task/review_input.patch"],
++    "artifact_only_never": [".claude/task/*/contract.md"],
++    "hash_exclude_paths": [".claude/task/*/review.md", ".claude/task/*/review_input.patch"],
++    "review_exclude_paths": [".claude/task/*/review.md", ".claude/task/*/review_input.patch"],
+ }
+ 
+ 
+@@ -47,21 +47,22 @@ def _commit_all(cwd, msg: str) -> None:
+ @pytest.fixture()
+ def trees(tmp_path):
+     main = tmp_path / "main"
+-    (main / ".claude" / "task").mkdir(parents=True)
++    (main / ".claude" / "task" / "1-main").mkdir(parents=True)
+     (main / "notes").mkdir()
+     _git(main, "init", "-q", "-b", "main")
+     _git(main, "config", "user.email", "t@t")
+     _git(main, "config", "user.name", "t")
+     (main / ".gitignore").write_text(".claude/worktrees/\n.venv/\n")
+     (main / ".claude" / "review_routing.json").write_text(json.dumps(ROUTING))
+-    (main / ".claude" / "task" / "contract.md").write_text(_contract("notes/a.txt"))
+     (main / "notes" / "a.txt").write_text("a")
+     (main / "notes" / "b.txt").write_text("b")
+     _commit_all(main, "init")
+     wt = main / ".claude" / "worktrees" / "w"
+     _git(main, "worktree", "add", "-q", "-b", "feature", str(wt))
+-    (wt / ".claude" / "task" / "contract.md").write_text(_contract("notes/b.txt"))
++    (wt / ".claude" / "task" / "2-wt").mkdir(parents=True)
++    (wt / ".claude" / "task" / "2-wt" / "contract.md").write_text(_contract("notes/b.txt"))
+     _commit_all(wt, "worktree contract")
++    (main / ".claude" / "task" / "1-main" / "contract.md").write_text(_contract("notes/a.txt"))
+     return main, wt
+ 
+ 
+diff --git a/tests/test_task_folders.py b/tests/test_task_folders.py
+new file mode 100644
+index 00000000..509a39f2
+--- /dev/null
++++ b/tests/test_task_folders.py
+@@ -0,0 +1,300 @@
++"""Per-task artifact folders: each task's files live in `.claude/task/<issue>-<slug>/`.
++
++Pins the three cases the mechanism exists for: two tasks open side by side and merged in either
++order, a code change with no task folder, and a branch that touches another task's folder. The
++exclusion patterns come from the REAL routing file, so a pattern that stops matching fails here.
++"""
++
++from __future__ import annotations
++
++import hashlib
++import json
++import os
++import pathlib
++import subprocess
++import sys
++
++import pytest
++
++ROOT = pathlib.Path(__file__).resolve().parents[1]
++HOOKS = ROOT / ".claude" / "hooks"
++CI_SCRIPT = ROOT / "scripts" / "check_task_artifacts.py"
++
++REAL = json.loads((ROOT / ".claude" / "review_routing.json").read_text(encoding="utf-8"))
++ROUTING = {
++    "always": ["scope-auditor"],
++    "paths": {},
++    "artifact_only": REAL["artifact_only"],
++    "artifact_only_never": REAL["artifact_only_never"],
++    "hash_exclude_paths": REAL["hash_exclude_paths"],
++    "review_exclude_paths": REAL["review_exclude_paths"],
++}
++
++CONTRACT = "\n".join([
++    "objective: >", "  test", "scope_paths:", "  - {code}",
++    "decisions_reserved:", "  - none: test", "done_when:", "  - test", "",
++])
++
++REVIEW = "\n".join([
++    "diff_sha256: {sha}", "rounds: 1", "",
++    "#" * 2 + " scope-auditor", "VERDICT: PASS", "risks_checked:",
++    "  - the diff against the contract, no defect", "",
++])
++
++
++def git(repo, *args, check=True) -> subprocess.CompletedProcess:
++    return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, check=check)
++
++
++def env(repo) -> dict:
++    return dict(os.environ, CLAUDE_PROJECT_DIR=str(repo), GOVERNANCE_BASE="main")
++
++
++@pytest.fixture()
++def repo(tmp_path):
++    r = tmp_path / "repo"
++    r.mkdir()
++    git(r, "init", "-q")
++    git(r, "config", "user.email", "t@t")
++    git(r, "config", "user.name", "t")
++    (r / ".claude").mkdir()
++    (r / ".claude" / "review_routing.json").write_text(json.dumps(ROUTING), encoding="utf-8")
++    (r / ".claude" / "task").mkdir()
++    (r / ".claude" / "task" / "TEMPLATE.md").write_text("template\n", encoding="utf-8")
++    (r / ".claude" / "task" / "contract.md").write_text("an old shared contract\n", encoding="utf-8")
++    (r / "app.py").write_text("x = 1\n", encoding="utf-8")
++    git(r, "add", "-A")
++    git(r, "commit", "-qm", "base")
++    git(r, "branch", "-M", "main")
++    return r
++
++
++def pr_hash(repo) -> str:
++    """The CI recompute: the raw branch diff minus the routing's hash exclusions."""
++    spec = ["--", "."] + [f":(exclude){p}" for p in ROUTING["hash_exclude_paths"]]
++    raw = subprocess.run(
++        ["git", "diff", "--raw", "--no-renames", "--no-abbrev", "main...HEAD", *spec],
++        cwd=repo, capture_output=True, check=True).stdout
++    return hashlib.sha256(raw).hexdigest()
++
++
++def build_task(repo, branch: str, task_id: str, code: str) -> None:
++    """A finished task on its own branch: code and contract, then the review bound to them."""
++    git(repo, "checkout", "-q", "-b", branch, "main")
++    folder = repo / ".claude" / "task" / task_id
++    folder.mkdir(parents=True)
++    (repo / code).write_text(f"x = '{task_id}'\n", encoding="utf-8")
++    (folder / "contract.md").write_text(CONTRACT.format(code=code), encoding="utf-8")
++    (folder / "review_input.patch").write_text("patch\n", encoding="utf-8")
++    git(repo, "add", "-A")
++    git(repo, "commit", "-qm", f"{task_id} code")
++    (folder / "review.md").write_text(REVIEW.format(sha=pr_hash(repo)), encoding="utf-8")
++    git(repo, "add", "-A")
++    git(repo, "commit", "-qm", f"{task_id} verdicts")
++
++
++def ci(repo) -> tuple[int, str]:
++    r = subprocess.run([sys.executable, str(CI_SCRIPT), "--base", "main"], cwd=repo,
++                       capture_output=True, text=True, env=env(repo))
++    return r.returncode, r.stdout + r.stderr
++
++
++def edit(repo, rel: str) -> str:
++    event = {"hook_event_name": "PreToolUse", "tool_name": "Write",
++             "tool_input": {"file_path": str(repo / rel)}}
++    r = subprocess.run([sys.executable, str(HOOKS / "task_contract_gate.py")],
++                       input=json.dumps(event), capture_output=True, text=True,
++                       cwd=repo, env=env(repo))
++    return r.stdout
++
++
++def denied(out: str) -> bool:
++    return '"permissionDecision": "deny"' in out
++
++
++@pytest.fixture()
++def hooks(monkeypatch):
++    monkeypatch.syspath_prepend(str(HOOKS))
++    monkeypatch.setenv("GOVERNANCE_BASE", "main")
++    import git_discipline
++    import task_contract_gate
++    return task_contract_gate, git_discipline
++
++
++def merges_cleanly(repo, first: str, second: str) -> bool:
++    git(repo, "checkout", "-q", "-B", f"trial-{first}-{second}", "main")
++    for branch in (first, second):
++        if git(repo, "merge", "-q", "--no-ff", "-m", f"merge {branch}", branch,
++               check=False).returncode != 0:
++            git(repo, "merge", "--abort", check=False)
++            return False
++    return True
++
++
++# --------------------------------------------------------------------------- #
++# Two tasks side by side
++# --------------------------------------------------------------------------- #
++
++def test_two_tasks_each_resolve_their_own_folder_and_pass_ci(repo, hooks):
++    tcg, _ = hooks
++    build_task(repo, "task-a", "10-alpha", "a.py")
++    build_task(repo, "task-b", "20-beta", "b.py")
++    for branch, task_id in (("task-a", "10-alpha"), ("task-b", "20-beta")):
++        git(repo, "checkout", "-q", branch)
++        assert tcg.task_folder(str(repo), "main") == {
++            "folder": f".claude/task/{task_id}/", "errors": []}
++        code, out = ci(repo)
++        assert code == 0, out
++
++
++def test_two_tasks_merge_in_either_order_without_conflict(repo):
++    build_task(repo, "task-a", "10-alpha", "a.py")
++    build_task(repo, "task-b", "20-beta", "b.py")
++    assert merges_cleanly(repo, "task-a", "task-b")
++    assert merges_cleanly(repo, "task-b", "task-a")
++
++
++def test_second_task_still_passes_after_the_first_merges(repo, hooks):
++    tcg, _ = hooks
++    build_task(repo, "task-a", "10-alpha", "a.py")
++    build_task(repo, "task-b", "20-beta", "b.py")
++    git(repo, "checkout", "-q", "main")
++    git(repo, "merge", "-q", "--no-ff", "-m", "merge a", "task-a")
++    git(repo, "checkout", "-q", "task-b")
++    assert tcg.task_folder(str(repo), "main")["folder"] == ".claude/task/20-beta/"
++    code, out = ci(repo)
++    assert code == 0, out
++
++
++# --------------------------------------------------------------------------- #
++# A missing folder
++# --------------------------------------------------------------------------- #
++
++def test_code_change_without_a_task_folder_is_refused(repo, hooks):
++    _, gd = hooks
++    git(repo, "checkout", "-q", "-b", "no-task", "main")
++    assert denied(edit(repo, "app.py"))
++    (repo / "app.py").write_text("x = 2\n", encoding="utf-8")
++    git(repo, "add", "-A")
++    reason = gd._commit_gate(str(repo))
++    assert reason and "no task folder" in reason
++    git(repo, "commit", "-qm", "code")
++    code, out = ci(repo)
++    assert code == 1 and "touches no task folder" in out
++
++
++def test_the_first_file_of_a_new_task_folder_is_allowed(repo):
++    git(repo, "checkout", "-q", "-b", "new-task", "main")
++    assert edit(repo, ".claude/task/30-gamma/contract.md").strip() == ""
++
++
++# --------------------------------------------------------------------------- #
++# Another task's folder
++# --------------------------------------------------------------------------- #
++
++def test_touching_a_merged_tasks_folder_is_refused(repo):
++    build_task(repo, "task-a", "10-alpha", "a.py")
++    git(repo, "checkout", "-q", "main")
++    git(repo, "merge", "-q", "--no-ff", "-m", "merge a", "task-a")
++    git(repo, "checkout", "-q", "-b", "task-c", "main")
++    assert denied(edit(repo, ".claude/task/10-alpha/review.md"))
++    (repo / ".claude" / "task" / "10-alpha" / "review.md").write_text("rebound\n", encoding="utf-8")
++    git(repo, "add", "-A")
++    git(repo, "commit", "-qm", "touch a merged task")
++    code, out = ci(repo)
++    assert code == 1 and "merged task's folder" in out
++
++
++def test_a_second_task_folder_on_one_branch_is_refused(repo):
++    build_task(repo, "task-a", "10-alpha", "a.py")
++    assert denied(edit(repo, ".claude/task/40-delta/notes.md"))
++    (repo / ".claude" / "task" / "40-delta").mkdir()
++    (repo / ".claude" / "task" / "40-delta" / "notes.md").write_text("x\n", encoding="utf-8")
++    git(repo, "add", "-A")
++    git(repo, "commit", "-qm", "second folder")
++    code, out = ci(repo)
++    assert code == 1 and "exactly one task folder" in out
++
++
++def test_a_folder_name_without_an_issue_number_is_refused(repo):
++    git(repo, "checkout", "-q", "-b", "bad-name", "main")
++    assert denied(edit(repo, ".claude/task/notes/contract.md"))
++
++
++def test_the_old_shared_files_may_be_deleted_but_not_written(repo, hooks):
++    tcg, _ = hooks
++    git(repo, "checkout", "-q", "-b", "legacy", "main")
++    assert denied(edit(repo, ".claude/task/contract.md"))
++    assert edit(repo, ".claude/task/TEMPLATE.md").strip() == ""
++    build_task(repo, "task-e", "50-epsilon", "e.py")
++    git(repo, "rm", "-q", ".claude/task/contract.md")
++    git(repo, "commit", "-qm", "drop the old shared contract")
++    assert tcg.task_folder(str(repo), "main") == {
++        "folder": ".claude/task/50-epsilon/", "errors": []}
++    (repo / ".claude" / "task" / "contract.md").write_text("back\n", encoding="utf-8")
++    assert any("old shared layout" in e for e in tcg.task_folder(str(repo), "main")["errors"])
++
++
++def shell(repo, cmd: str) -> str:
++    event = {"hook_event_name": "PreToolUse", "tool_name": "Bash",
++             "tool_input": {"command": cmd}, "cwd": str(repo)}
++    r = subprocess.run([sys.executable, str(HOOKS / "task_contract_gate.py")],
++                       input=json.dumps(event), capture_output=True, text=True,
++                       cwd=repo, env=env(repo))
++    return r.stdout
++
++
++def test_a_shell_write_into_the_own_folder_is_allowed_and_elsewhere_refused(repo):
++    build_task(repo, "task-a", "10-alpha", "a.py")
++    assert shell(repo, "echo x > .claude/task/10-alpha/review_input.patch").strip() == ""
++    assert denied(shell(repo, "echo x > .claude/task/40-delta/notes.md"))
++    assert denied(shell(repo, "echo x > .claude/task/review.md"))
++
++
++def _merged_folder_staged(repo):
++    build_task(repo, "task-a", "10-alpha", "a.py")
++    git(repo, "checkout", "-q", "main")
++    git(repo, "merge", "-q", "--no-ff", "-m", "merge a", "task-a")
++    git(repo, "checkout", "-q", "-b", "task-c", "main")
++    (repo / ".claude" / "task" / "10-alpha" / "review.md").write_text("rebound\n", encoding="utf-8")
++
++
++def _second_folder_staged(repo):
++    build_task(repo, "task-a", "10-alpha", "a.py")
++    (repo / ".claude" / "task" / "40-delta").mkdir()
++    (repo / ".claude" / "task" / "40-delta" / "notes.md").write_text("x\n", encoding="utf-8")
++
++
++def _old_file_staged(repo):
++    git(repo, "checkout", "-q", "-b", "legacy", "main")
++    (repo / ".claude" / "task" / "contract.md").write_text("rewritten\n", encoding="utf-8")
++
++
++@pytest.mark.parametrize("arrange, reason", [
++    (_merged_folder_staged, "merged task's folder"),
++    (_second_folder_staged, "exactly one task folder"),
++    (_old_file_staged, "old shared layout"),
++])
++def test_the_commit_gate_refuses_a_bookkeeping_commit_that_breaks_the_rule(
++        repo, hooks, arrange, reason):
++    _, gd = hooks
++    arrange(repo)
++    git(repo, "add", "-A")
++    denial = gd._commit_gate(str(repo))
++    assert denial and denial.startswith("TASK FOLDER GATE") and reason in denial
++
++
++def test_a_per_folder_pattern_excludes_exactly_what_the_literal_path_did(repo):
++    build_task(repo, "task-a", "10-alpha", "a.py")
++    literal = [p.replace(".claude/task/*/", ".claude/task/10-alpha/")
++               for p in ROUTING["hash_exclude_paths"]]
++
++    def raw(excludes):
++        spec = ["--", "."] + [f":(exclude){p}" for p in excludes]
++        return subprocess.run(["git", "diff", "--raw", "--no-renames", "--no-abbrev",
++                               "main...HEAD", *spec], cwd=repo, capture_output=True,
++                              check=True).stdout
++
++    assert raw(ROUTING["hash_exclude_paths"]) == raw(literal)
++    assert b"10-alpha/review.md" not in raw(ROUTING["hash_exclude_paths"])
++    assert b"10-alpha/contract.md" in raw(ROUTING["hash_exclude_paths"])
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/265-task-folders/review.md          |   39 +
+#    .claude/task/265-task-folders/review_input.patch | 2179 ++++++++++++++++++++++
+#    .claude/task/TEMPLATE.md                         |    4 +-
+#    3 files changed, 2220 insertions(+), 2 deletions(-)
+# ============================================================================

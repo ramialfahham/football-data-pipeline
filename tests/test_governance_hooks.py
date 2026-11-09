@@ -19,6 +19,8 @@ import sys
 import pytest
 
 HOOKS = os.path.join(os.path.dirname(__file__), "..", ".claude", "hooks")
+TASK_ID = "1-test"
+TASK = ".claude/task/" + TASK_ID + "/"
 
 CONTRACT_NO_IMPACT = """# Task contract — test
 objective: >
@@ -106,7 +108,7 @@ def _repo_template(tmp_path_factory):
     subprocess.run(["git", "init", "-q"], cwd=base, check=True)
     subprocess.run(["git", "config", "user.email", "t@t"], cwd=base, check=True)
     subprocess.run(["git", "config", "user.name", "t"], cwd=base, check=True)
-    (base / ".claude" / "task").mkdir(parents=True)
+    (base / ".claude" / "task" / TASK_ID).mkdir(parents=True)
     (base / "dbt_project" / "models").mkdir(parents=True)
     (base / "dbt_project" / "models" / "allowed.sql").write_text("select 1")
     subprocess.run(["git", "add", "-A"], cwd=base, check=True)
@@ -122,7 +124,7 @@ def repo(_repo_template, tmp_path):
 
 
 def write_contract(repo, text: str = CONTRACT) -> None:
-    (repo / ".claude" / "task" / "contract.md").write_text(text)
+    (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(text)
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
     subprocess.run(["git", "commit", "-qm", "contract"], cwd=repo, check=True)
 
@@ -162,7 +164,7 @@ def test_outside_repo_path_ungoverned(repo):
 
 
 def test_task_dir_always_allowed(repo):
-    out, _ = run_hook("task_contract_gate.py", edit_event(repo, ".claude/task/review.md"), repo)
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, TASK + "review.md"), repo)
     assert out.strip() == ""
 
 
@@ -181,13 +183,13 @@ def test_protected_path_allowed_with_override(repo):
 def test_contract_amendment_denied_on_dirty_tree(repo):
     write_contract(repo)
     (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 2")
-    out, _ = run_hook("task_contract_gate.py", edit_event(repo, ".claude/task/contract.md"), repo)
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, TASK + "contract.md"), repo)
     assert denied(out) and "CLEAN" in out
 
 
 def test_contract_amendment_allowed_on_clean_tree(repo):
     write_contract(repo)
-    out, _ = run_hook("task_contract_gate.py", edit_event(repo, ".claude/task/contract.md"), repo)
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, TASK + "contract.md"), repo)
     assert out.strip() == ""
 
 
@@ -529,12 +531,12 @@ def test_every_reviewer_brief_carries_the_identical_delta_section():
 
 def test_ci_backstop_requires_rounds(ci_repo):
     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
     subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
     real_hash = branch_hash(ci_repo)
     # a complete review EXCEPT the rounds line
-    (ci_repo / ".claude" / "task" / "review.md").write_text(
+    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
         "# Review\ndiff_sha256: " + real_hash + "\n\n" + GOOD_BODY)
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
     subprocess.run(["git", "commit", "-qm", "review"], cwd=ci_repo, check=True)
@@ -1165,22 +1167,22 @@ ROUTING = {
     "always": ["scope-auditor"],
     "paths": {"dbt_project/**": ["analytics-engineer-reviewer"]},
     "artifact_only": [".claude/task/**", ".claude/active_work.md"],
-    "artifact_only_never": [".claude/task/contract.md"],
+    "artifact_only_never": [".claude/task/*/contract.md"],
     "hash_exclude_paths": [
-        ".claude/task/review.md",
-        ".claude/task/review_input.patch",
-        ".claude/task/escalations.log",
+        ".claude/task/*/review.md",
+        ".claude/task/*/review_input.patch",
+        ".claude/task/*/escalations.log",
         ".claude/active_work.md",
-        ".claude/task/acceptance_evidence.md",
-        ".claude/task/rendered_page_evidence.md",
+        ".claude/task/*/acceptance_evidence.md",
+        ".claude/task/*/rendered_page_evidence.md",
     ],
     # Mirrors the REAL review_exclude_paths. escalations.log is deliberately ABSENT:
     # it is authority, not a note, so reviewers must receive it.
     "review_exclude_paths": [
-        ".claude/task/review.md",
-        ".claude/task/review_input.patch",
-        ".claude/task/acceptance_evidence.md",
-        ".claude/task/rendered_page_evidence.md",
+        ".claude/task/*/review.md",
+        ".claude/task/*/review_input.patch",
+        ".claude/task/*/acceptance_evidence.md",
+        ".claude/task/*/rendered_page_evidence.md",
         ".claude/active_work.md",
     ],
 }
@@ -1208,7 +1210,7 @@ def staged_hash(repo) -> str:
 
 
 def write_review(repo, hash_hex, body, rounds="rounds: 1\n"):
-    (repo / ".claude" / "task" / "review.md").write_text(
+    (repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
         f"# Review\ndiff_sha256: {hash_hex}\n{rounds}\n{body}\n"
     )
 
@@ -1223,6 +1225,7 @@ COMMIT_CMD = 'git commit -m "feat: x"'
 
 
 def test_commit_denied_without_review_artifact(repo):
+    (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
     setup_review_repo(repo)
     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
     assert denied(out) and "no review artifact" in out
@@ -1307,8 +1310,8 @@ def test_commit_allowed_with_complete_review(repo):
 def test_artifact_only_commit_exempt_from_review(repo):
     setup_review_repo(repo)
     subprocess.run(["git", "reset"], cwd=repo, check=True, capture_output=True)
-    (repo / ".claude" / "task" / "notes.md").write_text("bookkeeping")
-    subprocess.run(["git", "add", ".claude/task/notes.md"], cwd=repo, check=True)
+    (repo / ".claude" / "task" / TASK_ID / "notes.md").write_text("bookkeeping")
+    subprocess.run(["git", "add", TASK + "notes.md"], cwd=repo, check=True)
     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
     assert not denied(out)
 
@@ -1330,9 +1333,9 @@ def _stage_frontend(repo, contract: str | None, evidence: str | None = None):
     """Stage a user-facing change, optionally with a contract and evidence file."""
     setup_review_repo(repo, stage_path=FRONTEND_PATH)
     if contract is not None:
-        (repo / ".claude" / "task" / "contract.md").write_text(contract, encoding="utf-8")
+        (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(contract, encoding="utf-8")
     if evidence is not None:
-        (repo / ".claude" / "task" / "acceptance_evidence.md").write_text(
+        (repo / ".claude" / "task" / TASK_ID / "acceptance_evidence.md").write_text(
             evidence, encoding="utf-8")
     write_review(repo, staged_hash(repo), GOOD_BODY)
 
@@ -1424,14 +1427,14 @@ def test_acceptance_gate_delegates_when_there_is_no_contract(tmp_path):
     `required_reviewers` already makes for the routing matcher."""
     gd = _gd()
     frontend = ["site_v2/src/pages/x.astro"]
-    assert gd._acceptance_gate(str(tmp_path), frontend) is None, (
+    assert gd._acceptance_gate(str(tmp_path), frontend, TASK) is None, (
         "with no contract.md the gate must DELEGATE (return None), never deny")
     # The mirror, so the assertion above cannot be satisfied by a gate that returns
     # None unconditionally: with a contract present but no criteria, it MUST deny.
-    task = tmp_path / ".claude" / "task"
+    task = tmp_path / ".claude" / "task" / TASK_ID
     task.mkdir(parents=True)
     (task / "contract.md").write_text("objective: >\n  a page\n", encoding="utf-8")
-    assert gd._acceptance_gate(str(tmp_path), frontend) is not None
+    assert gd._acceptance_gate(str(tmp_path), frontend, TASK) is not None
 
 
 def test_acceptance_gate_rejects_evidence_too_short_to_be_a_reading(repo):
@@ -1515,8 +1518,8 @@ def test_contract_commit_not_artifact_exempt(repo):
     authorizes scope, so it must go through review (here: denied for lack of one)."""
     setup_review_repo(repo)
     subprocess.run(["git", "reset"], cwd=repo, check=True, capture_output=True)
-    (repo / ".claude" / "task" / "contract.md").write_text("# contract\nscope_paths:\n  - x\n")
-    subprocess.run(["git", "add", ".claude/task/contract.md"], cwd=repo, check=True)
+    (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text("# contract\nscope_paths:\n  - x\n")
+    subprocess.run(["git", "add", TASK + "contract.md"], cwd=repo, check=True)
     out, _ = run_hook("git_discipline.py", bash_event(COMMIT_CMD), repo)
     assert denied(out) and "no review artifact" in out
 
@@ -1527,12 +1530,12 @@ def test_hash_excludes_bookkeeping_but_binds_contract(repo):
     h_code = staged_hash(repo)
     assert h_code  # non-empty
     # adding a bookkeeping artifact does NOT change the hash (excluded)
-    (repo / ".claude" / "task" / "escalations.log").write_text("log entry")
-    subprocess.run(["git", "add", ".claude/task/escalations.log"], cwd=repo, check=True)
+    (repo / ".claude" / "task" / TASK_ID / "escalations.log").write_text("log entry")
+    subprocess.run(["git", "add", TASK + "escalations.log"], cwd=repo, check=True)
     assert staged_hash(repo) == h_code
     # adding contract.md DOES change the hash (it is bound to the review)
-    (repo / ".claude" / "task" / "contract.md").write_text("# contract\n")
-    subprocess.run(["git", "add", ".claude/task/contract.md"], cwd=repo, check=True)
+    (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text("# contract\n")
+    subprocess.run(["git", "add", TASK + "contract.md"], cwd=repo, check=True)
     assert staged_hash(repo) != h_code
 
 
@@ -1825,6 +1828,7 @@ def ci_repo(repo):
 
 def test_ci_check_fails_without_review(ci_repo):
     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
+    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
     subprocess.run(["git", "commit", "-qm", "code"], cwd=ci_repo, check=True)
     code, out = run_ci_check(ci_repo)
@@ -1832,7 +1836,7 @@ def test_ci_check_fails_without_review(ci_repo):
 
 
 def test_ci_check_passes_artifact_only_pr(ci_repo):
-    (ci_repo / ".claude" / "task" / "notes.md").write_text("bookkeeping")
+    (ci_repo / ".claude" / "task" / TASK_ID / "notes.md").write_text("bookkeeping")
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
     subprocess.run(["git", "commit", "-qm", "artifacts"], cwd=ci_repo, check=True)
     code, out = run_ci_check(ci_repo)
@@ -1844,11 +1848,11 @@ def test_ci_check_passes_with_complete_artifacts(ci_repo):
     # bookkeeping excluded). Commit code+contract first, then write review.md with the
     # recomputed hash, then commit it — CI recomputes the same and passes.
     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
     subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
     real_hash = branch_hash(ci_repo)
-    (ci_repo / ".claude" / "task" / "review.md").write_text(
+    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
         "# Review\ndiff_sha256: " + real_hash + "\nrounds: 1\n\n" + GOOD_BODY
     )
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
@@ -1860,7 +1864,7 @@ def test_ci_check_passes_with_complete_artifacts(ci_repo):
 def test_ci_check_contract_only_pr_not_artifact_exempt(ci_repo):
     """F10/#409: a contract-only PR is no longer artifact-exempt at CI — it must carry
     a review (here it doesn't, so CI fails). Closes the #407 contract-only-merge hole."""
-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
     subprocess.run(["git", "commit", "-qm", "contract only"], cwd=ci_repo, check=True)
     code, out = run_ci_check(ci_repo)
@@ -1871,8 +1875,8 @@ def test_ci_check_fails_on_stale_review_hash(ci_repo):
     """F11/#409: a review.md whose hash does not match this PR's diff (the #405
     false-green) is now rejected by CI."""
     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
-    (ci_repo / ".claude" / "task" / "review.md").write_text(
+    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
+    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
         "# Review\ndiff_sha256: " + "b" * 64 + "\n\n" + GOOD_BODY
     )
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
@@ -1890,8 +1894,8 @@ def test_local_staged_hash_equals_ci_recompute(ci_repo):
     blob, the one vector where pre/post-commit could diverge), a NEW file (contract.md),
     and a bookkeeping artifact that must be excluded (escalations.log)."""
     (ci_repo / "dbt_project" / "models" / "allowed.sql").write_text("select 7\n")  # MODIFY base file
-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)  # add
-    (ci_repo / ".claude" / "task" / "escalations.log").write_text("noise\n")  # excluded
+    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)  # add
+    (ci_repo / ".claude" / "task" / TASK_ID / "escalations.log").write_text("noise\n")  # excluded
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
     local = staged_hash(ci_repo)            # what the local gate checks
     subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
@@ -1918,7 +1922,7 @@ def test_review_hash_is_invariant_to_diff_rendering_settings(ci_repo):
     # implementation rather than trusting it green.
     model = ci_repo / "dbt_project" / "models" / "allowed.sql"
     model.write_text("".join("select %d\n" % i for i in range(1, 11)))
-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
     subprocess.run(["git", "commit", "-qm", "ten lines"], cwd=ci_repo, check=True)
 
@@ -1983,7 +1987,7 @@ def test_commit_gate_denies_when_the_hash_cannot_be_computed(monkeypatch, ci_rep
     """
     repo = ci_repo
     (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 1\n")
-    (repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
     write_review(repo, "a" * 64, GOOD_BODY)
 
@@ -2147,7 +2151,7 @@ def test_local_staged_hash_equals_ci_recompute_on_a_multi_commit_branch(ci_repo)
     wasted rebind cycles. Diffing from the base makes it simply false.
     """
     (ci_repo / "dbt_project" / "models" / "allowed.sql").write_text("select 7\n")
-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
     subprocess.run(["git", "commit", "-qm", "first"], cwd=ci_repo, check=True)
 
@@ -2164,9 +2168,9 @@ def test_local_staged_hash_equals_ci_recompute_on_a_multi_commit_branch(ci_repo)
 
 def test_ci_check_fails_on_missing_required_reviewer(ci_repo):
     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
     body = GOOD_BODY.split("## analytics-engineer-reviewer")[0]
-    (ci_repo / ".claude" / "task" / "review.md").write_text(
+    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
         "# Review\ndiff_sha256: " + "a" * 64 + "\n\n" + body
     )
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
@@ -2179,9 +2183,9 @@ def test_ci_check_requires_reviewer_for_non_ascii_path(ci_repo):
     """CI mirror of the -z enumeration fix."""
     (ci_repo / "dbt_project" / "models" / "täst.sql").write_text(
         "select 1", encoding="utf-8")
-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
     body = GOOD_BODY.split("## analytics-engineer-reviewer")[0]
-    (ci_repo / ".claude" / "task" / "review.md").write_text(
+    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
         "# Review\ndiff_sha256: " + "a" * 64 + "\n\n" + body
     )
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
@@ -2193,12 +2197,12 @@ def test_ci_check_requires_reviewer_for_non_ascii_path(ci_repo):
 def test_ci_check_fails_on_preamble_escalation(ci_repo):
     """CI mirror of the _preamble pseudo-section rule."""
     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
     body = (
         "VERDICT: ESCALATE\n- question: x?\n\n" + GOOD_BODY +
         "\n## notes\nCPO ANSWER: for something else entirely\n"
     )
-    (ci_repo / ".claude" / "task" / "review.md").write_text(
+    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
         "# Review\ndiff_sha256: " + "a" * 64 + "\n\n" + body
     )
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
@@ -2211,12 +2215,12 @@ def test_ci_check_fails_on_per_section_unanswered_escalation(ci_repo):
     """Per-section pairing: an answer in one section must not mask another
     section's unanswered ESCALATE — the global count alone would pass this body."""
     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
     body = GOOD_BODY + (
         "\n## escalations\nVERDICT: ESCALATE\n- question: x?\n"
         "\n## notes\nCPO ANSWER: for something else entirely\n"
     )
-    (ci_repo / ".claude" / "task" / "review.md").write_text(
+    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
         "# Review\ndiff_sha256: " + "a" * 64 + "\n\n" + body
     )
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
@@ -3144,7 +3148,7 @@ def test_editing_an_evidence_artifact_does_not_change_the_staged_hash(repo):
     setup_review_repo(repo)
     before = staged_hash(repo)
     for name in ("acceptance_evidence.md", "rendered_page_evidence.md"):
-        (repo / ".claude" / "task" / name).write_text("evidence, rewritten\n")
+        (repo / ".claude" / "task" / TASK_ID / name).write_text("evidence, rewritten\n")
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
     assert staged_hash(repo) == before, (
         "editing an evidence artifact changed the review hash, which voids every "
@@ -3159,7 +3163,7 @@ def test_editing_the_contract_DOES_change_the_staged_hash(repo):
     been widened too far."""
     setup_review_repo(repo)
     before = staged_hash(repo)
-    (repo / ".claude" / "task" / "contract.md").write_text(
+    (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(
         "objective: something else entirely\nscope_paths:\n  - anywhere/**\n")
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
     assert staged_hash(repo) != before, (
@@ -3188,7 +3192,7 @@ def test_review_patch_excludes_the_tasks_own_paperwork(repo):
     hidden = ("acceptance_evidence.md", "rendered_page_evidence.md",
               "review.md", "review_input.patch")
     for i, name in enumerate(hidden):
-        (repo / ".claude" / "task" / name).write_text(f"HIDDEN_MARKER_{i}\n")
+        (repo / ".claude" / "task" / TASK_ID / name).write_text(f"HIDDEN_MARKER_{i}\n")
     (repo / ".claude" / "active_work.md").write_text("HANDOVER_MARKER\n")
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
     patch = _review_patch(repo)
@@ -3197,7 +3201,7 @@ def test_review_patch_excludes_the_tasks_own_paperwork(repo):
         # Match the DIFF HEADER, not the bare filename: review_routing.json is itself
         # in the patch and lists these paths as data, so a substring check on the name
         # false-positives on correct output.
-        assert f"diff --git a/.claude/task/{name}" not in patch, f"{name} is in the diff"
+        assert f"diff --git a/{TASK}{name}" not in patch, f"{name} is in the diff"
     assert "HANDOVER_MARKER" not in patch
 
 
@@ -3207,7 +3211,7 @@ def test_review_patch_DOES_deliver_the_rulings_log(repo):
     cannot check whether a claimed ruling exists — a check that has fired. It was
     once wrongly excluded; this pins the mechanism, not just the routing data."""
     setup_review_repo(repo)
-    (repo / ".claude" / "task" / "escalations.log").write_text("LOG_MARKER\n")
+    (repo / ".claude" / "task" / TASK_ID / "escalations.log").write_text("LOG_MARKER\n")
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
     assert "LOG_MARKER" in _review_patch(repo), (
         "escalations.log did not reach the reviewers — they cannot verify a cited ruling"
@@ -3244,7 +3248,7 @@ def test_review_patch_still_contains_the_code_and_the_contract(repo):
     because that is what the auditor and the CTO check authority against."""
     setup_review_repo(repo)
     (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 1 as CODE_MARKER\n")
-    (repo / ".claude" / "task" / "contract.md").write_text("objective: CONTRACT_MARKER\n")
+    (repo / ".claude" / "task" / TASK_ID / "contract.md").write_text("objective: CONTRACT_MARKER\n")
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
     patch = _review_patch(repo)
     assert "CODE_MARKER" in patch
@@ -3265,12 +3269,17 @@ def test_every_task_artifact_is_classified(repo):
 
     This reads the REAL routing file, not the fixture: the fixture cannot catch a
     file that exists only in the repo."""
-    excluded = set(real_routing().get("review_exclude_paths") or [])
+    excluded = real_routing().get("review_exclude_paths") or []
     files = tracked(".claude/task/")
     assert files, "no tracked files under .claude/task/ — has the tree moved?"
+
+    def hidden(p):
+        return any(fnmatch.fnmatch(p, pat) for pat in excluded)
+
     # The two files there that carry AUTHORITY and must reach the reviewers.
-    authority = {".claude/task/contract.md", ".claude/task/escalations.log"}
-    unclassified = [p for p in files if p not in excluded and p not in authority]
+    authority = (".claude/task/*/contract.md", ".claude/task/escalations.log")
+    unclassified = [p for p in files
+                    if not hidden(p) and not any(fnmatch.fnmatch(p, a) for a in authority)]
     assert not unclassified, (
         "these .claude/task/ files are neither hidden from reviewers nor one of the "
         f"two authority files, so reviewers will review their own paperwork: {unclassified}"
@@ -3279,7 +3288,8 @@ def test_every_task_artifact_is_classified(repo):
     # was once excluded here — a protected_override may cite it as the locatable
     # record, so a reviewer that cannot see it cannot check whether a claimed ruling
     # exists.
-    hidden_authority = sorted(authority & excluded)
+    hidden_authority = sorted(
+        p for p in (TASK + "contract.md", ".claude/task/escalations.log") if hidden(p))
     assert not hidden_authority, (
         f"authority files hidden from reviewers: {hidden_authority}"
     )
@@ -3293,14 +3303,14 @@ def test_real_routing_hides_the_evidence_artifacts_from_the_hash(repo):
     `hash_exclude_paths` left the whole suite green — the change was demonstrated
     once by hand and then unprotected. The same gap shipped a routing change that
     missed six tracked files, which is why `real_routing()` exists at all."""
-    excl = set(real_routing().get("hash_exclude_paths") or [])
-    for p in (".claude/task/acceptance_evidence.md",
-              ".claude/task/rendered_page_evidence.md"):
-        assert p in excl, (
+    excl = real_routing().get("hash_exclude_paths") or []
+    for p in (TASK + "acceptance_evidence.md",
+              TASK + "rendered_page_evidence.md"):
+        assert any(fnmatch.fnmatch(p, pat) for pat in excl), (
             f"{p} is back inside diff_sha256 — editing it now voids every "
             "reviewer's PASS and buys a fresh round"
         )
-    assert ".claude/task/contract.md" not in excl, (
+    assert not any(fnmatch.fnmatch(TASK + "contract.md", pat) for pat in excl), (
         "contract.md left the review hash — scope and acceptance_criteria could be "
         "widened after every reviewer passed (F10/F11, #409)"
     )
@@ -3310,10 +3320,10 @@ def _ci_repo_with_review(ci_repo, body: str):
     """Commit code + contract, then a review.md carrying the recomputed PR hash and
     `body`. Mirrors test_ci_check_passes_with_complete_artifacts."""
     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
-    (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
+    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(CONTRACT)
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
     subprocess.run(["git", "commit", "-qm", "code+contract"], cwd=ci_repo, check=True)
-    (ci_repo / ".claude" / "task" / "review.md").write_text(
+    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text(
         "# Review\ndiff_sha256: " + branch_hash(ci_repo) + "\nrounds: 1\n\n" + body
     )
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
@@ -3866,7 +3876,9 @@ def test_page_surface_edit_denied_without_approved_design(repo, rel):
 
 def _approve_on_base(repo, monkeypatch, text: str = "home: 127\nmatch: 132\n") -> None:
     """Commit the approved-designs list on a base ref only, so the working branch has no copy."""
-    subprocess.run(["git", "checkout", "-q", "-b", "base_main"], cwd=repo, check=True)
+    root = subprocess.run(["git", "rev-list", "--max-parents=0", "HEAD"], cwd=repo,
+                          capture_output=True, text=True, check=True).stdout.split()[0]
+    subprocess.run(["git", "checkout", "-q", "-b", "base_main", root], cwd=repo, check=True)
     path = repo / "docs" / "wireframes" / "approved_designs.yml"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text)
@@ -3946,7 +3958,9 @@ def test_every_design_on_a_contract_line_is_checked(repo, monkeypatch, block, na
 
 @pytest.mark.parametrize("named, allowed", [("match: #132", True), ("player: #136", False)])
 def test_a_list_with_a_non_utf8_byte_still_gates(repo, monkeypatch, named, allowed):
-    subprocess.run(["git", "checkout", "-q", "-b", "base_main"], cwd=repo, check=True)
+    root = subprocess.run(["git", "rev-list", "--max-parents=0", "HEAD"], cwd=repo,
+                          capture_output=True, text=True, check=True).stdout.split()[0]
+    subprocess.run(["git", "checkout", "-q", "-b", "base_main", root], cwd=repo, check=True)
     path = repo / "docs" / "wireframes" / "approved_designs.yml"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(b"# caf\xe9 \x97 list\nmatch: 132\n")
@@ -4024,34 +4038,35 @@ def test_ci_design_check_passes_a_design_on_main_and_fails_the_rest(repo, monkey
     ci = _ci_module()
     _approve_on_base(repo, monkeypatch)
     write_contract(repo, _with_design("  - home: #127\n  - player: #136"))
-    errors = ci.design_errors(["site_v2/src/pages/home.astro"], str(repo), "base_main")
+    errors = ci.design_errors(["site_v2/src/pages/home.astro"], str(repo), "base_main", TASK)
     assert len(errors) == 1 and "`player: #136`" in errors[0] and "base_main" in errors[0]
 
 
 def test_ci_design_check_fails_closed_when_the_list_cannot_be_read(repo):
     ci = _ci_module()
     write_contract(repo, _with_design("  - home: #127"))
-    errors = ci.design_errors(["site_v2/src/pages/home.astro"], str(repo), "no_such_ref")
+    errors = ci.design_errors(["site_v2/src/pages/home.astro"], str(repo), "no_such_ref", TASK)
     assert len(errors) == 1 and "`home: #127`" in errors[0]
 
 
 def test_ci_design_check_fails_a_page_diff_without_the_field(repo):
     ci = _ci_module()
     write_contract(repo, _PAGE_CONTRACT)
-    errors = ci.design_errors(["scripts/export_site_data.py"], str(repo), "no_such_ref")
+    errors = ci.design_errors(["scripts/export_site_data.py"], str(repo), "no_such_ref", TASK)
     assert len(errors) == 1 and "names no approved design" in errors[0]
 
 
 def test_ci_design_check_ignores_a_diff_off_the_page_surface(repo):
     ci = _ci_module()
     write_contract(repo, CONTRACT)
-    assert ci.design_errors(["docs/allowed_dir/page.md"], str(repo), "no_such_ref") == []
+    assert ci.design_errors(["docs/allowed_dir/page.md"], str(repo), "no_such_ref", TASK) == []
 
 
 def test_ci_design_check_needs_no_list_for_a_none_line(repo):
     ci = _ci_module()
     write_contract(repo, _with_design("  - none: no page output changes"))
-    assert ci.design_errors(["site_v2/src/pages/home.astro"], str(repo), "no_such_ref") == []
+    assert ci.design_errors(["site_v2/src/pages/home.astro"], str(repo), "no_such_ref",
+                            TASK) == []
 
 
 def test_ci_check_runs_the_design_check_on_a_page_diff(ci_repo):
@@ -4060,8 +4075,8 @@ def test_ci_check_runs_the_design_check_on_a_page_diff(ci_repo):
     (ci_repo / "site_v2" / "src" / "pages" / "home.astro").write_text("<h1>x</h1>\n")
     (ci_repo / "docs" / "wireframes").mkdir(parents=True, exist_ok=True)
     (ci_repo / "docs" / "wireframes" / "approved_designs.yml").write_text("home: 127\n")
-    (ci_repo / ".claude" / "task" / "contract.md").write_text(_with_design("  - home: #127"))
-    (ci_repo / ".claude" / "task" / "review.md").write_text("diff_sha256: " + "0" * 64 + "\nrounds: 1\n")
+    (ci_repo / ".claude" / "task" / TASK_ID / "contract.md").write_text(_with_design("  - home: #127"))
+    (ci_repo / ".claude" / "task" / TASK_ID / "review.md").write_text("diff_sha256: " + "0" * 64 + "\nrounds: 1\n")
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
     subprocess.run(["git", "commit", "-qm", "page"], cwd=ci_repo, check=True)
     r = subprocess.run(

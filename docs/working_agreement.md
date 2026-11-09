@@ -57,7 +57,9 @@ which question; this document does not restate it. Memory answers none of them.
 
 ### Task contract
 
-Every unit of work begins with a **task contract** at `.claude/task/contract.md`. The builder
+Every unit of work begins with a **task contract** at `.claude/task/<issue>-<slug>/contract.md`, in
+a folder of its own. Each task's artifacts live in its folder.
+A branch touches one task folder, never a merged one. The builder
 writes it before touching any file and commits it with the branch, so the MR shows it.
 `.claude/task/TEMPLATE.md` holds its format.
 
@@ -83,7 +85,7 @@ escalated, never answered by drawing it.
 - The builder drafts them, and the CPO approves them **before any code**.
 - After approval they are locked. Only the CPO may change them.
 - The commit gate denies a commit without them.
-- The commit gate also denies a commit until `.claude/task/acceptance_evidence.md` demonstrates
+- The commit gate also denies a commit until `acceptance_evidence.md` in the task folder demonstrates
   every criterion under a `criteria_demonstrated:` marker. The evidence is read from the built
   output.
 
@@ -158,7 +160,7 @@ Every substantive commit passes four serialized steps. The commit gate enforces 
 | 1. Code Lock | The builder declares the implementation complete and stages everything with `git add`. No further edits happen in this cycle. |
 | 2. Blinding | The required reviewers are spawned cold and judge the cumulative branch diff. |
 | 3. Cross-Examination | Each reviewer returns an adversarial verdict. |
-| 4. Lock | The verdicts, the review hash and the round count go into `.claude/task/review.md`. |
+| 4. Lock | The verdicts, the review hash and the round count go into the task folder's `review.md`. |
 
 **Blinding.**
 
@@ -166,9 +168,9 @@ Every substantive commit passes four serialized steps. The commit gate enforces 
   `scope-auditor` always, plus the path-routed specialists.
 - Each reviewer gets read-only tools and no builder context.
 - Each reviewer judges the cumulative branch diff from the base branch, never the staged
-  increment alone. The diff is in `.claude/task/review_input.patch`.
+  increment alone. The diff is in the task folder's `review_input.patch`.
 - `git_discipline.py --review-patch` generates that patch. Nobody writes it by hand.
-- The patch leaves out the task notes in `.claude/task/` that `review_exclude_paths` lists.
+- The patch leaves out the task notes that `review_exclude_paths` lists.
 - `contract.md` stays in the patch. It carries the scope, the acceptance criteria and the approval
   behind a `protected_override`.
 - A reviewer never approves a §10 decision.
@@ -208,7 +210,7 @@ Every substantive commit passes four serialized steps. The commit gate enforces 
 
 **Lock.**
 
-- `.claude/task/review.md` holds the verdicts, the review hash and a `rounds:` count. Its format
+- The task folder's `review.md` holds the verdicts, the review hash and a `rounds:` count. Its format
   is `.claude/task/REVIEW_TEMPLATE.md`.
 - The review hash is the SHA-256 that `python .claude/hooks/git_discipline.py --staged-hash`
   prints. It covers the cumulative branch diff: the code and `contract.md`.

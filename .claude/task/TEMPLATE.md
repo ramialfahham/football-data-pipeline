@@ -1,6 +1,6 @@
 # Task contract — <short title>
 
-> Copy to `.claude/task/contract.md` BEFORE touching any file. The contract gate
+> Copy to `.claude/task/<issue>-<slug>/contract.md`, this task's own folder, BEFORE touching any file. The contract gate
 > denies every edit outside `scope_paths`. Write it on a clean tree; state it to
 > the CPO; amendments only on a clean tree with the CPO authority recorded.
 > See docs/working_agreement.md §2 (contract), §10 (decision rights),
@@ -61,7 +61,7 @@ scope_paths:
 
 # REQUIRED when the diff touches `site_v2/src/` — the user-facing surface. The
 # commit gate (`git_discipline._acceptance_gate`) denies the commit without it,
-# and then denies again unless `.claude/task/acceptance_evidence.md` demonstrates
+# and then denies again unless the task folder's `acceptance_evidence.md` demonstrates
 # EVERY item under a `criteria_demonstrated:` marker, read from the BUILT output.
 # CPO ruling 2026-07-31 (#868): the builder DRAFTS these, the CPO APPROVES them
 # BEFORE any code, and they are LOCKED after that — only the CPO may move them.

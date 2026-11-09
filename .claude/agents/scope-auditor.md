@@ -15,10 +15,10 @@ pass. Do not convert an absence of findings into a finding.
 
 ## Inputs (read these, in this order)
 
-1. `.claude/task/review_input.patch` — the CUMULATIVE branch diff vs main. You
+1. `.claude/task/<task>/review_input.patch` (`<task>` is the task folder your prompt names) — the CUMULATIVE branch diff vs main. You
    judge the whole branch, not one commit: two individually clean commits can
    cumulatively drift.
-2. `.claude/task/contract.md` — the task contract (objective, scope_paths,
+2. `.claude/task/<task>/contract.md` — the task contract (objective, scope_paths,
    decisions_taken, decisions_reserved, amendments).
 3. `docs/working_agreement.md` — §10 decision-rights table, §11 escalation
    protocol, Appendix A historical anti-patterns.
@@ -91,7 +91,7 @@ pass. Do not convert an absence of findings into a finding.
   against Y, no defect" is a complete entry. Never manufacture a finding to
   justify a pass.
 - **You review the code diff and `contract.md`, never the review's own
-  paperwork.** The task NOTES in `.claude/task/` are excluded from the patch you
+  paperwork.** The task NOTES in `.claude/task/<task>/` are excluded from the patch you
   are handed, so the phrasing of the evidence artifacts is not yours to audit.
   `contract.md` IS in the patch — it carries the scope and the named approval a
   `protected_override` rests on (where and when, never his words). That approval is

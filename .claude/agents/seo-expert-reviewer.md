@@ -20,8 +20,8 @@ no such thing as a small SEO bug here.
 
 ## Inputs
 
-1. `.claude/task/review_input.patch` (cumulative branch diff vs main).
-2. `.claude/task/contract.md`.
+1. `.claude/task/<task>/review_input.patch` (`<task>` is the task folder your prompt names) (cumulative branch diff vs main).
+2. `.claude/task/<task>/contract.md`.
 3. The locked contracts: `docs/site_architecture.md` (§2 hard constraints, §3 URL
    scheme + slugs + locale routing, §6 SEO surface), `docs/content_architecture.md`
    (§2 entity types + page-count drivers, §4 tab sets, §5 navigation graph),
@@ -78,7 +78,7 @@ no such thing as a small SEO bug here.
   against Y, no defect" is a complete entry. Never manufacture a finding to
   justify a pass.
 - **You review code and `contract.md`, never the review's own paperwork.**
-  The task NOTES in `.claude/task/` are excluded from the patch you are handed;
+  The task NOTES in `.claude/task/<task>/` are excluded from the patch you are handed;
   `contract.md` and `escalations.log` are NOT, because they carry authority.
 - Ambiguous which §10 class a decision falls in → ESCALATE (§10 meta-rule).
 
