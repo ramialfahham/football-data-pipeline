@@ -33,7 +33,10 @@ sections as (
         k.table_kind
     from {{ ref('fct_standings') }} as s
     inner join {{ ref('int_standings__section_kinds') }} as k
-        on s.group_name = k.group_name
+        on
+            s.league_code = k.league_code
+            and s.season_api_year = k.season_api_year
+            and s.group_name = k.group_name
     inner join competitions as r
         on s.league_code = r.league_code
     where k.table_kind != 'ranking'

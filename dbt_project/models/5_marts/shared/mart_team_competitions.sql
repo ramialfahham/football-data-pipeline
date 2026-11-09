@@ -15,9 +15,8 @@
       winning its tie in the round before, or after a table round;
     - NULL while the tie is being played or undecided, in a first round not yet played, and in a
       table round, where the standing tells the story.
-  The standing is the team's table section named in its latest played round (Liga MX's Clausura
-  while the Clausura is played), otherwise its section with the most matches played; a ranking
-  section is not a table.
+  The standing is the team's table, the section int_team_season__standings_primary picks for it,
+  so the Team page and the team-season marts show one table.
 
   Reads mart_competition_fixtures and mart_standings in its own layer, for the round order the
   competition pages use and the tables they show. Grain: (team_sk, league_code, season_api_year).
@@ -221,19 +220,11 @@ standings as (
         s.goals_conceded,
         s.points
     from {{ ref('mart_standings') }} as s
-    left join latest_played as lp
+    inner join {{ ref('int_team_season__standings_primary') }} as p
         on
-            s.team_sk = lp.team_sk
-            and s.league_code = lp.league_code
-            and s.season_api_year = lp.season_api_year
-    where s.table_kind != 'ranking'
-    qualify row_number() over (
-        partition by s.team_sk, s.league_code, s.season_api_year
-        order by
-            coalesce(strpos(lower(lp.round_name), lower(s.group_name)) > 0, false) desc,
-            s.played desc,
-            s.group_name asc
-    ) = 1
+            s.team_sk = p.team_sk
+            and s.season_sk = p.season_sk
+            and s.group_name = p.group_name
 )
 
 select

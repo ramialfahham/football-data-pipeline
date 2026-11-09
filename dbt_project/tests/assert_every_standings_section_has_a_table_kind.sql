@@ -1,5 +1,6 @@
 -- A standings section's table_kind is the lowest-priority seed pattern that matches its name,
--- and a name no pattern matches is the competition's own league table. Two things can go wrong
+-- and a name no pattern matches is the competition's own league table. A section holding one team
+-- from each of the league-season's other tables is a ranking whatever its name. Two things can go wrong
 -- silently: a new section name the seed does not cover falls through to "league" and gets
 -- rendered as the competition's ladder next to its real groups; or a seed edit lets one name
 -- match two kinds. Both show up as a league-kind section sharing a competition-season with a
@@ -44,18 +45,81 @@ first_match as (
     ) = 1
 ),
 
-resolved as (
+named as (
     select
         s.league_code,
         s.season_api_year,
         s.group_name,
-        coalesce(m.table_kind, 'league') as expected_kind
+        coalesce(m.table_kind, 'league') as named_kind
     from sections as s
     left join first_match as m
         on
             s.league_code = m.league_code
             and s.season_api_year = m.season_api_year
             and s.group_name = m.group_name
+),
+
+team_sections as (
+    select distinct
+        f.league_code,
+        f.season_api_year,
+        f.group_name,
+        f.team_sk,
+        n.named_kind
+    from {{ ref('fct_standings') }} as f
+    inner join named as n
+        on
+            f.league_code = n.league_code
+            and f.season_api_year = n.season_api_year
+            and f.group_name = n.group_name
+),
+
+-- For each team of a section, the other sections of its league-season it sits in that are not
+-- named rankings.
+team_elsewhere as (
+    select
+        a.league_code,
+        a.season_api_year,
+        a.group_name,
+        a.team_sk,
+        array_agg(distinct b.group_name ignore nulls) as elsewhere
+    from team_sections as a
+    left join team_sections as b
+        on
+            a.league_code = b.league_code
+            and a.season_api_year = b.season_api_year
+            and a.team_sk = b.team_sk
+            and a.group_name != b.group_name
+            and b.named_kind != 'ranking'
+    group by 1, 2, 3, 4
+),
+
+one_team_per_table as (
+    select
+        league_code,
+        season_api_year,
+        group_name
+    from team_elsewhere
+    group by 1, 2, 3
+    having
+        count(*) >= 2
+        and min(array_length(elsewhere)) = 1
+        and max(array_length(elsewhere)) = 1
+        and count(distinct elsewhere[safe_offset(0)]) = count(*)
+),
+
+resolved as (
+    select
+        n.league_code,
+        n.season_api_year,
+        n.group_name,
+        if(o.group_name is null, n.named_kind, 'ranking') as expected_kind
+    from named as n
+    left join one_team_per_table as o
+        on
+            n.league_code = o.league_code
+            and n.season_api_year = o.season_api_year
+            and n.group_name = o.group_name
 ),
 
 served as (

@@ -341,7 +341,8 @@ club_orders as (
                 l.league_code asc,
                 l.standing_group_name asc,
                 l.league_position asc,
-                c.team_name asc
+                c.team_name asc,
+                c.team_sk asc
         ) as team_order_in_country
     from clubs as c
     left join covered_leagues as l

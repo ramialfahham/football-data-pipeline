@@ -35,16 +35,15 @@
 -- is false assurance appearing in every green run.
 --
 -- Joins fct_standings directly because the genuine count never reaches the marts —
--- int_team_season__standings_primary reads fct_standings and projects only standing_rank, form and
+-- int_team_season__standings_primary projects only the team's table, its standing_rank, form and
 -- group_description.
 --
 -- ⚠ MAX(played), NOT THE LATEST-INGESTED ROW, AND THAT IS NOT A STYLE CHOICE.
 -- fct_standings is grained on (league_code, season, team_id, group_name), so one team-season can
 -- carry several standings rows — a group table and a play-off or relegation table, say. Measured:
 -- 299 team-seasons have more than one row and **204 of those disagree on `played`, by up to 13
--- games**. Collapsing with `qualify row_number() ... order by raw_ingested_at` — the pattern
--- int_team_season__standings_primary uses for DISPLAY fields — picks arbitrarily among them, and
--- those rows frequently share a raw_ingested_at, so the tiebreak is not even stable. For a numeric
+-- games**. Collapsing to one row, as int_team_season__standings_primary does for DISPLAY fields,
+-- keeps the table of the phase being played, not the one with the most matches. For a numeric
 -- reconciliation that is unsound in both directions: it can invent a shortfall or hide one.
 -- MAX is deterministic and errs toward silence: if any authoritative table says the team played N,
 -- we should hold at least N.

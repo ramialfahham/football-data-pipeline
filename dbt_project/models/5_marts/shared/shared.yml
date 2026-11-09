@@ -1542,8 +1542,8 @@ models:
       or relegation field.
 
       table_kind classifies the section (league, group, conference, split_round, ranking)
-      through the standings_table_kinds seed, so a page filters on a served column and never on
-      a section name.
+      through the standings_table_kinds seed and, for a cross-group ranking, from its teams, so a
+      page filters on a served column and never on a section name.
 
       Filtering to competition_type = 'domestic_league' gives a club's league position on its own,
       which is the form a team's fixture context needs.
@@ -1593,7 +1593,7 @@ models:
       - name: group_name
         description: "Standings section: league name (single-table), group ('Group A'), or phase. Distinguishes group tables and split-season sections."
       - name: table_kind
-        description: "What kind of table the section is: league (the competition's own ladder), group, conference, split_round (a split season's championship, relegation, qualifying or play-off round, an Apertura or Clausura), or ranking (the provider's cross-group ranking of second- or third-placed teams). Resolved from the section name through the standings_table_kinds seed; a name no pattern matches is league."
+        description: "What kind of table the section is: league (the competition's own ladder), group, conference, split_round (a split season's championship, relegation, qualifying or play-off round, an Apertura or Clausura), or ranking (the provider's cross-group ranking of second- or third-placed teams). Resolved from the section name through the standings_table_kinds seed, and a section holding one team from each of the league-season's other tables is a ranking; a name no pattern matches is otherwise league."
         tests:
           - not_null
           - accepted_values:
@@ -3782,8 +3782,8 @@ models:
   - name: mart_team_competitions
     description: >
       The Team page's Competitions block: one row per team, competition and season the team has a
-      fixture in, with its standing in that competition's table (the section named in its latest
-      played round, otherwise the section with the most matches played), the round of its latest
+      fixture in, with its standing in that competition's table (the section
+      int_team_season__standings_primary picks as the team's table), the round of its latest
       played match, and the round it has reached, a third-place match left out, with, for a round
       of ties, cup_status: knocked_out when it lost that tie, winners when it won a final of one tie
       outside a qualifying competition, through when it won any other tie or is drawn into the next round
@@ -3823,7 +3823,7 @@ models:
       - name: entity_type
         description: "{{ doc('entity_type') }}"
       - name: standing_group_name
-        description: "The table section the standing is read from: the team's section named in its latest played round, otherwise its section with the most matches played; NULL without a table."
+        description: "The table section the standing is read from: the team's table as int_team_season__standings_primary picks it; NULL without a table."
       - name: standing_rank
         description: "The team's position in that section."
       - name: played

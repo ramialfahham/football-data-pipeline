@@ -1,0 +1,822 @@
+diff --git a/.claude/task/277-standings-section/contract.md b/.claude/task/277-standings-section/contract.md
+new file mode 100644
+index 00000000..6ccee0f0
+--- /dev/null
++++ b/.claude/task/277-standings-section/contract.md
+@@ -0,0 +1,91 @@
++# Task contract — a team's table is the section of its current phase
++
++objective: >
++  Issue #277 follow-up: a team's shown rank and form come from the standings section of the phase
++  it is playing, by one rule that the Team page's standing and the team-season marts share. A
++  cross-group ranking is recognised by its structure as well as its name, and is never a team's
++  table. The team index orders two clubs with the same name the same way on every build.
++
++refs: >
++  #277; the follow-up ruled by the coordinating session on 2026-11-09 after the prod comparison of
++  !411 showed 46 team-seasons (APD 2026, BPL 2024–25, KL1 2026, VL 2026) on an earlier or overall
++  table. The lineup duplicate found by the same comparison is #281, not this task.
++
++scope_paths:
++  - dbt_project/models/4_intermediate/shared/int_standings__section_kinds.sql
++  - dbt_project/models/4_intermediate/shared/int_standings__section_kinds.yml
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_state.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++  - dbt_project/models/5_marts/shared/mart_standings.sql
++  - dbt_project/models/5_marts/shared/mart_team_competitions.sql
++  - dbt_project/models/5_marts/shared/mart_team_index.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/tests/assert_standings_cross_group_rankings.sql
++  - dbt_project/tests/assert_team_standing_section_cases.sql
++  - dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql
++  - dbt_project/tests/assert_team_season_games_not_short_of_standings.sql
++  - tests/test_sentence_length_in_docs.py
++  - tests/test_no_decision_history_in_code.py
++  - .claude/task/277-standings-section/contract.md
++  - .claude/task/277-standings-section/review.md
++  - .claude/task/277-standings-section/review_input.patch
++
++impact_map: >
++  writers: dbt only; no ingestion, seed or export change. int_standings__section_kinds moves from
++  grain (group_name) to (league_code, season_api_year, group_name); its readers mart_standings and
++  int_team_season__table_state join on the three keys, and int_team_season__standings_primary
++  becomes its third reader. int_team_season__standings_primary gains group_name;
++  mart_team_competitions takes its standing section from it.
++  lineage: `dbt ls --resource-type model --select int_standings__section_kinds+
++  int_team_season__standings_primary+ mart_team_competitions+ mart_team_index+` returns 19
++  models: int_standings__official_rank int_standings__section_kinds int_team_profile__yoy
++  int_team_season__deserved_vs_actual int_team_season__standings_primary
++  int_team_season__table_by_time int_team_season__table_state mart_competition_fixtures
++  mart_competition_index mart_fixture_standing_context mart_match_days mart_matchday_insights
++  mart_next_matchday mart_standings mart_team_competitions mart_team_index mart_team_profile
++  mart_team_season mart_team_season_insights.
++  consumption: the export reads the same columns; mart_standings' table_kind for two sections
++  changes to ranking, so the WC 2026 and ACN 2027 competition pages drop those two cross-group
++  ranking tables as they drop every other one.
++  ci_layer_rules: scripts/check_layer_contract.py, scripts/check_description_hygiene.py.
++  deploy_order: one merge; the nightly rebuilds every model. No backfill.
++  blast_radius: measured on the !411 build: the rule corrects 46 team-seasons and changes the
++  standing of the 4 WC 2026 third-placed teams back to their group; the structural ranking rule
++  reclassifies 2 sections (WC 2026 "Group Stage", ACN 2027 "Groups"); 2 clubs in the team index.
++  Exact differences come from the MR build compared with prod.
++
++approved_design:
++  - none: the page change is the existing rule that a cross-group ranking is never shown, applied to two sections
++
++decisions_taken: >
++  Ruled by the coordinating session on 2026-11-09 as correctness fixes. A team's table is the
++  section named in its latest played round, otherwise the section in which it has played most; a
++  ranking is never a team's table; the provider's section order decides what is still tied. A round
++  names a section when the section's name is in the round's name, or the round's stage (its name
++  before the " - " number) is in the section's name. The rule lives once, in
++  int_team_season__standings_primary, and mart_team_competitions reads it. A section is a ranking
++  when its name matches a ranking pattern of standings_table_kinds, or when every team in it sits in
++  exactly one other non-ranking section of the league-season and no two of its teams in the same
++  one. The team index order ends with team_sk. No new mechanism, no recurring cost.
++
++decisions_reserved:
++  - The lineup duplicate (#281).
++
++acceptance_criteria:
++  - A team in a split season shows its rank and form in the phase it is playing (APD 2026 Clausura, BPL 2024 Charleroi in its Qualifying Round, KL1 2026, VL 2026 Ilves).
++  - A team in a group tournament shows its own group's rank, never a cross-group ranking (EURO 2024 Netherlands).
++  - The Team page's standing and the team-season marts take a team's table from one rule.
++  - WC 2026 "Group Stage" and ACN 2027 "Groups" are rankings, and every real group stays a group.
++  - No section of a split-season league (BPL, VL, KL1, LMX, APD) is ever classified as a ranking.
++  - Two clubs with the same name in one country keep the same order on every build.
++
++done_when:
++  - dbt parse succeeds from the repo root.
++  - python -m pytest tests -q is green, and the offline gates pass.
++  - SQLFluff adds no violation on any changed model.
++  - CI's data:build:mr is green; every changed model and everything downstream is compared with prod both ways, and every difference is listed.
++  - The before/after list of shown rank and form is posted on #277.
++
++amendments:
++  - 2026-11-09: + dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql, dbt_project/tests/assert_team_season_games_not_short_of_standings.sql — authority: decisions_taken (the structural ranking rule; tests updated with the change); content: the kind test recomputes the structural rule as well as the name patterns, and the second test's comments name what int_team_season__standings_primary now reads.
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+index 560ddb59..d4af9b4d 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+@@ -207,10 +207,11 @@ models:
+ 
+   - name: int_team_season__standings_primary
+     description: >
+-      Deduplicated standings snapshot per team-season: one row per (team_sk, season_sk)
+-      chosen by latest raw_ingested_at, then the provider's first-listed section
+-      (standing_section_order), when the core fact has multiple rows (e.g. a split season's
+-      phases). fct_standings tests that these keys are unique per team-season.
++      A team's table this season, the one its shown rank and form come from: one row per
++      (team_sk, season_sk). It is the section the team's latest played round names, otherwise
++      the section in which it has played most; a ranking is never a team's table, and the
++      provider's section order decides what is still tied. mart_team_competitions reads the
++      section from here.
+     config:
+       tags: ["intermediate", "football", "team_season"]
+     tests:
+@@ -233,6 +234,9 @@ models:
+           - relationships:
+               to: ref('dim_competition_season')
+               field: season_sk
++      - name: group_name
++        description: "The standings section that is the team's table this season."
++        tests: [not_null]
+       - name: standing_rank
+         description: "The official place from the chosen row, read from int_standings__official_rank (the source of mart_team_season.latest_rank)."
+       - name: form
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
+index 726764b2..996a5463 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
+@@ -1,22 +1,57 @@
+ {#
+-  One row per (team_sk, season_sk) for table display and marts.
+-  int_standings__official_rank grain can include multiple rows (e.g. group_description);
+-  keep the row with latest raw_ingested_at, then the provider's first-listed section (the
+-  current or final phase; a tournament's group before its cross-group ranking).
++  One row per (team_sk, season_sk): the team's table this season, the one its shown rank and form
++  come from. It is the section its latest played round names, otherwise the section in which it
++  has played most; a ranking is never a team's table, and the provider's section order decides
++  what is still tied. A round names a section when the section's name is in the round's name
++  ("Group D - 6"), or the round's stage, its name before the " - " number, is in the section's
++  name ("Clausura - 16" names "Clausura - Group A"). mart_team_competitions reads the section from
++  here, so the Team page and the team-season marts show one table.
+ #}
+ 
+-with import_int_standings__official_rank as (
+-    select * from {{ ref('int_standings__official_rank') }}
++with standings as (
++    select
++        s.*,
++        k.table_kind
++    from {{ ref('int_standings__official_rank') }} as s
++    inner join {{ ref('int_standings__section_kinds') }} as k
++        on
++            s.league_code = k.league_code
++            and s.season_api_year = k.season_api_year
++            and s.group_name = k.group_name
++),
++
++latest_rounds as (
++    select
++        team_sk,
++        season_sk,
++        round_name
++    from {{ ref('int_legs__team_match') }}
++    qualify row_number() over (
++        partition by team_sk, season_sk
++        order by kickoff_datetime desc, fixture_sk desc
++    ) = 1
+ )
+ 
+ select
+-    team_sk,
+-    season_sk,
+-    standing_rank,
+-    form,
+-    group_description
+-from import_int_standings__official_rank
++    s.team_sk,
++    s.season_sk,
++    s.group_name,
++    s.standing_rank,
++    s.form,
++    s.group_description
++from standings as s
++left join latest_rounds as r
++    on s.team_sk = r.team_sk and s.season_sk = r.season_sk
++where s.table_kind != 'ranking'
+ qualify row_number() over (
+-    partition by team_sk, season_sk
+-    order by raw_ingested_at desc nulls last, standing_section_order asc
++    partition by s.team_sk, s.season_sk
++    order by
++        coalesce(
++            strpos(lower(r.round_name), lower(s.group_name)) > 0
++            or strpos(lower(s.group_name), lower(regexp_replace(r.round_name, r'\s+-\s+[^-]*$', ''))) > 0,
++            false
++        ) desc,
++        s.played desc,
++        s.standing_section_order asc,
++        s.group_name asc
+ ) = 1
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_state.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_state.sql
+index a73ee6f1..18f1a13a 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_state.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_state.sql
+@@ -33,7 +33,10 @@ sections as (
+         k.table_kind
+     from {{ ref('fct_standings') }} as s
+     inner join {{ ref('int_standings__section_kinds') }} as k
+-        on s.group_name = k.group_name
++        on
++            s.league_code = k.league_code
++            and s.season_api_year = k.season_api_year
++            and s.group_name = k.group_name
+     inner join competitions as r
+         on s.league_code = r.league_code
+     where k.table_kind != 'ranking'
+diff --git a/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.sql b/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.sql
+index 847065fc..51fc9997 100644
+--- a/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.sql
++++ b/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.sql
+@@ -1,17 +1,32 @@
+ {#
+-  What kind of table each standings section is: one row per distinct section name in
+-  fct_standings, with the kind of the lowest-priority standings_table_kinds pattern that matches
+-  it (ranking, split_round, group, conference), and league where none does. mart_standings and
+-  int_team_season__table_by_time read it, so a section has one kind everywhere.
++  What kind of table each standings section of a league-season is: ranking, split_round, group,
++  conference or league. The kind is the lowest-priority standings_table_kinds pattern that matches
++  the section's name, and league where none does. A section is also a ranking when it holds one
++  team from each of the league-season's other tables: every team in it sits in exactly one other
++  section that is not a ranking, and no two of its teams in the same one. mart_standings,
++  int_team_season__table_state and int_team_season__standings_primary read it, so a section has
++  one kind everywhere.
+ 
+-  Grain: (group_name).
++  Grain: (league_code, season_api_year, group_name).
+ #}
+ 
+-with sections as (
+-    select distinct group_name
++with section_teams as (
++    select distinct
++        league_code,
++        season_api_year,
++        group_name,
++        team_sk
+     from {{ ref('fct_standings') }}
+ ),
+ 
++sections as (
++    select distinct
++        league_code,
++        season_api_year,
++        group_name
++    from section_teams
++),
++
+ kind_patterns as (
+     select
+         priority,
+@@ -24,15 +39,73 @@ matched as (
+     select
+         s.group_name,
+         k.table_kind
+-    from sections as s
++    from (select distinct group_name from sections) as s
+     cross join kind_patterns as k
+     where regexp_contains(lower(s.group_name), k.pattern)
+     qualify row_number() over (partition by s.group_name order by k.priority) = 1
++),
++
++named_kinds as (
++    select
++        s.league_code,
++        s.season_api_year,
++        s.group_name,
++        coalesce(m.table_kind, 'league') as table_kind
++    from sections as s
++    left join matched as m
++        on s.group_name = m.group_name
++),
++
++table_teams as (
++    select t.*
++    from section_teams as t
++    inner join named_kinds as k
++        on
++            t.league_code = k.league_code
++            and t.season_api_year = k.season_api_year
++            and t.group_name = k.group_name
++    where k.table_kind != 'ranking'
++),
++
++team_other_tables as (
++    select
++        s.league_code,
++        s.season_api_year,
++        s.group_name,
++        s.team_sk,
++        count(o.group_name) as other_tables,
++        min(o.group_name) as other_table
++    from section_teams as s
++    left join table_teams as o
++        on
++            s.league_code = o.league_code
++            and s.season_api_year = o.season_api_year
++            and s.team_sk = o.team_sk
++            and s.group_name != o.group_name
++    group by s.league_code, s.season_api_year, s.group_name, s.team_sk
++),
++
++cross_group_rankings as (
++    select
++        league_code,
++        season_api_year,
++        group_name
++    from team_other_tables
++    group by league_code, season_api_year, group_name
++    having
++        count(*) > 1
++        and logical_and(other_tables = 1)
++        and count(distinct other_table) = count(*)
+ )
+ 
+ select
+-    s.group_name,
+-    coalesce(m.table_kind, 'league') as table_kind
+-from sections as s
+-left join matched as m
+-    on s.group_name = m.group_name
++    k.league_code,
++    k.season_api_year,
++    k.group_name,
++    if(r.group_name is null, k.table_kind, 'ranking') as table_kind
++from named_kinds as k
++left join cross_group_rankings as r
++    on
++        k.league_code = r.league_code
++        and k.season_api_year = r.season_api_year
++        and k.group_name = r.group_name
+diff --git a/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.yml b/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.yml
+index ec25a2d0..fc4083df 100644
+--- a/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.yml
++++ b/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.yml
+@@ -3,14 +3,22 @@ version: 2
+ models:
+   - name: int_standings__section_kinds
+     description: >
+-      What kind of table each standings section is. One row per distinct section name in
+-      fct_standings, with the kind of the first standings_table_kinds pattern by priority that
+-      matches it, and league where none does. mart_standings and the position at a number of
+-      matches read it. Grain: (group_name).
++      What kind of table each standings section of a league-season is. The kind is the first
++      standings_table_kinds pattern by priority that matches the section's name, and league where
++      none does; a section that holds one team from each of the league-season's other tables is
++      a ranking. mart_standings, int_team_season__table_state and
++      int_team_season__standings_primary read it. Grain: (league_code, season_api_year,
++      group_name).
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+-          combination_of_columns: [group_name]
++          combination_of_columns: [league_code, season_api_year, group_name]
+     columns:
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: season_api_year
++        description: "{{ doc('season_api_year') }}"
++        tests: [not_null]
+       - name: group_name
+         description: "The standings section's name as the provider gives it: the league's name, a group, a conference or a round of a split season."
+       - name: table_kind
+diff --git a/dbt_project/models/5_marts/shared/mart_standings.sql b/dbt_project/models/5_marts/shared/mart_standings.sql
+index 099b401d..d38d9a54 100644
+--- a/dbt_project/models/5_marts/shared/mart_standings.sql
++++ b/dbt_project/models/5_marts/shared/mart_standings.sql
+@@ -19,8 +19,8 @@
+   carried verbatim in group_description and never interpreted.
+ 
+   table_kind says what kind of table a section is (league, group, conference, split_round,
+-  ranking), resolved from the section name through the standings_table_kinds seed
+-  (int_standings__section_kinds) so that a
++  ranking), resolved per league-season by int_standings__section_kinds from the section's name
++  through the standings_table_kinds seed and from its teams, so that a
+   page can render one table per group, drop the provider's cross-group ranking tables and head
+   a split season's rounds — and never matches on a name itself. A name no seed pattern matches
+   is the competition's own league table.
+@@ -51,6 +51,8 @@ teams as (
+ 
+ section_kinds as (
+     select
++        league_code,
++        season_api_year,
+         group_name,
+         table_kind
+     from {{ ref('int_standings__section_kinds') }}
+@@ -87,4 +89,7 @@ left join competitions as reg
+ left join teams as t
+     on s.team_sk = t.team_sk
+ left join section_kinds as k
+-    on s.group_name = k.group_name
++    on
++        s.league_code = k.league_code
++        and s.season_api_year = k.season_api_year
++        and s.group_name = k.group_name
+diff --git a/dbt_project/models/5_marts/shared/mart_team_competitions.sql b/dbt_project/models/5_marts/shared/mart_team_competitions.sql
+index b1a0b0bc..53539492 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_competitions.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_competitions.sql
+@@ -15,9 +15,8 @@
+       winning its tie in the round before, or after a table round;
+     - NULL while the tie is being played or undecided, in a first round not yet played, and in a
+       table round, where the standing tells the story.
+-  The standing is the team's table section named in its latest played round (Liga MX's Clausura
+-  while the Clausura is played), otherwise its section with the most matches played; a ranking
+-  section is not a table.
++  The standing is the team's table, the section int_team_season__standings_primary picks for it,
++  so the Team page and the team-season marts show one table.
+ 
+   Reads mart_competition_fixtures and mart_standings in its own layer, for the round order the
+   competition pages use and the tables they show. Grain: (team_sk, league_code, season_api_year).
+@@ -221,19 +220,11 @@ standings as (
+         s.goals_conceded,
+         s.points
+     from {{ ref('mart_standings') }} as s
+-    left join latest_played as lp
++    inner join {{ ref('int_team_season__standings_primary') }} as p
+         on
+-            s.team_sk = lp.team_sk
+-            and s.league_code = lp.league_code
+-            and s.season_api_year = lp.season_api_year
+-    where s.table_kind != 'ranking'
+-    qualify row_number() over (
+-        partition by s.team_sk, s.league_code, s.season_api_year
+-        order by
+-            coalesce(strpos(lower(lp.round_name), lower(s.group_name)) > 0, false) desc,
+-            s.played desc,
+-            s.group_name asc
+-    ) = 1
++            s.team_sk = p.team_sk
++            and s.season_sk = p.season_sk
++            and s.group_name = p.group_name
+ )
+ 
+ select
+diff --git a/dbt_project/models/5_marts/shared/mart_team_index.sql b/dbt_project/models/5_marts/shared/mart_team_index.sql
+index bf1ec1d1..e3a2b16e 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_index.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_index.sql
+@@ -382,7 +382,8 @@ club_orders as (
+                 l.league_code asc,
+                 l.standing_group_name asc,
+                 l.league_position asc,
+-                c.team_name asc
++                c.team_name asc,
++                c.team_sk asc
+         ) as team_order_in_country
+     from clubs as c
+     left join covered_leagues as l
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 0e3758c5..128fee7f 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -1542,8 +1542,8 @@ models:
+       or relegation field.
+ 
+       table_kind classifies the section (league, group, conference, split_round, ranking)
+-      through the standings_table_kinds seed, so a page filters on a served column and never on
+-      a section name.
++      through the standings_table_kinds seed and, for a cross-group ranking, from its teams, so a
++      page filters on a served column and never on a section name.
+ 
+       Filtering to competition_type = 'domestic_league' gives a club's league position on its own,
+       which is the form a team's fixture context needs.
+@@ -1593,7 +1593,7 @@ models:
+       - name: group_name
+         description: "Standings section: league name (single-table), group ('Group A'), or phase. Distinguishes group tables and split-season sections."
+       - name: table_kind
+-        description: "What kind of table the section is: league (the competition's own ladder), group, conference, split_round (a split season's championship, relegation, qualifying or play-off round, an Apertura or Clausura), or ranking (the provider's cross-group ranking of second- or third-placed teams). Resolved from the section name through the standings_table_kinds seed; a name no pattern matches is league."
++        description: "What kind of table the section is: league (the competition's own ladder), group, conference, split_round (a split season's championship, relegation, qualifying or play-off round, an Apertura or Clausura), or ranking (the provider's cross-group ranking of second- or third-placed teams). Resolved from the section name through the standings_table_kinds seed, and a section holding one team from each of the league-season's other tables is a ranking; a name no pattern matches is otherwise league."
+         tests:
+           - not_null
+           - accepted_values:
+@@ -3782,8 +3782,8 @@ models:
+   - name: mart_team_competitions
+     description: >
+       The Team page's Competitions block: one row per team, competition and season the team has a
+-      fixture in, with its standing in that competition's table (the section named in its latest
+-      played round, otherwise the section with the most matches played), the round of its latest
++      fixture in, with its standing in that competition's table (the section
++      int_team_season__standings_primary picks as the team's table), the round of its latest
+       played match, and the round it has reached, a third-place match left out, with, for a round
+       of ties, cup_status: knocked_out when it lost that tie, winners when it won a final of one tie
+       outside a qualifying competition, through when it won any other tie or is drawn into the next round
+@@ -3823,7 +3823,7 @@ models:
+       - name: entity_type
+         description: "{{ doc('entity_type') }}"
+       - name: standing_group_name
+-        description: "The table section the standing is read from: the team's section named in its latest played round, otherwise its section with the most matches played; NULL without a table."
++        description: "The table section the standing is read from: the team's table as int_team_season__standings_primary picks it; NULL without a table."
+       - name: standing_rank
+         description: "The team's position in that section."
+       - name: played
+diff --git a/dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql b/dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql
+index 1cd4111b..2fd3cd16 100644
+--- a/dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql
++++ b/dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql
+@@ -1,5 +1,6 @@
+ -- A standings section's table_kind is the lowest-priority seed pattern that matches its name,
+--- and a name no pattern matches is the competition's own league table. Two things can go wrong
++-- and a name no pattern matches is the competition's own league table. A section holding one team
++-- from each of the league-season's other tables is a ranking whatever its name. Two things can go wrong
+ -- silently: a new section name the seed does not cover falls through to "league" and gets
+ -- rendered as the competition's ladder next to its real groups; or a seed edit lets one name
+ -- match two kinds. Both show up as a league-kind section sharing a competition-season with a
+@@ -44,12 +45,12 @@ first_match as (
+     ) = 1
+ ),
+ 
+-resolved as (
++named as (
+     select
+         s.league_code,
+         s.season_api_year,
+         s.group_name,
+-        coalesce(m.table_kind, 'league') as expected_kind
++        coalesce(m.table_kind, 'league') as named_kind
+     from sections as s
+     left join first_match as m
+         on
+@@ -58,6 +59,69 @@ resolved as (
+             and s.group_name = m.group_name
+ ),
+ 
++team_sections as (
++    select distinct
++        f.league_code,
++        f.season_api_year,
++        f.group_name,
++        f.team_sk,
++        n.named_kind
++    from {{ ref('fct_standings') }} as f
++    inner join named as n
++        on
++            f.league_code = n.league_code
++            and f.season_api_year = n.season_api_year
++            and f.group_name = n.group_name
++),
++
++-- For each team of a section, the other sections of its league-season it sits in that are not
++-- named rankings.
++team_elsewhere as (
++    select
++        a.league_code,
++        a.season_api_year,
++        a.group_name,
++        a.team_sk,
++        array_agg(distinct b.group_name ignore nulls) as elsewhere
++    from team_sections as a
++    left join team_sections as b
++        on
++            a.league_code = b.league_code
++            and a.season_api_year = b.season_api_year
++            and a.team_sk = b.team_sk
++            and a.group_name != b.group_name
++            and b.named_kind != 'ranking'
++    group by 1, 2, 3, 4
++),
++
++one_team_per_table as (
++    select
++        league_code,
++        season_api_year,
++        group_name
++    from team_elsewhere
++    group by 1, 2, 3
++    having
++        count(*) >= 2
++        and min(array_length(elsewhere)) = 1
++        and max(array_length(elsewhere)) = 1
++        and count(distinct elsewhere[safe_offset(0)]) = count(*)
++),
++
++resolved as (
++    select
++        n.league_code,
++        n.season_api_year,
++        n.group_name,
++        if(o.group_name is null, n.named_kind, 'ranking') as expected_kind
++    from named as n
++    left join one_team_per_table as o
++        on
++            n.league_code = o.league_code
++            and n.season_api_year = o.season_api_year
++            and n.group_name = o.group_name
++),
++
+ served as (
+     select distinct
+         league_code,
+diff --git a/dbt_project/tests/assert_standings_cross_group_rankings.sql b/dbt_project/tests/assert_standings_cross_group_rankings.sql
+new file mode 100644
+index 00000000..b096e64c
+--- /dev/null
++++ b/dbt_project/tests/assert_standings_cross_group_rankings.sql
+@@ -0,0 +1,74 @@
++{#
++  A cross-group ranking is a ranking and a real table never is. WC 2026 "Group Stage" and ACN 2027
++  "Groups" hold one team from each group, so they are rankings, and every other section of those
++  two league-seasons stays a group. No section of a split-season league (BPL, VL, KL1, LMX, APD)
++  is a ranking, though each of its teams sits in two tables. Each failing row is a section whose
++  kind breaks one of these.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with kinds as (
++    select * from {{ ref('int_standings__section_kinds') }}
++),
++
++rankings as (
++    select
++        'WC' as league_code,
++        2026 as season_api_year,
++        'Group Stage' as group_name
++    union all
++    select
++        'ACN' as league_code,
++        2027 as season_api_year,
++        'Groups' as group_name
++),
++
++ranking_seasons as (
++    select distinct
++        league_code,
++        season_api_year
++    from rankings
++)
++
++select
++    r.league_code,
++    r.season_api_year,
++    r.group_name,
++    k.table_kind,
++    'a cross-group ranking' as expected
++from rankings as r
++left join kinds as k
++    on
++        r.league_code = k.league_code
++        and r.season_api_year = k.season_api_year
++        and r.group_name = k.group_name
++where k.table_kind is distinct from 'ranking'
++
++union all
++
++select
++    k.league_code,
++    k.season_api_year,
++    k.group_name,
++    k.table_kind,
++    'a group' as expected
++from kinds as k
++inner join ranking_seasons as s
++    on k.league_code = s.league_code and k.season_api_year = s.season_api_year
++left join rankings as r
++    on
++        k.league_code = r.league_code
++        and k.season_api_year = r.season_api_year
++        and k.group_name = r.group_name
++where r.group_name is null and k.table_kind != 'group'
++
++union all
++
++select
++    league_code,
++    season_api_year,
++    group_name,
++    table_kind,
++    'never a ranking in a split season' as expected
++from kinds
++where league_code in ('BPL', 'VL', 'KL1', 'LMX', 'APD') and table_kind = 'ranking'
+diff --git a/dbt_project/tests/assert_team_season_games_not_short_of_standings.sql b/dbt_project/tests/assert_team_season_games_not_short_of_standings.sql
+index 187ab8bc..b6bb7441 100644
+--- a/dbt_project/tests/assert_team_season_games_not_short_of_standings.sql
++++ b/dbt_project/tests/assert_team_season_games_not_short_of_standings.sql
+@@ -35,16 +35,15 @@
+ -- is false assurance appearing in every green run.
+ --
+ -- Joins fct_standings directly because the genuine count never reaches the marts —
+--- int_team_season__standings_primary reads fct_standings and projects only standing_rank, form and
++-- int_team_season__standings_primary projects only the team's table, its standing_rank, form and
+ -- group_description.
+ --
+ -- ⚠ MAX(played), NOT THE LATEST-INGESTED ROW, AND THAT IS NOT A STYLE CHOICE.
+ -- fct_standings is grained on (league_code, season, team_id, group_name), so one team-season can
+ -- carry several standings rows — a group table and a play-off or relegation table, say. Measured:
+ -- 299 team-seasons have more than one row and **204 of those disagree on `played`, by up to 13
+--- games**. Collapsing with `qualify row_number() ... order by raw_ingested_at` — the pattern
+--- int_team_season__standings_primary uses for DISPLAY fields — picks arbitrarily among them, and
+--- those rows frequently share a raw_ingested_at, so the tiebreak is not even stable. For a numeric
++-- games**. Collapsing to one row, as int_team_season__standings_primary does for DISPLAY fields,
++-- keeps the table of the phase being played, not the one with the most matches. For a numeric
+ -- reconciliation that is unsound in both directions: it can invent a shortfall or hide one.
+ -- MAX is deterministic and errs toward silence: if any authoritative table says the team played N,
+ -- we should hold at least N.
+diff --git a/dbt_project/tests/assert_team_standing_section_cases.sql b/dbt_project/tests/assert_team_standing_section_cases.sql
+new file mode 100644
+index 00000000..10348fa2
+--- /dev/null
++++ b/dbt_project/tests/assert_team_standing_section_cases.sql
+@@ -0,0 +1,93 @@
++{#
++  A team's table is the section of the phase it is playing. Pinned on the cases where the
++  provider lists an earlier or overall table first, and on a group tournament whose cross-group
++  ranking is listed first: APD 2026 Clausura, BPL 2024 Charleroi in its Qualifying Round, KL1 2026
++  FC Seoul in the Championship Group, VL 2026 Ilves in its relegation group, EURO 2024 Netherlands
++  in Group D. mart_team_competitions and mart_team_season read the same pick, so both are checked.
++  Each failing row is a case whose table or rank is not the expected one.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with expected as (
++    select
++        'APD' as league_code,
++        2026 as season_api_year,
++        'Estudiantes L.P.' as team_name,
++        'Clausura - Group A' as group_name
++    union all
++    select
++        'BPL' as league_code,
++        2024 as season_api_year,
++        'Charleroi' as team_name,
++        'Qualifying Round' as group_name
++    union all
++    select
++        'KL1' as league_code,
++        2026 as season_api_year,
++        'FC Seoul' as team_name,
++        'K-League: Championship Group' as group_name
++    union all
++    select
++        'VL' as league_code,
++        2026 as season_api_year,
++        'Ilves' as team_name,
++        'Relegration Group' as group_name
++    union all
++    select
++        'EURO' as league_code,
++        2024 as season_api_year,
++        'Netherlands' as team_name,
++        'Group D' as group_name
++),
++
++cases as (
++    select
++        e.*,
++        t.team_sk
++    from expected as e
++    inner join {{ ref('dim_team') }} as t
++        on e.team_name = t.team_name
++    inner join {{ ref('mart_standings') }} as s
++        on
++            e.league_code = s.league_code
++            and e.season_api_year = s.season_api_year
++            and e.group_name = s.group_name
++            and t.team_sk = s.team_sk
++)
++
++select
++    e.league_code,
++    e.season_api_year,
++    e.team_name,
++    e.group_name as expected_group_name,
++    c.standing_group_name,
++    c.standing_rank,
++    ts.latest_rank,
++    s.standing_rank as expected_rank
++from expected as e
++left join cases as k
++    on
++        e.league_code = k.league_code
++        and e.season_api_year = k.season_api_year
++        and e.team_name = k.team_name
++left join {{ ref('mart_standings') }} as s
++    on
++        k.league_code = s.league_code
++        and k.season_api_year = s.season_api_year
++        and k.group_name = s.group_name
++        and k.team_sk = s.team_sk
++left join {{ ref('mart_team_competitions') }} as c
++    on
++        k.team_sk = c.team_sk
++        and k.league_code = c.league_code
++        and k.season_api_year = c.season_api_year
++left join {{ ref('mart_team_season') }} as ts
++    on
++        k.team_sk = ts.team_sk
++        and k.league_code = ts.league_code
++        and k.season_api_year = ts.season_api_year
++where
++    k.team_sk is null
++    or c.standing_group_name is distinct from e.group_name
++    or c.standing_rank is distinct from s.standing_rank
++    or ts.latest_rank is distinct from s.standing_rank
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../task/277-standings-section/review_input.patch  | 670 +++++++++++++++++++++
+#    1 file changed, 670 insertions(+)
+# ============================================================================
