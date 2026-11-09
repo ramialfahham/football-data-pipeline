@@ -39,11 +39,11 @@ select
     team_id,
     season_year,
     safe_cast(json_value(player_el, '$.player.id') as int64) as player_id,
-    json_value(player_el, '$.player.name') as player_name,
-    json_value(player_el, '$.player.firstname') as player_firstname,
-    json_value(player_el, '$.player.lastname') as player_lastname,
+    {{ decode_html_entities("json_value(player_el, '$.player.name')") }} as player_name,
+    {{ decode_html_entities("json_value(player_el, '$.player.firstname')") }} as player_firstname,
+    {{ decode_html_entities("json_value(player_el, '$.player.lastname')") }} as player_lastname,
     json_value(player_el, '$.player.photo') as player_photo_url,
     safe_cast(json_value(player_el, '$.player.birth.date') as date) as birth_date,
-    json_value(player_el, '$.player.nationality') as nationality,
+    {{ decode_html_entities("json_value(player_el, '$.player.nationality')") }} as nationality,
     json_query(player_el, '$.statistics') as statistics_json
 from player_rows

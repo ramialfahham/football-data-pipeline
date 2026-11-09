@@ -32,7 +32,7 @@ select
     raw_ingested_at,
     team_id,
     safe_cast(json_value(player_el, '$.id') as int64) as player_id,
-    json_value(player_el, '$.name') as player_name,
+    {{ decode_html_entities("json_value(player_el, '$.name')") }} as player_name,
     safe_cast(json_value(player_el, '$.age') as int64) as age,
     safe_cast(json_value(player_el, '$.number') as int64) as shirt_number,
     json_value(player_el, '$.position') as position,
