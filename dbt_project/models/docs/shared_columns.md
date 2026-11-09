@@ -782,8 +782,8 @@ NULL when no photo is ingested for the player.
 {% enddocs %}
 
 {% docs player_nationality %}
-The player's nationality as dim_player publishes it: the provider's string, not a coded value.
-Text sent in the wrong character set is repaired. NULL when none is ingested for the player.
+The player's nationality as dim_player publishes it: the country's name in dim_country, whatever
+spelling the provider sent. NULL when none is ingested for the player.
 {% enddocs %}
 
 {% docs player_birth_date %}

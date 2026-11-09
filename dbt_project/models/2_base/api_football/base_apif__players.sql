@@ -112,6 +112,10 @@ import_player_bio_corrections as (
     select * from {{ ref('player_bio_corrections') }}
 ),
 
+import_country_name_overrides as (
+    select * from {{ ref('country_name_overrides') }}
+),
+
 -- Rows tied on source and ingest time can disagree: a player has one /players row per team and
 -- season, all stamped by one batch. The order below settles every tie the same way on every build.
 latest as (
@@ -161,7 +165,15 @@ corrected as (
         safe_cast(
             {{ bio_correction('birth_date_fix', 'cast(latest.player_birth_date as string)') }} as date
         ) as player_birth_date,
-        {{ bio_correction('nationality_fix', 'latest.player_nationality') }} as player_nationality
+        nullif(
+            trim(
+                coalesce(
+                    nationality_overrides.country_name,
+                    {{ bio_correction('nationality_fix', 'latest.player_nationality') }}
+                )
+            ),
+            ''
+        ) as player_nationality
     from latest
     left join import_player_bio_corrections as birth_date_fix
         on
@@ -171,6 +183,11 @@ corrected as (
         on
             latest.player_api_id = nationality_fix.player_api_id
             and nationality_fix.corrected_field = 'player_nationality'
+    -- the provider's exact string is the seed's key, garbled spellings included
+    left join import_country_name_overrides as nationality_overrides
+        on
+            {{ bio_correction('nationality_fix', 'latest.player_nationality') }}
+            = nationality_overrides.provider_country
 )
 
 select

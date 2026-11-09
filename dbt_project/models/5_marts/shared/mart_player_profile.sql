@@ -112,6 +112,14 @@ season_labels as (
     from {{ ref('dim_competition_season') }}
 ),
 
+national_teams as (
+    select
+        team_sk,
+        team_country
+    from {{ ref('dim_team') }}
+    where is_national_team
+),
+
 -- Players with a page who share their full name with another at their current club: the page
 -- title tells them apart.
 shared_names as (
@@ -146,6 +154,7 @@ select
     date_diff(current_date(), p.player_birth_date, year)
     - if(format_date('%m%d', current_date()) < format_date('%m%d', p.player_birth_date), 1, 0) as player_age,
     p.player_nationality,
+    nt.team_sk as nationality_team_sk,
     p.player_birth_date,
     p.player_birth_place,
     p.player_birth_country,
@@ -273,5 +282,7 @@ left join season_labels as sl
     on a.season_sk = sl.season_sk
 left join teams as cc
     on pg.current_club_team_sk = cc.team_sk
+left join national_teams as nt
+    on p.player_nationality = nt.team_country
 left join shared_names as sn
     on a.player_sk = sn.player_sk
