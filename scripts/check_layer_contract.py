@@ -64,6 +64,28 @@ STAGING_FORBIDDEN_REF = re.compile(
     re.IGNORECASE,
 )
 
+# The competition_registry seed is ingest config. dim_league is its only reader; models and
+# tests read the dim, exports read marts.
+# See dbt_project/docs/layering.md §3_core.
+DBT_PROJECT = REPO_ROOT / "dbt_project"
+DBT_TESTS = DBT_PROJECT / "tests"
+SCRIPTS_DIR = REPO_ROOT / "scripts"
+REGISTRY_SEED_READER = DBT_MODELS / "3_core" / "dim_league.sql"
+DBT_SKIP_DIRS = ("target", "dbt_packages", "logs")
+REGISTRY_SEED_REF = re.compile(
+    r"""ref\s*\(\s*(?:['"][^'"]+['"]\s*,\s*)?['"]competition_registry['"]\s*\)""",
+    re.IGNORECASE,
+)
+REGISTRY_SEED_TABLE = re.compile(r"\.competition_registry\b", re.IGNORECASE)
+
+# The site export reads the marts dataset only: the marts are the data API.
+EXPORT_SITE_DATA = SCRIPTS_DIR / "export_site_data.py"
+EXPORT_MARTS_DATASET = re.compile(r"""^MARTS_DATASET\s*=\s*['"]marts['"]\s*$""", re.MULTILINE)
+EXPORT_NON_MART_READ = (
+    re.compile(r"\{GCP_PROJECT\}\.(?!\{MARTS_DATASET\})"),
+    re.compile(r"football-data-pipeline-gcp\.(?!marts\.)"),
+)
+
 def check_core_forbidden_patterns(errors: list[str]) -> None:
     for sql_path in sorted(CORE_DIR.glob("*.sql")):
         content = sql_path.read_text(encoding="utf-8")
@@ -199,6 +221,47 @@ def check_intermediate_no_mart_refs(errors: list[str]) -> None:
             )
 
 
+def check_registry_seed_readers(errors: list[str]) -> None:
+    allowed = {REGISTRY_SEED_READER.resolve()}
+    dbt_files = [
+        path
+        for pattern in ("*.sql", "*.yml", "*.yaml")
+        for path in DBT_PROJECT.rglob(pattern)
+        if not set(path.relative_to(DBT_PROJECT).parts) & set(DBT_SKIP_DIRS)
+    ]
+    for path in sorted(dbt_files):
+        if path.resolve() in allowed:
+            continue
+        if REGISTRY_SEED_REF.search(path.read_text(encoding="utf-8")):
+            rel = path.relative_to(REPO_ROOT).as_posix()
+            errors.append(
+                f"{rel}: reads the competition_registry seed; read dim_league instead. "
+                "dim_league is the seed's only reader (dbt_project/docs/layering.md §3_core)."
+            )
+    for path in sorted(SCRIPTS_DIR.glob("export_*.py")):
+        if REGISTRY_SEED_TABLE.search(path.read_text(encoding="utf-8")):
+            rel = path.relative_to(REPO_ROOT).as_posix()
+            errors.append(
+                f"{rel}: queries the competition_registry seed; read a mart instead "
+                "(dbt_project/docs/layering.md §3_core)."
+            )
+
+
+def check_export_reads_marts_only(errors: list[str]) -> None:
+    if not EXPORT_SITE_DATA.is_file():
+        return
+    rel = EXPORT_SITE_DATA.relative_to(REPO_ROOT).as_posix()
+    source = EXPORT_SITE_DATA.read_text(encoding="utf-8")
+    if not EXPORT_MARTS_DATASET.search(source):
+        errors.append(f'{rel}: MARTS_DATASET must be "marts".')
+    for number, line in enumerate(source.splitlines(), start=1):
+        if any(pattern.search(line) for pattern in EXPORT_NON_MART_READ):
+            errors.append(
+                f"{rel}:{number}: reads outside the marts dataset; read a mart instead "
+                "(dbt_project/docs/layering.md §3_core)."
+            )
+
+
 def check_staging_inventory(errors: list[str]) -> None:
     # Generic staging models live directly under api_football/ (unified raw table architecture).
     # Per-competition subdirectories are no longer permitted — the zero-file rule means adding
@@ -283,6 +346,8 @@ def main() -> int:
     check_base_layer(errors)
     check_core_forbidden_patterns(errors)
     check_intermediate_no_mart_refs(errors)
+    check_registry_seed_readers(errors)
+    check_export_reads_marts_only(errors)
     check_staging_inventory(errors)
     check_staging_purity(errors)
     check_staging_no_refs(errors)

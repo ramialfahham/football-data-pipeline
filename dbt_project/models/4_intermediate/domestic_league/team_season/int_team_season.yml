@@ -781,11 +781,11 @@ models:
               to: ref('dim_competition_season')
               field: season_sk
       - name: league_code
-        description: "{{ doc('league_code') }} Here every value must be a DOMESTIC LEAGUE in the registry, asserted by join rather than by an accepted_values list, which would break the zero-file rule the moment a league is onboarded."
+        description: "{{ doc('league_code') }} Here every value must be a DOMESTIC LEAGUE in dim_league, asserted by join rather than by an accepted_values list, which would break the zero-file rule the moment a league is onboarded."
         tests:
           - dbt_utils.relationships_where:
               name: int_team_season_deserved_domestic_leagues_only
-              to: ref('competition_registry')
+              to: ref('dim_league')
               field: league_code
               to_condition: "competition_type = 'domestic_league'"
       - name: actual_rank

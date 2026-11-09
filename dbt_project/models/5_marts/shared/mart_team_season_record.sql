@@ -113,7 +113,7 @@ chosen as (
 
 domestic_leagues as (
     select league_code
-    from {{ ref('competition_registry') }}
+    from {{ ref('dim_league') }}
     where competition_type = 'domestic_league'
 )
 

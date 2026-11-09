@@ -50,8 +50,6 @@ The ID must be discovered via a live name-based API search (Step 0b).
 | `current_season` | `2026` | API season identifier — confirm from Step 0b |
 | `history_seasons` | `1` | default 1; bump to 2 if the league's prior season feeds form fallback |
 | `confederation` | `CONCACAF` | UEFA / CONMEBOL / CONCACAF / CAF / AFC / OFC / FIFA |
-| `tier` | `1` | domestic leagues only; pyramid level (1 = top flight) |
-| `competition_group` | `calendar` | **domestic leagues only** — which leagues this one is ranked alongside. `elite` \| `europe` \| `international` \| `calendar` \| `secondary`. Never guess: apply the assignment rule in the registry header. `elite` is a CPO judgement and is NEVER extended by onboarding |
 | `slug` | `mls` | stable, locale-independent URL slug — never changes once published |
 | `sort_order` | `120` | display order within the competition's group (see registry header) |
 | `notes` | free text | rationale, e.g. "WC 2026 host coverage for USA + Canada" |
@@ -191,8 +189,6 @@ status section (`ACTIVE` or `IN PROGRESS`):
     country: "{COUNTRY}"
     competition_type: "domestic_league"
     confederation: "{CONFEDERATION}"
-    tier: {TIER}                      # domestic_league only — omit for other types
-    competition_group: "{COMPETITION_GROUP}"   # domestic_league only — omit for other types
     slug: "{SLUG}"
     sort_order: {SORT_ORDER}
     provider: "api_football"
@@ -211,6 +207,13 @@ status section (`ACTIVE` or `IN PROGRESS`):
 **Do NOT add a `raw_table_prefix` field.** All competitions write to the
 unified raw tables (`RAW_APIF_{entity}`). The ingestion loader reads the
 registry at startup and populates `league_code` automatically.
+
+A club competition also needs one row per season in
+`dbt_project/seeds/competition_season_map.csv`. A domestic league sets `tier` (1 = top flight)
+and `competition_group` on its first season row; a later row left blank keeps the previous
+season's values. Assign the group in this order: `elite` is a CPO judgement and onboarding never
+extends it; `secondary` when the tier is not 1; `calendar` when the season type is calendar_year;
+`europe` when the confederation is UEFA; `international` otherwise.
 
 ### Step 3 — Sync active competition vars
 

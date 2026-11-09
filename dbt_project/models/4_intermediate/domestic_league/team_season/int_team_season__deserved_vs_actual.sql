@@ -30,7 +30,7 @@
   8.29-21.46 for the tournament types, over 224 rows). The previous gate assumed knockouts carry no
   standing and would drop out on their own; group-stage tournaments DO carry standings, just not
   comparable ones, so it checked that a position EXISTS rather than that it is the same KIND of
-  number. The registry join now restricts this explicitly. A tournament-appropriate version is
+  number. The dim_league join restricts this explicitly. A tournament-appropriate version is
   wanted eventually and is deliberately NOT designed here.
 
   Composes int_team_season__metrics (the gated shots_on_goal_difference_per_match plus the season points and
@@ -92,11 +92,11 @@ with metrics as (
     from {{ ref('int_team_season__metrics') }}
 ),
 
-registry as (
+competitions as (
     select
         league_code,
         competition_type
-    from {{ ref('competition_registry') }}
+    from {{ ref('dim_league') }}
 ),
 
 -- domestic-league rows only: a group-stage tournament's standing is a within-group position, which
@@ -104,7 +104,7 @@ registry as (
 domestic as (
     select m.*
     from metrics as m
-    inner join registry as r
+    inner join competitions as r
         on m.league_code = r.league_code
     where r.competition_type = 'domestic_league'
 ),

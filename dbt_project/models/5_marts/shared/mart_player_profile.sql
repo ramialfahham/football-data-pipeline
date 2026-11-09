@@ -93,18 +93,12 @@ contribution as (
 -- join mart_player_career already uses. Needed because the season a player's page opens on is a
 -- CLUB season (#848 made Overview, Performance and Career club-only), and a player-season row on
 -- its own cannot tell club football from national.
-registry as (
+competitions as (
     select
         league_code,
-        competition_type
-    from {{ ref('competition_registry') }}
-),
-
-types as (
-    select
         competition_type,
         entity_type
-    from {{ ref('competition_types') }}
+    from {{ ref('dim_league') }}
 ),
 
 page as (
@@ -143,7 +137,7 @@ select
     a.season_api_year,
     sl.season_label,
     reg.competition_type,
-    ct.entity_type,
+    reg.entity_type,
     -- identity + descriptors (not catalogue metrics)
     p.player_name,
     p.player_first_name,
@@ -271,10 +265,8 @@ left join contribution as c
         a.player_sk = c.player_sk
         and ta.team_sk = c.team_sk
         and a.season_sk = c.season_sk
-left join registry as reg
+left join competitions as reg
     on a.league_code = reg.league_code
-left join types as ct
-    on reg.competition_type = ct.competition_type
 left join page as pg
     on a.player_sk = pg.player_sk
 left join season_labels as sl

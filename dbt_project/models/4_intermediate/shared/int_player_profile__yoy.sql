@@ -42,17 +42,17 @@ with std as (
     from {{ ref('int_player_season_record') }}
 ),
 
-registry as (
+competitions as (
     select
         league_code,
         competition_type
-    from {{ ref('competition_registry') }}
+    from {{ ref('dim_league') }}
 ),
 
 dom as (
     select s.*
     from std as s
-    inner join registry as r
+    inner join competitions as r
         on s.league_code = r.league_code
     where r.competition_type = 'domestic_league'
 ),

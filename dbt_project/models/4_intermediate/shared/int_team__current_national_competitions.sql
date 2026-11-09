@@ -15,11 +15,9 @@ with seasons as (
         min(f.kickoff_datetime) as first_match_at,
         max(f.kickoff_datetime) as last_match_at
     from {{ ref('fct_fixture') }} as f
-    inner join {{ ref('competition_registry') }} as reg
-        on f.league_code = reg.league_code
-    inner join {{ ref('competition_types') }} as typ
-        on reg.competition_type = typ.competition_type
-    where typ.entity_type = 'national'
+    inner join {{ ref('dim_league') }} as leagues
+        on f.league_code = leagues.league_code
+    where leagues.entity_type = 'national'
     group by f.season_sk, f.league_code, f.season_api_year
 ),
 

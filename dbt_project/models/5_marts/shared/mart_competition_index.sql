@@ -28,11 +28,7 @@
     entity name rather than chrome.
 #}
 
-with import_competition_registry as (
-    select * from {{ ref('competition_registry') }}
-),
-
-import_competition_types as (
+with import_competition_types as (
     select * from {{ ref('competition_types') }}
 ),
 
@@ -42,6 +38,10 @@ import_confederations as (
 
 import_dim_league as (
     select * from {{ ref('dim_league') }}
+),
+
+import_dim_competition_season as (
+    select * from {{ ref('dim_competition_season') }}
 ),
 
 import_fct_fixture as (
@@ -83,22 +83,33 @@ last_fixture as (
     group by league_code
 ),
 
+latest_season as (
+    select
+        league_code,
+        tier
+    from import_dim_competition_season
+    qualify row_number() over (partition by league_code order by season_api_year desc) = 1
+),
+
 -- A blank display_group means "not browsable" and the seed uses it deliberately for the three
 -- friendly types (#54 note 3). Excluded here rather than given a heading. Today this removes
 -- ZERO rows -- no registry competition carries a friendly type -- but the rule is the seed's,
 -- not this model's, and encoding it here keeps the page correct the day one is onboarded.
 browsable as (
     select
-        registry.league_code,
-        registry.competition_type,
-        registry.slug,
-        registry.confederation,
-        types.entity_type,
+        leagues.league_code,
+        leagues.competition_type,
+        leagues.slug,
+        leagues.confederation,
+        leagues.entity_type,
+        leagues.league_name,
+        leagues.league_logo_url,
+        leagues.league_country,
         types.label_en as category_label_en,
         types.label_i18n_key as category_label_i18n_key
-    from import_competition_registry as registry
+    from import_dim_league as leagues
     inner join import_competition_types as types
-        on registry.competition_type = types.competition_type
+        on leagues.competition_type = types.competition_type
     where
         types.display_group is not null
         and trim(types.display_group) != ''
@@ -112,9 +123,10 @@ select
     browsable.category_label_en,
     browsable.category_label_i18n_key,
     browsable.confederation,
+    latest_season.tier,
     confed.region_rank,
-    leagues.league_name as competition_name,
-    leagues.league_logo_url as logo_url,
+    browsable.league_name as competition_name,
+    browsable.league_logo_url as logo_url,
     next_fixture.next_kickoff_datetime,
     last_fixture.last_kickoff_datetime,
     current_round.current_round_label_i18n_key,
@@ -127,18 +139,18 @@ select
     -- sentinel into NULL, never a corrected string), so testing it directly replaces the
     -- competition_types.single_country flag that was considered and rejected -- there is no
     -- second taxonomy statement to keep in sync with the FK.
-    coalesce(leagues.league_country, confed.label_en) as region_label_en,
+    coalesce(browsable.league_country, confed.label_en) as region_label_en,
     case
-        when leagues.league_country is null then confed.label_i18n_key
+        when browsable.league_country is null then confed.label_i18n_key
     end as region_label_i18n_key
 from browsable
 left join import_confederations as confed
     on browsable.confederation = confed.confederation
-left join import_dim_league as leagues
-    on browsable.league_code = leagues.league_code
 left join next_fixture
     on browsable.league_code = next_fixture.league_code
 left join last_fixture
     on browsable.league_code = last_fixture.league_code
 left join current_round
     on browsable.league_code = current_round.league_code
+left join latest_season
+    on browsable.league_code = latest_season.league_code

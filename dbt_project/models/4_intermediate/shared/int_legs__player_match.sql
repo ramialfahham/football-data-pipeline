@@ -18,12 +18,8 @@ fixtures as (
     select * from {{ ref('fct_fixture') }}
 ),
 
-registry as (
-    select * from {{ ref('competition_registry') }}
-),
-
-types as (
-    select * from {{ ref('competition_types') }}
+competitions as (
+    select * from {{ ref('dim_league') }}
 ),
 
 finished as (
@@ -54,7 +50,7 @@ select
     f.kickoff_datetime,
     f.round_name,
     reg.competition_type,
-    typ.entity_type,
+    reg.entity_type,
     ps.is_from_lineups,
     ps.minutes,
     ps.is_starter,
@@ -92,7 +88,5 @@ select
 from player_stats as ps
 inner join finished as f
     on ps.fixture_sk = f.fixture_sk
-left join registry as reg
+left join competitions as reg
     on ps.league_code = reg.league_code
-left join types as typ
-    on reg.competition_type = typ.competition_type

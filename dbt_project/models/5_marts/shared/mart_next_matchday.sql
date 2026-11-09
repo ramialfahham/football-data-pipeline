@@ -89,7 +89,7 @@ competition_keys as (
         min(c.region_rank) as region_rank,
         min(m.kickoff_datetime) as first_kickoff
     from next_matchday as m
-    left join {{ ref('competition_registry') }} as r
+    left join {{ ref('dim_league') }} as r
         on m.league_code = r.league_code
     left join {{ ref('confederations') }} as c
         on r.confederation = c.confederation

@@ -1,8 +1,8 @@
 {#
   Player Career log (content_architecture §4; #480 §8.3). One row per (player, CLUB, competition-season):
   the player's appearances / goals / assists at that club that competition-season + player identity
-  (dim_player) + club identity (dim_team) + the competition's entity_type (club / national, via the
-  registry -> competition_types seeds). This is the Transfermarkt-shaped career table — a mid-season
+  (dim_player) + club identity (dim_team) + the competition's entity_type (club / national, from
+  dim_league). This is the Transfermarkt-shaped career table — a mid-season
   transfer shows as two rows (two clubs, one season). Club and national rows are handled uniformly:
   a "national" row is a season in a competition whose entity_type is national.
 
@@ -44,18 +44,11 @@ teams as (
     from {{ ref('dim_team') }}
 ),
 
-registry as (
+competitions as (
     select
         league_code,
-        competition_type
-    from {{ ref('competition_registry') }}
-),
-
-types as (
-    select
-        competition_type,
         entity_type
-    from {{ ref('competition_types') }}
+    from {{ ref('dim_league') }}
 ),
 
 typed as (
@@ -72,10 +65,9 @@ typed as (
         cs.goals_player,
         cs.assists_player,
         cs.last_kickoff_at,
-        types.entity_type
+        competitions.entity_type
     from club_season as cs
-    left join registry on cs.league_code = registry.league_code
-    left join types on registry.competition_type = types.competition_type
+    left join competitions on cs.league_code = competitions.league_code
 ),
 
 with_caps as (

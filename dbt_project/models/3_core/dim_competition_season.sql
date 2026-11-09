@@ -2,8 +2,8 @@ with import_base_apif__competition_seasons as (
     select * from {{ ref('base_apif__competition_seasons') }}
 ),
 
-import_competition_registry as (
-    select * from {{ ref('competition_registry') }}
+import_dim_league as (
+    select * from {{ ref('dim_league') }}
 ),
 
 import_competition_season_map as (
@@ -16,12 +16,14 @@ labelled as (
         map.season_type,
         map.split_year_season,
         map.calendar_year_season,
+        map.tier as map_tier,
+        map.competition_group as map_competition_group,
         if(
             map.previous_season_api_year is null,
             null,
             {{ dbt_utils.generate_surrogate_key(['seasons.league_api_id', 'map.previous_season_api_year']) }}
         ) as previous_season_sk,
-        case registry.season_type
+        case leagues.season_type
             when 'split_year'
                 then concat(
                     cast(seasons.season_api_year as string),
@@ -31,8 +33,8 @@ labelled as (
             when 'calendar_year' then cast(seasons.season_api_year as string)
         end as season_label
     from import_base_apif__competition_seasons as seasons
-    left join import_competition_registry as registry
-        on seasons.league_code = registry.league_code
+    left join import_dim_league as leagues
+        on seasons.league_code = leagues.league_code
     left join import_competition_season_map as map
         on seasons.league_code = map.league_code and seasons.season_api_year = map.season_api_year
 )
@@ -47,6 +49,15 @@ select
     season_type,
     split_year_season,
     calendar_year_season,
+    -- A season the map leaves blank keeps the competition's latest earlier value.
+    last_value(map_tier ignore nulls) over (
+        partition by league_code order by season_api_year
+        rows between unbounded preceding and current row
+    ) as tier,
+    last_value(map_competition_group ignore nulls) over (
+        partition by league_code order by season_api_year
+        rows between unbounded preceding and current row
+    ) as competition_group,
     previous_season_sk,
     season_start_date,
     season_end_date,

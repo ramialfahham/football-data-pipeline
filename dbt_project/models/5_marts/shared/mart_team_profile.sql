@@ -31,11 +31,18 @@ teams as (
     select * from {{ ref('dim_team') }}
 ),
 
-registry as (
+competitions as (
     select
         league_code,
         competition_type
-    from {{ ref('competition_registry') }}
+    from {{ ref('dim_league') }}
+),
+
+competition_seasons as (
+    select
+        season_sk,
+        season_label
+    from {{ ref('dim_competition_season') }}
 ),
 
 yoy as (
@@ -229,6 +236,7 @@ select
     br.heaviest_defeat_goals_for,
     br.heaviest_defeat_goals_against,
     br.heaviest_defeat_kickoff_datetime,
+    cs.season_label,
     -- The season this team's page opens on (#846). Exactly one row per team is true: the most
     -- recent DOMESTIC LEAGUE season, falling back to the most recent season of any type for a team
     -- with no league season. A warehouse fact, so the export and the page
@@ -245,7 +253,7 @@ left join team_season as ts
     on m.team_season_sk = ts.team_season_sk
 left join teams as t
     on m.team_sk = t.team_sk
-left join registry as reg
+left join competitions as reg
     on m.league_code = reg.league_code
 left join yoy as y
     on
@@ -273,3 +281,5 @@ left join opponents as bw
     on br.biggest_win_opponent_team_sk = bw.team_sk
 left join opponents as hd
     on br.heaviest_defeat_opponent_team_sk = hd.team_sk
+left join competition_seasons as cs
+    on m.season_sk = cs.season_sk
