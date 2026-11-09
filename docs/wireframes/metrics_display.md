@@ -19,9 +19,9 @@ Every catalogue row says whether it is a key metric (`is_key_metric`). Team and 
 ## Composite-row patterns (ruled)
 
 - **No naked percentage** — every % must have its volume visible nearby. Two
-  mechanisms by surface: team comparisons use an **adjacent count row** in the
-  same block (Duels before Duels won percentage); player bundles use the **inline full
-  triple** `{num} of {den} · {pct}%`.
+  mechanisms by surface. Team comparisons and the Player page's comparison blocks use an
+  **adjacent count row** in the same block. Duels comes before Duels won percentage, and Duels won
+  per 90 before Duels won percentage. Player bundles use the **inline full triple** `{num} of {den} · {pct}%`.
 - **Context pairs travel together**: a count and its percentage are key together
   (Duels before Duels won percentage), never separated.
 - **Aggregates with breakdown**: defensive actions render as one number with the
@@ -83,6 +83,9 @@ N" + vs-median, honest at N≈18) — never a percentile.
 6. **Ratio metrics keep their volume (no naked %).** The five ratio metrics (`saves_player_pct`, `passes_accuracy_player_pct`,
    `finishing_efficiency_player_pct`, `dribbles_success_player_pct`, `duels_won_player_pct`) render the triple `{num} of {den} ·
    {pct}%` — consistent with the player-row contract below; the wiring PR (GAP-21) carries the num/den atoms.
+   On the Player page's comparison blocks, each ratio follows its count per 90 in the same group instead. Team
+   comparisons do the same. These blocks are Compared with other players and Compared with last season. The
+   goalkeeper Saves card shows the percentage alone.
 
 ## Team metrics — LOCKED (CPO, 2026-06-11)
 

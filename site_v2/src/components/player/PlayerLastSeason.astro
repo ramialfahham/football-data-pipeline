@@ -1,0 +1,82 @@
+---
+// Compared with last season (Club tab): this season so far against the whole of last season, over
+// all club competitions, in the served metric list. The Team page's table and trend. Absent when the
+// player has no club minutes last season or every value is blank.
+import SectionHead from "../ui/SectionHead.astro";
+import MetricSwitch from "../ui/MetricSwitch.astro";
+import { DASH, formatValue, integer } from "../../lib/format";
+import { t, metricLabel, boardTitle } from "../../i18n/strings";
+import { betterSide } from "../../lib/bars";
+import { playerGroups } from "../../lib/playerPage";
+import type { Lang } from "../../lib/format";
+import type { PlayerLastSeason as LastSeason } from "../../lib/playerPage";
+
+interface Props {
+  lastSeason: LastSeason | null;
+  name: string;
+  isGoalkeeper: boolean;
+  lang: Lang;
+}
+const { lastSeason, name, isGoalkeeper, lang } = Astro.props;
+
+const byKey = new Map((lastSeason?.metrics ?? []).map((m) => [m.metric_key, m]));
+const has = (id: string) => byKey.get(id)?.value != null || byKey.get(id)?.value_prev != null;
+const groups = lastSeason?.minutes_prev ? playerGroups(has, isGoalkeeper) : [];
+const showSwitch = !isGoalkeeper && groups.flatMap((g) => g.rows).some((r) => r.is_key_metric)
+  && groups.flatMap((g) => g.rows).some((r) => !r.is_key_metric);
+const shown = (v: number | null | undefined, format: Parameters<typeof formatValue>[1]) =>
+  typeof v === "number" ? formatValue(v, format, lang) : DASH;
+---
+
+{groups.length > 0 && (
+  <section>
+    <SectionHead label={t(lang, "teamVsLastSeason")} />
+    <p class="bsub">
+      {t(lang, "playerLastSeasonIntro", {
+        player: name,
+        now: integer(lastSeason!.minutes, lang),
+        prev: integer(lastSeason!.minutes_prev, lang),
+        per90: t(lang, "playerPer90"),
+      })}
+    </p>
+    {showSwitch && <MetricSwitch id="player-last-season-switch" lang={lang} />}
+    <div class="yoy-list">
+      {groups.map((g) => (
+        <div class:list={["fxgroup", "rkgroup", { nonkey: showSwitch && !g.hasKey }]}>
+          <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${g.key}.label`)}</span></div>
+          <div class="ctab yoyt">
+            <div class="ctab-head">
+              <span class="h nmh"></span>
+              <span class="h">{t(lang, "teamThisSeasonHead")}</span>
+              <span class="h">{t(lang, "teamLastSeasonHead")}</span>
+              <span class="h tr">{t(lang, "teamTrend")}</span>
+            </div>
+            {g.rows.map((r) => {
+              const m = byKey.get(r.metric_id)!;
+              const a = shown(m.value, r.format);
+              const b = shown(m.value_prev, r.format);
+              const blank = a === DASH || b === DASH;
+              const side = blank || a === b ? null : betterSide(m.value as number, m.value_prev as number, r.direction);
+              return (
+                <div class:list={["ctab-row", { nonkey: showSwitch && !r.is_key_metric }]}>
+                  <span class="tm"><span class="nm">{boardTitle(lang, r.label_i18n_key, false)}</span></span>
+                  <span class="n now">{a}</span>
+                  <span class="n prev">{b}</span>
+                  {blank || (r.direction === "neutral" && a !== b) ? (
+                    <span class="n tr"></span>
+                  ) : side === "home" ? (
+                    <span class="n tr up" role="img" aria-label={t(lang, "teamTrendBetter")}>▲</span>
+                  ) : side === "away" ? (
+                    <span class="n tr down" role="img" aria-label={t(lang, "teamTrendWorse")}>▼</span>
+                  ) : (
+                    <span class="n tr flat" role="img" aria-label={t(lang, "teamTrendSame")}>–</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+)}

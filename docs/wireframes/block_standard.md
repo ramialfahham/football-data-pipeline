@@ -137,7 +137,7 @@
 | Goal row | `.resrow.goal` | a goal: the score after it, then the scorer with the crest of the side it counts for. The second line holds the minute with the assist, own goal or penalty. Without minutes the row has no score | `fits` | ruled | the played match page review |
 | Goal row meta | `.resrow.goal .rmeta` | the goal's minute and its assist, own goal or penalty: 14px ink-2, larger and lighter than a list row's second line | `font-size=14px; color=ink-2` | ruled | the played match page review |
 | Result row home away | `.resrow .ha` | the result row's home away, in the 11-600-muted text style, never broken | `font-size=11px; font-weight=600; color=muted; one-line; fits` | ruled | the component registry |
-| Result row parts | `.rlist, .scorer` | the result row's other parts: registered, no text of their own |  | ruled | the component registry |
+| Result row parts | `.rlist, .rlist.pm, .rm-c, .rm-p, .scorer` | the result row's other parts: registered, no text of their own |  | ruled | the component registry |
 | Form parts | `.W, .D, .L` | the form's other parts: registered, no text of their own |  | ruled | the component registry |
 | Player row | `.plrow` | photo · name over position · goals and assists on the right at every width; two lines below 375px when the row is short of room; on a line-up, the minutes played | `fits` | ruled | the match page review; the component registry |
 | Player row name | `.plrow .pname .nm` | 15px regular ink, wrapping, never cut off | `font-size=15px; font-weight=400; color=ink; white-space=normal` | ruled | the match page review |
@@ -152,6 +152,8 @@
 | Strip plot row | `.rs-row` | a metric's name, the league's values with every team's mark, and the team's rank over its value; drawn by `team/TeamLeagueStrips.astro` | `fits` | ruled | the Team page review |
 | Strip plot value | `.rs-val` | the team's rank over its value; drawn by `team/TeamLeagueStrips.astro` | `font-size=15px; font-weight=700; color=ink` | ruled | the Team page review |
 | Strip plot band | `.rs-row .rs-band` | a strip plot row's strip: its line with every team's mark on it | `fits` | ruled | the chart theme |
+| Strip plot parts | `.rs-plot, .rs-peers, .rs-tick, .rs-tick-value, .rs-tick-key, .cmp-panels, .cmp-p` | the strip plot's other parts: registered, no text of their own |  | ruled | the component registry |
+| Card parts | `.kpis, .kpi-row, .kpi, .kpi-in, .kpi-v, .kpi-t, .kpi-l, .kpis.narrow, .kpis.tight` | the card's other parts: registered, no text of their own |  | ruled | the component registry |
 | Scatter plot | `.dp-chart` | each team's shots on target difference per match against its points, with the deserved points line; drawn by `team/TeamDeserved.astro` | `fits` | ruled | the Team page review |
 | Comparison element | `.cmp` | two teams' numbers on one metric list, each metric's two values, name and bar; drawn by `fixture/MetricComparison.astro` | `fits` | ruled | the played match page review |
 | Comparison team name | `.cmp .formhead .h` | each team's name over its column, in the chart legend's style | `font-size=12px; font-weight=400; color=ink-2` | ruled | the chart theme |
@@ -208,6 +210,12 @@ note); a name, a "Matchday N" and a date never break inside themselves
 Not measured, still the rule: a team's crest in the match header is 52px, and every other crest is
 24px.
 
+## Separators
+
+A middle dot with a space either side separates items of one line. Items in their own columns are
+separated by space. An en dash joins a score and stands for a missing value. The em dash is not
+used.
+
 ## Pages
 
 Every built page type and every mock page. `Source` is `site_v2/dist` for a built page, or the
@@ -235,6 +243,8 @@ of record in `design-mocks/renders/` are not pages; the generators that wrote th
 | Played match page | built | `site_v2/dist` | `en/bundesliga/matches/2026-09-05-tsg-1899-hoffenheim-vs-borussia-dortmund/index.html` | path | Match header winner, Goal row meta, Comparison element, Metric switch, Comparison team name, Column head, Search field [>=1010px], Search button [<1010px] |
 | Team page | built | `site_v2/dist` | `en/teams/*/index.html` | path | Block heading, Tab bar, Competition row, Result row, Match row kick-off, Tag, Fact row value, Player row, Squad grid, Search field [>=1010px], Search button [<1010px] |
 | Teams page | built | `site_v2/dist` | `en/teams/index.html` | path | Page heading, Filter row, Block heading, Competition group head, Group count, Fold, Row link, Search field [>=1010px], Search button [<1010px] |
+| Player page | built | `site_v2/dist` | `en/players/h-kane-184/index.html` | path | Block heading, Tab bar, Strip plot row, Result row, Match row kick-off, Search field [>=1010px], Search button [<1010px] |
+| Player pages | built | `site_v2/dist` | `en/players/*/index.html` | path | Block heading, Search field [>=1010px], Search button [<1010px] |
 | Matches page | built | `site_v2/dist` | `en/matches/index.html` | path | Page heading, Filter row, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row kick-off, Match row score, Search field [>=1010px], Search button [<1010px] |
 | Matches day page | built | `site_v2/dist` | `en/matches/*/index.html` | path | Page heading, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row score, Search field [>=1010px], Search button [<1010px] |
 | competition-overview | mock | `gen_overview_after_teams.py` | `competition_overview_after_teams_v2.html` | toggle | Block heading, Table head, Table row, Ordered-by number, Fact row value, Tab bar |

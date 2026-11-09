@@ -307,6 +307,16 @@ export function sharesHeader(a, b, h1Of) {
   return h1 !== undefined && h1 === h1Of.get(a) && h1 === h1Of.get(b);
 }
 
+/** Whether both paths are player pages. Two players can share a name: the heading stays the name,
+ *  and the address, the title and the description keep the pages apart. */
+export function arePlayerPages(a, b) {
+  const isPlayer = (path) => {
+    const [lang, section, slug, rest] = path.split("/").filter(Boolean);
+    return Boolean(slug) && !rest && section === WORDS.players?.[lang];
+  };
+  return isPlayer(a) && isPlayer(b);
+}
+
 /**
  * Pure: audit the whole generated set.
  *
@@ -403,9 +413,10 @@ export function auditSet(pages, opts) {
         if (!value) continue;
         const k = `${l} ${value}`;
         const first = seen[field].get(k);
-        // The one h1 that may repeat: an entity page and its tab pages share one header by design
-        // (the competition page's Overview, Matchdays and Rankings); the title carries the tab.
-        if (first && first !== path && !(field === "h1" && sharesHeader(first, path, h1Of)))
+        // An h1 may repeat in two cases: an entity page and its tab pages share one header by design
+        // (the competition page's Overview, Matchdays and Rankings), where the title carries the tab;
+        // and two players can share a name.
+        if (first && first !== path && !(field === "h1" && (sharesHeader(first, path, h1Of) || arePlayerPages(first, path))))
           add(path, `${field} is not unique within "${l}" — same as ${first}: ${JSON.stringify(value)}`);
         else if (!first) seen[field].set(k, path);
       }

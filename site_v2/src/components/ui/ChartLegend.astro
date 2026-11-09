@@ -2,10 +2,10 @@
 // The one chart legend, above its chart: a key per mark, each followed by its name. The keys are the
 // chart's own marks: the team's dot, the other teams' dot, a reference line, a gap line.
 interface Props {
-  keys: { mark: "team" | "other" | "ref" | "gap"; label: string }[];
+  keys: { mark: "team" | "other" | "ref" | "gap" | "median"; label: string }[];
 }
 const { keys } = Astro.props;
-const MARK = { team: "chart-dot chart-me", other: "chart-dot", ref: "chart-line chart-ref", gap: "chart-line chart-gap" };
+const MARK = { median: "rs-tick-key", team: "chart-dot chart-me", other: "chart-dot", ref: "chart-line chart-ref", gap: "chart-line chart-gap" };
 ---
 
 <div class="chart-legend" aria-hidden="true">

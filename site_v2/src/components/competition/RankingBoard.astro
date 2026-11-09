@@ -15,6 +15,7 @@ import type { Lang } from "../../lib/format";
 import { boardTitle } from "../../i18n/strings";
 import { localeHref, word } from "../../lib/href";
 import type { CompetitionBoard, LandingRankedBoard, MatchLeaderBoard } from "../../lib/types";
+import { hasPlayerPage } from "../../lib/builtPlayers.mjs";
 
 interface Props {
   board: CompetitionBoard | MatchLeaderBoard | LandingRankedBoard;
@@ -31,7 +32,7 @@ const title = boardTitle(lang, board.label_i18n_key, "per_match" in board ? boar
 
 function href(slug: string | null | undefined): string | undefined {
   if (rowHref) return rowHref(slug);
-  if (!slug) return undefined;
+  if (!slug || (entity === "player" && !hasPlayerPage(slug))) return undefined;
   return localeHref(lang, `${word(lang, entity === "team" ? "teams" : "players")}/${slug}/`);
 }
 const Row = (slug: string | null | undefined) => (href(slug) ? "a" : "div");

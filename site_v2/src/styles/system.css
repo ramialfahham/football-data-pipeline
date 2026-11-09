@@ -229,12 +229,16 @@ section { margin-top: 36px; }
 .tab:hover { color: var(--ink-2); }
 #tab-overview:checked ~ .tabs .tab[for="tab-overview"],
 #tab-matches:checked ~ .tabs .tab[for="tab-matches"],
-#tab-performance:checked ~ .tabs .tab[for="tab-performance"] { color: var(--ink); font-weight: 700; border-bottom-color: var(--ink); }
+#tab-performance:checked ~ .tabs .tab[for="tab-performance"],
+#tab-club:checked ~ .tabs .tab[for="tab-club"],
+#tab-national:checked ~ .tabs .tab[for="tab-national"] { color: var(--ink); font-weight: 700; border-bottom-color: var(--ink); }
 .fx .tab-in:focus-visible ~ .tabs { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
 .page { display: none; }
 #tab-overview:checked ~ .page[data-page="overview"],
 #tab-matches:checked ~ .page[data-page="matches"],
-#tab-performance:checked ~ .page[data-page="performance"] { display: block; }
+#tab-performance:checked ~ .page[data-page="performance"],
+#tab-club:checked ~ .page[data-page="club"],
+#tab-national:checked ~ .page[data-page="national"] { display: block; }
 
 /* ================================================================ *
  *  FOUNDATION SHELL — global header/footer + responsive layout system   *
@@ -889,7 +893,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .mp .mast .team .sg { display: none; }
 @media (max-width: 699.98px) {
   .mp .mast .teams.played .team { grid-template-columns: auto 1fr auto; }
-  .mp .mast .team .sg { display: block; grid-column: 3; grid-row: 1 / span 2; align-self: center; font-size: 24px; font-weight: 400; color: var(--ink); }
+  .mp .mast .team .sg { display: block; grid-column: 3; grid-row: 1 / span 2; align-self: center; font-weight: 400; color: var(--ink); }
 }
 /* The line under the score: after penalties, the score after extra time; on an award, how it came about. */
 .mp .mast .resline { font-size: 13px; color: var(--muted); margin-top: 14px; }
@@ -1112,5 +1116,62 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
 .ctab.yoyt .tr.flat { color: var(--muted); }
 .tsw:not(:checked) ~ * .ctab.yoyt .ctab-row { background: transparent; }
 .tsw:not(:checked) ~ * .ctab.yoyt .ctab-row:nth-child(odd of :not(.nonkey)) { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+
+/* The card: separate cards of equal width, at most 240px, the number centred over its label. One
+   row while all fit, then three across, otherwise two across; fitBlocks.mjs marks the form. */
+.kpis { container: kpis / inline-size; }
+.kpi-row { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 240px)); gap: 12px; }
+.kpi-row[data-n="6"] { --cols: 2; }
+.kpis.fit-two .kpi-row[data-n="6"] { --cols: 3; }
+.kpis.fit-one .kpi-row[data-n="6"] { --cols: 6; }
+.kpi { container: kpi / inline-size; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; }
+.kpi-in { display: grid; justify-items: center; text-align: center; padding: 12px 14px; row-gap: 6px; }
+.kpi-v { font-size: 30px; font-weight: 700; line-height: 1; color: var(--ink); }
+.kpi-t { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.kpi-l { font-size: 13px; font-weight: 600; line-height: 1.25; color: var(--ink-2); }
+.kpis.fit-two .kpi-in { padding-inline: 10px; }
+.kpis.narrow .kpi-row { gap: 8px; }
+.kpis.tight .kpi-in { padding: 10px 4px; }
+.kpis.tight .kpi-l { font-size: 12px; }
+.mp .mast .team .sg, .kpis.tight .kpi-v { font-size: 24px; }
+
+/* A comparison shows the panel of its filter. */
+.cmp-p { display: none; }
+.fbar + .cmp-panels .bsub { margin-top: 14px; }
+.seg-in[data-cmp="1"]:checked ~ .cmp-panels .cmp-p[data-cmp="1"],
+.seg-in[data-cmp="2"]:checked ~ .cmp-panels .cmp-p[data-cmp="2"],
+.seg-in[data-cmp="3"]:checked ~ .cmp-panels .cmp-p[data-cmp="3"],
+.seg-in[data-cmp="4"]:checked ~ .cmp-panels .cmp-p[data-cmp="4"],
+.seg-in[data-cmp="5"]:checked ~ .cmp-panels .cmp-p[data-cmp="5"],
+.seg-in[data-cmp="6"]:checked ~ .cmp-panels .cmp-p[data-cmp="6"],
+.seg-in[data-cmp="7"]:checked ~ .cmp-panels .cmp-p[data-cmp="7"],
+.seg-in[data-cmp="8"]:checked ~ .cmp-panels .cmp-p[data-cmp="8"] { display: block; }
+.seg-in[data-cmp="1"]:checked ~ .fbar .seg-btn[data-cmp="1"],
+.seg-in[data-cmp="2"]:checked ~ .fbar .seg-btn[data-cmp="2"],
+.seg-in[data-cmp="3"]:checked ~ .fbar .seg-btn[data-cmp="3"],
+.seg-in[data-cmp="4"]:checked ~ .fbar .seg-btn[data-cmp="4"],
+.seg-in[data-cmp="5"]:checked ~ .fbar .seg-btn[data-cmp="5"],
+.seg-in[data-cmp="6"]:checked ~ .fbar .seg-btn[data-cmp="6"],
+.seg-in[data-cmp="7"]:checked ~ .fbar .seg-btn[data-cmp="7"],
+.seg-in[data-cmp="8"]:checked ~ .fbar .seg-btn[data-cmp="8"] {
+  background: var(--surface); color: var(--ink); font-weight: 700; box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+}
+.rs-plot { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.rs-peers circle { cy: 50%; r: calc(var(--chart-dot-other) / 2); fill: var(--chart-other); }
+.rs-tick { stroke: var(--chart-line); stroke-width: 1px; }
+.rs-tick-value { fill: var(--chart-axis); font-size: var(--chart-text); font-variant-numeric: tabular-nums; }
+.rs-tick-key { display: inline-block; width: 0; height: 10px; border-left: 1px solid var(--chart-line); }
+
+/* A player's match row: the score right after the chip and the competition and the player's line
+   under it; one line while every row fits. */
+.rlist.pm .resrow { grid-template-columns: 24px auto 1fr; grid-template-areas: "res score opp" ". meta meta"; }
+.rlist.pm .resrow .rmeta { text-align: left; }
+.rlist.pm:not(.fit-one) .resrow .rscore { text-align: left; }
+.rlist.pm .resrow .rm-c, .rlist.pm .resrow .rm-p { display: block; }
+.rlist.pm .resrow .rm-p b { color: var(--ink); font-weight: 700; }
+.rlist.pm.fit-one .resrow { grid-template-columns: 24px 42px 1fr auto; grid-template-areas: "res score opp meta"; }
+.rlist.pm.fit-one .resrow .rmeta { text-align: right; }
+.rlist.pm.fit-one .resrow .rm-c, .rlist.pm.fit-one .resrow .rm-p { display: inline; }
+.rlist.pm.fit-one .resrow .rm-p::before { content: " · "; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

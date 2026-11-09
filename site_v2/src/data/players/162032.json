@@ -1,0 +1,982 @@
+{
+  "type": "player",
+  "player_id": 162032,
+  "slug": "miguel-gutierrez-162032",
+  "name": "Miguel Gutiérrez Ortega",
+  "photo": "https://media.api-sports.io/football/players/162032.png",
+  "nationality": "Spain",
+  "age": 25,
+  "height": "180",
+  "position_group": "DEF",
+  "season_label": "2026/27",
+  "club": {
+    "team_id": 168,
+    "name": "Bayer 04 Leverkusen",
+    "crest": "https://media.api-sports.io/football/teams/168.png",
+    "slug": "bayer-04-leverkusen"
+  },
+  "tabs": [
+    {
+      "tab": "club",
+      "team": {
+        "team_id": 168,
+        "name": "Bayer 04 Leverkusen",
+        "crest": "https://media.api-sports.io/football/teams/168.png",
+        "slug": "bayer-04-leverkusen"
+      },
+      "cards": {
+        "appearances": 13.0,
+        "assists_player": 4.0,
+        "cards_red_player": 0.0,
+        "cards_yellow_player": 2.0,
+        "minutes_per_appearance": 82.46153846153847,
+        "goals_player": 1.0
+      },
+      "next_matches": [
+        {
+          "fixture_id": 1575219,
+          "league_code": "BL1",
+          "upcoming_rank": 1,
+          "opponent_name": "1. FC Köln",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/192.png",
+          "is_home": false,
+          "kickoff_datetime": "2026-11-08 14:30:00+00:00",
+          "round_name": "Regular Season - 9",
+          "goals_for": null,
+          "goals_against": null,
+          "result": null,
+          "status_short": "NS"
+        },
+        {
+          "fixture_id": 1636255,
+          "league_code": "UEL",
+          "upcoming_rank": 1,
+          "opponent_name": "Dinamo Zagreb",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/620.png",
+          "is_home": false,
+          "kickoff_datetime": "2026-11-26 17:45:00+00:00",
+          "round_name": "League Stage - 5",
+          "goals_for": null,
+          "goals_against": null,
+          "result": null,
+          "status_short": "NS"
+        },
+        {
+          "fixture_id": 1648351,
+          "league_code": "DFBP",
+          "upcoming_rank": 1,
+          "opponent_name": "RB Leipzig",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/173.png",
+          "is_home": true,
+          "kickoff_datetime": "2026-12-01 19:00:00+00:00",
+          "round_name": "Round of 16",
+          "goals_for": null,
+          "goals_against": null,
+          "result": null,
+          "status_short": "NS"
+        }
+      ],
+      "competitions": [
+        {
+          "league_code": "BL1",
+          "season": 2026,
+          "season_label": "2026/27",
+          "position_group": "DEF",
+          "player_count": 80,
+          "metrics": [
+            {
+              "metric_key": "assists_per90",
+              "value": 0.5049088359046283,
+              "rank": 2,
+              "median": 0.0
+            },
+            {
+              "metric_key": "ball_actions_per90",
+              "value": 55.79242636746143,
+              "rank": 45,
+              "median": 58.01393728222997
+            },
+            {
+              "metric_key": "blocks_per90",
+              "value": 0.25245441795231416,
+              "rank": 60,
+              "median": 0.547112462006079
+            },
+            {
+              "metric_key": "defensive_actions_per90",
+              "value": 2.0196353436185133,
+              "rank": 77,
+              "median": 3.902097902097902
+            },
+            {
+              "metric_key": "dribbles_success_per90",
+              "value": 0.37868162692847124,
+              "rank": 28,
+              "median": 0.26627218934911245
+            },
+            {
+              "metric_key": "dribbles_success_player_pct",
+              "value": 0.2727272727272727,
+              "rank": 52,
+              "median": 0.5
+            },
+            {
+              "metric_key": "duels_won_per90",
+              "value": 2.524544179523142,
+              "rank": 78,
+              "median": 5.0
+            },
+            {
+              "metric_key": "duels_won_player_pct",
+              "value": 0.47619047619047616,
+              "rank": 68,
+              "median": 0.5818181818181818
+            },
+            {
+              "metric_key": "fouls_per90",
+              "value": 0.8835904628330996,
+              "rank": 36,
+              "median": 0.9278350515463918
+            },
+            {
+              "metric_key": "goals_per90",
+              "value": 0.12622720897615708,
+              "rank": 17,
+              "median": 0.0
+            },
+            {
+              "metric_key": "interceptions_per90",
+              "value": 0.5049088359046283,
+              "rank": 74,
+              "median": 1.3070539419087137
+            },
+            {
+              "metric_key": "offsides_per90",
+              "value": 0.0,
+              "rank": 1,
+              "median": 0.0
+            },
+            {
+              "metric_key": "passes_accuracy_player_pct",
+              "value": 0.8704156479217604,
+              "rank": 37,
+              "median": 0.8561643835616438
+            },
+            {
+              "metric_key": "passes_key_per90",
+              "value": 2.0196353436185133,
+              "rank": 6,
+              "median": 0.40059347181008903
+            },
+            {
+              "metric_key": "passes_per90",
+              "value": 51.62692847124825,
+              "rank": 42,
+              "median": 52.11246200607903
+            },
+            {
+              "metric_key": "scorer_points_per90",
+              "value": 0.6311360448807855,
+              "rank": 2,
+              "median": 0.0
+            },
+            {
+              "metric_key": "shots_on_goal_per90",
+              "value": 0.25245441795231416,
+              "rank": 24,
+              "median": 0.14106583072100312
+            },
+            {
+              "metric_key": "shots_on_goal_player_pct",
+              "value": 0.3333333333333333,
+              "rank": 29,
+              "median": 0.25
+            },
+            {
+              "metric_key": "shots_per90",
+              "value": 0.7573632538569425,
+              "rank": 23,
+              "median": 0.4231974921630094
+            },
+            {
+              "metric_key": "tackles_per90",
+              "value": 1.262272089761571,
+              "rank": 57,
+              "median": 1.6935483870967742
+            }
+          ]
+        }
+      ],
+      "squad": {
+        "team": {
+          "team_id": 168,
+          "name": "Bayer 04 Leverkusen",
+          "crest": "https://media.api-sports.io/football/teams/168.png",
+          "slug": "bayer-04-leverkusen"
+        },
+        "player_count": 14,
+        "metrics": [
+          {
+            "metric_key": "assists_per90",
+            "value": 0.3358208955223881,
+            "rank": 2,
+            "median": 0.08972632379680856,
+            "others": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.07588532883642496,
+              0.10356731875719218,
+              0.17839444995044598,
+              0.26785714285714285,
+              0.2931596091205212,
+              0.31213872832369943,
+              0.36915504511895
+            ]
+          },
+          {
+            "metric_key": "ball_actions_per90",
+            "value": 57.84514925373134,
+            "rank": 6,
+            "median": 56.6465596163912,
+            "others": [
+              24.886025768087215,
+              29.0,
+              34.25242718446602,
+              35.79190751445087,
+              47.857142857142854,
+              48.811074918566774,
+              55.50255536626916,
+              57.79056386651323,
+              69.60280373831776,
+              79.14839797639124,
+              84.1304347826087,
+              86.35135135135135,
+              101.59146841673503
+            ]
+          },
+          {
+            "metric_key": "blocks_per90",
+            "value": 0.251865671641791,
+            "rank": 10,
+            "median": 0.3344638141122957,
+            "others": [
+              0.0,
+              0.0,
+              0.0,
+              0.2102803738317757,
+              0.30664395229982966,
+              0.31213872832369943,
+              0.35678889990089196,
+              0.36915504511895,
+              0.43973941368078173,
+              0.44642857142857145,
+              0.45531197301854975,
+              0.5178365937859609,
+              0.6225296442687747
+            ]
+          },
+          {
+            "metric_key": "defensive_actions_per90",
+            "value": 1.8470149253731343,
+            "rank": 9,
+            "median": 2.4051894270905096,
+            "others": [
+              0.0,
+              0.8737864077669902,
+              1.248761149653122,
+              1.686541737649063,
+              1.76878612716763,
+              2.38204833141542,
+              2.4283305227655987,
+              2.7569169960474307,
+              2.9532403609516,
+              3.0781758957654723,
+              3.2142857142857144,
+              3.8901869158878504,
+              4.45945945945946
+            ]
+          },
+          {
+            "metric_key": "dribbles_success_per90",
+            "value": 0.4197761194029851,
+            "rank": 9,
+            "median": 0.6611502633261287,
+            "others": [
+              0.0,
+              0.15177065767284992,
+              0.17786561264822134,
+              0.22149302707136997,
+              0.4142692750287687,
+              0.5863192182410424,
+              0.735981308411215,
+              0.8027750247770069,
+              0.8108108108108109,
+              0.8323699421965318,
+              1.0732538330494037,
+              1.5728155339805825,
+              1.875
+            ]
+          },
+          {
+            "metric_key": "dribbles_success_player_pct",
+            "value": 0.35714285714285715,
+            "rank": 12,
+            "median": 0.5384615384615384,
+            "others": [
+              0.3076923076923077,
+              0.4444444444444444,
+              0.47368421052631576,
+              0.4883720930232558,
+              0.5,
+              0.5384615384615384,
+              0.5714285714285714,
+              0.6,
+              0.6666666666666666,
+              0.7777777777777778,
+              1.0,
+              1.0
+            ]
+          },
+          {
+            "metric_key": "duels_won_per90",
+            "value": 2.4347014925373136,
+            "rank": 12,
+            "median": 3.8219887122401035,
+            "others": [
+              0.18181818181818182,
+              1.9934372436423298,
+              2.4466019417475726,
+              3.0237154150197627,
+              3.3141542002301496,
+              3.794266441821248,
+              3.8497109826589595,
+              3.9863713798977853,
+              4.370664023785927,
+              4.397394136807818,
+              5.677570093457944,
+              6.25,
+              6.283783783783784
+            ]
+          },
+          {
+            "metric_key": "duels_won_player_pct",
+            "value": 0.4461538461538462,
+            "rank": 10,
+            "median": 0.5012644889357218,
+            "others": [
+              0.35,
+              0.40217391304347827,
+              0.4166666666666667,
+              0.4383561643835616,
+              0.4666666666666667,
+              0.4794520547945205,
+              0.5230769230769231,
+              0.5416666666666666,
+              0.5510204081632653,
+              0.5684210526315789,
+              0.62,
+              0.6578947368421053,
+              1.0
+            ]
+          },
+          {
+            "metric_key": "finishing_efficiency_player_pct",
+            "value": 0.3333333333333333,
+            "rank": 7,
+            "median": 0.3571428571428571,
+            "others": [
+              0.0,
+              0.0,
+              0.3333333333333333,
+              0.3333333333333333,
+              0.3333333333333333,
+              0.38095238095238093,
+              0.4,
+              0.5,
+              0.5,
+              0.5,
+              0.6666666666666666
+            ]
+          },
+          {
+            "metric_key": "fouls_per90",
+            "value": 1.0914179104477613,
+            "rank": 9,
+            "median": 1.1947839795288901,
+            "others": [
+              0.0,
+              0.36915504511895,
+              0.3794266441821248,
+              0.8027750247770069,
+              1.0485436893203883,
+              1.1445086705202312,
+              1.2450592885375493,
+              1.3463751438434983,
+              1.3668224299065421,
+              1.3798977853492334,
+              1.758957654723127,
+              1.875,
+              2.635135135135135
+            ]
+          },
+          {
+            "metric_key": "goals_per90",
+            "value": 0.08395522388059702,
+            "rank": 10,
+            "median": 0.12585999573807422,
+            "others": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.10356731875719218,
+              0.10514018691588785,
+              0.1465798045602606,
+              0.15177065767284992,
+              0.17475728155339806,
+              0.17786561264822134,
+              0.30664395229982966,
+              0.35714285714285715,
+              0.981169474727453
+            ]
+          },
+          {
+            "metric_key": "interceptions_per90",
+            "value": 0.5876865671641791,
+            "rank": 9,
+            "median": 0.7850906546605014,
+            "others": [
+              0.0,
+              0.31070195627157654,
+              0.34951456310679613,
+              0.4161849710982659,
+              0.44598612487611494,
+              0.7666098807495741,
+              0.8035714285714286,
+              0.8347386172006745,
+              0.8893280632411067,
+              1.0514018691588785,
+              1.25512715340443,
+              1.6123778501628665,
+              2.4324324324324325
+            ]
+          },
+          {
+            "metric_key": "offsides_per90",
+            "value": 0.0,
+            "rank": 8,
+            "median": 0.03691550451189499,
+            "others": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.07383100902378999,
+              0.07588532883642496,
+              0.1465798045602606,
+              0.20809248554913296,
+              0.2102803738317757,
+              0.26785714285714285,
+              0.535183349851338
+            ]
+          },
+          {
+            "metric_key": "passes_accuracy_player_pct",
+            "value": 0.8804347826086957,
+            "rank": 7,
+            "median": 0.8762292960662525,
+            "others": [
+              0.7475247524752475,
+              0.752542372881356,
+              0.7744186046511627,
+              0.8253012048192772,
+              0.8362989323843416,
+              0.8458904109589042,
+              0.8720238095238095,
+              0.8839458413926499,
+              0.9060773480662984,
+              0.9076305220883534,
+              0.9107438016528926,
+              0.9185692541856926,
+              0.9221105527638191
+            ]
+          },
+          {
+            "metric_key": "passes_key_per90",
+            "value": 1.8470149253731343,
+            "rank": 4,
+            "median": 1.2682199207119997,
+            "others": [
+              0.0,
+              0.0,
+              0.3557312252964427,
+              0.3794266441821248,
+              0.9364161849710982,
+              1.139240506329114,
+              1.1565420560747663,
+              1.3798977853492334,
+              1.4271555996035679,
+              1.5728155339805825,
+              2.4107142857142856,
+              2.8055783429040195,
+              2.9315960912052117
+            ]
+          },
+          {
+            "metric_key": "passes_per90",
+            "value": 54.06716417910448,
+            "rank": 6,
+            "median": 52.530243891919866,
+            "others": [
+              18.017839444995044,
+              26.818181818181817,
+              29.009708737864077,
+              29.23699421965318,
+              38.392857142857146,
+              42.80130293159609,
+              51.51618398637138,
+              53.54430379746835,
+              63.60981308411215,
+              75.58178752107926,
+              80.48418972332016,
+              80.67567567567568,
+              97.01394585726005
+            ]
+          },
+          {
+            "metric_key": "scorer_points_per90",
+            "value": 0.4197761194029851,
+            "rank": 4,
+            "median": 0.26714996940455227,
+            "others": [
+              0.0,
+              0.0,
+              0.10514018691588785,
+              0.17475728155339806,
+              0.17786561264822134,
+              0.20713463751438435,
+              0.22765598650927488,
+              0.30664395229982966,
+              0.31213872832369943,
+              0.36915504511895,
+              0.43973941368078173,
+              0.625,
+              1.1595639246778988
+            ]
+          },
+          {
+            "metric_key": "shots_on_goal_per90",
+            "value": 0.251865671641791,
+            "rank": 11,
+            "median": 0.3742908446505374,
+            "others": [
+              0.0,
+              0.0,
+              0.2102803738317757,
+              0.31070195627157654,
+              0.34951456310679613,
+              0.36915504511895,
+              0.3794266441821248,
+              0.43973941368078173,
+              0.4599659284497445,
+              0.5335968379446641,
+              0.7142857142857143,
+              1.4566473988439306,
+              1.8731417244796829
+            ]
+          },
+          {
+            "metric_key": "shots_on_goal_player_pct",
+            "value": 0.3333333333333333,
+            "rank": 7,
+            "median": 0.3333333333333333,
+            "others": [
+              0.0,
+              0.2727272727272727,
+              0.2857142857142857,
+              0.2857142857142857,
+              0.29411764705882354,
+              0.2962962962962963,
+              0.4166666666666667,
+              0.42857142857142855,
+              0.4772727272727273,
+              0.5,
+              0.5,
+              0.75
+            ]
+          },
+          {
+            "metric_key": "shots_per90",
+            "value": 0.7555970149253731,
+            "rank": 10,
+            "median": 0.9729952444106565,
+            "others": [
+              0.0,
+              0.40540540540540543,
+              0.7114624505928854,
+              0.735981308411215,
+              0.9106239460370995,
+              0.919931856899489,
+              1.0260586319218241,
+              1.139240506329114,
+              1.2233009708737863,
+              1.25512715340443,
+              2.4107142857142856,
+              2.913294797687861,
+              3.924677898909812
+            ]
+          },
+          {
+            "metric_key": "tackles_per90",
+            "value": 1.007462686567164,
+            "rank": 10,
+            "median": 1.0893711801460195,
+            "others": [
+              0.0,
+              0.44598612487611494,
+              0.5242718446601942,
+              0.6132879045996593,
+              1.0260586319218241,
+              1.0404624277456647,
+              1.1382799325463744,
+              1.2450592885375493,
+              1.3289581624282198,
+              1.5535097813578826,
+              1.9642857142857142,
+              2.027027027027027,
+              2.628504672897196
+            ]
+          }
+        ]
+      },
+      "last_season": {
+        "minutes": 1072,
+        "minutes_prev": 1808,
+        "metrics": [
+          {
+            "metric_key": "assists_per90",
+            "value": 0.3358208955223881,
+            "value_prev": 0.049778761061946904
+          },
+          {
+            "metric_key": "ball_actions_per90",
+            "value": 57.84514925373134,
+            "value_prev": 53.61172566371681
+          },
+          {
+            "metric_key": "blocks_per90",
+            "value": 0.251865671641791,
+            "value_prev": 0.09955752212389381
+          },
+          {
+            "metric_key": "defensive_actions_per90",
+            "value": 1.8470149253731343,
+            "value_prev": 2.7876106194690267
+          },
+          {
+            "metric_key": "dribbles_success_per90",
+            "value": 0.4197761194029851,
+            "value_prev": 0.39823008849557523
+          },
+          {
+            "metric_key": "dribbles_success_player_pct",
+            "value": 0.35714285714285715,
+            "value_prev": 0.2962962962962963
+          },
+          {
+            "metric_key": "duels_won_per90",
+            "value": 2.4347014925373136,
+            "value_prev": 4.629424778761062
+          },
+          {
+            "metric_key": "duels_won_player_pct",
+            "value": 0.4461538461538462,
+            "value_prev": 0.5535714285714286
+          },
+          {
+            "metric_key": "finishing_efficiency_player_pct",
+            "value": 0.3333333333333333,
+            "value_prev": 0.2
+          },
+          {
+            "metric_key": "fouls_per90",
+            "value": 1.0914179104477613,
+            "value_prev": 1.1946902654867257
+          },
+          {
+            "metric_key": "goals_per90",
+            "value": 0.08395522388059702,
+            "value_prev": 0.049778761061946904
+          },
+          {
+            "metric_key": "interceptions_per90",
+            "value": 0.5876865671641791,
+            "value_prev": 0.6471238938053098
+          },
+          {
+            "metric_key": "offsides_per90",
+            "value": 0.0,
+            "value_prev": null
+          },
+          {
+            "metric_key": "passes_accuracy_player_pct",
+            "value": 0.8804347826086957,
+            "value_prev": 0.8887755102040816
+          },
+          {
+            "metric_key": "passes_key_per90",
+            "value": 1.8470149253731343,
+            "value_prev": 1.2444690265486726
+          },
+          {
+            "metric_key": "passes_per90",
+            "value": 54.06716417910448,
+            "value_prev": 48.783185840707965
+          },
+          {
+            "metric_key": "scorer_points_per90",
+            "value": 0.4197761194029851,
+            "value_prev": 0.09955752212389381
+          },
+          {
+            "metric_key": "shots_on_goal_per90",
+            "value": 0.251865671641791,
+            "value_prev": 0.2488938053097345
+          },
+          {
+            "metric_key": "shots_on_goal_player_pct",
+            "value": 0.3333333333333333,
+            "value_prev": 0.35714285714285715
+          },
+          {
+            "metric_key": "shots_per90",
+            "value": 0.7555970149253731,
+            "value_prev": 0.6969026548672567
+          },
+          {
+            "metric_key": "tackles_per90",
+            "value": 1.007462686567164,
+            "value_prev": 2.040929203539823
+          }
+        ]
+      },
+      "recent_matches": [
+        {
+          "played_fixture_sk": 1636223,
+          "played_league_code": "UEL",
+          "played_kickoff_datetime": "2026-11-05 20:00:00+00:00",
+          "home_away": "home",
+          "goals_for": 0,
+          "goals_against": 1,
+          "result": "L",
+          "opponent_name": "Olympique de Marseille",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/81.png",
+          "minutes": 90,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 63,
+          "on_bench": false
+        },
+        {
+          "played_fixture_sk": 1575204,
+          "played_league_code": "BL1",
+          "played_kickoff_datetime": "2026-10-31 14:30:00+00:00",
+          "home_away": "home",
+          "goals_for": 2,
+          "goals_against": 4,
+          "result": "L",
+          "opponent_name": "VfB Stuttgart",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/172.png",
+          "minutes": 90,
+          "goals": 0,
+          "assists": 1,
+          "ball_actions": 66,
+          "on_bench": false
+        },
+        {
+          "played_fixture_sk": 1638557,
+          "played_league_code": "DFBP",
+          "played_kickoff_datetime": "2026-10-28 19:45:00+00:00",
+          "home_away": "home",
+          "goals_for": 5,
+          "goals_against": 2,
+          "result": "W",
+          "opponent_name": "1. FC Nürnberg",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/171.png",
+          "minutes": 90,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 60,
+          "on_bench": false
+        },
+        {
+          "played_fixture_sk": 1575197,
+          "played_league_code": "BL1",
+          "played_kickoff_datetime": "2026-10-25 14:30:00+00:00",
+          "home_away": "away",
+          "goals_for": 0,
+          "goals_against": 3,
+          "result": "L",
+          "opponent_name": "TSG 1899 Hoffenheim",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/167.png",
+          "minutes": 90,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 61,
+          "on_bench": false
+        },
+        {
+          "played_fixture_sk": 1636303,
+          "played_league_code": "UEL",
+          "played_kickoff_datetime": "2026-10-22 16:45:00+00:00",
+          "home_away": "away",
+          "goals_for": 2,
+          "goals_against": 0,
+          "result": "W",
+          "opponent_name": "OFI",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/1124.png",
+          "minutes": 27,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 20,
+          "on_bench": false
+        },
+        {
+          "played_fixture_sk": 1575186,
+          "played_league_code": "BL1",
+          "played_kickoff_datetime": "2026-10-18 13:30:00+00:00",
+          "home_away": "home",
+          "goals_for": 2,
+          "goals_against": 1,
+          "result": "W",
+          "opponent_name": "SC Freiburg",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/160.png",
+          "minutes": 90,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 30,
+          "on_bench": false
+        },
+        {
+          "played_fixture_sk": 1636279,
+          "played_league_code": "UEL",
+          "played_kickoff_datetime": "2026-10-15 16:45:00+00:00",
+          "home_away": "away",
+          "goals_for": 4,
+          "goals_against": 0,
+          "result": "W",
+          "opponent_name": "Lech Poznan",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/347.png",
+          "minutes": 62,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 44,
+          "on_bench": false
+        },
+        {
+          "played_fixture_sk": 1575181,
+          "played_league_code": "BL1",
+          "played_kickoff_datetime": "2026-10-10 13:30:00+00:00",
+          "home_away": "away",
+          "goals_for": 4,
+          "goals_against": 3,
+          "result": "W",
+          "opponent_name": "1. FSV Mainz 05",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/164.png",
+          "minutes": 90,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 60,
+          "on_bench": false
+        },
+        {
+          "played_fixture_sk": 1575169,
+          "played_league_code": "BL1",
+          "played_kickoff_datetime": "2026-09-20 13:30:00+00:00",
+          "home_away": "home",
+          "goals_for": 2,
+          "goals_against": 0,
+          "result": "W",
+          "opponent_name": "RB Leipzig",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/173.png",
+          "minutes": 90,
+          "goals": 1,
+          "assists": 1,
+          "ball_actions": 51,
+          "on_bench": false
+        },
+        {
+          "played_fixture_sk": 1575162,
+          "played_league_code": "BL1",
+          "played_kickoff_datetime": "2026-09-12 13:30:00+00:00",
+          "home_away": "away",
+          "goals_for": 2,
+          "goals_against": 2,
+          "result": "D",
+          "opponent_name": "FC Augsburg",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/170.png",
+          "minutes": 90,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 47,
+          "on_bench": false
+        },
+        {
+          "played_fixture_sk": 1575151,
+          "played_league_code": "BL1",
+          "played_kickoff_datetime": "2026-09-05 13:30:00+00:00",
+          "home_away": "home",
+          "goals_for": 4,
+          "goals_against": 0,
+          "result": "W",
+          "opponent_name": "1. FC Union Berlin",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/182.png",
+          "minutes": 83,
+          "goals": 0,
+          "assists": 2,
+          "ball_actions": 56,
+          "on_bench": false
+        },
+        {
+          "played_fixture_sk": 1575143,
+          "played_league_code": "BL1",
+          "played_kickoff_datetime": "2026-08-29 13:30:00+00:00",
+          "home_away": "away",
+          "goals_for": 2,
+          "goals_against": 3,
+          "result": "L",
+          "opponent_name": "SV Elversberg",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/1660.png",
+          "minutes": 90,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 71,
+          "on_bench": false
+        },
+        {
+          "played_fixture_sk": 1550701,
+          "played_league_code": "DFBP",
+          "played_kickoff_datetime": "2026-08-22 11:00:00+00:00",
+          "home_away": "away",
+          "goals_for": 4,
+          "goals_against": 0,
+          "result": "W",
+          "opponent_name": "SV Wehen",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/1319.png",
+          "minutes": 90,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 60,
+          "on_bench": false
+        }
+      ]
+    }
+  ],
+  "shares_name_at_club": false
+}
