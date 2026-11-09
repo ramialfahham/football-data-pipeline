@@ -588,7 +588,7 @@ def test_a_page_is_judged_across_its_tabs_and_a_failure_in_every_tab_counts_once
             self.states = iter(states)
 
         def evaluate(self, _js, _arg=None):
-            return next(self.states)
+            return json.dumps(next(self.states))
 
     failures, acc = [], {"seen": set(), "visible": {}, "total": 0, "found": set()}
     pw = Page([tab(False), tab(True)])
