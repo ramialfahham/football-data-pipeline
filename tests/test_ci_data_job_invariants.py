@@ -1,52 +1,7 @@
-"""Pin three CI data-job invariants that can be broken while every pipeline stays GREEN.
+"""Pin CI data-job invariants that can be broken while every pipeline stays green.
 
-WHY THIS EXISTS
----------------
-The first two properties were repaired under GitLab #33, and both share the shape this repo
-keeps getting caught by: breaking them produces no red anywhere.
-
-  * `API_FOOTBALL_SKIP_INGEST_LOCK=1` sat in three CI ingest invocations and disabled the BigQuery
-    ingest lease. `docs/operations_guide.md:149` forbids it — "Local debugging only; never
-    production" — and these ingests ARE production: `ingestion/api_football/settings.py:31`
-    defaults the raw dataset to `raw` and `API_FOOTBALL_BIGQUERY_DATASET` is set nowhere in CI. So
-    an MR pipeline wrote production raw from an unmerged branch with the lock off, and nothing
-    failed. Re-adding the flag would restore that silently.
-
-  * `.data_paths_prod` decides whether a push to main rebuilds the prod warehouse. Drop one entry —
-    `dbt_project/models/**/*`, say — and `data:build:main` stops firing on model merges. Prod goes
-    quietly stale, and because every MR build defers to prod with `--defer --favor-state`, the
-    staleness propagates into MR validation with nothing red anywhere. The single `.data_paths`
-    anchor used to make MR/prod drift structurally impossible; splitting it traded that guarantee
-    for a comment, so the guarantee is re-established here as an assertion.
-
-  * `git worktree prune` must run before `git worktree add` (GitLab #65). The
-    self-hosted runner keeps the project directory between jobs but gives each job a fresh `/tmp`,
-    so a worktree registration in the persisted `.git/worktrees/` outlives the directory it points
-    at and the next `add` dies with "missing but already registered worktree". Delete the prune and
-    the damage is delayed, not immediate: the next pipeline on a given runner slot passes (it
-    creates the registration) and the one after it fails. That delay is what puts it in this
-    module — the breakage does not show up in the pipeline that caused it.
-
-HOW IT IS SHAPED, AND WHY
--------------------------
-Values come from PARSED YAML, never from raw file text. That matters concretely: the
-`.gitlab-ci.yml` comment block documenting the lock fix NAMES `API_FOOTBALL_SKIP_INGEST_LOCK`, so a
-text grep would flag the documentation of the defect as the defect.
-
-The lock check reads `variables:` as well as script lines. An env var set through a `variables:`
-mapping — global, `default:`, or per job — reaches the ingest exactly as an inline assignment does,
-and `orchestrator.py:95` literally tells the operator to set that variable when the lease is held.
-A guard that only read script text would miss the most idiomatic way to reintroduce the flag.
-
-WHAT IS DELIBERATELY *NOT* PINNED HERE
---------------------------------------
-Singular tests run twice on the prod build — once inside each `dbt build --selector`, once in the
-trailing `dbt test` step. #33 item 3 proposed removing that duplication; it was WITHDRAWN after
-review, because `dbt build` adds test edges (`dbt/task/build.py:134`) and skips a failed test's
-dependents (`build.py:80`), so the in-build run is a write-blocking gate and the trailing run is a
-post-write report. An earlier version of this module asserted the "de-duplicated" arrangement was
-safe, which would have certified the regression rather than caught it. The reasoning now lives in a
-comment at the `dbt build --selector` lines, where someone about to optimise will read it.
+Values come from PARSED YAML, never raw file text, because the `.gitlab-ci.yml` comments name the
+flags they document.
 """
 
 from __future__ import annotations
@@ -90,11 +45,7 @@ def _script_lines(config: dict) -> list[str]:
 
 
 def _script_lines_by_job(config: dict) -> dict[str, list[str]]:
-    """Same extraction as `_script_lines`, but keeping the job boundary.
-
-    Ordering within a job is the whole point for the worktree check — a `prune` sitting in some
-    OTHER job would satisfy a flattened scan while fixing nothing.
-    """
+    """Same as `_script_lines` but keeps the job boundary."""
     per_job: dict[str, list[str]] = {}
     for name, node in config.items():
         if not isinstance(node, dict):
@@ -126,7 +77,6 @@ def _declared_variables(config: dict) -> list[tuple[str, str]]:
 
 
 def test_ci_never_disables_the_ingest_lock():
-    """#33 item 4. The flag is local-debugging-only and CI ingests write production raw."""
     config = _ci_config()
 
     offenders = [
@@ -149,13 +99,6 @@ def test_ci_never_disables_the_ingest_lock():
 
 
 def test_the_prod_trigger_still_covers_every_dbt_compile_input():
-    """#33 item 2. Splitting the anchor removed the structural no-drift guarantee; restore it.
-
-    Two directions, because the split can fail either way:
-      * too NARROW -> a model merge stops rebuilding prod, silently.
-      * wider than the MR anchor -> the prod build fires on something the MR build never
-        validated, which is the drift the single anchor originally prevented.
-    """
     config = _ci_config()
     mr_paths = config.get(".data_paths_mr")
     prod_paths = config.get(".data_paths_prod")
@@ -178,16 +121,7 @@ def test_the_prod_trigger_still_covers_every_dbt_compile_input():
 
 
 def test_every_worktree_add_is_preceded_by_a_prune():
-    """#65. The runner persists the project dir but not /tmp, so registrations go stale.
-
-    Written to the CLASS, not to the one line that broke: any job that adds a worktree must prune
-    first, in its own script. A second worktree call added later is covered without touching this
-    test — a list of known offenders is precisely what has holed guards here before.
-
-    Read from parsed YAML rather than file text on purpose. The fix carries a comment naming both
-    `worktree` and `prune`, so a text scan would match the documentation of the fix and pass
-    whether or not the command is actually there.
-    """
+    """The runner keeps the project dir but not /tmp, so a stale registration breaks `add`."""
     offenders = []
     for job, lines in _script_lines_by_job(_ci_config()).items():
         add_at = next(
@@ -215,25 +149,7 @@ def test_every_worktree_add_is_preceded_by_a_prune():
 
 
 def test_mr_data_build_never_ingests():
-    """GitLab #73. `data:build:mr` must never run the API-Football ingest.
-
-    An ingest from an MR pipeline writes the PRODUCTION `raw` dataset
-    (`ingestion/api_football/settings.py:31` defaults it, and `API_FOOTBALL_BIGQUERY_DATASET` is
-    set nowhere in CI) from an UNMERGED branch. `.gitlab-ci.yml` flagged that as open under #33
-    item 13; #73 closed it for the MR path by deleting the bootstrap step.
-
-    NOTHING IS LOST BY THE DELETION, which is why re-adding it is pure regression rather than a
-    trade: `data:build:main` runs the identical `get_new_league_codes.py` + ingest sequence before
-    its dbt builds, on a protected branch that legitimately holds `API_FOOTBALL_API_KEY`.
-
-    This is pinned rather than left to prose because the failure is INVISIBLE. Re-adding the step
-    turns the pipeline red only when the protected variable is withheld; on any branch that DOES
-    receive the key it would silently write prod again. The repo's own record is that prose-only
-    corrections recur (33 of 50) and mechanised ones do not.
-
-    Asserted per JOB, not across the file: `data:build:main` and `data:nightly` legitimately
-    contain both tokens, so a file-wide grep would be wrong in both directions.
-    """
+    """An MR ingest would write production `raw` from an unmerged branch; checked per job."""
     jobs = _script_lines_by_job(_ci_config())
     assert "data:build:mr" in jobs, (
         "data:build:mr not found in .gitlab-ci.yml. If the job was renamed, update this test "
@@ -256,11 +172,7 @@ def test_mr_data_build_never_ingests():
 
 
 def _mr_dbt_invocations() -> tuple[str, str]:
-    """`data:build:mr`'s (build, test) dbt invocations, as single strings.
-
-    Both are `>-` folded scalars in the YAML, so each arrives as ONE line with its flags
-    space-separated — which is why matching on substrings here is safe rather than fragile.
-    """
+    """`data:build:mr`'s (build, test) dbt invocations; each is a `>-` scalar, so one line."""
     jobs = _script_lines_by_job(_ci_config())
     assert "data:build:mr" in jobs, (
         "data:build:mr not found in .gitlab-ci.yml. If the job was renamed, update this test "
@@ -275,39 +187,7 @@ def _mr_dbt_invocations() -> tuple[str, str]:
 
 
 def test_the_mr_singular_test_gate_reads_the_branch_not_prod() -> None:
-    """`--favor-state` belongs on data:build:mr's BUILD line and must never return to its TEST line.
-
-    THE DEFECT THIS PINS (GitLab #92). Both invocations carried
-    `--defer --favor-state`. `--favor-state` resolves every `ref()` to the DEFERRED (prod) relation
-    even when the current run has just built that model. On the `dbt build` line that is correct and
-    load-bearing — a model being BUILT must take its upstreams from prod rather than from a
-    superseded table, and a node dbt is building is not deferred anyway. (That reason is narrower
-    since the per-merge-request datasets landed: "another MR's leftovers" cannot occur any more, but
-    an EARLIER PIPELINE OF THE SAME merge request can leave a superseded table — build a model, then
-    revert it to match main and it drops out of `state:modified+` — and `--defer` alone would prefer
-    it.) On the `dbt test`
-    line nothing is being built, so the identical flag threw away the MR's own models and pointed
-    all 30 singular tests at PRODUCTION. The DQ gate was green because prod was healthy, not because
-    the branch was.
-
-    WHY IT IS PINNED HERE. This module exists for invariants that can be broken while every pipeline
-    stays GREEN, and this is one: re-adding `--favor-state` to the test line restores the whole
-    defect with pytest, sqlfluff, every offline gate and the pipeline itself all still green — the
-    tests simply go back to reporting on the wrong database. Before this assertion the only thing
-    standing in the way was a comment, and a confident comment is precisely what let the defect
-    survive in the first place (the paragraph above the line asserted the isolation the flag
-    prevented).
-
-    BOTH HALVES ARE ASSERTED, deliberately. Pinning only the test line would let someone "restore
-    symmetry" by stripping the flag from the BUILD line instead — which breaks isolation in the
-    other direction, is a different bug, and would pass a one-sided guard.
-
-    Reproduction, one job, ninety seconds apart: pipeline 2796272877 job 16145201830 created
-    `ci_marts.mart_team_season_insights` with a renamed column, PASSed
-    `assert_mart_team_season_insights_metric_consistency` against it inside the build, then failed
-    the SAME test in the trailing run with "Unrecognized name: points_capture_pct; Did you mean
-    points_capture?" — a column that exists only in prod.
-    """
+    """`--favor-state` stays on the build line and off the test line, which must read the branch."""
     build, test = _mr_dbt_invocations()
 
     assert "--favor-state" not in test, (
@@ -335,30 +215,10 @@ def test_the_mr_singular_test_gate_reads_the_branch_not_prod() -> None:
 
 
 def test_each_merge_request_builds_into_its_own_datasets() -> None:
-    """No merge request may read another one's tables. #92 second half.
+    """Each merge request builds into its own datasets, isolated by target name and `dataset:`.
 
-    THE DEFECT THIS PINS, which only became reachable once the half above landed. Every merge
-    request used to build into ONE shared set of `ci_*` datasets. While the singular tests read
-    PRODUCTION that was invisible; the moment they read the ci datasets instead, a merge request
-    that rebuilt nothing began reading whatever another branch had left there. One merge request
-    that changed no models went red on THREE tests against tables a sibling had built an hour
-    earlier — headline error "Unrecognized name: points_capture; Did you mean
-    points_capture_pct?", the exact mirror of the failure that started #92.
-
-    BOTH HALVES OF THE ISOLATION ARE ASSERTED, and the second is not decoration.
-    `macros/generate_schema_name.sql` prefixes a model that HAS a custom schema with `target.name`,
-    so the per-MR target name isolates the four layer datasets. But it returns BARE `target.schema`
-    for a model with NO `+schema` — which is the whole `2_base` layer and EVERY seed,
-    `metric_catalogue` among them. Their isolation rests entirely on the profile's `dataset:` line.
-    Pinning only the target name would let someone revert `dataset:` to a shared literal and put the
-    base tables and the seed back in one shared dataset, silently, reinstating that failure on
-    the very relation two dbt guards were rewritten to depend on — an omission an earlier version
-    of this test had.
-
-    A literal `--target ci` anywhere in the job, or a `DBT_CI_TARGET` that does not carry the merge
-    request id, restores the shared workspace with every test and the whole pipeline still green —
-    the same invisible-breakage shape as this module's siblings, which is why it is pinned here
-    rather than left to the comments in the YAML.
+    `generate_schema_name` gives models with no `+schema` (the base layer and every seed) bare
+    `target.schema`, so only the profile's `dataset:` line isolates them.
     """
     config = _ci_config()
     jobs = _script_lines_by_job(config)
@@ -368,8 +228,7 @@ def test_each_merge_request_builds_into_its_own_datasets() -> None:
     )
     lines = [" ".join(line.split()) for line in jobs["data:build:mr"]]
 
-    # Asserted on the DERIVATION, not on a literal name, so reformatting the export does not break
-    # this — but dropping the merge-request id from it does, and that is the property.
+    # Asserted on the derivation rather than a literal name, so reformatting the export is safe.
     derivations = [ln for ln in lines if "DBT_CI_TARGET=" in ln]
     assert derivations, (
         "data:build:mr no longer derives DBT_CI_TARGET. Without it every merge request builds into "
@@ -391,8 +250,6 @@ def test_each_merge_request_builds_into_its_own_datasets() -> None:
             f"a dbt invocation in data:build:mr does not use $DBT_CI_TARGET: {line}"
         )
 
-    # The profile's `dataset:` is the OTHER half — base models and seeds carry no +schema and ride
-    # bare target.schema, so they are isolated by this line alone.
     profile = "\n".join(_script_lines(config))
     dataset_lines = [
         " ".join(ln.split()) for ln in profile.splitlines()
@@ -407,12 +264,7 @@ def test_each_merge_request_builds_into_its_own_datasets() -> None:
 
 
 def test_the_mr_build_rebuilds_every_changed_seed() -> None:
-    """A merge request that changes a seed must rebuild it and its readers.
-
-    dbt fingerprints a seed only up to 1 MB; above that it compares the path alone and reports the
-    seed unchanged, so `state:modified+` selects nothing from it and the singular tests read the
-    branch's seed against prod's tables, with nothing red to say why.
-    """
+    """dbt fingerprints a seed only up to 1 MB, so a larger changed seed needs a path selector."""
     build, _ = _mr_dbt_invocations()
     lines = [" ".join(line.split()) for line in _script_lines_by_job(_ci_config())["data:build:mr"]]
 
@@ -458,11 +310,7 @@ def _selector_paths(criteria: list) -> set[str]:
 
 
 def test_the_staging_stage_excludes_every_layer_the_downstream_stage_builds() -> None:
-    """The prod build runs `--selector staging`, then `--selector downstream`. dbt puts a test in a
-    stage when any of its parents is in it, so a test reading a staging model and a later-layer model
-    also lands in the staging stage, where it reads the previous build's later-layer table. Only a
-    merge's prod build exercises the selectors, so without this check a lost exclusion shows up as a
-    failed prod build."""
+    """A test joins a stage when any parent does, so the staging stage excludes later layers."""
     main_build = [ln.strip() for ln in _script_lines_by_job(_ci_config())["data:build:main"]]
     stages = [ln.split()[3] for ln in main_build if ln.startswith("dbt build --selector")]
     assert stages == ["staging", "downstream"], (

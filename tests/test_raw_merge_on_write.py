@@ -1,37 +1,7 @@
-"""Raw appends and NEVER deletes — the merge-on-write is gone.
+"""Raw loaders append and never delete, checked against a client double that records every query.
 
-WHAT THIS FILE IS NOW
----------------------
-It was the file that pinned #33 item 8b: three loaders had to append a whole-league snapshot
-and then DELETE that league's older rows. It now pins the opposite, because that decision was
-reversed after two independent assessments found the same root cause.
-
-The reversal in one sentence: the delete fired whenever a fetch was judged COMPLETE, and
-"complete" means only that the call did not error — `http_client.result_is_complete` counts an
-empty error-free response as complete, deliberately. So a provider answering with nothing, or
-with less than it gave us yesterday, destroyed the stored history past the 7-day time-travel
-window with no signal anywhere. Measured damage before the reversal: 29 events across 5
-fixtures and four squads in one night (`squads.py`). Retention is now base's decision, which is
-where the layer model always put it.
-
-Do NOT restore a delete here to "bound the table". The scan-cost argument that bought it is
-spent: staging became a stored table, so each raw table is parsed once a night
-rather than once per test. If growth ever needs bounding, it is compaction by version count,
-never a delete at write time, and never keyed on time (biennial competitions lose their only
-row — #892).
-
-HOW THESE ARE SHAPED
---------------------
-Each loader runs for real against a client double that records every query it issues. Nothing
-about the loader is monkeypatched except `load_json_to_bq`, because a real BigQuery load is not
-the subject. A DELETE cannot reach BigQuery except through `client.query`, so asserting that no
-query is issued at all catches a re-introduction under ANY name — which a source grep or an
-attribute check would not.
-
-That matters here specifically: the deleted helpers were reachable three different ways (a
-shared helper in `bigquery.py`, a private per-key one in `squads.py`, a private per-fixture one
-in `batch_fixtures.py`). Pinning the names would pin the three that existed, not the fourth
-someone writes next.
+A DELETE can only reach BigQuery through `client.query`, so asserting no DML is issued catches a
+re-introduction under any name.
 """
 
 from __future__ import annotations
@@ -98,9 +68,7 @@ def _reset_quota():
     errors_quota.reset_http_quota_exhausted()
 
 
-# `transfers` reaches the provider through fixture_scheduling, the other two through their
-# own module namespace. Patching the HTTP layer UNDER the real helper (never the helper
-# itself) is what makes the real #896 guard run.
+# `transfers` reaches the provider through fixture_scheduling, the others through their own module.
 def _patch_transfers(monkeypatch, fetch):
     monkeypatch.setattr(fixture_scheduling, "fetch_merged_paged", lambda *a, **k: fetch())
 
@@ -137,12 +105,7 @@ IDS = [x[0] for x in WHOLE_LEAGUE]
 def test_a_clean_run_appends_and_issues_no_dml(
     name, module, patch, invoke, table, monkeypatch
 ):
-    """THE case this file exists for, in its new direction.
-
-    A clean, complete fetch writes its snapshot and touches nothing else. Before the reversal
-    this same run deleted every older row for the league. The older rows are now what makes a
-    later shrunken answer survivable, so any DML at all here is the defect.
-    """
+    """A clean, complete fetch writes its snapshot and issues no DML."""
     writes = _Writes()
     client = _Client()
     monkeypatch.setattr(module, "load_json_to_bq", writes)
@@ -163,12 +126,7 @@ def test_a_clean_run_appends_and_issues_no_dml(
 def test_every_raw_write_is_an_append(
     name, module, patch, invoke, table, monkeypatch
 ):
-    """The other half of "never deletes", and it needs its own assertion.
-
-    A loader that passed `append=False` would reach WRITE_TRUNCATE (`bigquery.py`, where
-    `append` defaults to False), which destroys the whole table's history for every
-    competition at once while issuing no DELETE — so the test above would stay green.
-    """
+    """`append` defaults to False in `bigquery.py`, meaning WRITE_TRUNCATE with no DELETE issued."""
     writes = _Writes()
     client = _Client()
     monkeypatch.setattr(module, "load_json_to_bq", writes)
@@ -187,13 +145,7 @@ def test_every_raw_write_is_an_append(
 def test_an_incomplete_fetch_writes_nothing(
     name, module, patch, invoke, table, monkeypatch
 ):
-    """#896, unchanged by the reversal and deliberately kept.
-
-    Append-only makes a partial write recoverable rather than fatal, which is exactly why it
-    would be tempting to drop this guard. Do not: a known-partial payload put in front of base
-    is a worse row for no reason, and the run would report the fixture as touched when it was
-    not. Nothing here was loosened.
-    """
+    """A known-partial payload must not reach base, and the discard must be reported."""
     writes = _Writes()
     client = _Client()
     monkeypatch.setattr(module, "load_json_to_bq", writes)
@@ -210,14 +162,6 @@ def test_an_incomplete_fetch_writes_nothing(
 
 
 def test_the_players_loader_appends_and_deletes_nothing(monkeypatch):
-    """RAW_APIF_PLAYERS had the best-shaped delete in the codebase and still lost data.
-
-    It was keyed per (team, season) rather than per league, so a quota cut left un-fetched
-    keys alone — genuinely careful. It did not help: an empty error-free /players response is
-    a COMPLETE answer, so it superseded the roster it could not replace, and one night
-    UCL 340 went 25 players to 0. Correct grain does not rescue a delete whose trigger cannot
-    tell "no players" from "we lost the players".
-    """
     client = _Client()
     monkeypatch.setattr(squads.errors_quota, "_http_quota_exhausted", False)
     monkeypatch.setattr(squads, "captured_player_team_seasons", lambda ctx: set())
@@ -244,14 +188,7 @@ def test_the_players_loader_appends_and_deletes_nothing(monkeypatch):
 
 
 def test_an_incomplete_fetch_still_extends_team_ids(monkeypatch):
-    """Narrowed survivor of `test_a_failed_delete_still_extends_team_ids`.
-
-    That test protected the id extension from a failing DELETE. There is no delete any more,
-    so the case is gone — but the property it guarded is not: `teams.py` states the extension
-    runs EITHER WAY, deliberately, because `coaches`, `transfers` and `squads` all fetch by
-    team id downstream. Re-pointed at the path that still exists, the discarded-snapshot one.
-    Deleting the test outright would have dropped a live guarantee along with a dead case.
-    """
+    """`teams.py` extends the ids either way, since coaches, transfers and squads need them."""
     writes = _Writes()
     client = _Client()
     monkeypatch.setattr(teams, "load_json_to_bq", writes)
@@ -276,13 +213,7 @@ def test_an_incomplete_fetch_still_extends_team_ids(monkeypatch):
 
 
 def test_no_loader_module_carries_a_delete_helper():
-    """Pins the removal against a delete being reintroduced quietly, under any of its names.
-
-    Checks the runtime namespace of every module in `loads/` plus `bigquery` itself, so a
-    comment mentioning a helper cannot satisfy it and a re-import would be caught. The
-    behavioural tests above are the real guard — this one names the three that existed so the
-    failure message tells the next person what was removed and why.
-    """
+    """Checks the runtime namespace of every `loads/` module and `bigquery` for removed helpers."""
     import importlib
     import pkgutil
 
@@ -309,13 +240,7 @@ def test_no_loader_module_carries_a_delete_helper():
 
 
 def test_coaches_was_never_a_merge_loader_and_still_is_not(monkeypatch):
-    """`coaches` is the loader that looks most like the three above and never merged.
-
-    Kept from the original file, inverted in meaning: it used to prove the converted set
-    excluded coaches, and now proves the set is empty. `stg_apif__coaches` reads ALL snapshots
-    to preserve every coach ever seen — the same reasoning that has now been applied to every
-    other table.
-    """
+    """`stg_apif__coaches` reads all snapshots to keep every coach ever seen."""
     writes = _Writes()
     client = _Client()
     monkeypatch.setattr(coaches, "load_json_to_bq", writes)

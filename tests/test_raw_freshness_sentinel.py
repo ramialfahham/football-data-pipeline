@@ -1,22 +1,4 @@
-"""The out-of-band staleness sentinel. GitLab #39 Stage 2.
-
-WHAT IT GUARDS
---------------
-`scripts/check_raw_freshness.py` is the ONLY thing in this system that can notice the nightly
-has stopped. Every other check runs inside the nightly, so a nightly that never runs takes its
-own monitoring with it — which is exactly how six days of stale data passed unnoticed in
-August 2026.
-
-That makes the sentinel's failure modes unusually expensive, and they are all quiet ones:
-
-  · returning 0 when a source is stale        → the outage stays invisible, as before
-  · returning 0 when it could not check       → a broken sentinel looks like a healthy pipeline
-  · inventing a threshold for a source that
-    deliberately has none                      → false alarms, and an alert people learn to mute
-
-None of those raise. Each test below targets one, and the pure `evaluate()` split exists so
-they can be driven without BigQuery.
-"""
+"""Tests for `scripts/check_raw_freshness.py`, the out-of-band sentinel for a stopped nightly."""
 
 from __future__ import annotations
 
@@ -40,12 +22,7 @@ SOURCES_YML = REPO / "dbt_project" / "models" / "1_staging" / "api_football" / "
 
 
 def test_thresholds_come_from_sources_yml_and_match_it():
-    """The sentinel must not carry its own copy of the thresholds.
-
-    Two definitions drift, and the drifted one is the one nobody notices. This asserts the
-    loader returns exactly the tables that declare a `freshness:` block in the real file — not
-    a hardcoded list that would quietly stop matching when a source is added.
-    """
+    """The sentinel derives its table set from sources.yml rather than keeping its own list."""
     doc = yaml.safe_load(SOURCES_YML.read_text(encoding="utf-8"))
     expected = {
         (t.get("identifier") or t["name"])
@@ -58,9 +35,7 @@ def test_thresholds_come_from_sources_yml_and_match_it():
 
 
 def test_sources_without_a_threshold_are_never_checked():
-    """3 of the 11 sources deliberately carry `loaded_at_field` but NO thresholds — they
-    refresh rarely and any threshold would false-alarm. Checking them anyway is how a sentinel
-    starts crying wolf and gets muted, which is worse than not having one."""
+    """Sources with `loaded_at_field` but no thresholds refresh rarely, so one would false-alarm."""
     doc = yaml.safe_load(SOURCES_YML.read_text(encoding="utf-8"))
     without = {
         (t.get("identifier") or t["name"])
@@ -88,8 +63,7 @@ def test_a_fresh_source_is_neither_stale_nor_warned():
 
 
 def test_a_warning_is_not_an_error():
-    """warn_after must NOT fail the job. If it did, every run 30h after the last ingest would
-    page — and the nightly is daily, so that would be routine."""
+    """`warn_after` must not fail the job, or every run 30h after the last ingest would page."""
     thresholds = {"T": {"error_after_hours": 54.0, "warn_after_hours": 30.0}}
     stale, warning = evaluate({"T": 31.0}, thresholds)
     assert not stale, "a warn-level age was escalated to stale; this would page routinely"
@@ -97,22 +71,13 @@ def test_a_warning_is_not_an_error():
 
 
 def test_the_boundary_is_strictly_greater_than():
-    """Exactly at the threshold is not yet stale. Off-by-one here means a daily alert."""
     thresholds = {"T": {"error_after_hours": 54.0}}
     assert not evaluate({"T": 54.0}, thresholds)[0]
     assert evaluate({"T": 54.01}, thresholds)[0]
 
 
 def _install_healthy_bigquery(monkeypatch):
-    """A BigQuery that always answers, and answers FRESH.
-
-    Needed so `main()` can only return 2 via the branch under test. Without it this test was
-    masked: `test:python` in CI runs with no GCP credentials (the job merges `<<: *python`
-    only, no `*gcp_job`, no `id_tokens:`), so `bigquery.Client()` raises, `main()` returns 2
-    through the "BigQuery unavailable" branch, and the assertion held whether or not the defect
-    it names had been reintroduced — the same "silently exercises the wrong thing" class this
-    file warns about elsewhere, applied to this file itself.
-    """
+    """A BigQuery that always answers fresh, so `main()` returns 2 only via the branch tested."""
     class _Meta:
         modified = datetime.now(timezone.utc)
 
@@ -129,18 +94,7 @@ def _install_healthy_bigquery(monkeypatch):
 
 
 def test_a_sentinel_that_cannot_read_its_thresholds_does_not_report_healthy(monkeypatch, tmp_path):
-    """THE most dangerous failure mode: exit 0 while checking nothing.
-
-    A sentinel that cannot check must never look healthy — that is indistinguishable from a
-    working pipeline, which is the precise shape of the incident this whole stage exists to
-    prevent. Exit 2, not 0.
-
-    BigQuery is stubbed HEALTHY on purpose. If `load_thresholds` regressed to binding
-    `SOURCES_YML` as an import-time default (the defect this pins), the monkeypatched path would
-    be ignored, the real sources.yml would load, every table would read as fresh, and `main()`
-    would return 0 — so the assertion fails, which is what it is for. Without the stub, an
-    unauthenticated environment returns 2 for an unrelated reason and hides that entirely.
-    """
+    """A sentinel that cannot check must exit 2, not 0; BigQuery is healthy here."""
     import scripts.check_raw_freshness as mod
 
     _install_healthy_bigquery(monkeypatch)
@@ -149,8 +103,7 @@ def test_a_sentinel_that_cannot_read_its_thresholds_does_not_report_healthy(monk
 
 
 def test_an_empty_threshold_set_does_not_report_healthy(monkeypatch):
-    """Same class: if sources.yml parses but declares nothing, there is nothing to check and
-    saying OK would be a lie."""
+    """If sources.yml declares nothing, there is nothing to check and OK would be a lie."""
     import scripts.check_raw_freshness as mod
 
     _install_healthy_bigquery(monkeypatch)  # so 2 can only come from the branch under test
@@ -160,10 +113,7 @@ def test_an_empty_threshold_set_does_not_report_healthy(monkeypatch):
 
 @pytest.mark.parametrize("age_hours, expected_exit", [(1.0, 0), (100.0, 1)])
 def test_end_to_end_exit_code_drives_the_alert(monkeypatch, age_hours, expected_exit):
-    """The exit code IS the alerting mechanism — Cloud Run marks a non-zero execution FAILED
-    and the alert policy fires on that. Asserted end to end through main(), with BigQuery
-    replaced, because an exit code that is right in evaluate() and wrong in main() alerts on
-    nothing."""
+    """Cloud Run marks a non-zero execution FAILED and the alert fires on that, so test `main()`."""
     import scripts.check_raw_freshness as mod
 
     monkeypatch.setattr(mod, "load_thresholds", lambda *a, **k: {"T": {"error_after_hours": 54.0}})
@@ -185,8 +135,7 @@ def test_end_to_end_exit_code_drives_the_alert(monkeypatch, age_hours, expected_
 
 
 def test_an_unreadable_table_is_not_treated_as_fresh(monkeypatch):
-    """A table BigQuery will not answer for is unknown, not fresh. Returning 0 here would mean
-    a deleted or renamed raw table silently reads as healthy forever."""
+    """A table BigQuery will not answer for is unknown, not fresh."""
     import scripts.check_raw_freshness as mod
 
     monkeypatch.setattr(mod, "load_thresholds", lambda *a, **k: {"T": {"error_after_hours": 54.0}})

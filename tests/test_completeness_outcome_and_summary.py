@@ -1,12 +1,4 @@
-"""Tests for completeness outcome tiering and markdown summary rendering.
-
-Pure functions, no BigQuery / no IO. Covers:
-
-- ``evaluate_completeness_outcome`` correctly hard-fails for ``active`` gaps
-  but stays green when only ``in_progress`` competitions are partial
-- ``completeness_markdown_summary`` renders the expected GitHub-flavoured
-  table for both fully-green and mixed-state reports
-"""
+"""Tests for completeness outcome tiering and markdown summary rendering."""
 
 from __future__ import annotations
 
@@ -27,7 +19,6 @@ def _league_block(
     missing_per_endpoint: dict[str, int] | None = None,
     gate: str | None = None,
 ) -> dict:
-    """Build a per-league block in the shape the report uses."""
     missing_per_endpoint = missing_per_endpoint or {}
     if gate is None:
         gate = "hard" if status == "active" else "soft"
@@ -140,8 +131,6 @@ class TestEvaluateCompletenessOutcome:
         assert len(outcome["stagnant_statistics"]) == 1
 
     def test_mixed_active_and_in_progress_failures(self):
-        # Active failure should hard-fail the run; in_progress partials still
-        # get reported but don't drive hard_fail by themselves.
         report = {
             "skipped": False,
             "leagues": {
@@ -171,19 +160,8 @@ class TestEvaluateCompletenessOutcome:
             "in_progress_partial": [],
             "soft_partial": [],
             "stagnant_statistics": [],
-            # #898: dropped-call stagnation is evaluated inside this function precisely so that
-            # SKIP_COMPLETENESS_CHECK suppresses it too, like every other completeness failure.
-            # Kept inside the exact-equality assertion rather than relaxed to a subset, so a
-            # future signal still cannot be added here unnoticed.
             "stagnant_dropped_calls": [],
-            # #898 cause 3: per-team gaps are evaluated inside this function so that
-            # SKIP_COMPLETENESS_CHECK suppresses them too. Extended in place, never relaxed to a
-            # subset, so a future signal still cannot be added here unnoticed.
             "stagnant_per_team_gaps": [],
-            # Pairs the re-fetch cadence deliberately skipped this run, which the gate exempts
-            # from stagnation. Reported so an exemption is never silent. Added here
-            # consciously, which is the point of the exact-equality assertion above — this key
-            # could not slip in unnoticed, and it did not.
             "skipped_per_team_exempt": [],
         }
 
@@ -203,7 +181,7 @@ class TestCompletenessMarkdownSummary:
         assert "| Competition | Status | Finished / Total | Coverage | Backfill remaining |" in md
         assert "| BL1 | active (hard gate) | 3056 / 3074 |" in md
         assert "all 4 endpoints 100%" in md
-        assert "| — |" in md.splitlines()[-1]  # backfill cell empty for complete
+        assert "| — |" in md.splitlines()[-1]
 
     def test_partial_coverage_shows_per_endpoint_percentage(self):
         report = {
@@ -216,11 +194,8 @@ class TestCompletenessMarkdownSummary:
             },
         }
         md = completeness_markdown_summary(report, now=self._FROZEN_TIME)
-        # 540 - 434 = 106 covered out of 540 → 19.6%
         assert "FIXTURE_STATISTICS 19.6%" in md
-        # Other endpoints are 100% so they appear without the warning marker
         assert "LINEUPS 100.0%" in md
-        # The total backfill remaining is 434 fixture-endpoint pairs
         assert "434 fixture-endpoint pairs" in md
 
     def test_includes_run_notes_when_provided(self):

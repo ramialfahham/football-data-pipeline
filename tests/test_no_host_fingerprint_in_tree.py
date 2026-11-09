@@ -1,14 +1,7 @@
-"""A live host's network address has no place in the repo — the guard, both halves.
+"""A live host's address must not enter the repo: the hook denies it, and this pins the tree.
 
-Half one is `.claude/hooks/host_fingerprint_gate.py`: it denies an `Edit`, `Write` or
-`MultiEdit` whose written text puts a public IPv4 or IPv6 literal into any file inside the repo,
-task artifacts included. Half two is the pin below: the tracked tree holds zero such literals,
-and this test fails the build if one appears.
-
-Everything here imports the hook's own patterns and range test, so the CI count and the
-edit-time deny cannot drift apart. Every sample address is BUILT at runtime from integers, never
-written as a literal, because a literal public address in this file would itself be a flagged
-line — the hook reads text, not intent, and this file is inside the repo.
+Sample addresses are built at runtime from integers, because a literal public address in this
+file would itself be flagged.
 """
 
 from __future__ import annotations
@@ -215,17 +208,14 @@ def _scan_tree() -> tuple[list[tuple[str, int]], list[tuple[str, int]]]:
 
 
 def test_the_tracked_tree_holds_no_public_address():
-    """The pin, measured two-sided: zero public literals, and the walk is proven to see files by
-    the non-public address lines it passes over (today the mocks README's loopback preview
-    server) — at least one, wherever the tree happens to keep them."""
+    """Zero public literals, and the walk is proven to read files by seeing a non-public address."""
     public, seen = _scan_tree()
     assert public == [], f"public address literals in the tree: {public}"
     assert seen, "the walk saw no address-shaped line at all — is it reading the tree?"
 
 
 def test_definition_is_imported_not_copied():
-    """This file must not carry its own address pattern — every check above goes through the
-    hook's `IPV4`, `IPV6` and `ipv4_is_public`, so a change to the definition changes the pin."""
+    """Every check uses the hook's `IPV4`, `IPV6` and `ipv4_is_public`, never a local copy."""
     with open(__file__, encoding="utf-8") as f:
         src = f.read()
     assert "import host_fingerprint_gate as gate" in src

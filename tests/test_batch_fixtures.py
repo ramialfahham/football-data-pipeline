@@ -1,7 +1,4 @@
-"""Tests for ingestion/api_football/loads/batch_fixtures.py
-
-All BigQuery and HTTP interactions are mocked — no live GCP connection required.
-"""
+"""Tests for ingestion/api_football/loads/batch_fixtures.py, with BigQuery and HTTP mocked."""
 
 from __future__ import annotations
 
@@ -102,11 +99,9 @@ class TestNeedsFetch:
         assert _needs_fetch(1, covered, {}, self.CUTOFF) is True
 
     def test_empty_stats_kickoff_exactly_at_cutoff_retries(self):
-        """Kickoff on the cutoff day is still within the retry window (>= cutoff)."""
         assert _needs_fetch(1, _covered({1: False}), {1: self.CUTOFF}, self.CUTOFF) is True
 
     def test_empty_stats_kickoff_one_day_before_cutoff_skips(self):
-        """Kickoff one day before the cutoff is past the retry window."""
         kickoff = self.CUTOFF - timedelta(days=1)
         assert _needs_fetch(1, _covered({1: False}), {1: kickoff}, self.CUTOFF) is False
 
@@ -115,7 +110,7 @@ class TestNeedsFetch:
         assert _needs_fetch(1, _covered({1: False}), {1: kickoff}, self.CUTOFF) is True
 
     def test_empty_stats_no_kickoff_skips(self):
-        """If kickoff is unknown, can't determine window — skip to be safe."""
+        """With no kickoff the retry window is unknown, so it skips."""
         assert _needs_fetch(1, _covered({1: False}), {}, self.CUTOFF) is False
 
 
@@ -125,7 +120,6 @@ class TestNeedsFetch:
 
 
 class TestRunBatchFixtureFanoutAndPersist:
-    """Integration-level tests with mocked BQ client and HTTP layer."""
 
     def _make_fixture_row(
         self,
@@ -170,7 +164,6 @@ class TestRunBatchFixtureFanoutAndPersist:
         client.query.assert_not_called()
 
     def test_fetches_fixture_due_its_second_fetch(self):
-        """A fixture with statistics whose player stats' second fetch is due is fetched again."""
         client = MagicMock()
         covered = {"WC": _covered({100: True, 101: True}, players={100: False, 101: True})}
 
@@ -192,7 +185,6 @@ class TestRunBatchFixtureFanoutAndPersist:
         assert mock_fetch.call_args[1]["params"]["ids"] == "100"
 
     def test_no_api_calls_when_no_finished_fixtures(self):
-        """Only upcoming fixtures → nothing to fetch."""
         client = MagicMock()
         covered: dict = {}
 
@@ -206,7 +198,6 @@ class TestRunBatchFixtureFanoutAndPersist:
         mock_fetch.assert_not_called()
 
     def test_fetches_all_unfetched_finished_fixtures(self):
-        """All fixture IDs from a competition with no prior data are fetched in one batch."""
         client = MagicMock()
         covered: dict = {}
 
@@ -229,12 +220,10 @@ class TestRunBatchFixtureFanoutAndPersist:
         assert fetched_ids == {1, 2, 3}
 
     def test_splits_into_multiple_batches_above_batch_size(self):
-        """More than _BATCH_SIZE fixtures trigger multiple API calls."""
         client = MagicMock()
         covered: dict = {}
 
         ctx = self._make_ctx(client)
-        # BATCH_SIZE + 5 fixtures → 2 calls (BATCH_SIZE + 5)
         n = _BATCH_SIZE + 5
         rows = [self._make_fixture_row(i, "FT") for i in range(1, n + 1)]
         result = self._make_result("BL1", rows)
@@ -249,15 +238,12 @@ class TestRunBatchFixtureFanoutAndPersist:
                     run_batch_fixture_fanout_and_persist(ctx, [result], covered)
 
         assert mock_fetch.call_count == 2
-        # First batch: exactly BATCH_SIZE ids
         first_ids = mock_fetch.call_args_list[0][1]["params"]["ids"].split("-")
         assert len(first_ids) == _BATCH_SIZE
-        # Second batch: remaining 5
         second_ids = mock_fetch.call_args_list[1][1]["params"]["ids"].split("-")
         assert len(second_ids) == 5
 
     def test_sleeps_between_calls_not_before_first(self):
-        """Sleep is called once between two calls, not before the first."""
         client = MagicMock()
         covered: dict = {}
 
@@ -284,7 +270,6 @@ class TestRunBatchFixtureFanoutAndPersist:
         mock_sleep.assert_called_once_with(0.25)
 
     def test_no_sleep_when_only_one_batch(self):
-        """No sleep is needed when there is only one API call."""
         client = MagicMock()
         covered: dict = {}
 
@@ -309,7 +294,6 @@ class TestRunBatchFixtureFanoutAndPersist:
         mock_sleep.assert_not_called()
 
     def test_stops_on_quota_exhausted(self):
-        """After quota is exhausted, remaining batches are skipped."""
         import ingestion.api_football.quota as quota_mod
 
         client = MagicMock()
@@ -343,14 +327,12 @@ class TestRunBatchFixtureFanoutAndPersist:
         assert call_count == 1  # stopped after first batch exhausted quota
 
     def test_skips_empty_stats_fixtures_past_retry_window(self):
-        """Fixtures fetched with empty stats more than STATS_RETRY_DAYS ago are not retried."""
         client = MagicMock()
         old_kickoff = date.today() - timedelta(days=_STATS_RETRY_DAYS + 2)
 
         covered = {"BL1": _covered({100: False})}  # empty stats, but old
 
         ctx = self._make_ctx(client)
-        # Kickoff is old — past the retry window
         kickoff_str = old_kickoff.isoformat() + "T18:00:00+00:00"
         result = self._make_result("BL1", [self._make_fixture_row(100, "FT", kickoff_str)])
 
@@ -361,7 +343,6 @@ class TestRunBatchFixtureFanoutAndPersist:
         mock_fetch.assert_not_called()
 
     def test_retries_empty_stats_fixtures_within_retry_window(self):
-        """Fixtures with empty stats within the retry window are re-fetched."""
         client = MagicMock()
         recent_kickoff = date.today() - timedelta(days=1)  # 1 day ago, within 3-day window
 
@@ -383,7 +364,6 @@ class TestRunBatchFixtureFanoutAndPersist:
         mock_fetch.assert_called_once()
 
     def test_exception_in_batch_appended_to_errors(self):
-        """An exception during a batch fetch is caught and added to errors."""
         client = MagicMock()
         covered: dict = {}
 
@@ -401,7 +381,6 @@ class TestRunBatchFixtureFanoutAndPersist:
         assert any("batch_fixtures" in e and "BL1" in e for e in ctx.errors)
 
     def test_multiple_competitions_planned_before_fetching(self):
-        """Results from multiple competitions are all planned before any HTTP call."""
         client = MagicMock()
         covered: dict = {}
 
@@ -453,8 +432,7 @@ class TestIdleCompetitionsReachTheDetailsStep:
         assert result.seasons_list == [2026]
 
     def test_orchestrator_hands_idle_competitions_and_the_coverage_read_to_the_step(self):
-        """Structural, as in test_ingestion_read_hoisting.py: driving `_load_api_football` end to
-        end means mocking every collaborator."""
+        """Structural, because driving `_load_api_football` end to end means mocking every collaborator."""
         import ast
         import inspect
         import textwrap

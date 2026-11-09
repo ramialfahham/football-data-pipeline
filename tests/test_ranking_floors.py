@@ -1,9 +1,4 @@
-"""The ranking and benchmark floors are dbt vars, and the ranking_rules doc block says the same numbers.
-
-The doc block is what a reader sees in BigQuery and in the dbt docs; the vars are what the models
-apply. Nothing else ties the two, so a floor changed in one place and not the other would publish a
-rule the numbers do not follow. Values are read from parsed YAML and from the doc block's text.
-"""
+"""The ranking and benchmark floors are dbt vars, and the ranking_rules doc block says the same numbers."""
 
 import re
 from pathlib import Path

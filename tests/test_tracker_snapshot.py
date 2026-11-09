@@ -1,13 +1,4 @@
-"""The tracker's backup in the repo has one writer — the guard, both halves.
-
-`docs/tracker/gitlab_snapshot.md` is written only by `scripts/snapshot_tracker.py`. Half one is
-`.claude/hooks/tracker_snapshot_gate.py`, which denies an `Edit`, `Write` or `MultiEdit` under
-`docs/tracker/`. Half two is the checksum pin below: the header's sha256 must equal the body's,
-so any change that did not also rewrite the header fails this test. That is self-consistency, not
-provenance — a deliberate shell write that recomputes the header passes, and is forbidden by
-rule. The routing entries keep a refresh out of the review patch and the review hash, so the
-file is never a reviewed diff — which is exactly why nothing else may touch it.
-"""
+"""The tracker's backup in the repo has one writer — the guard, both halves."""
 
 from __future__ import annotations
 
@@ -121,9 +112,7 @@ def test_every_write_under_the_folder_is_denied(repo, tool, extra):
 
 @pytest.mark.parametrize("spelling", ["Docs/Tracker", "DOCS/TRACKER", "docs/Tracker"])
 def test_a_differently_cased_spelling_of_the_folder_is_denied(repo, spelling):
-    """On Windows these name the same folder as `docs/tracker`, and relpath keeps the caller's
-    case past the shared prefix — so the check must fold case or the hook is a spelling away
-    from silent."""
+    """On Windows these name the same folder, and relpath keeps the caller's case, so the check must fold case."""
     path = os.path.join(str(repo), *spelling.split("/"), "gitlab_snapshot.md")
     assert _denied(_run({"tool_name": "Write", "tool_input": {"file_path": path, "content": "n"}}, str(repo)))
 
@@ -170,8 +159,7 @@ def test_the_hook_is_wired_beside_the_other_edit_time_gates():
 
 
 def test_a_snapshot_refresh_is_never_a_reviewed_diff():
-    """The three routing lists: excluded from the hash, excluded from the patch, artifact-only
-    for the commit gate — and never in `artifact_only_never`, which would make it reviewed."""
+    """The snapshot is excluded from the hash and the patch, artifact-only, and never in `artifact_only_never`."""
     with open(os.path.join(REPO, ".claude", "review_routing.json"), encoding="utf-8") as f:
         routing = json.load(f)
     for key in ("hash_exclude_paths", "review_exclude_paths", "artifact_only"):

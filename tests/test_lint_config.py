@@ -1,34 +1,6 @@
-"""Pin the lint configuration, because every way of breaking it leaves the build GREEN.
+"""Pins the ruff lint configuration, read from parsed TOML and YAML, never grepped from text.
 
-WHY THIS EXISTS
----------------
-`.ruff-ci.toml` was added after a review spent ~125k tokens finding a duplicate module-level
-function name that a linter should have found. The change that added it surfaced five defects,
-and every one of them shares a shape: the lint setup keeps failing in ways that report success.
-
-  * The ruleset can be narrowed and nothing goes red — it just stops finding things.
-  * `dummy-variable-rgx` can be deleted and the violation count does not move, because the repo
-    currently has no violation of the rule it restores.
-  * The config can be made auto-discoverable and the only symptom is that bare `ruff check` and
-    editors quietly change behaviour.
-  * `per-file-ignores` can grow an entry that disables a whole rule for a whole directory.
-  * The hook can add `--select`, which overrides the config file wholesale, and every test here
-    would still pass while the config stops mattering.
-
-CI's `lint:python` runs `pre-commit run --all-files`, so the ruff hook in `.pre-commit-config.yaml`
-is the one place ruff is invoked, locally and in CI.
-
-Each of those is a guard that looks strong and is nearly inert — the failure
-`tests/test_materialisation_policy.py` was written about.
-
-HOW IT IS SHAPED, AND WHY
--------------------------
-Values are read from parsed TOML and YAML, never grepped from file text. A guard that matches
-prose is defeated by a reword, which is that same file's other lesson.
-
-`select` is asserted to equal ruff's DEFAULT set exactly, and that is deliberate in both
-directions. Narrower means CI enforces less than ruff's own baseline. Wider adopts a new class of
-enforced opinion across the whole tree. Either is a decision, not a tidy-up.
+`select` must equal ruff's default set exactly, so narrowing or widening it is a deliberate edit.
 """
 
 from __future__ import annotations
@@ -45,7 +17,7 @@ GITLAB_CI = ROOT / ".gitlab-ci.yml"
 PRE_COMMIT = ROOT / ".pre-commit-config.yaml"
 REQUIREMENTS_DEV = ROOT / "requirements-dev.txt"
 
-# Ruff's own default. Changing this constant is the deliberate act; changing the config alone is not.
+# Ruff's own default set.
 RUFF_DEFAULT_SELECT = ["E4", "E7", "E9", "F"]
 
 # The three names ruff auto-discovers by walking up from each linted file.
@@ -68,11 +40,7 @@ def test_select_is_exactly_ruffs_default_set():
 
 
 def test_the_dummy_variable_override_survives():
-    """Its removal is invisible: the violation count is unchanged and the build stays green.
-
-    Ruff's default exempts ALL underscore-prefixed names from F811/F841. Measured:
-    `f` and `review_patch` are flagged for redefinition; `_f`, `_review_patch` and `__x` are not.
-    """
+    """Without the override ruff exempts every underscore-prefixed name from F811/F841."""
     rgx = _config()["lint"].get("dummy-variable-rgx")
 
     assert rgx is not None, (
@@ -92,12 +60,7 @@ def test_the_dummy_variable_override_survives():
 
 
 def test_the_ci_config_is_not_auto_discoverable():
-    """The config is passed explicitly; an auto-discovered one would be a second, silent source.
-
-    Ruff walks up for `ruff.toml` / `.ruff.toml` / `pyproject.toml`. A root file of that name is
-    adopted by bare `ruff check` and by editors, which then disagree with the hook CI runs, and
-    nothing in CI shows it.
-    """
+    """The config is passed explicitly; an auto-discovered one would be a second, silent source."""
     assert CI_CONFIG.name not in AUTO_DISCOVERED, (
         f"{CI_CONFIG.name} is one of ruff's auto-discovered names, so bare `ruff check` now "
         "reads it too"
@@ -116,11 +79,7 @@ def test_the_ci_config_is_not_auto_discoverable():
 
 
 def test_per_file_ignores_only_exempt_e402_in_the_shim_scripts():
-    """An entry here can disable a whole rule for a whole directory, invisibly.
-
-    `"tests/*" = ["F811"]` would switch off the coverage this config was added for, while every
-    other test in this file passes and `ruff check` stays green.
-    """
+    """An entry here can disable a whole rule for a whole directory, invisibly."""
     ignores = _config()["lint"].get("per-file-ignores", {})
 
     for pattern, rules in ignores.items():
@@ -146,13 +105,7 @@ def _ruff_hooks() -> list[tuple[str, dict]]:
 
 
 def test_the_ruff_hook_passes_the_config_and_no_select_override():
-    """`--select` on the command line OVERRIDES the config file wholesale.
-
-    The acceptance criterion of the change that added the config itself once named
-    `ruff check . --select F,E9`, which would have passed on a tree where E4/E7 were red or where
-    the config failed to load at all. The same mistake in the hook would make every other test
-    in this file meaningless.
-    """
+    """`--select` on the command line overrides the config file wholesale."""
     hooks = _ruff_hooks()
 
     assert len(hooks) == 1, f"expected exactly one ruff hook in .pre-commit-config.yaml, found {len(hooks)}"

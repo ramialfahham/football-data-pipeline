@@ -1,9 +1,4 @@
-"""Tests for the metric map that `scripts/sync_metric_docs_blocks.py` generates.
-
-The map says where each catalogue metric can be read in the marts. The synthetic tests drive the
-generator against a small catalogue and mart tree and assert one property or one refusal each; the
-real-repo tests hold the committed seed to the generator and to the 20 fan questions of #190.
-"""
+"""Tests for the metric map, which `scripts/sync_metric_docs_blocks.py` generates from the marts."""
 from __future__ import annotations
 
 import csv
@@ -77,8 +72,7 @@ def test_a_mart_column_pointing_at_a_metric_block_is_a_row(repo):
 
 
 def test_a_column_pointing_at_no_metric_block_is_not_a_row(repo):
-    """Only a generated metric block says a column holds a metric; a hand-written block or a
-    sentence says nothing the generator can rely on."""
+    """Only a generated metric block says a column holds a metric; the generator cannot rely on any other."""
     repo(["goals"], _model("mart_x", [("goals_for", "{{ doc('goals') }}"),
                                       ("fouls", "{{ doc('fouls') }}"),
                                       ("goals_text", "Goals the team scored.")]))
@@ -198,7 +192,7 @@ def test_check_names_a_row_no_longer_generated(repo, monkeypatch, capsys):
 
 
 def test_check_reports_drift_that_changes_no_row(repo, monkeypatch, capsys):
-    """Same rows, different bytes: without this message the failure would name nothing."""
+    """Same rows with different bytes must still name the drift."""
     repo(["goals"], _model("mart_x", [("goals_for", "{{ doc('goals') }}")]))
     assert _run(monkeypatch) == 0
     capsys.readouterr()
@@ -227,7 +221,6 @@ def _accepted(table, column):
 
 
 def test_the_real_map_matches_the_generator():
-    """Fails when the catalogue or a mart's YAML changes and the map is not regenerated."""
     try:
         expected = gen._render_map(gen._read_rows(), gen._column_names())
     except gen.Abort as exc:                                    # pragma: no cover

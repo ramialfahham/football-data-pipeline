@@ -1,49 +1,6 @@
-"""Prose must agree with the guards it describes.
+"""Prose restating the guard-path counts and lists must agree with the routing file and the gate.
 
-`.claude/review_routing.json` is the source of truth for which paths confer which
-reviewers, and `task_contract_gate.py` for which paths are protected. Neither the
-COUNT nor the LIST is derived anywhere: both are restated as English prose, by
-hand, across eleven sites. One MR added exactly ONE routing row, and that one-line
-change cost eleven prose edits and three review rounds (GitLab #1).
-
-The failure mode is not carelessness. It is that nothing can tell you a
-hand-copied list is incomplete — a stale "eight" is valid prose, and the first
-pass at it missed the protected-path axis entirely because both lists happened
-to be identical eight-item sets, so one grep looked exhaustive.
-
-So these tests derive every number and every list from the two sources and check
-the prose against them.
-
-THREE TRAPS THESE TESTS ARE BUILT AROUND, each of which has already cost this repo
-a round:
-
-1. A LINE-BASED GREP MISSES A PHRASE STRADDLING A LINE BREAK. Four of the eleven
-   sites wrap mid-claim (the CTO brief breaks between "all nine" and "guard
-   paths"; `working_agreement.md` and `agent_guardrails.md` break inside "on all
-   nine, plus platform on exactly three"). A first sweep while writing
-   this found seven of eleven for exactly that reason. Everything here reads whole
-   files and normalises: blockquote markers stripped, then all whitespace collapsed.
-
-2. HISTORICAL NARRATIVE LIVES INSIDE LIVE FILES. `review_routing.json` and
-   `working_agreement.md` both quote the superseded "eight"/"two" claim on
-   purpose, as the record of a churn worth remembering, and `.claude/task/
-   escalations.log` is an append-only log full of them. A blanket word search
-   calls all of those drift. They are classified explicitly in `HISTORICAL`, by
-   exact snippet, so a real regression cannot hide behind the same excuse.
-
-3. CLASSIFY BY CONTENT, NOT BY PHRASING. The enumeration test does not carry a
-   list of sites. It finds every RUN of adjacent protected-path tokens anywhere in
-   the covered files and asserts each run is one of the derived sets. A partial
-   list — the exact round-1 defect — fails on contents, no matter how it is worded
-   or where it is added.
-
-KNOWN HOLE, stated rather than left implicit. The COUNT test anchors on the
-phrasings that exist today, and `test_no_unclassified_count_claim` sweeps for the
-established claim SHAPES. A count written in a genuinely new sentence form ("the
-CTO covers a dozen paths") is not caught. The enumeration axis has no such hole,
-because it matches on paths rather than words. Closing the count hole means either
-dropping the counts from prose entirely (GitLab #1's option 2) or generating them,
-both of which are product-owner calls that were considered and not taken.
+The count test anchors on today's phrasings, so a count in a new sentence form is not caught.
 """
 
 from __future__ import annotations
@@ -64,9 +21,7 @@ REPO = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
 # The two sources of truth. Read from the real files; never retyped here.
 # --------------------------------------------------------------------------- #
 def _contract_gate():
-    """The hook module. Its `main()` is `__main__`-guarded, so importing is
-    side-effect free — the same pattern `test_governance_hooks._gd()` uses for
-    `git_discipline`."""
+    """The hook module; importing it is side-effect free because `main()` is `__main__`-guarded."""
     sys.path.insert(0, os.path.join(REPO, ".claude", "hooks"))
     import task_contract_gate
 
@@ -74,12 +29,7 @@ def _contract_gate():
 
 
 def protected_paths() -> set[str]:
-    """The protected set, normalised to the glob spelling routing uses.
-
-    The gate stores directories as PREFIXES (`.claude/hooks/`) and single files
-    verbatim; routing spells the same directories as globs (`.claude/hooks/**`).
-    Same nine paths, two notations, which is precisely why a human restating
-    either one gets it wrong."""
+    """The protected set in routing's glob spelling; the gate stores directories as prefixes."""
     gate = _contract_gate()
     return {p.rstrip("/") + "/**" for p in gate.PROTECTED_PREFIXES} | set(gate.PROTECTED_FILES)
 
@@ -89,7 +39,6 @@ def _routing_paths() -> dict:
 
 
 def shared_guard_paths() -> set[str]:
-    """Guard paths where the platform reviewer is routed alongside the CTO."""
     rows = _routing_paths()
     return {p for p in protected_paths() if "platform-reviewer" in rows.get(p, [])}
 
@@ -99,19 +48,16 @@ def cto_alone_guard_paths() -> set[str]:
 
 
 def cto_routing_rows() -> set[str]:
-    """Every routing row requiring the CTO. Wider than the guard set: it also
-    carries the DEPENDENCY class (`*requirements*.txt`, the two site_v2 package
-    files), which `north_star.md` counts alongside the guard paths."""
+    """Every routing row requiring the CTO, wider than the guard set by the dependency class."""
     return {p for p, revs in _routing_paths().items() if "cto-reviewer" in revs}
 
 
 # --------------------------------------------------------------------------- #
-# Text normalisation. See trap 1 in the module docstring.
+# Text normalisation: whole files, because a claim can straddle a line break.
 # --------------------------------------------------------------------------- #
 _BLOCKQUOTE = re.compile(r"^[>\s]*>\s?")
 
-# Prose files whose text restates these facts. `test_every_file_stating_the_facts
-# _is_covered` stops this list decaying as documents are added.
+# Prose files whose text restates these facts.
 COVERED_FILES = (
     ".claude/agents/cto-reviewer.md",
     ".claude/agents/platform-reviewer.md",
@@ -123,25 +69,12 @@ COVERED_FILES = (
     "docs/north_star.md",
 )
 
-# Files that RECORD rather than GOVERN. A superseded number in one of these is the
-# point of the file, not drift in it, and none of them is a rule anybody follows.
-#   .claude/task/       per-task paperwork, replaced every task, including the
-#                       frozen escalations.log of past rulings
-#   .claude/active_work.md  the handover, rewritten every session (routing files it
-#                       under `artifact_only` for the same reason)
-#   docs/tracker/       the generated backup of the GitLab tracker: every issue body quoted
-#                       verbatim, old ones included, one writer (the script), a hook against
-#                       hand edits — read only when GitLab is unreachable, never a rule
-#   tests/              this file, which quotes every claim shape it checks
+# Files that record rather than govern, where a superseded number is not drift.
 SWEEP_EXEMPT = (".claude/task/", ".claude/active_work.md", "docs/tracker/", "tests/")
 
 
 def normalise(rel: str) -> str:
-    """Whole-file text with blockquote markers stripped and whitespace collapsed.
-
-    For JSON, only the `_doc*` narrative keys are read. The `paths` object is
-    data, not prose — flattening it would hand the enumeration test a 30-entry
-    "run" that is the routing table itself."""
+    """Whole-file prose, blockquotes stripped, whitespace collapsed; JSON gives `_doc*` keys."""
     with open(os.path.join(REPO, rel), encoding="utf-8") as fh:
         raw = fh.read()
     if rel.endswith(".json"):
@@ -170,16 +103,10 @@ def _as_int(token: str) -> int | None:
 
 
 # --------------------------------------------------------------------------- #
-# Test 1 — the identity every "fourteen" depends on.
+# Guard path identity and counts
 # --------------------------------------------------------------------------- #
 def test_every_protected_path_is_routed_to_the_cto():
-    """A guard path is a PROTECTED path that routes to the CTO, and the docs use
-    the two terms interchangeably. That only holds while the sets agree.
-
-    Add a protected path and forget its routing row and the prose "fourteen" silently
-    means two different things in two places: fourteen files the gate blocks, thirteen
-    the CTO reviews. This is the invariant the count tests below rest on, so it
-    is asserted before them."""
+    """The docs treat protected and guard paths as one set; the count tests rest on that."""
     rows = _routing_paths()
     missing = sorted(p for p in protected_paths() if "cto-reviewer" not in rows.get(p, []))
     assert not missing, (
@@ -191,8 +118,7 @@ def test_every_protected_path_is_routed_to_the_cto():
 
 
 def test_the_guard_path_counts_are_what_the_docs_claim():
-    """Pins the three derived numbers, so a change to either source shows up as a
-    failure here naming the new value, not as eleven quietly stale documents."""
+    """Pins the derived numbers so a source change fails here naming the new value."""
     assert len(protected_paths()) == 14, (
         f"The guard set is now {sorted(protected_paths())}. Every prose site saying "
         "'fourteen' is stale; the count tests below name each one.")
@@ -215,7 +141,7 @@ def test_the_guard_path_counts_are_what_the_docs_claim():
 
 
 # --------------------------------------------------------------------------- #
-# Test 2 — every prose COUNT, anchored.
+# Prose counts
 # --------------------------------------------------------------------------- #
 def _guard_total() -> int:
     return len(protected_paths())
@@ -234,9 +160,7 @@ def _cto_rows() -> int:
 
 
 # (file, anchor, [expected-count callables, one per capture group]).
-# Each anchor must match EXACTLY ONCE. That is the load-bearing half: reword the
-# sentence and the test fails loudly with "matched 0 times" instead of silently
-# checking nothing.
+# Each anchor must match exactly once, so a reworded sentence fails instead of checking nothing.
 COUNT_SITES = (
     (".claude/agents/cto-reviewer.md",
      r"on any of the (\w+) guard paths", [_guard_total]),
@@ -300,11 +224,10 @@ def test_every_prose_count_matches_the_derived_value(rel, anchor, expected):
 
 
 # --------------------------------------------------------------------------- #
-# Test 3 — every prose LIST, matched on contents rather than phrasing.
+# Prose lists, matched on contents rather than phrasing
 # --------------------------------------------------------------------------- #
 def _path_tokens() -> list[str]:
-    """Both spellings of every protected path, longest first so `.claude/hooks/**`
-    is consumed before the `.claude/hooks/` prefix inside it."""
+    """Both spellings of every protected path, longest first so a glob beats its prefix."""
     tokens = set()
     for glob in protected_paths():
         tokens.add(glob)
@@ -313,8 +236,7 @@ def _path_tokens() -> list[str]:
     return sorted(tokens, key=len, reverse=True)
 
 
-# A gap wider than this ends a list. Sized against the real files: the widest
-# real separator is "`, `.claude/review_routing.json`, `" plus a stray "and".
+# A gap wider than this ends a list.
 _RUN_GAP = 42
 
 
@@ -347,9 +269,7 @@ def _runs(text: str) -> list[tuple[int, frozenset]]:
     return runs
 
 
-# Runs that are prose ARGUMENTS rather than enumerations of the guard set. Scoped
-# to the file that makes the argument, so the same subset staying legitimate in one
-# document does not quietly excuse it appearing in another.
+# Runs that are prose arguments rather than enumerations of the guard set, scoped per file.
 PROSE_SUBSETS = {
     ".claude/agents/cto-reviewer.md": {
         frozenset({".claude/settings.json", ".mcp.json", ".cursor/mcp.json"}):
@@ -383,25 +303,13 @@ PROSE_SUBSETS = {
     },
 }
 
-# Real incomplete lists that cannot be fixed from the task that finds them —
-# typically because they sit on a PROTECTED path and correcting one needs a
-# governance task carrying `protected_override`. Recorded rather than
-# exempted, and `test_known_incomplete_lists_have_not_been_fixed` fails the moment
-# one IS corrected, so an entry cannot outlive its defect.
-#
-# EMPTY IS THE CORRECT STEADY STATE, and it got here the intended way. The single
-# entry recorded the platform brief's territory sentence omitting
-# `.gitlab-ci.yml` (GitLab #22, found by this file on its first run in #1). When
-# that sentence was fixed under an override, the paired test went RED and named
-# the entry to delete — the exemption could not outlive the defect, which is the
-# whole point of the pair. Add an entry only when a real incomplete list genuinely
-# cannot be fixed in the same task, and expect the pair to retire it for you.
+# Incomplete lists that cannot be fixed in the same task, for example on a protected path; empty
+# is the steady state, and test_known_incomplete_lists_have_not_been_fixed retires an entry.
 KNOWN_INCOMPLETE: dict = {}
 
 
 def _allowed_runs(rel: str) -> dict:
-    """Every path set a run in this file may legitimately be. A run that is none of
-    them is a partial or drifted list."""
+    """Every path set a run in this file may be; any other run is a partial or drifted list."""
     allowed = {
         frozenset(protected_paths()): "all fourteen guard paths",
         frozenset(cto_alone_guard_paths()): "the seven the CTO reviews alone",
@@ -413,11 +321,7 @@ def _allowed_runs(rel: str) -> dict:
 
 @pytest.mark.parametrize("rel", COVERED_FILES)
 def test_every_protected_path_list_is_complete(rel):
-    """Catches the round-1 defect directly: a list that dropped a path.
-
-    Deliberately NOT a table of known sites. It reads whatever lists are actually
-    in the file, so a new list added anywhere in a covered document is checked the
-    moment it appears, and no site table can go stale."""
+    """Reads whatever lists the file holds, so a new list in a covered document is checked."""
     text = normalise(rel)
     allowed = _allowed_runs(rel)
     for position, run in _runs(text):
@@ -436,11 +340,7 @@ def test_every_protected_path_list_is_complete(rel):
 @pytest.mark.parametrize("key", sorted(KNOWN_INCOMPLETE, key=str),
                          ids=[k[0] for k in sorted(KNOWN_INCOMPLETE, key=str)])
 def test_known_incomplete_lists_have_not_been_fixed(key):
-    """The other direction, so a recorded defect cannot outlive itself.
-
-    An exemption that survives the thing it excuses is how a list of known issues
-    becomes a list of silently-allowed ones. When the prose is corrected this test
-    goes red and says to delete the entry."""
+    """Fails once the recorded defect is corrected, so an exemption cannot outlive it."""
     rel, run = key
     assert any(r == run for _, r in _runs(normalise(rel))), (
         f"{rel} no longer contains the incomplete list {sorted(run)}. If it was "
@@ -450,9 +350,6 @@ def test_known_incomplete_lists_have_not_been_fixed(key):
 
 
 def test_the_platform_role_row_names_only_the_shared_guard_paths():
-    """`north_star.md`'s "Wakes on" column is read as the authority on what routes
-    a role, and its own preamble attaches a duty to keeping it honest. A guard path
-    listed there that platform is not routed to would over-state its surface."""
     text = normalise("docs/north_star.md")
     row = re.search(r"\| \[Platform and Reliability\][^|]*\|[^|]*\|([^|]*)\|", text)
     assert row, "The Platform and Reliability row is no longer parseable in north_star.md."
@@ -464,10 +361,9 @@ def test_the_platform_role_row_names_only_the_shared_guard_paths():
 
 
 # --------------------------------------------------------------------------- #
-# Test 4 — nothing states these facts outside the checks above.
+# Unclassified claims
 # --------------------------------------------------------------------------- #
-# The claim SHAPES in use. Every match must be covered by COUNT_SITES or listed
-# in HISTORICAL. See the known hole in the module docstring.
+# The claim shapes in use; every match must be covered by COUNT_SITES or HISTORICAL.
 CLAIM_SHAPES = (
     r"\b(\w+) guard paths?\b",
     r"`cto-reviewer` on all (\w+)",
@@ -476,8 +372,7 @@ CLAIM_SHAPES = (
     r"other (\w+) go to cto-reviewer",
 )
 
-# Superseded numbers quoted ON PURPOSE, as the record of a churn worth keeping.
-# Exact snippets: a real regression cannot hide behind a loose pattern.
+# Superseded numbers quoted on purpose, as exact snippets so a regression cannot hide.
 HISTORICAL = (
     "three documents claiming BOTH reviewers on all EIGHT guard paths",
     'three documents claiming "both on all eight"',
@@ -511,9 +406,7 @@ def test_no_unclassified_count_claim(rel):
 
 
 def test_every_file_stating_the_facts_is_covered():
-    """Stops COVERED_FILES decaying. A document added tomorrow that restates the
-    guard-path facts joins the checks above automatically, instead of becoming a
-    twelfth unchecked site."""
+    """A document that restates the guard-path facts must be in COVERED_FILES."""
     import subprocess
 
     out = subprocess.run(

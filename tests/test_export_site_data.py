@@ -1,8 +1,4 @@
-"""Unit tests for the per-entity site export pure helpers (#365).
-
-No BigQuery — exercises slugify, payload shaping and manifest building with
-fabricated rows so python-ci validates the logic offline.
-"""
+"""Unit tests for the site export's pure helpers, on fabricated rows with no BigQuery."""
 
 import json
 
@@ -39,13 +35,7 @@ from scripts.export_site_data import _featured_season_row, group_upcoming_fixtur
 
 
 def _mark_featured(rows: list[dict]) -> list[dict]:
-    """Flag the row the marts would flag, so a fixture mirrors served data (#846).
-
-    Defaults to the greatest season_api_year, which is exactly what these fixtures assumed back
-    when the export picked the row itself. That is deliberate: every assertion below is unchanged,
-    so a passing suite is evidence the payload did not move when the decision left the export.
-    A player fixture that needs the club lens flags its own row instead — see the WC/PL test.
-    """
+    """Flag the greatest season_api_year row as the marts would, so a fixture mirrors served data."""
     top = max(rows, key=lambda r: (r.get("season_api_year") or 0))
     for r in rows:
         r["is_featured_season"] = r is top
@@ -53,8 +43,7 @@ def _mark_featured(rows: list[dict]) -> list[dict]:
 
 
 def test_shape_leaderboards_groups_by_metric_key_and_orders_by_rank():
-    # mart_leaderboards is LONG: one row per (player, board) with metric_key + rank already
-    # set by the warehouse. The export groups by metric_key and orders by rank — no Python ranking.
+    # mart_leaderboards is long: the warehouse sets metric_key and rank, so the export never ranks.
     rows = [
         {"metric_key": "goals_player", "rank": 2, "player_sk": 3, "player_name": "C"},
         {"metric_key": "goals_player", "rank": 1, "player_sk": 2, "player_name": "B"},
@@ -75,27 +64,16 @@ def test_display_group_of_type_reads_seed():
 
 
 def test_display_group_of_type_covers_the_renamed_and_new_types():
-    """#57's taxonomy change, pinned against the REAL seed.
-
-    ⚠ This exists because the obvious place to pin the rename does not pin it. The build_nav
-    fixture below carries a competition_type, but build_nav never branches on one — it groups by
-    the already-resolved display_group — so reverting the whole rename leaves that test green.
-    Only the seed lookup actually resolves a competition_type, so the assertion belongs here.
-    """
+    """Only the seed lookup resolves a competition_type; `build_nav` groups by the resolved display_group."""
     m = _display_group_of_type()
-    # renamed: the entity-named type became format-named
     assert "continental_club" not in m, "the old type name is back in the seed"
     assert m["continental_cup"] == "continental-club"
-    # a global club tournament and an intercontinental one-off, split because the taxonomy
-    # splits tournament from super cup at every other level
     assert m["club_world_cup"] == "continental-club"
     assert m["intercontinental_super_cup"] == "continental-club"
 
 
 def test_every_leaderboard_read_takes_the_season_rows_only():
-    """mart_leaderboards holds season boards and one-match boards (window_type match); every query
-    the export sends to it names one window: the season boards, or the match boards for the played
-    match page alone."""
+    """Every `mart_leaderboards` query names one window: season boards, or match boards for the played match page."""
     import inspect
     import re
 
@@ -114,8 +92,7 @@ def test_every_leaderboard_read_takes_the_season_rows_only():
 
 
 def test_player_payloads_read_only_the_named_players_and_the_marked_matches(monkeypatch):
-    """The export selects on the warehouse's flags: the featured season, the tab's window, the
-    filters a page shows. A squad is read whole, and a peer file holds the competition's players."""
+    """The export selects on the warehouse's flags; a squad is read whole and a peer file holds the competition's players."""
     seen = []
 
     def fake_query(client, sql):
@@ -170,8 +147,7 @@ def test_fetch_glossary_reads_catalogue_seed():
 
 
 def test_build_nav_groups_and_country_hubs():
-    # build_nav reads display_group off each competition (resolved from the
-    # competition_types seed upstream), not a hardcoded type->group dict.
+    # build_nav reads display_group off each competition, resolved upstream from the competition_types seed.
     comps = [
         {"league_code": "BL1", "name": "Bundesliga", "slug": "bundesliga",
          "country": "Germany", "competition_type": "domestic_league",
@@ -198,8 +174,7 @@ def test_build_nav_groups_and_country_hubs():
 
 
 def test_shape_top_players_selects_by_rank_and_joins_names():
-    # selection only: ordered by the warehouse top_player_rank, join keys + the rank
-    # itself dropped from the payload.
+    # Selection only: ordered by the warehouse's top_player_rank, with join keys and the rank dropped.
     rows = [
         {"player_sk": 1, "upcoming_fixture_sk": 9, "team_sk": 5, "top_player_rank": 2},
         {"player_sk": 2, "upcoming_fixture_sk": 9, "team_sk": 5, "top_player_rank": 1},
@@ -215,9 +190,7 @@ def test_shape_top_players_selects_by_rank_and_joins_names():
 
 
 def test_shape_competition_payload_orders_every_block_by_served_columns():
-    """Standings by section then rank, deserved rows by the served deserved rank (1 = the most
-    deserved points) — the export orders by served columns, it never ranks. No next-matchday key:
-    the Matchdays tab opens on the fixtures' served flag."""
+    """The export orders by served columns and never ranks; the Matchdays tab opens on the fixtures' served flag."""
     p = shape_competition_payload(
         "BL1", 2026, {"name": "Bundesliga", "slug": "bundesliga"},
         standings=[{"group_name": "Bundesliga", "standing_rank": 2},
@@ -310,9 +283,7 @@ def _tb(key, order, rank, value, name, rank_order="desc"):
 
 
 def test_shape_competition_boards_groups_in_the_ruled_order_and_cuts_at_five_as_served():
-    """The boards come back in the tuple's order, each board's rows in the order the rows arrived
-    (the warehouse's league_leader_order — nothing is sorted here), cut at five; the dense rank
-    and the value are the mart's; every catalogue fact rides on the board."""
+    """Rows keep the warehouse's league_leader_order, cut at five, and nothing is sorted here."""
     rows = [_tb("goals_against_per_match", 1, 1, 0.0, "Mainz", "asc"),
             _tb("goals_against_per_match", 2, 2, 0.5, "Koeln", "asc")]
     rows += [_tb("goals_per_match", i, 1 if i < 3 else i - 1, 3.0 - (0 if i < 3 else i * 0.1), f"T{i}")
@@ -407,8 +378,7 @@ def test_shape_season_summary_keeps_a_null_fact_null_and_a_missing_row_none():
 
 
 def test_shape_season_summary_computes_nothing():
-    """Every value is a served column repeated; a row whose served ratio disagrees with its own
-    counts is passed through as served, never recomputed here."""
+    """A served ratio that disagrees with its own counts is passed through, never recomputed."""
     s = shape_season_summary(_summary_row(goals_per_match_played=9.99), _SUMMARY_TEAMS, _SUMMARY_SLUGS)
     assert s["goals_per_match"] == 9.99
 
@@ -432,10 +402,7 @@ def _served_fixture(fid, rnd, seq, kickoff, order=None, played=False, nxt=False,
 
 
 def test_group_fixtures_by_round_follows_the_served_fixture_order():
-    """Rows in the warehouse's fixture_order and nothing else: the round order and the order
-    inside a round are both served; the round-level flags lift to the round, the row keeps its own.
-    The kickoffs below are deliberately out of step with fixture_order to prove no key but the
-    served one decides."""
+    """Only the served fixture_order decides, so the kickoffs here are out of step with it."""
     rows = [
         _served_fixture(30, "Round of 16", 3, "2026-10-01T18:00:00", pos=5),
         _served_fixture(21, "Regular Season - 2", 2, "2026-09-05T13:30:00", order=2, nxt=True, top=True, pos=4),
@@ -467,8 +434,7 @@ def test_group_fixtures_by_round_lifts_the_served_round_name():
 
 
 def test_the_competition_fixture_shape_selects_and_carries_the_served_round_name():
-    """The columns are selected from the mart and every match row carries them: the Matchdays
-    picker, the match-day files and Home's upcoming block all read this one shape."""
+    """The Matchdays picker, the match-day files and Home's upcoming block all read this one shape."""
     for col in ("round_label_i18n_key", "round_number", "round_letter"):
         assert col in export_site_data._COMPETITION_FIXTURE_COLUMNS
     row = {"fixture_sk": 7, "fixture_slug": "s7", "kickoff_datetime": "2026-09-05T13:30:00Z",
@@ -572,8 +538,7 @@ def _match_row(fid, home, away, kickoff, home_next=False, away_next=False, next_
 
 
 def test_fixture_payloads_read_the_match_and_each_teams_next_match_from_the_mart(monkeypatch):
-    """The header and each team's next match are rows of mart_competition_fixtures: the next match is
-    the row the mart flags for that team, and none when it is the page's own match."""
+    """A team's next match is the row the mart flags for it, and none when that is the page's own match."""
     page = _match_row(20, 1, 2, "2026-10-31T17:30:00Z", away_next=True, next_round=False)
     team1_next = _match_row(10, 3, 1, "2026-10-10T13:30:00Z", away_next=True)
     captured: list[str] = []
@@ -603,8 +568,7 @@ def test_fixture_payloads_read_the_match_and_each_teams_next_match_from_the_mart
 
 
 def test_fixture_payloads_carry_the_served_window_round_slugs_and_season_players(monkeypatch):
-    """Each side's form is the block the warehouse flags; the round number and the team slugs are the
-    mart's; Players to watch are mart_player_season_record's top five by rank, with their window."""
+    """Form is the flagged block, and Players to watch are mart_player_season_record's top five by rank."""
     page = _match_row(20, 1, 2, "2026-10-31T17:30:00Z")
     keys = {"upcoming_fixture_sk": 20, "is_home": True}
 
@@ -650,14 +614,7 @@ def test_player_slug_falls_back_to_id_when_name_empty():
 
 
 def test_player_slug_still_drops_undecomposable_letters():
-    """Pins the KNOWN, deliberate gap so it is visible rather than discovered.
-
-    `_kebab` folds via NFKD then drops whatever is left non-ASCII, so a character with no
-    decomposition vanishes instead of transliterating. Transliteration is the rule, and it
-    landed for TEAM slugs, which are now derived in the warehouse. Player slugs still
-    run through this function, so they still lose the letter. When player slugs move to the
-    warehouse this test should start failing -- and the fix is to delete it, not to widen it.
-    """
+    """`_kebab` drops characters with no NFKD decomposition; team slugs are served, player slugs still use it."""
     assert player_slug_with_id("Sigurðsson", 1) == "sigursson-1"
     assert player_slug_with_id("Preußen", 2) == "preuen-2"
 
@@ -675,11 +632,10 @@ def test_shape_team_payload_identity_from_latest_and_seasons_desc():
     ]
     p = shape_team_payload(_mark_featured(rows))
     assert p["team_id"] == 157
-    # SERVED by mart_team_profile, not computed here, and carrying no provider id (#852).
-    # The old assertion was "bayern-munchen-157" -- that id is exactly what is ruled out.
+    # The slug is served by mart_team_profile and carries no provider id.
     assert p["slug"] == "bayern-munchen"              # from the 2025 (latest) row
     assert p["name"] == "Bayern München"
-    # GAP-01: founded year + venue from the latest row; venue is a nested block
+    # Founded year and venue come from the latest row; venue is a nested block.
     assert p["founded_year"] == 1900
     assert p["venue"] == {"name": "Allianz Arena", "city": "München", "capacity": 75000}
     assert [s["season_api_year"] for s in p["seasons"]] == [2025, 2024]  # desc
@@ -691,7 +647,6 @@ def test_shape_team_payload_identity_from_latest_and_seasons_desc():
 
 
 def test_shape_team_payload_venue_absent_is_none():
-    # a team with no venue/founded data -> honest absence (venue None, founded_year None)
     p = shape_team_payload(_mark_featured([{"team_sk": 9, "season_api_year": 2025,
                                             "league_code": "BL1", "team_name": "X"}]))
     assert p["venue"] is None
@@ -869,13 +824,8 @@ def test_shape_team_payload_no_scatter_when_season_not_fittable():
 
 
 def test_deserved_scatter_preserves_the_fitted_line():
-    # The mart's `deserved_points` is a least-squares fit that is linear in sotd within a
-    # games-aligned league-season: deserved_i = intercept + slope * sotd_i for every team.
-    # The export must pass those values through UNTOUCHED (no rounding, no re-derivation),
-    # so the hero's trend line stays true. Construct a perfectly colinear league-season and
-    # assert every emitted dot — the self dot included — still lies exactly on that line.
-    # (This is the fit-preservation assertion the contract's done_when calls for; the fit
-    # itself is produced and DQ-tested in dbt, not here.)
+    # deserved_points is linear in sotd within a league-season, so the export must pass it through
+    # unrounded for the trend line to stay true.
     intercept, slope = 40.0, 8.0
     sotds = [-2.0, -0.5, 0.5, 1.5, 3.0]
     league = [
@@ -1101,7 +1051,7 @@ def test_shape_team_payload_joins_career_stats_to_squad_by_player_sk():
 
 
 def test_shape_team_benchmark_member_carries_mart_columns():
-    # GAP-23: select/reshape only — the eight spec §5 columns, no num/den (team mart has none)
+    # Select and reshape only: eight columns, with no num/den as the team mart has none.
     m = _shape_team_benchmark_member({
         "team_benchmark_sk": 1, "team_sk": 157, "season_sk": 2, "league_sk": 3,
         "league_code": "BL1", "season_api_year": 2025, "metric_key": "goals_per_match",
@@ -1316,16 +1266,13 @@ def test_build_manifest_counts_by_type():
 
 
 def test_build_manifest_records_what_the_warehouse_held():
-    """The build proves it carries every unplayed match by comparing its pages to this number,
-    not to the files written: a sampled export writes fewer files than the warehouse holds."""
+    """The build compares its pages to this count, not to files written, since a sampled export writes fewer."""
     m = build_manifest([], {"fixtures_unplayed": 4321})
     assert m["source_counts"] == {"fixtures_unplayed": 4321}
 
 
 def test_competitions_index_covers_registry_leagues_with_slug_and_name():
-    # league_code -> {name, slug} for every active league, registry-derived (no BigQuery).
-    # This is what site_v2/src/data/competitions.json carries; the fixture page resolves its URL
-    # competition segment from it, so every entry must have a slug.
+    # site_v2/src/data/competitions.json carries this; the fixture page resolves its URL from it.
     idx = _competitions_index()
     assert idx, "registry produced no competitions"
     for lc, meta in idx.items():
@@ -1338,14 +1285,9 @@ def test_competitions_index_covers_registry_leagues_with_slug_and_name():
 
 
 def test_shape_competition_index_projects_the_keep_list_and_changes_nothing():
-    # mart_competition_index already resolves the category label, the region label and the
-    # ordering facts (#62 step 4) — this function only projects to the columns the page renders,
-    # it must not rank, sort, filter or derive anything.
-    #
-    # WC is listed FIRST here despite league_code "WC" > "PL" (alphabetical) and region_rank
-    # 2 > 1 (ascending): both are the plausible accidental sorts this test needs to catch, and
-    # both would put PL first. Only "preserve input order" produces WC, PL — deliberately, so
-    # the order assertion below can't pass by coincidence the way an [PL, WC] fixture would.
+    # The mart resolves labels and ordering, so this only projects to the columns the page renders.
+    # WC is listed first although alphabetical and region_rank sorts would both put PL first, so
+    # only preserved input order passes.
     rows = [
         {
             "league_code": "WC", "competition_type": "world_championship", "entity_type": "national",
@@ -1367,8 +1309,7 @@ def test_shape_competition_index_projects_the_keep_list_and_changes_nothing():
         },
     ]
     shaped = shape_competition_index(rows)
-    assert [c["league_code"] for c in shaped] == ["WC", "PL"]   # input order, not alphabetical
-                                                                 # or region_rank order
+    assert [c["league_code"] for c in shaped] == ["WC", "PL"]   # input order
 
     wc = shaped[0]
     assert wc["region_label_en"] == "World"             # the confederation-region case
@@ -1434,12 +1375,7 @@ def test_shape_team_index_refuses_rows_that_disagree_on_the_page_flag():
 
 
 def test_featured_season_row_refuses_to_choose():
-    """#846 criterion 3: the export decides nothing.
-
-    With no flag it fails loudly instead of falling back to recency. The fallback IS the defect
-    this replaced, so a tolerant export would quietly reintroduce it the first time a mart shipped
-    without the column.
-    """
+    """With no served flag the export must fail loudly rather than fall back to recency."""
     import pytest
 
     with pytest.raises(ValueError):
@@ -1452,7 +1388,7 @@ def test_featured_season_row_refuses_to_choose():
 
 
 # ------------------------------------------------------------------------------------------
-# The landing hero's MATCHDAY selection (replacing the fixed count of 12).
+# The landing hero's matchday selection.
 
 
 def _hero_fixtures(*specs):
@@ -1479,8 +1415,7 @@ def test_hero_grouping_truncates_nothing():
 
 
 def test_hero_carries_no_ordering_key():
-    """The competitions arrive in the served order, so a group carries nothing for the page to
-    sort by."""
+    """Competitions arrive in the served order, so a group carries nothing to sort by."""
     groups = group_upcoming_fixtures(
         _hero_fixtures(("PL", "2026-08-20 19:00:00+00:00")),
         {"PL": {"name": "Premier League", "slug": "premier-league", "region_rank": 1}},
@@ -1577,8 +1512,7 @@ def test_shape_lineup_lists_the_starters_then_the_substitutes_who_came_on():
 
 
 def test_played_payloads_walk_each_mart_once_in_fixture_order(monkeypatch):
-    """Every mart is read once and the rows of each match reach that match only, whatever the
-    fixtures between them hold."""
+    """Every mart is read once and each match's rows reach that match only."""
     streamed: list[str] = []
     stats = [{"fixture_sk": 5, "team_sk": 1, "is_home": True, "games_with_team_stats": 1,
               "games_with_player_stats": 0, "shots_per_match": 9},
@@ -1627,15 +1561,3 @@ def test_played_payloads_take_the_listed_matches_only(monkeypatch):
     monkeypatch.setattr(export_site_data, "_query", lambda client, sql: [])
     assert list(export_site_data.fetch_played_fixture_payloads(object(), fixture_ids=(11, 12))) == []
     assert all("fixture_sk in (11, 12)" in s for s in streamed)
-
-
-# ⚠ THERE IS DELIBERATELY NO TEST PINNING WHERE THE MATCHDAY IS SELECTED.
-#
-# A `test_hero_matchday_selection_lives_in_the_query_not_in_python` existed here briefly and was
-# DELETED, not relaxed: it asserted `"min(fixture_date)" in inspect.getsource(...)`, which is a grep
-# dressed as a test. It pinned a string rather than the property that matters, and it would have
-# had to be rewritten — not merely loosened — the day the
-# decision moves into the warehouse (GAP-32).
-#
-# The placement is enforced by the layer contract and by review, not by a text assertion. What IS
-# tested is the function's real behaviour: it truncates nothing.

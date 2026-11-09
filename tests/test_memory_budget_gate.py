@@ -1,14 +1,7 @@
-"""Adding a note to the agent's memory means removing one — the guard, both halves.
+"""Drives `memory_budget_gate.py` as a subprocess on a temp folder shaped like the real memory dir.
 
-The hook `.claude/hooks/memory_budget_gate.py` denies an `Edit`, `Write` or `MultiEdit` to a
-memory file when the RESULTING file would exceed its surface's budget, or when a new note would
-exceed the file cap. The three budgets are pinned to what the real folder measured after the cut
-that introduced them; a sweep may lower them, nothing else moves them.
-
-Every test drives the hook as a subprocess on a temp folder of the real shape
-(`<tmp>/.claude/projects/<slug>/memory/`), so the path test, the size arithmetic and the deny
-text are exercised exactly as the harness exercises them. Each deny case has a passing twin one
-character inside the budget: a one-sided test passes while broken.
+Each deny case has a passing twin one character inside the budget, because a one-sided test
+passes while broken.
 """
 
 from __future__ import annotations
@@ -226,19 +219,15 @@ def test_the_hook_is_wired_for_every_file_writing_tool():
 
 
 def test_budgets_only_ever_move_down():
-    """The pin: these numbers are what the folder measured; a sweep lowers them, nothing raises
-    them. Raising one here is the same act as raising the comment guard's pinned count. Three
-    assertions, not one tuple comparison — a tuple compares lexicographically and stops at the
-    first field that differs, so a lowered first budget would hide a raised third."""
+    # Three assertions, not a tuple: lexicographic comparison would let a lowered first budget
+    # hide a raised third.
     assert gate.MAX_FILES <= 50
     assert gate.INDEX_MAX_CHARS <= 7669
     assert gate.FILE_MAX_CHARS <= 4232
 
 
 def test_a_crlf_file_measures_like_the_lf_text_a_tool_writes(memory):
-    """Written as BYTES so the case exists on every platform: the note is FILE_MAX_CHARS long
-    after newline normalisation and over it in raw bytes. Read raw, the hook would deny the
-    no-op Edit below; read with universal newlines, it passes."""
+    """Written as bytes so the note is FILE_MAX_CHARS after newline folding but over it raw."""
     path = memory / "feedback_crlf.md"
     body = "x" * 9 + "\r\n"
     path.write_bytes((body * (gate.FILE_MAX_CHARS // 10)).encode("utf-8")

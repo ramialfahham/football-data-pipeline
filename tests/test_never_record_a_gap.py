@@ -1,25 +1,6 @@
-"""A failed fetch must never be recorded as fact (#75 MR2).
+"""A failed fetch (HTTP 200 with the error in the body) must never be recorded as fact.
 
-THE CLASS, and why nothing caught it. #75 was about DELETION and was at least visible once you
-compared layers. This is the quieter twin: a rate-limited call returns HTTP 200 with the error in
-the body, so `rows` comes back EMPTY while looking successful. The loader writes it, and the key it
-names is then treated as done — forever, because every "already captured" reader keys on the mere
-PRESENCE of the id:
-
-    captured_team_seasons        reads $.team_id     over ALL rows (player_squads.py)
-    _existing_player_ids         reads $.player_id   over ALL rows (player_universe.py)
-
-So the row exists, the table grew, freshness is fine, not-null is fine, row counts went UP — and
-that player has no name, no date of birth and no nationality, on the surface that also drives the
-URL slug. Nothing deletes anything. There is no orphan to trip a relationship test. The only
-symptom is an absence, and absences are exactly what this repo's tests do not look for.
-
-WHAT THE FIX IS, and what it deliberately is NOT. The fix is to WITHHOLD THE WRITE when the fetch
-was incomplete. It is NOT to widen what counts as complete: an EMPTY response with NO error stays
-complete and is still written, by rule, because that is the provider genuinely reporting
-nothing and refusing it would re-fetch 3,539 historical team-seasons nightly
-forever. `test_empty_but_clean_response_is_still_complete` pins that half, without which a "fix"
-that simply refuses empty answers would pass every other test here.
+An empty response with no error stays complete and is still written.
 """
 
 from __future__ import annotations
@@ -52,17 +33,16 @@ def _ctx():
 
 
 def _rate_limited():
-    """HTTP 200, error in the BODY, empty response — indistinguishable from a real empty."""
+    """HTTP 200, error in the body, empty response: looks like a real empty one."""
     return {"response": [], "errors": {"rateLimit": "Too many requests"}, "results": 0,
             "paging": {"current": 1, "total": 1}}
 
 
 def _clean_empty():
-    """Empty and error-free — the provider genuinely has nothing. COMPLETE by rule."""
     return {"response": [], "errors": [], "results": 0, "paging": {"current": 1, "total": 1}}
 
 
-# --- the three helpers must report completeness at all, like their two siblings ---
+# --- the three helpers report completeness ---
 
 @pytest.mark.parametrize(
     "helper, args",
@@ -74,12 +54,6 @@ def _clean_empty():
     ids=["squads", "profiles", "player_teams"],
 )
 def test_per_entity_helpers_report_incompleteness(helper, args, monkeypatch):
-    """Each returns (rows, complete) and says False on a body-level error.
-
-    Before this, all three returned a bare list, so the caller had NOTHING to branch on — the
-    information simply did not reach it. Their siblings `players_response_for_team` and
-    `transfers_response_for_team` have reported it since #896.
-    """
     monkeypatch.setattr(fs, "fetch_merged_paged", lambda *a, **k: _rate_limited())
     rows, complete = helper(*args)
     assert rows == []
@@ -99,11 +73,7 @@ def test_per_entity_helpers_report_incompleteness(helper, args, monkeypatch):
     ids=["squads", "profiles", "player_teams"],
 )
 def test_empty_but_clean_response_is_still_complete(helper, args, monkeypatch):
-    """The other half of the rule, and it must not be collateral damage.
-
-    An empty error-free answer IS complete. Without this, a "fix" that refused every empty
-    response would pass the test above and quietly re-fetch thousands of keys every night.
-    """
+    """An empty error-free answer is complete; refusing it would re-fetch every such key nightly."""
     monkeypatch.setattr(fs, "fetch_merged_paged", lambda *a, **k: _clean_empty())
     rows, complete = helper(*args)
     assert rows == []
@@ -113,20 +83,14 @@ def test_empty_but_clean_response_is_still_complete(helper, args, monkeypatch):
 # --- the three loaders must withhold the entry, not merely the write ---
 
 def test_squads_incomplete_team_is_not_recorded(monkeypatch):
-    """Withholding the ENTRY is the point, not withholding the load job.
-
-    `captured_team_seasons` reads `$.team_id` presence over all rows, so a stored entry with an
-    empty `squad_payload` marks the team done. Asserting only "no write happened" would pass a fix
-    that still appended the entry whenever another team in the same batch succeeded.
-    """
+    """The entry is withheld, not just the load: a stored empty `squad_payload` marks the team done."""
     monkeypatch.setattr(psq.errors_quota, "_http_quota_exhausted", False)
     monkeypatch.setattr(
         psq, "squads_response_for_team",
         lambda h, tid, errs, error_context="": (([], False) if tid == 10 else ([{"p": 1}], True)),
     )
     written: list = []
-    # The payload is the THIRD POSITIONAL argument, so a kwargs-only recorder would capture
-    # nothing and this test would pass while asserting about an empty list.
+    # The payload is the third positional argument, so a kwargs-only recorder would capture nothing.
     monkeypatch.setattr(psq, "load_json_to_bq", lambda *a, **k: written.append(a[2]))
 
     ctx = _ctx()
@@ -151,11 +115,7 @@ def test_squads_incomplete_team_is_not_recorded(monkeypatch):
     ids=["profiles", "player_teams"],
 )
 def test_player_entity_incomplete_is_not_recorded(mod, helper_name, loader, monkeypatch):
-    """Same class, same reader: `_existing_player_ids` keys on `$.player_id` presence.
-
-    A stored empty bio retires the player permanently — this is the one that leaves a name blank
-    on a page whose URL is built from that name.
-    """
+    """`_existing_player_ids` keys on `$.player_id` presence, so a stored empty bio retires it."""
     monkeypatch.setattr(mod.errors_quota, "_http_quota_exhausted", False)
     monkeypatch.setattr(mod, "players_needing", lambda *a, **k: {"PL": [7, 8]})
     monkeypatch.setattr(
@@ -178,16 +138,10 @@ def test_player_entity_incomplete_is_not_recorded(mod, helper_name, loader, monk
     assert any("INCOMPLETE" in e for e in ctx.errors), ctx.errors
 
 
-# --- transfers: the guard its sibling already had ---
+# --- transfers ---
 
 def test_transfers_with_no_team_ids_writes_nothing(monkeypatch):
-    """`coaches.py:38` has `if not team_ids: return`; this loader did not.
-
-    With an empty team set the fetch loop never runs, so `complete` stays True and an EMPTY
-    whole-league payload is written as fact. `stg_apif__transfers` reads the latest row per league,
-    so that empty snapshot hides the real transfer history from every model downstream — and under
-    the merge-on-write this loader once carried, it deleted that history outright.
-    """
+    """With an empty team set the fetch loop never runs, so `complete` would stay True."""
     written: list = []
     monkeypatch.setattr(tr, "load_json_to_bq", lambda *a, **k: written.append(k))
     monkeypatch.setattr(
@@ -205,16 +159,8 @@ def test_transfers_with_no_team_ids_writes_nothing(monkeypatch):
     assert any("no team ids" in e for e in ctx.errors), ctx.errors
 
 
-# --- the destructive write mode must be stated, never inherited ---
-
 def test_load_json_to_bq_requires_an_explicit_append():
-    """`append` defaulted to False, i.e. WRITE_TRUNCATE, on a table shared by 45 competitions.
-
-    One omitted keyword erased everything, with no DELETE anywhere to notice. Making it required
-    means the destructive mode has to be written down at the call site. Checked on the signature
-    rather than by calling it, so the test cannot be satisfied by a runtime guard that a later
-    refactor drops.
-    """
+    """A required `append` forces the destructive WRITE_TRUNCATE mode to be stated per call."""
     import inspect
 
     from ingestion.api_football.bigquery import load_json_to_bq

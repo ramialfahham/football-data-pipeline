@@ -1,10 +1,4 @@
-"""Tests for player_squads.select_squad_catchup_team_ids (finished-comp squad catch-up policy).
-
-Pure policy, no I/O: given finished (poll-mode) competitions and what we already hold, decide
-which teams still need a /players/squads snapshot. A squad is a team property, so the policy
-dedupes across competitions and skips teams that are active elsewhere or already captured for
-that season. Club and national comps are treated identically — only team_ids matter here.
-"""
+"""Tests for player_squads.select_squad_catchup_team_ids, the squad policy for finished comps."""
 
 from __future__ import annotations
 
@@ -31,7 +25,7 @@ def test_captures_finished_comp_teams_when_none_held():
 
 
 def test_skips_teams_active_in_a_full_mode_comp():
-    # team 11 still plays a full-mode comp this run (e.g. its continental cup) -> captured in-season.
+    # team 11 still plays a full-mode comp this run (e.g. a continental cup), so it is captured.
     plan = select_squad_catchup_team_ids(
         finished_comps=[("PL", 2025, {10, 11, 12})],
         active_team_ids={11},
@@ -80,7 +74,6 @@ def test_drops_comp_that_needs_nothing():
 
 
 def test_national_comp_teams_are_treated_like_any_other():
-    # WC is a national-team comp; its national sides catch up the same way clubs do.
     plan = select_squad_catchup_team_ids(
         finished_comps=[("WC", 2022, {1, 2, 3})],
         active_team_ids=set(),
@@ -90,8 +83,6 @@ def test_national_comp_teams_are_treated_like_any_other():
 
 
 # --- captured_team_seasons: BigQuery read of already-stored (team, season) pairs ---
-# Fake client/ctx so the Python row-handling is exercised with NO network. The SQL's JSON-path
-# extraction itself cannot run offline; it is validated against real RAW_APIF_SQUADS separately.
 
 
 class _FakeResult:
@@ -142,19 +133,16 @@ def test_captured_team_seasons_failopen_on_query_error():
 
 
 def test_captured_team_seasons_query_is_fully_qualified():
-    # Regression guard: a bare table name (RAW_APIF_SQUADS) fails at runtime; the read must
-    # reference project.dataset (matches _fq in loads/player_universe.py).
+    # A bare table name fails at runtime; the read must reference project.dataset.
     ctx = _fake_ctx(rows=[])
     captured_team_seasons(ctx)
     assert f"{GCP_PROJECT_ID}.{DATASET_ID}." in ctx.client.last_sql
     assert "RAW_APIF_SQUADS" in ctx.client.last_sql
 
 
-# --- load_player_squads_batch: catch-up writes must be COMPLETE per competition ---
-# A quota cut mid-comp under require_complete must discard the partial (stg_apif__squads keeps
-# only the latest snapshot per league_code; a finished comp is never re-fetched whole, so a
-# partial would be silently dropped). In-season (require_complete=False) keeps writing partials —
-# the next complete snapshot heals them.
+# --- load_player_squads_batch: catch-up writes must be complete per competition ---
+# stg_apif__squads keeps only the latest snapshot per league_code and a finished comp is never
+# re-fetched whole, so a partial snapshot is discarded under require_complete.
 
 
 def _squad_ctx():
@@ -171,8 +159,7 @@ def _patch_quota_cut_after_first(monkeypatch):
 
     def fake_squad(headers, team_id, errors, error_context=""):
         monkeypatch.setattr(q, "_http_quota_exhausted", True)  # exhaust after the first fetch
-        # The helper returns (rows, complete). COMPLETE deliberately: this test is about the QUOTA
-        # cut mid-competition, not about a failed fetch, and the two paths must stay separable.
+        # Complete on purpose, so only the quota cut is under test and not a failed fetch.
         return [{"players": []}], True
 
     monkeypatch.setattr(ps, "squads_response_for_team", fake_squad)

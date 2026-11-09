@@ -1,12 +1,4 @@
-"""A review render is a file of record: `design-mocks/renders/<page>_<YYYY-MM-DD>_<nn>.html`.
-
-The folder is held to the rule `design-mocks/render.py` writes by: every file matches the pattern,
-a page's numbers run from 01 without a gap (a number counts up per page across dates and never
-resets), a later number never carries an earlier date, and no render is swallowed by an ignore
-rule (the folder's parent ignores `*.html`; a render that git does not see is a render lost).
-The same checks run against a temporary folder built to break each rule, so the guard is seen
-red before it is trusted.
-"""
+"""A review render is a file of record: `design-mocks/renders/<page>_<YYYY-MM-DD>_<nn>.html`."""
 
 from __future__ import annotations
 
@@ -26,7 +18,6 @@ import render  # noqa: E402
 
 
 def _problems(folder: Path) -> list[str]:
-    """Every way the folder breaks the rule, one line each; empty when it holds."""
     out = []
     by_page: dict[str, list[tuple[int, str, str]]] = {}
     for p in sorted(folder.iterdir()):
@@ -106,7 +97,6 @@ def test_the_guard_is_green_on_a_folder_that_holds(tmp_path):
 
 
 def test_render_writes_the_next_name_and_never_over_an_existing_file(tmp_path, monkeypatch):
-    """The helper end to end against a stub generator: two runs give _01 then _02."""
     stub = tmp_path / "gen_stub.py"
     stub.write_text("import sys, pathlib\npathlib.Path(sys.argv[1]).write_text('<html></html>', encoding='utf-8')\n",
                     encoding="utf-8")
@@ -125,8 +115,7 @@ def test_render_writes_the_next_name_and_never_over_an_existing_file(tmp_path, m
 
 
 def test_render_refuses_a_name_the_folder_already_holds(tmp_path, monkeypatch):
-    """The overwrite guard, reached by making the name picker return a name that exists (what a
-    second writer racing this one would produce): the existing render is left as it was."""
+    """The name picker is made to return a name that exists, as a racing second writer would."""
     stub = tmp_path / "gen_stub.py"
     stub.write_text("import sys, pathlib\npathlib.Path(sys.argv[1]).write_text('NEW', encoding='utf-8')\n",
                     encoding="utf-8")

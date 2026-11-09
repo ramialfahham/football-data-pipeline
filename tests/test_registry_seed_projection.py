@@ -1,41 +1,4 @@
-"""Pin the registry→seed projection widened under GitLab #62 step 1.
-
-WHY THIS EXISTS
----------------
-`scripts/sync_dbt_vars.py` projects `docs/competition_registry.yml` into
-`dbt_project/seeds/competition_registry.csv`, which 13 models join. Until #62 it carried three
-columns, so anything needing `confederation`, `slug`, `sort_order`, `tier` or `season_type` had to
-open the YAML directly — the coupling #62 exists to remove.
-
-Two properties are pinned here, and both share the shape this repo keeps getting caught by: break
-them and nothing turns red on its own.
-
-  * THE COLUMN LIST AND THE NORMALISATION RULE ARE SHARED BY IMPORT, and the sharing is itself
-    what can regress. `check_registry_var_sync.py` imports `SEED_COLUMNS` and `_normalise` from
-    `sync_dbt_vars.py`, so a guard that checks different columns from the ones written is not
-    merely detectable, it is impossible. An earlier draft DUPLICATED the tuple and leaned on a
-    parity test — #873's shape, where a routing matcher was hand-copied and drifted unnoticed —
-    and review showed the justification for duplicating it was false. What is pinned here is the
-    import: restore a local copy "to avoid the sys.path line" and the identity check goes red.
-
-  * NORMALISATION HAPPENS ONCE, ON THE WAY IN. `_normalise` strips in the writer; the guard reads
-    the seed VERBATIM. The first draft had it backwards — it stripped the SEED side while
-    comparing against an unstripped registry, so a cell of "UEFA " matched "UEFA" and the guard
-    passed on a corrupted file. Nothing else covers that: a trailing space is neither null nor a
-    duplicate.
-
-  * `tier` IS EMPTY FOR 29 OF 45 COMPETITIONS, and that is correct rather than missing. It is
-    declared on exactly the 16 `domestic_league` competitions and on no other competition_type,
-    because a cup has no division. Stated as a biconditional so it fails in BOTH directions: a
-    league that loses its tier, and a cup that gains one.
-
-WHAT IS DELIBERATELY NOT PINNED HERE
-------------------------------------
-`country`. It is not projected at all (#69). `dim_league` already carries `league_country` and
-`country_flag_url` from the provider, so projecting the registry's hand-typed copy would have made
-a third — and for 24 of 45 competitions that copy holds a region word ("Europe", "International")
-rather than a country. Asserting anything about it here would document the duplicate as intended.
-"""
+"""Pin the registry→seed projection."""
 
 from __future__ import annotations
 
@@ -67,13 +30,7 @@ def _registry_rows() -> list[dict]:
 
 
 def test_writer_and_guard_share_one_column_list():
-    """The guard must check the same columns the writer writes.
-
-    This is now structural — the guard IMPORTS SEED_COLUMNS from the writer — so the assertion is
-    an identity check, kept because the import is the thing that could silently regress: someone
-    restoring a local tuple "to avoid the sys.path line" would reintroduce #873's shape, and this
-    goes red the moment the two stop being the same object.
-    """
+    """The guard imports SEED_COLUMNS from the writer, and the import is what could silently regress."""
     assert WRITER_COLUMNS is GUARD_COLUMNS, (
         "check_registry_var_sync no longer shares sync_dbt_vars' SEED_COLUMNS. Import it rather "
         "than restating it: a guard that checks a different column set from the one written is "
@@ -83,16 +40,7 @@ def test_writer_and_guard_share_one_column_list():
 
 
 def test_guard_catches_whitespace_corruption_in_the_seed(tmp_path, monkeypatch):
-    """A trailing space in a seed cell must FAIL, not be normalised away.
-
-    The first draft stripped the SEED side while comparing against an unstripped registry, so
-    "UEFA " matched "UEFA" and the guard reported OK on a corrupted file. Nothing else would
-    have caught it: a trailing space is neither null nor a duplicate,
-    so `not_null` and `unique` pass, and only `confederation` has a relationships test.
-
-    Normalisation now happens once in the writer, and the comparison is exact. Driven through the
-    guard's real functions against a mutated copy of the committed seed.
-    """
+    """The guard reads the seed verbatim, so a trailing space fails instead of being normalised away."""
     expected = guard_expected_rows()
     assert guard_actual_rows() == expected, (
         "precondition: the committed seed must match the registry"
@@ -126,12 +74,7 @@ def test_seed_header_matches_the_declared_columns():
 
 
 def test_tier_is_declared_exactly_for_domestic_leagues():
-    """#62 step 1. `tier` is structurally N/A off a league, not missing data.
-
-    Both directions, because the rule can break either way: a league silently losing its tier, or
-    a cup silently gaining one. Asserted against the COMMITTED seed rather than the registry, so it
-    also catches a projection that drops or mangles the column on the way through.
-    """
+    """`tier` is structurally N/A off a league, so it is checked in both directions on the committed seed."""
     league_without_tier = []
     non_league_with_tier = []
     for row in _seed_rows():
@@ -160,16 +103,7 @@ COMPETITION_GROUPS = frozenset(
 
 
 def test_competition_group_is_declared_exactly_for_domestic_leagues():
-    """GAP-28. `competition_group` has `tier`'s exact shape, so it gets `tier`'s exact guard.
-
-    Both directions, because the rule breaks either way: a league silently losing its group — which
-    drops it out of every one-per-league surface with nothing on screen to show for it — or a cup
-    silently gaining one. Asserted against the COMMITTED seed rather than the registry, so it also
-    catches a projection that drops the column on the way through.
-
-    Why here and not in dbt: a blank is LEGITIMATE off a league, so `not_null` is wrong, and the
-    registry header already records that reasoning for `tier`. One rule, one mechanism, one place.
-    """
+    """A blank group is legitimate off a league, so `not_null` is wrong and both directions are checked here."""
     league_without_group = []
     non_league_with_group = []
     for row in _seed_rows():
@@ -194,11 +128,7 @@ def test_competition_group_is_declared_exactly_for_domestic_leagues():
 
 
 def test_competition_group_uses_only_the_declared_names():
-    """A typo'd group is worse than a blank: it passes the completeness check above and still
-
-    selects nothing. Pinning the vocabulary is what makes that impossible. Widening this set is a
-    product decision — add the name here deliberately, never to make a red test go green.
-    """
+    """A typo'd group passes the completeness check and still selects nothing."""
     unknown = sorted(
         {
             (row["league_code"], row["competition_group"])
@@ -214,11 +144,7 @@ def test_competition_group_uses_only_the_declared_names():
 
 
 def test_projection_is_faithful_to_the_registry():
-    """Every projected column equals what the registry declares, for every competition.
-
-    This is the property `check_registry_var_sync.py` enforces in CI; asserting it here too means a
-    projection bug fails in the fast local suite rather than only in the pipeline.
-    """
+    """Every projected column equals what the registry declares, for every competition."""
     seed_by_code = {r["league_code"]: r for r in _seed_rows()}
     mismatches = []
     for reg in _registry_rows():
@@ -228,9 +154,7 @@ def test_projection_is_faithful_to_the_registry():
         row = seed_by_code.get(str(code))
         assert row is not None, f"{code} is in the registry but missing from the seed"
         for col in WRITER_COLUMNS:
-            # Expected side normalised exactly as the writer normalises; actual side read
-            # VERBATIM. Stripping the actual side here would reintroduce the round-1 hole in the
-            # very test meant to back the guard up.
+            # The seed side is read verbatim so a stray space is not hidden.
             expected = _normalise(reg.get(col))
             actual = row.get(col) or ""
             if actual != expected:
@@ -243,13 +167,7 @@ def test_projection_is_faithful_to_the_registry():
 
 
 def test_country_is_not_projected():
-    """#69. Country is provider data in `dim_league`, not registry data.
-
-    Pinned as an ABSENCE because the pull to add it is real — it sits right there in the registry,
-    and the first design of this very task proposed projecting it. Re-adding it would quietly
-    create a third copy of a field that is already duplicated, and for 24 of 45 competitions the
-    registry's value is a region word rather than a country.
-    """
+    """Country is provider data in `dim_league`, not registry data."""
     assert "country" not in WRITER_COLUMNS, (
         "`country` was added to the projection. It is deliberately excluded (#69): dim_league "
         "already carries league_country and country_flag_url from the provider, and the "

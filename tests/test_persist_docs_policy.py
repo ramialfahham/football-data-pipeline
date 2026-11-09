@@ -1,44 +1,6 @@
-"""Pin the invariants that make `persist_docs` safe, because breaking them produces no red.
+"""Pins the invariants that make `persist_docs` safe, because breaking them produces no red.
 
-WHY THIS EXISTS
----------------
-Turning on `persist_docs` is the change in this repo's history that most directly couples a prose
-field to a production build: every `description:` is pushed to BigQuery as table and column
-metadata, and BigQuery HARD-REJECTS a column description over 1,024 characters or a relation
-description over 16,384. A rejection fails the model, and in `data:build:main` that fails the prod
-build. Bracketed live against a dev table: 1,024 accepted, 1,025 rejected with an
-HTTP 400, 16,384 accepted, 16,385 rejected. It is a rejection, not a truncation.
-
-Every invariant below could previously be reverted with the entire suite still green:
-
-  * delete `+persist_docs` and descriptions silently stop reaching BigQuery — the whole point of
-    the description programme, whose root-cause finding was that the field had NO READER;
-  * add a `+schema` to the `seeds:` block and every seed silently moves dataset, because seeds
-    declare no custom schema and ride `target.schema` through `macros/generate_schema_name.sql`
-    (`dbt_analytics` on prod). Every `ref()` to a seed then resolves somewhere else;
-  * delete the `dbt docs generate` step, or move it to `data:nightly` / `data:build:mr`, both of
-    which are explicitly rejected — the first re-publishes identical pages for
-    recurring cost, the second produces a catalog covering only what one branch changed;
-  * restore `allow_failure: true` and the docs step becomes the "green but did nothing" shape that
-    GitLab #904 names as this repo's dominant failure. The retired GitHub workflow did exactly
-    that (`.github/workflows/pages-match-preview.yml`, `continue-on-error: true`).
-
-That is the same "breaking it produces no red anywhere" shape as `test_materialisation_policy.py`
-and `test_ci_data_job_invariants.py`, on the same two files, and this module is their sibling. The
-programme's own founding measurement is why it is a test rather than a paragraph: of 50 past
-corrections 33 were prose-only and 22 recurred, while every rule that got a machine check stopped
-recurring.
-
-HOW IT IS SHAPED, AND WHY
--------------------------
-Values come from PARSED YAML, never from raw file text — the same rule
-`test_ci_data_job_invariants.py` sets out, and for the same reason: the comment blocks in both
-files NAME the things being guarded against ("allow_failure", "+schema"), so a text grep would flag
-the documentation of the defect as the defect.
-
-The properties are asserted, not the spelling. `+persist_docs` is set once at project level today,
-but the invariant is "every model gets it and nothing below turns it off" — asserting the current
-nesting instead is how a correct refactor starts failing a test for no reason.
+Values come from parsed YAML, never raw file text, and assert properties rather than nesting.
 """
 
 from __future__ import annotations
@@ -79,7 +41,6 @@ def _walk(node):
 # --------------------------------------------------------------------------------------------
 
 def test_persist_docs_is_enabled_for_models():
-    """Descriptions must reach BigQuery for models. This is the reader the programme was about."""
     project = _dbt_project()
     block = project["models"]["football_data_pipeline"]
     assert block.get("+persist_docs") == WANT, (
@@ -90,7 +51,6 @@ def test_persist_docs_is_enabled_for_models():
 
 
 def test_persist_docs_is_enabled_for_seeds():
-    """Seeds were the audit's worst offender and had no config block at all before MR6."""
     project = _dbt_project()
     assert "seeds" in project, (
         "dbt_project.yml has no `seeds:` block. It exists to carry +persist_docs — seeds held 38% "
@@ -104,12 +64,7 @@ def test_persist_docs_is_enabled_for_seeds():
 
 
 def test_the_seeds_block_never_sets_a_schema():
-    """THE silent-relocation hazard, and the one way this MR could break every ref() to a seed.
-
-    Seeds declare no custom schema, so they ride `target.schema` — the profile's `dataset:`, which
-    is `dbt_analytics` on prod — through `macros/generate_schema_name.sql`. A `+schema` here moves
-    all nine somewhere else and nothing about it looks wrong in review.
-    """
+    """Seeds ride `target.schema` via `generate_schema_name`, so a `+schema` would relocate them."""
     project = _dbt_project()
     offenders = [
         key
@@ -124,10 +79,7 @@ def test_the_seeds_block_never_sets_a_schema():
 
 
 def test_no_model_overrides_persist_docs_per_model():
-    """The layer/project decides. A per-model override is how one model drifts off the policy.
-
-    Same rule and same reason as `test_base_models_never_override_materialisation_per_model`.
-    """
+    """The layer/project decides; a per-model override lets one model drift off the policy."""
     offenders = [
         path.relative_to(ROOT).as_posix()
         for path in sorted(MODELS_DIR.rglob("*.sql"))
@@ -168,18 +120,8 @@ def _jobs_running(command_fragment: str) -> list[str]:
 
 
 def test_docs_are_generated_exactly_once_and_only_on_main():
-    """The cadence: after each merge to main, and nowhere else.
-
-    `data:nightly` was rejected because a description's content comes from the repo, not the data,
-    so a nightly run re-publishes identical pages for recurring cost. `data:build:mr` was rejected
-    because it builds `state:modified+` into that merge request's own `ci_mr<IID>_*` datasets, so
-    its catalog would cover only what one branch changed — a partial column list presented as the
-    column list.
-    ⚠ That rationale used to say "the shared ci_* datasets". There is no shared CI workspace any
-    more (#92) — each merge request writes its own — but the reason this job is still
-    the wrong place to generate docs is UNCHANGED and if anything stronger: a per-merge-request
-    dataset holds even less of the warehouse than the shared one did.
-    """
+    """Docs content comes from the repo, so the nightly would republish identical pages, and the MR
+    build's catalog covers only what one branch changed."""
     jobs = _jobs_running("dbt docs generate")
     assert jobs == ["data:build:main"], (
         f"`dbt docs generate` runs in {jobs}; it must run in data:build:main and nowhere else. "
@@ -188,7 +130,7 @@ def test_docs_are_generated_exactly_once_and_only_on_main():
 
 
 def test_the_docs_command_is_static_and_targets_prod():
-    """`--static` is what produces the single self-contained page; prod is the only complete catalog."""
+    """`--static` yields the single self-contained page; prod is the only complete catalog."""
     job = _ci()["data:build:main"]
     line = next(ln for ln in job["script"] if "dbt docs generate" in str(ln))
     assert "--static" in line, f"docs generate must pass --static; found: {line}"
@@ -196,12 +138,7 @@ def test_the_docs_command_is_static_and_targets_prod():
 
 
 def test_the_docs_step_may_not_fail_silently():
-    """#904, in one assertion.
-
-    The retired GitHub step carried `continue-on-error: true`. This one runs after prod is already
-    built AND tested, so a failure costs signal, never data — and a docs build that silently does
-    nothing is exactly the failure this repo keeps shipping.
-    """
+    """The step runs after prod is built and tested, so a failure costs signal, never data."""
     job = _ci()["data:build:main"]
     assert not job.get("allow_failure", False), (
         "data:build:main must not set allow_failure — a silently skipped docs build is the "
@@ -210,12 +147,7 @@ def test_the_docs_step_may_not_fail_silently():
 
 
 def test_the_catalog_is_published():
-    """`catalog.json` is the load-bearing artifact, not `static_index.html`.
-
-    It is the only place a column that exists in BigQuery but is declared in no .yml can be seen,
-    which is the entire basis of GitLab #82. Publishing the pretty page and dropping the catalog
-    would look fine and remove the reason the step exists.
-    """
+    """`catalog.json` alone shows a column that exists in BigQuery but in no .yml."""
     job = _ci()["data:build:main"]
     paths = job.get("artifacts", {}).get("paths", [])
     assert any(p.endswith("catalog.json") for p in paths), (
@@ -228,13 +160,7 @@ def test_the_catalog_is_published():
 
 
 def test_the_projection_check_runs_in_that_job_after_the_docs_line():
-    """`check_yml_vs_projection.py` reads the catalog.json the docs line just wrote.
-
-    It belongs here and nowhere else (#109 step 3, MR D): this is the one job where the catalogue
-    is the whole prod warehouse, and it runs after prod is built and tested, so a red costs signal,
-    never data. Anywhere earlier in the script the file does not exist yet; in any other job it
-    would be partial, and the script's own abort would make the job red for the wrong reason.
-    """
+    """The check reads the catalog.json the docs line just wrote, complete only in this job."""
     assert _jobs_running("check_yml_vs_projection.py") == ["data:build:main"], (
         "check_yml_vs_projection.py must run in data:build:main and nowhere else."
     )
@@ -251,11 +177,7 @@ def test_the_projection_check_runs_in_that_job_after_the_docs_line():
 
 
 def test_the_pins_are_not_vacuous():
-    """Anti-vacuous floor, per `check_copy_gate.py`'s MIN_KEYS precedent.
-
-    If the parse silently returns something empty, every assertion above passes for the wrong
-    reason. This fails loudly instead.
-    """
+    """An empty parse would make every assertion above pass for the wrong reason."""
     project = _dbt_project()
     ci = _ci()
     assert project.get("name") == "football_data_pipeline"

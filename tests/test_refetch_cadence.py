@@ -1,20 +1,4 @@
-"""The 7-day re-fetch cadence for transfers and coaches. #33 item 14.
-
-WHAT THIS GUARDS
-----------------
-Skipping work is easy to get wrong in ways that are silent:
-
-  · skipping a league that has NEVER been ingested  → it stays permanently absent
-  · skipping but still WRITING                      → a partial row, which since 8b DELETES
-                                                       the complete one (the #37 shape)
-  · a failed cadence read treated as "up to date"   → every league skipped forever
-  · cadence and sources.yml thresholds drifting     → the staleness alert fires daily on
-                                                       CORRECT behaviour and gets muted
-
-None of those raise. Each has a test below, and the last is the one that ties this change's two
-halves together — the code cadence and the dbt freshness thresholds are only correct relative to
-each other.
-"""
+"""Tests for the 7-day re-fetch cadence of transfers and coaches and its sources.yml thresholds."""
 
 from __future__ import annotations
 
@@ -39,15 +23,8 @@ from ingestion.api_football.refetch import (  # noqa: E402
 REPO = Path(__file__).resolve().parents[1]
 SOURCES_YML = REPO / "dbt_project" / "models" / "1_staging" / "api_football" / "sources.yml"
 
-# The tables this task put on a cadence. They differ in how staging READS them, and that is
-# what matters now that both are append-only (raw appends and never deletes):
-#   TRANSFERS is read latest-per-league, so a partial write HIDES the complete row from every
-#   model downstream until the next good run. It no longer DELETES it — that was 8b, reversed.
-#   COACHES is read across ALL snapshots to preserve every coach ever seen, so a partial write
-#   only adds noise that base dedups away.
-# An earlier version of this file called both merge-on-write; a later one called TRANSFERS
-# destructive after that stopped being true. Both were wrong in the same way: describing the
-# raw layer from memory instead of from how staging reads it.
+# TRANSFERS is read latest-per-league, so a partial write hides the complete row downstream;
+# COACHES is read across all snapshots, so a partial write only adds noise that base dedups away.
 CADENCED_TABLES = {"RAW_APIF_TRANSFERS", "RAW_APIF_COACHES"}
 
 NOW = datetime(2026, 8, 10, 4, 0, tzinfo=timezone.utc)
@@ -62,14 +39,11 @@ def test_a_league_ingested_long_ago_is_refetched():
 
 
 def test_a_league_never_ingested_is_always_fetched():
-    """The one that must never be "optimised". There is no stored row to preserve, so skipping
-    would leave the competition permanently absent from raw — silently, since nothing errors."""
+    """Skipping a never-ingested league would leave it permanently absent from raw."""
     assert should_refetch("BL1", None, NOW)
 
 
 def test_the_force_flag_overrides_the_cadence(monkeypatch):
-    """A backfill has to be able to bypass this. Reuses the existing
-    API_FOOTBALL_INGEST_FORCE_FULL rather than a second flag nobody would remember."""
     fresh = NOW - timedelta(hours=1)
     assert not should_refetch("BL1", fresh, NOW)
     monkeypatch.setenv("API_FOOTBALL_INGEST_FORCE_FULL", "1")
@@ -77,9 +51,7 @@ def test_the_force_flag_overrides_the_cadence(monkeypatch):
 
 
 def test_the_stagger_spreads_leagues_across_the_whole_interval():
-    """Every league shares tonight's ingested_at, so without a stagger they all come due on the
-    same night: one night in seven costing the full 45 minutes against a 3h timeout, six costing
-    nothing. This asserts the offsets actually spread rather than clustering."""
+    """Leagues share tonight's ingested_at, so without a stagger they all come due together."""
     codes = ["BL1", "BL2", "PL", "PD", "SA", "L1", "VL", "WC", "LMX", "LP", "MLS", "SPL",
              "ED", "UCL", "UEL", "UECL", "BSA", "APD", "J1", "KL1", "DFBP", "FAC"]
     offsets = {c: stagger_offset_days(c) for c in codes}
@@ -91,9 +63,7 @@ def test_the_stagger_spreads_leagues_across_the_whole_interval():
 
 
 def test_the_stagger_is_stable_across_processes():
-    """Python salts the builtin `hash()` per process, so using it here would give a league a
-    different offset every run and smear the cadence into 'somewhere between 1 and 7 days'.
-    This pins the values, so a switch to `hash()` fails rather than silently degrading."""
+    """Python salts the builtin `hash()` per process, so a league's offset must not depend on it."""
     assert stagger_offset_days("BL1") == stagger_offset_days("BL1")
     assert [stagger_offset_days(c) for c in ("BL1", "PL", "SA")] == [
         stagger_offset_days(c) for c in ("BL1", "PL", "SA")
@@ -102,17 +72,7 @@ def test_the_stagger_is_stable_across_processes():
 
 @pytest.mark.parametrize("code", ["BL1", "PL", "SA", "WC", "MLS", "J1", "FAC", "UCL"])
 def test_every_league_actually_gets_the_ruled_cadence(code):
-    """THE ONE THE FIRST VERSION LACKED — the bug it would have caught was found in review instead.
-
-    The first implementation computed `due_after = interval - offset` on EVERY call, which
-    permanently SHORTENED the interval: a league with offset 6 re-fetched every single day and
-    only offset 0 ever got 7 days. It looked like a stagger and was a silent cadence cut, and
-    the rule is a 7-day interval — not "somewhere between 1 and 7 depending on a hash".
-
-    This simulates a year of nightly runs and asserts the observed gap between re-fetches is
-    exactly the ruled interval for EVERY league, not just the lucky ones. It fails on the old
-    implementation for 6 of every 7 leagues.
-    """
+    """A year of nightly runs must show exactly the interval between re-fetches for every league."""
     last = datetime(2026, 1, 1, 4, 0, tzinfo=timezone.utc)
     fetches = []
     for day in range(365):
@@ -131,12 +91,7 @@ def test_every_league_actually_gets_the_ruled_cadence(code):
 
 @pytest.mark.parametrize("code", ["BL1", "PL", "SA", "WC", "MLS"])
 def test_the_logged_next_due_date_is_the_day_it_actually_refetches(code):
-    """The skip log tells an operator when a league next runs. If `next_due` and
-    `should_refetch` compute that two different ways, the log lies — and a lying log is worse
-    than none, because it gets trusted during an incident.
-
-    Asserts the reported date is the first day `should_refetch` actually returns True.
-    """
+    """The date `next_due` reports must be the first day `should_refetch` returns True."""
     last = datetime(2026, 3, 2, 4, 0, tzinfo=timezone.utc)
     reported = next_due(last, code)
 
@@ -155,8 +110,6 @@ def test_the_logged_next_due_date_is_the_day_it_actually_refetches(code):
 
 
 def test_the_stagger_actually_spreads_the_load_across_the_week():
-    """The other half: exact cadence is worthless if every league lands on the same day, which
-    is the 45-minute spike the stagger exists to prevent."""
     codes = ["BL1", "BL2", "PL", "PD", "SA", "L1", "VL", "WC", "LMX", "LP", "MLS", "SPL",
              "ED", "UCL", "UEL", "UECL", "BSA", "APD", "J1", "KL1", "DFBP", "FAC"]
     last = {c: datetime(2026, 1, 1, 4, 0, tzinfo=timezone.utc) for c in codes}
@@ -177,10 +130,7 @@ def test_the_stagger_actually_spreads_the_load_across_the_week():
 
 
 def test_a_failed_cadence_read_makes_every_league_due():
-    """Fail toward fetching, never toward skipping.
-
-    If the cadence query dies, treating leagues as up-to-date would skip every phase forever
-    and the data would rot in silence. A redundant fetch is the cheap error."""
+    """A failed cadence read fails toward fetching, since skipping forever would rot the data."""
     class _Boom:
         def query(self, _sql):
             raise RuntimeError("BigQuery unavailable")
@@ -190,16 +140,7 @@ def test_a_failed_cadence_read_makes_every_league_due():
 
 
 def test_a_skipped_league_writes_nothing_at_all(monkeypatch):
-    """THE ONE THAT PREVENTS DATA LOSS.
-
-    A skip must not fetch AND must not write. RAW_APIF_TRANSFERS is one row per league, read
-    latest-per-league in staging, so a write of a partial payload hides the complete row from
-    every model downstream — the #37 defect. Now that raw is append-only the complete row
-    survives there, so that is recoverable by re-running rather than permanent; the guard stays
-    because a hidden snapshot is still a wrong warehouse until the next good run. Asserted by
-    running the real orchestration path with the loader replaced by a recorder: zero calls, not
-    "a call with less data".
-    """
+    """A skip neither fetches nor writes, since a partial write hides the latest-per-league row."""
     from ingestion.api_football.loads import competition_runner as cr
 
     calls = []
@@ -216,21 +157,12 @@ def test_a_skipped_league_writes_nothing_at_all(monkeypatch):
     cr.run_transfers_for_competition(ctx, result, transfers_last_ingest=stale)
     assert len(calls) == 1, "a due league did not fetch; the cadence would never refresh"
 
-    # ⚠ THE BROAD `except Exception` IN run_transfers_for_competition SWALLOWS EVERYTHING.
-    # An earlier version of this test used `type("C", (), {"errors": []})()`, a fake with no
-    # `record_skipped`. Once the skip branch started calling it, that raised AttributeError, the
-    # except caught it, and this test stayed green while the code under test was broken. Assert
-    # the error sink is empty so the fake can never silently diverge from PipelineContext again.
+    # run_transfers_for_competition swallows every exception, so the empty error sink is the check.
     assert ctx.errors == [], f"the run path raised and it was swallowed: {ctx.errors}"
 
 
 class _FakeCtx:
-    """Stands in for PipelineContext with the surface run_transfers_for_competition uses.
-
-    Deliberately implements `record_skipped` the same way the real dataclass does, so a test that
-    exercises the skip branch fails loudly if that contract changes, rather than being absorbed by
-    the caller's broad exception handler.
-    """
+    """Stands in for PipelineContext with the surface run_transfers_for_competition uses."""
 
     def __init__(self):
         self.errors: list[str] = []
@@ -241,17 +173,7 @@ class _FakeCtx:
 
 
 def test_a_skipped_league_is_recorded_for_the_completeness_gate(monkeypatch):
-    """THE NIGHTLY THAT FAILED ON A SKIPPED LEAGUE, pinned at the call site that actually fixes it.
-
-    The completeness gate fails a run when a per-team gap persists across two runs, because a
-    normal gap heals on the next night's fetch. A league skipped by this cadence cannot heal, so
-    the skip MUST be recorded or the gate hard-fails on correct behaviour and the dbt build never
-    runs — which is exactly what happened (`UCL/TRANSFERS (1 then 1 teams missing)`, exit 3).
-
-    The gate-side tests in test_per_team_completeness.py drive
-    `detect_stagnant_per_team_gaps` directly with a hand-built set, so NONE of them fails if this
-    call site is reverted. This is the test that does.
-    """
+    """A skipped league cannot heal a persistent gap, so the skip is recorded for the gate."""
     from ingestion.api_football.loads import competition_runner as cr
 
     monkeypatch.setattr(cr, "load_transfers_batch", lambda *a, **k: None)
@@ -266,7 +188,7 @@ def test_a_skipped_league_is_recorded_for_the_completeness_gate(monkeypatch):
     )
     assert skipped_ctx.errors == []
 
-    # The other direction: a league that IS fetched must NOT be exempted, or the gate goes blind.
+    # A league that is fetched must not be exempted, or the gate goes blind.
     fetched_ctx = _FakeCtx()
     stale = {"UCL": datetime.now(timezone.utc) - timedelta(days=30)}
     cr.run_transfers_for_competition(fetched_ctx, result, transfers_last_ingest=stale)
@@ -276,8 +198,7 @@ def test_a_skipped_league_is_recorded_for_the_completeness_gate(monkeypatch):
 
 
 def test_no_cadence_information_means_fetch(monkeypatch):
-    """Passing None (the default) must behave exactly as before this change — every league
-    fetches. Otherwise any caller that forgets the argument silently stops ingesting."""
+    """The default of None must fetch, or a caller omitting the argument stops ingesting."""
     from ingestion.api_football.loads import competition_runner as cr
 
     calls = []
@@ -296,20 +217,7 @@ def _threshold_days(spec: dict) -> float:
 
 @pytest.mark.parametrize("table", sorted(CADENCED_TABLES))
 def test_freshness_thresholds_exceed_the_cadence(table):
-    """THE GUARD THAT TIES THE TWO HALVES TOGETHER.
-
-    The code cadence and the dbt freshness thresholds are only correct relative to each other.
-    At the old 54h, a table refreshed every 7 days sits permanently past `error_after`.
-
-    The consumer of those thresholds is the hourly sentinel `scripts/check_raw_freshness.py`
-    (`fdp-freshness`); `dbt source freshness` itself is invoked nowhere. Unraised thresholds
-    would email EVERY DAY about a pipeline behaving exactly as ruled, which ends with somebody
-    muting the alert and leaving the pipeline unwatched again. This test is what keeps the two
-    halves in step.
-
-    So `error_after` must exceed the cadence plus one whole extra cycle. Change
-    REFETCH_INTERVAL_DAYS to 14 without touching sources.yml and this fails, which is the point.
-    """
+    """`error_after` must exceed the cadence plus one cycle, or the hourly sentinel alerts daily."""
     doc = yaml.safe_load(SOURCES_YML.read_text(encoding="utf-8"))
     tables = {
         (t.get("identifier") or t["name"]): t
@@ -336,8 +244,7 @@ def test_freshness_thresholds_exceed_the_cadence(table):
 
 
 def test_the_nightly_sources_keep_their_tight_thresholds():
-    """The relaxation must be confined to the two cadenced tables. Everything else is still
-    ingested nightly, and widening those would blind the sentinel for no reason."""
+    """Only the cadenced tables may have relaxed thresholds; the rest are ingested nightly."""
     doc = yaml.safe_load(SOURCES_YML.read_text(encoding="utf-8"))
     for s in doc["sources"]:
         for t in s["tables"]:

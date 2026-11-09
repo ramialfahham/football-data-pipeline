@@ -1,10 +1,4 @@
-"""Tests for coverage.py — fanout coverage derived from RAW_APIF_FIXTURE_DETAILS.
-
-Pure-function tests cover the mapping constants and covered_for_league().
-read_coverage() is tested with a mock BigQuery client so no live GCP connection
-is required. There is no coverage tracking table any more (issue #221): coverage
-is derived from the fanout data itself, so there is no write path to test.
-"""
+"""Tests for coverage.py, which derives fanout coverage from RAW_APIF_FIXTURE_DETAILS."""
 
 from __future__ import annotations
 
@@ -118,8 +112,6 @@ class TestCoveredForLeague:
         covered_for_league(all_covered, "BL1")
         assert all_covered["BL1"]["LINEUPS"] is original_dict
 
-    # --- has_data=True: always skip ---
-
     def test_has_data_true_always_skipped(self):
         today = _today()
         all_covered = {"BL1": {"FIXTURE_STATISTICS": {500: True}}}
@@ -168,16 +160,8 @@ class TestCoveredForLeague:
         result = covered_for_league(all_covered, "BL1")  # no kickoff_by_id
         assert 46 in result["fx_stats"]
 
-    # --- has_data=False + non-statistics endpoints: always skip ---
-
     def test_non_stats_empty_response_skipped_conservatively(self):
-        """has_data=False on LINEUPS/EVENTS/PLAYERS → always skip.
-
-        The derive marks LINEUPS and EVENTS True whenever the fixture was fetched;
-        PLAYERS is False only while its second fetch is due, which the fixture-details
-        step makes in every competition, so it must not switch an idle competition to
-        full mode.
-        """
+        """PLAYERS is False only while its second fetch is due, so it must not force full mode."""
         today = _today()
         recent = today - timedelta(days=1)
         all_covered = {
@@ -408,7 +392,7 @@ class TestSecondFetchDue:
 
 
 # ---------------------------------------------------------------------------
-# newer_format_refetch_due — a latest fetch in the newer format, fetched again 14 days from kickoff
+# newer_format_refetch_due — a latest fetch in the newer format is fetched again 14 days on
 # ---------------------------------------------------------------------------
 
 

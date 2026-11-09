@@ -1,16 +1,4 @@
-"""Tests for `scripts/check_description_hygiene.py`.
-
-The point of these is NOT that the gate passes on today's repo — it does, and a
-test asserting that would go green forever while the gate quietly stopped
-matching anything. The point is that it goes RED, once per banned class, on text
-that is deliberately wrong. That is the repo's dominant failure mode (#904): a
-claim asserted rather than run.
-
-So every rule below is driven through `main()` against a synthetic offender and
-asserted to exit 1, AND the same fixture without the offending phrase is asserted
-to exit 0 — a rule that fires on everything is as useless as one that fires on
-nothing.
-"""
+"""Tests for `scripts/check_description_hygiene.py`; each rule is driven red by an offender."""
 from __future__ import annotations
 
 import os
@@ -46,11 +34,7 @@ def _write(tmp_path, body: str):
 
 
 def _write_blocks(tmp_path, text: str, where="models/docs/shared_columns.md"):
-    """A .md carrying docs blocks, at a path of the caller's choosing.
-
-    The path matters: dbt's `docs-paths` defaults to `models/`, so a block written
-    anywhere else is one dbt cannot resolve.
-    """
+    """dbt's `docs-paths` defaults to `models/`, so a block anywhere else cannot be resolved."""
     path = tmp_path / where
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
@@ -80,15 +64,7 @@ def _shared(tmp_path, monkeypatch, description_line: str, blocks=SHARED_TEAM_SK,
 
 
 def test_the_two_docs_block_regexes_agree():
-    """`DOC_BLOCK_RE` is hand-copied into the gate and the generator, with no
-    shared import. That is a drift risk rather than a defect: both were changed
-    together once, but nothing forces that next time.
-
-    Importing one script from the other would couple a gate to a generator, so
-    the parity is pinned by behaviour instead, the way FAST_GATES and the
-    validate-local skill are pinned to each other. The stray-opener case is the
-    one that matters: a lazy body runs from an unclosed opener to the NEXT real
-    block's closing tag, inventing a block and swallowing a real one."""
+    """`DOC_BLOCK_RE` is copied into the gate and the generator, so parity is pinned here."""
     import importlib.util
 
     spec = importlib.util.spec_from_file_location(
@@ -114,7 +90,7 @@ def test_the_two_docs_block_regexes_agree():
                      for m in gen.DOC_BLOCK_RE.findall(text)]
         assert gate_names == gen_names, f"the two regexes disagree on {text!r}"
 
-    # And pin the behaviour itself, so "they agree" cannot mean "both are wrong".
+    # Pins the behaviour itself, so agreement cannot mean both are wrong.
     assert [m[0] for m in gate.DOC_BLOCK_RE.findall(cases[1])] == ["real"]
 
 
@@ -143,14 +119,7 @@ models:
 
 
 def test_a_name_that_means_two_things_is_not_demanded(tmp_path, monkeypatch, capsys):
-    """The gate must not demand what the generator refuses to supply.
-
-    Six `league_code` columns were pointed at the wrong one of its two meanings in
-    #82 MR3, found over three review rounds. The generator now refuses such names.
-    If the gate failed inline text on one as "restating", the only way to go green
-    would be to guess — which is the defect, re-introduced from the other side.
-    A BLANK one is still a finding: the column rule asks for a description, not for
-    a particular block."""
+    """A name with two meanings is not demanded a shared block, but a blank one still fails."""
     _write(tmp_path, AMBIGUOUS_NAME)
     _write_blocks(tmp_path, AMBIGUOUS_BLOCKS)
     monkeypatch.setattr(gate, "DBT_DIR", tmp_path)
@@ -165,8 +134,7 @@ def test_a_name_that_means_two_things_is_not_demanded(tmp_path, monkeypatch, cap
 
 
 def test_an_unpoliced_name_is_reported_not_silently_skipped(tmp_path, monkeypatch, capsys):
-    """A rule that quietly exempts a name is a hole nobody sees. The count and the
-    reason belong in the output of every run."""
+    """A name exempted from the shared-definition rule is reported in every run."""
     _write(tmp_path, AMBIGUOUS_NAME)
     _write_blocks(tmp_path, AMBIGUOUS_BLOCKS)
     monkeypatch.setattr(gate, "DBT_DIR", tmp_path)
@@ -178,11 +146,7 @@ def test_an_unpoliced_name_is_reported_not_silently_skipped(tmp_path, monkeypatc
 
 
 def test_the_two_ambiguity_rules_agree(tmp_path):
-    """The gate and the generator must hold the SAME opinion about which names a
-    machine may decide. If they drift, one half refuses a name while the other
-    demands it, and the only way to satisfy both is the guess that caused the
-    defect. Pinned by behaviour rather than a shared import, for the same reason
-    as `test_the_two_docs_block_regexes_agree`."""
+    """The gate and the generator must agree on which names are ambiguous; pinned by behaviour."""
     import importlib.util
 
     spec = importlib.util.spec_from_file_location(
@@ -205,8 +169,6 @@ def test_the_two_ambiguity_rules_agree(tmp_path):
 
 
 def test_a_blank_column_whose_name_has_a_shared_definition_is_red(tmp_path, monkeypatch, capsys):
-    """195 columns were in exactly this state when the rule was written, against
-    99 that referenced theirs. Hand-referencing does not hold at that scale."""
     _shared(tmp_path, monkeypatch, "")
 
     assert gate.main() == 1
@@ -229,10 +191,7 @@ def test_a_column_referencing_its_own_block_is_green(tmp_path, monkeypatch):
 
 
 def test_referencing_a_DIFFERENT_block_is_green(tmp_path, monkeypatch):
-    """The opt-out, and the reason the rule does not police WHICH block. A
-    `league_code` that carries ingest provenance points at
-    `league_code_ingest_provenance`; two such sites already exist. Policing the
-    exact block would need an exemption list, which is the thing that rots."""
+    """The rule does not police which block is referenced; that would need an exemption list."""
     blocks = (SHARED_TEAM_SK
               + "\n{% docs team_sk_other_meaning %}\nSomething else.\n{% enddocs %}\n")
     _shared(tmp_path, monkeypatch,
@@ -241,10 +200,7 @@ def test_referencing_a_DIFFERENT_block_is_green(tmp_path, monkeypatch):
 
 
 def test_a_block_outside_models_is_not_a_block(tmp_path, monkeypatch):
-    """dbt's `docs-paths` defaults to `models/` and this project does not set it,
-    so `dbt_project/docs/` is invisible to dbt. If the gate saw blocks there it
-    would police a different project than the one dbt compiles — and flag this
-    inline text as restating a definition that, to dbt, does not exist."""
+    """dbt's `docs-paths` defaults to `models/`, so a block elsewhere is invisible to the gate."""
     _shared(tmp_path, monkeypatch, '        description: "Team identity key."',
             where="docs/engineering_standards.md")
     assert gate.main() == 0, "a block dbt cannot resolve was treated as real"
@@ -252,10 +208,7 @@ def test_a_block_outside_models_is_not_a_block(tmp_path, monkeypatch):
 
 def test_docs_prose_with_no_enddocs_neither_invents_nor_swallows_a_block(
         tmp_path, monkeypatch, capsys):
-    """`engineering_standards.md:112` carries the literal `{% docs name %}` inside
-    a sentence explaining the syntax. A lazy body would match from that opener all
-    the way to the NEXT block's `{% enddocs %}`, inventing a block named `name`
-    AND consuming the real one behind it. One line of prose, two defects."""
+    """A literal `{% docs name %}` in prose must not invent a block or swallow the next real one."""
     blocks = ("Long text belongs in a docs block, {% docs name %} in a .md file.\n\n"
               + SHARED_TEAM_SK)
     _shared(tmp_path, monkeypatch, '        description: "{{ doc(\'team_sk\') }}"',
@@ -267,15 +220,7 @@ def test_docs_prose_with_no_enddocs_neither_invents_nor_swallows_a_block(
 
 @pytest.fixture(autouse=True)
 def _point_gate_at_tmp(monkeypatch):
-    """Each test supplies its own tiny project, so the extraction floor would
-    otherwise trip on every one of them and mask what is being tested. The floor
-    gets its own test below, which is the only place it stays at its real value.
-
-    MIN_MODELS and MIN_SOURCE_TABLES are lowered for the same reason and no other:
-    a tmp fixture holds a schema file and usually no .sql at all, so the coverage
-    discovery floor would fire on every test and hide what each one is checking.
-    Both keep their real values in `test_the_coverage_floor_fires_...` below, and
-    the gate runs them at full strength against the real project."""
+    """Each test builds a tiny project, so the discovery floors are lowered."""
     monkeypatch.setattr(gate, "MIN_DESCRIPTIONS", 1)
     monkeypatch.setattr(gate, "MIN_MODELS", 0)
     monkeypatch.setattr(gate, "MIN_SOURCE_TABLES", 0)
@@ -313,15 +258,12 @@ def test_each_banned_class_turns_the_gate_red(tmp_path, monkeypatch, capsys, lab
 
 
 def test_the_same_fixture_without_the_offender_is_green(tmp_path, monkeypatch):
-    """A rule that fires on everything is as useless as one that fires on nothing."""
     monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, CLEAN))
     assert gate.main() == 0
 
 
 def test_ordinary_prose_is_not_mistaken_for_decision_language(tmp_path, monkeypatch):
-    """MEASURED, not hypothetical. On the cleaned MR3/MR4 text a case-insensitive
-    `CORRECTED` matches six legitimate sentences, and a bare `feeds` matches
-    ordinary prose. A gate that fires on correct text gets weakened, not obeyed."""
+    """Ordinary prose using `corrected` or `feeds` must not match the decision-language rules."""
     body = CLEAN.replace(
         "NULL where the provider sent no row.",
         "It applies the country corrections from the override seed, so the value is "
@@ -332,11 +274,7 @@ def test_ordinary_prose_is_not_mistaken_for_decision_language(tmp_path, monkeypa
 
 
 def test_football_prose_using_ruled_is_not_decision_language(tmp_path, monkeypatch):
-    """`ruled` and `ruling` are ordinary words in a football repo. An earlier draft
-    of the gate matched them bare, which would have fired on "goal ruled out for
-    offside" — a false positive in the one domain this repo is about, and a breach
-    of the gate's own stated design rule (annotation forms, not ordinary verbs).
-    `\\bCPO\\b` catches the real instances, because a logged ruling is attributed."""
+    """`ruled` is ordinary football prose; only an attributed ruling is decision language."""
     body = CLEAN.replace(
         "NULL where the provider sent no row.",
         "Excludes any goal ruled out for offside, and any match ruled void.",
@@ -346,8 +284,7 @@ def test_football_prose_using_ruled_is_not_decision_language(tmp_path, monkeypat
 
 
 def test_an_attributed_ruling_is_still_caught(tmp_path, monkeypatch):
-    """The other half of the pair above: dropping bare `ruled` must not create a
-    hole. A real decision-log line names who ruled."""
+    """Not matching bare `ruled` must not hide a ruling attributed to a person."""
     body = CLEAN.replace(
         "NULL where the provider sent no row.",
         "The CPO ruled this column stays as-is.",
@@ -357,8 +294,7 @@ def test_an_attributed_ruling_is_still_caught(tmp_path, monkeypatch):
 
 
 def test_a_non_utf8_file_fails_closed_and_names_the_file(tmp_path, monkeypatch, capsys):
-    """`read_text` raises UnicodeDecodeError, not YAMLError. Uncaught it escapes as
-    a raw traceback: still a non-zero exit, but blaming nothing and naming no file."""
+    """`read_text` raises UnicodeDecodeError, not YAMLError, and the file must still be named."""
     models = tmp_path / "models"
     models.mkdir(parents=True, exist_ok=True)
     # cp1252 bytes that are not valid UTF-8
@@ -372,8 +308,7 @@ def test_a_non_utf8_file_fails_closed_and_names_the_file(tmp_path, monkeypatch, 
 
 
 def test_a_column_over_bigquerys_limit_turns_the_gate_red(tmp_path, monkeypatch):
-    """1,024 is BigQuery's own column-description maximum; past it the DDL is
-    rejected and persist_docs fails the build."""
+    """1,024 is BigQuery's column-description maximum; past it persist_docs fails the build."""
     body = CLEAN.replace(
         '"Team identity key, globally unique in the provider\'s data."',
         '"' + ("word " * 250) + '"',          # ~1,250 chars
@@ -383,9 +318,7 @@ def test_a_column_over_bigquerys_limit_turns_the_gate_red(tmp_path, monkeypatch)
 
 
 def test_a_model_description_may_exceed_the_column_limit(tmp_path, monkeypatch):
-    """The limits differ because BigQuery's do: 1,024 for a column, 16,384 for a
-    table. A model description of 1,250 chars is long, but it is not a build
-    failure, and this gate only guards build failures — brevity is a human's job."""
+    """BigQuery allows 1,024 characters for a column but 16,384 for a table."""
     body = CLEAN.replace("NULL where the provider sent no row.", "word " * 250)
     monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, body))
     assert gate.main() == 0
@@ -398,7 +331,6 @@ def test_a_model_over_bigquerys_table_limit_turns_the_gate_red(tmp_path, monkeyp
 
 
 def _write_block(tmp_path, name: str, body: str):
-    """A `{% docs %}` block, in a .md file the way dbt requires."""
     docs = tmp_path / "models" / "docs"
     docs.mkdir(parents=True, exist_ok=True)
     (docs / f"{name}.md").write_text(
@@ -407,8 +339,7 @@ def _write_block(tmp_path, name: str, body: str):
 
 
 def test_a_short_docs_block_reference_is_green(tmp_path, monkeypatch):
-    """Reuse must not be punished: a shared block plus a short qualifier is exactly
-    what the standard asks for, and it stays under the limit once rendered."""
+    """A shared block plus a short qualifier stays under the limit once rendered."""
     _write_block(tmp_path, "team_sk", "Team identity key, globally unique.")
     body = CLEAN.replace(
         '"Team identity key, globally unique in the provider\'s data."',
@@ -419,15 +350,7 @@ def test_a_short_docs_block_reference_is_green(tmp_path, monkeypatch):
 
 
 def test_length_is_measured_after_the_docs_block_is_expanded(tmp_path, monkeypatch, capsys):
-    """THE HOLE THIS CLOSES. An earlier version waived the length rule for any
-    description containing a doc() reference, reasoning that the block was checked
-    on its own. It was not — blocks live in .md files, not in `description:` keys,
-    so the walk never saw them. Meanwhile persist_docs renders the block INTO the
-    stored description, so the string BigQuery receives is block + qualifier.
-
-    Here the qualifier alone is under the limit and the block alone is under it;
-    only the rendered total is over. The old waiver passed this.
-    """
+    """persist_docs renders the block into the stored description, so the rendered total counts."""
     _write_block(tmp_path, "team_sk", "block " * 150)         # ~900 chars
     body = CLEAN.replace(
         '"Team identity key, globally unique in the provider\'s data."',
@@ -443,10 +366,7 @@ def test_length_is_measured_after_the_docs_block_is_expanded(tmp_path, monkeypat
 
 
 def test_a_nested_docs_block_is_expanded_too(tmp_path, monkeypatch):
-    """A block may reference another. One substitution pass would leave the inner
-    tag literal — understating the stored length and never checking the nested
-    block's own text. No nesting exists today; this keeps it from being a hole if
-    it ever does."""
+    """A block may reference another, so expansion must recurse."""
     _write_block(tmp_path, "outer", "{{ doc('inner') }}")
     _write_block(tmp_path, "inner", "block " * 250)          # ~1,500 chars
     body = CLEAN.replace(
@@ -458,7 +378,6 @@ def test_a_nested_docs_block_is_expanded_too(tmp_path, monkeypatch):
 
 
 def test_a_circular_docs_block_does_not_hang(tmp_path, monkeypatch, capsys):
-    """Two blocks referencing each other must terminate and be reported, not spin."""
     _write_block(tmp_path, "a", "{{ doc('b') }}")
     _write_block(tmp_path, "b", "{{ doc('a') }}")
     body = CLEAN.replace(
@@ -471,8 +390,7 @@ def test_a_circular_docs_block_does_not_hang(tmp_path, monkeypatch, capsys):
 
 
 def test_an_unresolved_docs_block_is_a_finding(tmp_path, monkeypatch, capsys):
-    """dbt cannot compile a doc() reference with no block, and the stored length
-    cannot be known — so shrugging at it measures the wrong string."""
+    """With no block behind a doc() reference, the stored length cannot be known."""
     body = CLEAN.replace(
         '"Team identity key, globally unique in the provider\'s data."',
         '"{{ doc(\'no_such_block\') }}"',
@@ -483,8 +401,7 @@ def test_an_unresolved_docs_block_is_a_finding(tmp_path, monkeypatch, capsys):
 
 
 def test_a_banned_phrase_inside_a_shared_block_is_caught(tmp_path, monkeypatch):
-    """A block reaches every call site. A banned phrase hiding in one would
-    otherwise be invisible to a gate that only reads the YAML."""
+    """A block reaches every call site, so the banned phrases apply inside it."""
     _write_block(tmp_path, "team_sk", "Team key. Its only reader is dim_team.")
     body = CLEAN.replace(
         '"Team identity key, globally unique in the provider\'s data."',
@@ -495,9 +412,7 @@ def test_a_banned_phrase_inside_a_shared_block_is_caught(tmp_path, monkeypatch):
 
 
 def test_the_floor_fires_from_inside_the_gate(tmp_path, monkeypatch, capsys):
-    """The floor is what stops a broken walk reporting a clean sweep over zero
-    descriptions. It has to live in the gate, not only here: this test would not
-    exist in CI's failure path."""
+    """The floor stops a broken walk reporting a clean sweep over zero descriptions."""
     monkeypatch.setattr(gate, "MIN_DESCRIPTIONS", 400)
     monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, CLEAN))
 
@@ -507,14 +422,7 @@ def test_the_floor_fires_from_inside_the_gate(tmp_path, monkeypatch, capsys):
 
 
 def test_an_unparseable_file_fails_closed(tmp_path, monkeypatch, capsys):
-    """An unreadable schema.yml is a description surface the gate is silently not
-    covering, which is worse than a finding.
-
-    Asserts the FILE IS NAMED and that the count is not what gets blamed. An
-    unparseable file contributes zero descriptions, so it drags the census under
-    the floor; the first version of the gate hit the floor check first and told the
-    operator the walk had broken, sending them after the wrong thing entirely.
-    """
+    """The file must be named, and the floor must not be blamed for the descriptions it hides."""
     monkeypatch.setattr(gate, "DBT_DIR", _write(tmp_path, "key: [unclosed\n"))
     assert gate.main() == 1
 
@@ -528,19 +436,10 @@ def test_an_unparseable_file_fails_closed(tmp_path, monkeypatch, capsys):
 
 
 def test_the_real_repo_is_green():
-    """Ships green on day one — the `check_copy_gate.py` precedent, where wiring a
-    gate that was red on main would have reddened CI on text only the product
-    owner could fix. This one asserts the state the wiring depends on."""
     assert gate.main() == 0
 
 
-# ---------------------------------------------------------------------------
-# COVERAGE: the object has no description at all.
-#
-# The content rules above never see such an object, which is how the coverage
-# half of engineering_standards.md section 2 stayed unenforced for the life of
-# the project: 11 of 11 source tables had no description when this was written.
-# ---------------------------------------------------------------------------
+# --- coverage: the object has no description at all ---
 
 def _project(tmp_path, *, model_sql: str | None = "int_x", schema: str = "") -> object:
     """A tmp project with a real .sql on disk, optionally with a schema file."""
@@ -561,13 +460,7 @@ models:
 
 
 def test_a_model_declared_in_no_yml_turns_the_gate_red(tmp_path, monkeypatch, capsys):
-    """THE CASE THAT MOTIVATED WALKING FILES INSTEAD OF YAML ENTRIES.
-
-    `int_team__market_value_latest` had no description because it appeared in no
-    yml whatsoever. A check that read yml entries would have found nothing to
-    complain about and passed it green, which is precisely the blind spot the
-    coverage rule exists to close.
-    """
+    """The walk is over .sql files, so a model that appears in no yml is still found."""
     monkeypatch.setattr(gate, "DBT_DIR", _project(tmp_path))
     assert gate.main() == 1, "a model with no yml entry at all passed the gate"
     out = capsys.readouterr().out
@@ -584,17 +477,11 @@ def test_a_model_with_an_empty_description_turns_the_gate_red(tmp_path, monkeypa
 
 
 def test_a_described_model_is_green(tmp_path, monkeypatch):
-    """A rule that fires on everything is as useless as one that fires on nothing."""
     monkeypatch.setattr(gate, "DBT_DIR", _project(tmp_path, schema=DESCRIBED))
     assert gate.main() == 0
 
 
-# ---------------------------------------------------------------------------
-# COLUMN COVERAGE: a column the yml lists has no description.
-#
-# The listing says the column matters (it carries tests); section 3.1 says the
-# missing sentence is the defect. 359 such columns existed when this was added.
-# ---------------------------------------------------------------------------
+# --- column coverage: a column the yml lists has no description ---
 
 def _listed(column_lines: str) -> str:
     return DESCRIBED + "    columns:\n      - name: team_sk\n" + column_lines
@@ -628,8 +515,7 @@ def test_a_listed_column_referencing_a_block_is_green(tmp_path, monkeypatch):
 
 
 def test_the_listed_column_floor_fires_when_the_walk_finds_nothing(tmp_path, monkeypatch, capsys):
-    """The floor at its real value: a described model with no listed columns must not read as
-    'every listed column is described' when the walk simply found none."""
+    """A walk that finds no listed columns must not read as every listed column being described."""
     monkeypatch.setattr(gate, "MIN_LISTED_COLUMNS", 800)
     monkeypatch.setattr(gate, "DBT_DIR", _project(tmp_path, schema=DESCRIBED))
     assert gate.main() == 1
@@ -637,8 +523,6 @@ def test_the_listed_column_floor_fires_when_the_walk_finds_nothing(tmp_path, mon
 
 
 def test_a_source_table_with_no_description_turns_the_gate_red(tmp_path, monkeypatch, capsys):
-    """11 of 11 source tables were in this state. A raw table nobody has described
-    is where the whole pipeline starts."""
     schema = DESCRIBED + """
 sources:
   - name: api_football
@@ -673,12 +557,7 @@ def test_a_seed_with_no_description_turns_the_gate_red(tmp_path, monkeypatch, ca
 
 
 def test_the_coverage_floor_fires_when_discovery_finds_nothing(tmp_path, monkeypatch, capsys):
-    """The floor at its REAL value, which the autouse fixture lowers everywhere else.
-
-    Without it, a moved directory or a changed suffix makes "every model is
-    described" true by finding no models — the same vacuous-pass shape
-    MIN_DESCRIPTIONS guards against for the content half.
-    """
+    """At its real value, which the autouse fixture lowers elsewhere, finding no models fails."""
     monkeypatch.setattr(gate, "MIN_MODELS", 50)
     monkeypatch.setattr(gate, "MIN_SOURCE_TABLES", 5)
     monkeypatch.setattr(gate, "DBT_DIR", _project(tmp_path, model_sql=None, schema=DESCRIBED))

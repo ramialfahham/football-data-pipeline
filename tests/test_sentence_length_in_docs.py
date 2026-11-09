@@ -1,8 +1,4 @@
-"""A document sentence stays within the ASD-STE100 limit — the guard, both halves.
-
-Half one is the edit-time hook `.claude/hooks/sentence_length_gate.py`: it refuses an `Edit`,
-`Write` or `MultiEdit` that adds a Markdown sentence over 25 words, or over 20 in a numbered step.
-Half two is the pin below: each document's count of long sentences, which may only move down.
+"""Guards the document sentence limit: the edit-time hook and a per-document pin of long sentences.
 
 Everything imports the hook's definitions, so the CI count and the edit-time refusal cannot drift.
 """

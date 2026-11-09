@@ -1,11 +1,7 @@
 """The Rankings tab's board sets are written in three places each, and they must be one set.
 
-A board is named in the mart's Jinja list (what the warehouse ranks), in the yml's
-`accepted_values` on `metric_key` (what a build accepts), and in the export's tuple (what the
-page is served). GitLab #151: "each list, its seed's accepted values and its singular test move
-together". A key present in one and missing from another is a board the page silently lacks or a
-build that silently fails, so the three copies are read here and compared as sets and as order.
-The check is seen red in the mutation tests below before it is trusted.
+A board is named in the mart's Jinja list, the yml's `accepted_values` on `metric_key`, and the
+export's tuple; a key missing from one is a board the page lacks or a build that fails.
 """
 
 from __future__ import annotations
@@ -101,8 +97,7 @@ def test_match_boards_are_one_set_in_the_mart_and_the_export():
 
 
 def test_the_export_lists_the_ruled_order():
-    """The page keeps the export's order within a group, so the tuple carries the ruling:
-    groups in the catalogue's order, and inside a group the issue's order."""
+    """The page keeps the export's order within a group, so the tuple carries the ordering."""
     assert _COMPETITION_TEAM_BOARDS[:2] == ("goals_per_match", "goals_against_per_match")
     assert _COMPETITION_TEAM_BOARDS[-2:] == ("cards_yellow", "cards_red")
     assert _COMPETITION_PLAYER_BOARDS[:2] == ("goals_player", "assists_player")
@@ -110,8 +105,7 @@ def test_the_export_lists_the_ruled_order():
 
 
 def test_the_mart_most_first_override_is_exactly_the_two_card_boards():
-    """The ruled exception to "direction from the catalogue" is the two card boards and nothing
-    else; a third key here would rank a fewest-is-best figure most first without a ruling."""
+    """Only the two card boards override the catalogue's direction; a third key would mis-rank."""
     text = TEAM_SQL.read_text(encoding="utf-8")
     assert _jinja_list(text, "most_first_by_ruling") == ["cards_yellow", "cards_red"]
 
