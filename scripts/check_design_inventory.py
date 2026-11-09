@@ -278,11 +278,13 @@ MEASURE_JS = r"""
     const inDom = nodes.length;
     nodes = nodes.filter(visible);
     const matches = [];
+    const asked = props.filter((p) => el.kinds.includes(p));
     for (const n of nodes) {
       const s = getComputedStyle(n);
       const r = n.getBoundingClientRect();
-      const m = { style: {}, rect: [r.left, r.top, r.width, r.height] };
-      for (const p of props) m.style[p] = s.getPropertyValue(p);
+      const m = {};
+      if (asked.length) { m.style = {}; for (const p of asked) m.style[p] = s.getPropertyValue(p); }
+      if (el.kinds.includes('min-box')) m.rect = [r.left, r.top, r.width, r.height];
       if (el.kinds.includes('gap(next)')) { const nx = nextEl(n); const t = nx ? firstLineTop(nx) : null; m.gapNext = t === null ? null : t - r.bottom; }
       if (el.kinds.includes('gap(prev)')) { const pv = prevEl(n); m.gapPrev = pv ? r.top - pv.getBoundingClientRect().bottom : null; }
       if (el.kinds.includes('left-edge')) { m.leftEdge = r.left - container(n).getBoundingClientRect().left; }
@@ -314,6 +316,10 @@ MEASURE_JS = r"""
   return { tokens, elements: out };
 }
 """
+
+# Playwright's object transport costs more CPU than the scripts themselves; a JSON string does not.
+MEASURE_JSON_JS = "(spec) => JSON.stringify((%s)(spec))" % MEASURE_JS.strip()
+COUNT_JSON_JS = "(registered) => JSON.stringify((%s)(registered))" % COUNT_JS.strip()
 
 
 POINTER_JS = r"""
@@ -523,7 +529,7 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
     inventory matches. With `acc`, the page's tabs are measured one after another: a failure already
     found in an earlier tab is not added again, and the checks that ask whether an element is on the
     page are left to `finish_page`, which judges them across every tab."""
-    data = pw_page.evaluate(MEASURE_JS, spec)
+    data = json.loads(pw_page.evaluate(MEASURE_JSON_JS, spec))
     tokens = data["tokens"]
     total = 0
     seen: set[str] = set()
@@ -593,18 +599,23 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
             centre = pw_page.evaluate(POINTER_JS, el.selector)
             if centre is None:
                 continue
+            at_centre = False
             for a in pointer:
-                pw_page.mouse.move(centre[0], centre[1])
+                if not at_centre:
+                    pw_page.mouse.move(centre[0], centre[1])
+                    at_centre = True
                 if a.kind == "press":
                     pw_page.mouse.down()
                 measured = pw_page.evaluate(STYLE_JS, [el.selector, centre[2], a.prop])
                 if a.kind == "press":
                     pw_page.mouse.move(0, 0)
                     pw_page.mouse.up()
+                    at_centre = False
                 msg = di.compare(a, measured, tokens)
                 if msg:
                     failures.append(Failure(page.name, viewport, lang, "%s [%s #1]" % (el.name, el.selector), msg, level))
-            pw_page.mouse.move(0, 0)
+            if at_centre:
+                pw_page.mouse.move(0, 0)
     fresh = []
     for f in failures[start:]:
         key = (f.element, f.detail, f.level)
@@ -704,7 +715,7 @@ def render_width(job: dict) -> dict:
                     shots += 1
                 # The pointer checks scroll the page, and a sticky header then lies over the content.
                 pw_page.evaluate("window.scrollTo(0, 0); document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => r())))")
-                found = pw_page.evaluate(COUNT_JS, job["registered"])
+                found = json.loads(pw_page.evaluate(COUNT_JSON_JS, job["registered"]))
                 page_counts["classes"].update(found["classes"])
                 for k in COUNTS[:-1]:
                     page_counts[k] = page_counts.get(k, 0) + found[k]
