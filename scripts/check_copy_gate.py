@@ -23,8 +23,8 @@ The checks, each traceable to a real defect:
      is flagged with both spellings so a human can settle it.
   4. UNTRANSLATED VALUES. A non-EN locale carrying a value byte-identical to EN
      for a key whose EN value contains a lowercase alphabetic word. Numbers,
-     symbols, brand names and pure abbreviations are exempt, because those are
-     legitimately identical across locales.
+     symbols, brand names, pure abbreviations and the unit symbols in UNIT_SYMBOLS
+     are exempt, because those are legitimately identical across locales.
   5. SEED KEYS RESOLVABLE. Every `label_i18n_key` the warehouse seeds publish
      (competition kinds, confederations, round names) exists in every locale. Check 2 sees
      only keys that are already in EN, and check 1-4 see only keys the pages
@@ -64,6 +64,9 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 STRINGS = REPO_ROOT / "site_v2" / "src" / "i18n" / "strings.ts"
 CORPUS_DIR = REPO_ROOT / "site" / "i18n"
 LOCALES = ("en", "de", "fi")
+# Unit symbols that are the same word in more than one language. Each entry is the product owner's
+# decision; the list is the only way in.
+UNIT_SYMBOLS = frozenset({"min"})
 # Floor under the extraction, enforced in the gate itself (see main()). The fixture
 # page alone needs about two dozen labels, so anything under this means the regex
 # broke rather than the copy shrank.
@@ -266,7 +269,7 @@ def main() -> int:
                 continue
             # exempt: no lowercase word at all (numbers, symbols, abbreviations),
             # or a single token that is a brand/abbreviation
-            if not re.search(r"[a-z]{3,}", en_val):
+            if not re.search(r"[a-z]{3,}", en_val) or en_val in UNIT_SYMBOLS:
                 continue
             if len(en_val.split()) == 1 and en_val[0].isupper():
                 continue

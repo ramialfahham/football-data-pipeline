@@ -14,8 +14,9 @@ That trap sprang once inside this branch's own life. The allowlist in `.gitignor
 `site_v2/src/data/**` block — is the authoritative list of what is tracked. (It is cited by block
 rather than by line range: the range written here was `249-270`, and it had already rotted.)
 
-Count what is tracked with `git ls-files site_v2/src/data`. Today: the six root files below, the
-Bundesliga competition payload, 50 Matches page days, 548 fixture payloads and 34 team payloads.
+Count what is tracked with `git ls-files site_v2/src/data`. Today: the eight root files below, the
+Bundesliga competition payload, 50 Matches page days, 548 fixtures, 34 teams and 72 players with
+their peer files.
 
 - `competition_index.json` — the competitions index page's payload (#62 step 5), produced
   verbatim by `python scripts/export_site_data.py --entities competition_index`. All **48**
@@ -49,6 +50,15 @@ Bundesliga competition payload, 50 Matches page days, 548 fixture payloads and 3
   teams the Home Top teams boards link to; the clubs of the Bundesliga sample's table. These 34 can
   be refreshed alone, from `fetch_team_payloads` written by `write_entity`. Every slug must stay the
   same, because the Home and Bundesliga pages link to them.
+- `players/*.json` and `player_pages.json` — **72** real exported players from the Home and
+  Bundesliga boards, and the list of players with a page. A link to a player exists only
+  when that player is in `player_pages.json`, so a board row without one stays plain text. Produced
+  verbatim by step 6 of the recipe below.
+- `player_peers/{league_code}/{season}/{position_group}.json` — every player's values for the Player
+  page's comparison strips. One file per competition, season and position, for the committed
+  players. Produced by the same run.
+- `player_metric_rows.json` — the rows of the Player page's comparisons, produced by the same run
+  from `metric_catalogue.csv` (no BigQuery).
 - `competitions/BL1/2026.json` — the one competition payload, the Bundesliga 2026/27 season, all
   three tabs of the competition page in one file (`standings`, `deserved`, `summary`, `fixtures`,
   `team_boards`, `player_boards`), produced verbatim by
@@ -73,9 +83,7 @@ Bundesliga competition payload, 50 Matches page days, 548 fixture payloads and 3
   payload. Real export output of one run: `type`, `upcoming` (**285** matches across **31**
   competitions, each competition's next matchday), `top_players` and `top_teams`.
   Every Next matches row is a match of a committed Matches page day, so its payload is in the
-  `fixtures/` allowlist. Every team the Top teams boards link to is in the `teams/` allowlist. The player
-  pages the Top players boards link to are generated FROM this file
-  (`pages/[lang]/players/[player].astro`).
+  `fixtures/` allowlist. Every team the Top teams boards link to is in the `teams/` allowlist.
 
 ## Refreshing the sample
 
@@ -105,6 +113,9 @@ The full recipe, in order:
 5. Drop the ignored bulk before building (`git clean -fX site_v2/src/data`): a full export leaves
    thousands of payloads, `astro build` OOMs at that scale, and a local build resolves links that
    CI — which sees only the tracked set — cannot.
+6. `PYTHONPATH=. python scripts/export_site_data.py --entities players,metric_rows --sample 72 --out <the same folder>`
+   from the repo root. A sample takes the board players of that folder first. Copy in `players/*.json`, `player_peers/`, `player_pages.json` and
+   `player_metric_rows.json`, and rewrite their `.gitignore` allowlist the same way.
 
 ⚠ **Nothing enforces that today.** The allowlist is hand-maintained and the only thing that catches
 a mismatch is `audit-seo.mjs` in CI, after the fact.

@@ -1,5 +1,7 @@
 # 03 — Player profile ⭐ (#391)
 
+> **Retired.** The Player page's approved design is on [its GitLab issue](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/136).
+
 > Field-bound against `shape_player_payload` / `mart_player_profile` /
 > `mart_player_fixture_stats`. Stat rows follow the LOCKED
 > player bundles in [`metrics_display.md`](metrics_display.md) — 9 bundled rows,

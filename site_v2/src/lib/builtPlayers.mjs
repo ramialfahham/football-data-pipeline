@@ -1,31 +1,16 @@
-// The player pages this build makes: the players the Home and competition boards link to, which is
-// the set the player route emits from the same two sources. A row links to a player only when the
-// player's page is in this list, by the served slug.
+// The player pages this build makes: player_pages.json, which the export writes beside the payloads
+// from the warehouse's flag. The player route emits exactly these. A row links to a player only when
+// the player's page is in this list.
 
-import { readdirSync, readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
-/** player id -> the served slug, from landing.json's Top players and every competition payload's
- *  player boards. */
+/** player id -> the served slug. */
 export function readBuiltPlayers(dataDir) {
-  const built = new Map();
-  const take = (row) => {
-    if (row?.slug && row.player_id != null && !built.has(Number(row.player_id))) built.set(Number(row.player_id), row.slug);
-  };
-  const landing = join(dataDir, "landing.json");
-  if (existsSync(landing)) {
-    for (const board of JSON.parse(readFileSync(landing, "utf8")).top_players ?? []) for (const row of board.rows) take(row);
-  }
-  const comps = join(dataDir, "competitions");
-  if (existsSync(comps)) {
-    for (const code of readdirSync(comps)) {
-      for (const file of readdirSync(join(comps, code)).filter((name) => name.endsWith(".json"))) {
-        const payload = JSON.parse(readFileSync(join(comps, code, file), "utf8"));
-        for (const board of payload.player_boards ?? []) for (const row of board.rows) take(row);
-      }
-    }
-  }
-  return built;
+  const path = join(dataDir, "player_pages.json");
+  if (!existsSync(path)) return new Map();
+  const pages = JSON.parse(readFileSync(path, "utf8")).pages;
+  return new Map(Object.entries(pages).map(([id, slug]) => [Number(id), slug]));
 }
 
 let cached;
@@ -33,4 +18,12 @@ let cached;
 export function builtPlayers() {
   cached ??= readBuiltPlayers(join(process.cwd(), "src/data"));
   return cached;
+}
+
+let slugs;
+
+/** Whether this build makes the page at a served slug. */
+export function hasPlayerPage(slug) {
+  slugs ??= new Set(builtPlayers().values());
+  return slugs.has(slug);
 }

@@ -2,7 +2,6 @@
   "$schema": "../page-spec.schema.json",
   "page": "[lang]/[players]/[player].astro",
   "entity": "player",
-  "stub": true,
   "seo": {
     "canonical": "self",
     "hreflang": "all-locales",
@@ -13,10 +12,41 @@
       "inbound_hub": "home",
       "outbound": []
     },
-    "minimum_data": "A row on a Home Top players board or on a competition page's Player rankings board — i.e. the player leads one of the four Home boards in their league's current season, or is in the top five of one of the thirteen boards of a competition-season the site carries; both are mart_leaderboards' decision (assert_mart_leaderboards_every_home_board_has_a_leader guards the Home half). That is deliberately the narrowest gate that satisfies the reason this page exists: audit-seo check 8 requires a page for every player the site links to, and those two blocks are the only pages that link to one today. It is NOT the rule for which players deserve a page — that is #845's minimum-data question, and it must stay a rule over the served mart rather than a list in the frontend.",
-    "page_count_driver": "count(distinct slug over landing.json .top_players[].rows[] and competitions/*/*.json .player_boards[].rows[]) x count(locales)",
+    "minimum_data": "3 matches played this season or last, in any competition the site holds, club or national team, with at least one tab: mart_player_profile.has_player_page.",
+    "page_count_driver": "count(player_pages.json .pages) x count(locales)",
     "url_permanence": "permanent",
-    "url_permanence_note": "The URL is permanent and is the one site_architecture.md section 3 already reserves for the player profile. The SLUG is {kebab-name}-{player_api_id} and still carries the id because 18.5% of provider player names collide (1.6% on the full name), so the team scheme does not transfer unchanged; moving player slugs into the warehouse the way team slugs moved is its own work (#843/#852). The id suffix is what anchors identity across a name correction. STUB: this ships the URL, its canonical, its hreflang set and a locale-distinct title, and NO content blocks. #845 owns the real Player Overview. Listed in STUB_PAGES, which blocks INDEXABLE === true until it is filled. Its inbound link is live on the day it ships, unlike the competition stub's: the Home page's Top players block is what makes this page necessary."
+    "url_permanence_note": "The URL is permanent and is the one site_architecture.md section 3 already reserves for the player profile. The SLUG is {kebab-name}-{player_api_id} and still carries the id because 18.5% of provider player names collide (1.6% on the full name), so the team scheme does not transfer unchanged; moving player slugs into the warehouse the way team slugs moved is its own work (#843/#852). The id suffix is what anchors identity across a name correction."
   },
-  "blocks": []
+  "blocks": [
+    {
+      "block": "Player header and tabs",
+      "mart": "mart_player_profile",
+      "i18n_keys": ["seoPlayerTitleClub", "seoPlayerTitleName", "crumbHome", "navPlayers", "compSeason", "playerAge", "playerHeight", "playerTabClub", "playerTabNational", "playerTabsAria"]
+    },
+    {
+      "block": "This season and Current competitions",
+      "mart": "mart_player_window_metrics",
+      "i18n_keys": ["teamThisSeasonHead", "playerCurrentCompetitions"]
+    },
+    {
+      "block": "Next matches",
+      "mart": "mart_team_fixtures",
+      "i18n_keys": ["homeNext"]
+    },
+    {
+      "block": "Compared with other players",
+      "mart": "mart_player_competition_benchmarks",
+      "i18n_keys": ["playerVsOthers", "playerComparedWith", "playerSquad", "playerMedian", "playerPer90", "playerPeerIntro", "playerSquadClubIntro", "playerSquadNationalIntro", "playerOthers", "playerOtherTeam", "showAllMetrics"]
+    },
+    {
+      "block": "Compared with last season",
+      "mart": "mart_player_window_metrics",
+      "i18n_keys": ["teamVsLastSeason", "playerLastSeasonIntro", "playerPer90", "teamThisSeasonHead", "teamLastSeasonHead", "teamTrend", "showAllMetrics"]
+    },
+    {
+      "block": "Recent matches",
+      "mart": "mart_player_fixture_stats",
+      "i18n_keys": ["secRecent", "playerMin", "playerAssist", "playerAssists", "playerBallAction", "playerBallActions", "playerOnBench", "homeShowAll", "homeShowLess"]
+    }
+  ]
 }

@@ -1,0 +1,300 @@
+{
+  "type": "player",
+  "player_id": 1972,
+  "slug": "l-karius-1972",
+  "name": "Loris Sven Karius",
+  "photo": "https://media.api-sports.io/football/players/1972.png",
+  "nationality": "Germany",
+  "age": 33,
+  "height": "189",
+  "position_group": "GK",
+  "season_label": "2026/27",
+  "club": {
+    "team_id": 174,
+    "name": "FC Schalke 04",
+    "crest": "https://media.api-sports.io/football/teams/174.png",
+    "slug": "fc-schalke-04"
+  },
+  "tabs": [
+    {
+      "tab": "club",
+      "team": {
+        "team_id": 174,
+        "name": "FC Schalke 04",
+        "crest": "https://media.api-sports.io/football/teams/174.png",
+        "slug": "fc-schalke-04"
+      },
+      "cards": {
+        "cards_red_player": 0.0,
+        "minutes_per_appearance": 93.0,
+        "saves_player_pct": 0.7796610169491526,
+        "cards_yellow_player": 2.0,
+        "appearances": 10.0,
+        "goals_against_player": 13.0
+      },
+      "next_matches": [
+        {
+          "fixture_id": 1575215,
+          "league_code": "BL1",
+          "upcoming_rank": 1,
+          "opponent_name": "TSG 1899 Hoffenheim",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/167.png",
+          "is_home": false,
+          "kickoff_datetime": "2026-11-08 18:30:00+00:00",
+          "round_name": "Regular Season - 9",
+          "goals_for": null,
+          "goals_against": null,
+          "result": null,
+          "status_short": "NS"
+        }
+      ],
+      "competitions": [
+        {
+          "league_code": "BL1",
+          "season": 2026,
+          "season_label": "2026/27",
+          "position_group": "GK",
+          "player_count": 21,
+          "metrics": [
+            {
+              "metric_key": "ball_actions_per90",
+              "value": 35.75,
+              "rank": 16,
+              "median": 39.285714285714285
+            },
+            {
+              "metric_key": "goals_against_per90",
+              "value": 1.125,
+              "rank": 3,
+              "median": 1.875
+            },
+            {
+              "metric_key": "passes_accuracy_player_pct",
+              "value": 0.49173553719008267,
+              "rank": 21,
+              "median": 0.6923076923076923
+            },
+            {
+              "metric_key": "passes_per90",
+              "value": 30.25,
+              "rank": 17,
+              "median": 35.285714285714285
+            },
+            {
+              "metric_key": "saves_per90",
+              "value": 5.375,
+              "rank": 1,
+              "median": 3.5
+            },
+            {
+              "metric_key": "saves_player_pct",
+              "value": 0.8269230769230769,
+              "rank": 1,
+              "median": 0.6585365853658537
+            }
+          ]
+        }
+      ],
+      "squad": null,
+      "last_season": {
+        "minutes": 930,
+        "minutes_prev": 2790,
+        "metrics": [
+          {
+            "metric_key": "ball_actions_per90",
+            "value": 33.38709677419355,
+            "value_prev": 32.25806451612903
+          },
+          {
+            "metric_key": "goals_against_per90",
+            "value": 1.2580645161290323,
+            "value_prev": 0.9032258064516129
+          },
+          {
+            "metric_key": "passes_accuracy_player_pct",
+            "value": 0.5335570469798657,
+            "value_prev": 0.5668449197860963
+          },
+          {
+            "metric_key": "passes_per90",
+            "value": 28.838709677419356,
+            "value_prev": 30.161290322580644
+          },
+          {
+            "metric_key": "saves_per90",
+            "value": 4.451612903225806,
+            "value_prev": 2.096774193548387
+          },
+          {
+            "metric_key": "saves_player_pct",
+            "value": 0.7796610169491526,
+            "value_prev": 0.6989247311827957
+          }
+        ]
+      },
+      "recent_matches": [
+        {
+          "played_fixture_sk": 1575210,
+          "played_league_code": "BL1",
+          "played_kickoff_datetime": "2026-10-31 14:30:00+00:00",
+          "home_away": "home",
+          "goals_for": 0,
+          "goals_against": 2,
+          "result": "L",
+          "opponent_name": "RB Leipzig",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/173.png",
+          "minutes": 90,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 35,
+          "on_bench": false
+        },
+        {
+          "played_fixture_sk": 1638572,
+          "played_league_code": "DFBP",
+          "played_kickoff_datetime": "2026-10-28 17:00:00+00:00",
+          "home_away": "away",
+          "goals_for": 0,
+          "goals_against": 2,
+          "result": "L",
+          "opponent_name": "Dynamo Dresden",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/183.png",
+          "minutes": 90,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 31,
+          "on_bench": false
+        },
+        {
+          "played_fixture_sk": 1575201,
+          "played_league_code": "BL1",
+          "played_kickoff_datetime": "2026-10-24 13:30:00+00:00",
+          "home_away": "away",
+          "goals_for": 0,
+          "goals_against": 0,
+          "result": "D",
+          "opponent_name": "1. FC Köln",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/192.png",
+          "minutes": 90,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 24,
+          "on_bench": false
+        },
+        {
+          "played_fixture_sk": 1575192,
+          "played_league_code": "BL1",
+          "played_kickoff_datetime": "2026-10-17 13:30:00+00:00",
+          "home_away": "home",
+          "goals_for": 0,
+          "goals_against": 1,
+          "result": "L",
+          "opponent_name": "1. FSV Mainz 05",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/164.png",
+          "minutes": 90,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 36,
+          "on_bench": false
+        },
+        {
+          "played_fixture_sk": 1575179,
+          "played_league_code": "BL1",
+          "played_kickoff_datetime": "2026-10-11 15:30:00+00:00",
+          "home_away": "away",
+          "goals_for": 1,
+          "goals_against": 2,
+          "result": "L",
+          "opponent_name": "SC Freiburg",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/160.png",
+          "minutes": 90,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 44,
+          "on_bench": false
+        },
+        {
+          "played_fixture_sk": 1575173,
+          "played_league_code": "BL1",
+          "played_kickoff_datetime": "2026-09-20 15:30:00+00:00",
+          "home_away": "home",
+          "goals_for": 0,
+          "goals_against": 0,
+          "result": "D",
+          "opponent_name": "SV Elversberg",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/1660.png",
+          "minutes": 90,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 27,
+          "on_bench": false
+        },
+        {
+          "played_fixture_sk": 1575164,
+          "played_league_code": "BL1",
+          "played_kickoff_datetime": "2026-09-11 18:30:00+00:00",
+          "home_away": "away",
+          "goals_for": 3,
+          "goals_against": 1,
+          "result": "W",
+          "opponent_name": "1. FC Union Berlin",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/182.png",
+          "minutes": 90,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 36,
+          "on_bench": false
+        },
+        {
+          "played_fixture_sk": 1575156,
+          "played_league_code": "BL1",
+          "played_kickoff_datetime": "2026-09-05 16:30:00+00:00",
+          "home_away": "home",
+          "goals_for": 0,
+          "goals_against": 0,
+          "result": "D",
+          "opponent_name": "Bayern München",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/157.png",
+          "minutes": 90,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 35,
+          "on_bench": false
+        },
+        {
+          "played_fixture_sk": 1575141,
+          "played_league_code": "BL1",
+          "played_kickoff_datetime": "2026-08-30 15:30:00+00:00",
+          "home_away": "away",
+          "goals_for": 0,
+          "goals_against": 3,
+          "result": "L",
+          "opponent_name": "FC Augsburg",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/170.png",
+          "minutes": 90,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 49,
+          "on_bench": false
+        },
+        {
+          "played_fixture_sk": 1550684,
+          "played_league_code": "DFBP",
+          "played_kickoff_datetime": "2026-08-24 18:45:00+00:00",
+          "home_away": "away",
+          "goals_for": 5,
+          "goals_against": 2,
+          "result": "W",
+          "opponent_name": "Hallescher FC",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/1316.png",
+          "minutes": 120,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 28,
+          "on_bench": false
+        }
+      ]
+    }
+  ],
+  "shares_name_at_club": false
+}

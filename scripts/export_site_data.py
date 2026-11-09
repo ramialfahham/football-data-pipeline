@@ -680,6 +680,7 @@ def shape_player_payload(
         "season_label": profile.get("season_label"),
         "club": teams.get(int(club_id)) if club_id is not None else None,
         "tabs": tabs,
+        "shares_name_at_club": bool(profile.get("shares_name_at_club")),
     }
 
 
@@ -1164,7 +1165,7 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
 _PLAYER_PROFILE_COLUMNS = (
     "player_sk, player_name, player_full_name, player_age, player_nationality, player_height, "
     "player_photo_url, position_group, has_club_tab, has_national_team_tab, national_team_sk, "
-    "current_club_team_sk, season_label"
+    "current_club_team_sk, season_label, shares_name_at_club"
 )
 _PLAYER_MATCH_COLUMNS = (
     "player_sk, fixture_sk, page_tab, league_code, kickoff_datetime, is_home, "
@@ -1186,9 +1187,19 @@ _PLAYER_WINDOW_COLUMNS = (
 )
 
 
+def page_player_ids(client) -> list[int]:
+    """The players with a page, by the warehouse's flag."""
+    rows = _query(client, f"""
+        select distinct player_sk
+        from `{GCP_PROJECT}.{MARTS_DATASET}.mart_player_profile`
+        where has_player_page
+    """)
+    return sorted(int(r["player_sk"]) for r in rows)
+
+
 def linked_player_ids(out_root: pathlib.Path) -> list[int]:
-    """The players the site links to: those on the Home and competition boards of this export. The
-    site makes a page for exactly these (`site_v2/src/lib/builtPlayers.mjs`)."""
+    """The players on the Home and competition boards of this export: a sample takes these first,
+    so its pages are the ones its boards link to."""
     ids: set[int] = set()
     landing = out_root / "landing.json"
     boards = json.loads(landing.read_text(encoding="utf-8")).get("top_players", []) if landing.exists() else []
@@ -2643,14 +2654,22 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
             entries.append(write_entity(out_root, "matches", p["day"], p))
     # After landing and competitions: their boards name the players who get a page.
     if "players" in entities:
-        linked = linked_player_ids(out_root)
-        if not linked:
-            raise ValueError(f"no player boards in {out_root}: export landing and competitions first")
-        payloads, peers = fetch_player_payloads(client, linked, sample)
+        ids = page_player_ids(client)
+        if not ids:
+            raise ValueError("no player has a page: mart_player_profile.has_player_page is false on every row")
+        on_boards = set(linked_player_ids(out_root))
+        ids.sort(key=lambda i: (i not in on_boards, i))
+        payloads, peers = fetch_player_payloads(client, ids, sample)
+        payloads = sorted(payloads, key=lambda p: p["player_id"])
+        peers = sorted(peers, key=lambda p: (p["league_code"], p["season"], p["position_group"]))
         for p in payloads:
             e = write_entity(out_root, "players", p["player_id"], p)
             entries.append(e)
             slug_map[p["slug"]] = {"type": "player", "id": p["player_id"]}
+        pages = {str(p["player_id"]): p["slug"] for p in payloads}
+        sha = write_file(out_root, "player_pages.json", {"type": "player_pages", "pages": pages})
+        entries.append({"type": "player_pages", "id": "player_pages", "slug": None,
+                        "path": "player_pages.json", "sha256": sha})
         for p in peers:
             relpath = f"player_peers/{p['league_code']}/{p['season']}/{p['position_group']}.json"
             sha = write_file(out_root, relpath, p)

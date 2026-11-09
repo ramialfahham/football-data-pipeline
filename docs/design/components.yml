@@ -133,8 +133,8 @@ components:
     wide: "crest | name over meta line"
   tabs:
     name: Tab bar
-    file: [site_v2/src/components/competition/CompetitionTabs.astro, site_v2/src/components/team/Tabs.astro]
-    used-on: [Competition pages, Team page]
+    file: [site_v2/src/components/competition/CompetitionTabs.astro, site_v2/src/components/team/Tabs.astro, "site_v2/src/pages/[lang]/[players]/[player].astro"]
+    used-on: [Competition pages, Team page, Player page]
     parts:
       bar: {class: tabs, selector: nav.tabs, element: Tab bar, rule: "the tabs share the row and fit in one row at 375px in EN, DE and FI, no sideways scrolling", measured: fits, ruled-on: "#129 header"}
       tab: {class: tab, selector: nav.tabs .tab, breaks: never, element: Tab, rule: "one line each, never wrapped; the side padding is what the label needs", measured: one-line, ruled-on: "#129 header"}
@@ -302,6 +302,9 @@ components:
       goal: {class: goal, selector: ".resrow.goal", element: Goal row, rule: "a goal: the score after it, then the scorer with the crest of the side it counts for. The second line holds the minute with the assist, own goal or penalty. Without minutes the row has no score", measured: fits, ruled-on: the played match page review}
       goal-meta: {class: rmeta, selector: ".resrow.goal .rmeta", text: 14-400-ink-2, element: Goal row meta, rule: "the goal's minute and its assist, own goal or penalty: 14px ink-2, larger and lighter than a list row's second line", measured: "font-size=14px; color=ink-2", ruled-on: the played match page review}
       list: {class: rlist}
+      player-list: {class: pm, selector: ".rlist.pm"}
+      player-competition: {class: rm-c}
+      player-line: {class: rm-p}
       home-away: {class: ha, selector: ".resrow .ha", text: 11-600-muted, breaks: never}
       scorer: {class: scorer}
     wide: "chip · score · opponent · competition · date on one line"
@@ -367,15 +370,38 @@ components:
     narrow: {below: fits, form: one column}
   strip-plot:
     name: Strip plot
-    file: site_v2/src/components/team/TeamLeagueStrips.astro
-    used-on: [Team page]
+    file: [site_v2/src/components/team/TeamLeagueStrips.astro, site_v2/src/components/player/PlayerComparison.astro]
+    used-on: [Team page, Player page]
     parts:
+      plot: {class: rs-plot}
+      peers: {class: rs-peers}
+      median: {class: rs-tick}
+      median-value: {class: rs-tick-value}
+      median-key: {class: rs-tick-key}
+      panels: {class: cmp-panels}
+      panel: {class: cmp-p}
       row: {class: rs-row, element: Strip plot row, rule: "a metric's name, the league's values with every team's mark, and the team's rank over its value; drawn by `team/TeamLeagueStrips.astro`", measured: fits, ruled-on: the Team page review}
       value: {class: rs-val, element: Strip plot value, rule: "the team's rank over its value; drawn by `team/TeamLeagueStrips.astro`", measured: "font-size=15px; font-weight=700; color=ink", ruled-on: the Team page review}
       band: {class: rs-band, selector: ".rs-row .rs-band", element: Strip plot band, rule: "a strip plot row's strip: its line with every team's mark on it", measured: fits, ruled-on: the chart theme}
     wide: "name | strip | rank over value"
     narrow: {below: w480, form: "name | rank over value, the strip on its own line"}
     never-split: [14th, "1.1", "better →"]
+  card:
+    name: Card
+    file: site_v2/src/components/ui/StatCards.astro
+    used-on: [Player page]
+    parts:
+      block: {class: kpis}
+      grid: {class: kpi-row}
+      card: {class: kpi}
+      body: {class: kpi-in}
+      number: {class: kpi-v}
+      text: {class: kpi-t}
+      label: {class: kpi-l}
+      block-narrow: {class: narrow, selector: ".kpis.narrow"}
+      block-tight: {class: tight, selector: ".kpis.tight"}
+    wide: "six cards in one row, always, a 0 included; the number centred over its label, a label on at most two lines and never broken inside a word; at most 240px wide"
+    narrow: {below: fits, form: "three across with 10px side padding, otherwise two across; below 100px card width the number is 24px and the label 12px"}
   scatter-plot:
     name: Scatter plot
     file: site_v2/src/components/team/TeamDeserved.astro

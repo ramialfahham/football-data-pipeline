@@ -42,7 +42,10 @@ function labelBlock(loc) {
 }
 
 const labels = Object.fromEntries(LOCALES.map((l) => [l, labelBlock(l)]));
-const servedRows = JSON.parse(readFileSync(join(SITE, "src/data/metric_rows.json"), "utf8")).rows;
+const servedRows = [
+  ...JSON.parse(readFileSync(join(SITE, "src/data/metric_rows.json"), "utf8")).rows,
+  ...JSON.parse(readFileSync(join(SITE, "src/data/player_metric_rows.json"), "utf8")).rows,
+];
 const rowKeys = [
   ...servedRows.map((r) => r.label_i18n_key),
   ...[...rowsSrc.matchAll(/label_i18n_key:\s*"(metrics\.[A-Za-z0-9_]+\.label)"/g)].map((m) => m[1]),
@@ -358,6 +361,9 @@ const NOT_THE_METRIC = {
   secGoals: "the match page's Goals section lists the goals scored, not the goals metric",
   goals: "the word after a goal count (2 Tore), not the goals metric",
   goalsWord: "the word after a goal count, not the goals metric",
+  assists: "the word after an assist count (2 Vorlagen), not the assists metric",
+  playerAssists: "the word after an assist count (2 Vorlagen), not the assists metric",
+  saves: "the word after a save count (3 Paraden), not the saves metric",
 };
 
 test("no page string spells a catalogue metric name; it comes from METRIC_LABELS", () => {

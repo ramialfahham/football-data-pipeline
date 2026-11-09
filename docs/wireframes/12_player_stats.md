@@ -1,5 +1,7 @@
 # 12 — Player → Stats (percentile vs peers)
 
+> **Retired.** The Player page has no Stats tab: each tab compares the player with other players ([its GitLab issue](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/136)).
+
 > A sub-screen of the player page (03). Field-bound against `mart_player_competition_benchmarks` — **built**
 > (the player benchmark chain: #559 per-90 metric layer → #561 engine + mart; entity-renamed in #500). The
 > benchmark payload is **wired** — every key in §5 is carried by the player export

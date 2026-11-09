@@ -1,0 +1,221 @@
+{
+  "type": "player_metric_rows",
+  "rows": [
+    {
+      "metric_id": "goals_per90",
+      "label_i18n_key": "playerMetrics.goalsPer90.label",
+      "metric_group": "goals",
+      "metric_order": 2,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "is_key_metric": false
+    },
+    {
+      "metric_id": "assists_per90",
+      "label_i18n_key": "playerMetrics.assistsPer90.label",
+      "metric_group": "goals",
+      "metric_order": 4,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "is_key_metric": false
+    },
+    {
+      "metric_id": "scorer_points_per90",
+      "label_i18n_key": "playerMetrics.scorerPointsPer90.label",
+      "metric_group": "goals",
+      "metric_order": 6,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "is_key_metric": true
+    },
+    {
+      "metric_id": "shots_per90",
+      "label_i18n_key": "playerMetrics.shotsPer90.label",
+      "metric_group": "shooting",
+      "metric_order": 2,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "is_key_metric": false
+    },
+    {
+      "metric_id": "shots_on_goal_per90",
+      "label_i18n_key": "playerMetrics.shotsOnTargetPer90.label",
+      "metric_group": "shooting",
+      "metric_order": 4,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "is_key_metric": true
+    },
+    {
+      "metric_id": "shots_on_goal_player_pct",
+      "label_i18n_key": "playerMetrics.shootingAccuracy.label",
+      "metric_group": "shooting",
+      "metric_order": 5,
+      "direction": "higher_better",
+      "format": "percent",
+      "is_key_metric": false
+    },
+    {
+      "metric_id": "finishing_efficiency_player_pct",
+      "label_i18n_key": "playerMetrics.finishingEfficiency.label",
+      "metric_group": "shooting",
+      "metric_order": 6,
+      "direction": "higher_better",
+      "format": "percent",
+      "is_key_metric": false
+    },
+    {
+      "metric_id": "passes_per90",
+      "label_i18n_key": "playerMetrics.passesPer90.label",
+      "metric_group": "passing",
+      "metric_order": 2,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "is_key_metric": true
+    },
+    {
+      "metric_id": "passes_accuracy_player_pct",
+      "label_i18n_key": "playerMetrics.passAccuracy.label",
+      "metric_group": "passing",
+      "metric_order": 3,
+      "direction": "higher_better",
+      "format": "percent",
+      "is_key_metric": false
+    },
+    {
+      "metric_id": "ball_actions_per90",
+      "label_i18n_key": "playerMetrics.ballActionsPer90.label",
+      "metric_group": "passing",
+      "metric_order": 5,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "is_key_metric": true
+    },
+    {
+      "metric_id": "passes_key_per90",
+      "label_i18n_key": "playerMetrics.keyPassesPer90.label",
+      "metric_group": "passing",
+      "metric_order": 7,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "is_key_metric": true
+    },
+    {
+      "metric_id": "duels_won_per90",
+      "label_i18n_key": "playerMetrics.duelsWonPer90.label",
+      "metric_group": "one_on_one",
+      "metric_order": 4,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "is_key_metric": true
+    },
+    {
+      "metric_id": "duels_won_player_pct",
+      "label_i18n_key": "playerMetrics.duels.wonPct",
+      "metric_group": "one_on_one",
+      "metric_order": 5,
+      "direction": "higher_better",
+      "format": "percent",
+      "is_key_metric": false
+    },
+    {
+      "metric_id": "dribbles_success_per90",
+      "label_i18n_key": "playerMetrics.dribblesSuccessPer90.label",
+      "metric_group": "one_on_one",
+      "metric_order": 7,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "is_key_metric": false
+    },
+    {
+      "metric_id": "dribbles_success_player_pct",
+      "label_i18n_key": "playerMetrics.dribbles.successPct",
+      "metric_group": "one_on_one",
+      "metric_order": 8,
+      "direction": "higher_better",
+      "format": "percent",
+      "is_key_metric": false
+    },
+    {
+      "metric_id": "defensive_actions_per90",
+      "label_i18n_key": "playerMetrics.defensiveActionsPer90.label",
+      "metric_group": "defending",
+      "metric_order": 2,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "is_key_metric": true
+    },
+    {
+      "metric_id": "tackles_per90",
+      "label_i18n_key": "playerMetrics.tacklesPer90.label",
+      "metric_group": "defending",
+      "metric_order": 4,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "is_key_metric": false
+    },
+    {
+      "metric_id": "interceptions_per90",
+      "label_i18n_key": "playerMetrics.interceptionsPer90.label",
+      "metric_group": "defending",
+      "metric_order": 6,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "is_key_metric": false
+    },
+    {
+      "metric_id": "blocks_per90",
+      "label_i18n_key": "playerMetrics.blocksPer90.label",
+      "metric_group": "defending",
+      "metric_order": 8,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "is_key_metric": false
+    },
+    {
+      "metric_id": "saves_per90",
+      "label_i18n_key": "playerMetrics.savesPer90.label",
+      "metric_group": "goalkeeping",
+      "metric_order": 2,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "is_key_metric": false
+    },
+    {
+      "metric_id": "saves_player_pct",
+      "label_i18n_key": "playerMetrics.savePct.label",
+      "metric_group": "goalkeeping",
+      "metric_order": 3,
+      "direction": "higher_better",
+      "format": "percent",
+      "is_key_metric": false
+    },
+    {
+      "metric_id": "goals_against_per90",
+      "label_i18n_key": "playerMetrics.goalsConcededPer90.label",
+      "metric_group": "goalkeeping",
+      "metric_order": 5,
+      "direction": "lower_better",
+      "format": "decimal_1",
+      "is_key_metric": false
+    },
+    {
+      "metric_id": "fouls_per90",
+      "label_i18n_key": "playerMetrics.foulsPer90.label",
+      "metric_group": "discipline",
+      "metric_order": 2,
+      "direction": "lower_better",
+      "format": "decimal_1",
+      "is_key_metric": false
+    },
+    {
+      "metric_id": "offsides_per90",
+      "label_i18n_key": "playerMetrics.offsidesPer90.label",
+      "metric_group": "discipline",
+      "metric_order": 6,
+      "direction": "lower_better",
+      "format": "decimal_1",
+      "is_key_metric": false
+    }
+  ]
+}

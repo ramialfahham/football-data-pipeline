@@ -55,6 +55,10 @@ function start() {
         }
       }
       if (t instanceof HTMLInputElement && names.includes(t.name)) sync();
+      else if (t instanceof HTMLInputElement) {
+        const sel = bar.querySelector(`select[data-filter="${t.name}"]`);
+        if (sel) sel.value = t.value;
+      }
     });
     sync();
   }

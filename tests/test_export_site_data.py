@@ -134,9 +134,57 @@ def test_player_payloads_read_nothing_for_no_players(monkeypatch):
     assert export_site_data.fetch_player_payloads(object(), []) == ([], [])
 
 
-def test_the_players_entity_refuses_a_run_with_no_boards(tmp_path):
-    with pytest.raises(ValueError, match="no player boards"):
+def test_the_players_entity_refuses_a_run_with_no_player_pages(tmp_path, monkeypatch):
+    monkeypatch.setattr(export_site_data, "_query", lambda *_: [])
+    with pytest.raises(ValueError, match="no player has a page"):
         export_site_data.export_all(tmp_path, ("players",), 0, client=object())
+
+
+def test_the_shared_name_flag_is_the_marts_and_is_selected():
+    assert "shares_name_at_club" in export_site_data._PLAYER_PROFILE_COLUMNS
+    assert not hasattr(export_site_data, "mark_shared_names")
+
+
+def test_the_player_files_do_not_depend_on_the_order_the_warehouse_returns(tmp_path, monkeypatch):
+    monkeypatch.setattr(export_site_data, "page_player_ids", lambda _c: [1, 5, 9])
+    monkeypatch.setattr(export_site_data, "_competitions_index", lambda _c: {})
+    peers = [{"league_code": c, "season": 2026, "position_group": "MID", "rows": []} for c in ("PL", "BL1")]
+    written = []
+    for order in ([9, 1, 5], [5, 9, 1]):
+        out = tmp_path / str(order[0])
+        monkeypatch.setattr(export_site_data, "fetch_player_payloads", lambda _c, _ids, _s, order=order: (
+            [{"type": "player", "player_id": i, "slug": f"p-{i}"} for i in order], list(reversed(peers)) if order[0] == 5 else peers))
+        export_site_data.export_all(out, ("players",), 0, client=object())
+        written.append(((out / "player_pages.json").read_bytes(), (out / "slug_map.json").read_bytes(),
+                        [e["path"] for e in json.loads((out / "manifest.json").read_text(encoding="utf-8"))["entries"]]))
+    assert written[0] == written[1]
+    assert list(json.loads(written[0][0])["pages"]) == ["1", "5", "9"]
+
+
+def test_the_players_with_a_page_are_the_warehouses_flag(monkeypatch):
+    seen = []
+    monkeypatch.setattr(export_site_data, "_query",
+                        lambda _c, sql: seen.append(sql) or [{"player_sk": 3}, {"player_sk": 1}])
+    assert export_site_data.page_player_ids(object()) == [1, 3]
+    assert "where has_player_page" in seen[0]
+
+
+def test_a_sample_takes_the_board_players_first_and_lists_its_pages(tmp_path, monkeypatch):
+    (tmp_path / "landing.json").write_text(json.dumps(
+        {"top_players": [{"rows": [{"player_id": 9}]}]}), encoding="utf-8")
+    monkeypatch.setattr(export_site_data, "page_player_ids", lambda _c: [1, 9])
+    asked = []
+
+    def payloads(_client, ids, sample):
+        asked.extend(ids[:sample])
+        return [{"type": "player", "player_id": i, "slug": f"p-{i}"} for i in ids[:sample]], []
+
+    monkeypatch.setattr(export_site_data, "fetch_player_payloads", payloads)
+    monkeypatch.setattr(export_site_data, "_competitions_index", lambda _c: {})
+    export_site_data.export_all(tmp_path, ("players",), 1, client=object())
+    assert asked == [9]
+    pages = json.loads((tmp_path / "player_pages.json").read_text(encoding="utf-8"))
+    assert pages["pages"] == {"9": "p-9"}
 
 
 def test_fetch_glossary_reads_catalogue_seed():
@@ -1232,7 +1280,7 @@ def test_player_peers_make_one_sorted_file_per_competition_season_and_position()
     assert mid["values"] == {"goals_per90": [0.2]}
 
 
-def test_linked_players_are_those_of_the_home_and_competition_boards(tmp_path):
+def test_board_players_are_those_of_the_home_and_competition_boards(tmp_path):
     (tmp_path / "landing.json").write_text(json.dumps(
         {"top_players": [{"rows": [{"player_id": 3}, {"player_id": None}]}]}), encoding="utf-8")
     comp = tmp_path / "competitions" / "BL1"

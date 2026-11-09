@@ -35,26 +35,10 @@ export const INDEXABLE = false;
  * no machine-readable signal and this does: the audit refuses to pass with `INDEXABLE === true`
  * while this array is non-empty.
  *
- * ⚠ NO LONGER EMPTY. It was empty from #367 (the landing page graduated to a real page with its
- * next-matches block) until the competition hub scaffold below, and emptying it again is a
- * precondition of go-live — not go-live itself; the other gates on `INDEXABLE` above are all still
- * open. Adding an entry here is how a scaffold ships honestly; it should not stay for long,
- * because that is what re-blocks #377.
- *
- * The competition page (`[lang]/[competition]/index.astro`) was the first entry here, as the
- * scaffold Next matches' competition heading needed a destination for; it left the list when its
- * Overview tab was built to the design approved on GitLab #129.
- *
- * `[lang]/[players]/[player].astro` — the player profile, added with the Home page's Top players
- * block (**#40**), whose every board row links to its player. `audit-seo.mjs` check 8 fails the
- * build on an internal href that resolves to no emitted page, so the block cannot ship without
- * this route; it was green before only because no page in the site emitted a player href at all.
- * **#845** owns the real Player Overview. Its page count is driven by the players the Home block
- * happens to link to, so like the competition entry above it is ONE row however many pages emit.
+ * Emptying it is a precondition of go-live, not go-live itself. Adding an entry here is how a
+ * scaffold ships honestly; it should not stay for long, because that is what re-blocks #377.
  */
-export const STUB_PAGES = [
-  "[lang]/[players]/[player].astro",
-];
+export const STUB_PAGES = [];
 
 /**
  * Emitted paths kept OUT of the sitemap even when indexable.

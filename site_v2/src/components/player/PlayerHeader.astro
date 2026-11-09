@@ -1,0 +1,48 @@
+---
+// The player's header: photo, full name and one line: position · club · nation · age · height ·
+// season. A missing value drops with its separator, and each item stays whole.
+import Crest from "../ui/Crest.astro";
+import { t } from "../../i18n/strings";
+import { localeHref, word } from "../../lib/href";
+import { positionWord, teamHasPage } from "../../lib/playerPage";
+import type { Lang } from "../../lib/format";
+import type { Player } from "../../lib/playerPage";
+
+interface Props {
+  player: Player;
+  lang: Lang;
+}
+const { player, lang } = Astro.props;
+
+const position = positionWord(lang, "One", player.position_group);
+const club = player.club;
+const clubHref = club?.slug && teamHasPage(club.team_id)
+  ? localeHref(lang, `${word(lang, "teams")}/${club.slug}/`)
+  : undefined;
+const after = [
+  player.nationality,
+  player.age != null ? t(lang, "playerAge", { age: player.age }) : null,
+  player.height ? t(lang, "playerHeight", { n: player.height }) : null,
+  player.season_label ? t(lang, "compSeason", { season: player.season_label }) : null,
+].filter((p): p is string => Boolean(p));
+const first = position ? position.charAt(0).toLocaleUpperCase(lang) + position.slice(1) : null;
+---
+
+<header class="thead">
+  <Crest name={player.name} crest={player.photo} />
+  <div class="tid">
+    <h1>{player.name}</h1>
+    <div class="meta">
+      {first && <span class="nb">{first}</span>}
+      {club?.name && (
+        <>
+          {first && <>&nbsp;· </>}
+          <b class="nb">{clubHref ? <a class="lnk" href={clubHref}>{club.name}</a> : club.name}</b>
+        </>
+      )}
+      {after.map((item, i) => (
+        <>{(i > 0 || first || club?.name) && <>&nbsp;· </>}<span class="nb">{item}</span></>
+      ))}
+    </div>
+  </div>
+</header>
