@@ -22,6 +22,7 @@
     country_name (#69 step 5); and by
     mart_competition_index.region_label, which relationship (this dim, or dim_region) is populated
     for a competition IS the answer to whether its sub-line shows a country or a region (#62 step 3).
+    mart_team_index reads confederation: a team's region is its country's confederation.
 #}
 
 with import_countries as (
@@ -30,5 +31,6 @@ with import_countries as (
 
 select
     country_key,
-    country_name
+    country_name,
+    confederation
 from import_countries

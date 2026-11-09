@@ -41,8 +41,7 @@ competitions as (
         league_code,
         competition_type,
         entity_type,
-        parent_competition,
-        confederation
+        parent_competition
     from {{ ref('dim_league') }}
 ),
 
@@ -62,6 +61,16 @@ regions as (
         top_club_competition,
         continental_championship
     from {{ ref('confederations') }}
+),
+
+country_confederations as (
+    select
+        countries.country_name as team_country,
+        countries.confederation as region_key,
+        regions.region_rank
+    from {{ ref('dim_country') }} as countries
+    inner join regions
+        on countries.confederation = regions.confederation
 ),
 
 team_competitions as (
@@ -223,21 +232,14 @@ team_kinds as (
     group by tc.team_sk
 ),
 
--- a team's region: the confederation of the competitions it plays most, FIFA's left out
+-- a team's region: its country's confederation
 team_regions as (
     select
-        tc.team_sk,
-        reg.confederation as region_key
-    from team_competitions as tc
-    inner join competitions as reg
-        on tc.league_code = reg.league_code
-    inner join regions as g
-        on reg.confederation = g.confederation
-    where reg.confederation != 'FIFA'
-    group by tc.team_sk, reg.confederation, g.region_rank
-    qualify row_number() over (
-        partition by tc.team_sk order by count(*) desc, g.region_rank asc
-    ) = 1
+        t.team_sk,
+        cc.region_key
+    from teams as t
+    inner join country_confederations as cc
+        on t.team_country = cc.team_country
 ),
 
 latest_league_seasons as (
@@ -275,7 +277,6 @@ clubs as (
         t.team_sk,
         t.team_name,
         t.team_country,
-        coalesce(c.cup_region_key, r.region_key) as region_key,
         coalesce(c.cup_points, 0) as cup_points,
         coalesce(c.latest_season_points, 0) as latest_season_points,
         coalesce(c.cup_wins, 0) as cup_wins,
@@ -285,8 +286,6 @@ clubs as (
         on t.team_sk = st.team_sk
     inner join team_kinds as k
         on t.team_sk = k.team_sk
-    left join team_regions as r
-        on t.team_sk = r.team_sk
     left join top_clubs as c
         on t.team_sk = c.team_sk
     where not k.is_national
@@ -303,52 +302,12 @@ countries as (
     group by team_country
 ),
 
-club_country_regions as (
-    select
-        c.team_country,
-        c.region_key as country_region_key,
-        g.region_rank as country_region_rank
-    from clubs as c
-    inner join regions as g
-        on c.region_key = g.confederation
-    where c.team_country is not null
-    group by c.team_country, c.region_key, g.region_rank
-    qualify row_number() over (
-        partition by c.team_country order by count(*) desc, g.region_rank asc
-    ) = 1
-),
-
-national_country_regions as (
-    select
-        t.team_country,
-        r.region_key as country_region_key,
-        g.region_rank as country_region_rank
-    from teams as t
-    inner join team_kinds as k
-        on t.team_sk = k.team_sk
-    inner join team_regions as r
-        on t.team_sk = r.team_sk
-    inner join regions as g
-        on r.region_key = g.confederation
-    where
-        k.is_national
-        and t.team_country is not null
-    qualify row_number() over (
-        partition by t.team_country order by g.region_rank asc
-    ) = 1
-),
-
--- a country none of whose clubs has a region takes its national team's
 country_regions as (
     select
-        coalesce(c.team_country, n.team_country) as team_country,
-        if(c.team_country is not null, c.country_region_key, n.country_region_key)
-            as country_region_key,
-        if(c.team_country is not null, c.country_region_rank, n.country_region_rank)
-            as country_region_rank
-    from club_country_regions as c
-    full outer join national_country_regions as n
-        on c.team_country = n.team_country
+        team_country,
+        region_key as country_region_key,
+        region_rank as country_region_rank
+    from country_confederations
 ),
 
 country_orders as (
@@ -359,7 +318,7 @@ country_orders as (
             order by
                 c.team_country is null asc,
                 c.country_points = 0 asc,
-                if(c.country_points > 0, cr.country_region_rank, null) asc,
+                if(c.country_points > 0, cr.country_region_rank, null) asc nulls last,
                 c.country_points desc,
                 c.country_latest_season_points desc,
                 c.country_wins desc,
@@ -590,7 +549,7 @@ select
     b.national_teams_first,
     rg.region_rank,
     rg.label_i18n_key as region_label_i18n_key,
-    coalesce(tc.cup_region_key, r.region_key, co.country_region_key) as region_key,
+    r.region_key,
     if(k.is_national, 'national', 'club') as entity_type
 from teams as t
 inner join shown_teams as st
@@ -616,5 +575,5 @@ left join club_orders as cl
 left join national_orders as n
     on t.team_sk = n.team_sk
 left join regions as rg
-    on coalesce(tc.cup_region_key, r.region_key, co.country_region_key) = rg.confederation
+    on r.region_key = rg.confederation
 cross join block_order as b

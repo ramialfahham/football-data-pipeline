@@ -1724,10 +1724,17 @@ seeds:
       NOT A LIST OF UN MEMBER STATES, and joining it to one drops real rows: it also carries
       football associations (England, Scotland), player-producing territories (Jersey), one
       unrecognised state and one historical country.
+
+      Each row carries its football confederation, or a note saying why it belongs to none.
     config:
       column_types:
         country_key: string
         country_name: string
+        confederation: string
+        confederation_note: string
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "(confederation is null) = (confederation_note is not null)"
     columns:
       - name: country_key
         description: >
@@ -1741,3 +1748,13 @@ seeds:
         tests:
           - not_null
           - unique
+      - name: confederation
+        description: >
+          The football confederation the country's association belongs to, as a full or associate
+          member: a `confederations` code other than FIFA. Empty when it belongs to none.
+        tests:
+          - relationships:
+              to: ref('confederations')
+              field: confederation
+      - name: confederation_note
+        description: "Why the country belongs to no confederation; empty when it belongs to one."
