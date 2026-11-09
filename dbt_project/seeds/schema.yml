@@ -1558,6 +1558,65 @@ seeds:
         tests:
           - not_null
 
+  - name: player_award_results
+    description: >
+      The Ballon d'Or nominees and the Yashin Trophy nominees of each edition from 2016, with
+      their final placing: one row per award, edition and nominee. The data is researched by hand,
+      because the provider has no award data. Placings follow the original published ranking: tied
+      players share a rank, as France Football printed it, and a nominee it lists as not ranked has
+      no placing.
+    config:
+      column_types:
+        award: string
+        edition_year: int64
+        placing: int64
+        player_api_id: int64
+        player_name: string
+        source_url: string
+        check_url: string
+        note: string
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [award, edition_year, player_api_id]
+    columns:
+      - name: award
+        description: "The award: ballon_dor (best player) or yashin_trophy (best goalkeeper)."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["ballon_dor", "yashin_trophy"]
+      - name: edition_year
+        description: "The year of the edition's ceremony."
+        tests:
+          - not_null
+      - name: placing
+        description: "The nominee's final rank in the edition; empty when the publisher lists him as not ranked."
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 30
+      - name: player_api_id
+        description: "The nominee."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('base_apif__players')
+              field: player_api_id
+      - name: player_name
+        description: "The nominee's name as the source prints it."
+        tests:
+          - not_null
+      - name: source_url
+        description: "URL of the publisher's page that states the placing, or of a page that reprints the publisher's ranking."
+        tests:
+          - not_null
+      - name: check_url
+        description: "URL of a second outlet's page that confirms the placing."
+        tests:
+          - not_null
+      - name: note
+        description: "Where the sources disagree or the rank is missing, what each source states."
+
   - name: league_name_overrides
     description: >
       Corrections to a COMPETITION's display name: one row per competition whose provider name is
