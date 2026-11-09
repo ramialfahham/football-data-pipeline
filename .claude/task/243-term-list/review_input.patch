@@ -183,7 +183,7 @@ index 0575456b..025728dd 100644
    League names are left in English &mdash; the probe is about metric labels.
  </div>
 diff --git a/design-mocks/gen_top_teams.py b/design-mocks/gen_top_teams.py
-index ddcd05bc..9db0c0bc 100644
+index ddcd05bc..5ae28d99 100644
 --- a/design-mocks/gen_top_teams.py
 +++ b/design-mocks/gen_top_teams.py
 @@ -30,9 +30,13 @@ OUT = Path(__file__).with_name("top_teams_mock.html")
@@ -212,15 +212,18 @@ index ddcd05bc..9db0c0bc 100644
  # That dict covers ~35 of the 80 catalogue rows, so three of the labels this block
  # needs do not exist yet. Those are marked PROBE and rendered with a dotted underline:
  # they are plausible worst-case strings for measuring width, NOT approved copy.
-@@ -335,7 +339,7 @@ def build():
+@@ -335,9 +339,9 @@ def build():
    different matchday counts so the points denominators differ, which a pooled board really does.
    Every board name and column header is the English name in <b>strings.ts</b> of the
    <b>metric_catalogue.csv</b> key, looked up by (metric_id, entity=team); the generator exits on an
 -  unknown id. Finnish comes from <b>METRIC_LABELS_FI</b> in strings.ts except the
 +  unknown id. Finnish comes from <b>METRIC_TERMS</b> in strings.ts except the
    <span class="probe" style="text-decoration: underline dotted">dotted</span> ones, which do not
-   exist yet and are plausible worst-case strings for measuring width, not approved copy.
+-  exist yet and are plausible worst-case strings for measuring width, not approved copy.
++  exist yet and are plausible long strings for measuring width, not approved copy.
    League names are left in English &mdash; the probe is about metric labels.
+ </div>
+ """ % (system_css, MOCK_CSS, boards)
 diff --git a/docs/design/components.yml b/docs/design/components.yml
 index ceb128d5..52986eba 100644
 --- a/docs/design/components.yml
@@ -3019,7 +3022,7 @@ index 849db628..1bed9089 100644
 #
 #   .claude/task/243-term-list/acceptance_evidence.md  |   14 +
 #    .../task/243-term-list/rendered_page_evidence.md   |   15 +
-#    .claude/task/243-term-list/review.md               |   38 +
-#    .claude/task/243-term-list/review_input.patch      | 3024 ++++++++++++++++++++
-#    4 files changed, 3091 insertions(+)
+#    .claude/task/243-term-list/review.md               |   44 +
+#    .claude/task/243-term-list/review_input.patch      | 3025 ++++++++++++++++++++
+#    4 files changed, 3098 insertions(+)
 # ============================================================================

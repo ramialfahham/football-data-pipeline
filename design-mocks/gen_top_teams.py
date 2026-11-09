@@ -341,7 +341,7 @@ def build():
   <b>metric_catalogue.csv</b> key, looked up by (metric_id, entity=team); the generator exits on an
   unknown id. Finnish comes from <b>METRIC_TERMS</b> in strings.ts except the
   <span class="probe" style="text-decoration: underline dotted">dotted</span> ones, which do not
-  exist yet and are plausible worst-case strings for measuring width, not approved copy.
+  exist yet and are plausible long strings for measuring width, not approved copy.
   League names are left in English &mdash; the probe is about metric labels.
 </div>
 """ % (system_css, MOCK_CSS, boards)
