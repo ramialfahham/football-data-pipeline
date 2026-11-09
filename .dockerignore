@@ -2,7 +2,7 @@
 #
 # DELIBERATELY MINIMAL. An over-eager exclude here fails at 04:00 in production, not at build
 # time, and the first draft of this file proved it: excluding `docs/` would have broken every
-# run, because `docs/competition_registry.yml` is read at runtime by `registry.py:56` and by
+# run, because `docs/competition_registry.yml` is read at runtime by `registry.py` and by
 # both contract-check scripts the entrypoint calls. Nothing is excluded here unless it is a
 # secret, a build artefact, or large AND provably unread by the nightly.
 
@@ -58,7 +58,7 @@ dbt_project/logs
 .cursor
 
 # KEPT ON PURPOSE, because the nightly reads them:
-#   docs/           — competition_registry.yml (registry.py:56, check_layer_contract.py,
+#   docs/           — competition_registry.yml (registry.py, check_layer_contract.py,
 #                     check_registry_var_sync.py)
 #   scripts/        — both contract checks run in the entrypoint
 #   dbt_project/    — the models, seeds and packages.yml the prod build needs

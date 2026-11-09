@@ -21,17 +21,10 @@ def fetch_catalog_persist_and_plan(
     *,
     poll_mode: bool = False,
 ) -> tuple[list[int], int, dict[str, bool]]:
-    """
-    Load league metadata to BigQuery, derive seasons to ingest, print coverage summary.
-
-    Returns ``(seasons_list, reference_season, coverage_flags)``.
-    """
+    """Returns ``(seasons_list, reference_season, coverage_flags)`` after persisting /leagues."""
     league_catalog = fetch_json("/leagues", ctx.headers, params={"id": league_id})
     append_api_errors(league_catalog, f"leagues/catalog {league_code}", ctx.errors)
-    # Skip the BigQuery write when the API returned no league rows (rate limit,
-    # auth error, transient outage). The write is WRITE_APPEND (append=True below),
-    # so an empty payload would add zero useful rows; skipping avoids a spurious
-    # load and keeps the dim_league / dim_competition_season relationship tests clean.
+    # An empty response (rate limit, auth error, outage) must not be appended as a league row.
     if league_catalog.get("response"):
         load_json_to_bq(
             ctx.client,

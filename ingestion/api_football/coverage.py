@@ -1,48 +1,4 @@
-"""Fixture fanout coverage — derived from RAW_APIF_FIXTURE_DETAILS.
-
-WHY THIS MODULE EXISTS
-----------------------
-The fanout pipeline fetches a bundle of sub-data per finished fixture (lineups,
-events, statistics, players) via GET /fixtures?ids=... Each run only fetches the
-fixtures that are still missing data — it never re-fetches what is already covered.
-
-"Coverage" — which (league_code, fixture_id, endpoint) combinations already have
-data — is derived directly from RAW_APIF_FIXTURE_DETAILS, the append-only table
-that stores one row per fetch of a fixture (its full payload; a retried fixture
-therefore has several, and the query below aggregates them). There is no separate
-tracking table: the fanout data IS the source of truth, so coverage can never
-drift out of sync with it. (This replaced an earlier RAW_APIF_FIXTURE_COVERAGE
-tracking table — see issue #221 — which was a denormalized mirror that the live
-pipeline never updated.)
-
-COVERAGE SEMANTICS (per endpoint)
----------------------------------
-    LINEUPS / FIXTURE_EVENTS
-        Covered once the fixture has been fetched at all (its row exists). The
-        API does not always return these arrays, and an empty array is not a
-        gap we can close by re-fetching, so presence of the fixture row counts.
-    FIXTURE_PLAYERS
-        Covered once the fixture has been fetched, except while its second fetch
-        is due: the provider completes some player stats days after the match, so
-        a fixture whose latest fetch came under SECOND_FETCH_DELAY after kickoff
-        is fetched once more when it is that old (see second_fetch_due). A
-        fixture whose latest fetch is in the provider's newer player-stats
-        format is fetched once more NEWER_FORMAT_REFETCH_DELAY after kickoff
-        (see newer_format_refetch_due).
-    FIXTURE_STATISTICS
-        Covered only when the statistics array is non-empty. Empty statistics on
-        a finished fixture is usually a delivery delay, so it is retried within
-        STATS_GRACE_DAYS of kickoff (see covered_for_league).
-
-API-Football predictions are deliberately NOT ingested (we build our own), so
-there is no PREDICTIONS endpoint here.
-
-USAGE
------
-    covered = read_coverage(client)
-    # covered["BL1"]["FIXTURE_STATISTICS"][12345] == True   (stats present)
-    # covered["BL1"]["LINEUPS"][12345]            == True   (fixture fetched)
-"""
+"""Derives which fixture endpoints already hold data from RAW_APIF_FIXTURE_DETAILS."""
 
 from __future__ import annotations
 
@@ -54,9 +10,7 @@ from google.cloud.exceptions import NotFound
 
 from .settings import GCP_PROJECT_ID, DATASET_ID, raw_table
 
-# Finished fixtures whose FIXTURE_STATISTICS response was empty are retried for
-# this many days after their kickoff date. After the grace period, an empty
-# response is treated as permanent (stats are not coming from the API).
+# Days after kickoff during which an empty FIXTURE_STATISTICS response is retried.
 STATS_GRACE_DAYS = 7
 
 # The provider completes a match's player stats within three days of kickoff.
@@ -66,9 +20,7 @@ SECOND_FETCH_DELAY = timedelta(days=3)
 # provider replaces it with the complete format for many matches only later.
 NEWER_FORMAT_REFETCH_DELAY = timedelta(days=14)
 
-# The four fanout endpoints bundled in each RAW_APIF_FIXTURE_DETAILS payload.
-# The value is the payload array whose non-emptiness must be checked, or None
-# when the fixture being fetched at all is sufficient to count as covered.
+# Value: the payload array that must be non-empty to count as covered, or None if any fetch counts.
 ENDPOINT_REQUIRES_NONEMPTY: dict[str, str | None] = {
     "LINEUPS":            None,
     "FIXTURE_EVENTS":     None,
@@ -76,10 +28,8 @@ ENDPOINT_REQUIRES_NONEMPTY: dict[str, str | None] = {
     "FIXTURE_PLAYERS":    None,
 }
 
-# All fanout endpoints, in the canonical order used throughout the pipeline.
 FANOUT_ENDPOINTS = tuple(ENDPOINT_REQUIRES_NONEMPTY.keys())
 
-# Maps the shell key used in fanout scheduling to the endpoint name here.
 SHELL_KEY_TO_ENDPOINT: dict[str, str] = {
     "lineups":    "LINEUPS",
     "events":     "FIXTURE_EVENTS",
@@ -87,7 +37,6 @@ SHELL_KEY_TO_ENDPOINT: dict[str, str] = {
     "fx_players": "FIXTURE_PLAYERS",
 }
 
-# Reverse mapping: endpoint name → shell key.
 ENDPOINT_TO_SHELL_KEY: dict[str, str] = {v: k for k, v in SHELL_KEY_TO_ENDPOINT.items()}
 
 
@@ -100,8 +49,7 @@ def second_fetch_due(
     kickoff: datetime | None,
     now: datetime,
 ) -> bool:
-    """True when the fixture's latest fetch came under SECOND_FETCH_DELAY after kickoff and that
-    much time has now passed. The second fetch itself comes later than that, so it is due once."""
+    """True once, when SECOND_FETCH_DELAY passes after a latest fetch that came before it."""
     if latest_fetch is None or kickoff is None:
         return False
     complete_from = kickoff + SECOND_FETCH_DELAY
@@ -114,9 +62,7 @@ def newer_format_refetch_due(
     latest_in_newer_format: bool,
     now: datetime,
 ) -> bool:
-    """True when the fixture's latest fetch is in the newer player-stats format, came under
-    NEWER_FORMAT_REFETCH_DELAY after kickoff, and that much time has now passed. The refetch itself
-    comes later than that, so it is due once."""
+    """True once, when NEWER_FORMAT_REFETCH_DELAY passes after a newer-format latest fetch."""
     if not latest_in_newer_format or latest_fetch is None or kickoff is None:
         return False
     refetch_from = kickoff + NEWER_FORMAT_REFETCH_DELAY
@@ -126,39 +72,14 @@ def newer_format_refetch_due(
 def read_coverage(
     client: bigquery.Client,
 ) -> dict[str, dict[str, dict[int, bool]]]:
-    """Return fanout coverage grouped by league and endpoint, derived from FIXTURE_DETAILS.
-
-    Returns a nested dict (same shape the old coverage-table reader returned, so
-    downstream callers are unchanged):
-        covered[league_code][endpoint][fixture_id] = has_data
-
-    has_data is True when the endpoint's data is present (see COVERAGE SEMANTICS
-    in the module docstring). FIXTURE_STATISTICS is True only for a non-empty
-    statistics array; FIXTURE_PLAYERS is False while the fixture's second fetch or
-    its newer-format refetch is due; LINEUPS and FIXTURE_EVENTS are True for every
-    fetched fixture.
-
-    Rows are aggregated by (league_code, fixture_id) with LOGICAL_OR because a
-    fixture legitimately has more than one row: the table is append-only and a
-    retried fixture keeps one row per attempt. The
-    aggregate answers "do we hold statistics for this fixture
-    anywhere", which is order-independent — a per-row read would let an older
-    empty-statistics row mask a newer complete one and re-fetch it every run.
-
-    Returns an empty dict if RAW_APIF_FIXTURE_DETAILS does not exist yet (first
-    ever run, before any fanout has happened).
-    """
+    """covered[league_code][endpoint][fixture_id] = has_data, aggregated over a fixture's rows."""
     table_id = _fixture_details_table_id()
 
-    # Check the table exists before querying to avoid an error on the very first run.
     try:
         client.get_table(table_id)
     except NotFound:
         return {}
 
-    # One row per fixture: did this fixture's statistics array ever arrive non-empty,
-    # when was it last fetched relative to its kickoff, and is that latest fetch in the
-    # newer player-stats format (players listed, none with goals conceded)?
     q = f"""
         WITH fetches AS (
             SELECT
@@ -209,8 +130,6 @@ def read_coverage(
         ):
             covered[lc]["FIXTURE_PLAYERS"][fid] = False
 
-    # Convert defaultdicts to plain dicts so downstream code cannot rely on
-    # auto-create behaviour (a missing key should raise KeyError).
     return {lc: dict(endpoints) for lc, endpoints in covered.items()}
 
 
@@ -220,27 +139,10 @@ def covered_for_league(
     *,
     kickoff_by_id: dict[int, date] | None = None,
 ) -> dict[str, set[int]]:
-    """Return the fixture IDs that should be skipped this run, keyed by shell key.
+    """Fixture ids to skip per shell key; only empty statistics inside STATS_GRACE_DAYS are retried.
 
-    Translates endpoint names (LINEUPS, FIXTURE_EVENTS, ...) to the shell keys
-    (lineups, events, ...) used throughout the fanout scheduler, so the rest of
-    the fanout code does not need to know about endpoint naming.
-
-    Returns a dict with all four shell keys, each mapping to the set of fixture
-    IDs that should NOT be re-fetched. A fixture is excluded from the skip set
-    (i.e. will be re-fetched) only when all of the following hold:
-      - The endpoint is FIXTURE_STATISTICS
-      - has_data is False (previous fetch returned an empty statistics payload)
-      - The fixture's kickoff date is known and within STATS_GRACE_DAYS of today
-
-    For all other cases — has_data=True, non-statistics endpoints, or missing
-    kickoff date — the fixture is conservatively added to the skip set. A
-    FIXTURE_PLAYERS second fetch that is due is skipped here too: the fixture-details
-    step makes it in every competition, so it never switches an idle competition to
-    full mode.
-
-    kickoff_by_id maps fixture_id → kickoff date (UTC calendar day). When omitted,
-    the grace-period logic is skipped and all coverage entries are treated as final.
+    A due FIXTURE_PLAYERS second fetch is skipped too, so it never switches an idle competition
+    to full mode.
     """
     league_coverage = all_covered.get(league_code, {})
     today = datetime.now(timezone.utc).date()
@@ -252,19 +154,14 @@ def covered_for_league(
 
         for fid, has_data in endpoint_data.items():
             if has_data:
-                # Data received — never re-fetch.
                 skip_set.add(fid)
             elif endpoint == "FIXTURE_STATISTICS" and kickoff_by_id is not None:
                 kickoff = kickoff_by_id.get(fid)
                 if kickoff is not None and (today - kickoff).days < STATS_GRACE_DAYS:
-                    # Empty response but still within the delivery-delay grace period.
-                    # Omit from skip_set so the fixture is retried this run.
                     pass
                 else:
-                    # Grace period elapsed (or kickoff unknown) — stop retrying.
                     skip_set.add(fid)
             else:
-                # Non-statistics endpoint, or no kickoff info — skip conservatively.
                 skip_set.add(fid)
 
         result[shell_key] = skip_set

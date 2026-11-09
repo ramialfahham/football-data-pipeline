@@ -1,15 +1,4 @@
-"""Ingestion pipeline for a single competition.
-
-Two entry points:
-- run_cheap_phases(): catalog → fixtures → standings → teams → coaches.
-  Returns CompetitionRunResult so the orchestrator can collect all competitions' state before
-  running the global fanout pass.
-- run_squads_for_competition(): squad /players batch, run after global fanout.
-
-Every competition — domestic league, international tournament, qualifier — goes through
-the same steps. All errors are caught per-competition so a failure in one does not abort
-the others.
-"""
+"""Per-competition ingestion phases; an error in one competition does not abort the others."""
 
 from __future__ import annotations
 
@@ -36,13 +25,7 @@ def _ingestion_phase(league_code: str, step: str) -> None:
 
 
 def _skipped_phase(league_code: str, step: str, reason: str) -> None:
-    """A skip must be as visible as a run (#33 item 14).
-
-    A phase that quietly stops doing anything is indistinguishable from a phase that broke —
-    which is the failure class that cost this pipeline six silent days. The line carries the
-    age and the next due date so "should this have run tonight?" is answerable from the log
-    alone, without querying anything.
-    """
+    """Log a skipped phase so a skip is distinguishable from a broken phase."""
     print(f"[api-football] league={league_code} phase={step} SKIPPED ({reason})", flush=True)
 
 
@@ -54,13 +37,7 @@ def run_poll_phases(
     history_seasons: int | None = None,
     season_type: str = "split_year",
 ) -> CompetitionRunResult | None:
-    """Idle competition: catalog + latest-season fixtures only (detect new season / matches).
-
-    Returns the competition's result so the orchestrator can hand its fixtures to the
-    fixture-details step (which fetches only what is due) and run the squad catch-up for
-    finished competitions from its team_ids and latest season (the squad phases are otherwise
-    full-mode only). None on unrecoverable error.
-    """
+    """Idle competition: catalog and latest-season fixtures only; None on unrecoverable error."""
     try:
         _ingestion_phase(league_code, "poll catalog (leagues + latest season plan)")
         seasons_list, _reference_season, cov = fetch_catalog_persist_and_plan(
@@ -98,16 +75,9 @@ def run_cheap_phases(
     season_type: str = "split_year",
     coaches_last_ingest: dict[str, datetime] | None = None,
 ) -> CompetitionRunResult | None:
-    """Run all cheap (non-fanout) ingestion phases for one competition.
+    """Run the non-fanout phases for one competition; None means it cannot join the global fanout.
 
-    Returns CompetitionRunResult on success, None on unrecoverable error.
-    Errors are appended to ctx.errors; a None return means the competition
-    cannot participate in the global fanout (e.g. catalog fetch failed).
-
-    `coaches_last_ingest` is the run's single `latest_ingest_per_league(...COACHES)` result,
-    read ONCE by the orchestrator before the per-competition loop (#33 item 14). Passing None
-    means "no cadence information", which makes every league due — the safe default, and what
-    keeps existing callers behaving exactly as before.
+    `coaches_last_ingest` None means "no cadence information", which makes every league due.
     """
     try:
         _ingestion_phase(league_code, "catalog (leagues + season plan)")
@@ -129,13 +99,7 @@ def run_cheap_phases(
         load_teams_merge_and_extend_ids(
             ctx, league_code, league_id, seasons_list, reference_season, team_ids
         )
-        # #33 item 14 — coaches change rarely; re-fetch on a 7-day cadence per league.
-        # When not due the phase is skipped ENTIRELY: no fetch, and therefore no write.
-        #
-        # RAW_APIF_COACHES is APPEND-ONLY, and so is every other raw table (raw appends and
-        # never deletes). `stg_apif__coaches` additionally reads ALL snapshots to preserve every
-        # coach ever seen. So skipping loses nothing: the stored snapshots stay and base still
-        # dedups to the latest.
+        # A skipped coaches phase writes nothing; raw is append-only, so stored snapshots stay.
         coaches_seen = (coaches_last_ingest or {}).get(league_code)
         if should_refetch(league_code, coaches_seen, utcnow()):
             _ingestion_phase(league_code, "coaches")
@@ -144,9 +108,7 @@ def run_cheap_phases(
             _skipped_phase(
                 league_code, "coaches", skip_reason(league_code, coaches_seen, utcnow())
             )
-            # COACHES is not in PER_TEAM_GATED today, so this changes nothing right now. Recorded
-            # anyway: if it is ever promoted to a gating entity, the skip must already be visible
-            # to the gate — otherwise it repeats the transfers failure with a fresh cause.
+            # Recorded so the completeness gate sees the skip if COACHES ever becomes gated.
             ctx.record_skipped(league_code, "COACHES")
         return CompetitionRunResult(
             league_code=league_code,
@@ -166,15 +128,10 @@ def run_squads_for_competition(
     result: CompetitionRunResult,
     already_captured: set[tuple[int, int]],
 ) -> None:
-    """Run squad /players batch for one competition after global fanout.
+    """Run the squad /players batch for one competition after the global fanout.
 
-    `already_captured` is the run's single `captured_player_team_seasons()` result, read
-    once by the orchestrator before the loop and MUTATED as keys are written (#33 item 1).
-
-    REQUIRED, with no default, and that is the guard. The orchestrator is this function's
-    only caller, so a default would mean dropping the argument at the one call site
-    silently restores the per-competition scan with every test still green. Omitting it is a
-    TypeError instead.
+    `already_captured` is mutated as keys are written and has no default, so omitting it fails
+    instead of silently restoring a per-competition scan.
     """
     try:
         _ingestion_phase(result.league_code, "squad /players batch")
@@ -195,19 +152,10 @@ def run_transfers_for_competition(
     result: CompetitionRunResult,
     transfers_last_ingest: dict[str, datetime] | None = None,
 ) -> None:
-    """Run /transfers batch for one competition's teams after global fanout.
-
-    `transfers_last_ingest` is the run's single `latest_ingest_per_league(...TRANSFERS)` result
-    (#33 item 14). None means "no cadence information" and every league is due — the safe
-    default, and existing behaviour.
-    """
+    """Run the /transfers batch for one competition; None `transfers_last_ingest` makes all due."""
     try:
-        # #33 item 14 — transfers move in bursts (January, summer), not nightly. This was the
-        # single most expensive phase in the run at 26.7 min. Skipped ENTIRELY when not due:
-        # RAW_APIF_TRANSFERS is one row per league read latest-per-league in staging, so a
-        # partial write would HIDE the complete row from every model downstream. It no longer
-        # DELETES it (raw appends and never deletes), so this is recoverable now —
-        # but a hidden snapshot is still a wrong warehouse until the next good run.
+        # Skipped entirely when not due: staging reads RAW_APIF_TRANSFERS latest-per-league, so a
+        # partial write would hide the complete row from every model downstream.
         seen = (transfers_last_ingest or {}).get(result.league_code)
         if not should_refetch(result.league_code, seen, utcnow()):
             _skipped_phase(
@@ -215,11 +163,8 @@ def run_transfers_for_competition(
                 "transfers batch",
                 skip_reason(result.league_code, seen, utcnow()),
             )
-            # The completeness gate fails a run when a per-team gap persists across TWO runs, on
-            # the reasoning that one bad run heals on the next night's fetch. A skipped league
-            # cannot heal — there is no fetch — so it must be told, or a pre-existing gap trips a
-            # gate built for nightly fetches. That is exactly how one nightly died on
-            # UCL/TRANSFERS.
+            # The completeness gate expects a gap to heal on the next fetch; a skipped league
+            # never fetches, so it must be recorded or an old gap trips the gate.
             ctx.record_skipped(result.league_code, "TRANSFERS")
             return
         _ingestion_phase(result.league_code, "transfers batch")
@@ -246,13 +191,7 @@ def run_player_squads_catchup(
     finished_comps: list[tuple[str, int, set[int]]],
     active_team_ids: set[int],
 ) -> None:
-    """Squad catch-up for finished (poll-mode) competitions.
-
-    Captures /players/squads for teams whose competitions have all finished and that were not
-    captured in-season — keyed by team, deduped across comps and against squads already stored
-    for that season (club and national teams alike). Quota-guarded inside
-    ``load_player_squads_batch``; any remainder resumes on the next run via the same dedup.
-    """
+    """Capture /players/squads for teams of finished competitions not captured in-season."""
     if not finished_comps:
         return
     already = captured_team_seasons(ctx)

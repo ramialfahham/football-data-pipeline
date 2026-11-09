@@ -105,6 +105,13 @@ teams as (
     from {{ ref('dim_team') }}
 ),
 
+competition_seasons as (
+    select
+        season_sk,
+        competition_group
+    from {{ ref('dim_competition_season') }}
+),
+
 base as (
     select
         s.player_sk,
@@ -144,10 +151,12 @@ base as (
         s.team_sk,
         t.team_name,
         t.team_slug,
-        t.team_logo_url
+        t.team_logo_url,
+        cs.competition_group
     from season as s
     left join players as p on s.player_sk = p.player_sk
     left join teams as t on s.team_sk = t.team_sk
+    left join competition_seasons as cs on s.season_sk = cs.season_sk
 ),
 
 ranked as (
@@ -212,10 +221,12 @@ match_base as (
         p.player_photo_url,
         t.team_name,
         t.team_slug,
-        t.team_logo_url
+        t.team_logo_url,
+        cs.competition_group
     from match_metrics as m
     left join players as p on m.player_sk = p.player_sk
     left join teams as t on m.team_sk = t.team_sk
+    left join competition_seasons as cs on m.season_sk = cs.season_sk
 ),
 
 -- One match's boards: the same DENSE_RANK as a season board, and the same tie-break at the cut,
@@ -229,6 +240,7 @@ match_ranked as (
         league_sk,
         league_code,
         season_api_year,
+        competition_group,
         minutes,
         team_sk,
         player_name,
@@ -264,6 +276,7 @@ match_rows as (
         league_sk,
         league_code,
         season_api_year,
+        competition_group,
         minutes,
         team_sk,
         player_name,
@@ -346,6 +359,7 @@ select
     sort_value,
     league_code,
     season_api_year,
+    competition_group,
     season_sk,
     league_sk,
     player_sk,
@@ -422,6 +436,7 @@ select
     sort_value,
     league_code,
     season_api_year,
+    competition_group,
     season_sk,
     league_sk,
     player_sk,

@@ -12,7 +12,7 @@ with regions as (
 
 world_championships as (
     select league_code
-    from {{ ref('competition_registry') }}
+    from {{ ref('dim_league') }}
     where competition_type = 'world_championship'
 ),
 

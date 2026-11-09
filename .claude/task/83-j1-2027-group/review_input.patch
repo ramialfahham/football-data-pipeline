@@ -1,0 +1,52 @@
+diff --git a/.claude/task/83-j1-2027-group/contract.md b/.claude/task/83-j1-2027-group/contract.md
+new file mode 100644
+index 00000000..60bd6fca
+--- /dev/null
++++ b/.claude/task/83-j1-2027-group/contract.md
+@@ -0,0 +1,33 @@
++# Task contract — J1 2027 joins the international group
++
++objective: >
++  Issue #83 follow-up: competition_season_map sets J1 2027's competition_group to international,
++  applying the season map's group rule (a split-year league outside Europe). One seed cell.
++
++refs: >
++  #83. The value approved in chat, 2026-11-09.
++
++scope_paths:
++  - dbt_project/seeds/competition_season_map.csv
++  - .claude/task/83-j1-2027-group/contract.md
++  - .claude/task/83-j1-2027-group/review.md
++  - .claude/task/83-j1-2027-group/review_input.patch
++
++approved_design:
++  - none: no page output changes
++
++decisions_taken: >
++  J1 2027's competition_group is international, approved in chat, 2026-11-09. J1 is not in the
++  elite group, so the home page's Top players and Top teams boards do not change. No new
++  mechanism, no recurring cost.
++
++decisions_reserved:
++  - none: the one value is approved and nothing else changes.
++
++done_when:
++  - dbt parse succeeds from the repo root.
++  - python -m pytest tests/test_registry_seed_projection.py -q is green.
++  - The offline gates in FAST_GATES pass.
++  - CI's data:build:mr is green, and dim_competition_season, mart_leaderboards and mart_team_leaderboards differ from prod only in J1 2027's competition_group.
++
++amendments: (none)
+diff --git a/dbt_project/seeds/competition_season_map.csv b/dbt_project/seeds/competition_season_map.csv
+index eb1dca75..2dd9a153 100644
+--- a/dbt_project/seeds/competition_season_map.csv
++++ b/dbt_project/seeds/competition_season_map.csv
+@@ -113,7 +113,7 @@ J1,2023,calendar_year,2022,2023,2022,1,calendar,
+ J1,2024,calendar_year,2023,2024,2023,1,calendar,
+ J1,2025,calendar_year,2024,2025,2024,1,calendar,
+ J1,2026,calendar_year,2025,2026,2025,1,calendar,Transition tournament between the two calendars
+-J1,2027,split_year,2026,2026,2026,1,calendar,First season on the summer-to-spring calendar
++J1,2027,split_year,2026,2026,2026,1,international,First season on the summer-to-spring calendar
+ KL1,2022,calendar_year,2021,2022,,1,calendar,
+ KL1,2023,calendar_year,2022,2023,2022,1,calendar,
+ KL1,2024,calendar_year,2023,2024,2023,1,calendar,

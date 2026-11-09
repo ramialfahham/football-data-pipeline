@@ -26,7 +26,7 @@
   is the competition's own league table.
 
   league_code discriminates the competition and is not a BigQuery partition or cluster key;
-  competition_type / entity_type come from the registry + types seeds. Lives in shared/
+  competition_type / entity_type come from dim_league. Lives in shared/
   because the output shape is uniform across competition types.
 
   Grain: (league_code, season_api_year, group_name, team_sk).
@@ -36,18 +36,15 @@ with standings as (
     select * from {{ ref('int_standings__official_rank') }}
 ),
 
-registry as (
-    select * from {{ ref('competition_registry') }}
-),
-
-types as (
-    select * from {{ ref('competition_types') }}
+competitions as (
+    select * from {{ ref('dim_league') }}
 ),
 
 teams as (
     select
         team_sk,
         team_name,
+        team_slug,
         team_logo_url
     from {{ ref('dim_team') }}
 ),
@@ -66,10 +63,11 @@ select
     s.season_api_year,
     s.group_name,
     reg.competition_type,
-    typ.entity_type,
+    reg.entity_type,
     s.team_sk,
     s.team_api_id,
     t.team_name,
+    t.team_slug,
     t.team_logo_url,
     s.standing_rank,
     s.points,
@@ -84,10 +82,8 @@ select
     s.group_description,
     coalesce(k.table_kind, 'league') as table_kind
 from standings as s
-left join registry as reg
+left join competitions as reg
     on s.league_code = reg.league_code
-left join types as typ
-    on reg.competition_type = typ.competition_type
 left join teams as t
     on s.team_sk = t.team_sk
 left join section_kinds as k

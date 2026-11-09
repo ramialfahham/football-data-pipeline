@@ -101,7 +101,7 @@ models:
       tags: ["core", "dimension"]
     columns:
       - name: region_key
-        description: "Confederation code, matching `competition_registry.confederation`."
+        description: "Confederation code, matching `dim_league.confederation`."
         tests: [not_null, unique]
       - name: region_name
         description: "English display name for the region, e.g. UEFA -> Europe."
@@ -111,7 +111,7 @@ models:
         tests: [not_null, unique]
 
   - name: dim_league
-    description: "Canonical league dimension. Grain: league_api_id. Sourced from base_apif__league_entity (latest season row per league_api_id); surrogate key is the API integer directly."
+    description: "Canonical competition dimension, for leagues, cups and tournaments alike. Grain: league_api_id, one row per league_code. Provider fields come from base_apif__league_entity (latest season row per league_api_id); our own classification comes from the competition_registry and competition_types seeds. This is the only model that reads the competition_registry seed: every other model reads competition facts here. Surrogate key is the API integer directly."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -124,7 +124,7 @@ models:
         tests: [not_null, unique]
       - name: league_code
         description: "{{ doc('league_code') }}"
-        tests: [not_null]
+        tests: [not_null, unique]
       - name: league_api_id
         description: "{{ doc('league_api_id') }}"
         tests: [not_null]
@@ -154,11 +154,46 @@ models:
         description: "League logo URL."
       - name: country_flag_url
         description: "Country flag URL. NULL for international competitions — the provider returns a flag only for the single-country ones (21 of 45), so this is deliberately untested for nullity."
+      - name: competition_type
+        description: "{{ doc('competition_type') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('competition_types')
+              field: competition_type
+      - name: entity_type
+        description: "{{ doc('entity_type') }}"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['club', 'national']
+      - name: parent_competition
+        description: "The league_code of the competition this one leads to or belongs under: a qualifier's tournament (WCQEU to WC), a domestic cup's league (DFBP to BL1). NULL when it has none."
+        tests:
+          - relationships:
+              to: ref('dim_league')
+              field: league_code
+      - name: confederation
+        description: "The confederation the competition belongs to: AFC, CAF, CONCACAF, CONMEBOL, OFC, UEFA, or FIFA for worldwide competitions. It is the platform's region key; the confederations seed holds its label."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('confederations')
+              field: confederation
+      - name: slug
+        description: "The competition's part of every page address, for example bundesliga. Assigned once and never derived from the name, so renaming a competition does not move its pages."
+        tests: [not_null, unique]
+      - name: season_type
+        description: "How the competition's seasons run: split_year across two calendar years (the Bundesliga's 2025/26), calendar_year inside one (MLS 2026)."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['split_year', 'calendar_year']
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
 
   - name: dim_competition_season
-    description: "Canonical competition-season dimension with per-season coverage flags. Grain: (league_api_id, season_api_year). Sourced from base_apif__competition_seasons, with the season label from the competition_registry seed's season_type. Coverage flags describe which API-Football endpoints return data for that league-season and drive conditional logic downstream. Season expansion/parsing is performed in staging."
+    description: "Canonical competition-season dimension with per-season coverage flags. Grain: (league_api_id, season_api_year). Sourced from base_apif__competition_seasons, with the season label from dim_league's season_type. Coverage flags describe which API-Football endpoints return data for that league-season and drive conditional logic downstream. Season expansion/parsing is performed in staging."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -196,7 +231,7 @@ models:
         description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: season_label
-        description: "The season as a page names it: the start and end year for a competition whose season runs across two years (2026/27), the year alone for one played within a calendar year (2026). Follows the registry's season_type."
+        description: "The season as a page names it: the start and end year for a competition whose season runs across two years (2026/27), the year alone for one played within a calendar year (2026). Follows dim_league's season_type."
         tests: [not_null]
       - name: season_type
         description: "split_year, 1 July to 30 June, or calendar_year, 1 January to 31 December, from competition_season_map. NULL on an edition the map does not hold."
@@ -207,6 +242,13 @@ models:
         description: "The split-year season the edition belongs to, by its start year: 2025 is 2025/26. A season is a league season plus every club competition edition that belongs to it, and an edition belongs to one season as a whole."
       - name: calendar_year_season
         description: "The calendar-year season the edition belongs to."
+      - name: tier
+        description: "The league's level in its country in this season: 1 for the top flight, 2 for the division below. From competition_season_map; a season the map leaves blank keeps the latest earlier season's value. NULL for every competition that is not a domestic league, because a cup or a tournament has no level."
+      - name: competition_group
+        description: "The set of leagues this league is ranked alongside in this season when a page shows one entry per league: elite (the seven strongest European top flights), europe, international, calendar or secondary. From competition_season_map; a season the map leaves blank keeps the latest earlier season's value. NULL for every competition that is not a domestic league."
+        tests:
+          - accepted_values:
+              values: ['elite', 'europe', 'international', 'calendar', 'secondary']
       - name: previous_season_sk
         description: "{{ doc('season_sk') }} Here it is the same competition's season before this one. NULL on the first edition held."
         tests:
@@ -247,7 +289,7 @@ models:
         description: "{{ doc('raw_ingested_at') }}"
 
   - name: dim_team
-    description: "Canonical team ENTITY (identity only). Grain: team_api_id (globally unique in API-Football). Carries no competition/season affiliation — competition/season membership lives in dim_team_competition_season_mapping, per-match facts in fct_fixture. Sourced from base_apif__teams_global (one row per team; identity/venue attributes from the latest ingest)."
+    description: "Canonical team ENTITY (identity only). Grain: team_api_id (globally unique in API-Football). Carries no competition/season affiliation — competition/season membership lives in dim_team_competition_season_mapping, per-match facts in fct_fixture. Sourced from base_apif__teams_global (one row per team; identity/venue attributes from the latest ingest). is_national_team says what kind of team it is, a club or a nation's team, read from the type of competition it plays in (dim_league.entity_type)."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -275,6 +317,12 @@ models:
           - relationships:
               to: ref('dim_country')
               field: country_name
+          - not_null:
+              config:
+                where: "is_national_team"
+          - unique:
+              config:
+                where: "is_national_team"
       - name: team_founded_year
         description: "Year the team was founded."
       - name: team_logo_url
@@ -289,6 +337,12 @@ models:
         description: "Home venue city."
       - name: venue_capacity
         description: "Home venue capacity."
+      - name: is_national_team
+        description: >
+          True for a national team: a team with a fixture in a competition whose type is national.
+          A national team's team_country is its nation, one national team per country.
+        tests:
+          - not_null
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
 
@@ -325,6 +379,10 @@ models:
         description: "{{ doc('player_birth_date') }}"
       - name: player_nationality
         description: "{{ doc('player_nationality') }}"
+        tests:
+          - relationships:
+              to: ref('dim_country')
+              field: country_name
       - name: player_photo_url
         description: "{{ doc('player_photo_url') }}"
       - name: player_birth_place
@@ -404,12 +462,10 @@ models:
         description: "{{ doc('league_code') }}"
         tests:
           - not_null
-          # Every rostered competition must be registered. Without this, a league_code
-          # present here but absent from competition_registry would be silently dropped by
-          # downstream club/national filters that resolve entity_type via the registry → types
-          # seeds (e.g. mart_roster's `where entity_type = 'club'`). Verified clean today.
+          # A league_code missing from dim_league would be dropped silently by the club/national
+          # filters that read entity_type there (e.g. mart_roster's `where entity_type = 'club'`).
           - relationships:
-              to: ref('competition_registry')
+              to: ref('dim_league')
               field: league_code
       - name: season_api_year
         description: "{{ doc('season_api_year') }} Here it is the roster's season."

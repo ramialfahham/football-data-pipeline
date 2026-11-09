@@ -35,11 +35,6 @@ from datetime import datetime, timezone
 
 GCP_PROJECT = "football-data-pipeline-gcp"
 MARTS_DATASET = "marts"
-# Seeds carry no `+schema`, so they ride the profile's own `dataset:` rather than a layer dataset —
-# prod's is `dbt_analytics` (CLAUDE.md). Verified, not assumed: a dry run against
-# `marts.competition_registry` fails "not found", against `dbt_analytics.competition_registry` it
-# validates at 260 bytes.
-SEEDS_DATASET = "dbt_analytics"
 DEFAULT_OUT = "artifacts/site_data"
 ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
                 "leaderboards", "glossary", "metric_groups", "metric_rows", "landing",
@@ -120,7 +115,8 @@ _CTX_DROP = {"fixture_sk", "team_sk", "season_sk"}
 _H2H_DROP = {"team_sk", "opponent_team_sk", "pair_key", "is_canonical"}
 _FW_DROP = {"upcoming_fixture_sk", "team_sk", "entity_type", "season_api_year", "window_type"}
 _TOPPLAYER_DROP = {"upcoming_fixture_sk", "team_sk", "is_home", "entity_type",
-                   "season_api_year", "league_code", "top_player_rank"}
+                   "season_api_year", "league_code", "top_player_rank",
+                   "player_name", "player_photo_url"}
 
 # The competition_type -> nav group MAPPING now lives in the competition_types seed
 # (display_group column, GAP-19.3), read via _display_group_of_type() — no hardcoded
@@ -419,6 +415,7 @@ def shape_team_payload(
     seasons_out = []
     for r in seasons:
         s = _strip_identity(r)
+        s.pop("season_label", None)
         s["season_label"] = (season_labels or {}).get((s.get("league_code"), s.get("season_api_year")))
         frs = fixtures_by_season.get((s.get("league_code"), s.get("season_api_year")), [])
         nxt = next((fr for fr in frs if fr.get("upcoming_rank") == 1), None)
@@ -738,7 +735,7 @@ def shape_next_match(row: dict | None, fixture_id: int) -> dict | None:
 def shape_top_players(rows: list[dict], names: dict, limit: int = 5) -> list[dict]:
     """Top N players for a fixture side, SELECTED by the warehouse top_player_rank
     (goals plus assists, then goals, then fewer minutes, computed in mart_player_season_record; the
-    export does not rank). Names/photos joined from dim_player. Relies on the mart column
+    export does not rank). Names/photos are the mart's own columns. Relies on the mart column
     being present (ship-the-mart-first); a Python ranking fallback is intentionally
     NOT provided — re-deriving the rank here would violate the consumption-layer
     contract (anti-pattern A5)."""
@@ -1145,11 +1142,9 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
         id_list = ", ".join(str(int(t)) for t in team_ids)
         recent_sql += f" and team_sk in ({id_list})"
     recent_by_team = _group_by(_query(client, recent_sql), "team_sk")
-    # The season as each competition names it (split-year or calendar-year), from the warehouse.
+    # The season as each competition names it (split-year or calendar-year), served on the profile.
     season_labels = {
-        (r["league_code"], int(r["season_api_year"])): r.get("season_label")
-        for r in _query(client, f"select league_code, season_api_year, season_label "
-                                f"from `{GCP_PROJECT}.core.dim_competition_season`")
+        (r["league_code"], int(r["season_api_year"])): r.get("season_label") for r in rows
     }
     return [
         shape_team_payload(
@@ -1277,8 +1272,8 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
         select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name, round_order,
                is_next_round,
                status_short, venue_name as venue_name_snapshot, home_team_sk, away_team_sk, fixture_slug,
-               home_team_name, home_team_slug, home_team_logo_url,
-               away_team_name, away_team_slug, away_team_logo_url
+               home_team_name, home_team_slug, home_team_logo_url, home_team_country,
+               away_team_name, away_team_slug, away_team_logo_url, away_team_country
         from `{marts}.mart_competition_fixtures`
         where status_short in ('NS', 'TBD') and fixture_date >= current_date()
     """)
@@ -1291,16 +1286,7 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
         return []
     fid_in = ", ".join(str(int(f["fixture_sk"])) for f in fixtures)
 
-    teams = {
-        int(r["team_sk"]): r
-        for r in _query(client, f"select team_sk, team_name, team_logo_url, team_country "
-                                f"from `{GCP_PROJECT}.core.dim_team`")
-    }
-    leagues = {
-        r["league_code"]: r.get("league_name")
-        for r in _query(client, f"select league_code, league_name "
-                                f"from `{GCP_PROJECT}.core.dim_league`")
-    }
+    leagues = {c["league_code"]: c.get("name") for c in _warehouse_competitions(client)}
     w1 = {
         (int(r["fixture_sk"]), int(r["team_sk"])): r
         for r in _query(client, f"select * from `{marts}.mart_team_window_metrics` "
@@ -1345,9 +1331,7 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
                             f"where upcoming_fixture_sk in ({fid_in}) and top_player_rank <= 5"):
         season_players.setdefault((int(r["upcoming_fixture_sk"]), int(r["team_sk"])), []).append(r)
     player_names = {
-        int(r["player_sk"]): r
-        for r in _query(client, f"select player_sk, player_name, player_photo_url "
-                                f"from `{GCP_PROJECT}.core.dim_player`")
+        int(r["player_sk"]): r for rows in season_players.values() for r in rows
     }
 
     team_in = ", ".join(sorted({str(int(f[k])) for f in fixtures for k in ("home_team_sk", "away_team_sk")}))
@@ -1367,7 +1351,7 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
         fid, team_id = int(f["fixture_sk"]), int(f[f"{side}_team_sk"])
         identity = {"team_name": f.get(f"{side}_team_name"), "team_logo_url": f.get(f"{side}_team_logo_url"),
                     "team_slug": f.get(f"{side}_team_slug"),
-                    "team_country": (teams.get(team_id) or {}).get("team_country")}
+                    "team_country": f.get(f"{side}_team_country")}
         return _fixture_side(
             team_id, identity, form_block(w1.get((fid, team_id)), w2.get((fid, team_id))),
             ctx.get((fid, team_id)),
@@ -1582,10 +1566,7 @@ def fetch_played_fixture_payloads(client, sample: int = 0, source_counts: dict |
     if sample:
         played += f" order by fixture_sk limit {int(sample)}"
 
-    leagues = {
-        r["league_code"]: r.get("league_name")
-        for r in _query(client, f"select league_code, league_name from `{GCP_PROJECT}.core.dim_league`")
-    }
+    leagues = {c["league_code"]: c.get("name") for c in _warehouse_competitions(client)}
     next_matches: dict = {}
     for r in _query(client, f"""
         select {_COMPETITION_FIXTURE_COLUMNS}, is_home_team_next_match, is_away_team_next_match
@@ -1653,9 +1634,26 @@ def _registry_competitions(registry_path: str = REGISTRY_PATH) -> list[dict]:
     ]
 
 
-def fetch_nav(registry_path: str = REGISTRY_PATH) -> dict:
-    """nav.json — registry-driven hybrid navigation (no BigQuery)."""
-    return build_nav(_registry_competitions(registry_path))
+def fetch_nav(client, registry_path: str = REGISTRY_PATH) -> dict:
+    """nav.json — registry-driven hybrid navigation; each league's tier is mart_competition_index's."""
+    tiers = {c["league_code"]: c.get("tier") for c in _warehouse_competitions(client)}
+    competitions = _registry_competitions(registry_path)
+    for c in competitions:
+        c["tier"] = tiers.get(c["league_code"])
+    return build_nav(competitions)
+
+
+def _warehouse_competitions(client) -> list[dict]:
+    """Every competition's league_code, name, slug, confederation and tier, from
+    `mart_competition_index`: the site reads competition facts from the warehouse."""
+    return [
+        {"league_code": row["league_code"], "name": row.get("competition_name"),
+         "slug": row.get("slug"), "confederation": row.get("confederation"),
+         "tier": row.get("tier")}
+        for row in _query(client, f"select league_code, competition_name, slug, confederation, tier "
+                                  f"from `{GCP_PROJECT}.{MARTS_DATASET}.mart_competition_index` "
+                                  f"order by league_code")
+    ]
 
 
 def _warehouse_competition_meta(client) -> dict[str, dict]:
@@ -1684,14 +1682,13 @@ def _warehouse_competition_meta(client) -> dict[str, dict]:
 
     ONE helper, both consumers — `fetch_landing_payload`'s `meta` (the fixtures hero's group
     headings and both board blocks' league names) and `_competitions_index`
-    (`competitions.json`, which TeamHeader renders on every team page). They read the registry for
-    everything else and overlay this; splitting the rule across the two call sites is what let one
-    of them drift."""
+    (`competitions.json`, which TeamHeader renders on every team page). Splitting the rule across
+    the two call sites is what let one of them drift."""
     served = {}
     for row in _query(client, f"select league_code, competition_name, region_rank "
                               f"from `{GCP_PROJECT}.{MARTS_DATASET}.mart_competition_index`"):
-        # A NULL name is left to the registry rather than blanking the heading. Nothing is
-        # renamed here and no name is composed — the served string is carried across as-is.
+        # Nothing is renamed here and no name is composed — the served string is carried across
+        # as-is.
         entry = {"region_rank": row.get("region_rank")}
         if row.get("competition_name"):
             entry["name"] = row["competition_name"]
@@ -1699,24 +1696,18 @@ def _warehouse_competition_meta(client) -> dict[str, dict]:
     return served
 
 
-def _competitions_index(client=None, registry_path: str = REGISTRY_PATH) -> dict:
-    """league_code -> {name, slug} for every registry competition.
+def _competitions_index(client) -> dict:
+    """league_code -> {name, slug} for every competition.
 
     The frontend's competition slug/name lookup for ALL active leagues
     (site_v2/src/data/competitions.json): the fixture page resolves its URL competition segment from
     it and TeamHeader reads the display name. Same shape already built inline for leaderboards.
 
-    The SLUG is the registry's — it is an assigned identifier, not a display string. The NAME is
-    the warehouse's whenever a client is given; see `_warehouse_competition_meta` for why. Without
-    a client this falls back to registry names, which is the offline shape the unit test uses —
-    never the shape a real export runs, because `export_all` always has a client."""
-    served = _warehouse_competition_meta(client) if client is not None else {}
+    Both come from `mart_competition_index`: the slug is dim_league's assigned identifier, the name
+    the standardised one (see `_warehouse_competition_meta` for why it is not the registry's)."""
     return {
-        c["league_code"]: {
-            "name": served.get(c["league_code"], {}).get("name") or c.get("name"),
-            "slug": c.get("slug"),
-        }
-        for c in _registry_competitions(registry_path)
+        c["league_code"]: {"name": c.get("name"), "slug": c.get("slug")}
+        for c in _warehouse_competitions(client)
     }
 
 
@@ -1774,15 +1765,12 @@ def shape_team_index(rows: list[dict]) -> dict:
 
 def fetch_team_index(client) -> dict:
     """teams_index.json -- mart_team_index, one row per team with a page, with its region's
-    region_rank and label key from the confederations seed. Ordered by team name: the page lists
-    teams that share a place in this order."""
+    region_rank and label key. Ordered by team name: the page lists teams that share a place in
+    this order."""
     rows = _query(
         client,
-        f"select t.*, g.region_rank, g.label_i18n_key as region_label_i18n_key "
-        f"from `{GCP_PROJECT}.{MARTS_DATASET}.mart_team_index` as t "
-        f"left join `{GCP_PROJECT}.{SEEDS_DATASET}.confederations` as g "
-        f"on t.region_key = g.confederation "
-        f"order by t.team_name, t.team_slug",
+        f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_team_index` "
+        f"order by team_name, team_slug",
     )
     return shape_team_index(rows)
 
@@ -1860,12 +1848,12 @@ def shape_match_day_payloads(rows: list[dict], competitions: dict[str, dict]) ->
     return out
 
 
-def fetch_match_day_payloads(client, registry_path: str = REGISTRY_PATH) -> list[dict]:
+def fetch_match_day_payloads(client) -> list[dict]:
     """matches/{yyyy-mm-dd}.json -- the Matches page's days, from `mart_match_days` (which decides
     the reach, each day's neighbours and the opening day) joined to the match rows. A competition
     carries the name and region rank the site displays (`_warehouse_competition_meta`), its crest
-    and kind (`_competition_page_meta`), and the registry's slug and confederation, the same
-    sources every other page reads them from."""
+    and kind (`_competition_page_meta`), and its slug and confederation
+    (`_warehouse_competitions`), the same sources every other page reads them from."""
     marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
     rows = _query(client, f"""
         select d.match_day, d.day_row_order, d.is_opening_day, d.previous_day, d.next_day,
@@ -1873,16 +1861,16 @@ def fetch_match_day_payloads(client, registry_path: str = REGISTRY_PATH) -> list
         from `{marts}.mart_match_days` as d
         inner join `{marts}.mart_competition_fixtures` as c on d.fixture_sk = c.fixture_sk
     """)
-    registry = {c["league_code"]: c for c in _registry_competitions(registry_path)}
+    identity = {c["league_code"]: c for c in _warehouse_competitions(client)}
     served = _warehouse_competition_meta(client)
     page_meta = _competition_page_meta(client)
     competitions = {
         lc: {
-            "name": (served.get(lc) or {}).get("name") or (registry.get(lc) or {}).get("name"),
-            "slug": (registry.get(lc) or {}).get("slug"),
+            "name": (served.get(lc) or {}).get("name") or (identity.get(lc) or {}).get("name"),
+            "slug": (identity.get(lc) or {}).get("slug"),
             "crest": (page_meta.get(lc) or {}).get("logo_url"),
             "entity_type": (page_meta.get(lc) or {}).get("entity_type"),
-            "confederation": (registry.get(lc) or {}).get("confederation"),
+            "confederation": (identity.get(lc) or {}).get("confederation"),
             "region_rank": (served.get(lc) or {}).get("region_rank"),
         }
         for lc in {r["league_code"] for r in rows}
@@ -1899,7 +1887,7 @@ def _group2(rows: list[dict], k1: str, k2: str) -> dict:
 
 _STANDING_DROP = {"standing_sk", "season_sk", "league_sk", "competition_type",
                   "entity_type", "team_api_id", "season_api_year", "league_code",
-                  "group_description"}
+                  "group_description", "team_slug"}
 
 
 _COMPETITION_PAGE_META = ("logo_url", "region_label_en", "region_label_i18n_key",
@@ -1919,7 +1907,7 @@ def _competition_page_meta(client) -> dict[str, dict]:
     }
 
 
-def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REGISTRY_PATH) -> list[dict]:
+def fetch_competition_payloads(client, sample: int = 0) -> list[dict]:
     """competitions/{league_code}/{season}.json — one per competition-season with standings.
 
     Every block is a mart read whole or filtered by served columns: the standings row as
@@ -1931,7 +1919,7 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
     marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
     meta = {
         c["league_code"]: {"name": c.get("name"), "slug": c.get("slug")}
-        for c in _registry_competitions(registry_path)
+        for c in _warehouse_competitions(client)
     }
     for league_code, served in _warehouse_competition_meta(client).items():
         if league_code in meta:
@@ -1942,15 +1930,10 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
     for m in meta.values():
         m.pop("region_rank", None)
 
-    teams = {
-        int(r["team_sk"]): r
-        for r in _query(client, f"select team_sk, team_name, team_slug, team_logo_url "
-                                f"from `{GCP_PROJECT}.core.dim_team`")
-    }
     season_labels = {
         (r["league_code"], int(r["season_api_year"])): r.get("season_label")
-        for r in _query(client, f"select league_code, season_api_year, season_label "
-                                f"from `{GCP_PROJECT}.core.dim_competition_season`")
+        for r in _query(client, f"select distinct league_code, season_api_year, season_label "
+                                f"from `{marts}.mart_competition_fixtures`")
     }
     standings = _group2(
         _query(client, f"select * from `{marts}.mart_standings`"),
@@ -1958,7 +1941,8 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
     )
     deserved = _group2(
         _query(client, f"""
-            select league_code, season_api_year, team_sk, points, deserved_points,
+            select league_code, season_api_year, team_sk, team_name, team_slug, team_logo_url,
+                   points, deserved_points,
                    deserved_points_gap, deserved_rank, shots_on_goal_difference_per_match
             from `{marts}.mart_team_profile`
         """),
@@ -2006,6 +1990,14 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
     """)
     fixtures = _group2(fixture_rows, "league_code", "season_api_year")
     slugs = {int(r["fixture_sk"]): r.get("fixture_slug") for r in fixture_rows}
+    # Team identity for the season summary, from the match rows that name every team it lists.
+    teams = {
+        int(r[f"{side}_team_sk"]): {
+            "team_sk": r[f"{side}_team_sk"], "team_name": r.get(f"{side}_team_name"),
+            "team_slug": r.get(f"{side}_team_slug"), "team_logo_url": r.get(f"{side}_team_logo_url"),
+        }
+        for r in fixture_rows for side in ("home", "away") if r.get(f"{side}_team_sk") is not None
+    }
 
     # A competition-season has a page when any block has something to show: a cup has no
     # standings but a next round, a season summary and its rounds.
@@ -2017,14 +2009,14 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
 
     def _standing(r: dict) -> dict:
         row = _drop(r, _STANDING_DROP)
-        row["team_slug"] = (teams.get(int(r["team_sk"])) or {}).get("team_slug")
+        row["team_slug"] = r.get("team_slug")
         return row
 
     _fixture = _competition_fixture
 
     def _deserved(r: dict) -> dict:
         return {
-            **_team_ref(teams.get(int(r["team_sk"]))),
+            **_team_ref(r),
             "points": r.get("points"),
             "deserved_points": r.get("deserved_points"),
             "deserved_points_gap": r.get("deserved_points_gap"),
@@ -2066,10 +2058,10 @@ def shape_leaderboards(rows: list[dict], metrics=_LEADERBOARD_METRICS,
     return boards
 
 
-def fetch_leaderboard_payloads(client, sample: int = 0, registry_path: str = REGISTRY_PATH) -> list[dict]:
+def fetch_leaderboard_payloads(client, sample: int = 0) -> list[dict]:
     meta = {
         c["league_code"]: {"name": c.get("name"), "slug": c.get("slug")}
-        for c in _registry_competitions(registry_path)
+        for c in _warehouse_competitions(client)
     }
     grouped = _group2(
         _query(client, f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_leaderboards` "
@@ -2366,7 +2358,7 @@ def shape_landing_payload(
     return payload
 
 
-def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
+def fetch_landing_payload(client) -> dict:
     """landing.json: Next matches, Top players and Top teams.
 
     Next matches reads `mart_next_matchday` joined to `mart_competition_fixtures`, with the
@@ -2377,7 +2369,7 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
         c["league_code"]: {
             "name": c.get("name"), "slug": c.get("slug"),
         }
-        for c in _registry_competitions(registry_path)
+        for c in _warehouse_competitions(client)
     }
 
     # ⚠ THE DISPLAY NAME IS OVERWRITTEN FROM THE MART — see `_warehouse_competition_meta`, which
@@ -2407,8 +2399,8 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
     upcoming = group_upcoming_fixtures(fixtures, meta)
 
     # Top players (#40). One player per league across the `elite` group, current season only.
-    # ⚠ Every part of the selection AND the order is a SERVED column: `competition_group` from the
-    # registry seed, `is_current_season` and `league_leader_order` from the mart. The WHERE filters
+    # ⚠ Every part of the selection AND the order is a SERVED column: the row's own season's
+    # `competition_group`, `is_current_season` and `league_leader_order` from the mart. The WHERE filters
     # facts and the ORDER BY reads them back in the ruled order; neither computes anything. Picking
     # the season in Python is what #846 moved out of this file, and picking the league's
     # representative is what the ranking ruling moved out of it.
@@ -2433,12 +2425,10 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
                l.player_sk, l.player_name,
                l.team_name, l.team_slug, l.team_logo_url
         from `{GCP_PROJECT}.{MARTS_DATASET}.mart_leaderboards` as l
-        join `{GCP_PROJECT}.{SEEDS_DATASET}.competition_registry` as r
-            on l.league_code = r.league_code
         where l.window_type = 'season_to_date'
           and l.is_current_season
           and l.league_leader_order = 1
-          and r.competition_group = 'elite'
+          and l.competition_group = 'elite'
           and l.metric_key in ({", ".join(f"'{k}'" for k in _HOME_PLAYER_BOARDS)})
         order by l.board_leader_order
     """)
@@ -2452,11 +2442,9 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
         select t.metric_key, t.league_code, t.sort_value,
                t.team_sk, t.team_name, t.team_slug, t.team_logo_url
         from `{GCP_PROJECT}.{MARTS_DATASET}.mart_team_leaderboards` as t
-        join `{GCP_PROJECT}.{SEEDS_DATASET}.competition_registry` as r
-            on t.league_code = r.league_code
         where t.is_current_season
           and t.league_leader_order = 1
-          and r.competition_group = 'elite'
+          and t.competition_group = 'elite'
           and t.metric_key in ({", ".join(f"'{k}'" for k in _HOME_TEAM_BOARDS)})
         order by t.board_leader_order
     """)
@@ -2600,7 +2588,7 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
                 slug_map[f"{p['slug']}-{p['season']}"] = {
                     "type": "competition", "league_code": p["league_code"], "season": p["season"]}
     if "nav" in entities:
-        nav = fetch_nav()
+        nav = fetch_nav(client)
         sha = write_file(out_root, "nav.json", nav)
         entries.append({"type": "nav", "id": "nav", "slug": None,
                         "path": "nav.json", "sha256": sha})
@@ -2657,7 +2645,7 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
             entries.append({"type": "player_peers", "id": relpath, "slug": None,
                             "path": relpath, "sha256": sha})
 
-    # Full league_code -> {name, slug} map (registry-only) — the frontend's competition lookup for
+    # Full league_code -> {name, slug} map — the frontend's competition lookup for
     # every active league. Always emitted (site_v2/src/data/competitions.json consumes it, even on a
     # teams-only run: the team page reads the competition display name from it).
     sha = write_file(out_root, "competitions.json", _competitions_index(client))

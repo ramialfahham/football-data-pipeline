@@ -73,11 +73,7 @@ def acquire_ingest_lock(
     run_id: str,
     lease_minutes: int | None = None,
 ) -> bool:
-    """
-    Try to take the lease. Returns ``True`` if this process holds it.
-
-    Lease is renewed if the same ``run_id`` already holds the lock (idempotent).
-    """
+    """Try to take the lease; the same ``run_id`` renews it. Returns ``True`` if held."""
     if skip_ingest_lock():
         return True
     mins = lease_minutes if lease_minutes is not None else _env_int("API_FOOTBALL_INGEST_LEASE_MINUTES", 180)

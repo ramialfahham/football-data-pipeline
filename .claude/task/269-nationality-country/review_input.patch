@@ -1,0 +1,560 @@
+diff --git a/.claude/task/269-nationality-country/contract.md b/.claude/task/269-nationality-country/contract.md
+new file mode 100644
+index 00000000..ac53c040
+--- /dev/null
++++ b/.claude/task/269-nationality-country/contract.md
+@@ -0,0 +1,96 @@
++# Task contract — a player's nationality and his national team resolve to one country
++
++objective: >
++  Issue #269. Every player's nationality resolves to one country in `core.dim_country`. Every
++  national team also resolves to its country. `mart_player_profile` serves each player's
++  nationality team, so the Players hub (#135) can group a nation once and find its national
++  team regulars.
++
++refs: >
++  #269. Plan approved in chat, 2026-11-09, through the coordinating session. #135 is the Players
++  hub design that reads the result. Replays MR !400 as one change on current main.
++
++scope_paths:
++  - .claude/task/269-nationality-country/
++  - dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
++  - dbt_project/models/2_base/api_football/base_apif__players.sql
++  - dbt_project/models/3_core/dim_team.sql
++  - dbt_project/models/3_core/dim_country.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/5_marts/shared/mart_player_profile.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/models/docs/shared_columns.md
++  - dbt_project/seeds/country_name_overrides.csv
++  - dbt_project/seeds/countries.csv
++  - dbt_project/seeds/team_country_corrections.csv
++  - dbt_project/seeds/player_bio_corrections.csv
++  - dbt_project/seeds/schema.yml
++
++impact_map: >
++  writers: base_apif__player_profiles and base_apif__players are the only writers of player_nationality.
++  They feed dim_player, which takes the profile value first and falls back to the identity source.
++  dim_team is the only writer of the new is_national_team. It reads base_apif__fixtures_next and
++  dim_league; neither reads dim_team. base_apif__teams_global still writes team_country, now with six
++  more rows in team_country_corrections.
++  downstream: `dbt ls --select base_apif__teams_global+ base_apif__player_profiles+ base_apif__players+
++  --resource-type model` (run 2026-11-09) gives: base_apif__player_profiles base_apif__players
++  base_apif__teams_global dim_player dim_player_team_season_mapping dim_team
++  mart_competition_fixtures mart_fixture_standing_context mart_leaderboards mart_match_days
++  mart_matchday_insights mart_player_career mart_player_competition_benchmarks
++  mart_player_fixture_stats mart_player_profile mart_roster mart_standings
++  mart_team_competition_benchmarks mart_team_competitions mart_team_fixtures mart_team_index
++  mart_team_leaderboards mart_team_market_value mart_team_momentum_window mart_team_profile
++  mart_team_season mart_team_season_insights.
++  layer_rules: base reads base and seeds only. dim_team (core) reads base and dim_league, and
++  dim_league stays the only reader of the competition_registry seed. The mart reads core. All are
++  checked by check_layer_contract.py. No partition_by or cluster_by. No per-competition file.
++  deploy_order: additive. One new column on dim_team (is_national_team) and one on
++  mart_player_profile (nationality_team_sk); no column is renamed or dropped. The merge
++  rebuilds everything downstream in data:build:main, and the 04:00 nightly rebuilds it again.
++  blast_radius: player_nationality values change on every mart that carries them (roster,
++  profile, career, leaderboards, benchmarks, fixture stats), e.g. Korea Republic becomes
++  South Korea. Measured on MR !400's CI build: the profile mart's reconciled spellings cover
++  941 Korea Republic, 933 USA and 805 Türkiye players, among others, and its row count is
++  unchanged (271,503). team_country changes for six national teams: India, Hong Kong,
++  Lebanon, Malaysia, South Sudan and Sint Maarten. mart_team_index changes only those six
++  rows' team_country.
++
++decisions_taken: >
++  The plan was approved in chat on 2026-11-09 through the coordinating session.
++  Nationality is reconciled in base through country_name_overrides, the same seed already used for
++  birth country, under the approved #69 naming rule. The provider's exact string is the join key,
++  mapped after the bio correction and before the text repair, so the provider's two garbled spellings
++  (TÃ¼rkiye, CÃ´te d'Ivoire) are seed rows of their own. Repairing first and then joining exceeds
++  SQLFluff's parse depth. A future garbled spelling fails the new relationships test instead of
++  passing through. A blank or whitespace-only nationality becomes NULL.
++  is_national_team means the team plays a fixture in a competition whose dim_league entity_type is
++  national: 216 teams, the same set mart_team_index uses. It is built in dim_team because
++  dim_league is the only reader of the competition_registry seed and a base model cannot read a dim.
++  The provider's /teams list for a national competition holds one Portuguese club (4767, Mação, in
++  WCQAS) that has no fixtures there, so /teams is not the source.
++  The national-team tests sit on dim_team, filtered to national teams: team_country not_null, unique,
++  and a relationships test to dim_country. No new model.
++  Seed rows:
++  - country_name_overrides: Andorra CF, Falkland Islands (Malvinas), and the two garbled spellings,
++    under the #69 rule.
++  - countries: Falkland Islands, Guernsey, Isle of Man and Kiribati, under the rule that admits
++    Jersey.
++  - team_country_corrections: six national teams, each citing its federation page, as Macao does.
++  - player_bio_corrections: player 13730, whose nationality the provider sends blank, becomes
++    Colombia, sourced from Fichajes. The CPO answered for this row in this task's session on
++    2026-11-09. The seed's description widens from conflicting records to conflicting or missing ones.
++  Fan-visible: the nationality text on the team squad list and the player page moves to the #69
++  country names that birth country already shows. This is the approved #69 rule; the head of the MR
++  lists it under fan-visible changes.
++  No new mechanism and no recurring cost.
++
++decisions_reserved:
++  - none: the route, the seed rows and the fan-visible change are covered by the plan approved on 2026-11-09, the #69 rule and the CPO's answer on player 13730; a youth or women's national team failing the unique test goes to the coordinating session with the measured rows before any new model.
++
++done_when:
++  - check_layer_contract.py, check_description_hygiene.py, sqlfluff on the changed models, dbt parse, and the offline Python suite all pass locally.
++  - data:build:mr is green, including the new relationships, not_null and unique tests.
++  - Measured on the ci_mr datasets, each split nation in the issue is one country, and each nation with a national team has one nationality_team_sk.
++  - The export-facing columns (nationality on roster and profile; team_country on dim_team) are diffed between ci_mr and prod, and every difference is a reconciled spelling or one of the six corrected teams.
++
++amendments: (none)
+diff --git a/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql b/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
+index cf6eeb4a..8e261b53 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
+@@ -6,6 +6,7 @@
+ -- player_birth_country is reconciled here against country_name_overrides (#69), the same
+ -- seed + left join + coalesce pattern base_apif__leagues.sql and base_apif__teams_global.sql
+ -- already use — base prepares the correction, dim_player publishes it unchanged.
++-- player_nationality goes through the same seed after the bio correction.
+ with src as (
+     select * from {{ ref('stg_apif__player_profiles') }}
+     where player_id is not null
+@@ -112,7 +113,15 @@ bio_corrected as (
+                 'cast(' ~ possible_birth_date('latest.player_birth_date', 'latest.raw_ingested_at') ~ ' as string)'
+             ) }} as date
+         ) as player_birth_date,
+-        {{ bio_correction('nationality_fix', 'latest.player_nationality') }} as player_nationality
++        nullif(
++            trim(
++                coalesce(
++                    nationality_overrides.country_name,
++                    {{ bio_correction('nationality_fix', 'latest.player_nationality') }}
++                )
++            ),
++            ''
++        ) as player_nationality
+     from latest
+     left join import_player_bio_corrections as birth_date_fix
+         on
+@@ -122,6 +131,11 @@ bio_corrected as (
+         on
+             latest.player_api_id = nationality_fix.player_api_id
+             and nationality_fix.corrected_field = 'player_nationality'
++    -- the provider's exact string is the seed's key, garbled spellings included
++    left join import_country_name_overrides as nationality_overrides
++        on
++            {{ bio_correction('nationality_fix', 'latest.player_nationality') }}
++            = nationality_overrides.provider_country
+ )
+ 
+ select
+diff --git a/dbt_project/models/2_base/api_football/base_apif__players.sql b/dbt_project/models/2_base/api_football/base_apif__players.sql
+index c8b684c2..314be3b3 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__players.sql
+@@ -112,6 +112,10 @@ import_player_bio_corrections as (
+     select * from {{ ref('player_bio_corrections') }}
+ ),
+ 
++import_country_name_overrides as (
++    select * from {{ ref('country_name_overrides') }}
++),
++
+ -- Rows tied on source and ingest time can disagree: a player has one /players row per team and
+ -- season, all stamped by one batch. The order below settles every tie the same way on every build.
+ latest as (
+@@ -161,7 +165,15 @@ corrected as (
+         safe_cast(
+             {{ bio_correction('birth_date_fix', 'cast(latest.player_birth_date as string)') }} as date
+         ) as player_birth_date,
+-        {{ bio_correction('nationality_fix', 'latest.player_nationality') }} as player_nationality
++        nullif(
++            trim(
++                coalesce(
++                    nationality_overrides.country_name,
++                    {{ bio_correction('nationality_fix', 'latest.player_nationality') }}
++                )
++            ),
++            ''
++        ) as player_nationality
+     from latest
+     left join import_player_bio_corrections as birth_date_fix
+         on
+@@ -171,6 +183,11 @@ corrected as (
+         on
+             latest.player_api_id = nationality_fix.player_api_id
+             and nationality_fix.corrected_field = 'player_nationality'
++    -- the provider's exact string is the seed's key, garbled spellings included
++    left join import_country_name_overrides as nationality_overrides
++        on
++            {{ bio_correction('nationality_fix', 'latest.player_nationality') }}
++            = nationality_overrides.provider_country
+ )
+ 
+ select
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index e5c7b2d6..f2045aad 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -289,7 +289,7 @@ models:
+         description: "{{ doc('raw_ingested_at') }}"
+ 
+   - name: dim_team
+-    description: "Canonical team ENTITY (identity only). Grain: team_api_id (globally unique in API-Football). Carries no competition/season affiliation — competition/season membership lives in dim_team_competition_season_mapping, per-match facts in fct_fixture. Sourced from base_apif__teams_global (one row per team; identity/venue attributes from the latest ingest)."
++    description: "Canonical team ENTITY (identity only). Grain: team_api_id (globally unique in API-Football). Carries no competition/season affiliation — competition/season membership lives in dim_team_competition_season_mapping, per-match facts in fct_fixture. Sourced from base_apif__teams_global (one row per team; identity/venue attributes from the latest ingest). is_national_team says what kind of team it is, a club or a nation's team, read from the type of competition it plays in (dim_league.entity_type)."
+     meta:
+       owner: "data-platform"
+       domain: "football"
+@@ -317,6 +317,12 @@ models:
+           - relationships:
+               to: ref('dim_country')
+               field: country_name
++          - not_null:
++              config:
++                where: "is_national_team"
++          - unique:
++              config:
++                where: "is_national_team"
+       - name: team_founded_year
+         description: "Year the team was founded."
+       - name: team_logo_url
+@@ -331,6 +337,12 @@ models:
+         description: "Home venue city."
+       - name: venue_capacity
+         description: "Home venue capacity."
++      - name: is_national_team
++        description: >
++          True for a national team: a team with a fixture in a competition whose type is national.
++          A national team's team_country is its nation, one national team per country.
++        tests:
++          - not_null
+       - name: raw_ingested_at
+         description: "{{ doc('raw_ingested_at') }}"
+ 
+@@ -367,6 +379,10 @@ models:
+         description: "{{ doc('player_birth_date') }}"
+       - name: player_nationality
+         description: "{{ doc('player_nationality') }}"
++        tests:
++          - relationships:
++              to: ref('dim_country')
++              field: country_name
+       - name: player_photo_url
+         description: "{{ doc('player_photo_url') }}"
+       - name: player_birth_place
+diff --git a/dbt_project/models/3_core/dim_country.sql b/dbt_project/models/3_core/dim_country.sql
+index bc124908..fab7e6f6 100644
+--- a/dbt_project/models/3_core/dim_country.sql
++++ b/dbt_project/models/3_core/dim_country.sql
+@@ -11,14 +11,15 @@
+     no provider id, so country_key IS the key. Inventing a synthetic integer would add a join
+     without adding identity.
+ 
+-    ⚠ NOT "UN countries". 188 of the 225 rows are UN states; the rest are football associations
++    ⚠ NOT "UN countries". 189 of the 229 rows are UN states; the rest are football associations
+     (England n=2723, Scotland, Wales, Northern Ireland, Kosovo, Chinese Taipei), territories that
+     produce players, one unrecognised state and one historical (Yugoslavia, for players born
+     before 1992). Dropping any of them is not an option — England is the single most common value
+     in the whole dataset. #69's discovery note carries the breakdown.
+ 
+-    READ by dim_league.league_country, dim_team.team_country, dim_player.player_birth_country and
+-    dim_coach.coach_birth_country, each a `relationships` test to country_name (#69 step 5); and by
++    READ by dim_league.league_country, dim_team.team_country, dim_player.player_birth_country,
++    dim_player.player_nationality and dim_coach.coach_birth_country, each a `relationships` test to
++    country_name (#69 step 5); and by
+     mart_competition_index.region_label, which relationship (this dim, or dim_region) is populated
+     for a competition IS the answer to whether its sub-line shows a country or a region (#62 step 3).
+ #}
+diff --git a/dbt_project/models/3_core/dim_team.sql b/dbt_project/models/3_core/dim_team.sql
+index 54c13fc2..01eedb20 100644
+--- a/dbt_project/models/3_core/dim_team.sql
++++ b/dbt_project/models/3_core/dim_team.sql
+@@ -1,5 +1,35 @@
+ with import_base_apif__teams_global as (
+     select * from {{ ref('base_apif__teams_global') }}
++),
++
++import_base_apif__fixtures_next as (
++    select * from {{ ref('base_apif__fixtures_next') }}
++),
++
++import_dim_league as (
++    select * from {{ ref('dim_league') }}
++),
++
++fixture_sides as (
++    select
++        league_code,
++        home_team_id as team_api_id
++    from import_base_apif__fixtures_next
++    union distinct
++    select
++        league_code,
++        away_team_id as team_api_id
++    from import_base_apif__fixtures_next
++),
++
++-- a national team is a team with a fixture in a national-team competition; the provider's /teams
++-- list for such a competition can also hold a club, so the fixtures decide
++national_teams as (
++    select distinct fixture_sides.team_api_id
++    from fixture_sides
++    inner join import_dim_league as leagues
++        on fixture_sides.league_code = leagues.league_code
++    where leagues.entity_type = 'national'
+ )
+ 
+ -- team_slug is the team's permanent, locale-independent URL segment
+@@ -7,18 +37,21 @@ with import_base_apif__teams_global as (
+ -- merely published here, like every other attribute: base prepares, the dim propagates.
+ -- It carries no provider id except in the terminal collision case.
+ select
+-    cast(team_api_id as int64) as team_sk,
+-    team_api_id,
+-    team_name,
+-    team_slug,
+-    team_code,
+-    team_country,
+-    team_founded_year,
+-    team_logo_url,
+-    venue_api_id,
+-    venue_name,
+-    venue_address,
+-    venue_city,
+-    venue_capacity,
+-    raw_ingested_at
+-from import_base_apif__teams_global
++    cast(teams.team_api_id as int64) as team_sk,
++    teams.team_api_id,
++    teams.team_name,
++    teams.team_slug,
++    teams.team_code,
++    teams.team_country,
++    teams.team_founded_year,
++    teams.team_logo_url,
++    teams.venue_api_id,
++    teams.venue_name,
++    teams.venue_address,
++    teams.venue_city,
++    teams.venue_capacity,
++    teams.raw_ingested_at,
++    national_teams.team_api_id is not null as is_national_team
++from import_base_apif__teams_global as teams
++left join national_teams
++    on teams.team_api_id = national_teams.team_api_id
+diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+index d8fe8fa3..74a2a78d 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+@@ -112,6 +112,14 @@ season_labels as (
+     from {{ ref('dim_competition_season') }}
+ ),
+ 
++national_teams as (
++    select
++        team_sk,
++        team_country
++    from {{ ref('dim_team') }}
++    where is_national_team
++),
++
+ -- Players with a page who share their full name with another at their current club: the page
+ -- title tells them apart.
+ shared_names as (
+@@ -146,6 +154,7 @@ select
+     date_diff(current_date(), p.player_birth_date, year)
+     - if(format_date('%m%d', current_date()) < format_date('%m%d', p.player_birth_date), 1, 0) as player_age,
+     p.player_nationality,
++    nt.team_sk as nationality_team_sk,
+     p.player_birth_date,
+     p.player_birth_place,
+     p.player_birth_country,
+@@ -273,5 +282,7 @@ left join season_labels as sl
+     on a.season_sk = sl.season_sk
+ left join teams as cc
+     on pg.current_club_team_sk = cc.team_sk
++left join national_teams as nt
++    on p.player_nationality = nt.team_country
+ left join shared_names as sn
+     on a.player_sk = sn.player_sk
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index c52db6ed..1121b5d1 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -1815,6 +1815,14 @@ models:
+           - relationships:
+               to: ref('dim_team')
+               field: team_sk
++      - name: nationality_team_sk
++        description: >
++          The national team of the player's nationality, matched through its country. NULL when
++          the player has no nationality or the nation has no national team in our competitions.
++        tests:
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: featured_team_sk
+         description: "The club of the latest match in the featured season's club competitions."
+         tests:
+diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
+index 1f60a427..96d74ea6 100644
+--- a/dbt_project/models/docs/shared_columns.md
++++ b/dbt_project/models/docs/shared_columns.md
+@@ -782,8 +782,8 @@ NULL when no photo is ingested for the player.
+ {% enddocs %}
+ 
+ {% docs player_nationality %}
+-The player's nationality as dim_player publishes it: the provider's string, not a coded value.
+-Text sent in the wrong character set is repaired. NULL when none is ingested for the player.
++The player's nationality as dim_player publishes it: the country's name in dim_country, whatever
++spelling the provider sent. NULL when none is ingested for the player.
+ {% enddocs %}
+ 
+ {% docs player_birth_date %}
+diff --git a/dbt_project/seeds/countries.csv b/dbt_project/seeds/countries.csv
+index e0aae17f..c1cc1196 100644
+--- a/dbt_project/seeds/countries.csv
++++ b/dbt_project/seeds/countries.csv
+@@ -68,6 +68,7 @@ eritrea,Eritrea
+ estonia,Estonia
+ eswatini,Eswatini
+ ethiopia,Ethiopia
++falkland-islands,Falkland Islands
+ faroe-islands,Faroe Islands
+ fiji,Fiji
+ finland,Finland
+@@ -85,6 +86,7 @@ grenada,Grenada
+ guadeloupe,Guadeloupe
+ guam,Guam
+ guatemala,Guatemala
++guernsey,Guernsey
+ guinea,Guinea
+ guinea-bissau,Guinea-Bissau
+ guyana,Guyana
+@@ -97,6 +99,7 @@ india,India
+ indonesia,Indonesia
+ iran,Iran
+ iraq,Iraq
++isle-of-man,Isle of Man
+ israel,Israel
+ italy,Italy
+ ivory-coast,Ivory Coast
+@@ -106,6 +109,7 @@ jersey,Jersey
+ jordan,Jordan
+ kazakhstan,Kazakhstan
+ kenya,Kenya
++kiribati,Kiribati
+ kosovo,Kosovo
+ kuwait,Kuwait
+ kyrgyzstan,Kyrgyzstan
+diff --git a/dbt_project/seeds/country_name_overrides.csv b/dbt_project/seeds/country_name_overrides.csv
+index 7f39835d..3b501f6d 100644
+--- a/dbt_project/seeds/country_name_overrides.csv
++++ b/dbt_project/seeds/country_name_overrides.csv
+@@ -1,5 +1,6 @@
+ provider_country,country_name,source,note
+ American-Samoa,American Samoa,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
++Andorra CF,Andorra,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider appends a club-style suffix to the country name.
+ Antigua-and-Barbuda,Antigua and Barbuda,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
+ Bosnia,Bosnia and Herzegovina,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses a different English name.
+ British-Virgin-Islands,British Virgin Islands,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
+@@ -19,10 +20,12 @@ Curaçao,Curacao,"CPO ruling 2026-08-16 (#69): English, everyday short form, no
+ Czech Republic,Czechia,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses the pre-rename name.
+ Czech-Republic,Czechia,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses the pre-rename name.
+ Côte d'Ivoire,Ivory Coast,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses a different English name.
++CÃ´te d'Ivoire,Ivory Coast,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider sends Côte d'Ivoire in the wrong character set.
+ Dominican-Republic,Dominican Republic,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
+ East-Timor,East Timor,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
+ El-Salvador,El Salvador,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
+ Equatorial-Guinea,Equatorial Guinea,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
++Falkland Islands (Malvinas),Falkland Islands,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider appends the UN's alternative name in brackets.
+ Faroe-Islands,Faroe Islands,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
+ French-Guiana,French Guiana,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
+ FYR Macedonia,North Macedonia,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses the pre-rename name.
+@@ -63,6 +66,7 @@ Timor-Leste,East Timor,"CPO ruling 2026-08-16 (#69): English, everyday short for
+ Trinidad-And-Tobago,Trinidad and Tobago,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider capitalises the conjunction.
+ Turks-and-Caicos-Islands,Turks and Caicos Islands,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
+ Türkiye,Turkey,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider uses a different English name.
++TÃ¼rkiye,Turkey,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider sends Türkiye in the wrong character set.
+ United-Arab-Emirates,United Arab Emirates,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
+ US-Virgin-Islands,US Virgin Islands,"CPO ruling 2026-08-16 (#69): English, everyday short form, no diacritics",Provider hyphenates multi-word names in /teams.
+ USA,United States of America,CPO ruling 2026-08-15 (#62): verbatim CPO wording,"Deliberate EXCEPTION to the #69 rule, which would give United States. The CPO chose the long form and it stands."
+diff --git a/dbt_project/seeds/player_bio_corrections.csv b/dbt_project/seeds/player_bio_corrections.csv
+index 88e13d52..20552529 100644
+--- a/dbt_project/seeds/player_bio_corrections.csv
++++ b/dbt_project/seeds/player_bio_corrections.csv
+@@ -20,3 +20,4 @@ player_api_id,corrected_field,corrected_value,provider_values,source,note
+ 434252,player_nationality,Ghana,Libya / Ghana,https://africa.espn.com/football/player/bio/_/id/377574/andoh-kelvin,ESPN and the Ghanaian press agree; he plays in Libya.
+ 295722,player_nationality,,England / Italy,no source found,The player could not be identified outside the provider.
+ 448837,player_birth_date,,2006-04-03 / 2006-04-13,no source found,Sources disagree and no primary page states the date.
++13730,player_nationality,Colombia,(blank),https://www.fichajes.com/jugador/yunior-campo/,"The provider sends no nationality; Fichajes lists him as Colombian, born in Rionegro."
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index 28542787..4a1e6183 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -1518,8 +1518,8 @@ seeds:
+ 
+   - name: player_bio_corrections
+     description: >
+-      A player's birth date or nationality where the provider's records conflict: one row per
+-      player and field. Applied in `base_apif__players` and `base_apif__player_profiles`, and it
++      A player's birth date or nationality where the provider's records conflict or are missing:
++      one row per player and field. Applied in `base_apif__players` and `base_apif__player_profiles`, and it
+       wins over both. An empty value means no outside source states it, so the player shows none.
+     config:
+       column_types:
+@@ -1546,7 +1546,7 @@ seeds:
+       - name: corrected_value
+         description: "The value the player shows; empty when no outside source states it."
+       - name: provider_values
+-        description: "The conflicting values the provider sent when the row was written."
++        description: "The conflicting values the provider sent when the row was written, or (blank)."
+         tests:
+           - not_null
+       - name: source
+@@ -1680,7 +1680,8 @@ seeds:
+       `source`.
+ 
+       KNOWN GAP: only the listed strings are mapped, so an unseen spelling passes through
+-      unchanged.
++      unchanged. For a player's nationality, dim_player's relationships test to dim_country then
++      fails the build.
+     config:
+       column_types:
+         provider_country: string
+@@ -1689,7 +1690,9 @@ seeds:
+         note: string
+     columns:
+       - name: provider_country
+-        description: "The exact string API-Football sends in `$.country.name`, and the join key."
++        description: >
++          The exact string API-Football sends, garbled spellings included: a country name in
++          `$.country.name`, or a player's nationality. The join key.
+         tests:
+           - not_null
+           - unique
+diff --git a/dbt_project/seeds/team_country_corrections.csv b/dbt_project/seeds/team_country_corrections.csv
+index 8db3e0e5..547ac27f 100644
+--- a/dbt_project/seeds/team_country_corrections.csv
++++ b/dbt_project/seeds/team_country_corrections.csv
+@@ -9,7 +9,11 @@ team_api_id,team_country,provider_country,source,note
+ 862,Italy,,https://www.legab.it/news/trentaduesimi-coppa-italia-si-parte-con-la-b,Provider sends no country; Lega B lists Pordenone in the Coppa Italia.
+ 878,Italy,,https://www.legab.it/seriebkt/alessandria-como-perugia-e-ternana-si-parte,Provider sends no country; Lega B lists Alessandria in the Coppa Italia.
+ 1301,France,,https://www.lfp.fr/article/ligue-2-bkt-le-calendrier-de-la-saison-2026-2027,Provider sends no country; the LFP lists Rodez Aveyron Football in Ligue 2 BKT.
++1496,South Sudan,Sudan,https://inside.fifa.com/associations/SSD,Provider files the South Sudan national team under Sudan; FIFA lists the South Sudan Football Federation.
++1537,India,,https://inside.fifa.com/associations/IND,Provider sends no country in its Asian Cup rows; FIFA lists the All India Football Federation.
++1538,Malaysia,,https://inside.fifa.com/associations/MAS,Provider sends no country in its Asian Cup rows; FIFA lists the Football Association of Malaysia.
+ 1544,Macao,,https://inside.fifa.com/associations/MAC,"Provider sends no country; FIFA lists the Football Association of Macau, China."
++1551,Lebanon,,https://inside.fifa.com/associations/LBN,Provider sends no country in its Asian Cup rows; FIFA lists the Lebanese Football Association.
+ 1622,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
+ 1649,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; the DFB lists SC Weiche Flensburg 08 in the DFB-Pokal.
+ 2732,Iran,,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Naft Tehran as IRN in the AFC Champions League.
+@@ -18,6 +22,7 @@ team_api_id,team_country,provider_country,source,note
+ 3467,India,,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Mohun Bagan as IND in the AFC Champions League.
+ 3668,Vietnam,,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Becamex Binh Duong as VIE in the AFC Champions League.
+ 3772,Australia,,https://footballnsw.com.au/club/sydney-fc-boys-youth/,"Provider sends no country; reserve side of Sydney FC, which Football NSW lists in the NPL NSW."
++4460,Hong Kong,,https://inside.fifa.com/associations/HKG,"Provider sends no country in its Asian Cup rows; FIFA lists the Football Association of Hong Kong, China."
+ 5242,Iraq,Sudan,https://www.the-afc.com/en/club/afc_champions_league_elite.html/news/md1-al-shorta-irq-1-1-al-sadd-sc-qat,Provider sends Sudan; plays in the AFC Champions League Elite for Iraq.
+ 5258,Spain,,https://rfef.es/es/noticias/consulta-los-emparejamientos-de-la-1a-y-2a-eliminatoria-de-la-copa-del-rey,Provider sends no country; plays in the RFEF's Copa del Rey.
+ 6414,Equatorial Guinea,Cyprus,https://www.cafonline.com/caf-champions-league/news/road-to-the-semifinal,Provider sends Cyprus; plays in the CAF Champions League for Equatorial Guinea.
+@@ -59,6 +64,7 @@ team_api_id,team_country,provider_country,source,note
+ 9835,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
+ 9852,France,,https://epreuves.fff.fr/competition/engagement/12-coupe-de-france-credit-agricole/phase/1/8/resultats-et-calendrier,Provider sends no country; the FFF lists Lourdes FC in the Coupe de France.
+ 9883,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
++10985,Sint Maarten,Saint-Martin,https://www.concacaf.com/inside-concacaf/member-associations/sint-maarten,Provider files the Sint Maarten national team under Saint Martin; Concacaf lists Sint Maarten as its own member association.
+ 12003,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+ 12089,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+ 12888,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.

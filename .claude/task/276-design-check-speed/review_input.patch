@@ -1,0 +1,152 @@
+diff --git a/.claude/task/276-design-check-speed/contract.md b/.claude/task/276-design-check-speed/contract.md
+new file mode 100644
+index 00000000..29b26156
+--- /dev/null
++++ b/.claude/task/276-design-check-speed/contract.md
+@@ -0,0 +1,58 @@
++# Task contract — the design check spends less CPU per render
++
++objective: >
++  Issue #276. Main's validate:ui hit the 1 h job limit twice on 2026-11-09. On ci-runner-01's
++  cores the design check is CPU-bound, so this cuts the CPU each render costs, with identical
++  findings, counts and output.
++
++refs: >
++  #276. Measurements: the issue's exploration detail and the MR head.
++
++scope_paths:
++  - scripts/check_design_inventory.py
++  - tests/test_design_inventory.py
++  - .claude/task/276-design-check-speed/
++
++protected_override: >
++  Approved in chat, 2026-11-09: the CPO typed the go in this task's session for
++  scripts/check_design_inventory.py, then for tests/test_design_inventory.py so its fake browser
++  returns the measurement as a JSON string.
++
++impact_map: >
++  scripts/check_design_inventory.py: run by validate:ui in .gitlab-ci.yml (quick scope on a merge
++  request, full scope on main and web runs) and by the validate-local skill. Imported by
++  scripts/check_chart_screenshots.py (serve only), tests/test_address_words.py and
++  tests/test_design_inventory.py (`grep -rn "check_design_inventory" scripts tests .claude/hooks`).
++  What changes: the measuring and gap-counting scripts return a JSON string that Python decodes;
++  each match carries only the fields an assertion of its element reads; the mouse is not moved to
++  the point it already holds. What depends on it: every count compared with baseline.json and
++  baseline_quick.json, every failure line, counts.json and failures.json. If wrong, a count or a
++  failure moves and the check goes red on main, or a gap hides. The proof is a full run of the
++  old and new check over one CI-built site, diffed byte for byte (stdout, counts.json,
++  failures.json); CI then compares both baselines. serve() is unchanged, so chart screenshots
++  are unaffected.
++  tests/test_design_inventory.py: one fake browser's evaluate returns its canned measurement
++  through json.dumps; the assertions are unchanged.
++
++approved_design:
++  - none: no page output changes; the diff touches no site_v2/src/ file or export script
++
++decisions_taken: >
++  Coverage, scope, pins and the job's timeout are unchanged: every page, tab, width and language
++  as before. Ruled out on measurement: reusing one load across widths (measures a resized page,
++  saves 15 ms of ~198), more workers (the runner is CPU-bound), Chromium flags (no gain), and
++  blocking crest images (slower). No new mechanism, no new dependency, no recurring cost.
++
++decisions_reserved:
++  - A larger CI runner (more vCPUs) is a recurring cost and the CPO's call; this task does not
++    change the runner.
++
++done_when:
++  - A full local run of the old and new check over main's CI-built site (2 workers) gives
++    byte-identical stdout, counts.json and failures.json.
++  - python -m pytest tests/test_design_inventory.py tests/test_address_words.py passes.
++  - The offline gates pass.
++  - CI's validate:ui passes on the MR (quick baseline) and on a full-scope run (full baseline),
++    with the design-check step's time reported against the before figures.
++
++amendments: (none)
+diff --git a/scripts/check_design_inventory.py b/scripts/check_design_inventory.py
+index ea7028ab..f96c4da6 100644
+--- a/scripts/check_design_inventory.py
++++ b/scripts/check_design_inventory.py
+@@ -278,11 +278,13 @@ MEASURE_JS = r"""
+     const inDom = nodes.length;
+     nodes = nodes.filter(visible);
+     const matches = [];
++    const asked = props.filter((p) => el.kinds.includes(p));
+     for (const n of nodes) {
+       const s = getComputedStyle(n);
+       const r = n.getBoundingClientRect();
+-      const m = { style: {}, rect: [r.left, r.top, r.width, r.height] };
+-      for (const p of props) m.style[p] = s.getPropertyValue(p);
++      const m = {};
++      if (asked.length) { m.style = {}; for (const p of asked) m.style[p] = s.getPropertyValue(p); }
++      if (el.kinds.includes('min-box')) m.rect = [r.left, r.top, r.width, r.height];
+       if (el.kinds.includes('gap(next)')) { const nx = nextEl(n); const t = nx ? firstLineTop(nx) : null; m.gapNext = t === null ? null : t - r.bottom; }
+       if (el.kinds.includes('gap(prev)')) { const pv = prevEl(n); m.gapPrev = pv ? r.top - pv.getBoundingClientRect().bottom : null; }
+       if (el.kinds.includes('left-edge')) { m.leftEdge = r.left - container(n).getBoundingClientRect().left; }
+@@ -315,6 +317,10 @@ MEASURE_JS = r"""
+ }
+ """
+ 
++# Playwright's object transport costs more CPU than the scripts themselves; a JSON string does not.
++MEASURE_JSON_JS = "(spec) => JSON.stringify((%s)(spec))" % MEASURE_JS.strip()
++COUNT_JSON_JS = "(registered) => JSON.stringify((%s)(registered))" % COUNT_JS.strip()
++
+ 
+ POINTER_JS = r"""
+ (sel) => {
+@@ -523,7 +529,7 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
+     inventory matches. With `acc`, the page's tabs are measured one after another: a failure already
+     found in an earlier tab is not added again, and the checks that ask whether an element is on the
+     page are left to `finish_page`, which judges them across every tab."""
+-    data = pw_page.evaluate(MEASURE_JS, spec)
++    data = json.loads(pw_page.evaluate(MEASURE_JSON_JS, spec))
+     tokens = data["tokens"]
+     total = 0
+     seen: set[str] = set()
+@@ -593,18 +599,23 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
+             centre = pw_page.evaluate(POINTER_JS, el.selector)
+             if centre is None:
+                 continue
++            at_centre = False
+             for a in pointer:
+-                pw_page.mouse.move(centre[0], centre[1])
++                if not at_centre:
++                    pw_page.mouse.move(centre[0], centre[1])
++                    at_centre = True
+                 if a.kind == "press":
+                     pw_page.mouse.down()
+                 measured = pw_page.evaluate(STYLE_JS, [el.selector, centre[2], a.prop])
+                 if a.kind == "press":
+                     pw_page.mouse.move(0, 0)
+                     pw_page.mouse.up()
++                    at_centre = False
+                 msg = di.compare(a, measured, tokens)
+                 if msg:
+                     failures.append(Failure(page.name, viewport, lang, "%s [%s #1]" % (el.name, el.selector), msg, level))
+-            pw_page.mouse.move(0, 0)
++            if at_centre:
++                pw_page.mouse.move(0, 0)
+     fresh = []
+     for f in failures[start:]:
+         key = (f.element, f.detail, f.level)
+@@ -704,7 +715,7 @@ def render_width(job: dict) -> dict:
+                     shots += 1
+                 # The pointer checks scroll the page, and a sticky header then lies over the content.
+                 pw_page.evaluate("window.scrollTo(0, 0); document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => r())))")
+-                found = pw_page.evaluate(COUNT_JS, job["registered"])
++                found = json.loads(pw_page.evaluate(COUNT_JSON_JS, job["registered"]))
+                 page_counts["classes"].update(found["classes"])
+                 for k in COUNTS[:-1]:
+                     page_counts[k] = page_counts.get(k, 0) + found[k]
+diff --git a/tests/test_design_inventory.py b/tests/test_design_inventory.py
+index dc1e1ef9..072b76b0 100644
+--- a/tests/test_design_inventory.py
++++ b/tests/test_design_inventory.py
+@@ -588,7 +588,7 @@ def test_a_page_is_judged_across_its_tabs_and_a_failure_in_every_tab_counts_once
+             self.states = iter(states)
+ 
+         def evaluate(self, _js, _arg=None):
+-            return next(self.states)
++            return json.dumps(next(self.states))
+ 
+     failures, acc = [], {"seen": set(), "visible": {}, "total": 0, "found": set()}
+     pw = Page([tab(False), tab(True)])

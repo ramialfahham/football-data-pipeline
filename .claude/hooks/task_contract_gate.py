@@ -361,6 +361,53 @@ def _status_paths(root: str) -> list[str]:
     return paths
 
 
+def merge_heads(root: str | None) -> list[str]:
+    """The commits an unfinished `git merge` brings in (`MERGE_HEAD`), or [] outside a merge."""
+    try:
+        r = subprocess.run(["git", "rev-parse", "--git-path", "MERGE_HEAD"], cwd=root,
+                           capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return []
+    path = r.stdout.strip()
+    if r.returncode != 0 or not path:
+        return []
+    try:
+        with open(os.path.join(root or os.getcwd(), path), encoding="utf-8") as f:
+            return f.read().split()
+    except OSError:
+        return []
+
+
+def _merge_result_paths(root: str, base_ref: str | None, heads: list[str]) -> list[str] | None:
+    """During a merge, the paths the merge result changes from the base it will have once
+    committed, the commit CI diffs from. `HEAD` is still the pre-merge tip, so `git status` would
+    count everything the merge brings in. None when that base cannot be resolved."""
+    if base_ref:
+        try:
+            r = subprocess.run(["git", "merge-base", base_ref, "HEAD", *heads], cwd=root,
+                               capture_output=True, text=True, timeout=30)
+        except (OSError, subprocess.SubprocessError, ValueError):
+            return None
+        base = r.stdout.strip() if r.returncode == 0 else ""
+    else:
+        try:
+            from git_discipline import _base_commit
+            base = _base_commit(root)
+        except Exception:
+            base = ""
+    if not base:
+        return None
+    paths: set[str] = set()
+    for args in (["diff", "--cached", "--name-only", "-z", "--no-renames", base],
+                 ["diff", "--name-only", "-z", "--no-renames", base],
+                 ["ls-files", "--others", "--exclude-standard", "-z"]):
+        out = _git_z(root, args)
+        if out is None:
+            return None
+        paths.update(out)
+    return sorted(paths)
+
+
 def _committed_paths(root: str, base_ref: str | None) -> list[str]:
     """Paths the branch changed since it left the base: `base...HEAD`, the range CI checks.
     Without an explicit base, the commit gate's own base (`git_discipline._base_commit`); when
@@ -397,8 +444,18 @@ def task_folder(root: str, base_ref: str | None = None, tip_ref: str | None = No
     `folder` is None when the branch has none yet or touches more than one. `errors` names each
     break of the rule: two folders, a name that is not `<issue>-<slug>`, a folder already on the
     base (a merged task's), or an old shared `.claude/task/` file added or changed (deleting one is
-    allowed). `tip_ref` is the ref a merged folder is looked up on, the base by default."""
-    paths = sorted(set(_committed_paths(root, base_ref)) | set(_status_paths(root)))
+    allowed). `tip_ref` is the ref a merged folder is looked up on, the base by default.
+    During a merge, the paths are the merge result's, so a folder the merge brings in from the
+    base is not this branch's."""
+    heads = merge_heads(root)
+    if heads:
+        paths = _merge_result_paths(root, base_ref, heads)
+        if paths is None:
+            return {"folder": None, "errors": [
+                "a merge is in progress and the base it diffs from cannot be resolved; fetch "
+                "the base branch (or set GOVERNANCE_BASE), or abort the merge"]}
+    else:
+        paths = sorted(set(_committed_paths(root, base_ref)) | set(_status_paths(root)))
     ids = sorted({i for i in map(task_id_of, paths) if i})
     tip = tip_ref or base_ref or default_base_ref(root)
     errors, usable = [], []
@@ -523,6 +580,10 @@ def _is_protected(rel: str) -> bool:
 
 
 def _dirty_outside_task_dir(root: str) -> list[str]:
+    heads = merge_heads(root)
+    merged = _merge_result_paths(root, None, heads) if heads else None
+    if merged is not None:
+        return [f for f in merged if not f.startswith(TASK_DIR_REL)]
     try:
         out = subprocess.run(
             ["git", "status", "--porcelain", "-uall"], cwd=root,

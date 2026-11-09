@@ -1,14 +1,6 @@
-"""Fetch /teams for all configured seasons → RAW_*_TEAMS; extends team_ids set.
+"""Fetch /teams for all configured seasons into RAW_*_TEAMS and extend the team_ids set.
 
-Each run fetches all seasons and writes a fresh complete snapshot row; the API returns
-the full team list on every call.
-
-APPEND ONLY (raw appends and never deletes). The run appends its
-snapshot and removes nothing, so every earlier snapshot survives. `stg_apif__teams`
-selects the newest row per league_code, so the older ones are simply not selected — they
-are there for the case this rule exists for, a later answer that carries LESS than the one
-it would have replaced. The merge-on-write of #33 item 8b was removed here; see
-docs/data_contract.md, "Raw appends and never deletes".
+Each run appends a complete snapshot and deletes nothing; staging reads the newest per league.
 """
 
 from __future__ import annotations
@@ -30,9 +22,8 @@ def load_teams_merge_and_extend_ids(
     reference_season: int,
     team_ids: set[int],
 ) -> None:
-    # #896: one row per league covering ALL configured seasons, read latest-per-league in
-    # staging, so losing a season to a quota cut silently shortens history and supersedes the
-    # full snapshot. Complete or discard — same guard as loads/standings.py.
+    # The row covers all configured seasons and staging reads latest-per-league, so a partial
+    # snapshot must be discarded rather than written.
     complete = True
     teams_merged_envelope: dict | None = None
     try:
@@ -59,11 +50,7 @@ def load_teams_merge_and_extend_ids(
                 teams_merged_envelope["errors"] = []
                 teams_merged_envelope["response"] = []
             teams_merged_envelope["errors"].extend(list(teams_part.get("errors") or []))
-            # API-Football /teams response items contain only {team, venue} — no league
-            # block. Inject (league.id, league.season) per item so downstream consumers
-            # carry the season identity: staging models read $.league.season per row, and
-            # merge_teams_envelope dedups on (team_id, season) via _team_row_key.
-            # Without this, every team row is silently dropped by the merge and results=0.
+            # /teams items carry no league block; staging reads $.league.season per row.
             enriched_items = [
                 {**item, "league": {"id": league_id, "season": season}}
                 for item in (teams_part.get("response") or [])
@@ -73,10 +60,6 @@ def load_teams_merge_and_extend_ids(
             teams_merged_envelope["results"] = len(teams_merged_envelope["response"])
             teams_merged_envelope["paging"] = {"current": 1, "total": 1}
             if complete:
-                # Append only. The delete that used to follow this write is gone (raw
-                # appends and never deletes). `stg_apif__teams` already
-                # selects the newest row per league_code, so older rows are not selected — and
-                # they survive, which is what makes a shrunken later snapshot recoverable.
                 load_json_to_bq(
                     ctx.client,
                     raw_table("TEAMS"),
@@ -91,12 +74,7 @@ def load_teams_merge_and_extend_ids(
                     f"teams {league_code}: INCOMPLETE fetch — partial snapshot DISCARDED, prior "
                     f"snapshot kept (#896); retries next run"
                 )
-            # The id extension runs EITHER WAY, deliberately. It is not a write to raw; it is
-            # what feeds team_ids to the coaches / transfers / squads phases below. Withholding
-            # it on a degraded run would starve them of teams they could still have fetched,
-            # turning one short season into a run-wide outage. The discarded snapshot above is
-            # about not superseding stored data — a different question from what this run may
-            # still attempt.
+            # Runs even when the snapshot is discarded: later phases still need these team_ids.
             for item in teams_merged_envelope["response"]:
                 team = item.get("team") or {}
                 tid = team.get("id")

@@ -2992,16 +2992,16 @@ index 1f87d485..51f36861 100644
      """A one-file seed carrying `label_i18n_key` values."""
      p = tmp_path / "competition_types.csv"
 diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
-index 17bde1b2..ba32e12d 100644
+index 849db628..1bed9089 100644
 --- a/tests/test_no_decision_history_in_code.py
 +++ b/tests/test_no_decision_history_in_code.py
 @@ -20,7 +20,7 @@ HOOKS = os.path.join(REPO, ".claude", "hooks")
  sys.path.insert(0, HOOKS)
  import comment_history_gate as gate  # noqa: E402
  
--PINNED_LINES = 477
-+PINNED_LINES = 471
- PINNED_FILES = 145
+-PINNED_LINES = 397
++PINNED_LINES = 391
+ PINNED_FILES = 123
  
  HASH = chr(35)
 
@@ -3019,6 +3019,7 @@ index 17bde1b2..ba32e12d 100644
 #
 #   .claude/task/243-term-list/acceptance_evidence.md  |   14 +
 #    .../task/243-term-list/rendered_page_evidence.md   |   15 +
-#    .claude/task/243-term-list/review_input.patch      | 3022 ++++++++++++++++++++
-#    3 files changed, 3051 insertions(+)
+#    .claude/task/243-term-list/review.md               |   38 +
+#    .claude/task/243-term-list/review_input.patch      | 3024 ++++++++++++++++++++
+#    4 files changed, 3091 insertions(+)
 # ============================================================================

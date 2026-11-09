@@ -24,7 +24,7 @@ with domestic_legs as (
             order by l.kickoff_datetime asc, l.fixture_sk asc
         ) as match_number
     from {{ ref('int_legs__team_match') }} as l
-    inner join {{ ref('competition_registry') }} as r
+    inner join {{ ref('dim_league') }} as r
         on l.league_code = r.league_code
     where r.competition_type = 'domestic_league'
 ),

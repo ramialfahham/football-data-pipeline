@@ -1,0 +1,322 @@
+diff --git a/.claude/hooks/git_discipline.py b/.claude/hooks/git_discipline.py
+index f2e50c27..45f418a8 100644
+--- a/.claude/hooks/git_discipline.py
++++ b/.claude/hooks/git_discipline.py
+@@ -31,7 +31,7 @@ from _command_utils import (  # noqa: E402
+     simple_commands,
+     strip_quoted_and_heredoc,
+ )
+-from task_contract_gate import CONTRACT_NAME, CONTRACT_REL, task_folder  # noqa: E402
++from task_contract_gate import CONTRACT_NAME, CONTRACT_REL, merge_heads, task_folder  # noqa: E402
+ 
+ _MR_MERGE = re.compile(r"glab\s+mr\s+(?:merge|accept)\b")
+ _BRANCH_CREATE = re.compile(r"git\s+(?:checkout\s+-b|switch\s+(?:-c|--create))\b")
+@@ -141,8 +141,15 @@ def _staged_paths(root: str) -> list[str]:
+     # -z (NUL-split): with core.quotePath, non-ASCII paths come out quoted
+     # and escaped, match no routing pattern, and would silently drop a
+     # required reviewer.
++    # During a merge, HEAD is the pre-merge tip, so the paths come from the merge result's base.
++    base = []
++    if merge_heads(root):
++        try:
++            base = [_base_commit(root)]
++        except Exception:
++            base = []
+     out = subprocess.run(
+-        ["git", "diff", "--staged", "--name-only", "-z"], cwd=root,
++        ["git", "diff", "--staged", "--name-only", "-z", *base], cwd=root,
+         capture_output=True, text=True, timeout=30,
+     ).stdout
+     return [p.replace("\\", "/") for p in out.split("\0") if p]
+@@ -403,6 +410,9 @@ def _base_commit(root: str) -> str:
+                            text=True, timeout=30)
+         return r.returncode, r.stdout.strip()
+ 
++    # During a merge, the base of the merge result: what CI diffs from once the merge is committed.
++    heads = merge_heads(root)
++
+     # ⚠ GOVERNANCE_BASE FIRST — the escape hatch, and it must exist because the gate now DENIES
+     # when the base cannot be resolved (#63). An earlier draft's deny message told the operator to
+     # "set GOVERNANCE_BASE" while this function read no environment variable at all: half the
+@@ -430,7 +440,7 @@ def _base_commit(root: str) -> str:
+         # defect the merge-base logic exists to remove, and an escape hatch that reads the ref
+         # directly reintroduces it. Every other base path in the repo is merge-based, including
+         # the ref loop below.
+-        code, base = _git("merge-base", "HEAD", resolved)
++        code, base = _git("merge-base", resolved, "HEAD", *heads)
+         if code == 0 and base:
+             return base
+         raise RuntimeError(
+@@ -451,7 +461,7 @@ def _base_commit(root: str) -> str:
+     for ref in ("gitlab/main", "origin/main", "main"):
+         if _git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")[0] != 0:
+             continue
+-        code, base = _git("merge-base", "HEAD", ref)
++        code, base = _git("merge-base", ref, "HEAD", *heads)
+         if code == 0 and base:
+             return base
+         # The ref exists but shares no history with HEAD. Do not guess — a silently
+diff --git a/.claude/hooks/task_contract_gate.py b/.claude/hooks/task_contract_gate.py
+index bb817e89..51626e1a 100644
+--- a/.claude/hooks/task_contract_gate.py
++++ b/.claude/hooks/task_contract_gate.py
+@@ -361,6 +361,53 @@ def _status_paths(root: str) -> list[str]:
+     return paths
+ 
+ 
++def merge_heads(root: str | None) -> list[str]:
++    """The commits an unfinished `git merge` brings in (`MERGE_HEAD`), or [] outside a merge."""
++    try:
++        r = subprocess.run(["git", "rev-parse", "--git-path", "MERGE_HEAD"], cwd=root,
++                           capture_output=True, text=True, timeout=10)
++    except (OSError, subprocess.SubprocessError, ValueError):
++        return []
++    path = r.stdout.strip()
++    if r.returncode != 0 or not path:
++        return []
++    try:
++        with open(os.path.join(root or os.getcwd(), path), encoding="utf-8") as f:
++            return f.read().split()
++    except OSError:
++        return []
++
++
++def _merge_result_paths(root: str, base_ref: str | None, heads: list[str]) -> list[str] | None:
++    """During a merge, the paths the merge result changes from the base it will have once
++    committed, the commit CI diffs from. `HEAD` is still the pre-merge tip, so `git status` would
++    count everything the merge brings in. None when that base cannot be resolved."""
++    if base_ref:
++        try:
++            r = subprocess.run(["git", "merge-base", base_ref, "HEAD", *heads], cwd=root,
++                               capture_output=True, text=True, timeout=30)
++        except (OSError, subprocess.SubprocessError, ValueError):
++            return None
++        base = r.stdout.strip() if r.returncode == 0 else ""
++    else:
++        try:
++            from git_discipline import _base_commit
++            base = _base_commit(root)
++        except Exception:
++            base = ""
++    if not base:
++        return None
++    paths: set[str] = set()
++    for args in (["diff", "--cached", "--name-only", "-z", "--no-renames", base],
++                 ["diff", "--name-only", "-z", "--no-renames", base],
++                 ["ls-files", "--others", "--exclude-standard", "-z"]):
++        out = _git_z(root, args)
++        if out is None:
++            return None
++        paths.update(out)
++    return sorted(paths)
++
++
+ def _committed_paths(root: str, base_ref: str | None) -> list[str]:
+     """Paths the branch changed since it left the base: `base...HEAD`, the range CI checks.
+     Without an explicit base, the commit gate's own base (`git_discipline._base_commit`); when
+@@ -397,8 +444,18 @@ def task_folder(root: str, base_ref: str | None = None, tip_ref: str | None = No
+     `folder` is None when the branch has none yet or touches more than one. `errors` names each
+     break of the rule: two folders, a name that is not `<issue>-<slug>`, a folder already on the
+     base (a merged task's), or an old shared `.claude/task/` file added or changed (deleting one is
+-    allowed). `tip_ref` is the ref a merged folder is looked up on, the base by default."""
+-    paths = sorted(set(_committed_paths(root, base_ref)) | set(_status_paths(root)))
++    allowed). `tip_ref` is the ref a merged folder is looked up on, the base by default.
++    During a merge, the paths are the merge result's, so a folder the merge brings in from the
++    base is not this branch's."""
++    heads = merge_heads(root)
++    if heads:
++        paths = _merge_result_paths(root, base_ref, heads)
++        if paths is None:
++            return {"folder": None, "errors": [
++                "a merge is in progress and the base it diffs from cannot be resolved; fetch "
++                "the base branch (or set GOVERNANCE_BASE), or abort the merge"]}
++    else:
++        paths = sorted(set(_committed_paths(root, base_ref)) | set(_status_paths(root)))
+     ids = sorted({i for i in map(task_id_of, paths) if i})
+     tip = tip_ref or base_ref or default_base_ref(root)
+     errors, usable = [], []
+@@ -523,6 +580,10 @@ def _is_protected(rel: str) -> bool:
+ 
+ 
+ def _dirty_outside_task_dir(root: str) -> list[str]:
++    heads = merge_heads(root)
++    merged = _merge_result_paths(root, None, heads) if heads else None
++    if merged is not None:
++        return [f for f in merged if not f.startswith(TASK_DIR_REL)]
+     try:
+         out = subprocess.run(
+             ["git", "status", "--porcelain", "-uall"], cwd=root,
+diff --git a/.claude/task/275-merge-main-task-folder/contract.md b/.claude/task/275-merge-main-task-folder/contract.md
+new file mode 100644
+index 00000000..4c6c1fe5
+--- /dev/null
++++ b/.claude/task/275-merge-main-task-folder/contract.md
+@@ -0,0 +1,52 @@
++# Task contract — a branch that merges main into itself passes the task-folder gate
++
++objective: >
++  Issue #275. While a merge from main is in progress, the local gates count the branch's paths and
++  the review hash from the merge-base of main with the merge result, so main's merged task folders
++  never count as the branch's and the branch can be edited and committed with no rewrite.
++
++refs: >
++  #275, approved in chat 2026-11-09 (plan and protected-path go).
++
++scope_paths:
++  - .claude/task/275-merge-main-task-folder/
++  - .claude/hooks/git_discipline.py
++  - .claude/hooks/task_contract_gate.py
++  - tests/test_task_folders.py
++
++protected_override: >
++  Approved in chat, 2026-11-09: the CPO approved the plan and the edits to
++  .claude/hooks/git_discipline.py and .claude/hooks/task_contract_gate.py in this task's own session.
++
++impact_map: >
++  git_discipline.py: fires PreToolUse Bash on every git command. `_base_commit` feeds the review
++  hash (`_staged_diff_bytes`), the reviewers' patch (`--review-patch`), `--staged-hash` and
++  task_contract_gate's `_committed_paths`; `_staged_paths` feeds the commit gate's reviewer routing
++  and acceptance trigger. Imported by scripts/check_task_artifacts.py for `_rounds_gate` only, so
++  CI's base and hash are untouched. The change applies only while `MERGE_HEAD` exists; outside a
++  merge every value is computed as today. If wrong during a merge: the hash disagrees with CI (CI
++  fails closed) or the gate denies (fail closed); an exception fails open by house rule and CI is
++  the backstop.
++  task_contract_gate.py: fires PreToolUse Edit|Write|MultiEdit|NotebookEdit|Bash|Artifact and
++  PostToolUse Bash. `task_folder` is read by the edit gate, the commit gate, stop_gate.py and
++  check_task_artifacts.py (CI passes an explicit base and has no merge in progress, so its path is
++  unchanged). If wrong during a merge, `task_folder` returns no folder and edits are denied (fail
++  closed), as today.
++  CI: no .gitlab-ci.yml or script change; validate:governance already diffs base...HEAD.
++
++approved_design:
++  - none: no page output changes; the diff touches no site_v2/src/ file or export script
++
++decisions_taken: >
++  The base during a merge is `git merge-base <main> HEAD MERGE_HEAD`, the commit CI diffs from once
++  the merge is committed. During a merge the branch's paths are the index, working tree and
++  untracked files compared with that base. RECURRING COST: none.
++
++decisions_reserved:
++  - none: the plan and the protected-path edits were approved in chat 2026-11-09
++
++done_when:
++  - .venv/Scripts/python.exe -m pytest tests/ -q passes.
++  - tests/test_task_folders.py pins a branch that merges main, with another task's folder on main, through a conflict: edits allowed, commit gate passes, --staged-hash equals CI's recompute, and check_task_artifacts.py passes after the merge commit.
++
++amendments: (none)
+diff --git a/tests/test_task_folders.py b/tests/test_task_folders.py
+index 509a39f2..af41c0c9 100644
+--- a/tests/test_task_folders.py
++++ b/tests/test_task_folders.py
+@@ -1,7 +1,8 @@
+ """Per-task artifact folders: each task's files live in `.claude/task/<issue>-<slug>/`.
+ 
+-Pins the three cases the mechanism exists for: two tasks open side by side and merged in either
+-order, a code change with no task folder, and a branch that touches another task's folder. The
++Pins the cases the mechanism exists for: two tasks open side by side and merged in either
++order, a code change with no task folder, a branch that touches another task's folder, and a
++branch that merges main into itself through a conflict. The
+ exclusion patterns come from the REAL routing file, so a pattern that stops matching fails here.
+ """
+ 
+@@ -46,8 +47,13 @@ def git(repo, *args, check=True) -> subprocess.CompletedProcess:
+     return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, check=check)
+ 
+ 
+-def env(repo) -> dict:
+-    return dict(os.environ, CLAUDE_PROJECT_DIR=str(repo), GOVERNANCE_BASE="main")
++def env(repo, base: str | None = "main") -> dict:
++    e = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
++    if base:
++        e["GOVERNANCE_BASE"] = base
++    else:
++        e.pop("GOVERNANCE_BASE", None)
++    return e
+ 
+ 
+ @pytest.fixture()
+@@ -99,12 +105,12 @@ def ci(repo) -> tuple[int, str]:
+     return r.returncode, r.stdout + r.stderr
+ 
+ 
+-def edit(repo, rel: str) -> str:
++def edit(repo, rel: str, base: str | None = "main") -> str:
+     event = {"hook_event_name": "PreToolUse", "tool_name": "Write",
+              "tool_input": {"file_path": str(repo / rel)}}
+     r = subprocess.run([sys.executable, str(HOOKS / "task_contract_gate.py")],
+                        input=json.dumps(event), capture_output=True, text=True,
+-                       cwd=repo, env=env(repo))
++                       cwd=repo, env=env(repo, base))
+     return r.stdout
+ 
+ 
+@@ -298,3 +304,53 @@ def test_a_per_folder_pattern_excludes_exactly_what_the_literal_path_did(repo):
+     assert raw(ROUTING["hash_exclude_paths"]) == raw(literal)
+     assert b"10-alpha/review.md" not in raw(ROUTING["hash_exclude_paths"])
+     assert b"10-alpha/contract.md" in raw(ROUTING["hash_exclude_paths"])
++
++
++# --------------------------------------------------------------------------- #
++# Main merged into a branch
++# --------------------------------------------------------------------------- #
++
++@pytest.mark.parametrize("linked", [False, True], ids=["governance-base", "linked-worktree"])
++def test_a_branch_that_merges_main_through_a_conflict_passes_the_gate(
++        repo, hooks, monkeypatch, linked):
++    tcg, gd = hooks
++    build_task(repo, "task-b", "20-beta", "app.py")
++    build_task(repo, "task-a", "10-alpha", "app.py")
++    git(repo, "checkout", "-q", "main")
++    git(repo, "merge", "-q", "--no-ff", "-m", "merge a", "task-a")
++    (repo / "other.py").write_text("y = 1\n", encoding="utf-8")
++    git(repo, "add", "-A")
++    git(repo, "commit", "-qm", "other work on main")
++    base = "main"
++    if linked:
++        git(repo, "update-ref", "refs/remotes/origin/main", "main")
++        git(repo, "checkout", "-q", "--detach")
++        work = repo.parent / "wt"
++        git(repo, "worktree", "add", "-q", str(work), "task-b")
++        monkeypatch.delenv("GOVERNANCE_BASE")
++        base = None
++    else:
++        work = repo
++        git(repo, "checkout", "-q", "task-b")
++    assert git(work, "merge", "main", check=False).returncode != 0
++    own = {"folder": ".claude/task/20-beta/", "errors": []}
++    assert tcg.task_folder(str(work)) == own
++    assert tcg.task_folder(str(work), "main") == own
++    unresolved = tcg.task_folder(str(work), "no-such-ref")
++    assert unresolved["folder"] is None and "merge is in progress" in unresolved["errors"][0]
++    assert tcg._dirty_outside_task_dir(str(work)) == ["app.py"]
++    assert not denied(edit(work, "app.py", base))
++    (work / "app.py").write_text("x = '20-beta'\n", encoding="utf-8")
++    git(work, "add", "app.py")
++    sha = hashlib.sha256(gd._staged_diff_bytes(str(work))).hexdigest()
++    (work / ".claude" / "task" / "20-beta" / "review.md").write_text(
++        REVIEW.format(sha=sha), encoding="utf-8")
++    git(work, "add", "-A")
++    assert gd._staged_paths(str(work)) == [".claude/task/20-beta/contract.md",
++                                           ".claude/task/20-beta/review.md",
++                                           ".claude/task/20-beta/review_input.patch", "app.py"]
++    assert gd._commit_gate(str(work)) is None
++    git(work, "commit", "-q", "--no-edit")
++    assert pr_hash(work) == sha
++    code, out = ci(work)
++    assert code == 0, out
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../275-merge-main-task-folder/review_input.patch  | 251 +++++++++++++++++++++
+#    1 file changed, 251 insertions(+)
+# ============================================================================

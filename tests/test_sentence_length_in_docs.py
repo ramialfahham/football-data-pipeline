@@ -39,7 +39,7 @@ PINNED = {
     "dbt_project/models/docs/cleaning_rules.md": 5,
     "dbt_project/models/docs/metric_columns.md": 15,
     "dbt_project/models/docs/metric_rules.md": 2,
-    "dbt_project/models/docs/shared_columns.md": 35,
+    "dbt_project/models/docs/shared_columns.md": 33,
     "deploy/nightly/README.md": 19,
     "design-mocks/README.md": 15,
     "docs/data_contract.md": 31,

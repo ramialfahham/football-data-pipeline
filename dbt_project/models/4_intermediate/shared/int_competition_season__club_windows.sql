@@ -16,11 +16,9 @@ with seasons as (
         d.split_year_season,
         d.calendar_year_season
     from {{ ref('dim_competition_season') }} as d
-    inner join {{ ref('competition_registry') }} as reg
-        on d.league_code = reg.league_code
-    inner join {{ ref('competition_types') }} as typ
-        on reg.competition_type = typ.competition_type
-    where typ.entity_type = 'club' and d.season_type is not null
+    inner join {{ ref('dim_league') }} as leagues
+        on d.league_code = leagues.league_code
+    where leagues.entity_type = 'club' and d.season_type is not null
 ),
 
 this_season as (

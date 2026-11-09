@@ -695,12 +695,12 @@ build:site-v2:
 # API_FOOTBALL_SKIP_INGEST_LOCK=1 appeared in three places here and disabled the
 # BigQuery ingest lease for every ingest CI ran. That is forbidden:
 # docs/operations_guide.md:149 — "Local debugging only; never production." And these
-# ingests ARE production: settings.py:31 defaults the raw dataset to `raw` and
+# ingests ARE production: settings.py defaults the raw dataset to `raw` and
 # API_FOOTBALL_BIGQUERY_DATASET is set nowhere in this file, so an MR pipeline writes
 # PRODUCTION raw — from an unmerged branch, and from a different resource_group than
 # the prod writers, so GitLab's own serialisation could not help either.
 # A held lease is not a silent skip: acquire_ingest_lock() failing returns 409 and
-# main.py:55 turns that into exit 2, so the job goes RED and you find out.
+# main.py turns that into exit 2, so the job goes RED and you find out.
 # tests/test_ci_data_job_invariants.py pins the flag's absence so this cannot come
 # back quietly. (That an MR pipeline can write prod raw AT ALL is a separate, still
 # open question — #33 item 13.)
@@ -751,7 +751,7 @@ data:build:mr:
     # ⛔ THIS JOB DOES NOT INGEST, AND MUST NOT (#73, 2026-08-16). A bootstrap-ingest
     # step lived here — `get_new_league_codes.py` then `python -m
     # ingestion.api_football.main` — and it wrote PRODUCTION raw from an UNMERGED
-    # branch: settings.py:31 defaults the raw dataset to `raw` and
+    # branch: settings.py defaults the raw dataset to `raw` and
     # API_FOOTBALL_BIGQUERY_DATASET is set nowhere in this file. The comment block
     # above already flagged that as "a separate, still open question — #33 item 13";
     # this closes it for the MR path.

@@ -22,12 +22,8 @@ team_stats as (
     select * from {{ ref('fct_fixture_team_stats') }}
 ),
 
-registry as (
-    select * from {{ ref('competition_registry') }}
-),
-
-types as (
-    select * from {{ ref('competition_types') }}
+competitions as (
+    select * from {{ ref('dim_league') }}
 ),
 
 round_kinds as (
@@ -175,9 +171,7 @@ with_stats as (
 select
     ws.*,
     reg.competition_type,
-    typ.entity_type
+    reg.entity_type
 from with_stats as ws
-left join registry as reg
+left join competitions as reg
     on ws.league_code = reg.league_code
-left join types as typ
-    on reg.competition_type = typ.competition_type

@@ -30,28 +30,8 @@
 #                   dbt: not_null -> fails `dbt build`
 #   season_type   : calendar_year | split_year — whether a season sits inside one year or spans two
 #                   dbt: not_null -> fails `dbt build`
-#   tier          : league pyramid level (domestic_league only; 1 = top flight)
-#                   deliberately BLANK for every other competition_type — a cup has no division,
-#                   so this is structurally N/A rather than missing data
-#                   ⚠ NO dbt TEST, precisely because a blank is legitimate here. The rule that
-#                   makes it safe — non-empty iff domestic_league — is a PYTHON test
-#                   (tests/test_registry_seed_projection.py), which runs in the `test:python` CI
-#                   job, NOT in `dbt build`. Setting a wrong tier fails there, not in the warehouse.
-#   competition_group : which leagues this one is ranked ALONGSIDE when a surface shows one entry
-#                   per league. elite | europe | international | calendar | secondary.
-#                   Same shape as `tier`, so it has the same guard: blank off a domestic_league,
-#                   NO dbt test, pinned both ways plus its vocabulary by that same Python test.
-#                   ⚠ AUTHORED, NOT DERIVED — the grouping is a judgement call.
-#                   Assigning a NEWLY onboarded league, in order:
-#                       elite      — never changes when a league is added; it is a strength call
-#                                    and several leagues match every structural rule for it while
-#                                    being deliberately outside it
-#                       secondary  — tier is not 1
-#                       calendar   — season_type is calendar_year
-#                       europe     — confederation is UEFA
-#                       international — everything else
-#                   That order reproduces today's grouping exactly, but it is GUIDANCE for a human,
-#                   not code: sync_dbt_vars.py projects this field and computes nothing.
+#   A league's tier and competition_group can change between seasons, so they are not registry
+#                   fields: dbt_project/seeds/competition_season_map.csv holds them per season.
 # ⚠ `country` is NOT projected (#69). dim_league already carries provider country and flag, and
 # this field holds a region word ("Europe", "International") for multi-country competitions, so
 # projecting it would make a third copy of a concept the warehouse already models.
@@ -73,14 +53,12 @@ competitions:
     country: "Germany"
     competition_type: "domestic_league"
     confederation: "UEFA"
-    tier: 1
     slug: "bundesliga"
     sort_order: 30
     provider: "api_football"
     provider_league_code: "D1"      # as it appears in api-football payload
     provider_league_id: 78
     season_type: "split_year"
-    competition_group: "elite"
     current_season: "2024"
     history_seasons: 10             # backfill window: last N season start years
     status: "active"
@@ -274,14 +252,12 @@ competitions:
     country: "England"
     competition_type: "domestic_league"
     confederation: "UEFA"
-    tier: 1
     slug: "premier-league"
     sort_order: 10
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 39
     season_type: "split_year"
-    competition_group: "elite"
     current_season: "2025"
     history_seasons: 11
     status: "active"
@@ -294,14 +270,12 @@ competitions:
     country: "Spain"
     competition_type: "domestic_league"
     confederation: "UEFA"
-    tier: 1
     slug: "la-liga"
     sort_order: 20
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 140
     season_type: "split_year"
-    competition_group: "elite"
     current_season: "2025"
     history_seasons: 10
     status: "active"
@@ -314,14 +288,12 @@ competitions:
     country: "Germany"
     competition_type: "domestic_league"
     confederation: "UEFA"
-    tier: 2
     slug: "2-bundesliga"
     sort_order: 60
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 79
     season_type: "split_year"
-    competition_group: "secondary"
     current_season: "2025"
     history_seasons: 5
     status: "active"
@@ -334,14 +306,12 @@ competitions:
     country: "Italy"
     competition_type: "domestic_league"
     confederation: "UEFA"
-    tier: 1
     slug: "serie-a"
     sort_order: 40
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 135
     season_type: "split_year"
-    competition_group: "elite"
     current_season: "2025"
     history_seasons: 11
     status: "active"
@@ -354,14 +324,12 @@ competitions:
     country: "France"
     competition_type: "domestic_league"
     confederation: "UEFA"
-    tier: 1
     slug: "ligue-1"
     sort_order: 50
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 61
     season_type: "split_year"
-    competition_group: "elite"
     current_season: "2025"
     history_seasons: 11
     status: "active"
@@ -374,14 +342,12 @@ competitions:
     country: "Finland"
     competition_type: "domestic_league"
     confederation: "UEFA"
-    tier: 1
     slug: "veikkausliiga"
     sort_order: 160
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 244
     season_type: "calendar_year"
-    competition_group: "calendar"
     current_season: "2026"
     history_seasons: 5
     status: "active"
@@ -395,14 +361,12 @@ competitions:
     country: "Mexico"
     competition_type: "domestic_league"
     confederation: "CONCACAF"
-    tier: 1
     slug: "liga-mx"
     sort_order: 110
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 262
     season_type: "split_year"
-    competition_group: "international"
     current_season: "2025"
     history_seasons: 5
     status: "active"
@@ -416,14 +380,12 @@ competitions:
     country: "Portugal"
     competition_type: "domestic_league"
     confederation: "UEFA"
-    tier: 1
     slug: "liga-portugal"
     sort_order: 80
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 94
     season_type: "split_year"
-    competition_group: "elite"
     current_season: "2025"
     history_seasons: 5
     status: "active"
@@ -437,14 +399,12 @@ competitions:
     country: "United States"
     competition_type: "domestic_league"
     confederation: "CONCACAF"
-    tier: 1
     slug: "mls"
     sort_order: 120
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 253
     season_type: "calendar_year"
-    competition_group: "calendar"
     current_season: "2026"
     history_seasons: 5
     status: "active"
@@ -458,14 +418,12 @@ competitions:
     country: "Saudi Arabia"
     competition_type: "domestic_league"
     confederation: "AFC"
-    tier: 1
     slug: "saudi-pro-league"
     sort_order: 130
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 307
     season_type: "split_year"
-    competition_group: "international"
     current_season: "2025"
     history_seasons: 5
     status: "active"
@@ -479,14 +437,12 @@ competitions:
     country: "Netherlands"
     competition_type: "domestic_league"
     confederation: "UEFA"
-    tier: 1
     slug: "eredivisie"
     sort_order: 70
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 88
     season_type: "split_year"
-    competition_group: "elite"
     current_season: "2025"
     history_seasons: 5
     status: "active"
@@ -500,14 +456,12 @@ competitions:
     country: "Belgium"
     competition_type: "domestic_league"
     confederation: "UEFA"
-    tier: 1
     slug: "belgian-pro-league"
     sort_order: 170
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 144
     season_type: "split_year"
-    competition_group: "europe"
     current_season: "2025"
     history_seasons: 5
     status: "active"
@@ -521,14 +475,12 @@ competitions:
     country: "Turkey"
     competition_type: "domestic_league"
     confederation: "UEFA"
-    tier: 1
     slug: "super-lig"
     sort_order: 180
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 203
     season_type: "split_year"
-    competition_group: "europe"
     current_season: "2025"
     history_seasons: 5
     status: "active"
@@ -542,14 +494,12 @@ competitions:
     country: "Poland"
     competition_type: "domestic_league"
     confederation: "UEFA"
-    tier: 1
     slug: "ekstraklasa"
     sort_order: 190
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 106
     season_type: "split_year"
-    competition_group: "europe"
     current_season: "2025"
     history_seasons: 5
     status: "active"
@@ -799,14 +749,12 @@ competitions:
     country: "Brazil"
     competition_type: "domestic_league"
     confederation: "CONMEBOL"
-    tier: 1
     slug: "brasileirao"
     sort_order: 90
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 71
     season_type: "calendar_year"
-    competition_group: "calendar"
     current_season: "2025"
     history_seasons: 5
     status: "in_progress"
@@ -820,14 +768,12 @@ competitions:
     country: "Argentina"
     competition_type: "domestic_league"
     confederation: "CONMEBOL"
-    tier: 1
     slug: "liga-profesional-argentina"
     sort_order: 100
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 128
     season_type: "calendar_year"
-    competition_group: "calendar"
     current_season: "2025"
     history_seasons: 5
     status: "in_progress"
@@ -841,14 +787,12 @@ competitions:
     country: "Japan"
     competition_type: "domestic_league"
     confederation: "AFC"
-    tier: 1
     slug: "j1-league"
     sort_order: 140
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 98
     season_type: "calendar_year"
-    competition_group: "calendar"
     current_season: "2025"
     history_seasons: 5
     status: "in_progress"
@@ -862,14 +806,12 @@ competitions:
     country: "South Korea"
     competition_type: "domestic_league"
     confederation: "AFC"
-    tier: 1
     slug: "k-league-1"
     sort_order: 150
     provider: "api_football"
     provider_league_code: null
     provider_league_id: 292
     season_type: "calendar_year"
-    competition_group: "calendar"
     current_season: "2025"
     history_seasons: 5
     status: "in_progress"

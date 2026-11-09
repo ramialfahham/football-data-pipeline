@@ -114,7 +114,7 @@ seeds:
         tests:
           - unique
           - relationships:
-              to: ref('competition_registry')
+              to: ref('dim_league')
               field: league_code
       - name: continental_championship
         description: >
@@ -123,7 +123,7 @@ seeds:
         tests:
           - unique
           - relationships:
-              to: ref('competition_registry')
+              to: ref('dim_league')
               field: league_code
 
   - name: standings_table_kinds
@@ -179,7 +179,7 @@ seeds:
         description: "The competition whose own name the row gives; empty for the general name."
         tests:
           - relationships:
-              to: ref('competition_registry')
+              to: ref('dim_league')
               field: league_code
       - name: season_api_year
         description: "The season the row's name holds for; empty when it holds for every season."
@@ -210,8 +210,8 @@ seeds:
   - name: competition_registry
     description: >
       Every competition the platform tracks, with the fields the registry authors by hand:
-      competition type, parent competition, confederation, URL slug, ordering, division tier and
-      season shape. One row per league_code.
+      competition type, parent competition, confederation, URL slug, ordering and season shape.
+      One row per league_code.
 
       GENERATED, do not hand-edit — scripts/sync_dbt_vars.py writes it from
       docs/competition_registry.yml, the authoring surface.
@@ -272,13 +272,6 @@ seeds:
           ordering them against each other needs something else.
         tests:
           - not_null
-      - name: tier
-        description: >
-          Division level within its country: 1 for a top flight, 2 for a second tier. EMPTY for
-          every competition that is not a domestic_league, because a cup or a tournament has no
-          division — structurally not applicable rather than missing, which is why there is no
-          not_null test. Non-empty exactly when competition_type is domestic_league;
-          tests/test_registry_seed_projection.py pins that both ways.
       - name: season_type
         description: >
           Whether a season sits inside one calendar year ("calendar_year", e.g. MLS, Brasileirão)
@@ -286,21 +279,6 @@ seeds:
           the boundaries of a season window.
         tests:
           - not_null
-      - name: competition_group
-        description: >
-          Which leagues this one is ranked alongside when a surface shows one entry per league.
-          "elite" the seven strongest European top flights; "europe" the remaining European top
-          flights on a SPLIT-YEAR season; "international" top flights outside Europe on a
-          split-year season; "calendar" top flights whose season sits inside one calendar year,
-          wherever they are (which is why Finland is here and not in "europe"); "secondary" below
-          a country's top flight. Mutually exclusive and exhaustive over domestic leagues.
-
-          Authored, not derived: "elite" is a strength judgement no other column expresses, and
-          several leagues match every structural rule for it yet sit outside it. EMPTY for anything
-          that is not a domestic_league — a cup is not ranked against leagues, so this is
-          structurally N/A rather than missing, which is why there is no not_null test. Non-empty
-          exactly when competition_type is domestic_league; tests/test_registry_seed_projection.py
-          pins that both ways and pins the permitted values.
 
   - name: metric_catalogue
     description: "{{ doc('metric_catalogue') }}"
@@ -1116,7 +1094,7 @@ seeds:
         tests:
           - not_null
           - relationships:
-              to: ref('competition_registry')
+              to: ref('dim_league')
               field: league_code
       - name: from_season
         description: "{{ doc('season_api_year') }} Here, the first season the version holds."
@@ -1377,6 +1355,25 @@ seeds:
         tests: [not_null]
       - name: previous_season_api_year
         description: "The provider year of the same competition's season before this one. Blank on the first edition held."
+      - name: tier
+        description: >
+          The league's division level within its country in this season: 1 for a top flight, 2 for
+          a second tier. EMPTY for every competition that is not a domestic_league, because a cup
+          has no division. A blank on a domestic league's row takes the previous season's value in
+          dim_competition_season.
+      - name: competition_group
+        description: >
+          Which leagues this one is ranked alongside in this season when a surface shows one entry
+          per league. "elite" the seven strongest European top flights; "europe" the remaining
+          European top flights on a SPLIT-YEAR season; "international" top flights outside Europe
+          on a split-year season; "calendar" top flights whose season sits inside one calendar
+          year; "secondary" below a country's top flight. Authored, not derived: "elite" is a
+          strength judgement no other column expresses. EMPTY for every competition that is not a
+          domestic_league. A blank on a domestic league's row takes the previous season's value in
+          dim_competition_season.
+        tests:
+          - accepted_values:
+              values: ["elite", "europe", "international", "calendar", "secondary"]
       - name: note
         description: "Why the row reads as it does, where a plain date reading would not explain it."
 
@@ -1521,8 +1518,8 @@ seeds:
 
   - name: player_bio_corrections
     description: >
-      A player's birth date or nationality where the provider's records conflict: one row per
-      player and field. Applied in `base_apif__players` and `base_apif__player_profiles`, and it
+      A player's birth date or nationality where the provider's records conflict or are missing:
+      one row per player and field. Applied in `base_apif__players` and `base_apif__player_profiles`, and it
       wins over both. An empty value means no outside source states it, so the player shows none.
     config:
       column_types:
@@ -1549,7 +1546,7 @@ seeds:
       - name: corrected_value
         description: "The value the player shows; empty when no outside source states it."
       - name: provider_values
-        description: "The conflicting values the provider sent when the row was written."
+        description: "The conflicting values the provider sent when the row was written, or (blank)."
         tests:
           - not_null
       - name: source
@@ -1560,6 +1557,65 @@ seeds:
         description: "Why this value was chosen."
         tests:
           - not_null
+
+  - name: player_award_results
+    description: >
+      The Ballon d'Or nominees and the Yashin Trophy nominees of each edition from 2016, with
+      their final placing: one row per award, edition and nominee. The data is researched by hand,
+      because the provider has no award data. Placings follow the original published ranking: tied
+      players share a rank, as France Football printed it, and a nominee it lists as not ranked has
+      no placing.
+    config:
+      column_types:
+        award: string
+        edition_year: int64
+        placing: int64
+        player_api_id: int64
+        player_name: string
+        source_url: string
+        check_url: string
+        note: string
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [award, edition_year, player_api_id]
+    columns:
+      - name: award
+        description: "The award: ballon_dor (best player) or yashin_trophy (best goalkeeper)."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["ballon_dor", "yashin_trophy"]
+      - name: edition_year
+        description: "The year of the edition's ceremony."
+        tests:
+          - not_null
+      - name: placing
+        description: "The nominee's final rank in the edition; empty when the publisher lists him as not ranked."
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 1
+              max_value: 30
+      - name: player_api_id
+        description: "The nominee."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('base_apif__players')
+              field: player_api_id
+      - name: player_name
+        description: "The nominee's name as the source prints it."
+        tests:
+          - not_null
+      - name: source_url
+        description: "URL of the publisher's page that states the placing, or of a page that reprints the publisher's ranking."
+        tests:
+          - not_null
+      - name: check_url
+        description: "URL of a second outlet's page that confirms the placing."
+        tests:
+          - not_null
+      - name: note
+        description: "Where the sources disagree or the rank is missing, what each source states."
 
   - name: league_name_overrides
     description: >
@@ -1624,7 +1680,8 @@ seeds:
       `source`.
 
       KNOWN GAP: only the listed strings are mapped, so an unseen spelling passes through
-      unchanged.
+      unchanged. For a player's nationality, dim_player's relationships test to dim_country then
+      fails the build.
     config:
       column_types:
         provider_country: string
@@ -1633,7 +1690,9 @@ seeds:
         note: string
     columns:
       - name: provider_country
-        description: "The exact string API-Football sends in `$.country.name`, and the join key."
+        description: >
+          The exact string API-Football sends, garbled spellings included: a country name in
+          `$.country.name`, or a player's nationality. The join key.
         tests:
           - not_null
           - unique

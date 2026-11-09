@@ -1,16 +1,4 @@
-"""BigQuery helpers: dataset setup, partitioned table creation, and row writes.
-
-Raw tables use an append-only pattern: each pipeline run writes one new row
-containing the API response for that run. Tables are partitioned by the date
-of ingestion (ingested_at) so BigQuery only scans the relevant day's data
-when staging models filter to the latest partition.
-
-The per-fixture fanout table (RAW_APIF_FIXTURE_DETAILS) is also append-only:
-loads/batch_fixtures.py writes one row per fetched fixture and derives coverage
-by reading those rows back (see coverage.py), so no merge step or separate
-tracking table is needed. WRITE_TRUNCATE remains only for single-current-state
-operational tables (e.g. the ingest lock and the completeness snapshot).
-"""
+"""BigQuery helpers: dataset setup, partitioned raw table creation and append-only row writes."""
 
 from __future__ import annotations
 
@@ -24,8 +12,7 @@ from google.cloud.exceptions import NotFound
 
 from .settings import DATASET_ID, GCP_PROJECT_ID
 
-# Module-level cache so we only call create_table() once per table per process.
-# This avoids one redundant API call on every subsequent write to the same table.
+# Per-process cache so create_table() runs once per table.
 _partitioned_tables_ensured: set[str] = set()
 
 
@@ -35,12 +22,7 @@ def _api_football_dataset_location() -> str:
 
 
 def ensure_api_football_dataset(client: bigquery.Client) -> None:
-    """Create the raw BigQuery dataset if it does not exist yet.
-
-    Raises RuntimeError if the dataset already exists in a different region,
-    because moving datasets between regions requires manual intervention and
-    would break all downstream dbt models that reference it.
-    """
+    """Create the raw dataset; raises if it exists in another region, which dbt would not follow."""
     ref = f"{GCP_PROJECT_ID}.{DATASET_ID}"
     want_loc = _api_football_dataset_location()
     try:
@@ -66,12 +48,7 @@ def ensure_unified_raw_table(
     *,
     include_fixture_id: bool = False,
 ) -> None:
-    """Create a unified raw table (all competitions share it) if it does not exist.
-
-    Schema: league_code STRING, payload JSON, ingested_at TIMESTAMP.
-    FIXTURE_DETAILS also has fixture_id INT64 (set include_fixture_id=True).
-    Partitioned by DATE(ingested_at), clustered by league_code.
-    """
+    """Create a unified raw table shared by all competitions, partitioned by ingest day."""
     if table_name in _partitioned_tables_ensured:
         return
 
@@ -95,19 +72,7 @@ def ensure_unified_raw_table(
 
 
 def ensure_raw_table_partitioned(client: bigquery.Client, table_name: str) -> None:
-    """Create a raw payload table with date partitioning if it does not exist yet.
-
-    All raw API tables share the same two-column schema:
-      - payload    JSON     — the full API response envelope, stored as-is
-      - ingested_at TIMESTAMP — when this row was written (UTC)
-
-    The table is partitioned by DATE(ingested_at) so BigQuery only reads the
-    relevant day's partition when staging filters to the latest row. Without
-    partitioning, every query scans the entire table history.
-
-    If the table already exists this is a no-op (exists_ok=True). We cache
-    the result per process so the API call only happens once per table per run.
-    """
+    """Create a payload-only raw table partitioned by ingest day, so latest-row reads prune."""
     if table_name in _partitioned_tables_ensured:
         return
 
@@ -117,9 +82,6 @@ def ensure_raw_table_partitioned(client: bigquery.Client, table_name: str) -> No
         bigquery.SchemaField("ingested_at", "TIMESTAMP"),
     ]
     table = bigquery.Table(table_id, schema=schema)
-    # Partition by the date part of ingested_at — one partition per calendar day.
-    # require_partition_filter=False so staging models can still do full scans
-    # during development without adding a WHERE clause.
     table.time_partitioning = bigquery.TimePartitioning(
         type_=bigquery.TimePartitioningType.DAY,
         field="ingested_at",
@@ -138,40 +100,7 @@ def load_json_to_bq(
     league_code: str | None = None,
     ingested_at: str | None = None,
 ) -> None:
-    """Write one JSON row to a BigQuery raw table.
-
-    Two modes:
-
-    as_json_payload=True (used for all API response tables):
-        Wraps the payload dict in {"payload": ..., "ingested_at": "<UTC now>"}
-        and writes it with an explicit schema. This is necessary because the
-        API returns nested arrays and numeric-looking keys that BigQuery's
-        autodetect mishandles.
-
-        When append=True, the row is appended to the existing table (WRITE_APPEND)
-        and the table is created with date partitioning if it does not exist yet.
-        This is the standard mode for reference tables (fixtures, standings, etc.).
-
-        When append=False, the table is OVERWRITTEN (WRITE_TRUNCATE) — every row, every
-        competition. ⚠ `append` is a REQUIRED keyword and must stay one: it once
-        defaulted to False, so a single omitted argument truncated a table shared by 45
-        competitions, silently and with no DELETE to notice. Exactly two callers pass False and
-        both mean it, because their tables hold one current-state row: `completeness.py`
-        (INGEST_COMPLETENESS_SNAPSHOT) and `fixture_scheduling.py` (INGEST_CURSOR). Do not
-        reintroduce a default.
-
-    as_json_payload=False (used for operational tables like INGEST_LOCK):
-        Writes the payload dict directly with BigQuery autodetect schema.
-        Always uses WRITE_TRUNCATE — these tables hold a single current-state row.
-
-    Pass ``ingested_at`` (UTC ISO string) when the caller needs the row's exact stamp
-    afterwards. No caller does today: the merge-on-write that needed it — to delete strictly
-    BEFORE its own write — is gone (raw appends and never deletes). Kept as
-    a general facility for a caller that must correlate rows across tables in one run, and
-    because it is the only way to make a write's stamp deterministic in a test. Mirrors the
-    same parameter on ``load_json_payload_rows_to_bq``. Ignored when ``as_json_payload=False``,
-    which writes the payload dict verbatim.
-    """
+    """Write one row; append=False truncates the whole table, so it stays a required keyword."""
     table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
 
     if as_json_payload:
@@ -224,18 +153,7 @@ def load_json_payload_rows_to_bq(
     append: bool = True,
     ingested_at: str | None = None,
 ) -> int:
-    """Append several JSON payload rows to a unified raw table in ONE atomic load job.
-
-    Each element of ``payloads`` becomes one row ``{league_code, payload, ingested_at}``,
-    all sharing one ``ingested_at`` and written with a single ``load_table_from_file`` call
-    (all-or-nothing). Used to store a snapshot as MANY small rows instead of one oversized
-    row — e.g. RAW_APIF_PLAYERS writes one row per (team, season) so no single row can
-    approach BigQuery's 100 MB per-row JSON limit (mirrors RAW_APIF_FIXTURE_DETAILS, which
-    stores one row per fetch of a fixture). Pass ``ingested_at`` (UTC ISO string) when the
-    caller needs the row's exact stamp afterwards; no caller does today, since the delete that
-    needed it is gone (raw appends and never deletes). Returns the number of
-    rows written (0 for empty input).
-    """
+    """Write each payload as its own row in one atomic load, staying under the per-row limit."""
     if not payloads:
         return 0
     table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
@@ -267,16 +185,7 @@ def load_json_payload_rows_to_bq(
     return len(payloads)
 
 
-# REMOVED: `delete_superseded_league_rows`, the whole-league merge-on-write of #33 item 8b. It
-# deleted every prior row for a league once a fetch was judged COMPLETE, and "complete" means
-# only that the call did not error — an empty error-free response qualifies
-# (`http_client.result_is_complete`, deliberately). So a provider answering with nothing on one
-# quiet night destroyed that competition's stored history past the 7-day time-travel window,
-# with no signal anywhere.
-#
-# The rule: raw appends and never deletes, for every table. Base decides. Do NOT restore this as
-# a regression fix. The scan-cost reason it existed is gone: staging became a stored TABLE (#33
-# items 9/10), so each raw table is parsed once a night, not once per test.
+# Raw tables are append-only and never deleted from; the base layer decides which rows win.
 
 
 def _scalar(
@@ -284,12 +193,7 @@ def _scalar(
     sql: str,
     params: list[bigquery.ScalarQueryParameter],
 ):
-    """Run a one-cell query and return that cell, or None when there is no row.
-
-    Kept separate so the cheap timestamp lookup in read_latest_payload_json cannot accidentally be
-    routed through the Storage Read API path below it, which exists for multi-megabyte payload rows
-    and is pure overhead for a single scalar.
-    """
+    """Run a one-cell query via REST, since the Storage Read API is overhead for a single scalar."""
     rows = list(
         client.query(
             sql, job_config=bigquery.QueryJobConfig(query_parameters=params)
@@ -303,23 +207,7 @@ def read_latest_payload_json(
     table_name: str,
     league_code: str | None = None,
 ) -> dict | None:
-    """Return the payload from the most recent row in a raw table.
-
-    When ``league_code`` is provided the query is filtered to that league,
-    which is required for the unified raw tables (RAW_APIF_FIXTURES_NEXT etc.)
-    that store all competitions in one table discriminated by league_code.
-
-    Returns None if the table does not exist or is empty.
-
-    Reads in TWO steps when the table has an ingest-time column, because that column is the
-    partition key and it is the only shape that prunes (#890). The reasoning and the measured
-    numbers are at the call site below, next to the queries they describe.
-
-    Implementation note: the PAYLOAD result is streamed via the BigQuery Storage Read
-    API (gRPC) rather than the REST paginator, because merged payload rows
-    can exceed REST's 20 MiB per-row response cap on large competitions. The timestamp
-    lookup deliberately does not use that path -- see ``_scalar``.
-    """
+    """Latest payload or None, read via the Storage Read API to pass REST's 20 MiB row cap."""
     table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
     try:
         table = client.get_table(table_id)
@@ -330,16 +218,13 @@ def read_latest_payload_json(
     if "payload" not in colnames:
         return None
 
-    # Which column carries the ingest time, if any. It is the PARTITION column on the raw tables.
     ts_col = (
         "ingested_at" if "ingested_at" in colnames
         else "ingested_datetime" if "ingested_datetime" in colnames
         else None
     )
 
-    # The parameter type has to match the column: `ingested_at` is TIMESTAMP but a table using
-    # `ingested_datetime` may be DATETIME, and a mismatched parameter is a query error rather than
-    # a wrong answer. Read it from the schema instead of assuming.
+    # The parameter type must match the column, which may be DATETIME rather than TIMESTAMP.
     ts_type = next((f.field_type for f in table.schema if f.name == ts_col), None) if ts_col else None
 
     conditions: list[str] = []
@@ -353,25 +238,16 @@ def read_latest_payload_json(
         return (" WHERE " + " AND ".join(clauses)) if clauses else ""
 
     if ts_col is None:
-        # No ingest-time column, so there is no partition to prune to. Unchanged behaviour.
         q = f"SELECT payload FROM `{table_id}`{_where()} LIMIT 1"
     else:
-        # TWO queries, deliberately (#890). `ORDER BY {ts_col} DESC LIMIT 1` returns one row but
-        # cannot prune partitions: to rank, BigQuery reads every partition ever written, on the
-        # widest column in the warehouse. Measured by dry run on RAW_APIF_TRANSFERS/BL1:
-        #   ORDER BY ... LIMIT 1                          6.634 GiB
-        #   MAX({ts_col}) alone                           0.013 MiB   <- reads one narrow column
-        #   payload WHERE {ts_col} = <literal>            2.95  MiB   <- prunes to one partition
-        # A subquery predicate (`= (SELECT MAX(...))`) was measured too and scans the SAME
-        # 6.634 GiB, because BigQuery does not prune on a subquery. So one round trip cannot work;
-        # the extra call costs 13 KB and saves gigabytes.
+        # Two queries: ORDER BY LIMIT 1 and a MAX() subquery both scan every partition, while a
+        # literal predicate on the partition column prunes to one.
         latest = _scalar(
             client,
             f"SELECT MAX({ts_col}) AS ts FROM `{table_id}`{_where()}",
             params,
         )
         if latest is None:
-            # No rows for this league at all. The second query would return nothing, so skip it.
             return None
         q = f"SELECT payload FROM `{table_id}`{_where([f'{ts_col} = @ts'])} LIMIT 1"
         params = params + [

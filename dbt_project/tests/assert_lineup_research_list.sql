@@ -13,7 +13,7 @@ with registry as (
     select
         league_code,
         competition_type
-    from {{ ref('competition_registry') }}
+    from {{ ref('dim_league') }}
 ),
 
 fixtures as (
