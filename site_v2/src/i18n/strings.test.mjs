@@ -19,7 +19,7 @@ test("German reads im before a Cup or Pokal and in der before every other compet
 
 test("English and Finnish name the competition without an article", () => {
   assert.equal(inCompetition("en", "DFBP", "DFB-Pokal"), "in DFB-Pokal");
-  assert.equal(inCompetition("fi", "BL1", "Bundesliga"), "sarjassa Bundesliga");
+  assert.equal(inCompetition("fi", "BL1", "Bundesliga"), "kilpailussa Bundesliga");
 });
 
 test("a placeholder used twice is filled twice", () => {

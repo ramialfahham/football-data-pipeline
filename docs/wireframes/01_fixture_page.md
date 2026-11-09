@@ -128,7 +128,7 @@ full width beneath. Bars are normalized to the larger of the two values.
 |---|---|---|
 | Result chip | `result` | the letter in the page's language, on the result colour |
 | Score | `goals_for`, `goals_against` | always from this team's side |
-| Home/away | `home_away` | `haHome` / `haAway` |
+| Home/away | `home_away` | `home` / `away` |
 | Opponent | `opponent_name`, `opponent_logo_url` | crest before the name, the name wrapping |
 | Competition | `played_league_code` → `competitions.json` name | the name, never the code |
 | Date | `played_kickoff_datetime` | locale short date |

@@ -21,22 +21,22 @@
     {
       "block": "Competition header",
       "mart": ["mart_competition_index", "mart_competition_fixtures", "core:dim_competition_season"],
-      "i18n_keys": ["crumbHome", "navCompetitions", "compSeason", "compTabsAria", "compTabOverview", "compTabMatchdays", "compTabRounds", "compTabRankings"]
+      "i18n_keys": ["crumbHome", "navCompetitions", "compSeason", "compTabsAria", "overview", "compTabMatchdays", "compTabRounds", "compTabRankings"]
     },
     {
       "block": "Table",
       "mart": "mart_standings",
-      "i18n_keys": ["compSecTable", "compColPos", "compColPlayed", "compColWins", "compColDraws", "compColLosses", "compColGoals", "compColGoalDiff", "compColPoints"]
+      "i18n_keys": ["table", "positionShort", "playedShort", "winsShort", "drawsShort", "lossesShort", "goals", "goalDifferenceShort", "points"]
     },
     {
       "block": "Deserved points table",
       "mart": "mart_team_profile",
-      "i18n_keys": ["compSecDeserved", "compDeservedExplainer", "compColPos", "metrics.shots_on_goal_difference_per_match.label", "perMatch", "metrics.deserved_points.label", "metrics.points_won.label", "metrics.deserved_points_gap.label", "metrics.shots_on_target_per_match.label"]
+      "i18n_keys": ["compSecDeserved", "compDeservedExplainer", "positionShort", "metrics.shots_on_goal_difference_per_match.label", "perMatch", "metrics.deserved_points.label", "metrics.points_won.label", "metrics.deserved_points_gap.label", "metrics.shots_on_target_per_match.label"]
     },
     {
       "block": "The season in numbers",
       "mart": "mart_competition_season_summary",
-      "i18n_keys": ["compSecFacts", "compFactGoalsPerMatch", "compFactGoalsInMatches", "compFactHomeWins", "compFactOf", "compFactDrawsAway", "compFactBiggestMargin", "compFactMostGoals", "compFactLongestUnbeaten", "compFactLongestWinless", "compFactMatches", "compVs"]
+      "i18n_keys": ["compSecFacts", "compFactGoalsPerMatch", "compFactGoalsInMatches", "compFactHomeWins", "compFactOf", "compFactDrawsAway", "biggestWin", "compFactMostGoals", "compFactLongestUnbeaten", "compFactLongestWinless", "compFactMatches", "vs"]
     }
   ]
 }

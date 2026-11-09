@@ -84,7 +84,7 @@ const entity = {
 const teamsHref = localeHref(lang, `${word(lang, "teams")}/`);
 const crumbs = [
   { name: t(lang, "crumbHome"), href: localeHref(lang) },
-  { name: t(lang, "crumbTeams"), href: teamsHref },
+  { name: t(lang, "navTeams"), href: teamsHref },
   { name },
 ];
 ---
@@ -102,7 +102,7 @@ const crumbs = [
     <nav class="crumb" aria-label={t(lang, "crumbAria")}>
       <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
       <span class="sep">›</span>
-      <a class="lnk" href={teamsHref}>{t(lang, "crumbTeams")}</a>
+      <a class="lnk" href={teamsHref}>{t(lang, "navTeams")}</a>
       <span class="sep">›</span>
       <span class="here">{name}</span>
     </nav>

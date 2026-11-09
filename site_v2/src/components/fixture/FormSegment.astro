@@ -18,7 +18,7 @@ interface Props {
 const { fixture, lang, compName } = Astro.props;
 const { home, away } = fixture;
 
-const LETTER: Record<string, string> = { W: "compColWins", D: "compColDraws", L: "compColLosses" };
+const LETTER: Record<string, string> = { W: "winsShort", D: "drawsShort", L: "lossesShort" };
 const results = (side: Side): string[] =>
   side.form?.window_type === "prev_season"
     ? []

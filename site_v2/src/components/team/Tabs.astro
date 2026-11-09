@@ -11,7 +11,7 @@ interface Props {
 }
 const { lang, pages } = Astro.props;
 
-const LABEL = { overview: "tabOverview", matches: "navMatches", performance: "tabPerformance" };
+const LABEL = { overview: "overview", matches: "navMatches", performance: "tabPerformance" };
 ---
 
 <nav class="tabs comp-tabs" aria-label={t(lang, "tabsAria")}>

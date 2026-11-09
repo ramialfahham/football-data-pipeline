@@ -21,7 +21,7 @@
     {
       "block": "Competition header",
       "mart": ["mart_competition_index", "core:dim_competition_season"],
-      "i18n_keys": ["crumbHome", "navCompetitions", "compSeason", "compTabsAria", "compTabOverview", "compTabMatchdays", "compTabRounds", "compTabRankings"]
+      "i18n_keys": ["crumbHome", "navCompetitions", "compSeason", "compTabsAria", "overview", "compTabMatchdays", "compTabRounds", "compTabRankings"]
     },
     {
       "block": "Matchday picker",
@@ -31,7 +31,7 @@
     {
       "block": "Schedule",
       "mart": "mart_competition_fixtures",
-      "i18n_keys": ["compSecSchedule", "compTBC", "compTopMatch"]
+      "i18n_keys": ["compSecSchedule", "timeOpenShort", "compTopMatch"]
     }
   ]
 }

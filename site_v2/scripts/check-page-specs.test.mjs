@@ -170,7 +170,7 @@ test("real EN dict extraction stays above the self-check floor (guards against a
 
 test("collectEnI18nKeys also returns the metric label keys, not just chrome keys (#370)", () => {
   // The test above cannot cover this: the chrome dict alone clears its floor of 50, so it passes
-  // whether the METRIC_LABELS_EN merge works or not. This asserts the metric keys are actually IN the
+  // whether the METRIC_TERMS merge works or not. This asserts the metric keys are actually IN the
   // set validateSpec checks `i18n_keys` against, which is the only reason a spec may declare
   // `metrics.*.label` at all.
   const { keys, error } = collectEnI18nKeys();
@@ -178,13 +178,13 @@ test("collectEnI18nKeys also returns the metric label keys, not just chrome keys
   const metricKeys = [...keys].filter((k) => /^metrics\.[A-Za-z0-9_]+\.label$/.test(k));
   assert.ok(metricKeys.length >= 15,
     `only ${metricKeys.length} metric label keys reached the i18n key set (floor 15) — the ` +
-    `METRIC_LABELS_EN extraction is broken, and every spec declaring one would look invalid`);
+    `METRIC_TERMS extraction is broken, and every spec declaring one would look invalid`);
   // The key the catalogue really declares for shots_on_goal_per_match. Named explicitly because the
   // internal metric_id says "on_goal" while this display key says "on_target", and a round-1 defect
   // in this very task came from inferring the key from the id instead of reading the column.
   assert.ok(keys.has("metrics.shots_on_target_per_match.label"));
   // Chrome and metric keys must coexist, not replace one another.
-  assert.ok(keys.has("secDeserved"));
+  assert.ok(keys.has("secForm"));
 });
 
 test("real mart directory has at least the marts both committed specs reference", () => {

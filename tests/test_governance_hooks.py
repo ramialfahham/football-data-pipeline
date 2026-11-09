@@ -709,21 +709,20 @@ def _copy_gate():
 
 def _strings_fixture(chrome_values='"v{i}"', metric_values='"m{i}"', metric_n=18,
                      metric_locales=("EN", "DE", "FI")):
-    """A synthetic strings.ts: three healthy chrome dicts plus METRIC_LABELS blocks for `metric_locales`."""
+    """A synthetic strings.ts: three healthy chrome dicts, metric-term words for `metric_locales`, one METRIC_TERMS block."""
     out = []
     for loc in ("EN", "DE", "FI"):
         body = "".join(f"  key{i}: {chrome_values.format(i=i)},\n" for i in range(40))
+        if loc in metric_locales:
+            body += "".join(f"  term{i}: {metric_values.format(i=i)},\n" for i in range(metric_n))
         out.append(f"const {loc}: Dict = {{\n{body}}};\n")
-    for loc in metric_locales:
-        body = "".join(
-            f'  "metrics.m{i}.label": {metric_values.format(i=i)},\n'
-            for i in range(metric_n))
-        out.append(f"const METRIC_LABELS_{loc}: MetricLabels = {{\n{body}}};\n")
+    body = "".join(f'  "metrics.m{i}.label": "term{i}",\n' for i in range(metric_n))
+    out.append(f"const METRIC_TERMS: Record<string, string> = {{\n{body}}};\n")
     return "\n".join(out)
 
 
 def test_copy_gate_metric_floor_is_in_the_gate_not_only_in_a_test(tmp_path, monkeypatch):
-    """Keeps the chrome dicts healthy so only the metric floor can fire; backtick values yield zero entries."""
+    """Keeps the chrome dicts healthy so only the metric floor can fire; backtick values resolve no term."""
     gate = _copy_gate()
     broken = tmp_path / "strings.ts"
     broken.write_text(_strings_fixture(metric_values="`m{i}`"), encoding="utf-8")
@@ -740,16 +739,28 @@ def test_copy_gate_metric_floor_is_in_the_gate_not_only_in_a_test(tmp_path, monk
         "user-visible strings skip the em dash and completeness checks silently")
 
 
-def test_copy_gate_fails_when_a_metric_labels_block_is_absent(tmp_path, monkeypatch):
-    """A locale losing its whole METRIC_LABELS block must fail rather than go unchecked."""
+def test_copy_gate_fails_when_a_locale_lacks_its_metric_words(tmp_path, monkeypatch):
+    """A locale losing the words its metric terms name must fail rather than go unchecked."""
     gate = _copy_gate()
     partial = tmp_path / "strings.ts"
     text = _strings_fixture(metric_locales=("EN", "DE"))
     partial.write_text(text, encoding="utf-8")
     monkeypatch.setattr(gate, "STRINGS", partial)
 
-    assert "fi" not in gate._metric_labels(text), "fixture must actually drop the FI block"
-    assert gate.main() == 1, "a locale with no METRIC_LABELS block must fail the gate"
+    assert gate._metric_labels(text)["fi"] == {}, "fixture must actually drop the FI words"
+    assert gate.main() == 1, "a locale with no metric words must fail the gate"
+
+
+def test_copy_gate_fails_when_the_metric_terms_block_is_absent(tmp_path, monkeypatch):
+    """`missing_metric_locales`: without a METRIC_TERMS block no metric name is checked."""
+    gate = _copy_gate()
+    f = tmp_path / "strings.ts"
+    text = _strings_fixture().split("const METRIC_TERMS")[0]
+    f.write_text(text, encoding="utf-8")
+    monkeypatch.setattr(gate, "STRINGS", f)
+
+    assert gate._metric_labels(text) == {}
+    assert gate.main() == 1, "a strings.ts with no METRIC_TERMS block must fail the gate"
 
 
 def test_copy_gate_metric_parser_agrees_with_the_real_consumers():
@@ -816,10 +827,38 @@ def test_copy_gate_sees_metric_labels_as_ordinary_copy(tmp_path, monkeypatch):
     """Metric labels are merged into `dicts`, so an em dash in a metric name is reported like any other."""
     gate = _copy_gate()
     f = tmp_path / "strings.ts"
-    text = _strings_fixture().replace('"metrics.m3.label": "m3"', '"metrics.m3.label": "a — b"')
+    text = _strings_fixture().replace('term3: "m3"', 'term3: "a — b"')
     f.write_text(text, encoding="utf-8")
     monkeypatch.setattr(gate, "STRINGS", f)
     assert gate.main() == 1, "an em dash inside a metric label must be reported like any other"
+
+
+def test_copy_gate_passes_only_the_exact_approved_identical_text(tmp_path, monkeypatch):
+    """Check 4's one exemption passes only the approved locale, key and exact value; a changed text fails."""
+    gate = _copy_gate()
+    f = tmp_path / "strings.ts"
+    monkeypatch.setattr(gate, "STRINGS", f)
+    monkeypatch.setattr(gate, "SEED_LABEL_FILES", (_seed_fixture(tmp_path, ["key1"]),))
+    f.write_text(_strings_fixture().replace('key5: "v5"', 'key5: "kick off time"'), encoding="utf-8")
+    monkeypatch.setattr(gate, "APPROVED_IDENTICAL", {})
+    assert gate.main() == 1, "a text identical to English with no approval must fail"
+
+    approved = {(loc, "key5"): ("kick off time", "#1 note 1") for loc in ("de", "fi")}
+    monkeypatch.setattr(gate, "APPROVED_IDENTICAL", approved)
+    assert gate.main() == 0, "the approved value at the approved key must pass"
+
+    f.write_text(_strings_fixture().replace('key5: "v5"', 'key5: "kick-off time"'), encoding="utf-8")
+    assert gate.main() == 1, "a changed text no longer matches its approval and must fail again"
+
+
+def test_copy_gate_approved_identical_texts_are_the_live_values():
+    """The list holds no approval for a text the site no longer shows."""
+    gate = _copy_gate()
+    dicts = gate._dicts(gate.STRINGS.read_text(encoding="utf-8"))
+    for (loc, key), (value, note) in gate.APPROVED_IDENTICAL.items():
+        assert note.startswith("#"), f"{loc}.{key} names no approving issue note"
+        assert dicts[loc].get(key) == value == dicts["en"].get(key), (
+            f"{loc}.{key} no longer holds the approved identical text {value!r}")
 
 
 def _seed_fixture(tmp_path, keys):

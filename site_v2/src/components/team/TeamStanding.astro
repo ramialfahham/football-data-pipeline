@@ -14,7 +14,7 @@ interface Props {
 }
 const { season: s, lang } = Astro.props;
 const rows = [
-  { label: t(lang, "teamPosition"), value: ordinal(s.latest_rank, lang),
+  { label: t(lang, "position"), value: ordinal(s.latest_rank, lang),
     before: s.points_rank_prev_season == null ? DASH : ordinal(s.points_rank_prev_season, lang) },
   { label: metricLabel(lang, "metrics.points_won.label"), value: integer(s.points_this_season, lang),
     before: integer(s.points_prev_season, lang) },

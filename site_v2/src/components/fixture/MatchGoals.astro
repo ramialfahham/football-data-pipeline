@@ -28,7 +28,7 @@ const rows: PlayedGoal[] = timed ? goals : [
 function detail(g: PlayedGoal): string[] {
   const parts: string[] = [];
   if (timed) parts.push(matchMinute(g.minute, g.minute_extra));
-  if (!timed && (g.goals ?? 0) > 1) parts.push(`${g.goals} ${t(lang, "goals")}`);
+  if (!timed && (g.goals ?? 0) > 1) parts.push(`${g.goals} ${t(lang, "goalsMany")}`);
   if (g.is_own_goal) parts.push(t(lang, "goalOwnGoal"));
   else if ((g.penalties ?? 0) > 0) parts.push(t(lang, "goalPenalty"));
   else if (timed && g.assist_player_name) parts.push(t(lang, "goalAssist", { name: g.assist_player_name }));
@@ -37,8 +37,8 @@ function detail(g: PlayedGoal): string[] {
 ---
 
 {(rows.length > 0 || notRecorded) && (
-  <section aria-label={t(lang, "secGoals")}>
-    <SectionHead label={t(lang, "secGoals")} />
+  <section aria-label={t(lang, "goals")}>
+    <SectionHead label={t(lang, "goals")} />
     {notRecorded && <p class="bsub">{t(lang, "goalsNotRecorded")}</p>}
     {!notRecorded && !timed && <p class="bsub">{t(lang, "goalsNoMinutes")}</p>}
     {rows.length > 0 && (

@@ -32,9 +32,9 @@ const run = (n: number | null | undefined) =>
   n == null ? null : { value: t(lang, "compFactMatches", { n: integer(n, lang) }), sub: competitionInfo(s.league_code).name };
 
 const rows = [
-  { label: t(lang, "teamBiggestWin"), v: match(s.biggest_win_goals_for, s.biggest_win_goals_against, s.biggest_win_opponent_name,
+  { label: t(lang, "biggestWin"), v: match(s.biggest_win_goals_for, s.biggest_win_goals_against, s.biggest_win_opponent_name,
       s.biggest_win_home_away, s.biggest_win_league_code, s.biggest_win_kickoff_datetime) },
-  { label: t(lang, "teamHeaviestDefeat"), v: match(s.heaviest_defeat_goals_for, s.heaviest_defeat_goals_against,
+  { label: t(lang, "biggestLoss"), v: match(s.heaviest_defeat_goals_for, s.heaviest_defeat_goals_against,
       s.heaviest_defeat_opponent_name, s.heaviest_defeat_home_away, s.heaviest_defeat_league_code, s.heaviest_defeat_kickoff_datetime) },
   { label: t(lang, "compFactLongestUnbeaten"), v: run(s.longest_unbeaten_run) },
   { label: t(lang, "compFactLongestWinless"), v: run(s.longest_winless_run) },

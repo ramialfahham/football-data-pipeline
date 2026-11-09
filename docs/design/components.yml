@@ -1,5 +1,6 @@
 # The site's components: each one's parts, the text style or mark of each part, where its text may
-# break, its wide form, at most one narrow form and the units that never split. The format is #243's.
+# break, its wide form, at most one narrow form, the units that never split and the terms it shows in
+# their short form, every other term in full. The format is #243's.
 # scripts/check_component_registry.py validates this file, generates the element table of
 # docs/wireframes/block_standard.md from it and counts its gaps. The sets hold the values system.css
 # uses; #230 decides the scale. A part's `gap` names a known gap; the check's GAPS says what each means.
@@ -181,6 +182,7 @@ components:
     wide: "home side | kick-off or score | away side"
     narrow: {below: fits, form: "a row's tag on its own line above the home team"}
     never-split: ["15:30", TBC]
+    short-forms: [timeOpen]
   table:
     name: Table
     file: [site_v2/src/components/competition/StandingsTable.astro, site_v2/src/components/competition/DeservedTable.astro, site_v2/src/components/competition/RankingBoard.astro, site_v2/src/components/team/TeamDeserved.astro, site_v2/src/components/team/TeamLastSeason.astro]
@@ -218,6 +220,7 @@ components:
       wdl: {class: wdl, selector: ".ctab .n.wdl", text: 13-400-muted, breaks: never}
     wide: "the table with W, D, L, goal difference and points"
     narrow: {below: w470, form: "without the W, D and L columns"}
+    short-forms: [played, wins, draws, losses, goalDifference, position]
   deserved-table:
     name: Deserved points table
     file: site_v2/src/components/competition/DeservedTable.astro
@@ -226,6 +229,7 @@ components:
       table: {class: dpt}
       shots-head: {class: hs, selector: ".ctab-head .hs", text: 11-600-muted, breaks: between words}
     wide: the table of deserved points
+    short-forms: [position]
   last-season:
     name: Last-season table
     file: site_v2/src/components/team/TeamLastSeason.astro
@@ -281,6 +285,7 @@ components:
       played: {class: played}
     wide: "home team | score or vs | away team, the result line under"
     narrow: {below: w700, form: "each team on its own line, its goals closing the line"}
+    short-forms: [goalDifference]
   list-row:
     name: List row
     file: [site_v2/src/components/fixture/RecentMatch.astro, site_v2/src/components/fixture/HeadToHead.astro, site_v2/src/components/fixture/MatchGoals.astro, site_v2/src/components/fixture/PlayerRow.astro, site_v2/src/components/team/TeamCompetitions.astro]
@@ -294,7 +299,7 @@ components:
     used-on: [match page, Team page]
     parts:
       chip: {class: pill, selector: ".resrow .pill", text: 12-700-pill-ink, element: Result chip, rule: "one match's W, D or L from a team's side, in the page's language, on the result colour", measured: "font-size=12px; font-weight=700; color=pill-ink", ruled-on: the match page review}
-      row: {class: resrow, element: Result row, rule: "result chip · score · opponent (crest, name, H or A) · competition · date. One line where its list is 420px wide or more, two lines below", measured: fits, ruled-on: the match page review}
+      row: {class: resrow, element: Result row, rule: "result chip · score · opponent (crest, name, home or away) · competition · date. One line where its list is 420px wide or more, two lines below", measured: fits, ruled-on: the match page review}
       score: {class: rscore, selector: ".resrow .rscore", text: 15-700-ink, element: Result row score, rule: "the score from the row's side, 15px bold ink", measured: "font-size=15px; font-weight=700; color=ink", ruled-on: the match page review}
       name: {class: ropp, selector: ".resrow .ropp", text: 15-400-ink, element: Result row name, rule: "the club, 15px ink, wrapping, never cut off", measured: "font-size=15px; color=ink; white-space=normal", ruled-on: the match page review}
       meta: {class: rmeta, selector: ".resrow:not(.goal) .rmeta", text: 12-400-muted, element: Result row meta, rule: "the competition's name and the date, 12px muted; the name wraps between words, the date never splits", measured: "font-size=12px; color=muted", ruled-on: "the match page review; the component registry"}
@@ -306,6 +311,7 @@ components:
       scorer: {class: scorer}
     wide: "chip · score · opponent · competition · date on one line"
     narrow: {below: w420, form: two lines}
+    short-forms: [wins, draws, losses, minutes]
   form:
     name: Form
     file: site_v2/src/components/fixture/FormSegment.astro
@@ -316,6 +322,7 @@ components:
       draw: {class: D}
       loss: {class: L}
     wide: "a team's last results as chips"
+    short-forms: [wins, draws, losses]
   player-row:
     name: Player row
     file: [site_v2/src/components/fixture/PlayerRow.astro, site_v2/src/components/fixture/MatchLineups.astro, site_v2/src/components/team/TeamSquad.astro]
@@ -327,6 +334,7 @@ components:
       number: {class: pstat, selector: ".plrow .pstat b", text: 15-700-ink, element: Player row number, rule: 15px bold ink, measured: "font-size=15px; font-weight=700; color=ink", ruled-on: the match page review}
       photo: {class: pphoto, gap: mock-css}
     wide: "photo · name over position · numbers at the right"
+    short-forms: [minutes]
   split:
     name: Two columns
     file: [site_v2/src/components/fixture/SplitSection.astro, site_v2/src/components/fixture/MatchLineups.astro]
@@ -357,6 +365,7 @@ components:
       right: {class: tc-right, gap: mock-css}
     wide: "crest, name and note | standing or outcome; W, D, L, goals and points below"
     narrow: {below: w340, form: the standing opens the second line}
+    short-forms: [wins, draws, losses]
   squad:
     name: Squad grid
     file: site_v2/src/components/team/TeamSquad.astro

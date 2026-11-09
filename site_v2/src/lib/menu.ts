@@ -19,7 +19,7 @@ export function menuItems(lang: Lang): MenuItem[] {
     { section: "matches", label: t(lang, "navMatches"), href: localeHref(lang, `${word(lang, "matches")}/`) },
     { section: "teams", label: t(lang, "navTeams"), href: localeHref(lang, `${word(lang, "teams")}/`) },
     { section: "players", label: t(lang, "navPlayers") },
-    { section: "standings", label: t(lang, "navStandings") },
+    { section: "standings", label: t(lang, "table") },
     { section: "statistics", label: t(lang, "navStatistics") },
   ];
 }

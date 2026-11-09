@@ -129,7 +129,7 @@
 | Match header parts | `.vh, .played` | the match header's other parts: registered, no text of their own |  | ruled | the component registry |
 | List row | `.lrow` | one row of a list, a line between rows, nothing cut off. Its name is 15px, its second line 12px muted, its numbers 15px bold | `fits` | ruled | the match page review |
 | Result chip | `.resrow .pill` | one match's W, D or L from a team's side, in the page's language, on the result colour | `font-size=12px; font-weight=700; color=pill-ink` | ruled | the match page review |
-| Result row | `.resrow` | result chip · score · opponent (crest, name, H or A) · competition · date. One line where its list is 420px wide or more, two lines below | `fits` | ruled | the match page review |
+| Result row | `.resrow` | result chip · score · opponent (crest, name, home or away) · competition · date. One line where its list is 420px wide or more, two lines below | `fits` | ruled | the match page review |
 | Result row score | `.resrow .rscore` | the score from the row's side, 15px bold ink | `font-size=15px; font-weight=700; color=ink` | ruled | the match page review |
 | Result row name | `.resrow .ropp` | the club, 15px ink, wrapping, never cut off | `font-size=15px; color=ink; white-space=normal` | ruled | the match page review |
 | Result row meta | `.resrow:not(.goal) .rmeta` | the competition's name and the date, 12px muted; the name wraps between words, the date never splits | `font-size=12px; color=muted` | ruled | the match page review; the component registry |

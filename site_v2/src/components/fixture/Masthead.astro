@@ -27,7 +27,7 @@ interface Props {
 const { fixture, lang, title, round, compName, compLogo, compHref, teamHrefs, showStanding } = Astro.props;
 const { home, away } = fixture;
 
-const time = fixture.status === "TBD" ? t(lang, "timeTBD") : `${formatTime(fixture.kickoff, lang)} UTC`;
+const time = fixture.status === "TBD" ? t(lang, "timeOpen") : `${formatTime(fixture.kickoff, lang)} UTC`;
 const kick = [round, formatDate(fixture.kickoff, lang), time, fixture.venue].filter(Boolean);
 
 const result = fixture.is_played ? fixture.result : null;
@@ -122,9 +122,9 @@ const sides: { side: Side; href?: string }[] = [
             {showStanding && st?.league_rank != null && (
               <div class="stand num">
                 <span class="nb">#<b>{st.league_rank}</b></span> ·{" "}
-                <span class="nb"><b>{st.standing_points}</b> {t(lang, "pts")}</span> ·{" "}
+                <span class="nb"><b>{st.standing_points}</b> {t(lang, st.standing_points === 1 ? "pointsOne" : "pointsMany")}</span> ·{" "}
                 <span class="nb">
-                  {t(lang, "compColGoalDiff")} <b>{signedInteger(st.standing_goals_diff, lang)}</b>
+                  {t(lang, "goalDifferenceShort")} <b>{signedInteger(st.standing_goals_diff, lang)}</b>
                 </span>
               </div>
             )}

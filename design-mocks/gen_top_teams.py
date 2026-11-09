@@ -30,9 +30,13 @@ OUT = Path(__file__).with_name("top_teams_mock.html")
 
 _ROWS = list(csv.DictReader(CATALOGUE.open(encoding="utf-8")))
 _BY_KEY = {(r["metric_id"], r["entity"]): r for r in _ROWS}
-_EN = dict(re.findall(r'"([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)":\s*"([^"]*)"', re.search(
-    r"const METRIC_LABELS_EN: MetricLabels = \{([\s\S]*?)\n\};",
-    (REPO / "site_v2/src/i18n/strings.ts").read_text(encoding="utf-8")).group(1)))
+_STRINGS = (REPO / "site_v2/src/i18n/strings.ts").read_text(encoding="utf-8")
+_WORD = dict(re.findall(r'(?<![A-Za-z0-9_])([A-Za-z0-9_]+):\s*"([^"]*)"',
+                        re.search(r"\nconst EN: Dict = \{([\s\S]*?)\n\};", _STRINGS).group(1)))
+_EN = {key: _WORD[term]
+       for key, term in re.findall(r'"([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)":\s*"([A-Za-z0-9_]+)"', re.search(
+           r"const METRIC_TERMS: Record<string, string> = \{([\s\S]*?)\n\};", _STRINGS).group(1))
+       if term in _WORD}
 
 
 def label(metric_id, entity="team"):
@@ -53,7 +57,7 @@ def label(metric_id, entity="team"):
 
 # ------------------------------------------------------- Finnish width probe
 #
-# Real shipped strings come from METRIC_LABELS_FI in site_v2/src/i18n/strings.ts.
+# Real shipped strings come from the FI words METRIC_TERMS names in site_v2/src/i18n/strings.ts.
 # That dict covers ~35 of the 80 catalogue rows, so three of the labels this block
 # needs do not exist yet. Those are marked PROBE and rendered with a dotted underline:
 # they are plausible worst-case strings for measuring width, NOT approved copy.
@@ -335,7 +339,7 @@ def build():
   different matchday counts so the points denominators differ, which a pooled board really does.
   Every board name and column header is the English name in <b>strings.ts</b> of the
   <b>metric_catalogue.csv</b> key, looked up by (metric_id, entity=team); the generator exits on an
-  unknown id. Finnish comes from <b>METRIC_LABELS_FI</b> in strings.ts except the
+  unknown id. Finnish comes from <b>METRIC_TERMS</b> in strings.ts except the
   <span class="probe" style="text-decoration: underline dotted">dotted</span> ones, which do not
   exist yet and are plausible worst-case strings for measuring width, not approved copy.
   League names are left in English &mdash; the probe is about metric labels.

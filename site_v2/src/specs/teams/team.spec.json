@@ -21,27 +21,27 @@
     {
       "block": "Team header and tabs",
       "mart": "mart_team_profile",
-      "i18n_keys": ["crumbTeams", "founded", "compSeason", "tabOverview", "navMatches", "tabPerformance", "tabsAria"]
+      "i18n_keys": ["navTeams", "founded", "compSeason", "overview", "navMatches", "tabPerformance", "tabsAria"]
     },
     {
       "block": "Competitions",
       "mart": "mart_team_competitions",
-      "i18n_keys": ["navCompetitions", "teamLeaguePhase", "teamThrough", "teamKnockedOut", "teamWinners", "compColWins", "compColDraws", "compColLosses", "compColGoals", "compColPoints"]
+      "i18n_keys": ["navCompetitions", "teamLeaguePhase", "teamThrough", "teamKnockedOut", "teamWinners", "winsShort", "drawsShort", "lossesShort", "goals", "points"]
     },
     {
       "block": "Recent matches",
       "mart": "mart_team_momentum_window",
-      "i18n_keys": ["secRecent", "haHome", "haAway"]
+      "i18n_keys": ["secRecent", "home", "away"]
     },
     {
       "block": "Next matches, Upcoming and Results",
       "mart": "mart_team_fixtures",
-      "i18n_keys": ["homeNext", "compNextTag", "teamUpcoming", "teamResults", "filterByCompetition", "filterAllCompetitions", "filterAll"]
+      "i18n_keys": ["homeNext", "compNextTag", "results", "filterByCompetition", "filterAllCompetitions", "filterAll"]
     },
     {
       "block": "Highs and lows",
       "mart": "mart_team_profile",
-      "i18n_keys": ["teamHighsLows", "teamBiggestWin", "teamHeaviestDefeat", "teamVsHome", "teamAtAway", "compFactLongestUnbeaten", "compFactLongestWinless", "compFactMatches"]
+      "i18n_keys": ["teamHighsLows", "biggestWin", "biggestLoss", "teamVsHome", "teamAtAway", "compFactLongestUnbeaten", "compFactLongestWinless", "compFactMatches"]
     },
     {
       "block": "Squad",
@@ -51,7 +51,7 @@
     {
       "block": "Standing",
       "mart": "mart_team_profile",
-      "i18n_keys": ["teamPerfIntro", "teamStanding", "teamPosition", "teamSeasonBefore", "metrics.points_won.label"]
+      "i18n_keys": ["teamPerfIntro", "teamStanding", "position", "teamSeasonBefore", "metrics.points_won.label"]
     },
     {
       "block": "Deserved points",

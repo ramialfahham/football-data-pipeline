@@ -35,11 +35,11 @@ const word = (v: number | null | undefined, one: string, many: string) => t(lang
     </span>
     <span class="pstat">
       {isGK ? (
-        <span class="nb"><b>{count(player.saves_player)}</b> {t(lang, "saves")}</span>
+        <span class="nb"><b>{count(player.saves_player)}</b> {t(lang, "savesMany")}</span>
       ) : (
         <>
-          <span class="nb"><b>{count(player.goals_total)}</b> {word(player.goals_total, "goalOne", "goals")} ·</span>{" "}
-          <span class="nb"><b>{count(player.goals_assists)}</b> {word(player.goals_assists, "assistOne", "assists")}</span>
+          <span class="nb"><b>{count(player.goals_total)}</b> {word(player.goals_total, "goalsOne", "goalsMany")} ·</span>{" "}
+          <span class="nb"><b>{count(player.goals_assists)}</b> {word(player.goals_assists, "assistsOne", "assistsMany")}</span>
         </>
       )}
     </span>

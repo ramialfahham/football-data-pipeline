@@ -24,21 +24,21 @@ const showSectionNames = sections.length > 1;
 
 {sections.length > 0 && (
   <section>
-    <SectionHead label={t(lang, "compSecTable")} />
+    <SectionHead label={t(lang, "table")} />
     {sections.map((sec) => (
       <div class="ctab-section">
         {showSectionNames && <div class="gh"><span class="nm">{sec.name}</span></div>}
         <div class="ctab">
           <div class="ctab-head">
-            <span class="h rk">{t(lang, "compColPos")}</span>
+            <span class="h rk">{t(lang, "positionShort")}</span>
             <span class="h nmh"></span>
-            <span class="h">{t(lang, "compColPlayed")}</span>
-            <span class="h wdl">{t(lang, "compColWins")}</span>
-            <span class="h wdl">{t(lang, "compColDraws")}</span>
-            <span class="h wdl">{t(lang, "compColLosses")}</span>
-            <span class="h wdl">{t(lang, "compColGoals")}</span>
-            <span class="h">{t(lang, "compColGoalDiff")}</span>
-            <span class="h">{t(lang, "compColPoints")}</span>
+            <span class="h">{t(lang, "playedShort")}</span>
+            <span class="h wdl">{t(lang, "winsShort")}</span>
+            <span class="h wdl">{t(lang, "drawsShort")}</span>
+            <span class="h wdl">{t(lang, "lossesShort")}</span>
+            <span class="h wdl">{t(lang, "goals")}</span>
+            <span class="h">{t(lang, "goalDifferenceShort")}</span>
+            <span class="h">{t(lang, "points")}</span>
           </div>
           {sec.rows.map((row) => (
             <a
