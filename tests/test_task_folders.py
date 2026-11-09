@@ -1,7 +1,8 @@
 """Per-task artifact folders: each task's files live in `.claude/task/<issue>-<slug>/`.
 
-Pins the three cases the mechanism exists for: two tasks open side by side and merged in either
-order, a code change with no task folder, and a branch that touches another task's folder. The
+Pins the cases the mechanism exists for: two tasks open side by side and merged in either
+order, a code change with no task folder, a branch that touches another task's folder, and a
+branch that merges main into itself through a conflict. The
 exclusion patterns come from the REAL routing file, so a pattern that stops matching fails here.
 """
 
@@ -46,8 +47,13 @@ def git(repo, *args, check=True) -> subprocess.CompletedProcess:
     return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, check=check)
 
 
-def env(repo) -> dict:
-    return dict(os.environ, CLAUDE_PROJECT_DIR=str(repo), GOVERNANCE_BASE="main")
+def env(repo, base: str | None = "main") -> dict:
+    e = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
+    if base:
+        e["GOVERNANCE_BASE"] = base
+    else:
+        e.pop("GOVERNANCE_BASE", None)
+    return e
 
 
 @pytest.fixture()
@@ -99,12 +105,12 @@ def ci(repo) -> tuple[int, str]:
     return r.returncode, r.stdout + r.stderr
 
 
-def edit(repo, rel: str) -> str:
+def edit(repo, rel: str, base: str | None = "main") -> str:
     event = {"hook_event_name": "PreToolUse", "tool_name": "Write",
              "tool_input": {"file_path": str(repo / rel)}}
     r = subprocess.run([sys.executable, str(HOOKS / "task_contract_gate.py")],
                        input=json.dumps(event), capture_output=True, text=True,
-                       cwd=repo, env=env(repo))
+                       cwd=repo, env=env(repo, base))
     return r.stdout
 
 
@@ -298,3 +304,53 @@ def test_a_per_folder_pattern_excludes_exactly_what_the_literal_path_did(repo):
     assert raw(ROUTING["hash_exclude_paths"]) == raw(literal)
     assert b"10-alpha/review.md" not in raw(ROUTING["hash_exclude_paths"])
     assert b"10-alpha/contract.md" in raw(ROUTING["hash_exclude_paths"])
+
+
+# --------------------------------------------------------------------------- #
+# Main merged into a branch
+# --------------------------------------------------------------------------- #
+
+@pytest.mark.parametrize("linked", [False, True], ids=["governance-base", "linked-worktree"])
+def test_a_branch_that_merges_main_through_a_conflict_passes_the_gate(
+        repo, hooks, monkeypatch, linked):
+    tcg, gd = hooks
+    build_task(repo, "task-b", "20-beta", "app.py")
+    build_task(repo, "task-a", "10-alpha", "app.py")
+    git(repo, "checkout", "-q", "main")
+    git(repo, "merge", "-q", "--no-ff", "-m", "merge a", "task-a")
+    (repo / "other.py").write_text("y = 1\n", encoding="utf-8")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "other work on main")
+    base = "main"
+    if linked:
+        git(repo, "update-ref", "refs/remotes/origin/main", "main")
+        git(repo, "checkout", "-q", "--detach")
+        work = repo.parent / "wt"
+        git(repo, "worktree", "add", "-q", str(work), "task-b")
+        monkeypatch.delenv("GOVERNANCE_BASE")
+        base = None
+    else:
+        work = repo
+        git(repo, "checkout", "-q", "task-b")
+    assert git(work, "merge", "main", check=False).returncode != 0
+    own = {"folder": ".claude/task/20-beta/", "errors": []}
+    assert tcg.task_folder(str(work)) == own
+    assert tcg.task_folder(str(work), "main") == own
+    unresolved = tcg.task_folder(str(work), "no-such-ref")
+    assert unresolved["folder"] is None and "merge is in progress" in unresolved["errors"][0]
+    assert tcg._dirty_outside_task_dir(str(work)) == ["app.py"]
+    assert not denied(edit(work, "app.py", base))
+    (work / "app.py").write_text("x = '20-beta'\n", encoding="utf-8")
+    git(work, "add", "app.py")
+    sha = hashlib.sha256(gd._staged_diff_bytes(str(work))).hexdigest()
+    (work / ".claude" / "task" / "20-beta" / "review.md").write_text(
+        REVIEW.format(sha=sha), encoding="utf-8")
+    git(work, "add", "-A")
+    assert gd._staged_paths(str(work)) == [".claude/task/20-beta/contract.md",
+                                           ".claude/task/20-beta/review.md",
+                                           ".claude/task/20-beta/review_input.patch", "app.py"]
+    assert gd._commit_gate(str(work)) is None
+    git(work, "commit", "-q", "--no-edit")
+    assert pr_hash(work) == sha
+    code, out = ci(work)
+    assert code == 0, out
