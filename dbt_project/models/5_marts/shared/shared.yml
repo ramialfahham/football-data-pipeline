@@ -1815,6 +1815,14 @@ models:
           - relationships:
               to: ref('dim_team')
               field: team_sk
+      - name: nationality_team_sk
+        description: >
+          The national team of the player's nationality, matched through its country. NULL when
+          the player has no nationality or the nation has no national team in our competitions.
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: featured_team_sk
         description: "The club of the latest match in the featured season's club competitions."
         tests:

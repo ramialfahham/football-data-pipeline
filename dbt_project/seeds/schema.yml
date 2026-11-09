@@ -1518,8 +1518,8 @@ seeds:
 
   - name: player_bio_corrections
     description: >
-      A player's birth date or nationality where the provider's records conflict: one row per
-      player and field. Applied in `base_apif__players` and `base_apif__player_profiles`, and it
+      A player's birth date or nationality where the provider's records conflict or are missing:
+      one row per player and field. Applied in `base_apif__players` and `base_apif__player_profiles`, and it
       wins over both. An empty value means no outside source states it, so the player shows none.
     config:
       column_types:
@@ -1546,7 +1546,7 @@ seeds:
       - name: corrected_value
         description: "The value the player shows; empty when no outside source states it."
       - name: provider_values
-        description: "The conflicting values the provider sent when the row was written."
+        description: "The conflicting values the provider sent when the row was written, or (blank)."
         tests:
           - not_null
       - name: source
@@ -1680,7 +1680,8 @@ seeds:
       `source`.
 
       KNOWN GAP: only the listed strings are mapped, so an unseen spelling passes through
-      unchanged.
+      unchanged. For a player's nationality, dim_player's relationships test to dim_country then
+      fails the build.
     config:
       column_types:
         provider_country: string
@@ -1689,7 +1690,9 @@ seeds:
         note: string
     columns:
       - name: provider_country
-        description: "The exact string API-Football sends in `$.country.name`, and the join key."
+        description: >
+          The exact string API-Football sends, garbled spellings included: a country name in
+          `$.country.name`, or a player's nationality. The join key.
         tests:
           - not_null
           - unique
