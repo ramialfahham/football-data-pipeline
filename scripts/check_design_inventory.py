@@ -65,8 +65,9 @@ COUNTS = ("scroll", "overflow", "split", "overlap", "classes")
 MISS = "miss · "
 COVERAGE = ("page with no row", "generator fails", "mock page with no row", "language missing")
 
-# One evaluation per rendered page: the gaps the baseline pins. `scroll`: the page, or a box in it,
-# scrolls sideways. `overflow`: a text node runs past the box it sits in sideways (an ellipsis cut
+# One evaluation per rendered page and tab: the gaps the baseline pins, each counted once across the
+# page's tabs (a text node, a scrolling box or an overlapping pair already counted in an earlier tab is
+# not counted again). `scroll`: the page, or a box in it, scrolls sideways. `overflow`: a text node runs past the box it sits in sideways (an ellipsis cut
 # included). `split`: a word, a run without spaces, lies on two lines. `overlap`: two text nodes'
 # visible lines cross, SVG text included; each line is trimmed by a fifth top and bottom so two
 # tight lines that only touch are not counted. `classes`: the class names no inventory selector
@@ -74,6 +75,7 @@ COVERAGE = ("page with no row", "generator fails", "mock page with no row", "lan
 COUNT_JS = r"""
 (registered) => {
   const reg = new Set(registered);
+  const counted = window.__diCounted || (window.__diCounted = { nodes: new WeakSet(), boxes: new WeakSet(), pairs: new Set(), page: false });
   const shownMemo = new Map();
   const shown = (el) => {
     if (!el) return true;
@@ -111,21 +113,27 @@ COUNT_JS = r"""
   const ex = { scroll: [], overflow: [], split: [], overlap: [] };
   let scroll = 0, overflow = 0, split = 0;
   const root = document.documentElement;
-  if (root.scrollWidth > root.clientWidth + 1) { scroll++; ex.scroll.push('page ' + root.scrollWidth + '>' + root.clientWidth); }
+  if (root.scrollWidth > root.clientWidth + 1 && !counted.page) {
+    counted.page = true; scroll++; ex.scroll.push('page ' + root.scrollWidth + '>' + root.clientWidth);
+  }
   for (const el of document.body.querySelectorAll('*')) {
     const s = getComputedStyle(el);
-    if ((s.overflowX === 'auto' || s.overflowX === 'scroll') && el.scrollWidth > el.clientWidth + 1 && shown(el)) {
-      scroll++; ex.scroll.push(label(el, '') + ' ' + el.scrollWidth + '>' + el.clientWidth);
+    if ((s.overflowX === 'auto' || s.overflowX === 'scroll') && el.scrollWidth > el.clientWidth + 1 && shown(el)
+        && !counted.boxes.has(el)) {
+      counted.boxes.add(el); scroll++; ex.scroll.push(label(el, '') + ' ' + el.scrollWidth + '>' + el.clientWidth);
     }
   }
   const lines = [];
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  let id = 0;
+  const ids = window.__diIds || (window.__diIds = new WeakMap());
+  let next = window.__diNextId || 0;
   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
     const txt = n.textContent;
     const p = n.parentElement;
     if (!txt.trim() || !p || p.closest('script,style,noscript,template') || !shown(p)) continue;
-    id++;
+    if (!ids.has(n)) ids.set(n, ++next);
+    const id = ids.get(n);
+    const fresh = !counted.nodes.has(n);
     const inSvg = !!p.closest('svg');
     let rects;
     if (inSvg) {
@@ -140,7 +148,8 @@ COUNT_JS = r"""
     const seen = rects.map((r) => [Math.max(r.left, clip[0]), Math.max(r.top, clip[1]), Math.min(r.right, clip[2]), Math.min(r.bottom, clip[3])])
       .filter((r) => r[2] - r[0] > 1 && r[3] - r[1] > 1);
     if (!seen.length) continue;
-    if (!inSvg) {
+    counted.nodes.add(n);
+    if (!inSvg && fresh) {
       const box = boxOf(p).getBoundingClientRect();
       if (rects.some((r) => r.left < box.left - 1 || r.right > box.right + 1)) { overflow++; ex.overflow.push(label(p, txt)); }
       const tops = [];
@@ -162,6 +171,7 @@ COUNT_JS = r"""
       lines.push({ id, l: r[0], r: r[2], t: r[1] + h * 0.2, b: r[3] - h * 0.2, el: p, txt });
     }
   }
+  window.__diNextId = next;
   lines.sort((a, b) => a.t - b.t);
   const pairs = new Set();
   for (let i = 0; i < lines.length; i++) {
@@ -170,7 +180,9 @@ COUNT_JS = r"""
       const b = lines[j];
       if (a.id === b.id || Math.min(a.r, b.r) - Math.max(a.l, b.l) <= 1) continue;
       const key = Math.min(a.id, b.id) + ':' + Math.max(a.id, b.id);
-      if (!pairs.has(key)) { pairs.add(key); ex.overlap.push(label(a.el, a.txt) + ' x ' + label(b.el, b.txt)); }
+      if (!pairs.has(key) && !counted.pairs.has(key)) {
+        pairs.add(key); counted.pairs.add(key); ex.overlap.push(label(a.el, a.txt) + ' x ' + label(b.el, b.txt));
+      }
     }
   }
   const classes = new Set();
@@ -312,6 +324,25 @@ POINTER_JS = r"""
 }
 """
 STYLE_JS = "([sel, i, prop]) => getComputedStyle(document.querySelectorAll(sel)[i]).getPropertyValue(prop)"
+
+# A page's tabs are radio inputs (`input.tab-in`); the ones not open on load, in page order.
+TABS_JS = "() => [...document.querySelectorAll('input.tab-in[type=radio]')].filter((r) => !r.checked && r.id).map((r) => r.id)"
+# The in-page tabs a shown Tab bar (`nav.tabs`) offers, the labels of its radio inputs (a tab that
+# links to another page is that page's own); more than one with none to open means the check would
+# measure the first tab alone.
+TAB_BAR_JS = "() => [...document.querySelectorAll('nav.tabs')].filter((n) => n.getClientRects().length).reduce((n, bar) => Math.max(n, bar.querySelectorAll('label.tab').length), 0)"
+
+# Open one tab as a reader's click does, let the site's script re-fit its blocks, then settle.
+OPEN_TAB_JS = r"""
+(id) => {
+  const r = document.getElementById(id);
+  r.checked = true;
+  r.dispatchEvent(new Event('change', { bubbles: true }));
+  window.dispatchEvent(new Event('resize'));
+  window.scrollTo(0, 0);
+  return document.fonts.ready.then(() => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res))));
+}
+"""
 
 
 @dataclass
@@ -484,12 +515,19 @@ def resolve_built(page: di.Page, dist: Path, lang: str) -> Path | None:
 
 
 def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport: int, lang: str,
-                 failures: list[Failure]) -> int:
-    """Measure one rendered page; append failures; return the number of visible inventory matches."""
+                 failures: list[Failure], acc: dict | None = None) -> int:
+    """Measure one rendered page in its current tab; append failures; return the number of visible
+    inventory matches. With `acc`, the page's tabs are measured one after another: a failure already
+    found in an earlier tab is not added again, and the checks that ask whether an element is on the
+    page are left to `finish_page`, which judges them across every tab."""
     data = pw_page.evaluate(MEASURE_JS, spec)
     tokens = data["tokens"]
     total = 0
     seen: set[str] = set()
+    own = acc is None
+    if own:
+        acc = {"seen": set(), "visible": {}, "total": 0, "found": set()}
+    start = len(failures)
     for el in inv.elements:
         res = data["elements"].get(el.name, {})
         level = "FAIL" if el.status == "ruled" else "WARN"
@@ -508,9 +546,10 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
                 continue
             if a.kind == "visible":
                 if res.get("inDom", 0):
-                    msg = di.compare(a, len(matches), tokens)
-                    if msg:
-                        failures.append(Failure(page.name, viewport, lang, el.name, msg, level))
+                    key = (el.name, a.raw)
+                    best = acc["visible"].get(key)
+                    if best is None or len(matches) > best[2]:
+                        acc["visible"][key] = (el.name, a, len(matches), tokens, level)
                 continue
             if a.kind == "stripe":
                 for t_i, rows in enumerate(res.get("stripes", []), start=1):
@@ -563,12 +602,32 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
                 if msg:
                     failures.append(Failure(page.name, viewport, lang, "%s [%s #1]" % (el.name, el.selector), msg, level))
             pw_page.mouse.move(0, 0)
-    for name in page.expected_at(viewport):
-        if name not in seen:
-            failures.append(Failure(page.name, viewport, lang, name, "expected on this page · measured 0 matches"))
-    if total == 0:
-        failures.append(Failure(page.name, viewport, lang, "(page)", "expected inventory elements · measured 0 — is the URL right?"))
+    fresh = []
+    for f in failures[start:]:
+        key = (f.element, f.detail, f.level)
+        if key not in acc["found"]:
+            acc["found"].add(key)
+            fresh.append(f)
+    failures[start:] = fresh
+    acc["seen"] |= seen
+    acc["total"] += total
+    if own:
+        finish_page(acc, page, viewport, lang, failures)
     return total
+
+
+def finish_page(acc: dict, page: di.Page, viewport: int, lang: str, failures: list[Failure]) -> None:
+    """The checks that ask whether an element is on the page, judged across every tab measured: an
+    element counts as shown when one tab shows it, at the most matches any tab shows."""
+    for name, a, count, tokens, level in acc["visible"].values():
+        msg = di.compare(a, count, tokens)
+        if msg:
+            failures.append(Failure(page.name, viewport, lang, name, msg, level))
+    for name in page.expected_at(viewport):
+        if name not in acc["seen"]:
+            failures.append(Failure(page.name, viewport, lang, name, "expected on this page · measured 0 matches"))
+    if acc["total"] == 0:
+        failures.append(Failure(page.name, viewport, lang, "(page)", "expected inventory elements · measured 0 — is the URL right?"))
 
 
 def in_baseline_scope(baseline: dict, viewports: list[int], langs: list[str]) -> bool:
@@ -598,7 +657,8 @@ def compare_coverage(coverage: dict[str, dict[str, int]], pinned: dict[str, dict
 
 
 def render_width(job: dict) -> dict:
-    """One viewport, in its own process: open every target, measure its elements, count its gaps."""
+    """One viewport, in its own process: open every target and each of its tabs, measure its
+    elements, count its gaps."""
     from playwright.sync_api import sync_playwright  # noqa: PLC0415
 
     viewport, inv, spec, artifacts = job["viewport"], job["inv"], job["spec"], job["artifacts"]
@@ -624,25 +684,40 @@ def render_width(job: dict) -> dict:
                     failures.append(Failure(p.name, viewport, lang, "(page)", "the FI toggle did not switch"))
                     continue
             before = len(failures)
-            measure_page(pw_page, inv, spec, p, viewport, lang, failures)
+            acc = {"seen": set(), "visible": {}, "total": 0, "found": set()}
+            page_counts = counted.setdefault(p.name, {"classes": set(), "examples": {}})
+            tabs = pw_page.evaluate(TABS_JS)
+            if not tabs and pw_page.evaluate(TAB_BAR_JS) > 1:
+                failures.append(Failure(p.name, viewport, lang, "(page)",
+                                        "a Tab bar with no tab to open · only the first tab is measured"))
+            for tab in [None] + tabs:
+                if tab is not None:
+                    pw_page.evaluate(OPEN_TAB_JS, tab)
+                state = len(failures)
+                measure_page(pw_page, inv, spec, p, viewport, lang, failures, acc)
+                if artifacts and any(f.level == "FAIL" for f in failures[state:]) and shots < 20:
+                    pw_page.screenshot(path=str(Path(artifacts) / ("%s_%d_%s%s.png" % (
+                        p.name.replace("/", "_"), viewport, lang, "_" + tab if tab else ""))), full_page=True)
+                    shots += 1
+                # The pointer checks scroll the page, and a sticky header then lies over the content.
+                pw_page.evaluate("window.scrollTo(0, 0); document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => r())))")
+                found = pw_page.evaluate(COUNT_JS, job["registered"])
+                page_counts["classes"].update(found["classes"])
+                for k in COUNTS[:-1]:
+                    page_counts[k] = page_counts.get(k, 0) + found[k]
+                    shown = page_counts["examples"].setdefault(k, [])
+                    shown += ["%d %s %s" % (viewport, lang, e) for e in found["ex"][k][:20 - len(shown)]]
+            state = len(failures)
+            finish_page(acc, p, viewport, lang, failures)
+            if artifacts and any(f.level == "FAIL" for f in failures[state:]) and shots < 20:
+                pw_page.screenshot(path=str(Path(artifacts) / ("%s_%d_%s_page.png" % (
+                    p.name.replace("/", "_"), viewport, lang))), full_page=True)
+                shots += 1
             renders += 1
             covered.setdefault(lang, set()).add(p.name)
-            missed = [f for f in failures[before:] if f.level == "FAIL"]
-            for f in missed:
-                f.measured = True
-            if artifacts and missed and shots < 20:
-                pw_page.screenshot(path=str(Path(artifacts) / ("%s_%d_%s.png" % (p.name.replace("/", "_"), viewport, lang))),
-                                   full_page=True)
-                shots += 1
-            # The pointer checks scroll the page, and a sticky header then lies over the content.
-            pw_page.evaluate("window.scrollTo(0, 0); document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => r())))")
-            found = pw_page.evaluate(COUNT_JS, job["registered"])
-            page_counts = counted.setdefault(p.name, {"classes": set(), "examples": {}})
-            page_counts["classes"].update(found["classes"])
-            for k in COUNTS[:-1]:
-                page_counts[k] = page_counts.get(k, 0) + found[k]
-                shown = page_counts["examples"].setdefault(k, [])
-                shown += ["%d %s %s" % (viewport, lang, e) for e in found["ex"][k][:20 - len(shown)]]
+            for f in failures[before:]:
+                if f.level == "FAIL":
+                    f.measured = True
         ctx.close()
         browser.close()
     return {"failures": failures, "counted": counted, "covered": covered, "renders": renders}

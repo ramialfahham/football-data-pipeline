@@ -975,9 +975,10 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .ropp > .club:only-child { vertical-align: top; }
 
 /* Player row: photo · name over position · numbers on the right at every width; the name wraps, and
-   where the row is short of room the goals and the assists take two lines. */
+   where the row is short of room the goals and the assists take two lines. On the narrowest rows the
+   gaps tighten so a long word fits, as the result row's do. */
 .plrow { display: grid; grid-template-columns: 34px 1fr auto; grid-template-areas: "photo name stat" "photo pos stat";
-         column-gap: 12px; row-gap: 2px; align-items: center; align-content: start; padding: 9px 0; }
+         column-gap: clamp(8px, 3cqw, 20px); row-gap: 2px; align-items: center; align-content: start; padding: 9px 0; }
 .plrow .pphoto { grid-area: photo; }
 .plrow .pname { display: contents; }
 .plrow .pname .nm { grid-area: name; font-size: 15px; font-weight: 400; color: var(--ink); white-space: normal; overflow: visible; text-overflow: clip; }

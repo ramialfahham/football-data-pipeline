@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>gap counts, a defect behind a closed tab</title>
+<style>
+body { margin: 0; font: 15px/1.5 sans-serif; }
+.tab-in { position: absolute; opacity: 0; }
+.page { display: none; }
+#tab-a:checked ~ .page[data-page="a"], #tab-b:checked ~ .page[data-page="b"] { display: block; }
+.red-nowrap { width: 40px; white-space: nowrap; }
+.red-split { width: 50px; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<div class="red-nowrap">Shared overflowing words</div>
+<input type="radio" name="t" id="tab-a" class="tab-in" checked>
+<input type="radio" name="t" id="tab-b" class="tab-in">
+<div class="page" data-page="a"><p>Open on load, nothing wrong here</p></div>
+<div class="page" data-page="b"><div class="red-nowrap">Hidden overflowing words</div><div class="red-split">Extraordinarily</div></div>
+</body>
+</html>

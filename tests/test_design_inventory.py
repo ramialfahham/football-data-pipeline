@@ -513,6 +513,77 @@ def test_the_gap_counts_count_each_defect_once(tmp_path):
     assert "not compared: a narrower run than the baseline's" in out, out
 
 
+@needs_browser
+def test_the_gap_counts_open_every_tab_and_count_a_shared_defect_once(tmp_path):
+    folder = tmp_path / "pages"
+    folder.mkdir()
+    shutil.copy(FIXTURES / "counts_tabs.html", folder / "counts_tabs.html")
+    proc = subprocess.run(
+        [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks", "--no-built",
+         "--page", "tabs=%s" % (folder / "counts_tabs.html"), "--langs", "en", "--viewports", "320"],
+        capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+    )
+    out = proc.stdout + proc.stderr
+    assert "COUNT tabs · scroll 0 · overflow 2 · split 1 · overlap 0" in out, out
+    assert "a Tab bar with no tab to open" not in out, out
+
+
+@needs_browser
+def test_a_tab_bar_with_no_tab_to_open_fails_instead_of_measuring_one_tab(tmp_path):
+    folder = tmp_path / "pages"
+    folder.mkdir()
+    (folder / "bar.html").write_text(
+        '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>t</title></head><body>'
+        '<nav class="tabs"><label class="tab">Overview</label><label class="tab">Matches</label></nav>'
+        "<p>One tab only</p></body></html>", encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks", "--no-built",
+         "--page", "bar=%s" % (folder / "bar.html"), "--langs", "en", "--viewports", "320"],
+        capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+    )
+    out = proc.stdout + proc.stderr
+    assert "FAIL  bar · 320 · en · (page) · a Tab bar with no tab to open" in out, out
+    assert proc.returncode == 1, out
+
+
+def test_a_page_is_judged_across_its_tabs_and_a_failure_in_every_tab_counts_once():
+    import check_design_inventory as cdi  # noqa: PLC0415
+
+    size = di.Assertion(kind="font-size", prop=None, expected="14px", raw="font-size=14px")
+    shown = di.Assertion(kind="visible", prop=None, expected="1", raw="visible=1")
+    inv = di.Inventory((di.Element("Shared", ".shared", "", (size,), "ruled", ""),
+                        di.Element("Tabbed", ".tabbed", "", (shown,), "ruled", "")), ())
+    page = di.Page("tabs", "built", "", "", "", ("Tabbed",))
+
+    def tab(tabbed_open):
+        match = {"style": {"font-size": "13px"}, "rect": [0, 0, 10, 10]}
+        return {"tokens": {}, "elements": {
+            "Shared": {"matches": [match], "inDom": 1},
+            "Tabbed": {"matches": [match] if tabbed_open else [], "inDom": 1}}}
+
+    class Page:
+        def __init__(self, states):
+            self.states = iter(states)
+
+        def evaluate(self, _js, _arg=None):
+            return next(self.states)
+
+    failures, acc = [], {"seen": set(), "visible": {}, "total": 0, "found": set()}
+    pw = Page([tab(False), tab(True)])
+    for _ in range(2):
+        cdi.measure_page(pw, inv, {}, page, 375, "en", failures, acc)
+    cdi.finish_page(acc, page, 375, "en", failures)
+    assert [f.element for f in failures] == ["Shared [.shared #1]"], [f.line() for f in failures]
+
+    failures, acc = [], {"seen": set(), "visible": {}, "total": 0, "found": set()}
+    pw = Page([tab(False), tab(False)])
+    for _ in range(2):
+        cdi.measure_page(pw, inv, {}, page, 375, "en", failures, acc)
+    cdi.finish_page(acc, page, 375, "en", failures)
+    assert sorted(f.detail.split(" · ")[0] for f in failures if f.element == "Tabbed") == [
+        "expected on this page", "expected visible=1"], [f.line() for f in failures]
+
+
 def test_the_full_baseline_names_no_scope():
     full = di.load_baseline()
     assert "viewports" not in full and "langs" not in full, (

@@ -1,34 +1,39 @@
-# Review — fix/266-team-performance-registry
+# Review — fix/249-hyphen-names-every-tab
 
-diff_sha256: 114a66199a42f5896eda7ffaffad86580040a26e8601a5036a6e1ff4b363df1b
+diff_sha256: f2471d7430a00dfd357dbf5d921c46d8b7a1ec9448235a3c116ae6d5dbb009f6
 
 rounds: 4
-rounds_cap_override: approved in chat, 2026-11-07: one more round for the strip screenshot pins that CI measured for this change.
+rounds_cap_override: approved in chat, 2026-11-09: rounds past three for the unit test that pins the no-break span match, and for the design baselines lowered from CI's measurement.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every changed path is in scope_paths; the strip pins and manifest fall under tests/fixtures/chart_screenshots/*; the parked design-check change is absent from the diff.
-- The scope addition is path-only and follows the objective: the strip heading margin and value position change what the strip pins render; no mechanism, cost, metric, naming or URL decision.
-- The CSS moves the page to registry values already stated (Metric group heading 26px, Table name cell 600); no registry change; decisions_taken records the approval.
-- The chart label placement only positions the two existing labels from values already in the payload; approved_design team #134 covers the only page changed.
+- Every changed path is in scope_paths; counts_tabs.html falls under tests/fixtures/design_inventory/*.
+- protected_override names check_design_inventory.py, test_design_inventory.py, middleware.ts and the components.yml Unbreakable unit, each with its approval; the components.yml hunk touches only that unit.
+- impact_map declares the new build mechanism and the recurring CI cost (+36 s per merge request, +76 s on main), accepted with its date.
+- The round 4 change is one test case that pins existing behaviour; no mechanism, cost or page output change; decisions_taken and decisions_reserved unchanged.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Binding rule: the placement reads only teamName, the served deserved_points_gap and the existing scatter dots; no field, label or string added; nulls still hide the section.
-- Placement traced for both gap signs: beside where the name fits, otherwise name and difference stacked centred with the same x, dx 0 and anchor, difference at least 1.1em under the name, which `checkScatterLabels` accepts; the runtime `place()` takes its under path.
-- Registry fidelity of the CSS: dpm names fall back to 600, 16px heading margin plus the row's 10px padding gives 26px, yoyt tracks change only below the 420px container.
-- Rendered evidence names its tools (headless Chromium count script, Browser-pane geometry, design check on a build opened on Performance) and claims no screenshot.
+- The middleware rewrites only text/html responses and only text between tags inside `<body>`; head, attributes, script, style, SVG, select and template are skipped, so the copied and indexed text keeps its real hyphen.
+- The NB match starts with whitespace, so `data-class="nb"` is not read as the no-break span; `class="nb"` and `class="x nb"` are.
+- The .plrow gap takes the expression .lrow and .teams already use; no registry row pins the Player row's gap.
+- No field, metric, percentage or label is added to site_v2/src; the rendered evidence reports counts from the built pages.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- The manifest says linux, lists the same 18 names as the folder, and every PNG hash matches it, so `pin_findings` and `screenshot_verdict` compare cleanly.
-- Only the 6 strip pins and their manifest hashes changed; the scatter and comparison entries and files are untouched.
-- The pins are the files the Linux validate:ui run wrote to `--artifacts`, the route the check prescribes; the strip images show the heading gap and the value at the row's top, 96px taller for 6 groups.
-- PNGs are binary to git, so autocrlf cannot alter them; `.ui_paths` already triggers validate:ui on the pin folder.
+- The no-tab test carries @needs_browser and asserts the FAIL line and exit code 1.
+- The new wholeWords case feeds `data-class="nb"` and `title="x nb"` and asserts the inner wrap; it fails with the leading `\s` removed (9 pass, 1 fail).
+- The every-tab check fails closed on a Tab bar with no tab to open; shared defects are counted once through a per-page set reset on each load; failure screenshots are capped at 20.
+- counts_tabs.html gives its counts only when a hidden tab is opened and a shared element is counted once, so reverting either behaviour fails its test.
+- The middleware passes non-HTML responses through and keeps status, statusText and headers; its cost is one linear tokenization per page.
 
-## escalations
-- question: the every-tab design check raises the Team page's split pin (47 → 56, the #249 hyphen class), which the rising-pin tests forbid; fix here, allow a one-time rise, or hold the check change back?
-  CPO ANSWER: answered through the coordinating session, 2026-11-07: hold the check change back; it is parked on parked/266-every-tab-check and lands with #249.
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- The middleware is a new build mechanism with no new package; its approval is named in protected_override; measured at 0.42 ms per page and 695 → 741 MB peak at 57,423 pages.
+- The design check changes make it fail closed more often, not less.
+- The recurring cost is build minutes only (+36 s per merge request, +76 s on main), declared in impact_map with its acceptance; no API, BigQuery or hosting effect.
+- No secret-like content, workflow, settings or permission change in the diff.
