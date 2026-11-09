@@ -29,7 +29,7 @@ impact_map: >
   layer_rules: seed rows only; no model changes. The new test reads core (fct_fixture, dim_team,
   dim_league, dim_country). No partition_by or cluster_by. No per-competition file.
   deploy_order: additive seed rows. The merge rebuilds everything downstream in data:build:main.
-  blast_radius: measured on prod, 2026-11-09. 15 fixtures change one team each: 3 FA Cup to
+  blast_radius: measured on prod, 2026-11-09. 11 fixtures change one team each: 3 FA Cup to
   Newmarket Town (8878), 4 CAF Champions League to Victoria United of Cameroon (20800) and to our
   own Gambia Armed Forces (-2), 4 Coupe de France to Diables Noirs de Combani (20600) and to our
   own Lourdes FC (-3), Rochefort FC (-4) and AS Montigny-lès-Metz (-5). CD Lourdes (9852) moves

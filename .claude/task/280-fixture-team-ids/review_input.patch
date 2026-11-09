@@ -1,6 +1,6 @@
 diff --git a/.claude/task/280-fixture-team-ids/contract.md b/.claude/task/280-fixture-team-ids/contract.md
 new file mode 100644
-index 00000000..f6ad95c1
+index 00000000..d5351dc4
 --- /dev/null
 +++ b/.claude/task/280-fixture-team-ids/contract.md
 @@ -0,0 +1,67 @@
@@ -35,7 +35,7 @@ index 00000000..f6ad95c1
 +  layer_rules: seed rows only; no model changes. The new test reads core (fct_fixture, dim_team,
 +  dim_league, dim_country). No partition_by or cluster_by. No per-competition file.
 +  deploy_order: additive seed rows. The merge rebuilds everything downstream in data:build:main.
-+  blast_radius: measured on prod, 2026-11-09. 15 fixtures change one team each: 3 FA Cup to
++  blast_radius: measured on prod, 2026-11-09. 11 fixtures change one team each: 3 FA Cup to
 +  Newmarket Town (8878), 4 CAF Champions League to Victoria United of Cameroon (20800) and to our
 +  own Gambia Armed Forces (-2), 4 Coupe de France to Diables Noirs de Combani (20600) and to our
 +  own Lourdes FC (-3), Rochefort FC (-4) and AS Montigny-lès-Metz (-5). CD Lourdes (9852) moves
@@ -194,3 +194,20 @@ index 00000000..b81f8076
 +    on fixtures.team_api_id = clubs.team_api_id
 +where clubs.confederation != club_competitions.confederation
 +group by 1, 2, 3, 4, 5, 6
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/280-fixture-team-ids/review.md        |  26 +++
+#    .../task/280-fixture-team-ids/review_input.patch   | 196 +++++++++++++++++++++
+#    2 files changed, 222 insertions(+)
+# ============================================================================
