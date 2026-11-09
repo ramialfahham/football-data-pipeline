@@ -1,0 +1,1268 @@
+diff --git a/.claude/task/135-players-hub-data/contract.md b/.claude/task/135-players-hub-data/contract.md
+new file mode 100644
+index 00000000..997071eb
+--- /dev/null
++++ b/.claude/task/135-players-hub-data/contract.md
+@@ -0,0 +1,91 @@
++# Task contract — Players hub: the warehouse and the export
++
++objective: >
++  Issue #135, the approved Players hub design: the warehouse serves every player with a page with
++  the two blocks' orders, World's best (this year's Ballon d'Or and Yashin Trophy nominees in the
++  Top clubs order of their current club) and Players by nation (nations in the Top national teams
++  order, national-team regulars first, then the Teams hub's club order and minutes), and the
++  export writes them to players_index.json. The page itself is a second MR.
++
++refs: >
++  #135 "The approved design" (approved in chat, 2026-11-09); data from #269 (nationality to
++  national team), #271 (country confederation), #272 (award seed), #277 (one_value, no
++  any_value). Plan and readings ruled by the coordinating session on 2026-11-09.
++
++scope_paths:
++  - dbt_project/models/5_marts/shared/mart_team_index.sql
++  - dbt_project/models/5_marts/shared/mart_player_index.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/models/4_intermediate/shared/int_player__national_team_minutes.sql
++  - dbt_project/models/4_intermediate/shared/int_player_page.yml
++  - dbt_project/tests/assert_team_index_club_order_follows_the_rule.sql
++  - dbt_project/tests/assert_player_national_team_minutes_recomputed.sql
++  - dbt_project/tests/assert_player_index_nation_order_follows_the_rule.sql
++  - dbt_project/tests/assert_player_index_order_in_nation_follows_the_rule.sql
++  - dbt_project/tests/assert_player_index_worlds_best_follows_the_seed.sql
++  - dbt_project/tests/assert_player_index_covers_every_player_page.sql
++  - dbt_project/docs/layering.md
++  - scripts/export_site_data.py
++  - tests/test_export_site_data.py
++  - .claude/task/135-players-hub-data/contract.md
++  - .claude/task/135-players-hub-data/review.md
++  - .claude/task/135-players-hub-data/review_input.patch
++
++impact_map: >
++  writers: dbt only; no ingestion or seed change. mart_team_index gains one column, club_order.
++  int_player__national_team_minutes and mart_player_index are new.
++  lineage: `dbt ls --resource-type model --select mart_team_index+ int_player__page_profile+`
++  returns int_player__page_profile int_player_page__window_seasons
++  int_player_squad_window__metrics int_player_window__metrics mart_player_competition_benchmarks
++  mart_player_fixture_stats mart_player_profile mart_player_squad_benchmarks
++  mart_player_window_metrics mart_team_index mart_team_momentum_window: mart_team_index has no
++  downstream model, and int_player__page_profile is only read, not changed. The two new models
++  are leaves.
++  consumption: export_site_data.py reads mart_team_index with select * and projects it through
++  _TEAM_INDEX_KEEP, so teams_index.json does not change. The new players_index entity reads
++  mart_player_index alone. The deploy job's entity list (.gitlab-ci.yml, protected) is not
++  changed here, so nothing deployed changes until the page MR adds the entity.
++  ci_layer_rules: scripts/check_layer_contract.py (no mart ref from intermediate, the
++  any_value / approx_quantiles ban), scripts/check_description_hygiene.py,
++  scripts/check_relationships_coverage.py.
++  deploy_order: one merge; the nightly builds the new models. No backfill.
++  blast_radius: one new column on mart_team_index; two new tables; one new export file that no
++  page reads yet. No existing value changes.
++
++approved_design:
++  - players: #135
++
++decisions_taken: >
++  Readings of the approved design, ruled by the coordinating session on 2026-11-09:
++  this year's nominees are the latest edition in the seed per award; the Top clubs order is the
++  served order without the Teams hub's display cut (every club with a top_club_rank by
++  region_rank then rank, then the other clubs by country_order and team_order_in_country, places
++  shared broken by team_name then team_slug, the Teams hub's export order); nominees at one club
++  follow the published placing, then name; the Goalkeepers list is the Yashin Trophy nominees and
++  the outfield lists the Ballon d'Or nominees by their page position; a national team's minutes
++  are the length of each of its matches with player data since 1 July 2025 as #135 states it
++  (90, 120 after extra time); minutes this season are the player's club minutes in the
++  this_season club window of the featured season. mart_player_index is a new mart because its
++  grain (player) differs from mart_player_profile (player, season); ruled by the coordinating
++  session. No new mechanism, no recurring cost beyond two small tables in the nightly build.
++  docs/site_architecture.md §5 maps each page template to the export files it reads; the Players
++  page template and its row there come together in the page MR, since no template reads
++  players_index.json before it.
++
++decisions_reserved:
++  - How the built hub page stays small on a phone when the approved design lists all 18,528
++    players with a page, each nation group showing 6 and the rest under the shared fold, which
++    today holds every row in the HTML. Page design, for the page MR.
++
++done_when:
++  - dbt parse succeeds from the repo root.
++  - python scripts/check_layer_contract.py, check_description_hygiene.py and
++    check_relationships_coverage.py pass.
++  - python -m pytest tests -q is green.
++  - SQLFluff adds no violation on any changed model or test.
++  - CI's data:build:mr is green, every new test included.
++  - The ci_mr tables are compared with prod read-only: mart_team_index differs only by the new
++    column, and mart_player_index's rows, nominees and regulars match the plan's measurements.
++  - The export of this branch against main writes the same files plus players_index.json.
++
++amendments: (none)
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index 741939a5..ee216982 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -319,6 +319,7 @@ Canonical mart inventory (exhaustive) for this project:
+ | `mart_matchday_insights` | fixture_sk (per `league_code`) | MVP domestic upcoming matchday + form; filter by `league_code` at export/UI. BL1 play-offs: `mart_matchday_insights_bl1_relegation`. WC: `mart_matchday_insights_wc`. |
+ | `mart_team_season_insights` | (league_code, team_sk) | MVP latest season per league; slice by `league_code` at export/UI. |
+ | `mart_team_index` | team_sk | The Teams page: every team with a Team page and the orders the page shows, Top clubs, countries, clubs inside a country and national teams. Reads `mart_team_competitions` in its own layer. |
++| `mart_player_index` | player_sk | The Players page: every player with a Player page and the orders the page shows, World's best and players by nation. Reads `mart_player_profile` and `mart_team_index` in its own layer. |
+ | `mart_standings` | (league_code, season_api_year, group_name, team_sk) | The league's official standings row, the provider's except where corrected to the league's figures (rank, points, W/D/L, goals scored and conceded, goal difference, form) plus `table_kind`, the section's kind (league / group / conference / split_round / ranking) resolved from its name through the `standings_table_kinds` seed. Teams level on points stand in the league's tie-break order where our table equals the provider's (`int_standings__official_rank`). |
+ | `mart_competition_season_summary` | (league_code, season_api_year) | The season's headline tallies over finished matches: matches, goals, goals per match, home/away/draw split, the biggest-margin and most-goals fixtures, the longest unbeaten and winless runs with their holders. Composes `int_legs__team_match`; results tallied at competition grain, not catalogue metrics. |
+ | `mart_team_market_value` | team_sk | Team squad market value; currently WC-scoped (see #418 to generalize). |
+diff --git a/dbt_project/models/4_intermediate/shared/int_player__national_team_minutes.sql b/dbt_project/models/4_intermediate/shared/int_player__national_team_minutes.sql
+new file mode 100644
+index 00000000..ee5610a8
+--- /dev/null
++++ b/dbt_project/models/4_intermediate/shared/int_player__national_team_minutes.sql
+@@ -0,0 +1,57 @@
++{#
++  A player's minutes for a national team since 1 July 2025, beside the team's own minutes over
++  the same matches: the length of each of its matches with player data, 90, or 120 after extra
++  time. A regular played at least a third of the team's minutes.
++
++  Grain: (player_sk, team_sk).
++#}
++
++with legs as (
++    select
++        player_sk,
++        team_sk,
++        fixture_sk,
++        minutes
++    from {{ ref('int_legs__player_match') }}
++    where
++        entity_type = 'national'
++        and date(kickoff_datetime) >= date '2025-07-01'
++),
++
++matches as (
++    select
++        l.team_sk,
++        l.fixture_sk,
++        {{ one_value("if(f.status_short in ('AET', 'PEN'), 120, 90)") }} as match_minutes
++    from legs as l
++    inner join {{ ref('fct_fixture') }} as f
++        on l.fixture_sk = f.fixture_sk
++    group by l.team_sk, l.fixture_sk
++),
++
++team_minutes as (
++    select
++        team_sk,
++        sum(match_minutes) as national_team_match_minutes
++    from matches
++    group by team_sk
++),
++
++player_minutes as (
++    select
++        player_sk,
++        team_sk,
++        coalesce(sum(minutes), 0) as national_team_minutes
++    from legs
++    group by player_sk, team_sk
++)
++
++select
++    p.player_sk,
++    p.team_sk,
++    p.national_team_minutes,
++    t.national_team_match_minutes,
++    p.national_team_minutes * 3 >= t.national_team_match_minutes as is_regular
++from player_minutes as p
++inner join team_minutes as t
++    on p.team_sk = t.team_sk
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_page.yml b/dbt_project/models/4_intermediate/shared/int_player_page.yml
+index a750e3ef..78d0572f 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_page.yml
++++ b/dbt_project/models/4_intermediate/shared/int_player_page.yml
+@@ -34,6 +34,50 @@ models:
+               to: ref('dim_competition_season')
+               field: season_sk
+ 
++  - name: int_player__national_team_minutes
++    description: >
++      A player's minutes for a national team since 1 July 2025, beside the team's own minutes over
++      the same matches: the length of each of its matches with player data, 90, or 120 after extra
++      time. A regular played at least a third of the team's minutes. Grain: (player_sk, team_sk).
++    config:
++      tags: ["intermediate", "football", "player"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [player_sk, team_sk]
++      - dbt_utils.expression_is_true:
++          expression: "is_regular = (national_team_minutes * 3 >= national_team_match_minutes)"
++          name: national_team_regular_is_a_third_of_the_minutes
++    columns:
++      - name: player_sk
++        description: "{{ doc('player_sk') }}"
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_player')
++              field: player_sk
++      - name: team_sk
++        description: "The national team. {{ doc('team_sk') }}"
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
++      - name: national_team_minutes
++        description: "The player's minutes for the team since 1 July 2025; 0 when his matches carry no minutes."
++        tests:
++          - not_null
++          - dbt_utils.accepted_range:
++              min_value: 0
++      - name: national_team_match_minutes
++        description: "The team's minutes since 1 July 2025 over its matches with player data: 90 a match, 120 after extra time."
++        tests:
++          - not_null
++          - dbt_utils.accepted_range:
++              min_value: 90
++      - name: is_regular
++        description: "True when the player played at least a third of the team's minutes."
++        tests: [not_null]
++
+   - name: int_team__current_national_competitions
+     description: >
+       A nation's current competitions: every national-team competition of the nation between its
+diff --git a/dbt_project/models/5_marts/shared/mart_player_index.sql b/dbt_project/models/5_marts/shared/mart_player_index.sql
+new file mode 100644
+index 00000000..354eac9c
+--- /dev/null
++++ b/dbt_project/models/5_marts/shared/mart_player_index.sql
+@@ -0,0 +1,188 @@
++{#
++  The Players page: one row per player with a Player page, with the orders its two blocks show.
++
++  World's best: the latest edition of each award in player_award_results. The Goalkeepers list
++  holds the Yashin Trophy nominees, the other lists the Ballon d'Or nominees by their page
++  position. Inside a list, the current club in club_order, then the published placing, then the
++  name.
++
++  Players by nation: one group per nationality. Nations by the national team's
++  national_team_rank, then the nations it does not hold A to Z, then the players with no
++  nationality. Inside a nation, the regulars of its national team by their minutes for it, then
++  the others by club_order, players with no club last, and their club minutes this season.
++
++  A player's region is the confederation of the country of his nationality.
++
++  Reads mart_player_profile and mart_team_index in its own layer.
++  Grain: (player_sk).
++#}
++
++with profile as (
++    select
++        player_sk,
++        season_sk,
++        league_code,
++        player_name,
++        player_photo_url,
++        position_group,
++        player_nationality,
++        nationality_team_sk,
++        current_club_team_sk,
++        current_club_name
++    from {{ ref('mart_player_profile') }}
++    where has_player_page and is_featured_season
++),
++
++countries as (
++    select
++        country_name,
++        confederation
++    from {{ ref('dim_country') }}
++),
++
++team_index as (
++    select
++        team_sk,
++        club_order,
++        national_team_rank
++    from {{ ref('mart_team_index') }}
++),
++
++national_minutes as (
++    select * from {{ ref('int_player__national_team_minutes') }}
++),
++
++club_minutes as (
++    select
++        p.player_sk,
++        sum(l.minutes) as club_minutes_this_season
++    from profile as p
++    inner join {{ ref('int_competition_season__club_windows') }} as w
++        on
++            p.season_sk = w.anchor_season_sk
++            and w.window_type = 'this_season'
++    inner join {{ ref('int_legs__player_match') }} as l
++        on
++            p.player_sk = l.player_sk
++            and w.season_sk = l.season_sk
++    group by p.player_sk
++),
++
++latest_nominees as (
++    select
++        award,
++        edition_year,
++        placing,
++        player_api_id as player_sk
++    from {{ ref('player_award_results') }}
++    qualify edition_year = max(edition_year) over (partition by award)
++),
++
++nominees as (
++    select
++        player_sk,
++        award,
++        edition_year,
++        placing
++    from latest_nominees
++    qualify row_number() over (
++        partition by player_sk
++        order by award = 'yashin_trophy' desc, award asc
++    ) = 1
++),
++
++nations as (
++    select
++        p.player_nationality,
++        {{ one_value('t.national_team_rank') }} as national_team_rank
++    from profile as p
++    left join team_index as t
++        on p.nationality_team_sk = t.team_sk
++    group by p.player_nationality
++),
++
++nation_orders as (
++    select
++        player_nationality,
++        national_team_rank,
++        row_number() over (
++            order by
++                player_nationality is null asc,
++                national_team_rank is null asc,
++                national_team_rank asc,
++                player_nationality asc
++        ) as nation_order
++    from nations
++),
++
++players as (
++    select
++        p.player_sk,
++        p.league_code,
++        p.player_name,
++        p.player_photo_url,
++        p.position_group,
++        p.player_nationality,
++        p.nationality_team_sk,
++        c.confederation as region_key,
++        n.national_team_rank,
++        n.nation_order,
++        nm.national_team_minutes,
++        nm.national_team_match_minutes,
++        p.current_club_team_sk,
++        p.current_club_name,
++        ci.club_order,
++        a.award,
++        a.edition_year as award_edition_year,
++        a.placing as award_placing,
++        coalesce(nm.is_regular, false) as is_national_team_regular,
++        coalesce(cm.club_minutes_this_season, 0) as club_minutes_this_season,
++        case
++            when a.award = 'yashin_trophy' then 'GK'
++            when a.award = 'ballon_dor' and p.position_group != 'GK' then p.position_group
++        end as worlds_best_list
++    from profile as p
++    left join countries as c
++        on p.player_nationality = c.country_name
++    left join nation_orders as n
++        on p.player_nationality is not distinct from n.player_nationality
++    left join national_minutes as nm
++        on
++            p.player_sk = nm.player_sk
++            and p.nationality_team_sk = nm.team_sk
++    left join team_index as ci
++        on p.current_club_team_sk = ci.team_sk
++    left join club_minutes as cm
++        on p.player_sk = cm.player_sk
++    left join nominees as a
++        on p.player_sk = a.player_sk
++)
++
++select
++    *,
++    row_number() over (
++        partition by player_nationality
++        order by
++            is_national_team_regular desc,
++            if(is_national_team_regular, national_team_minutes, null) desc,
++            club_order is null asc,
++            club_order asc,
++            club_minutes_this_season desc,
++            player_name asc,
++            player_sk asc
++    ) as order_in_nation,
++    if(
++        worlds_best_list is null,
++        null,
++        row_number() over (
++            partition by worlds_best_list
++            order by
++                club_order is null asc,
++                club_order asc,
++                award_placing is null asc,
++                award_placing asc,
++                player_name asc,
++                player_sk asc
++        )
++    ) as worlds_best_order
++from players
+diff --git a/dbt_project/models/5_marts/shared/mart_team_index.sql b/dbt_project/models/5_marts/shared/mart_team_index.sql
+index 1ac1061d..f5c6e821 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_index.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_index.sql
+@@ -12,6 +12,10 @@
+   season, wins and goal difference; countries without points follow A to Z, teams without a
+   country last.
+ 
++  club_order puts every club in one line: the clubs with a top_club_rank by region_rank, then that
++  rank, then the other clubs by country_order and team_order_in_country; a shared place goes by
++  team name, then slug.
++
+   National teams: the furthest round at the latest finished World Cup, then at the region's
+   latest finished championship (each round in order, the winner above the final), then points
+   per match and goal difference per match in the team's World Cup qualifier table matches;
+@@ -349,6 +353,36 @@ club_orders as (
+         on c.team_sk = l.team_sk
+ ),
+ 
++club_places as (
++    select
++        c.team_sk,
++        row_number() over (
++            order by
++                tc.top_club_rank is null asc,
++                if(tc.top_club_rank is not null, rg.region_rank, null) asc nulls last,
++                tc.top_club_rank asc,
++                if(tc.top_club_rank is null, co.country_order, null) asc,
++                if(tc.top_club_rank is null, c.team_country, null) asc,
++                if(tc.top_club_rank is null, cl.team_order_in_country, null) asc,
++                t.team_name asc,
++                t.team_slug asc,
++                c.team_sk asc
++        ) as club_order
++    from clubs as c
++    inner join teams as t
++        on c.team_sk = t.team_sk
++    left join top_clubs as tc
++        on c.team_sk = tc.team_sk
++    left join team_regions as r
++        on c.team_sk = r.team_sk
++    left join regions as rg
++        on r.region_key = rg.confederation
++    left join country_orders as co
++        on c.team_country is not distinct from co.team_country
++    left join club_orders as cl
++        on c.team_sk = cl.team_sk
++),
++
+ world_cups as (
+     select
+         s.league_code,
+@@ -543,6 +577,7 @@ select
+     co.country_region_key,
+     co.country_order,
+     cl.team_order_in_country,
++    cp.club_order,
+     n.national_team_rank,
+     n.national_team_region_rank,
+     n.world_cup_stage,
+@@ -573,6 +608,8 @@ left join country_orders as co
+         and not k.is_national
+ left join club_orders as cl
+     on t.team_sk = cl.team_sk
++left join club_places as cp
++    on t.team_sk = cp.team_sk
+ left join national_orders as n
+     on t.team_sk = n.team_sk
+ left join regions as rg
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 1c7c5495..ced1c3b6 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -3914,6 +3914,9 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "coalesce(world_cup_stage between 1 and 7, true) and coalesce(championship_stage between 1 and 7, true)"
+           name: team_index_stages_in_range
++      - dbt_utils.expression_is_true:
++          expression: "(entity_type = 'club') = (club_order is not null)"
++          name: team_index_club_order_exactly_on_clubs
+     columns:
+       - name: team_sk
+         description: "{{ doc('team_sk') }}"
+@@ -3972,6 +3975,9 @@ models:
+         description: "The place of the club's country among the countries; NULL for a national team."
+       - name: team_order_in_country
+         description: "The club's place inside its country: the covered league by tier and table, then the other clubs A to Z; NULL for a national team."
++      - name: club_order
++        description: "The club's place among all clubs: the clubs with a top_club_rank by region_rank, then that rank, then the others by country_order and team_order_in_country; a shared place goes by team name, then slug. NULL for a national team."
++        tests: [unique]
+       - name: national_team_rank
+         description: "The national team's place in the world; level teams share it; NULL for a club."
+       - name: national_team_region_rank
+@@ -3989,3 +3995,132 @@ models:
+           - not_null
+           - accepted_values:
+               values: ["club", "national"]
++
++  - name: mart_player_index
++    description: >
++      The Players page: one row per player with a Player page, with the orders its two blocks show.
++      World's best: the latest edition of each award in player_award_results; the Goalkeepers list
++      holds the Yashin Trophy nominees, the other lists the Ballon d'Or nominees by their page
++      position; inside a list, the current club in mart_team_index.club_order, then the published
++      placing, then the name.
++      Players by nation: one group per nationality; nations by their national team's
++      national_team_rank, then the nations it does not hold A to Z, then the players with no
++      nationality. Inside a nation, its national team's regulars by their minutes for it, then the
++      others by club_order, players with no club last, then club minutes this season.
++      Grain: (player_sk).
++    meta:
++      owner: "data-platform"
++      domain: "football"
++      criticality: "medium"
++    config:
++      tags: ["marts", "football", "player"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [player_nationality, order_in_nation]
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [worlds_best_list, worlds_best_order]
++          config:
++            where: "worlds_best_list is not null"
++      - dbt_utils.expression_is_true:
++          expression: "(award is null) = (award_edition_year is null)"
++          name: player_index_award_has_its_edition
++      - dbt_utils.expression_is_true:
++          expression: "(worlds_best_list is null) = (worlds_best_order is null) and (worlds_best_list is null or award is not null)"
++          name: player_index_worlds_best_order_exactly_on_its_lists
++      - dbt_utils.expression_is_true:
++          expression: "coalesce(worlds_best_list = 'GK', false) = coalesce(award = 'yashin_trophy', false)"
++          name: player_index_goalkeepers_are_the_yashin_nominees
++      - dbt_utils.expression_is_true:
++          expression: "is_national_team_regular = coalesce(national_team_minutes * 3 >= national_team_match_minutes, false)"
++          name: player_index_regular_is_a_third_of_the_minutes
++      - dbt_utils.expression_is_true:
++          expression: "(current_club_team_sk is null) = (club_order is null)"
++          name: player_index_every_club_has_its_order
++    columns:
++      - name: player_sk
++        description: "{{ doc('player_sk') }}"
++        tests:
++          - not_null
++          - unique
++          - relationships:
++              to: ref('dim_player')
++              field: player_sk
++      - name: league_code
++        description: "The competition of the season the player's page opens on."
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_league')
++              field: league_code
++      - name: player_name
++        description: "{{ doc('player_name') }}"
++        tests: [not_null]
++      - name: player_photo_url
++        description: "{{ doc('player_photo_url') }}"
++      - name: position_group
++        description: "GK, DEF, MID or ATT: the player's most frequent position in the season his page opens on. NULL without a recorded position."
++        tests:
++          - accepted_values:
++              values: ["GK", "DEF", "MID", "ATT"]
++      - name: player_nationality
++        description: "{{ doc('player_nationality') }}"
++        tests:
++          - relationships:
++              to: ref('dim_country')
++              field: country_name
++      - name: nationality_team_sk
++        description: "The national team of the player's nationality. NULL when the player has no nationality or the nation has no national team in our competitions."
++        tests:
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
++      - name: region_key
++        description: "The player's region: the confederation of the country of his nationality, from dim_country. NULL without a nationality or for a country in no confederation."
++        tests:
++          - relationships:
++              to: ref('confederations')
++              field: confederation
++      - name: national_team_rank
++        description: "The place of the nation's national team in the world, from mart_team_index. NULL when the nation has no team there."
++      - name: nation_order
++        description: "The place of the player's nation among the nations: by national_team_rank, then the nations without one A to Z, then no nationality last. One value per nation."
++        tests: [not_null]
++      - name: national_team_minutes
++        description: "The player's minutes for his nation's national team since 1 July 2025. NULL when he has not played for it in that time."
++      - name: national_team_match_minutes
++        description: "The national team's own minutes over its matches with player data since 1 July 2025: 90 a match, 120 after extra time. NULL when the player has not played for it in that time."
++      - name: is_national_team_regular
++        description: "True when the player played at least a third of his national team's minutes since 1 July 2025."
++        tests: [not_null]
++      - name: current_club_team_sk
++        description: "The club of the player's latest club match. NULL when he has played no club football."
++        tests:
++          - relationships:
++              to: ref('mart_team_index')
++              field: team_sk
++      - name: current_club_name
++        description: "That club's name."
++      - name: club_order
++        description: "That club's place in mart_team_index.club_order. NULL without a club."
++      - name: club_minutes_this_season
++        description: "The player's minutes in club competitions this season, the season his page opens on and the other club competitions of the same season."
++        tests: [not_null]
++      - name: award
++        description: "ballon_dor or yashin_trophy when the player is a nominee of that award's latest edition; yashin_trophy when he is a nominee of both. NULL otherwise."
++        tests:
++          - accepted_values:
++              values: ["ballon_dor", "yashin_trophy"]
++      - name: award_edition_year
++        description: "The year of that award's latest edition."
++      - name: award_placing
++        description: "The player's published placing in that edition. NULL for a nominee the published ranking does not place."
++      - name: worlds_best_list
++        description: "The World's best list the player is in: GK for a Yashin Trophy nominee, his position for a Ballon d'Or nominee who is not a goalkeeper. NULL otherwise."
++        tests:
++          - accepted_values:
++              values: ["GK", "DEF", "MID", "ATT"]
++      - name: worlds_best_order
++        description: "The player's place in his World's best list: club_order, then award_placing, then name. NULL outside the lists."
++      - name: order_in_nation
++        description: "The player's place in his nation's group: the national team's regulars by national_team_minutes, then club_order, players with no club last, then club_minutes_this_season, then name."
++        tests: [not_null]
+diff --git a/dbt_project/tests/assert_player_index_covers_every_player_page.sql b/dbt_project/tests/assert_player_index_covers_every_player_page.sql
+new file mode 100644
+index 00000000..1a549d1a
+--- /dev/null
++++ b/dbt_project/tests/assert_player_index_covers_every_player_page.sql
+@@ -0,0 +1,59 @@
++-- Every player with a Player page has his row in mart_player_index, and none else, with the values
++-- of their sources: his featured row of mart_player_profile, his nation's confederation in
++-- dim_country, his club's club_order in mart_team_index and his minutes for his nation's team in
++-- int_player__national_team_minutes. Returns every player that is missing, extra or differs.
++
++with pages as (
++    select
++        player_sk,
++        league_code,
++        player_name,
++        player_photo_url,
++        position_group,
++        player_nationality,
++        nationality_team_sk,
++        current_club_team_sk,
++        current_club_name
++    from {{ ref('mart_player_profile') }}
++    where has_player_page and is_featured_season
++),
++
++expected as (
++    select
++        p.*,
++        c.confederation as region_key,
++        t.club_order,
++        m.national_team_minutes,
++        m.national_team_match_minutes
++    from pages as p
++    left join {{ ref('dim_country') }} as c
++        on p.player_nationality = c.country_name
++    left join {{ ref('mart_team_index') }} as t
++        on p.current_club_team_sk = t.team_sk
++    left join {{ ref('int_player__national_team_minutes') }} as m
++        on p.player_sk = m.player_sk and p.nationality_team_sk = m.team_sk
++),
++
++served as (
++    select * from {{ ref('mart_player_index') }}
++)
++
++select coalesce(e.player_sk, s.player_sk) as player_sk
++from expected as e
++full outer join served as s
++    on e.player_sk = s.player_sk
++where
++    e.player_sk is null
++    or s.player_sk is null
++    or e.league_code != s.league_code
++    or e.player_name is distinct from s.player_name
++    or e.player_photo_url is distinct from s.player_photo_url
++    or e.position_group is distinct from s.position_group
++    or e.player_nationality is distinct from s.player_nationality
++    or e.nationality_team_sk is distinct from s.nationality_team_sk
++    or e.region_key is distinct from s.region_key
++    or e.current_club_team_sk is distinct from s.current_club_team_sk
++    or e.current_club_name is distinct from s.current_club_name
++    or e.club_order is distinct from s.club_order
++    or e.national_team_minutes is distinct from s.national_team_minutes
++    or e.national_team_match_minutes is distinct from s.national_team_match_minutes
+diff --git a/dbt_project/tests/assert_player_index_nation_order_follows_the_rule.sql b/dbt_project/tests/assert_player_index_nation_order_follows_the_rule.sql
+new file mode 100644
+index 00000000..4bf878ae
+--- /dev/null
++++ b/dbt_project/tests/assert_player_index_nation_order_follows_the_rule.sql
+@@ -0,0 +1,64 @@
++-- mart_player_index.nation_order: one value per nation, 1 to n over the nations, the nations by
++-- their national team's national_team_rank in mart_team_index, a shared rank by name, then the
++-- nations without one A to Z, then no nationality last. Returns every nation out of that order, a
++-- nation with two orders or a wrong rank, and a gap.
++
++with rows_ as (
++    select
++        p.player_nationality,
++        p.nation_order,
++        p.national_team_rank,
++        t.national_team_rank as index_rank
++    from {{ ref('mart_player_index') }} as p
++    left join {{ ref('mart_team_index') }} as t
++        on p.nationality_team_sk = t.team_sk
++),
++
++nations as (
++    select
++        player_nationality,
++        min(nation_order) as nation_order,
++        min(national_team_rank) as national_team_rank,
++        count(distinct nation_order) as orders,
++        countif(national_team_rank is distinct from index_rank) as wrong_ranks
++    from rows_
++    group by player_nationality
++),
++
++pairs as (
++    select
++        *,
++        lag(player_nationality) over by_order as prev_nationality,
++        lag(national_team_rank) over by_order as prev_rank,
++        lag(nation_order) over by_order as prev_order
++    from nations
++    window by_order as (order by nation_order)
++)
++
++select
++    player_nationality,
++    'out of order, two orders or a wrong rank' as failure
++from pairs
++where
++    orders != 1
++    or wrong_ranks > 0
++    or prev_order = nation_order
++    or (prev_order is not null and prev_nationality is null)
++    or (prev_rank is null and national_team_rank is not null and prev_order is not null)
++    or prev_rank > national_team_rank
++    or (prev_rank = national_team_rank and prev_nationality > player_nationality)
++    or (prev_rank is null and national_team_rank is null and prev_nationality > player_nationality)
++
++union all
++
++select
++    cast(null as string) as player_nationality,
++    'nation_order is not 1 to n' as failure
++from (
++    select
++        min(nation_order) as first_order,
++        max(nation_order) as last_order,
++        count(*) as nations
++    from nations
++)
++where first_order != 1 or last_order != nations
+diff --git a/dbt_project/tests/assert_player_index_order_in_nation_follows_the_rule.sql b/dbt_project/tests/assert_player_index_order_in_nation_follows_the_rule.sql
+new file mode 100644
+index 00000000..e2d42a40
+--- /dev/null
++++ b/dbt_project/tests/assert_player_index_order_in_nation_follows_the_rule.sql
+@@ -0,0 +1,47 @@
++-- mart_player_index.order_in_nation runs 1 to n inside each nation: the national team's regulars
++-- by national_team_minutes, then the others by club_order with no club last, then
++-- club_minutes_this_season inside one club. Returns every player placed after one he should
++-- follow, and a nation with a gap.
++
++with pairs as (
++    select
++        player_sk,
++        player_nationality,
++        order_in_nation,
++        is_national_team_regular,
++        national_team_minutes,
++        club_order,
++        club_minutes_this_season,
++        lag(is_national_team_regular) over by_order as prev_regular,
++        lag(national_team_minutes) over by_order as prev_minutes,
++        lag(club_order) over by_order as prev_club_order,
++        lag(club_minutes_this_season) over by_order as prev_club_minutes,
++        lag(order_in_nation) over by_order as prev_order
++    from {{ ref('mart_player_index') }}
++    window by_order as (partition by player_nationality order by order_in_nation)
++)
++
++select
++    player_sk,
++    'placed after a player he should precede' as failure
++from pairs
++where
++    (not prev_regular and is_national_team_regular)
++    or (prev_regular and is_national_team_regular and prev_minutes < national_team_minutes)
++    or (
++        not prev_regular and not is_national_team_regular
++        and (
++            (prev_order is not null and prev_club_order is null and club_order is not null)
++            or prev_club_order > club_order
++            or (prev_club_order = club_order and prev_club_minutes < club_minutes_this_season)
++        )
++    )
++
++union all
++
++select
++    cast(null as int64) as player_sk,
++    'order_in_nation is not 1 to n' as failure
++from {{ ref('mart_player_index') }}
++group by player_nationality
++having max(order_in_nation) != count(*) or min(order_in_nation) != 1
+diff --git a/dbt_project/tests/assert_player_index_worlds_best_follows_the_seed.sql b/dbt_project/tests/assert_player_index_worlds_best_follows_the_seed.sql
+new file mode 100644
+index 00000000..493403cf
+--- /dev/null
++++ b/dbt_project/tests/assert_player_index_worlds_best_follows_the_seed.sql
+@@ -0,0 +1,120 @@
++-- mart_player_index's World's best against player_award_results: the nominees with a Player page
++-- of each award's latest edition, the Yashin Trophy ones in the GK list and the Ballon d'Or ones
++-- who are not goalkeepers in their position's list, none missing and none extra; inside a list,
++-- 1 to n by club_order, then placing. Returns every nominee that differs or is out of order, a
++-- Ballon d'Or nominee with a page and no position, and a list with a gap.
++
++with pages as (
++    select distinct
++        player_sk,
++        position_group
++    from {{ ref('mart_player_profile') }}
++    where has_player_page and is_featured_season
++),
++
++seed_rows as (
++    select
++        award,
++        edition_year,
++        placing,
++        player_api_id as player_sk
++    from {{ ref('player_award_results') }}
++),
++
++latest as (
++    select
++        award,
++        max(edition_year) as edition_year
++    from seed_rows
++    group by award
++),
++
++expected as (
++    select
++        s.player_sk,
++        s.award,
++        s.edition_year,
++        s.placing,
++        if(s.award = 'yashin_trophy', 'GK', p.position_group) as list
++    from seed_rows as s
++    inner join latest as l
++        on s.award = l.award and s.edition_year = l.edition_year
++    inner join pages as p
++        on s.player_sk = p.player_sk
++    where s.award = 'yashin_trophy' or p.position_group != 'GK'
++),
++
++served as (
++    select
++        player_sk,
++        award,
++        award_edition_year,
++        award_placing,
++        worlds_best_list,
++        worlds_best_order,
++        club_order
++    from {{ ref('mart_player_index') }}
++    where worlds_best_list is not null
++),
++
++pairs as (
++    select
++        *,
++        lag(club_order) over by_order as prev_club_order,
++        lag(award_placing) over by_order as prev_placing,
++        lag(worlds_best_order) over by_order as prev_order
++    from served
++    window by_order as (partition by worlds_best_list order by worlds_best_order)
++)
++
++select
++    coalesce(e.player_sk, s.player_sk) as player_sk,
++    'differs from the seed' as failure
++from expected as e
++full outer join served as s
++    on e.player_sk = s.player_sk
++where
++    e.player_sk is null
++    or s.player_sk is null
++    or e.award != s.award
++    or e.edition_year != s.award_edition_year
++    or e.placing is distinct from s.award_placing
++    or e.list != s.worlds_best_list
++
++union all
++
++select
++    player_sk,
++    'placed after a nominee he should follow' as failure
++from pairs
++where
++    (prev_order is not null and prev_club_order is null and club_order is not null)
++    or prev_club_order > club_order
++    or (
++        prev_club_order is not distinct from club_order
++        and (
++            (prev_placing is null and award_placing is not null)
++            or prev_placing > award_placing
++        )
++    )
++
++union all
++
++select
++    s.player_sk,
++    'a ballon_dor nominee with a page has no position' as failure
++from seed_rows as s
++inner join latest as l
++    on s.award = l.award and s.edition_year = l.edition_year
++inner join pages as p
++    on s.player_sk = p.player_sk
++where s.award = 'ballon_dor' and p.position_group is null
++
++union all
++
++select
++    cast(null as int64) as player_sk,
++    'worlds_best_order is not 1 to n' as failure
++from served
++group by worlds_best_list
++having max(worlds_best_order) != count(*) or min(worlds_best_order) != 1
+diff --git a/dbt_project/tests/assert_player_national_team_minutes_recomputed.sql b/dbt_project/tests/assert_player_national_team_minutes_recomputed.sql
+new file mode 100644
+index 00000000..a761eae5
+--- /dev/null
++++ b/dbt_project/tests/assert_player_national_team_minutes_recomputed.sql
+@@ -0,0 +1,69 @@
++-- int_player__national_team_minutes against a recount from the core stat lines: every player's
++-- minutes for a national team since 1 July 2025 and the team's minutes over its matches with stat
++-- lines, 90 a match, 120 after extra time. Returns every pair that differs or is missing.
++
++with lines as (
++    select
++        s.player_sk,
++        s.team_sk,
++        s.fixture_sk,
++        s.minutes,
++        f.status_short
++    from {{ ref('fct_fixture_player_stats') }} as s
++    inner join {{ ref('fct_fixture') }} as f
++        on s.fixture_sk = f.fixture_sk
++    inner join {{ ref('dim_league') }} as c
++        on s.league_code = c.league_code
++    where
++        c.entity_type = 'national'
++        and f.status_short in ('FT', 'AET', 'PEN')
++        and f.goals_home is not null
++        and f.goals_away is not null
++        and date(f.kickoff_datetime) >= date '2025-07-01'
++),
++
++team_minutes as (
++    select
++        team_sk,
++        sum(if(status_short in ('AET', 'PEN'), 120, 90)) as match_minutes
++    from (
++        select distinct
++            team_sk,
++            fixture_sk,
++            status_short
++        from lines
++    )
++    group by team_sk
++),
++
++expected as (
++    select
++        l.player_sk,
++        l.team_sk,
++        coalesce(sum(l.minutes), 0) as minutes,
++        min(t.match_minutes) as match_minutes
++    from lines as l
++    inner join team_minutes as t
++        on l.team_sk = t.team_sk
++    group by l.player_sk, l.team_sk
++),
++
++served as (
++    select * from {{ ref('int_player__national_team_minutes') }}
++)
++
++select
++    e.minutes as expected_minutes,
++    s.national_team_minutes,
++    e.match_minutes as expected_match_minutes,
++    s.national_team_match_minutes,
++    coalesce(e.player_sk, s.player_sk) as player_sk,
++    coalesce(e.team_sk, s.team_sk) as team_sk
++from expected as e
++full outer join served as s
++    on e.player_sk = s.player_sk and e.team_sk = s.team_sk
++where
++    e.player_sk is null
++    or s.player_sk is null
++    or e.minutes != s.national_team_minutes
++    or e.match_minutes != s.national_team_match_minutes
+diff --git a/dbt_project/tests/assert_team_index_club_order_follows_the_rule.sql b/dbt_project/tests/assert_team_index_club_order_follows_the_rule.sql
+new file mode 100644
+index 00000000..58785757
+--- /dev/null
++++ b/dbt_project/tests/assert_team_index_club_order_follows_the_rule.sql
+@@ -0,0 +1,69 @@
++-- mart_team_index.club_order runs 1 to n over the clubs: the clubs with a top_club_rank first, by
++-- region_rank then that rank, then the others by country_order and, inside a country,
++-- team_order_in_country. Returns every club placed after one it should precede, and a gap.
++
++with clubs as (
++    select
++        team_sk,
++        club_order,
++        top_club_rank,
++        country_order,
++        team_country,
++        team_order_in_country,
++        top_club_rank is not null as is_ranked,
++        coalesce(region_rank, 1000) as region_place
++    from {{ ref('mart_team_index') }}
++    where entity_type = 'club'
++),
++
++pairs as (
++    select
++        *,
++        lag(is_ranked) over by_order as prev_is_ranked,
++        lag(region_place) over by_order as prev_region_place,
++        lag(top_club_rank) over by_order as prev_top_club_rank,
++        lag(country_order) over by_order as prev_country_order,
++        lag(team_country) over by_order as prev_team_country,
++        lag(team_order_in_country) over by_order as prev_team_order_in_country
++    from clubs
++    window by_order as (order by club_order)
++)
++
++select
++    team_sk,
++    'placed after a club it should precede' as failure
++from pairs
++where
++    (not prev_is_ranked and is_ranked)
++    or (
++        prev_is_ranked and is_ranked
++        and (
++            prev_region_place > region_place
++            or (prev_region_place = region_place and prev_top_club_rank > top_club_rank)
++        )
++    )
++    or (
++        not prev_is_ranked and not is_ranked
++        and (
++            prev_country_order > country_order
++            or (
++                prev_country_order = country_order
++                and prev_team_country is not distinct from team_country
++                and prev_team_order_in_country > team_order_in_country
++            )
++        )
++    )
++
++union all
++
++select
++    cast(null as int64) as team_sk,
++    'club_order is not 1 to n' as failure
++from (
++    select
++        min(club_order) as first_order,
++        max(club_order) as last_order,
++        count(*) as clubs
++    from clubs
++)
++where first_order != 1 or last_order != clubs
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index 4e969183..2a63d129 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -38,7 +38,7 @@ MARTS_DATASET = "marts"
+ DEFAULT_OUT = "artifacts/site_data"
+ ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
+                 "leaderboards", "glossary", "metric_groups", "metric_rows", "landing",
+-                "competition_index", "matches", "teams_index")
++                "competition_index", "matches", "teams_index", "players_index")
+ REGISTRY_PATH = "docs/competition_registry.yml"
+ CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
+ METRIC_MAP_PATH = "dbt_project/seeds/metric_map.csv"
+@@ -1786,6 +1786,44 @@ def fetch_team_index(client) -> dict:
+     return shape_team_index(rows)
+ 
+ 
++_PLAYER_INDEX_COLUMNS = (
++    "player_sk, player_name, player_photo_url, position_group, player_nationality, region_key, "
++    "nation_order, order_in_nation, current_club_name, award, award_edition_year, "
++    "worlds_best_list, worlds_best_order"
++)
++
++
++def shape_player_index(rows: list[dict]) -> dict:
++    """mart_player_index rows as the Players page reads them: every player in the served nation
++    order, and the World's best nominees by list and served place."""
++    nominees = sorted((r for r in rows if r.get("worlds_best_list") is not None),
++                      key=lambda r: (r["worlds_best_list"], r["worlds_best_order"]))
++    return {
++        "type": "players_index",
++        "worlds_best": [{"player_id": r["player_sk"], "list": r["worlds_best_list"],
++                         "award": r.get("award"), "edition_year": r.get("award_edition_year"),
++                         "order": r["worlds_best_order"]} for r in nominees],
++        "players": [{"player_id": r["player_sk"],
++                     "slug": player_slug_with_id(r.get("player_name"), r["player_sk"]),
++                     "name": r.get("player_name"), "photo": r.get("player_photo_url"),
++                     "position_group": r.get("position_group"), "nation": r.get("player_nationality"),
++                     "region_key": r.get("region_key"), "nation_order": r.get("nation_order"),
++                     "order_in_nation": r.get("order_in_nation"), "club": r.get("current_club_name")}
++                    for r in rows],
++    }
++
++
++def fetch_player_index(client) -> dict:
++    """players_index.json -- mart_player_index, one row per player with a page, in the served
++    nation order."""
++    rows = _query(
++        client,
++        f"select {_PLAYER_INDEX_COLUMNS} from `{GCP_PROJECT}.{MARTS_DATASET}.mart_player_index` "
++        f"order by nation_order, order_in_nation",
++    )
++    return shape_player_index(rows)
++
++
+ _COMPETITION_FIXTURE_COLUMNS = (
+     "fixture_sk, league_code, season_api_year, round_name, round_label_i18n_key, round_number, round_letter, round_order, round_sequence, "
+     "fixture_order, kickoff_datetime, status_short, is_played, goals_home, goals_away, "
+@@ -2637,6 +2675,10 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
+         sha = write_file(out_root, "teams_index.json", fetch_team_index(client))
+         entries.append({"type": "teams_index", "id": "teams_index", "slug": None,
+                         "path": "teams_index.json", "sha256": sha})
++    if "players_index" in entities:
++        sha = write_file(out_root, "players_index.json", fetch_player_index(client))
++        entries.append({"type": "players_index", "id": "players_index", "slug": None,
++                        "path": "players_index.json", "sha256": sha})
+     if "matches" in entities:
+         for p in fetch_match_day_payloads(client):
+             entries.append(write_entity(out_root, "matches", p["day"], p))
+diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
+index 572c1750..ca365b66 100644
+--- a/tests/test_export_site_data.py
++++ b/tests/test_export_site_data.py
+@@ -20,6 +20,7 @@ from scripts.export_site_data import (
+     shape_competition_index,
+     shape_competition_payload,
+     shape_team_index,
++    shape_player_index,
+     shape_season_summary,
+     shape_fixture_payload,
+     shape_next_match,
+@@ -1424,6 +1425,59 @@ def test_shape_team_index_refuses_rows_that_disagree_on_the_page_flag():
+         shape_team_index([_team_index_row(), _team_index_row(national_teams_first=True)])
+ 
+ 
++def _player_index_row(**over) -> dict:
++    row = {
++        "player_sk": 184, "player_name": "Harry Kane", "player_photo_url": "https://x/184.png",
++        "position_group": "ATT", "player_nationality": "England", "region_key": "UEFA",
++        "nation_order": 4, "order_in_nation": 1, "current_club_name": "Bayern München",
++        "award": None, "award_edition_year": None, "worlds_best_list": None, "worlds_best_order": None,
++    }
++    return {**row, **over}
++
++
++def test_shape_player_index_keeps_the_served_order_and_lists_the_nominees():
++    rows = [_player_index_row(player_sk=2, player_name="B Two", nation_order=1, award="yashin_trophy",
++                              award_edition_year=2026, worlds_best_list="GK", worlds_best_order=1),
++            _player_index_row(player_sk=1, player_name="A One", nation_order=2, award="ballon_dor",
++                              award_edition_year=2026, worlds_best_list="ATT", worlds_best_order=2),
++            _player_index_row(player_sk=3, player_name="C Three", nation_order=2, order_in_nation=2,
++                              award="ballon_dor", award_edition_year=2026, worlds_best_list="ATT",
++                              worlds_best_order=1),
++            _player_index_row(player_sk=4, player_nationality=None, region_key=None, nation_order=3,
++                              current_club_name=None)]
++    shaped = shape_player_index(rows)
++    assert shaped["type"] == "players_index"
++    assert [p["player_id"] for p in shaped["players"]] == [2, 1, 3, 4]
++    assert [(w["list"], w["order"], w["player_id"]) for w in shaped["worlds_best"]] == [
++        ("ATT", 1, 3), ("ATT", 2, 1), ("GK", 1, 2)]
++    assert shaped["worlds_best"][2] == {"player_id": 2, "list": "GK", "award": "yashin_trophy",
++                                        "edition_year": 2026, "order": 1}
++    first = shaped["players"][0]
++    assert first == {"player_id": 2, "slug": player_slug_with_id("B Two", 2), "name": "B Two",
++                     "photo": "https://x/184.png", "position_group": "ATT", "nation": "England",
++                     "region_key": "UEFA", "nation_order": 1, "order_in_nation": 1,
++                     "club": "Bayern München"}
++    last = shaped["players"][3]
++    assert last["nation"] is None and last["region_key"] is None and last["club"] is None
++
++
++def test_fetch_player_index_reads_the_mart_alone_in_the_served_order(monkeypatch):
++    seen = []
++
++    def fake_query(client, sql):
++        seen.append(" ".join(sql.split()))
++        return [_player_index_row()]
++
++    monkeypatch.setattr(export_site_data, "_query", fake_query)
++    payload = export_site_data.fetch_player_index(object())
++    (sql,) = seen
++    assert payload["type"] == "players_index" and len(payload["players"]) == 1
++    assert "marts.mart_player_index`" in sql and "join" not in sql
++    assert sql.endswith("order by nation_order, order_in_nation")
++    selected = {c.strip() for c in sql.split(" from ")[0].removeprefix("select ").split(",")}
++    assert selected == set(_player_index_row())
++
++
+ def test_featured_season_row_refuses_to_choose():
+     """With no served flag the export must fail loudly rather than fall back to recency."""
+     import pytest
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../task/135-players-hub-data/review_input.patch   | 1268 ++++++++++++++++++++
+#    1 file changed, 1268 insertions(+)
+# ============================================================================

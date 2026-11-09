@@ -38,7 +38,7 @@ MARTS_DATASET = "marts"
 DEFAULT_OUT = "artifacts/site_data"
 ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
                 "leaderboards", "glossary", "metric_groups", "metric_rows", "landing",
-                "competition_index", "matches", "teams_index")
+                "competition_index", "matches", "teams_index", "players_index")
 REGISTRY_PATH = "docs/competition_registry.yml"
 CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
 METRIC_MAP_PATH = "dbt_project/seeds/metric_map.csv"
@@ -1786,6 +1786,44 @@ def fetch_team_index(client) -> dict:
     return shape_team_index(rows)
 
 
+_PLAYER_INDEX_COLUMNS = (
+    "player_sk, player_name, player_photo_url, position_group, player_nationality, region_key, "
+    "nation_order, order_in_nation, current_club_name, award, award_edition_year, "
+    "worlds_best_list, worlds_best_order"
+)
+
+
+def shape_player_index(rows: list[dict]) -> dict:
+    """mart_player_index rows as the Players page reads them: every player in the served nation
+    order, and the World's best nominees by list and served place."""
+    nominees = sorted((r for r in rows if r.get("worlds_best_list") is not None),
+                      key=lambda r: (r["worlds_best_list"], r["worlds_best_order"]))
+    return {
+        "type": "players_index",
+        "worlds_best": [{"player_id": r["player_sk"], "list": r["worlds_best_list"],
+                         "award": r.get("award"), "edition_year": r.get("award_edition_year"),
+                         "order": r["worlds_best_order"]} for r in nominees],
+        "players": [{"player_id": r["player_sk"],
+                     "slug": player_slug_with_id(r.get("player_name"), r["player_sk"]),
+                     "name": r.get("player_name"), "photo": r.get("player_photo_url"),
+                     "position_group": r.get("position_group"), "nation": r.get("player_nationality"),
+                     "region_key": r.get("region_key"), "nation_order": r.get("nation_order"),
+                     "order_in_nation": r.get("order_in_nation"), "club": r.get("current_club_name")}
+                    for r in rows],
+    }
+
+
+def fetch_player_index(client) -> dict:
+    """players_index.json -- mart_player_index, one row per player with a page, in the served
+    nation order."""
+    rows = _query(
+        client,
+        f"select {_PLAYER_INDEX_COLUMNS} from `{GCP_PROJECT}.{MARTS_DATASET}.mart_player_index` "
+        f"order by nation_order, order_in_nation",
+    )
+    return shape_player_index(rows)
+
+
 _COMPETITION_FIXTURE_COLUMNS = (
     "fixture_sk, league_code, season_api_year, round_name, round_label_i18n_key, round_number, round_letter, round_order, round_sequence, "
     "fixture_order, kickoff_datetime, status_short, is_played, goals_home, goals_away, "
@@ -2637,6 +2675,10 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
         sha = write_file(out_root, "teams_index.json", fetch_team_index(client))
         entries.append({"type": "teams_index", "id": "teams_index", "slug": None,
                         "path": "teams_index.json", "sha256": sha})
+    if "players_index" in entities:
+        sha = write_file(out_root, "players_index.json", fetch_player_index(client))
+        entries.append({"type": "players_index", "id": "players_index", "slug": None,
+                        "path": "players_index.json", "sha256": sha})
     if "matches" in entities:
         for p in fetch_match_day_payloads(client):
             entries.append(write_entity(out_root, "matches", p["day"], p))

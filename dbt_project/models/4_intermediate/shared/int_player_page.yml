@@ -34,6 +34,50 @@ models:
               to: ref('dim_competition_season')
               field: season_sk
 
+  - name: int_player__national_team_minutes
+    description: >
+      A player's minutes for a national team since 1 July 2025, beside the team's own minutes over
+      the same matches: the length of each of its matches with player data, 90, or 120 after extra
+      time. A regular played at least a third of the team's minutes. Grain: (player_sk, team_sk).
+    config:
+      tags: ["intermediate", "football", "player"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [player_sk, team_sk]
+      - dbt_utils.expression_is_true:
+          expression: "is_regular = (national_team_minutes * 3 >= national_team_match_minutes)"
+          name: national_team_regular_is_a_third_of_the_minutes
+    columns:
+      - name: player_sk
+        description: "{{ doc('player_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: team_sk
+        description: "The national team. {{ doc('team_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: national_team_minutes
+        description: "The player's minutes for the team since 1 July 2025; 0 when his matches carry no minutes."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+      - name: national_team_match_minutes
+        description: "The team's minutes since 1 July 2025 over its matches with player data: 90 a match, 120 after extra time."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 90
+      - name: is_regular
+        description: "True when the player played at least a third of the team's minutes."
+        tests: [not_null]
+
   - name: int_team__current_national_competitions
     description: >
       A nation's current competitions: every national-team competition of the nation between its
