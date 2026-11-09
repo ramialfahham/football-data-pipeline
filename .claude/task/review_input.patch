@@ -603,6 +603,62 @@ index 688a29c8..acac835e 100644
  .plrow .pphoto { grid-area: photo; }
  .plrow .pname { display: contents; }
  .plrow .pname .nm { grid-area: name; font-size: 15px; font-weight: 400; color: var(--ink); white-space: normal; overflow: visible; text-overflow: clip; }
+diff --git a/tests/fixtures/design_inventory/baseline.json b/tests/fixtures/design_inventory/baseline.json
+index 77de6cf7..757af7e5 100644
+--- a/tests/fixtures/design_inventory/baseline.json
++++ b/tests/fixtures/design_inventory/baseline.json
+@@ -19,13 +19,13 @@
+    "Competition overview": {"split": 21, "classes": 6},
+    "Competition rankings": {"classes": 6},
+    "Competitions index": {"overflow": 42, "classes": 5},
+-   "Home": {"split": 13, "classes": 6},
+-   "Match page": {"scroll": 2184, "overflow": 12, "split": 223, "classes": 15},
++   "Home": {"classes": 6},
++   "Match page": {"scroll": 2184, "overflow": 12, "split": 2, "classes": 15},
+    "Matches day page": {"classes": 7, "miss · Fold": 378, "miss · Match row score": 414},
+    "Matches page": {"classes": 7},
+    "Played match page": {"scroll": 2, "classes": 13},
+-   "Team page": {"overflow": 3, "split": 47, "classes": 29, "miss · Name in whole words": 3},
+-   "Teams page": {"split": 3, "classes": 5},
++   "Team page": {"overflow": 3, "classes": 29},
++   "Teams page": {"classes": 5},
+    "competition-hub cup": {"classes": 14},
+    "competition-hub groups": {"classes": 14},
+    "competition-hub league": {"overflow": 112, "classes": 16},
+diff --git a/tests/fixtures/design_inventory/baseline_quick.json b/tests/fixtures/design_inventory/baseline_quick.json
+index 28d0b526..b6707888 100644
+--- a/tests/fixtures/design_inventory/baseline_quick.json
++++ b/tests/fixtures/design_inventory/baseline_quick.json
+@@ -292,7 +292,6 @@
+    "Match page": {
+     "scroll": 1137,
+     "overflow": 6,
+-    "split": 104,
+     "classes": 15
+    },
+    "de/afc-champions-league/index.html": {
+@@ -379,7 +378,6 @@
+     "classes": 5
+    },
+    "Home": {
+-    "split": 6,
+     "classes": 6
+    },
+    "de/j1-league/index.html": {
+@@ -405,12 +403,9 @@
+    },
+    "Team page": {
+     "overflow": 2,
+-    "split": 13,
+-    "classes": 29,
+-    "miss · Name in whole words": 1
++    "classes": 29
+    },
+    "Teams page": {
+-    "split": 1,
+     "classes": 5
+    },
+    "de/mls/index.html": {
 diff --git a/tests/fixtures/design_inventory/counts_tabs.html b/tests/fixtures/design_inventory/counts_tabs.html
 new file mode 100644
 index 00000000..561de3ea
@@ -727,7 +783,8 @@ index d5c9ec4b..b3982e16 100644
 # depends on one.
 #
 #   .claude/task/acceptance_evidence.md    |  17 +-
-#    .claude/task/rendered_page_evidence.md |  71 ++-
-#    .claude/task/review_input.patch        | 877 +++++++++++++++++++++++++--------
-#    3 files changed, 740 insertions(+), 225 deletions(-)
+#    .claude/task/rendered_page_evidence.md |  76 ++-
+#    .claude/task/review.md                 |  41 +-
+#    .claude/task/review_input.patch        | 882 ++++++++++++++++++++++++++-------
+#    4 files changed, 773 insertions(+), 243 deletions(-)
 # ============================================================================

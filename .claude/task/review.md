@@ -1,9 +1,9 @@
 # Review — fix/249-hyphen-names-every-tab
 
-diff_sha256: f2471d7430a00dfd357dbf5d921c46d8b7a1ec9448235a3c116ae6d5dbb009f6
+diff_sha256: 144205037c98b7e847d4db176158c5a3d69d2303f1a9fc6885e7bc6e8b8a6a4d
 
-rounds: 4
-rounds_cap_override: approved in chat, 2026-11-09: rounds past three for the unit test that pins the no-break span match, and for the design baselines lowered from CI's measurement.
+rounds: 5
+rounds_cap_override: approved in chat, 2026-11-09: rounds past three for the unit test that pins the no-break span match, and for the design baselines lowered after the first push.
 
 ## scope-auditor
 VERDICT: PASS
@@ -12,6 +12,7 @@ risks_checked:
 - protected_override names check_design_inventory.py, test_design_inventory.py, middleware.ts and the components.yml Unbreakable unit, each with its approval; the components.yml hunk touches only that unit.
 - impact_map declares the new build mechanism and the recurring CI cost (+36 s per merge request, +76 s on main), accepted with its date.
 - The round 4 change is one test case that pins existing behaviour; no mechanism, cost or page output change; decisions_taken and decisions_reserved unchanged.
+- The round 5 baseline edits only lower or drop pins for the pages this change fixes; the evidence states that the full baseline comes from a local full run, as a merge request runs only the quick scope.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
@@ -29,6 +30,7 @@ risks_checked:
 - The every-tab check fails closed on a Tab bar with no tab to open; shared defects are counted once through a per-page set reset on each load; failure screenshots are capped at 20.
 - counts_tabs.html gives its counts only when a hidden tab is opened and a shared element is counted once, so reverting either behaviour fails its test.
 - The middleware passes non-HTML responses through and keeps status, statusText and headers; its cost is one linear tokenization per page.
+- The baselines change exactly the five pins each: the quick ones as the Linux run measured, the full ones from a full local run whose other built-page counts equal the Linux pins; both files keep their format, and a wrong full pin fails main's validate:ui in either direction.
 
 ## cto-reviewer
 VERDICT: PASS

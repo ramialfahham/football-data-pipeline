@@ -18,6 +18,11 @@ same run gives main's Linux pins on every page except the Team page, whose tabs 
 - **Team page, Name in whole words:** 3 failures on main ("Saint-Germain", 102px, in an 82–91px name space of the Top-match row), 0 here.
 - **No pin rises:** every other count equals main's; no new failure.
 
+## The baselines
+
+- **`baseline_quick.json`:** the merge request's validate:ui run on Linux reported five counts that fell and nothing else: Home split 6 → 0, Match page split 104 → 0, Team page split 13 → 0 and "Name in whole words" 1 → 0, Teams page split 1 → 0. Those five pins are lowered.
+- **`baseline.json`:** a merge request runs only the quick scope, so the full scope was run on this build on Windows. Its built-page counts differ from the full baseline only in Home split 13 → 0, Match page split 223 → 2, Team page split 47 → 0 and "Name in whole words" 3 → 0, and Teams page split 3 → 0. Every other built-page count equals the Linux pin, including the Matches day page's 378 and 414. Those five pins are lowered. The mocks' counts differ on Windows and are left as they are: this branch changes no mock, and the Linux run kept every mock at its quick pin.
+
 ## The build step
 
 - **Where it acts:** on the build, 0 spans inside an attribute, `<title>`, `<option>`, SVG `<text>` or `<script>` (a grep over every built page).
