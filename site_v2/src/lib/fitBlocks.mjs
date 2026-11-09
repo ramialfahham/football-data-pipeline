@@ -4,7 +4,8 @@
 // when every name keeps its longest word inside its own space; a block of fact rows fits when its
 // longest row (label, gap, value) fits its width; the header row fits when it holds the menu; a
 // Filter bar fits when each row of buttons does, and its dropdown row when each holds its longest choice;
-// a match row with a tag fits when its names keep their column beside the tag.
+// a match row with a tag fits when its names keep their column beside the tag, each longest word
+// inside its own space.
 
 /** The width of a text's longest word, given a function that measures one word. */
 export function longestWord(text, measure) {
@@ -37,14 +38,16 @@ function start() {
     copy.remove();
     return w;
   };
+  const names = (block, selector) => [...block.querySelectorAll(selector)].filter(shown)
+    .map((nm) => ({ need: longestWord(nm.textContent, wordWidth(nm)), room: nm.clientWidth }));
   const measures = {
-    table: (block) => [...block.querySelectorAll(".ctab-row .tm .nm")].filter(shown)
-      .map((nm) => ({ need: longestWord(nm.textContent, wordWidth(nm)), room: nm.clientWidth })),
+    table: (block) => names(block, ".ctab-row .tm .nm"),
     facts: (block) => [...block.children].filter((r) => r.classList.contains("frow") && shown(r))
       .map((row) => ({ need: oneLine(row), room: row.clientWidth })),
     header: (block) => [{ need: block.scrollWidth, room: block.clientWidth }],
     tagged: (block) => [...block.querySelectorAll(":scope > .sides")]
-      .map((sides) => ({ need: sides.scrollWidth, room: sides.clientWidth })),
+      .map((sides) => ({ need: sides.scrollWidth, room: sides.clientWidth }))
+      .concat(names(block, ":scope > .sides .side .nm")),
     filter: (block) => [...block.children].filter((c) => c.matches(".seg:not(.sel)") && shown(c))
       .map((seg) => ({ need: seg.scrollWidth, room: seg.clientWidth })),
     selects: (block) => [...block.querySelectorAll(".sel-in")].filter(shown).map((sel) => {

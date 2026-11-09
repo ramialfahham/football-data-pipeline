@@ -507,12 +507,12 @@ components:
     wide: "a team's or competition's crest, 24px; 52px in the match header"
   unit:
     name: Unbreakable unit
-    file: [site_v2/src/components/fixture/Masthead.astro, site_v2/src/components/competition/SeasonFacts.astro, site_v2/src/components/fixture/HeadToHead.astro, site_v2/src/components/fixture/MatchGoals.astro]
-    used-on: [match page, Competition overview, Team page]
+    file: [site_v2/src/components/fixture/Masthead.astro, site_v2/src/components/competition/SeasonFacts.astro, site_v2/src/components/fixture/HeadToHead.astro, site_v2/src/components/fixture/MatchGoals.astro, site_v2/src/middleware.ts, site_v2/src/lib/wholeWords.mjs]
+    used-on: [every page]
     parts:
       unit: {class: nb, gap: style-varies, breaks: never}
-    wide: text that never breaks inside itself
-    never-split: [Matchday 9, 28 July 1993]
+    wide: text that never breaks inside itself; the build wraps every hyphen-joined word of a page's body text in it
+    never-split: [Matchday 9, 28 July 1993, Saint-Germain]
 
 rules:
   Name in whole words: {selector: ".ctab .tm .nm, .fxrow .side .nm, .club .cn", rule: "a team name wraps only between words; no word splits or runs past the name's space", measured: whole-words, ruled-on: the narrow-screen fix}

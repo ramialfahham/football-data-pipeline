@@ -1,36 +1,62 @@
-# Rendered page evidence — the Team page's Performance tab against the registry
+# Rendered page evidence — no word breaks at its hyphen, and the design check opens every tab
 
-## The design check with the Performance tab open
+## The design check, every tab of every page
 
-`npm run build` in `site_v2` (the committed sample data). The 102 built Team pages are then switched in `dist` to
-open on the Performance tab: the `checked` attribute moves from `#tab-overview` to `#tab-performance`. `dist` is a
-build artifact. `scripts/check_design_inventory.py --pages "Team page" --no-mocks` then runs at 280, 320, 360, 375,
-700 and 1010px in EN, DE and FI.
+`npm run build` in `site_v2` (the committed sample data), then `scripts/check_design_inventory.py --no-mocks` on
+this branch, which opens every tab, at 280, 320, 360, 375, 700 and 1010px in EN, DE and FI. Windows; on main the
+same run gives main's Linux pins on every page except the Team page, whose tabs it now opens.
 
-| Rule | Main | This branch |
+| Page | Split on main's pin | Every tab, main | Every tab, this branch |
+|---|---|---|---|
+| Match page | 223 | 223 | 2 |
+| Team page | 47 | 56 | 0 |
+| Home | 13 | 13 | 0 |
+| Teams page | 3 | 3 | 0 |
+| Competition overview | 21 | 21 | 21 |
+
+- **What is left:** the Competition overview's 21 are the deserved points table's head labels breaking inside a plain word ("verdienten", "Difference"), and the Match page's 2 are a score ("0–0.") breaking at its en dash in the match header; neither has a hyphen, both are within main's pins.
+- **Team page, Name in whole words:** 3 failures on main ("Saint-Germain", 102px, in an 82–91px name space of the Top-match row), 0 here.
+- **No pin rises:** every other count equals main's; no new failure.
+
+## The baselines
+
+- **`baseline_quick.json`:** the merge request's validate:ui run on Linux reported five counts that fell and nothing else: Home split 6 → 0, Match page split 104 → 0, Team page split 13 → 0 and "Name in whole words" 1 → 0, Teams page split 1 → 0. Those five pins are lowered.
+- **`baseline.json`:** a merge request runs only the quick scope, so the full scope was run on this build on Windows. Its built-page counts differ from the full baseline only in Home split 13 → 0, Match page split 223 → 2, Team page split 47 → 0 and "Name in whole words" 3 → 0, and Teams page split 3 → 0. Every other built-page count equals the Linux pin, including the Matches day page's 378 and 414. Those five pins are lowered. The mocks' counts differ on Windows and are left as they are: this branch changes no mock, and the Linux run kept every mock at its quick pin.
+
+## The build step
+
+- **Where it acts:** on the build, 0 spans inside an attribute, `<title>`, `<option>`, SVG `<text>` or `<script>` (a grep over every built page).
+- **What it keeps:** the Paris Saint-Germain Team page has its `<title>` "Paris Saint-Germain FC: Stats, Form, Squad & Fixtures" unchanged and 38 `<span class="nb">Saint-Germain</span>` in its body.
+- **Text:** the visible text is unchanged; the unit test compares a page's text before and after.
+
+## Build cost at full scale
+
+The parked Player page state with every player page (57,423 pages, 4.1 GB), built twice per state on this machine,
+with the build's node process sampled every 10 seconds:
+
+| | Without the step | With the step |
 |---|---|---|
-| Table name cell (deserved points, weight 600) | 612 fails, measured 400 | 0 |
-| Metric group heading (26px to the first line of a strip row) | 612 fails, measured 10.0, 12.1 or 10.8px | 0 |
-| Overflow and overlap ("Vorsaison" past its column and over "Trend") | 1,483 overflow, 746 overlap | 3 overflow (the long Gladbach title, as on main's baseline), 0 overlap |
+| Peak memory | 695 MB | 741 MB |
+| Build time, run 1 / run 2 | 462 s / 298 s | 431 s / 378 s |
 
-- **What is left:** the "expected on this page" misses (Competition row, Result row and the rest) are Overview elements, which do not show while the Performance tab is open.
-- **As shipped (Overview open):** the same check gives the Team page's baseline exactly: overflow 3, split 47, classes 29, Name in whole words 3.
+- **The step itself:** run alone over all 57,424 built pages, 23.9 s in all, 0.42 ms per page, 56 ms at most; the output grows by 0.10%.
+- **Why the memory stays flat:** the middleware sees one page's response at a time and lets it go, so the step works per page by construction.
+- **Time:** the two runs of one state differ more than the two states do, so the build time is within this machine's noise; the step's own 24 s is the measure.
 
-## Overlaps, every page
+## CI time of the design check
 
-The check's own count script ran in headless Chromium over every built page (`en/*/*`, `de/*/*`, `fi/*/*`) with
-every tab opened, at 280, 320 and 360px. It found no overlap on any page. Before the fix, at 280px, it found 6, all
-in the narrow deserved points chart: "Borussia Dortmund" over the y tick "18" and "Manchester United FC" over "6",
-in all three languages.
+The check of main and the check of this branch, each run on this branch's build on one machine, at the scope a
+merge request runs (280 and 1010px, EN and DE, `baseline_quick.json`) and at the full scope main runs:
 
-- **Dortmund now:** at 280px the name and the difference stack centred on the dot, "+4.7" above it and "Borussia Dortmund" below it, inside the plot.
-- **Other names:** a name that fits beside its dot on neither side stacks the same way; the rest keep their side.
-- **Page check:** the scatter label rule in `check-built-pages.mjs` passes on all 102 Team pages.
+| Scope | Main's check | This branch's check |
+|---|---|---|
+| Merge request | 227 s | 263 s (+36 s, +16%) |
+| Full | 665 s | 741 s (+76 s, +11%) |
 
-## Geometry in the Browser pane
+- **In CI:** validate:ui takes about 11 minutes on a merge request and 36 to 41 minutes on main's last four pipelines.
 
-The dev server, the Bayern München Team page, Performance tab checked, at all six widths in EN, DE and FI:
+## Player row
 
-- **Strip group headings:** each sits 26.0px above its first row's first line of text, for all 14 headings per run, with the switch off and on.
-- **Compared with last season:** no head label overflows its column or overlaps the next one.
-- **Deserved points:** names are weight 600.
+Players to watch at 280px in DE, every match page: before the gap change, 3 rows ran 4–8px past their box
+("Francis-Ikechukwu Onyeka", "Don-Angelo … Annum-Assamoah", "S. Idumbo-Muzambo"); after it, none. The row's gap,
+measured on the DFB-Pokal match pages: 8px at 280, 10.3px at 375, 9.2px at 700, 13.1px at 1010 (main: 12px).
