@@ -1,18 +1,4 @@
-"""Season discovery, fixture query params, and merged API envelope helpers.
-
-The API uses the competition start calendar year as its 'season' identifier
-(e.g. 2024 = the 2024/25 Bundesliga season). This module handles three concerns:
-
-1. Season discovery — which API season years to ingest for a given competition.
-   A competition's `history_seasons` (registry) is the authoritative depth; when unset,
-   a default rolling window applies. International tournaments use current_season from
-   the competition registry to avoid pulling irrelevant prior editions.
-
-2. Fixture query params — how to ask the API for fixtures (full season vs. date window).
-
-3. Envelope helpers — utilities for merging multi-season API responses into a
-   single payload before writing to BigQuery.
-"""
+"""Season discovery, fixture query params, and merged API envelope helpers."""
 
 from __future__ import annotations
 
@@ -62,12 +48,7 @@ def _season_years_from_leagues_catalog(envelope: dict, errors: list[str] | None)
 def _season_years_from_leagues_seasons_endpoint(
     headers: dict, league_id: int, errors: list[str]
 ) -> list[int]:
-    """
-    Fallback: ``GET /leagues/seasons`` for this league (API-Sports v3).
-
-    Used when ``/leagues?id=`` returns a **single** season row (common with some keys
-    or older responses) so multi-season ingestion still expands.
-    """
+    """Fallback for when ``/leagues?id=`` returns a single season row."""
     out: set[int] = set()
     try:
         data = fetch_json("/leagues/seasons", headers, params={"league": league_id})
@@ -167,15 +148,7 @@ def _resolve_current_season_year(
     registry_current: int | None,
     league_catalog: dict,
 ) -> int:
-    """Pick the active API season year.
-
-    Order (no hard-coded league years):
-    1. API /leagues catalog season with ``current: true``
-    2. Most recent completed season in the catalog (``end`` before today)
-    3. Latest season year in the catalog when dates are missing
-    4. Type-specific inference (split-year July rule or calendar-year today)
-    5. Registry ``current_season`` — optional manual override only
-    """
+    """Pick the active season year: catalog current, latest completed, latest listed, registry, inferred."""
     api_current = _api_current_season_year(league_catalog)
     if api_current is not None:
         return api_current
@@ -204,12 +177,7 @@ def _seasons_for_ingestion(
     history_seasons: int | None = None,
     season_type: str = "split_year",
 ) -> list[int]:
-    """Return the list of API season years to ingest for this competition.
-
-    Active season year comes from :func:`_resolve_current_season_year` (API ``current``
-    flag first, then type inference, then optional registry override).
-
-    Resolution order (first match wins):
+    """Return the API season years to ingest; the first matching rule wins:
     1. API_FOOTBALL_SEASON env var — single explicit season, no filtering.
     2. API_FOOTBALL_SEASONS env var — explicit comma-separated list, filtered to band.
     3. Full/paid ingest profile — discover all seasons from the API catalog, filter to band.
@@ -231,13 +199,9 @@ def _seasons_for_ingestion(
     )
 
     if history_seasons is not None and history_seasons >= 1:
-        # history_seasons (registry) is the AUTHORITATIVE depth knob: the lower bound is
-        # exactly resolved_current - (history_seasons - 1), NOT clamped to the default
-        # window. A competition backfills to its configured depth deterministically —
-        # independent of today's date and the provider's current-season flag.
+        # The registry depth is authoritative and is not clamped to the default window.
         lo = resolved_current - (history_seasons - 1)
     else:
-        # No explicit depth in the registry -> fall back to the default rolling window.
         lo = effective_season_min()
     hi = resolved_current
     fallback = resolved_current
@@ -329,18 +293,13 @@ def _merge_json_api(dst: dict | None, src: dict) -> dict:
 
 
 def _default_fixture_date_range(season: int, days: int) -> tuple[str, str]:
-    """
-    Inclusive ``from`` / ``to`` for ``from_to`` mode when env dates are not set.
+    """Inclusive ``from``/``to`` of the season's last ``days`` days, capped at today and May 31.
 
-    Uses the last ``days`` days inside the API ``season`` (July 1 ``season`` through
-    June 30 ``season+1``), capped by UTC **today** and by **May 31 ``season+1``** so we
-    do not land in the summer break (e.g. mid–late June) where many domestic leagues
-    have **no** ``league`` fixtures — which produced empty ``response`` for D1.
+    The May cap avoids the summer break, where many domestic leagues have no fixtures.
     """
     today = datetime.utcnow().date()
     season_start = date(season, 7, 1)
     season_end = date(season + 1, 6, 30)
-    # Typical last domestic matchdays are by end of May; June is often empty for league id.
     regular_season_end = date(season + 1, 5, 31)
     end = min(today, season_end, regular_season_end)
     if end < season_start:
@@ -355,13 +314,7 @@ def _default_fixture_date_range(season: int, days: int) -> tuple[str, str]:
 
 
 def fixtures_query_params(league_id: int, season: int) -> dict:
-    """
-    Defaults to **season** (``league`` + ``season`` only) so one run pulls the full competition
-    calendar the API returns for that league (maximize data on free-friendly keys).
-
-    ``from_to`` keeps a rolling or explicit date window. ``next`` is mainly for paid plans
-    (free keys often reject ``next``).
-    """
+    """Query params per API_FOOTBALL_FIXTURES_MODE; ``next`` is mainly for paid plans."""
     mode = os.getenv("API_FOOTBALL_FIXTURES_MODE", "season").strip().lower()
     base = {"league": league_id, "season": season}
     if mode in ("season", "league", "full", "all"):
@@ -371,7 +324,7 @@ def fixtures_query_params(league_id: int, season: int) -> dict:
         date_to = os.getenv("API_FOOTBALL_FIXTURE_TO")
         if date_from and date_to:
             return {**base, "from": date_from.strip(), "to": date_to.strip()}
-        # Default 42: ~6 weeks of matchdays when anchored at end of May (14 was often only 1–2 rounds).
+        # Default 42 days is about six weeks of matchdays when anchored at the end of May.
         days = int(os.getenv("API_FOOTBALL_FIXTURE_RANGE_DAYS", "42"))
         start_s, end_s = _default_fixture_date_range(season, days)
         return {**base, "from": start_s, "to": end_s}

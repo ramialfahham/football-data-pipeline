@@ -1,31 +1,6 @@
-"""Fetch /fixtures for all configured seasons → RAW_*_FIXTURES_NEXT + id sets for downstream.
+"""Fetch /fixtures for all configured seasons into RAW_*_FIXTURES_NEXT and return the id sets.
 
-Each run writes a COMPLETE snapshot as a new appended row, so the latest row alone is
-the full picture (staging reads only the latest partition, and the full-refresh
-fct_fixture rebuilds from it). Completeness is held two ways: a full run fetches every
-configured season (reusing finished ones from cache, issue #283); a poll/idle run fetches
-only the current season and CARRIES FORWARD the prior snapshot's other seasons (see
-fetch_merge_and_persist_fixtures). Finished historical seasons never change (#283), so the
-reused / carried rows stay current.
-
-Historical seasons whose fixtures are all in a terminal state are skipped on
-subsequent runs — the cached BQ payload is reused instead of calling the API
-again, since those matches can never change (issue #283).
-
-Caveats this implements around:
-- **Current season is always re-fetched** — only seasons strictly older than the
-  newest configured season can be skipped, so in-progress matches stay fresh.
-- **Full-season fixture mode only** — the skip assumes the cached row is a complete
-  season snapshot. It is gated on `API_FOOTBALL_FIXTURES_MODE` being a full-season
-  mode (the default); under `from_to`/`next` the cache is only a window and is
-  never treated as complete.
-- **Conservative terminal set** — only statuses that are genuinely final count.
-  PST (postponed) and ABD (abandoned) are excluded because they can later be
-  rescheduled/replayed, which would silently freeze a season that still changes.
-  A season holding any such fixture keeps re-fetching (slower, but correct).
-- **Late provider corrections to completed *historical* seasons are not picked up**
-  once skipped (tracked separately in the follow-up enhancement issue). The most
-  recently completed season is covered for as long as it remains the current season.
+Each appended snapshot must be complete, because staging reads only the latest partition.
 """
 
 from __future__ import annotations
@@ -40,14 +15,11 @@ from ..http_client import fetch_merged_paged
 from ..seasons import _merge_merged_paged, fixtures_query_params
 from .context import PipelineContext
 
-# Fixture status codes that mean the match outcome is final and the row will never change.
-# Deliberately excludes PST (postponed) and ABD (abandoned): both can later be
-# rescheduled/replayed, so a season containing one must keep re-fetching. CANC/AWD/WO
-# are administratively final (cancelled / awarded / walkover) and do not reopen.
+# Excludes PST (postponed) and ABD (abandoned): both can be rescheduled or replayed, so a season
+# containing one must keep re-fetching.
 _TERMINAL_STATUSES = frozenset({"FT", "AET", "PEN", "CANC", "AWD", "WO"})
 
-# Fixture modes that fetch a competition's whole-season calendar (see fixtures_query_params).
-# Only under these is the cached snapshot a complete season we can trust for skip detection.
+# Only under these modes is the cached snapshot a complete season that skip detection can trust.
 _FULL_SEASON_FIXTURE_MODES = frozenset({"season", "league", "full", "all"})
 
 
@@ -71,11 +43,7 @@ def _seasons_in_response(fixtures_response: list) -> set:
 
 
 def _season_complete_in_cache(cached_response: list, season: int) -> bool:
-    """True when every fixture for `season` in the cached payload has a terminal status.
-
-    Returns False for an empty/absent season so a cold or partial cache always
-    re-fetches rather than freezing a gap.
-    """
+    """True when every cached fixture for `season` is terminal; False if none, so gaps re-fetch."""
     season_fixtures = _fixtures_for_season(cached_response, season)
     if not season_fixtures:
         return False
@@ -109,8 +77,7 @@ def fetch_merge_and_persist_fixtures(
     seasons_list: list[int],
 ) -> tuple[dict, set[int], set[int]]:
     current_season = max(seasons_list)
-    # Only consult the cache for skip detection when we fetch whole-season calendars;
-    # under from_to/next the cached row is a window, not a complete season.
+    # Under from_to/next the cached row is a window, not a complete season.
     skip_eligible = _is_full_season_fixture_mode()
     cached_response: list = []
     if skip_eligible:
@@ -166,7 +133,7 @@ def fetch_merge_and_persist_fixtures(
         fixtures_merged = _merge_merged_paged(fixtures_merged, fixtures_part)
         n_part = len(fixtures_part.get("response") or [])
         n_tot = len(fixtures_merged.get("response") or [])
-        # One line per season (avoids Windows/Cursor terminals interleaving two prints).
+        # One print per season so terminals do not interleave two lines.
         print(
             f"[api-football] fixtures {league_code} season={season} "
             f"response_rows_this_season={n_part} cumulative_rows={n_tot}",
@@ -189,28 +156,16 @@ def fetch_merge_and_persist_fixtures(
             f"parameters={params!r} — check API errors above, API_FOOTBALL_FIXTURES_MODE "
             f"(from_to needs sensible dates), or quota; then re-run ingest."
         )
-        # Do NOT append a snapshot from an empty fresh fetch. If the current season could not be
-        # fetched (e.g. quota exhausted before it was reached), writing now would either blank the
-        # league (an empty latest row) or — via the carry-forward below — re-stamp the prior
-        # snapshot with today's timestamp, masking a failed run as a fresh complete one. Leave the
-        # prior complete snapshot as "latest"; the error above flags the gap. (Review Finding 2.)
+        # An empty fetch writes nothing: it would blank the league or, via the carry-forward below,
+        # re-stamp the prior snapshot as fresh and mask a failed run.
         return fixtures_merged, set(), set()
 
-    # team_ids / fixture_ids come from the FRESHLY FETCHED seasons only — i.e. before the
-    # completeness carry-forward below. A poll/idle run fetches only the latest season, and the
-    # squad catch-up (run_poll_phases -> select_squad_catchup_team_ids) is keyed on that latest
-    # season; deriving team_ids here keeps it latest-season-scoped and never re-introduces
-    # historical-only teams that the carry-forward adds back to the written snapshot.
+    # Derived before the carry-forward so team_ids stay scoped to the freshly fetched seasons,
+    # which the squad catch-up relies on.
     team_ids, fixture_ids = _fixture_team_ids_from_response(fixtures_merged.get("response", []))
 
-    # Completeness invariant (data_contract.md "Append-only writes"): every appended snapshot must
-    # carry the FULL history, so the latest row alone is the complete picture — the full-refresh
-    # fct_fixture rebuilds from it and would otherwise silently drop history. A poll/idle run only
-    # fetches the current season (catalog.fetch_catalog_persist_and_plan collapses seasons_list to
-    # keep team_ids latest-season-scoped), so carry forward every season the previous snapshot held
-    # that this run did not refetch. Finished historical seasons never change (issue #283), so the
-    # carried rows are current. Full mode is a no-op here: its season list already covers everything
-    # in the prior snapshot, so nothing is carried.
+    # Every appended snapshot must carry the full history because fct_fixture rebuilds from the
+    # latest row alone; a poll run fetches only the current season, so carry forward the rest.
     if skip_eligible and cached_response:
         fetched_seasons = _seasons_in_response(fixtures_merged.get("response") or [])
         carried = [
@@ -235,9 +190,6 @@ def fetch_merge_and_persist_fixtures(
                 flush=True,
             )
 
-    # Append this run's snapshot. It is kept COMPLETE by the carry-forward above (current season
-    # freshly fetched + all prior seasons reused from the latest snapshot), so staging — which reads
-    # only the latest partition — always sees full history.
     fx_tbl = raw_table("FIXTURES_NEXT")
     load_json_to_bq(
         ctx.client,

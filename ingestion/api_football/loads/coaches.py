@@ -1,19 +1,4 @@
-"""Fetch /coachs per team → RAW_*_COACHES.
-
-The /coachs endpoint does not accept league or season parameters — it must be
-queried per team ID. We reuse the team_ids set already collected from the
-fixtures and teams fetch phases.
-
-Each response[i] contains the coach's biography, current club, and full career
-history (all previous management stints with start/end dates).
-
-Response structure (response[i]):
-    id / name / firstname / lastname / nationality / age
-    birth.date / birth.place / birth.country
-    photo
-    team.id / team.name          (current club, if active)
-    career[j].team.id / .start / .end
-"""
+"""Fetch /coachs per team (the endpoint takes no league or season) into RAW_*_COACHES."""
 
 from __future__ import annotations
 
@@ -30,22 +15,15 @@ def load_coaches(
     league_code: str,
     team_ids: set[int],
 ) -> None:
-    """Fetch /coachs for every team ID and append to RAW_*_COACHES.
-
-    One API call per team (no pagination). All teams' coach records are merged
-    into one payload row appended per run, mirroring the squads pattern.
-    """
+    """Append one payload row holding every team's coach records, one API call per team."""
     if not team_ids:
         return
 
     payload: dict = {"league_code": league_code, "response": []}
 
-    # #896: one row per league, latest-per-league in staging, so a partial supersedes a good
-    # snapshot. Complete or discard — see the same guard in loads/transfers.py.
-    # NOTE the empty-response subtlety this must NOT get wrong: ~23 of 1,265 teams genuinely
-    # have no coach on every run (measured over five nightlies, which is why COACHES never gates
-    # completeness). An empty response with NO error is a COMPLETE answer and must stay one;
-    # only `result_is_complete` — body error or latched quota flag — marks the run partial.
+    # Staging keeps the latest row per league, so a partial snapshot would supersede a good one:
+    # write complete or discard. An empty error-free response is complete; only
+    # `result_is_complete` (body error or latched quota flag) marks the run partial.
     complete = True
     for team_id in sorted(team_ids):
         if errors_quota._http_quota_exhausted:
@@ -58,7 +36,7 @@ def load_coaches(
                 {"team": team_id},
                 paginate=False,
             )
-            # Before the next fetch: the quota flag latches for the rest of the run.
+            # Checked before the next fetch because the quota flag latches for the rest of the run.
             if not result_is_complete(data):
                 complete = False
             append_api_errors(

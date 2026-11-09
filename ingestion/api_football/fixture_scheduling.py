@@ -1,33 +1,4 @@
-"""Fixture scheduling: coverage flags, ordering, quota budgeting, and squad HTTP pulls.
-
-'Fanout' refers to the per-fixture HTTP bundle fetched in loads/fanout.py. This module
-controls which fixtures are eligible and in what order, without making any HTTP calls
-itself (except for the squad /players helper used by loads/squads.py).
-
-Five concerns live here:
-
-1. Coverage flags — reads GET /leagues response to determine which endpoints a
-   competition supports (lineups, events, stats, players). Flags come from the
-   reference (latest) season; loads/fanout.py overrides the stats flag for finished
-   fixtures because an upcoming reference season may falsely report stats=false.
-
-2. Fixture ordering — three strategies: upcoming-first (default), chronological,
-   or cursor-based round-robin. The cursor is persisted in BQ so runs pick up where
-   the previous left off (useful for large historical backlogs).
-
-3. Quota budgeting — estimates HTTP calls per fixture (4) and reserves a block for
-   /players squad pagination. The daily remaining call count comes from API response
-   headers updated after each fetch_json call.
-
-4. Global completeness-driven fanout — CompetitionFanoutInput + build_global_fanout_queue
-   implement a two-tier priority queue across all competitions: finished fixtures with
-   missing data are ordered oldest-first (fills historical gaps); upcoming fixtures are
-   ordered nearest-first (keeps app fresh). The queue is budget-capped globally so quota
-   is never wasted on competitions that are already complete.
-
-5. Squad HTTP pulls — players_response_for_team fetches all /players pages for a
-   given team×season, respecting free-tier page caps.
-"""
+"""Decides which fixtures the per-fixture fanout fetches, in what order and within what quota."""
 
 from __future__ import annotations
 
@@ -44,8 +15,6 @@ from .quota import append_api_errors, _last_requests_remaining
 from .http_client import fetch_merged_paged, result_is_complete
 
 # (shell_key, RAW entity suffix, coverage-flag key on the /leagues coverage dict)
-# Defined here so fixture_scheduling.py can gate the fanout queue without importing loads/.
-# API predictions are not ingested (we build our own), so there is no preds endpoint.
 _FANOUT_ENTITY_KEYS: tuple[tuple[str, str, str], ...] = (
     ("lineups", "LINEUPS", "fixture_lineups"),
     ("events", "FIXTURE_EVENTS", "fixture_events"),
@@ -60,14 +29,7 @@ def _fixture_needs_any_endpoint(
     cov: dict[str, bool],
     finished_fixture_ids: set[int],
 ) -> bool:
-    """Return True if this fixture is missing data for at least one enabled endpoint.
-
-    For statistics, finished fixtures are always considered eligible regardless of
-    the coverage flag. Coverage flags come from the reference (latest) season; for
-    competitions with an upcoming reference season (e.g. WC 2026) the stats flag
-    may be false even though prior seasons have data — we must not gate finished
-    fixtures out of the fanout loop based on that.
-    """
+    """Finished fixtures ignore the statistics flag, which reflects the reference season only."""
     for key, _entity, cov_key in _FANOUT_ENTITY_KEYS:
         effective_cov = cov.get(cov_key, True) or (
             cov_key == "fixture_statistics" and fixture_id in finished_fixture_ids
@@ -81,7 +43,6 @@ def _fixture_needs_any_endpoint(
 
 @dataclass
 class CompetitionFanoutInput:
-    """Per-competition inputs for the global fanout queue builder."""
     league_code: str
     fixture_ids: set[int]
     covered: dict[str, set[int]]       # shell_key → set of already-covered fixture_ids
@@ -93,17 +54,7 @@ class CompetitionFanoutInput:
 def build_global_fanout_queue(
     inputs: list[CompetitionFanoutInput],
 ) -> list[tuple[str, int]]:
-    """Build a globally-ordered fanout queue across all competitions.
-
-    Two-tier priority:
-    - Tier 1: finished fixtures (FT/AET/PEN) missing any endpoint, ordered oldest kickoff first.
-      Fills historical gaps systematically — every run makes guaranteed forward progress.
-    - Tier 2: upcoming/unplayed fixtures missing any endpoint, ordered nearest kickoff first.
-      Keeps app data fresh for the next matchday.
-
-    Returns list of (league_code, fixture_id) pairs. Budget capping is done by the caller
-    via _budgeted_global_fanout_ids so this function stays pure and testable.
-    """
+    """Finished fixtures missing data first, oldest first, then upcoming ones, nearest first."""
     finished_missing: list[tuple[date, str, int]] = []
     upcoming_missing: list[tuple[date, str, int]] = []
 
@@ -131,12 +82,7 @@ def _budgeted_global_fanout_ids(
     all_team_ids: set[int],
     errors: list[str],
 ) -> list[tuple[str, int]]:
-    """Apply the daily API quota budget to the global fanout queue.
-
-    Works identically to _budgeted_fixture_fanout_ids but operates on the cross-competition
-    queue rather than a single competition's list. Budget is computed once globally so quota
-    is shared fairly across all competitions rather than being allocated per-competition.
-    """
+    """Cap the cross-competition queue to the daily quota, computed once, not per competition."""
     if not queue:
         return []
 
@@ -194,7 +140,7 @@ def team_ids_for_league(
     season: int,
     errors: list[str] | None = None,
 ) -> set[int]:
-    """Bootstrap team IDs when fixtures return none (see API-Football /teams docs)."""
+    """Team ids from /teams, for when the fixtures response carries none."""
     data = fetch_merged_paged(
         "/teams",
         headers,
@@ -213,10 +159,7 @@ def team_ids_for_league(
 
 
 def _fixture_fanout_http_estimate() -> int:
-    """
-    HTTP calls per fixture for the detailed bundle: events, statistics, lineups,
-    and ``/fixtures/players``. (API predictions are not ingested.)
-    """
+    """HTTP calls per fixture: events, statistics, lineups and /fixtures/players."""
     return 4
 
 
@@ -230,18 +173,7 @@ def _bool_at(coverage: dict, *path: str, default: bool = True) -> bool:
 
 
 def _coverage_for_season(leagues_envelope: dict, season: int) -> dict[str, bool]:
-    """Extract API coverage flags for a specific season from the /leagues catalog response.
-
-    The API declares per-season which endpoints it supports (e.g. lineups, statistics).
-    We read these to avoid spending quota on endpoints that will always return empty.
-    Unknown or missing paths default to True — better to attempt and get an empty
-    response than to silently skip an endpoint that exists.
-
-    Important: these flags reflect the declared season, which is always the reference
-    (latest) season. For competitions with an upcoming reference season the stats flag
-    may be false even though prior seasons have stats. loads/fanout.py handles
-    this by always attempting stats for finished fixtures regardless of this flag.
-    """
+    """Coverage flags for one season; missing paths default to True so no endpoint is skipped."""
     cov: dict = {}
     try:
         for league_entry in leagues_envelope.get("response") or []:
@@ -270,7 +202,7 @@ def _coverage_for_season(leagues_envelope: dict, season: int) -> dict[str, bool]
 
 
 def _fixture_kickoff_by_id(fixtures_response: list) -> dict[int, date]:
-    """Map fixture id → kickoff date (UTC calendar day) from ``/fixtures`` response rows."""
+    """Map fixture id to its UTC kickoff date."""
     out: dict[int, date] = {}
     for item in fixtures_response or []:
         fx = item.get("fixture") or {}
@@ -294,7 +226,7 @@ def _upcoming_first_fixture_order(
     chrono: list[int],
     by_id: dict[int, date],
 ) -> list[int]:
-    """Place fixtures in ``[today, today+horizon]`` first (kickoff order), then the rest."""
+    """Fixtures kicking off within the fresh horizon first, then the rest."""
     today = datetime.utcnow().date()
     horizon = today + timedelta(days=_env_int("API_FOOTBALL_FRESH_HORIZON_DAYS", 14))
     upcoming: list[int] = []
@@ -347,8 +279,7 @@ def _write_fanout_cursor(
         raw_league_table(league_code, "INGEST_CURSOR"),
         payload,
         as_json_payload=True,
-        # DELIBERATE WRITE_TRUNCATE: the cursor is pipeline state, one current row per league, not
-        # entity data. Stated explicitly because `append` is a required keyword.
+        # The cursor is pipeline state, one current row per league, so it truncates.
         append=False,
     )
 
@@ -360,13 +291,7 @@ def _fanout_fixture_order(
     league_code: str,
     errors: list[str],
 ) -> tuple[list[int], list[int], int | None]:
-    """
-    Build the fixture list fed into ``_budgeted_fixture_fanout_ids``.
-
-    Returns ``(ordered_for_budget, chronological_ids, cursor_start_or_none)``.
-    ``cursor_start`` is set only for ``API_FOOTBALL_FANOUT_PRIORITY=cursor`` so the caller
-    can advance the stored offset after HTTP work.
-    """
+    """Returns (ordered_for_budget, chronological_ids, cursor_start); the last is cursor-only."""
     by_id = _fixture_kickoff_by_id(fixtures_response)
     chrono = _chronological_fixture_ids(fixture_ids, by_id)
     pri = os.getenv("API_FOOTBALL_FANOUT_PRIORITY", "upcoming").strip().lower()
@@ -376,7 +301,6 @@ def _fanout_fixture_order(
         off = _read_fanout_cursor(client, league_code)
         tail = chrono[off:] if chrono else []
         return tail, chrono, off
-    # Default: next-match-window first (freshness on a free-tier budget).
     return _upcoming_first_fixture_order(chrono, by_id), chrono, None
 
 
@@ -386,17 +310,7 @@ def _budgeted_fixture_fanout_ids(
     league_code: str,
     errors: list[str],
 ) -> list[int]:
-    """Return the fixtures that fit within today's remaining API quota.
-
-    We estimate 4 HTTP calls per fixture (lineups, events, stats, players)
-    and reserve a block for /players squad pagination. The daily remaining call count
-    comes from the x-ratelimit-requests-remaining response header, updated after each
-    HTTP call. If the header has not yet been seen (first call of the day), we fall back
-    to a soft cap controlled by API_FOOTBALL_FANOUT_SOFT_CAP_FIXTURES_NO_HEADER.
-
-    The paid/full ingest profile sets the soft cap to -1 (unlimited) and relies entirely
-    on the header-based budget. The free-tier default is 6 fixtures per run.
-    """
+    """Fixtures that fit today's quota, from the remaining-requests header or else a soft cap."""
     sorted_ids = list(ordered_fixture_ids)
     if not sorted_ids:
         return []
@@ -408,8 +322,7 @@ def _budgeted_fixture_fanout_ids(
     else:
         explicit = max(0, int(raw))
 
-    # Reserve only a bounded amount for /players. Over-reserving by team_count * page_cap
-    # can starve fixture fanout entirely and leave statistics payloads empty.
+    # Reserve a bounded amount for /players; team_count * page_cap would starve the fanout.
     buf = _env_int("API_FOOTBALL_QUOTA_BUFFER", 5)
     players_reserve_calls = _env_int("API_FOOTBALL_PLAYERS_RESERVE_CALLS", 20)
     if os.getenv("API_FOOTBALL_SKIP_PLAYERS", "").strip().lower() in ("1", "true", "yes"):
@@ -424,8 +337,7 @@ def _budgeted_fixture_fanout_ids(
         cap = min(len(sorted_ids), max_fixtures)
         if explicit is not None:
             cap = min(cap, explicit)
-        # After a long run the daily header can dip below the pessimistic /players reserve, which
-        # would yield zero fanout fixtures. Fall back to the soft cap so upcoming data still loads.
+        # The header can dip below the /players reserve; fall back to the soft cap, not zero.
         if cap == 0 and sorted_ids:
             soft_fb = _env_int("API_FOOTBALL_FANOUT_SOFT_CAP_FIXTURES_NO_HEADER", 6)
             if soft_fb >= 0:
@@ -465,13 +377,7 @@ def players_response_for_team(
     *,
     error_context: str = "",
 ) -> tuple[list, bool]:
-    """All /players pages for team+season (API paginates; free tier caps ``page`` — see env).
-
-    Returns ``(rows, complete)``. ``complete`` is False when the provider returned a body-level
-    error (the per-minute rate limit arrives as HTTP 200 with the error in the body) or the run's
-    quota flag cut pagination short. In that case ``rows`` may be empty OR partial while looking
-    like a successful response, and the caller MUST NOT let it supersede stored data (#896).
-    """
+    """Returns (rows, complete); incomplete rows look like success and must not supersede data."""
     max_page = _env_int("API_FOOTBALL_PLAYERS_MAX_PAGE", 3)
     data = fetch_merged_paged(
         "/players",
@@ -494,18 +400,7 @@ def transfers_response_for_team(
     *,
     error_context: str = "",
 ) -> tuple[list, bool]:
-    """All /transfers for a team (every player who moved in/out). Not season-scoped —
-    one call returns the team's full transfer history. Fetching by team returns each
-    move twice (once per involved team); the base model dedups.
-
-    paginate=False: /transfers rejects the `page` param (like /teams and /standings —
-    'The Page field do not exist.') and returns empty when it is sent, so we send a single
-    `team=` call (verified: returns the team's full move list in one response).
-
-    Returns ``(rows, complete)``, matching `players_response_for_team`. ``complete`` is False
-    when the provider returned a body-level error or the run's quota flag cut the fetch short;
-    ``rows`` may then be empty OR partial while still looking like success, and the caller MUST
-    NOT let it supersede stored data (#896)."""
+    """Returns (rows, complete); /transfers rejects the `page` param, so it is one team= call."""
     data = fetch_merged_paged(
         "/transfers",
         headers,
@@ -527,18 +422,7 @@ def squads_response_for_team(
     *,
     error_context: str = "",
 ) -> tuple[list, bool]:
-    """Current squad for a team from /players/squads (id, name, age, number, position, photo).
-
-    One call returns the whole squad. paginate=False: /players/squads is single-page for a
-    `team=` query (verified team=157 → paging.total=1). Distinct from `players_response_for_team`
-    (which pulls /players per team×season into RAW_APIF_PLAYERS); this is the cheaper current-squad
-    endpoint and carries the shirt number.
-
-    Returns ``(rows, complete)``. ⚠ It once returned a BARE LIST, unlike its two siblings
-    above, and that is what made the hole: a rate-limited answer arrives as HTTP 200 with
-    the error in the body, so `rows` came back empty and looked successful. The caller wrote it,
-    which marked the `(team, season)` captured in `captured_team_seasons` — and that reader keys on
-    `$.team_id` PRESENCE, so the team was never fetched again."""
+    """Returns (rows, complete); a rate-limited empty answer must not be stored as a squad."""
     data = fetch_merged_paged(
         "/players/squads",
         headers,
@@ -558,16 +442,7 @@ def profiles_response_for_player(
     *,
     error_context: str = "",
 ) -> tuple[list, bool]:
-    """Bio for one player from /players/profiles?player= (name, DOB, birthplace, nationality,
-    height, weight, number, position, photo).
-
-    paginate=False: a `player=` query returns one page (verified player=5 → paging.total=1). The
-    page-keyed directory form is far thinner; the per-player form carries the full bio.
-
-    Returns ``(rows, complete)``. A bare list here once meant a rate-limited answer was
-    stored as an empty bio, and `_existing_player_ids` keys on `$.player_id` presence — so that
-    player's name, DOB and nationality stayed blank forever, on the surface that also drives the
-    URL slug."""
+    """Returns (rows, complete); a rate-limited empty bio must not be stored."""
     data = fetch_merged_paged(
         "/players/profiles",
         headers,
@@ -587,14 +462,7 @@ def player_teams_response_for_player(
     *,
     error_context: str = "",
 ) -> tuple[list, bool]:
-    """Career club/national history for one player from /players/teams?player= — a list of
-    {team, seasons[]} entries.
-
-    paginate=False: a `player=` query returns one page (verified player=5 → paging.total=1).
-
-    Returns ``(rows, complete)``, for the same reason as the profiles helper
-    above: an empty career stored from a rate-limited call is permanent, because the player is
-    then skipped by `_existing_player_ids` on every later run."""
+    """Returns (rows, complete); a rate-limited empty career must not be stored, never refetched."""
     data = fetch_merged_paged(
         "/players/teams",
         headers,

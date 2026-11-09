@@ -1,11 +1,4 @@
-"""Fetch /players/profiles per player → RAW_APIF_PLAYER_PROFILES (global per-player phase).
-
-Rich bio (name, DOB, birthplace, nationality, height, weight, number, position, photo), one
-call per player over the current universe (see loads/player_universe.py). Players are grouped
-by provenance league_code and landed one snapshot row per league, mirroring the team-keyed
-loaders. Already-ingested players are skipped (bio is static), so the daily run stays cheap;
-the first run is the backfill, bounded by the daily quota guard and resumed on later runs.
-"""
+"""Fetch /players/profiles per player into RAW_APIF_PLAYER_PROFILES, one snapshot row per league."""
 
 from __future__ import annotations
 
@@ -23,12 +16,8 @@ def load_player_profiles_global(
     ctx: PipelineContext,
     universe: list[tuple[int, str]] | None,
 ) -> None:
-    """`universe` is the run's shared `_query_universe()` result — see load_player_teams_global,
-    which needs the identical answer, and loads/player_universe.players_needing (#33 item 1).
-
-    REQUIRED (it may be None, but it must be PASSED). The orchestrator is the only caller, so
-    a default would let the shared universe be dropped at that one call site without any test
-    noticing, silently restoring the duplicate full UNNEST of RAW_APIF_PLAYERS.
+    """`universe` is the run's shared `_query_universe()` result; it has no default so the shared
+    read cannot be silently dropped.
     """
     if os.getenv("API_FOOTBALL_SKIP_PLAYER_PROFILES", "").strip().lower() in ("1", "true", "yes"):
         ctx.errors.append(
@@ -54,10 +43,8 @@ def load_player_profiles_global(
                     ctx.errors,
                     error_context=f"player_profiles {league_code} player_id={player_id}",
                 )
-                # #896 applied to the CAPTURE side. `_existing_player_ids` keys on
-                # `$.player_id` presence, so writing a rate-limited empty bio retires this player
-                # permanently — name, DOB and nationality stay blank on the surface that also
-                # drives the slug. Withhold the entry so the player is fetched again.
+                # `_existing_player_ids` keys on `$.player_id` presence, so storing an incomplete
+                # bio would retire the player permanently.
                 if not complete:
                     ctx.errors.append(
                         f"player_profiles {league_code} player {player_id}: INCOMPLETE fetch — "
