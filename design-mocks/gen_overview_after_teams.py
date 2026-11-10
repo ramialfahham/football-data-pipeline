@@ -1,8 +1,4 @@
-"""The Overview re-rendered with the rulings that closed the #129 review, without editing the
-repo's generator (that lands with the build): Deserved points as the FULL TABLE right after the
-Table (the shot balance, Deserved, Pts, Diff), the Better / Worse boards dropped, the six fact
-rows as links. Real data: the committed Bundesliga payload + mart_team_profile (the README dates
-the pull)."""
+"""Render the Bundesliga Overview with the Deserved points table after the Table."""
 import json
 import sys
 from pathlib import Path
@@ -56,8 +52,7 @@ def deserved_table_html():
 
 
 def facts_html(k):
-    """Six fact rows, every one a link to the leaderboard behind its number (#140); the match that
-    matters is struck from this block."""
+    """Six fact rows, each linking to the leaderboard behind its number."""
     rows = []
     for key, value, context in k["facts"]:
         rows.append('<a class="frow" href="/en/leaderboards/bundesliga/%s/"><span class="fl">%s</span>'

@@ -1,5 +1,4 @@
-"""Size of each handover section, largest first -- so a trim targets the real weight. Reads the
-draft named as the argument, else the copy of GitLab issue #157 the session-start hook saved."""
+"""Size of each handover section, largest first; reads the draft argument, else the saved copy."""
 import io
 import re
 import sys

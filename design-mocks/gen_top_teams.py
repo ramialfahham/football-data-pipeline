@@ -1,19 +1,6 @@
-"""Render the Top teams home-page block as a standalone HTML mock.
+"""Render the Top teams home-page block as a standalone HTML mock with placeholder numbers.
 
-Design-only. Reads nothing from BigQuery; the numbers are PLACEHOLDER.
-
-Two things are read from the repo so the mock cannot drift from the product:
-  1. every display name is the English entry in site_v2/src/i18n/strings.ts of the
-     `label_i18n_key` in dbt_project/seeds/metric_catalogue.csv,
-     looked up by (metric_id, entity) -- the catalogue's real grain. Two of the ids used
-     here carry BOTH a team and a player row, so keying on metric_id alone silently takes
-     the wrong label; that is the exact bug export_metric_definitions_json.py once had.
-     An unknown id is a hard failure, never a fallback string.
-  2. site_v2/src/styles/system.css is inlined verbatim, so the mock uses the shipped
-     design system rather than a lookalike.
-
-No JavaScript: the review surface is a static snapshot, so script never runs. The three
-toggles are :checked + sibling combinators.
+Metric names come from the catalogue by (metric_id, entity), and the page uses no JavaScript.
 """
 import csv
 import html
@@ -57,10 +44,7 @@ def label(metric_id, entity="team"):
 
 # ------------------------------------------------------- Finnish width probe
 #
-# Real shipped strings come from the FI words METRIC_TERMS names in site_v2/src/i18n/strings.ts.
-# That dict covers ~35 of the 80 catalogue rows, so three of the labels this block
-# needs do not exist yet. Those are marked PROBE and rendered with a dotted underline:
-# they are plausible worst-case strings for measuring width, NOT approved copy.
+# The second element is unused: the renderer marks every Finnish title as a probe.
 FI = {
     "points_capture": ("Kerätyt pisteet", True),
     "points_won": ("Voitetut pisteet", True),
@@ -81,31 +65,7 @@ FI = {
 
 # --------------------------------------------------------------- sample data
 #
-# PLACEHOLDER numbers, internally consistent but not measured. Pool 1, mid-season,
-# leagues deliberately at DIFFERENT matchday counts so the points denominators differ --
-# that is a real property of a pooled board and the design has to survive it.
-
-"""
-FOUR boards, the locked cut (#41) in its stated order:
-
-    goals -> shots on target -> passes -> duels
-
-Every board is ONE shape: one metric, ONE value column, no column-header row -- matching Top
-players. The rendered mock is the proof: 4 boards, 28 rows, 28 value cells.
-
-Against §0's six, all ruled together:
-  * "% Points captured" dropped as a board; `points_capture` is shown nowhere.
-  * "Ø Defensive actions" dropped.
-  * "Ø Key passes" dropped from the passes board.
-  * deserved-vs-actual dropped: deserved points needs ONE ladder to mean anything, so it
-    is a within-league number and a board pooling seven leagues cannot carry it. That
-    takes `deserved_points` and `points_won` off the block entirely.
-  * the shots board ranks on `shots_on_goal_per_match`, NOT on the difference, and §0's
-    column order on Passes is reversed so the rank metric leads.
-
-Consequence worth noting for the mart: `sot_difference_per_match` and `finishing_efficiency`
-are no longer used by this block at all.
-"""
+# Placeholder data: the numbers are invented.
 BOARDS = [
     {
         "rank_metric": "goals_per_match",
@@ -161,10 +121,7 @@ BOARDS = [
 
 E = html.escape
 
-# The crest slot, TEAMS ONLY. Production renders the club crest IMAGE.
-# ⚠ The mock draws a neutral placeholder instead of the design system's text-initials
-# fallback: the mock must not hotlink (#36), and initials read as if the abbreviation were
-# the design. Inline SVG -- no external fetch.
+# A neutral inline-SVG crest: the mock must not hotlink the provider's images.
 CREST = (
     '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
     '<path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95'
@@ -181,9 +138,7 @@ _SHARES = set(re.findall(r'"([^"]+)"', re.search(
 
 
 def board_title(metric_id, lab, loc="en", entity="team"):
-    """A board name, then the words of its second line, as the site's boardTitle() builds it:
-    "per match" for an average per match (denominator count(*), not a share), "percentage" for a
-    share named by its count. A bare "Goals" would read as a season total."""
+    """A board name plus "per match" or "percentage", as the site's boardTitle() builds it."""
     row = _BY_KEY[(metric_id, entity)]
     if row["denominator_expr"].strip() == "count(*)" and row["format"] != "percent":
         return "%s %s" % (lab, SUBLINE["per_match"][loc])
@@ -198,13 +153,7 @@ def direction(metric_id, entity="team"):
 
 
 def check_order(board):
-    """EVERY board ranks DESCENDING -- most first, without exception.
-
-    The two "against" boards were dropped in the same session, so no `lower_better` metric
-    is left and descending now AGREES with every board's catalogue `direction`. The assert
-    below checks both, so if a lower-is-better metric is ever added back the disagreement
-    surfaces instead of quietly ranking the worst teams first.
-    """
+    """Every board ranks descending, which must agree with the metric's catalogue direction."""
     rank_id = board["rank_metric"]
     vals = [float(r[3]) for r in board["rows"]]
     assert vals == sorted(vals, reverse=True), (
@@ -220,8 +169,6 @@ def board_html(board):
     title_en = board_title(rank_id, label(rank_id), "en")
     fi_raw, _ = FI[rank_id]
     title_fi = board_title(rank_id, fi_raw, "fi")
-    # ⚠ the FI title is ALWAYS a probe: even where the label exists, "per ottelu" is not
-    # approved copy -- it is a plausible rendering for measuring width.
 
     parts = ['<div class="board">']
     parts.append(
@@ -230,8 +177,7 @@ def board_html(board):
         '<span class="fi probe" lang="fi">%s</span>'
         "</span></div>" % (E(title_en), E(title_fi))
     )
-    # ONE metric per board, so there is NO column-header row: the title is
-    # the only label the number needs, and a header would only repeat it.
+    # One metric per board, so the title is the only label and there is no column-header row.
     parts.append('<div class="bgrid">')
     for i, (abbr, team, league, value) in enumerate(board["rows"], start=1):
         parts.append(
@@ -355,15 +301,8 @@ def check_orders():
 
 
 def check_guards():
-    """Prove the two failure paths are real rather than decorative.
-
-    Run in-process. An earlier version shelled out to a script that imported this
-    module, which -- with no __main__ guard -- re-ran the whole file on import and
-    spawned itself again.
-    """
+    """Prove the unknown-id guard fires, including for an id that exists only for players."""
     for bad in ("goals_per_matchx", "scorer_points"):
-        # scorer_points is a REAL id, but a player-only one: asking for it as a team
-        # metric must fail too, or the (metric_id, entity) grain is not being honoured.
         try:
             label(bad)
         except SystemExit as exc:
@@ -371,7 +310,6 @@ def check_guards():
         else:
             sys.exit("FATAL: the unknown-id guard did NOT fire for '%s'." % bad)
 
-    # ...and a known id still resolves, so the guard is not just failing everything.
     assert label("goals_per_match") == "Goals", label("goals_per_match")
     print("  known id still resolves -> %s" % label("goals_per_match"))
 

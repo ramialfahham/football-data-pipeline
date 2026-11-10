@@ -1,11 +1,8 @@
-"""Check a handover before it is written to GitLab issue #157. Run from anywhere.
+"""Check a handover draft before it is written to the handover GitLab issue; exit 1 if it fails.
 
-    python design-mocks/check_handover.py <draft> && glab issue update 157 --description "$(cat <draft>)"
-
-Exit 1 when the draft is over the 16,000 characters the session-start hook injects, or carries a
-public network address: the issue is public, and no hook sees a write to it, so the address check
-that guarded the handover while it was a file in the repo runs here, with the gate's own
-patterns. With no argument it reads the copy the hook saved at session start.
+The draft must stay within the 16,000 characters the session-start hook injects and carry no
+public network address, since no hook sees a write to the issue. With no argument it reads the
+copy the hook saved at session start.
 """
 import re as _re
 import sys

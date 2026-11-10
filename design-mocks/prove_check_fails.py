@@ -1,9 +1,4 @@
-"""Prove the new stacked-branch check actually catches the bug it was written for.
-
-A check that has only ever been seen green proves nothing. This reconstructs the exact CSS
-that shipped the "Bayern MünchenBundesliga" defect and asserts the check FAILS on it, then
-asserts it passes on the fixed CSS.
-"""
+"""Negative control: the stacked-branch check must fail on broken CSS and pass on fixed CSS."""
 import re
 
 BROKEN = """@container (max-width: 480px) {

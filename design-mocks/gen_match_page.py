@@ -1,17 +1,7 @@
-"""The match page for its design review, state 1 (the next matchday): the BUILT page, and a
-proposal that draws every block with the site's shared elements, each change marked and numbered,
-with a "Built today" / "Proposed" switch and every block's data source on a toggle.
+"""Render the match page for design review: the built page beside a proposal, switchable per block.
 
-The page is what `npm run build` emitted for one real match (site_v2/dist, EN), its stylesheet
-inlined, in ONE copy: the page's own switches are ids the stylesheet targets, so a second copy
-would share them and break both. A changed block carries its built and its proposed form side by
-side and the switch shows one. The proposed forms are the block standard's elements in the markup
-the built site emits for them: the breadcrumb of the Matchdays tab, THE match row, the fact row, the
-board. Every value is a served payload field; where a proposal needs a value the payload does not
-serve, the legend names the gap instead of the mock inventing it. Run `npm run build` first.
-
-The page carries the site's own header and adapts as the window is resized, the way it is reviewed:
-a label in the top bar names the view (phone, tablet, desktop), and "Link areas" outlines every link.
+Needs the built site in site_v2/dist (`npm run build`). The page is emitted in one copy because its
+switches are ids the stylesheet targets, so a second copy would share them.
 
     python gen_match_page.py [out.html]
 """
@@ -33,10 +23,7 @@ DIST = REPO / "site_v2" / "dist"
 DATA = REPO / "site_v2" / "src" / "data"
 
 LEAGUE = "bundesliga"
-# Which of the page's states the render draws: "next" (the next matchday's match, state 1),
-# "future" (a match further out, state 2), "future-unmet" (the same, for a pair the data has not
-# seen meet) or "played" (a played match, state 3), set by MATCH_STATE. A played match has no built
-# page, so its render takes the next match page's shell: the stylesheet and the site header.
+# MATCH_STATE picks the render; a played match has no built page, so it takes the next match page's shell.
 STATE = os.environ.get("MATCH_STATE", "next")
 STATES = {"next": ("2026-10-09-borussia-dortmund-vs-sv-werder-bremen", 1575176),
           "future": ("2026-10-31-bayern-munchen-vs-borussia-dortmund", 1575203),
@@ -52,10 +39,7 @@ MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct",
 POSITIONS = {"G": "Goalkeeper", "D": "Defender", "M": "Midfielder", "F": "Forward"}
 POSITION_LABELS = {"G": "Goalkeeper", "D": "Defence", "M": "Midfield", "F": "Forward"}
 
-# Nothing serves a player's season across competitions yet, so the proposed Players to watch shows a
-# stand-in read once from mart_player_fixture_stats (this season, every competition, before the
-# match; ordered by goals plus assists, then goals, then fewer minutes). Every one of these teams'
-# matches carried player stats (Dortmund 6 of 6, Bremen 5 of 5), so the totals are complete.
+# Stand-in for a player's season across competitions, which nothing serves yet; read once from mart_player_fixture_stats.
 SEASON_PLAYERS = {
     165: [("S. Guirassy", "F", 4, 2, 21393), ("Fábio Silva", "M", 3, 1, 129791), ("S. Inacio", "F", 2, 0, 478991),
           ("F. Nmecha", "M", 2, 0, 637), ("M. Beier", "F", 1, 1, 158644)],
@@ -63,11 +47,7 @@ SEASON_PLAYERS = {
           ("M. Weiser", "D", 1, 0, 973), ("Dariusz Stalmach", "M", 1, 0, 323507)],
 }
 
-# Possession and Fouls join the Form comparison (#132 state 3), and the window's cards are shown; nothing serves
-# them for the window yet, so the proposal reads a stand-in read once from the team stat lines of each team's five
-# window matches: (Dortmund, Bremen); possession is the team's share of the passes in them, a blank card is 0.
-# The rest of Match stats' metrics come from the same lines and the player legs: a count is the mean over the
-# matches that carry it, a share the ratio of the sums.
+# Stand-in for Form comparison metrics the window does not serve yet, as (Dortmund, Bremen), read once from each team's window matches.
 FORM_STANDIN = {"possession": (53, 54), "fouls": (10.8, 11.8), "yellow_cards": (1.8, 1.2), "red_cards": (0.0, 0.0),
                 "sog_against": (3.6, 4.0), "sog_share": (35, 43), "box": (14.0, 11.6),
                 "dribbles": (17.8, 15.2), "dribbles_pct": (44, 49),
@@ -75,8 +55,7 @@ FORM_STANDIN = {"possession": (53, 54), "fouls": (10.8, 11.8), "yellow_cards": (
                 "dribbles_completed": (7.8, 7.4), "duels_won": (48, 49), "saves": (3.0, 2.2),
                 "free_kicks": (9.5, 10.0), "offsides": (2.2, 2.2)}
 
-# mart_head_to_head does not serve which side was at home in a past meeting, so the proposed Head to
-# head reads it from a stand-in read once from core.fct_fixture: the meeting's day -> its home team.
+# Stand-in for the home side of a past meeting, which mart_head_to_head does not serve: meeting day -> home team id.
 H2H_HOME = {"2026-05-16": 162, "2026-01-13": 165, "2025-01-25": 165, "2024-08-31": 162, "2024-03-09": 162,
             "2026-02-28": 165, "2025-10-18": 157, "2025-04-12": 157, "2024-11-30": 165, "2024-03-30": 157}
 
@@ -101,9 +80,7 @@ GAPS = [
     "a stand-in until mart_head_to_head serves it.",
 ]
 
-# Every value the reader sees, where the design reads it (mart and column), and what the reader
-# sees when it is missing; a gap is where the build today reads something else, or nothing
-# guarantees the value. A block is listed once it has been walked through.
+# Every value the reader sees, where the design reads it, and what the reader sees when it is missing.
 SOURCES = {
     "crumb": {
         "rows": [
@@ -467,10 +444,6 @@ a.mk-rlink:active { background: var(--sunk); }
 @media (min-width: 1010px) { .mk-view .mk-v3 { display: inline; } }
 """
 
-# The adaptation, at the site's phone boundary (the menu folds into the drawer under 700px), in
-# harness classes only: the phone trail drops Home and the current page, every crumb link gets a
-# 44px touch area with its text where it was, and the menu marks its section with the tab bar's
-# selected style (ink, bold, the 2px line; in the drawer's list, ink and bold).
 ADAPT_CSS = """
 .mk-seg { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
 .mk-ph-off.mk-seg { display: inline-flex; }
@@ -505,8 +478,7 @@ ADAPT_CSS = """
   .mk-stack .mk-team:hover { background: color-mix(in srgb, var(--ink) 11%, transparent); }
 }
 """
-# The one line of behaviour the one-line trail needs: open it at its end, and fade the start while
-# something is cut off there. CSS alone opens a sliding line at its start.
+# CSS alone opens the sliding trail at its start, so the script scrolls it to its end.
 TRAIL_JS = """
 (function () {
   var n = document.querySelector('.mk-crumbbox nav');
@@ -519,8 +491,6 @@ TRAIL_JS = """
   end();
 })();
 """
-# One layout at every width: the two values on the name's line, one at each edge of the block, and the bar the full
-# width beneath, so every bar is the same length and nothing moves when the window narrows.
 FORM_CSS = """
 #mk-prop:checked ~ .mk-page .win-w1 .mrow { display: grid; grid-template-columns: 4.6ch 1fr 4.6ch;
                                              grid-template-areas: "home lab away" "bar bar bar";
@@ -531,8 +501,6 @@ FORM_CSS = """
 #mk-prop:checked ~ .mk-page .win-w1 .mval.home { grid-area: home; text-align: left; }
 #mk-prop:checked ~ .mk-page .win-w1 .mval.away { grid-area: away; text-align: right; }
 """
-# "Clean page", on by default: the page as a reader sees it, every review aid hidden (the approved instances for
-# comparison, the change outlines and numbers, the notes on what leaves, the data notes, the legend).
 CLEAN_CSS = """
 #mk-clean:checked ~ .mk-ctl label[for="mk-clean"] .mk-box { background: #3bb072; border-color: #3bb072; }
 #mk-clean:checked ~ .mk-page .mk-ref, #mk-clean:checked ~ .mk-page .mk-gone, #mk-clean:checked ~ .mk-page .mk-n,
@@ -560,7 +528,6 @@ def crest(url):
 
 
 def match_row(left, right):
-    """THE match row, played: two sides, each (name, crest, goals); the winner by weight."""
     (ln, lc, lg), (rn, rc, rg) = left, right
     def side(n, c, g, other):
         return ('<span class="side">%s<span class="nm">%s</span><span class="g num%s">%d</span></span>'
@@ -569,10 +536,7 @@ def match_row(left, right):
 
 
 def h2h_sentence(n, won, drawn, lost, home_name, away_name):
-    """Head to head's intro from the served last-meetings split (the home team's wins, the draws, the
-    away team's wins), home team first; every case of the split has its own wording. A club's name
-    opens the sentence wherever a club won, so the name never breaks and never leaves a clause alone
-    on the first line."""
+    """Head to head's intro from the served last-meetings split, home team first, one wording per case."""
     both_or_all = "both" if n == 2 else "all"
     meetings = '<span class="nb">%d meetings</span>' % n
     if n == 1:
@@ -593,13 +557,11 @@ def h2h_sentence(n, won, drawn, lost, home_name, away_name):
 
 
 def club(name, crest_url, after=""):
-    """A club inside a match row: its crest, the size every match row gives it, then its name."""
     return '<span class="mk-club">%s<span class="mk-cn">%s%s</span></span>' % (crest(crest_url), E(name), after)
 
 
 def next_matches(fx):
-    """Each team's next match in any competition after the export day, a stand-in for the rank across all
-    competitions mart_team_fixtures gains; a team whose next match is this one adds nothing."""
+    """Each team's next match in any competition after the export day, a stand-in for what mart_team_fixtures will serve."""
     every = [json.loads(p.read_text(encoding="utf-8")) for p in (DATA / "fixtures").glob("*.json")]
     out = []
     for side in (fx["home"], fx["away"]):
@@ -611,14 +573,11 @@ def next_matches(fx):
     return sorted(out, key=lambda f: f["kickoff"])
 
 
-# Home's Next matches as approved on #127: the reference the future match page's Next matches follows.
 HOME_RENDER = HERE / "renders" / "home_2026-09-17_02.html"
 
 
 def upcoming_block(matches, comps):
-    """Upcoming matches as the approved Home's Next matches draws them (#127, the Home render of
-    record): the competition's head with its logo, a date heading per day, the match rows with both
-    crests and the kick-off with its zone; every row a link to the match's page."""
+    """Upcoming matches as the approved Home's Next matches draws them, every row a link to the match's page."""
     groups = {}
     for f in matches:
         groups.setdefault((f["league_code"], f["season"]), []).append(f)
@@ -649,8 +608,7 @@ def upcoming_block(matches, comps):
 
 
 def home_reference():
-    """The approved Home's first Next matches group, copied from its render, shown under the page's own
-    block so the two can be compared on one screen."""
+    """The approved Home group copied from its render, shown under the page's own block for comparison."""
     page = HOME_RENDER.read_text(encoding="utf-8")
     at = page.index('<div class="fxgroup">')
     return ('<section class="mk-p mk-ref" aria-label="For comparison"><div class="mk-reflabel">For comparison, not part of the '
@@ -664,8 +622,7 @@ def fact_row(label, value, context=""):
 
 
 def board(name, rows):
-    """The board: rank, crest, name with a sub-line, the ordered-by number; rows are not links
-    here, because a player has a page only while he leads a rankings board."""
+    """Rows are not links here, because a player has a page only while he leads a rankings board."""
     body = "".join('<div class="ctab-row"><span class="rk num">%d</span><span class="tm">%s<span class="ent">'
                    '<span class="nm">%s</span><span class="sub">%s</span></span></span><span class="n num pts">%d</span></div>'
                    % (rk, crest(c), E(n), E(sub), v) for rk, c, n, sub, v in rows)
@@ -675,18 +632,15 @@ def board(name, rows):
 
 
 def slug(text):
-    """The site's address form of a name: ASCII, lower case, words joined by hyphens."""
     ascii_text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z0-9]+", "-", ascii_text.lower()).strip("-")
 
 
 def match_href(comp_slug, day, home_name, away_name):
-    """A match page's address, as the site builds it for every match."""
     return "/en/%s/matches/%s-%s-vs-%s/" % (comp_slug, day, slug(home_name), slug(away_name))
 
 
 def team_slugs():
-    """team_id -> slug for every team page the build emitted."""
     out = {}
     for f in (DATA / "teams").glob("*.json"):
         t = json.loads(f.read_text(encoding="utf-8"))
@@ -702,8 +656,7 @@ def inline_css(page):
 
 
 def page_sources(fx, comps):
-    """The data-source tables for the page drawn: every example is this match's own value, and a block
-    the page does not show has no table."""
+    """The data-source tables for the page drawn, with this match's own values as examples."""
     src = copy.deepcopy(SOURCES)
     home, away = fx["home"], fx["away"]
     rnd, _ = served_round(fx)
@@ -767,7 +720,6 @@ def page_sources(fx, comps):
 
 
 def add_sources(inner, sources):
-    """A source note before each block, shown by the toggle."""
     def note(inner, key, marker):
         wrapped = '<div class="mk-b">' + marker
         at = wrapped if wrapped in inner else marker
@@ -791,7 +743,7 @@ def add_sources(inner, sources):
     return inner
 
 
-# The glossary page is not built and its address is not set: a placeholder for the mock.
+# Placeholder: the glossary page is not built.
 GLOSSARY = "/en/glossary/"
 
 
@@ -822,7 +774,6 @@ def section(label, body, n, note=""):
 
 
 def trail(league, home, away, extra_cls="", tail=""):
-    """The site hierarchy's trail: every level above the match a link, the match itself last."""
     return ('<nav class="crumb%s" aria-label="Breadcrumb"><a class="lnk" href="/en/">Home</a>'
             '<span class="sep">&rsaquo;</span><a class="lnk" href="/en/competitions/">Competitions</a>'
             '<span class="sep">&rsaquo;</span><a class="lnk" href="/en/%s/">%s</a>'
@@ -832,9 +783,7 @@ def trail(league, home, away, extra_cls="", tail=""):
 
 
 def adaptive_trail(league, home, away, extra_cls="", tail="", comp=LEAGUE, level="Matchdays"):
-    """The same trail, adapting: under 700px Home and the current page leave (the logo is Home,
-    the heading below names the page); every link has a 44px touch area at every width. A
-    separator travels with the level after it, so a trail that wraps starts its next line with it."""
+    """The trail adapted: under 700px Home and the current page leave, and a separator travels with the level after it."""
     return ('<nav class="crumb mk-adapt%s" aria-label="Breadcrumb"><span class="mk-ph-off mk-seg"><a class="lnk mk-touch" href="/en/">Home</a>'
             '<span class="sep">&rsaquo;</span></span><a class="lnk mk-touch" href="/en/competitions/">Competitions</a>'
             '<span class="mk-seg"><span class="sep">&rsaquo;</span><a class="lnk mk-touch" href="/en/%s/">%s</a></span>'
@@ -844,7 +793,6 @@ def adaptive_trail(league, home, away, extra_cls="", tail="", comp=LEAGUE, level
 
 
 def mark_section(body):
-    """The menu marks the section the page sits in: a match sits under Competitions."""
     return body.replace('<a href="/en/competitions/">Competitions</a>',
                         '<a class="mk-cur" href="/en/competitions/" aria-current="true">Competitions</a>')
 
@@ -853,8 +801,7 @@ CHEV = ('<svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="fal
 
 
 def served_round(fx):
-    """The competition payload's round for this match (mart_competition_fixtures), which the
-    fixture payload does not carry."""
+    """The competition payload's round for this match, which the fixture payload does not carry."""
     season = json.loads((DATA / "competitions" / fx["league_code"] / ("%s.json" % fx["season"])).read_text(encoding="utf-8"))
     for rnd in season["fixtures"]:
         for f in rnd["fixtures"]:
@@ -864,10 +811,7 @@ def served_round(fx):
 
 
 def masthead(inner, fx, slugs, head=""):
-    """The header as proposed: each team's column is one link to its team page, the name carrying
-    the heading link's chevron at rest; the kick-off line names the round as the Matchdays tab does
-    and carries the match row's zone label, and the venue closes that line instead of taking one of its
-    own; each unit stays whole when the line wraps."""
+    """The proposed header: each team's column is one link to its team page, and each kick-off unit stays whole when the line wraps."""
     s, e = span_of(inner, '<header class="mast"', "</header>")
     built = inner[s:e]
     rnd, served = served_round(fx)
@@ -902,7 +846,6 @@ def masthead(inner, fx, slugs, head=""):
 
 
 def lede(fx):
-    """The sentence leaves: every fact it could hold is shown by a block below it."""
     return ('<div class="mk-p mk-gone">%s The sentence leaves: every fact it could hold is shown by a block below it '
             '(the form comparison, the head to head). The page&rsquo;s one-line summary for search results is its '
             'description, which is not shown on the page.</div>' % badge(8, proposed_only=False))
@@ -921,18 +864,14 @@ def propose(inner, fx, comps, slugs):
     inner = swap(inner, '<header class="mast"', "</header>", masthead(inner, fx, slugs, competition_head(fx, comps)) + comp_head_ref())
     inner = swap(inner, '<div class="lede"', "</div>", lede(fx))
 
-    # The window's explanation moves under the block heading as the block's intro, in the form
-    # the ruled block explainer uses (.bsub); the old caption shows under "Built today" only.
     cap = re.search(r'<div class="caption">(all competitions &middot; incl\. |all competitions · incl\. )([^<]+)</div>', inner)
     n = (fx["home"].get("w1") or {}).get("games_in_window")
     inner = inner[:cap.start()] + '<div class="caption mk-b">%s%s</div>' % (cap.group(1), cap.group(2)) + inner[cap.end():]
-    # One list of competitions for both teams would claim matches a team did not play (Bremen has no
-    # Champions League match); each match's competition is named in Recent matches below.
+    # One list of competitions for both teams would claim matches a team did not play.
     intro = ('<p class="bsub mk-p mk-chg">Form metrics from each team&rsquo;s last %s matches across all competitions. '
              '<a class="mk-chevlink" href="%s">Metric Glossary%s</a> %s</p>'
              % (n, GLOSSARY, CHEV, badge(9, proposed_only=False)))
-    # Discipline follows Set pieces. The window serves no cards yet, so both sides show the page's
-    # missing-value dash and the sources name the gap.
+    # The window serves no cards yet, so both sides show the missing-value dash.
     def card_row(label):
         side = '<div class="bside %s"><span class="fill" style="width:0%%"></span></div>'
         return ('<div class="mrow"><div class="mval home">&ndash;</div><div class="mmid"><div class="mlabel">%s</div>'
@@ -942,8 +881,6 @@ def propose(inner, fx, comps, slugs):
     cmp_at = inner.index('<div class="cmp">', w1)
     cmp_end = block_end(inner, cmp_at) - len("</div>")
     if STATE == "next":
-        # Decided on the played match's page (#132 state 3): Fouls leads Discipline, and every average there reads
-        # per match; the values are the window stand-in until the Form comparison's mart serves them.
         discipline = "".join(stat_row("%s<small>per match</small>" % label, *FORM_STANDIN[key], -1)
                              for label, key in (("Fouls", "fouls"), ("Offsides", "offsides"), ("Yellow cards", "yellow_cards"),
                                                 ("Red cards", "red_cards")))
@@ -952,22 +889,16 @@ def propose(inner, fx, comps, slugs):
     inner = (inner[:cmp_end] + '<div class="mk-p mk-chg"><div class="mgroup">Discipline</div>%s</div>'
              % discipline + inner[cmp_end:])
 
-    # The sign leaves the labels: an average keeps its short name and says "per match" on the
-    # sub-label line the Defending row already uses (the words #41 gave board headings).
-    # The Defending row's own sub-label ("tackles + interceptions + blocks") leaves with it.
     def per_match(m):
         return ('<div class="mlabel"><span class="mk-b">Ø %s%s</span><span class="mk-p">%s<small>per match</small></span></div>'
                 % (m.group(1), m.group(2) or "", m.group(1)))
     inner = re.sub(r'<div class="mlabel">(?:Ø|&Oslash;) ([^<]+)(<small>[^<]*</small>)?</div>', per_match, inner)
     if STATE == "next":
-        # Decided on the played match's page (#132 state 3): no sign before a name, the value keeps its %; and
-        # Possession follows the passing triple (passes, accurate passes, pass accuracy).
         inner = re.sub(r'<div class="mlabel">% ([^<]+)</div>',
                        r'<div class="mlabel"><span class="mk-b">% \1</span><span class="mk-p">\1</span></div>', inner)
         label_at = inner.index('<span class="mk-p">Pass accuracy</span>', inner.index('<div class="win win-w1">'))
         at = block_end(inner, inner.rindex('<div class="mrow">', 0, label_at))
         inner = inner[:at] + '<div class="mk-p mk-chg">%s</div>' % stat_row("Possession", *FORM_STANDIN["possession"], 1, "%") + inner[at:]
-        # Shots on goal against follows Shots on goal, as Goals against follows Goals.
         label_at = inner.index("Shots on goal<small>per match</small>", inner.index('<div class="win win-w1">'))
         row_at = inner.rindex('<div class="mrow">', 0, label_at)
         at = block_end(inner, row_at)
@@ -975,7 +906,6 @@ def propose(inner, fx, comps, slugs):
                  % (stat_row("Shots on target against<small>per match</small>", *FORM_STANDIN["sog_against"], -1)
                     + stat_row("Shots off target<small>per match</small>", *FORM_STANDIN["shots_off_goal"], 1)
                     + stat_row("Blocked shots<small>per match</small>", *FORM_STANDIN["shots_blocked"], 1)) + inner[at:])
-        # Shooting reads its counts, then its two rates (#132 state 3): Shots from box moves behind the shots on goal.
         label_at = inner.index('<span class="mk-p">Shots from box</span>', inner.index('<div class="win win-w1">'))
         row_at = inner.rindex('<div class="mrow">', 0, label_at)
         row_end = block_end(inner, row_at)
@@ -983,21 +913,15 @@ def propose(inner, fx, comps, slugs):
         inner = inner[:row_at] + '<div class="mk-b">%s</div>' % row + inner[row_end:]
         label_at = inner.index("Goals per shot on goal", inner.index('<div class="win win-w1">'))
         row_at = inner.rindex('<div class="mrow">', 0, label_at)
-        # The count of shots from the box joins the counts; a share takes a name of its own (Box share, Shot
-        # accuracy), and the share of shots on goal joins the rates, between where the shots came from and how many
-        # went in.
         box = stat_row("Shots inside box<small>per match</small>", *FORM_STANDIN["box"], 1)
         row = row.replace('<span class="mk-p">Shots from box</span>', '<span class="mk-p">Shots inside box<small>percentage</small></span>')
         on_goal = stat_row("Shooting accuracy", *FORM_STANDIN["sog_share"], 1, "%")
         inner = inner[:row_at] + '<div class="mk-p mk-chg">%s%s%s</div>' % (box, row, on_goal) + inner[row_at:]
-        # Football's own words (#132 state 3): on target, not on goal; a share takes football's name where it has one,
-        # else its count's name and "percentage".
         for built, named in (("Shots on goal<small>per match</small>", "Shots on target<small>per match</small>"),
                              ("Goals per shot on goal", "Goals per shot on target"),
                              ("Duels won", "Duels won<small>percentage</small>"),
                              ("Save percentage", "Saves<small>percentage</small>")):
             inner = inner.replace('<span class="mk-p">%s</span>' % built, '<span class="mk-p">%s</span>' % named)
-        # Dribbling leads One-on-one, as the player catalogue names it: its base, then its share, then the duels.
         label_at = inner.index('<span class="mk-p">Duels<small>per match</small></span>', inner.index('<div class="win win-w1">'))
         at = inner.rindex('<div class="mrow">', 0, label_at)
         dribbles = (stat_row("Dribbles attempted<small>per match</small>", *FORM_STANDIN["dribbles"], 1)
@@ -1005,7 +929,6 @@ def propose(inner, fx, comps, slugs):
                     + stat_row("Dribbles completed<small>percentage</small>", *FORM_STANDIN["dribbles_pct"], 1, "%"))
         inner = inner[:at] + '<div class="mk-p mk-chg">%s</div>' % dribbles + inner[at:]
 
-        # Match stats' counts beside their shares and groups, in its order.
         def put(label, rows, after):
             label_at = inner.index('<span class="mk-p">%s</span>' % label, inner.index('<div class="win win-w1">'))
             row_at = inner.rindex('<div class="mrow">', 0, label_at)
@@ -1024,8 +947,7 @@ def propose(inner, fx, comps, slugs):
     hs, he = span_of(inner[fs:fe], '<div class="sechead">', "</div>")
     inner = inner[:fs + he] + intro + inner[fs + he:]
 
-    # Each team's name and its form in one head row, in two halves: the pills need the width of a
-    # half, which the comparison's narrow value column does not have on a phone.
+    # The pills need the width of a half, which the comparison's narrow value column lacks on a phone.
     def form_side(team, side):
         pills = "".join('<span class="pill %s">%s</span>' % (r["result"], r["result"]) for r in team["form_window"])
         return '<div class="mk-fh %s"><div class="h">%s</div><div class="pills">%s</div></div>' % (side, E(team["name"]), pills)
@@ -1033,7 +955,6 @@ def propose(inner, fx, comps, slugs):
     fs, fe = span_of(inner, '<section aria-label="Form comparison"', "</section>")
     at = inner.index('<div class="cmp">', inner.index('<div class="win win-w1">', fs)) + len('<div class="cmp">')
     inner = inner[:at] + head + inner[at:]
-    # One window: the switch leaves, and in its place a note says where the season record went.
     s, e = span_of(inner, '<section aria-label="Form comparison"', "</section>")
     e -= len("</section>")
     inner = inner[:e] + ('<div class="mk-p mk-gone">%s The switch leaves with This season: the block shows one window, '
@@ -1045,9 +966,6 @@ def propose(inner, fx, comps, slugs):
     def comp_slug(code):
         return comps.get(code, {}).get("slug") or slug(code)
 
-    # The built result row, kept for a team's results (result · score · opponent), in two lines: the
-    # opponent wraps instead of being cut off, and the competition's name and the date sit under it.
-    # The whole row is the link to the match's page, as every row that leads somewhere is.
     def recent(team):
         out = []
         for r in team["form_window"]:
@@ -1063,12 +981,9 @@ def propose(inner, fx, comps, slugs):
                           E(name(r["played_league_code"])), d.day, MONTHS[d.month - 1]))
         return '<div class="mk-rcol"><div class="colhead">%s</div>%s</div>' % (E(team["name"]), "".join(out))
 
-    # The two lists share their row heights side by side, so a wrapped row keeps its neighbour level.
     body = '<div class="mk-rsplit">%s%s</div>' % (recent(home), recent(away))
     inner = swap(inner, '<section aria-label="Recent matches"', "</section>", section("Recent matches", body, 3))
 
-    # The built player row kept for one team's players (photo, name and position, goals and assists),
-    # its name wrapping instead of being cut off; the two teams' lists share row heights side by side.
     def players(team):
         rows = []
         for nm, pos, goals, assists, pid in SEASON_PLAYERS.get(int(team["team_id"]), []):
@@ -1085,8 +1000,7 @@ def propose(inner, fx, comps, slugs):
     body = intro + '<div class="mk-rsplit">%s%s</div>' % (players(home), players(away))
     inner = swap(inner, '<section aria-label="Players to watch"', "</section>", section("Players to watch", body, 4))
 
-    # A match further out is about the pair: the team blocks, which would repeat on every one of a
-    # team's future match pages, wait until the match is next.
+    # The team blocks would repeat on every one of a team's future match pages, so they wait until the match is next.
     if STATE.startswith("future"):
         gone = ('<div class="mk-p mk-gone">%s %s waits until the match is next: the same rows stand on every one of '
                 'the team&rsquo;s future match pages.</div>')
@@ -1096,10 +1010,7 @@ def propose(inner, fx, comps, slugs):
             s, e = span_of(inner, '<section class="mk-p mk-chg" aria-label="%s"' % label, "</section>")
             inner = inner[:s] + gone % (badge(n, proposed_only=False), label) + inner[e:]
 
-    # The last 5 meetings only: the totals count just the meetings inside the data window. The block's
-    # intro says what the list is; the meetings are the page's result row without the chip: the score
-    # in the match's order, both names with the side that was at home first, the competition and the date.
-    # A pair the data has not seen meet shows that, in place of the sentence and the list.
+    # The last 5 meetings only: the totals count just the meetings inside the data window.
     h = fx["head_to_head"] or {"meetings_last5": 0, "recent_meetings": []}
     n = h["meetings_last5"]
     intro = ('<p class="bsub">%s.</p>' % h2h_sentence(n, h["wins_last5"], h["draws_last5"], h["losses_last5"],
@@ -1118,7 +1029,6 @@ def propose(inner, fx, comps, slugs):
     body = intro + '<div class="mk-h2h">%s</div>' % "".join(rows)
     inner = swap(inner, '<section aria-label="Head to head"', "</section>", section("Head to head", body, 5))
 
-    # A match further out leads on to what comes first: each team's next match.
     if STATE.startswith("future"):
         s, e = span_of(inner, '<section class="mk-p mk-chg" aria-label="Head to head"', "</section>")
         block = section("Next matches", upcoming_block(next_matches(fx), comps), 10)
@@ -1147,7 +1057,7 @@ PROPOSALS_FUTURE = [
     (10, "Next matches", "the page's way out: each team's next match, drawn as the approved Home's Next matches (#127: the competition's head with its logo, a date heading per day, the match rows with both crests and the kick-off with its zone), every row a link to that match's page; Home's block is shown under it for comparison", "proposal"),
     (11, "Search engines", "the page is indexed only when the pair has a head to head; otherwise it stays out of the index and the sitemap until it becomes the next match", "decided2"),
 ]
-# The export day of the sample data: a team's next match is its first fixture after it.
+# Export day of the sample data; a team's next match is its first fixture after it.
 EXPORT_DAY = "2026-09-25"
 
 TEAM_STATS_1575150 = {
@@ -1164,9 +1074,7 @@ TEAM_STATS_1575150 = {
     "corners": (10, 3), "corners_against": (3, 10), "free_kicks": (6, 13),
     "yellow_cards": (4, 2), "red_cards": (0, 0), "fouls": (13, 7), "offsides": (1, 2)}
 
-# State 3, a played match. The export writes no payload for one (GAP-07), so the render reads a stand-in
-# read once from the marts and core: TSG 1899 Hoffenheim 2-3 Borussia Dortmund, the fourth of Dortmund's
-# Recent matches on the approved next match page.
+# Stand-in for a played match, which the export writes no payload for: read once from the marts and core.
 PLAYED = {
     "fixture_id": 1575150, "league_code": "BL1", "season": 2026, "round_order": 2, "round_name": "Regular Season - 2",
     "status": "FT", "kickoff": "2026-09-05T13:30:00Z", "venue": "SNP Arena",
@@ -1175,28 +1083,22 @@ PLAYED = {
              "crest": "https://media.api-sports.io/football/teams/167.png"},
     "away": {"team_id": 165, "name": "Borussia Dortmund", "slug": "borussia-dortmund", "goals": 3,
              "crest": "https://media.api-sports.io/football/teams/165.png"},
-    # core.fct_fixture_event, the goals in match order: minute, added time, the side the goal counts for,
-    # event_detail, the scorer's id, the assist as served (a name, no id).
+    # From core.fct_fixture_event: (minute, added time, side, event_detail, scorer id, assist name).
     "goals": [(45, None, 167, "Normal Goal", 390586, "Vladimír Coufal"),
               (54, None, 167, "Normal Goal", 203040, "Adam Daghim"),
               (61, None, 165, "Normal Goal", 21393, "Waldemar Anton"),
               (66, None, 165, "Normal Goal", 129791, "Serhou Guirassy"),
               (86, None, 165, "Own Goal", 278453, None)],
-    # The Form comparison's metrics over a window of this one match, (home, away): mart_team_momentum's formulas on
-    # the two legs it sums (int_legs__team_match, int_legs__team_from_players), rounded; the own goal on the side it
-    # counts for, where the leg today credits it to the other side.
+    # The Form comparison's metrics over a window of this one match, as (home, away).
     "team": TEAM_STATS_1575150,
-    # The provider's line-ups (stg_apif__lineups, read by nothing yet): the formation, the starting eleven in the
-    # provider's order, and the substitutes who came on with the minute of their substitution event.
+    # The provider's line-ups from stg_apif__lineups: formation, starting eleven in provider order, and substitutes.
     "lineups": {167: {"formation": "4-4-2", "xi": [702, 1231, 26300, 278453, 408853, 126642, 390586, 37153, 362564, 66019, 203040],
                       "subs": [(726, 73, 66019), (279905, 73, 126642), (162964, 79, 26300), (453903, 79, 37153),
                                (387973, 84, 203040)]},
                 165: {"formation": "3-4-2-1", "xi": [25282, 409215, 25368, 341839, 24845, 326757, 637, 198654, 404891, 158644, 21393],
                       "subs": [(313236, 32, 341839), (37749, 45, 637), (129791, 62, 404891), (568225, 63, 409215),
                                (1159, 87, 21393)]}},
-    # The match's most notable players, read once from mart_player_fixture_stats: per board the top three across both
-    # teams by the count, a shared count sharing the rank, a tie at the cut broken by fewer minutes; under the
-    # catalogue's groups: (group, [(board, [(rank, player id, the count)])]).
+    # Read once from mart_player_fixture_stats: (group, [(board, [(rank, player id, the count)])]).
     "leaders": [("Shooting", [("Shots", [(1, 21393, 5), (2, 203040, 4), (3, 26300, 3)])]),
                 ("Passing", [("Passes", [(1, 390586, 70), (2, 408853, 61), (3, 278453, 59)]),
                              ("Key passes", [(1, 24845, 4), (2, 408853, 3), (3, 637, 2)])]),
@@ -1246,14 +1148,12 @@ PLAYED_PEN = {
              "tackles": (32, 15), "interceptions": (10, 13), "blocks": (3, 6), "saves": (3, 4),
              "corners_against": (7, 8), "fouls": (15, 17), "offsides": (4, 0),
              "yellow_cards": (3, 2), "red_cards": (0, 0)},
-    # Read as the full-time match's are; the substitutes' minutes come from the substitution events.
     "lineups": {1620: {"formation": "4-4-2", "xi": [203381, 203070, 128138, 380629, 90649, 535071, 90697, 442151, 202565, 728, 352265],
                        "subs": [(273718, 46, 535071), (353670, 57, 352265), (272235, 74, 90697), (329472, 74, 202565),
                                 (548586, 87, 728)]},
                 171: {"formation": "4-2-3-1", "xi": [25651, 380969, 313222, 202942, 478854, 387361, 618443, 177661, 366021, 338355, 511974],
                       "subs": [(26677, 67, 380969), (330603, 67, 338355), (26502, 78, 511974), (663755, 79, 366021),
                                (620025, "90+4", 313222)]}},
-    # A tie the minutes leave standing at the cut goes by name.
     "leaders": [("Shooting", [("Shots", [(1, 511974, 4), (2, 203070, 3), (3, 353670, 2)])]),
                 ("Passing", [("Passes", [(1, 202942, 102), (2, 387361, 83), (2, 128138, 83)]),
                              ("Key passes", [(1, 272235, 3), (1, 366021, 3), (3, 548586, 2)])]),
@@ -1279,11 +1179,7 @@ PLAYED_PEN = {
                 (171, 663755, "T. Hess", "D", 42, 0, 0), (171, 620025, "K. Mandic", "D", 31, 0, 0)],
 }
 STATUS_WORDS = {"FT": "Full time", "AET": "After extra time", "PEN": "After penalties"}
-# The Form comparison's groups and rows as approved, in their order, and the catalogue's new and not yet shown team
-# metrics beside what they belong with: possession before the passes, a count before its share, the whistle before
-# the card; Shooting reads the counts that make up the shots, then its two rates. Off in one match: the Goals group (the header's score
-# and the Goals block show it). (label without a sign, the match's total, +1 when more is better, -1 when fewer is,
-# as the catalogue's direction, the value's unit).
+# The Form comparison's groups, each row (label, team stat key, +1 when more is better else -1, unit).
 PLAYED_STATS = (("Shooting", (("Shots", "shots", 1, ""), ("Shots on target", "shots_on_goal", 1, ""),
                               ("Shots on target against", "shots_on_goal_against", -1, ""),
                               ("Shots off target", "shots_off_goal", 1, ""), ("Blocked shots", "shots_blocked", 1, ""),
@@ -1305,11 +1201,8 @@ PLAYED_STATS = (("Shooting", (("Shots", "shots", 1, ""), ("Shots on target", "sh
                                 ("Free kicks", "free_kicks", 1, ""))),
                 ("Discipline", (("Fouls", "fouls", -1, ""), ("Offsides", "offsides", -1, ""),
                                 ("Yellow cards", "yellow_cards", -1, ""), ("Red cards", "red_cards", -1, ""))))
-# The render each element was approved on: the next match page (#132, state 1).
 APPROVED_RENDER = HERE / "renders" / "match-page_2026-09-27_56.html"
 
-# The header as approved, with the final score where "vs" stands: the winner by weight, as on every played
-# match row. Under 700px the teams stack and each team's goals close its line, as the match row's sides do.
 PLAYED_CSS = """
 @media (min-width: 700px) {
   .mk-played .mk-score { display: flex; align-items: center; gap: 10px; }
@@ -1494,20 +1387,17 @@ SOURCES_PLAYED = {
 
 
 def source_note(src):
-    """A block's data sources, in the form add_sources draws them, shown by the toggle."""
     return ('<div class="mk-src"><b>Data</b><table><tr><th>On the page</th><th>Comes from</th><th>When it is missing</th></tr>'
             '%s</table>%s</div>' % ("".join("<tr><td>%s</td><td>%s</td><td>%s</td></tr>" % r for r in src["rows"]),
                                     "".join('<div class="mk-gap">Gap %s</div>' % g for g in src["gaps"])))
 
 
 def approved(what, body, aria="For comparison"):
-    """An approved instance of an element, copied from the render it was approved on, shown under ours."""
     return ('<section class="mk-p mk-ref" aria-label="%s"><div class="mk-reflabel">For comparison, not part of the '
             'page: %s</div>%s</section>' % (aria, what, body))
 
 
 def comp_head_ref():
-    """Home's competition group head as approved, copied from its render, shown under the header that opens with it."""
     home = HOME_RENDER.read_text(encoding="utf-8")
     s = home.index('<div class="gh">', home.index('<div class="fxgroup">'))
     return approved("the competition group head, Home&rsquo;s Next matches as approved (#127, render home_2026-09-17_02)",
@@ -1515,7 +1405,6 @@ def comp_head_ref():
 
 
 def approved_parts():
-    """The approved instances the played match's blocks use, copied from the state 1 render of record."""
     page = APPROVED_RENDER.read_text(encoding="utf-8")
     s = page.index('<nav class="crumb mk-adapt"')
     crumb = page[s:page.index("</nav>", s) + len("</nav>")]
@@ -1544,9 +1433,7 @@ def approved_parts():
 
 
 def played_mast(fx, slugs, round_label, head):
-    """The header as decided for the next and the future match page, played: the final score where "vs" stands.
-    A team with no team page gets no link and no chevron. After penalties the score is the shoot-out's and the score
-    after extra time closes the header, in the kick-off line's form."""
+    """The played header: the final score stands where "vs" does, and after penalties it is the shoot-out's."""
     home, away = fx["home"], fx["away"]
     units = [round_label, fdate(fx["kickoff"]), fx["kickoff"][11:16] + " UTC", E(fx["venue"])]
     kick_html = " &middot; ".join('<span class="mk-nw">%s</span>' % u for u in units)
@@ -1554,8 +1441,6 @@ def played_mast(fx, slugs, round_label, head):
     def win(side, other, key="goals"):
         return " winner" if side[key] > other[key] else ""
 
-    # After penalties the score is the shoot-out's, as the label says, and the line under it the score after
-    # extra time.
     key = "shootout" if fx["status"] == "PEN" else "goals"
 
     def team(side, other):
@@ -1579,7 +1464,7 @@ def played_mast(fx, slugs, round_label, head):
 
 
 def played_sources(fx):
-    """The data-source tables, with the drawn match's own examples; the shoot-out match adds the line decision A serves."""
+    """The data-source tables, with the drawn match's own examples."""
     src = copy.deepcopy(SOURCES_PLAYED)
     comps = json.loads((DATA / "competitions.json").read_text(encoding="utf-8"))
     src["mast"]["rows"].insert(1, (E(comps.get(fx["league_code"], {}).get("name") or fx["league_code"]),
@@ -1621,9 +1506,7 @@ def played_sources(fx):
 
 
 def goals_block(fx):
-    """Each goal in match order, in the result row without its chip (Head to head's meeting row): the score after the
-    goal where the meeting's score stands, the scorer with the crest of the side it counts for, the minute and the
-    assist; each row a link to the scorer's page."""
+    """Each goal in match order as a meeting-style row, carrying the score after the goal."""
     names = {p[1]: p[2] for p in fx["players"]}
     score, rows = [0, 0], []
     for minute, added, team, detail, pid, assist in fx["goals"]:
@@ -1640,8 +1523,7 @@ def goals_block(fx):
 
 
 def stat_row(label, home, away, direction, unit=""):
-    """One row of the Form comparison: the two values, the bar of each side against the larger, the better side marked;
-    a share reads with its % sign, as the approved rows do."""
+    """One row of the Form comparison: the two values and a bar per side against the larger."""
     top = max([v for v in (home, away) if v is not None] or [0])
     better = None if None in (home, away) or home == away else ("home" if (home > away) == (direction > 0) else "away")
 
@@ -1657,8 +1539,7 @@ def stat_row(label, home, away, direction, unit=""):
 
 
 def stats_block(fx):
-    """The two teams' numbers in this match in the Form comparison's head row, groups and rows; a row neither side
-    serves is left out, as the approved block leaves it out."""
+    """A row neither side serves is left out."""
     head = ('<div class="mk-formhead"><div class="mk-fh home"><div class="h">%s</div></div><div class="mk-fh away">'
             '<div class="h">%s</div></div></div>' % (E(fx["home"]["name"]), E(fx["away"]["name"])))
     groups = []
@@ -1673,8 +1554,6 @@ def stats_block(fx):
 
 
 def players_block(fx):
-    """Every player who played, in the player row of Players to watch, the two teams side by side: by position, then
-    minutes, the minutes on the right; each row a link to the player's page."""
     def col(team):
         mine = sorted((p for p in fx["players"] if p[0] == team["team_id"]), key=lambda p: ("GDMF".index(p[3]), -p[4]))
         rows = []
@@ -1690,10 +1569,6 @@ def players_block(fx):
 
 
 def lineups_block(fx):
-    """Each team's starting eleven in the provider's order, then the substitutes who came on, in the player row of
-    Players to watch under a second column head; the formation closes the team's head, the second line says when a
-    starter went off and when a substitute came on and for whom, the minutes stand on the right; each row a link to
-    the player's page."""
     players = {p[1]: p for p in fx["players"]}
 
     def row(pid, second):
@@ -1717,10 +1592,7 @@ def lineups_block(fx):
 
 
 def leaders_block(fx):
-    """The match's most notable players in the player board of the Rankings tab, in the catalogue's order: one board
-    per count, its top three across both teams, each row the rank, the club's crest, the name over the club, the
-    count, and a link to the player's page. A board here ranks one match, so its name leads nowhere and carries no
-    chevron."""
+    """A board here ranks one match, so its name leads nowhere and carries no chevron."""
     players = {p[1]: p for p in fx["players"]}
     teams = {fx["home"]["team_id"]: fx["home"], fx["away"]["team_id"]: fx["away"]}
     groups = []
@@ -1746,7 +1618,7 @@ def leaders_block(fx):
 
 
 def board_ref():
-    """The player board as approved on the Rankings tab (#129), copied from its render, its Finnish width probe left out."""
+    """The approved player board copied from its render, with its width probe left out."""
     page = (HERE / "renders" / "competition-rankings_2026-09-17_02.html").read_text(encoding="utf-8")
     at = page.rindex('<div class="board">', 0, page.index('href="/en/players/'))
     board = re.sub(r'<span class="fi probe"[^>]*>[^<]*</span>', "", page[at:block_end(page, at)])
@@ -1755,8 +1627,7 @@ def board_ref():
 
 
 def played_round(fx, comps):
-    """The competition's name and address word, whether it is a cup (mart_competition_index.competition_type), and the
-    round as the header names it: "Matchday {n}" in a league, the round's name in a cup."""
+    """The competition's name and address word, whether it is a cup, and the round as the header names it."""
     league = E(comps.get(fx["league_code"], {}).get("name") or fx["league_code"])
     index = json.loads((DATA / "competition_index.json").read_text(encoding="utf-8"))
     kind = next((r["competition_type"] for r in index["competitions"] if r["league_code"] == fx["league_code"]), "")
@@ -1766,9 +1637,7 @@ def played_round(fx, comps):
 
 
 def competition_head(fx, comps):
-    """The competition group head of Home's Next matches and the Matches page (logo, name, chevron, the 2px line), the
-    match under its competition as a match row is on those pages; a heading link to the competition's page. It opens
-    the header on the next, the future and the played match page alike."""
+    """The competition group head, a heading link to the competition's page, that opens the header in every state."""
     league = E(comps.get(fx["league_code"], {}).get("name") or fx["league_code"])
     comp = comps.get(fx["league_code"], {}).get("slug") or slug(fx["league_code"])
     index = json.loads((DATA / "competition_index.json").read_text(encoding="utf-8"))
@@ -1778,8 +1647,7 @@ def competition_head(fx, comps):
 
 
 def played_page(fx, comps, slugs):
-    """The played match's page, block by block, each approved instance under the block that uses it. A cup's trail
-    reads Rounds and its header the round's name, by the competition's type (mart_competition_index)."""
+    """The played match's page; a cup's trail reads Rounds and its header the round's name."""
     ref = approved_parts()
     sources = played_sources(fx)
     league, comp, cup, round_label = played_round(fx, comps)
@@ -1926,8 +1794,7 @@ def build():
         fx = json.loads((DATA / "fixtures" / ("%d.json" % FIXTURE_ID)).read_text(encoding="utf-8"))
         inner = add_sources(propose(page[start:end], fx, comps, team_slugs()), page_sources(fx, comps))
         foot = legend(fx)
-    # The site's own header, live, so the page adapts as the window is resized; the section mark
-    # is a proposal and shows under "Proposed" only.
+    # The section mark is a proposal and shows under "Proposed" only.
     site_header = mark_section(page[page.index(">", page.index("<body")) + 1:start])
     head = head.replace("</head>", "<style>%s</style></head>" % css)
     return """%s<body class="fx" data-theme="dark">

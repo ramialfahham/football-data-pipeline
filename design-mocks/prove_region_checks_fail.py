@@ -1,23 +1,4 @@
-"""NEGATIVE CONTROLS for `gen_competitions.py`'s guards.
-
-⚠ A CHECK THAT HAS ONLY EVER BEEN SEEN GREEN PROVES NOTHING. Three checks in this folder passed
-on real defects until they were made to fail first. So each guard below is handed a
-reconstruction of the defect it exists to catch, and must go RED.
-
-Every reconstruction is a REAL failure mode, not an invented one:
-
-   1. the region read off `country`                     -> the original #54 defect
-   2. a confederation the seed does not know            -> a new one onboarded
-   3. a confederation the registry's enum does not know -> an invented eighth
-   4. a type with no `single_country`                   -> the new column forgotten
-   5. single_country=true on a row whose country is a REGION -> a mistyped competition
-   6. an UNDECLARED new competition_type                -> designing against fiction
-   7. a shipped competition_type silently DROPPED       -> same
-   8. an UNDECLARED rename                              -> same
-   9. `display_group` creeping back into the proposal   -> the deleted column returning
-  10. a blank label                                     -> "blanks are not allowed"
-  11. two types sharing a label                         -> two headings reading the same
-  12. the registry already corrected                    -> the in-memory edit applied twice
+"""Negative controls: each `gen_competitions.py` guard is handed a defect and must go RED.
 
 Run:  python prove_region_checks_fail.py
 """
@@ -29,7 +10,6 @@ PASS, FAIL = [], []
 
 
 def expect_red(label, fn):
-    """The guard must RAISE. Anything else means it would not have caught the defect."""
     try:
         fn()
     except (AssertionError, SystemExit) as exc:
@@ -53,10 +33,8 @@ def swapping(target, **attrs):
     return run
 
 
-# --- 1. THE ORIGINAL DEFECT -------------------------------------------------------------------
-# Not a guard but the design premise, so it is proved by MEASUREMENT: reading the sub-line off
-# `country` puts the literal "International" under headings meant to distinguish regions, and
-# gives two members of ONE category two different strings for the same idea.
+# --- 1. the region read off `country` ---------------------------------------------------------
+# Not a guard but a design premise, proved by measurement rather than by a raised error.
 def prove_country_is_not_usable():
     champs = [c for c in G.REGISTRY_ALL if c["competition_type"] == "continental_championship"]
     by_country = {c["league_code"]: c.get("country") for c in champs}

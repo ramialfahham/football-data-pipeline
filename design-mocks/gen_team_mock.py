@@ -1,8 +1,4 @@
-"""Mock of the Team page design: the team page in three tabs, built from the BUILT
-Dortmund page (site_v2/dist/en/teams/borussia-dortmund/) and its served payload. Blocks the built
-page has are moved, not redrawn; new blocks use the site's shared elements in the markup the built
-site emits for them (the match row, the fold, the result row, the player row, the fact row, the
-table). Every value is a served payload or sample field; a block nothing serves is a named gap."""
+"""Mock of the team page in three tabs, built from the built Dortmund page and its served payload."""
 import csv
 import html
 import json
@@ -301,13 +297,8 @@ def _ord(n):
     return f'{n}{"th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")}'
 
 
-# the switch: tier-3 rows (the catalogue's importance_tier) are hidden in their places until the
-# site's fold control opens them; their order never changes
-# dropped from the pages: their metric_order becomes blank in the build
 DROPPED = {"shots_off_target_per_match", "shots_blocked_per_match"}
-# cards as season totals: the totals take the per-match rows' places
 CARDS_AS_TOTALS = {"cards_yellow_per_match": "cards_yellow", "cards_red_per_match": "cards_red"}
-# the key team metrics are tier 1; every other served team metric is tier 3
 KEY = {"goals_per_match", "goals_against_per_match", "shots_per_match", "shots_on_goal_per_match",
        "shots_on_goal_against_per_match", "passes_per_match", "passes_accuracy_pct", "passes_share_pct",
        "duels_per_match", "duels_won_pct", "defensive_actions_per_match", "fouls_per_match", "cards_yellow", "cards_red"}
@@ -327,11 +318,7 @@ def served_rows():
     return out
 FOLD_CHEV = ('<svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 6l6 6-6 6" '
              'fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>')
-# the switch is the site's Filter row (segmented buttons) at the top of each table: Key metrics shows
-# tier 1 and 2, All metrics shows every row in its place
 ON = "background: var(--surface); color: var(--ink); font-weight: 700; box-shadow: 0 1px 3px rgba(0, 0, 0, .25);"
-# a new element, proposed: an on/off switch "Show all metrics", off by default; on shows every row in
-# its place. Track in the sunk ground, the knob in the surface; on, the track takes the accent
 FOLD_CSS = ('<style>.tsw:not(:checked) ~ * .t3, .tsw:not(:checked) ~ * .t3g { display: none; } '
             '.tsw { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; } '
             '.tsw-lbl { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin: 4px 0 10px; '
@@ -445,7 +432,6 @@ def build_league_rows(feat, team_name="Borussia Dortmund"):
                 # values always grow to the right; the ends sit inside the row so no dot is cut
                 def pos(x):
                     return round(3 + (x - lo) / span * 94, 2)
-                # one line: close values overlap and the overlap reads darker
                 dots = [f'<span class="rs-club" style="left:{pos(x)}%" title="{E(club)}: {fmt(x, f)}"></span>'
                         for club, x in sorted(pts, key=lambda p: p[1]) if club != team_name]
                 strip = ('<span class="rs-line"></span>'
@@ -467,8 +453,7 @@ def build_league_rows(feat, team_name="Borussia Dortmund"):
 
 
 def build_season_bars(feat):
-    """Compared with last season: the match page's comparison element (value · name with split bar · value),
-    last season at the same point on the left, this season on the right; the served 36-row list."""
+    """Compared with last season, with last season at the same point on the left."""
     strings = (REPO / "site_v2/src/i18n/strings.ts").read_text(encoding="utf-8")
 
     def label(key):
@@ -491,8 +476,6 @@ def build_season_bars(feat):
         return {"percent": r(v * 100, "1") + "%", "decimal_0": r(v, "1"), "integer": r(v, "1")}.get(f, r(v, "0.1"))
 
     n = feat.get("yoy_games_played_cutoff") or feat["played"]
-    # a table (the site's table element): this season, last season, and a third column with the trend:
-    # ▲ green when better than last season, ▼ red when worse (by the metric's direction), – when equal
     css = ('<style>.ctab.yoyt{--cols:minmax(0,1fr) 3.4rem 3.4rem 2.8rem;margin-top:0} .yoyt-head .h{white-space:normal;line-height:1.2} '
            '@container (min-width:420px){.ctab.yoyt{--cols:minmax(0,1fr) 4.6rem 4.6rem 3rem}} .ctab.yoyt .tm .nm{font-weight:400} '
            '.yoyt-sub{display:block;font-size:12px;color:var(--muted);font-weight:400} '
@@ -538,7 +521,6 @@ def build_season_bars(feat):
 
 
 def build_deserved_block(feat, team_name, expl, cap):
-    """Deserved points: the six catalogue metrics as league rows, then a scaled scatter of the league."""
     import statistics
     comp = (DIST / "en/bundesliga/index.html").read_text(encoding="utf-8")
     i = comp.index("Deserved points table")
@@ -558,7 +540,6 @@ def build_deserved_block(feat, team_name, expl, cap):
         teams.append({**d, "name": nm})
     n = len(teams)
 
-    # league rows, the "Vs the league" element: value · rank of n · median; ranks direction-aware
     bench = {b["metric_key"]: b for b in feat["benchmarks"]}
 
     def row(label, sub, value, rank, median, direction):
@@ -580,7 +561,6 @@ def build_deserved_block(feat, team_name, expl, cap):
     gaps = [t["points"] - t["deserved"] for t in teams]
     me = next(t for t in teams if t["is_self"])
     gap_me = me["points"] - me["deserved"]
-    # the overview: the site's table element (Table head + striped Table rows), one row per metric
     def trow(label, sub, value, rank, median):
         s = f'<span class="dpm-sub">{sub}</span>' if sub else ""
         return (f'<div class="ctab-row"><span class="tm"><span class="nm">{label}{s}</span></span>'
@@ -596,7 +576,6 @@ def build_deserved_block(feat, team_name, expl, cap):
             + trow("Difference from deserved points", "", gap_me, feat["deserved_points_gap_rank"], statistics.median(gaps))
             + "</div>")
 
-    # the deserved line: deserved points against shots on target difference across the league
     xs = [t["sotd"] for t in teams]
     mx, my = statistics.mean(xs), statistics.mean(dps)
     slope = sum((x - mx) * (y - my) for x, y in zip(xs, dps)) / sum((x - mx) ** 2 for x in xs)
@@ -612,7 +591,6 @@ def build_deserved_block(feat, team_name, expl, cap):
         def sy(y):
             return T + (1 - y / y1) * (H - T - B)
         g = []
-        # journal style: two axis lines with outward ticks, no grid; a faint reference line at zero difference
         g.append(f'<line x1="{L}" x2="{W - R}" y1="{H - B}" y2="{H - B}" stroke="var(--muted)" stroke-width="1"/>'
                  f'<line x1="{L}" x2="{L}" y1="{T}" y2="{H - B}" stroke="var(--muted)" stroke-width="1"/>')
         for xv in range(x0, x1 + 1):
@@ -623,7 +601,6 @@ def build_deserved_block(feat, team_name, expl, cap):
         for yv in range(0, y1 + 1, 3):
             g.append(f'<line x1="{L - 4}" x2="{L}" y1="{sy(yv):.1f}" y2="{sy(yv):.1f}" stroke="var(--muted)" stroke-width="1"/>'
                      f'<text x="{L - 7}" y="{sy(yv) + fs * 0.35:.1f}" font-size="{fs}" fill="var(--muted)" text-anchor="end">{yv}</text>')
-        # the axis title as the site writes a metric: its name, then "per match" on the line under it
         g.append(f'<text x="{(L + W - R) / 2:.1f}" y="{H - 20}" font-size="{fs}" fill="var(--ink-2)" text-anchor="middle">'
                  f'Shots on target difference</text><text x="{(L + W - R) / 2:.1f}" y="{H - 5}" font-size="{fs - 1}" '
                  f'fill="var(--muted)" text-anchor="middle">per match</text>')
@@ -635,8 +612,6 @@ def build_deserved_block(feat, team_name, expl, cap):
                    f'Deserved points {t["deserved"]:.1f}')
             if t["is_self"]:
                 cx, cy, cl = sx(t["sotd"]), sy(t["points"]), sy(icpt + slope * t["sotd"])
-                # journal style: the residual as a thin neutral line from the point to the fitted line, the
-                # team as the one solid point, small regular labels beside it
                 g.append(f'<line x1="{cx:.1f}" x2="{cx:.1f}" y1="{cy:.1f}" y2="{cl:.1f}" stroke="var(--ink-2)" '
                          f'stroke-width="1" stroke-dasharray="2 2"/>')
                 g.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="5" data-px="5" data-halo="2" fill="var(--ink)" stroke="var(--page)" paint-order="stroke"><title>{tip}</title></circle>')
@@ -666,7 +641,7 @@ def build_deserved_block(feat, team_name, expl, cap):
             f'</div></section>')
 
 
-# the scatter's marks stay at their pixel size at every width (the chart standard's shared marks)
+# keeps the scatter's marks at their pixel size at every width
 DOT_SCRIPT = """<script>(()=>{const fit=()=>document.querySelectorAll('svg.dp-chart').forEach(s=>{
 const w=s.getBoundingClientRect().width;if(!w)return;const k=s.viewBox.baseVal.width/w;
 s.querySelectorAll('circle[data-px]').forEach(c=>{c.setAttribute('r',c.dataset.px*k);
@@ -676,8 +651,6 @@ addEventListener('resize',fit);new ResizeObserver(fit).observe(document.body);fi
 
 def build():
     h = (DIST / f"en/teams/{SLUG}/index.html").read_text(encoding="utf-8")
-    # the header: no control that looks like a filter; the season is plain text at the end of the meta
-    # line (one rule for every page showing one season's data; the label comes from the warehouse)
     yr = re.search(r'<span class="yr">([^<]*)</span>', h).group(1)
     h = re.sub(r'\s*<div class="selector">.*?</div>', "", h, count=1, flags=re.S)
     h = re.sub(r'(<div class="meta">.*?)(\s*</div>)', lambda m: m.group(1).rstrip() + f" · Season {yr}" + m.group(2),
@@ -696,18 +669,15 @@ def build():
     pts_d = int(pts_d)
     rk_now = feat["latest_rank"]
     rk_txt = f'{rk_now}{"th" if 10 <= rk_now % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(rk_now % 10, "th")}'
-    # the season so far: standing and points, each against the same point last season (Fact rows)
     yoy_sentence = (f'<section aria-label="Standing">{sechead("Standing")}'
                     + frow("Position", rk_txt, "Season before: –")
                     + frow("Points", pts, f"Season before: {int(pts) - pts_d}")
                     + "</section>"
                     + gap("Position in the season before at the same point: no mart serves it (the payload has this season's latest_rank "
                           "and last season's final rank only). Points in the season before at the same point are served (points_prev_season)."))
-    # Deserved points: heading and explainer in the catalogue's metric names (shots on target difference)
     expl = ("Deserved points are the points a team usually earns with its shots on target difference – its shots "
             "on target minus its opponents'. Teams with fewer points than deserved are better than the table shows; "
             "teams with more are worse.")
-    # the chart's name for screen readers only: its axes and line, in the metrics' own names
     cap = "Scatter plot: Shots on target difference per match against Points for each Bundesliga team, with the Deserved points line."
     deserved = build_deserved_block(feat, payload["name"], expl, cap)
 
@@ -720,7 +690,6 @@ def build():
     def clogo(code):
         return (idx.get(code) or {}).get("logo_url")
 
-    # upcoming: the Bundesliga's remaining fixtures from the competition payload; other competitions' next match from the team payload
     bl1 = json.loads((DATA / "competitions/BL1/2026.json").read_text(encoding="utf-8"))
     upcoming = {}
     for rnd in bl1["fixtures"]:
@@ -936,7 +905,6 @@ def build():
           + frow("Longest winless run", f'{longest(lambda m: m[0] <= m[1])} matches', "Bundesliga")
           + "</section>")
 
-    # Matches tab: competition filter, every upcoming fixture by competition, every result newest first
     comp_order = sorted(now, key=lambda s: (min([k for k, _ in upcoming.get(s["league_code"], [])] or ["9999"]),
                                             national_first(s)))
     codes = [s["league_code"] for s in sorted(now, key=national_first)]
@@ -950,8 +918,7 @@ def build():
            '<option value="all" selected>All competitions</option>'
            + "".join(f'<option value="{c}">{E(cname(c))}</option>' for c in codes)
            + f'</select>{CHEV}</div>')
-    # the switch width, worked out from the labels: ~7.6px per character at 13px bold, 24px
-    # padding per button, 8px for the box, plus a 32px safety margin
+    # width at which the buttons fit: ~7.6px per label character at 13px bold, plus padding and margin
     switch_px = round(sum(len(lbl) * 7.6 + 24 for lbl in labels) + 8 + 32)
     up_html = "".join(
         comp_group(cname(s["league_code"]), cslug(s["league_code"]), clogo(s["league_code"]),
@@ -996,8 +963,6 @@ def build():
         "overview": q1 + q4 + q5 + squad_block
                     + gap("Biggest win, Heaviest defeat and the two longest runs: no mart serves them per team yet (the runs are computed per team inside mart_competition_season_summary, which serves only the league's longest) (the competition's come from mart_competition_season_summary); the mock picks them from the sample. Cup row: the round reached and Through / Knocked out / Winners must be served by the warehouse (the round phase key, #148); this mock infers them from the next fixture."),
         "matches": matches_tab,
-        # Stats: Deserved vs actual first, then the league comparison, then last season, each its
-        # own block (no switch between the two comparisons)
         "stats": ('<style>p.bsub a.mk-chevlink { text-decoration: none; font-weight: 600; color: var(--ink); white-space: nowrap; padding-block: 14px; } .mk-chevlink .chev { width: 14px; height: 14px; vertical-align: -2px; margin-left: 3px; } @media (hover: hover) { .mk-chevlink:hover .chev { color: var(--ink-2); transform: translateX(2px); } }</style>' + '<style>.page[data-page="stats"] .pf-league, .page[data-page="stats"] .pf-season { display: block; }</style>'
                   + f'<p class="bsub" style="margin-top:14px">Bundesliga {yr}: {E(payload["name"])} compared with the other teams and with the season before. Other competitions are not included.</p>'
                   + yoy_sentence + deserved
