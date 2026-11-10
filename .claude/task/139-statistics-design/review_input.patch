@@ -1,0 +1,56 @@
+diff --git a/.claude/task/139-statistics-design/contract.md b/.claude/task/139-statistics-design/contract.md
+new file mode 100644
+index 00000000..c8ef1c93
+--- /dev/null
++++ b/.claude/task/139-statistics-design/contract.md
+@@ -0,0 +1,28 @@
++# Task contract — the Statistics page enters the approved-designs list
++
++objective: >
++  The Statistics review on #139 (with the leaderboard page on #140) closed with the design approved. The
++  Statistics page enters docs/wireframes/approved_designs.yml so the design gate lets its build change the page
++  surface once this merges, and the design chain's screen inventory points at the issues.
++
++refs: >
++  #139, the Statistics page's design (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/139);
++  #140, the leaderboard page. Approved in chat, 2026-11-10.
++
++scope_paths:
++  - .claude/task/139-statistics-design/
++  - docs/wireframes/approved_designs.yml
++  - docs/wireframes/00_overview.md
++
++decisions_taken: >
++  Approved in chat, 2026-11-10: the Statistics review is closed and the page enters the list as "statistics: 139";
++  the leaderboard page is part of the same design (recorded on #139, noted on #140).
++
++decisions_reserved:
++  - none: the CPO approved the Statistics and leaderboard design on #139 and #140, and this task only records it in the list and the screen inventory.
++
++done_when:
++  - The full pytest suite passes.
++  - Reviewers per review_routing.json pass.
++
++amendments: (none)
+diff --git a/docs/wireframes/00_overview.md b/docs/wireframes/00_overview.md
+index 776810c3..bcbd532f 100644
+--- a/docs/wireframes/00_overview.md
++++ b/docs/wireframes/00_overview.md
+@@ -134,7 +134,7 @@ keeps the earlier widths, 680px and 1100px, through the `legacyWidth` prop of `L
+ | 02 | [02_team_profile.md](02_team_profile.md) | Team page: Overview · Matches · Performance | **built**; **approved on [its GitLab issue](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/134)** — the authority for the page | 2 |
+ | 03 | [03_player_profile.md](03_player_profile.md) | Player page: Club · National team | **retired**: **approved on [its GitLab issue](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/136)** ("The approved design"), the authority for the page | ⁑ |
+ | 04 | 04_competition_hub.md | Competition page: Overview · Matchdays · Rankings | **Fully approved on GitLab #129** ("The approved design", three tabs) — the authority for the page. No wireframe file: the issue's block list and its data-model tables are the field contract; the elements and their measurements are [block_standard.md](block_standard.md). Built: the Overview (#149), the Matchdays tab (#150) and the Rankings tab (#151), each at its address word ([site_architecture.md](../site_architecture.md) "Address words") | 3 |
+-| 05 | 05_leaderboards.md | Leaderboards + per-metric stats pages | pending | 3 |
++| 05 | — | Statistics page (Players · Teams) and its leaderboards | **approved on [its GitLab issue](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/139)** ("The approved design"), the authority for both pages; the leaderboard is also noted on [its own issue](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/140). No wireframe file: the issue is the field contract | 3 |
+ | 06 | 06_head_to_head.md | Head-to-head page | pending | 3 |
+ | 07 | 07_metric_glossary.md | Metric glossary | pending | 3 |
+ | 08 | [08_browse.md](08_browse.md) | Competitions index | **built** 2026-08-18 (#62 step 5); **approved on GitLab #128** (2026-09-14, "The approved design") — the authority for the page; #144 builds the row links, the collapse fix and the missing labels. ~~Country hubs (`/football/{country-slug}/`) still pending~~ — in no menu and no issue; struck by #128 | 4 |
+diff --git a/docs/wireframes/approved_designs.yml b/docs/wireframes/approved_designs.yml
+index 2a794dcd..4d573912 100644
+--- a/docs/wireframes/approved_designs.yml
++++ b/docs/wireframes/approved_designs.yml
+@@ -10,3 +10,4 @@ teams: 133
+ team: 134
+ players: 135
+ player: 136
++statistics: 139
