@@ -1402,6 +1402,38 @@ seeds:
         description: "The hand working: the competitions counted and each sum."
         tests: [not_null]
 
+  - name: team_window_answer_key
+    description: >
+      Hand-worked values for a real club over a whole window of the Team page, added up from the
+      club's cleaned match lines by the catalogue formula, so that which competitions a window holds
+      is checked against a known answer. assert_team_window_answer_key fails when
+      int_team_window__metrics returns anything other than the numerator over the denominator while
+      the club's featured season is the one the case was worked for.
+    columns:
+      - name: team_id
+        description: "{{ doc('team_api_id') }}"
+        tests: [not_null]
+      - name: window_type
+        description: "this_season or last_season."
+        tests: [not_null]
+      - name: anchor_league_code
+        description: "The competition of the featured season the case was worked for."
+        tests: [not_null]
+      - name: anchor_season_api_year
+        description: "The provider's season year of the featured season the case was worked for."
+        tests: [not_null]
+      - name: metric_id
+        description: "The metric, or matches or wins, the case checks."
+        tests: [not_null]
+      - name: numerator
+        description: "The value's numerator worked out by hand."
+        tests: [not_null]
+      - name: denominator
+        description: "The value's denominator worked out by hand. Blank for a value with no denominator."
+      - name: working
+        description: "The hand working: the competitions counted and each sum."
+        tests: [not_null]
+
   - name: team_name_overrides
     description: >
       Corrections to a team's DISPLAY NAME: one row per team whose provider name is not the name

@@ -222,3 +222,182 @@ models:
         description: "{{ doc('clean_sheet_run') }}"
       - name: scoring_run
         description: "{{ doc('scoring_run') }}"
+  - name: int_team__featured_season
+    description: >
+      The season a team's page opens on: its most recent domestic league season, or, for a team
+      with no league season, its most recent season of any type. Grain: (team_sk).
+    config:
+      tags: ["intermediate", "football", "team"]
+    columns:
+      - name: team_sk
+        description: "{{ doc('team_sk') }}"
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: featured_season_sk
+        description: "The competition-season the team's page opens on."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: featured_league_code
+        description: "The competition of the featured season."
+        tests: [not_null]
+      - name: featured_season_api_year
+        description: "The provider's season year of the featured season."
+        tests: [not_null]
+  - name: int_team_window__metrics
+    description: >
+      A team's metrics over each season window of its page, each by its metric_catalogue formula
+      over the window's matches. this_season is every club competition of the featured season,
+      last_season every one of the season before, by the Player page's season rule. A national team
+      has no club window and no row. Grain: (team_sk, window_type).
+    config:
+      tags: ["intermediate", "football", "team"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [team_sk, window_type]
+      - dbt_utils.expression_is_true:
+          expression: "(shots_on_goal_pct is null or shots_on_goal_pct between 0 and 1) and (shots_inside_box_pct is null or shots_inside_box_pct between 0 and 1) and (finishing_efficiency_pct is null or finishing_efficiency_pct between 0 and 1) and (passes_accuracy_pct is null or passes_accuracy_pct between 0 and 1) and (saves_pct is null or saves_pct between 0 and 1) and (duels_won_pct is null or duels_won_pct between 0 and 1) and (passes_share_pct is null or passes_share_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (shots_share_pct is null or shots_share_pct between 0 and 1)"
+          name: int_team_window__metrics_shares_between_0_and_1
+      - dbt_utils.expression_is_true:
+          expression: "(points_won is null or points_won >= 0) and (goals is null or goals >= 0) and (goals_against is null or goals_against >= 0) and (clean_sheets is null or clean_sheets >= 0) and (goals_penalty is null or goals_penalty >= 0) and (goals_own is null or goals_own >= 0) and (goals_open_play is null or goals_open_play >= 0) and (corners is null or corners >= 0) and (saves is null or saves >= 0) and (shots_inside_box is null or shots_inside_box >= 0) and (cards_yellow is null or cards_yellow >= 0) and (cards_red is null or cards_red >= 0) and (goals_per_match is null or goals_per_match >= 0) and (goals_against_per_match is null or goals_against_per_match >= 0) and (shots_per_match is null or shots_per_match >= 0) and (shots_on_goal_per_match is null or shots_on_goal_per_match >= 0) and (passes_per_match is null or passes_per_match >= 0) and (corners_per_match is null or corners_per_match >= 0) and (corners_against_per_match is null or corners_against_per_match >= 0) and (passes_key_per_match is null or passes_key_per_match >= 0) and (tackles_per_match is null or tackles_per_match >= 0) and (interceptions_per_match is null or interceptions_per_match >= 0) and (blocks_per_match is null or blocks_per_match >= 0) and (defensive_actions_per_match is null or defensive_actions_per_match >= 0) and (duels_per_match is null or duels_per_match >= 0) and (shots_on_goal_against_per_match is null or shots_on_goal_against_per_match >= 0) and (shots_off_target_per_match is null or shots_off_target_per_match >= 0) and (shots_blocked_per_match is null or shots_blocked_per_match >= 0) and (shots_inside_box_per_match is null or shots_inside_box_per_match >= 0) and (passes_accurate_per_match is null or passes_accurate_per_match >= 0) and (dribbles_attempts_per_match is null or dribbles_attempts_per_match >= 0) and (dribbles_success_per_match is null or dribbles_success_per_match >= 0) and (dribbles_success_pct is null or dribbles_success_pct >= 0) and (duels_won_per_match is null or duels_won_per_match >= 0) and (saves_per_match is null or saves_per_match >= 0) and (free_kicks_per_match is null or free_kicks_per_match >= 0) and (fouls_per_match is null or fouls_per_match >= 0) and (offsides_per_match is null or offsides_per_match >= 0) and (cards_yellow_per_match is null or cards_yellow_per_match >= 0) and (cards_red_per_match is null or cards_red_per_match >= 0)"
+          name: int_team_window__metrics_counts_and_rates_not_negative
+      - dbt_utils.expression_is_true:
+          expression: "matches >= 1 and wins <= matches and array_length(league_codes) >= 1"
+          name: int_team_window__metrics_wins_within_matches
+    columns:
+      - name: team_sk
+        description: "{{ doc('team_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: anchor_season_sk
+        description: "The team's featured season, the competition-season both windows are counted from."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: window_type
+        description: "this_season or last_season."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["this_season", "last_season"]
+      - name: matches
+        description: "The team's finished matches in the window, a forfeit included."
+        tests: [not_null]
+      - name: wins
+        description: "{{ doc('wins') }} In the window, a forfeit included."
+        tests: [not_null]
+      - name: league_codes
+        description: "The competitions the team played in during the window, by league_code."
+      - name: points_won
+        description: "{{ doc('points_won') }}"
+      - name: goals
+        description: "{{ doc('goals') }}"
+      - name: goals_against
+        description: "{{ doc('goals_against') }}"
+      - name: clean_sheets
+        description: "{{ doc('clean_sheets') }}"
+      - name: goals_penalty
+        description: "{{ doc('goals_penalty') }}"
+      - name: goals_own
+        description: "{{ doc('goals_own') }}"
+      - name: goals_open_play
+        description: "{{ doc('goals_open_play') }}"
+      - name: corners
+        description: "{{ doc('corners') }}"
+      - name: saves
+        description: "{{ doc('saves') }}"
+      - name: shots_inside_box
+        description: "{{ doc('shots_inside_box') }}"
+      - name: cards_yellow
+        description: "{{ doc('cards_yellow') }}"
+      - name: cards_red
+        description: "{{ doc('cards_red') }}"
+      - name: goals_per_match
+        description: "{{ doc('goals_per_match') }}"
+      - name: goals_against_per_match
+        description: "{{ doc('goals_against_per_match') }}"
+      - name: shots_per_match
+        description: "{{ doc('shots_per_match') }}"
+      - name: shots_on_goal_pct
+        description: "{{ doc('shots_on_goal_pct') }}"
+      - name: shots_inside_box_pct
+        description: "{{ doc('shots_inside_box_pct') }}"
+      - name: shots_on_goal_per_match
+        description: "{{ doc('shots_on_goal_per_match') }}"
+      - name: finishing_efficiency_pct
+        description: "{{ doc('finishing_efficiency_pct') }}"
+      - name: passes_per_match
+        description: "{{ doc('passes_per_match') }}"
+      - name: passes_accuracy_pct
+        description: "{{ doc('passes_accuracy_pct') }}"
+      - name: corners_per_match
+        description: "{{ doc('corners_per_match') }}"
+      - name: corners_against_per_match
+        description: "{{ doc('corners_against_per_match') }}"
+      - name: saves_pct
+        description: "{{ doc('saves_pct') }}"
+      - name: passes_key_per_match
+        description: "{{ doc('passes_key_per_match') }}"
+      - name: tackles_per_match
+        description: "{{ doc('tackles_per_match') }}"
+      - name: interceptions_per_match
+        description: "{{ doc('interceptions_per_match') }}"
+      - name: blocks_per_match
+        description: "{{ doc('blocks_per_match') }}"
+      - name: defensive_actions_per_match
+        description: "{{ doc('defensive_actions_per_match') }}"
+      - name: duels_per_match
+        description: "{{ doc('duels_per_match') }}"
+      - name: duels_won_pct
+        description: "{{ doc('duels_won_pct') }}"
+      - name: shots_on_goal_against_per_match
+        description: "{{ doc('shots_on_goal_against_per_match') }}"
+      - name: shots_off_target_per_match
+        description: "{{ doc('shots_off_target_per_match') }}"
+      - name: shots_blocked_per_match
+        description: "{{ doc('shots_blocked_per_match') }}"
+      - name: shots_inside_box_per_match
+        description: "{{ doc('shots_inside_box_per_match') }}"
+      - name: passes_accurate_per_match
+        description: "{{ doc('passes_accurate_per_match') }}"
+      - name: passes_share_pct
+        description: "{{ doc('passes_share_pct') }}"
+      - name: dribbles_attempts_per_match
+        description: "{{ doc('dribbles_attempts_per_match') }}"
+      - name: dribbles_success_per_match
+        description: "{{ doc('dribbles_success_per_match') }}"
+      - name: dribbles_success_pct
+        description: "{{ doc('dribbles_success_pct') }}"
+      - name: duels_won_per_match
+        description: "{{ doc('duels_won_per_match') }}"
+      - name: saves_per_match
+        description: "{{ doc('saves_per_match') }}"
+      - name: free_kicks_per_match
+        description: "{{ doc('free_kicks_per_match') }}"
+      - name: fouls_per_match
+        description: "{{ doc('fouls_per_match') }}"
+      - name: offsides_per_match
+        description: "{{ doc('offsides_per_match') }}"
+      - name: cards_yellow_per_match
+        description: "{{ doc('cards_yellow_per_match') }}"
+      - name: cards_red_per_match
+        description: "{{ doc('cards_red_per_match') }}"
+      - name: clean_sheets_pct
+        description: "{{ doc('clean_sheets_pct') }}"
+      - name: points_capture_pct
+        description: "{{ doc('points_capture_pct') }}"
+      - name: shots_share_pct
+        description: "{{ doc('shots_share_pct') }}"
+      - name: shots_on_goal_difference_per_match
+        description: "{{ doc('shots_on_goal_difference_per_match') }}"

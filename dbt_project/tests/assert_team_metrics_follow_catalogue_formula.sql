@@ -17,6 +17,12 @@
 -- depends_on: {{ ref('int_team_season__metrics') }}
 -- depends_on: {{ ref('int_team_momentum__metrics') }}
 -- depends_on: {{ ref('mart_team_window_metrics') }}
+-- depends_on: {{ ref('int_team_window__metrics') }}
+-- depends_on: {{ ref('int_team_competition_phase__metrics') }}
+-- depends_on: {{ ref('int_team__featured_season') }}
+-- depends_on: {{ ref('int_competition_season__club_windows') }}
+-- depends_on: {{ ref('int_round_names') }}
+-- depends_on: {{ ref('dim_league') }}
 
 {% set surfaces = [
     {'model': 'int_team_season__metrics_cumulative', 'rows': 'season_rows',
@@ -27,6 +33,10 @@
      'grain': ['upcoming_fixture_sk', 'team_sk'], 'windowed': false},
     {'model': 'mart_team_window_metrics', 'rows': 'window_mart_rows',
      'grain': ['fixture_sk', 'team_sk'], 'windowed': false},
+    {'model': 'int_team_window__metrics', 'rows': 'team_window_rows',
+     'grain': ['team_sk', 'window_type'], 'windowed': false},
+    {'model': 'int_team_competition_phase__metrics', 'rows': 'phase_rows',
+     'grain': ['team_sk', 'season_sk'], 'windowed': false},
 ] %}
 {% set forfeit_counted = ['points_won', 'goals', 'goals_against'] %}
 {% set member_floor = 100 %}
@@ -118,6 +128,33 @@ window_mart_rows as (
         upcoming_fixture_sk as fixture_sk,
         * except (upcoming_fixture_sk, fixture_sk)
     from momentum_rows
+),
+
+team_window_rows as (
+    select
+        w.window_type,
+        legs.*
+    from {{ ref('int_team__featured_season') }} as f
+    inner join {{ ref('int_competition_season__club_windows') }} as w
+        on f.featured_season_sk = w.anchor_season_sk
+    inner join legs
+        on f.team_sk = legs.team_sk and w.season_sk = legs.season_sk
+),
+
+phase_rows as (
+    select legs.*
+    from legs
+    inner join {{ ref('dim_league') }} as c
+        on legs.league_code = c.league_code
+    inner join {{ ref('int_round_names') }} as r
+        on
+            legs.league_code = r.league_code
+            and legs.season_api_year = r.season_api_year
+            and legs.round_name = r.round_name
+    where
+        c.entity_type = 'club'
+        and c.competition_type not in ('domestic_league', 'domestic_cup')
+        and r.round_stage_kind = 'table'
 ),
 
 {% for check in checks %}

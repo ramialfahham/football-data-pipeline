@@ -9,13 +9,28 @@
   metric with no value for a team (e.g. a player-stat coverage gap) simply yields no row. Counts are
   cast to FLOAT64, the one type an UNPIVOT column list holds.
 
+  An international club competition with a league or group phase is benchmarked over that phase
+  alone (int_team_competition_phase__metrics): its teams and its matches, without the qualifiers
+  and the knockout phase. Every other competition-season counts all its matches.
+
   Each row also carries the team's value at the same point last season (rule R6), from
   int_team_season__metrics_cumulative, chosen as int_team_profile__yoy chooses it: the previous
   season's latest match at or before this season's match count, domestic leagues only.
   Grain: (team_sk, season_sk, metric_key).
 #}
 
-with season as (
+with phase as (
+    select * from {{ ref('int_team_competition_phase__metrics') }}
+),
+
+all_matches as (
+    select m.*
+    from {{ ref('int_team_season__metrics') }} as m
+    where m.season_sk not in (select p.season_sk from phase as p)
+),
+
+season as (
+    {% for source in ['all_matches', 'phase'] %}
     select
         team_sk,
         season_sk,
@@ -59,8 +74,10 @@ with season as (
         saves_pct,
         cast(cards_yellow as float64) as cards_yellow,
         cast(cards_red as float64) as cards_red
-    from {{ ref('int_team_season__metrics') }}
+    from {{ source }}
     where season_games_played >= {{ var('team_min_matches') }}
+    {% if not loop.last %}union all{% endif %}
+    {% endfor %}
 ),
 
 competitions as (

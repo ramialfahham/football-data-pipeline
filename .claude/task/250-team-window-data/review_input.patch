@@ -1,0 +1,2300 @@
+diff --git a/.claude/task/250-team-window-data/contract.md b/.claude/task/250-team-window-data/contract.md
+new file mode 100644
+index 00000000..823990b9
+--- /dev/null
++++ b/.claude/task/250-team-window-data/contract.md
+@@ -0,0 +1,132 @@
++# Task contract — Team page redesign: the warehouse
++
++objective: >
++  Issue #250, the approved Team page design: the warehouse serves a club's season across all its
++  competitions (the six This season cards, and every comparison metric this season against the
++  whole of last season), and each international club competition's benchmarks over its league
++  or group phase only, so the page's "Compared with other teams" ranks a club among that phase's
++  teams. The page, the export and the docs are a second MR.
++
++refs: >
++  #250, the design approved in chat, 2026-11-06, on the mock in EN, DE and FI; its 5 Nov note lists
++  this data. The season rule is the Player page's, int_competition_season__club_windows. Plan and
++  model names ruled by the coordinating session on 2026-11-10.
++
++scope_paths:
++  - dbt_project/models/4_intermediate/shared/int_team__featured_season.sql
++  - dbt_project/models/4_intermediate/shared/int_team_window__metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_team_competition_phase__metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
++  - dbt_project/models/4_intermediate/shared/int_team_profile.yml
++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++  - dbt_project/models/5_marts/shared/mart_team_page_window_metrics.sql
++  - dbt_project/models/5_marts/shared/mart_team_profile.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/seeds/team_window_answer_key.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/seeds/metric_map.csv
++  - dbt_project/models/docs/metric_columns.md
++  - dbt_project/docs/layering.md
++  - dbt_project/tests/assert_team_window_answer_key.sql
++  - dbt_project/tests/assert_team_benchmark_international_pool_is_the_league_phase.sql
++  - dbt_project/tests/assert_team_page_window_rates_inputs_covered.sql
++  - dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
++  - dbt_project/docs/engineering_standards.md
++  - tests/test_no_decision_history_in_code.py
++  - scripts/generate_metric_sql.py
++  - .claude/task/250-team-window-data/contract.md
++  - .claude/task/250-team-window-data/review.md
++  - .claude/task/250-team-window-data/review_input.patch
++
++impact_map: >
++  writers: dbt only; no ingestion change. One new seed, team_window_answer_key, read by one test.
++  New models: int_team__featured_season, int_team_window__metrics,
++  int_team_competition_phase__metrics, mart_team_page_window_metrics.
++  Changed: int_team_competition_benchmark_metrics_long (an international club competition's rows
++  read the phase model), mart_team_profile (is_featured_season read from int_team__featured_season,
++  same rule, same column).
++  lineage: `dbt ls --resource-type model --select int_team_competition_benchmark_metrics_long+`
++  returns int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
++  mart_team_competition_benchmarks. `dbt ls --resource-type model --select mart_team_profile+`
++  returns mart_player_index mart_team_index mart_team_profile.
++  consumption: export_site_data.py reads mart_team_competition_benchmarks whole and mart_team_profile
++  with select *; the page reads benchmarks for the featured season only (export gate
++  `is_featured_season`), which is never an international club competition while the club has a
++  domestic league season. No export reads the new mart before the page MR.
++  ci_layer_rules: scripts/check_layer_contract.py (no mart ref from intermediate, the any_value /
++  approx_quantiles ban), scripts/check_description_hygiene.py,
++  scripts/check_relationships_coverage.py, tests/test_generate_metric_sql.py (the generated blocks).
++  deploy_order: one merge; the nightly builds the new models. No backfill.
++  blast_radius: mart_team_competition_benchmarks rows of international club competition-seasons with
++  a league or group phase (UCL, UEL, UECL, AFCCL, LIBER, CAFCL 2025, CWC 2025) change to that phase's
++  teams and matches: values, ranks, team_count and the distribution. Measured on prod, UCL 2026
++  pools 81 teams with any match against 36 in the league phase. Domestic leagues, domestic cups,
++  knockout-only competitions and national-team competitions are unchanged. 883 clubs' pages open on
++  an international competition (no domestic league season); on today's page 372 of them show a
++  comparison, and after this MR 196 do, with the phase's values: the other 176 played no league or
++  group phase match that season, which the approved design's filter also leaves without one. The
++  site deploy is manual, so a page shows this only after the next deploy. mart_team_profile's
++  is_featured_season changes only where two seasons of one year tied and the pick was arbitrary; it
++  now follows the latest match. Measured on prod, 86 teams move, none with a domestic league
++  season. Four new tables.
++
++approved_design:
++  - none: no page surface file changes; the data today's Team page reads changes as blast_radius states
++
++decisions_taken: >
++  The season of the window is the Player page's rule: this_season is every club competition-season
++  of the featured season (int_competition_season__club_windows), last_season every one of the
++  season before, leaving out those already in this_season; the window is anchored at the team's
++  featured season, the rule mart_team_profile already applies, lifted unchanged into
++  int_team__featured_season so both read one copy, with a tie-break it lacked: seasons of one year
++  stand in the order of their latest match, then by league_code: the Player page's rule for its
++  featured season (int_player__page_profile), so both pages pick the same way (ruled by the
++  coordinating session on 2026-11-10).
++  Matches, wins, goals and goals against count a forfeit as the league table does (rules R3, R7);
++  every other value is the catalogue formula, blank when any match lacks an input (R4). Matches
++  and wins are counts of results, no catalogue metrics, so the mart holds them as columns and the
++  four other cards as metric_key rows. The window model's grain (team_sk, window_type) leaves
++  room for a national team's window; this MR builds the club windows only, while the national-team
++  question is with the CPO. A league or group phase is a round whose round_stage_kind is table
++  (int_round_names); an international club competition is a club competition other than a
++  domestic league or domestic cup. mart_team_page_window_metrics is a new mart: the existing
++  mart_team_window_metrics is per fixture, and the per-competition marts would break grain.
++  Names ruled by the coordinating session. No new mechanism. Recurring cost: four small tables in
++  the nightly build, about 0.15 GB a day by dry-run, against about 129 GB a day today.
++
++decisions_reserved:
++  - What a national team's Team page shows in This season and the comparisons: with the CPO through
++    the coordinating session; not built here.
++
++done_when:
++  - dbt parse succeeds from the repo root.
++  - python scripts/generate_metric_sql.py --check passes.
++  - python scripts/check_layer_contract.py, check_description_hygiene.py and
++    check_relationships_coverage.py pass.
++  - python -m pytest tests -q is green.
++  - SQLFluff adds no violation on any changed model or test.
++  - CI's data:build:mr is green, assert_team_window_answer_key and
++    assert_team_benchmark_international_pool_is_the_league_phase included.
++  - The ci_mr tables are compared with prod read-only - mart_team_profile differs only in
++    is_featured_season for the tied teams blast_radius counts, mart_team_competition_benchmarks
++    differs only on international club competition-seasons with a table phase, and UCL 2026 has
++    36 teams there.
++
++amendments:
++  - 2026-11-10: + dbt_project/docs/layering.md, dbt_project/seeds/metric_map.csv,
++    dbt_project/models/docs/metric_columns.md — authority: standing rule that a new or changed mart
++    is listed in layering.md's mart table and in the generated metric map in the same MR
++    (scope-auditor and tests/test_metric_map.py, round 1); content: the new mart's row, the
++    benchmarks row's league or group phase, and the regenerated map.
++  - 2026-11-10: + dbt_project/tests/assert_team_page_window_rates_inputs_covered.sql,
++    dbt_project/docs/engineering_standards.md — authority: engineering_standards.md section 3.2,
++    one rate guard and range tests per window surface (analytics-engineer-reviewer, round 4);
++    content: the guard over the two new surfaces, its name in the section's list of guards, and
++    range tests on the three new tables.
++  - 2026-11-10: + dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql — authority:
++    engineering_standards.md section 3.2, one definition per rate bound by a test
++    (analytics-engineer-reviewer, round 5); content: the two new surfaces in the recompute's list,
++    each with its window rebuilt from the legs.
++  - 2026-11-10: + tests/test_no_decision_history_in_code.py — authority: the standing rule that a pin
++    moves only down, and is lowered in the change that lowers it; content: PINNED_LINES 282 to
++    281, after mart_team_profile's featured-season comment lost its issue reference.
+diff --git a/dbt_project/docs/engineering_standards.md b/dbt_project/docs/engineering_standards.md
+index cb2abfa5..eaa27954 100644
+--- a/dbt_project/docs/engineering_standards.md
++++ b/dbt_project/docs/engineering_standards.md
+@@ -310,8 +310,8 @@ gate is built and tested.
+   is built from the seed at run time, never per rate by hand; what each guard supplies is its
+   surface's window join and the entity rule (a team-feed input is present when its column is
+   non-null on the leg, a player-feed input when the game's player row exists at all). One guard
+-  per window surface: `assert_form_window_rates_inputs_covered` and
+-  `assert_season_rates_inputs_covered`. The player surfaces are held by
++  per window surface: `assert_form_window_rates_inputs_covered`,
++  `assert_season_rates_inputs_covered` and `assert_team_page_window_rates_inputs_covered`. The player surfaces are held by
+   `assert_player_metrics_follow_catalogue_formula`, which recomputes every player metric over its
+   window under the same rule.
+ 
+@@ -343,7 +343,7 @@ has not landed is a rule in progress, and the issue that owns it says so:
+ - every listed column has a description — `scripts/check_description_hygiene.py`, which checks
+   that every model, seed and source is described, that every column a model yml lists is, and
+   what a description contains; in place;
+-- the rate guard — the two generated dbt tests of §3.2, in place;
++- the rate guard — the three generated dbt tests of §3.2, in place;
+ - every documented column exists in the model's projection —
+   `scripts/check_yml_vs_projection.py`, run in `data:build:main` right after `dbt docs generate`
+   against the catalogue it writes (the one job whose catalogue is the whole warehouse; a
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index ee216982..0cd6b5a6 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -334,8 +334,9 @@ Canonical mart inventory (exhaustive) for this project:
+ | `mart_fixture_standing_context` | (fixture_sk, team_sk) | Pre-fixture standings / rank context. |
+ | `mart_head_to_head` | (team_sk, opponent_team_sk) | Head-to-head history per team pair. |
+ | `mart_roster` | (team_sk, league_code, season_api_year, player_sk) | Identity-only club squad list from `dim_player_team_season_mapping` ⋈ `dim_player`; club-scoped via `competition_types`. No per-club stat columns of its own; the Squad tab's per-player stats come from `mart_player_career` (#480), joined onto the roster at the export. |
+-| `mart_team_competition_benchmarks` | (team_sk, season_sk, metric_key) | LONG team-vs-league benchmark over the team season metrics; value · league median/mean/p25/p75 · rank (k of N) · vs-median. Composes `int_team_competition_benchmark_metrics_long` (shared per-team long form) + `int_team_competition_benchmarks` (the league distribution). |
++| `mart_team_competition_benchmarks` | (team_sk, season_sk, metric_key) | LONG team-vs-league benchmark over the team season metrics; value · league median/mean/p25/p75 · rank (k of N) · vs-median. An international club competition with a league or group phase counts that phase alone (`int_team_competition_phase__metrics`). Composes `int_team_competition_benchmark_metrics_long` (shared per-team long form) + `int_team_competition_benchmarks` (the league distribution). |
+ | `mart_player_competition_benchmarks` | (player_sk, season_sk, position_group, metric_key) | LONG player-vs-positional-peers benchmark; in-position per-90/rate value · peer median/mean/p25/p75 · rank (k of N) + percentile · vs-median. Composes `int_player_competition_benchmark_metrics_long` (shared per-player long form: the metric set, position eligibility and who enters) + `int_player_competition_benchmarks` (the positional distribution). Direction-agnostic (positional), with `rank_best_first` following the metric's direction. |
++| `mart_team_page_window_metrics` | (team_sk, metric_key) | LONG Team page season metrics: the This season cards, and each metric this season against the whole of last season. Both windows hold every club competition of the season. Composes `int_team_window__metrics`. |
+ | `mart_player_window_metrics` | (player_sk, page_tab, metric_key) | LONG Player page tab metrics: the four cards, and on the Club tab each metric this season against the whole of last season. Composes `int_player_window__metrics`. |
+ | `mart_player_squad_benchmarks` | (squad_sk, player_sk, metric_key) | LONG Squad comparison: the players with a third of the team's minutes in the window, with rank, median and count. Composes `int_player_squad_window__metrics`. |
+ | `mart_player_career` | (player_sk, team_sk, season_sk) | Player Career log: one row per player × club × competition-season (appearances/goals/assists) + player/club identity + `entity_type`. Composes `int_player_club_season__metrics` (the per-club atoms base, #480 §8.3); a mid-season transfer = two rows; national-entity rows = national appearances in covered competitions (NOT true caps); `national_appearances_total` denormalised per player. |
+diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+index db0afbe8..77c43e6c 100644
+--- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+@@ -50,6 +50,9 @@ models:
+       distribution and mart_team_competition_benchmarks ranks each team against it, so the two cannot
+       drift. Replaces the team_benchmark_metrics() macro. Grain: (team_sk, season_sk, metric_key).
+ 
++      An international club competition with a league or group phase is benchmarked over that
++      phase alone, from int_team_competition_phase__metrics.
++
+       {{ doc('ranking_rules') }}
+     config:
+       tags: ["intermediate", "football", "benchmark"]
+@@ -210,3 +213,154 @@ models:
+       - name: peer_p75
+         description: "75th-percentile peer value (distribution spread)."
+         tests: [not_null]
++  - name: int_team_competition_phase__metrics
++    description: >
++      An international club competition's season over its league or group phase only: every team
++      with a match in a round whose round_stage_kind is table, and its metrics over those matches,
++      each by its metric_catalogue formula. Qualifying rounds, play-offs and the knockout phase are
++      left out. An international club competition is a club competition other than a domestic
++      league or domestic cup. Grain: (team_sk, season_sk).
++    config:
++      tags: ["intermediate", "football", "benchmark"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [team_sk, season_sk]
++      - dbt_utils.expression_is_true:
++          expression: "(shots_on_goal_pct is null or shots_on_goal_pct between 0 and 1) and (shots_inside_box_pct is null or shots_inside_box_pct between 0 and 1) and (finishing_efficiency_pct is null or finishing_efficiency_pct between 0 and 1) and (passes_accuracy_pct is null or passes_accuracy_pct between 0 and 1) and (saves_pct is null or saves_pct between 0 and 1) and (duels_won_pct is null or duels_won_pct between 0 and 1) and (passes_share_pct is null or passes_share_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (shots_share_pct is null or shots_share_pct between 0 and 1)"
++          name: int_team_competition_phase__metrics_shares_between_0_and_1
++      - dbt_utils.expression_is_true:
++          expression: "(points_won is null or points_won >= 0) and (goals is null or goals >= 0) and (goals_against is null or goals_against >= 0) and (clean_sheets is null or clean_sheets >= 0) and (goals_penalty is null or goals_penalty >= 0) and (goals_own is null or goals_own >= 0) and (goals_open_play is null or goals_open_play >= 0) and (corners is null or corners >= 0) and (saves is null or saves >= 0) and (shots_inside_box is null or shots_inside_box >= 0) and (cards_yellow is null or cards_yellow >= 0) and (cards_red is null or cards_red >= 0) and (goals_per_match is null or goals_per_match >= 0) and (goals_against_per_match is null or goals_against_per_match >= 0) and (shots_per_match is null or shots_per_match >= 0) and (shots_on_goal_per_match is null or shots_on_goal_per_match >= 0) and (passes_per_match is null or passes_per_match >= 0) and (corners_per_match is null or corners_per_match >= 0) and (corners_against_per_match is null or corners_against_per_match >= 0) and (passes_key_per_match is null or passes_key_per_match >= 0) and (tackles_per_match is null or tackles_per_match >= 0) and (interceptions_per_match is null or interceptions_per_match >= 0) and (blocks_per_match is null or blocks_per_match >= 0) and (defensive_actions_per_match is null or defensive_actions_per_match >= 0) and (duels_per_match is null or duels_per_match >= 0) and (shots_on_goal_against_per_match is null or shots_on_goal_against_per_match >= 0) and (shots_off_target_per_match is null or shots_off_target_per_match >= 0) and (shots_blocked_per_match is null or shots_blocked_per_match >= 0) and (shots_inside_box_per_match is null or shots_inside_box_per_match >= 0) and (passes_accurate_per_match is null or passes_accurate_per_match >= 0) and (dribbles_attempts_per_match is null or dribbles_attempts_per_match >= 0) and (dribbles_success_per_match is null or dribbles_success_per_match >= 0) and (dribbles_success_pct is null or dribbles_success_pct >= 0) and (duels_won_per_match is null or duels_won_per_match >= 0) and (saves_per_match is null or saves_per_match >= 0) and (free_kicks_per_match is null or free_kicks_per_match >= 0) and (fouls_per_match is null or fouls_per_match >= 0) and (offsides_per_match is null or offsides_per_match >= 0) and (cards_yellow_per_match is null or cards_yellow_per_match >= 0) and (cards_red_per_match is null or cards_red_per_match >= 0)"
++          name: int_team_competition_phase__metrics_counts_and_rates_not_negative
++    columns:
++      - name: team_sk
++        description: "{{ doc('team_sk') }}"
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
++      - name: season_sk
++        description: "{{ doc('season_sk') }}"
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
++      - name: league_sk
++        description: "{{ doc('league_sk') }}"
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_league')
++              field: league_sk
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: season_api_year
++        description: "{{ doc('season_api_year') }}"
++        tests: [not_null]
++      - name: season_games_played
++        description: "The team's finished matches in the league or group phase, a forfeit included."
++        tests: [not_null]
++      - name: points_won
++        description: "{{ doc('points_won') }}"
++      - name: goals
++        description: "{{ doc('goals') }}"
++      - name: goals_against
++        description: "{{ doc('goals_against') }}"
++      - name: clean_sheets
++        description: "{{ doc('clean_sheets') }}"
++      - name: goals_penalty
++        description: "{{ doc('goals_penalty') }}"
++      - name: goals_own
++        description: "{{ doc('goals_own') }}"
++      - name: goals_open_play
++        description: "{{ doc('goals_open_play') }}"
++      - name: corners
++        description: "{{ doc('corners') }}"
++      - name: saves
++        description: "{{ doc('saves') }}"
++      - name: shots_inside_box
++        description: "{{ doc('shots_inside_box') }}"
++      - name: cards_yellow
++        description: "{{ doc('cards_yellow') }}"
++      - name: cards_red
++        description: "{{ doc('cards_red') }}"
++      - name: goals_per_match
++        description: "{{ doc('goals_per_match') }}"
++      - name: goals_against_per_match
++        description: "{{ doc('goals_against_per_match') }}"
++      - name: shots_per_match
++        description: "{{ doc('shots_per_match') }}"
++      - name: shots_on_goal_pct
++        description: "{{ doc('shots_on_goal_pct') }}"
++      - name: shots_inside_box_pct
++        description: "{{ doc('shots_inside_box_pct') }}"
++      - name: shots_on_goal_per_match
++        description: "{{ doc('shots_on_goal_per_match') }}"
++      - name: finishing_efficiency_pct
++        description: "{{ doc('finishing_efficiency_pct') }}"
++      - name: passes_per_match
++        description: "{{ doc('passes_per_match') }}"
++      - name: passes_accuracy_pct
++        description: "{{ doc('passes_accuracy_pct') }}"
++      - name: corners_per_match
++        description: "{{ doc('corners_per_match') }}"
++      - name: corners_against_per_match
++        description: "{{ doc('corners_against_per_match') }}"
++      - name: saves_pct
++        description: "{{ doc('saves_pct') }}"
++      - name: passes_key_per_match
++        description: "{{ doc('passes_key_per_match') }}"
++      - name: tackles_per_match
++        description: "{{ doc('tackles_per_match') }}"
++      - name: interceptions_per_match
++        description: "{{ doc('interceptions_per_match') }}"
++      - name: blocks_per_match
++        description: "{{ doc('blocks_per_match') }}"
++      - name: defensive_actions_per_match
++        description: "{{ doc('defensive_actions_per_match') }}"
++      - name: duels_per_match
++        description: "{{ doc('duels_per_match') }}"
++      - name: duels_won_pct
++        description: "{{ doc('duels_won_pct') }}"
++      - name: shots_on_goal_against_per_match
++        description: "{{ doc('shots_on_goal_against_per_match') }}"
++      - name: shots_off_target_per_match
++        description: "{{ doc('shots_off_target_per_match') }}"
++      - name: shots_blocked_per_match
++        description: "{{ doc('shots_blocked_per_match') }}"
++      - name: shots_inside_box_per_match
++        description: "{{ doc('shots_inside_box_per_match') }}"
++      - name: passes_accurate_per_match
++        description: "{{ doc('passes_accurate_per_match') }}"
++      - name: passes_share_pct
++        description: "{{ doc('passes_share_pct') }}"
++      - name: dribbles_attempts_per_match
++        description: "{{ doc('dribbles_attempts_per_match') }}"
++      - name: dribbles_success_per_match
++        description: "{{ doc('dribbles_success_per_match') }}"
++      - name: dribbles_success_pct
++        description: "{{ doc('dribbles_success_pct') }}"
++      - name: duels_won_per_match
++        description: "{{ doc('duels_won_per_match') }}"
++      - name: saves_per_match
++        description: "{{ doc('saves_per_match') }}"
++      - name: free_kicks_per_match
++        description: "{{ doc('free_kicks_per_match') }}"
++      - name: fouls_per_match
++        description: "{{ doc('fouls_per_match') }}"
++      - name: offsides_per_match
++        description: "{{ doc('offsides_per_match') }}"
++      - name: cards_yellow_per_match
++        description: "{{ doc('cards_yellow_per_match') }}"
++      - name: cards_red_per_match
++        description: "{{ doc('cards_red_per_match') }}"
++      - name: clean_sheets_pct
++        description: "{{ doc('clean_sheets_pct') }}"
++      - name: points_capture_pct
++        description: "{{ doc('points_capture_pct') }}"
++      - name: shots_share_pct
++        description: "{{ doc('shots_share_pct') }}"
++      - name: shots_on_goal_difference_per_match
++        description: "{{ doc('shots_on_goal_difference_per_match') }}"
+diff --git a/dbt_project/models/4_intermediate/shared/int_team__featured_season.sql b/dbt_project/models/4_intermediate/shared/int_team__featured_season.sql
+new file mode 100644
+index 00000000..6ef3cfdf
+--- /dev/null
++++ b/dbt_project/models/4_intermediate/shared/int_team__featured_season.sql
+@@ -0,0 +1,53 @@
++{#
++  The season a team's page opens on: its most recent domestic league season, or, for a team with
++  no league season, its most recent season of any type. Two seasons of one year go to the one with
++  the latest match, then by league_code, as the Player page picks its featured season
++  (int_player__page_profile). mart_team_profile flags it and the page's season window is anchored
++  at it, so both read this one rule.
++
++  Grain: (team_sk).
++#}
++
++with seasons as (
++    select
++        team_sk,
++        season_sk,
++        league_code,
++        season_api_year
++    from {{ ref('int_team_season__metrics') }}
++),
++
++latest_matches as (
++    select
++        team_sk,
++        season_sk,
++        max(kickoff_datetime) as latest_match_at
++    from {{ ref('int_legs__team_match') }}
++    group by team_sk, season_sk
++),
++
++competitions as (
++    select
++        league_code,
++        competition_type
++    from {{ ref('dim_league') }}
++)
++
++select
++    s.team_sk,
++    s.season_sk as featured_season_sk,
++    s.league_code as featured_league_code,
++    s.season_api_year as featured_season_api_year
++from seasons as s
++left join competitions as c
++    on s.league_code = c.league_code
++left join latest_matches as m
++    on s.team_sk = m.team_sk and s.season_sk = m.season_sk
++qualify row_number() over (
++    partition by s.team_sk
++    order by
++        case when c.competition_type = 'domestic_league' then 0 else 1 end asc,
++        s.season_api_year desc,
++        m.latest_match_at desc,
++        s.league_code asc
++) = 1
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
+index 2646ca11..7bdb3e37 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
+@@ -9,13 +9,28 @@
+   metric with no value for a team (e.g. a player-stat coverage gap) simply yields no row. Counts are
+   cast to FLOAT64, the one type an UNPIVOT column list holds.
+ 
++  An international club competition with a league or group phase is benchmarked over that phase
++  alone (int_team_competition_phase__metrics): its teams and its matches, without the qualifiers
++  and the knockout phase. Every other competition-season counts all its matches.
++
+   Each row also carries the team's value at the same point last season (rule R6), from
+   int_team_season__metrics_cumulative, chosen as int_team_profile__yoy chooses it: the previous
+   season's latest match at or before this season's match count, domestic leagues only.
+   Grain: (team_sk, season_sk, metric_key).
+ #}
+ 
+-with season as (
++with phase as (
++    select * from {{ ref('int_team_competition_phase__metrics') }}
++),
++
++all_matches as (
++    select m.*
++    from {{ ref('int_team_season__metrics') }} as m
++    where m.season_sk not in (select p.season_sk from phase as p)
++),
++
++season as (
++    {% for source in ['all_matches', 'phase'] %}
+     select
+         team_sk,
+         season_sk,
+@@ -59,8 +74,10 @@ with season as (
+         saves_pct,
+         cast(cards_yellow as float64) as cards_yellow,
+         cast(cards_red as float64) as cards_red
+-    from {{ ref('int_team_season__metrics') }}
++    from {{ source }}
+     where season_games_played >= {{ var('team_min_matches') }}
++    {% if not loop.last %}union all{% endif %}
++    {% endfor %}
+ ),
+ 
+ competitions as (
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_competition_phase__metrics.sql b/dbt_project/models/4_intermediate/shared/int_team_competition_phase__metrics.sql
+new file mode 100644
+index 00000000..7e5190e7
+--- /dev/null
++++ b/dbt_project/models/4_intermediate/shared/int_team_competition_phase__metrics.sql
+@@ -0,0 +1,415 @@
++{#
++  An international club competition's season over its league or group phase only: every team with
++  a match in a round whose round_stage_kind is table (int_round_names), and its metrics over those
++  matches. Qualifying rounds, play-offs and the knockout phase are left out, so the competition's
++  benchmarks rank a club among the phase's teams. An international club competition is a club
++  competition other than a domestic league or domestic cup; one with no table round has no row.
++
++  Every metric is its catalogue formula over the phase's matches, written by
++  scripts/generate_metric_sql.py by the rules in models/docs/metric_rules.md.
++
++  Grain: (team_sk, season_sk).
++#}
++
++with competitions as (
++    select league_code
++    from {{ ref('dim_league') }}
++    where
++        entity_type = 'club'
++        and competition_type not in ('domestic_league', 'domestic_cup')
++),
++
++table_rounds as (
++    select
++        league_code,
++        season_api_year,
++        round_name
++    from {{ ref('int_round_names') }}
++    where round_stage_kind = 'table'
++),
++
++phase_rows as (
++    select
++        legs.*,
++        p.passes_key,
++        p.tackles,
++        p.interceptions,
++        p.blocks,
++        p.duels,
++        p.duels_won,
++        p.dribbles,
++        p.dribbles_success
++    from {{ ref('int_legs__team_match') }} as legs
++    inner join competitions as c
++        on legs.league_code = c.league_code
++    inner join table_rounds as r
++        on
++            legs.league_code = r.league_code
++            and legs.season_api_year = r.season_api_year
++            and legs.round_name = r.round_name
++    left join {{ ref('int_legs__team_from_players') }} as p
++        on
++            legs.fixture_sk = p.fixture_sk
++            and legs.team_sk = p.team_sk
++)
++
++select
++    team_sk,
++    season_sk,
++    league_sk,
++    league_code,
++    season_api_year,
++    count(*) as season_games_played,
++    -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
++    if(
++        logical_and((case result when 'W' then 3 when 'D' then 1 else 0 end) is not null),
++        sum(case result when 'W' then 3 when 'D' then 1 else 0 end),
++        null
++    ) + if(
++        logical_and(is_table_shootout_win is not null),
++        countif(is_table_shootout_win),
++        null
++    ) as points_won,
++    if(logical_and(goals is not null), sum(goals), null) as goals,
++    if(logical_and(goals_against is not null), sum(goals_against), null) as goals_against,
++    if(
++        logical_and(is_awarded_result or (goals_against = 0) is not null),
++        countif(not is_awarded_result and (goals_against = 0)),
++        null
++    ) as clean_sheets,
++    if(
++        logical_and(is_awarded_result or goals_penalty is not null),
++        sum(if(is_awarded_result, null, goals_penalty)),
++        null
++    ) as goals_penalty,
++    if(
++        logical_and(is_awarded_result or goals_own is not null),
++        sum(if(is_awarded_result, null, goals_own)),
++        null
++    ) as goals_own,
++    if(
++        logical_and(is_awarded_result or (goals - goals_penalty - goals_own) is not null),
++        sum(if(is_awarded_result, null, goals - goals_penalty - goals_own)),
++        null
++    ) as goals_open_play,
++    if(
++        logical_and(is_awarded_result or corners is not null),
++        sum(if(is_awarded_result, null, corners)),
++        null
++    ) as corners,
++    if(logical_and(is_awarded_result or saves is not null), sum(if(is_awarded_result, null, saves)), null) as saves,
++    if(
++        logical_and(is_awarded_result or shots_inside_box is not null),
++        sum(if(is_awarded_result, null, shots_inside_box)),
++        null
++    ) as shots_inside_box,
++    if(
++        logical_and(is_awarded_result or cards_yellow is not null),
++        sum(if(is_awarded_result, null, cards_yellow)),
++        null
++    ) as cards_yellow,
++    if(
++        logical_and(is_awarded_result or cards_red is not null),
++        sum(if(is_awarded_result, null, cards_red)),
++        null
++    ) as cards_red,
++    safe_divide(
++        if(logical_and(is_awarded_result or goals is not null), sum(if(is_awarded_result, null, goals)), null),
++        countif(not is_awarded_result)
++    ) as goals_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or goals_against is not null),
++            sum(if(is_awarded_result, null, goals_against)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as goals_against_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or shots is not null), sum(if(is_awarded_result, null, shots)), null),
++        countif(not is_awarded_result)
++    ) as shots_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_on_target is not null),
++            sum(if(is_awarded_result, null, shots_on_target)),
++            null
++        ),
++        if(
++            logical_and(is_awarded_result or shots is not null),
++            sum(if(is_awarded_result, null, shots)),
++            null
++        )
++    ) as shots_on_goal_pct,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_inside_box is not null),
++            sum(if(is_awarded_result, null, shots_inside_box)),
++            null
++        ),
++        if(
++            logical_and(is_awarded_result or shots is not null),
++            sum(if(is_awarded_result, null, shots)),
++            null
++        )
++    ) as shots_inside_box_pct,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_on_target is not null),
++            sum(if(is_awarded_result, null, shots_on_target)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as shots_on_goal_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or (goals - goals_penalty - goals_own) is not null),
++            sum(if(is_awarded_result, null, goals - goals_penalty - goals_own)),
++            null
++        ),
++        if(
++            logical_and(is_awarded_result or shots_on_target is not null),
++            sum(if(is_awarded_result, null, shots_on_target)),
++            null
++        )
++    ) as finishing_efficiency_pct,
++    safe_divide(
++        if(logical_and(is_awarded_result or passes is not null), sum(if(is_awarded_result, null, passes)), null),
++        countif(not is_awarded_result)
++    ) as passes_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or passes_accurate is not null),
++            sum(if(is_awarded_result, null, passes_accurate)),
++            null
++        ),
++        if(
++            logical_and(is_awarded_result or passes is not null),
++            sum(if(is_awarded_result, null, passes)),
++            null
++        )
++    ) as passes_accuracy_pct,
++    safe_divide(
++        if(logical_and(is_awarded_result or corners is not null), sum(if(is_awarded_result, null, corners)), null),
++        countif(not is_awarded_result)
++    ) as corners_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or corners_against is not null),
++            sum(if(is_awarded_result, null, corners_against)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as corners_against_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or saves is not null),
++            sum(if(is_awarded_result, null, saves)),
++            null
++        ),
++        if(
++            logical_and(is_awarded_result or (saves + goals_against - goals_own_against) is not null),
++            sum(if(is_awarded_result, null, saves + goals_against - goals_own_against)),
++            null
++        )
++    ) as saves_pct,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or passes_key is not null),
++            sum(if(is_awarded_result, null, passes_key)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as passes_key_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or tackles is not null), sum(if(is_awarded_result, null, tackles)), null),
++        countif(not is_awarded_result)
++    ) as tackles_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or interceptions is not null),
++            sum(if(is_awarded_result, null, interceptions)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as interceptions_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or blocks is not null), sum(if(is_awarded_result, null, blocks)), null),
++        countif(not is_awarded_result)
++    ) as blocks_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or (tackles + interceptions + blocks) is not null),
++            sum(if(is_awarded_result, null, tackles + interceptions + blocks)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as defensive_actions_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or duels is not null), sum(if(is_awarded_result, null, duels)), null),
++        countif(not is_awarded_result)
++    ) as duels_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or duels_won is not null), sum(if(is_awarded_result, null, duels_won)), null),
++        if(logical_and(is_awarded_result or duels is not null), sum(if(is_awarded_result, null, duels)), null)
++    ) as duels_won_pct,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_on_target_against is not null),
++            sum(if(is_awarded_result, null, shots_on_target_against)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as shots_on_goal_against_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_off_target is not null),
++            sum(if(is_awarded_result, null, shots_off_target)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as shots_off_target_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_blocked is not null),
++            sum(if(is_awarded_result, null, shots_blocked)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as shots_blocked_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_inside_box is not null),
++            sum(if(is_awarded_result, null, shots_inside_box)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as shots_inside_box_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or passes_accurate is not null),
++            sum(if(is_awarded_result, null, passes_accurate)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as passes_accurate_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or passes is not null),
++            sum(if(is_awarded_result, null, passes)),
++            null
++        ),
++        if(
++            logical_and(is_awarded_result or (passes + passes_against) is not null),
++            sum(if(is_awarded_result, null, passes + passes_against)),
++            null
++        )
++    ) as passes_share_pct,
++    safe_divide(
++        if(logical_and(is_awarded_result or dribbles is not null), sum(if(is_awarded_result, null, dribbles)), null),
++        countif(not is_awarded_result)
++    ) as dribbles_attempts_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or dribbles_success is not null),
++            sum(if(is_awarded_result, null, dribbles_success)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as dribbles_success_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or dribbles_success is not null),
++            sum(if(is_awarded_result, null, dribbles_success)),
++            null
++        ),
++        if(
++            logical_and(is_awarded_result or dribbles is not null),
++            sum(if(is_awarded_result, null, dribbles)),
++            null
++        )
++    ) as dribbles_success_pct,
++    safe_divide(
++        if(logical_and(is_awarded_result or duels_won is not null), sum(if(is_awarded_result, null, duels_won)), null),
++        countif(not is_awarded_result)
++    ) as duels_won_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or saves is not null), sum(if(is_awarded_result, null, saves)), null),
++        countif(not is_awarded_result)
++    ) as saves_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or free_kicks is not null),
++            sum(if(is_awarded_result, null, free_kicks)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as free_kicks_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or fouls is not null), sum(if(is_awarded_result, null, fouls)), null),
++        countif(not is_awarded_result)
++    ) as fouls_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or offsides is not null), sum(if(is_awarded_result, null, offsides)), null),
++        countif(not is_awarded_result)
++    ) as offsides_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or cards_yellow is not null),
++            sum(if(is_awarded_result, null, cards_yellow)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as cards_yellow_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or cards_red is not null), sum(if(is_awarded_result, null, cards_red)), null),
++        countif(not is_awarded_result)
++    ) as cards_red_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or (goals_against = 0) is not null),
++            countif(not is_awarded_result and (goals_against = 0)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as clean_sheets_pct,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or (case result when 'W' then 3 when 'D' then 1 else 0 end) is not null),
++            sum(if(is_awarded_result, null, case result when 'W' then 3 when 'D' then 1 else 0 end)),
++            null
++        ) + if(
++            logical_and(is_awarded_result or is_table_shootout_win is not null),
++            countif(not is_awarded_result and is_table_shootout_win),
++            null
++        ),
++        3 * countif(not is_awarded_result)
++    ) as points_capture_pct,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots is not null),
++            sum(if(is_awarded_result, null, shots)),
++            null
++        ),
++        if(
++            logical_and(is_awarded_result or (shots + shots_against) is not null),
++            sum(if(is_awarded_result, null, shots + shots_against)),
++            null
++        )
++    ) as shots_share_pct,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or (shots_on_target - shots_on_target_against) is not null),
++            sum(if(is_awarded_result, null, shots_on_target - shots_on_target_against)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as shots_on_goal_difference_per_match
++    -- end of generated metric sql
++from phase_rows
++group by
++    team_sk,
++    season_sk,
++    league_sk,
++    league_code,
++    season_api_year
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_profile.yml b/dbt_project/models/4_intermediate/shared/int_team_profile.yml
+index 253cdd2f..2ed63a17 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_profile.yml
++++ b/dbt_project/models/4_intermediate/shared/int_team_profile.yml
+@@ -222,3 +222,182 @@ models:
+         description: "{{ doc('clean_sheet_run') }}"
+       - name: scoring_run
+         description: "{{ doc('scoring_run') }}"
++  - name: int_team__featured_season
++    description: >
++      The season a team's page opens on: its most recent domestic league season, or, for a team
++      with no league season, its most recent season of any type. Grain: (team_sk).
++    config:
++      tags: ["intermediate", "football", "team"]
++    columns:
++      - name: team_sk
++        description: "{{ doc('team_sk') }}"
++        tests:
++          - not_null
++          - unique
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
++      - name: featured_season_sk
++        description: "The competition-season the team's page opens on."
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
++      - name: featured_league_code
++        description: "The competition of the featured season."
++        tests: [not_null]
++      - name: featured_season_api_year
++        description: "The provider's season year of the featured season."
++        tests: [not_null]
++  - name: int_team_window__metrics
++    description: >
++      A team's metrics over each season window of its page, each by its metric_catalogue formula
++      over the window's matches. this_season is every club competition of the featured season,
++      last_season every one of the season before, by the Player page's season rule. A national team
++      has no club window and no row. Grain: (team_sk, window_type).
++    config:
++      tags: ["intermediate", "football", "team"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [team_sk, window_type]
++      - dbt_utils.expression_is_true:
++          expression: "(shots_on_goal_pct is null or shots_on_goal_pct between 0 and 1) and (shots_inside_box_pct is null or shots_inside_box_pct between 0 and 1) and (finishing_efficiency_pct is null or finishing_efficiency_pct between 0 and 1) and (passes_accuracy_pct is null or passes_accuracy_pct between 0 and 1) and (saves_pct is null or saves_pct between 0 and 1) and (duels_won_pct is null or duels_won_pct between 0 and 1) and (passes_share_pct is null or passes_share_pct between 0 and 1) and (clean_sheets_pct is null or clean_sheets_pct between 0 and 1) and (points_capture_pct is null or points_capture_pct between 0 and 1) and (shots_share_pct is null or shots_share_pct between 0 and 1)"
++          name: int_team_window__metrics_shares_between_0_and_1
++      - dbt_utils.expression_is_true:
++          expression: "(points_won is null or points_won >= 0) and (goals is null or goals >= 0) and (goals_against is null or goals_against >= 0) and (clean_sheets is null or clean_sheets >= 0) and (goals_penalty is null or goals_penalty >= 0) and (goals_own is null or goals_own >= 0) and (goals_open_play is null or goals_open_play >= 0) and (corners is null or corners >= 0) and (saves is null or saves >= 0) and (shots_inside_box is null or shots_inside_box >= 0) and (cards_yellow is null or cards_yellow >= 0) and (cards_red is null or cards_red >= 0) and (goals_per_match is null or goals_per_match >= 0) and (goals_against_per_match is null or goals_against_per_match >= 0) and (shots_per_match is null or shots_per_match >= 0) and (shots_on_goal_per_match is null or shots_on_goal_per_match >= 0) and (passes_per_match is null or passes_per_match >= 0) and (corners_per_match is null or corners_per_match >= 0) and (corners_against_per_match is null or corners_against_per_match >= 0) and (passes_key_per_match is null or passes_key_per_match >= 0) and (tackles_per_match is null or tackles_per_match >= 0) and (interceptions_per_match is null or interceptions_per_match >= 0) and (blocks_per_match is null or blocks_per_match >= 0) and (defensive_actions_per_match is null or defensive_actions_per_match >= 0) and (duels_per_match is null or duels_per_match >= 0) and (shots_on_goal_against_per_match is null or shots_on_goal_against_per_match >= 0) and (shots_off_target_per_match is null or shots_off_target_per_match >= 0) and (shots_blocked_per_match is null or shots_blocked_per_match >= 0) and (shots_inside_box_per_match is null or shots_inside_box_per_match >= 0) and (passes_accurate_per_match is null or passes_accurate_per_match >= 0) and (dribbles_attempts_per_match is null or dribbles_attempts_per_match >= 0) and (dribbles_success_per_match is null or dribbles_success_per_match >= 0) and (dribbles_success_pct is null or dribbles_success_pct >= 0) and (duels_won_per_match is null or duels_won_per_match >= 0) and (saves_per_match is null or saves_per_match >= 0) and (free_kicks_per_match is null or free_kicks_per_match >= 0) and (fouls_per_match is null or fouls_per_match >= 0) and (offsides_per_match is null or offsides_per_match >= 0) and (cards_yellow_per_match is null or cards_yellow_per_match >= 0) and (cards_red_per_match is null or cards_red_per_match >= 0)"
++          name: int_team_window__metrics_counts_and_rates_not_negative
++      - dbt_utils.expression_is_true:
++          expression: "matches >= 1 and wins <= matches and array_length(league_codes) >= 1"
++          name: int_team_window__metrics_wins_within_matches
++    columns:
++      - name: team_sk
++        description: "{{ doc('team_sk') }}"
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
++      - name: anchor_season_sk
++        description: "The team's featured season, the competition-season both windows are counted from."
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
++      - name: window_type
++        description: "this_season or last_season."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["this_season", "last_season"]
++      - name: matches
++        description: "The team's finished matches in the window, a forfeit included."
++        tests: [not_null]
++      - name: wins
++        description: "{{ doc('wins') }} In the window, a forfeit included."
++        tests: [not_null]
++      - name: league_codes
++        description: "The competitions the team played in during the window, by league_code."
++      - name: points_won
++        description: "{{ doc('points_won') }}"
++      - name: goals
++        description: "{{ doc('goals') }}"
++      - name: goals_against
++        description: "{{ doc('goals_against') }}"
++      - name: clean_sheets
++        description: "{{ doc('clean_sheets') }}"
++      - name: goals_penalty
++        description: "{{ doc('goals_penalty') }}"
++      - name: goals_own
++        description: "{{ doc('goals_own') }}"
++      - name: goals_open_play
++        description: "{{ doc('goals_open_play') }}"
++      - name: corners
++        description: "{{ doc('corners') }}"
++      - name: saves
++        description: "{{ doc('saves') }}"
++      - name: shots_inside_box
++        description: "{{ doc('shots_inside_box') }}"
++      - name: cards_yellow
++        description: "{{ doc('cards_yellow') }}"
++      - name: cards_red
++        description: "{{ doc('cards_red') }}"
++      - name: goals_per_match
++        description: "{{ doc('goals_per_match') }}"
++      - name: goals_against_per_match
++        description: "{{ doc('goals_against_per_match') }}"
++      - name: shots_per_match
++        description: "{{ doc('shots_per_match') }}"
++      - name: shots_on_goal_pct
++        description: "{{ doc('shots_on_goal_pct') }}"
++      - name: shots_inside_box_pct
++        description: "{{ doc('shots_inside_box_pct') }}"
++      - name: shots_on_goal_per_match
++        description: "{{ doc('shots_on_goal_per_match') }}"
++      - name: finishing_efficiency_pct
++        description: "{{ doc('finishing_efficiency_pct') }}"
++      - name: passes_per_match
++        description: "{{ doc('passes_per_match') }}"
++      - name: passes_accuracy_pct
++        description: "{{ doc('passes_accuracy_pct') }}"
++      - name: corners_per_match
++        description: "{{ doc('corners_per_match') }}"
++      - name: corners_against_per_match
++        description: "{{ doc('corners_against_per_match') }}"
++      - name: saves_pct
++        description: "{{ doc('saves_pct') }}"
++      - name: passes_key_per_match
++        description: "{{ doc('passes_key_per_match') }}"
++      - name: tackles_per_match
++        description: "{{ doc('tackles_per_match') }}"
++      - name: interceptions_per_match
++        description: "{{ doc('interceptions_per_match') }}"
++      - name: blocks_per_match
++        description: "{{ doc('blocks_per_match') }}"
++      - name: defensive_actions_per_match
++        description: "{{ doc('defensive_actions_per_match') }}"
++      - name: duels_per_match
++        description: "{{ doc('duels_per_match') }}"
++      - name: duels_won_pct
++        description: "{{ doc('duels_won_pct') }}"
++      - name: shots_on_goal_against_per_match
++        description: "{{ doc('shots_on_goal_against_per_match') }}"
++      - name: shots_off_target_per_match
++        description: "{{ doc('shots_off_target_per_match') }}"
++      - name: shots_blocked_per_match
++        description: "{{ doc('shots_blocked_per_match') }}"
++      - name: shots_inside_box_per_match
++        description: "{{ doc('shots_inside_box_per_match') }}"
++      - name: passes_accurate_per_match
++        description: "{{ doc('passes_accurate_per_match') }}"
++      - name: passes_share_pct
++        description: "{{ doc('passes_share_pct') }}"
++      - name: dribbles_attempts_per_match
++        description: "{{ doc('dribbles_attempts_per_match') }}"
++      - name: dribbles_success_per_match
++        description: "{{ doc('dribbles_success_per_match') }}"
++      - name: dribbles_success_pct
++        description: "{{ doc('dribbles_success_pct') }}"
++      - name: duels_won_per_match
++        description: "{{ doc('duels_won_per_match') }}"
++      - name: saves_per_match
++        description: "{{ doc('saves_per_match') }}"
++      - name: free_kicks_per_match
++        description: "{{ doc('free_kicks_per_match') }}"
++      - name: fouls_per_match
++        description: "{{ doc('fouls_per_match') }}"
++      - name: offsides_per_match
++        description: "{{ doc('offsides_per_match') }}"
++      - name: cards_yellow_per_match
++        description: "{{ doc('cards_yellow_per_match') }}"
++      - name: cards_red_per_match
++        description: "{{ doc('cards_red_per_match') }}"
++      - name: clean_sheets_pct
++        description: "{{ doc('clean_sheets_pct') }}"
++      - name: points_capture_pct
++        description: "{{ doc('points_capture_pct') }}"
++      - name: shots_share_pct
++        description: "{{ doc('shots_share_pct') }}"
++      - name: shots_on_goal_difference_per_match
++        description: "{{ doc('shots_on_goal_difference_per_match') }}"
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_window__metrics.sql b/dbt_project/models/4_intermediate/shared/int_team_window__metrics.sql
+new file mode 100644
+index 00000000..994a6265
+--- /dev/null
++++ b/dbt_project/models/4_intermediate/shared/int_team_window__metrics.sql
+@@ -0,0 +1,404 @@
++{#
++  A team's metrics over each season window of its page: every club competition of this season and
++  of last season, by the Player page's rule (int_competition_season__club_windows) anchored at the
++  team's featured season. Every metric is its catalogue formula over the window's matches, written
++  by scripts/generate_metric_sql.py by the rules in models/docs/metric_rules.md; the match and win
++  counts are hand-written and count a forfeit as the league table does. A window with no match of
++  the team has no row.
++
++  Grain: (team_sk, window_type).
++#}
++
++with windows as (
++    select
++        f.team_sk,
++        f.featured_season_sk as anchor_season_sk,
++        w.window_type,
++        w.season_sk
++    from {{ ref('int_team__featured_season') }} as f
++    inner join {{ ref('int_competition_season__club_windows') }} as w
++        on f.featured_season_sk = w.anchor_season_sk
++),
++
++window_rows as (
++    select
++        legs.*,
++        w.anchor_season_sk,
++        w.window_type,
++        p.passes_key,
++        p.tackles,
++        p.interceptions,
++        p.blocks,
++        p.duels,
++        p.duels_won,
++        p.dribbles,
++        p.dribbles_success
++    from windows as w
++    inner join {{ ref('int_legs__team_match') }} as legs
++        on
++            w.team_sk = legs.team_sk
++            and w.season_sk = legs.season_sk
++    left join {{ ref('int_legs__team_from_players') }} as p
++        on
++            legs.fixture_sk = p.fixture_sk
++            and legs.team_sk = p.team_sk
++)
++
++select
++    team_sk,
++    anchor_season_sk,
++    window_type,
++    count(*) as matches,
++    countif(result = 'W') as wins,
++    array_agg(distinct league_code order by league_code) as league_codes,
++    -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
++    if(
++        logical_and((case result when 'W' then 3 when 'D' then 1 else 0 end) is not null),
++        sum(case result when 'W' then 3 when 'D' then 1 else 0 end),
++        null
++    ) + if(
++        logical_and(is_table_shootout_win is not null),
++        countif(is_table_shootout_win),
++        null
++    ) as points_won,
++    if(logical_and(goals is not null), sum(goals), null) as goals,
++    if(logical_and(goals_against is not null), sum(goals_against), null) as goals_against,
++    if(
++        logical_and(is_awarded_result or (goals_against = 0) is not null),
++        countif(not is_awarded_result and (goals_against = 0)),
++        null
++    ) as clean_sheets,
++    if(
++        logical_and(is_awarded_result or goals_penalty is not null),
++        sum(if(is_awarded_result, null, goals_penalty)),
++        null
++    ) as goals_penalty,
++    if(
++        logical_and(is_awarded_result or goals_own is not null),
++        sum(if(is_awarded_result, null, goals_own)),
++        null
++    ) as goals_own,
++    if(
++        logical_and(is_awarded_result or (goals - goals_penalty - goals_own) is not null),
++        sum(if(is_awarded_result, null, goals - goals_penalty - goals_own)),
++        null
++    ) as goals_open_play,
++    if(
++        logical_and(is_awarded_result or corners is not null),
++        sum(if(is_awarded_result, null, corners)),
++        null
++    ) as corners,
++    if(logical_and(is_awarded_result or saves is not null), sum(if(is_awarded_result, null, saves)), null) as saves,
++    if(
++        logical_and(is_awarded_result or shots_inside_box is not null),
++        sum(if(is_awarded_result, null, shots_inside_box)),
++        null
++    ) as shots_inside_box,
++    if(
++        logical_and(is_awarded_result or cards_yellow is not null),
++        sum(if(is_awarded_result, null, cards_yellow)),
++        null
++    ) as cards_yellow,
++    if(
++        logical_and(is_awarded_result or cards_red is not null),
++        sum(if(is_awarded_result, null, cards_red)),
++        null
++    ) as cards_red,
++    safe_divide(
++        if(logical_and(is_awarded_result or goals is not null), sum(if(is_awarded_result, null, goals)), null),
++        countif(not is_awarded_result)
++    ) as goals_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or goals_against is not null),
++            sum(if(is_awarded_result, null, goals_against)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as goals_against_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or shots is not null), sum(if(is_awarded_result, null, shots)), null),
++        countif(not is_awarded_result)
++    ) as shots_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_on_target is not null),
++            sum(if(is_awarded_result, null, shots_on_target)),
++            null
++        ),
++        if(
++            logical_and(is_awarded_result or shots is not null),
++            sum(if(is_awarded_result, null, shots)),
++            null
++        )
++    ) as shots_on_goal_pct,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_inside_box is not null),
++            sum(if(is_awarded_result, null, shots_inside_box)),
++            null
++        ),
++        if(
++            logical_and(is_awarded_result or shots is not null),
++            sum(if(is_awarded_result, null, shots)),
++            null
++        )
++    ) as shots_inside_box_pct,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_on_target is not null),
++            sum(if(is_awarded_result, null, shots_on_target)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as shots_on_goal_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or (goals - goals_penalty - goals_own) is not null),
++            sum(if(is_awarded_result, null, goals - goals_penalty - goals_own)),
++            null
++        ),
++        if(
++            logical_and(is_awarded_result or shots_on_target is not null),
++            sum(if(is_awarded_result, null, shots_on_target)),
++            null
++        )
++    ) as finishing_efficiency_pct,
++    safe_divide(
++        if(logical_and(is_awarded_result or passes is not null), sum(if(is_awarded_result, null, passes)), null),
++        countif(not is_awarded_result)
++    ) as passes_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or passes_accurate is not null),
++            sum(if(is_awarded_result, null, passes_accurate)),
++            null
++        ),
++        if(
++            logical_and(is_awarded_result or passes is not null),
++            sum(if(is_awarded_result, null, passes)),
++            null
++        )
++    ) as passes_accuracy_pct,
++    safe_divide(
++        if(logical_and(is_awarded_result or corners is not null), sum(if(is_awarded_result, null, corners)), null),
++        countif(not is_awarded_result)
++    ) as corners_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or corners_against is not null),
++            sum(if(is_awarded_result, null, corners_against)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as corners_against_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or saves is not null),
++            sum(if(is_awarded_result, null, saves)),
++            null
++        ),
++        if(
++            logical_and(is_awarded_result or (saves + goals_against - goals_own_against) is not null),
++            sum(if(is_awarded_result, null, saves + goals_against - goals_own_against)),
++            null
++        )
++    ) as saves_pct,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or passes_key is not null),
++            sum(if(is_awarded_result, null, passes_key)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as passes_key_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or tackles is not null), sum(if(is_awarded_result, null, tackles)), null),
++        countif(not is_awarded_result)
++    ) as tackles_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or interceptions is not null),
++            sum(if(is_awarded_result, null, interceptions)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as interceptions_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or blocks is not null), sum(if(is_awarded_result, null, blocks)), null),
++        countif(not is_awarded_result)
++    ) as blocks_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or (tackles + interceptions + blocks) is not null),
++            sum(if(is_awarded_result, null, tackles + interceptions + blocks)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as defensive_actions_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or duels is not null), sum(if(is_awarded_result, null, duels)), null),
++        countif(not is_awarded_result)
++    ) as duels_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or duels_won is not null), sum(if(is_awarded_result, null, duels_won)), null),
++        if(logical_and(is_awarded_result or duels is not null), sum(if(is_awarded_result, null, duels)), null)
++    ) as duels_won_pct,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_on_target_against is not null),
++            sum(if(is_awarded_result, null, shots_on_target_against)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as shots_on_goal_against_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_off_target is not null),
++            sum(if(is_awarded_result, null, shots_off_target)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as shots_off_target_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_blocked is not null),
++            sum(if(is_awarded_result, null, shots_blocked)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as shots_blocked_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_inside_box is not null),
++            sum(if(is_awarded_result, null, shots_inside_box)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as shots_inside_box_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or passes_accurate is not null),
++            sum(if(is_awarded_result, null, passes_accurate)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as passes_accurate_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or passes is not null),
++            sum(if(is_awarded_result, null, passes)),
++            null
++        ),
++        if(
++            logical_and(is_awarded_result or (passes + passes_against) is not null),
++            sum(if(is_awarded_result, null, passes + passes_against)),
++            null
++        )
++    ) as passes_share_pct,
++    safe_divide(
++        if(logical_and(is_awarded_result or dribbles is not null), sum(if(is_awarded_result, null, dribbles)), null),
++        countif(not is_awarded_result)
++    ) as dribbles_attempts_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or dribbles_success is not null),
++            sum(if(is_awarded_result, null, dribbles_success)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as dribbles_success_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or dribbles_success is not null),
++            sum(if(is_awarded_result, null, dribbles_success)),
++            null
++        ),
++        if(
++            logical_and(is_awarded_result or dribbles is not null),
++            sum(if(is_awarded_result, null, dribbles)),
++            null
++        )
++    ) as dribbles_success_pct,
++    safe_divide(
++        if(logical_and(is_awarded_result or duels_won is not null), sum(if(is_awarded_result, null, duels_won)), null),
++        countif(not is_awarded_result)
++    ) as duels_won_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or saves is not null), sum(if(is_awarded_result, null, saves)), null),
++        countif(not is_awarded_result)
++    ) as saves_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or free_kicks is not null),
++            sum(if(is_awarded_result, null, free_kicks)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as free_kicks_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or fouls is not null), sum(if(is_awarded_result, null, fouls)), null),
++        countif(not is_awarded_result)
++    ) as fouls_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or offsides is not null), sum(if(is_awarded_result, null, offsides)), null),
++        countif(not is_awarded_result)
++    ) as offsides_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or cards_yellow is not null),
++            sum(if(is_awarded_result, null, cards_yellow)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as cards_yellow_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or cards_red is not null), sum(if(is_awarded_result, null, cards_red)), null),
++        countif(not is_awarded_result)
++    ) as cards_red_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or (goals_against = 0) is not null),
++            countif(not is_awarded_result and (goals_against = 0)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as clean_sheets_pct,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or (case result when 'W' then 3 when 'D' then 1 else 0 end) is not null),
++            sum(if(is_awarded_result, null, case result when 'W' then 3 when 'D' then 1 else 0 end)),
++            null
++        ) + if(
++            logical_and(is_awarded_result or is_table_shootout_win is not null),
++            countif(not is_awarded_result and is_table_shootout_win),
++            null
++        ),
++        3 * countif(not is_awarded_result)
++    ) as points_capture_pct,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots is not null),
++            sum(if(is_awarded_result, null, shots)),
++            null
++        ),
++        if(
++            logical_and(is_awarded_result or (shots + shots_against) is not null),
++            sum(if(is_awarded_result, null, shots + shots_against)),
++            null
++        )
++    ) as shots_share_pct,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or (shots_on_target - shots_on_target_against) is not null),
++            sum(if(is_awarded_result, null, shots_on_target - shots_on_target_against)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as shots_on_goal_difference_per_match
++    -- end of generated metric sql
++from window_rows
++group by
++    team_sk,
++    anchor_season_sk,
++    window_type
+diff --git a/dbt_project/models/5_marts/shared/mart_team_page_window_metrics.sql b/dbt_project/models/5_marts/shared/mart_team_page_window_metrics.sql
+new file mode 100644
+index 00000000..d0c1375b
+--- /dev/null
++++ b/dbt_project/models/5_marts/shared/mart_team_page_window_metrics.sql
+@@ -0,0 +1,128 @@
++{#
++  What a Team page shows over the season, in long form: the This season cards, and each
++  comparison metric this season against the whole of last season. Matches and wins, counts of
++  results and no catalogue metrics (rule R7), are columns on every row; the four other cards are
++  rows. Both windows are every club
++  competition of the season (int_team_window__metrics); every comparison metric is a rate, per
++  match or a share, so the two windows compare at any number of matches. A blank value is rule R4
++  in models/docs/metric_rules.md. A team with no club window, a national team, has no row.
++
++  Grain: (team_sk, metric_key).
++#}
++
++with windows as (
++    select * from {{ ref('int_team_window__metrics') }}
++),
++
++this_season as (
++    select * from windows
++    where window_type = 'this_season'
++),
++
++last_season as (
++    select * from windows
++    where window_type = 'last_season'
++),
++
++cards as (
++    select
++        t.team_sk,
++        m.metric_key,
++        m.metric_value,
++        true as is_card,
++        false as is_comparison,
++        cast(null as float64) as metric_value_prev_season
++    from this_season as t,
++        unnest([
++            struct('goals' as metric_key, cast(t.goals as float64) as metric_value),
++            ('goals_against', cast(t.goals_against as float64)),
++            ('cards_yellow', cast(t.cards_yellow as float64)),
++            ('cards_red', cast(t.cards_red as float64))
++        ]) as m
++),
++
++rates as (
++    select
++        team_sk,
++        window_type,
++        metric_key,
++        metric_value
++    from windows
++    unpivot include nulls (
++        metric_value for metric_key in (
++            goals_per_match,
++            goals_against_per_match,
++            clean_sheets_pct,
++            shots_per_match,
++            shots_on_goal_pct,
++            shots_inside_box_pct,
++            shots_inside_box_per_match,
++            shots_on_goal_per_match,
++            shots_on_goal_against_per_match,
++            shots_on_goal_difference_per_match,
++            finishing_efficiency_pct,
++            duels_per_match,
++            duels_won_per_match,
++            duels_won_pct,
++            defensive_actions_per_match,
++            tackles_per_match,
++            interceptions_per_match,
++            blocks_per_match,
++            passes_per_match,
++            passes_accurate_per_match,
++            passes_accuracy_pct,
++            passes_share_pct,
++            passes_key_per_match,
++            dribbles_attempts_per_match,
++            dribbles_success_per_match,
++            dribbles_success_pct,
++            corners_per_match,
++            corners_against_per_match,
++            free_kicks_per_match,
++            fouls_per_match,
++            offsides_per_match,
++            saves_per_match,
++            saves_pct
++        )
++    )
++),
++
++comparison as (
++    select
++        t.team_sk,
++        t.metric_key,
++        t.metric_value,
++        false as is_card,
++        true as is_comparison,
++        l.metric_value as metric_value_prev_season
++    from rates as t
++    left join rates as l
++        on
++            t.team_sk = l.team_sk
++            and t.metric_key = l.metric_key
++            and l.window_type = 'last_season'
++    where t.window_type = 'this_season'
++),
++
++all_rows as (
++    select * from cards
++    union all
++    select * from comparison
++)
++
++select
++    r.team_sk,
++    r.metric_key,
++    r.is_card,
++    r.is_comparison,
++    t.matches,
++    t.wins,
++    l.matches as matches_prev_season,
++    t.league_codes,
++    r.metric_value,
++    r.metric_value_prev_season
++from all_rows as r
++inner join this_season as t
++    on r.team_sk = t.team_sk
++left join last_season as l
++    on r.team_sk = l.team_sk
+diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+index ed386668..86c7a803 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+@@ -53,6 +53,10 @@ streaks as (
+     select * from {{ ref('int_team_profile__streaks') }}
+ ),
+ 
++featured as (
++    select * from {{ ref('int_team__featured_season') }}
++),
++
+ deserved as (
+     select * from {{ ref('int_team_season__deserved_vs_actual') }}
+ ),
+@@ -237,18 +241,14 @@ select
+     br.heaviest_defeat_goals_against,
+     br.heaviest_defeat_kickoff_datetime,
+     cs.season_label,
+-    -- The season this team's page opens on (#846). Exactly one row per team is true: the most
+-    -- recent DOMESTIC LEAGUE season, falling back to the most recent season of any type for a team
+-    -- with no league season. A warehouse fact, so the export and the page
+-    -- SELECT this flag instead of each re-deciding it; three copies of the rule had already
+-    -- drifted apart. Last in the list because ST06 puts calculations after simple targets.
+-    row_number() over (
+-        partition by m.team_sk
+-        order by
+-            case when reg.competition_type = 'domestic_league' then 0 else 1 end asc,
+-            m.season_api_year desc
+-    ) = 1 as is_featured_season
++    -- The season this team's page opens on, one row per team: a warehouse fact, so the export
++    -- and the page SELECT this flag instead of each re-deciding it.
++    fs.team_sk is not null as is_featured_season
+ from metrics as m
++left join featured as fs
++    on
++        m.team_sk = fs.team_sk
++        and m.season_sk = fs.featured_season_sk
+ left join team_season as ts
+     on m.team_season_sk = ts.team_season_sk
+ left join teams as t
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index ced1c3b6..31930dc8 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -3316,6 +3316,9 @@ models:
+       Median-led and ranked rather than percentiled, which stays honest at around 18 teams.
+       Season-to-date.
+ 
++      An international club competition with a league or group phase is benchmarked over that
++      phase alone: its teams and its matches, without the qualifiers and the knockout phase.
++
+       {{ doc('ranking_rules') }}
+     meta:
+       owner: "data-platform"
+@@ -3596,6 +3599,68 @@ models:
+       - name: metric_value_prev_season
+         description: "The metric over the whole of last season. NULL on a card that is no comparison row, and on the National team tab."
+ 
++  - name: mart_team_page_window_metrics
++    description: >
++      What a Team page shows over the season, in long form: the This season cards, and each
++      comparison metric this season against the whole of last season. Both windows are every club
++      competition of the season, by the Player page's season rule; every comparison metric is a
++      rate, per match or a share. Matches and wins, counts of results and no catalogue metrics,
++      are columns on every row. A national team has no row. Grain: (team_sk, metric_key).
++    meta:
++      owner: "data-platform"
++      domain: "football"
++      criticality: "medium"
++    config:
++      tags: ["marts", "football", "team"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [team_sk, metric_key]
++      - dbt_utils.expression_is_true:
++          expression: "is_card != is_comparison"
++          name: mart_team_page_window_metrics_card_or_comparison
++      - dbt_utils.expression_is_true:
++          expression: "metric_value is null or metric_key = 'shots_on_goal_difference_per_match' or metric_value >= 0"
++          name: mart_team_page_window_metrics_values_not_negative
++      - dbt_utils.expression_is_true:
++          expression: "metric_value is null or metric_key not in ('clean_sheets_pct', 'saves_pct', 'finishing_efficiency_pct', 'passes_share_pct', 'shots_on_goal_pct', 'shots_inside_box_pct', 'passes_accuracy_pct', 'duels_won_pct') or metric_value <= 1"
++          name: mart_team_page_window_metrics_shares_at_most_1
++      - dbt_utils.expression_is_true:
++          expression: "matches >= 1 and wins <= matches and (matches_prev_season is null or matches_prev_season >= 1) and array_length(league_codes) >= 1"
++          name: mart_team_page_window_metrics_wins_within_matches
++    columns:
++      - name: team_sk
++        description: "{{ doc('team_sk') }}"
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
++      - name: metric_key
++        description: "A metric_catalogue team metric_id."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["goals", "goals_against", "cards_yellow", "cards_red", "goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shots_on_goal_pct", "shots_inside_box_pct", "shots_inside_box_per_match", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match", "finishing_efficiency_pct", "duels_per_match", "duels_won_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "passes_accurate_per_match", "passes_accuracy_pct", "passes_share_pct", "passes_key_per_match", "dribbles_attempts_per_match", "dribbles_success_per_match", "dribbles_success_pct", "corners_per_match", "corners_against_per_match", "free_kicks_per_match", "fouls_per_match", "offsides_per_match", "saves_per_match", "saves_pct"]
++      - name: is_card
++        description: "True on a This season card held as a row: goals, goals against, yellow cards and red cards."
++        tests: [not_null]
++      - name: is_comparison
++        description: "True on a metric of the Compared with last season block."
++        tests: [not_null]
++      - name: matches
++        description: "The team's finished matches this season, in every club competition, a forfeit included."
++        tests: [not_null]
++      - name: wins
++        description: "{{ doc('wins') }} This season, in every club competition, a forfeit included."
++        tests: [not_null]
++      - name: matches_prev_season
++        description: "The team's finished matches over the whole of last season, in every club competition. NULL with no match last season."
++      - name: league_codes
++        description: "The competitions the team has played in this season, by league_code."
++      - name: metric_value
++        description: "The card's count, or the metric this season. Blank by rule R4."
++      - name: metric_value_prev_season
++        description: "The metric over the whole of last season. NULL on a card, and with no match last season."
+   - name: mart_player_squad_benchmarks
+     description: >
+       The Squad comparison of the Player page, in long form: every player of a squad who played at
+diff --git a/dbt_project/seeds/metric_map.csv b/dbt_project/seeds/metric_map.csv
+index 72537b26..b88685d7 100644
+--- a/dbt_project/seeds/metric_map.csv
++++ b/dbt_project/seeds/metric_map.csv
+@@ -330,6 +330,43 @@ mart_team_leaderboards,sort_value,shots_on_goal_difference_per_match,,,metric_ke
+ mart_team_leaderboards,sort_value,shots_on_goal_per_match,,,metric_key
+ mart_team_momentum_window,goals_against,goals_against,,window_type,
+ mart_team_momentum_window,goals_for,goals,,window_type,
++mart_team_page_window_metrics,metric_value,blocks_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,cards_red,,,metric_key
++mart_team_page_window_metrics,metric_value,cards_yellow,,,metric_key
++mart_team_page_window_metrics,metric_value,clean_sheets_pct,,,metric_key
++mart_team_page_window_metrics,metric_value,corners_against_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,corners_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,defensive_actions_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,dribbles_attempts_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,dribbles_success_pct,,,metric_key
++mart_team_page_window_metrics,metric_value,dribbles_success_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,duels_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,duels_won_pct,,,metric_key
++mart_team_page_window_metrics,metric_value,duels_won_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,finishing_efficiency_pct,,,metric_key
++mart_team_page_window_metrics,metric_value,fouls_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,free_kicks_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,goals,,,metric_key
++mart_team_page_window_metrics,metric_value,goals_against,,,metric_key
++mart_team_page_window_metrics,metric_value,goals_against_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,goals_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,interceptions_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,offsides_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,passes_accuracy_pct,,,metric_key
++mart_team_page_window_metrics,metric_value,passes_accurate_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,passes_key_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,passes_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,passes_share_pct,,,metric_key
++mart_team_page_window_metrics,metric_value,saves_pct,,,metric_key
++mart_team_page_window_metrics,metric_value,saves_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,shots_inside_box_pct,,,metric_key
++mart_team_page_window_metrics,metric_value,shots_inside_box_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,shots_on_goal_against_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,shots_on_goal_difference_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,shots_on_goal_pct,,,metric_key
++mart_team_page_window_metrics,metric_value,shots_on_goal_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,shots_per_match,,,metric_key
++mart_team_page_window_metrics,metric_value,tackles_per_match,,,metric_key
+ mart_team_profile,cards_red,cards_red,,,
+ mart_team_profile,cards_yellow,cards_yellow,,,
+ mart_team_profile,clean_sheets,clean_sheets,,,
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index cdf92a71..e21857ff 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -1402,6 +1402,38 @@ seeds:
+         description: "The hand working: the competitions counted and each sum."
+         tests: [not_null]
+ 
++  - name: team_window_answer_key
++    description: >
++      Hand-worked values for a real club over a whole window of the Team page, added up from the
++      club's cleaned match lines by the catalogue formula, so that which competitions a window holds
++      is checked against a known answer. assert_team_window_answer_key fails when
++      int_team_window__metrics returns anything other than the numerator over the denominator while
++      the club's featured season is the one the case was worked for.
++    columns:
++      - name: team_id
++        description: "{{ doc('team_api_id') }}"
++        tests: [not_null]
++      - name: window_type
++        description: "this_season or last_season."
++        tests: [not_null]
++      - name: anchor_league_code
++        description: "The competition of the featured season the case was worked for."
++        tests: [not_null]
++      - name: anchor_season_api_year
++        description: "The provider's season year of the featured season the case was worked for."
++        tests: [not_null]
++      - name: metric_id
++        description: "The metric, or matches or wins, the case checks."
++        tests: [not_null]
++      - name: numerator
++        description: "The value's numerator worked out by hand."
++        tests: [not_null]
++      - name: denominator
++        description: "The value's denominator worked out by hand. Blank for a value with no denominator."
++      - name: working
++        description: "The hand working: the competitions counted and each sum."
++        tests: [not_null]
++
+   - name: team_name_overrides
+     description: >
+       Corrections to a team's DISPLAY NAME: one row per team whose provider name is not the name
+diff --git a/dbt_project/seeds/team_window_answer_key.csv b/dbt_project/seeds/team_window_answer_key.csv
+new file mode 100644
+index 00000000..59dcfe63
+--- /dev/null
++++ b/dbt_project/seeds/team_window_answer_key.csv
+@@ -0,0 +1,11 @@
++team_id,window_type,anchor_league_code,anchor_season_api_year,metric_id,numerator,denominator,working
++157,last_season,BL1,2026,matches,54,,"Bayern München, club competitions of 2025-26, matches: Bundesliga 34, DFB-Pokal 6, Champions League 14. The Club World Cup 2025 ended before the Bundesliga season began, so its 5 matches are not counted."
++157,last_season,BL1,2026,wins,45,,"Bayern München, club competitions of 2025-26, wins: Bundesliga 28, DFB-Pokal 6, Champions League 11."
++157,last_season,BL1,2026,goals,182,,"Bayern München, club competitions of 2025-26, goals: Bundesliga 122, DFB-Pokal 17, Champions League 43."
++157,last_season,BL1,2026,goals_against,61,,"Bayern München, club competitions of 2025-26, goals against: Bundesliga 36, DFB-Pokal 5, Champions League 20."
++157,last_season,BL1,2026,cards_yellow,95,,"Bayern München, club competitions of 2025-26, yellow cards: Bundesliga 58, DFB-Pokal 10, Champions League 27."
++157,last_season,BL1,2026,cards_red,4,,"Bayern München, club competitions of 2025-26, red cards: Bundesliga 2, DFB-Pokal 0, Champions League 2."
++157,last_season,BL1,2026,shots_per_match,997,54,"Bayern München, club competitions of 2025-26, shots: Bundesliga 652, DFB-Pokal 87, Champions League 258, over 54 matches."
++157,last_season,BL1,2026,passes_accuracy_pct,32450,36180,"Bayern München, club competitions of 2025-26, accurate passes: Bundesliga 21497, DFB-Pokal 3144, Champions League 7809. Of passes: Bundesliga 23831, DFB-Pokal 3616, Champions League 8733."
++157,last_season,BL1,2026,duels_won_pct,2245,4583,"Bayern München, club competitions of 2025-26, duels won: Bundesliga 1376, DFB-Pokal 269, Champions League 600. Of duels: Bundesliga 2831, DFB-Pokal 552, Champions League 1200."
++157,last_season,BL1,2026,clean_sheets_pct,17,54,"Bayern München, club competitions of 2025-26, clean sheets: Bundesliga 12, DFB-Pokal 3, Champions League 2, over 54 matches."
+diff --git a/dbt_project/tests/assert_team_benchmark_international_pool_is_the_league_phase.sql b/dbt_project/tests/assert_team_benchmark_international_pool_is_the_league_phase.sql
+new file mode 100644
+index 00000000..32780f32
+--- /dev/null
++++ b/dbt_project/tests/assert_team_benchmark_international_pool_is_the_league_phase.sql
+@@ -0,0 +1,83 @@
++{#
++  An international club competition with a league or group phase is benchmarked over that phase
++  alone. Recomputed here from the match legs, apart from the model: for each such competition-season
++  the teams with at least var team_min_matches matches in a table round, and their goals per match
++  over those matches. Returns a benchmarked team outside that pool, a pool team with no benchmark,
++  and a goals-per-match value that differs from the phase's.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with competitions as (
++    select league_code
++    from {{ ref('dim_league') }}
++    where
++        entity_type = 'club'
++        and competition_type not in ('domestic_league', 'domestic_cup')
++),
++
++table_rounds as (
++    select
++        league_code,
++        season_api_year,
++        round_name
++    from {{ ref('int_round_names') }}
++    where round_stage_kind = 'table'
++),
++
++phase as (
++    select
++        legs.team_sk,
++        legs.season_sk,
++        count(*) as matches,
++        safe_divide(
++            sum(if(legs.is_awarded_result, null, legs.goals)),
++            countif(not legs.is_awarded_result)
++        ) as goals_per_match
++    from {{ ref('int_legs__team_match') }} as legs
++    inner join competitions as c
++        on legs.league_code = c.league_code
++    inner join table_rounds as r
++        on
++            legs.league_code = r.league_code
++            and legs.season_api_year = r.season_api_year
++            and legs.round_name = r.round_name
++    group by legs.team_sk, legs.season_sk
++),
++
++pool as (
++    select * from phase
++    where matches >= {{ var('team_min_matches') }}
++),
++
++phase_seasons as (
++    select distinct season_sk from phase
++),
++
++benchmarked as (
++    select
++        b.team_sk,
++        b.season_sk,
++        b.metric_value
++    from {{ ref('mart_team_competition_benchmarks') }} as b
++    inner join phase_seasons as s
++        on b.season_sk = s.season_sk
++    where b.metric_key = 'goals_per_match'
++)
++
++select
++    b.metric_value as benchmarked_goals_per_match,
++    p.goals_per_match as phase_goals_per_match,
++    coalesce(b.team_sk, p.team_sk) as team_sk,
++    coalesce(b.season_sk, p.season_sk) as season_sk,
++    case
++        when p.team_sk is null then 'benchmarked outside the league phase pool'
++        when b.team_sk is null then 'league phase team with no benchmark'
++        else 'goals per match differs from the league phase'
++    end as failure
++from benchmarked as b
++full outer join pool as p
++    on b.team_sk = p.team_sk and b.season_sk = p.season_sk
++where
++    p.team_sk is null
++    or b.team_sk is null
++    or abs(b.metric_value - p.goals_per_match) > 1e-9
+diff --git a/dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql b/dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
+index 88be58dc..a9f47746 100644
+--- a/dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
++++ b/dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
+@@ -17,6 +17,12 @@
+ -- depends_on: {{ ref('int_team_season__metrics') }}
+ -- depends_on: {{ ref('int_team_momentum__metrics') }}
+ -- depends_on: {{ ref('mart_team_window_metrics') }}
++-- depends_on: {{ ref('int_team_window__metrics') }}
++-- depends_on: {{ ref('int_team_competition_phase__metrics') }}
++-- depends_on: {{ ref('int_team__featured_season') }}
++-- depends_on: {{ ref('int_competition_season__club_windows') }}
++-- depends_on: {{ ref('int_round_names') }}
++-- depends_on: {{ ref('dim_league') }}
+ 
+ {% set surfaces = [
+     {'model': 'int_team_season__metrics_cumulative', 'rows': 'season_rows',
+@@ -27,6 +33,10 @@
+      'grain': ['upcoming_fixture_sk', 'team_sk'], 'windowed': false},
+     {'model': 'mart_team_window_metrics', 'rows': 'window_mart_rows',
+      'grain': ['fixture_sk', 'team_sk'], 'windowed': false},
++    {'model': 'int_team_window__metrics', 'rows': 'team_window_rows',
++     'grain': ['team_sk', 'window_type'], 'windowed': false},
++    {'model': 'int_team_competition_phase__metrics', 'rows': 'phase_rows',
++     'grain': ['team_sk', 'season_sk'], 'windowed': false},
+ ] %}
+ {% set forfeit_counted = ['points_won', 'goals', 'goals_against'] %}
+ {% set member_floor = 100 %}
+@@ -120,6 +130,33 @@ window_mart_rows as (
+     from momentum_rows
+ ),
+ 
++team_window_rows as (
++    select
++        w.window_type,
++        legs.*
++    from {{ ref('int_team__featured_season') }} as f
++    inner join {{ ref('int_competition_season__club_windows') }} as w
++        on f.featured_season_sk = w.anchor_season_sk
++    inner join legs
++        on f.team_sk = legs.team_sk and w.season_sk = legs.season_sk
++),
++
++phase_rows as (
++    select legs.*
++    from legs
++    inner join {{ ref('dim_league') }} as c
++        on legs.league_code = c.league_code
++    inner join {{ ref('int_round_names') }} as r
++        on
++            legs.league_code = r.league_code
++            and legs.season_api_year = r.season_api_year
++            and legs.round_name = r.round_name
++    where
++        c.entity_type = 'club'
++        and c.competition_type not in ('domestic_league', 'domestic_cup')
++        and r.round_stage_kind = 'table'
++),
++
+ {% for check in checks %}
+ {% set s = check.surface %}
+ {{ s.model }}__expected as (
+diff --git a/dbt_project/tests/assert_team_page_window_rates_inputs_covered.sql b/dbt_project/tests/assert_team_page_window_rates_inputs_covered.sql
+new file mode 100644
+index 00000000..22f42edf
+--- /dev/null
++++ b/dbt_project/tests/assert_team_page_window_rates_inputs_covered.sql
+@@ -0,0 +1,183 @@
++{#
++  The rate guard of engineering_standards.md section 3.2, on the Team page's window surfaces:
++  int_team_window__metrics (a club's this season and last season, every club competition) and
++  int_team_competition_phase__metrics (an international club competition's league or group phase).
++  For every team rate the catalogue defines with a denominator, wherever a surface shows a value,
++  every column its formula reads is present in every non-awarded game of that window.
++
++  Generated from metric_catalogue.csv at run time as assert_season_rates_inputs_covered is: the
++  inputs are the expression identifiers that are columns of base_relation; a team-feed input is
++  present when its leg column is non-null, a player-feed input when the game's player row exists.
++  Each window is rebuilt here from the legs, apart from the surface: the club windows anchored at
++  the featured season, and the table rounds of an international club competition.
++#}
++{{ config(store_failures = true) }}
++-- depends_on: {{ ref('metric_catalogue') }}
++-- depends_on: {{ ref('int_team_window__metrics') }}
++-- depends_on: {{ ref('int_team_competition_phase__metrics') }}
++-- depends_on: {{ ref('int_legs__team_match') }}
++-- depends_on: {{ ref('int_legs__team_from_players') }}
++-- depends_on: {{ ref('int_team__featured_season') }}
++-- depends_on: {{ ref('int_competition_season__club_windows') }}
++-- depends_on: {{ ref('int_round_names') }}
++-- depends_on: {{ ref('dim_league') }}
++
++{% set surfaces = ['int_team_window__metrics', 'int_team_competition_phase__metrics'] %}
++{% set member_floor = 15 %}
++{% set legs = {'int_legs__team_match': 'l', 'int_legs__team_from_players': 'p'} %}
++{% set members = [] %}
++
++{% if execute %}
++    {% set surface_cols = {} %}
++    {% for s in surfaces %}
++        {% set cols = [] %}
++        {% for c in adapter.get_columns_in_relation(ref(s)) %}
++            {% do cols.append(c.name | lower) %}
++        {% endfor %}
++        {% do surface_cols.update({s: cols}) %}
++    {% endfor %}
++    {% set base_cols = {} %}
++    {% for rel in legs %}
++        {% set cols = [] %}
++        {% for c in adapter.get_columns_in_relation(ref(rel)) %}
++            {% do cols.append(c.name | lower) %}
++        {% endfor %}
++        {% do base_cols.update({rel: cols}) %}
++    {% endfor %}
++
++    {% set seed = run_query(
++        "select metric_id, base_relation, numerator_expr, denominator_expr from " ~ ref('metric_catalogue')
++        ~ " where entity in ('team', 'team and player') and computation_kind = 'expression'"
++        ~ " and coalesce(trim(denominator_expr), '') != '' order by metric_id"
++    ) %}
++    {% for row in seed.rows %}
++        {% set metric = (row[0] | string | trim | lower) %}
++        {% set base = (row[1] | string | trim) if row[1] is not none else '' %}
++        {% if base in legs and metric in surface_cols[surfaces[0]] and metric in surface_cols[surfaces[1]] %}
++            {% set inputs = [] %}
++            {% for expr in [row[2], row[3]] %}
++                {% set cleaned = modules.re.sub("'[^']*'", ' ', expr | string) %}
++                {% for tok in modules.re.findall('[a-zA-Z_][a-zA-Z0-9_]*', cleaned) %}
++                    {% set t = tok | lower %}
++                    {% if t in base_cols[base] and t not in inputs %}
++                        {% do inputs.append(t) %}
++                    {% endif %}
++                {% endfor %}
++            {% endfor %}
++            {% if base == 'int_legs__team_from_players' %}
++                {% set predicate = 'p.fixture_sk is null' %}
++            {% else %}
++                {% set preds = [] %}
++                {% for t in inputs %}
++                    {% do preds.append('l.' ~ t ~ ' is null') %}
++                {% endfor %}
++                {% set predicate = preds | join(' or ') %}
++            {% endif %}
++            {% do members.append({'metric': metric, 'predicate': predicate, 'inputs': inputs | join(' ')}) %}
++        {% endif %}
++    {% endfor %}
++
++    {% if members | length < member_floor %}
++        {{ exceptions.raise_compiler_error(
++            "Team page window rate guard built " ~ (members | length) ~ " members (floor " ~ member_floor
++            ~ "): the seed read or the surface columns stopped matching, and a guard over nothing passes silently"
++        ) }}
++    {% endif %}
++{% endif %}
++
++{% if members %}
++with window_games as (
++    select
++        'int_team_window__metrics' as surface,
++        f.team_sk,
++        w.window_type as window_key,
++        l.fixture_sk
++    from {{ ref('int_team__featured_season') }} as f
++    inner join {{ ref('int_competition_season__club_windows') }} as w
++        on f.featured_season_sk = w.anchor_season_sk
++    inner join {{ ref('int_legs__team_match') }} as l
++        on f.team_sk = l.team_sk and w.season_sk = l.season_sk
++    union all
++    select
++        'int_team_competition_phase__metrics' as surface,
++        l.team_sk,
++        l.season_sk as window_key,
++        l.fixture_sk
++    from {{ ref('int_legs__team_match') }} as l
++    inner join {{ ref('dim_league') }} as c
++        on l.league_code = c.league_code
++    inner join {{ ref('int_round_names') }} as r
++        on
++            l.league_code = r.league_code
++            and l.season_api_year = r.season_api_year
++            and l.round_name = r.round_name
++    where
++        c.entity_type = 'club'
++        and c.competition_type not in ('domestic_league', 'domestic_cup')
++        and r.round_stage_kind = 'table'
++),
++
++uncovered as (
++    select
++        g.surface,
++        g.team_sk,
++        g.window_key,
++        {% for m in members %}
++        logical_or({{ m.predicate }}) as {{ m.metric }}__uncovered{% if not loop.last %},{% endif %}
++        {% endfor %}
++    from window_games as g
++    inner join {{ ref('int_legs__team_match') }} as l
++        on g.fixture_sk = l.fixture_sk and g.team_sk = l.team_sk
++    left join {{ ref('int_legs__team_from_players') }} as p
++        on g.fixture_sk = p.fixture_sk and g.team_sk = p.team_sk
++    where not l.is_awarded_result
++    group by g.surface, g.team_sk, g.window_key
++),
++
++shown as (
++    select
++        'int_team_window__metrics' as surface,
++        team_sk,
++        window_type as window_key,
++        {% for m in members %}
++        {{ m.metric }}{% if not loop.last %},{% endif %}
++        {% endfor %}
++    from {{ ref('int_team_window__metrics') }}
++    union all
++    select
++        'int_team_competition_phase__metrics' as surface,
++        team_sk,
++        season_sk as window_key,
++        {% for m in members %}
++        {{ m.metric }}{% if not loop.last %},{% endif %}
++        {% endfor %}
++    from {{ ref('int_team_competition_phase__metrics') }}
++)
++
++{% for m in members %}
++select
++    s.surface,
++    '{{ m.metric }}' as metric_id,
++    '{{ m.inputs }}' as inputs,
++    s.team_sk,
++    s.window_key
++from shown as s
++inner join uncovered as u
++    on s.surface = u.surface and s.team_sk = u.team_sk and s.window_key = u.window_key
++where s.{{ m.metric }} is not null and u.{{ m.metric }}__uncovered
++{% if not loop.last %}
++union all
++{% endif %}
++{% endfor %}
++{% else %}
++{# The non-execute render (sqlfluff, dbt compile without a warehouse) - an explicitly empty
++   result of the same shape. BigQuery rejects a FROM-less WHERE, hence the seed. #}
++select
++    cast(null as string) as surface,
++    cast(null as string) as metric_id,
++    cast(null as string) as inputs,
++    cast(null as int64) as team_sk,
++    cast(null as string) as window_key
++from {{ ref('metric_catalogue') }}
++where 1 = 0
++{% endif %}
+diff --git a/dbt_project/tests/assert_team_window_answer_key.sql b/dbt_project/tests/assert_team_window_answer_key.sql
+new file mode 100644
+index 00000000..3235d18a
+--- /dev/null
++++ b/dbt_project/tests/assert_team_window_answer_key.sql
+@@ -0,0 +1,76 @@
++{#
++  Hand-worked window values (seeds/team_window_answer_key.csv): a real club over a whole window of
++  the Team page, each value added up by hand from the match lines, by the catalogue formula.
++  int_team_window__metrics must return exactly safe_divide(numerator, denominator), or the
++  numerator for a value with no denominator. A case holds while the club's featured season is the
++  one it was worked for (anchor_league_code, anchor_season_api_year); once the club moves on, the
++  window covers other matches and the case checks nothing. Returns each case whose team-window is
++  missing, and, while the case holds, each whose value differs or whose metric is not a column of
++  the model.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++{% set columns = [] %}
++{% if execute %}
++    {% for c in adapter.get_columns_in_relation(ref('int_team_window__metrics')) %}
++        {% if c.dtype | upper in ('INT64', 'FLOAT64') %}
++            {% do columns.append(c.name | lower) %}
++        {% endif %}
++    {% endfor %}
++    {% if columns | length == 0 %}
++        {{ exceptions.raise_compiler_error("int_team_window__metrics has no numeric column: the answer key would compare nothing") }}
++    {% endif %}
++{% endif %}
++
++with answer_key as (
++    select * from {{ ref('team_window_answer_key') }}
++),
++
++model as (
++    select * from {{ ref('int_team_window__metrics') }}
++),
++
++anchors as (
++    select
++        season_sk,
++        league_code,
++        season_api_year
++    from {{ ref('dim_competition_season') }}
++),
++
++compared as (
++    select
++        k.team_id,
++        k.window_type,
++        k.metric_id,
++        k.numerator,
++        k.denominator,
++        k.metric_id in ('{{ columns | join("', '") }}') as on_model,
++        m.team_sk is not null as row_found,
++        a.season_sk is not null as case_holds,
++        if(
++            k.denominator is null,
++            cast(k.numerator as float64),
++            safe_divide(k.numerator, k.denominator)
++        ) as expected_value,
++        case k.metric_id
++            {% for col in columns %}
++            when '{{ col }}' then cast(m.{{ col }} as float64)
++            {% endfor %}
++        end as actual_value
++    from answer_key as k
++    left join model as m
++        on k.team_id = m.team_sk and k.window_type = m.window_type
++    left join anchors as a
++        on
++            m.anchor_season_sk = a.season_sk
++            and k.anchor_league_code = a.league_code
++            and k.anchor_season_api_year = a.season_api_year
++)
++
++select *
++from compared
++where
++    not row_found
++    or (case_holds and not on_model)
++    or (case_holds and expected_value is distinct from actual_value)
+diff --git a/scripts/generate_metric_sql.py b/scripts/generate_metric_sql.py
+index a2d0d0d2..30763d5d 100644
+--- a/scripts/generate_metric_sql.py
++++ b/scripts/generate_metric_sql.py
+@@ -151,6 +151,8 @@ SURFACES = (
+     Surface("4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql",
+             TEAM_SEASON, windowed=True, entity="team"),
+     Surface("4_intermediate/shared/int_team_momentum__metrics.sql", TEAM_FORM, entity="team"),
++    Surface("4_intermediate/shared/int_team_window__metrics.sql", TEAM_SEASON, entity="team"),
++    Surface("4_intermediate/shared/int_team_competition_phase__metrics.sql", TEAM_SEASON, entity="team"),
+ )
+ 
+ 
+diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
+index aac45f42..7e79f664 100644
+--- a/tests/test_no_decision_history_in_code.py
++++ b/tests/test_no_decision_history_in_code.py
+@@ -20,7 +20,7 @@ HOOKS = os.path.join(REPO, ".claude", "hooks")
+ sys.path.insert(0, HOOKS)
+ import comment_history_gate as gate  # noqa: E402
+ 
+-PINNED_LINES = 282
++PINNED_LINES = 281
+ PINNED_FILES = 95
+ 
+ HASH = chr(35)
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/250-team-window-data/review.md        |   39 +
+#    .../task/250-team-window-data/review_input.patch   | 2279 ++++++++++++++++++++
+#    2 files changed, 2318 insertions(+)
+# ============================================================================

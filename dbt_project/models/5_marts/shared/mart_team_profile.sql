@@ -53,6 +53,10 @@ streaks as (
     select * from {{ ref('int_team_profile__streaks') }}
 ),
 
+featured as (
+    select * from {{ ref('int_team__featured_season') }}
+),
+
 deserved as (
     select * from {{ ref('int_team_season__deserved_vs_actual') }}
 ),
@@ -237,18 +241,14 @@ select
     br.heaviest_defeat_goals_against,
     br.heaviest_defeat_kickoff_datetime,
     cs.season_label,
-    -- The season this team's page opens on (#846). Exactly one row per team is true: the most
-    -- recent DOMESTIC LEAGUE season, falling back to the most recent season of any type for a team
-    -- with no league season. A warehouse fact, so the export and the page
-    -- SELECT this flag instead of each re-deciding it; three copies of the rule had already
-    -- drifted apart. Last in the list because ST06 puts calculations after simple targets.
-    row_number() over (
-        partition by m.team_sk
-        order by
-            case when reg.competition_type = 'domestic_league' then 0 else 1 end asc,
-            m.season_api_year desc
-    ) = 1 as is_featured_season
+    -- The season this team's page opens on, one row per team: a warehouse fact, so the export
+    -- and the page SELECT this flag instead of each re-deciding it.
+    fs.team_sk is not null as is_featured_season
 from metrics as m
+left join featured as fs
+    on
+        m.team_sk = fs.team_sk
+        and m.season_sk = fs.featured_season_sk
 left join team_season as ts
     on m.team_season_sk = ts.team_season_sk
 left join teams as t
