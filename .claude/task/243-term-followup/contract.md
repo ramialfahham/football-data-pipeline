@@ -19,6 +19,7 @@ scope_paths:
   - design-mocks/gen_competitions.py
   - design-mocks/gen_navmap.py
   - docs/wireframes/10_home.md
+  - tests/test_sentence_length_in_docs.py
 
 impact_map: >
   writers: none; no ingestion, no dbt model, no seed, no export change.
@@ -64,3 +65,5 @@ amendments:
   - 2026-11-10: + docs/wireframes/10_home.md — authority: approved in chat, 2026-11-10; content: its
     line 90 ends "Date tabs and a "more matches" control are deferred to **#908**.", dropping the
     stale count of nav items without a page.
+  - 2026-11-10: + tests/test_sentence_length_in_docs.py — authority: approved in chat, 2026-11-10;
+    content: the 10_home.md pin goes from 128 to 127, the long sentence the line 90 cut removed.

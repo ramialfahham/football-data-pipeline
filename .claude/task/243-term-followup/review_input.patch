@@ -1,9 +1,9 @@
 diff --git a/.claude/task/243-term-followup/contract.md b/.claude/task/243-term-followup/contract.md
 new file mode 100644
-index 00000000..3ceb1757
+index 00000000..e8b595ab
 --- /dev/null
 +++ b/.claude/task/243-term-followup/contract.md
-@@ -0,0 +1,66 @@
+@@ -0,0 +1,69 @@
 +# Task contract — term list follow-up: one save, a five-item menu, the last old names
 +
 +objective: >
@@ -25,6 +25,7 @@ index 00000000..3ceb1757
 +  - design-mocks/gen_competitions.py
 +  - design-mocks/gen_navmap.py
 +  - docs/wireframes/10_home.md
++  - tests/test_sentence_length_in_docs.py
 +
 +impact_map: >
 +  writers: none; no ingestion, no dbt model, no seed, no export change.
@@ -70,6 +71,8 @@ index 00000000..3ceb1757
 +  - 2026-11-10: + docs/wireframes/10_home.md — authority: approved in chat, 2026-11-10; content: its
 +    line 90 ends "Date tabs and a "more matches" control are deferred to **#908**.", dropping the
 +    stale count of nav items without a page.
++  - 2026-11-10: + tests/test_sentence_length_in_docs.py — authority: approved in chat, 2026-11-10;
++    content: the 10_home.md pin goes from 128 to 127, the long sentence the line 90 cut removed.
 diff --git a/design-mocks/gen_navmap.py b/design-mocks/gen_navmap.py
 index bc44f990..129f497d 100644
 --- a/design-mocks/gen_navmap.py
@@ -322,6 +325,19 @@ index 44e33da2..2cc777a2 100644
      { section: "statistics", label: t(lang, "navStatistics") },
    ];
  }
+diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
+index 4b1b92d9..365fcb14 100644
+--- a/tests/test_sentence_length_in_docs.py
++++ b/tests/test_sentence_length_in_docs.py
+@@ -61,7 +61,7 @@ PINNED = {
+     "docs/wireframes/03_player_profile.md": 3,
+     "docs/wireframes/08_browse.md": 9,
+     "docs/wireframes/09_chrome.md": 7,
+-    "docs/wireframes/10_home.md": 128,
++    "docs/wireframes/10_home.md": 127,
+     "docs/wireframes/11_team_squad.md": 7,
+     "docs/wireframes/12_player_stats.md": 13,
+     "docs/wireframes/13_player_career.md": 7,
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -336,8 +352,8 @@ index 44e33da2..2cc777a2 100644
 # depends on one.
 #
 #   .../task/243-term-followup/acceptance_evidence.md  |   8 +
-#    .../243-term-followup/rendered_page_evidence.md    |  17 ++
-#    .claude/task/243-term-followup/review.md           |  22 ++
-#    .claude/task/243-term-followup/review_input.patch  | 333 +++++++++++++++++++++
-#    4 files changed, 380 insertions(+)
+#    .../243-term-followup/rendered_page_evidence.md    |  17 +
+#    .claude/task/243-term-followup/review.md           |  25 ++
+#    .claude/task/243-term-followup/review_input.patch  | 343 +++++++++++++++++++++
+#    4 files changed, 393 insertions(+)
 # ============================================================================
