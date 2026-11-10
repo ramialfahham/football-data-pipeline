@@ -310,8 +310,8 @@ gate is built and tested.
   is built from the seed at run time, never per rate by hand; what each guard supplies is its
   surface's window join and the entity rule (a team-feed input is present when its column is
   non-null on the leg, a player-feed input when the game's player row exists at all). One guard
-  per window surface: `assert_form_window_rates_inputs_covered` and
-  `assert_season_rates_inputs_covered`. The player surfaces are held by
+  per window surface: `assert_form_window_rates_inputs_covered`,
+  `assert_season_rates_inputs_covered` and `assert_team_page_window_rates_inputs_covered`. The player surfaces are held by
   `assert_player_metrics_follow_catalogue_formula`, which recomputes every player metric over its
   window under the same rule.
 
@@ -343,7 +343,7 @@ has not landed is a rule in progress, and the issue that owns it says so:
 - every listed column has a description — `scripts/check_description_hygiene.py`, which checks
   that every model, seed and source is described, that every column a model yml lists is, and
   what a description contains; in place;
-- the rate guard — the two generated dbt tests of §3.2, in place;
+- the rate guard — the three generated dbt tests of §3.2, in place;
 - every documented column exists in the model's projection —
   `scripts/check_yml_vs_projection.py`, run in `data:build:main` right after `dbt docs generate`
   against the catalogue it writes (the one job whose catalogue is the whole warehouse; a

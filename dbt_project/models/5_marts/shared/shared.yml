@@ -3316,6 +3316,9 @@ models:
       Median-led and ranked rather than percentiled, which stays honest at around 18 teams.
       Season-to-date.
 
+      An international club competition with a league or group phase is benchmarked over that
+      phase alone: its teams and its matches, without the qualifiers and the knockout phase.
+
       {{ doc('ranking_rules') }}
     meta:
       owner: "data-platform"
@@ -3596,6 +3599,68 @@ models:
       - name: metric_value_prev_season
         description: "The metric over the whole of last season. NULL on a card that is no comparison row, and on the National team tab."
 
+  - name: mart_team_page_window_metrics
+    description: >
+      What a Team page shows over the season, in long form: the This season cards, and each
+      comparison metric this season against the whole of last season. Both windows are every club
+      competition of the season, by the Player page's season rule; every comparison metric is a
+      rate, per match or a share. Matches and wins, counts of results and no catalogue metrics,
+      are columns on every row. A national team has no row. Grain: (team_sk, metric_key).
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["marts", "football", "team"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [team_sk, metric_key]
+      - dbt_utils.expression_is_true:
+          expression: "is_card != is_comparison"
+          name: mart_team_page_window_metrics_card_or_comparison
+      - dbt_utils.expression_is_true:
+          expression: "metric_value is null or metric_key = 'shots_on_goal_difference_per_match' or metric_value >= 0"
+          name: mart_team_page_window_metrics_values_not_negative
+      - dbt_utils.expression_is_true:
+          expression: "metric_value is null or metric_key not in ('clean_sheets_pct', 'saves_pct', 'finishing_efficiency_pct', 'passes_share_pct', 'shots_on_goal_pct', 'shots_inside_box_pct', 'passes_accuracy_pct', 'duels_won_pct') or metric_value <= 1"
+          name: mart_team_page_window_metrics_shares_at_most_1
+      - dbt_utils.expression_is_true:
+          expression: "matches >= 1 and wins <= matches and (matches_prev_season is null or matches_prev_season >= 1) and array_length(league_codes) >= 1"
+          name: mart_team_page_window_metrics_wins_within_matches
+    columns:
+      - name: team_sk
+        description: "{{ doc('team_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: metric_key
+        description: "A metric_catalogue team metric_id."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["goals", "goals_against", "cards_yellow", "cards_red", "goals_per_match", "goals_against_per_match", "clean_sheets_pct", "shots_per_match", "shots_on_goal_pct", "shots_inside_box_pct", "shots_inside_box_per_match", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match", "finishing_efficiency_pct", "duels_per_match", "duels_won_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "passes_per_match", "passes_accurate_per_match", "passes_accuracy_pct", "passes_share_pct", "passes_key_per_match", "dribbles_attempts_per_match", "dribbles_success_per_match", "dribbles_success_pct", "corners_per_match", "corners_against_per_match", "free_kicks_per_match", "fouls_per_match", "offsides_per_match", "saves_per_match", "saves_pct"]
+      - name: is_card
+        description: "True on a This season card held as a row: goals, goals against, yellow cards and red cards."
+        tests: [not_null]
+      - name: is_comparison
+        description: "True on a metric of the Compared with last season block."
+        tests: [not_null]
+      - name: matches
+        description: "The team's finished matches this season, in every club competition, a forfeit included."
+        tests: [not_null]
+      - name: wins
+        description: "{{ doc('wins') }} This season, in every club competition, a forfeit included."
+        tests: [not_null]
+      - name: matches_prev_season
+        description: "The team's finished matches over the whole of last season, in every club competition. NULL with no match last season."
+      - name: league_codes
+        description: "The competitions the team has played in this season, by league_code."
+      - name: metric_value
+        description: "The card's count, or the metric this season. Blank by rule R4."
+      - name: metric_value_prev_season
+        description: "The metric over the whole of last season. NULL on a card, and with no match last season."
   - name: mart_player_squad_benchmarks
     description: >
       The Squad comparison of the Player page, in long form: every player of a squad who played at

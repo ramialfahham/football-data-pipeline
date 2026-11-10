@@ -151,6 +151,8 @@ SURFACES = (
     Surface("4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql",
             TEAM_SEASON, windowed=True, entity="team"),
     Surface("4_intermediate/shared/int_team_momentum__metrics.sql", TEAM_FORM, entity="team"),
+    Surface("4_intermediate/shared/int_team_window__metrics.sql", TEAM_SEASON, entity="team"),
+    Surface("4_intermediate/shared/int_team_competition_phase__metrics.sql", TEAM_SEASON, entity="team"),
 )
 
 
