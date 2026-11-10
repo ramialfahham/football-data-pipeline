@@ -26,9 +26,8 @@ GCP_PROJECT = "football-data-pipeline-gcp"
 API_KEY_SECRET_NAME = "api-football-key"
 API_KEY_VAR = "API_FOOTBALL_API_KEY"
 
-# The deepest file an install writes is 150 characters below the repo root
-# (.venv\Lib\site-packages\google\cloud\bigquery_storage_v1alpha\...). Windows refuses paths over
-# 259 characters unless long paths are enabled, so 80 leaves room for dependencies to grow.
+# Windows refuses paths over 259 characters unless long paths are enabled, and an install writes
+# files 150 characters below the repo root, so 80 leaves room for dependencies to grow.
 MAX_ROOT_CHARS_WITHOUT_LONG_PATHS = 80
 
 

@@ -123,8 +123,6 @@ def main() -> None:
         print("\n[DRY RUN] Not deleting. Re-run without --dry-run to purge.")
         return
 
-    # Delete per (league_code, expected_id): remove any row whose payload league.id
-    # is not the registry ID for that league_code.
     print("\nDeleting stale rows …")
     affected_codes = sorted({lc for lc, _, _, _ in stale})
     total_deleted = 0

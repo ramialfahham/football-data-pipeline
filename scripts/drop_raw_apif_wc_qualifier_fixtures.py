@@ -1,13 +1,4 @@
-"""Drop the obsolete RAW_APIF_WC_QUALIFIER_FIXTURES table after per-confederation qualifiers.
-
-Qualifier fixtures now live in RAW_APIF_WCQ*_* tables (PR #39 / #48). The aggregate
-raw table is no longer written. dbt sources and models for it are removed in the
-multi-competition foundation PR.
-
-Usage:
-    python scripts/drop_raw_apif_wc_qualifier_fixtures.py          # dry-run (default)
-    python scripts/drop_raw_apif_wc_qualifier_fixtures.py --apply  # delete table
-"""
+"""Drop the unwritten RAW_APIF_WC_QUALIFIER_FIXTURES table; dry-run unless --apply."""
 
 from __future__ import annotations
 

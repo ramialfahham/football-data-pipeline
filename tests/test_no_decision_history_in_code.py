@@ -20,8 +20,8 @@ HOOKS = os.path.join(REPO, ".claude", "hooks")
 sys.path.insert(0, HOOKS)
 import comment_history_gate as gate  # noqa: E402
 
-PINNED_LINES = 319
-PINNED_FILES = 108
+PINNED_LINES = 282
+PINNED_FILES = 95
 
 HASH = chr(35)
 

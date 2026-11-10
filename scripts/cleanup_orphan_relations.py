@@ -1,69 +1,4 @@
-"""Report, and optionally drop, production BigQuery relations that no dbt model owns (#84).
-
-WHY THIS EXISTS
----------------
-`check_layer_contract.py` blocks the per-competition pattern in the REPO. Nothing reconciles the
-WAREHOUSE. So when the per-competition staging and base models were replaced with generic
-unified ones, the models left the repo and 310 relations stayed behind in production,
-unnoticed for three months. 244 of them sat in `staging` alone, against 15 real staging models.
-
-Most are inert: they read raw tables that no longer exist, so any query against them errors. The
-dangerous ones are the minority that still resolve. Those answer queries with plausible numbers,
-computed by SQL that left the repo and is neither tested nor rebuilt, which is how someone walks
-away with a confident wrong answer.
-
-⚠ CLASSIFYING A LIVE VIEW AS BROKEN IS THE EXPENSIVE MISTAKE, because `broken` is the phase people
-drop without much thought. It has happened once already: a view calling a UDF was reported broken
-because routines are not relations and do not appear in `list_tables`. See `resolves()`. Anything
-this script cannot prove is gone must fall on the LIVE side.
-
-THE AUTHORITY IS THE MANIFEST, NOT A LIST OF NAMES
---------------------------------------------------
-Every run recomputes what is expected from `dbt_project/target/manifest.json` and compares it with
-what BigQuery actually holds. Nothing here hardcodes a table name, so this does not rot the way a
-captured list of today's 310 would: run it next year and it reports whatever is orphaned then. That
-also makes it usable as a standing reconciliation check, not only as a one-off cleanup.
-
-Expected relations come from two places, because two different things declare them:
-  - dbt models and seeds, keyed on `config.schema`, the raw custom schema from dbt_project.yml.
-    Deliberately NOT `node['schema']`, which has already been through `generate_schema_name.sql`
-    and so reads `dev_staging` under a dev target and `staging` under prod. Keying on the resolved
-    name would make the answer depend on who last parsed.
-  - dbt snapshots, keyed on `config.target_schema`. Snapshots use a different config key, and dbt
-    applies it verbatim without passing it through `generate_schema_name.sql` - dbt_project.yml
-    says exactly that above its `snapshots:` block. Reading `config.schema` for a snapshot returns
-    None and would file every snapshot under DEFAULT_DATASET, putting a name in that dataset's
-    expected set that will never be built there. No snapshots exist today and `snapshots` is not in
-    ALLOWED_DATASETS, so the mapping is inert right now, but it has to be right before the first
-    one lands: a snapshot is an SCD2 history table, and history cannot be rebuilt.
-  - dbt sources, which declare the `raw` dataset by explicit `identifier`.
-
-READ-ONLY BY DEFAULT. Without `--confirm` nothing is dropped. Reporting uses the BigQuery metadata
-API only (`list_tables`, `get_table`), which is not billed, and issues no query, so it scans no
-bytes and costs nothing to run.
-
-SAFETY
-------
-  - Dry-run unless `--confirm` is passed.
-  - A relation that any manifest node or source owns is never selectable.
-  - The manifest sanity floor aborts the run rather than treating an unreadable or half-parsed
-    manifest as "everything is orphaned". That is the one bug here that could drop the warehouse.
-  - Only the datasets in ALLOWED_DATASETS are ever read or written. `raw_archive` (a deliberate
-    archive), `dbt_scratch`, and every `ci_*`/`dev_*` dataset are out of reach by construction.
-  - `__dbt_tmp` relations are skipped: they are transient artifacts of an incremental merge and
-    carry a dbt-set 12-hour expiration.
-  - BigQuery time travel can restore a dropped TABLE for 7 days. A dropped VIEW is not recoverable
-    that way, but a view is pure definition and `git show 6e4ba18^` still has the SQL.
-
-USAGE
-    python scripts/cleanup_orphan_relations.py                        # report everything
-    python scripts/cleanup_orphan_relations.py --phase broken         # report, phase 1 selected
-    python scripts/cleanup_orphan_relations.py --phase broken --confirm
-    python scripts/cleanup_orphan_relations.py --phase all --confirm
-
-Requires the same credentials as the rest of the pipeline (`gcloud auth application-default
-login`, or a service-account key via GOOGLE_APPLICATION_CREDENTIALS).
-"""
+"""Report, and with --confirm drop, production BigQuery relations no dbt model or source owns."""
 
 from __future__ import annotations
 
@@ -78,30 +13,22 @@ from google.cloud.exceptions import NotFound
 
 PROJECT = "football-data-pipeline-gcp"
 
-# dbt's `config.schema` -> the dataset a `prod` build writes to. A node with no custom schema rides
-# `target.schema`, and prod's profile `dataset:` is `dbt_analytics` (the base models and the seeds).
-# See macros/generate_schema_name.sql.
+# A node with no custom schema rides `target.schema`, which is `dbt_analytics` in the prod profile.
 LAYER_DATASETS = ("staging", "core", "intermediate", "marts")
 DEFAULT_DATASET = "dbt_analytics"
 RAW_DATASET = "raw"
 
-# The only datasets this script may read or write. Everything else is unreachable by construction:
-# `raw_archive` is a deliberate archive, `dbt_scratch`/`dev_*`/`ci_*` are not production, and
-# `snapshots` holds nothing. Widening this list is a separate, separately reviewed decision.
+# The only datasets this script may read or write; every other dataset is unreachable.
 ALLOWED_DATASETS = (*LAYER_DATASETS, DEFAULT_DATASET, RAW_DATASET)
 
-# Operational tables in `raw` that no source declares and that must never be dropped. They are
-# written by the ingest lock and completeness machinery rather than by a loader, so the source list
-# cannot vouch for them and an explicit exclusion is the honest way to say so.
+# Operational tables in `raw` that no source declares and that must never be dropped.
 RAW_OPERATIONAL = frozenset({
     "RAW_APIF_INGEST_LOCK",
     "RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT",
 })
 
-# Below this many expected relations the manifest is not trustworthy, and every relation in the
-# warehouse would look orphaned. 117 are expected today (106 nodes + 11 sources); a floor of 50 sits
-# far enough below to avoid false alarms and far enough above zero to catch a manifest that failed
-# to parse, was written by a partial `--select` run, or was read from the wrong path.
+# Below this many expected relations the manifest is untrustworthy (failed parse, partial
+# `--select` run, wrong path) and every relation in the warehouse would look orphaned.
 MANIFEST_FLOOR = 50
 
 PHASES = ("broken", "live-views", "tables", "all")
@@ -114,9 +41,7 @@ _PHASE_LABELS = {
     "tables": "orphan TABLES: these hold bytes, unlike the views",
 }
 
-# `project.dataset.table`, backticks optional around each part, as BigQuery renders a stored view
-# definition. dbt always emits the fully qualified three-part form, so an unqualified name in a view
-# body is not something this needs to resolve.
+# `project.dataset.table`, backticks optional around each part; dbt always emits the three-part form.
 _REF_RE = re.compile(
     r"`?" + re.escape(PROJECT) + r"`?\s*\.\s*`?([A-Za-z0-9_]+)`?\s*\.\s*`?([A-Za-z0-9_]+)`?"
 )
@@ -127,11 +52,7 @@ class ManifestError(RuntimeError):
 
 
 def load_expected(manifest_path: Path) -> set[tuple[str, str]]:
-    """Return every (dataset, relation) a prod dbt build would create.
-
-    Raises ManifestError rather than returning a short set, because a short set silently becomes
-    "drop almost everything".
-    """
+    """Return every (dataset, relation) a prod dbt build would create."""
     if not manifest_path.is_file():
         raise ManifestError(
             f"No manifest at {manifest_path}. Run `dbt deps && dbt parse` in dbt_project/ first: "
@@ -147,12 +68,11 @@ def load_expected(manifest_path: Path) -> set[tuple[str, str]]:
     for node in (manifest.get("nodes") or {}).values():
         resource_type = node.get("resource_type")
         if resource_type not in ("model", "seed", "snapshot"):
-            continue                    # tests and analyses create no relation
+            continue
         config = node.get("config") or {}
         if config.get("materialized") == "ephemeral":
-            continue                    # inlined into its consumers, never built
-        # A snapshot names its dataset with `target_schema`, not `schema`. See the module
-        # docstring: getting this wrong files every snapshot under DEFAULT_DATASET.
+            continue
+        # A snapshot names its dataset with `target_schema`, which dbt applies verbatim.
         custom = (
             config.get("target_schema") if resource_type == "snapshot" else config.get("schema")
         )
@@ -185,10 +105,7 @@ def list_warehouse(client: bigquery.Client) -> dict[tuple[str, str], str]:
 def list_routines(client: bigquery.Client) -> set[tuple[str, str]]:
     """Every routine (UDF, procedure, table function) in the allowed datasets.
 
-    KEPT SEPARATE FROM THE WAREHOUSE MAP, DELIBERATELY. `find_orphans()` iterates the warehouse map
-    to decide what is droppable, so folding routines into it would make every UDF look like an
-    orphan relation and select it for deletion - a worse bug than the one this fixes. Routines are
-    only ever consulted to answer "does this reference resolve".
+    Kept out of the warehouse map so `find_orphans()` can never select a routine for deletion.
     """
     found: set[tuple[str, str]] = set()
     for dataset in ALLOWED_DATASETS:
@@ -208,9 +125,9 @@ def find_orphans(
         if key in expected:
             continue
         if name.endswith("__dbt_tmp"):
-            continue                    # transient; dbt sets a 12-hour expiration on these
+            continue
         if dataset == RAW_DATASET and name in RAW_OPERATIONAL:
-            continue                    # written by the ingest lock/completeness machinery
+            continue
         orphans.append(key)
     return sorted(orphans)
 
@@ -230,8 +147,7 @@ def view_queries(
         table = client.get_table(f"{PROJECT}.{key[0]}.{key[1]}")
         sql = table.view_query or ""
         queries[key] = sql
-        # Follow the references so a view's upstream views are fetched too: resolution is
-        # transitive, and an unfetched upstream would be assumed live and mis-phase the parent.
+        # An unfetched upstream view would be assumed live and mis-phase its parent.
         for ref in _refs_in(sql, key):
             if ref[0] in ALLOWED_DATASETS and ref not in queries:
                 pending.append(ref)
@@ -252,34 +168,24 @@ def resolves(
 ) -> bool:
     """True if querying this relation would succeed, following views transitively.
 
-    A one-level check gets this wrong in the direction that matters. `base_apif__bl1_teams` names
-    only relations that exist, but one of them is itself a view over a dropped raw table, so a real
-    query against it errors. Calling a broken view "live" only puts it in the cautious phase, which
-    is harmless; calling a live view "broken" would put it in the phase advertised as risk-free,
-    which is not. So anything unprovable resolves to True.
-
-    NOT EVERY `project.dataset.name` IN A VIEW BODY IS A RELATION. A user-defined function is
-    written exactly the same way, and neither `bq ls` nor `Client.list_tables` returns routines, so
-    a UDF call used to read as a reference to a missing table and flip this to False. That is how
-    `marts.mart_fixture_index` - which calls `dbt_analytics.url_fixture_slug`, validates, and
-    returns 1.5 MB - was reported as BROKEN and offered for deletion under a risk-free label.
-    Pass `routines` so a reference naming one is recognised for what it is.
+    Anything unprovable resolves to True, because calling a live view broken offers it for deletion.
+    A reference naming a routine is not a relation, so pass `routines` to recognise it.
     """
     routines = routines if routines is not None else set()
     if key in routines:
-        return True                     # a routine, not a relation: it exists, and it is not a view
+        return True
     if key not in warehouse:
-        return False                    # the relation is gone
+        return False
     if warehouse[key] != "VIEW":
-        return True                     # an existing table always resolves
+        return True
     if key in _stack:
-        return True                     # cycle; BigQuery forbids these, so do not recurse
+        return True
     sql = queries.get(key)
     if sql is None:
-        return True                     # definition unavailable: assume live, the safe side
+        return True
     for ref in _refs_in(sql, key):
         if ref[0] not in ALLOWED_DATASETS:
-            continue                    # cannot see it; assume it resolves, again the safe side
+            continue
         if not resolves(ref, warehouse, queries, routines, _stack | {key}):
             return False
     return True
@@ -364,8 +270,7 @@ def main(
 
     missing = sorted(expected - set(warehouse))
     if missing:
-        # Not this script's job to fix, but anyone deciding what to drop should see it: it means the
-        # last build did not finish, so the manifest may be ahead of the warehouse.
+        # The manifest may be ahead of the warehouse because the last build did not finish.
         print(f"\nWARNING: {len(missing)} expected relation(s) are NOT in the warehouse:")
         for dataset, relation in missing:
             print(f"      {dataset}.{relation}")

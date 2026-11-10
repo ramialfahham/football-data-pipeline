@@ -1,19 +1,4 @@
-"""Print comma-separated league codes that need CI bootstrap ingestion.
-
-A league needs bootstrap if its league_code does not yet appear in the unified
-RAW_APIF_FIXTURES_NEXT table. Reads active + ingest_active competitions from the
-registry, queries BigQuery for existing league_codes, and outputs only the missing ones.
-
-Usage (from repo root, with GCP credentials active):
-    python scripts/get_new_league_codes.py
-
-Output examples:
-    PL,ED,SPL        <- leagues not yet in RAW_APIF_FIXTURES_NEXT
-    (empty string)   <- all leagues already present; skip ingest
-
-Used by ci-data-build.yml to set API_FOOTBALL_LEAGUE_CODES for the bootstrap step.
-Exit code 0 always (empty output = nothing to do, not an error).
-"""
+"""Print the comma-separated active league codes missing from RAW_APIF_FIXTURES_NEXT."""
 
 from __future__ import annotations
 

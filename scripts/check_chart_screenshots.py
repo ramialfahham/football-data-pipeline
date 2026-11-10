@@ -78,7 +78,6 @@ COLOUR_JS = """([marks]) => {
   probe.remove();
   return out;
 }"""
-# The way a reader reaches a chart: shown already, or shown by a click on one of the page's tabs.
 REACH_JS = """([sel, n]) => {
   const shown = () => { const el = document.querySelectorAll(sel)[n]; return !!el && el.getBoundingClientRect().width > 0; };
   if (shown()) return true;
@@ -123,8 +122,7 @@ LABEL_JS = """() => {
   if (R.left < S.left || R.right > S.right || R.top < S.top || R.bottom > S.bottom) out.push('the edge of the drawing');
   return [...new Set(out)];
 }"""
-# A reader's click on a tab label, then the measurement, in one task: no frame is rendered in between,
-# so only what the click itself runs counts, as in a page the browser is not painting.
+# The click and the measurement run in one task, so no frame is painted in between.
 READER_JS = """() => {
   const shown = %s;
   const measure = %s;
@@ -172,9 +170,8 @@ def scatter_pages(dist: Path) -> list[str]:
 
 
 def label_findings(page, base: str, pages: list[str]) -> tuple[list[str], int]:
-    """Every (page, width) whose difference label meets something in a reader's flow (a fresh load
-    at that width, a click on the tab that shows the scatter plot, the measurement), and how many
-    were measured. The script is never run again or injected."""
+    """Every (page, width) whose difference label meets something after a fresh load and a tab click,
+    and how many were measured."""
     out, measured = [], 0
     for path in pages:
         for w in LABEL_WIDTHS:

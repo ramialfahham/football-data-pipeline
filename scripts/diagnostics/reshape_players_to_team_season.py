@@ -43,7 +43,7 @@ from ingestion.api_football.settings import GCP_PROJECT_ID, DATASET_ID  # noqa: 
 
 TABLE = f"{GCP_PROJECT_ID}.{DATASET_ID}.RAW_APIF_PLAYERS"
 
-# Idempotency guard: rows still in the bloated (>1 entry) grain, older than the migration ts.
+# Idempotency guard: rows still holding more than one entry per payload, older than the migration ts.
 _BLOATED = """
 select count(*) as n from `{t}`
 where ingested_at < @ts
@@ -93,8 +93,7 @@ from (
   unnest(json_query_array(json_query(latest.payload, '$.response'), '$')) as entry
 """
 
-# SET-IDENTITY check: the pre-migration key set (rows < @ts, latest snapshot per league) must
-# EQUAL the re-shaped key set (rows = @ts), in BOTH directions. Returns the two diff counts.
+# Counts keys present on only one side: pre-migration (latest snapshot per league) vs re-shaped.
 _KEY_DIFF = """
 with pre as (
   select distinct league_code,

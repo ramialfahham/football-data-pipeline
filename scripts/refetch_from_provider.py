@@ -218,12 +218,7 @@ class _CapReached:
 
 
 class CallCounter:
-    """Counts every HTTP call, retries included, and makes none past the cap or the deadline.
-
-    The call refused is answered with a body-level error and latches the daily-limit flag, so
-    result_is_complete turns false, fetch_json makes no further call, and the loaders write nothing
-    they did not finish.
-    """
+    """Counts every HTTP call and answers any past the cap or deadline with a body-level error."""
 
     def __init__(self, max_calls: int, deadline: datetime | None = None):
         self.max_calls = max_calls
