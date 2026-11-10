@@ -1,8 +1,8 @@
 # Review — claude/feat-135-players-page — 2026-11-10
 
-diff_sha256: b05ca6c3cb135ff17fc7af9971dc9794696cd12ae637dfb6987a8a53c723daed
+diff_sha256: c9d138a5785a34eaca75f4d2c3f175ee55613e20aac9abc1a77007ee6caa7592
 
-rounds: 4
+rounds: 5
 
 rounds_cap_override: rounds 4 and 5 fix MR !422's design check — round 4 the fixes, round 5 the pins from CI's measurement, lower only — approved in chat, 2026-11-10
 
@@ -14,6 +14,7 @@ risks_checked:
 - decisions_taken matches the code: the warehouse serves the four flags and the slug, the no-nation group shows its first 10 with no page, the slug clash is stopped in dbt, in the route and in the SEO audit.
 - Doc sync: site_architecture.md lists both Players addresses as built and has the two §5 rows; block_standard.md carries the generated fold-link row.
 - The rebase onto main after the term list follow-up leaves the branch's own change in menu.ts and site_architecture.md as reviewed.
+- Round 5: only the two baseline files change, both pins falling, inside amendment 4's scope.
 - Round 4: amendment 4 adds gen_sitemap.py and the two design baselines, which move only down; the gen_sitemap.py change adds a break opportunity, not content; the two Pages-table rows list parts the registry holds; the tag and CSS changes keep copy, order, links and payload.
 
 ## analytics-engineer-reviewer
@@ -44,6 +45,7 @@ risks_checked:
 - The nation route throws on a slug clash inside getStaticPaths; the build stays deterministic.
 - No dependency, credential or permission change.
 - Round 4: the `<wbr>` in gen_sitemap.py follows HTML escaping and cannot split an entity; the literal Nation page row outranks the Player pages glob and fails closed on a double match; this commit carries the fixes alone, the pins following from CI's measurement as ruled.
+- Round 5: baseline_quick.json and baseline.json lower only the sitemap mock's overflow and split, to the falls CI measured (MR job 17908825972; full-scope web job 17913301871); the new pages measure zero at every width in EN, DE and FI, so they enter with no pin.
 
 ## cto-reviewer
 VERDICT: PASS

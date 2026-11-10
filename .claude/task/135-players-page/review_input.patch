@@ -1439,6 +1439,34 @@ index a3ffe3d1..444d5d72 100644
  
  #filter-competition-all:checked ~ .fbar .seg-btn[for="filter-competition-all"],
  #filter-competition-1:checked ~ .fbar .seg-btn[for="filter-competition-1"],
+diff --git a/tests/fixtures/design_inventory/baseline.json b/tests/fixtures/design_inventory/baseline.json
+index a2068850..846395ae 100644
+--- a/tests/fixtures/design_inventory/baseline.json
++++ b/tests/fixtures/design_inventory/baseline.json
+@@ -30,7 +30,7 @@
+    "competition-rankings": {"split": 4, "classes": 9},
+    "gen_interaction.py/interaction_standard.html": {"scroll": 2, "split": 2, "classes": 11, "miss · Competition group head": 6},
+    "gen_matches_hub.py/matches-hub_2026-09-26.html": {"scroll": 9, "classes": 10},
+-   "gen_sitemap.py/sitemap_overview.html": {"scroll": 4, "overflow": 5, "split": 28, "classes": 27, "miss · (page)": 6},
++   "gen_sitemap.py/sitemap_overview.html": {"scroll": 4, "overflow": 2, "split": 20, "classes": 27, "miss · (page)": 6},
+    "gen_taxonomy.py/taxonomy_options.html": {"scroll": 1, "overflow": 34, "split": 5, "classes": 13, "miss · (page)": 6},
+    "home": {"classes": 10},
+    "home legacy": {"split": 6, "classes": 12},
+diff --git a/tests/fixtures/design_inventory/baseline_quick.json b/tests/fixtures/design_inventory/baseline_quick.json
+index 42890050..f6edee30 100644
+--- a/tests/fixtures/design_inventory/baseline_quick.json
++++ b/tests/fixtures/design_inventory/baseline_quick.json
+@@ -219,8 +219,8 @@
+    },
+    "gen_sitemap.py/sitemap_overview.html": {
+     "scroll": 1,
+-    "overflow": 4,
+-    "split": 12,
++    "overflow": 2,
++    "split": 8,
+     "classes": 27,
+     "miss · (page)": 2
+    },
 diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
 index ca365b66..3df99330 100644
 --- a/tests/test_export_site_data.py
@@ -1506,8 +1534,8 @@ index ca365b66..3df99330 100644
 # depends on one.
 #
 #   .../task/135-players-page/acceptance_evidence.md   |   17 +
-#    .../135-players-page/rendered_page_evidence.md     |   43 +
-#    .claude/task/135-players-page/review.md            |   52 +
-#    .claude/task/135-players-page/review_input.patch   | 1481 ++++++++++++++++++++
-#    4 files changed, 1593 insertions(+)
+#    .../135-players-page/rendered_page_evidence.md     |   48 +
+#    .claude/task/135-players-page/review.md            |   58 +
+#    .claude/task/135-players-page/review_input.patch   | 1528 ++++++++++++++++++++
+#    4 files changed, 1651 insertions(+)
 # ============================================================================
