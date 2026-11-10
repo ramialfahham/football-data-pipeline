@@ -194,14 +194,26 @@ def _flat(pins: dict) -> dict:
     return {(g, k): n for g, by in pins.items() for k, n in (by.items() if isinstance(by, dict) else [(None, by)])}
 
 
+def _rises(now: dict, was: dict) -> list[str]:
+    """Every pin above main's, except the switch set's size: it counts declared breakpoints, not a
+    gap, and the check pins it both ways."""
+    return ["%s · %s · %d, main %d" % (k[0], k[1], n, was.get(k, 0)) for k, n in sorted(now.items(), key=str)
+            if n > was.get(k, 0) and k != ("set sizes", "switch")]
+
+
+def test_only_the_switch_set_may_grow_past_mains():
+    was = {("set sizes", "switch"): 12, ("set sizes", "colours"): 20, ("forms", "x"): 0}
+    now = {("set sizes", "switch"): 13, ("set sizes", "colours"): 21, ("forms", "x"): 1}
+    assert _rises(now, was) == ["forms · x · 1, main 0", "set sizes · colours · 21, main 20"]
+
+
 @pytest.mark.parametrize("path", ["tests/fixtures/component_registry/baseline.json",
                                   "tests/fixtures/font_coverage/baseline.json"])
 def test_no_pin_rises_above_mains(path):
     base = _mains(path)
     if base is None:
         pytest.skip("main has no %s yet; this branch introduces it" % path)
-    now, was = _flat(json.loads((REPO / path).read_text(encoding="utf-8"))), _flat(base)
-    up = ["%s · %s · %d, main %d" % (k[0], k[1], n, was.get(k, 0)) for k, n in sorted(now.items(), key=str) if n > was.get(k, 0)]
+    up = _rises(_flat(json.loads((REPO / path).read_text(encoding="utf-8"))), _flat(base))
     assert up == [], "a pin rose above main's; a new gap is fixed, not pinned:\n" + "\n".join(up)
 
 

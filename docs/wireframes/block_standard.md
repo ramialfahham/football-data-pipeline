@@ -139,7 +139,7 @@
 | Result row home away | `.resrow .ha` | the result row's home away, in the 11-600-muted text style, never broken | `font-size=11px; font-weight=600; color=muted; one-line; fits` | ruled | the component registry |
 | Result row parts | `.rlist, .rlist.pm, .rm-c, .rm-p, .scorer` | the result row's other parts: registered, no text of their own |  | ruled | the component registry |
 | Form parts | `.W, .D, .L` | the form's other parts: registered, no text of their own |  | ruled | the component registry |
-| Player row | `.plrow` | photo · name over position · goals and assists on the right at every width; two lines below 375px when the row is short of room; on a line-up, the minutes played | `fits` | ruled | the match page review; the component registry |
+| Player row | `.plrow` | photo · name over position · goals and assists on the right at every width; two lines below 375px when the row is short of room; under 280px the name takes the whole line and the position shares the second line with the numbers; on a line-up, the minutes played | `fits` | ruled | the match page review; the component registry |
 | Player row name | `.plrow .pname .nm` | 15px regular ink, wrapping, never cut off | `font-size=15px; font-weight=400; color=ink; white-space=normal` | ruled | the match page review |
 | Player row position | `.plrow .pname .ps` | 12px muted. On a line-up the substitution follows after a middle dot. It is the minute a starter went off, or a substitute came on and for whom | `font-size=12px; color=muted` | ruled | the match page review |
 | Player row number | `.plrow .pstat b` | 15px bold ink | `font-size=15px; font-weight=700; color=ink` | ruled | the match page review |

@@ -49,6 +49,7 @@ sets:
   spacing: ["-12px", "-9px", "-8px", "-6px", "-3px", "-1px", 1px, 2px, 3px, 4px, 5px, 6px, 7px, 8px, 9px, 10px, 11px, 12px, 13px, 14px, 15px, 16px, 18px, 20px, 22px, 24px, 26px, 28px, 30px, 34px, 36px, 40px, 48px, "clamp(12px, 4.5vw, 18px)", "clamp(16px, 3.5vw, 28px)", "clamp(16px, 4cqw, 28px)", "clamp(6px, 2cqw, 16px)", "clamp(8px, 3cqw, 20px)", "var(--gap)"]
   colours: [accent, chart-axis, chart-better, chart-line, chart-other, chart-team, draw, ink, ink-2, line, loss, muted, page, pill-ink, sunk, surface, track, win, "#f26d6d", "#fff"]
   switch:
+    w280: 280px
     w340: 340px
     w420: 420px
     w430: 430px
@@ -331,12 +332,13 @@ components:
     file: [site_v2/src/components/fixture/PlayerRow.astro, site_v2/src/components/fixture/MatchLineups.astro, site_v2/src/components/team/TeamSquad.astro]
     used-on: [match page, Team page]
     parts:
-      row: {class: plrow, element: Player row, rule: "photo · name over position · goals and assists on the right at every width; two lines below 375px when the row is short of room; on a line-up, the minutes played", measured: fits, ruled-on: "the match page review; the component registry"}
+      row: {class: plrow, element: Player row, rule: "photo · name over position · goals and assists on the right at every width; two lines below 375px when the row is short of room; under 280px the name takes the whole line and the position shares the second line with the numbers; on a line-up, the minutes played", measured: fits, ruled-on: "the match page review; the component registry"}
       name: {class: nm, selector: ".plrow .pname .nm", text: 15-400-ink, element: Player row name, rule: "15px regular ink, wrapping, never cut off", measured: "font-size=15px; font-weight=400; color=ink; white-space=normal", ruled-on: the match page review}
       position: {class: ps, selector: ".plrow .pname .ps", text: 12-400-muted, element: Player row position, rule: "12px muted. On a line-up the substitution follows after a middle dot. It is the minute a starter went off, or a substitute came on and for whom", measured: "font-size=12px; color=muted", ruled-on: the match page review}
       number: {class: pstat, selector: ".plrow .pstat b", text: 15-700-ink, element: Player row number, rule: 15px bold ink, measured: "font-size=15px; font-weight=700; color=ink", ruled-on: the match page review}
       photo: {class: pphoto, gap: mock-css}
     wide: "photo · name over position · numbers at the right"
+    narrow: {below: w280, form: "the name across the row, the position and the numbers on the second line"}
     short-forms: [minutes]
   split:
     name: Two columns
