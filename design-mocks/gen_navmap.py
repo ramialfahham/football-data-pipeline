@@ -1,20 +1,7 @@
-"""Render HOW THE SITE IS PUT TOGETHER -- in plain language, starting at the home page.
+"""Render the plain-language site map, starting at the home page.
 
-This replaces the route-pattern map (gen_sitemap.py), which was accurate and unreadable:
-it showed `/{locale}/{competition-slug}/` where what is wanted is "a competition, e.g.
-Bundesliga", and it left out the site MENU entirely, which is where navigation actually
-starts.
-
-Split of responsibility:
-  * DERIVED from the repo -- whether a page exists (globbing site_v2/src/pages), the menu's
-    items (SiteHeader.astro + the EN strings), and whether each menu item is a link or inert
-    text. Those are facts and must not be typed.
-  * HAND-WRITTEN -- the plain-English description of what each page shows and where it leads.
-    There is no machine-readable source for "shows the next round and the league table", and
-    pretending otherwise would be worse than saying so.
-
-gen_sitemap.py stays: the URL-pattern view is the right one for SEO and routing work. This is
-the one for deciding what the site IS.
+Page existence and menu items are derived from the repo; what each page shows and where it
+leads is hand-written because no machine-readable source exists.
 """
 import html
 import re
@@ -30,11 +17,8 @@ OUT = Path(__file__).with_name("navmap.html")
 
 E = html.escape
 
-# ------------------------------------------------------------- derived bits
-
 
 def page_exists(*route_parts):
-    """Is there an .astro template for this route shape?"""
     want = "/".join(route_parts)
     for p in PAGES.rglob("*.astro"):
         if p.relative_to(PAGES).as_posix().replace(".astro", "") == want:
@@ -43,7 +27,6 @@ def page_exists(*route_parts):
 
 
 def menu_items():
-    """The nav labels, in order, plus whether each renders as a LINK or inert text."""
     src = HEADER.read_text(encoding="utf-8")
     keys = re.findall(r't\(lang,\s*"(nav\w+)"\)', src)
     en = {}
@@ -51,7 +34,6 @@ def menu_items():
     for k in keys:
         m = re.search(r'\b%s:\s*"([^"]*)"' % k, body)
         en[k] = m.group(1) if m else k
-    # the nav block: are the items <a> or <span>?
     nav = src.split('<nav class="mainnav"', 1)[1].split("</nav>", 1)[0]
     is_link = "<a" in nav
     return [(k, en[k]) for k in keys], is_link
@@ -85,11 +67,7 @@ MENU_NOTES = {
                         "and league leaderboards live under each competition."),
 }
 
-# --------------------------------------------------------------- the pages
-#
-# (key, plain name, example, status, shows[], go[], inside[], note)
-# `status` is OVERWRITTEN below from the repo where a template can be found -- the value here
-# is only the fallback for pages that do not exist yet.
+# `status` is overwritten from the repo where a template exists; the value here is the fallback.
 
 PAGES_PLAIN = [
     dict(

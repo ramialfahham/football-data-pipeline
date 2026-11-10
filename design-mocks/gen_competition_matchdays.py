@@ -1,12 +1,4 @@
-"""Render the COMPETITION PAGE, Matchdays tab, as a standalone mock for the review on GitLab #129.
-
-Real data: every Bundesliga 2026/27 fixture as prod `core.fct_fixture` held it when pulled
-(306 rows, 3 matchdays played, matchday 4 next -- the same nine rows the Overview's Next matches
-block shows). Kick-off shown in the venue's clock (Europe/Berlin) with the zone the clock gives.
-
-Imports the shared pieces from design-mocks (rows, interaction, the Overview generator's header
-copy) so the tab cannot drift from the rows the site already has.
-"""
+"""Standalone mock of the competition page Matchdays tab, built from real Bundesliga fixtures."""
 import json
 import sys
 from collections import OrderedDict
@@ -37,7 +29,7 @@ COPY.update({
     "mattersWhy":       ("The two best-placed teams meeting this matchday", "Kierroksen kaksi parhaiten sijoittunutta joukkuetta vastakkain", True),
 })
 
-# the round's shots on goal per side, from core, matchday 3 only (the README dates the pull)
+# shots on goal per side for matchday 3 only, pulled from core
 SHOTS_FILE = "bl1_md3_shots.json"
 # the Overview's flag and the table, from the committed Bundesliga payload
 PAYLOAD = REPO / "site_v2/src/data/competitions/BL1/2026.json"
@@ -58,7 +50,7 @@ def ordinal(n):
 
 VENUE_TZ = ZoneInfo("Europe/Berlin")
 COPY["topMatch"] = ("Top match", "Huippuottelu", True)
-# the flagged match of the next matchday (is_match_that_matters on the committed payload's fixtures)
+# fixtures flagged is_match_that_matters in the committed payload
 def flagged_fixtures(payload):
     return {f["fixture_id"] for r in payload["fixtures"] for f in r["fixtures"] if f["is_match_that_matters"]}
 
@@ -101,8 +93,7 @@ def by_round(fixtures):
 
 
 def next_round(rounds):
-    """The next matchday = the lowest round with an unplayed fixture -- the rule mart_next_matchday
-    already applies; the mock reads status, the warehouse would serve a flag."""
+    """The lowest round with an unplayed fixture, the rule mart_next_matchday applies."""
     for n, fx in rounds.items():
         if any(f["status"] in ("NS", "TBD") for f in fx):
             return n
@@ -140,9 +131,7 @@ def header_html(name):
 
 
 def step_html(rounds, n, nxt):
-    """One matchday's radio and picker step (CSS-only, the radio mechanism the team page's tabs
-    use). Each sits in its matchday's `.md` wrapper with the schedule, so the stylesheet shows the
-    checked wrapper's contents with no per-matchday rule; the next matchday is checked on load."""
+    """One matchday's radio and picker step; the next matchday is checked on load."""
     ns = list(rounds)
     i = ns.index(n)
     prev_ = ('<label class="step prev" for="md-%d" aria-label="Matchday %d">%s</label>'
@@ -172,9 +161,7 @@ def fact_row(label_key, value, context, href="#"):
 
 
 def lucky_html(fx, shots):
-    """Block 5 on a played matchday: results that went against the shot balance (shots on goal,
-    the site's own definition). Winner with a balance of zero or worse; a draw with a balance of
-    three or more either way. Absent when the round has none."""
+    """Results against the shot balance: a winner at zero or worse, or a draw at three or more."""
     rows = []
     for f in fx:
         if f["hg"] is None or f["fixture_id"] not in shots:
@@ -201,8 +188,6 @@ def lucky_html(fx, shots):
 
 
 def matters_html(fx, payload):
-    """Block 1 on the next matchday: the Overview's flag, shown as the shared row with the two
-    table positions under it. Absent on every other matchday."""
     flagged = flagged_fixtures(payload)
     rank = {s["team_name"]: s["standing_rank"] for s in payload["standings"]}
     rows = []

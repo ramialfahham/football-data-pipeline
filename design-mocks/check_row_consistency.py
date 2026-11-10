@@ -1,24 +1,6 @@
-"""Prove the "Next matches" block is IDENTICAL on every surface that shows it.
+"""Prove the match-row block renders identically on every mock page, by reading the emitted HTML.
 
-The rule: a repeated content block is the same everywhere it is shown.
-`rows.py` makes that true by construction; this file proves
-it of the RENDERED output, which is the only thing a reader ever sees.
-
-⚠ THREE surfaces, not two. The home page was left out of the first version of this check and
-that is precisely where the inconsistency was spotted — `home/HeroFixtures.astro` had its own
-copy of the markup. A consistency check that skips a surface is worse than none.
-
-  home_mock.html                     the home page's Next matches module
-  matches_next_mock.html             /matches/ and matches_past_mock.html /matches/results/
-  competition_hub_mock_league.html   a competition's own page
-
-The row's CSS is the site's stylesheet, and only there: whether any surface restyles it is
-scripts/check_page_css.py's question, against the block standard, not this file's.
-
-Comparing the GENERATORS would prove nothing — they all import the same module. These checks
-read the emitted HTML and compare markup skeletons.
-
-Run the three generators first.
+Run the generators first; restyling of the row is checked by scripts/check_page_css.py.
 """
 import re
 import sys
@@ -34,9 +16,6 @@ DOCS = {name: (HERE / f).read_text(encoding="utf-8") for name, f in (
     ("hub", "competition_hub_mock_league.html"),
 )}
 
-# ⚠ FOUR files, because Matches is TWO pages. It was one stacked file with "Page 1"/"Page 2"
-# labels, which read as a single page showing both lists and whose tab bar did nothing when
-# clicked. Two tabs means two URLs (#46), so it is two files and the tabs link to each other.
 _stale = HERE / "matches_mock.html"
 if _stale.exists():
     sys.exit("FATAL: %s still exists. It is the stacked two-in-one file; re-run gen_matches.py."
@@ -57,23 +36,13 @@ def bad(m, d):
 ROW = re.compile(r'<(a|div) class="(fxrow[^"]*)"[^>]*>(.*?)</\1>', re.S)
 GH = re.compile(r'<div class="gh">(.*?)</div>\s*(?=<div class="dh"|<a|<div class="fxrow|\n)', re.S)
 
-# ⚠ `rep` / `repoff` are GONE. A "Report" / "No report yet" chip occupied the played row's right
-# column — the slot that carries the kick-off on every other row — and was removed when the
-# played row was ruled to be the same row. Removing them from this set is what
-# makes their return a failure rather than a silent tolerance.
 KNOWN_ROW_CLASSES = {"sides", "side", "crest", "xs", "nm", "when", "t", "rowtz",
                      "g", "winner", "num"}
 
 
 def skeletons(doc):
-    """Every `.fxrow` reduced to STRUCTURE: tag, classes and nested element classes, with all
-    variable content removed.
-
-    ⚠ Two things are normalised, and only two. The SVG badge, because a club crest and a
-    national flag are deliberately different drawings — leaving them in would report the design
-    working correctly as an inconsistency. And the `win` marker, because it says which side won,
-    so a page whose sample has no away win would otherwise look inconsistent. Both are applied
-    by the shared function to every page, so neither hides a real difference."""
+    """Every `.fxrow` reduced to structure; the SVG badge and the `winner` marker are normalised
+    because they legitimately vary by sample data."""
     out = {"upcoming": set(), "played": set()}
     for tag, cls, inner in ROW.findall(doc):
         inner = re.sub(r"<svg.*?</svg>", "", inner, flags=re.S)
@@ -86,19 +55,10 @@ def skeletons(doc):
 
 
 def gh_skeletons(doc):
-    """The GROUP HEAD. This is the surface that was actually inconsistent: the Matches page
-    headed its groups with a DAY while the competition page used a MATCHDAY.
-
-    The competition name renders as `<a class="cnm lnk">` off its own page and
-    `<span class="cnm here">` on it — a STATE, the same convention the nav and breadcrumb use —
-    so the whole element is normalised, open tag and close. Everything inside must still match."""
+    """The group head reduced to structure, with the competition link normalised."""
     out = set()
     for inner in GH.findall(doc):
         inner = re.sub(r"<svg.*?</svg>", "", inner, flags=re.S)
-        # ⚠ MATCH `cnm` WITH OR WITHOUT EXTRA CLASSES, and swallow the href. The class was
-        # `cnm lnk` until the interaction standard dropped `lnk` (the underline it named is gone),
-        # and this pattern silently stopped matching — which let each competition's own href into
-        # the skeleton, so every surface "differed" purely by which leagues it happened to list.
         inner = re.sub(r'<a class="cnm[^"]*"[^>]*>(.*?)</a>', r"<CNM>\1</CNM>", inner, flags=re.S)
         inner = re.sub(r">[^<>]*<", "><", inner)
         out.add(re.sub(r"\s+", " ", inner).strip())
@@ -129,14 +89,10 @@ def check_row_markup_matches():
 
 
 def check_group_head_matches():
-    """2. THE GROUPING IS THE SAME EVERYWHERE: competition, then date. No day headings, and no
-    matchday on the heading."""
+    """2. Grouping is competition, then date, everywhere: no day headings, no matchday."""
     per = {n: gh_skeletons(d) for n, d in DOCS.items()}
 
-    # ⚠ THE COMPETITION PAGE MUST HAVE NONE. Level 1 of the block is the competition, and on
-    # that page the competition is the <h1>; rendering it again as a group heading put
-    # "Bundesliga" directly under "Bundesliga". A block may OMIT a level the page supplies. This
-    # is an assertion, not a skip: the omission is the rule, so its absence is checked.
+    # The competition page's own <h1> is the competition level, so it must emit no group head.
     if per["hub"]:
         return bad("group head matches",
                    "the competition page emits a competition heading under its own <h1>")
@@ -156,32 +112,20 @@ def check_group_head_matches():
             return bad("group head matches", "%s still emits a matchday on the heading" % n)
         if 'class="dh"' not in d:
             return bad("group head matches", "%s has no date level inside the group" % n)
-    # ⚠ report what was actually compared. The first version said "identical on all 3" while the
-    # competition page carried none at all — a check that overstates its own coverage is how a
-    # gap survives a green run.
     ok("group head matches (identical on %s; %s correctly has none; date level on all %d)"
        % (", ".join(sorted(have)), "hub", len(DOCS)))
 
 
 SYSTEM_CSS = Path(__file__).resolve().parent.parent / "site_v2/src/styles/system.css"
 
-# classes the block deliberately REUSES from the design system — everything else it emits must be
-# a name system.css has never heard of
+# classes the block deliberately reuses from the design system; every other emitted class must be new
 BORROWED = {"fxrow", "fxgroup", "gh", "sides", "side", "crest", "xs", "nm", "when", "t", "d",
             "lnk", "num", "linkchip", "linkrow", "tab", "tabs", "on", "here", "sep", "crumb",
             "eyebrow", "sechead", "dh", "rowtz", "g", "winner", "played", "clogo", "cnm", "chev"}
 
 
 def check_no_class_collides_with_the_design_system():
-    """⚠ THE BUG THAT COST FOUR ROUNDS. The played row's modifier was `res`. `system.css:155`
-    already defines `.res` — the W/D/L result chip of the `.rmatch` row — carrying
-    `width: 24px; height: 24px`. So every played row was TWENTY-FOUR PIXELS WIDE: the name
-    collapsed to nothing, the rows overlapped, and four rounds of layout fixes could not help,
-    because none of them touched the cause.
-
-    A block's own class names must be names the design system has never defined, unless the block
-    is deliberately reusing that component. This is the class-level fix; renaming `res` to
-    `played` was only the instance."""
+    """A class the block invents must not already exist in system.css, or it inherits its rules."""
     css = re.sub(r"/\*.*?\*/", "", SYSTEM_CSS.read_text(encoding="utf-8"), flags=re.S)
     system_classes = set(re.findall(r"\.([a-zA-Z][\w-]*)", css))
 
@@ -217,11 +161,7 @@ def check_row_vocabulary_is_closed():
 
 
 def check_time_slots_are_right():
-    """4. Every UPCOMING row carries its own timezone, and nothing else does. A conditional
-    zone put two shapes of one block on a single screen."""
-    # ⚠ UPCOMING rows carry a kick-off and a zone; PLAYED rows carry NEITHER (a finished
-    # match's start time is not information). Both halves are asserted, so dropping a
-    # zone from an upcoming row and re-adding a kick-off to a played one are each a failure.
+    """4. Every upcoming row carries its own timezone, and played rows and group heads carry none."""
     counts = []
     for name, doc in DOCS.items():
         rows = ROW.findall(doc)

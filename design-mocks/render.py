@@ -1,10 +1,7 @@
 """Render a design mock under its name of record: `renders/<page>_<YYYY-MM-DD>_<nn>.html`.
 
-A render sent for review is never overwritten, so the file name is never chosen by hand: this
-picks the next number for the page from what the folder already holds (the number counts up per
-page across dates and never resets), runs the generator with that path as its one argument, and
-refuses to write over an existing file. `tests/test_design_mock_renders.py` holds the folder to
-the same pattern.
+The next number for the page counts up across dates and never resets; an existing file is never
+overwritten.
 
     python design-mocks/render.py gen_home_with_rules.py home
     -> design-mocks/renders/home_2026-09-17_02.html

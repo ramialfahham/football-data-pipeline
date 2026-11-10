@@ -1,32 +1,4 @@
-"""The COMPETITIONS page — /{locale}/competitions/ — the list the menu's "Competitions" points at.
-
-⚠ NOT the competition page. That is `/{locale}/{slug}/`, one league, and it is
-`gen_competition_hub.py`. This is the index above it: every competition we carry. The
-plural/singular confusion cost a review round; keep it in writing.
-
-## THE PROVENANCE RULE (#58) IS THIS FILE'S CONTRACT
-
-The rule: every element on the page says where its data come from, as data-backed as possible,
-with nothing hard-coded.
-
-`PROVENANCE` below names the source of EVERY element on the page, and the mock RENDERS that table
-beneath itself — the design and its provenance are one artifact. Three rules follow, all enforced
-by `check()`:
-
-  1. a value with no source is a NAMED GAP, never a typed value — marked on the page and counted;
-  2. every stand-in is GUARDED against the real set it stands in for, so it cannot drift;
-  3. no category, axis or grouping is invented here. If the model does not carry it, it is a
-     data-model change to PROPOSE — which is what the two `*.proposed.csv` files are.
-
-## WHAT IS READ, AND FROM WHERE
-
-  the set / order / country / slug / confederation  ->  docs/competition_registry.yml
-  the categorisation and its labels                 ->  seeds/competition_types.csv   (reshaped)
-  the region label for a multi-country competition  ->  seeds/confederations.csv      (NEW)
-
-Nothing on this page is typed except the display NAME, which has no readable source anywhere in
-the repo (#55) and is guarded against the registry's own set.
-"""
+"""Mock of the competitions index page, /{locale}/competitions/, listing every competition."""
 import csv
 import html
 import re
@@ -47,65 +19,22 @@ OUT = Path(__file__).with_name("competitions_mock.html")
 E = html.escape
 
 # =============================================================== THE TAXONOMY SEED
-#
-# ⚠ GROUPED BY `competition_type` — THE TAXONOMY (#57). `display_group` was the rollup this
-# page used to group by; it is now DELETED from the seed entirely (see below), so it is not a
-# filter here either.
-#
-# ⚠ NO LABEL IS TYPED IN THIS FILE. The rule: the seed is the single source of truth for the
-# displayed name, as in the metric layer, and the mapping to other languages happens in a
-# different file. Both label columns mirror `metric_catalogue.csv`, and DE/FI live in
-# `strings.ts` keyed by `label_i18n_key`, exactly as `METRIC_LABELS_DE` / `METRIC_LABELS_FI` do.
+# Labels are read from the seed, never typed here; DE/FI live in `strings.ts` by label_i18n_key.
 TYPES_SEED = REPO / "dbt_project/seeds/competition_types.csv"
 TYPES_PROPOSED = Path(__file__).with_name("competition_types.proposed.csv")
 
-# ⚠ NEW SEED — the answer to the one thing #54 left unresolved: THE REGION ON A ROW.
-#
-# The row printed the registry's `country`, which holds a country OR a continent OR the literal
-# "International", inconsistently and WITHIN one category — `EURO` said *Europe* while `COAM` and
-# `AFCON`, the same `competition_type`, said *International*.
-#
-# `confederation` is the reliable field: a documented enum (PARSED out of the registry's own
-# header by `check_confederation_enum()`, never typed here), correct on every one of the 45 rows.
-# What it lacked was LABELS — no readable "UEFA -> Europe" exists anywhere in the repo, and the
-# first version of this mock typed them into the generator, which is the exact failure #58 names.
-#
-# It has to be its OWN table rather than more columns on the taxonomy seed, because the region
-# varies WITHIN a type: `COAM` and `EURO` are both `continental_championship`, and they are South
-# America and Europe.
+# Region labels are their own table because the region varies within one competition_type.
 CONFED_PROPOSED = Path(__file__).with_name("confederations.proposed.csv")
 
 # --------------------------------------------------------------- what the proposal changes
-#
-# ⚠ EVERY DIFFERENCE FROM THE SHIPPED SEED IS DECLARED HERE, and `check_seed_matches_shipped()`
-# fails on any difference that is NOT. That is what keeps the guard real while the seed is being
-# reshaped: an accidental extra type, a silently dropped one, or a re-appearing column all fail.
-
-# The ruling: `display_group` has no reasonable use case, so it is deleted.
-# It grouped by FORMAT for club competitions (`leagues`, `cups`) and by GEOGRAPHY for the rest
-# (`continental-club`, `national-teams`), so one axis changed halfway through; it overloaded BLANK
-# to mean "not browsable"; and once `club_world_cup` existed none of its four values fitted. No
-# dbt model reads it — all seven that join this seed read `entity_type` only — so its only
-# consumer is the home page's browse chips, which regroup by `competition_type` like this page.
+# Every difference from the shipped seed is declared here; check_seed_matches_shipped() enforces it.
 DROPPED_COLUMNS = {"display_group"}
 
-# ⚠ NAMING RULE: a type that holds ONE specific competition is named for it; a
-# type that holds a CLASS is named generically. Three types are singular by nature and all three
-# are FIFA's. `world_championship` -> `world_cup` and `continental_club` -> `continental_cup`,
-# because the latter named the ENTITY where every other type names the FORMAT.
 RENAMED_TYPES = {"continental_club": "continental_cup", "world_championship": "world_cup"}
 
-# ⚠ TWO NEW TYPES, and they are two rather than one because the Club World Cup is a TOURNAMENT
-# while the FIFA Intercontinental Cup is a one-off between titleholders — the same split the
-# taxonomy already makes at domestic and continental level. Folding them together was this
-# design's error, since corrected.
 NEW_TYPES = {"club_world_cup", "intercontinental_cup"}
 
-# ⚠ AND THE REGISTRY EDIT THE PROPOSAL IMPLIES, applied IN MEMORY because the registry is a repo
-# file and this session is design-only. `CWC` is typed `continental_club` today, which put the
-# Club World Cup beside the Europa League (#57). `check_registry_still_unedited()` asserts the
-# registry still holds the OLD value, so the day it is really edited this mock fails instead of
-# silently applying a correction twice.
+# Applied in memory; check_registry_still_unedited() fails once the registry holds the new value.
 RETYPED = {"CWC": "club_world_cup"}
 
 
@@ -118,32 +47,17 @@ _TYPES = _read_csv(TYPES_PROPOSED, "competition_type")
 _CONFED = _read_csv(CONFED_PROPOSED, "confederation")
 
 ENTITY_TYPE = {k: v["entity_type"] for k, v in _TYPES.items()}
-# ⚠ THE ONE NEW COLUMN. It answers exactly one question — is this competition confined to one
-# country — and that is the question that decides which field a row's sub-line reads. Nothing
-# existing answers it: `entity_type` does not (a domestic league and the Champions League are both
-# `club`) and `tier` exists only on leagues. Reading it off the `country` string is the banned move.
 SINGLE_COUNTRY = {k: v["single_country"] == "true" for k, v in _TYPES.items()}
 TYPE_EN = {k: v["label_en"] for k, v in _TYPES.items()}
 TYPE_KEY = {k: v["label_i18n_key"] for k, v in _TYPES.items()}
 CONFED_EN = {k: v["label_en"] for k, v in _CONFED.items()}
 
-# ⚠ EVERY registry competition — 45 today, not the twelve marked `status: active`.
-#
-# THIS IS WHAT ALREADY SHIPS. `_registry_competitions()` (`scripts/export_site_data.py:911`)
-# applies NO status filter, so `nav.json`, `landing.json` and the committed
-# `site_v2/src/data/competitions.json` all carry all 45. An earlier version filtered to
-# `status: active` and showed twelve — wrong twice over: it did not match the site, and the
-# registry's `status` is stale anyway (CLAUDE.md lists WC and the WCQ* set as active while the
-# registry still marks them `in_progress`).
-#
-# ⚠ WHICH MEANS NOTHING TODAY DECIDES WHETHER A COMPETITION APPEARS. Not status (unused and
-# stale), not data (never consulted). That is a gap in its own right, listed in PROVENANCE.
+# Every registry competition, with no status filter, matching what the export ships.
 _REGISTRY_RAW = [c for c in yaml.safe_load(REGISTRY.read_text(encoding="utf-8"))["competitions"]
                  if isinstance(c, dict) and "competition_type" in c]
 
 
 def _apply_proposal(c):
-    """The registry row as it WOULD read once the rename and the re-type land."""
     ct = RETYPED.get(c["league_code"]) or RENAMED_TYPES.get(c["competition_type"],
                                                             c["competition_type"])
     return {**c, "competition_type": ct}
@@ -151,16 +65,10 @@ def _apply_proposal(c):
 
 REGISTRY_ALL = [_apply_proposal(c) for c in _REGISTRY_RAW]
 
-# the short-name stand-in covers only the active twelve; everything else falls back to the
-# registry's own long `name`, which is #55 made visible on one screen
+# Short names exist only for the active competitions; the rest fall back to the registry `name`.
 SHORT_CODES = {c["league_code"] for c in ACTIVE}
 
-# ------------------------------------------------------------- the two locale strings
-#
-# ⚠ BOTH EXIST IN ALL THREE LOCALES ALREADY — `strings.ts` `crumbHome` (:23/:205/:357) and
-# `navCompetitions` (:171/:329/:489). The H1 deliberately reuses the NAV item's key rather than
-# introducing a second string for the same word: the menu item and the page it leads to cannot
-# drift if they are one string.
+# The H1 reuses the nav item's key so the menu item and its page share one string.
 COPY = {
     "crumbHome": ("Home", "Etusivu"),
     "navCompetitions": ("Competitions", "Kilpailut"),
@@ -172,27 +80,11 @@ def loc(key):
     return '<span class="en">%s</span><span class="fi" lang="fi">%s</span>' % (E(en), E(fi))
 
 
-# ================================================================= PROVENANCE (#58)
-#
-# Element | Level | Source | status | Note.  The same shape as #50's anatomy table, which is the
-# one that worked and was then not reused. `status` drives BOTH the on-page mark and check().
+# ================================================================= PROVENANCE
+# Element | Level | Source | status | Note; `status` drives both the on-page mark and check().
 #   ok        - a real, shipped source
 #   proposed  - a real source that does not exist yet, proposed by this design
 #   gap       - NO source; the value on the page is a stand-in and is marked as one
-#
-# \u26a0 REWRITTEN AS COLUMNS OF ONE MART, not as a list of files. The rule: every page of the
-# website is populated the same way, not from a file here and the warehouse there.
-#
-# The earlier version of this table named FOUR sources for one page \u2014 the registry YAML, two seed
-# CSVs and `dim_league`. That is a story, not a contract, and it is what made it unreviewable.
-# `docs/content_architecture.md` \u00a71 already says the rule \u2014 "one block = one mart... nothing
-# computes in a page" \u2014 and this page was quietly breaking it.
-#
-# \u26a0 It is also what makes #58 machine-checkable. "One element, one column" can be verified by a
-# build step; "one element, somewhere across four files" cannot.
-#
-# \u26a0 The mart does not exist yet, so every content row below is `proposed` by definition. The two
-# `gap` rows are gaps in the UPSTREAM value and stay gaps after the mart lands.
 MART = "mart_competition_index"
 
 PROVENANCE = [
@@ -242,12 +134,7 @@ PROVENANCE = [
 
 # ------------------------------------------------------------------- the guards
 def check_seed_matches_shipped():
-    """The proposal must differ from the shipped seed ONLY in what is declared above.
-
-    ⚠ NARROWED at every reshape, never relaxed. The first form demanded an identical type set;
-    types were then added, renamed and a column dropped, and each time the honest move was to make
-    the guard demand a DECLARATION rather than to delete the assertion. So an undeclared addition,
-    a silent drop, an undeclared rename and a re-appearing column all still fail."""
+    """The proposal must differ from the shipped seed only in what is declared above."""
     shipped = _read_csv(TYPES_SEED, "competition_type")
 
     expected = {RENAMED_TYPES.get(ct, ct) for ct in shipped} | NEW_TYPES
@@ -275,11 +162,7 @@ def check_seed_matches_shipped():
 
 
 def check_registry_still_unedited():
-    """The in-memory rename and re-type must still be NEEDED.
-
-    ⚠ Without this the mock would keep applying a correction after the registry had really been
-    corrected — or keep hiding one that had been reverted. Either way it would be showing a page
-    that does not follow from the repo."""
+    """The in-memory rename and re-type must still be needed in the registry."""
     raw = {c["league_code"]: c["competition_type"] for c in _REGISTRY_RAW}
     for old in RENAMED_TYPES:
         if old not in raw.values():
@@ -294,10 +177,7 @@ def check_registry_still_unedited():
 
 
 def check_confederation_enum():
-    """The confederation seed's KEYS must be exactly the enum the registry documents.
-
-    ⚠ PARSED out of `docs/competition_registry.yml` — never typed here. That is the whole point:
-    an eighth invented confederation, or a dropped one, fails instead of rendering."""
+    """The confederation seed's keys must be exactly the enum parsed from the registry header."""
     line = next((ln for ln in REGISTRY.read_text(encoding="utf-8").splitlines()
                  if re.match(r"^#\s*confederation\s*:", ln)), None)
     if line is None:
@@ -314,31 +194,14 @@ def check_confederation_enum():
 
 
 def region(c):
-    """The sub-line. ONE rule, two READ branches — nothing about it is typed.
-
-        single_country=true   -> the registry's country       Premier League    England
-        single_country=false  -> the confederation's label    Champions League  Europe
-                                                              Copa América      South America
-                                                              Club World Cup    World
-
-    ⚠ The category is the heading above, so the sub-line never repeats it."""
+    """The sub-line: the registry country when single_country, else the confederation's label."""
     if SINGLE_COUNTRY[c["competition_type"]]:
         return c.get("country") or ""
     return CONFED_EN[c["confederation"]]
 
 
 def grouped(pool):
-    """Competitions by `competition_type`, each group in registry `sort_order`.
-
-    ⚠ GROUP ORDER USES `entity_type`, ALSO FROM THE SEED: club competitions first, then
-    national-team ones, and within each by the group's best-placed member. Ordering by sort_order
-    alone interleaved them — the World Cup landed second, between the domestic leagues and the
-    domestic cups — because sort_order ranks COMPETITIONS, not categories.
-
-    ⚠ NO BROWSABLE FILTER. The blank `display_group` used to hide the three friendly types; the
-    column is deleted, and nothing replaced it, because a type with no registry member renders
-    nothing anyway. Whether a competition appears at all is a real open question and is a NAMED
-    GAP in PROVENANCE, not a rule smuggled into the taxonomy."""
+    """Competitions by `competition_type`; groups ordered club first, then by best sort_order."""
     by = {}
     for c in pool:
         by.setdefault(c["competition_type"], []).append(c)
@@ -354,12 +217,7 @@ def grouped(pool):
 
 
 def comp_row(c):
-    """One competition. The SAME grammar as the block's group head — logo, name, chevron — plus
-    the sub-line a browse chip cannot carry. The ROW is the target, per #52.
-
-    ⚠ THE TWO FILTER CLASSES ARE READ, NOT TYPED. `e-*` is the seed's `entity_type`; `r-*` is the
-    registry's `confederation`, lower-cased. A filter axis with no column behind it is exactly the
-    invented-axis failure #58 was filed about, so there are only two."""
+    """One competition row; `e-*` is the seed's entity_type, `r-*` the lower-cased confederation."""
     code = c["league_code"]
     name = short(code) if code in SHORT_CODES else (c.get("name") or code)
     href = "/en/%s/" % E(c.get("slug") or code.lower())
@@ -375,42 +233,25 @@ def comp_row(c):
 
 
 # ------------------------------------------------------------------- the filters
-#
-# ⚠ TWO AXES, AND BOTH ARE COLUMNS. `entity_type` from the taxonomy seed, `confederation` from the
-# registry — which is only usable as a filter because `confederations.csv` now gives it labels.
-#
-# ⚠ WHAT IS DELIBERATELY NOT AN AXIS:
-#   * country      — ~20 values, and country hubs are ruled out (#45)
-#   * status       — stale and unread; it still marks the World Cup `in_progress`
-#   * "active now" — start_date/end_date are populated on ONE of 45 registry rows
-#   * competition_type — it is already the grouping; a filter for it would duplicate the headings
-#
-# ⚠ RADIO, NOT CHECKBOX, and that is a MOCK limit rather than a design choice. One selection per
-# axis is expressible in pure CSS; multi-select needs either combinatorial `:has()` or JS, and the
-# shipped page is Astro where JS is available. Flagged so the mock is not mistaken for the ceiling.
+# Both axes are columns: entity_type from the taxonomy seed, confederation from the registry.
+# Radio inputs are a limit of pure CSS, which cannot express multi-select without JS.
 TYPE_FILTERS = [("all", "All"), ("club", "Clubs"), ("national", "National teams")]
 
 
 def region_filters():
-    """The region axis — READ from the confederations seed, in the order the page uses."""
     used = {c["confederation"] for c in REGISTRY_ALL}
     return [("all", "All regions")] + [
         (k.lower(), CONFED_EN[k]) for k in sorted(used, key=lambda k: CONFED_EN[k])]
 
 
 def filter_css():
-    """Generated, because the combination rules are a product of the two axes.
-
-    Two jobs: hide a ROW that matches neither active filter, and hide a CATEGORY that ends up with
-    no matching row — because a heading over nothing is the same 'structure changes shape' fault
-    the always-show-the-heading rule was written against."""
+    """Hide rows matching neither active filter, and hide a category left with no matching row."""
     out = ["\n/* ---- FILTERS — generated from the two axes, pure CSS ---- */"]
     for key, _label in TYPE_FILTERS[1:]:
         out.append("body:has(#ty-%s:checked) .crow:not(.e-%s) { display: none; }" % (key, key))
     for key, _label in region_filters()[1:]:
         out.append("body:has(#rg-%s:checked) .crow:not(.r-%s) { display: none; }" % (key, key))
-    # the category rules need the COMBINATION: a group can hold club rows and UEFA rows and still
-    # hold no row that is both
+    # a group can hold club rows and UEFA rows and still hold no row that is both
     for tk, _t in TYPE_FILTERS:
         for rk, _r in region_filters():
             sel = ("" if tk == "all" else ".e-%s" % tk) + ("" if rk == "all" else ".r-%s" % rk)
@@ -418,14 +259,11 @@ def filter_css():
                 continue
             out.append("body:has(#ty-%s:checked):has(#rg-%s:checked) "
                        ".cgroup:not(:has(.crow%s)) { display: none; }" % (tk, rk, sel))
-    # the selected chip has to look selected — the interaction standard's "fills" state (#52)
     for group, opts in (("ty", TYPE_FILTERS), ("rg", region_filters())):
         for key, _label in opts:
             out.append('body:has(#%s-%s:checked) label[for="%s-%s"] '
                        '{ background: var(--ink); color: var(--page); border-color: var(--ink); }'
                        % (group, key, group, key))
-    # the empty state — a filtered page can reach one, and a page that renders nothing with no
-    # explanation is a defect rather than a result
     for tk, _t in TYPE_FILTERS:
         for rk, _r in region_filters():
             sel = ("" if tk == "all" else ".e-%s" % tk) + ("" if rk == "all" else ".r-%s" % rk)
@@ -568,11 +406,10 @@ def _prov_table():
 
 
 def _types_table():
-    """The taxonomy seed, with one example per row read from the registry where one exists."""
     members = {}
     for c in REGISTRY_ALL:
         members.setdefault(c["competition_type"], []).append(c)
-    # the five types with no registry competition have no example in the data, so they carry one
+    # types with no registry competition have no example in the data, so they carry a typed one
     DOC_EXAMPLE = {
         "domestic_super_cup": "DFL-Supercup \u00b7 FA Community Shield",
         "club_qualifying": "Champions League qualifying rounds",
@@ -766,8 +603,6 @@ def check():
     for c in REGISTRY_ALL:
         code, ct = c["league_code"], c["competition_type"]
         assert ct in _TYPES, "%s: competition_type %r is not in the taxonomy seed" % (code, ct)
-        # ⚠ NO BLANKS ANYWHERE. Every type carries both labels and a single_country value; the
-        # old "blank means not browsable" convention is gone with display_group.
         assert TYPE_EN[ct] and TYPE_KEY[ct], "%s: %r has a blank label" % (code, ct)
         assert _TYPES[ct]["single_country"] in ("true", "false"), \
             "%s: %r has no usable single_country" % (code, ct)
@@ -776,9 +611,7 @@ def check():
                 code, c.get("confederation"))
         if SINGLE_COUNTRY[ct]:
             assert c.get("country"), "%s is single_country but has no country" % code
-            # ⚠ the negative control for the split itself: a single-country row whose "country" is
-            # actually a REGION means the row is mistyped, and the sub-line would read "Europe"
-            # under a Domestic leagues heading.
+            # a single-country row whose country is a region is mistyped
             assert c["country"] not in regions, \
                 "%s is single_country=true but its country %r is a REGION — the row is mistyped" \
                 % (code, c["country"])

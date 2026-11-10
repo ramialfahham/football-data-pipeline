@@ -1,14 +1,6 @@
 """Checks for the competition page mocks (competition_hub_mock_<kind>.html, four kinds).
 
-Each asserts a rule the DESIGN depends on, not merely that a file was produced.
-
 Run `python gen_competition_hub.py` first.
-
-The track-parity check exists because the defect it catches was actually written: a first draft
-gave the crest its own grid track, leaving more tracks than cells at the wide breakpoint. A
-later one let the heading and the rows size their own tracks, so the headings sat off the
-numbers. `prove_check_fails()` at the bottom reconstructs the first and asserts the check goes
-RED on it -- a check only ever seen green proves nothing.
 """
 import re
 import sys
@@ -84,9 +76,7 @@ def first(pattern, text):
 # ------------------------------------------------------------------- checks
 
 def check_track_parity(css=None):
-    """The narrow and wide `--cols` lists must count exactly the cells a row shows at that
-    width: every cell at wide, every cell minus the `.wdl` ones at narrow (their tracks are
-    zero-width, the cells display:none). The heading emits the same cells as a row."""
+    """Each `--cols` list counts the cells a row shows at that width; `.wdl` hides when narrow."""
     text = doc("league")
     css = css or text[:text.index("</style>")]
     lists = track_lists(css)
@@ -115,8 +105,7 @@ def check_track_parity(css=None):
 
 
 def check_every_row_is_one_link():
-    """A row that leads somewhere is one link, the whole row: every table row and every
-    deserved row is an <a class="ctab-row" href>, and no name inside a row is its own link."""
+    """Every table and deserved row is one `<a class="ctab-row" href>`, with no inner name link."""
     page = stage_html(doc("league"))
     rows = re.findall(r'<a class="ctab-row" href="/en/teams/[^"]+/"', page)
     n_table = sum(len(t) for t in G.KINDS["league"]["tables"].values())
@@ -141,9 +130,7 @@ def check_only_the_next_round():
 
 
 def check_blocks_per_kind():
-    """A block renders only where its mart serves something: league = all four; groups =
-    table (six sections, no ranking table) + next round + facts; cup = next round + facts;
-    offseason = table + deserved + facts, no next matches."""
+    """A block renders only where its mart serves something."""
     want = {
         "league": {"Table", "Next matches", "Deserved points", "The season in numbers"},
         "groups": {"Table", "Next matches", "The season in numbers"},
@@ -176,8 +163,7 @@ def check_tabs_inert():
 
 
 def check_deserved_sign():
-    """The Diff column carries the catalogue's sign, actual minus deserved: the 'better' board
-    shows minus, the 'worse' board plus, and the boards are ordered by the gap."""
+    """The Diff column is actual minus deserved: the 'better' board shows minus, the 'worse' plus."""
     page = stage_html(doc("league"))
     boards = re.findall(r'<div class="board">.*?</div></div>', page)
     if len(boards) != 2:
@@ -193,7 +179,6 @@ def check_deserved_sign():
 
 
 def check_names_never_truncate():
-    """The team name in a table row wraps rather than ellipsising."""
     text = doc("league")
     css = text[:text.index("</style>")]
     m = re.search(r"\.ctab \.tm \.nm\s*\{([^}]*)\}", css)
@@ -217,7 +202,6 @@ def check_no_external_fetch_and_no_js():
 
 
 def check_probe_marking():
-    """Every Finnish string's `probe` class matches COPY's flag."""
     page = stage_html(doc("league"))
     for key, (en, fi, probe) in G.COPY.items():
         want = 'class="fi probe"' if probe else 'class="fi"'
@@ -231,7 +215,6 @@ def check_probe_marking():
 # ---------------------------------------------------------- negative controls
 
 def prove_check_fails():
-    """Reconstruct the crest-track defect and assert check 1 goes RED on it."""
     broken = (".ctab { --cols: 2rem minmax(0, 1fr) 2.3rem 0 0 0 0 2.8rem 2.6rem; }\n"
               "@container (min-width: 470px) { .ctab { --cols: 2rem 24px minmax(0, 1fr) 2.3rem 2.3rem 2.3rem 2.3rem 3.9rem 2.8rem 2.6rem; } }")
     before = list(FAILS)

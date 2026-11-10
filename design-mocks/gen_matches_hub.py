@@ -1,21 +1,4 @@
-"""Render the MATCHES HUB, /{locale}/matches/, what the Matches menu item lands on, for #130.
-
-Real data: every fixture of one day (the UTC kick-off date) as prod
-`marts.mart_competition_fixtures` held it, joined to `marts.mart_competition_index` for the
-competition's name, kind, confederation and region rank (`matches_<day>.json`, the JSON the `bq`
-CLI wrote). Saturday 19 September 2026 is a league weekend, 152 matches in 19 competitions;
-Saturday 26 September is an international weekend, 33 matches, 19 of them national teams. Drawn
-as the page read that morning, so every row shows its kick-off and none its score. Times in UTC
-with the label, as the built site shows them until the venue's clock lands (#146).
-
-Each competition shows its first three matches and folds the rest in the site's fold
-(`.fold-ctl`).
-
-Composed only of what the site already has: the Competitions page's breadcrumb, heading and two
-filter rows (their radios and CSS unchanged, so the filters work here too); the Matchdays tab's
-picker with a date as its title; its Schedule block holding the shared competition group head and
-match row from `rows.py`. The block omits the date heading because the picker already names the
-day: a block may omit a level the page supplies (`rows.group_head`).
+"""Render the Matches hub, /{locale}/matches/, from one day of fixtures in `matches_<day>.json`.
 
     python design-mocks/render.py gen_matches_hub.py matches-hub                             19 Sep
     MATCHES_HUB_DAY='2026-09-26' python design-mocks/render.py gen_matches_hub.py matches-hub

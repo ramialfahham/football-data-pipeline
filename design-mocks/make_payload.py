@@ -1,8 +1,4 @@
-"""Build a JSON request body for glab api --input.
-
-`--raw-field description=@<path>` did not read the file on this platform -- it sent the
-path itself as the value (131 chars). A JSON body leaves no room for that ambiguity.
-"""
+"""Build a JSON request body for glab api --input."""
 import json
 import sys
 from pathlib import Path

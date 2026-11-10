@@ -1,29 +1,6 @@
-"""Render the MATCHES pages -- /{locale}/matches/ and /{locale}/matches/results/ -- as one mock.
+"""Render the two Matches pages, /{locale}/matches/ and /{locale}/matches/results/, as mock files.
 
-Design-only. Reads nothing from BigQuery; every kickoff and score is PLACEHOLDER.
-
-WHY: the site header carries six nav items and none is a link, because none of their pages
-exists. "Matches" is the one that most clearly earns a page -- it is the product's name, and it
-is the natural hub for fixture pages, reachable today only from the home page's short teaser.
-⚠ `/{locale}/matches/` is not in `site_architecture.md` §3 at all (#49).
-
-Design directions for this page, all applied:
-  1. short league names ("Bundesliga"), from a single source of truth;
-  2. league LOGOS beside each group;
-  3. grouped by competition -- club AND national-team competitions;
-  4. TWO views: next matches, past matches;
-  5. past matches filterable by season / competition;
-  6. finished matches get stats -- this is the path on which to establish them;
-  7. **the match row is ONE component on every page** -- so it lives in `rows.py` and this file
-     imports it. Consistency by construction, not by rule;
-  8. **kickoffs in VENUE-LOCAL time.**
-
-⚠ (4) IS TWO PAGES, NOT TWO TABS (#46): a tab is different content, so it gets its own URL.
-The bar still LOOKS like tabs; each is an `<a>` and the active
-one carries `.on`, the competition tab bar's class for the page you are on.
-
-`site_v2/src/styles/system.css` is inlined verbatim so the mock uses the shipped design system.
-No JavaScript: the review surface is a static snapshot, so script never runs.
+Every kickoff and score is placeholder data; the match row comes from `rows.py`.
 """
 import html
 import sys
@@ -34,10 +11,6 @@ from rows import date_head, group_head, result_row, upcoming_row
 
 REPO = Path(__file__).resolve().parent.parent
 SYSTEM_CSS = REPO / "site_v2/src/styles/system.css"
-# ⚠ TWO FILES, ONE PER PAGE. A single file used to stack both views with "Page 1" / "Page 2"
-# labels, and the tab bar pointed at the production URLs -- so it read as one page showing both
-# lists, and clicking a tab did nothing. These are two separate pages (#46), so the mock is two
-# separate files and the tabs link to each other, which makes them actually clickable.
 OUT_NEXT = Path(__file__).with_name("matches_next_mock.html")
 OUT_PAST = Path(__file__).with_name("matches_past_mock.html")
 
@@ -48,38 +21,9 @@ PROD = {"next": "/en/matches/", "past": "/en/matches/results/"}
 E = html.escape
 
 # --------------------------------------------------------------- sample data
-#
-# PLACEHOLDER kickoffs and scores; real club, country and competition names, because their
-# WIDTH is what is being tested. Names are the SHORT form throughout (direction 1).
-#
-# Group tuple: (slug, name, kind, matchday, [(home, away, time, zone)])
-#
-# ⚠ THE WINDOW IS NOT A DATE RANGE. The rule: every match of each competition's next matchday,
-# and none after it — the reason
-# being that a match beyond the next round has nothing meaningful to send a reader to.
-#
-# So the rule is PER COMPETITION, not per calendar: each competition contributes exactly ONE
-# matchday and nothing after it. A matchday legitimately spans days (Bundesliga 25 runs Sat and
-# Sun), so a competition may appear under two day headings — but never under two matchdays.
-# `check_data` enforces that. It also means the day list is RAGGED by design: Veikkausliiga's
-# next round can be four days after everyone else's, and the days between it simply have no
-# entry.
-#
-# ⚠ EVERY ROW CARRIES ITS OWN ZONE. An earlier version put it on the group head and moved it to
-# the row only where a competition spans zones -- so a group-level "CET" sat above one block and
-# per-row "CET"/"EET" in the next, on one screen. Rejected on sight: a reusable block must not
-# change shape according to its context. Repeating "CET" down a Bundesliga list is the price.
-#
-# ⚠ The World Cup qualifier group is a LAYOUT PROBE for two things at once: national teams
-# (flags, not crests) and a competition that SPANS TIME ZONES. WC/WCQ* are not `status: active`
-# in the registry today -- twelve active competitions, all domestic leagues.
 
-# \u26a0 FLAT. There are no day sections any more. One group per competition per round, ordered by
-# the round's first kickoff -- so a competition whose matchday runs Saturday AND Sunday is ONE
-# group, not two, and the date sits on each row.
-#
-# (slug, name, kind, matchday label, [(home, away, date, time, zone)])
-
+# Real club names, because their width is what is being tested; kickoffs are placeholders.
+# Each competition is one group per round, with the date as a level inside it.
 # (league_code, kind, [(date, [(home, away, kickoff)])])
 NEXT_ROUNDS = [
     ("BL1", "club", [
@@ -87,8 +31,6 @@ NEXT_ROUNDS = [
                          ("Union Berlin", "Bayer 04 Leverkusen", "15:30"),
                          ("FC Augsburg", "Werder Bremen", "15:30"),
                          ("VfL Bochum", "RB Leipzig", "18:30")]),
-        # \u26a0 the SAME round, two days later. A round spans a weekend, which is why the DATE is the
-        # second level INSIDE the competition rather than a heading above it.
         ("Sun 2 March", [("Eintracht Frankfurt", "TSG Hoffenheim", "15:30"),
                          ("1. FSV Mainz 05", "Borussia Dortmund", "17:30")]),
     ]),
@@ -101,8 +43,7 @@ NEXT_ROUNDS = [
         ("Sat 1 March", [("Real Sociedad", "Real Madrid", "16:15"),
                          ("Athletic Club", "Atl\u00e9tico Madrid", "21:00")]),
     ]),
-    # \u26a0 MLS spans four US zones, so its rows render a dash: the venue-local zone is not derivable
-    # from the registry's country the way it is for a single-country league.
+    # MLS spans four US zones, so its rows render a dash: the registry's country cannot supply one.
     ("MLS", "club", [
         ("Sat 1 March", [("New York City FC", "Inter Miami", "19:30"),
                          ("LA Galaxy", "Seattle Sounders", "19:30")]),
@@ -112,24 +53,13 @@ NEXT_ROUNDS = [
     ]),
 ]
 
-# PAST: each competition's LAST FINISHED MATCHDAY -- the exact mirror of the next view
-# (superseding an earlier "whole current season" rule).
-#
-# \u26a0 BUILT TO TAKE MORE HISTORY LATER. Nothing about the shape assumes one round: a competition
-# already holds a LIST of date groups, so a deeper window is more entries in that list and no
-# redesign. Only the query changes. That is why the last round is expressed as a list of one
-# rather than a special case.
-#
-# \u26a0 NO KICK-OFF on a played match \u2014 once it is finished, the time it started is
-# not information. The date stays, as the group heading it always was.
-#
+# Each competition's last finished matchday; a played match carries no kick-off.
 # (league_code, kind, [(date, [(home, hg, away, ag)])])
 PAST_ROUNDS = [
     ("BL1", "club", [
         ("Sat 22 February", [("Bayern M\u00fcnchen", 4, "SC Freiburg", 1),
                              ("RB Leipzig", 1, "FC Augsburg", 0),
                              ("Werder Bremen", 2, "VfL Bochum", 2)]),
-        # the same round, the next day -- the reason DATE is a level inside the competition
         ("Sun 23 February", [("Borussia Dortmund", 3, "Union Berlin", 1),
                              ("TSG Hoffenheim", 1, "FC St. Pauli", 1)]),
     ]),
@@ -147,26 +77,11 @@ PAST_ROUNDS = [
     ]),
 ]
 
-# ⚠ READ from the registry, in its sort order -- not a typed list. Adding a competition to the
-# registry adds a chip here with no edit, which is the zero-file rule applied to the frontend.
-# ⚠ the competition-chip list that lived here is GONE with the filter it fed. Kept as a note, not
-# as commented-out code: dead data is what a later reader restores by accident.
-
 COPY = {
     "crumbHome": ("Home", "Etusivu", False),
     "h1":        ("Matches", "Ottelut", False),
     "tabNext":   ("Next matches", "Seuraavat ottelut", True),
     "tabPast":   ("Past matches", "Menneet ottelut", True),
-    # \u26a0 TWO LINES WERE CUT HERE.
-    #  1. a scope line ("Kick-off times are local to the venue \u2014 scores are not live"). Every
-    #     row already carries its own zone, so the first half restated it and the second was a
-    #     disclaimer nobody asked for.
-    #  2. the data-to-text lede ("16 matches across 6 competitions over the next three days").
-    #     site_architecture.md \u00a76 requires a generated sentence per page as ANTI-THIN-CONTENT \u2014
-    #     but this page is a full match list and is not thin, and the sentence only counted the
-    #     rows underneath it. \u00a76 is satisfied where it earns its place; the competition hub's
-    #     lede ("Bayern lead after 24 matches, 7 points clear") does, because you would have to
-    #     read the table to know it. Filling the slot because the slot exists is the failure.
 }
 
 # --------------------------------------------------------------------- build
@@ -180,14 +95,13 @@ def loc(key):
 
 
 def rounds_html(rounds, played=False):
-    """THE SHARED BLOCK — competition, then date. No markup is written here."""
+    """Group by competition, then date; all markup comes from `rows.py`."""
     groups = []
     for code, kind, dates in rounds:
         body = []
         for date, matches in dates:
             body.append(date_head(date))
             for m in matches:
-                # the SAME row either way; a played one carries the score inline per side
                 body.append(
                     result_row(kind, *m) if played
                     else upcoming_row(kind, m[0], m[1], m[2], ZONE[code] or "—"))
@@ -197,25 +111,12 @@ def rounds_html(rounds, played=False):
 
 
 def tabbar(active):
-    """⚠ LINKS, not radios (#46): the competition page's tab bar, where the page you are on
-    carries `.on` and the stylesheet's `.comp-tabs` rules do the rest.
-
-    In the mock the href is the SIBLING FILE, so the tabs are clickable from disk. In production
-    they are `PROD[...]`."""
+    """Tab bar of links; the href is the sibling mock file so it is clickable from disk."""
     out = []
     for key, page in (("tabNext", "next"), ("tabPast", "past")):
         out.append('<a class="tab%s" href="%s" title="%s">%s</a>'
                    % (" on" if active == page else "", LOCAL[page], PROD[page], loc(key)))
     return '<nav class="tabs comp-tabs">%s</nav>' % "".join(out)
-
-
-# ⚠ NO FILTER IS DRAWN. It was a season chip plus a row of competition chips, and it is gone:
-#   * the SEASON half is ruled out -- one season only, to keep the page simple;
-#   * the COMPETITION half is UNDECIDED, and its chips linked AWAY to each
-#     competition's own results page rather than filtering this one, so it was not a filter at
-#     all. The competition heading already does that job.
-# Drawing a control before the decision is the fill-the-empty-slot failure this standard exists
-# to prevent.
 
 
 MOCK_CSS = """
@@ -272,8 +173,7 @@ body { margin: 0; background: #06070a; font: 400 15px/1.5 system-ui, -apple-syst
 
 
 def build(page):
-    """ONE page per call -- `page` is "next" or "past". Each becomes its own file, because each
-    is its own URL (#46)."""
+    """One page per call; `page` is "next" or "past"."""
     head = """
       <nav class="crumb"><a class="lnk" href="/en/">%s</a>
         <span class="sep">&rsaquo;</span><span class="here">%s</span></nav>
@@ -338,13 +238,7 @@ def build(page):
 
 
 def check_data():
-    # ⚠ READ from the registry via gen_block_standard, not typed. A hand-kept list of "known"
-    # competitions was here and is exactly the kind of thing that goes stale the day a
-    # competition is onboarded.
     known = {c["league_code"] for c in ACTIVE}
-    # ⚠ ONE GROUP PER COMPETITION on each view: each competition contributes
-    # its NEXT matchday and nothing after it. With the day headings gone, a competition can no
-    # longer appear twice at all -- so this is now a plain duplicate check.
     for label, rounds in (("next", NEXT_ROUNDS), ("past", PAST_ROUNDS)):
         codes = [r[0] for r in rounds]
         dupes = sorted({c for c in codes if codes.count(c) > 1})
@@ -363,19 +257,13 @@ def check_data():
                     for side in (home, away):
                         assert side not in seen, "%s plays twice in %s" % (side, code)
                         seen.add(side)
-    # ⚠ EVERY PLAYED ROW CARRIES A KICK-OFF AND A ZONE, exactly like an upcoming one -- that is
-    # what "the same row" means, and it is the thing that regresses if someone re-adds a bespoke
-    # right column.
     for code, _kind, dates in PAST_ROUNDS:
         for _date, matches in dates:
             for m in matches:
-                # ⚠ a played row carries NO kick-off and therefore no timezone.
-                # Four fields exactly: home, its goals, away, its goals.
                 assert len(m) == 4, "%s: a played row still carries a kick-off" % code
     blob = repr(NEXT_ROUNDS) + repr(PAST_ROUNDS)
     for bad in ("Fu\u00dfball-Bundesliga", "Major League Soccer", "Liga Profesional"):
         assert bad not in blob, "long-form league name still present: %r" % bad
-    # the next view must carry NO played matches -- those are the other page's whole purpose
     assert all(len(m) == 3 for _c, _k, ds in NEXT_ROUNDS for _d, ms in ds for m in ms), \
         "a next-view row is shaped like a played row"
     print("  %d next rounds \u00b7 %d past rounds \u00b7 one per competition \u00b7 every kickoff dated and "
@@ -390,7 +278,6 @@ if __name__ == "__main__":
             out = out_dir / out.name
         out.write_text(build(page), encoding="utf-8")
         print("  wrote %s (%.0f KB)" % (out.name, out.stat().st_size / 1024))
-    # the old single stacked file must not survive alongside them
     stale = Path(__file__).with_name("matches_mock.html")
     if not out_dir and stale.exists():
         stale.unlink()

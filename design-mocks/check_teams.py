@@ -1,12 +1,6 @@
-"""Static checks on the generated mock. The preview renders it as a snapshot with no JS,
-so geometry cannot be measured in the browser -- these are the checks makeable without a
-live DOM.
+"""Static checks on the generated teams mock, made without a live DOM.
 
-Two scoping rules learned the hard way on the first run:
-  * system.css is INLINED, so a check over the whole file also audits shipped code and
-    reports its :checked toggles (#seg-w1, #tab-*) as mock defects. Scope to MOCK_CSS.
-  * CSS comments must be stripped first, or the comment that DOCUMENTS the repeat(var())
-    trap is itself matched as an instance of the trap.
+Scope CSS checks to the mock's own CSS (system.css is inlined) and strip CSS comments first.
 """
 import re
 from pathlib import Path
@@ -71,17 +65,15 @@ cq = next(m for m in re.finditer(r"@container \(max-width: (\d+)px\)\s*\{(.*?)\n
           if ".brow .ent" in m.group(2))
 check("a CONTAINER query decides it, so the whole board switches at once", cq is not None)
 check("the stacked branch blockifies .ent", ".brow .ent { display: block; }" in cq.group(2))
-# ⚠ THE BUG THIS EXISTS FOR: .nm/.sub carry no display of their own (flex blockifies them in
-# the inline branch), so a stacked branch that only sets .ent leaves two INLINE spans running
-# together -- "Bayern MünchenBundesliga". Every other check passed on that CSS.
+# .nm/.sub carry no display of their own (flex blockifies them inline), so a stacked branch that
+# only sets .ent leaves two inline spans running together
 check("the stacked branch ALSO blockifies .nm and .sub",
       re.search(r"\.board \.nm,\s*\n\s*\.board \.sub \{ display: block", cq.group(2)) is not None)
 check("neither child sets display outside the query, so flex governs inline",
       "display" not in re.search(r"\.board \.nm\s*\{([^}]*)\}", mock_css).group(1)
       and "display" not in re.search(r"\.board \.sub \{ min-width[^}]*\}", mock_css).group(0))
-# ⚠ TEAMS carry a crest track, so their arithmetic differs from the players block:
 # fixed chrome = 18 rank + 24 crest + 64 value + 36 gaps = 142, and the widest team row
-# ("Brighton & Hove Albion" + "Premier League") needs ~275px -> a ~417px board.
+# ("Brighton & Hove Albion" + "Premier League") needs ~275px -> a ~417px board
 check("threshold clears the widest TEAM row (name cell = board - 142px, widest needs ~275px)",
       int(cq.group(1)) >= 417, "%spx" % cq.group(1))
 check("no media query decides the stack", not re.search(r"@media[^{]*width", mock_css))
@@ -124,7 +116,6 @@ check("no against board survives", "against" not in body.lower())
 check("28 rows (4 boards x top 7)", body.count('<a class="brow"') == 28, str(body.count('<a class="brow"')))
 per_board = [blk.count('<a class="brow"') for blk in body.split('<div class="board">')[1:]]
 check("every board shows 7", per_board == [7] * 4, str(per_board))
-# all seven pool-1 leagues should appear somewhere, or the sample is not exercising the pool
 leagues = set(re.findall(r'<span class="sub">([^<]+)</span>', body))
 check("sample spans all seven pool-1 leagues", len(leagues) == 7, ", ".join(sorted(leagues)))
 check("NO column-header row at all", '<span class="bh v">' not in body and "bhead" not in body)
@@ -134,16 +125,12 @@ for gone in ("Points captured", "Key passes", "Defensive actions", "Deserved poi
              "Points won", "difference", "Goals per shot", "Pass accuracy", "Duels won"):
     check("dropped: %s" % gone, gone not in body)
 
-# Every board leads with the metric that ranks it. The title is that metric's English name
-# minus its format sigil, so title + sigil must reconstruct the first column header exactly
-# -- which proves the title still derives from the catalogue and was not hand-written.
 for blk in body.split('<div class="board">')[1:]:
     title = re.search(r'<span class="bt"><span class="en">([^<]+)</span>', blk).group(1)
     vals = [float(v) for v in re.findall(r'<span class="v"><b>([\d.]+)</b></span>', blk)]
     check("'%s' ranks DESCENDING" % title, vals == sorted(vals, reverse=True), str(vals))
 check("no per-count grid class left in the markup", 'class="bgrid c' not in body)
 check("every board uses the single grid", body.count('<div class="bgrid">') == len(titles))
-# The board title is the only translatable string left in the block.
 fi_cells = len(re.findall(r'class="fi[^"]*" lang="fi"', body))
 check("every board title has an FI twin", fi_cells == len(titles), "%d fi" % fi_cells)
 check("every FI title is marked as a probe", len(re.findall(r'class="fi probe"', body)) == len(titles))
