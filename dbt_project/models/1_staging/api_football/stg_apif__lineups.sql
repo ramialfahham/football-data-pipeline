@@ -24,9 +24,9 @@ select
     raw_ingested_at,
     fixture_id,
     safe_cast(json_value(lineup_el, '$.team.id') as int64) as team_id,
-    json_value(lineup_el, '$.team.name') as team_name,
+    {{ decode_html_entities("json_value(lineup_el, '$.team.name')") }} as team_name,
     json_value(lineup_el, '$.formation') as formation,
-    json_value(lineup_el, '$.coach.name') as coach_name,
+    {{ decode_html_entities("json_value(lineup_el, '$.coach.name')") }} as coach_name,
     json_query(lineup_el, '$.startXI') as start_xi_json,
     json_query(lineup_el, '$.substitutes') as substitutes_json
 from line_rows

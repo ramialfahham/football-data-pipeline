@@ -32,7 +32,7 @@ select
     raw_ingested_at,
     player_id,
     safe_cast(json_value(team_el, '$.team.id') as int64) as team_id,
-    json_value(team_el, '$.team.name') as team_name,
+    {{ decode_html_entities("json_value(team_el, '$.team.name')") }} as team_name,
     safe_cast(season_str as int64) as season_year
 from team_blocks,
     unnest(json_value_array(json_query(team_el, '$.seasons'))) as season_str

@@ -39,17 +39,17 @@ select
     safe_cast(json_value(match_json, '$.fixture.status.elapsed') as int64) as status_elapsed,
     safe_cast(json_value(match_json, '$.league.season') as int64) as season,
     safe_cast(json_value(match_json, '$.league.id') as int64) as league_api_id,
-    json_value(match_json, '$.league.name') as league_name,
+    {{ decode_html_entities("json_value(match_json, '$.league.name')") }} as league_name,
     json_value(match_json, '$.league.round') as round_name,
     safe_cast(json_value(match_json, '$.teams.home.id') as int64) as home_team_id,
-    json_value(match_json, '$.teams.home.name') as home_team_name,
+    {{ decode_html_entities("json_value(match_json, '$.teams.home.name')") }} as home_team_name,
     safe_cast(json_value(match_json, '$.teams.away.id') as int64) as away_team_id,
-    json_value(match_json, '$.teams.away.name') as away_team_name,
+    {{ decode_html_entities("json_value(match_json, '$.teams.away.name')") }} as away_team_name,
     safe_cast(json_value(match_json, '$.goals.home') as int64) as goals_home,
     safe_cast(json_value(match_json, '$.goals.away') as int64) as goals_away,
     safe_cast(json_value(match_json, '$.score.penalty.home') as int64) as shootout_home,
     safe_cast(json_value(match_json, '$.score.penalty.away') as int64) as shootout_away,
     json_value(match_json, '$.fixture.venue.id') as venue_id,
-    json_value(match_json, '$.fixture.venue.name') as venue_name,
-    json_value(match_json, '$.fixture.venue.city') as venue_city
+    {{ decode_html_entities("json_value(match_json, '$.fixture.venue.name')") }} as venue_name,
+    {{ decode_html_entities("json_value(match_json, '$.fixture.venue.city')") }} as venue_city
 from exploded

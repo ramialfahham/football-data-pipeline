@@ -28,7 +28,7 @@ select
     raw_ingested_at,
     fixture_id,
     safe_cast(json_value(stat_el, '$.team.id') as int64) as team_id,
-    json_value(stat_el, '$.team.name') as team_name,
+    {{ decode_html_entities("json_value(stat_el, '$.team.name')") }} as team_name,
     json_value(line_el, '$.type') as stat_type,
     json_value(line_el, '$.value') as stat_value_raw
 from stats_rows,
