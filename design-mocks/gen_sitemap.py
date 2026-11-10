@@ -267,7 +267,7 @@ def build():
                 '<li class="n %s"><code class="u">%s</code> %s'
                 '<span class="full">%s</span>'
                 '<span class="desc">%s</span>%s'
-                % (state, E(label), badge(state), E(pattern), E(desc),
+                % (state, E(label), badge(state), E(pattern).replace("/", "/<wbr>"), E(desc),
                    ('<ul class="d">%s</ul>' % "".join("<li>%s</li>" % d for d in detail))
                    if detail else "")
             )

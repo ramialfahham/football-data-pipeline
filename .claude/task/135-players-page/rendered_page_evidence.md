@@ -39,5 +39,10 @@ recorded", "Keine Nationalität erfasst" and "Ei kansallisuutta". Written into a
 page, the longest nation name in the full data, "Saint Vincent and the Grenadines", with "1.237
 Spieler", wraps to three lines beside the count; nothing is cut and the page does not scroll.
 
+A nation the filters empty hides, read on `/en/players/` with the nation groups as div elements:
+with Goalkeepers chosen, 21 of the 29 nations show and 8 hide, and no shown nation is left without
+a row; with Africa chosen, 5 nations show, all of them African. Both hold in the button form
+(1010px) and in the dropdown form (280px of content), where the choice is made in the select.
+
 The ItemList count is the players the Players page lists: the rows shown in any view and the World's
 best nominees (714 in the sample); on a nation page, its players (9 for Spain in the sample).

@@ -70,7 +70,7 @@ const filterRows = [
     <section class="tblock">
       <SectionHead label={t(lang, "playersByNation")} />
       {groups.map((g) => (
-        <section
+        <div
           class="fxgroup"
           data-confederation={g.region ?? NO_REGION}
           data-slots={[...g.perPosition.keys()].join(" ")}
@@ -111,7 +111,7 @@ const filterRows = [
                 </a>
               ))}
           </div>
-        </section>
+        </div>
       ))}
     </section>
   </div>

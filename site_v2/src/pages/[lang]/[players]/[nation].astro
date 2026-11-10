@@ -70,10 +70,12 @@ const crumbs = [
       <div class="categories">
         <section class="tblock">
           <SectionHead label={t(lang, "navPlayers")} />
-          <div class="comp-grid">
-            {page.rows.map((player) => (
-              <PlayerIndexRow player={player} lang={lang} slot={slotOf(player.position_group)} />
-            ))}
+          <div>
+            <div class="comp-grid">
+              {page.rows.map((player) => (
+                <PlayerIndexRow player={player} lang={lang} slot={slotOf(player.position_group)} />
+              ))}
+            </div>
           </div>
         </section>
       </div>
