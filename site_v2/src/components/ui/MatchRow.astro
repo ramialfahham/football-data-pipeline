@@ -35,7 +35,7 @@ const href = linked ? localeHref(lang, `${competitionSlug}/${word(lang, "matches
 const Row = linked ? "a" : "div";
 const homeWins = played && (fx.goals_home as number) > (fx.goals_away as number);
 const awayWins = played && (fx.goals_away as number) > (fx.goals_home as number);
-const time = fx.status === "TBD" ? t(lang, "compTBC") : formatTime(fx.kickoff, lang);
+const time = fx.status === "TBD" ? t(lang, "timeOpenShort") : formatTime(fx.kickoff, lang);
 ---
 
 <Row class:list={["fxrow", { played }]} href={href} data-fixture={fx.fixture_id}>
@@ -51,7 +51,7 @@ const time = fx.status === "TBD" ? t(lang, "compTBC") : formatTime(fx.kickoff, l
       {played && <span class:list={["g", "num", { winner: awayWins }]}>{fx.goals_away}</span>}
     </span>
   </span>
-  {!played && (nextMatch || topMatch) && <span class="topmatch">{t(lang, nextMatch ? "compNextTag" : "compTopMatch")}</span>}
+  {!played && (nextMatch || topMatch) && <span class="topmatch">{t(lang, nextMatch ? "compNextTagMatch" : "compTopMatch")}</span>}
   {!played && (
     <span class="when">
       <b class="t">{time}</b>

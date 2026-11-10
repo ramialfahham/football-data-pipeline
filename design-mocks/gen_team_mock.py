@@ -378,7 +378,8 @@ def build_league_rows(feat, team_name="Borussia Dortmund"):
 
     def label(key):
         m = re.search(r'"%s": "([^"]*)"' % re.escape(key), strings)
-        return m.group(1) if m else key
+        w = m and re.search(r'\n  %s: "([^"]*)"' % re.escape(m.group(1)), strings)
+        return w.group(1) if w else key
 
     served = served_rows()
     groups = sorted(json.loads((DATA / "metric_groups.json").read_text(encoding="utf-8"))["groups"], key=lambda x: x["order"])
@@ -472,7 +473,8 @@ def build_season_bars(feat):
 
     def label(key):
         m = re.search(r'"%s": "([^"]*)"' % re.escape(key), strings)
-        return m.group(1) if m else key
+        w = m and re.search(r'\n  %s: "([^"]*)"' % re.escape(m.group(1)), strings)
+        return w.group(1) if w else key
 
     served = served_rows()
     groups = sorted(json.loads((DATA / "metric_groups.json").read_text(encoding="utf-8"))["groups"], key=lambda g: g["order"])

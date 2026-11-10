@@ -12,10 +12,11 @@ def _strings(en_unit: str, other_unit: str) -> str:
     out = []
     for loc, unit in (("EN", en_unit), ("DE", "Min."), ("FI", other_unit)):
         body = "".join(f'  key{i}: "v{i}",\n' for i in range(40)) + f'  unit: "{unit}",\n'
+        body += "".join(f'  term{i}: "m{i}",\n' for i in range(18))
         out.append(f"const {loc}: Dict = {{\n{body}}};\n")
-    for loc in ("EN", "DE", "FI"):
-        body = "".join(f'  "metrics.m{i}.label": "m{i}",\n' for i in range(18))
-        out.append(f"const METRIC_LABELS_{loc}: MetricLabels = {{\n{body}}};\n")
+    body = "".join(f'  "metrics.m{i}.label": "term{i}",\n' for i in range(18))
+    out.append(f"const METRIC_TERMS: Record<string, string> = {{\n{body}}};\n")
+    out.append("const PER_90 = new Set([\n]);\n")
     return "\n".join(out)
 
 

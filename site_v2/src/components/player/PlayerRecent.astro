@@ -20,14 +20,14 @@ interface Props {
 const { matches, id, lang } = Astro.props;
 
 const SHOWN = 5;
-const LETTER: Record<string, string> = { W: "compColWins", D: "compColDraws", L: "compColLosses" };
-const ha = (m: PlayerMatch) => (m.home_away === "home" ? t(lang, "haHome") : m.home_away === "away" ? t(lang, "haAway") : "");
+const LETTER: Record<string, string> = { W: "winsShort", D: "drawsShort", L: "lossesShort" };
+const ha = (m: PlayerMatch) => (m.home_away === "home" ? t(lang, "home") : m.home_away === "away" ? t(lang, "away") : "");
 const count = (n: number, one: string, many: string) => ({ n: integer(n, lang), word: n === 1 ? one : many });
 const line = (m: PlayerMatch) => [
-  m.minutes != null ? { n: integer(m.minutes, lang), word: t(lang, "playerMin") } : null,
-  m.goals ? count(m.goals, t(lang, "goalOne"), t(lang, "goals")) : null,
-  m.assists ? count(m.assists, t(lang, "playerAssist"), t(lang, "playerAssists")) : null,
-  m.ball_actions != null ? count(m.ball_actions, t(lang, "playerBallAction"), t(lang, "playerBallActions")) : null,
+  m.minutes != null ? { n: integer(m.minutes, lang), word: t(lang, "minutesShort") } : null,
+  m.goals ? count(m.goals, t(lang, "goalsOne"), t(lang, "goalsMany")) : null,
+  m.assists ? count(m.assists, t(lang, "assistsOne"), t(lang, "assistsMany")) : null,
+  m.ball_actions != null ? count(m.ball_actions, t(lang, "ballActionsOne"), t(lang, "ballActionsMany")) : null,
 ].filter((p): p is { n: string; word: string } => p !== null);
 const rows = matches.map((m) => ({
   m,

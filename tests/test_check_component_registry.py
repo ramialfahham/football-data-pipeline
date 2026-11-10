@@ -67,6 +67,8 @@ def test_the_real_tree_is_on_its_pins():
     (lambda r: r["components"]["box"]["parts"]["label"].update(gap="later"), "gap must be one of"),
     (lambda r: r["components"]["box"]["parts"]["frame"].update({"class": True}), "are strings"),
     (lambda r: r["components"]["box"]["parts"]["frame"].update(element="Box frame"), "needs rule, measured and ruled-on"),
+    (lambda r: r["components"]["box"].update({"short-forms": "played"}), "expected a list of distinct term keys"),
+    (lambda r: r["components"]["box"].update({"short-forms": ["played", "played"]}), "expected a list of distinct term keys"),
     (lambda r: r["sets"].pop("marks"), "missing marks"),
     (lambda r: r["sets"]["switch"].update(w1="wide"), "expected a px width"),
 ])

@@ -755,7 +755,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .ctab-section + .ctab-section { margin-top: 22px; }
 .ctab-section > .gh { padding-bottom: 7px; border-bottom: 1px solid var(--div); }
 .ctab-section > .gh .nm { font-size: 14px; font-weight: 700; color: var(--ink); }
-.ctab { margin-top: 4px; --cols: 2rem minmax(0, 1fr) 2.3rem 0 0 0 0 2.8rem 2.6rem; }
+.ctab { margin-top: 4px; --cols: 2rem minmax(0, 1fr) 2.3rem 0 0 0 0 2.8rem 3rem; }
 .ctab-head, .ctab-row { display: grid; grid-template-columns: var(--cols); align-items: center; column-gap: 0; }
 .ctab .n, .ctab .h { padding-left: 8px; }
 /* The head's rule is the table's only line; the stripes separate the rows, counted from the head
@@ -774,7 +774,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .ctab-head > :nth-child(9), .ctab-row > :nth-child(9) { grid-column: 9; }
 .ctab .wdl { display: none; }
 @container (min-width: 470px) {
-  .ctab { --cols: 2rem minmax(0, 1fr) 2.3rem 2.3rem 2.3rem 2.3rem 3.9rem 2.8rem 2.6rem; }
+  .ctab { --cols: 2rem minmax(0, 1fr) 2.3rem 2.3rem 2.3rem 2.3rem 3.9rem 2.8rem 3rem; }
   .ctab .wdl { display: block; }
 }
 .ctab .h { font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--muted); text-align: right; }

@@ -54,7 +54,7 @@ const comparisons = [
   }),
   ...(tab.squad && !isGoalkeeper
     ? [{
-      label: t(lang, "playerSquad"),
+      label: t(lang, "tabSquad"),
       metrics: tab.squad.metrics,
       strip: (m: PlayerMetric) => m.others ?? [],
       intro: t(lang, tab.tab === "club" ? "playerSquadClubIntro" : "playerSquadNationalIntro", {
@@ -113,7 +113,7 @@ const aria = t(lang, "playerComparedWith");
             <ChartLegend keys={[
               { mark: "team", label: self },
               { mark: "other", label: c.others },
-              { mark: "median", label: t(lang, "playerMedian") },
+              { mark: "median", label: t(lang, "median") },
             ]} />
             {c.groups.map((g) => (
               <div class:list={["fxgroup", "rkgroup", { nonkey: showSwitch && !g.hasKey }]}>

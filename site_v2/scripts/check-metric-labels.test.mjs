@@ -21,25 +21,25 @@ const strings = readFileSync(join(SITE, "src/i18n/strings.ts"), "utf8");
 const rowsSrc = readFileSync(join(SITE, "src/lib/metricRows.ts"), "utf8");
 const LOCALES = ["EN", "DE", "FI"];
 
-/** The quoted-dotted label keys inside one METRIC_LABELS_<loc> block.
- *
- * ⚠ ANY dotted key, not just `metrics.*.label`. The catalogue uses a SECOND namespace for player
- * metrics — `playerMetrics.scorerPoints.goals` and friends — and while this regex was anchored on
- * `metrics\.` those four labels were invisible to every parser that polices metric names: this
- * one, `check-page-specs.mjs`'s, and `scripts/check_copy_gate.py`'s. A missing Finnish label would
- * have shipped a BLANK board title (metricLabel falls back to English, then to "") with nothing
- * red. Widened with #40 MR B, which is the change that first rendered one.
- */
+/** Each catalogue label key with the name its term gives it in one language. ANY dotted key, not
+ * just `metrics.*.label`: the catalogue's player metrics live in a second namespace. */
 function labelBlock(loc) {
-  const m = strings.match(
-    new RegExp(`const METRIC_LABELS_${loc}: MetricLabels = \\{([\\s\\S]*?)\\n\\};`));
-  assert.ok(m, `METRIC_LABELS_${loc} not found in strings.ts`);
+  const m = strings.match(/const METRIC_TERMS: Record<string, string> = \{([\s\S]*?)\n\};/);
+  assert.ok(m, "METRIC_TERMS not found in strings.ts");
+  const per90 = strings.match(/const PER_90 = new Set\(\[([\s\S]*?)\]\);/);
+  assert.ok(per90, "PER_90 not found in strings.ts");
+  const chrome = chromeBlock(loc);
   const out = new Map();
-  for (const [, key, val] of m[1].matchAll(/"([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)":\s*"((?:[^"\\]|\\.)*)"/g)) {
-    out.set(key, val);
+  for (const [, key, term] of m[1].matchAll(/"([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)":\s*"([A-Za-z0-9_]+)"/g)) {
+    const name = chrome.get(term);
+    if (name !== undefined) out.set(key, per90[1].includes(`"${key}"`) ? `${name} ${chrome.get("per90")}` : name);
   }
   return out;
 }
+
+/** The keys that hold a metric's name: the terms METRIC_TERMS points to. */
+const metricTermKeys = new Set([...strings.match(/const METRIC_TERMS: Record<string, string> = \{([\s\S]*?)\n\};/)[1]
+  .matchAll(/:\s*"([A-Za-z0-9_]+)"/g)].map((x) => x[1]));
 
 const labels = Object.fromEntries(LOCALES.map((l) => [l, labelBlock(l)]));
 const servedRows = [
@@ -230,7 +230,7 @@ test("a share named by its count says percentage; a per-match value says per mat
 test("the three hand-written hero label strings are gone", () => {
   for (const key of ["heroSotFor", "heroSotAgainst", "heroSotDiff"]) {
     assert.ok(!new RegExp(`^\\s+${key}:`, "m").test(strings),
-      `${key} is still a chrome string; it is a metric name and belongs in METRIC_LABELS`);
+      `${key} is still a chrome string; it is a metric name and belongs in METRIC_TERMS`);
   }
 });
 
@@ -310,7 +310,7 @@ function formComparisonCode() {
  *  copy file a line such as `goals: "goals"` is a word for the reader, so it does not count there. */
 function spelledMetricIds(text, ids, isCopy = false) {
   let code = text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-  if (isCopy) code = code.replace(/^\s*[a-z][A-Za-z0-9]*:\s*"[^"]*",?\s*$/gm, "");
+  if (isCopy) code = code.replace(/^\s*"?[a-zA-Z][A-Za-z0-9_.]*"?:\s*"[^"]*",?\s*$/gm, "");
   return [...code.matchAll(/["'`]([a-z0-9_]+)["'`]/g)].map((m) => m[1]).filter((s) => ids.has(s));
 }
 
@@ -357,16 +357,14 @@ function spelledNames(text, names) {
 
 // Chrome strings that read as a catalogue name and are not that metric.
 const NOT_THE_METRIC = {
-  compColGoals: "the league table's Goals column shows goals for and against, not the goals metric",
-  secGoals: "the match page's Goals section lists the goals scored, not the goals metric",
-  goals: "the word after a goal count (2 Tore), not the goals metric",
-  goalsWord: "the word after a goal count, not the goals metric",
-  assists: "the word after an assist count (2 Vorlagen), not the assists metric",
-  playerAssists: "the word after an assist count (2 Vorlagen), not the assists metric",
-  saves: "the word after a save count (3 Paraden), not the saves metric",
+  goalsMany: "the word after a goal count (2 Tore), not the goals metric",
+  assistsMany: "the word after an assist count, not the assists metric",
+  savesMany: "the word after a save count, not the saves metric",
+  pointsMany: "the word after a points count, not the points metric",
+  ballActionsMany: "the word after a ball action count, not the metric",
 };
 
-test("no page string spells a catalogue metric name; it comes from METRIC_LABELS", () => {
+test("no page string spells a catalogue metric name; it comes from its term", () => {
   assert.deepEqual(spelledNames("a shots on target difference of", ["Shots on target difference", "Goals"]),
     ["Shots on target difference"], "the name finder no longer finds a name inside a sentence");
   assert.deepEqual(spelledNames("Goals", ["Goals"]), ["Goals"], "the name finder no longer finds a one-word name");
@@ -374,10 +372,10 @@ test("no page string spells a catalogue metric name; it comes from METRIC_LABELS
     const chrome = chromeBlock(loc);
     assert.ok(chrome.size >= 300, `parsed only ${chrome.size} ${loc} chrome strings`);
     const names = [...new Set([...labels[loc]].filter(([k]) => !k.startsWith("metricGroups.")).map(([, v]) => v))];
-    const bad = [...chrome].filter(([k]) => !(k in NOT_THE_METRIC))
+    const bad = [...chrome].filter(([k]) => !(k in NOT_THE_METRIC) && !metricTermKeys.has(k))
       .flatMap(([k, v]) => spelledNames(v, names).map((n) => `${loc}.${k} spells "${n}"`));
     assert.deepEqual(bad, [],
-      `a page string names a metric by hand; fill it from METRIC_LABELS (metricLabel / metricInSentence):\n  ${bad.join("\n  ")}`);
+      `a page string names a metric by hand; fill it from its term (metricLabel / metricInSentence):\n  ${bad.join("\n  ")}`);
   }
 });
 
@@ -423,7 +421,7 @@ test("a squad row counts its appearances with the noun agreeing with the number"
   assert.deepEqual([1, 12].map((n) => apps("fi", n)), ["1 ottelu", "12 ottelua"]);
   const minutes = (lang) => `75 ${metricInSentence(lang, "playerMetrics.minutesPerAppearance.label")}`;
   assert.deepEqual(["en", "de", "fi"].map(minutes),
-    ["75 minutes per appearance", "75 Minuten pro Einsatz", "75 minuuttia per ottelu"]);
+    ["75 minutes per appearance", "75 Minuten pro Einsatz", "75 minuuttia ottelua kohden"]);
   const squad = readFileSync(join(SITE, "src/components/team/TeamSquad.astro"), "utf8");
   assert.match(squad, /\$\{metricInSentence\(lang, MINUTES\)\}/,
     "TeamSquad.astro no longer names the minutes from the catalogue");

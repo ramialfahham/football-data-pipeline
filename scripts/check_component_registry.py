@@ -36,7 +36,7 @@ SYSTEM_CSS = REPO / "site_v2" / "src" / "styles" / "system.css"
 BASELINE = REPO / "tests" / "fixtures" / "component_registry" / "baseline.json"
 
 SETS = ("text", "marks", "spacing", "colours", "switch")
-COMPONENT_KEYS = {"name", "file", "used-on", "parts", "wide", "narrow", "never-split"}
+COMPONENT_KEYS = {"name", "file", "used-on", "parts", "wide", "narrow", "never-split", "short-forms"}
 PART_KEYS = {"class", "selector", "text", "mark", "breaks", "element", "rule", "measured", "status", "ruled-on", "gap"}
 RULE_KEYS = {"selector", "rule", "measured", "status", "ruled-on"}
 TEXT_KEYS = {"size", "weight", "colour", "case"}
@@ -93,6 +93,9 @@ def load(path: Path = REGISTRY) -> dict:
             _keys(where + ".narrow", narrow, {"below", "form"}, {"below", "form"})
             if narrow["below"] != FITS and narrow["below"] not in sets["switch"]:
                 raise RegistryError("%s.narrow: switch %r is in no set" % (where, narrow["below"]))
+        terms = comp.get("short-forms", [])
+        if not isinstance(terms, list) or not all(isinstance(x, str) for x in terms) or len(set(terms)) != len(terms):
+            raise RegistryError("%s.short-forms: expected a list of distinct term keys, got %r" % (where, terms))
         for pid, part in comp["parts"].items():
             pw = "%s.parts.%s" % (where, pid)
             _keys(pw, part, PART_KEYS, {"class"})

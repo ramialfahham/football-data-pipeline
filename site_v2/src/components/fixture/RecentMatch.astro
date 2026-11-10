@@ -16,9 +16,9 @@ interface Props {
   slot?: number;
 }
 const { match, lang, slot } = Astro.props;
-const LETTER: Record<string, string> = { W: "compColWins", D: "compColDraws", L: "compColLosses" };
+const LETTER: Record<string, string> = { W: "winsShort", D: "drawsShort", L: "lossesShort" };
 const result = match.result && LETTER[match.result] ? match.result : null;
-const ha = match.home_away === "home" ? t(lang, "haHome") : match.home_away === "away" ? t(lang, "haAway") : "";
+const ha = match.home_away === "home" ? t(lang, "home") : match.home_away === "away" ? t(lang, "away") : "";
 const comp = (competitions as Record<string, { name?: string }>)[match.played_league_code ?? ""]?.name;
 const href = matchPageHref(lang, match.played_fixture_sk);
 const Row = href ? "a" : "div";

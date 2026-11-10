@@ -117,7 +117,7 @@ table locks.
 
 ### Where these strings live, and what the `metric_id` column above really holds (#370, 2026-07-31)
 
-A metric's displayed name, in every language, lives only in `METRIC_LABELS_{EN,DE,FI}` in
+A metric's displayed name, in every language, comes only from `METRIC_TERMS` in
 `site_v2/src/i18n/strings.ts`, keyed by the catalogue's `label_i18n_key`. No name carries `Ø` or `%`.
 A value averaged over several matches shows "per match" on a small second line, and a single match's
 value shows none. A share without a football word of its own shows "percentage" there.

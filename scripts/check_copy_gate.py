@@ -93,35 +93,25 @@ TERMINOLOGY = {
 _DICT_RE = re.compile(r"^const\s+([A-Z]{2}):\s*Dict\s*=\s*\{(.*?)^\};", re.S | re.M)
 _ENTRY_RE = re.compile(r'^\s*([A-Za-z0-9_-]+):\s*"((?:[^"\\]|\\.)*)"', re.M)
 
-# NO COMMENT-BASED EXEMPTION, and that is the decision rather than an omission.
-#
-# Check 4's message used to promise one — "the value needs a comment saying so" — while the code
-# parsed no comment, so the only way past it was to change the copy. A marker (`i18n:same-as-en`)
-# was built to honour that promise and then REMOVED. The argument, kept because it is the
-# reusable part:
-#
-#   · The case the exemption was for is ALREADY exempt. Check 4 skips any value with no
-#     `[a-z]{3,}` word (numbers, symbols, abbreviations) and any single capitalised token
-#     (brand names). The residual case is a multi-word English string deliberately kept in
-#     de/fi — of which this repo has ZERO.
-#   · The one historical instance, `fi.footerDataSource`, was settled by TRANSLATING it, with
-#     no exemption available.
-#   · Translation is §10, the product owner's alone. A self-serve comment would let any future
-#     agent whose change reddens check 4 go green on its own authority — a guard bypass added
-#     ahead of any demonstrated need, in the direction the last real decision went against.
-#
-# So the message is corrected instead: it points at the product owner rather than promising a
-# hatch. If a genuine identical-string case ever appears, it is his decision, and THAT is when
-# an exemption gets designed — with the case in hand.
+# NO COMMENT-BASED EXEMPTION. Check 4 skips a value with no `[a-z]{3,}` word (numbers, symbols,
+# abbreviations) and a single capitalised token (brand names). Any other text identical to English
+# is a translation call, the product owner's alone (§10), so a comment in strings.ts can never pass
+# it. The one way past check 4 is APPROVED_IDENTICAL: each entry names the locale, the key, the
+# exact value and the issue note that approved it, and a changed value fails again.
+APPROVED_IDENTICAL: dict[tuple[str, str], tuple[str, str]] = {
+    ("de", "seoFixtureTitle"): ("{home} – {away}, {date}", "#243 note 4185014476"),
+    ("fi", "seoFixtureTitle"): ("{home} – {away}, {date}", "#243 note 4185014476"),
+    ("fi", "minutesShort"): ("min", "#243 note 4180302090"),
+}
 
-# #370 added a SECOND string class this gate has to see: metric display names, in their own
-# `METRIC_LABELS_<LOC>` maps keyed by the catalogue's `label_i18n_key`. Their keys are QUOTED and
-# DOTTED, which `_ENTRY_RE` above cannot match by design — it requires a bare identifier. So without
-# this second parser the 54 metric labels would be invisible here and would skip the em dash,
-# completeness and terminology checks entirely: 54 user-visible strings past the gate that exists to
-# catch exactly those defects.
-_METRIC_DICT_RE = re.compile(
-    r"^const\s+METRIC_LABELS_([A-Z]{2}):\s*MetricLabels\s*=\s*\{(.*?)^\};", re.S | re.M)
+# A SECOND string class this gate has to see: metric display names. `METRIC_TERMS` maps the
+# catalogue's `label_i18n_key` to the term that names the metric, and `PER_90` lists the keys that
+# add the per-90 word; a missing `PER_90` fails like a missing map. Their keys are QUOTED and DOTTED, which `_ENTRY_RE` above cannot match by
+# design — it requires a bare identifier. This parser resolves each metric's name in every locale,
+# so a term a locale lacks shows as a missing metric name.
+_METRIC_TERMS_RE = re.compile(
+    r"^const\s+METRIC_TERMS:\s*Record<string,\s*string>\s*=\s*\{(.*?)^\};", re.S | re.M)
+_PER_90_RE = re.compile(r"^const\s+PER_90\s*=\s*new Set\(\[(.*?)\]\);", re.S | re.M)
 # ANY quoted dotted key, not just `metrics.*.label`. The catalogue's PLAYER metrics live in a
 # second namespace (`playerMetrics.scorerPoints.goals`), and while this was anchored on `metrics\.`
 # those labels skipped all four checks below — a Finnish board title missing from the map would have
@@ -140,9 +130,17 @@ def _dicts(text: str) -> dict[str, dict[str, str]]:
 
 
 def _metric_labels(text: str) -> dict[str, dict[str, str]]:
+    block = _METRIC_TERMS_RE.search(text)
+    per90_block = _PER_90_RE.search(text)
+    if not block or not per90_block:
+        return {}
+    terms = dict(_METRIC_ENTRY_RE.findall(block.group(1)))
+    per90 = set(re.findall(r'"([^"]+)"', per90_block.group(1)))
     out: dict[str, dict[str, str]] = {}
-    for m in _METRIC_DICT_RE.finditer(text):
-        out[m.group(1).lower()] = dict(_METRIC_ENTRY_RE.findall(m.group(2)))
+    for loc, words in _dicts(text).items():
+        out[loc] = {key: words[term] + (f" {words['per90']}" if key in per90 else "")
+                    for key, term in terms.items()
+                    if term in words and (key not in per90 or "per90" in words)}
     return out
 
 
@@ -206,12 +204,12 @@ def main() -> int:
     metrics = _metric_labels(text)
     missing_metric_locales = [loc for loc in LOCALES if loc not in metrics]
     if missing_metric_locales:
-        print(f"FAIL: strings.ts has no METRIC_LABELS block for {missing_metric_locales}")
+        print(f"FAIL: strings.ts has no METRIC_TERMS block for {missing_metric_locales}")
         return 1
     thin_metrics = {loc: len(metrics[loc]) for loc in LOCALES if len(metrics[loc]) < MIN_METRIC_KEYS}
     if thin_metrics:
         print(f"FAIL: extracted too few metric labels {thin_metrics} (floor {MIN_METRIC_KEYS} per "
-              "locale). The METRIC_LABELS entry regex has stopped matching, which would let every "
+              "locale). The METRIC_TERMS entry regex has stopped matching, which would let every "
               "metric name skip this gate.")
         return 1
     metric_count = sum(len(metrics[loc]) for loc in LOCALES)
@@ -273,11 +271,13 @@ def main() -> int:
                 continue
             if len(en_val.split()) == 1 and en_val[0].isupper():
                 continue
+            if APPROVED_IDENTICAL.get((loc, key), ("",))[0] == val:
+                continue
             findings.append(
                 f"untranslated: {loc}.{key} is byte-identical to en ({en_val!r}). "
                 "Translate it, or — if sameness is genuinely correct for this locale — "
-                "that is a §10 wording call: take it to the CPO. There is deliberately "
-                "no self-serve exemption comment; see the note above check 4."
+                "that is a §10 wording call: take it to the CPO. Only his approval adds it "
+                "to APPROVED_IDENTICAL; see the note above it."
             )
 
     # 5. every seed-published label key resolves in every locale

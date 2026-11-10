@@ -8,7 +8,7 @@
 ## 1. Purpose
 
 A team's season in one place: where it stands in each competition, how it plays against its league
-and against the season before. The stop-scrolling moment is Deserved points: the points its play
+and against last season. The stop-scrolling moment is Deserved points: the points its play
 usually earns against the points it has.
 
 ## 2. URL
@@ -42,20 +42,20 @@ Home › Teams › {team}
 
 OVERVIEW
   COMPETITIONS      one row per competition: name · note · standing or outcome
-                    W D L counts · Goals · Pts (a table only)
+                    W D L counts · Goals · Points (a table only)
   RECENT MATCHES    five result rows
   NEXT MATCHES      one match per competition, the soonest tagged Next
-  HIGHS AND LOWS    Biggest win · Heaviest defeat · Longest unbeaten run · Longest winless run
+  HIGHS AND LOWS    Biggest win · Biggest loss · Longest unbeaten run · Longest winless run
   SQUAD             by position, two columns where they fit
 
 MATCHES
   [ Filter bar: All | {competition} … ]
-  UPCOMING          every scheduled match, grouped by competition
+  NEXT MATCHES      every scheduled match, grouped by competition
   RESULTS           every result of the season, newest first
 
 PERFORMANCE
   {competition} {season}: {team} compared with … (the tab's explainer)
-  STANDING          Position · Points, each with "Season before"
+  STANDING          Position · Points, each with "Last season"
   DESERVED POINTS   explainer · table of four values · scatter plot
   COMPARED WITH THE LEAGUE        explainer · switch · strip plot per metric
   COMPARED WITH LAST SEASON       explainer · switch · This season | Last season | Trend
@@ -88,7 +88,7 @@ The page has the site's one width, 960px, and a single column at every width.
 | Block | JSON keys | Notes |
 |---|---|---|
 | Filter bar | the competitions of `schedule` | the shared Filter bar, one choice per competition with a match |
-| Upcoming | `schedule.upcoming[]` | grouped by competition in the order of each group's first match; date headings; the match row |
+| Next matches | `schedule.upcoming[]` | grouped by competition in the order of each group's first match; date headings; the match row |
 | Results | `schedule.results[]` | the result row, newest first |
 
 ### Performance
@@ -96,7 +96,7 @@ The page has the site's one width, 960px, and a single column at every width.
 | Block | JSON keys | Notes |
 |---|---|---|
 | Tab explainer | the featured season's competition name and `season_label` | one sentence under the tab bar |
-| Standing | `latest_rank`, `points_rank_prev_season`, `points_this_season`, `points_prev_season` | fact rows; the points and both "Season before" values come from the official table on the day of the team's Nth match |
+| Standing | `latest_rank`, `points_rank_prev_season`, `points_this_season`, `points_prev_season` | fact rows; the points and both "Last season" values come from the official table on the day of the team's Nth match |
 | Deserved points | `played`, `shots_on_goal_difference_per_match`, `points`, `deserved_points`, `deserved_points_gap`, `deserved_scatter[]` | the competition page's explainer; the table's head reads "{competition}, after {n} matches"; the line joins the deserved points of the two teams at the ends of the axis |
 | Compared with the league | `benchmarks[]`: `metric_value`, `rank`; `league_strip[]` | one strip per served metric with a value; the rank is the warehouse's, by the metric's direction |
 | Compared with last season | `benchmarks[]`: `metric_value`, `metric_value_prev_season`; `yoy_games_played_cutoff` | the trend compares the shown values by the metric's direction |
@@ -112,8 +112,8 @@ Both comparisons show the key metrics (`is_key_metric`) until the switch "Show a
 | A metric row has no value | the row is absent |
 | No schedule | the Matches tab is absent |
 | No standing and no metric | the Performance tab is absent |
-| Before the team's first match of a season | the page shows the featured season, the season just finished; Next matches and Upcoming show the new season |
-| No comparable season before | Compared with last season is absent |
+| Before the team's first match of a season | the page shows the featured season, the season just finished; both Next matches blocks show the new season |
+| No comparable last season | Compared with last season is absent |
 
 ## 7. Interactions
 

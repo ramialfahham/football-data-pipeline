@@ -45,9 +45,9 @@ const rows = competitions.map((c) => {
   };
 });
 const CHIPS = [
-  { k: "W", field: "wins", label: "compColWins" },
-  { k: "D", field: "draws", label: "compColDraws" },
-  { k: "L", field: "losses", label: "compColLosses" },
+  { k: "W", field: "wins", label: "winsShort" },
+  { k: "D", field: "draws", label: "drawsShort" },
+  { k: "L", field: "losses", label: "lossesShort" },
 ] as const;
 ---
 
@@ -70,9 +70,9 @@ const CHIPS = [
                     {CHIPS.map((ch) => <span class:list={["cchip", ch.k]}>{integer(r.c[ch.field], lang)} <small>{t(lang, ch.label)}</small></span>)}
                   </span>
                   <span class="tc-nums">
-                    <span class="nb">{t(lang, "compColGoals")} <b>{integer(r.c.goals_for, lang)}:{integer(r.c.goals_against, lang)}</b></span>
+                    <span class="nb">{t(lang, "goals")} <b>{integer(r.c.goals_for, lang)}:{integer(r.c.goals_against, lang)}</b></span>
                     {" · "}
-                    <span class="nb">{t(lang, "compColPoints")} <b>{integer(r.c.points, lang)}</b></span>
+                    <span class="nb">{t(lang, "points")} <b>{integer(r.c.points, lang)}</b></span>
                   </span>
                 </span>
               )}
