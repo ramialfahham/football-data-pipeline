@@ -1,23 +1,4 @@
-"""Export league JSON for GitHub Pages under artifacts/data/{league}/.
-
-Queries unified mart_matchday_insights (all competitions, slice by league_code).
-No per-competition mart relations — WC and domestic leagues all use the same mart.
-Player insights export removed in #321 (mart_matchday_player_insights retired;
-replacement pending #325).
-
-Writes:
-  artifacts/data/{league_lower}/matchday_insights.json   {"show": [...]}
-  artifacts/data/{league_lower}/team_season_insights.json {"teams": [...]}
-  artifacts/data/wc/matchday_insights.json            {"show": [...]}
-  artifacts/pages_export_manifest.json
-  artifacts/matchday_insights.json (legacy BL1 compat)
-  artifacts/team_season_insights.json (legacy BL1 compat)
-
-Usage:
-    python scripts/export_pages_data.py
-
-Authentication: Application Default Credentials (CI WIF or gcloud auth locally).
-"""
+"""Export per-league matchday and team-season JSON under artifacts/data/{league}/."""
 from __future__ import annotations
 
 import json
@@ -44,7 +25,6 @@ def _dbt_active_league_codes() -> list[str]:
 
 
 def domestic_league_codes() -> list[str]:
-    """Active competitions with domestic league matchday/team-season Pages export."""
     return sorted(
         code
         for code in _dbt_active_league_codes()
@@ -82,7 +62,6 @@ def _coerce_utc_datetime(value) -> datetime | None:
 
 
 def next_fixture_kickoff_utc(rows: list[dict]) -> str | None:
-    """Return earliest kickoff datetime in UTC ISO format from matchday rows."""
     kickoff_values: list[datetime] = []
     for row in rows:
         kickoff = _coerce_utc_datetime(row.get("kickoff_datetime"))

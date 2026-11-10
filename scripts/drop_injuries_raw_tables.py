@@ -1,23 +1,7 @@
-"""Drop every RAW_APIF_*_INJURIES table from BigQuery.
+"""Drop every RAW_APIF_*_INJURIES table from BigQuery (irreversible past 7-day time travel).
 
-⚠ THIS SCRIPT HAS OUTLIVED ONE REMOVAL ALREADY. It was written for the first removal of the
-injuries surface, which had no consumer. The endpoint was re-added sixteen days later with no
-consumer named, migrated to the unified raw tables, and ran for three months writing
-`RAW_APIF_INJURIES` — 1.975 GiB, the largest raw table — that nothing ever read. If a third
-re-add is ever proposed, it has to name its consumer first; the first two never did.
-
-The match pattern is unchanged and still correct: it targets tables whose name starts with
-``RAW_APIF_`` and ends with ``_INJURIES``. That covered the retired per-competition naming
-(``RAW_APIF_BL1_INJURIES``) and still covers the unified ``RAW_APIF_INJURIES``, since that also
-ends in ``_INJURIES``. Non-injury tables are never listed.
-
-⚠ IRREVERSIBLE past BigQuery's 7-day time travel. Run `--dry-run` first and have the printed list
-confirmed before the real run. Run it only AFTER the ingest removal has merged and the nightly
-image has been redeployed — otherwise the next run recreates the table.
-
-Usage:
-    python scripts/drop_injuries_raw_tables.py --dry-run
-    python scripts/drop_injuries_raw_tables.py
+It drops unless --dry-run is given. Run it only after the ingest no longer writes the table and
+the nightly image is redeployed, or the next run recreates it.
 """
 
 from __future__ import annotations

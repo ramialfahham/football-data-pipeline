@@ -1,15 +1,8 @@
 """Wait while a run of the nightly is in progress, so the main prod build never writes prod with it.
 
-The nightly is the Cloud Run job fdp-nightly (deploy/nightly/README.md); data:build:main runs this
-before its first prod write. A run in progress is an execution without completionTime: the API
-lists executions newest first, and every finished one, a failed one too, carries completionTime.
-
-Usage (from repo root, with GCP credentials active):
-    python scripts/wait_for_nightly.py
-
-Exits 0 once no run is in progress. An API error raises, and a run still in progress after
-MAX_WAIT_SECONDS exits 1: either way the job fails before it writes prod. The deadline sits inside
-the job's 2-hour timeout so that the timeout can never land during the build's prod writes.
+The API lists executions newest first and every finished one, a failed one too, carries
+completionTime, so a run in progress is one of the latest few without it. An API error raises so the
+job fails before any prod write; the deadline stays inside the job's 2-hour timeout for the same reason.
 """
 
 from __future__ import annotations

@@ -66,11 +66,8 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 SEED = REPO_ROOT / "dbt_project" / "seeds" / "metric_catalogue.csv"
 MODELS = REPO_ROOT / "dbt_project" / "models"
 
-# ⚠ MUST live under `models/`. dbt reads docs blocks from `docs-paths`, which is
-# unset in dbt_project.yml and therefore defaults to `models/`. A block outside it
-# does not fail loudly — the reference renders as the literal text "{{ doc(...) }}"
-# into the warehouse column. `check_description_hygiene.py` restricts its own
-# discovery the same way so the gate and dbt cannot disagree.
+# Must live under `models/`: dbt reads docs blocks from the default `docs-paths`, and a block
+# outside it renders as literal text.
 OUT = REPO_ROOT / "dbt_project" / "models" / "docs" / "metric_columns.md"
 
 MAP_OUT = REPO_ROOT / "dbt_project" / "seeds" / "metric_map.csv"
@@ -102,27 +99,11 @@ VARIANT_PERIODS = (
     ("suffix", "_recent", "form"),
 )
 
-# Floor under the read, enforced here and not only in the tests. A renamed column,
-# a moved seed or a parser change could leave this matching nothing, and a
-# generator that emits an empty file "successfully" would silently delete every
-# definition on the next run. Set well under the 76 measured and well over zero.
-# Same precedent as `check_description_hygiene.py`'s MIN_DESCRIPTIONS.
+# Floor under the read: a read matching nothing would emit an empty file and delete every
+# definition.
 MIN_METRICS = 50
 
-# A catalogue row is window-free (the catalogue table's description, the
-# metric_catalogue doc block): which matches a metric counts is applied where it is
-# computed, never in its row. 35 descriptions contradicted that and
-# were corrected in this MR. This keeps them corrected — a window claim is FALSE on
-# a per-match core column, and these blocks are attached to core columns.
-#
-# ⚠ THE WORD ALONE, not a list of phrasings. An earlier version matched only
-# `form window|in the window|same-window` and MISSED `finishing_efficiency_pct`, whose
-# text said "share the window" and "the window is not fully shot-covered" — three
-# occurrences, none of them on the list. Worse, the MR's own verification searched
-# with this same pattern, so it could only ever agree with the guard: a too-narrow
-# grep reported as a clean sweep.
-# Since a row is window-free, ANY occurrence is wrong and there is no phrasing to
-# enumerate.
+# A catalogue row is window-free, so any occurrence of the word is wrong; match the word alone.
 WINDOW_PHRASING = re.compile(r"\bwindow\b", re.I)
 
 # The parts of engineering_standards.md section 2 ("A metric's description") a machine can hold.
@@ -145,37 +126,11 @@ def _definition(row: dict) -> str:
     own description, stated once there, never appended to a metric's."""
     return (row["description"] or "").strip()
 
-# ─── DERIVED COLUMNS ────────────────────────────────────────────────────────────
-# 77 model columns are a catalogue metric with one standard affix on it:
-# `goals_against_sum_season`, `duels_won_pct_this_season`,
-# `shots_on_goal_per_match_delta_yoy`. The metric half is already defined in the
-# seed; only the affix adds meaning, and there are eleven of them in the whole
-# project. So the block is COMPOSED — the seed's definition, then the affix's
-# sentence — rather than written out 77 times by hand, which is how `league_code`
-# reached 22 wordings.
-#
-# ⚠ EVERY PHRASE BELOW IS TRACED TO THE SQL, NOT INHERITED FROM A NEIGHBOURING
-# DESCRIPTION. MR1 of this programme shipped a description that was simply false
-# because it compressed upstream prose without reading the model underneath it.
-# Sources: `int_team_profile__yoy.sql` (games-played alignment, domestic-league
-# scope), `int_player_profile__yoy.sql` (appearance alignment, prior season AT THE
-# SAME CLUB, `_prev_season_full` never differenced). When a value is blank is rule
-# R6 of the catalogue table's description, never a phrase here.
-#
-# ⚠ THE PHRASES ARE DELIBERATELY NEUTRAL ABOUT WHAT A "MATCH" IS. The team models
-# align by games played and the player models by appearances, and the same affix
-# is used on both — so a phrase naming either one would be false half the time.
-# The precise alignment rule belongs to the MODEL's description, which states it.
-#
-# ⚠ ORDER MATTERS: LONGEST FIRST. `_per_match_this_season` must be tried before
-# `_this_season`, or `goals_against_per_match_this_season` decomposes to the
-# non-existent metric `goals_against_per_match` and silently emits nothing. The
-# same trap in reverse cost a scratch measurement: a naive stripper read
-# `duels_won_pct_this_season` as `duels_won` + `_pct`, and `duels_won` WAS a real
-# metric id when that was measured, so it would have attached the wrong definition
-# instead of failing. ⚠ That id is now `duels_won_player` (step 4, MR 5), which makes
-# the EXAMPLE historical. The trap is not: `_pct` is still a suffix a greedy stripper
-# can peel off a longer real name, and the ordering below is what prevents it.
+# --- derived columns ---
+# A derived column is a catalogue metric with one standard affix; its block is the seed's
+# definition followed by the affix's sentence.
+# The phrases stay neutral about what a "match" is, because team models align by games played and
+# player models by appearances while sharing the same affixes.
 DERIVED_AFFIXES: tuple[tuple[str, str, str], ...] = (
     ("_per_match_this_season", "suffix",
      "Divided by matches played, for the season now in progress, through the matches played so "
@@ -206,43 +161,15 @@ DERIVED_AFFIXES: tuple[tuple[str, str, str], ...] = (
     ("opponent_", "prefix", "Measured for the opposing team rather than this one."),
 )
 
-# A docs block is named by a Jinja tag and referenced by `doc('<name>')`, and both
-# this file's parser and `check_description_hygiene.py`'s match `\w+` — so a NAME
-# WITH A DOT IN IT CANNOT BE A BLOCK. Five columns are nested fields spelled that
-# way (`recent_meetings.goals_against` and its siblings). Such a block would be
-# unaddressable AND invisible to the drift reporter, whose own regex skips the dot.
-#
-# ⚠ THIS VALIDATES THE OUTPUT, NOT THE INPUT, and mutation testing is why. The
-# first version filtered dotted COLUMN names before decomposing — and deleting
-# that filter changed nothing, because a dotted name cannot decompose anyway: the
-# dot always lands in the stem, and no metric id contains one. It was dead code
-# with a test that could not fail. Checking the emitted names instead is reachable
-# the moment anyone adds an affix containing a dot, which is the only way this can
-# actually happen.
+# A block name must match `\w+`, the pattern dbt uses for both the docs tag and `doc()`; a dotted
+# name would be unaddressable.
 BLOCK_NAME_RE = re.compile(r"^\w+$")
 
-# Floor under the SECOND input, for the same reason MIN_METRICS floors the first.
-# The derived names come from walking the model YAML; a moved directory or a
-# parser change would leave that matching nothing, and a generator that quietly
-# drops 77 blocks would blank 153 warehouse columns on the next build. Set well
-# under the 77 measured and well over zero.
+# Floor under the derived names read from the model YAML, for the same reason as MIN_METRICS.
 MIN_DERIVED = 40
 
-# Affixes that TOTAL a value. Meaningless on a metric that is already a rate or a
-# ratio, and not merely redundant: `clean_sheets` is defined in the catalogue as
-# the RATIO `safe_divide(clean_sheet_games, games_played)`, and its text carries
-# that ratio's display convention, "shown as a count of games played (e.g. 3/5)".
-# The column `clean_sheets_sum_season` is `clean_sheet_games` alone — a plain
-# season-long integer. Composing the two produced a sentence claiming, in one
-# breath, that the value is a small fraction AND a season total. It read fluently
-# and was wrong, and `persist_docs` would have put it in front of a stranger.
-#
-# ⚠ THE TEST IS THE CATALOGUE'S OWN `denominator_expr`, not a list of metric names.
-# A metric with a denominator is a rate; totalling it is a different quantity, so
-# the block is REFUSED and the column stays blank and visible rather than
-# documented and wrong. One name is affected today; the rule is what stops the
-# next one. The other rate metrics take `_this_season` / `_prev_season` /
-# `_delta_yoy`, which are all sound on a rate and are unaffected.
+# Affixes that total a value; a metric with a `denominator_expr` is a rate, and totalling it is a
+# different quantity, so its block is refused and the column stays blank.
 TOTALLING_AFFIXES = ("_sum_season",)
 
 WRAP = 95
@@ -297,11 +224,7 @@ def _read_rows() -> list[dict]:
 
 
 def _blocks(rows: list[dict]) -> dict[str, str]:
-    """Map block name -> definition text.
-
-    One block per metric where its rows agree, one block per entity where they do
-    not. Aborts rather than picking a winner.
-    """
+    """One block per metric where its rows agree, one per entity where they do not."""
     by_metric: dict[str, list[dict]] = {}
     for r in rows:
         by_metric.setdefault(r["metric_id"].strip(), []).append(r)
@@ -312,9 +235,7 @@ def _blocks(rows: list[dict]) -> dict[str, str]:
         if len(texts) == 1:
             blocks[metric] = texts.pop()
             continue
-        # The rows disagree. Split on entity - but only if entity actually
-        # separates them. If two rows share an entity and still disagree, there is
-        # no key to split on and guessing would repeat the league_code defect.
+        # Rows that disagree split on entity; if two share an entity there is no key to split on.
         entities = [(r["entity"] or "").strip() for r in group]
         if len(set(entities)) != len(entities):
             raise Abort(
@@ -329,12 +250,7 @@ def _blocks(rows: list[dict]) -> dict[str, str]:
 
 
 def _column_names() -> list[str]:
-    """Every column name declared under `models/`, sorted. The SECOND input.
-
-    Read from the raw YAML rather than the manifest on purpose: the manifest needs
-    a compiled project and a warehouse connection, and this script must run offline
-    in a validate job with no credentials.
-    """
+    """Every column name declared under `models/`, read from the YAML because it must run offline."""
     names: set[str] = set()
     for path in sorted(MODELS.rglob("*.yml")):
         rel = _rel(path)
@@ -350,8 +266,7 @@ def _models_in(path: pathlib.Path) -> list[tuple[str, list[dict]]]:
     try:
         doc = yaml.safe_load(path.read_text(encoding="utf-8"))
     except (yaml.YAMLError, UnicodeDecodeError, OSError) as exc:
-        # LOUD. A file that will not parse means the name set is incomplete,
-        # and an incomplete set silently drops blocks for the columns in it.
+        # An unparsable file leaves the name set incomplete, which would silently drop blocks.
         raise Abort(_rel(path) + " will not parse (" + exc.__class__.__name__
                     + "), so the column-name set is incomplete and any block "
                     "missing from the output would be missing for that reason "
@@ -367,15 +282,7 @@ def _models_in(path: pathlib.Path) -> list[tuple[str, list[dict]]]:
 
 
 def _decompose(name: str, metrics: set[str]) -> tuple[str, str] | None:
-    """(metric_id, affix) for a derived name, or None.
-
-    LONGEST AFFIX FIRST, and the remainder must be a metric EXACTLY. Only one affix
-    is ever stripped: no column in this project carries two, and allowing a chain
-    would let a wrong pair of strips land on a real metric and attach its
-    definition. If a chained name ever appears it falls through to None, which
-    leaves the column blank and visible to the coverage gate, rather than
-    documented wrongly and invisible.
-    """
+    """(metric_id, affix) for a name with exactly one affix on a real metric, else None."""
     hits: list[tuple[str, str]] = []
     for affix, kind, _ in DERIVED_AFFIXES:
         if kind == "suffix" and name.endswith(affix):
@@ -388,50 +295,14 @@ def _decompose(name: str, metrics: set[str]) -> tuple[str, str] | None:
             hits.append((stem, affix))
     if not hits:
         return None
-    # THE LONGEST STEM WINS, not the longest affix, and mutation testing is what
-    # settled that. `goals_per_match_this_season` decomposes two ways when the seed
-    # holds both `goals` and `goals_per_match`: as `goals` + "divided by matches
-    # played, for the season now in progress", or as `goals_per_match` + "value for
-    # the season now in progress". Both render true sentences, but only the second
-    # uses the definition the catalogue actually wrote for that rate — including
-    # its null policy, which the composed form silently drops. Preferring the
-    # longest affix, which an earlier version did, picks the worse one.
+    # The longest stem wins so a rate such as `goals_per_match` keeps its own catalogue definition
+    # rather than being composed from `goals`.
     return max(hits, key=lambda h: len(h[0]))
 
 
 def _derived_blocks(rows: list[dict], names: list[str],
                     refused: list[str] | None = None) -> dict[str, str]:
-    """Compose one block per derived column name, ALWAYS SUFFIXED BY ENTITY.
-
-    ⛔ THE ENTITY SUFFIX IS NOT COSMETIC AND THE UNSUFFIXED FORM IS NOT AN OPTION.
-    The first version of this function emitted a bare `goals_against_sum_season`
-    whenever the catalogue held ONE row for the stem — which says nothing about
-    WHICH entity that row describes, while the columns carrying the derived name may
-    be the other one. Twenty-one of seventy-six derived names had that shape, so a
-    fifth of them would have carried one entity's definition into the other's
-    column, silently, into the warehouse.
-    ⚠ The worked example was `goals_against`: the catalogue defined it for a PLAYER
-    ("goals conceded by the team while the player was on the pitch") while the
-    columns of that name sat on TEAM models. **That example is HISTORICAL** — step 4
-    of the naming programme renamed the player metric to `goals_against_player`, so
-    the single surviving row is the team's. The hazard is not historical: any stem
-    with one row and columns on the other entity reproduces it, and nothing stops a
-    future catalogue row from recreating exactly this one.
-    Found by READING the composed output; no check in this repo would have caught
-    it, because the block resolves, the length is fine and the YAML parses.
-
-    The obvious fix — teach the generator which models are team-scoped and which
-    are player-scoped — is the one this repo has already failed at three times:
-    no classifier of model names works. So the generator is not made
-    cleverer; it is made unable to be wrong. Every derived block carries the entity
-    the catalogue actually defined, the caller points at the entity its column
-    actually is, and a metric the catalogue never defined for that entity has no
-    block to point at — leaving the column blank and visible rather than documented
-    and wrong.
-
-    A stem defined for two entities therefore behaves no differently from one
-    defined for one: both emit per entity, and neither has a default.
-    """
+    """One block per derived column name, always entity-suffixed so no column takes the wrong entity."""
     phrases = {affix: phrase for affix, _, phrase in DERIVED_AFFIXES}
     rated = {r["metric_id"].strip() for r in rows
              if (r.get("denominator_expr") or "").strip()}
@@ -440,12 +311,8 @@ def _derived_blocks(rows: list[dict], names: list[str],
         metric = r["metric_id"].strip()
         entity = (r["entity"] or "").strip().replace(" ", "_")
         text = _definition(r)
-        # NO GUARD HERE against two rows sharing a metric AND an entity while
-        # disagreeing. `_blocks()` runs first in `_render()` and already aborts on
-        # exactly that, so a copy of the check here is unreachable — proven by
-        # mutation: disabling it left all 43 tests green, and the test written for
-        # it was in fact exercising `_blocks()`. An unreachable guard is decoration,
-        # and a test that cannot fail is worse than none.
+        # Two rows sharing a metric and an entity while disagreeing are already aborted on in
+        # `_blocks()`.
         by_entity.setdefault(metric, {})[entity] = text
 
     out: dict[str, str] = {}
@@ -456,10 +323,7 @@ def _derived_blocks(rows: list[dict], names: list[str],
             continue
         stem, affix = hit
         if affix in TOTALLING_AFFIXES and stem in rated:
-            # ⚠ REPORTED, NOT SILENTLY SKIPPED. With no block at all the wiring
-            # tool cannot see this column either — it reads "no candidate block"
-            # as "not a derived name" — so a refusal that said nothing here would
-            # be a coverage cut nobody could find. See TOTALLING_AFFIXES.
+            # Reported rather than skipped: with no block the wiring tool cannot see this column.
             if refused is not None:
                 refused.append(name + " (totalling the rate metric " + stem + ")")
             continue
@@ -519,15 +383,7 @@ def _render(rows: list[dict], names: list[str],
     out = io.StringIO()
     out.write(HEADER)
     for name in sorted(blocks):
-        # ⚠ NEVER BREAK A WORD OR A HYPHENATED TERM. `textwrap.wrap` defaults to
-        # `break_on_hyphens=True`, which split "year-on-year" across two lines as
-        # "year-on-" / "year". This text is not laid out for a reader of the file:
-        # `persist_docs` pushes it into the warehouse, where the newline collapses
-        # and the term renders as "year-on- year". Five such breaks were already
-        # shipped by the previous MR — "on-target, off-" / "target", "a within-" /
-        # "group table" — so this fixes those too. It is the same generated file
-        # and the same one-parameter cause; leaving five mangled while fixing
-        # eight identical ones would be arbitrary.
+        # Never break a hyphenated term: the newline collapses in the warehouse and splits it.
         body = "\n".join(textwrap.wrap(blocks[name], width=WRAP,
                                        break_on_hyphens=False,
                                        break_long_words=False)) or blocks[name]
@@ -536,15 +392,8 @@ def _render(rows: list[dict], names: list[str],
         out.write(body + "\n")
         out.write("{% enddocs %}\n")
 
-    # CANONICAL LF. Line endings are git's business, not this file's: the repo
-    # STORES LF, a Windows checkout with `core.autocrlf=true` materialises CRLF,
-    # and a Linux checkout (CI) materialises LF. There is therefore no single
-    # correct byte sequence for this file, and an earlier version that rendered
-    # CRLF and compared bytes exactly could only ever pass on Windows — `--check`
-    # failed on every Linux run, which is every CI run. Caught by CI, not by me,
-    # on the very MR that proposed wiring this check into CI.
-    # `_same()` compares normalised, and `_to_disk()` matches whatever the file on
-    # disk already uses so a run never churns the working tree.
+    # Canonical LF: checkouts differ in line endings, so `_same()` compares normalised and
+    # `_to_disk()` matches the file's existing endings.
     return out.getvalue().encode("utf-8")
 
 
@@ -623,13 +472,7 @@ def _same(a: bytes, b: bytes) -> bool:
 
 
 def _to_disk(canonical: bytes, existing: bytes | None) -> bytes:
-    """The canonical text in the line endings this working tree already uses.
-
-    A CRLF checkout keeps CRLF, an LF checkout keeps LF, and a file that does not
-    exist yet gets LF — git's stored form, which a Windows checkout converts on
-    its own. Writing the wrong one rewrites every line while `git diff` shows
-    nothing, because it normalises: the silent rewrite that cost MR2 a round.
-    """
+    """The canonical text in the line endings the file on disk already uses; LF for a new file."""
     if existing is not None and b"\r\n" in existing:
         return canonical.replace(b"\n", b"\r\n")
     return canonical
@@ -656,8 +499,7 @@ def main() -> int:
         return 1
 
     if refused:
-        # On BOTH paths, `--check` included: a refusal is information a CI log
-        # should carry, and it is the only place these columns are visible.
+        # Printed on both paths because it is the only place these columns are visible.
         print("NO BLOCK GENERATED, " + str(len(refused)) + " column name(s). The "
               "affix totals a metric that is already a rate, which is a different "
               "quantity. These stay blank on purpose:")
@@ -704,9 +546,7 @@ def main() -> int:
         print("WROTE " + _rel(path) + ": " + what + " from " + _rel(SEED) + ".")
         written += 1
     if not written:
-        # Loud, not silently green - the `declare_missing_columns.py` precedent. A
-        # generator that reports success while doing nothing is how a broken read
-        # passes for a working one.
+        # Exits non-zero so a generator that does nothing cannot pass for a working one.
         print("sync_metric_docs_blocks: already up to date (" + str(count)
               + " blocks, " + str(map_count) + " map rows). Nothing written.",
               file=sys.stderr)
@@ -741,7 +581,6 @@ def _describe_drift(current: bytes, expected: bytes) -> list[str]:
         if now[name] != want[name]:
             lines.append("changed: " + name)
     if not lines:
-        # Same blocks, same text - so the difference is formatting or line endings.
         lines.append(
             "the blocks all match but the bytes do not: formatting, ordering or "
             "line endings differ. Regenerate rather than hand-fixing."

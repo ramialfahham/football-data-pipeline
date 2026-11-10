@@ -1,22 +1,4 @@
-"""Process health — reports numbers. Decides nothing.
-
-Builder-initiated, not a product decision. It ships because it only READS
-artifacts the repo already keeps and prints them. It carries no authority and
-sets no policy.
-
-**Whether any number here should have a threshold, and what happens when a
-threshold is crossed, is a §10 decision reserved to the product owner.** A
-threshold or a sunset rule for withdrawing process would be builder-authored
-governance. The constant below is a REFERENCE POINT computed from the log, not a
-target and not a trigger.
-
-The one claim the org design rests on is that front-loading a decision removes
-review rounds and interruptions of the product owner. This prints the before and
-after so that claim can be tested rather than asserted. Acting on the result is
-his.
-
-Read-only. Never fails a build.
-"""
+"""Print review-process numbers from artifacts the repo already keeps; read-only, sets no policy."""
 from __future__ import annotations
 
 import collections
@@ -32,27 +14,15 @@ ESCALATIONS = REPO_ROOT / ".claude" / "task" / "escalations.log"
 REVIEW_PATHSPECS = (".claude/task/review.md", ":(glob).claude/task/*/review.md")
 ROUTING = REPO_ROOT / ".claude" / "review_routing.json"
 
-# Computed from the log at run time, never hardcoded. An earlier draft carried a
-# literal AND a different figure in its docstring AND a third in the handover —
-# one quantity, three values, which is how a hand-typed number drifts. The
-# pre-split reference point is now derived from the same parser as the post-split
-# figure, so the two can never disagree about how they were counted.
-
 
 def _git(*args: str) -> str:
-    """UTF-8 with replacement, never the platform codepage: this repo's history is
-    full of multi-byte characters and cp1252 raises on them mid-read. A failed git
-    call returns "" rather than None, so callers never regex against None."""
+    """Run git decoding UTF-8 with replacement (cp1252 raises on multi-byte history); "" on failure."""
     proc = subprocess.run(["git", *args], cwd=REPO_ROOT, capture_output=True,
                           encoding="utf-8", errors="replace")
     return proc.stdout or ""
 
 
-# The split shipped on this date. Branches recorded before it are the BASELINE;
-# branches after it are what the design is judged on. Averaging over all history
-# would mix the two and could never show a change — the first version of this
-# script did exactly that and printed IMPROVING because the split's own entry
-# added a branch.
+# Branches recorded before this date are the baseline; later ones are what the design is judged on.
 SPLIT_DATE = "2026-07-31"
 
 
@@ -61,8 +31,7 @@ def rulings() -> dict:
     if not ESCALATIONS.is_file():
         return {"before": (0, 0), "after": (0, 0)}
     text = ESCALATIONS.read_text(encoding="utf-8", errors="replace")
-    # One entry per `YYYY-MM-DD[/DD] <branch>` header; its rulings are the
-    # 'CPO ANSWER' / 'CPO RULING' markers until the next header.
+    # One entry per `YYYY-MM-DD[/DD] <branch>` header, running until the next header.
     heads = list(re.finditer(r"^(20\d\d-\d\d-\d\d)(?:/\d\d)? (\S+)", text, flags=re.M))
     tally = {"before": [0, set()], "after": [0, set()]}
     for i, h in enumerate(heads):
@@ -75,8 +44,7 @@ def rulings() -> dict:
 
 
 def rounds_history() -> list[int]:
-    """Every `rounds:` value review.md has ever carried, from its own git log.
-    A branch that needed three rounds cost three times the reviewer spend of one."""
+    """Every `rounds:` value review.md has ever carried, from its own git log."""
     log = _git("log", "--format=%H", "--name-only", "--", *REVIEW_PATHSPECS).split()
     seen, sha = [], ""
     for token in log:
@@ -91,17 +59,11 @@ def rounds_history() -> list[int]:
 
 
 def activation(n: int = 150) -> tuple[int, collections.Counter]:
-    """How often each reviewer is REQUIRED. A role at 0% is dead by construction;
-    a role near 100% is not a specialist. Both are design defects — and the whole
-    reason the org exercise happened was a role that had never fired once.
+    """How often each reviewer is required over the last `n` commits.
 
-    SEEDED FROM THE AGENT FILES, not from the routing table. A `Counter` only ever
-    holds keys it was incremented for, so an earlier version could never surface a
-    zero and the dead-role branch below was unreachable — while a dead role existed
-    in the repo. Seeding from `.claude/agents/*.md` also catches the hole the
-    contract's own blast_radius names: a reviewer with NO routing row at all, and a
-    routing row naming a reviewer with no brief (nothing else in the repo checks
-    that a reviewer name is real)."""
+    The counter is seeded from `.claude/agents/*.md` and the routing table so a reviewer that
+    never fires, or has no routing row or no brief, still shows up with a zero.
+    """
     routing = json.loads(ROUTING.read_text(encoding="utf-8"))
     always, paths = routing.get("always") or [], routing.get("paths") or {}
     briefs = {p.stem for p in (REPO_ROOT / ".claude" / "agents").glob("*.md")
@@ -162,10 +124,7 @@ def main() -> int:
     briefs = {p.stem for p in (REPO_ROOT / ".claude" / "agents").glob("*.md")
               if p.stem != "README"}
     if not total:
-        # Seeding the counter makes the loop below always run, which un-hides a
-        # ZeroDivisionError that is otherwise unreachable. Realistic shape: a
-        # `fetch-depth: 1` checkout of a merge commit,
-        # where `diff-tree` without `-m` prints nothing for every commit it sees.
+        # The seeded counter always runs the loop below, so a zero total would divide by zero.
         print("\nReviewer activation: no file-bearing commits in range, nothing to "
               "report. (A shallow clone or a merge-only range does this.)")
         return 0

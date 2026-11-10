@@ -1,20 +1,4 @@
-"""Verify dbt artifacts derived from the registry stay in lockstep with it.
-
-Checks two things against docs/competition_registry.yml:
-  1. ``active_competition_league_codes`` in dbt_project.yml == registry active/in_progress.
-  2. ``seeds/competition_registry.csv`` == registry over EVERY projected column (see
-     SEED_COLUMNS), and every parent_competition references a known league_code.
-     ⚠ This compared three columns until #62 widened the projection. Comparing a subset is the
-     failure mode #62 names: the seed grows, the guard keeps passing, and most of the file
-     stops being covered.
-
-Both are written by scripts/sync_dbt_vars.py; this script fails CI if either drifts.
-Singular tests under dbt_project/tests/ prove var ⊆ base rows. See
-docs/competition_registry.yml header and CLAUDE.md "How to add a new league".
-
-Usage (from repo root or dbt_project/):
-    python scripts/check_registry_var_sync.py
-"""
+"""Fail CI when the dbt var or the registry seed written by sync_dbt_vars.py drifts from the registry."""
 
 from __future__ import annotations
 
@@ -29,13 +13,8 @@ REGISTRY_PATH = REPO_ROOT / "docs" / "competition_registry.yml"
 DBT_PROJECT_PATH = REPO_ROOT / "dbt_project" / "dbt_project.yml"
 REGISTRY_SEED_PATH = REPO_ROOT / "dbt_project" / "seeds" / "competition_registry.csv"
 
-# The seed's columns come from the WRITER, imported rather than restated, so the guard cannot check
-# a different column set from the one that is written. Duplicating the tuple here and leaning on
-# a parity test would not hold — `scripts/` resolves as a namespace package from the repo root,
-# so one sys.path line makes the
-# import work whether this runs as `python scripts/check_registry_var_sync.py` (CI) or under pytest.
-# A structural guarantee beats a test that detects the drift after the fact, and this is the same
-# shape `scripts/check_task_artifacts.py:51` already uses to reach the hooks package.
+# SEED_COLUMNS is imported from the writer so the guard checks the column set that is written;
+# the sys.path line makes the import work both as a script and under pytest.
 sys.path.insert(0, str(REPO_ROOT))
 from scripts.sync_dbt_vars import SEED_COLUMNS, _normalise  # noqa: E402
 
@@ -82,13 +61,7 @@ def _registry_missing_ingest_active() -> list[str]:
 
 
 def _registry_seed_rows() -> set[tuple[str, ...]]:
-    """The rows the seed SHOULD hold, derived from the registry over every projected column.
-
-    ⚠ This compared three columns while the seed carried more, which #62 named as the failure
-    mode: extend the seed without extending the guard and it "silently stops covering most of the
-    file". Both sides now iterate SEED_COLUMNS, so a new column is covered the moment it is
-    declared — there is no second list to remember to update.
-    """
+    """The rows the seed should hold, derived from the registry over every SEED_COLUMNS column."""
     data = yaml.safe_load(REGISTRY_PATH.read_text(encoding="utf-8"))
     comps = data.get("competitions") or []
     out: set[tuple[str, ...]] = set()
@@ -103,15 +76,7 @@ def _registry_seed_rows() -> set[tuple[str, ...]]:
 
 
 def _seed_rows() -> set[tuple[str, ...]]:
-    """The rows the seed ACTUALLY holds, read verbatim.
-
-    ⚠ NOTHING IS STRIPPED HERE, deliberately. Stripping this side while the registry side is
-    unstripped is a hole: a seed cell of "UEFA "
-    normalised to "UEFA", matched the registry, and the guard reported OK on a corrupted file —
-    and `not_null`/`unique` would not have caught it either, since a trailing space is neither
-    null nor a duplicate. Normalisation happens once, in the writer's `_normalise`; the comparison
-    here is exact, which is what "kept in lockstep over every column" has to mean.
-    """
+    """The rows the seed holds, read verbatim; only the writer's `_normalise` normalises."""
     with REGISTRY_SEED_PATH.open(encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         cols = reader.fieldnames or []
@@ -128,9 +93,7 @@ def _seed_rows() -> set[tuple[str, ...]]:
 
 
 def _registry_dangling_parents() -> list[tuple[str, str]]:
-    """Return (league_code, parent_competition) where parent_competition is set but is not a
-    known league_code. A dangling parent link silently breaks parent-keyed joins (e.g. a
-    tournament resolving its qualifier competitions), so it must fail CI."""
+    """Return (league_code, parent_competition) where the parent is not a known league_code."""
     data = yaml.safe_load(REGISTRY_PATH.read_text(encoding="utf-8"))
     comps = data.get("competitions") or []
     codes = {
@@ -217,8 +180,7 @@ def main() -> int:
             "registry. Run `python scripts/sync_dbt_vars.py`.",
             file=sys.stderr,
         )
-        # Name the columns: with eight of them a bare tuple diff is unreadable and the reader
-        # cannot tell WHICH field drifted.
+        # The column names tell the reader which field of a tuple drifted.
         print(f"  columns: {', '.join(SEED_COLUMNS)}", file=sys.stderr)
         if only_reg:
             print(f"  in registry only: {only_reg}", file=sys.stderr)

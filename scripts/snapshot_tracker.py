@@ -1,16 +1,7 @@
-"""Snapshot the GitLab tracker into the repo — a BACKUP, never a second roadmap.
+"""Write every GitLab milestone and issue to docs/tracker/gitlab_snapshot.md as an offline backup.
 
-Writes `docs/tracker/gitlab_snapshot.md`: every milestone and every issue, open and closed,
-with its body, grouped by milestone in a deterministic order, fetched through the `glab` login
-already on this machine (no token of its own). The header carries the UTC time and a sha256 of
-the body; `tests/test_tracker_snapshot.py` recomputes it, so any change the script did not
-make fails that test, and `.claude/hooks/tracker_snapshot_gate.py` refuses an Edit or Write to the
-folder, so no session can change the file by hand. The file is read only when GitLab is
-unreachable — `CLAUDE.md` "Which source answers which question" — and is regenerated at the
-end of every session. It is gitignored and stays on this machine.
-It carries closed issues too, so the handover (issue #157, kept closed) is in the backup.
-
-Usage: python scripts/snapshot_tracker.py [--project 85168767] [--out docs/tracker/gitlab_snapshot.md]
+The header's sha256 of the body is recomputed by tests/test_tracker_snapshot.py, so only this script
+may write the file.
 """
 
 from __future__ import annotations

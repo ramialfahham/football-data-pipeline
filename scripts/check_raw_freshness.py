@@ -63,16 +63,9 @@ def _to_hours(spec: dict) -> float | None:
 def load_thresholds(path: Path | None = None) -> dict[str, dict[str, float]]:
     """Read per-table freshness thresholds from the dbt sources file.
 
-    `path` resolves to the module-level SOURCES_YML at CALL time, not as a default argument.
-    A default is bound once at import, so `SOURCES_YML` could be pointed elsewhere and this
-    would keep reading the original file — which made the "cannot read its thresholds" test
-    pass against production data instead of the missing file it meant to simulate. A test that
-    silently exercises the wrong thing is the failure mode this whole file is about.
+    `path` resolves to SOURCES_YML at call time so that rebinding the module attribute takes effect.
 
-    Only tables carrying a `freshness:` block are returned. All 11 sources declare
-    `loaded_at_field`, but 3 deliberately have no thresholds — they refresh rarely and any
-    threshold would false-alarm. Those must NOT be checked here either; inventing a threshold
-    for them is how a sentinel starts crying wolf and gets muted.
+    Only tables carrying a `freshness:` block are returned; a table without one is not checked.
     """
     doc = yaml.safe_load((path or SOURCES_YML).read_text(encoding="utf-8"))
     out: dict[str, dict[str, float]] = {}
@@ -88,10 +81,7 @@ def load_thresholds(path: Path | None = None) -> dict[str, dict[str, float]]:
             warn_h = _to_hours(fresh.get("warn_after") or {})
             if warn_h is not None:
                 entry["warn_after_hours"] = warn_h
-            # `identifier` wins when present: the dbt source NAME is lowercase by convention
-            # while the physical table is upper-case, and it is the physical name BigQuery
-            # needs. Falling back to the name silently would look up a table that does not
-            # exist, which surfaces as "cannot check" rather than a false pass.
+            # `identifier` is the physical upper-case table name; the dbt source name is lowercase.
             out[table.get("identifier") or table["name"]] = entry
     return out
 
@@ -167,10 +157,7 @@ def main(argv: list[str] | None = None) -> int:
         for table, age, limit in stale:
             print(f"[freshness] STALE {table} is {age:.1f}h old (error_after {limit:.0f}h)",
                   file=sys.stderr)
-        # "EXIT 1" spelled out because the alert policy CANNOT tell exit 1 from exit 2 —
-        # Cloud Run's execution metric carries only succeeded/failed, not the exit code. The
-        # runbook tells the on-call engineer to read this line to find out which, so it has to
-        # actually say it.
+        # Cloud Run's execution metric carries no exit code, so the log line has to say which.
         print(f"[freshness] EXIT 1 — STALE: {len(stale)} source(s) past error_after. The data "
               "the product serves is out of date.", file=sys.stderr)
         return 1
