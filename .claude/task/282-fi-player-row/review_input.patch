@@ -1,0 +1,285 @@
+diff --git a/.claude/task/282-fi-player-row/contract.md b/.claude/task/282-fi-player-row/contract.md
+new file mode 100644
+index 00000000..657657af
+--- /dev/null
++++ b/.claude/task/282-fi-player-row/contract.md
+@@ -0,0 +1,102 @@
++# Task contract — Finnish player rows fit at 280px
++
++objective: >
++  Issue #282. A player row under 280px puts the player's name on its own line and the position
++  and the numbers on the second, so a long name next to the Finnish "maalisyöttöä" no longer
++  pushes the row out at 280px, and main's full design check passes again.
++
++refs: >
++  #282, approved in chat, 2026-11-10, with the player row's registry rule.
++
++scope_paths:
++  - .claude/task/282-fi-player-row/
++  - site_v2/src/styles/system.css
++  - docs/design/components.yml
++  - docs/wireframes/block_standard.md
++  - tests/fixtures/component_registry/baseline.json
++  - tests/test_check_component_registry.py
++  - tests/test_design_inventory.py
++  - tests/fixtures/design_inventory/baseline.json
++
++protected_override: >
++  docs/design/components.yml: the player row's rule gains the under-280px clause, with the exact
++  text approved in chat, 2026-11-10. The switch set gains w280 and the player row its narrow form
++  below w280, also approved in chat, 2026-11-10. tests/test_design_inventory.py: its no-rise test
++  lets a width_rules pin rise for a width the registry's switch set declares, approved in chat,
++  2026-11-10. tests/test_check_component_registry.py: its no-rise test lets the switch set's size
++  rise, approved in chat, 2026-11-10.
++
++impact_map: >
++  writers: none in the warehouse.
++  lineage: no dbt model and no export change, so no lineage moves.
++  consumption: system.css's .plrow rules style every player row: PlayerRow.astro (Match page
++  Players to watch), MatchLineups.astro (Match page line-ups) and TeamSquad.astro (Team page
++  squad). The new rule is a container query on the row's .lrow, so it fires only where that row is
++  under 280px. Measured on this branch's build across 548 Match pages and 34 Team pages per
++  language: a player row is under 280px at viewports below about 312px (248px at 280, 268px at
++  300, 278px at 310) and in the Match page's two-column lists from 560px to about 640px (243px at
++  560, 279px at 640); there every row takes the narrow form, and at 320, 360, 375, 700 and 1010px
++  no row does.
++  guard: docs/design/components.yml is read by scripts/check_component_registry.py, which
++  regenerates the block standard's Elements table from it, and by
++  scripts/check_design_inventory.py through that table. The player row's rule text changes, the
++  switch set gains w280, and the player row declares its narrow form below it; its class, selector
++  and "fits" measurement stay, so no design assertion changes. check_component_registry.py counts
++  a switch width no set holds and a component switching at an undeclared width; both stay at 0,
++  and its pinned switch set size in tests/fixtures/component_registry/baseline.json moves from 12
++  to 13. If the text and the table disagree, check_component_registry.py fails the build.
++  The two no-rise tests (test_no_pin_rises_above_mains in tests/test_check_component_registry.py
++  and in tests/test_design_inventory.py) run in test:python and locally. The registry's test stops
++  counting the switch set's size only, which its check already pins in both directions; the other
++  set sizes and every gap count keep their no-rise rule, and a unit test pins that. The inventory's
++  test drops from its rises only a static width_rules key equal to a declared switch width, or to
++  it less 0.02px as a max-width query writes it, so an undeclared width, a near one included,
++  still fails, and every other count keeps its rule. scripts/design_inventory.py, whose rises() the rest of the machinery
++  calls, is unchanged. tests/fixtures/design_inventory/baseline.json's static width_rules gains
++  "279.98px": 1, which check_page_css.py compares in both directions.
++  ci_layer_rules: scripts/check_component_registry.py, scripts/check_page_css.py,
++  scripts/check_design_inventory.py.
++  deploy_order: one merge.
++  blast_radius: every player row under 280px takes the two-line form: on Match and Team pages
++  below about 312px, and in the Match page's two-column lists from 560px to about 640px, where
++  main's rows stick out today too (FI 6 and DE 3 at 560px, FI 3 at 600px). A row 280px or wider
++  is unchanged. The design check's Match page counts return to main's baseline: miss · List row
++  0, miss · Player row 0, scroll 2184.
++
++acceptance_criteria:
++  - At 280px wide, no player row on a Match page or a Team page sticks out of its row, in English, German or Finnish.
++  - Where a player row is narrower than 280px, the player's name takes the whole first line, and the position shares the second line with the goals and assists, which stay on the right.
++  - Where a player row is 280px or wider, it looks as it does today.
++
++approved_design:
++  - match: #132
++  - team: #134
++
++decisions_taken: >
++  The narrow form follows the competition row's at 340px (name across the row, numbers to the
++  second line), a small display rule settled by consistency. The Finnish word stays as the term
++  list has it. The registry rule text and the acceptance criteria were approved in chat,
++  2026-11-10. No new mechanism: one container query in system.css, as the stylesheet already
++  uses.
++
++decisions_reserved:
++  - none: the rule text and the criteria are approved, and the layout reuses the competition row's narrow form.
++
++done_when:
++  - The offline gates pass, check_component_registry.py regenerates block_standard.md with no other change, and npm test passes.
++  - The full design check on a local build, at 280,320,360,375,700,1010 and en,de,fi, gives Match page miss · List row 0, miss · Player row 0, scroll 2184, and no FAIL or COUNT line above main's baseline.
++
++amendments:
++  - 2026-11-10: + tests/fixtures/component_registry/baseline.json, and components.yml gains the
++    switch width w280 and the player row's narrow form below it — authority: approved in chat,
++    2026-11-10; content: the registry check refuses a width no switch set holds, and the switch
++    set size pin moves from 12 to 13.
++  - 2026-11-10: + tests/test_check_component_registry.py, tests/test_design_inventory.py and
++    tests/fixtures/design_inventory/baseline.json — authority: approved in chat, 2026-11-10;
++    content: the registry's no-rise test lets the switch set's size rise, the inventory's lets a
++    width_rules pin rise for a width the switch set declares, and the page-CSS width pin gains
++    279.98px at 1.
++  - 2026-11-10: criterion 3 reads "Where a player row is 280px or wider, it looks as it does
++    today." — authority: approved in chat, 2026-11-10; content: the narrow form also applies to
++    rows under 280px at about 290–311px and to the Match page's two-column lists at about
++    560–640px.
+diff --git a/docs/design/components.yml b/docs/design/components.yml
+index 8c1d30fd..f1bcc166 100644
+--- a/docs/design/components.yml
++++ b/docs/design/components.yml
+@@ -49,6 +49,7 @@ sets:
+   spacing: ["-12px", "-9px", "-8px", "-6px", "-3px", "-1px", 1px, 2px, 3px, 4px, 5px, 6px, 7px, 8px, 9px, 10px, 11px, 12px, 13px, 14px, 15px, 16px, 18px, 20px, 22px, 24px, 26px, 28px, 30px, 34px, 36px, 40px, 48px, "clamp(12px, 4.5vw, 18px)", "clamp(16px, 3.5vw, 28px)", "clamp(16px, 4cqw, 28px)", "clamp(6px, 2cqw, 16px)", "clamp(8px, 3cqw, 20px)", "var(--gap)"]
+   colours: [accent, chart-axis, chart-better, chart-line, chart-other, chart-team, draw, ink, ink-2, line, loss, muted, page, pill-ink, sunk, surface, track, win, "#f26d6d", "#fff"]
+   switch:
++    w280: 280px
+     w340: 340px
+     w420: 420px
+     w430: 430px
+@@ -331,12 +332,13 @@ components:
+     file: [site_v2/src/components/fixture/PlayerRow.astro, site_v2/src/components/fixture/MatchLineups.astro, site_v2/src/components/team/TeamSquad.astro]
+     used-on: [match page, Team page]
+     parts:
+-      row: {class: plrow, element: Player row, rule: "photo · name over position · goals and assists on the right at every width; two lines below 375px when the row is short of room; on a line-up, the minutes played", measured: fits, ruled-on: "the match page review; the component registry"}
++      row: {class: plrow, element: Player row, rule: "photo · name over position · goals and assists on the right at every width; two lines below 375px when the row is short of room; under 280px the name takes the whole line and the position shares the second line with the numbers; on a line-up, the minutes played", measured: fits, ruled-on: "the match page review; the component registry"}
+       name: {class: nm, selector: ".plrow .pname .nm", text: 15-400-ink, element: Player row name, rule: "15px regular ink, wrapping, never cut off", measured: "font-size=15px; font-weight=400; color=ink; white-space=normal", ruled-on: the match page review}
+       position: {class: ps, selector: ".plrow .pname .ps", text: 12-400-muted, element: Player row position, rule: "12px muted. On a line-up the substitution follows after a middle dot. It is the minute a starter went off, or a substitute came on and for whom", measured: "font-size=12px; color=muted", ruled-on: the match page review}
+       number: {class: pstat, selector: ".plrow .pstat b", text: 15-700-ink, element: Player row number, rule: 15px bold ink, measured: "font-size=15px; font-weight=700; color=ink", ruled-on: the match page review}
+       photo: {class: pphoto, gap: mock-css}
+     wide: "photo · name over position · numbers at the right"
++    narrow: {below: w280, form: "the name across the row, the position and the numbers on the second line"}
+     short-forms: [minutes]
+   split:
+     name: Two columns
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index 6c9ab5ae..830da86d 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -139,7 +139,7 @@
+ | Result row home away | `.resrow .ha` | the result row's home away, in the 11-600-muted text style, never broken | `font-size=11px; font-weight=600; color=muted; one-line; fits` | ruled | the component registry |
+ | Result row parts | `.rlist, .rlist.pm, .rm-c, .rm-p, .scorer` | the result row's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Form parts | `.W, .D, .L` | the form's other parts: registered, no text of their own |  | ruled | the component registry |
+-| Player row | `.plrow` | photo · name over position · goals and assists on the right at every width; two lines below 375px when the row is short of room; on a line-up, the minutes played | `fits` | ruled | the match page review; the component registry |
++| Player row | `.plrow` | photo · name over position · goals and assists on the right at every width; two lines below 375px when the row is short of room; under 280px the name takes the whole line and the position shares the second line with the numbers; on a line-up, the minutes played | `fits` | ruled | the match page review; the component registry |
+ | Player row name | `.plrow .pname .nm` | 15px regular ink, wrapping, never cut off | `font-size=15px; font-weight=400; color=ink; white-space=normal` | ruled | the match page review |
+ | Player row position | `.plrow .pname .ps` | 12px muted. On a line-up the substitution follows after a middle dot. It is the minute a starter went off, or a substitute came on and for whom | `font-size=12px; color=muted` | ruled | the match page review |
+ | Player row number | `.plrow .pstat b` | 15px bold ink | `font-size=15px; font-weight=700; color=ink` | ruled | the match page review |
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index a3ffe3d1..7e663abb 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -980,7 +980,8 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+ 
+ /* Player row: photo · name over position · numbers on the right at every width; the name wraps, and
+    where the row is short of room the goals and the assists take two lines. On the narrowest rows the
+-   gaps tighten so a long word fits, as the result row's do. */
++   gaps tighten so a long word fits, as the result row's do; under 280px the name takes the whole line
++   and the numbers move to the position's line, as the competition row's do. */
+ .plrow { display: grid; grid-template-columns: 34px 1fr auto; grid-template-areas: "photo name stat" "photo pos stat";
+          column-gap: clamp(8px, 3cqw, 20px); row-gap: 2px; align-items: center; align-content: start; padding: 9px 0; }
+ .plrow .pphoto { grid-area: photo; }
+@@ -989,6 +990,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+ .plrow .pname .ps { grid-area: pos; font-size: 12px; color: var(--muted); }
+ .plrow .pstat { grid-area: stat; align-self: center; text-align: right; font-size: 12px; white-space: normal; }
+ .plrow .pstat b { font-size: 15px; }
++@container (max-width: 279.98px) { .plrow { grid-template-areas: "photo name name" "photo pos stat"; } }
+ 
+ /* ---- team page ---- */
+ /* A tab's opening sentence: the block explainer's style, under the tab bar. */
+diff --git a/tests/fixtures/component_registry/baseline.json b/tests/fixtures/component_registry/baseline.json
+index 5eaed6f6..62791b32 100644
+--- a/tests/fixtures/component_registry/baseline.json
++++ b/tests/fixtures/component_registry/baseline.json
+@@ -3,5 +3,5 @@
+  "forms": {"crest": 1, "fact-row": 1, "header": 1, "table": 1},
+  "unlisted classes": {"system.css": 36},
+  "part gaps": {"lines-unmeasured": 1, "mock-css": 34, "style-varies": 4},
+- "set sizes": {"colours": 20, "marks": 4, "spacing": 39, "switch": 12, "text": 35}
++ "set sizes": {"colours": 20, "marks": 4, "spacing": 39, "switch": 13, "text": 35}
+ }
+diff --git a/tests/fixtures/design_inventory/baseline.json b/tests/fixtures/design_inventory/baseline.json
+index a2068850..6e951c36 100644
+--- a/tests/fixtures/design_inventory/baseline.json
++++ b/tests/fixtures/design_inventory/baseline.json
+@@ -2,7 +2,7 @@
+  "static": {
+   "mock_css": {"design-mocks/gen_competitions.py": 13, "design-mocks/gen_interaction.py": 3, "design-mocks/gen_match_page.py": 33, "design-mocks/gen_navmap.py": 6, "design-mocks/gen_sitemap.py": 8, "design-mocks/gen_taxonomy.py": 6, "design-mocks/gen_team_mock.py": 73},
+   "css_outside_system_css": {"site_v2/src/components/fixture/MetricRow.astro": 2, "site_v2/src/components/team/TeamLeagueStrips.astro": 2, "site_v2/src/lib/fitBlocks.mjs": 2},
+-  "width_rules": {"340px": 1, "420px": 4, "430px": 2, "470px": 1, "479.98px": 1, "480px": 1, "520px": 1, "560px": 2, "599.98px": 2, "699.98px": 4, "700px": 1, "800px": 1, "900px": 1, "1010px": 1},
++  "width_rules": {"279.98px": 1, "340px": 1, "420px": 4, "430px": 2, "470px": 1, "479.98px": 1, "480px": 1, "520px": 1, "560px": 2, "599.98px": 2, "699.98px": 4, "700px": 1, "800px": 1, "900px": 1, "1010px": 1},
+   "banned_properties": {"site_v2/src/styles/system.css": 7},
+   "literal_text": {"site_v2/src/components/chrome/SiteFooter.astro": 3, "site_v2/src/components/chrome/SiteHeader.astro": 2, "site_v2/src/pages/index.astro": 2}
+  },
+diff --git a/tests/test_check_component_registry.py b/tests/test_check_component_registry.py
+index ef60d269..6f3355e6 100644
+--- a/tests/test_check_component_registry.py
++++ b/tests/test_check_component_registry.py
+@@ -194,14 +194,26 @@ def _flat(pins: dict) -> dict:
+     return {(g, k): n for g, by in pins.items() for k, n in (by.items() if isinstance(by, dict) else [(None, by)])}
+ 
+ 
++def _rises(now: dict, was: dict) -> list[str]:
++    """Every pin above main's, except the switch set's size: it counts declared breakpoints, not a
++    gap, and the check pins it both ways."""
++    return ["%s · %s · %d, main %d" % (k[0], k[1], n, was.get(k, 0)) for k, n in sorted(now.items(), key=str)
++            if n > was.get(k, 0) and k != ("set sizes", "switch")]
++
++
++def test_only_the_switch_set_may_grow_past_mains():
++    was = {("set sizes", "switch"): 12, ("set sizes", "colours"): 20, ("forms", "x"): 0}
++    now = {("set sizes", "switch"): 13, ("set sizes", "colours"): 21, ("forms", "x"): 1}
++    assert _rises(now, was) == ["forms · x · 1, main 0", "set sizes · colours · 21, main 20"]
++
++
+ @pytest.mark.parametrize("path", ["tests/fixtures/component_registry/baseline.json",
+                                   "tests/fixtures/font_coverage/baseline.json"])
+ def test_no_pin_rises_above_mains(path):
+     base = _mains(path)
+     if base is None:
+         pytest.skip("main has no %s yet; this branch introduces it" % path)
+-    now, was = _flat(json.loads((REPO / path).read_text(encoding="utf-8"))), _flat(base)
+-    up = ["%s · %s · %d, main %d" % (k[0], k[1], n, was.get(k, 0)) for k, n in sorted(now.items(), key=str) if n > was.get(k, 0)]
++    up = _rises(_flat(json.loads((REPO / path).read_text(encoding="utf-8"))), _flat(base))
+     assert up == [], "a pin rose above main's; a new gap is fixed, not pinned:\n" + "\n".join(up)
+ 
+ 
+diff --git a/tests/test_design_inventory.py b/tests/test_design_inventory.py
+index dac7b84b..a2912180 100644
+--- a/tests/test_design_inventory.py
++++ b/tests/test_design_inventory.py
+@@ -796,12 +796,34 @@ def _mains_baseline(name: str = "baseline.json") -> dict | None:
+     return json.loads(proc.stdout)
+ 
+ 
++def _declared_width(rise: str) -> bool:
++    """A page-CSS width pin for a breakpoint the component registry's switch set holds: a declared
++    breakpoint is vocabulary, not a gap."""
++    m = re.match(r"static · width_rules · ([\d.]+)px · ", rise)
++    if not m:
++        return False
++    import yaml
++    reg = yaml.safe_load((REPO / "docs" / "design" / "components.yml").read_text(encoding="utf-8"))
++    width = float(m.group(1))
++    declared = (float(str(w)[:-2]) for w in reg["sets"]["switch"].values())
++    # A max-width query writes a declared width d as d - 0.02.
++    return any(abs(width - d) < 1e-6 or abs(width - (d - 0.02)) < 1e-6 for d in declared)
++
++
++def test_a_width_pin_rises_only_for_a_declared_breakpoint():
++    assert _declared_width("static · width_rules · 279.98px · 1, main 0")
++    assert _declared_width("static · width_rules · 340px · 2, main 1")
++    assert not _declared_width("static · width_rules · 290px · 1, main 0")
++    assert not _declared_width("static · width_rules · 339.6px · 1, main 0")
++    assert not _declared_width("static · css_outside_system_css · site_v2/src/x.astro · 1, main 0")
++
++
+ def test_no_pin_rises_above_mains():
+     current, base = di.load_baseline(), _mains_baseline()
+     if "coverage" not in base:
+         # Main's baseline predates the count over every page; this branch introduces it.
+         return
+-    up = di.rises(current, base)
++    up = [r for r in di.rises(current, base) if not _declared_width(r)]
+     assert up == [], "a pin rose above main's; a new gap is fixed, not pinned:\n" + "\n".join(up)
+ 
+ 
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../task/282-fi-player-row/acceptance_evidence.md  |  10 +
+#    .../282-fi-player-row/rendered_page_evidence.md    |  32 +++
+#    .claude/task/282-fi-player-row/review_input.patch  | 276 +++++++++++++++++++++
+#    3 files changed, 318 insertions(+)
+# ============================================================================

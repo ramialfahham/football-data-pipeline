@@ -796,12 +796,34 @@ def _mains_baseline(name: str = "baseline.json") -> dict | None:
     return json.loads(proc.stdout)
 
 
+def _declared_width(rise: str) -> bool:
+    """A page-CSS width pin for a breakpoint the component registry's switch set holds: a declared
+    breakpoint is vocabulary, not a gap."""
+    m = re.match(r"static · width_rules · ([\d.]+)px · ", rise)
+    if not m:
+        return False
+    import yaml
+    reg = yaml.safe_load((REPO / "docs" / "design" / "components.yml").read_text(encoding="utf-8"))
+    width = float(m.group(1))
+    declared = (float(str(w)[:-2]) for w in reg["sets"]["switch"].values())
+    # A max-width query writes a declared width d as d - 0.02.
+    return any(abs(width - d) < 1e-6 or abs(width - (d - 0.02)) < 1e-6 for d in declared)
+
+
+def test_a_width_pin_rises_only_for_a_declared_breakpoint():
+    assert _declared_width("static · width_rules · 279.98px · 1, main 0")
+    assert _declared_width("static · width_rules · 340px · 2, main 1")
+    assert not _declared_width("static · width_rules · 290px · 1, main 0")
+    assert not _declared_width("static · width_rules · 339.6px · 1, main 0")
+    assert not _declared_width("static · css_outside_system_css · site_v2/src/x.astro · 1, main 0")
+
+
 def test_no_pin_rises_above_mains():
     current, base = di.load_baseline(), _mains_baseline()
     if "coverage" not in base:
         # Main's baseline predates the count over every page; this branch introduces it.
         return
-    up = di.rises(current, base)
+    up = [r for r in di.rises(current, base) if not _declared_width(r)]
     assert up == [], "a pin rose above main's; a new gap is fixed, not pinned:\n" + "\n".join(up)
 
 
