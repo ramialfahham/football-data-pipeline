@@ -1,19 +1,6 @@
 """Compose the whole home page: next matches -> Top players -> Top teams.
 
-Three blocks, the composition approved on GitLab #127 (the authority for Home).
-
-⚠ What is real and what is not:
-  * Top players / Top teams markup is imported from the two block generators, so this page
-    cannot drift from the mocks that were approved.
-  * Next matches is MOCKED here, but its markup mirrors the shipped component
-    (`HeroFixtures.astro`) class for class -- `.fxgroup > .gh`, `.fxrow` with
-    `.sides`/`.side`/`.when`, and the site's fold that holds every row past the third
-    ("3 visible, the rest folded"). The Bundesliga group below carries a whole
-    nine-match round so the fold renders; the others fit above it.
-  * Every number is placeholder.
-
-Purpose is COMPOSITION and PAGE LENGTH: 4+4 boards at top 7 is 56 board rows, and the fold is
-what keeps a full weekend's fixtures from doubling that.
+Top players and Top teams markup is imported from their block generators; numbers are placeholder.
 """
 import html
 import sys
@@ -22,9 +9,7 @@ from pathlib import Path
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE))
 
-# noqa: E402 x5 — this file is executed directly and imports its siblings, so the `sys.path`
-# insert above must run first. What trips E402 is the `HERE =` assignment, not the insert; the
-# same shim carries the same marker everywhere else in this repo.
+# The sys.path insert above must run before these sibling imports, hence the E402 markers.
 import gen_top_players as P  # noqa: E402
 import gen_top_teams as T  # noqa: E402
 from gen_block_standard import ZONE, short, slug  # noqa: E402
@@ -36,15 +21,7 @@ if __name__ == "__main__" and sys.argv[1:2] == ["--out"]:
 E = html.escape
 
 # ------------------------------------------------------------ next matches
-#
-# ⚠ REBUILT ON THE SHARED BLOCK. This section carried its own copy of the
-# `.fxgroup`/`.fxrow` markup, which is how one piece of content ended up with four different
-# treatments across the site. It now calls `rows.py` -- the same functions the Matches page and
-# the competition page call -- so the three surfaces cannot drift.
-#
-# Grouping is COMPETITION then DATE, on every surface. Names, slugs and timezones come from
-# `gen_block_standard`, which reads the registry, so nothing here is a typed label.
-#
+
 # (league_code, [(date, [(home, away, kickoff)])])
 FIXTURES = [
     ("PL", [("Sat 14 Feb", [("Arsenal", "Manchester City", "17:30"),
@@ -82,11 +59,7 @@ def sechead(label):
 
 
 def next_matches():
-    """THE SHARED BLOCK. Row and heading markup comes from `rows.py`; this composes the fold.
-
-    A date head travels with the first row it applies to, so a date that begins inside the
-    fold is folded with its rows and a date that straddles the cut is shown once, above.
-    """
+    """A date head travels with the first row it applies to, so it folds with its rows."""
     out = ["<section>", sechead("Next matches")]
     for code, dates in FIXTURES:
         out.append('<div class="fxgroup">%s' % group_head(slug(code), short(code)))

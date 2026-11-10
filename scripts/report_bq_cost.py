@@ -31,8 +31,7 @@ import sys
 GCP_PROJECT = "football-data-pipeline-gcp"
 REGION = "region-eu"
 
-# On-demand analysis price per TiB, EU multi-region, USD. A constant here rather than an API lookup
-# because the point is orders of magnitude, not invoicing: if this drifts, the RANKING is unchanged.
+# On-demand analysis price per TiB, EU multi-region, USD; drift changes the figures, not the ranking.
 USD_PER_TIB = 6.25
 
 _MONTHLY = """
@@ -73,8 +72,7 @@ where creation_time >= timestamp_sub(current_timestamp(), interval {days} day)
 group by node having node is not null order by usd desc limit {top}
 """
 
-# Tests vs models is the ratio that exposed #547: tests cost 4x what building the models cost,
-# because staging and base were both views so every test re-executed the chain down to raw.
+# Tests costing more than models means an upstream view is being re-scanned per test.
 _TESTS_VS_MODELS = """
 select case
          when starts_with(node, 'test.') then 'tests'

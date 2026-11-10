@@ -1,12 +1,4 @@
-"""Export BL1 matchday insights JSON (legacy single-file entry point).
-
-Prefer `python scripts/export_pages_data.py` for all domestic leagues and the
-Pages manifest. Queries mart_matchday_insights with league_code = BL1, or the
-relegation mart when that slice is empty.
-
-Usage:
-    python scripts/export_matchday_json.py <output_path>
-"""
+"""Export BL1 matchday insights JSON to one path; export_pages_data.py covers all leagues."""
 from __future__ import annotations
 
 import pathlib

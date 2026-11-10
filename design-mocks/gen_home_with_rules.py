@@ -1,7 +1,4 @@
-"""Home as approved on #127 after the #129 review, without editing the repo's generators: the
-two board blocks as single-value tables (the Table's striped rows, the board name in the head row
-with the chevron). Everything else is the approved Home mock as the repo renders it; every rule
-the page follows is the stylesheet's."""
+"""Render the Home mock with the two board blocks swapped for single-value tables."""
 import sys
 from pathlib import Path
 

@@ -26,7 +26,7 @@ select
     coaches.raw_ingested_at,
     safe_cast(json_value(coaches.coach_el, '$.coach.id') as int64) as coach_id,
     safe_cast(json_value(career_el, '$.team.id') as int64) as team_id,
-    json_value(career_el, '$.team.name') as team_name,
+    {{ decode_html_entities("json_value(career_el, '$.team.name')") }} as team_name,
     safe_cast(json_value(career_el, '$.start') as date) as start_date,
     safe_cast(json_value(career_el, '$.end') as date) as end_date
 from coaches,

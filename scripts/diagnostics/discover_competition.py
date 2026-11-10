@@ -34,9 +34,7 @@ from pathlib import Path
 import requests
 import yaml
 
-# ---------------------------------------------------------------------------
 # Project root on sys.path so settings imports work from any cwd
-# ---------------------------------------------------------------------------
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
 
@@ -100,7 +98,6 @@ def _fetch_league(league_id: int) -> dict | None:
 
 
 def _active_season(item: dict) -> str:
-    """Return the year of the season where current=true, or 'none active'."""
     for s in item.get("seasons", []):
         if s.get("current"):
             return str(s["year"])
@@ -110,7 +107,6 @@ def _active_season(item: dict) -> str:
 def _coverage_flags(item: dict) -> dict:
     """Extract key coverage flags from the most recent season."""
     seasons = item.get("seasons", [])
-    # Prefer current season; fall back to last
     target = next((s for s in seasons if s.get("current")), seasons[-1] if seasons else {})
     cov = target.get("coverage", {}).get("fixtures", {})
     return {
@@ -178,10 +174,7 @@ def cmd_search(args: argparse.Namespace) -> None:
 
 
 def cmd_audit_one(league_code: str, registry: list[dict], registry_by_id: dict[int, list[dict]]) -> str:
-    """
-    Audit a single registry entry.  Returns 'ok', 'mismatch', or 'not_found'.
-    Prints a single result line with status emoji.
-    """
+    """Return 'ok', 'mismatch' or 'not_found' for one registry entry."""
     by_code = _registry_by_code(registry)
     entry = by_code.get(league_code)
     if not entry:
@@ -203,19 +196,12 @@ def cmd_audit_one(league_code: str, registry: list[dict], registry_by_id: dict[i
     active = _active_season(item)
     cov = _coverage_flags(item)
 
-    # Check for other registry entries sharing the same ID
     collision_entries = [e for e in registry_by_id.get(lid, []) if e["league_code"] != league_code]
 
     registry_name = entry.get("name", "")
     api_name = league["name"]
 
-    # -----------------------------------------------------------------------
-    # Mismatch detection
-    # - HARD FAIL (ERR): same provider_league_id assigned to multiple codes
-    # - REVIEW (printed, no ERR): api name shares no significant tokens with
-    #   registry name.  Name differences are common (abbreviations, locale
-    #   variants) — print both and let the human decide.
-    # -----------------------------------------------------------------------
+    # A name mismatch is only printed for review: abbreviations and locale variants are common.
     status = "ok"
     hard_flags: list[str] = []
     review_flags: list[str] = []
@@ -227,7 +213,6 @@ def cmd_audit_one(league_code: str, registry: list[dict], registry_by_id: dict[i
         )
         status = "mismatch"
 
-    # Name review: flag when no significant tokens overlap
     _SKIP = {"cup", "the", "league", "and", "for", "of", "de", "la", "les", "world"}
     api_name_lower = api_name.lower()
     registry_name_lower = registry_name.lower()

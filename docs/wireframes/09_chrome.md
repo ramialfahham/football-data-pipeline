@@ -79,7 +79,7 @@ All chrome text is chrome-string i18n (`t(lang, key)`), not catalogue-bound (§3
 ## 6. States
 
 - **No dead links.** A nav or footer item is an inert `<span>` (not `<a>`) until the page behind
-  it is built. Competitions and Matches are links; Teams, Players, Statistics and
+  it is built. Competitions, Matches and Teams are links; Players, Statistics and
   About have no built index page, so they are spans. The footer's row repeats the menu, each
   item a link exactly when the menu's is. `.mainnav a, .mainnav span` (and the footer/drawer
   equivalents) apply identical styling to both, so an inert item looks no different from a real

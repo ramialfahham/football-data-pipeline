@@ -1,20 +1,4 @@
-"""THE "NEXT MATCHES" CONTENT BLOCK — the standard.
-
-Not a page mock. This defines the block once, so every surface that shows upcoming matches uses
-it unchanged: the home page, the Matches page, a competition page, and later a club page.
-
-WHY IT EXISTS: the same content was rendered four different ways. `home/HeroFixtures.astro` used
-`.fxrow` grouped by competition; `team/TeamFixtures.astro` used a bespoke `.nextfx` card;
-`fixture/RecentMatch.astro` and `team/TeamFixtureRow.astro` used `.rmatch`; and the two mocks
-built this week added a fifth. Then within that, the Matches page grouped by DAY and the
-competition page by MATCHDAY.
-
-⚠ NOTHING IS HARD-CODED. Every value on the block comes from the data model,
-and the ANATOMY table below names the column for each one. The competition set here is read out
-of `docs/competition_registry.yml` at render time; the only typed values are the short display
-names, which have no readable source yet — `dim_league` needs the warehouse — and they are
-GUARDED: a registry competition with no short name is a hard failure, so the two cannot drift.
-"""
+"""The standard "Next matches" content block, defined once for every surface that shows it."""
 import html
 import sys
 from pathlib import Path
@@ -31,28 +15,21 @@ OUT = Path(__file__).with_name("block_standard.html")
 E = html.escape
 
 # ------------------------------------------------------- the competition set
-#
-# READ, not typed. Whatever the registry marks active is what this block has to survive.
+# Read from the registry, not typed.
 
 _REG = yaml.safe_load(REGISTRY.read_text(encoding="utf-8"))
 ACTIVE = [c for c in _REG["competitions"] if c.get("status") == "active"]
 
-# ⚠ STAND-IN ONLY, and guarded below. In production the display name comes from
-# `dim_league.league_name` — one source of truth, by rule. Today the export
-# takes it from TWO places (`export_site_data.py:821` uses dim_league for the fixture page,
-# `:609` uses the registry for everything else), and the registry's is the long legal form
-# ("1. Fußball-Bundesliga"), which is rejected for display. There is no readable short name in the repo,
-# so these are typed here and DELETED when the warehouse is reachable.
+# Typed stand-in for `dim_league.league_name`, since no readable short name exists in the repo;
+# guard() checks it covers the registry's active set.
 SHORT_NAME = {
     "BL1": "Bundesliga", "BL2": "2. Bundesliga", "PL": "Premier League", "PD": "La Liga",
     "SA": "Serie A", "L1": "Ligue 1", "LP": "Liga Portugal", "ED": "Eredivisie",
     "VL": "Veikkausliiga", "LMX": "Liga MX", "MLS": "MLS", "SPL": "Saudi Pro League",
 }
 
-# ⚠ ALSO A STAND-IN. `fct_fixture.kickoff_timezone` exists but every kickoff in the committed
-# data is +00:00, so it is the provider's REQUEST zone, not the venue's. For a single-country
-# league the registry's `country` gives it; MLS and Liga MX span several zones and need the
-# venue. Until that is resolved the block cannot render an honest local time.
+# Typed stand-in: kickoff_timezone is the provider's request zone, not the venue's, and MLS and
+# Liga MX span several zones, so they have none.
 ZONE = {"BL1": "CET", "BL2": "CET", "PL": "GMT", "PD": "CET", "SA": "CET", "L1": "CET",
         "LP": "WET", "ED": "CET", "VL": "EET", "LMX": None, "MLS": None, "SPL": "AST"}
 
@@ -60,7 +37,7 @@ MULTI_ZONE = [c["league_code"] for c in ACTIVE if ZONE.get(c["league_code"]) is 
 
 
 def guard():
-    """The typed maps must cover exactly what the registry marks active — no more, no less."""
+    """The typed maps must cover exactly the competitions the registry marks active."""
     codes = {c["league_code"] for c in ACTIVE}
     for label, mapping in (("SHORT_NAME", SHORT_NAME), ("ZONE", ZONE)):
         missing = sorted(codes - set(mapping))
@@ -85,9 +62,7 @@ def slug(code):
 
 
 # --------------------------------------------------------------- sample data
-#
-# PLACEHOLDER fixtures. The competition NAMES, SLUGS and SET are read above; only kickoffs and
-# club names are invented, and club names are real strings because their width is the test.
+# Placeholder fixtures; club names are real strings because their width is the test.
 
 SAMPLE = {
     "BL1": [("Sat 1 March", [("Borussia Mönchengladbach", "SC Freiburg", "15:30"),
@@ -154,9 +129,7 @@ CONTEXTS = [
 
 
 def block(codes, own_page=False):
-    """`own_page=True` renders the variant used on a competition's OWN page: level 1 is dropped,
-    because the competition is the page's <h1>. A block may OMIT a level the page supplies; it
-    may never MOVE information between slots."""
+    """`own_page=True` drops the competition heading, which the page's <h1> already supplies."""
     out = []
     for code in codes:
         gh = "" if own_page else group_head(slug(code), short(code))

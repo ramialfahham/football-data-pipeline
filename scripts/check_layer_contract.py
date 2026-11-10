@@ -12,28 +12,22 @@ MARTS_DIR = DBT_MODELS / "5_marts"
 STAGING_API_DIR = DBT_MODELS / "1_staging" / "api_football"
 STAGING_DIR = DBT_MODELS / "1_staging"
 
-# Intermediate must not depend on marts (DAG flows int → mart only).
 INTERMEDIATE_FORBIDDEN_MART_REF = re.compile(
     r"""ref\s*\(\s*['"]mart_""",
     re.IGNORECASE,
 )
 
-# Base sits below core/intermediate/marts in the DAG: it may only ref staging
-# (stg_) or other base (base_) models. A ref() to any upward layer reverses the
-# dependency direction. See dbt_project/docs/layering.md §2_base.
+# Base may only ref stg_ or base_ models; a ref() to an upward layer reverses the dependency.
 BASE_FORBIDDEN_UPWARD_REF = re.compile(
     r"""ref\s*\(\s*['"](?:dim_|fct_|int_|mart_)""",
     re.IGNORECASE,
 )
 
-# Materialization is set once, per LAYER, in dbt_project.yml (the rule:
-# dbt_project/docs/layering.md §Materialisation), e.g.
+# Materialization is set once per layer in dbt_project.yml, so a model may carry no per-model
+# config(materialized=...); the one exception is `incremental` on a 3_core fact. The config lines,
+# quoted here because tests/test_materialisation_policy.py pins them:
 #   1_staging: +materialized: table
 #   2_base: +materialized: table
-# tests/test_materialisation_policy.py pins these lines against the config.
-# A model must not carry a per-model config(materialized=...) AT ALL, whatever the
-# value, so one place decides; the single exception is `incremental` on a 3_core fact
-# whose source delivers only a per-run delta.
 PER_MODEL_MATERIALIZED = re.compile(
     r"""materialized\s*=\s*['"]([a-z_]+)['"]""",
     re.IGNORECASE,
@@ -45,28 +39,23 @@ CORE_FORBIDDEN_PATTERNS = (
     re.compile(r"\bjson_query\s*\(", re.IGNORECASE),
     re.compile(r"\bunnest\s*\(", re.IGNORECASE),
     re.compile(r"\bsafe\.parse_json\s*\(", re.IGNORECASE),
-    # Core must not ref staging directly — go through base layer
+    # Core reads staging only through base.
     re.compile(r"""ref\(\s*['"]stg_""", re.IGNORECASE),
     # Multi-competition union belongs in base only; core reads a single base per endpoint.
     re.compile(r"\bunion_all\s*\(", re.IGNORECASE),
 )
 
-# Core must not ref marts — mart → core is the correct direction.
 CORE_FORBIDDEN_MART_REF = re.compile(
     r"""ref\s*\(\s*['"]mart_""",
     re.IGNORECASE,
 )
 
-# Staging must not ref() any dbt model — it reads only from source().
-# Cross-layer rule: staging is strictly isolated to raw sources.
 STAGING_FORBIDDEN_REF = re.compile(
     r"""\bref\s*\(""",
     re.IGNORECASE,
 )
 
-# The competition_registry seed is ingest config. dim_league is its only reader; models and
-# tests read the dim, exports read marts.
-# See dbt_project/docs/layering.md §3_core.
+# The competition_registry seed is ingest config; dim_league is its only reader.
 DBT_PROJECT = REPO_ROOT / "dbt_project"
 DBT_TESTS = DBT_PROJECT / "tests"
 SCRIPTS_DIR = REPO_ROOT / "scripts"
@@ -128,7 +117,6 @@ def check_base_layer(errors: list[str]) -> None:
         content = sql_path.read_text(encoding="utf-8")
         rel = sql_path.relative_to(REPO_ROOT).as_posix()
 
-        # 1. No upward refs — base may only read staging or other base models.
         if BASE_FORBIDDEN_UPWARD_REF.search(content):
             errors.append(
                 f"{rel}: base layer must not ref() core/intermediate/mart models "
@@ -136,7 +124,6 @@ def check_base_layer(errors: list[str]) -> None:
                 f"or base_* models. {layering_ref}"
             )
 
-        # 2. Materialization is a LAYER decision, so a base model must not set it at all.
         _check_no_per_model_materialisation(
             errors, sql_path, content, "base", MATERIALISATION_REF
         )
@@ -149,13 +136,7 @@ def _check_no_per_model_materialisation(
     layer_label: str,
     layering_ref: str,
 ) -> None:
-    """One rule, applied to every layer whose materialisation is set centrally.
-
-    Shared rather than duplicated per layer: the staging case (#33 item 10) is the same rule as
-    the base case (#547), and a second copy is how the two drift apart. The check is on the
-    PRESENCE of a per-model config(), not on its value — a model pinned to the layer's current
-    value is still wrong, because it silently stops moving when the layer is re-costed.
-    """
+    """Flag any per-model materialization, whatever its value, so the layer setting decides."""
     rel = sql_path.relative_to(REPO_ROOT).as_posix()
     for match in PER_MODEL_MATERIALIZED.finditer(content):
         kind = match.group(1).lower()
@@ -168,13 +149,7 @@ def _check_no_per_model_materialisation(
 
 
 def check_staging_materialisation(errors: list[str]) -> None:
-    """Staging models must not set materialisation per model (#33 item 10).
-
-    Staging is a table for the same measured reason base is: a view stores nothing, so all 59
-    staging tests would re-execute the raw JSON parse. That saving
-    only survives if the layer keeps deciding centrally — one model opting back into `view`
-    reinstates the rescan for its own tests, invisibly, because nothing fails.
-    """
+    """Staging models must not set materialisation per model."""
     if not STAGING_DIR.is_dir():
         return
     for sql_path in sorted(STAGING_DIR.rglob("*.sql")):
@@ -185,11 +160,7 @@ def check_staging_materialisation(errors: list[str]) -> None:
 
 
 def check_upper_layer_materialisation(errors: list[str]) -> None:
-    """Core, intermediate and marts follow the same no-per-model rule as staging and base.
-
-    The one per-model setting allowed is `incremental` on a 3_core fact (`fct_*`): a fact whose
-    source delivers only the latest fixtures per run would lose its history on a full rebuild.
-    """
+    """`incremental` is allowed on a 3_core `fct_*` whose source delivers only a per-run delta."""
     for layer_dir, layer_label in (
         (CORE_DIR, "core"),
         (INTERMEDIATE_DIR, "intermediate"),
@@ -263,9 +234,7 @@ def check_export_reads_marts_only(errors: list[str]) -> None:
 
 
 def check_staging_inventory(errors: list[str]) -> None:
-    # Generic staging models live directly under api_football/ (unified raw table architecture).
-    # Per-competition subdirectories are no longer permitted — the zero-file rule means adding
-    # a league requires zero SQL file changes; only the registry entry changes.
+    # Generic staging models sit directly under api_football/; adding a league adds no SQL file.
     for subdir in sorted(STAGING_API_DIR.iterdir()):
         if subdir.is_dir():
             rel = subdir.relative_to(REPO_ROOT).as_posix()
@@ -277,15 +246,12 @@ def check_staging_inventory(errors: list[str]) -> None:
 
 
 # --- Staging purity -----------------------------------------------------------
-# Staging = latest-snapshot selection (`partition by league_code` only, across an
-# append-only raw log) + faithful 1:1 flatten (rename, cast, unnest). Entity-grain
-# deduplication, aggregation, pivots, and cross-domain joins are business logic and
-# belong in base. See dbt_project/docs/layering.md §1_staging.
+# Staging is latest-snapshot selection plus a 1:1 flatten; deduplication, aggregation and joins
+# belong in base.
 _SQL_BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
 _SQL_LINE_COMMENT = re.compile(r"--[^\n]*")
 
-# Capture the columns of a window's `partition by`, stopping at ORDER BY or the
-# closing paren of OVER(...). The only partition allowed in staging is league_code.
+# Captures a window's `partition by` columns, up to ORDER BY or the closing paren of OVER(...).
 _PARTITION_BY = re.compile(
     r"partition\s+by\s+(.+?)(?:\border\s+by\b|\))",
     re.IGNORECASE | re.DOTALL,
@@ -301,8 +267,7 @@ def _strip_sql_comments(sql: str) -> str:
     return _SQL_LINE_COMMENT.sub("", _SQL_BLOCK_COMMENT.sub(" ", sql))
 
 
-# Two builds of the same data must give the same output: these aggregates may return a different
-# value on each run. Pick by a stated order, or min/max where a group holds one value.
+# These aggregates may return a different value on each build of the same data.
 NONDETERMINISTIC_AGGREGATE = re.compile(r"\b(any_value|approx_quantiles)\s*\(", re.IGNORECASE)
 _JINJA_COMMENT = re.compile(r"\{#.*?#\}", re.DOTALL)
 
@@ -329,7 +294,6 @@ def check_staging_purity(errors: list[str]) -> None:
         rel = sql_path.relative_to(REPO_ROOT).as_posix()
         sql = _strip_sql_comments(sql_path.read_text(encoding="utf-8"))
 
-        # 1. Window deduplication: any partition that is not exactly `league_code`.
         for match in _PARTITION_BY.finditer(sql):
             cols = re.sub(r"\s+", " ", match.group(1)).strip().rstrip(",").lower()
             if cols != "league_code":
@@ -339,21 +303,18 @@ def check_staging_purity(errors: list[str]) -> None:
                     f"entity-grain deduplication belongs in base. {layering_ref}"
                 )
 
-        # 2. Aggregation / pivot.
         if _GROUP_BY.search(sql):
             errors.append(
                 f"{rel}: forbidden `group by` in staging (aggregation/pivot is business "
                 f"reshaping and belongs in base). {layering_ref}"
             )
 
-        # 3. distinct.
         if _DISTINCT.search(sql):
             errors.append(
                 f"{rel}: forbidden `distinct` in staging (deduplication belongs in base). "
                 f"{layering_ref}"
             )
 
-        # 4. Cross-domain joins (lateral `join unnest(...)` flattening is allowed).
         for match in _JOIN.finditer(sql):
             if not _JOIN_UNNEST.match(sql, match.start()):
                 errors.append(

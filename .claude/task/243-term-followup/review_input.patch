@@ -1,9 +1,9 @@
 diff --git a/.claude/task/243-term-followup/contract.md b/.claude/task/243-term-followup/contract.md
 new file mode 100644
-index 00000000..9de284f7
+index 00000000..3ceb1757
 --- /dev/null
 +++ b/.claude/task/243-term-followup/contract.md
-@@ -0,0 +1,62 @@
+@@ -0,0 +1,66 @@
 +# Task contract — term list follow-up: one save, a five-item menu, the last old names
 +
 +objective: >
@@ -24,6 +24,7 @@ index 00000000..9de284f7
 +  - docs/wireframes/09_chrome.md
 +  - design-mocks/gen_competitions.py
 +  - design-mocks/gen_navmap.py
++  - docs/wireframes/10_home.md
 +
 +impact_map: >
 +  writers: none; no ingestion, no dbt model, no seed, no export change.
@@ -65,44 +66,90 @@ index 00000000..9de284f7
 +  - npm run build in site_v2 passes.
 +  - pytest tests passes, apart from the CI-check tests that fail on Windows only.
 +
-+amendments: (none)
-diff --git a/design-mocks/gen_competitions.py b/design-mocks/gen_competitions.py
-index 96c2cf6d..ee64d495 100644
---- a/design-mocks/gen_competitions.py
-+++ b/design-mocks/gen_competitions.py
-@@ -55,7 +55,7 @@ E = html.escape
- # ⚠ NO LABEL IS TYPED IN THIS FILE. The rule: the seed is the single source of truth for the
- # displayed name, as in the metric layer, and the mapping to other languages happens in a
- # different file. Both label columns mirror `metric_catalogue.csv`, and DE/FI live in
--# `strings.ts` keyed by `label_i18n_key`, exactly as `METRIC_LABELS_DE` / `METRIC_LABELS_FI` do.
-+# `strings.ts` keyed by `label_i18n_key`, exactly as the words `METRIC_TERMS` names are.
- TYPES_SEED = REPO / "dbt_project/seeds/competition_types.csv"
- TYPES_PROPOSED = Path(__file__).with_name("competition_types.proposed.csv")
- 
++amendments:
++  - 2026-11-10: + docs/wireframes/10_home.md — authority: approved in chat, 2026-11-10; content: its
++    line 90 ends "Date tabs and a "more matches" control are deferred to **#908**.", dropping the
++    stale count of nav items without a page.
 diff --git a/design-mocks/gen_navmap.py b/design-mocks/gen_navmap.py
-index 0334fd99..ece9e85a 100644
+index bc44f990..129f497d 100644
 --- a/design-mocks/gen_navmap.py
 +++ b/design-mocks/gen_navmap.py
-@@ -75,10 +75,6 @@ MENU_NOTES = {
+@@ -40,27 +40,18 @@ def menu_items():
+ 
+ 
+ MENU_NOTES = {
+-    "navCompetitions": ("A list of all twelve competitions.",
+-                        "planned",
+-                        "A list page is in the plan. But the home page already carries a row "
+-                        "of competition buttons, so it is worth asking whether a separate "
+-                        "page earns its place."),
++    "navCompetitions": ("A list of all competitions.",
++                        "live",
++                        "Built, and the menu links to it."),
+     "navMatches": ("Matches across every competition.",
+-                   "designed",
+-                   "DESIGNED 2026-08-10 &mdash; two pages, <b>Next matches</b> and "
+-                   "<b>Past matches</b>. This was the one menu item with nothing behind it that "
+-                   "clearly earned a page, and it is now the first thing the menu can point at."),
++                   "live",
++                   "Built, and the menu links to it."),
+     "navTeams": ("Every club.",
+-                 "none",
+-                 "NOTHING IS PLANNED. Club pages exist, but the only thing that lists clubs "
+-                 "is a competition's table."),
++                 "live",
++                 "Built, and the menu links to it."),
      "navPlayers": ("Every player.",
-                    "none",
-                    "NOTHING IS PLANNED, and the player page itself is not built."),
+-                   "none",
+-                   "NOTHING IS PLANNED, and the player page itself is not built."),
 -    "navStandings": ("Tables for every competition.",
 -                     "none",
 -                     "NOTHING IS PLANNED as its own page. Each competition carries its own "
 -                     "table, so this menu item may simply be the competitions list again."),
++                   "designed",
++                   "Designed, not built."),
      "navStatistics": ("Stat leaderboards and definitions.",
                          "partial",
                          "Only a page PER METRIC is planned (a glossary entry). There is no index, "
-@@ -330,7 +326,7 @@ def build():
+@@ -83,7 +74,7 @@ PAGES_PLAIN = [
+         note="Two more blocks are designed and unbuilt: Top players and Top teams.",
+     ),
+     dict(
+-        key="matches", route=None,
++        key="matches", route=("[lang]", "[matches]", "index"),
+         name="All matches", example="&hellip;/en/matches/",
+         status="designed", depth=1,
+         shows=["Every competition's next matchday, grouped by competition then date"],
+@@ -308,17 +299,13 @@ def build():
       read from the code; the descriptions are written by hand.</p>
  
    <h2>1. The menu, at the top of every page</h2>
 -  <p class="sub">Six items. <b>Not one of them is a link</b> &mdash; they render as plain
-+  <p class="sub">Five items. <b>Not one of them is a link</b> &mdash; they render as plain
-      text, because none of the pages they would lead to exists. That is honest, but it means
-      the site currently has <b>no navigation at all</b>: everything is reached by clicking
-      something in the page body.</p>
+-     text, because none of the pages they would lead to exists. That is honest, but it means
+-     the site currently has <b>no navigation at all</b>: everything is reached by clicking
+-     something in the page body.</p>
++  <p class="sub">Five items. Competitions, Matches and Teams are links; Players and Statistics
++     render as plain text, because the pages they would lead to are not built.</p>
+   <table class="menu">
+     <tr><th>Menu item</th><th>What it would show</th><th>Is there a page for it?</th></tr>
+ %s
+   </table>
+-  <p class="sub warn">So four of the six menu items lead nowhere <b>and have nothing planned
+-     behind them</b>. That is the biggest structural gap, and it is bigger than any single
+-     page.</p>
++  <p class="sub warn">So two of the five menu items lead nowhere.</p>
+ 
+   <h2>2. The pages, starting at the home page</h2>
+   <p class="sub">Indented by how you reach them, not by web address.</p>
+@@ -445,7 +432,7 @@ if __name__ == "__main__":
+     items, nav_is_link = menu_items()
+     print("  menu items derived: %s" % ", ".join(lbl for _k, lbl in items))
+     print("  menu renders as %s" % ("LINKS" if nav_is_link else "inert text"))
+-    assert len(items) == 6, "expected 6 nav items, found %d" % len(items)
++    assert len(items) == 5, "expected 5 nav items, found %d" % len(items)
+     assert not nav_is_link, "the nav now emits anchors -- this page says it does not"
+     for p in PAGES_PLAIN:
+         if p["route"]:
 diff --git a/docs/site_architecture.md b/docs/site_architecture.md
 index 8da012e8..10c1be0a 100644
 --- a/docs/site_architecture.md
@@ -133,7 +180,7 @@ index 8da012e8..10c1be0a 100644
  Two more axes feed `build_nav()` in `scripts/export_site_data.py`, which writes `nav.json`. No page
  reads `nav.json`, and neither axis has a page.
 diff --git a/docs/wireframes/09_chrome.md b/docs/wireframes/09_chrome.md
-index 2c685127..21ee3ff2 100644
+index 2c685127..74d2df39 100644
 --- a/docs/wireframes/09_chrome.md
 +++ b/docs/wireframes/09_chrome.md
 @@ -15,7 +15,7 @@ N/A — chrome wraps every route in `site_architecture.md` §3. It renders once,
@@ -191,10 +238,23 @@ index 2c685127..21ee3ff2 100644
  
  - **No dead links.** A nav or footer item is an inert `<span>` (not `<a>`) until the page behind
 -  it is built. Competitions and Matches are links; Teams, Players, Table, Statistics and
-+  it is built. Competitions and Matches are links; Teams, Players, Statistics and
++  it is built. Competitions, Matches and Teams are links; Players, Statistics and
    About have no built index page, so they are spans. The footer's row repeats the menu, each
    item a link exactly when the menu's is. `.mainnav a, .mainnav span` (and the footer/drawer
    equivalents) apply identical styling to both, so an inert item looks no different from a real
+diff --git a/docs/wireframes/10_home.md b/docs/wireframes/10_home.md
+index 0b575cdc..06bbd256 100644
+--- a/docs/wireframes/10_home.md
++++ b/docs/wireframes/10_home.md
+@@ -87,7 +87,7 @@ out of the index. Build the routes, let the links resolve, fill the pages in aft
+ 
+ | | |
+ |---|---|
+-| **Next matches** | The next matchday — every match on the next day that has football (CPO 2026-08-18; the fixed list of 12 is retired). Date tabs and a "more matches" control are deferred to **#908**, which also records that four of the six nav items have no page to link to. |
++| **Next matches** | The next matchday — every match on the next day that has football (CPO 2026-08-18; the fixed list of 12 is retired). Date tabs and a "more matches" control are deferred to **#908**. |
+ | ~~**Browse**~~ | ~~Moves to the BOTTOM of the page, per convention on comparable sites. (§4's rail placement is superseded.)~~ **DROPPED** — superseded by a later ruling than this table records; see the composition note below. |
+ | ~~**Trending**~~ | ~~Teams AND players, both as STREAKS. The wording must relate to "streak".~~ **SUPERSEDED 2026-08-08**: the composition recorded below has no trending block, so the block was cut rather than reworked to this row. See the note under the composition. |
+ | ~~**Team streaks**~~ | ~~THREE types: longest **winning** run · longest **unbeaten** run · longest **clean-sheet** run. Winless and losing are both dropped.~~ Superseded with the block. |
 diff --git a/site_v2/src/components/fixture/PlayerRow.astro b/site_v2/src/components/fixture/PlayerRow.astro
 index a5a2bf5e..2d72fcd8 100644
 --- a/site_v2/src/components/fixture/PlayerRow.astro
@@ -276,6 +336,8 @@ index 44e33da2..2cc777a2 100644
 # depends on one.
 #
 #   .../task/243-term-followup/acceptance_evidence.md  |   8 +
-#    .claude/task/243-term-followup/review_input.patch  | 269 +++++++++++++++++++++
-#    2 files changed, 277 insertions(+)
+#    .../243-term-followup/rendered_page_evidence.md    |  17 ++
+#    .claude/task/243-term-followup/review.md           |  22 ++
+#    .claude/task/243-term-followup/review_input.patch  | 333 +++++++++++++++++++++
+#    4 files changed, 380 insertions(+)
 # ============================================================================

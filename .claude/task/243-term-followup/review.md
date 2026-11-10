@@ -1,22 +1,25 @@
 # Review — claude/243-term-followup
 
-diff_sha256: 877e81243b97a5e2c5e52bc9c83a85a08628817fa569679faa843307c11f76d0
+diff_sha256: 5cee2b2f7d6e95d3d92813511ebf0b6a71e9f756e26fd30f514fd7d02af51c59
 
-rounds: 2
+rounds: 6
+
+rounds_cap_override: merge from main and the stale menu counts, approved in chat, 2026-11-10
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every changed path is in scope_paths; the singular save word and Standings leaving the menu are recorded in decisions_taken with their notes; nothing reserved is decided.
-- No reader of the removed Section value or the /standings/ address is left; the `table` key stays for the competition page's Table section.
-- site_architecture.md and 09_chrome.md state the current state only; 09_chrome.md gives one item count, five, throughout.
+- Every changed path is in scope_paths; 10_home.md entered by a dated amendment, and its line 90 is the approved text.
+- The merge from main leaves gen_competitions.py as main has it; the branch no longer changes it.
+- The nav map's menu notes and the All matches card read the built pages; the Players note says designed, not built.
+- The competition tabs sit under the competition page's design; the save word's approval is the note on the issue; the Standings address and word rows existed only for the Standings menu page.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- savesOne exists in EN, DE and FI; PlayerRow picks it only for exactly one save, the plural otherwise, as the goals and assists words beside it do.
-- The header, drawer and footer read one list, now five items; the competition page's Table section keeps Table, Tabelle and Sarjataulukko.
-- The wireframe matches menu.ts; no data field, metric, row or tier changes.
+- Header, drawer and footer read one five-item list in EN, DE and FI; Competitions, Matches and Teams link, Players and Statistics do not, as 09_chrome.md and the nav map now say.
+- One save reads save, Parade and torjunta; more read saves, Paraden and torjuntaa; the competition table section keeps Table, Tabelle and Sarjataulukko.
+- The rendered evidence names its sources and why no screenshot was taken.
 
 ## escalations
 (none)

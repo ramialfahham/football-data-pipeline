@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Replace FEEDBACK_ENDPOINT placeholder in match preview HTML (e.g. GitHub Actions before Pages upload)."""
+"""Replace the FEEDBACK_ENDPOINT placeholder in match preview HTML."""
 
 from __future__ import annotations
 

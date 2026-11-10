@@ -65,8 +65,7 @@ sys.path.insert(0, str(_ROOT))
 
 from ingestion.api_football.settings import GCP_PROJECT_ID, DATASET_ID, raw_table  # noqa: E402
 
-# Modeled layer datasets. The project convention (generate_schema_name.sql) maps
-# each dbt layer name directly to a BigQuery dataset of the same name.
+# Each dbt layer name maps directly to a BigQuery dataset of the same name (generate_schema_name.sql).
 _CORE_DATASET = "core"
 
 
@@ -99,7 +98,7 @@ def _league_filter_sql(league: str | None, column: str = "league_code") -> str:
 
 
 # ---------------------------------------------------------------------------
-# Check 1 — NULL fixture_id (bug #297)
+# Check 1 — NULL fixture_id
 # ---------------------------------------------------------------------------
 def check_null_fixture_id(
     client: bigquery.Client, table: str, league: str | None
@@ -125,7 +124,7 @@ def check_null_fixture_id(
 
 
 # ---------------------------------------------------------------------------
-# Check 2 — stale wrong-ID rows (bug #296)
+# Check 2 — stale wrong-ID rows
 # ---------------------------------------------------------------------------
 def check_stale_league_id(
     client: bigquery.Client, table: str, ids: dict[str, int], league: str | None
@@ -152,7 +151,7 @@ def check_stale_league_id(
 
 
 # ---------------------------------------------------------------------------
-# Check 3 — orphaned team_sk (Inter Miami / GCUP class)
+# Check 3 — orphaned team_sk
 # ---------------------------------------------------------------------------
 def check_orphaned_teams(
     client: bigquery.Client, league: str | None
@@ -272,7 +271,6 @@ def main() -> None:
 
     problems = 0
 
-    # --- Check 1 -----------------------------------------------------------
     print("\n[1] NULL fixture_id (bug #297)")
     null_rows = check_null_fixture_id(client, table, league)
     if not null_rows:
@@ -285,7 +283,6 @@ def main() -> None:
                 + (f"  unrecoverable={unrec:,} (malformed payload)" if unrec else "")
             )
 
-    # --- Check 2 -----------------------------------------------------------
     print("\n[2] Stale wrong-ID rows (bug #296)")
     stale = check_stale_league_id(client, table, ids, league)
     if not stale:
@@ -299,7 +296,6 @@ def main() -> None:
                 f"(run purge_stale_fixture_details.py)"
             )
 
-    # --- Check 3 -----------------------------------------------------------
     print("\n[3] Orphaned team_sk vs core.dim_team (Inter Miami / GCUP class)")
     orphans, checked = check_orphaned_teams(client, league)
     if not checked:
@@ -315,17 +311,14 @@ def main() -> None:
             "rebuild the fact if these are stale ghosts."
         )
 
-    # --- Check 4 -----------------------------------------------------------
     print("\n[4] Coverage sanity (active competitions)")
     coverage = check_coverage(client, table, competitions, league)
     if not coverage:
         print("    (no active competitions in scope)")
     for lc, rows, n_seasons, seasons, current_present in coverage:
         if rows == 0:
-            # Not a hard defect: a tournament that has not kicked off yet (e.g. WC
-            # 2026, off-season continental cups) legitimately has zero *finished*
-            # fixtures, and FIXTURE_DETAILS only stores finished ones. Flag as a
-            # notice so --strict does not trip on expected pre-tournament emptiness.
+            # A tournament not yet started has zero finished fixtures, which is all FIXTURE_DETAILS
+            # stores, so this is a notice and --strict must not trip on it.
             print(
                 f"    ~  {lc:<8} 0 fixture-details rows — no finished fixtures yet "
                 f"(pre-tournament/off-season) or ingestion has not run."
@@ -338,7 +331,6 @@ def main() -> None:
         else:
             print(f"    OK {lc:<8} rows={rows:,} seasons={n_seasons} [{seasons}]")
 
-    # --- Summary -----------------------------------------------------------
     print("\n" + "=" * 78)
     if problems == 0:
         print("RESULT: healthy — no problems found.")

@@ -1,7 +1,6 @@
 """Inventory every clickable thing across the rendered mocks, and how each one signals it.
 
-Before standardising interaction, know what exists. Read from the EMITTED html, so it is what a
-reader meets rather than what a component intends.
+It reads the emitted HTML, so it reports what a reader meets rather than what a component intends.
 """
 import re
 import sys

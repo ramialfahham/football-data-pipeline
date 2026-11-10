@@ -1,28 +1,6 @@
-"""Render the SITE MAP -- every page type, its URL, and what sits behind one URL without
-having its own -- as a standalone HTML overview.
+"""Render the site map, every page type with its URL and the URL-less switches behind it, as HTML.
 
-WHY THIS EXISTS: the information is already in the repo, but in four places that do not
-agree and none of which is a map.
-
-  docs/site_architecture.md section 3   the planned URL scheme        (no build status)
-  docs/content_architecture.md section 4  the tab set per entity      (no URLs)
-  docs/wireframes/00_overview.md       screen inventory + spec status (no URLs, stale)
-  site_v2/src/pages + src/specs        what actually ships            (the only ground truth)
-
-⚠ DERIVED, NOT TYPED. Almost everything below is read out of the repo at render time, so the
-map cannot quietly go stale the way the screen inventory did (it still lists the home page and
-the competition hub as "pending"):
-
-  * BUILT routes            <- globbing site_v2/src/pages/**/*.astro
-  * each route's contract   <- its src/specs/**/*.spec.json (entity, blocks, seo.links, ...)
-  * URL-LESS SWITCHES       <- walking each page's import graph and looking for the `.tab`
-                               label + `.seg-btn` radio-toggle markers. This is the answer to
-                               "which tabs have no URL", and it is measured, not remembered.
-  * PLANNED routes          <- parsing the URL table in site_architecture.md section 3
-
-The ONLY hand-authored part is NOTES below: rulings and design state that no file records in a
-machine-readable way. It is kept in one dict, on purpose, so what is asserted rather than
-observed is obvious.
+Built routes, specs and switches are read from the repo at render time; only NOTES is typed.
 """
 import html
 import json
@@ -41,10 +19,8 @@ OUT = Path(__file__).with_name("sitemap_overview.html")
 E = html.escape
 
 # ------------------------------------------------------- the hand-typed part
-#
-# Keyed by the section-3 route pattern. `state` is one of:
-#   built | designed | planned | ruled-out | deferred
-# Everything with no entry here and no built page defaults to "planned".
+# Keyed by the section-3 route pattern; `state` is built, designed, planned, ruled-out or deferred.
+# A route with no entry here and no built page defaults to "planned".
 
 NOTES = {
     "/{locale}/{competition-slug}/": (
@@ -156,12 +132,7 @@ def imports_of(astro_path, depth=0, seen=None):
 
 
 def switches_of(page_path):
-    """The URL-LESS controls behind one page: `.tab` labels and `.seg-btn` radio toggles.
-
-    This is the measurement the whole map exists for. Both patterns are pure CSS
-    (`:checked` + sibling combinator), so every panel is in the HTML and crawlable, but the
-    page has ONE URL: a panel cannot be linked to, cannot rank on its own query, and cannot
-    be another page's hub."""
+    """The URL-less controls behind one page: `.tab` labels and `.seg-btn` radio toggles."""
     found = []
     for f in sorted(imports_of(page_path)):
         src = f.read_text(encoding="utf-8")
@@ -210,14 +181,9 @@ def build():
     specs = specs_by_page()
     planned = planned_routes()
 
-    # route pattern (section 3) -> the built page that serves it, matched by shape
     def norm(r):
-        """Compare routes by SHAPE: any path segment containing a parameter collapses to one
-        slot. ⚠ Collapsing each `{...}` individually is not enough -- section 3 writes the
-        fixture segment as `{date}-{home}-vs-{away}` against the template's single `{fixture}`,
-        so a per-brace substitution leaves `{}-{}-vs-{}` and the built fixture page silently
-        reads as PLANNED. It did, and the first version of check 1 passed anyway on a matching
-        count."""
+        """Compare routes by shape: a segment containing any `{...}` collapses to one slot, since
+        section 3 writes the fixture segment as `{date}-{home}-vs-{away}`, the template `{fixture}`."""
         segs = [("{}" if "{" in s else s) for s in r.strip("/").split("/")]
         return "/" + "/".join(segs) + "/"
 
@@ -232,7 +198,6 @@ def build():
             state = "built" if hit else "planned"
         rows.append((pattern, desc, state, note, hit))
 
-    # section-3 patterns already covered; anything BUILT and not in section 3 is a surprise
     covered = {norm(p) for p, _d in planned}
     orphan_built = [(r, p) for r, p in built if norm(r) not in covered and r != "/"]
 
@@ -240,11 +205,6 @@ def build():
         rows.append((pattern, desc, state, note, None))
 
     # ---------------------------------------------------------------- tree
-    #
-    # A REAL TREE, nested by URL SEGMENT -- which is the hierarchy a crawler actually walks,
-    # and is derived rather than arranged by hand. Tabs and segment toggles hang off their
-    # page as leaves so "what has no URL of its own" is visible in place rather than in a
-    # separate table.
     node_html = {}
     for pattern, desc, state, note, hit in rows:
         spec, switches = None, []
@@ -264,7 +224,6 @@ def build():
         if note:
             detail.append('<span class="note">%s</span>' % note)
 
-        # tabs / segments become CHILD LEAVES of the page they live on
         leaves = []
         for kind, fname, names in switches:
             if kind == "tabs":
@@ -279,9 +238,7 @@ def build():
     keys = set(node_html)
 
     def parent_of(k):
-        """The longest proper prefix that is itself a node; () otherwise. Intermediate
-        segments that are not pages of their own (e.g. `football/`) collapse into the child's
-        label rather than inventing a node that does not exist."""
+        """The longest proper prefix that is itself a node; () otherwise."""
         for i in range(len(k) - 1, 0, -1):
             if k[:i] in keys:
                 return k[:i]
@@ -291,9 +248,7 @@ def build():
     for k in sorted(keys):
         kids.setdefault(parent_of(k), []).append(k)
 
-    # Reading order is NAVIGATIONAL, not status-ordered: a tree is read as a walk of the site,
-    # and sorting by state put /teams/ above the competition hub, which is not how anyone
-    # traverses it. Decided-against branches sink to the bottom of their level.
+    # Navigational order, not status order; decided-against branches sink to the bottom.
     HINT = {"{competition-slug}": 0, "competitions": 1, "teams": 2, "players": 3,
             "h2h": 4, "stats": 5, "imprint": 6, "football": 9,
             "table": 0, "fixtures": 1, "top-scorers": 2, "matches": 3, "{season-slug}": 4}

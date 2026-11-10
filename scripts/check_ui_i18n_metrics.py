@@ -1,9 +1,4 @@
-"""Verify each shown match-preview metric resolves to an i18n label under its official key.
-
-The match-preview manifest lists windowed live ids; each maps (via metric_bindings.csv) to its
-official catalogue id, which is the i18n key standardized in #500 (metrics.<official_id>.label).
-This checks every shown stat has a non-empty label + description in every site/i18n/*.json.
-"""
+"""Verify each shown match-preview metric has a label and description in every site/i18n locale."""
 from __future__ import annotations
 
 import csv

@@ -21,27 +21,7 @@ from pathlib import Path
 
 
 def load_catalogue(path: Path) -> dict[tuple[str, str], dict[str, object]]:
-    """(metric_id, entity) -> {format, lower_is_better, label_i18n_key} from the catalogue SSoT.
-
-    KEYED ON THE CATALOGUE'S REAL GRAIN. `metric_id` is NOT unique — many metrics carry both a team
-    row and a player row, with different formulas and, since the per-entity display-name ruling,
-    different `label_i18n_key`s. This function used to key on `metric_id` alone, which silently
-    collapsed that grain to whichever row came last in file order.
-
-    That was invisible while the two rows agreed on everything read here. It stopped being invisible
-    when `finishing_efficiency_player_pct`'s player row was split onto its own key: last-wins then handed the
-    PLAYER key to a binding whose subject is a team, while `site/team-season/index.html` calls the
-    TEAM key. `tests/test_metric_bindings.py` caught it as a byte-identity failure.
-
-    The first fix resolved the ambiguity with a hardcoded "prefer team" default. That was wrong:
-    entity alignment is business logic and belongs upstream, `layering.md` §Consumption layer
-    forbids entity derivation downstream of the marts, and byte-identical output does not cure a
-    rule living in the wrong layer.
-
-    So the entity is DATA now. `metric_bindings.csv` carries `catalogue_entity` per row and this is
-    a plain two-key lookup with no default and no preference. Adding a player-entity binding is a
-    CSV edit; it needs no code change here, which is the test that the logic left this file.
-    """
+    """(metric_id, entity) -> definition; a metric can have both a team and a player row."""
     catalogue: dict[tuple[str, str], dict[str, object]] = {}
     with path.open(newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
@@ -58,14 +38,7 @@ def load_catalogue(path: Path) -> dict[tuple[str, str], dict[str, object]]:
 
 
 def build_defs(bindings_path: Path, catalogue_path: Path) -> dict[str, dict[str, object]]:
-    """Compose the per-live-id UI binding dict from bindings (wiring) + catalogue (definition).
-
-    The bindings row names BOTH halves of the catalogue key — `catalogue_metric_id` and
-    `catalogue_entity` — so this is a lookup, not a resolution. A binding that names a pair the
-    catalogue does not carry is a hard error, exactly as an unknown metric_id already was: this
-    file must fail loudly rather than fall back to some other entity's row, because a silent
-    fallback is the defect the entity column was added to remove.
-    """
+    """Compose the per-live-id binding dict; a pair missing from the catalogue is a hard error."""
     catalogue = load_catalogue(catalogue_path)
     defs: dict[str, dict[str, object]] = {}
     with bindings_path.open(newline="", encoding="utf-8") as f:

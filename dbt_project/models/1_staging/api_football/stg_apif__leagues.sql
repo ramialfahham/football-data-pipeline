@@ -48,11 +48,11 @@ season_rows as (
         row_json,
         season_el,
         safe_cast(json_value(row_json, '$.league.id') as int64) as league_api_id,
-        json_value(row_json, '$.league.name') as league_name,
+        {{ decode_html_entities("json_value(row_json, '$.league.name')") }} as league_name,
         json_value(row_json, '$.league.type') as league_type,
         -- Country is a SIBLING of `league` in the /leagues response, not a child:
         -- $.league = {id, name, type, logo}; $.country = {name, code, flag}.
-        json_value(row_json, '$.country.name') as country,
+        {{ decode_html_entities("json_value(row_json, '$.country.name')") }} as country,
         json_value(row_json, '$.league.logo') as league_logo_url,
         json_value(row_json, '$.country.flag') as country_flag_url
     from season_rows_raw

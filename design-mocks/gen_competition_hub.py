@@ -1,28 +1,4 @@
-"""Render the COMPETITION PAGE, Overview tab -- /{locale}/{competition-slug}/ -- as standalone
-mocks, one per kind of competition, to the design approved on GitLab #129.
-
-Design-only. Reads nothing from BigQuery. The league's numbers are the Bundesliga 2026/27 after
-three matchdays as the warehouse held them when the design was approved, so the page is judged
-against numbers that could occur; club names are real because their WIDTH is what is tested.
-
-FOUR KINDS, one file each (kind names as arguments, or all when none is given):
-  league     a domestic league: table, next matchday, deserved points, the season in numbers
-  groups     a tournament in its knockout: one table per group (the provider's ranking table
-             dropped), the next round, the season in numbers; no deserved points
-  cup        a knockout cup: header, next round, the season in numbers; no table
-  offseason  a league between seasons: the final table, deserved points, the season in
-             numbers; no next matches
-
-Every block a page can show is here with the same class names the built components emit
-(`.ctab`, `.fxrow`, `.frow`, `.comp-tabs`), and the block's CSS is system.css's own, inlined
-verbatim. A block with nothing to show is absent -- no heading over nothing.
-
-The tab bar: Overview active, the three other tabs inert labels until each page is built.
-
-No competition crest asset: the mock draws the neutral placeholder, never a hotlink.
-No JavaScript: the review surface is a static snapshot. The three toggles are :checked + sibling
-combinators.
-"""
+"""Mock of the competition page Overview tab, one file per kind: league, groups, cup, offseason."""
 import html
 import re
 import sys
@@ -153,8 +129,7 @@ KINDS = {
 
 # --------------------------------------------------------------------- copy
 
-# EN is the built copy (strings.ts, `comp*` keys). FI is a WIDTH PROBE where marked: a probe is a
-# plausible worst case for measuring, NOT approved copy, and renders with a dotted underline.
+# FI is a width probe where marked: a worst case for measuring, not approved copy.
 COPY = {
     #  key                   en                              fi                                       fi_is_probe
     "crumbHome":           ("Home",                         "Etusivu",                               False),
@@ -194,15 +169,13 @@ COPY = {
 
 
 def slugify(name):
-    """The mock's stand-in for the team slug published on dim_team; the real one is ASSIGNED in
-    the warehouse, not derived here."""
+    """Stand-in for the team slug, which the warehouse assigns rather than derives."""
     s = (name.replace("ü", "u").replace("ö", "o").replace("ä", "a")
              .replace("ß", "ss").replace(".", "").lower())
     return re.sub(r"[^a-z0-9]+", "-", s).strip("-")
 
 
 def loc(key):
-    """Render one copy key in both locales; CSS shows one at a time."""
     en, fi, probe = COPY[key]
     cls = "fi probe" if probe else "fi"
     return ('<span class="en">%s</span><span class="%s" lang="fi">%s</span>'
@@ -216,7 +189,7 @@ def _cols(r):
 
 
 def team_cell(name):
-    """Crest + name inside the row; the ROW is the link, never the name alone."""
+    """Crest and name inside the row; the row is the link, not the name alone."""
     return ('<span class="tm"><span class="crest xs">%s</span>'
             '<span class="nm">%s</span></span>' % (CREST, E(name)))
 
@@ -442,7 +415,6 @@ def build(kind):
 
 
 def check_data():
-    """Placeholder or not, every table has to be a LEGAL table."""
     for kind, k in KINDS.items():
         for section, rows_ in k["tables"].items():
             prev_pts = None

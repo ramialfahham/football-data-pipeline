@@ -1,0 +1,498 @@
+diff --git a/.claude/task/268-html-entity-names/contract.md b/.claude/task/268-html-entity-names/contract.md
+new file mode 100644
+index 00000000..00b9a00d
+--- /dev/null
++++ b/.claude/task/268-html-entity-names/contract.md
+@@ -0,0 +1,85 @@
++# Task contract — names arrive with their real characters, not HTML entities
++
++objective: >
++  Issue #268: the provider sends some names HTML-escaped (`&apos;`, `&amp;`, `&gt;`), and pages
++  print the entity. Every name and place column is decoded where it first becomes a column, by one
++  shared macro, and a test fails the build if an entity is left in any of them.
++
++refs: >
++  #268. Plan ruled by the coordinating session on 2026-11-09: widen to venue and place columns;
++  decode the line-up player name in base_apif__lineups, where it first becomes a column; check
++  only those first columns, not the marts.
++
++scope_paths:
++  - dbt_project/macros/decode_html_entities.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__coach_career.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__coaches.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__player_profiles.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__player_teams.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__players.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__squads.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__standings.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__teams.sql
++  - dbt_project/models/2_base/api_football/base_apif__lineups.sql
++  - dbt_project/tests/assert_names_carry_no_html_entity.sql
++  - dbt_project/tests/assert_html_entity_decode.sql
++  - .claude/task/268-html-entity-names/contract.md
++  - .claude/task/268-html-entity-names/review.md
++  - .claude/task/268-html-entity-names/review_input.patch
++
++impact_map: >
++  writers: dbt only; no ingestion, seed or export change. The 14 staging models listed decode
++  their name and place columns (player, first and last name, team, coach, league, venue name,
++  venue city, venue address, birth place, birth country, country, nationality);
++  base_apif__lineups decodes player_name where it parses it from the line-up JSON.
++  lineage: `dbt ls --resource-type model --select <the 14 staging models>+` returns 117 of the
++  project's 126 models, so every layer rebuilds; base_apif__lineups+ is inside that set.
++  measured in prod staging on 2026-11-09 (read-only): only `&apos;`, `&amp;` and `&gt;` occur;
++  players.player_name 361 distinct names, squads 131, player_profiles 120, fixture_players 25,
++  line-up JSON about 22, venue_name 2, venue_city 27, venue_address 48; none in team, coach,
++  league, country or nationality names.
++  consumption: the export reads the same columns. A player URL is built from the name by
++  `player_slug_with_id` in scripts/export_site_data.py, so an affected player's slug loses the
++  `apos` piece (n-o-apos-reilly-<id> becomes n-o-reilly-<id>).
++  ci_layer_rules: scripts/check_layer_contract.py, scripts/check_description_hygiene.py.
++  deploy_order: one merge; the nightly rebuilds every model. No backfill.
++  blast_radius: the affected names in mart_roster (353 distinct), mart_player_fixture_stats
++  (234), mart_player_profile (233), mart_player_career (233), mart_leaderboards (132),
++  mart_player_competition_benchmarks (67), mart_player_season_record (19, the line-up names) and
++  mart_competition_fixtures.venue_name (2) show the real character; venue city and address in the
++  team and player profiles likewise. Exact differences come from the MR build compared with prod.
++
++approved_design:
++  - none: no page output changes beyond names showing their real characters; no page file is touched
++
++decisions_taken: >
++  Ruled by the coordinating session on 2026-11-09 as a correctness fix. One macro,
++  decode_html_entities, decodes in one pass the entities in its map (the five XML named entities
++  and the two numeric apostrophes `&#39;`, `&#x27;`), so a double-escaped `&amp;apos;` decodes
++  once, to `&apos;`; the map is data joined to the text's pieces, like translit_latin, which keeps
++  the expression inside SQLFluff's parse-depth limit. It runs in staging on every name and place
++  column, and in base_apif__lineups on the line-up player name, which staging keeps inside JSON
++  where decoding `&quot;` would break the JSON. The guard test reads only those first columns; the
++  marts copy them. Recurring cost: the guard test is a new nightly read of 414 MB (dry-run on
++  prod, 2026-11-09), about 12.4 GB and $0.08 a month, approved by the CPO in chat, 2026-11-09.
++  No new mechanism.
++
++decisions_reserved:
++  - Any entity outside the macro's map fails the guard test and is added to the map in a later task.
++
++done_when:
++  - dbt parse succeeds from the repo root.
++  - python -m pytest tests -q is green, and the offline gates pass.
++  - SQLFluff adds no violation on any changed model or test.
++  - CI's data:build:mr is green, both new tests included.
++  - Every changed model and everything downstream is compared with prod both ways, and every difference is listed.
++  - The guard test's nightly bytes are measured.
++  - The MR head lists before and after for a sample of the changed names.
++
++amendments: (none)
+diff --git a/dbt_project/macros/decode_html_entities.sql b/dbt_project/macros/decode_html_entities.sql
+new file mode 100644
+index 00000000..e8d9cf75
+--- /dev/null
++++ b/dbt_project/macros/decode_html_entities.sql
+@@ -0,0 +1,23 @@
++{#
++  The provider sends some names HTML-escaped. The text is cut into entities and the runs between
++  them, and each entity in the map becomes its character, so a double-escaped `&amp;apos;` becomes
++  `&apos;` and nothing is decoded twice. An entity the map lacks stays as it is, for
++  assert_names_carry_no_html_entity to find. The empty match at the end keeps an empty string empty.
++#}
++{%- macro decode_html_entities(text) -%}
++(
++    select string_agg(coalesce(entities.decoded, piece), '' order by piece_position)
++    from unnest(regexp_extract_all({{ text }}, r'&#?\w+;|[^&]+|&|$')) as piece with offset as piece_position
++    left join
++        unnest([
++            struct('&apos;' as entity, "'" as decoded),
++            struct('&#39;', "'"),
++            struct('&#x27;', "'"),
++            struct('&quot;', '"'),
++            struct('&amp;', '&'),
++            struct('&lt;', '<'),
++            struct('&gt;', '>')
++        ]) as entities
++        on piece = entities.entity
++)
++{%- endmacro %}
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__coach_career.sql b/dbt_project/models/1_staging/api_football/stg_apif__coach_career.sql
+index 3e6a016e..25c03d0d 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__coach_career.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__coach_career.sql
+@@ -26,7 +26,7 @@ select
+     coaches.raw_ingested_at,
+     safe_cast(json_value(coaches.coach_el, '$.coach.id') as int64) as coach_id,
+     safe_cast(json_value(career_el, '$.team.id') as int64) as team_id,
+-    json_value(career_el, '$.team.name') as team_name,
++    {{ decode_html_entities("json_value(career_el, '$.team.name')") }} as team_name,
+     safe_cast(json_value(career_el, '$.start') as date) as start_date,
+     safe_cast(json_value(career_el, '$.end') as date) as end_date
+ from coaches,
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__coaches.sql b/dbt_project/models/1_staging/api_football/stg_apif__coaches.sql
+index c2086be0..b7be19ba 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__coaches.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__coaches.sql
+@@ -26,13 +26,13 @@ select
+     league_code,
+     raw_ingested_at,
+     safe_cast(json_value(coach_el, '$.coach.id') as int64) as coach_id,
+-    json_value(coach_el, '$.coach.name') as coach_name,
+-    json_value(coach_el, '$.coach.firstname') as coach_first_name,
+-    json_value(coach_el, '$.coach.lastname') as coach_last_name,
++    {{ decode_html_entities("json_value(coach_el, '$.coach.name')") }} as coach_name,
++    {{ decode_html_entities("json_value(coach_el, '$.coach.firstname')") }} as coach_first_name,
++    {{ decode_html_entities("json_value(coach_el, '$.coach.lastname')") }} as coach_last_name,
+     safe_cast(json_value(coach_el, '$.coach.age') as int64) as coach_age,
+     safe_cast(json_value(coach_el, '$.coach.birth.date') as date) as coach_birth_date,
+-    json_value(coach_el, '$.coach.birth.place') as coach_birth_place,
+-    json_value(coach_el, '$.coach.birth.country') as coach_birth_country,
+-    json_value(coach_el, '$.coach.nationality') as coach_nationality,
++    {{ decode_html_entities("json_value(coach_el, '$.coach.birth.place')") }} as coach_birth_place,
++    {{ decode_html_entities("json_value(coach_el, '$.coach.birth.country')") }} as coach_birth_country,
++    {{ decode_html_entities("json_value(coach_el, '$.coach.nationality')") }} as coach_nationality,
+     json_value(coach_el, '$.coach.photo') as coach_photo_url
+ from coaches
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
+index 736d8735..fc1c6407 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
+@@ -29,10 +29,10 @@ select
+     safe_cast(json_value(event_el, '$.time.elapsed') as int64) as minute_elapsed,
+     safe_cast(json_value(event_el, '$.time.extra') as int64) as minute_extra,
+     safe_cast(json_value(event_el, '$.team.id') as int64) as team_id,
+-    json_value(event_el, '$.team.name') as team_name,
+-    json_value(event_el, '$.player.name') as player_name,
++    {{ decode_html_entities("json_value(event_el, '$.team.name')") }} as team_name,
++    {{ decode_html_entities("json_value(event_el, '$.player.name')") }} as player_name,
+     safe_cast(json_value(event_el, '$.player.id') as int64) as player_id,
+-    json_value(event_el, '$.assist.name') as assist_player_name,
++    {{ decode_html_entities("json_value(event_el, '$.assist.name')") }} as assist_player_name,
+     safe_cast(json_value(event_el, '$.assist.id') as int64) as assist_player_id,
+     json_value(event_el, '$.type') as event_type,
+     json_value(event_el, '$.detail') as event_detail,
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
+index 02ad576e..9ccee341 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
+@@ -39,9 +39,9 @@ flattened as (
+         raw_ingested_at,
+         fixture_id,
+         safe_cast(json_value(team_block, '$.team.id') as int64) as team_id,
+-        json_value(team_block, '$.team.name') as team_name,
++        {{ decode_html_entities("json_value(team_block, '$.team.name')") }} as team_name,
+         safe_cast(json_value(player_el, '$.player.id') as int64) as player_id,
+-        json_value(player_el, '$.player.name') as player_name,
++        {{ decode_html_entities("json_value(player_el, '$.player.name')") }} as player_name,
+         json_value(player_el, '$.player.photo') as player_photo_url,
+         safe_cast(json_value(stats_el, '$.games.minutes') as int64) as minutes_played,
+         safe_cast(json_value(stats_el, '$.games.number') as int64) as shirt_number,
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
+index 0104e49b..95a405e0 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
+@@ -28,7 +28,7 @@ select
+     raw_ingested_at,
+     fixture_id,
+     safe_cast(json_value(stat_el, '$.team.id') as int64) as team_id,
+-    json_value(stat_el, '$.team.name') as team_name,
++    {{ decode_html_entities("json_value(stat_el, '$.team.name')") }} as team_name,
+     json_value(line_el, '$.type') as stat_type,
+     json_value(line_el, '$.value') as stat_value_raw
+ from stats_rows,
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql
+index 40317938..24af07df 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql
+@@ -39,17 +39,17 @@ select
+     safe_cast(json_value(match_json, '$.fixture.status.elapsed') as int64) as status_elapsed,
+     safe_cast(json_value(match_json, '$.league.season') as int64) as season,
+     safe_cast(json_value(match_json, '$.league.id') as int64) as league_api_id,
+-    json_value(match_json, '$.league.name') as league_name,
++    {{ decode_html_entities("json_value(match_json, '$.league.name')") }} as league_name,
+     json_value(match_json, '$.league.round') as round_name,
+     safe_cast(json_value(match_json, '$.teams.home.id') as int64) as home_team_id,
+-    json_value(match_json, '$.teams.home.name') as home_team_name,
++    {{ decode_html_entities("json_value(match_json, '$.teams.home.name')") }} as home_team_name,
+     safe_cast(json_value(match_json, '$.teams.away.id') as int64) as away_team_id,
+-    json_value(match_json, '$.teams.away.name') as away_team_name,
++    {{ decode_html_entities("json_value(match_json, '$.teams.away.name')") }} as away_team_name,
+     safe_cast(json_value(match_json, '$.goals.home') as int64) as goals_home,
+     safe_cast(json_value(match_json, '$.goals.away') as int64) as goals_away,
+     safe_cast(json_value(match_json, '$.score.penalty.home') as int64) as shootout_home,
+     safe_cast(json_value(match_json, '$.score.penalty.away') as int64) as shootout_away,
+     json_value(match_json, '$.fixture.venue.id') as venue_id,
+-    json_value(match_json, '$.fixture.venue.name') as venue_name,
+-    json_value(match_json, '$.fixture.venue.city') as venue_city
++    {{ decode_html_entities("json_value(match_json, '$.fixture.venue.name')") }} as venue_name,
++    {{ decode_html_entities("json_value(match_json, '$.fixture.venue.city')") }} as venue_city
+ from exploded
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__leagues.sql b/dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
+index 15f125b0..64aa595a 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__leagues.sql
+@@ -48,11 +48,11 @@ season_rows as (
+         row_json,
+         season_el,
+         safe_cast(json_value(row_json, '$.league.id') as int64) as league_api_id,
+-        json_value(row_json, '$.league.name') as league_name,
++        {{ decode_html_entities("json_value(row_json, '$.league.name')") }} as league_name,
+         json_value(row_json, '$.league.type') as league_type,
+         -- Country is a SIBLING of `league` in the /leagues response, not a child:
+         -- $.league = {id, name, type, logo}; $.country = {name, code, flag}.
+-        json_value(row_json, '$.country.name') as country,
++        {{ decode_html_entities("json_value(row_json, '$.country.name')") }} as country,
+         json_value(row_json, '$.league.logo') as league_logo_url,
+         json_value(row_json, '$.country.flag') as country_flag_url
+     from season_rows_raw
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql b/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
+index 7517a03f..e0537288 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
+@@ -24,9 +24,9 @@ select
+     raw_ingested_at,
+     fixture_id,
+     safe_cast(json_value(lineup_el, '$.team.id') as int64) as team_id,
+-    json_value(lineup_el, '$.team.name') as team_name,
++    {{ decode_html_entities("json_value(lineup_el, '$.team.name')") }} as team_name,
+     json_value(lineup_el, '$.formation') as formation,
+-    json_value(lineup_el, '$.coach.name') as coach_name,
++    {{ decode_html_entities("json_value(lineup_el, '$.coach.name')") }} as coach_name,
+     json_query(lineup_el, '$.startXI') as start_xi_json,
+     json_query(lineup_el, '$.substitutes') as substitutes_json
+ from line_rows
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__player_profiles.sql b/dbt_project/models/1_staging/api_football/stg_apif__player_profiles.sql
+index 9776a34d..c8df3204 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__player_profiles.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__player_profiles.sql
+@@ -33,14 +33,14 @@ select
+     league_code,
+     raw_ingested_at,
+     player_id,
+-    json_value(profile_el, '$.player.name') as player_name,
+-    json_value(profile_el, '$.player.firstname') as player_firstname,
+-    json_value(profile_el, '$.player.lastname') as player_lastname,
++    {{ decode_html_entities("json_value(profile_el, '$.player.name')") }} as player_name,
++    {{ decode_html_entities("json_value(profile_el, '$.player.firstname')") }} as player_firstname,
++    {{ decode_html_entities("json_value(profile_el, '$.player.lastname')") }} as player_lastname,
+     safe_cast(json_value(profile_el, '$.player.age') as int64) as age,
+     safe_cast(json_value(profile_el, '$.player.birth.date') as date) as birth_date,
+-    json_value(profile_el, '$.player.birth.place') as birth_place,
+-    json_value(profile_el, '$.player.birth.country') as birth_country,
+-    json_value(profile_el, '$.player.nationality') as nationality,
++    {{ decode_html_entities("json_value(profile_el, '$.player.birth.place')") }} as birth_place,
++    {{ decode_html_entities("json_value(profile_el, '$.player.birth.country')") }} as birth_country,
++    {{ decode_html_entities("json_value(profile_el, '$.player.nationality')") }} as nationality,
+     json_value(profile_el, '$.player.height') as height,
+     json_value(profile_el, '$.player.weight') as weight,
+     safe_cast(json_value(profile_el, '$.player.number') as int64) as squad_number,
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__player_teams.sql b/dbt_project/models/1_staging/api_football/stg_apif__player_teams.sql
+index 5710ecb9..49f3497c 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__player_teams.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__player_teams.sql
+@@ -32,7 +32,7 @@ select
+     raw_ingested_at,
+     player_id,
+     safe_cast(json_value(team_el, '$.team.id') as int64) as team_id,
+-    json_value(team_el, '$.team.name') as team_name,
++    {{ decode_html_entities("json_value(team_el, '$.team.name')") }} as team_name,
+     safe_cast(season_str as int64) as season_year
+ from team_blocks,
+     unnest(json_value_array(json_query(team_el, '$.seasons'))) as season_str
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__players.sql b/dbt_project/models/1_staging/api_football/stg_apif__players.sql
+index 4c173aa8..261e8ea6 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__players.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__players.sql
+@@ -39,11 +39,11 @@ select
+     team_id,
+     season_year,
+     safe_cast(json_value(player_el, '$.player.id') as int64) as player_id,
+-    json_value(player_el, '$.player.name') as player_name,
+-    json_value(player_el, '$.player.firstname') as player_firstname,
+-    json_value(player_el, '$.player.lastname') as player_lastname,
++    {{ decode_html_entities("json_value(player_el, '$.player.name')") }} as player_name,
++    {{ decode_html_entities("json_value(player_el, '$.player.firstname')") }} as player_firstname,
++    {{ decode_html_entities("json_value(player_el, '$.player.lastname')") }} as player_lastname,
+     json_value(player_el, '$.player.photo') as player_photo_url,
+     safe_cast(json_value(player_el, '$.player.birth.date') as date) as birth_date,
+-    json_value(player_el, '$.player.nationality') as nationality,
++    {{ decode_html_entities("json_value(player_el, '$.player.nationality')") }} as nationality,
+     json_query(player_el, '$.statistics') as statistics_json
+ from player_rows
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__squads.sql b/dbt_project/models/1_staging/api_football/stg_apif__squads.sql
+index de511855..ddc01aa8 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__squads.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__squads.sql
+@@ -32,7 +32,7 @@ select
+     raw_ingested_at,
+     team_id,
+     safe_cast(json_value(player_el, '$.id') as int64) as player_id,
+-    json_value(player_el, '$.name') as player_name,
++    {{ decode_html_entities("json_value(player_el, '$.name')") }} as player_name,
+     safe_cast(json_value(player_el, '$.age') as int64) as age,
+     safe_cast(json_value(player_el, '$.number') as int64) as shirt_number,
+     json_value(player_el, '$.position') as position,
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__standings.sql b/dbt_project/models/1_staging/api_football/stg_apif__standings.sql
+index 3eb253ac..66010866 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__standings.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__standings.sql
+@@ -29,11 +29,11 @@ select
+     api_reported_result_count,
+     request_parameters_json,
+     safe_cast(json_value(league_block, '$.league.id') as int64) as league_api_id,
+-    json_value(league_block, '$.league.name') as league_name,
++    {{ decode_html_entities("json_value(league_block, '$.league.name')") }} as league_name,
+     safe_cast(json_value(league_block, '$.league.season') as int64) as season,
+     safe_cast(json_value(team_row, '$.rank') as int64) as standing_rank,
+     safe_cast(json_value(team_row, '$.team.id') as int64) as team_id,
+-    json_value(team_row, '$.team.name') as team_name,
++    {{ decode_html_entities("json_value(team_row, '$.team.name')") }} as team_name,
+     safe_cast(json_value(team_row, '$.points') as int64) as points,
+     safe_cast(json_value(team_row, '$.goalsDiff') as int64) as goals_diff,
+     json_value(team_row, '$.form') as form,
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__teams.sql b/dbt_project/models/1_staging/api_football/stg_apif__teams.sql
+index 0efa76b1..2f2cc007 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__teams.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__teams.sql
+@@ -24,14 +24,14 @@ select
+     request_parameters_json,
+     safe_cast(json_value(row_json, '$.league.season') as int64) as season,
+     safe_cast(json_value(row_json, '$.team.id') as int64) as team_id,
+-    json_value(row_json, '$.team.name') as team_name,
++    {{ decode_html_entities("json_value(row_json, '$.team.name')") }} as team_name,
+     json_value(row_json, '$.team.code') as team_code,
+-    json_value(row_json, '$.team.country') as team_country,
++    {{ decode_html_entities("json_value(row_json, '$.team.country')") }} as team_country,
+     safe_cast(json_value(row_json, '$.team.founded') as int64) as founded_year,
+     json_value(row_json, '$.team.logo') as team_logo_url,
+     json_value(row_json, '$.venue.id') as venue_id,
+-    json_value(row_json, '$.venue.name') as venue_name,
+-    json_value(row_json, '$.venue.address') as venue_address,
+-    json_value(row_json, '$.venue.city') as venue_city,
++    {{ decode_html_entities("json_value(row_json, '$.venue.name')") }} as venue_name,
++    {{ decode_html_entities("json_value(row_json, '$.venue.address')") }} as venue_address,
++    {{ decode_html_entities("json_value(row_json, '$.venue.city')") }} as venue_city,
+     safe_cast(json_value(row_json, '$.venue.capacity') as int64) as venue_capacity
+ from exploded
+diff --git a/dbt_project/models/2_base/api_football/base_apif__lineups.sql b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
+index b72c19f9..03661444 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__lineups.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
+@@ -119,7 +119,7 @@ parsed as (
+         is_starter,
+         sheet_index,
+         {{ player_id_override("nullif(safe_cast(json_value(player_el, '$.player.id') as int64), 0)") }} as player_id,
+-        json_value(player_el, '$.player.name') as player_name,
++        {{ decode_html_entities("json_value(player_el, '$.player.name')") }} as player_name,
+         safe_cast(json_value(player_el, '$.player.number') as int64) as shirt_number,
+         json_value(player_el, '$.player.pos') as position_code,
+         json_value(player_el, '$.player.grid') as grid_position
+diff --git a/dbt_project/tests/assert_html_entity_decode.sql b/dbt_project/tests/assert_html_entity_decode.sql
+new file mode 100644
+index 00000000..ed7636f1
+--- /dev/null
++++ b/dbt_project/tests/assert_html_entity_decode.sql
+@@ -0,0 +1,40 @@
++-- Fixed examples of decode_html_entities: each row fails when the decode of `sent` differs from
++-- `shown`. Each entity in the map, a double escape that decodes once, an entity the map lacks, an
++-- ampersand that starts no entity, and text that must stay as it is.
++with examples as (
++    select * from unnest([
++        struct('N. O&apos;Reilly' as sent, "N. O'Reilly" as shown),
++        struct('A&apos;Sihan', "A'Sihan"),
++        struct('&apos;s-Hertogenbosch', "'s-Hertogenbosch"),
++        struct('Inter&amp;Co Stadium', 'Inter&Co Stadium'),
++        struct('Boulevard O-&gt;E', 'Boulevard O->E'),
++        struct('&lt;b&gt;', '<b>'),
++        struct('&quot;Pepe&quot;', '"Pepe"'),
++        struct('D&#39;Addario', "D'Addario"),
++        struct('D&#x27;Addario', "D'Addario"),
++        struct('&amp;apos;', '&apos;'),
++        struct('Jos&eacute;', 'Jos&eacute;'),
++        struct('AT&T Park', 'AT&T Park'),
++        struct('A & B &amp; C', 'A & B & C'),
++        struct('Brighton & Hove', 'Brighton & Hove'),
++        struct('Jürgen Müller', 'Jürgen Müller'),
++        struct('Plain Name', 'Plain Name'),
++        struct('', ''),
++        struct(cast(null as string), cast(null as string))
++    ])
++),
++
++decodes as (
++    select
++        sent,
++        shown,
++        {{ decode_html_entities('sent') }} as decoded
++    from examples
++)
++
++select
++    sent,
++    shown,
++    decoded
++from decodes
++where decoded is distinct from shown
+diff --git a/dbt_project/tests/assert_names_carry_no_html_entity.sql b/dbt_project/tests/assert_names_carry_no_html_entity.sql
+new file mode 100644
+index 00000000..15ba6615
+--- /dev/null
++++ b/dbt_project/tests/assert_names_carry_no_html_entity.sql
+@@ -0,0 +1,55 @@
++-- Every name and place column, where it first becomes a column: one row per value that still holds
++-- an HTML entity, such as one decode_html_entities does not know. Later layers copy these columns.
++{%- set name_columns = [
++    ('stg_apif__coach_career', 'team_name'),
++    ('stg_apif__coaches', 'coach_name'),
++    ('stg_apif__coaches', 'coach_first_name'),
++    ('stg_apif__coaches', 'coach_last_name'),
++    ('stg_apif__coaches', 'coach_birth_place'),
++    ('stg_apif__coaches', 'coach_birth_country'),
++    ('stg_apif__coaches', 'coach_nationality'),
++    ('stg_apif__fixture_events', 'team_name'),
++    ('stg_apif__fixture_events', 'player_name'),
++    ('stg_apif__fixture_events', 'assist_player_name'),
++    ('stg_apif__fixture_players', 'team_name'),
++    ('stg_apif__fixture_players', 'player_name'),
++    ('stg_apif__fixture_statistics', 'team_name'),
++    ('stg_apif__fixtures_next', 'league_name'),
++    ('stg_apif__fixtures_next', 'home_team_name'),
++    ('stg_apif__fixtures_next', 'away_team_name'),
++    ('stg_apif__fixtures_next', 'venue_name'),
++    ('stg_apif__fixtures_next', 'venue_city'),
++    ('stg_apif__leagues', 'league_name'),
++    ('stg_apif__leagues', 'country'),
++    ('stg_apif__lineups', 'team_name'),
++    ('stg_apif__lineups', 'coach_name'),
++    ('stg_apif__player_profiles', 'player_name'),
++    ('stg_apif__player_profiles', 'player_firstname'),
++    ('stg_apif__player_profiles', 'player_lastname'),
++    ('stg_apif__player_profiles', 'birth_place'),
++    ('stg_apif__player_profiles', 'birth_country'),
++    ('stg_apif__player_profiles', 'nationality'),
++    ('stg_apif__player_teams', 'team_name'),
++    ('stg_apif__players', 'player_name'),
++    ('stg_apif__players', 'player_firstname'),
++    ('stg_apif__players', 'player_lastname'),
++    ('stg_apif__players', 'nationality'),
++    ('stg_apif__squads', 'player_name'),
++    ('stg_apif__standings', 'league_name'),
++    ('stg_apif__standings', 'team_name'),
++    ('stg_apif__teams', 'team_name'),
++    ('stg_apif__teams', 'team_country'),
++    ('stg_apif__teams', 'venue_name'),
++    ('stg_apif__teams', 'venue_address'),
++    ('stg_apif__teams', 'venue_city'),
++    ('base_apif__lineups', 'player_name'),
++] %}
++{% for model_name, column_name in name_columns %}
++select distinct
++    '{{ model_name }}' as model_name,
++    '{{ column_name }}' as column_name,
++    {{ column_name }} as name_value
++from {{ ref(model_name) }}
++where regexp_contains({{ column_name }}, r'&#?[A-Za-z0-9]+;')
++{% if not loop.last %}union all{% endif %}
++{% endfor %}

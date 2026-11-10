@@ -18,6 +18,7 @@ scope_paths:
   - docs/wireframes/09_chrome.md
   - design-mocks/gen_competitions.py
   - design-mocks/gen_navmap.py
+  - docs/wireframes/10_home.md
 
 impact_map: >
   writers: none; no ingestion, no dbt model, no seed, no export change.
@@ -59,4 +60,7 @@ done_when:
   - npm run build in site_v2 passes.
   - pytest tests passes, apart from the CI-check tests that fail on Windows only.
 
-amendments: (none)
+amendments:
+  - 2026-11-10: + docs/wireframes/10_home.md — authority: approved in chat, 2026-11-10; content: its
+    line 90 ends "Date tabs and a "more matches" control are deferred to **#908**.", dropping the
+    stale count of nav items without a page.

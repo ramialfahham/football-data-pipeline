@@ -1,11 +1,4 @@
-"""Export BL1 team-season insights JSON (legacy single-file entry point).
-
-Prefer `python scripts/export_pages_data.py` for all domestic leagues and the
-Pages manifest. This script exports BL1 only to the path you pass.
-
-Usage:
-    python scripts/export_team_season_json.py <output_path>
-"""
+"""Export BL1 team-season insights JSON to one path; export_pages_data.py covers all leagues."""
 from __future__ import annotations
 
 import pathlib

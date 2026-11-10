@@ -1,16 +1,4 @@
-"""Verify every competition_type used in the registry has a row in the competition_types seed.
-
-The seed dbt_project/seeds/competition_types.csv is the single source of truth for the
-club/national split (entity_type). Downstream models look up entity_type by
-competition_type, so a competition referencing a type that is not in the seed would get
-no club/national classification. This check fails CI if that ever happens.
-
-Registry source of truth: docs/competition_registry.yml (any status).
-Seed: dbt_project/seeds/competition_types.csv.
-
-Usage (from repo root or dbt_project/):
-    python scripts/check_competition_type_seed.py
-"""
+"""Verify every competition_type used in the registry has a row in the competition_types seed."""
 
 from __future__ import annotations
 

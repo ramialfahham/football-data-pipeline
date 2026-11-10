@@ -1,9 +1,4 @@
-"""Render the INTERACTION STANDARD — what is clickable, where the click boundary is, how it
-signals. Every example below is live: hover them, tab through them, tap them.
-
-Built from the same `interaction.py` the four page mocks import, so this page cannot describe
-one thing while the pages do another.
-"""
+"""Render the interaction standard page, built from the same `interaction.py` the page mocks use."""
 import html
 import sys
 from pathlib import Path

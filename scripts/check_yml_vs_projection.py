@@ -46,8 +46,7 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 DBT_DIR = REPO_ROOT / "dbt_project"
 MODELS_DIR = DBT_DIR / "models"
 
-# Floors, set well under what the repo has (101 models, 1,915 listed columns when written) and
-# well over zero, so ordinary deletion never trips them and a broken walk always does.
+# Floors well under what the repo has, so ordinary deletion never trips them but a broken walk does.
 MIN_MODELS = 50
 MIN_LISTED_COLUMNS = 800
 
@@ -69,7 +68,6 @@ def _skip(path: pathlib.Path) -> bool:
 
 
 def models_on_disk() -> set[str]:
-    """Model names from the SQL files, every layer."""
     return {p.stem for p in MODELS_DIR.rglob("*.sql") if not _skip(p)}
 
 
@@ -103,7 +101,6 @@ def listed_columns() -> dict[str, tuple[pathlib.Path, list[str]]]:
 
 
 def catalog_columns(catalog_path: pathlib.Path) -> dict[str, set[str]]:
-    """model name -> lower-cased column names the warehouse projects."""
     try:
         catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, UnicodeDecodeError, OSError) as exc:
@@ -122,7 +119,7 @@ def catalog_columns(catalog_path: pathlib.Path) -> dict[str, set[str]]:
 
 
 def check(catalog_path: pathlib.Path) -> tuple[list[str], dict[str, int]]:
-    """(findings, census). Every guard that can refuse the run raises Abort here."""
+    """(findings, census); every guard that can refuse the run raises Abort here."""
     models = models_on_disk()
     if len(models) < MIN_MODELS:
         raise Abort(

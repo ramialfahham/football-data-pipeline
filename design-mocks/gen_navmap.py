@@ -1,20 +1,7 @@
-"""Render HOW THE SITE IS PUT TOGETHER -- in plain language, starting at the home page.
+"""Render the plain-language site map, starting at the home page.
 
-This replaces the route-pattern map (gen_sitemap.py), which was accurate and unreadable:
-it showed `/{locale}/{competition-slug}/` where what is wanted is "a competition, e.g.
-Bundesliga", and it left out the site MENU entirely, which is where navigation actually
-starts.
-
-Split of responsibility:
-  * DERIVED from the repo -- whether a page exists (globbing site_v2/src/pages), the menu's
-    items (SiteHeader.astro + the EN strings), and whether each menu item is a link or inert
-    text. Those are facts and must not be typed.
-  * HAND-WRITTEN -- the plain-English description of what each page shows and where it leads.
-    There is no machine-readable source for "shows the next round and the league table", and
-    pretending otherwise would be worse than saying so.
-
-gen_sitemap.py stays: the URL-pattern view is the right one for SEO and routing work. This is
-the one for deciding what the site IS.
+Page existence and menu items are derived from the repo; what each page shows and where it
+leads is hand-written because no machine-readable source exists.
 """
 import html
 import re
@@ -30,11 +17,8 @@ OUT = Path(__file__).with_name("navmap.html")
 
 E = html.escape
 
-# ------------------------------------------------------------- derived bits
-
 
 def page_exists(*route_parts):
-    """Is there an .astro template for this route shape?"""
     want = "/".join(route_parts)
     for p in PAGES.rglob("*.astro"):
         if p.relative_to(PAGES).as_posix().replace(".astro", "") == want:
@@ -43,7 +27,6 @@ def page_exists(*route_parts):
 
 
 def menu_items():
-    """The nav labels, in order, plus whether each renders as a LINK or inert text."""
     src = HEADER.read_text(encoding="utf-8")
     keys = re.findall(r't\(lang,\s*"(nav\w+)"\)', src)
     en = {}
@@ -51,41 +34,31 @@ def menu_items():
     for k in keys:
         m = re.search(r'\b%s:\s*"([^"]*)"' % k, body)
         en[k] = m.group(1) if m else k
-    # the nav block: are the items <a> or <span>?
     nav = src.split('<nav class="mainnav"', 1)[1].split("</nav>", 1)[0]
     is_link = "<a" in nav
     return [(k, en[k]) for k in keys], is_link
 
 
 MENU_NOTES = {
-    "navCompetitions": ("A list of all twelve competitions.",
-                        "planned",
-                        "A list page is in the plan. But the home page already carries a row "
-                        "of competition buttons, so it is worth asking whether a separate "
-                        "page earns its place."),
+    "navCompetitions": ("A list of all competitions.",
+                        "live",
+                        "Built, and the menu links to it."),
     "navMatches": ("Matches across every competition.",
-                   "designed",
-                   "DESIGNED 2026-08-10 &mdash; two pages, <b>Next matches</b> and "
-                   "<b>Past matches</b>. This was the one menu item with nothing behind it that "
-                   "clearly earned a page, and it is now the first thing the menu can point at."),
+                   "live",
+                   "Built, and the menu links to it."),
     "navTeams": ("Every club.",
-                 "none",
-                 "NOTHING IS PLANNED. Club pages exist, but the only thing that lists clubs "
-                 "is a competition's table."),
+                 "live",
+                 "Built, and the menu links to it."),
     "navPlayers": ("Every player.",
-                   "none",
-                   "NOTHING IS PLANNED, and the player page itself is not built."),
+                   "designed",
+                   "Designed, not built."),
     "navStatistics": ("Stat leaderboards and definitions.",
                         "partial",
                         "Only a page PER METRIC is planned (a glossary entry). There is no index, "
                         "and league leaderboards live under each competition."),
 }
 
-# --------------------------------------------------------------- the pages
-#
-# (key, plain name, example, status, shows[], go[], inside[], note)
-# `status` is OVERWRITTEN below from the repo where a template can be found -- the value here
-# is only the fallback for pages that do not exist yet.
+# `status` is overwritten from the repo where a template exists; the value here is the fallback.
 
 PAGES_PLAIN = [
     dict(
@@ -101,7 +74,7 @@ PAGES_PLAIN = [
         note="Two more blocks are designed and unbuilt: Top players and Top teams.",
     ),
     dict(
-        key="matches", route=None,
+        key="matches", route=("[lang]", "[matches]", "index"),
         name="All matches", example="&hellip;/en/matches/",
         status="designed", depth=1,
         shows=["Every competition's next matchday, grouped by competition then date"],
@@ -326,17 +299,13 @@ def build():
      read from the code; the descriptions are written by hand.</p>
 
   <h2>1. The menu, at the top of every page</h2>
-  <p class="sub">Five items. <b>Not one of them is a link</b> &mdash; they render as plain
-     text, because none of the pages they would lead to exists. That is honest, but it means
-     the site currently has <b>no navigation at all</b>: everything is reached by clicking
-     something in the page body.</p>
+  <p class="sub">Five items. Competitions, Matches and Teams are links; Players and Statistics
+     render as plain text, because the pages they would lead to are not built.</p>
   <table class="menu">
     <tr><th>Menu item</th><th>What it would show</th><th>Is there a page for it?</th></tr>
 %s
   </table>
-  <p class="sub warn">So four of the six menu items lead nowhere <b>and have nothing planned
-     behind them</b>. That is the biggest structural gap, and it is bigger than any single
-     page.</p>
+  <p class="sub warn">So two of the five menu items lead nowhere.</p>
 
   <h2>2. The pages, starting at the home page</h2>
   <p class="sub">Indented by how you reach them, not by web address.</p>
@@ -463,7 +432,7 @@ if __name__ == "__main__":
     items, nav_is_link = menu_items()
     print("  menu items derived: %s" % ", ".join(lbl for _k, lbl in items))
     print("  menu renders as %s" % ("LINKS" if nav_is_link else "inert text"))
-    assert len(items) == 6, "expected 6 nav items, found %d" % len(items)
+    assert len(items) == 5, "expected 5 nav items, found %d" % len(items)
     assert not nav_is_link, "the nav now emits anchors -- this page says it does not"
     for p in PAGES_PLAIN:
         if p["route"]:

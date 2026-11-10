@@ -1,21 +1,4 @@
-"""The competition TAXONOMY as it exists in the data, and what each level produces as a page
-grouping. A decision aid, not a page.
-
-The rule that shaped this page: group competitions by their taxonomy.
-The competitions page was grouped by `display_group`, which is the COARSEST of three levels and a
-deliberate rollup. Nothing was invented, but the richest thing in the data was not used either.
-
-THREE LEVELS, all in `dbt_project/seeds/competition_types.csv` keyed by the registry's
-`competition_type`:
-
-    competition_type   12 values   the taxonomy itself       (domestic_league, continental_club, …)
-    entity_type         2 values   who competes              (club | national)
-    display_group       4 values   the browse rollup         (leagues | cups | continental-club | national-teams)
-
-⚠ Only `display_group` has i18n labels today (`groupLeagues`, `groupCups`,
-`groupContinentalClub`, `groupNationalTeams`). Using a finer level means new keys — which is a
-cost, not a blocker, and the English below is a PROPOSAL, not approved copy.
-"""
+"""Decision aid: what each taxonomy level in competition_types.csv gives as a page grouping."""
 import html
 import sys
 from pathlib import Path
@@ -40,8 +23,7 @@ SEED = {r.split(",")[_h.index("competition_type")]: {
             "display_group": r.split(",")[_h.index("display_group")]}
         for r in _rows[1:] if r.strip()}
 
-# ⚠ PROPOSED English for the finer levels. `display_group`'s four already exist in strings.ts;
-# these do not, and inventing them is exactly the cost of using a finer level.
+# Proposed English labels for the finer levels; they do not exist in strings.ts.
 TYPE_LABEL = {
     "domestic_league": "Domestic leagues", "domestic_cup": "Domestic cups",
     "domestic_super_cup": "Domestic super cups", "club_qualifying": "Continental qualifying",

@@ -1,12 +1,4 @@
-"""Render the COMPETITION PAGE, Rankings tab, as a standalone mock for the review on GitLab #129.
-
-Real data: every Bundesliga 2026/27 club's season metrics from prod mart_team_profile, its
-season card totals summed from fct_fixture_team_stats, and every player's season metrics from
-prod mart_player_profile, pulled read-only. The README dates the pulls. The boards are ranked
-here the way mart_team_leaderboards ranks (dense rank by the catalogue's direction).
-
-Imports the shared pieces from design-mocks so nothing here is drawn fresh.
-"""
+"""Standalone mock of the competition page Rankings tab, built from real Bundesliga metrics."""
 import json
 import sys
 from pathlib import Path
@@ -27,8 +19,6 @@ COPY.update({
     "colTablePos":    ("Table", "Sija", True),
     "secTopTeams":    ("Top teams", "Parhaat joukkueet", True),
     "boardMore":      ("Full list", "Koko lista", True),
-    # the metric groups, keyed and named as the site's copy is (`metricGroups.<key>.label`,
-    # the catalogue's `metric_group` key)
     "metricGroups.goals.label":       ("Goals", "Maalit", False),
     "metricGroups.shooting.label":    ("Shooting", "Laukaukset", False),
     "metricGroups.passing.label":     ("Passing", "Syötöt", False),
@@ -45,9 +35,8 @@ COPY.update({
 })
 
 METRICS_FILE = HERE / "bl1_team_metrics.json"
-# the approved board set, in its groups and order; the mock ranks from mart_team_profile
-# the way mart_team_leaderboards would (dense rank by the catalogue's direction, first three by
-# value then name)
+# The mock ranks from mart_team_profile the way mart_team_leaderboards does: dense rank by the
+# catalogue's direction, ties ordered by value then name.
 GROUPS = [
     ("metricGroups.goals.label",      ["goals_per_match", "goals_against_per_match"]),
     ("metricGroups.shooting.label",   ["shots_on_goal_per_match", "shots_on_goal_against_per_match",
@@ -59,12 +48,10 @@ GROUPS = [
 ]
 TOP = 5
 
-# The two card boards rank most first by ruling, whatever direction the catalogue gives the
-# metric (the mart's most_first_by_ruling); the card totals come from a separate pull.
+# The card boards rank most first whatever direction the catalogue gives the metric.
 MOST_FIRST_BY_RULING = {"cards_yellow", "cards_red"}
 CARD_KEYS = ("cards_yellow", "cards_red")
 CARDS_FILE = HERE / "bl1_team_cards.json"
-# the site's Finnish names for the two card labels (strings.ts), beside the other team labels
 FI.update({"cards_yellow": ("Keltaiset kortit", False), "cards_red": ("Punaiset kortit", False)})
 
 
@@ -105,7 +92,7 @@ def catalogue_row(key):
 
 
 def ranks_fewest_first(key):
-    """The board's direction as the mart serves it: the catalogue's, except the ruled card boards."""
+    """The board's direction as the mart serves it: the catalogue's, except the card boards."""
     return catalogue_row(key)["direction"] == "lower_better" and key not in MOST_FIRST_BY_RULING
 
 
@@ -119,8 +106,6 @@ def fmt(key, v):
 
 
 def load_boards():
-    """Rank all 18 on each board from mart_team_profile: dense rank by the catalogue's direction,
-    the first three by value then name (the tie-broken order the leaderboard mart carries)."""
     teams = json.loads(METRICS_FILE.read_bytes().decode("utf-8"))
     cards = {c["team_slug"]: c for c in json.loads(CARDS_FILE.read_bytes().decode("utf-8"))}
     for t in teams:
@@ -157,8 +142,6 @@ def board_html(key, boards):
 
 
 def boards_html(boards):
-    """Block 1, Team rankings: the groups inside the block under the Table block's group heading
-    (the one over "Group A"), every board's name a link to the full list (#140)."""
     parts = []
     for grp, keys in GROUPS:
         parts.append('<div class="fxgroup rkgroup"><div class="gh"><span class="nm">%s</span></div>%s</div>'
@@ -172,7 +155,7 @@ def boards_html(boards):
 """ % (loc("secTeamRankings"), loc("teamRankingsIntro"), "\n".join(parts))
 
 
-# ---- the player half: the approved 17 boards in seven groups ----
+# ---- the player half ----
 PLAYER_GROUPS = [
     ("metricGroups.goals.label",       ["goals_player", "assists_player"]),
     ("metricGroups.shooting.label",    ["shots_on_goal_player", "finishing_efficiency_player_pct"]),
@@ -183,8 +166,7 @@ PLAYER_GROUPS = [
     ("metricGroups.goalkeeping.label", ["saves_player"]),
 ]
 PLAYERS_FILE = HERE / "bl1_player_metrics.json"
-# the leaderboard mart's rate rules: minutes >= 270, a shots-on-goal floor for finishing; the
-# position scope (outfield / goalkeeper) is not in this pull and is noted as such
+# The leaderboard mart's rate rules: minutes >= 270, plus a shots-on-goal floor for finishing.
 RATE_MIN_MINUTES = 270
 RATE_FLOORS = {"finishing_efficiency_player_pct": ("shots_on_goal_player", 10)}
 MOST_FIRST_OVERRIDE = {"cards_yellow_player", "cards_red_player"}
@@ -245,8 +227,7 @@ def player_board_html(key, boards):
 
 
 def player_boards_html(boards):
-    """Block 2, Player rankings: the same structure as the team half; a board nobody qualifies
-    for is absent (the nothing-renders-empty rule)."""
+    """The player half; a board nobody qualifies for is omitted."""
     parts = []
     for grp, keys in PLAYER_GROUPS:
         inner = "\n".join(player_board_html(k, boards) for k in keys)

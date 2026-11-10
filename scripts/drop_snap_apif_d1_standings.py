@@ -1,17 +1,6 @@
-"""Drop the orphaned snap_apif_d1_standings table after the snapshot was removed.
+"""Drop the orphaned snap_apif_d1_standings table; dbt no longer defines that snapshot.
 
-The dbt snapshot is replaced by base_apif__standings (one row per
-(league_code, season, team_id) deduplicated from staging). The snapshot's
-SCD2 history was never consumed downstream, and its (league_code, season,
-team_id, group_description) unique_key caused stale-zone rows to leak into
-fct_standings — see PR #51 for the mart-level workaround and the snapshot
-removal PR for the structural fix.
-
-Run once after the snapshot removal merges. dbt will not recreate the
-table because the snapshot definition no longer exists.
-
-Usage:
-    python scripts/drop_snap_apif_d1_standings.py [--dry-run]
+It drops unless --dry-run is given.
 """
 
 from __future__ import annotations
