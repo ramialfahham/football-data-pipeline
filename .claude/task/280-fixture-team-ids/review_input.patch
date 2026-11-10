@@ -1,0 +1,213 @@
+diff --git a/.claude/task/280-fixture-team-ids/contract.md b/.claude/task/280-fixture-team-ids/contract.md
+new file mode 100644
+index 00000000..d5351dc4
+--- /dev/null
++++ b/.claude/task/280-fixture-team-ids/contract.md
+@@ -0,0 +1,67 @@
++# Task contract — a cup fixture names the club that played it
++
++objective: >
++  Issue #280. Every fixture whose provider id names a same-named club from another country names
++  the club that played it, through rows in the existing per-fixture override seed. A test fails
++  when a club in a continental club competition belongs to another confederation.
++
++refs: >
++  #280. Plan approved in chat, 2026-11-09, through the coordinating session. Five provider team
++  searches approved in chat, 2026-11-09.
++
++scope_paths:
++  - .claude/task/280-fixture-team-ids/
++  - dbt_project/seeds/fixture_team_id_overrides.csv
++  - dbt_project/seeds/team_country_corrections.csv
++  - dbt_project/seeds/team_name_overrides.csv
++  - dbt_project/tests/assert_continental_club_in_competition_confederation.sql
++
++impact_map: >
++  writers: fixture_team_id_overrides is read by base_apif__fixtures_next, base_apif__fixture_events,
++  base_apif__fixture_players, base_apif__fixture_statistics, base_apif__lineups and
++  base_apif__teams, and by the tests assert_fixture_team_id_overrides_applied,
++  assert_base_team_stats_cleaned and the three team-in-fixture-participants tests.
++  team_country_corrections and team_name_overrides are read by base_apif__teams_global, the only
++  writer of dim_team.
++  downstream: `dbt ls --select fixture_team_id_overrides+ team_country_corrections+
++  --resource-type model` (run 2026-11-09) gives 88 models, 31 of them marts: every model that
++  carries a fixture's teams, a team's matches or a team's country.
++  layer_rules: seed rows only; no model changes. The new test reads core (fct_fixture, dim_team,
++  dim_league, dim_country). No partition_by or cluster_by. No per-competition file.
++  deploy_order: additive seed rows. The merge rebuilds everything downstream in data:build:main.
++  blast_radius: measured on prod, 2026-11-09. 11 fixtures change one team each: 3 FA Cup to
++  Newmarket Town (8878), 4 CAF Champions League to Victoria United of Cameroon (20800) and to our
++  own Gambia Armed Forces (-2), 4 Coupe de France to Diables Noirs de Combani (20600) and to our
++  own Lourdes FC (-3), Rochefort FC (-4) and AS Montigny-lès-Metz (-5). CD Lourdes (9852) moves
++  from France to Spain. 20800 and Victoria United (18919) share a name: 18919's slug moves from
++  victoria-united to victoria-united-canada, and 20800, whose provider country no feed carries,
++  takes victoria-united-20800. The new names take no slug another team holds. The MR head lists
++  every fixture before and after.
++
++approved_design:
++  - none: no page output changes
++
++decisions_taken: >
++  The plan was approved in chat on 2026-11-09 through the coordinating session.
++  No new mechanism: the reattribute_in_fixture mode of fixture_team_id_overrides already moves a
++  wrong id to the right one inside one fixture across the fixture list and every match feed.
++  Each row cites the organiser's page (CAF, The FA, the FFF and its leagues, the RFEF) or a party
++  to the match, and the provider's own fixtures where they prove the id.
++  The provider's own id is used where its team search finds the club (20800); our own ids -2 to
++  -5 are minted where it does not, each with a sourced name and country, as -1 was.
++  The continental check compares the club's country's confederation with the competition's, only
++  where both are stored. The domestic version stays a proposal: Welsh, Canadian and French
++  overseas clubs cross borders legitimately, so it needs a list of allowed pairs.
++
++decisions_reserved:
++  - The domestic check (a club in another country's domestic competition) needs a list of
++    allowed country pairs, which is a new holder; it is proposed, not built.
++
++done_when:
++  - dbt parse passes; SQLFluff passes on the new test; the offline gates and pytest pass.
++  - The changed base models, compiled with the new rows and run read-only on prod, carry the right
++    id in every listed fixture and feed; assert_fixture_team_id_overrides_applied returns no rows.
++  - The new test returns no rows once every row is applied.
++  - The MR's ci_mr tables compared with prod change only the listed fixtures, teams and countries.
++
++amendments: (none)
+diff --git a/dbt_project/seeds/fixture_team_id_overrides.csv b/dbt_project/seeds/fixture_team_id_overrides.csv
+index b666ecd8..e2b234df 100644
+--- a/dbt_project/seeds/fixture_team_id_overrides.csv
++++ b/dbt_project/seeds/fixture_team_id_overrides.csv
+@@ -5,3 +5,14 @@ wrong_team_api_id,correct_team_api_id,mode,fixture_id,note
+ 22722,132,reattribute_if_cohabiting,,"Chapecoense-sc 132 away lineup filed under phantom id 22722 (name null, epoch update timestamp) in BSA fixture 1492362"
+ 104,-1,reattribute_in_fixture,1239850,"Red Star de Bangui (Central African Republic) filed under Red Star FC 93 104 in CAFCL 2024 1st preliminary round, Red Star v Djoliba; the provider has no id for it. CAF: https://www.cafonline.com/caf-champions-league/news/new-champions-league-season-kicks-off-with-high-stakes-preliminary-round-matches/"
+ 104,-1,reattribute_in_fixture,1239851,"Red Star de Bangui (Central African Republic) filed under Red Star FC 93 104 in CAFCL 2024 1st preliminary round, Djoliba v Red Star; the provider has no id for it. CAF: https://www.cafonline.com/caf-champions-league/news/new-champions-league-season-kicks-off-with-high-stakes-preliminary-round-matches/"
++17072,8878,reattribute_in_fixture,1442552,"Newmarket Town (England) filed under Newmarket (Australia) 17072 in FA Cup 2025-26 1st qualifying round, Newmarket Town v Woodford Town at Cricket Field Road, Newmarket Town's ground; 8878 played its earlier rounds. Woodford Town FC: https://www.woodfordtownfc.com/news/match-report--late-drama-sees-woods-win-in-the-emirates-fa-cup-2934195.html"
++17072,8878,reattribute_in_fixture,1636532,"Newmarket Town (England) filed under Newmarket (Australia) 17072 in FA Cup 2026-27 1st qualifying round, Canvey Island v Newmarket Town. The FA: https://www.thefa.com/-/media/thefacom-new/files/competitions/2026-27/emirates-fa-cup/the-emirates-fa-cup-1q.ashx"
++17072,8878,reattribute_in_fixture,1638450,"Newmarket Town (England) filed under Newmarket (Australia) 17072 in the FA Cup 2026-27 1st qualifying round replay, Newmarket Town v Canvey Island. The FA: https://www.thefa.com/-/media/thefacom-new/files/competitions/2026-27/emirates-fa-cup/the-emirates-fa-cup-1q.ashx"
++3170,20600,reattribute_in_fixture,1647962,"Diables Noirs de Combani (Mayotte), provider id 20600, filed under Diables Noirs (Congo) 3170 in Coupe de France 2026-27 7th round, Le Puy v Diables Noirs. FFF: https://www.fff.fr/article/17664-toutes-les-affiches-des-7e-et-8e-tours.html"
++10531,-2,reattribute_in_fixture,649469,"Gambia Armed Forces (Gambia) filed under Warriors FC (Singapore) 10531 in CAFCL 2020-21 preliminary round, Gambia Armed Forces v Teungueth; the provider has no id for it. CAF: https://www.cafonline.com/caf-champions-league/news/2020-21-first-preliminary-round-first-leg-results-x2960/"
++10531,-2,reattribute_in_fixture,649470,"Gambia Armed Forces (Gambia) filed under Warriors FC (Singapore) 10531 in CAFCL 2020-21 preliminary round, Teungueth v Gambia Armed Forces; the provider has no id for it. CAF: https://www.cafonline.com/caf-champions-league/news/2020-21-first-preliminary-round-first-leg-results-x2960/"
++18919,20800,reattribute_in_fixture,1239842,"Victoria United (Cameroon), provider id 20800, filed under Victoria United (Canada) 18919 in CAFCL 2024-25 1st preliminary round, Victoria United v Samartex. CAF: https://www.cafonline.com/caf-champions-league/news/202425-totalenergies-champions-league-first-preliminary-round-fixtures-results/"
++18919,20800,reattribute_in_fixture,1239843,"Victoria United (Cameroon), provider id 20800, filed under Victoria United (Canada) 18919 in CAFCL 2024-25 1st preliminary round, Samartex v Victoria United. CAF: https://www.cafonline.com/caf-champions-league/news/202425-totalenergies-champions-league-first-preliminary-round-fixtures-results/"
++9852,-3,reattribute_in_fixture,1647964,"Lourdes FC (France) filed under CD Lourdes (Spain) 9852 in Coupe de France 2026-27 7th round, Lourdes FC v Pau FC; the provider has no id for it. FFF: https://www.fff.fr/article/17664-toutes-les-affiches-des-7e-et-8e-tours.html"
++5914,-4,reattribute_in_fixture,1647983,"Rochefort FC (France) filed under Rochefort (Belgium) 5914 in Coupe de France 2026-27 7th round, Rochefort v Juventus Papus; the provider has no id for it. FFF: https://www.fff.fr/article/17673--une-ligue-2-notre-voeu-est-exauce-.html"
++16977,-5,reattribute_in_fixture,1647970,"AS Montigny-lès-Metz (France) filed under Montigny (Belgium) 16977 in Coupe de France 2026-27 7th round, AS Montigny-lès-Metz v CA Pontarlier; the provider has no id for it. Ligue du Grand Est: https://lgef.fff.fr/simple/coupe-de-france-credit-agricole-les-affiches-du-7e-tour/"
+diff --git a/dbt_project/seeds/team_country_corrections.csv b/dbt_project/seeds/team_country_corrections.csv
+index 6ace2210..10d88c5c 100644
+--- a/dbt_project/seeds/team_country_corrections.csv
++++ b/dbt_project/seeds/team_country_corrections.csv
+@@ -1,4 +1,8 @@
+ team_api_id,team_country,provider_country,source,note
++-5,France,,https://lgef.fff.fr/simple/coupe-de-france-credit-agricole-les-affiches-du-7e-tour/,Our own id; the provider has no row for AS Montigny-lès-Metz. The Ligue du Grand Est lists it in the Coupe de France.
++-4,France,,https://epreuves.fff.fr/competition/club/550807-rochefort-f-c/information.html,"Our own id; the provider has no row for Rochefort FC. The FFF lists it in Rochefort, Charente-Maritime."
++-3,France,,https://www.fff.fr/article/17664-toutes-les-affiches-des-7e-et-8e-tours.html,Our own id; the provider has no row for Lourdes FC. The FFF lists it in the Coupe de France.
++-2,Gambia,,https://www.cafonline.com/caf-champions-league/news/2020-21-first-preliminary-round-first-leg-results-x2960/,Our own id; the provider has no row for Gambia Armed Forces. CAF lists it under Gambia.
+ -1,Central African Republic,,https://www.cafonline.com/caf-champions-league/news/new-champions-league-season-kicks-off-with-high-stakes-preliminary-round-matches/,Our own id; the provider has no row for Red Star de Bangui. CAF lists it under the Central African Republic.
+ 162,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
+ 184,Germany,,https://datencenter.dfb.de/de/competitions/dfb-pokal/seasons/2021-22/matchday/1-runde,Provider sends no country; plays in the DFB-Pokal.
+@@ -81,7 +85,7 @@ team_api_id,team_country,provider_country,source,note
+ 9800,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
+ 9808,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
+ 9835,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
+-9852,France,,https://epreuves.fff.fr/competition/engagement/12-coupe-de-france-credit-agricole/phase/1/8/resultats-et-calendrier,Provider sends no country; the FFF lists Lourdes FC in the Coupe de France.
++9852,Spain,,https://rfef.es/en/noticias/The-Dream-Lives-On-the-20-Teams-in-the-Preliminary-Round,Provider sends no country; the RFEF lists CD Lourdes in the Copa del Rey preliminary round.
+ 9883,Spain,,https://rfef.es/es/noticias/resumenes-lo-mas-destacado-1a-eliminatoria-golpe-clic,Provider sends no country; plays in the RFEF's Copa del Rey.
+ 9947,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists AS Muret.
+ 9961,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists US Trégunc.
+@@ -150,3 +154,4 @@ team_api_id,team_country,provider_country,source,note
+ 18160,French Guiana,,https://www.fff.fr/article/3845-les-qualifies-en-outre-mer.html,"Provider sends no country; the FFF's 2021-22 Coupe de France report on the overseas regional finals lists ASC Ouest, of Saint-Laurent du Maroni, in Guyane."
+ 19116,Equatorial Guinea,Paraguay,https://www.cafonline.com/caf-champions-league/news/africa-s-elite-learn-their-path-to-the-group-stages-of-the-totalenergies-caf-champions-league-202627/,Provider sends Paraguay; plays in the CAF Champions League for Equatorial Guinea.
+ 19866,South Sudan,,https://www.cafonline.com/media/bufbzcow/club-licensing-cl-licensed-clubs-2022-2023.pdf,Provider sends no country; CAF lists Zalan FC under South Sudan.
++20800,Cameroon,,https://www.cafonline.com/caf-champions-league/news/202425-totalenergies-champions-league-first-preliminary-round-fixtures-results/,Provider sends no country in our feeds; CAF lists Victoria United under Cameroon.
+diff --git a/dbt_project/seeds/team_name_overrides.csv b/dbt_project/seeds/team_name_overrides.csv
+index 7dafe24b..d602138d 100644
+--- a/dbt_project/seeds/team_name_overrides.csv
++++ b/dbt_project/seeds/team_name_overrides.csv
+@@ -111,3 +111,8 @@ team_api_id,team_name,source,note
+ 801,Pisa SC,https://en.wikipedia.org/wiki/Pisa_S.C.,"Provider sends bare ""Pisa"", the city name, not the club."
+ 488,US Sassuolo,https://en.wikipedia.org/wiki/US_Sassuolo_Calcio,"Provider sends bare ""Sassuolo"", the city name, not the club."
+ -1,Red Star,https://www.cafonline.com/caf-champions-league/news/new-champions-league-season-kicks-off-with-high-stakes-preliminary-round-matches/,"Our own id for Red Star de Bangui (Central African Republic), which the provider files under Red Star FC 93 104; CAF names it Red Star."
++-2,Gambia Armed Forces,https://www.cafonline.com/caf-champions-league/news/2020-21-first-preliminary-round-first-leg-results-x2960/,"Our own id for Gambia Armed Forces (Gambia), which the provider files under Warriors FC 10531; CAF names it Gambia Armed Forces."
++-3,Lourdes FC,https://www.fff.fr/article/17664-toutes-les-affiches-des-7e-et-8e-tours.html,"Our own id for Lourdes FC (France), which the provider files under CD Lourdes 9852; the FFF names it Lourdes FC."
++-4,Rochefort FC,https://epreuves.fff.fr/competition/club/550807-rochefort-f-c/information.html,"Our own id for Rochefort FC (France), which the provider files under Rochefort 5914; the FFF names it Rochefort FC."
++-5,AS Montigny-lès-Metz,https://lgef.fff.fr/simple/coupe-de-france-credit-agricole-les-affiches-du-7e-tour/,"Our own id for AS Montigny-lès-Metz (France), which the provider files under Montigny 16977; the Ligue du Grand Est names it AS Montigny-lès-Metz."
++20800,Victoria United,https://www.cafonline.com/caf-champions-league/news/202425-totalenergies-champions-league-first-preliminary-round-fixtures-results/,"Victoria United (Cameroon), provider id 20800, which no feed of ours names; CAF names it Victoria United."
+diff --git a/dbt_project/tests/assert_continental_club_in_competition_confederation.sql b/dbt_project/tests/assert_continental_club_in_competition_confederation.sql
+new file mode 100644
+index 00000000..b81f8076
+--- /dev/null
++++ b/dbt_project/tests/assert_continental_club_in_competition_confederation.sql
+@@ -0,0 +1,58 @@
++-- A club in a continental club competition belongs to that competition's confederation. One row
++-- per club and competition that breaks it. It catches a fixture filed under a same-named club from
++-- another continent. Checked only where both confederations are stored, so a club with no country
++-- or a country with no confederation is left to the tests that own those.
++
++{{ config(store_failures = true, severity = 'error') }}
++
++with fixtures as (
++    select
++        fixture_api_id,
++        league_code,
++        home_team_api_id as team_api_id
++    from {{ ref('fct_fixture') }}
++    union all
++    select
++        fixture_api_id,
++        league_code,
++        away_team_api_id as team_api_id
++    from {{ ref('fct_fixture') }}
++),
++
++club_competitions as (
++    select
++        league_code,
++        confederation
++    from {{ ref('dim_league') }}
++    where competition_type in ('continental_cup', 'club_qualifying', 'continental_super_cup')
++),
++
++clubs as (
++    select
++        dim_team.team_api_id,
++        dim_team.team_name,
++        dim_team.team_country,
++        dim_country.confederation
++    from {{ ref('dim_team') }} as dim_team
++    inner join {{ ref('dim_country') }} as dim_country
++        on dim_team.team_country = dim_country.country_name
++    where not coalesce(dim_team.is_national_team, false)
++)
++
++select
++    fixtures.league_code,
++    club_competitions.confederation as competition_confederation,
++    clubs.team_api_id,
++    clubs.team_name,
++    clubs.team_country,
++    clubs.confederation as team_confederation,
++    count(*) as fixtures,
++    string_agg(cast(fixtures.fixture_api_id as string), ', ' order by fixtures.fixture_api_id)
++        as fixture_ids
++from fixtures
++inner join club_competitions
++    on fixtures.league_code = club_competitions.league_code
++inner join clubs
++    on fixtures.team_api_id = clubs.team_api_id
++where clubs.confederation != club_competitions.confederation
++group by 1, 2, 3, 4, 5, 6
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/280-fixture-team-ids/review.md        |  26 +++
+#    .../task/280-fixture-team-ids/review_input.patch   | 196 +++++++++++++++++++++
+#    2 files changed, 222 insertions(+)
+# ============================================================================
