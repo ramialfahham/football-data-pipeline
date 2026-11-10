@@ -1,0 +1,52 @@
+---
+// The Players page: World's best and Players by nation, in the lists, orders and flags
+// players_index.json serves (mart_player_index). The page composes; PlayerIndex.astro renders,
+// lib/playerIndex.mjs cuts the lists.
+import Layout from "../../../layouts/Layout.astro";
+import PlayerIndex from "../../../components/player/PlayerIndex.astro";
+import { t } from "../../../i18n/strings";
+import { localeHref, LOCALES, word } from "../../../lib/href";
+import type { Lang } from "../../../lib/format";
+import type { PlayerIndex as PlayerIndexData } from "../../../lib/types";
+import playersIndex from "../../../data/players_index.json";
+
+export function getStaticPaths() {
+  return LOCALES.map((lang) => ({
+    params: { lang, players: word(lang, "players") },
+  }));
+}
+
+const lang = (Astro.params.lang ?? "en") as Lang;
+const data = playersIndex as unknown as PlayerIndexData;
+
+const title = t(lang, "seoPlayersTitle");
+const description = t(lang, "seoPlayersDesc");
+// The players the page lists: the rows it shows in any view and the World's best nominees.
+const listed = new Set([
+  ...data.players.filter((p) => p.hub || p.hub_in_position).map((p) => p.player_id),
+  ...data.worlds_best.map((w) => w.player_id),
+]);
+const entity = {
+  "@type": "ItemList",
+  name: title,
+  numberOfItems: listed.size,
+};
+const crumbs = [
+  { name: t(lang, "crumbHome"), href: localeHref(lang) },
+  { name: t(lang, "navPlayers") },
+];
+---
+
+<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs} section="players">
+  <div class="inner">
+    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
+      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
+      <span class="sep">›</span>
+      <span class="here">{t(lang, "navPlayers")}</span>
+    </nav>
+
+    <h1>{t(lang, "navPlayers")}</h1>
+
+    <PlayerIndex data={data} lang={lang} />
+  </div>
+</Layout>

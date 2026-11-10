@@ -479,6 +479,11 @@ a.cnm .nm { text-decoration: none; }
 .fold-ctl .opened, .fold-in:checked ~ .fold-ctl .closed { display: none; }
 .fold-in:checked ~ .fold-ctl .opened { display: inline; }
 .fold-in:focus-visible ~ .fold-ctl { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px; }
+/* The fold's control as a link to the page that lists the rest: the chevron points to it. */
+.fx a.fold-ctl { color: var(--ink-2); }
+a.fold-ctl .chev { transform: none; }
+/* A grid of player rows opening a block: its first line sits at the block heading's gap. */
+.tblock > .sechead + div:not([class]) > .comp-grid { margin-top: -9px; }
 .fold-rest > .fxrow:last-child { border-bottom: 1px solid var(--line); }
 /* Small crest for list rows. The base .crest is a 52px block built for the fixture masthead. */
 .crest.xs { width: 24px; height: 24px; border-radius: 4px; font-size: 9px; flex: 0 0 auto; }
@@ -694,6 +699,9 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 #filter-competition-6:checked ~ .categories section[data-slots]:not([data-slots~="6"]),
 #filter-competition-7:checked ~ .categories section[data-slots]:not([data-slots~="7"]),
 #filter-competition-8:checked ~ .categories section[data-slots]:not([data-slots~="8"]) { display: none; }
+/* The Players page shows other rows, counts and links with a position chosen than without one. */
+#filter-competition-all:checked ~ .categories [data-hub="pos"],
+.seg-in[name=competition-filter]:not([value=""]):checked ~ .categories [data-hub="all"] { display: none; }
 
 #filter-competition-all:checked ~ .fbar .seg-btn[for="filter-competition-all"],
 #filter-competition-1:checked ~ .fbar .seg-btn[for="filter-competition-1"],

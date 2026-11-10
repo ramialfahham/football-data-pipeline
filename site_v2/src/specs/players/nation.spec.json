@@ -1,0 +1,32 @@
+{
+  "$schema": "../page-spec.schema.json",
+  "page": "[lang]/[players]/[nation].astro",
+  "entity": "nation",
+  "seo": {
+    "canonical": "self",
+    "hreflang": "all-locales",
+    "title": "seoNationTitle",
+    "description": "seoNationDesc",
+    "schema_org": "ItemList",
+    "links": {
+      "inbound_hub": "none",
+      "outbound": ["player"]
+    },
+    "minimum_data": "A nation with more players than the Players page shows of it: mart_player_index.has_nation_page.",
+    "page_count_driver": "count(distinct nation_slug where has_nation_page) x count(locales)",
+    "url_permanence": "permanent",
+    "url_permanence_note": "The slug is the country's key in dim_country, assigned once and fixed; it is letters and hyphens only, so it never takes a player page's {name}-{id} slug, and the route refuses one that would."
+  },
+  "blocks": [
+    {
+      "block": "Nation header and position filter",
+      "mart": "mart_player_index",
+      "i18n_keys": ["crumbHome", "navPlayers", "filterAll", "filterByPosition", "filterAllPositions", "squadFwd", "squadMid", "squadDef", "squadGk"]
+    },
+    {
+      "block": "Players",
+      "mart": "mart_player_index",
+      "i18n_keys": ["navPlayers", "posF", "posM", "posD", "posG"]
+    }
+  ]
+}

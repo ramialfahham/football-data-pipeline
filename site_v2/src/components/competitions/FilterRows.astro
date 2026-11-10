@@ -16,8 +16,10 @@ interface Props {
   /** A filter by competition (the Team page's Matches tab): each competition in its order, its
    *  rows marked `data-competition-slot` with its place, 1 to COMPETITION_SLOTS. */
   competitions?: { name: string }[];
+  /** The same slots read as positions (the Players pages): the filter's words name positions. */
+  slotsArePositions?: boolean;
 }
-const { lang, rows, competitions = [] } = Astro.props;
+const { lang, rows, competitions = [], slotsArePositions = false } = Astro.props;
 
 // system.css carries one rule per slot.
 const COMPETITION_SLOTS = 8;
@@ -45,8 +47,8 @@ const filter = (name: string, idPart: string, labels: Record<string, string>, ca
 };
 const competitionFilter = {
   name: "competition-filter",
-  aria: t(lang, "filterByCompetition"),
-  first: t(lang, "filterAllCompetitions"),
+  aria: t(lang, slotsArePositions ? "filterByPosition" : "filterByCompetition"),
+  first: t(lang, slotsArePositions ? "filterAllPositions" : "filterAllCompetitions"),
   shown: competitions.length >= 2,
   choices: [
     { id: "filter-competition-all", value: "", label: t(lang, "filterAll") },

@@ -334,6 +334,16 @@ test("specRouteRegex turns a spec's page field into the URLs that template emits
   assert.ok(fixture.test("/fi/brasileirao/ottelut/2026-07-26-a-vs-b/"));
   assert.ok(!fixture.test("/de/brasileirao/spiele/"));
 
+  // A player page and a nation page share one address level; their slugs never overlap.
+  const player = specRouteRegex("[lang]/[players]/[player].astro");
+  const nation = specRouteRegex("[lang]/[players]/[nation].astro");
+  assert.ok(player.test("/en/players/lamine-yamal-386828/"));
+  assert.ok(player.test("/en/players/12345/"), "a name that leaves nothing leaves the id alone");
+  assert.ok(!nation.test("/en/players/12345/"));
+  assert.ok(!player.test("/en/players/spain/"));
+  assert.ok(nation.test("/fi/pelaajat/bosnia-and-herzegovina/"));
+  assert.ok(!nation.test("/en/players/lamine-yamal-386828/"));
+
   // trailingSlash: "always" — an index segment collapses to the directory URL.
   const landing = specRouteRegex("[lang]/index.astro");
   assert.ok(landing.test("/fi/"));
@@ -545,12 +555,14 @@ test("the live three-segment routes never tie: each word parameter takes only it
   const specs = [
     "[lang]/[teams]/[team].astro",
     "[lang]/[players]/[player].astro",
+    "[lang]/[players]/[nation].astro",
     "[lang]/[competition]/[matches]/index.astro",
     "[lang]/[competition]/[stats]/index.astro",
   ].map(spec);
   const cases = {
     "/de/mannschaften/x/": "[lang]/[teams]/[team].astro",
-    "/fi/pelaajat/x/": "[lang]/[players]/[player].astro",
+    "/fi/pelaajat/x-1/": "[lang]/[players]/[player].astro",
+    "/fi/pelaajat/spain/": "[lang]/[players]/[nation].astro",
     "/de/bundesliga/spiele/": "[lang]/[competition]/[matches]/index.astro",
     "/fi/bundesliga/tilastot/": "[lang]/[competition]/[stats]/index.astro",
     "/en/bundesliga/stats/": "[lang]/[competition]/[stats]/index.astro",

@@ -184,6 +184,7 @@
 | Filter dropdown | `.seg.sel .sel-in` | 13px bold ink; side by side while each holds its longest choice, stacked full width below that | `font-size=13px; font-weight=700; color=ink; fits` | ruled | the Filter bar design |
 | Filter bar parts | `.seg-in, .categories` | the filter bar's other parts: registered, no text of their own |  | ruled | the component registry |
 | Fold | `.fold-ctl` | Under a list's shown rows: "Show all {n}" closed, "Show less" open, with the chevron down or up: 13px semi-bold ink-2 | `font-size=13px; font-weight=600; color=ink-2` | ruled | the shared fold review |
+| Fold link | `a.fold-ctl` | Under a list whose other rows are on their own page: "Show all {n}" as a link to that page, the chevron pointing to it | `font-size=13px; font-weight=600; color=ink-2` | ruled | the Players page review |
 | Fold label | `.lbl` | the fold's label, in the 13-600-ink-2 text style, never broken | `font-size=13px; font-weight=600; color=ink-2; one-line; fits` | ruled | the component registry |
 | Fold parts | `.closed, .opened, .fold-in, .fold-rest` | the fold's other parts: registered, no text of their own |  | ruled | the component registry |
 | Competition list name | `.comp-row .comp-name` | the competition list's name, in the 14-600-ink text style | `font-size=14px; font-weight=600; color=ink` | ruled | the component registry |
@@ -245,6 +246,8 @@ of record in `design-mocks/renders/` are not pages; the generators that wrote th
 | Teams page | built | `site_v2/dist` | `en/teams/index.html` | path | Page heading, Filter row, Block heading, Competition group head, Group count, Fold, Row link, Search field [>=1010px], Search button [<1010px] |
 | Player page | built | `site_v2/dist` | `en/players/h-kane-184/index.html` | path | Block heading, Tab bar, Strip plot row, Result row, Match row kick-off, Search field [>=1010px], Search button [<1010px] |
 | Player pages | built | `site_v2/dist` | `en/players/*/index.html` | path | Block heading, Search field [>=1010px], Search button [<1010px] |
+| Players page | built | `site_v2/dist` | `en/players/index.html` | path | Page heading, Filter row, Block heading, Competition group head, Group count, Player row, Fold link, Search field [>=1010px], Search button [<1010px] |
+| Nation page | built | `site_v2/dist` | `en/players/spain/index.html` | path | Page heading, Filter row, Block heading, Player row, Search field [>=1010px], Search button [<1010px] |
 | Matches page | built | `site_v2/dist` | `en/matches/index.html` | path | Page heading, Filter row, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row kick-off, Match row score, Search field [>=1010px], Search button [<1010px] |
 | Matches day page | built | `site_v2/dist` | `en/matches/*/index.html` | path | Page heading, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row score, Search field [>=1010px], Search button [<1010px] |
 | competition-overview | mock | `gen_overview_after_teams.py` | `competition_overview_after_teams_v2.html` | toggle | Block heading, Table head, Table row, Ordered-by number, Fact row value, Tab bar |

@@ -4101,6 +4101,9 @@ models:
       - dbt_utils.expression_is_true:
           expression: "(current_club_team_sk is null) = (club_order is null)"
           name: player_index_every_club_has_its_order
+      - dbt_utils.expression_is_true:
+          expression: "(player_nationality is null) = (nation_slug is null) and coalesce(regexp_contains(nation_slug, r'^[a-z]+(-[a-z]+)*$'), true)"
+          name: player_index_nation_slug_is_letters_and_hyphens
     columns:
       - name: player_sk
         description: "{{ doc('player_sk') }}"
@@ -4188,4 +4191,19 @@ models:
         description: "The player's place in his World's best list: club_order, then award_placing, then name. NULL outside the lists."
       - name: order_in_nation
         description: "The player's place in his nation's group: the national team's regulars by national_team_minutes, then club_order, players with no club last, then club_minutes_this_season, then name."
+        tests: [not_null]
+      - name: nation_slug
+        description: "The address of the nation's page: the key of the country of his nationality in dim_country, lower-case letters and hyphens. NULL without a nationality."
+        tests:
+          - relationships:
+              to: ref('dim_country')
+              field: country_key
+      - name: is_hub_shown
+        description: "True when the Players page shows the player under his nation with no position chosen: a regular of its national team, or one of its first 10 other players by order_in_nation."
+        tests: [not_null]
+      - name: is_hub_shown_in_position
+        description: "True when the Players page shows the player under his nation with his position chosen: a regular, or one of the first 10 other players of that position by order_in_nation. False without a position."
+        tests: [not_null]
+      - name: has_nation_page
+        description: "True when the player's nation has more players than the Players page shows of it, so it has its own page at nation_slug. False for the players with no nationality. One value per nation."
         tests: [not_null]

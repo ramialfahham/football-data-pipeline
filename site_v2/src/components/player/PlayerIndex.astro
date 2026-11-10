@@ -1,0 +1,148 @@
+---
+// The Players page's body: the Filter bar (position and region), then World's best and Players by
+// nation. The lists, their order and which rows show come from lib/playerIndex.mjs, which only cuts
+// the served rows by the warehouse's flags.
+//
+// Every row carries its region and its position slot, so the stylesheet's filter rules hide it and
+// filterBar.mjs offers only the choices that leave one. A nation group shows a row, a count and a
+// "Show all" link per view: `data-hub` marks what shows with no position chosen ("all"), with the
+// row's position chosen ("pos") or in both. The script below hides a list, a nation or a block the
+// filters leave empty.
+import FilterRows from "../competitions/FilterRows.astro";
+import SectionHead from "../ui/SectionHead.astro";
+import Chevron from "../fixture/Chevron.astro";
+import PlayerIndexRow from "./PlayerIndexRow.astro";
+import { t } from "../../i18n/strings";
+import { integer } from "../../lib/format";
+import { localeHref, word } from "../../lib/href";
+import { POSITIONS, worldsBest, nationGroups, hubView, slotOf } from "../../lib/playerIndex.mjs";
+import type { Lang } from "../../lib/format";
+import type { PlayerIndex } from "../../lib/types";
+
+interface Props {
+  data: PlayerIndex;
+  lang: Lang;
+}
+const { data, lang } = Astro.props;
+const playersWord = word(lang, "players");
+const NO_REGION = "NONE";
+const count = (n: number) => t(lang, n === 1 ? "playersCountOne" : "playersCount", { n: integer(n, lang) });
+const showAll = (n: number) => t(lang, "homeShowAll", { n: integer(n, lang) });
+const nationHref = (slug: string) => localeHref(lang, `${playersWord}/${slug}/`);
+
+const lists = worldsBest(data);
+const groups = nationGroups(data).map((g) => {
+  const shownPerPosition = new Map<number, number>();
+  for (const p of g.rows) {
+    if (p.hub_in_position) {
+      const s = slotOf(p.position_group);
+      shownPerPosition.set(s, (shownPerPosition.get(s) ?? 0) + 1);
+    }
+  }
+  return { ...g, shownPerPosition };
+});
+const filterRows = [
+  ...lists.flatMap((l) => l.rows.map((p) => ({ confederation: p.region_key }))),
+  ...groups.map((g) => ({ confederation: g.region })),
+];
+---
+
+<section class="teamindex">
+  <FilterRows lang={lang} rows={filterRows} competitions={POSITIONS.map((p) => ({ name: t(lang, p.label) }))} slotsArePositions />
+
+  <div class="categories">
+    {lists.length > 0 && (
+      <section class="tblock">
+        <SectionHead label={t(lang, "playersWorldsBest")} />
+        {lists.map((list) => (
+          <div class="fxgroup" data-competition-slot={String(list.slot)}>
+            <div class="gh"><span class="nm">{t(lang, list.label)}</span></div>
+            <div class="comp-grid">
+              {list.rows.map((player) => (
+                <PlayerIndexRow player={player} lang={lang} slot={list.slot} region={player.region_key ?? NO_REGION} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </section>
+    )}
+
+    <section class="tblock">
+      <SectionHead label={t(lang, "playersByNation")} />
+      {groups.map((g) => (
+        <div
+          class="fxgroup"
+          data-confederation={g.region ?? NO_REGION}
+          data-slots={[...g.perPosition.keys()].join(" ")}
+        >
+          <div class="gh">
+            {g.slug ? (
+              <a class="cnm" href={nationHref(g.slug)}><span class="nm">{g.nation}</span><Chevron /></a>
+            ) : (
+              <span class="nm">{g.nation ?? t(lang, "playersNoNation")}</span>
+            )}
+            <span class="cnt" data-hub="all">{count(g.n)}</span>
+            {[...g.perPosition].map(([slot, n]) => (
+              <span class="cnt" data-hub="pos" data-competition-slot={String(slot)}>{count(n)}</span>
+            ))}
+          </div>
+          <div class="comp-grid">
+            {g.rows.map((player) => (
+              <PlayerIndexRow
+                player={player}
+                lang={lang}
+                view={hubView(player)}
+                slot={slotOf(player.position_group)}
+                region={g.region ?? NO_REGION}
+              />
+            ))}
+            {g.slug && (
+              <a class="fold-ctl" href={nationHref(g.slug)} data-hub="all">
+                <span class="lbl">{showAll(g.n)}</span>
+                <Chevron />
+              </a>
+            )}
+            {g.slug && [...g.perPosition]
+              .filter(([slot, n]) => n > (g.shownPerPosition.get(slot) ?? 0))
+              .map(([slot, n]) => (
+                <a class="fold-ctl" href={nationHref(g.slug!)} data-hub="pos" data-competition-slot={String(slot)}>
+                  <span class="lbl">{showAll(n)}</span>
+                  <Chevron />
+                </a>
+              ))}
+          </div>
+        </div>
+      ))}
+    </section>
+  </div>
+</section>
+
+<script>
+  // Decided from the filter state, never from layout (see CompetitionIndexGrid.astro).
+  function checkedValue(name: string): string {
+    return document.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`)?.value ?? "";
+  }
+  function rowShows(row: HTMLElement, region: string, slot: string): boolean {
+    if (region && row.dataset.confederation !== region) return false;
+    if (slot && row.dataset.competitionSlot !== slot) return false;
+    const view = row.dataset.hub;
+    return !view || view === "both" || view === (slot ? "pos" : "all");
+  }
+  function hideEmpty() {
+    const region = checkedValue("region-filter");
+    const slot = checkedValue("competition-filter");
+    document.querySelectorAll<HTMLElement>(".teamindex .tblock").forEach((block) => {
+      let any = false;
+      block.querySelectorAll<HTMLElement>(":scope > .fxgroup").forEach((group) => {
+        const shows = Array.from(group.querySelectorAll<HTMLElement>(".lrow")).some((row) => rowShows(row, region, slot));
+        group.hidden = !shows;
+        any ||= shows;
+      });
+      block.hidden = !any;
+    });
+  }
+  document
+    .querySelectorAll('input[name="region-filter"], input[name="competition-filter"]')
+    .forEach((el) => el.addEventListener("change", hideEmpty));
+  hideEmpty();
+</script>
