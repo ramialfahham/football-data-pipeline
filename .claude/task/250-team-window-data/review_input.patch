@@ -1986,10 +1986,10 @@ index 88be58dc..a9f47746 100644
  {{ s.model }}__expected as (
 diff --git a/dbt_project/tests/assert_team_page_window_rates_inputs_covered.sql b/dbt_project/tests/assert_team_page_window_rates_inputs_covered.sql
 new file mode 100644
-index 00000000..e68ab11d
+index 00000000..22f42edf
 --- /dev/null
 +++ b/dbt_project/tests/assert_team_page_window_rates_inputs_covered.sql
-@@ -0,0 +1,179 @@
+@@ -0,0 +1,183 @@
 +{#
 +  The rate guard of engineering_standards.md section 3.2, on the Team page's window surfaces:
 +  int_team_window__metrics (a club's this season and last season, every club competition) and
@@ -2009,6 +2009,10 @@ index 00000000..e68ab11d
 +-- depends_on: {{ ref('int_team_competition_phase__metrics') }}
 +-- depends_on: {{ ref('int_legs__team_match') }}
 +-- depends_on: {{ ref('int_legs__team_from_players') }}
++-- depends_on: {{ ref('int_team__featured_season') }}
++-- depends_on: {{ ref('int_competition_season__club_windows') }}
++-- depends_on: {{ ref('int_round_names') }}
++-- depends_on: {{ ref('dim_league') }}
 +
 +{% set surfaces = ['int_team_window__metrics', 'int_team_competition_phase__metrics'] %}
 +{% set member_floor = 15 %}
@@ -2277,3 +2281,20 @@ index aac45f42..7e79f664 100644
  PINNED_FILES = 95
  
  HASH = chr(35)
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/250-team-window-data/review.md        |   39 +
+#    .../task/250-team-window-data/review_input.patch   | 2279 ++++++++++++++++++++
+#    2 files changed, 2318 insertions(+)
+# ============================================================================

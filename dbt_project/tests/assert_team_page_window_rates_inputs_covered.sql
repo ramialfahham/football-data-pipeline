@@ -17,6 +17,10 @@
 -- depends_on: {{ ref('int_team_competition_phase__metrics') }}
 -- depends_on: {{ ref('int_legs__team_match') }}
 -- depends_on: {{ ref('int_legs__team_from_players') }}
+-- depends_on: {{ ref('int_team__featured_season') }}
+-- depends_on: {{ ref('int_competition_season__club_windows') }}
+-- depends_on: {{ ref('int_round_names') }}
+-- depends_on: {{ ref('dim_league') }}
 
 {% set surfaces = ['int_team_window__metrics', 'int_team_competition_phase__metrics'] %}
 {% set member_floor = 15 %}
