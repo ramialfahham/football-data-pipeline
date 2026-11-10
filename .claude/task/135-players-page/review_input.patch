@@ -1,0 +1,1481 @@
+diff --git a/.claude/task/135-players-page/contract.md b/.claude/task/135-players-page/contract.md
+new file mode 100644
+index 00000000..79d98d16
+--- /dev/null
++++ b/.claude/task/135-players-page/contract.md
+@@ -0,0 +1,118 @@
++# Task contract — the Players page and the nation pages
++
++objective: >
++  Issue #135: build the Players page at /{locale}/players/ (World's best, then Players by nation)
++  and one page per nation with more players than the Players page shows, at
++  /{locale}/players/{nation}/, to the approved design and its amendment for nation pages.
++
++refs: >
++  #135 "The approved design" (approved in chat, 2026-11-09) and note 4199794512 (nation pages,
++  approved in chat, 2026-11-10); the acceptance criteria, words, SEO texts and the two protected
++  edits below approved in chat, 2026-11-10. Data from mart_player_index (!415). Plan ruled by the
++  coordinating session on 2026-11-10.
++
++scope_paths:
++  - dbt_project/models/5_marts/shared/mart_player_index.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/tests/assert_player_index_hub_flags_follow_the_rule.sql
++  - scripts/export_site_data.py
++  - tests/test_export_site_data.py
++  - .gitlab-ci.yml
++  - docs/design/components.yml
++  - docs/wireframes/block_standard.md
++  - tests/fixtures/component_registry/baseline.json
++  - docs/site_architecture.md
++  - site_v2/src/i18n/strings.ts
++  - site_v2/src/pages/*players*.astro
++  - site_v2/src/components/player/PlayerIndex.astro
++  - site_v2/src/components/player/PlayerIndexRow.astro
++  - site_v2/src/components/competitions/FilterRows.astro
++  - site_v2/src/lib/playerIndex.mjs
++  - site_v2/src/lib/playerIndex.test.mjs
++  - site_v2/src/lib/types.ts
++  - site_v2/src/lib/menu.ts
++  - site_v2/src/styles/system.css
++  - site_v2/src/specs/players/index.spec.json
++  - site_v2/src/specs/players/nation.spec.json
++  - site_v2/src/specs/page-spec.schema.json
++  - site_v2/scripts/check-page-specs.mjs
++  - site_v2/scripts/audit-seo.mjs
++  - site_v2/scripts/audit-seo.test.mjs
++  - site_v2/src/data/players_index.json
++  - site_v2/src/data/README.md
++  - .gitignore
++  - .claude/task/135-players-page/contract.md
++  - .claude/task/135-players-page/review.md
++  - .claude/task/135-players-page/review_input.patch
++  - .claude/task/135-players-page/acceptance_evidence.md
++  - .claude/task/135-players-page/rendered_page_evidence.md
++
++protected_override: >
++  .gitlab-ci.yml (players_index in the deploy export list) and docs/design/components.yml (the
++  fold control used as a link, and the Players page and nation pages in the used-on lists of the
++  components they use): approved in chat, 2026-11-10.
++
++impact_map: >
++  writers: dbt only on the warehouse side. mart_player_index gains nation_slug, is_hub_shown,
++  is_hub_shown_in_position and has_nation_page; no other model changes.
++  lineage: `dbt ls --resource-type model --select mart_player_index+` returns
++  mart_player_index alone: a leaf.
++  consumption: export_site_data.py fetch_player_index reads the four new columns into
++  players_index.json; no other export file changes. The deploy job's export list
++  (.gitlab-ci.yml) gains players_index, so the deployed site gets the file. The site reads it at
++  build time for the Players page and the nation pages.
++  protected_paths: .gitlab-ci.yml is fired by every pipeline; the one change adds an entity to the
++  deploy export command, which only adds a file to the export; a wrong entity name fails the
++  deploy export job loudly. docs/design/components.yml is read by check_component_registry.py and
++  design_inventory.py; the change adds a part (the fold control as a link) and used-on entries;
++  a wrong entry fails validate:ui.
++  ci_layer_rules: check_layer_contract.py, check_description_hygiene.py,
++  check_relationships_coverage.py, check-page-specs.mjs, audit-seo.mjs, check-term-list,
++  check_page_css.py, check_component_registry.py.
++  deploy_order: one merge; the nightly builds the columns; deploy:site-v2 is manual and builds
++  from the export.
++  blast_radius: four new mart columns; one export file gains four fields; 3 new hub pages and
++  about 303 nation pages; the menu's and the footer's Players item and the Player page's
++  breadcrumb level become links.
++
++approved_design:
++  - players: #135
++
++decisions_taken: >
++  The approved design of #135 with note 4199794512, and the coordinating session's rulings of
++  2026-11-10: the warehouse serves which rows the Players page shows and which nations have a page
++  (is_hub_shown, is_hub_shown_in_position, has_nation_page), and the nation slug
++  (dim_country.country_key); the group of players with no nation recorded shows its first 10, with
++  no link and no page; nation pages sit beside the player pages under the players word, and a slug
++  clash is stopped three ways (a dbt test that a nation slug is letters and hyphens only, the
++  nation route refusing a slug a player page uses, a node test); each player renders once on the
++  Players page, tagged with the views he shows in. The "Show less stays pinned" fold rule is its
++  own later MR. No new mechanism, no recurring cost.
++
++decisions_reserved:
++  - none: the design, the words, the SEO texts and the acceptance criteria are CPO-approved
++    (approved in chat, 2026-11-10) and this builds them unchanged.
++
++acceptance_criteria:
++  - In EN, DE and FI, the Players page is at /{locale}/players/ (DE /de/spieler/, FI /fi/pelaajat/) and shows World's best, then Players by nation.
++  - World's best shows this year's Ballon d'Or nominees in the Forwards, Midfielders and Defenders lists and the Yashin Trophy nominees in the Goalkeepers list, each list ordered by the player's current club in the Top clubs order; every nominee with a Player page shows, with no fold.
++  - In Players by nation, each nation shows its national team's regulars, then its 10 leading club players, then "Show all {n}" linking to the nation's page. A nation with no more players than that shows them all, with no link.
++  - The group of players with no nation recorded comes last, shows its first 10 players, and has no link and no page.
++  - Choosing a position keeps, in each nation, that position's regulars plus its 10 leading club players of that position, with the position's count; a nation with none hides. Choosing a region keeps that region's nations.
++  - Each nation with more players than the Players page shows has its own page at /{locale}/players/{nation}/ (for example /en/players/spain/), with the breadcrumb Home › Players › {nation}, the nation's name as heading, every player of the nation in the same order, and the position filter. The nation's heading on the Players page and its "Show all" link both open it.
++  - No nation page has the same address as a player page, and the build fails if one ever would.
++  - The menu's Players item, the footer's Players item and the "Players" level of a Player page's breadcrumb link to the Players page.
++  - At 280, 360, 375, 700 and 1010px, in EN, DE and FI, no page scrolls sideways, no name is cut off, and the filters show as buttons when they fit on one line and as dropdowns otherwise.
++
++done_when:
++  - dbt parse, the layer, description and relationships checks pass; the new dbt test passes on the CI build.
++  - python -m pytest tests -q is green.
++  - npm test and the site build (check-page-specs, audit-seo) pass in site_v2 on the committed sample.
++  - validate:ui's checks pass locally (check_page_css.py, check_component_registry.py).
++  - acceptance_evidence.md demonstrates every criterion from the built pages.
++  - CI is green after !419 is merged into this branch.
++
++amendments:
++  - 2026-11-10: page paths written as `site_v2/src/pages/*players*.astro`, because the gate reads `[lang]` as a character class; + docs/wireframes/block_standard.md, tests/fixtures/component_registry/baseline.json — authority: the components.yml edit approved in chat, 2026-11-10 (the block standard's element table is generated from the registry, and its baseline pins the registry's counts); content: regenerated by check_component_registry.py, no hand edit.
++  - 2026-11-10: + site_v2/src/specs/page-spec.schema.json, site_v2/scripts/check-page-specs.mjs — authority: the two approved pages need a spec each (the spec checker refuses a page without one); content: the page entities "playerIndex" and "nation" added to the schema's enum and the checker's set, which a test keeps equal.
++  - 2026-11-10: + site_v2/scripts/audit-seo.mjs, site_v2/scripts/audit-seo.test.mjs — authority: the approved address /{locale}/players/{nation}/ beside the player pages (#135 note 4199794512); content: the SEO audit matches a `[player]` segment only to a slug ending in its id and a `[nation]` segment only to letters and hyphens, so the two specs never claim one URL; a test pins both shapes.
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index 93369bed..8a9ea50e 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -1062,7 +1062,7 @@ deploy:export:
+     # The --entities list is LOAD-BEARING: every data set a built page reads, and no
+     # other (competitions.json is always emitted). Reads marts and seeds only; writes
+     # no BigQuery table.
+-    - python scripts/export_site_data.py --entities teams,fixtures,competitions,competition_index,teams_index,landing,players,matches,metric_groups,metric_rows --out site_v2/export_data
++    - python scripts/export_site_data.py --entities teams,fixtures,competitions,competition_index,teams_index,players_index,landing,players,matches,metric_groups,metric_rows --out site_v2/export_data
+   artifacts:
+     paths:
+       - site_v2/export_data
+diff --git a/dbt_project/models/5_marts/shared/mart_player_index.sql b/dbt_project/models/5_marts/shared/mart_player_index.sql
+index 354eac9c..afc580d9 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_index.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_index.sql
+@@ -13,6 +13,10 @@
+ 
+   A player's region is the confederation of the country of his nationality.
+ 
++  The Players page shows of each nation its regulars and its first 10 other players, and of each
++  position inside a nation the same; a nation with more players than that has its own page, at
++  nation_slug, the key of its country. The group with no nationality has no page.
++
+   Reads mart_player_profile and mart_team_index in its own layer.
+   Grain: (player_sk).
+ #}
+@@ -36,6 +40,7 @@ with profile as (
+ countries as (
+     select
+         country_name,
++        country_key,
+         confederation
+     from {{ ref('dim_country') }}
+ ),
+@@ -124,6 +129,7 @@ players as (
+         p.position_group,
+         p.player_nationality,
+         p.nationality_team_sk,
++        c.country_key as nation_slug,
+         c.confederation as region_key,
+         n.national_team_rank,
+         n.nation_order,
+@@ -156,33 +162,72 @@ players as (
+         on p.player_sk = cm.player_sk
+     left join nominees as a
+         on p.player_sk = a.player_sk
+-)
++),
+ 
+-select
+-    *,
+-    row_number() over (
+-        partition by player_nationality
+-        order by
+-            is_national_team_regular desc,
+-            if(is_national_team_regular, national_team_minutes, null) desc,
+-            club_order is null asc,
+-            club_order asc,
+-            club_minutes_this_season desc,
+-            player_name asc,
+-            player_sk asc
+-    ) as order_in_nation,
+-    if(
+-        worlds_best_list is null,
+-        null,
++ordered as (
++    select
++        *,
+         row_number() over (
+-            partition by worlds_best_list
++            partition by player_nationality
+             order by
++                is_national_team_regular desc,
++                if(is_national_team_regular, national_team_minutes, null) desc,
+                 club_order is null asc,
+                 club_order asc,
+-                award_placing is null asc,
+-                award_placing asc,
++                club_minutes_this_season desc,
+                 player_name asc,
+                 player_sk asc
+-        )
+-    ) as worlds_best_order
+-from players
++        ) as order_in_nation,
++        if(
++            worlds_best_list is null,
++            null,
++            row_number() over (
++                partition by worlds_best_list
++                order by
++                    club_order is null asc,
++                    club_order asc,
++                    award_placing is null asc,
++                    award_placing asc,
++                    player_name asc,
++                    player_sk asc
++            )
++        ) as worlds_best_order
++    from players
++),
++
++club_places as (
++    select
++        *,
++        if(
++            is_national_team_regular,
++            null,
++            row_number() over (
++                partition by player_nationality, is_national_team_regular
++                order by order_in_nation
++            )
++        ) as club_place,
++        if(
++            is_national_team_regular,
++            null,
++            row_number() over (
++                partition by player_nationality, position_group, is_national_team_regular
++                order by order_in_nation
++            )
++        ) as club_place_in_position
++    from ordered
++),
++
++shown as (
++    select
++        * except (club_place, club_place_in_position),
++        is_national_team_regular or club_place <= 10 as is_hub_shown,
++        position_group is not null
++        and (is_national_team_regular or club_place_in_position <= 10) as is_hub_shown_in_position
++    from club_places
++)
++
++select
++    *,
++    player_nationality is not null
++    and logical_or(not is_hub_shown) over (partition by player_nationality) as has_nation_page
++from shown
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index ced1c3b6..b0a7496e 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -4036,6 +4036,9 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "(current_club_team_sk is null) = (club_order is null)"
+           name: player_index_every_club_has_its_order
++      - dbt_utils.expression_is_true:
++          expression: "(player_nationality is null) = (nation_slug is null) and coalesce(regexp_contains(nation_slug, r'^[a-z]+(-[a-z]+)*$'), true)"
++          name: player_index_nation_slug_is_letters_and_hyphens
+     columns:
+       - name: player_sk
+         description: "{{ doc('player_sk') }}"
+@@ -4124,3 +4127,18 @@ models:
+       - name: order_in_nation
+         description: "The player's place in his nation's group: the national team's regulars by national_team_minutes, then club_order, players with no club last, then club_minutes_this_season, then name."
+         tests: [not_null]
++      - name: nation_slug
++        description: "The address of the nation's page: the key of the country of his nationality in dim_country, lower-case letters and hyphens. NULL without a nationality."
++        tests:
++          - relationships:
++              to: ref('dim_country')
++              field: country_key
++      - name: is_hub_shown
++        description: "True when the Players page shows the player under his nation with no position chosen: a regular of its national team, or one of its first 10 other players by order_in_nation."
++        tests: [not_null]
++      - name: is_hub_shown_in_position
++        description: "True when the Players page shows the player under his nation with his position chosen: a regular, or one of the first 10 other players of that position by order_in_nation. False without a position."
++        tests: [not_null]
++      - name: has_nation_page
++        description: "True when the player's nation has more players than the Players page shows of it, so it has its own page at nation_slug. False for the players with no nationality. One value per nation."
++        tests: [not_null]
+diff --git a/dbt_project/tests/assert_player_index_hub_flags_follow_the_rule.sql b/dbt_project/tests/assert_player_index_hub_flags_follow_the_rule.sql
+new file mode 100644
+index 00000000..a9605f01
+--- /dev/null
++++ b/dbt_project/tests/assert_player_index_hub_flags_follow_the_rule.sql
+@@ -0,0 +1,68 @@
++-- mart_player_index's Players page flags against a recount: a player shows under his nation when he
++-- is a regular or at most 10 other players of the nation come before him or at his place in
++-- order_in_nation, and the same inside his position; a nation with a nationality has a page when
++-- the page leaves one of its players out, the same value on every row. Returns every player whose
++-- flag differs.
++
++with players as (
++    select
++        player_sk,
++        player_nationality,
++        position_group,
++        order_in_nation,
++        is_national_team_regular,
++        is_hub_shown,
++        is_hub_shown_in_position,
++        has_nation_page
++    from {{ ref('mart_player_index') }}
++),
++
++others_before as (
++    select
++        a.player_sk,
++        countif(not b.is_national_team_regular) as others_up_to_me,
++        countif(
++            not b.is_national_team_regular
++            and b.position_group = a.position_group
++        ) as position_others_up_to_me
++    from players as a
++    inner join players as b
++        on
++            a.player_nationality is not distinct from b.player_nationality
++            and a.order_in_nation >= b.order_in_nation
++    group by a.player_sk
++),
++
++expected as (
++    select
++        p.player_sk,
++        p.player_nationality,
++        p.is_hub_shown,
++        p.is_hub_shown_in_position,
++        p.has_nation_page,
++        p.is_national_team_regular or o.others_up_to_me <= 10 as shown,
++        p.position_group is not null
++        and (p.is_national_team_regular or o.position_others_up_to_me <= 10) as shown_in_position
++    from players as p
++    inner join others_before as o
++        on p.player_sk = o.player_sk
++),
++
++nations as (
++    select
++        player_nationality,
++        player_nationality is not null and logical_or(not shown) as page,
++        count(distinct has_nation_page) as values_held
++    from expected
++    group by player_nationality
++)
++
++select e.player_sk
++from expected as e
++inner join nations as n
++    on e.player_nationality is not distinct from n.player_nationality
++where
++    e.is_hub_shown != e.shown
++    or e.is_hub_shown_in_position != e.shown_in_position
++    or e.has_nation_page != n.page
++    or n.values_held != 1
+diff --git a/docs/design/components.yml b/docs/design/components.yml
+index 8c1d30fd..5243fb57 100644
+--- a/docs/design/components.yml
++++ b/docs/design/components.yml
+@@ -118,8 +118,8 @@ components:
+     narrow: {below: w700, form: "one line that scrolls sideways, the far levels hidden"}
+   page-heading:
+     name: Page heading
+-    file: ["site_v2/src/pages/[lang]/[competitions]/index.astro", "site_v2/src/pages/[lang]/[teams]/index.astro", site_v2/src/components/matches/MatchesDay.astro]
+-    used-on: [Competitions, Matches, Teams]
++    file: ["site_v2/src/pages/[lang]/[competitions]/index.astro", "site_v2/src/pages/[lang]/[teams]/index.astro", site_v2/src/components/matches/MatchesDay.astro, "site_v2/src/pages/[lang]/[players]/index.astro", "site_v2/src/pages/[lang]/[players]/[nation].astro"]
++    used-on: [Competitions, Matches, Teams, Players, nation page]
+     parts:
+       heading: {class: crumb, selector: ".crumb + h1", text: 30-700-ink, element: Page heading, rule: "a menu page's heading under its breadcrumb, the menu item's word: the Competitions page's and the Matches page's, 30px bold ink", measured: "font-size=30px; font-weight=700; color=ink", ruled-on: "#130 (the Competitions page's heading, as it ships)"}
+     wide: "the menu item's word"
+@@ -156,8 +156,8 @@ components:
+     wide: "name over its rule, explainer, content"
+   group:
+     name: Group
+-    file: [site_v2/src/components/home/HeroFixtures.astro, site_v2/src/components/fixture/NextMatches.astro, site_v2/src/components/team/TeamFixtureGroup.astro, site_v2/src/components/competition/RankingsBlock.astro, site_v2/src/components/teams/TeamIndex.astro]
+-    used-on: [Home, Matches, Competition pages, Team page, Teams page, match page]
++    file: [site_v2/src/components/home/HeroFixtures.astro, site_v2/src/components/fixture/NextMatches.astro, site_v2/src/components/team/TeamFixtureGroup.astro, site_v2/src/components/competition/RankingsBlock.astro, site_v2/src/components/teams/TeamIndex.astro, site_v2/src/components/player/PlayerIndex.astro]
++    used-on: [Home, Matches, Competition pages, Team page, Teams page, match page, Players]
+     parts:
+       head: {class: gh, selector: ".fxgroup:not(.rkgroup) > .gh", element: Competition group head, rule: "the level-1 heading over a competition's match rows: crest · name · chevron, 17px bold, a 2px line under it, 34px above the group; on Home, inside the Next matches block, it keeps its line", measured: "border-bottom-width=2px; left-edge=section", ruled-on: "#50; #129; 2026-09-17 (\"Home with line\")"}
+       name: {class: nm, selector: ".fxgroup:not(.rkgroup) > .gh .nm", text: 17-700-ink, element: Competition group name, rule: 17px bold ink, measured: "font-size=17px; font-weight=700; color=ink", ruled-on: "#50"}
+@@ -328,8 +328,8 @@ components:
+     short-forms: [wins, draws, losses]
+   player-row:
+     name: Player row
+-    file: [site_v2/src/components/fixture/PlayerRow.astro, site_v2/src/components/fixture/MatchLineups.astro, site_v2/src/components/team/TeamSquad.astro]
+-    used-on: [match page, Team page]
++    file: [site_v2/src/components/fixture/PlayerRow.astro, site_v2/src/components/fixture/MatchLineups.astro, site_v2/src/components/team/TeamSquad.astro, site_v2/src/components/player/PlayerIndexRow.astro]
++    used-on: [match page, Team page, Players, nation page]
+     parts:
+       row: {class: plrow, element: Player row, rule: "photo · name over position · goals and assists on the right at every width; two lines below 375px when the row is short of room; on a line-up, the minutes played", measured: fits, ruled-on: "the match page review; the component registry"}
+       name: {class: nm, selector: ".plrow .pname .nm", text: 15-400-ink, element: Player row name, rule: "15px regular ink, wrapping, never cut off", measured: "font-size=15px; font-weight=400; color=ink; white-space=normal", ruled-on: the match page review}
+@@ -480,7 +480,7 @@ components:
+   filter-bar:
+     name: Filter bar
+     file: site_v2/src/components/competitions/FilterRows.astro
+-    used-on: [Competitions, Matches, Teams, Team page]
++    used-on: [Competitions, Matches, Teams, Team page, Players, nation page]
+     parts:
+       row: {class: seg, element: Filter row, rule: "a filter by type and one by region on the Competitions and Matches pages, each a sunk ground holding its buttons or its dropdown", measured: "background-color=sunk", ruled-on: the Filter bar design}
+       button: {class: seg-btn, selector: ".seg .seg-btn", gap: style-varies, breaks: never, element: Filter button, rule: "13px, each on one line", measured: "font-size=13px; one-line", ruled-on: the Filter bar design}
+@@ -492,10 +492,11 @@ components:
+     narrow: {below: fits, form: a dropdown per filter}
+   fold:
+     name: Fold
+-    file: site_v2/src/components/ui/Fold.astro
+-    used-on: [Home, Matches, Teams, Team page]
++    file: [site_v2/src/components/ui/Fold.astro, site_v2/src/components/player/PlayerIndex.astro]
++    used-on: [Home, Matches, Teams, Team page, Players]
+     parts:
+       control: {class: fold-ctl, text: 13-600-ink-2, element: Fold, rule: "Under a list's shown rows: \"Show all {n}\" closed, \"Show less\" open, with the chevron down or up: 13px semi-bold ink-2", measured: "font-size=13px; font-weight=600; color=ink-2", ruled-on: the shared fold review}
++      link: {class: fold-ctl, selector: a.fold-ctl, text: 13-600-ink-2, element: Fold link, rule: "Under a list whose other rows are on their own page: \"Show all {n}\" as a link to that page, the chevron pointing to it", measured: "font-size=13px; font-weight=600; color=ink-2", ruled-on: the Players page review}
+       closed: {class: closed}
+       opened: {class: opened}
+       box: {class: fold-in}
+diff --git a/docs/site_architecture.md b/docs/site_architecture.md
+index 10c1be0a..a2440cd7 100644
+--- a/docs/site_architecture.md
++++ b/docs/site_architecture.md
+@@ -51,6 +51,8 @@ The scheme is written here with the English words.
+ /{locale}/{competition-slug}/stats/                          competition page, Rankings tab (the top five of every team and player board under the catalogue's groups); the tab's on-screen name stays Rankings
+ /{locale}/teams/                                             Teams menu page: top clubs and national teams, clubs by country, national teams by region
+ /{locale}/teams/{team-slug}/                                 team profile, a club or a national team
++/{locale}/players/                                           Players menu page: World's best, players by nation
++/{locale}/players/{nation-slug}/                             one nation's players, for a nation the Players menu page does not show whole
+ /{locale}/players/{player-slug}/                             player profile
+ /{locale}/matches/                                           Matches menu page: the day it opens on (the build day, else the next day with a match), every competition playing it
+ /{locale}/matches/{yyyy-mm-dd}/                              every other day in reach, from each competition's last matchday to the end of its next
+@@ -61,7 +63,6 @@ Every address in the block above has a built page, except the country hub and th
+ Planned, not designed yet; each address is provisional until its page's review (§ Address words):
+ 
+ ```
+-/{locale}/players/                                           Players menu page
+ /{locale}/stats/                                             Statistics menu page
+ /{locale}/stats/{metric-slug}/                               one statistic across competitions; whether it also holds the metric's definition, in place of a separate glossary, is the Statistics review's
+ /{locale}/{competition-slug}/stats/{metric-slug}/            one statistic's full list in one competition
+@@ -273,6 +274,8 @@ every file. The `fetch_*` function for a file holds its live list of marts.
+ | Landing | `landing.json` | The next-matchday hero: `mart_next_matchday` (every competition's next round, read whole), and its competitions' order, with `mart_competition_fixtures` for the match rows. Names and crests: `mart_competition_index`. Top players: `mart_leaderboards`. Top teams: `mart_team_leaderboards`. Read `fetch_landing_payload` for the live list. |
+ | Competitions index / country hub | `competition_index.json` | `mart_competition_index` |
+ | Teams page | `teams_index.json` | `mart_team_index`, with each region's order and name key from the `confederations` seed. Read `fetch_team_index`. |
++| Players page | `players_index.json` | `mart_player_index`: World's best, the nation order, the order inside a nation and the rows the page shows. Read `fetch_player_index`. |
++| Nation page | `players_index.json` | `mart_player_index`: the nations with a page and their players in order. Read `fetch_player_index`. |
+ | Matches page and its days | `matches/{yyyy-mm-dd}.json`, one per day | `mart_match_days` (the reach, each day's neighbours, the opening day), `mart_competition_fixtures` (the match rows), `mart_competition_index` (a competition's name, crest, kind and region rank). Read `fetch_match_day_payloads`. |
+ | Competition page, all three tabs | `competitions/{league_code}/{season}.json` (the page shows the latest season served) | Header: `mart_competition_index`. The table: `mart_standings`, with `table_kind`. The deserved points table: `mart_team_profile`. The season in numbers: `mart_competition_season_summary`. The Matchdays tab, the header's round and the match-that-matters flag: `mart_competition_fixtures`. The Rankings tab's boards, the top five per board: `mart_team_leaderboards` and `mart_leaderboards`. Read `fetch_competition_payloads` for the live list. |
+ | Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_window_metrics` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H), `mart_team_momentum_window` (the form list), `mart_player_momentum` (top players). Read `fetch_fixture_payloads`. **Not** `mart_matchday_insights`, the retired MVP's presentation pivot of the momentum mart. v2 reads the source marts directly. A played match's payload reads `mart_competition_fixtures` (result, goals, line-up state), `mart_leaderboards` (match boards), `mart_team_window_metrics` (one match) and `mart_player_fixture_stats` (line-ups). Read `fetch_played_fixture_payloads`. |
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index 6c9ab5ae..5a68c848 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -184,6 +184,7 @@
+ | Filter dropdown | `.seg.sel .sel-in` | 13px bold ink; side by side while each holds its longest choice, stacked full width below that | `font-size=13px; font-weight=700; color=ink; fits` | ruled | the Filter bar design |
+ | Filter bar parts | `.seg-in, .categories` | the filter bar's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Fold | `.fold-ctl` | Under a list's shown rows: "Show all {n}" closed, "Show less" open, with the chevron down or up: 13px semi-bold ink-2 | `font-size=13px; font-weight=600; color=ink-2` | ruled | the shared fold review |
++| Fold link | `a.fold-ctl` | Under a list whose other rows are on their own page: "Show all {n}" as a link to that page, the chevron pointing to it | `font-size=13px; font-weight=600; color=ink-2` | ruled | the Players page review |
+ | Fold label | `.lbl` | the fold's label, in the 13-600-ink-2 text style, never broken | `font-size=13px; font-weight=600; color=ink-2; one-line; fits` | ruled | the component registry |
+ | Fold parts | `.closed, .opened, .fold-in, .fold-rest` | the fold's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Competition list name | `.comp-row .comp-name` | the competition list's name, in the 14-600-ink text style | `font-size=14px; font-weight=600; color=ink` | ruled | the component registry |
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index 2a63d129..2bcae747 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -1789,7 +1789,8 @@ def fetch_team_index(client) -> dict:
+ _PLAYER_INDEX_COLUMNS = (
+     "player_sk, player_name, player_photo_url, position_group, player_nationality, region_key, "
+     "nation_order, order_in_nation, current_club_name, award, award_edition_year, "
+-    "worlds_best_list, worlds_best_order"
++    "worlds_best_list, worlds_best_order, nation_slug, is_hub_shown, is_hub_shown_in_position, "
++    "has_nation_page"
+ )
+ 
+ 
+@@ -1808,7 +1809,10 @@ def shape_player_index(rows: list[dict]) -> dict:
+                      "name": r.get("player_name"), "photo": r.get("player_photo_url"),
+                      "position_group": r.get("position_group"), "nation": r.get("player_nationality"),
+                      "region_key": r.get("region_key"), "nation_order": r.get("nation_order"),
+-                     "order_in_nation": r.get("order_in_nation"), "club": r.get("current_club_name")}
++                     "order_in_nation": r.get("order_in_nation"), "club": r.get("current_club_name"),
++                     "nation_slug": r.get("nation_slug"), "hub": bool(r.get("is_hub_shown")),
++                     "hub_in_position": bool(r.get("is_hub_shown_in_position")),
++                     "nation_page": bool(r.get("has_nation_page"))}
+                     for r in rows],
+     }
+ 
+diff --git a/site_v2/scripts/audit-seo.mjs b/site_v2/scripts/audit-seo.mjs
+index 8d7cc343..e105c944 100644
+--- a/site_v2/scripts/audit-seo.mjs
++++ b/site_v2/scripts/audit-seo.mjs
+@@ -259,6 +259,14 @@ export function specTie(specs, path) {
+   return winners.length > 1 ? winners : [];
+ }
+ 
++/** The slug a route parameter takes, where two routes share one address level: a player page's
++ *  slug ends in its id (the whole slug when the name leaves nothing), a nation page's is letters
++ *  and hyphens, so neither spec claims the other's URL. Any other parameter takes any segment. */
++export const PARAM_SHAPES = {
++  player: "(?:[^/]+-)?\\d+",
++  nation: "[a-z]+(?:-[a-z]+)*",
++};
++
+ export function specRouteRegex(pageField) {
+   const withoutExt = pageField.replace(/\.astro$/, "");
+   const escaped = withoutExt
+@@ -266,7 +274,9 @@ export function specRouteRegex(pageField) {
+     .map((seg) => {
+       const key = wordParam(seg);
+       if (key) return `(?:${[...new Set(Object.values(WORDS[key]))].join("|")})`;
+-      return /^\[.+\]$/.test(seg) ? "[^/]+" : seg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
++      const param = /^\[(.+)\]$/.exec(seg)?.[1];
++      if (param) return Object.hasOwn(PARAM_SHAPES, param) ? `(?:${PARAM_SHAPES[param]})` : "[^/]+";
++      return seg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+     })
+     .join("/");
+   // trailingSlash: "always" -- an index segment collapses to the directory URL.
+diff --git a/site_v2/scripts/audit-seo.test.mjs b/site_v2/scripts/audit-seo.test.mjs
+index c25f5b7b..2fbaac28 100644
+--- a/site_v2/scripts/audit-seo.test.mjs
++++ b/site_v2/scripts/audit-seo.test.mjs
+@@ -334,6 +334,16 @@ test("specRouteRegex turns a spec's page field into the URLs that template emits
+   assert.ok(fixture.test("/fi/brasileirao/ottelut/2026-07-26-a-vs-b/"));
+   assert.ok(!fixture.test("/de/brasileirao/spiele/"));
+ 
++  // A player page and a nation page share one address level; their slugs never overlap.
++  const player = specRouteRegex("[lang]/[players]/[player].astro");
++  const nation = specRouteRegex("[lang]/[players]/[nation].astro");
++  assert.ok(player.test("/en/players/lamine-yamal-386828/"));
++  assert.ok(player.test("/en/players/12345/"), "a name that leaves nothing leaves the id alone");
++  assert.ok(!nation.test("/en/players/12345/"));
++  assert.ok(!player.test("/en/players/spain/"));
++  assert.ok(nation.test("/fi/pelaajat/bosnia-and-herzegovina/"));
++  assert.ok(!nation.test("/en/players/lamine-yamal-386828/"));
++
+   // trailingSlash: "always" — an index segment collapses to the directory URL.
+   const landing = specRouteRegex("[lang]/index.astro");
+   assert.ok(landing.test("/fi/"));
+@@ -545,12 +555,14 @@ test("the live three-segment routes never tie: each word parameter takes only it
+   const specs = [
+     "[lang]/[teams]/[team].astro",
+     "[lang]/[players]/[player].astro",
++    "[lang]/[players]/[nation].astro",
+     "[lang]/[competition]/[matches]/index.astro",
+     "[lang]/[competition]/[stats]/index.astro",
+   ].map(spec);
+   const cases = {
+     "/de/mannschaften/x/": "[lang]/[teams]/[team].astro",
+-    "/fi/pelaajat/x/": "[lang]/[players]/[player].astro",
++    "/fi/pelaajat/x-1/": "[lang]/[players]/[player].astro",
++    "/fi/pelaajat/spain/": "[lang]/[players]/[nation].astro",
+     "/de/bundesliga/spiele/": "[lang]/[competition]/[matches]/index.astro",
+     "/fi/bundesliga/tilastot/": "[lang]/[competition]/[stats]/index.astro",
+     "/en/bundesliga/stats/": "[lang]/[competition]/[stats]/index.astro",
+diff --git a/site_v2/scripts/check-page-specs.mjs b/site_v2/scripts/check-page-specs.mjs
+index 2eea37c8..0b8f3c36 100644
+--- a/site_v2/scripts/check-page-specs.mjs
++++ b/site_v2/scripts/check-page-specs.mjs
+@@ -28,7 +28,7 @@ export const STRINGS_FILE = join(SITE_ROOT, "src", "i18n", "strings.ts");
+ export const SCHEMA_FILE = join(SITE_ROOT, "src", "specs", "page-spec.schema.json");
+ 
+ const LAYOUT_IMPORT_RE = /["'](?:\.\.\/)+layouts\/Layout\.astro["']/;
+-export const ENTITY_VALUES = new Set(["team", "player", "fixture", "competition", "competitionIndex", "home", "matchDay", "teamIndex"]);
++export const ENTITY_VALUES = new Set(["team", "player", "fixture", "competition", "competitionIndex", "home", "matchDay", "teamIndex", "playerIndex", "nation"]);
+ 
+ // --- the SEO gate's declaration half (#844) -------------------------------------------------
+ // This file checks that what a spec DECLARES exists. scripts/audit-seo.mjs checks that what the
+diff --git a/site_v2/src/components/competitions/FilterRows.astro b/site_v2/src/components/competitions/FilterRows.astro
+index b92d2c15..5a1b51a7 100644
+--- a/site_v2/src/components/competitions/FilterRows.astro
++++ b/site_v2/src/components/competitions/FilterRows.astro
+@@ -16,8 +16,10 @@ interface Props {
+   /** A filter by competition (the Team page's Matches tab): each competition in its order, its
+    *  rows marked `data-competition-slot` with its place, 1 to COMPETITION_SLOTS. */
+   competitions?: { name: string }[];
++  /** The same slots read as positions (the Players pages): the filter's words name positions. */
++  slotsArePositions?: boolean;
+ }
+-const { lang, rows, competitions = [] } = Astro.props;
++const { lang, rows, competitions = [], slotsArePositions = false } = Astro.props;
+ 
+ // system.css carries one rule per slot.
+ const COMPETITION_SLOTS = 8;
+@@ -45,8 +47,8 @@ const filter = (name: string, idPart: string, labels: Record<string, string>, ca
+ };
+ const competitionFilter = {
+   name: "competition-filter",
+-  aria: t(lang, "filterByCompetition"),
+-  first: t(lang, "filterAllCompetitions"),
++  aria: t(lang, slotsArePositions ? "filterByPosition" : "filterByCompetition"),
++  first: t(lang, slotsArePositions ? "filterAllPositions" : "filterAllCompetitions"),
+   shown: competitions.length >= 2,
+   choices: [
+     { id: "filter-competition-all", value: "", label: t(lang, "filterAll") },
+diff --git a/site_v2/src/components/player/PlayerIndex.astro b/site_v2/src/components/player/PlayerIndex.astro
+new file mode 100644
+index 00000000..3b5f693b
+--- /dev/null
++++ b/site_v2/src/components/player/PlayerIndex.astro
+@@ -0,0 +1,148 @@
++---
++// The Players page's body: the Filter bar (position and region), then World's best and Players by
++// nation. The lists, their order and which rows show come from lib/playerIndex.mjs, which only cuts
++// the served rows by the warehouse's flags.
++//
++// Every row carries its region and its position slot, so the stylesheet's filter rules hide it and
++// filterBar.mjs offers only the choices that leave one. A nation group shows a row, a count and a
++// "Show all" link per view: `data-hub` marks what shows with no position chosen ("all"), with the
++// row's position chosen ("pos") or in both. The script below hides a list, a nation or a block the
++// filters leave empty.
++import FilterRows from "../competitions/FilterRows.astro";
++import SectionHead from "../ui/SectionHead.astro";
++import Chevron from "../fixture/Chevron.astro";
++import PlayerIndexRow from "./PlayerIndexRow.astro";
++import { t } from "../../i18n/strings";
++import { integer } from "../../lib/format";
++import { localeHref, word } from "../../lib/href";
++import { POSITIONS, worldsBest, nationGroups, hubView, slotOf } from "../../lib/playerIndex.mjs";
++import type { Lang } from "../../lib/format";
++import type { PlayerIndex } from "../../lib/types";
++
++interface Props {
++  data: PlayerIndex;
++  lang: Lang;
++}
++const { data, lang } = Astro.props;
++const playersWord = word(lang, "players");
++const NO_REGION = "NONE";
++const count = (n: number) => t(lang, n === 1 ? "playersCountOne" : "playersCount", { n: integer(n, lang) });
++const showAll = (n: number) => t(lang, "homeShowAll", { n: integer(n, lang) });
++const nationHref = (slug: string) => localeHref(lang, `${playersWord}/${slug}/`);
++
++const lists = worldsBest(data);
++const groups = nationGroups(data).map((g) => {
++  const shownPerPosition = new Map<number, number>();
++  for (const p of g.rows) {
++    if (p.hub_in_position) {
++      const s = slotOf(p.position_group);
++      shownPerPosition.set(s, (shownPerPosition.get(s) ?? 0) + 1);
++    }
++  }
++  return { ...g, shownPerPosition };
++});
++const filterRows = [
++  ...lists.flatMap((l) => l.rows.map((p) => ({ confederation: p.region_key }))),
++  ...groups.map((g) => ({ confederation: g.region })),
++];
++---
++
++<section class="teamindex">
++  <FilterRows lang={lang} rows={filterRows} competitions={POSITIONS.map((p) => ({ name: t(lang, p.label) }))} slotsArePositions />
++
++  <div class="categories">
++    {lists.length > 0 && (
++      <section class="tblock">
++        <SectionHead label={t(lang, "playersWorldsBest")} />
++        {lists.map((list) => (
++          <div class="fxgroup" data-competition-slot={String(list.slot)}>
++            <div class="gh"><span class="nm">{t(lang, list.label)}</span></div>
++            <div class="comp-grid">
++              {list.rows.map((player) => (
++                <PlayerIndexRow player={player} lang={lang} slot={list.slot} region={player.region_key ?? NO_REGION} />
++              ))}
++            </div>
++          </div>
++        ))}
++      </section>
++    )}
++
++    <section class="tblock">
++      <SectionHead label={t(lang, "playersByNation")} />
++      {groups.map((g) => (
++        <section
++          class="fxgroup"
++          data-confederation={g.region ?? NO_REGION}
++          data-slots={[...g.perPosition.keys()].join(" ")}
++        >
++          <div class="gh">
++            {g.slug ? (
++              <a class="cnm" href={nationHref(g.slug)}><span class="nm">{g.nation}</span><Chevron /></a>
++            ) : (
++              <span class="nm">{g.nation ?? t(lang, "playersNoNation")}</span>
++            )}
++            <span class="cnt" data-hub="all">{count(g.n)}</span>
++            {[...g.perPosition].map(([slot, n]) => (
++              <span class="cnt" data-hub="pos" data-competition-slot={String(slot)}>{count(n)}</span>
++            ))}
++          </div>
++          <div class="comp-grid">
++            {g.rows.map((player) => (
++              <PlayerIndexRow
++                player={player}
++                lang={lang}
++                view={hubView(player)}
++                slot={slotOf(player.position_group)}
++                region={g.region ?? NO_REGION}
++              />
++            ))}
++            {g.slug && (
++              <a class="fold-ctl" href={nationHref(g.slug)} data-hub="all">
++                <span class="lbl">{showAll(g.n)}</span>
++                <Chevron />
++              </a>
++            )}
++            {g.slug && [...g.perPosition]
++              .filter(([slot, n]) => n > (g.shownPerPosition.get(slot) ?? 0))
++              .map(([slot, n]) => (
++                <a class="fold-ctl" href={nationHref(g.slug!)} data-hub="pos" data-competition-slot={String(slot)}>
++                  <span class="lbl">{showAll(n)}</span>
++                  <Chevron />
++                </a>
++              ))}
++          </div>
++        </section>
++      ))}
++    </section>
++  </div>
++</section>
++
++<script>
++  // Decided from the filter state, never from layout (see CompetitionIndexGrid.astro).
++  function checkedValue(name: string): string {
++    return document.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`)?.value ?? "";
++  }
++  function rowShows(row: HTMLElement, region: string, slot: string): boolean {
++    if (region && row.dataset.confederation !== region) return false;
++    if (slot && row.dataset.competitionSlot !== slot) return false;
++    const view = row.dataset.hub;
++    return !view || view === "both" || view === (slot ? "pos" : "all");
++  }
++  function hideEmpty() {
++    const region = checkedValue("region-filter");
++    const slot = checkedValue("competition-filter");
++    document.querySelectorAll<HTMLElement>(".teamindex .tblock").forEach((block) => {
++      let any = false;
++      block.querySelectorAll<HTMLElement>(":scope > .fxgroup").forEach((group) => {
++        const shows = Array.from(group.querySelectorAll<HTMLElement>(".lrow")).some((row) => rowShows(row, region, slot));
++        group.hidden = !shows;
++        any ||= shows;
++      });
++      block.hidden = !any;
++    });
++  }
++  document
++    .querySelectorAll('input[name="region-filter"], input[name="competition-filter"]')
++    .forEach((el) => el.addEventListener("change", hideEmpty));
++  hideEmpty();
++</script>
+diff --git a/site_v2/src/components/player/PlayerIndexRow.astro b/site_v2/src/components/player/PlayerIndexRow.astro
+new file mode 100644
+index 00000000..08aaf74f
+--- /dev/null
++++ b/site_v2/src/components/player/PlayerIndexRow.astro
+@@ -0,0 +1,48 @@
++---
++// One row of the Players page and a nation page, the player row without numbers: photo · name over
++// position · club. It links to the player's page when this build makes one. `view`, `slot` and
++// `region` mark the views it shows in, for the stylesheet's position and region filters.
++import { positionLabel } from "../../i18n/strings";
++import { builtPlayers } from "../../lib/builtPlayers.mjs";
++import { localeHref, word } from "../../lib/href";
++import { codeOf } from "../../lib/playerIndex.mjs";
++import type { Lang } from "../../lib/format";
++import type { PlayerIndexRow } from "../../lib/types";
++
++interface Props {
++  player: PlayerIndexRow;
++  lang: Lang;
++  view?: string | null;
++  slot?: number;
++  region?: string;
++}
++const { player, lang, view, slot, region } = Astro.props;
++const initials = (player.name ?? "")
++  .split(/\s+/)
++  .map((w) => w[0] ?? "")
++  .join("")
++  .slice(0, 2)
++  .toUpperCase();
++const code = codeOf(player.position_group);
++const line = [code ? positionLabel(lang, code) : null, player.club].filter(Boolean).join(" · ");
++const built = builtPlayers().has(player.player_id);
++const Row = built ? "a" : "div";
++---
++
++<Row
++  class="lrow"
++  href={built ? localeHref(lang, `${word(lang, "players")}/${player.slug}/`) : undefined}
++  data-hub={view ?? undefined}
++  data-competition-slot={slot === undefined ? undefined : String(slot)}
++  data-confederation={region}
++>
++  <div class="plrow">
++    <span class="pphoto">
++      {player.photo ? <img src={player.photo} alt="" loading="lazy" width="34" height="34" /> : <span>{initials}</span>}
++    </span>
++    <span class="pname">
++      <span class="nm">{player.name}</span>
++      <span class="ps">{line}</span>
++    </span>
++  </div>
++</Row>
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index 1ca95e60..b83ebf82 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -239,6 +239,15 @@ const EN: Dict = {
+   teamsOtherClubs: "Other clubs",
+   teamsCountOne: "{n} team",
+   teamsCount: "{n} teams",
++  seoPlayersTitle: "Football players",
++  seoPlayersDesc: "The world's best players and every player we cover, by nation.",
++  seoNationTitle: "{nation} players",
++  seoNationDesc: "Every {nation} player we cover: national team regulars first, then by club.",
++  playersWorldsBest: "World's best",
++  playersByNation: "Players by nation",
++  playersCountOne: "{n} player",
++  playersCount: "{n} players",
++  playersNoNation: "No nation recorded",
+   // The competition HUB (singular), not the index above. Deliberately modest wording: the page is
+   // a scaffold with no content blocks yet (#47), so a title promising a table, fixtures and
+   // scorers would be a promise the page does not keep. Revisit the wording when #47 fills it.
+@@ -293,6 +302,8 @@ const EN: Dict = {
+   filterByRegion: "Filter by region",
+   filterAllTypes: "All types",
+   filterAllRegions: "All regions",
++  filterByPosition: "Filter by position",
++  filterAllPositions: "All positions",
+   // The competition page (GitLab #129): the Overview tab and its blocks.
+   compTabsAria: "Competition sections",
+   compTabMatchdays: "Matchdays",
+@@ -663,6 +674,15 @@ const DE: Dict = {
+   teamsOtherClubs: "Weitere Vereine",
+   teamsCountOne: "{n} Mannschaft",
+   teamsCount: "{n} Mannschaften",
++  seoPlayersTitle: "Fußballspieler",
++  seoPlayersDesc: "Die besten Spieler der Welt und jeder Spieler, den wir abdecken, nach Nationalität.",
++  seoNationTitle: "Spieler aus {nation}",
++  seoNationDesc: "Jeder Spieler aus {nation}, den wir abdecken: zuerst die Stammspieler der Nationalmannschaft, dann nach Verein.",
++  playersWorldsBest: "Weltklasse",
++  playersByNation: "Spieler nach Nationalität",
++  playersCountOne: "{n} Spieler",
++  playersCount: "{n} Spieler",
++  playersNoNation: "Keine Nationalität erfasst",
+   seoCompetitionTitle: "{competition}: Übersicht",
+   seoCompetitionDesc: "Übersichtsseite für {competition}.",
+   seoCompetitionFixturesTitle: "{competition}: Spielplan {season}",
+@@ -709,6 +729,8 @@ const DE: Dict = {
+   filterByRegion: "Nach Region filtern",
+   filterAllTypes: "Alle Arten",
+   filterAllRegions: "Alle Regionen",
++  filterByPosition: "Nach Position filtern",
++  filterAllPositions: "Alle Positionen",
+   compTabsAria: "Wettbewerbsbereiche",
+   compTabMatchdays: "Spieltage",
+   compTabRounds: "Runden",
+@@ -1084,6 +1106,15 @@ const FI: Dict = {
+   teamsOtherClubs: "Muut seurat",
+   teamsCountOne: "{n} joukkue",
+   teamsCount: "{n} joukkuetta",
++  seoPlayersTitle: "Jalkapalloilijat",
++  seoPlayersDesc: "Maailman parhaat pelaajat ja jokainen seuraamamme pelaaja maittain.",
++  seoNationTitle: "{nation}: pelaajat",
++  seoNationDesc: "{nation}: jokainen seuraamamme pelaaja, ensin maajoukkueen vakiopelaajat, sitten seuroittain.",
++  playersWorldsBest: "Maailman parhaat",
++  playersByNation: "Pelaajat maittain",
++  playersCountOne: "{n} pelaaja",
++  playersCount: "{n} pelaajaa",
++  playersNoNation: "Ei kansallisuutta",
+   seoCompetitionTitle: "{competition}: yleiskatsaus",
+   seoCompetitionDesc: "Yleiskatsaussivu kilpailulle {competition}.",
+   seoCompetitionFixturesTitle: "{competition}: otteluohjelma {season}",
+@@ -1130,6 +1161,8 @@ const FI: Dict = {
+   filterByRegion: "Suodata alueen mukaan",
+   filterAllTypes: "Kaikki tyypit",
+   filterAllRegions: "Kaikki alueet",
++  filterByPosition: "Suodata pelipaikan mukaan",
++  filterAllPositions: "Kaikki pelipaikat",
+   compTabsAria: "Kilpailun osiot",
+   compTabMatchdays: "Kierrokset",
+   compTabRounds: "Kierrokset",
+diff --git a/site_v2/src/lib/menu.ts b/site_v2/src/lib/menu.ts
+index 2cc777a2..c96a8e15 100644
+--- a/site_v2/src/lib/menu.ts
++++ b/site_v2/src/lib/menu.ts
+@@ -18,7 +18,7 @@ export function menuItems(lang: Lang): MenuItem[] {
+     { section: "competitions", label: t(lang, "navCompetitions"), href: localeHref(lang, `${word(lang, "competitions")}/`) },
+     { section: "matches", label: t(lang, "navMatches"), href: localeHref(lang, `${word(lang, "matches")}/`) },
+     { section: "teams", label: t(lang, "navTeams"), href: localeHref(lang, `${word(lang, "teams")}/`) },
+-    { section: "players", label: t(lang, "navPlayers") },
++    { section: "players", label: t(lang, "navPlayers"), href: localeHref(lang, `${word(lang, "players")}/`) },
+     { section: "statistics", label: t(lang, "navStatistics") },
+   ];
+ }
+diff --git a/site_v2/src/lib/playerIndex.mjs b/site_v2/src/lib/playerIndex.mjs
+new file mode 100644
+index 00000000..176e6439
+--- /dev/null
++++ b/site_v2/src/lib/playerIndex.mjs
+@@ -0,0 +1,85 @@
++// The Players page's lists and the nation pages, cut from players_index.json by the served orders
++// and flags. Nothing here ranks: a list is the served rows in their served place, and which rows the
++// Players page shows and which nations have a page are the warehouse's flags.
++
++/** The positions in the page's order: the filter slot, the position code the row's word uses and
++ *  the plural the lists and the filter use. */
++export const POSITIONS = [
++  { group: "ATT", slot: 1, code: "F", label: "squadFwd" },
++  { group: "MID", slot: 2, code: "M", label: "squadMid" },
++  { group: "DEF", slot: 3, code: "D", label: "squadDef" },
++  { group: "GK", slot: 4, code: "G", label: "squadGk" },
++];
++const BY_GROUP = new Map(POSITIONS.map((p) => [p.group, p]));
++
++/** The filter slot of a position, 0 for a player with none. */
++export const slotOf = (group) => BY_GROUP.get(group)?.slot ?? 0;
++/** The position code a row's word is read by, or null. */
++export const codeOf = (group) => BY_GROUP.get(group)?.code ?? null;
++
++const NATION_SLUG = /^[a-z]+(-[a-z]+)*$/;
++
++const byServed = (a, b) => a.nation_order - b.nation_order || a.order_in_nation - b.order_in_nation;
++
++/** World's best: one list per position in the page's order, its nominees in their served place;
++ *  a position without a nominee is absent. */
++export function worldsBest(data) {
++  const byId = new Map(data.players.map((p) => [p.player_id, p]));
++  return POSITIONS.map((p) => ({
++    ...p,
++    rows: data.worlds_best
++      .filter((w) => w.list === p.group)
++      .sort((a, b) => a.order - b.order)
++      .map((w) => byId.get(w.player_id))
++      .filter(Boolean),
++  })).filter((l) => l.rows.length > 0);
++}
++
++/** Which views of the Players page show a row: "all" with no position chosen, "pos" with its
++ *  position chosen, "both", or null when neither. */
++export function hubView(player) {
++  if (player.hub && player.hub_in_position) return "both";
++  if (player.hub) return "all";
++  if (player.hub_in_position) return "pos";
++  return null;
++}
++
++/** Players by nation: one group per nation in the served order, the players with no nation last.
++ *  A group holds the rows the Players page shows in any view, its count of all its players, its
++ *  count per position, and its page's slug when it has one. */
++export function nationGroups(data) {
++  const groups = new Map();
++  for (const p of [...data.players].sort(byServed)) {
++    const key = p.nation ?? "";
++    if (!groups.has(key)) {
++      groups.set(key, {
++        nation: p.nation, region: p.region_key, slug: p.nation_page ? p.nation_slug : null,
++        n: 0, perPosition: new Map(), rows: [],
++      });
++    }
++    const g = groups.get(key);
++    g.n += 1;
++    const slot = slotOf(p.position_group);
++    if (slot) g.perPosition.set(slot, (g.perPosition.get(slot) ?? 0) + 1);
++    if (hubView(p)) g.rows.push(p);
++  }
++  return [...groups.values()];
++}
++
++/** The nation pages: one per nation the warehouse gives a page, its players in the served order.
++ *  Throws when a slug is not letters and hyphens or is a player page's slug, so a clash with a
++ *  player page can never build. */
++export function nationPages(data, playerSlugs) {
++  const pages = new Map();
++  for (const p of [...data.players].sort(byServed)) {
++    if (!p.nation_page) continue;
++    if (!pages.has(p.nation_slug)) pages.set(p.nation_slug, { slug: p.nation_slug, nation: p.nation, region: p.region_key, rows: [] });
++    pages.get(p.nation_slug).rows.push(p);
++  }
++  const taken = new Set(playerSlugs);
++  for (const slug of pages.keys()) {
++    if (!NATION_SLUG.test(slug ?? "")) throw new Error(`nation page slug "${slug}" is not letters and hyphens`);
++    if (taken.has(slug)) throw new Error(`nation page slug "${slug}" is a player page's slug`);
++  }
++  return [...pages.values()];
++}
+diff --git a/site_v2/src/lib/playerIndex.test.mjs b/site_v2/src/lib/playerIndex.test.mjs
+new file mode 100644
+index 00000000..6d039b79
+--- /dev/null
++++ b/site_v2/src/lib/playerIndex.test.mjs
+@@ -0,0 +1,87 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { readFileSync, existsSync } from "node:fs";
++import { join, dirname } from "node:path";
++import { fileURLToPath } from "node:url";
++import { worldsBest, nationGroups, nationPages, hubView, slotOf, codeOf } from "./playerIndex.mjs";
++import { readBuiltPlayers } from "./builtPlayers.mjs";
++
++const p = (over) => ({
++  player_id: 1, slug: "a-player-1", name: "A Player", photo: null, position_group: "ATT",
++  nation: "Spain", region_key: "UEFA", nation_order: 1, order_in_nation: 1, club: "Club",
++  nation_slug: "spain", hub: true, hub_in_position: true, nation_page: false, ...over,
++});
++
++test("World's best: one list per position in the page's order, nominees by their served place", () => {
++  const data = {
++    players: [p({ player_id: 1, position_group: "GK" }), p({ player_id: 2 }), p({ player_id: 3 })],
++    worlds_best: [
++      { player_id: 1, list: "GK", order: 1 },
++      { player_id: 3, list: "ATT", order: 1 },
++      { player_id: 2, list: "ATT", order: 2 },
++    ],
++  };
++  const lists = worldsBest(data);
++  assert.deepEqual(lists.map((l) => l.group), ["ATT", "GK"]);
++  assert.deepEqual(lists[0].rows.map((r) => r.player_id), [3, 2]);
++});
++
++test("a row's views follow the served flags", () => {
++  assert.equal(hubView(p({})), "both");
++  assert.equal(hubView(p({ hub_in_position: false })), "all");
++  assert.equal(hubView(p({ hub: false })), "pos");
++  assert.equal(hubView(p({ hub: false, hub_in_position: false })), null);
++  assert.equal(slotOf("DEF"), 3);
++  assert.equal(slotOf(null), 0);
++  assert.equal(codeOf("GK"), "G");
++});
++
++test("nation groups keep the served order, count every player and hold only shown rows", () => {
++  const data = {
++    players: [
++      p({ player_id: 3, nation: null, nation_slug: null, region_key: null, nation_order: 3 }),
++      p({ player_id: 2, nation: "France", nation_slug: "france", nation_order: 2 }),
++      p({ player_id: 12, order_in_nation: 2, position_group: "GK", nation_page: true }),
++      p({ player_id: 11, nation_page: true }),
++      p({ player_id: 13, order_in_nation: 3, hub: false, hub_in_position: false, nation_page: true }),
++    ],
++  };
++  const groups = nationGroups(data);
++  assert.deepEqual(groups.map((g) => g.nation), ["Spain", "France", null]);
++  const spain = groups[0];
++  assert.equal(spain.n, 3);
++  assert.equal(spain.slug, "spain");
++  assert.deepEqual(spain.rows.map((r) => r.player_id), [11, 12]);
++  assert.deepEqual([...spain.perPosition], [[1, 2], [4, 1]]);
++  assert.equal(groups[1].slug, null);
++});
++
++test("nation pages hold every player of a nation with a page, in the served order", () => {
++  const data = {
++    players: [
++      p({ player_id: 13, order_in_nation: 3, hub: false, nation_page: true }),
++      p({ player_id: 11, nation_page: true }),
++      p({ player_id: 2, nation: "France", nation_slug: "france", nation_order: 2 }),
++    ],
++  };
++  const pages = nationPages(data, ["a-player-1"]);
++  assert.deepEqual(pages.map((x) => x.slug), ["spain"]);
++  assert.deepEqual(pages[0].rows.map((r) => r.player_id), [11, 13]);
++});
++
++test("a nation page whose slug is a player page's slug, or not letters and hyphens, never builds", () => {
++  const clash = { players: [p({ nation_page: true, nation_slug: "spain" })] };
++  assert.throws(() => nationPages(clash, ["spain"]), /player page's slug/);
++  const digits = { players: [p({ nation_page: true, nation_slug: "spain-1" })] };
++  assert.throws(() => nationPages(digits, []), /letters and hyphens/);
++});
++
++test("the committed sample: no nation slug is a player slug, every player slug ends in its id or is it", () => {
++  const dataDir = join(dirname(fileURLToPath(import.meta.url)), "..", "data");
++  const file = join(dataDir, "players_index.json");
++  if (!existsSync(file)) return;
++  const data = JSON.parse(readFileSync(file, "utf8"));
++  const players = [...readBuiltPlayers(dataDir).values()];
++  for (const slug of players) assert.match(slug, /(^|-)\d+$/);
++  assert.doesNotThrow(() => nationPages(data, players));
++});
+diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
+index 1ae83787..76bf4a04 100644
+--- a/site_v2/src/lib/types.ts
++++ b/site_v2/src/lib/types.ts
+@@ -583,6 +583,31 @@ export interface TeamIndex {
+   teams: TeamIndexRow[];
+ }
+ 
++/** players_index.json — mart_player_index, one row per player with a page, in the served nation
++ *  order, with the Players page's flags and the World's best nominees. */
++export interface PlayerIndexRow {
++  player_id: number;
++  slug: string;
++  name: string | null;
++  photo: string | null;
++  position_group: "ATT" | "MID" | "DEF" | "GK" | null;
++  nation: string | null;
++  region_key: string | null;
++  nation_order: number;
++  order_in_nation: number;
++  club: string | null;
++  nation_slug: string | null;
++  hub: boolean;
++  hub_in_position: boolean;
++  nation_page: boolean;
++}
++
++export interface PlayerIndex {
++  type: string;
++  worlds_best: { player_id: number; list: string; award: string | null; edition_year: number | null; order: number }[];
++  players: PlayerIndexRow[];
++}
++
+ /** competitions/{league_code}/{season}.json — one competition-season's page payload, every block
+  *  a mart read whole or filtered by served columns (fetch_competition_payloads). Selection and
+  *  ordering by served columns only; the page picks and renders, it never computes. */
+diff --git a/site_v2/src/pages/[lang]/[players]/[nation].astro b/site_v2/src/pages/[lang]/[players]/[nation].astro
+new file mode 100644
+index 00000000..4654b5a8
+--- /dev/null
++++ b/site_v2/src/pages/[lang]/[players]/[nation].astro
+@@ -0,0 +1,82 @@
++---
++// A nation's page: every player of a nation the Players page cannot show whole, in the served order,
++// with the position filter. URL: /{lang}/{players word}/{nation slug}/, beside the player pages;
++// lib/playerIndex.mjs refuses a nation slug a player page uses, so the two never share an address.
++import Layout from "../../../layouts/Layout.astro";
++import FilterRows from "../../../components/competitions/FilterRows.astro";
++import SectionHead from "../../../components/ui/SectionHead.astro";
++import PlayerIndexRow from "../../../components/player/PlayerIndexRow.astro";
++import { t } from "../../../i18n/strings";
++import { localeHref, LOCALES, word } from "../../../lib/href";
++import { builtPlayers } from "../../../lib/builtPlayers.mjs";
++import { POSITIONS, nationPages, slotOf } from "../../../lib/playerIndex.mjs";
++import type { Lang } from "../../../lib/format";
++import type { PlayerIndex as PlayerIndexData } from "../../../lib/types";
++import playersIndex from "../../../data/players_index.json";
++
++export function getStaticPaths() {
++  const data = playersIndex as unknown as PlayerIndexData;
++  return nationPages(data, [...builtPlayers().values()]).flatMap((page) =>
++    LOCALES.map((lang) => ({
++      params: { lang, players: word(lang, "players"), nation: page.slug },
++      props: { slug: page.slug },
++    })),
++  );
++}
++
++interface Props {
++  slug: string;
++}
++const lang = (Astro.params.lang ?? "en") as Lang;
++const { slug } = Astro.props;
++const data = playersIndex as unknown as PlayerIndexData;
++const page = nationPages(data, [...builtPlayers().values()]).find((p) => p.slug === slug)!;
++const nation = page.nation ?? "";
++const playersHref = localeHref(lang, `${word(lang, "players")}/`);
++
++const title = t(lang, "seoNationTitle", { nation });
++const description = t(lang, "seoNationDesc", { nation });
++const entity = {
++  "@type": "ItemList",
++  name: title,
++  numberOfItems: page.rows.length,
++};
++const crumbs = [
++  { name: t(lang, "crumbHome"), href: localeHref(lang) },
++  { name: t(lang, "navPlayers"), href: playersHref },
++  { name: nation },
++];
++---
++
++<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs} section="players">
++  <div class="inner">
++    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
++      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
++      <span class="sep">›</span>
++      <a class="lnk" href={playersHref}>{t(lang, "navPlayers")}</a>
++      <span class="sep">›</span>
++      <span class="here">{nation}</span>
++    </nav>
++
++    <h1>{nation}</h1>
++
++    <section class="teamindex">
++      <FilterRows
++        lang={lang}
++        rows={[{ confederation: page.region }]}
++        competitions={POSITIONS.map((p) => ({ name: t(lang, p.label) }))}
++        slotsArePositions
++      />
++      <div class="categories">
++        <section class="tblock">
++          <SectionHead label={t(lang, "navPlayers")} />
++          <div class="comp-grid">
++            {page.rows.map((player) => (
++              <PlayerIndexRow player={player} lang={lang} slot={slotOf(player.position_group)} />
++            ))}
++          </div>
++        </section>
++      </div>
++    </section>
++  </div>
++</Layout>
+diff --git a/site_v2/src/pages/[lang]/[players]/[player].astro b/site_v2/src/pages/[lang]/[players]/[player].astro
+index 97c12abb..4ed7e43c 100644
+--- a/site_v2/src/pages/[lang]/[players]/[player].astro
++++ b/site_v2/src/pages/[lang]/[players]/[player].astro
+@@ -111,6 +111,7 @@ const entity = {
+ };
+ const crumbs = [
+   { name: t(lang, "crumbHome"), href: localeHref(lang) },
++  { name: t(lang, "navPlayers"), href: localeHref(lang, `${word(lang, "players")}/`) },
+   { name },
+ ];
+ const TAB = {
+@@ -132,7 +133,7 @@ const TAB = {
+     <nav class="crumb" aria-label={t(lang, "crumbAria")}>
+       <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
+       <span class="sep">›</span>
+-      <span>{t(lang, "navPlayers")}</span>
++      <a class="lnk" href={localeHref(lang, `${word(lang, "players")}/`)}>{t(lang, "navPlayers")}</a>
+       <span class="sep">›</span>
+       <span class="here">{name}</span>
+     </nav>
+diff --git a/site_v2/src/pages/[lang]/[players]/index.astro b/site_v2/src/pages/[lang]/[players]/index.astro
+new file mode 100644
+index 00000000..1dd6febb
+--- /dev/null
++++ b/site_v2/src/pages/[lang]/[players]/index.astro
+@@ -0,0 +1,52 @@
++---
++// The Players page: World's best and Players by nation, in the lists, orders and flags
++// players_index.json serves (mart_player_index). The page composes; PlayerIndex.astro renders,
++// lib/playerIndex.mjs cuts the lists.
++import Layout from "../../../layouts/Layout.astro";
++import PlayerIndex from "../../../components/player/PlayerIndex.astro";
++import { t } from "../../../i18n/strings";
++import { localeHref, LOCALES, word } from "../../../lib/href";
++import type { Lang } from "../../../lib/format";
++import type { PlayerIndex as PlayerIndexData } from "../../../lib/types";
++import playersIndex from "../../../data/players_index.json";
++
++export function getStaticPaths() {
++  return LOCALES.map((lang) => ({
++    params: { lang, players: word(lang, "players") },
++  }));
++}
++
++const lang = (Astro.params.lang ?? "en") as Lang;
++const data = playersIndex as unknown as PlayerIndexData;
++
++const title = t(lang, "seoPlayersTitle");
++const description = t(lang, "seoPlayersDesc");
++// The players the page lists: the rows it shows in any view and the World's best nominees.
++const listed = new Set([
++  ...data.players.filter((p) => p.hub || p.hub_in_position).map((p) => p.player_id),
++  ...data.worlds_best.map((w) => w.player_id),
++]);
++const entity = {
++  "@type": "ItemList",
++  name: title,
++  numberOfItems: listed.size,
++};
++const crumbs = [
++  { name: t(lang, "crumbHome"), href: localeHref(lang) },
++  { name: t(lang, "navPlayers") },
++];
++---
++
++<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs} section="players">
++  <div class="inner">
++    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
++      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
++      <span class="sep">›</span>
++      <span class="here">{t(lang, "navPlayers")}</span>
++    </nav>
++
++    <h1>{t(lang, "navPlayers")}</h1>
++
++    <PlayerIndex data={data} lang={lang} />
++  </div>
++</Layout>
+diff --git a/site_v2/src/specs/page-spec.schema.json b/site_v2/src/specs/page-spec.schema.json
+index 7eacfce8..a1e61ce1 100644
+--- a/site_v2/src/specs/page-spec.schema.json
++++ b/site_v2/src/specs/page-spec.schema.json
+@@ -13,7 +13,7 @@
+     },
+     "entity": {
+       "type": "string",
+-      "enum": ["team", "player", "fixture", "competition", "competitionIndex", "home", "matchDay", "teamIndex"],
++      "enum": ["team", "player", "fixture", "competition", "competitionIndex", "home", "matchDay", "teamIndex", "playerIndex", "nation"],
+       "description": "The entity type this template renders, per docs/content_architecture.md section 2."
+     },
+     "stub": {
+diff --git a/site_v2/src/specs/players/index.spec.json b/site_v2/src/specs/players/index.spec.json
+new file mode 100644
+index 00000000..53707476
+--- /dev/null
++++ b/site_v2/src/specs/players/index.spec.json
+@@ -0,0 +1,37 @@
++{
++  "$schema": "../page-spec.schema.json",
++  "page": "[lang]/[players]/index.astro",
++  "entity": "playerIndex",
++  "seo": {
++    "canonical": "self",
++    "hreflang": "all-locales",
++    "title": "seoPlayersTitle",
++    "description": "seoPlayersDesc",
++    "schema_org": "ItemList",
++    "links": {
++      "inbound_hub": "none",
++      "outbound": ["player", "nation"]
++    },
++    "minimum_data": "None: every row of mart_player_index the warehouse flags for the page renders (is_hub_shown or is_hub_shown_in_position). A row links to its player's page when the build makes one, a nation heading to its nation's page when it has one.",
++    "page_count_driver": "count(locales)",
++    "url_permanence": "permanent",
++    "url_permanence_note": "One page per locale at the players word; the menu, the footer and every Player page's breadcrumb link to it."
++  },
++  "blocks": [
++    {
++      "block": "Filter rows",
++      "mart": "mart_player_index",
++      "i18n_keys": ["crumbHome", "navPlayers", "filterAll", "filterByPosition", "filterAllPositions", "filterByRegion", "filterAllRegions", "squadFwd", "squadMid", "squadDef", "squadGk", "confedUefa"]
++    },
++    {
++      "block": "World's best",
++      "mart": "mart_player_index",
++      "i18n_keys": ["playersWorldsBest", "posF", "posM", "posD", "posG"]
++    },
++    {
++      "block": "Players by nation",
++      "mart": "mart_player_index",
++      "i18n_keys": ["playersByNation", "playersCount", "playersCountOne", "playersNoNation", "homeShowAll"]
++    }
++  ]
++}
+diff --git a/site_v2/src/specs/players/nation.spec.json b/site_v2/src/specs/players/nation.spec.json
+new file mode 100644
+index 00000000..bee7da86
+--- /dev/null
++++ b/site_v2/src/specs/players/nation.spec.json
+@@ -0,0 +1,32 @@
++{
++  "$schema": "../page-spec.schema.json",
++  "page": "[lang]/[players]/[nation].astro",
++  "entity": "nation",
++  "seo": {
++    "canonical": "self",
++    "hreflang": "all-locales",
++    "title": "seoNationTitle",
++    "description": "seoNationDesc",
++    "schema_org": "ItemList",
++    "links": {
++      "inbound_hub": "none",
++      "outbound": ["player"]
++    },
++    "minimum_data": "A nation with more players than the Players page shows of it: mart_player_index.has_nation_page.",
++    "page_count_driver": "count(distinct nation_slug where has_nation_page) x count(locales)",
++    "url_permanence": "permanent",
++    "url_permanence_note": "The slug is the country's key in dim_country, assigned once and fixed; it is letters and hyphens only, so it never takes a player page's {name}-{id} slug, and the route refuses one that would."
++  },
++  "blocks": [
++    {
++      "block": "Nation header and position filter",
++      "mart": "mart_player_index",
++      "i18n_keys": ["crumbHome", "navPlayers", "filterAll", "filterByPosition", "filterAllPositions", "squadFwd", "squadMid", "squadDef", "squadGk"]
++    },
++    {
++      "block": "Players",
++      "mart": "mart_player_index",
++      "i18n_keys": ["navPlayers", "posF", "posM", "posD", "posG"]
++    }
++  ]
++}
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index a3ffe3d1..c5ccc7d9 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -479,6 +479,8 @@ a.cnm .nm { text-decoration: none; }
+ .fold-ctl .opened, .fold-in:checked ~ .fold-ctl .closed { display: none; }
+ .fold-in:checked ~ .fold-ctl .opened { display: inline; }
+ .fold-in:focus-visible ~ .fold-ctl { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px; }
++/* The fold's control as a link to the page that lists the rest: the chevron points to it. */
++a.fold-ctl .chev { transform: none; }
+ .fold-rest > .fxrow:last-child { border-bottom: 1px solid var(--line); }
+ /* Small crest for list rows. The base .crest is a 52px block built for the fixture masthead. */
+ .crest.xs { width: 24px; height: 24px; border-radius: 4px; font-size: 9px; flex: 0 0 auto; }
+@@ -694,6 +696,9 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+ #filter-competition-6:checked ~ .categories section[data-slots]:not([data-slots~="6"]),
+ #filter-competition-7:checked ~ .categories section[data-slots]:not([data-slots~="7"]),
+ #filter-competition-8:checked ~ .categories section[data-slots]:not([data-slots~="8"]) { display: none; }
++/* The Players page shows other rows, counts and links with a position chosen than without one. */
++#filter-competition-all:checked ~ .categories [data-hub="pos"],
++.seg-in[name=competition-filter]:not([value=""]):checked ~ .categories [data-hub="all"] { display: none; }
+ 
+ #filter-competition-all:checked ~ .fbar .seg-btn[for="filter-competition-all"],
+ #filter-competition-1:checked ~ .fbar .seg-btn[for="filter-competition-1"],
+diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
+index ca365b66..3df99330 100644
+--- a/tests/test_export_site_data.py
++++ b/tests/test_export_site_data.py
+@@ -1431,6 +1431,8 @@ def _player_index_row(**over) -> dict:
+         "position_group": "ATT", "player_nationality": "England", "region_key": "UEFA",
+         "nation_order": 4, "order_in_nation": 1, "current_club_name": "Bayern München",
+         "award": None, "award_edition_year": None, "worlds_best_list": None, "worlds_best_order": None,
++        "nation_slug": "england", "is_hub_shown": True, "is_hub_shown_in_position": True,
++        "has_nation_page": True,
+     }
+     return {**row, **over}
+ 
+@@ -1444,7 +1446,8 @@ def test_shape_player_index_keeps_the_served_order_and_lists_the_nominees():
+                               award="ballon_dor", award_edition_year=2026, worlds_best_list="ATT",
+                               worlds_best_order=1),
+             _player_index_row(player_sk=4, player_nationality=None, region_key=None, nation_order=3,
+-                              current_club_name=None)]
++                              current_club_name=None, nation_slug=None, is_hub_shown=False,
++                              is_hub_shown_in_position=False, has_nation_page=False)]
+     shaped = shape_player_index(rows)
+     assert shaped["type"] == "players_index"
+     assert [p["player_id"] for p in shaped["players"]] == [2, 1, 3, 4]
+@@ -1456,9 +1459,12 @@ def test_shape_player_index_keeps_the_served_order_and_lists_the_nominees():
+     assert first == {"player_id": 2, "slug": player_slug_with_id("B Two", 2), "name": "B Two",
+                      "photo": "https://x/184.png", "position_group": "ATT", "nation": "England",
+                      "region_key": "UEFA", "nation_order": 1, "order_in_nation": 1,
+-                     "club": "Bayern München"}
++                     "club": "Bayern München", "nation_slug": "england", "hub": True,
++                     "hub_in_position": True, "nation_page": True}
+     last = shaped["players"][3]
+     assert last["nation"] is None and last["region_key"] is None and last["club"] is None
++    assert last["nation_slug"] is None
++    assert (last["hub"], last["hub_in_position"], last["nation_page"]) == (False, False, False)
+ 
+ 
+ def test_fetch_player_index_reads_the_mart_alone_in_the_served_order(monkeypatch):
+
+# ============================================================================
+# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
+# ============================================================================
+# The files below changed and are DELIBERATELY excluded from the diff body:
+# they are generated/sample data, and pasting them has measured at ~89% of the
+# review payload. They are still reviewed content and still bind your verdict.
+#
+# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
+# particular: whether a field displayed by a component actually EXISTS in the
+# exported sample is checked by opening these files, not by reading a diff.
+#
+#   site_v2/src/data/README.md          |     8 +-
+#    site_v2/src/data/players_index.json | 34751 ++++++++++++++++++++++++++++++++++
+#    2 files changed, 34758 insertions(+), 1 deletion(-)
+# ============================================================================
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../task/135-players-page/acceptance_evidence.md   |   17 +
+#    .../135-players-page/rendered_page_evidence.md     |   43 +
+#    .claude/task/135-players-page/review_input.patch   | 1481 ++++++++++++++++++++
+#    3 files changed, 1541 insertions(+)
+# ============================================================================

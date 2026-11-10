@@ -1431,6 +1431,8 @@ def _player_index_row(**over) -> dict:
         "position_group": "ATT", "player_nationality": "England", "region_key": "UEFA",
         "nation_order": 4, "order_in_nation": 1, "current_club_name": "Bayern München",
         "award": None, "award_edition_year": None, "worlds_best_list": None, "worlds_best_order": None,
+        "nation_slug": "england", "is_hub_shown": True, "is_hub_shown_in_position": True,
+        "has_nation_page": True,
     }
     return {**row, **over}
 
@@ -1444,7 +1446,8 @@ def test_shape_player_index_keeps_the_served_order_and_lists_the_nominees():
                               award="ballon_dor", award_edition_year=2026, worlds_best_list="ATT",
                               worlds_best_order=1),
             _player_index_row(player_sk=4, player_nationality=None, region_key=None, nation_order=3,
-                              current_club_name=None)]
+                              current_club_name=None, nation_slug=None, is_hub_shown=False,
+                              is_hub_shown_in_position=False, has_nation_page=False)]
     shaped = shape_player_index(rows)
     assert shaped["type"] == "players_index"
     assert [p["player_id"] for p in shaped["players"]] == [2, 1, 3, 4]
@@ -1456,9 +1459,12 @@ def test_shape_player_index_keeps_the_served_order_and_lists_the_nominees():
     assert first == {"player_id": 2, "slug": player_slug_with_id("B Two", 2), "name": "B Two",
                      "photo": "https://x/184.png", "position_group": "ATT", "nation": "England",
                      "region_key": "UEFA", "nation_order": 1, "order_in_nation": 1,
-                     "club": "Bayern München"}
+                     "club": "Bayern München", "nation_slug": "england", "hub": True,
+                     "hub_in_position": True, "nation_page": True}
     last = shaped["players"][3]
     assert last["nation"] is None and last["region_key"] is None and last["club"] is None
+    assert last["nation_slug"] is None
+    assert (last["hub"], last["hub_in_position"], last["nation_page"]) == (False, False, False)
 
 
 def test_fetch_player_index_reads_the_mart_alone_in_the_served_order(monkeypatch):

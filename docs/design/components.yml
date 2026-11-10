@@ -118,8 +118,8 @@ components:
     narrow: {below: w700, form: "one line that scrolls sideways, the far levels hidden"}
   page-heading:
     name: Page heading
-    file: ["site_v2/src/pages/[lang]/[competitions]/index.astro", "site_v2/src/pages/[lang]/[teams]/index.astro", site_v2/src/components/matches/MatchesDay.astro]
-    used-on: [Competitions, Matches, Teams]
+    file: ["site_v2/src/pages/[lang]/[competitions]/index.astro", "site_v2/src/pages/[lang]/[teams]/index.astro", site_v2/src/components/matches/MatchesDay.astro, "site_v2/src/pages/[lang]/[players]/index.astro", "site_v2/src/pages/[lang]/[players]/[nation].astro"]
+    used-on: [Competitions, Matches, Teams, Players, nation page]
     parts:
       heading: {class: crumb, selector: ".crumb + h1", text: 30-700-ink, element: Page heading, rule: "a menu page's heading under its breadcrumb, the menu item's word: the Competitions page's and the Matches page's, 30px bold ink", measured: "font-size=30px; font-weight=700; color=ink", ruled-on: "#130 (the Competitions page's heading, as it ships)"}
     wide: "the menu item's word"
@@ -156,8 +156,8 @@ components:
     wide: "name over its rule, explainer, content"
   group:
     name: Group
-    file: [site_v2/src/components/home/HeroFixtures.astro, site_v2/src/components/fixture/NextMatches.astro, site_v2/src/components/team/TeamFixtureGroup.astro, site_v2/src/components/competition/RankingsBlock.astro, site_v2/src/components/teams/TeamIndex.astro]
-    used-on: [Home, Matches, Competition pages, Team page, Teams page, match page]
+    file: [site_v2/src/components/home/HeroFixtures.astro, site_v2/src/components/fixture/NextMatches.astro, site_v2/src/components/team/TeamFixtureGroup.astro, site_v2/src/components/competition/RankingsBlock.astro, site_v2/src/components/teams/TeamIndex.astro, site_v2/src/components/player/PlayerIndex.astro]
+    used-on: [Home, Matches, Competition pages, Team page, Teams page, match page, Players]
     parts:
       head: {class: gh, selector: ".fxgroup:not(.rkgroup) > .gh", element: Competition group head, rule: "the level-1 heading over a competition's match rows: crest · name · chevron, 17px bold, a 2px line under it, 34px above the group; on Home, inside the Next matches block, it keeps its line", measured: "border-bottom-width=2px; left-edge=section", ruled-on: "#50; #129; 2026-09-17 (\"Home with line\")"}
       name: {class: nm, selector: ".fxgroup:not(.rkgroup) > .gh .nm", text: 17-700-ink, element: Competition group name, rule: 17px bold ink, measured: "font-size=17px; font-weight=700; color=ink", ruled-on: "#50"}
@@ -328,8 +328,8 @@ components:
     short-forms: [wins, draws, losses]
   player-row:
     name: Player row
-    file: [site_v2/src/components/fixture/PlayerRow.astro, site_v2/src/components/fixture/MatchLineups.astro, site_v2/src/components/team/TeamSquad.astro]
-    used-on: [match page, Team page]
+    file: [site_v2/src/components/fixture/PlayerRow.astro, site_v2/src/components/fixture/MatchLineups.astro, site_v2/src/components/team/TeamSquad.astro, site_v2/src/components/player/PlayerIndexRow.astro]
+    used-on: [match page, Team page, Players, nation page]
     parts:
       row: {class: plrow, element: Player row, rule: "photo · name over position · goals and assists on the right at every width; two lines below 375px when the row is short of room; on a line-up, the minutes played", measured: fits, ruled-on: "the match page review; the component registry"}
       name: {class: nm, selector: ".plrow .pname .nm", text: 15-400-ink, element: Player row name, rule: "15px regular ink, wrapping, never cut off", measured: "font-size=15px; font-weight=400; color=ink; white-space=normal", ruled-on: the match page review}
@@ -480,7 +480,7 @@ components:
   filter-bar:
     name: Filter bar
     file: site_v2/src/components/competitions/FilterRows.astro
-    used-on: [Competitions, Matches, Teams, Team page]
+    used-on: [Competitions, Matches, Teams, Team page, Players, nation page]
     parts:
       row: {class: seg, element: Filter row, rule: "a filter by type and one by region on the Competitions and Matches pages, each a sunk ground holding its buttons or its dropdown", measured: "background-color=sunk", ruled-on: the Filter bar design}
       button: {class: seg-btn, selector: ".seg .seg-btn", gap: style-varies, breaks: never, element: Filter button, rule: "13px, each on one line", measured: "font-size=13px; one-line", ruled-on: the Filter bar design}
@@ -492,10 +492,11 @@ components:
     narrow: {below: fits, form: a dropdown per filter}
   fold:
     name: Fold
-    file: site_v2/src/components/ui/Fold.astro
-    used-on: [Home, Matches, Teams, Team page]
+    file: [site_v2/src/components/ui/Fold.astro, site_v2/src/components/player/PlayerIndex.astro]
+    used-on: [Home, Matches, Teams, Team page, Players]
     parts:
       control: {class: fold-ctl, text: 13-600-ink-2, element: Fold, rule: "Under a list's shown rows: \"Show all {n}\" closed, \"Show less\" open, with the chevron down or up: 13px semi-bold ink-2", measured: "font-size=13px; font-weight=600; color=ink-2", ruled-on: the shared fold review}
+      link: {class: fold-ctl, selector: a.fold-ctl, text: 13-600-ink-2, element: Fold link, rule: "Under a list whose other rows are on their own page: \"Show all {n}\" as a link to that page, the chevron pointing to it", measured: "font-size=13px; font-weight=600; color=ink-2", ruled-on: the Players page review}
       closed: {class: closed}
       opened: {class: opened}
       box: {class: fold-in}

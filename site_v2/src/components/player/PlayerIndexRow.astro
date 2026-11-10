@@ -1,0 +1,48 @@
+---
+// One row of the Players page and a nation page, the player row without numbers: photo · name over
+// position · club. It links to the player's page when this build makes one. `view`, `slot` and
+// `region` mark the views it shows in, for the stylesheet's position and region filters.
+import { positionLabel } from "../../i18n/strings";
+import { builtPlayers } from "../../lib/builtPlayers.mjs";
+import { localeHref, word } from "../../lib/href";
+import { codeOf } from "../../lib/playerIndex.mjs";
+import type { Lang } from "../../lib/format";
+import type { PlayerIndexRow } from "../../lib/types";
+
+interface Props {
+  player: PlayerIndexRow;
+  lang: Lang;
+  view?: string | null;
+  slot?: number;
+  region?: string;
+}
+const { player, lang, view, slot, region } = Astro.props;
+const initials = (player.name ?? "")
+  .split(/\s+/)
+  .map((w) => w[0] ?? "")
+  .join("")
+  .slice(0, 2)
+  .toUpperCase();
+const code = codeOf(player.position_group);
+const line = [code ? positionLabel(lang, code) : null, player.club].filter(Boolean).join(" · ");
+const built = builtPlayers().has(player.player_id);
+const Row = built ? "a" : "div";
+---
+
+<Row
+  class="lrow"
+  href={built ? localeHref(lang, `${word(lang, "players")}/${player.slug}/`) : undefined}
+  data-hub={view ?? undefined}
+  data-competition-slot={slot === undefined ? undefined : String(slot)}
+  data-confederation={region}
+>
+  <div class="plrow">
+    <span class="pphoto">
+      {player.photo ? <img src={player.photo} alt="" loading="lazy" width="34" height="34" /> : <span>{initials}</span>}
+    </span>
+    <span class="pname">
+      <span class="nm">{player.name}</span>
+      <span class="ps">{line}</span>
+    </span>
+  </div>
+</Row>

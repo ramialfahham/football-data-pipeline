@@ -184,6 +184,7 @@
 | Filter dropdown | `.seg.sel .sel-in` | 13px bold ink; side by side while each holds its longest choice, stacked full width below that | `font-size=13px; font-weight=700; color=ink; fits` | ruled | the Filter bar design |
 | Filter bar parts | `.seg-in, .categories` | the filter bar's other parts: registered, no text of their own |  | ruled | the component registry |
 | Fold | `.fold-ctl` | Under a list's shown rows: "Show all {n}" closed, "Show less" open, with the chevron down or up: 13px semi-bold ink-2 | `font-size=13px; font-weight=600; color=ink-2` | ruled | the shared fold review |
+| Fold link | `a.fold-ctl` | Under a list whose other rows are on their own page: "Show all {n}" as a link to that page, the chevron pointing to it | `font-size=13px; font-weight=600; color=ink-2` | ruled | the Players page review |
 | Fold label | `.lbl` | the fold's label, in the 13-600-ink-2 text style, never broken | `font-size=13px; font-weight=600; color=ink-2; one-line; fits` | ruled | the component registry |
 | Fold parts | `.closed, .opened, .fold-in, .fold-rest` | the fold's other parts: registered, no text of their own |  | ruled | the component registry |
 | Competition list name | `.comp-row .comp-name` | the competition list's name, in the 14-600-ink text style | `font-size=14px; font-weight=600; color=ink` | ruled | the component registry |

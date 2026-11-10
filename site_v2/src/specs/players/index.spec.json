@@ -1,0 +1,37 @@
+{
+  "$schema": "../page-spec.schema.json",
+  "page": "[lang]/[players]/index.astro",
+  "entity": "playerIndex",
+  "seo": {
+    "canonical": "self",
+    "hreflang": "all-locales",
+    "title": "seoPlayersTitle",
+    "description": "seoPlayersDesc",
+    "schema_org": "ItemList",
+    "links": {
+      "inbound_hub": "none",
+      "outbound": ["player", "nation"]
+    },
+    "minimum_data": "None: every row of mart_player_index the warehouse flags for the page renders (is_hub_shown or is_hub_shown_in_position). A row links to its player's page when the build makes one, a nation heading to its nation's page when it has one.",
+    "page_count_driver": "count(locales)",
+    "url_permanence": "permanent",
+    "url_permanence_note": "One page per locale at the players word; the menu, the footer and every Player page's breadcrumb link to it."
+  },
+  "blocks": [
+    {
+      "block": "Filter rows",
+      "mart": "mart_player_index",
+      "i18n_keys": ["crumbHome", "navPlayers", "filterAll", "filterByPosition", "filterAllPositions", "filterByRegion", "filterAllRegions", "squadFwd", "squadMid", "squadDef", "squadGk", "confedUefa"]
+    },
+    {
+      "block": "World's best",
+      "mart": "mart_player_index",
+      "i18n_keys": ["playersWorldsBest", "posF", "posM", "posD", "posG"]
+    },
+    {
+      "block": "Players by nation",
+      "mart": "mart_player_index",
+      "i18n_keys": ["playersByNation", "playersCount", "playersCountOne", "playersNoNation", "homeShowAll"]
+    }
+  ]
+}

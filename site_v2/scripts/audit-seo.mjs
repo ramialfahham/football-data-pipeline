@@ -259,6 +259,14 @@ export function specTie(specs, path) {
   return winners.length > 1 ? winners : [];
 }
 
+/** The slug a route parameter takes, where two routes share one address level: a player page's
+ *  slug ends in its id (the whole slug when the name leaves nothing), a nation page's is letters
+ *  and hyphens, so neither spec claims the other's URL. Any other parameter takes any segment. */
+export const PARAM_SHAPES = {
+  player: "(?:[^/]+-)?\\d+",
+  nation: "[a-z]+(?:-[a-z]+)*",
+};
+
 export function specRouteRegex(pageField) {
   const withoutExt = pageField.replace(/\.astro$/, "");
   const escaped = withoutExt
@@ -266,7 +274,9 @@ export function specRouteRegex(pageField) {
     .map((seg) => {
       const key = wordParam(seg);
       if (key) return `(?:${[...new Set(Object.values(WORDS[key]))].join("|")})`;
-      return /^\[.+\]$/.test(seg) ? "[^/]+" : seg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const param = /^\[(.+)\]$/.exec(seg)?.[1];
+      if (param) return Object.hasOwn(PARAM_SHAPES, param) ? `(?:${PARAM_SHAPES[param]})` : "[^/]+";
+      return seg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     })
     .join("/");
   // trailingSlash: "always" -- an index segment collapses to the directory URL.

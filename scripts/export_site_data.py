@@ -1789,7 +1789,8 @@ def fetch_team_index(client) -> dict:
 _PLAYER_INDEX_COLUMNS = (
     "player_sk, player_name, player_photo_url, position_group, player_nationality, region_key, "
     "nation_order, order_in_nation, current_club_name, award, award_edition_year, "
-    "worlds_best_list, worlds_best_order"
+    "worlds_best_list, worlds_best_order, nation_slug, is_hub_shown, is_hub_shown_in_position, "
+    "has_nation_page"
 )
 
 
@@ -1808,7 +1809,10 @@ def shape_player_index(rows: list[dict]) -> dict:
                      "name": r.get("player_name"), "photo": r.get("player_photo_url"),
                      "position_group": r.get("position_group"), "nation": r.get("player_nationality"),
                      "region_key": r.get("region_key"), "nation_order": r.get("nation_order"),
-                     "order_in_nation": r.get("order_in_nation"), "club": r.get("current_club_name")}
+                     "order_in_nation": r.get("order_in_nation"), "club": r.get("current_club_name"),
+                     "nation_slug": r.get("nation_slug"), "hub": bool(r.get("is_hub_shown")),
+                     "hub_in_position": bool(r.get("is_hub_shown_in_position")),
+                     "nation_page": bool(r.get("has_nation_page"))}
                     for r in rows],
     }
 

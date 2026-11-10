@@ -13,6 +13,10 @@
 
   A player's region is the confederation of the country of his nationality.
 
+  The Players page shows of each nation its regulars and its first 10 other players, and of each
+  position inside a nation the same; a nation with more players than that has its own page, at
+  nation_slug, the key of its country. The group with no nationality has no page.
+
   Reads mart_player_profile and mart_team_index in its own layer.
   Grain: (player_sk).
 #}
@@ -36,6 +40,7 @@ with profile as (
 countries as (
     select
         country_name,
+        country_key,
         confederation
     from {{ ref('dim_country') }}
 ),
@@ -124,6 +129,7 @@ players as (
         p.position_group,
         p.player_nationality,
         p.nationality_team_sk,
+        c.country_key as nation_slug,
         c.confederation as region_key,
         n.national_team_rank,
         n.nation_order,
@@ -156,33 +162,72 @@ players as (
         on p.player_sk = cm.player_sk
     left join nominees as a
         on p.player_sk = a.player_sk
+),
+
+ordered as (
+    select
+        *,
+        row_number() over (
+            partition by player_nationality
+            order by
+                is_national_team_regular desc,
+                if(is_national_team_regular, national_team_minutes, null) desc,
+                club_order is null asc,
+                club_order asc,
+                club_minutes_this_season desc,
+                player_name asc,
+                player_sk asc
+        ) as order_in_nation,
+        if(
+            worlds_best_list is null,
+            null,
+            row_number() over (
+                partition by worlds_best_list
+                order by
+                    club_order is null asc,
+                    club_order asc,
+                    award_placing is null asc,
+                    award_placing asc,
+                    player_name asc,
+                    player_sk asc
+            )
+        ) as worlds_best_order
+    from players
+),
+
+club_places as (
+    select
+        *,
+        if(
+            is_national_team_regular,
+            null,
+            row_number() over (
+                partition by player_nationality, is_national_team_regular
+                order by order_in_nation
+            )
+        ) as club_place,
+        if(
+            is_national_team_regular,
+            null,
+            row_number() over (
+                partition by player_nationality, position_group, is_national_team_regular
+                order by order_in_nation
+            )
+        ) as club_place_in_position
+    from ordered
+),
+
+shown as (
+    select
+        * except (club_place, club_place_in_position),
+        is_national_team_regular or club_place <= 10 as is_hub_shown,
+        position_group is not null
+        and (is_national_team_regular or club_place_in_position <= 10) as is_hub_shown_in_position
+    from club_places
 )
 
 select
     *,
-    row_number() over (
-        partition by player_nationality
-        order by
-            is_national_team_regular desc,
-            if(is_national_team_regular, national_team_minutes, null) desc,
-            club_order is null asc,
-            club_order asc,
-            club_minutes_this_season desc,
-            player_name asc,
-            player_sk asc
-    ) as order_in_nation,
-    if(
-        worlds_best_list is null,
-        null,
-        row_number() over (
-            partition by worlds_best_list
-            order by
-                club_order is null asc,
-                club_order asc,
-                award_placing is null asc,
-                award_placing asc,
-                player_name asc,
-                player_sk asc
-        )
-    ) as worlds_best_order
-from players
+    player_nationality is not null
+    and logical_or(not is_hub_shown) over (partition by player_nationality) as has_nation_page
+from shown

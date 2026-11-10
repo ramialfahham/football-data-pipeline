@@ -583,6 +583,31 @@ export interface TeamIndex {
   teams: TeamIndexRow[];
 }
 
+/** players_index.json — mart_player_index, one row per player with a page, in the served nation
+ *  order, with the Players page's flags and the World's best nominees. */
+export interface PlayerIndexRow {
+  player_id: number;
+  slug: string;
+  name: string | null;
+  photo: string | null;
+  position_group: "ATT" | "MID" | "DEF" | "GK" | null;
+  nation: string | null;
+  region_key: string | null;
+  nation_order: number;
+  order_in_nation: number;
+  club: string | null;
+  nation_slug: string | null;
+  hub: boolean;
+  hub_in_position: boolean;
+  nation_page: boolean;
+}
+
+export interface PlayerIndex {
+  type: string;
+  worlds_best: { player_id: number; list: string; award: string | null; edition_year: number | null; order: number }[];
+  players: PlayerIndexRow[];
+}
+
 /** competitions/{league_code}/{season}.json — one competition-season's page payload, every block
  *  a mart read whole or filtered by served columns (fetch_competition_payloads). Selection and
  *  ordering by served columns only; the page picks and renders, it never computes. */
