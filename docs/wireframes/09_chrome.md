@@ -15,7 +15,7 @@ N/A — chrome wraps every route in `site_architecture.md` §3. It renders once,
 
 ## 3. Data sources
 
-None. Chrome is fixed product IA (`site_architecture.md` §4: a six-item nav, its keys in §5 below),
+None. Chrome is fixed product IA (`site_architecture.md` §4: a five-item nav, its keys in §5 below),
 not registry- or mart-driven — it does not vary
 by competition, team, or any exported payload. Labels are static i18n strings
 (`site_v2/src/i18n/strings.ts`). This means the binding rule (00_overview.md — "may reference only
@@ -30,22 +30,22 @@ fields that exist in today's exported JSON") does not apply here; there is no pa
 │  ▾ drawer (phone only, hidden by default)  │  (2) drawer — opens on ☰
 │    Competitions                            │
 │    Matches                                 │
-│    Teams / Players / Table / Statistics    │
+│    Teams / Players / Statistics            │
 ├────────────────────────────────────────────┤
 │              (page content)                │
 ├────────────────────────────────────────────┤
 │ MatchdayPilot                              │  (3) footer
 │ Competitions · Matches · Teams · Players · │
-│ Table · Statistics ·                       │
+│ Statistics ·                               │
 │ About · Imprint (pending)                  │
 │ EN · DE · FI · Data: API-Football          │
 └────────────────────────────────────────────┘
 ```
 
-**Phone (< 700px)**: brand + search icon + theme toggle + hamburger in the header; the 6-item nav
+**Phone (< 700px)**: brand + search icon + theme toggle + hamburger in the header; the 5-item nav
 lives in the drawer (`#menuBtn` toggles `.drawer.open`), closed by default.
 
-**≥ 700px**: the 6-item nav (`.mainnav`) goes inline in the header; the hamburger and drawer are
+**≥ 700px**: the 5-item nav (`.mainnav`) goes inline in the header; the hamburger and drawer are
 hidden — there is no drawer state to open on a laptop-width screen.
 
 **≥ 900px**: a generic two-column page grid (`.shell > .page-grid { main | aside.rail }`, max
@@ -67,19 +67,19 @@ All chrome text is chrome-string i18n (`t(lang, key)`), not catalogue-bound (§3
 | Element | Key(s) |
 |---|---|
 | Brand | hardcoded "MatchdayPilot" (proper noun, not translated), links to `localeHref(lang)`. Rendered as SPLIT markup — `Matchday<span class="iq">Pilot</span>` — so no source file contains the joined string; verify any future rename against rendered text, never a grep (#862) |
-| Main nav (6 items) | `navCompetitions`, `navMatches`, `navTeams`, `navPlayers`, `table`, `navStatistics` |
+| Main nav (5 items) | `navCompetitions`, `navMatches`, `navTeams`, `navPlayers`, `navStatistics` |
 | Main nav aria-label | `mainNavAria` |
 | Search placeholder / icon-button aria | `searchPlaceholder`, `searchAria` |
 | Theme toggle aria | `themeToggleAria` |
 | Hamburger aria | `menuAria` |
-| Footer link row (the main nav's 6 items, from `lib/menu.ts`, then About) | the main nav's keys, `footerAbout` |
+| Footer link row (the main nav's 5 items, from `lib/menu.ts`, then About) | the main nav's keys, `footerAbout` |
 | Footer Imprint slot | `footerImprintPending` |
 | Footer data-source line | `footerDataSource` (prefix only — "EN · DE · FI" itself is locale-invariant literal text, language codes are not translated) |
 
 ## 6. States
 
 - **No dead links.** A nav or footer item is an inert `<span>` (not `<a>`) until the page behind
-  it is built. Competitions and Matches are links; Teams, Players, Table, Statistics and
+  it is built. Competitions and Matches are links; Teams, Players, Statistics and
   About have no built index page, so they are spans. The footer's row repeats the menu, each
   item a link exactly when the menu's is. `.mainnav a, .mainnav span` (and the footer/drawer
   equivalents) apply identical styling to both, so an inert item looks no different from a real

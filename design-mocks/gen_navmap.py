@@ -75,10 +75,6 @@ MENU_NOTES = {
     "navPlayers": ("Every player.",
                    "none",
                    "NOTHING IS PLANNED, and the player page itself is not built."),
-    "navStandings": ("Tables for every competition.",
-                     "none",
-                     "NOTHING IS PLANNED as its own page. Each competition carries its own "
-                     "table, so this menu item may simply be the competitions list again."),
     "navStatistics": ("Stat leaderboards and definitions.",
                         "partial",
                         "Only a page PER METRIC is planned (a glossary entry). There is no index, "
@@ -330,7 +326,7 @@ def build():
      read from the code; the descriptions are written by hand.</p>
 
   <h2>1. The menu, at the top of every page</h2>
-  <p class="sub">Six items. <b>Not one of them is a link</b> &mdash; they render as plain
+  <p class="sub">Five items. <b>Not one of them is a link</b> &mdash; they render as plain
      text, because none of the pages they would lead to exists. That is honest, but it means
      the site currently has <b>no navigation at all</b>: everything is reached by clicking
      something in the page body.</p>

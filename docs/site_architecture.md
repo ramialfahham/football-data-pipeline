@@ -62,7 +62,6 @@ Planned, not designed yet; each address is provisional until its page's review (
 
 ```
 /{locale}/players/                                           Players menu page
-/{locale}/standings/                                         Standings menu page
 /{locale}/stats/                                             Statistics menu page
 /{locale}/stats/{metric-slug}/                               one statistic across competitions; whether it also holds the metric's definition, in place of a separate glossary, is the Statistics review's
 /{locale}/{competition-slug}/stats/{metric-slug}/            one statistic's full list in one competition
@@ -114,7 +113,6 @@ carries its search phrase.
 | teams | `teams` | `mannschaften` | `joukkueet` | a team's page, club or national team | the Teams menu page |
 | players | `players` | `spieler` | `pelaajat` | a player's page | the Players menu page |
 | stats | `stats` | `statistiken` | `tilastot` | a competition's Rankings tab | the Statistics menu page, one statistic's pages |
-| standings | `standings` | `tabelle` | `sarjataulukko` | | the Standings menu page |
 | h2h | `h2h` | `h2h` | `h2h` | | head-to-head |
 
 The name of each statistic in an address (`/de/bundesliga/statistiken/tore/`) is a word too. The
@@ -245,7 +243,7 @@ The competitions index page (`/{locale}/competitions/`) is the route to a compet
 competitions by `competition_type`. `docs/wireframes/08_browse.md` owns its grouping and order.
 
 The home page is fixtures-first and has no browse block. `docs/wireframes/10_home.md` §0 owns its
-composition. The nav exposes `Competitions · Matches · Teams · Players · Standings · Statistics`.
+composition. The nav exposes `Competitions · Matches · Teams · Players · Statistics`.
 
 Two more axes feed `build_nav()` in `scripts/export_site_data.py`, which writes `nav.json`. No page
 reads `nav.json`, and neither axis has a page.

@@ -55,7 +55,7 @@ E = html.escape
 # ⚠ NO LABEL IS TYPED IN THIS FILE. The rule: the seed is the single source of truth for the
 # displayed name, as in the metric layer, and the mapping to other languages happens in a
 # different file. Both label columns mirror `metric_catalogue.csv`, and DE/FI live in
-# `strings.ts` keyed by `label_i18n_key`, exactly as `METRIC_LABELS_DE` / `METRIC_LABELS_FI` do.
+# `strings.ts` keyed by `label_i18n_key`, exactly as the words `METRIC_TERMS` names are.
 TYPES_SEED = REPO / "dbt_project/seeds/competition_types.csv"
 TYPES_PROPOSED = Path(__file__).with_name("competition_types.proposed.csv")
 
