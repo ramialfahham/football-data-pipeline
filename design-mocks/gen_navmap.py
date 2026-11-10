@@ -40,27 +40,18 @@ def menu_items():
 
 
 MENU_NOTES = {
-    "navCompetitions": ("A list of all twelve competitions.",
-                        "planned",
-                        "A list page is in the plan. But the home page already carries a row "
-                        "of competition buttons, so it is worth asking whether a separate "
-                        "page earns its place."),
+    "navCompetitions": ("A list of all competitions.",
+                        "live",
+                        "Built, and the menu links to it."),
     "navMatches": ("Matches across every competition.",
-                   "designed",
-                   "DESIGNED 2026-08-10 &mdash; two pages, <b>Next matches</b> and "
-                   "<b>Past matches</b>. This was the one menu item with nothing behind it that "
-                   "clearly earned a page, and it is now the first thing the menu can point at."),
+                   "live",
+                   "Built, and the menu links to it."),
     "navTeams": ("Every club.",
-                 "none",
-                 "NOTHING IS PLANNED. Club pages exist, but the only thing that lists clubs "
-                 "is a competition's table."),
+                 "live",
+                 "Built, and the menu links to it."),
     "navPlayers": ("Every player.",
-                   "none",
-                   "NOTHING IS PLANNED, and the player page itself is not built."),
-    "navStandings": ("Tables for every competition.",
-                     "none",
-                     "NOTHING IS PLANNED as its own page. Each competition carries its own "
-                     "table, so this menu item may simply be the competitions list again."),
+                   "designed",
+                   "Designed, not built."),
     "navStatistics": ("Stat leaderboards and definitions.",
                         "partial",
                         "Only a page PER METRIC is planned (a glossary entry). There is no index, "
@@ -83,7 +74,7 @@ PAGES_PLAIN = [
         note="Two more blocks are designed and unbuilt: Top players and Top teams.",
     ),
     dict(
-        key="matches", route=None,
+        key="matches", route=("[lang]", "[matches]", "index"),
         name="All matches", example="&hellip;/en/matches/",
         status="designed", depth=1,
         shows=["Every competition's next matchday, grouped by competition then date"],
@@ -308,17 +299,13 @@ def build():
      read from the code; the descriptions are written by hand.</p>
 
   <h2>1. The menu, at the top of every page</h2>
-  <p class="sub">Six items. <b>Not one of them is a link</b> &mdash; they render as plain
-     text, because none of the pages they would lead to exists. That is honest, but it means
-     the site currently has <b>no navigation at all</b>: everything is reached by clicking
-     something in the page body.</p>
+  <p class="sub">Five items. Competitions, Matches and Teams are links; Players and Statistics
+     render as plain text, because the pages they would lead to are not built.</p>
   <table class="menu">
     <tr><th>Menu item</th><th>What it would show</th><th>Is there a page for it?</th></tr>
 %s
   </table>
-  <p class="sub warn">So four of the six menu items lead nowhere <b>and have nothing planned
-     behind them</b>. That is the biggest structural gap, and it is bigger than any single
-     page.</p>
+  <p class="sub warn">So two of the five menu items lead nowhere.</p>
 
   <h2>2. The pages, starting at the home page</h2>
   <p class="sub">Indented by how you reach them, not by web address.</p>
@@ -445,7 +432,7 @@ if __name__ == "__main__":
     items, nav_is_link = menu_items()
     print("  menu items derived: %s" % ", ".join(lbl for _k, lbl in items))
     print("  menu renders as %s" % ("LINKS" if nav_is_link else "inert text"))
-    assert len(items) == 6, "expected 6 nav items, found %d" % len(items)
+    assert len(items) == 5, "expected 5 nav items, found %d" % len(items)
     assert not nav_is_link, "the nav now emits anchors -- this page says it does not"
     for p in PAGES_PLAIN:
         if p["route"]:

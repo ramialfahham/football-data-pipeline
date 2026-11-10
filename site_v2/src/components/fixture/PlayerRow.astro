@@ -40,7 +40,7 @@ const Row = slug ? "a" : "div";
     </span>
     <span class="pstat">
       {isGK ? (
-        <span class="nb"><b>{count(player.saves_player)}</b> {t(lang, "savesMany")}</span>
+        <span class="nb"><b>{count(player.saves_player)}</b> {word(player.saves_player, "savesOne", "savesMany")}</span>
       ) : (
         <>
           <span class="nb"><b>{count(player.goals_total)}</b> {word(player.goals_total, "goalsOne", "goalsMany")} ·</span>{" "}

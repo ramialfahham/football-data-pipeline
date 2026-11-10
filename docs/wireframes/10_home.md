@@ -87,7 +87,7 @@ out of the index. Build the routes, let the links resolve, fill the pages in aft
 
 | | |
 |---|---|
-| **Next matches** | The next matchday — every match on the next day that has football (CPO 2026-08-18; the fixed list of 12 is retired). Date tabs and a "more matches" control are deferred to **#908**, which also records that four of the six nav items have no page to link to. |
+| **Next matches** | The next matchday — every match on the next day that has football (CPO 2026-08-18; the fixed list of 12 is retired). Date tabs and a "more matches" control are deferred to **#908**. |
 | ~~**Browse**~~ | ~~Moves to the BOTTOM of the page, per convention on comparable sites. (§4's rail placement is superseded.)~~ **DROPPED** — superseded by a later ruling than this table records; see the composition note below. |
 | ~~**Trending**~~ | ~~Teams AND players, both as STREAKS. The wording must relate to "streak".~~ **SUPERSEDED 2026-08-08**: the composition recorded below has no trending block, so the block was cut rather than reworked to this row. See the note under the composition. |
 | ~~**Team streaks**~~ | ~~THREE types: longest **winning** run · longest **unbeaten** run · longest **clean-sheet** run. Winless and losing are both dropped.~~ Superseded with the block. |
