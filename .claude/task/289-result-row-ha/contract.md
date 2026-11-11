@@ -18,6 +18,7 @@ scope_paths:
   - site_v2/src/lib/fitBlocks.test.mjs
   - docs/design/components.yml
   - docs/wireframes/block_standard.md
+  - tests/fixtures/chart_screenshots/
 
 protected_override: >
   docs/design/components.yml: the Result row's rule and its meta part's rule state the two-line form
@@ -83,3 +84,7 @@ amendments:
   - 2026-11-11: criterion 4 stands over the #132 mock, which draws a line under the first stacked
     team; the mock is corrected in a later change — authority: approved in chat, 2026-11-11;
     content: under 700px the Match page header shows the two stacked teams without a line.
+  - 2026-11-11: + tests/fixtures/chart_screenshots/ — authority: approved in chat, 2026-11-11;
+    content: comparison-en-dark-375.png and comparison-en-light-375.png and their manifest hashes
+    are replaced with CI's Linux renders; the stacked header's lost line moves the block up 1px,
+    so three anti-aliased pixels on one bar edge change in each.

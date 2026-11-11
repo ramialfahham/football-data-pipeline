@@ -1,9 +1,9 @@
 diff --git a/.claude/task/289-result-row-ha/contract.md b/.claude/task/289-result-row-ha/contract.md
 new file mode 100644
-index 00000000..4f0d0861
+index 00000000..5b0a973d
 --- /dev/null
 +++ b/.claude/task/289-result-row-ha/contract.md
-@@ -0,0 +1,85 @@
+@@ -0,0 +1,90 @@
 +# Task contract — the Result row's two-line form on phones
 +
 +objective: >
@@ -24,6 +24,7 @@ index 00000000..4f0d0861
 +  - site_v2/src/lib/fitBlocks.test.mjs
 +  - docs/design/components.yml
 +  - docs/wireframes/block_standard.md
++  - tests/fixtures/chart_screenshots/
 +
 +protected_override: >
 +  docs/design/components.yml: the Result row's rule and its meta part's rule state the two-line form
@@ -89,6 +90,10 @@ index 00000000..4f0d0861
 +  - 2026-11-11: criterion 4 stands over the #132 mock, which draws a line under the first stacked
 +    team; the mock is corrected in a later change — authority: approved in chat, 2026-11-11;
 +    content: under 700px the Match page header shows the two stacked teams without a line.
++  - 2026-11-11: + tests/fixtures/chart_screenshots/ — authority: approved in chat, 2026-11-11;
++    content: comparison-en-dark-375.png and comparison-en-light-375.png and their manifest hashes
++    are replaced with CI's Linux renders; the stacked header's lost line moves the block up 1px,
++    so three anti-aliased pixels on one bar edge change in each.
 diff --git a/docs/design/components.yml b/docs/design/components.yml
 index f1bcc166..c8dc231a 100644
 --- a/docs/design/components.yml
@@ -314,6 +319,28 @@ index 7e663abb..3aa0611a 100644
  /* A meeting of the two teams: the row without the chip, which would take one side. */
  .resrow.meet { grid-template-columns: 42px 1fr; grid-template-areas: "score opp" ". meta"; }
  @container (min-width: 420px) {
+diff --git a/tests/fixtures/chart_screenshots/comparison-en-dark-375.png b/tests/fixtures/chart_screenshots/comparison-en-dark-375.png
+index 1f84d344..d535c113 100644
+Binary files a/tests/fixtures/chart_screenshots/comparison-en-dark-375.png and b/tests/fixtures/chart_screenshots/comparison-en-dark-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/comparison-en-light-375.png b/tests/fixtures/chart_screenshots/comparison-en-light-375.png
+index c93d81f7..fcfa4bef 100644
+Binary files a/tests/fixtures/chart_screenshots/comparison-en-light-375.png and b/tests/fixtures/chart_screenshots/comparison-en-light-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/manifest.json b/tests/fixtures/chart_screenshots/manifest.json
+index 3c88b254..c614be53 100644
+--- a/tests/fixtures/chart_screenshots/manifest.json
++++ b/tests/fixtures/chart_screenshots/manifest.json
+@@ -2,9 +2,9 @@
+  "platform": "linux",
+  "shots": {
+   "comparison-en-dark-1010.png": "a79208a4a6af7990be861a8695684ebbe04f17a370e001ad5184e33d7892c54a",
+-  "comparison-en-dark-375.png": "e3ff23963e4bd69647ef4df79e2973f8d31f068b7f566911d335d0cde032ccc1",
++  "comparison-en-dark-375.png": "c688f275a7732546e856b0477ffcbad1e2fa5597af812e293a574c9a5982c57c",
+   "comparison-en-light-1010.png": "7f6b260d98c4378c4620087639140276a9d9331a3a0f977fecbf11e59d620a31",
+-  "comparison-en-light-375.png": "322dcedc4422edad722ddc6010628f6fb8e02f6d89ee02a2c70aafe6a9b76ac0",
++  "comparison-en-light-375.png": "a4103c5ad3dbb8acdbf78c0548f12e061497d3e817ed6b4d2965d490f8d18f99",
+   "comparison-fi-dark-1010.png": "8aabe58d48e5150f0df5102ce2f3247681b4e158b9139f7c076f2ef2c08ed6e9",
+   "comparison-fi-dark-375.png": "17ef671500cd469342ce707abf052d7a265b7a5f7c2cbdd5708529ffbef4c7f1",
+   "scatter-en-dark-1010.png": "078994a1fca66577886e29b9480e551c7bc5807fd20e08420cdfce0dc3fd985e",
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -329,6 +356,7 @@ index 7e663abb..3aa0611a 100644
 #
 #   .../task/289-result-row-ha/acceptance_evidence.md  |  12 +
 #    .../289-result-row-ha/rendered_page_evidence.md    |  39 +++
+#    .claude/task/289-result-row-ha/review.md           |  31 ++
 #    .claude/task/289-result-row-ha/review_input.patch  | 334 +++++++++++++++++++++
-#    3 files changed, 385 insertions(+)
+#    4 files changed, 416 insertions(+)
 # ============================================================================
