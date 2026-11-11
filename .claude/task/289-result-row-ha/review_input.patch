@@ -1,0 +1,362 @@
+diff --git a/.claude/task/289-result-row-ha/contract.md b/.claude/task/289-result-row-ha/contract.md
+new file mode 100644
+index 00000000..5b0a973d
+--- /dev/null
++++ b/.claude/task/289-result-row-ha/contract.md
+@@ -0,0 +1,90 @@
++# Task contract — the Result row's two-line form on phones
++
++objective: >
++  Issue #289. A result row takes its two-line form whenever its list does not fit on one line: line
++  1 is chip · score · crest · opponent, line 2 is home or away · competition · date, and a middle dot
++  travels with the item after it. The stacked match header loses the line between its two teams.
++
++refs: >
++  #289; the Result row on phones approved in chat, 2026-11-11, recorded on #289; scope and criteria
++  approved in chat, 2026-11-11.
++
++scope_paths:
++  - .claude/task/289-result-row-ha/
++  - site_v2/src/components/fixture/RecentMatch.astro
++  - site_v2/src/components/player/PlayerRecent.astro
++  - site_v2/src/styles/system.css
++  - site_v2/src/lib/fitBlocks.mjs
++  - site_v2/src/lib/fitBlocks.test.mjs
++  - docs/design/components.yml
++  - docs/wireframes/block_standard.md
++  - tests/fixtures/chart_screenshots/
++
++protected_override: >
++  docs/design/components.yml: the Result row's rule and its meta part's rule state the two-line form
++  by fit, and the line-2 home or away class is registered, approved in chat, 2026-11-11, recorded on
++  #289.
++
++impact_map: >
++  writers: none in the warehouse.
++  lineage: no dbt model and no export change, so no lineage moves.
++  consumption: RecentMatch.astro draws the Match page's Recent matches (SplitSection's two .rcol
++  columns, each fitted as its own list; their subgrid keeps row by row level) and the Team page's
++  matches (TeamMatches.astro, [team].astro); PlayerRecent.astro draws
++  the Player page's Recent matches. Both add home or away at the start of line 2, shown only in the
++  two-line form; the one-line form keeps it after the name. fitBlocks.mjs marks these lists fit-one
++  or fit-two with its existing "rows" measure, as it already does for the Player page's list; the
++  Result row's 420px container switch gives way to that mark. Head to head and goal rows keep
++  their 420px switch. The system.css rules on `.resrow .pill` and `.resrow .rscore` set both to the
++  first line. The header rule is `.mp .mast .team` under 700px, the Match page only.
++  guard: docs/design/components.yml is read by scripts/check_component_registry.py, which writes
++  the block standard's Elements table, and by scripts/check_design_inventory.py through that table.
++  The row, meta, wide and narrow texts change; one class part is added with a one-line, 12px muted
++  assertion; the Fitted block rule's selector names the result lists; the component's narrow key
++  stays at w420, which its Head to head and goal rows still use.
++  blast_radius: measured on main 0953e41c's build with the change injected (DE, Match page Recent
++  matches): home or away on a line of its own falls to 0 at 280 and 560px; rows in a list that does
++  not fit on one line take two lines, and at under 320px line 2's items may wrap between items.
++
++acceptance_criteria:
++  - In the two-line form, home or away starts line 2, in every result row on the Match, Team and Player pages, at every width from 280 to 1010px, in English, German and Finnish.
++  - The result chip and the score sit on the row's first line, at every width.
++  - A result row in the one-line form looks as it does today.
++  - Under 700px, the Match page header shows the two stacked teams without a line between them, upcoming and played.
++  - No result row exceeds two lines, except where the opponent's name or line 2's items wrap between words or items, at any width.
++
++approved_design:
++  - match: #132
++  - team: #134
++  - player: #136
++
++decisions_taken: >
++  The two-line form is the one approved in chat, 2026-11-11, recorded on #289; the one-line form is
++  unchanged. The switch by fit reuses fitBlocks.mjs's "rows" measure, the Player page's mechanism.
++  No new mechanism. The sitewide middle-dot rule is #231 and stays out of this task.
++
++decisions_reserved:
++  - none: the form is approved on #289.
++
++done_when:
++  - The offline gates pass and npm test passes, with fitBlocks.test.mjs pinning the result-row lists.
++  - Every result row on the branch build, at 280–1010px in 10px steps in EN, DE and FI, has 0 home or away on a line of its own, 0 chips below the first line, none sticking out, and no row over two lines except by a wrap of the name or of line 2's items between words or items; one-line rows keep main's positions.
++  - The local design check on the Match, Team and Player pages gives no FAIL or COUNT line above main's baseline.
++
++amendments:
++  - 2026-11-11: criterion 5 also excepts a wrap of the opponent's name, in a row under 320px wide —
++    authority: approved in chat, 2026-11-11; content: a long name wraps between words, never cut off.
++  - 2026-11-11: criterion 5 allows the name and line 2's items to wrap between words or items at any
++    width — authority: approved in chat, 2026-11-11; content: a long competition name wraps line 2
++    in rows 320–420px wide too.
++  - 2026-11-11: the Result row's wide summary and narrow form in components.yml state the by-fit
++    condition beside the meeting and goal rows' 420px switch, its line-2 home or away part carries
++    the never-split assertion, and the Fitted block rule's selector names the result lists —
++    authority: the approval recorded on #289; content: the registry's text matches the rows.
++  - 2026-11-11: criterion 4 stands over the #132 mock, which draws a line under the first stacked
++    team; the mock is corrected in a later change — authority: approved in chat, 2026-11-11;
++    content: under 700px the Match page header shows the two stacked teams without a line.
++  - 2026-11-11: + tests/fixtures/chart_screenshots/ — authority: approved in chat, 2026-11-11;
++    content: comparison-en-dark-375.png and comparison-en-light-375.png and their manifest hashes
++    are replaced with CI's Linux renders; the stacked header's lost line moves the block up 1px,
++    so three anti-aliased pixels on one bar edge change in each.
+diff --git a/docs/design/components.yml b/docs/design/components.yml
+index f1bcc166..c8dc231a 100644
+--- a/docs/design/components.yml
++++ b/docs/design/components.yml
+@@ -300,10 +300,10 @@ components:
+     used-on: [match page, Team page, Player page]
+     parts:
+       chip: {class: pill, selector: ".resrow .pill", text: 12-700-pill-ink, element: Result chip, rule: "one match's W, D or L from a team's side, in the page's language, on the result colour", measured: "font-size=12px; font-weight=700; color=pill-ink", ruled-on: the match page review}
+-      row: {class: resrow, element: Result row, rule: "result chip · score · opponent (crest, name, home or away) · competition · date. One line where its list is 420px wide or more, two lines below", measured: fits, ruled-on: the match page review}
++      row: {class: resrow, element: Result row, rule: "result chip · score · opponent (crest, name, home or away) · competition · date on one line where every row of its list fits; otherwise two lines: the first chip · score · crest · opponent, the second home or away · competition · date. A middle dot travels with the item after it", measured: fits, ruled-on: "the match page review; the phone review"}
+       score: {class: rscore, selector: ".resrow .rscore", text: 15-700-ink, element: Result row score, rule: "the score from the row's side, 15px bold ink", measured: "font-size=15px; font-weight=700; color=ink", ruled-on: the match page review}
+       name: {class: ropp, selector: ".resrow .ropp", text: 15-400-ink, element: Result row name, rule: "the club, 15px ink, wrapping, never cut off", measured: "font-size=15px; color=ink; white-space=normal", ruled-on: the match page review}
+-      meta: {class: rmeta, selector: ".resrow:not(.goal) .rmeta", text: 12-400-muted, element: Result row meta, rule: "the competition's name and the date, 12px muted; the name wraps between words, the date never splits", measured: "font-size=12px; color=muted", ruled-on: "the match page review; the component registry"}
++      meta: {class: rmeta, selector: ".resrow:not(.goal) .rmeta", text: 12-400-muted, element: Result row meta, rule: "the competition's name and the date, after home or away when a result row takes two lines, 12px muted; the name wraps between words, the date never splits", measured: "font-size=12px; color=muted", ruled-on: "the match page review; the component registry"}
+       meeting: {class: meet, selector: ".resrow.meet", element: Meeting row, rule: "a meeting of the two teams: the result row without its chip. The score is in the match's order, the home side first, the date with its year", measured: fits, ruled-on: the match page review}
+       goal: {class: goal, selector: ".resrow.goal", element: Goal row, rule: "a goal: the score after it, then the scorer with the crest of the side it counts for. The second line holds the minute with the assist, own goal or penalty. Without minutes the row has no score", measured: fits, ruled-on: the played match page review}
+       goal-meta: {class: rmeta, selector: ".resrow.goal .rmeta", text: 14-400-ink-2, element: Goal row meta, rule: "the goal's minute and its assist, own goal or penalty: 14px ink-2, larger and lighter than a list row's second line", measured: "font-size=14px; color=ink-2", ruled-on: the played match page review}
+@@ -312,9 +312,10 @@ components:
+       player-competition: {class: rm-c}
+       player-line: {class: rm-p}
+       home-away: {class: ha, selector: ".resrow .ha", text: 11-600-muted, breaks: never}
++      home-away-line: {class: rha, selector: ".resrow .rha", text: 12-400-muted, breaks: never, element: Result row home or away line, rule: "home or away opening the second line in the two-line form, 12px muted, never split", measured: "font-size=12px; color=muted", ruled-on: the phone review}
+       scorer: {class: scorer}
+-    wide: "chip · score · opponent · competition · date on one line"
+-    narrow: {below: w420, form: two lines}
++    wide: "chip · score · opponent · competition · date on one line where every row of its list fits"
++    narrow: {below: w420, form: "two lines: a meeting or goal row below 420px, a result row where its list does not fit"}
+     short-forms: [wins, draws, losses, minutes]
+   form:
+     name: Form
+@@ -554,7 +555,7 @@ components:
+ rules:
+   Name in whole words: {selector: ".ctab .tm .nm, .fxrow .side .nm, .club .cn", rule: "a team name wraps only between words; no word splits or runs past the name's space", measured: whole-words, ruled-on: the narrow-screen fix}
+   Legacy board value: {selector: ".brow .v b", rule: "the legacy Home mocks' boards: the value follows the ordered-by number", measured: "font-size=15px; font-weight=700; color=accent", ruled-on: "#129 binding rules"}
+-  Fitted block: {selector: ".header-in, .ctab, :has(> .frow), .fbar, .selbar, .fxrow:has(.topmatch)", rule: "a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded", measured: fit-marked, ruled-on: the narrow-screen fix}
++  Fitted block: {selector: ".header-in, .ctab, :has(> .frow), .fbar, .selbar, .fxrow:has(.topmatch), .rlist.pm, .rlist:has(.resrow:not(.meet, .goal, .scorer)), .rsplit > .rcol:has(.resrow:not(.meet, .goal, .scorer))", rule: "a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded", measured: fit-marked, ruled-on: the narrow-screen fix}
+   Row link: {selector: "a.ctab-row, a.fxrow, a.frow, a.brow, a.comp-row", rule: "a row that leads somewhere is one link, the whole row; one hover tint for every row link, ink at 11% (twice the stripe); the press tint `sunk`; no underline inside a row", measured: "hover(background-color)=ink@11%; press(background-color)=sunk; text-decoration-line=none", ruled-on: "#129 binding rules; #52; #127 (2026-09-14)"}
+   Prose link: {selector: "p a, .lede a, .sub a, .bnote a", rule: "the one place an underline stays: a link inside running text", measured: "text-decoration-line=underline", ruled-on: "#52"}
+   Tag: {selector: ".nexttag, .fxrow .topmatch", rule: "Next (on the picker's title) and Top match (on the flagged row, before the kick-off): 10px bold capitals in an accent pill. Narrow, a row's tag takes its own line above the home team, left-aligned", measured: "font-size=10px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink", ruled-on: "the competition Matchdays design; the Home design; the narrow-screen fix"}
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index 830da86d..66973d26 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -129,14 +129,15 @@
+ | Match header parts | `.vh, .played` | the match header's other parts: registered, no text of their own |  | ruled | the component registry |
+ | List row | `.lrow` | one row of a list, a line between rows, nothing cut off. Its name is 15px, its second line 12px muted, its numbers 15px bold | `fits` | ruled | the match page review |
+ | Result chip | `.resrow .pill` | one match's W, D or L from a team's side, in the page's language, on the result colour | `font-size=12px; font-weight=700; color=pill-ink` | ruled | the match page review |
+-| Result row | `.resrow` | result chip · score · opponent (crest, name, home or away) · competition · date. One line where its list is 420px wide or more, two lines below | `fits` | ruled | the match page review |
++| Result row | `.resrow` | result chip · score · opponent (crest, name, home or away) · competition · date on one line where every row of its list fits; otherwise two lines: the first chip · score · crest · opponent, the second home or away · competition · date. A middle dot travels with the item after it | `fits` | ruled | the match page review; the phone review |
+ | Result row score | `.resrow .rscore` | the score from the row's side, 15px bold ink | `font-size=15px; font-weight=700; color=ink` | ruled | the match page review |
+ | Result row name | `.resrow .ropp` | the club, 15px ink, wrapping, never cut off | `font-size=15px; color=ink; white-space=normal` | ruled | the match page review |
+-| Result row meta | `.resrow:not(.goal) .rmeta` | the competition's name and the date, 12px muted; the name wraps between words, the date never splits | `font-size=12px; color=muted` | ruled | the match page review; the component registry |
++| Result row meta | `.resrow:not(.goal) .rmeta` | the competition's name and the date, after home or away when a result row takes two lines, 12px muted; the name wraps between words, the date never splits | `font-size=12px; color=muted` | ruled | the match page review; the component registry |
+ | Meeting row | `.resrow.meet` | a meeting of the two teams: the result row without its chip. The score is in the match's order, the home side first, the date with its year | `fits` | ruled | the match page review |
+ | Goal row | `.resrow.goal` | a goal: the score after it, then the scorer with the crest of the side it counts for. The second line holds the minute with the assist, own goal or penalty. Without minutes the row has no score | `fits` | ruled | the played match page review |
+ | Goal row meta | `.resrow.goal .rmeta` | the goal's minute and its assist, own goal or penalty: 14px ink-2, larger and lighter than a list row's second line | `font-size=14px; color=ink-2` | ruled | the played match page review |
+ | Result row home away | `.resrow .ha` | the result row's home away, in the 11-600-muted text style, never broken | `font-size=11px; font-weight=600; color=muted; one-line; fits` | ruled | the component registry |
++| Result row home or away line | `.resrow .rha` | home or away opening the second line in the two-line form, 12px muted, never split | `font-size=12px; color=muted` | ruled | the phone review |
+ | Result row parts | `.rlist, .rlist.pm, .rm-c, .rm-p, .scorer` | the result row's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Form parts | `.W, .D, .L` | the form's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Player row | `.plrow` | photo · name over position · goals and assists on the right at every width; two lines below 375px when the row is short of room; under 280px the name takes the whole line and the position shares the second line with the numbers; on a line-up, the minutes played | `fits` | ruled | the match page review; the component registry |
+@@ -194,7 +195,7 @@
+ | Unbreakable unit parts | `.nb` | the unbreakable unit's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Name in whole words | `.ctab .tm .nm, .fxrow .side .nm, .club .cn` | a team name wraps only between words; no word splits or runs past the name's space | `whole-words` | ruled | the narrow-screen fix |
+ | Legacy board value | `.brow .v b` | the legacy Home mocks' boards: the value follows the ordered-by number | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules |
+-| Fitted block | `.header-in, .ctab, :has(> .frow), .fbar, .selbar, .fxrow:has(.topmatch)` | a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded | `fit-marked` | ruled | the narrow-screen fix |
++| Fitted block | `.header-in, .ctab, :has(> .frow), .fbar, .selbar, .fxrow:has(.topmatch), .rlist.pm, .rlist:has(.resrow:not(.meet, .goal, .scorer)), .rsplit > .rcol:has(.resrow:not(.meet, .goal, .scorer))` | a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded | `fit-marked` | ruled | the narrow-screen fix |
+ | Row link | `a.ctab-row, a.fxrow, a.frow, a.brow, a.comp-row` | a row that leads somewhere is one link, the whole row; one hover tint for every row link, ink at 11% (twice the stripe); the press tint `sunk`; no underline inside a row | `hover(background-color)=ink@11%; press(background-color)=sunk; text-decoration-line=none` | ruled | #129 binding rules; #52; #127 (2026-09-14) |
+ | Prose link | `p a, .lede a, .sub a, .bnote a` | the one place an underline stays: a link inside running text | `text-decoration-line=underline` | ruled | #52 |
+ | Tag | `.nexttag, .fxrow .topmatch` | Next (on the picker's title) and Top match (on the flagged row, before the kick-off): 10px bold capitals in an accent pill. Narrow, a row's tag takes its own line above the home team, left-aligned | `font-size=10px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink` | ruled | the competition Matchdays design; the Home design; the narrow-screen fix |
+diff --git a/site_v2/src/components/fixture/RecentMatch.astro b/site_v2/src/components/fixture/RecentMatch.astro
+index 5a5ff47d..84ecd544 100644
+--- a/site_v2/src/components/fixture/RecentMatch.astro
++++ b/site_v2/src/components/fixture/RecentMatch.astro
+@@ -32,9 +32,6 @@ const Row = href ? "a" : "div";
+       <span class="club"><Crest name={match.opponent_name} crest={match.opponent_logo_url} size="xs" /><span class="cn">{match.opponent_name}</span></span>
+       {ha && <span class="ha">{ha}</span>}
+     </span>
+-    <span class="rmeta">
+-      {comp && <>{comp}&nbsp;· </>}
+-      <span class="nb">{formatShortDate(match.played_kickoff_datetime, lang)}</span>
+-    </span>
++    <span class="rmeta">{ha && <><span class="rha">{ha}</span><span class="rha"> ·&nbsp;</span></>}{comp && <>{comp}{" "}</>}<span class="nb">{comp && <>·&nbsp;</>}{formatShortDate(match.played_kickoff_datetime, lang)}</span></span>
+   </div>
+ </Row>
+diff --git a/site_v2/src/components/player/PlayerRecent.astro b/site_v2/src/components/player/PlayerRecent.astro
+index 7cc9ac75..885b480b 100644
+--- a/site_v2/src/components/player/PlayerRecent.astro
++++ b/site_v2/src/components/player/PlayerRecent.astro
+@@ -22,6 +22,7 @@ const { matches, id, lang } = Astro.props;
+ const SHOWN = 5;
+ const LETTER: Record<string, string> = { W: "winsShort", D: "drawsShort", L: "lossesShort" };
+ const ha = (m: PlayerMatch) => (m.home_away === "home" ? t(lang, "home") : m.home_away === "away" ? t(lang, "away") : "");
++const compName = (m: PlayerMatch) => competitionInfo(m.played_league_code ?? "").name;
+ const count = (n: number, one: string, many: string) => ({ n: integer(n, lang), word: n === 1 ? one : many });
+ const line = (m: PlayerMatch) => [
+   m.minutes != null ? { n: integer(m.minutes, lang), word: t(lang, "minutesShort") } : null,
+@@ -55,7 +56,7 @@ const rows = matches.map((m) => ({
+                 </span>
+                 <span class="rmeta">
+                   <span class="rm-c">
+-                    <span class="nb">{competitionInfo(m.played_league_code ?? "").name}</span> · <span class="nb">{formatShortDate(m.played_kickoff_datetime, lang)}</span>
++                    {ha(m) && <><span class="rha">{ha(m)}</span><span class="rha"> ·&nbsp;</span></>}{compName(m) && <><span class="nb">{compName(m)}</span>{" "}</>}<span class="nb">{compName(m) && <>·&nbsp;</>}{formatShortDate(m.played_kickoff_datetime, lang)}</span>
+                   </span>
+                   {(m.on_bench || parts.length > 0) && <span class="rm-p">
+                     {m.on_bench
+diff --git a/site_v2/src/lib/fitBlocks.mjs b/site_v2/src/lib/fitBlocks.mjs
+index c47a025f..20a95e99 100644
+--- a/site_v2/src/lib/fitBlocks.mjs
++++ b/site_v2/src/lib/fitBlocks.mjs
+@@ -6,7 +6,7 @@
+ // Filter bar fits when each row of buttons does, and its dropdown row when each holds its longest choice;
+ // a match row with a tag fits when its names keep their column beside the tag, each longest word
+ // inside its own space; a list of a player's matches fits when every row holds all its parts on one
+-// line. A card block has three forms: it takes the first of one row and three across where every card
++// line, and so does a list of a team's results. A card block has three forms: it takes the first of one row and three across where every card
+ // holds its number and its longest word.
+ 
+ /** The width of a text's longest word, given a function that measures one word. */
+@@ -15,6 +15,10 @@ export function longestWord(text, measure) {
+   return words.length ? Math.max(...words.map(measure)) : 0;
+ }
+ 
++/** The lists of result rows: a player's matches, a team's matches, and each column of a match's
++ * Recent matches. Head to head and goal lists keep their width switch. */
++export const RESULT_LISTS = ".rlist.pm, .rlist:has(.resrow:not(.meet, .goal, .scorer)), .rsplit > .rcol:has(.resrow:not(.meet, .goal, .scorer))";
++
+ /** A block keeps one line when every row needs no more than its room (half a pixel of rounding). */
+ export function fitsOneLine(rows) {
+   return rows.every(({ need, room }) => need <= room + 0.5);
+@@ -113,7 +117,7 @@ function start() {
+     ...[...new Set([...document.querySelectorAll(".frow")].map((r) => r.parentElement))].map((b) => [b, "facts"]),
+     ...[...document.querySelectorAll(".fxrow:has(> .topmatch)")].map((b) => [b, "tagged"]),
+     ...[...document.querySelectorAll(".kpis")].map((b) => [b, "cards"]),
+-    ...[...document.querySelectorAll(".rlist.pm")].map((b) => [b, "rows"]),
++    ...[...document.querySelectorAll(RESULT_LISTS)].map((b) => [b, "rows"]),
+     // the bar before its dropdown row: the row shows only once the bar has taken its narrow form
+     ...[...document.querySelectorAll(".fbar")].map((b) => [b, "filter"]),
+     ...[...document.querySelectorAll(".selbar")].map((b) => [b, "selects"]),
+diff --git a/site_v2/src/lib/fitBlocks.test.mjs b/site_v2/src/lib/fitBlocks.test.mjs
+index b36f5a4b..2a116214 100644
+--- a/site_v2/src/lib/fitBlocks.test.mjs
++++ b/site_v2/src/lib/fitBlocks.test.mjs
+@@ -1,9 +1,9 @@
+-// Pins the two decisions `fitBlocks.mjs` makes: a name's need is its longest word, never the
+-// whole name, and a block keeps one line only when every row fits.
++// Pins the decisions `fitBlocks.mjs` makes: a name's need is its longest word, never the whole
++// name; a block keeps one line only when every row fits; and which lists of result rows it fits.
+ 
+ import { test } from "node:test";
+ import assert from "node:assert/strict";
+-import { fitsOneLine, longestWord } from "./fitBlocks.mjs";
++import { RESULT_LISTS, fitsOneLine, longestWord } from "./fitBlocks.mjs";
+ 
+ const perLetter = (word) => word.length * 10;
+ 
+@@ -24,3 +24,12 @@ test("a block keeps one line only when every row fits", () => {
+ test("half a pixel of rounding still fits", () => {
+   assert.equal(fitsOneLine([{ need: 120.4, room: 120 }]), true);
+ });
++
++test("a player's, a team's and a match's result lists take their form by fit; head to head and goals do not", () => {
++  const parts = RESULT_LISTS.split(/,(?![^(]*\))/).map((s) => s.trim());
++  assert.deepEqual(parts, [
++    ".rlist.pm",
++    ".rlist:has(.resrow:not(.meet, .goal, .scorer))",
++    ".rsplit > .rcol:has(.resrow:not(.meet, .goal, .scorer))",
++  ]);
++});
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index 7e663abb..3aa0611a 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -875,8 +875,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+   .mp .mast .teams { grid-template-columns: 1fr; gap: 0; margin-top: 16px; }
+   .mp .mast .vs { display: none; }
+   .mp .mast .team { display: grid; grid-template-columns: auto 1fr; column-gap: 14px; row-gap: 4px; align-items: center;
+-                    text-align: left; padding: 12px 4px; border-bottom: 1px solid var(--line); }
+-  .mp .mast .team:last-child { border-bottom: 0; }
++                    text-align: left; padding: 12px 4px; }
+   .mp .mast .team .crest { grid-row: span 2; }
+   .mp .mast .team .tname { font-size: 20px; text-wrap: pretty; }
+   .mp .mast .team .stand { grid-column: 2; }
+@@ -946,20 +945,36 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+ .lrow { container-type: inline-size; }
+ .lrow:not(:last-child) { border-bottom: 1px solid var(--line); }
+ 
+-/* Result row: result chip · score · opponent (crest, name, H or A) · competition · date. One line
+-   where the list is 420px wide or more, two lines below; the name wraps, never cut off. On one line
+-   the competition and date take at most 45% of the row, so a long competition cannot cover the name.
+-   On the narrowest rows the gaps tighten so a long word fits. */
++/* Result row: result chip · score · opponent (crest, name, H or A) · competition · date on one line
++   where every row of its list fits (fitBlocks marks the list fit-one); otherwise two lines, the
++   opponent on the first and H or A · competition · date on the second. The name wraps, never cut
++   off. On one line the competition and date take at most 45% of the row, so a long competition
++   cannot cover the name. On the narrowest rows the gaps tighten so a long word fits. */
+ .resrow { display: grid; grid-template-columns: 24px 42px 1fr; grid-template-areas: "res score opp" ". . meta";
+           column-gap: clamp(8px, 3cqw, 20px); row-gap: 2px; align-items: center; align-content: start; padding: 8px 0; font-size: 13px; }
+-.resrow .pill { grid-area: res; }
++/* In a result row the chip and the score keep to the first line when the name wraps. */
++.resrow .pill { grid-area: res; align-self: start; }
+ .resrow .rscore { grid-area: score; font-size: 15px; }
++.resrow:not(.meet):not(.scorer) .rscore { align-self: start; line-height: 24px; }
+ .resrow .ropp { grid-area: opp; font-size: 15px; white-space: normal; overflow: visible; text-overflow: clip; }
+ .resrow .rmeta { grid-area: meta; text-align: left; white-space: normal; }
++/* Home or away sits after the name on one line and opens the second line on two; a middle dot
++   travels with the item after it. Before fitBlocks marks a list, the width decides. */
++.resrow .ropp > .ha { display: none; }
+ @container (min-width: 420px) {
+   .resrow { grid-template-columns: 24px 42px 1fr fit-content(45%); grid-template-areas: "res score opp meta"; column-gap: 11px; }
+   .resrow .rmeta { text-align: right; }
++  .resrow .rha { display: none; }
++  .resrow .ropp > .ha { display: inline; }
+ }
++/* A list fitBlocks has measured takes its form by fit, whatever its width. */
++.fit-one .resrow { grid-template-columns: 24px 42px 1fr fit-content(45%); grid-template-areas: "res score opp meta"; column-gap: 11px; }
++.fit-one .resrow .rmeta { text-align: right; }
++.fit-two .resrow { grid-template-columns: 24px 42px 1fr; grid-template-areas: "res score opp" ". . meta"; column-gap: clamp(8px, 3cqw, 20px); }
++.fit-two .resrow .rmeta { text-align: left; }
++.fit-one .resrow .rha, .fit-two .resrow .ropp > .ha, .rlist.pm:not(.fit-one) .resrow .ropp > .ha { display: none; }
++.fit-one .resrow .ropp > .ha { display: inline; }
++.fit-two .resrow .rha, .rlist.pm:not(.fit-one) .resrow .rha { display: inline; }
+ /* A meeting of the two teams: the row without the chip, which would take one side. */
+ .resrow.meet { grid-template-columns: 42px 1fr; grid-template-areas: "score opp" ". meta"; }
+ @container (min-width: 420px) {
+diff --git a/tests/fixtures/chart_screenshots/comparison-en-dark-375.png b/tests/fixtures/chart_screenshots/comparison-en-dark-375.png
+index 1f84d344..d535c113 100644
+Binary files a/tests/fixtures/chart_screenshots/comparison-en-dark-375.png and b/tests/fixtures/chart_screenshots/comparison-en-dark-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/comparison-en-light-375.png b/tests/fixtures/chart_screenshots/comparison-en-light-375.png
+index c93d81f7..fcfa4bef 100644
+Binary files a/tests/fixtures/chart_screenshots/comparison-en-light-375.png and b/tests/fixtures/chart_screenshots/comparison-en-light-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/manifest.json b/tests/fixtures/chart_screenshots/manifest.json
+index 3c88b254..c614be53 100644
+--- a/tests/fixtures/chart_screenshots/manifest.json
++++ b/tests/fixtures/chart_screenshots/manifest.json
+@@ -2,9 +2,9 @@
+  "platform": "linux",
+  "shots": {
+   "comparison-en-dark-1010.png": "a79208a4a6af7990be861a8695684ebbe04f17a370e001ad5184e33d7892c54a",
+-  "comparison-en-dark-375.png": "e3ff23963e4bd69647ef4df79e2973f8d31f068b7f566911d335d0cde032ccc1",
++  "comparison-en-dark-375.png": "c688f275a7732546e856b0477ffcbad1e2fa5597af812e293a574c9a5982c57c",
+   "comparison-en-light-1010.png": "7f6b260d98c4378c4620087639140276a9d9331a3a0f977fecbf11e59d620a31",
+-  "comparison-en-light-375.png": "322dcedc4422edad722ddc6010628f6fb8e02f6d89ee02a2c70aafe6a9b76ac0",
++  "comparison-en-light-375.png": "a4103c5ad3dbb8acdbf78c0548f12e061497d3e817ed6b4d2965d490f8d18f99",
+   "comparison-fi-dark-1010.png": "8aabe58d48e5150f0df5102ce2f3247681b4e158b9139f7c076f2ef2c08ed6e9",
+   "comparison-fi-dark-375.png": "17ef671500cd469342ce707abf052d7a265b7a5f7c2cbdd5708529ffbef4c7f1",
+   "scatter-en-dark-1010.png": "078994a1fca66577886e29b9480e551c7bc5807fd20e08420cdfce0dc3fd985e",
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../task/289-result-row-ha/acceptance_evidence.md  |  12 +
+#    .../289-result-row-ha/rendered_page_evidence.md    |  39 +++
+#    .claude/task/289-result-row-ha/review.md           |  31 ++
+#    .claude/task/289-result-row-ha/review_input.patch  | 334 +++++++++++++++++++++
+#    4 files changed, 416 insertions(+)
+# ============================================================================

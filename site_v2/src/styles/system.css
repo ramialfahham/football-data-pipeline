@@ -883,8 +883,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
   .mp .mast .teams { grid-template-columns: 1fr; gap: 0; margin-top: 16px; }
   .mp .mast .vs { display: none; }
   .mp .mast .team { display: grid; grid-template-columns: auto 1fr; column-gap: 14px; row-gap: 4px; align-items: center;
-                    text-align: left; padding: 12px 4px; border-bottom: 1px solid var(--line); }
-  .mp .mast .team:last-child { border-bottom: 0; }
+                    text-align: left; padding: 12px 4px; }
   .mp .mast .team .crest { grid-row: span 2; }
   .mp .mast .team .tname { font-size: 20px; text-wrap: pretty; }
   .mp .mast .team .stand { grid-column: 2; }
@@ -954,20 +953,36 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .lrow { container-type: inline-size; }
 .lrow:not(:last-child) { border-bottom: 1px solid var(--line); }
 
-/* Result row: result chip · score · opponent (crest, name, H or A) · competition · date. One line
-   where the list is 420px wide or more, two lines below; the name wraps, never cut off. On one line
-   the competition and date take at most 45% of the row, so a long competition cannot cover the name.
-   On the narrowest rows the gaps tighten so a long word fits. */
+/* Result row: result chip · score · opponent (crest, name, H or A) · competition · date on one line
+   where every row of its list fits (fitBlocks marks the list fit-one); otherwise two lines, the
+   opponent on the first and H or A · competition · date on the second. The name wraps, never cut
+   off. On one line the competition and date take at most 45% of the row, so a long competition
+   cannot cover the name. On the narrowest rows the gaps tighten so a long word fits. */
 .resrow { display: grid; grid-template-columns: 24px 42px 1fr; grid-template-areas: "res score opp" ". . meta";
           column-gap: clamp(8px, 3cqw, 20px); row-gap: 2px; align-items: center; align-content: start; padding: 8px 0; font-size: 13px; }
-.resrow .pill { grid-area: res; }
+/* In a result row the chip and the score keep to the first line when the name wraps. */
+.resrow .pill { grid-area: res; align-self: start; }
 .resrow .rscore { grid-area: score; font-size: 15px; }
+.resrow:not(.meet):not(.scorer) .rscore { align-self: start; line-height: 24px; }
 .resrow .ropp { grid-area: opp; font-size: 15px; white-space: normal; overflow: visible; text-overflow: clip; }
 .resrow .rmeta { grid-area: meta; text-align: left; white-space: normal; }
+/* Home or away sits after the name on one line and opens the second line on two; a middle dot
+   travels with the item after it. Before fitBlocks marks a list, the width decides. */
+.resrow .ropp > .ha { display: none; }
 @container (min-width: 420px) {
   .resrow { grid-template-columns: 24px 42px 1fr fit-content(45%); grid-template-areas: "res score opp meta"; column-gap: 11px; }
   .resrow .rmeta { text-align: right; }
+  .resrow .rha { display: none; }
+  .resrow .ropp > .ha { display: inline; }
 }
+/* A list fitBlocks has measured takes its form by fit, whatever its width. */
+.fit-one .resrow { grid-template-columns: 24px 42px 1fr fit-content(45%); grid-template-areas: "res score opp meta"; column-gap: 11px; }
+.fit-one .resrow .rmeta { text-align: right; }
+.fit-two .resrow { grid-template-columns: 24px 42px 1fr; grid-template-areas: "res score opp" ". . meta"; column-gap: clamp(8px, 3cqw, 20px); }
+.fit-two .resrow .rmeta { text-align: left; }
+.fit-one .resrow .rha, .fit-two .resrow .ropp > .ha, .rlist.pm:not(.fit-one) .resrow .ropp > .ha { display: none; }
+.fit-one .resrow .ropp > .ha { display: inline; }
+.fit-two .resrow .rha, .rlist.pm:not(.fit-one) .resrow .rha { display: inline; }
 /* A meeting of the two teams: the row without the chip, which would take one side. */
 .resrow.meet { grid-template-columns: 42px 1fr; grid-template-areas: "score opp" ". meta"; }
 @container (min-width: 420px) {

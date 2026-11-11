@@ -32,9 +32,6 @@ const Row = href ? "a" : "div";
       <span class="club"><Crest name={match.opponent_name} crest={match.opponent_logo_url} size="xs" /><span class="cn">{match.opponent_name}</span></span>
       {ha && <span class="ha">{ha}</span>}
     </span>
-    <span class="rmeta">
-      {comp && <>{comp}&nbsp;· </>}
-      <span class="nb">{formatShortDate(match.played_kickoff_datetime, lang)}</span>
-    </span>
+    <span class="rmeta">{ha && <><span class="rha">{ha}</span><span class="rha"> ·&nbsp;</span></>}{comp && <>{comp}{" "}</>}<span class="nb">{comp && <>·&nbsp;</>}{formatShortDate(match.played_kickoff_datetime, lang)}</span></span>
   </div>
 </Row>

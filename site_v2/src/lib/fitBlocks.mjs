@@ -6,7 +6,7 @@
 // Filter bar fits when each row of buttons does, and its dropdown row when each holds its longest choice;
 // a match row with a tag fits when its names keep their column beside the tag, each longest word
 // inside its own space; a list of a player's matches fits when every row holds all its parts on one
-// line. A card block has three forms: it takes the first of one row and three across where every card
+// line, and so does a list of a team's results. A card block has three forms: it takes the first of one row and three across where every card
 // holds its number and its longest word.
 
 /** The width of a text's longest word, given a function that measures one word. */
@@ -14,6 +14,10 @@ export function longestWord(text, measure) {
   const words = String(text).trim().split(/\s+/).filter(Boolean);
   return words.length ? Math.max(...words.map(measure)) : 0;
 }
+
+/** The lists of result rows: a player's matches, a team's matches, and each column of a match's
+ * Recent matches. Head to head and goal lists keep their width switch. */
+export const RESULT_LISTS = ".rlist.pm, .rlist:has(.resrow:not(.meet, .goal, .scorer)), .rsplit > .rcol:has(.resrow:not(.meet, .goal, .scorer))";
 
 /** A block keeps one line when every row needs no more than its room (half a pixel of rounding). */
 export function fitsOneLine(rows) {
@@ -113,7 +117,7 @@ function start() {
     ...[...new Set([...document.querySelectorAll(".frow")].map((r) => r.parentElement))].map((b) => [b, "facts"]),
     ...[...document.querySelectorAll(".fxrow:has(> .topmatch)")].map((b) => [b, "tagged"]),
     ...[...document.querySelectorAll(".kpis")].map((b) => [b, "cards"]),
-    ...[...document.querySelectorAll(".rlist.pm")].map((b) => [b, "rows"]),
+    ...[...document.querySelectorAll(RESULT_LISTS)].map((b) => [b, "rows"]),
     // the bar before its dropdown row: the row shows only once the bar has taken its narrow form
     ...[...document.querySelectorAll(".fbar")].map((b) => [b, "filter"]),
     ...[...document.querySelectorAll(".selbar")].map((b) => [b, "selects"]),

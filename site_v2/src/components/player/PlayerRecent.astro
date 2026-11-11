@@ -22,6 +22,7 @@ const { matches, id, lang } = Astro.props;
 const SHOWN = 5;
 const LETTER: Record<string, string> = { W: "winsShort", D: "drawsShort", L: "lossesShort" };
 const ha = (m: PlayerMatch) => (m.home_away === "home" ? t(lang, "home") : m.home_away === "away" ? t(lang, "away") : "");
+const compName = (m: PlayerMatch) => competitionInfo(m.played_league_code ?? "").name;
 const count = (n: number, one: string, many: string) => ({ n: integer(n, lang), word: n === 1 ? one : many });
 const line = (m: PlayerMatch) => [
   m.minutes != null ? { n: integer(m.minutes, lang), word: t(lang, "minutesShort") } : null,
@@ -55,7 +56,7 @@ const rows = matches.map((m) => ({
                 </span>
                 <span class="rmeta">
                   <span class="rm-c">
-                    <span class="nb">{competitionInfo(m.played_league_code ?? "").name}</span> · <span class="nb">{formatShortDate(m.played_kickoff_datetime, lang)}</span>
+                    {ha(m) && <><span class="rha">{ha(m)}</span><span class="rha"> ·&nbsp;</span></>}{compName(m) && <><span class="nb">{compName(m)}</span>{" "}</>}<span class="nb">{compName(m) && <>·&nbsp;</>}{formatShortDate(m.played_kickoff_datetime, lang)}</span>
                   </span>
                   {(m.on_bench || parts.length > 0) && <span class="rm-p">
                     {m.on_bench
