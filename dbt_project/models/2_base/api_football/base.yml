@@ -30,7 +30,8 @@ models:
   - name: base_apif__teams_global
     description: >
       One row per team: the settled entity, from the latest ingest across base_apif__teams'
-      per-competition rows. Grain: team_api_id.
+      per-competition rows that carry provider attributes, and from the latest row only where
+      none does. Grain: team_api_id.
 
       Identity is DECIDED here, not carried through: the name and country corrections from the
       override seeds are applied here, so the core dim publishes a settled entity.

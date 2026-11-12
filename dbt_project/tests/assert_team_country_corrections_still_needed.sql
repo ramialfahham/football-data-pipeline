@@ -19,7 +19,13 @@ provider_country as (
     from import_base_apif__teams
     qualify row_number() over (
         partition by team_api_id
-        order by raw_ingested_at desc
+        order by
+            coalesce(
+                team_code, team_country, cast(team_founded_year as string), team_logo_url,
+                cast(venue_api_id as string), venue_name, venue_address, venue_city,
+                cast(venue_capacity as string)
+            ) is null asc,
+            raw_ingested_at desc
     ) = 1
 )
 
