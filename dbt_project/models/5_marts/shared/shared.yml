@@ -1411,7 +1411,8 @@ models:
       int_player_season_record, which computes each from its metric_catalogue formula. Goals,
       assists and shots on target keep the keys the export reads (goals_total, goals_assists,
       shots_on). top_player_rank orders each side by goals plus assists, then goals, then fewer
-      minutes.
+      minutes. scorer_points_rank and ball_actions_per90_rank place a side's outfield players on the
+      two Players to watch boards.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
@@ -1527,6 +1528,20 @@ models:
         description: "{{ doc('passes_accuracy_player_pct') }}"
       - name: duels_won_player_pct
         description: "{{ doc('duels_won_player_pct') }}"
+      - name: ball_actions_per90
+        description: "{{ doc('ball_actions_per90') }}"
+      - name: team_matches
+        description: "The matches the team played in the window, awarded results not counted. A third of them times 90 is the minutes a player needs to enter the Ball actions per 90 board."
+      - name: scorer_points_rank
+        description: "The player's place on this side's Goals and assists board: outfield players with at least one goal or assist, by goals plus assists, then goals, then fewer minutes, unknown minutes last, then player_sk, so no two players share a place. NULL for a player off the board."
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 1
+      - name: ball_actions_per90_rank
+        description: "The player's place on this side's Ball actions per 90 board: outfield players with at least a third of the team's minutes in the window, by ball actions per 90, then more minutes, then player_sk, so no two players share a place. NULL for a player off the board."
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 1
 
   - name: mart_standings
     description: >

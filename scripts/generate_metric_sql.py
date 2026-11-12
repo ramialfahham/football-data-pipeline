@@ -140,7 +140,8 @@ SURFACES = (
     Surface("4_intermediate/shared/int_player_momentum__metrics.sql",
             WINDOW_COUNTS + WINDOW_RATIOS),
     Surface("4_intermediate/shared/int_player_season_record.sql",
-            WINDOW_COUNTS + ("defensive_actions_player", "scorer_points_player") + WINDOW_RATIOS, windowed=True),
+            WINDOW_COUNTS + ("defensive_actions_player", "scorer_points_player") + WINDOW_RATIOS
+            + ("ball_actions_per90",), windowed=True),
     Surface("4_intermediate/shared/int_player_profile__contribution.sql",
             ("scorer_points_player",)),
     Surface("4_intermediate/shared/int_player_match__metrics.sql", MATCH_BOARDS),

@@ -1,0 +1,478 @@
+diff --git a/.claude/task/132-players-to-watch-data/contract.md b/.claude/task/132-players-to-watch-data/contract.md
+new file mode 100644
+index 00000000..20c72762
+--- /dev/null
++++ b/.claude/task/132-players-to-watch-data/contract.md
+@@ -0,0 +1,68 @@
++# Task contract — Players to watch: the two boards' ranks in the season record
++
++objective: >
++  Issue #132 (Players to watch, notes of 2026-11-10): serve each upcoming match side's two boards
++  from mart_player_season_record. Goals and assists ranks outfield players by goals plus assists,
++  then goals, then fewer minutes. Ball actions per 90 ranks outfield players with at least a third
++  of the team's minutes in the window, by the value, then more minutes. The window stays the
++  match's own competition this season, or last season before the team's first match in it.
++
++refs: >
++  #132 notes of 2026-11-10 (Players to watch: window, two boards, top 3, outfield only, the floor
++  of mart_player_squad_benchmarks); stream D plan, go from the coordinating session on 2026-11-12.
++
++scope_paths:
++  - scripts/generate_metric_sql.py
++  - dbt_project/models/4_intermediate/shared/int_player_season_record.sql
++  - dbt_project/models/4_intermediate/shared/int_season_record.yml
++  - dbt_project/models/5_marts/shared/mart_player_season_record.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/models/docs/metric_columns.md
++  - dbt_project/seeds/metric_map.csv
++  - dbt_project/tests/assert_player_season_record_board_ranks.sql
++  - tests/test_generate_metric_sql.py
++  - .claude/task/132-players-to-watch-data/contract.md
++  - .claude/task/132-players-to-watch-data/review.md
++  - .claude/task/132-players-to-watch-data/review_input.patch
++
++impact_map: >
++  writers: dbt only; no ingestion change. int_player_season_record gains one generated column,
++  ball_actions_per90, the catalogue formula over the running window. mart_player_season_record
++  gains ball_actions_per90, team_matches, scorer_points_rank and ball_actions_per90_rank; no grain
++  change, no existing column changes.
++  lineage: `dbt ls --resource-type model --select int_player_season_record+` returns
++  int_player_profile__yoy, int_player_season_record, mart_player_index, mart_player_profile,
++  mart_player_season_record. int_player_profile__yoy names its columns, so the new column stops
++  there; mart_player_index and mart_player_profile read int_player_profile__yoy's named columns.
++  consumption: scripts/export_site_data.py reads mart_player_season_record with `select *` and
++  keeps every column but _TOPPLAYER_DROP, so the match payload's players gain the four new keys
++  until the Players to watch build (stream C) reads them; the page renders none of them.
++  layer_rules: check_layer_contract.py (marts read intermediates and core, no mart-from-mart);
++  generated metric SQL checked by tests/test_generate_metric_sql.py.
++  deploy_order: additive columns; the deployed models keep working until the merge, and the
++  nightly picks the change up after it.
++  blast_radius: mart_player_season_record (4 new columns), int_player_season_record (1 new
++  column); no existing value changes.
++
++approved_design:
++  - none: no page output changes
++
++decisions_taken: >
++  The board rules are the #132 notes of 2026-11-10 (approved in chat). Outfield means the
++  window's own position to date is not G; a player with no known position counts as outfield
++  unless dim_player says goalkeeper. The floor is the team's played matches in the window (awarded
++  results not counted) x 90 / 3, as mart_player_squad_benchmarks counts it. top_player_rank stays
++  until the page build replaces its reader. The ranks are row_number: each board shows exactly
++  three rows per side.
++
++decisions_reserved:
++  - none: every rule applied is in the #132 notes of 2026-11-10
++
++done_when:
++  - python scripts/generate_metric_sql.py --check passes
++  - python scripts/sync_metric_docs_blocks.py --check passes
++  - dbt parse passes; sqlfluff lint of the two models passes
++  - full pytest passes
++  - the new singular test and the mart's ranks hold on a read-only query against the CI build
++
++amendments: (none)
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_record.sql b/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
+index f87e489d..179c5407 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
+@@ -197,7 +197,25 @@ running as (
+         safe_divide(
+             if(logical_and(window_is_complete and duels_won is not null) over w, sum(duels_won) over w, null),
+             if(logical_and(window_is_complete and duels is not null) over w, sum(duels) over w, null)
+-        ) as duels_won_player_pct
++        ) as duels_won_player_pct,
++        safe_divide(
++            if(
++                logical_and(
++                    window_is_complete
++                    and (passes + shots + dribbles + tackles + interceptions + blocks + saves) is not null
++                ) over w,
++                sum(passes + shots + dribbles + tackles + interceptions + blocks + saves) over w,
++                null
++            ) * 90,
++            if(
++                logical_and(
++                    window_is_complete
++                    and minutes is not null
++                ) over w,
++                sum(minutes) over w,
++                null
++            )
++        ) as ball_actions_per90
+         -- end of generated metric sql
+     from window_rows
+     window w as (
+diff --git a/dbt_project/models/4_intermediate/shared/int_season_record.yml b/dbt_project/models/4_intermediate/shared/int_season_record.yml
+index 1c73f157..318a290f 100644
+--- a/dbt_project/models/4_intermediate/shared/int_season_record.yml
++++ b/dbt_project/models/4_intermediate/shared/int_season_record.yml
+@@ -245,3 +245,5 @@ models:
+         description: "{{ doc('passes_accuracy_player_pct') }}"
+       - name: duels_won_player_pct
+         description: "{{ doc('duels_won_player_pct') }}"
++      - name: ball_actions_per90
++        description: "{{ doc('ball_actions_per90') }}"
+diff --git a/dbt_project/models/5_marts/shared/mart_player_season_record.sql b/dbt_project/models/5_marts/shared/mart_player_season_record.sql
+index a2de8c05..9e9aff70 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_season_record.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_season_record.sql
+@@ -9,7 +9,11 @@
+   season (window_type='prev_season'). Goals, assists and shots on target are handed to the export under the keys
+   the site reads (goals_total, goals_assists, shots_on). saves_player_pct is only meaningful for
+   goalkeepers. top_player_rank orders a side by goals plus assists, then goals, then fewer minutes; NULL
+-  when the player's goals plus assists is unknown. Grain: (upcoming_fixture_sk, team_sk, player_sk).
++  when the player's goals plus assists is unknown.
++  The Players to watch boards rank a side's outfield players: scorer_points_rank by goals plus assists,
++  then goals, then fewer minutes; ball_actions_per90_rank by ball actions per 90, then more minutes, among
++  players with at least a third of the team's minutes in the window (team_matches x 90 / 3). Each is NULL
++  for a player off its board. Grain: (upcoming_fixture_sk, team_sk, player_sk).
+ #}
+ 
+ with upcoming as (
+@@ -91,6 +95,7 @@ matched as (
+         sf.passes_accuracy_player_pct,
+         sf.duels_won_player_pct,
+         sf.scorer_points_player,
++        sf.ball_actions_per90,
+         sf.minutes,
+         1 as priority
+     from sides as s
+@@ -138,6 +143,7 @@ matched as (
+         sf.passes_accuracy_player_pct,
+         sf.duels_won_player_pct,
+         sf.scorer_points_player,
++        sf.ball_actions_per90,
+         sf.minutes,
+         2 as priority
+     from sides as s
+@@ -152,19 +158,48 @@ players as (
+     select
+         player_sk,
+         player_name,
+-        player_photo_url
++        player_photo_url,
++        player_position
+     from {{ ref('dim_player') }}
+ ),
+ 
++team_matches as (
++    select
++        team_sk,
++        league_code,
++        season_api_year,
++        count(distinct if(not is_awarded_result, fixture_sk, null)) as team_matches
++    from {{ ref('int_legs__team_match') }}
++    group by team_sk, league_code, season_api_year
++),
++
+ chosen as (
+     select
+         m.*,
+         p.player_name,
+-        p.player_photo_url
++        p.player_photo_url,
++        tm.team_matches,
++        if(m.position_code is null, coalesce(p.player_position != 'Goalkeeper', true), m.position_code != 'G')
++            as is_outfield
+     from matched as m
+     left join players as p
+         on m.player_sk = p.player_sk
++    left join team_matches as tm
++        on
++            m.team_sk = tm.team_sk
++            and m.league_code = tm.league_code
++            and m.season_api_year = tm.season_api_year
+     qualify m.priority = min(m.priority) over (partition by m.upcoming_fixture_sk, m.team_sk)
++),
++
++-- The two Players to watch boards. A most-first board leaves out a zero (ranking_rules).
++boards as (
++    select
++        *,
++        is_outfield and scorer_points_player > 0 as on_scorer_points_board,
++        is_outfield and ball_actions_per90 > 0 and minutes >= team_matches * 90 / 3
++            as on_ball_actions_per90_board
++    from chosen
+ )
+ 
+ select
+@@ -208,6 +243,8 @@ select
+     dribbles_success_player_pct,
+     passes_accuracy_player_pct,
+     duels_won_player_pct,
++    ball_actions_per90,
++    team_matches,
+     if(
+         scorer_points_player is null,
+         null,
+@@ -215,5 +252,21 @@ select
+             partition by upcoming_fixture_sk, team_sk, scorer_points_player is null
+             order by scorer_points_player desc, goals_player desc, minutes asc nulls last, player_sk asc
+         )
+-    ) as top_player_rank
+-from chosen
++    ) as top_player_rank,
++    if(
++        on_scorer_points_board,
++        row_number() over (
++            partition by upcoming_fixture_sk, team_sk, on_scorer_points_board
++            order by scorer_points_player desc, goals_player desc, minutes asc nulls last, player_sk asc
++        ),
++        null
++    ) as scorer_points_rank,
++    if(
++        on_ball_actions_per90_board,
++        row_number() over (
++            partition by upcoming_fixture_sk, team_sk, on_ball_actions_per90_board
++            order by ball_actions_per90 desc, minutes desc, player_sk asc
++        ),
++        null
++    ) as ball_actions_per90_rank
++from boards
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index b59ec7df..7eb69cc3 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -1411,7 +1411,8 @@ models:
+       int_player_season_record, which computes each from its metric_catalogue formula. Goals,
+       assists and shots on target keep the keys the export reads (goals_total, goals_assists,
+       shots_on). top_player_rank orders each side by goals plus assists, then goals, then fewer
+-      minutes.
++      minutes. scorer_points_rank and ball_actions_per90_rank place a side's outfield players on the
++      two Players to watch boards.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
+@@ -1527,6 +1528,20 @@ models:
+         description: "{{ doc('passes_accuracy_player_pct') }}"
+       - name: duels_won_player_pct
+         description: "{{ doc('duels_won_player_pct') }}"
++      - name: ball_actions_per90
++        description: "{{ doc('ball_actions_per90') }}"
++      - name: team_matches
++        description: "The matches the team played in the window, awarded results not counted. A third of them times 90 is the minutes a player needs to enter the Ball actions per 90 board."
++      - name: scorer_points_rank
++        description: "The player's place on this side's Goals and assists board: outfield players with at least one goal or assist, by goals plus assists, then goals, then fewer minutes, unknown minutes last, then player_sk, so no two players share a place. NULL for a player off the board."
++        tests:
++          - dbt_utils.accepted_range:
++              min_value: 1
++      - name: ball_actions_per90_rank
++        description: "The player's place on this side's Ball actions per 90 board: outfield players with at least a third of the team's minutes in the window, by ball actions per 90, then more minutes, then player_sk, so no two players share a place. NULL for a player off the board."
++        tests:
++          - dbt_utils.accepted_range:
++              min_value: 1
+ 
+   - name: mart_standings
+     description: >
+diff --git a/dbt_project/seeds/metric_map.csv b/dbt_project/seeds/metric_map.csv
+index b88685d7..a44f4631 100644
+--- a/dbt_project/seeds/metric_map.csv
++++ b/dbt_project/seeds/metric_map.csv
+@@ -200,6 +200,7 @@ mart_player_profile,shots_on_goal_player_prev_season,shots_on_goal_player,prev_s
+ mart_player_profile,shots_on_goal_player_prev_season_full,shots_on_goal_player,prev_season_full,,
+ mart_player_profile,shots_on_goal_player_this_season,shots_on_goal_player,this_season,,
+ mart_player_profile,tackles_player,tackles_player,,,
++mart_player_season_record,ball_actions_per90,ball_actions_per90,,window_type,
+ mart_player_season_record,blocks_player,blocks_player,,window_type,
+ mart_player_season_record,cards_red_player,cards_red_player,,window_type,
+ mart_player_season_record,cards_yellow_player,cards_yellow_player,,window_type,
+diff --git a/dbt_project/tests/assert_player_season_record_board_ranks.sql b/dbt_project/tests/assert_player_season_record_board_ranks.sql
+new file mode 100644
+index 00000000..52e0ea46
+--- /dev/null
++++ b/dbt_project/tests/assert_player_season_record_board_ranks.sql
+@@ -0,0 +1,179 @@
++-- The two Players to watch boards of mart_player_season_record. Fail a goalkeeper on either board, a
++-- player on a board without its rule (a zero, below the minutes floor) or off it with the rule met, a
++-- gap in a side's places, and any pair of neighbours out of the board's order.
++{{ config(store_failures = true, severity = 'error') }}
++
++with played as (
++    select
++        team_sk,
++        league_code,
++        season_api_year,
++        countif(not is_awarded_result) as team_matches
++    from {{ ref('int_legs__team_match') }}
++    group by team_sk, league_code, season_api_year
++),
++
++side_rows as (
++    select
++        r.upcoming_fixture_sk,
++        r.team_sk,
++        r.player_sk,
++        r.scorer_points_player,
++        r.goals_total,
++        r.ball_actions_per90,
++        r.minutes,
++        r.scorer_points_rank,
++        r.ball_actions_per90_rank,
++        coalesce(
++            r.position_code != 'G',
++            p.player_position != 'Goalkeeper',
++            true
++        ) as is_outfield,
++        r.minutes >= pl.team_matches * 90 / 3 as meets_floor
++    from {{ ref('mart_player_season_record') }} as r
++    left join {{ ref('dim_player') }} as p
++        on r.player_sk = p.player_sk
++    left join played as pl
++        on
++            r.team_sk = pl.team_sk
++            and r.league_code = pl.league_code
++            and r.season_api_year = pl.season_api_year
++),
++
++points as (
++    select
++        *,
++        row_number() over w as place,
++        lead(scorer_points_player) over w as next_points,
++        lead(goals_total) over w as next_goals,
++        lead(minutes) over w as next_minutes,
++        lead(player_sk) over w as next_player_sk
++    from side_rows
++    where scorer_points_rank is not null
++    window w as (partition by upcoming_fixture_sk, team_sk order by scorer_points_rank)
++),
++
++actions as (
++    select
++        *,
++        row_number() over w as place,
++        lead(ball_actions_per90) over w as next_value,
++        lead(minutes) over w as next_minutes,
++        lead(player_sk) over w as next_player_sk
++    from side_rows
++    where ball_actions_per90_rank is not null
++    window w as (partition by upcoming_fixture_sk, team_sk order by ball_actions_per90_rank)
++)
++
++select
++    upcoming_fixture_sk,
++    team_sk,
++    player_sk,
++    'goalkeeper on a board' as failure
++from side_rows
++where
++    not is_outfield
++    and (scorer_points_rank is not null or ball_actions_per90_rank is not null)
++
++union all
++
++select
++    upcoming_fixture_sk,
++    team_sk,
++    player_sk,
++    'goals and assists board without its rule' as failure
++from side_rows
++where scorer_points_rank is not null and not coalesce(scorer_points_player > 0, false)
++
++union all
++
++select
++    upcoming_fixture_sk,
++    team_sk,
++    player_sk,
++    'outfield scorer left off the goals and assists board' as failure
++from side_rows
++where scorer_points_rank is null and is_outfield and scorer_points_player > 0
++
++union all
++
++select
++    upcoming_fixture_sk,
++    team_sk,
++    player_sk,
++    'ball actions board without its rule' as failure
++from side_rows
++where
++    ball_actions_per90_rank is not null
++    and not coalesce(ball_actions_per90 > 0 and meets_floor, false)
++
++union all
++
++select
++    upcoming_fixture_sk,
++    team_sk,
++    player_sk,
++    'qualified outfield player left off the ball actions board' as failure
++from side_rows
++where
++    ball_actions_per90_rank is null
++    and is_outfield
++    and ball_actions_per90 > 0
++    and meets_floor
++
++union all
++
++select
++    upcoming_fixture_sk,
++    team_sk,
++    player_sk,
++    'gap in the goals and assists places' as failure
++from points
++where scorer_points_rank != place
++
++union all
++
++select
++    upcoming_fixture_sk,
++    team_sk,
++    player_sk,
++    'gap in the ball actions places' as failure
++from actions
++where ball_actions_per90_rank != place
++
++union all
++
++select
++    upcoming_fixture_sk,
++    team_sk,
++    player_sk,
++    'goals and assists out of order' as failure
++from points
++where
++    next_player_sk is not null
++    and not coalesce(
++        scorer_points_player > next_points
++        or (scorer_points_player = next_points and goals_total > next_goals)
++        or (
++            scorer_points_player = next_points
++            and goals_total = next_goals
++            and (next_minutes is null or (minutes is not null and minutes <= next_minutes))
++        ),
++        false
++    )
++
++union all
++
++select
++    upcoming_fixture_sk,
++    team_sk,
++    player_sk,
++    'ball actions per 90 out of order' as failure
++from actions
++where
++    next_player_sk is not null
++    and not coalesce(
++        ball_actions_per90 > next_value
++        or (ball_actions_per90 = next_value and minutes >= next_minutes),
++        false
++    )
+diff --git a/scripts/generate_metric_sql.py b/scripts/generate_metric_sql.py
+index 30763d5d..7bc38ab2 100644
+--- a/scripts/generate_metric_sql.py
++++ b/scripts/generate_metric_sql.py
+@@ -140,7 +140,8 @@ SURFACES = (
+     Surface("4_intermediate/shared/int_player_momentum__metrics.sql",
+             WINDOW_COUNTS + WINDOW_RATIOS),
+     Surface("4_intermediate/shared/int_player_season_record.sql",
+-            WINDOW_COUNTS + ("defensive_actions_player", "scorer_points_player") + WINDOW_RATIOS, windowed=True),
++            WINDOW_COUNTS + ("defensive_actions_player", "scorer_points_player") + WINDOW_RATIOS
++            + ("ball_actions_per90",), windowed=True),
+     Surface("4_intermediate/shared/int_player_profile__contribution.sql",
+             ("scorer_points_player",)),
+     Surface("4_intermediate/shared/int_player_match__metrics.sql", MATCH_BOARDS),
