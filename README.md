@@ -10,6 +10,50 @@ An ELT pipeline for football data: daily ingestion from API-Football into BigQue
 
 **Status.** The pipeline runs daily. The web app, Matchday Pilot (`site_v2/`), is in development.
 
+## Matchday Pilot
+
+Phone and desktop views from the approved designs. Run `npm run build` in `site_v2`, then `python scripts/readme_screenshots.py`, to regenerate them.
+
+**Home**
+
+| Phone | Desktop |
+|---|---|
+| <img src="docs/images/readme/home-phone.png" width="240" alt="Home, phone"> | <img src="docs/images/readme/home-desktop.png" width="560" alt="Home, desktop"> |
+| <img src="docs/images/readme/home-block-phone.png" width="240" alt="Home, top players, phone"> | <img src="docs/images/readme/home-block-desktop.png" width="560" alt="Home, top players, desktop"> |
+| <img src="docs/images/readme/home-block2-phone.png" width="240" alt="Home, top teams, phone"> | <img src="docs/images/readme/home-block2-desktop.png" width="560" alt="Home, top teams, desktop"> |
+
+**Match preview**
+
+| Phone | Desktop |
+|---|---|
+| <img src="docs/images/readme/match-phone.png" width="240" alt="Match preview, phone"> | <img src="docs/images/readme/match-desktop.png" width="560" alt="Match preview, desktop"> |
+| <img src="docs/images/readme/match-block-phone.png" width="240" alt="Match preview, players to watch, phone"> | <img src="docs/images/readme/match-block-desktop.png" width="560" alt="Match preview, players to watch, desktop"> |
+| <img src="docs/images/readme/match-block2-phone.png" width="240" alt="Match preview, head to head, phone"> | <img src="docs/images/readme/match-block2-desktop.png" width="560" alt="Match preview, head to head, desktop"> |
+
+**Match report**
+
+| Phone | Desktop |
+|---|---|
+| <img src="docs/images/readme/played-phone.png" width="240" alt="Match report, phone"> | <img src="docs/images/readme/played-desktop.png" width="560" alt="Match report, desktop"> |
+| <img src="docs/images/readme/played-block-phone.png" width="240" alt="Match report, match leaders, phone"> | <img src="docs/images/readme/played-block-desktop.png" width="560" alt="Match report, match leaders, desktop"> |
+| <img src="docs/images/readme/played-block2-phone.png" width="240" alt="Match report, match statistics, phone"> | <img src="docs/images/readme/played-block2-desktop.png" width="560" alt="Match report, match statistics, desktop"> |
+
+**Team**
+
+| Phone | Desktop |
+|---|---|
+| <img src="docs/images/readme/team-phone.png" width="240" alt="Team, phone"> | <img src="docs/images/readme/team-desktop.png" width="560" alt="Team, desktop"> |
+| <img src="docs/images/readme/team-block-phone.png" width="240" alt="Team, deserved points, phone"> | <img src="docs/images/readme/team-block-desktop.png" width="560" alt="Team, deserved points, desktop"> |
+| <img src="docs/images/readme/team-block2-phone.png" width="240" alt="Team, overview, phone"> | <img src="docs/images/readme/team-block2-desktop.png" width="560" alt="Team, overview, desktop"> |
+
+**Player**
+
+| Phone | Desktop |
+|---|---|
+| <img src="docs/images/readme/player-phone.png" width="240" alt="Player, phone"> | <img src="docs/images/readme/player-desktop.png" width="560" alt="Player, desktop"> |
+| <img src="docs/images/readme/player-block-phone.png" width="240" alt="Player, comparison with other players, phone"> | <img src="docs/images/readme/player-block-desktop.png" width="560" alt="Player, comparison with other players, desktop"> |
+| <img src="docs/images/readme/player-block2-phone.png" width="240" alt="Player, recent matches, phone"> | <img src="docs/images/readme/player-block2-desktop.png" width="560" alt="Player, recent matches, desktop"> |
+
 ## Getting started
 
 ### Prerequisites
