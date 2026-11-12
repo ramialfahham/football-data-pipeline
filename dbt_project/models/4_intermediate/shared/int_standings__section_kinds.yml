@@ -6,7 +6,8 @@ models:
       What kind of table each standings section of a league-season is. The kind is the first
       standings_table_kinds pattern by priority that matches the section's name, and league where
       none does; a section that holds one team from each of the league-season's other tables is
-      a ranking. mart_standings, int_team_season__table_state and
+      a ranking, and so is a section left as a league whose every team also sits in one of the
+      league-season's group or conference tables. mart_standings, int_team_season__table_state and
       int_team_season__standings_primary read it. Grain: (league_code, season_api_year,
       group_name).
     tests:

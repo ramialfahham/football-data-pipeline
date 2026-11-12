@@ -1,4 +1,5 @@
--- Global team entity: one row per team_api_id (latest ingest across league_code rows).
+-- Global team entity: one row per team_api_id (latest ingest across league_code rows that carry
+-- provider attributes).
 -- Feeds dim_team. Grain: team_api_id.
 --
 -- Applies the hand-curated name corrections here rather than in dim_team so the core
@@ -25,12 +26,20 @@ import_team_country_corrections as (
     select * from {{ ref('team_country_corrections') }}
 ),
 
+-- A competition whose /teams list lacks a team gives it a row with a name and no attributes; such a
+-- row never settles a team that has a row with them.
 latest_per_team as (
     select *
     from import_base_apif__teams
     qualify row_number() over (
         partition by team_api_id
-        order by raw_ingested_at desc
+        order by
+            coalesce(
+                team_code, team_country, cast(team_founded_year as string), team_logo_url,
+                cast(venue_api_id as string), venue_name, venue_address, venue_city,
+                cast(venue_capacity as string)
+            ) is null asc,
+            raw_ingested_at desc
     ) = 1
 ),
 
