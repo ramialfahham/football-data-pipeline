@@ -204,7 +204,7 @@ models:
         description: "{{ doc('raw_ingested_at') }}"
 
   - name: dim_competition_season
-    description: "Canonical competition-season dimension with per-season coverage flags. Grain: (league_api_id, season_api_year). Sourced from base_apif__competition_seasons, with the season label from dim_league's season_type. Coverage flags describe which API-Football endpoints return data for that league-season and drive conditional logic downstream. Season expansion/parsing is performed in staging."
+    description: "Canonical competition-season dimension with per-season coverage flags. Grain: (league_api_id, season_api_year). Sourced from base_apif__competition_seasons, with the season label from the edition's season_type in competition_season_map, or dim_league's where the map holds no row. Coverage flags describe which API-Football endpoints return data for that league-season and drive conditional logic downstream. Season expansion/parsing is performed in staging."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -217,10 +217,17 @@ models:
             - league_api_id
             - season_api_year
       - dbt_utils.expression_is_true:
-          name: dim_competition_season_label_names_its_year
+          name: dim_competition_season_label_follows_its_season_type
           expression: >
-            starts_with(season_label, cast(season_api_year as string))
-            and regexp_contains(season_label, r'^\d{4}(/\d{2})?$')
+            regexp_contains(season_label, r'^\d{4}(/\d{2})?$')
+            and (
+              season_type is null
+              or season_label = if(
+                season_type = 'split_year',
+                format('%d/%02d', split_year_season, mod(split_year_season + 1, 100)),
+                cast(season_api_year as string)
+              )
+            )
     columns:
       - name: season_sk
         description: "{{ doc('season_sk') }}"
@@ -242,7 +249,7 @@ models:
         description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: season_label
-        description: "The season as a page names it: the start and end year for a competition whose season runs across two years (2026/27), the year alone for one played within a calendar year (2026). Follows dim_league's season_type."
+        description: "The season as a page names it: the start and end year for a competition whose season runs across two years (2026/27), the year alone for one played within a calendar year (2026). Follows the edition's season_type in competition_season_map, and dim_league's where the map holds no row."
         tests: [not_null]
       - name: season_type
         description: "split_year, 1 July to 30 June, or calendar_year, 1 January to 31 December, from competition_season_map. NULL on an edition the map does not hold."

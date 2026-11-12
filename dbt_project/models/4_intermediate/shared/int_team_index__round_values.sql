@@ -29,6 +29,8 @@ from unnest([
     struct('roundPlayoffRound', 0, null),
     struct('roundAfcPreliminaryStage', 0, null),
     struct('roundPreliminaryRound', 0, null),
+    struct('roundPreliminarySemiFinals', 0, null),
+    struct('roundPreliminaryFinal', 0, null),
     struct('roundPreliminaryRound1', 0, null),
     struct('roundPreliminaryRound2', 0, null),
     struct('roundLiberStage1', 0, null),

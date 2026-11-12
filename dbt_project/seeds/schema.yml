@@ -648,6 +648,40 @@ seeds:
         description: "The match and the official decision, in words."
         tests: [not_null]
 
+  - name: fixture_round_corrections
+    description: >
+      The organiser's round for each fixture the provider files under another round's name, one
+      row per fixture, each naming its source. The round is a round text the provider uses itself,
+      so round_names names it. Applied in base_apif__fixtures_next, which keeps the provider's round
+      next to it. assert_result_corrections_applied fails when a row is not applied, its source is
+      not valid, or the provider now files the fixture under the same round.
+    config:
+      column_types:
+        fixture_id: int64
+        round_name: string
+        source_kind: string
+        source: string
+        note: string
+    columns:
+      - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
+        tests: [not_null, unique]
+      - name: round_name
+        description: "The organiser's round, as the round text the provider uses for it."
+        tests: [not_null]
+      - name: source_kind
+        description: "official = the organiser's published draw or results; match_reports = two independent match reports."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["official", "match_reports"]
+      - name: source
+        description: "The source's https URLs, separated by a space: at least one when official, two on different sites when match_reports."
+        tests: [not_null]
+      - name: note
+        description: "The competition, the round, the date and the match, in words."
+        tests: [not_null]
+
   - name: fixture_goal_corrections
     description: >
       Every goal of a match whose provider goal events are wrong or missing, one row per goal,
