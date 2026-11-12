@@ -130,10 +130,10 @@ index 00000000..261b48f1
 +
 +amendments: (none)
 diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
-index be803fdc..ed40f5cf 100644
+index 7da841c3..87453342 100644
 --- a/dbt_project/models/2_base/api_football/base.yml
 +++ b/dbt_project/models/2_base/api_football/base.yml
-@@ -131,7 +131,8 @@ models:
+@@ -132,7 +132,8 @@ models:
        score and status are the official ones from the fixture_result_corrections seed, and the
        provider's stay on the row. Where two clubs share a provider team id in a fixture, the
        home and away team ids are corrected from the fixture_team_id_overrides seed's
@@ -143,7 +143,7 @@ index be803fdc..ed40f5cf 100644
      config:
        tags: ["base", "api_football", "fixture_context"]
      tests:
-@@ -170,6 +171,12 @@ models:
+@@ -171,6 +172,12 @@ models:
          description: "The provider's status code; differs from status_short only where the league awarded a match the provider files as played."
        - name: result_correction_source
          description: "Where the result was corrected, the source of the official result: the league's or federation's decision or record, or two independent match reports. NULL elsewhere."
@@ -608,6 +608,7 @@ index b83ebf82..b1591247 100644
 # depends on one.
 #
 #   .../acceptance_evidence.md                         |   8 +
-#    .../290-e2-rounds-season-labels/review_input.patch | 576 +++++++++++++++++++++
-#    2 files changed, 584 insertions(+)
+#    .claude/task/290-e2-rounds-season-labels/review.md |  34 ++
+#    .../290-e2-rounds-season-labels/review_input.patch | 613 +++++++++++++++++++++
+#    3 files changed, 655 insertions(+)
 # ============================================================================
