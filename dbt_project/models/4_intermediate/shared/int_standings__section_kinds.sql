@@ -3,7 +3,9 @@
   conference or league. The kind is the lowest-priority standings_table_kinds pattern that matches
   the section's name, and league where none does. A section is also a ranking when it holds one
   team from each of the league-season's other tables: every team in it sits in exactly one other
-  section that is not a ranking, and no two of its teams in the same one. mart_standings,
+  section that is not a ranking, and no two of its teams in the same one. A section left as a league
+  whose every team also sits in a group or conference section of the league-season combines those
+  tables, and is a ranking too. mart_standings,
   int_team_season__table_state and int_team_season__standings_primary read it, so a section has
   one kind everywhere.
 
@@ -56,6 +58,41 @@ named_kinds as (
         on s.group_name = m.group_name
 ),
 
+grouped_teams as (
+    select distinct
+        t.league_code,
+        t.season_api_year,
+        t.team_sk
+    from section_teams as t
+    inner join named_kinds as k
+        on
+            t.league_code = k.league_code
+            and t.season_api_year = k.season_api_year
+            and t.group_name = k.group_name
+    where k.table_kind in ('group', 'conference')
+),
+
+combined_tables as (
+    select
+        t.league_code,
+        t.season_api_year,
+        t.group_name
+    from section_teams as t
+    inner join named_kinds as k
+        on
+            t.league_code = k.league_code
+            and t.season_api_year = k.season_api_year
+            and t.group_name = k.group_name
+    left join grouped_teams as g
+        on
+            t.league_code = g.league_code
+            and t.season_api_year = g.season_api_year
+            and t.team_sk = g.team_sk
+    where k.table_kind = 'league'
+    group by t.league_code, t.season_api_year, t.group_name
+    having logical_and(g.team_sk is not null)
+),
+
 table_teams as (
     select t.*
     from section_teams as t
@@ -64,7 +101,12 @@ table_teams as (
             t.league_code = k.league_code
             and t.season_api_year = k.season_api_year
             and t.group_name = k.group_name
-    where k.table_kind != 'ranking'
+    left join combined_tables as c
+        on
+            t.league_code = c.league_code
+            and t.season_api_year = c.season_api_year
+            and t.group_name = c.group_name
+    where k.table_kind != 'ranking' and c.group_name is null
 ),
 
 team_other_tables as (
@@ -102,10 +144,15 @@ select
     k.league_code,
     k.season_api_year,
     k.group_name,
-    if(r.group_name is null, k.table_kind, 'ranking') as table_kind
+    if(r.group_name is null and c.group_name is null, k.table_kind, 'ranking') as table_kind
 from named_kinds as k
 left join cross_group_rankings as r
     on
         k.league_code = r.league_code
         and k.season_api_year = r.season_api_year
         and k.group_name = r.group_name
+left join combined_tables as c
+    on
+        k.league_code = c.league_code
+        and k.season_api_year = c.season_api_year
+        and k.group_name = c.group_name

@@ -1,6 +1,7 @@
 -- A standings section's table_kind is the lowest-priority seed pattern that matches its name,
 -- and a name no pattern matches is the competition's own league table. A section holding one team
--- from each of the league-season's other tables is a ranking whatever its name. Two things can go wrong
+-- from each of the league-season's other tables is a ranking whatever its name, and so is a section
+-- left as a league whose every team also sits in a group or conference section. Two things can go wrong
 -- silently: a new section name the seed does not cover falls through to "league" and gets
 -- rendered as the competition's ladder next to its real groups; or a seed edit lets one name
 -- match two kinds. Both show up as a league-kind section sharing a competition-season with a
@@ -74,8 +75,46 @@ team_sections as (
             and f.group_name = n.group_name
 ),
 
--- For each team of a section, the other sections of its league-season it sits in that are not
--- named rankings.
+grouped as (
+    select distinct
+        league_code,
+        season_api_year,
+        team_sk
+    from team_sections
+    where named_kind in ('group', 'conference')
+),
+
+-- A league-named section none of whose teams is missing from the league-season's group and
+-- conference sections combines them.
+combined as (
+    select
+        a.league_code,
+        a.season_api_year,
+        a.group_name
+    from team_sections as a
+    left join grouped as g
+        on
+            a.league_code = g.league_code
+            and a.season_api_year = g.season_api_year
+            and a.team_sk = g.team_sk
+    where a.named_kind = 'league'
+    group by 1, 2, 3
+    having countif(g.team_sk is null) = 0
+),
+
+table_sections as (
+    select t.*
+    from team_sections as t
+    left join combined as c
+        on
+            t.league_code = c.league_code
+            and t.season_api_year = c.season_api_year
+            and t.group_name = c.group_name
+    where c.group_name is null
+),
+
+-- For each team of a section, the other sections of its league-season it sits in that are neither
+-- named rankings nor combined tables.
 team_elsewhere as (
     select
         a.league_code,
@@ -84,7 +123,7 @@ team_elsewhere as (
         a.team_sk,
         array_agg(distinct b.group_name ignore nulls) as elsewhere
     from team_sections as a
-    left join team_sections as b
+    left join table_sections as b
         on
             a.league_code = b.league_code
             and a.season_api_year = b.season_api_year
@@ -113,13 +152,18 @@ resolved as (
         n.league_code,
         n.season_api_year,
         n.group_name,
-        if(o.group_name is null, n.named_kind, 'ranking') as expected_kind
+        if(o.group_name is null and c.group_name is null, n.named_kind, 'ranking') as expected_kind
     from named as n
     left join one_team_per_table as o
         on
             n.league_code = o.league_code
             and n.season_api_year = o.season_api_year
             and n.group_name = o.group_name
+    left join combined as c
+        on
+            n.league_code = c.league_code
+            and n.season_api_year = c.season_api_year
+            and n.group_name = c.group_name
 ),
 
 served as (
