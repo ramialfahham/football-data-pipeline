@@ -1,6 +1,10 @@
 # Review — feat/139-statistics-boards — 2026-11-13
 
-diff_sha256: 93d84b846eefdf278433d3bd84c4d4215657fb60f324d108635c660e025e1811
+diff_sha256: 55226ece723d7f41d07da9aa41dbe9f8dd24ad5712af0dbe04b0789725e07c78
+
+Rebound after merging gitlab/main (0ad252f1): the branch's own change is unchanged; the one file
+it shares with main's new commits, dbt_project/seeds/schema.yml, gained main's
+fixture_round_corrections entry, which moves the hash.
 
 rounds: 3
 
