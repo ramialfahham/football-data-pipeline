@@ -1,0 +1,42 @@
+# Task contract — main's data build lints SQL once
+
+objective: >
+  Issue 308: remove the repeated `sqlfluff lint models` step from `data:build:main`. `data:build:mr`
+  already lints every model on each MR and main is reached only by merging a green MR.
+
+refs: >
+  Issue 308. Approved in chat, 2026-11-13.
+
+scope_paths:
+  - .gitlab-ci.yml
+  - .claude/task/308-main-lint-once/contract.md
+  - .claude/task/308-main-lint-once/review.md
+  - .claude/task/308-main-lint-once/review_input.patch
+
+protected_override: >
+  .gitlab-ci.yml edit approved in chat, 2026-11-13; the MR head declares the locked file.
+
+impact_map: >
+  writers: none; one script line deleted from the data:build:main job.
+  downstream: no model, seed or mart is touched; no dbt lineage affected.
+  layer_rules: not applicable, no model changes.
+  deploy_order: none; takes effect on the next main pipeline. data:build:mr keeps its lint at the
+  same line, so every model is still linted before merge.
+  blast_radius: data:build:main loses one step (about 3.5 of 17 minutes); nothing else in the job
+  reads its output. No test in tests/ or doc states that the main job lints.
+
+approved_design:
+  - none: no page output changes
+
+decisions_taken: >
+  Remove the one line, approved in chat, 2026-11-13. No new mechanism, no recurring cost, the cost falls.
+
+decisions_reserved:
+  - none: nothing else changes.
+
+done_when:
+  - The offline gates in FAST_GATES pass.
+  - python -m pytest tests/test_ci_data_job_invariants.py -q is green.
+  - The MR pipeline is green.
+
+amendments: (none)
