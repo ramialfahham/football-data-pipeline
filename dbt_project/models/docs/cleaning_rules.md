@@ -29,9 +29,13 @@ match stats are good enough.
 - A player's team. Where his statistics row and his match events, own goals aside, name different
   teams of the match, the squad list for the season decides, and his other matches decide where it
   names both teams or neither; the side it contradicts, his row or his events, moves to the team
-  it names. Where nothing decides, both stay where the provider put them.
+  it names. Where nothing decides, both stay where the provider put them. Where a match's line-ups
+  are researched, the researched sheet decides a player's team, for his statistics and his events.
 - Accurate passes are a count in every match. Where a match's values add up to more than its
   passes, the provider sent a percentage, and it is converted once.
+- Positions. A player's position in a match is G, D, M or F. A position given in words takes its
+  letter; a winger takes the letter of his row on the line-up grid (first row G, second D, last F,
+  the rows between M). Any other code is no position.
 - Substitutions. A substitution event names the player who went off and, as its assist, the player
   who came on. Where the line-ups name the assist as a starter and the player as not one, the two
   are swapped.
@@ -42,6 +46,8 @@ match stats are good enough.
   - More of a sheet's players are on its team's squad list than on the other team's, and none is
     listed only at the other team. Without a squad list, the club each player last joined decides.
   - No player is on both sheets, and the stat lines put no player on the other team.
+  - No team sheet names two people under one player id; one person listed twice keeps his first
+    listing.
   - Every substitution brings on a substitute for a player of the same team on the sheets, at the
     minute that player went off.
   - Research covers, in this order: every match of a domestic league in the registry;
