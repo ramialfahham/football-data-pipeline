@@ -287,6 +287,27 @@ decisions as (
             and disputes.player_id = other_matches.player_id
 ),
 
+-- A researched line-up names each of its players' team; it outranks the decision above.
+researched_teams as (
+    select distinct
+        fixture_id,
+        player_id,
+        team_id
+    from {{ ref('fixture_lineup_corrections') }}
+),
+
+player_teams as (
+    select
+        coalesce(researched_teams.fixture_id, decisions.fixture_id) as fixture_id,
+        coalesce(researched_teams.player_id, decisions.player_id) as player_id,
+        coalesce(researched_teams.team_id, decisions.resolved_player_team_id) as resolved_player_team_id
+    from decisions
+    full outer join researched_teams
+        on
+            decisions.fixture_id = researched_teams.fixture_id
+            and decisions.player_id = researched_teams.player_id
+),
+
 team_names as (
     select
         fixture_id,
@@ -312,23 +333,23 @@ resolved as (
         attributed.event_comments,
         attributed.raw_ingested_at,
         attributed.is_own_goal,
-        decisions.resolved_player_team_id,
-        coalesce(decisions.resolved_player_team_id, attributed.team_id) as team_id,
+        player_teams.resolved_player_team_id,
+        coalesce(player_teams.resolved_player_team_id, attributed.team_id) as team_id,
         if(
-            decisions.resolved_player_team_id != attributed.team_id,
+            player_teams.resolved_player_team_id != attributed.team_id,
             team_names.team_name,
             attributed.team_name
         ) as team_name
     from attributed
-    left join decisions
+    left join player_teams
         on
-            attributed.fixture_id = decisions.fixture_id
-            and attributed.player_id = decisions.player_id
+            attributed.fixture_id = player_teams.fixture_id
+            and attributed.player_id = player_teams.player_id
             and not attributed.is_own_goal
     left join team_names
         on
             attributed.fixture_id = team_names.fixture_id
-            and decisions.resolved_player_team_id = team_names.team_id
+            and player_teams.resolved_player_team_id = team_names.team_id
 ),
 
 -- Every goal of a match whose provider goal events are wrong, from seeds/fixture_goal_corrections.csv,

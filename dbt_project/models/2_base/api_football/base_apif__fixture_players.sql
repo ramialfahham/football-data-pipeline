@@ -31,7 +31,6 @@ src as (
         kept_player_id as player_id,
         minutes_played,
         shirt_number,
-        position_code,
         is_captain,
         is_substitute,
         offsides,
@@ -61,7 +60,8 @@ src as (
         penalty_scored,
         penalty_missed,
         penalty_saved,
-        raw_ingested_at
+        raw_ingested_at,
+        if(position_code in ('G', 'D', 'M', 'F'), position_code, null) as position_code
     from stat_lines
     where
         kept_player_id is not null
@@ -114,6 +114,15 @@ resolved_teams as (
     group by fixture_id, player_id
 ),
 
+-- The player's team on a researched line-up, which an official source settles.
+researched_teams as (
+    select distinct
+        fixture_id,
+        player_id,
+        team_id
+    from {{ ref('fixture_lineup_corrections') }}
+),
+
 -- Corrected BEFORE the qualify below, not after, because both of its window functions partition on
 -- team_id: the dedup key, which the model's uniqueness test covers, and the cross-team collision
 -- guard. The guard now sees corrected ids, which is the intended direction -- a player appearing
@@ -123,6 +132,7 @@ corrected as (
     select
         src.* except (team_id),
         coalesce(
+            researched_teams.team_id,
             resolved_teams.team_id,
             fixture_override.correct_team_api_id,
             alias_override.correct_team_api_id,
@@ -168,6 +178,10 @@ corrected as (
         on
             src.fixture_id = resolved_teams.fixture_id
             and src.player_id = resolved_teams.player_id
+    left join researched_teams
+        on
+            src.fixture_id = researched_teams.fixture_id
+            and src.player_id = researched_teams.player_id
 ),
 
 -- A match's rows come from one fetch: its newest fetch in the provider's complete format, else its
