@@ -132,7 +132,7 @@ workflow:
 # ⚠ `:-shared` covers pipelines with no MR IID (main pushes, web runs). They pass
 # `--target prod` explicitly and never write it; it exists only so the profile's default
 # `target:` always names a defined output — sqlfluff resolves the DEFAULT target, so a
-# dangling name would break `data:build:main`'s lint.
+# dangling name would break `data:build:mr`'s lint.
 # ⛔ NOTHING HERE DELETES ANYTHING. These datasets accumulate and are never expired,
 # dropped or cleaned up. An automatic expiry would bound the storage and is deliberately
 # refused: a mis-scoped expiry reaches `prod` and deletes the warehouse. Measured cost of
@@ -871,7 +871,6 @@ data:build:main:
     - *gcp_auth
     - python scripts/wait_for_nightly.py
     - cd dbt_project && dbt deps
-    - sqlfluff lint models
     - dbt seed --target prod
     - cd "$CI_PROJECT_DIR" && export PYTHONPATH=.
     - NEW_CODES=$(python scripts/get_new_league_codes.py)
