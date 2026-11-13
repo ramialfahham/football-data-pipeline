@@ -197,7 +197,25 @@ running as (
         safe_divide(
             if(logical_and(window_is_complete and duels_won is not null) over w, sum(duels_won) over w, null),
             if(logical_and(window_is_complete and duels is not null) over w, sum(duels) over w, null)
-        ) as duels_won_player_pct
+        ) as duels_won_player_pct,
+        safe_divide(
+            if(
+                logical_and(
+                    window_is_complete
+                    and (passes + shots + dribbles + tackles + interceptions + blocks + saves) is not null
+                ) over w,
+                sum(passes + shots + dribbles + tackles + interceptions + blocks + saves) over w,
+                null
+            ) * 90,
+            if(
+                logical_and(
+                    window_is_complete
+                    and minutes is not null
+                ) over w,
+                sum(minutes) over w,
+                null
+            )
+        ) as ball_actions_per90
         -- end of generated metric sql
     from window_rows
     window w as (

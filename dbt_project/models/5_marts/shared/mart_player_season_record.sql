@@ -9,7 +9,11 @@
   season (window_type='prev_season'). Goals, assists and shots on target are handed to the export under the keys
   the site reads (goals_total, goals_assists, shots_on). saves_player_pct is only meaningful for
   goalkeepers. top_player_rank orders a side by goals plus assists, then goals, then fewer minutes; NULL
-  when the player's goals plus assists is unknown. Grain: (upcoming_fixture_sk, team_sk, player_sk).
+  when the player's goals plus assists is unknown.
+  The Players to watch boards rank a side's outfield players: scorer_points_rank by goals plus assists,
+  then goals, then fewer minutes; ball_actions_per90_rank by ball actions per 90, then more minutes, among
+  players with at least a third of the team's minutes in the window (team_matches x 90 / 3). Each is NULL
+  for a player off its board. Grain: (upcoming_fixture_sk, team_sk, player_sk).
 #}
 
 with upcoming as (
@@ -91,6 +95,7 @@ matched as (
         sf.passes_accuracy_player_pct,
         sf.duels_won_player_pct,
         sf.scorer_points_player,
+        sf.ball_actions_per90,
         sf.minutes,
         1 as priority
     from sides as s
@@ -138,6 +143,7 @@ matched as (
         sf.passes_accuracy_player_pct,
         sf.duels_won_player_pct,
         sf.scorer_points_player,
+        sf.ball_actions_per90,
         sf.minutes,
         2 as priority
     from sides as s
@@ -152,19 +158,48 @@ players as (
     select
         player_sk,
         player_name,
-        player_photo_url
+        player_photo_url,
+        player_position
     from {{ ref('dim_player') }}
+),
+
+team_matches as (
+    select
+        team_sk,
+        league_code,
+        season_api_year,
+        count(distinct if(not is_awarded_result, fixture_sk, null)) as team_matches
+    from {{ ref('int_legs__team_match') }}
+    group by team_sk, league_code, season_api_year
 ),
 
 chosen as (
     select
         m.*,
         p.player_name,
-        p.player_photo_url
+        p.player_photo_url,
+        tm.team_matches,
+        if(m.position_code is null, coalesce(p.player_position != 'Goalkeeper', true), m.position_code != 'G')
+            as is_outfield
     from matched as m
     left join players as p
         on m.player_sk = p.player_sk
+    left join team_matches as tm
+        on
+            m.team_sk = tm.team_sk
+            and m.league_code = tm.league_code
+            and m.season_api_year = tm.season_api_year
     qualify m.priority = min(m.priority) over (partition by m.upcoming_fixture_sk, m.team_sk)
+),
+
+-- The two Players to watch boards. A most-first board leaves out a zero (ranking_rules).
+boards as (
+    select
+        *,
+        is_outfield and scorer_points_player > 0 as on_scorer_points_board,
+        is_outfield and ball_actions_per90 > 0 and minutes >= team_matches * 90 / 3
+            as on_ball_actions_per90_board
+    from chosen
 )
 
 select
@@ -208,6 +243,8 @@ select
     dribbles_success_player_pct,
     passes_accuracy_player_pct,
     duels_won_player_pct,
+    ball_actions_per90,
+    team_matches,
     if(
         scorer_points_player is null,
         null,
@@ -215,5 +252,21 @@ select
             partition by upcoming_fixture_sk, team_sk, scorer_points_player is null
             order by scorer_points_player desc, goals_player desc, minutes asc nulls last, player_sk asc
         )
-    ) as top_player_rank
-from chosen
+    ) as top_player_rank,
+    if(
+        on_scorer_points_board,
+        row_number() over (
+            partition by upcoming_fixture_sk, team_sk, on_scorer_points_board
+            order by scorer_points_player desc, goals_player desc, minutes asc nulls last, player_sk asc
+        ),
+        null
+    ) as scorer_points_rank,
+    if(
+        on_ball_actions_per90_board,
+        row_number() over (
+            partition by upcoming_fixture_sk, team_sk, on_ball_actions_per90_board
+            order by ball_actions_per90 desc, minutes desc, player_sk asc
+        ),
+        null
+    ) as ball_actions_per90_rank
+from boards
