@@ -109,21 +109,34 @@ named as (
         unnest(json_query_array(latest.substitutes_json)) as player_el with offset as sheet_index
 ),
 
+sheet_ids as (
+    select
+        *,
+        coalesce(safe_cast(json_value(player_el, '$.player.id') as int64), 0) as provider_player_id,
+        safe_cast(json_value(player_el, '$.player.number') as int64) as provider_shirt_number
+    from named
+),
+
 parsed as (
     select
-        league_code,
-        fixture_id,
-        team_id,
-        formation,
-        raw_ingested_at,
-        is_starter,
-        sheet_index,
-        {{ player_id_override("nullif(safe_cast(json_value(player_el, '$.player.id') as int64), 0)") }} as player_id,
-        {{ decode_html_entities("json_value(player_el, '$.player.name')") }} as player_name,
-        safe_cast(json_value(player_el, '$.player.number') as int64) as shirt_number,
-        json_value(player_el, '$.player.pos') as provider_position,
-        json_value(player_el, '$.player.grid') as grid_position
-    from named
+        sheet.league_code,
+        sheet.fixture_id,
+        sheet.team_id,
+        sheet.formation,
+        sheet.raw_ingested_at,
+        sheet.is_starter,
+        sheet.sheet_index,
+        nullif(
+            {{ fixture_player_id(
+                'sheet.provider_player_id', 'sheet.fixture_id', 'sheet.team_id', 'sheet.provider_shirt_number'
+            ) }},
+            0
+        ) as player_id,
+        {{ decode_html_entities("json_value(sheet.player_el, '$.player.name')") }} as player_name,
+        sheet.provider_shirt_number as shirt_number,
+        json_value(sheet.player_el, '$.player.pos') as provider_position,
+        json_value(sheet.player_el, '$.player.grid') as grid_position
+    from sheet_ids as sheet
 ),
 
 -- Some sheets name the position in words (cut to ten letters): each maps to G, D, M or F, a winger

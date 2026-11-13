@@ -112,10 +112,10 @@ index 00000000..ae8e04ea
 +
 +amendments: (none)
 diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
-index 7da841c3..dd4d6844 100644
+index 87453342..ae456392 100644
 --- a/dbt_project/models/2_base/api_football/base.yml
 +++ b/dbt_project/models/2_base/api_football/base.yml
-@@ -362,7 +362,9 @@ models:
+@@ -369,7 +369,9 @@ models:
        {{ doc('cleaning_rules') }}
  
        A player a sheet names without a player id has no row; the sheet then fails the eleven
@@ -126,7 +126,7 @@ index 7da841c3..dd4d6844 100644
        fixture_team_id_overrides seed before the latest fetch is chosen.
      config:
        tags: ["base", "api_football", "fixture_context"]
-@@ -390,7 +392,10 @@ models:
+@@ -397,7 +399,10 @@ models:
        - name: shirt_number
          description: "{{ doc('shirt_number__lineup') }}"
        - name: position_code
@@ -138,7 +138,7 @@ index 7da841c3..dd4d6844 100644
        - name: grid_position
          description: "{{ doc('grid_position') }}"
        - name: team_formation
-@@ -415,7 +420,7 @@ models:
+@@ -422,7 +427,7 @@ models:
            - accepted_values:
                values: ["confirmed", "researched", "not_available"]
        - name: failed_checks
@@ -147,7 +147,7 @@ index 7da841c3..dd4d6844 100644
        - name: raw_ingested_at
          description: "{{ doc('raw_ingested_at') }} NULL on a researched match's rows."
  
-@@ -496,9 +501,10 @@ models:
+@@ -503,9 +508,10 @@ models:
          tests: [not_null]
        - name: resolved_player_team_id
          description: >
@@ -225,19 +225,28 @@ index daf71594..b1f2058d 100644
  
  -- Every goal of a match whose provider goal events are wrong, from seeds/fixture_goal_corrections.csv,
 diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-index ae81fb82..f0cc042b 100644
+index 17a9d89d..768dccb4 100644
 --- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
 +++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-@@ -19,7 +19,7 @@ with src as (
-         {{ player_id_override('player_id') }} as player_id,
+@@ -31,7 +31,6 @@ src as (
+         kept_player_id as player_id,
          minutes_played,
          shirt_number,
 -        position_code,
-+        if(position_code in ('G', 'D', 'M', 'F'), position_code, null) as position_code,
          is_captain,
          is_substitute,
          offsides,
-@@ -104,6 +104,15 @@ resolved_teams as (
+@@ -61,7 +60,8 @@ src as (
+         penalty_scored,
+         penalty_missed,
+         penalty_saved,
+-        raw_ingested_at
++        raw_ingested_at,
++        if(position_code in ('G', 'D', 'M', 'F'), position_code, null) as position_code
+     from stat_lines
+     where
+         kept_player_id is not null
+@@ -114,6 +114,15 @@ resolved_teams as (
      group by fixture_id, player_id
  ),
  
@@ -253,7 +262,7 @@ index ae81fb82..f0cc042b 100644
  -- Corrected BEFORE the qualify below, not after, because both of its window functions partition on
  -- team_id: the dedup key, which the model's uniqueness test covers, and the cross-team collision
  -- guard. The guard now sees corrected ids, which is the intended direction -- a player appearing
-@@ -113,6 +122,7 @@ corrected as (
+@@ -123,6 +132,7 @@ corrected as (
      select
          src.* except (team_id),
          coalesce(
@@ -261,7 +270,7 @@ index ae81fb82..f0cc042b 100644
              resolved_teams.team_id,
              fixture_override.correct_team_api_id,
              alias_override.correct_team_api_id,
-@@ -158,6 +168,10 @@ corrected as (
+@@ -168,6 +178,10 @@ corrected as (
          on
              src.fixture_id = resolved_teams.fixture_id
              and src.player_id = resolved_teams.player_id
@@ -273,17 +282,17 @@ index ae81fb82..f0cc042b 100644
  
  -- A match's rows come from one fetch: its newest fetch in the provider's complete format, else its
 diff --git a/dbt_project/models/2_base/api_football/base_apif__lineups.sql b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
-index 03661444..2e8687b0 100644
+index 2b2af5db..13532754 100644
 --- a/dbt_project/models/2_base/api_football/base_apif__lineups.sql
 +++ b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
-@@ -121,11 +121,33 @@ parsed as (
-         {{ player_id_override("nullif(safe_cast(json_value(player_el, '$.player.id') as int64), 0)") }} as player_id,
-         {{ decode_html_entities("json_value(player_el, '$.player.name')") }} as player_name,
-         safe_cast(json_value(player_el, '$.player.number') as int64) as shirt_number,
--        json_value(player_el, '$.player.pos') as position_code,
-+        json_value(player_el, '$.player.pos') as provider_position,
-         json_value(player_el, '$.player.grid') as grid_position
-     from named
+@@ -134,11 +134,33 @@ parsed as (
+         ) as player_id,
+         {{ decode_html_entities("json_value(sheet.player_el, '$.player.name')") }} as player_name,
+         sheet.provider_shirt_number as shirt_number,
+-        json_value(sheet.player_el, '$.player.pos') as position_code,
++        json_value(sheet.player_el, '$.player.pos') as provider_position,
+         json_value(sheet.player_el, '$.player.grid') as grid_position
+     from sheet_ids as sheet
  ),
  
 +-- Some sheets name the position in words (cut to ten letters): each maps to G, D, M or F, a winger
@@ -311,7 +320,7 @@ index 03661444..2e8687b0 100644
  provider_sheets as (
      select
          league_code,
-@@ -138,13 +160,27 @@ provider_sheets as (
+@@ -151,13 +173,27 @@ provider_sheets as (
      group by league_code, fixture_id, team_id
  ),
  
@@ -341,7 +350,7 @@ index 03661444..2e8687b0 100644
      ) = 1
  ),
  
-@@ -565,6 +601,19 @@ broken_events as (
+@@ -578,6 +614,19 @@ broken_events as (
          )
  ),
  
@@ -361,7 +370,7 @@ index 03661444..2e8687b0 100644
  broken_substitutions as (
      select
          league_code,
-@@ -591,7 +640,8 @@ match_checks as (
+@@ -604,7 +653,8 @@ match_checks as (
              if(logical_and(sheet_checks.is_placed_at_team), [], ['squad_lists']),
              if(max(stat_clashes.fixture_id) is null, [], ['player_stats_team']),
              if(max(on_both_sheets.fixture_id) is null, [], ['player_on_both_sheets']),
@@ -371,7 +380,7 @@ index 03661444..2e8687b0 100644
          ) as failed_checks
      from sheet_checks
      left join stat_clashes
-@@ -606,6 +656,11 @@ match_checks as (
+@@ -619,6 +669,11 @@ match_checks as (
          on
              sheet_checks.league_code = broken_substitutions.league_code
              and sheet_checks.fixture_id = broken_substitutions.fixture_id
@@ -384,10 +393,10 @@ index 03661444..2e8687b0 100644
  )
  
 diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
-index 561b11db..26da2618 100644
+index a05341ab..f988e22f 100644
 --- a/dbt_project/models/3_core/core.yml
 +++ b/dbt_project/models/3_core/core.yml
-@@ -906,7 +906,10 @@ models:
+@@ -913,7 +913,10 @@ models:
        - name: shirt_number
          description: "{{ doc('shirt_number') }}"
        - name: position_code
@@ -399,7 +408,7 @@ index 561b11db..26da2618 100644
        - name: is_captain
          description: "{{ doc('is_captain') }}"
        - name: is_substitute
-@@ -1027,6 +1030,9 @@ models:
+@@ -1034,6 +1037,9 @@ models:
          description: "{{ doc('shirt_number__lineup') }}"
        - name: position_code
          description: "{{ doc('position_code__leg') }}"
@@ -438,10 +447,10 @@ index ae19a2e0..72466d88 100644
      minute that player went off.
    - Research covers, in this order: every match of a domestic league in the registry;
 diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
-index 96d74ea6..4fdcd683 100644
+index 649f6593..aeb31041 100644
 --- a/dbt_project/models/docs/shared_columns.md
 +++ b/dbt_project/models/docs/shared_columns.md
-@@ -816,9 +816,8 @@ Shots on target this player took in this match, from the cleaned per-player stat
+@@ -817,9 +817,8 @@ Shots on target this player took in this match, from the cleaned per-player stat
  {% enddocs %}
  
  {% docs position_code__leg %}
@@ -599,6 +608,7 @@ index 00000000..dcc3715b
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/290-e1-lineups/review_input.patch | 586 +++++++++++++++++++++++++
-#    1 file changed, 586 insertions(+)
+#   .claude/task/290-e1-lineups/review.md          |  28 ++
+#    .claude/task/290-e1-lineups/review_input.patch | 604 +++++++++++++++++++++++++
+#    2 files changed, 632 insertions(+)
 # ============================================================================
