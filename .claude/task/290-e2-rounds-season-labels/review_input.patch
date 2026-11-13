@@ -1,0 +1,614 @@
+diff --git a/.claude/task/290-e2-rounds-season-labels/contract.md b/.claude/task/290-e2-rounds-season-labels/contract.md
+new file mode 100644
+index 00000000..261b48f1
+--- /dev/null
++++ b/.claude/task/290-e2-rounds-season-labels/contract.md
+@@ -0,0 +1,125 @@
++# Task contract — two rounds under one name, and season labels by edition
++
++objective: >
++  Issues #278 and #258, batch E2 of the #290 data defects. A knockout round that the provider files
++  under another round's name takes its own round, from a sourced per-fixture correction applied in
++  base, so a team shows each tie once under its own round. A season's label follows the edition's
++  season_type in competition_season_map, so J1 2027 reads 2026/27, the CONCACAF Champions Cup
++  2018–2026 and the AFC Champions League 2016–2022 read as one year, and the UEFA Super Cup stays
++  one year.
++
++refs: >
++  #278, #258, #290. Batch E2 and the UEFA Super Cup ruling (the map row stays one year) approved in
++  chat, 2026-11-12, through the coordinating session. #278's plan approved in chat, 2026-11-09.
++
++scope_paths:
++  - .claude/task/290-e2-rounds-season-labels/
++  - dbt_project/seeds/fixture_round_corrections.csv
++  - dbt_project/seeds/round_names.csv
++  - dbt_project/seeds/competition_season_map.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/3_core/dim_competition_season.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/4_intermediate/shared/int_knockout_ties.yml
++  - dbt_project/models/4_intermediate/shared/int_team_index__round_values.sql
++  - dbt_project/models/docs/shared_columns.md
++  - dbt_project/tests/assert_result_corrections_applied.sql
++  - dbt_project/tests/assert_season_label_answer_key.sql
++  - site_v2/src/i18n/strings.ts
++
++impact_map: >
++  writers: base_apif__fixtures_next is the only writer of a fixture's round_name; fct_fixture reads
++  it, and every round reader reads fct_fixture (int_round_names, int_knockout_ties, int_legs__*,
++  the team-season models, mart_competition_fixtures, mart_next_matchday, mart_team_competitions,
++  mart_team_fixtures, mart_team_index and others). round_names is read only by int_round_names.
++  A round's copy key is also a key of int_team_index__round_values, the Teams page's points per
++  reached round, which mart_team_index joins on reached_round_label_i18n_key and
++  assert_team_index_cup_rounds_scored checks for every counted top-cup round: the two new keys
++  take 0 points there, as every other preliminary and qualifying round does. The shared
++  round_name description in docs/shared_columns.md names the corrected round too.
++  dim_competition_season is the only writer of season_label; competition_season_map is read by
++  dim_competition_season, int_competition_season__club_windows (through dim_competition_season)
++  and the tests assert_player_has_page and assert_season_map_covers_club_editions.
++  downstream: `dbt ls --select base_apif__fixtures_next+ round_names+ --resource-type model`
++  (run 2026-11-12) gives 93 models, 33 of them marts. `dbt ls --select dim_competition_season+
++  competition_season_map+ --resource-type model` gives 39 models, 23 marts:
++  mart_competition_fixtures mart_competition_index mart_fixture_standing_context mart_leaderboards
++  mart_match_days mart_matchday_insights mart_next_matchday mart_player_competition_benchmarks
++  mart_player_fixture_stats mart_player_index mart_player_profile mart_player_squad_benchmarks
++  mart_player_window_metrics mart_roster mart_standings mart_team_competitions mart_team_index
++  mart_team_leaderboards mart_team_momentum_window mart_team_page_window_metrics mart_team_profile
++  mart_team_season mart_team_season_insights. season_label is a display column in each: no model
++  joins, groups or filters on it (grep of dbt_project/models), and the export reads it as text.
++  The UESC map rows change season_type only; their split_year_season and calendar_year_season are
++  equal on every row, so as a member of a window each edition reads the same year. As an anchor,
++  int_competition_season__club_windows reads the anchor's own season_type: one player's featured
++  season on prod is UESC 2026 (2.9 MB query, 2026-11-12), and no team's (150 MB). As a
++  calendar-year anchor its window also admits the 2026 editions of calendar-year leagues, but
++  that player's only club match since 2024 is the UESC 2026 match itself (97 MB), so his windows
++  hold the same matches; the ci_mr comparison checks it.
++  layer_rules: the correction is a seed applied in base, beside fixture_result_corrections. No
++  per-competition model, no partition_by or cluster_by. The label rule names no league_code.
++  deploy_order: additive seed rows and a column rule in base and core. The merge rebuilds
++  everything downstream in data:build:main; nothing reads a column this removes.
++  blast_radius: measured on prod, 2026-11-12. Rounds: 44 fixtures change round (32 CAF Champions
++  League 2025 fixtures of 17 October to 1 November, 16 ties, to "2nd Preliminary Round"; 12 UCL fixtures of
++  2019, 2021, 2022 and 2023 to "Preliminary Round - Semi-finals" or "Preliminary Round - Final").
++  The new round_names rows also name UCL 2018's three preliminary fixtures, which the provider
++  already files under those texts and which today resolve to no round. 37 team-rounds of
++  int_knockout_ties lose their second tie; mart_team_competitions' reached round changes for the
++  teams in those ties. Labels: 18 season labels change (AFCCL 7, CCCU 10, J1 1); the MR head
++  lists each one before and after.
++
++approved_design:
++  - competition: #129
++  - matches: #130
++  - team: #134
++
++acceptance_criteria:
++  - On the English, German and Finnish pages, a round named by the copy key roundPreliminarySemiFinals reads "Preliminary round · Semi-finals", "Vorrunde, Halbfinale" and "Esikarsinta, välierät".
++  - On the English, German and Finnish pages, a round named by the copy key roundPreliminaryFinal reads "Preliminary round · Final", "Vorrunde, Finale" and "Esikarsinta, finaali".
++  - Every round key that int_round_names serves for a UCL 2019, 2021, 2022 or 2023 preliminary fixture, or a CAF Champions League 2025 preliminary fixture, has a string in all three languages.
++
++decisions_taken: >
++  The mechanism follows #278's plan: rounds the provider gives one name are named apart by a
++  correction seed. fixture_round_corrections is a correction seed of the existing kind (one row
++  per fixture, a source on every row), applied in base_apif__fixtures_next as
++  fixture_result_corrections is; assert_result_corrections_applied checks it is applied, sourced
++  and still needed. No new mechanism.
++  Each corrected round text is one the provider itself uses: "2nd Preliminary Round" (CAF
++  Champions League, named by the existing CAFCL round_names row), and "Preliminary Round -
++  Semi-finals" and "Preliminary Round - Final" (UCL 2018 in the provider's own feed). Which
++  fixtures belong to which round follows the organiser's published draw and results (CAF, UEFA).
++  The preliminary semi-finals and final are rounds of knockout ties (stage_kind knockout); the
++  competition's final stays the only stage_kind final.
++  The season label takes its kind from the edition's competition_season_map row, as #258 says:
++  split_year names split_year_season and the next year (2026/27); calendar_year names
++  season_api_year, which keeps tournament names as they are (AFCON 2023, Club World Cup 2025). An
++  edition the map does not hold keeps the competition's season_type from dim_league. The UEFA
++  Super Cup's map rows become calendar_year, so it stays one year (ruled in chat, 2026-11-12,
++  through the coordinating session).
++  The old test that a label starts with the provider's year is replaced: J1 2027 and the CONCACAF
++  Champions Cup 2017 correctly start with the year before. Its successor checks the label's form
++  against the map, and an answer-key test pins named editions to their published names.
++  A team holds at most one tie per round: a uniqueness test on int_knockout_ties over (league,
++  season, round, team). It fails on prod today on the 37 team-rounds.
++
++  The EN, DE and FI wording of the two new round labels (roundPreliminarySemiFinals,
++  roundPreliminaryFinal) and the acceptance criteria that state it: approved in chat, 2026-11-12,
++  through the coordinating session.
++
++decisions_reserved:
++  - none: the only open question, the wording of the two round labels, is answered above.
++
++done_when:
++  - dbt parse passes; SQLFluff passes on every changed model and test; the offline gates and the
++    full pytest pass.
++  - The changed base_apif__fixtures_next and dim_competition_season, compiled and run read-only on
++    prod, carry every corrected round and every label in the answer key.
++  - On the MR's ci_mr tables, the int_knockout_ties uniqueness test, assert_result_corrections_applied
++    and assert_season_label_answer_key return no rows; compared with prod, only the listed fixtures'
++    rounds and the listed labels change.
++
++amendments: (none)
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 7da841c3..87453342 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -132,7 +132,8 @@ models:
+       score and status are the official ones from the fixture_result_corrections seed, and the
+       provider's stay on the row. Where two clubs share a provider team id in a fixture, the
+       home and away team ids are corrected from the fixture_team_id_overrides seed's
+-      reattribute_in_fixture rows. Grain: fixture_id.
++      reattribute_in_fixture rows. Where the provider files a fixture under another round's name,
++      the round is the organiser's from the fixture_round_corrections seed. Grain: fixture_id.
+     config:
+       tags: ["base", "api_football", "fixture_context"]
+     tests:
+@@ -171,6 +172,12 @@ models:
+         description: "The provider's status code; differs from status_short only where the league awarded a match the provider files as played."
+       - name: result_correction_source
+         description: "Where the result was corrected, the source of the official result: the league's or federation's decision or record, or two independent match reports. NULL elsewhere."
++      - name: round_name
++        description: "{{ doc('round_name') }}"
++      - name: provider_round_name
++        description: "The provider's round text; differs from round_name only where the round was corrected."
++      - name: round_correction_source
++        description: "Where the round was corrected, the source of the organiser's round: its published draw or results, or two independent match reports. NULL elsewhere."
+ 
+   - name: base_apif__standings
+     description: >
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql b/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
+index b5b68cf8..bc224d13 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
+@@ -43,6 +43,12 @@ corrected as (
+ -- The league's official result where the provider's differs, from seeds/fixture_result_corrections.csv.
+ result_corrections as (
+     select * from {{ ref('fixture_result_corrections') }}
++),
++
++-- The organiser's round where the provider files a fixture under another round's name, from
++-- seeds/fixture_round_corrections.csv.
++round_corrections as (
++    select * from {{ ref('fixture_round_corrections') }}
+ )
+ 
+ select
+@@ -54,7 +60,8 @@ select
+     f.kickoff_datetime,
+     f.kickoff_timezone,
+     f.status_elapsed,
+-    f.round_name,
++    f.round_name as provider_round_name,
++    r.source as round_correction_source,
+     f.home_team_id,
+     f.away_team_id,
+     c.awarded_to_team_id,
+@@ -71,6 +78,7 @@ select
+     f.venue_name,
+     f.venue_city,
+     f.raw_ingested_at,
++    coalesce(r.round_name, f.round_name) as round_name,
+     if(c.awarded, 'AWD', f.status_short) as status_short,
+     if(c.awarded, 'Technical loss', f.status_long) as status_long,
+     coalesce(c.goals_home, f.goals_home) as goals_home,
+@@ -95,3 +103,5 @@ select
+ from corrected as f
+ left join result_corrections as c
+     on f.fixture_id = c.fixture_id
++left join round_corrections as r
++    on f.fixture_id = r.fixture_id
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index 561b11db..a05341ab 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -204,7 +204,7 @@ models:
+         description: "{{ doc('raw_ingested_at') }}"
+ 
+   - name: dim_competition_season
+-    description: "Canonical competition-season dimension with per-season coverage flags. Grain: (league_api_id, season_api_year). Sourced from base_apif__competition_seasons, with the season label from dim_league's season_type. Coverage flags describe which API-Football endpoints return data for that league-season and drive conditional logic downstream. Season expansion/parsing is performed in staging."
++    description: "Canonical competition-season dimension with per-season coverage flags. Grain: (league_api_id, season_api_year). Sourced from base_apif__competition_seasons, with the season label from the edition's season_type in competition_season_map, or dim_league's where the map holds no row. Coverage flags describe which API-Football endpoints return data for that league-season and drive conditional logic downstream. Season expansion/parsing is performed in staging."
+     meta:
+       owner: "data-platform"
+       domain: "football"
+@@ -217,10 +217,17 @@ models:
+             - league_api_id
+             - season_api_year
+       - dbt_utils.expression_is_true:
+-          name: dim_competition_season_label_names_its_year
++          name: dim_competition_season_label_follows_its_season_type
+           expression: >
+-            starts_with(season_label, cast(season_api_year as string))
+-            and regexp_contains(season_label, r'^\d{4}(/\d{2})?$')
++            regexp_contains(season_label, r'^\d{4}(/\d{2})?$')
++            and (
++              season_type is null
++              or season_label = if(
++                season_type = 'split_year',
++                format('%d/%02d', split_year_season, mod(split_year_season + 1, 100)),
++                cast(season_api_year as string)
++              )
++            )
+     columns:
+       - name: season_sk
+         description: "{{ doc('season_sk') }}"
+@@ -242,7 +249,7 @@ models:
+         description: "{{ doc('season_api_year') }}"
+         tests: [not_null]
+       - name: season_label
+-        description: "The season as a page names it: the start and end year for a competition whose season runs across two years (2026/27), the year alone for one played within a calendar year (2026). Follows dim_league's season_type."
++        description: "The season as a page names it: the start and end year for a competition whose season runs across two years (2026/27), the year alone for one played within a calendar year (2026). Follows the edition's season_type in competition_season_map, and dim_league's where the map holds no row."
+         tests: [not_null]
+       - name: season_type
+         description: "split_year, 1 July to 30 June, or calendar_year, 1 January to 31 December, from competition_season_map. NULL on an edition the map does not hold."
+diff --git a/dbt_project/models/3_core/dim_competition_season.sql b/dbt_project/models/3_core/dim_competition_season.sql
+index 6e751da3..14e31796 100644
+--- a/dbt_project/models/3_core/dim_competition_season.sql
++++ b/dbt_project/models/3_core/dim_competition_season.sql
+@@ -23,12 +23,13 @@ labelled as (
+             null,
+             {{ dbt_utils.generate_surrogate_key(['seasons.league_api_id', 'map.previous_season_api_year']) }}
+         ) as previous_season_sk,
+-        case leagues.season_type
++        -- An edition the map holds is named by its own kind of season; any other by its competition's.
++        case coalesce(map.season_type, leagues.season_type)
+             when 'split_year'
+                 then concat(
+-                    cast(seasons.season_api_year as string),
++                    cast(coalesce(map.split_year_season, seasons.season_api_year) as string),
+                     '/',
+-                    lpad(cast(mod(seasons.season_api_year + 1, 100) as string), 2, '0')
++                    lpad(cast(mod(coalesce(map.split_year_season, seasons.season_api_year) + 1, 100) as string), 2, '0')
+                 )
+             when 'calendar_year' then cast(seasons.season_api_year as string)
+         end as season_label
+diff --git a/dbt_project/models/4_intermediate/shared/int_knockout_ties.yml b/dbt_project/models/4_intermediate/shared/int_knockout_ties.yml
+index caedb431..cc74e59c 100644
+--- a/dbt_project/models/4_intermediate/shared/int_knockout_ties.yml
++++ b/dbt_project/models/4_intermediate/shared/int_knockout_ties.yml
+@@ -14,6 +14,9 @@ models:
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [league_code, season_api_year, round_name, team_sk, opponent_team_sk]
++      - dbt_utils.unique_combination_of_columns:
++          name: int_knockout_ties_one_tie_per_team_per_round
++          combination_of_columns: [league_code, season_api_year, round_name, team_sk]
+       - dbt_utils.expression_is_true:
+           expression: "legs_played between 0 and legs"
+           name: int_knockout_ties_played_legs_in_range
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_index__round_values.sql b/dbt_project/models/4_intermediate/shared/int_team_index__round_values.sql
+index 34d6bdd5..94ceed39 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_index__round_values.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_index__round_values.sql
+@@ -29,6 +29,8 @@ from unnest([
+     struct('roundPlayoffRound', 0, null),
+     struct('roundAfcPreliminaryStage', 0, null),
+     struct('roundPreliminaryRound', 0, null),
++    struct('roundPreliminarySemiFinals', 0, null),
++    struct('roundPreliminaryFinal', 0, null),
+     struct('roundPreliminaryRound1', 0, null),
+     struct('roundPreliminaryRound2', 0, null),
+     struct('roundLiberStage1', 0, null),
+diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
+index 96d74ea6..649f6593 100644
+--- a/dbt_project/models/docs/shared_columns.md
++++ b/dbt_project/models/docs/shared_columns.md
+@@ -703,8 +703,9 @@ team-season.
+ {% enddocs %}
+ 
+ {% docs round_name %}
+-The provider's round label for this match (for example 'Regular Season - 12' or
+-'Quarter-finals'), carried unchanged from fct_fixture. Free text whose shape varies by
++The round this match belongs to, as the provider's round text (for example 'Regular Season - 12'
++or 'Quarter-finals'); where the provider files the match under another round's name, the
++organiser's round from the fixture_round_corrections seed. Free text whose shape varies by
+ competition, so it reads well and sorts badly — never parsed into a value here.
+ {% enddocs %}
+ 
+diff --git a/dbt_project/seeds/competition_season_map.csv b/dbt_project/seeds/competition_season_map.csv
+index 2dd9a153..3db18645 100644
+--- a/dbt_project/seeds/competition_season_map.csv
++++ b/dbt_project/seeds/competition_season_map.csv
+@@ -224,12 +224,12 @@ UEL,2023,split_year,2023,2023,2022,,,
+ UEL,2024,split_year,2024,2024,2023,,,
+ UEL,2025,split_year,2025,2025,2024,,,
+ UEL,2026,split_year,2026,2026,2025,,,
+-UESC,2021,split_year,2021,2021,,,,
+-UESC,2022,split_year,2022,2022,2021,,,
+-UESC,2023,split_year,2023,2023,2022,,,
+-UESC,2024,split_year,2024,2024,2023,,,
+-UESC,2025,split_year,2025,2025,2024,,,
+-UESC,2026,split_year,2026,2026,2025,,,
++UESC,2021,calendar_year,2021,2021,,,,One match in August: named by its year
++UESC,2022,calendar_year,2022,2022,2021,,,One match in August: named by its year
++UESC,2023,calendar_year,2023,2023,2022,,,One match in August: named by its year
++UESC,2024,calendar_year,2024,2024,2023,,,One match in August: named by its year
++UESC,2025,calendar_year,2025,2025,2024,,,One match in August: named by its year
++UESC,2026,calendar_year,2026,2026,2025,,,One match in August: named by its year
+ VL,2022,calendar_year,2021,2022,,1,calendar,
+ VL,2023,calendar_year,2022,2023,2022,1,calendar,
+ VL,2024,calendar_year,2023,2024,2023,1,calendar,
+diff --git a/dbt_project/seeds/fixture_round_corrections.csv b/dbt_project/seeds/fixture_round_corrections.csv
+new file mode 100644
+index 00000000..bc502fe0
+--- /dev/null
++++ b/dbt_project/seeds/fixture_round_corrections.csv
+@@ -0,0 +1,45 @@
++fixture_id,round_name,source_kind,source,note
++1477895,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, first leg, 17 Oct 2025: US Monastir-JS Kabylie"
++1477898,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, first leg, 17 Oct 2025: Police-Al Hilal Omdurman"
++1477628,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, first leg, 18 Oct 2025: Aigle Noir-Al Ahly"
++1477629,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, first leg, 18 Oct 2025: Silver Strikers-Young Africans"
++1477630,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, first leg, 18 Oct 2025: Stade d'Abidjan-Petro de Luanda"
++1477893,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, first leg, 18 Oct 2025: Black Bulls-Rivers United"
++1477899,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, first leg, 18 Oct 2025: Rahimo-Espérance"
++1477594,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, first leg, 19 Oct 2025: Remo Stars-Mamelodi Sundowns"
++1477649,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, first leg, 19 Oct 2025: the tie against AS FAR, 1-1 in Conakry"
++1477894,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, first leg, 19 Oct 2025: Colombe-MC Alger"
++1477896,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, first leg, 19 Oct 2025: Nouadhibou-Stade Malien"
++1477897,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, first leg, 19 Oct 2025: Nsingizini Hotspurs-Simba"
++1477900,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, first leg, 19 Oct 2025: Vipers-Power Dynamos"
++1480371,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, first leg, 19 Oct 2025: St Éloi Lupopo-Orlando Pirates"
++1477901,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, second leg, 24 Oct 2025: Al Hilal Omdurman-Police"
++1477906,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, second leg, 24 Oct 2025: Power Dynamos-Vipers"
++1477631,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, second leg, 25 Oct 2025: Al Ahly-Aigle Noir"
++1477632,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, second leg, 25 Oct 2025: Petro de Luanda-Stade d'Abidjan"
++1477633,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, second leg, 25 Oct 2025: Young Africans-Silver Strikers"
++1477650,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, second leg, 25 Oct 2025: AS FAR 3-0, in Rabat"
++1477904,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, second leg, 25 Oct 2025: JS Kabylie-US Monastir"
++1477907,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, second leg, 25 Oct 2025: Rivers United-Black Bulls"
++1480372,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, second leg, 25 Oct 2025: Orlando Pirates-St Éloi Lupopo"
++1477595,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, second leg, 26 Oct 2025: Mamelodi Sundowns-Remo Stars"
++1477892,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, first leg, 26 Oct 2025: Al Ahly Tripoli-RS Berkane"
++1477903,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, second leg, 26 Oct 2025: Espérance-Rahimo"
++1477905,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, second leg, 26 Oct 2025: MC Alger-Colombe"
++1477908,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, second leg, 26 Oct 2025: Simba-Nsingizini Hotspurs"
++1477909,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, second leg, 26 Oct 2025: Stade Malien-Nouadhibou"
++1480432,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, first leg, 26 Oct 2025: Ethiopian Insurance-Pyramids, 1-1"
++1480433,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, second leg, 30 Oct 2025: Pyramids-Ethiopian Insurance, postponed from 26 Oct"
++1477902,2nd Preliminary Round,official,https://www.cafonline.com/caf-champions-league/news/totalenergies-caf-champions-league-full-fixtures-results-of-second-preliminary-round/,"CAF Champions League 2025/26, second preliminary round, second leg, 1 Nov 2025: RS Berkane-Al Ahly Tripoli, postponed from 26 Oct"
++158963,Preliminary Round - Semi-finals,official,https://www.uefa.com/uefachampionsleague/news/0252-0e99c4efb235-0beee36c4686-1000--uefa-champions-league-preliminary-round-draw,"UEFA Champions League 2019/20, preliminary round semi-final, 25 Jun 2019: Tre Penne-FC Santa Coloma"
++158964,Preliminary Round - Semi-finals,official,https://www.uefa.com/uefachampionsleague/news/0252-0e99c4efb235-0beee36c4686-1000--uefa-champions-league-preliminary-round-draw,"UEFA Champions League 2019/20, preliminary round semi-final, 25 Jun 2019: Feronikeli-Lincoln Red Imps"
++185528,Preliminary Round - Final,official,https://www.uefa.com/uefachampionsleague/news/0252-0e99c4efb235-0beee36c4686-1000--uefa-champions-league-preliminary-round-draw,"UEFA Champions League 2019/20, preliminary round final, 28 Jun 2019: Feronikeli-FC Santa Coloma"
++707026,Preliminary Round - Semi-finals,official,https://www.uefa.com/uefachampionsleague/news/026a-126ef92f4f08-846d31f131e9-1000--2021-22-preliminary-round-draw,"UEFA Champions League 2021/22, preliminary round semi-final, 22 Jun 2021: Folgore-Prishtina"
++707027,Preliminary Round - Semi-finals,official,https://www.uefa.com/uefachampionsleague/news/026a-126ef92f4f08-846d31f131e9-1000--2021-22-preliminary-round-draw,"UEFA Champions League 2021/22, preliminary round semi-final, 22 Jun 2021: HB Tórshavn-Inter Club d'Escaldes"
++715238,Preliminary Round - Final,official,https://www.uefa.com/uefachampionsleague/news/026a-126ef92f4f08-846d31f131e9-1000--2021-22-preliminary-round-draw,"UEFA Champions League 2021/22, preliminary round final, 25 Jun 2021: Prishtina-Inter Club d'Escaldes"
++865410,Preliminary Round - Semi-finals,official,https://www.uefa.com/uefachampionsleague/news/0276-154caa18201a-0684d14f9afc-1000--uefa-champions-league-preliminary-round,"UEFA Champions League 2022/23, preliminary round semi-final, 21 Jun 2022: Levadia-Víkingur Reykjavík"
++865411,Preliminary Round - Semi-finals,official,https://www.uefa.com/uefachampionsleague/news/0276-154caa18201a-0684d14f9afc-1000--uefa-champions-league-preliminary-round,"UEFA Champions League 2022/23, preliminary round semi-final, 21 Jun 2022: La Fiorita-Inter Club d'Escaldes"
++871876,Preliminary Round - Final,official,https://www.uefa.com/uefachampionsleague/news/0276-154caa18201a-0684d14f9afc-1000--uefa-champions-league-preliminary-round,"UEFA Champions League 2022/23, preliminary round final, 24 Jun 2022: Inter Club d'Escaldes-Víkingur Reykjavík"
++1034678,Preliminary Round - Semi-finals,match_reports,https://global.espn.com/football/match/_/gameId/670750/buducnost-podgorica-escaldes https://www.sportface.it/calcio/champions-league/champions-league-2023-2024-turno-preliminare-il-breidablik-elimina-il-tre-penne-finale-col-buducnost/2217608,"UEFA Champions League 2023/24, preliminary round semi-final, 27 Jun 2023: Atlètic Club d'Escaldes-Budućnost"
++1034679,Preliminary Round - Semi-finals,match_reports,https://africa.espn.com/football/match/_/gameId/670751/breidablik-tre-penne https://www.sportface.it/calcio/champions-league/champions-league-2023-2024-turno-preliminare-il-breidablik-elimina-il-tre-penne-finale-col-buducnost/2217608,"UEFA Champions League 2023/24, preliminary round semi-final, 27 Jun 2023: Tre Penne-Breiðablik"
++1042850,Preliminary Round - Final,match_reports,https://global.espn.com/football/match/_/gameId/670752/breidablik-buducnost-podgorica https://www.sportface.it/sport-tv/buducnost-breidablik-in-tv-data-orario-e-diretta-streaming-finale-turno-preliminare/2217630,"UEFA Champions League 2023/24, preliminary round final, 30 Jun 2023: Budućnost-Breiðablik"
+diff --git a/dbt_project/seeds/round_names.csv b/dbt_project/seeds/round_names.csv
+index 9605c18a..041b34d2 100644
+--- a/dbt_project/seeds/round_names.csv
++++ b/dbt_project/seeds/round_names.csv
+@@ -52,6 +52,8 @@ WCQOC,,84,^2nd qualifying round$,roundOcFirstRoundFinal,First round final,,,knoc
+ ,,85,^(play-offs|playoff round)$,roundPlayoffRound,Play-off round,,,knockout
+ UCL,,86,^knockout round play-offs$,roundKnockoutPlayoffs,Knockout phase play-offs,,,knockout
+ UCL,,87,^preliminary round$,roundPreliminaryRound,Preliminary round,,,knockout
++UCL,,88,^preliminary round - semi-finals$,roundPreliminarySemiFinals,Preliminary round · Semi-finals,,,knockout
++UCL,,89,^preliminary round - final$,roundPreliminaryFinal,Preliminary round · Final,,,knockout
+ AFCCL,,90,^1st preliminary round$,roundAfcPreliminaryStage,Preliminary Stage,,,knockout
+ CAFCL,,91,^1st preliminary round$,roundPreliminaryRound1,First preliminary round,,,knockout
+ CAFCL,,92,^2nd preliminary round$,roundPreliminaryRound2,Second preliminary round,,,knockout
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index e21857ff..261ee51d 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -648,6 +648,40 @@ seeds:
+         description: "The match and the official decision, in words."
+         tests: [not_null]
+ 
++  - name: fixture_round_corrections
++    description: >
++      The organiser's round for each fixture the provider files under another round's name, one
++      row per fixture, each naming its source. The round is a round text the provider uses itself,
++      so round_names names it. Applied in base_apif__fixtures_next, which keeps the provider's round
++      next to it. assert_result_corrections_applied fails when a row is not applied, its source is
++      not valid, or the provider now files the fixture under the same round.
++    config:
++      column_types:
++        fixture_id: int64
++        round_name: string
++        source_kind: string
++        source: string
++        note: string
++    columns:
++      - name: fixture_id
++        description: "{{ doc('fixture_api_id') }}"
++        tests: [not_null, unique]
++      - name: round_name
++        description: "The organiser's round, as the round text the provider uses for it."
++        tests: [not_null]
++      - name: source_kind
++        description: "official = the organiser's published draw or results; match_reports = two independent match reports."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["official", "match_reports"]
++      - name: source
++        description: "The source's https URLs, separated by a space: at least one when official, two on different sites when match_reports."
++        tests: [not_null]
++      - name: note
++        description: "The competition, the round, the date and the match, in words."
++        tests: [not_null]
++
+   - name: fixture_goal_corrections
+     description: >
+       Every goal of a match whose provider goal events are wrong or missing, one row per goal,
+diff --git a/dbt_project/tests/assert_result_corrections_applied.sql b/dbt_project/tests/assert_result_corrections_applied.sql
+index 21763277..2ed3dcde 100644
+--- a/dbt_project/tests/assert_result_corrections_applied.sql
++++ b/dbt_project/tests/assert_result_corrections_applied.sql
+@@ -1,5 +1,5 @@
+--- Every hand correction of a result, from the three correction seeds, is applied, sourced and still
+--- needed. One row per broken correction:
++-- Every hand correction of a result or a round, from the four correction seeds, is applied, sourced
++-- and still needed. One row per broken correction:
+ --   - not_applied: base has no such match or table row, or does not carry the official figures
+ --     and team.
+ --   - winner_not_valid: a winner is set where the score already decides, or names a team not in
+@@ -15,7 +15,8 @@
+ --     beside the row that says the match had no goal.
+ --   - no_longer_needed: the provider now carries the official result itself, or every corrected
+ --     goal with the same team, player id and minute; a goal without a player id never matches.
+---     An award is always needed: the provider never says how it came about.
++--     An award is always needed: the provider never says how it came about. A round correction
++--     is no longer needed once the provider files the fixture under the same round.
+ 
+ {{ config(store_failures = true) }}
+ 
+@@ -39,6 +40,10 @@ goal_corrections as (
+     select * from {{ ref('fixture_goal_corrections') }}
+ ),
+ 
++round_corrections as (
++    select * from {{ ref('fixture_round_corrections') }}
++),
++
+ events as (
+     select * from {{ ref('base_apif__fixture_events') }}
+ ),
+@@ -203,6 +208,19 @@ fixture_checks as (
+         on c.fixture_id = f.fixture_id
+ ),
+ 
++round_checks as (
++    select
++        'fixture_round_corrections' as seed,
++        cast(c.fixture_id as string) as correction,
++        case
++            when f.fixture_id is null or f.round_name is distinct from c.round_name then 'not_applied'
++            when f.provider_round_name = c.round_name then 'no_longer_needed'
++        end as problem
++    from round_corrections as c
++    left join fixtures as f
++        on c.fixture_id = f.fixture_id
++),
++
+ table_checks as (
+     select
+         'standings_corrections' as seed,
+@@ -265,6 +283,13 @@ sources as (
+         source_kind,
+         source
+     from goal_corrections
++    union all
++    select
++        'fixture_round_corrections' as seed,
++        cast(fixture_id as string) as correction,
++        source_kind,
++        source
++    from round_corrections
+ ),
+ 
+ source_urls as (
+@@ -315,6 +340,13 @@ select
+ from goal_checks
+ where problem is not null
+ union all
++select
++    seed,
++    correction,
++    problem
++from round_checks
++where problem is not null
++union all
+ select
+     seed,
+     correction,
+diff --git a/dbt_project/tests/assert_season_label_answer_key.sql b/dbt_project/tests/assert_season_label_answer_key.sql
+new file mode 100644
+index 00000000..e9e6883e
+--- /dev/null
++++ b/dbt_project/tests/assert_season_label_answer_key.sql
+@@ -0,0 +1,40 @@
++-- Named editions carry the season label their organiser publishes. One row per edition whose label
++-- differs from the answer key or that dim_competition_season does not hold.
++
++with answer_key as (
++    select * from unnest([
++        struct('J1' as league_code, 2026 as season_api_year, '2026' as expected_label),
++        struct('J1', 2027, '2026/27'),
++        struct('CCCU', 2017, '2016/17'),
++        struct('CCCU', 2018, '2018'),
++        struct('CCCU', 2026, '2026'),
++        struct('AFCCL', 2016, '2016'),
++        struct('AFCCL', 2021, '2021'),
++        struct('AFCCL', 2022, '2022'),
++        struct('AFCCL', 2023, '2023/24'),
++        struct('UESC', 2025, '2025'),
++        struct('UCL', 2025, '2025/26'),
++        struct('BL1', 2025, '2025/26'),
++        struct('MLS', 2026, '2026'),
++        struct('CWC', 2025, '2025'),
++        struct('AFCON', 2023, '2023')
++    ])
++),
++
++seasons as (
++    select
++        league_code,
++        season_api_year,
++        season_label
++    from {{ ref('dim_competition_season') }}
++)
++
++select
++    k.league_code,
++    k.season_api_year,
++    k.expected_label,
++    s.season_label
++from answer_key as k
++left join seasons as s
++    on k.league_code = s.league_code and k.season_api_year = s.season_api_year
++where s.season_label is distinct from k.expected_label
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index b83ebf82..b1591247 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -379,6 +379,8 @@ const EN: Dict = {
+   roundFirstRound: "First round",
+   roundSecondRound: "Second round",
+   roundPreliminaryRound: "Preliminary round",
++  roundPreliminarySemiFinals: "Preliminary round · Semi-finals",
++  roundPreliminaryFinal: "Preliminary round · Final",
+   roundSeventhRound: "Seventh round",
+   roundEighthRound: "Eighth round",
+   roundFaQualifying1: "First Round Qualifying",
+@@ -805,6 +807,8 @@ const DE: Dict = {
+   roundFirstRound: "1. Runde",
+   roundSecondRound: "2. Runde",
+   roundPreliminaryRound: "Vorrunde",
++  roundPreliminarySemiFinals: "Vorrunde, Halbfinale",
++  roundPreliminaryFinal: "Vorrunde, Finale",
+   roundSeventhRound: "7. Runde",
+   roundEighthRound: "8. Runde",
+   roundFaQualifying1: "1. Qualifikationsrunde",
+@@ -1237,6 +1241,8 @@ const FI: Dict = {
+   roundFirstRound: "1. kierros",
+   roundSecondRound: "2. kierros",
+   roundPreliminaryRound: "Esikarsinta",
++  roundPreliminarySemiFinals: "Esikarsinta, välierät",
++  roundPreliminaryFinal: "Esikarsinta, finaali",
+   roundSeventhRound: "7. kierros",
+   roundEighthRound: "8. kierros",
+   roundFaQualifying1: "1. karsintakierros",
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../acceptance_evidence.md                         |   8 +
+#    .claude/task/290-e2-rounds-season-labels/review.md |  34 ++
+#    .../290-e2-rounds-season-labels/review_input.patch | 613 +++++++++++++++++++++
+#    3 files changed, 655 insertions(+)
+# ============================================================================
