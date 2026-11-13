@@ -19,8 +19,10 @@
 
 {{ config(store_failures = true) }}
 
+-- sort_value is negated on a fewest-first board, so "higher is better" holds on every board below.
 with import_mart_leaderboards as (
-    select * from {{ ref('mart_leaderboards') }}
+    select * replace (if(rank_order = 'asc', -sort_value, sort_value) as sort_value)
+    from {{ ref('mart_leaderboards') }}
     where window_type = 'season_to_date'
 ),
 

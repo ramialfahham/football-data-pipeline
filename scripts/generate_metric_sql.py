@@ -95,6 +95,7 @@ PER90 = (
     "defensive_actions_per90", "duels_won_per90", "saves_per90", "ball_actions_per90", "shots_per90",
     "fouls_per90", "offsides_per90", "goals_against_per90",
 )
+STATISTICS_PER90 = ("passes_accurate_per90", "dribbles_attempts_per90", "duels_per90", "dribbles_past_per90")
 WINDOW_COUNTS = (
     "goals_player", "assists_player", "goals_against_player", "saves_player", "shots_player",
     "shots_on_goal_player", "passes_player", "passes_key_player", "passes_accurate_player",
@@ -108,7 +109,7 @@ WINDOW_RATIOS = (
 )
 MATCH_BOARDS = (
     "shots_player", "passes_player", "passes_key_player", "dribbles_attempts_player", "duels_won_player",
-    "defensive_actions_player", "fouls_player",
+    "defensive_actions_player", "fouls_player", "ball_actions_player",
 )
 POSITION_COUNTS = (
     "appearances", "goals_player", "goals_penalty_player", "assists_player", "shots_player",
@@ -134,7 +135,7 @@ SURFACES = (
     Surface("4_intermediate/shared/int_player_club_season__metrics.sql",
             COUNTS + ("minutes_per_appearance",)),
     Surface("4_intermediate/domestic_league/team_season/int_player_season__metrics.sql",
-            COUNTS + COMPOSITES + RATIOS + PER90),
+            COUNTS + COMPOSITES + RATIOS + PER90 + STATISTICS_PER90),
     Surface("4_intermediate/shared/int_player_season_position__metrics.sql",
             POSITION_COUNTS + ("scorer_points_player", "defensive_actions_player") + RATIOS + PER90),
     Surface("4_intermediate/shared/int_player_momentum__metrics.sql",

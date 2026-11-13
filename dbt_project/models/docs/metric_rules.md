@@ -35,8 +35,11 @@ window_type column.
 {% docs ranking_rules %}
 Who enters a ranking or a benchmark. A player enters a rate ranking from 270 minutes, the
 finishing one also from 10 shots on target, and the pass-accuracy and finishing rankings are for
-outfield players. A team enters a ranking from its first finished match. A ranking that lists the
-most first leaves out a zero. A player enters a benchmark from 270 minutes in a position, the
+outfield players. A percentage ranking also needs 10 attempts. The attempts are shots for
+shooting accuracy, dribbles for dribble success, duels for duels won and shots on target faced for
+save percentage. Only goalkeepers enter the goals-against ranking. A team enters a ranking from
+its first finished match. A ranking that lists the most first leaves out a zero, except on a
+difference, where zero is a value. A player enters a benchmark from 270 minutes in a position, the
 finishing one also from 10 shots on target there; a benchmark compares players of one position
 group, goalkeepers on saves, goals against and passing and outfield players on every other metric.
 A team enters a benchmark from 3 finished matches.

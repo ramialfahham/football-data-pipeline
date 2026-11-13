@@ -77,19 +77,10 @@
       "metric_id": "passes_accuracy_player_pct",
       "label_i18n_key": "playerMetrics.passAccuracy.label",
       "metric_group": "passing",
-      "metric_order": 3,
+      "metric_order": 5,
       "direction": "higher_better",
       "format": "percent",
       "is_key_metric": false
-    },
-    {
-      "metric_id": "ball_actions_per90",
-      "label_i18n_key": "playerMetrics.ballActionsPer90.label",
-      "metric_group": "passing",
-      "metric_order": 5,
-      "direction": "higher_better",
-      "format": "decimal_1",
-      "is_key_metric": true
     },
     {
       "metric_id": "passes_key_per90",
@@ -101,28 +92,19 @@
       "is_key_metric": true
     },
     {
-      "metric_id": "duels_won_per90",
-      "label_i18n_key": "playerMetrics.duelsWonPer90.label",
-      "metric_group": "one_on_one",
-      "metric_order": 4,
+      "metric_id": "ball_actions_per90",
+      "label_i18n_key": "playerMetrics.ballActionsPer90.label",
+      "metric_group": "passing",
+      "metric_order": 9,
       "direction": "higher_better",
       "format": "decimal_1",
       "is_key_metric": true
     },
     {
-      "metric_id": "duels_won_player_pct",
-      "label_i18n_key": "playerMetrics.duels.wonPct",
-      "metric_group": "one_on_one",
-      "metric_order": 5,
-      "direction": "higher_better",
-      "format": "percent",
-      "is_key_metric": false
-    },
-    {
       "metric_id": "dribbles_success_per90",
       "label_i18n_key": "playerMetrics.dribblesSuccessPer90.label",
       "metric_group": "one_on_one",
-      "metric_order": 7,
+      "metric_order": 4,
       "direction": "higher_better",
       "format": "decimal_1",
       "is_key_metric": false
@@ -131,7 +113,25 @@
       "metric_id": "dribbles_success_player_pct",
       "label_i18n_key": "playerMetrics.dribbles.successPct",
       "metric_group": "one_on_one",
-      "metric_order": 8,
+      "metric_order": 5,
+      "direction": "higher_better",
+      "format": "percent",
+      "is_key_metric": false
+    },
+    {
+      "metric_id": "duels_won_per90",
+      "label_i18n_key": "playerMetrics.duelsWonPer90.label",
+      "metric_group": "one_on_one",
+      "metric_order": 9,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "is_key_metric": true
+    },
+    {
+      "metric_id": "duels_won_player_pct",
+      "label_i18n_key": "playerMetrics.duels.wonPct",
+      "metric_group": "one_on_one",
+      "metric_order": 10,
       "direction": "higher_better",
       "format": "percent",
       "is_key_metric": false
@@ -203,7 +203,7 @@
       "metric_id": "fouls_per90",
       "label_i18n_key": "playerMetrics.foulsPer90.label",
       "metric_group": "discipline",
-      "metric_order": 2,
+      "metric_order": 5,
       "direction": "lower_better",
       "format": "decimal_1",
       "is_key_metric": false
@@ -212,7 +212,7 @@
       "metric_id": "offsides_per90",
       "label_i18n_key": "playerMetrics.offsidesPer90.label",
       "metric_group": "discipline",
-      "metric_order": 6,
+      "metric_order": 8,
       "direction": "lower_better",
       "format": "decimal_1",
       "is_key_metric": false

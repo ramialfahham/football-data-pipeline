@@ -207,6 +207,26 @@ seeds:
           - accepted_values:
               values: ["table", "knockout", "final", "placement"]
 
+  - name: statistics_competitions
+    description: >
+      The competitions the Statistics page's competition dropdown lists, in its hand-set order.
+      One row per league_code. The dropdown's Clubs and National teams groups come from the
+      competition type's entity_type in competition_types, so this seed holds only the order.
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('dim_league')
+              field: league_code
+      - name: statistics_order
+        description: "The competition's place in the dropdown, 1 first. The page opens on the competition with 1."
+        tests:
+          - not_null
+          - unique
+
   - name: competition_registry
     description: >
       Every competition the platform tracks, with the fields the registry authors by hand:

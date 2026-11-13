@@ -1004,6 +1004,14 @@ models:
         description: "{{ doc('offsides_per90') }}"
       - name: goals_against_per90
         description: "{{ doc('goals_against_per90') }}"
+      - name: passes_accurate_per90
+        description: "{{ doc('passes_accurate_per90') }}"
+      - name: dribbles_attempts_per90
+        description: "{{ doc('dribbles_attempts_per90') }}"
+      - name: duels_per90
+        description: "{{ doc('duels_per90') }}"
+      - name: dribbles_past_per90
+        description: "{{ doc('dribbles_past_per90') }}"
       - name: tackles_per90
         description: "{{ doc('tackles_per90') }}"
       - name: interceptions_per90

@@ -1,14 +1,14 @@
 -- Each played match's boards on mart_leaderboards follow the Match leaders rule, recomputed here from
 -- int_player_match__metrics: per board the players with a count above zero, ordered by count, then
--- fewer minutes, then player_sk; the first three kept; rank the DENSE_RANK of the count.
+-- fewer minutes, then player_sk; the first three kept; rank the RANK of the count.
 --
 -- Returns a row (= fails) per board row on one side only, and per row whose value, rank or position
 -- differs from the recomputation.
 {{ config(store_failures = true) }}
 
 {% set match_boards = [
-    'shots_player', 'passes_player', 'passes_key_player', 'dribbles_attempts_player',
-    'duels_won_player', 'defensive_actions_player', 'fouls_player',
+    'shots_player', 'passes_player', 'passes_key_player', 'ball_actions_player',
+    'dribbles_attempts_player', 'duels_won_player', 'defensive_actions_player', 'fouls_player',
 ] %}
 
 with match_metrics as (
@@ -34,7 +34,7 @@ recomputed as (
         player_sk,
         '{{ key }}' as metric_key,
         cast({{ key }} as float64) as sort_value,
-        dense_rank() over (partition by fixture_sk order by {{ key }} desc) as rank,
+        rank() over (partition by fixture_sk order by {{ key }} desc) as rank,
         row_number() over (
             partition by fixture_sk
             order by {{ key }} desc, minutes asc nulls last, player_sk asc
