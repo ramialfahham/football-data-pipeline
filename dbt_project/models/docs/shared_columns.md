@@ -817,9 +817,8 @@ Shots on target this player took in this match, from the cleaned per-player stat
 {% enddocs %}
 
 {% docs position_code__leg %}
-The player's position for this match, as reported by the provider (e.g. G, D, M, F). Free-form
-and kept as the provider sends it, to track codes not yet catalogued; NULL when the provider
-supplied none.
+The player's position for this match: G, D, M or F, as the cleaning rules take it from the
+provider. NULL where the provider gives no position.
 {% enddocs %}
 
 {% docs is_home__own_fixture %}

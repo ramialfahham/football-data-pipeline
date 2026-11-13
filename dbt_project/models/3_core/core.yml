@@ -913,7 +913,10 @@ models:
       - name: shirt_number
         description: "{{ doc('shirt_number') }}"
       - name: position_code
-        description: "Position as reported by the API (e.g. G, D, M, F). Degenerate attribute; kept free-form to track future codes."
+        description: "The player's position in the match: G, D, M or F, from his stat line or, for a match filled from the line-ups, from his line-up row. NULL where neither gives one."
+        tests:
+          - accepted_values:
+              values: ["G", "D", "M", "F"]
       - name: is_captain
         description: "{{ doc('is_captain') }}"
       - name: is_substitute
@@ -1034,6 +1037,9 @@ models:
         description: "{{ doc('shirt_number__lineup') }}"
       - name: position_code
         description: "{{ doc('position_code__leg') }}"
+        tests:
+          - accepted_values:
+              values: ["G", "D", "M", "F"]
       - name: grid_position
         description: "{{ doc('grid_position') }}"
       - name: team_formation
