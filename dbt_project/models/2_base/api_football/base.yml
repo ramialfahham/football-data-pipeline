@@ -362,7 +362,9 @@ models:
       {{ doc('cleaning_rules') }}
 
       A player a sheet names without a player id has no row; the sheet then fails the eleven
-      starters check. Known provider team-id defects are corrected from the
+      starters check. A sheet that names two people under one player id fails the
+      two_people_one_id check; one person listed twice keeps his first listing. Known provider
+      team-id defects are corrected from the
       fixture_team_id_overrides seed before the latest fetch is chosen.
     config:
       tags: ["base", "api_football", "fixture_context"]
@@ -390,7 +392,10 @@ models:
       - name: shirt_number
         description: "{{ doc('shirt_number__lineup') }}"
       - name: position_code
-        description: "The player's position as the line-ups give it (G, D, M or F). NULL where they give none."
+        description: "The player's position as the line-ups give it (G, D, M or F); a position given in words maps to its letter, a winger by its row on the grid. NULL where they give none."
+        tests:
+          - accepted_values:
+              values: ["G", "D", "M", "F"]
       - name: grid_position
         description: "{{ doc('grid_position') }}"
       - name: team_formation
@@ -415,7 +420,7 @@ models:
           - accepted_values:
               values: ["confirmed", "researched", "not_available"]
       - name: failed_checks
-        description: "The line-up checks the match fails, by name: two_sheets, eleven_starters, squad_lists, player_stats_team, player_on_both_sheets, substitutions. Empty when it passes every one."
+        description: "The line-up checks the match fails, by name: two_sheets, eleven_starters, squad_lists, player_stats_team, player_on_both_sheets, substitutions, two_people_one_id. Empty when it passes every one."
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }} NULL on a researched match's rows."
 
@@ -496,9 +501,10 @@ models:
         tests: [not_null]
       - name: resolved_player_team_id
         description: >
-          On the events of a player whose statistics row names the other team of the match, the team
-          the player's-team rule decides for him, which his events and his row then both carry. NULL
-          on every other event, on an own goal, and where nothing decides.
+          On the events of a player on a researched line-up, his team on that line-up; on the events
+          of a player whose statistics row names the other team of the match, the team the
+          player's-team rule decides for him. His events and his row then both carry it. NULL on
+          every other event, on an own goal, and where nothing decides.
       - name: assist_player_id
         description: "The assisting player's provider id. NULL where the goal has no assist or the provider names the assist without an id."
       - name: is_shootout_kick

@@ -1,0 +1,604 @@
+diff --git a/.claude/task/290-e1-lineups/contract.md b/.claude/task/290-e1-lineups/contract.md
+new file mode 100644
+index 00000000..ae8e04ea
+--- /dev/null
++++ b/.claude/task/290-e1-lineups/contract.md
+@@ -0,0 +1,107 @@
++# Task contract — line-up rows: two people under one id, position codes, a player's team
++
++objective: >
++  Issues #281 and #213, and the off-format line-up position codes, batch E1 of the #290 data
++  defects. A provider team sheet that names two people under one player id fails a line-up check,
++  so the match shows no line-up until it is researched; a player listed twice under one name keeps
++  his first listing on every build. Every position code is G, D, M or F, or empty. A researched
++  line-up decides a player's team in that match on every page, and Austin FC–LAFC of 2 November
++  2025 is researched from the league's official match data.
++
++refs: >
++  #281, #213, #290. Batch E1, the sheet rule for two people under one id, the grid-row rule for
++  wingers and the name mapping approved in chat, 2026-11-12, through the coordinating session.
++  The off-format position codes were found by the Statistics data stream (#291 area).
++
++scope_paths:
++  - .claude/task/290-e1-lineups/
++  - dbt_project/models/2_base/api_football/base_apif__lineups.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/docs/cleaning_rules.md
++  - dbt_project/models/docs/shared_columns.md
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/seeds/fixture_lineup_corrections.csv
++  - dbt_project/seeds/player_match_cleaning_answer_key.csv
++  - dbt_project/tests/assert_lineup_two_people_one_id_not_held.sql
++
++impact_map: >
++  writers: base_apif__lineups is the only writer of a match's line-up rows and lineup_state; it
++  reads stg_apif__lineups, fixture_lineup_corrections and base_apif__fixture_players (the
++  player_stats_team check). base_apif__fixture_players is the only writer of a provider stat line;
++  it reads stg_apif__fixture_players and, after this change, fixture_lineup_corrections for the
++  team of a player in a researched match (no cycle: it never reads base_apif__lineups).
++  base_apif__fixture_events writes each event's team and resolved_player_team_id, which
++  base_apif__fixture_players reads; it takes a researched player's team from the same seed, so a
++  researched player's events and stat line name the same team. The cleaning_rules doc block and
++  the position_code__leg doc in shared_columns.md state the rules these models apply.
++  downstream: `dbt ls --select base_apif__lineups+ base_apif__fixture_players+
++  fixture_lineup_corrections+ --resource-type model` (run 2026-11-12) gives 62 models, 25 marts:
++  mart_competition_fixtures mart_leaderboards mart_match_days mart_matchday_insights
++  mart_player_career mart_player_competition_benchmarks mart_player_fixture_stats mart_player_index
++  mart_player_momentum mart_player_profile mart_player_season_record mart_player_squad_benchmarks
++  mart_player_window_metrics mart_roster mart_team_competition_benchmarks mart_team_competitions
++  mart_team_index mart_team_leaderboards mart_team_momentum_window mart_team_page_window_metrics
++  mart_team_profile mart_team_season mart_team_season_insights mart_team_season_record
++  mart_team_window_metrics. Line-up rows reach the player-match fill
++  (base_apif__fixture_players_from_lineups, confirmed and researched only), fct_fixture_lineup and
++  fct_fixture_player_stats, and from there every player and team metric built on a player match.
++  layer_rules: base only (dedup, entity alignment, a line-up check); no per-competition logic, no
++  partition_by or cluster_by; the position mapping names provider codes, not competitions.
++  deploy_order: column values and one more check value in base; no column added or removed. The
++  merge rebuilds everything downstream in data:build:main.
++  blast_radius: measured on prod, 2026-11-12. Two people under one id: 105 (match, team, player)
++  groups on the provider's latest sheets, 58 of them a starter and a substitute that today keep
++  the starter silently; 86 matches, of which 25 confirmed today become not_available (5 from the
++  2026 seasons; LIBER, UEL, AFCCL, CAFCL, UECL, LP), 60 are not_available already and 1 is
++  researched (unchanged). The same person listed twice: 29 groups, now the first listing on every
++  build. Position codes: 2,688 fct_fixture_lineup rows change (Veikkausliiga 2022, 107 matches,
++  2,323 rows mapped to G/D/M/F; SUB 230 and '-' 135 to empty) and 138 provider stat lines (SUB 43,
++  '-' 95) to empty; those reach fct_fixture_player_stats (2,597 rows) and the position groups
++  built on it. A player's team: Austin FC–LAFC (fixture 1482409) becomes researched, both sheets
++  on their own team, and Ilie Sánchez's stat line and his two events (a yellow card and his
++  substitution) move from LAFC to Austin FC; LAFC's sheet takes the league's 4-3-3 and the
++  league's positions (Palencia and Hollingshead D, Jailson M). No other researched match has a
++  stat line or an event under the other team today (22 MB query, 0 events).
++
++approved_design:
++  - none: no page output changes; the marts the pages read change values only
++
++decisions_taken: >
++  Rulings in chat, 2026-11-12, through the coordinating session: a team sheet with two people
++  under one id fails a line-up check, so the match shows no line-up until researched; position
++  codes take the name mapping (goalkeeper G; left_back, right_back, central_de D; central_mi M;
++  striker F) and, for the wingers (left_winge, right_wing), the code of the player's row on the
++  sheet's grid against the formation (first row G, second D, last F, rows between M), which
++  matches the provider's own codes in about 94% of Veikkausliiga 4-4-2 rows; #213 in this batch.
++  "Two people" means two different names under one id on one team's sheet; one name listed twice
++  is one person and keeps the first listing (starters before the bench, then sheet order), which
++  makes the pick total. Every other code (SUB, '-', any new one) is empty: it names no position.
++  A researched line-up sets a player's team in that match in base_apif__fixture_players, from the
++  same seed, so the stat line and the sheet agree and the existing player_stats_team check holds
++  for a researched match whose only conflict was a stat line under the other team (#213's second
++  line). No new mechanism: the check is one more value of failed_checks; the answer key and the
++  research seed are existing seeds.
++
++  The exact text of the three cleaning_rules lines (a researched line-up decides a player's team;
++  positions; the two-people-one-id check): approved in chat, 2026-11-12, through the coordinating
++  session, and used word for word.
++
++decisions_reserved:
++  - none: the cleaning_rules text, the only open question, is answered above.
++
++done_when:
++  - dbt parse passes; SQLFluff passes on the changed models and the new test; the offline gates
++    and the full pytest pass.
++  - The changed base models, compiled and run read-only on prod, reject the sheets with two names
++    under one id, give every position a G/D/M/F code or empty, and put Sánchez at Austin FC.
++  - Tests that fail on prod today and pass after: assert_lineup_two_people_one_id_not_held (25
++    confirmed matches today), accepted_values G/D/M/F on fct_fixture_lineup.position_code (2,688
++    rows) and fct_fixture_player_stats.position_code (2,597 rows), and the new
++    player_match_cleaning_answer_key row that puts Sánchez at Austin FC in fixture 1482409.
++  - On the MR's ci_mr tables these, assert_lineup_researched_matches_hold and
++    assert_player_match_cleaning_answer_key return no rows; compared with prod, only the listed
++    matches, rows and positions change.
++
++amendments: (none)
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 7da841c3..dd4d6844 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -362,7 +362,9 @@ models:
+       {{ doc('cleaning_rules') }}
+ 
+       A player a sheet names without a player id has no row; the sheet then fails the eleven
+-      starters check. Known provider team-id defects are corrected from the
++      starters check. A sheet that names two people under one player id fails the
++      two_people_one_id check; one person listed twice keeps his first listing. Known provider
++      team-id defects are corrected from the
+       fixture_team_id_overrides seed before the latest fetch is chosen.
+     config:
+       tags: ["base", "api_football", "fixture_context"]
+@@ -390,7 +392,10 @@ models:
+       - name: shirt_number
+         description: "{{ doc('shirt_number__lineup') }}"
+       - name: position_code
+-        description: "The player's position as the line-ups give it (G, D, M or F). NULL where they give none."
++        description: "The player's position as the line-ups give it (G, D, M or F); a position given in words maps to its letter, a winger by its row on the grid. NULL where they give none."
++        tests:
++          - accepted_values:
++              values: ["G", "D", "M", "F"]
+       - name: grid_position
+         description: "{{ doc('grid_position') }}"
+       - name: team_formation
+@@ -415,7 +420,7 @@ models:
+           - accepted_values:
+               values: ["confirmed", "researched", "not_available"]
+       - name: failed_checks
+-        description: "The line-up checks the match fails, by name: two_sheets, eleven_starters, squad_lists, player_stats_team, player_on_both_sheets, substitutions. Empty when it passes every one."
++        description: "The line-up checks the match fails, by name: two_sheets, eleven_starters, squad_lists, player_stats_team, player_on_both_sheets, substitutions, two_people_one_id. Empty when it passes every one."
+       - name: raw_ingested_at
+         description: "{{ doc('raw_ingested_at') }} NULL on a researched match's rows."
+ 
+@@ -496,9 +501,10 @@ models:
+         tests: [not_null]
+       - name: resolved_player_team_id
+         description: >
+-          On the events of a player whose statistics row names the other team of the match, the team
+-          the player's-team rule decides for him, which his events and his row then both carry. NULL
+-          on every other event, on an own goal, and where nothing decides.
++          On the events of a player on a researched line-up, his team on that line-up; on the events
++          of a player whose statistics row names the other team of the match, the team the
++          player's-team rule decides for him. His events and his row then both carry it. NULL on
++          every other event, on an own goal, and where nothing decides.
+       - name: assist_player_id
+         description: "The assisting player's provider id. NULL where the goal has no assist or the provider names the assist without an id."
+       - name: is_shootout_kick
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+index daf71594..b1f2058d 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+@@ -287,6 +287,27 @@ decisions as (
+             and disputes.player_id = other_matches.player_id
+ ),
+ 
++-- A researched line-up names each of its players' team; it outranks the decision above.
++researched_teams as (
++    select distinct
++        fixture_id,
++        player_id,
++        team_id
++    from {{ ref('fixture_lineup_corrections') }}
++),
++
++player_teams as (
++    select
++        coalesce(researched_teams.fixture_id, decisions.fixture_id) as fixture_id,
++        coalesce(researched_teams.player_id, decisions.player_id) as player_id,
++        coalesce(researched_teams.team_id, decisions.resolved_player_team_id) as resolved_player_team_id
++    from decisions
++    full outer join researched_teams
++        on
++            decisions.fixture_id = researched_teams.fixture_id
++            and decisions.player_id = researched_teams.player_id
++),
++
+ team_names as (
+     select
+         fixture_id,
+@@ -312,23 +333,23 @@ resolved as (
+         attributed.event_comments,
+         attributed.raw_ingested_at,
+         attributed.is_own_goal,
+-        decisions.resolved_player_team_id,
+-        coalesce(decisions.resolved_player_team_id, attributed.team_id) as team_id,
++        player_teams.resolved_player_team_id,
++        coalesce(player_teams.resolved_player_team_id, attributed.team_id) as team_id,
+         if(
+-            decisions.resolved_player_team_id != attributed.team_id,
++            player_teams.resolved_player_team_id != attributed.team_id,
+             team_names.team_name,
+             attributed.team_name
+         ) as team_name
+     from attributed
+-    left join decisions
++    left join player_teams
+         on
+-            attributed.fixture_id = decisions.fixture_id
+-            and attributed.player_id = decisions.player_id
++            attributed.fixture_id = player_teams.fixture_id
++            and attributed.player_id = player_teams.player_id
+             and not attributed.is_own_goal
+     left join team_names
+         on
+             attributed.fixture_id = team_names.fixture_id
+-            and decisions.resolved_player_team_id = team_names.team_id
++            and player_teams.resolved_player_team_id = team_names.team_id
+ ),
+ 
+ -- Every goal of a match whose provider goal events are wrong, from seeds/fixture_goal_corrections.csv,
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+index ae81fb82..f0cc042b 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+@@ -19,7 +19,7 @@ with src as (
+         {{ player_id_override('player_id') }} as player_id,
+         minutes_played,
+         shirt_number,
+-        position_code,
++        if(position_code in ('G', 'D', 'M', 'F'), position_code, null) as position_code,
+         is_captain,
+         is_substitute,
+         offsides,
+@@ -104,6 +104,15 @@ resolved_teams as (
+     group by fixture_id, player_id
+ ),
+ 
++-- The player's team on a researched line-up, which an official source settles.
++researched_teams as (
++    select distinct
++        fixture_id,
++        player_id,
++        team_id
++    from {{ ref('fixture_lineup_corrections') }}
++),
++
+ -- Corrected BEFORE the qualify below, not after, because both of its window functions partition on
+ -- team_id: the dedup key, which the model's uniqueness test covers, and the cross-team collision
+ -- guard. The guard now sees corrected ids, which is the intended direction -- a player appearing
+@@ -113,6 +122,7 @@ corrected as (
+     select
+         src.* except (team_id),
+         coalesce(
++            researched_teams.team_id,
+             resolved_teams.team_id,
+             fixture_override.correct_team_api_id,
+             alias_override.correct_team_api_id,
+@@ -158,6 +168,10 @@ corrected as (
+         on
+             src.fixture_id = resolved_teams.fixture_id
+             and src.player_id = resolved_teams.player_id
++    left join researched_teams
++        on
++            src.fixture_id = researched_teams.fixture_id
++            and src.player_id = researched_teams.player_id
+ ),
+ 
+ -- A match's rows come from one fetch: its newest fetch in the provider's complete format, else its
+diff --git a/dbt_project/models/2_base/api_football/base_apif__lineups.sql b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
+index 03661444..2e8687b0 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__lineups.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
+@@ -121,11 +121,33 @@ parsed as (
+         {{ player_id_override("nullif(safe_cast(json_value(player_el, '$.player.id') as int64), 0)") }} as player_id,
+         {{ decode_html_entities("json_value(player_el, '$.player.name')") }} as player_name,
+         safe_cast(json_value(player_el, '$.player.number') as int64) as shirt_number,
+-        json_value(player_el, '$.player.pos') as position_code,
++        json_value(player_el, '$.player.pos') as provider_position,
+         json_value(player_el, '$.player.grid') as grid_position
+     from named
+ ),
+ 
++-- Some sheets name the position in words (cut to ten letters): each maps to G, D, M or F, a winger
++-- by its row on the grid against the formation. Any other code names no position.
++positioned as (
++    select
++        * except (provider_position),
++        case
++            when provider_position in ('G', 'D', 'M', 'F') then provider_position
++            when provider_position = 'goalkeeper' then 'G'
++            when provider_position in ('left_back', 'right_back', 'central_de') then 'D'
++            when provider_position = 'central_mi' then 'M'
++            when provider_position = 'striker' then 'F'
++            when provider_position in ('left_winge', 'right_wing')
++                then case safe_cast(split(grid_position, ':')[safe_offset(0)] as int64)
++                    when 1 then 'G'
++                    when 2 then 'D'
++                    when array_length(split(formation, '-')) + 1 then 'F'
++                    else if(safe_cast(split(grid_position, ':')[safe_offset(0)] as int64) is null, null, 'M')
++                end
++        end as position_code
++    from parsed
++),
++
+ provider_sheets as (
+     select
+         league_code,
+@@ -138,13 +160,27 @@ provider_sheets as (
+     group by league_code, fixture_id, team_id
+ ),
+ 
++-- A sheet that names two people under one id cannot say which of them played.
++shared_ids as (
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        player_id
++    from parsed
++    where player_id is not null
++    group by league_code, fixture_id, team_id, player_id
++    having count(distinct player_name) > 1
++),
++
++-- One person listed twice keeps his first listing: the starters before the bench, then sheet order.
+ provider_players as (
+     select *
+-    from parsed
++    from positioned
+     where player_id is not null
+     qualify row_number() over (
+         partition by league_code, fixture_id, team_id, player_id
+-        order by is_starter desc
++        order by is_starter desc, sheet_index asc
+     ) = 1
+ ),
+ 
+@@ -565,6 +601,19 @@ broken_events as (
+         )
+ ),
+ 
++shared_id_sheets as (
++    select distinct
++        shared_ids.league_code,
++        shared_ids.fixture_id,
++        shared_ids.team_id
++    from shared_ids
++    left join researched_fixtures
++        on
++            shared_ids.league_code = researched_fixtures.league_code
++            and shared_ids.fixture_id = researched_fixtures.fixture_id
++    where researched_fixtures.fixture_id is null
++),
++
+ broken_substitutions as (
+     select
+         league_code,
+@@ -591,7 +640,8 @@ match_checks as (
+             if(logical_and(sheet_checks.is_placed_at_team), [], ['squad_lists']),
+             if(max(stat_clashes.fixture_id) is null, [], ['player_stats_team']),
+             if(max(on_both_sheets.fixture_id) is null, [], ['player_on_both_sheets']),
+-            if(max(broken_substitutions.fixture_id) is null, [], ['substitutions'])
++            if(max(broken_substitutions.fixture_id) is null, [], ['substitutions']),
++            if(max(shared_id_sheets.fixture_id) is null, [], ['two_people_one_id'])
+         ) as failed_checks
+     from sheet_checks
+     left join stat_clashes
+@@ -606,6 +656,11 @@ match_checks as (
+         on
+             sheet_checks.league_code = broken_substitutions.league_code
+             and sheet_checks.fixture_id = broken_substitutions.fixture_id
++    left join shared_id_sheets
++        on
++            sheet_checks.league_code = shared_id_sheets.league_code
++            and sheet_checks.fixture_id = shared_id_sheets.fixture_id
++            and sheet_checks.team_id = shared_id_sheets.team_id
+     group by sheet_checks.league_code, sheet_checks.fixture_id
+ )
+ 
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index 561b11db..26da2618 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -906,7 +906,10 @@ models:
+       - name: shirt_number
+         description: "{{ doc('shirt_number') }}"
+       - name: position_code
+-        description: "Position as reported by the API (e.g. G, D, M, F). Degenerate attribute; kept free-form to track future codes."
++        description: "The player's position in the match: G, D, M or F, from his stat line or, for a match filled from the line-ups, from his line-up row. NULL where neither gives one."
++        tests:
++          - accepted_values:
++              values: ["G", "D", "M", "F"]
+       - name: is_captain
+         description: "{{ doc('is_captain') }}"
+       - name: is_substitute
+@@ -1027,6 +1030,9 @@ models:
+         description: "{{ doc('shirt_number__lineup') }}"
+       - name: position_code
+         description: "{{ doc('position_code__leg') }}"
++        tests:
++          - accepted_values:
++              values: ["G", "D", "M", "F"]
+       - name: grid_position
+         description: "{{ doc('grid_position') }}"
+       - name: team_formation
+diff --git a/dbt_project/models/docs/cleaning_rules.md b/dbt_project/models/docs/cleaning_rules.md
+index ae19a2e0..72466d88 100644
+--- a/dbt_project/models/docs/cleaning_rules.md
++++ b/dbt_project/models/docs/cleaning_rules.md
+@@ -29,9 +29,13 @@ match stats are good enough.
+ - A player's team. Where his statistics row and his match events, own goals aside, name different
+   teams of the match, the squad list for the season decides, and his other matches decide where it
+   names both teams or neither; the side it contradicts, his row or his events, moves to the team
+-  it names. Where nothing decides, both stay where the provider put them.
++  it names. Where nothing decides, both stay where the provider put them. Where a match's line-ups
++  are researched, the researched sheet decides a player's team, for his statistics and his events.
+ - Accurate passes are a count in every match. Where a match's values add up to more than its
+   passes, the provider sent a percentage, and it is converted once.
++- Positions. A player's position in a match is G, D, M or F. A position given in words takes its
++  letter; a winger takes the letter of his row on the line-up grid (first row G, second D, last F,
++  the rows between M). Any other code is no position.
+ - Substitutions. A substitution event names the player who went off and, as its assist, the player
+   who came on. Where the line-ups name the assist as a starter and the player as not one, the two
+   are swapped.
+@@ -42,6 +46,8 @@ match stats are good enough.
+   - More of a sheet's players are on its team's squad list than on the other team's, and none is
+     listed only at the other team. Without a squad list, the club each player last joined decides.
+   - No player is on both sheets, and the stat lines put no player on the other team.
++  - No team sheet names two people under one player id; one person listed twice keeps his first
++    listing.
+   - Every substitution brings on a substitute for a player of the same team on the sheets, at the
+     minute that player went off.
+   - Research covers, in this order: every match of a domestic league in the registry;
+diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
+index 96d74ea6..4fdcd683 100644
+--- a/dbt_project/models/docs/shared_columns.md
++++ b/dbt_project/models/docs/shared_columns.md
+@@ -816,9 +816,8 @@ Shots on target this player took in this match, from the cleaned per-player stat
+ {% enddocs %}
+ 
+ {% docs position_code__leg %}
+-The player's position for this match, as reported by the provider (e.g. G, D, M, F). Free-form
+-and kept as the provider sends it, to track codes not yet catalogued; NULL when the provider
+-supplied none.
++The player's position for this match: G, D, M or F, as the cleaning rules take it from the
++provider. NULL where the provider gives no position.
+ {% enddocs %}
+ 
+ {% docs is_home__own_fixture %}
+diff --git a/dbt_project/seeds/fixture_lineup_corrections.csv b/dbt_project/seeds/fixture_lineup_corrections.csv
+index e41bc4e9..fafe03cc 100644
+--- a/dbt_project/seeds/fixture_lineup_corrections.csv
++++ b/dbt_project/seeds/fixture_lineup_corrections.csv
+@@ -8193,3 +8193,43 @@ fixture_id,team_id,player_id,player_name,is_starter,shirt_number,position_code,g
+ 1507045,2759,550439,Ahn Hyeok-Ju,false,19,F,,4-4-2,,,,,,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=150&meetSeq=1,"Gangwon FC-Gwangju FC, K League 1, 2026-08-26: both team sheets and every substitution checked against the official match record; formations and positions are the provider's"
+ 1507045,2759,34636,Im Seung-Kyum,false,20,D,,4-4-2,53,,34685,,,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=150&meetSeq=1,"Gangwon FC-Gwangju FC, K League 1, 2026-08-26: both team sheets and every substitution checked against the official match record; formations and positions are the provider's"
+ 1507045,2759,472264,Hong Yong-Jun,false,99,M,,4-4-2,,,,,,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=150&meetSeq=1,"Gangwon FC-Gwangju FC, K League 1, 2026-08-26: both team sheets and every substitution checked against the official match record; formations and positions are the provider's"
++1482409,16489,50849,B. Stuver,true,1,G,1:1,3-4-3,,,,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,16489,14333,O. Svatok,true,5,D,2:3,3-4-3,,,,46,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,16489,8527,B. Hines-Ike,true,4,D,2:2,3-4-3,,,,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,16489,197449,Guilherme Biro,true,29,D,2:1,3-4-3,,,,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,16489,39229,M. Desler,true,3,M,3:4,3-4-3,,,,68,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,16489,51263,I. Sánchez,true,6,M,3:3,3-4-3,,,,68,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,16489,310975,D. Pereira,true,8,M,3:2,3-4-3,,,,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,16489,50890,J. Gallagher,true,17,M,3:1,3-4-3,,,,46,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,16489,39364,R. Taylor,true,16,F,4:3,3-4-3,,,,46,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,16489,14405,M. Uzuni,true,10,F,4:2,3-4-3,,,,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,16489,267866,O. Wolff,true,33,F,4:1,3-4-3,,,,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,16489,51224,J. Cascante,false,18,D,,3-4-3,46,,14333,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,16489,105632,Z. Kolmanič,false,23,D,,3-4-3,46,,50890,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,16489,13755,J. Obrian,false,7,F,,3-4-3,68,,39229,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,16489,50896,S. Cleveland,false,30,G,,3-4-3,,,,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,16489,313360,C. Fodrey,false,19,M,,3-4-3,46,,39364,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,16489,47845,B. Sabovic,false,14,M,,3-4-3,68,,51263,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,16489,451017,N. Dubersarsky,false,20,M,,3-4-3,,,,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,16489,511387,R. Thomas,false,2,D,,3-4-3,,,,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,16489,323378,M. Djordjevic,false,35,D,,3-4-3,,,,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,1616,159,H. Lloris,true,1,G,,4-3-3,,,,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,1616,1261,S. Palencia,true,14,D,,4-3-3,,,,68,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,1616,44836,R. Porteous,true,5,D,,4-3-3,,,,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,1616,51031,E. Segura,true,4,D,,4-3-3,,,,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,1616,51134,R. Hollingshead,true,24,D,,4-3-3,,,,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,1616,25617,T. Tillman,true,11,M,,4-3-3,,,,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,1616,1364,Jailson,true,16,M,,4-3-3,,,,68,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,1616,50814,M. Delgado,true,8,M,,4-3-3,,,,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,1616,366531,N. Ordaz,true,27,F,,4-3-3,,,,68,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,1616,186,Son Heung-Min,true,7,F,,4-3-3,,,,88,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,1616,21437,D. Bouanga,true,99,F,,4-3-3,,,,79,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,1616,50788,M. Choinière,false,66,M,,4-3-3,79,,21437,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,1616,201788,Nkosi Tafari,false,91,D,,4-3-3,68,,1364,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,1616,50985,F. Amaya,false,23,M,,4-3-3,,,,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,1616,51242,J. Ebobisse,false,17,F,,4-3-3,88,,186,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,1616,199404,T. Hasal,false,12,G,,4-3-3,,,,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,1616,78451,R. Raposo,false,21,M,,4-3-3,,,,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,1616,356814,D. Martínez,false,30,F,,4-3-3,,,,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,1616,347794,A. Smolyakov,false,29,D,,4-3-3,68,,1261,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
++1482409,1616,137220,A. Moran,false,19,M,,4-3-3,68,,366531,,,official,https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/lineups https://www.mlssoccer.com/competitions/mls-cup-playoffs/2025/matches/atxvslafc-11-02-2025/feed,"Austin FC-Los Angeles FC, MLS Cup Playoffs, 2025-11-02: both team sheets and every substitution checked against the league's official match data; the provider files each team's sheet under the other team; LAFC's formation is the league's, Austin's formation and pitch positions are the provider's"
+diff --git a/dbt_project/seeds/player_match_cleaning_answer_key.csv b/dbt_project/seeds/player_match_cleaning_answer_key.csv
+index a4a60c7f..6c3e8956 100644
+--- a/dbt_project/seeds/player_match_cleaning_answer_key.csv
++++ b/dbt_project/seeds/player_match_cleaning_answer_key.csv
+@@ -93,3 +93,4 @@ fixture_id,team_id,player_id,stat,expected_value,rule,working
+ 1311842,1824,19945,cards_yellow,1,,"Same match: Longbottom's own card event stands in minute 45."
+ 1492525,2280,36034,cards_yellow,,cards_need_research,"Stat line 0, one Yellow Card event for Bilbao: the two disagree, so his cards wait for research."
+ 1492525,2280,2575,cards_yellow,1,,"Same match: stat line and card event agree on one yellow for Porozo, so the dispute leaves him alone."
++1482409,16489,51263,minutes,68,,"Austin FC-LAFC, MLS Cup Playoffs, 2 Nov 2025: the stat line and the events file Ilie Sánchez under LAFC; the league's official sheet, researched in fixture_lineup_corrections, has him starting for Austin FC and going off at 68', so his row is Austin FC's with his 68 minutes."
+diff --git a/dbt_project/tests/assert_lineup_two_people_one_id_not_held.sql b/dbt_project/tests/assert_lineup_two_people_one_id_not_held.sql
+new file mode 100644
+index 00000000..dcc3715b
+--- /dev/null
++++ b/dbt_project/tests/assert_lineup_two_people_one_id_not_held.sql
+@@ -0,0 +1,70 @@
++{#
++  A provider team sheet that names two people under one player id cannot say which of them played,
++  so its match's line-up is not confirmed. Reads the provider's latest sheet of each team from
++  staging and returns each such match that base_apif__lineups confirms.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with latest_sheets as (
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        start_xi_json,
++        substitutes_json
++    from {{ ref('stg_apif__lineups') }}
++    where fixture_id is not null and team_id is not null
++    qualify row_number() over (
++        partition by league_code, fixture_id, team_id
++        order by raw_ingested_at desc
++    ) = 1
++),
++
++listed as (
++    select
++        s.league_code,
++        s.fixture_id,
++        s.team_id,
++        {{ player_id_override("nullif(safe_cast(json_value(player_el, '$.player.id') as int64), 0)") }}
++            as player_id,
++        {{ decode_html_entities("json_value(player_el, '$.player.name')") }} as player_name
++    from latest_sheets as s,
++        unnest(array_concat(json_query_array(s.start_xi_json), json_query_array(s.substitutes_json)))
++            as player_el
++),
++
++shared_id_players as (
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        player_id
++    from listed
++    where player_id is not null
++    group by league_code, fixture_id, team_id, player_id
++    having count(distinct player_name) > 1
++),
++
++shared_ids as (
++    select distinct
++        league_code,
++        fixture_id
++    from shared_id_players
++),
++
++confirmed as (
++    select distinct
++        league_code,
++        fixture_id
++    from {{ ref('base_apif__lineups') }}
++    where lineup_state = 'confirmed'
++)
++
++select
++    shared_ids.league_code,
++    shared_ids.fixture_id
++from shared_ids
++inner join confirmed
++    on
++        shared_ids.league_code = confirmed.league_code
++        and shared_ids.fixture_id = confirmed.fixture_id
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/290-e1-lineups/review_input.patch | 586 +++++++++++++++++++++++++
+#    1 file changed, 586 insertions(+)
+# ============================================================================

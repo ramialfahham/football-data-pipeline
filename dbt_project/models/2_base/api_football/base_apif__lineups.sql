@@ -121,9 +121,31 @@ parsed as (
         {{ player_id_override("nullif(safe_cast(json_value(player_el, '$.player.id') as int64), 0)") }} as player_id,
         {{ decode_html_entities("json_value(player_el, '$.player.name')") }} as player_name,
         safe_cast(json_value(player_el, '$.player.number') as int64) as shirt_number,
-        json_value(player_el, '$.player.pos') as position_code,
+        json_value(player_el, '$.player.pos') as provider_position,
         json_value(player_el, '$.player.grid') as grid_position
     from named
+),
+
+-- Some sheets name the position in words (cut to ten letters): each maps to G, D, M or F, a winger
+-- by its row on the grid against the formation. Any other code names no position.
+positioned as (
+    select
+        * except (provider_position),
+        case
+            when provider_position in ('G', 'D', 'M', 'F') then provider_position
+            when provider_position = 'goalkeeper' then 'G'
+            when provider_position in ('left_back', 'right_back', 'central_de') then 'D'
+            when provider_position = 'central_mi' then 'M'
+            when provider_position = 'striker' then 'F'
+            when provider_position in ('left_winge', 'right_wing')
+                then case safe_cast(split(grid_position, ':')[safe_offset(0)] as int64)
+                    when 1 then 'G'
+                    when 2 then 'D'
+                    when array_length(split(formation, '-')) + 1 then 'F'
+                    else if(safe_cast(split(grid_position, ':')[safe_offset(0)] as int64) is null, null, 'M')
+                end
+        end as position_code
+    from parsed
 ),
 
 provider_sheets as (
@@ -138,13 +160,27 @@ provider_sheets as (
     group by league_code, fixture_id, team_id
 ),
 
+-- A sheet that names two people under one id cannot say which of them played.
+shared_ids as (
+    select
+        league_code,
+        fixture_id,
+        team_id,
+        player_id
+    from parsed
+    where player_id is not null
+    group by league_code, fixture_id, team_id, player_id
+    having count(distinct player_name) > 1
+),
+
+-- One person listed twice keeps his first listing: the starters before the bench, then sheet order.
 provider_players as (
     select *
-    from parsed
+    from positioned
     where player_id is not null
     qualify row_number() over (
         partition by league_code, fixture_id, team_id, player_id
-        order by is_starter desc
+        order by is_starter desc, sheet_index asc
     ) = 1
 ),
 
@@ -565,6 +601,19 @@ broken_events as (
         )
 ),
 
+shared_id_sheets as (
+    select distinct
+        shared_ids.league_code,
+        shared_ids.fixture_id,
+        shared_ids.team_id
+    from shared_ids
+    left join researched_fixtures
+        on
+            shared_ids.league_code = researched_fixtures.league_code
+            and shared_ids.fixture_id = researched_fixtures.fixture_id
+    where researched_fixtures.fixture_id is null
+),
+
 broken_substitutions as (
     select
         league_code,
@@ -591,7 +640,8 @@ match_checks as (
             if(logical_and(sheet_checks.is_placed_at_team), [], ['squad_lists']),
             if(max(stat_clashes.fixture_id) is null, [], ['player_stats_team']),
             if(max(on_both_sheets.fixture_id) is null, [], ['player_on_both_sheets']),
-            if(max(broken_substitutions.fixture_id) is null, [], ['substitutions'])
+            if(max(broken_substitutions.fixture_id) is null, [], ['substitutions']),
+            if(max(shared_id_sheets.fixture_id) is null, [], ['two_people_one_id'])
         ) as failed_checks
     from sheet_checks
     left join stat_clashes
@@ -606,6 +656,11 @@ match_checks as (
         on
             sheet_checks.league_code = broken_substitutions.league_code
             and sheet_checks.fixture_id = broken_substitutions.fixture_id
+    left join shared_id_sheets
+        on
+            sheet_checks.league_code = shared_id_sheets.league_code
+            and sheet_checks.fixture_id = shared_id_sheets.fixture_id
+            and sheet_checks.team_id = shared_id_sheets.team_id
     group by sheet_checks.league_code, sheet_checks.fixture_id
 )
 
