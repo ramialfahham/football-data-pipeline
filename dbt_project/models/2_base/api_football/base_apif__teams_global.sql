@@ -28,19 +28,43 @@ import_team_country_corrections as (
 
 -- A competition whose /teams list lacks a team gives it a row with a name and no attributes; such a
 -- row never settles a team that has a row with them.
+ranked_rows as (
+    select
+        *,
+        coalesce(
+            team_code, team_country, cast(team_founded_year as string), team_logo_url,
+            cast(venue_api_id as string), venue_name, venue_address, venue_city,
+            cast(venue_capacity as string)
+        ) is not null as has_attributes
+    from import_base_apif__teams
+),
+
 latest_per_team as (
     select *
-    from import_base_apif__teams
+    from ranked_rows
     qualify row_number() over (
         partition by team_api_id
         order by
-            coalesce(
-                team_code, team_country, cast(team_founded_year as string), team_logo_url,
-                cast(venue_api_id as string), venue_name, venue_address, venue_city,
-                cast(venue_capacity as string)
-            ) is null asc,
+            has_attributes desc,
             raw_ingested_at desc
     ) = 1
+),
+
+-- The name and the country take their last non-NULL value in the same order, so a row that leaves
+-- them empty never blanks them.
+identity_fields as (
+    select
+        team_api_id,
+        array_agg(
+            team_name ignore nulls
+            order by has_attributes desc, raw_ingested_at desc, team_name asc limit 1
+        )[safe_offset(0)] as team_name,
+        array_agg(
+            team_country ignore nulls
+            order by has_attributes desc, raw_ingested_at desc, team_country asc limit 1
+        )[safe_offset(0)] as team_country
+    from ranked_rows
+    group by team_api_id
 ),
 
 -- Columns are enumerated rather than passed through with a wildcard: the override join makes
@@ -70,15 +94,17 @@ corrected as (
         teams.venue_city,
         teams.venue_capacity,
         teams.raw_ingested_at,
-        coalesce(overrides.team_name, teams.team_name) as team_name,
+        coalesce(overrides.team_name, identity_fields.team_name) as team_name,
         coalesce(
-            country_corrections.team_country, country_overrides.country_name, teams.team_country
+            country_corrections.team_country, country_overrides.country_name, identity_fields.team_country
         ) as team_country
     from latest_per_team as teams
+    inner join identity_fields
+        on teams.team_api_id = identity_fields.team_api_id
     left join import_team_name_overrides as overrides
         on teams.team_api_id = overrides.team_api_id
     left join import_country_name_overrides as country_overrides
-        on teams.team_country = country_overrides.provider_country
+        on identity_fields.team_country = country_overrides.provider_country
     left join import_team_country_corrections as country_corrections
         on teams.team_api_id = country_corrections.team_api_id
 ),

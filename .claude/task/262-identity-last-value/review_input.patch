@@ -1,0 +1,839 @@
+diff --git a/.claude/task/262-identity-last-value/contract.md b/.claude/task/262-identity-last-value/contract.md
+new file mode 100644
+index 00000000..25dc7c25
+--- /dev/null
++++ b/.claude/task/262-identity-last-value/contract.md
+@@ -0,0 +1,91 @@
++# Task contract — identity fields take their last non-NULL value; tests check them against our data
++
++objective: >
++  Issue #262, second part: a team's and a player's identity fields never go blank because the
++  latest delivery left them empty. Base takes each identity field's last non-NULL value across the
++  stored deliveries, and four warning tests show where the chosen values disagree with the rest of
++  our data, each with a named case.
++
++refs: >
++  #262 (the CPO's principle note of 2026-11-11). The design (last non-NULL in base, then consistency
++  tests) and the scope limit (only the three base models that pick identity fields, their base.yml
++  entries and the tests; identity fields only; no ingestion, raw or staging change) were set by the
++  CPO and relayed by the coordinating session on 2026-11-12. The nightly fix is !427.
++
++scope_paths:
++  - dbt_project/models/2_base/api_football/base_apif__players.sql
++  - dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
++  - dbt_project/models/2_base/api_football/base_apif__teams_global.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/tests/assert_player_nationality_matches_national_team.sql
++  - dbt_project/tests/assert_club_country_matches_domestic_league.sql
++  - dbt_project/tests/assert_player_birth_date_plausible.sql
++  - dbt_project/tests/assert_identity_names_stable.sql
++  - dbt_project/tests/assert_identity_fields_never_blanked.sql
++  - .claude/task/262-identity-last-value/contract.md
++  - .claude/task/262-identity-last-value/review.md
++  - .claude/task/262-identity-last-value/review_input.patch
++
++impact_map: >
++  writers: dbt only; no ingestion, raw, staging, seed or export change. base_apif__players and
++  base_apif__player_profiles feed dim_player; base_apif__teams_global feeds dim_team.
++  lineage: `dbt ls --resource-type model --output name --select base_apif__players+
++  base_apif__player_profiles+ base_apif__teams_global+` returns 29 models: base_apif__player_profiles
++  base_apif__players base_apif__teams_global dim_player dim_player_team_season_mapping dim_team
++  mart_competition_fixtures mart_fixture_standing_context mart_leaderboards mart_match_days
++  mart_matchday_insights mart_player_career mart_player_competition_benchmarks
++  mart_player_fixture_stats mart_player_index mart_player_profile mart_player_season_record
++  mart_roster mart_standings mart_team_competition_benchmarks mart_team_competitions
++  mart_team_fixtures mart_team_index mart_team_leaderboards mart_team_market_value
++  mart_team_momentum_window mart_team_profile mart_team_season mart_team_season_insights.
++  consumption: the export reads the same columns; no column is added or removed.
++  ci_layer_rules: scripts/check_layer_contract.py, scripts/check_description_hygiene.py.
++  deploy_order: one merge; the nightly rebuilds every model. No backfill.
++  blast_radius: measured on prod 2026-11-12, read-only, by running the compiled models against prod
++  and comparing with the prod tables. base_apif__players, 156,203 rows: 36 birth dates, 37
++  nationalities, 38 first names, 40 last names and 8 names change (the empty-field fills, and names
++  where rows of one delivery disagree); photo and both conflict flags unchanged. base_apif__player_
++  profiles, 51,696 rows: 2 names change (tie order inside one delivery), nothing else. base_apif__
++  teams_global, 3,417 rows: nothing changes today, slugs included. Re-measured on 2026-11-13 after
++  base_apif__player_profiles treats a placeholder birth date as empty before the pick: 51,700 rows,
++  still 2 names and nothing else. The four warning tests list 771, 5, 22 and 138 rows on today's
++  data, and every named case holds. assert_identity_fields_never_blanked returns 0 rows on the new
++  logic and 37 nationalities, 36 birth dates and its named case on prod's current tables. Bytes:
++  base adds none (same tables, same columns); the five tests scan about 0.42 GB a night against a
++  ~85 GB green nightly.
++
++approved_design:
++  - none: no page layout changes; 38 players show a birth date, nationality or name that an earlier delivery gave
++
++decisions_taken: >
++  Set by the CPO on 2026-11-12, relayed by the coordinating session. (1) Identity fields only:
++  player name, first name, last name, birth date and nationality; team name and country. Every other
++  field (photo, height, weight, position, birth place, venue, code, founded year) keeps today's
++  latest-row rule. (2) Each identity field takes its last non-NULL value, in the order base already
++  uses to pick a row (source priority, then the latest delivery, then the existing tie order); no
++  field takes its first non-NULL value, because a later delivery is how the provider corrects
++  itself. (3) A player's conflict flags describe the delivery the value came from. (4) A team's URL
++  slug keeps reading the settled row's provider country, so a country filled from another row moves
++  no URL; the slug follows the name, as it does today. (5) The four tests are warnings that list
++  mismatches: nationality against the national teams a player appeared for; a club's country
++  against its domestic league's; a birth date that makes a player younger than 15 or older than 45
++  in a match he played; a player's surname that differs between /players deliveries (compared
++  without accents) and a team's name that differs between competitions. Each has a named case. No new mechanism, no recurring cost
++  beyond the measured test scans. (6) assert_identity_fields_never_blanked is error severity: the
++  coordinating session's test-design ruling of 2026-11-13, implementing the CPO's design of
++  2026-11-12. It pins decision (2) and adds no rule: a player's birth date or nationality, or a
++  team's country, is never blank in base while a delivery holds one, unless player_bio_corrections
++  left it blank; named case H. Abe (33085). (7) A /players nationality that is blank or whitespace
++  counts as empty before the pick, so it can never be chosen over a real one.
++
++decisions_reserved:
++  - What to do with each listed mismatch (seed corrections go through the #262 research route).
++  - Horoya and Hafia in CAFCL 2025/26 (fixture_team_id_overrides, after research), a separate change.
++
++done_when:
++  - dbt parse passes; sqlfluff lint passes on every changed model and test.
++  - The full pytest suite passes.
++  - The MR's data build passes, and its tables compared with prod show the measured identity changes and no other.
++
++amendments:
++  - 2026-11-12: + dbt_project/tests/assert_identity_fields_never_blanked.sql — authority: decision (6) of decisions_taken, the coordinating session's test-design ruling of 2026-11-13; content: an error-severity test that fails where a player's birth date or nationality, or a team's country, is blank in base while a delivery holds one, with a named case. In the same round base_apif__player_profiles treats a placeholder birth date as empty before the pick, as base_apif__players already does, and base_apif__teams_global computes "has provider attributes" once.
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index ae456392..a06c5e3e 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -31,7 +31,8 @@ models:
+     description: >
+       One row per team: the settled entity, from the latest ingest across base_apif__teams'
+       per-competition rows that carry provider attributes, and from the latest row only where
+-      none does. Grain: team_api_id.
++      none does. The name and the country take their last non-NULL value in that order.
++      Grain: team_api_id.
+ 
+       Identity is DECIDED here, not carried through: the name and country corrections from the
+       override seeds are applied here, so the core dim publishes a settled entity.
+@@ -434,8 +435,10 @@ models:
+   - name: base_apif__players
+     description: >
+       Global player identity: one row per player_api_id, unioned from /players, fixture player
+-      stats, the players and assisting players of fixture events, and the match line-ups, then deduplicated in a single pass that prefers the most
+-      authoritative named source and, within that, the most recent ingest.
++      stats, the players and assisting players of fixture events, and the match line-ups, then deduplicated by preferring the most
++      authoritative named source and, within that, the most recent ingest. Each identity field
++      (name, first and last name, birth date, nationality) takes its last non-NULL value in that
++      order, so a delivery that leaves it empty never blanks it.
+       Grain: player_api_id.
+ 
+       IDENTITY ONLY — no league_code, and no team or season affiliation. A player belongs to
+@@ -451,14 +454,15 @@ models:
+         description: "{{ doc('player_api_id') }}"
+         tests: [not_null]
+       - name: has_conflicting_birth_date
+-        description: "True when the player's rows from the chosen source and latest ingest hold two real birth dates. A row in player_bio_corrections settles it."
++        description: "True when the player's rows from the delivery that gave his birth date hold two real birth dates. A row in player_bio_corrections settles it."
+       - name: has_conflicting_nationality
+-        description: "True when the player's rows from the chosen source and latest ingest hold two real nationalities. A row in player_bio_corrections settles it."
++        description: "True when the player's rows from the delivery that gave his nationality hold two real nationalities. A row in player_bio_corrections settles it."
+ 
+   - name: base_apif__player_profiles
+     description: >
+       Current per-player bio from the rich /players/profiles source
+-      (stg_apif__player_profiles), reduced to the latest row per player_id.
++      (stg_apif__player_profiles), reduced to the latest row per player_id; each identity field
++      (name, first and last name, birth date, nationality) takes its last non-NULL value.
+       Identity-level only — no league_code, team or season. Grain: player_api_id.
+     config:
+       tags: ["base", "api_football", "player_context"]
+diff --git a/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql b/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
+index 8e261b53..e8c14f3b 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__player_profiles.sql
+@@ -1,6 +1,7 @@
+ -- Current per-player BIO from the rich /players/profiles source. stg_apif__player_profiles
+ -- union-all-accumulates snapshots (skip-if-present loader), so reduce to the latest row per
+--- player_id. Identity-level only — no league_code/team/season (those live in the mapping/facts).
++-- player_id, each identity field taking its last non-NULL value. Identity-level only — no
++-- league_code/team/season (those live in the mapping/facts).
+ -- Feeds dim_player's bio enrichment 1:1. Grain: player_api_id.
+ --
+ -- player_birth_country is reconciled here against country_name_overrides (#69), the same
+@@ -25,7 +26,7 @@ renamed as (
+         player_name,
+         player_firstname as player_first_name,
+         player_lastname as player_last_name,
+-        birth_date as player_birth_date,
++        {{ possible_birth_date('birth_date', 'raw_ingested_at') }} as player_birth_date,
+         birth_place as player_birth_place,
+         birth_country as player_birth_country_raw,
+         nationality as player_nationality,
+@@ -58,7 +59,7 @@ corrected as (
+         on renamed.player_birth_country_raw = overrides.provider_country
+ ),
+ 
+-latest as (
++latest_row as (
+     select
+         player_api_id,
+         player_name,
+@@ -94,6 +95,49 @@ latest as (
+     ) = 1
+ ),
+ 
++-- An identity field takes its last non-NULL value, so a profile that leaves it empty never blanks it.
++identity_fields as (
++    select
++        player_api_id,
++        array_agg(
++            player_name ignore nulls order by raw_ingested_at desc, player_name asc limit 1
++        )[safe_offset(0)] as player_name,
++        array_agg(
++            player_first_name ignore nulls order by raw_ingested_at desc, player_first_name asc limit 1
++        )[safe_offset(0)] as player_first_name,
++        array_agg(
++            player_last_name ignore nulls order by raw_ingested_at desc, player_last_name asc limit 1
++        )[safe_offset(0)] as player_last_name,
++        array_agg(
++            player_birth_date ignore nulls order by raw_ingested_at desc, player_birth_date asc limit 1
++        )[safe_offset(0)] as player_birth_date,
++        array_agg(
++            player_nationality ignore nulls order by raw_ingested_at desc, player_nationality asc limit 1
++        )[safe_offset(0)] as player_nationality
++    from corrected
++    group by player_api_id
++),
++
++latest as (
++    select
++        latest_row.player_api_id,
++        latest_row.player_birth_place,
++        latest_row.player_birth_country,
++        latest_row.player_height,
++        latest_row.player_weight,
++        latest_row.player_position,
++        latest_row.player_photo_url,
++        latest_row.raw_ingested_at,
++        identity_fields.player_name,
++        identity_fields.player_first_name,
++        identity_fields.player_last_name,
++        identity_fields.player_nationality,
++        identity_fields.player_birth_date
++    from latest_row
++    inner join identity_fields
++        on latest_row.player_api_id = identity_fields.player_api_id
++),
++
+ bio_corrected as (
+     select
+         latest.player_api_id,
+@@ -108,10 +152,7 @@ bio_corrected as (
+         latest.player_photo_url,
+         latest.raw_ingested_at,
+         safe_cast(
+-            {{ bio_correction(
+-                'birth_date_fix',
+-                'cast(' ~ possible_birth_date('latest.player_birth_date', 'latest.raw_ingested_at') ~ ' as string)'
+-            ) }} as date
++            {{ bio_correction('birth_date_fix', 'cast(latest.player_birth_date as string)') }} as date
+         ) as player_birth_date,
+         nullif(
+             trim(
+diff --git a/dbt_project/models/2_base/api_football/base_apif__players.sql b/dbt_project/models/2_base/api_football/base_apif__players.sql
+index 859d9e82..145712c6 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__players.sql
+@@ -1,6 +1,6 @@
+ -- Player identity (global entity): one row per player_api_id, unioned from five sources
+--- and deduplicated in a single pass that prefers the most authoritative NAMED source
+--- (lowest source_priority) and then the most recent ingest:
++-- and deduplicated by preferring the most authoritative NAMED source (lowest source_priority)
++-- and then the most recent ingest; each identity field takes its last non-NULL value in that order:
+ --   priority 1 — /players endpoint (biographical attributes, most complete)
+ --   priority 2 — fixture player stats (match appearances)
+ --   priority 3 — fixture events (broadest appearance coverage)
+@@ -16,7 +16,7 @@ with players_src as (
+         player_firstname as player_first_name,
+         player_lastname as player_last_name,
+         {{ possible_birth_date('birth_date', 'raw_ingested_at') }} as player_birth_date,
+-        nationality as player_nationality,
++        nullif(trim(nationality), '') as player_nationality,
+         player_photo_url,
+         raw_ingested_at,
+         1 as source_priority,
+@@ -122,17 +122,10 @@ import_country_name_overrides as (
+ ),
+ 
+ -- Rows tied on source and ingest time can disagree: a player has one /players row per team and
+--- season, all stamped by one batch. The order below settles every tie the same way on every build.
+-latest as (
++-- season, all stamped by one batch. The orders below settle every tie the same way on every build.
++flagged as (
+     select
+-        player_api_id,
+-        player_name,
+-        player_first_name,
+-        player_last_name,
+-        player_birth_date,
+-        player_nationality,
+-        player_photo_url,
+-        raw_ingested_at,
++        *,
+         count(distinct player_birth_date) over (
+             partition by player_api_id, source_priority, raw_ingested_at
+         ) > 1 as has_conflicting_birth_date,
+@@ -140,6 +133,51 @@ latest as (
+             partition by player_api_id, source_priority, raw_ingested_at
+         ) > 1 as has_conflicting_nationality
+     from src
++),
++
++-- An identity field takes its last non-NULL value, so a delivery that leaves it empty never blanks
++-- it; a conflict flag describes the delivery its value came from.
++identity_fields as (
++    select
++        player_api_id,
++        array_agg(
++            player_name ignore nulls
++            order by source_priority asc, raw_ingested_at desc, tie_recency desc, player_name asc limit 1
++        )[safe_offset(0)] as player_name,
++        array_agg(
++            player_first_name ignore nulls
++            order by source_priority asc, raw_ingested_at desc, tie_recency desc, player_first_name asc limit 1
++        )[safe_offset(0)] as player_first_name,
++        array_agg(
++            player_last_name ignore nulls
++            order by source_priority asc, raw_ingested_at desc, tie_recency desc, player_last_name asc limit 1
++        )[safe_offset(0)] as player_last_name,
++        array_agg(
++            if(
++                player_birth_date is null,
++                null,
++                struct(player_birth_date as field_value, has_conflicting_birth_date as is_conflicting)
++            ) ignore nulls
++            order by source_priority asc, raw_ingested_at desc, tie_recency desc, player_birth_date asc limit 1
++        )[safe_offset(0)] as birth_date,
++        array_agg(
++            if(
++                player_nationality is null,
++                null,
++                struct(player_nationality as field_value, has_conflicting_nationality as is_conflicting)
++            ) ignore nulls
++            order by source_priority asc, raw_ingested_at desc, tie_recency desc, player_nationality asc limit 1
++        )[safe_offset(0)] as nationality
++    from flagged
++    group by player_api_id
++),
++
++latest_row as (
++    select
++        player_api_id,
++        player_photo_url,
++        raw_ingested_at
++    from flagged
+     qualify row_number() over (
+         partition by player_api_id
+         order by
+@@ -157,6 +195,23 @@ latest as (
+     ) = 1
+ ),
+ 
++latest as (
++    select
++        latest_row.player_api_id,
++        latest_row.player_photo_url,
++        latest_row.raw_ingested_at,
++        identity_fields.player_name,
++        identity_fields.player_first_name,
++        identity_fields.player_last_name,
++        identity_fields.birth_date.field_value as player_birth_date,
++        identity_fields.nationality.field_value as player_nationality,
++        coalesce(identity_fields.birth_date.is_conflicting, false) as has_conflicting_birth_date,
++        coalesce(identity_fields.nationality.is_conflicting, false) as has_conflicting_nationality
++    from latest_row
++    inner join identity_fields
++        on latest_row.player_api_id = identity_fields.player_api_id
++),
++
+ corrected as (
+     select
+         latest.player_api_id,
+diff --git a/dbt_project/models/2_base/api_football/base_apif__teams_global.sql b/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
+index 2ca0693f..e4b15ad1 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
+@@ -28,21 +28,45 @@ import_team_country_corrections as (
+ 
+ -- A competition whose /teams list lacks a team gives it a row with a name and no attributes; such a
+ -- row never settles a team that has a row with them.
++ranked_rows as (
++    select
++        *,
++        coalesce(
++            team_code, team_country, cast(team_founded_year as string), team_logo_url,
++            cast(venue_api_id as string), venue_name, venue_address, venue_city,
++            cast(venue_capacity as string)
++        ) is not null as has_attributes
++    from import_base_apif__teams
++),
++
+ latest_per_team as (
+     select *
+-    from import_base_apif__teams
++    from ranked_rows
+     qualify row_number() over (
+         partition by team_api_id
+         order by
+-            coalesce(
+-                team_code, team_country, cast(team_founded_year as string), team_logo_url,
+-                cast(venue_api_id as string), venue_name, venue_address, venue_city,
+-                cast(venue_capacity as string)
+-            ) is null asc,
++            has_attributes desc,
+             raw_ingested_at desc
+     ) = 1
+ ),
+ 
++-- The name and the country take their last non-NULL value in the same order, so a row that leaves
++-- them empty never blanks them.
++identity_fields as (
++    select
++        team_api_id,
++        array_agg(
++            team_name ignore nulls
++            order by has_attributes desc, raw_ingested_at desc, team_name asc limit 1
++        )[safe_offset(0)] as team_name,
++        array_agg(
++            team_country ignore nulls
++            order by has_attributes desc, raw_ingested_at desc, team_country asc limit 1
++        )[safe_offset(0)] as team_country
++    from ranked_rows
++    group by team_api_id
++),
++
+ -- Columns are enumerated rather than passed through with a wildcard: the override join makes
+ -- `select teams.* replace (...)` ambiguous to SQLFluff (AM04, "unknown number of result
+ -- columns"), and this repo suppresses no lint rule anywhere -- there is not a single `noqa`
+@@ -70,15 +94,17 @@ corrected as (
+         teams.venue_city,
+         teams.venue_capacity,
+         teams.raw_ingested_at,
+-        coalesce(overrides.team_name, teams.team_name) as team_name,
++        coalesce(overrides.team_name, identity_fields.team_name) as team_name,
+         coalesce(
+-            country_corrections.team_country, country_overrides.country_name, teams.team_country
++            country_corrections.team_country, country_overrides.country_name, identity_fields.team_country
+         ) as team_country
+     from latest_per_team as teams
++    inner join identity_fields
++        on teams.team_api_id = identity_fields.team_api_id
+     left join import_team_name_overrides as overrides
+         on teams.team_api_id = overrides.team_api_id
+     left join import_country_name_overrides as country_overrides
+-        on teams.team_country = country_overrides.provider_country
++        on identity_fields.team_country = country_overrides.provider_country
+     left join import_team_country_corrections as country_corrections
+         on teams.team_api_id = country_corrections.team_api_id
+ ),
+diff --git a/dbt_project/tests/assert_club_country_matches_domestic_league.sql b/dbt_project/tests/assert_club_country_matches_domestic_league.sql
+new file mode 100644
+index 00000000..4d79915f
+--- /dev/null
++++ b/dbt_project/tests/assert_club_country_matches_domestic_league.sql
+@@ -0,0 +1,62 @@
++{#
++  A club's country is the country of the domestic league it plays in. Each row is a club whose
++  country differs from one of its domestic leagues; some are real (Welsh clubs in the Premier
++  League, Canadian clubs in MLS), the rest are provider errors to research. Named case: Chelsea
++  (49), England, plays in the Premier League and is never listed.
++#}
++{{ config(store_failures = true, severity = 'warn') }}
++
++with domestic_leagues as (
++    select distinct
++        m.team_sk,
++        l.league_code,
++        l.league_country
++    from {{ ref('dim_team_competition_season_mapping') }} as m
++    inner join {{ ref('dim_league') }} as l
++        on m.league_code = l.league_code
++    where l.competition_type = 'domestic_league'
++),
++
++compared as (
++    select
++        t.team_api_id,
++        t.team_name,
++        t.team_country,
++        d.league_code,
++        d.league_country,
++        t.team_country is distinct from d.league_country as is_mismatch
++    from domestic_leagues as d
++    inner join {{ ref('dim_team') }} as t
++        on d.team_sk = t.team_sk
++    where not t.is_national_team
++),
++
++named_case as (
++    select
++        49 as team_api_id,
++        'PL' as league_code
++)
++
++select
++    team_api_id,
++    team_name,
++    team_country,
++    league_code,
++    league_country,
++    'club country differs from its domestic league' as failure
++from compared
++where is_mismatch
++
++union all
++
++select
++    n.team_api_id,
++    c.team_name,
++    c.team_country,
++    n.league_code,
++    c.league_country,
++    'named case: Chelsea is not an English club in the Premier League' as failure
++from named_case as n
++left join compared as c
++    on n.team_api_id = c.team_api_id and n.league_code = c.league_code
++where c.is_mismatch is distinct from false
+diff --git a/dbt_project/tests/assert_identity_fields_never_blanked.sql b/dbt_project/tests/assert_identity_fields_never_blanked.sql
+new file mode 100644
+index 00000000..0b9eb892
+--- /dev/null
++++ b/dbt_project/tests/assert_identity_fields_never_blanked.sql
+@@ -0,0 +1,85 @@
++{#
++  A delivery that leaves an identity field empty never blanks it: a player's birth date or
++  nationality, or a team's country, is filled in base wherever any stored delivery holds one,
++  unless player_bio_corrections left it blank because the sources disagree.
++  Named case: H. Abe (33085), whose latest delivery is blank and an earlier one says Japan and
++  1999-01-28, has both.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with player_deliveries as (
++    select
++        safe_cast(player_id as int64) as player_api_id,
++        logical_or({{ possible_birth_date('birth_date', 'raw_ingested_at') }} is not null) as has_birth_date,
++        logical_or(nullif(trim(nationality), '') is not null) as has_nationality
++    from {{ ref('stg_apif__players') }}
++    where player_id is not null
++    group by player_api_id
++),
++
++checked_fields as (
++    select
++        player_api_id,
++        corrected_field
++    from {{ ref('player_bio_corrections') }}
++),
++
++team_deliveries as (
++    select
++        team_api_id,
++        logical_or(team_country is not null) as has_country
++    from {{ ref('base_apif__teams') }}
++    group by team_api_id
++),
++
++named_case as (
++    select 33085 as player_api_id
++)
++
++select
++    'player' as entity,
++    p.player_api_id as entity_id,
++    'birth date blank though a delivery holds one' as failure
++from {{ ref('base_apif__players') }} as p
++inner join player_deliveries as d
++    on p.player_api_id = d.player_api_id
++left join checked_fields as c
++    on p.player_api_id = c.player_api_id and c.corrected_field = 'player_birth_date'
++where d.has_birth_date and p.player_birth_date is null and c.player_api_id is null
++
++union all
++
++select
++    'player' as entity,
++    p.player_api_id as entity_id,
++    'nationality blank though a delivery holds one' as failure
++from {{ ref('base_apif__players') }} as p
++inner join player_deliveries as d
++    on p.player_api_id = d.player_api_id
++left join checked_fields as c
++    on p.player_api_id = c.player_api_id and c.corrected_field = 'player_nationality'
++where d.has_nationality and p.player_nationality is null and c.player_api_id is null
++
++union all
++
++select
++    'team' as entity,
++    t.team_api_id as entity_id,
++    'country blank though a competition row holds one' as failure
++from {{ ref('base_apif__teams_global') }} as t
++inner join team_deliveries as d
++    on t.team_api_id = d.team_api_id
++where d.has_country and t.team_country is null
++
++union all
++
++select
++    'player' as entity,
++    n.player_api_id as entity_id,
++    'named case: H. Abe is not Japanese and born 1999-01-28' as failure
++from named_case as n
++left join {{ ref('base_apif__players') }} as p
++    on n.player_api_id = p.player_api_id
++where
++    p.player_nationality is distinct from 'Japan'
++    or p.player_birth_date is distinct from date '1999-01-28'
+diff --git a/dbt_project/tests/assert_identity_names_stable.sql b/dbt_project/tests/assert_identity_names_stable.sql
+new file mode 100644
+index 00000000..d9cf27f2
+--- /dev/null
++++ b/dbt_project/tests/assert_identity_names_stable.sql
+@@ -0,0 +1,71 @@
++{#
++  A player's surname is the same in every /players delivery, and a team's name is the same in every
++  competition. Surnames are compared without accents, so "M. Pašalić" and "Mario Pasalic" agree.
++  Each row is a player or team named two ways, to research. Named case: player 419517, delivered
++  as "T. Rajmund" and as "R.Tóth", is listed.
++#}
++{{ config(store_failures = true, severity = 'warn') }}
++
++with player_names as (
++    select distinct
++        player_name,
++        safe_cast(player_id as int64) as entity_id,
++        regexp_extract(
++            regexp_replace(normalize(lower(player_name), nfd), r'\pM', ''),
++            r'([a-z][a-z\'-]*)\s*$'
++        ) as surname
++    from {{ ref('stg_apif__players') }}
++    where player_id is not null and player_name is not null
++),
++
++players_named_twice as (
++    select
++        'player' as entity,
++        entity_id,
++        string_agg(distinct player_name, ' | ' order by player_name) as names
++    from player_names
++    group by entity_id
++    having count(distinct surname) > 1
++),
++
++teams_named_twice as (
++    select
++        'team' as entity,
++        team_api_id as entity_id,
++        string_agg(distinct team_name, ' | ' order by team_name) as names
++    from {{ ref('base_apif__teams') }}
++    where team_name is not null
++    group by team_api_id
++    having count(distinct regexp_replace(normalize(lower(team_name), nfd), r'\pM', '')) > 1
++),
++
++listed as (
++    select * from players_named_twice
++    union all
++    select * from teams_named_twice
++),
++
++named_case as (
++    select
++        'player' as entity,
++        419517 as entity_id
++)
++
++select
++    entity,
++    entity_id,
++    names,
++    'named two ways' as failure
++from listed
++
++union all
++
++select
++    n.entity,
++    n.entity_id,
++    cast(null as string) as names,
++    'named case: player 419517 is not listed' as failure
++from named_case as n
++left join listed as l
++    on n.entity = l.entity and n.entity_id = l.entity_id
++where l.entity_id is null
+diff --git a/dbt_project/tests/assert_player_birth_date_plausible.sql b/dbt_project/tests/assert_player_birth_date_plausible.sql
+new file mode 100644
+index 00000000..e09515f3
+--- /dev/null
++++ b/dbt_project/tests/assert_player_birth_date_plausible.sql
+@@ -0,0 +1,73 @@
++{#
++  A player's birth date makes him between 15 and 45 years old in every match he played. Each row
++  is a player whose birth date puts him outside that range in his first or last match; most are
++  provider placeholders such as 1970-01-01, to research. Named case: Lionel Messi (154), born
++  1987-06-24, is never listed.
++#}
++{{ config(store_failures = true, severity = 'warn') }}
++
++with appearances as (
++    select
++        player_sk,
++        fixture_sk
++    from {{ ref('fct_fixture_lineup') }}
++    union distinct
++    select
++        player_sk,
++        fixture_sk
++    from {{ ref('fct_fixture_player_stats') }}
++),
++
++played as (
++    select
++        a.player_sk,
++        min(date(f.fixture_date)) as first_match,
++        max(date(f.fixture_date)) as last_match
++    from appearances as a
++    inner join {{ ref('fct_fixture') }} as f
++        on a.fixture_sk = f.fixture_sk
++    group by a.player_sk
++),
++
++compared as (
++    select
++        p.player_api_id,
++        p.player_name,
++        p.player_birth_date,
++        x.first_match,
++        x.last_match,
++        date_diff(x.first_match, p.player_birth_date, year) < 15
++        or date_diff(x.last_match, p.player_birth_date, year) > 45 as is_implausible
++    from played as x
++    inner join {{ ref('dim_player') }} as p
++        on x.player_sk = p.player_sk
++    where p.player_birth_date is not null
++),
++
++named_case as (
++    select 154 as player_api_id
++)
++
++select
++    player_api_id,
++    player_name,
++    player_birth_date,
++    first_match,
++    last_match,
++    'birth date makes the player younger than 15 or older than 45 in a match' as failure
++from compared
++where is_implausible
++
++union all
++
++select
++    n.player_api_id,
++    c.player_name,
++    c.player_birth_date,
++    c.first_match,
++    c.last_match,
++    'named case: Messi has no plausible birth date' as failure
++from named_case as n
++left join compared as c
++    on n.player_api_id = c.player_api_id
++where c.is_implausible is distinct from false
+diff --git a/dbt_project/tests/assert_player_nationality_matches_national_team.sql b/dbt_project/tests/assert_player_nationality_matches_national_team.sql
+new file mode 100644
+index 00000000..74ca156a
+--- /dev/null
++++ b/dbt_project/tests/assert_player_nationality_matches_national_team.sql
+@@ -0,0 +1,69 @@
++{#
++  A player who appeared for a national team holds that team's nationality. Each row is a player
++  whose nationality is none of the national teams he appeared for; most are dual nationals, the
++  rest are provider errors to research. Named case: Lionel Messi (154), Argentina, appeared for
++  Argentina and is never listed.
++#}
++{{ config(store_failures = true, severity = 'warn') }}
++
++with appearances as (
++    select
++        player_sk,
++        team_sk
++    from {{ ref('fct_fixture_lineup') }}
++    union distinct
++    select
++        player_sk,
++        team_sk
++    from {{ ref('fct_fixture_player_stats') }}
++),
++
++national_teams_played as (
++    select
++        a.player_sk,
++        array_agg(distinct t.team_country ignore nulls order by t.team_country) as national_countries
++    from appearances as a
++    inner join {{ ref('dim_team') }} as t
++        on a.team_sk = t.team_sk
++    where t.is_national_team
++    group by a.player_sk
++),
++
++compared as (
++    select
++        p.player_api_id,
++        p.player_name,
++        p.player_nationality,
++        n.national_countries,
++        p.player_nationality not in unnest(n.national_countries) as is_mismatch
++    from national_teams_played as n
++    inner join {{ ref('dim_player') }} as p
++        on n.player_sk = p.player_sk
++    where p.player_nationality is not null
++),
++
++named_case as (
++    select 154 as player_api_id
++)
++
++select
++    player_api_id,
++    player_name,
++    player_nationality,
++    array_to_string(national_countries, ', ') as national_teams,
++    'nationality is none of the national teams played for' as failure
++from compared
++where is_mismatch
++
++union all
++
++select
++    n.player_api_id,
++    c.player_name,
++    c.player_nationality,
++    array_to_string(c.national_countries, ', ') as national_teams,
++    'named case: Messi is not an Argentina player with Argentinian nationality' as failure
++from named_case as n
++left join compared as c
++    on n.player_api_id = c.player_api_id
++where c.is_mismatch is distinct from false
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/262-identity-last-value/review.md     |  28 +
+#    .../262-identity-last-value/review_input.patch     | 839 +++++++++++++++++++++
+#    2 files changed, 867 insertions(+)
+# ============================================================================

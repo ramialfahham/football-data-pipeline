@@ -31,7 +31,8 @@ models:
     description: >
       One row per team: the settled entity, from the latest ingest across base_apif__teams'
       per-competition rows that carry provider attributes, and from the latest row only where
-      none does. Grain: team_api_id.
+      none does. The name and the country take their last non-NULL value in that order.
+      Grain: team_api_id.
 
       Identity is DECIDED here, not carried through: the name and country corrections from the
       override seeds are applied here, so the core dim publishes a settled entity.
@@ -434,8 +435,10 @@ models:
   - name: base_apif__players
     description: >
       Global player identity: one row per player_api_id, unioned from /players, fixture player
-      stats, the players and assisting players of fixture events, and the match line-ups, then deduplicated in a single pass that prefers the most
-      authoritative named source and, within that, the most recent ingest.
+      stats, the players and assisting players of fixture events, and the match line-ups, then deduplicated by preferring the most
+      authoritative named source and, within that, the most recent ingest. Each identity field
+      (name, first and last name, birth date, nationality) takes its last non-NULL value in that
+      order, so a delivery that leaves it empty never blanks it.
       Grain: player_api_id.
 
       IDENTITY ONLY — no league_code, and no team or season affiliation. A player belongs to
@@ -451,14 +454,15 @@ models:
         description: "{{ doc('player_api_id') }}"
         tests: [not_null]
       - name: has_conflicting_birth_date
-        description: "True when the player's rows from the chosen source and latest ingest hold two real birth dates. A row in player_bio_corrections settles it."
+        description: "True when the player's rows from the delivery that gave his birth date hold two real birth dates. A row in player_bio_corrections settles it."
       - name: has_conflicting_nationality
-        description: "True when the player's rows from the chosen source and latest ingest hold two real nationalities. A row in player_bio_corrections settles it."
+        description: "True when the player's rows from the delivery that gave his nationality hold two real nationalities. A row in player_bio_corrections settles it."
 
   - name: base_apif__player_profiles
     description: >
       Current per-player bio from the rich /players/profiles source
-      (stg_apif__player_profiles), reduced to the latest row per player_id.
+      (stg_apif__player_profiles), reduced to the latest row per player_id; each identity field
+      (name, first and last name, birth date, nationality) takes its last non-NULL value.
       Identity-level only — no league_code, team or season. Grain: player_api_id.
     config:
       tags: ["base", "api_football", "player_context"]
