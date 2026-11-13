@@ -14,6 +14,9 @@ models:
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [league_code, season_api_year, round_name, team_sk, opponent_team_sk]
+      - dbt_utils.unique_combination_of_columns:
+          name: int_knockout_ties_one_tie_per_team_per_round
+          combination_of_columns: [league_code, season_api_year, round_name, team_sk]
       - dbt_utils.expression_is_true:
           expression: "legs_played between 0 and legs"
           name: int_knockout_ties_played_legs_in_range

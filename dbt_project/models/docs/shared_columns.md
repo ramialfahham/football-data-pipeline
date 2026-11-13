@@ -703,8 +703,9 @@ team-season.
 {% enddocs %}
 
 {% docs round_name %}
-The provider's round label for this match (for example 'Regular Season - 12' or
-'Quarter-finals'), carried unchanged from fct_fixture. Free text whose shape varies by
+The round this match belongs to, as the provider's round text (for example 'Regular Season - 12'
+or 'Quarter-finals'); where the provider files the match under another round's name, the
+organiser's round from the fixture_round_corrections seed. Free text whose shape varies by
 competition, so it reads well and sorts badly — never parsed into a value here.
 {% enddocs %}
 

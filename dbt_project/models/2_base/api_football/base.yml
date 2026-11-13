@@ -133,7 +133,8 @@ models:
       score and status are the official ones from the fixture_result_corrections seed, and the
       provider's stay on the row. Where two clubs share a provider team id in a fixture, the
       home and away team ids are corrected from the fixture_team_id_overrides seed's
-      reattribute_in_fixture rows. Grain: fixture_id.
+      reattribute_in_fixture rows. Where the provider files a fixture under another round's name,
+      the round is the organiser's from the fixture_round_corrections seed. Grain: fixture_id.
     config:
       tags: ["base", "api_football", "fixture_context"]
     tests:
@@ -172,6 +173,12 @@ models:
         description: "The provider's status code; differs from status_short only where the league awarded a match the provider files as played."
       - name: result_correction_source
         description: "Where the result was corrected, the source of the official result: the league's or federation's decision or record, or two independent match reports. NULL elsewhere."
+      - name: round_name
+        description: "{{ doc('round_name') }}"
+      - name: provider_round_name
+        description: "The provider's round text; differs from round_name only where the round was corrected."
+      - name: round_correction_source
+        description: "Where the round was corrected, the source of the organiser's round: its published draw or results, or two independent match reports. NULL elsewhere."
 
   - name: base_apif__standings
     description: >

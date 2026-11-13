@@ -23,12 +23,13 @@ labelled as (
             null,
             {{ dbt_utils.generate_surrogate_key(['seasons.league_api_id', 'map.previous_season_api_year']) }}
         ) as previous_season_sk,
-        case leagues.season_type
+        -- An edition the map holds is named by its own kind of season; any other by its competition's.
+        case coalesce(map.season_type, leagues.season_type)
             when 'split_year'
                 then concat(
-                    cast(seasons.season_api_year as string),
+                    cast(coalesce(map.split_year_season, seasons.season_api_year) as string),
                     '/',
-                    lpad(cast(mod(seasons.season_api_year + 1, 100) as string), 2, '0')
+                    lpad(cast(mod(coalesce(map.split_year_season, seasons.season_api_year) + 1, 100) as string), 2, '0')
                 )
             when 'calendar_year' then cast(seasons.season_api_year as string)
         end as season_label

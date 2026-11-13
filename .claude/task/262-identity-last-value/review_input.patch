@@ -96,7 +96,7 @@ index 00000000..25dc7c25
 +amendments:
 +  - 2026-11-12: + dbt_project/tests/assert_identity_fields_never_blanked.sql — authority: decision (6) of decisions_taken, the coordinating session's test-design ruling of 2026-11-13; content: an error-severity test that fails where a player's birth date or nationality, or a team's country, is blank in base while a delivery holds one, with a named case. In the same round base_apif__player_profiles treats a placeholder birth date as empty before the pick, as base_apif__players already does, and base_apif__teams_global computes "has provider attributes" once.
 diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
-index 7da841c3..ac289b88 100644
+index 87453342..6258999d 100644
 --- a/dbt_project/models/2_base/api_football/base.yml
 +++ b/dbt_project/models/2_base/api_football/base.yml
 @@ -31,7 +31,8 @@ models:
@@ -109,7 +109,7 @@ index 7da841c3..ac289b88 100644
  
        Identity is DECIDED here, not carried through: the name and country corrections from the
        override seeds are applied here, so the core dim publishes a settled entity.
-@@ -422,8 +423,10 @@ models:
+@@ -429,8 +430,10 @@ models:
    - name: base_apif__players
      description: >
        Global player identity: one row per player_api_id, unioned from /players, fixture player
@@ -122,7 +122,7 @@ index 7da841c3..ac289b88 100644
        Grain: player_api_id.
  
        IDENTITY ONLY — no league_code, and no team or season affiliation. A player belongs to
-@@ -439,14 +442,15 @@ models:
+@@ -446,14 +449,15 @@ models:
          description: "{{ doc('player_api_id') }}"
          tests: [not_null]
        - name: has_conflicting_birth_date
@@ -235,7 +235,7 @@ index 8e261b53..e8c14f3b 100644
          nullif(
              trim(
 diff --git a/dbt_project/models/2_base/api_football/base_apif__players.sql b/dbt_project/models/2_base/api_football/base_apif__players.sql
-index 314be3b3..f9aee31e 100644
+index 859d9e82..145712c6 100644
 --- a/dbt_project/models/2_base/api_football/base_apif__players.sql
 +++ b/dbt_project/models/2_base/api_football/base_apif__players.sql
 @@ -1,6 +1,6 @@
@@ -256,7 +256,7 @@ index 314be3b3..f9aee31e 100644
          player_photo_url,
          raw_ingested_at,
          1 as source_priority,
-@@ -117,17 +117,10 @@ import_country_name_overrides as (
+@@ -122,17 +122,10 @@ import_country_name_overrides as (
  ),
  
  -- Rows tied on source and ingest time can disagree: a player has one /players row per team and
@@ -277,7 +277,7 @@ index 314be3b3..f9aee31e 100644
          count(distinct player_birth_date) over (
              partition by player_api_id, source_priority, raw_ingested_at
          ) > 1 as has_conflicting_birth_date,
-@@ -135,6 +128,51 @@ latest as (
+@@ -140,6 +133,51 @@ latest as (
              partition by player_api_id, source_priority, raw_ingested_at
          ) > 1 as has_conflicting_nationality
      from src
@@ -329,7 +329,7 @@ index 314be3b3..f9aee31e 100644
      qualify row_number() over (
          partition by player_api_id
          order by
-@@ -152,6 +190,23 @@ latest as (
+@@ -157,6 +195,23 @@ latest as (
      ) = 1
  ),
  
@@ -820,3 +820,20 @@ index 00000000..74ca156a
 +left join compared as c
 +    on n.player_api_id = c.player_api_id
 +where c.is_mismatch is distinct from false
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/262-identity-last-value/review.md     |  26 +
+#    .../262-identity-last-value/review_input.patch     | 822 +++++++++++++++++++++
+#    2 files changed, 848 insertions(+)
+# ============================================================================

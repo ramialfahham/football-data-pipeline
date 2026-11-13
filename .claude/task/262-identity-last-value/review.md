@@ -1,25 +1,27 @@
 # Review — claude/262-identity-last-value — 2026-11-13
 
-diff_sha256: 27c4d24f2a5df37dfcf60e9ba55ddefacae2a9bda106da2d7551ccade70cb63b
+diff_sha256: 1bc17ae7ef7f2bb07c0ab6bd59af6348efb91445c41f16506749434dfe4f07c0
 
-rounds: 3
+rounds: 4
+
+rounds_cap_override: round 4 only re-checks main merged into the branch (the !432 merge), with no conflict and no change to MR B's own diff; approved in chat, 2026-11-13
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
 - Every changed file is inside scope_paths; the amendment that adds assert_identity_fields_never_blanked cites decision (6), the coordinating session's test-design ruling of 2026-11-13, implementing the CPO's design of 2026-11-12.
 - The error-severity guard asserts only what decision (2) already requires and adds no rule; its named case is disclosed in decision (6).
-- blast_radius is re-measured after the profiles placeholder change and records the guard: 0 rows on the new logic; 37 nationalities, 36 birth dates and the named case on prod's current tables; five tests about 0.42 GB a night.
 - Decision (7), a blank nationality counts as empty before the pick, stays inside identity fields and adds no column or mechanism.
-- Identity fields only; no seed, ingestion, staging, export or page file; the reserved decisions (each listed mismatch, Horoya and Hafia) are untouched; the slug keeps reading the settled row's provider country.
+- After main was merged in, the patch over the new main touches only the ten files in scope_paths; main's player_id_override and fixture_player_id are not re-authored here.
+- Identity fields only; no seed, ingestion, staging, export or page file; the reserved decisions are untouched.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
 - The identity pick lives in base, reads only stg_ and base_ models and seeds, and keeps one row per id; non-identity fields keep the latest-row rule.
-- base_apif__player_profiles treats a placeholder birth date as empty before the pick, as base_apif__players does; base_apif__teams_global computes has_attributes once, in the same order as before.
-- A blank or whitespace /players nationality is NULL before the pick, so the guard's definition of blank matches base; the override join keys carry no padding.
-- assert_identity_fields_never_blanked fails if identity_fields reverts to the latest-row pick and leaves out the blanks player_bio_corrections set on purpose; the four warning tests carry store_failures and a named case.
+- In the merged base_apif__players, fixture_players_src takes main's fixture_player_id with qualified arguments; players_src, flagged, identity_fields, latest_row and latest are intact, and the union's columns, types and order are unchanged.
+- Own id -1 has no /players delivery: identity_fields gives it NULL birth date and nationality, its conflict flags are false, and the guard test cannot fire for it.
+- A blank or whitespace /players nationality is NULL before the pick, so the guard's definition of blank matches base; the guard returns 0 rows on the merged logic against prod.
 - No catalogue metric, ratio, seed, export or dbt_project.yml change.
 
 ## escalations

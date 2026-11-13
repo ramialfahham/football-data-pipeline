@@ -1,5 +1,5 @@
--- Every hand correction of a result, from the three correction seeds, is applied, sourced and still
--- needed. One row per broken correction:
+-- Every hand correction of a result or a round, from the four correction seeds, is applied, sourced
+-- and still needed. One row per broken correction:
 --   - not_applied: base has no such match or table row, or does not carry the official figures
 --     and team.
 --   - winner_not_valid: a winner is set where the score already decides, or names a team not in
@@ -15,7 +15,8 @@
 --     beside the row that says the match had no goal.
 --   - no_longer_needed: the provider now carries the official result itself, or every corrected
 --     goal with the same team, player id and minute; a goal without a player id never matches.
---     An award is always needed: the provider never says how it came about.
+--     An award is always needed: the provider never says how it came about. A round correction
+--     is no longer needed once the provider files the fixture under the same round.
 
 {{ config(store_failures = true) }}
 
@@ -37,6 +38,10 @@ standings as (
 
 goal_corrections as (
     select * from {{ ref('fixture_goal_corrections') }}
+),
+
+round_corrections as (
+    select * from {{ ref('fixture_round_corrections') }}
 ),
 
 events as (
@@ -203,6 +208,19 @@ fixture_checks as (
         on c.fixture_id = f.fixture_id
 ),
 
+round_checks as (
+    select
+        'fixture_round_corrections' as seed,
+        cast(c.fixture_id as string) as correction,
+        case
+            when f.fixture_id is null or f.round_name is distinct from c.round_name then 'not_applied'
+            when f.provider_round_name = c.round_name then 'no_longer_needed'
+        end as problem
+    from round_corrections as c
+    left join fixtures as f
+        on c.fixture_id = f.fixture_id
+),
+
 table_checks as (
     select
         'standings_corrections' as seed,
@@ -265,6 +283,13 @@ sources as (
         source_kind,
         source
     from goal_corrections
+    union all
+    select
+        'fixture_round_corrections' as seed,
+        cast(fixture_id as string) as correction,
+        source_kind,
+        source
+    from round_corrections
 ),
 
 source_urls as (
@@ -313,6 +338,13 @@ select
     correction,
     problem
 from goal_checks
+where problem is not null
+union all
+select
+    seed,
+    correction,
+    problem
+from round_checks
 where problem is not null
 union all
 select
