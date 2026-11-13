@@ -102,8 +102,8 @@ def test_the_fetched_rankings_and_leaderboards_follow_the_catalogue(monkeypatch)
 
 def test_a_board_without_a_place_fails_the_export():
     try:
-        export._in_catalogue_order(("goals_penalty_player",), "player")
+        export._in_catalogue_order(("goals_open_play_player",), "player")
     except KeyError as e:
-        assert "goals_penalty_player" in str(e)
+        assert "goals_open_play_player" in str(e)
     else:
         raise AssertionError("a shown board without a catalogue order must fail")

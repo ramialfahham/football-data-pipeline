@@ -2,7 +2,7 @@
 --
 -- This pins the one-team-per-league rule, which the model
 -- implements as `partition by league_code, season_api_year, metric_key`. Under that partition a
--- DENSE_RANK always starts at 1 in every group, so the property holds BY CONSTRUCTION and this test
+-- RANK always starts at 1 in every group, so the property holds BY CONSTRUCTION and this test
 -- asserts the construction. The block reads each league's rank-1 team; a board with no leader in a
 -- league is a board that silently drops that league.
 --

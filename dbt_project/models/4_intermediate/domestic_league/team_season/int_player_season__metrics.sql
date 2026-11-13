@@ -245,7 +245,23 @@ select
     safe_divide(
         if(logical_and(window_is_complete and goals_against is not null), sum(goals_against), null) * 90,
         if(logical_and(window_is_complete and minutes is not null), sum(minutes), null)
-    ) as goals_against_per90
+    ) as goals_against_per90,
+    safe_divide(
+        if(logical_and(window_is_complete and passes_accurate is not null), sum(passes_accurate), null) * 90,
+        if(logical_and(window_is_complete and minutes is not null), sum(minutes), null)
+    ) as passes_accurate_per90,
+    safe_divide(
+        if(logical_and(window_is_complete and dribbles is not null), sum(dribbles), null) * 90,
+        if(logical_and(window_is_complete and minutes is not null), sum(minutes), null)
+    ) as dribbles_attempts_per90,
+    safe_divide(
+        if(logical_and(window_is_complete and duels is not null), sum(duels), null) * 90,
+        if(logical_and(window_is_complete and minutes is not null), sum(minutes), null)
+    ) as duels_per90,
+    safe_divide(
+        if(logical_and(window_is_complete and dribbles_against is not null), sum(dribbles_against), null) * 90,
+        if(logical_and(window_is_complete and minutes is not null), sum(minutes), null)
+    ) as dribbles_past_per90
     -- end of generated metric sql
 from window_rows
 group by player_sk, league_sk, season_sk, league_code, season_api_year

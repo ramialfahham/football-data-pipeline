@@ -299,6 +299,11 @@ The team's position in its league when the teams are ordered by deserved points,
 {% enddocs %}
 
 
+{% docs dribbles_attempts_per90 %}
+Times the player tried to dribble past an opponent, per 90 minutes played.
+{% enddocs %}
+
+
 {% docs dribbles_attempts_per_match %}
 Average number of times the team's players tried to dribble past an opponent per match.
 {% enddocs %}
@@ -306,6 +311,11 @@ Average number of times the team's players tried to dribble past an opponent per
 
 {% docs dribbles_attempts_player %}
 Times the player tried to dribble past an opponent.
+{% enddocs %}
+
+
+{% docs dribbles_past_per90 %}
+Times an opponent dribbled past the player, per 90 minutes played.
 {% enddocs %}
 
 
@@ -337,6 +347,12 @@ Dribbles in which the player got past an opponent.
 {% docs dribbles_success_player_pct %}
 Dribbles in which the player got past an opponent, as a share of the player's attempts to
 dribble past one.
+{% enddocs %}
+
+
+{% docs duels_per90 %}
+One-on-one challenges for the ball, on the ground or in the air, that the player contested, per
+90 minutes played.
 {% enddocs %}
 
 
@@ -703,6 +719,11 @@ now in progress, accumulated through the matches played so far.
 
 {% docs passes_accuracy_player_pct %}
 The player's passes that reached a teammate, as a share of all the player's passes.
+{% enddocs %}
+
+
+{% docs passes_accurate_per90 %}
+The player's passes that reached a teammate, per 90 minutes played.
 {% enddocs %}
 
 

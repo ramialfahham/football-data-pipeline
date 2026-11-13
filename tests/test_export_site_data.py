@@ -1299,8 +1299,8 @@ def test_board_players_are_those_of_the_home_and_competition_boards(tmp_path):
 def test_player_metric_rows_hold_the_seven_key_metrics_in_catalogue_order():
     rows = export_site_data.fetch_player_metric_rows()["rows"]
     assert [r["metric_id"] for r in rows if r["is_key_metric"]] == [
-        "scorer_points_per90", "shots_on_goal_per90", "passes_per90", "ball_actions_per90",
-        "passes_key_per90", "duels_won_per90", "defensive_actions_per90"]
+        "scorer_points_per90", "shots_on_goal_per90", "passes_per90", "passes_key_per90",
+        "ball_actions_per90", "duels_won_per90", "defensive_actions_per90"]
     fouls = next(r for r in rows if r["metric_id"] == "fouls_per90")
     assert fouls["direction"] == "lower_better"
 
