@@ -29,18 +29,23 @@ with players_src as (
 -- Only id, name and photo are known from this source.
 fixture_players_src as (
     select
-        {{ player_id_override('player_id') }} as player_api_id,
-        player_name,
+        {{ fixture_player_id(
+            'stat_line.player_id', 'stat_line.fixture_id', 'stat_line.team_id', 'stat_line.shirt_number'
+        ) }} as player_api_id,
+        stat_line.player_name,
         cast(null as string) as player_first_name,
         cast(null as string) as player_last_name,
         cast(null as date) as player_birth_date,
         cast(null as string) as player_nationality,
-        player_photo_url,
-        raw_ingested_at,
+        stat_line.player_photo_url,
+        stat_line.raw_ingested_at,
         2 as source_priority,
-        fixture_id as tie_recency
-    from {{ ref('stg_apif__fixture_players') }}
-    where player_id is not null and player_id != 0
+        stat_line.fixture_id as tie_recency
+    from {{ ref('stg_apif__fixture_players') }} as stat_line
+    where
+        {{ fixture_player_id(
+            'stat_line.player_id', 'stat_line.fixture_id', 'stat_line.team_id', 'stat_line.shirt_number'
+        ) }} != 0
 ),
 
 -- Event fallback: players seen in match events (broader than player stats), no photo.

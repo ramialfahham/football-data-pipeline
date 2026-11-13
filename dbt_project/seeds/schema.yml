@@ -668,6 +668,40 @@ seeds:
         description: "The match and the official decision, in words."
         tests: [not_null]
 
+  - name: fixture_round_corrections
+    description: >
+      The organiser's round for each fixture the provider files under another round's name, one
+      row per fixture, each naming its source. The round is a round text the provider uses itself,
+      so round_names names it. Applied in base_apif__fixtures_next, which keeps the provider's round
+      next to it. assert_result_corrections_applied fails when a row is not applied, its source is
+      not valid, or the provider now files the fixture under the same round.
+    config:
+      column_types:
+        fixture_id: int64
+        round_name: string
+        source_kind: string
+        source: string
+        note: string
+    columns:
+      - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
+        tests: [not_null, unique]
+      - name: round_name
+        description: "The organiser's round, as the round text the provider uses for it."
+        tests: [not_null]
+      - name: source_kind
+        description: "official = the organiser's published draw or results; match_reports = two independent match reports."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["official", "match_reports"]
+      - name: source
+        description: "The source's https URLs, separated by a space: at least one when official, two on different sites when match_reports."
+        tests: [not_null]
+      - name: note
+        description: "The competition, the round, the date and the match, in words."
+        tests: [not_null]
+
   - name: fixture_goal_corrections
     description: >
       Every goal of a match whose provider goal events are wrong or missing, one row per goal,
@@ -778,7 +812,7 @@ seeds:
               config:
                 where: "card_order > 0"
       - name: player_id
-        description: "The carded player's provider id, as the match's sheet or stat line holds it."
+        description: "The carded player's id as the match's sheet or stat line holds it: the provider's, or the warehouse's own negative id from player_id_overrides where the provider holds none."
         tests:
           - not_null:
               config:
@@ -1539,32 +1573,54 @@ seeds:
 
   - name: player_id_overrides
     description: >
-      One player the provider holds under two ids, one row per duplicate id, naming the id the
-      player keeps.
+      A player's id where the provider's is wrong: one player the provider holds under two ids (one
+      row per duplicate id, naming the id he keeps), or one player the provider holds under the
+      placeholder 0 in a match (one row per match, team and shirt, naming the warehouse's own id). An
+      own id is a negative integer, from -1 downwards, one per person and never reused; provider ids
+      are positive, so the two never collide.
     config:
       column_types:
         wrong_player_api_id: int64
         correct_player_api_id: int64
         mode: string
+        fixture_id: int64
+        team_id: int64
+        shirt_number: int64
+        source: string
         note: string
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fixture_id, team_id, shirt_number]
+          config:
+            where: "mode = 'assign_in_fixture'"
     columns:
       - name: wrong_player_api_id
-        description: "The duplicate id."
+        description: "The duplicate id, or 0, the provider's placeholder, for an assign_in_fixture row."
         tests:
           - not_null
-          - unique
+          - unique:
+              config:
+                where: "mode = 'alias'"
       - name: correct_player_api_id
-        description: "The id the player keeps."
+        description: "The id the player keeps, or the warehouse's own negative id."
         tests:
           - not_null
       - name: mode
-        description: "alias: the duplicate id is replaced everywhere."
+        description: "alias: the duplicate id is replaced everywhere. assign_in_fixture: the placeholder 0 on that team's sheet or stat line with that shirt in that match becomes the own id."
         tests:
           - not_null
           - accepted_values:
-              values: ["alias"]
+              values: ["alias", "assign_in_fixture"]
+      - name: fixture_id
+        description: "The match of an assign_in_fixture row; NULL on an alias row."
+      - name: team_id
+        description: "The team of an assign_in_fixture row; NULL on an alias row."
+      - name: shirt_number
+        description: "The shirt the player wears in that match; NULL on an alias row."
+      - name: source
+        description: "The pages that name the player in that match, https URLs separated by a space; NULL on an alias row."
       - name: note
-        description: "What proves the two ids are one person."
+        description: "What proves the two ids are one person, or who the own id is and why the provider has none."
         tests:
           - not_null
 

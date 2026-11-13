@@ -43,6 +43,12 @@ corrected as (
 -- The league's official result where the provider's differs, from seeds/fixture_result_corrections.csv.
 result_corrections as (
     select * from {{ ref('fixture_result_corrections') }}
+),
+
+-- The organiser's round where the provider files a fixture under another round's name, from
+-- seeds/fixture_round_corrections.csv.
+round_corrections as (
+    select * from {{ ref('fixture_round_corrections') }}
 )
 
 select
@@ -54,7 +60,8 @@ select
     f.kickoff_datetime,
     f.kickoff_timezone,
     f.status_elapsed,
-    f.round_name,
+    f.round_name as provider_round_name,
+    r.source as round_correction_source,
     f.home_team_id,
     f.away_team_id,
     c.awarded_to_team_id,
@@ -71,6 +78,7 @@ select
     f.venue_name,
     f.venue_city,
     f.raw_ingested_at,
+    coalesce(r.round_name, f.round_name) as round_name,
     if(c.awarded, 'AWD', f.status_short) as status_short,
     if(c.awarded, 'Technical loss', f.status_long) as status_long,
     coalesce(c.goals_home, f.goals_home) as goals_home,
@@ -95,3 +103,5 @@ select
 from corrected as f
 left join result_corrections as c
     on f.fixture_id = c.fixture_id
+left join round_corrections as r
+    on f.fixture_id = r.fixture_id

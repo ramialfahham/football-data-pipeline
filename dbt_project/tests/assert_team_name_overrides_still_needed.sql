@@ -4,9 +4,8 @@
 --
 -- Compares against base_apif__teams (PRE-override) rather than base_apif__teams_global,
 -- which is where the coalesce is applied and would therefore always agree with the seed.
--- The dedup below deliberately mirrors base_apif__teams_global's own
--- `qualify row_number() ... order by raw_ingested_at desc` so the comparison is against the
--- same provider row that model would have published.
+-- The dedup below mirrors base_apif__teams_global's own order (the latest row with provider
+-- attributes first) so the comparison is against the same provider row that model publishes.
 --
 -- warn: a dead row changes nothing a fan sees, so it is reported, not a reason to stop the build.
 {{ config(severity = 'warn', store_failures = true) }}
@@ -26,7 +25,13 @@ provider_name as (
     from import_base_apif__teams
     qualify row_number() over (
         partition by team_api_id
-        order by raw_ingested_at desc
+        order by
+            coalesce(
+                team_code, team_country, cast(team_founded_year as string), team_logo_url,
+                cast(venue_api_id as string), venue_name, venue_address, venue_city,
+                cast(venue_capacity as string)
+            ) is null asc,
+            raw_ingested_at desc
     ) = 1
 )
 

@@ -5,6 +5,7 @@ with overrides as (
         wrong_player_api_id,
         correct_player_api_id
     from {{ ref('player_id_overrides') }}
+    where mode = 'alias'
 ),
 
 left_behind as (

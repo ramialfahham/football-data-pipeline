@@ -1,0 +1,530 @@
+diff --git a/.claude/task/262-nightly-green/contract.md b/.claude/task/262-nightly-green/contract.md
+new file mode 100644
+index 00000000..81fd77ca
+--- /dev/null
++++ b/.claude/task/262-nightly-green/contract.md
+@@ -0,0 +1,80 @@
++# Task contract — the nightly green and stable: three failing tests fixed at their root
++
++objective: >
++  Issue #262, first part: the three tests that failed the 11 and 12 Nov nightlies pass on the data
++  that failed them, and the Chelsea failure no longer depends on the order competitions are
++  ingested. A team's settled row is never one with no attributes when another of its rows has
++  them; Peña Sport's researched goal names its scorer's id; a combined table of a league-season
++  that sits beside its group tables is classified with the rankings the page already drops.
++
++refs: >
++  #262 (the CPO's principle note of 2026-11-11: a record that empties a filled field keeps the known
++  value). The three routes were ruled by the coordinating session on 2026-11-12 after the read-only
++  trace of the failing rows; the rest of the guard (players, identity changes held and listed) is a
++  second MR.
++
++scope_paths:
++  - dbt_project/seeds/fixture_goal_corrections.csv
++  - dbt_project/models/2_base/api_football/base_apif__teams_global.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/4_intermediate/shared/int_standings__section_kinds.sql
++  - dbt_project/models/4_intermediate/shared/int_standings__section_kinds.yml
++  - dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql
++  - dbt_project/tests/assert_standings_cross_group_rankings.sql
++  - dbt_project/tests/assert_team_keeps_its_filled_row.sql
++  - dbt_project/tests/assert_team_country_corrections_still_needed.sql
++  - dbt_project/tests/assert_team_name_overrides_still_needed.sql
++  - .claude/task/262-nightly-green/contract.md
++  - .claude/task/262-nightly-green/review.md
++  - .claude/task/262-nightly-green/review_input.patch
++
++impact_map: >
++  writers: dbt only; no ingestion or export change. fixture_goal_corrections is read by
++  base_apif__fixture_events; base_apif__teams_global by dim_team; int_standings__section_kinds by
++  mart_standings, int_team_season__table_state and int_team_season__standings_primary.
++  lineage: `dbt ls --resource-type model --output name --select base_apif__teams_global+
++  int_standings__section_kinds+ fixture_goal_corrections+` returns 90 models, among them
++  base_apif__fixture_events, base_apif__fixture_players_from_lineups, base_apif__lineups,
++  base_apif__players, dim_team, dim_player, fct_fixture_event, fct_fixture_lineup,
++  fct_fixture_player_stats, int_standings__section_kinds, int_team_season__standings_primary,
++  int_team_season__table_state, mart_standings, mart_team_index, mart_team_profile,
++  mart_team_competitions, mart_competition_fixtures, mart_player_fixture_stats,
++  mart_player_profile, mart_leaderboards and every other team and player mart.
++  consumption: the export reads the same columns. mart_standings' table_kind for one section
++  changes from league to ranking, and the competition page drops a ranking
++  (site_v2/src/lib/competitionPayload.mjs), as it did before 2026-11-12.
++  ci_layer_rules: scripts/check_layer_contract.py, scripts/check_description_hygiene.py.
++  deploy_order: one merge; the nightly rebuilds every model. No backfill.
++  blast_radius: measured on prod 2026-11-12. The teams rule changes the settled row of 5 teams
++  whose latest row has no attributes and another row has them (1538, 1551, 225, 4460, 1537); Chelsea
++  (49) is on its filled row today by ingest order and stays on one. The seed cell gives Peña Sport's
++  goal in fixture 1644366 to player 576050, so its 21 line-up rows get their goals. The section rule
++  reclassifies one section, APD 2026 "Liga Profesional Argentina". Exact differences come from the
++  MR build compared with prod.
++
++approved_design:
++  - none: the page change is the existing rule that a ranking is never shown, applied to one more section, and five teams' empty attributes filled from their own provider rows
++
++decisions_taken: >
++  Ruled by the coordinating session on 2026-11-12. (1) Player 576050 scored Peña Sport's goal in
++  fixture 1644366: he stands on the confirmed sheet as "J. Recalde", came on at 57', and the
++  provider's own goal event at 65' names him; the RFEF sheet already in the seed row names Joaquín
++  Recalde. (2) A section the patterns leave as a league, in a league-season with group or conference
++  sections, whose every team also sits in one of those sections, combines them: it is a ranking.
++  The rule is structural, never a league's name; the split-season pin keeps every real phase table
++  out of the rankings and pins APD 2026 "Liga Profesional Argentina" as the one combined table.
++  Showing the combined table is a later product question. (3) base_apif__teams_global settles each
++  team on its latest row that has any provider attribute, and on its latest row only where none
++  has. This is the approved #262 rule for teams. No new mechanism, no recurring cost.
++
++decisions_reserved:
++  - Whether the competition page shows Argentina's combined annual table (a later CPO product question).
++  - The rest of the #262 guard (players; identity changes held and listed) is a second MR.
++
++done_when:
++  - dbt parse passes; sqlfluff lint passes on every changed model and test.
++  - The full pytest suite passes.
++  - The MR's data build passes, and the read-only comparison of its ci_mr tables with prod shows assert_players_from_lineups_goals_add_up, assert_every_standings_section_has_a_table_kind and not_null_mart_team_index_team_country passing on 2026-11-12 data.
++
++amendments:
++  - 2026-11-12: + dbt_project/tests/assert_team_country_corrections_still_needed.sql, dbt_project/tests/assert_team_name_overrides_still_needed.sql — authority: decision (3) of decisions_taken; both tests compare the seeds against the row base_apif__teams_global settles on, so they take its new order; content: that order, nothing else.
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index be803fdc..7da841c3 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -30,7 +30,8 @@ models:
+   - name: base_apif__teams_global
+     description: >
+       One row per team: the settled entity, from the latest ingest across base_apif__teams'
+-      per-competition rows. Grain: team_api_id.
++      per-competition rows that carry provider attributes, and from the latest row only where
++      none does. Grain: team_api_id.
+ 
+       Identity is DECIDED here, not carried through: the name and country corrections from the
+       override seeds are applied here, so the core dim publishes a settled entity.
+diff --git a/dbt_project/models/2_base/api_football/base_apif__teams_global.sql b/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
+index 476b55ec..2ca0693f 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
+@@ -1,4 +1,5 @@
+--- Global team entity: one row per team_api_id (latest ingest across league_code rows).
++-- Global team entity: one row per team_api_id (latest ingest across league_code rows that carry
++-- provider attributes).
+ -- Feeds dim_team. Grain: team_api_id.
+ --
+ -- Applies the hand-curated name corrections here rather than in dim_team so the core
+@@ -25,12 +26,20 @@ import_team_country_corrections as (
+     select * from {{ ref('team_country_corrections') }}
+ ),
+ 
++-- A competition whose /teams list lacks a team gives it a row with a name and no attributes; such a
++-- row never settles a team that has a row with them.
+ latest_per_team as (
+     select *
+     from import_base_apif__teams
+     qualify row_number() over (
+         partition by team_api_id
+-        order by raw_ingested_at desc
++        order by
++            coalesce(
++                team_code, team_country, cast(team_founded_year as string), team_logo_url,
++                cast(venue_api_id as string), venue_name, venue_address, venue_city,
++                cast(venue_capacity as string)
++            ) is null asc,
++            raw_ingested_at desc
+     ) = 1
+ ),
+ 
+diff --git a/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.sql b/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.sql
+index 51fc9997..1061e938 100644
+--- a/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.sql
++++ b/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.sql
+@@ -3,7 +3,9 @@
+   conference or league. The kind is the lowest-priority standings_table_kinds pattern that matches
+   the section's name, and league where none does. A section is also a ranking when it holds one
+   team from each of the league-season's other tables: every team in it sits in exactly one other
+-  section that is not a ranking, and no two of its teams in the same one. mart_standings,
++  section that is not a ranking, and no two of its teams in the same one. A section left as a league
++  whose every team also sits in a group or conference section of the league-season combines those
++  tables, and is a ranking too. mart_standings,
+   int_team_season__table_state and int_team_season__standings_primary read it, so a section has
+   one kind everywhere.
+ 
+@@ -56,6 +58,41 @@ named_kinds as (
+         on s.group_name = m.group_name
+ ),
+ 
++grouped_teams as (
++    select distinct
++        t.league_code,
++        t.season_api_year,
++        t.team_sk
++    from section_teams as t
++    inner join named_kinds as k
++        on
++            t.league_code = k.league_code
++            and t.season_api_year = k.season_api_year
++            and t.group_name = k.group_name
++    where k.table_kind in ('group', 'conference')
++),
++
++combined_tables as (
++    select
++        t.league_code,
++        t.season_api_year,
++        t.group_name
++    from section_teams as t
++    inner join named_kinds as k
++        on
++            t.league_code = k.league_code
++            and t.season_api_year = k.season_api_year
++            and t.group_name = k.group_name
++    left join grouped_teams as g
++        on
++            t.league_code = g.league_code
++            and t.season_api_year = g.season_api_year
++            and t.team_sk = g.team_sk
++    where k.table_kind = 'league'
++    group by t.league_code, t.season_api_year, t.group_name
++    having logical_and(g.team_sk is not null)
++),
++
+ table_teams as (
+     select t.*
+     from section_teams as t
+@@ -64,7 +101,12 @@ table_teams as (
+             t.league_code = k.league_code
+             and t.season_api_year = k.season_api_year
+             and t.group_name = k.group_name
+-    where k.table_kind != 'ranking'
++    left join combined_tables as c
++        on
++            t.league_code = c.league_code
++            and t.season_api_year = c.season_api_year
++            and t.group_name = c.group_name
++    where k.table_kind != 'ranking' and c.group_name is null
+ ),
+ 
+ team_other_tables as (
+@@ -102,10 +144,15 @@ select
+     k.league_code,
+     k.season_api_year,
+     k.group_name,
+-    if(r.group_name is null, k.table_kind, 'ranking') as table_kind
++    if(r.group_name is null and c.group_name is null, k.table_kind, 'ranking') as table_kind
+ from named_kinds as k
+ left join cross_group_rankings as r
+     on
+         k.league_code = r.league_code
+         and k.season_api_year = r.season_api_year
+         and k.group_name = r.group_name
++left join combined_tables as c
++    on
++        k.league_code = c.league_code
++        and k.season_api_year = c.season_api_year
++        and k.group_name = c.group_name
+diff --git a/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.yml b/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.yml
+index fc4083df..0bd6cf95 100644
+--- a/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.yml
++++ b/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.yml
+@@ -6,7 +6,8 @@ models:
+       What kind of table each standings section of a league-season is. The kind is the first
+       standings_table_kinds pattern by priority that matches the section's name, and league where
+       none does; a section that holds one team from each of the league-season's other tables is
+-      a ranking. mart_standings, int_team_season__table_state and
++      a ranking, and so is a section left as a league whose every team also sits in one of the
++      league-season's group or conference tables. mart_standings, int_team_season__table_state and
+       int_team_season__standings_primary read it. Grain: (league_code, season_api_year,
+       group_name).
+     tests:
+diff --git a/dbt_project/seeds/fixture_goal_corrections.csv b/dbt_project/seeds/fixture_goal_corrections.csv
+index 013fb10d..0b6ded83 100644
+--- a/dbt_project/seeds/fixture_goal_corrections.csv
++++ b/dbt_project/seeds/fixture_goal_corrections.csv
+@@ -122,6 +122,6 @@ fixture_id,goal_order,team_id,player_id,player_name,minute_elapsed,minute_extra,
+ 1644366,1,726,399910,Marc Aznar,22,,Normal Goal,,,official,https://resultados.rfef.es/pnfg/NPcd/NFG_CmpPartido?cod_primaria=1000120&CodActa=70705538&cod_acta=70705538,"Peña Sport-Huesca, Copa del Rey first round 29 Oct 2026: 1-5; the RFEF match sheet names every scorer and minute and no assists"
+ 1644366,2,726,182685,Diego Collado,31,,Normal Goal,,,official,https://resultados.rfef.es/pnfg/NPcd/NFG_CmpPartido?cod_primaria=1000120&CodActa=70705538&cod_acta=70705538,"Peña Sport-Huesca, Copa del Rey first round 29 Oct 2026: 1-5; the RFEF match sheet names every scorer and minute and no assists"
+ 1644366,3,726,187431,Mario García,55,,Normal Goal,,,official,https://resultados.rfef.es/pnfg/NPcd/NFG_CmpPartido?cod_primaria=1000120&CodActa=70705538&cod_acta=70705538,"Peña Sport-Huesca, Copa del Rey first round 29 Oct 2026: 1-5; the RFEF match sheet names every scorer and minute and no assists"
+-1644366,4,9406,,Joaquín Recalde,66,,Normal Goal,,,official,https://resultados.rfef.es/pnfg/NPcd/NFG_CmpPartido?cod_primaria=1000120&CodActa=70705538&cod_acta=70705538,"Peña Sport-Huesca, Copa del Rey first round 29 Oct 2026: 1-5; the RFEF match sheet names every scorer and minute and no assists"
++1644366,4,9406,576050,Joaquín Recalde,66,,Normal Goal,,,official,https://resultados.rfef.es/pnfg/NPcd/NFG_CmpPartido?cod_primaria=1000120&CodActa=70705538&cod_acta=70705538,"Peña Sport-Huesca, Copa del Rey first round 29 Oct 2026: 1-5; the RFEF match sheet names every scorer and minute and no assists"
+ 1644366,5,726,185459,Luismi Redondo,67,,Normal Goal,,,official,https://resultados.rfef.es/pnfg/NPcd/NFG_CmpPartido?cod_primaria=1000120&CodActa=70705538&cod_acta=70705538,"Peña Sport-Huesca, Copa del Rey first round 29 Oct 2026: 1-5; the RFEF match sheet names every scorer and minute and no assists"
+ 1644366,6,726,182609,Ander Gorostidi,89,,Normal Goal,,,official,https://resultados.rfef.es/pnfg/NPcd/NFG_CmpPartido?cod_primaria=1000120&CodActa=70705538&cod_acta=70705538,"Peña Sport-Huesca, Copa del Rey first round 29 Oct 2026: 1-5; the RFEF match sheet names every scorer and minute and no assists"
+diff --git a/dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql b/dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql
+index 2fd3cd16..e9158ef8 100644
+--- a/dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql
++++ b/dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql
+@@ -1,6 +1,7 @@
+ -- A standings section's table_kind is the lowest-priority seed pattern that matches its name,
+ -- and a name no pattern matches is the competition's own league table. A section holding one team
+--- from each of the league-season's other tables is a ranking whatever its name. Two things can go wrong
++-- from each of the league-season's other tables is a ranking whatever its name, and so is a section
++-- left as a league whose every team also sits in a group or conference section. Two things can go wrong
+ -- silently: a new section name the seed does not cover falls through to "league" and gets
+ -- rendered as the competition's ladder next to its real groups; or a seed edit lets one name
+ -- match two kinds. Both show up as a league-kind section sharing a competition-season with a
+@@ -74,8 +75,46 @@ team_sections as (
+             and f.group_name = n.group_name
+ ),
+ 
+--- For each team of a section, the other sections of its league-season it sits in that are not
+--- named rankings.
++grouped as (
++    select distinct
++        league_code,
++        season_api_year,
++        team_sk
++    from team_sections
++    where named_kind in ('group', 'conference')
++),
++
++-- A league-named section none of whose teams is missing from the league-season's group and
++-- conference sections combines them.
++combined as (
++    select
++        a.league_code,
++        a.season_api_year,
++        a.group_name
++    from team_sections as a
++    left join grouped as g
++        on
++            a.league_code = g.league_code
++            and a.season_api_year = g.season_api_year
++            and a.team_sk = g.team_sk
++    where a.named_kind = 'league'
++    group by 1, 2, 3
++    having countif(g.team_sk is null) = 0
++),
++
++table_sections as (
++    select t.*
++    from team_sections as t
++    left join combined as c
++        on
++            t.league_code = c.league_code
++            and t.season_api_year = c.season_api_year
++            and t.group_name = c.group_name
++    where c.group_name is null
++),
++
++-- For each team of a section, the other sections of its league-season it sits in that are neither
++-- named rankings nor combined tables.
+ team_elsewhere as (
+     select
+         a.league_code,
+@@ -84,7 +123,7 @@ team_elsewhere as (
+         a.team_sk,
+         array_agg(distinct b.group_name ignore nulls) as elsewhere
+     from team_sections as a
+-    left join team_sections as b
++    left join table_sections as b
+         on
+             a.league_code = b.league_code
+             and a.season_api_year = b.season_api_year
+@@ -113,13 +152,18 @@ resolved as (
+         n.league_code,
+         n.season_api_year,
+         n.group_name,
+-        if(o.group_name is null, n.named_kind, 'ranking') as expected_kind
++        if(o.group_name is null and c.group_name is null, n.named_kind, 'ranking') as expected_kind
+     from named as n
+     left join one_team_per_table as o
+         on
+             n.league_code = o.league_code
+             and n.season_api_year = o.season_api_year
+             and n.group_name = o.group_name
++    left join combined as c
++        on
++            n.league_code = c.league_code
++            and n.season_api_year = c.season_api_year
++            and n.group_name = c.group_name
+ ),
+ 
+ served as (
+diff --git a/dbt_project/tests/assert_standings_cross_group_rankings.sql b/dbt_project/tests/assert_standings_cross_group_rankings.sql
+index b096e64c..5fed451f 100644
+--- a/dbt_project/tests/assert_standings_cross_group_rankings.sql
++++ b/dbt_project/tests/assert_standings_cross_group_rankings.sql
+@@ -1,9 +1,10 @@
+ {#
+   A cross-group ranking is a ranking and a real table never is. WC 2026 "Group Stage" and ACN 2027
+   "Groups" hold one team from each group, so they are rankings, and every other section of those
+-  two league-seasons stays a group. No section of a split-season league (BPL, VL, KL1, LMX, APD)
+-  is a ranking, though each of its teams sits in two tables. Each failing row is a section whose
+-  kind breaks one of these.
++  two league-seasons stays a group. APD 2026 "Liga Profesional Argentina" combines the season's
++  group tables, so it is a ranking; no other section of a split-season league (BPL, VL, KL1, LMX,
++  APD) is, though each of its teams sits in two tables. Each failing row is a section whose kind
++  breaks one of these.
+ #}
+ {{ config(store_failures = true, severity = 'error') }}
+ 
+@@ -23,6 +24,13 @@ rankings as (
+         'Groups' as group_name
+ ),
+ 
++combined_tables as (
++    select
++        'APD' as league_code,
++        2026 as season_api_year,
++        'Liga Profesional Argentina' as group_name
++),
++
+ ranking_seasons as (
+     select distinct
+         league_code,
+@@ -65,10 +73,31 @@ where r.group_name is null and k.table_kind != 'group'
+ union all
+ 
+ select
+-    league_code,
+-    season_api_year,
+-    group_name,
+-    table_kind,
++    c.league_code,
++    c.season_api_year,
++    c.group_name,
++    k.table_kind,
++    'a combined table' as expected
++from combined_tables as c
++left join kinds as k
++    on
++        c.league_code = k.league_code
++        and c.season_api_year = k.season_api_year
++        and c.group_name = k.group_name
++where k.table_kind is distinct from 'ranking'
++
++union all
++
++select
++    k.league_code,
++    k.season_api_year,
++    k.group_name,
++    k.table_kind,
+     'never a ranking in a split season' as expected
+-from kinds
+-where league_code in ('BPL', 'VL', 'KL1', 'LMX', 'APD') and table_kind = 'ranking'
++from kinds as k
++left join combined_tables as c
++    on
++        k.league_code = c.league_code
++        and k.season_api_year = c.season_api_year
++        and k.group_name = c.group_name
++where k.league_code in ('BPL', 'VL', 'KL1', 'LMX', 'APD') and k.table_kind = 'ranking' and c.group_name is null
+diff --git a/dbt_project/tests/assert_team_country_corrections_still_needed.sql b/dbt_project/tests/assert_team_country_corrections_still_needed.sql
+index 8053945f..d4efbb0c 100644
+--- a/dbt_project/tests/assert_team_country_corrections_still_needed.sql
++++ b/dbt_project/tests/assert_team_country_corrections_still_needed.sql
+@@ -19,7 +19,13 @@ provider_country as (
+     from import_base_apif__teams
+     qualify row_number() over (
+         partition by team_api_id
+-        order by raw_ingested_at desc
++        order by
++            coalesce(
++                team_code, team_country, cast(team_founded_year as string), team_logo_url,
++                cast(venue_api_id as string), venue_name, venue_address, venue_city,
++                cast(venue_capacity as string)
++            ) is null asc,
++            raw_ingested_at desc
+     ) = 1
+ )
+ 
+diff --git a/dbt_project/tests/assert_team_keeps_its_filled_row.sql b/dbt_project/tests/assert_team_keeps_its_filled_row.sql
+new file mode 100644
+index 00000000..a9bf7838
+--- /dev/null
++++ b/dbt_project/tests/assert_team_keeps_its_filled_row.sql
+@@ -0,0 +1,66 @@
++{#
++  A team is never settled on a row with no provider attributes while another of its competition
++  rows has them, whatever order the competitions were ingested in. Chelsea (49) is the named case:
++  its UESC row carries only a name, and its other rows say England, CHE and Stamford Bridge. Each
++  failing row is a team settled on an empty row, or Chelsea settled on anything but its filled one.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with competition_rows as (
++    select
++        team_api_id,
++        logical_or(
++            coalesce(
++                team_code, team_country, cast(team_founded_year as string), team_logo_url,
++                cast(venue_api_id as string), venue_name, venue_address, venue_city,
++                cast(venue_capacity as string)
++            ) is not null
++        ) as has_a_filled_row
++    from {{ ref('base_apif__teams') }}
++    group by team_api_id
++),
++
++settled as (
++    select
++        team_api_id,
++        team_country,
++        team_code,
++        venue_name,
++        coalesce(
++            team_code, team_country, cast(team_founded_year as string), team_logo_url,
++            cast(venue_api_id as string), venue_name, venue_address, venue_city,
++            cast(venue_capacity as string)
++        ) is null as is_empty
++    from {{ ref('dim_team') }}
++),
++
++named_case as (
++    select 49 as team_api_id
++)
++
++select
++    s.team_api_id,
++    s.team_country,
++    s.team_code,
++    s.venue_name,
++    'settled on an empty row' as failure
++from settled as s
++inner join competition_rows as c
++    on s.team_api_id = c.team_api_id
++where s.is_empty and c.has_a_filled_row
++
++union all
++
++select
++    n.team_api_id,
++    s.team_country,
++    s.team_code,
++    s.venue_name,
++    'Chelsea is not on its filled row' as failure
++from named_case as n
++left join settled as s
++    on n.team_api_id = s.team_api_id
++where
++    s.team_country is distinct from 'England'
++    or s.team_code is distinct from 'CHE'
++    or s.venue_name is distinct from 'Stamford Bridge'
+diff --git a/dbt_project/tests/assert_team_name_overrides_still_needed.sql b/dbt_project/tests/assert_team_name_overrides_still_needed.sql
+index 03efe805..941d76d2 100644
+--- a/dbt_project/tests/assert_team_name_overrides_still_needed.sql
++++ b/dbt_project/tests/assert_team_name_overrides_still_needed.sql
+@@ -4,9 +4,8 @@
+ --
+ -- Compares against base_apif__teams (PRE-override) rather than base_apif__teams_global,
+ -- which is where the coalesce is applied and would therefore always agree with the seed.
+--- The dedup below deliberately mirrors base_apif__teams_global's own
+--- `qualify row_number() ... order by raw_ingested_at desc` so the comparison is against the
+--- same provider row that model would have published.
++-- The dedup below mirrors base_apif__teams_global's own order (the latest row with provider
++-- attributes first) so the comparison is against the same provider row that model publishes.
+ --
+ -- warn: a dead row changes nothing a fan sees, so it is reported, not a reason to stop the build.
+ {{ config(severity = 'warn', store_failures = true) }}
+@@ -26,7 +25,13 @@ provider_name as (
+     from import_base_apif__teams
+     qualify row_number() over (
+         partition by team_api_id
+-        order by raw_ingested_at desc
++        order by
++            coalesce(
++                team_code, team_country, cast(team_founded_year as string), team_logo_url,
++                cast(venue_api_id as string), venue_name, venue_address, venue_city,
++                cast(venue_capacity as string)
++            ) is null asc,
++            raw_ingested_at desc
+     ) = 1
+ )
+ 
