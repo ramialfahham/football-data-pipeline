@@ -1,46 +1,397 @@
 diff --git a/.claude/task/262-french-guiana-country/contract.md b/.claude/task/262-french-guiana-country/contract.md
 new file mode 100644
-index 00000000..6b4bb39b
+index 00000000..3b39c085
 --- /dev/null
 +++ b/.claude/task/262-french-guiana-country/contract.md
-@@ -0,0 +1,37 @@
-+# Task contract — French Guiana keeps its country when the provider sends Guyana
+@@ -0,0 +1,101 @@
++# Task contract — the two provider defects that failed the 13 Nov nightly, fixed at their source
 +
 +objective: >
-+  Issue #262: the 13 Nov nightly failed unique_dim_team_team_country because the provider's CONCACAF
-+  Nations League delivery of 13 Nov gives French Guiana's national team (team 8118, "French Guyana")
-+  the country Guyana, which Guyana's own national team (5162) holds. Through 12 Nov it sent
-+  French-Guiana. One team_country_corrections row restores French Guiana.
++  Issue #262: the 13 Nov nightly failed two tests on provider data. (1) unique_dim_team_team_country:
++  the provider's CONCACAF Nations League delivery of 13 Nov gives French Guiana's national team (team
++  8118, "French Guyana") the country Guyana, which Guyana's own national team (5162) holds; through
++  12 Nov it sent French-Guiana. One team_country_corrections row restores French Guiana.
++  (2) assert_player_stat_corrections_within_limit: Copa del Rey 2026 reached 12.5% corrected player
++  rows against the 8% limit, 18 of them Navalcarnero's in fixture 1644363 (Navalcarnero 2-3 Real
++  Betis, 12 Nov 2026, after extra time), whose cards the cleaning blanks because the provider's card
++  events name players with no stat line. The match's cards go into fixture_card_corrections from two
++  match reports; the one carded player the provider holds no id for, Víctor Rodríguez, gets the
++  warehouse's own player id. Each fix's data build fails on the other's test, so one MR carries both.
 +
 +refs: >
-+  #262; route ruled by the coordinating session on 2026-11-13 after the read-only trace of the
-+  failing row. The other 13 Nov failure (Copa del Rey fixture 1644363's cards) waits on the official
-+  match sheet and is not part of this task.
++  #262; routes ruled by the coordinating session on 2026-11-13 after the read-only trace of both
++  failing rows: rfef.es is a stopped site, so the cards come from two independent match reports on
++  sites whose robots and terms allow reading (the #176 source rules). The CPO answered in chat on
++  2026-11-13 that every player has an id; the own-id plan was approved by the coordinating session
++  the same day for the cto-reviewer route.
 +
 +scope_paths:
 +  - dbt_project/seeds/team_country_corrections.csv
++  - dbt_project/seeds/fixture_card_corrections.csv
++  - dbt_project/seeds/player_id_overrides.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/macros/player_id_override.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++  - dbt_project/models/2_base/api_football/base_apif__lineups.sql
++  - dbt_project/models/2_base/api_football/base_apif__players.sql
++  - dbt_project/tests/assert_player_id_overrides_merged.sql
++  - dbt_project/tests/assert_own_player_ids.sql
 +  - .claude/task/262-french-guiana-country/contract.md
 +  - .claude/task/262-french-guiana-country/review.md
 +  - .claude/task/262-french-guiana-country/review_input.patch
 +
++impact_map: >
++  writers: dbt only; no ingestion, export or site change. The seeds team_country_corrections
++  (base_apif__teams_global), fixture_card_corrections (base_apif__fixture_events,
++  base_apif__fixture_players) and player_id_overrides (the player_id_override macro, used in 13
++  places across 8 base models: base_apif__fixture_events, _fixture_players, _lineups, _players,
++  _player_profiles, _player_team_season, _squads, _transfers).
++  lineage: `dbt ls --resource-type model --output name --select base_apif__fixture_players+
++  base_apif__lineups+ base_apif__players+ player_id_overrides+ fixture_card_corrections+` returns 89
++  models: the 10 base models above with base_apif__fixture_players_from_lineups and
++  base_apif__fixture_statistics; dim_player, dim_player_team_season_mapping, fct_fixture_event,
++  fct_fixture_lineup, fct_fixture_player_stats, fct_fixture_team_stats, fct_transfer; 39
++  int_player_*, int_team_*, int_legs__* and int_standings__official_rank models; and 33 marts, among
++  them mart_player_fixture_stats, mart_player_profile, mart_player_index, mart_leaderboards,
++  mart_roster, mart_competition_fixtures and mart_team_profile.
++  ci_layer_rules: scripts/check_layer_contract.py, scripts/check_description_hygiene.py.
++  deploy_order: one merge; the nightly rebuilds every model. No backfill.
++  blast_radius: measured on prod 2026-11-13, read-only. The macro keeps every alias row's effect
++  unchanged (it now reads alias rows only, as all 8 rows are). The assign_in_fixture row changes one
++  stat line: fixture 1644363, Navalcarnero shirt 5, from the dropped placeholder 0 to player -1, so
++  Navalcarnero gains one player-match row (120 minutes) and dim_player one player. The nine card rows
++  replace the match's provider card events; the 18 Navalcarnero rows lose their cards_need_research
++  blank, so Copa del Rey 2026 goes from 21 to 3 corrected rows of 168. Team 8118's country becomes
++  French Guiana. The provider sends the placeholder 0 on 6,712 stat lines in 1,627 matches; none
++  other changes, because an own id is only ever assigned by a researched row.
++
 +approved_design:
-+  - none: no page output changes; team 8118 keeps the country it showed until 12 Nov
++  - none: no page layout changes; team 8118 keeps its country, Navalcarnero's players in fixture 1644363 show their cards, and Víctor Rodríguez appears in that match as a player
 +
 +decisions_taken: >
-+  Ruled by the coordinating session on 2026-11-13. Team 8118 is French Guiana: the provider's own
++  Ruled by the coordinating session on 2026-11-13. (1) Team 8118 is French Guiana: the provider's own
 +  /teams delivery said French-Guiana until 12 Nov, and Concacaf's 2026/27 Nations League groups page
 +  lists French Guiana and Guyana as two separate national teams. The row records the wrong provider
 +  value, Guyana, so assert_team_country_corrections_still_needed warns when the provider returns to
-+  French-Guiana. A seed row through the existing mechanism; no new mechanism, no recurring cost.
++  French-Guiana. (2) The cards of fixture 1644363 come from two match reports on allowed sites:
++  laliga.com's Spanish match page (robots allows /partido/; its legal notice bans no automated
++  reading) and 101tv.es's live report (robots allows it; no ban in its legal notice). They agree on
++  every card: Navalcarnero, Varo López Y 54', Mario Jiménez Y 90+4', Víctor Rodríguez Y 116', Kensly
++  Vázquez Y 120+2'; Real Betis, Lo Celso Y 37', Ruibal Y 90+4', Bartra Y 103', Ruibal second Y and red
++  118'. Player ids are the provider's, from the match's stat lines; Varo López is 459051 (shirt 23).
++  (3) Every player has an id (the CPO, in chat, 2026-11-13). The provider has none for Víctor
++  Rodríguez: its stat line holds the placeholder 0, and Navalcarnero's squad list, /players, the
++  profiles and Navalcarnero's other matches hold no record of him. The warehouse gives him its own
++  id, -1. Own player ids are negative integers from -1 downwards, one per person, never reused:
++  provider ids are positive and 0 is the provider's placeholder, so they can never collide; it is the
++  convention of the five own team ids (-1 to -5). (4) The record reuses player_id_overrides with a
++  new mode, assign_in_fixture, mirroring fixture_team_id_overrides' reattribute_in_fixture: the
++  provider's placeholder 0 on team T's sheet or stat line with shirt N in fixture F becomes the own
++  id. The seed gains fixture_id, team_id, shirt_number and source, blank on alias rows. The
++  player_id_override macro reads alias rows only; a fixture-scoped macro next to it applies
++  assign_in_fixture where base reads a sheet or a stat line (base_apif__fixture_players,
++  base_apif__lineups, base_apif__players), before the placeholder is dropped. The player then has a
++  stat line, a dim_player row and his card, like any other player. (5) assert_player_id_overrides_merged
++  and the seed's unique test on the wrong id read alias rows only; assert_own_player_ids pins the own
++  ids. This is a new kind of record, so the round includes cto-reviewer. No recurring cost.
 +
 +decisions_reserved:
-+  - The Copa del Rey cards of fixture 1644363, which need the official match sheet.
++  - The provider's second id for Varo López (644022 on the events, 459051 on the stat line), a player_id_overrides alias question.
 +
 +done_when:
-+  - dbt parse passes and the full pytest suite passes.
-+  - The MR's data build passes unique_dim_team_team_country, and its dim_team differs from prod only in team 8118's country.
++  - dbt parse passes; sqlfluff lint passes on every changed model, macro and test.
++  - The full pytest suite passes.
++  - The MR's data build passes unique_dim_team_team_country, assert_player_stat_corrections_within_limit, assert_card_corrections_applied, assert_player_id_overrides_merged and assert_own_player_ids; compared with prod, team 8118's country, fixture 1644363's cards and player -1 are the only changes.
 +
-+amendments: (none)
++amendments:
++  - 2026-11-13: + dbt_project/seeds/fixture_card_corrections.csv, dbt_project/seeds/player_id_overrides.csv, dbt_project/seeds/schema.yml, dbt_project/macros/player_id_override.sql, the three base models and the two tests — authority: the coordinating session's rulings of 2026-11-13 that one MR carries both seed fixes, because each fix's data build fails on the other's test, and that the own-player-id plan is built here; content: decisions (2) to (5).
+diff --git a/dbt_project/macros/player_id_override.sql b/dbt_project/macros/player_id_override.sql
+index 5e40d9a9..d38a1000 100644
+--- a/dbt_project/macros/player_id_override.sql
++++ b/dbt_project/macros/player_id_override.sql
+@@ -4,8 +4,26 @@
+         (
+             select override.correct_player_api_id
+             from {{ ref('player_id_overrides') }} as override
+-            where override.wrong_player_api_id = {{ player_id }}
++            where override.mode = 'alias' and override.wrong_player_api_id = {{ player_id }}
+         ),
+         {{ player_id }}
+     )
+ {%- endmacro %}
++
++{#- The id of a player on a team's sheet or stat line of one match: the warehouse's own id where the
++    provider holds the placeholder 0 for that shirt, otherwise the id he keeps. -#}
++{% macro fixture_player_id(player_id, fixture_id, team_id, shirt_number) -%}
++    coalesce(
++        (
++            select override.correct_player_api_id
++            from {{ ref('player_id_overrides') }} as override
++            where
++                override.mode = 'assign_in_fixture'
++                and override.wrong_player_api_id = coalesce({{ player_id }}, 0)
++                and override.fixture_id = {{ fixture_id }}
++                and override.team_id = {{ team_id }}
++                and override.shirt_number = {{ shirt_number }}
++        ),
++        {{ player_id_override(player_id) }}
++    )
++{%- endmacro %}
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+index ae81fb82..17a9d89d 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+@@ -11,12 +11,24 @@
+   Every change made by steps 3 and 4 is listed on its row in stat_corrections.
+ #}
+ 
+-with src as (
++with stat_lines as (
++    select
++        stat_line.*,
++        {{ fixture_player_id(
++            'stat_line.player_id', 'stat_line.fixture_id', 'stat_line.team_id', 'stat_line.shirt_number'
++        ) }} as kept_player_id
++    from {{ ref('stg_apif__fixture_players') }} as stat_line
++    where
++        stat_line.fixture_id is not null
++        and stat_line.team_id is not null
++),
++
++src as (
+     select
+         league_code,
+         fixture_id,
+         team_id,
+-        {{ player_id_override('player_id') }} as player_id,
++        kept_player_id as player_id,
+         minutes_played,
+         shirt_number,
+         position_code,
+@@ -50,14 +62,12 @@ with src as (
+         penalty_missed,
+         penalty_saved,
+         raw_ingested_at
+-    from {{ ref('stg_apif__fixture_players') }}
++    from stat_lines
+     where
+-        fixture_id is not null
+-        and team_id is not null
+-        and player_id is not null
++        kept_player_id is not null
+         -- player_id = 0 is the API placeholder for an unknown player (no real id);
+         -- it is not a real player and produces phantom cross-team duplicate legs.
+-        and player_id != 0
++        and kept_player_id != 0
+ ),
+ 
+ -- Fixture participants (home/away team ids), used to evaluate the reattribute_if_cohabiting
+diff --git a/dbt_project/models/2_base/api_football/base_apif__lineups.sql b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
+index 03661444..2b2af5db 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__lineups.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
+@@ -109,23 +109,36 @@ named as (
+         unnest(json_query_array(latest.substitutes_json)) as player_el with offset as sheet_index
+ ),
+ 
+-parsed as (
++sheet_ids as (
+     select
+-        league_code,
+-        fixture_id,
+-        team_id,
+-        formation,
+-        raw_ingested_at,
+-        is_starter,
+-        sheet_index,
+-        {{ player_id_override("nullif(safe_cast(json_value(player_el, '$.player.id') as int64), 0)") }} as player_id,
+-        {{ decode_html_entities("json_value(player_el, '$.player.name')") }} as player_name,
+-        safe_cast(json_value(player_el, '$.player.number') as int64) as shirt_number,
+-        json_value(player_el, '$.player.pos') as position_code,
+-        json_value(player_el, '$.player.grid') as grid_position
++        *,
++        coalesce(safe_cast(json_value(player_el, '$.player.id') as int64), 0) as provider_player_id,
++        safe_cast(json_value(player_el, '$.player.number') as int64) as provider_shirt_number
+     from named
+ ),
+ 
++parsed as (
++    select
++        sheet.league_code,
++        sheet.fixture_id,
++        sheet.team_id,
++        sheet.formation,
++        sheet.raw_ingested_at,
++        sheet.is_starter,
++        sheet.sheet_index,
++        nullif(
++            {{ fixture_player_id(
++                'sheet.provider_player_id', 'sheet.fixture_id', 'sheet.team_id', 'sheet.provider_shirt_number'
++            ) }},
++            0
++        ) as player_id,
++        {{ decode_html_entities("json_value(sheet.player_el, '$.player.name')") }} as player_name,
++        sheet.provider_shirt_number as shirt_number,
++        json_value(sheet.player_el, '$.player.pos') as position_code,
++        json_value(sheet.player_el, '$.player.grid') as grid_position
++    from sheet_ids as sheet
++),
++
+ provider_sheets as (
+     select
+         league_code,
+diff --git a/dbt_project/models/2_base/api_football/base_apif__players.sql b/dbt_project/models/2_base/api_football/base_apif__players.sql
+index 314be3b3..859d9e82 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__players.sql
+@@ -29,18 +29,23 @@ with players_src as (
+ -- Only id, name and photo are known from this source.
+ fixture_players_src as (
+     select
+-        {{ player_id_override('player_id') }} as player_api_id,
+-        player_name,
++        {{ fixture_player_id(
++            'stat_line.player_id', 'stat_line.fixture_id', 'stat_line.team_id', 'stat_line.shirt_number'
++        ) }} as player_api_id,
++        stat_line.player_name,
+         cast(null as string) as player_first_name,
+         cast(null as string) as player_last_name,
+         cast(null as date) as player_birth_date,
+         cast(null as string) as player_nationality,
+-        player_photo_url,
+-        raw_ingested_at,
++        stat_line.player_photo_url,
++        stat_line.raw_ingested_at,
+         2 as source_priority,
+-        fixture_id as tie_recency
+-    from {{ ref('stg_apif__fixture_players') }}
+-    where player_id is not null and player_id != 0
++        stat_line.fixture_id as tie_recency
++    from {{ ref('stg_apif__fixture_players') }} as stat_line
++    where
++        {{ fixture_player_id(
++            'stat_line.player_id', 'stat_line.fixture_id', 'stat_line.team_id', 'stat_line.shirt_number'
++        ) }} != 0
+ ),
+ 
+ -- Event fallback: players seen in match events (broader than player stats), no photo.
+diff --git a/dbt_project/seeds/fixture_card_corrections.csv b/dbt_project/seeds/fixture_card_corrections.csv
+index 4cbb5eb8..07ae3338 100644
+--- a/dbt_project/seeds/fixture_card_corrections.csv
++++ b/dbt_project/seeds/fixture_card_corrections.csv
+@@ -1909,3 +1909,12 @@ fixture_id,card_order,team_id,player_id,player_name,minute_elapsed,minute_extra,
+ 1139061,4,9398,182798,Manolo Molina,113,,Yellow Card,match_reports,https://www.espn.com/soccer/match/_/gameId/689415 https://www.kicker.de/ucam-gegen-linares-2023-copa-del-rey-4894710/schema,"Ucam Murcia-Linares Deportivo, CDR, 2023-11-01: every card checked against two match reports, ESPN and kicker"
+ 1139062,1,5275,182633,Alberto González,47,,Yellow Card,match_reports,https://www.espn.com/soccer/match/_/gameId/689413 https://www.kicker.de/arandina-gegen-murcia-2023-copa-del-rey-4894697/schema,"Arandina-Real Murcia, CDR, 2023-11-01: every card checked against two match reports, ESPN and kicker"
+ 1139062,2,5275,162603,Carlos Rojas,72,,Yellow Card,match_reports,https://www.espn.com/soccer/match/_/gameId/689413 https://www.kicker.de/arandina-gegen-murcia-2023-copa-del-rey-4894697/schema,"Arandina-Real Murcia, CDR, 2023-11-01: every card checked against two match reports, ESPN and kicker"
++1644363,1,543,1578,Lo Celso,37,,Yellow Card,match_reports,https://www.laliga.com/partido/temporada-2026-2027-copa-del-rey-cda-navalcarnero-real-betis-3 https://www.101tv.es/realbetis/sigue-en-directo-el-cda-navalcarnero-real-betis-de-copa-del-rey/,"Navalcarnero-Real Betis, CDR, 2026-11-12: every card checked against two match reports, LaLiga and 101tv"
++1644363,2,5271,459051,Varo López,54,,Yellow Card,match_reports,https://www.laliga.com/partido/temporada-2026-2027-copa-del-rey-cda-navalcarnero-real-betis-3 https://www.101tv.es/realbetis/sigue-en-directo-el-cda-navalcarnero-real-betis-de-copa-del-rey/,"Navalcarnero-Real Betis, CDR, 2026-11-12: every card checked against two match reports, LaLiga and 101tv"
++1644363,3,5271,609774,Mario Jiménez,90,4,Yellow Card,match_reports,https://www.laliga.com/partido/temporada-2026-2027-copa-del-rey-cda-navalcarnero-real-betis-3 https://www.101tv.es/realbetis/sigue-en-directo-el-cda-navalcarnero-real-betis-de-copa-del-rey/,"Navalcarnero-Real Betis, CDR, 2026-11-12: every card checked against two match reports, LaLiga and 101tv"
++1644363,4,543,47119,Ruibal,90,4,Yellow Card,match_reports,https://www.laliga.com/partido/temporada-2026-2027-copa-del-rey-cda-navalcarnero-real-betis-3 https://www.101tv.es/realbetis/sigue-en-directo-el-cda-navalcarnero-real-betis-de-copa-del-rey/,"Navalcarnero-Real Betis, CDR, 2026-11-12: every card checked against two match reports, LaLiga and 101tv"
++1644363,5,543,1561,Bartra,103,,Yellow Card,match_reports,https://www.laliga.com/partido/temporada-2026-2027-copa-del-rey-cda-navalcarnero-real-betis-3 https://www.101tv.es/realbetis/sigue-en-directo-el-cda-navalcarnero-real-betis-de-copa-del-rey/,"Navalcarnero-Real Betis, CDR, 2026-11-12: every card checked against two match reports, LaLiga and 101tv"
++1644363,6,5271,-1,Víctor Rodríguez,116,,Yellow Card,match_reports,https://www.laliga.com/partido/temporada-2026-2027-copa-del-rey-cda-navalcarnero-real-betis-3 https://www.101tv.es/realbetis/sigue-en-directo-el-cda-navalcarnero-real-betis-de-copa-del-rey/,"Navalcarnero-Real Betis, CDR, 2026-11-12: every card checked against two match reports, LaLiga and 101tv; Víctor Rodríguez (shirt 5) has the warehouse's own id from player_id_overrides"
++1644363,7,543,47119,Ruibal,118,,Yellow Card,match_reports,https://www.laliga.com/partido/temporada-2026-2027-copa-del-rey-cda-navalcarnero-real-betis-3 https://www.101tv.es/realbetis/sigue-en-directo-el-cda-navalcarnero-real-betis-de-copa-del-rey/,"Navalcarnero-Real Betis, CDR, 2026-11-12: every card checked against two match reports, LaLiga and 101tv"
++1644363,8,543,47119,Ruibal,118,,Red Card,match_reports,https://www.laliga.com/partido/temporada-2026-2027-copa-del-rey-cda-navalcarnero-real-betis-3 https://www.101tv.es/realbetis/sigue-en-directo-el-cda-navalcarnero-real-betis-de-copa-del-rey/,"Navalcarnero-Real Betis, CDR, 2026-11-12: every card checked against two match reports, LaLiga and 101tv"
++1644363,9,5271,560951,Kensly Vázquez,120,2,Yellow Card,match_reports,https://www.laliga.com/partido/temporada-2026-2027-copa-del-rey-cda-navalcarnero-real-betis-3 https://www.101tv.es/realbetis/sigue-en-directo-el-cda-navalcarnero-real-betis-de-copa-del-rey/,"Navalcarnero-Real Betis, CDR, 2026-11-12: every card checked against two match reports, LaLiga and 101tv"
+diff --git a/dbt_project/seeds/player_id_overrides.csv b/dbt_project/seeds/player_id_overrides.csv
+index c088cfe1..ead55e39 100644
+--- a/dbt_project/seeds/player_id_overrides.csv
++++ b/dbt_project/seeds/player_id_overrides.csv
+@@ -1,9 +1,10 @@
+-wrong_player_api_id,correct_player_api_id,mode,note
+-330722,330295,alias,"Same birth date 2002-07-25, SC Braga; 82 matches pair the two ids across sheet and stat line."
+-371383,32451,alias,"Same birth date 1999-12-08; 56 matches pair the two ids across sheet and stat line."
+-532925,29847,alias,"Same birth date 1993-02-26, Tractor shirt 11; the events under this id name Danial Esmaeilifar."
+-542861,410840,alias,"Same birth date 2006-10-16; 21 matches pair the two ids across sheet and stat line."
+-287096,263441,alias,"Oliver Pettersson: Ilves, Gnistan and HJK under both ids; one such player (https://en.wikipedia.org/wiki/Oliver_Pettersson)."
+-586554,444355,alias,"Eetu Turkki: Turku PS shirt 3 under both ids; one such player (https://en.wikipedia.org/wiki/Eetu_Turkki)."
+-654052,645347,alias,"Juan Cruz Policella: Velez Sarsfield shirt 37 under both ids; 12 shared matches and no second Policella at the club."
+-581809,474582,alias,"Toshikazu Teruuchi: Urawa shirt 27 under both ids; one such player (https://africa.espn.com/football/player/bio/_/id/386963/toshikazu-teruuchi)."
++wrong_player_api_id,correct_player_api_id,mode,fixture_id,team_id,shirt_number,source,note
++330722,330295,alias,,,,,"Same birth date 2002-07-25, SC Braga; 82 matches pair the two ids across sheet and stat line."
++371383,32451,alias,,,,,"Same birth date 1999-12-08; 56 matches pair the two ids across sheet and stat line."
++532925,29847,alias,,,,,"Same birth date 1993-02-26, Tractor shirt 11; the events under this id name Danial Esmaeilifar."
++542861,410840,alias,,,,,"Same birth date 2006-10-16; 21 matches pair the two ids across sheet and stat line."
++287096,263441,alias,,,,,"Oliver Pettersson: Ilves, Gnistan and HJK under both ids; one such player (https://en.wikipedia.org/wiki/Oliver_Pettersson)."
++586554,444355,alias,,,,,"Eetu Turkki: Turku PS shirt 3 under both ids; one such player (https://en.wikipedia.org/wiki/Eetu_Turkki)."
++654052,645347,alias,,,,,"Juan Cruz Policella: Velez Sarsfield shirt 37 under both ids; 12 shared matches and no second Policella at the club."
++581809,474582,alias,,,,,"Toshikazu Teruuchi: Urawa shirt 27 under both ids; one such player (https://africa.espn.com/football/player/bio/_/id/386963/toshikazu-teruuchi)."
++0,-1,assign_in_fixture,1644363,5271,5,https://www.laliga.com/partido/temporada-2026-2027-copa-del-rey-cda-navalcarnero-real-betis-3 https://www.101tv.es/realbetis/sigue-en-directo-el-cda-navalcarnero-real-betis-de-copa-del-rey/,"Our own id for Víctor Rodríguez, Navalcarnero shirt 5; the provider has no id for him on this stat line, Navalcarnero's squad list, /players or any other match."
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index e21857ff..102d080d 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -758,7 +758,7 @@ seeds:
+               config:
+                 where: "card_order > 0"
+       - name: player_id
+-        description: "The carded player's provider id, as the match's sheet or stat line holds it."
++        description: "The carded player's id as the match's sheet or stat line holds it: the provider's, or the warehouse's own negative id from player_id_overrides where the provider holds none."
+         tests:
+           - not_null:
+               config:
+@@ -1519,32 +1519,54 @@ seeds:
+ 
+   - name: player_id_overrides
+     description: >
+-      One player the provider holds under two ids, one row per duplicate id, naming the id the
+-      player keeps.
++      A player's id where the provider's is wrong: one player the provider holds under two ids (one
++      row per duplicate id, naming the id he keeps), or one player the provider holds under the
++      placeholder 0 in a match (one row per match, team and shirt, naming the warehouse's own id). An
++      own id is a negative integer, from -1 downwards, one per person and never reused; provider ids
++      are positive, so the two never collide.
+     config:
+       column_types:
+         wrong_player_api_id: int64
+         correct_player_api_id: int64
+         mode: string
++        fixture_id: int64
++        team_id: int64
++        shirt_number: int64
++        source: string
+         note: string
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [fixture_id, team_id, shirt_number]
++          config:
++            where: "mode = 'assign_in_fixture'"
+     columns:
+       - name: wrong_player_api_id
+-        description: "The duplicate id."
++        description: "The duplicate id, or 0, the provider's placeholder, for an assign_in_fixture row."
+         tests:
+           - not_null
+-          - unique
++          - unique:
++              config:
++                where: "mode = 'alias'"
+       - name: correct_player_api_id
+-        description: "The id the player keeps."
++        description: "The id the player keeps, or the warehouse's own negative id."
+         tests:
+           - not_null
+       - name: mode
+-        description: "alias: the duplicate id is replaced everywhere."
++        description: "alias: the duplicate id is replaced everywhere. assign_in_fixture: the placeholder 0 on that team's sheet or stat line with that shirt in that match becomes the own id."
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["alias"]
++              values: ["alias", "assign_in_fixture"]
++      - name: fixture_id
++        description: "The match of an assign_in_fixture row; NULL on an alias row."
++      - name: team_id
++        description: "The team of an assign_in_fixture row; NULL on an alias row."
++      - name: shirt_number
++        description: "The shirt the player wears in that match; NULL on an alias row."
++      - name: source
++        description: "The pages that name the player in that match, https URLs separated by a space; NULL on an alias row."
+       - name: note
+-        description: "What proves the two ids are one person."
++        description: "What proves the two ids are one person, or who the own id is and why the provider has none."
+         tests:
+           - not_null
+ 
 diff --git a/dbt_project/seeds/team_country_corrections.csv b/dbt_project/seeds/team_country_corrections.csv
 index 10d88c5c..7d2850b5 100644
 --- a/dbt_project/seeds/team_country_corrections.csv
@@ -53,3 +404,113 @@ index 10d88c5c..7d2850b5 100644
  8679,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
  8688,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
  8706,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+diff --git a/dbt_project/tests/assert_own_player_ids.sql b/dbt_project/tests/assert_own_player_ids.sql
+new file mode 100644
+index 00000000..5615b4a0
+--- /dev/null
++++ b/dbt_project/tests/assert_own_player_ids.sql
+@@ -0,0 +1,75 @@
++{#
++  A player the provider holds under the placeholder 0 gets the warehouse's own id: a negative id
++  that names one researched player, sourced, and makes him a player like any other. One failing row
++  per broken assign_in_fixture row: its id is not negative, its source is not https URLs separated
++  by a space, the match's sheet and stat lines do not carry the id at that team, or dim_player has no
++  row for it. Named case: Víctor Rodríguez (-1), Navalcarnero shirt 5 in fixture 1644363, has a
++  stat line and his yellow card.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with own_ids as (
++    select
++        correct_player_api_id as player_id,
++        fixture_id,
++        team_id,
++        source
++    from {{ ref('player_id_overrides') }}
++    where mode = 'assign_in_fixture'
++),
++
++match_players as (
++    select
++        fixture_id,
++        team_id,
++        player_id
++    from {{ ref('base_apif__lineups') }}
++    union distinct
++    select
++        fixture_id,
++        team_id,
++        player_id
++    from {{ ref('base_apif__fixture_players') }}
++),
++
++checked as (
++    select
++        o.player_id,
++        o.fixture_id,
++        o.player_id >= 0 as is_not_negative,
++        not regexp_contains(coalesce(o.source, ''), r'^https://\S+( https://\S+)*$') as is_not_sourced,
++        m.player_id is null as is_off_the_match,
++        d.player_api_id is null as is_not_a_player
++    from own_ids as o
++    left join match_players as m
++        on o.fixture_id = m.fixture_id and o.team_id = m.team_id and o.player_id = m.player_id
++    left join {{ ref('dim_player') }} as d
++        on o.player_id = d.player_api_id
++),
++
++named_case as (
++    select countif(minutes > 0 and cards_yellow = 1) as rows_found
++    from {{ ref('fct_fixture_player_stats') }}
++    where player_sk = -1 and fixture_sk = 1644363
++)
++
++select
++    player_id,
++    fixture_id,
++    case
++        when is_not_negative then 'own id is not negative'
++        when is_not_sourced then 'not sourced'
++        when is_off_the_match then 'not on the match sheet or stat lines'
++        else 'not in dim_player'
++    end as failure
++from checked
++where is_not_negative or is_not_sourced or is_off_the_match or is_not_a_player
++
++union all
++
++select
++    -1 as player_id,
++    1644363 as fixture_id,
++    'named case: Víctor Rodríguez has no stat line with his yellow card' as failure
++from named_case
++where rows_found = 0
+diff --git a/dbt_project/tests/assert_player_id_overrides_merged.sql b/dbt_project/tests/assert_player_id_overrides_merged.sql
+index 7a0d36ba..73f3a4ad 100644
+--- a/dbt_project/tests/assert_player_id_overrides_merged.sql
++++ b/dbt_project/tests/assert_player_id_overrides_merged.sql
+@@ -5,6 +5,7 @@ with overrides as (
+         wrong_player_api_id,
+         correct_player_api_id
+     from {{ ref('player_id_overrides') }}
++    where mode = 'alias'
+ ),
+ 
+ left_behind as (
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/262-french-guiana-country/review.md   | 26 ++++++++++
+#    .../262-french-guiana-country/review_input.patch   | 55 ++++++++++++++++++++++
+#    2 files changed, 81 insertions(+)
+# ============================================================================
