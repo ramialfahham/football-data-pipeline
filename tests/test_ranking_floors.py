@@ -10,8 +10,13 @@ DBT = REPO / "dbt_project"
 FLOORS = {
     "player_min_minutes": r"\bminutes",
     "player_min_shots_on_target": r"\bshots_on_goal_player",
+    "player_min_shots": r"\bshots_player",
+    "player_min_dribbles": r"\bdribbles_attempts_player",
+    "player_min_duels": r"\bduels_player",
+    "player_min_shots_on_target_faced": r"\bshots_on_goal_against_player",
     "team_min_matches": r"games_played",
 }
+ATTEMPT_FLOORS = ("player_min_shots", "player_min_dribbles", "player_min_duels", "player_min_shots_on_target_faced")
 
 
 def _vars():
@@ -42,6 +47,8 @@ def test_ranking_rules_words_state_the_vars():
     assert words.count(f"from {v['player_min_minutes']} minutes") == 2, words
     assert words.count(f"{v['player_min_shots_on_target']} shots on target") == 2, words
     assert f"from {v['team_min_matches']} finished matches" in words, words
+    assert len({v[name] for name in ATTEMPT_FLOORS}) == 1, "ranking_rules states one attempts floor for all four"
+    assert f"also needs {v[ATTEMPT_FLOORS[0]]} attempts" in words, words
     numbers = {int(n) for n in re.findall(r"\b\d+\b", words)}
     assert numbers == {v[name] for name in FLOORS}, f"ranking_rules states numbers {numbers} that are not the floor vars"
 

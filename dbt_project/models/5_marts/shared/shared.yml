@@ -1411,7 +1411,8 @@ models:
       int_player_season_record, which computes each from its metric_catalogue formula. Goals,
       assists and shots on target keep the keys the export reads (goals_total, goals_assists,
       shots_on). top_player_rank orders each side by goals plus assists, then goals, then fewer
-      minutes.
+      minutes. scorer_points_rank and ball_actions_per90_rank place a side's outfield players on the
+      two Players to watch boards.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
@@ -1527,6 +1528,20 @@ models:
         description: "{{ doc('passes_accuracy_player_pct') }}"
       - name: duels_won_player_pct
         description: "{{ doc('duels_won_player_pct') }}"
+      - name: ball_actions_per90
+        description: "{{ doc('ball_actions_per90') }}"
+      - name: team_matches
+        description: "The matches the team played in the window, awarded results not counted. A third of them times 90 is the minutes a player needs to enter the Ball actions per 90 board."
+      - name: scorer_points_rank
+        description: "The player's place on this side's Goals and assists board: outfield players with at least one goal or assist, by goals plus assists, then goals, then fewer minutes, unknown minutes last, then player_sk, so no two players share a place. NULL for a player off the board."
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 1
+      - name: ball_actions_per90_rank
+        description: "The player's place on this side's Ball actions per 90 board: outfield players with at least a third of the team's minutes in the window, by ball actions per 90, then more minutes, then player_sk, so no two players share a place. NULL for a player off the board."
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 1
 
   - name: mart_standings
     description: >
@@ -2328,9 +2343,10 @@ models:
       metric_key, not a column. Grain: (player_sk, season_sk, metric_key) on season rows,
       (fixture_sk, player_sk, metric_key) on match rows.
 
-      Season-to-date, composed from int_player_season__metrics, dim_player and dim_team. rank is a
-      DENSE_RANK over the board's metric descending within (league_code, season_api_year), so ties
-      share a rank and the top 10 includes them.
+      Season-to-date, composed from int_player_season__metrics, int_player_profile__contribution,
+      dim_player and dim_team. Every ranked player is a row. rank is a RANK over display_value in the
+      board's direction within (league_code, season_api_year): equal shown values share a place and
+      the next place is skipped.
 
       Because ties share a rank, a league can hold several rank-1 players. league_leader_order is
       the tie-broken order in the same partition, so a consumer that must show one player per league
@@ -2344,7 +2360,7 @@ models:
       filters on a served fact instead of choosing a season itself.
 
       Rows with window_type match are one played match's boards, for the match's Match leaders
-      block: seven count boards across both teams, each its first three players by
+      block: eight count boards across both teams, each its first three players by
       match_leader_order. Their grain is (fixture_sk, player_sk, metric_key). On them the value is
       sort_value alone; minutes holds the match's minutes, and the other count and rate columns,
       appearances and the season orders are NULL. Every other row has window_type season_to_date.
@@ -2371,10 +2387,10 @@ models:
           config:
             where: "window_type = 'match'"
       - dbt_utils.expression_is_true:
-          expression: "rank between 1 and 10"
+          expression: "rank >= 1"
           name: mart_leaderboards_rank_in_range
       - dbt_utils.expression_is_true:
-          expression: "sort_value > 0"
+          expression: "sort_value > 0 or rank_order = 'asc'"
           name: mart_leaderboards_sort_value_positive
       # RATE-board ratios are all bounded [0,1]. finishing_efficiency_player_pct is now open-play
       # conversion in [0,1], so it is range-checked here like the other rates.
@@ -2398,11 +2414,11 @@ models:
         description: "Surrogate from (player_sk, season_sk, metric_key) on season rows; from ('match', fixture_sk, player_sk, metric_key) on match rows."
         tests: [not_null, unique]
       - name: metric_key
-        description: "The board — a metric_catalogue metric_id: on season rows the 13 boards of the competition page's Rankings tab (11 count + 2 rate); on match rows the 7 count boards of the played match page's Match leaders."
+        description: "The board, a metric_catalogue metric_id: on season rows every Statistics and Rankings tab board (counts, per-90 values and percentages); on match rows the 8 count boards of the played match page's Match leaders."
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_player", "assists_player", "shots_on_goal_player", "passes_player", "passes_key_player", "dribbles_attempts_player", "duels_player", "defensive_actions_player", "cards_yellow_player", "cards_red_player", "saves_player", "passes_accuracy_player_pct", "finishing_efficiency_player_pct", "shots_player", "duels_won_player", "fouls_player"]
+              values: ["goals_player", "assists_player", "scorer_points_player", "goals_penalty_player", "shots_on_goal_player", "passes_player", "passes_key_player", "ball_actions_player", "dribbles_attempts_player", "duels_player", "defensive_actions_player", "saves_player", "cards_yellow_player", "cards_red_player", "penalty_committed_player", "goals_per90", "assists_per90", "scorer_points_per90", "shots_per90", "shots_on_goal_per90", "passes_per90", "passes_accurate_per90", "passes_key_per90", "ball_actions_per90", "dribbles_attempts_per90", "dribbles_success_per90", "duels_per90", "duels_won_per90", "defensive_actions_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "saves_per90", "fouls_per90", "offsides_per90", "goals_against_per90", "dribbles_past_per90", "passes_accuracy_player_pct", "finishing_efficiency_player_pct", "shots_on_goal_player_pct", "dribbles_success_player_pct", "duels_won_player_pct", "saves_player_pct", "contribution_player_pct", "shots_player", "duels_won_player", "fouls_player"]
       - name: window_type
         description: "Which matches the boards rank: `season_to_date`, the competition-season the row belongs to; `match`, one played match."
         tests:
@@ -2425,14 +2441,23 @@ models:
               config:
                 where: "window_type = 'match'"
       - name: rank
-        description: "DENSE_RANK over the board's metric desc (ties share a rank). 1 is top; cut at 10 on season rows, at the third position on match rows."
+        description: "The player's place on the board: RANK over display_value in the board's direction, so players whose shown values are equal share a place and the next place is skipped (1, 2, 2, 4). Every ranked player on season rows; the first three positions on match rows."
+        tests: [not_null]
+      - name: rank_order
+        description: "The board's direction: desc ranks the most first, asc the fewest. The catalogue's direction, except the discipline boards, which rank most first by ruling."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["asc", "desc"]
+      - name: display_value
+        description: "The board's value as the page shows it: a percentage to whole percent, kept as a share; a count as it is; any other number whole from 10 up and to one decimal below 10. rank ties on it."
         tests: [not_null]
       - name: league_leader_order
         description: >
           The tie-broken position within (league_code, season_api_year) on this board. 1 is the
           league's leader, and exactly one row per league-board carries it. Use this and not rank
-          when a consumer must show ONE player per league: rank is a DENSE_RANK, so joint leaders
-          share it and a league can hold several 1s. Ties break by fewer minutes played, then by
+          when a consumer must show ONE player per league: rank lets joint leaders share a place,
+          so a league can hold several 1s. Ties break by the exact value, then fewer minutes played, then by
           player_sk. Fewer minutes wins because the same tally in less time is the better
           performance; player_sk is a stable last resort and means nothing on its own. NULL on
           match rows.
@@ -2453,7 +2478,7 @@ models:
           sequence. Not partitioned by season: is_current_season is per league, so leagues shown
           side by side can sit in different season years.
       - name: sort_value
-        description: "The board's own value the rank is computed from (always > 0). FLOAT64 — holds the integer counts and the 0-1 rates."
+        description: "The board's own exact value, which orders the players. FLOAT64: it holds the counts, the per-90 values and the 0-1 rates. Above zero on a most-first board."
         tests: [not_null]
       - name: is_current_season
         description: >
@@ -2584,13 +2609,11 @@ models:
       The team mirror of mart_leaderboards. Long-shaped — the board is a value in metric_key, not a
       column. Grain: (team_sk, season_sk, metric_key).
 
-      Twelve boards (the competition page's Rankings tab: goals and goals against per match, shots
-      on goal for, against and difference per match, passes per match, pass accuracy, defensive
-      actions per match, duels per match, duels won, yellow cards, red cards), season-to-date,
-      composed from int_team_season__metrics, the metric catalogue and dim_team. rank is a
-      DENSE_RANK over the board's metric within (league_code, season_api_year) in the board's
-      rank_order, so ties share a rank and the top 10 includes them. rank_order is the catalogue's
-      direction for the metric (asc for lower_better, fewest first), except the two card boards,
+      Every Statistics and Rankings tab team board, season-to-date, composed from
+      int_team_season__metrics, the metric catalogue and dim_team. Every ranked team is a row. rank
+      is a RANK over display_value within (league_code, season_api_year) in the board's rank_order:
+      equal shown values share a place and the next place is skipped. rank_order is the catalogue's
+      direction for the metric (asc for lower_better, fewest first), except the discipline boards,
       which rank most first by ruling.
 
       The rank is per league by design: a board is each league's leading team collected and ordered,
@@ -2613,10 +2636,10 @@ models:
           config:
             where: "league_leader_order = 1"
       - dbt_utils.expression_is_true:
-          expression: "rank between 1 and 10"
+          expression: "rank >= 1"
           name: mart_team_leaderboards_rank_in_range
       - dbt_utils.expression_is_true:
-          expression: "sort_value > 0 or rank_order = 'asc'"
+          expression: "sort_value > 0 or rank_order = 'asc' or metric_key = 'shots_on_goal_difference_per_match'"
           name: mart_team_leaderboards_sort_value_positive_on_most_first
       - dbt_utils.expression_is_true:
           expression: "season_games_played >= 1"
@@ -2627,29 +2650,32 @@ models:
         tests: [not_null, unique]
       - name: metric_key
         description: >
-          The board — a metric_catalogue team metric_id (12 boards).
+          The board, a metric_catalogue team metric_id (38 boards).
           accepted_values pins the set against an ADDED board; it cannot catch a REMOVED one, since
           a smaller set is still a subset. assert_mart_team_leaderboards_all_boards_present covers
           that direction.
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per_match", "goals_against_per_match", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match", "passes_per_match", "passes_accuracy_pct", "defensive_actions_per_match", "duels_per_match", "duels_won_pct", "cards_yellow", "cards_red"]
+              values: ["goals", "goals_per_match", "goals_against", "goals_against_per_match", "clean_sheets", "clean_sheets_pct", "goals_penalty", "shots_per_match", "shots_on_goal_per_match", "shots_inside_box_per_match", "shots_inside_box_pct", "shots_on_goal_pct", "finishing_efficiency_pct", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match", "passes_per_match", "passes_accurate_per_match", "passes_accuracy_pct", "passes_key_per_match", "passes_share_pct", "dribbles_attempts_per_match", "dribbles_success_per_match", "dribbles_success_pct", "duels_per_match", "duels_won_per_match", "duels_won_pct", "defensive_actions_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match", "saves_per_match", "saves_pct", "corners_per_match", "corners_against_per_match", "cards_yellow", "cards_red", "fouls_per_match", "offsides_per_match"]
       - name: rank_order
         description: >
           The direction this board ranks in: asc (fewest first, the top row holds the smallest
           value) or desc (most first). The catalogue's direction for the metric — lower_better is
-          asc — except cards_yellow and cards_red, most first by ruling. A page says "fewest first"
+          asc — except the discipline boards, most first by ruling. A page says "fewest first"
           beside an asc board from this column and computes nothing.
         tests:
           - not_null
           - accepted_values:
               values: ["asc", "desc"]
       - name: rank
-        description: "DENSE_RANK over the board's metric in its rank_order (ties share a rank). 1 is top; cut at 10."
+        description: "The team's place on the board: RANK over display_value in its rank_order, so teams whose shown values are equal share a place and the next place is skipped (1, 2, 2, 4). Every ranked team."
         tests: [not_null]
       - name: sort_value
-        description: "The board's own value the rank is computed from, in the metric's own unit: a per-match rate, a share in 0-1, or a season card total. Above 0 on a desc board; 0 is a valid top row on an asc board."
+        description: "The board's own exact value, which orders the teams, in the metric's own unit: a per-match rate, a share in 0-1, or a season total. Above 0 on a desc board; 0 is a valid top row on an asc board."
+        tests: [not_null]
+      - name: display_value
+        description: "The board's value as the page shows it: a percentage to whole percent, kept as a share; a count as it is; any other number whole from 10 up and to one decimal below 10. rank ties on it."
         tests: [not_null]
       - name: league_leader_order
         description: >

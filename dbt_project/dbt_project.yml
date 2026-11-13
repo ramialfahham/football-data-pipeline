@@ -28,6 +28,10 @@ vars:
   # equal and fails on a floor written into a model as a number.
   player_min_minutes: 270
   player_min_shots_on_target: 10
+  player_min_shots: 10
+  player_min_dribbles: 10
+  player_min_duels: 10
+  player_min_shots_on_target_faced: 10
   team_min_matches: 3
   # Derived from docs/competition_registry.yml (status active or in_progress).
   # DO NOT edit by hand — run scripts/sync_dbt_vars.py after updating the registry.

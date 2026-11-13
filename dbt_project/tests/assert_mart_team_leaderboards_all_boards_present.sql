@@ -7,12 +7,12 @@
 -- a board. GAP-30 recorded that accepted_values on metric_key "is the only thing pinning the board
 -- set"; the silent direction is the one that needs this test.
 --
--- The board set is a product decision (twelve single-metric boards, the Rankings tab's). Changing
--- it means changing this number, the model's board list, the export's list and seeds'
--- accepted_values together — which is the point. A board whose metric the catalogue does not
+-- The board set is a product decision (the Statistics and Rankings tab team boards). Changing
+-- it means changing this number, the model's board list and the yml's accepted_values together,
+-- which is the point. A board whose metric the catalogue does not
 -- define yields no rows (the model joins the seed for its direction) and lands here too.
 --
--- Returns a row (= fails) when the count is anything other than 12.
+-- Returns a row (= fails) when the count is anything other than 38.
 {{ config(store_failures = true) }}
 
 with observed as (
@@ -22,4 +22,4 @@ with observed as (
 
 select board_count
 from observed
-where board_count != 12
+where board_count != 38

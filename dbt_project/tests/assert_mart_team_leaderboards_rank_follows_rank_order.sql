@@ -21,9 +21,9 @@ with boards as (
         season_api_year,
         metric_key,
         rank_order,
-        min(sort_value) as least,
-        max(sort_value) as most,
-        min(case when rank = 1 then sort_value end) as leader_value
+        min(display_value) as least,
+        max(display_value) as most,
+        min(case when rank = 1 then display_value end) as leader_value
     from {{ ref('mart_team_leaderboards') }}
     group by league_code, season_api_year, metric_key, rank_order
 ),
@@ -51,7 +51,7 @@ zero_ranked as (
         sort_value as leader_value,
         'zero ranked on a most-first board' as defect
     from {{ ref('mart_team_leaderboards') }}
-    where rank_order = 'desc' and sort_value <= 0
+    where rank_order = 'desc' and sort_value <= 0 and metric_key != 'shots_on_goal_difference_per_match'
 )
 
 select * from wrong_way
