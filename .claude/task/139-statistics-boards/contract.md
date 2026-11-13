@@ -45,6 +45,7 @@ scope_paths:
   - .claude/task/139-statistics-boards/review.md
   - .claude/task/139-statistics-boards/review_input.patch
   - .claude/task/139-statistics-boards/acceptance_evidence.md
+  - tests/fixtures/chart_screenshots/
 
 impact_map: >
   writers: dbt only; no ingestion change. Seeds: metric_catalogue gains four rows and new
@@ -81,6 +82,7 @@ impact_map: >
 approved_design:
   - match: #132
   - player: #136
+  - team: #134
 
 acceptance_criteria:
   - site_v2/src/data/metric_rows.json lists the same 34 metrics as on main, in the catalogue's new order: shots on target against moves after goals per shot on target, key passes before possession, and yellow and red cards before fouls and offsides.
@@ -156,4 +158,10 @@ done_when:
     and finish inside 300 s; row counts and bytes reported in the MR
   - full pytest passes
 
-amendments: (none)
+amendments:
+  - 2026-11-13: + tests/fixtures/chart_screenshots/ and approved_design team: #134 — authority: the
+    #139 approved design (approved in chat, 2026-11-10), its catalogue changes section: "metric_order,
+    the place every page reads". The Team page's league strips read metric_rows.json, so they follow
+    the new order as the match page does; content: in Discipline, yellow and red cards now come
+    before fouls; the six strip screenshot pins and their manifest hashes are CI's Linux renders
+    from this branch's validate:ui job; the scatter and comparison pins are unchanged.

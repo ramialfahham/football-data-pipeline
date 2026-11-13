@@ -1,9 +1,9 @@
 diff --git a/.claude/task/139-statistics-boards/contract.md b/.claude/task/139-statistics-boards/contract.md
 new file mode 100644
-index 00000000..b8ed5f90
+index 00000000..dfb139ad
 --- /dev/null
 +++ b/.claude/task/139-statistics-boards/contract.md
-@@ -0,0 +1,159 @@
+@@ -0,0 +1,167 @@
 +# Task contract — Statistics boards: catalogue, player and team leaderboards
 +
 +objective: >
@@ -51,6 +51,7 @@ index 00000000..b8ed5f90
 +  - .claude/task/139-statistics-boards/review.md
 +  - .claude/task/139-statistics-boards/review_input.patch
 +  - .claude/task/139-statistics-boards/acceptance_evidence.md
++  - tests/fixtures/chart_screenshots/
 +
 +impact_map: >
 +  writers: dbt only; no ingestion change. Seeds: metric_catalogue gains four rows and new
@@ -87,6 +88,7 @@ index 00000000..b8ed5f90
 +approved_design:
 +  - match: #132
 +  - player: #136
++  - team: #134
 +
 +acceptance_criteria:
 +  - site_v2/src/data/metric_rows.json lists the same 34 metrics as on main, in the catalogue's new order: shots on target against moves after goals per shot on target, key passes before possession, and yellow and red cards before fouls and offsides.
@@ -162,7 +164,13 @@ index 00000000..b8ed5f90
 +    and finish inside 300 s; row counts and bytes reported in the MR
 +  - full pytest passes
 +
-+amendments: (none)
++amendments:
++  - 2026-11-13: + tests/fixtures/chart_screenshots/ and approved_design team: #134 — authority: the
++    #139 approved design (approved in chat, 2026-11-10), its catalogue changes section: "metric_order,
++    the place every page reads". The Team page's league strips read metric_rows.json, so they follow
++    the new order as the match page does; content: in Discipline, yellow and red cards now come
++    before fouls; the six strip screenshot pins and their manifest hashes are CI's Linux renders
++    from this branch's validate:ui job; the scatter and comparison pins are unchanged.
 diff --git a/dbt_project/dbt_project.yml b/dbt_project/dbt_project.yml
 index 619a9004..3f7a832d 100644
 --- a/dbt_project/dbt_project.yml
@@ -2107,6 +2115,46 @@ index 30763d5d..a2864d43 100644
      Surface("4_intermediate/shared/int_player_season_position__metrics.sql",
              POSITION_COUNTS + ("scorer_points_player", "defensive_actions_player") + RATIOS + PER90),
      Surface("4_intermediate/shared/int_player_momentum__metrics.sql",
+diff --git a/tests/fixtures/chart_screenshots/manifest.json b/tests/fixtures/chart_screenshots/manifest.json
+index c614be53..1be5a981 100644
+--- a/tests/fixtures/chart_screenshots/manifest.json
++++ b/tests/fixtures/chart_screenshots/manifest.json
+@@ -13,11 +13,11 @@
+   "scatter-en-light-375.png": "f717ac95e082f084bc6a9810c4afce18efb8e89a87d94b784c5d5339b344690c",
+   "scatter-fi-dark-1010.png": "9e787e4d8a348d532db21c82754d2a6f1184d51c200c91f84747948d0e7ed095",
+   "scatter-fi-dark-375.png": "82682a6c3b424de79b13dc479963913b5762843d0409eb00a16dc934f1a36da4",
+-  "strip-en-dark-1010.png": "441c2bdcba113396c3039be403a6383dd57cc38205c1a889673025e048dbcf37",
+-  "strip-en-dark-375.png": "a11a780f90b4b678e179375c8e1769430ec19318e0aa4c6f567a13eff31922cf",
+-  "strip-en-light-1010.png": "f8e61cbebdfbf31e92dd28f0939f314b1545347599a19ea06d02288c4a623605",
+-  "strip-en-light-375.png": "96845f2b9488c2d8f1a63a55865ce8522f1cd6ac7a190646eba72fba7ea9553e",
+-  "strip-fi-dark-1010.png": "e66bd18e579e8426d0e27d0dd2b0b03c1dd06a380550a1c736acb3014047ca9c",
+-  "strip-fi-dark-375.png": "cde198e51474d8487c15aa23f2f87f8cafd11d174f728196b2e3481adff4ab78"
++  "strip-en-dark-1010.png": "ad86f7f55b118553f1b304850d6357b8536d07bd1d07efc545c6a4bde9ab1697",
++  "strip-en-dark-375.png": "1c075ae6cf51d8998747d4d6e203ffa1aa830207b7c7142081610ef4e6b2d9ac",
++  "strip-en-light-1010.png": "d61097097f5277bc8a2bb5f7ce112b32332dd8e7a23b363cdc4ac8d4436ca73a",
++  "strip-en-light-375.png": "a2039f8b41cd0a0a133db09df9ac9740445692ae8ddf1dee900f581c4cfac3f0",
++  "strip-fi-dark-1010.png": "70ceef9aff6c5ea4815832adb0b9c58fa652d2e7220a28011c87f9d8c8668a8b",
++  "strip-fi-dark-375.png": "0e2febe379c08d29a44f2e98a98b4a0173b861083159fc25b965c6a513b823fd"
+  }
+ }
+diff --git a/tests/fixtures/chart_screenshots/strip-en-dark-1010.png b/tests/fixtures/chart_screenshots/strip-en-dark-1010.png
+index 0ddb5a0f..15da4eff 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-en-dark-1010.png and b/tests/fixtures/chart_screenshots/strip-en-dark-1010.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-en-dark-375.png b/tests/fixtures/chart_screenshots/strip-en-dark-375.png
+index 7ab29243..08e25544 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-en-dark-375.png and b/tests/fixtures/chart_screenshots/strip-en-dark-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-en-light-1010.png b/tests/fixtures/chart_screenshots/strip-en-light-1010.png
+index 5b06969f..2294f11e 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-en-light-1010.png and b/tests/fixtures/chart_screenshots/strip-en-light-1010.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-en-light-375.png b/tests/fixtures/chart_screenshots/strip-en-light-375.png
+index 93f88db1..cabccb05 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-en-light-375.png and b/tests/fixtures/chart_screenshots/strip-en-light-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-fi-dark-1010.png b/tests/fixtures/chart_screenshots/strip-fi-dark-1010.png
+index 56b03c4c..09c2b8a5 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-fi-dark-1010.png and b/tests/fixtures/chart_screenshots/strip-fi-dark-1010.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-fi-dark-375.png b/tests/fixtures/chart_screenshots/strip-fi-dark-375.png
+index ac1bae9e..b780aa36 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-fi-dark-375.png and b/tests/fixtures/chart_screenshots/strip-fi-dark-375.png differ
 diff --git a/tests/test_catalogue_order.py b/tests/test_catalogue_order.py
 index 8afbe0a4..c31424b1 100644
 --- a/tests/test_catalogue_order.py
@@ -2420,6 +2468,8 @@ index 049e242b..5de0df4b 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/139-statistics-boards/acceptance_evidence.md | 11 +++++++++++
-#    1 file changed, 11 insertions(+)
+#   .../139-statistics-boards/acceptance_evidence.md   |   11 +
+#    .claude/task/139-statistics-boards/review.md       |   43 +
+#    .../task/139-statistics-boards/review_input.patch  | 2425 ++++++++++++++++++++
+#    3 files changed, 2479 insertions(+)
 # ============================================================================

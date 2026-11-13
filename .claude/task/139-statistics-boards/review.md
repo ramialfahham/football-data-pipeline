@@ -1,8 +1,8 @@
 # Review — feat/139-statistics-boards — 2026-11-13
 
-diff_sha256: 182d58369f387d4c605c8d5f1c1c9f549d2a385abe256b41e2a107ef3111af5a
+diff_sha256: 93d84b846eefdf278433d3bd84c4d4215657fb60f324d108635c660e025e1811
 
-rounds: 2
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
@@ -10,6 +10,7 @@ risks_checked:
 - Round 1 FAIL, three findings: the number rule, the 7/8 Goals order and two board scopes rested on no named CPO approval.
 - Round 2: the number and ties rules cite the CPO on #230 with dates; rounding is stated as BigQuery's ROUND, an implementation detail; the 7/8 orders are blank as on main; goals against for keepers cites the #139 design; dribbles_past_per90 follows the plain per-90 rule with its consequence stated.
 - Every diffed path is in scope_paths; approved_design names #132 and #136 for the only two site_v2 files, both reorders pinned by the metric-set test; the new seed and the read growth are declared thresholds.
+- Round 3 (delta): the amendment adds team: #134 and the pins folder with its authority (the #139 design: metric_order, the place every page reads) and states the visible change; the six strip pins and six manifest hashes are the only other change.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
@@ -31,6 +32,7 @@ risks_checked:
 - The board lists parse to 44 season boards (15 counts, 21 per-90, 1 scoped, 7 percentages) and 8 match boards, agreeing with shared.yml, the floors test and tests/test_leaderboard_board_sets.py.
 - The decision-history pin moves 281/95 to 273/93, exactly the eight flagged comment lines the rewrite removed; no new flagged line.
 - Re-run safety, generated SQL against the generator lists, the new seed's codes, no hook, workflow, dependency or credential change.
+- Round 3 (delta): the six strip pins are CI's Linux renders and follow the new metric_rows.json order (checked by eye on strip-en-light-1010.png); pin_findings is empty, so each PNG hashes to its manifest value; scatter and comparison pins unchanged; the manifest keeps platform linux.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
