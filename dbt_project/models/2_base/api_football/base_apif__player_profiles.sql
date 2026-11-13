@@ -1,6 +1,7 @@
 -- Current per-player BIO from the rich /players/profiles source. stg_apif__player_profiles
 -- union-all-accumulates snapshots (skip-if-present loader), so reduce to the latest row per
--- player_id. Identity-level only — no league_code/team/season (those live in the mapping/facts).
+-- player_id, each identity field taking its last non-NULL value. Identity-level only — no
+-- league_code/team/season (those live in the mapping/facts).
 -- Feeds dim_player's bio enrichment 1:1. Grain: player_api_id.
 --
 -- player_birth_country is reconciled here against country_name_overrides (#69), the same
@@ -25,7 +26,7 @@ renamed as (
         player_name,
         player_firstname as player_first_name,
         player_lastname as player_last_name,
-        birth_date as player_birth_date,
+        {{ possible_birth_date('birth_date', 'raw_ingested_at') }} as player_birth_date,
         birth_place as player_birth_place,
         birth_country as player_birth_country_raw,
         nationality as player_nationality,
@@ -58,7 +59,7 @@ corrected as (
         on renamed.player_birth_country_raw = overrides.provider_country
 ),
 
-latest as (
+latest_row as (
     select
         player_api_id,
         player_name,
@@ -94,6 +95,49 @@ latest as (
     ) = 1
 ),
 
+-- An identity field takes its last non-NULL value, so a profile that leaves it empty never blanks it.
+identity_fields as (
+    select
+        player_api_id,
+        array_agg(
+            player_name ignore nulls order by raw_ingested_at desc, player_name asc limit 1
+        )[safe_offset(0)] as player_name,
+        array_agg(
+            player_first_name ignore nulls order by raw_ingested_at desc, player_first_name asc limit 1
+        )[safe_offset(0)] as player_first_name,
+        array_agg(
+            player_last_name ignore nulls order by raw_ingested_at desc, player_last_name asc limit 1
+        )[safe_offset(0)] as player_last_name,
+        array_agg(
+            player_birth_date ignore nulls order by raw_ingested_at desc, player_birth_date asc limit 1
+        )[safe_offset(0)] as player_birth_date,
+        array_agg(
+            player_nationality ignore nulls order by raw_ingested_at desc, player_nationality asc limit 1
+        )[safe_offset(0)] as player_nationality
+    from corrected
+    group by player_api_id
+),
+
+latest as (
+    select
+        latest_row.player_api_id,
+        latest_row.player_birth_place,
+        latest_row.player_birth_country,
+        latest_row.player_height,
+        latest_row.player_weight,
+        latest_row.player_position,
+        latest_row.player_photo_url,
+        latest_row.raw_ingested_at,
+        identity_fields.player_name,
+        identity_fields.player_first_name,
+        identity_fields.player_last_name,
+        identity_fields.player_nationality,
+        identity_fields.player_birth_date
+    from latest_row
+    inner join identity_fields
+        on latest_row.player_api_id = identity_fields.player_api_id
+),
+
 bio_corrected as (
     select
         latest.player_api_id,
@@ -108,10 +152,7 @@ bio_corrected as (
         latest.player_photo_url,
         latest.raw_ingested_at,
         safe_cast(
-            {{ bio_correction(
-                'birth_date_fix',
-                'cast(' ~ possible_birth_date('latest.player_birth_date', 'latest.raw_ingested_at') ~ ' as string)'
-            ) }} as date
+            {{ bio_correction('birth_date_fix', 'cast(latest.player_birth_date as string)') }} as date
         ) as player_birth_date,
         nullif(
             trim(

@@ -1,6 +1,6 @@
 -- Player identity (global entity): one row per player_api_id, unioned from five sources
--- and deduplicated in a single pass that prefers the most authoritative NAMED source
--- (lowest source_priority) and then the most recent ingest:
+-- and deduplicated by preferring the most authoritative NAMED source (lowest source_priority)
+-- and then the most recent ingest; each identity field takes its last non-NULL value in that order:
 --   priority 1 — /players endpoint (biographical attributes, most complete)
 --   priority 2 — fixture player stats (match appearances)
 --   priority 3 — fixture events (broadest appearance coverage)
@@ -16,7 +16,7 @@ with players_src as (
         player_firstname as player_first_name,
         player_lastname as player_last_name,
         {{ possible_birth_date('birth_date', 'raw_ingested_at') }} as player_birth_date,
-        nationality as player_nationality,
+        nullif(trim(nationality), '') as player_nationality,
         player_photo_url,
         raw_ingested_at,
         1 as source_priority,
@@ -117,17 +117,10 @@ import_country_name_overrides as (
 ),
 
 -- Rows tied on source and ingest time can disagree: a player has one /players row per team and
--- season, all stamped by one batch. The order below settles every tie the same way on every build.
-latest as (
+-- season, all stamped by one batch. The orders below settle every tie the same way on every build.
+flagged as (
     select
-        player_api_id,
-        player_name,
-        player_first_name,
-        player_last_name,
-        player_birth_date,
-        player_nationality,
-        player_photo_url,
-        raw_ingested_at,
+        *,
         count(distinct player_birth_date) over (
             partition by player_api_id, source_priority, raw_ingested_at
         ) > 1 as has_conflicting_birth_date,
@@ -135,6 +128,51 @@ latest as (
             partition by player_api_id, source_priority, raw_ingested_at
         ) > 1 as has_conflicting_nationality
     from src
+),
+
+-- An identity field takes its last non-NULL value, so a delivery that leaves it empty never blanks
+-- it; a conflict flag describes the delivery its value came from.
+identity_fields as (
+    select
+        player_api_id,
+        array_agg(
+            player_name ignore nulls
+            order by source_priority asc, raw_ingested_at desc, tie_recency desc, player_name asc limit 1
+        )[safe_offset(0)] as player_name,
+        array_agg(
+            player_first_name ignore nulls
+            order by source_priority asc, raw_ingested_at desc, tie_recency desc, player_first_name asc limit 1
+        )[safe_offset(0)] as player_first_name,
+        array_agg(
+            player_last_name ignore nulls
+            order by source_priority asc, raw_ingested_at desc, tie_recency desc, player_last_name asc limit 1
+        )[safe_offset(0)] as player_last_name,
+        array_agg(
+            if(
+                player_birth_date is null,
+                null,
+                struct(player_birth_date as field_value, has_conflicting_birth_date as is_conflicting)
+            ) ignore nulls
+            order by source_priority asc, raw_ingested_at desc, tie_recency desc, player_birth_date asc limit 1
+        )[safe_offset(0)] as birth_date,
+        array_agg(
+            if(
+                player_nationality is null,
+                null,
+                struct(player_nationality as field_value, has_conflicting_nationality as is_conflicting)
+            ) ignore nulls
+            order by source_priority asc, raw_ingested_at desc, tie_recency desc, player_nationality asc limit 1
+        )[safe_offset(0)] as nationality
+    from flagged
+    group by player_api_id
+),
+
+latest_row as (
+    select
+        player_api_id,
+        player_photo_url,
+        raw_ingested_at
+    from flagged
     qualify row_number() over (
         partition by player_api_id
         order by
@@ -150,6 +188,23 @@ latest as (
             player_last_name asc,
             player_photo_url asc
     ) = 1
+),
+
+latest as (
+    select
+        latest_row.player_api_id,
+        latest_row.player_photo_url,
+        latest_row.raw_ingested_at,
+        identity_fields.player_name,
+        identity_fields.player_first_name,
+        identity_fields.player_last_name,
+        identity_fields.birth_date.field_value as player_birth_date,
+        identity_fields.nationality.field_value as player_nationality,
+        coalesce(identity_fields.birth_date.is_conflicting, false) as has_conflicting_birth_date,
+        coalesce(identity_fields.nationality.is_conflicting, false) as has_conflicting_nationality
+    from latest_row
+    inner join identity_fields
+        on latest_row.player_api_id = identity_fields.player_api_id
 ),
 
 corrected as (
