@@ -792,7 +792,7 @@ seeds:
               config:
                 where: "card_order > 0"
       - name: player_id
-        description: "The carded player's provider id, as the match's sheet or stat line holds it."
+        description: "The carded player's id as the match's sheet or stat line holds it: the provider's, or the warehouse's own negative id from player_id_overrides where the provider holds none."
         tests:
           - not_null:
               config:
@@ -1553,32 +1553,54 @@ seeds:
 
   - name: player_id_overrides
     description: >
-      One player the provider holds under two ids, one row per duplicate id, naming the id the
-      player keeps.
+      A player's id where the provider's is wrong: one player the provider holds under two ids (one
+      row per duplicate id, naming the id he keeps), or one player the provider holds under the
+      placeholder 0 in a match (one row per match, team and shirt, naming the warehouse's own id). An
+      own id is a negative integer, from -1 downwards, one per person and never reused; provider ids
+      are positive, so the two never collide.
     config:
       column_types:
         wrong_player_api_id: int64
         correct_player_api_id: int64
         mode: string
+        fixture_id: int64
+        team_id: int64
+        shirt_number: int64
+        source: string
         note: string
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fixture_id, team_id, shirt_number]
+          config:
+            where: "mode = 'assign_in_fixture'"
     columns:
       - name: wrong_player_api_id
-        description: "The duplicate id."
+        description: "The duplicate id, or 0, the provider's placeholder, for an assign_in_fixture row."
         tests:
           - not_null
-          - unique
+          - unique:
+              config:
+                where: "mode = 'alias'"
       - name: correct_player_api_id
-        description: "The id the player keeps."
+        description: "The id the player keeps, or the warehouse's own negative id."
         tests:
           - not_null
       - name: mode
-        description: "alias: the duplicate id is replaced everywhere."
+        description: "alias: the duplicate id is replaced everywhere. assign_in_fixture: the placeholder 0 on that team's sheet or stat line with that shirt in that match becomes the own id."
         tests:
           - not_null
           - accepted_values:
-              values: ["alias"]
+              values: ["alias", "assign_in_fixture"]
+      - name: fixture_id
+        description: "The match of an assign_in_fixture row; NULL on an alias row."
+      - name: team_id
+        description: "The team of an assign_in_fixture row; NULL on an alias row."
+      - name: shirt_number
+        description: "The shirt the player wears in that match; NULL on an alias row."
+      - name: source
+        description: "The pages that name the player in that match, https URLs separated by a space; NULL on an alias row."
       - name: note
-        description: "What proves the two ids are one person."
+        description: "What proves the two ids are one person, or who the own id is and why the provider has none."
         tests:
           - not_null
 

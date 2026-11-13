@@ -11,12 +11,24 @@
   Every change made by steps 3 and 4 is listed on its row in stat_corrections.
 #}
 
-with src as (
+with stat_lines as (
+    select
+        stat_line.*,
+        {{ fixture_player_id(
+            'stat_line.player_id', 'stat_line.fixture_id', 'stat_line.team_id', 'stat_line.shirt_number'
+        ) }} as kept_player_id
+    from {{ ref('stg_apif__fixture_players') }} as stat_line
+    where
+        stat_line.fixture_id is not null
+        and stat_line.team_id is not null
+),
+
+src as (
     select
         league_code,
         fixture_id,
         team_id,
-        {{ player_id_override('player_id') }} as player_id,
+        kept_player_id as player_id,
         minutes_played,
         shirt_number,
         position_code,
@@ -50,14 +62,12 @@ with src as (
         penalty_missed,
         penalty_saved,
         raw_ingested_at
-    from {{ ref('stg_apif__fixture_players') }}
+    from stat_lines
     where
-        fixture_id is not null
-        and team_id is not null
-        and player_id is not null
+        kept_player_id is not null
         -- player_id = 0 is the API placeholder for an unknown player (no real id);
         -- it is not a real player and produces phantom cross-team duplicate legs.
-        and player_id != 0
+        and kept_player_id != 0
 ),
 
 -- Fixture participants (home/away team ids), used to evaluate the reattribute_if_cohabiting
