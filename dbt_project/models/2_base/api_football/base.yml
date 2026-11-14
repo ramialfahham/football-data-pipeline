@@ -374,6 +374,11 @@ models:
       two_people_one_id check; one person listed twice keeps his first listing. Known provider
       team-id defects are corrected from the
       fixture_team_id_overrides seed before the latest fetch is chosen.
+
+      The provider sometimes files one player under two ids in a match. A sheet player whose id has
+      no stats line in that match takes the id of the same team's stats-line player with his shirt
+      number, when that player is on no sheet row. This holds for that match only. The ids in the
+      player_id_overrides seed come first.
     config:
       tags: ["base", "api_football", "fixture_context"]
     tests:
@@ -392,7 +397,7 @@ models:
         description: "The provider's numeric team id for this player's side, after the known-defect corrections in the fixture_team_id_overrides seed, as base_apif__fixture_statistics.team_id."
         tests: [not_null]
       - name: player_id
-        description: "{{ doc('player_api_id') }}"
+        description: "{{ doc('player_api_id') }} Here it is the stats-line player's id where the sheet files him under another id in that match."
         tests: [not_null]
       - name: is_starter
         description: "{{ doc('is_starter__lineup') }}"
