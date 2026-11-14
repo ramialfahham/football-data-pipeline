@@ -39,7 +39,7 @@ two_pools as (
     select
         player_sk,
         season_sk,
-        string_agg(distinct position_group) as position_group,
+        string_agg(distinct position_group) as pools,
         'two midfield pools' as problem
     from benchmark_rows
     group by player_sk, season_sk

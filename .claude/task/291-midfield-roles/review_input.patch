@@ -2077,7 +2077,7 @@ index 00000000..77a7a9ad
 +    or p.position_role is distinct from if(e.position_code = 'M', r.midfield_role, null)
 diff --git a/dbt_project/tests/assert_player_peer_pools_follow_the_season_role.sql b/dbt_project/tests/assert_player_peer_pools_follow_the_season_role.sql
 new file mode 100644
-index 00000000..0c88e3a9
+index 00000000..bac7a6fb
 --- /dev/null
 +++ b/dbt_project/tests/assert_player_peer_pools_follow_the_season_role.sql
 @@ -0,0 +1,75 @@
@@ -2122,7 +2122,7 @@ index 00000000..0c88e3a9
 +    select
 +        player_sk,
 +        season_sk,
-+        string_agg(distinct position_group) as position_group,
++        string_agg(distinct position_group) as pools,
 +        'two midfield pools' as problem
 +    from benchmark_rows
 +    group by player_sk, season_sk
@@ -2776,7 +2776,7 @@ index 00000000..2c260c76
 #
 #   .../task/291-midfield-roles/acceptance_evidence.md |   16 +
 #    .../291-midfield-roles/rendered_page_evidence.md   |   54 +
-#    .claude/task/291-midfield-roles/review.md          |   51 +
-#    .claude/task/291-midfield-roles/review_input.patch | 2781 ++++++++++++++++++++
-#    4 files changed, 2902 insertions(+)
+#    .claude/task/291-midfield-roles/review.md          |   55 +
+#    .claude/task/291-midfield-roles/review_input.patch | 2782 ++++++++++++++++++++
+#    4 files changed, 2907 insertions(+)
 # ============================================================================
