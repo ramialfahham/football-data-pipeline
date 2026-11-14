@@ -34,6 +34,8 @@ scope_paths:
   - dbt_project/tests/assert_player_peer_pools_follow_the_season_role.sql
   - dbt_project/tests/assert_player_metrics_follow_catalogue_formula.sql
   - dbt_project/tests/assert_played_midfielders_have_a_role.sql
+  - dbt_project/tests/assert_lineup_fetch_keeps_grid_only_for_same_eleven.sql
+  - dbt_project/tests/assert_no_uncatalogued_season_metric.sql
   - scripts/export_site_data.py
   - tests/test_export_site_data.py
   - tests/test_midfield_roles.py
@@ -64,8 +66,11 @@ impact_map: >
   mart_player_window_metrics mart_roster mart_team_competition_benchmarks mart_team_competitions
   mart_team_index mart_team_leaderboards mart_team_momentum_window mart_team_page_window_metrics
   mart_team_profile mart_team_season mart_team_season_insights mart_team_season_record
-  mart_team_window_metrics. Every one of them gains nothing but a rebuild; the column is read only by
-  int_player_season__metrics. `int_player_season__metrics+` → mart_leaderboards mart_player_index
+  mart_team_window_metrics. midfield_role is read only by int_player_season__metrics. The earlier
+  fetch's grid places and formation reach every reader of grid_position and team_formation (the
+  match page line-up, the winger mapping by grid row) for the sheets whose latest fetch has none and
+  whose earlier fetch names the same starting eleven: 132 team sheets in 18 competitions, measured on
+  prod 2026-11-14. Their bench, substitutions, minutes and line-up state are unchanged. `int_player_season__metrics+` → mart_leaderboards mart_player_index
   mart_player_profile. `int_player__page_profile+` → int_player_page__window_seasons
   int_player_squad_window__metrics int_player_window__metrics mart_player_competition_benchmarks
   mart_player_fixture_stats mart_player_index mart_player_profile mart_player_squad_benchmarks
@@ -108,14 +113,23 @@ decisions_taken: >
   one midfield line → CM; with two or more, the lowest is DM when it holds one or two players, else
   CM; the highest is AM when it holds one to three, else CM; any line between → CM; a provider
   midfielder on the defence line → DM, on the attack line → AM.
-  Evidence only, no fallback (CPO, approved in chat 2026-11-14): a role is what the player played
-  that season. A starter's line is his own; a substitute takes the line of the player he replaced,
-  followed back to the starter. Only confirmed or researched team sheets count, as for every other
-  reader of the line-ups. Season role: most frequent over those matches, then the latest match, then
-  the code. Every midfielder who played and is in a comparison pool or has a built Player page must
-  carry a role (coordinator, 2026-11-14); a bench-only midfielder needs none. The ones evidence
-  leaves without a role are filled through the researched sheet, in a separate research task; this
-  MR merges only once assert_played_midfielders_have_a_role is green.
+  Evidence first (CPO, approved in chat 2026-11-14): a role is what the player played that season.
+  A starter's line is his own; a substitute takes the line of the player he replaced, followed back
+  to the starter. A starter the sheet names no position for counts when his stats line codes him M
+  (CPO, approved in chat 2026-11-14). Only confirmed or researched team sheets count. When a team's
+  latest fetch has no grid places, its starters take the grid places, and the sheet the formation,
+  of the latest earlier fetch that has them, only if both name the same starting eleven; nothing
+  else comes from the earlier fetch (CPO, in chat 2026-11-14: discarding a stored fetch's grid
+  places is a defect).
+  Season role: most frequent over those matches, then the latest match, then the code. A midfielder
+  with no role from that season's evidence takes his most frequent role across his other seasons
+  (any competition, counted over matches); a tie goes to the role of the nearest season, then the
+  earlier season (CPO, approved in chat 2026-11-14). midfield_role_from says which: this_season or
+  other_seasons; the page shows both the same way.
+  Every midfielder who played and is in a comparison pool or has a built Player page must carry a
+  role (coordinator, 2026-11-14); a bench-only midfielder needs none. The ones left without a role
+  in any season are filled through the researched sheet, in a separate research task; this MR
+  merges only once assert_played_midfielders_have_a_role is green.
   Engineering calls (coordinator, 2026-11-13): the peer pool is the season role and the values are
   all the player's midfield matches; the Player header's position item may wrap inside itself.
   Position rule (#183 residual, ruled with #277's rule): most frequent position in the season, then
@@ -142,4 +156,8 @@ done_when:
   - the five singular tests pass in data:build:mr, with the build green (the role-coverage test after the research task fills the gaps)
   - acceptance_evidence.md demonstrates every acceptance criterion from the built output
 
-amendments: (none)
+amendments:
+  - 2026-11-14: + the stats-line midfielder — authority: CPO, approved in chat 2026-11-14; content: decisions_taken, "Evidence first".
+  - 2026-11-14: + the earlier fetch's grid places and formation for the same starting eleven, with its test — authority: CPO, in chat 2026-11-14 (discarding them is a defect); content: decisions_taken, "Evidence first"; impact_map, the 132 sheets.
+  - 2026-11-14: + the role from other seasons for a midfielder without one this season, and midfield_role_from — authority: CPO, approved in chat 2026-11-14; content: decisions_taken, "Season role".
+  - 2026-11-14: + assert_no_uncatalogued_season_metric.sql — authority: the coordinator's engineering calls of 2026-11-14 (the role columns on int_player_season__metrics); content: midfield_role and midfield_role_from join its non-metric columns, as starts and minutes are.

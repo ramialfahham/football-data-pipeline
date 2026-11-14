@@ -433,7 +433,7 @@ models:
           - accepted_values:
               values: ["confirmed", "researched", "not_available"]
       - name: failed_checks
-        description: "The line-up checks the match fails, by name: two_sheets, eleven_starters, squad_lists, player_stats_team, player_on_both_sheets, substitutions, two_people_one_id. Empty when it passes every one."
+        description: "{{ doc('failed_checks') }}"
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }} NULL on a researched match's rows."
 

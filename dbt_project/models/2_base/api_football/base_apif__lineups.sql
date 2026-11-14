@@ -1,5 +1,7 @@
 -- One row per player the team sheets name for a match: the starting eleven and the bench, from
--- each team's latest fetch or, for a researched match, from fixture_lineup_corrections, with the
+-- each team's latest fetch (with an earlier fetch's grid places and formation when the latest has
+-- none and both name the same starting eleven) or, for a researched match, from
+-- fixture_lineup_corrections, with the
 -- minute a substitution brought each player on or took them off, the player's place on the sheet,
 -- and the match's line-up state.
 -- Grain: (league_code, fixture_id, team_id, player_id).
@@ -74,13 +76,66 @@ corrected as (
             )
 ),
 
-latest as (
-    select *
+fetches as (
+    select
+        *,
+        exists(
+            select 1 from unnest(json_query_array(start_xi_json)) as el
+            where json_value(el, '$.player.grid') is not null
+        ) as has_grid,
+        (
+            select string_agg(id, ',' order by id)
+            from unnest(json_query_array(start_xi_json)) as el,
+                unnest([coalesce(json_value(el, '$.player.id'), '')]) as id
+        ) as starting_eleven
     from corrected
+),
+
+latest_with_facts as (
+    select *
+    from fetches
     qualify row_number() over (
         partition by league_code, fixture_id, team_id
         order by raw_ingested_at desc
     ) = 1
+),
+
+latest as (
+    select * except (has_grid, starting_eleven)
+    from latest_with_facts
+),
+
+-- When a team's latest fetch has no grid places, the latest earlier fetch that has them lends its
+-- grid places and formation, but only if both name the same starting eleven.
+grid_fetches as (
+    select
+        earlier.league_code,
+        earlier.fixture_id,
+        earlier.team_id,
+        earlier.formation,
+        earlier.start_xi_json
+    from fetches as earlier
+    inner join latest_with_facts as newest
+        on
+            earlier.league_code = newest.league_code
+            and earlier.fixture_id = newest.fixture_id
+            and earlier.team_id = newest.team_id
+    where not newest.has_grid and earlier.has_grid and earlier.starting_eleven = newest.starting_eleven
+    qualify row_number() over (
+        partition by earlier.league_code, earlier.fixture_id, earlier.team_id
+        order by earlier.raw_ingested_at desc
+    ) = 1
+),
+
+grid_places as (
+    select
+        grid_fetches.league_code,
+        grid_fetches.fixture_id,
+        grid_fetches.team_id,
+        coalesce(safe_cast(json_value(player_el, '$.player.id') as int64), 0) as provider_player_id,
+        json_value(player_el, '$.player.grid') as grid_position
+    from grid_fetches,
+        unnest(json_query_array(grid_fetches.start_xi_json)) as player_el
 ),
 
 named as (
@@ -122,7 +177,7 @@ parsed as (
         sheet.league_code,
         sheet.fixture_id,
         sheet.team_id,
-        sheet.formation,
+        coalesce(sheet.formation, grid_fetches.formation) as formation,
         sheet.raw_ingested_at,
         sheet.is_starter,
         sheet.sheet_index,
@@ -135,8 +190,20 @@ parsed as (
         {{ decode_html_entities("json_value(sheet.player_el, '$.player.name')") }} as player_name,
         sheet.provider_shirt_number as shirt_number,
         json_value(sheet.player_el, '$.player.pos') as provider_position,
-        json_value(sheet.player_el, '$.player.grid') as grid_position
+        coalesce(json_value(sheet.player_el, '$.player.grid'), grid_places.grid_position) as grid_position
     from sheet_ids as sheet
+    left join grid_fetches
+        on
+            sheet.league_code = grid_fetches.league_code
+            and sheet.fixture_id = grid_fetches.fixture_id
+            and sheet.team_id = grid_fetches.team_id
+    left join grid_places
+        on
+            sheet.is_starter
+            and sheet.league_code = grid_places.league_code
+            and sheet.fixture_id = grid_places.fixture_id
+            and sheet.team_id = grid_places.team_id
+            and sheet.provider_player_id = grid_places.provider_player_id
 ),
 
 -- Some sheets name the position in words (cut to ten letters): each maps to G, D, M or F, a winger
@@ -529,7 +596,8 @@ stat_lines as (
         league_code,
         fixture_id,
         team_id,
-        player_id
+        player_id,
+        position_code
     from {{ ref('base_apif__fixture_players') }}
 ),
 
@@ -738,7 +806,8 @@ substitute_origins as (
             and s3.replaced_player_id = s4.player_id
 ),
 
--- A midfielder's line in the match: his own as a starter, the slot he took as a substitute.
+-- A midfielder's line in the match: his own as a starter, the slot he took as a substitute. A starter
+-- the sheet names no position for is a midfielder when his stats line says so.
 midfield_lines as (
     select
         lined.league_code,
@@ -766,7 +835,18 @@ midfield_lines as (
             and so.fixture_id = origin.fixture_id
             and so.team_id = origin.team_id
             and so.origin_player_id = origin.player_id
-    where lined.position_code = 'M' and (own.player_id is not null or origin.player_id is not null)
+    left join stat_lines as stat
+        on
+            lined.league_code = stat.league_code
+            and lined.fixture_id = stat.fixture_id
+            and lined.team_id = stat.team_id
+            and lined.player_id = stat.player_id
+    where
+        (own.player_id is not null or origin.player_id is not null)
+        and (
+            lined.position_code = 'M'
+            or (lined.position_code is null and own.player_id is not null and stat.position_code = 'M')
+        )
 ),
 
 -- One midfield line is central. With two or more, the lowest is defensive when it holds one or two

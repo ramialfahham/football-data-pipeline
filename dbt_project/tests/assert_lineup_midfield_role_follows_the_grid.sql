@@ -88,7 +88,11 @@ rows_with_lines as (
         l.player_sk,
         l.team_formation,
         l.midfield_role,
-        l.position_code = 'M' and s.slot_player_sk is not null as is_midfield_slot,
+        s.slot_player_sk is not null
+        and (
+            l.position_code = 'M'
+            or (l.position_code is null and coalesce(l.is_starter, false) and ps.position_code = 'M')
+        ) as is_midfield_slot,
         safe_cast(regexp_extract(o.grid_position, r'^(\d+)(?::|$)') as int64) - 1 as line,
         regexp_extract_all(l.team_formation, r'\d+') as digits,
         regexp_contains(coalesce(l.team_formation, ''), r'^[1-9]\d*(-[1-9]\d*){2,}$') as is_formation
@@ -97,6 +101,8 @@ rows_with_lines as (
         on l.fixture_sk = s.fixture_sk and l.team_sk = s.team_sk and l.player_sk = s.player_sk
     left join {{ ref('fct_fixture_lineup') }} as o
         on s.fixture_sk = o.fixture_sk and s.team_sk = o.team_sk and s.slot_player_sk = o.player_sk
+    left join {{ ref('fct_fixture_player_stats') }} as ps
+        on l.fixture_sk = ps.fixture_sk and l.team_sk = ps.team_sk and l.player_sk = ps.player_sk
 ),
 
 expected as (

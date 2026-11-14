@@ -27,12 +27,13 @@ team_seasons_without_player_data as (
     where not tm.is_awarded_result and tp.fixture_sk is null
 ),
 
--- A midfielder's season role: his most frequent role over his matches on a checked team sheet, as a
--- starter or in the slot he took as a substitute, then the role of his latest match, then the code.
-season_midfield_roles as (
+-- A match's midfield role counts when its team sheet is confirmed or researched.
+role_matches as (
     select
         legs.player_sk,
         legs.season_sk,
+        legs.season_api_year,
+        legs.kickoff_datetime,
         lineups.midfield_role
     from legs
     inner join {{ ref('fct_fixture_lineup') }} as lineups
@@ -41,23 +42,70 @@ season_midfield_roles as (
             and legs.team_sk = lineups.team_sk
             and legs.player_sk = lineups.player_sk
     where lineups.midfield_role is not null and lineups.lineup_state in ('confirmed', 'researched')
-    group by legs.player_sk, legs.season_sk, lineups.midfield_role
+),
+
+-- His season role: the most frequent over that season's matches, then the role of his latest match,
+-- then the code.
+this_season_roles as (
+    select
+        player_sk,
+        season_sk,
+        midfield_role
+    from role_matches
+    group by player_sk, season_sk, midfield_role
     qualify row_number() over (
-        partition by legs.player_sk, legs.season_sk
-        order by count(*) desc, max(legs.kickoff_datetime) desc, lineups.midfield_role asc
+        partition by player_sk, season_sk
+        order by count(*) desc, max(kickoff_datetime) desc, midfield_role asc
+    ) = 1
+),
+
+player_seasons as (
+    select distinct
+        player_sk,
+        season_sk,
+        season_api_year
+    from legs
+),
+
+-- Without one, his most frequent role over his matches in every other season; a tie goes to the
+-- role of the nearest season, then of the earlier one.
+other_season_roles as (
+    select
+        ps.player_sk,
+        ps.season_sk,
+        rm.midfield_role
+    from player_seasons as ps
+    inner join role_matches as rm
+        on ps.player_sk = rm.player_sk and ps.season_sk != rm.season_sk
+    group by ps.player_sk, ps.season_sk, rm.midfield_role
+    qualify row_number() over (
+        partition by ps.player_sk, ps.season_sk
+        order by
+            count(*) desc,
+            min(
+                abs(rm.season_api_year - ps.season_api_year) * 2
+                + if(rm.season_api_year < ps.season_api_year, 0, 1)
+            ) asc,
+            rm.midfield_role asc
     ) = 1
 ),
 
 window_rows as (
     select
         legs.*,
-        roles.midfield_role as season_midfield_role,
+        coalesce(own.midfield_role, other.midfield_role) as season_midfield_role,
+        case
+            when own.midfield_role is not null then 'this_season'
+            when other.midfield_role is not null then 'other_seasons'
+        end as season_midfield_role_from,
         uncovered.team_sk is null as window_is_complete
     from legs
     left join team_seasons_without_player_data as uncovered
         on legs.team_sk = uncovered.team_sk and legs.season_sk = uncovered.season_sk
-    left join season_midfield_roles as roles
-        on legs.player_sk = roles.player_sk and legs.season_sk = roles.season_sk
+    left join this_season_roles as own
+        on legs.player_sk = own.player_sk and legs.season_sk = own.season_sk
+    left join other_season_roles as other
+        on legs.player_sk = other.player_sk and legs.season_sk = other.season_sk
 )
 
 select
@@ -69,6 +117,7 @@ select
     array_agg(team_sk ignore nulls order by kickoff_datetime desc, team_sk desc limit 1)[safe_offset(0)]
         as team_sk,
     max(season_midfield_role) as midfield_role,
+    max(season_midfield_role_from) as midfield_role_from,
     if(logical_and(window_is_complete and minutes is not null), countif(is_starter), null) as starts,
     if(
         logical_and(window_is_complete and minutes is not null),
