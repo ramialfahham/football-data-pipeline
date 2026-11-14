@@ -1,9 +1,9 @@
 diff --git a/.claude/task/291-midfield-roles/contract.md b/.claude/task/291-midfield-roles/contract.md
 new file mode 100644
-index 00000000..a778af74
+index 00000000..55c7e504
 --- /dev/null
 +++ b/.claude/task/291-midfield-roles/contract.md
-@@ -0,0 +1,167 @@
+@@ -0,0 +1,170 @@
 +# Task contract — Midfield roles: defensive, central and attacking midfielders
 +
 +objective: >
@@ -113,7 +113,9 @@ index 00000000..a778af74
 +decisions_taken: >
 +  CPO, approved in chat 2026-11-14 (#291): add CM; EN/DE labels as in the mock; FI DM "puolustava
 +  keskikenttäpelaaja", CM "keskikentän keskustan pelaaja", AM "hyökkäävä keskikenttäpelaaja"; the
-+  finer label in the Player header and the Players index row, Team squad groups unchanged; no pool
++  finer label in the Player header and the Players index row, and in the comparison legend as the
++  approved mock shows it ("Name · Defensive midfielder", "Other defensive midfielders"); the page
++  title and meta description keep the position group; Team squad groups unchanged; no pool
 +  minimum — a player is always compared within his season role, the intro shows the pool count.
 +  Role rule as measured for #291: a starter's line is his grid row minus one within the formation;
 +  one midfield line → CM; with two or more, the lowest is DM when it holds one or two players, else
@@ -171,6 +173,7 @@ index 00000000..a778af74
 +  - 2026-11-14: + the earlier fetch's grid places and formation for the same starting eleven, with its test — authority: CPO, in chat 2026-11-14 (discarding them is a defect); content: decisions_taken, "Evidence first"; impact_map, the 132 sheets.
 +  - 2026-11-14: + the role from other seasons for a midfielder without one this season, and midfield_role_from — authority: CPO, approved in chat 2026-11-14; content: decisions_taken, "Season role".
 +  - 2026-11-14: + assert_no_uncatalogued_season_metric.sql — authority: the coordinator's engineering calls of 2026-11-14 (the role columns on int_player_season__metrics); content: midfield_role and midfield_role_from join its non-metric columns, as starts and minutes are.
++  - 2026-11-14: the site-commit round also carries the two-literal syntax fix to assert_lineup_fetch_keeps_grid_only_for_same_eleven.sql — authority: coordinator, 14 Nov 2026; content: two problem labels lose their doubled apostrophes, which BigQuery rejects.
 diff --git a/dbt_project/macros/player_benchmark_metrics.sql b/dbt_project/macros/player_benchmark_metrics.sql
 index 12439599..3f978f4b 100644
 --- a/dbt_project/macros/player_benchmark_metrics.sql
@@ -253,10 +256,10 @@ index 12439599..3f978f4b 100644
      ]
  {% endmacro %}
 diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
-index a06c5e3e..99806377 100644
+index 1d5543c3..b011a9c0 100644
 --- a/dbt_project/models/2_base/api_football/base.yml
 +++ b/dbt_project/models/2_base/api_football/base.yml
-@@ -408,6 +408,11 @@ models:
+@@ -416,6 +416,11 @@ models:
          description: "{{ doc('grid_position') }}"
        - name: team_formation
          description: "{{ doc('team_formation') }}"
@@ -268,7 +271,7 @@ index a06c5e3e..99806377 100644
        - name: minute_on
          description: "{{ doc('minute_on') }}"
        - name: minute_on_extra
-@@ -428,7 +433,7 @@ models:
+@@ -436,7 +441,7 @@ models:
            - accepted_values:
                values: ["confirmed", "researched", "not_available"]
        - name: failed_checks
@@ -278,7 +281,7 @@ index a06c5e3e..99806377 100644
          description: "{{ doc('raw_ingested_at') }} NULL on a researched match's rows."
  
 diff --git a/dbt_project/models/2_base/api_football/base_apif__lineups.sql b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
-index 13532754..c3225e3c 100644
+index 2aeba87d..adb486c5 100644
 --- a/dbt_project/models/2_base/api_football/base_apif__lineups.sql
 +++ b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
 @@ -1,5 +1,7 @@
@@ -361,7 +364,7 @@ index 13532754..c3225e3c 100644
  named as (
      select
          latest.league_code,
-@@ -122,7 +177,7 @@ parsed as (
+@@ -122,7 +177,7 @@ sheet_players as (
          sheet.league_code,
          sheet.fixture_id,
          sheet.team_id,
@@ -370,7 +373,7 @@ index 13532754..c3225e3c 100644
          sheet.raw_ingested_at,
          sheet.is_starter,
          sheet.sheet_index,
-@@ -135,8 +190,20 @@ parsed as (
+@@ -136,8 +191,20 @@ sheet_players as (
          {{ decode_html_entities("json_value(sheet.player_el, '$.player.name')") }} as player_name,
          sheet.provider_shirt_number as shirt_number,
          json_value(sheet.player_el, '$.player.pos') as provider_position,
@@ -391,8 +394,8 @@ index 13532754..c3225e3c 100644
 +            and sheet.provider_player_id = grid_places.provider_player_id
  ),
  
- -- Some sheets name the position in words (cut to ten letters): each maps to G, D, M or F, a winger
-@@ -529,7 +596,8 @@ stat_lines as (
+ stat_shirts as (
+@@ -655,7 +722,8 @@ stat_lines as (
          league_code,
          fixture_id,
          team_id,
@@ -402,7 +405,7 @@ index 13532754..c3225e3c 100644
      from {{ ref('base_apif__fixture_players') }}
  ),
  
-@@ -675,6 +743,140 @@ match_checks as (
+@@ -801,6 +869,140 @@ match_checks as (
              and sheet_checks.fixture_id = shared_id_sheets.fixture_id
              and sheet_checks.team_id = shared_id_sheets.team_id
      group by sheet_checks.league_code, sheet_checks.fixture_id
@@ -543,7 +546,7 @@ index 13532754..c3225e3c 100644
  )
  
  select
-@@ -688,6 +890,7 @@ select
+@@ -814,6 +1016,7 @@ select
      lined.position_code,
      lined.grid_position,
      lined.team_formation,
@@ -551,7 +554,7 @@ index 13532754..c3225e3c 100644
      lined.minute_on,
      lined.minute_on_extra,
      lined.replaced_player_id,
-@@ -721,3 +924,9 @@ inner join match_checks
+@@ -847,3 +1050,9 @@ inner join match_checks
      on
          lined.league_code = match_checks.league_code
          and lined.fixture_id = match_checks.fixture_id
@@ -1068,7 +1071,7 @@ index aeb31041..bd8ac050 100644
  The player's place in the starting formation, as the line-ups give it: row:column, row 1 being
 diff --git a/dbt_project/tests/assert_lineup_fetch_keeps_grid_only_for_same_eleven.sql b/dbt_project/tests/assert_lineup_fetch_keeps_grid_only_for_same_eleven.sql
 new file mode 100644
-index 00000000..dfcec9cb
+index 00000000..206965ad
 --- /dev/null
 +++ b/dbt_project/tests/assert_lineup_fetch_keeps_grid_only_for_same_eleven.sql
 @@ -0,0 +1,123 @@
@@ -1129,7 +1132,7 @@ index 00000000..dfcec9cb
 +        lender.league_code,
 +        lender.fixture_id,
 +        lender.team_id,
-+        safe_cast(json_value(el, '$.player.id') as int64) as player_id,
++        safe_cast(json_value(el, '$.player.number') as int64) as shirt_number,
 +        json_value(el, '$.player.grid') as grid_position
 +    from lender, unnest(json_query_array(lender.start_xi_json)) as el
 +),
@@ -1159,7 +1162,7 @@ index 00000000..dfcec9cb
 +        b.fixture_id,
 +        b.team_id,
 +        cast(null as int64) as player_id,
-+        'formation is not the latest fetch''s, or the lender''s when it has none' as problem
++        'formation is neither the latest fetch formation nor, when it has none, the lender formation' as problem
 +    from base_rows as b
 +    inner join newest as n
 +        on b.league_code = n.league_code and b.fixture_id = n.fixture_id and b.team_id = n.team_id
@@ -1174,7 +1177,7 @@ index 00000000..dfcec9cb
 +        b.fixture_id,
 +        b.team_id,
 +        b.player_id,
-+        'starter''s grid place is not the lender''s' as problem
++        'starter grid place differs from the lender grid place' as problem
 +    from base_rows as b
 +    inner join newest as n
 +        on b.league_code = n.league_code and b.fixture_id = n.fixture_id and b.team_id = n.team_id
@@ -1183,7 +1186,7 @@ index 00000000..dfcec9cb
 +            b.league_code = p.league_code
 +            and b.fixture_id = p.fixture_id
 +            and b.team_id = p.team_id
-+            and b.player_id = p.player_id
++            and b.shirt_number = p.shirt_number
 +    where
 +        b.is_starter
 +        and not n.has_grid
@@ -1787,6 +1790,271 @@ index 2bcae747..72ce48c7 100644
                       "region_key": r.get("region_key"), "nation_order": r.get("nation_order"),
                       "order_in_nation": r.get("order_in_nation"), "club": r.get("current_club_name"),
                       "nation_slug": r.get("nation_slug"), "hub": bool(r.get("is_hub_shown")),
+diff --git a/site_v2/src/components/player/PlayerComparison.astro b/site_v2/src/components/player/PlayerComparison.astro
+index 2bb34770..d3ba5003 100644
+--- a/site_v2/src/components/player/PlayerComparison.astro
++++ b/site_v2/src/components/player/PlayerComparison.astro
+@@ -21,18 +21,20 @@ interface Props {
+   peers: Record<string, number[]>[];
+   name: string;
+   positionGroup: string | null;
++  /** The position the page names: the midfielder's role, else the position group. */
++  position: string | null;
+   lang: Lang;
+ }
+-const { tab, peers, name, positionGroup, lang } = Astro.props;
++const { tab, peers, name, positionGroup, position, lang } = Astro.props;
+ 
+ // system.css carries one rule per slot.
+ const COMPARISON_SLOTS = 8;
+ const isGoalkeeper = positionGroup === "GK";
+ const prefix = tab.tab === "club" ? "club" : "national";
+-const positionText = positionWord(lang, "One", positionGroup);
+-const self = positionText
+-  ? `${name} · ${positionText.charAt(0).toLocaleUpperCase(lang)}${positionText.slice(1)}`
+-  : name;
++const selfIn = (group: string | null) => {
++  const text = positionWord(lang, "One", group);
++  return text ? `${name} · ${text.charAt(0).toLocaleUpperCase(lang)}${text.slice(1)}` : name;
++};
+ const teamName = tab.squad?.team?.name ?? "";
+ 
+ const comparisons = [
+@@ -40,6 +42,7 @@ const comparisons = [
+     const comp = competitionInfo(c.league_code).name;
+     return {
+       label: comp,
++      self: selfIn(c.position_group),
+       metrics: c.metrics,
+       strip: (m: PlayerMetric) => peers[i]?.[m.metric_key] ?? [],
+       intro: t(lang, "playerPeerIntro", {
+@@ -55,6 +58,7 @@ const comparisons = [
+   ...(tab.squad && !isGoalkeeper
+     ? [{
+       label: t(lang, "tabSquad"),
++      self: selfIn(position),
+       metrics: tab.squad.metrics,
+       strip: (m: PlayerMetric) => m.others ?? [],
+       intro: t(lang, tab.tab === "club" ? "playerSquadClubIntro" : "playerSquadNationalIntro", {
+@@ -63,7 +67,7 @@ const comparisons = [
+         team: teamBeforeCompound(lang, teamName),
+         season: tab.competitions[0]?.season_label ?? "",
+       }),
+-      others: t(lang, "playerOtherTeam", { team: teamName }),
++      others: t(lang, "playerOtherTeam", { team: teamBeforeCompound(lang, teamName) }),
+     }]
+     : []),
+ ].map((c, i) => {
+@@ -111,7 +115,7 @@ const aria = t(lang, "playerComparedWith");
+         <div class="cmp-p" data-cmp={c.slot}>
+           <div class="chart">
+             <ChartLegend keys={[
+-              { mark: "team", label: self },
++              { mark: "team", label: c.self },
+               { mark: "other", label: c.others },
+               { mark: "median", label: t(lang, "median") },
+             ]} />
+diff --git a/site_v2/src/components/player/PlayerHeader.astro b/site_v2/src/components/player/PlayerHeader.astro
+index 5b3ad972..3de22891 100644
+--- a/site_v2/src/components/player/PlayerHeader.astro
++++ b/site_v2/src/components/player/PlayerHeader.astro
+@@ -1,6 +1,7 @@
+ ---
+ // The player's header: photo, full name and one line: position · club · nation · age · height ·
+-// season. A missing value drops with its separator, and each item stays whole.
++// season. A missing value drops with its separator, and each item stays whole; the position, which
++// opens the line, wraps only when it is longer than the line. A midfielder is named by his role.
+ import Crest from "../ui/Crest.astro";
+ import { t } from "../../i18n/strings";
+ import { localeHref, word } from "../../lib/href";
+@@ -14,7 +15,7 @@ interface Props {
+ }
+ const { player, lang } = Astro.props;
+ 
+-const position = positionWord(lang, "One", player.position_group);
++const position = positionWord(lang, "One", player.position_role ?? player.position_group);
+ const club = player.club;
+ const clubHref = club?.slug && teamHasPage(club.team_id)
+   ? localeHref(lang, `${word(lang, "teams")}/${club.slug}/`)
+diff --git a/site_v2/src/components/player/PlayerIndexRow.astro b/site_v2/src/components/player/PlayerIndexRow.astro
+index 08aaf74f..5f06d7c8 100644
+--- a/site_v2/src/components/player/PlayerIndexRow.astro
++++ b/site_v2/src/components/player/PlayerIndexRow.astro
+@@ -24,7 +24,8 @@ const initials = (player.name ?? "")
+   .slice(0, 2)
+   .toUpperCase();
+ const code = codeOf(player.position_group);
+-const line = [code ? positionLabel(lang, code) : null, player.club].filter(Boolean).join(" · ");
++const position = player.position_role ?? code;
++const line = [position ? positionLabel(lang, position) : null, player.club].filter(Boolean).join(" · ");
+ const built = builtPlayers().has(player.player_id);
+ const Row = built ? "a" : "div";
+ ---
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index b1591247..df558417 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -52,6 +52,7 @@ const EN: Dict = {
+   table: "Table",
+   aboutNoH2h: "{home} vs {away} · {round}.",
+   posF: "Forward", posM: "Midfielder", posD: "Defender", posG: "Goalkeeper",
++  posDM: "Defensive midfielder", posCM: "Central midfielder", posAM: "Attacking midfielder",
+   // --- team page (Overview) ---
+   crumbAria: "Breadcrumb",
+   tabsAria: "Team sections",
+@@ -286,15 +287,18 @@ const EN: Dict = {
+   playerComparedWith: "Compared with",
+   playerOnBench: "On the bench",
+   playerPer90: "Values are per 90 minutes, so playing time doesn't tilt them.",
+-  playerPeerIntro: "{player}'s performance, ranked among the {n} {positions} who played at least 270 minutes in {comp} {season}.",
+-  playerSquadClubIntro: "{player}'s performance, ranked among the {n} {team} players who played at least a third of the team's minutes in all {season} club competitions.",
+-  playerSquadNationalIntro: "{player}'s performance, ranked among the {n} {team} players who played at least a third of the team's minutes in the current competitions.",
+-  playerLastSeasonIntro: "{player}'s performance this season ({now} minutes) against last season ({prev}), across all club competitions. {per90} Early on, a few games can swing the numbers; they settle as the minutes add up.",
++  playerPeerIntro: "Compared with the {n} {positions} who played at least 270 minutes in {comp} {season}.",
++  playerSquadClubIntro: "Compared with the {n} {team} players who played at least a third of the team's minutes in all {season} club competitions.",
++  playerSquadNationalIntro: "Compared with the {n} {team} players who played at least a third of the team's minutes in the current competitions.",
++  playerLastSeasonIntro: "This season ({now} minutes) against last season ({prev}), across all club competitions. {per90} Early on, a few games can swing the numbers; they settle as the minutes add up.",
+   playerOthers: "Other {positions}",
+   playerOtherTeam: "Other {team} players",
+   playerPosOneATT: "forward", playerPosOneMID: "midfielder", playerPosOneDEF: "defender", playerPosOneGK: "goalkeeper",
+   playerPosPeersATT: "forwards", playerPosPeersMID: "midfielders", playerPosPeersDEF: "defenders", playerPosPeersGK: "goalkeepers",
+   playerPosOthersATT: "forwards", playerPosOthersMID: "midfielders", playerPosOthersDEF: "defenders", playerPosOthersGK: "goalkeepers",
++  playerPosOneDM: "defensive midfielder", playerPosPeersDM: "defensive midfielders", playerPosOthersDM: "defensive midfielders",
++  playerPosOneCM: "central midfielder", playerPosPeersCM: "central midfielders", playerPosOthersCM: "central midfielders",
++  playerPosOneAM: "attacking midfielder", playerPosPeersAM: "attacking midfielders", playerPosOthersAM: "attacking midfielders",
+   filterAll: "All",
+   filterClubs: "Clubs",
+   filterNational: "National teams",
+@@ -541,6 +545,7 @@ const DE: Dict = {
+   table: "Tabelle",
+   aboutNoH2h: "{home} gegen {away} · {round}.",
+   posF: "Stürmer", posM: "Mittelfeldspieler", posD: "Verteidiger", posG: "Torhüter",
++  posDM: "Defensiver Mittelfeldspieler", posCM: "Zentraler Mittelfeldspieler", posAM: "Offensiver Mittelfeldspieler",
+   // --- team page (Overview) ---
+   crumbAria: "Brotkrümelnavigation",
+   tabsAria: "Mannschaftsbereiche",
+@@ -715,15 +720,18 @@ const DE: Dict = {
+   playerComparedWith: "Im Vergleich zu",
+   playerOnBench: "Auf der Bank",
+   playerPer90: "Alle Werte gelten pro 90 Minuten, die Spielzeit verzerrt sie also nicht.",
+-  playerPeerIntro: "Die Leistung von {player} im Vergleich der {n} {positions}, die im Wettbewerb {comp} {season} mindestens 270 Minuten gespielt haben.",
+-  playerSquadClubIntro: "Die Leistung von {player} im Vergleich der {n} Spieler von {team}, die in allen Vereinswettbewerben {season} mindestens ein Drittel der Spielminuten bestritten haben.",
+-  playerSquadNationalIntro: "Die Leistung von {player} im Vergleich der {n} Spieler von {team}, die in den laufenden Wettbewerben mindestens ein Drittel der Spielminuten bestritten haben.",
+-  playerLastSeasonIntro: "Die Leistung von {player} in dieser Saison ({now} Minuten) im Vergleich zur Vorsaison ({prev}), über alle Vereinswettbewerbe. {per90} Zu Saisonbeginn können ein paar Spiele die Zahlen stark bewegen; mit jeder Minute werden sie verlässlicher.",
++  playerPeerIntro: "Im Vergleich der {n} {positions}, die im Wettbewerb {comp} {season} mindestens 270 Minuten gespielt haben.",
++  playerSquadClubIntro: "Im Vergleich der {n} Spieler von {team}, die in allen Vereinswettbewerben {season} mindestens ein Drittel der Spielminuten bestritten haben.",
++  playerSquadNationalIntro: "Im Vergleich der {n} Spieler von {team}, die in den laufenden Wettbewerben mindestens ein Drittel der Spielminuten bestritten haben.",
++  playerLastSeasonIntro: "Diese Saison ({now} Minuten) im Vergleich zur Vorsaison ({prev}), über alle Vereinswettbewerbe. {per90} Zu Saisonbeginn können ein paar Spiele die Zahlen stark bewegen; mit jeder Minute werden sie verlässlicher.",
+   playerOthers: "Andere {positions}",
+   playerOtherTeam: "Andere Spieler von {team}",
+   playerPosOneATT: "Stürmer", playerPosOneMID: "Mittelfeldspieler", playerPosOneDEF: "Verteidiger", playerPosOneGK: "Torhüter",
+   playerPosPeersATT: "Stürmer", playerPosPeersMID: "Mittelfeldspieler", playerPosPeersDEF: "Verteidiger", playerPosPeersGK: "Torhüter",
+   playerPosOthersATT: "Stürmer", playerPosOthersMID: "Mittelfeldspieler", playerPosOthersDEF: "Verteidiger", playerPosOthersGK: "Torhüter",
++  playerPosOneDM: "Defensiver Mittelfeldspieler", playerPosPeersDM: "defensiven Mittelfeldspieler", playerPosOthersDM: "defensive Mittelfeldspieler",
++  playerPosOneCM: "Zentraler Mittelfeldspieler", playerPosPeersCM: "zentralen Mittelfeldspieler", playerPosOthersCM: "zentrale Mittelfeldspieler",
++  playerPosOneAM: "Offensiver Mittelfeldspieler", playerPosPeersAM: "offensiven Mittelfeldspieler", playerPosOthersAM: "offensive Mittelfeldspieler",
+   filterAll: "Alle",
+   filterClubs: "Vereine",
+   filterNational: "Nationalmannschaften",
+@@ -984,6 +992,7 @@ const FI: Dict = {
+   // A real Finnish description is copy, so it is the product owner's call (§10), not a quiet fix.
+   aboutNoH2h: "Ottelu {home} vs {away} · {round}.",
+   posF: "Hyökkääjä", posM: "Keskikenttäpelaaja", posD: "Puolustaja", posG: "Maalivahti",
++  posDM: "Puolustava keskikenttäpelaaja", posCM: "Keskikentän keskustan pelaaja", posAM: "Hyökkäävä keskikenttäpelaaja",
+   // --- team page (Overview) ---
+   crumbAria: "Murupolku",
+   tabsAria: "Joukkueen osiot",
+@@ -1149,15 +1158,18 @@ const FI: Dict = {
+   playerComparedWith: "Verrattuna",
+   playerOnBench: "Penkillä",
+   playerPer90: "Arvot ovat per 90 minuuttia, joten peliajan määrä ei vääristä niitä.",
+-  playerPeerIntro: "{player}: suoritusta verrataan niihin {n} {positions}, jotka ovat pelanneet vähintään 270 minuuttia kilpailussa {comp} {season}.",
+-  playerSquadClubIntro: "{player}: suoritusta verrataan niihin {n} {team}pelaajaan, jotka ovat pelanneet vähintään kolmanneksen joukkueen minuuteista kauden {season} seurakilpailuissa.",
+-  playerSquadNationalIntro: "{player}: suoritusta verrataan niihin {n} {team}pelaajaan, jotka ovat pelanneet vähintään kolmanneksen joukkueen minuuteista käynnissä olevissa kilpailuissa.",
+-  playerLastSeasonIntro: "{player}: suoritus tällä kaudella ({now} minuuttia) verrattuna viime kauteen ({prev}), kaikki seurakilpailut mukaan lukien. {per90} Kauden alussa muutama ottelu voi heiluttaa lukuja paljon; ne tasaantuvat minuuttien kertyessä.",
++  playerPeerIntro: "Suoritusta verrataan niihin {n} {positions}, jotka ovat pelanneet vähintään 270 minuuttia kilpailussa {comp} {season}.",
++  playerSquadClubIntro: "Suoritusta verrataan niihin {n} {team}pelaajaan, jotka ovat pelanneet vähintään kolmanneksen joukkueen minuuteista kauden {season} seurakilpailuissa.",
++  playerSquadNationalIntro: "Suoritusta verrataan niihin {n} {team}pelaajaan, jotka ovat pelanneet vähintään kolmanneksen joukkueen minuuteista käynnissä olevissa kilpailuissa.",
++  playerLastSeasonIntro: "Suoritus tällä kaudella ({now} minuuttia) verrattuna viime kauteen ({prev}), kaikki seurakilpailut mukaan lukien. {per90} Kauden alussa muutama ottelu voi heiluttaa lukuja paljon; ne tasaantuvat minuuttien kertyessä.",
+   playerOthers: "Muut {positions}",
+-  playerOtherTeam: "Muut {team}-pelaajat",
++  playerOtherTeam: "Muut {team}pelaajat",
+   playerPosOneATT: "hyökkääjä", playerPosOneMID: "keskikenttäpelaaja", playerPosOneDEF: "puolustaja", playerPosOneGK: "maalivahti",
+   playerPosPeersATT: "hyökkääjään", playerPosPeersMID: "keskikenttäpelaajaan", playerPosPeersDEF: "puolustajaan", playerPosPeersGK: "maalivahtiin",
+   playerPosOthersATT: "hyökkääjät", playerPosOthersMID: "keskikenttäpelaajat", playerPosOthersDEF: "puolustajat", playerPosOthersGK: "maalivahdit",
++  playerPosOneDM: "puolustava keskikenttäpelaaja", playerPosPeersDM: "puolustavaan keskikenttäpelaajaan", playerPosOthersDM: "puolustavat keskikenttäpelaajat",
++  playerPosOneCM: "keskikentän keskustan pelaaja", playerPosPeersCM: "keskikentän keskustan pelaajaan", playerPosOthersCM: "keskikentän keskustan pelaajat",
++  playerPosOneAM: "hyökkäävä keskikenttäpelaaja", playerPosPeersAM: "hyökkäävään keskikenttäpelaajaan", playerPosOthersAM: "hyökkäävät keskikenttäpelaajat",
+   filterAll: "Kaikki",
+   filterClubs: "Seurat",
+   filterNational: "Maajoukkueet",
+@@ -1399,7 +1411,7 @@ export function playedStatusWord(lang: Lang, status: string | null | undefined,
+   return t(lang, "playedFullTime");
+ }
+ 
+-/** Spelled position from the payload `position_code` (F/M/D/G). Raw code shown for anything else. */
++/** Spelled position from a payload code: F/M/D/G, or a midfielder's role DM/CM/AM. Raw code shown for anything else. */
+ export function positionLabel(lang: Lang, code: string | null | undefined): string {
+   const key = code ? `pos${code.toUpperCase()}` : "";
+   const label = STRINGS[lang]?.[key] ?? EN[key];
+diff --git a/site_v2/src/lib/playerPage.ts b/site_v2/src/lib/playerPage.ts
+index 658c6399..c7a6dddd 100644
+--- a/site_v2/src/lib/playerPage.ts
++++ b/site_v2/src/lib/playerPage.ts
+@@ -59,6 +59,7 @@ export interface Player {
+   age: number | null;
+   height: string | null;
+   position_group: string | null;
++  position_role?: string | null;
+   season_label: string | null;
+   club: TeamRef | null;
+   shares_name_at_club?: boolean;
+diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
+index 76bf4a04..f4e74690 100644
+--- a/site_v2/src/lib/types.ts
++++ b/site_v2/src/lib/types.ts
+@@ -591,6 +591,7 @@ export interface PlayerIndexRow {
+   name: string | null;
+   photo: string | null;
+   position_group: "ATT" | "MID" | "DEF" | "GK" | null;
++  position_role?: "DM" | "CM" | "AM" | null;
+   nation: string | null;
+   region_key: string | null;
+   nation_order: number;
+diff --git a/site_v2/src/pages/[lang]/[players]/[player].astro b/site_v2/src/pages/[lang]/[players]/[player].astro
+index 4ed7e43c..9434c747 100644
+--- a/site_v2/src/pages/[lang]/[players]/[player].astro
++++ b/site_v2/src/pages/[lang]/[players]/[player].astro
+@@ -44,6 +44,7 @@ const player = JSON.parse(readFileSync(join(dataDir, "players", `${id}.json`), "
+ 
+ const name = player.name ?? "";
+ const isGoalkeeper = player.position_group === "GK";
++const shownPosition = player.position_role ?? player.position_group;
+ const tabs = player.tabs;
+ const primary = tabs[0];
+ const team = player.club?.name ?? primary?.team?.name ?? player.nationality ?? "";
+@@ -165,7 +166,7 @@ const TAB = {
+             ))}
+           </section>
+         )}
+-        <PlayerComparison tab={tab} peers={peersOf(tab)} name={name} positionGroup={player.position_group} lang={lang} />
++        <PlayerComparison tab={tab} peers={peersOf(tab)} name={name} positionGroup={player.position_group} position={shownPosition} lang={lang} />
+         {tab.tab === "club" && (
+           <PlayerLastSeason lastSeason={tab.last_season} name={name} isGoalkeeper={isGoalkeeper} lang={lang} />
+         )}
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index a2c610ab..e43f1382 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -217,6 +217,8 @@ section { margin-top: 36px; }
+ .tid { min-width: 0; flex: 1; }
+ .tid h1 { font-size: clamp(22px, 5cqw, 28px); font-weight: 700; line-height: 1.03; margin: 0; text-wrap: balance; }
+ .tid .meta { font-size: 13px; color: var(--muted); margin-top: 5px; }
++/* The first item always opens the line, so it wraps only when it is longer than the line. */
++.tid .meta .nb:first-child { white-space: normal; }
+ .tid .meta b { color: var(--ink-2); font-weight: 600; }
+ 
+ /* tabs — JS-free radio toggle (same pattern as the fixture `.seg-in` control): the
 diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
 index e8b702b7..586f0f7c 100644
 --- a/tests/test_export_site_data.py
@@ -1826,6 +2094,76 @@ index e8b702b7..586f0f7c 100644
                       "region_key": "UEFA", "nation_order": 1, "order_in_nation": 1,
                       "club": "Bayern München", "nation_slug": "england", "hub": True,
                       "hub_in_position": True, "nation_page": True}
+diff --git a/tests/test_midfield_roles.py b/tests/test_midfield_roles.py
+new file mode 100644
+index 00000000..2c260c76
+--- /dev/null
++++ b/tests/test_midfield_roles.py
+@@ -0,0 +1,64 @@
++"""The midfield roles on the site: their approved words, and the explainers without the page's own
++player."""
++import re
++from pathlib import Path
++
++import pytest
++
++REPO = Path(__file__).resolve().parent.parent
++STRINGS = (REPO / "site_v2/src/i18n/strings.ts").read_text(encoding="utf-8")
++
++APPROVED = {
++    "en": {
++        "DM": ("defensive midfielder", "defensive midfielders", "defensive midfielders", "Defensive midfielder"),
++        "CM": ("central midfielder", "central midfielders", "central midfielders", "Central midfielder"),
++        "AM": ("attacking midfielder", "attacking midfielders", "attacking midfielders", "Attacking midfielder"),
++    },
++    "de": {
++        "DM": ("Defensiver Mittelfeldspieler", "defensiven Mittelfeldspieler", "defensive Mittelfeldspieler",
++               "Defensiver Mittelfeldspieler"),
++        "CM": ("Zentraler Mittelfeldspieler", "zentralen Mittelfeldspieler", "zentrale Mittelfeldspieler",
++               "Zentraler Mittelfeldspieler"),
++        "AM": ("Offensiver Mittelfeldspieler", "offensiven Mittelfeldspieler", "offensive Mittelfeldspieler",
++               "Offensiver Mittelfeldspieler"),
++    },
++    "fi": {
++        "DM": ("puolustava keskikenttäpelaaja", "puolustavaan keskikenttäpelaajaan",
++               "puolustavat keskikenttäpelaajat", "Puolustava keskikenttäpelaaja"),
++        "CM": ("keskikentän keskustan pelaaja", "keskikentän keskustan pelaajaan",
++               "keskikentän keskustan pelaajat", "Keskikentän keskustan pelaaja"),
++        "AM": ("hyökkäävä keskikenttäpelaaja", "hyökkäävään keskikenttäpelaajaan",
++               "hyökkäävät keskikenttäpelaajat", "Hyökkäävä keskikenttäpelaaja"),
++    },
++}
++
++INTROS = ("playerPeerIntro", "playerSquadClubIntro", "playerSquadNationalIntro", "playerLastSeasonIntro")
++
++
++def _dict(lang: str) -> dict[str, str]:
++    name = {"en": "EN", "de": "DE", "fi": "FI"}[lang]
++    body = re.search(rf"^const {name}: Dict = \{{\n(.*?)^\}};", STRINGS, re.S | re.M).group(1)
++    return dict(re.findall(r'(\w+): "((?:[^"\\]|\\.)*)"', body))
++
++
++@pytest.mark.parametrize("lang", ["en", "de", "fi"])
++@pytest.mark.parametrize("role", ["DM", "CM", "AM"])
++def test_role_words_are_the_approved_ones(lang, role):
++    words = _dict(lang)
++    one, peers, others, label = APPROVED[lang][role]
++    assert words[f"playerPosOne{role}"] == one
++    assert words[f"playerPosPeers{role}"] == peers
++    assert words[f"playerPosOthers{role}"] == others
++    assert words[f"pos{role}"] == label
++
++
++@pytest.mark.parametrize("lang", ["en", "de", "fi"])
++@pytest.mark.parametrize("key", INTROS)
++def test_explainers_do_not_name_the_pages_own_player(lang, key):
++    assert "{player}" not in _dict(lang)[key]
++
++
++def test_finnish_team_legend_takes_the_compound_form():
++    assert _dict("fi")["playerOtherTeam"] == "Muut {team}pelaajat"
++    comparison = (REPO / "site_v2/src/components/player/PlayerComparison.astro").read_text(encoding="utf-8")
++    assert 't(lang, "playerOtherTeam", { team: teamBeforeCompound(lang, teamName) })' in comparison
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -1839,7 +2177,9 @@ index e8b702b7..586f0f7c 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/291-midfield-roles/review.md          |   37 +
-#    .claude/task/291-midfield-roles/review_input.patch | 1802 ++++++++++++++++++++
-#    2 files changed, 1839 insertions(+)
+#   .../task/291-midfield-roles/acceptance_evidence.md |   16 +
+#    .../291-midfield-roles/rendered_page_evidence.md   |   52 +
+#    .claude/task/291-midfield-roles/review.md          |   37 +
+#    .claude/task/291-midfield-roles/review_input.patch | 1845 ++++++++++++++++++++
+#    4 files changed, 1950 insertions(+)
 # ============================================================================

@@ -591,6 +591,7 @@ export interface PlayerIndexRow {
   name: string | null;
   photo: string | null;
   position_group: "ATT" | "MID" | "DEF" | "GK" | null;
+  position_role?: "DM" | "CM" | "AM" | null;
   nation: string | null;
   region_key: string | null;
   nation_order: number;

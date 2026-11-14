@@ -107,7 +107,9 @@ approved_design:
 decisions_taken: >
   CPO, approved in chat 2026-11-14 (#291): add CM; EN/DE labels as in the mock; FI DM "puolustava
   keskikenttäpelaaja", CM "keskikentän keskustan pelaaja", AM "hyökkäävä keskikenttäpelaaja"; the
-  finer label in the Player header and the Players index row, Team squad groups unchanged; no pool
+  finer label in the Player header and the Players index row, and in the comparison legend as the
+  approved mock shows it ("Name · Defensive midfielder", "Other defensive midfielders"); the page
+  title and meta description keep the position group; Team squad groups unchanged; no pool
   minimum — a player is always compared within his season role, the intro shows the pool count.
   Role rule as measured for #291: a starter's line is his grid row minus one within the formation;
   one midfield line → CM; with two or more, the lowest is DM when it holds one or two players, else
@@ -165,3 +167,4 @@ amendments:
   - 2026-11-14: + the earlier fetch's grid places and formation for the same starting eleven, with its test — authority: CPO, in chat 2026-11-14 (discarding them is a defect); content: decisions_taken, "Evidence first"; impact_map, the 132 sheets.
   - 2026-11-14: + the role from other seasons for a midfielder without one this season, and midfield_role_from — authority: CPO, approved in chat 2026-11-14; content: decisions_taken, "Season role".
   - 2026-11-14: + assert_no_uncatalogued_season_metric.sql — authority: the coordinator's engineering calls of 2026-11-14 (the role columns on int_player_season__metrics); content: midfield_role and midfield_role_from join its non-metric columns, as starts and minutes are.
+  - 2026-11-14: the site-commit round also carries the two-literal syntax fix to assert_lineup_fetch_keeps_grid_only_for_same_eleven.sql — authority: coordinator, 14 Nov 2026; content: two problem labels lose their doubled apostrophes, which BigQuery rejects.

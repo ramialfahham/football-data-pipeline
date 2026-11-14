@@ -44,6 +44,7 @@ const player = JSON.parse(readFileSync(join(dataDir, "players", `${id}.json`), "
 
 const name = player.name ?? "";
 const isGoalkeeper = player.position_group === "GK";
+const shownPosition = player.position_role ?? player.position_group;
 const tabs = player.tabs;
 const primary = tabs[0];
 const team = player.club?.name ?? primary?.team?.name ?? player.nationality ?? "";
@@ -165,7 +166,7 @@ const TAB = {
             ))}
           </section>
         )}
-        <PlayerComparison tab={tab} peers={peersOf(tab)} name={name} positionGroup={player.position_group} lang={lang} />
+        <PlayerComparison tab={tab} peers={peersOf(tab)} name={name} positionGroup={player.position_group} position={shownPosition} lang={lang} />
         {tab.tab === "club" && (
           <PlayerLastSeason lastSeason={tab.last_season} name={name} isGoalkeeper={isGoalkeeper} lang={lang} />
         )}

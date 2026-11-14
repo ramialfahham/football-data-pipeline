@@ -55,7 +55,7 @@ lent_places as (
         lender.league_code,
         lender.fixture_id,
         lender.team_id,
-        safe_cast(json_value(el, '$.player.id') as int64) as player_id,
+        safe_cast(json_value(el, '$.player.number') as int64) as shirt_number,
         json_value(el, '$.player.grid') as grid_position
     from lender, unnest(json_query_array(lender.start_xi_json)) as el
 ),
@@ -85,7 +85,7 @@ wrong_formation as (
         b.fixture_id,
         b.team_id,
         cast(null as int64) as player_id,
-        'formation is not the latest fetch''s, or the lender''s when it has none' as problem
+        'formation is neither the latest fetch formation nor, when it has none, the lender formation' as problem
     from base_rows as b
     inner join newest as n
         on b.league_code = n.league_code and b.fixture_id = n.fixture_id and b.team_id = n.team_id
@@ -100,7 +100,7 @@ wrong_place as (
         b.fixture_id,
         b.team_id,
         b.player_id,
-        'starter''s grid place is not the lender''s' as problem
+        'starter grid place differs from the lender grid place' as problem
     from base_rows as b
     inner join newest as n
         on b.league_code = n.league_code and b.fixture_id = n.fixture_id and b.team_id = n.team_id
@@ -109,7 +109,7 @@ wrong_place as (
             b.league_code = p.league_code
             and b.fixture_id = p.fixture_id
             and b.team_id = p.team_id
-            and b.player_id = p.player_id
+            and b.shirt_number = p.shirt_number
     where
         b.is_starter
         and not n.has_grid
