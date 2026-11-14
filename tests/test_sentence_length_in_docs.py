@@ -42,7 +42,7 @@ PINNED = {
     "dbt_project/models/docs/shared_columns.md": 33,
     "deploy/nightly/README.md": 19,
     "design-mocks/README.md": 15,
-    "docs/data_contract.md": 31,
+    "docs/data_contract.md": 30,
     "docs/operations_guide.md": 19,
     "docs/roles/analytics_engineer.md": 5,
     "docs/roles/bi_analyst.md": 5,

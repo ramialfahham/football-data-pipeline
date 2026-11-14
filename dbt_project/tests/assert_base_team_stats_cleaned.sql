@@ -4,7 +4,7 @@
 
   - missing_team_row: a team of a finished match has no row.
   - blank_where_counted: a count is blank although the other team's line, as the provider delivered
-    it (read from stg_apif__fixture_statistics, the fetch base kept), carries a value for it.
+    it in its newest fetch (read from stg_apif__fixture_statistics), carries a value for it.
     Possession is a share, not a count, and is not checked.
   - card_blank_where_events_prove_none: a card count is blank in a match whose events were
     delivered (a substitution or a card) while the team has no event against that zero: a card of
@@ -38,8 +38,8 @@ with lines as (
     select * from {{ ref('base_apif__fixture_statistics') }}
 ),
 
--- The provider's own values, per fetch, under the team id base corrects to; base keeps the newest
--- fetch per team-match, and so does this.
+-- The provider's own values, per fetch, under the team id base corrects to; this reads the newest
+-- fetch per team-match.
 fixture_participants as (
     select
         fixture_id,
