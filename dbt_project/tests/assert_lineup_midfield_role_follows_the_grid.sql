@@ -5,29 +5,80 @@
   measured with. Returns the rows that disagree.
 #}
 
-with recursive slots as (
+with came_on as (
     select
         fixture_sk,
         team_sk,
         player_sk,
-        player_sk as slot_player_sk,
-        0 as hops
+        replaced_player_sk
+    from {{ ref('fct_fixture_lineup') }}
+    where is_starter = false and replaced_player_sk is not null
+),
+
+starters as (
+    select
+        fixture_sk,
+        team_sk,
+        player_sk,
+        player_sk as slot_player_sk
     from {{ ref('fct_fixture_lineup') }}
     where coalesce(is_starter, false)
-    union all
+),
+
+hop_1 as (
     select
-        sub.fixture_sk,
-        sub.team_sk,
-        sub.player_sk,
-        slots.slot_player_sk,
-        slots.hops + 1 as hops
-    from slots
-    inner join {{ ref('fct_fixture_lineup') }} as sub
-        on
-            slots.fixture_sk = sub.fixture_sk
-            and slots.team_sk = sub.team_sk
-            and slots.player_sk = sub.replaced_player_sk
-    where sub.is_starter = false and slots.hops < 4
+        c.fixture_sk,
+        c.team_sk,
+        c.player_sk,
+        s.slot_player_sk
+    from came_on as c
+    inner join starters as s
+        on c.fixture_sk = s.fixture_sk and c.team_sk = s.team_sk and c.replaced_player_sk = s.player_sk
+),
+
+hop_2 as (
+    select
+        c.fixture_sk,
+        c.team_sk,
+        c.player_sk,
+        h.slot_player_sk
+    from came_on as c
+    inner join hop_1 as h
+        on c.fixture_sk = h.fixture_sk and c.team_sk = h.team_sk and c.replaced_player_sk = h.player_sk
+),
+
+hop_3 as (
+    select
+        c.fixture_sk,
+        c.team_sk,
+        c.player_sk,
+        h.slot_player_sk
+    from came_on as c
+    inner join hop_2 as h
+        on c.fixture_sk = h.fixture_sk and c.team_sk = h.team_sk and c.replaced_player_sk = h.player_sk
+),
+
+hop_4 as (
+    select
+        c.fixture_sk,
+        c.team_sk,
+        c.player_sk,
+        h.slot_player_sk
+    from came_on as c
+    inner join hop_3 as h
+        on c.fixture_sk = h.fixture_sk and c.team_sk = h.team_sk and c.replaced_player_sk = h.player_sk
+),
+
+slots as (
+    select * from starters
+    union all
+    select * from hop_1
+    union all
+    select * from hop_2
+    union all
+    select * from hop_3
+    union all
+    select * from hop_4
 ),
 
 rows_with_lines as (

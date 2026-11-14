@@ -816,10 +816,10 @@ index aeb31041..2b7c32b2 100644
  The player's place in the starting formation, as the line-ups give it: row:column, row 1 being
 diff --git a/dbt_project/tests/assert_lineup_midfield_role_follows_the_grid.sql b/dbt_project/tests/assert_lineup_midfield_role_follows_the_grid.sql
 new file mode 100644
-index 00000000..87952849
+index 00000000..50763c90
 --- /dev/null
 +++ b/dbt_project/tests/assert_lineup_midfield_role_follows_the_grid.sql
-@@ -0,0 +1,105 @@
+@@ -0,0 +1,156 @@
 +{#
 +  Every line-up row's midfield_role is the one its grid line gives, recomputed here from the
 +  formation's digits: a starter's own line, a substitute's the line of the starter whose slot he took,
@@ -827,29 +827,80 @@ index 00000000..87952849
 +  measured with. Returns the rows that disagree.
 +#}
 +
-+with recursive slots as (
++with came_on as (
 +    select
 +        fixture_sk,
 +        team_sk,
 +        player_sk,
-+        player_sk as slot_player_sk,
-+        0 as hops
++        replaced_player_sk
++    from {{ ref('fct_fixture_lineup') }}
++    where is_starter = false and replaced_player_sk is not null
++),
++
++starters as (
++    select
++        fixture_sk,
++        team_sk,
++        player_sk,
++        player_sk as slot_player_sk
 +    from {{ ref('fct_fixture_lineup') }}
 +    where coalesce(is_starter, false)
-+    union all
++),
++
++hop_1 as (
 +    select
-+        sub.fixture_sk,
-+        sub.team_sk,
-+        sub.player_sk,
-+        slots.slot_player_sk,
-+        slots.hops + 1 as hops
-+    from slots
-+    inner join {{ ref('fct_fixture_lineup') }} as sub
-+        on
-+            slots.fixture_sk = sub.fixture_sk
-+            and slots.team_sk = sub.team_sk
-+            and slots.player_sk = sub.replaced_player_sk
-+    where sub.is_starter = false and slots.hops < 4
++        c.fixture_sk,
++        c.team_sk,
++        c.player_sk,
++        s.slot_player_sk
++    from came_on as c
++    inner join starters as s
++        on c.fixture_sk = s.fixture_sk and c.team_sk = s.team_sk and c.replaced_player_sk = s.player_sk
++),
++
++hop_2 as (
++    select
++        c.fixture_sk,
++        c.team_sk,
++        c.player_sk,
++        h.slot_player_sk
++    from came_on as c
++    inner join hop_1 as h
++        on c.fixture_sk = h.fixture_sk and c.team_sk = h.team_sk and c.replaced_player_sk = h.player_sk
++),
++
++hop_3 as (
++    select
++        c.fixture_sk,
++        c.team_sk,
++        c.player_sk,
++        h.slot_player_sk
++    from came_on as c
++    inner join hop_2 as h
++        on c.fixture_sk = h.fixture_sk and c.team_sk = h.team_sk and c.replaced_player_sk = h.player_sk
++),
++
++hop_4 as (
++    select
++        c.fixture_sk,
++        c.team_sk,
++        c.player_sk,
++        h.slot_player_sk
++    from came_on as c
++    inner join hop_3 as h
++        on c.fixture_sk = h.fixture_sk and c.team_sk = h.team_sk and c.replaced_player_sk = h.player_sk
++),
++
++slots as (
++    select * from starters
++    union all
++    select * from hop_1
++    union all
++    select * from hop_2
++    union all
++    select * from hop_3
++    union all
++    select * from hop_4
 +),
 +
 +rows_with_lines as (
@@ -1273,3 +1324,20 @@ index e8b702b7..586f0f7c 100644
                       "region_key": "UEFA", "nation_order": 1, "order_in_nation": 1,
                       "club": "Bayern München", "nation_slug": "england", "hub": True,
                       "hub_in_position": True, "nation_page": True}
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/291-midfield-roles/review.md          |   29 +
+#    .claude/task/291-midfield-roles/review_input.patch | 1275 ++++++++++++++++++++
+#    2 files changed, 1304 insertions(+)
+# ============================================================================
