@@ -1,0 +1,181 @@
+diff --git a/.claude/task/262-nightly-green-14nov/contract.md b/.claude/task/262-nightly-green-14nov/contract.md
+new file mode 100644
+index 00000000..c1c81bfd
+--- /dev/null
++++ b/.claude/task/262-nightly-green-14nov/contract.md
+@@ -0,0 +1,53 @@
++# Task contract — the two defects that failed the 14 Nov nightly, fixed at their source
++
++objective: >
++  Issue #262: the 14 Nov nightly failed four error tests, and dbt skipped every model downstream of
++  the three models they test, so the marts did not refresh. (1) not_null on fct_fixture's
++  shootout_home, shootout_away and winner_team_sk: the provider files Coupe de France fixture 1647959
++  (La Neuvillette 2-2 Valenciennes, 13 Nov 2026) as settled on penalties with no shoot-out score. One
++  fixture_result_corrections row gives the shoot-out, 0-3, from two match reports.
++  (2) assert_player_stat_corrections_within_limit: CONCACAF Nations League 2025 reached 8.7%
++  corrected player rows against the 8% limit, because the provider's first fetch of its 12-14 Nov
++  matches holds 2 to 9 stat lines per team and card events for players it holds no stat line or id
++  for, so the cleaning blanks those matches' cards. The provider completes such player stats days
++  later, and the data contract counts a match's player stats as not final until its second fetch.
++  The test measures the matches whose player stats are final, as that rule says. Each fix's data
++  build fails on the other's test, so one MR carries both.
++
++refs: >
++  #262; routes ruled by the coordinating session on 2026-11-14: the provider's data is wrong by
++  default; the shoot-out is researched (never rfef.es) and corrected through the existing route in
++  base; the over-limit share is measured on final player stats under docs/data_contract.md "Second
++  fetch", with the limit and the severity unchanged and a named case.
++
++scope_paths:
++  - dbt_project/seeds/fixture_result_corrections.csv
++  - dbt_project/tests/assert_player_stat_corrections_within_limit.sql
++  - .claude/task/262-nightly-green-14nov/contract.md
++  - .claude/task/262-nightly-green-14nov/review.md
++  - .claude/task/262-nightly-green-14nov/review_input.patch
++
++approved_design:
++  - none: no page layout changes; fixture 1647959 shows Valenciennes winning 3-0 on penalties
++
++decisions_taken: >
++  Ruled by the coordinating session on 2026-11-14. (1) Fixture 1647959's shoot-out is 0-3: Footeo's
++  Coupe de France round-up and Sport Club Reims' match report agree on 2-2 and 0-3 on penalties, and
++  the match_reports kind takes two sites. The provider's 2-2 stays; base derives the winner from the
++  shoot-out, so winner_team_sk becomes Valenciennes (105). (2) The limit test measures a match once
++  its player stats are final: its latest fetch came 72 hours or more after kickoff, the ingestion's
++  second_fetch_due rule (SECOND_FETCH_DELAY, 3 days). The latest fetch is the newest raw_ingested_at
++  of the match in any of the four staging models of the fixture-details bundle (player stats,
++  lineups, events, statistics), so a second fetch whose player stats came back empty still counts.
++  A match with no fetch or no kickoff is measured. Measured on prod 2026-11-14, read-only: of 49,846 matches with player stats, the 31
++  kicked off 12-14 Nov wait for their second fetch and no older match does. The limit stays 8% and
++  the severity error. The named case, Aruba-Antigua and Barbuda (fixture 1639932, 23 Sep 2026,
++  fetched again on 6 Oct), pins that a final match is measured.
++
++decisions_reserved:
++  - The Nations League's Sep-Oct matches whose cards stay blanked: under the limit, researched in their own task.
++
++done_when:
++  - dbt parse passes; sqlfluff lint passes on the changed test.
++  - The full pytest suite passes.
++  - The MR's data build passes not_null_fct_fixture_shootout_home, not_null_fct_fixture_shootout_away, not_null_fct_fixture_winner_team_sk, assert_result_corrections_applied and assert_player_stat_corrections_within_limit; compared with prod, fixture 1647959's shoot-out and winner are the only model change.
+diff --git a/dbt_project/seeds/fixture_result_corrections.csv b/dbt_project/seeds/fixture_result_corrections.csv
+index 1ad704fc..476b1178 100644
+--- a/dbt_project/seeds/fixture_result_corrections.csv
++++ b/dbt_project/seeds/fixture_result_corrections.csv
+@@ -150,3 +150,4 @@ fixture_id,goals_home,goals_away,awarded,awarded_to_team_id,award_kind,on_pitch_
+ 1486822,0,0,false,,,,,20,21,official,https://www.fff.fr/article/15845-tout-sur-le-8e-tour.html,"Steenvoorde-Stade Béthunois, CDF 29 Nov 2025: 0-0, 20-21 on penalties"
+ 1486814,0,0,false,,,,,5,4,official,https://www.fff.fr/article/15845-tout-sur-le-8e-tour.html,"Saint-Cyr Collonges-Rhone-Vallee, CDF 30 Nov 2025: 0-0, 5-4 on penalties"
+ 1640766,1,1,false,,,,,4,3,match_reports,https://wsmafc.co.uk/match-highlights-wimborne-town-1-1-wsm-afc-4-3-on-pens/ https://www.footballwebpages.co.uk/fa-cup/20260922,"Wimborne Town-Weston-super-Mare, FAC 22 Sep 2026: 1-1, 4-3 on penalties"
++1647959,2,2,false,,,,,0,3,match_reports,https://news.footeo.com/2026/11/13/coupe-de-france-un-premier-club-de-ligue-2-elimine-une-ligue-3-a-tremble-17665 https://www.sportclub-reims.fr/2026/11/reims-neuvillette-sarrete-au-7e-tour-de-coupe-de-france-face-a-valenciennes-aux-tirs-au-but/,"La Neuvillette-Valenciennes, CDF 13 Nov 2026: 2-2, 0-3 on penalties"
+diff --git a/dbt_project/tests/assert_player_stat_corrections_within_limit.sql b/dbt_project/tests/assert_player_stat_corrections_within_limit.sql
+index 7cfc0c2d..f45e4861 100644
+--- a/dbt_project/tests/assert_player_stat_corrections_within_limit.sql
++++ b/dbt_project/tests/assert_player_stat_corrections_within_limit.sql
+@@ -4,28 +4,97 @@
+   within one limit for every competition-season, set just above the highest share measured on the
+   built cleaning. It catches a provider feed that breaks badly before its numbers reach a page; a
+   slow drift is what the comparison with prod before each merge shows.
+-  Returns each competition-season above the limit.
++  It measures the matches whose player stats are final: a match whose latest fetch came under 3
++  days after kickoff waits for its second fetch (docs/data_contract.md, "Second fetch"), the
++  ingestion's coverage.second_fetch_due rule.
++  Returns each competition-season above the limit, and the named case: Aruba-Antigua and Barbuda
++  (fixture 1639932, 23 Sep 2026, fetched again on 6 Oct) is measured.
+ #}
+ {{ config(store_failures = true, severity = 'error') }}
+ 
+ {% set limit = 0.08 %}
+ 
+-with player_rows as (
++with fetches as (
++    select
++        fixture_id,
++        raw_ingested_at
++    from {{ ref('stg_apif__fixture_players') }}
++    union all
++    select
++        fixture_id,
++        raw_ingested_at
++    from {{ ref('stg_apif__lineups') }}
++    union all
++    select
++        fixture_id,
++        raw_ingested_at
++    from {{ ref('stg_apif__fixture_events') }}
++    union all
++    select
++        fixture_id,
++        raw_ingested_at
++    from {{ ref('stg_apif__fixture_statistics') }}
++),
++
++latest_fetches as (
++    select
++        fixture_id,
++        max(raw_ingested_at) as latest_fetch
++    from fetches
++    group by fixture_id
++),
++
++awaiting_second_fetch as (
++    select f.fixture_id
++    from {{ ref('base_apif__fixtures_next') }} as f
++    inner join latest_fetches as l
++        on f.fixture_id = l.fixture_id
++    where l.latest_fetch < timestamp_add(f.kickoff_datetime, interval 72 hour)
++),
++
++player_rows as (
+     select
+         p.league_code,
+         f.season,
++        p.fixture_id,
+         array_length(p.stat_corrections) > 0 as is_corrected
+     from {{ ref('base_apif__fixture_players') }} as p
+     left join {{ ref('base_apif__fixtures_next') }} as f
+         on p.fixture_id = f.fixture_id
++    left join awaiting_second_fetch as w
++        on p.fixture_id = w.fixture_id
++    where w.fixture_id is null
++),
++
++over_limit as (
++    select
++        'over_limit' as failure,
++        league_code,
++        season,
++        countif(is_corrected) as corrected_rows,
++        count(*) as player_rows,
++        safe_divide(countif(is_corrected), count(*)) as corrected_share
++    from player_rows
++    group by league_code, season
++    having safe_divide(countif(is_corrected), count(*)) > {{ limit }}
++),
++
++named_case as (
++    select
++        'named_case_not_measured' as failure,
++        'CNL' as league_code,
++        2025 as season,
++        cast(null as int64) as corrected_rows,
++        cast(null as int64) as player_rows,
++        cast(null as float64) as corrected_share
++    from (select 1)
++    where not exists (
++        select 1
++        from player_rows as r
++        where r.fixture_id = 1639932
++    )
+ )
+ 
+-select
+-    league_code,
+-    season,
+-    countif(is_corrected) as corrected_rows,
+-    count(*) as player_rows,
+-    safe_divide(countif(is_corrected), count(*)) as corrected_share
+-from player_rows
+-group by league_code, season
+-having safe_divide(countif(is_corrected), count(*)) > {{ limit }}
++select * from over_limit
++union all
++select * from named_case
