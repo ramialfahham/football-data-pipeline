@@ -31,6 +31,7 @@ scope_paths:
   - dbt_project/models/docs/shared_columns.md
   - dbt_project/tests/assert_lineup_midfield_role_follows_the_grid.sql
   - dbt_project/tests/assert_player_season_midfield_role_is_most_frequent.sql
+  - dbt_project/tests/assert_player_season_midfield_role_assumed_only_without_evidence.sql
   - dbt_project/tests/assert_player_page_position_follows_the_rule.sql
   - dbt_project/tests/assert_player_peer_pools_follow_the_season_role.sql
   - dbt_project/tests/assert_player_metrics_follow_catalogue_formula.sql
@@ -133,12 +134,16 @@ decisions_taken: >
   Season role: most frequent over those matches, then the latest match, then the code. A midfielder
   with no role from that season's evidence takes his most frequent role across his other seasons
   (any competition, counted over matches); a tie goes to the role of the nearest season, then the
-  earlier season (CPO, approved in chat 2026-11-14). midfield_role_from says which: this_season or
-  other_seasons; the page shows both the same way.
+  earlier season (CPO, approved in chat 2026-11-14). A player who played as a midfielder that season
+  and has no role from either step is CM, as the last step of the chain, in
+  int_player_season__metrics, never in base (CPO, approved in chat 2026-11-14).
+  midfield_role_from says which: this_season, other_seasons or assumed; it is not shown on the site,
+  and the page shows all three the same way.
   Every midfielder who played and is in a comparison pool or has a built Player page must carry a
-  role (coordinator, 2026-11-14); a bench-only midfielder needs none. The ones left without a role
-  in any season are filled through the researched sheet, in a separate research task; this MR
-  merges only once assert_played_midfielders_have_a_role is green.
+  role (coordinator, 2026-11-14); a bench-only midfielder needs none.
+  assert_played_midfielders_have_a_role stays an error;
+  assert_player_season_midfield_role_assumed_only_without_evidence fails any assumed role for a
+  player with a counted match role in any season.
   Engineering calls (coordinator, 2026-11-13): the peer pool is the season role and the values are
   all the player's midfield matches; the Player header's position item may wrap inside itself.
   Position rule (#183 residual, ruled with #277's rule): most frequent position in the season, then
@@ -153,8 +158,8 @@ decisions_taken: >
   The explainers without the page's own player follow the #230 rule (coordinator, 2026-11-14):
   playerPeerIntro, playerSquadClubIntro, playerSquadNationalIntro and playerLastSeasonIntro, EN, DE
   and FI, as shown in the mock. The FI squad legend passes the team through teamBeforeCompound.
-  Thresholds: no new mechanism, no recurring cost (columns on existing models; no new model, seed,
-  schedule or dependency).
+  Thresholds: no new mechanism, no recurring cost (one new base model, base_apif__lineup_sheets; no
+  new seed, schedule or dependency).
 
 decisions_reserved:
   - none: every fan-visible choice in this task is decided above (labels, pools, pages); a new one that surfaces goes to the coordinator, unbuilt.
@@ -173,3 +178,4 @@ amendments:
   - 2026-11-14: + assert_no_uncatalogued_season_metric.sql — authority: the coordinator's engineering calls of 2026-11-14 (the role columns on int_player_season__metrics); content: midfield_role and midfield_role_from join its non-metric columns, as starts and minutes are.
   - 2026-11-14: the site-commit round also carries the two-literal syntax fix to assert_lineup_fetch_keeps_grid_only_for_same_eleven.sql — authority: coordinator, 14 Nov 2026; content: two problem labels lose their doubled apostrophes, which BigQuery rejects.
   - 2026-11-14: + base_apif__lineup_sheets.sql (round 7) — authority: CPO, approved in chat 2026-11-14 (one more review round); the split is the coordinator's engineering call of 2026-11-14; content: the parsed team sheet moves into its own base table and base_apif__lineups reads it, because the one query was too complex for BigQuery to plan; rules and output unchanged. The same round removes the header wrap rule from system.css: the position item in PlayerHeader carries no nowrap class instead.
+  - 2026-11-14: + the assumed central midfielder and assert_player_season_midfield_role_assumed_only_without_evidence.sql (round 8) — authority: CPO, approved in chat 2026-11-14 (the rule and one more review round); content: decisions_taken, "Season role"; midfield_role_from gains assumed.

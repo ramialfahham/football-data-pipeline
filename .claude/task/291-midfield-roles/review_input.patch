@@ -1,9 +1,9 @@
 diff --git a/.claude/task/291-midfield-roles/contract.md b/.claude/task/291-midfield-roles/contract.md
 new file mode 100644
-index 00000000..2417a7e0
+index 00000000..23803ef9
 --- /dev/null
 +++ b/.claude/task/291-midfield-roles/contract.md
-@@ -0,0 +1,175 @@
+@@ -0,0 +1,181 @@
 +# Task contract — Midfield roles: defensive, central and attacking midfielders
 +
 +objective: >
@@ -37,6 +37,7 @@ index 00000000..2417a7e0
 +  - dbt_project/models/docs/shared_columns.md
 +  - dbt_project/tests/assert_lineup_midfield_role_follows_the_grid.sql
 +  - dbt_project/tests/assert_player_season_midfield_role_is_most_frequent.sql
++  - dbt_project/tests/assert_player_season_midfield_role_assumed_only_without_evidence.sql
 +  - dbt_project/tests/assert_player_page_position_follows_the_rule.sql
 +  - dbt_project/tests/assert_player_peer_pools_follow_the_season_role.sql
 +  - dbt_project/tests/assert_player_metrics_follow_catalogue_formula.sql
@@ -139,12 +140,16 @@ index 00000000..2417a7e0
 +  Season role: most frequent over those matches, then the latest match, then the code. A midfielder
 +  with no role from that season's evidence takes his most frequent role across his other seasons
 +  (any competition, counted over matches); a tie goes to the role of the nearest season, then the
-+  earlier season (CPO, approved in chat 2026-11-14). midfield_role_from says which: this_season or
-+  other_seasons; the page shows both the same way.
++  earlier season (CPO, approved in chat 2026-11-14). A player who played as a midfielder that season
++  and has no role from either step is CM, as the last step of the chain, in
++  int_player_season__metrics, never in base (CPO, approved in chat 2026-11-14).
++  midfield_role_from says which: this_season, other_seasons or assumed; it is not shown on the site,
++  and the page shows all three the same way.
 +  Every midfielder who played and is in a comparison pool or has a built Player page must carry a
-+  role (coordinator, 2026-11-14); a bench-only midfielder needs none. The ones left without a role
-+  in any season are filled through the researched sheet, in a separate research task; this MR
-+  merges only once assert_played_midfielders_have_a_role is green.
++  role (coordinator, 2026-11-14); a bench-only midfielder needs none.
++  assert_played_midfielders_have_a_role stays an error;
++  assert_player_season_midfield_role_assumed_only_without_evidence fails any assumed role for a
++  player with a counted match role in any season.
 +  Engineering calls (coordinator, 2026-11-13): the peer pool is the season role and the values are
 +  all the player's midfield matches; the Player header's position item may wrap inside itself.
 +  Position rule (#183 residual, ruled with #277's rule): most frequent position in the season, then
@@ -159,8 +164,8 @@ index 00000000..2417a7e0
 +  The explainers without the page's own player follow the #230 rule (coordinator, 2026-11-14):
 +  playerPeerIntro, playerSquadClubIntro, playerSquadNationalIntro and playerLastSeasonIntro, EN, DE
 +  and FI, as shown in the mock. The FI squad legend passes the team through teamBeforeCompound.
-+  Thresholds: no new mechanism, no recurring cost (columns on existing models; no new model, seed,
-+  schedule or dependency).
++  Thresholds: no new mechanism, no recurring cost (one new base model, base_apif__lineup_sheets; no
++  new seed, schedule or dependency).
 +
 +decisions_reserved:
 +  - none: every fan-visible choice in this task is decided above (labels, pools, pages); a new one that surfaces goes to the coordinator, unbuilt.
@@ -179,6 +184,7 @@ index 00000000..2417a7e0
 +  - 2026-11-14: + assert_no_uncatalogued_season_metric.sql — authority: the coordinator's engineering calls of 2026-11-14 (the role columns on int_player_season__metrics); content: midfield_role and midfield_role_from join its non-metric columns, as starts and minutes are.
 +  - 2026-11-14: the site-commit round also carries the two-literal syntax fix to assert_lineup_fetch_keeps_grid_only_for_same_eleven.sql — authority: coordinator, 14 Nov 2026; content: two problem labels lose their doubled apostrophes, which BigQuery rejects.
 +  - 2026-11-14: + base_apif__lineup_sheets.sql (round 7) — authority: CPO, approved in chat 2026-11-14 (one more review round); the split is the coordinator's engineering call of 2026-11-14; content: the parsed team sheet moves into its own base table and base_apif__lineups reads it, because the one query was too complex for BigQuery to plan; rules and output unchanged. The same round removes the header wrap rule from system.css: the position item in PlayerHeader carries no nowrap class instead.
++  - 2026-11-14: + the assumed central midfielder and assert_player_season_midfield_role_assumed_only_without_evidence.sql (round 8) — authority: CPO, approved in chat 2026-11-14 (the rule and one more review round); content: decisions_taken, "Season role"; midfield_role_from gains assumed.
 diff --git a/dbt_project/macros/player_benchmark_metrics.sql b/dbt_project/macros/player_benchmark_metrics.sql
 index 12439599..3f978f4b 100644
 --- a/dbt_project/macros/player_benchmark_metrics.sql
@@ -1129,10 +1135,10 @@ index 931097cf..40580335 100644
      lineup_state
  from src
 diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-index 5732e8f2..161f91e3 100644
+index 5732e8f2..fa4bb622 100644
 --- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
 +++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
-@@ -27,13 +27,97 @@ team_seasons_without_player_data as (
+@@ -27,13 +27,111 @@ team_seasons_without_player_data as (
      where not tm.is_awarded_result and tp.fixture_sk is null
  ),
  
@@ -1211,13 +1217,25 @@ index 5732e8f2..161f91e3 100644
 +    ) = 1
 +),
 +
++-- Without either, a player who played as a midfielder that season is a central midfielder.
++played_midfield_seasons as (
++    select distinct
++        player_sk,
++        season_sk
++    from legs
++    where position_code = 'M' and minutes > 0
++),
++
  window_rows as (
      select
          legs.*,
-+        coalesce(own.midfield_role, other.midfield_role) as season_midfield_role,
++        coalesce(
++            own.midfield_role, other.midfield_role, if(played_midfield.player_sk is not null, 'CM', null)
++        ) as season_midfield_role,
 +        case
 +            when own.midfield_role is not null then 'this_season'
 +            when other.midfield_role is not null then 'other_seasons'
++            when played_midfield.player_sk is not null then 'assumed'
 +        end as season_midfield_role_from,
          uncovered.team_sk is null as window_is_complete
      from legs
@@ -1227,10 +1245,12 @@ index 5732e8f2..161f91e3 100644
 +        on legs.player_sk = own.player_sk and legs.season_sk = own.season_sk
 +    left join other_season_roles as other
 +        on legs.player_sk = other.player_sk and legs.season_sk = other.season_sk
++    left join played_midfield_seasons as played_midfield
++        on legs.player_sk = played_midfield.player_sk and legs.season_sk = played_midfield.season_sk
  )
  
  select
-@@ -44,6 +128,8 @@ select
+@@ -44,6 +142,8 @@ select
      season_api_year,
      array_agg(team_sk ignore nulls order by kickoff_datetime desc, team_sk desc limit 1)[safe_offset(0)]
          as team_sk,
@@ -1240,7 +1260,7 @@ index 5732e8f2..161f91e3 100644
      if(
          logical_and(window_is_complete and minutes is not null),
 diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
-index 7b3d1fe0..67cf73f2 100644
+index 7b3d1fe0..49a7f1be 100644
 --- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
 +++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
 @@ -902,6 +902,16 @@ models:
@@ -1248,15 +1268,15 @@ index 7b3d1fe0..67cf73f2 100644
                to: ref('dim_team')
                field: team_sk
 +      - name: midfield_role
-+        description: "{{ doc('midfield_role') }} Here it is the player's role that competition-season: the most frequent over his matches whose sheet counts, then the role of his latest match, then the code. Without one, the most frequent over his matches in every other season, a tie going to the nearest season, then the earlier."
++        description: "{{ doc('midfield_role') }} Here it is the player's role that competition-season: the most frequent over his matches whose sheet counts, then the role of his latest match, then the code. Without one, the most frequent over his matches in every other season, a tie going to the nearest season, then the earlier. Without either, CM if he played midfield that season."
 +        tests:
 +          - accepted_values:
 +              values: ["DM", "CM", "AM"]
 +      - name: midfield_role_from
-+        description: "Where midfield_role comes from: this_season (his matches that competition-season) or other_seasons (his matches in every other season). NULL without a role."
++        description: "How midfield_role was decided: this_season (his matches that competition-season), other_seasons (his matches in every other season), or assumed (no match of his gives a role, and he played as a midfielder that season, so he counts as CM). NULL without a role. Not shown on the site."
 +        tests:
 +          - accepted_values:
-+              values: ["this_season", "other_seasons"]
++              values: ["this_season", "other_seasons", "assumed"]
        - name: appearances
          description: "{{ doc('appearances__season_to_date') }}"
        - name: passes_accuracy_player_pct
@@ -1560,7 +1580,7 @@ index 196c8f26..429350fa 100644
          description: "{{ doc('player_nationality') }}"
          tests:
 diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
-index aeb31041..bd8ac050 100644
+index aeb31041..91bd9c29 100644
 --- a/dbt_project/models/docs/shared_columns.md
 +++ b/dbt_project/models/docs/shared_columns.md
 @@ -262,6 +262,29 @@ The formation the team started the match in, as the line-ups give it (e.g. 4-2-3
@@ -1576,7 +1596,7 @@ index aeb31041..bd8ac050 100644
 +{% docs position_role %}
 +A midfielder's role in the featured season: DM, CM or AM, that season's midfield_role in
 +int_player_season__metrics. It comes from his matches that season or, without one, from his other
-+seasons. NULL for every other position and for a midfielder no season gives a role.
++seasons; a midfielder no match gives a role counts as CM. NULL for every other position.
 +{% enddocs %}
 +
 +{% docs midfield_role %}
@@ -1917,14 +1937,15 @@ index a62dbfae..32d4da5a 100644
  {% set rows = [] %}
 diff --git a/dbt_project/tests/assert_played_midfielders_have_a_role.sql b/dbt_project/tests/assert_played_midfielders_have_a_role.sql
 new file mode 100644
-index 00000000..8f3048bd
+index 00000000..88fbc757
 --- /dev/null
 +++ b/dbt_project/tests/assert_played_midfielders_have_a_role.sql
-@@ -0,0 +1,40 @@
+@@ -0,0 +1,41 @@
 +{#
 +  Every midfielder who played carries DM, CM or AM where a fan meets him: in a comparison pool
-+  (player_min_minutes or more in a competition-season) or on a built Player page. A role comes from
-+  evidence only, so one this returns is filled through the researched sheet, never guessed.
++  (player_min_minutes or more in a competition-season) or on a built Player page. The season role
++  comes from his matches that season, then his other seasons, then CM as assumed for a played
++  midfielder, so a row this returns is a played midfielder that chain left without a role.
 +  Returns the players without a role.
 +#}
 +
@@ -2135,18 +2156,63 @@ index 00000000..0c88e3a9
 +select * from two_pools
 +union all
 +select * from off_the_page
+diff --git a/dbt_project/tests/assert_player_season_midfield_role_assumed_only_without_evidence.sql b/dbt_project/tests/assert_player_season_midfield_role_assumed_only_without_evidence.sql
+new file mode 100644
+index 00000000..d9d25be2
+--- /dev/null
++++ b/dbt_project/tests/assert_player_season_midfield_role_assumed_only_without_evidence.sql
+@@ -0,0 +1,38 @@
++{#
++  A season midfield_role is assumed only for a player no counted match gives a role, in any season.
++  A match counts when its team sheet is confirmed or researched, or for a starter whose sheet failed
++  only the substitutions or squad_lists checks. Returns the assumed player-seasons that have one.
++#}
++
++with evidence as (
++    select distinct legs.player_sk
++    from {{ ref('int_legs__player_match') }} as legs
++    inner join {{ ref('fct_fixture_lineup') }} as lineups
++        on
++            legs.fixture_sk = lineups.fixture_sk
++            and legs.team_sk = lineups.team_sk
++            and legs.player_sk = lineups.player_sk
++    where
++        lineups.midfield_role is not null
++        and (
++            lineups.lineup_state in ('confirmed', 'researched')
++            or (
++                lineups.is_starter
++                and array_length(lineups.failed_checks) > 0
++                and array_length(array(
++                    select c from unnest(lineups.failed_checks) as c
++                    where c in ('substitutions', 'squad_lists')
++                )) = array_length(lineups.failed_checks)
++            )
++        )
++)
++
++select
++    s.player_sk,
++    s.season_sk,
++    s.midfield_role,
++    s.midfield_role_from
++from {{ ref('int_player_season__metrics') }} as s
++inner join evidence
++    on s.player_sk = evidence.player_sk
++where s.midfield_role_from = 'assumed'
 diff --git a/dbt_project/tests/assert_player_season_midfield_role_is_most_frequent.sql b/dbt_project/tests/assert_player_season_midfield_role_is_most_frequent.sql
 new file mode 100644
-index 00000000..56c47891
+index 00000000..4cdf9a19
 --- /dev/null
 +++ b/dbt_project/tests/assert_player_season_midfield_role_is_most_frequent.sql
-@@ -0,0 +1,133 @@
+@@ -0,0 +1,145 @@
 +{#
 +  A player's season midfield_role is his most frequent role over that competition-season's matches
 +  whose sheet counts, then the role of his latest match, then the code. Without one, it is his most
 +  frequent role over his matches in every other season, a tie going to the nearest season, then the
-+  earlier. midfield_role_from names which. Recomputed here from the line-ups and the player's
-+  matches; returns the player-seasons that disagree.
++  earlier. Without either, a player who played as a midfielder that season is CM, assumed.
++  midfield_role_from names which. Recomputed here from the line-ups and the player's matches;
++  returns the player-seasons that disagree.
 +#}
 +
 +with counted as (
@@ -2254,6 +2320,14 @@ index 00000000..56c47891
 +            and oc.season_sk = ne.season_sk
 +            and oc.midfield_role = ne.midfield_role
 +    group by oc.player_sk, oc.season_sk
++),
++
++played_midfield as (
++    select distinct
++        player_sk,
++        season_sk
++    from {{ ref('int_legs__player_match') }}
++    where position_code = 'M' and minutes > 0
 +)
 +
 +select
@@ -2268,11 +2342,14 @@ index 00000000..56c47891
 +    on s.player_sk = own.player_sk and s.season_sk = own.season_sk
 +left join other
 +    on s.player_sk = other.player_sk and s.season_sk = other.season_sk
++left join played_midfield as pm
++    on s.player_sk = pm.player_sk and s.season_sk = pm.season_sk
 +where
-+    s.midfield_role is distinct from coalesce(own.role, other.role)
++    s.midfield_role is distinct from coalesce(own.role, other.role, if(pm.player_sk is not null, 'CM', null))
 +    or s.midfield_role_from is distinct from case
 +        when own.role is not null then 'this_season'
 +        when other.role is not null then 'other_seasons'
++        when pm.player_sk is not null then 'assumed'
 +    end
 diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
 index 2bcae747..72ce48c7 100644
@@ -2699,7 +2776,7 @@ index 00000000..2c260c76
 #
 #   .../task/291-midfield-roles/acceptance_evidence.md |   16 +
 #    .../291-midfield-roles/rendered_page_evidence.md   |   54 +
-#    .claude/task/291-midfield-roles/review.md          |   47 +
-#    .claude/task/291-midfield-roles/review_input.patch | 2185 ++++++++++++++++++++
-#    4 files changed, 2302 insertions(+)
+#    .claude/task/291-midfield-roles/review.md          |   51 +
+#    .claude/task/291-midfield-roles/review_input.patch | 2781 ++++++++++++++++++++
+#    4 files changed, 2902 insertions(+)
 # ============================================================================

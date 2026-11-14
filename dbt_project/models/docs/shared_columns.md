@@ -271,7 +271,7 @@ every one.
 {% docs position_role %}
 A midfielder's role in the featured season: DM, CM or AM, that season's midfield_role in
 int_player_season__metrics. It comes from his matches that season or, without one, from his other
-seasons. NULL for every other position and for a midfielder no season gives a role.
+seasons; a midfielder no match gives a role counts as CM. NULL for every other position.
 {% enddocs %}
 
 {% docs midfield_role %}

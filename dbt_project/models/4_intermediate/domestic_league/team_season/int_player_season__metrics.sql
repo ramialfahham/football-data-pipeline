@@ -102,13 +102,25 @@ other_season_roles as (
     ) = 1
 ),
 
+-- Without either, a player who played as a midfielder that season is a central midfielder.
+played_midfield_seasons as (
+    select distinct
+        player_sk,
+        season_sk
+    from legs
+    where position_code = 'M' and minutes > 0
+),
+
 window_rows as (
     select
         legs.*,
-        coalesce(own.midfield_role, other.midfield_role) as season_midfield_role,
+        coalesce(
+            own.midfield_role, other.midfield_role, if(played_midfield.player_sk is not null, 'CM', null)
+        ) as season_midfield_role,
         case
             when own.midfield_role is not null then 'this_season'
             when other.midfield_role is not null then 'other_seasons'
+            when played_midfield.player_sk is not null then 'assumed'
         end as season_midfield_role_from,
         uncovered.team_sk is null as window_is_complete
     from legs
@@ -118,6 +130,8 @@ window_rows as (
         on legs.player_sk = own.player_sk and legs.season_sk = own.season_sk
     left join other_season_roles as other
         on legs.player_sk = other.player_sk and legs.season_sk = other.season_sk
+    left join played_midfield_seasons as played_midfield
+        on legs.player_sk = played_midfield.player_sk and legs.season_sk = played_midfield.season_sk
 )
 
 select

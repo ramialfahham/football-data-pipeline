@@ -2,8 +2,9 @@
   A player's season midfield_role is his most frequent role over that competition-season's matches
   whose sheet counts, then the role of his latest match, then the code. Without one, it is his most
   frequent role over his matches in every other season, a tie going to the nearest season, then the
-  earlier. midfield_role_from names which. Recomputed here from the line-ups and the player's
-  matches; returns the player-seasons that disagree.
+  earlier. Without either, a player who played as a midfielder that season is CM, assumed.
+  midfield_role_from names which. Recomputed here from the line-ups and the player's matches;
+  returns the player-seasons that disagree.
 #}
 
 with counted as (
@@ -111,6 +112,14 @@ other as (
             and oc.season_sk = ne.season_sk
             and oc.midfield_role = ne.midfield_role
     group by oc.player_sk, oc.season_sk
+),
+
+played_midfield as (
+    select distinct
+        player_sk,
+        season_sk
+    from {{ ref('int_legs__player_match') }}
+    where position_code = 'M' and minutes > 0
 )
 
 select
@@ -125,9 +134,12 @@ left join own
     on s.player_sk = own.player_sk and s.season_sk = own.season_sk
 left join other
     on s.player_sk = other.player_sk and s.season_sk = other.season_sk
+left join played_midfield as pm
+    on s.player_sk = pm.player_sk and s.season_sk = pm.season_sk
 where
-    s.midfield_role is distinct from coalesce(own.role, other.role)
+    s.midfield_role is distinct from coalesce(own.role, other.role, if(pm.player_sk is not null, 'CM', null))
     or s.midfield_role_from is distinct from case
         when own.role is not null then 'this_season'
         when other.role is not null then 'other_seasons'
+        when pm.player_sk is not null then 'assumed'
     end

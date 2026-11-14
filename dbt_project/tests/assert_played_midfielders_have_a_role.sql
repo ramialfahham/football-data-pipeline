@@ -1,7 +1,8 @@
 {#
   Every midfielder who played carries DM, CM or AM where a fan meets him: in a comparison pool
-  (player_min_minutes or more in a competition-season) or on a built Player page. A role comes from
-  evidence only, so one this returns is filled through the researched sheet, never guessed.
+  (player_min_minutes or more in a competition-season) or on a built Player page. The season role
+  comes from his matches that season, then his other seasons, then CM as assumed for a played
+  midfielder, so a row this returns is a played midfielder that chain left without a role.
   Returns the players without a role.
 #}
 
