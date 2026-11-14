@@ -1,7 +1,9 @@
 {#
-  In one match, a team-sheet player whose id has no stats line is the same team's stats-line player
-  with his shirt number, when that player is on no sheet row. Returns the pairs base_apif__lineups
-  left apart, and the sheet players it joined away although their own id had a stats line.
+  In one match, a team-sheet player whose id has no stats line in it is the same team's stats-line
+  player with his shirt number, when that player is on no sheet row of the match. Ids a hand
+  override changed or a card or goal correction names are left as they are. Returns the pairs
+  base_apif__lineups left apart, and the sheet players it joined away although their own id had a
+  stats line.
 #}
 
 with sheet_rows as (
@@ -34,6 +36,17 @@ hand_overridden as (
     from {{ ref('player_id_overrides') }}
 ),
 
+hand_corrected as (
+    select cast(fixture_id as int64) as fixture_id, cast(player_id as int64) as player_id
+    from {{ ref('fixture_card_corrections') }}
+    union distinct
+    select cast(fixture_id as int64), cast(player_id as int64)
+    from {{ ref('fixture_goal_corrections') }}
+    union distinct
+    select cast(fixture_id as int64), cast(assist_player_id as int64)
+    from {{ ref('fixture_goal_corrections') }}
+),
+
 read_fetches as (
     select distinct
         league_code,
@@ -62,20 +75,21 @@ left_apart as (
         on
             s.league_code = own_line.league_code
             and s.fixture_id = own_line.fixture_id
-            and s.team_id = own_line.team_id
             and s.player_id = own_line.player_id
     left join sheet_rows as named
         on
             t.league_code = named.league_code
             and t.fixture_id = named.fixture_id
-            and t.team_id = named.team_id
             and t.player_id = named.player_id
     left join hand_overridden as h
         on s.player_id = h.player_id
+    left join hand_corrected as hc
+        on cast(s.fixture_id as int64) = hc.fixture_id and s.player_id = hc.player_id
     where
         own_line.player_id is null
         and named.player_id is null
         and h.player_id is null
+        and hc.player_id is null
         and s.player_id != t.player_id
     qualify count(*) over (partition by s.league_code, s.fixture_id, s.team_id, s.shirt_number) = 1
 ),

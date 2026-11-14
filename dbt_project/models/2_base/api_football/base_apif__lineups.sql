@@ -162,18 +162,46 @@ sheet_shirts as (
     where player_id is not null and shirt_number is not null and player_id = provider_player_id
 ),
 
-sheet_names as (
+match_stat_players as (
     select distinct
         league_code,
         fixture_id,
-        team_id,
+        player_id
+    from {{ ref('base_apif__fixture_players') }}
+    where player_id is not null
+),
+
+match_sheet_players as (
+    select distinct
+        league_code,
+        fixture_id,
         player_id
     from sheet_players
+    where player_id is not null
+),
+
+-- The ids a hand correction of a card or goal names in its match keep their own id there.
+hand_corrected as (
+    select
+        fixture_id,
+        player_id
+    from {{ ref('fixture_card_corrections') }}
+    union distinct
+    select
+        fixture_id,
+        player_id
+    from {{ ref('fixture_goal_corrections') }}
+    union distinct
+    select
+        fixture_id,
+        assist_player_id as player_id
+    from {{ ref('fixture_goal_corrections') }}
 ),
 
 -- One player under two provider ids in a match: a sheet player whose id has no stats line in it is
 -- the player of the same team whose stats line carries his shirt number and who is on no sheet row.
--- A pair holds for that match only; an id a hand override changed is never paired.
+-- A pair holds for that match only. An id a hand override changed or a hand correction names is
+-- never paired.
 shirt_pairs as (
     select
         sheet.league_code,
@@ -188,19 +216,25 @@ shirt_pairs as (
             and sheet.fixture_id = stat.fixture_id
             and sheet.team_id = stat.team_id
             and sheet.shirt_number = stat.shirt_number
-    left join stat_shirts as own_line
+    left join match_stat_players as own_line
         on
             sheet.league_code = own_line.league_code
             and sheet.fixture_id = own_line.fixture_id
-            and sheet.team_id = own_line.team_id
             and sheet.player_id = own_line.player_id
-    left join sheet_names as named
+    left join match_sheet_players as named
         on
             stat.league_code = named.league_code
             and stat.fixture_id = named.fixture_id
-            and stat.team_id = named.team_id
             and stat.player_id = named.player_id
-    where own_line.player_id is null and named.player_id is null and sheet.player_id != stat.player_id
+    left join hand_corrected
+        on
+            cast(sheet.fixture_id as int64) = cast(hand_corrected.fixture_id as int64)
+            and sheet.player_id = cast(hand_corrected.player_id as int64)
+    where
+        own_line.player_id is null
+        and named.player_id is null
+        and hand_corrected.player_id is null
+        and sheet.player_id != stat.player_id
     qualify
         count(*) over (partition by sheet.league_code, sheet.fixture_id, sheet.team_id, sheet.shirt_number) = 1
         and count(*) over (partition by sheet.league_code, sheet.fixture_id, sheet.player_id) = 1

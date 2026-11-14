@@ -27,16 +27,18 @@ impact_map: >
   layer_rules: entity alignment across two sources is base work (layering.md, 2_base); the model
   already reads base_apif__fixture_players and applies fixture_player_id there.
   deploy_order: no column, table or grain changes; ids change on the paired rows only.
-  blast_radius: measured on prod 2026-11-14 (read-only, 185 MB): 16,589 sheet rows are paired, on
-  8,751 team sheets in 7,254 matches, 4,498 provider ids, 43 competitions. Those players now join
+  blast_radius: measured on prod 2026-11-14 (read-only, 185 MB) with every guard: 14,607 sheet rows
+  are paired, on 8,587 team sheets in 7,173 matches, 43 competitions. Those players now join
   their stats lines: line-ups, match pages and player match rows show the stats-line player; the
   line-up checks squad_lists and player_stats_team read the joined ids.
 
 decisions_taken: >
   CPO, approved in chat 2026-11-14 (#310): the rule is warehouse-wide, per match only, and hand
   overrides keep precedence. Engineering: a pair needs exactly one candidate per team, match and
-  shirt; a sheet id a hand override changed is not paired; researched sheets are not paired (their
-  ids are entered by hand). The substitution events of the match take the same pair, so a paired
+  shirt, and per sheet id and per stats id in the match; a sheet id with a stats line anywhere in
+  the match, or a stats player on any sheet row of the match, is not paired; a sheet id a hand
+  override changed, or a card or goal correction names in that match, is not paired (hand data
+  first); researched sheets are not paired (their ids are entered by hand). The substitution events of the match take the same pair, so a paired
   player's minutes on and off still join.
   Thresholds: no new mechanism, no recurring cost (CTEs on an existing model).
 
@@ -48,4 +50,6 @@ done_when:
   - full pytest passes
   - the singular test passes in data:build:mr, with the build green
 
-amendments: (none)
+amendments:
+  - 2026-11-14: + the match-wide checks in decisions_taken — authority: engineering guards inside the CPO's #310 rule; content: data:build:mr found one sheet id whose stats line was filed under the other team.
+  - 2026-11-14: + a sheet id that a card or goal correction names in a match is never paired there — authority: CPO, approved in chat 2026-11-14 (hand data stays as entered); content: data:build:mr found 14 card corrections naming a sheet id the pairing moved; this holds back 20 pairs.

@@ -378,7 +378,8 @@ models:
       The provider sometimes files one player under two ids in a match. A sheet player whose id has
       no stats line in that match takes the id of the same team's stats-line player with his shirt
       number, when that player is on no sheet row. This holds for that match only. The ids in the
-      player_id_overrides seed come first.
+      player_id_overrides seed come first, and an id a card or goal correction names in the match
+      keeps its own id there.
     config:
       tags: ["base", "api_football", "fixture_context"]
     tests:
