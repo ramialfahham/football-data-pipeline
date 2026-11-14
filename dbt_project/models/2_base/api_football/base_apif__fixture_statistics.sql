@@ -95,7 +95,7 @@ overrides as (
 -- Corrected BEFORE the dedup below, not after: the dedup key contains team_id and the model
 -- carries a uniqueness test on (league_code, fixture_id, team_id). Remapping afterwards would emit
 -- two rows for one (fixture, team) whenever the correct id already has one of its own; remapping
--- first lets the latest-ingest-wins rule resolve that collision.
+-- first lets the newest-value rule resolve that collision.
 corrected as (
     select
         pivoted.* except (team_id),
@@ -129,13 +129,101 @@ corrected as (
             )
 ),
 
-delivered as (
-    select *
+matches_with_events as (
+    select fixture_id
+    from {{ ref('base_apif__fixture_events') }}
+    group by fixture_id
+    having logical_or(has_full_events)
+),
+
+-- The events that bound a team's card count of each colour: those that are certainly that colour,
+-- and those that could be it.
+card_events as (
+    select
+        fixture_id,
+        team_id,
+        countif(event_type = 'Card' and event_detail = 'Yellow Card') as yellow_certain,
+        countif(
+            (event_type = 'Card' and coalesce(event_detail, '') != 'Red Card')
+            or (event_type = 'Var' and event_detail = 'Card reviewed')
+        ) as yellow_possible,
+        countif(event_type = 'Card' and event_detail = 'Red Card') as red_certain,
+        countif(
+            (event_type = 'Card' and coalesce(event_detail, '') != 'Yellow Card')
+            or (
+                event_type = 'Var'
+                and (
+                    starts_with(event_detail, 'Card upgrade')
+                    or event_detail in ('Red card cancelled', 'Card reviewed')
+                )
+            )
+        ) as red_possible
+    from {{ ref('base_apif__fixture_events') }}
+    where team_id is not null
+    group by fixture_id, team_id
+),
+
+-- Each stat is the newest value any fetch's line carried, so a stat a later fetch leaves out keeps
+-- the value an earlier one gave.
+newest_values as (
+    select
+        league_code,
+        fixture_id,
+        team_id,
+        max(raw_ingested_at) as raw_ingested_at,
+        array_agg(shots_on_target ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
+            as shots_on_target,
+        array_agg(shots_off_target ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
+            as shots_off_target,
+        array_agg(shots ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as shots,
+        array_agg(shots_blocked ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
+            as shots_blocked,
+        array_agg(shots_inside_box ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
+            as shots_inside_box,
+        array_agg(shots_outside_box ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
+            as shots_outside_box,
+        array_agg(fouls ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as fouls,
+        array_agg(corners ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as corners,
+        array_agg(offsides ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as offsides,
+        array_agg(free_kicks ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as free_kicks,
+        array_agg(possession_pct ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
+            as possession_pct,
+        array_agg(cards_yellow ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
+            as cards_yellow,
+        array_agg(cards_red ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as cards_red,
+        array_agg(saves ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as saves,
+        array_agg(passes ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as passes,
+        array_agg(passes_accurate ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
+            as passes_accurate,
+        array_agg(struct(cards_yellow, cards_red) order by raw_ingested_at desc limit 1)[offset(0)] as latest_cards
     from corrected
-    qualify row_number() over (
-        partition by league_code, fixture_id, team_id
-        order by raw_ingested_at desc
-    ) = 1
+    group by league_code, fixture_id, team_id
+),
+
+-- A card count from an earlier fetch stands only where the match's events allow it: no fewer cards
+-- than those certainly of that colour, no more than those that could be.
+delivered as (
+    select
+        n.* except (cards_yellow, cards_red, latest_cards),
+        if(
+            n.latest_cards.cards_yellow is null
+            and n.cards_yellow not between coalesce(c.yellow_certain, 0) and coalesce(c.yellow_possible, 0)
+            and m.fixture_id is not null,
+            null,
+            n.cards_yellow
+        ) as cards_yellow,
+        if(
+            n.latest_cards.cards_red is null
+            and n.cards_red not between coalesce(c.red_certain, 0) and coalesce(c.red_possible, 0)
+            and m.fixture_id is not null,
+            null,
+            n.cards_red
+        ) as cards_red
+    from newest_values as n
+    left join matches_with_events as m
+        on n.fixture_id = m.fixture_id
+    left join card_events as c
+        on n.fixture_id = c.fixture_id and n.team_id = c.team_id
 ),
 
 fixtures as (

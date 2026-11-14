@@ -1,0 +1,436 @@
+diff --git a/.claude/task/310-shirt-identity/contract.md b/.claude/task/310-shirt-identity/contract.md
+new file mode 100644
+index 00000000..5c9fa0fd
+--- /dev/null
++++ b/.claude/task/310-shirt-identity/contract.md
+@@ -0,0 +1,55 @@
++# Task contract — One player under two provider ids in a match: sheet and stats line join on shirt
++
++objective: >
++  Issue #310. In one match, a team-sheet player whose provider id has no stats line of its own is
++  the player of the same team whose stats line carries the same shirt number, when that stats-line
++  player is named nowhere on the sheet. base_apif__lineups reads him under the stats-line id for
++  that match only; hand overrides in player_id_overrides.csv keep precedence.
++refs: "#310 (CPO, approved in chat 2026-11-14); #291 (where the gap was measured)"
++
++scope_paths:
++  - .claude/task/310-shirt-identity/**
++  - dbt_project/models/2_base/api_football/base_apif__lineups.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/tests/assert_sheet_and_stats_player_join_on_shirt.sql
++
++impact_map: >
++  writers: base_apif__lineups (player_id of the paired sheet rows, and the ids of their substitution
++  events within the model).
++  downstream: `dbt ls --select base_apif__lineups+ --resource-type model` → 61 models, marts:
++  mart_competition_fixtures mart_leaderboards mart_match_days mart_matchday_insights
++  mart_player_career mart_player_competition_benchmarks mart_player_fixture_stats mart_player_index
++  mart_player_momentum mart_player_profile mart_player_season_record mart_player_squad_benchmarks
++  mart_player_window_metrics mart_roster mart_team_competition_benchmarks mart_team_competitions
++  mart_team_index mart_team_leaderboards mart_team_momentum_window mart_team_page_window_metrics
++  mart_team_profile mart_team_season mart_team_season_insights mart_team_season_record
++  mart_team_window_metrics.
++  layer_rules: entity alignment across two sources is base work (layering.md, 2_base); the model
++  already reads base_apif__fixture_players and applies fixture_player_id there.
++  deploy_order: no column, table or grain changes; ids change on the paired rows only.
++  blast_radius: measured on prod 2026-11-14 (read-only, 185 MB) with every guard: 14,607 sheet rows
++  are paired, on 8,587 team sheets in 7,173 matches, 43 competitions. Those players now join
++  their stats lines: line-ups, match pages and player match rows show the stats-line player; the
++  line-up checks squad_lists and player_stats_team read the joined ids.
++
++decisions_taken: >
++  CPO, approved in chat 2026-11-14 (#310): the rule is warehouse-wide, per match only, and hand
++  overrides keep precedence. Engineering: a pair needs exactly one candidate per team, match and
++  shirt, and per sheet id and per stats id in the match; a sheet id with a stats line anywhere in
++  the match, or a stats player on any sheet row of the match, is not paired; a sheet id a hand
++  override changed, or a card or goal correction names in that match, is not paired (hand data
++  first); researched sheets are not paired (their ids are entered by hand). The substitution events of the match take the same pair, so a paired
++  player's minutes on and off still join.
++  Thresholds: no new mechanism, no recurring cost (CTEs on an existing model).
++
++decisions_reserved:
++  - none: the rule, its scope and its precedence are the CPO's approved wording on #310.
++
++done_when:
++  - dbt parse passes; sqlfluff lint clean; layer contract and description hygiene pass
++  - full pytest passes
++  - the singular test passes in data:build:mr, with the build green
++
++amendments:
++  - 2026-11-14: + the match-wide checks in decisions_taken — authority: engineering guards inside the CPO's #310 rule; content: data:build:mr found one sheet id whose stats line was filed under the other team.
++  - 2026-11-14: + a sheet id that a card or goal correction names in a match is never paired there — authority: CPO, approved in chat 2026-11-14 (hand data stays as entered); content: data:build:mr found 14 card corrections naming a sheet id the pairing moved; this holds back 20 pairs.
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index a06c5e3e..047703cc 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -374,6 +374,12 @@ models:
+       two_people_one_id check; one person listed twice keeps his first listing. Known provider
+       team-id defects are corrected from the
+       fixture_team_id_overrides seed before the latest fetch is chosen.
++
++      The provider sometimes files one player under two ids in a match. A sheet player whose id has
++      no stats line in that match takes the id of the same team's stats-line player with his shirt
++      number, when that player is on no sheet row. This holds for that match only. The ids in the
++      player_id_overrides seed come first, and an id a card or goal correction names in the match
++      keeps its own id there.
+     config:
+       tags: ["base", "api_football", "fixture_context"]
+     tests:
+@@ -392,7 +398,7 @@ models:
+         description: "The provider's numeric team id for this player's side, after the known-defect corrections in the fixture_team_id_overrides seed, as base_apif__fixture_statistics.team_id."
+         tests: [not_null]
+       - name: player_id
+-        description: "{{ doc('player_api_id') }}"
++        description: "{{ doc('player_api_id') }} Here it is the stats-line player's id where the sheet files him under another id in that match."
+         tests: [not_null]
+       - name: is_starter
+         description: "{{ doc('is_starter__lineup') }}"
+diff --git a/dbt_project/models/2_base/api_football/base_apif__lineups.sql b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
+index 13532754..2aeba87d 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__lineups.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
+@@ -117,7 +117,7 @@ sheet_ids as (
+     from named
+ ),
+ 
+-parsed as (
++sheet_players as (
+     select
+         sheet.league_code,
+         sheet.fixture_id,
+@@ -126,6 +126,7 @@ parsed as (
+         sheet.raw_ingested_at,
+         sheet.is_starter,
+         sheet.sheet_index,
++        sheet.provider_player_id,
+         nullif(
+             {{ fixture_player_id(
+                 'sheet.provider_player_id', 'sheet.fixture_id', 'sheet.team_id', 'sheet.provider_shirt_number'
+@@ -139,6 +140,120 @@ parsed as (
+     from sheet_ids as sheet
+ ),
+ 
++stat_shirts as (
++    select distinct
++        league_code,
++        fixture_id,
++        team_id,
++        player_id,
++        shirt_number
++    from {{ ref('base_apif__fixture_players') }}
++    where player_id is not null and shirt_number is not null
++),
++
++sheet_shirts as (
++    select distinct
++        league_code,
++        fixture_id,
++        team_id,
++        player_id,
++        shirt_number
++    from sheet_players
++    where player_id is not null and shirt_number is not null and player_id = provider_player_id
++),
++
++match_stat_players as (
++    select distinct
++        league_code,
++        fixture_id,
++        player_id
++    from {{ ref('base_apif__fixture_players') }}
++    where player_id is not null
++),
++
++match_sheet_players as (
++    select distinct
++        league_code,
++        fixture_id,
++        player_id
++    from sheet_players
++    where player_id is not null
++),
++
++-- The ids a hand correction of a card or goal names in its match keep their own id there.
++hand_corrected as (
++    select
++        fixture_id,
++        player_id
++    from {{ ref('fixture_card_corrections') }}
++    union distinct
++    select
++        fixture_id,
++        player_id
++    from {{ ref('fixture_goal_corrections') }}
++    union distinct
++    select
++        fixture_id,
++        assist_player_id as player_id
++    from {{ ref('fixture_goal_corrections') }}
++),
++
++-- One player under two provider ids in a match: a sheet player whose id has no stats line in it is
++-- the player of the same team whose stats line carries his shirt number and who is on no sheet row.
++-- A pair holds for that match only. An id a hand override changed or a hand correction names is
++-- never paired.
++shirt_pairs as (
++    select
++        sheet.league_code,
++        sheet.fixture_id,
++        sheet.team_id,
++        sheet.player_id as sheet_player_id,
++        stat.player_id as stats_player_id
++    from sheet_shirts as sheet
++    inner join stat_shirts as stat
++        on
++            sheet.league_code = stat.league_code
++            and sheet.fixture_id = stat.fixture_id
++            and sheet.team_id = stat.team_id
++            and sheet.shirt_number = stat.shirt_number
++    left join match_stat_players as own_line
++        on
++            sheet.league_code = own_line.league_code
++            and sheet.fixture_id = own_line.fixture_id
++            and sheet.player_id = own_line.player_id
++    left join match_sheet_players as named
++        on
++            stat.league_code = named.league_code
++            and stat.fixture_id = named.fixture_id
++            and stat.player_id = named.player_id
++    left join hand_corrected
++        on
++            cast(sheet.fixture_id as int64) = cast(hand_corrected.fixture_id as int64)
++            and sheet.player_id = cast(hand_corrected.player_id as int64)
++    where
++        own_line.player_id is null
++        and named.player_id is null
++        and hand_corrected.player_id is null
++        and sheet.player_id != stat.player_id
++    qualify
++        count(*) over (partition by sheet.league_code, sheet.fixture_id, sheet.team_id, sheet.shirt_number) = 1
++        and count(*) over (partition by sheet.league_code, sheet.fixture_id, sheet.player_id) = 1
++        and count(*) over (partition by sheet.league_code, sheet.fixture_id, stat.player_id) = 1
++),
++
++parsed as (
++    select
++        sheet_players.* except (provider_player_id, player_id),
++        coalesce(shirt_pairs.stats_player_id, sheet_players.player_id) as player_id
++    from sheet_players
++    left join shirt_pairs
++        on
++            sheet_players.league_code = shirt_pairs.league_code
++            and sheet_players.fixture_id = shirt_pairs.fixture_id
++            and sheet_players.team_id = shirt_pairs.team_id
++            and sheet_players.player_id = shirt_pairs.sheet_player_id
++),
++
+ -- Some sheets name the position in words (cut to ten letters): each maps to G, D, M or F, a winger
+ -- by its row on the grid against the formation. Any other code names no position.
+ positioned as (
+@@ -206,17 +321,28 @@ starters as (
+     where is_starter
+ ),
+ 
++-- A substitution names the players as the sheet does, so a paired player takes his pair here too.
+ substitutions as (
+     select
+-        league_code,
+-        fixture_id,
+-        event_index,
+-        minute_elapsed,
+-        minute_extra,
+-        player_id,
+-        assist_player_id
+-    from {{ ref('base_apif__fixture_events') }}
+-    where event_type = 'subst'
++        events.league_code,
++        events.fixture_id,
++        events.event_index,
++        events.minute_elapsed,
++        events.minute_extra,
++        coalesce(player_pair.stats_player_id, events.player_id) as player_id,
++        coalesce(assist_pair.stats_player_id, events.assist_player_id) as assist_player_id
++    from {{ ref('base_apif__fixture_events') }} as events
++    left join shirt_pairs as player_pair
++        on
++            events.league_code = player_pair.league_code
++            and events.fixture_id = player_pair.fixture_id
++            and events.player_id = player_pair.sheet_player_id
++    left join shirt_pairs as assist_pair
++        on
++            events.league_code = assist_pair.league_code
++            and events.fixture_id = assist_pair.fixture_id
++            and events.assist_player_id = assist_pair.sheet_player_id
++    where events.event_type = 'subst'
+ ),
+ 
+ -- The event's player goes off and its assist comes on, unless the line-ups say the reverse.
+diff --git a/dbt_project/tests/assert_sheet_and_stats_player_join_on_shirt.sql b/dbt_project/tests/assert_sheet_and_stats_player_join_on_shirt.sql
+new file mode 100644
+index 00000000..ada40cf8
+--- /dev/null
++++ b/dbt_project/tests/assert_sheet_and_stats_player_join_on_shirt.sql
+@@ -0,0 +1,146 @@
++{#
++  In one match, a team-sheet player whose id has no stats line in it is the same team's stats-line
++  player with his shirt number, when that player is on no sheet row of the match. Ids a hand
++  override changed or a card or goal correction names are left as they are. Returns the pairs
++  base_apif__lineups left apart, and the sheet players it joined away although their own id had a
++  stats line.
++#}
++
++with sheet_rows as (
++    select distinct
++        league_code,
++        fixture_id,
++        team_id,
++        player_id,
++        shirt_number
++    from {{ ref('base_apif__lineups') }}
++    where lineup_state != 'researched' and player_id is not null
++),
++
++stat_rows as (
++    select distinct
++        league_code,
++        fixture_id,
++        team_id,
++        player_id,
++        shirt_number
++    from {{ ref('base_apif__fixture_players') }}
++    where player_id is not null
++),
++
++hand_overridden as (
++    select wrong_player_api_id as player_id
++    from {{ ref('player_id_overrides') }}
++    union distinct
++    select correct_player_api_id as player_id
++    from {{ ref('player_id_overrides') }}
++),
++
++hand_corrected as (
++    select cast(fixture_id as int64) as fixture_id, cast(player_id as int64) as player_id
++    from {{ ref('fixture_card_corrections') }}
++    union distinct
++    select cast(fixture_id as int64), cast(player_id as int64)
++    from {{ ref('fixture_goal_corrections') }}
++    union distinct
++    select cast(fixture_id as int64), cast(assist_player_id as int64)
++    from {{ ref('fixture_goal_corrections') }}
++),
++
++read_fetches as (
++    select distinct
++        league_code,
++        fixture_id,
++        team_id,
++        raw_ingested_at
++    from {{ ref('base_apif__lineups') }}
++    where lineup_state != 'researched'
++),
++
++left_apart as (
++    select
++        s.league_code,
++        s.fixture_id,
++        s.team_id,
++        s.player_id,
++        'sheet player and stats-line player of one shirt stay apart' as problem
++    from sheet_rows as s
++    inner join stat_rows as t
++        on
++            s.league_code = t.league_code
++            and s.fixture_id = t.fixture_id
++            and s.team_id = t.team_id
++            and s.shirt_number = t.shirt_number
++    left join stat_rows as own_line
++        on
++            s.league_code = own_line.league_code
++            and s.fixture_id = own_line.fixture_id
++            and s.player_id = own_line.player_id
++    left join sheet_rows as named
++        on
++            t.league_code = named.league_code
++            and t.fixture_id = named.fixture_id
++            and t.player_id = named.player_id
++    left join hand_overridden as h
++        on s.player_id = h.player_id
++    left join hand_corrected as hc
++        on cast(s.fixture_id as int64) = hc.fixture_id and s.player_id = hc.player_id
++    where
++        own_line.player_id is null
++        and named.player_id is null
++        and h.player_id is null
++        and hc.player_id is null
++        and s.player_id != t.player_id
++    qualify count(*) over (partition by s.league_code, s.fixture_id, s.team_id, s.shirt_number) = 1
++),
++
++-- the very fetch base read for each team sheet, so a sheet base dropped is never read here
++latest_sheets as (
++    select
++        s.league_code,
++        s.fixture_id,
++        s.team_id,
++        s.start_xi_json,
++        s.substitutes_json
++    from {{ ref('stg_apif__lineups') }} as s
++    inner join read_fetches as r
++        on
++            s.league_code = r.league_code
++            and s.fixture_id = r.fixture_id
++            and s.team_id = r.team_id
++            and s.raw_ingested_at = r.raw_ingested_at
++),
++
++provider_ids as (
++    select distinct
++        l.league_code,
++        l.fixture_id,
++        safe_cast(json_value(el, '$.player.id') as int64) as player_id
++    from latest_sheets as l,
++        unnest(array_concat(json_query_array(l.start_xi_json), json_query_array(l.substitutes_json))) as el
++),
++
++joined_away as (
++    select
++        p.league_code,
++        p.fixture_id,
++        cast(null as int64) as team_id,
++        p.player_id,
++        'a sheet id with its own stats line was joined away' as problem
++    from provider_ids as p
++    inner join stat_rows as t
++        on p.league_code = t.league_code and p.fixture_id = t.fixture_id and p.player_id = t.player_id
++    left join sheet_rows as kept
++        on p.league_code = kept.league_code and p.fixture_id = kept.fixture_id and p.player_id = kept.player_id
++    left join hand_overridden as h
++        on p.player_id = h.player_id
++    where kept.player_id is null and h.player_id is null
++        and exists (
++            select 1 from sheet_rows as any_row
++            where any_row.league_code = p.league_code and any_row.fixture_id = p.fixture_id
++        )
++)
++
++select * from left_apart
++union all
++select * from joined_away
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/310-shirt-identity/review.md          |  22 ++
+#    .claude/task/310-shirt-identity/review_input.patch | 366 +++++++++++++++++++++
+#    2 files changed, 388 insertions(+)
+# ============================================================================

@@ -3,6 +3,7 @@
   words. The rules are the cleaning_rules doc block in models/docs/cleaning_rules.md; the steps
   below apply them in this order:
 
+  0. the fetches: results the events settle between fetches, then blank stats from another fetch;
   1. the blank rule;
   2. accurate passes as a count;
   3. goals and penalty goals, the results;
@@ -184,23 +185,13 @@ corrected as (
             and src.player_id = researched_teams.player_id
 ),
 
--- A match's rows come from one fetch: its newest fetch in the provider's complete format, else its
--- newest fetch. The newer format leaves goals conceded and dribbled past blank for every player, so
--- a fetch counts as complete when any player in it has goals conceded.
-chosen_fetch as (
-    select *
-    from corrected
-    qualify
-        raw_ingested_at = coalesce(
-            max(if(fetch_is_complete, raw_ingested_at, null)) over (partition by league_code, fixture_id),
-            max(raw_ingested_at) over (partition by league_code, fixture_id)
-        )
-),
-
--- The provider's values under our names, one row per player per fixture, from the chosen fetch. A
--- player the provider lists twice in one fetch keeps the row with more values, and the rows' own
--- values break a tie, so every build keeps the same row.
-delivered as (
+-- The provider's values under our names, one row per player per fixture and fetch. A player the
+-- provider lists twice in one fetch keeps the row with more values, and the rows' own values break a
+-- tie, so every build keeps the same row. A match's picked fetch is its newest fetch in the
+-- provider's complete format, else its newest fetch. The newer format leaves goals conceded and
+-- dribbled past blank for every player, so a fetch counts as complete when any player in it has goals
+-- conceded. A fetch whose accurate passes add up to more than its passes sent percentages.
+fetch_rows as (
     select
         league_code,
         fixture_id,
@@ -238,19 +229,47 @@ delivered as (
         penalty_committed as penalties_committed,
         penalty_scored as penalties_scored,
         penalty_missed as penalties_missed,
-        penalty_saved as penalties_saved
-    from chosen_fetch
+        penalty_saved as penalties_saved,
+        raw_ingested_at = coalesce(
+            max(if(fetch_is_complete, raw_ingested_at, null)) over per_match,
+            max(raw_ingested_at) over per_match
+        ) as is_picked,
+        sum(if(passes_total is not null and passes_accuracy_percent is not null, passes_accuracy_percent, null))
+            over per_fetch
+        > sum(if(passes_total is not null and passes_accuracy_percent is not null, passes_total, null))
+            over per_fetch as fetch_sent_percentages
+    from corrected
     qualify
         row_number() over (
-            partition by league_code, fixture_id, team_id, player_id
-            order by raw_ingested_at desc, delivered_values desc, to_json_string(chosen_fetch) asc
+            partition by league_code, fixture_id, team_id, player_id, raw_ingested_at
+            order by delivered_values desc, to_json_string(corrected) asc
         ) = 1
-        -- Drop cross-team id-collisions: the provider sometimes reuses one player_id for two
-        -- different players in a fixture (one per team, e.g. AFCCL 2016 id 44061), so the id is
-        -- unreliable and both legs are unattributable. Extends the player_id = 0 phantom-leg
-        -- cleanup above to real-but-collided ids; keeps the (fixture, player) grain unique
-        -- downstream (int_legs__player_match / mart_player_match_log).
-        and min(team_id) over (partition by league_code, fixture_id, player_id)
+    window
+        per_match as (partition by league_code, fixture_id),
+        per_fetch as (partition by league_code, fixture_id, raw_ingested_at)
+),
+
+-- One row per player per fixture: his row in the picked fetch, and his rows in the other fetches,
+-- newest first.
+player_fetches as (
+    select
+        league_code,
+        fixture_id,
+        team_id,
+        player_id,
+        array_agg(if(fetch_row.is_picked, fetch_row, null) ignore nulls limit 1)[offset(0)] as picked,
+        array_agg(if(fetch_row.is_picked, null, fetch_row) ignore nulls order by fetch_row.raw_ingested_at desc)
+            as others
+    from fetch_rows as fetch_row
+    group by league_code, fixture_id, team_id, player_id
+    having logical_or(fetch_row.is_picked)
+    -- Drop cross-team id-collisions: the provider sometimes reuses one player_id for two
+    -- different players in a fixture (one per team, e.g. AFCCL 2016 id 44061), so the id is
+    -- unreliable and both legs are unattributable. Extends the player_id = 0 phantom-leg
+    -- cleanup above to real-but-collided ids; keeps the (fixture, player) grain unique
+    -- downstream (int_legs__player_match / mart_player_match_log).
+    qualify
+        min(team_id) over (partition by league_code, fixture_id, player_id)
         = max(team_id) over (partition by league_code, fixture_id, player_id)
 ),
 
@@ -323,6 +342,190 @@ player_cards as (
         and has_full_events
         and player_id is not null
     group by fixture_id, player_id
+),
+
+event_results as (
+    select
+        fixture_id,
+        player_id,
+        sum(goal) as goals,
+        sum(assist) as assists
+    from (
+        select
+            fixture_id,
+            player_id,
+            1 as goal,
+            0 as assist
+        from events
+        where is_scorer_goal and player_id is not null
+        union all
+        select
+            fixture_id,
+            assist_player_id as player_id,
+            0 as goal,
+            1 as assist
+        from events
+        where is_scorer_goal and assist_player_id is not null
+    )
+    group by fixture_id, player_id
+),
+
+-- The minute a substitution brought the player on.
+minutes_on as (
+    select
+        fixture_id,
+        assist_player_id as player_id,
+        max(minute_elapsed) as minute_on
+    from events
+    where event_type = 'subst' and assist_player_id is not null
+    group by fixture_id, assist_player_id
+),
+
+-- 0. Results where the fetches disagree: where another fetch gives a player the goals, assists or
+-- cards of the match's events and the picked fetch does not, the events' count is his. Where the
+-- picked fetch leaves his minutes blank, another fetch's minutes stand when a substitution brought
+-- him on that many minutes before the 90th, the minute of entry counted or not.
+{%- set event_counts = {
+    'goals': 'r.goals', 'assists': 'r.assists', 'cards_yellow': 'c.yellow_cards', 'cards_red': 'c.red_cards'
+} %}
+decided as (
+    select
+        p.picked.* except (is_picked, minutes, goals, assists, cards_yellow, cards_red),
+        p.others,
+        coalesce(
+            p.picked.minutes,
+            (
+                select o.minutes
+                from unnest(p.others) as o with offset as fetch_order
+                where o.minutes between 90 - s.minute_on and 91 - s.minute_on
+                order by fetch_order
+                limit 1
+            )
+        ) as minutes,
+        {%- for result, event_count in event_counts.items() %}
+        if(
+            e.fixture_id is not null
+            and coalesce(p.picked.{{ result }}, 0) != coalesce({{ event_count }}, 0)
+            and exists (
+                select 1
+                from unnest(p.others) as o
+                where coalesce(o.{{ result }}, 0) = coalesce({{ event_count }}, 0)
+            ),
+            coalesce({{ event_count }}, 0),
+            p.picked.{{ result }}
+        ) as {{ result }},
+        {%- endfor %}
+        e.fixture_id is not null as has_match_events
+    from player_fetches as p
+    left join fixtures_with_events as e
+        on p.fixture_id = e.fixture_id
+    left join event_results as r
+        on e.fixture_id = r.fixture_id and p.player_id = r.player_id
+    left join player_cards as c
+        on e.fixture_id = c.fixture_id and p.player_id = c.player_id
+    left join minutes_on as s
+        on p.fixture_id = s.fixture_id and p.player_id = s.player_id
+),
+
+-- The other fetches that give the player the same results, blank counted as 0, newest first.
+donors as (
+    select
+        d.* except (others),
+        array(
+            select as struct o.*
+            from unnest(d.others) as o with offset as fetch_order
+            where
+                coalesce(o.goals, 0) = coalesce(d.goals, 0)
+                and coalesce(o.assists, 0) = coalesce(d.assists, 0)
+                and coalesce(o.cards_yellow, 0) = coalesce(d.cards_yellow, 0)
+                and coalesce(o.cards_red, 0) = coalesce(d.cards_red, 0)
+                and coalesce(o.minutes, 0) = coalesce(d.minutes, 0)
+                and coalesce(o.goals_against, 0) = coalesce(d.goals_against, 0)
+                and coalesce(o.saves, 0) = coalesce(d.saves, 0)
+                and coalesce(o.penalties_won, 0) = coalesce(d.penalties_won, 0)
+                and coalesce(o.penalties_committed, 0) = coalesce(d.penalties_committed, 0)
+                and coalesce(o.penalties_scored, 0) = coalesce(d.penalties_scored, 0)
+                and coalesce(o.penalties_missed, 0) = coalesce(d.penalties_missed, 0)
+                and coalesce(o.penalties_saved, 0) = coalesce(d.penalties_saved, 0)
+            order by fetch_order
+        ) as donor_fetches
+    from decided as d
+),
+
+-- The newest value of each blank stat such a fetch carries; accurate passes only from a fetch that
+-- sent them in the picked fetch's form.
+{%- set fillable = [
+    'shirt_number', 'position_code', 'offsides', 'shots', 'shots_on_target', 'passes', 'passes_key',
+    'tackles', 'blocks', 'interceptions', 'duels', 'duels_won', 'dribbles', 'dribbles_success',
+    'dribbles_against', 'fouls', 'fouls_against'
+] %}
+donated as (
+    select
+        d.* except (donor_fetches),
+        {%- for stat in fillable %}
+        (
+            select o.{{ stat }}
+            from unnest(d.donor_fetches) as o with offset as fetch_order
+            where o.{{ stat }} is not null
+            order by fetch_order
+            limit 1
+        ) as donated_{{ stat }},
+        {%- endfor %}
+        (
+            select o.passes_accurate
+            from unnest(d.donor_fetches) as o with offset as fetch_order
+            where o.passes_accurate is not null and o.fetch_sent_percentages = d.fetch_sent_percentages
+            order by fetch_order
+            limit 1
+        ) as donated_passes_accurate
+    from donors as d
+),
+
+-- Shots and shots on target are taken from other fetches for a team-match only where its players'
+-- total with them is no further from the team line's figure than without them.
+shot_totals as (
+    select
+        d.*,
+        coalesce(
+            abs(sum(coalesce(d.shots, d.donated_shots, 0)) over team_match - t.shots)
+            <= abs(sum(coalesce(d.shots, 0)) over team_match - t.shots),
+            false
+        ) as shots_fill_allowed,
+        coalesce(
+            abs(sum(coalesce(d.shots_on_target, d.donated_shots_on_target, 0)) over team_match - t.shots_on_target)
+            <= abs(sum(coalesce(d.shots_on_target, 0)) over team_match - t.shots_on_target),
+            false
+        ) as shots_on_target_fill_allowed
+    from donated as d
+    left join {{ ref('base_apif__fixture_statistics') }} as t
+        on d.fixture_id = t.fixture_id and d.team_id = t.team_id
+    window team_match as (partition by d.league_code, d.fixture_id, d.team_id)
+),
+
+-- 1. A stat the picked fetch leaves blank comes from the newest other fetch that carries it and gives
+-- the player the same results. Results are never taken from another fetch.
+delivered as (
+    select
+        d.* except (
+            fetch_sent_percentages,
+            has_match_events,
+            shots_fill_allowed,
+            shots_on_target_fill_allowed,
+            passes_accurate,
+            donated_passes_accurate,
+            {%- for stat in fillable %}
+            {{ stat }},
+            donated_{{ stat }}{{ ',' if not loop.last }}
+            {%- endfor %}
+        ),
+        {%- for stat in fillable if stat not in ['shots', 'shots_on_target'] %}
+        coalesce(d.{{ stat }}, d.donated_{{ stat }}) as {{ stat }},
+        {%- endfor %}
+        coalesce(d.shots, if(d.shots_fill_allowed, d.donated_shots, null)) as shots,
+        coalesce(d.shots_on_target, if(d.shots_on_target_fill_allowed, d.donated_shots_on_target, null))
+            as shots_on_target,
+        coalesce(d.passes_accurate, d.donated_passes_accurate) as passes_accurate
+    from shot_totals as d
 ),
 
 team_cards as (
