@@ -2,6 +2,17 @@
 How the provider's match values become the cleaned values every metric reads. Results are exact;
 match stats are good enough.
 
+- Fetches. A team's match stat is the newest value any fetch's line carried. A card count from an
+  earlier fetch must fit the match's events. It is at least the cards certainly of that colour and
+  at most those that could be. A player's values come from the match's picked fetch. A stat it
+  leaves blank is the newest value of another fetch with the same results for him. Those results
+  are goals, assists, cards, minutes, penalties, saves and goals conceded. Shots and shots on target
+  are taken only where the team's player total moves no further from the team line. A result never
+  comes from another fetch alone. Another fetch can give a player the goals, assists or cards of the
+  match's events where the picked fetch does not. Then the events' count is his. Where the picked
+  fetch leaves his minutes blank, another fetch's minutes can stand. A substitution must bring him
+  on that many minutes before the 90th, the minute of entry counted or not.
+
 - Blank rule. A blank count is a zero only where the provider counted that stat in the match or a
   second source proves the zero; every other blank stays blank. Counted in the match: for a team,
   the other team's line has a value for it; for a player, another player in the match has one,
@@ -26,6 +37,7 @@ match stats are good enough.
   the per-player count or the goal events, whichever adds up to the score.
 - Cards. A player's yellow and red cards are exact. Where his stat line and the card events
   disagree, or a card's player is not on the sheet, the match's cards come from sourced research.
+  Research is not needed where another fetch gives the events' count.
 - A player's team. Where his statistics row and his match events, own goals aside, name different
   teams of the match, the squad list for the season decides, and his other matches decide where it
   names both teams or neither; the side it contradicts, his row or his events, moves to the team

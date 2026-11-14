@@ -243,7 +243,8 @@ models:
   - name: base_apif__fixture_statistics
     description: >
       The team's line in a match: one row per team with a statistics line (the generic
-      stg_apif__fixture_statistics model pivoted to one column per stat, the latest fetch kept) and
+      stg_apif__fixture_statistics model pivoted to one column per stat, each from the newest fetch
+      that carries it) and
       per team of every finished match, cleaned once and named in our own words.
       Grain: (league_code, fixture_id, team_id).
 
@@ -292,7 +293,8 @@ models:
       stg_apif__fixture_players model, deduplicated on the grain (all of a match's rows come from
       one fetch: its newest in the provider's complete format, where any player has goals
       conceded, else its newest; a player the provider lists twice in one fetch keeps the row with
-      more values), cleaned once and named in
+      more values; a stat that fetch leaves blank comes from another fetch under the Fetches rule),
+      cleaned once and named in
       our own words. Grain: (league_code, fixture_id, team_id, player_id).
 
       {{ doc('cleaning_rules') }}
@@ -626,9 +628,10 @@ models:
 
   - name: base_apif__coaches
     description: >
-      Coach identity as a global entity: one row per coach_api_id from stg_apif__coaches, latest
-      ingest. Identity and bio only — no league_code, because a coach is not scoped to one
-      competition. Grain: coach_api_id.
+      Coach identity as a global entity: one row per coach_api_id from stg_apif__coaches. Each bio
+      field is the newest value any fetch carried; age and photo are the latest fetch's. Identity
+      and bio only — no league_code, because a coach is not scoped to one competition.
+      Grain: coach_api_id.
     config:
       tags: ["base", "api_football", "coach_context"]
     tests:

@@ -1,0 +1,1393 @@
+diff --git a/.claude/task/309-every-fetch-values/contract.md b/.claude/task/309-every-fetch-values/contract.md
+new file mode 100644
+index 00000000..4a3d0b4c
+--- /dev/null
++++ b/.claude/task/309-every-fetch-values/contract.md
+@@ -0,0 +1,112 @@
++# Task contract — coaches, team match stats and player match stats take a value any stored fetch carried
++
++objective: >
++  Issue #309. Raw keeps every provider fetch, but base_apif__coaches, base_apif__fixture_statistics
++  and base_apif__fixture_players each keep one whole fetch, so a value another fetch carried never
++  reaches the site: 752 coaches show no nationality, about 2,400 team stats are blank, and about
++  9,100 player stats show 0 and 1,900 are blank where another fetch has the value. Each model now
++  takes a value from the newest fetch that carries it, under the checks the issue sets, and result
++  values follow the match's events where two fetches disagree.
++
++refs: >
++  #309 (rules confirmed by the coordinating session, 2026-11-14); follows #201, #205, #203, #186.
++  Measured on prod 2026-11-14, read-only: side-session note 290-latest-fetch-measure.md.
++
++scope_paths:
++  - dbt_project/models/2_base/api_football/base_apif__coaches.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/docs/cleaning_rules.md
++  - docs/data_contract.md
++  - dbt_project/tests/assert_coach_bio_from_every_fetch.sql
++  - dbt_project/tests/assert_coach_fetches_agree_on_bio.sql
++  - dbt_project/tests/assert_fixture_statistics_from_every_fetch.sql
++  - dbt_project/tests/assert_fixture_players_from_every_fetch.sql
++  - dbt_project/tests/assert_fixture_players_results_follow_events.sql
++  - dbt_project/seeds/team_season_answer_key.csv
++  - .claude/task/309-every-fetch-values/contract.md
++  - .claude/task/309-every-fetch-values/review.md
++  - .claude/task/309-every-fetch-values/review_input.patch
++
++impact_map: >
++  writers: base_apif__coaches is written only by dbt from stg_apif__coaches (RAW_APIF_COACHES,
++  ingestion coaches loader, append-only). base_apif__fixture_statistics and base_apif__fixture_players
++  are written only by dbt from stg_apif__fixture_statistics and stg_apif__fixture_players, both over
++  RAW_APIF_FIXTURE_DETAILS (ingestion/api_football/loads/batch_fixtures.py, append-only, one row per
++  fetch). No ingestion change.
++  downstream: `dbt ls --select base_apif__coaches+ --resource-type model` → base_apif__coaches
++  dim_coach. `dbt ls --select base_apif__fixture_statistics+ --resource-type model` →
++  base_apif__fixture_players base_apif__fixture_players_from_lineups base_apif__fixture_statistics
++  base_apif__lineups base_apif__players dim_player fct_fixture_lineup fct_fixture_player_stats
++  fct_fixture_team_stats int_legs__player_match int_legs__team_from_players int_legs__team_match and
++  every int_player_* / int_team_* / int_standings__official_rank / mart_* model reading them (82
++  models in all, listed in full by that command). `dbt ls --select base_apif__fixture_players+
++  --resource-type model` → the same set without fct_fixture_team_stats, int_legs__team_match,
++  int_standings__official_rank and the standings/table int_team_season__* models.
++  layer_rules: check_layer_contract.py (base reads staging and base only; table materialisation from
++  dbt_project.yml); every model in the chain is a table rebuilt in full each night, no incremental
++  fact (grep -rn incremental dbt_project/models/3_core → none), so filled values reach the facts.
++  deploy_order: base only; the MR build writes ci_mr* datasets; prod changes at the first nightly
++  after merge. No raw or schema change, so no ordering around the 04:00 nightly.
++  blast_radius: coach bio on dim_coach (752 coaches gain nationality, birth country and names); team
++  match stats (about 2,400 values, 2,048 free kicks) and every team metric and board built on them;
++  player match stats (about 11,000 values, blocks and shots most) and every player metric, board,
++  benchmark and leaderboard built on them; player goals, assists and cards where two fetches disagree
++  and the events side with the fetch the model did not pick (goals 11, assists 15, yellow 136, red 5
++  pairs table-wide). Row counts do not change.
++
++approved_design:
++  - none: no page layout changes; values on existing pages change
++
++decisions_taken: >
++  The rules of #309, confirmed by the coordinating session on 2026-11-14.
++  Coaches: each bio field (name parts, birth date, birth place, birth country, nationality) from the
++  newest fetch that carries it; age and photo stay from the latest fetch; a tie on the latest ingest
++  time is broken by the row's own values, so every build keeps the same row. The test that two
++  fetches never give one coach two bio values is a warning: where they do, the newest value stands,
++  as #203 rules for revised values.
++  Team stats: each stat from the newest fetch whose line carries it, before the cleaning steps, which
++  run unchanged. A card count from an older fetch stands only where the match's delivered events do
++  not hold a different number of cards of that colour against the team.
++  Player stats: the picked fetch stays (#205). A blank non-result stat is taken from the newest other
++  fetch carrying it whose goals, assists, yellow and red cards, minutes, penalties, saves and goals
++  conceded equal the player's values after the events rule below (blank counted as 0). Shots and
++  shots on target are filled for a team-match only where the team's player total with the fills is no
++  further from the team line's figure than without them. Accurate passes are filled only from a fetch
++  whose match values are in the same form (count or percentage) as the picked fetch's. Result values
++  (goals, assists, cards, minutes, penalties, saves, goals conceded) are never filled from another
++  fetch on its word alone.
++  Events decide results: where another fetch gives a player a different number of goals, assists,
++  yellow or red cards than the picked fetch, the match has full events and the events' count equals
++  that fetch's value and not the picked fetch's, the events' count is the player's value; the
++  cleaning steps then run unchanged. Measured: every such disagreement in goals, assists and cards is
++  settled by the events (618 pairs, none unsettled), so no research rows are needed for them.
++  Minutes (ruled by the coordinating session on 2026-11-14, path A): where both fetches carry
++  minutes, the picked fetch's stand (#203), and a different value still keeps that fetch from filling
++  the player's other stats. Where the picked fetch leaves them blank, another fetch's minutes stand
++  when a substitution brought the player on at minute X and that fetch gives 90 - X or 91 - X
++  (measured: 20 players, APD 14 and L1 6, each shown at 0 minutes before). The two the events do not
++  settle, Marinho (fixture 1492429) and J. Aquino (fixture 1550987), stay blank and are research cases
++  on #216; no new input into the player model.
++  Answer keys follow the rule, as #203 has them follow the fetch the model reads: re-worked by hand
++  from raw, three team_season_answer_key rows change. Spain, World Cup 2026: key passes 105 to 106
++  (Ferran Torres, fixture 1489380, 1 key pass in the 16 Jun fetch, blank in the 6 Oct one).
++  Argentina, World Cup 2026: interceptions 82 to 83 and defensive actions 260 to 261 (Lautaro
++  Martinez, fixture 1582681, 1 interception in the 12 Jul fetch, blank in the 6 Oct one). Measured on
++  prod: no other answer-key player, team, season or match row changes.
++  The player model's new steps form one chain of CTEs, each read once, so BigQuery plans the model in
++  time: a version with the steps joined back to each other failed its dry run on the planner timeout.
++  No new mechanism; no recurring cost (base tables rebuilt nightly as today; the player model reads
++  582 MB against 546 MB before).
++
++decisions_reserved:
++  - none: the minutes question was ruled (decisions_taken, Minutes); the research of the two unsettled players is #216's.
++
++done_when:
++  - dbt parse passes; sqlfluff lint passes on every changed model and test.
++  - The full pytest suite passes.
++  - The MR's data build passes, including the new singular tests and every answer-key test.
++  - Re-running the 14 Nov measurement against the ci_mr tables finds no value the rules allow left blank or shown wrong.
++
++amendments: (none)
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index a06c5e3e..0212a922 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -243,7 +243,8 @@ models:
+   - name: base_apif__fixture_statistics
+     description: >
+       The team's line in a match: one row per team with a statistics line (the generic
+-      stg_apif__fixture_statistics model pivoted to one column per stat, the latest fetch kept) and
++      stg_apif__fixture_statistics model pivoted to one column per stat, each from the newest fetch
++      that carries it) and
+       per team of every finished match, cleaned once and named in our own words.
+       Grain: (league_code, fixture_id, team_id).
+ 
+@@ -292,7 +293,8 @@ models:
+       stg_apif__fixture_players model, deduplicated on the grain (all of a match's rows come from
+       one fetch: its newest in the provider's complete format, where any player has goals
+       conceded, else its newest; a player the provider lists twice in one fetch keeps the row with
+-      more values), cleaned once and named in
++      more values; a stat that fetch leaves blank comes from another fetch under the Fetches rule),
++      cleaned once and named in
+       our own words. Grain: (league_code, fixture_id, team_id, player_id).
+ 
+       {{ doc('cleaning_rules') }}
+@@ -626,9 +628,10 @@ models:
+ 
+   - name: base_apif__coaches
+     description: >
+-      Coach identity as a global entity: one row per coach_api_id from stg_apif__coaches, latest
+-      ingest. Identity and bio only — no league_code, because a coach is not scoped to one
+-      competition. Grain: coach_api_id.
++      Coach identity as a global entity: one row per coach_api_id from stg_apif__coaches. Each bio
++      field is the newest value any fetch carried; age and photo are the latest fetch's. Identity
++      and bio only — no league_code, because a coach is not scoped to one competition.
++      Grain: coach_api_id.
+     config:
+       tags: ["base", "api_football", "coach_context"]
+     tests:
+diff --git a/dbt_project/models/2_base/api_football/base_apif__coaches.sql b/dbt_project/models/2_base/api_football/base_apif__coaches.sql
+index 58d9ef74..adeb9e49 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__coaches.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__coaches.sql
+@@ -1,4 +1,5 @@
+--- Coach identity (global entity): one row per coach_api_id from stg_apif__coaches, latest ingest wins.
++-- Coach identity (global entity): one row per coach_api_id from stg_apif__coaches. Each bio field is
++-- the newest value any fetch carried; age and photo are the latest fetch's, as age changes with time.
+ -- Identity only — no league_code (a coach is one entity across the leagues we pull); "which clubs /
+ -- when" lives in base_apif__coach_career and the mapping. Feeds dim_coach 1:1. Grain: coach_api_id.
+ --
+@@ -6,30 +7,52 @@
+ -- seed + left join + coalesce pattern base_apif__leagues.sql and base_apif__teams_global.sql
+ -- already use — base prepares the correction, dim_coach publishes it unchanged.
+ with src as (
+-    select * from {{ ref('stg_apif__coaches') }}
+-    where coach_id is not null
++    select
++        stg.*,
++        to_json_string(stg) as row_order
++    from {{ ref('stg_apif__coaches') }} as stg
++    where stg.coach_id is not null
+ ),
+ 
+ import_country_name_overrides as (
+     select * from {{ ref('country_name_overrides') }}
+ ),
+ 
+-corrected as (
++{%- set bio = [
++    'coach_name', 'coach_first_name', 'coach_last_name', 'coach_birth_date', 'coach_birth_place',
++    'coach_birth_country', 'coach_nationality'
++] %}
++
++newest as (
+     select
+-        src.coach_id as coach_api_id,
+-        src.coach_name,
+-        src.coach_first_name,
+-        src.coach_last_name,
+-        src.coach_age,
+-        src.coach_birth_date,
+-        src.coach_birth_place,
+-        src.coach_nationality,
+-        src.coach_photo_url,
+-        src.raw_ingested_at,
+-        coalesce(overrides.country_name, src.coach_birth_country) as coach_birth_country
++        coach_id as coach_api_id,
++        {%- for field in bio %}
++        array_agg({{ field }} ignore nulls order by raw_ingested_at desc, row_order asc limit 1)[safe_offset(0)]
++            as {{ field }},
++        {%- endfor %}
++        array_agg(
++            struct(coach_age, coach_photo_url, raw_ingested_at) order by raw_ingested_at desc, row_order asc limit 1
++        )[offset(0)] as latest
+     from src
++    group by coach_id
++),
++
++corrected as (
++    select
++        newest.coach_api_id,
++        newest.coach_name,
++        newest.coach_first_name,
++        newest.coach_last_name,
++        newest.coach_birth_date,
++        newest.coach_birth_place,
++        newest.coach_nationality,
++        newest.latest.coach_age,
++        newest.latest.coach_photo_url,
++        newest.latest.raw_ingested_at,
++        coalesce(overrides.country_name, newest.coach_birth_country) as coach_birth_country
++    from newest
+     left join import_country_name_overrides as overrides
+-        on src.coach_birth_country = overrides.provider_country
++        on newest.coach_birth_country = overrides.provider_country
+ )
+ 
+ select
+@@ -45,7 +68,3 @@ select
+     coach_photo_url,
+     raw_ingested_at
+ from corrected
+-qualify row_number() over (
+-    partition by coach_api_id
+-    order by raw_ingested_at desc
+-) = 1
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+index 768dccb4..00be9b6d 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+@@ -3,6 +3,7 @@
+   words. The rules are the cleaning_rules doc block in models/docs/cleaning_rules.md; the steps
+   below apply them in this order:
+ 
++  0. the fetches: results the events settle between fetches, then blank stats from another fetch;
+   1. the blank rule;
+   2. accurate passes as a count;
+   3. goals and penalty goals, the results;
+@@ -184,23 +185,13 @@ corrected as (
+             and src.player_id = researched_teams.player_id
+ ),
+ 
+--- A match's rows come from one fetch: its newest fetch in the provider's complete format, else its
+--- newest fetch. The newer format leaves goals conceded and dribbled past blank for every player, so
+--- a fetch counts as complete when any player in it has goals conceded.
+-chosen_fetch as (
+-    select *
+-    from corrected
+-    qualify
+-        raw_ingested_at = coalesce(
+-            max(if(fetch_is_complete, raw_ingested_at, null)) over (partition by league_code, fixture_id),
+-            max(raw_ingested_at) over (partition by league_code, fixture_id)
+-        )
+-),
+-
+--- The provider's values under our names, one row per player per fixture, from the chosen fetch. A
+--- player the provider lists twice in one fetch keeps the row with more values, and the rows' own
+--- values break a tie, so every build keeps the same row.
+-delivered as (
++-- The provider's values under our names, one row per player per fixture and fetch. A player the
++-- provider lists twice in one fetch keeps the row with more values, and the rows' own values break a
++-- tie, so every build keeps the same row. A match's picked fetch is its newest fetch in the
++-- provider's complete format, else its newest fetch. The newer format leaves goals conceded and
++-- dribbled past blank for every player, so a fetch counts as complete when any player in it has goals
++-- conceded. A fetch whose accurate passes add up to more than its passes sent percentages.
++fetch_rows as (
+     select
+         league_code,
+         fixture_id,
+@@ -238,19 +229,47 @@ delivered as (
+         penalty_committed as penalties_committed,
+         penalty_scored as penalties_scored,
+         penalty_missed as penalties_missed,
+-        penalty_saved as penalties_saved
+-    from chosen_fetch
++        penalty_saved as penalties_saved,
++        raw_ingested_at = coalesce(
++            max(if(fetch_is_complete, raw_ingested_at, null)) over per_match,
++            max(raw_ingested_at) over per_match
++        ) as is_picked,
++        sum(if(passes_total is not null and passes_accuracy_percent is not null, passes_accuracy_percent, null))
++            over per_fetch
++        > sum(if(passes_total is not null and passes_accuracy_percent is not null, passes_total, null))
++            over per_fetch as fetch_sent_percentages
++    from corrected
+     qualify
+         row_number() over (
+-            partition by league_code, fixture_id, team_id, player_id
+-            order by raw_ingested_at desc, delivered_values desc, to_json_string(chosen_fetch) asc
++            partition by league_code, fixture_id, team_id, player_id, raw_ingested_at
++            order by delivered_values desc, to_json_string(corrected) asc
+         ) = 1
+-        -- Drop cross-team id-collisions: the provider sometimes reuses one player_id for two
+-        -- different players in a fixture (one per team, e.g. AFCCL 2016 id 44061), so the id is
+-        -- unreliable and both legs are unattributable. Extends the player_id = 0 phantom-leg
+-        -- cleanup above to real-but-collided ids; keeps the (fixture, player) grain unique
+-        -- downstream (int_legs__player_match / mart_player_match_log).
+-        and min(team_id) over (partition by league_code, fixture_id, player_id)
++    window
++        per_match as (partition by league_code, fixture_id),
++        per_fetch as (partition by league_code, fixture_id, raw_ingested_at)
++),
++
++-- One row per player per fixture: his row in the picked fetch, and his rows in the other fetches,
++-- newest first.
++player_fetches as (
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        player_id,
++        array_agg(if(fetch_row.is_picked, fetch_row, null) ignore nulls limit 1)[offset(0)] as picked,
++        array_agg(if(fetch_row.is_picked, null, fetch_row) ignore nulls order by fetch_row.raw_ingested_at desc)
++            as others
++    from fetch_rows as fetch_row
++    group by league_code, fixture_id, team_id, player_id
++    having logical_or(fetch_row.is_picked)
++    -- Drop cross-team id-collisions: the provider sometimes reuses one player_id for two
++    -- different players in a fixture (one per team, e.g. AFCCL 2016 id 44061), so the id is
++    -- unreliable and both legs are unattributable. Extends the player_id = 0 phantom-leg
++    -- cleanup above to real-but-collided ids; keeps the (fixture, player) grain unique
++    -- downstream (int_legs__player_match / mart_player_match_log).
++    qualify
++        min(team_id) over (partition by league_code, fixture_id, player_id)
+         = max(team_id) over (partition by league_code, fixture_id, player_id)
+ ),
+ 
+@@ -325,6 +344,190 @@ player_cards as (
+     group by fixture_id, player_id
+ ),
+ 
++event_results as (
++    select
++        fixture_id,
++        player_id,
++        sum(goal) as goals,
++        sum(assist) as assists
++    from (
++        select
++            fixture_id,
++            player_id,
++            1 as goal,
++            0 as assist
++        from events
++        where is_scorer_goal and player_id is not null
++        union all
++        select
++            fixture_id,
++            assist_player_id as player_id,
++            0 as goal,
++            1 as assist
++        from events
++        where is_scorer_goal and assist_player_id is not null
++    )
++    group by fixture_id, player_id
++),
++
++-- The minute a substitution brought the player on.
++minutes_on as (
++    select
++        fixture_id,
++        assist_player_id as player_id,
++        max(minute_elapsed) as minute_on
++    from events
++    where event_type = 'subst' and assist_player_id is not null
++    group by fixture_id, assist_player_id
++),
++
++-- 0. Results where the fetches disagree: where another fetch gives a player the goals, assists or
++-- cards of the match's events and the picked fetch does not, the events' count is his. Where the
++-- picked fetch leaves his minutes blank, another fetch's minutes stand when a substitution brought
++-- him on that many minutes before the 90th, the minute of entry counted or not.
++{%- set event_counts = {
++    'goals': 'r.goals', 'assists': 'r.assists', 'cards_yellow': 'c.yellow_cards', 'cards_red': 'c.red_cards'
++} %}
++decided as (
++    select
++        p.picked.* except (is_picked, minutes, goals, assists, cards_yellow, cards_red),
++        p.others,
++        coalesce(
++            p.picked.minutes,
++            (
++                select o.minutes
++                from unnest(p.others) as o with offset as fetch_order
++                where o.minutes between 90 - s.minute_on and 91 - s.minute_on
++                order by fetch_order
++                limit 1
++            )
++        ) as minutes,
++        {%- for result, event_count in event_counts.items() %}
++        if(
++            e.fixture_id is not null
++            and coalesce(p.picked.{{ result }}, 0) != coalesce({{ event_count }}, 0)
++            and exists (
++                select 1
++                from unnest(p.others) as o
++                where coalesce(o.{{ result }}, 0) = coalesce({{ event_count }}, 0)
++            ),
++            coalesce({{ event_count }}, 0),
++            p.picked.{{ result }}
++        ) as {{ result }},
++        {%- endfor %}
++        e.fixture_id is not null as has_match_events
++    from player_fetches as p
++    left join fixtures_with_events as e
++        on p.fixture_id = e.fixture_id
++    left join event_results as r
++        on e.fixture_id = r.fixture_id and p.player_id = r.player_id
++    left join player_cards as c
++        on e.fixture_id = c.fixture_id and p.player_id = c.player_id
++    left join minutes_on as s
++        on p.fixture_id = s.fixture_id and p.player_id = s.player_id
++),
++
++-- The other fetches that give the player the same results, blank counted as 0, newest first.
++donors as (
++    select
++        d.* except (others),
++        array(
++            select as struct o.*
++            from unnest(d.others) as o with offset as fetch_order
++            where
++                coalesce(o.goals, 0) = coalesce(d.goals, 0)
++                and coalesce(o.assists, 0) = coalesce(d.assists, 0)
++                and coalesce(o.cards_yellow, 0) = coalesce(d.cards_yellow, 0)
++                and coalesce(o.cards_red, 0) = coalesce(d.cards_red, 0)
++                and coalesce(o.minutes, 0) = coalesce(d.minutes, 0)
++                and coalesce(o.goals_against, 0) = coalesce(d.goals_against, 0)
++                and coalesce(o.saves, 0) = coalesce(d.saves, 0)
++                and coalesce(o.penalties_won, 0) = coalesce(d.penalties_won, 0)
++                and coalesce(o.penalties_committed, 0) = coalesce(d.penalties_committed, 0)
++                and coalesce(o.penalties_scored, 0) = coalesce(d.penalties_scored, 0)
++                and coalesce(o.penalties_missed, 0) = coalesce(d.penalties_missed, 0)
++                and coalesce(o.penalties_saved, 0) = coalesce(d.penalties_saved, 0)
++            order by fetch_order
++        ) as donor_fetches
++    from decided as d
++),
++
++-- The newest value of each blank stat such a fetch carries; accurate passes only from a fetch that
++-- sent them in the picked fetch's form.
++{%- set fillable = [
++    'shirt_number', 'position_code', 'offsides', 'shots', 'shots_on_target', 'passes', 'passes_key',
++    'tackles', 'blocks', 'interceptions', 'duels', 'duels_won', 'dribbles', 'dribbles_success',
++    'dribbles_against', 'fouls', 'fouls_against'
++] %}
++donated as (
++    select
++        d.* except (donor_fetches),
++        {%- for stat in fillable %}
++        (
++            select o.{{ stat }}
++            from unnest(d.donor_fetches) as o with offset as fetch_order
++            where o.{{ stat }} is not null
++            order by fetch_order
++            limit 1
++        ) as donated_{{ stat }},
++        {%- endfor %}
++        (
++            select o.passes_accurate
++            from unnest(d.donor_fetches) as o with offset as fetch_order
++            where o.passes_accurate is not null and o.fetch_sent_percentages = d.fetch_sent_percentages
++            order by fetch_order
++            limit 1
++        ) as donated_passes_accurate
++    from donors as d
++),
++
++-- Shots and shots on target are taken from other fetches for a team-match only where its players'
++-- total with them is no further from the team line's figure than without them.
++shot_totals as (
++    select
++        d.*,
++        coalesce(
++            abs(sum(coalesce(d.shots, d.donated_shots, 0)) over team_match - t.shots)
++            <= abs(sum(coalesce(d.shots, 0)) over team_match - t.shots),
++            false
++        ) as shots_fill_allowed,
++        coalesce(
++            abs(sum(coalesce(d.shots_on_target, d.donated_shots_on_target, 0)) over team_match - t.shots_on_target)
++            <= abs(sum(coalesce(d.shots_on_target, 0)) over team_match - t.shots_on_target),
++            false
++        ) as shots_on_target_fill_allowed
++    from donated as d
++    left join {{ ref('base_apif__fixture_statistics') }} as t
++        on d.fixture_id = t.fixture_id and d.team_id = t.team_id
++    window team_match as (partition by d.league_code, d.fixture_id, d.team_id)
++),
++
++-- 1. A stat the picked fetch leaves blank comes from the newest other fetch that carries it and gives
++-- the player the same results. Results are never taken from another fetch.
++delivered as (
++    select
++        d.* except (
++            fetch_sent_percentages,
++            has_match_events,
++            shots_fill_allowed,
++            shots_on_target_fill_allowed,
++            passes_accurate,
++            donated_passes_accurate,
++            {%- for stat in fillable %}
++            {{ stat }},
++            donated_{{ stat }}{{ ',' if not loop.last }}
++            {%- endfor %}
++        ),
++        {%- for stat in fillable if stat not in ['shots', 'shots_on_target'] %}
++        coalesce(d.{{ stat }}, d.donated_{{ stat }}) as {{ stat }},
++        {%- endfor %}
++        coalesce(d.shots, if(d.shots_fill_allowed, d.donated_shots, null)) as shots,
++        coalesce(d.shots_on_target, if(d.shots_on_target_fill_allowed, d.donated_shots_on_target, null))
++            as shots_on_target,
++        coalesce(d.passes_accurate, d.donated_passes_accurate) as passes_accurate
++    from shot_totals as d
++),
++
+ team_cards as (
+     select
+         fixture_id,
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
+index f17afd0a..239b2ee2 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
+@@ -95,7 +95,7 @@ overrides as (
+ -- Corrected BEFORE the dedup below, not after: the dedup key contains team_id and the model
+ -- carries a uniqueness test on (league_code, fixture_id, team_id). Remapping afterwards would emit
+ -- two rows for one (fixture, team) whenever the correct id already has one of its own; remapping
+--- first lets the latest-ingest-wins rule resolve that collision.
++-- first lets the newest-value rule resolve that collision.
+ corrected as (
+     select
+         pivoted.* except (team_id),
+@@ -129,13 +129,101 @@ corrected as (
+             )
+ ),
+ 
+-delivered as (
+-    select *
++matches_with_events as (
++    select fixture_id
++    from {{ ref('base_apif__fixture_events') }}
++    group by fixture_id
++    having logical_or(has_full_events)
++),
++
++-- The events that bound a team's card count of each colour: those that are certainly that colour,
++-- and those that could be it.
++card_events as (
++    select
++        fixture_id,
++        team_id,
++        countif(event_type = 'Card' and event_detail = 'Yellow Card') as yellow_certain,
++        countif(
++            (event_type = 'Card' and coalesce(event_detail, '') != 'Red Card')
++            or (event_type = 'Var' and event_detail = 'Card reviewed')
++        ) as yellow_possible,
++        countif(event_type = 'Card' and event_detail = 'Red Card') as red_certain,
++        countif(
++            (event_type = 'Card' and coalesce(event_detail, '') != 'Yellow Card')
++            or (
++                event_type = 'Var'
++                and (
++                    starts_with(event_detail, 'Card upgrade')
++                    or event_detail in ('Red card cancelled', 'Card reviewed')
++                )
++            )
++        ) as red_possible
++    from {{ ref('base_apif__fixture_events') }}
++    where team_id is not null
++    group by fixture_id, team_id
++),
++
++-- Each stat is the newest value any fetch's line carried, so a stat a later fetch leaves out keeps
++-- the value an earlier one gave.
++newest_values as (
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        max(raw_ingested_at) as raw_ingested_at,
++        array_agg(shots_on_target ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
++            as shots_on_target,
++        array_agg(shots_off_target ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
++            as shots_off_target,
++        array_agg(shots ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as shots,
++        array_agg(shots_blocked ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
++            as shots_blocked,
++        array_agg(shots_inside_box ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
++            as shots_inside_box,
++        array_agg(shots_outside_box ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
++            as shots_outside_box,
++        array_agg(fouls ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as fouls,
++        array_agg(corners ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as corners,
++        array_agg(offsides ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as offsides,
++        array_agg(free_kicks ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as free_kicks,
++        array_agg(possession_pct ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
++            as possession_pct,
++        array_agg(cards_yellow ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
++            as cards_yellow,
++        array_agg(cards_red ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as cards_red,
++        array_agg(saves ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as saves,
++        array_agg(passes ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as passes,
++        array_agg(passes_accurate ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
++            as passes_accurate,
++        array_agg(struct(cards_yellow, cards_red) order by raw_ingested_at desc limit 1)[offset(0)] as latest_cards
+     from corrected
+-    qualify row_number() over (
+-        partition by league_code, fixture_id, team_id
+-        order by raw_ingested_at desc
+-    ) = 1
++    group by league_code, fixture_id, team_id
++),
++
++-- A card count from an earlier fetch stands only where the match's events allow it: no fewer cards
++-- than those certainly of that colour, no more than those that could be.
++delivered as (
++    select
++        n.* except (cards_yellow, cards_red, latest_cards),
++        if(
++            n.latest_cards.cards_yellow is null
++            and n.cards_yellow not between coalesce(c.yellow_certain, 0) and coalesce(c.yellow_possible, 0)
++            and m.fixture_id is not null,
++            null,
++            n.cards_yellow
++        ) as cards_yellow,
++        if(
++            n.latest_cards.cards_red is null
++            and n.cards_red not between coalesce(c.red_certain, 0) and coalesce(c.red_possible, 0)
++            and m.fixture_id is not null,
++            null,
++            n.cards_red
++        ) as cards_red
++    from newest_values as n
++    left join matches_with_events as m
++        on n.fixture_id = m.fixture_id
++    left join card_events as c
++        on n.fixture_id = c.fixture_id and n.team_id = c.team_id
+ ),
+ 
+ fixtures as (
+diff --git a/dbt_project/models/docs/cleaning_rules.md b/dbt_project/models/docs/cleaning_rules.md
+index 72466d88..b0b55cc5 100644
+--- a/dbt_project/models/docs/cleaning_rules.md
++++ b/dbt_project/models/docs/cleaning_rules.md
+@@ -2,6 +2,17 @@
+ How the provider's match values become the cleaned values every metric reads. Results are exact;
+ match stats are good enough.
+ 
++- Fetches. A team's match stat is the newest value any fetch's line carried. A card count from an
++  earlier fetch must fit the match's events. It is at least the cards certainly of that colour and
++  at most those that could be. A player's values come from the match's picked fetch. A stat it
++  leaves blank is the newest value of another fetch with the same results for him. Those results
++  are goals, assists, cards, minutes, penalties, saves and goals conceded. Shots and shots on target
++  are taken only where the team's player total moves no further from the team line. A result never
++  comes from another fetch alone. Another fetch can give a player the goals, assists or cards of the
++  match's events where the picked fetch does not. Then the events' count is his. Where the picked
++  fetch leaves his minutes blank, another fetch's minutes can stand. A substitution must bring him
++  on that many minutes before the 90th, the minute of entry counted or not.
++
+ - Blank rule. A blank count is a zero only where the provider counted that stat in the match or a
+   second source proves the zero; every other blank stays blank. Counted in the match: for a team,
+   the other team's line has a value for it; for a player, another player in the match has one,
+@@ -26,6 +37,7 @@ match stats are good enough.
+   the per-player count or the goal events, whichever adds up to the score.
+ - Cards. A player's yellow and red cards are exact. Where his stat line and the card events
+   disagree, or a card's player is not on the sheet, the match's cards come from sourced research.
++  Research is not needed where another fetch gives the events' count.
+ - A player's team. Where his statistics row and his match events, own goals aside, name different
+   teams of the match, the squad list for the season decides, and his other matches decide where it
+   names both teams or neither; the side it contradicts, his row or his events, moves to the team
+diff --git a/dbt_project/seeds/team_season_answer_key.csv b/dbt_project/seeds/team_season_answer_key.csv
+index 4a95e8b8..a3cdcf08 100644
+--- a/dbt_project/seeds/team_season_answer_key.csv
++++ b/dbt_project/seeds/team_season_answer_key.csv
+@@ -20,7 +20,7 @@ WC,2026,9,goals_penalty,1,,"Spain, World Cup 2026: 8 matches. sum(goals_penalty)
+ WC,2026,9,goals_per_match,14,8,"Spain, World Cup 2026: 8 matches. sum(goals) = 14; matches = 8."
+ WC,2026,9,interceptions_per_match,61,8,"Spain, World Cup 2026: 8 matches. sum(interceptions) = 61; matches = 8."
+ WC,2026,9,passes_accuracy_pct,4780,5324,"Spain, World Cup 2026: 8 matches. sum(passes_accurate) = 4780; sum(passes) = 5324."
+-WC,2026,9,passes_key_per_match,105,8,"Spain, World Cup 2026: 8 matches. sum(passes_key) = 105; matches = 8."
++WC,2026,9,passes_key_per_match,106,8,"Spain, World Cup 2026: 8 matches. sum(passes_key) = 106; matches = 8."
+ WC,2026,9,passes_per_match,5324,8,"Spain, World Cup 2026: 8 matches. sum(passes) = 5324; matches = 8."
+ WC,2026,9,points_capture_pct,22,24,"Spain, World Cup 2026: 8 matches. sum(case result when 'W' then 3 when 'D' then 1 else 0 end) = 22; 3 * matches = 24."
+ WC,2026,9,points_won,22,,"Spain, World Cup 2026: 8 matches. sum(case result when 'W' then 3 when 'D' then 1 else 0 end) = 22."
+@@ -43,7 +43,7 @@ WC,2026,26,clean_sheets_pct,2,8,"Argentina, World Cup 2026: 8 matches. countif(g
+ WC,2026,26,corners,41,,"Argentina, World Cup 2026: 8 matches. sum(corners) = 41."
+ WC,2026,26,corners_against_per_match,28,8,"Argentina, World Cup 2026: 8 matches. sum(corners_against) = 28; matches = 8."
+ WC,2026,26,corners_per_match,41,8,"Argentina, World Cup 2026: 8 matches. sum(corners) = 41; matches = 8."
+-WC,2026,26,defensive_actions_per_match,260,8,"Argentina, World Cup 2026: 8 matches. sum(tackles + interceptions + blocks) = 260; matches = 8."
++WC,2026,26,defensive_actions_per_match,261,8,"Argentina, World Cup 2026: 8 matches. sum(tackles + interceptions + blocks) = 261; matches = 8."
+ WC,2026,26,duels_per_match,778,8,"Argentina, World Cup 2026: 8 matches. sum(duels) = 778; matches = 8."
+ WC,2026,26,duels_won_pct,401,778,"Argentina, World Cup 2026: 8 matches. sum(duels_won) = 401; sum(duels) = 778."
+ WC,2026,26,finishing_efficiency_pct,17,44,"Argentina, World Cup 2026: 8 matches. sum(goals - goals_penalty - goals_own) = 17; sum(shots_on_target) = 44."
+@@ -54,7 +54,7 @@ WC,2026,26,goals_open_play,17,,"Argentina, World Cup 2026: 8 matches. sum(goals
+ WC,2026,26,goals_own,1,,"Argentina, World Cup 2026: 8 matches. sum(goals_own) = 1."
+ WC,2026,26,goals_penalty,1,,"Argentina, World Cup 2026: 8 matches. sum(goals_penalty) = 1."
+ WC,2026,26,goals_per_match,19,8,"Argentina, World Cup 2026: 8 matches. sum(goals) = 19; matches = 8."
+-WC,2026,26,interceptions_per_match,82,8,"Argentina, World Cup 2026: 8 matches. sum(interceptions) = 82; matches = 8."
++WC,2026,26,interceptions_per_match,83,8,"Argentina, World Cup 2026: 8 matches. sum(interceptions) = 83; matches = 8."
+ WC,2026,26,passes_accuracy_pct,4561,5109,"Argentina, World Cup 2026: 8 matches. sum(passes_accurate) = 4561; sum(passes) = 5109."
+ WC,2026,26,passes_key_per_match,78,8,"Argentina, World Cup 2026: 8 matches. sum(passes_key) = 78; matches = 8."
+ WC,2026,26,passes_per_match,5109,8,"Argentina, World Cup 2026: 8 matches. sum(passes) = 5109; matches = 8."
+diff --git a/dbt_project/tests/assert_coach_bio_from_every_fetch.sql b/dbt_project/tests/assert_coach_bio_from_every_fetch.sql
+new file mode 100644
+index 00000000..959279b8
+--- /dev/null
++++ b/dbt_project/tests/assert_coach_bio_from_every_fetch.sql
+@@ -0,0 +1,36 @@
++{#
++  A coach's bio is the newest value any fetch carried. Returns one row per coach and bio field blank
++  in base_apif__coaches while a fetch in stg_apif__coaches has it.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with carried as (
++    select
++        coach_id,
++        logical_or(coach_first_name is not null) as has_first_name,
++        logical_or(coach_last_name is not null) as has_last_name,
++        logical_or(coach_birth_date is not null) as has_birth_date,
++        logical_or(coach_birth_place is not null) as has_birth_place,
++        logical_or(coach_birth_country is not null) as has_birth_country,
++        logical_or(coach_nationality is not null) as has_nationality
++    from {{ ref('stg_apif__coaches') }}
++    where coach_id is not null
++    group by coach_id
++)
++
++select
++    coach.coach_api_id,
++    field.field_name
++from {{ ref('base_apif__coaches') }} as coach
++inner join carried
++    on coach.coach_api_id = carried.coach_id
++cross join
++    unnest([
++        struct('coach_first_name' as field_name, carried.has_first_name and coach.coach_first_name is null as lost),
++        struct('coach_last_name', carried.has_last_name and coach.coach_last_name is null),
++        struct('coach_birth_date', carried.has_birth_date and coach.coach_birth_date is null),
++        struct('coach_birth_place', carried.has_birth_place and coach.coach_birth_place is null),
++        struct('coach_birth_country', carried.has_birth_country and coach.coach_birth_country is null),
++        struct('coach_nationality', carried.has_nationality and coach.coach_nationality is null)
++    ]) as field
++where field.lost
+diff --git a/dbt_project/tests/assert_coach_fetches_agree_on_bio.sql b/dbt_project/tests/assert_coach_fetches_agree_on_bio.sql
+new file mode 100644
+index 00000000..f760906e
+--- /dev/null
++++ b/dbt_project/tests/assert_coach_fetches_agree_on_bio.sql
+@@ -0,0 +1,37 @@
++{#
++  The fetches of one coach never give two different values for a bio field. Returns one row per coach
++  and field with more than one value in stg_apif__coaches; there, the newest value stands.
++#}
++{{ config(store_failures = true, severity = 'warn') }}
++
++with values_per_coach as (
++    select
++        coach_id,
++        count(distinct coach_name) as coach_name,
++        count(distinct coach_first_name) as coach_first_name,
++        count(distinct coach_last_name) as coach_last_name,
++        count(distinct coach_birth_date) as coach_birth_date,
++        count(distinct coach_birth_place) as coach_birth_place,
++        count(distinct coach_birth_country) as coach_birth_country,
++        count(distinct coach_nationality) as coach_nationality
++    from {{ ref('stg_apif__coaches') }}
++    where coach_id is not null
++    group by coach_id
++)
++
++select
++    values_per_coach.coach_id,
++    field.field_name,
++    field.value_count
++from values_per_coach
++cross join
++    unnest([
++        struct('coach_name' as field_name, values_per_coach.coach_name as value_count),
++        struct('coach_first_name', values_per_coach.coach_first_name),
++        struct('coach_last_name', values_per_coach.coach_last_name),
++        struct('coach_birth_date', values_per_coach.coach_birth_date),
++        struct('coach_birth_place', values_per_coach.coach_birth_place),
++        struct('coach_birth_country', values_per_coach.coach_birth_country),
++        struct('coach_nationality', values_per_coach.coach_nationality)
++    ]) as field
++where field.value_count > 1
+diff --git a/dbt_project/tests/assert_fixture_players_from_every_fetch.sql b/dbt_project/tests/assert_fixture_players_from_every_fetch.sql
+new file mode 100644
+index 00000000..51422807
+--- /dev/null
++++ b/dbt_project/tests/assert_fixture_players_from_every_fetch.sql
+@@ -0,0 +1,225 @@
++{#
++  A player's match stat that the match's picked fetch leaves blank is the newest value of another
++  fetch that gives him the same results. Returns one row per player-match and stat where
++  base_apif__fixture_players shows something else, unless the cleaning changed that stat (a
++  stat_corrections entry). Checked for the players whose results the events did not change; shots
++  and shots on target only where the team's player total with the other fetches' values is no
++  further from the team line than without.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++{%- set stats = {
++    'shirt_number': 'shirt_number', 'position_code': 'position_code', 'offsides': 'offsides',
++    'shots': 'shots_total', 'shots_on_target': 'shots_on', 'passes': 'passes_total',
++    'passes_key': 'passes_key', 'tackles': 'tackles_total', 'blocks': 'tackles_blocks',
++    'interceptions': 'tackles_interceptions', 'duels': 'duels_total', 'duels_won': 'duels_won',
++    'dribbles': 'dribbles_attempts', 'dribbles_success': 'dribbles_success',
++    'dribbles_against': 'dribbles_past', 'fouls': 'fouls_committed', 'fouls_against': 'fouls_drawn'
++} %}
++{%- set results = [
++    'goals_total', 'goals_assists', 'cards_yellow', 'cards_red', 'minutes_played', 'goals_against', 'saves',
++    'penalty_won', 'penalty_committed', 'penalty_scored', 'penalty_missed', 'penalty_saved'
++] %}
++
++with fetch_rows as (
++    select
++        stat_line.* replace (
++            if(stat_line.position_code in ('G', 'D', 'M', 'F'), stat_line.position_code, null) as position_code
++        ),
++        {{ fixture_player_id(
++            'stat_line.player_id', 'stat_line.fixture_id', 'stat_line.team_id', 'stat_line.shirt_number'
++        ) }} as kept_player_id,
++        logical_or(stat_line.goals_against is not null)
++            over (partition by stat_line.league_code, stat_line.fixture_id, stat_line.raw_ingested_at)
++            as fetch_is_complete
++    from {{ ref('stg_apif__fixture_players') }} as stat_line
++    where stat_line.fixture_id is not null and stat_line.team_id is not null
++),
++
++one_row_per_fetch as (
++    select
++        *,
++        raw_ingested_at = coalesce(
++            max(if(fetch_is_complete, raw_ingested_at, null)) over (partition by league_code, fixture_id),
++            max(raw_ingested_at) over (partition by league_code, fixture_id)
++        ) as is_picked
++    from fetch_rows
++    where kept_player_id is not null and kept_player_id != 0
++    qualify row_number() over (
++        partition by league_code, fixture_id, kept_player_id, raw_ingested_at
++        order by
++            (
++                select countif(stat is not null)
++                from unnest([
++                    {%- for column in results + (stats.values() | list) %}
++                    cast({{ column }} as string){{ ',' if not loop.last }}
++                    {%- endfor %}
++                ]) as stat
++            ) desc,
++            to_json_string(fetch_rows) asc
++    ) = 1
++),
++
++picked as (
++    select *
++    from one_row_per_fetch
++    where is_picked
++),
++
++donors as (
++    select o.*
++    from one_row_per_fetch as o
++    inner join picked as p
++        on o.league_code = p.league_code and o.fixture_id = p.fixture_id and o.kept_player_id = p.kept_player_id
++    where
++        not o.is_picked
++        and coalesce(o.goals_total, 0) = coalesce(p.goals_total, 0)
++        and coalesce(o.goals_assists, 0) = coalesce(p.goals_assists, 0)
++        and coalesce(o.cards_yellow, 0) = coalesce(p.cards_yellow, 0)
++        and coalesce(o.cards_red, 0) = coalesce(p.cards_red, 0)
++        and coalesce(o.minutes_played, 0) = coalesce(p.minutes_played, 0)
++        and coalesce(o.goals_against, 0) = coalesce(p.goals_against, 0)
++        and coalesce(o.saves, 0) = coalesce(p.saves, 0)
++        and coalesce(o.penalty_won, 0) = coalesce(p.penalty_won, 0)
++        and coalesce(o.penalty_committed, 0) = coalesce(p.penalty_committed, 0)
++        and coalesce(o.penalty_scored, 0) = coalesce(p.penalty_scored, 0)
++        and coalesce(o.penalty_missed, 0) = coalesce(p.penalty_missed, 0)
++        and coalesce(o.penalty_saved, 0) = coalesce(p.penalty_saved, 0)
++),
++
++donor_values as (
++    select
++        league_code,
++        fixture_id,
++        kept_player_id,
++        {%- for column in stats.values() %}
++        array_agg(cast({{ column }} as string) ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
++            as {{ column }},
++        {%- endfor %}
++        count(*) as donor_fetches
++    from donors
++    group by league_code, fixture_id, kept_player_id
++),
++
++expected as (
++    select
++        p.league_code,
++        p.fixture_id,
++        p.kept_player_id as player_id,
++        stat.stat_name,
++        stat.donated
++    from picked as p
++    inner join donor_values as d
++        on p.league_code = d.league_code and p.fixture_id = d.fixture_id and p.kept_player_id = d.kept_player_id
++    cross join
++        unnest([
++            {%- for name, column in stats.items() %}
++            struct(
++                '{{ name }}' as stat_name,
++                cast(p.{{ column }} as string) as picked_value,
++                d.{{ column }} as donated
++            ){{ ',' if not loop.last }}
++            {%- endfor %}
++        ]) as stat
++    where stat.picked_value is null and stat.donated is not null
++),
++
++held as (
++    select
++        b.league_code,
++        b.fixture_id,
++        b.team_id,
++        b.player_id,
++        b.stat_corrections,
++        b.goals,
++        b.assists,
++        b.cards_yellow,
++        b.cards_red,
++        stat.stat_name,
++        stat.stat_value
++    from {{ ref('base_apif__fixture_players') }} as b
++    cross join
++        unnest([
++            {%- for name in stats %}
++            struct('{{ name }}' as stat_name, cast(b.{{ name }} as string) as stat_value){{ ',' if not loop.last }}
++            {%- endfor %}
++        ]) as stat
++),
++
++picked_shots as (
++    select
++        p.league_code,
++        p.fixture_id,
++        p.kept_player_id as player_id,
++        shot.stat_name,
++        shot.stat_value
++    from picked as p
++    cross join
++        unnest([
++            struct('shots' as stat_name, p.shots_total as stat_value),
++            struct('shots_on_target', p.shots_on)
++        ]) as shot
++),
++
++team_sums as (
++    select
++        h.fixture_id,
++        h.team_id,
++        h.stat_name,
++        sum(coalesce(p.stat_value, safe_cast(e.donated as int64), 0)) as with_fills,
++        sum(coalesce(p.stat_value, 0)) as without_fills
++    from held as h
++    left join picked_shots as p
++        on
++            h.league_code = p.league_code and h.fixture_id = p.fixture_id
++            and h.player_id = p.player_id and h.stat_name = p.stat_name
++    left join expected as e
++        on
++            h.league_code = e.league_code and h.fixture_id = e.fixture_id
++            and h.player_id = e.player_id and h.stat_name = e.stat_name
++    where h.stat_name in ('shots', 'shots_on_target')
++    group by h.fixture_id, h.team_id, h.stat_name
++),
++
++team_lines as (
++    select
++        fixture_id,
++        team_id,
++        line.stat_name,
++        line.stat_value
++    from {{ ref('base_apif__fixture_statistics') }}
++    cross join unnest([
++        struct('shots' as stat_name, shots as stat_value),
++        struct('shots_on_target', shots_on_target)
++    ]) as line
++)
++
++select
++    h.league_code,
++    h.fixture_id,
++    h.player_id,
++    h.stat_name,
++    e.donated,
++    h.stat_value
++from expected as e
++inner join held as h
++    on
++        e.league_code = h.league_code and e.fixture_id = h.fixture_id
++        and e.player_id = h.player_id and e.stat_name = h.stat_name
++inner join picked as p
++    on e.league_code = p.league_code and e.fixture_id = p.fixture_id and e.player_id = p.kept_player_id
++left join team_sums as s
++    on h.fixture_id = s.fixture_id and h.team_id = s.team_id and h.stat_name = s.stat_name
++left join team_lines as t
++    on h.fixture_id = t.fixture_id and h.team_id = t.team_id and h.stat_name = t.stat_name
++where
++    h.stat_value is distinct from e.donated
++    and h.stat_name not in (select c.stat from unnest(h.stat_corrections) as c)
++    and coalesce(h.goals, 0) = coalesce(p.goals_total, 0)
++    and coalesce(h.assists, 0) = coalesce(p.goals_assists, 0)
++    and coalesce(h.cards_yellow, 0) = coalesce(p.cards_yellow, 0)
++    and coalesce(h.cards_red, 0) = coalesce(p.cards_red, 0)
++    and (
++        h.stat_name not in ('shots', 'shots_on_target')
++        or coalesce(abs(s.with_fills - t.stat_value) <= abs(s.without_fills - t.stat_value), false)
++    )
+diff --git a/dbt_project/tests/assert_fixture_players_results_follow_events.sql b/dbt_project/tests/assert_fixture_players_results_follow_events.sql
+new file mode 100644
+index 00000000..9bfbdaee
+--- /dev/null
++++ b/dbt_project/tests/assert_fixture_players_results_follow_events.sql
+@@ -0,0 +1,207 @@
++{#
++  Where another fetch gives a player the goals, assists or cards of the match's events and the
++  match's picked fetch does not, the events' count is his. Where the picked fetch leaves his minutes
++  blank, another fetch's minutes are his when a substitution brought him on that many minutes before
++  the 90th, the minute of entry counted or not. Returns one row per player-match and result where
++  base_apif__fixture_players shows something else, unless the cleaning changed that result (a
++  stat_corrections entry).
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with fetch_rows as (
++    select
++        stat_line.league_code,
++        stat_line.fixture_id,
++        stat_line.raw_ingested_at,
++        stat_line.goals_total,
++        stat_line.goals_assists,
++        stat_line.cards_yellow,
++        stat_line.cards_red,
++        stat_line.minutes_played,
++        {{ fixture_player_id(
++            'stat_line.player_id', 'stat_line.fixture_id', 'stat_line.team_id', 'stat_line.shirt_number'
++        ) }} as player_id,
++        logical_or(stat_line.goals_against is not null)
++            over (partition by stat_line.league_code, stat_line.fixture_id, stat_line.raw_ingested_at)
++            as fetch_is_complete
++    from {{ ref('stg_apif__fixture_players') }} as stat_line
++    where stat_line.fixture_id is not null and stat_line.team_id is not null
++),
++
++per_fetch as (
++    select
++        league_code,
++        fixture_id,
++        player_id,
++        raw_ingested_at,
++        goals_total,
++        goals_assists,
++        cards_yellow,
++        cards_red,
++        minutes_played,
++        raw_ingested_at = coalesce(
++            max(if(fetch_is_complete, raw_ingested_at, null)) over (partition by league_code, fixture_id),
++            max(raw_ingested_at) over (partition by league_code, fixture_id)
++        ) as is_picked
++    from fetch_rows
++    where player_id is not null and player_id != 0
++),
++
++matches_with_events as (
++    select fixture_id
++    from {{ ref('base_apif__fixture_events') }}
++    group by fixture_id
++    having logical_or(has_full_events)
++),
++
++event_counts as (
++    select
++        e.fixture_id,
++        counted.player_id,
++        countif(counted.result_name = 'goals') as goals,
++        countif(counted.result_name = 'assists') as assists,
++        countif(counted.result_name = 'cards_yellow') as cards_yellow,
++        countif(counted.result_name = 'cards_red') as cards_red
++    from {{ ref('base_apif__fixture_events') }} as e
++    inner join matches_with_events as m
++        on e.fixture_id = m.fixture_id
++    cross join
++        unnest([
++            struct(
++                'goals' as result_name,
++                if(e.is_goal and not e.is_own_goal, e.player_id, null) as player_id
++            ),
++            struct('assists', if(e.is_goal and not e.is_own_goal, e.assist_player_id, null)),
++            struct(
++                'cards_yellow',
++                if(
++                    e.event_type = 'Card' and e.event_detail = 'Yellow Card'
++                    and coalesce(e.event_comments, '') != 'Not on pitch' and e.has_full_events,
++                    e.player_id,
++                    null
++                )
++            ),
++            struct(
++                'cards_red',
++                if(
++                    e.event_type = 'Card' and e.event_detail = 'Red Card'
++                    and coalesce(e.event_comments, '') != 'Not on pitch' and e.has_full_events,
++                    e.player_id,
++                    null
++                )
++            )
++        ]) as counted
++    where counted.player_id is not null
++    group by e.fixture_id, counted.player_id
++),
++
++fetch_results as (
++    select
++        f.league_code,
++        f.fixture_id,
++        f.player_id,
++        f.is_picked,
++        fetched.result_name,
++        coalesce(fetched.result_value, 0) as result_value,
++        coalesce(
++            case fetched.result_name
++                when 'goals' then c.goals
++                when 'assists' then c.assists
++                when 'cards_yellow' then c.cards_yellow
++                when 'cards_red' then c.cards_red
++            end,
++            0
++        ) as event_value
++    from per_fetch as f
++    inner join matches_with_events as m
++        on f.fixture_id = m.fixture_id
++    left join event_counts as c
++        on f.fixture_id = c.fixture_id and f.player_id = c.player_id
++    cross join
++        unnest([
++            struct('goals' as result_name, f.goals_total as result_value),
++            struct('assists', f.goals_assists),
++            struct('cards_yellow', f.cards_yellow),
++            struct('cards_red', f.cards_red)
++        ]) as fetched
++),
++
++settled as (
++    select
++        league_code,
++        fixture_id,
++        player_id,
++        result_name,
++        min(event_value) as events_count
++    from fetch_results
++    group by league_code, fixture_id, player_id, result_name
++    having
++        logical_or(is_picked)
++        and logical_and(not is_picked or result_value != event_value)
++        and logical_or(not is_picked and result_value = event_value)
++),
++
++minutes_on as (
++    select
++        fixture_id,
++        assist_player_id as player_id,
++        max(minute_elapsed) as minute_on
++    from {{ ref('base_apif__fixture_events') }}
++    where event_type = 'subst' and assist_player_id is not null
++    group by fixture_id, assist_player_id
++),
++
++minutes_settled as (
++    select
++        f.league_code,
++        f.fixture_id,
++        f.player_id,
++        array_agg(
++            if(
++                not f.is_picked and f.minutes_played between 90 - s.minute_on and 91 - s.minute_on,
++                f.minutes_played,
++                null
++            ) ignore nulls order by f.raw_ingested_at desc limit 1
++        )[safe_offset(0)] as minutes
++    from per_fetch as f
++    inner join minutes_on as s
++        on f.fixture_id = s.fixture_id and f.player_id = s.player_id
++    group by f.league_code, f.fixture_id, f.player_id
++    having logical_or(f.is_picked) and logical_and(not f.is_picked or f.minutes_played is null)
++)
++
++select
++    m.league_code,
++    m.fixture_id,
++    m.player_id,
++    'minutes' as result_name,
++    m.minutes as events_count,
++    b.minutes as result_value
++from minutes_settled as m
++inner join {{ ref('base_apif__fixture_players') }} as b
++    on m.league_code = b.league_code and m.fixture_id = b.fixture_id and m.player_id = b.player_id
++where m.minutes is not null and b.minutes is distinct from m.minutes
++
++union all
++
++select
++    s.league_code,
++    s.fixture_id,
++    s.player_id,
++    s.result_name,
++    s.events_count,
++    held.result_value
++from settled as s
++inner join {{ ref('base_apif__fixture_players') }} as b
++    on s.league_code = b.league_code and s.fixture_id = b.fixture_id and s.player_id = b.player_id
++cross join
++    unnest([
++        struct('goals' as result_name, b.goals as result_value),
++        struct('assists', b.assists),
++        struct('cards_yellow', b.cards_yellow),
++        struct('cards_red', b.cards_red)
++    ]) as held
++where
++    held.result_name = s.result_name
++    and held.result_value is distinct from s.events_count
++    and s.result_name not in (select c.stat from unnest(b.stat_corrections) as c)
+diff --git a/dbt_project/tests/assert_fixture_statistics_from_every_fetch.sql b/dbt_project/tests/assert_fixture_statistics_from_every_fetch.sql
+new file mode 100644
+index 00000000..8aaea854
+--- /dev/null
++++ b/dbt_project/tests/assert_fixture_statistics_from_every_fetch.sql
+@@ -0,0 +1,128 @@
++{#
++  A team's match stat is the newest value any fetch's line carried. Returns one row per team-match
++  and stat blank in base_apif__fixture_statistics while a fetch in stg_apif__fixture_statistics
++  carries it, unless the cleaning blanked it (a stat_corrections entry) or, for a card count, the
++  match's events hold fewer cards that could be of that colour, or more that certainly are.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with carried as (
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        stat_type
++    from {{ ref('stg_apif__fixture_statistics') }}
++    where fixture_id is not null and team_id is not null and stat_value_raw is not null
++    group by league_code, fixture_id, team_id, stat_type
++),
++
++newest_card_counts as (
++    select
++        fixture_id,
++        team_id,
++        stat_type,
++        array_agg(safe_cast(stat_value_raw as int64) order by raw_ingested_at desc limit 1)[offset(0)] as cards
++    from {{ ref('stg_apif__fixture_statistics') }}
++    where stat_type in ('Yellow Cards', 'Red Cards') and stat_value_raw is not null
++    group by fixture_id, team_id, stat_type
++),
++
++matches_with_events as (
++    select fixture_id
++    from {{ ref('base_apif__fixture_events') }}
++    group by fixture_id
++    having logical_or(has_full_events)
++),
++
++card_bounds as (
++    select
++        e.fixture_id,
++        e.team_id,
++        countif(e.event_type = 'Card' and e.event_detail = 'Yellow Card') as yellow_certain,
++        countif(
++            (e.event_type = 'Card' and coalesce(e.event_detail, '') != 'Red Card')
++            or (e.event_type = 'Var' and e.event_detail = 'Card reviewed')
++        ) as yellow_possible,
++        countif(e.event_type = 'Card' and e.event_detail = 'Red Card') as red_certain,
++        countif(
++            (e.event_type = 'Card' and coalesce(e.event_detail, '') != 'Yellow Card')
++            or (
++                e.event_type = 'Var'
++                and (
++                    starts_with(e.event_detail, 'Card upgrade')
++                    or e.event_detail in ('Red card cancelled', 'Card reviewed')
++                )
++            )
++        ) as red_possible
++    from {{ ref('base_apif__fixture_events') }} as e
++    inner join matches_with_events as m
++        on e.fixture_id = m.fixture_id
++    where e.team_id is not null
++    group by e.fixture_id, e.team_id
++),
++
++held as (
++    select
++        b.league_code,
++        b.fixture_id,
++        b.team_id,
++        stat.stat_type,
++        stat.stat_name
++    from {{ ref('base_apif__fixture_statistics') }} as b
++    cross join
++        unnest([
++            struct('Shots on Goal' as stat_type, 'shots_on_target' as stat_name, b.shots_on_target as stat_value),
++            struct('Shots off Goal', 'shots_off_target', b.shots_off_target),
++            struct('Total Shots', 'shots', b.shots),
++            struct('Blocked Shots', 'shots_blocked', b.shots_blocked),
++            struct('Shots insidebox', 'shots_inside_box', b.shots_inside_box),
++            struct('Shots outsidebox', 'shots_outside_box', b.shots_outside_box),
++            struct('Fouls', 'fouls', b.fouls),
++            struct('Corner Kicks', 'corners', b.corners),
++            struct('Offsides', 'offsides', b.offsides),
++            struct('Free Kicks', 'free_kicks', b.free_kicks),
++            struct('Ball Possession', 'possession_pct', b.possession_pct),
++            struct('Yellow Cards', 'cards_yellow', b.cards_yellow),
++            struct('Red Cards', 'cards_red', b.cards_red),
++            struct('Goalkeeper Saves', 'saves', b.saves),
++            struct('Total passes', 'passes', b.passes),
++            struct('Passes accurate', 'passes_accurate', b.passes_accurate)
++        ]) as stat
++    where
++        stat.stat_value is null
++        and stat.stat_name not in (select c.stat from unnest(b.stat_corrections) as c)
++)
++
++select
++    held.league_code,
++    held.fixture_id,
++    held.team_id,
++    held.stat_name
++from held
++inner join carried
++    on
++        held.league_code = carried.league_code
++        and held.fixture_id = carried.fixture_id
++        and held.team_id = carried.team_id
++        and held.stat_type = carried.stat_type
++left join newest_card_counts as cards
++    on
++        held.fixture_id = cards.fixture_id
++        and held.team_id = cards.team_id
++        and held.stat_type = cards.stat_type
++left join matches_with_events as m
++    on held.fixture_id = m.fixture_id
++left join card_bounds as bounds
++    on held.fixture_id = bounds.fixture_id and held.team_id = bounds.team_id
++where not coalesce(
++    m.fixture_id is not null
++    and case held.stat_type
++        when 'Yellow Cards'
++            then cards.cards not between coalesce(bounds.yellow_certain, 0) and coalesce(bounds.yellow_possible, 0)
++        when 'Red Cards'
++            then cards.cards not between coalesce(bounds.red_certain, 0) and coalesce(bounds.red_possible, 0)
++        else false
++    end,
++    false
++)
+diff --git a/docs/data_contract.md b/docs/data_contract.md
+index 0026e3e9..4103b886 100644
+--- a/docs/data_contract.md
++++ b/docs/data_contract.md
+@@ -133,7 +133,7 @@ quota is still discarded whole and retried next run, in `batch_fixtures`, `coach
+ 
+ **Second fetch.** The provider completes some player stats days after the match, so a finished fixture whose latest fetch came under 3 days (72 hours) after kickoff is fetched once more when it is 3 days old, in every competition, idle ones included (`coverage.second_fetch_due`). From the moment that fetch is due until it is made, the fixture's player stats count as not covered. A fixture whose latest fetch is in the provider's newer player-stats format (players listed, none with goals conceded) and came under 14 days after kickoff is fetched once more when it is 14 days old (`coverage.newer_format_refetch_due`): that format never carries goals conceded or dribbled past, and the provider replaces it with the complete one for many matches later.
+ 
+-**Both versions are kept deliberately, and base picks.** The bundle carries lineups, events, statistics and player stats *together*, so a retry chasing late statistics can come back richer in one section and poorer in another. `base_apif__fixture_statistics` dedups newest per `(…, team_id)`, so a team line present only in the older payload survives and one present in both takes the newer. `base_apif__fixture_players` takes all of a match's player rows from one fetch: its newest fetch in the complete format (any player with goals conceded), else its newest fetch. `base_apif__fixture_events` keeps the event list of the fixture's latest fetch that has events: positions past the end of a shorter later list are not kept.
++**Both versions are kept deliberately, and base picks.** The bundle carries lineups, events, statistics and player stats *together*, so a retry chasing late statistics can come back richer in one section and poorer in another. `base_apif__fixture_statistics` takes each stat of a team line from the newest fetch that carries it. A card count is taken only as the cleaning rules' "Fetches" line allows. `base_apif__fixture_players` takes a match's player rows from one fetch, its newest fetch in the complete format (any player with goals conceded), else its newest fetch. The "Fetches" line says where a player's value comes from another fetch or from the events instead. `base_apif__coaches` takes each bio field from the newest fetch that carries it. `base_apif__fixture_events` keeps the event list of the fixture's latest fetch that has events: positions past the end of a shorter later list are not kept.
+ 
+ Two consequences worth stating rather than discovering:
+ 
