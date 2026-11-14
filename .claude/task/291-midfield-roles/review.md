@@ -1,6 +1,6 @@
 # Review — feat/291-midfield-roles — 2026-11-14
 
-diff_sha256: bf714573500d0ea5137702f8d6ad8bc27378f53a27e9d722e70d296668e7671a
+diff_sha256: 7ac808eeed9df328a1ffe26cb4eded8d10b4a20fa1a5fce6d0f872e09ae58516
 
 rounds: 5
 
@@ -13,7 +13,7 @@ risks_checked:
 - The diff decides nothing beyond decisions_taken: grid rule, substitute slots, checked team sheets only, no earlier-season fallback, the most-frequent, latest-match, code order, no pool minimum. A role-less player gets NULL and the role-coverage test fails on him instead of a guess.
 - No new model, seed, schedule or dependency; the impact_map carries the pasted lineage, deploy order and the measured BL1 pool shift. Round 3 changed only a CTE alias in base_apif__lineups.
 - Round 4: the only change is the grid test, in scope; it brings no decision, mechanism or cost, and walks the same four substitutions as the model.
-- Round 5: the stats-line midfielder, the earlier fetch's grid places and the other-seasons role each carry a dated CPO approval in decisions_taken and amendments; the starters of partly failed sheets left the diff with their question still open. The earlier fetch lends only grid places and formation, and the impact_map names the 132 sheets that reach. The position_role doc states the other-seasons source.
+- Round 5: the stats-line midfielder, the earlier fetch's grid places and the other-seasons role each carry a dated CPO approval in decisions_taken and amendments; the starters of a sheet that failed only the substitutions or squad_lists checks now count, with the CPO's dated approval (each part of a sheet by its own checks); its bench and substitutions do not. The earlier fetch lends only grid places and formation, and the impact_map names the 132 sheets that reach. The position_role doc states the other-seasons source.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
@@ -22,7 +22,7 @@ risks_checked:
 - Substitute-slot chain checked against the recursive recompute in the grid test; layer placement (grid rule in base, aggregate in intermediate, marts pass columns); no ref cycle; no hardcoded competition; the export only passes position_role.
 - Round 3 delta: the new CTE is slot_substitutions, so no alias repeats in the model's single WITH; the compiled model dry-ran cleanly against the prod tables.
 - Round 4 delta: no WITH RECURSIVE remains under dbt_project; the grid test walks four substitutions forward from the starter, the model four backward, and both give NULL to a broken chain; the test returned 0 rows against the MR's built fct_fixture_lineup.
-- Round 5: the stats-line join is on the unique stats grain and starters only; the lending fetch is one row per team and lends starters' places by provider id and the formation by coalesce; the other-seasons tie-break (count, nearest season, earlier) matches its test; role_matches counts confirmed or researched sheets only. Residual noted: a lender sheet with two id-less starters would break the base grain test loudly, never silently.
+- Round 5: the stats-line join is on the unique stats grain and starters only; the lending fetch is one row per team and lends starters' places by provider id and the formation by coalesce; the other-seasons tie-break (count, nearest season, earlier) matches its test; role_matches counts confirmed or researched sheets, and the starters of a sheet that failed only substitutions or squad_lists; fct_fixture_lineup passes failed_checks through, never NULL. Residual noted: a lender sheet with two id-less starters would break the base grain test loudly, never silently.
 
 ## platform-reviewer
 VERDICT: PASS

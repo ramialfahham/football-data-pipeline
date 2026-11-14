@@ -116,7 +116,10 @@ decisions_taken: >
   Evidence first (CPO, approved in chat 2026-11-14): a role is what the player played that season.
   A starter's line is his own; a substitute takes the line of the player he replaced, followed back
   to the starter. A starter the sheet names no position for counts when his stats line codes him M
-  (CPO, approved in chat 2026-11-14). Only confirmed or researched team sheets count. When a team's
+  (CPO, approved in chat 2026-11-14). Confirmed or researched team sheets count. Each part of a
+  sheet is judged by its own checks: the starters of a sheet that failed only the substitutions
+  and/or squad_lists checks count; its bench and substitutions do not (CPO, approved in chat
+  2026-11-14). fct_fixture_lineup carries failed_checks for it. When a team's
   latest fetch has no grid places, its starters take the grid places, and the sheet the formation,
   of the latest earlier fetch that has them, only if both name the same starting eleven; nothing
   else comes from the earlier fetch (CPO, in chat 2026-11-14: discarding a stored fetch's grid
@@ -158,6 +161,7 @@ done_when:
 
 amendments:
   - 2026-11-14: + the stats-line midfielder — authority: CPO, approved in chat 2026-11-14; content: decisions_taken, "Evidence first".
+  - 2026-11-14: + the starters of a sheet that failed only the substitutions or squad_lists checks; fct_fixture_lineup carries failed_checks — authority: CPO, approved in chat 2026-11-14 (each part of a sheet by its own checks); content: decisions_taken, "Evidence first".
   - 2026-11-14: + the earlier fetch's grid places and formation for the same starting eleven, with its test — authority: CPO, in chat 2026-11-14 (discarding them is a defect); content: decisions_taken, "Evidence first"; impact_map, the 132 sheets.
   - 2026-11-14: + the role from other seasons for a midfielder without one this season, and midfield_role_from — authority: CPO, approved in chat 2026-11-14; content: decisions_taken, "Season role".
   - 2026-11-14: + assert_no_uncatalogued_season_metric.sql — authority: the coordinator's engineering calls of 2026-11-14 (the role columns on int_player_season__metrics); content: midfield_role and midfield_role_from join its non-metric columns, as starts and minutes are.

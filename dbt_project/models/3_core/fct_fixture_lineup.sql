@@ -22,5 +22,6 @@ select
     minute_off,
     minute_off_extra,
     lineup_order,
+    failed_checks,
     lineup_state
 from src

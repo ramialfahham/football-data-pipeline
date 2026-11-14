@@ -19,7 +19,19 @@ with counted as (
             legs.fixture_sk = lineups.fixture_sk
             and legs.team_sk = lineups.team_sk
             and legs.player_sk = lineups.player_sk
-    where lineups.midfield_role is not null and lineups.lineup_state in ('confirmed', 'researched')
+    where
+        lineups.midfield_role is not null
+        and (
+            lineups.lineup_state in ('confirmed', 'researched')
+            or (
+                lineups.is_starter
+                and array_length(lineups.failed_checks) > 0
+                and array_length(array(
+                    select c from unnest(lineups.failed_checks) as c
+                    where c in ('substitutions', 'squad_lists')
+                )) = array_length(lineups.failed_checks)
+            )
+        )
 ),
 
 own_counts as (
