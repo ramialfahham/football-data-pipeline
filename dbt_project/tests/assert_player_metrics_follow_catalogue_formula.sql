@@ -127,13 +127,20 @@ season_rows as (
     from club_season_rows
 ),
 
+-- A midfielder's matches sit in his season role's pool, MID without one.
 position_rows as (
     select
-        *,
-        case position_code when 'G' then 'GK' when 'D' then 'DEF' when 'M' then 'MID' when 'F' then 'ATT' end
-            as position_group
+        season_rows.*,
+        case season_rows.position_code
+            when 'G' then 'GK'
+            when 'D' then 'DEF'
+            when 'M' then coalesce(roles.midfield_role, 'MID')
+            when 'F' then 'ATT'
+        end as position_group
     from season_rows
-    where position_code in ('G', 'D', 'M', 'F')
+    left join {{ ref('int_player_season__metrics') }} as roles
+        on season_rows.player_sk = roles.player_sk and season_rows.season_sk = roles.season_sk
+    where season_rows.position_code in ('G', 'D', 'M', 'F')
 ),
 
 momentum_rows as (

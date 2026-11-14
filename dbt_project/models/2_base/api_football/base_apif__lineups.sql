@@ -675,6 +675,128 @@ match_checks as (
             and sheet_checks.fixture_id = shared_id_sheets.fixture_id
             and sheet_checks.team_id = shared_id_sheets.team_id
     group by sheet_checks.league_code, sheet_checks.fixture_id
+),
+
+-- A starter's line: grid row 1 is the keeper, so his line is his row minus one, counted into the
+-- formation's numbers (4-2-3-1 has four lines).
+starter_lines as (
+    select
+        league_code,
+        fixture_id,
+        team_id,
+        player_id,
+        safe_cast(split(grid_position, ':')[safe_offset(0)] as int64) - 1 as line,
+        array(
+            select safe_cast(n as int64)
+            from unnest(split(team_formation, '-')) as n with offset as o
+            order by o
+        ) as line_sizes
+    from lined
+    where is_starter
+),
+
+slot_substitutions as (
+    select
+        league_code,
+        fixture_id,
+        team_id,
+        player_id,
+        replaced_player_id
+    from lined
+    where not is_starter and replaced_player_id is not null
+),
+
+-- A substitute takes the slot of the player he replaced, followed back to the starter when that
+-- player had come on himself.
+substitute_origins as (
+    select
+        s.league_code,
+        s.fixture_id,
+        s.team_id,
+        s.player_id,
+        coalesce(
+            s4.replaced_player_id, s3.replaced_player_id, s2.replaced_player_id, s.replaced_player_id
+        ) as origin_player_id
+    from slot_substitutions as s
+    left join slot_substitutions as s2
+        on
+            s.league_code = s2.league_code
+            and s.fixture_id = s2.fixture_id
+            and s.team_id = s2.team_id
+            and s.replaced_player_id = s2.player_id
+    left join slot_substitutions as s3
+        on
+            s2.league_code = s3.league_code
+            and s2.fixture_id = s3.fixture_id
+            and s2.team_id = s3.team_id
+            and s2.replaced_player_id = s3.player_id
+    left join slot_substitutions as s4
+        on
+            s3.league_code = s4.league_code
+            and s3.fixture_id = s4.fixture_id
+            and s3.team_id = s4.team_id
+            and s3.replaced_player_id = s4.player_id
+),
+
+-- A midfielder's line in the match: his own as a starter, the slot he took as a substitute.
+midfield_lines as (
+    select
+        lined.league_code,
+        lined.fixture_id,
+        lined.team_id,
+        lined.player_id,
+        coalesce(own.line, origin.line) as line,
+        coalesce(own.line_sizes, origin.line_sizes) as line_sizes
+    from lined
+    left join starter_lines as own
+        on
+            lined.league_code = own.league_code
+            and lined.fixture_id = own.fixture_id
+            and lined.team_id = own.team_id
+            and lined.player_id = own.player_id
+    left join substitute_origins as so
+        on
+            lined.league_code = so.league_code
+            and lined.fixture_id = so.fixture_id
+            and lined.team_id = so.team_id
+            and lined.player_id = so.player_id
+    left join starter_lines as origin
+        on
+            so.league_code = origin.league_code
+            and so.fixture_id = origin.fixture_id
+            and so.team_id = origin.team_id
+            and so.origin_player_id = origin.player_id
+    where lined.position_code = 'M' and (own.player_id is not null or origin.player_id is not null)
+),
+
+-- One midfield line is central. With two or more, the lowest is defensive when it holds one or two
+-- players and the highest attacking when it holds one to three; every other midfield line is central.
+-- A midfielder placed on the defence line is defensive, on the attack line attacking.
+midfield_roles as (
+    select
+        league_code,
+        fixture_id,
+        team_id,
+        player_id,
+        case
+            when
+                line is null
+                or array_length(line_sizes) < 3
+                or exists (
+                    select 1 from unnest(line_sizes) as n
+                    where n is null or n < 1
+                )
+                or line < 1
+                or line > array_length(line_sizes)
+                then null
+            when line = 1 then 'DM'
+            when line = array_length(line_sizes) then 'AM'
+            when array_length(line_sizes) = 3 then 'CM'
+            when line = 2 then if(line_sizes[offset(1)] <= 2, 'DM', 'CM')
+            when line = array_length(line_sizes) - 1 then if(line_sizes[offset(line - 1)] <= 3, 'AM', 'CM')
+            else 'CM'
+        end as midfield_role
+    from midfield_lines
 )
 
 select
@@ -688,6 +810,7 @@ select
     lined.position_code,
     lined.grid_position,
     lined.team_formation,
+    midfield_roles.midfield_role,
     lined.minute_on,
     lined.minute_on_extra,
     lined.replaced_player_id,
@@ -721,3 +844,9 @@ inner join match_checks
     on
         lined.league_code = match_checks.league_code
         and lined.fixture_id = match_checks.fixture_id
+left join midfield_roles
+    on
+        lined.league_code = midfield_roles.league_code
+        and lined.fixture_id = midfield_roles.fixture_id
+        and lined.team_id = midfield_roles.team_id
+        and lined.player_id = midfield_roles.player_id

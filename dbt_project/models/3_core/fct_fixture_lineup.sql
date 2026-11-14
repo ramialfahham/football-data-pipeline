@@ -15,6 +15,7 @@ select
     position_code,
     grid_position,
     team_formation,
+    midfield_role,
     minute_on,
     minute_on_extra,
     cast(replaced_player_id as int64) as replaced_player_sk,

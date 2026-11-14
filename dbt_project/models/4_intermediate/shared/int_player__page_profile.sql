@@ -5,7 +5,8 @@
   featured_season_sk is the most recent club season, a domestic league before a cup; a player with no
   club football falls back to the most recent season of any kind. Two competitions of the same kind
   in one year go to the one with the latest match. position_group is the player's most frequent
-  position that season. current_club_team_sk is the club of the player's latest club match;
+  position that season, then the one of his latest match, then the code. position_role is that
+  season's midfield_role for a midfielder. current_club_team_sk is the club of the player's latest club match;
   featured_team_sk the club of the latest match in the featured season's club competitions.
 
   has_national_team_tab is true for a player in a nation's squad for a current competition: named on
@@ -56,6 +57,7 @@ featured as (
 featured_position as (
     select
         l.player_sk,
+        l.season_sk as position_season_sk,
         case l.position_code
             when 'G' then 'GK'
             when 'D' then 'DEF'
@@ -66,11 +68,19 @@ featured_position as (
     inner join featured as fe
         on l.player_sk = fe.player_sk and l.season_sk = fe.featured_season_sk
     where l.position_code in ('G', 'D', 'M', 'F')
-    group by l.player_sk, l.position_code
+    group by l.player_sk, l.season_sk, l.position_code
     qualify row_number() over (
         partition by l.player_sk
-        order by count(*) desc, l.position_code asc
+        order by count(*) desc, max(l.kickoff_datetime) desc, l.position_code asc
     ) = 1
+),
+
+position_roles as (
+    select
+        player_sk,
+        season_sk,
+        midfield_role
+    from {{ ref('int_player_season__metrics') }}
 ),
 
 current_club as (
@@ -196,12 +206,15 @@ select
     cc.current_club_team_sk,
     ft.featured_team_sk,
     nt.national_team_sk,
+    if(fp.position_group = 'MID', pr.midfield_role, null) as position_role,
     nt.player_sk is not null as has_national_team_tab,
     cc.player_sk is not null as has_club_tab,
     pp.player_sk is not null and (nt.player_sk is not null or cc.player_sk is not null) as has_player_page
 from featured as fe
 left join featured_position as fp
     on fe.player_sk = fp.player_sk
+left join position_roles as pr
+    on fp.player_sk = pr.player_sk and fp.position_season_sk = pr.season_sk
 left join current_club as cc
     on fe.player_sk = cc.player_sk
 left join featured_team as ft

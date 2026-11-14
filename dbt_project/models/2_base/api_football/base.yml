@@ -408,6 +408,11 @@ models:
         description: "{{ doc('grid_position') }}"
       - name: team_formation
         description: "{{ doc('team_formation') }}"
+      - name: midfield_role
+        description: "{{ doc('midfield_role') }}"
+        tests:
+          - accepted_values:
+              values: ["DM", "CM", "AM"]
       - name: minute_on
         description: "{{ doc('minute_on') }}"
       - name: minute_on_extra

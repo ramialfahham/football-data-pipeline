@@ -146,6 +146,15 @@ def test_the_shared_name_flag_is_the_marts_and_is_selected():
     assert not hasattr(export_site_data, "mark_shared_names")
 
 
+def test_the_midfield_role_reaches_the_player_page_and_the_index():
+    assert "position_role" in export_site_data._PLAYER_PROFILE_COLUMNS
+    assert "position_role" in export_site_data._PLAYER_INDEX_COLUMNS
+    assert _shape_player(_player_profile(position_group="MID", position_role="DM"))["position_role"] == "DM"
+    assert _shape_player()["position_role"] is None
+    shaped = shape_player_index([_player_index_row(position_group="MID", position_role="CM")])
+    assert shaped["players"][0]["position_role"] == "CM"
+
+
 def test_the_player_files_do_not_depend_on_the_order_the_warehouse_returns(tmp_path, monkeypatch):
     monkeypatch.setattr(export_site_data, "page_player_ids", lambda _c: [1, 5, 9])
     monkeypatch.setattr(export_site_data, "_competitions_index", lambda _c: {})
@@ -1428,7 +1437,7 @@ def test_shape_team_index_refuses_rows_that_disagree_on_the_page_flag():
 def _player_index_row(**over) -> dict:
     row = {
         "player_sk": 184, "player_name": "Harry Kane", "player_photo_url": "https://x/184.png",
-        "position_group": "ATT", "player_nationality": "England", "region_key": "UEFA",
+        "position_group": "ATT", "position_role": None, "player_nationality": "England", "region_key": "UEFA",
         "nation_order": 4, "order_in_nation": 1, "current_club_name": "Bayern München",
         "award": None, "award_edition_year": None, "worlds_best_list": None, "worlds_best_order": None,
         "nation_slug": "england", "is_hub_shown": True, "is_hub_shown_in_position": True,
@@ -1457,7 +1466,8 @@ def test_shape_player_index_keeps_the_served_order_and_lists_the_nominees():
                                         "edition_year": 2026, "order": 1}
     first = shaped["players"][0]
     assert first == {"player_id": 2, "slug": player_slug_with_id("B Two", 2), "name": "B Two",
-                     "photo": "https://x/184.png", "position_group": "ATT", "nation": "England",
+                     "photo": "https://x/184.png", "position_group": "ATT", "position_role": None,
+                     "nation": "England",
                      "region_key": "UEFA", "nation_order": 1, "order_in_nation": 1,
                      "club": "Bayern München", "nation_slug": "england", "hub": True,
                      "hub_in_position": True, "nation_page": True}

@@ -902,6 +902,11 @@ models:
           - relationships:
               to: ref('dim_team')
               field: team_sk
+      - name: midfield_role
+        description: "{{ doc('midfield_role') }} Here it is the player's role that competition-season: the most frequent over his matches on a confirmed or researched team sheet, then the role of his latest match, then the code."
+        tests:
+          - accepted_values:
+              values: ["DM", "CM", "AM"]
       - name: appearances
         description: "{{ doc('appearances__season_to_date') }}"
       - name: passes_accuracy_player_pct

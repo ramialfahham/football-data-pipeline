@@ -149,10 +149,15 @@ models:
         description: "club, or national for a player with no club football."
         tests: [not_null]
       - name: position_group
-        description: "GK, DEF, MID or ATT: the player's most frequent position in the featured season."
+        description: "GK, DEF, MID or ATT: the player's most frequent position in the featured season, then the one of his latest match, then the code."
         tests:
           - accepted_values:
               values: ["GK", "DEF", "MID", "ATT"]
+      - name: position_role
+        description: "{{ doc('position_role') }}"
+        tests:
+          - accepted_values:
+              values: ["DM", "CM", "AM"]
       - name: current_club_team_sk
         description: "The club of the player's latest club match. NULL for a player with no club football."
         tests:

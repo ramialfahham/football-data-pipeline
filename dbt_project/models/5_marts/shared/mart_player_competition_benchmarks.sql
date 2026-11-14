@@ -16,7 +16,8 @@
   position_player_count is how many players entered the position, the {n} of the explainer; peer_count
   is a metric's own, smaller where a floor or a blank leaves a player out. page_tab and
   competition_order place a row in the Player page's filter: a competition of the tab's window, in the
-  player's page position; null for every other row.
+  player's page position; null for every other row. A midfielder's row is in his role's pool (DM, CM,
+  AM) and matches the page position MID.
 
   Grain: (player_sk, season_sk, position_group, metric_key).
 #}
@@ -172,4 +173,4 @@ left join page_filters as pf
     on
         r.player_sk = pf.player_sk
         and r.season_sk = pf.season_sk
-        and r.position_group = pf.position_group
+        and if(r.position_group in ('DM', 'CM', 'AM'), 'MID', r.position_group) = pf.position_group

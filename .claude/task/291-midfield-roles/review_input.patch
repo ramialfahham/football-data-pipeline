@@ -1,0 +1,1275 @@
+diff --git a/.claude/task/291-midfield-roles/contract.md b/.claude/task/291-midfield-roles/contract.md
+new file mode 100644
+index 00000000..89f278c5
+--- /dev/null
++++ b/.claude/task/291-midfield-roles/contract.md
+@@ -0,0 +1,145 @@
++# Task contract — Midfield roles: defensive, central and attacking midfielders
++
++objective: >
++  Issue #291. A midfielder's role (DM, CM or AM) is read from his line on the grid in each match he
++  played, as a starter or in the slot he took as a substitute; his season role is the most frequent
++  of those, and the Player page compares him with the players of the same season role in each
++  competition. The Player header and the Players index row name the role; the Team squad groups keep
++  the four positions. With it: the three-step position rule on the page profile (#183 residual), the
++  Player page explainers without the page's own player, and the Finnish squad legend.
++refs: "#291 (CPO decisions approved in chat, 2026-11-13 and 2026-11-14); #183; Player page design #136; Players page design #135"
++
++scope_paths:
++  - .claude/task/291-midfield-roles/**
++  - dbt_project/models/2_base/api_football/base_apif__lineups.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/3_core/fct_fixture_lineup.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
++  - dbt_project/models/4_intermediate/shared/int_player__page_profile.sql
++  - dbt_project/models/4_intermediate/shared/int_player_page.yml
++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++  - dbt_project/macros/player_benchmark_metrics.sql
++  - dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
++  - dbt_project/models/5_marts/shared/mart_player_profile.sql
++  - dbt_project/models/5_marts/shared/mart_player_index.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/models/docs/shared_columns.md
++  - dbt_project/tests/assert_lineup_midfield_role_follows_the_grid.sql
++  - dbt_project/tests/assert_player_season_midfield_role_is_most_frequent.sql
++  - dbt_project/tests/assert_player_page_position_follows_the_rule.sql
++  - dbt_project/tests/assert_player_peer_pools_follow_the_season_role.sql
++  - dbt_project/tests/assert_player_metrics_follow_catalogue_formula.sql
++  - dbt_project/tests/assert_played_midfielders_have_a_role.sql
++  - scripts/export_site_data.py
++  - tests/test_export_site_data.py
++  - tests/test_midfield_roles.py
++  - site_v2/src/i18n/strings.ts
++  - site_v2/src/styles/system.css
++  - site_v2/src/lib/types.ts
++  - site_v2/src/lib/playerPage.ts
++  - site_v2/src/lib/playerIndex.mjs
++  - site_v2/src/lib/playerIndex.test.mjs
++  - site_v2/src/components/player/PlayerHeader.astro
++  - site_v2/src/components/player/PlayerComparison.astro
++  - site_v2/src/components/player/PlayerIndexRow.astro
++  - site_v2/src/pages/[[]lang]/[[]players]/[[]player].astro
++  - site_v2/src/data/players/*.json
++  - site_v2/src/data/player_peers/**
++  - site_v2/src/data/players_index.json
++
++impact_map: >
++  writers: base_apif__lineups (adds midfield_role), fct_fixture_lineup (passes it),
++  int_player_season__metrics (adds the season midfield_role), int_player_season_position__metrics
++  (MID rows take the season role), int_player__page_profile (position rule, position_role), mart_player_competition_benchmarks (page filter on the four groups),
++  mart_player_profile and mart_player_index (pass position_role), macro player_benchmark_metrics
++  (DM, CM and AM beside MID).
++  downstream: `dbt ls --select base_apif__lineups+ --resource-type model` → 61 models, marts:
++  mart_competition_fixtures mart_leaderboards mart_match_days mart_matchday_insights
++  mart_player_career mart_player_competition_benchmarks mart_player_fixture_stats mart_player_index
++  mart_player_momentum mart_player_profile mart_player_season_record mart_player_squad_benchmarks
++  mart_player_window_metrics mart_roster mart_team_competition_benchmarks mart_team_competitions
++  mart_team_index mart_team_leaderboards mart_team_momentum_window mart_team_page_window_metrics
++  mart_team_profile mart_team_season mart_team_season_insights mart_team_season_record
++  mart_team_window_metrics. Every one of them gains nothing but a rebuild; the column is read only by
++  int_player_season__metrics. `int_player_season__metrics+` → mart_leaderboards mart_player_index
++  mart_player_profile. `int_player__page_profile+` → int_player_page__window_seasons
++  int_player_squad_window__metrics int_player_window__metrics mart_player_competition_benchmarks
++  mart_player_fixture_stats mart_player_index mart_player_profile mart_player_squad_benchmarks
++  mart_player_window_metrics mart_team_momentum_window. `int_player_season_position__metrics+` →
++  int_player_competition_benchmark_metrics_long int_player_competition_benchmarks
++  mart_player_competition_benchmarks; the singular test assert_player_metrics_follow_catalogue_formula
++  recomputes it at its grain.
++  layer_rules: base holds the grid rule (first logic, beside the line-up code mapping);
++  intermediate aggregates; marts pass columns. check_layer_contract.py, no partition_by/cluster_by.
++  deploy_order: additive columns and new values; no table is dropped or renamed. The site reads
++  position_role when present and falls back to position_group, so the deployed site keeps working
++  between merge and the next export.
++  blast_radius: position_group stays GK/DEF/MID/ATT on int_player__page_profile, mart_player_profile
++  and mart_player_index, so mart_roster, the Players index groups and filters, the squad and window
++  benchmarks and the leaderboards' outfield filter are unchanged. The peer pool key
++  (position_group of int_player_season_position__metrics, int_player_competition_benchmarks and
++  mart_player_competition_benchmarks) gains DM, CM and AM: a midfielder's benchmark rows, ranks,
++  medians and pool counts change to his season role's pool. Measured on prod, current seasons:
++  BL1 2026 midfielders 99 → DM 14, CM 59, AM 26.
++
++acceptance_criteria:
++  - The built Player page of a midfielder whose payload carries position_role DM names the role in the header (EN "Defensive midfielder", DE "Defensiver Mittelfeldspieler", FI "Puolustava keskikenttäpelaaja") and its competition intro reads "Compared with the {n} defensive midfielders who played at least 270 minutes in {competition} {season}." (DE "Im Vergleich der {n} defensiven Mittelfeldspieler, …", FI "Suoritusta verrataan niihin {n} puolustavaan keskikenttäpelaajaan, …").
++  - The CM and AM labels render as approved in all three languages (EN central/attacking midfielder; DE Zentraler/Offensiver Mittelfeldspieler; FI keskikentän keskustan pelaaja, hyökkäävä keskikenttäpelaaja), shown by the strings test and one built page.
++  - Every midfielder who played and is in a comparison pool (270 minutes or more in a competition-season) or has a built Player page carries DM, CM or AM. A singular test with severity error fails on any one without, and no such player's built page shows "Midfielder".
++  - No explainer on the built Player page contains the page's own player name; the four intros read as in decisions_taken.
++  - The FI squad legend of a multi-word team reads "Muut Bayern München -pelaajat".
++  - A Players index row of a player with a role reads "<role label> · <club>"; the Players page position filter keeps the four groups; the Team page squad keeps its four group headings.
++  - At 260, 280, 320 and 375px in EN, DE and FI the Player page header's position item never passes the column, no "·" starts a line, and nothing in the page body is clipped.
++
++approved_design:
++  - player: #136
++  - players: #135
++
++decisions_taken: >
++  CPO, approved in chat 2026-11-14 (#291): add CM; EN/DE labels as in the mock; FI DM "puolustava
++  keskikenttäpelaaja", CM "keskikentän keskustan pelaaja", AM "hyökkäävä keskikenttäpelaaja"; the
++  finer label in the Player header and the Players index row, Team squad groups unchanged; no pool
++  minimum — a player is always compared within his season role, the intro shows the pool count.
++  Role rule as measured for #291: a starter's line is his grid row minus one within the formation;
++  one midfield line → CM; with two or more, the lowest is DM when it holds one or two players, else
++  CM; the highest is AM when it holds one to three, else CM; any line between → CM; a provider
++  midfielder on the defence line → DM, on the attack line → AM.
++  Evidence only, no fallback (CPO, approved in chat 2026-11-14): a role is what the player played
++  that season. A starter's line is his own; a substitute takes the line of the player he replaced,
++  followed back to the starter. Only confirmed or researched team sheets count, as for every other
++  reader of the line-ups. Season role: most frequent over those matches, then the latest match, then
++  the code. Every midfielder who played and is in a comparison pool or has a built Player page must
++  carry a role (coordinator, 2026-11-14); a bench-only midfielder needs none. The ones evidence
++  leaves without a role are filled through the researched sheet, in a separate research task; this
++  MR merges only once assert_played_midfielders_have_a_role is green.
++  Engineering calls (coordinator, 2026-11-13): the peer pool is the season role and the values are
++  all the player's midfield matches; the Player header's position item may wrap inside itself.
++  Position rule (#183 residual, ruled with #277's rule): most frequent position in the season, then
++  the most recent match, then the code. #256 stays with the CPO; nothing of it is built here.
++  assert_player_metrics_follow_catalogue_formula.sql recomputes the pool model's grain, so its
++  midfield rows take the season role from int_player_season__metrics as the model does.
++  The finer position is carried as position_role next to position_group (GK/DEF/MID/ATT) on the
++  page profile, the profile mart and the index mart, per match on fct_fixture_lineup and per
++  competition-season on int_player_season__metrics. dim_player is unchanged: the role is a property
++  of a season, not of the player, and layering.md's dimension rule keeps an attribute off a dim that
++  no reader shares.
++  The explainers without the page's own player follow the #230 rule (coordinator, 2026-11-14):
++  playerPeerIntro, playerSquadClubIntro, playerSquadNationalIntro and playerLastSeasonIntro, EN, DE
++  and FI, as shown in the mock. The FI squad legend passes the team through teamBeforeCompound.
++  Thresholds: no new mechanism, no recurring cost (columns on existing models; no new model, seed,
++  schedule or dependency).
++
++decisions_reserved:
++  - none: every fan-visible choice in this task is decided above (labels, pools, pages); a new one that surfaces goes to the coordinator, unbuilt.
++
++done_when:
++  - dbt parse passes; sqlfluff lint of every changed model clean against main's baseline
++  - full pytest passes; site_v2 node --test passes
++  - the five singular tests pass in data:build:mr, with the build green (the role-coverage test after the research task fills the gaps)
++  - acceptance_evidence.md demonstrates every acceptance criterion from the built output
++
++amendments: (none)
+diff --git a/dbt_project/macros/player_benchmark_metrics.sql b/dbt_project/macros/player_benchmark_metrics.sql
+index 12439599..3f978f4b 100644
+--- a/dbt_project/macros/player_benchmark_metrics.sql
++++ b/dbt_project/macros/player_benchmark_metrics.sql
+@@ -1,7 +1,7 @@
+ {#
+   The player metrics the page compares, and the positions each is compared for: a metric for
+   goalkeepers on saves, goals against and passing, for outfield players on every metric but those of
+-  the goal. A list of structs to unnest over a row of the metric columns named by `alias`.
++  the goal. Midfielders are compared in their season role, DM, CM or AM, or as MID without one. A list of structs to unnest over a row of the metric columns named by `alias`.
+   with_floors applies the shots-on-target floor of the ranking_rules doc block, which only the
+   competition benchmark has.
+ #}
+@@ -20,24 +20,24 @@
+             {{ alias }}.saves_player, {{ alias }}.saves_player + {{ alias }}.goals_against_player
+         ),
+         ('goals_against_per90', ['GK'], true, {{ alias }}.goals_against_per90, null, null),
+-        ('passes_per90', ['GK', 'DEF', 'MID', 'ATT'], true, {{ alias }}.passes_per90, null, null),
+-        ('ball_actions_per90', ['GK', 'DEF', 'MID', 'ATT'], true, {{ alias }}.ball_actions_per90, null, null),
++        ('passes_per90', ['GK', 'DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.passes_per90, null, null),
++        ('ball_actions_per90', ['GK', 'DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.ball_actions_per90, null, null),
+         (
+-            'passes_accuracy_player_pct', ['GK', 'DEF', 'MID', 'ATT'], true, {{ alias }}.passes_accuracy_player_pct,
++            'passes_accuracy_player_pct', ['GK', 'DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.passes_accuracy_player_pct,
+             {{ alias }}.passes_accurate_player, {{ alias }}.passes_player
+         ),
+-        ('goals_per90', ['DEF', 'MID', 'ATT'], true, {{ alias }}.goals_per90, null, null),
+-        ('assists_per90', ['DEF', 'MID', 'ATT'], true, {{ alias }}.assists_per90, null, null),
+-        ('scorer_points_per90', ['DEF', 'MID', 'ATT'], true, {{ alias }}.scorer_points_per90, null, null),
+-        ('shots_per90', ['DEF', 'MID', 'ATT'], true, {{ alias }}.shots_per90, null, null),
+-        ('shots_on_goal_per90', ['DEF', 'MID', 'ATT'], true, {{ alias }}.shots_on_goal_per90, null, null),
++        ('goals_per90', ['DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.goals_per90, null, null),
++        ('assists_per90', ['DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.assists_per90, null, null),
++        ('scorer_points_per90', ['DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.scorer_points_per90, null, null),
++        ('shots_per90', ['DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.shots_per90, null, null),
++        ('shots_on_goal_per90', ['DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.shots_on_goal_per90, null, null),
+         (
+-            'shots_on_goal_player_pct', ['DEF', 'MID', 'ATT'], true, {{ alias }}.shots_on_goal_player_pct,
++            'shots_on_goal_player_pct', ['DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.shots_on_goal_player_pct,
+             {{ alias }}.shots_on_goal_player, {{ alias }}.shots_player
+         ),
+-        ('passes_key_per90', ['DEF', 'MID', 'ATT'], true, {{ alias }}.passes_key_per90, null, null),
++        ('passes_key_per90', ['DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.passes_key_per90, null, null),
+         (
+-            'finishing_efficiency_player_pct', ['DEF', 'MID', 'ATT'],
++            'finishing_efficiency_player_pct', ['DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'],
+             {% if with_floors %}
+                 {{ alias }}.shots_on_goal_player >= {{ var('player_min_shots_on_target') }},
+             {% else %}
+@@ -46,21 +46,21 @@
+             {{ alias }}.finishing_efficiency_player_pct,
+             {{ alias }}.goals_player - {{ alias }}.goals_penalty_player, {{ alias }}.shots_on_goal_player
+         ),
+-        ('dribbles_success_per90', ['DEF', 'MID', 'ATT'], true, {{ alias }}.dribbles_success_per90, null, null),
++        ('dribbles_success_per90', ['DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.dribbles_success_per90, null, null),
+         (
+-            'dribbles_success_player_pct', ['DEF', 'MID', 'ATT'], true, {{ alias }}.dribbles_success_player_pct,
++            'dribbles_success_player_pct', ['DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.dribbles_success_player_pct,
+             {{ alias }}.dribbles_success_player, {{ alias }}.dribbles_attempts_player
+         ),
+-        ('duels_won_per90', ['DEF', 'MID', 'ATT'], true, {{ alias }}.duels_won_per90, null, null),
++        ('duels_won_per90', ['DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.duels_won_per90, null, null),
+         (
+-            'duels_won_player_pct', ['DEF', 'MID', 'ATT'], true, {{ alias }}.duels_won_player_pct,
++            'duels_won_player_pct', ['DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.duels_won_player_pct,
+             {{ alias }}.duels_won_player, {{ alias }}.duels_player
+         ),
+-        ('defensive_actions_per90', ['DEF', 'MID', 'ATT'], true, {{ alias }}.defensive_actions_per90, null, null),
+-        ('tackles_per90', ['DEF', 'MID', 'ATT'], true, {{ alias }}.tackles_per90, null, null),
+-        ('interceptions_per90', ['DEF', 'MID', 'ATT'], true, {{ alias }}.interceptions_per90, null, null),
+-        ('blocks_per90', ['DEF', 'MID', 'ATT'], true, {{ alias }}.blocks_per90, null, null),
+-        ('fouls_per90', ['DEF', 'MID', 'ATT'], true, {{ alias }}.fouls_per90, null, null),
+-        ('offsides_per90', ['DEF', 'MID', 'ATT'], true, {{ alias }}.offsides_per90, null, null)
++        ('defensive_actions_per90', ['DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.defensive_actions_per90, null, null),
++        ('tackles_per90', ['DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.tackles_per90, null, null),
++        ('interceptions_per90', ['DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.interceptions_per90, null, null),
++        ('blocks_per90', ['DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.blocks_per90, null, null),
++        ('fouls_per90', ['DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.fouls_per90, null, null),
++        ('offsides_per90', ['DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.offsides_per90, null, null)
+     ]
+ {% endmacro %}
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index a06c5e3e..9d869b8f 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -408,6 +408,11 @@ models:
+         description: "{{ doc('grid_position') }}"
+       - name: team_formation
+         description: "{{ doc('team_formation') }}"
++      - name: midfield_role
++        description: "{{ doc('midfield_role') }}"
++        tests:
++          - accepted_values:
++              values: ["DM", "CM", "AM"]
+       - name: minute_on
+         description: "{{ doc('minute_on') }}"
+       - name: minute_on_extra
+diff --git a/dbt_project/models/2_base/api_football/base_apif__lineups.sql b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
+index 13532754..295da760 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__lineups.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
+@@ -675,6 +675,128 @@ match_checks as (
+             and sheet_checks.fixture_id = shared_id_sheets.fixture_id
+             and sheet_checks.team_id = shared_id_sheets.team_id
+     group by sheet_checks.league_code, sheet_checks.fixture_id
++),
++
++-- A starter's line: grid row 1 is the keeper, so his line is his row minus one, counted into the
++-- formation's numbers (4-2-3-1 has four lines).
++starter_lines as (
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        player_id,
++        safe_cast(split(grid_position, ':')[safe_offset(0)] as int64) - 1 as line,
++        array(
++            select safe_cast(n as int64)
++            from unnest(split(team_formation, '-')) as n with offset as o
++            order by o
++        ) as line_sizes
++    from lined
++    where is_starter
++),
++
++slot_substitutions as (
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        player_id,
++        replaced_player_id
++    from lined
++    where not is_starter and replaced_player_id is not null
++),
++
++-- A substitute takes the slot of the player he replaced, followed back to the starter when that
++-- player had come on himself.
++substitute_origins as (
++    select
++        s.league_code,
++        s.fixture_id,
++        s.team_id,
++        s.player_id,
++        coalesce(
++            s4.replaced_player_id, s3.replaced_player_id, s2.replaced_player_id, s.replaced_player_id
++        ) as origin_player_id
++    from slot_substitutions as s
++    left join slot_substitutions as s2
++        on
++            s.league_code = s2.league_code
++            and s.fixture_id = s2.fixture_id
++            and s.team_id = s2.team_id
++            and s.replaced_player_id = s2.player_id
++    left join slot_substitutions as s3
++        on
++            s2.league_code = s3.league_code
++            and s2.fixture_id = s3.fixture_id
++            and s2.team_id = s3.team_id
++            and s2.replaced_player_id = s3.player_id
++    left join slot_substitutions as s4
++        on
++            s3.league_code = s4.league_code
++            and s3.fixture_id = s4.fixture_id
++            and s3.team_id = s4.team_id
++            and s3.replaced_player_id = s4.player_id
++),
++
++-- A midfielder's line in the match: his own as a starter, the slot he took as a substitute.
++midfield_lines as (
++    select
++        lined.league_code,
++        lined.fixture_id,
++        lined.team_id,
++        lined.player_id,
++        coalesce(own.line, origin.line) as line,
++        coalesce(own.line_sizes, origin.line_sizes) as line_sizes
++    from lined
++    left join starter_lines as own
++        on
++            lined.league_code = own.league_code
++            and lined.fixture_id = own.fixture_id
++            and lined.team_id = own.team_id
++            and lined.player_id = own.player_id
++    left join substitute_origins as so
++        on
++            lined.league_code = so.league_code
++            and lined.fixture_id = so.fixture_id
++            and lined.team_id = so.team_id
++            and lined.player_id = so.player_id
++    left join starter_lines as origin
++        on
++            so.league_code = origin.league_code
++            and so.fixture_id = origin.fixture_id
++            and so.team_id = origin.team_id
++            and so.origin_player_id = origin.player_id
++    where lined.position_code = 'M' and (own.player_id is not null or origin.player_id is not null)
++),
++
++-- One midfield line is central. With two or more, the lowest is defensive when it holds one or two
++-- players and the highest attacking when it holds one to three; every other midfield line is central.
++-- A midfielder placed on the defence line is defensive, on the attack line attacking.
++midfield_roles as (
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        player_id,
++        case
++            when
++                line is null
++                or array_length(line_sizes) < 3
++                or exists (
++                    select 1 from unnest(line_sizes) as n
++                    where n is null or n < 1
++                )
++                or line < 1
++                or line > array_length(line_sizes)
++                then null
++            when line = 1 then 'DM'
++            when line = array_length(line_sizes) then 'AM'
++            when array_length(line_sizes) = 3 then 'CM'
++            when line = 2 then if(line_sizes[offset(1)] <= 2, 'DM', 'CM')
++            when line = array_length(line_sizes) - 1 then if(line_sizes[offset(line - 1)] <= 3, 'AM', 'CM')
++            else 'CM'
++        end as midfield_role
++    from midfield_lines
+ )
+ 
+ select
+@@ -688,6 +810,7 @@ select
+     lined.position_code,
+     lined.grid_position,
+     lined.team_formation,
++    midfield_roles.midfield_role,
+     lined.minute_on,
+     lined.minute_on_extra,
+     lined.replaced_player_id,
+@@ -721,3 +844,9 @@ inner join match_checks
+     on
+         lined.league_code = match_checks.league_code
+         and lined.fixture_id = match_checks.fixture_id
++left join midfield_roles
++    on
++        lined.league_code = midfield_roles.league_code
++        and lined.fixture_id = midfield_roles.fixture_id
++        and lined.team_id = midfield_roles.team_id
++        and lined.player_id = midfield_roles.player_id
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index f988e22f..291d6118 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -1044,6 +1044,8 @@ models:
+         description: "{{ doc('grid_position') }}"
+       - name: team_formation
+         description: "{{ doc('team_formation') }}"
++      - name: midfield_role
++        description: "{{ doc('midfield_role') }}"
+       - name: minute_on
+         description: "{{ doc('minute_on') }}"
+       - name: minute_on_extra
+diff --git a/dbt_project/models/3_core/fct_fixture_lineup.sql b/dbt_project/models/3_core/fct_fixture_lineup.sql
+index 931097cf..08d3da0a 100644
+--- a/dbt_project/models/3_core/fct_fixture_lineup.sql
++++ b/dbt_project/models/3_core/fct_fixture_lineup.sql
+@@ -15,6 +15,7 @@ select
+     position_code,
+     grid_position,
+     team_formation,
++    midfield_role,
+     minute_on,
+     minute_on_extra,
+     cast(replaced_player_id as int64) as replaced_player_sk,
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+index 5732e8f2..09cff28f 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+@@ -27,13 +27,37 @@ team_seasons_without_player_data as (
+     where not tm.is_awarded_result and tp.fixture_sk is null
+ ),
+ 
++-- A midfielder's season role: his most frequent role over his matches on a checked team sheet, as a
++-- starter or in the slot he took as a substitute, then the role of his latest match, then the code.
++season_midfield_roles as (
++    select
++        legs.player_sk,
++        legs.season_sk,
++        lineups.midfield_role
++    from legs
++    inner join {{ ref('fct_fixture_lineup') }} as lineups
++        on
++            legs.fixture_sk = lineups.fixture_sk
++            and legs.team_sk = lineups.team_sk
++            and legs.player_sk = lineups.player_sk
++    where lineups.midfield_role is not null and lineups.lineup_state in ('confirmed', 'researched')
++    group by legs.player_sk, legs.season_sk, lineups.midfield_role
++    qualify row_number() over (
++        partition by legs.player_sk, legs.season_sk
++        order by count(*) desc, max(legs.kickoff_datetime) desc, lineups.midfield_role asc
++    ) = 1
++),
++
+ window_rows as (
+     select
+         legs.*,
++        roles.midfield_role as season_midfield_role,
+         uncovered.team_sk is null as window_is_complete
+     from legs
+     left join team_seasons_without_player_data as uncovered
+         on legs.team_sk = uncovered.team_sk and legs.season_sk = uncovered.season_sk
++    left join season_midfield_roles as roles
++        on legs.player_sk = roles.player_sk and legs.season_sk = roles.season_sk
+ )
+ 
+ select
+@@ -44,6 +68,7 @@ select
+     season_api_year,
+     array_agg(team_sk ignore nulls order by kickoff_datetime desc, team_sk desc limit 1)[safe_offset(0)]
+         as team_sk,
++    max(season_midfield_role) as midfield_role,
+     if(logical_and(window_is_complete and minutes is not null), countif(is_starter), null) as starts,
+     if(
+         logical_and(window_is_complete and minutes is not null),
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+index 7b3d1fe0..c6175cb0 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+@@ -902,6 +902,11 @@ models:
+           - relationships:
+               to: ref('dim_team')
+               field: team_sk
++      - name: midfield_role
++        description: "{{ doc('midfield_role') }} Here it is the player's role that competition-season: the most frequent over his matches on a confirmed or researched team sheet, then the role of his latest match, then the code."
++        tests:
++          - accepted_values:
++              values: ["DM", "CM", "AM"]
+       - name: appearances
+         description: "{{ doc('appearances__season_to_date') }}"
+       - name: passes_accuracy_player_pct
+diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+index 77c43e6c..3359ba0c 100644
+--- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+@@ -141,11 +141,11 @@ models:
+         description: "{{ doc('season_api_year') }}"
+         tests: [not_null]
+       - name: position_group
+-        description: "The peer pool the player is benchmarked in: GK, DEF, MID or ATT."
++        description: "The peer pool the player is benchmarked in: GK, DEF or ATT, a midfielder's season role DM, CM or AM, or MID for a midfielder without one."
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["GK", "DEF", "MID", "ATT"]
++              values: ["GK", "DEF", "DM", "CM", "AM", "MID", "ATT"]
+       - name: minutes
+         description: "The player's minutes in this position this competition-season, carried so the sample is visible."
+         tests: [not_null]
+@@ -187,11 +187,11 @@ models:
+         description: "{{ doc('season_api_year') }}"
+         tests: [not_null]
+       - name: position_group
+-        description: "The peer pool — GK/DEF/MID/ATT."
++        description: "The peer pool — GK, DEF, ATT, a midfielder's season role DM, CM or AM, or MID for a midfielder without one."
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["GK", "DEF", "MID", "ATT"]
++              values: ["GK", "DEF", "DM", "CM", "AM", "MID", "ATT"]
+       - name: metric_key
+         description: "The benchmarked metric — a metric_catalogue player metric_id."
+         tests:
+diff --git a/dbt_project/models/4_intermediate/shared/int_player__page_profile.sql b/dbt_project/models/4_intermediate/shared/int_player__page_profile.sql
+index ad769f9a..1bb3ecfb 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player__page_profile.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player__page_profile.sql
+@@ -5,7 +5,8 @@
+   featured_season_sk is the most recent club season, a domestic league before a cup; a player with no
+   club football falls back to the most recent season of any kind. Two competitions of the same kind
+   in one year go to the one with the latest match. position_group is the player's most frequent
+-  position that season. current_club_team_sk is the club of the player's latest club match;
++  position that season, then the one of his latest match, then the code. position_role is that
++  season's midfield_role for a midfielder. current_club_team_sk is the club of the player's latest club match;
+   featured_team_sk the club of the latest match in the featured season's club competitions.
+ 
+   has_national_team_tab is true for a player in a nation's squad for a current competition: named on
+@@ -56,6 +57,7 @@ featured as (
+ featured_position as (
+     select
+         l.player_sk,
++        l.season_sk as position_season_sk,
+         case l.position_code
+             when 'G' then 'GK'
+             when 'D' then 'DEF'
+@@ -66,13 +68,21 @@ featured_position as (
+     inner join featured as fe
+         on l.player_sk = fe.player_sk and l.season_sk = fe.featured_season_sk
+     where l.position_code in ('G', 'D', 'M', 'F')
+-    group by l.player_sk, l.position_code
++    group by l.player_sk, l.season_sk, l.position_code
+     qualify row_number() over (
+         partition by l.player_sk
+-        order by count(*) desc, l.position_code asc
++        order by count(*) desc, max(l.kickoff_datetime) desc, l.position_code asc
+     ) = 1
+ ),
+ 
++position_roles as (
++    select
++        player_sk,
++        season_sk,
++        midfield_role
++    from {{ ref('int_player_season__metrics') }}
++),
++
+ current_club as (
+     select
+         player_sk,
+@@ -196,12 +206,15 @@ select
+     cc.current_club_team_sk,
+     ft.featured_team_sk,
+     nt.national_team_sk,
++    if(fp.position_group = 'MID', pr.midfield_role, null) as position_role,
+     nt.player_sk is not null as has_national_team_tab,
+     cc.player_sk is not null as has_club_tab,
+     pp.player_sk is not null and (nt.player_sk is not null or cc.player_sk is not null) as has_player_page
+ from featured as fe
+ left join featured_position as fp
+     on fe.player_sk = fp.player_sk
++left join position_roles as pr
++    on fp.player_sk = pr.player_sk and fp.position_season_sk = pr.season_sk
+ left join current_club as cc
+     on fe.player_sk = cc.player_sk
+ left join featured_team as ft
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_page.yml b/dbt_project/models/4_intermediate/shared/int_player_page.yml
+index 78d0572f..33d84702 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_page.yml
++++ b/dbt_project/models/4_intermediate/shared/int_player_page.yml
+@@ -149,10 +149,15 @@ models:
+         description: "club, or national for a player with no club football."
+         tests: [not_null]
+       - name: position_group
+-        description: "GK, DEF, MID or ATT: the player's most frequent position in the featured season."
++        description: "GK, DEF, MID or ATT: the player's most frequent position in the featured season, then the one of his latest match, then the code."
+         tests:
+           - accepted_values:
+               values: ["GK", "DEF", "MID", "ATT"]
++      - name: position_role
++        description: "{{ doc('position_role') }}"
++        tests:
++          - accepted_values:
++              values: ["DM", "CM", "AM"]
+       - name: current_club_team_sk
+         description: "The club of the player's latest club match. NULL for a player with no club football."
+         tests:
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position.yml b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
+index 1dd539fb..c04036e6 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
+@@ -6,8 +6,10 @@ models:
+       A player's season totals SPLIT BY THE POSITION THEY PLAYED, so a player who appears in two
+       roles is aggregated once per role. Grain: (player_sk, season_sk, position_group).
+ 
+-      Positions come from the match-time position code, folded to GK, DEF, MID or ATT. Per-90s and
+-      rates are computed in-position, over only the minutes played there.
++      Positions come from the match-time position code, folded to GK, DEF, MID or ATT. A
++      midfielder's matches take his season role instead of MID: DM, CM or AM, as
++      int_player_season__metrics sets it. Per-90s and rates are computed in-position, over only the
++      minutes played there.
+ 
+       Every metric is its metric_catalogue formula over the rows in that position, as on the
+       whole-season player model, so a single-position player's per-90 here equals his per-90 there.
+@@ -63,11 +65,11 @@ models:
+         description: "{{ doc('season_api_year') }}"
+         tests: [not_null]
+       - name: position_group
+-        description: "GK/DEF/MID/ATT, mapped from the match-time position_code (G/D/M/F)."
++        description: "GK/DEF/ATT from the match-time position_code (G/D/F). A midfielder's (M) matches take his season midfield_role, DM, CM or AM, and MID without one."
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["GK", "DEF", "MID", "ATT"]
++              values: ["GK", "DEF", "DM", "CM", "AM", "MID", "ATT"]
+       - name: minutes
+         description: "Minutes played IN this position this competition-season (the benchmark's minutes floor). NULL when a match's minutes are unknown or a club the player played for has a match with no player data at all."
+       - name: appearances
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+index e6301f18..ef4af48b 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+@@ -7,8 +7,9 @@
+   role — so a multi-position player is benchmarked honestly per position, and the minutes floor applied
+   downstream both qualifies and assigns the position.
+ 
+-  position_code G/D/M/F -> position_group GK/DEF/MID/ATT; non-canonical codes ('-'/'SUB'/null) are dropped
+-  (they cannot be assigned a position). Every metric is its catalogue formula over the window's leg rows,
++  position_code G/D/F -> position_group GK/DEF/ATT; M -> the player's season midfield_role (DM/CM/AM) from
++  int_player_season__metrics, or MID without one, so all his midfield matches enter his role's pool.
++  Non-canonical codes ('-'/'SUB'/null) are dropped (they cannot be assigned a position). Every metric is its catalogue formula over the window's leg rows,
+   written by scripts/generate_metric_sql.py, so a single-position player's per-90 here equals his
+   whole-season per-90 there.
+ 
+@@ -42,17 +43,28 @@ season_rows as (
+         on legs.team_sk = uncovered.team_sk and legs.season_sk = uncovered.season_sk
+ ),
+ 
++-- A midfielder's matches go to his season role's pool; one with no role keeps the midfielders' pool.
++season_roles as (
++    select
++        player_sk,
++        season_sk,
++        midfield_role
++    from {{ ref('int_player_season__metrics') }}
++),
++
+ window_rows as (
+     select
+-        *,
+-        case position_code
++        season_rows.*,
++        case season_rows.position_code
+             when 'G' then 'GK'
+             when 'D' then 'DEF'
+-            when 'M' then 'MID'
++            when 'M' then coalesce(season_roles.midfield_role, 'MID')
+             when 'F' then 'ATT'
+         end as position_group
+     from season_rows
+-    where position_code in ('G', 'D', 'M', 'F')
++    left join season_roles
++        on season_rows.player_sk = season_roles.player_sk and season_rows.season_sk = season_roles.season_sk
++    where season_rows.position_code in ('G', 'D', 'M', 'F')
+ )
+ 
+ select
+diff --git a/dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql b/dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
+index d3c345a3..ca39f5e2 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
+@@ -16,7 +16,8 @@
+   position_player_count is how many players entered the position, the {n} of the explainer; peer_count
+   is a metric's own, smaller where a floor or a blank leaves a player out. page_tab and
+   competition_order place a row in the Player page's filter: a competition of the tab's window, in the
+-  player's page position; null for every other row.
++  player's page position; null for every other row. A midfielder's row is in his role's pool (DM, CM,
++  AM) and matches the page position MID.
+ 
+   Grain: (player_sk, season_sk, position_group, metric_key).
+ #}
+@@ -172,4 +173,4 @@ left join page_filters as pf
+     on
+         r.player_sk = pf.player_sk
+         and r.season_sk = pf.season_sk
+-        and r.position_group = pf.position_group
++        and if(r.position_group in ('DM', 'CM', 'AM'), 'MID', r.position_group) = pf.position_group
+diff --git a/dbt_project/models/5_marts/shared/mart_player_index.sql b/dbt_project/models/5_marts/shared/mart_player_index.sql
+index afc580d9..b1338501 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_index.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_index.sql
+@@ -29,6 +29,7 @@ with profile as (
+         player_name,
+         player_photo_url,
+         position_group,
++        position_role,
+         player_nationality,
+         nationality_team_sk,
+         current_club_team_sk,
+@@ -127,6 +128,7 @@ players as (
+         p.player_name,
+         p.player_photo_url,
+         p.position_group,
++        p.position_role,
+         p.player_nationality,
+         p.nationality_team_sk,
+         c.country_key as nation_slug,
+diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+index 49ad2d21..7af724e4 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+@@ -167,6 +167,7 @@ select
+     mp.position_code,
+     -- the Player page's choices, one set per player, the same on each of the player's rows
+     pg.position_group,
++    pg.position_role,
+     pg.has_club_tab,
+     pg.has_national_team_tab,
+     pg.national_team_sk,
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 196c8f26..429350fa 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -1816,10 +1816,15 @@ models:
+       - name: player_age
+         description: "The player's age in whole years today. NULL without a birth date."
+       - name: position_group
+-        description: "GK, DEF, MID or ATT: the player's most frequent position in the featured season, the same on each of the player's rows."
++        description: "GK, DEF, MID or ATT: the player's position as int_player__page_profile sets it, the same on each of the player's rows."
+         tests:
+           - accepted_values:
+               values: ["GK", "DEF", "MID", "ATT"]
++      - name: position_role
++        description: "{{ doc('position_role') }} The same on each of the player's rows."
++        tests:
++          - accepted_values:
++              values: ["DM", "CM", "AM"]
+       - name: has_club_tab
+         description: "True when the player has played club football."
+       - name: has_national_team_tab
+@@ -3494,11 +3499,11 @@ models:
+         description: "{{ doc('season_api_year') }}"
+         tests: [not_null]
+       - name: position_group
+-        description: "The peer pool — GK/DEF/MID/ATT (from the match-time position_code)."
++        description: "The peer pool — GK, DEF or ATT from the match-time position_code; a midfielder's season role DM, CM or AM, or MID for a midfielder without one."
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["GK", "DEF", "MID", "ATT"]
++              values: ["GK", "DEF", "DM", "CM", "AM", "MID", "ATT"]
+       - name: metric_key
+         description: "The benchmarked metric — a metric_catalogue player metric_id."
+         tests:
+@@ -4152,10 +4157,15 @@ models:
+       - name: player_photo_url
+         description: "{{ doc('player_photo_url') }}"
+       - name: position_group
+-        description: "GK, DEF, MID or ATT: the player's most frequent position in the season his page opens on. NULL without a recorded position."
++        description: "GK, DEF, MID or ATT: the player's position as int_player__page_profile sets it. NULL without a recorded position."
+         tests:
+           - accepted_values:
+               values: ["GK", "DEF", "MID", "ATT"]
++      - name: position_role
++        description: "{{ doc('position_role') }}"
++        tests:
++          - accepted_values:
++              values: ["DM", "CM", "AM"]
+       - name: player_nationality
+         description: "{{ doc('player_nationality') }}"
+         tests:
+diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
+index aeb31041..2b7c32b2 100644
+--- a/dbt_project/models/docs/shared_columns.md
++++ b/dbt_project/models/docs/shared_columns.md
+@@ -262,6 +262,22 @@ The formation the team started the match in, as the line-ups give it (e.g. 4-2-3
+ the line-ups give none.
+ {% enddocs %}
+ 
++{% docs position_role %}
++A midfielder's role in the featured season: DM, CM or AM, that season's
++midfield_role in int_player_season__metrics. NULL for every other position and for a midfielder whose
++matches that season show no slot on the grid.
++{% enddocs %}
++
++{% docs midfield_role %}
++A midfielder's role in the match, from his line on the grid: DM (defensive), CM (central) or AM
++(attacking). A substitute takes the line of the player he replaced, followed back to the starter.
++One midfield line is central. With two or more lines, the lowest is defensive
++when it holds one or two players. The highest is attacking when it holds one to three. Any other
++midfield line is central. A midfielder placed on the defence line is defensive, on the attack line
++attacking. NULL for every other player, and where neither his start nor the slot he took has a grid
++place and a formation.
++{% enddocs %}
++
+ 
+ {% docs grid_position %}
+ The player's place in the starting formation, as the line-ups give it: row:column, row 1 being
+diff --git a/dbt_project/tests/assert_lineup_midfield_role_follows_the_grid.sql b/dbt_project/tests/assert_lineup_midfield_role_follows_the_grid.sql
+new file mode 100644
+index 00000000..87952849
+--- /dev/null
++++ b/dbt_project/tests/assert_lineup_midfield_role_follows_the_grid.sql
+@@ -0,0 +1,105 @@
++{#
++  Every line-up row's midfield_role is the one its grid line gives, recomputed here from the
++  formation's digits: a starter's own line, a substitute's the line of the starter whose slot he took,
++  followed back through every substitution. The common formations give the roles the rule was
++  measured with. Returns the rows that disagree.
++#}
++
++with recursive slots as (
++    select
++        fixture_sk,
++        team_sk,
++        player_sk,
++        player_sk as slot_player_sk,
++        0 as hops
++    from {{ ref('fct_fixture_lineup') }}
++    where coalesce(is_starter, false)
++    union all
++    select
++        sub.fixture_sk,
++        sub.team_sk,
++        sub.player_sk,
++        slots.slot_player_sk,
++        slots.hops + 1 as hops
++    from slots
++    inner join {{ ref('fct_fixture_lineup') }} as sub
++        on
++            slots.fixture_sk = sub.fixture_sk
++            and slots.team_sk = sub.team_sk
++            and slots.player_sk = sub.replaced_player_sk
++    where sub.is_starter = false and slots.hops < 4
++),
++
++rows_with_lines as (
++    select
++        l.fixture_sk,
++        l.team_sk,
++        l.player_sk,
++        l.team_formation,
++        l.midfield_role,
++        l.position_code = 'M' and s.slot_player_sk is not null as is_midfield_slot,
++        safe_cast(regexp_extract(o.grid_position, r'^(\d+)(?::|$)') as int64) - 1 as line,
++        regexp_extract_all(l.team_formation, r'\d+') as digits,
++        regexp_contains(coalesce(l.team_formation, ''), r'^[1-9]\d*(-[1-9]\d*){2,}$') as is_formation
++    from {{ ref('fct_fixture_lineup') }} as l
++    left join slots as s
++        on l.fixture_sk = s.fixture_sk and l.team_sk = s.team_sk and l.player_sk = s.player_sk
++    left join {{ ref('fct_fixture_lineup') }} as o
++        on s.fixture_sk = o.fixture_sk and s.team_sk = o.team_sk and s.slot_player_sk = o.player_sk
++),
++
++expected as (
++    select
++        *,
++        case
++            when not coalesce(is_midfield_slot, false) or not is_formation or line is null then null
++            when line < 1 or line > array_length(digits) then null
++            when line = 1 then 'DM'
++            when line = array_length(digits) then 'AM'
++            when array_length(digits) = 3 then 'CM'
++            when line = 2 and cast(digits[offset(1)] as int64) <= 2 then 'DM'
++            when line = 2 then 'CM'
++            when line = array_length(digits) - 1 and cast(digits[offset(line - 1)] as int64) <= 3 then 'AM'
++            else 'CM'
++        end as expected_role
++    from rows_with_lines
++),
++
++known_formations as (
++    select *
++    from unnest([
++        struct('4-2-3-1' as team_formation, 2 as line, 'DM' as role),
++        ('4-2-3-1', 3, 'AM'),
++        ('4-4-2', 2, 'CM'),
++        ('4-3-3', 2, 'CM'),
++        ('3-5-2', 2, 'CM'),
++        ('4-1-4-1', 2, 'DM'),
++        ('4-1-4-1', 3, 'CM'),
++        ('4-4-1-1', 2, 'CM'),
++        ('4-4-1-1', 3, 'AM'),
++        ('3-4-2-1', 2, 'CM'),
++        ('3-4-2-1', 3, 'AM'),
++        ('4-3-1-2', 2, 'CM'),
++        ('4-3-1-2', 3, 'AM'),
++        ('4-2-2-2', 2, 'DM'),
++        ('4-2-2-2', 3, 'AM'),
++        ('4-4-2', 1, 'DM'),
++        ('4-4-2', 3, 'AM')
++    ])
++)
++
++select
++    e.fixture_sk,
++    e.team_sk,
++    e.player_sk,
++    e.team_formation,
++    e.line,
++    e.midfield_role,
++    e.expected_role,
++    k.role as known_role
++from expected as e
++left join known_formations as k
++    on e.team_formation = k.team_formation and e.line = k.line and e.is_midfield_slot
++where
++    e.midfield_role is distinct from e.expected_role
++    or (k.role is not null and e.midfield_role is distinct from k.role)
+diff --git a/dbt_project/tests/assert_played_midfielders_have_a_role.sql b/dbt_project/tests/assert_played_midfielders_have_a_role.sql
+new file mode 100644
+index 00000000..8f3048bd
+--- /dev/null
++++ b/dbt_project/tests/assert_played_midfielders_have_a_role.sql
+@@ -0,0 +1,40 @@
++{#
++  Every midfielder who played carries DM, CM or AM where a fan meets him: in a comparison pool
++  (player_min_minutes or more in a competition-season) or on a built Player page. A role comes from
++  evidence only, so one this returns is filled through the researched sheet, never guessed.
++  Returns the players without a role.
++#}
++
++with pool_members as (
++    select
++        player_sk,
++        season_sk,
++        'comparison pool' as where_shown
++    from {{ ref('int_player_season_position__metrics') }}
++    where position_group = 'MID' and minutes >= {{ var('player_min_minutes') }}
++),
++
++played_featured as (
++    select distinct
++        legs.player_sk,
++        legs.season_sk
++    from {{ ref('int_legs__player_match') }} as legs
++    inner join {{ ref('int_player__page_profile') }} as page
++        on legs.player_sk = page.player_sk and legs.season_sk = page.featured_season_sk
++    where legs.position_code = 'M' and legs.minutes > 0
++),
++
++page_players as (
++    select
++        page.player_sk,
++        page.featured_season_sk as season_sk,
++        'player page' as where_shown
++    from {{ ref('int_player__page_profile') }} as page
++    inner join played_featured
++        on page.player_sk = played_featured.player_sk and page.featured_season_sk = played_featured.season_sk
++    where page.has_player_page and page.position_group = 'MID' and page.position_role is null
++)
++
++select * from pool_members
++union all
++select * from page_players
+diff --git a/dbt_project/tests/assert_player_metrics_follow_catalogue_formula.sql b/dbt_project/tests/assert_player_metrics_follow_catalogue_formula.sql
+index bac259c2..9e349618 100644
+--- a/dbt_project/tests/assert_player_metrics_follow_catalogue_formula.sql
++++ b/dbt_project/tests/assert_player_metrics_follow_catalogue_formula.sql
+@@ -127,13 +127,20 @@ season_rows as (
+     from club_season_rows
+ ),
+ 
++-- A midfielder's matches sit in his season role's pool, MID without one.
+ position_rows as (
+     select
+-        *,
+-        case position_code when 'G' then 'GK' when 'D' then 'DEF' when 'M' then 'MID' when 'F' then 'ATT' end
+-            as position_group
++        season_rows.*,
++        case season_rows.position_code
++            when 'G' then 'GK'
++            when 'D' then 'DEF'
++            when 'M' then coalesce(roles.midfield_role, 'MID')
++            when 'F' then 'ATT'
++        end as position_group
+     from season_rows
+-    where position_code in ('G', 'D', 'M', 'F')
++    left join {{ ref('int_player_season__metrics') }} as roles
++        on season_rows.player_sk = roles.player_sk and season_rows.season_sk = roles.season_sk
++    where season_rows.position_code in ('G', 'D', 'M', 'F')
+ ),
+ 
+ momentum_rows as (
+diff --git a/dbt_project/tests/assert_player_page_position_follows_the_rule.sql b/dbt_project/tests/assert_player_page_position_follows_the_rule.sql
+new file mode 100644
+index 00000000..77a7a9ad
+--- /dev/null
++++ b/dbt_project/tests/assert_player_page_position_follows_the_rule.sql
+@@ -0,0 +1,58 @@
++{#
++  The Player page position: the most frequent position code of the featured season, then the code of
++  the latest match, then the code. A midfielder's position_role is that season's midfield_role.
++  Recomputed here; returns the players that disagree.
++#}
++
++with page as (
++    select
++        player_sk,
++        featured_season_sk,
++        position_group,
++        position_role
++    from {{ ref('int_player__page_profile') }}
++),
++
++code_counts as (
++    select
++        legs.player_sk,
++        legs.position_code,
++        count(*) as matches_in_code,
++        max(legs.kickoff_datetime) as last_match_in_code
++    from {{ ref('int_legs__player_match') }} as legs
++    inner join page
++        on legs.player_sk = page.player_sk and legs.season_sk = page.featured_season_sk
++    where legs.position_code in ('G', 'D', 'M', 'F')
++    group by legs.player_sk, legs.position_code
++),
++
++expected as (
++    select
++        c.player_sk,
++        array_agg(
++            c.position_code order by c.matches_in_code desc, c.last_match_in_code desc, c.position_code asc
++            limit 1
++        )[offset(0)] as position_code
++    from code_counts as c
++    group by c.player_sk
++)
++
++select
++    p.player_sk,
++    p.position_group,
++    e.position_code,
++    p.position_role,
++    r.midfield_role
++from page as p
++left join expected as e
++    on p.player_sk = e.player_sk
++left join {{ ref('int_player_season__metrics') }} as r
++    on p.player_sk = r.player_sk and p.featured_season_sk = r.season_sk
++where
++    p.position_group is distinct from case e.position_code
++        when 'G' then 'GK'
++        when 'D' then 'DEF'
++        when 'M' then 'MID'
++        when 'F' then 'ATT'
++    end
++    or p.position_role is distinct from if(e.position_code = 'M', r.midfield_role, null)
+diff --git a/dbt_project/tests/assert_player_peer_pools_follow_the_season_role.sql b/dbt_project/tests/assert_player_peer_pools_follow_the_season_role.sql
+new file mode 100644
+index 00000000..0c88e3a9
+--- /dev/null
++++ b/dbt_project/tests/assert_player_peer_pools_follow_the_season_role.sql
+@@ -0,0 +1,75 @@
++{#
++  A midfielder is compared within his season role: every benchmark row in DM, CM or AM is the player's
++  own season midfield_role, a MID row belongs to a player without one, and no player has rows in two
++  midfield pools of one competition-season. A role row of a player whose page position is MID is
++  placed on his page exactly like a MID row would be. Returns the rows that break this.
++#}
++
++with benchmark_rows as (
++    select distinct
++        player_sk,
++        season_sk,
++        position_group,
++        page_tab
++    from {{ ref('mart_player_competition_benchmarks') }}
++    where position_group in ('DM', 'CM', 'AM', 'MID')
++),
++
++roles as (
++    select
++        player_sk,
++        season_sk,
++        midfield_role
++    from {{ ref('int_player_season__metrics') }}
++),
++
++wrong_pool as (
++    select
++        b.player_sk,
++        b.season_sk,
++        b.position_group,
++        'pool is not the season role' as problem
++    from benchmark_rows as b
++    left join roles as r
++        on b.player_sk = r.player_sk and b.season_sk = r.season_sk
++    where b.position_group != coalesce(r.midfield_role, 'MID')
++),
++
++two_pools as (
++    select
++        player_sk,
++        season_sk,
++        string_agg(distinct position_group) as position_group,
++        'two midfield pools' as problem
++    from benchmark_rows
++    group by player_sk, season_sk
++    having count(distinct position_group) > 1
++),
++
++page_windows as (
++    select
++        w.player_sk,
++        w.season_sk
++    from {{ ref('int_player_page__window_seasons') }} as w
++    inner join {{ ref('int_player__page_profile') }} as p
++        on w.player_sk = p.player_sk
++    where w.window_type in ('this_season', 'current_competitions') and p.position_group = 'MID'
++),
++
++off_the_page as (
++    select
++        b.player_sk,
++        b.season_sk,
++        b.position_group,
++        'midfield row of a page window without a page tab' as problem
++    from benchmark_rows as b
++    inner join page_windows as w
++        on b.player_sk = w.player_sk and b.season_sk = w.season_sk
++    where b.page_tab is null
++)
++
++select * from wrong_pool
++union all
++select * from two_pools
++union all
++select * from off_the_page
+diff --git a/dbt_project/tests/assert_player_season_midfield_role_is_most_frequent.sql b/dbt_project/tests/assert_player_season_midfield_role_is_most_frequent.sql
+new file mode 100644
+index 00000000..47216a9a
+--- /dev/null
++++ b/dbt_project/tests/assert_player_season_midfield_role_is_most_frequent.sql
+@@ -0,0 +1,43 @@
++{#
++  A player's season midfield_role is his most frequent role over his matches on a checked team sheet
++  that competition-season, then the role of his latest match, then the code; NULL with no role at
++  all. Recomputed here from the line-ups and the player's matches. Returns the player-seasons that disagree.
++#}
++
++with role_counts as (
++    select
++        legs.player_sk,
++        legs.season_sk,
++        lineups.midfield_role,
++        count(*) as starts_in_role,
++        max(legs.kickoff_datetime) as last_start_in_role
++    from {{ ref('int_legs__player_match') }} as legs
++    inner join {{ ref('fct_fixture_lineup') }} as lineups
++        on
++            legs.fixture_sk = lineups.fixture_sk
++            and legs.team_sk = lineups.team_sk
++            and legs.player_sk = lineups.player_sk
++    where lineups.midfield_role is not null and lineups.lineup_state in ('confirmed', 'researched')
++    group by legs.player_sk, legs.season_sk, lineups.midfield_role
++),
++
++expected as (
++    select
++        player_sk,
++        season_sk,
++        array_agg(
++            midfield_role order by starts_in_role desc, last_start_in_role desc, midfield_role asc limit 1
++        )[offset(0)] as expected_role
++    from role_counts
++    group by player_sk, season_sk
++)
++
++select
++    s.player_sk,
++    s.season_sk,
++    s.midfield_role,
++    e.expected_role
++from {{ ref('int_player_season__metrics') }} as s
++left join expected as e
++    on s.player_sk = e.player_sk and s.season_sk = e.season_sk
++where s.midfield_role is distinct from e.expected_role
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index 2bcae747..72ce48c7 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -674,6 +674,7 @@ def shape_player_payload(
+         "age": profile.get("player_age"),
+         "height": profile.get("player_height"),
+         "position_group": profile.get("position_group"),
++        "position_role": profile.get("position_role"),
+         "season_label": profile.get("season_label"),
+         "club": teams.get(int(club_id)) if club_id is not None else None,
+         "tabs": tabs,
+@@ -1159,7 +1160,7 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
+ 
+ _PLAYER_PROFILE_COLUMNS = (
+     "player_sk, player_name, player_full_name, player_age, player_nationality, player_height, "
+-    "player_photo_url, position_group, has_club_tab, has_national_team_tab, national_team_sk, "
++    "player_photo_url, position_group, position_role, has_club_tab, has_national_team_tab, national_team_sk, "
+     "current_club_team_sk, season_label, shares_name_at_club"
+ )
+ _PLAYER_MATCH_COLUMNS = (
+@@ -1787,7 +1788,7 @@ def fetch_team_index(client) -> dict:
+ 
+ 
+ _PLAYER_INDEX_COLUMNS = (
+-    "player_sk, player_name, player_photo_url, position_group, player_nationality, region_key, "
++    "player_sk, player_name, player_photo_url, position_group, position_role, player_nationality, region_key, "
+     "nation_order, order_in_nation, current_club_name, award, award_edition_year, "
+     "worlds_best_list, worlds_best_order, nation_slug, is_hub_shown, is_hub_shown_in_position, "
+     "has_nation_page"
+@@ -1807,7 +1808,8 @@ def shape_player_index(rows: list[dict]) -> dict:
+         "players": [{"player_id": r["player_sk"],
+                      "slug": player_slug_with_id(r.get("player_name"), r["player_sk"]),
+                      "name": r.get("player_name"), "photo": r.get("player_photo_url"),
+-                     "position_group": r.get("position_group"), "nation": r.get("player_nationality"),
++                     "position_group": r.get("position_group"), "position_role": r.get("position_role"),
++                     "nation": r.get("player_nationality"),
+                      "region_key": r.get("region_key"), "nation_order": r.get("nation_order"),
+                      "order_in_nation": r.get("order_in_nation"), "club": r.get("current_club_name"),
+                      "nation_slug": r.get("nation_slug"), "hub": bool(r.get("is_hub_shown")),
+diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
+index e8b702b7..586f0f7c 100644
+--- a/tests/test_export_site_data.py
++++ b/tests/test_export_site_data.py
+@@ -146,6 +146,15 @@ def test_the_shared_name_flag_is_the_marts_and_is_selected():
+     assert not hasattr(export_site_data, "mark_shared_names")
+ 
+ 
++def test_the_midfield_role_reaches_the_player_page_and_the_index():
++    assert "position_role" in export_site_data._PLAYER_PROFILE_COLUMNS
++    assert "position_role" in export_site_data._PLAYER_INDEX_COLUMNS
++    assert _shape_player(_player_profile(position_group="MID", position_role="DM"))["position_role"] == "DM"
++    assert _shape_player()["position_role"] is None
++    shaped = shape_player_index([_player_index_row(position_group="MID", position_role="CM")])
++    assert shaped["players"][0]["position_role"] == "CM"
++
++
+ def test_the_player_files_do_not_depend_on_the_order_the_warehouse_returns(tmp_path, monkeypatch):
+     monkeypatch.setattr(export_site_data, "page_player_ids", lambda _c: [1, 5, 9])
+     monkeypatch.setattr(export_site_data, "_competitions_index", lambda _c: {})
+@@ -1428,7 +1437,7 @@ def test_shape_team_index_refuses_rows_that_disagree_on_the_page_flag():
+ def _player_index_row(**over) -> dict:
+     row = {
+         "player_sk": 184, "player_name": "Harry Kane", "player_photo_url": "https://x/184.png",
+-        "position_group": "ATT", "player_nationality": "England", "region_key": "UEFA",
++        "position_group": "ATT", "position_role": None, "player_nationality": "England", "region_key": "UEFA",
+         "nation_order": 4, "order_in_nation": 1, "current_club_name": "Bayern München",
+         "award": None, "award_edition_year": None, "worlds_best_list": None, "worlds_best_order": None,
+         "nation_slug": "england", "is_hub_shown": True, "is_hub_shown_in_position": True,
+@@ -1457,7 +1466,8 @@ def test_shape_player_index_keeps_the_served_order_and_lists_the_nominees():
+                                         "edition_year": 2026, "order": 1}
+     first = shaped["players"][0]
+     assert first == {"player_id": 2, "slug": player_slug_with_id("B Two", 2), "name": "B Two",
+-                     "photo": "https://x/184.png", "position_group": "ATT", "nation": "England",
++                     "photo": "https://x/184.png", "position_group": "ATT", "position_role": None,
++                     "nation": "England",
+                      "region_key": "UEFA", "nation_order": 1, "order_in_nation": 1,
+                      "club": "Bayern München", "nation_slug": "england", "hub": True,
+                      "hub_in_position": True, "nation_page": True}
