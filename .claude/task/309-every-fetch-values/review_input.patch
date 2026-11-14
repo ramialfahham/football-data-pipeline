@@ -1,9 +1,9 @@
 diff --git a/.claude/task/309-every-fetch-values/contract.md b/.claude/task/309-every-fetch-values/contract.md
 new file mode 100644
-index 00000000..4a3d0b4c
+index 00000000..469fa97f
 --- /dev/null
 +++ b/.claude/task/309-every-fetch-values/contract.md
-@@ -0,0 +1,112 @@
+@@ -0,0 +1,116 @@
 +# Task contract — coaches, team match stats and player match stats take a value any stored fetch carried
 +
 +objective: >
@@ -31,6 +31,9 @@ index 00000000..4a3d0b4c
 +  - dbt_project/tests/assert_fixture_players_from_every_fetch.sql
 +  - dbt_project/tests/assert_fixture_players_results_follow_events.sql
 +  - dbt_project/seeds/team_season_answer_key.csv
++  - dbt_project/tests/assert_base_player_stats_cleaned.sql
++  - dbt_project/tests/assert_base_team_stats_cleaned.sql
++  - tests/test_sentence_length_in_docs.py
 +  - .claude/task/309-every-fetch-values/contract.md
 +  - .claude/task/309-every-fetch-values/review.md
 +  - .claude/task/309-every-fetch-values/review_input.patch
@@ -115,7 +118,8 @@ index 00000000..4a3d0b4c
 +  - The MR's data build passes, including the new singular tests and every answer-key test.
 +  - Re-running the 14 Nov measurement against the ci_mr tables finds no value the rules allow left blank or shown wrong.
 +
-+amendments: (none)
++amendments:
++  - 2026-11-14: + dbt_project/tests/assert_base_player_stats_cleaned.sql, + dbt_project/tests/assert_base_team_stats_cleaned.sql, + tests/test_sentence_length_in_docs.py — authority: the coordinating session, 2026-11-14, to fix the red jobs of this MR on its branch; content: assert_base_player_stats_cleaned counts a player as having done something from his row's own values too, since a stat can now come from another fetch (its 3 failures on the MR build are substitutes with passes or key passes only another fetch carried, whose minutes the blank rule keeps blank); the header comments of both tests say which fetch they read; the docs/data_contract.md long-sentence pin moves from 31 to 30, as the test requires when a document loses one.
 diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
 index a06c5e3e..0212a922 100644
 --- a/dbt_project/models/2_base/api_football/base.yml
@@ -715,6 +719,67 @@ index 4a95e8b8..a3cdcf08 100644
  WC,2026,26,passes_accuracy_pct,4561,5109,"Argentina, World Cup 2026: 8 matches. sum(passes_accurate) = 4561; sum(passes) = 5109."
  WC,2026,26,passes_key_per_match,78,8,"Argentina, World Cup 2026: 8 matches. sum(passes_key) = 78; matches = 8."
  WC,2026,26,passes_per_match,5109,8,"Argentina, World Cup 2026: 8 matches. sum(passes) = 5109; matches = 8."
+diff --git a/dbt_project/tests/assert_base_player_stats_cleaned.sql b/dbt_project/tests/assert_base_player_stats_cleaned.sql
+index d522e2ae..1e18d068 100644
+--- a/dbt_project/tests/assert_base_player_stats_cleaned.sql
++++ b/dbt_project/tests/assert_base_player_stats_cleaned.sql
+@@ -3,11 +3,12 @@
+   Returns one row per violation, named by the rule it breaks:
+ 
+   - blank_where_counted: a stat is blank although the provider delivered a value for it to someone
+-    else in the match (read from stg_apif__fixture_players, the fetch base kept), and no correction
++    else in the match (read from stg_apif__fixture_players, the fetch base picked), and no correction
+     on the row left it blank. Exempt as the rules say: a keeper's saves are counted only by another
+     keeper; a keeper who played, but not the whole match alone, may keep blank goals conceded when
+-    the team conceded; a player who did something (a positive stat, or a goal in the events) keeps
+-    blank minutes; accurate passes stay blank in a match with no pass data.
++    the team conceded; a player who did something (a positive stat in that fetch, on his row or
++    before a correction, or a goal in the events) keeps blank minutes; accurate passes stay blank in
++    a match with no pass data.
+   - part_above_whole, open_play_goals_above_shots_on_target, penalty_goals_above_goals,
+     penalties_scored_not_penalty_goals, card_maximum, goals_conceded_above_team,
+     keepers_goals_conceded_above_team, sole_keeper_goals_conceded, saves_above_ceiling,
+@@ -166,7 +167,15 @@ rows_in_context as (
+             sum(if(d.passes is not null and d.passes_accurate is not null, d.passes, null)) over fixture > 0,
+             false
+         ) as match_has_pass_data,
+-        coalesce(d.has_positive_stat, false) or coalesce(pge.goals, 0) > 0 as did_something,
++        coalesce(d.has_positive_stat, false) or coalesce(pge.goals, 0) > 0
++        or greatest(
++            {% for stat in stats if stat != 'minutes' %}coalesce(p.{{ stat }}, 0), {% endfor %}0
++        ) > 0
++        or exists (
++            select 1
++            from unnest(p.stat_corrections) as c
++            where c.provider_value > 0
++        ) as did_something,
+         countif(p.position_code = 'G' and p.minutes > 0) over team_match as team_keepers_with_minutes,
+         sum(if(p.position_code = 'G' and p.minutes > 0, p.goals_against, null)) over team_match
+             as team_keepers_goals_against,
+diff --git a/dbt_project/tests/assert_base_team_stats_cleaned.sql b/dbt_project/tests/assert_base_team_stats_cleaned.sql
+index 5e9c0770..5eeb5251 100644
+--- a/dbt_project/tests/assert_base_team_stats_cleaned.sql
++++ b/dbt_project/tests/assert_base_team_stats_cleaned.sql
+@@ -4,7 +4,7 @@
+ 
+   - missing_team_row: a team of a finished match has no row.
+   - blank_where_counted: a count is blank although the other team's line, as the provider delivered
+-    it (read from stg_apif__fixture_statistics, the fetch base kept), carries a value for it.
++    it in its newest fetch (read from stg_apif__fixture_statistics), carries a value for it.
+     Possession is a share, not a count, and is not checked.
+   - card_blank_where_events_prove_none: a card count is blank in a match whose events were
+     delivered (a substitution or a card) while the team has no event against that zero: a card of
+@@ -38,8 +38,8 @@ with lines as (
+     select * from {{ ref('base_apif__fixture_statistics') }}
+ ),
+ 
+--- The provider's own values, per fetch, under the team id base corrects to; base keeps the newest
+--- fetch per team-match, and so does this.
++-- The provider's own values, per fetch, under the team id base corrects to; this reads the newest
++-- fetch per team-match.
+ fixture_participants as (
+     select
+         fixture_id,
 diff --git a/dbt_project/tests/assert_coach_bio_from_every_fetch.sql b/dbt_project/tests/assert_coach_bio_from_every_fetch.sql
 new file mode 100644
 index 00000000..959279b8
@@ -1391,3 +1456,33 @@ index 0026e3e9..4103b886 100644
  
  Two consequences worth stating rather than discovering:
  
+diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
+index 365fcb14..851a15ce 100644
+--- a/tests/test_sentence_length_in_docs.py
++++ b/tests/test_sentence_length_in_docs.py
+@@ -42,7 +42,7 @@ PINNED = {
+     "dbt_project/models/docs/shared_columns.md": 33,
+     "deploy/nightly/README.md": 19,
+     "design-mocks/README.md": 15,
+-    "docs/data_contract.md": 31,
++    "docs/data_contract.md": 30,
+     "docs/operations_guide.md": 19,
+     "docs/roles/analytics_engineer.md": 5,
+     "docs/roles/bi_analyst.md": 5,
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/309-every-fetch-values/review.md      |   35 +
+#    .../task/309-every-fetch-values/review_input.patch | 1393 ++++++++++++++++++++
+#    2 files changed, 1428 insertions(+)
+# ============================================================================

@@ -3,11 +3,12 @@
   Returns one row per violation, named by the rule it breaks:
 
   - blank_where_counted: a stat is blank although the provider delivered a value for it to someone
-    else in the match (read from stg_apif__fixture_players, the fetch base kept), and no correction
+    else in the match (read from stg_apif__fixture_players, the fetch base picked), and no correction
     on the row left it blank. Exempt as the rules say: a keeper's saves are counted only by another
     keeper; a keeper who played, but not the whole match alone, may keep blank goals conceded when
-    the team conceded; a player who did something (a positive stat, or a goal in the events) keeps
-    blank minutes; accurate passes stay blank in a match with no pass data.
+    the team conceded; a player who did something (a positive stat in that fetch, on his row or
+    before a correction, or a goal in the events) keeps blank minutes; accurate passes stay blank in
+    a match with no pass data.
   - part_above_whole, open_play_goals_above_shots_on_target, penalty_goals_above_goals,
     penalties_scored_not_penalty_goals, card_maximum, goals_conceded_above_team,
     keepers_goals_conceded_above_team, sole_keeper_goals_conceded, saves_above_ceiling,
@@ -166,7 +167,15 @@ rows_in_context as (
             sum(if(d.passes is not null and d.passes_accurate is not null, d.passes, null)) over fixture > 0,
             false
         ) as match_has_pass_data,
-        coalesce(d.has_positive_stat, false) or coalesce(pge.goals, 0) > 0 as did_something,
+        coalesce(d.has_positive_stat, false) or coalesce(pge.goals, 0) > 0
+        or greatest(
+            {% for stat in stats if stat != 'minutes' %}coalesce(p.{{ stat }}, 0), {% endfor %}0
+        ) > 0
+        or exists (
+            select 1
+            from unnest(p.stat_corrections) as c
+            where c.provider_value > 0
+        ) as did_something,
         countif(p.position_code = 'G' and p.minutes > 0) over team_match as team_keepers_with_minutes,
         sum(if(p.position_code = 'G' and p.minutes > 0, p.goals_against, null)) over team_match
             as team_keepers_goals_against,

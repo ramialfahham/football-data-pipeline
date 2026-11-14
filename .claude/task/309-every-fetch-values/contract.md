@@ -25,6 +25,9 @@ scope_paths:
   - dbt_project/tests/assert_fixture_players_from_every_fetch.sql
   - dbt_project/tests/assert_fixture_players_results_follow_events.sql
   - dbt_project/seeds/team_season_answer_key.csv
+  - dbt_project/tests/assert_base_player_stats_cleaned.sql
+  - dbt_project/tests/assert_base_team_stats_cleaned.sql
+  - tests/test_sentence_length_in_docs.py
   - .claude/task/309-every-fetch-values/contract.md
   - .claude/task/309-every-fetch-values/review.md
   - .claude/task/309-every-fetch-values/review_input.patch
@@ -109,4 +112,5 @@ done_when:
   - The MR's data build passes, including the new singular tests and every answer-key test.
   - Re-running the 14 Nov measurement against the ci_mr tables finds no value the rules allow left blank or shown wrong.
 
-amendments: (none)
+amendments:
+  - 2026-11-14: + dbt_project/tests/assert_base_player_stats_cleaned.sql, + dbt_project/tests/assert_base_team_stats_cleaned.sql, + tests/test_sentence_length_in_docs.py — authority: the coordinating session, 2026-11-14, to fix the red jobs of this MR on its branch; content: assert_base_player_stats_cleaned counts a player as having done something from his row's own values too, since a stat can now come from another fetch (its 3 failures on the MR build are substitutes with passes or key passes only another fetch carried, whose minutes the blank rule keeps blank); the header comments of both tests say which fetch they read; the docs/data_contract.md long-sentence pin moves from 31 to 30, as the test requires when a document loses one.
