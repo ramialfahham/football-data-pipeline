@@ -674,6 +674,7 @@ def shape_player_payload(
         "age": profile.get("player_age"),
         "height": profile.get("player_height"),
         "position_group": profile.get("position_group"),
+        "position_role": profile.get("position_role"),
         "season_label": profile.get("season_label"),
         "club": teams.get(int(club_id)) if club_id is not None else None,
         "tabs": tabs,
@@ -1159,7 +1160,7 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
 
 _PLAYER_PROFILE_COLUMNS = (
     "player_sk, player_name, player_full_name, player_age, player_nationality, player_height, "
-    "player_photo_url, position_group, has_club_tab, has_national_team_tab, national_team_sk, "
+    "player_photo_url, position_group, position_role, has_club_tab, has_national_team_tab, national_team_sk, "
     "current_club_team_sk, season_label, shares_name_at_club"
 )
 _PLAYER_MATCH_COLUMNS = (
@@ -1787,7 +1788,7 @@ def fetch_team_index(client) -> dict:
 
 
 _PLAYER_INDEX_COLUMNS = (
-    "player_sk, player_name, player_photo_url, position_group, player_nationality, region_key, "
+    "player_sk, player_name, player_photo_url, position_group, position_role, player_nationality, region_key, "
     "nation_order, order_in_nation, current_club_name, award, award_edition_year, "
     "worlds_best_list, worlds_best_order, nation_slug, is_hub_shown, is_hub_shown_in_position, "
     "has_nation_page"
@@ -1807,7 +1808,8 @@ def shape_player_index(rows: list[dict]) -> dict:
         "players": [{"player_id": r["player_sk"],
                      "slug": player_slug_with_id(r.get("player_name"), r["player_sk"]),
                      "name": r.get("player_name"), "photo": r.get("player_photo_url"),
-                     "position_group": r.get("position_group"), "nation": r.get("player_nationality"),
+                     "position_group": r.get("position_group"), "position_role": r.get("position_role"),
+                     "nation": r.get("player_nationality"),
                      "region_key": r.get("region_key"), "nation_order": r.get("nation_order"),
                      "order_in_nation": r.get("order_in_nation"), "club": r.get("current_club_name"),
                      "nation_slug": r.get("nation_slug"), "hub": bool(r.get("is_hub_shown")),

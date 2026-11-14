@@ -21,18 +21,20 @@ interface Props {
   peers: Record<string, number[]>[];
   name: string;
   positionGroup: string | null;
+  /** The position the page names: the midfielder's role, else the position group. */
+  position: string | null;
   lang: Lang;
 }
-const { tab, peers, name, positionGroup, lang } = Astro.props;
+const { tab, peers, name, positionGroup, position, lang } = Astro.props;
 
 // system.css carries one rule per slot.
 const COMPARISON_SLOTS = 8;
 const isGoalkeeper = positionGroup === "GK";
 const prefix = tab.tab === "club" ? "club" : "national";
-const positionText = positionWord(lang, "One", positionGroup);
-const self = positionText
-  ? `${name} · ${positionText.charAt(0).toLocaleUpperCase(lang)}${positionText.slice(1)}`
-  : name;
+const selfIn = (group: string | null) => {
+  const text = positionWord(lang, "One", group);
+  return text ? `${name} · ${text.charAt(0).toLocaleUpperCase(lang)}${text.slice(1)}` : name;
+};
 const teamName = tab.squad?.team?.name ?? "";
 
 const comparisons = [
@@ -40,6 +42,7 @@ const comparisons = [
     const comp = competitionInfo(c.league_code).name;
     return {
       label: comp,
+      self: selfIn(c.position_group),
       metrics: c.metrics,
       strip: (m: PlayerMetric) => peers[i]?.[m.metric_key] ?? [],
       intro: t(lang, "playerPeerIntro", {
@@ -55,6 +58,7 @@ const comparisons = [
   ...(tab.squad && !isGoalkeeper
     ? [{
       label: t(lang, "tabSquad"),
+      self: selfIn(position),
       metrics: tab.squad.metrics,
       strip: (m: PlayerMetric) => m.others ?? [],
       intro: t(lang, tab.tab === "club" ? "playerSquadClubIntro" : "playerSquadNationalIntro", {
@@ -63,7 +67,7 @@ const comparisons = [
         team: teamBeforeCompound(lang, teamName),
         season: tab.competitions[0]?.season_label ?? "",
       }),
-      others: t(lang, "playerOtherTeam", { team: teamName }),
+      others: t(lang, "playerOtherTeam", { team: teamBeforeCompound(lang, teamName) }),
     }]
     : []),
 ].map((c, i) => {
@@ -111,7 +115,7 @@ const aria = t(lang, "playerComparedWith");
         <div class="cmp-p" data-cmp={c.slot}>
           <div class="chart">
             <ChartLegend keys={[
-              { mark: "team", label: self },
+              { mark: "team", label: c.self },
               { mark: "other", label: c.others },
               { mark: "median", label: t(lang, "median") },
             ]} />

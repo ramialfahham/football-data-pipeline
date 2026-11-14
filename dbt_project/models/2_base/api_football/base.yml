@@ -361,6 +361,60 @@ models:
         description: "{{ doc('player_api_id') }}"
         tests: [not_null]
 
+  - name: base_apif__lineup_sheets
+    description: >
+      One row per player each team's latest fetch of the stg_apif__lineups model names on its
+      sheet: the starting eleven and the bench, in the provider's order. When the latest fetch has
+      no grid places, the latest earlier fetch that has them and names the same starting eleven
+      lends its starters' grid places and the formation. Known provider team-id defects are
+      corrected from the fixture_team_id_overrides seed before the latest fetch is chosen.
+      base_apif__lineups reads it.
+      Grain: (league_code, fixture_id, team_id, is_starter, sheet_index).
+
+      The provider sometimes files one player under two ids in a match. A sheet player whose id has
+      no stats line in that match takes the id of the same team's stats-line player with his shirt
+      number, when that player is on no sheet row. This holds for that match only. The ids in the
+      player_id_overrides seed come first, and an id a card or goal correction names in the match
+      keeps its own id there.
+    config:
+      tags: ["base", "api_football", "fixture_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, fixture_id, team_id, is_starter, sheet_index]
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
+        tests: [not_null]
+      - name: team_id
+        description: "The provider's numeric team id for this sheet, after the known-defect corrections in the fixture_team_id_overrides seed."
+        tests: [not_null]
+      - name: formation
+        description: "The team's formation as the provider writes it, such as 4-2-3-1: the latest fetch's, or the lending fetch's when the latest has none."
+      - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }} Here, the chosen fetch's."
+        tests: [not_null]
+      - name: is_starter
+        description: "{{ doc('is_starter__lineup') }}"
+        tests: [not_null]
+      - name: sheet_index
+        description: "The player's place in the provider's list: the starting eleven and the bench are each counted from 0."
+        tests: [not_null]
+      - name: player_name
+        description: "{{ doc('player_name') }}"
+      - name: shirt_number
+        description: "{{ doc('shirt_number__lineup') }}"
+      - name: provider_position
+        description: "The position code or word the sheet gives the player, as the provider sends it."
+      - name: grid_position
+        description: "{{ doc('grid_position') }} The lending fetch's place when the latest fetch has none."
+      - name: sheet_player_id
+        description: "The player's id as the sheet files him, after the player_id_overrides seed and before the shirt pairing."
+      - name: player_id
+        description: "{{ doc('player_api_id') }} Here it is the stats-line player's id where the sheet files him under another id in that match."
+
   - name: base_apif__lineups
     description: >
       One row per player the team sheets name for a match: the starting eleven and the bench, from
@@ -416,6 +470,11 @@ models:
         description: "{{ doc('grid_position') }}"
       - name: team_formation
         description: "{{ doc('team_formation') }}"
+      - name: midfield_role
+        description: "{{ doc('midfield_role') }}"
+        tests:
+          - accepted_values:
+              values: ["DM", "CM", "AM"]
       - name: minute_on
         description: "{{ doc('minute_on') }}"
       - name: minute_on_extra
@@ -436,7 +495,7 @@ models:
           - accepted_values:
               values: ["confirmed", "researched", "not_available"]
       - name: failed_checks
-        description: "The line-up checks the match fails, by name: two_sheets, eleven_starters, squad_lists, player_stats_team, player_on_both_sheets, substitutions, two_people_one_id. Empty when it passes every one."
+        description: "{{ doc('failed_checks') }}"
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }} NULL on a researched match's rows."
 

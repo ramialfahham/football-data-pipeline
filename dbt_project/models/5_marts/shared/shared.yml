@@ -1816,10 +1816,15 @@ models:
       - name: player_age
         description: "The player's age in whole years today. NULL without a birth date."
       - name: position_group
-        description: "GK, DEF, MID or ATT: the player's most frequent position in the featured season, the same on each of the player's rows."
+        description: "GK, DEF, MID or ATT: the player's position as int_player__page_profile sets it, the same on each of the player's rows."
         tests:
           - accepted_values:
               values: ["GK", "DEF", "MID", "ATT"]
+      - name: position_role
+        description: "{{ doc('position_role') }} The same on each of the player's rows."
+        tests:
+          - accepted_values:
+              values: ["DM", "CM", "AM"]
       - name: has_club_tab
         description: "True when the player has played club football."
       - name: has_national_team_tab
@@ -3494,11 +3499,11 @@ models:
         description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: position_group
-        description: "The peer pool — GK/DEF/MID/ATT (from the match-time position_code)."
+        description: "The peer pool — GK, DEF or ATT from the match-time position_code; a midfielder's season role DM, CM or AM, or MID for a midfielder without one."
         tests:
           - not_null
           - accepted_values:
-              values: ["GK", "DEF", "MID", "ATT"]
+              values: ["GK", "DEF", "DM", "CM", "AM", "MID", "ATT"]
       - name: metric_key
         description: "The benchmarked metric — a metric_catalogue player metric_id."
         tests:
@@ -4152,10 +4157,15 @@ models:
       - name: player_photo_url
         description: "{{ doc('player_photo_url') }}"
       - name: position_group
-        description: "GK, DEF, MID or ATT: the player's most frequent position in the season his page opens on. NULL without a recorded position."
+        description: "GK, DEF, MID or ATT: the player's position as int_player__page_profile sets it. NULL without a recorded position."
         tests:
           - accepted_values:
               values: ["GK", "DEF", "MID", "ATT"]
+      - name: position_role
+        description: "{{ doc('position_role') }}"
+        tests:
+          - accepted_values:
+              values: ["DM", "CM", "AM"]
       - name: player_nationality
         description: "{{ doc('player_nationality') }}"
         tests:

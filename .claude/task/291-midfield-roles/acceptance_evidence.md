@@ -1,0 +1,16 @@
+# Acceptance evidence — #291 midfield roles
+
+Read from an `astro build` of this branch's `site_v2` (2,355 pages), on the committed sample with
+three player payloads given the role the branch's warehouse gives them: Pavlović (328033) DM with
+his Bundesliga 2026/27 pool of 14 defensive midfielders and their values (prod line-ups, read-only),
+Amiri (714) CM and Olise (19617) AM, Olise also on his Players index row. The committed sample has no
+position_role until the next export from a warehouse with this MR.
+
+criteria_demonstrated:
+  - **Criterion 1 (DM header and intro):** the built Pavlović page's header opens with "Defensive midfielder" (DE "Defensiver Mittelfeldspieler", FI "Puolustava keskikenttäpelaaja"). The Bundesliga intro reads "Compared with the 14 defensive midfielders who played at least 270 minutes in Bundesliga 2026/27." (DE "Im Vergleich der 14 defensiven Mittelfeldspieler, die im Wettbewerb Bundesliga 2026/27 …", FI "Suoritusta verrataan niihin 14 puolustavaan keskikenttäpelaajaan, …").
+  - **Criterion 2 (CM and AM labels):** the built Amiri page's header reads "Central midfielder" / "Zentraler Mittelfeldspieler" / "Keskikentän keskustan pelaaja", and the Olise page "Attacking midfielder" / "Offensiver Mittelfeldspieler" / "Hyökkäävä keskikenttäpelaaja". tests/test_midfield_roles.py pins every role word and position label in all three languages, and passes.
+  - **Criterion 3 (every played midfielder carries a role):** assert_played_midfielders_have_a_role (severity error) returns every midfielder who played and is in a comparison pool or on a built page without DM, CM or AM. It stays red in data:build:mr until the research task fills the remaining ones, and this MR merges only once it is green. On a page, the header and the comparison name the role whenever the payload carries it (Pavlović, Amiri and Olise above).
+  - **Criterion 4 (no explainer names the page's player):** on the built Pavlović page, none of the four intros contains "Pavlović" in EN, DE or FI. The competition, club squad, national squad and last-season intros now read "Compared with the …", "Im Vergleich der …", "Suoritusta verrataan niihin …", and "This season (759 minutes) against last season (3,082) …".
+  - **Criterion 5 (FI team legend):** the built FI Pavlović page's squad legend reads "Muut Bayern München -pelaajat" (and "Muut Germany-pelaajat" for the national squad).
+  - **Criterion 6 (Players index row and four groups):** the built EN Players page's row for Olise reads "M. Olise", then "Attacking midfielder · Bayern München". The position filter still offers All positions, Forwards, Midfielders, Defenders and Goalkeepers. The built Bayern München Team page lists the squad under Goalkeepers, Defenders, Midfielders and Forwards, with no role label.
+  - **Criterion 7 (header at 260–375px):** measured in the browser at 260, 280, 320 and 375px in EN, DE and FI on the built Pavlović page (12 runs). In every run nothing in the page body passes the column or is clipped, no "·" starts a line, the 20 comparison rows keep their 299 dots inside their lines, and values stay aligned. The position item wraps inside itself onto two lines in DE and FI at 260px and in FI at 280px, and stays on one line everywhere else.

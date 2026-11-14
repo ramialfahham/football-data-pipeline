@@ -1044,6 +1044,8 @@ models:
         description: "{{ doc('grid_position') }}"
       - name: team_formation
         description: "{{ doc('team_formation') }}"
+      - name: midfield_role
+        description: "{{ doc('midfield_role') }}"
       - name: minute_on
         description: "{{ doc('minute_on') }}"
       - name: minute_on_extra
@@ -1061,6 +1063,8 @@ models:
         description: "{{ doc('minute_off_extra') }}"
       - name: lineup_order
         description: "{{ doc('lineup_order') }}"
+      - name: failed_checks
+        description: "{{ doc('failed_checks') }}"
       - name: lineup_state
         description: "{{ doc('lineup_state__sheet') }}"
         tests:

@@ -6,8 +6,10 @@ models:
       A player's season totals SPLIT BY THE POSITION THEY PLAYED, so a player who appears in two
       roles is aggregated once per role. Grain: (player_sk, season_sk, position_group).
 
-      Positions come from the match-time position code, folded to GK, DEF, MID or ATT. Per-90s and
-      rates are computed in-position, over only the minutes played there.
+      Positions come from the match-time position code, folded to GK, DEF, MID or ATT. A
+      midfielder's matches take his season role instead of MID: DM, CM or AM, as
+      int_player_season__metrics sets it. Per-90s and rates are computed in-position, over only the
+      minutes played there.
 
       Every metric is its metric_catalogue formula over the rows in that position, as on the
       whole-season player model, so a single-position player's per-90 here equals his per-90 there.
@@ -63,11 +65,11 @@ models:
         description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: position_group
-        description: "GK/DEF/MID/ATT, mapped from the match-time position_code (G/D/M/F)."
+        description: "GK/DEF/ATT from the match-time position_code (G/D/F). A midfielder's (M) matches take his season midfield_role, DM, CM or AM, and MID without one."
         tests:
           - not_null
           - accepted_values:
-              values: ["GK", "DEF", "MID", "ATT"]
+              values: ["GK", "DEF", "DM", "CM", "AM", "MID", "ATT"]
       - name: minutes
         description: "Minutes played IN this position this competition-season (the benchmark's minutes floor). NULL when a match's minutes are unknown or a club the player played for has a match with no player data at all."
       - name: appearances

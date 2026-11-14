@@ -902,6 +902,16 @@ models:
           - relationships:
               to: ref('dim_team')
               field: team_sk
+      - name: midfield_role
+        description: "{{ doc('midfield_role') }} Here it is the player's role that competition-season: the most frequent over his matches whose sheet counts, then the role of his latest match, then the code. Without one, the most frequent over his matches in every other season, a tie going to the nearest season, then the earlier. Without either, CM if he played midfield that season."
+        tests:
+          - accepted_values:
+              values: ["DM", "CM", "AM"]
+      - name: midfield_role_from
+        description: "How midfield_role was decided: this_season (his matches that competition-season), other_seasons (his matches in every other season), or assumed (no match of his gives a role, and he played as a midfielder that season, so he counts as CM). NULL without a role. Not shown on the site."
+        tests:
+          - accepted_values:
+              values: ["this_season", "other_seasons", "assumed"]
       - name: appearances
         description: "{{ doc('appearances__season_to_date') }}"
       - name: passes_accuracy_player_pct

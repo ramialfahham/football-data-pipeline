@@ -59,6 +59,7 @@ export interface Player {
   age: number | null;
   height: string | null;
   position_group: string | null;
+  position_role?: string | null;
   season_label: string | null;
   club: TeamRef | null;
   shares_name_at_club?: boolean;

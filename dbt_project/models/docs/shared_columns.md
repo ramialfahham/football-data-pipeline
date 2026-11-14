@@ -262,6 +262,29 @@ The formation the team started the match in, as the line-ups give it (e.g. 4-2-3
 the line-ups give none.
 {% enddocs %}
 
+{% docs failed_checks %}
+The line-up checks the match fails, by name: two_sheets, eleven_starters, squad_lists,
+player_stats_team, player_on_both_sheets, substitutions, two_people_one_id. Empty when it passes
+every one.
+{% enddocs %}
+
+{% docs position_role %}
+A midfielder's role in the featured season: DM, CM or AM, that season's midfield_role in
+int_player_season__metrics. It comes from his matches that season or, without one, from his other
+seasons; a midfielder no match gives a role counts as CM. NULL for every other position.
+{% enddocs %}
+
+{% docs midfield_role %}
+A midfielder's role in the match, from his line on the grid: DM (defensive), CM (central) or AM
+(attacking). A substitute takes the line of the player he replaced, followed back to the starter.
+A starter the sheet names no position for counts when his stats line codes him as a midfielder.
+One midfield line is central. With two or more lines, the lowest is defensive
+when it holds one or two players. The highest is attacking when it holds one to three. Any other
+midfield line is central. A midfielder placed on the defence line is defensive, on the attack line
+attacking. NULL for every other player, and where neither his start nor the slot he took has a grid
+place and a formation.
+{% enddocs %}
+
 
 {% docs grid_position %}
 The player's place in the starting formation, as the line-ups give it: row:column, row 1 being

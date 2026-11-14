@@ -24,7 +24,8 @@ const initials = (player.name ?? "")
   .slice(0, 2)
   .toUpperCase();
 const code = codeOf(player.position_group);
-const line = [code ? positionLabel(lang, code) : null, player.club].filter(Boolean).join(" · ");
+const position = player.position_role ?? code;
+const line = [position ? positionLabel(lang, position) : null, player.club].filter(Boolean).join(" · ");
 const built = builtPlayers().has(player.player_id);
 const Row = built ? "a" : "div";
 ---

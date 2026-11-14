@@ -167,6 +167,7 @@ select
     mp.position_code,
     -- the Player page's choices, one set per player, the same on each of the player's rows
     pg.position_group,
+    pg.position_role,
     pg.has_club_tab,
     pg.has_national_team_tab,
     pg.national_team_sk,

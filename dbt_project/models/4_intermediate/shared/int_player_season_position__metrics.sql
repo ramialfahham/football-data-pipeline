@@ -7,8 +7,9 @@
   role — so a multi-position player is benchmarked honestly per position, and the minutes floor applied
   downstream both qualifies and assigns the position.
 
-  position_code G/D/M/F -> position_group GK/DEF/MID/ATT; non-canonical codes ('-'/'SUB'/null) are dropped
-  (they cannot be assigned a position). Every metric is its catalogue formula over the window's leg rows,
+  position_code G/D/F -> position_group GK/DEF/ATT; M -> the player's season midfield_role (DM/CM/AM) from
+  int_player_season__metrics, or MID without one, so all his midfield matches enter his role's pool.
+  Non-canonical codes ('-'/'SUB'/null) are dropped (they cannot be assigned a position). Every metric is its catalogue formula over the window's leg rows,
   written by scripts/generate_metric_sql.py, so a single-position player's per-90 here equals his
   whole-season per-90 there.
 
@@ -42,17 +43,28 @@ season_rows as (
         on legs.team_sk = uncovered.team_sk and legs.season_sk = uncovered.season_sk
 ),
 
+-- A midfielder's matches go to his season role's pool; one with no role keeps the midfielders' pool.
+season_roles as (
+    select
+        player_sk,
+        season_sk,
+        midfield_role
+    from {{ ref('int_player_season__metrics') }}
+),
+
 window_rows as (
     select
-        *,
-        case position_code
+        season_rows.*,
+        case season_rows.position_code
             when 'G' then 'GK'
             when 'D' then 'DEF'
-            when 'M' then 'MID'
+            when 'M' then coalesce(season_roles.midfield_role, 'MID')
             when 'F' then 'ATT'
         end as position_group
     from season_rows
-    where position_code in ('G', 'D', 'M', 'F')
+    left join season_roles
+        on season_rows.player_sk = season_roles.player_sk and season_rows.season_sk = season_roles.season_sk
+    where season_rows.position_code in ('G', 'D', 'M', 'F')
 )
 
 select
