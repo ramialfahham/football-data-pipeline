@@ -12,6 +12,7 @@ refs: "#291 (CPO decisions approved in chat, 2026-11-13 and 2026-11-14); #183; P
 scope_paths:
   - .claude/task/291-midfield-roles/**
   - dbt_project/models/2_base/api_football/base_apif__lineups.sql
+  - dbt_project/models/2_base/api_football/base_apif__lineup_sheets.sql
   - dbt_project/models/2_base/api_football/base.yml
   - dbt_project/models/3_core/fct_fixture_lineup.sql
   - dbt_project/models/3_core/core.yml
@@ -54,7 +55,10 @@ scope_paths:
   - site_v2/src/data/players_index.json
 
 impact_map: >
-  writers: base_apif__lineups (adds midfield_role), fct_fixture_lineup (passes it),
+  writers: base_apif__lineup_sheets (new base table: each team's chosen fetch, the earlier fetch's
+  grid places, the parsed sheet and the shirt pairing, one row per sheet player; base_apif__lineups
+  reads it, so its sheet checks plan inside BigQuery's limit, and nothing else reads it),
+  base_apif__lineups (adds midfield_role), fct_fixture_lineup (passes it),
   int_player_season__metrics (adds the season midfield_role), int_player_season_position__metrics
   (MID rows take the season role), int_player__page_profile (position rule, position_role), mart_player_competition_benchmarks (page filter on the four groups),
   mart_player_profile and mart_player_index (pass position_role), macro player_benchmark_metrics
@@ -168,3 +172,4 @@ amendments:
   - 2026-11-14: + the role from other seasons for a midfielder without one this season, and midfield_role_from — authority: CPO, approved in chat 2026-11-14; content: decisions_taken, "Season role".
   - 2026-11-14: + assert_no_uncatalogued_season_metric.sql — authority: the coordinator's engineering calls of 2026-11-14 (the role columns on int_player_season__metrics); content: midfield_role and midfield_role_from join its non-metric columns, as starts and minutes are.
   - 2026-11-14: the site-commit round also carries the two-literal syntax fix to assert_lineup_fetch_keeps_grid_only_for_same_eleven.sql — authority: coordinator, 14 Nov 2026; content: two problem labels lose their doubled apostrophes, which BigQuery rejects.
+  - 2026-11-14: + base_apif__lineup_sheets.sql (round 7) — authority: CPO, approved in chat 2026-11-14 (one more review round); the split is the coordinator's engineering call of 2026-11-14; content: the parsed team sheet moves into its own base table and base_apif__lineups reads it, because the one query was too complex for BigQuery to plan; rules and output unchanged. The same round removes the header wrap rule from system.css: the position item in PlayerHeader carries no nowrap class instead.

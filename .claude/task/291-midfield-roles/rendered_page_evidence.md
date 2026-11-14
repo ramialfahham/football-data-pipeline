@@ -19,6 +19,8 @@ Checked on every page at every width:
 - the header's position item: its line boxes inside the header text column, and the number of
   lines it takes;
 - the separators: no "·" text node that starts a line of the header;
+- the header's other items: none of its nowrap items (club, nation, age, height, season) splits over
+  two lines; the position item, which opens the line, carries no nowrap class;
 - the comparison: the number of rows, every peer dot inside its line, the value column aligned.
 
 | width | language | body column | clipped | position item | "·" at a line start | rows / dots in their lines | values aligned |

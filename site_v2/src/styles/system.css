@@ -217,8 +217,6 @@ section { margin-top: 36px; }
 .tid { min-width: 0; flex: 1; }
 .tid h1 { font-size: clamp(22px, 5cqw, 28px); font-weight: 700; line-height: 1.03; margin: 0; text-wrap: balance; }
 .tid .meta { font-size: 13px; color: var(--muted); margin-top: 5px; }
-/* The first item always opens the line, so it wraps only when it is longer than the line. */
-.tid .meta .nb:first-child { white-space: normal; }
 .tid .meta b { color: var(--ink-2); font-weight: 600; }
 
 /* tabs — JS-free radio toggle (same pattern as the fixture `.seg-in` control): the

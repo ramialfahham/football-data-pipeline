@@ -1,9 +1,9 @@
 diff --git a/.claude/task/291-midfield-roles/contract.md b/.claude/task/291-midfield-roles/contract.md
 new file mode 100644
-index 00000000..55c7e504
+index 00000000..2417a7e0
 --- /dev/null
 +++ b/.claude/task/291-midfield-roles/contract.md
-@@ -0,0 +1,170 @@
+@@ -0,0 +1,175 @@
 +# Task contract — Midfield roles: defensive, central and attacking midfielders
 +
 +objective: >
@@ -18,6 +18,7 @@ index 00000000..55c7e504
 +scope_paths:
 +  - .claude/task/291-midfield-roles/**
 +  - dbt_project/models/2_base/api_football/base_apif__lineups.sql
++  - dbt_project/models/2_base/api_football/base_apif__lineup_sheets.sql
 +  - dbt_project/models/2_base/api_football/base.yml
 +  - dbt_project/models/3_core/fct_fixture_lineup.sql
 +  - dbt_project/models/3_core/core.yml
@@ -60,7 +61,10 @@ index 00000000..55c7e504
 +  - site_v2/src/data/players_index.json
 +
 +impact_map: >
-+  writers: base_apif__lineups (adds midfield_role), fct_fixture_lineup (passes it),
++  writers: base_apif__lineup_sheets (new base table: each team's chosen fetch, the earlier fetch's
++  grid places, the parsed sheet and the shirt pairing, one row per sheet player; base_apif__lineups
++  reads it, so its sheet checks plan inside BigQuery's limit, and nothing else reads it),
++  base_apif__lineups (adds midfield_role), fct_fixture_lineup (passes it),
 +  int_player_season__metrics (adds the season midfield_role), int_player_season_position__metrics
 +  (MID rows take the season role), int_player__page_profile (position rule, position_role), mart_player_competition_benchmarks (page filter on the four groups),
 +  mart_player_profile and mart_player_index (pass position_role), macro player_benchmark_metrics
@@ -174,6 +178,7 @@ index 00000000..55c7e504
 +  - 2026-11-14: + the role from other seasons for a midfielder without one this season, and midfield_role_from — authority: CPO, approved in chat 2026-11-14; content: decisions_taken, "Season role".
 +  - 2026-11-14: + assert_no_uncatalogued_season_metric.sql — authority: the coordinator's engineering calls of 2026-11-14 (the role columns on int_player_season__metrics); content: midfield_role and midfield_role_from join its non-metric columns, as starts and minutes are.
 +  - 2026-11-14: the site-commit round also carries the two-literal syntax fix to assert_lineup_fetch_keeps_grid_only_for_same_eleven.sql — authority: coordinator, 14 Nov 2026; content: two problem labels lose their doubled apostrophes, which BigQuery rejects.
++  - 2026-11-14: + base_apif__lineup_sheets.sql (round 7) — authority: CPO, approved in chat 2026-11-14 (one more review round); the split is the coordinator's engineering call of 2026-11-14; content: the parsed team sheet moves into its own base table and base_apif__lineups reads it, because the one query was too complex for BigQuery to plan; rules and output unchanged. The same round removes the header wrap rule from system.css: the position item in PlayerHeader carries no nowrap class instead.
 diff --git a/dbt_project/macros/player_benchmark_metrics.sql b/dbt_project/macros/player_benchmark_metrics.sql
 index 12439599..3f978f4b 100644
 --- a/dbt_project/macros/player_benchmark_metrics.sql
@@ -256,10 +261,71 @@ index 12439599..3f978f4b 100644
      ]
  {% endmacro %}
 diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
-index 1d5543c3..b011a9c0 100644
+index 1d5543c3..16e77906 100644
 --- a/dbt_project/models/2_base/api_football/base.yml
 +++ b/dbt_project/models/2_base/api_football/base.yml
-@@ -416,6 +416,11 @@ models:
+@@ -361,6 +361,60 @@ models:
+         description: "{{ doc('player_api_id') }}"
+         tests: [not_null]
+ 
++  - name: base_apif__lineup_sheets
++    description: >
++      One row per player each team's latest fetch of the stg_apif__lineups model names on its
++      sheet: the starting eleven and the bench, in the provider's order. When the latest fetch has
++      no grid places, the latest earlier fetch that has them and names the same starting eleven
++      lends its starters' grid places and the formation. Known provider team-id defects are
++      corrected from the fixture_team_id_overrides seed before the latest fetch is chosen.
++      base_apif__lineups reads it.
++      Grain: (league_code, fixture_id, team_id, is_starter, sheet_index).
++
++      The provider sometimes files one player under two ids in a match. A sheet player whose id has
++      no stats line in that match takes the id of the same team's stats-line player with his shirt
++      number, when that player is on no sheet row. This holds for that match only. The ids in the
++      player_id_overrides seed come first, and an id a card or goal correction names in the match
++      keeps its own id there.
++    config:
++      tags: ["base", "api_football", "fixture_context"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [league_code, fixture_id, team_id, is_starter, sheet_index]
++    columns:
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: fixture_id
++        description: "{{ doc('fixture_api_id') }}"
++        tests: [not_null]
++      - name: team_id
++        description: "The provider's numeric team id for this sheet, after the known-defect corrections in the fixture_team_id_overrides seed."
++        tests: [not_null]
++      - name: formation
++        description: "The team's formation as the provider writes it, such as 4-2-3-1: the latest fetch's, or the lending fetch's when the latest has none."
++      - name: raw_ingested_at
++        description: "{{ doc('raw_ingested_at') }} Here, the chosen fetch's."
++        tests: [not_null]
++      - name: is_starter
++        description: "{{ doc('is_starter__lineup') }}"
++        tests: [not_null]
++      - name: sheet_index
++        description: "The player's place in the provider's list: the starting eleven and the bench are each counted from 0."
++        tests: [not_null]
++      - name: player_name
++        description: "{{ doc('player_name') }}"
++      - name: shirt_number
++        description: "{{ doc('shirt_number__lineup') }}"
++      - name: provider_position
++        description: "The position code or word the sheet gives the player, as the provider sends it."
++      - name: grid_position
++        description: "{{ doc('grid_position') }} The lending fetch's place when the latest fetch has none."
++      - name: sheet_player_id
++        description: "The player's id as the sheet files him, after the player_id_overrides seed and before the shirt pairing."
++      - name: player_id
++        description: "{{ doc('player_api_id') }} Here it is the stats-line player's id where the sheet files him under another id in that match."
++
+   - name: base_apif__lineups
+     description: >
+       One row per player the team sheets name for a match: the starting eleven and the bench, from
+@@ -416,6 +470,11 @@ models:
          description: "{{ doc('grid_position') }}"
        - name: team_formation
          description: "{{ doc('team_formation') }}"
@@ -271,7 +337,7 @@ index 1d5543c3..b011a9c0 100644
        - name: minute_on
          description: "{{ doc('minute_on') }}"
        - name: minute_on_extra
-@@ -436,7 +441,7 @@ models:
+@@ -436,7 +495,7 @@ models:
            - accepted_values:
                values: ["confirmed", "researched", "not_available"]
        - name: failed_checks
@@ -280,25 +346,88 @@ index 1d5543c3..b011a9c0 100644
        - name: raw_ingested_at
          description: "{{ doc('raw_ingested_at') }} NULL on a researched match's rows."
  
-diff --git a/dbt_project/models/2_base/api_football/base_apif__lineups.sql b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
-index 2aeba87d..adb486c5 100644
---- a/dbt_project/models/2_base/api_football/base_apif__lineups.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
-@@ -1,5 +1,7 @@
- -- One row per player the team sheets name for a match: the starting eleven and the bench, from
---- each team's latest fetch or, for a researched match, from fixture_lineup_corrections, with the
-+-- each team's latest fetch (with an earlier fetch's grid places and formation when the latest has
-+-- none and both name the same starting eleven) or, for a researched match, from
-+-- fixture_lineup_corrections, with the
- -- minute a substitution brought each player on or took them off, the player's place on the sheet,
- -- and the match's line-up state.
- -- Grain: (league_code, fixture_id, team_id, player_id).
-@@ -74,15 +76,68 @@ corrected as (
-             )
- ),
- 
--latest as (
--    select *
+diff --git a/dbt_project/models/2_base/api_football/base_apif__lineup_sheets.sql b/dbt_project/models/2_base/api_football/base_apif__lineup_sheets.sql
+new file mode 100644
+index 00000000..0cf6bfd1
+--- /dev/null
++++ b/dbt_project/models/2_base/api_football/base_apif__lineup_sheets.sql
+@@ -0,0 +1,314 @@
++-- One row per player a team's chosen fetch names on its sheet: the starting eleven and the bench of
++-- each team's latest fetch, with an earlier fetch's grid places and formation when the latest has none
++-- and both name the same starting eleven, and each player's id after the shirt pairing.
++-- base_apif__lineups reads it.
++-- Grain: (league_code, fixture_id, team_id, is_starter, sheet_index).
++with src as (
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        formation,
++        start_xi_json,
++        substitutes_json,
++        raw_ingested_at
++    from {{ ref('stg_apif__lineups') }}
++    where
++        fixture_id is not null
++        and team_id is not null
++),
++
++fixture_participants as (
++    select
++        league_code,
++        fixture_id,
++        season,
++        fixture_date,
++        cast(home_team_id as int64) as home_team_id,
++        cast(away_team_id as int64) as away_team_id
++    from {{ ref('base_apif__fixtures_next') }}
++    where
++        home_team_id is not null
++        and away_team_id is not null
++),
++
++overrides as (
++    select
++        cast(wrong_team_api_id as int64) as wrong_team_api_id,
++        cast(correct_team_api_id as int64) as correct_team_api_id,
++        mode,
++        cast(fixture_id as int64) as fixture_id
++    from {{ ref('fixture_team_id_overrides') }}
++),
++
++corrected as (
++    select
++        src.* except (team_id),
++        coalesce(
++            fixture_override.correct_team_api_id,
++            alias_override.correct_team_api_id,
++            reattribute_override.correct_team_api_id,
++            src.team_id
++        ) as team_id
++    from src
++    left join overrides as fixture_override
++        on
++            src.team_id = fixture_override.wrong_team_api_id
++            and src.fixture_id = fixture_override.fixture_id
++            and fixture_override.mode = 'reattribute_in_fixture'
++    left join overrides as alias_override
++        on
++            src.team_id = alias_override.wrong_team_api_id
++            and alias_override.mode = 'alias'
++    left join fixture_participants
++        on src.fixture_id = fixture_participants.fixture_id
++    left join overrides as reattribute_override
++        on
++            src.team_id = reattribute_override.wrong_team_api_id
++            and reattribute_override.mode = 'reattribute_if_cohabiting'
++            and reattribute_override.correct_team_api_id in (
++                fixture_participants.home_team_id, fixture_participants.away_team_id
++            )
++            and reattribute_override.wrong_team_api_id not in (
++                fixture_participants.home_team_id, fixture_participants.away_team_id
++            )
++),
++
 +fetches as (
 +    select
 +        *,
@@ -311,91 +440,500 @@ index 2aeba87d..adb486c5 100644
 +            from unnest(json_query_array(start_xi_json)) as el,
 +                unnest([coalesce(json_value(el, '$.player.id'), '')]) as id
 +        ) as starting_eleven
-     from corrected
++    from corrected
 +),
 +
-+latest_with_facts as (
-+    select *
++fetch_history as (
++    select
++        *,
++        array_agg(
++            struct(
++                raw_ingested_at as fetched_at,
++                has_grid as fetch_has_grid,
++                starting_eleven as fetch_starting_eleven,
++                formation as fetch_formation,
++                start_xi_json as fetch_start_xi_json
++            )
++        ) over (partition by league_code, fixture_id, team_id) as history
 +    from fetches
-     qualify row_number() over (
-         partition by league_code, fixture_id, team_id
-         order by raw_ingested_at desc
-     ) = 1
- ),
- 
-+latest as (
-+    select * except (has_grid, starting_eleven)
-+    from latest_with_facts
 +),
 +
 +-- When a team's latest fetch has no grid places, the latest earlier fetch that has them lends its
 +-- grid places and formation, but only if both name the same starting eleven.
-+grid_fetches as (
++latest as (
 +    select
-+        earlier.league_code,
-+        earlier.fixture_id,
-+        earlier.team_id,
-+        earlier.formation,
-+        earlier.start_xi_json
-+    from fetches as earlier
-+    inner join latest_with_facts as newest
-+        on
-+            earlier.league_code = newest.league_code
-+            and earlier.fixture_id = newest.fixture_id
-+            and earlier.team_id = newest.team_id
-+    where not newest.has_grid and earlier.has_grid and earlier.starting_eleven = newest.starting_eleven
++        * except (has_grid, starting_eleven, history),
++        if(
++            has_grid,
++            null,
++            (
++                select as struct
++                    h.fetch_formation as formation,
++                    h.fetch_start_xi_json as start_xi_json
++                from unnest(history) as h
++                where h.fetch_has_grid and h.fetch_starting_eleven = fetch_history.starting_eleven
++                order by h.fetched_at desc
++                limit 1
++            )
++        ) as lender
++    from fetch_history
 +    qualify row_number() over (
-+        partition by earlier.league_code, earlier.fixture_id, earlier.team_id
-+        order by earlier.raw_ingested_at desc
++        partition by league_code, fixture_id, team_id
++        order by raw_ingested_at desc
 +    ) = 1
 +),
 +
-+grid_places as (
++named as (
 +    select
-+        grid_fetches.league_code,
-+        grid_fetches.fixture_id,
-+        grid_fetches.team_id,
-+        coalesce(safe_cast(json_value(player_el, '$.player.id') as int64), 0) as provider_player_id,
-+        json_value(player_el, '$.player.grid') as grid_position
-+    from grid_fetches,
-+        unnest(json_query_array(grid_fetches.start_xi_json)) as player_el
++        latest.league_code,
++        latest.fixture_id,
++        latest.team_id,
++        latest.formation,
++        latest.raw_ingested_at,
++        latest.lender,
++        true as is_starter,
++        player_el,
++        sheet_index
++    from latest,
++        unnest(json_query_array(latest.start_xi_json)) as player_el with offset as sheet_index
++    union all
++    select
++        latest.league_code,
++        latest.fixture_id,
++        latest.team_id,
++        latest.formation,
++        latest.raw_ingested_at,
++        latest.lender,
++        false as is_starter,
++        player_el,
++        sheet_index
++    from latest,
++        unnest(json_query_array(latest.substitutes_json)) as player_el with offset as sheet_index
 +),
 +
- named as (
++sheet_ids as (
++    select
++        *,
++        coalesce(safe_cast(json_value(player_el, '$.player.id') as int64), 0) as provider_player_id,
++        safe_cast(json_value(player_el, '$.player.number') as int64) as provider_shirt_number
++    from named
++),
++
++sheet_players as (
++    select
++        sheet.league_code,
++        sheet.fixture_id,
++        sheet.team_id,
++        coalesce(sheet.formation, sheet.lender.formation) as formation,
++        sheet.raw_ingested_at,
++        sheet.is_starter,
++        sheet.sheet_index,
++        sheet.provider_player_id,
++        nullif(
++            {{ fixture_player_id(
++                'sheet.provider_player_id', 'sheet.fixture_id', 'sheet.team_id', 'sheet.provider_shirt_number'
++            ) }},
++            0
++        ) as player_id,
++        {{ decode_html_entities("json_value(sheet.player_el, '$.player.name')") }} as player_name,
++        sheet.provider_shirt_number as shirt_number,
++        json_value(sheet.player_el, '$.player.pos') as provider_position,
++        -- A starter the lender names twice under one provider id gets no lent place.
++        coalesce(
++            json_value(sheet.player_el, '$.player.grid'),
++            if(
++                sheet.is_starter,
++                (
++                    select if(count(*) = 1, max(json_value(el, '$.player.grid')), null)
++                    from unnest(json_query_array(sheet.lender.start_xi_json)) as el
++                    where coalesce(safe_cast(json_value(el, '$.player.id') as int64), 0) = sheet.provider_player_id
++                ),
++                null
++            )
++        ) as grid_position
++    from sheet_ids as sheet
++),
++
++stat_shirts as (
++    select distinct
++        league_code,
++        fixture_id,
++        team_id,
++        player_id,
++        shirt_number
++    from {{ ref('base_apif__fixture_players') }}
++    where player_id is not null and shirt_number is not null
++),
++
++sheet_shirts as (
++    select distinct
++        league_code,
++        fixture_id,
++        team_id,
++        player_id,
++        shirt_number
++    from sheet_players
++    where player_id is not null and shirt_number is not null and player_id = provider_player_id
++),
++
++match_stat_players as (
++    select distinct
++        league_code,
++        fixture_id,
++        player_id
++    from {{ ref('base_apif__fixture_players') }}
++    where player_id is not null
++),
++
++match_sheet_players as (
++    select distinct
++        league_code,
++        fixture_id,
++        player_id
++    from sheet_players
++    where player_id is not null
++),
++
++-- The ids a hand correction of a card or goal names in its match keep their own id there.
++hand_corrected as (
++    select
++        fixture_id,
++        player_id
++    from {{ ref('fixture_card_corrections') }}
++    union distinct
++    select
++        fixture_id,
++        player_id
++    from {{ ref('fixture_goal_corrections') }}
++    union distinct
++    select
++        fixture_id,
++        assist_player_id as player_id
++    from {{ ref('fixture_goal_corrections') }}
++),
++
++-- One player under two provider ids in a match: a sheet player whose id has no stats line in it is
++-- the player of the same team whose stats line carries his shirt number and who is on no sheet row.
++-- A pair holds for that match only. An id a hand override changed or a hand correction names is
++-- never paired.
++shirt_pairs as (
++    select
++        sheet.league_code,
++        sheet.fixture_id,
++        sheet.team_id,
++        sheet.player_id as sheet_player_id,
++        stat.player_id as stats_player_id
++    from sheet_shirts as sheet
++    inner join stat_shirts as stat
++        on
++            sheet.league_code = stat.league_code
++            and sheet.fixture_id = stat.fixture_id
++            and sheet.team_id = stat.team_id
++            and sheet.shirt_number = stat.shirt_number
++    left join match_stat_players as own_line
++        on
++            sheet.league_code = own_line.league_code
++            and sheet.fixture_id = own_line.fixture_id
++            and sheet.player_id = own_line.player_id
++    left join match_sheet_players as named
++        on
++            stat.league_code = named.league_code
++            and stat.fixture_id = named.fixture_id
++            and stat.player_id = named.player_id
++    left join hand_corrected
++        on
++            cast(sheet.fixture_id as int64) = cast(hand_corrected.fixture_id as int64)
++            and sheet.player_id = cast(hand_corrected.player_id as int64)
++    where
++        own_line.player_id is null
++        and named.player_id is null
++        and hand_corrected.player_id is null
++        and sheet.player_id != stat.player_id
++    qualify
++        count(*) over (partition by sheet.league_code, sheet.fixture_id, sheet.team_id, sheet.shirt_number) = 1
++        and count(*) over (partition by sheet.league_code, sheet.fixture_id, sheet.player_id) = 1
++        and count(*) over (partition by sheet.league_code, sheet.fixture_id, stat.player_id) = 1
++)
++
++select
++    sheet_players.* except (provider_player_id, player_id),
++    sheet_players.player_id as sheet_player_id,
++    coalesce(shirt_pairs.stats_player_id, sheet_players.player_id) as player_id
++from sheet_players
++left join shirt_pairs
++    on
++        sheet_players.league_code = shirt_pairs.league_code
++        and sheet_players.fixture_id = shirt_pairs.fixture_id
++        and sheet_players.team_id = shirt_pairs.team_id
++        and sheet_players.player_id = shirt_pairs.sheet_player_id
+diff --git a/dbt_project/models/2_base/api_football/base_apif__lineups.sql b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
+index 2aeba87d..bd6e916e 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__lineups.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
+@@ -1,24 +1,9 @@
+ -- One row per player the team sheets name for a match: the starting eleven and the bench, from
+--- each team's latest fetch or, for a researched match, from fixture_lineup_corrections, with the
++-- base_apif__lineup_sheets or, for a researched match, from fixture_lineup_corrections, with the
+ -- minute a substitution brought each player on or took them off, the player's place on the sheet,
+ -- and the match's line-up state.
+ -- Grain: (league_code, fixture_id, team_id, player_id).
+-with src as (
+-    select
+-        league_code,
+-        fixture_id,
+-        team_id,
+-        formation,
+-        start_xi_json,
+-        substitutes_json,
+-        raw_ingested_at
+-    from {{ ref('stg_apif__lineups') }}
+-    where
+-        fixture_id is not null
+-        and team_id is not null
+-),
+-
+-fixture_participants as (
++with fixture_participants as (
      select
-         latest.league_code,
-@@ -122,7 +177,7 @@ sheet_players as (
-         sheet.league_code,
-         sheet.fixture_id,
-         sheet.team_id,
--        sheet.formation,
-+        coalesce(sheet.formation, grid_fetches.formation) as formation,
-         sheet.raw_ingested_at,
-         sheet.is_starter,
-         sheet.sheet_index,
-@@ -136,8 +191,20 @@ sheet_players as (
-         {{ decode_html_entities("json_value(sheet.player_el, '$.player.name')") }} as player_name,
-         sheet.provider_shirt_number as shirt_number,
-         json_value(sheet.player_el, '$.player.pos') as provider_position,
--        json_value(sheet.player_el, '$.player.grid') as grid_position
-+        coalesce(json_value(sheet.player_el, '$.player.grid'), grid_places.grid_position) as grid_position
-     from sheet_ids as sheet
-+    left join grid_fetches
-+        on
-+            sheet.league_code = grid_fetches.league_code
-+            and sheet.fixture_id = grid_fetches.fixture_id
-+            and sheet.team_id = grid_fetches.team_id
-+    left join grid_places
-+        on
-+            sheet.is_starter
-+            and sheet.league_code = grid_places.league_code
-+            and sheet.fixture_id = grid_places.fixture_id
-+            and sheet.team_id = grid_places.team_id
-+            and sheet.provider_player_id = grid_places.provider_player_id
+         league_code,
+         fixture_id,
+@@ -32,226 +17,21 @@ fixture_participants as (
+         and away_team_id is not null
  ),
  
- stat_shirts as (
-@@ -655,7 +722,8 @@ stat_lines as (
+-overrides as (
+-    select
+-        cast(wrong_team_api_id as int64) as wrong_team_api_id,
+-        cast(correct_team_api_id as int64) as correct_team_api_id,
+-        mode,
+-        cast(fixture_id as int64) as fixture_id
+-    from {{ ref('fixture_team_id_overrides') }}
+-),
+-
+-corrected as (
+-    select
+-        src.* except (team_id),
+-        coalesce(
+-            fixture_override.correct_team_api_id,
+-            alias_override.correct_team_api_id,
+-            reattribute_override.correct_team_api_id,
+-            src.team_id
+-        ) as team_id
+-    from src
+-    left join overrides as fixture_override
+-        on
+-            src.team_id = fixture_override.wrong_team_api_id
+-            and src.fixture_id = fixture_override.fixture_id
+-            and fixture_override.mode = 'reattribute_in_fixture'
+-    left join overrides as alias_override
+-        on
+-            src.team_id = alias_override.wrong_team_api_id
+-            and alias_override.mode = 'alias'
+-    left join fixture_participants
+-        on src.fixture_id = fixture_participants.fixture_id
+-    left join overrides as reattribute_override
+-        on
+-            src.team_id = reattribute_override.wrong_team_api_id
+-            and reattribute_override.mode = 'reattribute_if_cohabiting'
+-            and reattribute_override.correct_team_api_id in (
+-                fixture_participants.home_team_id, fixture_participants.away_team_id
+-            )
+-            and reattribute_override.wrong_team_api_id not in (
+-                fixture_participants.home_team_id, fixture_participants.away_team_id
+-            )
+-),
+-
+-latest as (
+-    select *
+-    from corrected
+-    qualify row_number() over (
+-        partition by league_code, fixture_id, team_id
+-        order by raw_ingested_at desc
+-    ) = 1
+-),
+-
+-named as (
+-    select
+-        latest.league_code,
+-        latest.fixture_id,
+-        latest.team_id,
+-        latest.formation,
+-        latest.raw_ingested_at,
+-        true as is_starter,
+-        player_el,
+-        sheet_index
+-    from latest,
+-        unnest(json_query_array(latest.start_xi_json)) as player_el with offset as sheet_index
+-    union all
+-    select
+-        latest.league_code,
+-        latest.fixture_id,
+-        latest.team_id,
+-        latest.formation,
+-        latest.raw_ingested_at,
+-        false as is_starter,
+-        player_el,
+-        sheet_index
+-    from latest,
+-        unnest(json_query_array(latest.substitutes_json)) as player_el with offset as sheet_index
+-),
+-
+-sheet_ids as (
+-    select
+-        *,
+-        coalesce(safe_cast(json_value(player_el, '$.player.id') as int64), 0) as provider_player_id,
+-        safe_cast(json_value(player_el, '$.player.number') as int64) as provider_shirt_number
+-    from named
++parsed as (
++    select * except (sheet_player_id)
++    from {{ ref('base_apif__lineup_sheets') }}
+ ),
+ 
+-sheet_players as (
++-- A paired player's sheet id, for the substitutions that still name him by it.
++shirt_pairs as (
+     select
+-        sheet.league_code,
+-        sheet.fixture_id,
+-        sheet.team_id,
+-        sheet.formation,
+-        sheet.raw_ingested_at,
+-        sheet.is_starter,
+-        sheet.sheet_index,
+-        sheet.provider_player_id,
+-        nullif(
+-            {{ fixture_player_id(
+-                'sheet.provider_player_id', 'sheet.fixture_id', 'sheet.team_id', 'sheet.provider_shirt_number'
+-            ) }},
+-            0
+-        ) as player_id,
+-        {{ decode_html_entities("json_value(sheet.player_el, '$.player.name')") }} as player_name,
+-        sheet.provider_shirt_number as shirt_number,
+-        json_value(sheet.player_el, '$.player.pos') as provider_position,
+-        json_value(sheet.player_el, '$.player.grid') as grid_position
+-    from sheet_ids as sheet
+-),
+-
+-stat_shirts as (
+-    select distinct
+-        league_code,
+-        fixture_id,
+-        team_id,
+-        player_id,
+-        shirt_number
+-    from {{ ref('base_apif__fixture_players') }}
+-    where player_id is not null and shirt_number is not null
+-),
+-
+-sheet_shirts as (
+-    select distinct
+         league_code,
+         fixture_id,
+         team_id,
+-        player_id,
+-        shirt_number
+-    from sheet_players
+-    where player_id is not null and shirt_number is not null and player_id = provider_player_id
+-),
+-
+-match_stat_players as (
+-    select distinct
+-        league_code,
+-        fixture_id,
+-        player_id
+-    from {{ ref('base_apif__fixture_players') }}
+-    where player_id is not null
+-),
+-
+-match_sheet_players as (
+-    select distinct
+-        league_code,
+-        fixture_id,
+-        player_id
+-    from sheet_players
+-    where player_id is not null
+-),
+-
+--- The ids a hand correction of a card or goal names in its match keep their own id there.
+-hand_corrected as (
+-    select
+-        fixture_id,
+-        player_id
+-    from {{ ref('fixture_card_corrections') }}
+-    union distinct
+-    select
+-        fixture_id,
+-        player_id
+-    from {{ ref('fixture_goal_corrections') }}
+-    union distinct
+-    select
+-        fixture_id,
+-        assist_player_id as player_id
+-    from {{ ref('fixture_goal_corrections') }}
+-),
+-
+--- One player under two provider ids in a match: a sheet player whose id has no stats line in it is
+--- the player of the same team whose stats line carries his shirt number and who is on no sheet row.
+--- A pair holds for that match only. An id a hand override changed or a hand correction names is
+--- never paired.
+-shirt_pairs as (
+-    select
+-        sheet.league_code,
+-        sheet.fixture_id,
+-        sheet.team_id,
+-        sheet.player_id as sheet_player_id,
+-        stat.player_id as stats_player_id
+-    from sheet_shirts as sheet
+-    inner join stat_shirts as stat
+-        on
+-            sheet.league_code = stat.league_code
+-            and sheet.fixture_id = stat.fixture_id
+-            and sheet.team_id = stat.team_id
+-            and sheet.shirt_number = stat.shirt_number
+-    left join match_stat_players as own_line
+-        on
+-            sheet.league_code = own_line.league_code
+-            and sheet.fixture_id = own_line.fixture_id
+-            and sheet.player_id = own_line.player_id
+-    left join match_sheet_players as named
+-        on
+-            stat.league_code = named.league_code
+-            and stat.fixture_id = named.fixture_id
+-            and stat.player_id = named.player_id
+-    left join hand_corrected
+-        on
+-            cast(sheet.fixture_id as int64) = cast(hand_corrected.fixture_id as int64)
+-            and sheet.player_id = cast(hand_corrected.player_id as int64)
+-    where
+-        own_line.player_id is null
+-        and named.player_id is null
+-        and hand_corrected.player_id is null
+-        and sheet.player_id != stat.player_id
+-    qualify
+-        count(*) over (partition by sheet.league_code, sheet.fixture_id, sheet.team_id, sheet.shirt_number) = 1
+-        and count(*) over (partition by sheet.league_code, sheet.fixture_id, sheet.player_id) = 1
+-        and count(*) over (partition by sheet.league_code, sheet.fixture_id, stat.player_id) = 1
+-),
+-
+-parsed as (
+-    select
+-        sheet_players.* except (provider_player_id, player_id),
+-        coalesce(shirt_pairs.stats_player_id, sheet_players.player_id) as player_id
+-    from sheet_players
+-    left join shirt_pairs
+-        on
+-            sheet_players.league_code = shirt_pairs.league_code
+-            and sheet_players.fixture_id = shirt_pairs.fixture_id
+-            and sheet_players.team_id = shirt_pairs.team_id
+-            and sheet_players.player_id = shirt_pairs.sheet_player_id
++        sheet_player_id,
++        player_id as stats_player_id
++    from {{ ref('base_apif__lineup_sheets') }}
++    where sheet_player_id != player_id
+ ),
+ 
+ -- Some sheets name the position in words (cut to ten letters): each maps to G, D, M or F, a winger
+@@ -655,7 +435,8 @@ stat_lines as (
          league_code,
          fixture_id,
          team_id,
@@ -405,165 +943,151 @@ index 2aeba87d..adb486c5 100644
      from {{ ref('base_apif__fixture_players') }}
  ),
  
-@@ -801,6 +869,140 @@ match_checks as (
+@@ -801,6 +582,127 @@ match_checks as (
              and sheet_checks.fixture_id = shared_id_sheets.fixture_id
              and sheet_checks.team_id = shared_id_sheets.team_id
      group by sheet_checks.league_code, sheet_checks.fixture_id
 +),
 +
-+-- A starter's line: grid row 1 is the keeper, so his line is his row minus one, counted into the
-+-- formation's numbers (4-2-3-1 has four lines).
-+starter_lines as (
++-- Every row carries its own team sheet, so a substitute's slot is followed inside that sheet and the
++-- sheet is read once.
++sheet_rows as (
 +    select
-+        league_code,
-+        fixture_id,
-+        team_id,
-+        player_id,
-+        safe_cast(split(grid_position, ':')[safe_offset(0)] as int64) - 1 as line,
++        *,
++        array_agg(
++            struct(
++                player_id as sheet_player_id,
++                is_starter as sheet_is_starter,
++                replaced_player_id as sheet_replaced_player_id,
++                grid_position as sheet_grid_position
++            )
++        ) over (partition by league_code, fixture_id, team_id) as sheet
++    from lined
++),
++
++-- A substitute takes the slot of the player he replaced, followed back through up to four
++-- substitutions to the starter.
++hop_2 as (
++    select
++        *,
++        (
++            select s.sheet_replaced_player_id
++            from unnest(sheet) as s
++            where not s.sheet_is_starter and s.sheet_player_id = sheet_rows.replaced_player_id
++        ) as replaced_2
++    from sheet_rows
++),
++
++hop_3 as (
++    select
++        *,
++        (
++            select s.sheet_replaced_player_id
++            from unnest(sheet) as s
++            where not s.sheet_is_starter and s.sheet_player_id = hop_2.replaced_2
++        ) as replaced_3
++    from hop_2
++),
++
++hop_4 as (
++    select
++        *,
++        (
++            select s.sheet_replaced_player_id
++            from unnest(sheet) as s
++            where not s.sheet_is_starter and s.sheet_player_id = hop_3.replaced_3
++        ) as replaced_4
++    from hop_3
++),
++
++-- A player's line: his own grid place as a starter, the slot he took as a substitute. Grid row 1 is
++-- the keeper, so the line is the row minus one, counted into the formation's numbers (4-2-3-1 has four
++-- lines).
++slot_lines as (
++    select
++        *,
++        safe_cast(split(
++            if(
++                is_starter,
++                grid_position,
++                (
++                    select s.sheet_grid_position
++                    from unnest(sheet) as s
++                    where
++                        s.sheet_is_starter
++                        and s.sheet_player_id = coalesce(replaced_4, replaced_3, replaced_2, replaced_player_id)
++                )
++            ),
++            ':'
++        )[safe_offset(0)] as int64) - 1 as line,
 +        array(
 +            select safe_cast(n as int64)
 +            from unnest(split(team_formation, '-')) as n with offset as o
 +            order by o
 +        ) as line_sizes
-+    from lined
-+    where is_starter
-+),
-+
-+slot_substitutions as (
-+    select
-+        league_code,
-+        fixture_id,
-+        team_id,
-+        player_id,
-+        replaced_player_id
-+    from lined
-+    where not is_starter and replaced_player_id is not null
-+),
-+
-+-- A substitute takes the slot of the player he replaced, followed back to the starter when that
-+-- player had come on himself.
-+substitute_origins as (
-+    select
-+        s.league_code,
-+        s.fixture_id,
-+        s.team_id,
-+        s.player_id,
-+        coalesce(
-+            s4.replaced_player_id, s3.replaced_player_id, s2.replaced_player_id, s.replaced_player_id
-+        ) as origin_player_id
-+    from slot_substitutions as s
-+    left join slot_substitutions as s2
-+        on
-+            s.league_code = s2.league_code
-+            and s.fixture_id = s2.fixture_id
-+            and s.team_id = s2.team_id
-+            and s.replaced_player_id = s2.player_id
-+    left join slot_substitutions as s3
-+        on
-+            s2.league_code = s3.league_code
-+            and s2.fixture_id = s3.fixture_id
-+            and s2.team_id = s3.team_id
-+            and s2.replaced_player_id = s3.player_id
-+    left join slot_substitutions as s4
-+        on
-+            s3.league_code = s4.league_code
-+            and s3.fixture_id = s4.fixture_id
-+            and s3.team_id = s4.team_id
-+            and s3.replaced_player_id = s4.player_id
-+),
-+
-+-- A midfielder's line in the match: his own as a starter, the slot he took as a substitute. A starter
-+-- the sheet names no position for is a midfielder when his stats line says so.
-+midfield_lines as (
-+    select
-+        lined.league_code,
-+        lined.fixture_id,
-+        lined.team_id,
-+        lined.player_id,
-+        coalesce(own.line, origin.line) as line,
-+        coalesce(own.line_sizes, origin.line_sizes) as line_sizes
-+    from lined
-+    left join starter_lines as own
-+        on
-+            lined.league_code = own.league_code
-+            and lined.fixture_id = own.fixture_id
-+            and lined.team_id = own.team_id
-+            and lined.player_id = own.player_id
-+    left join substitute_origins as so
-+        on
-+            lined.league_code = so.league_code
-+            and lined.fixture_id = so.fixture_id
-+            and lined.team_id = so.team_id
-+            and lined.player_id = so.player_id
-+    left join starter_lines as origin
-+        on
-+            so.league_code = origin.league_code
-+            and so.fixture_id = origin.fixture_id
-+            and so.team_id = origin.team_id
-+            and so.origin_player_id = origin.player_id
-+    left join stat_lines as stat
-+        on
-+            lined.league_code = stat.league_code
-+            and lined.fixture_id = stat.fixture_id
-+            and lined.team_id = stat.team_id
-+            and lined.player_id = stat.player_id
-+    where
-+        (own.player_id is not null or origin.player_id is not null)
-+        and (
-+            lined.position_code = 'M'
-+            or (lined.position_code is null and own.player_id is not null and stat.position_code = 'M')
-+        )
++    from hop_4
 +),
 +
 +-- One midfield line is central. With two or more, the lowest is defensive when it holds one or two
 +-- players and the highest attacking when it holds one to three; every other midfield line is central.
-+-- A midfielder placed on the defence line is defensive, on the attack line attacking.
-+midfield_roles as (
++-- A midfielder placed on the defence line is defensive, on the attack line attacking. A starter the
++-- sheet names no position for is a midfielder when his stats line says so.
++roled as (
 +    select
-+        league_code,
-+        fixture_id,
-+        team_id,
-+        player_id,
++        slot_lines.*,
 +        case
 +            when
-+                line is null
-+                or array_length(line_sizes) < 3
++                not coalesce(
++                    slot_lines.position_code = 'M'
++                    or (slot_lines.position_code is null and slot_lines.is_starter and stat.position_code = 'M'),
++                    false
++                )
++                then null
++            when
++                slot_lines.line is null
++                or array_length(slot_lines.line_sizes) < 3
 +                or exists (
-+                    select 1 from unnest(line_sizes) as n
++                    select 1 from unnest(slot_lines.line_sizes) as n
 +                    where n is null or n < 1
 +                )
-+                or line < 1
-+                or line > array_length(line_sizes)
++                or slot_lines.line < 1
++                or slot_lines.line > array_length(slot_lines.line_sizes)
 +                then null
-+            when line = 1 then 'DM'
-+            when line = array_length(line_sizes) then 'AM'
-+            when array_length(line_sizes) = 3 then 'CM'
-+            when line = 2 then if(line_sizes[offset(1)] <= 2, 'DM', 'CM')
-+            when line = array_length(line_sizes) - 1 then if(line_sizes[offset(line - 1)] <= 3, 'AM', 'CM')
++            when slot_lines.line = 1 then 'DM'
++            when slot_lines.line = array_length(slot_lines.line_sizes) then 'AM'
++            when array_length(slot_lines.line_sizes) = 3 then 'CM'
++            when slot_lines.line = 2 then if(slot_lines.line_sizes[offset(1)] <= 2, 'DM', 'CM')
++            when slot_lines.line = array_length(slot_lines.line_sizes) - 1
++                then if(slot_lines.line_sizes[offset(slot_lines.line - 1)] <= 3, 'AM', 'CM')
 +            else 'CM'
 +        end as midfield_role
-+    from midfield_lines
++    from slot_lines
++    left join stat_lines as stat
++        on
++            slot_lines.league_code = stat.league_code
++            and slot_lines.fixture_id = stat.fixture_id
++            and slot_lines.team_id = stat.team_id
++            and slot_lines.player_id = stat.player_id
  )
  
  select
-@@ -814,6 +1016,7 @@ select
+@@ -814,6 +716,7 @@ select
      lined.position_code,
      lined.grid_position,
      lined.team_formation,
-+    midfield_roles.midfield_role,
++    lined.midfield_role,
      lined.minute_on,
      lined.minute_on_extra,
      lined.replaced_player_id,
-@@ -847,3 +1050,9 @@ inner join match_checks
+@@ -842,7 +745,7 @@ select
+             lined.shirt_number asc nulls last,
+             lined.player_id asc
+     ) as lineup_order
+-from lined
++from roled as lined
+ inner join match_checks
      on
          lined.league_code = match_checks.league_code
-         and lined.fixture_id = match_checks.fixture_id
-+left join midfield_roles
-+    on
-+        lined.league_code = midfield_roles.league_code
-+        and lined.fixture_id = midfield_roles.fixture_id
-+        and lined.team_id = midfield_roles.team_id
-+        and lined.player_id = midfield_roles.player_id
 diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
 index f988e22f..dddbe06f 100644
 --- a/dbt_project/models/3_core/core.yml
@@ -1855,7 +2379,7 @@ index 2bb34770..d3ba5003 100644
                { mark: "median", label: t(lang, "median") },
              ]} />
 diff --git a/site_v2/src/components/player/PlayerHeader.astro b/site_v2/src/components/player/PlayerHeader.astro
-index 5b3ad972..3de22891 100644
+index 5b3ad972..e5521ec4 100644
 --- a/site_v2/src/components/player/PlayerHeader.astro
 +++ b/site_v2/src/components/player/PlayerHeader.astro
 @@ -1,6 +1,7 @@
@@ -1876,6 +2400,15 @@ index 5b3ad972..3de22891 100644
  const club = player.club;
  const clubHref = club?.slug && teamHasPage(club.team_id)
    ? localeHref(lang, `${word(lang, "teams")}/${club.slug}/`)
+@@ -33,7 +34,7 @@ const first = position ? position.charAt(0).toLocaleUpperCase(lang) + position.s
+   <div class="tid">
+     <h1>{player.name}</h1>
+     <div class="meta">
+-      {first && <span class="nb">{first}</span>}
++      {first && <span>{first}</span>}
+       {club?.name && (
+         <>
+           {first && <>&nbsp;· </>}
 diff --git a/site_v2/src/components/player/PlayerIndexRow.astro b/site_v2/src/components/player/PlayerIndexRow.astro
 index 08aaf74f..5f06d7c8 100644
 --- a/site_v2/src/components/player/PlayerIndexRow.astro
@@ -2042,19 +2575,6 @@ index 4ed7e43c..9434c747 100644
          {tab.tab === "club" && (
            <PlayerLastSeason lastSeason={tab.last_season} name={name} isGoalkeeper={isGoalkeeper} lang={lang} />
          )}
-diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
-index a2c610ab..e43f1382 100644
---- a/site_v2/src/styles/system.css
-+++ b/site_v2/src/styles/system.css
-@@ -217,6 +217,8 @@ section { margin-top: 36px; }
- .tid { min-width: 0; flex: 1; }
- .tid h1 { font-size: clamp(22px, 5cqw, 28px); font-weight: 700; line-height: 1.03; margin: 0; text-wrap: balance; }
- .tid .meta { font-size: 13px; color: var(--muted); margin-top: 5px; }
-+/* The first item always opens the line, so it wraps only when it is longer than the line. */
-+.tid .meta .nb:first-child { white-space: normal; }
- .tid .meta b { color: var(--ink-2); font-weight: 600; }
- 
- /* tabs — JS-free radio toggle (same pattern as the fixture `.seg-in` control): the
 diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
 index e8b702b7..586f0f7c 100644
 --- a/tests/test_export_site_data.py
@@ -2178,8 +2698,8 @@ index 00000000..2c260c76
 # depends on one.
 #
 #   .../task/291-midfield-roles/acceptance_evidence.md |   16 +
-#    .../291-midfield-roles/rendered_page_evidence.md   |   52 +
-#    .claude/task/291-midfield-roles/review.md          |   37 +
-#    .claude/task/291-midfield-roles/review_input.patch | 1845 ++++++++++++++++++++
-#    4 files changed, 1950 insertions(+)
+#    .../291-midfield-roles/rendered_page_evidence.md   |   54 +
+#    .claude/task/291-midfield-roles/review.md          |   47 +
+#    .claude/task/291-midfield-roles/review_input.patch | 2185 ++++++++++++++++++++
+#    4 files changed, 2302 insertions(+)
 # ============================================================================
