@@ -1,0 +1,730 @@
+diff --git a/.claude/task/298-late-stats-refetch/contract.md b/.claude/task/298-late-stats-refetch/contract.md
+new file mode 100644
+index 00000000..c9c3eb15
+--- /dev/null
++++ b/.claude/task/298-late-stats-refetch/contract.md
+@@ -0,0 +1,127 @@
++# Task contract — ask the provider again for matches still missing player or team stats
++
++objective: >
++  Issue #298. The provider adds player and team stats to finished matches after the loader stops
++  asking: on 15 Nov 2026, 5 of 20 sampled matches had data at the provider that no stored fetch
++  carries. The nightly now asks again 7 and 30 days after kickoff for a match that still has no
++  player stats or no team stats in any fetch. The one-off refetch script writes a provider answer
++  only when it is no worse than every stored fetch in any section and better in at least one, so
++  it can fill matches without line-ups. After merge it is run once on every such finished match.
++
++refs: >
++  #298 (measurement and provider check: comments on the issue, 15 Nov 2026). The re-fetch of current
++  season and history, and the 7- and 30-day re-asks inside the existing nightly, approved in chat,
++  15 Nov 2026, relayed by the coordinating session. Follows #309 (base takes a value from any
++  stored fetch) and #176 (the refetch script).
++
++scope_paths:
++  - ingestion/api_football/coverage.py
++  - ingestion/api_football/loads/batch_fixtures.py
++  - scripts/refetch_from_provider.py
++  - tests/test_coverage.py
++  - tests/test_refetch_from_provider.py
++  - tests/fixtures/apif/fixture_details_sample.json
++  - docs/data_contract.md
++  - docs/operations_guide.md
++  - .claude/task/298-late-stats-refetch/contract.md
++  - .claude/task/298-late-stats-refetch/review.md
++  - .claude/task/298-late-stats-refetch/review_input.patch
++
++impact_map: >
++  writers: RAW_APIF_FIXTURE_DETAILS (append-only, one row per fetch) is written only by
++  `batch_fixtures._insert_fixture_rows`, called by the nightly fanout
++  (`run_batch_fixture_fanout_and_persist`) and by `scripts/refetch_from_provider.py fixtures`
++  (grep -rn "_insert_fixture_rows" ingestion scripts). `coverage.read_coverage` reads it for the
++  fanout plan (`orchestrator.py`), the idle/full mode decision (`ingest_plan.py` through
++  `covered_for_league`, which skips a due player-stats fetch, so no competition changes mode) and
++  the end-of-run completeness check (`completeness.py`).
++  downstream: no model changes; new raw rows reach every reader of the source. Readers of
++  source raw_apif_fixture_details (grep -rln raw_apif_fixture_details dbt_project/models):
++  stg_apif__fixture_events, stg_apif__fixture_players, stg_apif__fixture_statistics,
++  stg_apif__lineups. Their readers: base_apif__fixture_events, base_apif__fixture_players,
++  base_apif__fixture_statistics, base_apif__lineup_sheets, base_apif__players, base_apif__teams.
++  The dbt CLI and dbt MCP are blocked by the machine's application control in this session, so
++  the downstream lineage below base is the `dbt ls --select base_apif__fixture_statistics+` and
++  `base_apif__fixture_players+` output committed in .claude/task/309-every-fetch-values/contract.md
++  (82 models: fct_fixture_team_stats, fct_fixture_player_stats, fct_fixture_lineup, dim_player,
++  int_legs__team_match, int_legs__player_match and every int_player_* / int_team_* / mart_* model
++  on them).
++  layer_rules: check_layer_contract.py is unaffected (no model, no staging subdirectory); the raw
++  table keeps its schema, partitioning and clustering.
++  deploy_order: code only. The nightly change acts from the first nightly after merge. A mark is
++  due only during the 7 days after it passes, so the nightly never sweeps old matches: on 15 Nov
++  2026 the matches due under that rule need 4 requests in 3 competitions, against 28 requests for
++  441 matches without the bound. Older matches reach raw only through the guarded backfill. The
++  backfill runs after merge, by hand, outside 02:00–04:00 UTC (the script refuses that window),
++  holding the ingest lock, and after a staging build that has read every raw row of the listed
++  matches (the script refuses otherwise). Base and every model above pick the new rows up at the
++  next nightly build.
++  blast_radius: matches gain player rows, team stats, events or line-ups where the provider now has
++  them and no stored fetch did. Measured on prod, 15 Nov 2026: 11,543 finished matches have no
++  player stats or no team stats in any fetch (598 requests at 20 a request, per competition);
++  1,433 of them are in the current season. Of 20 sampled matches, 5 gained a section. Every page
++  and mart built on player or team match stats changes where a match gains them: match leaders,
++  line-ups, rankings boards, team and player season figures, next-match form. The backfill script
++  refuses an answer with fewer events, player rows, statistics lines or starters than a stored
++  fetch, so it shortens nothing base holds. The nightly re-asks append without that check, as the
++  existing 3-day second fetch and 14-day refetch do, and base resolves the fetches by the rules in
++  data_contract.md "Both versions are kept deliberately": team stats, coach bio and blank player
++  stats from any fetch (#309); a team's line-up and the event list from the newest fetch carrying
++  them, so a shorter later list is followed as the provider's revision. Nightly cost: about 2
++  extra requests a day, at most 7 (measured over the last 60 days, current seasons).
++
++approved_design:
++  - none: no page layout changes; values on existing pages change
++
++decisions_taken: >
++  The CPO decisions of 15 Nov 2026 (approved in chat, relayed by the coordinating session):
++  a one-off re-fetch into raw of every finished match with no player stats or no team stats in any
++  fetch, current season and history (about 600 requests), and nightly re-asks at 7 and 30 days
++  after kickoff for a match still missing either, inside the existing nightly run, no extra run.
++
++  RECURRING COST, declared: the 7- and 30-day re-asks add about 2 provider requests a day to the
++  nightly (at most 7 a day over the last 60 days). Authority: the CPO decision above.
++  NEW MECHANISM: none. The re-asks reuse the existing player-stats due flag that the 3-day second
++  fetch and the 14-day newer-format refetch set. The backfill reuses scripts/refetch_from_provider.py.
++
++  Engineering calls (no CPO class):
++  - "Missing" means no fetch of the match has a player row, or no fetch has a team statistics line;
++    the same test as the coverage query's existing `has_statistics`. The `has_players` expression
++    is the one the measurement queries of 15 Nov 2026 ran on prod (11,543 matches).
++  - A re-ask fires once per mark, when the latest fetch came before kickoff + 7 days (or + 30 days)
++    and that mark passed less than 7 days ago, so a missed nightly heals within the week and a
++    mark passed long ago is left to the backfill.
++  - The parsing tests read tests/fixtures/apif/fixture_details_sample.json: three provider
++    fixture-details payloads from the 15 Nov 2026 provider check (KL1 1507045 with every section,
++    CAFCL 1619071 with statistics and a line-up block without startXI, FAC 1646794 with line-ups
++    and statistics but no player rows), trimmed to 3 events, 2 player rows and 3 starters a team.
++  - The refetch script's "two line-ups of eleven starters" condition is replaced by "no fewer
++    starters for either team than a stored fetch". A match the provider has no line-ups for can
++    then gain stats. Base takes a team's line-up from its newest fetch that has one, so an answer
++    without line-ups never removes one.
++  - The script writes an answer only when it is better than every stored fetch in at least one
++    section (more events, player rows, statistics lines or starters for a team, or the complete
++    player format). An answer equal to the stored data is not written, so raw does not grow by
++    11,000 duplicate rows and no unrequested value revision enters base.
++  - The backfill list is chosen at backfill time by one read-only query, quoted in the MR
++    description and not kept in the repo: every match of base_apif__fixtures_next with status FT,
++    AET or PEN, kickoff more than 3 days ago, no player row or no statistics line in any
++    RAW_APIF_FIXTURE_DETAILS fetch, and a latest fetch more than 2 days old (the nightly has just
++    asked for a newer one). On 15 Nov 2026 it lists 11,535 matches in 32 competitions; plan mode
++    counts 598 requests.
++
++decisions_reserved:
++  - none: the CPO decided the re-fetch scope and the nightly cadence on 15 Nov 2026; what a page
++    shows does not change, only which matches carry data.
++
++done_when:
++  - python -m pytest tests/test_coverage.py tests/test_refetch_from_provider.py tests/test_batch_fixtures.py -q passes
++  - the validate-local fast gates pass
++  - python scripts/refetch_from_provider.py fixtures --ids-file <the backfill list> (plan mode) prints the match and call counts, no call made
++  - after merge: one --run with --max-calls 650; the request count used and the matches written are reported on #298
++
++amendments:
++  - 2026-11-15: + tests/fixtures/apif/fixture_details_sample.json — authority: the standing
++    sample-based-tests rule the data-engineer reviewer applies to response parsing; content: the
++    trimmed provider sample above. The nightly mark is bounded to 7 days and the nightly path's
++    blast radius is restated, both from round-1 review findings.
+diff --git a/docs/data_contract.md b/docs/data_contract.md
+index 4103b886..dc7148aa 100644
+--- a/docs/data_contract.md
++++ b/docs/data_contract.md
+@@ -131,7 +131,7 @@ quota is still discarded whole and retried next run, in `batch_fixtures`, `coach
+ 
+ `RAW_APIF_FIXTURE_DETAILS` appends. Each run fetches only the fixtures that are missing data (not the full history) and appends one row per fixture returned. A fixture that is retried — empty statistics within the 3-day window from kickoff — gains a **second row**; nothing is removed.
+ 
+-**Second fetch.** The provider completes some player stats days after the match, so a finished fixture whose latest fetch came under 3 days (72 hours) after kickoff is fetched once more when it is 3 days old, in every competition, idle ones included (`coverage.second_fetch_due`). From the moment that fetch is due until it is made, the fixture's player stats count as not covered. A fixture whose latest fetch is in the provider's newer player-stats format (players listed, none with goals conceded) and came under 14 days after kickoff is fetched once more when it is 14 days old (`coverage.newer_format_refetch_due`): that format never carries goals conceded or dribbled past, and the provider replaces it with the complete one for many matches later.
++**Second fetch.** The provider completes some player stats days after the match, so a finished fixture whose latest fetch came under 3 days (72 hours) after kickoff is fetched once more when it is 3 days old, in every competition, idle ones included (`coverage.second_fetch_due`). From the moment that fetch is due until it is made, the fixture's player stats count as not covered. A fixture whose latest fetch is in the provider's newer player-stats format (players listed, none with goals conceded) and came under 14 days after kickoff is fetched once more when it is 14 days old (`coverage.newer_format_refetch_due`): that format never carries goals conceded or dribbled past, and the provider replaces it with the complete one for many matches later. The provider adds player and team stats to some matches weeks after kickoff. So a fixture with no player rows or no statistics in any fetch is fetched again at 7 and at 30 days old (`coverage.late_fetch_due`). Each of those fetches stays due for 7 days. An older gap is filled only by `scripts/refetch_from_provider.py`.
+ 
+ **Both versions are kept deliberately, and base picks.** The bundle carries lineups, events, statistics and player stats *together*, so a retry chasing late statistics can come back richer in one section and poorer in another. `base_apif__fixture_statistics` takes each stat of a team line from the newest fetch that carries it. A card count is taken only as the cleaning rules' "Fetches" line allows. `base_apif__fixture_players` takes a match's player rows from one fetch, its newest fetch in the complete format (any player with goals conceded), else its newest fetch. The "Fetches" line says where a player's value comes from another fetch or from the events instead. `base_apif__coaches` takes each bio field from the newest fetch that carries it. `base_apif__fixture_events` keeps the event list of the fixture's latest fetch that has events: positions past the end of a shorter later list are not kept.
+ 
+diff --git a/docs/operations_guide.md b/docs/operations_guide.md
+index 2fc44385..fe019b3f 100644
+--- a/docs/operations_guide.md
++++ b/docs/operations_guide.md
+@@ -156,7 +156,7 @@ Three signals together tell you what happened.
+ 
+ 1. **Fanout selection (start of per-fixture phase).** The log line `[api-football] fanout_selection league={league_code} target=… already_complete=… missing_any_endpoint=…` reports the number of in-scope fixtures, how many are already covered for all four per-match endpoints (lineups, events, statistics, players), and how many still miss at least one endpoint.
+ 
+-2. **Completeness check (end of run).** The loader compares **finished** fixture ids in the latest `RAW_APIF_FIXTURES_NEXT` snapshot (`status.short` in `FT`, `AET`, `PEN`) against fanout coverage for each per-match endpoint (`LINEUPS`, `FIXTURE_EVENTS`, `FIXTURE_STATISTICS`, `FIXTURE_PLAYERS`) and emits `[api-football] ingest_completeness_json={...}`. **Coverage is derived directly from `RAW_APIF_FIXTURE_DETAILS`** — the append-only fanout table that holds one row (one payload) per fetched fixture — so it can never drift out of sync with the actual data. A fixture counts as covered for statistics only when its `statistics` array is non-empty (empty stats are retried within a grace window); lineups and events count as covered once the fixture has been fetched; player stats count as covered once fetched, except while the fixture's second fetch is due ([`data_contract.md`](data_contract.md) "Fixture details"). There is no separate coverage tracking table. API predictions are not ingested (we build our own), so there is no predictions endpoint. Unplayed fixtures (upcoming, in-play, cancelled, postponed, abandoned) are reported separately as `fixture_unplayed_count` and do not fail the check. The field `match_level_tables_cover_all_fixtures` (legacy `all_fanout_complete`) is the overall boolean. This is one slice of "complete" — squad freshness and the other raw tables are covered by source freshness, the ingestion spread model, and running dbt after ingest (see [`data_contract.md`](data_contract.md)).
++2. **Completeness check (end of run).** The loader compares **finished** fixture ids in the latest `RAW_APIF_FIXTURES_NEXT` snapshot (`status.short` in `FT`, `AET`, `PEN`) against fanout coverage for each per-match endpoint (`LINEUPS`, `FIXTURE_EVENTS`, `FIXTURE_STATISTICS`, `FIXTURE_PLAYERS`) and emits `[api-football] ingest_completeness_json={...}`. **Coverage is derived directly from `RAW_APIF_FIXTURE_DETAILS`** — the append-only fanout table that holds one row (one payload) per fetched fixture — so it can never drift out of sync with the actual data. A fixture counts as covered for statistics only when its `statistics` array is non-empty (empty stats are retried within a grace window); lineups and events count as covered once the fixture has been fetched; player stats count as covered once fetched, except while one of the fixture's later fetches is due ([`data_contract.md`](data_contract.md) "Fixture details"). There is no separate coverage tracking table. API predictions are not ingested (we build our own), so there is no predictions endpoint. Unplayed fixtures (upcoming, in-play, cancelled, postponed, abandoned) are reported separately as `fixture_unplayed_count` and do not fail the check. The field `match_level_tables_cover_all_fixtures` (legacy `all_fanout_complete`) is the overall boolean. This is one slice of "complete" — squad freshness and the other raw tables are covered by source freshness, the ingestion spread model, and running dbt after ingest (see [`data_contract.md`](data_contract.md)).
+ 
+    When `match_level_tables_cover_all_fixtures` is `false` during a multi-day backfill, the process exits `3` under the default `API_FOOTBALL_FAIL_ON_INCOMPLETE=1`. Set that env var to `0` until coverage catches up, or skip the check entirely with `API_FOOTBALL_SKIP_COMPLETENESS_CHECK=1` (not recommended long-term).
+ 
+diff --git a/ingestion/api_football/coverage.py b/ingestion/api_football/coverage.py
+index c0f9a102..240afec4 100644
+--- a/ingestion/api_football/coverage.py
++++ b/ingestion/api_football/coverage.py
+@@ -20,6 +20,13 @@ SECOND_FETCH_DELAY = timedelta(days=3)
+ # provider replaces it with the complete format for many matches only later.
+ NEWER_FORMAT_REFETCH_DELAY = timedelta(days=14)
+ 
++# The provider adds player and team stats to some matches weeks after kickoff.
++LATE_FETCH_DELAYS = (timedelta(days=7), timedelta(days=30))
++
++# A mark passed longer ago than this is left to scripts/refetch_from_provider.py, whose guard the
++# nightly does not apply.
++LATE_FETCH_WINDOW = timedelta(days=7)
++
+ # Value: the payload array that must be non-empty to count as covered, or None if any fetch counts.
+ ENDPOINT_REQUIRES_NONEMPTY: dict[str, str | None] = {
+     "LINEUPS":            None,
+@@ -69,6 +76,21 @@ def newer_format_refetch_due(
+     return latest_fetch < refetch_from <= now
+ 
+ 
++def late_fetch_due(
++    latest_fetch: datetime | None,
++    kickoff: datetime | None,
++    still_missing: bool,
++    now: datetime,
++) -> bool:
++    """True once per LATE_FETCH_DELAYS mark passed within LATE_FETCH_WINDOW, while stats are missing."""
++    if not still_missing or latest_fetch is None or kickoff is None:
++        return False
++    return any(
++        latest_fetch < kickoff + delay <= now < kickoff + delay + LATE_FETCH_WINDOW
++        for delay in LATE_FETCH_DELAYS
++    )
++
++
+ def read_coverage(
+     client: bigquery.Client,
+ ) -> dict[str, dict[str, dict[int, bool]]]:
+@@ -88,6 +110,11 @@ def read_coverage(
+                 ARRAY_LENGTH(JSON_QUERY_ARRAY(payload, '$.statistics')) > 0 AS has_statistics,
+                 ingested_at,
+                 SAFE_CAST(JSON_VALUE(payload, '$.fixture.date') AS TIMESTAMP) AS kickoff,
++                EXISTS(
++                    SELECT 1
++                    FROM UNNEST(JSON_QUERY_ARRAY(payload, '$.players')) AS team_block,
++                        UNNEST(JSON_QUERY_ARRAY(team_block, '$.players')) AS player
++                ) AS has_players,
+                 EXISTS(
+                     SELECT 1
+                     FROM UNNEST(JSON_QUERY_ARRAY(payload, '$.players')) AS team_block,
+@@ -108,6 +135,7 @@ def read_coverage(
+             league_code,
+             fixture_id,
+             LOGICAL_OR(has_statistics) AS has_statistics,
++            LOGICAL_OR(has_players) AS has_players,
+             MAX(ingested_at) AS latest_fetch,
+             MAX(kickoff) AS kickoff,
+             ARRAY_AGG(in_newer_format ORDER BY ingested_at DESC LIMIT 1)[OFFSET(0)]
+@@ -125,8 +153,13 @@ def read_coverage(
+         has_stats = bool(row.has_statistics)
+         for endpoint, requires_nonempty in ENDPOINT_REQUIRES_NONEMPTY.items():
+             covered[lc][endpoint][fid] = has_stats if requires_nonempty else True
+-        if second_fetch_due(row.latest_fetch, row.kickoff, now) or newer_format_refetch_due(
+-            row.latest_fetch, row.kickoff, bool(row.latest_in_newer_format), now
++        still_missing = not has_stats or not bool(row.has_players)
++        if (
++            second_fetch_due(row.latest_fetch, row.kickoff, now)
++            or newer_format_refetch_due(
++                row.latest_fetch, row.kickoff, bool(row.latest_in_newer_format), now
++            )
++            or late_fetch_due(row.latest_fetch, row.kickoff, still_missing, now)
+         ):
+             covered[lc]["FIXTURE_PLAYERS"][fid] = False
+ 
+diff --git a/ingestion/api_football/loads/batch_fixtures.py b/ingestion/api_football/loads/batch_fixtures.py
+index a590ed3a..ceb34279 100644
+--- a/ingestion/api_football/loads/batch_fixtures.py
++++ b/ingestion/api_football/loads/batch_fixtures.py
+@@ -38,6 +38,7 @@ def _needs_fetch(
+       Never fetched                            → fetch
+       Player stats' second fetch due           → fetch (once; coverage.second_fetch_due)
+       Player stats' newer-format refetch due   → fetch (once; coverage.newer_format_refetch_due)
++      Player or team stats still missing       → fetch (at 7 and 30 days; coverage.late_fetch_due)
+       Fetched, statistics non-empty            → skip (done permanently)
+       Fetched, statistics empty, within window → retry (delivery delay expected)
+       Fetched, statistics empty, past window   → skip (accept empty permanently)
+diff --git a/scripts/refetch_from_provider.py b/scripts/refetch_from_provider.py
+index dd4bf0ee..fd4db777 100644
+--- a/scripts/refetch_from_provider.py
++++ b/scripts/refetch_from_provider.py
+@@ -1,10 +1,11 @@
+ """Ask the provider again for named matches or team-seasons, and append the answers to raw.
+ 
+ fixtures: GET /fixtures?ids= (20 a call) for every match in --ids-file (CSV: league_code,fixture_id).
+-A match is written only when its new answer holds two line-ups of eleven starters and is no worse
+-than any stored fetch of it: no fewer events, no fewer player rows or statistics lines for either
+-team, and not losing the complete player format. Base takes the latest events fetch whole, so a
+-shorter answer would replace a longer one. The stored counts come from the staging tables, so a run
++A match is written only when its new answer is no worse than any stored fetch of it: no fewer
++events, no fewer player rows, statistics lines or starters for either team, and not losing the
++complete player format. Base takes the latest events fetch and each team's latest line-up whole, so
++a shorter answer would replace a longer one. The answer must also be better in one of those, or it
++adds nothing base does not already hold. The stored counts come from the staging tables, so a run
+ is refused while raw holds a row for a listed match that staging has not read yet.
+ 
+ squads: GET /players?team=&season= for every pair in --pairs-file (CSV: league_code,team_id,season),
+@@ -63,7 +64,17 @@ from ingestion.api_football.settings import (  # noqa: E402
+ 
+ LEASE_MINUTES = 60
+ CALL_WINDOW_MINUTES = 50
+-STAGING_TABLES = ("stg_apif__fixture_events", "stg_apif__fixture_players", "stg_apif__fixture_statistics")
++STAGING_TABLES = (
++    "stg_apif__fixture_events",
++    "stg_apif__fixture_players",
++    "stg_apif__fixture_statistics",
++    "stg_apif__lineups",
++)
++SECTIONS = (
++    ("players_by_team", "player rows"),
++    ("statistics_by_team", "statistics lines"),
++    ("starters_by_team", "starters"),
++)
+ 
+ 
+ def read_fixture_list(path: str) -> dict[str, list[int]]:
+@@ -110,26 +121,37 @@ def payload_counts(fx: dict) -> dict:
+             for p in players
+         ),
+         "statistics_by_team": {_team_id(t): len(t.get("statistics") or []) for t in fx.get("statistics") or []},
+-        "full_lineups": len(lineups) == 2
+-        and all(len(lu.get("startXI") or []) == 11 for lu in lineups),
++        "starters_by_team": {_team_id(lu): len(lu.get("startXI") or []) for lu in lineups},
+     }
+ 
+ 
++def _gains(new: dict, stored: dict) -> bool:
++    if new["events"] > stored["events"]:
++        return True
++    if new["players_complete"] and not stored["players_complete"]:
++        return True
++    return any(
++        n_new > stored[key].get(team, 0)
++        for key, _ in SECTIONS
++        for team, n_new in new[key].items()
++    )
++
++
+ def refusal_reasons(new: dict, stored: dict | None) -> list[str]:
+-    reasons = []
+-    if not new["full_lineups"]:
+-        reasons.append("no two line-ups of eleven starters")
+     if stored is None:
+-        return reasons
++        return []
++    reasons = []
+     if new["events"] < stored["events"]:
+         reasons.append(f"fewer events ({new['events']} < {stored['events']})")
+-    for key, label in (("players_by_team", "player rows"), ("statistics_by_team", "statistics lines")):
++    for key, label in SECTIONS:
+         for team, n_stored in sorted(stored[key].items()):
+             n_new = new[key].get(team, 0)
+             if n_new < n_stored:
+                 reasons.append(f"fewer {label} for team {team} ({n_new} < {n_stored})")
+     if stored["players_complete"] and not new["players_complete"]:
+         reasons.append("loses the complete player format")
++    if not reasons and not _gains(new, stored):
++        reasons.append("adds nothing a stored fetch lacks")
+     return reasons
+ 
+ 
+@@ -151,6 +173,11 @@ statistics as (
+     from `{p}.staging.stg_apif__fixture_statistics`
+     where fixture_id in unnest(@ids)
+     group by 1, 2, 3
++),
++starters as (
++    select fixture_id, team_id, array_length(json_query_array(start_xi_json)) as n
++    from `{p}.staging.stg_apif__lineups`
++    where fixture_id in unnest(@ids)
+ )
+ select 'events' as section, fixture_id, cast(null as int64) as team_id, max(n) as n, false as complete
+ from events group by 2
+@@ -158,6 +185,8 @@ union all
+ select 'players', fixture_id, team_id, max(n), logical_or(complete) from players group by 2, 3
+ union all
+ select 'statistics', fixture_id, team_id, max(n), false from statistics group by 2, 3
++union all
++select 'starters', fixture_id, team_id, max(n), false from starters group by 2, 3
+ """
+ 
+ 
+@@ -169,7 +198,13 @@ def stored_counts(client: bigquery.Client, fixture_ids: list[int]) -> dict[int,
+         ),
+     )
+     out = {
+-        fid: {"events": 0, "players_by_team": {}, "statistics_by_team": {}, "players_complete": False}
++        fid: {
++            "events": 0,
++            "players_by_team": {},
++            "statistics_by_team": {},
++            "starters_by_team": {},
++            "players_complete": False,
++        }
+         for fid in fixture_ids
+     }
+     for r in job.result():
+@@ -180,7 +215,7 @@ def stored_counts(client: bigquery.Client, fixture_ids: list[int]) -> dict[int,
+             stored["players_by_team"][int(r["team_id"] or 0)] = int(r["n"])
+             stored["players_complete"] = stored["players_complete"] or bool(r["complete"])
+         else:
+-            stored["statistics_by_team"][int(r["team_id"] or 0)] = int(r["n"])
++            stored[f"{r['section']}_by_team"][int(r["team_id"] or 0)] = int(r["n"] or 0)
+     print(f"stored counts read: {job.total_bytes_billed or 0} bytes billed", flush=True)
+     return out
+ 
+diff --git a/tests/fixtures/apif/fixture_details_sample.json b/tests/fixtures/apif/fixture_details_sample.json
+new file mode 100644
+index 00000000..9ed9b439
+--- /dev/null
++++ b/tests/fixtures/apif/fixture_details_sample.json
+@@ -0,0 +1 @@
++{"get":"fixtures","parameters":{"ids":"1507045-1619071-1646794"},"errors":[],"results":3,"response":[{"fixture":{"id":1507045,"referee":"Woo-Sung Kim, South Korea","timezone":"UTC","date":"2026-08-26T10:30:00+00:00","timestamp":1787740200,"periods":{"first":1787740200,"second":1787743800},"venue":{"id":1009,"name":"Chuncheon Songam Stadium","city":"Chuncheon"},"status":{"long":"Match Finished","short":"FT","elapsed":90,"extra":8}},"league":{"id":292,"name":"K League 1","country":"South-Korea","logo":"https://media.api-sports.io/football/leagues/292.png","flag":"https://media.api-sports.io/flags/kr.svg","season":2026,"round":"Regular Season - 25","standings":true},"teams":{"home":{"id":2746,"name":"Gangwon FC","logo":"https://media.api-sports.io/football/teams/2746.png","winner":null},"away":{"id":2759,"name":"Gwangju FC","logo":"https://media.api-sports.io/football/teams/2759.png","winner":null}},"goals":{"home":2,"away":2},"score":{"halftime":{"home":0,"away":2},"fulltime":{"home":2,"away":2},"extratime":{"home":null,"away":null},"penalty":{"home":null,"away":null}},"events":[{"time":{"elapsed":5,"extra":null},"team":{"id":2759,"name":"Gwangju FC","logo":"https://media.api-sports.io/football/teams/2759.png"},"player":{"id":453968,"name":"Moon Min-seo"},"assist":{"id":66205,"name":"A. Ba Loua"},"type":"Goal","detail":"Normal Goal","comments":null},{"time":{"elapsed":22,"extra":null},"team":{"id":2746,"name":"Gangwon FC","logo":"https://media.api-sports.io/football/teams/2746.png"},"player":{"id":201279,"name":"Goh Young-Jun"},"assist":{"id":403349,"name":"Lee Seung-Won"},"type":"subst","detail":"Substitution 1","comments":null},{"time":{"elapsed":45,"extra":null},"team":{"id":2759,"name":"Gwangju FC","logo":"https://media.api-sports.io/football/teams/2759.png"},"player":{"id":453968,"name":"Moon Min-seo"},"assist":{"id":null,"name":null},"type":"Goal","detail":"Penalty","comments":null}],"lineups":[{"team":{"id":2746,"name":"Gangwon FC","logo":"https://media.api-sports.io/football/teams/2746.png","colors":{"player":{"primary":"e62f30","number":"ffffff","border":"e62f30"},"goalkeeper":{"primary":"bfee8f","number":"000000","border":"bfee8f"}}},"coach":{"id":24503,"name":"Kyung-Ho Chung","photo":"https://media.api-sports.io/football/coachs/24503.png"},"formation":"4-4-2","startXI":[{"player":{"id":173405,"name":"Park Cheong-Hyo","number":1,"pos":"G","grid":"1:1"}},{"player":{"id":405575,"name":"Kim Do-Hyun","number":27,"pos":"D","grid":"2:4"}},{"player":{"id":270144,"name":"M. Tuci","number":23,"pos":"D","grid":"2:3"}}],"substitutes":[{"player":{"id":161026,"name":"A. Mammar Chaouche","number":5,"pos":"D","grid":null}}]},{"team":{"id":2759,"name":"Gwangju FC","logo":"https://media.api-sports.io/football/teams/2759.png","colors":{"player":{"primary":"ffffff","number":"5c1423","border":"ffffff"},"goalkeeper":{"primary":"c1abdf","number":"0d0d0d","border":"c1abdf"}}},"coach":{"id":27799,"name":"Jeong-kyu Lee","photo":"https://media.api-sports.io/football/coachs/27799.png"},"formation":"4-4-2","startXI":[{"player":{"id":472257,"name":"Kim Dong-Hwa","number":23,"pos":"G","grid":"1:1"}},{"player":{"id":34382,"name":"Park Won-Jae","number":33,"pos":"D","grid":"2:4"}},{"player":{"id":34685,"name":"Min Sang-Gi","number":39,"pos":"D","grid":"2:3"}}],"substitutes":[{"player":{"id":99559,"name":"Kim Kyeong-min","number":1,"pos":"G","grid":null}}]}],"statistics":[{"team":{"id":2746,"name":"Gangwon FC","logo":"https://media.api-sports.io/football/teams/2746.png"},"statistics":[{"type":"Passes accurate","value":408},{"type":"Shots insidebox","value":19},{"type":"Shots outsidebox","value":13}]},{"team":{"id":2759,"name":"Gwangju FC","logo":"https://media.api-sports.io/football/teams/2759.png"},"statistics":[{"type":"Passes accurate","value":188},{"type":"Shots insidebox","value":7},{"type":"Shots outsidebox","value":2}]}],"players":[{"team":{"id":2746,"name":"Gangwon FC","logo":"https://media.api-sports.io/football/teams/2746.png","update":"1970-01-01T00:00:00+00:00"},"players":[{"player":{"id":270144,"name":"M. Tuci","photo":"https://media.api-sports.io/football/players/270144.png"},"statistics":[{"games":{"minutes":90,"number":23,"position":"D","rating":"7.66","captain":false,"substitute":false},"offsides":1,"shots":{"total":4,"on":1},"goals":{"total":1,"conceded":null,"assists":0,"saves":0},"passes":{"total":76,"key":1,"accuracy":"71"},"tackles":{"total":2,"blocks":1,"interceptions":2},"duels":{"total":9,"won":6},"dribbles":{"attempts":1,"success":1,"past":null},"fouls":{"drawn":0,"committed":2},"cards":{"yellow":0,"red":0},"penalty":{"won":null,"commited":null,"scored":0,"missed":null,"saved":null}}]},{"player":{"id":453969,"name":"Shin Min-Ha","photo":"https://media.api-sports.io/football/players/453969.png"},"statistics":[{"games":{"minutes":0,"number":47,"position":"D","rating":"0","captain":false,"substitute":false},"offsides":0,"shots":{"total":0,"on":0},"goals":{"total":0,"conceded":null,"assists":0,"saves":0},"passes":{"total":0,"key":0,"accuracy":"0"},"tackles":{"total":0,"blocks":0,"interceptions":0},"duels":{"total":0,"won":0},"dribbles":{"attempts":0,"success":0,"past":null},"fouls":{"drawn":0,"committed":0},"cards":{"yellow":0,"red":0},"penalty":{"won":null,"commited":null,"scored":0,"missed":null,"saved":null}}]}]},{"team":{"id":2759,"name":"Gwangju FC","logo":"https://media.api-sports.io/football/teams/2759.png","update":"1970-01-01T00:00:00+00:00"},"players":[{"player":{"id":356251,"name":"Yu Je-Ho","photo":"https://media.api-sports.io/football/players/356251.png"},"statistics":[{"games":{"minutes":90,"number":14,"position":"M","rating":"6.24","captain":false,"substitute":false},"offsides":0,"shots":{"total":0,"on":0},"goals":{"total":0,"conceded":null,"assists":0,"saves":0},"passes":{"total":18,"key":0,"accuracy":"16"},"tackles":{"total":1,"blocks":0,"interceptions":1},"duels":{"total":6,"won":1},"dribbles":{"attempts":2,"success":0,"past":null},"fouls":{"drawn":0,"committed":0},"cards":{"yellow":0,"red":0},"penalty":{"won":null,"commited":null,"scored":0,"missed":null,"saved":null}}]},{"player":{"id":403356,"name":"Jang Suk-Hwan","photo":"https://media.api-sports.io/football/players/403356.png"},"statistics":[{"games":{"minutes":90,"number":2,"position":"D","rating":"6.44","captain":false,"substitute":false},"offsides":0,"shots":{"total":0,"on":0},"goals":{"total":0,"conceded":null,"assists":0,"saves":0},"passes":{"total":30,"key":0,"accuracy":"25"},"tackles":{"total":1,"blocks":0,"interceptions":0},"duels":{"total":4,"won":1},"dribbles":{"attempts":0,"success":0,"past":null},"fouls":{"drawn":0,"committed":1},"cards":{"yellow":0,"red":0},"penalty":{"won":null,"commited":null,"scored":0,"missed":null,"saved":null}}]}]}]},{"fixture":{"id":1619071,"referee":null,"timezone":"UTC","date":"2026-09-04T17:00:00+00:00","timestamp":1788541200,"periods":{"first":1788541200,"second":1788544800},"venue":{"id":null,"name":null,"city":null},"status":{"long":"Match Finished","short":"FT","elapsed":90,"extra":4}},"league":{"id":12,"name":"CAF Champions League","country":"World","logo":"https://media.api-sports.io/football/leagues/12.png","flag":null,"season":2026,"round":"1st Preliminary Round","standings":false},"teams":{"home":{"id":26759,"name":"Port","logo":"https://media.api-sports.io/football/teams/26759.png","winner":false},"away":{"id":1040,"name":"Zamalek SC","logo":"https://media.api-sports.io/football/teams/1040.png","winner":true}},"goals":{"home":1,"away":2},"score":{"halftime":{"home":0,"away":2},"fulltime":{"home":1,"away":2},"extratime":{"home":null,"away":null},"penalty":{"home":null,"away":null}},"events":[{"time":{"elapsed":5,"extra":null},"team":{"id":1040,"name":"Zamalek SC","logo":"https://media.api-sports.io/football/teams/1040.png"},"player":{"id":182021,"name":"M. Shehata"},"assist":{"id":null,"name":null},"type":"Goal","detail":"Normal Goal","comments":null},{"time":{"elapsed":37,"extra":null},"team":{"id":1040,"name":"Zamalek SC","logo":"https://media.api-sports.io/football/teams/1040.png"},"player":{"id":3328,"name":"C. Banza"},"assist":{"id":null,"name":null},"type":"Goal","detail":"Normal Goal","comments":null},{"time":{"elapsed":82,"extra":null},"team":{"id":26759,"name":"Port","logo":"https://media.api-sports.io/football/teams/26759.png"},"player":{"id":null,"name":"M. Hussein Mahbi"},"assist":{"id":null,"name":null},"type":"Goal","detail":"Normal Goal","comments":null}],"lineups":[{"team":{"id":1040,"name":"Zamalek SC","logo":"https://media.api-sports.io/football/teams/1040.png","colors":null},"coach":{"id":29312,"name":"Motamed Gamal","photo":"https://media.api-sports.io/football/coachs/29312.png"},"formation":null}],"statistics":[{"team":{"id":26759,"name":"Port","logo":"https://media.api-sports.io/football/teams/26759.png"},"statistics":[{"type":"Ball Possession","value":"33%"},{"type":"Red Cards","value":0},{"type":"Shots on Goal","value":3}]},{"team":{"id":1040,"name":"Zamalek SC","logo":"https://media.api-sports.io/football/teams/1040.png"},"statistics":[{"type":"Ball Possession","value":"67%"},{"type":"Red Cards","value":0},{"type":"Shots on Goal","value":5}]}],"players":[]},{"fixture":{"id":1646794,"referee":null,"timezone":"UTC","date":"2026-11-06T19:30:00+00:00","timestamp":1793993400,"periods":{"first":1793993400,"second":1793997000},"venue":{"id":510,"name":"Memorial Stadium","city":"Bristol"},"status":{"long":"Match Finished","short":"FT","elapsed":90,"extra":null}},"league":{"id":45,"name":"FA Cup","country":"England","logo":"https://media.api-sports.io/football/leagues/45.png","flag":"https://media.api-sports.io/flags/gb-eng.svg","season":2026,"round":"1/128-finals","standings":false},"teams":{"home":{"id":1334,"name":"Bristol Rovers","logo":"https://media.api-sports.io/football/teams/1334.png","winner":true},"away":{"id":1370,"name":"Cambridge United","logo":"https://media.api-sports.io/football/teams/1370.png","winner":false}},"goals":{"home":2,"away":0},"score":{"halftime":{"home":0,"away":0},"fulltime":{"home":2,"away":0},"extratime":{"home":null,"away":null},"penalty":{"home":null,"away":null}},"events":[{"time":{"elapsed":39,"extra":null},"team":{"id":1334,"name":"Bristol Rovers","logo":"https://media.api-sports.io/football/teams/1334.png"},"player":{"id":20201,"name":"Alfie Kilgour"},"assist":{"id":null,"name":null},"type":"Card","detail":"Yellow Card","comments":"Foul"},{"time":{"elapsed":51,"extra":null},"team":{"id":1370,"name":"Cambridge United","logo":"https://media.api-sports.io/football/teams/1370.png"},"player":{"id":295703,"name":"Liam bennett"},"assist":{"id":null,"name":null},"type":"Card","detail":"Yellow Card","comments":"Dangerous Play"},{"time":{"elapsed":57,"extra":null},"team":{"id":1334,"name":"Bristol Rovers","logo":"https://media.api-sports.io/football/teams/1334.png"},"player":{"id":334036,"name":"Reiss-Alexander Russell-Denny"},"assist":{"id":138818,"name":"Clinton Mola"},"type":"Goal","detail":"Normal Goal","comments":null}],"lineups":[{"team":{"id":1334,"name":"Bristol Rovers","logo":"https://media.api-sports.io/football/teams/1334.png","colors":null},"formation":"4-1-2-1-2","coach":{"id":608,"name":"S. Evans","photo":"https://media.api-sports.io/football/coachs/608.png"},"startXI":[{"player":{"id":130955,"name":"Brad Young","number":1,"pos":"G","grid":"1:1"}},{"player":{"id":18040,"name":"T. James","number":2,"pos":"D","grid":"2:4"}},{"player":{"id":106086,"name":"K. Balmer","number":4,"pos":"D","grid":"2:3"}}],"substitutes":[{"player":{"id":19306,"name":"A. Appiah","number":28,"pos":"F","grid":null}}]},{"team":{"id":1370,"name":"Cambridge United","logo":"https://media.api-sports.io/football/teams/1370.png","colors":null},"formation":"4-2-3-1","coach":{"id":92,"name":"N. Harris","photo":"https://media.api-sports.io/football/coachs/92.png"},"startXI":[{"player":{"id":82004,"name":"J. Eastwood","number":1,"pos":"G","grid":"1:1"}},{"player":{"id":295703,"name":"L. Bennett","number":2,"pos":"D","grid":"2:4"}},{"player":{"id":68127,"name":"K. Watts","number":6,"pos":"D","grid":"2:3"}}],"substitutes":[{"player":{"id":201373,"name":"S. Curtis","number":29,"pos":"D","grid":null}}]}],"statistics":[{"team":{"id":1334,"name":"Bristol Rovers","logo":"https://media.api-sports.io/football/teams/1334.png"},"statistics":[{"type":"Shots insidebox","value":1},{"type":"Shots outsidebox","value":11},{"type":"Blocked Shots","value":4}]},{"team":{"id":1370,"name":"Cambridge United","logo":"https://media.api-sports.io/football/teams/1370.png"},"statistics":[{"type":"Shots insidebox","value":2},{"type":"Shots outsidebox","value":4},{"type":"Blocked Shots","value":1}]}],"players":[]}]}
+diff --git a/tests/test_coverage.py b/tests/test_coverage.py
+index 6ecc031a..f1d1b589 100644
+--- a/tests/test_coverage.py
++++ b/tests/test_coverage.py
+@@ -11,11 +11,14 @@ from google.cloud.exceptions import NotFound
+ from ingestion.api_football.coverage import (
+     ENDPOINT_TO_SHELL_KEY,
+     FANOUT_ENDPOINTS,
++    LATE_FETCH_DELAYS,
++    LATE_FETCH_WINDOW,
+     NEWER_FORMAT_REFETCH_DELAY,
+     SECOND_FETCH_DELAY,
+     SHELL_KEY_TO_ENDPOINT,
+     STATS_GRACE_DAYS,
+     covered_for_league,
++    late_fetch_due,
+     newer_format_refetch_due,
+     read_coverage,
+     second_fetch_due,
+@@ -215,11 +218,13 @@ class TestReadCoverage:
+         latest_fetch: datetime | None = None,
+         kickoff: datetime | None = None,
+         latest_in_newer_format: bool = False,
++        has_players: bool = True,
+     ):
+         row = MagicMock()
+         row.league_code = league_code
+         row.fixture_id = fixture_id
+         row.has_statistics = has_statistics
++        row.has_players = has_players
+         row.latest_fetch = latest_fetch
+         row.kickoff = kickoff
+         row.latest_in_newer_format = latest_in_newer_format
+@@ -265,6 +270,31 @@ class TestReadCoverage:
+         )
+         assert result["WC"]["FIXTURE_PLAYERS"][1] is True
+ 
++    def test_players_not_covered_while_a_late_fetch_for_missing_player_stats_is_due(self):
++        kickoff = datetime.now(timezone.utc) - timedelta(days=8)
++        result = self._read(
++            self._row(
++                "KL1", 1, True, latest_fetch=kickoff + timedelta(days=4), kickoff=kickoff,
++                has_players=False,
++            ),
++        )
++        assert result["KL1"]["FIXTURE_PLAYERS"][1] is False
++
++    def test_players_not_covered_while_a_late_fetch_for_missing_team_stats_is_due(self):
++        kickoff = datetime.now(timezone.utc) - timedelta(days=31)
++        result = self._read(
++            self._row("CAFCL", 1, False, latest_fetch=kickoff + timedelta(days=8), kickoff=kickoff),
++        )
++        assert result["CAFCL"]["FIXTURE_PLAYERS"][1] is False
++        assert result["CAFCL"]["FIXTURE_STATISTICS"][1] is False
++
++    def test_players_covered_when_nothing_is_missing_at_the_late_marks(self):
++        kickoff = datetime.now(timezone.utc) - timedelta(days=31)
++        result = self._read(
++            self._row("KL1", 1, True, latest_fetch=kickoff + timedelta(days=4), kickoff=kickoff),
++        )
++        assert result["KL1"]["FIXTURE_PLAYERS"][1] is True
++
+     def test_players_covered_before_the_delay_has_passed(self):
+         kickoff = datetime.now(timezone.utc) - timedelta(days=1)
+         result = self._read(
+@@ -419,3 +449,52 @@ class TestNewerFormatRefetchDue:
+     def test_unknown_kickoff_or_fetch_is_never_due(self):
+         assert newer_format_refetch_due(None, self.KICKOFF, True, self.REFETCH_FROM) is False
+         assert newer_format_refetch_due(self.THIRD_DAY_FETCH, None, True, self.REFETCH_FROM) is False
++
++
++# ---------------------------------------------------------------------------
++# late_fetch_due — a match still missing player or team stats is asked for again at 7 and 30 days
++# ---------------------------------------------------------------------------
++
++
++class TestLateFetchDue:
++    KICKOFF = datetime(2026, 10, 1, 19, 0, tzinfo=timezone.utc)
++    THIRD_DAY_FETCH = KICKOFF + SECOND_FETCH_DELAY
++    SEVEN = KICKOFF + LATE_FETCH_DELAYS[0]
++    THIRTY = KICKOFF + LATE_FETCH_DELAYS[1]
++
++    def test_the_marks_are_seven_and_thirty_days(self):
++        assert LATE_FETCH_DELAYS == (timedelta(days=7), timedelta(days=30))
++
++    def test_due_once_the_seven_day_mark_has_passed(self):
++        assert late_fetch_due(self.THIRD_DAY_FETCH, self.KICKOFF, True, self.SEVEN) is True
++
++    def test_not_due_before_the_seven_day_mark(self):
++        now = self.SEVEN - timedelta(minutes=1)
++        assert late_fetch_due(self.THIRD_DAY_FETCH, self.KICKOFF, True, now) is False
++
++    def test_a_fetch_at_seven_days_is_due_again_at_thirty(self):
++        assert late_fetch_due(self.SEVEN, self.KICKOFF, True, self.THIRTY - timedelta(minutes=1)) is False
++        assert late_fetch_due(self.SEVEN, self.KICKOFF, True, self.THIRTY) is True
++
++    def test_a_fetch_at_thirty_days_is_never_due_again(self):
++        later = self.THIRTY + timedelta(days=365)
++        assert late_fetch_due(self.THIRTY, self.KICKOFF, True, later) is False
++
++    def test_a_missed_mark_is_due_on_the_next_run(self):
++        next_run = self.SEVEN + timedelta(days=1)
++        assert late_fetch_due(self.THIRD_DAY_FETCH, self.KICKOFF, True, next_run) is True
++
++    def test_a_mark_is_due_for_one_window_only(self):
++        assert late_fetch_due(self.THIRD_DAY_FETCH, self.KICKOFF, True, self.SEVEN + LATE_FETCH_WINDOW - timedelta(minutes=1)) is True
++        assert late_fetch_due(self.THIRD_DAY_FETCH, self.KICKOFF, True, self.SEVEN + LATE_FETCH_WINDOW) is False
++
++    def test_an_old_match_fetched_at_three_days_is_never_due(self):
++        a_year_on = self.KICKOFF + timedelta(days=400)
++        assert late_fetch_due(self.THIRD_DAY_FETCH, self.KICKOFF, True, a_year_on) is False
++
++    def test_never_due_when_nothing_is_missing(self):
++        assert late_fetch_due(self.THIRD_DAY_FETCH, self.KICKOFF, False, self.THIRTY) is False
++
++    def test_unknown_kickoff_or_fetch_is_never_due(self):
++        assert late_fetch_due(None, self.KICKOFF, True, self.SEVEN) is False
++        assert late_fetch_due(self.THIRD_DAY_FETCH, None, True, self.SEVEN) is False
+diff --git a/tests/test_refetch_from_provider.py b/tests/test_refetch_from_provider.py
+index 35cf295e..3cc3167a 100644
+--- a/tests/test_refetch_from_provider.py
++++ b/tests/test_refetch_from_provider.py
+@@ -2,7 +2,9 @@
+ 
+ from __future__ import annotations
+ 
++import json
+ from datetime import datetime, timedelta, timezone
++from pathlib import Path
+ from unittest.mock import MagicMock, patch
+ 
+ import pytest
+@@ -14,8 +16,8 @@ from scripts import refetch_from_provider as refetch
+ HOME, AWAY = 10, 20
+ 
+ 
+-def _lineup(starters: int = 11) -> dict:
+-    return {"startXI": [{"player": {"id": i}} for i in range(starters)], "substitutes": []}
++def _lineup(starters: int = 11, team: int = HOME) -> dict:
++    return {"team": {"id": team}, "startXI": [{"player": {"id": i}} for i in range(starters)], "substitutes": []}
+ 
+ 
+ def _player(conceded=None) -> dict:
+@@ -41,7 +43,7 @@ def _fixture(
+             {"team": {"id": HOME}, "statistics": [{}] * statistics[0]},
+             {"team": {"id": AWAY}, "statistics": [{}] * statistics[1]},
+         ],
+-        "lineups": lineups if lineups is not None else [_lineup(), _lineup()],
++        "lineups": lineups if lineups is not None else [_lineup(team=HOME), _lineup(team=AWAY)],
+     }
+ 
+ 
+@@ -50,11 +52,13 @@ def _stored(
+     players: tuple[int, int] = (15, 15),
+     statistics: tuple[int, int] = (8, 8),
+     complete: bool = True,
++    starters: tuple[int, int] | None = None,
+ ) -> dict:
+     return {
+         "events": events,
+         "players_by_team": {HOME: players[0], AWAY: players[1]},
+         "statistics_by_team": {HOME: statistics[0], AWAY: statistics[1]},
++        "starters_by_team": {} if starters is None else {HOME: starters[0], AWAY: starters[1]},
+         "players_complete": complete,
+     }
+ 
+@@ -66,38 +70,64 @@ def _reset_quota_flag(monkeypatch):
+ 
+ class TestPayloadCounts:
+     def test_counts_every_section_per_team(self):
+-        counts = refetch.payload_counts(_fixture(events=7, players=(16, 15), statistics=(17, 16)))
++        lineups = [_lineup(team=HOME), _lineup(10, team=AWAY)]
++        counts = refetch.payload_counts(
++            _fixture(events=7, players=(16, 15), statistics=(17, 16), lineups=lineups)
++        )
+         assert counts == {
+             "events": 7,
+             "players_by_team": {HOME: 16, AWAY: 15},
+             "players_complete": True,
+             "statistics_by_team": {HOME: 17, AWAY: 16},
+-            "full_lineups": True,
++            "starters_by_team": {HOME: 11, AWAY: 10},
+         }
+ 
+     def test_incomplete_player_format(self):
+         assert not refetch.payload_counts(_fixture(conceded=None))["players_complete"]
+ 
+-    def test_a_short_line_up_is_not_full(self):
+-        assert not refetch.payload_counts(_fixture(lineups=[_lineup(), _lineup(10)]))["full_lineups"]
+-
+-    def test_one_line_up_is_not_full(self):
+-        assert not refetch.payload_counts(_fixture(lineups=[_lineup()]))["full_lineups"]
+-
+     def test_empty_payload(self):
+         counts = refetch.payload_counts({})
+         assert counts["events"] == 0
+-        assert counts["players_by_team"] == counts["statistics_by_team"] == {}
+-        assert not counts["full_lineups"]
++        assert counts["players_by_team"] == counts["statistics_by_team"] == counts["starters_by_team"] == {}
++
++
++def _empty_stored() -> dict:
++    return {
++        "events": 0,
++        "players_by_team": {},
++        "statistics_by_team": {},
++        "starters_by_team": {},
++        "players_complete": False,
++    }
+ 
+ 
+ class TestRefusalReasons:
+-    def test_not_worse_with_full_line_ups_is_written(self):
++    def test_not_worse_and_gaining_line_ups_is_written(self):
+         assert refetch.refusal_reasons(refetch.payload_counts(_fixture()), _stored()) == []
+ 
+-    def test_a_match_with_nothing_stored_needs_only_the_line_ups(self):
+-        empty = {"events": 0, "players_by_team": {}, "statistics_by_team": {}, "players_complete": False}
+-        assert refetch.refusal_reasons(refetch.payload_counts(_fixture(events=0, players=(0, 0))), empty) == []
++    def test_an_answer_equal_to_the_stored_data_is_not_written(self):
++        new = refetch.payload_counts(_fixture(lineups=[]))
++        assert refetch.refusal_reasons(new, _stored()) == ["adds nothing a stored fetch lacks"]
++
++    def test_team_stats_without_line_ups_are_written(self):
++        new = refetch.payload_counts(_fixture(events=1, players=(0, 0), statistics=(16, 16), lineups=[]))
++        stored = {**_empty_stored(), "events": 1}
++        assert refetch.refusal_reasons(new, stored) == []
++
++    def test_player_rows_without_line_ups_are_written(self):
++        new = refetch.payload_counts(_fixture(players=(20, 20), lineups=[]))
++        assert refetch.refusal_reasons(new, _stored(players=(0, 0), complete=False)) == []
++
++    def test_gaining_the_complete_player_format_is_written(self):
++        new = refetch.payload_counts(_fixture(lineups=[]))
++        assert refetch.refusal_reasons(new, _stored(complete=False)) == []
++
++    def test_an_empty_answer_for_an_empty_match_is_not_written(self):
++        new = refetch.payload_counts(_fixture(events=0, players=(0, 0), statistics=(0, 0), lineups=[]))
++        assert refetch.refusal_reasons(new, _empty_stored()) == ["adds nothing a stored fetch lacks"]
++
++    def test_a_match_never_stored_is_written(self):
++        assert refetch.refusal_reasons(refetch.payload_counts(_fixture(lineups=[])), None) == []
+ 
+     @pytest.mark.parametrize(
+         "fixture_kwargs, stored_kwargs, reason",
+@@ -106,13 +136,24 @@ class TestRefusalReasons:
+             ({"players": (14, 15)}, {}, f"fewer player rows for team {HOME} (14 < 15)"),
+             ({"statistics": (8, 7)}, {}, f"fewer statistics lines for team {AWAY} (7 < 8)"),
+             ({"conceded": None}, {"complete": True}, "loses the complete player format"),
+-            ({"lineups": [_lineup(10), _lineup()]}, {}, "no two line-ups of eleven starters"),
++            (
++                {"lineups": [_lineup(10, team=HOME), _lineup(team=AWAY)]},
++                {"starters": (11, 11)},
++                f"fewer starters for team {HOME} (10 < 11)",
++            ),
+         ],
+     )
+     def test_a_worse_fetch_is_refused(self, fixture_kwargs, stored_kwargs, reason):
+         new = refetch.payload_counts(_fixture(**fixture_kwargs))
+         assert refetch.refusal_reasons(new, _stored(**stored_kwargs)) == [reason]
+ 
++    def test_losing_the_stored_line_ups_is_refused(self):
++        new = refetch.payload_counts(_fixture(statistics=(20, 20), lineups=[]))
++        assert refetch.refusal_reasons(new, _stored(starters=(11, 11))) == [
++            f"fewer starters for team {HOME} (0 < 11)",
++            f"fewer starters for team {AWAY} (0 < 11)",
++        ]
++
+     def test_one_team_gaining_does_not_cover_the_other_losing(self):
+         new = refetch.payload_counts(_fixture(statistics=(0, 20)))
+         assert refetch.refusal_reasons(new, _stored()) == [f"fewer statistics lines for team {HOME} (0 < 8)"]
+@@ -122,6 +163,45 @@ class TestRefusalReasons:
+         assert refetch.refusal_reasons(new, _stored()) == []
+ 
+ 
++_SAMPLE_PATH = Path(__file__).parent / "fixtures" / "apif" / "fixture_details_sample.json"
++
++
++def _sample(fixture_id: int) -> dict:
++    response = json.loads(_SAMPLE_PATH.read_text(encoding="utf-8"))["response"]
++    return next(fx for fx in response if fx["fixture"]["id"] == fixture_id)
++
++
++class TestProviderSample:
++    def test_a_match_with_every_section(self):
++        counts = refetch.payload_counts(_sample(1507045))
++        assert counts == {
++            "events": 3,
++            "players_by_team": {2746: 2, 2759: 2},
++            "players_complete": False,
++            "statistics_by_team": {2746: 3, 2759: 3},
++            "starters_by_team": {2746: 3, 2759: 3},
++        }
++
++    def test_a_line_up_block_without_starters_counts_none(self):
++        counts = refetch.payload_counts(_sample(1619071))
++        assert counts["starters_by_team"] == {1040: 0}
++        assert counts["players_by_team"] == {}
++        assert counts["statistics_by_team"] == {26759: 3, 1040: 3}
++
++    def test_team_stats_for_a_match_without_line_ups_are_written(self):
++        stored = {**_empty_stored(), "events": 3}
++        assert refetch.refusal_reasons(refetch.payload_counts(_sample(1619071)), stored) == []
++
++    def test_team_stats_for_a_match_without_player_rows_are_written(self):
++        stored = {**_empty_stored(), "events": 3, "starters_by_team": {1334: 3, 1370: 3}}
++        assert refetch.refusal_reasons(refetch.payload_counts(_sample(1646794)), stored) == []
++
++    def test_the_same_answer_again_is_not_written(self):
++        counts = refetch.payload_counts(_sample(1507045))
++        stored = {key: counts[key] for key in _empty_stored()}
++        assert refetch.refusal_reasons(counts, stored) == ["adds nothing a stored fetch lacks"]
++
++
+ class TestPlan:
+     def test_fixture_calls_are_twenty_a_call_per_competition(self):
+         assert refetch.fixture_calls({"BL1": list(range(21)), "PL": list(range(20))}) == 3
+@@ -219,6 +299,7 @@ class TestStoredReads:
+             {"section": "players", "fixture_id": 1, "team_id": AWAY, "n": 15, "complete": True},
+             {"section": "statistics", "fixture_id": 1, "team_id": HOME, "n": 17, "complete": False},
+             {"section": "statistics", "fixture_id": 1, "team_id": AWAY, "n": 18, "complete": False},
++            {"section": "starters", "fixture_id": 1, "team_id": HOME, "n": 11, "complete": False},
+         ]
+         client = MagicMock()
+         client.query.return_value.result.return_value = rows
+@@ -228,15 +309,19 @@ class TestStoredReads:
+             "events": 12,
+             "players_by_team": {HOME: 16, AWAY: 15},
+             "statistics_by_team": {HOME: 17, AWAY: 18},
++            "starters_by_team": {HOME: 11},
+             "players_complete": True,
+         }
+-        assert stored[2] == {"events": 0, "players_by_team": {}, "statistics_by_team": {}, "players_complete": False}
++        assert stored[2] == _empty_stored()
++        assert "stg_apif__lineups" in client.query.call_args.args[0]
+ 
+     def test_unread_raw_rows_compares_with_the_oldest_staging_table(self):
+         older = datetime(2026, 10, 12, 4, 10, tzinfo=timezone.utc)
+         newer = datetime(2026, 10, 12, 4, 30, tzinfo=timezone.utc)
+         client = MagicMock()
+-        client.get_table.side_effect = [MagicMock(modified=newer), MagicMock(modified=older), MagicMock(modified=newer)]
++        client.get_table.side_effect = [
++            MagicMock(modified=newer), MagicMock(modified=older), MagicMock(modified=newer), MagicMock(modified=newer),
++        ]
+         client.query.return_value.result.return_value = iter([{"n": 4}])
+         assert refetch.unread_raw_rows(client, [1, 2]) == 4
+         params = {p.name: p for p in client.query.call_args.kwargs["job_config"].query_parameters}

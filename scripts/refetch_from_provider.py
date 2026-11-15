@@ -1,10 +1,11 @@
 """Ask the provider again for named matches or team-seasons, and append the answers to raw.
 
 fixtures: GET /fixtures?ids= (20 a call) for every match in --ids-file (CSV: league_code,fixture_id).
-A match is written only when its new answer holds two line-ups of eleven starters and is no worse
-than any stored fetch of it: no fewer events, no fewer player rows or statistics lines for either
-team, and not losing the complete player format. Base takes the latest events fetch whole, so a
-shorter answer would replace a longer one. The stored counts come from the staging tables, so a run
+A match is written only when its new answer is no worse than any stored fetch of it: no fewer
+events, no fewer player rows, statistics lines or starters for either team, and not losing the
+complete player format. Base takes the latest events fetch and each team's latest line-up whole, so
+a shorter answer would replace a longer one. The answer must also be better in one of those, or it
+adds nothing base does not already hold. The stored counts come from the staging tables, so a run
 is refused while raw holds a row for a listed match that staging has not read yet.
 
 squads: GET /players?team=&season= for every pair in --pairs-file (CSV: league_code,team_id,season),
@@ -63,7 +64,17 @@ from ingestion.api_football.settings import (  # noqa: E402
 
 LEASE_MINUTES = 60
 CALL_WINDOW_MINUTES = 50
-STAGING_TABLES = ("stg_apif__fixture_events", "stg_apif__fixture_players", "stg_apif__fixture_statistics")
+STAGING_TABLES = (
+    "stg_apif__fixture_events",
+    "stg_apif__fixture_players",
+    "stg_apif__fixture_statistics",
+    "stg_apif__lineups",
+)
+SECTIONS = (
+    ("players_by_team", "player rows"),
+    ("statistics_by_team", "statistics lines"),
+    ("starters_by_team", "starters"),
+)
 
 
 def read_fixture_list(path: str) -> dict[str, list[int]]:
@@ -110,26 +121,37 @@ def payload_counts(fx: dict) -> dict:
             for p in players
         ),
         "statistics_by_team": {_team_id(t): len(t.get("statistics") or []) for t in fx.get("statistics") or []},
-        "full_lineups": len(lineups) == 2
-        and all(len(lu.get("startXI") or []) == 11 for lu in lineups),
+        "starters_by_team": {_team_id(lu): len(lu.get("startXI") or []) for lu in lineups},
     }
 
 
+def _gains(new: dict, stored: dict) -> bool:
+    if new["events"] > stored["events"]:
+        return True
+    if new["players_complete"] and not stored["players_complete"]:
+        return True
+    return any(
+        n_new > stored[key].get(team, 0)
+        for key, _ in SECTIONS
+        for team, n_new in new[key].items()
+    )
+
+
 def refusal_reasons(new: dict, stored: dict | None) -> list[str]:
-    reasons = []
-    if not new["full_lineups"]:
-        reasons.append("no two line-ups of eleven starters")
     if stored is None:
-        return reasons
+        return []
+    reasons = []
     if new["events"] < stored["events"]:
         reasons.append(f"fewer events ({new['events']} < {stored['events']})")
-    for key, label in (("players_by_team", "player rows"), ("statistics_by_team", "statistics lines")):
+    for key, label in SECTIONS:
         for team, n_stored in sorted(stored[key].items()):
             n_new = new[key].get(team, 0)
             if n_new < n_stored:
                 reasons.append(f"fewer {label} for team {team} ({n_new} < {n_stored})")
     if stored["players_complete"] and not new["players_complete"]:
         reasons.append("loses the complete player format")
+    if not reasons and not _gains(new, stored):
+        reasons.append("adds nothing a stored fetch lacks")
     return reasons
 
 
@@ -151,6 +173,11 @@ statistics as (
     from `{p}.staging.stg_apif__fixture_statistics`
     where fixture_id in unnest(@ids)
     group by 1, 2, 3
+),
+starters as (
+    select fixture_id, team_id, array_length(json_query_array(start_xi_json)) as n
+    from `{p}.staging.stg_apif__lineups`
+    where fixture_id in unnest(@ids)
 )
 select 'events' as section, fixture_id, cast(null as int64) as team_id, max(n) as n, false as complete
 from events group by 2
@@ -158,6 +185,8 @@ union all
 select 'players', fixture_id, team_id, max(n), logical_or(complete) from players group by 2, 3
 union all
 select 'statistics', fixture_id, team_id, max(n), false from statistics group by 2, 3
+union all
+select 'starters', fixture_id, team_id, max(n), false from starters group by 2, 3
 """
 
 
@@ -169,7 +198,13 @@ def stored_counts(client: bigquery.Client, fixture_ids: list[int]) -> dict[int, 
         ),
     )
     out = {
-        fid: {"events": 0, "players_by_team": {}, "statistics_by_team": {}, "players_complete": False}
+        fid: {
+            "events": 0,
+            "players_by_team": {},
+            "statistics_by_team": {},
+            "starters_by_team": {},
+            "players_complete": False,
+        }
         for fid in fixture_ids
     }
     for r in job.result():
@@ -180,7 +215,7 @@ def stored_counts(client: bigquery.Client, fixture_ids: list[int]) -> dict[int, 
             stored["players_by_team"][int(r["team_id"] or 0)] = int(r["n"])
             stored["players_complete"] = stored["players_complete"] or bool(r["complete"])
         else:
-            stored["statistics_by_team"][int(r["team_id"] or 0)] = int(r["n"])
+            stored[f"{r['section']}_by_team"][int(r["team_id"] or 0)] = int(r["n"] or 0)
     print(f"stored counts read: {job.total_bytes_billed or 0} bytes billed", flush=True)
     return out
 
