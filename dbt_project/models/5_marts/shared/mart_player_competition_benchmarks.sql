@@ -55,7 +55,8 @@ page_filters as (
             order by
                 {{ competition_type_order('w.competition_type') }} asc,
                 w.last_match_at desc,
-                w.league_code asc
+                w.league_code asc,
+                w.season_sk asc
         ) as window_order
     from {{ ref('int_player_page__window_seasons') }} as w
     inner join {{ ref('int_player__page_profile') }} as p

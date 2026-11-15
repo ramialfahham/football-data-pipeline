@@ -50,7 +50,8 @@ featured as (
             case when competition_type = 'domestic_league' then 0 else 1 end asc,
             season_api_year desc,
             last_match_at desc,
-            league_code asc
+            league_code asc,
+            season_sk asc
     ) = 1
 ),
 

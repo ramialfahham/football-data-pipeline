@@ -52,7 +52,7 @@ current_competitions as (
         is_running
         or (
             not logical_or(is_running) over (partition by team_sk)
-            and row_number() over (partition by team_sk order by last_match_at desc, league_code asc) = 1
+            and row_number() over (partition by team_sk order by last_match_at desc, league_code asc, season_sk asc) = 1
         )
 ),
 

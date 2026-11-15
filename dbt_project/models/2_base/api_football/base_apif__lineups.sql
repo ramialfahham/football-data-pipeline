@@ -312,22 +312,37 @@ squads as (
     from {{ ref('base_apif__player_team_season') }}
 ),
 
-transfers as (
-    select
+same_day_departures as (
+    select distinct
         player_id,
-        team_in_id,
+        team_out_id,
         transfer_date
     from {{ ref('base_apif__transfers') }}
-    where team_in_id is not null
+    where team_out_id is not null
 ),
 
-club_on_match_day as (
+-- Two moves on one day: the club the player joins and does not leave again that day wins.
+transfers as (
+    select
+        moves.player_id,
+        moves.team_in_id,
+        moves.transfer_date,
+        departures.team_out_id is not null as is_left_same_day
+    from {{ ref('base_apif__transfers') }} as moves
+    left join same_day_departures as departures
+        on
+            moves.player_id = departures.player_id
+            and moves.transfer_date = departures.transfer_date
+            and moves.team_in_id = departures.team_out_id
+    where moves.team_in_id is not null
+),
+
+latest_moves as (
     select
         lined.league_code,
         lined.fixture_id,
         lined.player_id,
-        array_agg(transfers.team_in_id order by transfers.transfer_date desc limit 1)[offset(0)]
-            as team_id
+        transfers.team_in_id
     from lined
     inner join fixture_participants
         on
@@ -337,7 +352,21 @@ club_on_match_day as (
         on
             lined.player_id = transfers.player_id
             and fixture_participants.fixture_date >= transfers.transfer_date
-    group by lined.league_code, lined.fixture_id, lined.player_id
+    qualify rank() over (
+        partition by lined.league_code, lined.fixture_id, lined.player_id
+        order by transfers.transfer_date desc, transfers.is_left_same_day asc
+    ) = 1
+),
+
+-- Two clubs still tied on the latest move give no club: the source does not say which one.
+club_on_match_day as (
+    select
+        league_code,
+        fixture_id,
+        player_id,
+        if(count(distinct team_in_id) = 1, min(team_in_id), null) as team_id
+    from latest_moves
+    group by league_code, fixture_id, player_id
 ),
 
 placed as (

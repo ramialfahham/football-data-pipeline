@@ -46,7 +46,8 @@ latest_per_team as (
         partition by team_api_id
         order by
             has_attributes desc,
-            raw_ingested_at desc
+            raw_ingested_at desc,
+            league_code asc
     ) = 1
 ),
 

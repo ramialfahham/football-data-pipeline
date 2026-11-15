@@ -40,6 +40,7 @@ stg_standings as (
         league_code,
         team_id as team_api_id,
         team_name,
+        season,
         raw_ingested_at
     from {{ ref('stg_apif__standings') }}
     where team_id is not null
@@ -228,7 +229,7 @@ fixture_team_names as (
         raw_ingested_at,
         row_number() over (
             partition by league_code, team_api_id
-            order by raw_ingested_at desc, fixture_id desc
+            order by raw_ingested_at desc, fixture_id desc, team_name asc
         ) as rn
     from (
         select
@@ -261,7 +262,7 @@ standings_team_names as (
         raw_ingested_at,
         row_number() over (
             partition by league_code, team_api_id
-            order by raw_ingested_at desc
+            order by raw_ingested_at desc, season desc, team_name asc
         ) as rn
     from stg_standings
     where team_name is not null
@@ -275,7 +276,7 @@ fixture_level_team_names as (
         raw_ingested_at,
         row_number() over (
             partition by league_code, team_api_id
-            order by raw_ingested_at desc
+            order by raw_ingested_at desc, fixture_id desc, team_name asc
         ) as rn
     from stg_fixture_level
     where team_name is not null
