@@ -76,6 +76,40 @@ def test_the_competition_list_name_wraps_between_words():
     assert "nowrap" not in block.group(1)
 
 
+def test_linked_rows_are_square_and_flush():
+    css = _read("styles/system.css")
+    row = re.search(r"^a\.fxrow, a\.ctab-row, a\.frow, a\.lrow \{(.*?)\}", css, re.M)
+    assert row is not None
+    assert "border-radius" not in row.group(1) and "margin-inline" not in row.group(1)
+    assert re.search(r"^a\.brow \{", css, re.M) is None
+    assert "border-radius" not in "".join(re.findall(r"^a\.comp-row \{(.*?)\}", css, re.M))
+
+
+def test_a_team_competition_row_keeps_the_space_in_goals_and_points():
+    text = _read("components/team/TeamCompetitions.astro")
+    assert re.search(r'"goals"\)\}\{" "\}<b>', text)
+    assert re.search(r'"points"\)\}\{" "\}<b>', text)
+
+
+def test_the_header_buttons_shrink_before_the_header_overflows():
+    css = _read("styles/system.css")
+    assert ".iconbtn { width: 44px; height: 44px; flex: 0 1 auto; min-width: 34px; }" in css
+    assert ".header-actions { flex: 0 1 auto; min-width: 0; }" in css
+    assert css.rindex(".header-actions { flex: 0 1 auto") > css.index(".header-actions { margin-left: auto")
+
+
+def test_the_team_page_explainer_does_not_name_the_team():
+    strings = _read("i18n/strings.ts")
+    for line in re.findall(r"^\s*teamPerfIntro: .*$", strings, re.M):
+        assert "{team}" not in line
+    assert "team:" not in re.search(r'"teamPerfIntro", \{(.*?)\}', _read("pages/[lang]/[teams]/[team].astro")).group(1)
+
+
+def test_a_separator_dot_is_one_unit_and_the_page_loads_the_script():
+    assert "dotEdges.mjs" in _read("layouts/Layout.astro")
+    assert "data-dot" in _read("lib/wholeWords.mjs")
+
+
 def test_the_scatter_axis_title_has_room_inside_the_drawing():
     theme = _read("lib/chartTheme.ts")
     title_x = int(re.search(r"yTitleX:\s*(\d+)", theme).group(1))

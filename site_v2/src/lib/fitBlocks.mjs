@@ -51,6 +51,18 @@ function start() {
     facts: (block) => [...block.children].filter((r) => r.classList.contains("frow") && shown(r))
       .map((row) => ({ need: oneLine(row), room: row.clientWidth })),
     header: (block) => [{ need: block.scrollWidth, room: block.clientWidth }],
+    // the day picker's title: the long date on one line, in the title's own style
+    picker: (block) => {
+      const title = block.querySelector(".mdtitle");
+      const long = title.querySelector("[data-long]");
+      if (!long) return [];
+      const num = title.querySelector(".num");
+      const text = long.textContent.trim().toLocaleUpperCase();
+      const s = getComputedStyle(num);
+      ctx.font = `${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`;
+      const tracking = parseFloat(s.letterSpacing) || 0;
+      return [{ need: ctx.measureText(text).width + tracking * text.length, room: title.clientWidth }];
+    },
     tagged: (block) => [...block.querySelectorAll(":scope > .sides")]
       .map((sides) => ({ need: sides.scrollWidth, room: sides.clientWidth }))
       .concat(names(block, ":scope > .sides .side .nm")),
@@ -113,6 +125,7 @@ function start() {
   };
   const blocks = [
     ...[...document.querySelectorAll(".header-in")].map((b) => [b, "header"]),
+    ...[...document.querySelectorAll(".mdstep")].map((b) => [b, "picker"]),
     ...[...document.querySelectorAll(".ctab")].map((b) => [b, "table"]),
     ...[...new Set([...document.querySelectorAll(".frow")].map((r) => r.parentElement))].map((b) => [b, "facts"]),
     ...[...document.querySelectorAll(".fxrow:has(> .topmatch)")].map((b) => [b, "tagged"]),

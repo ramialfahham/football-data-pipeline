@@ -559,7 +559,6 @@ a.fold-ctl .chev { transform: none; }
    responds — never the name inside it. ⚠ The mock underlined .nm on hover; that predates the
    navigation rule and is deliberately NOT carried, because it points the affordance at a word
    inside a target that is the entire row. Neutral ramp only; --accent is reserved. */
-a.brow { border-radius: 9px; margin-inline: -12px; padding-inline: 12px; }
 a.brow .nm { text-decoration: none; }
 /* THE ROW-LINK RULE, site-wide: a row that leads somewhere is ONE link, the whole row, and it
    lights on hover; an underline is for a word inside text, never for a name inside a row. One
@@ -570,7 +569,7 @@ a.brow .nm { text-decoration: none; }
   a.brow:hover, a.comp-row:hover, a.fxrow:hover, a.ctab-row:hover, a.frow:hover, a.lrow:hover { background: color-mix(in srgb, var(--ink) 11%, transparent); }
 }
 a.brow:active, a.comp-row:active, a.fxrow:active, a.ctab-row:active, a.frow:active, a.lrow:active { background: var(--sunk); }
-a.fxrow, a.ctab-row, a.frow, a.lrow { border-radius: 9px; margin-inline: -12px; padding-inline: 12px; color: inherit; text-decoration: none; }
+a.fxrow, a.ctab-row, a.frow, a.lrow { color: inherit; text-decoration: none; }
 a.fxrow:focus-visible, a.ctab-row:focus-visible, a.frow:focus-visible, a.lrow:focus-visible { outline-offset: -2px; }
 a.lrow { display: block; }
 /* ⚠ THE RING IS DRAWN INSIDE, and the reason is measured, not stylistic — same defect class as
@@ -658,7 +657,6 @@ a.brow:focus-visible { outline-offset: -2px; }
 /* The row is a link: hover and active come from the shared row-link rule above `a.brow`; the ring
    is drawn inside for the same reason (the grid gap is 8px; a 4px outward ring would touch the
    neighbour). */
-a.comp-row { border-radius: 9px; }
 a.comp-row:focus-visible { outline-offset: -2px; }
 /* The Teams page: two columns at most, so an even list leaves no hole; a top list opens on its
    first row's line, not its padding (the block heading's gap); a heading inside a list spans the
@@ -749,6 +747,11 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .mdstep { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 10px; border-bottom: 2px solid var(--div); }
 .mdstep .mdtitle { flex: 1; display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; min-width: 0; }
 .mdstep .mdtitle .num { font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); text-align: center; }
+/* The title takes the short form where the long one does not fit (fitBlocks.mjs marks .mdstep fit-one
+   where it does); without the script the short form shows. */
+.mdstep [data-long] { display: none; }
+.mdstep.fit-one [data-long] { display: inline; }
+.mdstep.fit-one [data-short] { display: none; }
 .mdstep .step { width: 34px; height: 34px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 9px; border: 1px solid var(--line); color: var(--ink-2); cursor: pointer; }
 .mdstep .step svg { width: 16px; height: 16px; }
 .mdstep .step:hover { background: var(--surface); }
@@ -1198,5 +1201,26 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
 .rlist.pm.fit-one .resrow .rmeta { text-align: right; }
 .rlist.pm.fit-one .resrow .rm-c, .rlist.pm.fit-one .resrow .rm-p { display: inline; }
 .rlist.pm.fit-one .resrow .rm-p::before { content: " · "; }
+
+/* TAP AREAS: every link and button is at least 44px high and wide; the text and look stay.
+   A box that is too small grows by padding it gives back as negative margin, or by room it takes. The
+   header's icon buttons are 44px wide only where the header holds three of them. */
+a.fxrow, a.ctab-row, a.frow, a.lrow, a.brow { min-height: 44px; }
+a.comp-row { position: relative; }
+a.comp-row::after { content: ""; position: absolute; inset: -2px 0; }
+a.cnm { position: relative; }
+a.cnm::after { content: ""; position: absolute; inset: -14px 0; }
+.fold-ctl, .tsw-lbl { min-height: 44px; padding-block: 0; }
+.seg .seg-btn { display: flex; align-items: center; justify-content: center; min-height: 44px; padding-block: 0; }
+.mainnav a { padding-block: 12px; }
+.flinks { align-items: center; row-gap: 0; }
+.flinks a { padding: 13px 6px; margin-inline: -6px; }
+.brand { padding-block: 9px; }
+.site-footer .brand, .footer-in .brand { padding-block: 11px; }
+b.nb > a.lnk, .tid a.lnk, .colhead a.lnk { padding-block: 14px; }
+.colhead a.lnk { padding-inline: 3px; margin-inline: -3px; }
+.iconbtn { width: 44px; height: 44px; flex: 0 1 auto; min-width: 34px; }
+.header-actions { flex: 0 1 auto; min-width: 0; }
+.mdstep .step { width: 44px; height: 44px; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

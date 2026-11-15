@@ -43,8 +43,8 @@ const Row = slug ? "a" : "div";
         <span class="nb"><b>{count(player.saves_player)}</b> {word(player.saves_player, "savesOne", "savesMany")}</span>
       ) : (
         <>
-          <span class="nb"><b>{count(player.goals_total)}</b> {word(player.goals_total, "goalsOne", "goalsMany")} ·</span>{" "}
-          <span class="nb"><b>{count(player.goals_assists)}</b> {word(player.goals_assists, "assistsOne", "assistsMany")}</span>
+          <span class="nb"><b>{count(player.goals_total)}</b> {word(player.goals_total, "goalsOne", "goalsMany")}</span>{" "}
+          <span class="nb">· <b>{count(player.goals_assists)}</b> {word(player.goals_assists, "assistsOne", "assistsMany")}</span>
         </>
       )}
     </span>
