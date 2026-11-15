@@ -576,6 +576,8 @@ validate:ui:
       - artifacts/design_inventory_fi
       - artifacts/chart_screenshots
     expire_in: 7 days
+  # Main's full sweep renders every page at 6 widths in 3 languages and runs 41–60 min, over the 1h default.
+  timeout: 2h
   rules:
     - *not_on_schedule
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
