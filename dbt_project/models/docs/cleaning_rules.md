@@ -35,6 +35,11 @@ match stats are good enough.
   events add up to the score only without such events. Where a match's goal events stay wrong, its
   goals come from sourced research in the fixture_goal_corrections seed. A player's goals come from
   the per-player count or the goal events, whichever adds up to the score.
+  A result that fails a result check is withheld until sourced research stands in
+  fixture_result_corrections. The match has no score, shoot-out or winner, is not played, and
+  counts in no form, record or cup round.
+- Withheld values. A value that fails its check and has no sourced correction yet is left blank,
+  as line-ups and cards are.
 - Cards. A player's yellow and red cards are exact. Where his stat line and the card events
   disagree, or a card's player is not on the sheet, the match's cards come from sourced research.
   Research is not needed where another fetch gives the events' count.
