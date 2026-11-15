@@ -337,10 +337,13 @@ models:
               field: country_name
           - not_null:
               config:
-                where: "is_national_team"
+                where: "is_national_team and not country_needs_research"
           - unique:
               config:
                 where: "is_national_team"
+      - name: country_needs_research
+        description: "{{ doc('country_needs_research') }}"
+        tests: [not_null]
       - name: team_founded_year
         description: "Year the team was founded."
       - name: team_logo_url

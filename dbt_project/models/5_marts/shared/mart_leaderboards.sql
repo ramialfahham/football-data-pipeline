@@ -24,6 +24,9 @@
   match_leader_order is the tie-broken position, fewer minutes winning, and the board keeps its first
   three. On match rows the value is sort_value alone, so the season-only columns are NULL. Season rows
   carry window_type 'season_to_date'. Grain of a match row: (fixture_sk, player_sk, metric_key).
+
+  A competition-season whose player stats need research (stats_need_research in
+  int_competition_season__player_stat_corrections) has no rows: its boards are withheld.
 #}
 
 {# The season boards. Adding or removing a key here must also move shared.yml's accepted_values. #}
@@ -269,7 +272,14 @@ ranked as (
         row_number() over (
             partition by league_code, season_api_year, metric_key
             order by sort_key asc, minutes asc nulls last, player_sk asc
-        ) as league_leader_order
+        ) as league_leader_order,
+        -- WHICH SEASON a consumer should show, served as a fact: the latest season per LEAGUE, so
+        -- every row of a league agrees. Computed before a withheld season leaves the board, so a
+        -- withheld latest season never hands the flag to the season before it.
+        rank() over (
+            partition by league_code
+            order by season_api_year desc
+        ) = 1 as is_current_season
     from season_scored
 ),
 
@@ -456,12 +466,7 @@ select
     dribbles_success_player_pct,
     saves_player_pct,
     finishing_efficiency_player_pct,
-    -- WHICH SEASON a consumer should show, served as a fact: the latest season per LEAGUE, so every
-    -- row of a league agrees.
-    rank() over (
-        partition by league_code
-        order by season_api_year desc
-    ) = 1 as is_current_season,
+    is_current_season,
     -- NULL on every row that is not a league leader: the position is only defined among leaders.
     case
         when league_leader_order = 1 then row_number() over (
@@ -479,6 +484,12 @@ select
     cast(null as int64) as fixture_sk,
     cast(null as int64) as match_leader_order
 from ranked
+where
+    season_sk not in (
+        select c.season_sk
+        from {{ ref('int_competition_season__player_stat_corrections') }} as c
+        where c.stats_need_research and c.season_sk is not null
+    )
 
 union all
 
@@ -535,3 +546,8 @@ select
     fixture_sk,
     match_leader_order
 from match_rows
+where season_sk not in (
+    select c.season_sk
+    from {{ ref('int_competition_season__player_stat_corrections') }} as c
+    where c.stats_need_research and c.season_sk is not null
+)

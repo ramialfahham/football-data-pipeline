@@ -36,7 +36,8 @@ teams as (
         team_name,
         team_slug,
         team_logo_url,
-        team_country
+        team_country,
+        country_needs_research
     from {{ ref('dim_team') }}
 ),
 
@@ -568,6 +569,7 @@ select
     t.team_slug,
     t.team_logo_url,
     t.team_country,
+    t.country_needs_research,
     l.league_code,
     l.league_tier,
     l.standing_group_name,

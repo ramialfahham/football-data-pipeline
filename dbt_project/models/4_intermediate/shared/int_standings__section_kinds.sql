@@ -138,21 +138,36 @@ cross_group_rankings as (
         count(*) > 1
         and logical_and(other_tables = 1)
         and count(distinct other_table) = count(*)
+),
+
+kinds as (
+    select
+        k.league_code,
+        k.season_api_year,
+        k.group_name,
+        if(r.group_name is null and c.group_name is null, k.table_kind, 'ranking') as table_kind
+    from named_kinds as k
+    left join cross_group_rankings as r
+        on
+            k.league_code = r.league_code
+            and k.season_api_year = r.season_api_year
+            and k.group_name = r.group_name
+    left join combined_tables as c
+        on
+            k.league_code = c.league_code
+            and k.season_api_year = c.season_api_year
+            and k.group_name = c.group_name
 )
 
+-- A league table beside group or conference tables is a section no rule names: it is withheld
+-- from mart_standings until a standings_table_kinds pattern names it.
 select
-    k.league_code,
-    k.season_api_year,
-    k.group_name,
-    if(r.group_name is null and c.group_name is null, k.table_kind, 'ranking') as table_kind
-from named_kinds as k
-left join cross_group_rankings as r
-    on
-        k.league_code = r.league_code
-        and k.season_api_year = r.season_api_year
-        and k.group_name = r.group_name
-left join combined_tables as c
-    on
-        k.league_code = c.league_code
-        and k.season_api_year = c.season_api_year
-        and k.group_name = c.group_name
+    league_code,
+    season_api_year,
+    group_name,
+    table_kind,
+    table_kind = 'league'
+    and countif(table_kind in ('group', 'conference')) over (
+        partition by league_code, season_api_year
+    ) > 0 as kind_needs_research
+from kinds

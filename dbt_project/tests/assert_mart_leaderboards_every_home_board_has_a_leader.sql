@@ -38,15 +38,19 @@ import_dim_competition_season as (
 latest_seasons as (
     select
         league_code,
+        season_sk,
         competition_group
     from import_dim_competition_season
     qualify row_number() over (partition by league_code order by season_api_year desc) = 1
 ),
 
+-- A league whose latest season is withheld (stats_need_research) has no board to lead.
 elite_leagues as (
-    select league_code
-    from latest_seasons
-    where competition_group = 'elite'
+    select l.league_code
+    from latest_seasons as l
+    left join {{ ref('int_competition_season__player_stat_corrections') }} as w
+        on l.season_sk = w.season_sk and w.stats_need_research
+    where l.competition_group = 'elite' and w.season_sk is null
 ),
 
 expected as (

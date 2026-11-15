@@ -90,8 +90,14 @@ match stats are good enough.
   minus the player's own); own_goals_left_out (shots inside the box less the own goals the
   provider counted as the team's shots); split_does_not_add_up (a split of shots that does not add
   up to the total, left blank, shots on target excepted).
-- A test fails the build when a competition-season's share of corrected or blanked values passes
-  its limit.
+- A competition-season whose share of corrected or blanked player values passes its limit has its
+  player and team boards withheld.
+- A line-up team's player goals that do not add up to its score stay blank until sourced research
+  stands.
+- A standings section that resolves to a league table beside group or conference tables is
+  withheld until a standings_table_kinds pattern names it.
+- A team's country that is missing, or that changed between deliveries, is withheld until a
+  team_country_corrections row settles it.
 {% enddocs %}
 
 {% docs stat_corrections_cleaned_value %}

@@ -39,7 +39,7 @@ sections as (
             and s.group_name = k.group_name
     inner join competitions as r
         on s.league_code = r.league_code
-    where k.table_kind != 'ranking'
+    where k.table_kind != 'ranking' and not k.kind_needs_research
 ),
 
 single_table_seasons as (
