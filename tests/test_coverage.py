@@ -11,11 +11,14 @@ from google.cloud.exceptions import NotFound
 from ingestion.api_football.coverage import (
     ENDPOINT_TO_SHELL_KEY,
     FANOUT_ENDPOINTS,
+    LATE_FETCH_DELAYS,
+    LATE_FETCH_WINDOW,
     NEWER_FORMAT_REFETCH_DELAY,
     SECOND_FETCH_DELAY,
     SHELL_KEY_TO_ENDPOINT,
     STATS_GRACE_DAYS,
     covered_for_league,
+    late_fetch_due,
     newer_format_refetch_due,
     read_coverage,
     second_fetch_due,
@@ -215,11 +218,13 @@ class TestReadCoverage:
         latest_fetch: datetime | None = None,
         kickoff: datetime | None = None,
         latest_in_newer_format: bool = False,
+        has_players: bool = True,
     ):
         row = MagicMock()
         row.league_code = league_code
         row.fixture_id = fixture_id
         row.has_statistics = has_statistics
+        row.has_players = has_players
         row.latest_fetch = latest_fetch
         row.kickoff = kickoff
         row.latest_in_newer_format = latest_in_newer_format
@@ -264,6 +269,31 @@ class TestReadCoverage:
             self._row("WC", 1, True, latest_fetch=kickoff + timedelta(days=4), kickoff=kickoff),
         )
         assert result["WC"]["FIXTURE_PLAYERS"][1] is True
+
+    def test_players_not_covered_while_a_late_fetch_for_missing_player_stats_is_due(self):
+        kickoff = datetime.now(timezone.utc) - timedelta(days=8)
+        result = self._read(
+            self._row(
+                "KL1", 1, True, latest_fetch=kickoff + timedelta(days=4), kickoff=kickoff,
+                has_players=False,
+            ),
+        )
+        assert result["KL1"]["FIXTURE_PLAYERS"][1] is False
+
+    def test_players_not_covered_while_a_late_fetch_for_missing_team_stats_is_due(self):
+        kickoff = datetime.now(timezone.utc) - timedelta(days=31)
+        result = self._read(
+            self._row("CAFCL", 1, False, latest_fetch=kickoff + timedelta(days=8), kickoff=kickoff),
+        )
+        assert result["CAFCL"]["FIXTURE_PLAYERS"][1] is False
+        assert result["CAFCL"]["FIXTURE_STATISTICS"][1] is False
+
+    def test_players_covered_when_nothing_is_missing_at_the_late_marks(self):
+        kickoff = datetime.now(timezone.utc) - timedelta(days=31)
+        result = self._read(
+            self._row("KL1", 1, True, latest_fetch=kickoff + timedelta(days=4), kickoff=kickoff),
+        )
+        assert result["KL1"]["FIXTURE_PLAYERS"][1] is True
 
     def test_players_covered_before_the_delay_has_passed(self):
         kickoff = datetime.now(timezone.utc) - timedelta(days=1)
@@ -419,3 +449,52 @@ class TestNewerFormatRefetchDue:
     def test_unknown_kickoff_or_fetch_is_never_due(self):
         assert newer_format_refetch_due(None, self.KICKOFF, True, self.REFETCH_FROM) is False
         assert newer_format_refetch_due(self.THIRD_DAY_FETCH, None, True, self.REFETCH_FROM) is False
+
+
+# ---------------------------------------------------------------------------
+# late_fetch_due — a match still missing player or team stats is asked for again at 7 and 30 days
+# ---------------------------------------------------------------------------
+
+
+class TestLateFetchDue:
+    KICKOFF = datetime(2026, 10, 1, 19, 0, tzinfo=timezone.utc)
+    THIRD_DAY_FETCH = KICKOFF + SECOND_FETCH_DELAY
+    SEVEN = KICKOFF + LATE_FETCH_DELAYS[0]
+    THIRTY = KICKOFF + LATE_FETCH_DELAYS[1]
+
+    def test_the_marks_are_seven_and_thirty_days(self):
+        assert LATE_FETCH_DELAYS == (timedelta(days=7), timedelta(days=30))
+
+    def test_due_once_the_seven_day_mark_has_passed(self):
+        assert late_fetch_due(self.THIRD_DAY_FETCH, self.KICKOFF, True, self.SEVEN) is True
+
+    def test_not_due_before_the_seven_day_mark(self):
+        now = self.SEVEN - timedelta(minutes=1)
+        assert late_fetch_due(self.THIRD_DAY_FETCH, self.KICKOFF, True, now) is False
+
+    def test_a_fetch_at_seven_days_is_due_again_at_thirty(self):
+        assert late_fetch_due(self.SEVEN, self.KICKOFF, True, self.THIRTY - timedelta(minutes=1)) is False
+        assert late_fetch_due(self.SEVEN, self.KICKOFF, True, self.THIRTY) is True
+
+    def test_a_fetch_at_thirty_days_is_never_due_again(self):
+        later = self.THIRTY + timedelta(days=365)
+        assert late_fetch_due(self.THIRTY, self.KICKOFF, True, later) is False
+
+    def test_a_missed_mark_is_due_on_the_next_run(self):
+        next_run = self.SEVEN + timedelta(days=1)
+        assert late_fetch_due(self.THIRD_DAY_FETCH, self.KICKOFF, True, next_run) is True
+
+    def test_a_mark_is_due_for_one_window_only(self):
+        assert late_fetch_due(self.THIRD_DAY_FETCH, self.KICKOFF, True, self.SEVEN + LATE_FETCH_WINDOW - timedelta(minutes=1)) is True
+        assert late_fetch_due(self.THIRD_DAY_FETCH, self.KICKOFF, True, self.SEVEN + LATE_FETCH_WINDOW) is False
+
+    def test_an_old_match_fetched_at_three_days_is_never_due(self):
+        a_year_on = self.KICKOFF + timedelta(days=400)
+        assert late_fetch_due(self.THIRD_DAY_FETCH, self.KICKOFF, True, a_year_on) is False
+
+    def test_never_due_when_nothing_is_missing(self):
+        assert late_fetch_due(self.THIRD_DAY_FETCH, self.KICKOFF, False, self.THIRTY) is False
+
+    def test_unknown_kickoff_or_fetch_is_never_due(self):
+        assert late_fetch_due(None, self.KICKOFF, True, self.SEVEN) is False
+        assert late_fetch_due(self.THIRD_DAY_FETCH, None, True, self.SEVEN) is False
