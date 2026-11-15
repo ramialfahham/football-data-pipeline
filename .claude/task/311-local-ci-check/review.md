@@ -1,12 +1,15 @@
 # Review — claude/311-local-ci-check-2bb6c2 — 2026-11-15
 
-diff_sha256: 0b8e858834c6dca7d1cacc6e183c14d49874cd8da4e73c4900cbca21329b2748
+diff_sha256: 5a8ace605d0223d300858388547ddf53941bf9011c32af9449d031bd42b8bed0
 
-rounds: 3
+rounds: 4
+
+rounds_cap_override: round 4 is a delta review of one file, the validate-local skill's sentence split, after test:python failed on the sentence-length pin; approved in chat, 2026-11-15.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
+- Round 4 delta: the Tier 1c text of the validate-local skill is re-split into shorter sentences and a bullet list; every claim is kept, none added, and the file set is unchanged.
 - Round 1 FAIL: the baseline-consistency test and the full-scope pass lacked a named approval. Round 2: the test is removed, the amendment names the CPO approval of 15 Nov 2026 for the full-scope pass, and every file in the diff is inside scope_paths.
 - Parts 1 and 2 match the approved wording of #311; no page output changes, no credentials, no workflow permission widened.
 - Round 3 changed only the container name and its tests in a local script; the round 2 verdict stands on the rest.
