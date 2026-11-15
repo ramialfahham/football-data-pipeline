@@ -1,5 +1,6 @@
 -- Fail if any finished fixture has goals outside the plausible range [0, 20].
--- Catches swapped or corrupted goal values from the API.
+-- Catches swapped or corrupted goal values from the API. Such a result is withheld in base
+-- (result_needs_research), so a row here means the withholding failed.
 {{ config(store_failures = true) }}
 
 select fixture_sk
