@@ -652,7 +652,7 @@ a.brow:focus-visible { outline-offset: -2px; }
 .comp-meta { display: block; min-width: 0; }
 .comp-name {
   display: block; font-size: 14px; font-weight: 600; color: var(--ink);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  min-width: 0;
 }
 .comp-region { display: block; font-size: 12px; color: var(--muted); margin-top: 1px; }
 /* The row is a link: hover and active come from the shared row-link rule above `a.brow`; the ring
@@ -860,8 +860,8 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .vh { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 
 /* Breadcrumb trail: a separator travels with the level after it; every link has a 44px touch area.
-   Under 700px Home and the page itself leave, and the levels above the page sit on one line that
-   slides sideways, its cut start faded. */
+   Under 700px Home and the page itself leave, except that a trail of two levels keeps Home, and the
+   levels above the page sit on one line that slides sideways, its cut start faded. */
 .trail { align-items: center; padding-top: 6px; row-gap: 0; }
 .trail .lvl { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
 .trail .lnk { padding: 12px 6px; margin-inline: -6px; }

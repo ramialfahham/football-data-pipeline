@@ -6,6 +6,7 @@
 // Standing, Deserved points, Compared with the league, Compared with last season). The page
 // composes the shared elements; it holds no styling and derives no facts.
 import Layout from "../../../layouts/Layout.astro";
+import Breadcrumb from "../../../components/fixture/Breadcrumb.astro";
 import TeamHeader from "../../../components/team/TeamHeader.astro";
 import Tabs from "../../../components/team/Tabs.astro";
 import TeamCompetitions from "../../../components/team/TeamCompetitions.astro";
@@ -99,13 +100,7 @@ const crumbs = [
   section="teams"
 >
   <div class="inner">
-    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
-      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
-      <span class="sep">›</span>
-      <a class="lnk" href={teamsHref}>{t(lang, "navTeams")}</a>
-      <span class="sep">›</span>
-      <span class="here">{name}</span>
-    </nav>
+    <Breadcrumb items={crumbs.map((c) => ({ label: c.name, href: c.href }))} lang={lang} />
 
     <TeamHeader team={team} season={season} lang={lang} />
 

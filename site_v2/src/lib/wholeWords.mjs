@@ -1,4 +1,5 @@
-// A word joined by a hyphen never breaks at the hyphen: each word of a page's body text with a
+// A name never breaks between its initial and its surname ("A. Nollenberger"): they share the
+// no-break span too. A word joined by a hyphen never breaks at the hyphen: each word of a page's body text with a
 // letter, a hyphen and a letter in it is wrapped in the no-break span, so the word moves whole to the
 // next line while the text a reader copies, searches or a search engine indexes keeps its real
 // hyphen. Only text between tags inside <body> changes. Tags and attributes stay as they are, and so
@@ -11,7 +12,21 @@ const JOINED = /[\p{L}\p{M}]-[\p{L}\p{M}]/u;
 const TOKEN = /<!--[\s\S]*?-->|<\/?([A-Za-z][\w:-]*)[^>]*>|[^<]+|</g;
 const NB = /\sclass\s*=\s*["'](?:[^"']*\s)?nb[\s"']/i;
 
-const keep = (text) => text.replace(/\S+/g, (word) => (JOINED.test(word) ? `<span class="nb">${word}</span>` : word));
+const INITIAL = /^\p{Lu}\.$/u;
+const LETTER = /^\p{L}/u;
+
+const keep = (text) => {
+  const parts = text.split(/(\s+)/);
+  let out = "";
+  for (let i = 0; i < parts.length; i += 2) {
+    let j = i;
+    while (INITIAL.test(parts[j]) && parts[j + 1] === " " && LETTER.test(parts[j + 2] ?? "")) j += 2;
+    const unit = parts.slice(i, j + 1).join("");
+    out += (j > i || JOINED.test(unit) ? `<span class="nb">${unit}</span>` : unit) + (parts[j + 1] ?? "");
+    i = j;
+  }
+  return out;
+};
 
 /** The page with every hyphen-joined word of its body text kept whole. */
 export function keepHyphenWords(html) {

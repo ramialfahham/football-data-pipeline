@@ -5,6 +5,7 @@
 // matches, Compared with other players, Recent matches). The season shown is the featured one. The
 // page composes the shared elements; it holds no styling and derives no facts.
 import Layout from "../../../layouts/Layout.astro";
+import Breadcrumb from "../../../components/fixture/Breadcrumb.astro";
 import PlayerHeader from "../../../components/player/PlayerHeader.astro";
 import PlayerComparison from "../../../components/player/PlayerComparison.astro";
 import PlayerLastSeason from "../../../components/player/PlayerLastSeason.astro";
@@ -131,13 +132,7 @@ const TAB = {
   section="players"
 >
   <div class="inner">
-    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
-      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
-      <span class="sep">›</span>
-      <a class="lnk" href={localeHref(lang, `${word(lang, "players")}/`)}>{t(lang, "navPlayers")}</a>
-      <span class="sep">›</span>
-      <span class="here">{name}</span>
-    </nav>
+    <Breadcrumb items={crumbs.map((c) => ({ label: c.name, href: c.href }))} lang={lang} />
 
     <PlayerHeader player={player} lang={lang} />
 
