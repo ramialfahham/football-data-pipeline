@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -14,8 +16,8 @@ from scripts import refetch_from_provider as refetch
 HOME, AWAY = 10, 20
 
 
-def _lineup(starters: int = 11) -> dict:
-    return {"startXI": [{"player": {"id": i}} for i in range(starters)], "substitutes": []}
+def _lineup(starters: int = 11, team: int = HOME) -> dict:
+    return {"team": {"id": team}, "startXI": [{"player": {"id": i}} for i in range(starters)], "substitutes": []}
 
 
 def _player(conceded=None) -> dict:
@@ -41,7 +43,7 @@ def _fixture(
             {"team": {"id": HOME}, "statistics": [{}] * statistics[0]},
             {"team": {"id": AWAY}, "statistics": [{}] * statistics[1]},
         ],
-        "lineups": lineups if lineups is not None else [_lineup(), _lineup()],
+        "lineups": lineups if lineups is not None else [_lineup(team=HOME), _lineup(team=AWAY)],
     }
 
 
@@ -50,11 +52,13 @@ def _stored(
     players: tuple[int, int] = (15, 15),
     statistics: tuple[int, int] = (8, 8),
     complete: bool = True,
+    starters: tuple[int, int] | None = None,
 ) -> dict:
     return {
         "events": events,
         "players_by_team": {HOME: players[0], AWAY: players[1]},
         "statistics_by_team": {HOME: statistics[0], AWAY: statistics[1]},
+        "starters_by_team": {} if starters is None else {HOME: starters[0], AWAY: starters[1]},
         "players_complete": complete,
     }
 
@@ -66,38 +70,64 @@ def _reset_quota_flag(monkeypatch):
 
 class TestPayloadCounts:
     def test_counts_every_section_per_team(self):
-        counts = refetch.payload_counts(_fixture(events=7, players=(16, 15), statistics=(17, 16)))
+        lineups = [_lineup(team=HOME), _lineup(10, team=AWAY)]
+        counts = refetch.payload_counts(
+            _fixture(events=7, players=(16, 15), statistics=(17, 16), lineups=lineups)
+        )
         assert counts == {
             "events": 7,
             "players_by_team": {HOME: 16, AWAY: 15},
             "players_complete": True,
             "statistics_by_team": {HOME: 17, AWAY: 16},
-            "full_lineups": True,
+            "starters_by_team": {HOME: 11, AWAY: 10},
         }
 
     def test_incomplete_player_format(self):
         assert not refetch.payload_counts(_fixture(conceded=None))["players_complete"]
 
-    def test_a_short_line_up_is_not_full(self):
-        assert not refetch.payload_counts(_fixture(lineups=[_lineup(), _lineup(10)]))["full_lineups"]
-
-    def test_one_line_up_is_not_full(self):
-        assert not refetch.payload_counts(_fixture(lineups=[_lineup()]))["full_lineups"]
-
     def test_empty_payload(self):
         counts = refetch.payload_counts({})
         assert counts["events"] == 0
-        assert counts["players_by_team"] == counts["statistics_by_team"] == {}
-        assert not counts["full_lineups"]
+        assert counts["players_by_team"] == counts["statistics_by_team"] == counts["starters_by_team"] == {}
+
+
+def _empty_stored() -> dict:
+    return {
+        "events": 0,
+        "players_by_team": {},
+        "statistics_by_team": {},
+        "starters_by_team": {},
+        "players_complete": False,
+    }
 
 
 class TestRefusalReasons:
-    def test_not_worse_with_full_line_ups_is_written(self):
+    def test_not_worse_and_gaining_line_ups_is_written(self):
         assert refetch.refusal_reasons(refetch.payload_counts(_fixture()), _stored()) == []
 
-    def test_a_match_with_nothing_stored_needs_only_the_line_ups(self):
-        empty = {"events": 0, "players_by_team": {}, "statistics_by_team": {}, "players_complete": False}
-        assert refetch.refusal_reasons(refetch.payload_counts(_fixture(events=0, players=(0, 0))), empty) == []
+    def test_an_answer_equal_to_the_stored_data_is_not_written(self):
+        new = refetch.payload_counts(_fixture(lineups=[]))
+        assert refetch.refusal_reasons(new, _stored()) == ["adds nothing a stored fetch lacks"]
+
+    def test_team_stats_without_line_ups_are_written(self):
+        new = refetch.payload_counts(_fixture(events=1, players=(0, 0), statistics=(16, 16), lineups=[]))
+        stored = {**_empty_stored(), "events": 1}
+        assert refetch.refusal_reasons(new, stored) == []
+
+    def test_player_rows_without_line_ups_are_written(self):
+        new = refetch.payload_counts(_fixture(players=(20, 20), lineups=[]))
+        assert refetch.refusal_reasons(new, _stored(players=(0, 0), complete=False)) == []
+
+    def test_gaining_the_complete_player_format_is_written(self):
+        new = refetch.payload_counts(_fixture(lineups=[]))
+        assert refetch.refusal_reasons(new, _stored(complete=False)) == []
+
+    def test_an_empty_answer_for_an_empty_match_is_not_written(self):
+        new = refetch.payload_counts(_fixture(events=0, players=(0, 0), statistics=(0, 0), lineups=[]))
+        assert refetch.refusal_reasons(new, _empty_stored()) == ["adds nothing a stored fetch lacks"]
+
+    def test_a_match_never_stored_is_written(self):
+        assert refetch.refusal_reasons(refetch.payload_counts(_fixture(lineups=[])), None) == []
 
     @pytest.mark.parametrize(
         "fixture_kwargs, stored_kwargs, reason",
@@ -106,12 +136,23 @@ class TestRefusalReasons:
             ({"players": (14, 15)}, {}, f"fewer player rows for team {HOME} (14 < 15)"),
             ({"statistics": (8, 7)}, {}, f"fewer statistics lines for team {AWAY} (7 < 8)"),
             ({"conceded": None}, {"complete": True}, "loses the complete player format"),
-            ({"lineups": [_lineup(10), _lineup()]}, {}, "no two line-ups of eleven starters"),
+            (
+                {"lineups": [_lineup(10, team=HOME), _lineup(team=AWAY)]},
+                {"starters": (11, 11)},
+                f"fewer starters for team {HOME} (10 < 11)",
+            ),
         ],
     )
     def test_a_worse_fetch_is_refused(self, fixture_kwargs, stored_kwargs, reason):
         new = refetch.payload_counts(_fixture(**fixture_kwargs))
         assert refetch.refusal_reasons(new, _stored(**stored_kwargs)) == [reason]
+
+    def test_losing_the_stored_line_ups_is_refused(self):
+        new = refetch.payload_counts(_fixture(statistics=(20, 20), lineups=[]))
+        assert refetch.refusal_reasons(new, _stored(starters=(11, 11))) == [
+            f"fewer starters for team {HOME} (0 < 11)",
+            f"fewer starters for team {AWAY} (0 < 11)",
+        ]
 
     def test_one_team_gaining_does_not_cover_the_other_losing(self):
         new = refetch.payload_counts(_fixture(statistics=(0, 20)))
@@ -120,6 +161,45 @@ class TestRefusalReasons:
     def test_more_of_everything_is_written(self):
         new = refetch.payload_counts(_fixture(events=9, players=(20, 20), statistics=(17, 17)))
         assert refetch.refusal_reasons(new, _stored()) == []
+
+
+_SAMPLE_PATH = Path(__file__).parent / "fixtures" / "apif" / "fixture_details_sample.json"
+
+
+def _sample(fixture_id: int) -> dict:
+    response = json.loads(_SAMPLE_PATH.read_text(encoding="utf-8"))["response"]
+    return next(fx for fx in response if fx["fixture"]["id"] == fixture_id)
+
+
+class TestProviderSample:
+    def test_a_match_with_every_section(self):
+        counts = refetch.payload_counts(_sample(1507045))
+        assert counts == {
+            "events": 3,
+            "players_by_team": {2746: 2, 2759: 2},
+            "players_complete": False,
+            "statistics_by_team": {2746: 3, 2759: 3},
+            "starters_by_team": {2746: 3, 2759: 3},
+        }
+
+    def test_a_line_up_block_without_starters_counts_none(self):
+        counts = refetch.payload_counts(_sample(1619071))
+        assert counts["starters_by_team"] == {1040: 0}
+        assert counts["players_by_team"] == {}
+        assert counts["statistics_by_team"] == {26759: 3, 1040: 3}
+
+    def test_team_stats_for_a_match_without_line_ups_are_written(self):
+        stored = {**_empty_stored(), "events": 3}
+        assert refetch.refusal_reasons(refetch.payload_counts(_sample(1619071)), stored) == []
+
+    def test_team_stats_for_a_match_without_player_rows_are_written(self):
+        stored = {**_empty_stored(), "events": 3, "starters_by_team": {1334: 3, 1370: 3}}
+        assert refetch.refusal_reasons(refetch.payload_counts(_sample(1646794)), stored) == []
+
+    def test_the_same_answer_again_is_not_written(self):
+        counts = refetch.payload_counts(_sample(1507045))
+        stored = {key: counts[key] for key in _empty_stored()}
+        assert refetch.refusal_reasons(counts, stored) == ["adds nothing a stored fetch lacks"]
 
 
 class TestPlan:
@@ -219,6 +299,7 @@ class TestStoredReads:
             {"section": "players", "fixture_id": 1, "team_id": AWAY, "n": 15, "complete": True},
             {"section": "statistics", "fixture_id": 1, "team_id": HOME, "n": 17, "complete": False},
             {"section": "statistics", "fixture_id": 1, "team_id": AWAY, "n": 18, "complete": False},
+            {"section": "starters", "fixture_id": 1, "team_id": HOME, "n": 11, "complete": False},
         ]
         client = MagicMock()
         client.query.return_value.result.return_value = rows
@@ -228,15 +309,19 @@ class TestStoredReads:
             "events": 12,
             "players_by_team": {HOME: 16, AWAY: 15},
             "statistics_by_team": {HOME: 17, AWAY: 18},
+            "starters_by_team": {HOME: 11},
             "players_complete": True,
         }
-        assert stored[2] == {"events": 0, "players_by_team": {}, "statistics_by_team": {}, "players_complete": False}
+        assert stored[2] == _empty_stored()
+        assert "stg_apif__lineups" in client.query.call_args.args[0]
 
     def test_unread_raw_rows_compares_with_the_oldest_staging_table(self):
         older = datetime(2026, 10, 12, 4, 10, tzinfo=timezone.utc)
         newer = datetime(2026, 10, 12, 4, 30, tzinfo=timezone.utc)
         client = MagicMock()
-        client.get_table.side_effect = [MagicMock(modified=newer), MagicMock(modified=older), MagicMock(modified=newer)]
+        client.get_table.side_effect = [
+            MagicMock(modified=newer), MagicMock(modified=older), MagicMock(modified=newer), MagicMock(modified=newer),
+        ]
         client.query.return_value.result.return_value = iter([{"n": 4}])
         assert refetch.unread_raw_rows(client, [1, 2]) == 4
         params = {p.name: p for p in client.query.call_args.kwargs["job_config"].query_parameters}

@@ -174,3 +174,8 @@ left join page_filters as pf
         r.player_sk = pf.player_sk
         and r.season_sk = pf.season_sk
         and if(r.position_group in ('DM', 'CM', 'AM'), 'MID', r.position_group) = pf.position_group
+where r.season_sk not in (
+    select c.season_sk
+    from {{ ref('int_competition_season__player_stat_corrections') }} as c
+    where c.stats_need_research and c.season_sk is not null
+)

@@ -5,7 +5,8 @@
   is played, the tie goes to the team with more goals over its legs; a level tie goes to the
   winner of its last leg when that leg was decided by a shoot-out or awarded. A level tie without
   one stays undecided (won NULL): an FA Cup draw is decided by its replay, which is a round of its
-  own. A tie with a leg still to play is undecided too.
+  own. A tie with a leg still to play is undecided too, and so is one with a leg whose result is
+  withheld: a leg is played only with both its goals.
   Grain: (league_code, season_api_year, round_name, team_sk, opponent_team_sk).
 #}
 
@@ -31,7 +32,9 @@ fixtures as (
         f.status_short,
         f.winner_team_sk,
         f.kickoff_datetime,
-        f.status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO') as is_played
+        f.status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO')
+        and f.goals_home is not null
+        and f.goals_away is not null as is_played
     from {{ ref('fct_fixture') }} as f
     inner join rounds as r
         on

@@ -38,6 +38,7 @@ def _needs_fetch(
       Never fetched                            → fetch
       Player stats' second fetch due           → fetch (once; coverage.second_fetch_due)
       Player stats' newer-format refetch due   → fetch (once; coverage.newer_format_refetch_due)
+      Player or team stats still missing       → fetch (at 7 and 30 days; coverage.late_fetch_due)
       Fetched, statistics non-empty            → skip (done permanently)
       Fetched, statistics empty, within window → retry (delivery delay expected)
       Fetched, statistics empty, past window   → skip (accept empty permanently)

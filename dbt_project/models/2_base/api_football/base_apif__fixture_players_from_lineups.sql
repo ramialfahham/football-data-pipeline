@@ -297,6 +297,7 @@ cleaned as (
         g.shirt_number,
         g.position_code,
         g.raw_ingested_at,
+        g.team_goals_for > 0 and not coalesce(g.goals_add_up, false) as goals_need_research,
         not g.is_starter as is_substitute,
         {%- for stat in unfilled_stats %}
         if(not g.team_has_no_stats and g.minutes = 0 and n.{{ stat }}_counted, 0, null) as {{ stat }},
@@ -381,5 +382,6 @@ select
     goals_penalty as penalties_scored,
     penalties_missed,
     penalties_saved,
-    raw_ingested_at
+    raw_ingested_at,
+    goals_need_research
 from cleaned

@@ -301,19 +301,28 @@ number.
 
 
 {% docs shootout_home %}
-The home side's goals in the penalty shoot-out. NULL where the match had no shoot-out.
+The home side's goals in the penalty shoot-out. NULL where the match had no shoot-out or its
+result is withheld.
 {% enddocs %}
 
 
 {% docs shootout_away %}
-The away side's goals in the penalty shoot-out. NULL where the match had no shoot-out.
+The away side's goals in the penalty shoot-out. NULL where the match had no shoot-out or its
+result is withheld.
 {% enddocs %}
 
 
 {% docs winner_team %}
 The team that won the match or went through. On an awarded result it is the awarded team, and on
 a match settled on penalties the shoot-out's winner. Otherwise it is the side with more goals.
-NULL on a draw and on a match not played.
+NULL on a draw, on a match not played and where the result is withheld.
+{% enddocs %}
+
+
+{% docs result_needs_research %}
+True where the match's result fails a result check and no sourced correction passes it. Its
+goals, shoot-out and winner are then withheld, blank until research stands in the
+fixture_result_corrections seed.
 {% enddocs %}
 
 
@@ -792,7 +801,19 @@ when no crest is ingested for the team.
 {% docs team_country %}
 The country the team is registered in, canonicalised and reconciled against dim_country in
 base, as dim_team publishes it. NULL when neither the provider row nor `team_country_corrections`
-gives one.
+gives one, and when it changed between deliveries with no correction to settle it.
+{% enddocs %}
+
+
+{% docs stats_need_research %}
+True where more than 8% of the competition-season's player-match rows of final matches were
+corrected or left blank. Its player and team boards are then withheld.
+{% enddocs %}
+
+
+{% docs country_needs_research %}
+True where the team has no country. Either no delivery gave one, or its country changed between
+deliveries and no team_country_corrections row settles it, so it is withheld.
 {% enddocs %}
 
 {% docs player_name %}

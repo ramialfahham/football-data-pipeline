@@ -26,6 +26,7 @@ select
     shootout_home,
     shootout_away,
     cast(winner_team_id as int64) as winner_team_sk,
+    result_needs_research,
     cast(awarded_to_team_id as int64) as awarded_to_team_sk,
     award_kind,
     on_pitch_home,

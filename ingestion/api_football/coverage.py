@@ -20,6 +20,13 @@ SECOND_FETCH_DELAY = timedelta(days=3)
 # provider replaces it with the complete format for many matches only later.
 NEWER_FORMAT_REFETCH_DELAY = timedelta(days=14)
 
+# The provider adds player and team stats to some matches weeks after kickoff.
+LATE_FETCH_DELAYS = (timedelta(days=7), timedelta(days=30))
+
+# A mark passed longer ago than this is left to scripts/refetch_from_provider.py, whose guard the
+# nightly does not apply.
+LATE_FETCH_WINDOW = timedelta(days=7)
+
 # Value: the payload array that must be non-empty to count as covered, or None if any fetch counts.
 ENDPOINT_REQUIRES_NONEMPTY: dict[str, str | None] = {
     "LINEUPS":            None,
@@ -69,6 +76,21 @@ def newer_format_refetch_due(
     return latest_fetch < refetch_from <= now
 
 
+def late_fetch_due(
+    latest_fetch: datetime | None,
+    kickoff: datetime | None,
+    still_missing: bool,
+    now: datetime,
+) -> bool:
+    """True once per LATE_FETCH_DELAYS mark passed within LATE_FETCH_WINDOW, while stats are missing."""
+    if not still_missing or latest_fetch is None or kickoff is None:
+        return False
+    return any(
+        latest_fetch < kickoff + delay <= now < kickoff + delay + LATE_FETCH_WINDOW
+        for delay in LATE_FETCH_DELAYS
+    )
+
+
 def read_coverage(
     client: bigquery.Client,
 ) -> dict[str, dict[str, dict[int, bool]]]:
@@ -92,6 +114,11 @@ def read_coverage(
                     SELECT 1
                     FROM UNNEST(JSON_QUERY_ARRAY(payload, '$.players')) AS team_block,
                         UNNEST(JSON_QUERY_ARRAY(team_block, '$.players')) AS player
+                ) AS has_players,
+                EXISTS(
+                    SELECT 1
+                    FROM UNNEST(JSON_QUERY_ARRAY(payload, '$.players')) AS team_block,
+                        UNNEST(JSON_QUERY_ARRAY(team_block, '$.players')) AS player
                 )
                 AND NOT EXISTS(
                     SELECT 1
@@ -108,6 +135,7 @@ def read_coverage(
             league_code,
             fixture_id,
             LOGICAL_OR(has_statistics) AS has_statistics,
+            LOGICAL_OR(has_players) AS has_players,
             MAX(ingested_at) AS latest_fetch,
             MAX(kickoff) AS kickoff,
             ARRAY_AGG(in_newer_format ORDER BY ingested_at DESC LIMIT 1)[OFFSET(0)]
@@ -125,8 +153,13 @@ def read_coverage(
         has_stats = bool(row.has_statistics)
         for endpoint, requires_nonempty in ENDPOINT_REQUIRES_NONEMPTY.items():
             covered[lc][endpoint][fid] = has_stats if requires_nonempty else True
-        if second_fetch_due(row.latest_fetch, row.kickoff, now) or newer_format_refetch_due(
-            row.latest_fetch, row.kickoff, bool(row.latest_in_newer_format), now
+        still_missing = not has_stats or not bool(row.has_players)
+        if (
+            second_fetch_due(row.latest_fetch, row.kickoff, now)
+            or newer_format_refetch_due(
+                row.latest_fetch, row.kickoff, bool(row.latest_in_newer_format), now
+            )
+            or late_fetch_due(row.latest_fetch, row.kickoff, still_missing, now)
         ):
             covered[lc]["FIXTURE_PLAYERS"][fid] = False
 

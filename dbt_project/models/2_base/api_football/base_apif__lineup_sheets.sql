@@ -123,7 +123,8 @@ latest as (
             )
         ) as lender
     from fetch_history
-    qualify row_number() over (
+    -- Two fetches at one ingest time both stay, so the grain test fails instead of a build choosing.
+    qualify rank() over (
         partition by league_code, fixture_id, team_id
         order by raw_ingested_at desc
     ) = 1

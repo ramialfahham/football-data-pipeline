@@ -110,6 +110,37 @@ node site_v2/scripts/check-font-coverage.mjs --dist site_v2/dist
 python -m pytest tests/test_check_component_registry.py -q
 ```
 
+### Tier 1c — the `validate:ui` job in its CI image (mandatory before every review round)
+
+Run this before every review round on any change under these paths:
+
+- `site_v2/` and `design-mocks/`
+- `tests/fixtures/design_inventory/` and `tests/fixtures/chart_screenshots/`
+- the scripts that read them
+
+Tier 1b does not see what CI sees. The chart screenshot pins and the gap counts are Linux-only.
+The design check does not run on every developer machine. A change that passes Tier 1b can still
+fail the merge request pipeline, one finding and one round at a time.
+
+```bash
+cd site_v2 && npm run build && cd ..
+python scripts/validate_ui_docker.py
+```
+
+It needs Docker with a Linux engine. It reads the image, variables and every step of the job from
+`.gitlab-ci.yml`, so no copy of a step exists to drift. It runs them against `site_v2/dist` in a
+copy of the working tree and runs every step to the end.
+
+- Pass 1 is the merge-request scope.
+- Pass 2 re-runs the steps that branch on `CI_PIPELINE_SOURCE` in main's full scope: every width,
+  en, de and fi, against `baseline.json`.
+- `--mr-only` skips pass 2. Use it to iterate, never for the run before a review round.
+
+The evidence to show is the summary with `0 step(s) failed`. Failing-page screenshots and the
+chart pins' new images land in `.cache/validate_ui_docker/out/artifacts`. To renew a chart pin,
+copy the new images and `manifest.json` from there into `tests/fixtures/chart_screenshots/`. Do
+that only inside an approved scope.
+
 ### Tier 2 — needs BigQuery auth (run if `bq` works locally)
 
 `dbt parse` mirrors `validate:governance`; `sqlfluff lint` mirrors `data:build:mr`'s lint
@@ -169,6 +200,7 @@ was a live-looking claim about a pipeline that does not run.
 | `check_chart_screenshots.py --dist site_v2/dist` + `pytest tests/test_check_chart_screenshots.py` (screenshots compared on Linux only) | `validate:ui` (needs `build:site-v2`, on the Playwright image) |
 | `check_component_registry.py` + `pytest tests/test_check_component_registry.py` | `validate:ui` |
 | `site_v2/scripts/check-font-coverage.mjs --dist site_v2/dist` | `validate:ui` (needs `build:site-v2`) |
+| every step of the job, in its image: `scripts/validate_ui_docker.py` | `validate:ui` (reads the job from `.gitlab-ci.yml`) |
 | `pytest tests/` | `test:python` |
 | gitleaks secret scan | `validate:secrets` |
 | `sqlfluff lint models` | `data:build:mr` |

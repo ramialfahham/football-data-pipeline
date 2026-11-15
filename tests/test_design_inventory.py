@@ -273,6 +273,7 @@ def test_comparisons_name_the_expected_and_the_measured():
     assert di.compare(stripe, [plain, tint, plain, tint], TOKENS) is None
     assert "row 1" in di.compare(stripe, [tint, plain, tint], TOKENS)
     assert "row 2" in di.compare(stripe, [plain, plain, plain], TOKENS)
+    assert "unreadable" in di.compare(stripe, [plain, tint], {**TOKENS, "ink": ""})
 
 
 # ---------------------------------------------------------------- the lint
@@ -408,6 +409,13 @@ def test_the_merge_request_run_names_the_scope_of_its_pin_file():
         "the unconditional design check run must read no scope, so main renders every width and language")
     assert quick["rendered"]["platform"] == "linux"
     assert set(quick["viewports"]) <= set(cdi.DEFAULT_VIEWPORTS) and set(quick["langs"]) <= set(cdi.DEFAULT_LANGS)
+    fi = di.load_baseline(REPO / "tests" / "fixtures" / "design_inventory" / "baseline_quick_fi.json")
+    fi_flags = "--viewports %s --langs %s --baseline tests/fixtures/design_inventory/baseline_quick_fi.json" % (
+        ",".join(str(v) for v in fi["viewports"]), ",".join(fi["langs"]))
+    fi_step = re.search(r'if \[ "\$CI_PIPELINE_SOURCE" = "merge_request_event" \]; then\n\s*python scripts/check_design_inventory\.py (.*?)\n\s*fi\n', ci)
+    assert fi_step, "validate:ui no longer runs the Finnish sweep on a merge request pipeline"
+    assert fi_flags in fi_step.group(1)
+    assert fi["viewports"] == [320] and fi["langs"] == ["fi"] and fi["rendered"]["platform"] == "linux"
 
 
 def test_the_static_counts_find_each_gap(tmp_path):
@@ -613,7 +621,7 @@ def test_the_full_baseline_names_no_scope():
         "make it a narrower run that compares nothing")
 
 
-@pytest.mark.parametrize("name", ["baseline.json", "baseline_quick.json"])
+@pytest.mark.parametrize("name", ["baseline.json", "baseline_quick.json", "baseline_quick_fi.json"])
 def test_the_baseline_names_only_pages_the_check_renders_and_counts_it_knows(name):
     baseline = di.load_baseline(REPO / "tests" / "fixtures" / "design_inventory" / name)
     rendered = baseline["rendered"]
@@ -827,12 +835,13 @@ def test_no_pin_rises_above_mains():
     assert up == [], "a pin rose above main's; a new gap is fixed, not pinned:\n" + "\n".join(up)
 
 
-def test_no_quick_pin_rises_above_mains():
-    base = _mains_baseline("baseline_quick.json")
+@pytest.mark.parametrize("name", ["baseline_quick.json", "baseline_quick_fi.json"])
+def test_no_quick_pin_rises_above_mains(name):
+    base = _mains_baseline(name)
     if base is None:
-        # Main holds no quick pins yet; this branch introduces them.
+        # Main holds no such pins yet; this branch introduces them.
         return
-    current = di.load_baseline(REPO / "tests" / "fixtures" / "design_inventory" / "baseline_quick.json")
+    current = di.load_baseline(REPO / "tests" / "fixtures" / "design_inventory" / name)
     up = di.rises(current, base)
     assert up == [], "a quick pin rose above main's; a new gap is fixed, not pinned:\n" + "\n".join(up)
 
