@@ -1,0 +1,207 @@
+diff --git a/.claude/task/259-fi-team-compound-nobreak/acceptance_evidence.md b/.claude/task/259-fi-team-compound-nobreak/acceptance_evidence.md
+new file mode 100644
+index 00000000..bf7cece6
+--- /dev/null
++++ b/.claude/task/259-fi-team-compound-nobreak/acceptance_evidence.md
+@@ -0,0 +1,8 @@
++# Acceptance evidence — Finnish team compound stays on one line
++
++The measurement is in rendered_page_evidence.md.
++
++criteria_demonstrated:
++  - **Criterion 1 (helper test):** site_v2/src/lib/teamCompound.test.mjs shows "Hertha BSC" before the Finnish compound is "Hertha BSC" + no-break space + non-breaking hyphen, "HJK" is "HJK-", and English and German are unchanged. npm test in site_v2 is green.
++  - **Criterion 2 (wording and pins, no other change):** the diff touches the helper, its test, its one importer and the task folder; no i18n string, baseline pin, build step or other page file changed.
++  - **Criterion 3 (design check at 280 to 375px):** words on two lines with 31 team names, before and after: 280px 2 and 0, 320px 17 and 0, 360px 19 and 0, 375px 14 and 0.
+diff --git a/.claude/task/259-fi-team-compound-nobreak/contract.md b/.claude/task/259-fi-team-compound-nobreak/contract.md
+new file mode 100644
+index 00000000..30c02ff5
+--- /dev/null
++++ b/.claude/task/259-fi-team-compound-nobreak/contract.md
+@@ -0,0 +1,62 @@
++# Task contract — Finnish team compound stays on one line
++
++objective: >
++  main's validate:ui fails with Player pages split 2 against baseline 0 at 320 and 360px. In the Finnish
++  Player intro, a team name of several words is written "Team Name -pelaajaan" with an ordinary space
++  before the hyphen, and the word "-pelaajaan," starts with a hyphen, which the build step that keeps
++  hyphen-joined words whole does not wrap: the line can break before the hyphen and after it. The
++  space becomes a no-break space and the hyphen a non-breaking hyphen, in the helper alone. This
++  applies the written narrow-screen rule that text breaks only between words.
++
++refs: >
++  #259 (Player club and national tabs), #231 (narrow-screen rules). Main pipeline 3069038911, job
++  validate:ui.
++
++scope_paths:
++  - site_v2/src/lib/teamCompound.mjs
++  - site_v2/src/lib/teamCompound.test.mjs
++  - site_v2/src/lib/playerPage.ts
++  - site_v2/src/components/player/PlayerComparison.astro
++  - docs/design/components.yml
++  - docs/wireframes/block_standard.md
++  - .claude/task/259-fi-team-compound-nobreak/contract.md
++  - .claude/task/259-fi-team-compound-nobreak/acceptance_evidence.md
++  - .claude/task/259-fi-team-compound-nobreak/rendered_page_evidence.md
++  - .claude/task/259-fi-team-compound-nobreak/review.md
++  - .claude/task/259-fi-team-compound-nobreak/review_input.patch
++
++protected_override: >
++  docs/design/components.yml is a protected path. The CPO approved extending the rule Name in whole words to the Finnish Player intro and legend compound in chat on 2026-11-14.
++
++rounds_cap_override: >
++  Round 3 findings were a missed selector, fixed; the CPO approved a 4th review round, approved in chat, 2026-11-15.
++
++impact_map: >
++  Rule text and selector in docs/design/components.yml and its mirror row in docs/wireframes/block_standard.md gain p.bsub.cmp-p; scripts/check_component_registry.py and scripts/check_page_css.py read that file and are run before commit. Leaf cosmetic change in the consumption layer, no dbt model or raw writer involved. Evidence:
++  `grep -rn teamBeforeCompound site_v2 tests` returns exactly three files: the helper in playerPage.ts,
++  its one importer PlayerComparison.astro, and tests/test_midfield_roles.py, which only asserts the
++  call text in the template, which does not change. Blast radius: the Finnish intro and legend text of
++  Player pages, two characters (a space to a no-break space, the hyphen to a non-breaking hyphen) for multi-word team names. No build step, middleware or other page changes.
++
++acceptance_criteria:
++  - A unit test shows a multi-word team name before the Finnish compound has a no-break space and a non-breaking hyphen (U+2011) instead of a space and a hyphen, and a one-word name and every other language are unchanged.
++  - The wording and the baseline pins are unchanged, and no other page or the build step changes.
++  - The local design check of the Finnish Player pages at 280 to 375px reports no word on two lines, recorded in rendered_page_evidence.md.
++
++approved_design:
++  - player: #136
++
++decisions_taken: >
++  The CPO extended the rule Name in whole words to the Finnish Player intro and legend compound, approved in chat on 2026-11-14. The no-break space and non-breaking hyphen apply it.
++  No new mechanism, no recurring cost.
++
++decisions_reserved:
++  - none: the wording and layout are unchanged; only where a line may break changes.
++
++done_when:
++  - npm test in site_v2 is green, including the new test.
++  - Full pytest and the offline gates in FAST_GATES pass.
++  - The local design check of the Finnish Player pages at 280 to 375px shows split 0.
++  - CI's validate:ui is green on the MR.
++
++amendments: (none)
+diff --git a/.claude/task/259-fi-team-compound-nobreak/rendered_page_evidence.md b/.claude/task/259-fi-team-compound-nobreak/rendered_page_evidence.md
+new file mode 100644
+index 00000000..e36932b4
+--- /dev/null
++++ b/.claude/task/259-fi-team-compound-nobreak/rendered_page_evidence.md
+@@ -0,0 +1,28 @@
++# Rendered page evidence — Finnish team compound
++
++Method: the Browser pane drives the dev server (`preview_start` v2) on the Finnish Haaland page. Layout
++was measured from text geometry through the accessibility-free route of `getClientRects` (the pane's
++screenshot fails); no screenshot was taken. The local design check
++(scripts/check_design_inventory.py) needs a built site, which `astro build` cannot produce at full
++scale here, so it was not run; CI's validate:ui runs it on the MR (English and German, 280 and
++1010px) and on main (every width and language).
++
++Words on two lines, counted as `split` is in check_design_inventory.py. The intro paragraph was cloned
++once per team name, with the old text (space, hyphen) and the new (no-break space, non-breaking
++hyphen). The 31 names: Manchester City FC, Borussia Mönchengladbach, 1. FC Union Berlin, Bayer 04
++Leverkusen, VfL Wolfsburg, Real Madrid, Atletico Madrid, Athletic Club, FC Barcelona, Paris Saint
++Germain, Inter Milan, Sporting CP, Manchester United, Tottenham Hotspur, Newcastle United, West Ham
++United, Eintracht Frankfurt, Hertha BSC, Real Sociedad, Aston Villa, FC Bayern München, RB Leipzig,
++Borussia Dortmund, Werder Bremen, AC Milan, AS Roma, Crystal Palace, Nottingham Forest, Wolverhampton
++Wanderers, Real Betis, Celta Vigo.
++
++| width | words on two lines, before | after |
++|------:|---:|---:|
++| 280px | 2 | 0 |
++| 320px | 17 | 0 |
++| 360px | 19 | 0 |
++| 375px | 14 | 0 |
++
++The built intro paragraph and the legend (`.cmp-p .chart-legend`, "Muut Manchester City FC ‑pelaajat")
++as they stand: 0 words on two lines and no horizontal overflow (scrollWidth within clientWidth) at 280
++and 320px. The font has U+00A0 and U+2011 (cmap read with check-font-coverage.mjs's own reader).
+diff --git a/docs/design/components.yml b/docs/design/components.yml
+index fef27426..3a2eb668 100644
+--- a/docs/design/components.yml
++++ b/docs/design/components.yml
+@@ -554,7 +554,7 @@ components:
+     never-split: [Matchday 9, 28 July 1993, Saint-Germain]
+ 
+ rules:
+-  Name in whole words: {selector: ".ctab .tm .nm, .fxrow .side .nm, .club .cn", rule: "a team name wraps only between words; no word splits or runs past the name's space", measured: whole-words, ruled-on: the narrow-screen fix}
++  Name in whole words: {selector: ".ctab .tm .nm, .fxrow .side .nm, .club .cn, p.bsub.cmp-p, .cmp-p .chart-legend", rule: "a team name wraps only between words; no word splits or runs past the name's space; in the Finnish Player intro and legend the team name stays with the hyphen that joins it to its Finnish compound", measured: whole-words, ruled-on: the narrow-screen fix}
+   Legacy board value: {selector: ".brow .v b", rule: "the legacy Home mocks' boards: the value follows the ordered-by number", measured: "font-size=15px; font-weight=700; color=accent", ruled-on: "#129 binding rules"}
+   Fitted block: {selector: ".header-in, .ctab, :has(> .frow), .fbar, .selbar, .fxrow:has(.topmatch), .rlist.pm, .rlist:has(.resrow:not(.meet, .goal, .scorer)), .rsplit > .rcol:has(.resrow:not(.meet, .goal, .scorer))", rule: "a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded", measured: fit-marked, ruled-on: the narrow-screen fix}
+   Row link: {selector: "a.ctab-row, a.fxrow, a.frow, a.brow, a.comp-row", rule: "a row that leads somewhere is one link, the whole row; one hover tint for every row link, ink at 11% (twice the stripe); the press tint `sunk`; no underline inside a row", measured: "hover(background-color)=ink@11%; press(background-color)=sunk; text-decoration-line=none", ruled-on: "#129 binding rules; #52; #127 (2026-09-14)"}
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index 7e5548aa..4660900e 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -194,7 +194,7 @@
+ | Team list parts | `.teamindex, .tblock, .tgroups-region, .tview-all, .tview-region` | the team list's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Fitted block parts | `.fit-one` | the fitted block's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Unbreakable unit parts | `.nb` | the unbreakable unit's other parts: registered, no text of their own |  | ruled | the component registry |
+-| Name in whole words | `.ctab .tm .nm, .fxrow .side .nm, .club .cn` | a team name wraps only between words; no word splits or runs past the name's space | `whole-words` | ruled | the narrow-screen fix |
++| Name in whole words | `.ctab .tm .nm, .fxrow .side .nm, .club .cn, p.bsub.cmp-p, .cmp-p .chart-legend` | a team name wraps only between words; no word splits or runs past the name's space; in the Finnish Player intro and legend the team name stays with the hyphen that joins it to its Finnish compound | `whole-words` | ruled | the narrow-screen fix |
+ | Legacy board value | `.brow .v b` | the legacy Home mocks' boards: the value follows the ordered-by number | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules |
+ | Fitted block | `.header-in, .ctab, :has(> .frow), .fbar, .selbar, .fxrow:has(.topmatch), .rlist.pm, .rlist:has(.resrow:not(.meet, .goal, .scorer)), .rsplit > .rcol:has(.resrow:not(.meet, .goal, .scorer))` | a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded | `fit-marked` | ruled | the narrow-screen fix |
+ | Row link | `a.ctab-row, a.fxrow, a.frow, a.brow, a.comp-row` | a row that leads somewhere is one link, the whole row; one hover tint for every row link, ink at 11% (twice the stripe); the press tint `sunk`; no underline inside a row | `hover(background-color)=ink@11%; press(background-color)=sunk; text-decoration-line=none` | ruled | #129 binding rules; #52; #127 (2026-09-14) |
+diff --git a/site_v2/src/components/player/PlayerComparison.astro b/site_v2/src/components/player/PlayerComparison.astro
+index d3ba5003..cffbc240 100644
+--- a/site_v2/src/components/player/PlayerComparison.astro
++++ b/site_v2/src/components/player/PlayerComparison.astro
+@@ -11,7 +11,8 @@ import { stripInset } from "../../lib/chartTheme";
+ import { formatValue, integer, ordinal } from "../../lib/format";
+ import { t, metricLabel, boardTitle } from "../../i18n/strings";
+ import { competitionInfo } from "../../lib/teamFixtures";
+-import { medianAnchor, placeOnLine, playerGroups, positionWord, teamBeforeCompound } from "../../lib/playerPage";
++import { medianAnchor, placeOnLine, playerGroups, positionWord } from "../../lib/playerPage";
++import { teamBeforeCompound } from "../../lib/teamCompound.mjs";
+ import type { Lang } from "../../lib/format";
+ import type { PlayerMetric, PlayerTab } from "../../lib/playerPage";
+ 
+diff --git a/site_v2/src/lib/playerPage.ts b/site_v2/src/lib/playerPage.ts
+index c7a6dddd..b25e20a8 100644
+--- a/site_v2/src/lib/playerPage.ts
++++ b/site_v2/src/lib/playerPage.ts
+@@ -106,12 +106,6 @@ export function positionWord(lang: Lang, form: "One" | "Peers" | "Others", group
+   return group ? t(lang, `playerPos${form}${group}`) : "";
+ }
+ 
+-/** The team before Finnish "-pelaajaan": joined to a one-word name, set apart after several words. */
+-export function teamBeforeCompound(lang: Lang, team: string): string {
+-  if (lang !== "fi") return team;
+-  return team.includes(" ") ? `${team} -` : `${team}-`;
+-}
+-
+ /** Where a metric's value sits on its line, inside the inset at each end so no dot is cut. */
+ export function placeOnLine(v: number, lo: number, hi: number, inset: number): number {
+   return hi === lo ? 50 : inset + ((v - lo) / (hi - lo)) * (100 - 2 * inset);
+diff --git a/site_v2/src/lib/teamCompound.mjs b/site_v2/src/lib/teamCompound.mjs
+new file mode 100644
+index 00000000..46ecf5dc
+--- /dev/null
++++ b/site_v2/src/lib/teamCompound.mjs
+@@ -0,0 +1,8 @@
++const NO_BREAK_SPACE = String.fromCodePoint(0x00a0);
++const NON_BREAKING_HYPHEN = String.fromCodePoint(0x2011);
++
++/** The team before Finnish "-pelaajaan": joined to a one-word name, kept with the last word of several. */
++export function teamBeforeCompound(lang, team) {
++  if (lang !== "fi") return team;
++  return team.includes(" ") ? `${team}${NO_BREAK_SPACE}${NON_BREAKING_HYPHEN}` : `${team}-`;
++}
+diff --git a/site_v2/src/lib/teamCompound.test.mjs b/site_v2/src/lib/teamCompound.test.mjs
+new file mode 100644
+index 00000000..dc0be6df
+--- /dev/null
++++ b/site_v2/src/lib/teamCompound.test.mjs
+@@ -0,0 +1,14 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { teamBeforeCompound } from "./teamCompound.mjs";
++
++test("a several-word team keeps the Finnish hyphen on its last word", () => {
++  const out = teamBeforeCompound("fi", "Hertha BSC");
++  assert.deepEqual([...out.slice("Hertha BSC".length)].map((c) => c.codePointAt(0)), [0x00a0, 0x2011]);
++});
++
++test("a one-word team and every other language are unchanged", () => {
++  assert.equal(teamBeforeCompound("fi", "HJK"), "HJK-");
++  assert.equal(teamBeforeCompound("en", "Hertha BSC"), "Hertha BSC");
++  assert.equal(teamBeforeCompound("de", "HJK"), "HJK");
++});

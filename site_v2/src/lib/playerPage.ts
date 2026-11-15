@@ -106,12 +106,6 @@ export function positionWord(lang: Lang, form: "One" | "Peers" | "Others", group
   return group ? t(lang, `playerPos${form}${group}`) : "";
 }
 
-/** The team before Finnish "-pelaajaan": joined to a one-word name, set apart after several words. */
-export function teamBeforeCompound(lang: Lang, team: string): string {
-  if (lang !== "fi") return team;
-  return team.includes(" ") ? `${team} -` : `${team}-`;
-}
-
 /** Where a metric's value sits on its line, inside the inset at each end so no dot is cut. */
 export function placeOnLine(v: number, lo: number, hi: number, inset: number): number {
   return hi === lo ? 50 : inset + ((v - lo) / (hi - lo)) * (100 - 2 * inset);
