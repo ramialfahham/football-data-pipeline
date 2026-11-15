@@ -278,10 +278,10 @@ def test_the_mr_build_rebuilds_every_changed_seed() -> None:
 
     diff_at, seeds_at, build_at = only("SEED_DIFF="), only("CHANGED_SEEDS="), lines.index(build)
     diff, seeds = lines[diff_at], lines[seeds_at]
-    for part in ("git diff", "${CI_MERGE_REQUEST_DIFF_BASE_SHA:?}", "dbt_project/seeds/", "|| exit 1"):
+    for part in ("git diff", "${MR_TARGET_SHA:?}", "dbt_project/seeds/", "|| exit 1"):
         assert part in diff, (
             f"the SEED_DIFF line lost `{part}`: it must list the seeds this merge request changed "
-            f"against its diff base and stop the job when that fails. Line: {diff}"
+            f"against the target commit it merged and stop the job when that fails. Line: {diff}"
         )
     # A pipe after `git diff` would report the last command's status and hide the failure.
     assert diff.replace("|| exit 1", "").count("|") == 0, (

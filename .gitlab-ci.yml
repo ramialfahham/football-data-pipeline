@@ -75,6 +75,24 @@ workflow:
   if: $CI_PIPELINE_SOURCE == "schedule"
   when: never
 
+# An MR pipeline tests the branch merged with the target branch's latest commit, so a branch cut
+# before a dependency merged does not look like a revert of it. A conflict fails the job, as the
+# MR could not merge either. Off an MR it does nothing. It runs before every install, so the
+# installed dependencies are the merged result's. MR_TARGET_SHA is the target commit merged in;
+# a job that receives it from a job it needs (validate:ui from build:site-v2) merges that same
+# commit, so the dist and the checks that measure it come from one tree.
+# validate:governance never runs it: the review hash is computed on the branch.
+.merged_result: &merged_result |
+  if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
+    SAFE="safe.directory=$PWD"
+    if [ "$(git -c "$SAFE" rev-parse --is-shallow-repository)" = "true" ]; then git -c "$SAFE" fetch --quiet --no-tags --unshallow origin; fi
+    git -c "$SAFE" fetch --no-tags origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    export MR_TARGET_SHA="${MR_TARGET_SHA:-$(git -c "$SAFE" rev-parse FETCH_HEAD)}"
+    export MR_TARGET_SHORT_SHA="$(printf %.8s "$MR_TARGET_SHA")"
+    git -c "$SAFE" -c user.name="GitLab CI" -c user.email="ci@example.invalid" merge --no-edit "$MR_TARGET_SHA"
+    echo "Merged result $(git -c "$SAFE" rev-parse HEAD): branch $CI_COMMIT_SHA + $CI_MERGE_REQUEST_TARGET_BRANCH_NAME $MR_TARGET_SHA"
+  fi
+
 # `needs: []` on every job: the six GitHub workflows were INDEPENDENT and ran
 # concurrently. Stages alone would serialise them, so a failing lint would stop
 # the test suite from ever reporting — a feedback loss the original did not have.
@@ -122,8 +140,11 @@ workflow:
 # which changes no models — went red on THREE tests against tables !114 had built an
 # hour earlier, headline error "Unrecognized name: points_capture; Did you mean
 # points_capture_pct?".
-# Now each merge request writes ci_mr<IID>_marts / _core / _staging / _intermediate and
-# bare ci_mr<IID>, and `--defer` falls back to PROD for everything it did not build.
+# Now each merge request writes ci_mr<IID>_<SHA>_marts / _core / _staging / _intermediate and
+# bare ci_mr<IID>_<SHA>, and `--defer` falls back to PROD for everything it did not build.
+# <SHA> is the first 8 characters of the target commit the merged-result step merged in, so
+# the first pipeline after a main merge starts empty instead of reading tables built against
+# the older main. `scripts/list_mr_scratch.py` lists the sets nothing reads any more.
 # ⭐ `generate_schema_name.sql` IS UNTOUCHED. Putting the uniqueness in the target name
 # is what let the macro stay put, so local `dev` and the prod path are unchanged.
 # ⚠ BOTH lines below are load-bearing and both are pinned: the output NAME isolates the
@@ -139,12 +160,12 @@ workflow:
 # letting them pile up: a full set is ~6 GB, about 12 cents a month.
 .dbt_profile: &dbt_profile |
   mkdir -p ~/.dbt
-  export DBT_CI_TARGET="ci_mr${CI_MERGE_REQUEST_IID:-shared}"
+  export DBT_CI_TARGET="ci_mr${CI_MERGE_REQUEST_IID:-shared}${MR_TARGET_SHORT_SHA:+_${MR_TARGET_SHORT_SHA}}"
   cat > ~/.dbt/profiles.yml <<EOF
   football_data_pipeline:
     target: ${DBT_CI_TARGET}
     outputs:
-      # Merge-request builds — slim + deferred to prod. Writes ci_mr<IID>_* datasets,
+      # Merge-request builds — slim + deferred to prod. Writes ci_mr<IID>_<SHA>* datasets,
       # isolated from prod AND from every other merge request.
       ${DBT_CI_TARGET}:
         type: bigquery
@@ -476,19 +497,31 @@ validate:ui:
   stage: build
   image: mcr.microsoft.com/playwright/python:v1.63.0-noble
   needs: ["build:site-v2"]
+  # One group per branch. Main's group, validate-ui-main, runs in `newest_first` mode (set
+  # through the resource_groups API), so the sweep of main's newest commit goes first, and an
+  # older push's sweep stops at its first script step when a newer push has its own sweep.
+  resource_group: validate-ui-$CI_COMMIT_REF_SLUG
   variables:
     PIP_BREAK_SYSTEM_PACKAGES: "1"
+    GIT_DEPTH: 0
   cache:
     key:
       files:
         - requirements-ui.txt
     paths:
       - .cache/pip
+  # The merged result, like build:site-v2, so the dist it measures and the baselines it reads
+  # are one tree.
   before_script:
+    - *merged_result
     - python -m pip install --upgrade pip
     - pip install -r requirements-ui.txt
     - export PATH="$(python -c 'import playwright, pathlib; print(pathlib.Path(playwright.__file__).parent / "driver")'):$PATH"
   script:
+    - |
+      if [ "$CI_PIPELINE_SOURCE" = "push" ] && [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ] && python scripts/check_sweep_superseded.py; then
+        exit 0
+      fi
     - python -m json.tool site/i18n/en.json > /dev/null
     - python -m json.tool site/i18n/de.json > /dev/null
     - python -m json.tool site/i18n/fi.json > /dev/null
@@ -588,6 +621,12 @@ lint:python:
 test:python:
   <<: *python
   stage: test
+  variables:
+    GIT_DEPTH: 0
+  before_script:
+    - *merged_result
+    - python -m pip install --upgrade pip
+    - pip install -r requirements.txt
   script:
     - python -m pytest tests/ -v
   rules:
@@ -654,6 +693,7 @@ build:site-v2:
   # discarded every run and re-uploaded for nothing.
   variables:
     npm_config_cache: "$CI_PROJECT_DIR/.npm"
+    GIT_DEPTH: 0
   cache:
     key:
       files:
@@ -661,6 +701,7 @@ build:site-v2:
     paths:
       - .npm
   script:
+    - *merged_result
     - cd site_v2
     - npm ci
     - npm run build
@@ -668,12 +709,15 @@ build:site-v2:
     - test -f dist/de/index.html
     - test -f dist/en/index.html
     - test -f dist/fi/index.html
+    - if [ -n "${MR_TARGET_SHA:-}" ]; then echo "MR_TARGET_SHA=$MR_TARGET_SHA"; fi > "$CI_PROJECT_DIR/merged_result.env"
   # The built site is what validate:ui measures; it needs this job, so both share
   # one path anchor - GitLab refuses a pipeline whose needs: target its own rules
   # excluded.
   artifacts:
     paths:
       - site_v2/dist
+    reports:
+      dotenv: merged_result.env
     expire_in: 1 day
   rules:
     - *not_on_schedule
@@ -709,24 +753,15 @@ build:site-v2:
 .data_build_base: &data_build_base
   <<: [*python, *gcp_job]
   stage: data
-  # Serialize warehouse-writing runs.
-  # ⚠ THE ORIGINAL REASON NO LONGER HOLDS, and the rationale is corrected rather than
-  # quietly left standing (#92, 2026-08-27). It read: "MR builds share ONE physical ci_*
-  # dataset (the locked 'shared, not per-PR ephemeral' choice), so concurrent incremental
-  # builds (fct_fixture_* compile to BigQuery MERGE) could hit 'Could not serialize
-  # access'." That shared-not-ephemeral choice is exactly what this change reverses — each
-  # merge request now writes its own datasets, so two DIFFERENT merge requests can no
-  # longer collide on one table.
-  # It is KEPT anyway, for a reason that survives: two pipelines of the SAME merge request
-  # (a re-run, or a push landing on top of a running job) still share that MR's datasets
-  # and can still MERGE into the same incremental table concurrently. Narrowing the group
-  # to per-MR would be correct and is NOT done here — it is a concurrency change with its
-  # own blast radius, and this task is about what the tests read.
+  # Each job names its own resource_group. The prod writers share prod-warehouse-write.
+  # data:build:mr has one per merge request: two merge requests write different datasets and
+  # build at once, while two pipelines of the SAME merge request (a re-run, or a push landing
+  # on a running job) could MERGE into one incremental table together, so they queue.
   timeout: 2h
 
 # MR builds: only what the MR changed + downstream children + tests
-# (dbt state:modified+), diffed against a baseline manifest compiled from the
-# target branch at MR time (Option 2 — no stored state, no BigQuery scan;
+# (dbt state:modified+), diffed against the target commit the merged-result step merged
+# in (Option 2 — no stored state, no BigQuery scan;
 # CPO-approved 2026-06-25). Unchanged upstreams are NOT rebuilt.
 # ⚠ CORRECTED 2026-08-27 (#92). This used to read "their ref()s resolve to the tables
 # already in the shared datasets, so no --defer is needed for them." Both halves are now
@@ -734,14 +769,40 @@ build:site-v2:
 # upstream resolves at all. With a per-merge-request target its dataset starts empty, so
 # every ref() the MR did not build falls back to PROD through --defer. Removing --defer
 # would break the job outright, not merely slow it.
+# The gate holds the MR build while a prod build runs: it sits in prod-warehouse-write, so GitLab
+# starts it only when data:build:main (or data:nightly) has released the group. A job waiting for
+# a resource group takes no runner slot. It checks out nothing and reads nothing.
+data:wait-prod-build:
+  stage: data
+  image: alpine:3.20
+  needs: []
+  resource_group: prod-warehouse-write
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - echo "No prod warehouse build is running."
+  rules:
+    - *not_on_schedule
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes: *data_paths_mr
+
 data:build:mr:
   <<: *data_build_base
-  resource_group: ci-data-build-write-ci
+  needs: ["data:wait-prod-build"]
+  resource_group: ci-data-build-mr$CI_MERGE_REQUEST_IID
   variables:
     GIT_DEPTH: 0
+  before_script:
+    - *merged_result
+    - python -m pip install --upgrade pip
+    - pip install -r requirements.txt
   script:
+    - 'test -n "$MR_TARGET_SHA" || { echo "the merged-result step did not run" >&2; exit 1; }'
     - *dbt_profile
     - *gcp_auth
+    # Before the first BigQuery read: while prod is being rebuilt, the deferred prod tables
+    # this build reads are changing under it.
+    - python scripts/wait_for_nightly.py
     - cd dbt_project && dbt deps
     - sqlfluff lint models
     # $DBT_CI_TARGET is exported by the .dbt_profile anchor above, which runs earlier in
@@ -773,10 +834,10 @@ data:build:mr:
     # This job therefore needs no API key at all, and one billed
     # `SELECT DISTINCT league_code FROM RAW_APIF_FIXTURES_NEXT` per MR is gone with it.
     #
-    # Compile the target branch's project into a state dir (manifest only — no
-    # model execution). PROD target so deferred refs resolve to prod's bare
-    # datasets, not ci_*.
-    - git fetch --no-tags --depth=1 origin "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
+    # Compile the target commit the merged-result step merged in ($MR_TARGET_SHA) into a
+    # state dir (manifest only — no model execution), so state:modified+ is exactly what
+    # this merge request changes on top of that commit. PROD target so deferred refs
+    # resolve to prod's bare datasets, not ci_*.
     # The runner keeps the PROJECT directory between jobs but gives each job a fresh
     # /tmp, so the registration written into .git/worktrees/ outlives the directory it
     # points at and the next `add` dies with "missing but already registered worktree"
@@ -784,13 +845,13 @@ data:build:mr:
     # NOT `add -f`: that would also override a worktree whose directory really exists,
     # turning a genuine collision into a silent overwrite.
     - git worktree prune
-    - git worktree add --detach /tmp/main-src FETCH_HEAD
+    - git worktree add --detach /tmp/main-src "$MR_TARGET_SHA"
     - (cd /tmp/main-src/dbt_project && dbt deps && dbt compile --target prod --target-path /tmp/main-state)
-    # Writes this merge request's OWN ci_mr<IID>_* datasets (see .dbt_profile);
+    # Writes this merge request's OWN ci_mr<IID>_<SHA>* datasets (see .dbt_profile);
     # --defer --favor-state resolves unbuilt upstreams to prod. An empty selection
     # (an MR that changes no models) is a no-op success.
     # dbt cannot tell whether a seed over 1 MB changed, so each seed this MR changed is also selected by path.
-    - SEED_DIFF=$(git diff --name-only "${CI_MERGE_REQUEST_DIFF_BASE_SHA:?}" HEAD -- 'dbt_project/seeds/*.csv') || exit 1
+    - SEED_DIFF=$(git diff --name-only "${MR_TARGET_SHA:?}" HEAD -- 'dbt_project/seeds/*.csv') || exit 1
     - CHANGED_SEEDS=$(for f in $SEED_DIFF; do printf 'path:%s+ ' "${f#dbt_project/}"; done)
     - cd dbt_project
     - >-
