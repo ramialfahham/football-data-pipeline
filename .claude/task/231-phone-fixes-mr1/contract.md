@@ -33,6 +33,7 @@ scope_paths:
   - tests/test_phone_fixes_231.py
   - tests/fixtures/design_inventory/baseline.json
   - tests/fixtures/design_inventory/baseline_quick.json
+  - tests/fixtures/chart_screenshots/
   - site_v2/src/components/fixture/Breadcrumb.astro
   - docs/design/components.yml
 
@@ -95,4 +96,5 @@ amendments:
   - The six acceptance criteria are approved, criterion 6 as worded above. Approved in chat, 2026-11-14.
   - The design inventory's pin file joins the scope for lowering only: removing the Competitions name's text-overflow rule drops banned_properties for system.css from 7 to 6 and the count test demands the lower pin. Approved in chat, 2026-11-14.
   - The merge request pipeline's pin file baseline_quick.json joins the scope for lowering only: the Competitions index overflow (16 to 0), the Match page overflow (6 to 0) and the Match page scroll (1137 to 1131) fell, and the check demands the lower pins; no pin is raised. Approved in chat, 2026-11-15.
+  - The chart screenshot pins (tests/fixtures/chart_screenshots/) join the scope for renewal only: the Team scatter's axis title now sits inside the drawing (chartTheme margins), so the six scatter pins change; the Finnish 375px strip pin changes by two anti-aliased pixels at one dot because the 44px breadcrumb links move the strip down 12px on the page (measured 1295.3 to 1307.3px), its content unchanged and its render stable over three runs. The new images and manifest are the check's own output, taken on Linux in the CI image. Approved in chat, 2026-11-15.
   - On a two-level trail (Home and the page: the Competitions, Teams, Players and Matches pages) phones under 700px keep Home as a 44px link; trails of three or more levels are unchanged. Breadcrumb.astro and the Breadcrumb's narrow-form line in components.yml join the scope; the system.css rule is already in scope. Approved in chat, 2026-11-15.
