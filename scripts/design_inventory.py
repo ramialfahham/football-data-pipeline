@@ -426,7 +426,10 @@ def compare(a: Assertion, measured, tokens: dict[str, str]) -> str | None:
     if kind == "stripe":
         m = _STRIPE.match(a.expected)
         colour, start = m.group("colour"), int(m.group("n"))
-        want = expected_color(colour, tokens)
+        try:
+            want = expected_color(colour, tokens)
+        except ValueError as exc:
+            return "expected %s · the page's own colour is unreadable (%s)" % (a.raw, exc)
         for i, bg in enumerate(measured, start=1):
             try:
                 got = parse_css_color(str(bg))
