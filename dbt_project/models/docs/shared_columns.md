@@ -801,7 +801,19 @@ when no crest is ingested for the team.
 {% docs team_country %}
 The country the team is registered in, canonicalised and reconciled against dim_country in
 base, as dim_team publishes it. NULL when neither the provider row nor `team_country_corrections`
-gives one.
+gives one, and when it changed between deliveries with no correction to settle it.
+{% enddocs %}
+
+
+{% docs stats_need_research %}
+True where more than 8% of the competition-season's player-match rows of final matches were
+corrected or left blank. Its player and team boards are then withheld.
+{% enddocs %}
+
+
+{% docs country_needs_research %}
+True where the team has no country. Either no delivery gave one, or its country changed between
+deliveries and no team_country_corrections row settles it, so it is withheld.
 {% enddocs %}
 
 {% docs player_name %}

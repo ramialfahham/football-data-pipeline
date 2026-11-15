@@ -23,7 +23,8 @@
   through the standings_table_kinds seed and from its teams, so that a
   page can render one table per group, drop the provider's cross-group ranking tables and head
   a split season's rounds — and never matches on a name itself. A name no seed pattern matches
-  is the competition's own league table.
+  is the competition's own league table. A league table beside group or conference tables is
+  withheld (kind_needs_research) until a seed pattern names it.
 
   league_code discriminates the competition and is not a BigQuery partition or cluster key;
   competition_type / entity_type come from dim_league. Lives in shared/
@@ -54,7 +55,8 @@ section_kinds as (
         league_code,
         season_api_year,
         group_name,
-        table_kind
+        table_kind,
+        kind_needs_research
     from {{ ref('int_standings__section_kinds') }}
 )
 
@@ -93,3 +95,4 @@ left join section_kinds as k
         s.league_code = k.league_code
         and s.season_api_year = k.season_api_year
         and s.group_name = k.group_name
+where not coalesce(k.kind_needs_research, false)

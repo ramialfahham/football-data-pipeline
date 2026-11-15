@@ -2,8 +2,9 @@
   A team's rows in base_apif__fixture_players_from_lineups hold every goal of its score, where the
   provider sent no stat line for the team: its players' goals plus the own goals filed under it.
   Returns one row per team match that misses the
-  score, a match with no goal events included: a blank goals value is a miss. The fix is sourced
-  goals in fixture_goal_corrections.
+  score, a match with no goal events included: a blank goals value is a miss. A team whose goals
+  do not add up is withheld instead (goals_need_research): its players' goals stay blank, and a row
+  here then means one of them carries a goal. The fix is sourced goals in fixture_goal_corrections.
 #}
 {{ config(store_failures = true, severity = 'error') }}
 
@@ -38,7 +39,9 @@ teams as (
         l.league_code,
         l.fixture_id,
         l.team_id,
+        logical_or(l.goals_need_research) as goals_need_research,
         countif(l.goals is null) as players_with_blank_goals,
+        countif(l.goals > 0) as players_with_goals,
         coalesce(sum(l.goals), 0) as player_goals
     from {{ ref('base_apif__fixture_players_from_lineups') }} as l
     left join provider_teams as p
@@ -61,5 +64,11 @@ inner join fixtures as f
 left join own_goals as o
     on t.fixture_id = o.fixture_id and t.team_id = o.team_id
 where
-    t.players_with_blank_goals > 0
-    or t.player_goals + coalesce(o.own_goals, 0) != if(t.team_id = f.home_team_id, f.goals_home, f.goals_away)
+    (t.goals_need_research and t.players_with_goals > 0)
+    or (
+        not t.goals_need_research
+        and (
+            t.players_with_blank_goals > 0
+            or t.player_goals + coalesce(o.own_goals, 0) != if(t.team_id = f.home_team_id, f.goals_home, f.goals_away)
+        )
+    )

@@ -4040,12 +4040,16 @@ models:
       - name: team_country
         description: "{{ doc('team_country') }}"
         tests:
-          - not_null
+          - not_null:
+              where: "not country_needs_research"
           - dbt_utils.relationships_where:
               to: ref('dim_country')
               field: country_name
               from_condition: "region_key is null"
               to_condition: "confederation is null"
+      - name: country_needs_research
+        description: "{{ doc('country_needs_research') }}"
+        tests: [not_null]
       - name: region_key
         description: "The team's region: its country's confederation, from dim_country. NULL only for a team whose country belongs to no confederation."
         tests:

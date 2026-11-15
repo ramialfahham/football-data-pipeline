@@ -18,6 +18,7 @@ with standings as (
             s.league_code = k.league_code
             and s.season_api_year = k.season_api_year
             and s.group_name = k.group_name
+            and not k.kind_needs_research
 ),
 
 latest_rounds as (
