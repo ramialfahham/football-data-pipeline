@@ -135,7 +135,7 @@ const crumbs = [
 
     {hasPerformance && (
       <div class="page" data-page="performance">
-        <p class="bsub tab-intro">{t(lang, "teamPerfIntro", { competition: compName, season: season.season_label ?? "", team: name })}</p>
+        <p class="bsub tab-intro">{t(lang, "teamPerfIntro", { competition: compName, season: season.season_label ?? "" })}</p>
         <TeamStanding season={season} lang={lang} />
         <TeamDeserved season={season} teamName={name} compName={compName} lang={lang} />
         <TeamLeagueStrips season={season} teamName={name} compName={compName} lang={lang} />

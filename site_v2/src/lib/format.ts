@@ -156,6 +156,15 @@ export function formatShortDate(iso: string | null | undefined, lang: Lang): str
     day: "numeric", month: "short", timeZone: "UTC",
   }).format(d);
 }
+/** A day in its short form, "SU 18.10.": the Matches page's day switcher where the long form does not fit. */
+export function formatShortDay(iso: string | null | undefined, lang: Lang): string {
+  const d = toDate(iso);
+  if (!d) return DASH;
+  const part = (type: string) =>
+    dateFormat(lang, { weekday: "short", day: "numeric", month: "numeric", timeZone: "UTC" })
+      .formatToParts(d).find((p) => p.type === type)?.value ?? "";
+  return `${part("weekday").replace(/\./g, "").slice(0, 2).toLocaleUpperCase(LOCALE[lang])} ${part("day")}.${part("month")}.`;
+}
 /** A day with its year, "16 May 2026": a past meeting's date. */
 export function formatDayYear(iso: string | null | undefined, lang: Lang): string {
   const d = toDate(iso);

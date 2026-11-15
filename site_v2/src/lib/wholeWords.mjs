@@ -28,7 +28,24 @@ const keep = (text) => {
   return out;
 };
 
-/** The page with every hyphen-joined word of its body text kept whole. */
+// A middle dot between items of one line is a no-break span that holds the dot and the space after it
+// as one unit, so the dot never ends a line and travels with the item after it. dotEdges.mjs hides
+// the unit when it starts a line. A break stays possible before it.
+const SEP = /(^|[  ]|&nbsp;)·(?:[  ]|&nbsp;)*/g;
+const DOT = '<span class="nb" data-dot>·&nbsp;</span>';
+const DOT_CLASS = /\sdata-dot[\s>=/]/i;
+
+const withDots = (text) => {
+  let out = "";
+  let last = 0;
+  for (const m of text.matchAll(SEP)) {
+    out += keep(text.slice(last, m.index)) + (m[1] ? " " : "") + DOT;
+    last = m.index + m[0].length;
+  }
+  return out + keep(text.slice(last));
+};
+
+/** The page with every hyphen-joined word of its body text kept whole, and every separator dot a unit. */
 export function keepHyphenWords(html) {
   const open = html.search(/<body[\s>]/i);
   if (open < 0) return html;
@@ -36,19 +53,27 @@ export function keepHyphenWords(html) {
   let skip = [];
   // Each open span, and whether it is already a no-break span, whose text needs no second one.
   const spans = [];
+  const dots = [];
   TOKEN.lastIndex = open;
   for (let m = TOKEN.exec(html); m; m = TOKEN.exec(html)) {
     const [part, tag] = m;
     if (!tag) {
-      out += !skip.length && !spans.includes(true) && part !== "<" && !part.startsWith("<!--") ? keep(part) : part;
+      const plain = !skip.length && part !== "<" && !part.startsWith("<!--");
+      if (!plain || dots.includes(true)) out += plain && !spans.includes(true) ? keep(part) : part;
+      else out += spans.includes(true) ? part.replace(SEP, (_, before) => (before ? " " : "") + DOT) : withDots(part);
       continue;
     }
     out += part;
     const name = tag.toLowerCase();
     const closing = part.startsWith("</");
     if (name === "span") {
-      if (closing) spans.pop();
-      else if (!part.endsWith("/>")) spans.push(NB.test(part));
+      if (closing) {
+        spans.pop();
+        dots.pop();
+      } else if (!part.endsWith("/>")) {
+        spans.push(NB.test(part));
+        dots.push(DOT_CLASS.test(part));
+      }
     } else if (!closing && RAW.has(name)) {
       const end = new RegExp(`</${name}`, "gi");
       end.lastIndex = TOKEN.lastIndex;

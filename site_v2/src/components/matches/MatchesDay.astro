@@ -17,7 +17,7 @@ import Fold from "../ui/Fold.astro";
 import FilterRows from "../competitions/FilterRows.astro";
 import { t } from "../../i18n/strings";
 import { localeHref, word } from "../../lib/href";
-import { formatLongDate } from "../../lib/format";
+import { formatLongDate, formatShortDay } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import type { MatchDayPayload } from "../../lib/types";
 import { orderUpcomingGroups } from "../../lib/competitionOrder.mjs";
@@ -62,7 +62,7 @@ const crumbs = [
             ) : (
               <span class="step prev off"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
             )}
-            <span class="mdtitle"><b class="num">{longDate}</b></span>
+            <span class="mdtitle"><b class="num"><span data-long>{longDate}</span><span data-short>{formatShortDay(day.day, lang)}</span></b></span>
             {day.next_day ? (
               <a class="step next" href={dayHref(day.next_day)} aria-label={formatLongDate(day.next_day, lang)}>
                 <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>

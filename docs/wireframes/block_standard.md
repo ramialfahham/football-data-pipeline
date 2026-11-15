@@ -214,9 +214,16 @@ Not measured, still the rule: a team's crest in the match header is 52px, and ev
 
 ## Separators
 
-A middle dot with a space either side separates items of one line. Items in their own columns are
-separated by space. An en dash joins a score and stands for a missing value. The em dash is not
+A middle dot with a space either side separates items of one line. A separator dot never ends or
+starts a line. It travels with the item after it and disappears when that item moves to its own
+line. Items in their own columns are separated by space. An en dash joins a score and stands for a missing value. The em dash is not
 used.
+
+## Tap areas
+
+Every link and button has a tap area of at least 44px high and wide, sitewide; the text and look do
+not change, and links stacked closely gain the spacing they need. A link inside running text keeps
+its line. A linked row has square edges and sits flush with its block.
 
 ## Pages
 
