@@ -1,0 +1,77 @@
+diff --git a/.claude/task/277-coach-end-date/contract.md b/.claude/task/277-coach-end-date/contract.md
+new file mode 100644
+index 00000000..6f716c77
+--- /dev/null
++++ b/.claude/task/277-coach-end-date/contract.md
+@@ -0,0 +1,54 @@
++# Task contract — a coach stint with an end date beats an open copy
++
++objective: >
++  Issue #277, a defect in the pick that !450 merged: when one load carries a coach stint twice with
++  different end dates, the open copy wins, so a stint stays open after the coach has left. The latest
++  end date now wins, and an open copy only when no copy has an end.
++
++refs: >
++  #277 (plan approved in chat, 2026-11-09). Follows !450, whose build compared with prod showed the
++  defect.
++
++scope_paths:
++  - dbt_project/models/2_base/api_football/base_apif__coach_career.sql
++  - .claude/task/277-coach-end-date/contract.md
++  - .claude/task/277-coach-end-date/review.md
++  - .claude/task/277-coach-end-date/review_input.patch
++
++impact_map: >
++  writers: dbt only; no ingestion, seed or export change. base_apif__coach_career keeps its grain
++  and columns; only the order of its pick changes.
++  lineage: `dbt ls --resource-type model --output name --select base_apif__coach_career+` returns
++  2 models: base_apif__coach_career dim_coach_team_mapping. dim_coach_team_mapping feeds no model,
++  export or page.
++  consumption: none.
++  ci_layer_rules: scripts/check_layer_contract.py, scripts/check_description_hygiene.py.
++  deploy_order: one merge; the nightly rebuilds the two models. No backfill.
++  blast_radius: measured read-only by running the compiled model against prod's staging and
++  comparing it with the base_apif__coach_career built from 7bcdf434: 4 stints change, each to a later
++  end date (Bolivar 2020-12-01 to 2021-05-01, UAE 2019-03-01 to 2022-02-01, Pontevedra 2021-05-01 to
++  2021-06-01, Arosa open to 2024-06-01). Against !450's open-first order it also closes 3 stints that
++  order leaves open: Shkendija (the coach is at Qabala from 2026-10), Glentoran (at Dungannon Swifts
++  from 2023-06) and Reggiana (ended 2019-04).
++  recurring_cost: none; the model already runs nightly.
++
++approved_design:
++  - none: no page output changes
++
++decisions_taken: >
++  Under the approved #277 line "every row picked by an order holds a test that the order keys are
++  unique within the group": a coach stint takes the latest end date, open only when no copy has one,
++  then the team name. The pick stays total: every output column is a partition or order key.
++
++decisions_reserved:
++  - none: no metric, label or page composition changes.
++
++acceptance_criteria:
++  - Every row picked by an order holds a test that the order keys are unique within the group.
++
++done_when:
++  - dbt parse succeeds from the repo root.
++  - python scripts/check_layer_contract.py passes.
++  - python -m pytest tests -q is green.
++  - SQLFluff adds no violation on base_apif__coach_career.
++  - CI's data:build:mr is green, and base_apif__coach_career and dim_coach_team_mapping are compared with prod.
+diff --git a/dbt_project/models/2_base/api_football/base_apif__coach_career.sql b/dbt_project/models/2_base/api_football/base_apif__coach_career.sql
+index 80096a96..d0723ab2 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__coach_career.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__coach_career.sql
+@@ -20,9 +20,9 @@ select
+     end_date,
+     raw_ingested_at
+ from src
+--- One load can carry a stint twice, once per team fetched, with different end dates: the open or
+--- latest end wins.
++-- One load can carry a stint twice, once per team fetched, with different end dates: the latest
++-- end wins, and a copy with an end beats an open one.
+ qualify row_number() over (
+     partition by coach_id, team_id, start_date
+-    order by raw_ingested_at desc, end_date desc nulls first, team_name asc
++    order by raw_ingested_at desc, end_date desc nulls last, team_name asc
+ ) = 1
