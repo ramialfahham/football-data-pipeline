@@ -59,6 +59,16 @@ test("a span whose other attribute names nb is not a no-break span", () => {
   assert.equal(bodyOf(keepHyphenWords(html)), '<span data-class="nb"><span class="nb">Al-Nassr</span></span><span title="x nb"><span class="nb">Rot-Weiß</span></span>');
 });
 
+test("an initial stays with its surname, several initials and a hyphenated surname included", () => {
+  const out = keepHyphenWords(page("<p>pelaajan A. Hložek, J. M. Smith and P. Müller-Smith.</p>"));
+  assert.equal(bodyOf(out), '<p>pelaajan <span class="nb">A. Hložek,</span> <span class="nb">J. M. Smith</span> and <span class="nb">P. Müller-Smith.</span></p>');
+});
+
+test("a lowercase initial, a digit after an initial and a double space are left alone", () => {
+  const html = page("<p>Group A. 2-1 and b. Smith, A.  Smith</p>");
+  assert.equal(keepHyphenWords(html), html);
+});
+
 test("a page without a body is returned as it is", () => {
   assert.equal(keepHyphenWords("User-agent: *"), "User-agent: *");
 });

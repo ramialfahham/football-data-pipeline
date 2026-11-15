@@ -28,7 +28,8 @@ const { fixture, lang, title, round, compName, compLogo, compHref, teamHrefs, sh
 const { home, away } = fixture;
 
 const time = fixture.status === "TBD" ? t(lang, "timeOpen") : `${formatTime(fixture.kickoff, lang)} UTC`;
-const kick = [round, formatDate(fixture.kickoff, lang), time, fixture.venue].filter(Boolean);
+const kick = [round, formatDate(fixture.kickoff, lang), time].filter(Boolean);
+const venue = fixture.venue;
 
 const result = fixture.is_played ? fixture.result : null;
 const awarded = Boolean(result && (result.award_kind || fixture.status === "AWD" || fixture.status === "WO"));
@@ -92,6 +93,7 @@ const sides: { side: Side; href?: string }[] = [
         <span class="nb">{unit}</span>
       </>
     ))}
+    {venue && <>{kick.length > 0 && " · "}{venue}</>}
   </div>
   <div class:list={["teams", { played: big }]}>
     {sides.map(({ side, href }, i) => {

@@ -14,6 +14,7 @@
 //
 // Nothing on this page is derived: the slug, the name, the crest, every number is a served field.
 import Layout from "../../../layouts/Layout.astro";
+import Breadcrumb from "../../../components/fixture/Breadcrumb.astro";
 import CompetitionHeader from "../../../components/competition/CompetitionHeader.astro";
 import CompetitionTabs from "../../../components/competition/CompetitionTabs.astro";
 import StandingsTable from "../../../components/competition/StandingsTable.astro";
@@ -86,13 +87,7 @@ const competitionType = payload?.competition_type ?? competition.competition_typ
 
 <Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs} section="competitions">
   <div class="inner">
-    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
-      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
-      <span class="sep">›</span>
-      <a class="lnk" href={localeHref(lang, `${word(lang, "competitions")}/`)}>{t(lang, "navCompetitions")}</a>
-      <span class="sep">›</span>
-      <span class="here">{name}</span>
-    </nav>
+    <Breadcrumb items={crumbs.map((c) => ({ label: c.name, href: c.href }))} lang={lang} />
 
     <CompetitionHeader
       name={payload?.name ?? competition.competition_name}

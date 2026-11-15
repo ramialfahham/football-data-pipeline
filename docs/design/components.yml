@@ -116,7 +116,7 @@ components:
       level: {class: lvl}
       far-level: {class: far}
     wide: "levels separated by ›, the current page last"
-    narrow: {below: w700, form: "one line that scrolls sideways, the far levels hidden"}
+    narrow: {below: w700, form: "one line that scrolls sideways, the far levels hidden; a trail of two levels keeps Home"}
   page-heading:
     name: Page heading
     file: ["site_v2/src/pages/[lang]/[competitions]/index.astro", "site_v2/src/pages/[lang]/[teams]/index.astro", site_v2/src/components/matches/MatchesDay.astro, "site_v2/src/pages/[lang]/[players]/index.astro", "site_v2/src/pages/[lang]/[players]/[nation].astro"]

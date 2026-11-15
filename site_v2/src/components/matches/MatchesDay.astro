@@ -9,6 +9,7 @@
 // (mart_match_days, one payload per day); the competitions of the day take the site's shared
 // order, the one Home uses. The opening day lives only at the matches word's own address, so a
 // neighbour that is the opening day is linked there.
+import Breadcrumb from "../fixture/Breadcrumb.astro";
 import SectionHead from "../ui/SectionHead.astro";
 import MatchRow from "../ui/MatchRow.astro";
 import Crest from "../ui/Crest.astro";
@@ -34,22 +35,16 @@ const dayHref = (d: string) => localeHref(lang, d === openingDay ? `${matchesWor
 const isOpening = day.day === openingDay;
 const longDate = formatLongDate(day.day, lang);
 const groups = orderUpcomingGroups(day.competitions);
+const crumbs = [
+  { label: t(lang, "crumbHome"), href: localeHref(lang) },
+  ...(isOpening
+    ? [{ label: t(lang, "navMatches") }]
+    : [{ label: t(lang, "navMatches"), href: dayHref(openingDay) }, { label: longDate }]),
+];
 ---
 
   <div class="inner">
-    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
-      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
-      <span class="sep">›</span>
-      {isOpening ? (
-        <span class="here">{t(lang, "navMatches")}</span>
-      ) : (
-        <>
-          <a class="lnk" href={dayHref(openingDay)}>{t(lang, "navMatches")}</a>
-          <span class="sep">›</span>
-          <span class="here">{longDate}</span>
-        </>
-      )}
-    </nav>
+    <Breadcrumb items={crumbs} lang={lang} />
 
     <h1>{t(lang, "navMatches")}</h1>
 

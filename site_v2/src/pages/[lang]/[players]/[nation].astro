@@ -3,6 +3,7 @@
 // with the position filter. URL: /{lang}/{players word}/{nation slug}/, beside the player pages;
 // lib/playerIndex.mjs refuses a nation slug a player page uses, so the two never share an address.
 import Layout from "../../../layouts/Layout.astro";
+import Breadcrumb from "../../../components/fixture/Breadcrumb.astro";
 import FilterRows from "../../../components/competitions/FilterRows.astro";
 import SectionHead from "../../../components/ui/SectionHead.astro";
 import PlayerIndexRow from "../../../components/player/PlayerIndexRow.astro";
@@ -50,13 +51,7 @@ const crumbs = [
 
 <Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs} section="players">
   <div class="inner">
-    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
-      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
-      <span class="sep">›</span>
-      <a class="lnk" href={playersHref}>{t(lang, "navPlayers")}</a>
-      <span class="sep">›</span>
-      <span class="here">{nation}</span>
-    </nav>
+    <Breadcrumb items={crumbs.map((c) => ({ label: c.name, href: c.href }))} lang={lang} />
 
     <h1>{nation}</h1>
 

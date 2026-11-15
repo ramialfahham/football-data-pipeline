@@ -4,14 +4,14 @@
 
 export const scatter = {
   forms: [
-    { cls: "chart-wide", width: 560, height: 330, left: 46 },
-    { cls: "chart-narrow", width: 280, height: 230, left: 44 },
+    { cls: "chart-wide", width: 560, height: 330, left: 50 },
+    { cls: "chart-narrow", width: 280, height: 230, left: 48 },
   ],
   right: 14,
   top: 12,
   bottom: 58,
   tick: 4,
-  yTitleX: 11,
+  yTitleX: 15,
   // A label character's width, generous so a label moves before it meets the axis.
   labelChar: 7.7,
 };
