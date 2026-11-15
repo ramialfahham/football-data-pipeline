@@ -43,6 +43,7 @@ select
     teams.team_slug,
     teams.team_code,
     teams.team_country,
+    teams.country_needs_research,
     teams.team_founded_year,
     teams.team_logo_url,
     teams.venue_api_id,

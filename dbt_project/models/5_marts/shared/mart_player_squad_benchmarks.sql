@@ -6,14 +6,15 @@
 
   has_squad_filter marks the row of a player whose page shows this squad: their own team and
   window, reached the floor, and an outfield player. A squad with a team match with no player data has
-  blank minutes (rule R4 in models/docs/metric_rules.md), so it holds nobody.
+  blank minutes (rule R4 in models/docs/metric_rules.md), so it holds nobody. A squad whose window
+  holds a competition-season with stats_need_research is withheld.
 
   Grain: (squad_sk, player_sk, metric_key).
 #}
 
 with squad as (
     select * from {{ ref('int_player_squad_window__metrics') }}
-    where minutes >= team_matches * 90 / 3
+    where minutes >= team_matches * 90 / 3 and not stats_need_research
 ),
 
 profile as (

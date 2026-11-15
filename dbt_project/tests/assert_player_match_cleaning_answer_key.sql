@@ -22,7 +22,7 @@ with answer_key as (
 players as (
     select * except (stat_corrections) from {{ ref('base_apif__fixture_players') }}
     union all
-    select * from {{ ref('base_apif__fixture_players_from_lineups') }}
+    select * except (goals_need_research) from {{ ref('base_apif__fixture_players_from_lineups') }}
 )
 
 select

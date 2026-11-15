@@ -5,7 +5,9 @@
 -- silently: a new section name the seed does not cover falls through to "league" and gets
 -- rendered as the competition's ladder next to its real groups; or a seed edit lets one name
 -- match two kinds. Both show up as a league-kind section sharing a competition-season with a
--- group or conference section, or as a section resolving to more than one kind.
+-- group or conference section, or as a section resolving to more than one kind. The first is the
+-- provider's new table: mart_standings withholds it (kind_needs_research), and a row here means it
+-- is served. The second is our seed's, and fails here.
 --
 -- Recomputed from fct_standings and the seed, not from the mart's own CTE, so a rewrite of the
 -- mart that drops or reorders the resolution fails here.
@@ -202,6 +204,8 @@ inner join season_kinds as sk
         r.league_code = sk.league_code
         and r.season_api_year = sk.season_api_year
 where
-    v.table_kind is null
-    or v.table_kind != r.expected_kind
-    or (r.expected_kind = 'league' and sk.grouped_sections > 0)
+    (r.expected_kind = 'league' and sk.grouped_sections > 0 and v.group_name is not null)
+    or (
+        not (r.expected_kind = 'league' and sk.grouped_sections > 0)
+        and (v.table_kind is null or v.table_kind != r.expected_kind)
+    )

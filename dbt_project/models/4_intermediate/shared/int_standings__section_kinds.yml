@@ -28,3 +28,6 @@ models:
           - not_null
           - accepted_values:
               values: ["league", "group", "conference", "split_round", "ranking"]
+      - name: kind_needs_research
+        description: "True where the section is a league table beside a group or conference table of its league-season: no pattern names it, so mart_standings withholds it until a standings_table_kinds row does."
+        tests: [not_null]

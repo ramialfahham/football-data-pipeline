@@ -75,6 +75,14 @@ squad_totals as (
     group by s.squad_sk
 ),
 
+squads_needing_research as (
+    select distinct s.squad_sk
+    from squad_seasons as s
+    inner join {{ ref('int_competition_season__player_stat_corrections') }} as c
+        on s.season_sk = c.season_sk
+    where c.stats_need_research
+),
+
 window_rows as (
     select
         legs.*,
@@ -290,7 +298,10 @@ select
     m.*,
     s.page_tab,
     s.team_sk,
-    s.anchor_season_sk
+    s.anchor_season_sk,
+    r.squad_sk is not null as stats_need_research
 from metrics as m
 inner join squads as s
     on m.squad_sk = s.squad_sk
+left join squads_needing_research as r
+    on m.squad_sk = r.squad_sk
