@@ -1,0 +1,671 @@
+diff --git a/.claude/skills/validate-local/SKILL.md b/.claude/skills/validate-local/SKILL.md
+index 20363b9b..aedb7cf9 100644
+--- a/.claude/skills/validate-local/SKILL.md
++++ b/.claude/skills/validate-local/SKILL.md
+@@ -110,6 +110,30 @@ node site_v2/scripts/check-font-coverage.mjs --dist site_v2/dist
+ python -m pytest tests/test_check_component_registry.py -q
+ ```
+ 
++### Tier 1c — the `validate:ui` job in its CI image (mandatory before every review round)
++
++Run this before every review round on any change under `site_v2/`, `design-mocks/`, the
++design-inventory or chart-screenshot fixtures (`tests/fixtures/design_inventory/`,
++`tests/fixtures/chart_screenshots/`), or the scripts that read them. The checks in Tier 1b do not
++see what CI sees: the chart screenshot pins are Linux-only, the gap counts are pinned on Linux,
++and the design check does not run on every developer machine. A change that passes Tier 1b can
++still fail the merge request pipeline one finding at a time, a round each.
++
++```bash
++cd site_v2 && npm run build && cd ..
++python scripts/validate_ui_docker.py
++```
++
++It needs Docker with a Linux engine. It reads the image, variables and every step of the job from
++`.gitlab-ci.yml` (nothing is copied into the script), runs them against `site_v2/dist` in a copy of
++the working tree, and runs every step to the end. Pass 1 is the merge-request scope; pass 2
++re-runs the steps that branch on `CI_PIPELINE_SOURCE` in main's full scope (every width, en, de and
++fi, against `baseline.json`). `--mr-only` skips pass 2 and is for iterating, never for the run
++before a review round. Exit 0 and a summary with `0 step(s) failed` is the evidence to show;
++artifacts (failing-page screenshots, the chart pins' new images) are in
++`.cache/validate_ui_docker/out/artifacts`. To renew a chart pin, copy the new images and
++`manifest.json` from there into `tests/fixtures/chart_screenshots/`, only inside an approved scope.
++
+ ### Tier 2 — needs BigQuery auth (run if `bq` works locally)
+ 
+ `dbt parse` mirrors `validate:governance`; `sqlfluff lint` mirrors `data:build:mr`'s lint
+@@ -169,6 +193,7 @@ was a live-looking claim about a pipeline that does not run.
+ | `check_chart_screenshots.py --dist site_v2/dist` + `pytest tests/test_check_chart_screenshots.py` (screenshots compared on Linux only) | `validate:ui` (needs `build:site-v2`, on the Playwright image) |
+ | `check_component_registry.py` + `pytest tests/test_check_component_registry.py` | `validate:ui` |
+ | `site_v2/scripts/check-font-coverage.mjs --dist site_v2/dist` | `validate:ui` (needs `build:site-v2`) |
++| every step of the job, in its image: `scripts/validate_ui_docker.py` | `validate:ui` (reads the job from `.gitlab-ci.yml`) |
+ | `pytest tests/` | `test:python` |
+ | gitleaks secret scan | `validate:secrets` |
+ | `sqlfluff lint models` | `data:build:mr` |
+diff --git a/.claude/task/311-local-ci-check/contract.md b/.claude/task/311-local-ci-check/contract.md
+new file mode 100644
+index 00000000..c5f8c37b
+--- /dev/null
++++ b/.claude/task/311-local-ci-check/contract.md
+@@ -0,0 +1,62 @@
++# Task contract — the phone check also sweeps Finnish at 320px, the local design check runs, and validate:ui runs locally in the CI image
++
++objective: >
++  Issue #311. A merge request's validate:ui also sweeps Finnish at 320px; the local design check no
++  longer crashes in its colour parser on a developer machine; a script runs the whole validate:ui
++  script list of .gitlab-ci.yml inside the CI image through Docker, and running it is the rule before
++  every review round on a change under the design surfaces.
++
++refs: "#311 (CPO, parts 1 and 2 approved in chat 2026-11-14, part 3 approved in chat 2026-11-15); #231 (the phone-fixes MR whose rounds this removes)"
++
++scope_paths:
++  - .claude/task/311-local-ci-check/
++  - .gitlab-ci.yml
++  - scripts/design_inventory.py
++  - scripts/check_design_inventory.py
++  - tests/test_design_inventory.py
++  - tests/fixtures/design_inventory/baseline_quick_fi.json
++  - scripts/validate_ui_docker.py
++  - tests/test_validate_ui_docker.py
++  - .claude/skills/validate-local/SKILL.md
++
++protected_override: >
++  .gitlab-ci.yml, scripts/design_inventory.py, scripts/check_design_inventory.py and
++  tests/test_design_inventory.py: the Finnish 320px sweep in the merge-request run (part 1) and the
++  colour-parser fix (part 2), approved in chat on 2026-11-14 as the body of issue #311; the new
++  pin file baseline_quick_fi.json belongs to part 1.
++
++impact_map: >
++  writers: none; no dbt model, no export script, nothing under site_v2/src.
++  downstream: the merge-request pipeline's validate:ui job gains one more design-check run (Finnish,
++  320px) with its own pin file; main, manual and local runs are unchanged. design_inventory.py's
++  colour parser is read by check_design_inventory.py only (parse_css_color is called from compare()
++  and expected_color()); a colour the page does not carry becomes a reported finding where it
++  crashed the run.
++  layer_rules: not applicable; no computation.
++  deploy_order: none; CI only.
++  blast_radius: every merge request that touches the UI paths runs one more check, measured in the MR;
++  a failing Finnish count now blocks the MR instead of main. The new script is read by no job.
++
++decisions_taken: >
++  The script reads the validate:ui job's image, before_script and script from .gitlab-ci.yml at run
++  time, so no second copy of the steps exists. It runs them against a copy of the working tree
++  inside the container (the repo is mounted read-only), in the merge-request scope. The Finnish run
++  is its own script line with its own pin file, because one run takes one viewport list and one
++  language list. Thresholds: no new recurring spend (the runner time of one more check is measured
++  in the MR); one new local script, which part 3 of #311 approves.
++
++decisions_reserved:
++  - none: the three parts are the CPO's approved wording on #311.
++
++approved_design:
++  - none: no page output changes
++
++done_when:
++  - the new script runs green on this branch, its output is in the MR
++  - the local design check completes on this Windows machine without the colour crash
++  - the MR pipeline is green and the added job time is stated in the MR
++  - the full pytest passes
++
++amendments:
++  - Part 3 also runs the design inventory in main's full scope (every width, en, de and fi, against baseline.json) as a second pass. Authority: the CPO's approval in chat on 15 Nov 2026 that a local run of the exact CI phone and screenshot check precedes every review; main's validate:ui is part of that check, so its full scope is included (relayed by the coordinating session). This MR does not edit baseline.json.
++  - The new pin file baseline_quick_fi.json is covered by the same guards as baseline_quick.json (no pin rises above main's, its scope equals the CI line's, its page names and count keys are valid). Part 1 of #311 covers it.
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index f94d21bc..89fc4c12 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -525,6 +525,12 @@ validate:ui:
+         SCOPE="--viewports 280,1010 --langs en,de --baseline tests/fixtures/design_inventory/baseline_quick.json"
+       fi
+       python scripts/check_design_inventory.py --dist site_v2/dist --artifacts artifacts/design_inventory $SCOPE
++    # Finnish compounds break at 320px where English and German do not; a run takes one list of
++    # widths and one of languages, so the third language is its own run with its own pins.
++    - |
++      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
++        python scripts/check_design_inventory.py --dist site_v2/dist --artifacts artifacts/design_inventory_fi --viewports 320 --langs fi --baseline tests/fixtures/design_inventory/baseline_quick_fi.json
++      fi
+     - python -m pytest tests/test_design_inventory.py -q
+     - python scripts/check_chart_components.py
+     - python scripts/check_chart_screenshots.py --dist site_v2/dist --artifacts artifacts/chart_screenshots
+@@ -534,6 +540,7 @@ validate:ui:
+     when: on_failure
+     paths:
+       - artifacts/design_inventory
++      - artifacts/design_inventory_fi
+       - artifacts/chart_screenshots
+     expire_in: 7 days
+   rules:
+diff --git a/scripts/design_inventory.py b/scripts/design_inventory.py
+index 9418176e..c1e36ead 100644
+--- a/scripts/design_inventory.py
++++ b/scripts/design_inventory.py
+@@ -426,7 +426,10 @@ def compare(a: Assertion, measured, tokens: dict[str, str]) -> str | None:
+     if kind == "stripe":
+         m = _STRIPE.match(a.expected)
+         colour, start = m.group("colour"), int(m.group("n"))
+-        want = expected_color(colour, tokens)
++        try:
++            want = expected_color(colour, tokens)
++        except ValueError as exc:
++            return "expected %s · the page's own colour is unreadable (%s)" % (a.raw, exc)
+         for i, bg in enumerate(measured, start=1):
+             try:
+                 got = parse_css_color(str(bg))
+diff --git a/scripts/validate_ui_docker.py b/scripts/validate_ui_docker.py
+new file mode 100644
+index 00000000..e97685c5
+--- /dev/null
++++ b/scripts/validate_ui_docker.py
+@@ -0,0 +1,204 @@
++#!/usr/bin/env python3
++"""Run the `validate:ui` job of .gitlab-ci.yml locally, inside the CI image, through Docker.
++
++The merge-request pipeline renders the built site in the Playwright image on Linux. Two of its
++checks (the chart screenshot pins and the pinned gap counts) are Linux-only, and the design check
++does not run on every developer machine, so a local run outside the image cannot see what CI sees.
++This script takes the job's image, variables, before_script and script from .gitlab-ci.yml at run
++time (no step is written down here, so none can drift) and runs them in the image against the
++working tree, in the merge-request scope, with every step run to the end.
++
++    cd site_v2 && npm run build
++    python scripts/validate_ui_docker.py
++
++The working tree is mounted read-only and copied inside the container, so generators and pip never
++write into the repository. The run's artifacts (failing-page screenshots, counts.json, the chart
++pins' new images) land in `.cache/validate_ui_docker/out/artifacts`.
++
++Exit 0: every step passed. Exit 1: a step failed. Exit 2: the run could not start.
++"""
++from __future__ import annotations
++
++import argparse
++import hashlib
++import os
++import shutil
++import subprocess
++import sys
++from pathlib import Path
++
++import yaml
++
++REPO = Path(__file__).resolve().parents[1]
++CI_FILE = REPO / ".gitlab-ci.yml"
++JOB = "validate:ui"
++OUT = REPO / ".cache" / "validate_ui_docker"
++PIP_VOLUME = "fdp-validate-ui-pip"
++CONTAINER = "fdp-validate-ui-" + hashlib.sha1(str(REPO).encode("utf-8")).hexdigest()[:8]
++MR_SOURCE = "merge_request_event"
++
++COPY_EXCLUDES = ("./.git", "./.cache", "./.venv", "./node_modules", "./site_v2/node_modules",
++                 "./.claude/worktrees", "./dbt_project/target", "./dbt_project/dbt_packages")
++
++RUNNER = r"""#!/bin/bash
++mkdir -p /work /out
++tar -C /src __EXCLUDES__ -cf - . | tar -C /work -xf -
++cd /work
++echo "gitdir: $GIT_DIR_IN" > .git
++export PIP_CACHE_DIR=/cache/pip
++failed=0
++summary=""
++echo "=== before_script"
++. /steps/before.sh || { echo "before_script failed"; exit 2; }
++for f in /steps/[0-9]*.sh; do
++  label="$(grep -m1 -v '^[[:space:]]*$' "$f" | cut -c1-100)"
++  echo
++  echo "=== $(basename "$f" .sh): $label"
++  start=$(date +%s)
++  bash -e "$f"
++  rc=$?
++  secs=$(( $(date +%s) - start ))
++  if [ $rc -eq 0 ]; then verdict=PASS; else verdict=FAIL; failed=$((failed + 1)); fi
++  summary="$summary$verdict  ${secs}s  $(basename "$f" .sh)  $label"$'\n'
++done
++if [ -z "$MR_ONLY" ]; then
++  echo
++  echo "=== FULL SCOPE (as a push to main runs it): the steps that branch on CI_PIPELINE_SOURCE"
++  for f in $(grep -l CI_PIPELINE_SOURCE /steps/[0-9]*.sh); do
++    label="$(grep -m1 -v '^[[:space:]]*$' "$f" | cut -c1-100)"
++    echo
++    echo "=== full $(basename "$f" .sh): $label"
++    start=$(date +%s)
++    CI_PIPELINE_SOURCE=push bash -e "$f"
++    rc=$?
++    secs=$(( $(date +%s) - start ))
++    if [ $rc -eq 0 ]; then verdict=PASS; else verdict=FAIL; failed=$((failed + 1)); fi
++    summary="$summary$verdict  ${secs}s  full $(basename "$f" .sh)  $label"$'\n'
++  done
++fi
++rm -rf /out/artifacts
++[ -d /work/artifacts ] && cp -r /work/artifacts /out/artifacts
++echo
++echo "=== SUMMARY"
++printf '%s' "$summary"
++echo "$failed step(s) failed"
++[ $failed -eq 0 ]
++"""
++
++
++class _CiLoader(yaml.SafeLoader):
++    pass
++
++
++_CiLoader.add_multi_constructor("!", lambda loader, suffix, node: None)
++
++
++def load_job(path: Path = CI_FILE, job: str = JOB) -> dict:
++    """The job as GitLab merges it: anchors and `<<` resolved."""
++    doc = yaml.load(path.read_text(encoding="utf-8"), Loader=_CiLoader)
++    if job not in doc:
++        raise SystemExit("%s has no job %s" % (path.name, job))
++    return doc[job]
++
++
++def steps_of(job: dict) -> tuple[list[str], list[str]]:
++    """(before_script, script) as the strings GitLab hands the shell."""
++    return [str(s) for s in job.get("before_script", [])], [str(s) for s in job["script"]]
++
++
++def write_steps(job: dict, folder: Path) -> list[Path]:
++    """One file per script item, in order, and `before.sh` for the before_script; LF endings."""
++    before, script = steps_of(job)
++    folder.mkdir(parents=True, exist_ok=True)
++    for old in folder.glob("*.sh"):
++        old.unlink()
++    (folder / "before.sh").write_text("\n".join(before) + "\n", encoding="utf-8", newline="\n")
++    files = []
++    for i, step in enumerate(script, start=1):
++        f = folder / ("%02d.sh" % i)
++        f.write_text(step.rstrip("\n") + "\n", encoding="utf-8", newline="\n")
++        files.append(f)
++    (folder / "runner.sh").write_text(
++        RUNNER.replace("__EXCLUDES__", " ".join("--exclude=%s" % e for e in COPY_EXCLUDES)),
++        encoding="utf-8", newline="\n")
++    return files
++
++
++def docker_command(job: dict, source: str, repo: Path, steps: Path, out: Path,
++                   mr_only: bool = False) -> list[str]:
++    cmd = ["docker", "run", "--rm", "--init", "--name", CONTAINER, "--ipc=host",
++           "-e", "PYTHONDONTWRITEBYTECODE=1", "-e", "PYTHONIOENCODING=utf-8"]
++    env = {str(k): str(v) for k, v in (job.get("variables") or {}).items()}
++    env["CI_PIPELINE_SOURCE"] = source
++    if mr_only:
++        env["MR_ONLY"] = "1"
++    for k, v in sorted(env.items()):
++        cmd += ["-e", "%s=%s" % (k, v)]
++    common, own = git_dirs(repo)
++    cmd += ["-e", "GIT_DIR_IN=%s" % own,
++            "-e", "GIT_CONFIG_COUNT=1", "-e", "GIT_CONFIG_KEY_0=safe.directory", "-e", "GIT_CONFIG_VALUE_0=*",
++            "--mount", "type=bind,source=%s,target=/src,readonly" % repo,
++            "--mount", "type=bind,source=%s,target=/gitcommon,readonly" % common,
++            "--mount", "type=bind,source=%s,target=/steps,readonly" % steps,
++            "--mount", "type=bind,source=%s,target=/out" % out,
++            "--mount", "type=volume,source=%s,target=/cache" % PIP_VOLUME,
++            job["image"], "bash", "/steps/runner.sh"]
++    return cmd
++
++
++def git_dirs(repo: Path) -> tuple[Path, str]:
++    """(the repository's common git directory, the working tree's git directory as it will be
++    named inside the container, where the common one is mounted at /gitcommon)."""
++    def git(flag: str) -> Path:
++        out = subprocess.run(["git", "rev-parse", flag], cwd=repo, capture_output=True, text=True,
++                             encoding="utf-8", check=True).stdout.strip()
++        return (repo / out).resolve()
++
++    common, own = git("--git-common-dir"), git("--absolute-git-dir")
++    return common, "/gitcommon/" + own.relative_to(common).as_posix() if own != common else "/gitcommon"
++
++
++def dist_is_stale(dist: Path, src: Path) -> str | None:
++    """Why the built site is not the one for this tree, or None."""
++    if not (dist / "index.html").exists() and not any(dist.glob("*/index.html")):
++        return "%s holds no built site" % dist
++    built = max((p.stat().st_mtime for p in dist.rglob("*.html")), default=0.0)
++    newest = max((p.stat().st_mtime for p in src.rglob("*") if p.is_file()), default=0.0)
++    return "%s is older than the newest file under %s" % (dist, src) if newest > built else None
++
++
++def main() -> int:
++    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
++    ap.add_argument("--mr-only", action="store_true",
++                    help="skip the second pass in main's full scope (every width and language, against the full baseline)")
++    ap.add_argument("--allow-stale-dist", action="store_true",
++                    help="run even when site_v2/dist is older than site_v2/src")
++    args = ap.parse_args()
++
++    if shutil.which("docker") is None:
++        print("docker is not on PATH", file=sys.stderr)
++        return 2
++    if subprocess.run(["docker", "info"], capture_output=True).returncode != 0:
++        print("the Docker engine is not running (docker info fails)", file=sys.stderr)
++        return 2
++    dist = REPO / "site_v2" / "dist"
++    why = dist_is_stale(dist, REPO / "site_v2" / "src")
++    if why and not args.allow_stale_dist:
++        print("%s: run `cd site_v2 && npm run build` first" % why, file=sys.stderr)
++        return 2
++
++    job = load_job()
++    steps = OUT / "steps"
++    out = OUT / "out"
++    out.mkdir(parents=True, exist_ok=True)
++    n = len(write_steps(job, steps))
++    print("validate:ui, %d steps, image %s, as a merge request%s"
++          % (n, job["image"], "" if args.mr_only else ", then main's full scope"), flush=True)
++    env = dict(os.environ, MSYS_NO_PATHCONV="1")
++    cmd = docker_command(job, MR_SOURCE, REPO, steps, out, args.mr_only)
++    subprocess.run(["docker", "rm", "-f", CONTAINER], capture_output=True)
++    return subprocess.run(cmd, env=env).returncode
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/tests/fixtures/design_inventory/baseline_quick_fi.json b/tests/fixtures/design_inventory/baseline_quick_fi.json
+new file mode 100644
+index 00000000..21e7a262
+--- /dev/null
++++ b/tests/fixtures/design_inventory/baseline_quick_fi.json
+@@ -0,0 +1,159 @@
++{
++ "viewports": [
++  320
++ ],
++ "langs": [
++  "fi"
++ ],
++ "coverage": {
++  "generator fails": {
++   "gen_block_standard.py": 1,
++   "gen_competitions.py": 1,
++   "gen_match_page.py": 1,
++   "gen_navmap.py": 1,
++   "gen_team_mock.py": 1
++  },
++  "language missing": {
++   "competition-hub cup": 1,
++   "competition-hub groups": 1,
++   "competition-hub league": 1,
++   "competition-hub offseason": 1,
++   "competition-matchdays": 1,
++   "competition-overview": 1,
++   "competition-rankings": 1,
++   "gen_interaction.py/interaction_standard.html": 2,
++   "gen_matches_hub.py/matches-hub_2026-09-26.html": 1,
++   "gen_sitemap.py/sitemap_overview.html": 2,
++   "gen_taxonomy.py/taxonomy_options.html": 2,
++   "home": 1,
++   "home legacy": 1,
++   "matches hub": 1,
++   "matches next": 1,
++   "matches past": 1,
++   "top players": 1,
++   "top teams": 1
++  },
++  "mock page with no row": {
++   "gen_interaction.py/interaction_standard.html": 1,
++   "gen_matches_hub.py/matches-hub_2026-09-26.html": 1,
++   "gen_sitemap.py/sitemap_overview.html": 1,
++   "gen_taxonomy.py/taxonomy_options.html": 1
++  },
++  "page with no row": {
++   "fi/2-bundesliga/index.html": 1,
++   "fi/afc-champions-league/index.html": 1,
++   "fi/africa-cup-of-nations/index.html": 1,
++   "fi/asian-cup/index.html": 1,
++   "fi/belgian-pro-league/index.html": 1,
++   "fi/brasileirao/index.html": 1,
++   "fi/caf-champions-league/index.html": 1,
++   "fi/champions-league/index.html": 1,
++   "fi/club-world-cup/index.html": 1,
++   "fi/concacaf-champions-cup/index.html": 1,
++   "fi/concacaf-nations-league/index.html": 1,
++   "fi/conference-league/index.html": 1,
++   "fi/copa-america/index.html": 1,
++   "fi/copa-del-rey/index.html": 1,
++   "fi/copa-libertadores/index.html": 1,
++   "fi/coppa-italia/index.html": 1,
++   "fi/coupe-de-france/index.html": 1,
++   "fi/dfb-pokal/index.html": 1,
++   "fi/ekstraklasa/index.html": 1,
++   "fi/eredivisie/index.html": 1,
++   "fi/euro/index.html": 1,
++   "fi/europa-league/index.html": 1,
++   "fi/fa-cup/index.html": 1,
++   "fi/gold-cup/index.html": 1,
++   "fi/j1-league/index.html": 1,
++   "fi/k-league-1/index.html": 1,
++   "fi/la-liga/index.html": 1,
++   "fi/liga-mx/index.html": 1,
++   "fi/liga-portugal/index.html": 1,
++   "fi/liga-profesional-argentina/index.html": 1,
++   "fi/ligue-1/index.html": 1,
++   "fi/mls/index.html": 1,
++   "fi/nations-league/index.html": 1,
++   "fi/premier-league/index.html": 1,
++   "fi/saudi-pro-league/index.html": 1,
++   "fi/serie-a/index.html": 1,
++   "fi/super-lig/index.html": 1,
++   "fi/uefa-super-cup/index.html": 1,
++   "fi/veikkausliiga/index.html": 1,
++   "fi/world-cup-qualification-africa/index.html": 1,
++   "fi/world-cup-qualification-asia/index.html": 1,
++   "fi/world-cup-qualification-concacaf/index.html": 1,
++   "fi/world-cup-qualification-europe/index.html": 1,
++   "fi/world-cup-qualification-oceania/index.html": 1,
++   "fi/world-cup-qualification-playoffs/index.html": 1,
++   "fi/world-cup-qualification-south-america/index.html": 1,
++   "fi/world-cup/index.html": 1
++  }
++ },
++ "rendered": {
++  "platform": "linux",
++  "pages": {
++   "Competition overview": {
++    "split": 2
++   },
++   "Match page": {
++    "scroll": 129,
++    "split": 1,
++    "classes": 1
++   },
++   "Matches day page": {
++    "miss · Fold": 21,
++    "miss · Match row score": 23
++   },
++   "competition-hub cup": {
++    "classes": 9
++   },
++   "competition-hub groups": {
++    "classes": 9
++   },
++   "competition-hub league": {
++    "overflow": 8,
++    "classes": 11
++   },
++   "competition-hub offseason": {
++    "overflow": 8,
++    "classes": 11
++   },
++   "competition-matchdays": {
++    "split": 1,
++    "classes": 9
++   },
++   "competition-overview": {
++    "classes": 9
++   },
++   "competition-rankings": {
++    "classes": 9
++   },
++   "gen_matches_hub.py/matches-hub_2026-09-26.html": {
++    "scroll": 1,
++    "classes": 10
++   },
++   "home": {
++    "classes": 10
++   },
++   "home legacy": {
++    "classes": 12
++   },
++   "matches hub": {
++    "scroll": 1,
++    "classes": 10
++   },
++   "matches next": {
++    "classes": 12
++   },
++   "matches past": {
++    "classes": 12
++   },
++   "top players": {
++    "classes": 12
++   },
++   "top teams": {
++    "classes": 12
++   }
++  }
++ }
++}
+diff --git a/tests/test_design_inventory.py b/tests/test_design_inventory.py
+index a2912180..59ad9e48 100644
+--- a/tests/test_design_inventory.py
++++ b/tests/test_design_inventory.py
+@@ -273,6 +273,7 @@ def test_comparisons_name_the_expected_and_the_measured():
+     assert di.compare(stripe, [plain, tint, plain, tint], TOKENS) is None
+     assert "row 1" in di.compare(stripe, [tint, plain, tint], TOKENS)
+     assert "row 2" in di.compare(stripe, [plain, plain, plain], TOKENS)
++    assert "unreadable" in di.compare(stripe, [plain, tint], {**TOKENS, "ink": ""})
+ 
+ 
+ # ---------------------------------------------------------------- the lint
+@@ -408,6 +409,13 @@ def test_the_merge_request_run_names_the_scope_of_its_pin_file():
+         "the unconditional design check run must read no scope, so main renders every width and language")
+     assert quick["rendered"]["platform"] == "linux"
+     assert set(quick["viewports"]) <= set(cdi.DEFAULT_VIEWPORTS) and set(quick["langs"]) <= set(cdi.DEFAULT_LANGS)
++    fi = di.load_baseline(REPO / "tests" / "fixtures" / "design_inventory" / "baseline_quick_fi.json")
++    fi_flags = "--viewports %s --langs %s --baseline tests/fixtures/design_inventory/baseline_quick_fi.json" % (
++        ",".join(str(v) for v in fi["viewports"]), ",".join(fi["langs"]))
++    fi_step = re.search(r'if \[ "\$CI_PIPELINE_SOURCE" = "merge_request_event" \]; then\n\s*python scripts/check_design_inventory\.py (.*?)\n\s*fi\n', ci)
++    assert fi_step, "validate:ui no longer runs the Finnish sweep on a merge request pipeline"
++    assert fi_flags in fi_step.group(1)
++    assert fi["viewports"] == [320] and fi["langs"] == ["fi"] and fi["rendered"]["platform"] == "linux"
+ 
+ 
+ def test_the_static_counts_find_each_gap(tmp_path):
+@@ -613,7 +621,7 @@ def test_the_full_baseline_names_no_scope():
+         "make it a narrower run that compares nothing")
+ 
+ 
+-@pytest.mark.parametrize("name", ["baseline.json", "baseline_quick.json"])
++@pytest.mark.parametrize("name", ["baseline.json", "baseline_quick.json", "baseline_quick_fi.json"])
+ def test_the_baseline_names_only_pages_the_check_renders_and_counts_it_knows(name):
+     baseline = di.load_baseline(REPO / "tests" / "fixtures" / "design_inventory" / name)
+     rendered = baseline["rendered"]
+@@ -827,12 +835,13 @@ def test_no_pin_rises_above_mains():
+     assert up == [], "a pin rose above main's; a new gap is fixed, not pinned:\n" + "\n".join(up)
+ 
+ 
+-def test_no_quick_pin_rises_above_mains():
+-    base = _mains_baseline("baseline_quick.json")
++@pytest.mark.parametrize("name", ["baseline_quick.json", "baseline_quick_fi.json"])
++def test_no_quick_pin_rises_above_mains(name):
++    base = _mains_baseline(name)
+     if base is None:
+-        # Main holds no quick pins yet; this branch introduces them.
++        # Main holds no such pins yet; this branch introduces them.
+         return
+-    current = di.load_baseline(REPO / "tests" / "fixtures" / "design_inventory" / "baseline_quick.json")
++    current = di.load_baseline(REPO / "tests" / "fixtures" / "design_inventory" / name)
+     up = di.rises(current, base)
+     assert up == [], "a quick pin rose above main's; a new gap is fixed, not pinned:\n" + "\n".join(up)
+ 
+diff --git a/tests/test_validate_ui_docker.py b/tests/test_validate_ui_docker.py
+new file mode 100644
+index 00000000..5fdccec3
+--- /dev/null
++++ b/tests/test_validate_ui_docker.py
+@@ -0,0 +1,69 @@
++"""scripts/validate_ui_docker.py runs the validate:ui job of .gitlab-ci.yml and keeps no copy of it."""
++from __future__ import annotations
++
++import importlib.util
++import sys
++from pathlib import Path
++
++REPO = Path(__file__).resolve().parents[1]
++SCRIPT = REPO / "scripts" / "validate_ui_docker.py"
++
++spec = importlib.util.spec_from_file_location("validate_ui_docker", SCRIPT)
++vud = importlib.util.module_from_spec(spec)
++sys.modules["validate_ui_docker"] = vud
++spec.loader.exec_module(vud)
++
++
++def test_every_script_item_of_the_job_becomes_one_step_verbatim(tmp_path):
++    job = vud.load_job()
++    _before, script = vud.steps_of(job)
++    files = vud.write_steps(job, tmp_path)
++    assert len(files) == len(script) > 10
++    for f, step in zip(files, script):
++        assert f.read_text(encoding="utf-8") == step.rstrip("\n") + "\n"
++    assert b"\r" not in (tmp_path / "runner.sh").read_bytes()
++
++
++def test_before_script_is_the_jobs_own(tmp_path):
++    job = vud.load_job()
++    vud.write_steps(job, tmp_path)
++    text = (tmp_path / "before.sh").read_text(encoding="utf-8")
++    for line in job["before_script"]:
++        assert line in text
++
++
++def test_the_image_and_variables_come_from_the_ci_file(tmp_path):
++    job = vud.load_job()
++    cmd = vud.docker_command(job, vud.MR_SOURCE, REPO, tmp_path, tmp_path)
++    assert job["image"] in cmd
++    assert "mcr.microsoft.com/playwright/python" in job["image"]
++    assert "CI_PIPELINE_SOURCE=merge_request_event" in cmd
++    assert "PIP_BREAK_SYSTEM_PACKAGES=1" in cmd
++    assert any(a.endswith(",readonly") and "target=/src" in a for a in cmd)
++    assert "--init" in cmd and cmd[cmd.index("--name") + 1] == vud.CONTAINER
++
++
++def test_the_container_name_belongs_to_the_checkout():
++    assert vud.CONTAINER.startswith("fdp-validate-ui-") and len(vud.CONTAINER) == len("fdp-validate-ui-") + 8
++
++
++def test_the_script_keeps_no_second_copy_of_a_check():
++    text = SCRIPT.read_text(encoding="utf-8")
++    for name in ("check_design_inventory", "check_chart_screenshots", "check_page_css",
++                 "check-font-coverage", "pytest"):
++        assert name not in text.replace("pytest.", ""), name
++
++
++def test_a_missing_or_old_dist_is_refused(tmp_path):
++    src = tmp_path / "src"
++    dist = tmp_path / "dist"
++    src.mkdir()
++    dist.mkdir()
++    (src / "a.astro").write_text("x", encoding="utf-8")
++    assert "no built site" in vud.dist_is_stale(dist, src)
++    (dist / "index.html").write_text("x", encoding="utf-8")
++    import os
++    os.utime(src / "a.astro", (dist.stat().st_mtime + 100, dist.stat().st_mtime + 100))
++    assert "older" in vud.dist_is_stale(dist, src)
++    os.utime(dist / "index.html", (dist.stat().st_mtime + 500, dist.stat().st_mtime + 500))
++    assert vud.dist_is_stale(dist, src) is None
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/311-local-ci-check/review_input.patch | 665 +++++++++++++++++++++
+#    1 file changed, 665 insertions(+)
+# ============================================================================
