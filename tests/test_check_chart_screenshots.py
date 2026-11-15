@@ -227,6 +227,8 @@ def test_a_chart_script_that_waits_for_a_rendered_frame_fails_the_reader_flow():
 
 
 def test_the_phone_built_page_checks_pass():
+    if not (DIST / "en" / "index.html").exists():
+        pytest.skip("no built site: the built-page checks run where the site is built")
     result = subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", str(Path(__file__).with_name("test_phone_built_pages_231.py"))],
         capture_output=True, text=True, check=False,

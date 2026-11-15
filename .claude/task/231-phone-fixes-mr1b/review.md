@@ -1,8 +1,9 @@
 # Review — claude/231-phone-fixes-mr1b-a2bb82 — 2026-11-15
 
-diff_sha256: 77e18c157e7a96cd7b8352d350fc3002d8e6a8e2b10c912b76f628132cb99af9
+diff_sha256: 346922afc3ffbe75c0bf4f0d1ff1d91fd75e2d77c872d3270818111a8c6a88f6
 
-rounds: 3
+rounds: 4
+rounds_cap_override: round 4 holds the wrapper-test skip fix for the red test:python of !448 and gitlab/main merged in after !445; approved in chat, 2026-11-15
 
 ## scope-auditor
 VERDICT: PASS
@@ -11,6 +12,7 @@ risks_checked:
 - The tap, picker, separator and explainer changes each apply a rule the contract ties to a dated #231 or #230 comment; square rows and the Goals space are defects against written rules; no §10 decision is taken and decisions_reserved stays none.
 - The one new client script is named in decisions_taken; no service, library or recurring cost is added.
 - Round 2 delta: the lowercase DE and FI strings remove the only wording difference between languages, adding no wording decision.
+- Round 4 delta: gitlab/main merged in; the wrapper test skips when no built site exists; in scope, no decision, no CI file touched.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
@@ -28,6 +30,7 @@ risks_checked:
 - The page-css and component-registry pins do not rise: no new width query, no style write in a script, no unlisted class, every spacing value already in the registry set; requirements-ui.txt is unchanged.
 - The day picker's short and long forms and the hidden-dot rule are pinned by built tests at 280 and 1010px in EN, DE and FI.
 - Chart screenshot pins are the check's own output from the CI image; the check shows 0 differences over 18.
+- Round 4 delta: the wrapper skip applies only where no dist exists (test:python); validate:ui gets the dist artifact and fails closed earlier without it, and the built-page module still fails on a missing page.
 
 ## escalations
 (none)
