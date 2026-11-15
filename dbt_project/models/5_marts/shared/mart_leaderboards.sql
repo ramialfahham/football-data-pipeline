@@ -484,11 +484,12 @@ select
     cast(null as int64) as fixture_sk,
     cast(null as int64) as match_leader_order
 from ranked
-where season_sk not in (
-    select c.season_sk
-    from {{ ref('int_competition_season__player_stat_corrections') }} as c
-    where c.stats_need_research and c.season_sk is not null
-)
+where
+    season_sk not in (
+        select c.season_sk
+        from {{ ref('int_competition_season__player_stat_corrections') }} as c
+        where c.stats_need_research and c.season_sk is not null
+    )
 
 union all
 

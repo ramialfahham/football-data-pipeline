@@ -676,7 +676,7 @@ index 0bd6cf95..6509e597 100644
 +        description: "True where the section is a league table beside a group or conference table of its league-season: no pattern names it, so mart_standings withholds it until a standings_table_kinds row does."
 +        tests: [not_null]
 diff --git a/dbt_project/models/5_marts/shared/mart_leaderboards.sql b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
-index bbbe4890..fef6d79e 100644
+index bbbe4890..a3406d9a 100644
 --- a/dbt_project/models/5_marts/shared/mart_leaderboards.sql
 +++ b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
 @@ -24,6 +24,9 @@
@@ -719,19 +719,20 @@ index bbbe4890..fef6d79e 100644
      -- NULL on every row that is not a league leader: the position is only defined among leaders.
      case
          when league_leader_order = 1 then row_number() over (
-@@ -479,6 +484,11 @@ select
+@@ -479,6 +484,12 @@ select
      cast(null as int64) as fixture_sk,
      cast(null as int64) as match_leader_order
  from ranked
-+where season_sk not in (
-+    select c.season_sk
-+    from {{ ref('int_competition_season__player_stat_corrections') }} as c
-+    where c.stats_need_research and c.season_sk is not null
-+)
++where
++    season_sk not in (
++        select c.season_sk
++        from {{ ref('int_competition_season__player_stat_corrections') }} as c
++        where c.stats_need_research and c.season_sk is not null
++    )
  
  union all
  
-@@ -535,3 +545,8 @@ select
+@@ -535,3 +546,8 @@ select
      fixture_sk,
      match_leader_order
  from match_rows
@@ -1311,3 +1312,20 @@ index 32780f32..4ffbce06 100644
  ),
  
  benchmarked as (
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../task/262-withhold-provider-checks/review.md    |   29 +
+#    .../review_input.patch                             | 1313 ++++++++++++++++++++
+#    2 files changed, 1342 insertions(+)
+# ============================================================================

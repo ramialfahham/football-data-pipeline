@@ -1,8 +1,10 @@
 # Review — claude/262-withhold-provider-checks — 2026-11-15
 
-diff_sha256: 5a1e7b6b51d2198c50c8cff36ebec82628437357301dc23d6df2b0d6ff6f93a0
+diff_sha256: c3fefd2f75f243c860a45890d58d91e734aeeba540053e5c8255c0a01337b37b
 
-rounds: 3
+rounds: 4
+
+rounds_cap_override: approved in chat, 2026-11-15; round 4 is a lint-only fix after round 3 (CI sqlfluff LT02 indentation in mart_leaderboards.sql), no logic change.
 
 ## scope-auditor
 VERDICT: PASS
@@ -13,6 +15,7 @@ risks_checked:
 - No new mechanism beyond the cards pattern; the new staging read over RAW_APIF_TEAMS (about 0.24 GB a night) was ruled in.
 - impact_map pastes the dbt ls lineage, models and singular tests.
 - Decision (10) narrows the board withhold to rankings and is listed in the MR head for the CPO's merge.
+- Round 4: the one mart_leaderboards.sql hunk reflows the season-rows filter; same tokens, whitespace only.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
@@ -24,6 +27,7 @@ risks_checked:
 - Slugs anchor on the raw country, so a withheld country moves no URL; mart_team_index already handles NULL countries.
 - Standings readers: mart_standings and the two team-season models drop flagged sections; the standings tests that start from fct_standings or the mart stay consistent.
 - Staging is a plain unnest; layer placement holds; descriptions are within limits.
+- Round 4: the season-rows filter is unchanged in logic after the reflow; the dbt-templater lint of the 22 changed model files is clean.
 
 ## escalations
 (none)
