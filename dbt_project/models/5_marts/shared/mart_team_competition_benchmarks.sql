@@ -87,3 +87,8 @@ inner join benchmarks as b
         and r.metric_key = b.metric_key
 left join teams as t
     on r.team_sk = t.team_sk
+where r.season_sk not in (
+    select c.season_sk
+    from {{ ref('int_competition_season__player_stat_corrections') }} as c
+    where c.stats_need_research and c.season_sk is not null
+)

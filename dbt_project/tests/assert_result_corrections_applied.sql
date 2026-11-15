@@ -1,7 +1,7 @@
 -- Every hand correction of a result or a round, from the four correction seeds, is applied, sourced
 -- and still needed. One row per broken correction:
 --   - not_applied: base has no such match or table row, or does not carry the official figures
---     and team.
+--     and team. A withheld result (result_needs_research) carries none, by design.
 --   - winner_not_valid: a winner is set where the score already decides, or names a team not in
 --     the match.
 --   - award_not_valid: an award without its kind or a kind without an award, a played or
@@ -156,12 +156,17 @@ fixture_checks as (
         case
             when f.fixture_id is null then 'not_applied'
             when
-                f.goals_home is distinct from c.goals_home
-                or f.goals_away is distinct from c.goals_away
-                or f.status_short is distinct from if(c.awarded, 'AWD', f.provider_status_short)
+                f.status_short is distinct from if(c.awarded, 'AWD', f.provider_status_short)
                 or f.awarded_to_team_id is distinct from c.awarded_to_team_id
-                or f.shootout_home is distinct from coalesce(c.shootout_home, f.provider_shootout_home)
-                or f.shootout_away is distinct from coalesce(c.shootout_away, f.provider_shootout_away)
+                or (
+                    not f.result_needs_research
+                    and (
+                        f.goals_home is distinct from c.goals_home
+                        or f.goals_away is distinct from c.goals_away
+                        or f.shootout_home is distinct from coalesce(c.shootout_home, f.provider_shootout_home)
+                        or f.shootout_away is distinct from coalesce(c.shootout_away, f.provider_shootout_away)
+                    )
+                )
                 then 'not_applied'
             when
                 c.awarded_to_team_id is not null

@@ -52,16 +52,34 @@ per_league as (
         countif(flagged_rows > 0 and flagged_rows <> season_rows) as partly_flagged_seasons
     from per_season
     group by league_code
+),
+
+-- A league whose latest season is withheld (stats_need_research) keeps no current season: the flag
+-- never moves to the season before it.
+withheld_latest as (
+    select distinct p.league_code
+    from per_league as p
+    inner join {{ ref('int_competition_season__player_stat_corrections') }} as w
+        on p.league_code = w.league_code
+    where w.stats_need_research and w.season_api_year > p.latest_season
 )
 
 select
-    league_code,
-    latest_season,
-    flagged_season,
-    flagged_seasons,
-    partly_flagged_seasons
-from per_league
+    p.league_code,
+    p.latest_season,
+    p.flagged_season,
+    p.flagged_seasons,
+    p.partly_flagged_seasons
+from per_league as p
+left join withheld_latest as h
+    on p.league_code = h.league_code
 where
-    flagged_seasons <> 1
-    or flagged_season <> latest_season
-    or partly_flagged_seasons > 0
+    (h.league_code is not null and p.flagged_seasons > 0)
+    or (
+        h.league_code is null
+        and (
+            p.flagged_seasons <> 1
+            or p.flagged_season <> p.latest_season
+            or p.partly_flagged_seasons > 0
+        )
+    )

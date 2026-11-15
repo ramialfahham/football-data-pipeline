@@ -607,9 +607,10 @@ models:
         description: "{{ doc('league_code') }} Here it is the PLAYED fixture's competition."
         tests: [not_null]
       - name: result
-        description: "{{ doc('result') }}"
+        description: "{{ doc('result') }} NULL where the match's result is withheld."
         tests:
-          - not_null
+          - not_null:
+              where: "team_goals_for is not null and team_goals_against is not null"
           - accepted_values:
               values: ["W", "D", "L"]
       - name: is_home
@@ -2908,6 +2909,9 @@ models:
           expression: "is_played = (lineup_state is not null)"
           name: competition_fixtures_played_has_a_lineup_state
       - dbt_utils.expression_is_true:
+          expression: "not (result_needs_research and is_played)"
+          name: competition_fixtures_withheld_result_is_not_played
+      - dbt_utils.expression_is_true:
           expression: "not is_match_that_matters or is_next_round"
           name: competition_fixtures_top_match_is_in_the_next_round
       - dbt_utils.unique_combination_of_columns:
@@ -2977,6 +2981,9 @@ models:
           - relationships:
               to: ref('dim_team')
               field: team_sk
+      - name: result_needs_research
+        description: "{{ doc('result_needs_research') }}"
+        tests: [not_null]
       - name: home_team_sk
         description: "{{ doc('home_team_sk') }}"
         tests:
@@ -4033,12 +4040,16 @@ models:
       - name: team_country
         description: "{{ doc('team_country') }}"
         tests:
-          - not_null
+          - not_null:
+              where: "not country_needs_research"
           - dbt_utils.relationships_where:
               to: ref('dim_country')
               field: country_name
               from_condition: "region_key is null"
               to_condition: "confederation is null"
+      - name: country_needs_research
+        description: "{{ doc('country_needs_research') }}"
+        tests: [not_null]
       - name: region_key
         description: "The team's region: its country's confederation, from dim_country. NULL only for a team whose country belongs to no confederation."
         tests:

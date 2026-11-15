@@ -67,6 +67,19 @@ identity_fields as (
     group by team_api_id
 ),
 
+-- A country that changed between the stored deliveries is withheld until a
+-- team_country_corrections row settles it: the provider's data is not trusted on a change.
+delivered_countries as (
+    select
+        d.team_id as team_api_id,
+        count(distinct coalesce(o.country_name, d.team_country)) as delivered_countries
+    from {{ ref('stg_apif__team_deliveries') }} as d
+    left join import_country_name_overrides as o
+        on d.team_country = o.provider_country
+    where d.team_country is not null
+    group by d.team_id
+),
+
 -- Columns are enumerated rather than passed through with a wildcard: the override join makes
 -- `select teams.* replace (...)` ambiguous to SQLFluff (AM04, "unknown number of result
 -- columns"), and this repo suppresses no lint rule anywhere -- there is not a single `noqa`
@@ -96,11 +109,18 @@ corrected as (
         teams.raw_ingested_at,
         coalesce(overrides.team_name, identity_fields.team_name) as team_name,
         coalesce(
-            country_corrections.team_country, country_overrides.country_name, identity_fields.team_country
+            country_corrections.team_country,
+            if(
+                coalesce(delivered.delivered_countries, 0) > 1,
+                null,
+                coalesce(country_overrides.country_name, identity_fields.team_country)
+            )
         ) as team_country
     from latest_per_team as teams
     inner join identity_fields
         on teams.team_api_id = identity_fields.team_api_id
+    left join delivered_countries as delivered
+        on teams.team_api_id = delivered.team_api_id
     left join import_team_name_overrides as overrides
         on teams.team_api_id = overrides.team_api_id
     left join import_country_name_overrides as country_overrides
@@ -276,5 +296,6 @@ select
         -- shown, to avoid a case that fires zero times. Removed deliberately -- see the residual
         -- stated in base.yml rather than an escape hatch hidden in a case expression.
         when not id_slug_taken then slug_with_id
-    end as team_slug
+    end as team_slug,
+    team_country is null as country_needs_research
 from level_3_checked

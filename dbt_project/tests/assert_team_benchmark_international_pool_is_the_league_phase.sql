@@ -44,13 +44,23 @@ phase as (
     group by legs.team_sk, legs.season_sk
 ),
 
+-- A withheld competition-season (stats_need_research) has no benchmark to compare.
+withheld as (
+    select season_sk
+    from {{ ref('int_competition_season__player_stat_corrections') }}
+    where stats_need_research and season_sk is not null
+),
+
 pool as (
     select * from phase
-    where matches >= {{ var('team_min_matches') }}
+    where
+        matches >= {{ var('team_min_matches') }}
+        and season_sk not in (select w.season_sk from withheld as w)
 ),
 
 phase_seasons as (
     select distinct season_sk from phase
+    where season_sk not in (select w.season_sk from withheld as w)
 ),
 
 benchmarked as (

@@ -1,0 +1,36 @@
+version: 2
+
+models:
+  - name: int_competition_season__player_stat_corrections
+    description: >
+      The share of player-match rows the cleaning corrected or left blank, per competition-season,
+      over the matches whose player stats are final. stats_need_research is true past the 8% limit,
+      and mart_leaderboards, mart_player_competition_benchmarks, mart_player_squad_benchmarks and
+      mart_team_competition_benchmarks then withhold the competition-season.
+      Grain: (league_code, season_api_year).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season_api_year]
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+      - name: season_sk
+        description: "{{ doc('season_sk') }}"
+        tests:
+          - not_null:
+              where: "stats_need_research"
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: corrected_rows
+        description: "Player-match rows of final matches with a non-empty stat_corrections."
+      - name: player_rows
+        description: "Player-match rows of final matches."
+      - name: corrected_share
+        description: "corrected_rows over player_rows."
+      - name: stats_need_research
+        description: "{{ doc('stats_need_research') }}"
+        tests: [not_null]

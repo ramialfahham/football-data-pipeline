@@ -35,6 +35,11 @@ match stats are good enough.
   events add up to the score only without such events. Where a match's goal events stay wrong, its
   goals come from sourced research in the fixture_goal_corrections seed. A player's goals come from
   the per-player count or the goal events, whichever adds up to the score.
+  A result that fails a result check is withheld until sourced research stands in
+  fixture_result_corrections. The match has no score, shoot-out or winner, is not played, and
+  counts in no form, record or cup round.
+- Withheld values. A value that fails its check and has no sourced correction yet is left blank,
+  as line-ups and cards are.
 - Cards. A player's yellow and red cards are exact. Where his stat line and the card events
   disagree, or a card's player is not on the sheet, the match's cards come from sourced research.
   Research is not needed where another fetch gives the events' count.
@@ -85,8 +90,14 @@ match stats are good enough.
   minus the player's own); own_goals_left_out (shots inside the box less the own goals the
   provider counted as the team's shots); split_does_not_add_up (a split of shots that does not add
   up to the total, left blank, shots on target excepted).
-- A test fails the build when a competition-season's share of corrected or blanked values passes
-  its limit.
+- A competition-season whose share of corrected or blanked player values passes its limit has its
+  player and team boards withheld.
+- A line-up team's player goals that do not add up to its score stay blank until sourced research
+  stands.
+- A standings section that resolves to a league table beside group or conference tables is
+  withheld until a standings_table_kinds pattern names it.
+- A team's country that is missing, or that changed between deliveries, is withheld until a
+  team_country_corrections row settles it.
 {% enddocs %}
 
 {% docs stat_corrections_cleaned_value %}
