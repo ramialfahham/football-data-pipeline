@@ -424,7 +424,7 @@ goal_lists as (
                 cast(null as int64) as score_home_after,
                 cast(null as int64) as score_away_after
             )
-            order by g.goals desc, g.player_name asc
+            order by g.goals desc, g.player_name asc, g.team_sk asc, g.is_own_goal asc, g.player_sk asc
         ) as goals
     from scorer_goals as g
     inner join scores as sc

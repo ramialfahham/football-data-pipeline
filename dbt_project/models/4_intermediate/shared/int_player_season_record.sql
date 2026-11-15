@@ -65,7 +65,7 @@ running as (
         kickoff_datetime,
         round_order,
         minutes,
-        array_agg(position_code) over w as positions_to_date,
+        array_agg(struct(position_code, kickoff_datetime)) over w as positions_to_date,
         countif(minutes > 0) over w as match_number,
         if(logical_and(window_is_complete and minutes is not null) over w, sum(minutes) over w, null)
             as minutes_to_date,
@@ -234,11 +234,11 @@ select
     -- The position to date: the most frequent, then the one from the most recent match, then
     -- the code, so every build picks the same one.
     (
-        select pc
-        from unnest(positions_to_date) as pc with offset as position_index
-        where pc is not null
-        group by pc
-        order by count(*) desc, max(position_index) desc, pc asc
+        select p.position_code
+        from unnest(positions_to_date) as p
+        where p.position_code is not null
+        group by p.position_code
+        order by count(*) desc, max(p.kickoff_datetime) desc, p.position_code asc
         limit 1
     ) as position_code
 from running

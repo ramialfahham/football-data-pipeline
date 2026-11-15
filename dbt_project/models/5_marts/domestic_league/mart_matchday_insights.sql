@@ -89,7 +89,7 @@ next_round as (
     from upcoming_candidates
     qualify row_number() over (
         partition by league_code, season_api_year
-        order by fixture_date asc, kickoff_datetime asc
+        order by fixture_date asc, kickoff_datetime asc, fixture_sk asc
     ) = 1
 ),
 

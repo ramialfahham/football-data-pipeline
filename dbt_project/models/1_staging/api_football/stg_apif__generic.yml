@@ -57,6 +57,16 @@ models:
       One row per team per stage group per season per league from GET /standings.
       Latest ingestion snapshot selected per league_code before unnest.
       Grain: (league_code, season, team_id) — unique within a single league/season snapshot.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          name: stg_apif__standings_order_keys_unique
+          combination_of_columns:
+            - league_code
+            - season
+            - team_id
+            - group_name
+            - raw_ingested_at
+            - standing_section_order
     columns:
       - name: league_code
         description: "{{ doc('league_code') }}"
@@ -84,6 +94,10 @@ models:
     description: >
       One row per team per season per league from GET /teams. Deduped to latest ingestion per
       league_code. Grain: (league_code, season, team_id).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          name: stg_apif__teams_order_keys_unique
+          combination_of_columns: [league_code, team_id, season, raw_ingested_at]
     columns:
       - name: league_code
         description: "{{ doc('league_code') }}"
@@ -119,6 +133,10 @@ models:
     description: >
       One row per season per league from GET /leagues. Deduped to latest ingestion per
       league_code. Grain: (league_code, league_api_id, season_api_year).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          name: stg_apif__leagues_order_keys_unique
+          combination_of_columns: [league_code, league_api_id, season_api_year, raw_ingested_at]
     columns:
       - name: league_code
         description: "{{ doc('league_code') }}"
@@ -161,6 +179,10 @@ models:
       latest-snapshot qualify, the grain is sub-league; choosing between versions is
       base_apif__fixture_events' job: it keeps each fixture's latest fetch that has events. Grain at
       staging: (fixture_id, event_index, raw_ingested_at).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          name: stg_apif__fixture_events_order_keys_unique
+          combination_of_columns: [league_code, fixture_id, event_index, raw_ingested_at]
     columns:
       - name: league_code
         description: "{{ doc('league_code') }}"
@@ -228,6 +250,10 @@ models:
       Staging reads every row faithfully, with no latest-snapshot filter, because the raw grain is
       finer than a league. That means a fixture fetched five times has five rows here, and
       resolving which version to use is left to whatever reads it.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          name: stg_apif__lineups_order_keys_unique
+          combination_of_columns: [fixture_id, team_id, raw_ingested_at]
     columns:
       - name: league_code
         description: "{{ doc('league_code') }}"

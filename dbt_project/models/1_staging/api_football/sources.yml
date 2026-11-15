@@ -14,6 +14,10 @@ sources:
           updated in place, so the newest row for a league_code is the current
           picture and older rows are earlier versions of it.
         identifier: RAW_APIF_FIXTURES_NEXT
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              name: raw_apif_fixtures_next_order_keys_unique
+              combination_of_columns: [league_code, ingested_at]
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
@@ -28,6 +32,10 @@ sources:
           A cup can return several stage groups in one payload, and a
           competition that has no table returns none at all.
         identifier: RAW_APIF_STANDINGS
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              name: raw_apif_standings_order_keys_unique
+              combination_of_columns: [league_code, ingested_at]
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
@@ -42,6 +50,10 @@ sources:
           The provider's team name is not always a usable display name, and one
           real club can appear under more than one provider id.
         identifier: RAW_APIF_TEAMS
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              name: raw_apif_teams_order_keys_unique
+              combination_of_columns: [league_code, ingested_at]
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
@@ -55,6 +67,10 @@ sources:
           that competition in one JSON payload. Append-only, so the newest row
           per league_code is current.
         identifier: RAW_APIF_LEAGUES
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              name: raw_apif_leagues_order_keys_unique
+              combination_of_columns: [league_code, ingested_at]
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 30, period: hour}
@@ -136,6 +152,10 @@ sources:
           Fetched BY TEAM, so a move between two clubs in the same competition
           comes back twice, once from each side.
         identifier: RAW_APIF_TRANSFERS
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              name: raw_apif_transfers_order_keys_unique
+              combination_of_columns: [league_code, ingested_at]
         loaded_at_field: ingested_at
         freshness:
           warn_after: {count: 8, period: day}
@@ -152,6 +172,10 @@ sources:
           The provider sometimes lists the same player twice in one squad, so
           one row per player per team is the intent and not a guarantee.
         identifier: RAW_APIF_SQUADS
+        tests:
+          - dbt_utils.unique_combination_of_columns:
+              name: raw_apif_squads_order_keys_unique
+              combination_of_columns: [league_code, ingested_at]
         loaded_at_field: ingested_at
 
       - name: raw_apif_player_profiles

@@ -99,6 +99,7 @@ overrides as (
 corrected as (
     select
         pivoted.* except (team_id),
+        pivoted.team_id as provider_team_id,
         coalesce(
             fixture_override.correct_team_api_id,
             alias_override.correct_team_api_id,
@@ -127,6 +128,18 @@ corrected as (
             and reattribute_override.wrong_team_api_id not in (
                 fixture_participants.home_team_id, fixture_participants.away_team_id
             )
+),
+
+-- A fetch can file one team's line under its wrong id and its correct id: the line under the
+-- correct id comes first.
+ranked as (
+    select
+        *,
+        row_number() over (
+            partition by league_code, fixture_id, team_id
+            order by raw_ingested_at desc, provider_team_id = team_id desc, provider_team_id asc
+        ) as fetch_rank
+    from corrected
 ),
 
 matches_with_events as (
@@ -171,32 +184,32 @@ newest_values as (
         fixture_id,
         team_id,
         max(raw_ingested_at) as raw_ingested_at,
-        array_agg(shots_on_target ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
+        array_agg(shots_on_target ignore nulls order by fetch_rank limit 1)[safe_offset(0)]
             as shots_on_target,
-        array_agg(shots_off_target ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
+        array_agg(shots_off_target ignore nulls order by fetch_rank limit 1)[safe_offset(0)]
             as shots_off_target,
-        array_agg(shots ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as shots,
-        array_agg(shots_blocked ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
+        array_agg(shots ignore nulls order by fetch_rank limit 1)[safe_offset(0)] as shots,
+        array_agg(shots_blocked ignore nulls order by fetch_rank limit 1)[safe_offset(0)]
             as shots_blocked,
-        array_agg(shots_inside_box ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
+        array_agg(shots_inside_box ignore nulls order by fetch_rank limit 1)[safe_offset(0)]
             as shots_inside_box,
-        array_agg(shots_outside_box ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
+        array_agg(shots_outside_box ignore nulls order by fetch_rank limit 1)[safe_offset(0)]
             as shots_outside_box,
-        array_agg(fouls ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as fouls,
-        array_agg(corners ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as corners,
-        array_agg(offsides ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as offsides,
-        array_agg(free_kicks ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as free_kicks,
-        array_agg(possession_pct ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
+        array_agg(fouls ignore nulls order by fetch_rank limit 1)[safe_offset(0)] as fouls,
+        array_agg(corners ignore nulls order by fetch_rank limit 1)[safe_offset(0)] as corners,
+        array_agg(offsides ignore nulls order by fetch_rank limit 1)[safe_offset(0)] as offsides,
+        array_agg(free_kicks ignore nulls order by fetch_rank limit 1)[safe_offset(0)] as free_kicks,
+        array_agg(possession_pct ignore nulls order by fetch_rank limit 1)[safe_offset(0)]
             as possession_pct,
-        array_agg(cards_yellow ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
+        array_agg(cards_yellow ignore nulls order by fetch_rank limit 1)[safe_offset(0)]
             as cards_yellow,
-        array_agg(cards_red ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as cards_red,
-        array_agg(saves ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as saves,
-        array_agg(passes ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)] as passes,
-        array_agg(passes_accurate ignore nulls order by raw_ingested_at desc limit 1)[safe_offset(0)]
+        array_agg(cards_red ignore nulls order by fetch_rank limit 1)[safe_offset(0)] as cards_red,
+        array_agg(saves ignore nulls order by fetch_rank limit 1)[safe_offset(0)] as saves,
+        array_agg(passes ignore nulls order by fetch_rank limit 1)[safe_offset(0)] as passes,
+        array_agg(passes_accurate ignore nulls order by fetch_rank limit 1)[safe_offset(0)]
             as passes_accurate,
-        array_agg(struct(cards_yellow, cards_red) order by raw_ingested_at desc limit 1)[offset(0)] as latest_cards
-    from corrected
+        array_agg(struct(cards_yellow, cards_red) order by fetch_rank limit 1)[offset(0)] as latest_cards
+    from ranked
     group by league_code, fixture_id, team_id
 ),
 

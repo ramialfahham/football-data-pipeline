@@ -20,7 +20,9 @@ select
     end_date,
     raw_ingested_at
 from src
+-- One load can carry a stint twice, once per team fetched, with different end dates: the open or
+-- latest end wins.
 qualify row_number() over (
     partition by coach_id, team_id, start_date
-    order by raw_ingested_at desc
+    order by raw_ingested_at desc, end_date desc nulls first, team_name asc
 ) = 1

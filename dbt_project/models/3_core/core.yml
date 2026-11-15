@@ -216,6 +216,9 @@ models:
           combination_of_columns:
             - league_api_id
             - season_api_year
+      - dbt_utils.unique_combination_of_columns:
+          name: dim_competition_season_order_keys_unique
+          combination_of_columns: [league_code, season_api_year]
       - dbt_utils.expression_is_true:
           name: dim_competition_season_label_follows_its_season_type
           expression: >

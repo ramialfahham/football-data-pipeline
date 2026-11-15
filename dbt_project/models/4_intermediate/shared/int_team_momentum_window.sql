@@ -281,7 +281,7 @@ tournament_window as (
         'tournament_to_date' as window_type,
         row_number() over (
             partition by upcoming_fixture_sk, team_sk
-            order by leg_kickoff_datetime desc
+            order by leg_kickoff_datetime desc, leg_fixture_sk desc
         ) as recency_rank
     from tournament_legs
 ),
@@ -292,7 +292,7 @@ qualifier_window as (
         'qualifiers' as window_type,
         row_number() over (
             partition by upcoming_fixture_sk, team_sk
-            order by leg_kickoff_datetime desc
+            order by leg_kickoff_datetime desc, leg_fixture_sk desc
         ) as recency_rank
     from qualifier_legs
 ),
@@ -311,7 +311,7 @@ last5_window as (
         'last_5' as window_type,
         row_number() over (
             partition by upcoming_fixture_sk, team_sk
-            order by leg_kickoff_datetime desc
+            order by leg_kickoff_datetime desc, leg_fixture_sk desc
         ) as recency_rank
     from last5_legs
 ),
