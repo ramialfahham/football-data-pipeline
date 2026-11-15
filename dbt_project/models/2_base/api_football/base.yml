@@ -134,7 +134,9 @@ models:
       provider's stay on the row. Where two clubs share a provider team id in a fixture, the
       home and away team ids are corrected from the fixture_team_id_overrides seed's
       reattribute_in_fixture rows. Where the provider files a fixture under another round's name,
-      the round is the organiser's from the fixture_round_corrections seed. Grain: fixture_id.
+      the round is the organiser's from the fixture_round_corrections seed. A result that fails a
+      result check is withheld: result_needs_research is true and the goals, shoot-out and winner
+      are blank. Grain: fixture_id.
     config:
       tags: ["base", "api_football", "fixture_context"]
     tests:
@@ -154,9 +156,9 @@ models:
       - name: shootout_away
         description: "{{ doc('shootout_away') }} Here, the official one from the fixture_result_corrections seed where the provider gives none or a different one."
       - name: provider_shootout_home
-        description: "The provider's home shoot-out goals; differs from shootout_home only where the official result was corrected."
+        description: "The provider's home shoot-out goals; differs from shootout_home only where the official result was corrected or the result is withheld."
       - name: provider_shootout_away
-        description: "The provider's away shoot-out goals; differs from shootout_away only where the official result was corrected."
+        description: "The provider's away shoot-out goals; differs from shootout_away only where the official result was corrected or the result is withheld."
       - name: winner_team_id
         description: "{{ doc('winner_team') }} Here, the team id as home_team_id and away_team_id carry it."
       - name: award_kind
@@ -166,9 +168,12 @@ models:
       - name: on_pitch_away
         description: "The away goals at the final whistle or at the abandonment of a played or abandoned match that was awarded afterwards; NULL otherwise."
       - name: provider_goals_home
-        description: "The provider's home goals; differs from goals_home only where the official result was corrected."
+        description: "The provider's home goals; differs from goals_home only where the official result was corrected or the result is withheld."
       - name: provider_goals_away
-        description: "The provider's away goals; differs from goals_away only where the official result was corrected."
+        description: "The provider's away goals; differs from goals_away only where the official result was corrected or the result is withheld."
+      - name: result_needs_research
+        description: "{{ doc('result_needs_research') }}"
+        tests: [not_null]
       - name: provider_status_short
         description: "The provider's status code; differs from status_short only where the league awarded a match the provider files as played."
       - name: result_correction_source

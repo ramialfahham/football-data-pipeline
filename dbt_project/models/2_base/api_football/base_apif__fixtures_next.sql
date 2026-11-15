@@ -49,59 +49,93 @@ result_corrections as (
 -- seeds/fixture_round_corrections.csv.
 round_corrections as (
     select * from {{ ref('fixture_round_corrections') }}
+),
+
+cleaned as (
+    select
+        f.league_code,
+        f.fixture_id,
+        f.league_api_id,
+        f.season,
+        f.fixture_date,
+        f.kickoff_datetime,
+        f.kickoff_timezone,
+        f.status_elapsed,
+        f.round_name as provider_round_name,
+        r.source as round_correction_source,
+        f.home_team_id,
+        f.away_team_id,
+        c.awarded_to_team_id,
+        c.award_kind,
+        c.on_pitch_home,
+        c.on_pitch_away,
+        f.goals_home as provider_goals_home,
+        f.goals_away as provider_goals_away,
+        f.shootout_home as provider_shootout_home,
+        f.shootout_away as provider_shootout_away,
+        f.status_short as provider_status_short,
+        c.source as result_correction_source,
+        f.venue_id,
+        f.venue_name,
+        f.venue_city,
+        f.raw_ingested_at,
+        coalesce(r.round_name, f.round_name) as round_name,
+        if(c.awarded, 'AWD', f.status_short) as status_short,
+        if(c.awarded, 'Technical loss', f.status_long) as status_long,
+        coalesce(c.goals_home, f.goals_home) as goals_home,
+        coalesce(c.goals_away, f.goals_away) as goals_away,
+        coalesce(c.shootout_home, f.shootout_home) as shootout_home,
+        coalesce(c.shootout_away, f.shootout_away) as shootout_away,
+        case
+            when c.awarded and c.awarded_to_team_id is not null then cast(c.awarded_to_team_id as int64)
+            when not coalesce(c.awarded, false) and f.status_short = 'PEN'
+                then case
+                    when coalesce(c.shootout_home, f.shootout_home) > coalesce(c.shootout_away, f.shootout_away)
+                        then f.home_team_id
+                    when coalesce(c.shootout_away, f.shootout_away) > coalesce(c.shootout_home, f.shootout_home)
+                        then f.away_team_id
+                end
+            when c.awarded or f.status_short in ('FT', 'AET', 'AWD', 'WO')
+                then case
+                    when coalesce(c.goals_home, f.goals_home) > coalesce(c.goals_away, f.goals_away) then f.home_team_id
+                    when coalesce(c.goals_away, f.goals_away) > coalesce(c.goals_home, f.goals_home) then f.away_team_id
+                end
+        end as winner_team_id
+    from corrected as f
+    left join result_corrections as c
+        on f.fixture_id = c.fixture_id
+    left join round_corrections as r
+        on f.fixture_id = r.fixture_id
+),
+
+-- A result that fails a result check, with no sourced correction that passes it, is withheld:
+-- its goals, shoot-out and winner stay blank until research stands in fixture_result_corrections.
+checked as (
+    select
+        *,
+        coalesce(
+            (
+                status_short in ('FT', 'AET', 'PEN')
+                and (
+                    goals_home is null
+                    or goals_away is null
+                    or goals_home not between 0 and 20
+                    or goals_away not between 0 and 20
+                )
+            )
+            or (shootout_home is null) != (shootout_away is null)
+            or (status_short = 'PEN' and (shootout_home is null or shootout_home = shootout_away)),
+            false
+        ) as result_needs_research
+    from cleaned
 )
 
 select
-    f.league_code,
-    f.fixture_id,
-    f.league_api_id,
-    f.season,
-    f.fixture_date,
-    f.kickoff_datetime,
-    f.kickoff_timezone,
-    f.status_elapsed,
-    f.round_name as provider_round_name,
-    r.source as round_correction_source,
-    f.home_team_id,
-    f.away_team_id,
-    c.awarded_to_team_id,
-    c.award_kind,
-    c.on_pitch_home,
-    c.on_pitch_away,
-    f.goals_home as provider_goals_home,
-    f.goals_away as provider_goals_away,
-    f.shootout_home as provider_shootout_home,
-    f.shootout_away as provider_shootout_away,
-    f.status_short as provider_status_short,
-    c.source as result_correction_source,
-    f.venue_id,
-    f.venue_name,
-    f.venue_city,
-    f.raw_ingested_at,
-    coalesce(r.round_name, f.round_name) as round_name,
-    if(c.awarded, 'AWD', f.status_short) as status_short,
-    if(c.awarded, 'Technical loss', f.status_long) as status_long,
-    coalesce(c.goals_home, f.goals_home) as goals_home,
-    coalesce(c.goals_away, f.goals_away) as goals_away,
-    coalesce(c.shootout_home, f.shootout_home) as shootout_home,
-    coalesce(c.shootout_away, f.shootout_away) as shootout_away,
-    case
-        when c.awarded and c.awarded_to_team_id is not null then cast(c.awarded_to_team_id as int64)
-        when not coalesce(c.awarded, false) and f.status_short = 'PEN'
-            then case
-                when coalesce(c.shootout_home, f.shootout_home) > coalesce(c.shootout_away, f.shootout_away)
-                    then f.home_team_id
-                when coalesce(c.shootout_away, f.shootout_away) > coalesce(c.shootout_home, f.shootout_home)
-                    then f.away_team_id
-            end
-        when c.awarded or f.status_short in ('FT', 'AET', 'AWD', 'WO')
-            then case
-                when coalesce(c.goals_home, f.goals_home) > coalesce(c.goals_away, f.goals_away) then f.home_team_id
-                when coalesce(c.goals_away, f.goals_away) > coalesce(c.goals_home, f.goals_home) then f.away_team_id
-            end
-    end as winner_team_id
-from corrected as f
-left join result_corrections as c
-    on f.fixture_id = c.fixture_id
-left join round_corrections as r
-    on f.fixture_id = r.fixture_id
+    * except (goals_home, goals_away, shootout_home, shootout_away, winner_team_id, result_needs_research),
+    result_needs_research,
+    if(result_needs_research, null, goals_home) as goals_home,
+    if(result_needs_research, null, goals_away) as goals_away,
+    if(result_needs_research, null, shootout_home) as shootout_home,
+    if(result_needs_research, null, shootout_away) as shootout_away,
+    if(result_needs_research, null, winner_team_id) as winner_team_id
+from checked

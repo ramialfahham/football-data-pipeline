@@ -42,7 +42,8 @@
   match order each goal carries the score after it.
 
   Result. winner_team_sk is the team that won or went through: the awarded team, else the
-  shoot-out's winner, else the side with more goals; NULL on a draw.
+  shoot-out's winner, else the side with more goals; NULL on a draw. A withheld result
+  (result_needs_research) has no score, shoot-out or winner, and the match is not played.
 
   Line-ups. lineup_state names whether a played match's team sheets can be shown: confirmed,
   researched or not_available. The formations are served only for a confirmed or researched match.
@@ -65,6 +66,7 @@ with fixtures as (
         shootout_home,
         shootout_away,
         winner_team_sk,
+        result_needs_research,
         award_kind,
         awarded_to_team_sk,
         on_pitch_home,
@@ -478,6 +480,7 @@ select
     f.shootout_home,
     f.shootout_away,
     f.winner_team_sk,
+    f.result_needs_research,
     f.home_team_sk,
     h.team_name as home_team_name,
     h.team_slug as home_team_slug,
