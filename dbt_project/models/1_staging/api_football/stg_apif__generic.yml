@@ -98,6 +98,23 @@ models:
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
 
+  - name: stg_apif__team_deliveries
+    description: >
+      One row per team per delivery from GET /teams, every stored delivery kept, with only the
+      team id and country. base_apif__teams_global reads it to see whether a team's country
+      changed between deliveries. Grain: (league_code, raw_ingested_at, team_id).
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }}"
+        tests: [not_null]
+      - name: team_id
+        description: "{{ doc('team_api_id') }}"
+      - name: team_country
+        description: "{{ doc('team_country') }} Here, as one delivery gives it, in the provider's spelling and before any correction."
+
   - name: stg_apif__leagues
     description: >
       One row per season per league from GET /leagues. Deduped to latest ingestion per

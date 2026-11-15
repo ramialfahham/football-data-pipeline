@@ -5,7 +5,7 @@ with src as (
     from {{ ref('base_apif__fixture_players') }}
     union all
     select
-        *,
+        * except (goals_need_research),
         true as is_from_lineups
     from {{ ref('base_apif__fixture_players_from_lineups') }}
 )

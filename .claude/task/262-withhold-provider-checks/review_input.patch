@@ -1,0 +1,1331 @@
+diff --git a/.claude/task/262-withhold-provider-checks/contract.md b/.claude/task/262-withhold-provider-checks/contract.md
+new file mode 100644
+index 00000000..ef42abb7
+--- /dev/null
++++ b/.claude/task/262-withhold-provider-checks/contract.md
+@@ -0,0 +1,153 @@
++# Task contract — five provider-data checks withhold the failing value instead of stopping the build
++
++objective: >
++  Issue #262: five error tests that catch the provider's data stopped the nightly from 11 to 14 Nov,
++  and dbt skipped every model below them. Under the rule adopted for #262, a value that fails a
++  check of the provider's data is withheld, the way cards_need_research withholds cards, and the
++  check becomes an error test that every flagged value is blank and every other one passes. The
++  five: (1) a competition-season whose share of corrected player rows passes 8%
++  (stats_need_research) has its player and team boards withheld; (2) a standings section that
++  resolves to a league table beside group or conference tables (kind_needs_research) is left out
++  of mart_standings; (3) a team whose line-up players' goals do not add up to its score
++  (goals_need_research) keeps its goals blank; (4) and (5) a team with no country, or whose country
++  changed between deliveries with no team_country_corrections row (country_needs_research), has a
++  blank country, and the one-national-team-per-country test stays on our code.
++
++refs: >
++  #262 and its What exactly / How as edited for this rule (approved in chat, 15 Nov 2026); routes
++  ruled by the coordinating session on 2026-11-15: boards withheld for (1) (how a withheld board
++  looks is #294); withhold, not hold, for (5); the new staging read over all team deliveries with
++  only the columns it needs. Results are !446.
++
++scope_paths:
++  - dbt_project/models/1_staging/api_football/stg_apif__team_deliveries.sql
++  - dbt_project/models/1_staging/api_football/README.md
++  - dbt_project/tests/assert_player_match_cleaning_answer_key.sql
++  - dbt_project/tests/assert_one_current_season_per_league.sql
++  - dbt_project/tests/assert_team_benchmark_international_pool_is_the_league_phase.sql
++  - dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++  - dbt_project/models/2_base/api_football/base_apif__fixture_fetches.sql
++  - dbt_project/models/2_base/api_football/base_apif__teams_global.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_players_from_lineups.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/3_core/dim_team.sql
++  - dbt_project/models/3_core/fct_fixture_player_stats.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_state.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
++  - dbt_project/models/4_intermediate/shared/int_player_squad_window__metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_player_page.yml
++  - dbt_project/models/4_intermediate/shared/int_competition_season__player_stat_corrections.sql
++  - dbt_project/models/4_intermediate/shared/int_competition_season__player_stat_corrections.yml
++  - dbt_project/models/4_intermediate/shared/int_standings__section_kinds.sql
++  - dbt_project/models/4_intermediate/shared/int_standings__section_kinds.yml
++  - dbt_project/models/5_marts/shared/mart_standings.sql
++  - dbt_project/models/5_marts/shared/mart_team_index.sql
++  - dbt_project/models/5_marts/shared/mart_leaderboards.sql
++  - dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
++  - dbt_project/models/5_marts/shared/mart_player_squad_benchmarks.sql
++  - dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/models/docs/shared_columns.md
++  - dbt_project/models/docs/cleaning_rules.md
++  - dbt_project/tests/assert_player_stat_corrections_within_limit.sql
++  - dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql
++  - dbt_project/tests/assert_players_from_lineups_goals_add_up.sql
++  - dbt_project/tests/assert_identity_fields_never_blanked.sql
++  - .claude/task/262-withhold-provider-checks/contract.md
++  - .claude/task/262-withhold-provider-checks/review.md
++  - .claude/task/262-withhold-provider-checks/review_input.patch
++
++impact_map: >
++  writers: every changed model is written by dbt only; the new staging model reads
++  raw.RAW_APIF_TEAMS (append-only, 0.24 GB, 3,006 rows on 2026-11-15), no ingestion code changes.
++  downstream, `dbt ls --select <model>+ --resource-type model` and `--select <model>+,test_type:singular`
++  on 2026-11-15 (stg_apif__team_deliveries+ is base_apif__teams_global+ plus itself):
++  base_apif__fixture_fetches+ models: base_apif__fixture_fetches
++  int_competition_season__player_stat_corrections int_player_squad_window__metrics mart_leaderboards
++  mart_player_competition_benchmarks mart_player_squad_benchmarks mart_team_competition_benchmarks;
++  singular tests: assert_mart_leaderboards_board_leader_order_is_total
++  assert_mart_leaderboards_boards_follow_their_floors assert_mart_leaderboards_every_home_board_has_a_leader
++  assert_mart_leaderboards_match_boards_follow_the_rule assert_mart_leaderboards_one_leader_per_league
++  assert_mart_leaderboards_rank_ties_on_the_shown_value assert_one_current_season_per_league
++  assert_player_metrics_follow_catalogue_formula assert_player_page_windows
++  assert_player_peer_pools_follow_the_season_role assert_player_stat_corrections_within_limit
++  assert_team_benchmark_international_pool_is_the_league_phase assert_team_benchmark_prev_season_matches_yoy
++  assert_team_benchmark_rank_follows_direction.
++  base_apif__teams_global+ models: base_apif__teams_global dim_player_team_season_mapping dim_team
++  mart_competition_fixtures mart_fixture_standing_context mart_leaderboards mart_match_days
++  mart_matchday_insights mart_player_career mart_player_fixture_stats mart_player_index
++  mart_player_profile mart_roster mart_standings mart_team_competition_benchmarks mart_team_competitions
++  mart_team_fixtures mart_team_index mart_team_leaderboards mart_team_market_value
++  mart_team_momentum_window mart_team_profile mart_team_season mart_team_season_insights; singular
++  tests reading a country: assert_club_country_matches_domestic_league
++  assert_continental_club_in_competition_confederation assert_identity_fields_never_blanked
++  assert_player_nationality_matches_national_team assert_shown_teams_have_a_country
++  assert_team_keeps_its_filled_row assert_team_name_slug_alphabet, and 55 more that read no country.
++  int_standings__section_kinds+ models: int_standings__official_rank int_standings__section_kinds
++  int_team_profile__yoy int_team_season__deserved_vs_actual int_team_season__standings_primary
++  int_team_season__table_by_time int_team_season__table_state mart_competition_fixtures
++  mart_competition_index mart_fixture_standing_context mart_match_days mart_matchday_insights
++  mart_next_matchday mart_player_index mart_standings mart_team_competitions mart_team_index
++  mart_team_profile mart_team_season mart_team_season_insights; singular tests reading the kind or
++  standings: assert_every_standings_section_has_a_table_kind assert_standings_cross_group_rankings
++  assert_standings_rank_follows_league_rule assert_team_standing_section_cases
++  assert_team_table_equals_published_tables, and 29 more.
++  base_apif__fixture_players_from_lineups+: 56 models, the whole player and team stat graph from
++  fct_fixture_player_stats; singular tests that read the model by position or its goals:
++  assert_player_match_cleaning_answer_key assert_players_from_lineups_goals_add_up, and 88 more
++  that read fct_fixture_player_stats or later.
++  layer_rules: flags are cleaning and sit in base, except (1) and (2): the share needs a
++  competition-season grain and the section kind is first computed in intermediate, so their flags
++  sit in intermediate; staging stays a plain unnest; check_layer_contract applies unchanged.
++  deploy_order: one build; the nightly picks it up after merge. blast_radius: measured read-only on
++  2026-11-15 from raw, (5) blanks the country of 5 teams (Al Khaleej Saihat 2928, KMKM 6423, KVZ
++  8103, Mlandege 15567, Fassell 25192); (1), (2), (3) and (4) are measured on the MR's tables and
++  stated in the MR.
++
++approved_design:
++  - none: no page layout changes; a withheld board, section, goals value or country is absent or blank, and how a withheld board looks is #294
++
++decisions_taken: >
++  Ruled by the coordinating session on 2026-11-15. (1) stats_need_research is the test's measure,
++  moved into int_competition_season__player_stat_corrections: corrected share over 8% on matches
++  whose latest fetch came 72 hours or more after kickoff, the latest fetch from the new
++  base_apif__fixture_fetches over the four staging models of the fixture-details bundle. The boards
++  leave the flagged competition-season out: mart_leaderboards, mart_player_competition_benchmarks
++  and mart_team_competition_benchmarks by season_sk, mart_player_squad_benchmarks every squad whose
++  window holds it. The test fails when a flagged competition-season is on a board, and keeps its
++  named case. (2) kind_needs_research: a section whose kind resolves to league while its
++  league-season has a group or conference section; a name matching two kinds and a served kind that
++  differs from the rule stay errors on our code. (3) goals_need_research: the team scored and its
++  goal events do not add up; its players' goals are already blank there. (4) and (5)
++  country_needs_research: the team's final country is blank, because no delivery gave one or
++  because its country changed between deliveries, compared after country_name_overrides, with no
++  team_country_corrections row. Tests that require a country skip flagged teams; the unique test is
++  unchanged. Each test stays error severity. (6) A withheld standings section is left out of the
++  two team-season models that read the kinds too, so no team page takes a standing from it.
++  (7) int_player_squad_window__metrics marks a squad whose window holds a flagged competition-season
++  (stats_need_research), and mart_player_squad_benchmarks leaves it out. (8) fct_fixture_player_stats
++  unions the two player models by position, so it drops goals_need_research from the line-up branch,
++  and so does assert_player_match_cleaning_answer_key. (9) The boards compute every window before
++  the withheld competition-season leaves: is_current_season stays on the latest season, so a
++  league whose latest season is withheld has no current season, and
++  assert_one_current_season_per_league excuses only that league, as
++  assert_mart_leaderboards_every_home_board_has_a_leader and
++  assert_team_benchmark_international_pool_is_the_league_phase excuse a withheld competition-season.
++  (10) What is withheld is the
++  ranking of a flagged competition-season. A team's own previous-season value
++  (metric_value_prev_season) stays, as the team page's year-on-year shows it. A player's
++  competition_order counts the competitions served.
++  (11) A flagged competition-season always has a season_sk (not_null test), so the withholding
++  cannot miss it.
++
++decisions_reserved:
++  - How a withheld board, section or country shows on the site: #294 and site tasks.
++  - The daily list that reads the flags: #262's How, its own task.
++  - assert_team_stat_corrections_within_limit and assert_extra_time_goals_counted_in_score.
++
++done_when:
++  - dbt parse passes; sqlfluff lint passes on the changed models and tests; the full pytest suite passes.
++  - The MR's data build runs every model and every test passes.
++  - The MR states, measured read-only on its tables, the competition-seasons flagged stats_need_research and the boards that hides, the flagged standings sections, line-up teams and countries, and the new staging model's nightly bytes.
+diff --git a/dbt_project/models/1_staging/api_football/README.md b/dbt_project/models/1_staging/api_football/README.md
+index 335d57b1..6f673804 100644
+--- a/dbt_project/models/1_staging/api_football/README.md
++++ b/dbt_project/models/1_staging/api_football/README.md
+@@ -22,7 +22,7 @@ time from the raw column **`ingested_at`**).
+ | `raw_apif_fixtures_next` (`RAW_APIF_FIXTURES_NEXT`) | [`stg_apif__fixtures_next.sql`](stg_apif__fixtures_next.sql) |
+ | `raw_apif_leagues` (`RAW_APIF_LEAGUES`) | [`stg_apif__leagues.sql`](stg_apif__leagues.sql) |
+ | `raw_apif_standings` (`RAW_APIF_STANDINGS`) | [`stg_apif__standings.sql`](stg_apif__standings.sql) |
+-| `raw_apif_teams` (`RAW_APIF_TEAMS`) | [`stg_apif__teams.sql`](stg_apif__teams.sql) |
++| `raw_apif_teams` (`RAW_APIF_TEAMS`) | [`stg_apif__teams.sql`](stg_apif__teams.sql), [`stg_apif__team_deliveries.sql`](stg_apif__team_deliveries.sql) |
+ | `raw_apif_players` (`RAW_APIF_PLAYERS`) | [`stg_apif__players.sql`](stg_apif__players.sql) |
+ | `raw_apif_fixture_details` (`RAW_APIF_FIXTURE_DETAILS`) | [`stg_apif__fixture_events.sql`](stg_apif__fixture_events.sql), [`stg_apif__fixture_players.sql`](stg_apif__fixture_players.sql), [`stg_apif__fixture_statistics.sql`](stg_apif__fixture_statistics.sql), [`stg_apif__lineups.sql`](stg_apif__lineups.sql) |
+ 
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+index 48bba545..62cd4e47 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++++ b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+@@ -98,6 +98,23 @@ models:
+         description: "{{ doc('raw_ingested_at') }}"
+         tests: [not_null]
+ 
++  - name: stg_apif__team_deliveries
++    description: >
++      One row per team per delivery from GET /teams, every stored delivery kept, with only the
++      team id and country. base_apif__teams_global reads it to see whether a team's country
++      changed between deliveries. Grain: (league_code, raw_ingested_at, team_id).
++    columns:
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: raw_ingested_at
++        description: "{{ doc('raw_ingested_at') }}"
++        tests: [not_null]
++      - name: team_id
++        description: "{{ doc('team_api_id') }}"
++      - name: team_country
++        description: "{{ doc('team_country') }} Here, as one delivery gives it, in the provider's spelling and before any correction."
++
+   - name: stg_apif__leagues
+     description: >
+       One row per season per league from GET /leagues. Deduped to latest ingestion per
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__team_deliveries.sql b/dbt_project/models/1_staging/api_football/stg_apif__team_deliveries.sql
+new file mode 100644
+index 00000000..c96976a0
+--- /dev/null
++++ b/dbt_project/models/1_staging/api_football/stg_apif__team_deliveries.sql
+@@ -0,0 +1,15 @@
++with src as (
++    select
++        league_code,
++        ingested_at,
++        payload
++    from {{ source('api_football', 'raw_apif_teams') }}
++)
++
++select
++    src.league_code,
++    src.ingested_at as raw_ingested_at,
++    safe_cast(json_value(row_json, '$.team.id') as int64) as team_id,
++    {{ decode_html_entities("json_value(row_json, '$.team.country')") }} as team_country
++from src,
++    unnest({{ apif_payload_response_json_strings('src') }}) as row_json
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 9ce41c32..2e6bc605 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -31,8 +31,9 @@ models:
+     description: >
+       One row per team: the settled entity, from the latest ingest across base_apif__teams'
+       per-competition rows that carry provider attributes, and from the latest row only where
+-      none does. The name and the country take their last non-NULL value in that order.
+-      Grain: team_api_id.
++      none does. The name and the country take their last non-NULL value in that order. A
++      country that changed between the stored deliveries (stg_apif__team_deliveries) is withheld
++      unless a team_country_corrections row settles it. Grain: team_api_id.
+ 
+       Identity is DECIDED here, not carried through: the name and country corrections from the
+       override seeds are applied here, so the core dim publishes a settled entity.
+@@ -53,6 +54,27 @@ models:
+       - name: league_code
+         description: "{{ doc('league_code_ingest_provenance') }}"
+         tests: [not_null]
++      - name: country_needs_research
++        description: "{{ doc('country_needs_research') }}"
++        tests: [not_null]
++
++  - name: base_apif__fixture_fetches
++    description: >
++      Each fixture's latest fetch of its fixture-details bundle, over the player stats, line-ups,
++      events and statistics staging models, and whether its player stats wait for their second
++      fetch (latest fetch under 72 hours after kickoff). Grain: fixture_id.
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [fixture_id]
++    columns:
++      - name: fixture_id
++        description: "{{ doc('fixture_api_id') }}"
++        tests: [not_null]
++      - name: latest_fetch_at
++        description: "The newest raw_ingested_at of the fixture in any of the four staging models."
++      - name: is_awaiting_second_fetch
++        description: "True where the latest fetch came under 72 hours after kickoff, so the player stats are not final; false where the kickoff is unknown."
++        tests: [not_null]
+ 
+   - name: base_apif__leagues
+     description: >
+@@ -365,6 +387,9 @@ models:
+       - name: player_id
+         description: "{{ doc('player_api_id') }}"
+         tests: [not_null]
++      - name: goals_need_research
++        description: "True where the team scored and its goal events do not add up to its score. Its players' goals are then withheld, blank until sourced research stands in fixture_goal_corrections."
++        tests: [not_null]
+ 
+   - name: base_apif__lineup_sheets
+     description: >
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_fetches.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_fetches.sql
+new file mode 100644
+index 00000000..5a085279
+--- /dev/null
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_fetches.sql
+@@ -0,0 +1,49 @@
++{#
++  Each fixture's latest fetch of its fixture-details bundle: the newest raw_ingested_at over its
++  player stats, line-ups, events and statistics, so a fetch whose player stats came back empty
++  still counts. A fixture whose latest fetch came under 72 hours after kickoff waits for its
++  second fetch (docs/data_contract.md, "Second fetch"), the ingestion's
++  coverage.second_fetch_due rule: its player stats are not final yet.
++  Grain: fixture_id.
++#}
++
++with fetches as (
++    select
++        fixture_id,
++        raw_ingested_at
++    from {{ ref('stg_apif__fixture_players') }}
++    union all
++    select
++        fixture_id,
++        raw_ingested_at
++    from {{ ref('stg_apif__lineups') }}
++    union all
++    select
++        fixture_id,
++        raw_ingested_at
++    from {{ ref('stg_apif__fixture_events') }}
++    union all
++    select
++        fixture_id,
++        raw_ingested_at
++    from {{ ref('stg_apif__fixture_statistics') }}
++),
++
++latest_fetches as (
++    select
++        fixture_id,
++        max(raw_ingested_at) as latest_fetch_at
++    from fetches
++    where fixture_id is not null
++    group by fixture_id
++)
++
++select
++    l.fixture_id,
++    l.latest_fetch_at,
++    coalesce(
++        l.latest_fetch_at < timestamp_add(f.kickoff_datetime, interval 72 hour), false
++    ) as is_awaiting_second_fetch
++from latest_fetches as l
++left join {{ ref('base_apif__fixtures_next') }} as f
++    on l.fixture_id = f.fixture_id
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players_from_lineups.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players_from_lineups.sql
+index fac78ea7..3679a1c7 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_players_from_lineups.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players_from_lineups.sql
+@@ -297,6 +297,7 @@ cleaned as (
+         g.shirt_number,
+         g.position_code,
+         g.raw_ingested_at,
++        g.team_goals_for > 0 and not coalesce(g.goals_add_up, false) as goals_need_research,
+         not g.is_starter as is_substitute,
+         {%- for stat in unfilled_stats %}
+         if(not g.team_has_no_stats and g.minutes = 0 and n.{{ stat }}_counted, 0, null) as {{ stat }},
+@@ -381,5 +382,6 @@ select
+     goals_penalty as penalties_scored,
+     penalties_missed,
+     penalties_saved,
+-    raw_ingested_at
++    raw_ingested_at,
++    goals_need_research
+ from cleaned
+diff --git a/dbt_project/models/2_base/api_football/base_apif__teams_global.sql b/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
+index e4b15ad1..c22937d0 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
+@@ -67,6 +67,19 @@ identity_fields as (
+     group by team_api_id
+ ),
+ 
++-- A country that changed between the stored deliveries is withheld until a
++-- team_country_corrections row settles it: the provider's data is not trusted on a change.
++delivered_countries as (
++    select
++        d.team_id as team_api_id,
++        count(distinct coalesce(o.country_name, d.team_country)) as delivered_countries
++    from {{ ref('stg_apif__team_deliveries') }} as d
++    left join import_country_name_overrides as o
++        on d.team_country = o.provider_country
++    where d.team_country is not null
++    group by d.team_id
++),
++
+ -- Columns are enumerated rather than passed through with a wildcard: the override join makes
+ -- `select teams.* replace (...)` ambiguous to SQLFluff (AM04, "unknown number of result
+ -- columns"), and this repo suppresses no lint rule anywhere -- there is not a single `noqa`
+@@ -96,11 +109,18 @@ corrected as (
+         teams.raw_ingested_at,
+         coalesce(overrides.team_name, identity_fields.team_name) as team_name,
+         coalesce(
+-            country_corrections.team_country, country_overrides.country_name, identity_fields.team_country
++            country_corrections.team_country,
++            if(
++                coalesce(delivered.delivered_countries, 0) > 1,
++                null,
++                coalesce(country_overrides.country_name, identity_fields.team_country)
++            )
+         ) as team_country
+     from latest_per_team as teams
+     inner join identity_fields
+         on teams.team_api_id = identity_fields.team_api_id
++    left join delivered_countries as delivered
++        on teams.team_api_id = delivered.team_api_id
+     left join import_team_name_overrides as overrides
+         on teams.team_api_id = overrides.team_api_id
+     left join import_country_name_overrides as country_overrides
+@@ -276,5 +296,6 @@ select
+         -- shown, to avoid a case that fires zero times. Removed deliberately -- see the residual
+         -- stated in base.yml rather than an escape hatch hidden in a case expression.
+         when not id_slug_taken then slug_with_id
+-    end as team_slug
++    end as team_slug,
++    team_country is null as country_needs_research
+ from level_3_checked
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index e60bddda..b01a1df9 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -337,10 +337,13 @@ models:
+               field: country_name
+           - not_null:
+               config:
+-                where: "is_national_team"
++                where: "is_national_team and not country_needs_research"
+           - unique:
+               config:
+                 where: "is_national_team"
++      - name: country_needs_research
++        description: "{{ doc('country_needs_research') }}"
++        tests: [not_null]
+       - name: team_founded_year
+         description: "Year the team was founded."
+       - name: team_logo_url
+diff --git a/dbt_project/models/3_core/dim_team.sql b/dbt_project/models/3_core/dim_team.sql
+index 01eedb20..1dcaeebf 100644
+--- a/dbt_project/models/3_core/dim_team.sql
++++ b/dbt_project/models/3_core/dim_team.sql
+@@ -43,6 +43,7 @@ select
+     teams.team_slug,
+     teams.team_code,
+     teams.team_country,
++    teams.country_needs_research,
+     teams.team_founded_year,
+     teams.team_logo_url,
+     teams.venue_api_id,
+diff --git a/dbt_project/models/3_core/fct_fixture_player_stats.sql b/dbt_project/models/3_core/fct_fixture_player_stats.sql
+index 65213bfa..da803ed6 100644
+--- a/dbt_project/models/3_core/fct_fixture_player_stats.sql
++++ b/dbt_project/models/3_core/fct_fixture_player_stats.sql
+@@ -5,7 +5,7 @@ with src as (
+     from {{ ref('base_apif__fixture_players') }}
+     union all
+     select
+-        *,
++        * except (goals_need_research),
+         true as is_from_lineups
+     from {{ ref('base_apif__fixture_players_from_lineups') }}
+ )
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
+index 996a5463..9471afb3 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
+@@ -18,6 +18,7 @@ with standings as (
+             s.league_code = k.league_code
+             and s.season_api_year = k.season_api_year
+             and s.group_name = k.group_name
++            and not k.kind_needs_research
+ ),
+ 
+ latest_rounds as (
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_state.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_state.sql
+index 18f1a13a..a41b5454 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_state.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__table_state.sql
+@@ -39,7 +39,7 @@ sections as (
+             and s.group_name = k.group_name
+     inner join competitions as r
+         on s.league_code = r.league_code
+-    where k.table_kind != 'ranking'
++    where k.table_kind != 'ranking' and not k.kind_needs_research
+ ),
+ 
+ single_table_seasons as (
+diff --git a/dbt_project/models/4_intermediate/shared/int_competition_season__player_stat_corrections.sql b/dbt_project/models/4_intermediate/shared/int_competition_season__player_stat_corrections.sql
+new file mode 100644
+index 00000000..8ecc8a38
+--- /dev/null
++++ b/dbt_project/models/4_intermediate/shared/int_competition_season__player_stat_corrections.sql
+@@ -0,0 +1,46 @@
++{#
++  The share of player-match rows the cleaning corrected or left blank (a non-empty
++  stat_corrections) per competition-season, over the matches whose player stats are final
++  (base_apif__fixture_fetches). Past one limit, set just above the highest share measured on the
++  built cleaning, the provider's feed broke badly, and stats_need_research withholds the
++  competition-season's player and team boards.
++  Grain: (league_code, season_api_year).
++#}
++
++{% set limit = 0.08 %}
++
++with player_rows as (
++    select
++        p.league_code,
++        f.season as season_api_year,
++        array_length(p.stat_corrections) > 0 as is_corrected
++    from {{ ref('base_apif__fixture_players') }} as p
++    left join {{ ref('base_apif__fixtures_next') }} as f
++        on p.fixture_id = f.fixture_id
++    left join {{ ref('base_apif__fixture_fetches') }} as w
++        on p.fixture_id = w.fixture_id
++    where not coalesce(w.is_awaiting_second_fetch, false)
++),
++
++shares as (
++    select
++        league_code,
++        season_api_year,
++        countif(is_corrected) as corrected_rows,
++        count(*) as player_rows,
++        safe_divide(countif(is_corrected), count(*)) as corrected_share
++    from player_rows
++    group by league_code, season_api_year
++)
++
++select
++    s.league_code,
++    s.season_api_year,
++    c.season_sk,
++    s.corrected_rows,
++    s.player_rows,
++    s.corrected_share,
++    coalesce(s.corrected_share > {{ limit }}, false) as stats_need_research
++from shares as s
++left join {{ ref('dim_competition_season') }} as c
++    on s.league_code = c.league_code and s.season_api_year = c.season_api_year
+diff --git a/dbt_project/models/4_intermediate/shared/int_competition_season__player_stat_corrections.yml b/dbt_project/models/4_intermediate/shared/int_competition_season__player_stat_corrections.yml
+new file mode 100644
+index 00000000..5973b2af
+--- /dev/null
++++ b/dbt_project/models/4_intermediate/shared/int_competition_season__player_stat_corrections.yml
+@@ -0,0 +1,36 @@
++version: 2
++
++models:
++  - name: int_competition_season__player_stat_corrections
++    description: >
++      The share of player-match rows the cleaning corrected or left blank, per competition-season,
++      over the matches whose player stats are final. stats_need_research is true past the 8% limit,
++      and mart_leaderboards, mart_player_competition_benchmarks, mart_player_squad_benchmarks and
++      mart_team_competition_benchmarks then withhold the competition-season.
++      Grain: (league_code, season_api_year).
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [league_code, season_api_year]
++    columns:
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: season_api_year
++        description: "{{ doc('season_api_year') }}"
++      - name: season_sk
++        description: "{{ doc('season_sk') }}"
++        tests:
++          - not_null:
++              where: "stats_need_research"
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
++      - name: corrected_rows
++        description: "Player-match rows of final matches with a non-empty stat_corrections."
++      - name: player_rows
++        description: "Player-match rows of final matches."
++      - name: corrected_share
++        description: "corrected_rows over player_rows."
++      - name: stats_need_research
++        description: "{{ doc('stats_need_research') }}"
++        tests: [not_null]
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_page.yml b/dbt_project/models/4_intermediate/shared/int_player_page.yml
+index 33d84702..cae30a2a 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_page.yml
++++ b/dbt_project/models/4_intermediate/shared/int_player_page.yml
+@@ -374,6 +374,9 @@ models:
+           - relationships:
+               to: ref('dim_team')
+               field: team_sk
++      - name: stats_need_research
++        description: "{{ doc('stats_need_research') }} Here, true for a squad whose window holds such a competition-season; mart_player_squad_benchmarks withholds it."
++        tests: [not_null]
+       - name: anchor_season_sk
+         description: "The featured season a club squad's window is drawn around. NULL for a nation."
+         tests:
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_squad_window__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_squad_window__metrics.sql
+index 4bed0621..1e34a25a 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_squad_window__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_squad_window__metrics.sql
+@@ -75,6 +75,14 @@ squad_totals as (
+     group by s.squad_sk
+ ),
+ 
++squads_needing_research as (
++    select distinct s.squad_sk
++    from squad_seasons as s
++    inner join {{ ref('int_competition_season__player_stat_corrections') }} as c
++        on s.season_sk = c.season_sk
++    where c.stats_need_research
++),
++
+ window_rows as (
+     select
+         legs.*,
+@@ -290,7 +298,10 @@ select
+     m.*,
+     s.page_tab,
+     s.team_sk,
+-    s.anchor_season_sk
++    s.anchor_season_sk,
++    r.squad_sk is not null as stats_need_research
+ from metrics as m
+ inner join squads as s
+     on m.squad_sk = s.squad_sk
++left join squads_needing_research as r
++    on m.squad_sk = r.squad_sk
+diff --git a/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.sql b/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.sql
+index 1061e938..8631f752 100644
+--- a/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.sql
++++ b/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.sql
+@@ -138,21 +138,36 @@ cross_group_rankings as (
+         count(*) > 1
+         and logical_and(other_tables = 1)
+         and count(distinct other_table) = count(*)
++),
++
++kinds as (
++    select
++        k.league_code,
++        k.season_api_year,
++        k.group_name,
++        if(r.group_name is null and c.group_name is null, k.table_kind, 'ranking') as table_kind
++    from named_kinds as k
++    left join cross_group_rankings as r
++        on
++            k.league_code = r.league_code
++            and k.season_api_year = r.season_api_year
++            and k.group_name = r.group_name
++    left join combined_tables as c
++        on
++            k.league_code = c.league_code
++            and k.season_api_year = c.season_api_year
++            and k.group_name = c.group_name
+ )
+ 
++-- A league table beside group or conference tables is a section no rule names: it is withheld
++-- from mart_standings until a standings_table_kinds pattern names it.
+ select
+-    k.league_code,
+-    k.season_api_year,
+-    k.group_name,
+-    if(r.group_name is null and c.group_name is null, k.table_kind, 'ranking') as table_kind
+-from named_kinds as k
+-left join cross_group_rankings as r
+-    on
+-        k.league_code = r.league_code
+-        and k.season_api_year = r.season_api_year
+-        and k.group_name = r.group_name
+-left join combined_tables as c
+-    on
+-        k.league_code = c.league_code
+-        and k.season_api_year = c.season_api_year
+-        and k.group_name = c.group_name
++    league_code,
++    season_api_year,
++    group_name,
++    table_kind,
++    table_kind = 'league'
++    and countif(table_kind in ('group', 'conference')) over (
++        partition by league_code, season_api_year
++    ) > 0 as kind_needs_research
++from kinds
+diff --git a/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.yml b/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.yml
+index 0bd6cf95..6509e597 100644
+--- a/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.yml
++++ b/dbt_project/models/4_intermediate/shared/int_standings__section_kinds.yml
+@@ -28,3 +28,6 @@ models:
+           - not_null
+           - accepted_values:
+               values: ["league", "group", "conference", "split_round", "ranking"]
++      - name: kind_needs_research
++        description: "True where the section is a league table beside a group or conference table of its league-season: no pattern names it, so mart_standings withholds it until a standings_table_kinds row does."
++        tests: [not_null]
+diff --git a/dbt_project/models/5_marts/shared/mart_leaderboards.sql b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
+index bbbe4890..a3406d9a 100644
+--- a/dbt_project/models/5_marts/shared/mart_leaderboards.sql
++++ b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
+@@ -24,6 +24,9 @@
+   match_leader_order is the tie-broken position, fewer minutes winning, and the board keeps its first
+   three. On match rows the value is sort_value alone, so the season-only columns are NULL. Season rows
+   carry window_type 'season_to_date'. Grain of a match row: (fixture_sk, player_sk, metric_key).
++
++  A competition-season whose player stats need research (stats_need_research in
++  int_competition_season__player_stat_corrections) has no rows: its boards are withheld.
+ #}
+ 
+ {# The season boards. Adding or removing a key here must also move shared.yml's accepted_values. #}
+@@ -269,7 +272,14 @@ ranked as (
+         row_number() over (
+             partition by league_code, season_api_year, metric_key
+             order by sort_key asc, minutes asc nulls last, player_sk asc
+-        ) as league_leader_order
++        ) as league_leader_order,
++        -- WHICH SEASON a consumer should show, served as a fact: the latest season per LEAGUE, so
++        -- every row of a league agrees. Computed before a withheld season leaves the board, so a
++        -- withheld latest season never hands the flag to the season before it.
++        rank() over (
++            partition by league_code
++            order by season_api_year desc
++        ) = 1 as is_current_season
+     from season_scored
+ ),
+ 
+@@ -456,12 +466,7 @@ select
+     dribbles_success_player_pct,
+     saves_player_pct,
+     finishing_efficiency_player_pct,
+-    -- WHICH SEASON a consumer should show, served as a fact: the latest season per LEAGUE, so every
+-    -- row of a league agrees.
+-    rank() over (
+-        partition by league_code
+-        order by season_api_year desc
+-    ) = 1 as is_current_season,
++    is_current_season,
+     -- NULL on every row that is not a league leader: the position is only defined among leaders.
+     case
+         when league_leader_order = 1 then row_number() over (
+@@ -479,6 +484,12 @@ select
+     cast(null as int64) as fixture_sk,
+     cast(null as int64) as match_leader_order
+ from ranked
++where
++    season_sk not in (
++        select c.season_sk
++        from {{ ref('int_competition_season__player_stat_corrections') }} as c
++        where c.stats_need_research and c.season_sk is not null
++    )
+ 
+ union all
+ 
+@@ -535,3 +546,8 @@ select
+     fixture_sk,
+     match_leader_order
+ from match_rows
++where season_sk not in (
++    select c.season_sk
++    from {{ ref('int_competition_season__player_stat_corrections') }} as c
++    where c.stats_need_research and c.season_sk is not null
++)
+diff --git a/dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql b/dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
+index ca39f5e2..be4e383f 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
+@@ -174,3 +174,8 @@ left join page_filters as pf
+         r.player_sk = pf.player_sk
+         and r.season_sk = pf.season_sk
+         and if(r.position_group in ('DM', 'CM', 'AM'), 'MID', r.position_group) = pf.position_group
++where r.season_sk not in (
++    select c.season_sk
++    from {{ ref('int_competition_season__player_stat_corrections') }} as c
++    where c.stats_need_research and c.season_sk is not null
++)
+diff --git a/dbt_project/models/5_marts/shared/mart_player_squad_benchmarks.sql b/dbt_project/models/5_marts/shared/mart_player_squad_benchmarks.sql
+index 8d3e71c2..16114ddd 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_squad_benchmarks.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_squad_benchmarks.sql
+@@ -6,14 +6,15 @@
+ 
+   has_squad_filter marks the row of a player whose page shows this squad: their own team and
+   window, reached the floor, and an outfield player. A squad with a team match with no player data has
+-  blank minutes (rule R4 in models/docs/metric_rules.md), so it holds nobody.
++  blank minutes (rule R4 in models/docs/metric_rules.md), so it holds nobody. A squad whose window
++  holds a competition-season with stats_need_research is withheld.
+ 
+   Grain: (squad_sk, player_sk, metric_key).
+ #}
+ 
+ with squad as (
+     select * from {{ ref('int_player_squad_window__metrics') }}
+-    where minutes >= team_matches * 90 / 3
++    where minutes >= team_matches * 90 / 3 and not stats_need_research
+ ),
+ 
+ profile as (
+diff --git a/dbt_project/models/5_marts/shared/mart_standings.sql b/dbt_project/models/5_marts/shared/mart_standings.sql
+index d38d9a54..517452da 100644
+--- a/dbt_project/models/5_marts/shared/mart_standings.sql
++++ b/dbt_project/models/5_marts/shared/mart_standings.sql
+@@ -23,7 +23,8 @@
+   through the standings_table_kinds seed and from its teams, so that a
+   page can render one table per group, drop the provider's cross-group ranking tables and head
+   a split season's rounds — and never matches on a name itself. A name no seed pattern matches
+-  is the competition's own league table.
++  is the competition's own league table. A league table beside group or conference tables is
++  withheld (kind_needs_research) until a seed pattern names it.
+ 
+   league_code discriminates the competition and is not a BigQuery partition or cluster key;
+   competition_type / entity_type come from dim_league. Lives in shared/
+@@ -54,7 +55,8 @@ section_kinds as (
+         league_code,
+         season_api_year,
+         group_name,
+-        table_kind
++        table_kind,
++        kind_needs_research
+     from {{ ref('int_standings__section_kinds') }}
+ )
+ 
+@@ -93,3 +95,4 @@ left join section_kinds as k
+         s.league_code = k.league_code
+         and s.season_api_year = k.season_api_year
+         and s.group_name = k.group_name
++where not coalesce(k.kind_needs_research, false)
+diff --git a/dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql b/dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
+index c7f34d5a..f4cbc941 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
+@@ -87,3 +87,8 @@ inner join benchmarks as b
+         and r.metric_key = b.metric_key
+ left join teams as t
+     on r.team_sk = t.team_sk
++where r.season_sk not in (
++    select c.season_sk
++    from {{ ref('int_competition_season__player_stat_corrections') }} as c
++    where c.stats_need_research and c.season_sk is not null
++)
+diff --git a/dbt_project/models/5_marts/shared/mart_team_index.sql b/dbt_project/models/5_marts/shared/mart_team_index.sql
+index f5c6e821..a8671a9d 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_index.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_index.sql
+@@ -36,7 +36,8 @@ teams as (
+         team_name,
+         team_slug,
+         team_logo_url,
+-        team_country
++        team_country,
++        country_needs_research
+     from {{ ref('dim_team') }}
+ ),
+ 
+@@ -568,6 +569,7 @@ select
+     t.team_slug,
+     t.team_logo_url,
+     t.team_country,
++    t.country_needs_research,
+     l.league_code,
+     l.league_tier,
+     l.standing_group_name,
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 1a54f0b1..ac37091e 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -4040,12 +4040,16 @@ models:
+       - name: team_country
+         description: "{{ doc('team_country') }}"
+         tests:
+-          - not_null
++          - not_null:
++              where: "not country_needs_research"
+           - dbt_utils.relationships_where:
+               to: ref('dim_country')
+               field: country_name
+               from_condition: "region_key is null"
+               to_condition: "confederation is null"
++      - name: country_needs_research
++        description: "{{ doc('country_needs_research') }}"
++        tests: [not_null]
+       - name: region_key
+         description: "The team's region: its country's confederation, from dim_country. NULL only for a team whose country belongs to no confederation."
+         tests:
+diff --git a/dbt_project/models/docs/cleaning_rules.md b/dbt_project/models/docs/cleaning_rules.md
+index f495e3ff..20ee95af 100644
+--- a/dbt_project/models/docs/cleaning_rules.md
++++ b/dbt_project/models/docs/cleaning_rules.md
+@@ -90,8 +90,14 @@ match stats are good enough.
+   minus the player's own); own_goals_left_out (shots inside the box less the own goals the
+   provider counted as the team's shots); split_does_not_add_up (a split of shots that does not add
+   up to the total, left blank, shots on target excepted).
+-- A test fails the build when a competition-season's share of corrected or blanked values passes
+-  its limit.
++- A competition-season whose share of corrected or blanked player values passes its limit has its
++  player and team boards withheld.
++- A line-up team's player goals that do not add up to its score stay blank until sourced research
++  stands.
++- A standings section that resolves to a league table beside group or conference tables is
++  withheld until a standings_table_kinds pattern names it.
++- A team's country that is missing, or that changed between deliveries, is withheld until a
++  team_country_corrections row settles it.
+ {% enddocs %}
+ 
+ {% docs stat_corrections_cleaned_value %}
+diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
+index 8b509e74..83f378b4 100644
+--- a/dbt_project/models/docs/shared_columns.md
++++ b/dbt_project/models/docs/shared_columns.md
+@@ -801,7 +801,19 @@ when no crest is ingested for the team.
+ {% docs team_country %}
+ The country the team is registered in, canonicalised and reconciled against dim_country in
+ base, as dim_team publishes it. NULL when neither the provider row nor `team_country_corrections`
+-gives one.
++gives one, and when it changed between deliveries with no correction to settle it.
++{% enddocs %}
++
++
++{% docs stats_need_research %}
++True where more than 8% of the competition-season's player-match rows of final matches were
++corrected or left blank. Its player and team boards are then withheld.
++{% enddocs %}
++
++
++{% docs country_needs_research %}
++True where the team has no country. Either no delivery gave one, or its country changed between
++deliveries and no team_country_corrections row settles it, so it is withheld.
+ {% enddocs %}
+ 
+ {% docs player_name %}
+diff --git a/dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql b/dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql
+index e9158ef8..6a899ca5 100644
+--- a/dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql
++++ b/dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql
+@@ -5,7 +5,9 @@
+ -- silently: a new section name the seed does not cover falls through to "league" and gets
+ -- rendered as the competition's ladder next to its real groups; or a seed edit lets one name
+ -- match two kinds. Both show up as a league-kind section sharing a competition-season with a
+--- group or conference section, or as a section resolving to more than one kind.
++-- group or conference section, or as a section resolving to more than one kind. The first is the
++-- provider's new table: mart_standings withholds it (kind_needs_research), and a row here means it
++-- is served. The second is our seed's, and fails here.
+ --
+ -- Recomputed from fct_standings and the seed, not from the mart's own CTE, so a rewrite of the
+ -- mart that drops or reorders the resolution fails here.
+@@ -202,6 +204,8 @@ inner join season_kinds as sk
+         r.league_code = sk.league_code
+         and r.season_api_year = sk.season_api_year
+ where
+-    v.table_kind is null
+-    or v.table_kind != r.expected_kind
+-    or (r.expected_kind = 'league' and sk.grouped_sections > 0)
++    (r.expected_kind = 'league' and sk.grouped_sections > 0 and v.group_name is not null)
++    or (
++        not (r.expected_kind = 'league' and sk.grouped_sections > 0)
++        and (v.table_kind is null or v.table_kind != r.expected_kind)
++    )
+diff --git a/dbt_project/tests/assert_identity_fields_never_blanked.sql b/dbt_project/tests/assert_identity_fields_never_blanked.sql
+index 0b9eb892..ae48826f 100644
+--- a/dbt_project/tests/assert_identity_fields_never_blanked.sql
++++ b/dbt_project/tests/assert_identity_fields_never_blanked.sql
+@@ -1,7 +1,9 @@
+ {#
+   A delivery that leaves an identity field empty never blanks it: a player's birth date or
+   nationality, or a team's country, is filled in base wherever any stored delivery holds one,
+-  unless player_bio_corrections left it blank because the sources disagree.
++  unless player_bio_corrections left it blank because the sources disagree. A team's country that
++  changed between deliveries is the exception: it is withheld, blank and flagged, until a
++  team_country_corrections row settles it.
+   Named case: H. Abe (33085), whose latest delivery is blank and an earlier one says Japan and
+   1999-01-28, has both.
+ #}
+@@ -32,6 +34,16 @@ team_deliveries as (
+     group by team_api_id
+ ),
+ 
++changed_countries as (
++    select d.team_id as team_api_id
++    from {{ ref('stg_apif__team_deliveries') }} as d
++    left join {{ ref('country_name_overrides') }} as o
++        on d.team_country = o.provider_country
++    where d.team_country is not null
++    group by d.team_id
++    having count(distinct coalesce(o.country_name, d.team_country)) > 1
++),
++
+ named_case as (
+     select 33085 as player_api_id
+ )
+@@ -69,7 +81,22 @@ select
+ from {{ ref('base_apif__teams_global') }} as t
+ inner join team_deliveries as d
+     on t.team_api_id = d.team_api_id
+-where d.has_country and t.team_country is null
++left join changed_countries as c
++    on t.team_api_id = c.team_api_id
++where d.has_country and t.team_country is null and c.team_api_id is null
++
++union all
++
++select
++    'team' as entity,
++    t.team_api_id as entity_id,
++    'country withheld after a change is not blank or not flagged' as failure
++from {{ ref('base_apif__teams_global') }} as t
++inner join changed_countries as c
++    on t.team_api_id = c.team_api_id
++left join {{ ref('team_country_corrections') }} as k
++    on t.team_api_id = k.team_api_id
++where k.team_api_id is null and (t.team_country is not null or not t.country_needs_research)
+ 
+ union all
+ 
+diff --git a/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql b/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
+index da90986b..87bba041 100644
+--- a/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
++++ b/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
+@@ -38,15 +38,19 @@ import_dim_competition_season as (
+ latest_seasons as (
+     select
+         league_code,
++        season_sk,
+         competition_group
+     from import_dim_competition_season
+     qualify row_number() over (partition by league_code order by season_api_year desc) = 1
+ ),
+ 
++-- A league whose latest season is withheld (stats_need_research) has no board to lead.
+ elite_leagues as (
+-    select league_code
+-    from latest_seasons
+-    where competition_group = 'elite'
++    select l.league_code
++    from latest_seasons as l
++    left join {{ ref('int_competition_season__player_stat_corrections') }} as w
++        on l.season_sk = w.season_sk and w.stats_need_research
++    where l.competition_group = 'elite' and w.season_sk is null
+ ),
+ 
+ expected as (
+diff --git a/dbt_project/tests/assert_one_current_season_per_league.sql b/dbt_project/tests/assert_one_current_season_per_league.sql
+index 405ea8ca..a90e76f6 100644
+--- a/dbt_project/tests/assert_one_current_season_per_league.sql
++++ b/dbt_project/tests/assert_one_current_season_per_league.sql
+@@ -52,16 +52,34 @@ per_league as (
+         countif(flagged_rows > 0 and flagged_rows <> season_rows) as partly_flagged_seasons
+     from per_season
+     group by league_code
++),
++
++-- A league whose latest season is withheld (stats_need_research) keeps no current season: the flag
++-- never moves to the season before it.
++withheld_latest as (
++    select distinct p.league_code
++    from per_league as p
++    inner join {{ ref('int_competition_season__player_stat_corrections') }} as w
++        on p.league_code = w.league_code
++    where w.stats_need_research and w.season_api_year > p.latest_season
+ )
+ 
+ select
+-    league_code,
+-    latest_season,
+-    flagged_season,
+-    flagged_seasons,
+-    partly_flagged_seasons
+-from per_league
++    p.league_code,
++    p.latest_season,
++    p.flagged_season,
++    p.flagged_seasons,
++    p.partly_flagged_seasons
++from per_league as p
++left join withheld_latest as h
++    on p.league_code = h.league_code
+ where
+-    flagged_seasons <> 1
+-    or flagged_season <> latest_season
+-    or partly_flagged_seasons > 0
++    (h.league_code is not null and p.flagged_seasons > 0)
++    or (
++        h.league_code is null
++        and (
++            p.flagged_seasons <> 1
++            or p.flagged_season <> p.latest_season
++            or p.partly_flagged_seasons > 0
++        )
++    )
+diff --git a/dbt_project/tests/assert_player_match_cleaning_answer_key.sql b/dbt_project/tests/assert_player_match_cleaning_answer_key.sql
+index 554073ef..88360af7 100644
+--- a/dbt_project/tests/assert_player_match_cleaning_answer_key.sql
++++ b/dbt_project/tests/assert_player_match_cleaning_answer_key.sql
+@@ -22,7 +22,7 @@ with answer_key as (
+ players as (
+     select * except (stat_corrections) from {{ ref('base_apif__fixture_players') }}
+     union all
+-    select * from {{ ref('base_apif__fixture_players_from_lineups') }}
++    select * except (goals_need_research) from {{ ref('base_apif__fixture_players_from_lineups') }}
+ )
+ 
+ select
+diff --git a/dbt_project/tests/assert_player_stat_corrections_within_limit.sql b/dbt_project/tests/assert_player_stat_corrections_within_limit.sql
+index f45e4861..d3af5052 100644
+--- a/dbt_project/tests/assert_player_stat_corrections_within_limit.sql
++++ b/dbt_project/tests/assert_player_stat_corrections_within_limit.sql
+@@ -1,100 +1,71 @@
+ {#
+-  The share of player-match rows the cleaning corrected or left blank because of a contradiction
+-  or a disagreement between sources (a non-empty stat_corrections), per competition-season, stays
+-  within one limit for every competition-season, set just above the highest share measured on the
+-  built cleaning. It catches a provider feed that breaks badly before its numbers reach a page; a
+-  slow drift is what the comparison with prod before each merge shows.
+-  It measures the matches whose player stats are final: a match whose latest fetch came under 3
+-  days after kickoff waits for its second fetch (docs/data_contract.md, "Second fetch"), the
+-  ingestion's coverage.second_fetch_due rule.
+-  Returns each competition-season above the limit, and the named case: Aruba-Antigua and Barbuda
+-  (fixture 1639932, 23 Sep 2026, fetched again on 6 Oct) is measured.
++  A competition-season whose share of corrected or blanked player rows passes its limit
++  (stats_need_research in int_competition_season__player_stat_corrections) is withheld from every
++  player and team board: mart_leaderboards, mart_player_competition_benchmarks,
++  mart_team_competition_benchmarks, and each squad of mart_player_squad_benchmarks whose window
++  holds it. The share is measured on the matches whose player stats are final
++  (base_apif__fixture_fetches, docs/data_contract.md "Second fetch").
++  Returns each board row of a withheld competition-season, and the named case: Aruba-Antigua and
++  Barbuda (fixture 1639932, 23 Sep 2026, fetched again on 6 Oct) is measured.
+ #}
+ {{ config(store_failures = true, severity = 'error') }}
+ 
+-{% set limit = 0.08 %}
+-
+-with fetches as (
+-    select
+-        fixture_id,
+-        raw_ingested_at
+-    from {{ ref('stg_apif__fixture_players') }}
+-    union all
+-    select
+-        fixture_id,
+-        raw_ingested_at
+-    from {{ ref('stg_apif__lineups') }}
+-    union all
+-    select
+-        fixture_id,
+-        raw_ingested_at
+-    from {{ ref('stg_apif__fixture_events') }}
+-    union all
+-    select
+-        fixture_id,
+-        raw_ingested_at
+-    from {{ ref('stg_apif__fixture_statistics') }}
++with withheld as (
++    select season_sk
++    from {{ ref('int_competition_season__player_stat_corrections') }}
++    where stats_need_research
+ ),
+ 
+-latest_fetches as (
+-    select
+-        fixture_id,
+-        max(raw_ingested_at) as latest_fetch
+-    from fetches
+-    group by fixture_id
+-),
++withheld_squads as (
++    select distinct squad_sk
++    from {{ ref('int_player_squad_window__metrics') }}
++    where stats_need_research
++)
+ 
+-awaiting_second_fetch as (
+-    select f.fixture_id
+-    from {{ ref('base_apif__fixtures_next') }} as f
+-    inner join latest_fetches as l
+-        on f.fixture_id = l.fixture_id
+-    where l.latest_fetch < timestamp_add(f.kickoff_datetime, interval 72 hour)
+-),
++select
++    'withheld_on_leaderboard' as failure,
++    cast(b.season_sk as string) as subject
++from {{ ref('mart_leaderboards') }} as b
++inner join withheld as w
++    on b.season_sk = w.season_sk
+ 
+-player_rows as (
+-    select
+-        p.league_code,
+-        f.season,
+-        p.fixture_id,
+-        array_length(p.stat_corrections) > 0 as is_corrected
+-    from {{ ref('base_apif__fixture_players') }} as p
+-    left join {{ ref('base_apif__fixtures_next') }} as f
+-        on p.fixture_id = f.fixture_id
+-    left join awaiting_second_fetch as w
+-        on p.fixture_id = w.fixture_id
+-    where w.fixture_id is null
+-),
++union all
+ 
+-over_limit as (
+-    select
+-        'over_limit' as failure,
+-        league_code,
+-        season,
+-        countif(is_corrected) as corrected_rows,
+-        count(*) as player_rows,
+-        safe_divide(countif(is_corrected), count(*)) as corrected_share
+-    from player_rows
+-    group by league_code, season
+-    having safe_divide(countif(is_corrected), count(*)) > {{ limit }}
+-),
++select
++    'withheld_on_player_benchmark' as failure,
++    cast(b.season_sk as string) as subject
++from {{ ref('mart_player_competition_benchmarks') }} as b
++inner join withheld as w
++    on b.season_sk = w.season_sk
+ 
+-named_case as (
+-    select
+-        'named_case_not_measured' as failure,
+-        'CNL' as league_code,
+-        2025 as season,
+-        cast(null as int64) as corrected_rows,
+-        cast(null as int64) as player_rows,
+-        cast(null as float64) as corrected_share
+-    from (select 1)
+-    where not exists (
+-        select 1
+-        from player_rows as r
+-        where r.fixture_id = 1639932
+-    )
+-)
++union all
++
++select
++    'withheld_on_team_benchmark' as failure,
++    cast(b.season_sk as string) as subject
++from {{ ref('mart_team_competition_benchmarks') }} as b
++inner join withheld as w
++    on b.season_sk = w.season_sk
++
++union all
++
++select
++    'withheld_on_squad_benchmark' as failure,
++    b.squad_sk as subject
++from {{ ref('mart_player_squad_benchmarks') }} as b
++inner join withheld_squads as w
++    on b.squad_sk = w.squad_sk
+ 
+-select * from over_limit
+ union all
+-select * from named_case
++
++select
++    'named_case_not_measured' as failure,
++    '1639932' as subject
++from (select 1)
++where not exists (
++    select 1
++    from {{ ref('base_apif__fixture_players') }} as p
++    inner join {{ ref('base_apif__fixture_fetches') }} as f
++        on p.fixture_id = f.fixture_id
++    where p.fixture_id = 1639932 and not f.is_awaiting_second_fetch
++)
+diff --git a/dbt_project/tests/assert_players_from_lineups_goals_add_up.sql b/dbt_project/tests/assert_players_from_lineups_goals_add_up.sql
+index 3eb23e10..f34fdded 100644
+--- a/dbt_project/tests/assert_players_from_lineups_goals_add_up.sql
++++ b/dbt_project/tests/assert_players_from_lineups_goals_add_up.sql
+@@ -2,8 +2,9 @@
+   A team's rows in base_apif__fixture_players_from_lineups hold every goal of its score, where the
+   provider sent no stat line for the team: its players' goals plus the own goals filed under it.
+   Returns one row per team match that misses the
+-  score, a match with no goal events included: a blank goals value is a miss. The fix is sourced
+-  goals in fixture_goal_corrections.
++  score, a match with no goal events included: a blank goals value is a miss. A team whose goals
++  do not add up is withheld instead (goals_need_research): its players' goals stay blank, and a row
++  here then means one of them carries a goal. The fix is sourced goals in fixture_goal_corrections.
+ #}
+ {{ config(store_failures = true, severity = 'error') }}
+ 
+@@ -38,7 +39,9 @@ teams as (
+         l.league_code,
+         l.fixture_id,
+         l.team_id,
++        logical_or(l.goals_need_research) as goals_need_research,
+         countif(l.goals is null) as players_with_blank_goals,
++        countif(l.goals > 0) as players_with_goals,
+         coalesce(sum(l.goals), 0) as player_goals
+     from {{ ref('base_apif__fixture_players_from_lineups') }} as l
+     left join provider_teams as p
+@@ -61,5 +64,11 @@ inner join fixtures as f
+ left join own_goals as o
+     on t.fixture_id = o.fixture_id and t.team_id = o.team_id
+ where
+-    t.players_with_blank_goals > 0
+-    or t.player_goals + coalesce(o.own_goals, 0) != if(t.team_id = f.home_team_id, f.goals_home, f.goals_away)
++    (t.goals_need_research and t.players_with_goals > 0)
++    or (
++        not t.goals_need_research
++        and (
++            t.players_with_blank_goals > 0
++            or t.player_goals + coalesce(o.own_goals, 0) != if(t.team_id = f.home_team_id, f.goals_home, f.goals_away)
++        )
++    )
+diff --git a/dbt_project/tests/assert_team_benchmark_international_pool_is_the_league_phase.sql b/dbt_project/tests/assert_team_benchmark_international_pool_is_the_league_phase.sql
+index 32780f32..4ffbce06 100644
+--- a/dbt_project/tests/assert_team_benchmark_international_pool_is_the_league_phase.sql
++++ b/dbt_project/tests/assert_team_benchmark_international_pool_is_the_league_phase.sql
+@@ -44,13 +44,23 @@ phase as (
+     group by legs.team_sk, legs.season_sk
+ ),
+ 
++-- A withheld competition-season (stats_need_research) has no benchmark to compare.
++withheld as (
++    select season_sk
++    from {{ ref('int_competition_season__player_stat_corrections') }}
++    where stats_need_research and season_sk is not null
++),
++
+ pool as (
+     select * from phase
+-    where matches >= {{ var('team_min_matches') }}
++    where
++        matches >= {{ var('team_min_matches') }}
++        and season_sk not in (select w.season_sk from withheld as w)
+ ),
+ 
+ phase_seasons as (
+     select distinct season_sk from phase
++    where season_sk not in (select w.season_sk from withheld as w)
+ ),
+ 
+ benchmarked as (
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../task/262-withhold-provider-checks/review.md    |   33 +
+#    .../review_input.patch                             | 1331 ++++++++++++++++++++
+#    2 files changed, 1364 insertions(+)
+# ============================================================================

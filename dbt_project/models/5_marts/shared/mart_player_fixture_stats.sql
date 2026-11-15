@@ -218,6 +218,7 @@ select
             then 'on_bench'
     end as match_involvement,
     case
+        when f.goals_home is null or f.goals_away is null then null
         when f.goals_home > f.goals_away then if(a.team_sk = f.home_team_sk, 'W', 'L')
         when f.goals_home < f.goals_away then if(a.team_sk = f.home_team_sk, 'L', 'W')
         else 'D'

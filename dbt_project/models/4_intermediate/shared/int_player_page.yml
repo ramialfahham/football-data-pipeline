@@ -374,6 +374,9 @@ models:
           - relationships:
               to: ref('dim_team')
               field: team_sk
+      - name: stats_need_research
+        description: "{{ doc('stats_need_research') }} Here, true for a squad whose window holds such a competition-season; mart_player_squad_benchmarks withholds it."
+        tests: [not_null]
       - name: anchor_season_sk
         description: "The featured season a club squad's window is drawn around. NULL for a nation."
         tests:

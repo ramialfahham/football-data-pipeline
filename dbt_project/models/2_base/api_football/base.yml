@@ -31,8 +31,9 @@ models:
     description: >
       One row per team: the settled entity, from the latest ingest across base_apif__teams'
       per-competition rows that carry provider attributes, and from the latest row only where
-      none does. The name and the country take their last non-NULL value in that order.
-      Grain: team_api_id.
+      none does. The name and the country take their last non-NULL value in that order. A
+      country that changed between the stored deliveries (stg_apif__team_deliveries) is withheld
+      unless a team_country_corrections row settles it. Grain: team_api_id.
 
       Identity is DECIDED here, not carried through: the name and country corrections from the
       override seeds are applied here, so the core dim publishes a settled entity.
@@ -52,6 +53,27 @@ models:
         tests: [not_null]
       - name: league_code
         description: "{{ doc('league_code_ingest_provenance') }}"
+        tests: [not_null]
+      - name: country_needs_research
+        description: "{{ doc('country_needs_research') }}"
+        tests: [not_null]
+
+  - name: base_apif__fixture_fetches
+    description: >
+      Each fixture's latest fetch of its fixture-details bundle, over the player stats, line-ups,
+      events and statistics staging models, and whether its player stats wait for their second
+      fetch (latest fetch under 72 hours after kickoff). Grain: fixture_id.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fixture_id]
+    columns:
+      - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
+        tests: [not_null]
+      - name: latest_fetch_at
+        description: "The newest raw_ingested_at of the fixture in any of the four staging models."
+      - name: is_awaiting_second_fetch
+        description: "True where the latest fetch came under 72 hours after kickoff, so the player stats are not final; false where the kickoff is unknown."
         tests: [not_null]
 
   - name: base_apif__leagues
@@ -134,7 +156,9 @@ models:
       provider's stay on the row. Where two clubs share a provider team id in a fixture, the
       home and away team ids are corrected from the fixture_team_id_overrides seed's
       reattribute_in_fixture rows. Where the provider files a fixture under another round's name,
-      the round is the organiser's from the fixture_round_corrections seed. Grain: fixture_id.
+      the round is the organiser's from the fixture_round_corrections seed. A result that fails a
+      result check is withheld: result_needs_research is true and the goals, shoot-out and winner
+      are blank. Grain: fixture_id.
     config:
       tags: ["base", "api_football", "fixture_context"]
     tests:
@@ -154,9 +178,9 @@ models:
       - name: shootout_away
         description: "{{ doc('shootout_away') }} Here, the official one from the fixture_result_corrections seed where the provider gives none or a different one."
       - name: provider_shootout_home
-        description: "The provider's home shoot-out goals; differs from shootout_home only where the official result was corrected."
+        description: "The provider's home shoot-out goals; differs from shootout_home only where the official result was corrected or the result is withheld."
       - name: provider_shootout_away
-        description: "The provider's away shoot-out goals; differs from shootout_away only where the official result was corrected."
+        description: "The provider's away shoot-out goals; differs from shootout_away only where the official result was corrected or the result is withheld."
       - name: winner_team_id
         description: "{{ doc('winner_team') }} Here, the team id as home_team_id and away_team_id carry it."
       - name: award_kind
@@ -166,9 +190,12 @@ models:
       - name: on_pitch_away
         description: "The away goals at the final whistle or at the abandonment of a played or abandoned match that was awarded afterwards; NULL otherwise."
       - name: provider_goals_home
-        description: "The provider's home goals; differs from goals_home only where the official result was corrected."
+        description: "The provider's home goals; differs from goals_home only where the official result was corrected or the result is withheld."
       - name: provider_goals_away
-        description: "The provider's away goals; differs from goals_away only where the official result was corrected."
+        description: "The provider's away goals; differs from goals_away only where the official result was corrected or the result is withheld."
+      - name: result_needs_research
+        description: "{{ doc('result_needs_research') }}"
+        tests: [not_null]
       - name: provider_status_short
         description: "The provider's status code; differs from status_short only where the league awarded a match the provider files as played."
       - name: result_correction_source
@@ -359,6 +386,9 @@ models:
         tests: [not_null]
       - name: player_id
         description: "{{ doc('player_api_id') }}"
+        tests: [not_null]
+      - name: goals_need_research
+        description: "True where the team scored and its goal events do not add up to its score. Its players' goals are then withheld, blank until sourced research stands in fixture_goal_corrections."
         tests: [not_null]
 
   - name: base_apif__lineup_sheets
