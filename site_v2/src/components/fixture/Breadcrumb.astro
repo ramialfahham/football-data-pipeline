@@ -17,6 +17,20 @@ interface Props {
 const { items, lang } = Astro.props;
 ---
 
+<script>
+  const trail = document.querySelector<HTMLElement>("nav.trail");
+  if (trail) {
+    const cut = () => trail.classList.toggle("cut", trail.scrollLeft > 0);
+    const toEnd = () => {
+      trail.scrollLeft = trail.scrollWidth;
+      cut();
+    };
+    trail.addEventListener("scroll", cut, { passive: true });
+    addEventListener("resize", toEnd);
+    toEnd();
+  }
+</script>
+
 <nav class="crumb trail" aria-label={t(lang, "crumbAria")}>
   {items.map((c, i) => {
     const last = i === items.length - 1;
@@ -34,17 +48,3 @@ const { items, lang } = Astro.props;
     );
   })}
 </nav>
-
-<script>
-  const trail = document.querySelector<HTMLElement>("nav.trail");
-  if (trail) {
-    const cut = () => trail.classList.toggle("cut", trail.scrollLeft > 0);
-    const toEnd = () => {
-      trail.scrollLeft = trail.scrollWidth;
-      cut();
-    };
-    trail.addEventListener("scroll", cut, { passive: true });
-    addEventListener("resize", toEnd);
-    toEnd();
-  }
-</script>

@@ -1,36 +1,38 @@
 # Review — claude/231-phone-fixes-mr1 — 2026-11-15
 
-diff_sha256: 18520d0512d8e83c142c830afcacbea0a1f19c3089b82f8a4799b1906e8d19dd
+diff_sha256: 00ee5193874f625c1d01254ddf87441a0b5a60b1385ba5bcdc67113f5aa263eb
 
-rounds: 3
+rounds: 4
+
+rounds_cap_override: one delta review of the validate:ui fix (Breadcrumb script moved above the nav, baseline_quick.json lowered), approved in chat, 2026-11-15.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 3 re-asked once inside the round after a one-line fix: the Match page is named in approved_design (match #132), since the venue change reaches it through Masthead.astro; the finding closed with no other change.
-- Every changed file is in scope_paths; the Players hub and nation pages, the pin file, Breadcrumb.astro and the registry line each carry a dated "approved in chat" amendment; components.yml carries protected_override.
-- impact_map downstream and blast_radius state the Breadcrumb change (Home kept on a two-level trail under 700px) and match the one-condition diff; trails of three or more levels are unchanged.
-- decisions_reserved (the Player club link and the Teams league heading link, cause 4b) is untouched; no new mechanism, cost or credential.
+- Round 4 delta, re-asked once inside the round: the baseline_quick.json amendment now names its approval ("Approved in chat, 2026-11-15"); the file is in scope_paths for lowering only.
+- baseline_quick.json only lowers: Match page scroll 1137 to 1131, Match page overflow 6 and Competitions index overflow 16 removed; no pin raised, no key added.
+- Breadcrumb.astro: the script moved above the nav, body identical, file in scope; no new mechanism, cost or wording.
+- Rounds 1-3 passes stand: scope_paths, amendments, impact_map and decisions_reserved unchanged by the delta.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 failed on an empty trail under 700px on the two-level pages and missing rendered evidence; round 2 read the Breadcrumb condition `far: (i === 0 && items.length > 2) || last` and every caller's item count, and found the round-1 finding closed with no new one.
-- Trails of three or more levels, the Matches day variant and the scroll script are unchanged; no text, field or metric is added or removed.
-- rendered_page_evidence.md names its tool and what it observed; the three hub pages other than Teams are marked as read from markup, not measured.
+- Round 4 delta: the script moved above the nav, body byte-identical; reader-visible markup unchanged and the script finds nav.trail regardless of source order.
+- Nothing in site_v2/src uses a sibling selector the inlined script could break; `.crumb + h1` matches again, locally 0 Page heading misses.
+- No text, field, metric or binding changed.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- tests/test_phone_fixes_231.py: the crumb pattern now catches both ways of writing the class and a test feeds it both plus a non-crumb nav; the two-level test covers the Competitions, Teams, Players and Matches trails; each test fails on revert.
-- wholeWords.mjs keep(): traced by hand against the node tests, no double-wrapping or nesting; the lowercase/digit/double-space test title now matches its input.
-- baseline.json banned_properties for system.css 7 to 6 matches a recount of the pattern in check_page_css.py against system.css; the pin only goes down.
+- The new test pins script-before-nav and the file ending in the nav; both asserts fail on the old layout.
+- baseline_quick.json is valid JSON, pins only lowered; a zero count is dropped as the checker's compare_rendered treats absent as 0, so the pins stay tight.
+- No dependency, workflow, hosting or guard-mechanic change in the delta.
 
 ## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- docs/design/components.yml changes one line, the Breadcrumb's narrow form, under a protected_override naming the file, the change and the approval date; no other registry part changes.
-- The registry line matches Breadcrumb.astro and the system.css comment; no new mechanism, dependency, cost or guard invariant.
+- Delta adds no mechanism, dependency, cost, hook change or permission; baseline_quick.json is not a protected guard path and the earlier components.yml override is not widened.
+- The validate:ui check still fails closed, now against lower pins.
 
 ## escalations
 (none)

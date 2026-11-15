@@ -56,6 +56,12 @@ def test_a_two_level_trail_keeps_home_on_a_phone():
     assert ".trail .far { display: none; }" in _read("styles/system.css")
 
 
+def test_the_breadcrumb_script_does_not_sit_between_the_nav_and_the_heading():
+    text = (SRC / "components" / "fixture" / "Breadcrumb.astro").read_text(encoding="utf-8")
+    assert text.index("<script>") < text.index('<nav class="crumb trail"')
+    assert text.rstrip().endswith("</nav>")
+
+
 def test_the_venue_is_not_a_no_break_unit():
     text = _read("components/fixture/Masthead.astro")
     assert "fixture.venue]" not in text
