@@ -325,6 +325,20 @@ goals, shoot-out and winner are then withheld, blank until research stands in th
 fixture_result_corrections seed.
 {% enddocs %}
 
+{% docs scorer_needs_research %}
+True on a provider goal whose scorer was not on the pitch at its minute on a confirmed or
+researched line-up; the scorer is then blank, and so are his goals in the match. Where is_goal is
+also true, the goal awaits research; once the match's goals come from the fixture_goal_corrections
+seed, the provider goal no longer counts. False on every other event.
+{% enddocs %}
+
+{% docs assist_needs_research %}
+True on a provider goal whose assister was not on the pitch at its minute on a confirmed or
+researched line-up; the assister is then blank, and so are his assists in the match. Where is_goal
+is also true, the goal awaits research; once the match's goals come from the
+fixture_goal_corrections seed, the provider goal no longer counts. False on every other event.
+{% enddocs %}
+
 
 {% docs minute_on %}
 The minute of normal time a substitution brought the player on. NULL for a player who did not

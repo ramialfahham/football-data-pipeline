@@ -875,7 +875,7 @@ models:
         description: "{{ doc('raw_ingested_at') }}"
 
   - name: fct_fixture_player_stats
-    description: "Per-player, per-fixture statistics, as cleaned and named in base_apif__fixture_players, whose description holds the cleaning rules, and the rows of base_apif__fixture_players_from_lineups. Grain: (fixture_sk, team_sk, player_sk). Core keys and constrains the fact grain."
+    description: "Per-player, per-fixture statistics, as cleaned and named in base_apif__fixture_players, whose description holds the cleaning rules, with the goals and assists of a withheld scorer or assister blank (base_apif__fixture_players_checked), and the rows of base_apif__fixture_players_from_lineups. Grain: (fixture_sk, team_sk, player_sk). Core keys and constrains the fact grain."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -1095,13 +1095,24 @@ models:
               values: ["confirmed", "researched", "not_available"]
 
   - name: fct_fixture_event
-    description: "In-match events (goals, cards, substitutions, VAR decisions). Grain: (fixture_id, event_index) — event_index is the zero-based array position from the API-Football /fixtures/events response, which does not emit event IDs. Rebuilt in full every night from base_apif__fixture_events, so each match carries the events of its latest fetch, and any goals from fixture_goal_corrections at event_index 10000 and up."
+    description: "In-match events (goals, cards, substitutions, VAR decisions). Grain: (fixture_id, event_index) — event_index is the zero-based array position from the API-Football /fixtures/events response, which does not emit event IDs. Rebuilt in full every night from base_apif__fixture_events_checked, so each match carries the events of its latest fetch, and any goals from fixture_goal_corrections at event_index 10000 and up."
     meta:
       owner: "data-platform"
       domain: "football"
       criticality: "high"
     config:
       tags: ["core", "fact"]
+    tests:
+      - dbt_utils.expression_is_true:
+          name: fct_fixture_event_withheld_scorer_is_blank
+          expression: >
+            not scorer_needs_research
+            or (player_sk is null and player_api_id is null and player_name_snapshot is null)
+      - dbt_utils.expression_is_true:
+          name: fct_fixture_event_withheld_assister_is_blank
+          expression: >
+            not assist_needs_research
+            or (assist_player_sk is null and assist_player_api_id is null and assist_player_name is null)
     columns:
       - name: event_sk
         description: "Surrogate key hashing (fixture_id, event_index)."
@@ -1127,7 +1138,7 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: player_sk
-        description: "{{ doc('player_sk') }} Here it is the event's primary actor (goalscorer, card recipient, and so on). Nullable: a VAR decision or a team-level event may not carry a player."
+        description: "{{ doc('player_sk') }} Here it is the event's primary actor (goalscorer, card recipient, and so on). Nullable: a VAR decision or a team-level event may not carry a player, and a goal whose scorer is withheld has none."
         tests:
           - relationships:
               to: ref('dim_player')
@@ -1159,7 +1170,7 @@ models:
       - name: assist_player_name
         description: "The assisting player's name as the events feed spells it, with text sent in the wrong character set repaired. It is the only name available for an assist the feed gives no id for."
       - name: assist_player_sk
-        description: "{{ doc('player_sk') }} Here it is the assisting player. NULL where the event has no assist or the assist has no id."
+        description: "{{ doc('player_sk') }} Here it is the assisting player. NULL where the event has no assist, the assist has no id, or the assister is withheld."
         tests:
           - relationships:
               to: ref('dim_player')
@@ -1184,6 +1195,12 @@ models:
         description: "On a card from fixture_card_corrections, the source's https URLs; NULL on every event the provider sent."
       - name: goal_correction_source
         description: "On a goal from fixture_goal_corrections, the source's https URLs; NULL on every event the provider sent. A match with such goals counts only them: is_goal is FALSE on its provider goal events."
+      - name: scorer_needs_research
+        description: "{{ doc('scorer_needs_research') }}"
+        tests: [not_null]
+      - name: assist_needs_research
+        description: "{{ doc('assist_needs_research') }}"
+        tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
 

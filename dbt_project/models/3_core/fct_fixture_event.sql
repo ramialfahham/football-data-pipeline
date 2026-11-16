@@ -8,7 +8,7 @@
 #}
 
 with src as (
-    select * from {{ ref('base_apif__fixture_events') }}
+    select * from {{ ref('base_apif__fixture_events_checked') }}
 )
 
 select
@@ -38,5 +38,7 @@ select
     is_shootout_kick,
     goal_correction_source,
     card_correction_source,
+    scorer_needs_research,
+    assist_needs_research,
     src.raw_ingested_at
 from src

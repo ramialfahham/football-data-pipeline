@@ -99,14 +99,15 @@ events as (
         is_goal,
         is_own_goal,
         is_shootout_kick,
-        has_full_events
-    from {{ ref('base_apif__fixture_events') }}
+        has_full_events,
+        assist_player_name is not null or assist_needs_research as is_assisted
+    from {{ ref('base_apif__fixture_events_checked') }}
 ),
 
 match_events as (
     select
         fixture_id,
-        countif(is_goal and assist_player_name is not null) as assisted_goal_events,
+        countif(is_goal and is_assisted) as assisted_goal_events,
         coalesce(logical_or(minute_elapsed > 90 and not is_shootout_kick), false) as has_extra_time_event,
         logical_or(has_full_events) as has_full_events
     from events
@@ -151,7 +152,7 @@ team_events as (
         countif(is_goal and not is_own_goal and player_id is null) as goal_events_without_scorer,
         countif(is_goal and is_own_goal) as own_goals,
         countif(is_goal and event_detail = 'Normal Goal') as open_play_goal_events,
-        countif(is_goal and not is_own_goal and assist_player_name is not null) as assisted_goal_events
+        countif(is_goal and not is_own_goal and is_assisted) as assisted_goal_events
     from events
     group by fixture_id, team_id
 ),

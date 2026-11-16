@@ -644,6 +644,71 @@ models:
         description: "TRUE where the provider files the event as a goal that counts: a normal goal, a penalty or an own goal, not a shoot-out kick. On a match whose goals come from fixture_goal_corrections, is_goal is FALSE on these events and TRUE on the corrections."
         tests: [not_null]
 
+  - name: base_apif__fixture_players_checked
+    description: >
+      The rows of base_apif__fixture_players, with a player's goals withheld where he is the
+      withheld scorer of a goal that counts in base_apif__fixture_events_checked, and his assists
+      where he is its withheld assister. Grain: (league_code, fixture_id, team_id, player_id).
+
+      This is its own model because base_apif__lineups reads base_apif__fixture_players.
+    config:
+      tags: ["base", "api_football", "fixture_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, fixture_id, team_id, player_id]
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
+        tests: [not_null]
+      - name: goals
+        description: "The player's goals in the match, as in base_apif__fixture_players. NULL where it is NULL there, and where he is the withheld scorer of a goal that counts."
+      - name: goals_penalty
+        description: "The player's penalty goals in the match, as in base_apif__fixture_players. NULL where it is NULL there, and where he is the withheld scorer of a goal that counts."
+      - name: penalties_scored
+        description: "The player's scored penalties in the match, as in base_apif__fixture_players. NULL where it is NULL there, and where he is the withheld scorer of a goal that counts."
+      - name: assists
+        description: "The player's assists in the match, as in base_apif__fixture_players. NULL where it is NULL there, and where he is the withheld assister of a goal that counts."
+
+  - name: base_apif__fixture_events_checked
+    description: >
+      The events of base_apif__fixture_events, with each provider goal's scorer and assister checked
+      against the match's confirmed or researched line-up. A scorer or assister not on the pitch at
+      the goal's minute is withheld: player or assist id and name are NULL and the flag says so.
+      The goal itself, its team and its minute stay. A goal from fixture_goal_corrections is not
+      checked. Grain: (league_code, fixture_id, event_index).
+
+      {{ doc('cleaning_rules') }}
+
+      This is its own model because base_apif__lineups reads base_apif__fixture_events.
+    config:
+      tags: ["base", "api_football", "fixture_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - league_code
+            - fixture_id
+            - event_index
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
+        tests: [not_null]
+      - name: player_id
+        description: "The event player's provider id, as in base_apif__fixture_events. NULL where the provider gives none, and on a goal whose scorer is withheld."
+      - name: assist_player_id
+        description: "The assisting player's provider id. NULL where the goal has no assist, the provider names the assist without an id, or the assister is withheld."
+      - name: scorer_needs_research
+        description: "{{ doc('scorer_needs_research') }}"
+        tests: [not_null]
+      - name: assist_needs_research
+        description: "{{ doc('assist_needs_research') }}"
+        tests: [not_null]
+
   - name: base_apif__player_team_season
     description: >
       Rostered player↔team↔season membership from the /players squad source
