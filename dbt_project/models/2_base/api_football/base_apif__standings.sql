@@ -4,7 +4,7 @@ with src as (
         league_api_id,
         league_name,
         season,
-        team_id,
+        {{ team_id_override('team_id') }} as team_id,
         team_name,
         standing_rank,
         points,
