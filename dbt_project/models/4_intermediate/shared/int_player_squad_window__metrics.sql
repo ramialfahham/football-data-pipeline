@@ -146,6 +146,11 @@ metrics as (
             null
         ) as goals_against_player,
         if(
+            logical_and(window_is_complete and (saves + goals_against - goals_own_against) is not null),
+            sum(saves + goals_against - goals_own_against),
+            null
+        ) as shots_on_goal_against_player,
+        if(
             logical_and(window_is_complete and cards_yellow is not null),
             sum(cards_yellow),
             null
@@ -174,8 +179,8 @@ metrics as (
                 null
             ),
             if(
-                logical_and(window_is_complete and (saves + goals_against) is not null),
-                sum(saves + goals_against),
+                logical_and(window_is_complete and (saves + goals_against - goals_own_against) is not null),
+                sum(saves + goals_against - goals_own_against),
                 null
             )
         ) as saves_player_pct,

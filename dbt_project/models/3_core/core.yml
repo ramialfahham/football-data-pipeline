@@ -952,6 +952,11 @@ models:
         description: "{{ doc('goals_penalty_player') }}"
       - name: goals_against
         description: "{{ doc('goals_against_player') }}"
+      - name: goals_own_against
+        description: "Own goals the team conceded while the player was on the pitch: part of goals_against, but not a shot on target the keeper faced, so save percentage leaves them out. NULL where goals_against is NULL, or where the goal events cannot place every own goal inside the spell goals_against counts."
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "between 0 and goals_against"
       - name: assists
         description: "{{ doc('goals_assists__leg') }}"
       - name: saves

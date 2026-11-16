@@ -698,7 +698,11 @@ keeper_spells as (
         countif(
             e.minute_elapsed > coalesce(c.minute_on, -1) and e.minute_elapsed < coalesce(c.minute_off, 999)
         ) as goals_conceded_in_spell,
-        countif(e.minute_elapsed = c.minute_on or e.minute_elapsed = c.minute_off) as goals_at_a_change
+        countif(e.minute_elapsed = c.minute_on or e.minute_elapsed = c.minute_off) as goals_at_a_change,
+        countif(
+            e.is_own_goal
+            and e.minute_elapsed > coalesce(c.minute_on, -1) and e.minute_elapsed < coalesce(c.minute_off, 999)
+        ) as own_goals_conceded_in_spell
     from delivered as d
     inner join player_changes as c
         on d.fixture_id = c.fixture_id and d.player_id = c.player_id
@@ -751,6 +755,7 @@ in_context as (
         ks.goal_events_conceded,
         ks.goals_conceded_in_spell,
         ks.goals_at_a_change,
+        ks.own_goals_conceded_in_spell,
         if(d.team_id = f.home_team_id, f.goals_home, f.goals_away) as team_goals_for,
         if(d.team_id = f.home_team_id, f.goals_away, f.goals_home) as team_goals_conceded,
         fe.fixture_id is not null as has_events,
@@ -764,6 +769,7 @@ in_context as (
         coalesce(te.card_events, 0) as team_card_events,
         coalesce(ma.assisted_goal_events, 0) as match_assisted_goal_events,
         coalesce(oe.own_goals, 0) as opponent_own_goals,
+        coalesce(oe.goal_events, 0) as opponent_goal_events,
         coalesce(oe.penalty_goal_events, 0) as opponent_penalty_goal_events,
         coalesce(oe.penalty_events, 0) as opponent_penalty_events,
         coalesce(oe.missed_penalty_events, 0) as opponent_missed_penalty_events,
@@ -1092,7 +1098,24 @@ saves_checked as (
             when not coalesce(opponent_shots_on_target_verified, false) then null
             when saves_filled - saves_ceiling <= 2 then saves_ceiling
         end as saves_clean,
-        sum(assists_checked) over (partition by league_code, fixture_id, team_id) as team_assists_checked
+        sum(assists_checked) over (partition by league_code, fixture_id, team_id) as team_assists_checked,
+        -- An own goal is counted for a keeper only from the spell his goals conceded were counted in.
+        case
+            when goals_against_checked is null then null
+            when goals_against_checked = 0 then 0
+            when goals_conceded_in_spell is not null
+                then if(
+                    goal_events_conceded = team_goals_conceded and goals_at_a_change = 0
+                    and goals_against_checked = goals_conceded_in_spell,
+                    own_goals_conceded_in_spell,
+                    null
+                )
+            when
+                position_code = 'G' and has_events and team_keepers_with_minutes = 1
+                and goals_against_checked = team_goals_conceded
+                and opponent_goal_events + opponent_own_goals = team_goals_conceded
+                then opponent_own_goals
+        end as goals_own_against
     from against_results
 ),
 
@@ -1189,6 +1212,7 @@ select
     goals_clean as goals,
     goals_penalty_clean as goals_penalty,
     goals_against_checked as goals_against,
+    goals_own_against,
     assists_clean as assists,
     saves_clean as saves,
     passes_clean as passes,

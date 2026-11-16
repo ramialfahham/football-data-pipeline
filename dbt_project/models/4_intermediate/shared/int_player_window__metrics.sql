@@ -93,6 +93,11 @@ select
     ) as dribbles_success_player,
     if(logical_and(window_is_complete and saves is not null), sum(saves), null) as saves_player,
     if(logical_and(window_is_complete and goals_against is not null), sum(goals_against), null) as goals_against_player,
+    if(
+        logical_and(window_is_complete and (saves + goals_against - goals_own_against) is not null),
+        sum(saves + goals_against - goals_own_against),
+        null
+    ) as shots_on_goal_against_player,
     if(logical_and(window_is_complete and cards_yellow is not null), sum(cards_yellow), null) as cards_yellow_player,
     if(logical_and(window_is_complete and cards_red is not null), sum(cards_red), null) as cards_red_player,
     safe_divide(
@@ -112,8 +117,16 @@ select
         if(logical_and(window_is_complete and dribbles is not null), sum(dribbles), null)
     ) as dribbles_success_player_pct,
     safe_divide(
-        if(logical_and(window_is_complete and saves is not null), sum(saves), null),
-        if(logical_and(window_is_complete and (saves + goals_against) is not null), sum(saves + goals_against), null)
+        if(
+            logical_and(window_is_complete and saves is not null),
+            sum(saves),
+            null
+        ),
+        if(
+            logical_and(window_is_complete and (saves + goals_against - goals_own_against) is not null),
+            sum(saves + goals_against - goals_own_against),
+            null
+        )
     ) as saves_player_pct,
     safe_divide(
         if(logical_and(window_is_complete and (goals - goals_penalty) is not null), sum(goals - goals_penalty), null),

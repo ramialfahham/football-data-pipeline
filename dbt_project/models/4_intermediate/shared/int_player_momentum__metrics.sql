@@ -159,8 +159,16 @@ select
         null
     ) as penalty_committed_player,
     safe_divide(
-        if(logical_and(window_is_complete and saves is not null), sum(saves), null),
-        if(logical_and(window_is_complete and (saves + goals_against) is not null), sum(saves + goals_against), null)
+        if(
+            logical_and(window_is_complete and saves is not null),
+            sum(saves),
+            null
+        ),
+        if(
+            logical_and(window_is_complete and (saves + goals_against - goals_own_against) is not null),
+            sum(saves + goals_against - goals_own_against),
+            null
+        )
     ) as saves_player_pct,
     safe_divide(
         if(logical_and(window_is_complete and dribbles_success is not null), sum(dribbles_success), null),

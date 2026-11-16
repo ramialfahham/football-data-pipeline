@@ -165,8 +165,8 @@ running as (
                 null
             ),
             if(
-                logical_and(window_is_complete and (saves + goals_against) is not null) over w,
-                sum(saves + goals_against) over w,
+                logical_and(window_is_complete and (saves + goals_against - goals_own_against) is not null) over w,
+                sum(saves + goals_against - goals_own_against) over w,
                 null
             )
         ) as saves_player_pct,

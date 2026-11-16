@@ -1,0 +1,643 @@
+diff --git a/.claude/task/184-save-pct-own-goals/contract.md b/.claude/task/184-save-pct-own-goals/contract.md
+new file mode 100644
+index 00000000..2c81ff06
+--- /dev/null
++++ b/.claude/task/184-save-pct-own-goals/contract.md
+@@ -0,0 +1,116 @@
++# Task contract — a keeper's save percentage leaves out the own goals conceded while he was in goal
++
++objective: >
++  Issue 184: a keeper's save percentage is saves / (saves + goals conceded while he was in goal
++  that were not own goals), wherever it is computed. A new per-match atom, goals_own_against on
++  the player legs, carries the own goals the team conceded while the player was on the pitch; the
++  catalogue denominators of saves_player_pct and shots_on_goal_against_player subtract it, and the
++  generated metric SQL follows.
++
++refs: >
++  Issue 184, one of the go-live gate items in issue 290. Team save percentage, issue 180, is the
++  same fix at team grain and is reused, not repeated.
++
++scope_paths:
++  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_players_from_lineups.sql
++  - dbt_project/models/3_core/fct_fixture_player_stats.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
++  - dbt_project/models/4_intermediate/shared/int_legs.yml
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_player_season_record.sql
++  - dbt_project/models/4_intermediate/shared/int_player_squad_window__metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_player_window__metrics.sql
++  - dbt_project/macros/player_benchmark_metrics.sql
++  - scripts/generate_metric_sql.py
++  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
++  - dbt_project/models/4_intermediate/shared/int_player_page.yml
++  - dbt_project/seeds/metric_catalogue.csv
++  - dbt_project/models/docs/metric_columns.md
++  - dbt_project/tests/assert_keeper_save_pct_leaves_out_own_goals.sql
++  - .claude/task/184-save-pct-own-goals/contract.md
++  - .claude/task/184-save-pct-own-goals/review.md
++  - .claude/task/184-save-pct-own-goals/review_input.patch
++
++impact_map: >
++  writers: base_apif__fixture_players and base_apif__fixture_players_from_lineups, unioned by
++  fct_fixture_player_stats, read by int_legs__player_match. No raw table, loader or seed other
++  than metric_catalogue.csv changes.
++  downstream: `dbt ls --select base_apif__fixture_players+ base_apif__fixture_players_from_lineups+
++  --resource-type model` lists base_apif__lineup_sheets base_apif__lineups base_apif__players
++  dim_player fct_fixture_lineup fct_fixture_player_stats
++  int_competition_season__player_stat_corrections int_legs__player_match
++  int_legs__team_from_players int_player__national_team_minutes int_player__page_profile
++  int_player_club_season__metrics int_player_competition_benchmark_metrics_long
++  int_player_competition_benchmarks int_player_match__metrics int_player_momentum__metrics
++  int_player_page__window_seasons int_player_profile__contribution int_player_profile__yoy
++  int_player_season__metrics int_player_season__team int_player_season_position__metrics
++  int_player_season_record int_player_squad_window__metrics int_player_window__metrics
++  int_team__current_national_competitions int_team__featured_season
++  int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
++  int_team_competition_phase__metrics int_team_momentum__metrics int_team_profile__yoy
++  int_team_season__deserved_vs_actual int_team_season__metrics
++  int_team_season__metrics_cumulative int_team_season_record int_team_window__metrics
++  mart_competition_fixtures mart_leaderboards mart_match_days mart_matchday_insights
++  mart_player_career mart_player_competition_benchmarks mart_player_fixture_stats
++  mart_player_index mart_player_momentum mart_player_profile mart_player_season_record
++  mart_player_squad_benchmarks mart_player_window_metrics mart_roster
++  mart_team_competition_benchmarks mart_team_competitions mart_team_index mart_team_leaderboards
++  mart_team_momentum_window mart_team_page_window_metrics mart_team_profile mart_team_season
++  mart_team_season_insights mart_team_season_record mart_team_window_metrics. Only the player
++  metric surfaces read the new column; every other model is unchanged in value.
++  layer_rules: the keeper spell is cleaning logic and stays in base, next to the spell logic that
++  already fills goals_against; core and the legs only carry the column; the formula lives in the
++  catalogue and is written into the models by scripts/generate_metric_sql.py.
++  deploy_order: a column added at base and carried down; the nightly's full build rebuilds every
++  layer in order, so nothing breaks between merge and the next 04:00 run.
++  blast_radius: saves_player_pct and shots_on_goal_against_player change only for a keeper whose
++  window holds a match where he conceded an own goal, or whose own goals conceded are unknown
++  (the value is then NULL, as every other metric with a missing input). The saves_player_pct
++  leaderboard floor (shots_on_goal_against_player) may drop a keeper below it. The before and
++  after list comes from data:build:mr's ci_mr tables against prod.
++
++approved_design:
++  - none: no page output changes; the save percentage block shows the same metrics with corrected values
++
++depends_on:
++  - none: the change starts from gitlab/main at 70eec4c7; no open MR carries code it needs
++shared_files:
++  - none: no design baseline, chart manifest or chart pin changes
++
++decisions_taken: >
++  The atom reuses the keeper spell base_apif__fixture_players and the lineup-built rows already
++  derive to fill goals_against (the substitution and red-card minutes): the own goals counted are
++  the opponent-credited own goal events inside the spell. A keeper with no change in a match where
++  he was his team's only keeper with minutes was in goal throughout, and takes every own goal his
++  team conceded, counted from the events only where the conceded goal events add up to the goals
++  conceded: the rule base_apif__fixture_statistics applies to the own goals team save percentage
++  uses (issue 180). A
++  spell is trusted only when the conceded goal events add up to the goals conceded and no goal
++  fell at a change minute, the guard goals_against already uses. goals_against = 0 means no own
++  goal conceded. Otherwise the atom is NULL, and so is every rate over a window that holds it
++  (catalogue rule R4). The competition benchmark's denominator for saves_player_pct is the
++  catalogue's shots_on_goal_against_player, so the position and page-window surfaces generate that
++  column too, one definition per rate (engineering_standards.md §3.2), instead of the macro adding
++  saves and goals conceded by hand. Engineering calls by the coordinating session. No new mechanism, no
++  recurring cost; read-only BigQuery for the value test and the comparison.
++
++  Catalogue descriptions, approved in chat, 16 Nov 2026: saves_player_pct reads "The player's saves
++  as a share of the player's saves plus the goals conceded while the player was in goal. Own goals
++  are not counted." and shots_on_goal_against_player, changed in the same MR, reads "Shots on
++  target the player faced in goal: the player's saves plus the goals conceded while the player was
++  in goal. Own goals are not counted." Labels and metric ids are unchanged.
++
++decisions_reserved:
++  - none: the two catalogue descriptions are approved as quoted above; nothing else a fan reads changes in wording.
++
++done_when:
++  - python scripts/generate_metric_sql.py --check passes; the catalogue denominators read sum(saves + goals_against - goals_own_against).
++  - Full pytest, dbt parse and sqlfluff lint green via python scripts/ci_local.py --mr.
++  - data:build:mr green, including assert_keeper_save_pct_leaves_out_own_goals on a real match with an own goal and assert_player_metrics_follow_catalogue_formula.
++  - A read-only comparison of the MR's ci_mr tables against prod lists every keeper whose saves_player_pct changed, and why, on the MR.
++
++amendments: (none)
+diff --git a/dbt_project/macros/player_benchmark_metrics.sql b/dbt_project/macros/player_benchmark_metrics.sql
+index 3f978f4b..72c017ad 100644
+--- a/dbt_project/macros/player_benchmark_metrics.sql
++++ b/dbt_project/macros/player_benchmark_metrics.sql
+@@ -17,7 +17,7 @@
+         ),
+         (
+             'saves_player_pct', ['GK'], true, {{ alias }}.saves_player_pct,
+-            {{ alias }}.saves_player, {{ alias }}.saves_player + {{ alias }}.goals_against_player
++            {{ alias }}.saves_player, {{ alias }}.shots_on_goal_against_player
+         ),
+         ('goals_against_per90', ['GK'], true, {{ alias }}.goals_against_per90, null, null),
+         ('passes_per90', ['GK', 'DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.passes_per90, null, null),
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+index 00be9b6d..06d4561c 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+@@ -698,7 +698,11 @@ keeper_spells as (
+         countif(
+             e.minute_elapsed > coalesce(c.minute_on, -1) and e.minute_elapsed < coalesce(c.minute_off, 999)
+         ) as goals_conceded_in_spell,
+-        countif(e.minute_elapsed = c.minute_on or e.minute_elapsed = c.minute_off) as goals_at_a_change
++        countif(e.minute_elapsed = c.minute_on or e.minute_elapsed = c.minute_off) as goals_at_a_change,
++        countif(
++            e.is_own_goal
++            and e.minute_elapsed > coalesce(c.minute_on, -1) and e.minute_elapsed < coalesce(c.minute_off, 999)
++        ) as own_goals_conceded_in_spell
+     from delivered as d
+     inner join player_changes as c
+         on d.fixture_id = c.fixture_id and d.player_id = c.player_id
+@@ -751,6 +755,7 @@ in_context as (
+         ks.goal_events_conceded,
+         ks.goals_conceded_in_spell,
+         ks.goals_at_a_change,
++        ks.own_goals_conceded_in_spell,
+         if(d.team_id = f.home_team_id, f.goals_home, f.goals_away) as team_goals_for,
+         if(d.team_id = f.home_team_id, f.goals_away, f.goals_home) as team_goals_conceded,
+         fe.fixture_id is not null as has_events,
+@@ -764,6 +769,7 @@ in_context as (
+         coalesce(te.card_events, 0) as team_card_events,
+         coalesce(ma.assisted_goal_events, 0) as match_assisted_goal_events,
+         coalesce(oe.own_goals, 0) as opponent_own_goals,
++        coalesce(oe.goal_events, 0) as opponent_goal_events,
+         coalesce(oe.penalty_goal_events, 0) as opponent_penalty_goal_events,
+         coalesce(oe.penalty_events, 0) as opponent_penalty_events,
+         coalesce(oe.missed_penalty_events, 0) as opponent_missed_penalty_events,
+@@ -1092,7 +1098,24 @@ saves_checked as (
+             when not coalesce(opponent_shots_on_target_verified, false) then null
+             when saves_filled - saves_ceiling <= 2 then saves_ceiling
+         end as saves_clean,
+-        sum(assists_checked) over (partition by league_code, fixture_id, team_id) as team_assists_checked
++        sum(assists_checked) over (partition by league_code, fixture_id, team_id) as team_assists_checked,
++        -- An own goal is counted for a keeper only from the spell his goals conceded were counted in.
++        case
++            when goals_against_checked is null then null
++            when goals_against_checked = 0 then 0
++            when goals_conceded_in_spell is not null
++                then if(
++                    goal_events_conceded = team_goals_conceded and goals_at_a_change = 0
++                    and goals_against_checked = goals_conceded_in_spell,
++                    own_goals_conceded_in_spell,
++                    null
++                )
++            when
++                position_code = 'G' and has_events and team_keepers_with_minutes = 1
++                and goals_against_checked = team_goals_conceded
++                and opponent_goal_events + opponent_own_goals = team_goals_conceded
++                then opponent_own_goals
++        end as goals_own_against
+     from against_results
+ ),
+ 
+@@ -1189,6 +1212,7 @@ select
+     goals_clean as goals,
+     goals_penalty_clean as goals_penalty,
+     goals_against_checked as goals_against,
++    goals_own_against,
+     assists_clean as assists,
+     saves_clean as saves,
+     passes_clean as passes,
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players_from_lineups.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players_from_lineups.sql
+index 3679a1c7..a0023afe 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_players_from_lineups.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players_from_lineups.sql
+@@ -279,7 +279,11 @@ keeper_spells as (
+         countif(
+             e.minute_elapsed > coalesce(k.minute_on, -1) and e.minute_elapsed < coalesce(k.minute_gone, 999)
+         ) as goals_conceded_in_spell,
+-        countif(e.minute_elapsed = k.minute_on or e.minute_elapsed = k.minute_gone) as goals_at_a_change
++        countif(e.minute_elapsed = k.minute_on or e.minute_elapsed = k.minute_gone) as goals_at_a_change,
++        countif(
++            e.is_own_goal
++            and e.minute_elapsed > coalesce(k.minute_on, -1) and e.minute_elapsed < coalesce(k.minute_gone, 999)
++        ) as own_goals_conceded_in_spell
+     from goals_checked as k
+     left join events as e
+         on k.fixture_id = e.fixture_id and k.team_id != e.team_id and e.is_goal
+@@ -287,6 +291,27 @@ keeper_spells as (
+     group by k.league_code, k.fixture_id, k.team_id, k.player_id
+ ),
+ 
++team_matches as (
++    select distinct
++        league_code,
++        fixture_id,
++        team_id
++    from goals_checked
++),
++
++conceded_events as (
++    select
++        m.league_code,
++        m.fixture_id,
++        m.team_id,
++        count(e.minute_elapsed) as goal_events_conceded,
++        countif(e.is_own_goal) as own_goals_conceded
++    from team_matches as m
++    left join events as e
++        on m.fixture_id = e.fixture_id and m.team_id != e.team_id and e.is_goal
++    group by m.league_code, m.fixture_id, m.team_id
++),
++
+ cleaned as (
+     select
+         g.league_code,
+@@ -330,6 +355,15 @@ cleaned as (
+             when k.goal_events_conceded = g.team_goals_conceded and k.goals_at_a_change = 0
+                 then k.goals_conceded_in_spell
+         end as goals_against,
++        case
++            when g.team_goals_conceded = 0 then 0
++            when coalesce(g.position_code, '') != 'G' then null
++            when g.minutes = 0 then 0
++            when g.minute_on is null and g.minute_gone is null and g.team_keepers_with_minutes = 1
++                then if(ce.goal_events_conceded = g.team_goals_conceded, ce.own_goals_conceded, null)
++            when k.goal_events_conceded = g.team_goals_conceded and k.goals_at_a_change = 0
++                then k.own_goals_conceded_in_spell
++        end as goals_own_against,
+         if(g.cards_are_proven, least(g.event_yellow_cards, 2), null) as cards_yellow,
+         if(g.cards_are_proven, least(g.event_red_cards, 1), null) as cards_red
+     from goals_checked as g
+@@ -339,6 +373,11 @@ cleaned as (
+             and g.fixture_id = k.fixture_id
+             and g.team_id = k.team_id
+             and g.player_id = k.player_id
++    left join conceded_events as ce
++        on
++            g.league_code = ce.league_code
++            and g.fixture_id = ce.fixture_id
++            and g.team_id = ce.team_id
+     left join stats_counted_in_match as n
+         on g.fixture_id = n.fixture_id
+     where g.team_has_no_stats or (g.has_no_stat_line and g.event_yellow_cards + g.event_red_cards > 0)
+@@ -360,6 +399,7 @@ select
+     goals,
+     goals_penalty,
+     goals_against,
++    goals_own_against,
+     assists,
+     saves,
+     passes,
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index 0495e550..c5ae3540 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -952,6 +952,11 @@ models:
+         description: "{{ doc('goals_penalty_player') }}"
+       - name: goals_against
+         description: "{{ doc('goals_against_player') }}"
++      - name: goals_own_against
++        description: "Own goals the team conceded while the player was on the pitch: part of goals_against, but not a shot on target the keeper faced, so save percentage leaves them out. NULL where goals_against is NULL, or where the goal events cannot place every own goal inside the spell goals_against counts."
++        tests:
++          - dbt_utils.expression_is_true:
++              expression: "between 0 and goals_against"
+       - name: assists
+         description: "{{ doc('goals_assists__leg') }}"
+       - name: saves
+diff --git a/dbt_project/models/3_core/fct_fixture_player_stats.sql b/dbt_project/models/3_core/fct_fixture_player_stats.sql
+index da803ed6..c40ceeae 100644
+--- a/dbt_project/models/3_core/fct_fixture_player_stats.sql
++++ b/dbt_project/models/3_core/fct_fixture_player_stats.sql
+@@ -32,6 +32,7 @@ select
+     goals,
+     goals_penalty,
+     goals_against,
++    goals_own_against,
+     assists,
+     saves,
+     passes,
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+index fa4bb622..6df8f2e4 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+@@ -217,8 +217,8 @@ select
+         null
+     ) as cards_player,
+     if(
+-        logical_and(window_is_complete and (saves + goals_against) is not null),
+-        sum(saves + goals_against),
++        logical_and(window_is_complete and (saves + goals_against - goals_own_against) is not null),
++        sum(saves + goals_against - goals_own_against),
+         null
+     ) as shots_on_goal_against_player,
+     if(
+@@ -241,8 +241,16 @@ select
+         if(logical_and(window_is_complete and dribbles is not null), sum(dribbles), null)
+     ) as dribbles_success_player_pct,
+     safe_divide(
+-        if(logical_and(window_is_complete and saves is not null), sum(saves), null),
+-        if(logical_and(window_is_complete and (saves + goals_against) is not null), sum(saves + goals_against), null)
++        if(
++            logical_and(window_is_complete and saves is not null),
++            sum(saves),
++            null
++        ),
++        if(
++            logical_and(window_is_complete and (saves + goals_against - goals_own_against) is not null),
++            sum(saves + goals_against - goals_own_against),
++            null
++        )
+     ) as saves_player_pct,
+     safe_divide(
+         if(logical_and(window_is_complete and (goals - goals_penalty) is not null), sum(goals - goals_penalty), null),
+diff --git a/dbt_project/models/4_intermediate/shared/int_legs.yml b/dbt_project/models/4_intermediate/shared/int_legs.yml
+index 94b8ee78..462b0d76 100644
+--- a/dbt_project/models/4_intermediate/shared/int_legs.yml
++++ b/dbt_project/models/4_intermediate/shared/int_legs.yml
+@@ -222,6 +222,8 @@ models:
+         description: "{{ doc('goals_total__leg') }}"
+       - name: goals_against
+         description: "{{ doc('goals_against_player') }}"
++      - name: goals_own_against
++        description: "Own goals the team conceded while the player was on the pitch: part of goals_against, but not a shot on target the keeper faced, so save percentage leaves them out."
+       - name: assists
+         description: "{{ doc('goals_assists__leg') }}"
+       - name: saves
+diff --git a/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql b/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
+index 862d1d1f..c10678eb 100644
+--- a/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
++++ b/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
+@@ -61,6 +61,7 @@ select
+     ps.goals,
+     ps.goals_penalty,
+     ps.goals_against,
++    ps.goals_own_against,
+     ps.assists,
+     ps.saves,
+     ps.passes,
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
+index 0d2358a5..ff4c2a55 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
+@@ -159,8 +159,16 @@ select
+         null
+     ) as penalty_committed_player,
+     safe_divide(
+-        if(logical_and(window_is_complete and saves is not null), sum(saves), null),
+-        if(logical_and(window_is_complete and (saves + goals_against) is not null), sum(saves + goals_against), null)
++        if(
++            logical_and(window_is_complete and saves is not null),
++            sum(saves),
++            null
++        ),
++        if(
++            logical_and(window_is_complete and (saves + goals_against - goals_own_against) is not null),
++            sum(saves + goals_against - goals_own_against),
++            null
++        )
+     ) as saves_player_pct,
+     safe_divide(
+         if(logical_and(window_is_complete and dribbles_success is not null), sum(dribbles_success), null),
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_page.yml b/dbt_project/models/4_intermediate/shared/int_player_page.yml
+index cae30a2a..db7c0917 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_page.yml
++++ b/dbt_project/models/4_intermediate/shared/int_player_page.yml
+@@ -294,6 +294,8 @@ models:
+         description: "{{ doc('saves_player') }}"
+       - name: goals_against_player
+         description: "{{ doc('goals_against_player') }}"
++      - name: shots_on_goal_against_player
++        description: "{{ doc('shots_on_goal_against_player') }}"
+       - name: cards_yellow_player
+         description: "{{ doc('cards_yellow_player') }}"
+       - name: cards_red_player
+@@ -434,6 +436,8 @@ models:
+         description: "{{ doc('saves_player') }}"
+       - name: goals_against_player
+         description: "{{ doc('goals_against_player') }}"
++      - name: shots_on_goal_against_player
++        description: "{{ doc('shots_on_goal_against_player') }}"
+       - name: cards_yellow_player
+         description: "{{ doc('cards_yellow_player') }}"
+       - name: cards_red_player
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position.yml b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
+index c04036e6..1ccaefb9 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
+@@ -111,6 +111,8 @@ models:
+         description: "{{ doc('saves_player') }}"
+       - name: goals_against_player
+         description: "{{ doc('goals_against_player') }}"
++      - name: shots_on_goal_against_player
++        description: "{{ doc('shots_on_goal_against_player') }}"
+       - name: scorer_points_player
+         description: "{{ doc('scorer_points_player') }}"
+       - name: defensive_actions_player
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+index ef4af48b..fb8e14ab 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+@@ -108,6 +108,11 @@ select
+     ) as dribbles_success_player,
+     if(logical_and(window_is_complete and saves is not null), sum(saves), null) as saves_player,
+     if(logical_and(window_is_complete and goals_against is not null), sum(goals_against), null) as goals_against_player,
++    if(
++        logical_and(window_is_complete and (saves + goals_against - goals_own_against) is not null),
++        sum(saves + goals_against - goals_own_against),
++        null
++    ) as shots_on_goal_against_player,
+     if(
+         logical_and(window_is_complete and (goals + assists) is not null),
+         sum(goals + assists),
+@@ -131,8 +136,16 @@ select
+         if(logical_and(window_is_complete and dribbles is not null), sum(dribbles), null)
+     ) as dribbles_success_player_pct,
+     safe_divide(
+-        if(logical_and(window_is_complete and saves is not null), sum(saves), null),
+-        if(logical_and(window_is_complete and (saves + goals_against) is not null), sum(saves + goals_against), null)
++        if(
++            logical_and(window_is_complete and saves is not null),
++            sum(saves),
++            null
++        ),
++        if(
++            logical_and(window_is_complete and (saves + goals_against - goals_own_against) is not null),
++            sum(saves + goals_against - goals_own_against),
++            null
++        )
+     ) as saves_player_pct,
+     safe_divide(
+         if(logical_and(window_is_complete and (goals - goals_penalty) is not null), sum(goals - goals_penalty), null),
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_record.sql b/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
+index e40d57d6..0b5e01c4 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
+@@ -165,8 +165,8 @@ running as (
+                 null
+             ),
+             if(
+-                logical_and(window_is_complete and (saves + goals_against) is not null) over w,
+-                sum(saves + goals_against) over w,
++                logical_and(window_is_complete and (saves + goals_against - goals_own_against) is not null) over w,
++                sum(saves + goals_against - goals_own_against) over w,
+                 null
+             )
+         ) as saves_player_pct,
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_squad_window__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_squad_window__metrics.sql
+index 1e34a25a..5a58b20a 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_squad_window__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_squad_window__metrics.sql
+@@ -145,6 +145,11 @@ metrics as (
+             sum(goals_against),
+             null
+         ) as goals_against_player,
++        if(
++            logical_and(window_is_complete and (saves + goals_against - goals_own_against) is not null),
++            sum(saves + goals_against - goals_own_against),
++            null
++        ) as shots_on_goal_against_player,
+         if(
+             logical_and(window_is_complete and cards_yellow is not null),
+             sum(cards_yellow),
+@@ -174,8 +179,8 @@ metrics as (
+                 null
+             ),
+             if(
+-                logical_and(window_is_complete and (saves + goals_against) is not null),
+-                sum(saves + goals_against),
++                logical_and(window_is_complete and (saves + goals_against - goals_own_against) is not null),
++                sum(saves + goals_against - goals_own_against),
+                 null
+             )
+         ) as saves_player_pct,
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_window__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_window__metrics.sql
+index aa6d9df5..4652af00 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_window__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_window__metrics.sql
+@@ -93,6 +93,11 @@ select
+     ) as dribbles_success_player,
+     if(logical_and(window_is_complete and saves is not null), sum(saves), null) as saves_player,
+     if(logical_and(window_is_complete and goals_against is not null), sum(goals_against), null) as goals_against_player,
++    if(
++        logical_and(window_is_complete and (saves + goals_against - goals_own_against) is not null),
++        sum(saves + goals_against - goals_own_against),
++        null
++    ) as shots_on_goal_against_player,
+     if(logical_and(window_is_complete and cards_yellow is not null), sum(cards_yellow), null) as cards_yellow_player,
+     if(logical_and(window_is_complete and cards_red is not null), sum(cards_red), null) as cards_red_player,
+     safe_divide(
+@@ -112,8 +117,16 @@ select
+         if(logical_and(window_is_complete and dribbles is not null), sum(dribbles), null)
+     ) as dribbles_success_player_pct,
+     safe_divide(
+-        if(logical_and(window_is_complete and saves is not null), sum(saves), null),
+-        if(logical_and(window_is_complete and (saves + goals_against) is not null), sum(saves + goals_against), null)
++        if(
++            logical_and(window_is_complete and saves is not null),
++            sum(saves),
++            null
++        ),
++        if(
++            logical_and(window_is_complete and (saves + goals_against - goals_own_against) is not null),
++            sum(saves + goals_against - goals_own_against),
++            null
++        )
+     ) as saves_player_pct,
+     safe_divide(
+         if(logical_and(window_is_complete and (goals - goals_penalty) is not null), sum(goals - goals_penalty), null),
+diff --git a/dbt_project/models/docs/metric_columns.md b/dbt_project/models/docs/metric_columns.md
+index a4cfc3f3..99ac8960 100644
+--- a/dbt_project/models/docs/metric_columns.md
++++ b/dbt_project/models/docs/metric_columns.md
+@@ -930,7 +930,7 @@ Shots on target the player saved in goal.
+ 
+ {% docs saves_player_pct %}
+ The player's saves as a share of the player's saves plus the goals conceded while the player
+-was in goal.
++was in goal. Own goals are not counted.
+ {% enddocs %}
+ 
+ 
+@@ -1001,7 +1001,7 @@ Average number of shots on target the team's opponents had per match.
+ 
+ {% docs shots_on_goal_against_player %}
+ Shots on target the player faced in goal: the player's saves plus the goals conceded while the
+-player was in goal.
++player was in goal. Own goals are not counted.
+ {% enddocs %}
+ 
+ 
+diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
+index b8e6134b..dc9d91f2 100644
+--- a/dbt_project/seeds/metric_catalogue.csv
++++ b/dbt_project/seeds/metric_catalogue.csv
+@@ -51,8 +51,8 @@ fouls_player,player,playerMetrics.fouls.label,Fouls the player committed.,int_le
+ offsides_player,player,playerMetrics.offsides.label,Times the player was caught offside.,int_legs__player_match,sum(offsides),,expression,integer,discipline,,lower_better,Offside calls - times caught beyond the last defender; low = better timed runs (high can reflect a striker who plays the shoulder rather than poor movement),8,7
+ penalty_committed_player,player,playerMetrics.penalties.committed,Penalties the player gave away.,int_legs__player_match,sum(penalties_committed),,expression,integer,discipline,,lower_better,Penalties conceded - fouls given in the team's own box; low = defends cleanly in dangerous areas (rare enough that small differences mean little),8,6
+ saves_player,player,playerMetrics.savePct.saves,Shots on target the player saved in goal.,int_legs__player_match,sum(saves),,expression,integer,goalkeeping,,higher_better,Save volume - shots on goal kept out; high = a busy keeper facing plenty of work (volume also tracks shots faced so it is not shot-stopping quality; the save rate captures that),6,1
+-shots_on_goal_against_player,player,playerMetrics.savePct.faced,Shots on target the player faced in goal: the player's saves plus the goals conceded while the player was in goal.,int_legs__player_match,sum(saves + goals_against),,expression,integer,goalkeeping,,lower_better,On-target shots faced - efforts the keeper had to deal with; low = a well-protected goal (a workload read; it says more about the defence than the keeper),6,6
+-saves_player_pct,player,playerMetrics.savePct.label,The player's saves as a share of the player's saves plus the goals conceded while the player was in goal.,int_legs__player_match,sum(saves),sum(saves + goals_against),expression,percent,goalkeeping,,higher_better,Share of shots on goal saved; high = a strong shot-stopper.,6,3
++shots_on_goal_against_player,player,playerMetrics.savePct.faced,Shots on target the player faced in goal: the player's saves plus the goals conceded while the player was in goal. Own goals are not counted.,int_legs__player_match,sum(saves + goals_against - goals_own_against),,expression,integer,goalkeeping,,lower_better,On-target shots faced - efforts the keeper had to deal with; low = a well-protected goal (a workload read; it says more about the defence than the keeper),6,6
++saves_player_pct,player,playerMetrics.savePct.label,The player's saves as a share of the player's saves plus the goals conceded while the player was in goal. Own goals are not counted.,int_legs__player_match,sum(saves),sum(saves + goals_against - goals_own_against),expression,percent,goalkeeping,,higher_better,Share of shots on goal saved; high = a strong shot-stopper.,6,3
+ shots_player,player,playerMetrics.shots.label,Shots the player took.,int_legs__player_match,sum(shots),,expression,integer,shooting,,higher_better,Shot volume - attempts on and off target; high = shoots often (volume not shot quality; a raw count so it also tracks minutes played),2,1
+ goals_against_player,player,playerMetrics.goalsConceded.label,Goals the team conceded while the player was in goal.,int_legs__player_match,sum(goals_against),,expression,integer,goalkeeping,,lower_better,Goals conceded - goals let in while the player was on the pitch; low = kept the goal intact (a team outcome; it reflects the defence as much as the individual),6,4
+ shots_share_pct,team,metrics.shots_share_pct.label,The team's shots as a share of all shots in its matches.,int_legs__team_match,sum(shots),sum(shots + shots_against),expression,percent,shooting,false,higher_better,Shooting dominance - share of the match's shots; high = controls the chances (deserved-vs-actual input),2,8
+diff --git a/dbt_project/tests/assert_keeper_save_pct_leaves_out_own_goals.sql b/dbt_project/tests/assert_keeper_save_pct_leaves_out_own_goals.sql
+new file mode 100644
+index 00000000..3e5473ac
+--- /dev/null
++++ b/dbt_project/tests/assert_keeper_save_pct_leaves_out_own_goals.sql
+@@ -0,0 +1,47 @@
++{{ config(severity = 'error', store_failures = true) }}
++
++-- A keeper's save percentage leaves out the own goals conceded while he was in goal. Three real
++-- matches with an own goal conceded: Chelsea's two keepers who shared fixture 868079 (both own goals
++-- in the first half, before the change at 46), and the whole-match keepers of Hoffenheim in 1575150
++-- and Union Berlin in 1575216. Fails a keeper whose goals conceded, own goals conceded or match save
++-- percentage differs from the value read from the match's events.
++
++with expected as (
++    select * from unnest([
++        struct(868079 as fixture_sk, 2273 as player_sk, 1 as saves, 3 as goals_against, 2 as goals_own_against),
++        struct(868079, 2986, 4, 1, 0),
++        struct(1575150, 702, 2, 3, 1),
++        struct(1575216, 1798, 8, 2, 1)
++    ])
++),
++
++actual as (
++    select
++        fixture_sk,
++        player_sk,
++        saves,
++        goals_against,
++        goals_own_against
++    from {{ ref('int_legs__player_match') }}
++    where fixture_sk in (868079, 1575150, 1575216)
++)
++
++select
++    e.fixture_sk,
++    e.player_sk,
++    e.saves as expected_saves,
++    a.saves,
++    e.goals_against as expected_goals_against,
++    a.goals_against,
++    e.goals_own_against as expected_goals_own_against,
++    a.goals_own_against,
++    safe_divide(e.saves, e.saves + e.goals_against - e.goals_own_against) as expected_save_pct,
++    safe_divide(a.saves, a.saves + a.goals_against - a.goals_own_against) as save_pct
++from expected as e
++left join actual as a
++    on e.fixture_sk = a.fixture_sk and e.player_sk = a.player_sk
++where
++    a.player_sk is null
++    or a.saves is distinct from e.saves
++    or a.goals_against is distinct from e.goals_against
++    or a.goals_own_against is distinct from e.goals_own_against
+diff --git a/scripts/generate_metric_sql.py b/scripts/generate_metric_sql.py
+index b7b965e5..f307ad09 100644
+--- a/scripts/generate_metric_sql.py
++++ b/scripts/generate_metric_sql.py
+@@ -116,7 +116,7 @@ POSITION_COUNTS = (
+     "shots_on_goal_player", "passes_player",
+     "passes_accurate_player", "passes_key_player", "tackles_player", "interceptions_player",
+     "blocks_player", "duels_player", "duels_won_player", "dribbles_attempts_player",
+-    "dribbles_success_player", "saves_player", "goals_against_player",
++    "dribbles_success_player", "saves_player", "goals_against_player", "shots_on_goal_against_player",
+ )
+ PAGE_WINDOW = (
+     POSITION_COUNTS + ("cards_yellow_player", "cards_red_player", "minutes_per_appearance") + RATIOS + PER90

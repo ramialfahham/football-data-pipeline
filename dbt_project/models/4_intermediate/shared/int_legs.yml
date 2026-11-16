@@ -222,6 +222,8 @@ models:
         description: "{{ doc('goals_total__leg') }}"
       - name: goals_against
         description: "{{ doc('goals_against_player') }}"
+      - name: goals_own_against
+        description: "Own goals the team conceded while the player was on the pitch: part of goals_against, but not a shot on target the keeper faced, so save percentage leaves them out."
       - name: assists
         description: "{{ doc('goals_assists__leg') }}"
       - name: saves

@@ -930,7 +930,7 @@ Shots on target the player saved in goal.
 
 {% docs saves_player_pct %}
 The player's saves as a share of the player's saves plus the goals conceded while the player
-was in goal.
+was in goal. Own goals are not counted.
 {% enddocs %}
 
 
@@ -1001,7 +1001,7 @@ Average number of shots on target the team's opponents had per match.
 
 {% docs shots_on_goal_against_player %}
 Shots on target the player faced in goal: the player's saves plus the goals conceded while the
-player was in goal.
+player was in goal. Own goals are not counted.
 {% enddocs %}
 
 

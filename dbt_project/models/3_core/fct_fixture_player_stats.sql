@@ -32,6 +32,7 @@ select
     goals,
     goals_penalty,
     goals_against,
+    goals_own_against,
     assists,
     saves,
     passes,
