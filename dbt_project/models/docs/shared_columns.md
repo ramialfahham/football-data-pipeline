@@ -531,8 +531,9 @@ different physical groups.
 
 
 {% docs starts %}
-Matches this player started - not named among the substitutes, and with recorded playing time.
-Counted over the matches the row covers, so a player who changed clubs mid-season has one row
+Matches this player started - not named among the substitutes, and with recorded playing time. A
+confirmed or researched team sheet decides where it names the player; elsewhere the stat line
+does. Counted over the matches the row covers, so a player who changed clubs mid-season has one row
 per club at the finest grain and one for the whole competition-season at season grain. NULL
 when a match's minutes are unknown or a club has a match with no player data at all.
 {% enddocs %}
@@ -893,6 +894,7 @@ data at all.
 {% docs substitute_appearances %}
 Appearances that came off the bench: matches where the player was listed as a substitute and
 still recorded minutes greater than 0. Excludes a named substitute never brought on, so
-substitute_appearances plus starts accounts for every appearance. NULL when a match's minutes
+substitute_appearances plus starts accounts for every appearance. A confirmed or researched team
+sheet decides where it names the player; elsewhere the stat line does. NULL when a match's minutes
 are unknown or a club has a match with no player data at all.
 {% enddocs %}

@@ -1,0 +1,290 @@
+diff --git a/.claude/task/212-subs-starters/contract.md b/.claude/task/212-subs-starters/contract.md
+new file mode 100644
+index 00000000..7aac3a21
+--- /dev/null
++++ b/.claude/task/212-subs-starters/contract.md
+@@ -0,0 +1,82 @@
++# Task contract — season starts and substitute appearances from the checked team sheets
++
++objective: >
++  Issue 212: a player's season starts and substitute appearances read the provider's stat line,
++  which files bench players as starters. Where a confirmed or researched team sheet names the
++  player, the player-match leg takes "on the bench at kick-off" from that sheet, as the match page
++  (mart_player_fixture_stats) already does; elsewhere the stat line stands. A start stays a match
++  with minutes > 0 and not on the bench, so starts plus substitute appearances still equal
++  appearances.
++
++refs: >
++  Issue 212. Requested by the coordinating session; go-live gate issue 290. The rule is the
++  approved Line-ups line of cleaning_rules.md (checked or researched sheets are the line-ups shown)
++  and the doc block is_substitute__fixture already published for the match page.
++
++scope_paths:
++  - dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
++  - dbt_project/models/4_intermediate/shared/int_legs.yml
++  - dbt_project/models/docs/shared_columns.md
++  - dbt_project/tests/assert_player_leg_bench_follows_checked_sheet.sql
++  - dbt_project/tests/assert_player_season_starts_from_checked_sheets.sql
++  - .claude/task/212-subs-starters/contract.md
++  - .claude/task/212-subs-starters/review.md
++  - .claude/task/212-subs-starters/review_input.patch
++
++impact_map: >
++  writers: int_legs__player_match is written only by its own model; it reads
++  fct_fixture_player_stats and fct_fixture, and gains a left join to fct_fixture_lineup
++  (lineup_state confirmed or researched). Measured on prod 16 Nov: 0 duplicate
++  (fixture_sk, player_sk) among those sheet rows out of 2,266,246, so the join cannot fan out.
++  downstream: `dbt ls --select int_legs__player_match+ --resource-type model` lists 50 models,
++  among them int_player_season__metrics, int_player_club_season__metrics, mart_player_profile,
++  mart_player_career, mart_player_index, int_player_match__metrics and the team models built from
++  player legs. Only int_player_season__metrics and int_player_club_season__metrics read
++  is_starter or is_substitute from the leg (grep of dbt_project/models for both columns), to count
++  starts and substitute_appearances; mart_player_profile carries those two columns.
++  layer_rules: intermediate reads core only (fct_fixture_lineup is core); no partition_by or
++  cluster_by; no per-competition file.
++  deploy_order: none needed; the change is one model's projection, rebuilt by the next nightly
++  after merge.
++  blast_radius: starts and substitute_appearances of every player-season or player-club-season
++  with a checked sheet that disagrees with the stat line. Measured on prod 16 Nov: 31,936
++  player-match rows where a checked sheet puts the player on the bench while the stat line makes
++  him a starter, concentrated in seasons 2016-2019 of the big five and the current season of
++  UCL, UEL, MLS, KL1, LMX and J1. Appearances and minutes do not change. The MR comparison lists
++  every changed player-season.
++
++approved_design:
++  - none: no page output changes; starts and substitute appearances change value, not display.
++
++depends_on:
++  - none: no MR is open on 16 Nov (glab mr list), and the change needs only main.
++
++shared_files:
++  - none: no design baseline, chart manifest or chart pin changes.
++
++decisions_taken: >
++  The checked team sheet decides who was on the bench, as on the match page; this is the fix the
++  coordinating session ordered for issue 212 on 16 Nov, under the approved Line-ups and
++  researched-sheet rules of cleaning_rules.md. is_starter on the leg keeps its published
++  definition (minutes > 0 and not on the bench), so no start is counted without pitch time and the
++  starts-plus-substitutes test still holds. A sheet starter with no minutes is therefore a starter
++  on the match page but not a season start, as an appearance needs pitch time. The starts and
++  substitute_appearances descriptions in shared_columns.md gain the same sheet-first sentence the
++  match page's is_substitute__fixture already carries. No new mechanism, no new model, no recurring cost;
++  read-only BigQuery only.
++
++decisions_reserved:
++  - none: the rule is the coordinating session's order on approved cleaning rules; no label,
++    metric id or display changes.
++
++done_when:
++  - assert_player_season_starts_from_checked_sheets passes in data:build:mr (D. Ings, Premier
++    League 2019, Southampton: 32 starts, 6 substitute appearances, 38 appearances, hand-worked from
++    the raw sheets; the stat lines give 36 starts). A finished season, so the value cannot move.
++  - assert_player_leg_bench_follows_checked_sheet passes in data:build:mr.
++  - python scripts/ci_local.py --mr is green before every round and push.
++  - The MR pipeline is green, including data:build:mr.
++  - A read-only comparison of the ci_mr tables against prod (under 20 GB) lists every
++    player-season whose starts or substitute_appearances changed, posted on the MR.
++
++amendments: (none)
+diff --git a/dbt_project/models/4_intermediate/shared/int_legs.yml b/dbt_project/models/4_intermediate/shared/int_legs.yml
+index 462b0d76..94216bab 100644
+--- a/dbt_project/models/4_intermediate/shared/int_legs.yml
++++ b/dbt_project/models/4_intermediate/shared/int_legs.yml
+@@ -211,7 +211,7 @@ models:
+       - name: is_starter
+         description: "{{ doc('is_starter') }}"
+       - name: is_substitute
+-        description: "{{ doc('is_substitute') }}"
++        description: "{{ doc('is_substitute__fixture') }}"
+       - name: position_code
+         description: "{{ doc('position_code__leg') }}"
+       - name: shots
+diff --git a/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql b/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
+index c10678eb..225193d7 100644
+--- a/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
++++ b/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
+@@ -22,6 +22,32 @@ competitions as (
+     select * from {{ ref('dim_league') }}
+ ),
+ 
++-- The stat line files some bench players as starters; a checked team sheet says who was on the bench.
++checked_sheets as (
++    select
++        fixture_sk,
++        player_sk,
++        is_starter
++    from {{ ref('fct_fixture_lineup') }}
++    where lineup_state in ('confirmed', 'researched')
++),
++
++player_bench as (
++    select
++        ps.*,
++        if(sheet.player_sk is not null, not sheet.is_starter, ps.is_substitute) as is_substitute_checked
++    from player_stats as ps
++    left join checked_sheets as sheet
++        on ps.fixture_sk = sheet.fixture_sk and ps.player_sk = sheet.player_sk
++),
++
++player_roles as (
++    select
++        *,
++        coalesce(minutes, 0) > 0 and not coalesce(is_substitute_checked, false) as is_starter_checked
++    from player_bench
++),
++
+ finished as (
+     select
+         fixture_sk,
+@@ -53,8 +79,8 @@ select
+     reg.entity_type,
+     ps.is_from_lineups,
+     ps.minutes,
+-    ps.is_starter,
+-    ps.is_substitute,
++    ps.is_starter_checked as is_starter,
++    ps.is_substitute_checked as is_substitute,
+     ps.position_code,
+     ps.shots,
+     ps.shots_on_target,
+@@ -86,7 +112,7 @@ select
+     case when ps.team_sk = f.home_team_sk then f.away_team_sk else f.home_team_sk end
+         as opponent_team_sk,
+     case when ps.team_sk = f.home_team_sk then 'home' else 'away' end as home_away
+-from player_stats as ps
++from player_roles as ps
+ inner join finished as f
+     on ps.fixture_sk = f.fixture_sk
+ left join competitions as reg
+diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
+index 83f378b4..9a746354 100644
+--- a/dbt_project/models/docs/shared_columns.md
++++ b/dbt_project/models/docs/shared_columns.md
+@@ -531,8 +531,9 @@ different physical groups.
+ 
+ 
+ {% docs starts %}
+-Matches this player started - not named among the substitutes, and with recorded playing time.
+-Counted over the matches the row covers, so a player who changed clubs mid-season has one row
++Matches this player started - not named among the substitutes, and with recorded playing time. A
++confirmed or researched team sheet decides where it names the player; elsewhere the stat line
++does. Counted over the matches the row covers, so a player who changed clubs mid-season has one row
+ per club at the finest grain and one for the whole competition-season at season grain. NULL
+ when a match's minutes are unknown or a club has a match with no player data at all.
+ {% enddocs %}
+@@ -893,6 +894,7 @@ data at all.
+ {% docs substitute_appearances %}
+ Appearances that came off the bench: matches where the player was listed as a substitute and
+ still recorded minutes greater than 0. Excludes a named substitute never brought on, so
+-substitute_appearances plus starts accounts for every appearance. NULL when a match's minutes
++substitute_appearances plus starts accounts for every appearance. A confirmed or researched team
++sheet decides where it names the player; elsewhere the stat line does. NULL when a match's minutes
+ are unknown or a club has a match with no player data at all.
+ {% enddocs %}
+diff --git a/dbt_project/tests/assert_player_leg_bench_follows_checked_sheet.sql b/dbt_project/tests/assert_player_leg_bench_follows_checked_sheet.sql
+new file mode 100644
+index 00000000..150a40f6
+--- /dev/null
++++ b/dbt_project/tests/assert_player_leg_bench_follows_checked_sheet.sql
+@@ -0,0 +1,26 @@
++{#
++  Wherever a confirmed or researched team sheet names a player, his match leg puts him on the bench
++  exactly when the sheet does, and counts a start only with minutes on the pitch. Returns each leg
++  that disagrees with its sheet.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++select
++    legs.fixture_sk,
++    legs.player_sk,
++    legs.league_code,
++    legs.season_api_year,
++    legs.minutes,
++    legs.is_starter,
++    legs.is_substitute,
++    sheet.is_starter as sheet_is_starter,
++    sheet.lineup_state
++from {{ ref('int_legs__player_match') }} as legs
++inner join {{ ref('fct_fixture_lineup') }} as sheet
++    on legs.fixture_sk = sheet.fixture_sk and legs.player_sk = sheet.player_sk
++where
++    sheet.lineup_state in ('confirmed', 'researched')
++    and (
++        legs.is_substitute is distinct from not sheet.is_starter
++        or legs.is_starter is distinct from (sheet.is_starter and coalesce(legs.minutes, 0) > 0)
++    )
+diff --git a/dbt_project/tests/assert_player_season_starts_from_checked_sheets.sql b/dbt_project/tests/assert_player_season_starts_from_checked_sheets.sql
+new file mode 100644
+index 00000000..ca5b5013
+--- /dev/null
++++ b/dbt_project/tests/assert_player_season_starts_from_checked_sheets.sql
+@@ -0,0 +1,69 @@
++{#
++  Hand-worked starts and substitute appearances of a real player-season whose stat lines file him
++  as a starter in matches his team sheet has him on the bench. D. Ings (player 18955), Southampton,
++  Premier League 2019: the raw sheets of Southampton's 38 league matches list him in the starting
++  eleven 32 times and among the substitutes 6 times, and he has minutes in all 38; the stat lines
++  make 36 of them starts. Both season grains must return 32 starts and 6 substitute appearances.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with expected as (
++    select
++        'PL' as league_code,
++        2019 as season_api_year,
++        18955 as player_sk,
++        32 as starts,
++        6 as substitute_appearances,
++        38 as appearances
++),
++
++actual as (
++    select
++        'competition_season' as grain,
++        league_code,
++        season_api_year,
++        player_sk,
++        starts,
++        substitute_appearances,
++        appearances
++    from {{ ref('int_player_season__metrics') }}
++    union all
++    select
++        'club_season' as grain,
++        league_code,
++        season_api_year,
++        player_sk,
++        starts,
++        substitute_appearances,
++        appearances
++    from {{ ref('int_player_club_season__metrics') }}
++),
++
++grains as (
++    select grain from unnest(['competition_season', 'club_season']) as grain
++)
++
++select
++    g.grain,
++    e.league_code,
++    e.season_api_year,
++    e.player_sk,
++    e.starts as expected_starts,
++    a.starts as actual_starts,
++    e.substitute_appearances as expected_substitute_appearances,
++    a.substitute_appearances as actual_substitute_appearances,
++    e.appearances as expected_appearances,
++    a.appearances as actual_appearances
++from expected as e
++cross join grains as g
++left join actual as a
++    on
++        g.grain = a.grain
++        and e.league_code = a.league_code
++        and e.season_api_year = a.season_api_year
++        and e.player_sk = a.player_sk
++where
++    a.player_sk is null
++    or a.starts is distinct from e.starts
++    or a.substitute_appearances is distinct from e.substitute_appearances
++    or a.appearances is distinct from e.appearances
