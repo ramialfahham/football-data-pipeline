@@ -119,7 +119,7 @@ team's matches in that edition. It does not depend on how far the team went.
 
 | competition_type | type status | Before it starts | While it's running | After it's finished |
 |---|---|---|---|---|
-| qualifying | active | Last 5 across the national team's matches | All matches so far in this qualifying campaign | Full completed campaign |
+| qualifying | active | Last 5 across the national team's matches | Last 5 across the national team's matches | Full completed campaign |
 | continental_championship | active | The team's qualifier matches | All matches so far in this tournament | Full completed tournament |
 | world_championship | active | Qualifier matches (until group-stage MD1) | All matches so far in this tournament (from group-stage MD2) | Full completed tournament |
 | national_team_friendly | not ingesting | Defer (low signal) | — | — |

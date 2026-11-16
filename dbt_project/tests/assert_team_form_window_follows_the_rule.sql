@@ -6,9 +6,7 @@
     finished match of this edition before kickoff (tournament_to_date), or before the team's first
     one, every match of its qualifiers (qualifiers); elsewhere the team's last 5 finished matches of
     its kind (club or national), a club's from this season only, a national team's with no season
-    cap (last_5). Left out: a qualifying campaign under way, which section 4 gives the whole campaign
-    and the model does not yet build ("Form-window code diverges from metrics_context_model.md
-    section 4 in two places").
+    cap (last_5).
   - the season record (mart_team_season_record): the team's record in the fixture's competition this
     season, or the previous season's before its first match (prev_season), with the number of
     matches it holds.
@@ -119,7 +117,6 @@ expected_form as (
     from earlier_legs as e
     inner join side_kinds as k
         on e.upcoming_fixture_sk = k.upcoming_fixture_sk and e.team_sk = k.team_sk
-    where not (k.competition_type = 'qualifying' and k.legs_in_this_edition > 0)
 ),
 
 form_compared as (
@@ -136,7 +133,6 @@ form_compared as (
         from {{ ref('int_team_momentum_window') }} as w
         inner join side_kinds as k
             on w.upcoming_fixture_sk = k.upcoming_fixture_sk and w.team_sk = k.team_sk
-        where not (k.competition_type = 'qualifying' and k.legs_in_this_edition > 0)
     ) as m
         on
             e.upcoming_fixture_sk = m.upcoming_fixture_sk

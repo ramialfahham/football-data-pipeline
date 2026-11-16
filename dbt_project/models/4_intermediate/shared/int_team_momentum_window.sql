@@ -20,7 +20,7 @@
     every finished leg in the tournament's qualifier competitions (dim_league parent_competition =
     this league_code) before kickoff, no season cap (a qualifying campaign spans seasons).
   A tournament side with neither tournament nor qualifier legs yields no rows (the mart renders
-  the empty-form state). `qualifying`-type previews keep last_5 here (#483). This selection also
+  the empty-form state). `qualifying`-type previews keep last_5 here. This selection also
   feeds the player momentum builder (int_player_momentum__metrics), so the player top-players strip
   and the team form panel share one window (#484).
 
@@ -33,9 +33,6 @@
   match: the Team page's recent matches, with or without a next match and before a new season
   starts. The form aggregates (int_team_momentum__metrics, int_player_momentum__metrics) leave
   these rows out.
-
-  Returns no rows for a team with no finished matches yet (before phase for a club
-  domestic_league); #326's season-to-date fallback covers that gap.
 
   Grain: (upcoming_fixture_sk, team_sk, leg_fixture_sk).
 #}
