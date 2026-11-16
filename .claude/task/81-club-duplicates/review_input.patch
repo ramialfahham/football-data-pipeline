@@ -1,0 +1,601 @@
+diff --git a/.claude/task/81-club-duplicates/contract.md b/.claude/task/81-club-duplicates/contract.md
+new file mode 100644
+index 00000000..ad6d4c4d
+--- /dev/null
++++ b/.claude/task/81-club-duplicates/contract.md
+@@ -0,0 +1,121 @@
++# Task contract — one club, one team id
++
++objective: >
++  Issue #81. Where the provider holds two team ids for one club, the club shows as two teams with
++  two pages. The fixture_team_id_overrides seed already has an `alias` mode for this ("the provider
++  holds two ids for one club"), but only the per-match feeds and their dim_team keys apply it: the
++  fixture list, standings, the /teams rows, squads, rosters, coaching stints and transfers keep the
++  duplicate id, so the duplicate survives as a team of its own. This task applies `alias` wherever a
++  base model takes a team id, the way player_id_override applies a merged player id (#260), and adds
++  the duplicate pairs found in prod with their sources.
++
++refs: >
++  #81 (go-live gate #290). Known cases: Nyasa Big Bullets 4596/4599; Whitecaps 8007 and Vancouver
++  Whitecaps 1603 (the #277 comparison on !450: linking them restores the line-up of CCCU 253504).
++
++scope_paths:
++  - .claude/task/81-club-duplicates/
++  - dbt_project/macros/team_id_override.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
++  - dbt_project/models/2_base/api_football/base_apif__standings.sql
++  - dbt_project/models/2_base/api_football/base_apif__teams.sql
++  - dbt_project/models/2_base/api_football/base_apif__squads.sql
++  - dbt_project/models/2_base/api_football/base_apif__coach_career.sql
++  - dbt_project/models/2_base/api_football/base_apif__player_team_season.sql
++  - dbt_project/models/2_base/api_football/base_apif__transfers.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/seeds/fixture_team_id_overrides.csv
++  - dbt_project/seeds/team_country_corrections.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/tests/assert_team_id_aliases_merged.sql
++
++impact_map: >
++  writers: each changed base model has one writer, itself, built by dbt from staging
++  (stg_apif__fixtures_next, _standings, _teams, _squads, _coach_career, _players, _transfers) and
++  the fixture_team_id_overrides seed. No raw table, loader or export script changes.
++  downstream: `dbt ls --resource-type model --output name --select base_apif__fixtures_next+
++  base_apif__standings+ base_apif__teams+ base_apif__squads+ base_apif__coach_career+
++  base_apif__player_team_season+ base_apif__transfers+` gives 105 models. Base (16):
++  base_apif__coach_career base_apif__fixture_events base_apif__fixture_fetches
++  base_apif__fixture_players base_apif__fixture_players_from_lineups base_apif__fixture_statistics
++  base_apif__fixtures_next base_apif__lineup_sheets base_apif__lineups base_apif__player_team_season
++  base_apif__players base_apif__squads base_apif__standings base_apif__teams base_apif__teams_global
++  base_apif__transfers. Intermediate (44): int_competition_season__player_stat_corrections
++  int_knockout_ties int_legs__player_match int_legs__team_from_players int_legs__team_match
++  int_player__national_team_minutes int_player__page_profile int_player_club_season__metrics
++  int_player_competition_benchmark_metrics_long int_player_competition_benchmarks
++  int_player_match__metrics int_player_momentum__metrics int_player_page__window_seasons
++  int_player_profile__contribution int_player_profile__yoy int_player_season__metrics
++  int_player_season__team int_player_season_position__metrics int_player_season_record
++  int_player_squad_window__metrics int_player_window__metrics int_round_names
++  int_standings__official_rank int_standings__section_kinds
++  int_team__current_national_competitions int_team__featured_season
++  int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
++  int_team_competition_phase__metrics int_team_momentum__metrics int_team_momentum_window
++  int_team_profile__streaks int_team_profile__yoy int_team_season__biggest_results
++  int_team_season__deserved_vs_actual int_team_season__longest_runs int_team_season__metrics
++  int_team_season__metrics_cumulative int_team_season__standings_primary
++  int_team_season__table_by_time int_team_season__table_legs int_team_season__table_state
++  int_team_season_record int_team_window__metrics. Core (12) and marts (33):
++  dim_coach_team_mapping dim_player dim_player_team_season_mapping dim_team
++  dim_team_competition_season_mapping fct_fixture fct_fixture_event fct_fixture_lineup
++  fct_fixture_player_stats fct_fixture_team_stats fct_standings fct_transfer
++  mart_competition_fixtures mart_competition_index mart_competition_season_summary
++  mart_fixture_standing_context mart_head_to_head mart_leaderboards mart_match_days
++  mart_matchday_insights mart_next_matchday mart_player_career mart_player_competition_benchmarks
++  mart_player_fixture_stats mart_player_index mart_player_momentum mart_player_profile
++  mart_player_season_record mart_player_squad_benchmarks mart_player_window_metrics mart_roster
++  mart_standings mart_team_competition_benchmarks mart_team_competitions mart_team_fixtures
++  mart_team_index mart_team_leaderboards mart_team_market_value mart_team_momentum_window
++  mart_team_page_window_metrics mart_team_profile mart_team_season mart_team_season_insights
++  mart_team_season_record mart_team_window_metrics.
++  layer_rules: base = dedup and first logic, so the id correction sits in base, as the existing
++  alias joins and player_id_override do; check_layer_contract.py, no per-competition file.
++  deploy_order: models and seeds only; prod picks the change up at the first nightly after the
++  merge. No migration, no raw change, nothing breaks before the merge.
++  blast_radius: only rows of the 8 duplicate ids and the 5 Europa FC ties change. Each duplicate
++  id leaves dim_team and every fact, its matches, standings rows, squad, roster, stints and
++  transfers move to the id kept, and its page goes. The id kept gains those rows; Nyasa Big
++  Bullets 4599's slug loses its `-malawi-4599` suffix under the existing slug rule, since its
++  name is no longer contested. CCCU 253504 (2016) gets its line-up back. The 5 Europa FC ties
++  move from CE Europa 593 to Europa FC 10125. Goals, points and results of every match stay as
++  they are; a standings row changes only its team id. The comparison of the MR's ci_mr tables
++  against prod lists every team, fixture and standings row that changed.
++
++depends_on:
++  - none: builds on gitlab/main 5db6166e; no open MR touches these files.
++
++shared_files:
++  - none: no design baseline, chart manifest or chart pin changes.
++
++approved_design:
++  - none: no page output changes; the diff touches no site_v2/src/ file or export script
++
++decisions_taken: >
++  Applying `alias` to standings, the /teams rows, squads, rosters, coaching stints and transfers,
++  and the new text of the fixture_team_id_overrides seed description and its wrong_team_api_id
++  column: approved in chat, 2026-11-16.
++  No new mechanism: `alias` is the existing mode of fixture_team_id_overrides, whose description
++  already says it replaces the id unconditionally; this task applies it in the base models that did
++  not. team_id_override is a dbt macro of the same shape as player_id_override (#260), not a new
++  object class. `reattribute_in_fixture` is the existing mode of the shared-id work (#238).
++  A pair is linked only with proof that the two ids are one club: an external source naming the
++  club in the duplicate id's matches, plus our own data (players shared, same venue, or one club
++  across consecutive rounds of one cup). Never by name alone. The id kept is the one with the
++  provider's fuller /teams record and the longer history. A duplicate id's own rows in
++  team_country_corrections go with it, since the id kept holds its country.
++  No recurring cost: no provider call, no extra run.
++
++decisions_reserved:
++  - Folding two clubs that merged (Bury 1344 and Bury AFC 17021) is not done here; a merger is not
++    a provider duplicate.
++
++done_when:
++  - dbt parse passes; sqlfluff lint of every changed model passes from the repo root.
++  - python -m pytest tests/ -q is green and the offline gates pass.
++  - python scripts/ci_local.py --mr passes before every review round and push.
++  - The MR pipeline is green and data:build:mr passes, assert_team_id_aliases_merged included.
++  - A read-only comparison of the MR's ci_mr tables against prod, under 20 GB, lists every team,
++    fixture and standings row that changed, and shows CCCU 253504's line-up.
++
++amendments: (none)
+diff --git a/dbt_project/macros/team_id_override.sql b/dbt_project/macros/team_id_override.sql
+new file mode 100644
+index 00000000..4db7a0b8
+--- /dev/null
++++ b/dbt_project/macros/team_id_override.sql
+@@ -0,0 +1,11 @@
++{#- The id a club keeps when the provider holds that club under two. -#}
++{% macro team_id_override(team_id) -%}
++    coalesce(
++        (
++            select cast(override.correct_team_api_id as int64)
++            from {{ ref('fixture_team_id_overrides') }} as override
++            where override.mode = 'alias' and override.wrong_team_api_id = {{ team_id }}
++        ),
++        {{ team_id }}
++    )
++{%- endmacro %}
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 2e6bc605..b11f726b 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -11,8 +11,8 @@ models:
+       competition's matches is therefore present even when the provider's /teams call never
+       returned it, which is common on newly onboarded competitions.
+ 
+-      The ids taken from the three fixture-level feeds pass through the fixture_team_id_overrides
+-      seed first, so a team id the corrections have retired is never minted as an entity here. Only
++      Every key passes through the fixture_team_id_overrides seed first, so a team id the
++      corrections have retired is never minted as an entity here. Only
+       the keys are corrected; the display name still comes from whichever source carries one.
+     config:
+       tags: ["base", "api_football", "team_context"]
+@@ -155,7 +155,8 @@ models:
+       score and status are the official ones from the fixture_result_corrections seed, and the
+       provider's stay on the row. Where two clubs share a provider team id in a fixture, the
+       home and away team ids are corrected from the fixture_team_id_overrides seed's
+-      reattribute_in_fixture rows. Where the provider files a fixture under another round's name,
++      reattribute_in_fixture rows, and a club's duplicate id is replaced by the id it keeps, from
++      its alias rows. Where the provider files a fixture under another round's name,
+       the round is the organiser's from the fixture_round_corrections seed. A result that fails a
+       result check is withheld: result_needs_research is true and the goals, shoot-out and winner
+       are blank. Grain: fixture_id.
+diff --git a/dbt_project/models/2_base/api_football/base_apif__coach_career.sql b/dbt_project/models/2_base/api_football/base_apif__coach_career.sql
+index d0723ab2..27a5f671 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__coach_career.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__coach_career.sql
+@@ -3,7 +3,10 @@
+ -- dim_team (youth/reserve/untracked clubs), so the team link stays on the provider id. Feeds
+ -- dim_coach_team_mapping. Grain: (coach_api_id, team_api_id, start_date).
+ with src as (
+-    select * from {{ ref('stg_apif__coach_career') }}
++    select
++        * except (team_id),
++        {{ team_id_override('team_id') }} as team_id
++    from {{ ref('stg_apif__coach_career') }}
+     where
+         coach_id is not null
+         and team_id is not null
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql b/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
+index 2d2f47c8..5bac00cd 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
+@@ -13,8 +13,9 @@ latest as (
+     ) = 1
+ ),
+ 
+--- A team id two clubs share, corrected inside the one fixture named, from
+--- seeds/fixture_team_id_overrides.csv. The match feeds read their participants from here.
++-- A team id two clubs share, corrected inside the one fixture named, and a club's duplicate id,
++-- replaced everywhere, from seeds/fixture_team_id_overrides.csv. The match feeds read their
++-- participants from here.
+ fixture_overrides as (
+     select
+         cast(fixture_id as int64) as fixture_id,
+@@ -27,8 +28,8 @@ fixture_overrides as (
+ corrected as (
+     select
+         latest.* except (home_team_id, away_team_id),
+-        coalesce(home_override.correct_team_api_id, latest.home_team_id) as home_team_id,
+-        coalesce(away_override.correct_team_api_id, latest.away_team_id) as away_team_id
++        coalesce(home_override.correct_team_api_id, {{ team_id_override('latest.home_team_id') }}) as home_team_id,
++        coalesce(away_override.correct_team_api_id, {{ team_id_override('latest.away_team_id') }}) as away_team_id
+     from latest
+     left join fixture_overrides as home_override
+         on
+diff --git a/dbt_project/models/2_base/api_football/base_apif__player_team_season.sql b/dbt_project/models/2_base/api_football/base_apif__player_team_season.sql
+index 5bf1f2f9..b6f76948 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__player_team_season.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__player_team_season.sql
+@@ -5,8 +5,9 @@
+ -- Grain: (league_code, player_id, team_id, season_year). league_code flows through.
+ with src as (
+     select
+-        * except (player_id),
+-        {{ player_id_override('player_id') }} as player_id
++        * except (player_id, team_id),
++        {{ player_id_override('player_id') }} as player_id,
++        {{ team_id_override('team_id') }} as team_id
+     from {{ ref('stg_apif__players') }}
+ )
+ 
+diff --git a/dbt_project/models/2_base/api_football/base_apif__squads.sql b/dbt_project/models/2_base/api_football/base_apif__squads.sql
+index 7cdb010e..9521a516 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__squads.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__squads.sql
+@@ -5,8 +5,9 @@
+ 
+ with src as (
+     select
+-        * except (player_id),
+-        {{ player_id_override('player_id') }} as player_id
++        * except (player_id, team_id),
++        {{ player_id_override('player_id') }} as player_id,
++        {{ team_id_override('team_id') }} as team_id
+     from {{ ref('stg_apif__squads') }}
+     where team_id is not null and player_id is not null
+ )
+diff --git a/dbt_project/models/2_base/api_football/base_apif__standings.sql b/dbt_project/models/2_base/api_football/base_apif__standings.sql
+index 3f39e715..fe7d2117 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__standings.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__standings.sql
+@@ -4,7 +4,7 @@ with src as (
+         league_api_id,
+         league_name,
+         season,
+-        team_id,
++        {{ team_id_override('team_id') }} as team_id,
+         team_name,
+         standing_rank,
+         points,
+diff --git a/dbt_project/models/2_base/api_football/base_apif__teams.sql b/dbt_project/models/2_base/api_football/base_apif__teams.sql
+index 6a40d04d..99929392 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__teams.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__teams.sql
+@@ -159,15 +159,17 @@ fixture_level_keys as (
+ team_keys as (
+     select
+         league_code,
+-        team_api_id
++        {{ team_id_override('team_api_id') }} as team_api_id
+     from stg_teams
+ 
+     union all
+ 
+-    -- The fixture list's keys take the per-fixture corrections base_apif__fixtures_next applies.
++    -- The fixture list's keys take the corrections base_apif__fixtures_next applies.
+     select
+         stg_fixtures.league_code,
+-        coalesce(home_override.correct_team_api_id, stg_fixtures.home_team_id) as team_api_id
++        coalesce(
++            home_override.correct_team_api_id, {{ team_id_override('stg_fixtures.home_team_id') }}
++        ) as team_api_id
+     from stg_fixtures
+     left join overrides as home_override
+         on
+@@ -180,7 +182,9 @@ team_keys as (
+ 
+     select
+         stg_fixtures.league_code,
+-        coalesce(away_override.correct_team_api_id, stg_fixtures.away_team_id) as team_api_id
++        coalesce(
++            away_override.correct_team_api_id, {{ team_id_override('stg_fixtures.away_team_id') }}
++        ) as team_api_id
+     from stg_fixtures
+     left join overrides as away_override
+         on
+@@ -193,7 +197,7 @@ team_keys as (
+ 
+     select
+         league_code,
+-        team_api_id
++        {{ team_id_override('team_api_id') }} as team_api_id
+     from stg_standings
+ 
+     union all
+diff --git a/dbt_project/models/2_base/api_football/base_apif__transfers.sql b/dbt_project/models/2_base/api_football/base_apif__transfers.sql
+index ed2b66ab..455a475e 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__transfers.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__transfers.sql
+@@ -12,8 +12,10 @@
+ -- Grain: (player_id, team_in_id, team_out_id, transfer_date).
+ with src as (
+     select
+-        * except (player_id),
+-        {{ player_id_override('player_id') }} as player_id
++        * except (player_id, team_in_id, team_out_id),
++        {{ player_id_override('player_id') }} as player_id,
++        {{ team_id_override('team_in_id') }} as team_in_id,
++        {{ team_id_override('team_out_id') }} as team_out_id
+     from {{ ref('stg_apif__transfers') }}
+     where
+         player_id is not null
+diff --git a/dbt_project/seeds/fixture_team_id_overrides.csv b/dbt_project/seeds/fixture_team_id_overrides.csv
+index e2b234df..d63d0585 100644
+--- a/dbt_project/seeds/fixture_team_id_overrides.csv
++++ b/dbt_project/seeds/fixture_team_id_overrides.csv
+@@ -1,5 +1,13 @@
+ wrong_team_api_id,correct_team_api_id,mode,fixture_id,note
+ 2263,10124,alias,,Riga FC duplicate provider id 2263 -> canonical 10124 (#526)
++8007,1603,alias,,"Vancouver Whitecaps: 8007 holds its 2016-17 CONCACAF Champions League group games, Central v Vancouver and Vancouver v Sporting Kansas City; 22 of 8007's 26 players also play under 1603. https://en.wikipedia.org/wiki/2016%E2%80%9317_CONCACAF_Champions_League_group_stage"
++8018,3670,alias,,"Ha Noi FC, named Ha Noi T&T until 2016: 8018 holds its 2016 AFC Champions League qualifiers against Kitchee and Pohang Steelers; 13 of 8018's 19 players also play under 3670. https://en.wikipedia.org/wiki/Hanoi_FC https://en.wikipedia.org/wiki/2016_AFC_Champions_League"
++4596,4599,alias,,"Nyasa Big Bullets (Blantyre, Malawi), one club: 4596 holds its 2019-20 CAF Champions League preliminary round against FC Platinum, at the same Kamuzu Stadium as 4599. https://en.wikipedia.org/wiki/2019%E2%80%9320_CAF_Champions_League"
++12082,8990,alias,,"Wellington AFC (Somerset): 12082 holds its 2024-25 FA Cup ties against Buckland Athletic and Bideford, at the same ground as 8990. https://en.wikipedia.org/wiki/2024%E2%80%9325_FA_Cup_qualifying_rounds"
++12059,8667,alias,,"AFC Croydon Athletic: it won the 2025-26 FA Cup preliminary round under 8667 and played the next round, at Sittingbourne, under 12059. https://en.wikipedia.org/wiki/2025%E2%80%9326_FA_Cup_qualifying_rounds"
++28344,12112,alias,,"St Blazey (Cornwall): 28344 holds its 2026-27 FA Cup first qualifying round against Tiverton Town. https://en.wikipedia.org/wiki/2026%E2%80%9327_FA_Cup_qualifying_rounds"
++28346,21714,alias,,"Snodland Town (Kent): 28346 holds its 2026-27 FA Cup ties against Margate and Sheppey United. https://en.wikipedia.org/wiki/2026%E2%80%9327_FA_Cup_qualifying_rounds"
++3242,19617,alias,,"Vierzon FC: 3242 holds its 2021-22 Coupe de France 7th round against Le Havre AC. https://en.wikipedia.org/wiki/2021%E2%80%9322_Coupe_de_France https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html"
+ 6424,25274,reattribute_if_cohabiting,,ASKO Kara 25274 events mis-tagged to rival ASC Kara 6424 in CAFCL 2020-24 (#526)
+ 4767,1544,reattribute_if_cohabiting,,"Macau 1544 rows mis-tagged to Mação 4767 (Portuguese municipality, name collision) in WCQAS fixtures 1100381/1100382 (#53)"
+ 22722,132,reattribute_if_cohabiting,,"Chapecoense-sc 132 away lineup filed under phantom id 22722 (name null, epoch update timestamp) in BSA fixture 1492362"
+@@ -15,4 +23,9 @@ wrong_team_api_id,correct_team_api_id,mode,fixture_id,note
+ 18919,20800,reattribute_in_fixture,1239843,"Victoria United (Cameroon), provider id 20800, filed under Victoria United (Canada) 18919 in CAFCL 2024-25 1st preliminary round, Samartex v Victoria United. CAF: https://www.cafonline.com/caf-champions-league/news/202425-totalenergies-champions-league-first-preliminary-round-fixtures-results/"
+ 9852,-3,reattribute_in_fixture,1647964,"Lourdes FC (France) filed under CD Lourdes (Spain) 9852 in Coupe de France 2026-27 7th round, Lourdes FC v Pau FC; the provider has no id for it. FFF: https://www.fff.fr/article/17664-toutes-les-affiches-des-7e-et-8e-tours.html"
+ 5914,-4,reattribute_in_fixture,1647983,"Rochefort FC (France) filed under Rochefort (Belgium) 5914 in Coupe de France 2026-27 7th round, Rochefort v Juventus Papus; the provider has no id for it. FFF: https://www.fff.fr/article/17673--une-ligue-2-notre-voeu-est-exauce-.html"
++593,10125,reattribute_in_fixture,152835,"Europa FC (Gibraltar), provider id 10125, filed under CE Europa (Spain) 593 in UEFA Champions League 2017-18 1st qualifying round, The New Saints v Europa. https://en.wikipedia.org/wiki/2017%E2%80%9318_UEFA_Champions_League_qualifying_phase_and_play-off_round"
++593,10125,reattribute_in_fixture,152836,"Europa FC (Gibraltar), provider id 10125, filed under CE Europa (Spain) 593 in UEFA Champions League 2017-18 1st qualifying round, Europa v The New Saints. https://en.wikipedia.org/wiki/2017%E2%80%9318_UEFA_Champions_League_qualifying_phase_and_play-off_round"
++593,10125,reattribute_in_fixture,78986,"Europa FC (Gibraltar), provider id 10125, filed under CE Europa (Spain) 593 in UEFA Europa League 2018-19 preliminary round, Europa v Prishtina. https://en.wikipedia.org/wiki/2018%E2%80%9319_UEFA_Europa_League_qualifying_phase_and_play-off_round"
++593,10125,reattribute_in_fixture,78978,"Europa FC (Gibraltar), provider id 10125, filed under CE Europa (Spain) 593 in UEFA Europa League 2018-19 preliminary round, Prishtina v Europa. https://en.wikipedia.org/wiki/2018%E2%80%9319_UEFA_Europa_League_qualifying_phase_and_play-off_round"
++593,10125,reattribute_in_fixture,606575,"Europa FC (Gibraltar), provider id 10125, filed under CE Europa (Spain) 593 in UEFA Europa League 2020-21 2nd qualifying round, Djurgarden v Europa. https://en.wikipedia.org/wiki/Europa_F.C."
+ 16977,-5,reattribute_in_fixture,1647970,"AS Montigny-lès-Metz (France) filed under Montigny (Belgium) 16977 in Coupe de France 2026-27 7th round, AS Montigny-lès-Metz v CA Pontarlier; the provider has no id for it. Ligue du Grand Est: https://lgef.fff.fr/simple/coupe-de-france-credit-agricole-les-affiches-du-7e-tour/"
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index 5302ea5f..babf729b 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -547,9 +547,10 @@ seeds:
+     description: >
+       Corrections for known API-Football fixture-level team-id defects. Hand-authored, one row per
+       wrong source team id, or per wrong id and fixture for `reattribute_in_fixture`: what it
+-      should resolve to, and how to apply it. Applied to all three
+-      fixture-level feeds — events, team statistics and player statistics — and to the team keys
+-      the entity dimension takes from them, so one row corrects a mis-attribution everywhere it
++      should resolve to, and how to apply it. Applied to the fixture list, the three fixture-level
++      feeds — events, team statistics and player statistics — and the team keys the entity
++      dimension takes from them; `alias` rows also apply to standings, the /teams rows, squads,
++      rosters, coaching stints and transfers. One row corrects a mis-attribution everywhere it
+       appears rather than in whichever feed happened to be looked at.
+ 
+       `alias` replaces the id unconditionally — the provider holds two ids for one club.
+@@ -577,7 +578,7 @@ seeds:
+           name: fixture_team_id_overrides_fixture_id_only_in_fixture_mode
+     columns:
+       - name: wrong_team_api_id
+-        description: "The team_api_id the provider's fixture-level feeds wrongly emit."
++        description: "The team_api_id the provider's feeds wrongly emit."
+         tests:
+           - not_null
+       - name: correct_team_api_id
+diff --git a/dbt_project/seeds/team_country_corrections.csv b/dbt_project/seeds/team_country_corrections.csv
+index 7d2850b5..4779ca0d 100644
+--- a/dbt_project/seeds/team_country_corrections.csv
++++ b/dbt_project/seeds/team_country_corrections.csv
+@@ -29,7 +29,6 @@ team_api_id,team_country,provider_country,source,note
+ 3167,Martinique,,https://www.fff.fr/article/3845-les-qualifies-en-outre-mer.html,Provider sends no country; the FFF's 2021-22 Coupe de France report on the overseas regional finals lists Club Colonial in Martinique.
+ 3204,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists Moulins Yzeure Foot 03 Auv..
+ 3211,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists Plancoët Arguenon.
+-3242,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists Vierzon FC.
+ 3259,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists Côte Chaude Sportif.
+ 3265,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists AVS Frontignan AC.
+ 3298,France,,https://www.fff.fr/article/3742-tirage-du-7e-tour-tous-les-matches.html,Provider sends no country; the FFF's 2021-22 Coupe de France 7th-round draw lists FC Sarrebourg.
+@@ -47,7 +46,6 @@ team_api_id,team_country,provider_country,source,note
+ 6688,Spain,,https://rfef.es/es/noticias/asi-se-configura-eliminatoria-previa-copa-del-rey-20212022,Provider sends no country; plays in the RFEF's Copa del Rey.
+ 7673,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+ 7755,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2021-22/emirates-fa-cup/the-emirates-fa-cup---list-of-exemptions.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+-8018,Vietnam,,https://assets.the-afc.com/downloads/technical-reports/TSG-Report_-AFC-Champions-League-2016---Part-3.pdf,Provider sends no country; the AFC lists Hanoi T&T as VIE in the AFC Champions League.
+ 8118,French Guiana,Guyana,https://www.concacaf.com/competitions/nations-league/news/2026-27-concacaf-nations-league-groups-confirmed,"Provider sends Guyana for French Guiana's national team, the country of Guyana's own team (5162); Concacaf lists French Guiana and Guyana as separate teams in the 2026/27 Nations League."
+ 8679,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+ 8688,England,,https://www.thefa.com/-/media/thefacom-new/files/competitions/2020-21/fa-cup/the-emirates-fa-cup---extra-preliminary-round-draw.ashx,Provider sends no country; plays in The FA's Emirates FA Cup.
+diff --git a/dbt_project/tests/assert_team_id_aliases_merged.sql b/dbt_project/tests/assert_team_id_aliases_merged.sql
+new file mode 100644
+index 00000000..3346c6c9
+--- /dev/null
++++ b/dbt_project/tests/assert_team_id_aliases_merged.sql
+@@ -0,0 +1,201 @@
++-- A club the provider holds under two ids is one team: the duplicate id is gone everywhere, the id
++-- kept holds the matches of both, and no match or standings table names both ids, where folding
++-- would make a club play itself or drop one of two rows.
++{{ config(store_failures = true) }}
++
++with overrides as (
++    select
++        cast(wrong_team_api_id as int64) as wrong_team_api_id,
++        cast(correct_team_api_id as int64) as correct_team_api_id
++    from {{ ref('fixture_team_id_overrides') }}
++    where mode = 'alias'
++),
++
++in_fixture_rows as (
++    select distinct cast(fixture_id as int64) as fixture_id
++    from {{ ref('fixture_team_id_overrides') }}
++    where mode = 'reattribute_in_fixture'
++),
++
++left_behind as (
++    select
++        'dim_team' as found_in,
++        team_sk as team_id
++    from {{ ref('dim_team') }}
++    union all
++    select
++        'fct_fixture home' as found_in,
++        home_team_sk as team_id
++    from {{ ref('fct_fixture') }}
++    union all
++    select
++        'fct_fixture away' as found_in,
++        away_team_sk as team_id
++    from {{ ref('fct_fixture') }}
++    union all
++    select
++        'fct_standings' as found_in,
++        team_sk as team_id
++    from {{ ref('fct_standings') }}
++    union all
++    select
++        'fct_fixture_lineup' as found_in,
++        team_sk as team_id
++    from {{ ref('fct_fixture_lineup') }}
++    union all
++    select
++        'fct_fixture_event' as found_in,
++        team_sk as team_id
++    from {{ ref('fct_fixture_event') }}
++    union all
++    select
++        'fct_fixture_player_stats' as found_in,
++        team_sk as team_id
++    from {{ ref('fct_fixture_player_stats') }}
++    union all
++    select
++        'fct_fixture_team_stats' as found_in,
++        team_sk as team_id
++    from {{ ref('fct_fixture_team_stats') }}
++    union all
++    select
++        'dim_team_competition_season_mapping' as found_in,
++        team_sk as team_id
++    from {{ ref('dim_team_competition_season_mapping') }}
++    union all
++    select
++        'dim_player_team_season_mapping' as found_in,
++        team_sk as team_id
++    from {{ ref('dim_player_team_season_mapping') }}
++    union all
++    select
++        'dim_coach_team_mapping' as found_in,
++        team_sk as team_id
++    from {{ ref('dim_coach_team_mapping') }}
++    union all
++    select
++        'fct_transfer in' as found_in,
++        team_in_sk as team_id
++    from {{ ref('fct_transfer') }}
++    union all
++    select
++        'fct_transfer out' as found_in,
++        team_out_sk as team_id
++    from {{ ref('fct_transfer') }}
++),
++
++provider_fixtures as (
++    select
++        fixture_id,
++        home_team_id,
++        away_team_id
++    from {{ ref('stg_apif__fixtures_next') }}
++    where
++        fixture_id is not null
++        and fixture_id not in (select in_fixture_rows.fixture_id from in_fixture_rows)
++    qualify row_number() over (partition by fixture_id order by raw_ingested_at desc) = 1
++),
++
++provider_matches as (
++    select
++        overrides.correct_team_api_id as team_id,
++        count(distinct provider_fixtures.fixture_id) as matches
++    from overrides
++    inner join provider_fixtures
++        on
++            overrides.wrong_team_api_id in (provider_fixtures.home_team_id, provider_fixtures.away_team_id)
++            or overrides.correct_team_api_id in (provider_fixtures.home_team_id, provider_fixtures.away_team_id)
++    group by overrides.correct_team_api_id
++),
++
++merged_matches as (
++    select
++        overrides.correct_team_api_id as team_id,
++        count(distinct fixtures.fixture_id) as matches
++    from overrides
++    inner join {{ ref('base_apif__fixtures_next') }} as fixtures
++        on overrides.correct_team_api_id in (fixtures.home_team_id, fixtures.away_team_id)
++    where fixtures.fixture_id not in (select in_fixture_rows.fixture_id from in_fixture_rows)
++    group by overrides.correct_team_api_id
++),
++
++both_ids_in_one_fixture as (
++    select overrides.correct_team_api_id as team_id
++    from overrides
++    inner join {{ ref('stg_apif__fixtures_next') }} as fixtures
++        on
++            (
++                overrides.wrong_team_api_id = fixtures.home_team_id
++                and overrides.correct_team_api_id = fixtures.away_team_id
++            )
++            or (
++                overrides.correct_team_api_id = fixtures.home_team_id
++                and overrides.wrong_team_api_id = fixtures.away_team_id
++            )
++),
++
++both_ids_in_one_table as (
++    select overrides.correct_team_api_id as team_id
++    from overrides
++    inner join {{ ref('stg_apif__standings') }} as standings
++        on
++            overrides.wrong_team_api_id = standings.team_id
++            or overrides.correct_team_api_id = standings.team_id
++    group by overrides.correct_team_api_id, standings.league_code, standings.season, standings.group_name
++    having count(distinct standings.team_id) > 1
++),
++
++chained as (
++    select first_override.correct_team_api_id as team_id
++    from overrides as first_override
++    inner join overrides as second_override
++        on first_override.correct_team_api_id = second_override.wrong_team_api_id
++)
++
++select
++    left_behind.found_in,
++    left_behind.team_id,
++    0 as expected_matches,
++    0 as merged_matches
++from left_behind
++inner join overrides
++    on left_behind.team_id = overrides.wrong_team_api_id
++
++union all
++
++select
++    'matches not summed' as found_in,
++    provider_matches.team_id,
++    provider_matches.matches as expected_matches,
++    coalesce(merged_matches.matches, 0) as merged_matches
++from provider_matches
++left join merged_matches
++    on provider_matches.team_id = merged_matches.team_id
++where provider_matches.matches != coalesce(merged_matches.matches, 0)
++
++union all
++
++select
++    'both ids in one fixture' as found_in,
++    team_id,
++    0 as expected_matches,
++    0 as merged_matches
++from both_ids_in_one_fixture
++
++union all
++
++select
++    'both ids in one standings table' as found_in,
++    team_id,
++    0 as expected_matches,
++    0 as merged_matches
++from both_ids_in_one_table
++
++union all
++
++select
++    'kept id is itself a duplicate' as found_in,
++    team_id,
++    0 as expected_matches,
++    0 as merged_matches
++from chained

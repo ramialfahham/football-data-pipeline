@@ -159,15 +159,17 @@ fixture_level_keys as (
 team_keys as (
     select
         league_code,
-        team_api_id
+        {{ team_id_override('team_api_id') }} as team_api_id
     from stg_teams
 
     union all
 
-    -- The fixture list's keys take the per-fixture corrections base_apif__fixtures_next applies.
+    -- The fixture list's keys take the corrections base_apif__fixtures_next applies.
     select
         stg_fixtures.league_code,
-        coalesce(home_override.correct_team_api_id, stg_fixtures.home_team_id) as team_api_id
+        coalesce(
+            home_override.correct_team_api_id, {{ team_id_override('stg_fixtures.home_team_id') }}
+        ) as team_api_id
     from stg_fixtures
     left join overrides as home_override
         on
@@ -180,7 +182,9 @@ team_keys as (
 
     select
         stg_fixtures.league_code,
-        coalesce(away_override.correct_team_api_id, stg_fixtures.away_team_id) as team_api_id
+        coalesce(
+            away_override.correct_team_api_id, {{ team_id_override('stg_fixtures.away_team_id') }}
+        ) as team_api_id
     from stg_fixtures
     left join overrides as away_override
         on
@@ -193,7 +197,7 @@ team_keys as (
 
     select
         league_code,
-        team_api_id
+        {{ team_id_override('team_api_id') }} as team_api_id
     from stg_standings
 
     union all

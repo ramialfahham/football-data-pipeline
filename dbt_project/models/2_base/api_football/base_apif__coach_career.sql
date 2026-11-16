@@ -3,7 +3,10 @@
 -- dim_team (youth/reserve/untracked clubs), so the team link stays on the provider id. Feeds
 -- dim_coach_team_mapping. Grain: (coach_api_id, team_api_id, start_date).
 with src as (
-    select * from {{ ref('stg_apif__coach_career') }}
+    select
+        * except (team_id),
+        {{ team_id_override('team_id') }} as team_id
+    from {{ ref('stg_apif__coach_career') }}
     where
         coach_id is not null
         and team_id is not null

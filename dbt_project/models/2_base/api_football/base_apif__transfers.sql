@@ -12,8 +12,10 @@
 -- Grain: (player_id, team_in_id, team_out_id, transfer_date).
 with src as (
     select
-        * except (player_id),
-        {{ player_id_override('player_id') }} as player_id
+        * except (player_id, team_in_id, team_out_id),
+        {{ player_id_override('player_id') }} as player_id,
+        {{ team_id_override('team_in_id') }} as team_in_id,
+        {{ team_id_override('team_out_id') }} as team_out_id
     from {{ ref('stg_apif__transfers') }}
     where
         player_id is not null

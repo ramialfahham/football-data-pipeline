@@ -13,8 +13,9 @@ latest as (
     ) = 1
 ),
 
--- A team id two clubs share, corrected inside the one fixture named, from
--- seeds/fixture_team_id_overrides.csv. The match feeds read their participants from here.
+-- A team id two clubs share, corrected inside the one fixture named, and a club's duplicate id,
+-- replaced everywhere, from seeds/fixture_team_id_overrides.csv. The match feeds read their
+-- participants from here.
 fixture_overrides as (
     select
         cast(fixture_id as int64) as fixture_id,
@@ -27,8 +28,8 @@ fixture_overrides as (
 corrected as (
     select
         latest.* except (home_team_id, away_team_id),
-        coalesce(home_override.correct_team_api_id, latest.home_team_id) as home_team_id,
-        coalesce(away_override.correct_team_api_id, latest.away_team_id) as away_team_id
+        coalesce(home_override.correct_team_api_id, {{ team_id_override('latest.home_team_id') }}) as home_team_id,
+        coalesce(away_override.correct_team_api_id, {{ team_id_override('latest.away_team_id') }}) as away_team_id
     from latest
     left join fixture_overrides as home_override
         on
