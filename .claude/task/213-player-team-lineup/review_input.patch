@@ -1,0 +1,130 @@
+diff --git a/.claude/task/213-player-team-lineup/contract.md b/.claude/task/213-player-team-lineup/contract.md
+new file mode 100644
+index 00000000..8a948678
+--- /dev/null
++++ b/.claude/task/213-player-team-lineup/contract.md
+@@ -0,0 +1,63 @@
++# Task contract — a player's team in a match follows the checked line-up: proof and one goal correction
++
++objective: >
++  Issue 213. The line-up already decides a player's team in a confirmed or researched match
++  (commit 615de683). This task pins that guarantee with a singular test on the mart the pages read,
++  and corrects the one goal a page shows with an assist by a player of the other team's sheet:
++  Bayern-Gladbach, Bundesliga, 13 Jun 2020 (fixture 209184), from the league's official match data.
++
++refs: >
++  Issue 213; go-live gate issue 290. Route set by the coordinating session.
++
++scope_paths:
++  - dbt_project/tests/assert_player_fixture_team_follows_lineup.sql
++  - dbt_project/seeds/fixture_goal_corrections.csv
++  - .claude/task/213-player-team-lineup/contract.md
++  - .claude/task/213-player-team-lineup/review.md
++  - .claude/task/213-player-team-lineup/review_input.patch
++
++approved_design:
++  - none: no page output changes beyond the corrected goals of fixture 209184
++
++depends_on:
++  - none: needs no open MR's code; it reads only models already on main
++
++shared_files:
++  - none: no design baseline, chart manifest or chart pin changes
++
++impact_map: >
++  writers: fixture_goal_corrections is read by base_apif__fixture_events only; the new test reads
++  marts.mart_player_fixture_stats and core.fct_fixture_lineup and writes nothing but its failures.
++  downstream: `dbt ls --select fixture_goal_corrections+ --resource-type model` lists every events,
++  player, team and fixture model through to the marts (mart_competition_fixtures,
++  mart_player_fixture_stats, mart_team_fixtures and 27 more), because the events feed them all.
++  layer_rules: cleaning stays in base (the seed is applied in base_apif__fixture_events); the test
++  reads marts and core only.
++  deploy_order: a seed row and a test; no model changes, so nothing breaks between merge and the
++  04:00 nightly.
++  blast_radius: one match. Fixture 209184's goals become Zirkzee 26' with no assist, Pavard's own
++  goal 37', and Goretzka 86' with Pavard's assist; before, the first goal read 16' with Gladbach's
++  Hofmann as its assist. The stat lines of the four players are unchanged on prod (goals and
++  assists already right). Measured in the MR by comparing ci_mr tables with prod.
++
++decisions_taken: >
++  The cleaning rule "Where a match's line-ups are researched, the researched sheet decides a player's
++  team" and the Line-ups rules (a confirmed sheet fails when a stat line puts a player on the other
++  team) are approved and already built; this task adds no rule. The goal row applies the approved
++  goal-correction route (a match whose provider goal events are wrong takes its goals from sourced
++  research, source_kind official). The new test is error severity: it holds a guarantee of our own
++  code, and a failure means a fan sees a player at the wrong club. No new mechanism, no recurring cost.
++
++decisions_reserved:
++  - none: the 81 other matches whose goal minute contradicts the sheet are listed in the MR for the
++    coordinating session to route; no generic rule is built for them here.
++
++done_when:
++  - assert_player_fixture_team_follows_lineup returns 0 rows on prod (read-only run of its SQL) and
++    in data:build:mr.
++  - assert_result_corrections_applied and assert_player_match_cleaning_answer_key pass in data:build:mr.
++  - mart_competition_fixtures in the ci_mr dataset shows fixture 209184's goals as researched.
++  - A read-only ci_mr vs prod comparison lists every player-match whose team changed, with the count.
++  - python scripts/ci_local.py --mr is green.
++
++amendments: (none)
+diff --git a/dbt_project/seeds/fixture_goal_corrections.csv b/dbt_project/seeds/fixture_goal_corrections.csv
+index 0b6ded83..0f0c323c 100644
+--- a/dbt_project/seeds/fixture_goal_corrections.csv
++++ b/dbt_project/seeds/fixture_goal_corrections.csv
+@@ -5,6 +5,9 @@ fixture_id,goal_order,team_id,player_id,player_name,minute_elapsed,minute_extra,
+ 185528,1,591,,Chus Sosa,52,,Normal Goal,,,official,https://match.uefa.com/v5/matches?matchId=2026931 https://www.uefa.com/uefachampionsleague/match/2026931--feronikeli-vs-fc-santa-coloma/,"Feronikeli-FC Santa Coloma, UCL preliminary round final 28 Jun 2019: 2-1; scorers and minutes from UEFA's own match data behind the uefa.com match page"
+ 185528,2,4132,,Mevlan Zeka,58,,Normal Goal,,,official,https://match.uefa.com/v5/matches?matchId=2026931 https://www.uefa.com/uefachampionsleague/match/2026931--feronikeli-vs-fc-santa-coloma/,"Feronikeli-FC Santa Coloma, UCL preliminary round final 28 Jun 2019: 2-1; scorers and minutes from UEFA's own match data behind the uefa.com match page"
+ 185528,3,4132,,Kastriot Rexha,87,,Normal Goal,,,official,https://match.uefa.com/v5/matches?matchId=2026931 https://www.uefa.com/uefachampionsleague/match/2026931--feronikeli-vs-fc-santa-coloma/,"Feronikeli-FC Santa Coloma, UCL preliminary round final 28 Jun 2019: 2-1; scorers and minutes from UEFA's own match data behind the uefa.com match page"
++209184,1,157,70100,Joshua Zirkzee,26,,Normal Goal,,,official,https://www.bundesliga.com/en/bundesliga/matchday/2019-2020/31/fc-bayern-muenchen-vs-borussia-moenchengladbach/stats https://www.bundesliga.com/en/bundesliga/news/bayern-munich-borussia-monchengladbach-live-line-ups-stats-lewandowski-11498,"Bayern-Gladbach, Bundesliga matchday 31, 13 Jun 2020: 2-1. The provider merges Hofmann's 16' goal, disallowed for offside, into Zirkzee's 26' goal and gives it Hofmann as assist; the league's ticker and report give 26', scored from Sommer's misplaced pass, so no assist"
++209184,2,163,2725,Benjamin Pavard,37,,Own Goal,,,official,https://www.bundesliga.com/en/bundesliga/matchday/2019-2020/31/fc-bayern-muenchen-vs-borussia-moenchengladbach/stats https://www.bundesliga.com/en/bundesliga/news/bayern-munich-borussia-monchengladbach-live-line-ups-stats-lewandowski-11498,"Bayern-Gladbach, Bundesliga matchday 31, 13 Jun 2020: 2-1. Pavard turned Herrmann's cross into his own net, 37'"
++209184,3,157,511,Leon Goretzka,86,,Normal Goal,2725,Benjamin Pavard,official,https://www.bundesliga.com/en/bundesliga/matchday/2019-2020/31/fc-bayern-muenchen-vs-borussia-moenchengladbach/stats https://www.bundesliga.com/en/bundesliga/news/bayern-munich-borussia-monchengladbach-live-line-ups-stats-lewandowski-11498,"Bayern-Gladbach, Bundesliga matchday 31, 13 Jun 2020: 2-1. Goretzka 86' from Pavard's ball across goal, per the league's report"
+ 232615,1,500,30491,Federico Santander,23,,Penalty,,,match_reports,https://www.goal.com/it/notizie/cagliari-bologna-3-2/wlq92veioo6w1skpga79gmi9o https://africa.espn.com/football/match/_/gameId/554485/bologna-cagliari,"Cagliari-Bologna, Serie A round 10 30 Oct 2019: 3-2; no official match page found; Simeone's goal is 72' on ESPN, Unione Sarda and Foot Mercato but 73' on Goal; Il Resto del Carlino credits the 90+1' own goal to Olsen, Goal, ESPN and Unione Sarda to Faragò (Cagliari); assists from Goal"
+ 232615,2,490,30562,João Pedro,48,,Normal Goal,,Luca Pellegrini,match_reports,https://www.goal.com/it/notizie/cagliari-bologna-3-2/wlq92veioo6w1skpga79gmi9o https://africa.espn.com/football/match/_/gameId/554485/bologna-cagliari,"Cagliari-Bologna, Serie A round 10 30 Oct 2019: 3-2; no official match page found; Simeone's goal is 72' on ESPN, Unione Sarda and Foot Mercato but 73' on Goal; Il Resto del Carlino credits the 90+1' own goal to Olsen, Goal, ESPN and Unione Sarda to Faragò (Cagliari); assists from Goal"
+ 232615,3,490,30414,Giovanni Simeone,72,,Normal Goal,,Radja Nainggolan,match_reports,https://www.goal.com/it/notizie/cagliari-bologna-3-2/wlq92veioo6w1skpga79gmi9o https://africa.espn.com/football/match/_/gameId/554485/bologna-cagliari,"Cagliari-Bologna, Serie A round 10 30 Oct 2019: 3-2; no official match page found; Simeone's goal is 72' on ESPN, Unione Sarda and Foot Mercato but 73' on Goal; Il Resto del Carlino credits the 90+1' own goal to Olsen, Goal, ESPN and Unione Sarda to Faragò (Cagliari); assists from Goal"
+diff --git a/dbt_project/tests/assert_player_fixture_team_follows_lineup.sql b/dbt_project/tests/assert_player_fixture_team_follows_lineup.sql
+new file mode 100644
+index 00000000..11fb8d29
+--- /dev/null
++++ b/dbt_project/tests/assert_player_fixture_team_follows_lineup.sql
+@@ -0,0 +1,41 @@
++{#
++  In a match whose line-up is confirmed or researched, every player on a team sheet appears in
++  mart_player_fixture_stats under the team that sheet gives him, and under no other team. Returns one
++  row per player row of the mart whose team differs from his sheet's.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with sheets as (
++    select
++        fixture_sk,
++        team_sk,
++        player_sk,
++        lineup_state
++    from {{ ref('fct_fixture_lineup') }}
++    where lineup_state in ('confirmed', 'researched')
++),
++
++player_rows as (
++    select
++        fixture_sk,
++        team_sk,
++        player_sk,
++        team_name,
++        player_name
++    from {{ ref('mart_player_fixture_stats') }}
++)
++
++select
++    player_rows.fixture_sk,
++    player_rows.player_sk,
++    player_rows.player_name,
++    sheets.lineup_state,
++    sheets.team_sk as sheet_team_sk,
++    player_rows.team_sk as shown_team_sk,
++    player_rows.team_name as shown_team_name
++from player_rows
++inner join sheets
++    on
++        player_rows.fixture_sk = sheets.fixture_sk
++        and player_rows.player_sk = sheets.player_sk
++where player_rows.team_sk != sheets.team_sk
