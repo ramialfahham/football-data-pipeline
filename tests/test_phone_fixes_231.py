@@ -62,11 +62,11 @@ def test_the_breadcrumb_script_does_not_sit_between_the_nav_and_the_heading():
     assert text.rstrip().endswith("</nav>")
 
 
-def test_the_venue_is_not_a_no_break_unit():
+def test_the_venue_is_one_unit_of_the_kick_off_line():
     text = _read("components/fixture/Masthead.astro")
     assert "fixture.venue]" not in text
     assert re.search(r'<span class="nb">\{venue\}', text) is None
-    assert re.search(r"\{venue && <>.*\{venue\}</>\}", text)
+    assert "{venue && <span>{venue}</span>}" in text
 
 
 def test_the_competition_list_name_wraps_between_words():
@@ -105,9 +105,34 @@ def test_the_team_page_explainer_does_not_name_the_team():
     assert "team:" not in re.search(r'"teamPerfIntro", \{(.*?)\}', _read("pages/[lang]/[teams]/[team].astro")).group(1)
 
 
-def test_a_separator_dot_is_one_unit_and_the_page_loads_the_script():
-    assert "dotEdges.mjs" in _read("layouts/Layout.astro")
-    assert "data-dot" in _read("lib/wholeWords.mjs")
+def test_no_template_or_stylesheet_writes_a_separator_dot():
+    middot = chr(0xB7)
+    offenders = [
+        str(p.relative_to(SRC))
+        for ext in ("*.astro", "*.ts", "*.mjs", "*.css")
+        for p in SRC.rglob(ext)
+        if middot in p.read_text(encoding="utf-8") or "&middot;" in p.read_text(encoding="utf-8")
+    ]
+    assert offenders == []
+    assert "dotEdges" not in _read("layouts/Layout.astro")
+
+
+def test_a_facts_line_has_a_gap_and_every_aligned_host_sets_its_justify():
+    css = _read("styles/system.css")
+    assert ".facts-line { display: inline-flex; flex-wrap: wrap; column-gap: 12px; row-gap: 0;" in css
+    assert ".facts-line > * { max-width: 100%; min-width: 0; }" in css
+    lines = css.splitlines()
+    for host in (".rmeta {", ".pstat {", ".fmeta {", ".mast .kick {", ".stand {", ".tc-nums {"):
+        rules = [ln for ln in lines if host in ln and ln.lstrip().startswith((".", "@")) or host in ln and ln.startswith("  .")]
+        assert rules, host
+        for ln in rules:
+            if host == ".rmeta {" and "text-align" not in ln:
+                continue
+            assert "--facts-justify" in ln, ln
+            if "text-align: left" in ln:
+                assert "--facts-justify: flex-start" in ln, ln
+            if "text-align: right" in ln:
+                assert "--facts-justify: flex-end" in ln, ln
 
 
 def test_the_scatter_axis_title_has_room_inside_the_drawing():

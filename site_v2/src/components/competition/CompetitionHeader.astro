@@ -1,5 +1,5 @@
 ---
-// The competition page's header: crest, name, and the meta line region · season · round. Every
+// The competition page's header: crest, name, and the meta line region / season / round. Every
 // value is a served field; the region label falls back to its English form until every region
 // has a copy key, and the round is the competition's current round, named the way the
 // competition names it.
@@ -35,6 +35,6 @@ const meta = [
   <Crest name={name} crest={crest} />
   <div class="tid">
     <h1>{name}</h1>
-    {meta.length > 0 && <div class="meta">{meta.join(" · ")}</div>}
+    {meta.length > 0 && <div class="meta facts-line">{meta.map((m) => <span>{m}</span>)}</div>}
   </div>
 </header>

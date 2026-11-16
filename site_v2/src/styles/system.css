@@ -8,15 +8,15 @@
  *  NOT hand-style screens; emit these class names and style here.     *
  *                                                                    *
  *  COLOUR = MEANING ONLY (never hierarchy):                          *
- *    --accent green = better value / Win · --loss red = Loss         *
- *    --draw gray = Draw · neutrals = everything else. Green is       *
+ *    --accent green = better value / Win / --loss red = Loss         *
+ *    --draw gray = Draw / neutrals = everything else. Green is       *
  *    RESERVED — links/names/labels never get green.                  *
  *  HIERARCHY = TONE + WEIGHT + SIZE (never hue). Three rungs:        *
  *    1 --ink bold    → numbers that matter (values/scores/stats)     *
  *    2 --ink regular → entity names (players, teams)                 *
  *    3 --muted       → labels/metadata (metric names, positions,     *
  *                      dates, section + group headers)               *
- *  TYPE 11/13/15/18/20 + team-clamp · SPACING 8px base / 36px sec    *
+ *  TYPE 11/13/15/18/20 + team-clamp / SPACING 8px base / 36px sec    *
  *  Dark is default; light = the token swap below.                    *
  * ================================================================ */
 
@@ -36,7 +36,7 @@
 .fx {
   --page: #0d0f13; --surface: #161920; --sunk: #1c1f27; --line: #272b33; --div: #333844;
   --ink: #f1f3f7; --ink-2: #c1c6ce; --muted: #8b9099;                 /* cool-neutral gray ramp */
-  --accent: #3bb072;                 /* one green: better value · links */
+  --accent: #3bb072;                 /* one green: better value / links */
   --win: #1a854a; --draw: #6b7079; --loss: #b53b3b; --pill-ink: #fff; /* reserved status */
   --track: #22262e;                                                   /* faint bar track */
   --sp: 8px;
@@ -89,7 +89,7 @@ section { margin-top: 36px; }
 /* ---- masthead ---- */
 .mast { text-align: center; padding: 14px 0 26px; border-bottom: 1px solid var(--line); }
 .mast .eyebrow { margin-top: 14px; }
-.mast .kick { font-size: 13px; color: var(--muted); margin-top: 8px; }
+.mast .kick { font-size: 13px; color: var(--muted); margin-top: 8px; --facts-justify: center; }
 .mast .kick b { color: var(--ink-2); font-weight: 600; }
 .teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: clamp(8px, 3cqw, 20px); margin-top: 20px; }
 .team { display: flex; flex-direction: column; align-items: center; gap: 12px; min-width: 0; }
@@ -97,7 +97,7 @@ section { margin-top: 36px; }
 .crest img { width: 100%; height: 100%; object-fit: contain; }
 .tname { font-size: clamp(20px, 4.4cqw, 27px); font-weight: 700; line-height: 1.05; text-wrap: balance; }
 .vs { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
-.stand { font-size: 13px; color: var(--muted); }
+.stand { font-size: 13px; color: var(--muted); --facts-justify: center; }
 .stand b { color: var(--ink); font-weight: 700; }
 .mast .venue { font-size: 13px; color: var(--muted); margin-top: 16px; }
 
@@ -139,7 +139,7 @@ section { margin-top: 36px; }
 .caption { font-size: 12px; color: var(--muted); text-align: center; margin: 16px 0 4px; }
 
 /* ============================================================ *
- *  COMPARISON — 3 columns: home value · centred name+bar · away  *
+ *  COMPARISON — 3 columns: home value / centred name+bar / away  *
  *  value. Numbers aligned in their columns; better value green.  *
  * ============================================================ */
 .cmp { margin-top: 22px; }
@@ -159,6 +159,7 @@ section { margin-top: 36px; }
 .split { display: grid; grid-template-columns: 1fr; gap: 8px 30px; margin-top: 4px; }
 @container (min-width: 560px) { .split { grid-template-columns: 1fr 1fr; } }
 .colhead { font-size: 13px; font-weight: 700; color: var(--muted); margin: 14px 0 8px; }
+.colhead .ps { display: block; font-size: 12px; font-weight: 400; }
 .res { width: 24px; height: 24px; border-radius: 5px; display: grid; place-items: center; font-weight: 700; font-size: 11px; color: var(--pill-ink); }
 .res.W { background: var(--win); }
 .res.D { background: var(--draw); }
@@ -166,7 +167,7 @@ section { margin-top: 36px; }
 .rscore { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; }
 .ropp { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
 .ropp .ha { color: var(--muted); font-weight: 600; font-size: 11px; margin-left: 5px; }
-.rmeta { color: var(--muted); white-space: nowrap; font-size: 12px; text-align: right; }
+.rmeta { color: var(--muted); white-space: nowrap; font-size: 12px; text-align: right; --facts-justify: flex-end; }
 .noclick .rscore,
 .noclick .ropp { opacity: .55; }
 
@@ -175,8 +176,10 @@ section { margin-top: 36px; }
 .pname { min-width: 0; }
 .pname .nm { font-size: 14px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pname .ps { font-size: 11.5px; color: var(--muted); }
-.pstat { font-size: 13px; color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+.pstat { font-size: 13px; color: var(--muted); white-space: nowrap; text-align: right; --facts-justify: flex-end; font-variant-numeric: tabular-nums; }
 .pstat b { color: var(--ink); font-weight: 700; }
+.facts-line { display: inline-flex; flex-wrap: wrap; column-gap: 12px; row-gap: 0; justify-content: var(--facts-justify, flex-start); }
+.facts-line > * { max-width: 100%; min-width: 0; }
 
 /* ---- h2h ---- */
 .h2h-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
@@ -323,7 +326,7 @@ section { margin-top: 36px; }
 .flinks a, .flinks span { font-size: 12.5px; color: var(--muted); }
 .flinks a:hover { color: var(--ink-2); }
 .flinks .imp { font-style: italic; }
-.fmeta { margin-left: auto; font-size: 11.5px; color: var(--muted); }
+.fmeta { margin-left: auto; --facts-justify: flex-end; font-size: 11.5px; color: var(--muted); }
 
 /* nav inline + hamburger/drawer hidden once there's room for the full nav */
 /* The menu stands in the header row when the row holds it in the page's language, otherwise the
@@ -817,13 +820,13 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 /* A group opening the block after its explainer carries no space of its own either. */
 .bsub + .fxgroup { margin-top: 0; }
 /* Two more table kinds, each one fixed track list. `.dpt`: the Overview's deserved points table
-   (# · club · four metrics named in full); the ordered-by number keeps the accent. Its four equal
+   (# / club / four metrics named in full); the ordered-by number keeps the accent. Its four equal
    number tracks shrink on a narrow screen, and a long head wraps and hyphenates. */
 .ctab.dpt, .ctab.dpt.ctab { --cols: 2rem minmax(0, 1fr) repeat(4, minmax(3.6rem, 4.6rem)); }
 .ctab.dpt .ctab-head { align-items: end; }
 .ctab.dpt .h { hyphens: auto; overflow-wrap: anywhere; line-height: 1.25; letter-spacing: 0; }
 .ctab.dpt .h .hs { display: block; font-weight: 600; }
-/* A board is a single-value table: the Table's striped rows and grid (# · crest name · value), one
+/* A board is a single-value table: the Table's striped rows and grid (# / crest name / value), one
    fixed track list; the board's name is the head, with its chevron, and its rule the only line.
    A player's row carries the club under the name. */
 .ctab.rkt, .ctab.rkt.ctab { --cols: 2rem minmax(0, 1fr) 3.6rem; margin-top: 0; }
@@ -838,7 +841,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
    for is gone. The design mocks, which embed this file whole, still annotate with it. */
 .bnote { font-size: 12px; color: var(--muted); margin-left: 6px; }
 
-/* The fact row: label · value · context. Wide: the label left, value and context right-aligned;
+/* The fact row: label / value / context. Wide: the label left, value and context right-aligned;
    a phone stacks the three, left-aligned. Only the value is weighted. */
 .facts { margin-top: 4px; container-type: inline-size; }
 .frow { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 14px; align-items: start; padding: 9px 0; border-bottom: 1px solid var(--line); color: inherit; }
@@ -889,7 +892,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
                     text-align: left; padding: 12px 4px; }
   .mp .mast .team .crest { grid-row: span 2; }
   .mp .mast .team .tname { font-size: 20px; text-wrap: pretty; }
-  .mp .mast .team .stand { grid-column: 2; }
+  .mp .mast .team .stand { grid-column: 2; --facts-justify: flex-start; }
 }
 @media (max-width: 699.98px) and (hover: hover) {
   .mp .mast a.team:hover { background: color-mix(in srgb, var(--ink) 11%, transparent); }
@@ -910,7 +913,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .mp .mast .resline b { color: var(--ink-2); font-weight: 600; }
 
 /* The comparison element: one head row of each team's name, in the chart legend's style, over its
-   pills; each metric group under the chart family's group heading; a row is number · name · number
+   pills; each metric group under the chart family's group heading; a row is number / name / number
    with the chart bar the full width beneath. */
 .cmp .formhead { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin: 2px 0 8px; }
 .cmp .formhead .cmp-team { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
@@ -956,9 +959,9 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .lrow { container-type: inline-size; }
 .lrow:not(:last-child) { border-bottom: 1px solid var(--line); }
 
-/* Result row: result chip · score · opponent (crest, name, H or A) · competition · date on one line
+/* Result row: result chip / score / opponent (crest, name, H or A) / competition / date on one line
    where every row of its list fits (fitBlocks marks the list fit-one); otherwise two lines, the
-   opponent on the first and H or A · competition · date on the second. The name wraps, never cut
+   opponent on the first and H or A / competition / date on the second. The name wraps, never cut
    off. On one line the competition and date take at most 45% of the row, so a long competition
    cannot cover the name. On the narrowest rows the gaps tighten so a long word fits. */
 .resrow { display: grid; grid-template-columns: 24px 42px 1fr; grid-template-areas: "res score opp" ". . meta";
@@ -968,21 +971,21 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .resrow .rscore { grid-area: score; font-size: 15px; }
 .resrow:not(.meet):not(.scorer) .rscore { align-self: start; line-height: 24px; }
 .resrow .ropp { grid-area: opp; font-size: 15px; white-space: normal; overflow: visible; text-overflow: clip; }
-.resrow .rmeta { grid-area: meta; text-align: left; white-space: normal; }
-/* Home or away sits after the name on one line and opens the second line on two; a middle dot
-   travels with the item after it. Before fitBlocks marks a list, the width decides. */
+.resrow .rmeta { grid-area: meta; text-align: left; --facts-justify: flex-start; white-space: normal; }
+/* Home or away sits after the name on one line and opens the second line on two.
+   Before fitBlocks marks a list, the width decides. */
 .resrow .ropp > .ha { display: none; }
 @container (min-width: 420px) {
   .resrow { grid-template-columns: 24px 42px 1fr fit-content(45%); grid-template-areas: "res score opp meta"; column-gap: 11px; }
-  .resrow .rmeta { text-align: right; }
+  .resrow .rmeta { text-align: right; --facts-justify: flex-end; }
   .resrow .rha { display: none; }
   .resrow .ropp > .ha { display: inline; }
 }
 /* A list fitBlocks has measured takes its form by fit, whatever its width. */
 .fit-one .resrow { grid-template-columns: 24px 42px 1fr fit-content(45%); grid-template-areas: "res score opp meta"; column-gap: 11px; }
-.fit-one .resrow .rmeta { text-align: right; }
+.fit-one .resrow .rmeta { text-align: right; --facts-justify: flex-end; }
 .fit-two .resrow { grid-template-columns: 24px 42px 1fr; grid-template-areas: "res score opp" ". . meta"; column-gap: clamp(8px, 3cqw, 20px); }
-.fit-two .resrow .rmeta { text-align: left; }
+.fit-two .resrow .rmeta { text-align: left; --facts-justify: flex-start; }
 .fit-one .resrow .rha, .fit-two .resrow .ropp > .ha, .rlist.pm:not(.fit-one) .resrow .ropp > .ha { display: none; }
 .fit-one .resrow .ropp > .ha { display: inline; }
 .fit-two .resrow .rha, .rlist.pm:not(.fit-one) .resrow .rha { display: inline; }
@@ -1004,7 +1007,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .club { display: inline-flex; align-items: center; gap: 10px; vertical-align: middle; max-width: 100%; }
 .ropp > .club:only-child { vertical-align: top; }
 
-/* Player row: photo · name over position · numbers on the right at every width; the name wraps, and
+/* Player row: photo / name over position / numbers on the right at every width; the name wraps, and
    where the row is short of room the goals and the assists take two lines. On the narrowest rows the
    gaps tighten so a long word fits, as the result row's do; under 280px the name takes the whole line
    and the numbers move to the position's line, as the competition row's do. */
@@ -1014,7 +1017,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .plrow .pname { display: contents; }
 .plrow .pname .nm { grid-area: name; font-size: 15px; font-weight: 400; color: var(--ink); white-space: normal; overflow: visible; text-overflow: clip; }
 .plrow .pname .ps { grid-area: pos; font-size: 12px; color: var(--muted); }
-.plrow .pstat { grid-area: stat; align-self: center; text-align: right; font-size: 12px; white-space: normal; }
+.plrow .pstat { grid-area: stat; align-self: center; text-align: right; --facts-justify: flex-end; font-size: 12px; white-space: normal; }
 .plrow .pstat b { font-size: 15px; }
 @container (max-width: 279.98px) { .plrow { grid-template-areas: "photo name name" "photo pos stat"; } }
 
@@ -1022,7 +1025,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 /* A tab's opening sentence: the block explainer's style, under the tab bar. */
 .bsub.tab-intro { margin-top: 14px; }
 
-/* The competition row: crest · name with its muted note · the standing or the cup's outcome on the
+/* The competition row: crest / name with its muted note / the standing or the cup's outcome on the
    right; under it, for a table, the W/D/L counts and goals and points. Narrow, the standing moves
    to the second line before the numbers, and the counts take a third. */
 a.lrow.tc, div.lrow.tc { padding-block: 12px; }
@@ -1033,11 +1036,11 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
   grid-template-areas: "crest name right" ". extra extra"; column-gap: 12px; row-gap: 8px; align-items: center; }
 .tc .tc-crest { grid-area: crest; }
 .tc .tc-name { grid-area: name; font-size: 15px; font-weight: 600; color: var(--ink); min-width: 0; }
-.tc .tc-ctx { font-size: 12px; font-weight: 400; color: var(--muted); }
+.tc .tc-ctx { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
 .tc .tc-right { grid-area: right; font-size: 15px; font-weight: 700; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .tc .tc-extra { grid-area: extra; display: flex; align-items: center; justify-content: space-between; gap: 8px 14px; flex-wrap: wrap; }
 .tc .tc-rank2 { display: none; font-size: 15px; font-weight: 700; color: var(--ink); }
-.tc .tc-nums { margin-left: auto; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tc .tc-nums { margin-left: auto; --facts-justify: flex-end; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .tc .tc-nums b { font-size: 15px; font-weight: 700; color: var(--ink); }
 @container (max-width: 340px) {
   .tc .tcin { grid-template-areas: "crest name name" ". extra extra"; }
@@ -1045,8 +1048,8 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
   .tc .tc-extra { display: grid; grid-template-columns: auto 1fr; grid-template-areas: "rank nums" "pills pills";
     justify-items: start; align-items: baseline; gap: 8px 0; }
   .tc .tc-rank2 { display: inline; grid-area: rank; }
-  .tc .tc-extra:has(.tc-nums) .tc-rank2::after { content: " ·"; font-size: 12px; font-weight: 400; color: var(--muted); margin-right: 4px; }
-  .tc .tc-nums { grid-area: nums; margin-left: 0; }
+  .tc .tc-rank2 { margin-right: 12px; }
+  .tc .tc-nums { grid-area: nums; margin-left: 0; --facts-justify: flex-start; }
   .tc .tc-extra .cchips { grid-area: pills; }
 }
 
@@ -1116,8 +1119,8 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
 .chart-bar > span:last-child > span { border-radius: 0 3px 3px 0; }
 .chart-bar > .chart-better > span { background: var(--chart-better); }
 
-/* The strip plot: a metric's name · the league from its lowest to its highest value, values growing
-   to the right, every other club a light dot, the team the solid dot · the team's rank over its
+/* The strip plot: a metric's name / the league from its lowest to its highest value, values growing
+   to the right, every other club a light dot, the team the solid dot / the team's rank over its
    value. Narrow, the strip takes the row's second line. */
 .rs-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) 4.6rem; column-gap: 14px; align-items: center;
   padding: 10px 0; border-bottom: 1px solid var(--line); }
@@ -1193,14 +1196,14 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
 /* A player's match row: the score right after the chip and the competition and the player's line
    under it; one line while every row fits. */
 .rlist.pm .resrow { grid-template-columns: 24px auto 1fr; grid-template-areas: "res score opp" ". meta meta"; }
-.rlist.pm .resrow .rmeta { text-align: left; }
+.rlist.pm .resrow .rmeta { text-align: left; --facts-justify: flex-start; }
 .rlist.pm:not(.fit-one) .resrow .rscore { text-align: left; }
-.rlist.pm .resrow .rm-c, .rlist.pm .resrow .rm-p { display: block; }
+.rlist.pm .resrow .rm-c, .rlist.pm .resrow .rm-p { display: flex; }
 .rlist.pm .resrow .rm-p b { color: var(--ink); font-weight: 700; }
 .rlist.pm.fit-one .resrow { grid-template-columns: 24px 42px 1fr auto; grid-template-areas: "res score opp meta"; }
-.rlist.pm.fit-one .resrow .rmeta { text-align: right; }
-.rlist.pm.fit-one .resrow .rm-c, .rlist.pm.fit-one .resrow .rm-p { display: inline; }
-.rlist.pm.fit-one .resrow .rm-p::before { content: " · "; }
+.rlist.pm.fit-one .resrow .rmeta { text-align: right; --facts-justify: flex-end; }
+.rlist.pm.fit-one .resrow .rm-c, .rlist.pm.fit-one .resrow .rm-p { display: inline-flex; }
+.rlist.pm.fit-one .resrow .rm-p { margin-left: 12px; }
 
 /* TAP AREAS: every link and button is at least 44px high and wide; the text and look stay.
    A box that is too small grows by padding it gives back as negative margin, or by room it takes. The

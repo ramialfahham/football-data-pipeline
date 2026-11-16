@@ -1,6 +1,6 @@
 ---
 // Competitions: one list row per competition of the season, in the served order (domestic first,
-// league then cup, then international). Line 1: crest · name · a muted note (a league's latest
+// league then cup, then international). Line 1: crest / name / a muted note (a league's latest
 // round, a cup's round reached, an international league phase); on the right the standing, or a
 // cup's Through / Knocked out / Winners. Line 2, for a table: the W/D/L counts, then goals and
 // points. Every value is mart_team_competitions'; the row links to the competition's page.
@@ -61,7 +61,7 @@ const CHIPS = [
           <Row class="lrow tc" href={r.info.slug ? localeHref(lang, `${r.info.slug}/`) : undefined}>
             <div class="tcin">
               <span class="tc-crest"><Crest name={r.info.name} crest={r.info.crest} size="xs" /></span>
-              <span class="tc-name">{r.head && `${r.head} `}<span class="nb">{r.last}{r.note && <span class="tc-ctx"> · {r.note}</span>}</span></span>
+              <span class="tc-name">{r.head && `${r.head} `}<span class="nb">{r.last}</span>{r.note && <span class="tc-ctx">{r.note}</span>}</span>
               {r.right && <span class="tc-right">{r.right}</span>}
               {r.table && (
                 <span class="tc-extra">
@@ -69,9 +69,8 @@ const CHIPS = [
                   <span class="cchips">
                     {CHIPS.map((ch) => <span class:list={["cchip", ch.k]}>{integer(r.c[ch.field], lang)} <small>{t(lang, ch.label)}</small></span>)}
                   </span>
-                  <span class="tc-nums">
+                  <span class="tc-nums facts-line">
                     <span class="nb">{t(lang, "goals")}{" "}<b>{integer(r.c.goals_for, lang)}:{integer(r.c.goals_against, lang)}</b></span>
-                    {" · "}
                     <span class="nb">{t(lang, "points")}{" "}<b>{integer(r.c.points, lang)}</b></span>
                   </span>
                 </span>

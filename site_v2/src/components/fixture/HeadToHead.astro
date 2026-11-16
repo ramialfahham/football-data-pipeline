@@ -1,6 +1,6 @@
 ---
 // Head to head: the served intro, then the last meetings as the result row without its chip (the chip
-// would take one side): the score in the match's order, the side that was at home first, competition ·
+// would take one side): the score in the match's order, the side that was at home first, competition /
 // date with its year. "No meetings on record." when the warehouse holds none. A meeting links to
 // its match's page when this build makes one.
 import SectionHead from "../ui/SectionHead.astro";
@@ -51,9 +51,9 @@ const rows = meetings.map((m) => {
             {" – "}
             <span class="club"><Crest name={r.second.name} crest={r.second.crest} size="xs" /><span class="cn">{r.second.name}</span></span>
           </span>
-          <span class="rmeta">
-            {r.comp && <>{r.comp}&nbsp;· </>}
-            <span class="nb">{r.date}</span>
+          <span class="rmeta facts-line">
+            {r.comp && <span>{r.comp}</span>}
+            <span>{r.date}</span>
           </span>
         </div>
       </Row>

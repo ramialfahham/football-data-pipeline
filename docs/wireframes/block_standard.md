@@ -69,6 +69,7 @@
 | Breadcrumb current page | `.crumb .here` | the page you are on differs from the links at rest; the shipped site has the current page `ink-2` and the links muted, #52's mock had the two inverted | `color=ink-2` | proposed | put to the CPO on the #153 MR; measured, never fails, until ruled |
 | Breadcrumb separator | `.sep` | the breadcrumb's separator, in the 13-400-muted text style, never broken | `font-size=13px; font-weight=400; color=muted; one-line; fits` | ruled | the component registry |
 | Breadcrumb parts | `.lvl, .far` | the breadcrumb's other parts: registered, no text of their own |  | ruled | the component registry |
+| Facts line | `.facts-line` | the facts of one line. Each fact is one unbreakable unit. The units sit in one wrapping line with a 12px gap and no glyph. On a narrow screen a whole unit moves to the next line. A unit wider than the line takes a line of its own and breaks between words | `fits` | ruled | the separator rule |
 | Page heading | `.crumb + h1` | a menu page's heading under its breadcrumb, the menu item's word: the Competitions page's and the Matches page's, 30px bold ink | `font-size=30px; font-weight=700; color=ink` | ruled | #130 (the Competitions page's heading, as it ships) |
 | Entity header parts | `.thead, .tid` | the entity header's other parts: registered, no text of their own |  | ruled | the component registry |
 | Tab bar | `nav.tabs` | the tabs share the row and fit in one row at 375px in EN, DE and FI, no sideways scrolling | `fits` | ruled | #129 header |
@@ -79,7 +80,7 @@
 | Block heading gap | `.sechead` | one distance from the block name's rule to the block's first line: 14px, nothing added by the content — a date heading, a fact row, a group or a table opening the block carries no space of its own; the name starts at the block's left edge | `gap(next)=14px; left-edge=section` | ruled | #129 binding rules; #127 correction 3 |
 | Block explainer | `.bsub` | the one sentence under a block name, 13px muted | `font-size=13px; color=muted` | ruled | #129 Deserved points |
 | Tab explainer | `.bsub.tab-intro` | a tab's opening sentence under the tab bar, in the block explainer's style: 13px muted | `font-size=13px; color=muted` | ruled | the Team page review |
-| Competition group head | `.fxgroup:not(.rkgroup) > .gh` | the level-1 heading over a competition's match rows: crest · name · chevron, 17px bold, a 2px line under it, 34px above the group; on Home, inside the Next matches block, it keeps its line | `border-bottom-width=2px; left-edge=section` | ruled | #50; #129; 2026-09-17 ("Home with line") |
+| Competition group head | `.fxgroup:not(.rkgroup) > .gh` | the level-1 heading over a competition's match rows: crest / name / chevron, 17px bold, a 2px line under it, 34px above the group; on Home, inside the Next matches block, it keeps its line | `border-bottom-width=2px; left-edge=section` | ruled | #50; #129; 2026-09-17 ("Home with line") |
 | Competition group name | `.fxgroup:not(.rkgroup) > .gh .nm` | 17px bold ink | `font-size=17px; font-weight=700; color=ink` | ruled | #50 |
 | Group count | `.fxgroup > .gh .cnt` | the team count at the right of a group head: 13px semi-bold muted | `font-size=13px; font-weight=600; color=muted` | ruled | the Teams page review |
 | Group spacing | `.fxgroup + .fxgroup` | 34px from one group's last row to the next group's heading | `gap(prev)=34px` | ruled | #50 |
@@ -129,10 +130,10 @@
 | Match header parts | `.vh, .played` | the match header's other parts: registered, no text of their own |  | ruled | the component registry |
 | List row | `.lrow` | one row of a list, a line between rows, nothing cut off. Its name is 15px, its second line 12px muted, its numbers 15px bold | `fits` | ruled | the match page review |
 | Result chip | `.resrow .pill` | one match's W, D or L from a team's side, in the page's language, on the result colour | `font-size=12px; font-weight=700; color=pill-ink` | ruled | the match page review |
-| Result row | `.resrow` | result chip · score · opponent (crest, name, home or away) · competition · date on one line where every row of its list fits; otherwise two lines: the first chip · score · crest · opponent, the second home or away · competition · date. A middle dot travels with the item after it | `fits` | ruled | the match page review; the phone review |
+| Result row | `.resrow` | result chip / score / opponent (crest, name, home or away) / competition / date on one line where every row of its list fits; otherwise two lines: the first chip / score / crest / opponent, the second home or away / competition / date | `fits` | ruled | the match page review; the phone review |
 | Result row score | `.resrow .rscore` | the score from the row's side, 15px bold ink | `font-size=15px; font-weight=700; color=ink` | ruled | the match page review |
 | Result row name | `.resrow .ropp` | the club, 15px ink, wrapping, never cut off | `font-size=15px; color=ink; white-space=normal` | ruled | the match page review |
-| Result row meta | `.resrow:not(.goal) .rmeta` | the competition's name and the date, after home or away when a result row takes two lines, 12px muted; the name wraps between words, the date never splits | `font-size=12px; color=muted` | ruled | the match page review; the component registry |
+| Result row meta | `.resrow:not(.goal) .rmeta` | the competition's name and the date, after home or away when a result row takes two lines, 12px muted; each fact is one unit of a facts line | `font-size=12px; color=muted` | ruled | the match page review; the component registry |
 | Meeting row | `.resrow.meet` | a meeting of the two teams: the result row without its chip. The score is in the match's order, the home side first, the date with its year | `fits` | ruled | the match page review |
 | Goal row | `.resrow.goal` | a goal: the score after it, then the scorer with the crest of the side it counts for. The second line holds the minute with the assist, own goal or penalty. Without minutes the row has no score | `fits` | ruled | the played match page review |
 | Goal row meta | `.resrow.goal .rmeta` | the goal's minute and its assist, own goal or penalty: 14px ink-2, larger and lighter than a list row's second line | `font-size=14px; color=ink-2` | ruled | the played match page review |
@@ -140,11 +141,11 @@
 | Result row home or away line | `.resrow .rha` | home or away opening the second line in the two-line form, 12px muted, never split | `font-size=12px; color=muted` | ruled | the phone review |
 | Result row parts | `.rlist, .rlist.pm, .rm-c, .rm-p, .scorer` | the result row's other parts: registered, no text of their own |  | ruled | the component registry |
 | Form parts | `.W, .D, .L` | the form's other parts: registered, no text of their own |  | ruled | the component registry |
-| Player row | `.plrow` | photo · name over position · goals and assists on the right at every width; two lines below 375px when the row is short of room; under 280px the name takes the whole line and the position shares the second line with the numbers; on a line-up, the minutes played | `fits` | ruled | the match page review; the component registry |
+| Player row | `.plrow` | photo / name over position / goals and assists on the right at every width; two lines below 375px when the row is short of room; under 280px the name takes the whole line and the position shares the second line with the numbers; on a line-up, the minutes played | `fits` | ruled | the match page review; the component registry |
 | Player row name | `.plrow .pname .nm` | 15px regular ink, wrapping, never cut off | `font-size=15px; font-weight=400; color=ink; white-space=normal` | ruled | the match page review |
-| Player row position | `.plrow .pname .ps` | 12px muted. On a line-up the substitution follows after a middle dot. It is the minute a starter went off, or a substitute came on and for whom | `font-size=12px; color=muted` | ruled | the match page review |
+| Player row position | `.plrow .pname .ps` | 12px muted. On a line-up the substitution follows as a unit in the same line. It is the minute a starter went off, or a substitute came on and for whom | `font-size=12px; color=muted` | ruled | the match page review |
 | Player row number | `.plrow .pstat b` | 15px bold ink | `font-size=15px; font-weight=700; color=ink` | ruled | the match page review |
-| Column head | `.rcol .colhead` | a list column's name, 13px bold muted; one fact may follow after a middle dot (a team's formation); a second head inside the column opens its second list | `font-size=13px; font-weight=700; color=muted` | ruled | the played match page review |
+| Column head | `.rcol .colhead` | a list column's name, 13px bold muted; one fact may follow on a second muted line (a team's formation); a second head inside the column opens its second list | `font-size=13px; font-weight=700; color=muted` | ruled | the played match page review |
 | Two columns parts | `.rsplit, .sheets, .off` | the two columns's other parts: registered, no text of their own |  | ruled | the component registry |
 | Competition row | `.lrow.tc` | one competition of a team's season: crest, name and a muted note, with the standing or the cup's outcome on the right. A table's row adds the W, D and L counts, goals and points below. Narrow, the standing opens the second line | `fits` | ruled | the Team page review |
 | Competition row name | `.tc .tc-name` | 15px semi-bold ink; the note after it 12px muted | `font-size=15px; font-weight=600; color=ink` | ruled | the Team page review |
@@ -214,9 +215,8 @@ Not measured, still the rule: a team's crest in the match header is 52px, and ev
 
 ## Separators
 
-A middle dot with a space either side separates items of one line. A separator dot never ends or
-starts a line. It travels with the item after it and disappears when that item moves to its own
-line. Items in their own columns are separated by space. An en dash joins a score and stands for a missing value. The em dash is not
+No glyph separates items of one line. Each item is one unbreakable unit, and the units sit in one
+wrapping line with a 12px gap. Items in their own columns are separated by space. An en dash joins a score and stands for a missing value. The em dash is not
 used.
 
 ## Tap areas

@@ -103,7 +103,7 @@ const title = t(lang, "seoFixtureTitle", {
 // A played match's description is its status word, its result line and its date, in the page's language.
 const description = played
   ? `${playedStatusWord(lang, played.status, played.result.award_kind)}: ${home.name ?? ""} ${scoreLine(
-      played.result.goals_home, played.result.goals_away)} ${away.name ?? ""} · ${round} · ${formatDayYear(
+      played.result.goals_home, played.result.goals_away)} ${away.name ?? ""}, ${round}, ${formatDayYear(
       fixture.kickoff, lang)}.`
   : t(lang, "aboutNoH2h", { home: home.name ?? "", away: away.name ?? "", round });
 

@@ -1,0 +1,1538 @@
+diff --git a/.claude/task/243-no-separator-dot/contract.md b/.claude/task/243-no-separator-dot/contract.md
+new file mode 100644
+index 00000000..6093adff
+--- /dev/null
++++ b/.claude/task/243-no-separator-dot/contract.md
+@@ -0,0 +1,112 @@
++# Task contract — the separator dot leaves the site, by the job it does
++
++objective: >
++  Issue #243: the middle dot (U+00B7, also &middot;) is removed from every rendered line of site_v2,
++  by the job it does. Facts separated in a header line or a row's secondary line become unbreakable
++  units in one wrapping line (one shared class, 12px column gap, no glyph). A name joined to its
++  qualifier becomes two lines in the row's existing muted secondary style. A dot inside wording
++  (round names, goal-minute lists, about sentences, titles) becomes a comma and a space in EN, DE
++  and FI. dotEdges.mjs, the dot unit in wholeWords.mjs, data-dot, dot-only CSS and the
++  dot-placement tests and registry rules go.
++
++refs: >
++  #243. Rule approved in chat, 16 Nov 2026 (the coordinator's brief of that date, which replaced an
++  earlier own-line rule that was withdrawn).
++
++scope_paths:
++  - .claude/task/243-no-separator-dot/
++  - site_v2/src/components/chrome/SiteFooter.astro
++  - site_v2/src/components/competition/CompetitionHeader.astro
++  - site_v2/src/components/competition/CompetitionTabs.astro
++  - site_v2/src/components/competition/RankingBoard.astro
++  - site_v2/src/components/competition/SeasonFacts.astro
++  - site_v2/src/components/competition/StandingsTable.astro
++  - site_v2/src/components/fixture/HeadToHead.astro
++  - site_v2/src/components/fixture/Masthead.astro
++  - site_v2/src/components/fixture/MatchGoals.astro
++  - site_v2/src/components/fixture/MatchLineups.astro
++  - site_v2/src/components/fixture/MetricRow.astro
++  - site_v2/src/components/fixture/PlayerRow.astro
++  - site_v2/src/components/fixture/RecentMatch.astro
++  - site_v2/src/components/home/HeroFixtures.astro
++  - site_v2/src/components/player/PlayerComparison.astro
++  - site_v2/src/components/player/PlayerHeader.astro
++  - site_v2/src/components/player/PlayerIndexRow.astro
++  - site_v2/src/components/player/PlayerRecent.astro
++  - site_v2/src/components/team/TeamCompetitions.astro
++  - site_v2/src/components/team/TeamFixtureGroup.astro
++  - site_v2/src/components/team/TeamHeader.astro
++  - site_v2/src/components/team/TeamSquad.astro
++  - site_v2/src/i18n/strings.ts
++  - site_v2/src/layouts/Layout.astro
++  - site_v2/src/lib/dotEdges.mjs
++  - site_v2/src/lib/dotEdges.test.mjs
++  - site_v2/src/lib/wholeWords.mjs
++  - site_v2/src/lib/wholeWords.test.mjs
++  - site_v2/src/pages/[[]lang]/[[]competition]/index.astro
++  - site_v2/src/pages/[[]lang]/[[]competition]/[[]matches]/[[]fixture].astro
++  - site_v2/src/styles/system.css
++  - docs/design/components.yml
++  - docs/wireframes/block_standard.md
++  - tests/test_phone_built_pages_231.py
++  - tests/test_phone_fixes_231.py
++  - tests/fixtures/component_registry/baseline.json
++  - tests/fixtures/design_inventory/baseline.json
++  - tests/fixtures/design_inventory/baseline_quick.json
++  - tests/fixtures/design_inventory/baseline_quick_fi.json
++
++protected_override: >
++  docs/design/components.yml: the new shared line class is registered and its rules about where a
++  dot may sit are removed with the dot. Approved in chat, 16 Nov 2026.
++
++impact_map: >
++  writers: none; page templates, one build-step module (wholeWords.mjs, runs in middleware.ts over
++  every page's body text), one client script (dotEdges.mjs, deleted), the stylesheet, label
++  strings, the component registry. No dbt model, no export script.
++  downstream: site_v2/dist only. leaf: consumption layer, no computation added or changed.
++  layer_rules: not applicable; no computation.
++  deploy_order: none; deploy:site-v2 is manual.
++  blast_radius: every rendered middle dot on every page and language becomes a unit gap, a second
++  line or a comma; registry rule text and block_standard.md are regenerated; pins only go down.
++
++acceptance_criteria:
++  - On the built pages (Home, Matches, a competition overview, Bayern München, a played match, a player page) at 375px and 1280px in EN, DE and FI, no rendered text contains "·".
++  - Every dot that separated facts is now one shared line class; each fact is one unbreakable unit, the gap is 12px, nothing else is added.
++  - Every name-plus-qualifier place shows the name on line 1 and the qualifier on line 2 in the row's existing muted secondary style.
++  - Every dot inside wording is ", " in EN, DE and FI.
++  - No page scrolls sideways at 375px or 1280px and nothing is clipped.
++  - No pin baseline (component registry, design inventory) rises.
++
++approved_design:
++  - home: #127
++  - competitions: #128
++  - competition: #129
++  - matches: #130
++  - match: #132
++  - teams: #133
++  - team: #134
++  - players: #135
++  - player: #136
++
++depends_on:
++  - none: the work is on main alone
++
++shared_files:
++  - tests/fixtures/component_registry/baseline.json
++  - tests/fixtures/design_inventory/baseline.json
++  - tests/fixtures/design_inventory/baseline_quick.json
++  - tests/fixtures/design_inventory/baseline_quick_fi.json
++
++decisions_taken: >
++  The three-job rule above, approved in chat 16 Nov 2026 on #243. A place that fits none of the
++  three is left and reported.
++
++decisions_reserved:
++  - none: the rule is approved; questions go to the coordinating session.
++
++done_when:
++  - python scripts/ci_local.py --mr is green.
++  - Full pytest and the site's node tests pass.
++  - Built pages at 375 and 1280, EN DE FI, show zero "·" and no overflow.
++
++amendments: (none)
+diff --git a/docs/design/components.yml b/docs/design/components.yml
+index 4996964b..ba5b6b03 100644
+--- a/docs/design/components.yml
++++ b/docs/design/components.yml
+@@ -117,6 +117,13 @@ components:
+       far-level: {class: far}
+     wide: "levels separated by ›, the current page last"
+     narrow: {below: w700, form: "one line that scrolls sideways, the far levels hidden; a trail of two levels keeps Home"}
++  facts-line:
++    name: Facts line
++    file: [site_v2/src/styles/system.css, site_v2/src/components/team/TeamHeader.astro, site_v2/src/components/player/PlayerHeader.astro, site_v2/src/components/competition/CompetitionHeader.astro, site_v2/src/components/fixture/Masthead.astro]
++    used-on: [Team, Player, Competition, Match, every page footer, result rows, player rows]
++    parts:
++      line: {class: facts-line, selector: ".facts-line", element: Facts line, rule: "the facts of one line. Each fact is one unbreakable unit. The units sit in one wrapping line with a 12px gap and no glyph. On a narrow screen a whole unit moves to the next line. A unit wider than the line takes a line of its own and breaks between words", measured: fits, ruled-on: "the separator rule"}
++    wide: "all facts on one line"
+   page-heading:
+     name: Page heading
+     file: ["site_v2/src/pages/[lang]/[competitions]/index.astro", "site_v2/src/pages/[lang]/[teams]/index.astro", site_v2/src/components/matches/MatchesDay.astro, "site_v2/src/pages/[lang]/[players]/index.astro", "site_v2/src/pages/[lang]/[players]/[nation].astro"]
+@@ -160,7 +167,7 @@ components:
+     file: [site_v2/src/components/home/HeroFixtures.astro, site_v2/src/components/fixture/NextMatches.astro, site_v2/src/components/team/TeamFixtureGroup.astro, site_v2/src/components/competition/RankingsBlock.astro, site_v2/src/components/teams/TeamIndex.astro, site_v2/src/components/player/PlayerIndex.astro]
+     used-on: [Home, Matches, Competition pages, Team page, Teams page, match page, Players]
+     parts:
+-      head: {class: gh, selector: ".fxgroup:not(.rkgroup) > .gh", element: Competition group head, rule: "the level-1 heading over a competition's match rows: crest · name · chevron, 17px bold, a 2px line under it, 34px above the group; on Home, inside the Next matches block, it keeps its line", measured: "border-bottom-width=2px; left-edge=section", ruled-on: "#50; #129; 2026-09-17 (\"Home with line\")"}
++      head: {class: gh, selector: ".fxgroup:not(.rkgroup) > .gh", element: Competition group head, rule: "the level-1 heading over a competition's match rows: crest / name / chevron, 17px bold, a 2px line under it, 34px above the group; on Home, inside the Next matches block, it keeps its line", measured: "border-bottom-width=2px; left-edge=section", ruled-on: "#50; #129; 2026-09-17 (\"Home with line\")"}
+       name: {class: nm, selector: ".fxgroup:not(.rkgroup) > .gh .nm", text: 17-700-ink, element: Competition group name, rule: 17px bold ink, measured: "font-size=17px; font-weight=700; color=ink", ruled-on: "#50"}
+       count: {class: cnt, selector: ".fxgroup > .gh .cnt", text: 13-600-muted, element: Group count, rule: "the team count at the right of a group head: 13px semi-bold muted", measured: "font-size=13px; font-weight=600; color=muted", ruled-on: the Teams page review}
+       spacing: {class: fxgroup, selector: ".fxgroup + .fxgroup", element: Group spacing, rule: "34px from one group's last row to the next group's heading", measured: "gap(prev)=34px", ruled-on: "#50"}
+@@ -168,7 +175,7 @@ components:
+       metric-name: {class: nm, selector: ".rkgroup > .gh .nm", text: 17-700-ink, element: Metric group name, rule: "17px bold ink, a clear step over the 14px board names", measured: "font-size=17px; font-weight=700; color=ink", ruled-on: "#129 Rankings"}
+       date: {class: dh, selector: ".fxgroup .dh", text: 12-700-muted-caps, element: Date heading, rule: "the date once per day, over its rows: 12px bold capitals, muted", measured: "font-size=12px; font-weight=700; text-transform=uppercase; color=muted", ruled-on: "#127 (2026-09-14); #50"}
+       logo: {class: clogo, gap: mock-css}
+-    wide: "group head (crest · name · chevron · count) over its rows"
++    wide: "group head (crest / name / chevron / count) over its rows"
+   match-row:
+     name: Match row
+     file: site_v2/src/components/ui/MatchRow.astro
+@@ -300,10 +307,10 @@ components:
+     used-on: [match page, Team page, Player page]
+     parts:
+       chip: {class: pill, selector: ".resrow .pill", text: 12-700-pill-ink, element: Result chip, rule: "one match's W, D or L from a team's side, in the page's language, on the result colour", measured: "font-size=12px; font-weight=700; color=pill-ink", ruled-on: the match page review}
+-      row: {class: resrow, element: Result row, rule: "result chip · score · opponent (crest, name, home or away) · competition · date on one line where every row of its list fits; otherwise two lines: the first chip · score · crest · opponent, the second home or away · competition · date. A middle dot travels with the item after it", measured: fits, ruled-on: "the match page review; the phone review"}
++      row: {class: resrow, element: Result row, rule: "result chip / score / opponent (crest, name, home or away) / competition / date on one line where every row of its list fits; otherwise two lines: the first chip / score / crest / opponent, the second home or away / competition / date", measured: fits, ruled-on: "the match page review; the phone review"}
+       score: {class: rscore, selector: ".resrow .rscore", text: 15-700-ink, element: Result row score, rule: "the score from the row's side, 15px bold ink", measured: "font-size=15px; font-weight=700; color=ink", ruled-on: the match page review}
+       name: {class: ropp, selector: ".resrow .ropp", text: 15-400-ink, element: Result row name, rule: "the club, 15px ink, wrapping, never cut off", measured: "font-size=15px; color=ink; white-space=normal", ruled-on: the match page review}
+-      meta: {class: rmeta, selector: ".resrow:not(.goal) .rmeta", text: 12-400-muted, element: Result row meta, rule: "the competition's name and the date, after home or away when a result row takes two lines, 12px muted; the name wraps between words, the date never splits", measured: "font-size=12px; color=muted", ruled-on: "the match page review; the component registry"}
++      meta: {class: rmeta, selector: ".resrow:not(.goal) .rmeta", text: 12-400-muted, element: Result row meta, rule: "the competition's name and the date, after home or away when a result row takes two lines, 12px muted; each fact is one unit of a facts line", measured: "font-size=12px; color=muted", ruled-on: "the match page review; the component registry"}
+       meeting: {class: meet, selector: ".resrow.meet", element: Meeting row, rule: "a meeting of the two teams: the result row without its chip. The score is in the match's order, the home side first, the date with its year", measured: fits, ruled-on: the match page review}
+       goal: {class: goal, selector: ".resrow.goal", element: Goal row, rule: "a goal: the score after it, then the scorer with the crest of the side it counts for. The second line holds the minute with the assist, own goal or penalty. Without minutes the row has no score", measured: fits, ruled-on: the played match page review}
+       goal-meta: {class: rmeta, selector: ".resrow.goal .rmeta", text: 14-400-ink-2, element: Goal row meta, rule: "the goal's minute and its assist, own goal or penalty: 14px ink-2, larger and lighter than a list row's second line", measured: "font-size=14px; color=ink-2", ruled-on: the played match page review}
+@@ -314,7 +321,7 @@ components:
+       home-away: {class: ha, selector: ".resrow .ha", text: 11-600-muted, breaks: never}
+       home-away-line: {class: rha, selector: ".resrow .rha", text: 12-400-muted, breaks: never, element: Result row home or away line, rule: "home or away opening the second line in the two-line form, 12px muted, never split", measured: "font-size=12px; color=muted", ruled-on: the phone review}
+       scorer: {class: scorer}
+-    wide: "chip · score · opponent · competition · date on one line where every row of its list fits"
++    wide: "chip / score / opponent / competition / date on one line where every row of its list fits"
+     narrow: {below: w420, form: "two lines: a meeting or goal row below 420px, a result row where its list does not fit"}
+     short-forms: [wins, draws, losses, minutes]
+   form:
+@@ -333,12 +340,12 @@ components:
+     file: [site_v2/src/components/fixture/PlayerRow.astro, site_v2/src/components/fixture/MatchLineups.astro, site_v2/src/components/team/TeamSquad.astro, site_v2/src/components/player/PlayerIndexRow.astro]
+     used-on: [match page, Team page, Players, nation page]
+     parts:
+-      row: {class: plrow, element: Player row, rule: "photo · name over position · goals and assists on the right at every width; two lines below 375px when the row is short of room; under 280px the name takes the whole line and the position shares the second line with the numbers; on a line-up, the minutes played", measured: fits, ruled-on: "the match page review; the component registry"}
++      row: {class: plrow, element: Player row, rule: "photo / name over position / goals and assists on the right at every width; two lines below 375px when the row is short of room; under 280px the name takes the whole line and the position shares the second line with the numbers; on a line-up, the minutes played", measured: fits, ruled-on: "the match page review; the component registry"}
+       name: {class: nm, selector: ".plrow .pname .nm", text: 15-400-ink, element: Player row name, rule: "15px regular ink, wrapping, never cut off", measured: "font-size=15px; font-weight=400; color=ink; white-space=normal", ruled-on: the match page review}
+-      position: {class: ps, selector: ".plrow .pname .ps", text: 12-400-muted, element: Player row position, rule: "12px muted. On a line-up the substitution follows after a middle dot. It is the minute a starter went off, or a substitute came on and for whom", measured: "font-size=12px; color=muted", ruled-on: the match page review}
++      position: {class: ps, selector: ".plrow .pname .ps", text: 12-400-muted, element: Player row position, rule: "12px muted. On a line-up the substitution follows as a unit in the same line. It is the minute a starter went off, or a substitute came on and for whom", measured: "font-size=12px; color=muted", ruled-on: the match page review}
+       number: {class: pstat, selector: ".plrow .pstat b", text: 15-700-ink, element: Player row number, rule: 15px bold ink, measured: "font-size=15px; font-weight=700; color=ink", ruled-on: the match page review}
+       photo: {class: pphoto, gap: mock-css}
+-    wide: "photo · name over position · numbers at the right"
++    wide: "photo / name over position / numbers at the right"
+     narrow: {below: w280, form: "the name across the row, the position and the numbers on the second line"}
+     short-forms: [minutes]
+   split:
+@@ -346,7 +353,7 @@ components:
+     file: [site_v2/src/components/fixture/SplitSection.astro, site_v2/src/components/fixture/MatchLineups.astro]
+     used-on: [match page]
+     parts:
+-      column-head: {class: colhead, selector: ".rcol .colhead", text: 13-700-muted, element: Column head, rule: "a list column's name, 13px bold muted; one fact may follow after a middle dot (a team's formation); a second head inside the column opens its second list", measured: "font-size=13px; font-weight=700; color=muted", ruled-on: the played match page review}
++      column-head: {class: colhead, selector: ".rcol .colhead", text: 13-700-muted, element: Column head, rule: "a list column's name, 13px bold muted; one fact may follow on a second muted line (a team's formation); a second head inside the column opens its second list", measured: "font-size=13px; font-weight=700; color=muted", ruled-on: the played match page review}
+       columns: {class: rsplit}
+       sheets: {class: sheets}
+       "off": {class: "off"}
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index 99aef194..3ae2274d 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -69,6 +69,7 @@
+ | Breadcrumb current page | `.crumb .here` | the page you are on differs from the links at rest; the shipped site has the current page `ink-2` and the links muted, #52's mock had the two inverted | `color=ink-2` | proposed | put to the CPO on the #153 MR; measured, never fails, until ruled |
+ | Breadcrumb separator | `.sep` | the breadcrumb's separator, in the 13-400-muted text style, never broken | `font-size=13px; font-weight=400; color=muted; one-line; fits` | ruled | the component registry |
+ | Breadcrumb parts | `.lvl, .far` | the breadcrumb's other parts: registered, no text of their own |  | ruled | the component registry |
++| Facts line | `.facts-line` | the facts of one line. Each fact is one unbreakable unit. The units sit in one wrapping line with a 12px gap and no glyph. On a narrow screen a whole unit moves to the next line. A unit wider than the line takes a line of its own and breaks between words | `fits` | ruled | the separator rule |
+ | Page heading | `.crumb + h1` | a menu page's heading under its breadcrumb, the menu item's word: the Competitions page's and the Matches page's, 30px bold ink | `font-size=30px; font-weight=700; color=ink` | ruled | #130 (the Competitions page's heading, as it ships) |
+ | Entity header parts | `.thead, .tid` | the entity header's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Tab bar | `nav.tabs` | the tabs share the row and fit in one row at 375px in EN, DE and FI, no sideways scrolling | `fits` | ruled | #129 header |
+@@ -79,7 +80,7 @@
+ | Block heading gap | `.sechead` | one distance from the block name's rule to the block's first line: 14px, nothing added by the content — a date heading, a fact row, a group or a table opening the block carries no space of its own; the name starts at the block's left edge | `gap(next)=14px; left-edge=section` | ruled | #129 binding rules; #127 correction 3 |
+ | Block explainer | `.bsub` | the one sentence under a block name, 13px muted | `font-size=13px; color=muted` | ruled | #129 Deserved points |
+ | Tab explainer | `.bsub.tab-intro` | a tab's opening sentence under the tab bar, in the block explainer's style: 13px muted | `font-size=13px; color=muted` | ruled | the Team page review |
+-| Competition group head | `.fxgroup:not(.rkgroup) > .gh` | the level-1 heading over a competition's match rows: crest · name · chevron, 17px bold, a 2px line under it, 34px above the group; on Home, inside the Next matches block, it keeps its line | `border-bottom-width=2px; left-edge=section` | ruled | #50; #129; 2026-09-17 ("Home with line") |
++| Competition group head | `.fxgroup:not(.rkgroup) > .gh` | the level-1 heading over a competition's match rows: crest / name / chevron, 17px bold, a 2px line under it, 34px above the group; on Home, inside the Next matches block, it keeps its line | `border-bottom-width=2px; left-edge=section` | ruled | #50; #129; 2026-09-17 ("Home with line") |
+ | Competition group name | `.fxgroup:not(.rkgroup) > .gh .nm` | 17px bold ink | `font-size=17px; font-weight=700; color=ink` | ruled | #50 |
+ | Group count | `.fxgroup > .gh .cnt` | the team count at the right of a group head: 13px semi-bold muted | `font-size=13px; font-weight=600; color=muted` | ruled | the Teams page review |
+ | Group spacing | `.fxgroup + .fxgroup` | 34px from one group's last row to the next group's heading | `gap(prev)=34px` | ruled | #50 |
+@@ -129,10 +130,10 @@
+ | Match header parts | `.vh, .played` | the match header's other parts: registered, no text of their own |  | ruled | the component registry |
+ | List row | `.lrow` | one row of a list, a line between rows, nothing cut off. Its name is 15px, its second line 12px muted, its numbers 15px bold | `fits` | ruled | the match page review |
+ | Result chip | `.resrow .pill` | one match's W, D or L from a team's side, in the page's language, on the result colour | `font-size=12px; font-weight=700; color=pill-ink` | ruled | the match page review |
+-| Result row | `.resrow` | result chip · score · opponent (crest, name, home or away) · competition · date on one line where every row of its list fits; otherwise two lines: the first chip · score · crest · opponent, the second home or away · competition · date. A middle dot travels with the item after it | `fits` | ruled | the match page review; the phone review |
++| Result row | `.resrow` | result chip / score / opponent (crest, name, home or away) / competition / date on one line where every row of its list fits; otherwise two lines: the first chip / score / crest / opponent, the second home or away / competition / date | `fits` | ruled | the match page review; the phone review |
+ | Result row score | `.resrow .rscore` | the score from the row's side, 15px bold ink | `font-size=15px; font-weight=700; color=ink` | ruled | the match page review |
+ | Result row name | `.resrow .ropp` | the club, 15px ink, wrapping, never cut off | `font-size=15px; color=ink; white-space=normal` | ruled | the match page review |
+-| Result row meta | `.resrow:not(.goal) .rmeta` | the competition's name and the date, after home or away when a result row takes two lines, 12px muted; the name wraps between words, the date never splits | `font-size=12px; color=muted` | ruled | the match page review; the component registry |
++| Result row meta | `.resrow:not(.goal) .rmeta` | the competition's name and the date, after home or away when a result row takes two lines, 12px muted; each fact is one unit of a facts line | `font-size=12px; color=muted` | ruled | the match page review; the component registry |
+ | Meeting row | `.resrow.meet` | a meeting of the two teams: the result row without its chip. The score is in the match's order, the home side first, the date with its year | `fits` | ruled | the match page review |
+ | Goal row | `.resrow.goal` | a goal: the score after it, then the scorer with the crest of the side it counts for. The second line holds the minute with the assist, own goal or penalty. Without minutes the row has no score | `fits` | ruled | the played match page review |
+ | Goal row meta | `.resrow.goal .rmeta` | the goal's minute and its assist, own goal or penalty: 14px ink-2, larger and lighter than a list row's second line | `font-size=14px; color=ink-2` | ruled | the played match page review |
+@@ -140,11 +141,11 @@
+ | Result row home or away line | `.resrow .rha` | home or away opening the second line in the two-line form, 12px muted, never split | `font-size=12px; color=muted` | ruled | the phone review |
+ | Result row parts | `.rlist, .rlist.pm, .rm-c, .rm-p, .scorer` | the result row's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Form parts | `.W, .D, .L` | the form's other parts: registered, no text of their own |  | ruled | the component registry |
+-| Player row | `.plrow` | photo · name over position · goals and assists on the right at every width; two lines below 375px when the row is short of room; under 280px the name takes the whole line and the position shares the second line with the numbers; on a line-up, the minutes played | `fits` | ruled | the match page review; the component registry |
++| Player row | `.plrow` | photo / name over position / goals and assists on the right at every width; two lines below 375px when the row is short of room; under 280px the name takes the whole line and the position shares the second line with the numbers; on a line-up, the minutes played | `fits` | ruled | the match page review; the component registry |
+ | Player row name | `.plrow .pname .nm` | 15px regular ink, wrapping, never cut off | `font-size=15px; font-weight=400; color=ink; white-space=normal` | ruled | the match page review |
+-| Player row position | `.plrow .pname .ps` | 12px muted. On a line-up the substitution follows after a middle dot. It is the minute a starter went off, or a substitute came on and for whom | `font-size=12px; color=muted` | ruled | the match page review |
++| Player row position | `.plrow .pname .ps` | 12px muted. On a line-up the substitution follows as a unit in the same line. It is the minute a starter went off, or a substitute came on and for whom | `font-size=12px; color=muted` | ruled | the match page review |
+ | Player row number | `.plrow .pstat b` | 15px bold ink | `font-size=15px; font-weight=700; color=ink` | ruled | the match page review |
+-| Column head | `.rcol .colhead` | a list column's name, 13px bold muted; one fact may follow after a middle dot (a team's formation); a second head inside the column opens its second list | `font-size=13px; font-weight=700; color=muted` | ruled | the played match page review |
++| Column head | `.rcol .colhead` | a list column's name, 13px bold muted; one fact may follow on a second muted line (a team's formation); a second head inside the column opens its second list | `font-size=13px; font-weight=700; color=muted` | ruled | the played match page review |
+ | Two columns parts | `.rsplit, .sheets, .off` | the two columns's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Competition row | `.lrow.tc` | one competition of a team's season: crest, name and a muted note, with the standing or the cup's outcome on the right. A table's row adds the W, D and L counts, goals and points below. Narrow, the standing opens the second line | `fits` | ruled | the Team page review |
+ | Competition row name | `.tc .tc-name` | 15px semi-bold ink; the note after it 12px muted | `font-size=15px; font-weight=600; color=ink` | ruled | the Team page review |
+@@ -214,9 +215,8 @@ Not measured, still the rule: a team's crest in the match header is 52px, and ev
+ 
+ ## Separators
+ 
+-A middle dot with a space either side separates items of one line. A separator dot never ends or
+-starts a line. It travels with the item after it and disappears when that item moves to its own
+-line. Items in their own columns are separated by space. An en dash joins a score and stands for a missing value. The em dash is not
++No glyph separates items of one line. Each item is one unbreakable unit, and the units sit in one
++wrapping line with a 12px gap. Items in their own columns are separated by space. An en dash joins a score and stands for a missing value. The em dash is not
+ used.
+ 
+ ## Tap areas
+diff --git a/site_v2/src/components/chrome/SiteFooter.astro b/site_v2/src/components/chrome/SiteFooter.astro
+index bec78e80..40671b11 100644
+--- a/site_v2/src/components/chrome/SiteFooter.astro
++++ b/site_v2/src/components/chrome/SiteFooter.astro
+@@ -6,9 +6,11 @@
+ // The link row repeats the menu (lib/menu.ts), each item a link exactly when the menu's is, then
+ // About, inert until its page exists. The Imprint
+ // slot stays labelled pending: publication is blocked on the operator/address
+-// question (#799), a reserved product call, not resolved here. "EN · DE · FI" is
++// question (#799), a reserved product call, not resolved here. "EN / DE / FI" is
+ // locale-invariant literal text (language codes, not translated copy).
+ import { t } from "../../i18n/strings";
++
++const LOCALE_CODES = ["EN", "DE", "FI"];
+ import { localeHref } from "../../lib/href";
+ import { menuItems } from "../../lib/menu";
+ import type { Lang } from "../../lib/format";
+@@ -35,6 +37,6 @@ const flinks: { label: string; href?: string }[] = [...menuItems(lang), { label:
+       {flinks.map((item) => item.href ? <a href={item.href}>{item.label}</a> : <span>{item.label}</span>)}
+       <span class="imp">{t(lang, "footerImprintPending")}</span>
+     </div>
+-    <div class="fmeta">EN · DE · FI &nbsp;·&nbsp; {t(lang, "footerDataSource")}</div>
++    <div class="fmeta facts-line">{[...LOCALE_CODES, t(lang, "footerDataSource")].map((s) => <span>{s}</span>)}</div>
+   </div>
+ </footer>
+diff --git a/site_v2/src/components/competition/CompetitionHeader.astro b/site_v2/src/components/competition/CompetitionHeader.astro
+index c58cbdb2..8a43e10e 100644
+--- a/site_v2/src/components/competition/CompetitionHeader.astro
++++ b/site_v2/src/components/competition/CompetitionHeader.astro
+@@ -1,5 +1,5 @@
+ ---
+-// The competition page's header: crest, name, and the meta line region · season · round. Every
++// The competition page's header: crest, name, and the meta line region / season / round. Every
+ // value is a served field; the region label falls back to its English form until every region
+ // has a copy key, and the round is the competition's current round, named the way the
+ // competition names it.
+@@ -35,6 +35,6 @@ const meta = [
+   <Crest name={name} crest={crest} />
+   <div class="tid">
+     <h1>{name}</h1>
+-    {meta.length > 0 && <div class="meta">{meta.join(" · ")}</div>}
++    {meta.length > 0 && <div class="meta facts-line">{meta.map((m) => <span>{m}</span>)}</div>}
+   </div>
+ </header>
+diff --git a/site_v2/src/components/competition/CompetitionTabs.astro b/site_v2/src/components/competition/CompetitionTabs.astro
+index 93a8ee98..af988031 100644
+--- a/site_v2/src/components/competition/CompetitionTabs.astro
++++ b/site_v2/src/components/competition/CompetitionTabs.astro
+@@ -1,5 +1,5 @@
+ ---
+-// The competition page's tab bar: Overview · Matchdays · Rankings. Each tab is a standalone page
++// The competition page's tab bar: Overview / Matchdays / Rankings. Each tab is a standalone page
+ // with this same bar; the tab of the page you are on is lit, a built sibling is a link, and a tab
+ // whose page is not built (or not emitted for this competition) renders as a label without a link,
+ // because the build refuses a link to a page it did not emit. A cup or tournament reads "Rounds"
+diff --git a/site_v2/src/components/competition/RankingBoard.astro b/site_v2/src/components/competition/RankingBoard.astro
+index 0d3d4e2f..9b6a2d78 100644
+--- a/site_v2/src/components/competition/RankingBoard.astro
++++ b/site_v2/src/components/competition/RankingBoard.astro
+@@ -1,7 +1,7 @@
+ ---
+ // One board of the competition page's Rankings tab (GitLab #129 board rules; #151 builds it): a
+ // single-value table in the block standard's `.ctab.rkt` shape — the board's name in the head
+-// row, then up to five rows of rank · crest · name · value. Everything shown is served: the dense
++// row, then up to five rows of rank / crest / name / value. Everything shown is served: the dense
+ // rank as the warehouse ranks it (equal values share a rank), the value in the catalogue's format,
+ // the club under a player's name. The row is the link, to the team or the player page. The board
+ // does not say which way it ranks: a board named "Goals against per match" showing 0.5 at rank 1
+diff --git a/site_v2/src/components/competition/SeasonFacts.astro b/site_v2/src/components/competition/SeasonFacts.astro
+index e5adaf25..be1e244c 100644
+--- a/site_v2/src/components/competition/SeasonFacts.astro
++++ b/site_v2/src/components/competition/SeasonFacts.astro
+@@ -1,6 +1,6 @@
+ ---
+ // The season in numbers: one fact row per served fact (mart_competition_season_summary). A fact
+-// row is label · value · context; wide screens put the value and its context on the right, a
++// row is label / value / context; wide screens put the value and its context on the right, a
+ // phone stacks them. A null served value is no row. Every row leads to the leaderboard behind its
+ // number, and none of those pages exists yet, so no row is a link: within one block every row is
+ // a link or none is. Names, rounds and dates never break inside themselves. A score reads
+diff --git a/site_v2/src/components/competition/StandingsTable.astro b/site_v2/src/components/competition/StandingsTable.astro
+index 71c3a72f..30132503 100644
+--- a/site_v2/src/components/competition/StandingsTable.astro
++++ b/site_v2/src/components/competition/StandingsTable.astro
+@@ -1,6 +1,6 @@
+ ---
+ // The competition's table: one grid per standings section, every value the provider's official
+-// row as published (mart_standings). Columns # · crest · club · P · W · D · L · Goals · GD · Pts;
++// row as published (mart_standings). Columns # / crest / club / P / W / D / L / Goals / GD / Pts;
+ // the whole row is the link to the team page. The heading and the rows share one fixed track
+ // list per breakpoint, so a heading can never sit off its numbers; W, D, L and Goals hide on a
+ // narrow phone. The provider's cross-group ranking tables are not sections here.
+diff --git a/site_v2/src/components/fixture/HeadToHead.astro b/site_v2/src/components/fixture/HeadToHead.astro
+index 75827f8c..b80e1d3f 100644
+--- a/site_v2/src/components/fixture/HeadToHead.astro
++++ b/site_v2/src/components/fixture/HeadToHead.astro
+@@ -1,6 +1,6 @@
+ ---
+ // Head to head: the served intro, then the last meetings as the result row without its chip (the chip
+-// would take one side): the score in the match's order, the side that was at home first, competition ·
++// would take one side): the score in the match's order, the side that was at home first, competition /
+ // date with its year. "No meetings on record." when the warehouse holds none. A meeting links to
+ // its match's page when this build makes one.
+ import SectionHead from "../ui/SectionHead.astro";
+@@ -51,9 +51,9 @@ const rows = meetings.map((m) => {
+             {" – "}
+             <span class="club"><Crest name={r.second.name} crest={r.second.crest} size="xs" /><span class="cn">{r.second.name}</span></span>
+           </span>
+-          <span class="rmeta">
+-            {r.comp && <>{r.comp}&nbsp;· </>}
+-            <span class="nb">{r.date}</span>
++          <span class="rmeta facts-line">
++            {r.comp && <span>{r.comp}</span>}
++            <span>{r.date}</span>
+           </span>
+         </div>
+       </Row>
+diff --git a/site_v2/src/components/fixture/Masthead.astro b/site_v2/src/components/fixture/Masthead.astro
+index c6516816..195d133c 100644
+--- a/site_v2/src/components/fixture/Masthead.astro
++++ b/site_v2/src/components/fixture/Masthead.astro
+@@ -1,6 +1,6 @@
+ ---
+-// The match header: the competition's group head (a heading link), the kick-off line (round · date ·
+-// time UTC · venue, each unit whole when the line wraps), and the two teams, each one link to its team
++// The match header: the competition's group head (a heading link), the kick-off line (round / date /
++// time UTC / venue, each unit whole when the line wraps), and the two teams, each one link to its team
+ // page when that page is built, with the standing chip only on the next match and when the table
+ // position is served: today's table is not the position going into a match further out.
+ // A played match shows its status word, the final score where "vs" stands with the winner by weight,
+@@ -86,14 +86,9 @@ const sides: { side: Side; href?: string }[] = [
+   </div>
+   <h1 class="vh">{title}</h1>
+   <div class="eyebrow">{eyebrow}</div>
+-  <div class="kick">
+-    {kick.map((unit, i) => (
+-      <>
+-        {i > 0 && " · "}
+-        <span class="nb">{unit}</span>
+-      </>
+-    ))}
+-    {venue && <>{kick.length > 0 && " · "}{venue}</>}
++  <div class="kick facts-line">
++    {kick.map((unit) => <span>{unit}</span>)}
++    {venue && <span>{venue}</span>}
+   </div>
+   <div class:list={["teams", { played: big }]}>
+     {sides.map(({ side, href }, i) => {
+@@ -122,9 +117,9 @@ const sides: { side: Side; href?: string }[] = [
+               </span>
+             </span>
+             {showStanding && st?.league_rank != null && (
+-              <div class="stand num">
+-                <span class="nb">#<b>{st.league_rank}</b></span> ·{" "}
+-                <span class="nb"><b>{st.standing_points}</b> {t(lang, st.standing_points === 1 ? "pointsOne" : "pointsMany")}</span> ·{" "}
++              <div class="stand num facts-line">
++                <span class="nb">#<b>{st.league_rank}</b></span>
++                <span class="nb"><b>{st.standing_points}</b> {t(lang, st.standing_points === 1 ? "pointsOne" : "pointsMany")}</span>
+                 <span class="nb">
+                   {t(lang, "goalDifferenceShort")} <b>{signedInteger(st.standing_goals_diff, lang)}</b>
+                 </span>
+diff --git a/site_v2/src/components/fixture/MatchGoals.astro b/site_v2/src/components/fixture/MatchGoals.astro
+index 6172e92e..e0c8087f 100644
+--- a/site_v2/src/components/fixture/MatchGoals.astro
++++ b/site_v2/src/components/fixture/MatchGoals.astro
+@@ -53,14 +53,7 @@ function detail(g: PlayedGoal): string[] {
+                   <span class="club"><Crest name={side.name} crest={side.crest} size="xs" /><span class="cn">{g.player_name ?? DASH}</span></span>
+                 </span>
+                 {detail(g).length > 0 && (
+-                  <span class="rmeta">
+-                    {detail(g).map((part, i) => (
+-                      <>
+-                        {i > 0 && " · "}
+-                        <span class="nb">{part}</span>
+-                      </>
+-                    ))}
+-                  </span>
++                  <span class="rmeta">{detail(g).join(", ")}</span>
+                 )}
+               </div>
+             </div>
+diff --git a/site_v2/src/components/fixture/MatchLineups.astro b/site_v2/src/components/fixture/MatchLineups.astro
+index 61989ef3..60924780 100644
+--- a/site_v2/src/components/fixture/MatchLineups.astro
++++ b/site_v2/src/components/fixture/MatchLineups.astro
+@@ -1,5 +1,5 @@
+ ---
+-// Line-ups: each team's eleven in the served order under "{team} · {formation}", then
++// Line-ups: each team's eleven in the served order under "{team} / {formation}", then
+ // "Substitutes": the players who came on, in the order they came on. The player row carries the
+ // position with "off 73'" or "on 73' for {player}" on its second line and the minutes on the right.
+ // The two columns sit side by side from 560px, their rows level. Without a line-up the heading says
+@@ -19,13 +19,12 @@ const sides = [fixture.home, fixture.away];
+ const shown = (fixture.lineup_state === "confirmed" || fixture.lineup_state === "researched")
+   && sides.some((s) => s.lineup.length > 0);
+ 
+-const head = (side: PlayedSide) => (side.formation ? `${side.name} · ${side.formation}` : side.name ?? "");
+-function second(p: LineupPlayer): string {
++function second(p: LineupPlayer): string[] {
+   const position = positionLabel(lang, p.position_code);
+   const change = p.is_starter
+     ? p.minute_off != null ? t(lang, "lineupOff", { minute: matchMinute(p.minute_off, p.minute_off_extra) }) : ""
+     : t(lang, "lineupOn", { minute: matchMinute(p.minute_on, p.minute_on_extra), player: p.replaced_player_name ?? DASH });
+-  return [position, change].filter(Boolean).join(" · ");
++  return [position, change].filter(Boolean);
+ }
+ const initials = (name: string | null | undefined) =>
+   (name ?? "").split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase();
+@@ -37,7 +36,7 @@ const initials = (name: string | null | undefined) =>
+     <div class="rsplit sheets">
+       {sides.map((side) => (
+         <div class="rcol">
+-          <div class="colhead">{head(side)}</div>
++          <div class="colhead">{side.name ?? ""}{side.formation && <span class="ps">{side.formation}</span>}</div>
+           {side.lineup.map((p, i) => {
+             return (
+               <>
+@@ -51,7 +50,7 @@ const initials = (name: string | null | undefined) =>
+                     </span>
+                     <span class="pname">
+                       <span class="nm">{p.name ?? DASH}</span>
+-                      <span class="ps">{second(p)}</span>
++                      <span class="ps facts-line">{second(p).map((s) => <span>{s}</span>)}</span>
+                     </span>
+                     <span class="pstat">
+                       {p.minutes != null && <span class="nb"><b>{integer(p.minutes, lang)}</b> {t(lang, "minutesShort")}</span>}
+diff --git a/site_v2/src/components/fixture/MetricRow.astro b/site_v2/src/components/fixture/MetricRow.astro
+index e79737f1..ae6fdf31 100644
+--- a/site_v2/src/components/fixture/MetricRow.astro
++++ b/site_v2/src/components/fixture/MetricRow.astro
+@@ -1,5 +1,5 @@
+ ---
+-// One comparison row: home value · centred label + diverging bar · away value.
++// One comparison row: home value / centred label + diverging bar / away value.
+ // All arithmetic here is DISPLAY (format the served value; bar width = relative
+ // share; green = the served `direction`'s better side) — no metric facts computed.
+ import { formatValue, DASH } from "../../lib/format";
+diff --git a/site_v2/src/components/fixture/PlayerRow.astro b/site_v2/src/components/fixture/PlayerRow.astro
+index 06c0c2c8..54ad9573 100644
+--- a/site_v2/src/components/fixture/PlayerRow.astro
++++ b/site_v2/src/components/fixture/PlayerRow.astro
+@@ -1,5 +1,5 @@
+ ---
+-// One Players to watch row, the player row: photo · name over position · goals and assists (a
++// One Players to watch row, the player row: photo / name over position / goals and assists (a
+ // goalkeeper's saves). A count the warehouse leaves blank shows as a dash. The row links to the
+ // player's page when this build makes one.
+ import { DASH, integer } from "../../lib/format";
+@@ -38,13 +38,13 @@ const Row = slug ? "a" : "div";
+       <span class="nm">{player.player_name}</span>
+       <span class="ps">{positionLabel(lang, player.position_code)}</span>
+     </span>
+-    <span class="pstat">
++    <span class="pstat facts-line">
+       {isGK ? (
+         <span class="nb"><b>{count(player.saves_player)}</b> {word(player.saves_player, "savesOne", "savesMany")}</span>
+       ) : (
+         <>
+-          <span class="nb"><b>{count(player.goals_total)}</b> {word(player.goals_total, "goalsOne", "goalsMany")}</span>{" "}
+-          <span class="nb">· <b>{count(player.goals_assists)}</b> {word(player.goals_assists, "assistsOne", "assistsMany")}</span>
++          <span class="nb"><b>{count(player.goals_total)}</b> {word(player.goals_total, "goalsOne", "goalsMany")}</span>
++          <span class="nb"><b>{count(player.goals_assists)}</b> {word(player.goals_assists, "assistsOne", "assistsMany")}</span>
+         </>
+       )}
+     </span>
+diff --git a/site_v2/src/components/fixture/RecentMatch.astro b/site_v2/src/components/fixture/RecentMatch.astro
+index 84ecd544..ebe8b404 100644
+--- a/site_v2/src/components/fixture/RecentMatch.astro
++++ b/site_v2/src/components/fixture/RecentMatch.astro
+@@ -1,6 +1,6 @@
+ ---
+-// One Recent matches row, the result row: result chip · score from this team's side · opponent (crest,
+-// name, H or A) · competition name · date. The row links to the match's page when this build makes one.
++// One Recent matches row, the result row: result chip / score from this team's side / opponent (crest,
++// name, H or A) / competition name / date. The row links to the match's page when this build makes one.
+ import Crest from "../ui/Crest.astro";
+ import { formatShortDate } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+@@ -32,6 +32,6 @@ const Row = href ? "a" : "div";
+       <span class="club"><Crest name={match.opponent_name} crest={match.opponent_logo_url} size="xs" /><span class="cn">{match.opponent_name}</span></span>
+       {ha && <span class="ha">{ha}</span>}
+     </span>
+-    <span class="rmeta">{ha && <><span class="rha">{ha}</span><span class="rha"> ·&nbsp;</span></>}{comp && <>{comp}{" "}</>}<span class="nb">{comp && <>·&nbsp;</>}{formatShortDate(match.played_kickoff_datetime, lang)}</span></span>
++    <span class="rmeta facts-line">{ha && <span class="rha">{ha}</span>}{comp && <span>{comp}</span>}<span>{formatShortDate(match.played_kickoff_datetime, lang)}</span></span>
+   </div>
+ </Row>
+diff --git a/site_v2/src/components/home/HeroFixtures.astro b/site_v2/src/components/home/HeroFixtures.astro
+index dff624c3..83f5861b 100644
+--- a/site_v2/src/components/home/HeroFixtures.astro
++++ b/site_v2/src/components/home/HeroFixtures.astro
+@@ -1,7 +1,7 @@
+ ---
+ // Next matches, Home's first block: every competition's next matchday, in the order the warehouse
+ // serves (mart_next_matchday.competition_order). Each competition sits under its group head
+-// (crest · name · chevron, the 2px line), then its matches as THE match row: a date heading
++// (crest / name / chevron, the 2px line), then its matches as THE match row: a date heading
+ // wherever the day changes, the kick-off with its zone, the Top match tag on the flagged match.
+ // The first three matches show, the rest sit in the site's fold, so every match is in the HTML and
+ // none needs a script to reach.
+diff --git a/site_v2/src/components/player/PlayerComparison.astro b/site_v2/src/components/player/PlayerComparison.astro
+index cffbc240..a9745573 100644
+--- a/site_v2/src/components/player/PlayerComparison.astro
++++ b/site_v2/src/components/player/PlayerComparison.astro
+@@ -34,7 +34,7 @@ const isGoalkeeper = positionGroup === "GK";
+ const prefix = tab.tab === "club" ? "club" : "national";
+ const selfIn = (group: string | null) => {
+   const text = positionWord(lang, "One", group);
+-  return text ? `${name} · ${text.charAt(0).toLocaleUpperCase(lang)}${text.slice(1)}` : name;
++  return text ? `${name}, ${text.charAt(0).toLocaleUpperCase(lang)}${text.slice(1)}` : name;
+ };
+ const teamName = tab.squad?.team?.name ?? "";
+ 
+diff --git a/site_v2/src/components/player/PlayerHeader.astro b/site_v2/src/components/player/PlayerHeader.astro
+index e5521ec4..f705a626 100644
+--- a/site_v2/src/components/player/PlayerHeader.astro
++++ b/site_v2/src/components/player/PlayerHeader.astro
+@@ -1,7 +1,7 @@
+ ---
+-// The player's header: photo, full name and one line: position · club · nation · age · height ·
+-// season. A missing value drops with its separator, and each item stays whole; the position, which
+-// opens the line, wraps only when it is longer than the line. A midfielder is named by his role.
++// The player's header: photo, full name and one line: position / club / nation / age / height /
++// season. A missing value drops out of the line, and each item stays whole. A midfielder is named
++// by his role.
+ import Crest from "../ui/Crest.astro";
+ import { t } from "../../i18n/strings";
+ import { localeHref, word } from "../../lib/href";
+@@ -33,17 +33,10 @@ const first = position ? position.charAt(0).toLocaleUpperCase(lang) + position.s
+   <Crest name={player.name} crest={player.photo} />
+   <div class="tid">
+     <h1>{player.name}</h1>
+-    <div class="meta">
++    <div class="meta facts-line">
+       {first && <span>{first}</span>}
+-      {club?.name && (
+-        <>
+-          {first && <>&nbsp;· </>}
+-          <b class="nb">{clubHref ? <a class="lnk" href={clubHref}>{club.name}</a> : club.name}</b>
+-        </>
+-      )}
+-      {after.map((item, i) => (
+-        <>{(i > 0 || first || club?.name) && <>&nbsp;· </>}<span class="nb">{item}</span></>
+-      ))}
++      {club?.name && <b>{clubHref ? <a class="lnk" href={clubHref}>{club.name}</a> : club.name}</b>}
++      {after.map((item) => <span>{item}</span>)}
+     </div>
+   </div>
+ </header>
+diff --git a/site_v2/src/components/player/PlayerIndexRow.astro b/site_v2/src/components/player/PlayerIndexRow.astro
+index 5f06d7c8..42adfdad 100644
+--- a/site_v2/src/components/player/PlayerIndexRow.astro
++++ b/site_v2/src/components/player/PlayerIndexRow.astro
+@@ -1,6 +1,6 @@
+ ---
+-// One row of the Players page and a nation page, the player row without numbers: photo · name over
+-// position · club. It links to the player's page when this build makes one. `view`, `slot` and
++// One row of the Players page and a nation page, the player row without numbers: photo / name over
++// position / club. It links to the player's page when this build makes one. `view`, `slot` and
+ // `region` mark the views it shows in, for the stylesheet's position and region filters.
+ import { positionLabel } from "../../i18n/strings";
+ import { builtPlayers } from "../../lib/builtPlayers.mjs";
+@@ -25,7 +25,7 @@ const initials = (player.name ?? "")
+   .toUpperCase();
+ const code = codeOf(player.position_group);
+ const position = player.position_role ?? code;
+-const line = [position ? positionLabel(lang, position) : null, player.club].filter(Boolean).join(" · ");
++const line = [position ? positionLabel(lang, position) : null, player.club].filter(Boolean);
+ const built = builtPlayers().has(player.player_id);
+ const Row = built ? "a" : "div";
+ ---
+@@ -43,7 +43,7 @@ const Row = built ? "a" : "div";
+     </span>
+     <span class="pname">
+       <span class="nm">{player.name}</span>
+-      <span class="ps">{line}</span>
++      <span class="ps facts-line">{line.map((s) => <span>{s}</span>)}</span>
+     </span>
+   </div>
+ </Row>
+diff --git a/site_v2/src/components/player/PlayerRecent.astro b/site_v2/src/components/player/PlayerRecent.astro
+index 885b480b..1839f814 100644
+--- a/site_v2/src/components/player/PlayerRecent.astro
++++ b/site_v2/src/components/player/PlayerRecent.astro
+@@ -55,13 +55,13 @@ const rows = matches.map((m) => ({
+                   {ha(m) && <span class="ha">{ha(m)}</span>}
+                 </span>
+                 <span class="rmeta">
+-                  <span class="rm-c">
+-                    {ha(m) && <><span class="rha">{ha(m)}</span><span class="rha"> ·&nbsp;</span></>}{compName(m) && <><span class="nb">{compName(m)}</span>{" "}</>}<span class="nb">{compName(m) && <>·&nbsp;</>}{formatShortDate(m.played_kickoff_datetime, lang)}</span>
++                  <span class="rm-c facts-line">
++                    {ha(m) && <span class="rha">{ha(m)}</span>}{compName(m) && <span>{compName(m)}</span>}<span>{formatShortDate(m.played_kickoff_datetime, lang)}</span>
+                   </span>
+-                  {(m.on_bench || parts.length > 0) && <span class="rm-p">
++                  {(m.on_bench || parts.length > 0) && <span class="rm-p facts-line">
+                     {m.on_bench
+                       ? <span class="nb">{t(lang, "playerOnBench")}</span>
+-                      : parts.map((p, k) => <>{k > 0 && " · "}<span class="nb"><b>{p.n}</b>{` ${p.word}`}</span></>)}
++                      : parts.map((p) => <span class="nb"><b>{p.n}</b>{` ${p.word}`}</span>)}
+                   </span>}
+                 </span>
+               </div>
+diff --git a/site_v2/src/components/team/TeamCompetitions.astro b/site_v2/src/components/team/TeamCompetitions.astro
+index 24bf6cfb..22cbbf4a 100644
+--- a/site_v2/src/components/team/TeamCompetitions.astro
++++ b/site_v2/src/components/team/TeamCompetitions.astro
+@@ -1,6 +1,6 @@
+ ---
+ // Competitions: one list row per competition of the season, in the served order (domestic first,
+-// league then cup, then international). Line 1: crest · name · a muted note (a league's latest
++// league then cup, then international). Line 1: crest / name / a muted note (a league's latest
+ // round, a cup's round reached, an international league phase); on the right the standing, or a
+ // cup's Through / Knocked out / Winners. Line 2, for a table: the W/D/L counts, then goals and
+ // points. Every value is mart_team_competitions'; the row links to the competition's page.
+@@ -61,7 +61,7 @@ const CHIPS = [
+           <Row class="lrow tc" href={r.info.slug ? localeHref(lang, `${r.info.slug}/`) : undefined}>
+             <div class="tcin">
+               <span class="tc-crest"><Crest name={r.info.name} crest={r.info.crest} size="xs" /></span>
+-              <span class="tc-name">{r.head && `${r.head} `}<span class="nb">{r.last}{r.note && <span class="tc-ctx"> · {r.note}</span>}</span></span>
++              <span class="tc-name">{r.head && `${r.head} `}<span class="nb">{r.last}</span>{r.note && <span class="tc-ctx">{r.note}</span>}</span>
+               {r.right && <span class="tc-right">{r.right}</span>}
+               {r.table && (
+                 <span class="tc-extra">
+@@ -69,9 +69,8 @@ const CHIPS = [
+                   <span class="cchips">
+                     {CHIPS.map((ch) => <span class:list={["cchip", ch.k]}>{integer(r.c[ch.field], lang)} <small>{t(lang, ch.label)}</small></span>)}
+                   </span>
+-                  <span class="tc-nums">
++                  <span class="tc-nums facts-line">
+                     <span class="nb">{t(lang, "goals")}{" "}<b>{integer(r.c.goals_for, lang)}:{integer(r.c.goals_against, lang)}</b></span>
+-                    {" · "}
+                     <span class="nb">{t(lang, "points")}{" "}<b>{integer(r.c.points, lang)}</b></span>
+                   </span>
+                 </span>
+diff --git a/site_v2/src/components/team/TeamFixtureGroup.astro b/site_v2/src/components/team/TeamFixtureGroup.astro
+index 003551b5..b6757259 100644
+--- a/site_v2/src/components/team/TeamFixtureGroup.astro
++++ b/site_v2/src/components/team/TeamFixtureGroup.astro
+@@ -1,6 +1,6 @@
+ ---
+-// One competition's matches of a team, the way Home lists a competition: the group head (crest ·
+-// name · chevron to the competition's page), a date heading wherever the day changes, THE match
++// One competition's matches of a team, the way Home lists a competition: the group head (crest /
++// name / chevron to the competition's page), a date heading wherever the day changes, THE match
+ // row. `nextId` puts the Next tag on that match.
+ import Crest from "../ui/Crest.astro";
+ import Chevron from "../fixture/Chevron.astro";
+diff --git a/site_v2/src/components/team/TeamHeader.astro b/site_v2/src/components/team/TeamHeader.astro
+index 3c040357..1bf06171 100644
+--- a/site_v2/src/components/team/TeamHeader.astro
++++ b/site_v2/src/components/team/TeamHeader.astro
+@@ -1,5 +1,5 @@
+ ---
+-// The team's header: crest, name, and one meta line (country · venue, city · founded · the season
++// The team's header: crest, name, and one meta line (country / venue, city / founded / the season
+ // the page shows). The season's label is the warehouse's, as its competition names it.
+ import Crest from "../ui/Crest.astro";
+ import type { Lang } from "../../lib/format";
+@@ -25,8 +25,8 @@ const parts = [
+   <Crest name={team.name} crest={team.crest} />
+   <div class="tid">
+     <h1>{team.name}</h1>
+-    <div class="meta">
+-      {parts.map((p, i) => <>{i > 0 && " · "}{p.bold && <b>{p.bold}</b>}{p.text}</>)}
++    <div class="meta facts-line">
++      {parts.map((p) => <span>{p.bold && <b>{p.bold}</b>}{p.text}</span>)}
+     </div>
+   </div>
+ </header>
+diff --git a/site_v2/src/components/team/TeamSquad.astro b/site_v2/src/components/team/TeamSquad.astro
+index cf68a4bf..f4b77810 100644
+--- a/site_v2/src/components/team/TeamSquad.astro
++++ b/site_v2/src/components/team/TeamSquad.astro
+@@ -1,7 +1,7 @@
+ ---
+ // Squad: the whole roster of the featured season (mart_roster), by position (goalkeepers,
+ // defenders, midfielders, forwards, other), each player as the match page's player row without
+-// goals or assists: photo · name, then country · age · appearances · minutes per appearance (no
++// goals or assists: photo / name, then country / age / appearances / minutes per appearance (no
+ // minutes without an appearance). The appearances are served: 0 where every finished match carries
+ // player data, otherwise empty, shown "–". Two columns where they fit. A row links to the player's
+ // page when this build makes one.
+@@ -45,7 +45,7 @@ function age(birth: string | null | undefined): number | null {
+ function initials(name: string | null | undefined): string {
+   return (name ?? "").split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase();
+ }
+-function line(m: SquadMember): string {
++function line(m: SquadMember): string[] {
+   const a = age(m.birth_date);
+   const apps = m.appearances == null
+     ? t(lang, "appearanceCount", { n: DASH })
+@@ -53,7 +53,7 @@ function line(m: SquadMember): string {
+   const mins = (m.appearances ?? 0) > 0 && m.minutes_per_appearance != null
+     ? `${decimal0(m.minutes_per_appearance, lang)} ${metricInSentence(lang, MINUTES)}`
+     : null;
+-  return [m.nationality, a === null ? null : String(a), apps, mins].filter(Boolean).join(" · ");
++  return [m.nationality, a === null ? null : String(a), apps, mins].filter((s): s is string => Boolean(s));
+ }
+ 
+ const groups = GROUPS.map((g) => ({
+@@ -78,7 +78,7 @@ const groups = GROUPS.map((g) => ({
+               <Row class="lrow" href={slug ? localeHref(lang, `${word(lang, "players")}/${slug}/`) : undefined}>
+                 <div class="plrow">
+                   <span class="pphoto">{m.photo ? <img src={m.photo} alt="" loading="lazy" width="34" height="34" /> : initials(m.name)}</span>
+-                  <span class="pname"><span class="nm">{m.name}</span><span class="ps">{line(m)}</span></span>
++                  <span class="pname"><span class="nm">{m.name}</span><span class="ps facts-line">{line(m).map((s) => <span>{s}</span>)}</span></span>
+                 </div>
+               </Row>
+             );
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index be064e9b..d0d73149 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -50,7 +50,7 @@ const EN: Dict = {
+   compIn: "in {competition}",
+   compInMasculine: "in {competition}",
+   table: "Table",
+-  aboutNoH2h: "{home} vs {away} · {round}.",
++  aboutNoH2h: "{home} vs {away}, {round}.",
+   posF: "Forward", posM: "Midfielder", posD: "Defender", posG: "Goalkeeper",
+   posDM: "Defensive midfielder", posCM: "Central midfielder", posAM: "Attacking midfielder",
+   // --- team page (Overview) ---
+@@ -187,11 +187,11 @@ const EN: Dict = {
+   homeTopTeams: "Top teams",
+   // ⭐ APPROVED COPY (#41), the second half dictated verbatim in all three locales. Nothing here
+   // is a draft and nothing is awaiting sign-off.
+-  //   · "in the rankings" says WHERE the pick comes from; no draft had it.
+-  //   · "leader" is still deliberately absent: "Player leaders / Team leaders" was turned down as
++  //   - "in the rankings" says WHERE the pick comes from; no draft had it.
++  //   - "leader" is still deliberately absent: "Player leaders / Team leaders" was turned down as
+   //     the block name because "leader" collides with captaincy in football and translates
+   //     awkwardly, and the spec records the objection applying to this sentence too.
+-  //   · The sentence sits above all four boards, so it names no metric.
++  //   - The sentence sits above all four boards, so it names no metric.
+   // ⛔ A comment here once said the opposite — it called the value below a wireframe draft still
+   // awaiting approval while it was the approved wording, and it justified a "Season to date"
+   // wording already rejected. Unapproved copy LOOKING approved and approved copy looking
+@@ -337,16 +337,16 @@ const EN: Dict = {
+   compFactMatchday: "Matchday {n}",
+   roundMatchweek: "Matchweek {n}",
+   roundWeek: "Week {n}",
+-  roundAperturaMatchday: "Apertura · Matchday {n}",
+-  roundClausuraMatchday: "Clausura · Matchday {n}",
+-  roundGroupStageMatchday: "Group stage · Matchday {n}",
+-  roundWcGroupMatchday: "Group stage · Matchday {n}",
+-  roundQualGroupMatchday: "Group stage · Matchday {n}",
+-  roundOcSecondRoundMatchday: "Second round · Matchday {n}",
+-  roundGroupMatchday: "Group {g} · Matchday {n}",
+-  roundLeaguePhaseMatchday: "League phase · Matchday {n}",
+-  roundLeagueStageMatchday: "League Stage · Matchday {n}",
+-  roundNationsLeagueMatchday: "League {g} · Matchday {n}",
++  roundAperturaMatchday: "Apertura, Matchday {n}",
++  roundClausuraMatchday: "Clausura, Matchday {n}",
++  roundGroupStageMatchday: "Group stage, Matchday {n}",
++  roundWcGroupMatchday: "Group stage, Matchday {n}",
++  roundQualGroupMatchday: "Group stage, Matchday {n}",
++  roundOcSecondRoundMatchday: "Second round, Matchday {n}",
++  roundGroupMatchday: "Group {g}, Matchday {n}",
++  roundLeaguePhaseMatchday: "League phase, Matchday {n}",
++  roundLeagueStageMatchday: "League Stage, Matchday {n}",
++  roundNationsLeagueMatchday: "League {g}, Matchday {n}",
+   roundOf32: "Round of 32",
+   roundWcOf32: "Round of 32",
+   roundOf16: "Round of 16",
+@@ -383,8 +383,8 @@ const EN: Dict = {
+   roundFirstRound: "First round",
+   roundSecondRound: "Second round",
+   roundPreliminaryRound: "Preliminary round",
+-  roundPreliminarySemiFinals: "Preliminary round · Semi-finals",
+-  roundPreliminaryFinal: "Preliminary round · Final",
++  roundPreliminarySemiFinals: "Preliminary round, Semi-finals",
++  roundPreliminaryFinal: "Preliminary round, Final",
+   roundSeventhRound: "Seventh round",
+   roundEighthRound: "Eighth round",
+   roundFaQualifying1: "First Round Qualifying",
+@@ -397,14 +397,14 @@ const EN: Dict = {
+   roundFaQualifying4Replay: "Fourth Round Qualifying Replay",
+   roundFaFirstRoundProper: "First Round Proper",
+   roundQualFirstRound: "First round",
+-  roundAsSecondRoundGroupMatchday: "Second round · Group {g} · Matchday {n}",
+-  roundAsThirdRoundMatchday: "Third round · Matchday {n}",
+-  roundAsPlayoffsMatchday: "Play-offs · Matchday {n}",
++  roundAsSecondRoundGroupMatchday: "Second round, Group {g}, Matchday {n}",
++  roundAsThirdRoundMatchday: "Third round, Matchday {n}",
++  roundAsPlayoffsMatchday: "Play-offs, Matchday {n}",
+   roundCaFirstRound: "First Round",
+-  roundCaSecondRoundMatchday: "Second Round · Matchday {n}",
+-  roundCaFinalRoundMatchday: "Final Round · Matchday {n}",
+-  roundVlChampionshipMatchday: "Championship group · Matchday {n}",
+-  roundVlRelegationMatchday: "Relegation group · Matchday {n}",
++  roundCaSecondRoundMatchday: "Second Round, Matchday {n}",
++  roundCaFinalRoundMatchday: "Final Round, Matchday {n}",
++  roundVlChampionshipMatchday: "Championship group, Matchday {n}",
++  roundVlRelegationMatchday: "Relegation group, Matchday {n}",
+   roundVlRelegationPlayoff: "Relegation play-off",
+   playedFullTime: "Full time",
+   playedAfterExtraTime: "After extra time",
+@@ -543,7 +543,7 @@ const DE: Dict = {
+   playersIntro: "Die besten Spieler jeder Mannschaft {in} in dieser Saison, nach Scorerpunkten.",
+   playersIntroPrev: "Die besten Spieler jeder Mannschaft {in} nach Scorerpunkten; vor dem ersten Spiel dort aus der Vorsaison.",
+   table: "Tabelle",
+-  aboutNoH2h: "{home} gegen {away} · {round}.",
++  aboutNoH2h: "{home} gegen {away}, {round}.",
+   posF: "Stürmer", posM: "Mittelfeldspieler", posD: "Verteidiger", posG: "Torhüter",
+   posDM: "Defensiver Mittelfeldspieler", posCM: "Zentraler Mittelfeldspieler", posAM: "Offensiver Mittelfeldspieler",
+   // --- team page (Overview) ---
+@@ -990,7 +990,7 @@ const FI: Dict = {
+   // ⚠ RESIDUAL: this now differs from the EN string only by the full stop after "vs". The audit's
+   // byte-identical check passes, but only just, and passing it is not the same as being localised.
+   // A real Finnish description is copy, so it is the product owner's call (§10), not a quiet fix.
+-  aboutNoH2h: "Ottelu {home} vs {away} · {round}.",
++  aboutNoH2h: "Ottelu {home} vs {away}, {round}.",
+   posF: "Hyökkääjä", posM: "Keskikenttäpelaaja", posD: "Puolustaja", posG: "Maalivahti",
+   posDM: "Puolustava keskikenttäpelaaja", posCM: "Keskikentän keskustan pelaaja", posAM: "Hyökkäävä keskikenttäpelaaja",
+   // --- team page (Overview) ---
+diff --git a/site_v2/src/layouts/Layout.astro b/site_v2/src/layouts/Layout.astro
+index fe841e89..58ac4973 100644
+--- a/site_v2/src/layouts/Layout.astro
++++ b/site_v2/src/layouts/Layout.astro
+@@ -123,7 +123,6 @@ const jsonLd = graph.length ? JSON.stringify({ "@context": "https://schema.org",
+     <SiteFooter lang={lang} />
+     <script>
+       import "../lib/fitBlocks.mjs";
+-      import "../lib/dotEdges.mjs";
+     </script>
+   </body>
+ </html>
+diff --git a/site_v2/src/lib/dotEdges.mjs b/site_v2/src/lib/dotEdges.mjs
+deleted file mode 100644
+index ef7ed9ea..00000000
+--- a/site_v2/src/lib/dotEdges.mjs
++++ /dev/null
+@@ -1,52 +0,0 @@
+-// A separator dot never starts a line. wholeWords.mjs wraps every middle dot between items in a
+-// `[data-dot]` span that holds the dot and the space after it, so the dot never ends a line either. This
+-// script hides a dot whose item moved to its own line: the dot's box sits below the text before it.
+-// The page reads the same without the script, with the dot at the start of the line.
+-
+-/** True when the dot sits on a later line than the text before it. Boxes are [top, bottom]. */
+-export function startsLine(dot, before) {
+-  return before === null || dot[0] >= before[1] - 1;
+-}
+-
+-const BLOCKLESS = new Set(["inline", "inline-block", "contents"]);
+-
+-function start() {
+-  const shown = (el) => el.getClientRects().length > 0;
+-  const container = (dot) => {
+-    let el = dot.parentElement;
+-    while (el.parentElement && BLOCKLESS.has(getComputedStyle(el).display)) el = el.parentElement;
+-    return el;
+-  };
+-  // The last line box of the nearest text before the dot that is on the page.
+-  const before = (dot) => {
+-    const walker = document.createTreeWalker(container(dot), NodeFilter.SHOW_TEXT);
+-    walker.currentNode = dot;
+-    for (let n = walker.previousNode(); n; n = walker.previousNode()) {
+-      if (!n.textContent.trim() || n.parentElement.closest("[data-dot]") || !shown(n.parentElement)) continue;
+-      const range = document.createRange();
+-      range.selectNodeContents(n);
+-      const rects = range.getClientRects();
+-      if (rects.length) {
+-        const last = rects[rects.length - 1];
+-        return [last.top, last.bottom];
+-      }
+-    }
+-    return null;
+-  };
+-  const run = () => {
+-    const dots = [...document.querySelectorAll("[data-dot]")];
+-    dots.forEach((d) => { d.hidden = false; });
+-    for (const d of dots) {
+-      if (!shown(d)) continue;
+-      const rect = d.getClientRects()[0];
+-      if (startsLine([rect.top, rect.bottom], before(d))) d.hidden = true;
+-    }
+-  };
+-  if (!document.querySelector("[data-dot]")) return;
+-  new ResizeObserver(run).observe(document.body);
+-  document.addEventListener("change", run);
+-  document.fonts.ready.then(run);
+-  run();
+-}
+-
+-if (typeof document !== "undefined") start();
+diff --git a/site_v2/src/lib/dotEdges.test.mjs b/site_v2/src/lib/dotEdges.test.mjs
+deleted file mode 100644
+index c3841a2c..00000000
+--- a/site_v2/src/lib/dotEdges.test.mjs
++++ /dev/null
+@@ -1,22 +0,0 @@
+-// Pins when a separator dot is hidden: only when it sits below the text before it, or has no text
+-// before it. The page's dots are wrapped by wholeWords.mjs (its own test).
+-
+-import { test } from "node:test";
+-import assert from "node:assert/strict";
+-import { startsLine } from "./dotEdges.mjs";
+-
+-test("a dot on the same line as the text before it stays", () => {
+-  assert.equal(startsLine([10, 24], [10, 24]), false);
+-});
+-
+-test("a dot on a later line than the text before it is hidden", () => {
+-  assert.equal(startsLine([26, 40], [10, 24]), true);
+-});
+-
+-test("a dot with no text before it is hidden", () => {
+-  assert.equal(startsLine([10, 24], null), true);
+-});
+-
+-test("a dot a pixel lower than its neighbour's baseline still stays", () => {
+-  assert.equal(startsLine([11, 25], [10, 24]), false);
+-});
+diff --git a/site_v2/src/lib/wholeWords.mjs b/site_v2/src/lib/wholeWords.mjs
+index bd495b95..f219d657 100644
+--- a/site_v2/src/lib/wholeWords.mjs
++++ b/site_v2/src/lib/wholeWords.mjs
+@@ -28,24 +28,7 @@ const keep = (text) => {
+   return out;
+ };
+ 
+-// A middle dot between items of one line is a no-break span that holds the dot and the space after it
+-// as one unit, so the dot never ends a line and travels with the item after it. dotEdges.mjs hides
+-// the unit when it starts a line. A break stays possible before it.
+-const SEP = /(^|[  ]|&nbsp;)·(?:[  ]|&nbsp;)*/g;
+-const DOT = '<span class="nb" data-dot>·&nbsp;</span>';
+-const DOT_CLASS = /\sdata-dot[\s>=/]/i;
+-
+-const withDots = (text) => {
+-  let out = "";
+-  let last = 0;
+-  for (const m of text.matchAll(SEP)) {
+-    out += keep(text.slice(last, m.index)) + (m[1] ? " " : "") + DOT;
+-    last = m.index + m[0].length;
+-  }
+-  return out + keep(text.slice(last));
+-};
+-
+-/** The page with every hyphen-joined word of its body text kept whole, and every separator dot a unit. */
++/** The page with every hyphen-joined word of its body text kept whole. */
+ export function keepHyphenWords(html) {
+   const open = html.search(/<body[\s>]/i);
+   if (open < 0) return html;
+@@ -53,27 +36,20 @@ export function keepHyphenWords(html) {
+   let skip = [];
+   // Each open span, and whether it is already a no-break span, whose text needs no second one.
+   const spans = [];
+-  const dots = [];
+   TOKEN.lastIndex = open;
+   for (let m = TOKEN.exec(html); m; m = TOKEN.exec(html)) {
+     const [part, tag] = m;
+     if (!tag) {
+       const plain = !skip.length && part !== "<" && !part.startsWith("<!--");
+-      if (!plain || dots.includes(true)) out += plain && !spans.includes(true) ? keep(part) : part;
+-      else out += spans.includes(true) ? part.replace(SEP, (_, before) => (before ? " " : "") + DOT) : withDots(part);
++      out += plain && !spans.includes(true) ? keep(part) : part;
+       continue;
+     }
+     out += part;
+     const name = tag.toLowerCase();
+     const closing = part.startsWith("</");
+     if (name === "span") {
+-      if (closing) {
+-        spans.pop();
+-        dots.pop();
+-      } else if (!part.endsWith("/>")) {
+-        spans.push(NB.test(part));
+-        dots.push(DOT_CLASS.test(part));
+-      }
++      if (closing) spans.pop();
++      else if (!part.endsWith("/>")) spans.push(NB.test(part));
+     } else if (!closing && RAW.has(name)) {
+       const end = new RegExp(`</${name}`, "gi");
+       end.lastIndex = TOKEN.lastIndex;
+diff --git a/site_v2/src/lib/wholeWords.test.mjs b/site_v2/src/lib/wholeWords.test.mjs
+index 7b0e019a..4859abe7 100644
+--- a/site_v2/src/lib/wholeWords.test.mjs
++++ b/site_v2/src/lib/wholeWords.test.mjs
+@@ -25,15 +25,8 @@ test("only a hyphen between two letters joins a word", () => {
+   assert.equal(keepHyphenWords(html), html);
+ });
+ 
+-test("a middle dot between items is one no-break unit with the space after it", () => {
+-  const out = keepHyphenWords(page("<p>Paris · 2026/27&nbsp;· Cup <b>x</b> · <i>y</i></p>"));
+-  const dot = '<span class="nb" data-dot>·&nbsp;</span>';
+-  assert.equal(bodyOf(out), `<p>Paris ${dot}2026/27 ${dot}Cup <b>x</b> ${dot}<i>y</i></p>`);
+-});
+-
+-test("a dot at the start of an element's text keeps no space before it, and a page is changed once", () => {
+-  const out = keepHyphenWords(page('<span class="nb">·&nbsp;Sun</span>'));
+-  assert.equal(bodyOf(out), '<span class="nb"><span class="nb" data-dot>·&nbsp;</span>Sun</span>');
++test("a page is changed once", () => {
++  const out = keepHyphenWords(page("<p>Al-Nassr</p>"));
+   assert.equal(keepHyphenWords(out), out);
+ });
+ 
+diff --git a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
+index 6daa2425..15ef7cef 100644
+--- a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
++++ b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
+@@ -103,7 +103,7 @@ const title = t(lang, "seoFixtureTitle", {
+ // A played match's description is its status word, its result line and its date, in the page's language.
+ const description = played
+   ? `${playedStatusWord(lang, played.status, played.result.award_kind)}: ${home.name ?? ""} ${scoreLine(
+-      played.result.goals_home, played.result.goals_away)} ${away.name ?? ""} · ${round} · ${formatDayYear(
++      played.result.goals_home, played.result.goals_away)} ${away.name ?? ""}, ${round}, ${formatDayYear(
+       fixture.kickoff, lang)}.`
+   : t(lang, "aboutNoH2h", { home: home.name ?? "", away: away.name ?? "", round });
+ 
+diff --git a/site_v2/src/pages/[lang]/[competition]/index.astro b/site_v2/src/pages/[lang]/[competition]/index.astro
+index 2d6014f6..4cd372a9 100644
+--- a/site_v2/src/pages/[lang]/[competition]/index.astro
++++ b/site_v2/src/pages/[lang]/[competition]/index.astro
+@@ -8,7 +8,7 @@
+ // numbers stay until the next season's first data arrives. A competition with no payload yet
+ // renders its header and tab bar only.
+ //
+-// Blocks, in the approved order: Table · Deserved points table · The season in numbers. Each block
++// Blocks, in the approved order: Table / Deserved points table / The season in numbers. Each block
+ // renders only when its mart served something; a block with nothing to show is absent, never an
+ // empty heading. A tab whose page is not emitted for this competition is an inert label.
+ //
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index b0f310f1..de83bd75 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -8,15 +8,15 @@
+  *  NOT hand-style screens; emit these class names and style here.     *
+  *                                                                    *
+  *  COLOUR = MEANING ONLY (never hierarchy):                          *
+- *    --accent green = better value / Win · --loss red = Loss         *
+- *    --draw gray = Draw · neutrals = everything else. Green is       *
++ *    --accent green = better value / Win / --loss red = Loss         *
++ *    --draw gray = Draw / neutrals = everything else. Green is       *
+  *    RESERVED — links/names/labels never get green.                  *
+  *  HIERARCHY = TONE + WEIGHT + SIZE (never hue). Three rungs:        *
+  *    1 --ink bold    → numbers that matter (values/scores/stats)     *
+  *    2 --ink regular → entity names (players, teams)                 *
+  *    3 --muted       → labels/metadata (metric names, positions,     *
+  *                      dates, section + group headers)               *
+- *  TYPE 11/13/15/18/20 + team-clamp · SPACING 8px base / 36px sec    *
++ *  TYPE 11/13/15/18/20 + team-clamp / SPACING 8px base / 36px sec    *
+  *  Dark is default; light = the token swap below.                    *
+  * ================================================================ */
+ 
+@@ -36,7 +36,7 @@
+ .fx {
+   --page: #0d0f13; --surface: #161920; --sunk: #1c1f27; --line: #272b33; --div: #333844;
+   --ink: #f1f3f7; --ink-2: #c1c6ce; --muted: #8b9099;                 /* cool-neutral gray ramp */
+-  --accent: #3bb072;                 /* one green: better value · links */
++  --accent: #3bb072;                 /* one green: better value / links */
+   --win: #1a854a; --draw: #6b7079; --loss: #b53b3b; --pill-ink: #fff; /* reserved status */
+   --track: #22262e;                                                   /* faint bar track */
+   --sp: 8px;
+@@ -89,7 +89,7 @@ section { margin-top: 36px; }
+ /* ---- masthead ---- */
+ .mast { text-align: center; padding: 14px 0 26px; border-bottom: 1px solid var(--line); }
+ .mast .eyebrow { margin-top: 14px; }
+-.mast .kick { font-size: 13px; color: var(--muted); margin-top: 8px; }
++.mast .kick { font-size: 13px; color: var(--muted); margin-top: 8px; --facts-justify: center; }
+ .mast .kick b { color: var(--ink-2); font-weight: 600; }
+ .teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: clamp(8px, 3cqw, 20px); margin-top: 20px; }
+ .team { display: flex; flex-direction: column; align-items: center; gap: 12px; min-width: 0; }
+@@ -97,7 +97,7 @@ section { margin-top: 36px; }
+ .crest img { width: 100%; height: 100%; object-fit: contain; }
+ .tname { font-size: clamp(20px, 4.4cqw, 27px); font-weight: 700; line-height: 1.05; text-wrap: balance; }
+ .vs { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+-.stand { font-size: 13px; color: var(--muted); }
++.stand { font-size: 13px; color: var(--muted); --facts-justify: center; }
+ .stand b { color: var(--ink); font-weight: 700; }
+ .mast .venue { font-size: 13px; color: var(--muted); margin-top: 16px; }
+ 
+@@ -139,7 +139,7 @@ section { margin-top: 36px; }
+ .caption { font-size: 12px; color: var(--muted); text-align: center; margin: 16px 0 4px; }
+ 
+ /* ============================================================ *
+- *  COMPARISON — 3 columns: home value · centred name+bar · away  *
++ *  COMPARISON — 3 columns: home value / centred name+bar / away  *
+  *  value. Numbers aligned in their columns; better value green.  *
+  * ============================================================ */
+ .cmp { margin-top: 22px; }
+@@ -159,6 +159,7 @@ section { margin-top: 36px; }
+ .split { display: grid; grid-template-columns: 1fr; gap: 8px 30px; margin-top: 4px; }
+ @container (min-width: 560px) { .split { grid-template-columns: 1fr 1fr; } }
+ .colhead { font-size: 13px; font-weight: 700; color: var(--muted); margin: 14px 0 8px; }
++.colhead .ps { display: block; font-size: 12px; font-weight: 400; }
+ .res { width: 24px; height: 24px; border-radius: 5px; display: grid; place-items: center; font-weight: 700; font-size: 11px; color: var(--pill-ink); }
+ .res.W { background: var(--win); }
+ .res.D { background: var(--draw); }
+@@ -166,7 +167,7 @@ section { margin-top: 36px; }
+ .rscore { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; }
+ .ropp { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+ .ropp .ha { color: var(--muted); font-weight: 600; font-size: 11px; margin-left: 5px; }
+-.rmeta { color: var(--muted); white-space: nowrap; font-size: 12px; text-align: right; }
++.rmeta { color: var(--muted); white-space: nowrap; font-size: 12px; text-align: right; --facts-justify: flex-end; }
+ .noclick .rscore,
+ .noclick .ropp { opacity: .55; }
+ 
+@@ -175,8 +176,10 @@ section { margin-top: 36px; }
+ .pname { min-width: 0; }
+ .pname .nm { font-size: 14px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+ .pname .ps { font-size: 11.5px; color: var(--muted); }
+-.pstat { font-size: 13px; color: var(--muted); white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
++.pstat { font-size: 13px; color: var(--muted); white-space: nowrap; text-align: right; --facts-justify: flex-end; font-variant-numeric: tabular-nums; }
+ .pstat b { color: var(--ink); font-weight: 700; }
++.facts-line { display: inline-flex; flex-wrap: wrap; column-gap: 12px; row-gap: 0; justify-content: var(--facts-justify, flex-start); }
++.facts-line > * { max-width: 100%; min-width: 0; }
+ 
+ /* ---- h2h ---- */
+ .h2h-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+@@ -323,7 +326,7 @@ section { margin-top: 36px; }
+ .flinks a, .flinks span { font-size: 12.5px; color: var(--muted); }
+ .flinks a:hover { color: var(--ink-2); }
+ .flinks .imp { font-style: italic; }
+-.fmeta { margin-left: auto; font-size: 11.5px; color: var(--muted); }
++.fmeta { margin-left: auto; --facts-justify: flex-end; font-size: 11.5px; color: var(--muted); }
+ 
+ /* nav inline + hamburger/drawer hidden once there's room for the full nav */
+ /* The menu stands in the header row when the row holds it in the page's language, otherwise the
+@@ -817,13 +820,13 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+ /* A group opening the block after its explainer carries no space of its own either. */
+ .bsub + .fxgroup { margin-top: 0; }
+ /* Two more table kinds, each one fixed track list. `.dpt`: the Overview's deserved points table
+-   (# · club · four metrics named in full); the ordered-by number keeps the accent. Its four equal
++   (# / club / four metrics named in full); the ordered-by number keeps the accent. Its four equal
+    number tracks shrink on a narrow screen, and a long head wraps and hyphenates. */
+ .ctab.dpt, .ctab.dpt.ctab { --cols: 2rem minmax(0, 1fr) repeat(4, minmax(3.6rem, 4.6rem)); }
+ .ctab.dpt .ctab-head { align-items: end; }
+ .ctab.dpt .h { hyphens: auto; overflow-wrap: anywhere; line-height: 1.25; letter-spacing: 0; }
+ .ctab.dpt .h .hs { display: block; font-weight: 600; }
+-/* A board is a single-value table: the Table's striped rows and grid (# · crest name · value), one
++/* A board is a single-value table: the Table's striped rows and grid (# / crest name / value), one
+    fixed track list; the board's name is the head, with its chevron, and its rule the only line.
+    A player's row carries the club under the name. */
+ .ctab.rkt, .ctab.rkt.ctab { --cols: 2rem minmax(0, 1fr) 3.6rem; margin-top: 0; }
+@@ -838,7 +841,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+    for is gone. The design mocks, which embed this file whole, still annotate with it. */
+ .bnote { font-size: 12px; color: var(--muted); margin-left: 6px; }
+ 
+-/* The fact row: label · value · context. Wide: the label left, value and context right-aligned;
++/* The fact row: label / value / context. Wide: the label left, value and context right-aligned;
+    a phone stacks the three, left-aligned. Only the value is weighted. */
+ .facts { margin-top: 4px; container-type: inline-size; }
+ .frow { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 14px; align-items: start; padding: 9px 0; border-bottom: 1px solid var(--line); color: inherit; }
+@@ -889,7 +892,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+                     text-align: left; padding: 12px 4px; }
+   .mp .mast .team .crest { grid-row: span 2; }
+   .mp .mast .team .tname { font-size: 20px; text-wrap: pretty; }
+-  .mp .mast .team .stand { grid-column: 2; }
++  .mp .mast .team .stand { grid-column: 2; --facts-justify: flex-start; }
+ }
+ @media (max-width: 699.98px) and (hover: hover) {
+   .mp .mast a.team:hover { background: color-mix(in srgb, var(--ink) 11%, transparent); }
+@@ -910,7 +913,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+ .mp .mast .resline b { color: var(--ink-2); font-weight: 600; }
+ 
+ /* The comparison element: one head row of each team's name, in the chart legend's style, over its
+-   pills; each metric group under the chart family's group heading; a row is number · name · number
++   pills; each metric group under the chart family's group heading; a row is number / name / number
+    with the chart bar the full width beneath. */
+ .cmp .formhead { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin: 2px 0 8px; }
+ .cmp .formhead .cmp-team { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+@@ -956,9 +959,9 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+ .lrow { container-type: inline-size; }
+ .lrow:not(:last-child) { border-bottom: 1px solid var(--line); }
+ 
+-/* Result row: result chip · score · opponent (crest, name, H or A) · competition · date on one line
++/* Result row: result chip / score / opponent (crest, name, H or A) / competition / date on one line
+    where every row of its list fits (fitBlocks marks the list fit-one); otherwise two lines, the
+-   opponent on the first and H or A · competition · date on the second. The name wraps, never cut
++   opponent on the first and H or A / competition / date on the second. The name wraps, never cut
+    off. On one line the competition and date take at most 45% of the row, so a long competition
+    cannot cover the name. On the narrowest rows the gaps tighten so a long word fits. */
+ .resrow { display: grid; grid-template-columns: 24px 42px 1fr; grid-template-areas: "res score opp" ". . meta";
+@@ -968,21 +971,21 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+ .resrow .rscore { grid-area: score; font-size: 15px; }
+ .resrow:not(.meet):not(.scorer) .rscore { align-self: start; line-height: 24px; }
+ .resrow .ropp { grid-area: opp; font-size: 15px; white-space: normal; overflow: visible; text-overflow: clip; }
+-.resrow .rmeta { grid-area: meta; text-align: left; white-space: normal; }
+-/* Home or away sits after the name on one line and opens the second line on two; a middle dot
+-   travels with the item after it. Before fitBlocks marks a list, the width decides. */
++.resrow .rmeta { grid-area: meta; text-align: left; --facts-justify: flex-start; white-space: normal; }
++/* Home or away sits after the name on one line and opens the second line on two.
++   Before fitBlocks marks a list, the width decides. */
+ .resrow .ropp > .ha { display: none; }
+ @container (min-width: 420px) {
+   .resrow { grid-template-columns: 24px 42px 1fr fit-content(45%); grid-template-areas: "res score opp meta"; column-gap: 11px; }
+-  .resrow .rmeta { text-align: right; }
++  .resrow .rmeta { text-align: right; --facts-justify: flex-end; }
+   .resrow .rha { display: none; }
+   .resrow .ropp > .ha { display: inline; }
+ }
+ /* A list fitBlocks has measured takes its form by fit, whatever its width. */
+ .fit-one .resrow { grid-template-columns: 24px 42px 1fr fit-content(45%); grid-template-areas: "res score opp meta"; column-gap: 11px; }
+-.fit-one .resrow .rmeta { text-align: right; }
++.fit-one .resrow .rmeta { text-align: right; --facts-justify: flex-end; }
+ .fit-two .resrow { grid-template-columns: 24px 42px 1fr; grid-template-areas: "res score opp" ". . meta"; column-gap: clamp(8px, 3cqw, 20px); }
+-.fit-two .resrow .rmeta { text-align: left; }
++.fit-two .resrow .rmeta { text-align: left; --facts-justify: flex-start; }
+ .fit-one .resrow .rha, .fit-two .resrow .ropp > .ha, .rlist.pm:not(.fit-one) .resrow .ropp > .ha { display: none; }
+ .fit-one .resrow .ropp > .ha { display: inline; }
+ .fit-two .resrow .rha, .rlist.pm:not(.fit-one) .resrow .rha { display: inline; }
+@@ -1004,7 +1007,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+ .club { display: inline-flex; align-items: center; gap: 10px; vertical-align: middle; max-width: 100%; }
+ .ropp > .club:only-child { vertical-align: top; }
+ 
+-/* Player row: photo · name over position · numbers on the right at every width; the name wraps, and
++/* Player row: photo / name over position / numbers on the right at every width; the name wraps, and
+    where the row is short of room the goals and the assists take two lines. On the narrowest rows the
+    gaps tighten so a long word fits, as the result row's do; under 280px the name takes the whole line
+    and the numbers move to the position's line, as the competition row's do. */
+@@ -1014,7 +1017,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+ .plrow .pname { display: contents; }
+ .plrow .pname .nm { grid-area: name; font-size: 15px; font-weight: 400; color: var(--ink); white-space: normal; overflow: visible; text-overflow: clip; }
+ .plrow .pname .ps { grid-area: pos; font-size: 12px; color: var(--muted); }
+-.plrow .pstat { grid-area: stat; align-self: center; text-align: right; font-size: 12px; white-space: normal; }
++.plrow .pstat { grid-area: stat; align-self: center; text-align: right; --facts-justify: flex-end; font-size: 12px; white-space: normal; }
+ .plrow .pstat b { font-size: 15px; }
+ @container (max-width: 279.98px) { .plrow { grid-template-areas: "photo name name" "photo pos stat"; } }
+ 
+@@ -1022,7 +1025,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+ /* A tab's opening sentence: the block explainer's style, under the tab bar. */
+ .bsub.tab-intro { margin-top: 14px; }
+ 
+-/* The competition row: crest · name with its muted note · the standing or the cup's outcome on the
++/* The competition row: crest / name with its muted note / the standing or the cup's outcome on the
+    right; under it, for a table, the W/D/L counts and goals and points. Narrow, the standing moves
+    to the second line before the numbers, and the counts take a third. */
+ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
+@@ -1033,11 +1036,11 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
+   grid-template-areas: "crest name right" ". extra extra"; column-gap: 12px; row-gap: 8px; align-items: center; }
+ .tc .tc-crest { grid-area: crest; }
+ .tc .tc-name { grid-area: name; font-size: 15px; font-weight: 600; color: var(--ink); min-width: 0; }
+-.tc .tc-ctx { font-size: 12px; font-weight: 400; color: var(--muted); }
++.tc .tc-ctx { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
+ .tc .tc-right { grid-area: right; font-size: 15px; font-weight: 700; color: var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
+ .tc .tc-extra { grid-area: extra; display: flex; align-items: center; justify-content: space-between; gap: 8px 14px; flex-wrap: wrap; }
+ .tc .tc-rank2 { display: none; font-size: 15px; font-weight: 700; color: var(--ink); }
+-.tc .tc-nums { margin-left: auto; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
++.tc .tc-nums { margin-left: auto; --facts-justify: flex-end; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+ .tc .tc-nums b { font-size: 15px; font-weight: 700; color: var(--ink); }
+ @container (max-width: 340px) {
+   .tc .tcin { grid-template-areas: "crest name name" ". extra extra"; }
+@@ -1045,8 +1048,8 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
+   .tc .tc-extra { display: grid; grid-template-columns: auto 1fr; grid-template-areas: "rank nums" "pills pills";
+     justify-items: start; align-items: baseline; gap: 8px 0; }
+   .tc .tc-rank2 { display: inline; grid-area: rank; }
+-  .tc .tc-extra:has(.tc-nums) .tc-rank2::after { content: " ·"; font-size: 12px; font-weight: 400; color: var(--muted); margin-right: 4px; }
+-  .tc .tc-nums { grid-area: nums; margin-left: 0; }
++  .tc .tc-rank2 { margin-right: 12px; }
++  .tc .tc-nums { grid-area: nums; margin-left: 0; --facts-justify: flex-start; }
+   .tc .tc-extra .cchips { grid-area: pills; }
+ }
+ 
+@@ -1116,8 +1119,8 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
+ .chart-bar > span:last-child > span { border-radius: 0 3px 3px 0; }
+ .chart-bar > .chart-better > span { background: var(--chart-better); }
+ 
+-/* The strip plot: a metric's name · the league from its lowest to its highest value, values growing
+-   to the right, every other club a light dot, the team the solid dot · the team's rank over its
++/* The strip plot: a metric's name / the league from its lowest to its highest value, values growing
++   to the right, every other club a light dot, the team the solid dot / the team's rank over its
+    value. Narrow, the strip takes the row's second line. */
+ .rs-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) 4.6rem; column-gap: 14px; align-items: center;
+   padding: 10px 0; border-bottom: 1px solid var(--line); }
+@@ -1193,14 +1196,14 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
+ /* A player's match row: the score right after the chip and the competition and the player's line
+    under it; one line while every row fits. */
+ .rlist.pm .resrow { grid-template-columns: 24px auto 1fr; grid-template-areas: "res score opp" ". meta meta"; }
+-.rlist.pm .resrow .rmeta { text-align: left; }
++.rlist.pm .resrow .rmeta { text-align: left; --facts-justify: flex-start; }
+ .rlist.pm:not(.fit-one) .resrow .rscore { text-align: left; }
+-.rlist.pm .resrow .rm-c, .rlist.pm .resrow .rm-p { display: block; }
++.rlist.pm .resrow .rm-c, .rlist.pm .resrow .rm-p { display: flex; }
+ .rlist.pm .resrow .rm-p b { color: var(--ink); font-weight: 700; }
+ .rlist.pm.fit-one .resrow { grid-template-columns: 24px 42px 1fr auto; grid-template-areas: "res score opp meta"; }
+-.rlist.pm.fit-one .resrow .rmeta { text-align: right; }
+-.rlist.pm.fit-one .resrow .rm-c, .rlist.pm.fit-one .resrow .rm-p { display: inline; }
+-.rlist.pm.fit-one .resrow .rm-p::before { content: " · "; }
++.rlist.pm.fit-one .resrow .rmeta { text-align: right; --facts-justify: flex-end; }
++.rlist.pm.fit-one .resrow .rm-c, .rlist.pm.fit-one .resrow .rm-p { display: inline-flex; }
++.rlist.pm.fit-one .resrow .rm-p { margin-left: 12px; }
+ 
+ /* TAP AREAS: every link and button is at least 44px high and wide; the text and look stay.
+    A box that is too small grows by padding it gives back as negative margin, or by room it takes. The
+diff --git a/tests/fixtures/design_inventory/baseline.json b/tests/fixtures/design_inventory/baseline.json
+index 5946b75e..937399ed 100644
+--- a/tests/fixtures/design_inventory/baseline.json
++++ b/tests/fixtures/design_inventory/baseline.json
+@@ -4,7 +4,7 @@
+   "css_outside_system_css": {"site_v2/src/components/fixture/MetricRow.astro": 2, "site_v2/src/components/team/TeamLeagueStrips.astro": 2, "site_v2/src/lib/fitBlocks.mjs": 2},
+   "width_rules": {"279.98px": 1, "340px": 1, "420px": 4, "430px": 2, "470px": 1, "479.98px": 1, "480px": 1, "520px": 1, "560px": 2, "599.98px": 2, "699.98px": 4, "700px": 1, "800px": 1, "900px": 1, "1010px": 1},
+   "banned_properties": {"site_v2/src/styles/system.css": 6},
+-  "literal_text": {"site_v2/src/components/chrome/SiteFooter.astro": 3, "site_v2/src/components/chrome/SiteHeader.astro": 2, "site_v2/src/pages/index.astro": 2}
++  "literal_text": {"site_v2/src/components/chrome/SiteFooter.astro": 2, "site_v2/src/components/chrome/SiteHeader.astro": 2, "site_v2/src/pages/index.astro": 2}
+  },
+  "coverage": {
+   "generator fails": {"gen_block_standard.py": 1, "gen_competitions.py": 1, "gen_match_page.py": 1, "gen_navmap.py": 1, "gen_team_mock.py": 1},
+diff --git a/tests/test_phone_built_pages_231.py b/tests/test_phone_built_pages_231.py
+index 32e8e133..e7217a6e 100644
+--- a/tests/test_phone_built_pages_231.py
++++ b/tests/test_phone_built_pages_231.py
+@@ -1,4 +1,4 @@
+-"""Measures the phone rules on the built site at 260-768px in EN, DE and FI: tap areas, separator dots, square linked rows and no sideways scroll.
++"""Measures the phone rules on the built site at 260-768px in EN, DE and FI: tap areas, square linked rows and no sideways scroll.
+ 
+ Needs `site_v2/dist` and Playwright's Chromium (the validate:ui image); skipped without them.
+ """
+@@ -57,7 +57,7 @@ TAPS = """
+     }
+     const p = e.closest('p, li, div');
+     const inText = e.tagName === 'A' && getComputedStyle(e).display === 'inline' && p && p !== e.parentElement
+-      && [...p.childNodes].filter((n) => n !== e).map((n) => n.textContent).join('').replace(/[\\s·›]+/g, '').length > 8;
++      && [...p.childNodes].filter((n) => n !== e).map((n) => n.textContent).join('').replace(/[\\s›]+/g, '').length > 8;
+     if (inText) continue;
+     const icon = e.classList.contains('iconbtn');
+     if (h < 43.5 || (w < 43.5 && !(icon && innerWidth <= %d && w >= 33.5))) out.push(`${e.tagName}.${[...e.classList].join('.')} ${Math.round(w)}x${Math.round(h)} ${(e.textContent || '').trim().slice(0, 20)}`);
+@@ -66,54 +66,6 @@ TAPS = """
+ }
+ """ % HEADER_ICON_NARROW
+ 
+-DOTS = """
+-() => {
+-  const bad = [];
+-  const shown = (el) => el.getClientRects().length > 0;
+-  for (const d of document.querySelectorAll('[data-dot]')) {
+-    if (d.hidden) {
+-      d.hidden = false;
+-      const r = d.getClientRects()[0];
+-      let host = d.parentElement;
+-      while (host.parentElement && ['inline', 'inline-block', 'contents'].includes(getComputedStyle(host).display)) host = host.parentElement;
+-      const w = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
+-      w.currentNode = d;
+-      let before = null;
+-      for (let n = w.previousNode(); n && !before; n = w.previousNode()) {
+-        if (!n.textContent.trim() || n.parentElement.closest('[data-dot]') || !n.parentElement.getClientRects().length) continue;
+-        const range = document.createRange();
+-        range.selectNodeContents(n);
+-        const rs = range.getClientRects();
+-        if (rs.length) before = rs[rs.length - 1];
+-      }
+-      if (r && before && r.top < before.bottom - 1) bad.push('hidden but on the line of the text before it: ' + host.textContent.trim().slice(0, 50));
+-      d.hidden = true;
+-      continue;
+-    }
+-    if (!shown(d)) continue;
+-    const rect = d.getClientRects()[0];
+-    let host = d.parentElement;
+-    while (host.parentElement && ['inline', 'inline-block', 'contents'].includes(getComputedStyle(host).display)) host = host.parentElement;
+-    const walk = (dir) => {
+-      const w = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
+-      w.currentNode = d;
+-      for (let n = dir > 0 ? w.nextNode() : w.previousNode(); n; n = dir > 0 ? w.nextNode() : w.previousNode()) {
+-        if (!n.textContent.trim() || n.parentElement.closest('[data-dot]') || !shown(n.parentElement)) continue;
+-        const r = document.createRange();
+-        r.selectNodeContents(n);
+-        const rs = r.getClientRects();
+-        if (rs.length) return dir > 0 ? rs[0] : rs[rs.length - 1];
+-      }
+-      return null;
+-    };
+-    const before = walk(-1), after = walk(1);
+-    if (!before || rect.top >= before.bottom - 1) bad.push('starts a line: ' + host.textContent.trim().slice(0, 50));
+-    else if (after && after.top >= rect.bottom - 1) bad.push('ends a line: ' + host.textContent.trim().slice(0, 50));
+-  }
+-  return bad;
+-}
+-"""
+-
+ ROWS = """
+ () => [...document.querySelectorAll('a.fxrow, a.ctab-row, a.frow, a.lrow, a.brow, a.comp-row')]
+   .filter((e) => e.getClientRects().length)
+@@ -145,8 +97,8 @@ def browser():
+ 
+ @pytest.fixture(scope="module")
+ def measured(browser, site) -> dict[str, list[str]]:
+-    """Each page loaded once per width, measured by every rule; DOTS last, as it un-hides a dot for a moment."""
+-    found: dict[str, list[str]] = {"scroll": [], "taps": [], "rows": [], "dots": []}
++    """Each page loaded once per width, measured by every rule."""
++    found: dict[str, list[str]] = {"scroll": [], "taps": [], "rows": []}
+     for width in WIDTHS:
+         page = browser.new_context(viewport={"width": width, "height": 900}).new_page()
+         for url in _pages():
+@@ -154,7 +106,7 @@ def measured(browser, site) -> dict[str, list[str]]:
+             page.wait_for_timeout(200)
+             if width != WIDTHS[0] and page.evaluate("document.documentElement.scrollWidth > innerWidth"):
+                 found["scroll"].append(f"{width}px {url}")
+-            for key, script in (("taps", TAPS), ("rows", ROWS), ("dots", DOTS)):
++            for key, script in (("taps", TAPS), ("rows", ROWS)):
+                 found[key] += [f"{width}px {url} {item}" for item in page.evaluate(script)]
+         page.close()
+     return found
+@@ -181,10 +133,6 @@ def test_every_link_and_button_has_a_44px_tap_area(measured):
+     assert measured["taps"] == []
+ 
+ 
+-def test_no_separator_dot_starts_or_ends_a_line(measured):
+-    assert measured["dots"] == []
+-
+-
+ def test_linked_rows_are_square_and_do_not_stick_out(measured):
+     assert measured["rows"] == []
+ 
+diff --git a/tests/test_phone_fixes_231.py b/tests/test_phone_fixes_231.py
+index 64cf8947..cde7cf4e 100644
+--- a/tests/test_phone_fixes_231.py
++++ b/tests/test_phone_fixes_231.py
+@@ -62,11 +62,11 @@ def test_the_breadcrumb_script_does_not_sit_between_the_nav_and_the_heading():
+     assert text.rstrip().endswith("</nav>")
+ 
+ 
+-def test_the_venue_is_not_a_no_break_unit():
++def test_the_venue_is_one_unit_of_the_kick_off_line():
+     text = _read("components/fixture/Masthead.astro")
+     assert "fixture.venue]" not in text
+     assert re.search(r'<span class="nb">\{venue\}', text) is None
+-    assert re.search(r"\{venue && <>.*\{venue\}</>\}", text)
++    assert "{venue && <span>{venue}</span>}" in text
+ 
+ 
+ def test_the_competition_list_name_wraps_between_words():
+@@ -105,9 +105,34 @@ def test_the_team_page_explainer_does_not_name_the_team():
+     assert "team:" not in re.search(r'"teamPerfIntro", \{(.*?)\}', _read("pages/[lang]/[teams]/[team].astro")).group(1)
+ 
+ 
+-def test_a_separator_dot_is_one_unit_and_the_page_loads_the_script():
+-    assert "dotEdges.mjs" in _read("layouts/Layout.astro")
+-    assert "data-dot" in _read("lib/wholeWords.mjs")
++def test_no_template_or_stylesheet_writes_a_separator_dot():
++    middot = chr(0xB7)
++    offenders = [
++        str(p.relative_to(SRC))
++        for ext in ("*.astro", "*.ts", "*.mjs", "*.css")
++        for p in SRC.rglob(ext)
++        if middot in p.read_text(encoding="utf-8") or "&middot;" in p.read_text(encoding="utf-8")
++    ]
++    assert offenders == []
++    assert "dotEdges" not in _read("layouts/Layout.astro")
++
++
++def test_a_facts_line_has_a_gap_and_every_aligned_host_sets_its_justify():
++    css = _read("styles/system.css")
++    assert ".facts-line { display: inline-flex; flex-wrap: wrap; column-gap: 12px; row-gap: 0;" in css
++    assert ".facts-line > * { max-width: 100%; min-width: 0; }" in css
++    lines = css.splitlines()
++    for host in (".rmeta {", ".pstat {", ".fmeta {", ".mast .kick {", ".stand {", ".tc-nums {"):
++        rules = [ln for ln in lines if host in ln and ln.lstrip().startswith((".", "@")) or host in ln and ln.startswith("  .")]
++        assert rules, host
++        for ln in rules:
++            if host == ".rmeta {" and "text-align" not in ln:
++                continue
++            assert "--facts-justify" in ln, ln
++            if "text-align: left" in ln:
++                assert "--facts-justify: flex-start" in ln, ln
++            if "text-align: right" in ln:
++                assert "--facts-justify: flex-end" in ln, ln
+ 
+ 
+ def test_the_scatter_axis_title_has_room_inside_the_drawing():
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../243-no-separator-dot/acceptance_evidence.md    |   11 +
+#    .../243-no-separator-dot/rendered_page_evidence.md |   11 +
+#    .../task/243-no-separator-dot/review_input.patch   | 1527 ++++++++++++++++++++
+#    3 files changed, 1549 insertions(+)
+# ============================================================================

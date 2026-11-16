@@ -1,5 +1,5 @@
 ---
-// The team's header: crest, name, and one meta line (country · venue, city · founded · the season
+// The team's header: crest, name, and one meta line (country / venue, city / founded / the season
 // the page shows). The season's label is the warehouse's, as its competition names it.
 import Crest from "../ui/Crest.astro";
 import type { Lang } from "../../lib/format";
@@ -25,8 +25,8 @@ const parts = [
   <Crest name={team.name} crest={team.crest} />
   <div class="tid">
     <h1>{team.name}</h1>
-    <div class="meta">
-      {parts.map((p, i) => <>{i > 0 && " · "}{p.bold && <b>{p.bold}</b>}{p.text}</>)}
+    <div class="meta facts-line">
+      {parts.map((p) => <span>{p.bold && <b>{p.bold}</b>}{p.text}</span>)}
     </div>
   </div>
 </header>

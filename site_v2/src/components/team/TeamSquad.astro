@@ -1,7 +1,7 @@
 ---
 // Squad: the whole roster of the featured season (mart_roster), by position (goalkeepers,
 // defenders, midfielders, forwards, other), each player as the match page's player row without
-// goals or assists: photo · name, then country · age · appearances · minutes per appearance (no
+// goals or assists: photo / name, then country / age / appearances / minutes per appearance (no
 // minutes without an appearance). The appearances are served: 0 where every finished match carries
 // player data, otherwise empty, shown "–". Two columns where they fit. A row links to the player's
 // page when this build makes one.
@@ -45,7 +45,7 @@ function age(birth: string | null | undefined): number | null {
 function initials(name: string | null | undefined): string {
   return (name ?? "").split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase();
 }
-function line(m: SquadMember): string {
+function line(m: SquadMember): string[] {
   const a = age(m.birth_date);
   const apps = m.appearances == null
     ? t(lang, "appearanceCount", { n: DASH })
@@ -53,7 +53,7 @@ function line(m: SquadMember): string {
   const mins = (m.appearances ?? 0) > 0 && m.minutes_per_appearance != null
     ? `${decimal0(m.minutes_per_appearance, lang)} ${metricInSentence(lang, MINUTES)}`
     : null;
-  return [m.nationality, a === null ? null : String(a), apps, mins].filter(Boolean).join(" · ");
+  return [m.nationality, a === null ? null : String(a), apps, mins].filter((s): s is string => Boolean(s));
 }
 
 const groups = GROUPS.map((g) => ({
@@ -78,7 +78,7 @@ const groups = GROUPS.map((g) => ({
               <Row class="lrow" href={slug ? localeHref(lang, `${word(lang, "players")}/${slug}/`) : undefined}>
                 <div class="plrow">
                   <span class="pphoto">{m.photo ? <img src={m.photo} alt="" loading="lazy" width="34" height="34" /> : initials(m.name)}</span>
-                  <span class="pname"><span class="nm">{m.name}</span><span class="ps">{line(m)}</span></span>
+                  <span class="pname"><span class="nm">{m.name}</span><span class="ps facts-line">{line(m).map((s) => <span>{s}</span>)}</span></span>
                 </div>
               </Row>
             );
