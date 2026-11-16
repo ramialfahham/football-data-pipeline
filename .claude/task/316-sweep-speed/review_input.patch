@@ -1,0 +1,576 @@
+diff --git a/.claude/task/316-sweep-speed/contract.md b/.claude/task/316-sweep-speed/contract.md
+new file mode 100644
+index 00000000..4fa5372f
+--- /dev/null
++++ b/.claude/task/316-sweep-speed/contract.md
+@@ -0,0 +1,61 @@
++# Task contract — main's full design check finishes in under 30 min
++
++objective: >
++  Issue #316. Main's validate:ui runs 41–60 min on ci-runner-01 and holds one of its two job slots
++  that long. Measure where the time goes, then remove the largest costs the measurement shows
++  until the job is projected under 30 min, checking exactly what it checks today.
++
++refs: >
++  #316. The breakdown is posted on the issue; the before/after is in the MR head.
++
++scope_paths:
++  - scripts/check_design_inventory.py
++  - tests/test_design_inventory.py
++  - scripts/check_chart_screenshots.py
++  - tests/test_check_chart_screenshots.py
++  - tests/test_phone_built_pages_231.py
++  - .claude/task/316-sweep-speed/
++
++protected_override: >
++  Approved in chat, 2026-11-16: the CPO typed the go in this task's session for
++  scripts/check_design_inventory.py and tests/test_design_inventory.py.
++
++impact_map: >
++  scripts/check_design_inventory.py: run by validate:ui in .gitlab-ci.yml (quick scope on a merge
++  request, full scope on main and web runs) and by the validate-local skill. Imported by
++  scripts/check_chart_screenshots.py (serve only), tests/test_address_words.py and
++  tests/test_design_inventory.py (`grep -rn "check_design_inventory" scripts tests .claude/hooks`).
++  What depends on it: every count compared with baseline.json, baseline_quick.json and
++  baseline_quick_fi.json, every failure line, counts.json and failures.json. If wrong, a count or a
++  failure moves and the check goes red on main, or a gap hides. The proof is a run of the old and
++  new check over one CI-built site in the CI image, diffed byte for byte (stdout, counts.json,
++  failures.json); CI then compares the baselines.
++  scripts/check_chart_screenshots.py: run by validate:ui after the design check; its pins are
++  tests/fixtures/chart_screenshots/*. If wrong, a colour or label finding or a screenshot
++  difference moves. Same proof: old and new output identical over one CI-built site.
++  layer_rules, deploy_order: not applicable, no model, seed or export changes.
++  blast_radius: CI time only; the pages, widths, languages, rules and baseline counts are unchanged.
++
++depends_on: none; the change builds on main alone.
++
++shared_files: none; no design baseline or chart pin is regenerated, since the counts stay as they are.
++
++approved_design:
++  - none: no page output changes; the diff touches no site_v2/src/ file or export script
++
++decisions_taken: >
++  What is checked stays as it is: the same pages, tabs, widths, languages, rules and baseline
++  counts. No runner, timeout, schedule or MR-scope change. No new dependency, no recurring cost.
++
++decisions_reserved:
++  - A larger CI runner or more runners is a recurring cost and the CPO's call; out of scope here.
++  - Removing `timeout: 2h` from validate:ui is a follow-up once three main runs confirm the time.
++
++done_when:
++  - The breakdown of where the time goes is posted on #316.
++  - A run of the old and new check over main's CI-built site, in the CI image, gives identical
++    stdout, counts.json and failures.json.
++  - python -m pytest tests/ -q is green and the offline gates pass.
++  - The MR pipeline is green, and the MR head reports the measured before and after.
++
++amendments: (none)
+diff --git a/scripts/check_chart_screenshots.py b/scripts/check_chart_screenshots.py
+index 26e3882b..a251d704 100644
+--- a/scripts/check_chart_screenshots.py
++++ b/scripts/check_chart_screenshots.py
+@@ -31,7 +31,10 @@ from __future__ import annotations
+ import argparse
+ import hashlib
+ import json
++import multiprocessing
++import os
+ import sys
++from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+ from pathlib import Path
+ 
+ sys.path.insert(0, str(Path(__file__).resolve().parent))
+@@ -187,6 +190,27 @@ def label_findings(page, base: str, pages: list[str]) -> tuple[list[str], int]:
+     return out, measured
+ 
+ 
++def _labels_in_process(job: tuple[str, list[str]]) -> tuple[list[str], int]:
++    from playwright.sync_api import sync_playwright
++
++    base, pages = job
++    with sync_playwright() as pw:
++        browser = pw.chromium.launch(args=["--font-render-hinting=none"])
++        found = label_findings(browser.new_page(viewport={"width": 1010, "height": 900}), base, pages)
++        browser.close()
++    return found
++
++
++def labels_in_parallel(base: str, pages: list[str], workers: int) -> tuple[list[str], int]:
++    """`label_findings` over contiguous slices of the pages, one process each, in page order."""
++    size = -(-len(pages) // workers) if pages else 1
++    jobs = [(base, pages[k:k + size]) for k in range(0, len(pages), size)]
++    # Spawned, not forked: this runs beside a thread that drives a browser.
++    with ProcessPoolExecutor(max_workers=max(1, len(jobs)), mp_context=multiprocessing.get_context("spawn")) as pool:
++        parts = list(pool.map(_labels_in_process, jobs))
++    return [f for out, _n in parts for f in out], sum(n for _out, n in parts)
++
++
+ def manifest_of(shots: dict[str, bytes], platform: str | None = None) -> dict:
+     return {"platform": platform or PLATFORM, "shots": {n: hashlib.sha256(b).hexdigest() for n, b in sorted(shots.items())}}
+ 
+@@ -230,14 +254,17 @@ def measure(dist: Path) -> tuple[list[str], dict[str, bytes], list[str], list[st
+ 
+     srv, base = serve(dist)
+     try:
+-        with sync_playwright() as pw:
+-            # The same text widths as the design check.
+-            browser = pw.chromium.launch(args=["--font-render-hinting=none"])
+-            page = browser.new_page(viewport={"width": 1010, "height": 900})
+-            colours = colour_findings(page, base)
+-            shots, missing = screenshots(page, base)
+-            labels, measured = label_findings(page, base, scatter_pages(dist))
+-            browser.close()
++        # The label measurements, most of the work, run in their own processes beside this one.
++        with ThreadPoolExecutor(max_workers=1) as side:
++            labelled = side.submit(labels_in_parallel, base, scatter_pages(dist), os.cpu_count() or 1)
++            with sync_playwright() as pw:
++                # The same text widths as the design check.
++                browser = pw.chromium.launch(args=["--font-render-hinting=none"])
++                page = browser.new_page(viewport={"width": 1010, "height": 900})
++                colours = colour_findings(page, base)
++                shots, missing = screenshots(page, base)
++                browser.close()
++            labels, measured = labelled.result()
+     finally:
+         srv.shutdown()
+     return colours, shots, missing, labels, measured
+diff --git a/scripts/check_design_inventory.py b/scripts/check_design_inventory.py
+index f96c4da6..9345024c 100644
+--- a/scripts/check_design_inventory.py
++++ b/scripts/check_design_inventory.py
+@@ -670,71 +670,140 @@ def compare_coverage(coverage: dict[str, dict[str, int]], pinned: dict[str, dict
+     return di.compare_counts(coverage, pinned) if full_run else []
+ 
+ 
+-def render_width(job: dict) -> dict:
+-    """One viewport, in its own process: open every target and each of its tabs, measure its
+-    elements, count its gaps."""
+-    from playwright.sync_api import sync_playwright  # noqa: PLC0415
++# Back to the state a fresh load leaves: the tabs open on load open again, nothing focused, scrolled
++# to the top, the gap count's memory of the page cleared; the site's scripts re-fit on the resize and
++# the change, then two frames settle.
++RESET_JS = r"""
++() => {
++  for (const r of window.__diOnLoad) {
++    if (!r.checked) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }
++  }
++  if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
++  delete window.__diCounted; delete window.__diIds; delete window.__diNextId;
++  window.scrollTo(0, 0);
++  return document.fonts.ready.then(() => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res))));
++}
++"""
++OPEN_ON_LOAD_JS = "() => { window.__diOnLoad = [...document.querySelectorAll('input[type=radio]')].filter((r) => r.checked); }"
++
+ 
+-    viewport, inv, spec, artifacts = job["viewport"], job["inv"], job["spec"], job["artifacts"]
++def render_one(pw_page, job: dict, p, lang: str, viewport: int, shots: list[int]) -> tuple[list[Failure], list[dict], bool]:
++    """One target at one width, in the page as it stands: open each of its tabs, measure its
++    elements, count its gaps. Returns its failures, each tab's gap count, and whether a screenshot
++    was taken (a full-page screenshot resizes the page, so the next width needs a fresh load)."""
++    inv, spec, artifacts = job["inv"], job["spec"], job["artifacts"]
+     failures: list[Failure] = []
+-    counted: dict[str, dict] = {}
+-    covered: dict[str, set[str]] = {}
+-    renders = shots = 0
++    founds: list[dict] = []
++    shot = False
++    acc = {"seen": set(), "visible": {}, "total": 0, "found": set()}
++    tabs = pw_page.evaluate(TABS_JS)
++    if not tabs and pw_page.evaluate(TAB_BAR_JS) > 1:
++        failures.append(Failure(p.name, viewport, lang, "(page)",
++                                "a Tab bar with no tab to open · only the first tab is measured"))
++    for tab in [None] + tabs:
++        if tab is not None:
++            pw_page.evaluate(OPEN_TAB_JS, tab)
++        state = len(failures)
++        measure_page(pw_page, inv, spec, p, viewport, lang, failures, acc)
++        # The pointer checks scroll the page, and a sticky header then lies over the content.
++        pw_page.evaluate("window.scrollTo(0, 0); document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => r())))")
++        found = json.loads(pw_page.evaluate(COUNT_JSON_JS, job["registered"]))
++        founds.append({"classes": found["classes"], "ex": {k: found["ex"][k][:20] for k in COUNTS[:-1]},
++                       **{k: found[k] for k in COUNTS[:-1]}})
++        # After the count, which the screenshot's resize would otherwise change.
++        if artifacts and any(f.level == "FAIL" for f in failures[state:]) and shots[0] < 20:
++            pw_page.screenshot(path=str(Path(artifacts) / ("%s_%d_%s%s.png" % (
++                p.name.replace("/", "_"), viewport, lang, "_" + tab if tab else ""))), full_page=True)
++            shots[0] += 1
++            shot = True
++    state = len(failures)
++    finish_page(acc, p, viewport, lang, failures)
++    if artifacts and any(f.level == "FAIL" for f in failures[state:]) and shots[0] < 20:
++        pw_page.screenshot(path=str(Path(artifacts) / ("%s_%d_%s_page.png" % (
++            p.name.replace("/", "_"), viewport, lang))), full_page=True)
++        shots[0] += 1
++        shot = True
++    for f in failures:
++        if f.level == "FAIL":
++            f.measured = True
++    return failures, founds, shot
++
++
++def render_targets(job: dict) -> list[tuple[int, int, list[Failure], list[dict] | None]]:
++    """Some of the targets, in their own process: each loaded once at the first width, then resized
++    through the others. Returns (target index, width index, failures, gap counts) per render; no
++    gap counts when the page could not be rendered."""
++    from playwright.sync_api import sync_playwright  # noqa: PLC0415
++
++    viewports = job["viewports"]
++    out = []
++    shots = [0]
+     with sync_playwright() as pw:
+         # Hinting rounds Linux text to whole pixels, a layout phones and Windows do not produce.
+         browser = pw.chromium.launch(args=["--font-render-hinting=none"])
+-        ctx = browser.new_context(viewport={"width": viewport, "height": 900}, device_scale_factor=1,
++        ctx = browser.new_context(viewport={"width": viewports[0], "height": 900}, device_scale_factor=1,
+                                   reduced_motion="reduce")
+         pw_page = ctx.new_page()
+-        for p, lang, root, path in job["targets"]:
+-            pw_page.goto(job["bases"][root] + path, wait_until="load")
++
++        def load(p, lang: str, url: str, viewport: int) -> str | None:
++            """A fresh load at this width; why the page cannot be rendered, or None."""
++            pw_page.set_viewport_size({"width": viewport, "height": 900})
++            pw_page.goto(url, wait_until="load")
+             if p.kind == "mock" and lang == "fi":
+                 label = pw_page.query_selector('label[for="t-fi"]')
+                 if label is None:
+-                    failures.append(Failure(p.name, viewport, lang, "(page)", "no FI toggle on the page"))
+-                    continue
++                    return "no FI toggle on the page"
+                 label.click()
+                 if not pw_page.is_checked("#t-fi"):
+-                    failures.append(Failure(p.name, viewport, lang, "(page)", "the FI toggle did not switch"))
+-                    continue
+-            before = len(failures)
+-            acc = {"seen": set(), "visible": {}, "total": 0, "found": set()}
++                    return "the FI toggle did not switch"
++            pw_page.evaluate(OPEN_ON_LOAD_JS)
++            return None
++
++        for i, (p, lang, root, path) in job["targets"]:
++            url = job["bases"][root] + path
++            fresh = True
++            for w, viewport in enumerate(viewports):
++                if fresh:
++                    why = load(p, lang, url, viewport)
++                    if why:
++                        out.append((i, w, [Failure(p.name, viewport, lang, "(page)", why)], None))
++                        continue
++                else:
++                    pw_page.set_viewport_size({"width": viewport, "height": 900})
++                    pw_page.evaluate(RESET_JS)
++                failures, founds, fresh = render_one(pw_page, job, p, lang, viewport, shots)
++                out.append((i, w, failures, founds))
++        ctx.close()
++        browser.close()
++    return out
++
++
++def collect(targets: list, viewports: list[int], rendered: list) -> list[dict]:
++    """Per width, the failures, gap counts, coverage and render count, each in the order the
++    targets are listed."""
++    at = {(i, w): (f, founds) for i, w, f, founds in rendered}
++    results = []
++    for w, viewport in enumerate(viewports):
++        failures: list[Failure] = []
++        counted: dict[str, dict] = {}
++        covered: dict[str, set[str]] = {}
++        renders = 0
++        for i, (p, lang, _root, _path) in enumerate(targets):
++            fails, founds = at[(i, w)]
++            failures += fails
++            if founds is None:
++                continue
+             page_counts = counted.setdefault(p.name, {"classes": set(), "examples": {}})
+-            tabs = pw_page.evaluate(TABS_JS)
+-            if not tabs and pw_page.evaluate(TAB_BAR_JS) > 1:
+-                failures.append(Failure(p.name, viewport, lang, "(page)",
+-                                        "a Tab bar with no tab to open · only the first tab is measured"))
+-            for tab in [None] + tabs:
+-                if tab is not None:
+-                    pw_page.evaluate(OPEN_TAB_JS, tab)
+-                state = len(failures)
+-                measure_page(pw_page, inv, spec, p, viewport, lang, failures, acc)
+-                if artifacts and any(f.level == "FAIL" for f in failures[state:]) and shots < 20:
+-                    pw_page.screenshot(path=str(Path(artifacts) / ("%s_%d_%s%s.png" % (
+-                        p.name.replace("/", "_"), viewport, lang, "_" + tab if tab else ""))), full_page=True)
+-                    shots += 1
+-                # The pointer checks scroll the page, and a sticky header then lies over the content.
+-                pw_page.evaluate("window.scrollTo(0, 0); document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => r())))")
+-                found = json.loads(pw_page.evaluate(COUNT_JSON_JS, job["registered"]))
++            for found in founds:
+                 page_counts["classes"].update(found["classes"])
+                 for k in COUNTS[:-1]:
+                     page_counts[k] = page_counts.get(k, 0) + found[k]
+                     shown = page_counts["examples"].setdefault(k, [])
+                     shown += ["%d %s %s" % (viewport, lang, e) for e in found["ex"][k][:20 - len(shown)]]
+-            state = len(failures)
+-            finish_page(acc, p, viewport, lang, failures)
+-            if artifacts and any(f.level == "FAIL" for f in failures[state:]) and shots < 20:
+-                pw_page.screenshot(path=str(Path(artifacts) / ("%s_%d_%s_page.png" % (
+-                    p.name.replace("/", "_"), viewport, lang))), full_page=True)
+-                shots += 1
+             renders += 1
+             covered.setdefault(lang, set()).add(p.name)
+-            for f in failures[before:]:
+-                if f.level == "FAIL":
+-                    f.measured = True
+-        ctx.close()
+-        browser.close()
+-    return {"failures": failures, "counted": counted, "covered": covered, "renders": renders}
++        results.append({"failures": failures, "counted": counted, "covered": covered, "renders": renders})
++    return results
+ 
+ 
+ def registry_classes(path: Path = REGISTRY) -> frozenset[str]:
+@@ -840,13 +909,17 @@ def main(argv=None) -> int:
+                     srv, bases[root] = serve(file.parent)
+                     servers.append(srv)
+                 targets.append((di.Page(name, "mock", "", file.name, "none", ()), "en", root, file.name))
+-            jobs = [{"viewport": v, "targets": targets, "bases": bases, "inv": inv, "spec": spec,
+-                     "registered": registered, "artifacts": str(artifacts) if artifacts else None} for v in viewports]
++            workers = max(1, min(len(targets), os.cpu_count() or 1))
++            # Interleaved, so each process gets the same mix of light and heavy pages.
++            jobs = [{"viewports": viewports, "targets": list(enumerate(targets))[k::workers], "bases": bases,
++                     "inv": inv, "spec": spec, "registered": registered,
++                     "artifacts": str(artifacts) if artifacts else None} for k in range(workers)]
+             if len(jobs) == 1:
+-                results = [render_width(jobs[0])]
++                rendered = render_targets(jobs[0])
+             else:
+-                with ProcessPoolExecutor(max_workers=min(len(jobs), os.cpu_count() or 1)) as pool:
+-                    results = list(pool.map(render_width, jobs))
++                with ProcessPoolExecutor(max_workers=workers) as pool:
++                    rendered = [r for part in pool.map(render_targets, jobs) for r in part]
++            results = collect(targets, viewports, rendered)
+         finally:
+             for srv in servers:
+                 srv.shutdown()
+diff --git a/tests/test_check_chart_screenshots.py b/tests/test_check_chart_screenshots.py
+index 33b89bcd..00fc68c0 100644
+--- a/tests/test_check_chart_screenshots.py
++++ b/tests/test_check_chart_screenshots.py
+@@ -213,6 +213,22 @@ def test_a_renamed_mark_class_fails_for_matching_nothing():
+     assert any(".chart-bar > .chart-better > span · matches nothing" in f for f in found), found
+ 
+ 
++@needs_site
++def test_the_label_measurements_in_processes_match_one_process_in_page_order():
++    scatter = ccs.scatter_pages(DIST)
++    pages = [scatter[0], "en/competitions", scatter[1]]
++    srv, base = ccs.serve(DIST)
++    try:
++        apart = ccs.labels_in_parallel(base, pages, 2)
++    finally:
++        srv.shutdown()
++    together = _on_built_site(lambda page, base: ccs.label_findings(page, base, pages))
++    assert apart == together
++    assert apart[0][:len(ccs.LABEL_WIDTHS)] == ["en/competitions · %dpx · no tab shows a scatter plot" % w
++                                                for w in ccs.LABEL_WIDTHS]
++    assert apart[1] == 2 * len(ccs.LABEL_WIDTHS)
++
++
+ @needs_site
+ def test_a_reader_clicking_the_tab_sees_a_placed_difference_label():
+     assert _on_built_site(_reader("en/teams/1-fc-koln/", 375)) == []
+diff --git a/tests/test_design_inventory.py b/tests/test_design_inventory.py
+index 59ad9e48..69424949 100644
+--- a/tests/test_design_inventory.py
++++ b/tests/test_design_inventory.py
+@@ -576,6 +576,130 @@ def test_a_tab_bar_with_no_tab_to_open_fails_instead_of_measuring_one_tab(tmp_pa
+     assert proc.returncode == 1, out
+ 
+ 
++RESET_TABS = """<!doctype html><html lang="en"><head><meta charset="utf-8"><title>t</title><style>
++body { margin: 0; font: 15px/1.5 sans-serif; }
++.tab-in { position: absolute; opacity: 0; }
++.page { display: none; }
++#tab-a:checked ~ .page[data-page="a"], #tab-b:checked ~ .page[data-page="b"],
++#tab-c:checked ~ .page[data-page="c"] { display: block; }
++.red-nowrap { width: 40px; white-space: nowrap; }
++</style></head><body>
++<input type="radio" name="t" id="tab-a" class="tab-in">
++<input type="radio" name="t" id="tab-b" class="tab-in" checked>
++<input type="radio" name="t" id="tab-c" class="tab-in">
++<div class="page" data-page="a"><div class="red-nowrap">Alpha overflowing words</div></div>
++<div class="page" data-page="b"><div class="red-nowrap">Bravo overflowing words</div></div>
++<div class="page" data-page="c"><div class="red-nowrap">Charlie overflowing words</div></div>
++</body></html>"""
++# The press check leaves the row link focused; a page left focused would measure the underline.
++RESET_FOCUS = """<!doctype html><html lang="en"><head><meta charset="utf-8"><title>t</title><style>
++body { margin: 0; font: 15px/1.5 sans-serif; }
++a.fxrow { display: block; text-decoration: none; }
++a.fxrow:focus { text-decoration: underline; }
++</style></head><body><a class="fxrow" href="#x">A row that leads somewhere</a></body></html>"""
++
++
++def _fails_and_counts(tmp_path: Path, fixture: str, widths: str) -> tuple[list[str], dict, dict]:
++    folder = tmp_path / ("pages_" + widths.replace(",", "_"))
++    folder.mkdir()
++    if fixture.endswith(".html"):
++        shutil.copy(FIXTURES / fixture, folder / fixture)
++    else:
++        (folder / "p.html").write_text({"reset_tabs": RESET_TABS, "reset_focus": RESET_FOCUS}[fixture], encoding="utf-8")
++        fixture = "p.html"
++    shutil.copy(SYSTEM_CSS, folder / "system.css")
++    art = folder / "art"
++    proc = subprocess.run(
++        [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks", "--no-built",
++         "--page", "p=%s" % (folder / fixture), "--langs", "en", "--viewports", widths, "--artifacts", str(art)],
++        capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
++    )
++    fails = [line for line in proc.stdout.splitlines() if line.startswith(("FAIL", "WARN"))]
++    counts = json.loads((art / "counts.json").read_text(encoding="utf-8"))
++    for page, classes in counts["classes"].items():
++        counts["pages"].get(page, {}).pop("classes", None)
++        counts["examples"].setdefault(page, {})["(classes)"] = classes
++    return fails, counts["pages"], counts["examples"]
++
++
++@needs_browser
++@pytest.mark.parametrize("fixture, widths", [("red.html", ["375", "700", "1010"]),
++                                             ("counts_tabs.html", ["280", "320", "1010"]),
++                                             ("reset_tabs", ["280", "320", "375"]),
++                                             ("reset_focus", ["375", "700"])])
++def test_a_page_resized_through_the_widths_measures_as_a_fresh_load_at_each(tmp_path, fixture, widths):
++    together, counts, examples = _fails_and_counts(tmp_path, fixture, ",".join(widths))
++    alone, summed, listed = [], {}, {}
++    for w in widths:
++        fails, c, ex = _fails_and_counts(tmp_path, fixture, w)
++        alone += fails
++        for page, n in c.items():
++            for k, v in n.items():
++                summed.setdefault(page, {})[k] = summed.get(page, {}).get(k, 0) + v
++        for page, by in ex.items():
++            for k, lines in by.items():
++                shown = listed.setdefault(page, {}).setdefault(k, [])
++                if k == "(classes)":
++                    shown[:] = sorted(set(shown) | set(lines))
++                else:
++                    shown += lines[:20 - len(shown)]
++    assert together == alone
++    assert counts == summed
++    assert examples == listed
++
++
++SHOT_LATCH = """<!doctype html><html lang="en"><head><meta charset="utf-8"><title>t</title><style>
++body { margin: 0; font: 15px/1.5 sans-serif; min-height: 3000px; }
++a.fxrow { display: block; text-decoration: underline; }
++.tall .t { width: 40px; white-space: nowrap; }
++</style></head><body><a class="fxrow" href="#x">A row link that fails its rule</a>
++<div class="t">Words that overflow once latched</div>
++<script>const w0 = innerWidth;
++addEventListener('resize', () => { if (innerWidth === w0) document.body.classList.add('tall'); });</script>
++</body></html>"""
++
++
++@needs_browser
++def test_a_failure_screenshot_changes_no_count(tmp_path):
++    page = tmp_path / "latch.html"
++    page.write_text(SHOT_LATCH, encoding="utf-8")
++
++    def counts(*extra):
++        proc = subprocess.run(
++            [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks", "--no-built",
++             "--page", "latch=%s" % page, "--langs", "en", "--viewports", "375,700", *extra],
++            capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
++        )
++        return [line for line in proc.stdout.splitlines() if line.startswith(("COUNT", "FAIL"))]
++
++    shots = tmp_path / "art"
++    assert counts("--artifacts", str(shots)) == counts()
++    assert any(shots.glob("*.png"))
++    assert any(line.startswith("COUNT latch · scroll 0 · overflow 0") for line in counts())
++
++
++def test_the_renders_are_collected_per_width_in_the_order_the_targets_are_listed():
++    import check_design_inventory as cdi  # noqa: PLC0415
++
++    a, b = di.Page("a", "built", "", "", "", ()), di.Page("b", "built", "", "", "", ())
++    targets = [(a, "en", "dist", "a"), (b, "fi", "dist", "b")]
++
++    def found(word):
++        return [{"classes": [word], "ex": {"scroll": [], "overflow": [word] * 15, "split": [], "overlap": []},
++                 "scroll": 0, "overflow": 15, "split": 0, "overlap": 0}]
++
++    rendered = [(1, 1, [cdi.Failure("b", 320, "fi", "x", "b320")], found("b")),
++                (0, 1, [cdi.Failure("a", 320, "en", "x", "a320")], found("a")),
++                (1, 0, [cdi.Failure("b", 280, "fi", "x", "b280")], None),
++                (0, 0, [cdi.Failure("a", 280, "en", "x", "a280")], found("a"))]
++    results = cdi.collect(targets, [280, 320], rendered)
++    assert [[f.detail for f in r["failures"]] for r in results] == [["a280", "b280"], ["a320", "b320"]]
++    assert [r["renders"] for r in results] == [1, 2]
++    assert results[0]["covered"] == {"en": {"a"}}
++    assert results[1]["counted"]["a"]["examples"]["overflow"] == ["320 en a"] * 15
++    assert results[1]["counted"]["a"]["overflow"] == 15
++
++
+ def test_a_page_is_judged_across_its_tabs_and_a_failure_in_every_tab_counts_once():
+     import check_design_inventory as cdi  # noqa: PLC0415
+ 
+diff --git a/tests/test_phone_built_pages_231.py b/tests/test_phone_built_pages_231.py
+index 3b8ebdfb..32e8e133 100644
+--- a/tests/test_phone_built_pages_231.py
++++ b/tests/test_phone_built_pages_231.py
+@@ -143,14 +143,19 @@ def browser():
+         b.close()
+ 
+ 
+-def _measure(browser, site, script: str) -> list[str]:
+-    found: list[str] = []
++@pytest.fixture(scope="module")
++def measured(browser, site) -> dict[str, list[str]]:
++    """Each page loaded once per width, measured by every rule; DOTS last, as it un-hides a dot for a moment."""
++    found: dict[str, list[str]] = {"scroll": [], "taps": [], "rows": [], "dots": []}
+     for width in WIDTHS:
+         page = browser.new_context(viewport={"width": width, "height": 900}).new_page()
+         for url in _pages():
+             page.goto(site + url, wait_until="load")
+             page.wait_for_timeout(200)
+-            found += [f"{width}px {url} {item}" for item in page.evaluate(script)]
++            if width != WIDTHS[0] and page.evaluate("document.documentElement.scrollWidth > innerWidth"):
++                found["scroll"].append(f"{width}px {url}")
++            for key, script in (("taps", TAPS), ("rows", ROWS), ("dots", DOTS)):
++                found[key] += [f"{width}px {url} {item}" for item in page.evaluate(script)]
+         page.close()
+     return found
+ 
+@@ -168,29 +173,20 @@ def test_the_header_fits_at_280_and_300px(browser, site):
+     assert found == []
+ 
+ 
+-def test_no_page_scrolls_sideways(browser, site):
+-    found = []
+-    for width in WIDTHS[1:]:
+-        page = browser.new_context(viewport={"width": width, "height": 900}).new_page()
+-        for url in _pages():
+-            page.goto(site + url, wait_until="load")
+-            page.wait_for_timeout(200)
+-            if page.evaluate("document.documentElement.scrollWidth > innerWidth"):
+-                found.append(f"{width}px {url}")
+-        page.close()
+-    assert found == []
++def test_no_page_scrolls_sideways(measured):
++    assert measured["scroll"] == []
+ 
+ 
+-def test_every_link_and_button_has_a_44px_tap_area(browser, site):
+-    assert _measure(browser, site, TAPS) == []
++def test_every_link_and_button_has_a_44px_tap_area(measured):
++    assert measured["taps"] == []
+ 
+ 
+-def test_no_separator_dot_starts_or_ends_a_line(browser, site):
+-    assert _measure(browser, site, DOTS) == []
++def test_no_separator_dot_starts_or_ends_a_line(measured):
++    assert measured["dots"] == []
+ 
+ 
+-def test_linked_rows_are_square_and_do_not_stick_out(browser, site):
+-    assert _measure(browser, site, ROWS) == []
++def test_linked_rows_are_square_and_do_not_stick_out(measured):
++    assert measured["rows"] == []
+ 
+ 
+ PICKER = """
