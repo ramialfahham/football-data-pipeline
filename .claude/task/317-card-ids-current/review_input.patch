@@ -1,0 +1,157 @@
+diff --git a/.claude/task/317-card-ids-current/contract.md b/.claude/task/317-card-ids-current/contract.md
+new file mode 100644
+index 00000000..e276f962
+--- /dev/null
++++ b/.claude/task/317-card-ids-current/contract.md
+@@ -0,0 +1,37 @@
++# Task contract — nightly green: card corrections keyed to the provider's current player ids
++
++objective: >
++  Issue 317: make the prod nightly green again by re-keying 8 corrected cards in
++  fixture_card_corrections.csv to the player ids the provider now files on those matches' sheets,
++  and deleting the fixture_result_corrections.csv row for fixture 1647990, which the provider now
++  carries as the official 1-1.
++
++refs: >
++  Issue 317. Requested by the coordinating session; go-live gate issue 290.
++
++scope_paths:
++  - dbt_project/seeds/fixture_card_corrections.csv
++  - dbt_project/seeds/fixture_result_corrections.csv
++  - .claude/task/317-card-ids-current/contract.md
++  - .claude/task/317-card-ids-current/review.md
++  - .claude/task/317-card-ids-current/review_input.patch
++
++approved_design:
++  - none: no page output changes
++
++decisions_taken: >
++  Seed upkeep only, under the cleaning rule that a provider value failing its check is withheld and
++  only checks of our own seeds stop the build. Each new id is proven from base_apif__lineups by
++  fixture, team and player name. No new mechanism, no spend beyond read-only queries.
++
++decisions_reserved:
++  - none: nothing else changes.
++
++done_when:
++  - Evidence per row (fixture, team, old id, new id, name on today's sheet) is in the MR.
++  - grep of every seed for the 7 old ids finds only the row for fixture 1506949, which is still on its sheet.
++  - Full pytest, dbt parse and sqlfluff lint are green.
++  - data:build:mr shows both assert_card_corrections_applied and assert_result_corrections_applied passing.
++
++amendments:
++  - + dbt_project/seeds/fixture_card_corrections.csv gains the 12 card rows of fixture 1495763 (SJK-FC Lahti, VL, 2026-08-21), already in scope_paths. Authority: the approved Cards line of cleaning_rules.md (a match whose stat lines and card events disagree takes its cards from sourced research) and the coordinating session's instruction. The official page was unreachable, so source_kind is match_reports with two sites. No new mechanism, no spend. done_when: assert_card_corrections_applied and assert_player_match_cleaning_answer_key pass in data:build:mr, and no other match changes.
+diff --git a/dbt_project/seeds/fixture_card_corrections.csv b/dbt_project/seeds/fixture_card_corrections.csv
+index 07ae3338..4eb95d67 100644
+--- a/dbt_project/seeds/fixture_card_corrections.csv
++++ b/dbt_project/seeds/fixture_card_corrections.csv
+@@ -19,7 +19,7 @@ fixture_id,card_order,team_id,player_id,player_name,minute_elapsed,minute_extra,
+ 1554364,5,4625,112587,C. Zammit Lonardelli,83,,Yellow Card,official,https://www.uefa.com/uefachampionsleague/match/2048622/,"Floriana-Shamrock Rovers, UCL, 2026-07-07: every card checked against UEFA's official match record"
+ 1635640,1,79,312964,N. Ngoy,83,,Yellow Card,official,https://www.uefa.com/uefachampionsleague/match/2049611/,"Bodo/Glimt-Lille, UCL, 2026-11-03: every card checked against UEFA's official match record"
+ 1607168,1,2240,263203,A. Samuelsen,41,,Yellow Card,official,https://www.uefa.com/uefachampionsleague/match/2049100/,"Mjallby AIF-Slovan Bratislava, UCL, 2026-08-04: every card checked against UEFA's official match record"
+-1607168,2,656,554208,Cristian Martínez,53,,Yellow Card,official,https://www.uefa.com/uefachampionsleague/match/2049100/,"Mjallby AIF-Slovan Bratislava, UCL, 2026-08-04: every card checked against UEFA's official match record; player id as on the match's sheet"
++1607168,2,656,50911,Cristian Martínez,53,,Yellow Card,official,https://www.uefa.com/uefachampionsleague/match/2049100/,"Mjallby AIF-Slovan Bratislava, UCL, 2026-08-04: every card checked against UEFA's official match record; player id as on the match's sheet"
+ 1607168,3,2240,47721,J. Gustavsson,89,,Yellow Card,official,https://www.uefa.com/uefachampionsleague/match/2049100/,"Mjallby AIF-Slovan Bratislava, UCL, 2026-08-04: every card checked against UEFA's official match record"
+ 1635635,1,212,2063,André Silva,56,,Yellow Card,official,https://www.uefa.com/uefachampionsleague/match/2049583/,"Real Betis-FC Porto, UCL, 2026-10-14: every card checked against UEFA's official match record"
+ 1635635,2,543,300885,N. Deossa,56,,Yellow Card,official,https://www.uefa.com/uefachampionsleague/match/2049583/,"Real Betis-FC Porto, UCL, 2026-10-14: every card checked against UEFA's official match record"
+@@ -232,6 +232,18 @@ fixture_id,card_order,team_id,player_id,player_name,minute_elapsed,minute_extra,
+ 1528901,1,1116,111016,Raz Shlomo,59,,Yellow Card,official,https://www.uefa.com/uefanationsleague/match/2047982/,"Israel-Rep. Of Ireland, UNL, 2026-09-27: every card checked against UEFA's official match record"
+ 1528901,2,776,130417,Adam Idah,59,,Yellow Card,official,https://www.uefa.com/uefanationsleague/match/2047982/,"Israel-Rep. Of Ireland, UNL, 2026-09-27: every card checked against UEFA's official match record"
+ 1528901,3,776,18820,Conor Coventry,89,,Yellow Card,official,https://www.uefa.com/uefanationsleague/match/2047982/,"Israel-Rep. Of Ireland, UNL, 2026-09-27: every card checked against UEFA's official match record"
++1495763,1,1166,628426,José Müller,22,,Yellow Card,match_reports,https://www.besoccer.com/match/seinajoen-jk/fc-lahti/2026245751/events https://www.sportsmole.co.uk/football/Veikkausliiga/sjk-vs-lahti_game_255052.html,"SJK-FC Lahti, VL, 2026-08-21: every card checked against two match reports, BeSoccer and Sports Mole"
++1495763,2,1166,628426,José Müller,32,,Yellow Card,match_reports,https://www.besoccer.com/match/seinajoen-jk/fc-lahti/2026245751/events https://www.sportsmole.co.uk/football/Veikkausliiga/sjk-vs-lahti_game_255052.html,"SJK-FC Lahti, VL, 2026-08-21: every card checked against two match reports, BeSoccer and Sports Mole"
++1495763,3,1166,628426,José Müller,32,,Red Card,match_reports,https://www.besoccer.com/match/seinajoen-jk/fc-lahti/2026245751/events https://www.sportsmole.co.uk/football/Veikkausliiga/sjk-vs-lahti_game_255052.html,"SJK-FC Lahti, VL, 2026-08-21: every card checked against two match reports, BeSoccer and Sports Mole"
++1495763,4,689,519808,Kelwin,42,,Yellow Card,match_reports,https://www.besoccer.com/match/seinajoen-jk/fc-lahti/2026245751/events https://www.sportsmole.co.uk/football/Veikkausliiga/sjk-vs-lahti_game_255052.html,"SJK-FC Lahti, VL, 2026-08-21: every card checked against two match reports, BeSoccer and Sports Mole"
++1495763,5,689,268806,Kelvin Pires,56,,Yellow Card,match_reports,https://www.besoccer.com/match/seinajoen-jk/fc-lahti/2026245751/events https://www.sportsmole.co.uk/football/Veikkausliiga/sjk-vs-lahti_game_255052.html,"SJK-FC Lahti, VL, 2026-08-21: every card checked against two match reports, BeSoccer and Sports Mole"
++1495763,6,1166,138877,Romaric Yapi,63,,Yellow Card,match_reports,https://www.besoccer.com/match/seinajoen-jk/fc-lahti/2026245751/events https://www.sportsmole.co.uk/football/Veikkausliiga/sjk-vs-lahti_game_255052.html,"SJK-FC Lahti, VL, 2026-08-21: every card checked against two match reports, BeSoccer and Sports Mole"
++1495763,7,1166,55565,Momodou Sarr,64,,Yellow Card,match_reports,https://www.besoccer.com/match/seinajoen-jk/fc-lahti/2026245751/events https://www.sportsmole.co.uk/football/Veikkausliiga/sjk-vs-lahti_game_255052.html,"SJK-FC Lahti, VL, 2026-08-21: every card checked against two match reports, BeSoccer and Sports Mole"
++1495763,8,1166,30406,Tòfol Montiel,75,,Yellow Card,match_reports,https://www.besoccer.com/match/seinajoen-jk/fc-lahti/2026245751/events https://www.sportsmole.co.uk/football/Veikkausliiga/sjk-vs-lahti_game_255052.html,"SJK-FC Lahti, VL, 2026-08-21: every card checked against two match reports, BeSoccer and Sports Mole"
++1495763,9,689,268806,Kelvin Pires,81,,Yellow Card,match_reports,https://www.besoccer.com/match/seinajoen-jk/fc-lahti/2026245751/events https://www.sportsmole.co.uk/football/Veikkausliiga/sjk-vs-lahti_game_255052.html,"SJK-FC Lahti, VL, 2026-08-21: every card checked against two match reports, BeSoccer and Sports Mole"
++1495763,10,689,268806,Kelvin Pires,81,,Red Card,match_reports,https://www.besoccer.com/match/seinajoen-jk/fc-lahti/2026245751/events https://www.sportsmole.co.uk/football/Veikkausliiga/sjk-vs-lahti_game_255052.html,"SJK-FC Lahti, VL, 2026-08-21: every card checked against two match reports, BeSoccer and Sports Mole"
++1495763,11,689,157270,Roope Paunio,90,3,Yellow Card,match_reports,https://www.besoccer.com/match/seinajoen-jk/fc-lahti/2026245751/events https://www.sportsmole.co.uk/football/Veikkausliiga/sjk-vs-lahti_game_255052.html,"SJK-FC Lahti, VL, 2026-08-21: every card checked against two match reports, BeSoccer and Sports Mole"
++1495763,12,689,410109,Armaan Wilson,90,3,Yellow Card,match_reports,https://www.besoccer.com/match/seinajoen-jk/fc-lahti/2026245751/events https://www.sportsmole.co.uk/football/Veikkausliiga/sjk-vs-lahti_game_255052.html,"SJK-FC Lahti, VL, 2026-08-21: every card checked against two match reports, BeSoccer and Sports Mole"
+ 1506899,1,2745,9602,Patrick William,17,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=4&meetSeq=1,"Jeonbuk Motors-Bucheon FC 1995, KL1, 2026-03-01: every card checked against the K League match record"
+ 1506899,2,2762,2914,Lee Seung-Woo,45,2,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=4&meetSeq=1,"Jeonbuk Motors-Bucheon FC 1995, KL1, 2026-03-01: every card checked against the K League match record"
+ 1506899,3,2745,34526,Shin Jae-Won,57,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=4&meetSeq=1,"Jeonbuk Motors-Bucheon FC 1995, KL1, 2026-03-01: every card checked against the K League match record"
+@@ -241,7 +253,7 @@ fixture_id,card_order,team_id,player_id,player_name,minute_elapsed,minute_extra,
+ 1506900,3,2759,34553,Shin Chang-Moo,44,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=5&meetSeq=1,"Jeju United FC-Gwangju FC, KL1, 2026-03-01: every card checked against the K League match record"
+ 1506900,4,2761,32869,Yu In-Soo,45,4,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=5&meetSeq=1,"Jeju United FC-Gwangju FC, KL1, 2026-03-01: every card checked against the K League match record"
+ 1506900,5,2759,356378,Kim Jin-Ho,52,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=5&meetSeq=1,"Jeju United FC-Gwangju FC, KL1, 2026-03-01: every card checked against the K League match record"
+-1506900,6,2761,547287,Park Chang-Jun,74,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=5&meetSeq=1,"Jeju United FC-Gwangju FC, KL1, 2026-03-01: every card checked against the K League match record"
++1506900,6,2761,34665,Park Chang-Jun,74,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=5&meetSeq=1,"Jeju United FC-Gwangju FC, KL1, 2026-03-01: every card checked against the K League match record"
+ 1506900,7,2759,550439,Ahn Hyeok-Ju,90,3,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=5&meetSeq=1,"Jeju United FC-Gwangju FC, KL1, 2026-03-01: every card checked against the K League match record; player id as on the match's sheet"
+ 1506901,1,2748,228827,Choi Geon-Joo,20,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=6&meetSeq=1,"Daejeon Citizen-FC Anyang, KL1, 2026-03-02: every card checked against the K League match record"
+ 1506901,2,2750,34590,Ha Chang-Rae,33,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=6&meetSeq=1,"Daejeon Citizen-FC Anyang, KL1, 2026-03-02: every card checked against the K League match record"
+@@ -257,7 +269,7 @@ fixture_id,card_order,team_id,player_id,player_name,minute_elapsed,minute_extra,
+ 1506905,3,2763,34479,Jeong Chi-In,56,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=9&meetSeq=1,"Gwangju FC-Incheon United, KL1, 2026-03-07: every card checked against the K League match record"
+ 1506905,4,2759,57162,H. Fridjonsson,74,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=9&meetSeq=1,"Gwangju FC-Incheon United, KL1, 2026-03-07: every card checked against the K League match record"
+ 1506905,5,2763,327616,Kim Myung-soon,90,14,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=9&meetSeq=1,"Gwangju FC-Incheon United, KL1, 2026-03-07: every card checked against the K League match record"
+-1506906,1,2768,547267,Kim Min-kyu,71,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=11&meetSeq=1,"Gimcheon Sangmu FC-Jeonbuk Motors, KL1, 2026-03-08: every card checked against the K League match record; player id as on the match's sheet"
++1506906,1,2768,146471,Kim Min-kyu,71,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=11&meetSeq=1,"Gimcheon Sangmu FC-Jeonbuk Motors, KL1, 2026-03-08: every card checked against the K League match record; player id as on the match's sheet"
+ 1506906,2,2762,34417,Kim Tae-Hwan,90,6,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=11&meetSeq=1,"Gimcheon Sangmu FC-Jeonbuk Motors, KL1, 2026-03-08: every card checked against the K League match record"
+ 1506906,3,2762,34171,Lee Dong-Jun,90,7,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=11&meetSeq=1,"Gimcheon Sangmu FC-Jeonbuk Motors, KL1, 2026-03-08: every card checked against the K League match record"
+ 1506910,1,2745,237732,Thiaguinho Santos,13,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=15&meetSeq=1,"Bucheon FC 1995-Ulsan Hyundai FC, KL1, 2026-03-15: every card checked against the K League match record"
+@@ -266,7 +278,7 @@ fixture_id,card_order,team_id,player_id,player_name,minute_elapsed,minute_extra,
+ 1506914,1,2768,34442,Lee Sang-Heon,8,,Red Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=19&meetSeq=1,"Gimcheon Sangmu FC-Gwangju FC, KL1, 2026-03-17: every card checked against the K League match record"
+ 1506914,2,2759,356251,Yu Je-ho,31,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=19&meetSeq=1,"Gimcheon Sangmu FC-Gwangju FC, KL1, 2026-03-17: every card checked against the K League match record"
+ 1506914,3,2759,403362,Jung Ji-Hun,40,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=19&meetSeq=1,"Gimcheon Sangmu FC-Gwangju FC, KL1, 2026-03-17: every card checked against the K League match record"
+-1506914,4,2768,614036,Jong-beom Baek,64,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=19&meetSeq=1,"Gimcheon Sangmu FC-Gwangju FC, KL1, 2026-03-17: every card checked against the K League match record; player id as on the match's sheet"
++1506914,4,2768,34487,Jong-beom Baek,64,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=19&meetSeq=1,"Gimcheon Sangmu FC-Gwangju FC, KL1, 2026-03-17: every card checked against the K League match record; player id as on the match's sheet"
+ 1506914,5,2759,453968,Moon Min-seo,65,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=19&meetSeq=1,"Gimcheon Sangmu FC-Gwangju FC, KL1, 2026-03-17: every card checked against the K League match record"
+ 1506914,6,2768,228842,Kim In-Gyun,78,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=19&meetSeq=1,"Gimcheon Sangmu FC-Gwangju FC, KL1, 2026-03-17: every card checked against the K League match record"
+ 1506914,7,2768,14697,Kim Hyun-Woo,85,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=19&meetSeq=1,"Gimcheon Sangmu FC-Gwangju FC, KL1, 2026-03-17: every card checked against the K League match record"
+@@ -275,7 +287,7 @@ fixture_id,card_order,team_id,player_id,player_name,minute_elapsed,minute_extra,
+ 1506918,1,2762,363021,Kang Sang-Yoon,39,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=23&meetSeq=1,"Jeonbuk Motors-FC Anyang, KL1, 2026-03-18: every card checked against the K League match record"
+ 1506918,2,2762,197251,Tiago Orobo,54,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=23&meetSeq=1,"Jeonbuk Motors-FC Anyang, KL1, 2026-03-18: every card checked against the K League match record"
+ 1506918,3,2748,224641,Lee Jin-Yong,54,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=23&meetSeq=1,"Jeonbuk Motors-FC Anyang, KL1, 2026-03-18: every card checked against the K League match record"
+-1506918,4,2762,547307,Wi-je Cho,73,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=23&meetSeq=1,"Jeonbuk Motors-FC Anyang, KL1, 2026-03-18: every card checked against the K League match record; player id as on the match's sheet"
++1506918,4,2762,357209,Wi-je Cho,73,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=23&meetSeq=1,"Jeonbuk Motors-FC Anyang, KL1, 2026-03-18: every card checked against the K League match record; player id as on the match's sheet"
+ 1506918,5,2748,34670,Kang Ji-hun,90,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=23&meetSeq=1,"Jeonbuk Motors-FC Anyang, KL1, 2026-03-18: every card checked against the K League match record"
+ 1506942,1,2759,2902,Ju Se-Jong,39,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=47&meetSeq=1,"Ulsan Hyundai FC-Gwangju FC, KL1, 2026-04-19: every card checked against the K League match record"
+ 1506942,2,2759,653115,Kim Yong-hyuk,60,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=47&meetSeq=1,"Ulsan Hyundai FC-Gwangju FC, KL1, 2026-04-19: every card checked against the K League match record; player id as on the match's sheet"
+@@ -301,15 +313,15 @@ fixture_id,card_order,team_id,player_id,player_name,minute_elapsed,minute_extra,
+ 1506956,3,2768,268622,Byeon Jun-Soo,63,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=61&meetSeq=1,"FC Seoul-Gimcheon Sangmu FC, KL1, 2026-05-02: every card checked against the K League match record"
+ 1506956,4,2768,308272,Lee Jung-Taek,90,1,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=61&meetSeq=1,"FC Seoul-Gimcheon Sangmu FC, KL1, 2026-05-02: every card checked against the K League match record"
+ 1506956,5,2766,2896,Kim Jin-Su,90,8,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=61&meetSeq=1,"FC Seoul-Gimcheon Sangmu FC, KL1, 2026-05-02: every card checked against the K League match record"
+-1506961,1,2759,550369,Min-ki Lee,37,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=66&meetSeq=1,"Gwangju FC-Daejeon Citizen, KL1, 2026-05-02: every card checked against the K League match record; player id as on the match's sheet"
++1506961,1,2759,34539,Min-ki Lee,37,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=66&meetSeq=1,"Gwangju FC-Daejeon Citizen, KL1, 2026-05-02: every card checked against the K League match record; player id as on the match's sheet"
+ 1506961,2,2759,2902,Ju Se-Jong,45,5,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=66&meetSeq=1,"Gwangju FC-Daejeon Citizen, KL1, 2026-05-02: every card checked against the K League match record"
+ 1506961,3,2759,472264,Hong Yong-Jun,66,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=66&meetSeq=1,"Gwangju FC-Daejeon Citizen, KL1, 2026-05-02: every card checked against the K League match record"
+ 1506961,4,2750,47706,G. Ludwigson,73,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=66&meetSeq=1,"Gwangju FC-Daejeon Citizen, KL1, 2026-05-02: every card checked against the K League match record"
+ 1506961,5,2759,356378,Kim Jin-Ho,76,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=66&meetSeq=1,"Gwangju FC-Daejeon Citizen, KL1, 2026-05-02: every card checked against the K League match record"
+-1506964,1,2763,547230,Dong-ryul Lee,90,1,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=70&meetSeq=1,"Daejeon Citizen-Incheon United, KL1, 2026-05-05: every card checked against the K League match record; player id as on the match's sheet"
++1506964,1,2763,34784,Dong-ryul Lee,90,1,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=70&meetSeq=1,"Daejeon Citizen-Incheon United, KL1, 2026-05-05: every card checked against the K League match record; player id as on the match's sheet"
+ 1506983,1,2768,262128,K. Lee,66,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=87&meetSeq=1,"Jeonbuk Motors-Gimcheon Sangmu FC, KL1, 2026-05-17: every card checked against the K League match record"
+ 1506983,2,2762,34537,Kim Young-Bin,85,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=87&meetSeq=1,"Jeonbuk Motors-Gimcheon Sangmu FC, KL1, 2026-05-17: every card checked against the K League match record"
+-1506983,3,2768,614036,Jong-beom Baek,90,4,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=87&meetSeq=1,"Jeonbuk Motors-Gimcheon Sangmu FC, KL1, 2026-05-17: every card checked against the K League match record; player id as on the match's sheet"
++1506983,3,2768,34487,Jong-beom Baek,90,4,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=87&meetSeq=1,"Jeonbuk Motors-Gimcheon Sangmu FC, KL1, 2026-05-17: every card checked against the K League match record; player id as on the match's sheet"
+ 1507003,1,2745,34531,Baek Dong-Gyu,6,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=108&meetSeq=1,"Bucheon FC 1995-FC Seoul, KL1, 2026-07-19: every card checked against the K League match record"
+ 1507003,2,2745,669129,Sung Ye-geon,17,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=108&meetSeq=1,"Bucheon FC 1995-FC Seoul, KL1, 2026-07-19: every card checked against the K League match record; player id as on the match's sheet"
+ 1507003,3,2745,197987,Kim Min-Jun,29,,Yellow Card,official,https://www.kleague.com/match.do?year=2026&leagueId=1&gameId=108&meetSeq=1,"Bucheon FC 1995-FC Seoul, KL1, 2026-07-19: every card checked against the K League match record"
+diff --git a/dbt_project/seeds/fixture_result_corrections.csv b/dbt_project/seeds/fixture_result_corrections.csv
+index b1bdc04b..744f303c 100644
+--- a/dbt_project/seeds/fixture_result_corrections.csv
++++ b/dbt_project/seeds/fixture_result_corrections.csv
+@@ -160,5 +160,4 @@ fixture_id,goals_home,goals_away,awarded,awarded_to_team_id,award_kind,on_pitch_
+ 1647960,0,0,false,,,,,4,3,match_reports,https://news.footeo.com/2026/11/14/coupe-de-france-les-resultats-complets-hecatombe-en-ligue-2-17753 https://www.433foot.fr/resultats-et-programme-du-7eme-tour-de-la-coupe-de-france-avec-les-exploits-de-st-ouen-laumone-et-lannions-n2/,"Lannion-Guingamp, CDF 14 Nov 2026: 0-0, 4-3 on penalties"
+ 1647978,2,2,false,,,,,2,3,match_reports,https://news.footeo.com/2026/11/14/coupe-de-france-les-resultats-complets-hecatombe-en-ligue-2-17753 https://www.433foot.fr/resultats-et-programme-du-7eme-tour-de-la-coupe-de-france-avec-les-exploits-de-st-ouen-laumone-et-lannions-n2/,"Pontivy-TA Rennes, CDF 14 Nov 2026: 2-2, 2-3 on penalties"
+ 1647985,2,2,false,,,,,5,4,match_reports,https://news.footeo.com/2026/11/14/coupe-de-france-les-resultats-complets-hecatombe-en-ligue-2-17753 https://www.433foot.fr/resultats-et-programme-du-7eme-tour-de-la-coupe-de-france-avec-les-exploits-de-st-ouen-laumone-et-lannions-n2/,"Saint-Omer-Vire, CDF 14 Nov 2026: 2-2, 5-4 on penalties"
+-1647990,1,1,false,,,,,,,official,https://epreuves.fff.fr/competition/match/81007406-stade-bordelais-a-s-mazeres-uzos-rontignon,"Stade Bordelais-Mazères, CDF 14 Nov 2026: 1-1, shoot-out not yet sourced"
+ 1648006,2,2,false,,,,,3,5,match_reports,https://news.footeo.com/2026/11/14/coupe-de-france-les-resultats-complets-hecatombe-en-ligue-2-17753 https://www.433foot.fr/resultats-et-programme-du-7eme-tour-de-la-coupe-de-france-avec-les-exploits-de-st-ouen-laumone-et-lannions-n2/,"Vesoul-Fleury, CDF 14 Nov 2026: 2-2, 3-5 on penalties"
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/317-card-ids-current/review.md        |  18 +++
+#    .../task/317-card-ids-current/review_input.patch   | 138 +++++++++++++++++++++
+#    2 files changed, 156 insertions(+)
+# ============================================================================
