@@ -552,13 +552,29 @@ def changed_files(repo: Path, target_sha: str, branch_sha: str) -> list[str]:
     return [p for p in raw.split("\0") if p]
 
 
+def long_path(path: Path | str) -> str:
+    """The path in the extended-length form Windows needs past 260 characters; unchanged elsewhere."""
+    if os.name != "nt":
+        return str(path)
+    return extended(os.path.abspath(str(path)))
+
+
+def extended(absolute: str) -> str:
+    prefix = "\\\\?\\"
+    if absolute.startswith(prefix):
+        return absolute
+    if absolute.startswith("\\\\"):
+        return prefix + "UNC\\" + absolute[2:]
+    return prefix + absolute
+
+
 def rm_tree(path: Path) -> None:
     def onerror(func, p, _exc):
         os.chmod(p, stat.S_IWRITE)
         func(p)
-    if path.exists():
+    if os.path.exists(long_path(path)):
         try:
-            shutil.rmtree(path, onerror=onerror)
+            shutil.rmtree(long_path(path), onerror=onerror)
         except OSError as exc:
             print("could not remove %s: %s" % (path, exc), file=sys.stderr)
 
@@ -637,7 +653,7 @@ def collect_needs(plans: dict[str, dict], p: dict, runs: Path) -> tuple[Path | N
     for d in deps:
         src = runs / re.sub(r"[^a-z0-9]+", "-", d.lower()) / "out"
         if (src / "artifacts").is_dir():
-            shutil.copytree(src / "artifacts", folder, dirs_exist_ok=True)
+            shutil.copytree(long_path(src / "artifacts"), long_path(folder), dirs_exist_ok=True)
         env.update(read_dotenv(src / "dotenv.env"))
     return folder, env
 
