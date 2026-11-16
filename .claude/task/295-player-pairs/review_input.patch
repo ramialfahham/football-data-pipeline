@@ -241,18 +241,20 @@ index 06d4561c..2cb48dc4 100644
          unnest(json_query_array(s.substitutes_json)) as player_el
      union distinct
 diff --git a/dbt_project/models/2_base/api_football/base_apif__player_team_season.sql b/dbt_project/models/2_base/api_football/base_apif__player_team_season.sql
-index 5bf1f2f9..26efde5b 100644
+index b6f76948..5be6fca3 100644
 --- a/dbt_project/models/2_base/api_football/base_apif__player_team_season.sql
 +++ b/dbt_project/models/2_base/api_football/base_apif__player_team_season.sql
-@@ -6,8 +6,10 @@
+@@ -6,9 +6,11 @@
  with src as (
      select
-         * except (player_id),
--        {{ player_id_override('player_id') }} as player_id
+         * except (player_id, team_id),
+-        {{ player_id_override('player_id') }} as player_id,
+-        {{ team_id_override('team_id') }} as team_id
 -    from {{ ref('stg_apif__players') }}
 +        {{ season_player_id(
 +            'season_row.player_id', 'season_row.league_code', 'season_row.season_year', 'season_row.team_id'
-+        ) }} as player_id
++        ) }} as player_id,
++        {{ team_id_override('season_row.team_id') }} as team_id
 +    from {{ ref('stg_apif__players') }} as season_row
  )
  
@@ -329,10 +331,10 @@ index ead55e39..c0dcb5af 100644
 +51294,586701,assign_in_fixture,1485416,906,,,,https://global.espn.com/football/player/_/id/407846/alhassane-bangoura https://news.radioalgerie.dz/fr/node/90701,"MC Alger shirt 10, the 2004-born midfielder who joined from Milo FC in August 2025; the sheet of this match already names him as 586701."
 +51294,586701,assign_in_season,,906,,CAFCL,2025,https://global.espn.com/football/player/_/id/407846/alhassane-bangoura https://news.radioalgerie.dz/fr/node/90701,"MC Alger's 2025 CAF Champions League squad holds the 2004-born midfielder, shirt 10, not Lass Bangoura."
 diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
-index 5302ea5f..46b37578 100644
+index babf729b..a2513995 100644
 --- a/dbt_project/seeds/schema.yml
 +++ b/dbt_project/seeds/schema.yml
-@@ -1575,9 +1575,11 @@ seeds:
+@@ -1576,9 +1576,11 @@ seeds:
      description: >
        A player's id where the provider's is wrong: one player the provider holds under two ids (one
        row per duplicate id, naming the id he keeps), or one player the provider holds under the
@@ -347,7 +349,7 @@ index 5302ea5f..46b37578 100644
      config:
        column_types:
          wrong_player_api_id: int64
-@@ -1586,41 +1588,51 @@ seeds:
+@@ -1587,41 +1589,51 @@ seeds:
          fixture_id: int64
          team_id: int64
          shirt_number: int64
@@ -640,3 +642,20 @@ index 00000000..d972b922
 +from pages
 +group by player_full_name, title_team, title_position
 +having count(*) > 1
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/295-player-pairs/review.md          |  24 +
+#    .claude/task/295-player-pairs/review_input.patch | 642 +++++++++++++++++++++++
+#    2 files changed, 666 insertions(+)
+# ============================================================================

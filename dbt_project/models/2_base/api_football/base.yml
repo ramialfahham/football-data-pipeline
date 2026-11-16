@@ -11,8 +11,8 @@ models:
       competition's matches is therefore present even when the provider's /teams call never
       returned it, which is common on newly onboarded competitions.
 
-      The ids taken from the three fixture-level feeds pass through the fixture_team_id_overrides
-      seed first, so a team id the corrections have retired is never minted as an entity here. Only
+      Every key passes through the fixture_team_id_overrides seed first, so a team id the
+      corrections have retired is never minted as an entity here. Only
       the keys are corrected; the display name still comes from whichever source carries one.
     config:
       tags: ["base", "api_football", "team_context"]
@@ -155,7 +155,8 @@ models:
       score and status are the official ones from the fixture_result_corrections seed, and the
       provider's stay on the row. Where two clubs share a provider team id in a fixture, the
       home and away team ids are corrected from the fixture_team_id_overrides seed's
-      reattribute_in_fixture rows. Where the provider files a fixture under another round's name,
+      reattribute_in_fixture rows, and a club's duplicate id is replaced by the id it keeps, from
+      its alias rows. Where the provider files a fixture under another round's name,
       the round is the organiser's from the fixture_round_corrections seed. A result that fails a
       result check is withheld: result_needs_research is true and the goals, shoot-out and winner
       are blank. Grain: fixture_id.

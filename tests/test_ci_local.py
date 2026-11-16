@@ -200,6 +200,31 @@ def test_only_the_named_needs_reach_a_job(tmp_path):
     assert cl.collect_needs(plans, {"name": "x", "needs": []}, runs) == (None, {})
 
 
+@pytest.mark.parametrize("given, expected", [
+    ("C:\\x\\y", "\\\\?\\C:\\x\\y"),
+    ("\\\\?\\C:\\x", "\\\\?\\C:\\x"),
+    ("\\\\server\\share\\x", "\\\\?\\UNC\\server\\share\\x"),
+])
+def test_the_extended_length_form_of_a_windows_path(given, expected):
+    assert cl.extended(given) == expected
+
+
+@pytest.mark.skipif(os.name != "nt", reason="the 260-character limit is Windows-only")
+def test_artifacts_deeper_than_260_characters_are_handed_over_and_removed(tmp_path):
+    runs = tmp_path
+    deep = Path(*["segment-of-some-length"] * 12, "page.txt")
+    src = runs / "build-site-v2" / "out" / "artifacts" / "site_v2" / deep
+    assert len(str(src)) > 300
+    os.makedirs(cl.long_path(src.parent))
+    Path(cl.long_path(src)).write_text("x")
+    plans = {"build:site-v2": {"name": "build:site-v2"},
+             "validate:ui": {"name": "validate:ui", "needs": ["build:site-v2"]}}
+    folder, _ = cl.collect_needs(plans, plans["validate:ui"], runs)
+    assert Path(cl.long_path(folder / "site_v2" / deep)).read_text() == "x"
+    cl.rm_tree(runs / "build-site-v2")
+    assert not Path(cl.long_path(src)).exists()
+
+
 def test_a_need_runs_before_its_dependant(doc):
     order = cl.order_jobs(doc, ["validate:ui"])
     assert order.index("build:site-v2") < order.index("validate:ui")

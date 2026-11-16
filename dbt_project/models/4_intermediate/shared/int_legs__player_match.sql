@@ -22,6 +22,32 @@ competitions as (
     select * from {{ ref('dim_league') }}
 ),
 
+-- The stat line files some bench players as starters; a checked team sheet says who was on the bench.
+checked_sheets as (
+    select
+        fixture_sk,
+        player_sk,
+        is_starter
+    from {{ ref('fct_fixture_lineup') }}
+    where lineup_state in ('confirmed', 'researched')
+),
+
+player_bench as (
+    select
+        ps.*,
+        if(sheet.player_sk is not null, not sheet.is_starter, ps.is_substitute) as is_substitute_checked
+    from player_stats as ps
+    left join checked_sheets as sheet
+        on ps.fixture_sk = sheet.fixture_sk and ps.player_sk = sheet.player_sk
+),
+
+player_roles as (
+    select
+        *,
+        coalesce(minutes, 0) > 0 and not coalesce(is_substitute_checked, false) as is_starter_checked
+    from player_bench
+),
+
 finished as (
     select
         fixture_sk,
@@ -53,8 +79,8 @@ select
     reg.entity_type,
     ps.is_from_lineups,
     ps.minutes,
-    ps.is_starter,
-    ps.is_substitute,
+    ps.is_starter_checked as is_starter,
+    ps.is_substitute_checked as is_substitute,
     ps.position_code,
     ps.shots,
     ps.shots_on_target,
@@ -86,7 +112,7 @@ select
     case when ps.team_sk = f.home_team_sk then f.away_team_sk else f.home_team_sk end
         as opponent_team_sk,
     case when ps.team_sk = f.home_team_sk then 'home' else 'away' end as home_away
-from player_stats as ps
+from player_roles as ps
 inner join finished as f
     on ps.fixture_sk = f.fixture_sk
 left join competitions as reg

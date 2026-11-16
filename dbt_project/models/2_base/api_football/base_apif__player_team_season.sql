@@ -5,10 +5,11 @@
 -- Grain: (league_code, player_id, team_id, season_year). league_code flows through.
 with src as (
     select
-        * except (player_id),
+        * except (player_id, team_id),
         {{ season_player_id(
             'season_row.player_id', 'season_row.league_code', 'season_row.season_year', 'season_row.team_id'
-        ) }} as player_id
+        ) }} as player_id,
+        {{ team_id_override('season_row.team_id') }} as team_id
     from {{ ref('stg_apif__players') }} as season_row
 )
 
