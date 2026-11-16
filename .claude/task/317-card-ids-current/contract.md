@@ -33,4 +33,5 @@ done_when:
   - Full pytest, dbt parse and sqlfluff lint are green.
   - data:build:mr shows both assert_card_corrections_applied and assert_result_corrections_applied passing.
 
-amendments: (none)
+amendments:
+  - + dbt_project/seeds/fixture_card_corrections.csv gains the 12 card rows of fixture 1495763 (SJK-FC Lahti, VL, 2026-08-21), already in scope_paths. Authority: the approved Cards line of cleaning_rules.md (a match whose stat lines and card events disagree takes its cards from sourced research) and the coordinating session's instruction. The official page was unreachable, so source_kind is match_reports with two sites. No new mechanism, no spend. done_when: assert_card_corrections_applied and assert_player_match_cleaning_answer_key pass in data:build:mr, and no other match changes.

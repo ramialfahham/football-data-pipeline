@@ -1,9 +1,9 @@
 diff --git a/.claude/task/317-card-ids-current/contract.md b/.claude/task/317-card-ids-current/contract.md
 new file mode 100644
-index 00000000..0fa6ad61
+index 00000000..e276f962
 --- /dev/null
 +++ b/.claude/task/317-card-ids-current/contract.md
-@@ -0,0 +1,36 @@
+@@ -0,0 +1,37 @@
 +# Task contract — nightly green: card corrections keyed to the provider's current player ids
 +
 +objective: >
@@ -39,7 +39,8 @@ index 00000000..0fa6ad61
 +  - Full pytest, dbt parse and sqlfluff lint are green.
 +  - data:build:mr shows both assert_card_corrections_applied and assert_result_corrections_applied passing.
 +
-+amendments: (none)
++amendments:
++  - + dbt_project/seeds/fixture_card_corrections.csv gains the 12 card rows of fixture 1495763 (SJK-FC Lahti, VL, 2026-08-21), already in scope_paths. Authority: the approved Cards line of cleaning_rules.md (a match whose stat lines and card events disagree takes its cards from sourced research) and the coordinating session's instruction. The official page was unreachable, so source_kind is match_reports with two sites. No new mechanism, no spend. done_when: assert_card_corrections_applied and assert_player_match_cleaning_answer_key pass in data:build:mr, and no other match changes.
 diff --git a/dbt_project/seeds/fixture_card_corrections.csv b/dbt_project/seeds/fixture_card_corrections.csv
 index 07ae3338..26cf60b6 100644
 --- a/dbt_project/seeds/fixture_card_corrections.csv
@@ -118,3 +119,20 @@ index b1bdc04b..744f303c 100644
  1647985,2,2,false,,,,,5,4,match_reports,https://news.footeo.com/2026/11/14/coupe-de-france-les-resultats-complets-hecatombe-en-ligue-2-17753 https://www.433foot.fr/resultats-et-programme-du-7eme-tour-de-la-coupe-de-france-avec-les-exploits-de-st-ouen-laumone-et-lannions-n2/,"Saint-Omer-Vire, CDF 14 Nov 2026: 2-2, 5-4 on penalties"
 -1647990,1,1,false,,,,,,,official,https://epreuves.fff.fr/competition/match/81007406-stade-bordelais-a-s-mazeres-uzos-rontignon,"Stade Bordelais-Mazères, CDF 14 Nov 2026: 1-1, shoot-out not yet sourced"
  1648006,2,2,false,,,,,3,5,match_reports,https://news.footeo.com/2026/11/14/coupe-de-france-les-resultats-complets-hecatombe-en-ligue-2-17753 https://www.433foot.fr/resultats-et-programme-du-7eme-tour-de-la-coupe-de-france-avec-les-exploits-de-st-ouen-laumone-et-lannions-n2/,"Vesoul-Fleury, CDF 14 Nov 2026: 2-2, 3-5 on penalties"
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/317-card-ids-current/review.md        |  19 ++++
+#    .../task/317-card-ids-current/review_input.patch   | 120 +++++++++++++++++++++
+#    2 files changed, 139 insertions(+)
+# ============================================================================
