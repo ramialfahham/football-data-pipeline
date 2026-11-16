@@ -2166,6 +2166,33 @@ def test_every_job_except_the_nightly_is_guarded_against_schedules():
         f"{nightly} does not run on a schedule — the nightly build would never fire")
 
 
+def test_no_pipeline_on_main_is_auto_cancelled_by_a_newer_commit():
+    """A cancelled main pipeline never builds prod or the nightly image; MR pipelines keep the default."""
+    import pathlib
+
+    import yaml
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    workflow = yaml.safe_load((root / ".gitlab-ci.yml").read_text(encoding="utf-8"))["workflow"]
+
+    def on_new_commit(context: str) -> str | None:
+        """The effective setting: the first matching workflow rule's, else the workflow default."""
+        rule = next(r for r in workflow["rules"] if _matches(_ci_cond(r), context))
+        setting = rule.get("auto_cancel") or workflow.get("auto_cancel") or {}
+        return setting.get("on_new_commit")
+
+    for context in ("push_main", "web", "schedule"):
+        assert on_new_commit(context) == "none", (
+            f"a {context} pipeline on main can be auto-cancelled by the next merge "
+            f"(on_new_commit={on_new_commit(context)!r}), and then its prod data build and "
+            f"nightly image deploy never run. Keep `auto_cancel: on_new_commit: none` on the "
+            f"workflow rule `$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH`.")
+
+    assert on_new_commit("mr") is None, (
+        f"merge-request pipelines carry on_new_commit={on_new_commit('mr')!r}; a new push to "
+        f"an MR should still cancel its stale pipeline under GitLab's default.")
+
+
 def test_ci_writes_the_dbt_profile_where_sqlfluff_looks_for_it():
     """dbt honours `DBT_PROFILES_DIR` but sqlfluff reads `profiles_dir` from `dbt_project/.sqlfluff`, so the two must agree.
 
