@@ -33,6 +33,63 @@ deduped as (
         ) = 1
 ),
 
+-- A later fetch can drop a goal's added minute. The same goal in another fetch is the same scorer,
+-- detail and minute, taken in list order where one player has several such goals.
+goal_occurrences as (
+    select
+        league_code,
+        fixture_id,
+        raw_ingested_at,
+        event_index,
+        player_id,
+        event_detail,
+        minute_elapsed,
+        minute_extra,
+        row_number() over (
+            partition by league_code, fixture_id, raw_ingested_at, player_id, event_detail, minute_elapsed
+            order by event_index
+        ) as occurrence
+    from src
+    where event_type = 'Goal' and player_id is not null and minute_elapsed is not null
+    qualify row_number() over (
+        partition by league_code, fixture_id, raw_ingested_at, event_index
+        order by event_index
+    ) = 1
+),
+
+goal_added_minutes as (
+    select
+        league_code,
+        fixture_id,
+        player_id,
+        event_detail,
+        minute_elapsed,
+        occurrence,
+        array_agg(minute_extra order by raw_ingested_at desc limit 1)[offset(0)] as minute_extra
+    from goal_occurrences
+    where minute_extra is not null
+    group by league_code, fixture_id, player_id, event_detail, minute_elapsed, occurrence
+),
+
+added_minutes_kept as (
+    select deduped.* replace (coalesce(deduped.minute_extra, added.minute_extra) as minute_extra)
+    from deduped
+    left join goal_occurrences as occurrences
+        on
+            deduped.league_code = occurrences.league_code
+            and deduped.fixture_id = occurrences.fixture_id
+            and deduped.raw_ingested_at = occurrences.raw_ingested_at
+            and deduped.event_index = occurrences.event_index
+    left join goal_added_minutes as added
+        on
+            occurrences.league_code = added.league_code
+            and occurrences.fixture_id = added.fixture_id
+            and occurrences.player_id = added.player_id
+            and occurrences.event_detail = added.event_detail
+            and occurrences.minute_elapsed = added.minute_elapsed
+            and occurrences.occurrence = added.occurrence
+),
+
 recovered as (
     select
         league_code,
@@ -62,7 +119,7 @@ recovered as (
                 )
             else team_id
         end as team_id
-    from deduped
+    from added_minutes_kept
 ),
 
 -- Fixture participants (home/away team ids), used to evaluate the reattribute_if_cohabiting

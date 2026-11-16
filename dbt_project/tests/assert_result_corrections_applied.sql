@@ -14,7 +14,8 @@
 --     score on the pitch for a played or abandoned award), name a team not in the match, or sit
 --     beside the row that says the match had no goal.
 --   - no_longer_needed: the provider now carries the official result itself, or every corrected
---     goal with the same team, player id and minute; a goal without a player id never matches.
+--     goal with the same team, player id and minute; a goal without a player id, or whose scorer or
+--     assister fails the line-up check, never matches.
 --     An award is always needed: the provider never says how it came about. A round correction
 --     is no longer needed once the provider files the fixture under the same round.
 
@@ -45,7 +46,7 @@ round_corrections as (
 ),
 
 events as (
-    select * from {{ ref('base_apif__fixture_events') }}
+    select * from {{ ref('base_apif__fixture_events_checked') }}
 ),
 
 goal_counts as (
@@ -102,7 +103,7 @@ provider_goal_keys as (
     from events as e
     inner join goal_counts as g
         on e.fixture_id = g.fixture_id
-    where e.is_provider_goal
+    where e.is_provider_goal and not e.scorer_needs_research and not e.assist_needs_research
     group by e.fixture_id, e.team_id, e.player_id, e.minute_elapsed, coalesce(e.minute_extra, 0)
 ),
 

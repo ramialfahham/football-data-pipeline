@@ -1,0 +1,952 @@
+diff --git a/.claude/task/323-goal-attribution-on-pitch/contract.md b/.claude/task/323-goal-attribution-on-pitch/contract.md
+new file mode 100644
+index 00000000..a7d78396
+--- /dev/null
++++ b/.claude/task/323-goal-attribution-on-pitch/contract.md
+@@ -0,0 +1,111 @@
++# Task contract — a goal's scorer and assister were on the pitch at its minute
++
++objective: >
++  Issue 323. A goal's added minute is read from the newest fetch that carried one. A goal's scorer
++  or assister who was not on the pitch at the goal's minute, on a confirmed or researched line-up,
++  is withheld under the provider-error rule of issue 262: flagged and blank in base, the goal and
++  the score unchanged, listed by its flag column. Sourced research for the withheld goals goes into
++  fixture_goal_corrections.
++
++refs: >
++  Issue 323; provider-error rule issue 262; go-live gate issue 290. The 82 goals measured on MR 457.
++  Route set by the coordinating session.
++
++scope_paths:
++  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_events_checked.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_players_from_lineups.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_players_checked.sql
++  - dbt_project/models/3_core/fct_fixture_player_stats.sql
++  - dbt_project/tests/assert_withheld_goal_credits_blank.sql
++  - dbt_project/tests/assert_stat_facts_equal_base.sql
++  - dbt_project/docs/layering.md
++  - docs/data_contract.md
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/3_core/fct_fixture_event.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/docs/cleaning_rules.md
++  - dbt_project/models/docs/shared_columns.md
++  - dbt_project/seeds/fixture_goal_corrections.csv
++  - dbt_project/seeds/player_match_cleaning_answer_key.csv
++  - dbt_project/tests/assert_goal_attributions_on_the_pitch.sql
++  - dbt_project/tests/assert_goal_added_minute_from_newest_fetch.sql
++  - dbt_project/tests/assert_result_corrections_applied.sql
++  - .claude/task/323-goal-attribution-on-pitch/contract.md
++  - .claude/task/323-goal-attribution-on-pitch/review.md
++  - .claude/task/323-goal-attribution-on-pitch/review_input.patch
++
++approved_design:
++  - none: no page output changes beyond withheld or researched goal names and restored added minutes on match pages
++
++depends_on:
++  - none: no open MR (glab mr list returns none); builds on gitlab/main 5db6166e
++
++shared_files:
++  - none: no design baseline, chart manifest or chart pin changes
++
++impact_map: >
++  writers: base_apif__fixture_events is the only writer of the cleaned match events; the new
++  base_apif__fixture_events_checked reads it and base_apif__lineups and is read by
++  fct_fixture_event and base_apif__fixture_players_from_lineups. fixture_goal_corrections is read by
++  base_apif__fixture_events and base_apif__lineup_sheets.
++  downstream: `dbt ls --select base_apif__fixture_events+ --resource-type model` lists 85 models
++  (all event, player, team and fixture models to the marts). `dbt ls --select "fct_fixture_event+
++  base_apif__fixture_players_from_lineups+" --resource-type model` lists 56, among them
++  fct_fixture_event, fct_fixture_player_stats, mart_competition_fixtures, mart_player_fixture_stats,
++  mart_leaderboards, mart_player_profile, mart_team_season and the int_player_* / int_team_* metrics.
++  layer_rules: the check is cleaning and lives in base. It cannot sit in base_apif__fixture_events
++  because base_apif__lineups reads that model's substitutions; the checked model is the first base
++  model downstream of both. Core only switches its ref and carries the two flags.
++  deploy_order: model and seed changes in one MR, no schema migration; the 04:00 nightly rebuilds
++  every model after merge, so nothing breaks between merge and the nightly.
++  blast_radius: measured on prod before the build. 588 provider goals in 548 matches get the added
++  minute an earlier fetch carried. 28 goals in 28 matches have a scorer (24) or assister (4) off
++  the pitch on a checked line-up; one is a sourced correction and stays; the other 27 are withheld
++  or researched. The line-up player goals of a team with a withheld scorer become blank under the
++  existing goals_need_research rule. Measured again in the MR by comparing ci_mr tables with prod.
++
++decisions_taken: >
++  The provider-error rule of issue 262 (approved in chat, 2026-11-15): a provider value that fails
++  its check is withheld and listed for research, and a sourced correction makes it live. Reused as
++  built for cards, results and team goals: a needs_research flag in base, the value blank, an error
++  test that every flagged value is blank. No new mechanism and no recurring cost. A goal from
++  fixture_goal_corrections is sourced and is not checked. The new cleaning-rules sentences go in
++  only with the text the coordinating session relays as approved. Model names and the check's
++  minute reading are engineering calls of the coordinating session.
++
++decisions_reserved:
++  - The cleaning-rules wording for the added minute, the on-the-pitch check and its 45'/90' reading,
++    sent to the coordinating session before any model edit.
++  - 842 goal events whose scorer or assister id is on neither sheet of a checked match (an id
++    mismatch, not this check) are reported to the coordinating session, not withheld here.
++
++done_when:
++  - assert_goal_attributions_on_the_pitch and assert_goal_added_minute_from_newest_fetch pass in
++    data:build:mr, with the full singular suite.
++  - assert_players_from_lineups_goals_add_up, assert_mart_competition_fixtures_goals_add_up and
++    assert_fixture_events_only_from_latest_fetch pass in data:build:mr.
++  - A read-only ci_mr vs prod comparison (under 20 GB) counts the contradictions corrected, withheld
++    and still to research, and the goals whose added minute changed.
++  - python scripts/ci_local.py --mr is green; the MR pipeline is green.
++
++amendments:
++  - 2026-11-16: + dbt_project/tests/assert_result_corrections_applied.sql — authority: the
++    provider-error rule of issue 262 (a sourced correction makes a withheld value live); content: a
++    goal correction stays needed while a provider goal of its match fails the scorer or assister
++    check, so a correction that confirms a withheld attribution is not reported as no longer needed.
++  - 2026-11-16: + base_apif__fixture_players_checked.sql, fct_fixture_player_stats.sql,
++    assert_withheld_goal_credits_blank.sql, dbt_project/docs/layering.md, docs/data_contract.md —
++    authority: the cleaning-rules text approved in chat, 2026-11-16 (a scorer or assister who fails
++    the check is withheld); content: review round 1 found that a player with a provider stat line
++    kept the goal or assist of a withheld attribution, because base_apif__fixture_players reads the
++    unchecked events and base_apif__lineups reads base_apif__fixture_players. A base model
++    downstream of both blanks that player's goals or assists in the match, and
++    fct_fixture_player_stats reads it; a test covers both player paths. The two docs that name the
++    events' readers and fetch rule follow the change.
++  - 2026-11-16: + dbt_project/tests/assert_stat_facts_equal_base.sql — authority: the same approved
++    text; content: review round 2 found that the test compares fct_fixture_player_stats with
++    base_apif__fixture_players, the model before the withhold, so it would fail on every withheld
++    stat-line player; it now compares with base_apif__fixture_players_checked, the fact's base.
++    int_competition_season__player_stat_corrections keeps counting the cleaning of
++    base_apif__fixture_players: a withheld attribution is not a stat correction.
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index 8bd57e66..6ebff00e 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -262,8 +262,8 @@ Canonical fact inventory for this project:
+ | `fct_fixture` | `fixture_sk` (= `fixture_api_id`) | `base_apif__fixtures_next` | Match header; status, round, and venue travel as degenerate attributes. Half-time / extra-time / penalty splits deferred. |
+ | `fct_standings` | `(season_sk, team_sk, group_name)` | `base_apif__standings` (from generic `stg_apif__standings`) | Current league position per team-season; raw payload is replaced wholesale per season on each ingest. |
+ | `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `base_apif__fixture_statistics` | `statistics_lines_json` pivoted to named columns; dedup in base layer. |
+-| `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `base_apif__fixture_players`, `base_apif__fixture_players_from_lineups` | `player_statistics_json[0]` flattened into measures; for a played team match without it, or a sheet player with a card and no stat line, the team sheet and match events. |
+-| `fct_fixture_event` | `event_sk` hashed over full staging grain | `base_apif__fixture_events` | What counts as a goal is `is_goal`, defined once in `base_apif__fixture_events`. |
++| `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `base_apif__fixture_players_checked` (from `base_apif__fixture_players`), `base_apif__fixture_players_from_lineups` | `player_statistics_json[0]` flattened into measures; for a played team match without it, or a sheet player with a card and no stat line, the team sheet and match events. |
++| `fct_fixture_event` | `event_sk` hashed over full staging grain | `base_apif__fixture_events_checked` (from `base_apif__fixture_events` and `base_apif__lineups`) | What counts as a goal is `is_goal`, defined once in `base_apif__fixture_events`; a scorer or assister off the pitch on the line-up is withheld in `base_apif__fixture_events_checked`. |
+ | `fct_fixture_lineup` | `(fixture_sk, team_sk, player_sk)` | `base_apif__lineups` (with seed `fixture_lineup_corrections`) | Starters and bench from each team's latest line-up or a researched one, with the substitutions paired from the match events and the match's line-up state. |
+ | `fct_team_market_value_snapshot` | `(team_sk, as_of_date, source_code)` | seed `wc_team_market_value_snapshot` | Seed-loaded WC national-team squad market-value snapshots (EUR). WC-scoped — no `league_code`. |
+ 
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 2e6bc605..bd2a7ee1 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -643,6 +643,71 @@ models:
+         description: "TRUE where the provider files the event as a goal that counts: a normal goal, a penalty or an own goal, not a shoot-out kick. On a match whose goals come from fixture_goal_corrections, is_goal is FALSE on these events and TRUE on the corrections."
+         tests: [not_null]
+ 
++  - name: base_apif__fixture_players_checked
++    description: >
++      The rows of base_apif__fixture_players, with a player's goals withheld where he is the
++      withheld scorer of a goal that counts in base_apif__fixture_events_checked, and his assists
++      where he is its withheld assister. Grain: (league_code, fixture_id, team_id, player_id).
++
++      This is its own model because base_apif__lineups reads base_apif__fixture_players.
++    config:
++      tags: ["base", "api_football", "fixture_context"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [league_code, fixture_id, team_id, player_id]
++    columns:
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: fixture_id
++        description: "{{ doc('fixture_api_id') }}"
++        tests: [not_null]
++      - name: goals
++        description: "The player's goals in the match, as in base_apif__fixture_players. NULL where it is NULL there, and where he is the withheld scorer of a goal that counts."
++      - name: goals_penalty
++        description: "The player's penalty goals in the match, as in base_apif__fixture_players. NULL where it is NULL there, and where he is the withheld scorer of a goal that counts."
++      - name: penalties_scored
++        description: "The player's scored penalties in the match, as in base_apif__fixture_players. NULL where it is NULL there, and where he is the withheld scorer of a goal that counts."
++      - name: assists
++        description: "The player's assists in the match, as in base_apif__fixture_players. NULL where it is NULL there, and where he is the withheld assister of a goal that counts."
++
++  - name: base_apif__fixture_events_checked
++    description: >
++      The events of base_apif__fixture_events, with each provider goal's scorer and assister checked
++      against the match's confirmed or researched line-up. A scorer or assister not on the pitch at
++      the goal's minute is withheld: player or assist id and name are NULL and the flag says so.
++      The goal itself, its team and its minute stay. A goal from fixture_goal_corrections is not
++      checked. Grain: (league_code, fixture_id, event_index).
++
++      {{ doc('cleaning_rules') }}
++
++      This is its own model because base_apif__lineups reads base_apif__fixture_events.
++    config:
++      tags: ["base", "api_football", "fixture_context"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns:
++            - league_code
++            - fixture_id
++            - event_index
++    columns:
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: fixture_id
++        description: "{{ doc('fixture_api_id') }}"
++        tests: [not_null]
++      - name: player_id
++        description: "The event player's provider id, as in base_apif__fixture_events. NULL where the provider gives none, and on a goal whose scorer is withheld."
++      - name: assist_player_id
++        description: "The assisting player's provider id. NULL where the goal has no assist, the provider names the assist without an id, or the assister is withheld."
++      - name: scorer_needs_research
++        description: "{{ doc('scorer_needs_research') }}"
++        tests: [not_null]
++      - name: assist_needs_research
++        description: "{{ doc('assist_needs_research') }}"
++        tests: [not_null]
++
+   - name: base_apif__player_team_season
+     description: >
+       Rostered player↔team↔season membership from the /players squad source
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+index b1f2058d..834fc016 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+@@ -33,6 +33,63 @@ deduped as (
+         ) = 1
+ ),
+ 
++-- A later fetch can drop a goal's added minute. The same goal in another fetch is the same scorer,
++-- detail and minute, taken in list order where one player has several such goals.
++goal_occurrences as (
++    select
++        league_code,
++        fixture_id,
++        raw_ingested_at,
++        event_index,
++        player_id,
++        event_detail,
++        minute_elapsed,
++        minute_extra,
++        row_number() over (
++            partition by league_code, fixture_id, raw_ingested_at, player_id, event_detail, minute_elapsed
++            order by event_index
++        ) as occurrence
++    from src
++    where event_type = 'Goal' and player_id is not null and minute_elapsed is not null
++    qualify row_number() over (
++        partition by league_code, fixture_id, raw_ingested_at, event_index
++        order by event_index
++    ) = 1
++),
++
++goal_added_minutes as (
++    select
++        league_code,
++        fixture_id,
++        player_id,
++        event_detail,
++        minute_elapsed,
++        occurrence,
++        array_agg(minute_extra order by raw_ingested_at desc limit 1)[offset(0)] as minute_extra
++    from goal_occurrences
++    where minute_extra is not null
++    group by league_code, fixture_id, player_id, event_detail, minute_elapsed, occurrence
++),
++
++added_minutes_kept as (
++    select deduped.* replace (coalesce(deduped.minute_extra, added.minute_extra) as minute_extra)
++    from deduped
++    left join goal_occurrences as occurrences
++        on
++            deduped.league_code = occurrences.league_code
++            and deduped.fixture_id = occurrences.fixture_id
++            and deduped.raw_ingested_at = occurrences.raw_ingested_at
++            and deduped.event_index = occurrences.event_index
++    left join goal_added_minutes as added
++        on
++            occurrences.league_code = added.league_code
++            and occurrences.fixture_id = added.fixture_id
++            and occurrences.player_id = added.player_id
++            and occurrences.event_detail = added.event_detail
++            and occurrences.minute_elapsed = added.minute_elapsed
++            and occurrences.occurrence = added.occurrence
++),
++
+ recovered as (
+     select
+         league_code,
+@@ -62,7 +119,7 @@ recovered as (
+                 )
+             else team_id
+         end as team_id
+-    from deduped
++    from added_minutes_kept
+ ),
+ 
+ -- Fixture participants (home/away team ids), used to evaluate the reattribute_if_cohabiting
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_events_checked.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_events_checked.sql
+new file mode 100644
+index 00000000..4e3be3db
+--- /dev/null
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_events_checked.sql
+@@ -0,0 +1,95 @@
++with events as (
++    select * from {{ ref('base_apif__fixture_events') }}
++),
++
++-- Minutes as elapsed * 100 + added time. A minute at the end of a period with no added minute can
++-- be any minute of that period's added time.
++sheet as (
++    select
++        league_code,
++        fixture_id,
++        player_id,
++        if(is_starter, 0, minute_on * 100 + coalesce(minute_on_extra, 0)) as on_from,
++        if(
++            minute_off is null,
++            99999,
++            minute_off * 100 + coalesce(minute_off_extra, if(minute_off in (45, 90, 105, 120), 99, 0))
++        ) as off_to
++    from {{ ref('base_apif__lineups') }}
++    where lineup_state in ('confirmed', 'researched')
++    qualify row_number() over (
++        partition by league_code, fixture_id, player_id
++        order by team_id
++    ) = 1
++),
++
++goals as (
++    select
++        league_code,
++        fixture_id,
++        event_index,
++        player_id,
++        assist_player_id,
++        minute_elapsed * 100 + coalesce(minute_extra, 0) as goal_from,
++        minute_elapsed * 100 + coalesce(minute_extra, if(minute_elapsed in (45, 90, 105, 120), 99, 0)) as goal_to
++    from events
++    where is_provider_goal and minute_elapsed is not null
++),
++
++checked as (
++    select
++        goals.league_code,
++        goals.fixture_id,
++        goals.event_index,
++        scorer.player_id is not null
++        and (scorer.on_from is null or scorer.on_from > goals.goal_to or scorer.off_to < goals.goal_from)
++            as scorer_needs_research,
++        assister.player_id is not null
++        and (assister.on_from is null or assister.on_from > goals.goal_to or assister.off_to < goals.goal_from)
++            as assist_needs_research
++    from goals
++    left join sheet as scorer
++        on
++            goals.league_code = scorer.league_code
++            and goals.fixture_id = scorer.fixture_id
++            and goals.player_id = scorer.player_id
++    left join sheet as assister
++        on
++            goals.league_code = assister.league_code
++            and goals.fixture_id = assister.fixture_id
++            and goals.assist_player_id = assister.player_id
++)
++
++select
++    events.league_code,
++    events.fixture_id,
++    events.event_index,
++    events.minute_elapsed,
++    events.minute_extra,
++    events.event_type,
++    events.event_detail,
++    events.event_comments,
++    events.raw_ingested_at,
++    events.resolved_player_team_id,
++    events.team_id,
++    events.team_name,
++    events.goal_correction_source,
++    events.card_correction_source,
++    events.is_shootout_kick,
++    events.is_own_goal,
++    events.is_provider_goal,
++    events.is_goal,
++    events.is_missed_penalty,
++    events.has_full_events,
++    if(coalesce(checked.scorer_needs_research, false), null, events.player_id) as player_id,
++    if(coalesce(checked.scorer_needs_research, false), null, events.player_name) as player_name,
++    if(coalesce(checked.assist_needs_research, false), null, events.assist_player_id) as assist_player_id,
++    if(coalesce(checked.assist_needs_research, false), null, events.assist_player_name) as assist_player_name,
++    coalesce(checked.scorer_needs_research, false) as scorer_needs_research,
++    coalesce(checked.assist_needs_research, false) as assist_needs_research
++from events
++left join checked
++    on
++        events.league_code = checked.league_code
++        and events.fixture_id = checked.fixture_id
++        and events.event_index = checked.event_index
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players_checked.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players_checked.sql
+new file mode 100644
+index 00000000..33361eda
+--- /dev/null
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players_checked.sql
+@@ -0,0 +1,115 @@
++{#
++  The rows of base_apif__fixture_players, with a player's goals withheld where
++  base_apif__fixture_events_checked withholds him as the scorer of a goal that counts, and his
++  assists where it withholds him as the assister. This is its own model because base_apif__lineups
++  reads base_apif__fixture_players. The columns keep base_apif__fixture_players' order, which
++  fct_fixture_player_stats unions by position.
++
++  Grain: (league_code, fixture_id, team_id, player_id).
++#}
++
++with withheld_goals as (
++    select
++        events.league_code,
++        events.fixture_id,
++        events.player_id,
++        events.assist_player_id,
++        checked.assist_needs_research,
++        checked.scorer_needs_research and not checked.is_own_goal as scorer_needs_research
++    from {{ ref('base_apif__fixture_events') }} as events
++    inner join {{ ref('base_apif__fixture_events_checked') }} as checked
++        on
++            events.league_code = checked.league_code
++            and events.fixture_id = checked.fixture_id
++            and events.event_index = checked.event_index
++    where checked.is_goal and (checked.scorer_needs_research or checked.assist_needs_research)
++),
++
++withheld_roles as (
++    select
++        league_code,
++        fixture_id,
++        player_id,
++        true as is_scorer,
++        false as is_assister
++    from withheld_goals
++    where scorer_needs_research and player_id is not null
++    union all
++    select
++        league_code,
++        fixture_id,
++        assist_player_id as player_id,
++        false as is_scorer,
++        true as is_assister
++    from withheld_goals
++    where assist_needs_research and assist_player_id is not null
++),
++
++withheld_players as (
++    select
++        league_code,
++        fixture_id,
++        player_id,
++        logical_or(is_scorer) as scorer_withheld,
++        logical_or(is_assister) as assister_withheld
++    from withheld_roles
++    group by league_code, fixture_id, player_id
++),
++
++checked_players as (
++    select
++        players.*,
++        if(coalesce(withheld.scorer_withheld, false), null, players.goals) as checked_goals,
++        if(coalesce(withheld.scorer_withheld, false), null, players.goals_penalty) as checked_goals_penalty,
++        if(coalesce(withheld.scorer_withheld, false), null, players.penalties_scored) as checked_penalties_scored,
++        if(coalesce(withheld.assister_withheld, false), null, players.assists) as checked_assists
++    from {{ ref('base_apif__fixture_players') }} as players
++    left join withheld_players as withheld
++        on
++            players.league_code = withheld.league_code
++            and players.fixture_id = withheld.fixture_id
++            and players.player_id = withheld.player_id
++)
++
++select
++    league_code,
++    fixture_id,
++    team_id,
++    player_id,
++    minutes,
++    shirt_number,
++    position_code,
++    is_captain,
++    is_substitute,
++    offsides,
++    shots,
++    shots_on_target,
++    checked_goals as goals,
++    checked_goals_penalty as goals_penalty,
++    goals_against,
++    goals_own_against,
++    checked_assists as assists,
++    saves,
++    passes,
++    passes_key,
++    passes_accurate,
++    tackles,
++    blocks,
++    interceptions,
++    duels,
++    duels_won,
++    dribbles,
++    dribbles_success,
++    dribbles_against,
++    fouls,
++    fouls_against,
++    cards_yellow,
++    cards_red,
++    penalties_won,
++    penalties_committed,
++    checked_penalties_scored as penalties_scored,
++    penalties_missed,
++    penalties_saved,
++    raw_ingested_at,
++    stat_corrections
++from checked_players
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players_from_lineups.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players_from_lineups.sql
+index a0023afe..87a93462 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_players_from_lineups.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players_from_lineups.sql
+@@ -99,14 +99,15 @@ events as (
+         is_goal,
+         is_own_goal,
+         is_shootout_kick,
+-        has_full_events
+-    from {{ ref('base_apif__fixture_events') }}
++        has_full_events,
++        assist_player_name is not null or assist_needs_research as is_assisted
++    from {{ ref('base_apif__fixture_events_checked') }}
+ ),
+ 
+ match_events as (
+     select
+         fixture_id,
+-        countif(is_goal and assist_player_name is not null) as assisted_goal_events,
++        countif(is_goal and is_assisted) as assisted_goal_events,
+         coalesce(logical_or(minute_elapsed > 90 and not is_shootout_kick), false) as has_extra_time_event,
+         logical_or(has_full_events) as has_full_events
+     from events
+@@ -151,7 +152,7 @@ team_events as (
+         countif(is_goal and not is_own_goal and player_id is null) as goal_events_without_scorer,
+         countif(is_goal and is_own_goal) as own_goals,
+         countif(is_goal and event_detail = 'Normal Goal') as open_play_goal_events,
+-        countif(is_goal and not is_own_goal and assist_player_name is not null) as assisted_goal_events
++        countif(is_goal and not is_own_goal and is_assisted) as assisted_goal_events
+     from events
+     group by fixture_id, team_id
+ ),
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index c5ae3540..bb35fbad 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -875,7 +875,7 @@ models:
+         description: "{{ doc('raw_ingested_at') }}"
+ 
+   - name: fct_fixture_player_stats
+-    description: "Per-player, per-fixture statistics, as cleaned and named in base_apif__fixture_players, whose description holds the cleaning rules, and the rows of base_apif__fixture_players_from_lineups. Grain: (fixture_sk, team_sk, player_sk). Core keys and constrains the fact grain."
++    description: "Per-player, per-fixture statistics, as cleaned and named in base_apif__fixture_players, whose description holds the cleaning rules, with the goals and assists of a withheld scorer or assister blank (base_apif__fixture_players_checked), and the rows of base_apif__fixture_players_from_lineups. Grain: (fixture_sk, team_sk, player_sk). Core keys and constrains the fact grain."
+     meta:
+       owner: "data-platform"
+       domain: "football"
+@@ -1095,13 +1095,24 @@ models:
+               values: ["confirmed", "researched", "not_available"]
+ 
+   - name: fct_fixture_event
+-    description: "In-match events (goals, cards, substitutions, VAR decisions). Grain: (fixture_id, event_index) — event_index is the zero-based array position from the API-Football /fixtures/events response, which does not emit event IDs. Rebuilt in full every night from base_apif__fixture_events, so each match carries the events of its latest fetch, and any goals from fixture_goal_corrections at event_index 10000 and up."
++    description: "In-match events (goals, cards, substitutions, VAR decisions). Grain: (fixture_id, event_index) — event_index is the zero-based array position from the API-Football /fixtures/events response, which does not emit event IDs. Rebuilt in full every night from base_apif__fixture_events_checked, so each match carries the events of its latest fetch, and any goals from fixture_goal_corrections at event_index 10000 and up."
+     meta:
+       owner: "data-platform"
+       domain: "football"
+       criticality: "high"
+     config:
+       tags: ["core", "fact"]
++    tests:
++      - dbt_utils.expression_is_true:
++          name: fct_fixture_event_withheld_scorer_is_blank
++          expression: >
++            not scorer_needs_research
++            or (player_sk is null and player_api_id is null and player_name_snapshot is null)
++      - dbt_utils.expression_is_true:
++          name: fct_fixture_event_withheld_assister_is_blank
++          expression: >
++            not assist_needs_research
++            or (assist_player_sk is null and assist_player_api_id is null and assist_player_name is null)
+     columns:
+       - name: event_sk
+         description: "Surrogate key hashing (fixture_id, event_index)."
+@@ -1127,7 +1138,7 @@ models:
+               to: ref('dim_team')
+               field: team_sk
+       - name: player_sk
+-        description: "{{ doc('player_sk') }} Here it is the event's primary actor (goalscorer, card recipient, and so on). Nullable: a VAR decision or a team-level event may not carry a player."
++        description: "{{ doc('player_sk') }} Here it is the event's primary actor (goalscorer, card recipient, and so on). Nullable: a VAR decision or a team-level event may not carry a player, and a goal whose scorer is withheld has none."
+         tests:
+           - relationships:
+               to: ref('dim_player')
+@@ -1159,7 +1170,7 @@ models:
+       - name: assist_player_name
+         description: "The assisting player's name as the events feed spells it, with text sent in the wrong character set repaired. It is the only name available for an assist the feed gives no id for."
+       - name: assist_player_sk
+-        description: "{{ doc('player_sk') }} Here it is the assisting player. NULL where the event has no assist or the assist has no id."
++        description: "{{ doc('player_sk') }} Here it is the assisting player. NULL where the event has no assist, the assist has no id, or the assister is withheld."
+         tests:
+           - relationships:
+               to: ref('dim_player')
+@@ -1184,6 +1195,12 @@ models:
+         description: "On a card from fixture_card_corrections, the source's https URLs; NULL on every event the provider sent."
+       - name: goal_correction_source
+         description: "On a goal from fixture_goal_corrections, the source's https URLs; NULL on every event the provider sent. A match with such goals counts only them: is_goal is FALSE on its provider goal events."
++      - name: scorer_needs_research
++        description: "{{ doc('scorer_needs_research') }}"
++        tests: [not_null]
++      - name: assist_needs_research
++        description: "{{ doc('assist_needs_research') }}"
++        tests: [not_null]
+       - name: raw_ingested_at
+         description: "{{ doc('raw_ingested_at') }}"
+ 
+diff --git a/dbt_project/models/3_core/fct_fixture_event.sql b/dbt_project/models/3_core/fct_fixture_event.sql
+index 1798bfe7..eb28f14b 100644
+--- a/dbt_project/models/3_core/fct_fixture_event.sql
++++ b/dbt_project/models/3_core/fct_fixture_event.sql
+@@ -8,7 +8,7 @@
+ #}
+ 
+ with src as (
+-    select * from {{ ref('base_apif__fixture_events') }}
++    select * from {{ ref('base_apif__fixture_events_checked') }}
+ )
+ 
+ select
+@@ -38,5 +38,7 @@ select
+     is_shootout_kick,
+     goal_correction_source,
+     card_correction_source,
++    scorer_needs_research,
++    assist_needs_research,
+     src.raw_ingested_at
+ from src
+diff --git a/dbt_project/models/3_core/fct_fixture_player_stats.sql b/dbt_project/models/3_core/fct_fixture_player_stats.sql
+index c40ceeae..47b26080 100644
+--- a/dbt_project/models/3_core/fct_fixture_player_stats.sql
++++ b/dbt_project/models/3_core/fct_fixture_player_stats.sql
+@@ -2,7 +2,7 @@ with src as (
+     select
+         * except (stat_corrections),
+         false as is_from_lineups
+-    from {{ ref('base_apif__fixture_players') }}
++    from {{ ref('base_apif__fixture_players_checked') }}
+     union all
+     select
+         * except (goals_need_research),
+diff --git a/dbt_project/models/docs/cleaning_rules.md b/dbt_project/models/docs/cleaning_rules.md
+index 20ee95af..66b8e847 100644
+--- a/dbt_project/models/docs/cleaning_rules.md
++++ b/dbt_project/models/docs/cleaning_rules.md
+@@ -38,6 +38,10 @@ match stats are good enough.
+   A result that fails a result check is withheld until sourced research stands in
+   fixture_result_corrections. The match has no score, shoot-out or winner, is not played, and
+   counts in no form, record or cup round.
++  A goal keeps the newest added minute any fetch carried. Its scorer and assister are on the pitch
++  at its minute on the line-up; a goal or substitution at 45', 90', 105' or 120' with no added
++  minute can fall in that period's added time. A scorer or assister who fails this is withheld
++  until sourced research stands in fixture_goal_corrections; the goal and the score stay.
+ - Withheld values. A value that fails its check and has no sourced correction yet is left blank,
+   as line-ups and cards are.
+ - Cards. A player's yellow and red cards are exact. Where his stat line and the card events
+diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
+index 83f378b4..76d2d7f3 100644
+--- a/dbt_project/models/docs/shared_columns.md
++++ b/dbt_project/models/docs/shared_columns.md
+@@ -325,6 +325,20 @@ goals, shoot-out and winner are then withheld, blank until research stands in th
+ fixture_result_corrections seed.
+ {% enddocs %}
+ 
++{% docs scorer_needs_research %}
++True on a provider goal whose scorer was not on the pitch at its minute on a confirmed or
++researched line-up; the scorer is then blank, and so are his goals in the match. Where is_goal is
++also true, the goal awaits research; once the match's goals come from the fixture_goal_corrections
++seed, the provider goal no longer counts. False on every other event.
++{% enddocs %}
++
++{% docs assist_needs_research %}
++True on a provider goal whose assister was not on the pitch at its minute on a confirmed or
++researched line-up; the assister is then blank, and so are his assists in the match. Where is_goal
++is also true, the goal awaits research; once the match's goals come from the
++fixture_goal_corrections seed, the provider goal no longer counts. False on every other event.
++{% enddocs %}
++
+ 
+ {% docs minute_on %}
+ The minute of normal time a substitution brought the player on. NULL for a player who did not
+diff --git a/dbt_project/seeds/fixture_goal_corrections.csv b/dbt_project/seeds/fixture_goal_corrections.csv
+index 0f0c323c..bc84ab65 100644
+--- a/dbt_project/seeds/fixture_goal_corrections.csv
++++ b/dbt_project/seeds/fixture_goal_corrections.csv
+@@ -128,3 +128,25 @@ fixture_id,goal_order,team_id,player_id,player_name,minute_elapsed,minute_extra,
+ 1644366,4,9406,576050,Joaquín Recalde,66,,Normal Goal,,,official,https://resultados.rfef.es/pnfg/NPcd/NFG_CmpPartido?cod_primaria=1000120&CodActa=70705538&cod_acta=70705538,"Peña Sport-Huesca, Copa del Rey first round 29 Oct 2026: 1-5; the RFEF match sheet names every scorer and minute and no assists"
+ 1644366,5,726,185459,Luismi Redondo,67,,Normal Goal,,,official,https://resultados.rfef.es/pnfg/NPcd/NFG_CmpPartido?cod_primaria=1000120&CodActa=70705538&cod_acta=70705538,"Peña Sport-Huesca, Copa del Rey first round 29 Oct 2026: 1-5; the RFEF match sheet names every scorer and minute and no assists"
+ 1644366,6,726,182609,Ander Gorostidi,89,,Normal Goal,,,official,https://resultados.rfef.es/pnfg/NPcd/NFG_CmpPartido?cod_primaria=1000120&CodActa=70705538&cod_acta=70705538,"Peña Sport-Huesca, Copa del Rey first round 29 Oct 2026: 1-5; the RFEF match sheet names every scorer and minute and no assists"
++209142,1,168,978,Kai Havertz,28,,Normal Goal,277,Moussa Diaby,match_reports,https://www.skysports.com/football/w-bremen-vs-leverkusen/report/412965 https://t-online.de/sport/live-ticker/fussball/bundesliga/sdc_fm-2527/tor-fuer-leverkusen-bremen-leverkusen-1-4.html,"Werder Bremen-Bayer Leverkusen, Bundesliga round 26 18 May 2020: 1-4; Sky Sports and t-online name every scorer and minute; substitute Bellarabi, on at 61' for Wirtz on t-online, set up Demirbay's 78' goal, though the provider's line-up lists him as unused; assists are the players the reports name as setting each goal up"
++209142,2,162,25315,Theodor Gebre Selassie,30,,Normal Goal,716,Leonardo Bittencourt,match_reports,https://www.skysports.com/football/w-bremen-vs-leverkusen/report/412965 https://t-online.de/sport/live-ticker/fussball/bundesliga/sdc_fm-2527/tor-fuer-leverkusen-bremen-leverkusen-1-4.html,"Werder Bremen-Bayer Leverkusen, Bundesliga round 26 18 May 2020: 1-4; Sky Sports and t-online name every scorer and minute; substitute Bellarabi, on at 61' for Wirtz on t-online, set up Demirbay's 78' goal, though the provider's line-up lists him as unused; assists are the players the reports name as setting each goal up"
++209142,3,168,978,Kai Havertz,33,,Normal Goal,717,Kerem Demirbay,match_reports,https://www.skysports.com/football/w-bremen-vs-leverkusen/report/412965 https://t-online.de/sport/live-ticker/fussball/bundesliga/sdc_fm-2527/tor-fuer-leverkusen-bremen-leverkusen-1-4.html,"Werder Bremen-Bayer Leverkusen, Bundesliga round 26 18 May 2020: 1-4; Sky Sports and t-online name every scorer and minute; substitute Bellarabi, on at 61' for Wirtz on t-online, set up Demirbay's 78' goal, though the provider's line-up lists him as unused; assists are the players the reports name as setting each goal up"
++209142,4,168,973,Mitchell Weiser,61,,Normal Goal,277,Moussa Diaby,match_reports,https://www.skysports.com/football/w-bremen-vs-leverkusen/report/412965 https://t-online.de/sport/live-ticker/fussball/bundesliga/sdc_fm-2527/tor-fuer-leverkusen-bremen-leverkusen-1-4.html,"Werder Bremen-Bayer Leverkusen, Bundesliga round 26 18 May 2020: 1-4; Sky Sports and t-online name every scorer and minute; substitute Bellarabi, on at 61' for Wirtz on t-online, set up Demirbay's 78' goal, though the provider's line-up lists him as unused; assists are the players the reports name as setting each goal up"
++209142,5,168,717,Kerem Demirbay,78,,Normal Goal,976,Karim Bellarabi,match_reports,https://www.skysports.com/football/w-bremen-vs-leverkusen/report/412965 https://t-online.de/sport/live-ticker/fussball/bundesliga/sdc_fm-2527/tor-fuer-leverkusen-bremen-leverkusen-1-4.html,"Werder Bremen-Bayer Leverkusen, Bundesliga round 26 18 May 2020: 1-4; Sky Sports and t-online name every scorer and minute; substitute Bellarabi, on at 61' for Wirtz on t-online, set up Demirbay's 78' goal, though the provider's line-up lists him as unused; assists are the players the reports name as setting each goal up"
++209155,1,158,25466,Kenan Karaman,41,,Normal Goal,424,Steven Skrzybski,match_reports,https://www.spox.com/de/sport/fussball/bundesliga/saison2019-2020/spieltag-27/1-fc-koeln-fortuna-duesseldorf/spielbericht-1-fc-koeln-fortuna-duesseldorf-2-2-last-minute-ausgleich-modeste-und-cordoba-sichern-koeln-punkt-im-rhein-derby-karaman-thommy.html https://sport.sky.it/calcio/bundesliga/2020/05/24/colonia-fortuna-dusseldorf-risultato-gol,"1. FC Köln-Fortuna Düsseldorf, Bundesliga round 27 24 May 2020: 2-2; Spox and Sky Sport Italia name every scorer and minute, Córdoba 90+1' on Spox and 91' on Sky; Modeste came on at 60' for Katterbach and scored at 88', though the provider's line-up lists him as unused; assists from Sky Sport Italia"
++209155,2,158,26311,Erik Thommy,61,,Normal Goal,424,Steven Skrzybski,match_reports,https://www.spox.com/de/sport/fussball/bundesliga/saison2019-2020/spieltag-27/1-fc-koeln-fortuna-duesseldorf/spielbericht-1-fc-koeln-fortuna-duesseldorf-2-2-last-minute-ausgleich-modeste-und-cordoba-sichern-koeln-punkt-im-rhein-derby-karaman-thommy.html https://sport.sky.it/calcio/bundesliga/2020/05/24/colonia-fortuna-dusseldorf-risultato-gol,"1. FC Köln-Fortuna Düsseldorf, Bundesliga round 27 24 May 2020: 2-2; Spox and Sky Sport Italia name every scorer and minute, Córdoba 90+1' on Spox and 91' on Sky; Modeste came on at 60' for Katterbach and scored at 88', though the provider's line-up lists him as unused; assists from Sky Sport Italia"
++209155,3,192,24811,Anthony Modeste,88,,Normal Goal,24797,Dominick Drexler,match_reports,https://www.spox.com/de/sport/fussball/bundesliga/saison2019-2020/spieltag-27/1-fc-koeln-fortuna-duesseldorf/spielbericht-1-fc-koeln-fortuna-duesseldorf-2-2-last-minute-ausgleich-modeste-und-cordoba-sichern-koeln-punkt-im-rhein-derby-karaman-thommy.html https://sport.sky.it/calcio/bundesliga/2020/05/24/colonia-fortuna-dusseldorf-risultato-gol,"1. FC Köln-Fortuna Düsseldorf, Bundesliga round 27 24 May 2020: 2-2; Spox and Sky Sport Italia name every scorer and minute, Córdoba 90+1' on Spox and 91' on Sky; Modeste came on at 60' for Katterbach and scored at 88', though the provider's line-up lists him as unused; assists from Sky Sport Italia"
++209155,4,192,24810,Jhon Córdoba,90,1,Normal Goal,24797,Dominick Drexler,match_reports,https://www.spox.com/de/sport/fussball/bundesliga/saison2019-2020/spieltag-27/1-fc-koeln-fortuna-duesseldorf/spielbericht-1-fc-koeln-fortuna-duesseldorf-2-2-last-minute-ausgleich-modeste-und-cordoba-sichern-koeln-punkt-im-rhein-derby-karaman-thommy.html https://sport.sky.it/calcio/bundesliga/2020/05/24/colonia-fortuna-dusseldorf-risultato-gol,"1. FC Köln-Fortuna Düsseldorf, Bundesliga round 27 24 May 2020: 2-2; Spox and Sky Sport Italia name every scorer and minute, Córdoba 90+1' on Spox and 91' on Sky; Modeste came on at 60' for Katterbach and scored at 88', though the provider's line-up lists him as unused; assists from Sky Sport Italia"
++368888,1,217,41104,João Palhinha,19,,Normal Goal,,,match_reports,https://www.rtp.pt/noticias/liga-europa/le-sporting-de-braga-vence-brondby-e-segue-para-os-play-offs_d1166772 https://bold.dk/fodbold/nyheder/miraklet-udeblev-broendby-banket-i-braga/,"SC Braga-Brøndby, Europa League third qualifying round second leg 15 Aug 2019: 3-1; RTP (Lusa) and bold.dk name every scorer and minute; André Horta scored at 41', though the provider's line-up lists him as unused; Paulinho's 66' goal is the rebound of Wilson Eduardo's saved penalty; assist from bold.dk"
++368888,2,217,51036,André Horta,41,,Normal Goal,,,match_reports,https://www.rtp.pt/noticias/liga-europa/le-sporting-de-braga-vence-brondby-e-segue-para-os-play-offs_d1166772 https://bold.dk/fodbold/nyheder/miraklet-udeblev-broendby-banket-i-braga/,"SC Braga-Brøndby, Europa League third qualifying round second leg 15 Aug 2019: 3-1; RTP (Lusa) and bold.dk name every scorer and minute; André Horta scored at 41', though the provider's line-up lists him as unused; Paulinho's 66' goal is the rebound of Wilson Eduardo's saved penalty; assist from bold.dk"
++368888,3,217,41111,Paulinho,66,,Normal Goal,,,match_reports,https://www.rtp.pt/noticias/liga-europa/le-sporting-de-braga-vence-brondby-e-segue-para-os-play-offs_d1166772 https://bold.dk/fodbold/nyheder/miraklet-udeblev-broendby-banket-i-braga/,"SC Braga-Brøndby, Europa League third qualifying round second leg 15 Aug 2019: 3-1; RTP (Lusa) and bold.dk name every scorer and minute; André Horta scored at 41', though the provider's line-up lists him as unused; Paulinho's 66' goal is the rebound of Wilson Eduardo's saved penalty; assist from bold.dk"
++368888,4,407,128291,Peter Bjur,85,,Normal Goal,15884,Jesper Lindstrøm,match_reports,https://www.rtp.pt/noticias/liga-europa/le-sporting-de-braga-vence-brondby-e-segue-para-os-play-offs_d1166772 https://bold.dk/fodbold/nyheder/miraklet-udeblev-broendby-banket-i-braga/,"SC Braga-Brøndby, Europa League third qualifying round second leg 15 Aug 2019: 3-1; RTP (Lusa) and bold.dk name every scorer and minute; André Horta scored at 41', though the provider's line-up lists him as unused; Paulinho's 66' goal is the rebound of Wilson Eduardo's saved penalty; assist from bold.dk"
++702510,1,533,1707,Gerard Moreno,29,,Normal Goal,928,Dani Parejo,match_reports,https://www.aljazeera.com/sports/2021/5/26/villarreal-beat-man-utd-in-dramatic-shootout-to-win-europa-league https://www.si.com/soccer/2021/05/26/europa-league-final-video-manchester-united-villarreal,"Villarreal-Manchester United, Europa League final 26 May 2021: 1-1 after extra time, Villarreal won 11-10 on penalties; Reuters on Al Jazeera gives Moreno 29' from Parejo's free kick and Cavani 55', Sports Illustrated has Moreno just before the half-hour from Parejo and Cavani 55'; neither has a goal in extra time, so the provider's goal at 120+2' is none"
++702510,2,33,274,Edinson Cavani,55,,Normal Goal,,,match_reports,https://www.aljazeera.com/sports/2021/5/26/villarreal-beat-man-utd-in-dramatic-shootout-to-win-europa-league https://www.si.com/soccer/2021/05/26/europa-league-final-video-manchester-united-villarreal,"Villarreal-Manchester United, Europa League final 26 May 2021: 1-1 after extra time, Villarreal won 11-10 on penalties; Reuters on Al Jazeera gives Moreno 29' from Parejo's free kick and Cavani 55', Sports Illustrated has Moreno just before the half-hour from Parejo and Cavani 55'; neither has a goal in extra time, so the provider's goal at 120+2' is none"
++1528899,1,1117,26751,Dimitrios Kourbelis,74,,Normal Goal,,,match_reports,https://www.beinsports.com/en-mena/football/uefa-nations-league/articles-video/greece-hand-klopp-first-defeat-as-germany-manager-2026-09-27 https://greekcitytimes.com/2026/09/28/greece-beat-germany-first-ever-win-nations-league/,"Germany-Greece, Nations League A 27 Sep 2026: 0-1; beIN Sports and Greek City Times give Kourbelis 74', a deflected shot, with no assist; Greek City Times has him on at 59' for Zafeiris, though the provider's line-up lists him as unused"
++1190052,1,5541,103405,Oalex Anderson,20,,Normal Goal,,,official,https://www.concacaf.com/en/world-cup-qualifying-men/news/dominica-saint-vincent-and-the-grenadines-earn-home-wins/,"St Vincent and the Grenadines-Anguilla, World Cup qualifier CONCACAF second round 4 Jun 2025: 6-0; the CONCACAF match report names every scorer, minute and assist, and no assist on Anderson's 20' goal"
++1190052,2,5541,83331,Cornelius Stewart,25,,Penalty,,,official,https://www.concacaf.com/en/world-cup-qualifying-men/news/dominica-saint-vincent-and-the-grenadines-earn-home-wins/,"St Vincent and the Grenadines-Anguilla, World Cup qualifier CONCACAF second round 4 Jun 2025: 6-0; the CONCACAF match report names every scorer, minute and assist, and no assist on Anderson's 20' goal"
++1190052,3,5541,444604,Micah Joseph,59,,Normal Goal,444576,Kirtney Franklyn,official,https://www.concacaf.com/en/world-cup-qualifying-men/news/dominica-saint-vincent-and-the-grenadines-earn-home-wins/,"St Vincent and the Grenadines-Anguilla, World Cup qualifier CONCACAF second round 4 Jun 2025: 6-0; the CONCACAF match report names every scorer, minute and assist, and no assist on Anderson's 20' goal"
++1190052,4,5541,140681,Kyle Edwards,61,,Normal Goal,444576,Kirtney Franklyn,official,https://www.concacaf.com/en/world-cup-qualifying-men/news/dominica-saint-vincent-and-the-grenadines-earn-home-wins/,"St Vincent and the Grenadines-Anguilla, World Cup qualifier CONCACAF second round 4 Jun 2025: 6-0; the CONCACAF match report names every scorer, minute and assist, and no assist on Anderson's 20' goal"
++1190052,5,5541,103405,Oalex Anderson,69,,Normal Goal,,,official,https://www.concacaf.com/en/world-cup-qualifying-men/news/dominica-saint-vincent-and-the-grenadines-earn-home-wins/,"St Vincent and the Grenadines-Anguilla, World Cup qualifier CONCACAF second round 4 Jun 2025: 6-0; the CONCACAF match report names every scorer, minute and assist, and no assist on Anderson's 20' goal"
++1190052,6,5541,444576,Kirtney Franklyn,85,,Normal Goal,,,official,https://www.concacaf.com/en/world-cup-qualifying-men/news/dominica-saint-vincent-and-the-grenadines-earn-home-wins/,"St Vincent and the Grenadines-Anguilla, World Cup qualifier CONCACAF second round 4 Jun 2025: 6-0; the CONCACAF match report names every scorer, minute and assist, and no assist on Anderson's 20' goal"
+diff --git a/dbt_project/tests/assert_goal_added_minute_from_newest_fetch.sql b/dbt_project/tests/assert_goal_added_minute_from_newest_fetch.sql
+new file mode 100644
+index 00000000..13db8712
+--- /dev/null
++++ b/dbt_project/tests/assert_goal_added_minute_from_newest_fetch.sql
+@@ -0,0 +1,51 @@
++{#
++  A goal keeps the newest added minute any fetch carried. Returns one row per scorer, detail and
++  minute of a match where fct_fixture_event holds provider goals with no added minute while one
++  fetch gave every such goal an added minute.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with fetched as (
++    select
++        fixture_id,
++        raw_ingested_at,
++        player_id,
++        event_detail,
++        minute_elapsed,
++        countif(minute_extra is not null) as goals_with_added_minute
++    from {{ ref('stg_apif__fixture_events') }}
++    where event_type = 'Goal' and player_id is not null and minute_elapsed is not null
++    group by fixture_id, raw_ingested_at, player_id, event_detail, minute_elapsed
++),
++
++served as (
++    select
++        fixture_api_id as fixture_id,
++        player_api_id as player_id,
++        event_detail,
++        minute_elapsed,
++        count(*) as goals,
++        countif(minute_extra is null) as goals_without_added_minute
++    from {{ ref('fct_fixture_event') }}
++    where event_type = 'Goal' and goal_correction_source is null and player_api_id is not null
++    group by fixture_api_id, player_api_id, event_detail, minute_elapsed
++)
++
++select
++    s.fixture_id,
++    s.player_id,
++    s.event_detail,
++    s.minute_elapsed,
++    s.goals,
++    s.goals_without_added_minute,
++    max(f.goals_with_added_minute) as most_goals_with_added_minute_in_one_fetch
++from served as s
++inner join fetched as f
++    on
++        s.fixture_id = f.fixture_id
++        and s.player_id = f.player_id
++        and s.event_detail = f.event_detail
++        and s.minute_elapsed = f.minute_elapsed
++where s.goals_without_added_minute > 0
++group by s.fixture_id, s.player_id, s.event_detail, s.minute_elapsed, s.goals, s.goals_without_added_minute
++having max(f.goals_with_added_minute) >= s.goals
+diff --git a/dbt_project/tests/assert_goal_attributions_on_the_pitch.sql b/dbt_project/tests/assert_goal_attributions_on_the_pitch.sql
+new file mode 100644
+index 00000000..5a9c5594
+--- /dev/null
++++ b/dbt_project/tests/assert_goal_attributions_on_the_pitch.sql
+@@ -0,0 +1,71 @@
++{#
++  A goal names a scorer or assister only where the match's confirmed or researched line-up has him
++  on the pitch at the goal's minute. Returns one row per provider goal in fct_fixture_event that
++  names a player of the sheet who was not: such a player is withheld (scorer_needs_research,
++  assist_needs_research). Minutes are elapsed * 100 + added time; a minute at the end of a period
++  with no added minute can be any minute of that period's added time. A goal from
++  fixture_goal_corrections is sourced and is not checked.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with sheet as (
++    select
++        fixture_api_id,
++        player_api_id,
++        if(is_starter, 0, minute_on * 100 + coalesce(minute_on_extra, 0)) as on_from,
++        if(
++            minute_off is null,
++            99999,
++            minute_off * 100 + coalesce(minute_off_extra, if(minute_off in (45, 90, 105, 120), 99, 0))
++        ) as off_to
++    from {{ ref('fct_fixture_lineup') }}
++    where lineup_state in ('confirmed', 'researched')
++),
++
++goals as (
++    select
++        fixture_api_id,
++        event_index,
++        player_api_id,
++        assist_player_api_id,
++        minute_elapsed * 100 + coalesce(minute_extra, 0) as goal_from,
++        minute_elapsed * 100 + coalesce(minute_extra, if(minute_elapsed in (45, 90, 105, 120), 99, 0)) as goal_to
++    from {{ ref('fct_fixture_event') }}
++    where is_goal and goal_correction_source is null and minute_elapsed is not null
++),
++
++named as (
++    select
++        fixture_api_id,
++        event_index,
++        'scorer' as attribution,
++        player_api_id,
++        goal_from,
++        goal_to
++    from goals
++    where player_api_id is not null
++    union all
++    select
++        fixture_api_id,
++        event_index,
++        'assister' as attribution,
++        assist_player_api_id as player_api_id,
++        goal_from,
++        goal_to
++    from goals
++    where assist_player_api_id is not null
++)
++
++select
++    n.fixture_api_id,
++    n.event_index,
++    n.attribution,
++    n.player_api_id,
++    n.goal_from,
++    n.goal_to,
++    s.on_from,
++    s.off_to
++from named as n
++inner join sheet as s
++    on n.fixture_api_id = s.fixture_api_id and n.player_api_id = s.player_api_id
++where s.on_from is null or s.on_from > n.goal_to or s.off_to < n.goal_from
+diff --git a/dbt_project/tests/assert_result_corrections_applied.sql b/dbt_project/tests/assert_result_corrections_applied.sql
+index b3b69ca2..e165fb38 100644
+--- a/dbt_project/tests/assert_result_corrections_applied.sql
++++ b/dbt_project/tests/assert_result_corrections_applied.sql
+@@ -14,7 +14,8 @@
+ --     score on the pitch for a played or abandoned award), name a team not in the match, or sit
+ --     beside the row that says the match had no goal.
+ --   - no_longer_needed: the provider now carries the official result itself, or every corrected
+---     goal with the same team, player id and minute; a goal without a player id never matches.
++--     goal with the same team, player id and minute; a goal without a player id, or whose scorer or
++--     assister fails the line-up check, never matches.
+ --     An award is always needed: the provider never says how it came about. A round correction
+ --     is no longer needed once the provider files the fixture under the same round.
+ 
+@@ -45,7 +46,7 @@ round_corrections as (
+ ),
+ 
+ events as (
+-    select * from {{ ref('base_apif__fixture_events') }}
++    select * from {{ ref('base_apif__fixture_events_checked') }}
+ ),
+ 
+ goal_counts as (
+@@ -102,7 +103,7 @@ provider_goal_keys as (
+     from events as e
+     inner join goal_counts as g
+         on e.fixture_id = g.fixture_id
+-    where e.is_provider_goal
++    where e.is_provider_goal and not e.scorer_needs_research and not e.assist_needs_research
+     group by e.fixture_id, e.team_id, e.player_id, e.minute_elapsed, coalesce(e.minute_extra, 0)
+ ),
+ 
+diff --git a/dbt_project/tests/assert_stat_facts_equal_base.sql b/dbt_project/tests/assert_stat_facts_equal_base.sql
+index a564dbf1..b05b1cef 100644
+--- a/dbt_project/tests/assert_stat_facts_equal_base.sql
++++ b/dbt_project/tests/assert_stat_facts_equal_base.sql
+@@ -14,7 +14,7 @@
+                  'penalties_won', 'penalties_committed', 'penalties_scored', 'penalties_missed',
+                  'penalties_saved', 'raw_ingested_at'] %}
+ {% set facts = [
+-    {'fact': 'fct_fixture_player_stats', 'base': 'base_apif__fixture_players',
++    {'fact': 'fct_fixture_player_stats', 'base': 'base_apif__fixture_players_checked',
+      'fact_rows': 'not is_from_lineups', 'renamed': player_keys, 'columns': player_columns},
+     {'fact': 'fct_fixture_player_stats', 'base': 'base_apif__fixture_players_from_lineups',
+      'fact_rows': 'is_from_lineups', 'renamed': player_keys, 'columns': player_columns},
+diff --git a/dbt_project/tests/assert_withheld_goal_credits_blank.sql b/dbt_project/tests/assert_withheld_goal_credits_blank.sql
+new file mode 100644
+index 00000000..725ea633
+--- /dev/null
++++ b/dbt_project/tests/assert_withheld_goal_credits_blank.sql
+@@ -0,0 +1,41 @@
++{#
++  A scorer or assister withheld on a goal that counts is credited no goal or assist in that match.
++  Returns one row per player in fct_fixture_player_stats who carries goals as the withheld scorer
++  of a goal other than an own goal, or assists as its withheld assister, on either player path:
++  a provider stat line or a team sheet.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with withheld as (
++    select
++        e.fixture_id,
++        'scorer' as attribution,
++        e.player_id
++    from {{ ref('base_apif__fixture_events') }} as e
++    inner join {{ ref('fct_fixture_event') }} as f
++        on e.fixture_id = f.fixture_api_id and e.event_index = f.event_index
++    where f.is_goal and f.scorer_needs_research and not f.is_own_goal and e.player_id is not null
++    union all
++    select
++        e.fixture_id,
++        'assister' as attribution,
++        e.assist_player_id as player_id
++    from {{ ref('base_apif__fixture_events') }} as e
++    inner join {{ ref('fct_fixture_event') }} as f
++        on e.fixture_id = f.fixture_api_id and e.event_index = f.event_index
++    where f.is_goal and f.assist_needs_research and e.assist_player_id is not null
++)
++
++select
++    w.fixture_id,
++    w.attribution,
++    w.player_id,
++    s.goals,
++    s.assists,
++    s.is_from_lineups
++from withheld as w
++inner join {{ ref('fct_fixture_player_stats') }} as s
++    on w.fixture_id = s.fixture_api_id and w.player_id = s.player_api_id
++where
++    (w.attribution = 'scorer' and s.goals > 0)
++    or (w.attribution = 'assister' and s.assists > 0)
+diff --git a/docs/data_contract.md b/docs/data_contract.md
+index dc7148aa..a660803e 100644
+--- a/docs/data_contract.md
++++ b/docs/data_contract.md
+@@ -133,7 +133,7 @@ quota is still discarded whole and retried next run, in `batch_fixtures`, `coach
+ 
+ **Second fetch.** The provider completes some player stats days after the match, so a finished fixture whose latest fetch came under 3 days (72 hours) after kickoff is fetched once more when it is 3 days old, in every competition, idle ones included (`coverage.second_fetch_due`). From the moment that fetch is due until it is made, the fixture's player stats count as not covered. A fixture whose latest fetch is in the provider's newer player-stats format (players listed, none with goals conceded) and came under 14 days after kickoff is fetched once more when it is 14 days old (`coverage.newer_format_refetch_due`): that format never carries goals conceded or dribbled past, and the provider replaces it with the complete one for many matches later. The provider adds player and team stats to some matches weeks after kickoff. So a fixture with no player rows or no statistics in any fetch is fetched again at 7 and at 30 days old (`coverage.late_fetch_due`). Each of those fetches stays due for 7 days. An older gap is filled only by `scripts/refetch_from_provider.py`.
+ 
+-**Both versions are kept deliberately, and base picks.** The bundle carries lineups, events, statistics and player stats *together*, so a retry chasing late statistics can come back richer in one section and poorer in another. `base_apif__fixture_statistics` takes each stat of a team line from the newest fetch that carries it. A card count is taken only as the cleaning rules' "Fetches" line allows. `base_apif__fixture_players` takes a match's player rows from one fetch, its newest fetch in the complete format (any player with goals conceded), else its newest fetch. The "Fetches" line says where a player's value comes from another fetch or from the events instead. `base_apif__coaches` takes each bio field from the newest fetch that carries it. `base_apif__fixture_events` keeps the event list of the fixture's latest fetch that has events: positions past the end of a shorter later list are not kept.
++**Both versions are kept deliberately, and base picks.** The bundle carries lineups, events, statistics and player stats *together*, so a retry chasing late statistics can come back richer in one section and poorer in another. `base_apif__fixture_statistics` takes each stat of a team line from the newest fetch that carries it. A card count is taken only as the cleaning rules' "Fetches" line allows. `base_apif__fixture_players` takes a match's player rows from one fetch, its newest fetch in the complete format (any player with goals conceded), else its newest fetch. The "Fetches" line says where a player's value comes from another fetch or from the events instead. `base_apif__coaches` takes each bio field from the newest fetch that carries it. `base_apif__fixture_events` keeps the event list of the fixture's latest fetch that has events: positions past the end of a shorter later list are not kept. A goal keeps the newest added minute any fetch carried.
+ 
+ Two consequences worth stating rather than discovering:
+ 

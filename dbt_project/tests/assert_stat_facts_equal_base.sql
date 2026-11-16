@@ -14,7 +14,7 @@
                  'penalties_won', 'penalties_committed', 'penalties_scored', 'penalties_missed',
                  'penalties_saved', 'raw_ingested_at'] %}
 {% set facts = [
-    {'fact': 'fct_fixture_player_stats', 'base': 'base_apif__fixture_players',
+    {'fact': 'fct_fixture_player_stats', 'base': 'base_apif__fixture_players_checked',
      'fact_rows': 'not is_from_lineups', 'renamed': player_keys, 'columns': player_columns},
     {'fact': 'fct_fixture_player_stats', 'base': 'base_apif__fixture_players_from_lineups',
      'fact_rows': 'is_from_lineups', 'renamed': player_keys, 'columns': player_columns},

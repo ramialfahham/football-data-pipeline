@@ -38,6 +38,10 @@ match stats are good enough.
   A result that fails a result check is withheld until sourced research stands in
   fixture_result_corrections. The match has no score, shoot-out or winner, is not played, and
   counts in no form, record or cup round.
+  A goal keeps the newest added minute any fetch carried. Its scorer and assister are on the pitch
+  at its minute on the line-up; a goal or substitution at 45', 90', 105' or 120' with no added
+  minute can fall in that period's added time. A scorer or assister who fails this is withheld
+  until sourced research stands in fixture_goal_corrections; the goal and the score stay.
 - Withheld values. A value that fails its check and has no sourced correction yet is left blank,
   as line-ups and cards are.
 - Cards. A player's yellow and red cards are exact. Where his stat line and the card events

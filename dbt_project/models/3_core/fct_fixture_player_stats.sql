@@ -2,7 +2,7 @@ with src as (
     select
         * except (stat_corrections),
         false as is_from_lineups
-    from {{ ref('base_apif__fixture_players') }}
+    from {{ ref('base_apif__fixture_players_checked') }}
     union all
     select
         * except (goals_need_research),
