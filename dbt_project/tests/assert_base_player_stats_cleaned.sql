@@ -51,9 +51,11 @@ with players as (
 -- as delivered only if both rows carry it, and a positive value in either counts as having played.
 stat_rows as (
     select
-        * except (player_id),
-        {{ player_id_override('player_id') }} as player_id
-    from {{ ref('stg_apif__fixture_players') }}
+        stat_line.* except (player_id),
+        {{ fixture_player_id(
+            'stat_line.player_id', 'stat_line.fixture_id', 'stat_line.team_id', 'stat_line.shirt_number'
+        ) }} as player_id
+    from {{ ref('stg_apif__fixture_players') }} as stat_line
 ),
 
 delivered as (

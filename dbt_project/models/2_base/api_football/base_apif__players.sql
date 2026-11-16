@@ -11,7 +11,10 @@
 -- and the facts, not here. Feeds dim_player 1:1. Grain: player_api_id.
 with players_src as (
     select
-        {{ player_id_override('safe_cast(player_id as int64)') }} as player_api_id,
+        {{ season_player_id(
+            'safe_cast(season_row.player_id as int64)', 'season_row.league_code', 'season_row.season_year',
+            'season_row.team_id'
+        ) }} as player_api_id,
         player_name,
         player_firstname as player_first_name,
         player_lastname as player_last_name,
@@ -21,7 +24,7 @@ with players_src as (
         raw_ingested_at,
         1 as source_priority,
         season_year as tie_recency
-    from {{ ref('stg_apif__players') }}
+    from {{ ref('stg_apif__players') }} as season_row
     where player_id is not null
 ),
 
