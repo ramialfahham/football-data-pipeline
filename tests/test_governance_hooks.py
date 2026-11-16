@@ -27,6 +27,11 @@ scope_paths:
   - dbt_project/models/allowed.sql
   - docs/allowed_dir/
 
+depends_on:
+  - none: no open MR is a base of this test
+shared_files:
+  - none: no shared file changes
+
 decisions_taken: >
   test
 decisions_reserved:
@@ -2337,6 +2342,7 @@ def test_scope_paths_closes_an_open_impact_block(repo):
         "scope_paths:\n"
         "  - dbt_project/models/allowed.sql\n"
         "  a stray indented line that is not a list item\n"
+        "depends_on:\n  - none: test\nshared_files:\n  - none: test\n"
         "decisions_taken: >\n  test\n"
         "decisions_reserved:\n  - none\n"
         "done_when:\n  - test\n"
@@ -3272,3 +3278,78 @@ def test_ci_check_runs_the_design_check_on_a_page_diff(ci_repo):
         capture_output=True, text=True, cwd=str(ci_repo), timeout=60,
     )
     assert r.returncode == 1 and "`home: #127`" in r.stdout
+
+
+# --- task_contract_gate: parallel-stream fields ---
+_SHARED = "tests/fixtures/design_inventory/baseline.json"
+
+
+def _without(contract_key: str) -> str:
+    return CONTRACT.replace(f"{contract_key}:\n  - none: no open MR is a base of this test\n", "").replace(
+        f"{contract_key}:\n  - none: no shared file changes\n", "")
+
+
+@pytest.mark.parametrize("key", ["depends_on", "shared_files"])
+def test_contract_without_a_parallel_field_denies_an_edit(repo, key):
+    write_contract(repo, _without(key))
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "dbt_project/models/allowed.sql"), repo)
+    assert denied(out) and f"`{key}:`" in out
+
+
+@pytest.mark.parametrize("block", ["  - none", "  - none:", "  - none: <reason>", "  - <entry>", "", "  >", "  # later"])
+def test_bare_none_or_placeholder_does_not_satisfy_a_parallel_field(repo, block):
+    write_contract(repo, CONTRACT.replace("depends_on:\n  - none: no open MR is a base of this test\n",
+                                          f"depends_on:\n{block}\n"))
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "dbt_project/models/allowed.sql"), repo)
+    assert denied(out) and "`depends_on:`" in out
+
+
+def test_listed_dependency_satisfies_depends_on(repo):
+    write_contract(repo, CONTRACT.replace("  - none: no open MR is a base of this test", "  - !449"))
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "dbt_project/models/allowed.sql"), repo)
+    assert not denied(out)
+
+
+def test_shared_file_edit_needs_it_listed(repo):
+    contract = CONTRACT.replace("scope_paths:\n", f"scope_paths:\n  - {_SHARED}\n")
+    write_contract(repo, contract)
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, _SHARED), repo)
+    assert denied(out) and "SHARED" in out
+
+
+def test_shared_file_edit_passes_when_listed(repo):
+    contract = CONTRACT.replace("scope_paths:\n", f"scope_paths:\n  - {_SHARED}\n").replace(
+        "  - none: no shared file changes", f"  - {_SHARED}")
+    write_contract(repo, contract)
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, _SHARED), repo)
+    assert not denied(out)
+
+
+def test_shared_file_listed_by_glob_covers_the_manifest(repo):
+    rel = "tests/fixtures/chart_screenshots/manifest.json"
+    contract = CONTRACT.replace("scope_paths:\n", f"scope_paths:\n  - {rel}\n").replace(
+        "  - none: no shared file changes", "  - tests/fixtures/chart_screenshots/*")
+    write_contract(repo, contract)
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, rel), repo)
+    assert not denied(out)
+
+
+def test_protected_edit_under_an_override_still_needs_the_parallel_fields(repo):
+    write_contract(repo, CONTRACT_OVERRIDE.replace("depends_on:\n  - none: no open MR is a base of this test\n", ""))
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, ".claude/hooks/some_hook.py"), repo)
+    assert denied(out) and "`depends_on:`" in out
+
+
+def test_shell_write_to_a_shared_file_needs_it_listed(repo):
+    contract = CONTRACT.replace("scope_paths:\n", f"scope_paths:\n  - {_SHARED}\n")
+    write_contract(repo, contract)
+    out, _ = run_hook("task_contract_gate.py", bash_event(f"echo x > {_SHARED}"), repo)
+    assert denied(out) and "SHARED" in out
+
+
+def test_shell_write_to_a_listed_shared_file_passes(repo):
+    contract = CONTRACT.replace("scope_paths:\n", f"scope_paths:\n  - {_SHARED}\n").replace(
+        "  - none: no shared file changes", f"  - {_SHARED}")
+    write_contract(repo, contract)
+    out, _ = run_hook("task_contract_gate.py", bash_event(f"echo x > {_SHARED}"), repo)
+    assert not denied(out)

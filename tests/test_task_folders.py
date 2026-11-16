@@ -33,6 +33,7 @@ ROUTING = {
 
 CONTRACT = "\n".join([
     "objective: >", "  test", "scope_paths:", "  - {code}",
+    "depends_on:", "  - none: test", "shared_files:", "  - none: test",
     "decisions_reserved:", "  - none: test", "done_when:", "  - test", "",
 ])
 

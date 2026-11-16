@@ -1,0 +1,965 @@
+diff --git a/.claude/hooks/task_contract_gate.py b/.claude/hooks/task_contract_gate.py
+index 51626e1a..51f30cb5 100644
+--- a/.claude/hooks/task_contract_gate.py
++++ b/.claude/hooks/task_contract_gate.py
+@@ -116,6 +116,14 @@ _DESIGN_PAIR_RE = re.compile(r"([a-z0-9_-]+)\s*:\s*#(\d+)\b")
+ _DESIGN_NONE_RE = re.compile(r"^none\s*:\s*\S")
+ # Read from the base ref only, so a branch cannot approve its own page.
+ APPROVED_DESIGNS = "docs/wireframes/approved_designs.yml"
++# A shared file has at most one open MR at a time, and the contract of the stream that changes it
++# lists it under `shared_files:`. The design baselines, the chart manifest and the chart pins.
++SHARED_FILE_PATTERNS = (
++    "tests/fixtures/design_inventory/baseline*.json",
++    "tests/fixtures/component_registry/baseline.json",
++    "tests/fixtures/font_coverage/baseline.json",
++    "tests/fixtures/chart_screenshots/*",
++)
+ _APPROVED_LINE_RE = re.compile(r"^([a-z0-9_-]+)\s*:\s*#?(\d+)\s*(?:#.*)?$")
+ # A `<template placeholder>` is not real content; nor is a bare YAML block
+ # indicator or an empty/(none) line.
+@@ -196,6 +204,45 @@ def _reserved_content(text: str) -> bool:
+ _PLACEHOLDER_SPAN = re.compile(r"<[^<>]*>", re.S)
+ 
+ 
++def list_field(lines: list[str]) -> dict:
++    """A list field (`depends_on:`, `shared_files:`): its entries, and whether it states with a reason
++    that there are none (`none: <reason>`). A bare `none` or a placeholder is neither."""
++    items: list[str] = []
++    none = False
++    for line in _PLACEHOLDER_SPAN.sub(" ", "\n".join(lines)).splitlines():
++        s = line.strip().lstrip("-").strip()
++        if not s or s.startswith("#"):
++            continue
++        if _DESIGN_NONE_RE.match(s.lower()):
++            none = True
++            continue
++        if _is_empty_marker(s) or re.fullmatch(r"none\s*:?", s.lower()):
++            continue
++        items.append(s)
++    return {"items": items, "none": none, "present": bool(items) or none}
++
++
++def top_level_block(text: str, key: str) -> list[str]:
++    """The lines of one top-level contract key: its inline remainder, then every indented line."""
++    out: list[str] = []
++    inside = False
++    for line in text.splitlines():
++        m = re.match(rf"^{key}\s*:(.*)$", line)
++        if m:
++            inside = True
++            out.append(m.group(1))
++            continue
++        if inside:
++            if line.strip() and not line.startswith((" ", "\t")) and not line.startswith("#"):
++                break
++            out.append(line)
++    return out
++
++
++def is_shared_file(rel: str) -> bool:
++    return any(fnmatch.fnmatch(rel, p) for p in SHARED_FILE_PATTERNS)
++
++
+ def _has_real_reservation(lines: list[str]) -> bool:
+     """True when a `decisions_reserved` block holds at least one real entry.
+ 
+@@ -560,10 +607,16 @@ def _parse_contract(path: str) -> dict | None:
+                 override = True
+     except Exception:
+         return None
++    try:
++        text = open(path, encoding="utf-8", errors="replace").read()
++    except Exception:
++        return None
+     return {"scope": scope, "protected_override": override,
+             "impact_map_present": impact_present,
+             "decisions_reserved_present": _has_real_reservation(reserved_lines),
+-            "approved_design": _approved_design(design_lines)}
++            "approved_design": _approved_design(design_lines),
++            "depends_on": list_field(top_level_block(text, "depends_on")),
++            "shared_files": list_field(top_level_block(text, "shared_files"))}
+ 
+ 
+ def _matches_scope(rel: str, scope: list[str]) -> bool:
+@@ -701,6 +754,32 @@ def _deny_missing_impact_map(rel: str) -> None:
+     )
+ 
+ 
++def _parallel_fields_refused(rel: str, contract: dict) -> bool:
++    """Deny an edit when the contract does not declare how the stream relates to the others;
++    True when it denied."""
++    for key, what in (("depends_on", "the open MRs whose code this stream needs"),
++                      ("shared_files", "the shared files this stream changes")):
++        if not contract[key]["present"]:
++            emit_deny(
++                f"CONTRACT GATE: `{rel}` may not be edited: the task contract must carry `{key}:`, "
++                f"{what}, one `- <entry>` per line, or one line `- none: <reason>`. A bare `none` or "
++                "a placeholder does not count. Add the field on a CLEAN tree. See "
++                "docs/working_agreement.md §12."
++            )
++            return True
++    if is_shared_file(rel) and not any(
++        fnmatch.fnmatch(rel, item.split()[0].replace("\\", "/"))
++        for item in contract["shared_files"]["items"]
++    ):
++        emit_deny(
++            f"CONTRACT GATE: `{rel}` is a SHARED file: at most one open MR changes it at a time. "
++            "List it under `shared_files:` in the task contract, on a CLEAN tree, after checking "
++            "`glab mr list` that no other open MR changes it. See docs/working_agreement.md §12."
++        )
++        return True
++    return False
++
++
+ def _deny_missing_approved_design(rel: str) -> None:
+     emit_deny(
+         f"CONTRACT GATE: `{rel}` is on the PAGE SURFACE: it changes what a visitor sees. A page "
+@@ -771,6 +850,8 @@ def _gate_file_edit(event: dict, root: str) -> None:
+             if not contract.get("impact_map_present"):
+                 _deny_missing_impact_map(rel)
+                 return
++            if _parallel_fields_refused(rel, contract):
++                return
+             emit_context(
+                 "PreToolUse",
+                 f"CONTRACT GATE: protected path `{rel}` allowed via the contract's "
+@@ -786,6 +867,8 @@ def _gate_file_edit(event: dict, root: str) -> None:
+     if not _matches_scope(rel, contract["scope"]):
+         _deny_out_of_scope(rel)
+         return
++    if _parallel_fields_refused(rel, contract):
++        return
+     if _is_structural(rel) and not contract.get("impact_map_present"):
+         _deny_missing_impact_map(rel)
+         return
+@@ -901,6 +984,8 @@ def _gate_bash_pre(event: dict, root: str) -> None:
+         if not _matches_scope(rel, contract["scope"]):
+             _deny_out_of_scope(rel)
+             return
++        if _parallel_fields_refused(rel, contract):
++            return
+         # The Edit path demands an impact_map on the structural surface; without
+         # this the shell path did not, so `echo x >> .claude/hooks/foo.py` with
+         # an override and no map was permitted, and neither the post-command
+diff --git a/.claude/task/314-merge-ready/contract.md b/.claude/task/314-merge-ready/contract.md
+new file mode 100644
+index 00000000..37bade21
+--- /dev/null
++++ b/.claude/task/314-merge-ready/contract.md
+@@ -0,0 +1,74 @@
++# Task contract — merge readiness, contract fields, review-round rule, parallel streams
++
++objective: >
++  Issue 314, MR 3: add scripts/merge_ready.py (is a green MR still ready after main moved),
++  the contract fields depends_on and shared_files enforced by the contract gate, the rule that a
++  merge of main leaving the review hash unchanged is not a review round, and a "Parallel streams"
++  section of docs/working_agreement.md.
++
++refs: >
++  Issue 314 (How, step 3). Requested by the coordinating session; go-live gate issue 290.
++
++scope_paths:
++  - scripts/merge_ready.py
++  - tests/test_merge_ready.py
++  - .claude/hooks/task_contract_gate.py
++  - tests/test_governance_hooks.py
++  - tests/test_governance_doc_parity.py
++  - tests/test_hooks_resolve_worktree.py
++  - tests/test_task_folders.py
++  - docs/agent_guardrails.md
++  - .claude/task/TEMPLATE.md
++  - .claude/task/REVIEW_TEMPLATE.md
++  - docs/working_agreement.md
++  - .claude/task/314-merge-ready/contract.md
++  - .claude/task/314-merge-ready/review.md
++  - .claude/task/314-merge-ready/review_input.patch
++
++protected_override: >
++  .claude/hooks/task_contract_gate.py is edited for the depends_on and shared_files fields, which
++  issue 314 lists under What exactly; the CPO approved that issue in chat on 15 Nov 2026.
++
++impact_map: >
++  writers: only task_contract_gate._parse_contract produces the parsed contract dict; its readers
++    are _gate_file_edit in the same file and the tests under tests/.
++  downstream: PreToolUse Edit|Write|MultiEdit events of every session in the repo. merge_ready.py
++    is a new read-only script that nothing imports; it imports _parse_contract's sibling helper.
++    No dbt model changes (scripts and docs only), so `dbt ls` lineage of the change is empty.
++  layer_rules: none apply; check_layer_contract.py does not read scripts or hooks.
++  deploy_order: none; nothing writes the warehouse. A contract written before this MR lacks the
++    two fields, so the gate asks for a one-line amendment on its next non-task edit.
++  blast_radius: if the gate is wrong it either blocks every edit (fails open on a parse error, as
++    before) or lets a shared file change unlisted. A test per case pins both.
++
++approved_design:
++  - none: no page output changes
++
++depends_on:
++  - !455
++
++shared_files:
++  - none: no design baseline, chart manifest or chart pin changes
++
++decisions_taken: >
++  Everything in issue 314 What exactly for steps merge_ready.py, the review-round rule, the
++  contract fields and the Parallel streams section, approved in chat, 15 Nov 2026. The
++  Parallel streams text is committed only after the CPO approves its exact wording through the
++  coordinating session. The gate requires both fields in every contract; the shared-file list is
++  the design baselines, the chart manifest and pins. No new dependency, no spend, no new
++  recurring mechanism beyond what issue 314 names.
++
++decisions_reserved:
++  - none: the Parallel streams text is approved in chat, 16 Nov 2026, and committed word for word.
++
++done_when:
++  - Full pytest is green.
++  - merge_ready.py on a real green MR prints ready, or the overlap, using glab and git only.
++  - The gate denies an edit when a contract lacks depends_on or shared_files, and denies a shared
++    file edit not listed in shared_files.
++
++amendments:
++  - + tests/test_hooks_resolve_worktree.py and tests/test_task_folders.py: their literal contracts need the two new fields or the gate denies their edits. Authority: issue 314 What exactly, task contract fields, approved in chat, 15 Nov 2026. Content: add depends_on and shared_files to those fixtures only.
++  - + docs/agent_guardrails.md: the guardrails row for task_contract_gate.py lists the new denials. Authority: issue 314 What exactly, task contract fields, approved in chat, 15 Nov 2026.
++  - The Parallel streams section of docs/working_agreement.md is committed word for word as approved in chat, 16 Nov 2026, with the round rule owned by section 2. Its Dependent work block reads: work that needs an open MR's code starts from the latest gitlab/main after that MR has merged. Approved in chat, 16 Nov 2026.
++  - The section 12 heading "Before every push." reads "Before every review round and every push."; its bullet is unchanged. Approved in chat, 16 Nov 2026.
+diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
+index 7f2e6d89..f85c55ee 100644
+--- a/docs/agent_guardrails.md
++++ b/docs/agent_guardrails.md
+@@ -27,7 +27,7 @@ match, because a hook that cries wolf gets ignored.
+ |---|---|---|
+ | `git_discipline.py` | PreToolUse Bash | Blocks `glab mr merge`, `git commit --amend`/`--no-verify`/`-n` and `core.hooksPath` repointing; asks the branch-consolidation questions on branch creation. On `git commit` it is the **review gate**: denies the commit unless the review passed and the task folder's `review.md` binds the staged diff (`working_agreement.md` §2). On a diff touching `site_v2/src/` it also requires the contract's `acceptance_criteria:`, each demonstrated in the task folder's `acceptance_evidence.md`. `scripts/check_task_artifacts.py` repeats the check in CI. |
+ | `git_workflow.py` | PostToolUse Bash | After a commit, reminds: push the feature branch, open the MR. |
+-| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit, Bash, Artifact; PostToolUse Bash | Denies an edit with no task contract or outside `scope_paths`. Each task keeps its files in its own folder, `.claude/task/<issue>-<slug>/`: the one folder the branch touches. It denies a write to another task's folder, a merged task's folder or the old shared `.claude/task/` files. `scripts/check_task_artifacts.py` refuses the same in CI. Denies an edit on a protected path without `protected_override`, on the structural surface without an `impact_map`, or on the page surface without an `approved_design`; the gate, and `scripts/check_task_artifacts.py` in CI, check each page and issue it names against `docs/wireframes/approved_designs.yml` on `main`. An `approved_design` line `none: no page output changes` is checked by `scope-auditor` alone, by no machine: it is this gate's weakest link. Denies a shell write to an out-of-scope file, and an `Artifact` publish without a real `decisions_reserved`. After every Bash call, it names the out-of-scope changes to revert. The rules are `working_agreement.md` §2. |
++| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit, Bash, Artifact; PostToolUse Bash | Denies an edit with no task contract or outside `scope_paths`. Each task keeps its files in its own folder, `.claude/task/<issue>-<slug>/`: the one folder the branch touches. It denies a write to another task's folder, a merged task's folder or the old shared `.claude/task/` files. `scripts/check_task_artifacts.py` refuses the same in CI. Denies an edit on a protected path without `protected_override`, on the structural surface without an `impact_map`, or on the page surface without an `approved_design`. It denies any edit under a contract without `depends_on:` and `shared_files:` (`working_agreement.md` §12). It denies an edit to a shared file the contract does not list, by Edit or by shell write. The gate, and `scripts/check_task_artifacts.py` in CI, check each page and issue it names against `docs/wireframes/approved_designs.yml` on `main`. An `approved_design` line `none: no page output changes` is checked by `scope-auditor` alone, by no machine: it is this gate's weakest link. Denies a shell write to an out-of-scope file, and an `Artifact` publish without a real `decisions_reserved`. After every Bash call, it names the out-of-scope changes to revert. The rules are `working_agreement.md` §2. |
+ | `dbt_layer_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit | Injects the layer contract when a dbt model or a consumption file (`scripts/export_*.py`, `site/`, `site_v2/`) is edited. `scripts/check_layer_contract.py` enforces it in CI. |
+ | `comment_history_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit | Denies an edit that adds history to a code comment or a Markdown document. History is a date, an issue or MR number, a review credit or round, or a story phrase. `tests/test_no_decision_history_in_code.py` and `tests/test_no_decision_history_in_docs.py` pin the lines left; the counts only go down. |
+ | `sentence_length_gate.py` | PreToolUse Edit/Write/MultiEdit | Denies an edit that adds a sentence over 25 words to a Markdown document, or over 20 in a numbered step. `tests/test_sentence_length_in_docs.py` pins the long sentences left; the counts only go down. |
+diff --git a/docs/working_agreement.md b/docs/working_agreement.md
+index 8e6eca46..3261deef 100644
+--- a/docs/working_agreement.md
++++ b/docs/working_agreement.md
+@@ -218,6 +218,8 @@ Every substantive commit passes four serialized steps. The commit gate enforces
+   two evidence artifacts, `acceptance_evidence.md` and `rendered_page_evidence.md`.
+ - CI recomputes the hash from `git diff base...HEAD`.
+ - `contract.md` is hashed and is never artifact-exempt. Every contract change goes through review.
++- A merge of main that leaves the review hash unchanged is not a review round. It adds nothing to
++  the round count and needs no new review.
+ - The round count is capped at 3. Past the cap, the builder stops and brings the open findings to
+   the CPO.
+ - To continue on the CPO's say-so, `review.md` records `rounds_cap_override: <reason>`.
+@@ -441,6 +443,37 @@ nudge.
+ 
+ ---
+ 
++## 12. Parallel streams
++
++Several sessions work at once. Each stream is one task folder, one branch and one MR.
++
++**How a stream starts.**
++- It branches from the latest `gitlab/main`.
++- Its contract names `depends_on:`, the open MRs whose code it needs, or `none` with the reason.
++- Its contract names `shared_files:`, the shared files it changes, or `none` with the reason.
++
++**Dependent work.**
++- Work that needs an open MR's code starts from the latest `gitlab/main` after that MR has merged.
++
++**Shared files.**
++- The shared files are the design baselines, the chart manifest and the chart pins.
++- At most one open MR changes a shared file at a time.
++- After another MR merges, the file is regenerated. It is never hand-merged.
++
++**Before every review round and every push.**
++- Run `python scripts/ci_local.py --mr`. It runs the CI jobs on the merged result of the branch and main.
++
++**Merge readiness.**
++- CI tests each MR merged with main.
++- When main has moved since a green pipeline, run `python scripts/merge_ready.py <MR IID>`.
++- No overlap with the MR's files or their dbt lineage: the MR is ready.
++- Overlap: re-run the pipeline without a new commit.
++
++**Review rounds.**
++- A merge of main that leaves the review hash unchanged is not a review round (§2).
++
++---
++
+ ## Appendix A — Historical anti-patterns
+ 
+ Each row is a failure class that reviewers and escalations hunt for and cross-reference, with the
+diff --git a/scripts/merge_ready.py b/scripts/merge_ready.py
+new file mode 100644
+index 00000000..f1ca5639
+--- /dev/null
++++ b/scripts/merge_ready.py
+@@ -0,0 +1,263 @@
++"""Is a green MR still ready to merge after main moved?
++
++    python scripts/merge_ready.py <MR IID>
++
++Reads the MR and its pipeline with `glab`, and the history with `git`; it writes nothing to GitLab
++or to this checkout (the merge test runs in a temporary worktree that is removed afterwards).
++
++Exit 0: ready to merge. Exit 1: not ready, with the reason. Exit 2: cannot decide.
++
++The pipeline tests the MR merged with the target branch, and its jobs print the target commit they
++merged in. If main has not moved since, the green result stands. If it has, the move matters only
++when it touches the MR's files or the dbt lineage of the models the MR changes, upstream or
++downstream. A move that does not is ready; one that does means the pipeline re-runs, with no new
++commit.
++"""
++
++from __future__ import annotations
++
++import fnmatch
++import json
++import os
++import re
++import shutil
++import subprocess
++import sys
++import tempfile
++
++sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".claude", "hooks"))
++
++REMOTE = "gitlab"
++TESTED_RE = re.compile(r"Merged result [0-9a-f]{40}: branch [0-9a-f]{40} \+ \S+ ([0-9a-f]{40})")
++CROSS_CUTTING = (".gitlab-ci.yml", "requirements.txt", "requirements-dev.txt", "requirements-ui.txt",
++                 "site_v2/package-lock.json", ".sqlfluff", "dbt_project/dbt_project.yml",
++                 "dbt_project/packages.yml")
++DBT_RUN_FILES = ("dbt_project/macros/",)
++DBT_DIR = "dbt_project"
++MODEL_PREFIXES = ("dbt_project/models/", "dbt_project/seeds/")
++
++
++class Undecided(Exception):
++    pass
++
++
++def run(cmd: list[str], cwd: str | None = None, check: bool = True) -> str:
++    r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace")
++    if check and r.returncode != 0:
++        raise Undecided(f"`{' '.join(cmd[:3])}...` failed: {(r.stderr or r.stdout).strip()[:300]}")
++    return r.stdout
++
++
++def glab_json(path: str):
++    return json.loads(run(["glab", "api", path]))
++
++
++def tested_target_sha(trace: str) -> str | None:
++    m = TESTED_RE.search(trace)
++    return m.group(1) if m else None
++
++
++def model_names(files: list[str]) -> list[str]:
++    """The dbt model and seed names among changed files: the file stem under models/ or seeds/."""
++    names = []
++    for f in files:
++        if f.startswith(MODEL_PREFIXES) and f.endswith((".sql", ".csv")):
++            names.append(os.path.splitext(os.path.basename(f))[0])
++    return sorted(set(names))
++
++
++def unmapped_dbt_files(files: list[str]) -> list[str]:
++    """Changed dbt files that name no model or seed (a schema.yml, a macro, a singular test), whose
++    lineage `dbt ls` cannot be asked for by name."""
++    return [f for f in files if f.startswith(DBT_DIR + "/")
++            and not (f.startswith(MODEL_PREFIXES) and f.endswith((".sql", ".csv")))]
++
++
++def lineage_paths(ls_output: str) -> set[str]:
++    """Repo paths from `dbt ls --output path` lines, which are relative to the dbt project."""
++    out = set()
++    for line in ls_output.splitlines():
++        line = line.strip().replace("\\", "/")
++        if line.startswith(("models/", "seeds/", "snapshots/", "tests/", "analyses/", "macros/")):
++            out.add(f"{DBT_DIR}/{line}")
++    return out
++
++
++def overlaps(mr_files: set[str], lineage: set[str], moved: set[str], dbt_known: bool) -> list[str]:
++    """The moved files that matter to this MR, each with why."""
++    hits = []
++    for f in sorted(moved):
++        if f in mr_files:
++            hits.append(f"{f} (also changed by the MR)")
++        elif f in lineage:
++            hits.append(f"{f} (in the dbt lineage of the MR's models)")
++        elif f in CROSS_CUTTING:
++            hits.append(f"{f} (every pipeline reads it)")
++        elif f.startswith(DBT_RUN_FILES) and any(x.startswith(DBT_DIR + "/") for x in mr_files):
++            hits.append(f"{f} (a macro, and the MR changes dbt files)")
++        elif not dbt_known and f.startswith(DBT_DIR + "/") and any(x.startswith(DBT_DIR + "/") for x in mr_files):
++            hits.append(f"{f} (dbt lineage could not be read, so any dbt file counts)")
++    return hits
++
++
++def find_in_checkouts(toplevel: str, *rels: str) -> str | None:
++    """A path under this checkout or, for a linked worktree under .claude/worktrees, under the main
++    checkout that holds the untracked files (.venv, profiles.yml, dbt_packages)."""
++    for rel in rels:
++        for base in (toplevel, os.path.join(toplevel, "..", "..", "..")):
++            p = os.path.normpath(os.path.join(base, rel))
++            if os.path.exists(p):
++                return p
++    return None
++
++
++def dbt_executable(toplevel: str) -> str | None:
++    return find_in_checkouts(toplevel, ".venv/Scripts/dbt.exe", ".venv/bin/dbt") or shutil.which("dbt")
++
++
++def lineage_in(worktree: str, toplevel: str, models: list[str]) -> set[str] | None:
++    """The paths of every model upstream and downstream of `models`, or None if dbt cannot say."""
++    if not models:
++        return set()
++    dbt = dbt_executable(toplevel)
++    if not dbt:
++        return None
++    packages = find_in_checkouts(toplevel, f"{DBT_DIR}/dbt_packages")
++    if packages and not os.path.isdir(os.path.join(worktree, DBT_DIR, "dbt_packages")):
++        shutil.copytree(packages, os.path.join(worktree, DBT_DIR, "dbt_packages"))
++    profile = find_in_checkouts(toplevel, "profiles.yml")
++    if profile and not os.path.isfile(os.path.join(worktree, "profiles.yml")):
++        shutil.copy(profile, os.path.join(worktree, "profiles.yml"))
++    found: set[str] = set()
++    for pattern in ("{}+", "+{}"):
++        sel = " ".join(pattern.format(m) for m in models)
++        r = subprocess.run(
++            [dbt, "ls", "--project-dir", DBT_DIR, "--output", "path", "--select", sel],
++            cwd=worktree, capture_output=True, text=True, encoding="utf-8", errors="replace",
++        )
++        if r.returncode != 0:
++            return None
++        found |= lineage_paths(r.stdout)
++    return found
++
++
++def tested_sha_of(mr: dict, cwd: str | None = None) -> str:
++    """The OLDEST target commit any successful job merged in: each job merges the target branch's
++    latest commit when it starts, so jobs of one pipeline can have tested different ones."""
++    pipeline = mr.get("head_pipeline") or {}
++    if pipeline.get("status") != "success":
++        raise Undecided(f"the pipeline of this MR is {pipeline.get('status') or 'missing'}, not green")
++    jobs = glab_json(f"projects/:id/pipelines/{pipeline['id']}/jobs?per_page=100")
++    shas: list[str] = []
++    for job in jobs:
++        if job.get("status") != "success":
++            continue
++        trace = run(["glab", "api", f"projects/:id/jobs/{job['id']}/trace"], check=False)
++        sha = tested_target_sha(trace)
++        if sha and sha not in shas:
++            shas.append(sha)
++    if not shas:
++        raise Undecided("no job of the pipeline printed the target commit it tested; re-run the pipeline")
++    return min(shas, key=lambda s: commit_time(s, cwd))
++
++
++def commit_time(ref: str, cwd: str | None) -> int:
++    return int(run(["git", "log", "-1", "--format=%ct", ref], cwd=cwd, check=False).strip() or 0)
++
++
++def own_contract(files: list[str], ref: str, cwd: str | None = None) -> str | None:
++    """The contract in the MR's one task folder."""
++    found = [f for f in files if re.match(r"^\.claude/task/[^/]+/contract\.md$", f)]
++    if not found:
++        return None
++    return run(["git", "show", f"{ref}:{found[0]}"], cwd=cwd, check=False)
++
++
++def paged(path: str) -> list[dict]:
++    out: list[dict] = []
++    page = 1
++    while True:
++        batch = glab_json(f"{path}{'&' if '?' in path else '?'}per_page=100&page={page}")
++        out += batch
++        if len(batch) < 100:
++            return out
++        page += 1
++
++
++def blockers(mr: dict, head: str, mr_files: list[str]) -> list[str]:
++    """Another open MR changing a shared file this MR's contract lists: at most one open MR may."""
++    import task_contract_gate as gate
++
++    text = own_contract(mr_files, head)
++    if text is None:
++        return []
++    out = []
++    shared = gate.list_field(gate.top_level_block(text, "shared_files"))["items"]
++    if shared:
++        patterns = [s.split()[0] for s in shared]
++        for other in paged("projects/:id/merge_requests?state=opened"):
++            if other["iid"] == mr["iid"]:
++                continue
++            diffs = paged(f"projects/:id/merge_requests/{other['iid']}/diffs")
++            clash = sorted({d["new_path"] for d in diffs for p in patterns
++                            if fnmatch.fnmatch(d["new_path"], p)})
++            if clash:
++                out.append(f"open MR !{other['iid']} also changes the shared file {', '.join(clash)}")
++    return out
++
++
++def decide(iid: str) -> tuple[int, list[str]]:
++    mr = glab_json(f"projects/:id/merge_requests/{iid}")
++    if mr.get("state") != "opened":
++        raise Undecided(f"MR !{iid} is {mr.get('state')}, not open")
++    target = mr["target_branch"]
++    head = mr["sha"]
++    toplevel = run(["git", "rev-parse", "--show-toplevel"]).strip()
++    run(["git", "fetch", "--quiet", REMOTE, target, f"refs/merge-requests/{iid}/head"], cwd=toplevel)
++    tested = tested_sha_of(mr)
++    current = run(["git", "rev-parse", f"{REMOTE}/{target}"], cwd=toplevel).strip()
++    mr_files = run(["git", "diff", "--name-only", f"{tested}...{head}"], cwd=toplevel).split()
++    lines: list[str] = []
++    stop = blockers(mr, head, mr_files)
++    if stop:
++        return 1, ["BLOCKED"] + [f"- {s}" for s in stop]
++    if tested == current:
++        return 0, [f"ready: {target} has not moved since the pipeline tested {tested[:8]}"]
++    moved = set(run(["git", "diff", "--name-only", tested, current], cwd=toplevel).split())
++    lines.append(f"{target} moved {tested[:8]} -> {current[:8]}: {len(moved)} files")
++    work = tempfile.mkdtemp(prefix="merge_ready_")
++    wt = os.path.join(work, "wt")
++    try:
++        run(["git", "worktree", "add", "--detach", "--quiet", wt, current], cwd=toplevel)
++        merged = subprocess.run(["git", "merge", "--no-commit", "--no-ff", head], cwd=wt,
++                                capture_output=True, text=True, encoding="utf-8", errors="replace")
++        if merged.returncode != 0:
++            conflicts = run(["git", "diff", "--name-only", "--diff-filter=U"], cwd=wt, check=False).split()
++            return 1, lines + ["OVERLAP: the MR no longer merges cleanly: " + ", ".join(conflicts or ["?"]),
++                               "Re-run the pipeline after merging the target branch into the branch."]
++        lineage = lineage_in(wt, toplevel, model_names(mr_files))
++    finally:
++        run(["git", "worktree", "remove", "--force", wt], cwd=toplevel, check=False)
++        shutil.rmtree(work, ignore_errors=True)
++    lineage_known = lineage is not None and not unmapped_dbt_files(mr_files)
++    hits = overlaps(set(mr_files), lineage or set(), moved, lineage_known)
++    if not hits:
++        return 0, lines + ["ready: nothing that moved touches the MR's files or their dbt lineage"]
++    return 1, lines + ["OVERLAP: re-run the pipeline without a new commit."] + [f"- {h}" for h in hits]
++
++
++def main(argv: list[str]) -> int:
++    if len(argv) != 2 or not argv[1].isdigit():
++        print(__doc__, file=sys.stderr)
++        return 2
++    try:
++        code, lines = decide(argv[1])
++    except Undecided as e:
++        print(f"cannot decide: {e}", file=sys.stderr)
++        return 2
++    print("\n".join(lines))
++    return code
++
++
++if __name__ == "__main__":
++    sys.exit(main(sys.argv))
+diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
+index 26af72a7..866caa4c 100644
+--- a/tests/test_governance_hooks.py
++++ b/tests/test_governance_hooks.py
+@@ -27,6 +27,11 @@ scope_paths:
+   - dbt_project/models/allowed.sql
+   - docs/allowed_dir/
+ 
++depends_on:
++  - none: no open MR is a base of this test
++shared_files:
++  - none: no shared file changes
++
+ decisions_taken: >
+   test
+ decisions_reserved:
+@@ -2337,6 +2342,7 @@ def test_scope_paths_closes_an_open_impact_block(repo):
+         "scope_paths:\n"
+         "  - dbt_project/models/allowed.sql\n"
+         "  a stray indented line that is not a list item\n"
++        "depends_on:\n  - none: test\nshared_files:\n  - none: test\n"
+         "decisions_taken: >\n  test\n"
+         "decisions_reserved:\n  - none\n"
+         "done_when:\n  - test\n"
+@@ -3272,3 +3278,78 @@ def test_ci_check_runs_the_design_check_on_a_page_diff(ci_repo):
+         capture_output=True, text=True, cwd=str(ci_repo), timeout=60,
+     )
+     assert r.returncode == 1 and "`home: #127`" in r.stdout
++
++
++# --- task_contract_gate: parallel-stream fields ---
++_SHARED = "tests/fixtures/design_inventory/baseline.json"
++
++
++def _without(contract_key: str) -> str:
++    return CONTRACT.replace(f"{contract_key}:\n  - none: no open MR is a base of this test\n", "").replace(
++        f"{contract_key}:\n  - none: no shared file changes\n", "")
++
++
++@pytest.mark.parametrize("key", ["depends_on", "shared_files"])
++def test_contract_without_a_parallel_field_denies_an_edit(repo, key):
++    write_contract(repo, _without(key))
++    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "dbt_project/models/allowed.sql"), repo)
++    assert denied(out) and f"`{key}:`" in out
++
++
++@pytest.mark.parametrize("block", ["  - none", "  - none:", "  - none: <reason>", "  - <entry>", "", "  >", "  # later"])
++def test_bare_none_or_placeholder_does_not_satisfy_a_parallel_field(repo, block):
++    write_contract(repo, CONTRACT.replace("depends_on:\n  - none: no open MR is a base of this test\n",
++                                          f"depends_on:\n{block}\n"))
++    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "dbt_project/models/allowed.sql"), repo)
++    assert denied(out) and "`depends_on:`" in out
++
++
++def test_listed_dependency_satisfies_depends_on(repo):
++    write_contract(repo, CONTRACT.replace("  - none: no open MR is a base of this test", "  - !449"))
++    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "dbt_project/models/allowed.sql"), repo)
++    assert not denied(out)
++
++
++def test_shared_file_edit_needs_it_listed(repo):
++    contract = CONTRACT.replace("scope_paths:\n", f"scope_paths:\n  - {_SHARED}\n")
++    write_contract(repo, contract)
++    out, _ = run_hook("task_contract_gate.py", edit_event(repo, _SHARED), repo)
++    assert denied(out) and "SHARED" in out
++
++
++def test_shared_file_edit_passes_when_listed(repo):
++    contract = CONTRACT.replace("scope_paths:\n", f"scope_paths:\n  - {_SHARED}\n").replace(
++        "  - none: no shared file changes", f"  - {_SHARED}")
++    write_contract(repo, contract)
++    out, _ = run_hook("task_contract_gate.py", edit_event(repo, _SHARED), repo)
++    assert not denied(out)
++
++
++def test_shared_file_listed_by_glob_covers_the_manifest(repo):
++    rel = "tests/fixtures/chart_screenshots/manifest.json"
++    contract = CONTRACT.replace("scope_paths:\n", f"scope_paths:\n  - {rel}\n").replace(
++        "  - none: no shared file changes", "  - tests/fixtures/chart_screenshots/*")
++    write_contract(repo, contract)
++    out, _ = run_hook("task_contract_gate.py", edit_event(repo, rel), repo)
++    assert not denied(out)
++
++
++def test_protected_edit_under_an_override_still_needs_the_parallel_fields(repo):
++    write_contract(repo, CONTRACT_OVERRIDE.replace("depends_on:\n  - none: no open MR is a base of this test\n", ""))
++    out, _ = run_hook("task_contract_gate.py", edit_event(repo, ".claude/hooks/some_hook.py"), repo)
++    assert denied(out) and "`depends_on:`" in out
++
++
++def test_shell_write_to_a_shared_file_needs_it_listed(repo):
++    contract = CONTRACT.replace("scope_paths:\n", f"scope_paths:\n  - {_SHARED}\n")
++    write_contract(repo, contract)
++    out, _ = run_hook("task_contract_gate.py", bash_event(f"echo x > {_SHARED}"), repo)
++    assert denied(out) and "SHARED" in out
++
++
++def test_shell_write_to_a_listed_shared_file_passes(repo):
++    contract = CONTRACT.replace("scope_paths:\n", f"scope_paths:\n  - {_SHARED}\n").replace(
++        "  - none: no shared file changes", f"  - {_SHARED}")
++    write_contract(repo, contract)
++    out, _ = run_hook("task_contract_gate.py", bash_event(f"echo x > {_SHARED}"), repo)
++    assert not denied(out)
+diff --git a/tests/test_hooks_resolve_worktree.py b/tests/test_hooks_resolve_worktree.py
+index ecc67465..f2bb6460 100644
+--- a/tests/test_hooks_resolve_worktree.py
++++ b/tests/test_hooks_resolve_worktree.py
+@@ -28,6 +28,7 @@ def _contract(scoped: str) -> str:
+     return (
+         "# Task contract — test\nobjective: >\n  test\nrefs: test\n\n"
+         f"scope_paths:\n  - {scoped}\n\n"
++        "depends_on:\n  - none: test\nshared_files:\n  - none: test\n"
+         "decisions_taken: >\n  test\ndecisions_reserved:\n  - none\n"
+         "done_when:\n  - test\namendments: (none)\n"
+     )
+diff --git a/tests/test_merge_ready.py b/tests/test_merge_ready.py
+new file mode 100644
+index 00000000..08097625
+--- /dev/null
++++ b/tests/test_merge_ready.py
+@@ -0,0 +1,257 @@
++import os
++import sys
++
++import pytest
++
++ROOT = os.path.join(os.path.dirname(__file__), "..")
++sys.path.insert(0, os.path.join(ROOT, "scripts"))
++
++import merge_ready as mr  # noqa: E402
++
++TESTED = "a" * 40
++CURRENT = "b" * 40
++
++
++def test_tested_sha_read_from_job_trace():
++    trace = f"noise\n2026-11-16T08:42:55.741620Z 01O Merged result {'c' * 40}: branch {'d' * 40} + main {TESTED}\nmore"
++    assert mr.tested_target_sha(trace) == TESTED
++
++
++def test_tested_sha_absent_when_no_merged_result_line():
++    assert mr.tested_target_sha("Merged result abc") is None
++
++
++def test_model_names_take_models_and_seeds_only():
++    files = [
++        "dbt_project/models/3_core/dim_team.sql",
++        "dbt_project/seeds/fixture_card_corrections.csv",
++        "dbt_project/models/3_core/schema.yml",
++        "scripts/merge_ready.py",
++    ]
++    assert mr.model_names(files) == ["dim_team", "fixture_card_corrections"]
++
++
++def test_lineage_paths_prefix_and_drop_dbt_banner_lines():
++    out = "Running with dbt=1.7.19\nmodels/3_core/dim_team.sql\nseeds/x.csv\n"
++    assert mr.lineage_paths(out) == {"dbt_project/models/3_core/dim_team.sql", "dbt_project/seeds/x.csv"}
++
++
++def test_no_overlap_when_moved_files_are_unrelated():
++    assert mr.overlaps({"scripts/a.py"}, {"dbt_project/models/x.sql"}, {"docs/y.md"}, True) == []
++
++
++def test_overlap_on_file_changed_by_both():
++    hits = mr.overlaps({"docs/a.md"}, set(), {"docs/a.md"}, True)
++    assert len(hits) == 1 and "also changed" in hits[0]
++
++
++def test_overlap_on_dbt_lineage():
++    hits = mr.overlaps({"dbt_project/models/a.sql"}, {"dbt_project/models/b.sql"},
++                       {"dbt_project/models/b.sql"}, True)
++    assert len(hits) == 1 and "lineage" in hits[0]
++
++
++def test_ci_definition_move_overlaps_every_mr():
++    assert mr.overlaps({"docs/a.md"}, set(), {".gitlab-ci.yml"}, True)
++
++
++def test_unreadable_lineage_counts_any_dbt_file_as_overlap():
++    moved = {"dbt_project/models/z.sql"}
++    assert mr.overlaps({"dbt_project/models/a.sql"}, set(), moved, False)
++    assert not mr.overlaps({"dbt_project/models/a.sql"}, set(), moved, True)
++
++
++def test_macro_move_overlaps_an_mr_with_dbt_files():
++    assert mr.overlaps({"dbt_project/models/a.sql"}, set(), {"dbt_project/macros/m.sql"}, True)
++    assert not mr.overlaps({"docs/a.md"}, set(), {"dbt_project/macros/m.sql"}, True)
++
++
++@pytest.fixture()
++def fake(monkeypatch):
++    calls = {"glab": {}, "git": {}}
++    monkeypatch.setattr(mr, "glab_json", lambda p: calls["glab"][p.split("?")[0]] if p.split("?")[0] in calls["glab"]
++                        else (_ for _ in ()).throw(AssertionError(p)))
++    monkeypatch.setattr(mr, "tested_sha_of", lambda m: TESTED)
++    monkeypatch.setattr(mr, "blockers", lambda *a: [])
++
++    def fake_run(cmd, cwd=None, check=True):
++        key = " ".join(cmd[:3])
++        for k, v in calls["git"].items():
++            if key.startswith(k):
++                return v
++        return ""
++
++    monkeypatch.setattr(mr, "run", fake_run)
++    return calls
++
++
++def _mr(state="opened"):
++    return {"iid": 7, "state": state, "target_branch": "main", "sha": "e" * 40,
++            "head_pipeline": {"id": 1, "status": "success"}}
++
++
++def test_decide_ready_when_main_did_not_move(fake):
++    fake["glab"]["projects/:id/merge_requests/7"] = _mr()
++    fake["git"]["git rev-parse --show-toplevel"] = "/x\n"
++    fake["git"]["git rev-parse gitlab/main"] = TESTED + "\n"
++    code, lines = mr.decide("7")
++    assert code == 0 and "has not moved" in lines[0]
++
++
++def test_decide_refuses_a_closed_mr(fake):
++    fake["glab"]["projects/:id/merge_requests/7"] = _mr("merged")
++    with pytest.raises(mr.Undecided):
++        mr.decide("7")
++
++
++def test_decide_names_the_blocker_before_anything_else(fake, monkeypatch):
++    fake["glab"]["projects/:id/merge_requests/7"] = _mr()
++    fake["git"]["git rev-parse --show-toplevel"] = "/x\n"
++    fake["git"]["git rev-parse gitlab/main"] = CURRENT + "\n"
++    monkeypatch.setattr(mr, "blockers", lambda *a: ["open MR !5 also changes the shared file x"])
++    code, lines = mr.decide("7")
++    assert code == 1 and lines[0] == "BLOCKED" and "!5" in lines[1]
++
++
++def test_main_requires_an_iid(capsys):
++    assert mr.main(["merge_ready.py"]) == 2
++    assert mr.main(["merge_ready.py", "abc"]) == 2
++
++
++# --- the parts that read the contract and GitLab ---
++def _contract(depends="  - !449\n", shared="  - none: t\n"):
++    return f"objective: >\n  t\ndepends_on:\n{depends}shared_files:\n{shared}done_when:\n  - t\n"
++
++
++@pytest.fixture()
++def gitlab(monkeypatch):
++    state = {"opened": [{"iid": 449}, {"iid": 450}], "diffs": {}}
++
++    def fake(path):
++        if "state=opened" in path:
++            return state["opened"] if "page=1" in path else []
++        for iid, diffs in state["diffs"].items():
++            if f"merge_requests/{iid}/diffs" in path:
++                return diffs if "page=1" in path else []
++        raise AssertionError(path)
++
++    monkeypatch.setattr(mr, "glab_json", fake)
++    return state
++
++
++def test_blockers_names_another_mr_changing_a_shared_file(gitlab, monkeypatch):
++    shared = "tests/fixtures/design_inventory/baseline.json"
++    monkeypatch.setattr(mr, "own_contract", lambda files, ref, cwd=None: _contract(
++        depends="  - none: t\n", shared=f"  - {shared}\n"))
++    gitlab["diffs"] = {449: [{"new_path": shared}], 450: [{"new_path": "docs/x.md"}]}
++    out = mr.blockers({"iid": 7}, "h", ["x"])
++    assert len(out) == 1 and "!449" in out[0] and shared in out[0]
++
++
++def test_blockers_ignores_the_mr_itself(gitlab, monkeypatch):
++    shared = "tests/fixtures/design_inventory/baseline.json"
++    monkeypatch.setattr(mr, "own_contract", lambda files, ref, cwd=None: _contract(
++        depends="  - none: t\n", shared=f"  - {shared}\n"))
++    gitlab["diffs"] = {449: [{"new_path": shared}], 450: [{"new_path": "docs/x.md"}]}
++    assert mr.blockers({"iid": 449}, "h", ["x"]) == []
++
++
++def test_blockers_empty_when_no_shared_file_is_listed(gitlab, monkeypatch):
++    monkeypatch.setattr(mr, "own_contract", lambda files, ref, cwd=None: _contract())
++    assert mr.blockers({"iid": 7}, "h", ["x"]) == []
++
++
++def test_blockers_empty_without_a_contract(gitlab, monkeypatch):
++    monkeypatch.setattr(mr, "own_contract", lambda files, ref, cwd=None: None)
++    assert mr.blockers({"iid": 7}, "h", ["x"]) == []
++
++
++def test_own_contract_is_the_one_in_the_task_folder(monkeypatch):
++    seen = []
++    monkeypatch.setattr(mr, "run", lambda cmd, cwd=None, check=True: seen.append(cmd) or "text")
++    assert mr.own_contract(["other.py", ".claude/task/2-own/contract.md"], "HEAD") == "text"
++    assert seen[-1] == ["git", "show", "HEAD:.claude/task/2-own/contract.md"]
++    assert mr.own_contract(["other.py"], "HEAD") is None
++
++
++def test_tested_sha_is_the_oldest_across_jobs(monkeypatch):
++    t_old, t_new = "1" * 40, "2" * 40
++    traces = {1: f"Merged result {'c' * 40}: branch {'d' * 40} + main {t_new}",
++              2: f"Merged result {'c' * 40}: branch {'d' * 40} + main {t_old}"}
++    monkeypatch.setattr(mr, "glab_json", lambda p: [{"id": 1, "status": "success"}, {"id": 2, "status": "success"},
++                                                    {"id": 3, "status": "failed"}])
++    monkeypatch.setattr(mr, "run", lambda cmd, cwd=None, check=True: traces[int(cmd[2].split("/")[3])]
++                        if cmd[0] == "glab" else "")
++    monkeypatch.setattr(mr, "commit_time", lambda ref, cwd: 1 if ref == t_old else 2)
++    assert mr.tested_sha_of({"head_pipeline": {"id": 9, "status": "success"}}) == t_old
++
++
++def test_tested_sha_refuses_a_red_pipeline():
++    with pytest.raises(mr.Undecided):
++        mr.tested_sha_of({"head_pipeline": {"id": 9, "status": "failed"}})
++
++
++def test_changed_yaml_macro_or_singular_test_is_unmapped():
++    files = ["dbt_project/models/a.sql", "dbt_project/models/schema.yml", "dbt_project/macros/m.sql",
++             "dbt_project/tests/t.sql", "docs/x.md"]
++    assert mr.unmapped_dbt_files(files) == [
++        "dbt_project/models/schema.yml", "dbt_project/macros/m.sql", "dbt_project/tests/t.sql"]
++
++
++def test_yaml_only_mr_counts_any_moved_dbt_file_as_overlap():
++    assert mr.overlaps({"dbt_project/models/schema.yml"}, set(), {"dbt_project/models/mart_x.sql"}, False)
++
++
++# --- decide() after main moved, on a real repository ---
++def _git(cwd, *args):
++    import subprocess
++    return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
++
++
++@pytest.fixture()
++def moved(tmp_path, monkeypatch):
++    remote, work = tmp_path / "remote.git", tmp_path / "work"
++    _git(tmp_path, "init", "-q", "--bare", str(remote))
++    _git(tmp_path, "clone", "-q", str(remote), str(work))
++    for k, v in (("user.email", "t@t"), ("user.name", "t")):
++        _git(work, "config", k, v)
++    _git(work, "checkout", "-q", "-b", "main")
++    (work / "a.txt").write_text("a\n")
++    (work / "b.txt").write_text("b\n")
++    _git(work, "add", "-A")
++    _git(work, "commit", "-qm", "base")
++    tested = _git(work, "rev-parse", "HEAD")
++    _git(work, "push", "-q", "origin", "main")
++    _git(work, "checkout", "-q", "-b", "mrbranch")
++    (work / "a.txt").write_text("a mr\n")
++    _git(work, "commit", "-qam", "mr")
++    head = _git(work, "rev-parse", "HEAD")
++    _git(work, "push", "-q", "origin", "HEAD:refs/merge-requests/7/head")
++    _git(work, "checkout", "-q", "main")
++    monkeypatch.chdir(work)
++    monkeypatch.setattr(mr, "REMOTE", "origin")
++    monkeypatch.setattr(mr, "blockers", lambda *a: [])
++    monkeypatch.setattr(mr, "tested_sha_of", lambda m: tested)
++    monkeypatch.setattr(mr, "lineage_in", lambda *a: set())
++    monkeypatch.setattr(mr, "glab_json", lambda p: {"iid": 7, "state": "opened", "target_branch": "main",
++                                                    "sha": head, "head_pipeline": {}})
++
++    def move(path, text):
++        (work / path).write_text(text)
++        _git(work, "add", "-A")
++        _git(work, "commit", "-qm", "main moves")
++        _git(work, "push", "-q", "origin", "main")
++
++    return move
++
++
++def test_decide_ready_when_main_moved_elsewhere(moved):
++    moved("b.txt", "b2\n")
++    code, lines = mr.decide("7")
++    assert code == 0 and "nothing that moved touches" in lines[-1]
++
++
++def test_decide_overlap_when_main_moved_the_same_file(moved):
++    moved("a.txt", "a main\n")
++    code, lines = mr.decide("7")
++    assert code == 1 and any("a.txt" in x for x in lines)
+diff --git a/tests/test_task_folders.py b/tests/test_task_folders.py
+index af41c0c9..3b0eec91 100644
+--- a/tests/test_task_folders.py
++++ b/tests/test_task_folders.py
+@@ -33,6 +33,7 @@ ROUTING = {
+ 
+ CONTRACT = "\n".join([
+     "objective: >", "  test", "scope_paths:", "  - {code}",
++    "depends_on:", "  - none: test", "shared_files:", "  - none: test",
+     "decisions_reserved:", "  - none: test", "done_when:", "  - test", "",
+ ])
+ 
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/314-merge-ready/review.md          |  25 +
+#    .claude/task/314-merge-ready/review_input.patch | 963 ++++++++++++++++++++++++
+#    .claude/task/REVIEW_TEMPLATE.md                 |   2 +-
+#    .claude/task/TEMPLATE.md                        |  14 +
+#    4 files changed, 1003 insertions(+), 1 deletion(-)
+# ============================================================================

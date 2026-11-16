@@ -218,6 +218,8 @@ Every substantive commit passes four serialized steps. The commit gate enforces 
   two evidence artifacts, `acceptance_evidence.md` and `rendered_page_evidence.md`.
 - CI recomputes the hash from `git diff base...HEAD`.
 - `contract.md` is hashed and is never artifact-exempt. Every contract change goes through review.
+- A merge of main that leaves the review hash unchanged is not a review round. It adds nothing to
+  the round count and needs no new review.
 - The round count is capped at 3. Past the cap, the builder stops and brings the open findings to
   the CPO.
 - To continue on the CPO's say-so, `review.md` records `rounds_cap_override: <reason>`.
@@ -438,6 +440,37 @@ nudge.
   recorded until the CPO merges.
 - No record quotes the CPO.
 - The CPO reads the head before merging and refuses a long one.
+
+---
+
+## 12. Parallel streams
+
+Several sessions work at once. Each stream is one task folder, one branch and one MR.
+
+**How a stream starts.**
+- It branches from the latest `gitlab/main`.
+- Its contract names `depends_on:`, the open MRs whose code it needs, or `none` with the reason.
+- Its contract names `shared_files:`, the shared files it changes, or `none` with the reason.
+
+**Dependent work.**
+- Work that needs an open MR's code starts from the latest `gitlab/main` after that MR has merged.
+
+**Shared files.**
+- The shared files are the design baselines, the chart manifest and the chart pins.
+- At most one open MR changes a shared file at a time.
+- After another MR merges, the file is regenerated. It is never hand-merged.
+
+**Before every review round and every push.**
+- Run `python scripts/ci_local.py --mr`. It runs the CI jobs on the merged result of the branch and main.
+
+**Merge readiness.**
+- CI tests each MR merged with main.
+- When main has moved since a green pipeline, run `python scripts/merge_ready.py <MR IID>`.
+- No overlap with the MR's files or their dbt lineage: the MR is ready.
+- Overlap: re-run the pipeline without a new commit.
+
+**Review rounds.**
+- A merge of main that leaves the review hash unchanged is not a review round (§2).
 
 ---
 
