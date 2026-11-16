@@ -1,0 +1,171 @@
+diff --git a/.claude/task/68-form-window-rule/contract.md b/.claude/task/68-form-window-rule/contract.md
+new file mode 100644
+index 00000000..d3c32305
+--- /dev/null
++++ b/.claude/task/68-form-window-rule/contract.md
+@@ -0,0 +1,70 @@
++# Task contract — form-window rule: the qualifying cell and two stale comments
++
++objective: >
++  Issue 68: bring the form-window code and the rule in docs/metrics_context_model.md section 4 into
++  line. The domestic-league "before it starts" window is already served (mart_team_season_record
++  prev_season, flagged is_form_window); two model comments still say a missing fallback fills that
++  gap and are removed. The qualifying "While it's running" cell predates the national-context
++  ruling of section 8 and is set to the last 5 across the national team's matches, which the code
++  already does.
++
++refs: >
++  Issue 68. Go-live gate issue 290. Requested by the coordinating session.
++
++scope_paths:
++  - docs/metrics_context_model.md
++  - dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
++  - dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
++  - dbt_project/tests/assert_team_form_window_follows_the_rule.sql
++  - tests/test_no_decision_history_in_code.py
++  - .claude/task/68-form-window-rule/contract.md
++  - .claude/task/68-form-window-rule/review.md
++  - .claude/task/68-form-window-rule/review_input.patch
++
++impact_map: >
++  writers: the two models only; the change is inside their header comments, no SQL changes.
++  downstream: `dbt ls --select int_team_momentum_window+ int_team_momentum__metrics+
++  --resource-type model` gives int_player_momentum__metrics, int_team_momentum__metrics,
++  int_team_momentum_window, mart_matchday_insights, mart_player_momentum,
++  mart_team_momentum_window, mart_team_window_metrics.
++  layer_rules: unchanged; no ref, column or materialisation changes.
++  deploy_order: none; the compiled SQL outside the comment block is byte-identical.
++  blast_radius: none. Comment-only in models; no number changes. The data build is expected to show
++  zero changed team-window rows against prod.
++
++approved_design:
++  - none: no page output changes
++
++depends_on:
++  - none: no open MR touches these files; the code this needs is on main
++
++shared_files:
++  - none: no design baseline or chart pin changes
++
++decisions_taken: >
++  The qualifying cell follows the CPO's national-context ruling recorded in commit 4a1a348d
++  (17 Jun 2026, section 8 spec): outside a big tournament a national team's figures are the last 5
++  national-team matches, pooled. The cell takes the wording of its own "Before it starts" cell.
++  No other document text changes. No new mechanism, no spend beyond read-only queries.
++
++decisions_reserved:
++  - none: the only rule change is the one cell the 4a1a348d ruling already settles.
++
++done_when:
++  - The section 4 qualifying row reads "Last 5 across the national team's matches" in both its
++    "Before it starts" and "While it's running" cells.
++  - grep for "326" in the two models finds nothing.
++  - python scripts/ci_local.py --mr is green.
++  - The MR pipeline is green and data:build:mr passes.
++  - A read-only comparison of the MR's ci_mr team-window tables against prod (under 20 GB) lists
++    every changed row; zero expected.
++
++amendments:
++  - + dbt_project/tests/assert_team_form_window_follows_the_rule.sql. Authority: the analytics
++    engineer's round-1 finding that the form-window test skips a qualifying side whose campaign is
++    under way, the case the corrected cell settles. Content: drop the two qualifying exclusions and
++    the header sentence that names the old cell, so the test checks qualifying sides against the
++    last 5 national matches. done_when: the test passes in data:build:mr. No new mechanism, no spend.
++  - + tests/test_no_decision_history_in_code.py. Authority: the pin rule (a pin only goes down, and
++    the test asks for the lower number). Content: PINNED_LINES 273 to 270, because the removed
++    comments carried three issue references. PINNED_FILES stays 93.
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql b/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
+index 5c63fc19..3c0dbab6 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
+@@ -11,8 +11,8 @@
+   Scope: all competition types — club and national. W1 is shown alongside W2 for every
+   fixture; both numbers are always presented together.
+ 
+-  Returns no row when a team has no finished matches yet (before phase for a
+-  club domestic_league). The mart will emit nulls; #326 fills the gap.
++  Returns no row when a team has no finished match in its window. Before a club's first
++  domestic-league match of the season, mart_team_season_record serves its form window instead.
+ 
+   Every catalogue metric is written by scripts/generate_metric_sql.py from metric_catalogue.csv
+   over the window's legs, with the team totals from players joined to them, by the rules in
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql b/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
+index d1015abc..37fb16fc 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
+@@ -20,7 +20,7 @@
+     every finished leg in the tournament's qualifier competitions (dim_league parent_competition =
+     this league_code) before kickoff, no season cap (a qualifying campaign spans seasons).
+   A tournament side with neither tournament nor qualifier legs yields no rows (the mart renders
+-  the empty-form state). `qualifying`-type previews keep last_5 here (#483). This selection also
++  the empty-form state). `qualifying`-type previews keep last_5 here. This selection also
+   feeds the player momentum builder (int_player_momentum__metrics), so the player top-players strip
+   and the team form panel share one window (#484).
+ 
+@@ -34,9 +34,6 @@
+   starts. The form aggregates (int_team_momentum__metrics, int_player_momentum__metrics) leave
+   these rows out.
+ 
+-  Returns no rows for a team with no finished matches yet (before phase for a club
+-  domestic_league); #326's season-to-date fallback covers that gap.
+-
+   Grain: (upcoming_fixture_sk, team_sk, leg_fixture_sk).
+ #}
+ 
+diff --git a/dbt_project/tests/assert_team_form_window_follows_the_rule.sql b/dbt_project/tests/assert_team_form_window_follows_the_rule.sql
+index 325efa69..4fc0ec77 100644
+--- a/dbt_project/tests/assert_team_form_window_follows_the_rule.sql
++++ b/dbt_project/tests/assert_team_form_window_follows_the_rule.sql
+@@ -6,9 +6,7 @@
+     finished match of this edition before kickoff (tournament_to_date), or before the team's first
+     one, every match of its qualifiers (qualifiers); elsewhere the team's last 5 finished matches of
+     its kind (club or national), a club's from this season only, a national team's with no season
+-    cap (last_5). Left out: a qualifying campaign under way, which section 4 gives the whole campaign
+-    and the model does not yet build ("Form-window code diverges from metrics_context_model.md
+-    section 4 in two places").
++    cap (last_5).
+   - the season record (mart_team_season_record): the team's record in the fixture's competition this
+     season, or the previous season's before its first match (prev_season), with the number of
+     matches it holds.
+@@ -119,7 +117,6 @@ expected_form as (
+     from earlier_legs as e
+     inner join side_kinds as k
+         on e.upcoming_fixture_sk = k.upcoming_fixture_sk and e.team_sk = k.team_sk
+-    where not (k.competition_type = 'qualifying' and k.legs_in_this_edition > 0)
+ ),
+ 
+ form_compared as (
+@@ -136,7 +133,6 @@ form_compared as (
+         from {{ ref('int_team_momentum_window') }} as w
+         inner join side_kinds as k
+             on w.upcoming_fixture_sk = k.upcoming_fixture_sk and w.team_sk = k.team_sk
+-        where not (k.competition_type = 'qualifying' and k.legs_in_this_edition > 0)
+     ) as m
+         on
+             e.upcoming_fixture_sk = m.upcoming_fixture_sk
+diff --git a/docs/metrics_context_model.md b/docs/metrics_context_model.md
+index 4eef4078..eb6567a4 100644
+--- a/docs/metrics_context_model.md
++++ b/docs/metrics_context_model.md
+@@ -119,7 +119,7 @@ team's matches in that edition. It does not depend on how far the team went.
+ 
+ | competition_type | type status | Before it starts | While it's running | After it's finished |
+ |---|---|---|---|---|
+-| qualifying | active | Last 5 across the national team's matches | All matches so far in this qualifying campaign | Full completed campaign |
++| qualifying | active | Last 5 across the national team's matches | Last 5 across the national team's matches | Full completed campaign |
+ | continental_championship | active | The team's qualifier matches | All matches so far in this tournament | Full completed tournament |
+ | world_championship | active | Qualifier matches (until group-stage MD1) | All matches so far in this tournament (from group-stage MD2) | Full completed tournament |
+ | national_team_friendly | not ingesting | Defer (low signal) | — | — |
+diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
+index 22d8bed1..078d8728 100644
+--- a/tests/test_no_decision_history_in_code.py
++++ b/tests/test_no_decision_history_in_code.py
+@@ -20,7 +20,7 @@ HOOKS = os.path.join(REPO, ".claude", "hooks")
+ sys.path.insert(0, HOOKS)
+ import comment_history_gate as gate  # noqa: E402
+ 
+-PINNED_LINES = 273
++PINNED_LINES = 270
+ PINNED_FILES = 93
+ 
+ HASH = chr(35)

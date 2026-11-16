@@ -11,8 +11,8 @@
   Scope: all competition types — club and national. W1 is shown alongside W2 for every
   fixture; both numbers are always presented together.
 
-  Returns no row when a team has no finished matches yet (before phase for a
-  club domestic_league). The mart will emit nulls; #326 fills the gap.
+  Returns no row when a team has no finished match in its window. Before a club's first
+  domestic-league match of the season, mart_team_season_record serves its form window instead.
 
   Every catalogue metric is written by scripts/generate_metric_sql.py from metric_catalogue.csv
   over the window's legs, with the team totals from players joined to them, by the rules in
