@@ -31,7 +31,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import multiprocessing
+import os
 import sys
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -187,6 +190,27 @@ def label_findings(page, base: str, pages: list[str]) -> tuple[list[str], int]:
     return out, measured
 
 
+def _labels_in_process(job: tuple[str, list[str]]) -> tuple[list[str], int]:
+    from playwright.sync_api import sync_playwright
+
+    base, pages = job
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(args=["--font-render-hinting=none"])
+        found = label_findings(browser.new_page(viewport={"width": 1010, "height": 900}), base, pages)
+        browser.close()
+    return found
+
+
+def labels_in_parallel(base: str, pages: list[str], workers: int) -> tuple[list[str], int]:
+    """`label_findings` over contiguous slices of the pages, one process each, in page order."""
+    size = -(-len(pages) // workers) if pages else 1
+    jobs = [(base, pages[k:k + size]) for k in range(0, len(pages), size)]
+    # Spawned, not forked: this runs beside a thread that drives a browser.
+    with ProcessPoolExecutor(max_workers=max(1, len(jobs)), mp_context=multiprocessing.get_context("spawn")) as pool:
+        parts = list(pool.map(_labels_in_process, jobs))
+    return [f for out, _n in parts for f in out], sum(n for _out, n in parts)
+
+
 def manifest_of(shots: dict[str, bytes], platform: str | None = None) -> dict:
     return {"platform": platform or PLATFORM, "shots": {n: hashlib.sha256(b).hexdigest() for n, b in sorted(shots.items())}}
 
@@ -230,14 +254,17 @@ def measure(dist: Path) -> tuple[list[str], dict[str, bytes], list[str], list[st
 
     srv, base = serve(dist)
     try:
-        with sync_playwright() as pw:
-            # The same text widths as the design check.
-            browser = pw.chromium.launch(args=["--font-render-hinting=none"])
-            page = browser.new_page(viewport={"width": 1010, "height": 900})
-            colours = colour_findings(page, base)
-            shots, missing = screenshots(page, base)
-            labels, measured = label_findings(page, base, scatter_pages(dist))
-            browser.close()
+        # The label measurements, most of the work, run in their own processes beside this one.
+        with ThreadPoolExecutor(max_workers=1) as side:
+            labelled = side.submit(labels_in_parallel, base, scatter_pages(dist), os.cpu_count() or 1)
+            with sync_playwright() as pw:
+                # The same text widths as the design check.
+                browser = pw.chromium.launch(args=["--font-render-hinting=none"])
+                page = browser.new_page(viewport={"width": 1010, "height": 900})
+                colours = colour_findings(page, base)
+                shots, missing = screenshots(page, base)
+                browser.close()
+            labels, measured = labelled.result()
     finally:
         srv.shutdown()
     return colours, shots, missing, labels, measured

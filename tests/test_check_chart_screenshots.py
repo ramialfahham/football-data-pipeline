@@ -214,6 +214,22 @@ def test_a_renamed_mark_class_fails_for_matching_nothing():
 
 
 @needs_site
+def test_the_label_measurements_in_processes_match_one_process_in_page_order():
+    scatter = ccs.scatter_pages(DIST)
+    pages = [scatter[0], "en/competitions", scatter[1]]
+    srv, base = ccs.serve(DIST)
+    try:
+        apart = ccs.labels_in_parallel(base, pages, 2)
+    finally:
+        srv.shutdown()
+    together = _on_built_site(lambda page, base: ccs.label_findings(page, base, pages))
+    assert apart == together
+    assert apart[0][:len(ccs.LABEL_WIDTHS)] == ["en/competitions · %dpx · no tab shows a scatter plot" % w
+                                                for w in ccs.LABEL_WIDTHS]
+    assert apart[1] == 2 * len(ccs.LABEL_WIDTHS)
+
+
+@needs_site
 def test_a_reader_clicking_the_tab_sees_a_placed_difference_label():
     assert _on_built_site(_reader("en/teams/1-fc-koln/", 375)) == []
 

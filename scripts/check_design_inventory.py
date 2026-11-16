@@ -670,71 +670,140 @@ def compare_coverage(coverage: dict[str, dict[str, int]], pinned: dict[str, dict
     return di.compare_counts(coverage, pinned) if full_run else []
 
 
-def render_width(job: dict) -> dict:
-    """One viewport, in its own process: open every target and each of its tabs, measure its
-    elements, count its gaps."""
+# Back to the state a fresh load leaves: the tabs open on load open again, nothing focused, scrolled
+# to the top, the gap count's memory of the page cleared; the site's scripts re-fit on the resize and
+# the change, then two frames settle.
+RESET_JS = r"""
+() => {
+  for (const r of window.__diOnLoad) {
+    if (!r.checked) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }
+  }
+  if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+  delete window.__diCounted; delete window.__diIds; delete window.__diNextId;
+  window.scrollTo(0, 0);
+  return document.fonts.ready.then(() => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res))));
+}
+"""
+OPEN_ON_LOAD_JS = "() => { window.__diOnLoad = [...document.querySelectorAll('input[type=radio]')].filter((r) => r.checked); }"
+
+
+def render_one(pw_page, job: dict, p, lang: str, viewport: int, shots: list[int]) -> tuple[list[Failure], list[dict], bool]:
+    """One target at one width, in the page as it stands: open each of its tabs, measure its
+    elements, count its gaps. Returns its failures, each tab's gap count, and whether a screenshot
+    was taken (a full-page screenshot resizes the page, so the next width needs a fresh load)."""
+    inv, spec, artifacts = job["inv"], job["spec"], job["artifacts"]
+    failures: list[Failure] = []
+    founds: list[dict] = []
+    shot = False
+    acc = {"seen": set(), "visible": {}, "total": 0, "found": set()}
+    tabs = pw_page.evaluate(TABS_JS)
+    if not tabs and pw_page.evaluate(TAB_BAR_JS) > 1:
+        failures.append(Failure(p.name, viewport, lang, "(page)",
+                                "a Tab bar with no tab to open · only the first tab is measured"))
+    for tab in [None] + tabs:
+        if tab is not None:
+            pw_page.evaluate(OPEN_TAB_JS, tab)
+        state = len(failures)
+        measure_page(pw_page, inv, spec, p, viewport, lang, failures, acc)
+        # The pointer checks scroll the page, and a sticky header then lies over the content.
+        pw_page.evaluate("window.scrollTo(0, 0); document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => r())))")
+        found = json.loads(pw_page.evaluate(COUNT_JSON_JS, job["registered"]))
+        founds.append({"classes": found["classes"], "ex": {k: found["ex"][k][:20] for k in COUNTS[:-1]},
+                       **{k: found[k] for k in COUNTS[:-1]}})
+        # After the count, which the screenshot's resize would otherwise change.
+        if artifacts and any(f.level == "FAIL" for f in failures[state:]) and shots[0] < 20:
+            pw_page.screenshot(path=str(Path(artifacts) / ("%s_%d_%s%s.png" % (
+                p.name.replace("/", "_"), viewport, lang, "_" + tab if tab else ""))), full_page=True)
+            shots[0] += 1
+            shot = True
+    state = len(failures)
+    finish_page(acc, p, viewport, lang, failures)
+    if artifacts and any(f.level == "FAIL" for f in failures[state:]) and shots[0] < 20:
+        pw_page.screenshot(path=str(Path(artifacts) / ("%s_%d_%s_page.png" % (
+            p.name.replace("/", "_"), viewport, lang))), full_page=True)
+        shots[0] += 1
+        shot = True
+    for f in failures:
+        if f.level == "FAIL":
+            f.measured = True
+    return failures, founds, shot
+
+
+def render_targets(job: dict) -> list[tuple[int, int, list[Failure], list[dict] | None]]:
+    """Some of the targets, in their own process: each loaded once at the first width, then resized
+    through the others. Returns (target index, width index, failures, gap counts) per render; no
+    gap counts when the page could not be rendered."""
     from playwright.sync_api import sync_playwright  # noqa: PLC0415
 
-    viewport, inv, spec, artifacts = job["viewport"], job["inv"], job["spec"], job["artifacts"]
-    failures: list[Failure] = []
-    counted: dict[str, dict] = {}
-    covered: dict[str, set[str]] = {}
-    renders = shots = 0
+    viewports = job["viewports"]
+    out = []
+    shots = [0]
     with sync_playwright() as pw:
         # Hinting rounds Linux text to whole pixels, a layout phones and Windows do not produce.
         browser = pw.chromium.launch(args=["--font-render-hinting=none"])
-        ctx = browser.new_context(viewport={"width": viewport, "height": 900}, device_scale_factor=1,
+        ctx = browser.new_context(viewport={"width": viewports[0], "height": 900}, device_scale_factor=1,
                                   reduced_motion="reduce")
         pw_page = ctx.new_page()
-        for p, lang, root, path in job["targets"]:
-            pw_page.goto(job["bases"][root] + path, wait_until="load")
+
+        def load(p, lang: str, url: str, viewport: int) -> str | None:
+            """A fresh load at this width; why the page cannot be rendered, or None."""
+            pw_page.set_viewport_size({"width": viewport, "height": 900})
+            pw_page.goto(url, wait_until="load")
             if p.kind == "mock" and lang == "fi":
                 label = pw_page.query_selector('label[for="t-fi"]')
                 if label is None:
-                    failures.append(Failure(p.name, viewport, lang, "(page)", "no FI toggle on the page"))
-                    continue
+                    return "no FI toggle on the page"
                 label.click()
                 if not pw_page.is_checked("#t-fi"):
-                    failures.append(Failure(p.name, viewport, lang, "(page)", "the FI toggle did not switch"))
-                    continue
-            before = len(failures)
-            acc = {"seen": set(), "visible": {}, "total": 0, "found": set()}
+                    return "the FI toggle did not switch"
+            pw_page.evaluate(OPEN_ON_LOAD_JS)
+            return None
+
+        for i, (p, lang, root, path) in job["targets"]:
+            url = job["bases"][root] + path
+            fresh = True
+            for w, viewport in enumerate(viewports):
+                if fresh:
+                    why = load(p, lang, url, viewport)
+                    if why:
+                        out.append((i, w, [Failure(p.name, viewport, lang, "(page)", why)], None))
+                        continue
+                else:
+                    pw_page.set_viewport_size({"width": viewport, "height": 900})
+                    pw_page.evaluate(RESET_JS)
+                failures, founds, fresh = render_one(pw_page, job, p, lang, viewport, shots)
+                out.append((i, w, failures, founds))
+        ctx.close()
+        browser.close()
+    return out
+
+
+def collect(targets: list, viewports: list[int], rendered: list) -> list[dict]:
+    """Per width, the failures, gap counts, coverage and render count, each in the order the
+    targets are listed."""
+    at = {(i, w): (f, founds) for i, w, f, founds in rendered}
+    results = []
+    for w, viewport in enumerate(viewports):
+        failures: list[Failure] = []
+        counted: dict[str, dict] = {}
+        covered: dict[str, set[str]] = {}
+        renders = 0
+        for i, (p, lang, _root, _path) in enumerate(targets):
+            fails, founds = at[(i, w)]
+            failures += fails
+            if founds is None:
+                continue
             page_counts = counted.setdefault(p.name, {"classes": set(), "examples": {}})
-            tabs = pw_page.evaluate(TABS_JS)
-            if not tabs and pw_page.evaluate(TAB_BAR_JS) > 1:
-                failures.append(Failure(p.name, viewport, lang, "(page)",
-                                        "a Tab bar with no tab to open · only the first tab is measured"))
-            for tab in [None] + tabs:
-                if tab is not None:
-                    pw_page.evaluate(OPEN_TAB_JS, tab)
-                state = len(failures)
-                measure_page(pw_page, inv, spec, p, viewport, lang, failures, acc)
-                if artifacts and any(f.level == "FAIL" for f in failures[state:]) and shots < 20:
-                    pw_page.screenshot(path=str(Path(artifacts) / ("%s_%d_%s%s.png" % (
-                        p.name.replace("/", "_"), viewport, lang, "_" + tab if tab else ""))), full_page=True)
-                    shots += 1
-                # The pointer checks scroll the page, and a sticky header then lies over the content.
-                pw_page.evaluate("window.scrollTo(0, 0); document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => r())))")
-                found = json.loads(pw_page.evaluate(COUNT_JSON_JS, job["registered"]))
+            for found in founds:
                 page_counts["classes"].update(found["classes"])
                 for k in COUNTS[:-1]:
                     page_counts[k] = page_counts.get(k, 0) + found[k]
                     shown = page_counts["examples"].setdefault(k, [])
                     shown += ["%d %s %s" % (viewport, lang, e) for e in found["ex"][k][:20 - len(shown)]]
-            state = len(failures)
-            finish_page(acc, p, viewport, lang, failures)
-            if artifacts and any(f.level == "FAIL" for f in failures[state:]) and shots < 20:
-                pw_page.screenshot(path=str(Path(artifacts) / ("%s_%d_%s_page.png" % (
-                    p.name.replace("/", "_"), viewport, lang))), full_page=True)
-                shots += 1
             renders += 1
             covered.setdefault(lang, set()).add(p.name)
-            for f in failures[before:]:
-                if f.level == "FAIL":
-                    f.measured = True
-        ctx.close()
-        browser.close()
-    return {"failures": failures, "counted": counted, "covered": covered, "renders": renders}
+        results.append({"failures": failures, "counted": counted, "covered": covered, "renders": renders})
+    return results
 
 
 def registry_classes(path: Path = REGISTRY) -> frozenset[str]:
@@ -840,13 +909,17 @@ def main(argv=None) -> int:
                     srv, bases[root] = serve(file.parent)
                     servers.append(srv)
                 targets.append((di.Page(name, "mock", "", file.name, "none", ()), "en", root, file.name))
-            jobs = [{"viewport": v, "targets": targets, "bases": bases, "inv": inv, "spec": spec,
-                     "registered": registered, "artifacts": str(artifacts) if artifacts else None} for v in viewports]
+            workers = max(1, min(len(targets), os.cpu_count() or 1))
+            # Interleaved, so each process gets the same mix of light and heavy pages.
+            jobs = [{"viewports": viewports, "targets": list(enumerate(targets))[k::workers], "bases": bases,
+                     "inv": inv, "spec": spec, "registered": registered,
+                     "artifacts": str(artifacts) if artifacts else None} for k in range(workers)]
             if len(jobs) == 1:
-                results = [render_width(jobs[0])]
+                rendered = render_targets(jobs[0])
             else:
-                with ProcessPoolExecutor(max_workers=min(len(jobs), os.cpu_count() or 1)) as pool:
-                    results = list(pool.map(render_width, jobs))
+                with ProcessPoolExecutor(max_workers=workers) as pool:
+                    rendered = [r for part in pool.map(render_targets, jobs) for r in part]
+            results = collect(targets, viewports, rendered)
         finally:
             for srv in servers:
                 srv.shutdown()

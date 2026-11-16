@@ -143,14 +143,19 @@ def browser():
         b.close()
 
 
-def _measure(browser, site, script: str) -> list[str]:
-    found: list[str] = []
+@pytest.fixture(scope="module")
+def measured(browser, site) -> dict[str, list[str]]:
+    """Each page loaded once per width, measured by every rule; DOTS last, as it un-hides a dot for a moment."""
+    found: dict[str, list[str]] = {"scroll": [], "taps": [], "rows": [], "dots": []}
     for width in WIDTHS:
         page = browser.new_context(viewport={"width": width, "height": 900}).new_page()
         for url in _pages():
             page.goto(site + url, wait_until="load")
             page.wait_for_timeout(200)
-            found += [f"{width}px {url} {item}" for item in page.evaluate(script)]
+            if width != WIDTHS[0] and page.evaluate("document.documentElement.scrollWidth > innerWidth"):
+                found["scroll"].append(f"{width}px {url}")
+            for key, script in (("taps", TAPS), ("rows", ROWS), ("dots", DOTS)):
+                found[key] += [f"{width}px {url} {item}" for item in page.evaluate(script)]
         page.close()
     return found
 
@@ -168,29 +173,20 @@ def test_the_header_fits_at_280_and_300px(browser, site):
     assert found == []
 
 
-def test_no_page_scrolls_sideways(browser, site):
-    found = []
-    for width in WIDTHS[1:]:
-        page = browser.new_context(viewport={"width": width, "height": 900}).new_page()
-        for url in _pages():
-            page.goto(site + url, wait_until="load")
-            page.wait_for_timeout(200)
-            if page.evaluate("document.documentElement.scrollWidth > innerWidth"):
-                found.append(f"{width}px {url}")
-        page.close()
-    assert found == []
+def test_no_page_scrolls_sideways(measured):
+    assert measured["scroll"] == []
 
 
-def test_every_link_and_button_has_a_44px_tap_area(browser, site):
-    assert _measure(browser, site, TAPS) == []
+def test_every_link_and_button_has_a_44px_tap_area(measured):
+    assert measured["taps"] == []
 
 
-def test_no_separator_dot_starts_or_ends_a_line(browser, site):
-    assert _measure(browser, site, DOTS) == []
+def test_no_separator_dot_starts_or_ends_a_line(measured):
+    assert measured["dots"] == []
 
 
-def test_linked_rows_are_square_and_do_not_stick_out(browser, site):
-    assert _measure(browser, site, ROWS) == []
+def test_linked_rows_are_square_and_do_not_stick_out(measured):
+    assert measured["rows"] == []
 
 
 PICKER = """

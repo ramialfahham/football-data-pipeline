@@ -576,6 +576,130 @@ def test_a_tab_bar_with_no_tab_to_open_fails_instead_of_measuring_one_tab(tmp_pa
     assert proc.returncode == 1, out
 
 
+RESET_TABS = """<!doctype html><html lang="en"><head><meta charset="utf-8"><title>t</title><style>
+body { margin: 0; font: 15px/1.5 sans-serif; }
+.tab-in { position: absolute; opacity: 0; }
+.page { display: none; }
+#tab-a:checked ~ .page[data-page="a"], #tab-b:checked ~ .page[data-page="b"],
+#tab-c:checked ~ .page[data-page="c"] { display: block; }
+.red-nowrap { width: 40px; white-space: nowrap; }
+</style></head><body>
+<input type="radio" name="t" id="tab-a" class="tab-in">
+<input type="radio" name="t" id="tab-b" class="tab-in" checked>
+<input type="radio" name="t" id="tab-c" class="tab-in">
+<div class="page" data-page="a"><div class="red-nowrap">Alpha overflowing words</div></div>
+<div class="page" data-page="b"><div class="red-nowrap">Bravo overflowing words</div></div>
+<div class="page" data-page="c"><div class="red-nowrap">Charlie overflowing words</div></div>
+</body></html>"""
+# The press check leaves the row link focused; a page left focused would measure the underline.
+RESET_FOCUS = """<!doctype html><html lang="en"><head><meta charset="utf-8"><title>t</title><style>
+body { margin: 0; font: 15px/1.5 sans-serif; }
+a.fxrow { display: block; text-decoration: none; }
+a.fxrow:focus { text-decoration: underline; }
+</style></head><body><a class="fxrow" href="#x">A row that leads somewhere</a></body></html>"""
+
+
+def _fails_and_counts(tmp_path: Path, fixture: str, widths: str) -> tuple[list[str], dict, dict]:
+    folder = tmp_path / ("pages_" + widths.replace(",", "_"))
+    folder.mkdir()
+    if fixture.endswith(".html"):
+        shutil.copy(FIXTURES / fixture, folder / fixture)
+    else:
+        (folder / "p.html").write_text({"reset_tabs": RESET_TABS, "reset_focus": RESET_FOCUS}[fixture], encoding="utf-8")
+        fixture = "p.html"
+    shutil.copy(SYSTEM_CSS, folder / "system.css")
+    art = folder / "art"
+    proc = subprocess.run(
+        [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks", "--no-built",
+         "--page", "p=%s" % (folder / fixture), "--langs", "en", "--viewports", widths, "--artifacts", str(art)],
+        capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+    )
+    fails = [line for line in proc.stdout.splitlines() if line.startswith(("FAIL", "WARN"))]
+    counts = json.loads((art / "counts.json").read_text(encoding="utf-8"))
+    for page, classes in counts["classes"].items():
+        counts["pages"].get(page, {}).pop("classes", None)
+        counts["examples"].setdefault(page, {})["(classes)"] = classes
+    return fails, counts["pages"], counts["examples"]
+
+
+@needs_browser
+@pytest.mark.parametrize("fixture, widths", [("red.html", ["375", "700", "1010"]),
+                                             ("counts_tabs.html", ["280", "320", "1010"]),
+                                             ("reset_tabs", ["280", "320", "375"]),
+                                             ("reset_focus", ["375", "700"])])
+def test_a_page_resized_through_the_widths_measures_as_a_fresh_load_at_each(tmp_path, fixture, widths):
+    together, counts, examples = _fails_and_counts(tmp_path, fixture, ",".join(widths))
+    alone, summed, listed = [], {}, {}
+    for w in widths:
+        fails, c, ex = _fails_and_counts(tmp_path, fixture, w)
+        alone += fails
+        for page, n in c.items():
+            for k, v in n.items():
+                summed.setdefault(page, {})[k] = summed.get(page, {}).get(k, 0) + v
+        for page, by in ex.items():
+            for k, lines in by.items():
+                shown = listed.setdefault(page, {}).setdefault(k, [])
+                if k == "(classes)":
+                    shown[:] = sorted(set(shown) | set(lines))
+                else:
+                    shown += lines[:20 - len(shown)]
+    assert together == alone
+    assert counts == summed
+    assert examples == listed
+
+
+SHOT_LATCH = """<!doctype html><html lang="en"><head><meta charset="utf-8"><title>t</title><style>
+body { margin: 0; font: 15px/1.5 sans-serif; min-height: 3000px; }
+a.fxrow { display: block; text-decoration: underline; }
+.tall .t { width: 40px; white-space: nowrap; }
+</style></head><body><a class="fxrow" href="#x">A row link that fails its rule</a>
+<div class="t">Words that overflow once latched</div>
+<script>const w0 = innerWidth;
+addEventListener('resize', () => { if (innerWidth === w0) document.body.classList.add('tall'); });</script>
+</body></html>"""
+
+
+@needs_browser
+def test_a_failure_screenshot_changes_no_count(tmp_path):
+    page = tmp_path / "latch.html"
+    page.write_text(SHOT_LATCH, encoding="utf-8")
+
+    def counts(*extra):
+        proc = subprocess.run(
+            [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks", "--no-built",
+             "--page", "latch=%s" % page, "--langs", "en", "--viewports", "375,700", *extra],
+            capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+        )
+        return [line for line in proc.stdout.splitlines() if line.startswith(("COUNT", "FAIL"))]
+
+    shots = tmp_path / "art"
+    assert counts("--artifacts", str(shots)) == counts()
+    assert any(shots.glob("*.png"))
+    assert any(line.startswith("COUNT latch · scroll 0 · overflow 0") for line in counts())
+
+
+def test_the_renders_are_collected_per_width_in_the_order_the_targets_are_listed():
+    import check_design_inventory as cdi  # noqa: PLC0415
+
+    a, b = di.Page("a", "built", "", "", "", ()), di.Page("b", "built", "", "", "", ())
+    targets = [(a, "en", "dist", "a"), (b, "fi", "dist", "b")]
+
+    def found(word):
+        return [{"classes": [word], "ex": {"scroll": [], "overflow": [word] * 15, "split": [], "overlap": []},
+                 "scroll": 0, "overflow": 15, "split": 0, "overlap": 0}]
+
+    rendered = [(1, 1, [cdi.Failure("b", 320, "fi", "x", "b320")], found("b")),
+                (0, 1, [cdi.Failure("a", 320, "en", "x", "a320")], found("a")),
+                (1, 0, [cdi.Failure("b", 280, "fi", "x", "b280")], None),
+                (0, 0, [cdi.Failure("a", 280, "en", "x", "a280")], found("a"))]
+    results = cdi.collect(targets, [280, 320], rendered)
+    assert [[f.detail for f in r["failures"]] for r in results] == [["a280", "b280"], ["a320", "b320"]]
+    assert [r["renders"] for r in results] == [1, 2]
+    assert results[0]["covered"] == {"en": {"a"}}
+    assert results[1]["counted"]["a"]["examples"]["overflow"] == ["320 en a"] * 15
+    assert results[1]["counted"]["a"]["overflow"] == 15
+
+
 def test_a_page_is_judged_across_its_tabs_and_a_failure_in_every_tab_counts_once():
     import check_design_inventory as cdi  # noqa: PLC0415
 
