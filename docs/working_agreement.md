@@ -396,6 +396,8 @@ however obvious the answer seems.
 judgment a contract document already codifies. The contract documents are layering, engineering
 standards, the metric catalogue and the task contract.
 
+**Visual details** (sizes, spacing, alignment, corners, separators, and which existing form of a part a page uses) are decided by the coordinating agent against `docs/design/design_standard.md`; the CPO reviews each finished page group and can veto any page.
+
 **The meta-rule:** when a new case does not clearly match a written rule, the classification
 itself is a CPO decision. An analogy to an existing rule is not a licence (Appendix A3).
 
