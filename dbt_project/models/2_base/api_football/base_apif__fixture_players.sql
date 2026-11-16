@@ -551,6 +551,7 @@ team_stat_cards as (
 latest_sheets as (
     select
         fixture_id,
+        team_id,
         start_xi_json,
         substitutes_json
     from {{ ref('stg_apif__lineups') }}
@@ -561,13 +562,19 @@ latest_sheets as (
 sheet_players as (
     select
         s.fixture_id,
-        {{ player_id_override("safe_cast(json_value(player_el, '$.player.id') as int64)") }} as player_id
+        {{ fixture_player_id(
+            "safe_cast(json_value(player_el, '$.player.id') as int64)", 's.fixture_id', 's.team_id',
+            'cast(null as int64)'
+        ) }} as player_id
     from latest_sheets as s,
         unnest(json_query_array(s.start_xi_json)) as player_el
     union distinct
     select
         s.fixture_id,
-        {{ player_id_override("safe_cast(json_value(player_el, '$.player.id') as int64)") }} as player_id
+        {{ fixture_player_id(
+            "safe_cast(json_value(player_el, '$.player.id') as int64)", 's.fixture_id', 's.team_id',
+            'cast(null as int64)'
+        ) }} as player_id
     from latest_sheets as s,
         unnest(json_query_array(s.substitutes_json)) as player_el
     union distinct

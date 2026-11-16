@@ -7,15 +7,19 @@ with src as (
         minute_extra,
         team_id,
         team_name,
-        {{ player_id_override('player_id') }} as player_id,
+        {{ fixture_player_id(
+            'event_row.player_id', 'event_row.fixture_id', 'event_row.team_id', 'cast(null as int64)'
+        ) }} as player_id,
         player_name,
         assist_player_name,
-        {{ player_id_override('assist_player_id') }} as assist_player_id,
+        {{ fixture_player_id(
+            'event_row.assist_player_id', 'event_row.fixture_id', 'event_row.team_id', 'cast(null as int64)'
+        ) }} as assist_player_id,
         event_type,
         event_detail,
         event_comments,
         raw_ingested_at
-    from {{ ref('stg_apif__fixture_events') }}
+    from {{ ref('stg_apif__fixture_events') }} as event_row
     where
         fixture_id is not null
 ),
@@ -150,7 +154,9 @@ attributed as (
 player_rows as (
     select distinct
         player_row.fixture_id,
-        {{ player_id_override('player_row.player_id') }} as player_id,
+        {{ fixture_player_id(
+            'player_row.player_id', 'player_row.fixture_id', 'player_row.team_id', 'player_row.shirt_number'
+        ) }} as player_id,
         coalesce(
             fixture_override.correct_team_api_id,
             alias_override.correct_team_api_id,
