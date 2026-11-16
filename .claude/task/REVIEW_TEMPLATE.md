@@ -18,7 +18,7 @@
 
 diff_sha256: <64-hex; run `python .claude/hooks/git_discipline.py --staged-hash` (covers code + contract.md, excludes bookkeeping artifacts; CI recomputes the same — F11/#409)>
 
-rounds: <how many review rounds this branch has taken; 1 on the first. The gate caps it at 3 — past that, STOP and bring the open findings to the CPO instead of looping. To proceed anyway on the CPO's say-so, add `rounds_cap_override: <their reason>`.>
+rounds: <how many review rounds this branch has taken; 1 on the first. A merge of main that leaves the review hash unchanged is not a round (docs/working_agreement.md §2). The gate caps it at 3 — past that, STOP and bring the open findings to the CPO instead of looping. To proceed anyway on the CPO's say-so, add `rounds_cap_override: <their reason>`.>
 
 ## scope-auditor
 VERDICT: PASS

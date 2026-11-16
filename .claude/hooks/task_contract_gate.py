@@ -116,6 +116,14 @@ _DESIGN_PAIR_RE = re.compile(r"([a-z0-9_-]+)\s*:\s*#(\d+)\b")
 _DESIGN_NONE_RE = re.compile(r"^none\s*:\s*\S")
 # Read from the base ref only, so a branch cannot approve its own page.
 APPROVED_DESIGNS = "docs/wireframes/approved_designs.yml"
+# A shared file has at most one open MR at a time, and the contract of the stream that changes it
+# lists it under `shared_files:`. The design baselines, the chart manifest and the chart pins.
+SHARED_FILE_PATTERNS = (
+    "tests/fixtures/design_inventory/baseline*.json",
+    "tests/fixtures/component_registry/baseline.json",
+    "tests/fixtures/font_coverage/baseline.json",
+    "tests/fixtures/chart_screenshots/*",
+)
 _APPROVED_LINE_RE = re.compile(r"^([a-z0-9_-]+)\s*:\s*#?(\d+)\s*(?:#.*)?$")
 # A `<template placeholder>` is not real content; nor is a bare YAML block
 # indicator or an empty/(none) line.
@@ -194,6 +202,45 @@ def _reserved_content(text: str) -> bool:
 # opens on one line and closes on the next, and `_PLACEHOLDER_RE` is anchored at
 # both ends so it never matched either half.
 _PLACEHOLDER_SPAN = re.compile(r"<[^<>]*>", re.S)
+
+
+def list_field(lines: list[str]) -> dict:
+    """A list field (`depends_on:`, `shared_files:`): its entries, and whether it states with a reason
+    that there are none (`none: <reason>`). A bare `none` or a placeholder is neither."""
+    items: list[str] = []
+    none = False
+    for line in _PLACEHOLDER_SPAN.sub(" ", "\n".join(lines)).splitlines():
+        s = line.strip().lstrip("-").strip()
+        if not s or s.startswith("#"):
+            continue
+        if _DESIGN_NONE_RE.match(s.lower()):
+            none = True
+            continue
+        if _is_empty_marker(s) or re.fullmatch(r"none\s*:?", s.lower()):
+            continue
+        items.append(s)
+    return {"items": items, "none": none, "present": bool(items) or none}
+
+
+def top_level_block(text: str, key: str) -> list[str]:
+    """The lines of one top-level contract key: its inline remainder, then every indented line."""
+    out: list[str] = []
+    inside = False
+    for line in text.splitlines():
+        m = re.match(rf"^{key}\s*:(.*)$", line)
+        if m:
+            inside = True
+            out.append(m.group(1))
+            continue
+        if inside:
+            if line.strip() and not line.startswith((" ", "\t")) and not line.startswith("#"):
+                break
+            out.append(line)
+    return out
+
+
+def is_shared_file(rel: str) -> bool:
+    return any(fnmatch.fnmatch(rel, p) for p in SHARED_FILE_PATTERNS)
 
 
 def _has_real_reservation(lines: list[str]) -> bool:
@@ -560,10 +607,16 @@ def _parse_contract(path: str) -> dict | None:
                 override = True
     except Exception:
         return None
+    try:
+        text = open(path, encoding="utf-8", errors="replace").read()
+    except Exception:
+        return None
     return {"scope": scope, "protected_override": override,
             "impact_map_present": impact_present,
             "decisions_reserved_present": _has_real_reservation(reserved_lines),
-            "approved_design": _approved_design(design_lines)}
+            "approved_design": _approved_design(design_lines),
+            "depends_on": list_field(top_level_block(text, "depends_on")),
+            "shared_files": list_field(top_level_block(text, "shared_files"))}
 
 
 def _matches_scope(rel: str, scope: list[str]) -> bool:
@@ -701,6 +754,32 @@ def _deny_missing_impact_map(rel: str) -> None:
     )
 
 
+def _parallel_fields_refused(rel: str, contract: dict) -> bool:
+    """Deny an edit when the contract does not declare how the stream relates to the others;
+    True when it denied."""
+    for key, what in (("depends_on", "the open MRs whose code this stream needs"),
+                      ("shared_files", "the shared files this stream changes")):
+        if not contract[key]["present"]:
+            emit_deny(
+                f"CONTRACT GATE: `{rel}` may not be edited: the task contract must carry `{key}:`, "
+                f"{what}, one `- <entry>` per line, or one line `- none: <reason>`. A bare `none` or "
+                "a placeholder does not count. Add the field on a CLEAN tree. See "
+                "docs/working_agreement.md §12."
+            )
+            return True
+    if is_shared_file(rel) and not any(
+        fnmatch.fnmatch(rel, item.split()[0].replace("\\", "/"))
+        for item in contract["shared_files"]["items"]
+    ):
+        emit_deny(
+            f"CONTRACT GATE: `{rel}` is a SHARED file: at most one open MR changes it at a time. "
+            "List it under `shared_files:` in the task contract, on a CLEAN tree, after checking "
+            "`glab mr list` that no other open MR changes it. See docs/working_agreement.md §12."
+        )
+        return True
+    return False
+
+
 def _deny_missing_approved_design(rel: str) -> None:
     emit_deny(
         f"CONTRACT GATE: `{rel}` is on the PAGE SURFACE: it changes what a visitor sees. A page "
@@ -771,6 +850,8 @@ def _gate_file_edit(event: dict, root: str) -> None:
             if not contract.get("impact_map_present"):
                 _deny_missing_impact_map(rel)
                 return
+            if _parallel_fields_refused(rel, contract):
+                return
             emit_context(
                 "PreToolUse",
                 f"CONTRACT GATE: protected path `{rel}` allowed via the contract's "
@@ -785,6 +866,8 @@ def _gate_file_edit(event: dict, root: str) -> None:
         return
     if not _matches_scope(rel, contract["scope"]):
         _deny_out_of_scope(rel)
+        return
+    if _parallel_fields_refused(rel, contract):
         return
     if _is_structural(rel) and not contract.get("impact_map_present"):
         _deny_missing_impact_map(rel)
@@ -900,6 +983,8 @@ def _gate_bash_pre(event: dict, root: str) -> None:
             return
         if not _matches_scope(rel, contract["scope"]):
             _deny_out_of_scope(rel)
+            return
+        if _parallel_fields_refused(rel, contract):
             return
         # The Edit path demands an impact_map on the structural surface; without
         # this the shell path did not, so `echo x >> .claude/hooks/foo.py` with

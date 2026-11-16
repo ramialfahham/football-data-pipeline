@@ -83,6 +83,20 @@ scope_paths:
 # approved_design:
 #   - <page>: #<issue>
 
+# REQUIRED on every contract: how this stream relates to the others running at once
+# (docs/working_agreement.md §12). The contract gate denies any edit until both are present.
+# `depends_on:` — the open MRs whose code this stream needs, one `- !<MR IID>` per line, or one
+# line `- none: <reason>`. Work that needs an open MR's code starts after that MR has merged.
+# `shared_files:` — the shared files this stream changes (the design baselines under
+# tests/fixtures/design_inventory/, component_registry/ and font_coverage/, and
+# tests/fixtures/chart_screenshots/), or one line `- none: <reason>`. At most one open MR changes
+# a shared file at a time; the gate denies an edit to one that is not listed. After another MR
+# merges, regenerate the file; never hand-merge it. A bare `none` or a placeholder does not count.
+depends_on:
+  - <MR IID with a leading bang, or none followed by a reason>
+shared_files:
+  - <repo-relative path or glob, or none followed by a reason>
+
 decisions_taken: >
   <what this contract pre-approves, naming the CPO ruling it rests on>
 

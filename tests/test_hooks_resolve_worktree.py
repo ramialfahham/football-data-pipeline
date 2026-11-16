@@ -28,6 +28,7 @@ def _contract(scoped: str) -> str:
     return (
         "# Task contract — test\nobjective: >\n  test\nrefs: test\n\n"
         f"scope_paths:\n  - {scoped}\n\n"
+        "depends_on:\n  - none: test\nshared_files:\n  - none: test\n"
         "decisions_taken: >\n  test\ndecisions_reserved:\n  - none\n"
         "done_when:\n  - test\namendments: (none)\n"
     )
