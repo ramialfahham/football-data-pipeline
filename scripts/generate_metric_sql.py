@@ -116,7 +116,7 @@ POSITION_COUNTS = (
     "shots_on_goal_player", "passes_player",
     "passes_accurate_player", "passes_key_player", "tackles_player", "interceptions_player",
     "blocks_player", "duels_player", "duels_won_player", "dribbles_attempts_player",
-    "dribbles_success_player", "saves_player", "goals_against_player",
+    "dribbles_success_player", "saves_player", "goals_against_player", "shots_on_goal_against_player",
 )
 PAGE_WINDOW = (
     POSITION_COUNTS + ("cards_yellow_player", "cards_red_player", "minutes_per_appearance") + RATIOS + PER90

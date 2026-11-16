@@ -17,7 +17,7 @@
         ),
         (
             'saves_player_pct', ['GK'], true, {{ alias }}.saves_player_pct,
-            {{ alias }}.saves_player, {{ alias }}.saves_player + {{ alias }}.goals_against_player
+            {{ alias }}.saves_player, {{ alias }}.shots_on_goal_against_player
         ),
         ('goals_against_per90', ['GK'], true, {{ alias }}.goals_against_per90, null, null),
         ('passes_per90', ['GK', 'DEF', 'DM', 'CM', 'AM', 'MID', 'ATT'], true, {{ alias }}.passes_per90, null, null),

@@ -111,6 +111,8 @@ models:
         description: "{{ doc('saves_player') }}"
       - name: goals_against_player
         description: "{{ doc('goals_against_player') }}"
+      - name: shots_on_goal_against_player
+        description: "{{ doc('shots_on_goal_against_player') }}"
       - name: scorer_points_player
         description: "{{ doc('scorer_points_player') }}"
       - name: defensive_actions_player

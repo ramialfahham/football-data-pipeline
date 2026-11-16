@@ -279,12 +279,37 @@ keeper_spells as (
         countif(
             e.minute_elapsed > coalesce(k.minute_on, -1) and e.minute_elapsed < coalesce(k.minute_gone, 999)
         ) as goals_conceded_in_spell,
-        countif(e.minute_elapsed = k.minute_on or e.minute_elapsed = k.minute_gone) as goals_at_a_change
+        countif(e.minute_elapsed = k.minute_on or e.minute_elapsed = k.minute_gone) as goals_at_a_change,
+        countif(
+            e.is_own_goal
+            and e.minute_elapsed > coalesce(k.minute_on, -1) and e.minute_elapsed < coalesce(k.minute_gone, 999)
+        ) as own_goals_conceded_in_spell
     from goals_checked as k
     left join events as e
         on k.fixture_id = e.fixture_id and k.team_id != e.team_id and e.is_goal
     where k.position_code = 'G' and (k.minute_on is not null or k.minute_gone is not null)
     group by k.league_code, k.fixture_id, k.team_id, k.player_id
+),
+
+team_matches as (
+    select distinct
+        league_code,
+        fixture_id,
+        team_id
+    from goals_checked
+),
+
+conceded_events as (
+    select
+        m.league_code,
+        m.fixture_id,
+        m.team_id,
+        count(e.minute_elapsed) as goal_events_conceded,
+        countif(e.is_own_goal) as own_goals_conceded
+    from team_matches as m
+    left join events as e
+        on m.fixture_id = e.fixture_id and m.team_id != e.team_id and e.is_goal
+    group by m.league_code, m.fixture_id, m.team_id
 ),
 
 cleaned as (
@@ -330,6 +355,15 @@ cleaned as (
             when k.goal_events_conceded = g.team_goals_conceded and k.goals_at_a_change = 0
                 then k.goals_conceded_in_spell
         end as goals_against,
+        case
+            when g.team_goals_conceded = 0 then 0
+            when coalesce(g.position_code, '') != 'G' then null
+            when g.minutes = 0 then 0
+            when g.minute_on is null and g.minute_gone is null and g.team_keepers_with_minutes = 1
+                then if(ce.goal_events_conceded = g.team_goals_conceded, ce.own_goals_conceded, null)
+            when k.goal_events_conceded = g.team_goals_conceded and k.goals_at_a_change = 0
+                then k.own_goals_conceded_in_spell
+        end as goals_own_against,
         if(g.cards_are_proven, least(g.event_yellow_cards, 2), null) as cards_yellow,
         if(g.cards_are_proven, least(g.event_red_cards, 1), null) as cards_red
     from goals_checked as g
@@ -339,6 +373,11 @@ cleaned as (
             and g.fixture_id = k.fixture_id
             and g.team_id = k.team_id
             and g.player_id = k.player_id
+    left join conceded_events as ce
+        on
+            g.league_code = ce.league_code
+            and g.fixture_id = ce.fixture_id
+            and g.team_id = ce.team_id
     left join stats_counted_in_match as n
         on g.fixture_id = n.fixture_id
     where g.team_has_no_stats or (g.has_no_stat_line and g.event_yellow_cards + g.event_red_cards > 0)
@@ -360,6 +399,7 @@ select
     goals,
     goals_penalty,
     goals_against,
+    goals_own_against,
     assists,
     saves,
     passes,

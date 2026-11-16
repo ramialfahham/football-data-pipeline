@@ -61,6 +61,7 @@ select
     ps.goals,
     ps.goals_penalty,
     ps.goals_against,
+    ps.goals_own_against,
     ps.assists,
     ps.saves,
     ps.passes,
