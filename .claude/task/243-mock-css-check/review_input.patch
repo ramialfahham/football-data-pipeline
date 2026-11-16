@@ -1,0 +1,475 @@
+diff --git a/.claude/task/243-mock-css-check/contract.md b/.claude/task/243-mock-css-check/contract.md
+new file mode 100644
+index 00000000..0b6526d5
+--- /dev/null
++++ b/.claude/task/243-mock-css-check/contract.md
+@@ -0,0 +1,38 @@
++# Task contract — mock CSS check
++
++objective: >
++  Issue #243. A standalone design mock carries its own copy of the site's styles, and a mock's
++  "Today" side drifted from main's system.css unreviewed. design-mocks/check_mock_css.py compares
++  the mock's rule set with main's system.css as the browser serializes both: every rule not under
++  html.prop must equal main's, and every html.prop rule is listed for the CPO.
++
++refs: "#243 (the component system), part of; coordinator brief, 16 Nov 2026."
++
++scope_paths:
++  - design-mocks/check_mock_css.py
++  - tests/test_check_mock_css.py
++  - tests/fixtures/mock_css/*
++  - .claude/task/243-mock-css-check/contract.md
++  - .claude/task/243-mock-css-check/review.md
++  - .claude/task/243-mock-css-check/review_input.patch
++
++depends_on:
++  - none: a new standalone script and its tests; reads main's system.css through git
++
++shared_files:
++  - none: no design baseline, component registry, font coverage or chart screenshot file changes
++
++decisions_taken: >
++  The check is the coordinator's engineering call (mechanical Today = main, Proposed listed rule
++  by rule). No new dependency: Playwright is already pinned in requirements-ui.txt. No recurring
++  cost and no CI job: the script is run by hand on a mock before it goes to the CPO.
++
++decisions_reserved:
++  - none: the check publishes no page and decides no product question
++
++done_when:
++  - "pytest tests/test_check_mock_css.py passes: clean mock, changed main rule, new unscoped rule and missing main rule behave as stated; html.prop rules listed, .mock-* rules ignored"
++  - "python design-mocks/check_mock_css.py <mock> exits 0 on a clean mock and 1 on a drifted one"
++  - "python scripts/ci_local.py --mr is green; full pytest is green"
++
++amendments: (none)
+diff --git a/design-mocks/check_mock_css.py b/design-mocks/check_mock_css.py
+new file mode 100644
+index 00000000..875b0f19
+--- /dev/null
++++ b/design-mocks/check_mock_css.py
+@@ -0,0 +1,205 @@
++"""A standalone design mock's styles against main's `system.css`.
++
++A mock carries its own copy of the site's styles. Its "Today" side must be main's styles and
++nothing else; what it proposes is scoped under `html.prop`, and that list is what a reviewer reads.
++
++Both style sets are loaded in headless Chromium and read from `document.styleSheets`, so
++formatting, comments and shorthand spelling cannot make two equal sets differ. A rule is
++(at-rule context + selector, sorted declarations).
++
++- a rule whose every selector is under `html.prop` is Proposed and printed as a numbered list;
++- a rule whose every selector names a `.mock-*` class is mock harness and ignored; so is `@font-face`;
++- every other rule is Today and must equal main's rule set: a rule main lacks, a main rule
++  changed, a main rule missing are each printed and fail.
++
++Usage: python design-mocks/check_mock_css.py <mock.html> [--base <git ref, default gitlab/main>]
++Exit 0 when Today equals main, 1 when it does not, 2 when a file or ref cannot be read.
++"""
++
++from __future__ import annotations
++
++import argparse
++import re
++import subprocess
++import sys
++from pathlib import Path
++
++REPO = Path(__file__).resolve().parent.parent
++SYSTEM_CSS = "site_v2/src/styles/system.css"
++PROPOSED_SCOPE = re.compile(r"html\.prop(?![\w-])")
++MOCK_CLASS = re.compile(r"\.mock-")
++
++READ_RULES = """
++() => {
++  const out = [];
++  const decls = (style) => {
++    const d = [];
++    for (let i = 0; i < style.length; i++) {
++      const n = style[i];
++      d.push([n, style.getPropertyValue(n), style.getPropertyPriority(n)]);
++    }
++    if (d.some((x) => x[1] === '')) {
++      const text = style.cssText.split(';').map((s) => s.trim()).filter(Boolean).sort().join('; ');
++      d.push(['(as written, shorthand with var())', text, '']);
++    }
++    return d;
++  };
++  const walk = (rules, ctx) => {
++    for (const r of rules) {
++      if (r.type === CSSRule.STYLE_RULE) {
++        out.push({ctx, sel: r.selectorText, decls: decls(r.style)});
++        if (r.cssRules && r.cssRules.length) walk(r.cssRules, ctx + r.selectorText + ' > ');
++      } else if (r.type === CSSRule.KEYFRAMES_RULE) {
++        for (const k of r.cssRules) out.push({ctx: ctx + '@keyframes ' + r.name + ' ', sel: k.keyText, decls: decls(k.style)});
++      } else if (r.type === CSSRule.FONT_FACE_RULE) {
++        continue;
++      } else if (r.cssRules) {
++        const head = r.cssText.slice(0, r.cssText.indexOf('{')).trim();
++        walk(r.cssRules, ctx + head + ' ');
++      } else {
++        out.push({ctx, sel: r.cssText, decls: []});
++      }
++    }
++  };
++  for (const sheet of document.styleSheets) {
++    const media = sheet.media.mediaText;
++    try { walk(sheet.cssRules, media && media !== 'all' ? '@media ' + media + ' ' : ''); } catch (e) { out.push({ctx: '', sel: '<unreadable sheet>', decls: []}); }
++  }
++  for (const l of document.querySelectorAll('link[rel~=stylesheet]')) {
++    out.push({ctx: '', sel: '<linked stylesheet not read: ' + l.getAttribute('href') + '>', decls: []});
++  }
++  return out;
++}
++"""
++
++
++def _selectors(sel: str) -> list[str]:
++    parts, depth, cur = [], 0, ""
++    for ch in sel:
++        if ch in "([":
++            depth += 1
++        elif ch in ")]":
++            depth -= 1
++        if ch == "," and depth == 0:
++            parts.append(cur.strip())
++            cur = ""
++        else:
++            cur += ch
++    parts.append(cur.strip())
++    return parts
++
++
++def _is_mock(part: str) -> bool:
++    flat = re.sub(r"\[[^\]]*\]", "", re.sub(r"\([^()]*\)", "", part))
++    last = re.split(r"[\s>+~]+", flat.strip())[-1]
++    return bool(MOCK_CLASS.search(last))
++
++
++def classify(sel: str) -> str:
++    parts = _selectors(sel)
++    if all(_is_mock(p) for p in parts):
++        return "mock"
++    if all(PROPOSED_SCOPE.match(p) for p in parts):
++        return "proposed"
++    return "today"
++
++
++def read_rules(html: str) -> list[dict]:
++    from playwright.sync_api import sync_playwright
++
++    with sync_playwright() as pw:
++        browser = pw.chromium.launch()
++        try:
++            page = browser.new_context().new_page()
++            page.route("**/*", lambda route: route.abort() if route.request.url.startswith("http") else route.continue_())
++            page.set_content(html, wait_until="domcontentloaded")
++            return page.evaluate(READ_RULES)
++        finally:
++            browser.close()
++
++
++def main_css(ref: str) -> str:
++    out = subprocess.run(["git", "show", f"{ref}:{SYSTEM_CSS}"], cwd=REPO, capture_output=True, text=True, encoding="utf-8")
++    if out.returncode != 0:
++        raise RuntimeError(f"cannot read {SYSTEM_CSS} at {ref}: {out.stderr.strip()}")
++    return out.stdout
++
++
++def _key(rule: dict) -> tuple[str, str]:
++    return rule["ctx"], rule["sel"]
++
++
++def _decls(rule: dict) -> tuple:
++    return tuple(sorted((n, v, i) for n, v, i in rule["decls"]))
++
++
++def _fmt(decls: tuple | None) -> str:
++    if decls is None:
++        return "(absent)"
++    return "; ".join(f"{n}: {v}{' !important' if i else ''}" for n, v, i in decls)
++
++
++def _bucket(rules: list[dict]) -> dict[tuple[str, str], list[tuple]]:
++    b: dict[tuple[str, str], list[tuple]] = {}
++    for r in rules:
++        b.setdefault(_key(r), []).append(_decls(r))
++    return b
++
++
++def compare(base_rules: list[dict], mock_rules: list[dict]) -> tuple[list[str], list[tuple[str, str]]]:
++    """Return (Today differences as printable blocks, Proposed rules as (selector, declarations))."""
++    base_today = [r for r in base_rules if classify(r["sel"]) == "today"]
++    mock_today = [r for r in mock_rules if classify(r["sel"]) == "today"]
++    base, today = _bucket(base_today), _bucket(mock_today)
++    proposed = [
++        (f"{r['ctx']}{r['sel']}", _fmt(_decls(r)))
++        for r in mock_rules if classify(r["sel"]) == "proposed"
++    ]
++    diffs: list[str] = []
++    for key in sorted(set(base) | set(today)):
++        b, m = base.get(key, set()), today.get(key, set())
++        if b == m:
++            continue
++        kind = "new in mock" if not b else "missing from mock" if not m else "changed"
++        diffs.append(
++            f"{kind}: {key[0]}{key[1]}\n"
++            f"    main: {' | '.join(_fmt(d) for d in b) or '(absent)'}\n"
++            f"    mock: {' | '.join(_fmt(d) for d in m) or '(absent)'}"
++        )
++    if not diffs and [_key(r) for r in base_today] != [_key(r) for r in mock_today]:
++        diffs.append("rule order differs from main: the same rules, in another order, cascade differently")
++    return diffs, proposed
++
++
++def check(mock_html: str, base_css: str) -> tuple[list[str], list[tuple[str, str]]]:
++    return compare(read_rules(f"<style>{base_css}</style>"), read_rules(mock_html))
++
++
++def main(argv: list[str] | None = None) -> int:
++    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
++    ap.add_argument("mock", type=Path)
++    ap.add_argument("--base", default="gitlab/main")
++    args = ap.parse_args(argv)
++    sys.stdout.reconfigure(encoding="utf-8")
++    try:
++        html = args.mock.read_text(encoding="utf-8")
++        css = main_css(args.base)
++    except (OSError, RuntimeError, ValueError) as e:
++        print(f"ERROR: {e}")
++        return 2
++    try:
++        diffs, proposed = check(html, css)
++    except Exception as e:
++        print(f"ERROR: the browser could not read the styles: {e}")
++        return 2
++    print(f"Today differences from {args.base}: {len(diffs)}")
++    for d in diffs:
++        print(f"  {d}")
++    print(f"Proposed rules (html.prop): {len(proposed)}")
++    for n, (sel, decl) in enumerate(proposed, 1):
++        print(f"  {n}. {sel} {{ {decl} }}")
++    return 1 if diffs else 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/tests/fixtures/mock_css/base.css b/tests/fixtures/mock_css/base.css
+new file mode 100644
+index 00000000..5a606e60
+--- /dev/null
++++ b/tests/fixtures/mock_css/base.css
+@@ -0,0 +1,3 @@
++.card { color: red; margin: 0 }
++.card .t { font-size: 13px; text-transform: uppercase }
++@media (max-width: 600px) { .card { margin: 4px } }
+diff --git a/tests/fixtures/mock_css/changed.html b/tests/fixtures/mock_css/changed.html
+new file mode 100644
+index 00000000..9a7f1ec9
+--- /dev/null
++++ b/tests/fixtures/mock_css/changed.html
+@@ -0,0 +1,5 @@
++<!doctype html><html><head><style>
++.card{color:red;margin:0}
++.card .t{font-size:17px;text-transform:none}
++@media (max-width:600px){.card{margin:4px}}
++</style></head><body></body></html>
+diff --git a/tests/fixtures/mock_css/clean.html b/tests/fixtures/mock_css/clean.html
+new file mode 100644
+index 00000000..e87ad7aa
+--- /dev/null
++++ b/tests/fixtures/mock_css/clean.html
+@@ -0,0 +1,5 @@
++<!doctype html><html><head><style>
++.card{margin:0;color:red}
++.card .t{text-transform:uppercase;font-size:13px}
++@media (max-width:600px){.card{margin:4px}}
++</style></head><body></body></html>
+diff --git a/tests/fixtures/mock_css/missing.html b/tests/fixtures/mock_css/missing.html
+new file mode 100644
+index 00000000..bf1af0e3
+--- /dev/null
++++ b/tests/fixtures/mock_css/missing.html
+@@ -0,0 +1,4 @@
++<!doctype html><html><head><style>
++.card{color:red;margin:0}
++@media (max-width:600px){.card{margin:4px}}
++</style></head><body></body></html>
+diff --git a/tests/fixtures/mock_css/new_rule.html b/tests/fixtures/mock_css/new_rule.html
+new file mode 100644
+index 00000000..48667738
+--- /dev/null
++++ b/tests/fixtures/mock_css/new_rule.html
+@@ -0,0 +1,6 @@
++<!doctype html><html><head><style>
++.card{color:red;margin:0}
++.card .t{font-size:13px;text-transform:uppercase}
++@media (max-width:600px){.card{margin:4px}}
++.extra{padding:2px}
++</style></head><body></body></html>
+diff --git a/tests/fixtures/mock_css/proposed.html b/tests/fixtures/mock_css/proposed.html
+new file mode 100644
+index 00000000..65881fb9
+--- /dev/null
++++ b/tests/fixtures/mock_css/proposed.html
+@@ -0,0 +1,10 @@
++<!doctype html><html><head><style>
++.card{margin:0;color:red}
++.card .t{text-transform:uppercase;font-size:13px}
++@media (max-width:600px){.card{margin:4px}}
++@font-face{font-family:X;src:local(Arial)}
++.mock-bar{color:blue}
++.mock-a,.mock-b{x:y}
++html.prop .card .t{font-size:20px}
++html.prop, html.prop .card{margin:1px}
++</style></head><body></body></html>
+diff --git a/tests/test_check_mock_css.py b/tests/test_check_mock_css.py
+new file mode 100644
+index 00000000..4052740f
+--- /dev/null
++++ b/tests/test_check_mock_css.py
+@@ -0,0 +1,145 @@
++"""The mock CSS check: Today must equal main's rules, `html.prop` rules are listed, `.mock-*` ignored.
++
++The fixtures hold a small stand-in for main's stylesheet (`base.css`) and one mock per case. The
++browser tests skip where Chromium is not installed; the classifier tests run everywhere.
++"""
++
++from __future__ import annotations
++
++import sys
++from pathlib import Path
++
++import pytest
++
++REPO = Path(__file__).resolve().parent.parent
++sys.path.insert(0, str(REPO / "design-mocks"))
++import check_mock_css as cm  # noqa: E402
++
++FIXTURES = REPO / "tests" / "fixtures" / "mock_css"
++
++
++def _chromium_available() -> bool:
++    try:
++        from playwright.sync_api import sync_playwright
++    except ImportError:
++        return False
++    try:
++        with sync_playwright() as pw:
++            pw.chromium.launch().close()
++        return True
++    except Exception:
++        return False
++
++
++needs_browser = pytest.mark.skipif(not _chromium_available(), reason="Playwright's Chromium is not installed here")
++
++
++def _run(name: str):
++    return cm.check((FIXTURES / name).read_text(encoding="utf-8"), (FIXTURES / "base.css").read_text(encoding="utf-8"))
++
++
++@pytest.mark.parametrize("sel, kind", [
++    (".card", "today"),
++    ("html.prop .card", "proposed"),
++    ("html.prop, html.prop .card", "proposed"),
++    ("html.prop .card, .card", "today"),
++    (".mock-bar", "mock"),
++    (".mock-a, .mock-b", "mock"),
++    (".mock-a, .card", "today"),
++    (".card:not(.mock-x)", "today"),
++    (".mock-frame .card", "today"),
++    (".card .mock-a", "mock"),
++    ("html.property .card", "today"),
++    ("html.prop-x", "today"),
++])
++def test_classify(sel, kind):
++    assert cm.classify(sel) == kind
++
++
++@needs_browser
++def test_clean_mock_passes_despite_formatting_differences():
++    diffs, proposed = _run("clean.html")
++    assert diffs == [] and proposed == []
++
++
++@needs_browser
++def test_changed_main_rule_fails_with_both_sides():
++    diffs, _ = _run("changed.html")
++    assert len(diffs) == 1
++    assert diffs[0].startswith("changed: .card .t")
++    assert "font-size: 13px" in diffs[0] and "font-size: 17px" in diffs[0]
++
++
++@needs_browser
++def test_new_unscoped_rule_fails():
++    diffs, _ = _run("new_rule.html")
++    assert len(diffs) == 1 and diffs[0].startswith("new in mock: .extra")
++
++
++@needs_browser
++def test_missing_main_rule_fails():
++    diffs, _ = _run("missing.html")
++    assert len(diffs) == 1 and diffs[0].startswith("missing from mock: .card .t")
++
++
++@needs_browser
++def test_proposed_listed_and_mock_and_font_face_ignored():
++    diffs, proposed = _run("proposed.html")
++    assert diffs == []
++    assert [s for s, _ in proposed] == ["html.prop .card .t", "html.prop, html.prop .card"]
++    assert "font-size: 20px" in proposed[0][1]
++
++
++def _inline(base: str, mock: str):
++    return cm.check(f"<style>{mock}</style>", base)
++
++
++@needs_browser
++@pytest.mark.parametrize("base, mock, fragment", [
++    (".a{color:red}.a{color:blue}", ".a{color:blue}.a{color:red}", "changed: .a"),
++    (".a{color:red}.a{color:red}", ".a{color:red}", "changed: .a"),
++    (".a{color:red}.b{color:red}", ".b{color:red}.a{color:red}", "rule order differs"),
++    (".card{color:red}", ".card{color:red;.x{color:blue}}", "new in mock: .card > & .x"),
++    ("", "@layer a,b;", "new in mock: @layer a, b;"),
++    ("", ".card:not(.mock-x){color:red}", "new in mock: .card:not(.mock-x)"),
++    ("", ".mock-frame .card{color:red}", "new in mock: .mock-frame .card"),
++    (".a{background:var(--x)}", ".a{background:var(--y)}", "changed: .a"),
++    (".a{margin:var(--x) 0}", ".a{margin:var(--x) 4px}", "changed: .a"),
++    ("", '@import url("data:text/css,.q{color:red}");', "new in mock: @import"),
++    ("", "@import url(https://x.test/a.css);", "new in mock: @import"),
++    ("", ".card[title=\".mock-x\"]{color:red}", "new in mock: .card[title="),
++    ("", "html.property .card{color:red}", "new in mock: html.property .card"),
++    ("", "@media (min-width:1px){.card{color:red !important}}", "new in mock: @media (min-width: 1px) .card"),
++    ("@supports (display:grid){.g{display:grid}}", "@supports (display:grid){.g{display:flex}}", "changed: @supports (display:grid) .g"),
++])
++def test_holes_are_caught(base, mock, fragment):
++    diffs, _ = _inline(base, mock)
++    assert any(d.startswith(fragment) or fragment in d for d in diffs), diffs
++
++
++@needs_browser
++def test_media_attribute_on_style_is_part_of_the_context():
++    diffs, _ = cm.check('<style media="print">.a{color:red}</style>', ".a{color:red}")
++    assert len(diffs) == 2
++
++
++@needs_browser
++def test_linked_stylesheet_is_flagged():
++    diffs, _ = cm.check('<link rel="stylesheet" href="https://x.test/a.css">', "")
++    assert diffs and "linked stylesheet not read" in diffs[0]
++
++
++@needs_browser
++def test_cli_exit_codes(capsys, tmp_path):
++    css = REPO / "site_v2" / "src" / "styles" / "system.css"
++    mock = tmp_path / "m.html"
++    mock.write_text(f"<style>{css.read_text(encoding='utf-8')}\nhtml.prop .x{{color:red}}</style>", encoding="utf-8")
++    assert cm.main([str(mock), "--base", "HEAD"]) == 0
++    assert "Proposed rules (html.prop): 1" in capsys.readouterr().out
++    mock.write_text("<style>.x{color:red}</style>", encoding="utf-8")
++    assert cm.main([str(mock), "--base", "HEAD"]) == 1
++    assert cm.main([str(tmp_path / "none.html")]) == 2
++    assert cm.main([str(mock), "--base", "no-such-ref"]) == 2
++    bad = tmp_path / "bad.html"
++    bad.write_bytes(b"\xff\xfe<style>")
++    assert cm.main([str(bad), "--base", "HEAD"]) == 2
