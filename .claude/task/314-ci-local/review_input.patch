@@ -1,0 +1,1551 @@
+diff --git a/.claude/skills/validate-local/SKILL.md b/.claude/skills/validate-local/SKILL.md
+index 328ee164..3d07dd14 100644
+--- a/.claude/skills/validate-local/SKILL.md
++++ b/.claude/skills/validate-local/SKILL.md
+@@ -1,15 +1,12 @@
+ ---
+ name: validate-local
+ description: |
+-  Run the same quality gates CI runs, locally, BEFORE pushing — so a PR doesn't
+-  bounce off CI and turn into fix-after-CI churn. Mirrors `.gitlab-ci.yml`'s
+-  `validate:governance`, `validate:ui`, `validate:secrets` and `test:python` jobs.
+-  Use before `git push` / opening an MR, after a set of changes, or whenever you
+-  want to know if CI will pass.
+-
+-  Do NOT use to run the full BigQuery data build (dbt build + DQ tests) — that is
+-  expensive and runs in `data:build:mr`. This skill runs the fast offline gates
+-  plus dbt parse and SQL lint.
++  Run the CI jobs of the merge request locally, before pushing, with one command:
++  `python scripts/ci_local.py --mr`. Use it before every `git push`.
++  It runs each job in the image CI uses, on the merged result.
++
++  Do NOT use it for the BigQuery data build. A data job runs `dbt parse` and
++  `sqlfluff lint` only; the build runs in `data:build:mr`.
+ ---
+ 
+ # validate-local
+@@ -18,6 +15,38 @@ Run the CI gates locally and report pass/fail per gate. The point is to catch
+ failures here, in seconds, instead of after a push → CI run → red check → fix
+ commit round trip (the dominant source of `fix:` churn in this repo's history).
+ 
++## The one command, required before every push
++
++```bash
++python scripts/ci_local.py --mr
++```
++
++It needs Docker with a Linux engine and a fetchable `gitlab` remote. It does this:
++
++- It selects the jobs an MR pipeline runs for the files you changed, from the `rules:` and `changes:` of `.gitlab-ci.yml`.
++- It runs each job's `before_script` and `script` in the job's own image, with the job's variables.
++- It runs in a throwaway clone with LF endings. Your uncommitted changes count as part of the branch.
++- A job that merges the target branch in CI gets the branch merged with the latest `gitlab/main`. The others get the branch.
++- A job receives only the artifacts of the jobs in its `needs:`.
++- A data job runs `dbt deps`, `dbt parse` and `sqlfluff lint`. The container holds no cloud credential.
++- It skips the jobs that deploy or gate the shared warehouse, and names each one.
++
++Show the closing summary, with every job `PASS`. A red job is fixed before the push.
++
++```bash
++python scripts/ci_local.py --mr --plan                  # what would run, without Docker
++python scripts/ci_local.py --job validate:ui --full-scope  # one job, plus main's full scope
++python scripts/ci_local.py --mr --fail-fast             # stop a job at its first failing step
++```
++
++Run `--job <name> --full-scope` for a job whose steps branch on the pipeline source, as `validate:ui`
++does, before every review round on a UI change. Job output and artifacts land in `.cache/ci_local/runs/<run>/<job>/out`; the run prints the folder.
++
++`dbt_utils` models are not linted offline: only the dbt templater resolves them, and it needs credentials.
++The run says how many it left to CI.
++
++The sections below are the manual forms of single gates, for when one script is all you need.
++
+ ## When to use
+ 
+ - Before `git push` or `glab mr create`.
+@@ -30,9 +59,9 @@ commit round trip (the dominant source of `fix:` churn in this repo's history).
+ - You want the full warehouse build / data-quality tests — those run in
+   `data:build:mr` (see Tier 3 below); a full local `dbt build` is expensive.
+ 
+-## The gates (run in order; stop and report on first hard failure)
++## The gates, one by one
+ 
+-### Tier 1 — fast, offline (always run)
++### Tier 1 — fast, offline
+ 
+ These need no credentials and finish in seconds. They mirror `.gitlab-ci.yml`'s
+ `validate:governance` (layer contract, registry sync, competition-type seed, copy
+@@ -119,38 +148,29 @@ Run this before every review round on any change under these paths:
+ - the scripts that read them
+ 
+ Tier 1b does not see what CI sees. The chart screenshot pins and the gap counts are Linux-only.
+-The design check does not run on every developer machine. A change that passes Tier 1b can still
+-fail the merge request pipeline, one finding and one round at a time.
+ 
+ ```bash
+-cd site_v2 && npm run build && cd ..
+-python scripts/validate_ui_docker.py
++python scripts/ci_local.py --job validate:ui --full-scope
+ ```
+ 
+-It needs Docker with a Linux engine. It reads the image, variables and every step of the job from
+-`.gitlab-ci.yml`, so no copy of a step exists to drift. It runs them against `site_v2/dist` in a
+-copy of the working tree and runs every step to the end.
+-
+-- Pass 1 is the merge-request scope.
+-- Pass 2 re-runs the steps that branch on `CI_PIPELINE_SOURCE` in main's full scope: every width,
+-  en, de and fi, against `baseline.json`.
+-- `--mr-only` skips pass 2. Use it to iterate, never for the run before a review round.
++It builds the site in the `build:site-v2` image first, because `validate:ui` needs that job, and hands
++only `site_v2/dist` over. Pass 1 is the merge-request scope. Pass 2 re-runs the steps that branch on
++`CI_PIPELINE_SOURCE` in main's full scope: every width, en, de and fi, against `baseline.json`. Leave
++`--full-scope` off to iterate, never for the run before a review round.
+ 
+-The evidence to show is the summary with `0 step(s) failed`. Failing-page screenshots and the
+-chart pins' new images land in `.cache/validate_ui_docker/out/artifacts`. To renew a chart pin,
+-copy the new images and `manifest.json` from there into `tests/fixtures/chart_screenshots/`. Do
+-that only inside an approved scope.
++Failing-page screenshots and the chart pins' new images land in
++`.cache/ci_local/runs/<run>/validate-ui/out/artifacts`. To renew a chart pin, copy the new images and
++`manifest.json` from there into `tests/fixtures/chart_screenshots/`, inside an approved scope.
+ 
+-### Tier 2 — needs BigQuery auth (run if `bq` works locally)
++### Tier 2 — dbt parse and SQL lint, offline
+ 
+-`dbt parse` mirrors `validate:governance`; `sqlfluff lint` mirrors `data:build:mr`'s lint
+-step. Both use the dbt templater, which compiles Jinja against the warehouse, so
+-they need a working BigQuery profile (ADC / `gcloud auth`). Skip with a note if
+-unauthenticated.
++`dbt parse` mirrors `validate:governance`. `ci_local.py` runs both in the data job with no credential.
++It lints with the committed `.sqlfluff` and the jinja templater, and leaves the models that call
++`dbt_utils` to CI. By hand, from the repository root:
+ 
+ ```bash
+-cd dbt_project && dbt deps && dbt parse
+-sqlfluff lint models        # from inside dbt_project/
++cd dbt_project && dbt deps && dbt parse && cd ..
++python -m sqlfluff lint dbt_project/models --templater jinja --dialect bigquery
+ ```
+ 
+ ### Tier 3 — full data build + DQ tests (CI-only by default)
+@@ -200,10 +220,10 @@ was a live-looking claim about a pipeline that does not run.
+ | `check_chart_screenshots.py --dist site_v2/dist` + `pytest tests/test_check_chart_screenshots.py` (screenshots compared on Linux only) | `validate:ui` (needs `build:site-v2`, on the Playwright image) |
+ | `check_component_registry.py` + `pytest tests/test_check_component_registry.py` | `validate:ui` |
+ | `site_v2/scripts/check-font-coverage.mjs --dist site_v2/dist` | `validate:ui` (needs `build:site-v2`) |
+-| every step of the job, in its image: `scripts/validate_ui_docker.py` | `validate:ui` (reads the job from `.gitlab-ci.yml`) |
++| every offline job of an MR pipeline, in its image: `scripts/ci_local.py --mr` | every job except the data build, the deploys and the warehouse gate |
+ | `pytest tests/` | `test:python` |
+ | gitleaks secret scan | `validate:secrets` |
+-| `sqlfluff lint models` | `data:build:mr` |
++| `sqlfluff lint` (offline, jinja templater) | `data:build:mr` (CI lints with the dbt templater) |
+ | `dbt build` + DQ tests | `data:build:mr` (MR) / `data:build:main` (main) |
+ | `check_yml_vs_projection.py --catalog dbt_project/target/catalog.json` | `data:build:main` only, after `dbt docs generate` (post-merge; needs the whole prod catalogue, which no MR job has) |
+ 
+diff --git a/.claude/task/314-ci-local/contract.md b/.claude/task/314-ci-local/contract.md
+new file mode 100644
+index 00000000..0ec361f9
+--- /dev/null
++++ b/.claude/task/314-ci-local/contract.md
+@@ -0,0 +1,43 @@
++# Task contract — one local CI command
++
++objective: >
++  Issue 314, step 2: scripts/ci_local.py runs any job of .gitlab-ci.yml (--job <name>) or every offline job a merge
++  request pipeline would run for the changed files (--mr), in the job's own image, in a clean checkout of the merged
++  result, with only the artifacts its needs: name. Data jobs run dbt parse and sqlfluff lint, never dbt build and
++  never a BigQuery write. The validate-local skill becomes this one command, run before every push.
++
++refs: >
++  Issue 314 (step 2 of its How, after !445). Requested by the coordinating session. Go-live gate: issue 290.
++
++depends_on: none  # built on gitlab/main; the one-command script needs no open MR (!449 is merged)
++
++shared_files: none  # no design baseline, chart manifest or pin is touched
++
++scope_paths:
++  - scripts/ci_local.py
++  - tests/test_ci_local.py
++  - .claude/skills/validate-local/SKILL.md
++  - .claude/task/314-ci-local/contract.md
++  - .claude/task/314-ci-local/review.md
++  - .claude/task/314-ci-local/review_input.patch
++
++approved_design:
++  - none: no page output changes
++
++decisions_taken: >
++  A new local-only script, no change to .gitlab-ci.yml and no recurring cost. It reads the CI file at run time and
++  keeps no copy of a step. scripts/validate_ui_docker.py (!445) is left in place and untouched. The merged result is
++  built in a throwaway clone with LF endings, where origin/main is the fetched gitlab/main, so check_task_artifacts
++  sees the same base as CI. Data jobs (id_tokens, or stage data) are replaced by dbt parse plus sqlfluff lint; jobs
++  that deploy or need a cloud credential are skipped and named in the output.
++
++decisions_reserved:
++  - none: the command and its output are developer tooling, nothing fan-visible, nothing permanent once published.
++
++done_when:
++  - tests/test_ci_local.py covers changes: matching, needs: artifacts, extends and anchors, rule evaluation, the merged-result step, data-job substitution.
++  - Full pytest is green before every review round.
++  - python scripts/ci_local.py --mr on this branch ends with every selected job green.
++  - The MR pipeline is green.
++
++amendments: (none)
+diff --git a/scripts/ci_local.py b/scripts/ci_local.py
+new file mode 100644
+index 00000000..e3aab182
+--- /dev/null
++++ b/scripts/ci_local.py
+@@ -0,0 +1,764 @@
++#!/usr/bin/env python3
++"""Run jobs of .gitlab-ci.yml locally, in the job's own image, the way a merge-request pipeline runs them.
++
++    python scripts/ci_local.py --mr                  # every offline job the MR pipeline runs for the changed files
++    python scripts/ci_local.py --job validate:ui     # one job (repeat --job for more)
++    python scripts/ci_local.py --mr --plan           # what would run and what is skipped, without Docker
++
++The job's image, variables, before_script, script, needs: and rules: come from .gitlab-ci.yml at run
++time, anchors and `extends` resolved, so no step is written down here and none can drift.
++
++The tree a job runs on is a throwaway clone with LF line endings. A job that runs the `.merged_result`
++step in CI gets the branch merged with the latest gitlab/main, made here by the same merge; any other
++job gets the branch as it is. Uncommitted changes are part of the branch (as `git add -A` would stage
++them), so the command can run before a commit. Only the artifacts named in a job's `needs:` reach it.
++
++Data jobs run `dbt deps`, `dbt parse` and `sqlfluff lint` with the committed config. The container
++holds no cloud credential, and nothing here runs `dbt build`, ingestion or a deploy; jobs that deploy
++or write to a shared system are skipped and named.
++
++Exit 0: every selected job passed. Exit 1: a job failed. Exit 2: the run could not start.
++"""
++from __future__ import annotations
++
++import argparse
++import hashlib
++import os
++import re
++import shutil
++import stat
++import subprocess
++import sys
++import time
++from pathlib import Path
++
++import yaml
++
++REPO = Path(__file__).resolve().parents[1]
++CI_FILE = REPO / ".gitlab-ci.yml"
++OUT = REPO / ".cache" / "ci_local"
++CACHE_VOLUME = "fdp-ci-local-cache"
++STALE_AFTER_SECONDS = 24 * 3600
++WORKTREE = hashlib.sha1(str(REPO).encode("utf-8")).hexdigest()[:6]
++MR_SOURCE = "merge_request_event"
++TARGET_BRANCH = "main"
++PROJECT_DIR = "/work"
++RUN_AS = ("on_success", "always")
++GLOBAL_KEYS = {"stages", "variables", "workflow", "default", "include"}
++DBT_WRITES = re.compile(r"\bdbt\s+(build|run|seed|snapshot|test)\b")
++
++RUNNER = r"""#!/bin/sh
++set -u
++mkdir -p /work /out /state
++tar -C /src -cf - . | tar -C /work -xf -
++if [ -d /needs ]; then cp -a /needs/. /work/; fi
++cd /work
++SH=$(command -v bash || command -v sh)
++case "$SH" in */bash) FLAGS="-eo pipefail" ;; *) FLAGS="-e" ;; esac
++export PIP_CACHE_DIR=/cache/pip npm_config_cache=/cache/npm PRE_COMMIT_HOME=/cache/pre-commit
++pwd > /state/cwd
++: > /state/env
++: > /state/summary
++failed=0
++
++run_step() {
++  "$SH" $FLAGS -c '
++    . /state/env
++    cd "$(cat /state/cwd)"
++    if [ -n "$1" ]; then export "$1"; fi
++    trap "pwd > /state/cwd; export -p > /state/env" EXIT
++    . "$0"
++  ' "$1" "${2:-}" < /dev/null
++}
++
++record() {
++  label="$(grep -m1 -v '^[[:space:]]*$' "$1" | cut -c1-100)"
++  echo
++  echo "=== $3$(basename "$1" .sh): $label"
++  start=$(date +%s)
++  run_step "$1" "${2:-}"
++  rc=$?
++  secs=$(( $(date +%s) - start ))
++  if [ $rc -eq 0 ]; then verdict=PASS; else verdict=FAIL; failed=$((failed + 1)); fi
++  printf '%s  %ss  %s%s  %s\n' "$verdict" "$secs" "$3" "$(basename "$1" .sh)" "$label" >> /state/summary
++  [ $rc -eq 0 ] || [ -z "${FAIL_FAST:-}" ]
++}
++
++if [ -s /steps/before.sh ]; then
++  echo "=== before_script"
++  run_step /steps/before.sh || { echo "before_script failed"; exit 2; }
++fi
++for f in /steps/[0-9]*.sh; do
++  [ -e "$f" ] || break
++  record "$f" "" "" || break
++done
++if [ -n "${FULL_SCOPE:-}" ] && [ -s /steps/fullscope.txt ]; then
++  echo
++  echo "=== FULL SCOPE (as a push to main runs it): the steps that branch on CI_PIPELINE_SOURCE"
++  while IFS= read -r name; do
++    record "/steps/$name" "CI_PIPELINE_SOURCE=push" "full " || break
++  done < /steps/fullscope.txt
++fi
++rm -rf /out/artifacts
++mkdir -p /out/artifacts
++if [ -s /steps/artifacts.txt ]; then
++  while IFS= read -r p; do
++    [ -n "$p" ] || continue
++    for m in $p; do
++      if [ -e "$m" ]; then tar -cf - "$m" | tar -C /out/artifacts -xf -; fi
++    done
++  done < /steps/artifacts.txt
++fi
++rm -f /out/dotenv.env
++if [ -n "${CI_LOCAL_DOTENV:-}" ] && [ -f "$CI_LOCAL_DOTENV" ]; then cp "$CI_LOCAL_DOTENV" /out/dotenv.env; fi
++echo
++echo "=== SUMMARY"
++cat /state/summary
++echo "$failed step(s) failed"
++[ $failed -eq 0 ]
++"""
++
++
++SQLFLUFF_OFFLINE = r"""cd "$CI_PROJECT_DIR"
++skipped=$(grep -rl 'dbt_utils\.' dbt_project/models --include='*.sql' | wc -l)
++echo "sqlfluff, jinja templater, the committed .sqlfluff; $skipped model(s) call dbt_utils, which only the dbt templater (BigQuery credentials) resolves, so CI lints those"
++files=$(grep -rL 'dbt_utils\.' dbt_project/models --include='*.sql')
++sqlfluff lint $files --templater jinja --dialect bigquery"""
++
++
++class _CiLoader(yaml.SafeLoader):
++    pass
++
++
++_CiLoader.add_multi_constructor("!", lambda loader, suffix, node: None)
++
++
++def load_ci(path: Path = CI_FILE) -> dict:
++    """The CI file with anchors and `<<` resolved by YAML; `extends` is resolved by resolve_job."""
++    return yaml.load(path.read_text(encoding="utf-8"), Loader=_CiLoader)
++
++
++def deep_merge(base: dict, over: dict) -> dict:
++    out = dict(base)
++    for key, value in over.items():
++        if isinstance(value, dict) and isinstance(out.get(key), dict):
++            out[key] = deep_merge(out[key], value)
++        else:
++            out[key] = value
++    return out
++
++
++def resolve_job(doc: dict, name: str, _seen: tuple[str, ...] = ()) -> dict:
++    """The job as GitLab merges it: its `extends` parents merged in order, hashes deeply, the rest replaced."""
++    if name not in doc or not isinstance(doc[name], dict):
++        raise SystemExit("%s has no job %s" % (CI_FILE.name, name))
++    if name in _seen:
++        raise SystemExit("extends loop through %s" % name)
++    job = doc[name]
++    parents = job.get("extends") or []
++    merged: dict = {}
++    for parent in [parents] if isinstance(parents, str) else parents:
++        merged = deep_merge(merged, resolve_job(doc, parent, _seen + (name,)))
++    return deep_merge(merged, {k: v for k, v in job.items() if k != "extends"})
++
++
++def job_names(doc: dict) -> list[str]:
++    """Runnable jobs in file order: no hidden (`.x`) templates, no global keywords."""
++    return [k for k, v in doc.items() if isinstance(v, dict) and not k.startswith(".") and k not in GLOBAL_KEYS]
++
++
++def stage_rank(doc: dict, job: dict) -> int:
++    stages = doc.get("stages") or []
++    return stages.index(job.get("stage", "test")) if job.get("stage", "test") in stages else len(stages)
++
++
++def image_of(job: dict) -> str:
++    image = job.get("image")
++    if not image:
++        raise SystemExit("a job without an image cannot run here")
++    return str(image["name"] if isinstance(image, dict) else image)
++
++
++def expand(value: str, env: dict[str, str]) -> str:
++    """GitLab's variable expansion: $NAME and ${NAME}, unknown names empty, $$ a literal $."""
++    def sub(m: re.Match) -> str:
++        if m.group(0) == "$$":
++            return "$"
++        return env.get(m.group(1) or m.group(2), "")
++    return re.sub(r"\$\$|\$\{(\w+)\}|\$(\w+)", sub, value)
++
++
++def job_env(doc: dict, job: dict, base: dict[str, str]) -> dict[str, str]:
++    env = dict(base)
++    for source in (doc.get("variables") or {}, job.get("variables") or {}):
++        for key, value in source.items():
++            env[str(key)] = expand(str(value), env)
++    return env
++
++
++_TOKEN = re.compile(r"""\s*(?:(\|\||&&|==|!=|=~|!~|\(|\))|\$(\w+)|"([^"]*)"|'([^']*)'|/((?:\\/|[^/])*)/(\w*)|(null))""")
++
++
++def _tokens(expr: str) -> list[tuple[str, object]]:
++    out, pos = [], 0
++    while pos < len(expr):
++        if not expr[pos:].strip():
++            break
++        m = _TOKEN.match(expr, pos)
++        if not m:
++            raise ValueError("cannot read rules:if near %r in %r" % (expr[pos:pos + 20], expr))
++        op, var, dq, sq, rx, flags, null = m.groups()
++        if op:
++            out.append(("op", op))
++        elif var:
++            out.append(("var", var))
++        elif dq is not None or sq is not None:
++            out.append(("str", dq if dq is not None else sq))
++        elif rx is not None:
++            out.append(("re", re.compile(rx.replace("\\/", "/"), re.I if "i" in flags else 0)))
++        else:
++            out.append(("null", None))
++        pos = m.end()
++    return out
++
++
++def eval_if(expr: str, env: dict[str, str]) -> bool:
++    """A rules:if expression: variables, strings, null, regex, == != =~ !~, && ||, parentheses."""
++    toks = _tokens(expr)
++    pos = 0
++
++    def peek():
++        return toks[pos] if pos < len(toks) else (None, None)
++
++    def take():
++        nonlocal pos
++        pos += 1
++        return toks[pos - 1]
++
++    def value(tok):
++        kind, v = tok
++        return env.get(v) if kind == "var" else v
++
++    def atom():
++        kind, v = peek()
++        if (kind, v) == ("op", "("):
++            take()
++            res = or_expr()
++            if take() != ("op", ")"):
++                raise ValueError("missing ) in %r" % expr)
++            return res
++        take()
++        return value((kind, v))
++
++    def rel():
++        left = atom()
++        kind, op = peek()
++        if kind == "op" and op in ("==", "!=", "=~", "!~"):
++            take()
++            right = atom()
++            if op in ("==", "!="):
++                same = left == right
++                return same if op == "==" else not same
++            hit = left is not None and right.search(left) is not None
++            return hit if op == "=~" else not hit
++        return bool(left) if not isinstance(left, bool) else left
++
++    def and_expr():
++        res = rel()
++        while peek() == ("op", "&&"):
++            take()
++            res = rel() and res
++        return res
++
++    def or_expr():
++        res = and_expr()
++        while peek() == ("op", "||"):
++            take()
++            res = and_expr() or res
++        return res
++
++    result = or_expr()
++    if pos != len(toks):
++        raise ValueError("trailing tokens in rules:if %r" % expr)
++    return bool(result)
++
++
++def glob_regex(pattern: str) -> re.Pattern:
++    """GitLab's changes: globs (Ruby fnmatch with FNM_PATHNAME, DOTMATCH, EXTGLOB): `*` stays inside a
++    directory, `**/` spans any directories, a trailing `/**` takes everything below, `{a,b}` alternates."""
++    out, i, depth = "", 0, 0
++    while i < len(pattern):
++        c = pattern[i]
++        if pattern.startswith("**/", i):
++            out += "(?:.*/)?"
++            i += 3
++        elif pattern.startswith("/**", i) and i + 3 == len(pattern):
++            out += "/.*"
++            i += 3
++        elif pattern.startswith("**", i):
++            out += ".*"
++            i += 2
++        elif c == "*":
++            out += "[^/]*"
++            i += 1
++        elif c == "?":
++            out += "[^/]"
++            i += 1
++        elif c == "{":
++            out += "(?:"
++            depth += 1
++            i += 1
++        elif c == "}" and depth:
++            out += ")"
++            depth -= 1
++            i += 1
++        elif c == "," and depth:
++            out += "|"
++            i += 1
++        elif c == "[":
++            j = pattern.find("]", i + 1)
++            if j < 0:
++                out += re.escape(c)
++                i += 1
++            else:
++                out += pattern[i:j + 1]
++                i = j + 1
++        else:
++            out += re.escape(c)
++            i += 1
++    return re.compile("^" + out + "$")
++
++
++def changes_match(patterns, changed: list[str]) -> bool:
++    paths = patterns.get("paths", []) if isinstance(patterns, dict) else patterns
++    rx = [glob_regex(str(p)) for p in paths]
++    return any(r.match(f) for r in rx for f in changed)
++
++
++def rule_when(job: dict, env: dict[str, str], changed: list[str]) -> str | None:
++    """`when` of the first rule that matches this pipeline, None when no rule does. A job with no
++    rules: runs (on_success) in every pipeline the workflow admits."""
++    rules = job.get("rules")
++    if rules is None:
++        return "on_success"
++    for rule in rules:
++        if "if" in rule and not eval_if(str(rule["if"]), env):
++            continue
++        if "changes" in rule and not changes_match(rule["changes"], changed):
++            continue
++        return str(rule.get("when", "on_success"))
++    return None
++
++
++def artifact_needs(job: dict) -> list[str]:
++    """The needed jobs whose artifacts the job receives: every need unless it says `artifacts: false`."""
++    out = []
++    for n in job.get("needs") or []:
++        if isinstance(n, dict):
++            if n.get("artifacts", True):
++                out.append(n["job"])
++        else:
++            out.append(str(n))
++    return out
++
++
++def is_data_job(job: dict) -> bool:
++    return job.get("stage") == "data" and any(DBT_WRITES.search(str(s)) for s in job.get("script", []))
++
++
++def skip_reason(job: dict) -> str | None:
++    """Why a job cannot run offline, or None. A data job is not skipped: it runs the offline checks."""
++    if is_data_job(job):
++        return None
++    if job.get("id_tokens"):
++        return "needs a cloud credential"
++    if job.get("stage") in ("data", "deploy"):
++        return "deploys or gates a shared system"
++    return None
++
++
++def merged_result_text(doc: dict) -> str:
++    return str(doc.get(".merged_result", "")).strip()
++
++
++def wants_merged_result(doc: dict, job: dict) -> bool:
++    text = merged_result_text(doc)
++    return bool(text) and any(str(i).strip() == text for i in list(job.get("before_script", [])) + list(job.get("script", [])))
++
++
++def without(items: list, text: str) -> list[str]:
++    return [str(i) for i in items if not (text and str(i).strip() == text)]
++
++
++def plan_job(doc: dict, name: str) -> dict:
++    """What runs for a job: image, variables, before_script and script items, artifacts, and which tree.
++    A data job is replaced by its offline checks."""
++    job = resolve_job(doc, name)
++    merged = merged_result_text(doc)
++    before = without(job.get("before_script", []), merged)
++    script = without(job.get("script", []), merged)
++    needs = artifact_needs(job)
++    note = ""
++    if is_data_job(job):
++        gcp = str(doc.get(".gcp_auth", "")).strip()
++        before = without(before, gcp)
++        script = [
++            str(doc[".dbt_profile"]),
++            '(cd "$CI_PROJECT_DIR/dbt_project" && dbt deps && dbt parse)',
++            SQLFLUFF_OFFLINE,
++        ]
++        needs = []
++        note = "offline checks only: dbt parse and sqlfluff lint, no dbt build and no BigQuery"
++    image = image_of(job)
++    arts = job.get("artifacts") or {}
++    return {
++        "name": name, "job": job, "image": image, "before": before, "script": script, "needs": needs,
++        "merged": wants_merged_result(doc, job), "artifact_paths": [str(p) for p in arts.get("paths", [])],
++        "dotenv": (arts.get("reports") or {}).get("dotenv"), "note": note,
++    }
++
++
++def pipeline_env(branch_sha: str, target_sha: str, branch: str) -> dict[str, str]:
++    return {
++        "CI": "true", "CI_PROJECT_DIR": PROJECT_DIR, "CI_PIPELINE_SOURCE": MR_SOURCE,
++        "CI_DEFAULT_BRANCH": TARGET_BRANCH, "CI_MERGE_REQUEST_TARGET_BRANCH_NAME": TARGET_BRANCH,
++        "CI_MERGE_REQUEST_SOURCE_BRANCH_NAME": branch, "CI_MERGE_REQUEST_IID": "local",
++        "CI_COMMIT_SHA": branch_sha, "CI_COMMIT_REF_NAME": branch,
++        "CI_COMMIT_REF_SLUG": re.sub(r"[^a-z0-9]+", "-", branch.lower()).strip("-")[:63],
++    }
++
++
++def select_mr_jobs(doc: dict, env: dict[str, str], changed: list[str]) -> tuple[list[str], dict[str, str]]:
++    """(jobs an MR pipeline runs for these changed files that can run offline, {skipped job: why})."""
++    run, skipped = [], {}
++    for name in job_names(doc):
++        job = resolve_job(doc, name)
++        if rule_when(job, env, changed) not in RUN_AS:
++            continue
++        why = skip_reason(job)
++        if why:
++            skipped[name] = why
++        else:
++            run.append(name)
++    return run, skipped
++
++
++def order_jobs(doc: dict, names: list[str]) -> list[str]:
++    """The jobs and the jobs they need, a need always before its dependant, otherwise stage then file order."""
++    file_order = {n: i for i, n in enumerate(job_names(doc))}
++    out: list[str] = []
++
++    def visit(n: str) -> None:
++        if n in out:
++            return
++        for dep in plan_job(doc, n)["needs"]:
++            if dep in file_order and skip_reason(resolve_job(doc, dep)) is None:
++                visit(dep)
++        out.append(n)
++
++    for n in sorted(names, key=lambda x: (stage_rank(doc, resolve_job(doc, x)), file_order[x])):
++        visit(n)
++    return out
++
++
++def write_steps(p: dict, folder: Path, full_scope: bool) -> list[Path]:
++    """One file per script item, in order, `before.sh` for the before_script, LF endings; plus the list
++    of artifact paths and of the steps that branch on CI_PIPELINE_SOURCE."""
++    folder.mkdir(parents=True, exist_ok=True)
++    for old in list(folder.glob("*.sh")) + list(folder.glob("*.txt")):
++        old.unlink()
++    (folder / "before.sh").write_text("".join(s.rstrip("\n") + "\n" for s in p["before"]), encoding="utf-8", newline="\n")
++    files = []
++    for i, step in enumerate(p["script"], start=1):
++        f = folder / ("%02d.sh" % i)
++        f.write_text(step.rstrip("\n") + "\n", encoding="utf-8", newline="\n")
++        files.append(f)
++    (folder / "artifacts.txt").write_text("".join(a + "\n" for a in p["artifact_paths"]), encoding="utf-8", newline="\n")
++    scoped = [f.name for f in files if "CI_PIPELINE_SOURCE" in f.read_text(encoding="utf-8")] if full_scope else []
++    (folder / "fullscope.txt").write_text("".join(n + "\n" for n in scoped), encoding="utf-8", newline="\n")
++    (folder / "runner.sh").write_text(RUNNER, encoding="utf-8", newline="\n")
++    return files
++
++
++def read_dotenv(path: Path) -> dict[str, str]:
++    out = {}
++    if path.is_file():
++        for line in path.read_text(encoding="utf-8").splitlines():
++            if "=" in line and not line.lstrip().startswith("#"):
++                k, v = line.split("=", 1)
++                out[k.strip()] = v.strip()
++    return out
++
++
++def docker_command(p: dict, env: dict[str, str], tree: Path, steps: Path, out: Path, container: str,
++                   needs_dir: Path | None, fail_fast: bool, full_scope: bool) -> list[str]:
++    cmd = ["docker", "run", "--rm", "--init", "--name", container, "--ipc=host", "--entrypoint", "sh",
++           "-e", "PYTHONDONTWRITEBYTECODE=1", "-e", "PYTHONIOENCODING=utf-8"]
++    env = dict(env)
++    if fail_fast:
++        env["FAIL_FAST"] = "1"
++    if full_scope:
++        env["FULL_SCOPE"] = "1"
++    if p["dotenv"]:
++        env["CI_LOCAL_DOTENV"] = str(p["dotenv"])
++    for k, v in sorted(env.items()):
++        cmd += ["-e", "%s=%s" % (k, v)]
++    cmd += ["-e", "GIT_CONFIG_COUNT=1", "-e", "GIT_CONFIG_KEY_0=safe.directory", "-e", "GIT_CONFIG_VALUE_0=*",
++            "--mount", "type=bind,source=%s,target=/src,readonly" % tree,
++            "--mount", "type=bind,source=%s,target=/steps,readonly" % steps,
++            "--mount", "type=bind,source=%s,target=/out" % out,
++            "--mount", "type=volume,source=%s,target=/cache" % CACHE_VOLUME]
++    if needs_dir is not None:
++        cmd += ["--mount", "type=bind,source=%s,target=/needs,readonly" % needs_dir]
++    return cmd + [p["image"], "/steps/runner.sh"]
++
++
++def git(repo: Path, *args: str, env: dict | None = None, check: bool = True) -> str:
++    res = subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, encoding="utf-8",
++                         env=dict(os.environ, **(env or {})))
++    if check and res.returncode != 0:
++        raise SystemExit("git %s failed: %s" % (" ".join(args), (res.stderr or res.stdout).strip()))
++    return res.stdout.strip()
++
++
++IDENTITY = ("-c", "user.name=ci_local", "-c", "user.email=ci_local@example.invalid")
++
++
++def snapshot_commit(repo: Path, scratch: Path) -> str:
++    """HEAD, or when the working tree differs from it a commit of the tree as `git add -A` would stage it
++    (so LF blobs, ignored files left out). The index file is a scratch one; the repository's is untouched."""
++    if not git(repo, "status", "--porcelain"):
++        return git(repo, "rev-parse", "HEAD")
++    index = {"GIT_INDEX_FILE": str(scratch / "index")}
++    git(repo, "read-tree", "HEAD", env=index)
++    git(repo, "add", "-A", env=index)
++    tree = git(repo, "write-tree", env=index)
++    return git(repo, *IDENTITY, "commit-tree", tree, "-p", "HEAD", "-m", "ci_local snapshot")
++
++
++def remote_for(repo: Path) -> str:
++    remotes = git(repo, "remote").split()
++    for r in remotes:
++        if "gitlab" in git(repo, "remote", "get-url", r):
++            return r
++    if not remotes:
++        raise SystemExit("this repository has no remote to take %s from" % TARGET_BRANCH)
++    return remotes[0]
++
++
++def changed_files(repo: Path, target_sha: str, branch_sha: str) -> list[str]:
++    """The files an MR changes: old and new path of a rename both, names unquoted (NUL separated)."""
++    raw = git(repo, "diff", "--name-only", "--no-renames", "-z", "%s...%s" % (target_sha, branch_sha))
++    return [p for p in raw.split("\0") if p]
++
++
++def rm_tree(path: Path) -> None:
++    def onerror(func, p, _exc):
++        os.chmod(p, stat.S_IWRITE)
++        func(p)
++    if path.exists():
++        try:
++            shutil.rmtree(path, onerror=onerror)
++        except OSError as exc:
++            print("could not remove %s: %s" % (path, exc), file=sys.stderr)
++
++
++def run_is_stale(run_id: str, now: float | None = None) -> bool:
++    """A run id starts with its start time; no run lasts a day, so an older one was killed. A name that
++    does not parse is not ours to judge and is left alone."""
++    try:
++        started = time.mktime(time.strptime(run_id[:15], "%Y%m%d-%H%M%S"))
++    except ValueError:
++        return False
++    return (now if now is not None else time.time()) - started > STALE_AFTER_SECONDS
++
++
++def prune_stale(repo: Path) -> None:
++    """Trees, run folders and refs of this worktree that a killed run left behind. A run that is still
++    going, including another one started in this worktree, is never touched."""
++    for folder in (OUT / "trees", OUT / "runs"):
++        if folder.is_dir():
++            for old in folder.iterdir():
++                if run_is_stale(old.name):
++                    rm_tree(old)
++    for line in git(repo, "for-each-ref", "--format=%(refname)", "refs/ci_local/%s/" % WORKTREE, check=False).splitlines():
++        if run_is_stale(line.rsplit("/", 1)[-1]):
++            git(repo, "update-ref", "-d", line, check=False)
++
++
++class Trees:
++    """Throwaway clones of the repository at the branch and at the merged result, built on demand."""
++
++    def __init__(self, repo: Path, run_dir: Path, branch_sha: str, target_sha: str, ref: str):
++        self.repo, self.run_dir, self.branch_sha, self.target_sha, self.ref = repo, run_dir, branch_sha, target_sha, ref
++        self.made: dict[str, Path] = {}
++
++    def get(self, merged: bool) -> Path:
++        kind = "merged" if merged else "branch"
++        if kind not in self.made:
++            dest = self.run_dir / kind
++            git(self.repo, "-c", "core.autocrlf=false", "clone", "--local", "--no-checkout", "-q", str(self.repo), str(dest))
++            git(dest, "config", "core.autocrlf", "false")
++            git(dest, "config", "core.eol", "lf")
++            git(dest, "fetch", "-q", str(self.repo), "+%s:refs/heads/ci-branch" % self.ref,
++                "+%s:refs/remotes/origin/%s" % (self.target_sha, TARGET_BRANCH))
++            git(dest, "checkout", "-q", "-f", "--detach", "refs/heads/ci-branch")
++            if merged:
++                res = subprocess.run(["git", *IDENTITY, "merge", "--no-edit", "-q", self.target_sha], cwd=dest,
++                                     capture_output=True, text=True, encoding="utf-8")
++                if res.returncode != 0:
++                    raise SystemExit("the branch does not merge with %s, so an MR pipeline would fail too:\n%s"
++                                     % (TARGET_BRANCH, (res.stdout + res.stderr).strip()))
++            self.made[kind] = dest
++        return self.made[kind]
++
++
++def docker_ready() -> str | None:
++    if shutil.which("docker") is None:
++        return "docker is not on PATH"
++    if subprocess.run(["docker", "info"], capture_output=True).returncode != 0:
++        return "the Docker engine is not running (docker info fails)"
++    return None
++
++
++def container_name(run_id: str, job: str) -> str:
++    return "fdp-ci-local-%s-%s-%s" % (WORKTREE, run_id, re.sub(r"[^a-z0-9]+", "-", job.lower()).strip("-"))
++
++
++def collect_needs(plans: dict[str, dict], p: dict, runs: Path) -> tuple[Path | None, dict[str, str]]:
++    """The artifacts (and dotenv variables) of the jobs `p` needs, assembled in one folder."""
++    deps = [d for d in p["needs"] if d in plans]
++    if not deps:
++        return None, {}
++    folder = runs / "needs" / re.sub(r"[^a-z0-9]+", "-", p["name"].lower())
++    rm_tree(folder)
++    folder.mkdir(parents=True)
++    env: dict[str, str] = {}
++    for d in deps:
++        src = runs / re.sub(r"[^a-z0-9]+", "-", d.lower()) / "out"
++        if (src / "artifacts").is_dir():
++            shutil.copytree(src / "artifacts", folder, dirs_exist_ok=True)
++        env.update(read_dotenv(src / "dotenv.env"))
++    return folder, env
++
++
++def main() -> int:
++    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
++    ap.add_argument("--job", action="append", default=[], metavar="NAME", help="run this job (repeatable)")
++    ap.add_argument("--mr", action="store_true", help="run every offline job a merge-request pipeline runs for the changed files")
++    ap.add_argument("--plan", action="store_true", help="print what would run and what is skipped; start nothing")
++    ap.add_argument("--full-scope", action="store_true",
++                    help="also re-run the steps that branch on CI_PIPELINE_SOURCE as a push to main runs them")
++    ap.add_argument("--fail-fast", action="store_true", help="stop a job at its first failing step, as CI does (default: run every step)")
++    ap.add_argument("--no-fetch", action="store_true", help="use the gitlab/main already fetched")
++    ap.add_argument("--keep", action="store_true", help="keep the throwaway trees")
++    args = ap.parse_args()
++    if bool(args.job) == args.mr:
++        ap.error("give --mr or one or more --job")
++
++    if not args.plan and (why := docker_ready()):
++        print(why, file=sys.stderr)
++        return 2
++    doc = load_ci()
++    remote = remote_for(REPO)
++    if not args.no_fetch:
++        git(REPO, "fetch", "-q", remote, "+refs/heads/%s:refs/remotes/%s/%s" % (TARGET_BRANCH, remote, TARGET_BRANCH))
++    target_sha = git(REPO, "rev-parse", "refs/remotes/%s/%s" % (remote, TARGET_BRANCH))
++
++    run_id = "%s-%d" % (time.strftime("%Y%m%d-%H%M%S"), os.getpid())
++    run_dir = OUT / "trees" / run_id
++    if not args.plan:
++        prune_stale(REPO)
++    run_dir.mkdir(parents=True, exist_ok=True)
++    ref = "refs/ci_local/%s/%s" % (WORKTREE, run_id)
++    try:
++        branch_sha = snapshot_commit(REPO, run_dir)
++        git(REPO, "update-ref", ref, branch_sha)
++        branch = git(REPO, "branch", "--show-current") or "detached"
++        changed = changed_files(REPO, target_sha, branch_sha)
++        base_env = pipeline_env(branch_sha, target_sha, branch)
++        dirty = branch_sha != git(REPO, "rev-parse", "HEAD")
++        print("branch %s at %s%s, merged with %s/%s at %s, %d changed file(s)"
++              % (branch, branch_sha[:8], " (with uncommitted changes)" if dirty else "", remote, TARGET_BRANCH,
++                 target_sha[:8], len(changed)), flush=True)
++
++        if args.mr:
++            names, skipped = select_mr_jobs(doc, base_env, changed)
++        else:
++            names, skipped = [], {}
++            for n in args.job:
++                why = skip_reason(resolve_job(doc, n))
++                if why:
++                    print("%s %s here" % (n, why), file=sys.stderr)
++                    return 2
++                names.append(n)
++        order = order_jobs(doc, names)
++        plans = {n: plan_job(doc, n) for n in order}
++        for n in order:
++            p = plans[n]
++            print("  run   %-24s %s%s%s" % (n, p["image"], "  [merged result]" if p["merged"] else "",
++                                          ("  (needed by another job)" if n not in names else "")
++                                          + ("  " + p["note"] if p["note"] else "")))
++        for n, why in skipped.items():
++            print("  skip  %-24s %s" % (n, why))
++        if args.plan or not order:
++            return 0
++
++        trees = Trees(REPO, run_dir, branch_sha, target_sha, ref)
++        runs = OUT / "runs" / run_id
++        results: list[tuple[str, str, int]] = []
++        failed = set()
++        for n in order:
++            p = plans[n]
++            bad = [d for d in p["needs"] if d in failed]
++            if bad:
++                results.append((n, "NOT RUN (needs failed job %s)" % bad[0], 0))
++                failed.add(n)
++                continue
++            slug = re.sub(r"[^a-z0-9]+", "-", n.lower()).strip("-")
++            steps, out = runs / slug / "steps", runs / slug / "out"
++            out.mkdir(parents=True, exist_ok=True)
++            write_steps(p, steps, args.full_scope)
++            needs_dir, extra = collect_needs(plans, p, runs)
++            env = job_env(doc, p["job"], base_env)
++            env.update(extra)
++            if p["merged"]:
++                env["MR_TARGET_SHA"] = target_sha
++                env["MR_TARGET_SHORT_SHA"] = target_sha[:8]
++            tree = trees.get(p["merged"])
++            cname = container_name(run_id, n)
++            cmd = docker_command(p, env, tree, steps, out, cname, needs_dir, args.fail_fast, args.full_scope)
++            print("\n########## %s (%s)" % (n, p["image"]), flush=True)
++            subprocess.run(["docker", "rm", "-f", cname], capture_output=True)
++            t0 = time.time()
++            rc = subprocess.run(cmd, env=dict(os.environ, MSYS_NO_PATHCONV="1")).returncode
++            results.append((n, "PASS" if rc == 0 else "FAIL", int(time.time() - t0)))
++            if rc != 0:
++                failed.add(n)
++
++        print("\n########## ci_local summary")
++        for n, verdict, secs in results:
++            print("%-30s %s  %ds" % (n, verdict, secs))
++        for n, why in skipped.items():
++            print("%-30s SKIPPED (%s)" % (n, why))
++        if failed:
++            print("%d job(s) failed; output of a job's artifacts is under %s" % (len(failed), runs))
++        return 1 if failed else 0
++    finally:
++        git(REPO, "update-ref", "-d", ref, check=False)
++        if not args.keep:
++            rm_tree(run_dir)
++
++
++def run() -> int:
++    try:
++        return main()
++    except SystemExit as exc:
++        if isinstance(exc.code, str):
++            print(exc.code, file=sys.stderr)
++            return 2
++        raise
++
++
++if __name__ == "__main__":
++    sys.exit(run())
+diff --git a/tests/test_ci_local.py b/tests/test_ci_local.py
+new file mode 100644
+index 00000000..a98a56e5
+--- /dev/null
++++ b/tests/test_ci_local.py
+@@ -0,0 +1,583 @@
++"""scripts/ci_local.py runs jobs of .gitlab-ci.yml locally and keeps no copy of a step."""
++from __future__ import annotations
++
++import importlib.util
++import os
++import shutil
++import subprocess
++import sys
++import textwrap
++import time
++from pathlib import Path
++
++import pytest
++
++REPO = Path(__file__).resolve().parents[1]
++SCRIPT = REPO / "scripts" / "ci_local.py"
++
++spec = importlib.util.spec_from_file_location("ci_local", SCRIPT)
++cl = importlib.util.module_from_spec(spec)
++sys.modules["ci_local"] = cl
++spec.loader.exec_module(cl)
++
++MR_ENV = {"CI_PIPELINE_SOURCE": "merge_request_event", "CI_DEFAULT_BRANCH": "main"}
++
++
++@pytest.fixture(scope="module")
++def doc():
++    return cl.load_ci()
++
++
++def ci(tmp_path, body: str) -> dict:
++    f = tmp_path / ".gitlab-ci.yml"
++    f.write_text(textwrap.dedent(body), encoding="utf-8")
++    return cl.load_ci(f)
++
++
++def test_anchors_and_merge_keys_are_resolved(tmp_path):
++    d = ci(tmp_path, """
++        .base: &base
++          image: python:3.11
++          before_script: [pip install x]
++        job:
++          <<: *base
++          script: [echo hi]
++    """)
++    job = cl.resolve_job(d, "job")
++    assert job["image"] == "python:3.11" and job["before_script"] == ["pip install x"]
++
++
++def test_extends_merges_hashes_deeply_and_replaces_lists(tmp_path):
++    d = ci(tmp_path, """
++        .a:
++          variables: {X: "1", Y: "2"}
++          script: [one, two]
++        .b:
++          extends: .a
++          variables: {Y: "3"}
++        job:
++          extends: [.b]
++          variables: {Z: "4"}
++          script: [three]
++    """)
++    job = cl.resolve_job(d, "job")
++    assert job["variables"] == {"X": "1", "Y": "3", "Z": "4"}
++    assert job["script"] == ["three"]
++    assert "extends" not in job
++
++
++def test_an_extends_loop_is_refused(tmp_path):
++    d = ci(tmp_path, """
++        a: {extends: b, script: [x]}
++        b: {extends: a, script: [x]}
++    """)
++    with pytest.raises(SystemExit):
++        cl.resolve_job(d, "a")
++
++
++def test_hidden_templates_and_global_keys_are_not_jobs(tmp_path):
++    d = ci(tmp_path, """
++        stages: [test]
++        variables: {A: "1"}
++        workflow: {rules: [{if: '$X'}]}
++        .hidden: {script: [x]}
++        real: {script: [x]}
++    """)
++    assert cl.job_names(d) == ["real"]
++
++
++def test_unknown_tags_such_as_reference_do_not_break_loading(tmp_path):
++    d = ci(tmp_path, """
++        job:
++          script:
++            - !reference [.x, script]
++            - echo ok
++    """)
++    assert "job" in d
++
++
++@pytest.mark.parametrize("pattern,path,hit", [
++    ("dbt_project/models/**/*", "dbt_project/models/a.sql", True),
++    ("dbt_project/models/**/*", "dbt_project/models/1_staging/x/a.sql", True),
++    ("dbt_project/models/**/*", "dbt_project/macros/a.sql", False),
++    ("scripts/check_*.py", "scripts/check_copy_gate.py", True),
++    ("scripts/check_*.py", "scripts/sub/check_copy_gate.py", False),
++    ("dbt_project/*.yml", "dbt_project/dbt_project.yml", True),
++    ("dbt_project/*.yml", "dbt_project/models/x.yml", False),
++    (".githooks/**", ".githooks/pre-commit", True),
++    (".githooks/**", ".githooks/sub/pre-commit", True),
++    ("requirements*.txt", "requirements-ui.txt", True),
++    ("requirements*.txt", "docs/requirements.txt", False),
++    ("site/**/*", "site/i18n/en.json", True),
++    ("**/*.md", "README.md", True),
++    ("**/*.md", "docs/a/b.md", True),
++    ("docs/{a,b}.md", "docs/b.md", True),
++    ("docs/{a,b}.md", "docs/c.md", False),
++    (".gitlab-ci.yml", ".gitlab-ci.yml", True),
++    (".gitlab-ci.yml", "xgitlab-ci.yml", False),
++])
++def test_changes_globs_follow_gitlab(pattern, path, hit):
++    assert cl.changes_match([pattern], [path]) is hit
++
++
++def test_changes_accepts_the_paths_form():
++    assert cl.changes_match({"paths": ["a/*.py"], "compare_to": "main"}, ["a/x.py"])
++    assert not cl.changes_match({"paths": ["a/*.py"]}, ["b/x.py"])
++
++
++@pytest.mark.parametrize("expr,expected", [
++    ('$CI_PIPELINE_SOURCE == "merge_request_event"', True),
++    ('$CI_PIPELINE_SOURCE == "push"', False),
++    ('$CI_PIPELINE_SOURCE != "push"', True),
++    ('$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH', False),
++    ('$CI_COMMIT_BRANCH == null', True),
++    ('$CI_COMMIT_BRANCH', False),
++    ('$CI_DEFAULT_BRANCH', True),
++    ('$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"', False),
++    ('$CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event"', True),
++    ('($CI_PIPELINE_SOURCE == "push" || $CI_DEFAULT_BRANCH) && $CI_PIPELINE_SOURCE =~ /^merge/', True),
++    ('$CI_PIPELINE_SOURCE =~ /^PUSH$/i', False),
++    ('$CI_PIPELINE_SOURCE !~ /^push$/', True),
++    ("$CI_DEFAULT_BRANCH == 'main'", True),
++])
++def test_rules_if_expressions(expr, expected):
++    assert cl.eval_if(expr, MR_ENV) is expected
++
++
++def test_an_unreadable_if_is_an_error_not_a_silent_false():
++    with pytest.raises(ValueError):
++        cl.eval_if("$A ~~ 1", MR_ENV)
++
++
++def test_first_matching_rule_decides_and_changes_must_hit(tmp_path):
++    d = ci(tmp_path, """
++        job:
++          script: [x]
++          rules:
++            - if: $CI_PIPELINE_SOURCE == "schedule"
++              when: never
++            - if: $CI_PIPELINE_SOURCE == "merge_request_event"
++              changes: [src/**/*]
++            - if: $CI_PIPELINE_SOURCE == "web"
++              when: manual
++    """)
++    job = cl.resolve_job(d, "job")
++    assert cl.rule_when(job, MR_ENV, ["src/a/b.py"]) == "on_success"
++    assert cl.rule_when(job, MR_ENV, ["docs/a.md"]) is None
++    assert cl.rule_when(job, dict(MR_ENV, CI_PIPELINE_SOURCE="schedule"), ["src/a"]) == "never"
++    assert cl.rule_when(job, dict(MR_ENV, CI_PIPELINE_SOURCE="web"), []) == "manual"
++
++
++def test_a_job_without_rules_runs_in_every_pipeline():
++    assert cl.rule_when({"script": ["x"]}, MR_ENV, []) == "on_success"
++
++
++def test_variables_expand_in_order_and_unknown_ones_are_empty():
++    env = cl.job_env({"variables": {"A": "$CI_PROJECT_DIR/.cache"}}, {"variables": {"B": "${A}/x", "C": "$$HOME $NOPE"}},
++                     {"CI_PROJECT_DIR": "/work"})
++    assert env["A"] == "/work/.cache" and env["B"] == "/work/.cache/x" and env["C"] == "$HOME "
++
++
++def test_needs_artifacts_exclude_jobs_that_say_artifacts_false():
++    job = {"needs": ["a", {"job": "b"}, {"job": "c", "artifacts": False}]}
++    assert cl.artifact_needs(job) == ["a", "b"]
++    assert cl.artifact_needs({"needs": []}) == []
++    assert cl.artifact_needs({}) == []
++
++
++def test_only_the_named_needs_reach_a_job(tmp_path):
++    runs = tmp_path
++    for job, name in (("build-site-v2", "dist.txt"), ("other-job", "leak.txt")):
++        (runs / job / "out" / "artifacts" / "site_v2").mkdir(parents=True)
++        (runs / job / "out" / "artifacts" / "site_v2" / name).write_text("x")
++    (runs / "build-site-v2" / "out" / "dotenv.env").write_text("MR_TARGET_SHA=abc\n# c\n")
++    plans = {"build:site-v2": {"name": "build:site-v2"}, "other-job": {"name": "other-job"},
++             "validate:ui": {"name": "validate:ui", "needs": ["build:site-v2"]}}
++    folder, env = cl.collect_needs(plans, plans["validate:ui"], runs)
++    assert (folder / "site_v2" / "dist.txt").exists()
++    assert not (folder / "site_v2" / "leak.txt").exists()
++    assert env == {"MR_TARGET_SHA": "abc"}
++    assert cl.collect_needs(plans, {"name": "x", "needs": []}, runs) == (None, {})
++
++
++def test_a_need_runs_before_its_dependant(doc):
++    order = cl.order_jobs(doc, ["validate:ui"])
++    assert order.index("build:site-v2") < order.index("validate:ui")
++    both = cl.order_jobs(doc, ["validate:ui", "build:site-v2"])
++    assert both == order
++
++
++def changed_run(doc, changed):
++    return cl.select_mr_jobs(doc, MR_ENV, changed)
++
++
++def test_a_script_only_change_runs_the_always_on_jobs_and_nothing_else(doc):
++    run, skipped = changed_run(doc, ["scripts/ci_local.py", "tests/test_ci_local.py"])
++    assert set(run) == {"validate:governance", "validate:secrets", "lint:python", "test:python"}
++    assert skipped == {}
++
++
++def test_a_site_change_adds_the_build_and_the_design_check(doc):
++    run, _ = changed_run(doc, ["site_v2/src/pages/index.astro"])
++    assert {"build:site-v2", "validate:ui"} <= set(run)
++    assert "data:build:mr" not in run
++
++
++def test_a_model_change_runs_the_data_job_and_skips_the_warehouse_gate(doc):
++    run, skipped = changed_run(doc, ["dbt_project/models/5_marts/x.sql"])
++    assert "data:build:mr" in run
++    assert "data:wait-prod-build" in skipped
++
++
++def test_a_ci_file_change_runs_every_path_filtered_job(doc):
++    run, _ = changed_run(doc, [".gitlab-ci.yml"])
++    assert {"data:build:mr", "build:site-v2", "validate:ui", "setup:clean-clone"} <= set(run)
++
++
++def test_an_mr_never_selects_a_main_only_manual_or_deploy_job(doc):
++    for changed in (["dbt_project/models/a.sql"], ["site_v2/src/a.astro"], [".gitlab-ci.yml"]):
++        run, skipped = changed_run(doc, changed)
++        picked = set(run) | set(skipped)
++        for name in ("data:build:main", "data:nightly", "deploy:export", "deploy:site-v2",
++                     "build:nightly-image", "deploy:nightly-image"):
++            assert name not in picked, name
++
++
++def test_a_schedule_pipeline_selects_no_job_but_the_nightly(doc):
++    env = dict(MR_ENV, CI_PIPELINE_SOURCE="schedule", CI_COMMIT_BRANCH="main")
++    run, _ = cl.select_mr_jobs(doc, env, ["dbt_project/models/a.sql"])
++    assert set(run) <= {"data:nightly"}
++
++
++def test_every_job_in_the_file_is_planned_or_named_as_skipped(doc):
++    for name in cl.job_names(doc):
++        job = cl.resolve_job(doc, name)
++        assert cl.skip_reason(job) or cl.plan_job(doc, name)["image"] != "None", name
++
++
++def test_a_job_without_an_image_is_refused():
++    with pytest.raises(SystemExit):
++        cl.image_of({"script": ["x"]})
++
++
++def test_the_jobs_that_deploy_or_hold_a_credential_are_skipped(doc):
++    for name in ("deploy:export", "deploy:site-v2", "build:nightly-image", "deploy:nightly-image",
++                 "data:wait-prod-build"):
++        assert cl.skip_reason(cl.resolve_job(doc, name)), name
++    for name in ("validate:governance", "validate:ui", "build:site-v2", "test:python", "lint:python",
++                 "validate:secrets", "setup:clean-clone", "data:build:mr"):
++        assert cl.skip_reason(cl.resolve_job(doc, name)) is None, name
++
++
++def test_the_merged_result_step_is_made_by_the_command_not_run_in_the_job(doc):
++    text = cl.merged_result_text(doc)
++    assert "git" in text and "merge" in text
++    for name, merged in (("test:python", True), ("build:site-v2", True), ("validate:ui", True),
++                         ("data:build:mr", True), ("validate:governance", False), ("lint:python", False),
++                         ("validate:secrets", False)):
++        p = cl.plan_job(doc, name)
++        assert p["merged"] is merged, name
++        assert all(s.strip() != text for s in p["before"] + p["script"]), name
++
++
++def test_validate_ui_receives_the_site_build_and_its_dotenv(doc):
++    ui, build = cl.plan_job(doc, "validate:ui"), cl.plan_job(doc, "build:site-v2")
++    assert ui["needs"] == ["build:site-v2"]
++    assert "site_v2/dist" in build["artifact_paths"] and build["dotenv"] == "merged_result.env"
++    assert cl.plan_job(doc, "test:python")["needs"] == []
++
++
++def test_a_data_job_runs_parse_and_lint_and_never_a_write(doc):
++    p = cl.plan_job(doc, "data:build:mr")
++    text = "\n".join(p["before"] + p["script"])
++    assert "dbt parse" in text and "sqlfluff lint" in text
++    assert not cl.DBT_WRITES.search(text)
++    for forbidden in ("wait_for_nightly", "bq ", "ingestion", "git worktree", "GOOGLE_APPLICATION",
++                      str(doc[".gcp_auth"]).strip()):
++        assert forbidden not in text, forbidden
++    assert p["needs"] == []
++    assert str(doc[".dbt_profile"]) in p["script"]
++
++
++def test_the_data_lint_runs_the_committed_config_without_a_subset(doc):
++    assert "--rules" not in cl.SQLFLUFF_OFFLINE and "--config" not in cl.SQLFLUFF_OFFLINE
++    assert "--templater jinja" in cl.SQLFLUFF_OFFLINE
++
++
++def test_every_script_item_becomes_one_step_verbatim_with_lf(doc, tmp_path):
++    p = cl.plan_job(doc, "validate:governance")
++    files = cl.write_steps(p, tmp_path, False)
++    assert len(files) == len(p["script"]) > 8
++    for f, step in zip(files, p["script"]):
++        assert f.read_bytes() == (step.rstrip("\n") + "\n").encode("utf-8")
++    for name in ("before.sh", "runner.sh", "artifacts.txt", "fullscope.txt"):
++        assert b"\r" not in (tmp_path / name).read_bytes(), name
++
++
++def test_the_steps_that_branch_on_the_pipeline_source_are_the_full_scope_pass(doc, tmp_path):
++    p = cl.plan_job(doc, "validate:ui")
++    cl.write_steps(p, tmp_path, True)
++    scoped = (tmp_path / "fullscope.txt").read_text().split()
++    assert scoped and all("CI_PIPELINE_SOURCE" in (tmp_path / n).read_text() for n in scoped)
++    cl.write_steps(p, tmp_path, False)
++    assert (tmp_path / "fullscope.txt").read_text() == ""
++
++
++def test_stale_steps_of_an_earlier_job_are_removed(doc, tmp_path):
++    cl.write_steps(cl.plan_job(doc, "validate:governance"), tmp_path, False)
++    cl.write_steps(cl.plan_job(doc, "validate:secrets"), tmp_path, False)
++    assert [f.name for f in tmp_path.glob("[0-9]*.sh")] == ["01.sh"]
++
++
++def test_the_container_gets_the_jobs_image_read_only_tree_and_no_credential(doc, tmp_path):
++    p = cl.plan_job(doc, "data:build:mr")
++    env = cl.job_env(doc, p["job"], cl.pipeline_env("a" * 40, "b" * 40, "br"))
++    cmd = cl.docker_command(p, env, tmp_path, tmp_path, tmp_path, "name", None, False, False)
++    assert p["image"] in cmd and cmd[cmd.index("--entrypoint") + 1] == "sh"
++    assert any(a.endswith(",readonly") and "target=/src" in a for a in cmd)
++    assert not any("target=/needs" in a for a in cmd)
++    assert "CI_PIPELINE_SOURCE=merge_request_event" in cmd
++    joined = " ".join(cmd)
++    for forbidden in ("GOOGLE_APPLICATION_CREDENTIALS", "GITLAB_OIDC_TOKEN", ".config/gcloud"):
++        assert forbidden not in joined
++
++
++def test_needs_are_mounted_and_the_scope_flags_reach_the_container(doc, tmp_path):
++    p = cl.plan_job(doc, "validate:ui")
++    cmd = cl.docker_command(p, {}, tmp_path, tmp_path, tmp_path, "n", tmp_path, True, True)
++    assert any("target=/needs,readonly" in a for a in cmd)
++    assert "FAIL_FAST=1" in cmd and "FULL_SCOPE=1" in cmd
++
++
++def test_the_script_keeps_no_second_copy_of_a_check():
++    text = SCRIPT.read_text(encoding="utf-8")
++    for name in ("check_layer_contract", "check_design_inventory", "check_chart_screenshots", "npm run build",
++                 "pytest tests", "pre-commit run", "gitleaks"):
++        assert name not in text, name
++
++
++def test_the_script_and_its_runner_have_lf_endings():
++    assert b"\r" not in SCRIPT.read_bytes()
++    assert "\r" not in cl.RUNNER
++
++
++def run_git(cwd, *args):
++    subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.invalid", *args], cwd=cwd, check=True,
++                   capture_output=True)
++
++
++@pytest.fixture
++def repo(tmp_path):
++    r = tmp_path / "repo"
++    r.mkdir()
++    run_git(r, "init", "-q", "-b", "main")
++    run_git(r, "config", "core.autocrlf", "true")
++    (r / "a.sh").write_bytes(b"echo a\n")
++    run_git(r, "add", "-A")
++    run_git(r, "commit", "-q", "-m", "one")
++    return r
++
++
++def head(r):
++    return cl.git(r, "rev-parse", "HEAD")
++
++
++def test_a_clean_tree_is_tested_as_head(repo, tmp_path):
++    assert cl.snapshot_commit(repo, tmp_path) == head(repo)
++
++
++def test_uncommitted_changes_are_part_of_the_branch_and_the_index_is_untouched(repo, tmp_path):
++    (repo / "a.sh").write_bytes(b"echo changed\r\n")
++    (repo / "new.txt").write_text("new")
++    before = cl.git(repo, "status", "--porcelain")
++    snap = cl.snapshot_commit(repo, tmp_path)
++    assert snap != head(repo)
++    assert cl.git(repo, "show", "%s:new.txt" % snap) == "new"
++    assert b"\r" not in subprocess.run(["git", "show", "%s:a.sh" % snap], cwd=repo, capture_output=True).stdout
++    assert cl.git(repo, "status", "--porcelain") == before
++    assert cl.git(repo, "rev-parse", "HEAD") == head(repo)
++
++
++def make_trees(repo, tmp_path, target_sha, ref="refs/ci_local/t"):
++    cl.git(repo, "update-ref", ref, head(repo))
++    return cl.Trees(repo, tmp_path / "run", head(repo), target_sha, ref)
++
++
++def test_the_branch_tree_is_checked_out_with_lf_whatever_the_machine_setting(repo, tmp_path):
++    trees = make_trees(repo, tmp_path, head(repo))
++    tree = trees.get(False)
++    assert (tree / "a.sh").read_bytes() == b"echo a\n"
++    assert cl.git(tree, "rev-parse", "origin/main") == head(repo)
++
++
++def test_the_merged_tree_holds_the_branch_and_the_latest_target(repo, tmp_path):
++    base = head(repo)
++    run_git(repo, "checkout", "-q", "-b", "feature")
++    (repo / "feature.txt").write_text("f")
++    run_git(repo, "add", "-A")
++    run_git(repo, "commit", "-q", "-m", "feature")
++    run_git(repo, "checkout", "-q", "main")
++    (repo / "main2.txt").write_text("m")
++    run_git(repo, "add", "-A")
++    run_git(repo, "commit", "-q", "-m", "main moved")
++    target = head(repo)
++    run_git(repo, "checkout", "-q", "feature")
++    trees = make_trees(repo, tmp_path, target)
++    merged = trees.get(True)
++    assert (merged / "feature.txt").exists() and (merged / "main2.txt").exists()
++    assert not (trees.get(False) / "main2.txt").exists()
++    assert base != target
++
++
++def test_a_branch_that_conflicts_with_the_target_fails_as_the_mr_would(repo, tmp_path):
++    run_git(repo, "checkout", "-q", "-b", "feature")
++    (repo / "a.sh").write_bytes(b"echo feature\n")
++    run_git(repo, "commit", "-q", "-am", "f")
++    run_git(repo, "checkout", "-q", "main")
++    (repo / "a.sh").write_bytes(b"echo main\n")
++    run_git(repo, "commit", "-q", "-am", "m")
++    target = head(repo)
++    run_git(repo, "checkout", "-q", "feature")
++    with pytest.raises(SystemExit, match="does not merge"):
++        make_trees(repo, tmp_path, target).get(True)
++
++
++def test_the_throwaway_trees_can_be_removed_even_with_read_only_git_objects(repo, tmp_path):
++    trees = make_trees(repo, tmp_path, head(repo))
++    tree = trees.get(False)
++    cl.rm_tree(tmp_path / "run")
++    assert not tree.exists()
++
++
++def test_a_rename_lists_the_old_and_the_new_path(repo):
++    base = head(repo)
++    run_git(repo, "checkout", "-q", "-b", "feature")
++    (repo / "dir").mkdir()
++    run_git(repo, "mv", "a.sh", "dir/a.sh")
++    (repo / "dir" / "café.txt").write_text("x")
++    run_git(repo, "add", "-A")
++    run_git(repo, "commit", "-q", "-m", "rename")
++    assert sorted(cl.changed_files(repo, base, head(repo))) == ["a.sh", "dir/a.sh", "dir/café.txt"]
++
++
++def run_name(hours_ago: float) -> str:
++    return time.strftime("%Y%m%d-%H%M%S", time.localtime(time.time() - hours_ago * 3600)) + "-4242"
++
++
++def test_only_a_run_older_than_a_day_counts_as_killed():
++    assert cl.run_is_stale(run_name(25)) and not cl.run_is_stale(run_name(1)) and not cl.run_is_stale(run_name(0))
++    assert not cl.run_is_stale("not-a-run-id")
++
++
++def test_pruning_removes_a_killed_runs_leftovers_and_spares_every_live_run(repo, tmp_path, monkeypatch):
++    monkeypatch.setattr(cl, "OUT", tmp_path / "out")
++    old, live = run_name(30), run_name(0.5)
++    for folder in ("trees", "runs"):
++        for name in (old, live):
++            (tmp_path / "out" / folder / name).mkdir(parents=True)
++    mine = "refs/ci_local/%s/" % cl.WORKTREE
++    other_worktree = "refs/ci_local/ffffff/" + old
++    for ref in (mine + old, mine + live, other_worktree):
++        cl.git(repo, "update-ref", ref, head(repo))
++    cl.prune_stale(repo)
++    for folder in ("trees", "runs"):
++        assert not (tmp_path / "out" / folder / old).exists()
++        assert (tmp_path / "out" / folder / live).exists()
++    assert cl.git(repo, "for-each-ref", "--format=%(refname)", "refs/ci_local/").split() == sorted([other_worktree, mine + live])
++
++
++def test_two_runs_in_one_worktree_never_share_a_container_name():
++    assert cl.container_name(run_name(0), "test:python") != cl.container_name(run_name(1), "test:python")
++    assert cl.container_name("r", "test:python") != cl.container_name("r", "lint:python")
++
++
++
++
++def test_a_string_exit_becomes_exit_code_2(monkeypatch, capsys):
++    monkeypatch.setattr(cl, "main", lambda: (_ for _ in ()).throw(SystemExit("boom")))
++    assert cl.run() == 2
++    assert "boom" in capsys.readouterr().err
++
++
++def test_a_numeric_exit_passes_through(monkeypatch):
++    monkeypatch.setattr(cl, "main", lambda: (_ for _ in ()).throw(SystemExit(0)))
++    with pytest.raises(SystemExit):
++        cl.run()
++
++
++def test_a_tree_that_cannot_be_removed_is_reported_not_raised(tmp_path, monkeypatch, capsys):
++    def refuse(*_a, **_k):
++        raise PermissionError("locked")
++    (tmp_path / "t").mkdir()
++    monkeypatch.setattr(cl.shutil, "rmtree", refuse)
++    cl.rm_tree(tmp_path / "t")
++    assert "could not remove" in capsys.readouterr().err
++
++
++def test_a_step_that_reads_stdin_cannot_eat_the_step_list(tmp_path):
++    steps = {"01.sh": "cat > /dev/null\necho one >> trail.txt\n", "02.sh": "cat > /dev/null\necho two >> trail.txt\n",
++             "fullscope.txt": "01.sh\n02.sh\n", "scoped": ""}
++    res, root = run_runner(tmp_path, steps, {"FULL_SCOPE": "1"})
++    assert res.returncode == 0, res.stdout + res.stderr
++    assert (root / "work" / "trail.txt").read_text().split() == ["one", "two", "one", "two"]
++
++
++def run_runner(tmp_path, steps: dict[str, str], env: dict[str, str] | None = None):
++    """The runner script itself, with its container paths moved under tmp_path."""
++    sh = shutil.which("sh")
++    if sh is None:
++        pytest.skip("no sh on this machine")
++    root = tmp_path / "root"
++    for d in ("src", "steps", "out", "work", "state", "cache"):
++        (root / d).mkdir(parents=True, exist_ok=True)
++    (root / "src" / "file.txt").write_text("tree")
++    for name, body in steps.items():
++        (root / "steps" / name).write_text(body, encoding="utf-8", newline="\n")
++    script = cl.RUNNER
++    for d in ("src", "steps", "out", "work", "state", "cache", "needs"):
++        script = script.replace("/" + d, (root / d).as_posix())
++    (root / "runner.sh").write_text(script, encoding="utf-8", newline="\n")
++    res = subprocess.run([sh, (root / "runner.sh").as_posix()], capture_output=True, text=True, encoding="utf-8",
++                         env=dict(os.environ, **(env or {})), cwd=tmp_path)
++    return res, root
++
++
++def test_the_runner_carries_cwd_and_exports_between_steps(tmp_path):
++    res, root = run_runner(tmp_path, {"01.sh": "mkdir sub && cd sub && export KEPT=yes\n",
++                                      "02.sh": "test \"$(basename \"$PWD\")\" = sub && test \"$KEPT\" = yes\n"})
++    assert res.returncode == 0, res.stdout + res.stderr
++    assert "0 step(s) failed" in res.stdout
++    assert (root / "work" / "file.txt").read_text() == "tree"
++
++
++def test_the_runner_counts_a_failing_step_and_runs_the_rest(tmp_path):
++    res, _ = run_runner(tmp_path, {"01.sh": "false\n", "02.sh": "echo second\n"})
++    assert res.returncode != 0
++    assert "FAIL" in res.stdout and "second" in res.stdout and "1 step(s) failed" in res.stdout
++
++
++def test_fail_fast_stops_at_the_first_failing_step(tmp_path):
++    res, _ = run_runner(tmp_path, {"01.sh": "false\n", "02.sh": "echo second\n"}, {"FAIL_FAST": "1"})
++    assert res.returncode != 0 and "second" not in res.stdout
++
++
++def test_a_failing_before_script_stops_the_job_with_exit_2(tmp_path):
++    res, _ = run_runner(tmp_path, {"before.sh": "false\n", "01.sh": "echo never\n"})
++    assert res.returncode == 2 and "never" not in res.stdout
++
++
++def test_the_full_scope_pass_runs_the_listed_steps_as_a_push(tmp_path):
++    steps = {"01.sh": "echo src=$CI_PIPELINE_SOURCE >> trail.txt\n", "fullscope.txt": "01.sh\n"}
++    res, root = run_runner(tmp_path, steps, {"CI_PIPELINE_SOURCE": "merge_request_event", "FULL_SCOPE": "1"})
++    assert res.returncode == 0, res.stdout + res.stderr
++    assert (root / "work" / "trail.txt").read_text().split() == ["src=merge_request_event", "src=push"]
++
++
++def test_the_runner_hands_over_only_the_listed_artifacts_and_the_dotenv(tmp_path):
++    steps = {"01.sh": "mkdir -p dist && echo built > dist/index.html && echo junk > other.txt && echo A=1 > job.env\n",
++             "artifacts.txt": "dist\n"}
++    res, root = run_runner(tmp_path, steps, {"CI_LOCAL_DOTENV": "job.env"})
++    assert res.returncode == 0, res.stdout + res.stderr
++    assert (root / "out" / "artifacts" / "dist" / "index.html").read_text().strip() == "built"
++    assert not (root / "out" / "artifacts" / "other.txt").exists()
++    assert (root / "out" / "dotenv.env").read_text().strip() == "A=1"

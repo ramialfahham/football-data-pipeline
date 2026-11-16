@@ -1,15 +1,12 @@
 ---
 name: validate-local
 description: |
-  Run the same quality gates CI runs, locally, BEFORE pushing — so a PR doesn't
-  bounce off CI and turn into fix-after-CI churn. Mirrors `.gitlab-ci.yml`'s
-  `validate:governance`, `validate:ui`, `validate:secrets` and `test:python` jobs.
-  Use before `git push` / opening an MR, after a set of changes, or whenever you
-  want to know if CI will pass.
+  Run the CI jobs of the merge request locally, before pushing, with one command:
+  `python scripts/ci_local.py --mr`. Use it before every `git push`.
+  It runs each job in the image CI uses, on the merged result.
 
-  Do NOT use to run the full BigQuery data build (dbt build + DQ tests) — that is
-  expensive and runs in `data:build:mr`. This skill runs the fast offline gates
-  plus dbt parse and SQL lint.
+  Do NOT use it for the BigQuery data build. A data job runs `dbt parse` and
+  `sqlfluff lint` only; the build runs in `data:build:mr`.
 ---
 
 # validate-local
@@ -17,6 +14,38 @@ description: |
 Run the CI gates locally and report pass/fail per gate. The point is to catch
 failures here, in seconds, instead of after a push → CI run → red check → fix
 commit round trip (the dominant source of `fix:` churn in this repo's history).
+
+## The one command, required before every push
+
+```bash
+python scripts/ci_local.py --mr
+```
+
+It needs Docker with a Linux engine and a fetchable `gitlab` remote. It does this:
+
+- It selects the jobs an MR pipeline runs for the files you changed, from the `rules:` and `changes:` of `.gitlab-ci.yml`.
+- It runs each job's `before_script` and `script` in the job's own image, with the job's variables.
+- It runs in a throwaway clone with LF endings. Your uncommitted changes count as part of the branch.
+- A job that merges the target branch in CI gets the branch merged with the latest `gitlab/main`. The others get the branch.
+- A job receives only the artifacts of the jobs in its `needs:`.
+- A data job runs `dbt deps`, `dbt parse` and `sqlfluff lint`. The container holds no cloud credential.
+- It skips the jobs that deploy or gate the shared warehouse, and names each one.
+
+Show the closing summary, with every job `PASS`. A red job is fixed before the push.
+
+```bash
+python scripts/ci_local.py --mr --plan                  # what would run, without Docker
+python scripts/ci_local.py --job validate:ui --full-scope  # one job, plus main's full scope
+python scripts/ci_local.py --mr --fail-fast             # stop a job at its first failing step
+```
+
+Run `--job <name> --full-scope` for a job whose steps branch on the pipeline source, as `validate:ui`
+does, before every review round on a UI change. Job output and artifacts land in `.cache/ci_local/runs/<run>/<job>/out`; the run prints the folder.
+
+`dbt_utils` models are not linted offline: only the dbt templater resolves them, and it needs credentials.
+The run says how many it left to CI.
+
+The sections below are the manual forms of single gates, for when one script is all you need.
 
 ## When to use
 
@@ -30,9 +59,9 @@ commit round trip (the dominant source of `fix:` churn in this repo's history).
 - You want the full warehouse build / data-quality tests — those run in
   `data:build:mr` (see Tier 3 below); a full local `dbt build` is expensive.
 
-## The gates (run in order; stop and report on first hard failure)
+## The gates, one by one
 
-### Tier 1 — fast, offline (always run)
+### Tier 1 — fast, offline
 
 These need no credentials and finish in seconds. They mirror `.gitlab-ci.yml`'s
 `validate:governance` (layer contract, registry sync, competition-type seed, copy
@@ -119,38 +148,29 @@ Run this before every review round on any change under these paths:
 - the scripts that read them
 
 Tier 1b does not see what CI sees. The chart screenshot pins and the gap counts are Linux-only.
-The design check does not run on every developer machine. A change that passes Tier 1b can still
-fail the merge request pipeline, one finding and one round at a time.
 
 ```bash
-cd site_v2 && npm run build && cd ..
-python scripts/validate_ui_docker.py
+python scripts/ci_local.py --job validate:ui --full-scope
 ```
 
-It needs Docker with a Linux engine. It reads the image, variables and every step of the job from
-`.gitlab-ci.yml`, so no copy of a step exists to drift. It runs them against `site_v2/dist` in a
-copy of the working tree and runs every step to the end.
+It builds the site in the `build:site-v2` image first, because `validate:ui` needs that job, and hands
+only `site_v2/dist` over. Pass 1 is the merge-request scope. Pass 2 re-runs the steps that branch on
+`CI_PIPELINE_SOURCE` in main's full scope: every width, en, de and fi, against `baseline.json`. Leave
+`--full-scope` off to iterate, never for the run before a review round.
 
-- Pass 1 is the merge-request scope.
-- Pass 2 re-runs the steps that branch on `CI_PIPELINE_SOURCE` in main's full scope: every width,
-  en, de and fi, against `baseline.json`.
-- `--mr-only` skips pass 2. Use it to iterate, never for the run before a review round.
+Failing-page screenshots and the chart pins' new images land in
+`.cache/ci_local/runs/<run>/validate-ui/out/artifacts`. To renew a chart pin, copy the new images and
+`manifest.json` from there into `tests/fixtures/chart_screenshots/`, inside an approved scope.
 
-The evidence to show is the summary with `0 step(s) failed`. Failing-page screenshots and the
-chart pins' new images land in `.cache/validate_ui_docker/out/artifacts`. To renew a chart pin,
-copy the new images and `manifest.json` from there into `tests/fixtures/chart_screenshots/`. Do
-that only inside an approved scope.
+### Tier 2 — dbt parse and SQL lint, offline
 
-### Tier 2 — needs BigQuery auth (run if `bq` works locally)
-
-`dbt parse` mirrors `validate:governance`; `sqlfluff lint` mirrors `data:build:mr`'s lint
-step. Both use the dbt templater, which compiles Jinja against the warehouse, so
-they need a working BigQuery profile (ADC / `gcloud auth`). Skip with a note if
-unauthenticated.
+`dbt parse` mirrors `validate:governance`. `ci_local.py` runs both in the data job with no credential.
+It lints with the committed `.sqlfluff` and the jinja templater, and leaves the models that call
+`dbt_utils` to CI. By hand, from the repository root:
 
 ```bash
-cd dbt_project && dbt deps && dbt parse
-sqlfluff lint models        # from inside dbt_project/
+cd dbt_project && dbt deps && dbt parse && cd ..
+python -m sqlfluff lint dbt_project/models --templater jinja --dialect bigquery
 ```
 
 ### Tier 3 — full data build + DQ tests (CI-only by default)
@@ -200,10 +220,10 @@ was a live-looking claim about a pipeline that does not run.
 | `check_chart_screenshots.py --dist site_v2/dist` + `pytest tests/test_check_chart_screenshots.py` (screenshots compared on Linux only) | `validate:ui` (needs `build:site-v2`, on the Playwright image) |
 | `check_component_registry.py` + `pytest tests/test_check_component_registry.py` | `validate:ui` |
 | `site_v2/scripts/check-font-coverage.mjs --dist site_v2/dist` | `validate:ui` (needs `build:site-v2`) |
-| every step of the job, in its image: `scripts/validate_ui_docker.py` | `validate:ui` (reads the job from `.gitlab-ci.yml`) |
+| every offline job of an MR pipeline, in its image: `scripts/ci_local.py --mr` | every job except the data build, the deploys and the warehouse gate |
 | `pytest tests/` | `test:python` |
 | gitleaks secret scan | `validate:secrets` |
-| `sqlfluff lint models` | `data:build:mr` |
+| `sqlfluff lint` (offline, jinja templater) | `data:build:mr` (CI lints with the dbt templater) |
 | `dbt build` + DQ tests | `data:build:mr` (MR) / `data:build:main` (main) |
 | `check_yml_vs_projection.py --catalog dbt_project/target/catalog.json` | `data:build:main` only, after `dbt docs generate` (post-merge; needs the whole prod catalogue, which no MR job has) |
 
