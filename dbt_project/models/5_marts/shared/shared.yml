@@ -2909,6 +2909,24 @@ models:
           expression: "is_played = (lineup_state is not null)"
           name: competition_fixtures_played_has_a_lineup_state
       - dbt_utils.expression_is_true:
+          expression: "not (is_played and unplayed_state is not null)"
+          name: competition_fixtures_played_has_no_unplayed_state
+      - dbt_utils.expression_is_true:
+          expression: "is_played or (status_short = 'PST') = (coalesce(unplayed_state, '') = 'postponed')"
+          name: competition_fixtures_postponed_is_status_pst
+      - dbt_utils.expression_is_true:
+          expression: "is_played or (status_short = 'ABD') = (coalesce(unplayed_state, '') = 'abandoned')"
+          name: competition_fixtures_abandoned_is_status_abd
+      - dbt_utils.expression_is_true:
+          expression: "is_played or (status_short = 'CANC') = (coalesce(unplayed_state, '') = 'cancelled')"
+          name: competition_fixtures_cancelled_is_status_canc
+      - dbt_utils.expression_is_true:
+          expression: "coalesce(unplayed_state, '') != 'awaiting_result' or kickoff_datetime <= current_timestamp()"
+          name: competition_fixtures_awaiting_result_has_kicked_off
+      - dbt_utils.expression_is_true:
+          expression: "is_played or kickoff_datetime > timestamp_sub(current_timestamp(), interval 1 day) or unplayed_state is not null"
+          name: competition_fixtures_a_day_past_kick_off_has_a_result_or_a_state
+      - dbt_utils.expression_is_true:
           expression: "not (result_needs_research and is_played)"
           name: competition_fixtures_withheld_result_is_not_played
       - dbt_utils.expression_is_true:
@@ -2967,6 +2985,11 @@ models:
           - accepted_values:
               values: [true, false]
               quote: false
+      - name: unplayed_state
+        description: "Why a fixture that is not played has no result: postponed, abandoned or cancelled by its provider status; awaiting_result when its kick-off is at or before this build and it is none of those. NULL on a played fixture and on one still to kick off."
+        tests:
+          - accepted_values:
+              values: ["postponed", "abandoned", "cancelled", "awaiting_result"]
       - name: goals_home
         description: "{{ doc('goals') }} Here, the home side's, once the fixture is played."
       - name: goals_away

@@ -9,7 +9,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  checkFixturesPage, checkMatchPageCount, checkMatchRowLinks, checkMatchRowsFound, checkRankingsPage, boards, isZeroValue,
+  checkFixturesPage, checkFixturesPayloads, checkMatchPageCount, checkMatchRowLinks, checkMatchRowsFound, checkRankingsPage,
+  boards, isZeroValue,
   main, matchRows, renderedBoards, rounds, checkTabPagesFound, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
   checkTeamPage, checkTeamRowsFound, teamRankRows, TEAM_PAGE, checkScatterLabels, scatterCharts,
 } from "./check-built-pages.mjs";
@@ -198,6 +199,57 @@ test("a row is read wherever data-fixture sits among its attributes", () => {
   assert.match(checkMatchRowLinks('<div data-fixture="11" class="lrow"></div>', built, "p")[0],
     /match 11 is not a link, though its page is built/);
   assert.equal(matchRows('<div data-fixture="11"></div><a data-fixture="12" href="/x/"></a><div class="lrow"></div>').length, 2);
+});
+
+test("every row of a fixtures page has a match payload, played or not, whatever its status", () => {
+  const built = new Set([11, 12]);
+  const page = '<a href="/en/x/matches/a/" class="fxrow played" data-fixture="11"></a>'
+    + '<a href="/en/x/matches/b/" class="fxrow" data-fixture="12"></a>';
+  assert.deepEqual(checkFixturesPayloads(page, built, "p"), []);
+  const postponed = '<div class="fxrow" data-fixture="13"><span class="when"><span class="stag">Postponed</span></span></div>';
+  assert.match(checkFixturesPayloads(page + postponed, built, "p")[0], /match 13 has no match payload/);
+  assert.match(checkFixturesPayloads('<div class="fxrow played" data-fixture="14"></div>', built, "p")[0],
+    /match 14 has no match payload/);
+});
+
+// A full export's fixtures page: rows of matches 7 and 8 under one checked round, the manifest present.
+test("main fails a full export whose fixtures page lists a match with no payload, and passes once it has one", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "check-built-pages-"));
+  try {
+    mkdirSync(join(root, "data", "fixtures"), { recursive: true });
+    const manifest = (n) => writeFileSync(join(root, "data", "manifest.json"), JSON.stringify(
+      { counts: { fixture: n }, source_counts: { fixtures_unplayed: n - 1, fixtures_played: 1 } }));
+    const write = (dir, html) => {
+      mkdirSync(join(root, "dist", ...dir), { recursive: true });
+      writeFileSync(join(root, "dist", ...dir, "index.html"), html);
+    };
+    const rows = '<a href="/en/x/matches/m/" class="fxrow played" data-fixture="7"></a>'
+      + '<div class="fxrow" data-fixture="8"><span class="when"><span class="stag">Postponed</span></span></div>';
+    for (const [lang, word] of [["de", "spiele"], ["en", "matches"], ["fi", "ottelut"]]) {
+      write([lang, "x", word], round(1, { checked: true }).replace("<section>", `<section>${rows}`));
+      write([lang, "x", word, "m"], "<html></html>");
+    }
+    writeFileSync(join(root, "data", "fixtures", "7.json"), "{}");
+    manifest(1);
+    const errors = t.mock.method(console, "error", () => {});
+    t.mock.method(console, "log", () => {});
+    assert.equal(main(join(root, "dist"), join(root, "data")), 1);
+    const said = errors.mock.calls.map((c) => c.arguments[0]).join("\n");
+    assert.match(said, /the row of match 8 has no match payload/);
+    assert.match(said, /an unplayed row is not a link/);
+
+    writeFileSync(join(root, "data", "fixtures", "8.json"), "{}");
+    manifest(2);
+    for (const [lang, word] of [["de", "spiele"], ["en", "matches"], ["fi", "ottelut"]]) {
+      write([lang, "x", word], round(1, { checked: true }).replace("<section>",
+        `<section>${rows.replace('<div class="fxrow" data-fixture="8">', `<a href="/${lang}/x/${word}/n/" class="fxrow" data-fixture="8">`).replace("</span></span></div>", "</span></span></a>")}`));
+      write([lang, "x", word, "n"], "<html></html>");
+    }
+    errors.mock.resetCalls();
+    assert.equal(main(join(root, "dist"), join(root, "data")), 0, errors.mock.calls.map((c) => c.arguments[0]).join("\n"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("match payloads with no row naming its match is an issue, not a silent pass", () => {

@@ -1,0 +1,23 @@
+---
+// THE status tag: why a match that is not played has no result (postponed, abandoned, cancelled,
+// awaiting result), the warehouse's unplayed_state in the page's language, in the tag form. It
+// stands where the score or the kick-off would: in a match row's kick-off column and in the
+// kick-off line of the match page head.
+import { t } from "../../i18n/strings";
+import type { Lang } from "../../lib/format";
+import type { UnplayedState } from "../../lib/types";
+
+interface Props {
+  lang: Lang;
+  state: UnplayedState;
+}
+const { lang, state } = Astro.props;
+const WORD = {
+  postponed: "statusPostponed",
+  abandoned: "statusAbandoned",
+  cancelled: "statusCancelled",
+  awaiting_result: "statusAwaitingResult",
+} as const;
+---
+
+<span class="stag">{t(lang, WORD[state])}</span>

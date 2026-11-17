@@ -1,0 +1,766 @@
+diff --git a/.claude/task/294-status-pages/contract.md b/.claude/task/294-status-pages/contract.md
+new file mode 100644
+index 00000000..ba6080e1
+--- /dev/null
++++ b/.claude/task/294-status-pages/contract.md
+@@ -0,0 +1,136 @@
++# Task contract — every Matchdays match has a page, each status its word
++
++objective: >
++  Issue #294. Every match a competition's Matchdays tab lists gets a match page in EN, DE and FI,
++  whatever its status and date: the export writes a preview payload for every fixture of
++  mart_competition_fixtures that is not played, so the match pages are the same set as the
++  Matchdays rows (one-source rule of #173). A match that was postponed, abandoned or cancelled, or
++  whose kick-off passed with no result yet, shows its status word in the tag form where the score
++  or kick-off would stand, on the match row and in the match page head. check-built-pages fails a
++  full-export build when a Matchdays row has no match payload.
++
++refs: >
++  #294; its note 4255394677 holds the approved words and placement (approved in chat, 17 Nov 2026);
++  #173 (one source for every list of matches); #243 parts library (the row components, !473, !475).
++  Visual details are the coordinating agent's under docs/design/design_standard.md (approved in
++  chat, 16 Nov 2026).
++
++scope_paths:
++  - .claude/task/294-status-pages/
++  - dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - scripts/export_site_data.py
++  - tests/test_export_site_data.py
++  - site_v2/src/components/ui/MatchRow.astro
++  - site_v2/src/components/ui/StatusTag.astro
++  - site_v2/src/components/fixture/Masthead.astro
++  - site_v2/src/pages/[[]lang]/[[]competition]/[[]matches]/[[]fixture].astro
++  - site_v2/src/i18n/strings.ts
++  - site_v2/src/lib/types.ts
++  - site_v2/src/styles/system.css
++  - site_v2/src/lib/fitBlocks.mjs
++  - site_v2/src/data/README.md
++  - site_v2/scripts/check-built-pages.mjs
++  - site_v2/scripts/check-built-pages.test.mjs
++  - docs/design/components.yml
++  - docs/wireframes/block_standard.md
++  - tests/fixtures/component_registry/baseline.json
++  - tests/fixtures/design_inventory/baseline.json
++  - tests/fixtures/design_inventory/baseline_quick.json
++  - tests/fixtures/design_inventory/baseline_quick_fi.json
++
++protected_override: >
++  docs/design/components.yml: the status tag joins the registry as the component that draws it
++  (site_v2/src/components/ui/StatusTag.astro), placed by the match row and the match header, and the Tag rule's
++  selector takes its class, so the status tag carries the Tag rule's one form (11px bold capitals
++  on the accent mark, 4px corners), and the Fitted block rule's selector takes a match row with a
++  status tag, so it gets the row tag's ruled narrow form. No other part, text style, value or measurement changes. The
++  status display of #294 note 4255394677 (approved in chat, 17 Nov 2026: the word in the existing
++  tag form, where the score or kick-off would stand, on the row and the match page head); placement
++  and form are a visual detail under docs/design/design_standard.md, approved in chat, 16 Nov 2026.
++
++impact_map: >
++  writers: mart_competition_fixtures is written only by its own model
++  (dbt_project/models/5_marts/shared/mart_competition_fixtures.sql); this adds one column,
++  unplayed_state, computed from columns the model already reads (status_short, kickoff_datetime and
++  the played join). The fixture payloads are written only by scripts/export_site_data.py
++  fetch_fixture_payloads; its filter changes from `status_short in ('NS','TBD') and fixture_date >=
++  current_date()` to `not is_played`.
++  downstream: `dbt ls --select mart_competition_fixtures+ --resource-type model` (main 6b80c12e) =
++  mart_competition_fixtures, mart_match_days, mart_player_index, mart_team_competitions,
++  mart_team_index. Each downstream model selects named columns in its final select
++  (mart_team_competitions reads `select *` only into a CTE whose final select lists its columns), so
++  the new column reaches none of them. Consumers: scripts/export_site_data.py
++  (_COMPETITION_FIXTURE_COLUMNS feeds the competition payloads' Matchdays rows, the Matches day
++  payloads, Home's Next matches and each match page's next-match rows; fetch_fixture_payloads), then
++  site_v2 (MatchRow, the match page head).
++  layer_rules: the classification is computed in the mart (layering.md, Consumption layer: the
++  frontend never derives a value a DQ test would cover); the export selects and filters only; the
++  site maps the served key to its word. check_layer_contract.py applies unchanged (no new model,
++  no partition_by/cluster_by).
++  deploy_order: additive column. The export selects it, so an export against a mart built before
++  the merge fails on the missing column instead of serving rows without it; deploy:site-v2 is
++  manual and runs after the merge's data:build:main has rebuilt the mart, the order every mart
++  change already takes. The 04:00 nightly rebuilds the mart from main and is unaffected.
++  blast_radius: the fixture payload count grows by the not-played fixtures that are not future
++  NS/TBD; measured on prod marts on 17 Nov 2026: 182 fixtures (CANC 161, PST 10, PEN with no result
++  8, ABD 2, WO with no result 1; 3,442 future NS), 546 more match pages. Every row of
++  mart_competition_fixtures keeps its values; one column is added. The committed sample carries no
++  unplayed_state, so its rows and pages render as before.
++
++acceptance_criteria:
++  - Every match a competition's Matchdays tab lists has a match page in EN, DE and FI, whatever its status (not started, postponed, abandoned, cancelled, awaiting result) and whatever its date.
++  - Each of those statuses has an approved display on the match page and on the match row, approved before the build (fan-visible).
++  - A full build from live data passes `check-built-pages` with no "an unplayed row is not a link" finding.
++  - A test fails the build when a row on a built Matchdays page has no match payload.
++
++approved_design:
++  - competition: #129
++  - matches: #130
++  - match: #132
++  - home: #127
++
++depends_on:
++  - none: the work is on main alone; the #243 row components it builds on merged (!473, !475)
++
++shared_files:
++  - tests/fixtures/component_registry/baseline.json
++  - tests/fixtures/design_inventory/baseline.json
++  - tests/fixtures/design_inventory/baseline_quick.json
++  - tests/fixtures/design_inventory/baseline_quick_fi.json
++
++decisions_taken: >
++  The approved words of #294 note 4255394677 map to the served unplayed_state: postponed (PST),
++  abandoned (ABD), cancelled (CANC), and awaiting_result for every other fixture that is not played
++  and whose kick-off is at or before the mart's build time. That last class is the note's own
++  condition, "kick-off passed, no result yet", applied as written: it covers a stale NS or TBD, an
++  in-play or suspended status, and a finished status with no result in int_legs__team_match. A
++  played match and a match still to kick off carry NULL. The kick-off comparison is the mart's, at
++  its build, the way the next-round flag already is; a site build never reads its own clock, so a
++  committed sample renders the same on every build.
++  On the row the tag takes the kick-off column, zone label included, and no Next or Top match tag
++  stands beside it. Where the names would lose their space beside it, the tag takes the row tag's
++  ruled narrow form, its own line above the home team, measured by fitBlocks.mjs the way it measures
++  the Top match row (the "Fitted block" rule); at 280px the German "Ergebnis ausstehend" is 151px
++  wide. In the match page head it takes the kick-off time's unit in the kick-off line,
++  which shows at every width (the head's centre score slot is hidden below 700px). A status match's
++  page has the form a match further out already has (head, head-to-head, each team's next match):
++  its pre-match form rows leave the marts once it is due, so the preview blocks would stand empty.
++  The status tag is one component, site_v2/src/components/ui/StatusTag.astro, placed by MatchRow
++  and the match page head. The payload-per-row check runs when the export's manifest is present (a
++  full export), the way the match-page count's manifest half does: the committed sample carries
++  payloads for 11 played matches only, by design (site_v2/src/data/README.md).
++  Decided by the builder under docs/design/design_standard.md and the layer contract. No new
++  mechanism, dependency or recurring cost: one column on a mart the nightly already rebuilds.
++
++decisions_reserved:
++  - none: the words and the placement are approved in #294 note 4255394677; any further question goes to the coordinating session.
++
++done_when:
++  - dbt parse passes; sqlfluff lint of the mart reports no new finding against main.
++  - python -m pytest tests/test_export_site_data.py passes.
++  - node --test site_v2/scripts/check-built-pages.test.mjs passes, including a case that fails on a Matchdays row with no payload and passes once the payload is there.
++  - A local build shows each status word on a row and on a match page in EN, DE and FI, swept at 280 to 768px.
++  - python scripts/ci_local.py --mr --full-scope is green.
++
++amendments: (none)
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql b/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
+index 92ba078f..a317e916 100644
+--- a/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
++++ b/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
+@@ -501,6 +501,13 @@ select
+     gl.goals,
+     safe_cast(regexp_extract(f.round_name, r'(\d+)$') as int64) as round_order,
+     p.fixture_sk is not null as is_played,
++    case
++        when p.fixture_sk is not null then null
++        when f.status_short = 'PST' then 'postponed'
++        when f.status_short = 'ABD' then 'abandoned'
++        when f.status_short = 'CANC' then 'cancelled'
++        when f.kickoff_datetime <= current_timestamp() then 'awaiting_result'
++    end as unplayed_state,
+     case
+         when h.team_slug is not null and a.team_slug is not null
+             then concat(
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index ac37091e..328f1c4e 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -2908,6 +2908,24 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "is_played = (lineup_state is not null)"
+           name: competition_fixtures_played_has_a_lineup_state
++      - dbt_utils.expression_is_true:
++          expression: "not (is_played and unplayed_state is not null)"
++          name: competition_fixtures_played_has_no_unplayed_state
++      - dbt_utils.expression_is_true:
++          expression: "is_played or (status_short = 'PST') = (coalesce(unplayed_state, '') = 'postponed')"
++          name: competition_fixtures_postponed_is_status_pst
++      - dbt_utils.expression_is_true:
++          expression: "is_played or (status_short = 'ABD') = (coalesce(unplayed_state, '') = 'abandoned')"
++          name: competition_fixtures_abandoned_is_status_abd
++      - dbt_utils.expression_is_true:
++          expression: "is_played or (status_short = 'CANC') = (coalesce(unplayed_state, '') = 'cancelled')"
++          name: competition_fixtures_cancelled_is_status_canc
++      - dbt_utils.expression_is_true:
++          expression: "coalesce(unplayed_state, '') != 'awaiting_result' or kickoff_datetime <= current_timestamp()"
++          name: competition_fixtures_awaiting_result_has_kicked_off
++      - dbt_utils.expression_is_true:
++          expression: "is_played or kickoff_datetime > timestamp_sub(current_timestamp(), interval 1 day) or unplayed_state is not null"
++          name: competition_fixtures_a_day_past_kick_off_has_a_result_or_a_state
+       - dbt_utils.expression_is_true:
+           expression: "not (result_needs_research and is_played)"
+           name: competition_fixtures_withheld_result_is_not_played
+@@ -2967,6 +2985,11 @@ models:
+           - accepted_values:
+               values: [true, false]
+               quote: false
++      - name: unplayed_state
++        description: "Why a fixture that is not played has no result: postponed, abandoned or cancelled by its provider status; awaiting_result when its kick-off is at or before this build and it is none of those. NULL on a played fixture and on one still to kick off."
++        tests:
++          - accepted_values:
++              values: ["postponed", "abandoned", "cancelled", "awaiting_result"]
+       - name: goals_home
+         description: "{{ doc('goals') }} Here, the home side's, once the fixture is played."
+       - name: goals_away
+diff --git a/docs/design/components.yml b/docs/design/components.yml
+index 38de4fdb..b7e1423d 100644
+--- a/docs/design/components.yml
++++ b/docs/design/components.yml
+@@ -355,6 +355,14 @@ components:
+       count-chip: {class: pill, selector: ".cchip .pill", text: 11-700-pill-ink-caps, breaks: never}
+     wide: "W, D or L on the result colour"
+     short-forms: [wins, draws, losses]
++  status-tag:
++    name: Status tag
++    file: site_v2/src/components/ui/StatusTag.astro
++    used-on: [Home, Matches, Competition matchdays, match page]
++    parts:
++      tag: {class: stag, selector: ".stag", text: 11-700-pill-ink-caps, breaks: never, element: Status tag, rule: "a match not played says why: Postponed, Abandoned, Cancelled or Awaiting result. It stands where the score or kick-off would. On a narrow row it takes the row tag's own line", measured: "font-size=11px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink", ruled-on: "the status display approval; the design standard"}
++    wide: "the status word on the accent mark"
++    never-split: [Awaiting result, Ergebnis ausstehend, Tulosta odotetaan]
+   form:
+     name: Form
+     file: site_v2/src/components/fixture/FormSegment.astro
+@@ -601,8 +609,8 @@ components:
+ rules:
+   Name in whole words: {selector: ".ctab .tm .nm, .fxrow .side .nm, .club .cn, p.bsub.cmp-p, .cmp-p .chart-legend", rule: "a team name wraps only between words; no word splits or runs past the name's space; in the Finnish Player intro and legend the team name stays with the hyphen that joins it to its Finnish compound", measured: whole-words, ruled-on: the narrow-screen fix}
+   Legacy board value: {selector: ".brow .v b", rule: "the legacy Home mocks' boards: the value follows the ordered-by number", measured: "font-size=15px; font-weight=700; color=accent", ruled-on: "#129 binding rules"}
+-  Fitted block: {selector: ".header-in, .ctab, :has(> .frow), .fbar, .selbar, .fxrow:has(.topmatch), .rlist.pm, .rlist:has(.resrow:not(.meet, .goal, .scorer)), .rsplit > .rcol:has(.resrow:not(.meet, .goal, .scorer))", rule: "a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded", measured: fit-marked, ruled-on: the narrow-screen fix}
++  Fitted block: {selector: ".header-in, .ctab, :has(> .frow), .fbar, .selbar, .fxrow:has(.topmatch), .fxrow:has(> .stag), .rlist.pm, .rlist:has(.resrow:not(.meet, .goal, .scorer)), .rsplit > .rcol:has(.resrow:not(.meet, .goal, .scorer))", rule: "a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded", measured: fit-marked, ruled-on: the narrow-screen fix}
+   Row link: {selector: "a.ctab-row, a.fxrow, a.frow, a.brow, a.comp-row", rule: "a row that leads somewhere is one link, the whole row; one hover tint for every row link, ink at 11%; the press tint `sunk`; no underline inside a row", measured: "hover(background-color)=ink@11%; press(background-color)=sunk; text-decoration-line=none", ruled-on: "#129 binding rules; #52; #127 (2026-09-14)"}
+   Prose link: {selector: "p a, .lede a, .sub a, .bnote a", rule: "the one place an underline stays: a link inside running text", measured: "text-decoration-line=underline", ruled-on: "#52"}
+-  Tag: {selector: ".nexttag, .fxrow .topmatch", rule: "Next (on the picker's title) and Top match (on the flagged row, before the kick-off). Each is the small label, 11px bold capitals, on an accent mark with 4px corners. Narrow, a row's tag takes its own line above the home team, left-aligned", measured: "font-size=11px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink", ruled-on: "the competition Matchdays design; the Home design; the narrow-screen fix; the design standard"}
++  Tag: {selector: ".nexttag, .fxrow .topmatch, .stag", rule: "Next (on the picker's title), Top match (on the flagged row, before the kick-off) and a match's status. Each is the small label, 11px bold capitals, on an accent mark with 4px corners. Narrow, a row's tag takes its own line above the home team, left-aligned", measured: "font-size=11px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink", ruled-on: "the competition Matchdays design; the Home design; the narrow-screen fix; the design standard"}
+   Page width: {selector: "body:not(.legacy-width) :is(.header-in, .footer-in)", rule: "the header row and the footer share the content column's one width, 960px; a page awaiting its new design keeps the earlier widths", measured: "max-width=960px", ruled-on: the page width review}
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index f8807a79..1667d5f6 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -143,6 +143,7 @@
+ | Result row parts | `.rm-c, .rm-p, .scorer` | the result row's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Result chip | `.resrow .pill` | one match's W, D or L from a team's side, in the page's language, on the result colour. It is 11px bold with 4px corners and one fixed width, the same chip in every list | `font-size=11px; font-weight=700; color=pill-ink` | ruled | the match page review; the design standard |
+ | Result chip count chip | `.cchip .pill` | the result chip's count chip, in the 11-700-pill-ink-caps text style, never broken | `font-size=11px; font-weight=700; color=pill-ink; text-transform=uppercase; one-line; fits` | ruled | the component registry |
++| Status tag | `.stag` | a match not played says why: Postponed, Abandoned, Cancelled or Awaiting result. It stands where the score or kick-off would. On a narrow row it takes the row tag's own line | `font-size=11px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink` | ruled | the status display approval; the design standard |
+ | Form parts | `.pill.W, .pill.D, .pill.L` | the form's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Player row | `.plrow` | photo / name over position / goals and assists on the right at every width; two lines below 375px when the row is short of room; under 280px the name takes the whole line and the position shares the second line with the numbers; on a line-up, the minutes played | `fits` | ruled | the match page review; the component registry |
+ | Player row name | `.plrow .pname .nm` | 15px regular ink, wrapping, never cut off | `font-size=15px; font-weight=400; color=ink; white-space=normal` | ruled | the match page review |
+@@ -201,10 +202,10 @@
+ | Unbreakable unit parts | `.nb` | the unbreakable unit's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Name in whole words | `.ctab .tm .nm, .fxrow .side .nm, .club .cn, p.bsub.cmp-p, .cmp-p .chart-legend` | a team name wraps only between words; no word splits or runs past the name's space; in the Finnish Player intro and legend the team name stays with the hyphen that joins it to its Finnish compound | `whole-words` | ruled | the narrow-screen fix |
+ | Legacy board value | `.brow .v b` | the legacy Home mocks' boards: the value follows the ordered-by number | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules |
+-| Fitted block | `.header-in, .ctab, :has(> .frow), .fbar, .selbar, .fxrow:has(.topmatch), .rlist.pm, .rlist:has(.resrow:not(.meet, .goal, .scorer)), .rsplit > .rcol:has(.resrow:not(.meet, .goal, .scorer))` | a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded | `fit-marked` | ruled | the narrow-screen fix |
++| Fitted block | `.header-in, .ctab, :has(> .frow), .fbar, .selbar, .fxrow:has(.topmatch), .fxrow:has(> .stag), .rlist.pm, .rlist:has(.resrow:not(.meet, .goal, .scorer)), .rsplit > .rcol:has(.resrow:not(.meet, .goal, .scorer))` | a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded | `fit-marked` | ruled | the narrow-screen fix |
+ | Row link | `a.ctab-row, a.fxrow, a.frow, a.brow, a.comp-row` | a row that leads somewhere is one link, the whole row; one hover tint for every row link, ink at 11%; the press tint `sunk`; no underline inside a row | `hover(background-color)=ink@11%; press(background-color)=sunk; text-decoration-line=none` | ruled | #129 binding rules; #52; #127 (2026-09-14) |
+ | Prose link | `p a, .lede a, .sub a, .bnote a` | the one place an underline stays: a link inside running text | `text-decoration-line=underline` | ruled | #52 |
+-| Tag | `.nexttag, .fxrow .topmatch` | Next (on the picker's title) and Top match (on the flagged row, before the kick-off). Each is the small label, 11px bold capitals, on an accent mark with 4px corners. Narrow, a row's tag takes its own line above the home team, left-aligned | `font-size=11px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink` | ruled | the competition Matchdays design; the Home design; the narrow-screen fix; the design standard |
++| Tag | `.nexttag, .fxrow .topmatch, .stag` | Next (on the picker's title), Top match (on the flagged row, before the kick-off) and a match's status. Each is the small label, 11px bold capitals, on an accent mark with 4px corners. Narrow, a row's tag takes its own line above the home team, left-aligned | `font-size=11px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink` | ruled | the competition Matchdays design; the Home design; the narrow-screen fix; the design standard |
+ | Page width | `body:not(.legacy-width) :is(.header-in, .footer-in)` | the header row and the footer share the content column's one width, 960px; a page awaiting its new design keeps the earlier widths | `max-width=960px` | ruled | the page width review |
+ 
+ Not measured, still the rule: the header is identical on every tab (crest · name · meta line) and
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index 72ce48c7..411b2cc4 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -1016,6 +1016,7 @@ def shape_fixture_payload(fix: dict, home_side: dict, away_side: dict,
+         "slug": fix.get("fixture_slug"),
+         "kickoff": fix.get("kickoff_datetime"),
+         "status": fix.get("status_short"),
++        "unplayed_state": fix.get("unplayed_state"),
+         "league_code": fix.get("league_code"),
+         "league_name": fix.get("league_name"),
+         "season": fix.get("season_api_year"),
+@@ -1275,19 +1276,21 @@ def fetch_player_payloads(client, player_ids: list[int], sample: int = 0) -> tup
+ 
+ 
+ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None = None) -> list[dict]:
+-    """One payload per unplayed fixture, every competition. The match, the matches of each team's
+-    form window and each team's next match are rows of mart_competition_fixtures, the one source of
+-    every list of matches. When `source_counts` is given it receives the number of unplayed
+-    fixtures the warehouse held before any sampling, for the manifest."""
++    """One payload per fixture not played, every competition and season, whatever its status and
++    date: with the played fixtures, every row a Matchdays tab lists. The match, the matches of each
++    team's form window and each team's next match are rows of mart_competition_fixtures, the one
++    source of every list of matches. When `source_counts` is given it receives the number of
++    unplayed fixtures the warehouse held before any sampling, for the manifest."""
+     marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
+     fixtures = _query(client, f"""
+         select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name, round_order,
+                is_next_round,
+-               status_short, venue_name as venue_name_snapshot, home_team_sk, away_team_sk, fixture_slug,
++               status_short, unplayed_state, venue_name as venue_name_snapshot, home_team_sk, away_team_sk,
++               fixture_slug,
+                home_team_name, home_team_slug, home_team_logo_url, home_team_country,
+                away_team_name, away_team_slug, away_team_logo_url, away_team_country
+         from `{marts}.mart_competition_fixtures`
+-        where status_short in ('NS', 'TBD') and fixture_date >= current_date()
++        where not is_played
+     """)
+     fixtures.sort(key=lambda r: r.get("kickoff_datetime") or datetime.max)
+     if source_counts is not None:
+@@ -1832,7 +1835,7 @@ def fetch_player_index(client) -> dict:
+ 
+ _COMPETITION_FIXTURE_COLUMNS = (
+     "fixture_sk, league_code, season_api_year, round_name, round_label_i18n_key, round_number, round_letter, round_order, round_sequence, "
+-    "fixture_order, kickoff_datetime, status_short, is_played, goals_home, goals_away, "
++    "fixture_order, kickoff_datetime, status_short, unplayed_state, is_played, goals_home, goals_away, "
+     "home_team_sk, home_team_name, home_team_slug, home_team_logo_url, "
+     "away_team_sk, away_team_name, away_team_slug, away_team_logo_url, "
+     "fixture_slug, is_next_round, is_match_that_matters"
+@@ -1855,6 +1858,7 @@ def _competition_fixture(r: dict) -> dict:
+         "round_sequence": r.get("round_sequence"),
+         "fixture_order": int(r["fixture_order"]),
+         "status": r.get("status_short"),
++        "unplayed_state": r.get("unplayed_state"),
+         "is_played": bool(r.get("is_played")),
+         "goals_home": r.get("goals_home"),
+         "goals_away": r.get("goals_away"),
+diff --git a/site_v2/scripts/check-built-pages.mjs b/site_v2/scripts/check-built-pages.mjs
+index 903d9d93..71afec62 100644
+--- a/site_v2/scripts/check-built-pages.mjs
++++ b/site_v2/scripts/check-built-pages.mjs
+@@ -11,7 +11,8 @@
+ // 2. On every fixtures page exactly one round is checked on load, and it is the round the
+ //    warehouse flagged next whenever one is flagged; every unplayed row is a link. On every page,
+ //    a row that names its match (`data-fixture`) is a link exactly when that match has a payload,
+-//    and a build with match payloads has at least one such row.
++//    and a build with match payloads has at least one such row. On a full export (the manifest is
++//    present) every row of a fixtures page has a match payload, played or not, whatever its status.
+ // 3. On every Rankings page (at the stats word) every board keeps the board rules: one to five rows,
+ //    every row a link, the boards the payload served and no others, and no zero on a most-first
+ //    board (a zero is not a ranking there; on a fewest-first board it is the top). Nothing on the
+@@ -147,6 +148,17 @@ export function checkMatchRowLinks(html, built, path = "") {
+   return issues;
+ }
+ 
++/** Issues on one fixtures page of a full export: a row whose match has no payload. The committed
++ *  sample carries the payloads of a few played matches only, so main runs this when the export's
++ *  manifest is present. */
++export function checkFixturesPayloads(html, built, path = "") {
++  const issues = [];
++  for (const [, , , id] of matchRows(html)) {
++    if (!built.has(Number(id))) issues.push(`${path}: the row of match ${id} has no match payload`);
++  }
++  return issues;
++}
++
+ const BOARD_RE = {
+   board: /<div class="board">/g,
+   name: /<span class="bt"><span class="nm">([^<]*)<\/span>/,
+@@ -395,6 +407,7 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
+   const expected = expectedBoards(dataDir);
+   const teamRanks = expectedTeamRanks(dataDir);
+   const built = payloadIds(dataDir);
++  const manifest = readManifest(dataDir);
+   for (const { path, html } of readDist(distDir)) {
+     if (MATCH_PAGE.test(path)) matchPages += 1;
+     rowsChecked += matchRows(html).length;
+@@ -402,6 +415,7 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
+     if (FIXTURES_PAGE.test(path)) {
+       fixturesPages += 1;
+       issues.push(...checkFixturesPage(html, path));
++      if (manifest) issues.push(...checkFixturesPayloads(html, built, path));
+     }
+     if (RANKINGS_PAGE.test(path)) {
+       rankingsPages += 1;
+@@ -417,7 +431,6 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
+     }
+   }
+   const payloadFiles = built.size;
+-  const manifest = readManifest(dataDir);
+   issues.push(...checkMatchPageCount({ matchPages, payloadFiles, manifest }));
+   issues.push(...checkTabPagesFound({ fixturesPages, rankingsPages, expected }));
+   issues.push(...checkMatchRowsFound({ matchRows: rowsChecked, payloadFiles }));
+diff --git a/site_v2/scripts/check-built-pages.test.mjs b/site_v2/scripts/check-built-pages.test.mjs
+index de054623..5027dc16 100644
+--- a/site_v2/scripts/check-built-pages.test.mjs
++++ b/site_v2/scripts/check-built-pages.test.mjs
+@@ -9,7 +9,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+ import { tmpdir } from "node:os";
+ import { join } from "node:path";
+ import {
+-  checkFixturesPage, checkMatchPageCount, checkMatchRowLinks, checkMatchRowsFound, checkRankingsPage, boards, isZeroValue,
++  checkFixturesPage, checkFixturesPayloads, checkMatchPageCount, checkMatchRowLinks, checkMatchRowsFound, checkRankingsPage,
++  boards, isZeroValue,
+   main, matchRows, renderedBoards, rounds, checkTabPagesFound, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
+   checkTeamPage, checkTeamRowsFound, teamRankRows, TEAM_PAGE, checkScatterLabels, scatterCharts,
+ } from "./check-built-pages.mjs";
+@@ -200,6 +201,57 @@ test("a row is read wherever data-fixture sits among its attributes", () => {
+   assert.equal(matchRows('<div data-fixture="11"></div><a data-fixture="12" href="/x/"></a><div class="lrow"></div>').length, 2);
+ });
+ 
++test("every row of a fixtures page has a match payload, played or not, whatever its status", () => {
++  const built = new Set([11, 12]);
++  const page = '<a href="/en/x/matches/a/" class="fxrow played" data-fixture="11"></a>'
++    + '<a href="/en/x/matches/b/" class="fxrow" data-fixture="12"></a>';
++  assert.deepEqual(checkFixturesPayloads(page, built, "p"), []);
++  const postponed = '<div class="fxrow" data-fixture="13"><span class="when"><span class="stag">Postponed</span></span></div>';
++  assert.match(checkFixturesPayloads(page + postponed, built, "p")[0], /match 13 has no match payload/);
++  assert.match(checkFixturesPayloads('<div class="fxrow played" data-fixture="14"></div>', built, "p")[0],
++    /match 14 has no match payload/);
++});
++
++// A full export's fixtures page: rows of matches 7 and 8 under one checked round, the manifest present.
++test("main fails a full export whose fixtures page lists a match with no payload, and passes once it has one", (t) => {
++  const root = mkdtempSync(join(tmpdir(), "check-built-pages-"));
++  try {
++    mkdirSync(join(root, "data", "fixtures"), { recursive: true });
++    const manifest = (n) => writeFileSync(join(root, "data", "manifest.json"), JSON.stringify(
++      { counts: { fixture: n }, source_counts: { fixtures_unplayed: n - 1, fixtures_played: 1 } }));
++    const write = (dir, html) => {
++      mkdirSync(join(root, "dist", ...dir), { recursive: true });
++      writeFileSync(join(root, "dist", ...dir, "index.html"), html);
++    };
++    const rows = '<a href="/en/x/matches/m/" class="fxrow played" data-fixture="7"></a>'
++      + '<div class="fxrow" data-fixture="8"><span class="when"><span class="stag">Postponed</span></span></div>';
++    for (const [lang, word] of [["de", "spiele"], ["en", "matches"], ["fi", "ottelut"]]) {
++      write([lang, "x", word], round(1, { checked: true }).replace("<section>", `<section>${rows}`));
++      write([lang, "x", word, "m"], "<html></html>");
++    }
++    writeFileSync(join(root, "data", "fixtures", "7.json"), "{}");
++    manifest(1);
++    const errors = t.mock.method(console, "error", () => {});
++    t.mock.method(console, "log", () => {});
++    assert.equal(main(join(root, "dist"), join(root, "data")), 1);
++    const said = errors.mock.calls.map((c) => c.arguments[0]).join("\n");
++    assert.match(said, /the row of match 8 has no match payload/);
++    assert.match(said, /an unplayed row is not a link/);
++
++    writeFileSync(join(root, "data", "fixtures", "8.json"), "{}");
++    manifest(2);
++    for (const [lang, word] of [["de", "spiele"], ["en", "matches"], ["fi", "ottelut"]]) {
++      write([lang, "x", word], round(1, { checked: true }).replace("<section>",
++        `<section>${rows.replace('<div class="fxrow" data-fixture="8">', `<a href="/${lang}/x/${word}/n/" class="fxrow" data-fixture="8">`).replace("</span></span></div>", "</span></span></a>")}`));
++      write([lang, "x", word, "n"], "<html></html>");
++    }
++    errors.mock.resetCalls();
++    assert.equal(main(join(root, "dist"), join(root, "data")), 0, errors.mock.calls.map((c) => c.arguments[0]).join("\n"));
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
+ test("match payloads with no row naming its match is an issue, not a silent pass", () => {
+   assert.match(checkMatchRowsFound({ matchRows: 0, payloadFiles: 2 })[0], /no row named its match/);
+   assert.deepEqual(checkMatchRowsFound({ matchRows: 5, payloadFiles: 2 }), []);
+diff --git a/site_v2/src/components/fixture/Masthead.astro b/site_v2/src/components/fixture/Masthead.astro
+index 67888825..a1a177ab 100644
+--- a/site_v2/src/components/fixture/Masthead.astro
++++ b/site_v2/src/components/fixture/Masthead.astro
+@@ -6,9 +6,12 @@
+ // A played match shows its status word, the final score where "vs" stands with the winner by weight,
+ // and under 700px each team's goals close its line. After penalties the big score is the shoot-out's
+ // and the score after extra time stands under it; an awarded result says there how it came about.
++// A match not played that has a status (postponed, abandoned, cancelled, awaiting result) shows its
++// status tag in the kick-off line where the time would stand, the one place shown at every width.
+ import Crest from "../ui/Crest.astro";
+ import Chevron from "../ui/Chevron.astro";
+ import GroupHead from "../ui/GroupHead.astro";
++import StatusTag from "../ui/StatusTag.astro";
+ import { formatDate, formatTime, scoreLine, signedInteger } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { t, playedStatusWord } from "../../i18n/strings";
+@@ -29,8 +32,9 @@ interface Props {
+ const { fixture, lang, title, round, compName, compLogo, compSlug, teamHrefs, showStanding } = Astro.props;
+ const { home, away } = fixture;
+ 
++const state = fixture.is_played ? null : (fixture as Fixture).unplayed_state ?? null;
+ const time = fixture.status === "TBD" ? t(lang, "timeOpen") : `${formatTime(fixture.kickoff, lang)} UTC`;
+-const kick = [round, formatDate(fixture.kickoff, lang), time].filter(Boolean);
++const kick = [round, formatDate(fixture.kickoff, lang), state ? null : time].filter(Boolean);
+ const venue = fixture.venue;
+ 
+ const result = fixture.is_played ? fixture.result : null;
+@@ -77,6 +81,7 @@ const sides: { side: Side; href?: string }[] = [
+   <div class="eyebrow">{eyebrow}</div>
+   <div class="kick facts-line">
+     {kick.map((unit) => <span>{unit}</span>)}
++    {state && <span><StatusTag lang={lang} state={state} /></span>}
+     {venue && <span>{venue}</span>}
+   </div>
+   <div class:list={["teams", { played: big }]}>
+diff --git a/site_v2/src/components/ui/MatchRow.astro b/site_v2/src/components/ui/MatchRow.astro
+index f85bf0a1..a274331c 100644
+--- a/site_v2/src/components/ui/MatchRow.astro
++++ b/site_v2/src/components/ui/MatchRow.astro
+@@ -3,7 +3,9 @@
+ // crests; on an unplayed row the kick-off with its zone in the right-hand column, on a played row
+ // the score at the end of each side and no kick-off column (a finished match's start time is not
+ // information). The winner by weight, never by hue. The Top match tag sits before the kick-off on
+-// the one flagged row of the next round, the row otherwise unchanged.
++// the one flagged row of the next round, the row otherwise unchanged. A match that is not played and
++// will not be as scheduled, or whose result is not in, shows its status tag in the kick-off column,
++// or on the row tag's own line above the home team where the names would lose their space.
+ //
+ // A row is a link only when its target exists: a match links to its page when this build makes one,
+ // the preview of an unplayed match or the page of a played one; the markup is the same either way.
+@@ -11,6 +13,7 @@
+ // The kick-off is rendered in UTC with that label until the warehouse serves the venue's clock
+ // and zone (#146); a fixture whose time is not set yet shows the TBC copy in the time slot.
+ import Crest from "./Crest.astro";
++import StatusTag from "./StatusTag.astro";
+ import { formatTime } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { localeHref, word } from "../../lib/href";
+@@ -30,6 +33,7 @@ const { fx, competitionSlug, lang, topMatch = false, nextMatch = false } = Astro
+ 
+ const ZONE = "UTC";
+ const played = fx.is_played && fx.goals_home != null && fx.goals_away != null;
++const state = played ? null : fx.unplayed_state ?? null;
+ const linked = Boolean(competitionSlug && fx.slug) && builtFixtures().has(fx.fixture_id);
+ const href = linked ? localeHref(lang, `${competitionSlug}/${word(lang, "matches")}/${fx.slug}/`) : undefined;
+ const Row = linked ? "a" : "div";
+@@ -51,8 +55,9 @@ const time = fx.status === "TBD" ? t(lang, "timeOpenShort") : formatTime(fx.kick
+       {played && <span class:list={["g", "num", { winner: awayWins }]}>{fx.goals_away}</span>}
+     </span>
+   </span>
+-  {!played && (nextMatch || topMatch) && <span class="topmatch">{t(lang, nextMatch ? "compNextTagMatch" : "compTopMatch")}</span>}
+-  {!played && (
++  {!played && !state && (nextMatch || topMatch) && <span class="topmatch">{t(lang, nextMatch ? "compNextTagMatch" : "compTopMatch")}</span>}
++  {state && <StatusTag lang={lang} state={state} />}
++  {!played && !state && (
+     <span class="when">
+       <b class="t">{time}</b>
+       <span class="rowtz">{ZONE}</span>
+diff --git a/site_v2/src/components/ui/StatusTag.astro b/site_v2/src/components/ui/StatusTag.astro
+new file mode 100644
+index 00000000..0035bcd3
+--- /dev/null
++++ b/site_v2/src/components/ui/StatusTag.astro
+@@ -0,0 +1,23 @@
++---
++// THE status tag: why a match that is not played has no result (postponed, abandoned, cancelled,
++// awaiting result), the warehouse's unplayed_state in the page's language, in the tag form. It
++// stands where the score or the kick-off would: in a match row's kick-off column and in the
++// kick-off line of the match page head.
++import { t } from "../../i18n/strings";
++import type { Lang } from "../../lib/format";
++import type { UnplayedState } from "../../lib/types";
++
++interface Props {
++  lang: Lang;
++  state: UnplayedState;
++}
++const { lang, state } = Astro.props;
++const WORD = {
++  postponed: "statusPostponed",
++  abandoned: "statusAbandoned",
++  cancelled: "statusCancelled",
++  awaiting_result: "statusAwaitingResult",
++} as const;
++---
++
++<span class="stag">{t(lang, WORD[state])}</span>
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index d0d73149..d4c31d01 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -510,6 +510,10 @@ const EN: Dict = {
+   results: "Results",
+   overview: "Overview",
+   compNextTagMatch: "Next",
++  statusPostponed: "Postponed",
++  statusAbandoned: "Abandoned",
++  statusCancelled: "Cancelled",
++  statusAwaitingResult: "Awaiting result",
+ };
+ 
+ const DE: Dict = {
+@@ -942,6 +946,10 @@ const DE: Dict = {
+   results: "Ergebnisse",
+   overview: "Übersicht",
+   compNextTagMatch: "Nächstes",
++  statusPostponed: "Verlegt",
++  statusAbandoned: "Abgebrochen",
++  statusCancelled: "Abgesagt",
++  statusAwaitingResult: "Ergebnis ausstehend",
+ };
+ 
+ const FI: Dict = {
+@@ -1380,6 +1388,10 @@ const FI: Dict = {
+   results: "Tulokset",
+   overview: "Yleiskatsaus",
+   compNextTagMatch: "Seuraava",
++  statusPostponed: "Siirretty",
++  statusAbandoned: "Keskeytetty",
++  statusCancelled: "Peruttu",
++  statusAwaitingResult: "Tulosta odotetaan",
+ };
+ 
+ const STRINGS: Record<Lang, Dict> = { de: DE, en: EN, fi: FI };
+diff --git a/site_v2/src/lib/fitBlocks.mjs b/site_v2/src/lib/fitBlocks.mjs
+index 032f6bff..9e8f270f 100644
+--- a/site_v2/src/lib/fitBlocks.mjs
++++ b/site_v2/src/lib/fitBlocks.mjs
+@@ -128,7 +128,7 @@ function start() {
+     ...[...document.querySelectorAll(".mdstep")].map((b) => [b, "picker"]),
+     ...[...document.querySelectorAll(".ctab")].map((b) => [b, "table"]),
+     ...[...new Set([...document.querySelectorAll(".frow")].map((r) => r.parentElement))].map((b) => [b, "facts"]),
+-    ...[...document.querySelectorAll(".fxrow:has(> .topmatch)")].map((b) => [b, "tagged"]),
++    ...[...document.querySelectorAll(".fxrow:has(> .topmatch), .fxrow:has(> .stag)")].map((b) => [b, "tagged"]),
+     ...[...document.querySelectorAll(".kpis")].map((b) => [b, "cards"]),
+     ...[...document.querySelectorAll(RESULT_LISTS)].map((b) => [b, "rows"]),
+     // the bar before its dropdown row: the row shows only once the bar has taken its narrow form
+diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
+index f4e74690..ff4b92a2 100644
+--- a/site_v2/src/lib/types.ts
++++ b/site_v2/src/lib/types.ts
+@@ -120,6 +120,7 @@ export interface Fixture {
+   slug: string;
+   kickoff?: string | null;
+   status?: string | null;
++  unplayed_state?: UnplayedState | null;
+   league_code: string;
+   league_name?: string | null;
+   season?: number | null;
+@@ -706,6 +707,9 @@ export interface SeasonSummary {
+   longest_winless_teams: TeamRef[];
+ }
+ 
++/** Why a match that is not played has no result (mart_competition_fixtures.unplayed_state). */
++export type UnplayedState = "postponed" | "abandoned" | "cancelled" | "awaiting_result";
++
+ /** One fixture of a competition-season as mart_competition_fixtures serves it: the played flag,
+  *  the score once played, the served slug, and the flag of the one match that matters. */
+ export interface CompetitionFixture {
+@@ -713,6 +717,7 @@ export interface CompetitionFixture {
+   slug: string | null;
+   kickoff: string | null;
+   status: string | null;
++  unplayed_state?: UnplayedState | null;
+   is_played: boolean;
+   goals_home: number | null;
+   goals_away: number | null;
+diff --git a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
+index e6a567ce..c3045ffa 100644
+--- a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
++++ b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
+@@ -78,8 +78,9 @@ const { file, lang, built } = Astro.props;
+ const fixture = JSON.parse(readFileSync(join(process.cwd(), "src/data/fixtures", file), "utf8")) as Fixture | PlayedFixture;
+ const { home, away } = fixture;
+ const played = fixture.is_played === true ? fixture : null;
+-// The next matchday's match gets the full preview; a match further out waits for it.
+-const isNext = !played && fixture.is_next_round !== false;
++// The next matchday's match gets the full preview; a match further out waits for it. A match with a
++// status (postponed, abandoned, cancelled, awaiting result) has no pre-match form left to preview.
++const isNext = !played && !(fixture as Fixture).unplayed_state && fixture.is_next_round !== false;
+ // A match awarded without being played has no goals, players, numbers or line-ups to show.
+ const wasPlayed = played?.result.award_kind !== "not_played";
+ 
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index 3a3b9907..7a892210 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -459,8 +459,9 @@ a.cnm .nm { text-decoration: none; }
+    weight, never by hue — green stays "better value", red stays the Loss pill. */
+ .fxrow .side .g { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+ .fxrow .side .g.winner { color: var(--ink); font-weight: 700; }
+-/* The tag: Next on the picker's title, Top match on the flagged row before the kick-off. One style. */
+-.nexttag, .fxrow .topmatch {
++/* The tag: Next on the picker's title, Top match on the flagged row before the kick-off, a match's
++   status where its kick-off would stand. One style. */
++.nexttag, .fxrow .topmatch, .stag {
+   display: inline-block; padding: 2px 8px; border-radius: 4px; background: var(--accent);
+   color: var(--pill-ink, #fff); font-size: 11px; font-weight: 700; letter-spacing: .04em;
+   text-transform: uppercase; white-space: nowrap;
+@@ -474,6 +475,13 @@ a.cnm .nm { text-decoration: none; }
+ .fxrow.fit-one:has(.topmatch) { grid-template-columns: minmax(0, 1fr) max-content auto; }
+ .fxrow.fit-one .topmatch { grid-column: auto; grid-row: auto; align-self: center; margin-right: 12px; }
+ .fxrow.fit-one:has(.topmatch) > .sides, .fxrow.fit-one:has(.topmatch) > .when { grid-row: auto; }
++/* A status tag stands in the kick-off column while the names keep their space beside it; otherwise,
++   and without the script, it takes the row tag's own line above the home team. */
++.fxrow:has(> .stag) { grid-template-columns: minmax(0, 1fr) auto; row-gap: 8px; }
++.fxrow > .stag { grid-column: 1 / -1; grid-row: 1; justify-self: start; }
++.fxrow:has(> .stag) > .sides { grid-row: 2; }
++.fxrow.fit-one > .stag { grid-column: auto; grid-row: auto; align-self: center; justify-self: end; }
++.fxrow.fit-one:has(> .stag) > .sides { grid-row: auto; }
+ /* THE FOLD (components/ui/Fold.astro) — the revealed rows join the list they continue
+    (`display: contents`, so they also fill a grid's columns), and the control reads as one more row
+    under whatever is shown: "Show all {n}" with the chevron down, "Show less" with it up. */
+diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
+index 586f0f7c..2af14f6f 100644
+--- a/tests/test_export_site_data.py
++++ b/tests/test_export_site_data.py
+@@ -513,6 +513,15 @@ def test_the_competition_fixture_shape_selects_and_carries_the_served_round_name
+     out = export_site_data._competition_fixture(row)
+     assert out["round_label_i18n_key"] == "roundVlChampionshipMatchday"
+     assert out["round_number"] == 23 and out["round_letter"] is None
++    assert out["unplayed_state"] is None
++
++
++def test_a_match_row_carries_the_served_unplayed_state():
++    """The status word a row shows is the warehouse's unplayed_state, passed through unchanged."""
++    assert "unplayed_state" in export_site_data._COMPETITION_FIXTURE_COLUMNS
++    row = {"fixture_sk": 8, "fixture_order": 2, "status_short": "PST", "unplayed_state": "postponed",
++           "is_played": False, "home_team_sk": 1, "away_team_sk": 2}
++    assert export_site_data._competition_fixture(row)["unplayed_state"] == "postponed"
+ 
+ 
+ def test_the_competition_page_meta_selects_the_served_current_round():
+@@ -566,6 +575,9 @@ def test_shape_fixture_payload_composes_header_and_sides():
+     away = _fixture_side(2, {"team_name": "South Africa"}, None, None, None)
+     p = shape_fixture_payload(fix, home, away, {"total_meetings": 3, "wins": 2})
+     assert p["type"] == "fixture" and p["fixture_id"] == 7
++    assert p["unplayed_state"] is None
++    assert shape_fixture_payload({**fix, "status_short": "CANC", "unplayed_state": "cancelled"},
++                                 home, away, None)["unplayed_state"] == "cancelled"
+     assert p["slug"] == "2026-06-11-mexico-vs-south-africa", "the served fixture_slug, never built here"
+     assert p["league_name"] == "World Cup" and p["round"] == "Group Stage - 1"
+     assert p["home"]["team_id"] == 1 and p["away"]["team_id"] == 2
+@@ -613,7 +625,7 @@ def test_fixture_payloads_read_the_match_and_each_teams_next_match_from_the_mart
+ 
+     def fake_query(client, sql):
+         captured.append(sql)
+-        if "mart_competition_fixtures" in sql and "status_short in" in sql:
++        if "mart_competition_fixtures" in sql and "where not is_played" in sql:
+             return [{**page, "home_team_country": "Germany", "away_team_country": "Germany"}]
+         if "mart_competition_fixtures" in sql and "next_match" in sql:
+             return [team1_next, page]
+@@ -625,6 +637,10 @@ def test_fixture_payloads_read_the_match_and_each_teams_next_match_from_the_mart
+     (p,) = export_site_data.fetch_fixture_payloads(object())
+ 
+     assert not any(".core." in s for s in captured), "every read is a mart"
++    (page_sql,) = [s for s in captured if "where not is_played" in s]
++    assert "status_short in" not in page_sql and "current_date" not in page_sql, \
++        "every fixture not played, whatever its status and date: the Matchdays rows' set"
++    assert "unplayed_state" in page_sql
+     assert p["venue"] == "Arena 20" and p["league_name"] == "Bundesliga" and p["slug"] == "slug-20"
+     assert p["home"]["name"] == "T1" and p["home"]["crest"] == "c1" and p["home"]["country"] == "Germany"
+     assert p["is_next_round"] is False, "the served flag says which page this fixture gets"
+@@ -639,7 +655,7 @@ def test_fixture_payloads_carry_the_served_window_round_slugs_and_season_players
+     keys = {"upcoming_fixture_sk": 20, "is_home": True}
+ 
+     def fake_query(client, sql):
+-        if "mart_competition_fixtures" in sql and "status_short in" in sql:
++        if "mart_competition_fixtures" in sql and "where not is_played" in sql:
+             return [page]
+         if "mart_team_window_metrics`" in sql:
+             form_keys = {"fixture_sk": 20, "is_home": True}
+
+# ============================================================================
+# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
+# ============================================================================
+# The files below changed and are DELIBERATELY excluded from the diff body:
+# they are generated/sample data, and pasting them has measured at ~89% of the
+# review payload. They are still reviewed content and still bind your verdict.
+#
+# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
+# particular: whether a field displayed by a component actually EXISTS in the
+# exported sample is checked by opening these files, not by reading a diff.
+#
+#   site_v2/src/data/README.md | 6 +++---
+#    1 file changed, 3 insertions(+), 3 deletions(-)
+# ============================================================================
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../task/294-status-pages/acceptance_evidence.md   | 60 ++++++++++++++++++++++
+#    .../294-status-pages/rendered_page_evidence.md     | 56 ++++++++++++++++++++
+#    2 files changed, 116 insertions(+)
+# ============================================================================

@@ -41,8 +41,8 @@ their peer files.
   export, and regenerate the `.gitignore` patterns. The **11** played fixtures are the played
   match page's samples and are not part of that refresh.
   ⛔ **A PAST FIXTURE CAN NEVER BE RE-EXPORTED, so this set is REPLACED and never appended to**.
-  `fetch_fixture_payloads` selects `status_short in ('NS', 'TBD') and fixture_date >=
-  current_date()`. Once a match kicks off, its pre-match form rows leave
+  `fetch_fixture_payloads` selects every fixture `not is_played`, whatever its status and date.
+  Once a match kicks off, its pre-match form rows leave
   `mart_team_window_metrics` and `mart_team_season_record` altogether. A stale id left in the
   allowlist therefore
   pins a payload that no rerun can ever update — which is exactly how the previous set came to
@@ -99,7 +99,7 @@ update the `.gitignore` allowlist and the committed files to match it, in the sa
 
 ⛔ **AND THERE IS NO OTHER KIND OF FIXTURE REFRESH — this is the trap that cost a merge request**.
 Rerunning the export does NOT update the committed payloads in place. `fetch_fixture_payloads`
-emits upcoming fixtures only. A kicked-off fixture's pre-match form rows are gone from
+writes the warehouse's state on the day it runs. A kicked-off fixture's pre-match form rows are gone from
 `mart_team_window_metrics` and `mart_team_season_record`. So a rerun writes thousands of new
 payloads and silently leaves every committed one
 exactly as it was. On 2026-08-28 that is precisely what happened: the export exited 0, reported

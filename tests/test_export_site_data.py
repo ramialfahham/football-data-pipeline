@@ -513,6 +513,15 @@ def test_the_competition_fixture_shape_selects_and_carries_the_served_round_name
     out = export_site_data._competition_fixture(row)
     assert out["round_label_i18n_key"] == "roundVlChampionshipMatchday"
     assert out["round_number"] == 23 and out["round_letter"] is None
+    assert out["unplayed_state"] is None
+
+
+def test_a_match_row_carries_the_served_unplayed_state():
+    """The status word a row shows is the warehouse's unplayed_state, passed through unchanged."""
+    assert "unplayed_state" in export_site_data._COMPETITION_FIXTURE_COLUMNS
+    row = {"fixture_sk": 8, "fixture_order": 2, "status_short": "PST", "unplayed_state": "postponed",
+           "is_played": False, "home_team_sk": 1, "away_team_sk": 2}
+    assert export_site_data._competition_fixture(row)["unplayed_state"] == "postponed"
 
 
 def test_the_competition_page_meta_selects_the_served_current_round():
@@ -566,6 +575,9 @@ def test_shape_fixture_payload_composes_header_and_sides():
     away = _fixture_side(2, {"team_name": "South Africa"}, None, None, None)
     p = shape_fixture_payload(fix, home, away, {"total_meetings": 3, "wins": 2})
     assert p["type"] == "fixture" and p["fixture_id"] == 7
+    assert p["unplayed_state"] is None
+    assert shape_fixture_payload({**fix, "status_short": "CANC", "unplayed_state": "cancelled"},
+                                 home, away, None)["unplayed_state"] == "cancelled"
     assert p["slug"] == "2026-06-11-mexico-vs-south-africa", "the served fixture_slug, never built here"
     assert p["league_name"] == "World Cup" and p["round"] == "Group Stage - 1"
     assert p["home"]["team_id"] == 1 and p["away"]["team_id"] == 2
@@ -613,7 +625,7 @@ def test_fixture_payloads_read_the_match_and_each_teams_next_match_from_the_mart
 
     def fake_query(client, sql):
         captured.append(sql)
-        if "mart_competition_fixtures" in sql and "status_short in" in sql:
+        if "mart_competition_fixtures" in sql and "where not is_played" in sql:
             return [{**page, "home_team_country": "Germany", "away_team_country": "Germany"}]
         if "mart_competition_fixtures" in sql and "next_match" in sql:
             return [team1_next, page]
@@ -625,6 +637,10 @@ def test_fixture_payloads_read_the_match_and_each_teams_next_match_from_the_mart
     (p,) = export_site_data.fetch_fixture_payloads(object())
 
     assert not any(".core." in s for s in captured), "every read is a mart"
+    (page_sql,) = [s for s in captured if "where not is_played" in s]
+    assert "status_short in" not in page_sql and "current_date" not in page_sql, \
+        "every fixture not played, whatever its status and date: the Matchdays rows' set"
+    assert "unplayed_state" in page_sql
     assert p["venue"] == "Arena 20" and p["league_name"] == "Bundesliga" and p["slug"] == "slug-20"
     assert p["home"]["name"] == "T1" and p["home"]["crest"] == "c1" and p["home"]["country"] == "Germany"
     assert p["is_next_round"] is False, "the served flag says which page this fixture gets"
@@ -639,7 +655,7 @@ def test_fixture_payloads_carry_the_served_window_round_slugs_and_season_players
     keys = {"upcoming_fixture_sk": 20, "is_home": True}
 
     def fake_query(client, sql):
-        if "mart_competition_fixtures" in sql and "status_short in" in sql:
+        if "mart_competition_fixtures" in sql and "where not is_played" in sql:
             return [page]
         if "mart_team_window_metrics`" in sql:
             form_keys = {"fixture_sk": 20, "is_home": True}
