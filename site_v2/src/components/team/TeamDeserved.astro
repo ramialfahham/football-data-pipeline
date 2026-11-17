@@ -77,7 +77,8 @@ function chart(W: number, H: number, L: number) {
   const stackH = 5 * labelChar;
   const above = cl >= cy ? cy - stackH >= T : cy + stackH > H - B;
   const toRight = (side: boolean) => (side ? offset.beside : `-${offset.beside}`);
-  const under = beside && right && cx - (gapText.length + 1) * labelChar < L;
+  const gapW = (gapText.length + 1) * labelChar;
+  const under = beside && (right ? cx - gapW < L : cx + gapW > W - R);
   const sx0 = Math.min(Math.max(cx, L + nameW / 2), W - R - nameW / 2);
   const stack = (near: boolean) => (above ? `-${near ? offset.stackNear : offset.stackFar}` : near ? offset.stackNear : offset.stackFar);
   return {

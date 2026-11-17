@@ -13,7 +13,7 @@ export const scatter = {
   tick: 4,
   yTitleX: 15,
   // A label character's width, generous so a label moves before it meets the axis.
-  labelChar: 7.7,
+  labelChar: 8.4,
 };
 
 export const offset = {
