@@ -53,14 +53,7 @@ function detail(g: PlayedGoal): string[] {
                   <span class="club"><Crest name={side.name} crest={side.crest} size="xs" /><span class="cn">{g.player_name ?? DASH}</span></span>
                 </span>
                 {detail(g).length > 0 && (
-                  <span class="rmeta">
-                    {detail(g).map((part, i) => (
-                      <>
-                        {i > 0 && " · "}
-                        <span class="nb">{part}</span>
-                      </>
-                    ))}
-                  </span>
+                  <span class="rmeta">{detail(g).join(", ")}</span>
                 )}
               </div>
             </div>

@@ -50,7 +50,7 @@ const EN: Dict = {
   compIn: "in {competition}",
   compInMasculine: "in {competition}",
   table: "Table",
-  aboutNoH2h: "{home} vs {away} · {round}.",
+  aboutNoH2h: "{home} vs {away}, {round}.",
   posF: "Forward", posM: "Midfielder", posD: "Defender", posG: "Goalkeeper",
   posDM: "Defensive midfielder", posCM: "Central midfielder", posAM: "Attacking midfielder",
   // --- team page (Overview) ---
@@ -187,11 +187,11 @@ const EN: Dict = {
   homeTopTeams: "Top teams",
   // ⭐ APPROVED COPY (#41), the second half dictated verbatim in all three locales. Nothing here
   // is a draft and nothing is awaiting sign-off.
-  //   · "in the rankings" says WHERE the pick comes from; no draft had it.
-  //   · "leader" is still deliberately absent: "Player leaders / Team leaders" was turned down as
+  //   - "in the rankings" says WHERE the pick comes from; no draft had it.
+  //   - "leader" is still deliberately absent: "Player leaders / Team leaders" was turned down as
   //     the block name because "leader" collides with captaincy in football and translates
   //     awkwardly, and the spec records the objection applying to this sentence too.
-  //   · The sentence sits above all four boards, so it names no metric.
+  //   - The sentence sits above all four boards, so it names no metric.
   // ⛔ A comment here once said the opposite — it called the value below a wireframe draft still
   // awaiting approval while it was the approved wording, and it justified a "Season to date"
   // wording already rejected. Unapproved copy LOOKING approved and approved copy looking
@@ -337,16 +337,16 @@ const EN: Dict = {
   compFactMatchday: "Matchday {n}",
   roundMatchweek: "Matchweek {n}",
   roundWeek: "Week {n}",
-  roundAperturaMatchday: "Apertura · Matchday {n}",
-  roundClausuraMatchday: "Clausura · Matchday {n}",
-  roundGroupStageMatchday: "Group stage · Matchday {n}",
-  roundWcGroupMatchday: "Group stage · Matchday {n}",
-  roundQualGroupMatchday: "Group stage · Matchday {n}",
-  roundOcSecondRoundMatchday: "Second round · Matchday {n}",
-  roundGroupMatchday: "Group {g} · Matchday {n}",
-  roundLeaguePhaseMatchday: "League phase · Matchday {n}",
-  roundLeagueStageMatchday: "League Stage · Matchday {n}",
-  roundNationsLeagueMatchday: "League {g} · Matchday {n}",
+  roundAperturaMatchday: "Apertura, Matchday {n}",
+  roundClausuraMatchday: "Clausura, Matchday {n}",
+  roundGroupStageMatchday: "Group stage, Matchday {n}",
+  roundWcGroupMatchday: "Group stage, Matchday {n}",
+  roundQualGroupMatchday: "Group stage, Matchday {n}",
+  roundOcSecondRoundMatchday: "Second round, Matchday {n}",
+  roundGroupMatchday: "Group {g}, Matchday {n}",
+  roundLeaguePhaseMatchday: "League phase, Matchday {n}",
+  roundLeagueStageMatchday: "League Stage, Matchday {n}",
+  roundNationsLeagueMatchday: "League {g}, Matchday {n}",
   roundOf32: "Round of 32",
   roundWcOf32: "Round of 32",
   roundOf16: "Round of 16",
@@ -383,8 +383,8 @@ const EN: Dict = {
   roundFirstRound: "First round",
   roundSecondRound: "Second round",
   roundPreliminaryRound: "Preliminary round",
-  roundPreliminarySemiFinals: "Preliminary round · Semi-finals",
-  roundPreliminaryFinal: "Preliminary round · Final",
+  roundPreliminarySemiFinals: "Preliminary round, Semi-finals",
+  roundPreliminaryFinal: "Preliminary round, Final",
   roundSeventhRound: "Seventh round",
   roundEighthRound: "Eighth round",
   roundFaQualifying1: "First Round Qualifying",
@@ -397,14 +397,14 @@ const EN: Dict = {
   roundFaQualifying4Replay: "Fourth Round Qualifying Replay",
   roundFaFirstRoundProper: "First Round Proper",
   roundQualFirstRound: "First round",
-  roundAsSecondRoundGroupMatchday: "Second round · Group {g} · Matchday {n}",
-  roundAsThirdRoundMatchday: "Third round · Matchday {n}",
-  roundAsPlayoffsMatchday: "Play-offs · Matchday {n}",
+  roundAsSecondRoundGroupMatchday: "Second round, Group {g}, Matchday {n}",
+  roundAsThirdRoundMatchday: "Third round, Matchday {n}",
+  roundAsPlayoffsMatchday: "Play-offs, Matchday {n}",
   roundCaFirstRound: "First Round",
-  roundCaSecondRoundMatchday: "Second Round · Matchday {n}",
-  roundCaFinalRoundMatchday: "Final Round · Matchday {n}",
-  roundVlChampionshipMatchday: "Championship group · Matchday {n}",
-  roundVlRelegationMatchday: "Relegation group · Matchday {n}",
+  roundCaSecondRoundMatchday: "Second Round, Matchday {n}",
+  roundCaFinalRoundMatchday: "Final Round, Matchday {n}",
+  roundVlChampionshipMatchday: "Championship group, Matchday {n}",
+  roundVlRelegationMatchday: "Relegation group, Matchday {n}",
   roundVlRelegationPlayoff: "Relegation play-off",
   playedFullTime: "Full time",
   playedAfterExtraTime: "After extra time",
@@ -543,7 +543,7 @@ const DE: Dict = {
   playersIntro: "Die besten Spieler jeder Mannschaft {in} in dieser Saison, nach Scorerpunkten.",
   playersIntroPrev: "Die besten Spieler jeder Mannschaft {in} nach Scorerpunkten; vor dem ersten Spiel dort aus der Vorsaison.",
   table: "Tabelle",
-  aboutNoH2h: "{home} gegen {away} · {round}.",
+  aboutNoH2h: "{home} gegen {away}, {round}.",
   posF: "Stürmer", posM: "Mittelfeldspieler", posD: "Verteidiger", posG: "Torhüter",
   posDM: "Defensiver Mittelfeldspieler", posCM: "Zentraler Mittelfeldspieler", posAM: "Offensiver Mittelfeldspieler",
   // --- team page (Overview) ---
@@ -990,7 +990,7 @@ const FI: Dict = {
   // ⚠ RESIDUAL: this now differs from the EN string only by the full stop after "vs". The audit's
   // byte-identical check passes, but only just, and passing it is not the same as being localised.
   // A real Finnish description is copy, so it is the product owner's call (§10), not a quiet fix.
-  aboutNoH2h: "Ottelu {home} vs {away} · {round}.",
+  aboutNoH2h: "Ottelu {home} vs {away}, {round}.",
   posF: "Hyökkääjä", posM: "Keskikenttäpelaaja", posD: "Puolustaja", posG: "Maalivahti",
   posDM: "Puolustava keskikenttäpelaaja", posCM: "Keskikentän keskustan pelaaja", posAM: "Hyökkäävä keskikenttäpelaaja",
   // --- team page (Overview) ---

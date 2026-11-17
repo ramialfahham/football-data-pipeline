@@ -1,5 +1,5 @@
 ---
-// One Players to watch row, the player row: photo · name over position · goals and assists (a
+// One Players to watch row, the player row: photo / name over position / goals and assists (a
 // goalkeeper's saves). A count the warehouse leaves blank shows as a dash. The row links to the
 // player's page when this build makes one.
 import { DASH, integer } from "../../lib/format";
@@ -38,13 +38,13 @@ const Row = slug ? "a" : "div";
       <span class="nm">{player.player_name}</span>
       <span class="ps">{positionLabel(lang, player.position_code)}</span>
     </span>
-    <span class="pstat">
+    <span class="pstat facts-line">
       {isGK ? (
         <span class="nb"><b>{count(player.saves_player)}</b> {word(player.saves_player, "savesOne", "savesMany")}</span>
       ) : (
         <>
-          <span class="nb"><b>{count(player.goals_total)}</b> {word(player.goals_total, "goalsOne", "goalsMany")}</span>{" "}
-          <span class="nb">· <b>{count(player.goals_assists)}</b> {word(player.goals_assists, "assistsOne", "assistsMany")}</span>
+          <span class="nb"><b>{count(player.goals_total)}</b> {word(player.goals_total, "goalsOne", "goalsMany")}</span>
+          <span class="nb"><b>{count(player.goals_assists)}</b> {word(player.goals_assists, "assistsOne", "assistsMany")}</span>
         </>
       )}
     </span>

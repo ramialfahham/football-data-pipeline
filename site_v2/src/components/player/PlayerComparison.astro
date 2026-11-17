@@ -34,7 +34,7 @@ const isGoalkeeper = positionGroup === "GK";
 const prefix = tab.tab === "club" ? "club" : "national";
 const selfIn = (group: string | null) => {
   const text = positionWord(lang, "One", group);
-  return text ? `${name} · ${text.charAt(0).toLocaleUpperCase(lang)}${text.slice(1)}` : name;
+  return text ? `${name}, ${text.charAt(0).toLocaleUpperCase(lang)}${text.slice(1)}` : name;
 };
 const teamName = tab.squad?.team?.name ?? "";
 

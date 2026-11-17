@@ -1,6 +1,6 @@
 ---
-// The match header: the competition's group head (a heading link), the kick-off line (round · date ·
-// time UTC · venue, each unit whole when the line wraps), and the two teams, each one link to its team
+// The match header: the competition's group head (a heading link), the kick-off line (round / date /
+// time UTC / venue, each unit whole when the line wraps), and the two teams, each one link to its team
 // page when that page is built, with the standing chip only on the next match and when the table
 // position is served: today's table is not the position going into a match further out.
 // A played match shows its status word, the final score where "vs" stands with the winner by weight,
@@ -86,14 +86,9 @@ const sides: { side: Side; href?: string }[] = [
   </div>
   <h1 class="vh">{title}</h1>
   <div class="eyebrow">{eyebrow}</div>
-  <div class="kick">
-    {kick.map((unit, i) => (
-      <>
-        {i > 0 && " · "}
-        <span class="nb">{unit}</span>
-      </>
-    ))}
-    {venue && <>{kick.length > 0 && " · "}{venue}</>}
+  <div class="kick facts-line">
+    {kick.map((unit) => <span>{unit}</span>)}
+    {venue && <span>{venue}</span>}
   </div>
   <div class:list={["teams", { played: big }]}>
     {sides.map(({ side, href }, i) => {
@@ -122,9 +117,9 @@ const sides: { side: Side; href?: string }[] = [
               </span>
             </span>
             {showStanding && st?.league_rank != null && (
-              <div class="stand num">
-                <span class="nb">#<b>{st.league_rank}</b></span> ·{" "}
-                <span class="nb"><b>{st.standing_points}</b> {t(lang, st.standing_points === 1 ? "pointsOne" : "pointsMany")}</span> ·{" "}
+              <div class="stand num facts-line">
+                <span class="nb">#<b>{st.league_rank}</b></span>
+                <span class="nb"><b>{st.standing_points}</b> {t(lang, st.standing_points === 1 ? "pointsOne" : "pointsMany")}</span>
                 <span class="nb">
                   {t(lang, "goalDifferenceShort")} <b>{signedInteger(st.standing_goals_diff, lang)}</b>
                 </span>

@@ -1,4 +1,4 @@
-"""Measures the phone rules on the built site at 260-768px in EN, DE and FI: tap areas, separator dots, square linked rows and no sideways scroll.
+"""Measures the phone rules on the built site at 260-768px in EN, DE and FI: tap areas, square linked rows and no sideways scroll.
 
 Needs `site_v2/dist` and Playwright's Chromium (the validate:ui image); skipped without them.
 """
@@ -57,7 +57,7 @@ TAPS = """
     }
     const p = e.closest('p, li, div');
     const inText = e.tagName === 'A' && getComputedStyle(e).display === 'inline' && p && p !== e.parentElement
-      && [...p.childNodes].filter((n) => n !== e).map((n) => n.textContent).join('').replace(/[\\s·›]+/g, '').length > 8;
+      && [...p.childNodes].filter((n) => n !== e).map((n) => n.textContent).join('').replace(/[\\s›]+/g, '').length > 8;
     if (inText) continue;
     const icon = e.classList.contains('iconbtn');
     if (h < 43.5 || (w < 43.5 && !(icon && innerWidth <= %d && w >= 33.5))) out.push(`${e.tagName}.${[...e.classList].join('.')} ${Math.round(w)}x${Math.round(h)} ${(e.textContent || '').trim().slice(0, 20)}`);
@@ -65,54 +65,6 @@ TAPS = """
   return out;
 }
 """ % HEADER_ICON_NARROW
-
-DOTS = """
-() => {
-  const bad = [];
-  const shown = (el) => el.getClientRects().length > 0;
-  for (const d of document.querySelectorAll('[data-dot]')) {
-    if (d.hidden) {
-      d.hidden = false;
-      const r = d.getClientRects()[0];
-      let host = d.parentElement;
-      while (host.parentElement && ['inline', 'inline-block', 'contents'].includes(getComputedStyle(host).display)) host = host.parentElement;
-      const w = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
-      w.currentNode = d;
-      let before = null;
-      for (let n = w.previousNode(); n && !before; n = w.previousNode()) {
-        if (!n.textContent.trim() || n.parentElement.closest('[data-dot]') || !n.parentElement.getClientRects().length) continue;
-        const range = document.createRange();
-        range.selectNodeContents(n);
-        const rs = range.getClientRects();
-        if (rs.length) before = rs[rs.length - 1];
-      }
-      if (r && before && r.top < before.bottom - 1) bad.push('hidden but on the line of the text before it: ' + host.textContent.trim().slice(0, 50));
-      d.hidden = true;
-      continue;
-    }
-    if (!shown(d)) continue;
-    const rect = d.getClientRects()[0];
-    let host = d.parentElement;
-    while (host.parentElement && ['inline', 'inline-block', 'contents'].includes(getComputedStyle(host).display)) host = host.parentElement;
-    const walk = (dir) => {
-      const w = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
-      w.currentNode = d;
-      for (let n = dir > 0 ? w.nextNode() : w.previousNode(); n; n = dir > 0 ? w.nextNode() : w.previousNode()) {
-        if (!n.textContent.trim() || n.parentElement.closest('[data-dot]') || !shown(n.parentElement)) continue;
-        const r = document.createRange();
-        r.selectNodeContents(n);
-        const rs = r.getClientRects();
-        if (rs.length) return dir > 0 ? rs[0] : rs[rs.length - 1];
-      }
-      return null;
-    };
-    const before = walk(-1), after = walk(1);
-    if (!before || rect.top >= before.bottom - 1) bad.push('starts a line: ' + host.textContent.trim().slice(0, 50));
-    else if (after && after.top >= rect.bottom - 1) bad.push('ends a line: ' + host.textContent.trim().slice(0, 50));
-  }
-  return bad;
-}
-"""
 
 ROWS = """
 () => [...document.querySelectorAll('a.fxrow, a.ctab-row, a.frow, a.lrow, a.brow, a.comp-row')]
@@ -145,8 +97,8 @@ def browser():
 
 @pytest.fixture(scope="module")
 def measured(browser, site) -> dict[str, list[str]]:
-    """Each page loaded once per width, measured by every rule; DOTS last, as it un-hides a dot for a moment."""
-    found: dict[str, list[str]] = {"scroll": [], "taps": [], "rows": [], "dots": []}
+    """Each page loaded once per width, measured by every rule."""
+    found: dict[str, list[str]] = {"scroll": [], "taps": [], "rows": []}
     for width in WIDTHS:
         page = browser.new_context(viewport={"width": width, "height": 900}).new_page()
         for url in _pages():
@@ -154,7 +106,7 @@ def measured(browser, site) -> dict[str, list[str]]:
             page.wait_for_timeout(200)
             if width != WIDTHS[0] and page.evaluate("document.documentElement.scrollWidth > innerWidth"):
                 found["scroll"].append(f"{width}px {url}")
-            for key, script in (("taps", TAPS), ("rows", ROWS), ("dots", DOTS)):
+            for key, script in (("taps", TAPS), ("rows", ROWS)):
                 found[key] += [f"{width}px {url} {item}" for item in page.evaluate(script)]
         page.close()
     return found
@@ -179,10 +131,6 @@ def test_no_page_scrolls_sideways(measured):
 
 def test_every_link_and_button_has_a_44px_tap_area(measured):
     assert measured["taps"] == []
-
-
-def test_no_separator_dot_starts_or_ends_a_line(measured):
-    assert measured["dots"] == []
 
 
 def test_linked_rows_are_square_and_do_not_stick_out(measured):

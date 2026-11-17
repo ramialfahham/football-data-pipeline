@@ -1,6 +1,6 @@
 ---
-// One row of the Players page and a nation page, the player row without numbers: photo · name over
-// position · club. It links to the player's page when this build makes one. `view`, `slot` and
+// One row of the Players page and a nation page, the player row without numbers: photo / name over
+// position / club. It links to the player's page when this build makes one. `view`, `slot` and
 // `region` mark the views it shows in, for the stylesheet's position and region filters.
 import { positionLabel } from "../../i18n/strings";
 import { builtPlayers } from "../../lib/builtPlayers.mjs";
@@ -25,7 +25,7 @@ const initials = (player.name ?? "")
   .toUpperCase();
 const code = codeOf(player.position_group);
 const position = player.position_role ?? code;
-const line = [position ? positionLabel(lang, position) : null, player.club].filter(Boolean).join(" · ");
+const line = [position ? positionLabel(lang, position) : null, player.club].filter(Boolean);
 const built = builtPlayers().has(player.player_id);
 const Row = built ? "a" : "div";
 ---
@@ -43,7 +43,7 @@ const Row = built ? "a" : "div";
     </span>
     <span class="pname">
       <span class="nm">{player.name}</span>
-      <span class="ps">{line}</span>
+      <span class="ps facts-line">{line.map((s) => <span>{s}</span>)}</span>
     </span>
   </div>
 </Row>

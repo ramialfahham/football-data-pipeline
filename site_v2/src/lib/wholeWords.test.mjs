@@ -25,15 +25,8 @@ test("only a hyphen between two letters joins a word", () => {
   assert.equal(keepHyphenWords(html), html);
 });
 
-test("a middle dot between items is one no-break unit with the space after it", () => {
-  const out = keepHyphenWords(page("<p>Paris · 2026/27&nbsp;· Cup <b>x</b> · <i>y</i></p>"));
-  const dot = '<span class="nb" data-dot>·&nbsp;</span>';
-  assert.equal(bodyOf(out), `<p>Paris ${dot}2026/27 ${dot}Cup <b>x</b> ${dot}<i>y</i></p>`);
-});
-
-test("a dot at the start of an element's text keeps no space before it, and a page is changed once", () => {
-  const out = keepHyphenWords(page('<span class="nb">·&nbsp;Sun</span>'));
-  assert.equal(bodyOf(out), '<span class="nb"><span class="nb" data-dot>·&nbsp;</span>Sun</span>');
+test("a page is changed once", () => {
+  const out = keepHyphenWords(page("<p>Al-Nassr</p>"));
   assert.equal(keepHyphenWords(out), out);
 });
 

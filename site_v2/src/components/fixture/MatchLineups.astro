@@ -1,5 +1,5 @@
 ---
-// Line-ups: each team's eleven in the served order under "{team} · {formation}", then
+// Line-ups: each team's eleven in the served order under "{team} / {formation}", then
 // "Substitutes": the players who came on, in the order they came on. The player row carries the
 // position with "off 73'" or "on 73' for {player}" on its second line and the minutes on the right.
 // The two columns sit side by side from 560px, their rows level. Without a line-up the heading says
@@ -19,13 +19,12 @@ const sides = [fixture.home, fixture.away];
 const shown = (fixture.lineup_state === "confirmed" || fixture.lineup_state === "researched")
   && sides.some((s) => s.lineup.length > 0);
 
-const head = (side: PlayedSide) => (side.formation ? `${side.name} · ${side.formation}` : side.name ?? "");
-function second(p: LineupPlayer): string {
+function second(p: LineupPlayer): string[] {
   const position = positionLabel(lang, p.position_code);
   const change = p.is_starter
     ? p.minute_off != null ? t(lang, "lineupOff", { minute: matchMinute(p.minute_off, p.minute_off_extra) }) : ""
     : t(lang, "lineupOn", { minute: matchMinute(p.minute_on, p.minute_on_extra), player: p.replaced_player_name ?? DASH });
-  return [position, change].filter(Boolean).join(" · ");
+  return [position, change].filter(Boolean);
 }
 const initials = (name: string | null | undefined) =>
   (name ?? "").split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase();
@@ -37,7 +36,7 @@ const initials = (name: string | null | undefined) =>
     <div class="rsplit sheets">
       {sides.map((side) => (
         <div class="rcol">
-          <div class="colhead">{head(side)}</div>
+          <div class="colhead">{side.name ?? ""}{side.formation && <span class="ps">{side.formation}</span>}</div>
           {side.lineup.map((p, i) => {
             return (
               <>
@@ -51,7 +50,7 @@ const initials = (name: string | null | undefined) =>
                     </span>
                     <span class="pname">
                       <span class="nm">{p.name ?? DASH}</span>
-                      <span class="ps">{second(p)}</span>
+                      <span class="ps facts-line">{second(p).map((s) => <span>{s}</span>)}</span>
                     </span>
                     <span class="pstat">
                       {p.minutes != null && <span class="nb"><b>{integer(p.minutes, lang)}</b> {t(lang, "minutesShort")}</span>}
