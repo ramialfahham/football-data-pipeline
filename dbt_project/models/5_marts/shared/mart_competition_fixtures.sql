@@ -502,6 +502,13 @@ select
     safe_cast(regexp_extract(f.round_name, r'(\d+)$') as int64) as round_order,
     p.fixture_sk is not null as is_played,
     case
+        when p.fixture_sk is not null then null
+        when f.status_short = 'PST' then 'postponed'
+        when f.status_short = 'ABD' then 'abandoned'
+        when f.status_short = 'CANC' then 'cancelled'
+        when f.kickoff_datetime <= current_timestamp() then 'awaiting_result'
+    end as unplayed_state,
+    case
         when h.team_slug is not null and a.team_slug is not null
             then concat(
                 format_date('%Y-%m-%d', f.fixture_date), '-', h.team_slug, '-vs-', a.team_slug

@@ -128,7 +128,7 @@ function start() {
     ...[...document.querySelectorAll(".mdstep")].map((b) => [b, "picker"]),
     ...[...document.querySelectorAll(".ctab")].map((b) => [b, "table"]),
     ...[...new Set([...document.querySelectorAll(".frow")].map((r) => r.parentElement))].map((b) => [b, "facts"]),
-    ...[...document.querySelectorAll(".fxrow:has(> .topmatch)")].map((b) => [b, "tagged"]),
+    ...[...document.querySelectorAll(".fxrow:has(> .topmatch), .fxrow:has(> .stag)")].map((b) => [b, "tagged"]),
     ...[...document.querySelectorAll(".kpis")].map((b) => [b, "cards"]),
     ...[...document.querySelectorAll(RESULT_LISTS)].map((b) => [b, "rows"]),
     // the bar before its dropdown row: the row shows only once the bar has taken its narrow form

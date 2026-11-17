@@ -361,6 +361,14 @@ components:
       count-chip: {class: pill, selector: ".cchip .pill", text: 11-700-pill-ink-caps, breaks: never}
     wide: "W, D or L on the result colour"
     short-forms: [wins, draws, losses]
+  status-tag:
+    name: Status tag
+    file: site_v2/src/components/ui/StatusTag.astro
+    used-on: [Home, Matches, Competition matchdays, match page]
+    parts:
+      tag: {class: stag, selector: ".stag", text: 11-700-pill-ink-caps, breaks: never, element: Status tag, rule: "a match not played says why: Postponed, Abandoned, Cancelled or Awaiting result. It stands where the score or kick-off would. On a narrow row it takes the row tag's own line", measured: "font-size=11px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink", ruled-on: "the status display approval; the design standard"}
+    wide: "the status word on the accent mark"
+    never-split: [Awaiting result, Ergebnis ausstehend, Tulosta odotetaan]
   form:
     name: Form
     file: site_v2/src/components/fixture/FormSegment.astro
@@ -607,8 +615,8 @@ components:
 rules:
   Name in whole words: {selector: ".ctab .tm .nm, .fxrow .side .nm, .club .cn, p.bsub.cmp-p, .cmp-p .chart-legend", rule: "a team name wraps only between words; no word splits or runs past the name's space; in the Finnish Player intro and legend the team name stays with the hyphen that joins it to its Finnish compound", measured: whole-words, ruled-on: the narrow-screen fix}
   Legacy board value: {selector: ".brow .v b", rule: "the legacy Home mocks' boards: the value follows the ordered-by number", measured: "font-size=15px; font-weight=700; color=accent", ruled-on: "#129 binding rules"}
-  Fitted block: {selector: ".header-in, .ctab, :has(> .frow), .fbar, .selbar, .fxrow:has(.topmatch), .rlist.pm, .rlist:has(.resrow:not(.meet, .goal, .scorer)), .rsplit > .rcol:has(.resrow:not(.meet, .goal, .scorer))", rule: "a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded", measured: fit-marked, ruled-on: the narrow-screen fix}
+  Fitted block: {selector: ".header-in, .ctab, :has(> .frow), .fbar, .selbar, .fxrow:has(.topmatch), .fxrow:has(> .stag), .rlist.pm, .rlist:has(.resrow:not(.meet, .goal, .scorer)), .rsplit > .rcol:has(.resrow:not(.meet, .goal, .scorer))", rule: "a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded", measured: fit-marked, ruled-on: the narrow-screen fix}
   Row link: {selector: "a.ctab-row, a.fxrow, a.frow, a.brow, a.comp-row", rule: "a row that leads somewhere is one link, the whole row; one hover tint for every row link, ink at 11%; the press tint `sunk`; no underline inside a row", measured: "hover(background-color)=ink@11%; press(background-color)=sunk; text-decoration-line=none", ruled-on: "#129 binding rules; #52; #127 (2026-09-14)"}
   Prose link: {selector: "p a, .lede a, .sub a, .bnote a", rule: "the one place an underline stays: a link inside running text", measured: "text-decoration-line=underline", ruled-on: "#52"}
-  Tag: {selector: ".nexttag, .fxrow .topmatch", rule: "Next (on the picker's title) and Top match (on the flagged row, before the kick-off). Each is the small label, 11px bold capitals, on an accent mark with 4px corners. Narrow, a row's tag takes its own line above the home team, left-aligned", measured: "font-size=11px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink", ruled-on: "the competition Matchdays design; the Home design; the narrow-screen fix; the design standard"}
+  Tag: {selector: ".nexttag, .fxrow .topmatch, .stag", rule: "Next (on the picker's title), Top match (on the flagged row, before the kick-off) and a match's status. Each is the small label, 11px bold capitals, on an accent mark with 4px corners. Narrow, a row's tag takes its own line above the home team, left-aligned", measured: "font-size=11px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink", ruled-on: "the competition Matchdays design; the Home design; the narrow-screen fix; the design standard"}
   Page width: {selector: "body:not(.legacy-width) :is(.header-in, .footer-in)", rule: "the header row and the footer share the content column's one width, 960px; a page awaiting its new design keeps the earlier widths", measured: "max-width=960px", ruled-on: the page width review}

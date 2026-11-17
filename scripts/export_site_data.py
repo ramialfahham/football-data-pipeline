@@ -1016,6 +1016,7 @@ def shape_fixture_payload(fix: dict, home_side: dict, away_side: dict,
         "slug": fix.get("fixture_slug"),
         "kickoff": fix.get("kickoff_datetime"),
         "status": fix.get("status_short"),
+        "unplayed_state": fix.get("unplayed_state"),
         "league_code": fix.get("league_code"),
         "league_name": fix.get("league_name"),
         "season": fix.get("season_api_year"),
@@ -1275,19 +1276,21 @@ def fetch_player_payloads(client, player_ids: list[int], sample: int = 0) -> tup
 
 
 def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None = None) -> list[dict]:
-    """One payload per unplayed fixture, every competition. The match, the matches of each team's
-    form window and each team's next match are rows of mart_competition_fixtures, the one source of
-    every list of matches. When `source_counts` is given it receives the number of unplayed
-    fixtures the warehouse held before any sampling, for the manifest."""
+    """One payload per fixture not played, every competition and season, whatever its status and
+    date: with the played fixtures, every row a Matchdays tab lists. The match, the matches of each
+    team's form window and each team's next match are rows of mart_competition_fixtures, the one
+    source of every list of matches. When `source_counts` is given it receives the number of
+    unplayed fixtures the warehouse held before any sampling, for the manifest."""
     marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
     fixtures = _query(client, f"""
         select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name, round_order,
                is_next_round,
-               status_short, venue_name as venue_name_snapshot, home_team_sk, away_team_sk, fixture_slug,
+               status_short, unplayed_state, venue_name as venue_name_snapshot, home_team_sk, away_team_sk,
+               fixture_slug,
                home_team_name, home_team_slug, home_team_logo_url, home_team_country,
                away_team_name, away_team_slug, away_team_logo_url, away_team_country
         from `{marts}.mart_competition_fixtures`
-        where status_short in ('NS', 'TBD') and fixture_date >= current_date()
+        where not is_played
     """)
     fixtures.sort(key=lambda r: r.get("kickoff_datetime") or datetime.max)
     if source_counts is not None:
@@ -1832,7 +1835,7 @@ def fetch_player_index(client) -> dict:
 
 _COMPETITION_FIXTURE_COLUMNS = (
     "fixture_sk, league_code, season_api_year, round_name, round_label_i18n_key, round_number, round_letter, round_order, round_sequence, "
-    "fixture_order, kickoff_datetime, status_short, is_played, goals_home, goals_away, "
+    "fixture_order, kickoff_datetime, status_short, unplayed_state, is_played, goals_home, goals_away, "
     "home_team_sk, home_team_name, home_team_slug, home_team_logo_url, "
     "away_team_sk, away_team_name, away_team_slug, away_team_logo_url, "
     "fixture_slug, is_next_round, is_match_that_matters"
@@ -1855,6 +1858,7 @@ def _competition_fixture(r: dict) -> dict:
         "round_sequence": r.get("round_sequence"),
         "fixture_order": int(r["fixture_order"]),
         "status": r.get("status_short"),
+        "unplayed_state": r.get("unplayed_state"),
         "is_played": bool(r.get("is_played")),
         "goals_home": r.get("goals_home"),
         "goals_away": r.get("goals_away"),

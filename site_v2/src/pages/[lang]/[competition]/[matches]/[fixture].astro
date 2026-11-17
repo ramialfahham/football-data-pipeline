@@ -78,8 +78,9 @@ const { file, lang, built } = Astro.props;
 const fixture = JSON.parse(readFileSync(join(process.cwd(), "src/data/fixtures", file), "utf8")) as Fixture | PlayedFixture;
 const { home, away } = fixture;
 const played = fixture.is_played === true ? fixture : null;
-// The next matchday's match gets the full preview; a match further out waits for it.
-const isNext = !played && fixture.is_next_round !== false;
+// The next matchday's match gets the full preview; a match further out waits for it. A match with a
+// status (postponed, abandoned, cancelled, awaiting result) has no pre-match form left to preview.
+const isNext = !played && !(fixture as Fixture).unplayed_state && fixture.is_next_round !== false;
 // A match awarded without being played has no goals, players, numbers or line-ups to show.
 const wasPlayed = played?.result.award_kind !== "not_played";
 

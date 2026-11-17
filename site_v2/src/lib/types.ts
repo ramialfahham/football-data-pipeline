@@ -120,6 +120,7 @@ export interface Fixture {
   slug: string;
   kickoff?: string | null;
   status?: string | null;
+  unplayed_state?: UnplayedState | null;
   league_code: string;
   league_name?: string | null;
   season?: number | null;
@@ -706,6 +707,9 @@ export interface SeasonSummary {
   longest_winless_teams: TeamRef[];
 }
 
+/** Why a match that is not played has no result (mart_competition_fixtures.unplayed_state). */
+export type UnplayedState = "postponed" | "abandoned" | "cancelled" | "awaiting_result";
+
 /** One fixture of a competition-season as mart_competition_fixtures serves it: the played flag,
  *  the score once played, the served slug, and the flag of the one match that matters. */
 export interface CompetitionFixture {
@@ -713,6 +717,7 @@ export interface CompetitionFixture {
   slug: string | null;
   kickoff: string | null;
   status: string | null;
+  unplayed_state?: UnplayedState | null;
   is_played: boolean;
   goals_home: number | null;
   goals_away: number | null;

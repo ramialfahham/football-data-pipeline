@@ -11,7 +11,8 @@
 // 2. On every fixtures page exactly one round is checked on load, and it is the round the
 //    warehouse flagged next whenever one is flagged; every unplayed row is a link. On every page,
 //    a row that names its match (`data-fixture`) is a link exactly when that match has a payload,
-//    and a build with match payloads has at least one such row.
+//    and a build with match payloads has at least one such row. On a full export (the manifest is
+//    present) every row of a fixtures page has a match payload, played or not, whatever its status.
 // 3. On every Rankings page (at the stats word) every board keeps the board rules: one to five rows,
 //    every row a link, the boards the payload served and no others, and no zero on a most-first
 //    board (a zero is not a ranking there; on a fewest-first board it is the top). Nothing on the
@@ -143,6 +144,17 @@ export function checkMatchRowLinks(html, built, path = "") {
     const has = built.has(Number(id));
     if (has && !isLink) issues.push(`${path}: the row of match ${id} is not a link, though its page is built`);
     if (!has && isLink) issues.push(`${path}: the row of match ${id} links, though it has no page`);
+  }
+  return issues;
+}
+
+/** Issues on one fixtures page of a full export: a row whose match has no payload. The committed
+ *  sample carries the payloads of a few played matches only, so main runs this when the export's
+ *  manifest is present. */
+export function checkFixturesPayloads(html, built, path = "") {
+  const issues = [];
+  for (const [, , , id] of matchRows(html)) {
+    if (!built.has(Number(id))) issues.push(`${path}: the row of match ${id} has no match payload`);
   }
   return issues;
 }
@@ -395,6 +407,7 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
   const expected = expectedBoards(dataDir);
   const teamRanks = expectedTeamRanks(dataDir);
   const built = payloadIds(dataDir);
+  const manifest = readManifest(dataDir);
   for (const { path, html } of readDist(distDir)) {
     if (MATCH_PAGE.test(path)) matchPages += 1;
     rowsChecked += matchRows(html).length;
@@ -402,6 +415,7 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
     if (FIXTURES_PAGE.test(path)) {
       fixturesPages += 1;
       issues.push(...checkFixturesPage(html, path));
+      if (manifest) issues.push(...checkFixturesPayloads(html, built, path));
     }
     if (RANKINGS_PAGE.test(path)) {
       rankingsPages += 1;
@@ -417,7 +431,6 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
     }
   }
   const payloadFiles = built.size;
-  const manifest = readManifest(dataDir);
   issues.push(...checkMatchPageCount({ matchPages, payloadFiles, manifest }));
   issues.push(...checkTabPagesFound({ fixturesPages, rankingsPages, expected }));
   issues.push(...checkMatchRowsFound({ matchRows: rowsChecked, payloadFiles }));

@@ -6,9 +6,12 @@
 // A played match shows its status word, the final score where "vs" stands with the winner by weight,
 // and under 700px each team's goals close its line. After penalties the big score is the shoot-out's
 // and the score after extra time stands under it; an awarded result says there how it came about.
+// A match not played that has a status (postponed, abandoned, cancelled, awaiting result) shows its
+// status tag in the kick-off line where the time would stand, the one place shown at every width.
 import Crest from "../ui/Crest.astro";
 import Chevron from "../ui/Chevron.astro";
 import GroupHead from "../ui/GroupHead.astro";
+import StatusTag from "../ui/StatusTag.astro";
 import { formatDate, formatTime, scoreLine, signedInteger } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t, playedStatusWord } from "../../i18n/strings";
@@ -29,8 +32,9 @@ interface Props {
 const { fixture, lang, title, round, compName, compLogo, compSlug, teamHrefs, showStanding } = Astro.props;
 const { home, away } = fixture;
 
+const state = fixture.is_played ? null : (fixture as Fixture).unplayed_state ?? null;
 const time = fixture.status === "TBD" ? t(lang, "timeOpen") : `${formatTime(fixture.kickoff, lang)} UTC`;
-const kick = [round, formatDate(fixture.kickoff, lang), time].filter(Boolean);
+const kick = [round, formatDate(fixture.kickoff, lang), state ? null : time].filter(Boolean);
 const venue = fixture.venue;
 
 const result = fixture.is_played ? fixture.result : null;
@@ -77,6 +81,7 @@ const sides: { side: Side; href?: string }[] = [
   <div class="eyebrow">{eyebrow}</div>
   <div class="kick facts-line">
     {kick.map((unit) => <span>{unit}</span>)}
+    {state && <span><StatusTag lang={lang} state={state} /></span>}
     {venue && <span>{venue}</span>}
   </div>
   <div class:list={["teams", { played: big }]}>

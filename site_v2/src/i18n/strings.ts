@@ -510,6 +510,10 @@ const EN: Dict = {
   results: "Results",
   overview: "Overview",
   compNextTagMatch: "Next",
+  statusPostponed: "Postponed",
+  statusAbandoned: "Abandoned",
+  statusCancelled: "Cancelled",
+  statusAwaitingResult: "Awaiting result",
 };
 
 const DE: Dict = {
@@ -942,6 +946,10 @@ const DE: Dict = {
   results: "Ergebnisse",
   overview: "Übersicht",
   compNextTagMatch: "Nächstes",
+  statusPostponed: "Verlegt",
+  statusAbandoned: "Abgebrochen",
+  statusCancelled: "Abgesagt",
+  statusAwaitingResult: "Ergebnis ausstehend",
 };
 
 const FI: Dict = {
@@ -1380,6 +1388,10 @@ const FI: Dict = {
   results: "Tulokset",
   overview: "Yleiskatsaus",
   compNextTagMatch: "Seuraava",
+  statusPostponed: "Siirretty",
+  statusAbandoned: "Keskeytetty",
+  statusCancelled: "Peruttu",
+  statusAwaitingResult: "Tulosta odotetaan",
 };
 
 const STRINGS: Record<Lang, Dict> = { de: DE, en: EN, fi: FI };

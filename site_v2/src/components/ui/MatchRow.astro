@@ -3,7 +3,9 @@
 // crests; on an unplayed row the kick-off with its zone in the right-hand column, on a played row
 // the score at the end of each side and no kick-off column (a finished match's start time is not
 // information). The winner by weight, never by hue. The Top match tag sits before the kick-off on
-// the one flagged row of the next round, the row otherwise unchanged.
+// the one flagged row of the next round, the row otherwise unchanged. A match that is not played and
+// will not be as scheduled, or whose result is not in, shows its status tag in the kick-off column,
+// or on the row tag's own line above the home team where the names would lose their space.
 //
 // A row is a link only when its target exists: a match links to its page when this build makes one,
 // the preview of an unplayed match or the page of a played one; the markup is the same either way.
@@ -11,6 +13,7 @@
 // The kick-off is rendered in UTC with that label until the warehouse serves the venue's clock
 // and zone (#146); a fixture whose time is not set yet shows the TBC copy in the time slot.
 import Crest from "./Crest.astro";
+import StatusTag from "./StatusTag.astro";
 import { formatTime } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { localeHref, word } from "../../lib/href";
@@ -30,6 +33,7 @@ const { fx, competitionSlug, lang, topMatch = false, nextMatch = false } = Astro
 
 const ZONE = "UTC";
 const played = fx.is_played && fx.goals_home != null && fx.goals_away != null;
+const state = played ? null : fx.unplayed_state ?? null;
 const linked = Boolean(competitionSlug && fx.slug) && builtFixtures().has(fx.fixture_id);
 const href = linked ? localeHref(lang, `${competitionSlug}/${word(lang, "matches")}/${fx.slug}/`) : undefined;
 const Row = linked ? "a" : "div";
@@ -51,8 +55,9 @@ const time = fx.status === "TBD" ? t(lang, "timeOpenShort") : formatTime(fx.kick
       {played && <span class:list={["g", "num", { winner: awayWins }]}>{fx.goals_away}</span>}
     </span>
   </span>
-  {!played && (nextMatch || topMatch) && <span class="topmatch">{t(lang, nextMatch ? "compNextTagMatch" : "compTopMatch")}</span>}
-  {!played && (
+  {!played && !state && (nextMatch || topMatch) && <span class="topmatch">{t(lang, nextMatch ? "compNextTagMatch" : "compTopMatch")}</span>}
+  {state && <StatusTag lang={lang} state={state} />}
+  {!played && !state && (
     <span class="when">
       <b class="t">{time}</b>
       <span class="rowtz">{ZONE}</span>

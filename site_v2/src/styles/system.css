@@ -459,8 +459,9 @@ a.cnm .nm { text-decoration: none; }
    weight, never by hue — green stays "better value", red stays the Loss pill. */
 .fxrow .side .g { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
 .fxrow .side .g.winner { color: var(--ink); font-weight: 700; }
-/* The tag: Next on the picker's title, Top match on the flagged row before the kick-off. One style. */
-.nexttag, .fxrow .topmatch {
+/* The tag: Next on the picker's title, Top match on the flagged row before the kick-off, a match's
+   status where its kick-off would stand. One style. */
+.nexttag, .fxrow .topmatch, .stag {
   display: inline-block; padding: 2px 8px; border-radius: 4px; background: var(--accent);
   color: var(--pill-ink, #fff); font-size: 11px; font-weight: 700; letter-spacing: .04em;
   text-transform: uppercase; white-space: nowrap;
@@ -474,6 +475,13 @@ a.cnm .nm { text-decoration: none; }
 .fxrow.fit-one:has(.topmatch) { grid-template-columns: minmax(0, 1fr) max-content auto; }
 .fxrow.fit-one .topmatch { grid-column: auto; grid-row: auto; align-self: center; margin-right: 12px; }
 .fxrow.fit-one:has(.topmatch) > .sides, .fxrow.fit-one:has(.topmatch) > .when { grid-row: auto; }
+/* A status tag stands in the kick-off column while the names keep their space beside it; otherwise,
+   and without the script, it takes the row tag's own line above the home team. */
+.fxrow:has(> .stag) { grid-template-columns: minmax(0, 1fr) auto; row-gap: 8px; }
+.fxrow > .stag { grid-column: 1 / -1; grid-row: 1; justify-self: start; }
+.fxrow:has(> .stag) > .sides { grid-row: 2; }
+.fxrow.fit-one > .stag { grid-column: auto; grid-row: auto; align-self: center; justify-self: end; }
+.fxrow.fit-one:has(> .stag) > .sides { grid-row: auto; }
 /* THE FOLD (components/ui/Fold.astro) — the revealed rows join the list they continue
    (`display: contents`, so they also fill a grid's columns), and the control reads as one more row
    under whatever is shown: "Show all {n}" with the chevron down, "Show less" with it up. */
