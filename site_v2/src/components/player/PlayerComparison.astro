@@ -6,7 +6,9 @@
 import SectionHead from "../ui/SectionHead.astro";
 import MetricSwitch from "../ui/MetricSwitch.astro";
 import ChartLegend from "../ui/ChartLegend.astro";
-import Chevron from "../fixture/Chevron.astro";
+import Group from "../ui/Group.astro";
+import GroupHead from "../ui/GroupHead.astro";
+import Chevron from "../ui/Chevron.astro";
 import { stripInset } from "../../lib/chartTheme";
 import { formatValue, integer, ordinal } from "../../lib/format";
 import { t, metricLabel, boardTitle } from "../../i18n/strings";
@@ -121,8 +123,8 @@ const aria = t(lang, "playerComparedWith");
               { mark: "median", label: t(lang, "median") },
             ]} />
             {c.groups.map((g) => (
-              <div class:list={["fxgroup", "rkgroup", { nonkey: showSwitch && !g.hasKey }]}>
-                <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${g.key}.label`)}</span></div>
+              <Group metric nonkey={showSwitch && !g.hasKey}>
+                <GroupHead lang={lang} name={metricLabel(lang, `metricGroups.${g.key}.label`)} statistics={g.key} />
                 {g.rows.map((r) => {
                   const m = c.byKey.get(r.metric_id)!;
                   const v = m.value as number;
@@ -148,7 +150,7 @@ const aria = t(lang, "playerComparedWith");
                     </div>
                   );
                 })}
-              </div>
+              </Group>
             ))}
           </div>
         </div>

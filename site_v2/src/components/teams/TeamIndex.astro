@@ -12,6 +12,8 @@ import FilterRows from "../competitions/FilterRows.astro";
 import SectionHead from "../ui/SectionHead.astro";
 import IndexRow from "../ui/IndexRow.astro";
 import Fold from "../ui/Fold.astro";
+import Group from "../ui/Group.astro";
+import GroupHead from "../ui/GroupHead.astro";
 import { t } from "../../i18n/strings";
 import { localeHref } from "../../lib/href";
 import { competitionInfo } from "../../lib/teamFixtures";
@@ -82,11 +84,8 @@ const heading = (item: Extract<Item, { kind: "head" }>) => {
     {blocks.map((block, b) => (
       <section class:list={["tblock", block.className]}>
         <SectionHead label={block.label} />
-        {block.units.map((unit, u) => (
-          <div class:list={[unit.view, unit.head && "fxgroup"]} data-entity-type={unit.entity} data-confederation={unit.region}>
-            {unit.head && (
-              <div class="gh"><span class="nm">{unit.head.name}</span><span class="cnt">{count(unit.head.n)}</span></div>
-            )}
+        {block.units.map((unit, u) => {
+          const grid = (
             <div class="comp-grid">
               {[unit.list.visible, unit.list.rest].map((part, p) => {
                 const rendered = part.map((item) => {
@@ -108,8 +107,16 @@ const heading = (item: Extract<Item, { kind: "head" }>) => {
                 );
               })}
             </div>
-          </div>
-        ))}
+          );
+          return unit.head ? (
+            <Group class={unit.view} data-entity-type={unit.entity} data-confederation={unit.region}>
+              <GroupHead lang={lang} name={unit.head.name} counts={[{ text: count(unit.head.n) }]} />
+              {grid}
+            </Group>
+          ) : (
+            <div class={unit.view} data-entity-type={unit.entity} data-confederation={unit.region}>{grid}</div>
+          );
+        })}
       </section>
     ))}
   </div>

@@ -269,14 +269,14 @@ def _drawing_data(styles):
              {"tag": "div", "attrs": [["class", "fxgroup"]], "inputs": []}]
     marks = ['<span class="nm">Bundesliga</span>', '<span class="nm"><b>Serie</b> A</span>']
     return {"sheets": [".nm{padding-left:7px}"], "bundles": [[0]], "runs": [], "pages": [], "colours": {},
-            "instances": [{"page": "Home", "state": "", "key": "group.name", "bundle": 0,
+            "instances": [{"page": "Home", "state": "", "key": "group-head.name", "bundle": 0,
                            "captures": {375: {"style": s, "html": m, "chain": chain, "trimmed": False}}}
                           for m, s in zip(marks, styles)]}
 
 
 @pytest.mark.skipif(not _chromium_available(), reason="Playwright's Chromium is not installed here")
 def test_the_drawing_check_measures_the_part_itself_and_marks_only_a_form_drawn_differently(tmp_path):
-    parts = [{"key": "group.name", "selector": ".nm", "name": "Competition group name"}]
+    parts = [{"key": "group-head.name", "selector": ".nm", "name": "Competition group name"}]
     out = tmp_path / "parts_page.html"
     placeholder = {p: "" for p in pp.STYLE_PROPS}
     pp.write_page(out, _drawing_data([placeholder, placeholder]), parts, [])
@@ -287,5 +287,5 @@ def test_the_drawing_check_measures_the_part_itself_and_marks_only_a_form_drawn_
     assert fidelity == {"1-375": [], "2-375": ["padding-left 9px → 7px"]}
     page = out.read_text(encoding="utf-8")
     assert page.count("Out of its page:") == 1 and "padding-left 9px → 7px" in page
-    assert counts["Competition name"]["group.name"] == 2
+    assert counts["Competition name"]["group-head.name"] == 2
     assert not (tmp_path / "parts_page.unchecked.html").exists()

@@ -1,0 +1,15 @@
+---
+// THE result chip: one match's W, D or L from a team's side, in the page's language, on the result
+// colour. The same chip in every list, in a competition row's counts and in a form line.
+import { t } from "../../i18n/strings";
+import type { Lang } from "../../lib/format";
+
+interface Props {
+  lang: Lang;
+  result: "W" | "D" | "L";
+}
+const { lang, result } = Astro.props;
+const LETTER = { W: "winsShort", D: "drawsShort", L: "lossesShort" } as const;
+---
+
+<span class:list={["pill", result]}>{t(lang, LETTER[result])}</span>

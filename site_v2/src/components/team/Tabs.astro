@@ -1,7 +1,7 @@
 ---
-// The Team page's tabs: Overview, Matches and Performance, each present when its page has a block.
-// Each tab is a `<label>` bound to a hidden `#tab-*` radio the page renders; the checked radio marks
-// its label and shows its `.page` panel in CSS. No client script.
+// The Team page's tabs: Overview, Matches and Performance, each present when its page has a block,
+// on the tab band's radios; the checked radio shows its `.page` panel in CSS.
+import TabBand from "../ui/TabBand.astro";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
 
@@ -14,8 +14,4 @@ const { lang, pages } = Astro.props;
 const LABEL = { overview: "overview", matches: "navMatches", performance: "tabPerformance" };
 ---
 
-<nav class="tabs comp-tabs" aria-label={t(lang, "tabsAria")}>
-  {pages.map((go) => (
-    <label class="tab" for={`tab-${go}`}>{t(lang, LABEL[go])}</label>
-  ))}
-</nav>
+<TabBand label={t(lang, "tabsAria")} group="team-tab" tabs={pages.map((go) => ({ key: go, label: t(lang, LABEL[go]) }))} />

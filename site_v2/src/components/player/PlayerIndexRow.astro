@@ -1,6 +1,6 @@
 ---
 // One row of the Players page and a nation page, the player row without numbers: photo / name over
-// position / club. `view`, `slot` and `region` mark the views it shows in, for the stylesheet's
+// position / club. `view`, `competitionSlot` and `region` mark the views it shows in, for the stylesheet's
 // position and region filters.
 import PlayerRow from "../ui/PlayerRow.astro";
 import { positionLabel } from "../../i18n/strings";
@@ -12,10 +12,10 @@ interface Props {
   player: PlayerIndexRow;
   lang: Lang;
   view?: string | null;
-  slot?: number;
+  competitionSlot?: number;
   region?: string;
 }
-const { player, lang, view, slot, region } = Astro.props;
+const { player, lang, view, competitionSlot, region } = Astro.props;
 const code = codeOf(player.position_group);
 const position = player.position_role ?? code;
 const line = [position ? positionLabel(lang, position) : null, player.club].filter((s): s is string => Boolean(s));
@@ -29,6 +29,6 @@ const line = [position ? positionLabel(lang, position) : null, player.club].filt
   id={player.player_id}
   slug={player.slug}
   data-hub={view ?? undefined}
-  data-competition-slot={slot === undefined ? undefined : String(slot)}
+  data-competition-slot={competitionSlot === undefined ? undefined : String(competitionSlot)}
   data-confederation={region}
 />

@@ -12,8 +12,9 @@
 import Breadcrumb from "../fixture/Breadcrumb.astro";
 import SectionHead from "../ui/SectionHead.astro";
 import MatchRow from "../ui/MatchRow.astro";
-import Crest from "../ui/Crest.astro";
 import Fold from "../ui/Fold.astro";
+import Group from "../ui/Group.astro";
+import GroupHead from "../ui/GroupHead.astro";
 import FilterRows from "../competitions/FilterRows.astro";
 import { t } from "../../i18n/strings";
 import { localeHref, word } from "../../lib/href";
@@ -75,21 +76,13 @@ const crumbs = [
         <section>
           <SectionHead label={t(lang, "compSecSchedule")} />
           {groups.map((group, i) => (
-            <div class="fxgroup" data-entity-type={group.entity_type} data-confederation={group.confederation}>
-              <div class="gh">
-                {group.slug ? (
-                  <a class="cnm" href={localeHref(lang, `${group.slug}/`)}>
-                    <span class="clogo"><Crest name={group.name} crest={group.crest} size="xs" /></span>
-                    <span class="nm">{group.name ?? group.league_code}</span>
-                    <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                      <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2"
-                            stroke-linecap="round" stroke-linejoin="round"></path>
-                    </svg>
-                  </a>
-                ) : (
-                  <span class="nm">{group.name ?? group.league_code}</span>
-                )}
-              </div>
+            <Group data-entity-type={group.entity_type} data-confederation={group.confederation}>
+              <GroupHead
+                lang={lang}
+                name={group.name ?? group.league_code}
+                crest={{ name: group.name, url: group.crest }}
+                competition={group.slug}
+              />
 
               {group.fixtures.slice(0, VISIBLE_ROWS).map((fx) => <MatchRow fx={fx} competitionSlug={group.slug} lang={lang} />)}
 
@@ -98,7 +91,7 @@ const crumbs = [
                   {group.fixtures.slice(VISIBLE_ROWS).map((fx) => <MatchRow fx={fx} competitionSlug={group.slug} lang={lang} />)}
                 </Fold>
               )}
-            </div>
+            </Group>
           ))}
         </section>
       </div>

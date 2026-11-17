@@ -105,7 +105,6 @@ const crumbs = [
 
     <TeamHeader team={team} season={season} lang={lang} />
 
-    {pages.map((p) => <input type="radio" name="team-tab" id={`tab-${p}`} class="tab-in" checked={p === "overview"} />)}
     <Tabs lang={lang} pages={[...pages]} />
 
     <div class="page" data-page="overview">

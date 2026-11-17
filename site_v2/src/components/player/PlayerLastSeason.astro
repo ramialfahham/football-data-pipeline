@@ -5,6 +5,8 @@
 import SectionHead from "../ui/SectionHead.astro";
 import MetricSwitch from "../ui/MetricSwitch.astro";
 import TableRow from "../ui/TableRow.astro";
+import Group from "../ui/Group.astro";
+import GroupHead from "../ui/GroupHead.astro";
 import { DASH, formatValue, integer } from "../../lib/format";
 import { t, metricLabel, boardTitle } from "../../i18n/strings";
 import { betterSide } from "../../lib/bars";
@@ -43,8 +45,8 @@ const shown = (v: number | null | undefined, format: Parameters<typeof formatVal
     {showSwitch && <MetricSwitch id="player-last-season-switch" lang={lang} />}
     <div class="yoy-list">
       {groups.map((g) => (
-        <div class:list={["fxgroup", "rkgroup", { nonkey: showSwitch && !g.hasKey }]}>
-          <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${g.key}.label`)}</span></div>
+        <Group metric nonkey={showSwitch && !g.hasKey}>
+          <GroupHead lang={lang} name={metricLabel(lang, `metricGroups.${g.key}.label`)} statistics={g.key} />
           <div class="ctab yoyt">
             <div class="ctab-head">
               <span class="h nmh"></span>
@@ -73,7 +75,7 @@ const shown = (v: number | null | undefined, format: Parameters<typeof formatVal
               );
             })}
           </div>
-        </div>
+        </Group>
       ))}
     </div>
   </section>

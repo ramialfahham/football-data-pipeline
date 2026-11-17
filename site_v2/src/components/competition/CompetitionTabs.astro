@@ -4,6 +4,7 @@
 // whose page is not built (or not emitted for this competition) renders as a label without a link,
 // because the build refuses a link to a page it did not emit. A cup or tournament reads "Rounds"
 // where a league reads "Matchdays".
+import TabBand from "../ui/TabBand.astro";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
 import { localeHref, word } from "../../lib/href";
@@ -42,14 +43,4 @@ const tabs: { key: TabKey; label: string; href: string | null }[] = [
 ];
 ---
 
-<nav class="tabs comp-tabs" aria-label={t(lang, "compTabsAria")}>
-  {tabs.map((tb) =>
-    tb.key === active ? (
-      <span class="tab on" aria-current="page">{tb.label}</span>
-    ) : tb.href ? (
-      <a class="tab" href={tb.href}>{tb.label}</a>
-    ) : (
-      <span class="tab" aria-disabled="true">{tb.label}</span>
-    ),
-  )}
-</nav>
+<TabBand label={t(lang, "compTabsAria")} tabs={tabs.map((tb) => ({ ...tb, current: tb.key === active }))} />

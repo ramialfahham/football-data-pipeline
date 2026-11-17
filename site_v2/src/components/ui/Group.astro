@@ -1,0 +1,14 @@
+---
+// THE group: a run of rows under one group head, 36px from the group before it. A metric group sits
+// under its heading without the line; a group hidden by the metric switch while it is off is marked.
+// Its rows are the slot. Other attributes (the filters' data marks) pass through.
+interface Props {
+  class?: string | null;
+  metric?: boolean;
+  nonkey?: boolean;
+  [attr: string]: unknown;
+}
+const { class: kind, metric = false, nonkey = false, ...rest } = Astro.props;
+---
+
+<div class:list={[kind, "fxgroup", { rkgroup: metric, nonkey }]} {...rest}><slot /></div>

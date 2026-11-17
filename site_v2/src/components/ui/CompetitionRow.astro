@@ -5,6 +5,7 @@
 // a line. The row links to the competition's page when the competition has one.
 import Crest from "./Crest.astro";
 import ListRow from "./ListRow.astro";
+import ResultChip from "./ResultChip.astro";
 import { integer } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
@@ -26,9 +27,9 @@ const words = info.name.split(" ");
 const head = words.slice(0, -1).join(" ");
 const last = words[words.length - 1];
 const CHIPS = [
-  { k: "W", field: "wins", label: "winsShort" },
-  { k: "D", field: "draws", label: "drawsShort" },
-  { k: "L", field: "losses", label: "lossesShort" },
+  { k: "W", field: "wins" },
+  { k: "D", field: "draws" },
+  { k: "L", field: "losses" },
 ] as const;
 ---
 
@@ -41,7 +42,7 @@ const CHIPS = [
       <span class="tc-extra">
         {right && <span class="tc-rank2" aria-hidden="true">{right}</span>}
         <span class="cchips">
-          {CHIPS.map((ch) => <span class="cchip"><span class:list={["pill", ch.k]}>{t(lang, ch.label)}</span>{integer(table[ch.field], lang)}</span>)}
+          {CHIPS.map((ch) => <span class="cchip"><ResultChip lang={lang} result={ch.k} />{integer(table[ch.field], lang)}</span>)}
         </span>
         <span class="tc-nums facts-line">
           <span class="nb">{t(lang, "goals")}{" "}<b>{integer(table.goals_for, lang)}:{integer(table.goals_against, lang)}</b></span>

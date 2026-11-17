@@ -1,0 +1,9 @@
+---
+// THE date heading: a day's date once, over that day's rows in a group.
+interface Props {
+  date: string;
+}
+const { date } = Astro.props;
+---
+
+<div class="dh">{date}</div>

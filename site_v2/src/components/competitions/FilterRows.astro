@@ -6,6 +6,7 @@
 // element that must follow them as a sibling. The buttons and the
 // dropdowns are two forms of the same radios: fitBlocks.mjs picks the form that fits, filterBar.mjs
 // keeps the dropdowns on the radios and removes the choices that would leave no row.
+import Chevron from "../ui/Chevron.astro";
 import { t } from "../../i18n/strings";
 import type { Lang } from "../../lib/format";
 import { offered } from "../../lib/filterBar.mjs";
@@ -79,9 +80,7 @@ const filters = [
           <select class="sel-in" data-filter={f.name} aria-label={f.aria}>
             {f.choices.map((c) => <option value={c.value} selected={c.value === ""}>{c.value ? c.label : f.first}</option>)}
           </select>
-          <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
-          </svg>
+          <Chevron />
         </div>
       ))}
     </div>

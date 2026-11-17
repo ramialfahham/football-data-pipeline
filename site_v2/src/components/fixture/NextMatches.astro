@@ -5,10 +5,10 @@
 // whose next match is this one, or who has none, adds no row; with no row the block is absent.
 import SectionHead from "../ui/SectionHead.astro";
 import MatchRow from "../ui/MatchRow.astro";
-import Crest from "../ui/Crest.astro";
-import Chevron from "./Chevron.astro";
+import DateHeading from "../ui/DateHeading.astro";
+import Group from "../ui/Group.astro";
+import GroupHead from "../ui/GroupHead.astro";
 import { t } from "../../i18n/strings";
-import { localeHref } from "../../lib/href";
 import { formatDate } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import type { CompetitionIndex, Side } from "../../lib/types";
@@ -53,7 +53,7 @@ const head = (code: string) => {
     name: comps[code]?.name ?? code,
     slug: comps[code]?.slug ?? null,
     logo: row?.logo_url ?? null,
-    href: row && comps[code] ? localeHref(lang, `${comps[code].slug}/`) : undefined,
+    page: row && comps[code] ? comps[code].slug : null,
   };
 };
 ---
@@ -64,28 +64,15 @@ const head = (code: string) => {
     {[...groups.entries()].map(([code, fixtures]) => {
       const g = head(code);
       return (
-        <div class="fxgroup">
-          <div class="gh">
-            {g.href ? (
-              <a class="cnm" href={g.href}>
-                <span class="clogo"><Crest name={g.name} crest={g.logo} size="xs" /></span>
-                <span class="nm">{g.name}</span>
-                <Chevron />
-              </a>
-            ) : (
-              <span class="cnm">
-                <span class="clogo"><Crest name={g.name} crest={g.logo} size="xs" /></span>
-                <span class="nm">{g.name}</span>
-              </span>
-            )}
-          </div>
+        <Group>
+          <GroupHead lang={lang} name={g.name} crest={{ name: g.name, url: g.logo }} competition={g.page} />
           {days(fixtures).map((day) => (
             <>
-              <div class="dh">{formatDate(day[0].kickoff, lang)}</div>
+              <DateHeading date={formatDate(day[0].kickoff, lang)} />
               {day.map((fx) => <MatchRow fx={fx} competitionSlug={g.slug} lang={lang} />)}
             </>
           ))}
-        </div>
+        </Group>
       );
     })}
   </section>

@@ -7,6 +7,8 @@
 import SectionHead from "../ui/SectionHead.astro";
 import MetricSwitch from "../ui/MetricSwitch.astro";
 import TableRow from "../ui/TableRow.astro";
+import Group from "../ui/Group.astro";
+import GroupHead from "../ui/GroupHead.astro";
 import type { Lang } from "../../lib/format";
 import { formatValue, integer, DASH } from "../../lib/format";
 import { t, metricLabel, boardTitle } from "../../i18n/strings";
@@ -41,8 +43,8 @@ const shown = (v: unknown, format: Parameters<typeof formatValue>[1]) =>
     {needsSwitch(groups) && <MetricSwitch id="tsw-season" lang={lang} />}
     <div class="yoy-list">
       {groups.map((g) => (
-        <div class:list={["fxgroup", "rkgroup", { nonkey: !g.hasKey }]}>
-          <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${g.key}.label`)}</span></div>
+        <Group metric nonkey={!g.hasKey}>
+          <GroupHead lang={lang} name={metricLabel(lang, `metricGroups.${g.key}.label`)} statistics={g.key} />
           <div class="ctab yoyt">
             <div class="ctab-head">
               <span class="h nmh"></span>
@@ -71,7 +73,7 @@ const shown = (v: unknown, format: Parameters<typeof formatValue>[1]) =>
               );
             })}
           </div>
-        </div>
+        </Group>
       ))}
     </div>
   </section>
