@@ -1,0 +1,24 @@
+---
+// THE fact rows of a block: label / value over its context. The block decides the form: side by
+// side while its longest row fits, otherwise every row stacks. A piece marked `nb` never breaks
+// inside itself.
+type Piece = { text: string; nb?: boolean };
+type Text = string | Piece[];
+interface Props {
+  rows: { label: string; value: Text; context: Text }[];
+}
+const { rows } = Astro.props;
+const list = (x: Text): Piece[] => (typeof x === "string" ? [{ text: x }] : x);
+---
+
+<div class="facts">
+  {rows.map((row) => (
+    <div class="frow">
+      <span class="fl">{row.label}</span>
+      <span class="fv">
+        <span class="fvv"><b>{list(row.value).map((p) => (p.nb ? <span class="nb">{p.text}</span> : p.text))}</b></span>
+        <span class="sub">{list(row.context).map((p) => (p.nb ? <span class="nb">{p.text}</span> : p.text))}</span>
+      </span>
+    </div>
+  ))}
+</div>

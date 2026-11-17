@@ -1,0 +1,2229 @@
+diff --git a/.claude/task/243-parts-rows/contract.md b/.claude/task/243-parts-rows/contract.md
+new file mode 100644
+index 00000000..7e8c506b
+--- /dev/null
++++ b/.claude/task/243-parts-rows/contract.md
+@@ -0,0 +1,110 @@
++# Task contract — parts library, the rows
++
++objective: >
++  Issue #243, the component-library step, first group: every row part of site_v2 exists once as an
++  Astro component in site_v2/src/components/ui/, and every block that shows that row places the
++  component instead of its own copy of the markup. Rows: list row, result row (result, meeting,
++  goal and scorer forms), player row, competition row, fact row, table row and index row; the match
++  row is already one component. Each row component sets its own link destination from the entity
++  it shows. docs/design/components.yml maps each row part to its one component file, and
++  scripts/check_component_registry.py fails markup of a registered part outside its component,
++  under a pin that only goes down. No look change: a refactor of markup ownership, not a redesign.
++
++refs: >
++  #243 (component system), note 4249336961 (one form per part, merged as !471) and note 4253999647
++  (the sitewide link rule). Visual details and engineering calls are the coordinating agent's under
++  docs/design/design_standard.md.
++
++scope_paths:
++  - .claude/task/243-parts-rows/
++  - site_v2/src/components/*/*.astro
++  - site_v2/src/pages/[[]lang]/*.astro
++  - site_v2/src/pages/[[]lang]/*/*.astro
++  - site_v2/src/pages/[[]lang]/*/*/*.astro
++  - site_v2/src/pages/[[]lang]/*/*/*/*.astro
++  - docs/design/components.yml
++  - docs/wireframes/block_standard.md
++  - scripts/check_component_registry.py
++  - scripts/parts_page.py
++  - tests/test_check_component_registry.py
++  - tests/test_parts_page.py
++  - tests/test_phone_fixes_231.py
++  - tests/fixtures/component_registry/baseline.json
++  - tests/fixtures/design_inventory/baseline.json
++  - tests/fixtures/design_inventory/baseline_quick.json
++  - tests/fixtures/design_inventory/baseline_quick_fi.json
++
++protected_override: >
++  docs/design/components.yml: each row part's `file` becomes its one component file; a table-row,
++  an index-row and a row-list component take the table's row parts, the competition list's row
++  parts and the result and competition lists; each row component names the page type it links to
++  (`links-to`); no text style, value, rule or measurement changes. The component-library step of
++  #243 (each part built once as a component, every built page moved onto it with no change in
++  look), approved in chat, 17 Nov 2026; links per the #243 link rule (issue #243 note 4253999647);
++  visual details and engineering calls are the coordinating agent's under
++  docs/design/design_standard.md, approved in chat, 16 Nov 2026.
++
++impact_map: >
++  writers: none; the component and page templates of site_v2 (markup moves into row components),
++  the component registry, its generated table and its check. No dbt model, export script, data
++  file or stylesheet rule.
++  downstream: site_v2/dist only. leaf: consumption layer, no computation added or changed.
++  guard: docs/design/components.yml is read by scripts/check_component_registry.py (the registry
++  check and the block standard's generated table), scripts/check_design_inventory.py and
++  scripts/design_inventory.py (the design check measures each part by its class and selector) and
++  scripts/parts_page.py. Classes and selectors do not change, so what the design check measures
++  does not change; only `file` and the component a part sits under change. A wrong `file` makes the
++  new markup count rise and the check fail.
++  layer_rules: not applicable; no computation.
++  deploy_order: none; deploy:site-v2 is manual.
++  blast_radius: none on what a visitor sees; the rendered HTML of every page stays the same, every
++  difference listed in rendered_page_evidence.md with its reason. Registry and design-inventory
++  pins only go down.
++
++acceptance_criteria:
++  - Every result, meeting, goal, scorer, player, competition, fact, table and index row on the built site is drawn by its one component in site_v2/src/components/ui/, and no other .astro file writes the markup of those rows.
++  - scripts/check_component_registry.py counts, per registered component, its classes written in an .astro file other than its one component file, and fails when a count rises above its pin; every row component counts 0 except the two listed in acceptance_evidence.md with their reason.
++  - scripts/check_component_registry.py fails a component whose `links-to` page types differ from the links its file builds.
++  - The parts page (scripts/parts_page.py against the local dev server), before and after, shows for every part the same number of forms or fewer, and no new form.
++  - On Home, Matches, Competitions, Teams, Players, the Bundesliga overview, matches and stats pages, /teams/bayern-munchen/, /teams/germany/, a played match, an upcoming match and a player page, at 375px and 1280px in EN, DE and FI, every tab, the rendered page is pixel-identical before and after, except where two copies of one part differed before and now take one form; every pixel and DOM difference is listed with its reason in rendered_page_evidence.md.
++  - Every row links to the same page as before: a match row and a result row to the match page, a player row to the player page, a competition row to the competition page, a table row and a team index row to the team page.
++  - No block, block order, wording or value changes on any approved page.
++
++approved_design:
++  - home: #127
++  - competitions: #128
++  - competition: #129
++  - matches: #130
++  - match: #132
++  - teams: #133
++  - team: #134
++  - players: #135
++  - player: #136
++
++depends_on:
++  - none: the work is on main alone, after !471 merged
++
++shared_files:
++  - tests/fixtures/component_registry/baseline.json
++  - tests/fixtures/design_inventory/baseline.json
++  - tests/fixtures/design_inventory/baseline_quick.json
++  - tests/fixtures/design_inventory/baseline_quick_fi.json
++
++decisions_taken: >
++  The library lives in site_v2/src/components/ui/, beside the match row, crest, block heading and
++  fold it already holds. A row component takes the entity it shows and builds its own link; a
++  block passes data, never a destination. A table row that leads nowhere is a div, like every other
++  row that leads nowhere. Decided by the coordinating agent under docs/design/design_standard.md.
++  No new mechanism, dependency or recurring cost.
++
++decisions_reserved:
++  - none: no look, wording or block changes; any question goes to the coordinating session.
++
++done_when:
++  - python scripts/parts_page.py --base http://localhost:4327 before and after; forms per part equal or fewer.
++  - The before/after capture of the pages in acceptance_criteria reports pixel-identical screenshots; DOM differences listed.
++  - python scripts/check_component_registry.py passes; baseline pins do not rise.
++  - Full pytest and the site's node tests pass.
++  - python scripts/ci_local.py --mr --full-scope is green.
++
++amendments: (none)
+diff --git a/docs/design/components.yml b/docs/design/components.yml
+index 8ab79f62..e370d0b4 100644
+--- a/docs/design/components.yml
++++ b/docs/design/components.yml
+@@ -166,6 +166,7 @@ components:
+   match-row:
+     name: Match row
+     file: site_v2/src/components/ui/MatchRow.astro
++    links-to: [match page]
+     used-on: [Home, Matches, Competition matchdays, Team page]
+     parts:
+       name: {class: nm, selector: ".fxrow .side .nm", text: 15-400-ink, element: Match row name, rule: "a club's name, 15px ink, wraps and never truncates", measured: "font-size=15px; color=ink; white-space=normal", ruled-on: "#50"}
+@@ -180,17 +181,25 @@ components:
+     short-forms: [timeOpen]
+   table:
+     name: Table
+-    file: [site_v2/src/components/competition/StandingsTable.astro, site_v2/src/components/competition/DeservedTable.astro, site_v2/src/components/competition/RankingBoard.astro, site_v2/src/components/team/TeamDeserved.astro, site_v2/src/components/team/TeamLastSeason.astro]
+-    used-on: [Competition pages, Team page, Home]
++    file: [site_v2/src/components/competition/StandingsTable.astro, site_v2/src/components/competition/DeservedTable.astro, site_v2/src/components/competition/RankingBoard.astro, site_v2/src/components/team/TeamDeserved.astro, site_v2/src/components/team/TeamLastSeason.astro, site_v2/src/components/player/PlayerLastSeason.astro]
++    used-on: [Competition pages, Team page, Player page, Home]
+     parts:
+       head: {class: ctab-head, element: Table head, rule: "the head row with the column labels (or, on a board, the board's name); its 1px rule is the table's only line; it starts at the block's left edge", measured: "border-bottom-width=1px; left-edge=section", ruled-on: "#129 Table; 2026-09-17 (\"head only\")"}
+       head-label: {class: h, selector: ".ctab-head .h:not(.rk)", text: 11-700-muted, element: Table head label, rule: "the small label's size, weight and colour: 11px bold muted. It keeps the label's own case, since capitals overflow the number columns at 280px", measured: "font-size=11px; font-weight=700; color=muted", ruled-on: "#129 Table; the design standard"}
++      box: {class: ctab}
++    wide: "rank | crest and name | numbers under their heads"
++    narrow: {below: w600, form: "rank, crest and name, then each number under its head"}
++  table-row:
++    name: Table row
++    file: site_v2/src/components/ui/TableRow.astro
++    links-to: [team page, player page]
++    used-on: [Competition pages, Team page, Player page, Home, match page]
++    parts:
+       row: {class: ctab-row, element: Table row, rule: "a 1px line between rows, no stripe; the row's tracks are the head's (one fixed track list per table kind)", measured: "stripe=transparent from 1; tracks=head", ruled-on: "#129 Table; the design standard"}
+       name: {class: nm, selector: ".ctab .tm .nm", text: 15-400-ink, element: Table name cell, rule: "15px ink, wraps and never truncates", measured: "font-size=15px; font-weight=400; color=ink; white-space=normal", ruled-on: "#129 Table; the design standard"}
+       narrow-row: {class: ctab-row, selector: ".ctab.fit-two .ctab-row", element: Table narrow row, rule: "a row that does not fit on one line takes two: rank, crest and name, then each number under its head", measured: "tracks=head", ruled-on: the narrow-screen fix}
+       ordered-by: {class: pts, selector: ".ctab .n.pts", text: 15-700-accent, element: Ordered-by number, rule: "the number a table is ordered by: bold 15px accent, everywhere, no per-block colour", measured: "font-size=15px; font-weight=700; color=accent", ruled-on: "#129 binding rules"}
+-      box: {class: ctab}
+-    wide: "rank | crest and name | numbers under their heads"
++    wide: "rank | crest and name | numbers under their heads; the row links to the team or player page"
+     narrow: {below: w600, form: "rank, crest and name, then each number under its head"}
+   board:
+     name: Board
+@@ -241,7 +250,7 @@ components:
+     narrow: {below: w420, form: the narrow columns}
+   fact-row:
+     name: Fact row
+-    file: [site_v2/src/components/competition/SeasonFacts.astro, site_v2/src/components/team/TeamHighsLows.astro, site_v2/src/components/team/TeamStanding.astro]
++    file: site_v2/src/components/ui/FactRows.astro
+     used-on: [Competition overview, Team page]
+     parts:
+       label: {class: fl, selector: ".frow .fl", text: 15-400-ink, element: Fact row label, rule: "label, 15px ink regular", measured: "font-size=15px; color=ink; font-weight=400", ruled-on: "#129 the fact row; the design standard"}
+@@ -283,14 +292,24 @@ components:
+     short-forms: [goalDifference]
+   list-row:
+     name: List row
+-    file: [site_v2/src/components/fixture/RecentMatch.astro, site_v2/src/components/fixture/HeadToHead.astro, site_v2/src/components/fixture/MatchGoals.astro, site_v2/src/components/fixture/PlayerRow.astro, site_v2/src/components/team/TeamCompetitions.astro]
+-    used-on: [match page, Team page]
++    file: site_v2/src/components/ui/ListRow.astro
++    used-on: [match page, Team page, Player page, Players, nation page]
+     parts:
+       row: {class: lrow, element: List row, rule: "one row of a list, a 1px line between rows, nothing cut off; a crest or photo 8px from its name; 8px above and below a one-line row, 12px a two-line row. Its name is 15px, its second line 13px muted, its numbers 15px bold", measured: fits, ruled-on: "the match page review; the design standard"}
+-    wide: "one row of a list, a line between rows"
++    wide: "one row of a list, a line between rows; the whole row one link when it leads somewhere"
++  row-list:
++    name: Row list
++    file: site_v2/src/components/ui/RowList.astro
++    used-on: [match page, Team page, Player page]
++    parts:
++      list: {class: rlist}
++      player-list: {class: pm, selector: ".rlist.pm"}
++      competition-list: {class: tcomps, gap: mock-css}
++    wide: "a block's result rows, a player's result rows or a team's competition rows"
+   result-row:
+     name: Result row
+-    file: [site_v2/src/components/fixture/RecentMatch.astro, site_v2/src/components/fixture/HeadToHead.astro, site_v2/src/components/fixture/MatchGoals.astro, site_v2/src/components/player/PlayerRecent.astro]
++    file: site_v2/src/components/ui/ResultRow.astro
++    links-to: [match page]
+     used-on: [match page, Team page, Player page]
+     parts:
+       chip: {class: pill, selector: ".resrow .pill", text: 11-700-pill-ink-caps, element: Result chip, rule: "one match's W, D or L from a team's side, in the page's language, on the result colour. It is 11px bold with 4px corners and one fixed width, the same chip in every list", measured: "font-size=11px; font-weight=700; color=pill-ink", ruled-on: "the match page review; the design standard"}
+@@ -301,14 +320,12 @@ components:
+       meeting: {class: meet, selector: ".resrow.meet", element: Meeting row, rule: "a meeting of the two teams: the result row without its chip. The score is in the match's order, the home side first, the date with its year", measured: fits, ruled-on: the match page review}
+       goal: {class: goal, selector: ".resrow.goal", element: Goal row, rule: "a goal: the score after it, then the scorer with the crest of the side it counts for. The second line holds the minute with the assist, own goal or penalty. Without minutes the row has no score", measured: fits, ruled-on: the played match page review}
+       goal-meta: {class: rmeta, selector: ".resrow.goal .rmeta", text: 13-400-muted, element: Goal row meta, rule: "the goal's minute and its assist, own goal or penalty, in a list row's second-line style: 13px muted", measured: "font-size=13px; color=muted", ruled-on: "the played match page review; the design standard"}
+-      list: {class: rlist}
+-      player-list: {class: pm, selector: ".rlist.pm"}
+       player-competition: {class: rm-c}
+       player-line: {class: rm-p}
+       home-away: {class: ha, selector: ".resrow .ha", text: 11-700-muted-caps, breaks: never}
+       home-away-line: {class: rha, selector: ".resrow .rha", text: 13-400-muted, breaks: never, element: Result row home or away line, rule: "home or away opening the second line in the two-line form, 13px muted, never split", measured: "font-size=13px; color=muted", ruled-on: the phone review}
+       scorer: {class: scorer}
+-    wide: "chip / score / opponent / competition / date on one line where every row of its list fits"
++    wide: "chip / score / opponent / competition / date on one line where every row of its list fits; the row links to the match page"
+     narrow: {below: w420, form: "two lines: a meeting or goal row below 420px, a result row where its list does not fit; below 420px an 8px column gap"}
+     short-forms: [wins, draws, losses, minutes]
+   form:
+@@ -324,7 +341,8 @@ components:
+     short-forms: [wins, draws, losses]
+   player-row:
+     name: Player row
+-    file: [site_v2/src/components/fixture/PlayerRow.astro, site_v2/src/components/fixture/MatchLineups.astro, site_v2/src/components/team/TeamSquad.astro, site_v2/src/components/player/PlayerIndexRow.astro]
++    file: site_v2/src/components/ui/PlayerRow.astro
++    links-to: [player page]
+     used-on: [match page, Team page, Players, nation page]
+     parts:
+       row: {class: plrow, element: Player row, rule: "photo / name over position / goals and assists on the right at every width; two lines below 375px when the row is short of room; under 280px the name takes the whole line and the position shares the second line with the numbers; on a line-up, the minutes played", measured: fits, ruled-on: "the match page review; the component registry"}
+@@ -332,7 +350,7 @@ components:
+       position: {class: ps, selector: ".plrow .pname .ps", text: 13-400-muted, element: Player row position, rule: "13px muted. On a line-up the substitution follows as a unit in the same line. It is the minute a starter went off, or a substitute came on and for whom", measured: "font-size=13px; color=muted", ruled-on: the match page review}
+       number: {class: pstat, selector: ".plrow .pstat b", text: 15-700-ink, element: Player row number, rule: 15px bold ink, measured: "font-size=15px; font-weight=700; color=ink", ruled-on: the match page review}
+       photo: {class: pphoto, gap: mock-css}
+-    wide: "photo / name over position / numbers at the right"
++    wide: "photo / name over position / numbers at the right; the row links to the player page"
+     narrow: {below: w280, form: "the name across the row, the position and the numbers on the second line"}
+     short-forms: [minutes]
+   split:
+@@ -348,7 +366,8 @@ components:
+     narrow: {below: w560, form: one column}
+   competition-row:
+     name: Competition row
+-    file: site_v2/src/components/team/TeamCompetitions.astro
++    file: site_v2/src/components/ui/CompetitionRow.astro
++    links-to: [competition page]
+     used-on: [Team page]
+     parts:
+       row: {class: tc, selector: ".lrow.tc", element: Competition row, rule: "one competition of a team's season: crest, name and a muted note, with the standing or the cup's outcome on the right. A table's row adds the W, D and L counts, each the result chip and its count, then goals and points below. Narrow, the standing opens the second line", measured: fits, ruled-on: "the Team page review; the design standard"}
+@@ -356,7 +375,6 @@ components:
+       chip: {class: pill, selector: ".cchip .pill", text: 11-700-pill-ink-caps, breaks: never}
+       count: {class: cchip}
+       chips: {class: cchips, gap: mock-css}
+-      list: {class: tcomps, gap: mock-css}
+       inner: {class: tcin, gap: mock-css}
+       crest: {class: tc-crest, gap: mock-css}
+       context: {class: tc-ctx, gap: mock-css}
+@@ -364,7 +382,7 @@ components:
+       numbers: {class: tc-nums, gap: mock-css}
+       rank: {class: tc-rank2, gap: mock-css}
+       right: {class: tc-right, gap: mock-css}
+-    wide: "crest, name and note | standing or outcome; W, D, L, goals and points below"
++    wide: "crest, name and note | standing or outcome; W, D, L, goals and points below; the row links to the competition page"
+     narrow: {below: w340, form: the standing opens the second line}
+     short-forms: [wins, draws, losses]
+   squad:
+@@ -509,10 +527,18 @@ components:
+       index: {class: compindex}
+       grid: {class: comp-grid}
+       category: {class: comp-category}
++    wide: "competition rows grouped by category, in columns"
++  index-row:
++    name: Index row
++    file: site_v2/src/components/ui/IndexRow.astro
++    links-to: [competition page, team page]
++    used-on: [Competitions, Teams]
++    parts:
++      row: {class: comp-row}
+       name: {class: comp-name, selector: ".comp-row .comp-name", text: 15-400-ink, breaks: between words}
+       meta: {class: comp-meta}
+       region: {class: comp-region, selector: ".comp-row .comp-region", text: 13-400-muted, breaks: between words}
+-    wide: "competition rows grouped by category, in columns"
++    wide: "crest / name, a competition's region under it; the row links to the competition or team page"
+   team-index:
+     name: Team list
+     file: site_v2/src/components/teams/TeamIndex.astro
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index 93378678..fa558777 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -94,11 +94,11 @@
+ | Match row parts | `.sides, .played` | the match row's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Table head | `.ctab-head` | the head row with the column labels (or, on a board, the board's name); its 1px rule is the table's only line; it starts at the block's left edge | `border-bottom-width=1px; left-edge=section` | ruled | #129 Table; 2026-09-17 ("head only") |
+ | Table head label | `.ctab-head .h:not(.rk)` | the small label's size, weight and colour: 11px bold muted. It keeps the label's own case, since capitals overflow the number columns at 280px | `font-size=11px; font-weight=700; color=muted` | ruled | #129 Table; the design standard |
++| Table parts | `.ctab` | the table's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Table row | `.ctab-row` | a 1px line between rows, no stripe; the row's tracks are the head's (one fixed track list per table kind) | `stripe=transparent from 1; tracks=head` | ruled | #129 Table; the design standard |
+ | Table name cell | `.ctab .tm .nm` | 15px ink, wraps and never truncates | `font-size=15px; font-weight=400; color=ink; white-space=normal` | ruled | #129 Table; the design standard |
+ | Table narrow row | `.ctab.fit-two .ctab-row` | a row that does not fit on one line takes two: rank, crest and name, then each number under its head | `tracks=head` | ruled | the narrow-screen fix |
+ | Ordered-by number | `.ctab .n.pts` | the number a table is ordered by: bold 15px accent, everywhere, no per-block colour | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules |
+-| Table parts | `.ctab` | the table's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Board name | `.ctab.rkt .ctab-head .nmh .bt .nm` | a board is a single-value table; its name sits in the head row with the chevron, in the item title style: 15px bold ink, not capitals, at the block's left edge | `font-size=15px; font-weight=700; color=ink; text-transform=none` | ruled | #129 board rules; #127 correction 1; the design standard |
+ | Board name cell | `.ctab.rkt .ctab-head .nmh` | at the block's left edge | `left-edge=section` | ruled | #127 correction 3 |
+ | Board sub-line | `.ctab.rkt .tm .ent .sub` | a player's club under the name, 13px muted | `font-size=13px; color=muted` | ruled | #129 Rankings; the design standard |
+@@ -129,6 +129,7 @@
+ | Match header dash | `.mast .dash` | the match header's dash, in the 30-400-muted text style, never broken | `font-size=30px; font-weight=400; color=muted; one-line; fits` | ruled | the component registry |
+ | Match header parts | `.vh, .played` | the match header's other parts: registered, no text of their own |  | ruled | the component registry |
+ | List row | `.lrow` | one row of a list, a 1px line between rows, nothing cut off; a crest or photo 8px from its name; 8px above and below a one-line row, 12px a two-line row. Its name is 15px, its second line 13px muted, its numbers 15px bold | `fits` | ruled | the match page review; the design standard |
++| Row list parts | `.rlist, .rlist.pm` | the row list's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Result chip | `.resrow .pill` | one match's W, D or L from a team's side, in the page's language, on the result colour. It is 11px bold with 4px corners and one fixed width, the same chip in every list | `font-size=11px; font-weight=700; color=pill-ink` | ruled | the match page review; the design standard |
+ | Result row | `.resrow` | result chip / score / opponent (crest, name, home or away) / competition / date on one line where every row of its list fits; otherwise two lines: the first chip / score / crest / opponent, the second home or away / competition / date | `fits` | ruled | the match page review; the phone review |
+ | Result row score | `.resrow .rscore` | the score from the row's side, 15px bold ink | `font-size=15px; font-weight=700; color=ink` | ruled | the match page review |
+@@ -139,7 +140,7 @@
+ | Goal row meta | `.resrow.goal .rmeta` | the goal's minute and its assist, own goal or penalty, in a list row's second-line style: 13px muted | `font-size=13px; color=muted` | ruled | the played match page review; the design standard |
+ | Result row home away | `.resrow .ha` | the result row's home away, in the 11-700-muted-caps text style, never broken | `font-size=11px; font-weight=700; color=muted; text-transform=uppercase; one-line; fits` | ruled | the component registry |
+ | Result row home or away line | `.resrow .rha` | home or away opening the second line in the two-line form, 13px muted, never split | `font-size=13px; color=muted` | ruled | the phone review |
+-| Result row parts | `.rlist, .rlist.pm, .rm-c, .rm-p, .scorer` | the result row's other parts: registered, no text of their own |  | ruled | the component registry |
++| Result row parts | `.rm-c, .rm-p, .scorer` | the result row's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Form parts | `.pill.W, .pill.D, .pill.L` | the form's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Player row | `.plrow` | photo / name over position / goals and assists on the right at every width; two lines below 375px when the row is short of room; under 280px the name takes the whole line and the position shares the second line with the numbers; on a line-up, the minutes played | `fits` | ruled | the match page review; the component registry |
+ | Player row name | `.plrow .pname .nm` | 15px regular ink, wrapping, never cut off | `font-size=15px; font-weight=400; color=ink; white-space=normal` | ruled | the match page review |
+@@ -190,9 +191,10 @@
+ | Fold link | `a.fold-ctl` | Under a list whose other rows are on their own page: "Show all {n}" as a link to that page, the chevron pointing to it | `font-size=13px; font-weight=700; color=muted` | ruled | the Players page review |
+ | Fold label | `.lbl` | the fold's label, in the 13-700-muted text style, never broken | `font-size=13px; font-weight=700; color=muted; one-line; fits` | ruled | the component registry |
+ | Fold parts | `.closed, .opened, .fold-in, .fold-rest` | the fold's other parts: registered, no text of their own |  | ruled | the component registry |
+-| Competition list name | `.comp-row .comp-name` | the competition list's name, in the 15-400-ink text style | `font-size=15px; font-weight=400; color=ink` | ruled | the component registry |
+-| Competition list region | `.comp-row .comp-region` | the competition list's region, in the 13-400-muted text style | `font-size=13px; font-weight=400; color=muted` | ruled | the component registry |
+-| Competition list parts | `.compindex, .comp-grid, .comp-category, .comp-meta` | the competition list's other parts: registered, no text of their own |  | ruled | the component registry |
++| Competition list parts | `.compindex, .comp-grid, .comp-category` | the competition list's other parts: registered, no text of their own |  | ruled | the component registry |
++| Index row name | `.comp-row .comp-name` | the index row's name, in the 15-400-ink text style | `font-size=15px; font-weight=400; color=ink` | ruled | the component registry |
++| Index row region | `.comp-row .comp-region` | the index row's region, in the 13-400-muted text style | `font-size=13px; font-weight=400; color=muted` | ruled | the component registry |
++| Index row parts | `.comp-row, .comp-meta` | the index row's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Team list parts | `.teamindex, .tblock, .tgroups-region, .tview-all, .tview-region` | the team list's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Fitted block parts | `.fit-one` | the fitted block's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Unbreakable unit parts | `.nb` | the unbreakable unit's other parts: registered, no text of their own |  | ruled | the component registry |
+diff --git a/scripts/check_component_registry.py b/scripts/check_component_registry.py
+index 8478d86a..e5beaf01 100644
+--- a/scripts/check_component_registry.py
++++ b/scripts/check_component_registry.py
+@@ -9,7 +9,12 @@ Reads the registry and fails closed on a key, set reference or form it does not
+   `forms` — a component whose rules switch at a width other than its one narrow form's;
+   `unlisted classes` — a class the stylesheet styles and no component or rule lists;
+ - counts the parts the registry records as a gap (`gap:` on a part), per kind;
+-- counts the values each set holds.
++- counts the values each set holds;
++- counts, per component with one `.astro` file, its own classes (those no other component lists)
++  written in a class attribute of any other `.astro` file under `site_v2/src`: the part's markup
++  outside its component;
++- counts the components whose `file` is still more than one file;
++- fails a component whose `links-to` page types differ from the destinations its file builds.
+ 
+ Checks 1, 2 and 5 are measured by `check_design_inventory.py` on the generated rows: a part's class
+ is registered, its text style is asserted, and a part that never breaks is asserted on one line.
+@@ -34,9 +39,17 @@ REGISTRY = REPO / "docs" / "design" / "components.yml"
+ DOC = REPO / "docs" / "wireframes" / "block_standard.md"
+ SYSTEM_CSS = REPO / "site_v2" / "src" / "styles" / "system.css"
+ BASELINE = REPO / "tests" / "fixtures" / "component_registry" / "baseline.json"
++SITE = REPO / "site_v2" / "src"
+ 
+ SETS = ("text", "marks", "spacing", "colours", "switch")
+-COMPONENT_KEYS = {"name", "file", "used-on", "parts", "wide", "narrow", "never-split", "short-forms"}
++COMPONENT_KEYS = {"name", "file", "used-on", "parts", "wide", "narrow", "never-split", "short-forms", "links-to"}
++# How a component file builds a link to each type of page.
++LINK_BUILDERS = {
++    "match page": re.compile(r"matchPageHref\(|word\(lang, \"matches\"\)"),
++    "team page": re.compile(r"word\(lang, \"teams\"\)"),
++    "player page": re.compile(r"word\(lang, \"players\"\)"),
++    "competition page": re.compile(r"localeHref\(lang, `\$\{[\w.]+\}/`\)"),
++}
+ PART_KEYS = {"class", "selector", "text", "mark", "breaks", "element", "rule", "measured", "status", "ruled-on", "gap"}
+ RULE_KEYS = {"selector", "rule", "measured", "status", "ruled-on"}
+ TEXT_KEYS = {"size", "weight", "colour", "case"}
+@@ -93,6 +106,9 @@ def load(path: Path = REGISTRY) -> dict:
+             _keys(where + ".narrow", narrow, {"below", "form"}, {"below", "form"})
+             if narrow["below"] != FITS and narrow["below"] not in sets["switch"]:
+                 raise RegistryError("%s.narrow: switch %r is in no set" % (where, narrow["below"]))
++        links = comp.get("links-to", [])
++        if not isinstance(links, list) or not set(links) <= set(LINK_BUILDERS):
++            raise RegistryError("%s.links-to: expected a list of %s, got %r" % (where, " / ".join(LINK_BUILDERS), links))
+         terms = comp.get("short-forms", [])
+         if not isinstance(terms, list) or not all(isinstance(x, str) for x in terms) or len(set(terms)) != len(terms):
+             raise RegistryError("%s.short-forms: expected a list of distinct term keys, got %r" % (where, terms))
+@@ -355,6 +371,92 @@ def counts(reg: dict, css: str) -> dict[str, dict[str, int]]:
+     return out
+ 
+ 
++# --- the templates ----------------------------------------------------------------------------
++
++_ATTR = re.compile(r"\bclass(?::list)?=(\"[^\"]*\"|\{)")
++_LITERAL = re.compile(r"\"([^\"]*)\"|'([^']*)'|`([^`]*)`")
++_KEY = re.compile(r"[{,]\s*\"?([A-Za-z_][\w-]*)\"?\s*(?=[:,}])")
++
++
++def _brace(text: str, start: int) -> str:
++    """The `{ ... }` expression opening at `start`, braces balanced."""
++    depth = 0
++    for i in range(start, len(text)):
++        if text[i] == "{":
++            depth += 1
++        elif text[i] == "}":
++            depth -= 1
++            if depth == 0:
++                return text[start:i + 1]
++    return text[start:]
++
++
++def template_classes(text: str) -> list[str]:
++    """Every class a template's class attributes write: the words of `class="..."`, and of
++    `class={...}` / `class:list={...}` the words of its string literals and its object keys."""
++    out: list[str] = []
++    for m in _ATTR.finditer(text):
++        if m.group(1) != "{":
++            out += m.group(1).strip('"').split()
++            continue
++        expr = _brace(text, m.end() - 1)
++        for lit in _LITERAL.finditer(expr):
++            out += [w for w in "".join(g or "" for g in lit.groups()).split() if "$" not in w]
++        inner = _LITERAL.sub("\"\"", expr[1:-1])
++        out += [k for o in re.findall(r"\{[^{}]*\}", inner) for k in _KEY.findall(o)]
++    return out
++
++
++def own_classes(reg: dict) -> dict[str, set[str]]:
++    """Each component's classes that no other component lists as a part's class."""
++    mine = {cid: {p["class"] for p in comp["parts"].values()} for cid, comp in reg["components"].items()}
++    return {cid: {c for c in cls if not any(c in o for k, o in mine.items() if k != cid)} for cid, cls in mine.items()}
++
++
++def _one_file(comp: dict) -> str | None:
++    f = comp["file"]
++    return f if isinstance(f, str) and f.endswith(".astro") else None
++
++
++def markup_counts(reg: dict, site: Path = SITE, root: Path = REPO) -> dict[str, dict[str, int]]:
++    """Per component with one `.astro` file, the times its own classes are written by another
++    `.astro` file; and the number of components whose `file` is still a list."""
++    files = {p.relative_to(root).as_posix(): template_classes(p.read_text(encoding="utf-8"))
++             for p in sorted(Path(site).rglob("*.astro"))}
++    outside: dict[str, int] = {}
++    for cid, cls in own_classes(reg).items():
++        home = _one_file(reg["components"][cid])
++        if home is None or not cls:
++            continue
++        n = sum(1 for path, written in files.items() if path != home for c in written if c in cls)
++        if n:
++            outside[cid] = n
++    lists = sum(1 for comp in reg["components"].values() if isinstance(comp["file"], list))
++    return {"markup outside its component": outside, "components in several files": {"registry": lists} if lists else {}}
++
++
++def link_failures(reg: dict, root: Path = REPO) -> list[str]:
++    """A component whose file builds a link to a page type its `links-to` does not name, or names a
++    page type its file never builds a link to."""
++    out = []
++    for cid, comp in reg["components"].items():
++        if "links-to" not in comp:
++            continue
++        home = _one_file(comp)
++        path = root / home if home else None
++        if path is None or not path.exists():
++            out.append("components.%s: links-to needs one existing .astro file" % cid)
++            continue
++        text = path.read_text(encoding="utf-8")
++        built = {kind for kind, rx in LINK_BUILDERS.items() if rx.search(text)}
++        named = set(comp["links-to"])
++        for kind in sorted(built - named):
++            out.append("components.%s: %s links to the %s, which links-to does not name" % (cid, home, kind))
++        for kind in sorted(named - built):
++            out.append("components.%s: links-to names the %s, which %s never links to" % (cid, kind, home))
++    return out
++
++
+ def compare(measured: dict, pinned: dict) -> list[str]:
+     lines = []
+     for group in sorted(set(measured) | set(pinned)):
+@@ -390,6 +492,8 @@ def main(argv=None) -> int:
+     elif want != doc:
+         failures.append("%s: the element table differs from the registry; run with --write" % doc_path.name)
+     measured = counts(reg, _css(Path(args.css)))
++    measured.update(markup_counts(reg))
++    failures += link_failures(reg)
+     failures += compare(measured, json.loads(Path(args.baseline).read_text(encoding="utf-8")))
+     for f in failures:
+         print("FAIL  " + f)
+diff --git a/scripts/parts_page.py b/scripts/parts_page.py
+index c5b4e6be..b51e23b7 100644
+--- a/scripts/parts_page.py
++++ b/scripts/parts_page.py
+@@ -65,8 +65,8 @@ KINDS: list[tuple[str, list[str]]] = [
+     ("Explainer", ["block.explainer", "block.tab-explainer"]),
+     ("Group heading", ["group.head", "group.metric-head", "group.metric-name", "standings.group-head",
+                        "standings.group-name", "masthead.competition"]),
+-    ("Competition name", ["group.name", "competition-row.name", "competition-index.name"]),
+-    ("Team name", ["match-row.name", "table.name", "result-row.name", "comparison.team-name",
++    ("Competition name", ["group.name", "competition-row.name", "index-row.name"]),
++    ("Team name", ["match-row.name", "table-row.name", "result-row.name", "comparison.team-name",
+                    "masthead.team-link", "masthead.team-name", "chart.label"]),
+     ("Player name", ["player-row.name"]),
+     ("Date", ["group.date", "match-row.kick-off", "match-row.zone", "masthead.kick-off"]),
+@@ -74,7 +74,7 @@ KINDS: list[tuple[str, list[str]]] = [
+                "masthead.team-goals", "masthead.dash", "masthead.result-line"]),
+     ("Result badge", ["result-row.chip", "competition-row.chip", "form.chips", "form.win",
+                       "form.draw", "form.loss"]),
+-    ("Position / value", ["player-row.position", "player-row.number", "table.ordered-by",
++    ("Position / value", ["player-row.position", "player-row.number", "table-row.ordered-by",
+                           "fact-row.value", "standings.goal-difference", "standings.wdl",
+                           "last-season.trend", "last-season.up", "last-season.down", "last-season.flat",
+                           "last-season.now", "last-season.prev", "strip-plot.value",
+@@ -82,7 +82,7 @@ KINDS: list[tuple[str, list[str]]] = [
+                           "competition-row.right", "competition-row.numbers", "scatter-plot.table-value"]),
+     ("Meta line", ["result-row.meta", "result-row.goal-meta", "result-row.home-away",
+                    "result-row.home-away-line", "result-row.player-competition", "result-row.player-line",
+-                   "board.sub-line", "fact-row.context", "competition-index.region", "competition-index.meta",
++                   "board.sub-line", "fact-row.context", "index-row.region", "index-row.meta",
+                    "entity-header.meta", "competition-row.context", "competition-row.extra",
+                    "masthead.standing", "scatter-plot.table-sub", "strip-plot.median-key"]),
+     ("Label", ["fact-row.label", "chart.name", "chart.tick", "chart.note", "chart.legend",
+@@ -94,7 +94,7 @@ KINDS: list[tuple[str, list[str]]] = [
+     ("Stat tile", ["card.card", "card.number", "card.label", "card.text"]),
+     ("Table head", ["table.head", "table.head-label", "standings.wdl-head", "deserved-table.shots-head",
+                     "board.name", "board.name-cell"]),
+-    ("Row", ["match-row.sides", "table.row", "table.narrow-row", "list-row.row", "result-row.row",
++    ("Row", ["match-row.sides", "table-row.row", "table-row.narrow-row", "list-row.row", "result-row.row",
+              "result-row.meeting", "result-row.goal", "player-row.row", "competition-row.row",
+              "fact-row.block", "strip-plot.row"]),
+     ("Chevron link", ["heading-link.link", "heading-link.chevron", "fold.control", "fold.link",
+diff --git a/site_v2/src/components/competition/DeservedTable.astro b/site_v2/src/components/competition/DeservedTable.astro
+index c7327454..c3e30043 100644
+--- a/site_v2/src/components/competition/DeservedTable.astro
++++ b/site_v2/src/components/competition/DeservedTable.astro
+@@ -5,12 +5,11 @@
+ // the catalogue's names of those four metrics; deserved points is the number the table is ordered
+ // by and carries the ordered-by style. The gap is the catalogue's, actual minus deserved, signed.
+ // The whole row links to the team page. Renders nothing unless the model fitted this competition.
+-import Crest from "../ui/Crest.astro";
+ import SectionHead from "../ui/SectionHead.astro";
++import TableRow from "../ui/TableRow.astro";
+ import { decimal1, integer, signedDelta } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { t, metricLabel, metricInSentence } from "../../i18n/strings";
+-import { localeHref, word } from "../../lib/href";
+ import type { DeservedRow } from "../../lib/types";
+ 
+ interface Props {
+@@ -49,17 +48,19 @@ const names = {
+         ))}
+       </div>
+       {rows.map((row) => (
+-        <a class="ctab-row" href={row.slug ? localeHref(lang, `${word(lang, "teams")}/${row.slug}/`) : undefined}>
+-          <span class="rk num">{integer(row.deserved_rank, lang)}</span>
+-          <span class="tm">
+-            <Crest name={row.name} crest={row.crest} size="xs" />
+-            <span class="nm">{row.name}</span>
+-          </span>
+-          <span class="n num">{signedDelta(row.shots_on_goal_difference_per_match, "decimal_1", lang).value}</span>
+-          <span class="n num pts">{decimal1(row.deserved_points, lang)}</span>
+-          <span class="n num">{integer(row.points, lang)}</span>
+-          <span class="n num">{signedDelta(row.deserved_points_gap, "decimal_1", lang).value}</span>
+-        </a>
++        <TableRow
++          lang={lang}
++          team={row.slug}
++          rank={integer(row.deserved_rank, lang)}
++          crest={{ name: row.name, url: row.crest }}
++          name={row.name}
++          cells={[
++            { text: signedDelta(row.shots_on_goal_difference_per_match, "decimal_1", lang).value, num: true },
++            { text: decimal1(row.deserved_points, lang), num: true, kind: "pts" },
++            { text: integer(row.points, lang), num: true },
++            { text: signedDelta(row.deserved_points_gap, "decimal_1", lang).value, num: true },
++          ]}
++        />
+       ))}
+     </div>
+   </section>
+diff --git a/site_v2/src/components/competition/RankingBoard.astro b/site_v2/src/components/competition/RankingBoard.astro
+index 9b6a2d78..07c2f11a 100644
+--- a/site_v2/src/components/competition/RankingBoard.astro
++++ b/site_v2/src/components/competition/RankingBoard.astro
+@@ -9,33 +9,24 @@
+ //
+ // The heading is a plain name until the Leaderboards pages exist (#140): a chevron says a heading
+ // leads somewhere, and nothing here does yet.
+-import Crest from "../ui/Crest.astro";
++import TableRow from "../ui/TableRow.astro";
+ import { formatValue } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { boardTitle } from "../../i18n/strings";
+-import { localeHref, word } from "../../lib/href";
+ import type { CompetitionBoard, LandingRankedBoard, MatchLeaderBoard } from "../../lib/types";
+-import { hasPlayerPage } from "../../lib/builtPlayers.mjs";
+ 
+ interface Props {
+   board: CompetitionBoard | MatchLeaderBoard | LandingRankedBoard;
+   entity: "team" | "player";
+   lang: Lang;
+-  /** Where a row leads; by default the team or player page its slug names. */
+-  rowHref?: (slug: string | null | undefined) => string | undefined;
++  /** Whether a row leads to the team or player page its slug names; by default it does. */
++  linked?: boolean;
+ }
+-const { board, entity, lang, rowHref } = Astro.props;
++const { board, entity, lang, linked = true } = Astro.props;
+ 
+ // A per-match board says so in its title ("Goals per match"), only where the catalogue says the
+ // metric is per match — the export carries that fact.
+ const title = boardTitle(lang, board.label_i18n_key, "per_match" in board ? board.per_match : false);
+-
+-function href(slug: string | null | undefined): string | undefined {
+-  if (rowHref) return rowHref(slug);
+-  if (!slug || (entity === "player" && !hasPlayerPage(slug))) return undefined;
+-  return localeHref(lang, `${word(lang, entity === "team" ? "teams" : "players")}/${slug}/`);
+-}
+-const Row = (slug: string | null | undefined) => (href(slug) ? "a" : "div");
+ ---
+ 
+ <div class="board">
+@@ -48,24 +39,18 @@ const Row = (slug: string | null | undefined) => (href(slug) ? "a" : "div");
+       <span class="h"></span>
+     </div>
+     {board.rows.map((row) => {
+-      const slug = "slug" in row ? row.slug : null;
+-      const Tag = Row(slug);
++      const slug = linked && "slug" in row ? row.slug : null;
+       return (
+-      <Tag class="ctab-row" href={href(slug)}>
+-        <span class="rk num">{row.rank}</span>
+-        <span class="tm">
+-          <Crest name={entity === "team" ? row.name : row.club} crest={row.crest} size="xs" />
+-          {entity === "player" ? (
+-            <span class="ent">
+-              <span class="nm">{row.name}</span>
+-              <span class="sub">{row.club}</span>
+-            </span>
+-          ) : (
+-            <span class="nm">{row.name}</span>
+-          )}
+-        </span>
+-        <span class="n num pts">{formatValue(row.value, board.format, lang)}</span>
+-      </Tag>
++        <TableRow
++          lang={lang}
++          team={entity === "team" ? slug : null}
++          player={entity === "player" ? slug : null}
++          rank={row.rank}
++          crest={{ name: entity === "team" ? row.name : row.club, url: row.crest }}
++          name={row.name}
++          sub={entity === "player" ? row.club ?? null : undefined}
++          cells={[{ text: formatValue(row.value, board.format, lang), num: true, kind: "pts" }]}
++        />
+       );
+     })}
+   </div>
+diff --git a/site_v2/src/components/competition/SeasonFacts.astro b/site_v2/src/components/competition/SeasonFacts.astro
+index be1e244c..2f9421db 100644
+--- a/site_v2/src/components/competition/SeasonFacts.astro
++++ b/site_v2/src/components/competition/SeasonFacts.astro
+@@ -6,6 +6,7 @@
+ // a link or none is. Names, rounds and dates never break inside themselves. A score reads
+ // home–away with the en dash, as every score on the site does.
+ import SectionHead from "../ui/SectionHead.astro";
++import FactRows from "../ui/FactRows.astro";
+ import { decimal1, integer } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+@@ -85,16 +86,6 @@ for (const fact of seasonFacts(summary)) {
+ {rows.length > 0 && (
+   <section>
+     <SectionHead label={t(lang, "compSecFacts")} />
+-    <div class="facts">
+-      {rows.map((row) => (
+-        <div class="frow">
+-          <span class="fl">{row.label}</span>
+-          <span class="fv">
+-            <span class="fvv"><b>{row.value.map((p) => (p.nb ? <span class="nb">{p.text}</span> : p.text))}</b></span>
+-            <span class="sub">{row.context.map((p) => (p.nb ? <span class="nb">{p.text}</span> : p.text))}</span>
+-          </span>
+-        </div>
+-      ))}
+-    </div>
++    <FactRows rows={rows} />
+   </section>
+ )}
+diff --git a/site_v2/src/components/competition/StandingsTable.astro b/site_v2/src/components/competition/StandingsTable.astro
+index 30132503..2d209a30 100644
+--- a/site_v2/src/components/competition/StandingsTable.astro
++++ b/site_v2/src/components/competition/StandingsTable.astro
+@@ -4,12 +4,11 @@
+ // the whole row is the link to the team page. The heading and the rows share one fixed track
+ // list per breakpoint, so a heading can never sit off its numbers; W, D, L and Goals hide on a
+ // narrow phone. The provider's cross-group ranking tables are not sections here.
+-import Crest from "../ui/Crest.astro";
+ import SectionHead from "../ui/SectionHead.astro";
++import TableRow from "../ui/TableRow.astro";
+ import { integer, signedInteger } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+-import { localeHref, word } from "../../lib/href";
+ import { standingsSections } from "../../lib/competitionPayload.mjs";
+ import type { StandingRow } from "../../lib/types";
+ 
+@@ -41,27 +40,24 @@ const showSectionNames = sections.length > 1;
+             <span class="h">{t(lang, "points")}</span>
+           </div>
+           {sec.rows.map((row) => (
+-            <a
+-              class="ctab-row"
+-              href={row.team_slug ? localeHref(lang, `${word(lang, "teams")}/${row.team_slug}/`) : undefined}
+-            >
+-              <span class="rk num">{row.standing_rank}</span>
+-              <span class="tm">
+-                <Crest name={row.team_name} crest={row.team_logo_url} size="xs" />
+-                <span class="nm">{row.team_name}</span>
+-              </span>
+-              <span class="n num">{integer(row.played, lang)}</span>
+-              <span class="n num wdl">{integer(row.wins, lang)}</span>
+-              <span class="n num wdl">{integer(row.draws, lang)}</span>
+-              <span class="n num wdl">{integer(row.losses, lang)}</span>
+-              <span class="n num wdl">
+-                {row.goals_scored != null && row.goals_conceded != null
+-                  ? `${integer(row.goals_scored, lang)}:${integer(row.goals_conceded, lang)}`
+-                  : "–"}
+-              </span>
+-              <span class="n num gd">{signedInteger(row.goals_diff, lang)}</span>
+-              <span class="n num pts">{integer(row.points, lang)}</span>
+-            </a>
++            <TableRow
++              lang={lang}
++              team={row.team_slug}
++              rank={row.standing_rank}
++              crest={{ name: row.team_name, url: row.team_logo_url }}
++              name={row.team_name}
++              cells={[
++                { text: integer(row.played, lang), num: true },
++                { text: integer(row.wins, lang), num: true, kind: "wdl" },
++                { text: integer(row.draws, lang), num: true, kind: "wdl" },
++                { text: integer(row.losses, lang), num: true, kind: "wdl" },
++                { text: row.goals_scored != null && row.goals_conceded != null
++                    ? `${integer(row.goals_scored, lang)}:${integer(row.goals_conceded, lang)}`
++                    : "–", num: true, kind: "wdl" },
++                { text: signedInteger(row.goals_diff, lang), num: true, kind: "gd" },
++                { text: integer(row.points, lang), num: true, kind: "pts" },
++              ]}
++            />
+           ))}
+         </div>
+       </div>
+diff --git a/site_v2/src/components/competitions/CompetitionIndexGrid.astro b/site_v2/src/components/competitions/CompetitionIndexGrid.astro
+index 7730a726..0c423040 100644
+--- a/site_v2/src/components/competitions/CompetitionIndexGrid.astro
++++ b/site_v2/src/components/competitions/CompetitionIndexGrid.astro
+@@ -17,10 +17,9 @@
+ // loaded in a background tab hid all eight categories until a filter was touched.
+ // The unfiltered page (no JS) already shows every non-empty category correctly; JS only handles
+ // filtering, so nothing breaks if it fails to load.
+-import Crest from "../ui/Crest.astro";
++import IndexRow from "../ui/IndexRow.astro";
+ import FilterRows from "./FilterRows.astro";
+ import { t } from "../../i18n/strings";
+-import { localeHref } from "../../lib/href";
+ import { groupAndOrderCompetitions } from "../../lib/competitionOrder";
+ import type { Lang } from "../../lib/format";
+ import type { CompetitionIndexRow } from "../../lib/types";
+@@ -42,20 +41,15 @@ const categories = groupAndOrderCompetitions(competitions);
+         <div class="colhead">{t(lang, cat.labelI18nKey)}</div>
+         <div class="comp-grid">
+           {cat.rows.map((row) => (
+-            <a
+-              class="comp-row"
+-              href={localeHref(lang, `${row.slug}/`)}
++            <IndexRow
++              lang={lang}
++              competition={row.slug}
++              name={row.competition_name}
++              crest={row.logo_url}
++              region={(row.region_label_i18n_key ? t(lang, row.region_label_i18n_key) : row.region_label_en) ?? ""}
+               data-entity-type={row.entity_type}
+               data-confederation={row.confederation}
+-            >
+-              <Crest name={row.competition_name} crest={row.logo_url} size="xs" />
+-              <span class="comp-meta">
+-                <span class="comp-name">{row.competition_name}</span>
+-                <span class="comp-region">
+-                  {row.region_label_i18n_key ? t(lang, row.region_label_i18n_key) : row.region_label_en}
+-                </span>
+-              </span>
+-            </a>
++            />
+           ))}
+         </div>
+       </div>
+diff --git a/site_v2/src/components/fixture/HeadToHead.astro b/site_v2/src/components/fixture/HeadToHead.astro
+index b80e1d3f..6bb4f7fa 100644
+--- a/site_v2/src/components/fixture/HeadToHead.astro
++++ b/site_v2/src/components/fixture/HeadToHead.astro
+@@ -1,14 +1,13 @@
+ ---
+-// Head to head: the served intro, then the last meetings as the result row without its chip (the chip
+-// would take one side): the score in the match's order, the side that was at home first, competition /
+-// date with its year. "No meetings on record." when the warehouse holds none. A meeting links to
+-// its match's page when this build makes one.
++// Head to head: the served intro, then the last meetings as meeting rows: the score in the match's
++// order, the side that was at home first, competition / date with its year. "No meetings on record."
++// when the warehouse holds none.
+ import SectionHead from "../ui/SectionHead.astro";
+-import Crest from "../ui/Crest.astro";
++import ResultRow from "../ui/ResultRow.astro";
++import RowList from "../ui/RowList.astro";
+ import { formatDayYear } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+-import { matchPageHref } from "../../lib/href";
+ import type { HeadToHead, Side } from "../../lib/types";
+ import competitions from "../../data/competitions.json";
+ 
+@@ -25,13 +24,11 @@ const names = competitions as Record<string, { name?: string }>;
+ const rows = meetings.map((m) => {
+   const homeFirst = m.home_away === "home";
+   return {
+-    first: homeFirst ? home : away,
+-    second: homeFirst ? away : home,
++    clubs: homeFirst ? [home, away] : [away, home],
+     score: homeFirst ? `${m.goals_for}–${m.goals_against}` : `${m.goals_against}–${m.goals_for}`,
+     comp: names[m.league_code ?? ""]?.name,
+     date: formatDayYear(m.kickoff_datetime, lang),
+     fixture: m.fixture_api_id,
+-    href: matchPageHref(lang, m.fixture_api_id),
+   };
+ });
+ ---
+@@ -39,25 +36,16 @@ const rows = meetings.map((m) => {
+ <section aria-label={t(lang, "secH2H")}>
+   <SectionHead label={t(lang, "secH2H")} />
+   {intro && <p class="bsub">{intro}</p>}
+-  <div class="rlist">
+-    {rows.map((r) => {
+-      const Row = r.href ? "a" : "div";
+-      return (
+-      <Row class="lrow" href={r.href} data-fixture={r.fixture ?? undefined}>
+-        <div class="resrow meet">
+-          <span class="rscore">{r.score}</span>
+-          <span class="ropp">
+-            <span class="club"><Crest name={r.first.name} crest={r.first.crest} size="xs" /><span class="cn">{r.first.name}</span></span>
+-            {" – "}
+-            <span class="club"><Crest name={r.second.name} crest={r.second.crest} size="xs" /><span class="cn">{r.second.name}</span></span>
+-          </span>
+-          <span class="rmeta facts-line">
+-            {r.comp && <span>{r.comp}</span>}
+-            <span>{r.date}</span>
+-          </span>
+-        </div>
+-      </Row>
+-      );
+-    })}
+-  </div>
++  <RowList kind="results">
++    {rows.map((r) => (
++      <ResultRow
++        lang={lang}
++        kind="meeting"
++        score={r.score}
++        clubs={r.clubs.map((c) => ({ name: c.name, crest: c.crest }))}
++        facts={[r.comp || null, r.date]}
++        fixture={r.fixture}
++      />
++    ))}
++  </RowList>
+ </section>
+diff --git a/site_v2/src/components/fixture/MatchGoals.astro b/site_v2/src/components/fixture/MatchGoals.astro
+index e0c8087f..7a8f3248 100644
+--- a/site_v2/src/components/fixture/MatchGoals.astro
++++ b/site_v2/src/components/fixture/MatchGoals.astro
+@@ -5,7 +5,8 @@
+ // says so and each team's scorers follow, home team first, with no running score. Without scorers,
+ // the heading and one line. A match with no goal has no block.
+ import SectionHead from "../ui/SectionHead.astro";
+-import Crest from "../ui/Crest.astro";
++import ResultRow from "../ui/ResultRow.astro";
++import RowList from "../ui/RowList.astro";
+ import { DASH, matchMinute, scoreLine } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+@@ -42,24 +43,20 @@ function detail(g: PlayedGoal): string[] {
+     {notRecorded && <p class="bsub">{t(lang, "goalsNotRecorded")}</p>}
+     {!notRecorded && !timed && <p class="bsub">{t(lang, "goalsNoMinutes")}</p>}
+     {rows.length > 0 && (
+-      <div class="rlist">
++      <RowList kind="results">
+         {rows.map((g) => {
+           const side = g.side === "away" ? away : home;
+           return (
+-            <div class="lrow">
+-              <div class:list={["resrow", "goal", timed ? "meet" : "scorer"]}>
+-                {timed && <span class="rscore">{scoreLine(g.score_home_after, g.score_away_after)}</span>}
+-                <span class="ropp">
+-                  <span class="club"><Crest name={side.name} crest={side.crest} size="xs" /><span class="cn">{g.player_name ?? DASH}</span></span>
+-                </span>
+-                {detail(g).length > 0 && (
+-                  <span class="rmeta">{detail(g).join(", ")}</span>
+-                )}
+-              </div>
+-            </div>
++            <ResultRow
++              lang={lang}
++              kind={timed ? "goal" : "scorer"}
++              score={timed ? scoreLine(g.score_home_after, g.score_away_after) : null}
++              clubs={[{ name: side.name, crest: side.crest, text: g.player_name ?? DASH }]}
++              detail={detail(g).join(", ") || null}
++            />
+           );
+         })}
+-      </div>
++      </RowList>
+     )}
+   </section>
+ )}
+diff --git a/site_v2/src/components/fixture/MatchLeaders.astro b/site_v2/src/components/fixture/MatchLeaders.astro
+index 32181ad6..32c447bf 100644
+--- a/site_v2/src/components/fixture/MatchLeaders.astro
++++ b/site_v2/src/components/fixture/MatchLeaders.astro
+@@ -31,7 +31,7 @@ const none = missing.length === 2 || leaders.length === 0;
+         <p class="bsub">{t(lang, "leadersSideNotRecorded", { team: missing[0].name ?? "" })}</p>
+       )}
+       {leaders.map((board) => (
+-        <RankingBoard board={board} entity="player" lang={lang} rowHref={() => undefined} />
++        <RankingBoard board={board} entity="player" lang={lang} linked={false} />
+       ))}
+     </>
+   )}
+diff --git a/site_v2/src/components/fixture/MatchLineups.astro b/site_v2/src/components/fixture/MatchLineups.astro
+index 60924780..8fa93517 100644
+--- a/site_v2/src/components/fixture/MatchLineups.astro
++++ b/site_v2/src/components/fixture/MatchLineups.astro
+@@ -5,7 +5,8 @@
+ // The two columns sit side by side from 560px, their rows level. Without a line-up the heading says
+ // so in one line.
+ import SectionHead from "../ui/SectionHead.astro";
+-import { DASH, integer, matchMinute } from "../../lib/format";
++import PlayerRow from "../ui/PlayerRow.astro";
++import { DASH, matchMinute } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { t, positionLabel } from "../../i18n/strings";
+ import type { LineupPlayer, PlayedFixture, PlayedSide } from "../../lib/types";
+@@ -26,8 +27,6 @@ function second(p: LineupPlayer): string[] {
+     : t(lang, "lineupOn", { minute: matchMinute(p.minute_on, p.minute_on_extra), player: p.replaced_player_name ?? DASH });
+   return [position, change].filter(Boolean);
+ }
+-const initials = (name: string | null | undefined) =>
+-  (name ?? "").split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase();
+ ---
+ 
+ <section aria-label={t(lang, "secLineups")}>
+@@ -43,20 +42,13 @@ const initials = (name: string | null | undefined) =>
+                 {!p.is_starter && (i === 0 || side.lineup[i - 1].is_starter) && (
+                   <div class="colhead">{t(lang, "lineupSubstitutes")}</div>
+                 )}
+-                <div class="lrow">
+-                  <div class="plrow">
+-                    <span class="pphoto">
+-                      {p.photo ? <img src={p.photo} alt="" loading="lazy" width="34" height="34" /> : <span>{initials(p.name)}</span>}
+-                    </span>
+-                    <span class="pname">
+-                      <span class="nm">{p.name ?? DASH}</span>
+-                      <span class="ps facts-line">{second(p).map((s) => <span>{s}</span>)}</span>
+-                    </span>
+-                    <span class="pstat">
+-                      {p.minutes != null && <span class="nb"><b>{integer(p.minutes, lang)}</b> {t(lang, "minutesShort")}</span>}
+-                    </span>
+-                  </div>
+-                </div>
++                <PlayerRow
++                  lang={lang}
++                  name={p.name ?? DASH}
++                  photo={p.photo}
++                  line={second(p)}
++                  numbers={p.minutes != null ? [{ value: p.minutes, term: "minutes" }] : []}
++                />
+               </>
+             );
+           })}
+diff --git a/site_v2/src/components/fixture/PlayerRow.astro b/site_v2/src/components/fixture/PlayerRow.astro
+deleted file mode 100644
+index 54ad9573..00000000
+--- a/site_v2/src/components/fixture/PlayerRow.astro
++++ /dev/null
+@@ -1,52 +0,0 @@
+----
+-// One Players to watch row, the player row: photo / name over position / goals and assists (a
+-// goalkeeper's saves). A count the warehouse leaves blank shows as a dash. The row links to the
+-// player's page when this build makes one.
+-import { DASH, integer } from "../../lib/format";
+-import type { Lang } from "../../lib/format";
+-import { t, positionLabel } from "../../i18n/strings";
+-import { builtPlayers } from "../../lib/builtPlayers.mjs";
+-import { localeHref, word as addressWord } from "../../lib/href";
+-import type { TopPlayer } from "../../lib/types";
+-
+-interface Props {
+-  player: TopPlayer;
+-  lang: Lang;
+-}
+-const { player, lang } = Astro.props;
+-const isGK = player.position_code === "G";
+-const initials = (player.player_name ?? "")
+-  .split(/\s+/)
+-  .map((w) => w[0] ?? "")
+-  .join("")
+-  .slice(0, 2)
+-  .toUpperCase();
+-const count = (v: number | null | undefined) => (v == null ? DASH : integer(v, lang));
+-const word = (v: number | null | undefined, one: string, many: string) => t(lang, v === 1 ? one : many);
+-const slug = builtPlayers().get(player.player_sk);
+-const Row = slug ? "a" : "div";
+----
+-
+-<Row class="lrow" href={slug ? localeHref(lang, `${addressWord(lang, "players")}/${slug}/`) : undefined}>
+-  <div class="plrow">
+-    <span class="pphoto">
+-      {player.player_photo_url
+-        ? <img src={player.player_photo_url} alt="" loading="lazy" width="34" height="34" />
+-        : <span>{initials}</span>}
+-    </span>
+-    <span class="pname">
+-      <span class="nm">{player.player_name}</span>
+-      <span class="ps">{positionLabel(lang, player.position_code)}</span>
+-    </span>
+-    <span class="pstat facts-line">
+-      {isGK ? (
+-        <span class="nb"><b>{count(player.saves_player)}</b> {word(player.saves_player, "savesOne", "savesMany")}</span>
+-      ) : (
+-        <>
+-          <span class="nb"><b>{count(player.goals_total)}</b> {word(player.goals_total, "goalsOne", "goalsMany")}</span>
+-          <span class="nb"><b>{count(player.goals_assists)}</b> {word(player.goals_assists, "assistsOne", "assistsMany")}</span>
+-        </>
+-      )}
+-    </span>
+-  </div>
+-</Row>
+diff --git a/site_v2/src/components/fixture/PlayerToWatch.astro b/site_v2/src/components/fixture/PlayerToWatch.astro
+new file mode 100644
+index 00000000..34606b77
+--- /dev/null
++++ b/site_v2/src/components/fixture/PlayerToWatch.astro
+@@ -0,0 +1,26 @@
++---
++// One Players to watch row: the player row with goals and assists (a goalkeeper's saves). A count
++// the warehouse leaves blank shows as a dash.
++import PlayerRow from "../ui/PlayerRow.astro";
++import type { Lang } from "../../lib/format";
++import { positionLabel } from "../../i18n/strings";
++import type { TopPlayer } from "../../lib/types";
++
++interface Props {
++  player: TopPlayer;
++  lang: Lang;
++}
++const { player, lang } = Astro.props;
++const numbers = player.position_code === "G"
++  ? [{ value: player.saves_player, term: "saves" as const }]
++  : [{ value: player.goals_total, term: "goals" as const }, { value: player.goals_assists, term: "assists" as const }];
++---
++
++<PlayerRow
++  lang={lang}
++  name={player.player_name}
++  photo={player.player_photo_url}
++  line={[positionLabel(lang, player.position_code)]}
++  numbers={numbers}
++  id={player.player_sk}
++/>
+diff --git a/site_v2/src/components/fixture/RecentMatch.astro b/site_v2/src/components/fixture/RecentMatch.astro
+index ebe8b404..89b999a7 100644
+--- a/site_v2/src/components/fixture/RecentMatch.astro
++++ b/site_v2/src/components/fixture/RecentMatch.astro
+@@ -1,11 +1,9 @@
+ ---
+-// One Recent matches row, the result row: result chip / score from this team's side / opponent (crest,
+-// name, H or A) / competition name / date. The row links to the match's page when this build makes one.
+-import Crest from "../ui/Crest.astro";
++// One Recent matches row: the result row from this team's side, with the opponent, the competition
++// and the date.
++import ResultRow from "../ui/ResultRow.astro";
+ import { formatShortDate } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+-import { t } from "../../i18n/strings";
+-import { matchPageHref } from "../../lib/href";
+ import type { FormMatch } from "../../lib/types";
+ import competitions from "../../data/competitions.json";
+ 
+@@ -13,25 +11,19 @@ interface Props {
+   match: FormMatch;
+   lang: Lang;
+   /** The competition filter's mark (the Team page's Matches tab). */
+-  slot?: number;
++  competitionSlot?: number;
+ }
+-const { match, lang, slot } = Astro.props;
+-const LETTER: Record<string, string> = { W: "winsShort", D: "drawsShort", L: "lossesShort" };
+-const result = match.result && LETTER[match.result] ? match.result : null;
+-const ha = match.home_away === "home" ? t(lang, "home") : match.home_away === "away" ? t(lang, "away") : "";
++const { match, lang, competitionSlot } = Astro.props;
+ const comp = (competitions as Record<string, { name?: string }>)[match.played_league_code ?? ""]?.name;
+-const href = matchPageHref(lang, match.played_fixture_sk);
+-const Row = href ? "a" : "div";
+ ---
+ 
+-<Row class="lrow" href={href} data-fixture={match.played_fixture_sk ?? undefined} data-competition-slot={slot}>
+-  <div class="resrow">
+-    {result && <span class:list={["pill", result]}>{t(lang, LETTER[result])}</span>}
+-    <span class="rscore">{match.goals_for}–{match.goals_against}</span>
+-    <span class="ropp">
+-      <span class="club"><Crest name={match.opponent_name} crest={match.opponent_logo_url} size="xs" /><span class="cn">{match.opponent_name}</span></span>
+-      {ha && <span class="ha">{ha}</span>}
+-    </span>
+-    <span class="rmeta facts-line">{ha && <span class="rha">{ha}</span>}{comp && <span>{comp}</span>}<span>{formatShortDate(match.played_kickoff_datetime, lang)}</span></span>
+-  </div>
+-</Row>
++<ResultRow
++  lang={lang}
++  result={match.result}
++  score={`${match.goals_for}–${match.goals_against}`}
++  clubs={[{ name: match.opponent_name, crest: match.opponent_logo_url }]}
++  homeAway={match.home_away}
++  facts={[comp || null, formatShortDate(match.played_kickoff_datetime, lang)]}
++  fixture={match.played_fixture_sk}
++  competitionSlot={competitionSlot}
++/>
+diff --git a/site_v2/src/components/player/PlayerIndexRow.astro b/site_v2/src/components/player/PlayerIndexRow.astro
+index 42adfdad..a45a36ab 100644
+--- a/site_v2/src/components/player/PlayerIndexRow.astro
++++ b/site_v2/src/components/player/PlayerIndexRow.astro
+@@ -1,10 +1,9 @@
+ ---
+ // One row of the Players page and a nation page, the player row without numbers: photo / name over
+-// position / club. It links to the player's page when this build makes one. `view`, `slot` and
+-// `region` mark the views it shows in, for the stylesheet's position and region filters.
++// position / club. `view`, `slot` and `region` mark the views it shows in, for the stylesheet's
++// position and region filters.
++import PlayerRow from "../ui/PlayerRow.astro";
+ import { positionLabel } from "../../i18n/strings";
+-import { builtPlayers } from "../../lib/builtPlayers.mjs";
+-import { localeHref, word } from "../../lib/href";
+ import { codeOf } from "../../lib/playerIndex.mjs";
+ import type { Lang } from "../../lib/format";
+ import type { PlayerIndexRow } from "../../lib/types";
+@@ -17,33 +16,19 @@ interface Props {
+   region?: string;
+ }
+ const { player, lang, view, slot, region } = Astro.props;
+-const initials = (player.name ?? "")
+-  .split(/\s+/)
+-  .map((w) => w[0] ?? "")
+-  .join("")
+-  .slice(0, 2)
+-  .toUpperCase();
+ const code = codeOf(player.position_group);
+ const position = player.position_role ?? code;
+-const line = [position ? positionLabel(lang, position) : null, player.club].filter(Boolean);
+-const built = builtPlayers().has(player.player_id);
+-const Row = built ? "a" : "div";
++const line = [position ? positionLabel(lang, position) : null, player.club].filter((s): s is string => Boolean(s));
+ ---
+ 
+-<Row
+-  class="lrow"
+-  href={built ? localeHref(lang, `${word(lang, "players")}/${player.slug}/`) : undefined}
++<PlayerRow
++  lang={lang}
++  name={player.name}
++  photo={player.photo}
++  line={line}
++  id={player.player_id}
++  slug={player.slug}
+   data-hub={view ?? undefined}
+   data-competition-slot={slot === undefined ? undefined : String(slot)}
+   data-confederation={region}
+->
+-  <div class="plrow">
+-    <span class="pphoto">
+-      {player.photo ? <img src={player.photo} alt="" loading="lazy" width="34" height="34" /> : <span>{initials}</span>}
+-    </span>
+-    <span class="pname">
+-      <span class="nm">{player.name}</span>
+-      <span class="ps facts-line">{line.map((s) => <span>{s}</span>)}</span>
+-    </span>
+-  </div>
+-</Row>
++/>
+diff --git a/site_v2/src/components/player/PlayerLastSeason.astro b/site_v2/src/components/player/PlayerLastSeason.astro
+index 54d739f9..0b42f73b 100644
+--- a/site_v2/src/components/player/PlayerLastSeason.astro
++++ b/site_v2/src/components/player/PlayerLastSeason.astro
+@@ -4,6 +4,7 @@
+ // player has no club minutes last season or every value is blank.
+ import SectionHead from "../ui/SectionHead.astro";
+ import MetricSwitch from "../ui/MetricSwitch.astro";
++import TableRow from "../ui/TableRow.astro";
+ import { DASH, formatValue, integer } from "../../lib/format";
+ import { t, metricLabel, boardTitle } from "../../i18n/strings";
+ import { betterSide } from "../../lib/bars";
+@@ -57,21 +58,18 @@ const shown = (v: number | null | undefined, format: Parameters<typeof formatVal
+               const b = shown(m.value_prev, r.format);
+               const blank = a === DASH || b === DASH;
+               const side = blank || a === b ? null : betterSide(m.value as number, m.value_prev as number, r.direction);
++              const trend = blank || (r.direction === "neutral" && a !== b)
++                ? { text: "", kind: "tr" }
++                : side === "home" ? { text: "▲", kind: "tr up", label: t(lang, "teamTrendBetter") }
++                : side === "away" ? { text: "▼", kind: "tr down", label: t(lang, "teamTrendWorse") }
++                : { text: "–", kind: "tr flat", label: t(lang, "teamTrendSame") };
+               return (
+-                <div class:list={["ctab-row", { nonkey: showSwitch && !r.is_key_metric }]}>
+-                  <span class="tm"><span class="nm">{boardTitle(lang, r.label_i18n_key, false)}</span></span>
+-                  <span class="n now">{a}</span>
+-                  <span class="n prev">{b}</span>
+-                  {blank || (r.direction === "neutral" && a !== b) ? (
+-                    <span class="n tr"></span>
+-                  ) : side === "home" ? (
+-                    <span class="n tr up" role="img" aria-label={t(lang, "teamTrendBetter")}>▲</span>
+-                  ) : side === "away" ? (
+-                    <span class="n tr down" role="img" aria-label={t(lang, "teamTrendWorse")}>▼</span>
+-                  ) : (
+-                    <span class="n tr flat" role="img" aria-label={t(lang, "teamTrendSame")}>–</span>
+-                  )}
+-                </div>
++                <TableRow
++                  lang={lang}
++                  name={boardTitle(lang, r.label_i18n_key, false)}
++                  cells={[{ text: a, kind: "now" }, { text: b, kind: "prev" }, trend]}
++                  nonkey={showSwitch && !r.is_key_metric}
++                />
+               );
+             })}
+           </div>
+diff --git a/site_v2/src/components/player/PlayerRecent.astro b/site_v2/src/components/player/PlayerRecent.astro
+index 1839f814..bd6154e7 100644
+--- a/site_v2/src/components/player/PlayerRecent.astro
++++ b/site_v2/src/components/player/PlayerRecent.astro
+@@ -1,13 +1,13 @@
+ ---
+-// Recent matches: the Team page's result row with the player's own line under it: minutes, goals and
+-// assists above 0, ball actions, or On the bench. Five rows show, the fold holds the rest. fitBlocks
+-// keeps a row on one line while every row fits; otherwise the score sits right after the chip.
+-import Crest from "../ui/Crest.astro";
++// Recent matches: the result row with the player's own line under it: minutes, goals and assists
++// above 0, ball actions, or On the bench. Five rows show, the fold holds the rest. fitBlocks keeps a
++// row on one line while every row fits; otherwise the score sits right after the chip.
+ import Fold from "../ui/Fold.astro";
++import ResultRow from "../ui/ResultRow.astro";
++import RowList from "../ui/RowList.astro";
+ import SectionHead from "../ui/SectionHead.astro";
+-import { formatShortDate, integer } from "../../lib/format";
++import { formatShortDate } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+-import { matchPageHref } from "../../lib/href";
+ import { competitionInfo } from "../../lib/teamFixtures";
+ import type { Lang } from "../../lib/format";
+ import type { PlayerMatch } from "../../lib/playerPage";
+@@ -20,57 +20,35 @@ interface Props {
+ const { matches, id, lang } = Astro.props;
+ 
+ const SHOWN = 5;
+-const LETTER: Record<string, string> = { W: "winsShort", D: "drawsShort", L: "lossesShort" };
+-const ha = (m: PlayerMatch) => (m.home_away === "home" ? t(lang, "home") : m.home_away === "away" ? t(lang, "away") : "");
+-const compName = (m: PlayerMatch) => competitionInfo(m.played_league_code ?? "").name;
+-const count = (n: number, one: string, many: string) => ({ n: integer(n, lang), word: n === 1 ? one : many });
+-const line = (m: PlayerMatch) => [
+-  m.minutes != null ? { n: integer(m.minutes, lang), word: t(lang, "minutesShort") } : null,
+-  m.goals ? count(m.goals, t(lang, "goalsOne"), t(lang, "goalsMany")) : null,
+-  m.assists ? count(m.assists, t(lang, "assistsOne"), t(lang, "assistsMany")) : null,
+-  m.ball_actions != null ? count(m.ball_actions, t(lang, "ballActionsOne"), t(lang, "ballActionsMany")) : null,
+-].filter((p): p is { n: string; word: string } => p !== null);
+-const rows = matches.map((m) => ({
+-  m,
+-  result: m.result && LETTER[m.result] ? m.result : null,
+-  href: matchPageHref(lang, m.played_fixture_sk),
+-  parts: m.on_bench ? [] : line(m),
+-}));
++type Part = { value: number; term: "minutes" | "goals" | "assists" | "ballActions" };
++const line = (m: PlayerMatch): Part[] => [
++  m.minutes != null ? { value: m.minutes, term: "minutes" as const } : null,
++  m.goals ? { value: m.goals, term: "goals" as const } : null,
++  m.assists ? { value: m.assists, term: "assists" as const } : null,
++  m.ball_actions != null ? { value: m.ball_actions, term: "ballActions" as const } : null,
++].filter((p): p is Part => p !== null);
+ ---
+ 
+-{rows.length > 0 && (
++{matches.length > 0 && (
+   <section>
+     <SectionHead label={t(lang, "secRecent")} />
+-    <div class="rlist pm">
+-      {[rows.slice(0, SHOWN), rows.slice(SHOWN)].map((part, i) => {
+-        const list = part.map(({ m, result, href, parts }) => {
+-          const Row = href ? "a" : "div";
+-          return (
+-            <Row class="lrow" href={href}>
+-              <div class="resrow">
+-                {result && <span class:list={["pill", result]}>{t(lang, LETTER[result])}</span>}
+-                <span class="rscore">{m.goals_for}–{m.goals_against}</span>
+-                <span class="ropp">
+-                  <span class="club"><Crest name={m.opponent_name} crest={m.opponent_logo_url} size="xs" /><span class="cn">{m.opponent_name}</span></span>
+-                  {ha(m) && <span class="ha">{ha(m)}</span>}
+-                </span>
+-                <span class="rmeta">
+-                  <span class="rm-c facts-line">
+-                    {ha(m) && <span class="rha">{ha(m)}</span>}{compName(m) && <span>{compName(m)}</span>}<span>{formatShortDate(m.played_kickoff_datetime, lang)}</span>
+-                  </span>
+-                  {(m.on_bench || parts.length > 0) && <span class="rm-p facts-line">
+-                    {m.on_bench
+-                      ? <span class="nb">{t(lang, "playerOnBench")}</span>
+-                      : parts.map((p) => <span class="nb"><b>{p.n}</b>{` ${p.word}`}</span>)}
+-                  </span>}
+-                </span>
+-              </div>
+-            </Row>
+-          );
+-        });
++    <RowList kind="player-results">
++      {[matches.slice(0, SHOWN), matches.slice(SHOWN)].map((part, i) => {
++        const list = part.map((m) => (
++          <ResultRow
++            lang={lang}
++            result={m.result}
++            score={`${m.goals_for}–${m.goals_against}`}
++            clubs={[{ name: m.opponent_name, crest: m.opponent_logo_url }]}
++            homeAway={m.home_away}
++            facts={[competitionInfo(m.played_league_code ?? "").name || null, formatShortDate(m.played_kickoff_datetime, lang)]}
++            player={{ onBench: Boolean(m.on_bench), parts: m.on_bench ? [] : line(m) }}
++            fixture={m.played_fixture_sk}
++          />
++        ));
+         if (i === 0) return list;
+-        return part.length > 0 ? <Fold id={id} n={rows.length} lang={lang}>{list}</Fold> : null;
++        return part.length > 0 ? <Fold id={id} n={matches.length} lang={lang}>{list}</Fold> : null;
+       })}
+-    </div>
++    </RowList>
+   </section>
+ )}
+diff --git a/site_v2/src/components/team/TeamCompetitions.astro b/site_v2/src/components/team/TeamCompetitions.astro
+index 02787b35..2ebf4d06 100644
+--- a/site_v2/src/components/team/TeamCompetitions.astro
++++ b/site_v2/src/components/team/TeamCompetitions.astro
+@@ -1,17 +1,16 @@
+ ---
+-// Competitions: one list row per competition of the season, in the served order (domestic first,
+-// league then cup, then international). Line 1: crest / name / a muted note (a league's latest
+-// round, a cup's round reached, an international league phase); on the right the standing, or a
+-// cup's Through / Knocked out / Winners. Line 2, for a table: the W/D/L counts, then goals and
+-// points. Every value is mart_team_competitions'; the row links to the competition's page.
+-import Crest from "../ui/Crest.astro";
++// Competitions: one competition row per competition of the season, in the served order (domestic
++// first, league then cup, then international). The note is a league's latest round, a cup's round
++// reached, or an international league phase; on the right the standing, or a cup's Through /
++// Knocked out / Winners; a table adds the W/D/L counts, goals and points. Every value is
++// mart_team_competitions'.
++import CompetitionRow from "../ui/CompetitionRow.astro";
++import RowList from "../ui/RowList.astro";
+ import SectionHead from "../ui/SectionHead.astro";
+ import type { Lang } from "../../lib/format";
+-import { ordinal, integer } from "../../lib/format";
++import { ordinal } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+ import { roundName } from "../../lib/roundName.mjs";
+-import { localeHref } from "../../lib/href";
+-import { competitionInfo } from "../../lib/teamFixtures";
+ import type { TeamCompetition } from "../../lib/types";
+ 
+ interface Props {
+@@ -23,7 +22,6 @@ const { competitions, lang } = Astro.props;
+ const CUP_STATUS: Record<string, string> = { through: "teamThrough", knocked_out: "teamKnockedOut", winners: "teamWinners" };
+ 
+ const rows = competitions.map((c) => {
+-  const info = competitionInfo(c.league_code);
+   const cup = c.cup_status != null || c.reached_round_stage_kind !== "table";
+   const note = cup
+     ? roundName(t, lang, c.reached_round_label_i18n_key, c.reached_round_number, c.reached_round_letter)
+@@ -33,52 +31,15 @@ const rows = competitions.map((c) => {
+   const right = cup
+     ? (c.cup_status && CUP_STATUS[c.cup_status] ? t(lang, CUP_STATUS[c.cup_status]) : null)
+     : c.standing_rank != null ? ordinal(c.standing_rank, lang) : null;
+-  const words = info.name.split(" ");
+-  return {
+-    info,
+-    head: words.slice(0, -1).join(" "),
+-    last: words[words.length - 1],
+-    note,
+-    right,
+-    table: !cup,
+-    c,
+-  };
++  return { c, note, right, table: cup ? null : c };
+ });
+-const CHIPS = [
+-  { k: "W", field: "wins", label: "winsShort" },
+-  { k: "D", field: "draws", label: "drawsShort" },
+-  { k: "L", field: "losses", label: "lossesShort" },
+-] as const;
+ ---
+ 
+ {rows.length > 0 && (
+   <section>
+     <SectionHead label={t(lang, "navCompetitions")} />
+-    <div class="tcomps">
+-      {rows.map((r) => {
+-        const Row = r.info.slug ? "a" : "div";
+-        return (
+-          <Row class="lrow tc" href={r.info.slug ? localeHref(lang, `${r.info.slug}/`) : undefined}>
+-            <div class="tcin">
+-              <span class="tc-crest"><Crest name={r.info.name} crest={r.info.crest} size="xs" /></span>
+-              <span class="tc-name">{r.head && `${r.head} `}<span class="nb">{r.last}</span>{r.note && <span class="tc-ctx">{r.note}</span>}</span>
+-              {r.right && <span class="tc-right">{r.right}</span>}
+-              {r.table && (
+-                <span class="tc-extra">
+-                  {r.right && <span class="tc-rank2" aria-hidden="true">{r.right}</span>}
+-                  <span class="cchips">
+-                    {CHIPS.map((ch) => <span class="cchip"><span class:list={["pill", ch.k]}>{t(lang, ch.label)}</span>{integer(r.c[ch.field], lang)}</span>)}
+-                  </span>
+-                  <span class="tc-nums facts-line">
+-                    <span class="nb">{t(lang, "goals")}{" "}<b>{integer(r.c.goals_for, lang)}:{integer(r.c.goals_against, lang)}</b></span>
+-                    <span class="nb">{t(lang, "points")}{" "}<b>{integer(r.c.points, lang)}</b></span>
+-                  </span>
+-                </span>
+-              )}
+-            </div>
+-          </Row>
+-        );
+-      })}
+-    </div>
++    <RowList kind="competitions">
++      {rows.map((r) => <CompetitionRow lang={lang} code={r.c.league_code} note={r.note} right={r.right} table={r.table} />)}
++    </RowList>
+   </section>
+ )}
+diff --git a/site_v2/src/components/team/TeamHighsLows.astro b/site_v2/src/components/team/TeamHighsLows.astro
+index 25d82355..0eeda8e2 100644
+--- a/site_v2/src/components/team/TeamHighsLows.astro
++++ b/site_v2/src/components/team/TeamHighsLows.astro
+@@ -4,6 +4,7 @@
+ // longest unbeaten and winless runs in the featured competition. Every value is mart_team_profile's;
+ // a row without a value is absent, and so is the block without a row.
+ import SectionHead from "../ui/SectionHead.astro";
++import FactRows from "../ui/FactRows.astro";
+ import type { Lang } from "../../lib/format";
+ import { integer, formatShortDate } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+@@ -44,13 +45,6 @@ const rows = [
+ {rows.length > 0 && (
+   <section>
+     <SectionHead label={t(lang, "teamHighsLows")} />
+-    <div class="facts">
+-      {rows.map((r) => (
+-        <div class="frow">
+-          <span class="fl">{r.label}</span>
+-          <span class="fv"><span class="fvv"><b>{r.v!.value}</b></span><span class="sub">{r.v!.sub}</span></span>
+-        </div>
+-      ))}
+-    </div>
++    <FactRows rows={rows.map((r) => ({ label: r.label, value: r.v!.value, context: r.v!.sub }))} />
+   </section>
+ )}
+diff --git a/site_v2/src/components/team/TeamLastSeason.astro b/site_v2/src/components/team/TeamLastSeason.astro
+index ff21b6eb..46b9dbc5 100644
+--- a/site_v2/src/components/team/TeamLastSeason.astro
++++ b/site_v2/src/components/team/TeamLastSeason.astro
+@@ -6,6 +6,7 @@
+ // Data: mart_team_competition_benchmarks (metric_value, metric_value_prev_season).
+ import SectionHead from "../ui/SectionHead.astro";
+ import MetricSwitch from "../ui/MetricSwitch.astro";
++import TableRow from "../ui/TableRow.astro";
+ import type { Lang } from "../../lib/format";
+ import { formatValue, integer, DASH } from "../../lib/format";
+ import { t, metricLabel, boardTitle } from "../../i18n/strings";
+@@ -55,21 +56,18 @@ const shown = (v: unknown, format: Parameters<typeof formatValue>[1]) =>
+               const side = a === DASH || b === DASH || a === b
+                 ? null
+                 : betterSide(now[r.metric_id] as number, prev[r.metric_id] as number, r.direction);
++              const trend = a === DASH || b === DASH || (r.direction === "neutral" && a !== b)
++                ? { text: "", kind: "tr" }
++                : side === "home" ? { text: "▲", kind: "tr up", label: t(lang, "teamTrendBetter") }
++                : side === "away" ? { text: "▼", kind: "tr down", label: t(lang, "teamTrendWorse") }
++                : { text: "–", kind: "tr flat", label: t(lang, "teamTrendSame") };
+               return (
+-                <div class:list={["ctab-row", { nonkey: !r.is_key_metric }]}>
+-                  <span class="tm"><span class="nm">{boardTitle(lang, r.label_i18n_key, r.per_match)}</span></span>
+-                  <span class="n now">{a}</span>
+-                  <span class="n prev">{b}</span>
+-                  {a === DASH || b === DASH || (r.direction === "neutral" && a !== b) ? (
+-                    <span class="n tr"></span>
+-                  ) : side === "home" ? (
+-                    <span class="n tr up" role="img" aria-label={t(lang, "teamTrendBetter")}>▲</span>
+-                  ) : side === "away" ? (
+-                    <span class="n tr down" role="img" aria-label={t(lang, "teamTrendWorse")}>▼</span>
+-                  ) : (
+-                    <span class="n tr flat" role="img" aria-label={t(lang, "teamTrendSame")}>–</span>
+-                  )}
+-                </div>
++                <TableRow
++                  lang={lang}
++                  name={boardTitle(lang, r.label_i18n_key, r.per_match)}
++                  cells={[{ text: a, kind: "now" }, { text: b, kind: "prev" }, trend]}
++                  nonkey={!r.is_key_metric}
++                />
+               );
+             })}
+           </div>
+diff --git a/site_v2/src/components/team/TeamMatches.astro b/site_v2/src/components/team/TeamMatches.astro
+index 7bd16362..f9a1704a 100644
+--- a/site_v2/src/components/team/TeamMatches.astro
++++ b/site_v2/src/components/team/TeamMatches.astro
+@@ -7,6 +7,7 @@
+ import SectionHead from "../ui/SectionHead.astro";
+ import FilterRows from "../competitions/FilterRows.astro";
+ import RecentMatch from "../fixture/RecentMatch.astro";
++import RowList from "../ui/RowList.astro";
+ import TeamFixtureGroup from "./TeamFixtureGroup.astro";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+@@ -48,11 +49,11 @@ const slotsOf = (fixtures: { league_code: string }[]) =>
+       {schedule.results.length > 0 && (
+         <section data-slots={slotsOf(schedule.results)}>
+           <SectionHead label={t(lang, "results")} />
+-          <div class="rlist">
++          <RowList kind="results">
+             {schedule.results.map((fx, i) => (
+-              <RecentMatch match={asResultMatch(fx, i + 1)} lang={lang} slot={slot.get(fx.league_code)} />
++              <RecentMatch match={asResultMatch(fx, i + 1)} lang={lang} competitionSlot={slot.get(fx.league_code)} />
+             ))}
+-          </div>
++          </RowList>
+         </section>
+       )}
+     </div>
+diff --git a/site_v2/src/components/team/TeamSquad.astro b/site_v2/src/components/team/TeamSquad.astro
+index f4b77810..d4ecb44b 100644
+--- a/site_v2/src/components/team/TeamSquad.astro
++++ b/site_v2/src/components/team/TeamSquad.astro
+@@ -3,14 +3,12 @@
+ // defenders, midfielders, forwards, other), each player as the match page's player row without
+ // goals or assists: photo / name, then country / age / appearances / minutes per appearance (no
+ // minutes without an appearance). The appearances are served: 0 where every finished match carries
+-// player data, otherwise empty, shown "–". Two columns where they fit. A row links to the player's
+-// page when this build makes one.
++// player data, otherwise empty, shown "–". Two columns where they fit.
+ import SectionHead from "../ui/SectionHead.astro";
+ import { decimal0, integer, DASH } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { t, metricInSentence } from "../../i18n/strings";
+-import { localeHref, word } from "../../lib/href";
+-import { builtPlayers } from "../../lib/builtPlayers.mjs";
++import PlayerRow from "../ui/PlayerRow.astro";
+ import type { SquadMember } from "../../lib/types";
+ 
+ interface Props {
+@@ -42,9 +40,6 @@ function age(birth: string | null | undefined): number | null {
+   const before = NOW.getMonth() < d.getMonth() || (NOW.getMonth() === d.getMonth() && NOW.getDate() < d.getDate());
+   return NOW.getFullYear() - d.getFullYear() - (before ? 1 : 0);
+ }
+-function initials(name: string | null | undefined): string {
+-  return (name ?? "").split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase();
+-}
+ function line(m: SquadMember): string[] {
+   const a = age(m.birth_date);
+   const apps = m.appearances == null
+@@ -71,18 +66,9 @@ const groups = GROUPS.map((g) => ({
+       <>
+         <div class="colhead">{t(lang, g.label)}</div>
+         <div class="sqgrid">
+-          {g.members.map((m) => {
+-            const slug = builtPlayers().get(m.player_id);
+-            const Row = slug ? "a" : "div";
+-            return (
+-              <Row class="lrow" href={slug ? localeHref(lang, `${word(lang, "players")}/${slug}/`) : undefined}>
+-                <div class="plrow">
+-                  <span class="pphoto">{m.photo ? <img src={m.photo} alt="" loading="lazy" width="34" height="34" /> : initials(m.name)}</span>
+-                  <span class="pname"><span class="nm">{m.name}</span><span class="ps facts-line">{line(m).map((s) => <span>{s}</span>)}</span></span>
+-                </div>
+-              </Row>
+-            );
+-          })}
++          {g.members.map((m) => (
++            <PlayerRow lang={lang} name={m.name} photo={m.photo} line={line(m)} id={m.player_id} />
++          ))}
+         </div>
+       </>
+     ))}
+diff --git a/site_v2/src/components/team/TeamStanding.astro b/site_v2/src/components/team/TeamStanding.astro
+index af0b0001..9f08f4b4 100644
+--- a/site_v2/src/components/team/TeamStanding.astro
++++ b/site_v2/src/components/team/TeamStanding.astro
+@@ -3,6 +3,7 @@
+ // point under it. The position is the latest table place; the points and both "Season before"
+ // values are the official league table's on the day of the team's Nth match (mart_team_profile).
+ import SectionHead from "../ui/SectionHead.astro";
++import FactRows from "../ui/FactRows.astro";
+ import type { Lang } from "../../lib/format";
+ import { integer, ordinal, DASH } from "../../lib/format";
+ import { t, metricLabel } from "../../i18n/strings";
+@@ -24,13 +25,6 @@ const rows = [
+ {(s.latest_rank != null || s.points_this_season != null) && (
+   <section>
+     <SectionHead label={t(lang, "teamStanding")} />
+-    <div class="facts">
+-      {rows.map((r) => (
+-        <div class="frow">
+-          <span class="fl">{r.label}</span>
+-          <span class="fv"><span class="fvv"><b>{r.value}</b></span><span class="sub">{t(lang, "teamSeasonBefore", { value: r.before })}</span></span>
+-        </div>
+-      ))}
+-    </div>
++    <FactRows rows={rows.map((r) => ({ label: r.label, value: r.value, context: t(lang, "teamSeasonBefore", { value: r.before }) }))} />
+   </section>
+ )}
+diff --git a/site_v2/src/components/teams/TeamIndex.astro b/site_v2/src/components/teams/TeamIndex.astro
+index d9cc72e9..70c3db93 100644
+--- a/site_v2/src/components/teams/TeamIndex.astro
++++ b/site_v2/src/components/teams/TeamIndex.astro
+@@ -10,10 +10,10 @@
+ // block whose units are all filtered out.
+ import FilterRows from "../competitions/FilterRows.astro";
+ import SectionHead from "../ui/SectionHead.astro";
+-import Crest from "../ui/Crest.astro";
++import IndexRow from "../ui/IndexRow.astro";
+ import Fold from "../ui/Fold.astro";
+ import { t } from "../../i18n/strings";
+-import { localeHref, word } from "../../lib/href";
++import { localeHref } from "../../lib/href";
+ import { competitionInfo } from "../../lib/teamFixtures";
+ import { topClubs, topNationalTeams, clubsByCountry, nationalTeamsByRegion } from "../../lib/teamIndex.mjs";
+ import type { Lang } from "../../lib/format";
+@@ -36,7 +36,6 @@ interface Props {
+   built: Set<string>;
+ }
+ const { data, lang, built } = Astro.props;
+-const teamsWord = word(lang, "teams");
+ const count = (n: number) => t(lang, n === 1 ? "teamsCountOne" : "teamsCount", { n });
+ 
+ const topViews = (top: { all: List | null; regions: { region: string; list: List }[] }, entity: Unit["entity"]): Unit[] => [
+@@ -74,7 +73,6 @@ const heading = (item: Extract<Item, { kind: "head" }>) => {
+   const c = competitionInfo(item.league);
+   return { text: c.name, href: c.slug ? localeHref(lang, `${c.slug}/`) : null };
+ };
+-const teamHref = (team: TeamIndexRow) => built.has(team.team_slug) ? localeHref(lang, `${teamsWord}/${team.team_slug}/`) : null;
+ ---
+ 
+ <section class="teamindex">
+@@ -96,13 +94,13 @@ const teamHref = (team: TeamIndexRow) => built.has(team.team_slug) ? localeHref(
+                     const h = heading(item);
+                     return <div class="colhead">{h.href ? <a class="lnk" href={h.href}>{h.text}</a> : h.text}</div>;
+                   }
+-                  const href = teamHref(item.team);
+-                  const Row = href ? "a" : "div";
+                   return (
+-                    <Row class="comp-row" href={href ?? undefined}>
+-                      <Crest name={item.team.team_name} crest={item.team.crest} size="xs" />
+-                      <span class="comp-meta"><span class="comp-name">{item.team.team_name}</span></span>
+-                    </Row>
++                    <IndexRow
++                      lang={lang}
++                      team={built.has(item.team.team_slug) ? item.team.team_slug : null}
++                      name={item.team.team_name}
++                      crest={item.team.crest}
++                    />
+                   );
+                 });
+                 return p === 0 ? rendered : part.length > 0 && (
+diff --git a/site_v2/src/components/ui/CompetitionRow.astro b/site_v2/src/components/ui/CompetitionRow.astro
+new file mode 100644
+index 00000000..84c74c40
+--- /dev/null
++++ b/site_v2/src/components/ui/CompetitionRow.astro
+@@ -0,0 +1,53 @@
++---
++// THE competition row: one competition of a team's season. Line 1: crest / name / a muted note; on
++// the right the standing or a cup's outcome. A table's row adds line 2: the W, D and L counts, each
++// the result chip and its count, then goals and points. The name's last word never stands alone on
++// a line. The row links to the competition's page when the competition has one.
++import Crest from "./Crest.astro";
++import ListRow from "./ListRow.astro";
++import { integer } from "../../lib/format";
++import type { Lang } from "../../lib/format";
++import { t } from "../../i18n/strings";
++import { localeHref } from "../../lib/href";
++import { competitionInfo } from "../../lib/teamFixtures";
++
++interface Props {
++  lang: Lang;
++  /** The competition's league code. */
++  code: string;
++  note?: string | null;
++  /** The standing or the cup's outcome, on the right. */
++  right?: string | null;
++  table?: { wins: number; draws: number; losses: number; goals_for: number; goals_against: number; points: number } | null;
++}
++const { lang, code, note, right, table } = Astro.props;
++const info = competitionInfo(code);
++const words = info.name.split(" ");
++const head = words.slice(0, -1).join(" ");
++const last = words[words.length - 1];
++const CHIPS = [
++  { k: "W", field: "wins", label: "winsShort" },
++  { k: "D", field: "draws", label: "drawsShort" },
++  { k: "L", field: "losses", label: "lossesShort" },
++] as const;
++---
++
++<ListRow class="tc" href={info.slug ? localeHref(lang, `${info.slug}/`) : undefined}>
++  <div class="tcin">
++    <span class="tc-crest"><Crest name={info.name} crest={info.crest} size="xs" /></span>
++    <span class="tc-name">{head && `${head} `}<span class="nb">{last}</span>{note && <span class="tc-ctx">{note}</span>}</span>
++    {right && <span class="tc-right">{right}</span>}
++    {table && (
++      <span class="tc-extra">
++        {right && <span class="tc-rank2" aria-hidden="true">{right}</span>}
++        <span class="cchips">
++          {CHIPS.map((ch) => <span class="cchip"><span class:list={["pill", ch.k]}>{t(lang, ch.label)}</span>{integer(table[ch.field], lang)}</span>)}
++        </span>
++        <span class="tc-nums facts-line">
++          <span class="nb">{t(lang, "goals")}{" "}<b>{integer(table.goals_for, lang)}:{integer(table.goals_against, lang)}</b></span>
++          <span class="nb">{t(lang, "points")}{" "}<b>{integer(table.points, lang)}</b></span>
++        </span>
++      </span>
++    )}
++  </div>
++</ListRow>
+diff --git a/site_v2/src/components/ui/FactRows.astro b/site_v2/src/components/ui/FactRows.astro
+new file mode 100644
+index 00000000..d71101d4
+--- /dev/null
++++ b/site_v2/src/components/ui/FactRows.astro
+@@ -0,0 +1,24 @@
++---
++// THE fact rows of a block: label / value over its context. The block decides the form: side by
++// side while its longest row fits, otherwise every row stacks. A piece marked `nb` never breaks
++// inside itself.
++type Piece = { text: string; nb?: boolean };
++type Text = string | Piece[];
++interface Props {
++  rows: { label: string; value: Text; context: Text }[];
++}
++const { rows } = Astro.props;
++const list = (x: Text): Piece[] => (typeof x === "string" ? [{ text: x }] : x);
++---
++
++<div class="facts">
++  {rows.map((row) => (
++    <div class="frow">
++      <span class="fl">{row.label}</span>
++      <span class="fv">
++        <span class="fvv"><b>{list(row.value).map((p) => (p.nb ? <span class="nb">{p.text}</span> : p.text))}</b></span>
++        <span class="sub">{list(row.context).map((p) => (p.nb ? <span class="nb">{p.text}</span> : p.text))}</span>
++      </span>
++    </div>
++  ))}
++</div>
+diff --git a/site_v2/src/components/ui/IndexRow.astro b/site_v2/src/components/ui/IndexRow.astro
+new file mode 100644
+index 00000000..58d1a7d0
+--- /dev/null
++++ b/site_v2/src/components/ui/IndexRow.astro
+@@ -0,0 +1,32 @@
++---
++// THE index row of the Competitions and Teams pages: crest / name, a competition's region under it.
++// A competition's row links to the competition page, a team's row to the team page; a team given no
++// slug has no page in this build and its row leads nowhere. Other attributes (the filters' data
++// marks) pass through.
++import Crest from "./Crest.astro";
++import { localeHref, word } from "../../lib/href";
++import type { Lang } from "../../lib/format";
++
++interface Props {
++  lang: Lang;
++  competition?: string | null;
++  team?: string | null;
++  name: string | null | undefined;
++  crest: string | null | undefined;
++  region?: string | null;
++  [attr: string]: unknown;
++}
++const { lang, competition, team, name, crest, region, ...rest } = Astro.props;
++const href = competition
++  ? localeHref(lang, `${competition}/`)
++  : team ? localeHref(lang, `${word(lang, "teams")}/${team}/`) : undefined;
++const Row = href ? "a" : "div";
++---
++
++<Row class="comp-row" href={href} {...rest}>
++  <Crest name={name} crest={crest} size="xs" />
++  <span class="comp-meta">
++    <span class="comp-name">{name}</span>
++    {region != null && <span class="comp-region">{region}</span>}
++  </span>
++</Row>
+diff --git a/site_v2/src/components/ui/ListRow.astro b/site_v2/src/components/ui/ListRow.astro
+new file mode 100644
+index 00000000..b6f1335a
+--- /dev/null
++++ b/site_v2/src/components/ui/ListRow.astro
+@@ -0,0 +1,14 @@
++---
++// THE list row: one row of a list, the whole row one link when it leads somewhere, otherwise a plain
++// row. Every row of a list (result, meeting, goal, player, competition) sits in it. Other attributes
++// (the filters' data marks) pass through.
++interface Props {
++  href?: string | null;
++  class?: string;
++  [attr: string]: unknown;
++}
++const { href, class: kind, ...rest } = Astro.props;
++const Row = href ? "a" : "div";
++---
++
++<Row class:list={["lrow", kind]} href={href ?? undefined} {...rest}><slot /></Row>
+diff --git a/site_v2/src/components/ui/PlayerRow.astro b/site_v2/src/components/ui/PlayerRow.astro
+new file mode 100644
+index 00000000..194434ff
+--- /dev/null
++++ b/site_v2/src/components/ui/PlayerRow.astro
+@@ -0,0 +1,56 @@
++---
++// THE player row: photo (the initials when there is none) / name over its second line / the numbers
++// on the right when the list has any. The row links to the player's page when this build makes one;
++// a row given no player id leads nowhere. Other attributes (the filters' data marks) pass through.
++import ListRow from "./ListRow.astro";
++import { builtPlayers } from "../../lib/builtPlayers.mjs";
++import { localeHref, word } from "../../lib/href";
++import { DASH, integer } from "../../lib/format";
++import { t } from "../../i18n/strings";
++import type { Lang } from "../../lib/format";
++
++type Term = "minutes" | "goals" | "assists" | "saves";
++interface Props {
++  lang: Lang;
++  name: string | null | undefined;
++  photo?: string | null;
++  line: string[];
++  /** The numbers on the right; a count the warehouse leaves blank shows as a dash. */
++  numbers?: { value: number | null | undefined; term: Term }[] | null;
++  /** The player's id; with `slug`, the slug its page is built under. */
++  id?: number | null;
++  slug?: string | null;
++  [attr: string]: unknown;
++}
++const { lang, name, photo, line, numbers, id, slug, ...rest } = Astro.props;
++const initials = (name ?? "").split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase();
++const page = id == null || !builtPlayers().has(id) ? null : slug ?? builtPlayers().get(id);
++const href = page ? localeHref(lang, `${word(lang, "players")}/${page}/`) : undefined;
++const WORD = {
++  minutes: ["minutesShort", "minutesShort"],
++  goals: ["goalsOne", "goalsMany"],
++  assists: ["assistsOne", "assistsMany"],
++  saves: ["savesOne", "savesMany"],
++} as const;
++const units = (numbers ?? []).map(({ value, term }) => ({
++  n: value == null ? DASH : integer(value, lang),
++  word: t(lang, WORD[term][value === 1 ? 0 : 1]),
++}));
++---
++
++<ListRow href={href} {...rest}>
++  <div class="plrow">
++    <span class="pphoto">
++      {photo ? <img src={photo} alt="" loading="lazy" width="34" height="34" /> : <span>{initials}</span>}
++    </span>
++    <span class="pname">
++      <span class="nm">{name}</span>
++      <span class="ps facts-line">{line.map((s) => <span>{s}</span>)}</span>
++    </span>
++    {numbers && (
++      <span class="pstat facts-line">
++        {units.map((p) => <span class="nb"><b>{p.n}</b> {p.word}</span>)}
++      </span>
++    )}
++  </div>
++</ListRow>
+diff --git a/site_v2/src/components/ui/ResultRow.astro b/site_v2/src/components/ui/ResultRow.astro
+new file mode 100644
+index 00000000..3d65cc84
+--- /dev/null
++++ b/site_v2/src/components/ui/ResultRow.astro
+@@ -0,0 +1,77 @@
++---
++// THE result row, in its four forms. A result: chip / score from the row's side / opponent (crest,
++// name, home or away) / competition and date. A meeting: the result row without its chip, the two
++// sides in the match's order. A goal: the score after it, the scorer with the crest of the side it
++// counts for, the minute with the assist, own goal or penalty on the second line; a scorer is a goal
++// without minutes, so without a score. A player's row adds the player's own line under the
++// competition and date. The row links to its match's page when this build makes one.
++import Crest from "./Crest.astro";
++import ListRow from "./ListRow.astro";
++import { t } from "../../i18n/strings";
++import { matchPageHref } from "../../lib/href";
++import { integer } from "../../lib/format";
++import type { Lang } from "../../lib/format";
++
++interface Club {
++  name: string | null | undefined;
++  crest: string | null | undefined;
++  /** The text beside the crest when it is not the club's name: a goal's scorer. */
++  text?: string | null;
++}
++interface Props {
++  lang: Lang;
++  kind?: "result" | "meeting" | "goal" | "scorer";
++  result?: string | null;
++  score?: string | null;
++  clubs: Club[];
++  homeAway?: string | null;
++  facts?: (string | null | undefined)[];
++  detail?: string | null;
++  /** The player's own line: On the bench, or the counts it shows. */
++  player?: { onBench: boolean; parts: { value: number; term: "minutes" | "goals" | "assists" | "ballActions" }[] } | null;
++  fixture?: number | null;
++  /** The competition filter's mark. */
++  competitionSlot?: number;
++}
++const { lang, kind = "result", result, score, clubs, homeAway, facts = [], detail, player, fixture, competitionSlot } = Astro.props;
++const LETTER: Record<string, string> = { W: "winsShort", D: "drawsShort", L: "lossesShort" };
++const chip = kind === "result" && result && LETTER[result] ? result : null;
++const ha = kind !== "result" ? "" : homeAway === "home" ? t(lang, "home") : homeAway === "away" ? t(lang, "away") : "";
++const goal = kind === "goal" || kind === "scorer";
++const forms = { result: [], meeting: ["meet"], goal: ["goal", "meet"], scorer: ["goal", "scorer"] }[kind];
++const shown = facts.filter((f) => f != null);
++const WORD = {
++  minutes: ["minutesShort", "minutesShort"],
++  goals: ["goalsOne", "goalsMany"],
++  assists: ["assistsOne", "assistsMany"],
++  ballActions: ["ballActionsOne", "ballActionsMany"],
++} as const;
++const units = (player?.parts ?? []).map(({ value, term }) => ({
++  n: integer(value, lang),
++  word: t(lang, WORD[term][value === 1 ? 0 : 1]),
++}));
++---
++
++<ListRow href={matchPageHref(lang, fixture)} data-fixture={fixture ?? undefined} data-competition-slot={competitionSlot}>
++  <div class:list={["resrow", ...forms]}>
++    {chip && <span class:list={["pill", chip]}>{t(lang, LETTER[chip])}</span>}
++    {score != null && <span class="rscore">{score}</span>}
++    <span class="ropp">
++      {clubs.map((c, i) => <>{i > 0 && " – "}<span class="club"><Crest name={c.name} crest={c.crest} size="xs" /><span class="cn">{c.text ?? c.name}</span></span></>)}
++      {ha && <span class="ha">{ha}</span>}
++    </span>
++    {goal ? (
++      detail && <span class="rmeta">{detail}</span>
++    ) : player ? (
++      <span class="rmeta"><span class="rm-c facts-line">{ha && <span class="rha">{ha}</span>}{shown.map((f) => <span>{f}</span>)}</span>{(player.onBench || player.parts.length > 0) && (
++        <span class="rm-p facts-line">
++          {player.onBench
++            ? <span class="nb">{t(lang, "playerOnBench")}</span>
++            : units.map((p) => <span class="nb"><b>{p.n}</b>{` ${p.word}`}</span>)}
++        </span>
++      )}</span>
++    ) : (
++      <span class="rmeta facts-line">{ha && <span class="rha">{ha}</span>}{shown.map((f) => <span>{f}</span>)}</span>
++    )}
++  </div>
++</ListRow>
+diff --git a/site_v2/src/components/ui/RowList.astro b/site_v2/src/components/ui/RowList.astro
+new file mode 100644
+index 00000000..52038dfc
+--- /dev/null
++++ b/site_v2/src/components/ui/RowList.astro
+@@ -0,0 +1,11 @@
++---
++// THE list that holds a block's rows: result rows, a player's result rows (with the player's own
++// line), or a team's competition rows. The kind sets the list's measured form.
++interface Props {
++  kind: "results" | "player-results" | "competitions";
++}
++const { kind } = Astro.props;
++const CLASS = { results: "rlist", "player-results": "rlist pm", competitions: "tcomps" };
++---
++
++<div class={CLASS[kind]}><slot /></div>
+diff --git a/site_v2/src/components/ui/TableRow.astro b/site_v2/src/components/ui/TableRow.astro
+new file mode 100644
+index 00000000..a4dd0547
+--- /dev/null
++++ b/site_v2/src/components/ui/TableRow.astro
+@@ -0,0 +1,55 @@
++---
++// THE table row: rank / crest and name (a player's club under the name) / the numbers under their
++// heads. A team's row links to the team page and a player's row to the player page when this build
++// makes one; a row that leads nowhere is not a link.
++import Crest from "./Crest.astro";
++import { hasPlayerPage } from "../../lib/builtPlayers.mjs";
++import { localeHref, word } from "../../lib/href";
++import type { Lang } from "../../lib/format";
++
++interface Cell {
++  text: string | number | null | undefined;
++  /** Tabular figures. */
++  num?: boolean;
++  /** The cell's kind: the ordered-by number, a W/D/L column, a trend. */
++  kind?: string;
++  /** A cell that is a mark: its spoken name. */
++  label?: string;
++}
++interface Props {
++  lang: Lang;
++  team?: string | null;
++  player?: string | null;
++  /** No rank cell when absent. */
++  rank?: string | number | null;
++  crest?: { name: string | null | undefined; url: string | null | undefined } | null;
++  name: string | null | undefined;
++  /** The line under the name; a row given one stacks the two. */
++  sub?: string | null;
++  cells: Cell[];
++  nonkey?: boolean;
++}
++const { lang, team, player, rank, crest, name, sub, cells, nonkey } = Astro.props;
++const href = team
++  ? localeHref(lang, `${word(lang, "teams")}/${team}/`)
++  : player && hasPlayerPage(player) ? localeHref(lang, `${word(lang, "players")}/${player}/`) : undefined;
++const Row = href ? "a" : "div";
++---
++
++<Row class:list={["ctab-row", { nonkey }]} href={href}>
++  {rank !== undefined && <span class="rk num">{rank}</span>}
++  <span class="tm">
++    {crest && <Crest name={crest.name} crest={crest.url} size="xs" />}
++    {sub !== undefined ? (
++      <span class="ent">
++        <span class="nm">{name}</span>
++        <span class="sub">{sub}</span>
++      </span>
++    ) : (
++      <span class="nm">{name}</span>
++    )}
++  </span>
++  {cells.map((c) => (
++    <span class:list={["n", { num: c.num }, c.kind]} role={c.label ? "img" : undefined} aria-label={c.label}>{c.text}</span>
++  ))}
++</Row>
+diff --git a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
+index 15ef7cef..62d26e91 100644
+--- a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
++++ b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
+@@ -10,7 +10,7 @@ import Masthead from "../../../../components/fixture/Masthead.astro";
+ import FormSegment from "../../../../components/fixture/FormSegment.astro";
+ import SplitSection from "../../../../components/fixture/SplitSection.astro";
+ import RecentMatch from "../../../../components/fixture/RecentMatch.astro";
+-import PlayerRow from "../../../../components/fixture/PlayerRow.astro";
++import PlayerToWatch from "../../../../components/fixture/PlayerToWatch.astro";
+ import HeadToHead from "../../../../components/fixture/HeadToHead.astro";
+ import NextMatches from "../../../../components/fixture/NextMatches.astro";
+ import MatchGoals from "../../../../components/fixture/MatchGoals.astro";
+@@ -178,10 +178,10 @@ const entity = {
+ 
+         <SplitSection label={t(lang, "secPlayers")} intro={playersIntro} homeLabel={home.name} awayLabel={away.name}>
+           <Fragment slot="home">
+-            {(home.top_players ?? []).slice(0, 5).map((p) => <PlayerRow player={p} lang={lang} />)}
++            {(home.top_players ?? []).slice(0, 5).map((p) => <PlayerToWatch player={p} lang={lang} />)}
+           </Fragment>
+           <Fragment slot="away">
+-            {(away.top_players ?? []).slice(0, 5).map((p) => <PlayerRow player={p} lang={lang} />)}
++            {(away.top_players ?? []).slice(0, 5).map((p) => <PlayerToWatch player={p} lang={lang} />)}
+           </Fragment>
+         </SplitSection>
+       </>
+diff --git a/site_v2/src/pages/[lang]/[teams]/[team].astro b/site_v2/src/pages/[lang]/[teams]/[team].astro
+index d3a66267..90f1f904 100644
+--- a/site_v2/src/pages/[lang]/[teams]/[team].astro
++++ b/site_v2/src/pages/[lang]/[teams]/[team].astro
+@@ -20,6 +20,7 @@ import TeamLeagueStrips from "../../../components/team/TeamLeagueStrips.astro";
+ import TeamLastSeason from "../../../components/team/TeamLastSeason.astro";
+ import RecentMatch from "../../../components/fixture/RecentMatch.astro";
+ import SectionHead from "../../../components/ui/SectionHead.astro";
++import RowList from "../../../components/ui/RowList.astro";
+ import { t } from "../../../i18n/strings";
+ import { localeHref, word } from "../../../lib/href";
+ import { competitionInfo } from "../../../lib/teamFixtures";
+@@ -112,7 +113,7 @@ const crumbs = [
+       {recent.length > 0 && (
+         <section>
+           <SectionHead label={t(lang, "secRecent")} />
+-          <div class="rlist">{recent.map((m) => <RecentMatch match={m} lang={lang} />)}</div>
++          <RowList kind="results">{recent.map((m) => <RecentMatch match={m} lang={lang} />)}</RowList>
+         </section>
+       )}
+       {nextMatches.length > 0 && (
+diff --git a/tests/fixtures/component_registry/baseline.json b/tests/fixtures/component_registry/baseline.json
+index 2e368b92..9fffe7b3 100644
+--- a/tests/fixtures/component_registry/baseline.json
++++ b/tests/fixtures/component_registry/baseline.json
+@@ -3,5 +3,7 @@
+  "forms": {"crest": 1, "fact-row": 1, "header": 1, "table": 1},
+  "unlisted classes": {"system.css": 34},
+  "part gaps": {"mock-css": 34, "style-varies": 4},
+- "set sizes": {"colours": 20, "marks": 4, "spacing": 11, "switch": 13, "text": 19}
++ "set sizes": {"colours": 20, "marks": 4, "spacing": 11, "switch": 13, "text": 19},
++ "markup outside its component": {"block": 23, "board": 5, "breadcrumb": 2, "competition-index": 4, "filter-bar": 12, "header": 2, "heading-link": 11, "last-season": 2, "page-shell": 17, "player-row": 1, "table-row": 1, "team-index": 5},
++ "components in several files": {"registry": 13}
+ }
+diff --git a/tests/test_check_component_registry.py b/tests/test_check_component_registry.py
+index 6f3355e6..ff4837f8 100644
+--- a/tests/test_check_component_registry.py
++++ b/tests/test_check_component_registry.py
+@@ -59,6 +59,62 @@ def test_the_real_tree_is_on_its_pins():
+     assert ccr.main([]) == 0
+ 
+ 
++def test_a_template_writes_the_classes_of_its_attributes():
++    text = ('<div class="lrow tc"><span class:list={["pill", result, { winner: w, played }]} />'
++            '<b class={CLASS[kind]} /><i class:list={["n", `x-${k}`, c.kind]} /></div>')
++    assert ccr.template_classes(text) == ["lrow", "tc", "pill", "winner", "played", "n"]
++
++
++def test_a_component_owns_the_classes_no_other_component_lists():
++    reg = {"components": {
++        "row": {"parts": {"row": {"class": "rw"}, "name": {"class": "nm"}}},
++        "table": {"parts": {"name": {"class": "nm"}, "box": {"class": "tb"}}},
++    }}
++    assert ccr.own_classes(reg) == {"row": {"rw"}, "table": {"tb"}}
++
++
++def _site(tmp_path: Path, files: dict) -> Path:
++    for rel, text in files.items():
++        p = tmp_path / rel
++        p.parent.mkdir(parents=True, exist_ok=True)
++        p.write_text(text, encoding="utf-8")
++    return tmp_path / "src"
++
++
++def test_markup_of_a_part_outside_its_component_is_counted(tmp_path):
++    reg = {"components": {
++        "row": {"file": "src/ui/Row.astro", "parts": {"row": {"class": "rw"}, "name": {"class": "nm"}}},
++        "table": {"file": ["src/a.astro", "src/b.astro"], "parts": {"name": {"class": "nm"}}},
++    }}
++    site = _site(tmp_path, {
++        "src/ui/Row.astro": '<a class="rw"><span class="nm" /></a>',
++        "src/Block.astro": '<div class="rw" /><div class:list={["rw", x]} /><span class="nm" />',
++    })
++    got = ccr.markup_counts(reg, site, tmp_path)
++    assert got == {"markup outside its component": {"row": 2}, "components in several files": {"registry": 1}}
++
++
++def test_a_link_to_a_page_type_the_registry_does_not_name_fails(tmp_path):
++    _site(tmp_path, {
++        "src/ui/Row.astro": 'const href = localeHref(lang, `${word(lang, "players")}/${slug}/`);',
++        "src/ui/Team.astro": 'const href = localeHref(lang, `${word(lang, "teams")}/${slug}/`);',
++    })
++    reg = {"components": {
++        "row": {"file": "src/ui/Row.astro", "links-to": ["team page"], "parts": {}},
++        "team": {"file": "src/ui/Team.astro", "links-to": ["team page"], "parts": {}},
++    }}
++    got = ccr.link_failures(reg, tmp_path)
++    assert got == ["components.row: src/ui/Row.astro links to the player page, which links-to does not name",
++                   "components.row: links-to names the team page, which src/ui/Row.astro never links to"]
++
++
++def test_links_to_names_only_known_page_types(tmp_path):
++    reg = copy.deepcopy(MINI)
++    reg["components"]["box"]["links-to"] = ["stats page"]
++    with pytest.raises(ccr.RegistryError, match="links-to"):
++        ccr.load(_write(tmp_path, reg))
++
++
+ @pytest.mark.parametrize("change, message", [
+     (lambda r: r["components"]["box"]["parts"]["label"].update(colour="ink"), "unknown key colour"),
+     (lambda r: r["components"]["box"]["parts"]["label"].update(text="99-100-ink"), "is in no set"),
+@@ -194,11 +250,13 @@ def _flat(pins: dict) -> dict:
+     return {(g, k): n for g, by in pins.items() for k, n in (by.items() if isinstance(by, dict) else [(None, by)])}
+ 
+ 
+-def _rises(now: dict, was: dict) -> list[str]:
++def _rises(now: dict, was: dict, measured: set[str] | None = None) -> list[str]:
+     """Every pin above main's, except the switch set's size: it counts declared breakpoints, not a
+-    gap, and the check pins it both ways."""
++    gap, and the check pins it both ways; and except a count group main's baseline does not hold at
++    all (`measured`, main's group names), whose first pins are what the branch introducing it
++    measures. A group main holds empty is measured: every pin in it is 0."""
+     return ["%s · %s · %d, main %d" % (k[0], k[1], n, was.get(k, 0)) for k, n in sorted(now.items(), key=str)
+-            if n > was.get(k, 0) and k != ("set sizes", "switch")]
++            if n > was.get(k, 0) and k != ("set sizes", "switch") and (measured is None or k[0] in measured)]
+ 
+ 
+ def test_only_the_switch_set_may_grow_past_mains():
+@@ -207,13 +265,25 @@ def test_only_the_switch_set_may_grow_past_mains():
+     assert _rises(now, was) == ["forms · x · 1, main 0", "set sizes · colours · 21, main 20"]
+ 
+ 
++def test_a_count_group_main_does_not_hold_starts_at_the_branchs_pins():
++    main = {"forms": {"x": 1}}
++    now = {("forms", "x"): 1, ("markup outside its component", "box"): 3}
++    assert _rises(now, _flat(main), set(main)) == []
++
++
++def test_a_rise_in_a_group_main_holds_empty_is_reported():
++    main = {"forms": {"x": 1}, "stylesheet values": {}}
++    now = {("forms", "x"): 1, ("stylesheet values", "size"): 1}
++    assert _rises(now, _flat(main), set(main)) == ["stylesheet values · size · 1, main 0"]
++
++
+ @pytest.mark.parametrize("path", ["tests/fixtures/component_registry/baseline.json",
+                                   "tests/fixtures/font_coverage/baseline.json"])
+ def test_no_pin_rises_above_mains(path):
+     base = _mains(path)
+     if base is None:
+         pytest.skip("main has no %s yet; this branch introduces it" % path)
+-    up = _rises(_flat(json.loads((REPO / path).read_text(encoding="utf-8"))), _flat(base))
++    up = _rises(_flat(json.loads((REPO / path).read_text(encoding="utf-8"))), _flat(base), set(base))
+     assert up == [], "a pin rose above main's; a new gap is fixed, not pinned:\n" + "\n".join(up)
+ 
+ 
+diff --git a/tests/test_phone_fixes_231.py b/tests/test_phone_fixes_231.py
+index cde7cf4e..9a74fabf 100644
+--- a/tests/test_phone_fixes_231.py
++++ b/tests/test_phone_fixes_231.py
+@@ -86,7 +86,7 @@ def test_linked_rows_are_square_and_flush():
+ 
+ 
+ def test_a_team_competition_row_keeps_the_space_in_goals_and_points():
+-    text = _read("components/team/TeamCompetitions.astro")
++    text = _read("components/ui/CompetitionRow.astro")
+     assert re.search(r'"goals"\)\}\{" "\}<b>', text)
+     assert re.search(r'"points"\)\}\{" "\}<b>', text)
+ 
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/243-parts-rows/acceptance_evidence.md |   54 +
+#    .../task/243-parts-rows/rendered_page_evidence.md  |   51 +
+#    .claude/task/243-parts-rows/review_input.patch     | 2211 ++++++++++++++++++++
+#    3 files changed, 2316 insertions(+)
+# ============================================================================

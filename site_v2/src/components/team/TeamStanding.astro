@@ -3,6 +3,7 @@
 // point under it. The position is the latest table place; the points and both "Season before"
 // values are the official league table's on the day of the team's Nth match (mart_team_profile).
 import SectionHead from "../ui/SectionHead.astro";
+import FactRows from "../ui/FactRows.astro";
 import type { Lang } from "../../lib/format";
 import { integer, ordinal, DASH } from "../../lib/format";
 import { t, metricLabel } from "../../i18n/strings";
@@ -24,13 +25,6 @@ const rows = [
 {(s.latest_rank != null || s.points_this_season != null) && (
   <section>
     <SectionHead label={t(lang, "teamStanding")} />
-    <div class="facts">
-      {rows.map((r) => (
-        <div class="frow">
-          <span class="fl">{r.label}</span>
-          <span class="fv"><span class="fvv"><b>{r.value}</b></span><span class="sub">{t(lang, "teamSeasonBefore", { value: r.before })}</span></span>
-        </div>
-      ))}
-    </div>
+    <FactRows rows={rows.map((r) => ({ label: r.label, value: r.value, context: t(lang, "teamSeasonBefore", { value: r.before }) }))} />
   </section>
 )}

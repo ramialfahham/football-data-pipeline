@@ -10,7 +10,7 @@ import Masthead from "../../../../components/fixture/Masthead.astro";
 import FormSegment from "../../../../components/fixture/FormSegment.astro";
 import SplitSection from "../../../../components/fixture/SplitSection.astro";
 import RecentMatch from "../../../../components/fixture/RecentMatch.astro";
-import PlayerRow from "../../../../components/fixture/PlayerRow.astro";
+import PlayerToWatch from "../../../../components/fixture/PlayerToWatch.astro";
 import HeadToHead from "../../../../components/fixture/HeadToHead.astro";
 import NextMatches from "../../../../components/fixture/NextMatches.astro";
 import MatchGoals from "../../../../components/fixture/MatchGoals.astro";
@@ -178,10 +178,10 @@ const entity = {
 
         <SplitSection label={t(lang, "secPlayers")} intro={playersIntro} homeLabel={home.name} awayLabel={away.name}>
           <Fragment slot="home">
-            {(home.top_players ?? []).slice(0, 5).map((p) => <PlayerRow player={p} lang={lang} />)}
+            {(home.top_players ?? []).slice(0, 5).map((p) => <PlayerToWatch player={p} lang={lang} />)}
           </Fragment>
           <Fragment slot="away">
-            {(away.top_players ?? []).slice(0, 5).map((p) => <PlayerRow player={p} lang={lang} />)}
+            {(away.top_players ?? []).slice(0, 5).map((p) => <PlayerToWatch player={p} lang={lang} />)}
           </Fragment>
         </SplitSection>
       </>

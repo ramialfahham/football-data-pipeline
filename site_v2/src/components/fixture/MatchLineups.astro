@@ -5,7 +5,8 @@
 // The two columns sit side by side from 560px, their rows level. Without a line-up the heading says
 // so in one line.
 import SectionHead from "../ui/SectionHead.astro";
-import { DASH, integer, matchMinute } from "../../lib/format";
+import PlayerRow from "../ui/PlayerRow.astro";
+import { DASH, matchMinute } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t, positionLabel } from "../../i18n/strings";
 import type { LineupPlayer, PlayedFixture, PlayedSide } from "../../lib/types";
@@ -26,8 +27,6 @@ function second(p: LineupPlayer): string[] {
     : t(lang, "lineupOn", { minute: matchMinute(p.minute_on, p.minute_on_extra), player: p.replaced_player_name ?? DASH });
   return [position, change].filter(Boolean);
 }
-const initials = (name: string | null | undefined) =>
-  (name ?? "").split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase();
 ---
 
 <section aria-label={t(lang, "secLineups")}>
@@ -43,20 +42,13 @@ const initials = (name: string | null | undefined) =>
                 {!p.is_starter && (i === 0 || side.lineup[i - 1].is_starter) && (
                   <div class="colhead">{t(lang, "lineupSubstitutes")}</div>
                 )}
-                <div class="lrow">
-                  <div class="plrow">
-                    <span class="pphoto">
-                      {p.photo ? <img src={p.photo} alt="" loading="lazy" width="34" height="34" /> : <span>{initials(p.name)}</span>}
-                    </span>
-                    <span class="pname">
-                      <span class="nm">{p.name ?? DASH}</span>
-                      <span class="ps facts-line">{second(p).map((s) => <span>{s}</span>)}</span>
-                    </span>
-                    <span class="pstat">
-                      {p.minutes != null && <span class="nb"><b>{integer(p.minutes, lang)}</b> {t(lang, "minutesShort")}</span>}
-                    </span>
-                  </div>
-                </div>
+                <PlayerRow
+                  lang={lang}
+                  name={p.name ?? DASH}
+                  photo={p.photo}
+                  line={second(p)}
+                  numbers={p.minutes != null ? [{ value: p.minutes, term: "minutes" }] : []}
+                />
               </>
             );
           })}

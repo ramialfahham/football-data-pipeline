@@ -1,0 +1,32 @@
+---
+// THE index row of the Competitions and Teams pages: crest / name, a competition's region under it.
+// A competition's row links to the competition page, a team's row to the team page; a team given no
+// slug has no page in this build and its row leads nowhere. Other attributes (the filters' data
+// marks) pass through.
+import Crest from "./Crest.astro";
+import { localeHref, word } from "../../lib/href";
+import type { Lang } from "../../lib/format";
+
+interface Props {
+  lang: Lang;
+  competition?: string | null;
+  team?: string | null;
+  name: string | null | undefined;
+  crest: string | null | undefined;
+  region?: string | null;
+  [attr: string]: unknown;
+}
+const { lang, competition, team, name, crest, region, ...rest } = Astro.props;
+const href = competition
+  ? localeHref(lang, `${competition}/`)
+  : team ? localeHref(lang, `${word(lang, "teams")}/${team}/`) : undefined;
+const Row = href ? "a" : "div";
+---
+
+<Row class="comp-row" href={href} {...rest}>
+  <Crest name={name} crest={crest} size="xs" />
+  <span class="comp-meta">
+    <span class="comp-name">{name}</span>
+    {region != null && <span class="comp-region">{region}</span>}
+  </span>
+</Row>

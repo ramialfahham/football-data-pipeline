@@ -1,14 +1,13 @@
 ---
-// Head to head: the served intro, then the last meetings as the result row without its chip (the chip
-// would take one side): the score in the match's order, the side that was at home first, competition /
-// date with its year. "No meetings on record." when the warehouse holds none. A meeting links to
-// its match's page when this build makes one.
+// Head to head: the served intro, then the last meetings as meeting rows: the score in the match's
+// order, the side that was at home first, competition / date with its year. "No meetings on record."
+// when the warehouse holds none.
 import SectionHead from "../ui/SectionHead.astro";
-import Crest from "../ui/Crest.astro";
+import ResultRow from "../ui/ResultRow.astro";
+import RowList from "../ui/RowList.astro";
 import { formatDayYear } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
-import { matchPageHref } from "../../lib/href";
 import type { HeadToHead, Side } from "../../lib/types";
 import competitions from "../../data/competitions.json";
 
@@ -25,13 +24,11 @@ const names = competitions as Record<string, { name?: string }>;
 const rows = meetings.map((m) => {
   const homeFirst = m.home_away === "home";
   return {
-    first: homeFirst ? home : away,
-    second: homeFirst ? away : home,
+    clubs: homeFirst ? [home, away] : [away, home],
     score: homeFirst ? `${m.goals_for}–${m.goals_against}` : `${m.goals_against}–${m.goals_for}`,
     comp: names[m.league_code ?? ""]?.name,
     date: formatDayYear(m.kickoff_datetime, lang),
     fixture: m.fixture_api_id,
-    href: matchPageHref(lang, m.fixture_api_id),
   };
 });
 ---
@@ -39,25 +36,16 @@ const rows = meetings.map((m) => {
 <section aria-label={t(lang, "secH2H")}>
   <SectionHead label={t(lang, "secH2H")} />
   {intro && <p class="bsub">{intro}</p>}
-  <div class="rlist">
-    {rows.map((r) => {
-      const Row = r.href ? "a" : "div";
-      return (
-      <Row class="lrow" href={r.href} data-fixture={r.fixture ?? undefined}>
-        <div class="resrow meet">
-          <span class="rscore">{r.score}</span>
-          <span class="ropp">
-            <span class="club"><Crest name={r.first.name} crest={r.first.crest} size="xs" /><span class="cn">{r.first.name}</span></span>
-            {" – "}
-            <span class="club"><Crest name={r.second.name} crest={r.second.crest} size="xs" /><span class="cn">{r.second.name}</span></span>
-          </span>
-          <span class="rmeta facts-line">
-            {r.comp && <span>{r.comp}</span>}
-            <span>{r.date}</span>
-          </span>
-        </div>
-      </Row>
-      );
-    })}
-  </div>
+  <RowList kind="results">
+    {rows.map((r) => (
+      <ResultRow
+        lang={lang}
+        kind="meeting"
+        score={r.score}
+        clubs={r.clubs.map((c) => ({ name: c.name, crest: c.crest }))}
+        facts={[r.comp || null, r.date]}
+        fixture={r.fixture}
+      />
+    ))}
+  </RowList>
 </section>

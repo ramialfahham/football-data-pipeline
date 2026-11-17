@@ -10,10 +10,10 @@
 // block whose units are all filtered out.
 import FilterRows from "../competitions/FilterRows.astro";
 import SectionHead from "../ui/SectionHead.astro";
-import Crest from "../ui/Crest.astro";
+import IndexRow from "../ui/IndexRow.astro";
 import Fold from "../ui/Fold.astro";
 import { t } from "../../i18n/strings";
-import { localeHref, word } from "../../lib/href";
+import { localeHref } from "../../lib/href";
 import { competitionInfo } from "../../lib/teamFixtures";
 import { topClubs, topNationalTeams, clubsByCountry, nationalTeamsByRegion } from "../../lib/teamIndex.mjs";
 import type { Lang } from "../../lib/format";
@@ -36,7 +36,6 @@ interface Props {
   built: Set<string>;
 }
 const { data, lang, built } = Astro.props;
-const teamsWord = word(lang, "teams");
 const count = (n: number) => t(lang, n === 1 ? "teamsCountOne" : "teamsCount", { n });
 
 const topViews = (top: { all: List | null; regions: { region: string; list: List }[] }, entity: Unit["entity"]): Unit[] => [
@@ -74,7 +73,6 @@ const heading = (item: Extract<Item, { kind: "head" }>) => {
   const c = competitionInfo(item.league);
   return { text: c.name, href: c.slug ? localeHref(lang, `${c.slug}/`) : null };
 };
-const teamHref = (team: TeamIndexRow) => built.has(team.team_slug) ? localeHref(lang, `${teamsWord}/${team.team_slug}/`) : null;
 ---
 
 <section class="teamindex">
@@ -96,13 +94,13 @@ const teamHref = (team: TeamIndexRow) => built.has(team.team_slug) ? localeHref(
                     const h = heading(item);
                     return <div class="colhead">{h.href ? <a class="lnk" href={h.href}>{h.text}</a> : h.text}</div>;
                   }
-                  const href = teamHref(item.team);
-                  const Row = href ? "a" : "div";
                   return (
-                    <Row class="comp-row" href={href ?? undefined}>
-                      <Crest name={item.team.team_name} crest={item.team.crest} size="xs" />
-                      <span class="comp-meta"><span class="comp-name">{item.team.team_name}</span></span>
-                    </Row>
+                    <IndexRow
+                      lang={lang}
+                      team={built.has(item.team.team_slug) ? item.team.team_slug : null}
+                      name={item.team.team_name}
+                      crest={item.team.crest}
+                    />
                   );
                 });
                 return p === 0 ? rendered : part.length > 0 && (

@@ -9,33 +9,24 @@
 //
 // The heading is a plain name until the Leaderboards pages exist (#140): a chevron says a heading
 // leads somewhere, and nothing here does yet.
-import Crest from "../ui/Crest.astro";
+import TableRow from "../ui/TableRow.astro";
 import { formatValue } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { boardTitle } from "../../i18n/strings";
-import { localeHref, word } from "../../lib/href";
 import type { CompetitionBoard, LandingRankedBoard, MatchLeaderBoard } from "../../lib/types";
-import { hasPlayerPage } from "../../lib/builtPlayers.mjs";
 
 interface Props {
   board: CompetitionBoard | MatchLeaderBoard | LandingRankedBoard;
   entity: "team" | "player";
   lang: Lang;
-  /** Where a row leads; by default the team or player page its slug names. */
-  rowHref?: (slug: string | null | undefined) => string | undefined;
+  /** Whether a row leads to the team or player page its slug names; by default it does. */
+  linked?: boolean;
 }
-const { board, entity, lang, rowHref } = Astro.props;
+const { board, entity, lang, linked = true } = Astro.props;
 
 // A per-match board says so in its title ("Goals per match"), only where the catalogue says the
 // metric is per match — the export carries that fact.
 const title = boardTitle(lang, board.label_i18n_key, "per_match" in board ? board.per_match : false);
-
-function href(slug: string | null | undefined): string | undefined {
-  if (rowHref) return rowHref(slug);
-  if (!slug || (entity === "player" && !hasPlayerPage(slug))) return undefined;
-  return localeHref(lang, `${word(lang, entity === "team" ? "teams" : "players")}/${slug}/`);
-}
-const Row = (slug: string | null | undefined) => (href(slug) ? "a" : "div");
 ---
 
 <div class="board">
@@ -48,24 +39,18 @@ const Row = (slug: string | null | undefined) => (href(slug) ? "a" : "div");
       <span class="h"></span>
     </div>
     {board.rows.map((row) => {
-      const slug = "slug" in row ? row.slug : null;
-      const Tag = Row(slug);
+      const slug = linked && "slug" in row ? row.slug : null;
       return (
-      <Tag class="ctab-row" href={href(slug)}>
-        <span class="rk num">{row.rank}</span>
-        <span class="tm">
-          <Crest name={entity === "team" ? row.name : row.club} crest={row.crest} size="xs" />
-          {entity === "player" ? (
-            <span class="ent">
-              <span class="nm">{row.name}</span>
-              <span class="sub">{row.club}</span>
-            </span>
-          ) : (
-            <span class="nm">{row.name}</span>
-          )}
-        </span>
-        <span class="n num pts">{formatValue(row.value, board.format, lang)}</span>
-      </Tag>
+        <TableRow
+          lang={lang}
+          team={entity === "team" ? slug : null}
+          player={entity === "player" ? slug : null}
+          rank={row.rank}
+          crest={{ name: entity === "team" ? row.name : row.club, url: row.crest }}
+          name={row.name}
+          sub={entity === "player" ? row.club ?? null : undefined}
+          cells={[{ text: formatValue(row.value, board.format, lang), num: true, kind: "pts" }]}
+        />
       );
     })}
   </div>

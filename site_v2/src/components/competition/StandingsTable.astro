@@ -4,12 +4,11 @@
 // the whole row is the link to the team page. The heading and the rows share one fixed track
 // list per breakpoint, so a heading can never sit off its numbers; W, D, L and Goals hide on a
 // narrow phone. The provider's cross-group ranking tables are not sections here.
-import Crest from "../ui/Crest.astro";
 import SectionHead from "../ui/SectionHead.astro";
+import TableRow from "../ui/TableRow.astro";
 import { integer, signedInteger } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
-import { localeHref, word } from "../../lib/href";
 import { standingsSections } from "../../lib/competitionPayload.mjs";
 import type { StandingRow } from "../../lib/types";
 
@@ -41,27 +40,24 @@ const showSectionNames = sections.length > 1;
             <span class="h">{t(lang, "points")}</span>
           </div>
           {sec.rows.map((row) => (
-            <a
-              class="ctab-row"
-              href={row.team_slug ? localeHref(lang, `${word(lang, "teams")}/${row.team_slug}/`) : undefined}
-            >
-              <span class="rk num">{row.standing_rank}</span>
-              <span class="tm">
-                <Crest name={row.team_name} crest={row.team_logo_url} size="xs" />
-                <span class="nm">{row.team_name}</span>
-              </span>
-              <span class="n num">{integer(row.played, lang)}</span>
-              <span class="n num wdl">{integer(row.wins, lang)}</span>
-              <span class="n num wdl">{integer(row.draws, lang)}</span>
-              <span class="n num wdl">{integer(row.losses, lang)}</span>
-              <span class="n num wdl">
-                {row.goals_scored != null && row.goals_conceded != null
-                  ? `${integer(row.goals_scored, lang)}:${integer(row.goals_conceded, lang)}`
-                  : "–"}
-              </span>
-              <span class="n num gd">{signedInteger(row.goals_diff, lang)}</span>
-              <span class="n num pts">{integer(row.points, lang)}</span>
-            </a>
+            <TableRow
+              lang={lang}
+              team={row.team_slug}
+              rank={row.standing_rank}
+              crest={{ name: row.team_name, url: row.team_logo_url }}
+              name={row.team_name}
+              cells={[
+                { text: integer(row.played, lang), num: true },
+                { text: integer(row.wins, lang), num: true, kind: "wdl" },
+                { text: integer(row.draws, lang), num: true, kind: "wdl" },
+                { text: integer(row.losses, lang), num: true, kind: "wdl" },
+                { text: row.goals_scored != null && row.goals_conceded != null
+                    ? `${integer(row.goals_scored, lang)}:${integer(row.goals_conceded, lang)}`
+                    : "–", num: true, kind: "wdl" },
+                { text: signedInteger(row.goals_diff, lang), num: true, kind: "gd" },
+                { text: integer(row.points, lang), num: true, kind: "pts" },
+              ]}
+            />
           ))}
         </div>
       </div>

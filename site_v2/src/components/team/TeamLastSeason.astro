@@ -6,6 +6,7 @@
 // Data: mart_team_competition_benchmarks (metric_value, metric_value_prev_season).
 import SectionHead from "../ui/SectionHead.astro";
 import MetricSwitch from "../ui/MetricSwitch.astro";
+import TableRow from "../ui/TableRow.astro";
 import type { Lang } from "../../lib/format";
 import { formatValue, integer, DASH } from "../../lib/format";
 import { t, metricLabel, boardTitle } from "../../i18n/strings";
@@ -55,21 +56,18 @@ const shown = (v: unknown, format: Parameters<typeof formatValue>[1]) =>
               const side = a === DASH || b === DASH || a === b
                 ? null
                 : betterSide(now[r.metric_id] as number, prev[r.metric_id] as number, r.direction);
+              const trend = a === DASH || b === DASH || (r.direction === "neutral" && a !== b)
+                ? { text: "", kind: "tr" }
+                : side === "home" ? { text: "▲", kind: "tr up", label: t(lang, "teamTrendBetter") }
+                : side === "away" ? { text: "▼", kind: "tr down", label: t(lang, "teamTrendWorse") }
+                : { text: "–", kind: "tr flat", label: t(lang, "teamTrendSame") };
               return (
-                <div class:list={["ctab-row", { nonkey: !r.is_key_metric }]}>
-                  <span class="tm"><span class="nm">{boardTitle(lang, r.label_i18n_key, r.per_match)}</span></span>
-                  <span class="n now">{a}</span>
-                  <span class="n prev">{b}</span>
-                  {a === DASH || b === DASH || (r.direction === "neutral" && a !== b) ? (
-                    <span class="n tr"></span>
-                  ) : side === "home" ? (
-                    <span class="n tr up" role="img" aria-label={t(lang, "teamTrendBetter")}>▲</span>
-                  ) : side === "away" ? (
-                    <span class="n tr down" role="img" aria-label={t(lang, "teamTrendWorse")}>▼</span>
-                  ) : (
-                    <span class="n tr flat" role="img" aria-label={t(lang, "teamTrendSame")}>–</span>
-                  )}
-                </div>
+                <TableRow
+                  lang={lang}
+                  name={boardTitle(lang, r.label_i18n_key, r.per_match)}
+                  cells={[{ text: a, kind: "now" }, { text: b, kind: "prev" }, trend]}
+                  nonkey={!r.is_key_metric}
+                />
               );
             })}
           </div>

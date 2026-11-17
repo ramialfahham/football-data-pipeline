@@ -94,11 +94,11 @@
 | Match row parts | `.sides, .played` | the match row's other parts: registered, no text of their own |  | ruled | the component registry |
 | Table head | `.ctab-head` | the head row with the column labels (or, on a board, the board's name); its 1px rule is the table's only line; it starts at the block's left edge | `border-bottom-width=1px; left-edge=section` | ruled | #129 Table; 2026-09-17 ("head only") |
 | Table head label | `.ctab-head .h:not(.rk)` | the small label's size, weight and colour: 11px bold muted. It keeps the label's own case, since capitals overflow the number columns at 280px | `font-size=11px; font-weight=700; color=muted` | ruled | #129 Table; the design standard |
+| Table parts | `.ctab` | the table's other parts: registered, no text of their own |  | ruled | the component registry |
 | Table row | `.ctab-row` | a 1px line between rows, no stripe; the row's tracks are the head's (one fixed track list per table kind) | `stripe=transparent from 1; tracks=head` | ruled | #129 Table; the design standard |
 | Table name cell | `.ctab .tm .nm` | 15px ink, wraps and never truncates | `font-size=15px; font-weight=400; color=ink; white-space=normal` | ruled | #129 Table; the design standard |
 | Table narrow row | `.ctab.fit-two .ctab-row` | a row that does not fit on one line takes two: rank, crest and name, then each number under its head | `tracks=head` | ruled | the narrow-screen fix |
 | Ordered-by number | `.ctab .n.pts` | the number a table is ordered by: bold 15px accent, everywhere, no per-block colour | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules |
-| Table parts | `.ctab` | the table's other parts: registered, no text of their own |  | ruled | the component registry |
 | Board name | `.ctab.rkt .ctab-head .nmh .bt .nm` | a board is a single-value table; its name sits in the head row with the chevron, in the item title style: 15px bold ink, not capitals, at the block's left edge | `font-size=15px; font-weight=700; color=ink; text-transform=none` | ruled | #129 board rules; #127 correction 1; the design standard |
 | Board name cell | `.ctab.rkt .ctab-head .nmh` | at the block's left edge | `left-edge=section` | ruled | #127 correction 3 |
 | Board sub-line | `.ctab.rkt .tm .ent .sub` | a player's club under the name, 13px muted | `font-size=13px; color=muted` | ruled | #129 Rankings; the design standard |
@@ -129,6 +129,7 @@
 | Match header dash | `.mast .dash` | the match header's dash, in the 30-400-muted text style, never broken | `font-size=30px; font-weight=400; color=muted; one-line; fits` | ruled | the component registry |
 | Match header parts | `.vh, .played` | the match header's other parts: registered, no text of their own |  | ruled | the component registry |
 | List row | `.lrow` | one row of a list, a 1px line between rows, nothing cut off; a crest or photo 8px from its name; 8px above and below a one-line row, 12px a two-line row. Its name is 15px, its second line 13px muted, its numbers 15px bold | `fits` | ruled | the match page review; the design standard |
+| Row list parts | `.rlist, .rlist.pm` | the row list's other parts: registered, no text of their own |  | ruled | the component registry |
 | Result chip | `.resrow .pill` | one match's W, D or L from a team's side, in the page's language, on the result colour. It is 11px bold with 4px corners and one fixed width, the same chip in every list | `font-size=11px; font-weight=700; color=pill-ink` | ruled | the match page review; the design standard |
 | Result row | `.resrow` | result chip / score / opponent (crest, name, home or away) / competition / date on one line where every row of its list fits; otherwise two lines: the first chip / score / crest / opponent, the second home or away / competition / date | `fits` | ruled | the match page review; the phone review |
 | Result row score | `.resrow .rscore` | the score from the row's side, 15px bold ink | `font-size=15px; font-weight=700; color=ink` | ruled | the match page review |
@@ -139,7 +140,7 @@
 | Goal row meta | `.resrow.goal .rmeta` | the goal's minute and its assist, own goal or penalty, in a list row's second-line style: 13px muted | `font-size=13px; color=muted` | ruled | the played match page review; the design standard |
 | Result row home away | `.resrow .ha` | the result row's home away, in the 11-700-muted-caps text style, never broken | `font-size=11px; font-weight=700; color=muted; text-transform=uppercase; one-line; fits` | ruled | the component registry |
 | Result row home or away line | `.resrow .rha` | home or away opening the second line in the two-line form, 13px muted, never split | `font-size=13px; color=muted` | ruled | the phone review |
-| Result row parts | `.rlist, .rlist.pm, .rm-c, .rm-p, .scorer` | the result row's other parts: registered, no text of their own |  | ruled | the component registry |
+| Result row parts | `.rm-c, .rm-p, .scorer` | the result row's other parts: registered, no text of their own |  | ruled | the component registry |
 | Form parts | `.pill.W, .pill.D, .pill.L` | the form's other parts: registered, no text of their own |  | ruled | the component registry |
 | Player row | `.plrow` | photo / name over position / goals and assists on the right at every width; two lines below 375px when the row is short of room; under 280px the name takes the whole line and the position shares the second line with the numbers; on a line-up, the minutes played | `fits` | ruled | the match page review; the component registry |
 | Player row name | `.plrow .pname .nm` | 15px regular ink, wrapping, never cut off | `font-size=15px; font-weight=400; color=ink; white-space=normal` | ruled | the match page review |
@@ -190,9 +191,10 @@
 | Fold link | `a.fold-ctl` | Under a list whose other rows are on their own page: "Show all {n}" as a link to that page, the chevron pointing to it | `font-size=13px; font-weight=700; color=muted` | ruled | the Players page review |
 | Fold label | `.lbl` | the fold's label, in the 13-700-muted text style, never broken | `font-size=13px; font-weight=700; color=muted; one-line; fits` | ruled | the component registry |
 | Fold parts | `.closed, .opened, .fold-in, .fold-rest` | the fold's other parts: registered, no text of their own |  | ruled | the component registry |
-| Competition list name | `.comp-row .comp-name` | the competition list's name, in the 15-400-ink text style | `font-size=15px; font-weight=400; color=ink` | ruled | the component registry |
-| Competition list region | `.comp-row .comp-region` | the competition list's region, in the 13-400-muted text style | `font-size=13px; font-weight=400; color=muted` | ruled | the component registry |
-| Competition list parts | `.compindex, .comp-grid, .comp-category, .comp-meta` | the competition list's other parts: registered, no text of their own |  | ruled | the component registry |
+| Competition list parts | `.compindex, .comp-grid, .comp-category` | the competition list's other parts: registered, no text of their own |  | ruled | the component registry |
+| Index row name | `.comp-row .comp-name` | the index row's name, in the 15-400-ink text style | `font-size=15px; font-weight=400; color=ink` | ruled | the component registry |
+| Index row region | `.comp-row .comp-region` | the index row's region, in the 13-400-muted text style | `font-size=13px; font-weight=400; color=muted` | ruled | the component registry |
+| Index row parts | `.comp-row, .comp-meta` | the index row's other parts: registered, no text of their own |  | ruled | the component registry |
 | Team list parts | `.teamindex, .tblock, .tgroups-region, .tview-all, .tview-region` | the team list's other parts: registered, no text of their own |  | ruled | the component registry |
 | Fitted block parts | `.fit-one` | the fitted block's other parts: registered, no text of their own |  | ruled | the component registry |
 | Unbreakable unit parts | `.nb` | the unbreakable unit's other parts: registered, no text of their own |  | ruled | the component registry |

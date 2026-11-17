@@ -7,6 +7,7 @@
 import SectionHead from "../ui/SectionHead.astro";
 import FilterRows from "../competitions/FilterRows.astro";
 import RecentMatch from "../fixture/RecentMatch.astro";
+import RowList from "../ui/RowList.astro";
 import TeamFixtureGroup from "./TeamFixtureGroup.astro";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
@@ -48,11 +49,11 @@ const slotsOf = (fixtures: { league_code: string }[]) =>
       {schedule.results.length > 0 && (
         <section data-slots={slotsOf(schedule.results)}>
           <SectionHead label={t(lang, "results")} />
-          <div class="rlist">
+          <RowList kind="results">
             {schedule.results.map((fx, i) => (
-              <RecentMatch match={asResultMatch(fx, i + 1)} lang={lang} slot={slot.get(fx.league_code)} />
+              <RecentMatch match={asResultMatch(fx, i + 1)} lang={lang} competitionSlot={slot.get(fx.league_code)} />
             ))}
-          </div>
+          </RowList>
         </section>
       )}
     </div>

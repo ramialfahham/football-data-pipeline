@@ -6,6 +6,7 @@
 // a link or none is. Names, rounds and dates never break inside themselves. A score reads
 // home–away with the en dash, as every score on the site does.
 import SectionHead from "../ui/SectionHead.astro";
+import FactRows from "../ui/FactRows.astro";
 import { decimal1, integer } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
@@ -85,16 +86,6 @@ for (const fact of seasonFacts(summary)) {
 {rows.length > 0 && (
   <section>
     <SectionHead label={t(lang, "compSecFacts")} />
-    <div class="facts">
-      {rows.map((row) => (
-        <div class="frow">
-          <span class="fl">{row.label}</span>
-          <span class="fv">
-            <span class="fvv"><b>{row.value.map((p) => (p.nb ? <span class="nb">{p.text}</span> : p.text))}</b></span>
-            <span class="sub">{row.context.map((p) => (p.nb ? <span class="nb">{p.text}</span> : p.text))}</span>
-          </span>
-        </div>
-      ))}
-    </div>
+    <FactRows rows={rows} />
   </section>
 )}

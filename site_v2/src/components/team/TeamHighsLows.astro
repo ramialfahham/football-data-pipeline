@@ -4,6 +4,7 @@
 // longest unbeaten and winless runs in the featured competition. Every value is mart_team_profile's;
 // a row without a value is absent, and so is the block without a row.
 import SectionHead from "../ui/SectionHead.astro";
+import FactRows from "../ui/FactRows.astro";
 import type { Lang } from "../../lib/format";
 import { integer, formatShortDate } from "../../lib/format";
 import { t } from "../../i18n/strings";
@@ -44,13 +45,6 @@ const rows = [
 {rows.length > 0 && (
   <section>
     <SectionHead label={t(lang, "teamHighsLows")} />
-    <div class="facts">
-      {rows.map((r) => (
-        <div class="frow">
-          <span class="fl">{r.label}</span>
-          <span class="fv"><span class="fvv"><b>{r.v!.value}</b></span><span class="sub">{r.v!.sub}</span></span>
-        </div>
-      ))}
-    </div>
+    <FactRows rows={rows.map((r) => ({ label: r.label, value: r.v!.value, context: r.v!.sub }))} />
   </section>
 )}

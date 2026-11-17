@@ -1,11 +1,9 @@
 ---
-// One Recent matches row, the result row: result chip / score from this team's side / opponent (crest,
-// name, H or A) / competition name / date. The row links to the match's page when this build makes one.
-import Crest from "../ui/Crest.astro";
+// One Recent matches row: the result row from this team's side, with the opponent, the competition
+// and the date.
+import ResultRow from "../ui/ResultRow.astro";
 import { formatShortDate } from "../../lib/format";
 import type { Lang } from "../../lib/format";
-import { t } from "../../i18n/strings";
-import { matchPageHref } from "../../lib/href";
 import type { FormMatch } from "../../lib/types";
 import competitions from "../../data/competitions.json";
 
@@ -13,25 +11,19 @@ interface Props {
   match: FormMatch;
   lang: Lang;
   /** The competition filter's mark (the Team page's Matches tab). */
-  slot?: number;
+  competitionSlot?: number;
 }
-const { match, lang, slot } = Astro.props;
-const LETTER: Record<string, string> = { W: "winsShort", D: "drawsShort", L: "lossesShort" };
-const result = match.result && LETTER[match.result] ? match.result : null;
-const ha = match.home_away === "home" ? t(lang, "home") : match.home_away === "away" ? t(lang, "away") : "";
+const { match, lang, competitionSlot } = Astro.props;
 const comp = (competitions as Record<string, { name?: string }>)[match.played_league_code ?? ""]?.name;
-const href = matchPageHref(lang, match.played_fixture_sk);
-const Row = href ? "a" : "div";
 ---
 
-<Row class="lrow" href={href} data-fixture={match.played_fixture_sk ?? undefined} data-competition-slot={slot}>
-  <div class="resrow">
-    {result && <span class:list={["pill", result]}>{t(lang, LETTER[result])}</span>}
-    <span class="rscore">{match.goals_for}–{match.goals_against}</span>
-    <span class="ropp">
-      <span class="club"><Crest name={match.opponent_name} crest={match.opponent_logo_url} size="xs" /><span class="cn">{match.opponent_name}</span></span>
-      {ha && <span class="ha">{ha}</span>}
-    </span>
-    <span class="rmeta facts-line">{ha && <span class="rha">{ha}</span>}{comp && <span>{comp}</span>}<span>{formatShortDate(match.played_kickoff_datetime, lang)}</span></span>
-  </div>
-</Row>
+<ResultRow
+  lang={lang}
+  result={match.result}
+  score={`${match.goals_for}–${match.goals_against}`}
+  clubs={[{ name: match.opponent_name, crest: match.opponent_logo_url }]}
+  homeAway={match.home_away}
+  facts={[comp || null, formatShortDate(match.played_kickoff_datetime, lang)]}
+  fixture={match.played_fixture_sk}
+  competitionSlot={competitionSlot}
+/>
