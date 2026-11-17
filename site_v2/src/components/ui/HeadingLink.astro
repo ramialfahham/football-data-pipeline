@@ -1,0 +1,12 @@
+---
+// THE chevron heading link: a heading that leads somewhere is one link, its text then the chevron,
+// never underlined. Given no address it is the same heading without the link and the chevron.
+import Chevron from "./Chevron.astro";
+
+interface Props {
+  href?: string | null;
+}
+const { href } = Astro.props;
+---
+
+{href ? <a class="cnm" href={href}><slot /><Chevron /></a> : <span class="cnm"><slot /></span>}

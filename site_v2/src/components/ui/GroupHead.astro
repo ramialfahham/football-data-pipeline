@@ -1,0 +1,33 @@
+---
+// THE group head, the level-1 heading over a group's rows. A competition's head shows its crest and
+// name, with the chevron when it links to the competition page; a nation's head links to the nation
+// page; a metric group's head is its name; an index page's head adds its counts on the right.
+// A metric group heading names the Statistics board it will lead to; while no board page exists it
+// leads nowhere.
+import Crest from "./Crest.astro";
+import HeadingLink from "./HeadingLink.astro";
+import { localeHref, word } from "../../lib/href";
+import type { Lang } from "../../lib/format";
+
+interface Props {
+  lang: Lang;
+  name: string | null | undefined;
+  /** A competition's crest, shown before its name. */
+  crest?: { name: string | null | undefined; url: string | null | undefined } | null;
+  /** The competition's slug when it has a page. */
+  competition?: string | null;
+  /** The nation's slug when it has a page. */
+  nation?: string | null;
+  /** The metric group whose Statistics board this heading will lead to. */
+  statistics?: string | null;
+  counts?: { text: string; attrs?: Record<string, string | undefined> }[];
+}
+const { lang, name, crest, competition, nation, counts = [] } = Astro.props;
+const href = competition
+  ? localeHref(lang, `${competition}/`)
+  : nation ? localeHref(lang, `${word(lang, "players")}/${nation}/`) : null;
+---
+
+<div class="gh">{href || crest ? (
+  <HeadingLink href={href}>{crest && <span class="clogo"><Crest name={crest.name} crest={crest.url} size="xs" /></span>}<span class="nm">{name}</span></HeadingLink>
+) : <span class="nm">{name}</span>}{counts.map((c) => <span class="cnt" {...c.attrs}>{c.text}</span>)}</div>

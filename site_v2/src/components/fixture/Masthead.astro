@@ -7,7 +7,8 @@
 // and under 700px each team's goals close its line. After penalties the big score is the shoot-out's
 // and the score after extra time stands under it; an awarded result says there how it came about.
 import Crest from "../ui/Crest.astro";
-import Chevron from "./Chevron.astro";
+import Chevron from "../ui/Chevron.astro";
+import GroupHead from "../ui/GroupHead.astro";
 import { formatDate, formatTime, scoreLine, signedInteger } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t, playedStatusWord } from "../../i18n/strings";
@@ -20,11 +21,12 @@ interface Props {
   round: string;
   compName: string;
   compLogo?: string | null;
-  compHref?: string;
+  /** The competition's slug when its page is built. */
+  compSlug?: string | null;
   teamHrefs: { home?: string; away?: string };
   showStanding: boolean;
 }
-const { fixture, lang, title, round, compName, compLogo, compHref, teamHrefs, showStanding } = Astro.props;
+const { fixture, lang, title, round, compName, compLogo, compSlug, teamHrefs, showStanding } = Astro.props;
 const { home, away } = fixture;
 
 const time = fixture.status === "TBD" ? t(lang, "timeOpen") : `${formatTime(fixture.kickoff, lang)} UTC`;
@@ -69,20 +71,7 @@ const sides: { side: Side; href?: string }[] = [
 
 <header class="mast">
   <div class="mcomp">
-    <div class="gh">
-      {compHref ? (
-        <a class="cnm" href={compHref}>
-          <span class="clogo"><Crest name={compName} crest={compLogo} size="xs" /></span>
-          <span class="nm">{compName}</span>
-          <Chevron />
-        </a>
-      ) : (
-        <span class="cnm">
-          <span class="clogo"><Crest name={compName} crest={compLogo} size="xs" /></span>
-          <span class="nm">{compName}</span>
-        </span>
-      )}
-    </div>
+    <GroupHead lang={lang} name={compName} crest={{ name: compName, url: compLogo }} competition={compSlug} />
   </div>
   <h1 class="vh">{title}</h1>
   <div class="eyebrow">{eyebrow}</div>

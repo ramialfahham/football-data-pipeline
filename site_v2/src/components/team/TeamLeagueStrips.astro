@@ -9,6 +9,8 @@
 import SectionHead from "../ui/SectionHead.astro";
 import MetricSwitch from "../ui/MetricSwitch.astro";
 import ChartLegend from "../ui/ChartLegend.astro";
+import Group from "../ui/Group.astro";
+import GroupHead from "../ui/GroupHead.astro";
 import { stripInset } from "../../lib/chartTheme";
 import type { Lang } from "../../lib/format";
 import { formatValue, ordinal } from "../../lib/format";
@@ -49,8 +51,8 @@ function place(v: number, lo: number, hi: number): number {
         { mark: "other", label: t(lang, "teamOtherTeams", { competition: compName }) },
       ]} />
       {groups.map((g) => (
-        <div class:list={["fxgroup", "rkgroup", { nonkey: !g.hasKey }]}>
-          <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${g.key}.label`)}</span></div>
+        <Group metric nonkey={!g.hasKey}>
+          <GroupHead lang={lang} name={metricLabel(lang, `metricGroups.${g.key}.label`)} statistics={g.key} />
           {g.rows.map((r) => {
             const b = bench.get(r.metric_id)!;
             const v = b.metric_value as number;
@@ -74,7 +76,7 @@ function place(v: number, lo: number, hi: number): number {
               </div>
             );
           })}
-        </div>
+        </Group>
       ))}
     </div>
   </section>

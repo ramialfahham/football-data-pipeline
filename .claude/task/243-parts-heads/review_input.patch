@@ -1,0 +1,1519 @@
+diff --git a/.claude/task/243-parts-heads/contract.md b/.claude/task/243-parts-heads/contract.md
+new file mode 100644
+index 00000000..ffe11fcd
+--- /dev/null
++++ b/.claude/task/243-parts-heads/contract.md
+@@ -0,0 +1,110 @@
++# Task contract — parts library, tab band, chip, group head and chevron heading link
++
++objective: >
++  Issue #243, the component-library step, second group: the tab band, the result chip, the
++  chevron, the chevron heading link, the group (its container, its head and its date heading)
++  each exist once as an Astro component in site_v2/src/components/ui/, and every page that shows
++  one places the component instead of its own copy of the markup. A group head builds its own link
++  from the entity it names (a competition to the competition page, a nation to the nation page); a
++  metric group heading carries the Statistics board it will lead to, and leads nowhere until those
++  boards exist. docs/design/components.yml maps each of these parts to its one component file. No
++  look change: a refactor of markup ownership, not a redesign.
++
++refs: >
++  #243 (component system), note 4249336961 (one form per part) and note 4253999647 (the sitewide
++  link rule); #139 and #140 (the Statistics boards). Visual details and engineering calls are the
++  coordinating agent's under docs/design/design_standard.md.
++
++scope_paths:
++  - .claude/task/243-parts-heads/
++  - site_v2/src/components/*/*.astro
++  - site_v2/src/pages/[[]lang]/*.astro
++  - site_v2/src/pages/[[]lang]/*/*.astro
++  - site_v2/src/pages/[[]lang]/*/*/*.astro
++  - site_v2/src/pages/[[]lang]/*/*/*/*.astro
++  - docs/design/components.yml
++  - docs/wireframes/block_standard.md
++  - scripts/check_component_registry.py
++  - scripts/parts_page.py
++  - tests/test_check_component_registry.py
++  - tests/test_parts_page.py
++  - tests/test_phone_fixes_231.py
++  - tests/fixtures/component_registry/baseline.json
++  - tests/fixtures/design_inventory/baseline.json
++  - tests/fixtures/design_inventory/baseline_quick.json
++  - tests/fixtures/design_inventory/baseline_quick_fi.json
++
++protected_override: >
++  docs/design/components.yml: the tab band's, the chip's, the chevron's, the chevron heading
++  link's, the group's, the group head's and the date heading's `file` each become one component
++  file; the chip, chevron, group head and date heading become components of their own, taking their
++  parts from the result row, the competition row, the chevron heading link and the group; the group
++  head names the page types it links to (`links-to`); no text style, value, rule or measurement
++  changes. The component-library step of #243 (each part built once as a component, every built
++  page moved onto it with no change in look), approved in chat, 17 Nov 2026; links per the #243
++  link rule (issue #243 note 4253999647); visual details and engineering calls are the coordinating
++  agent's under docs/design/design_standard.md, approved in chat, 16 Nov 2026.
++
++impact_map: >
++  writers: none; the component and page templates of site_v2 (markup moves into components), the
++  component registry, its generated table, its check and the parts page's part kinds. No dbt
++  model, export script, data file or stylesheet rule.
++  downstream: site_v2/dist only. leaf: consumption layer, no computation added or changed.
++  guard: docs/design/components.yml is read by scripts/check_component_registry.py (the registry
++  check and the block standard's generated table), scripts/check_design_inventory.py and
++  scripts/design_inventory.py (the design check measures each part by its class and selector),
++  scripts/parts_page.py and site_v2/scripts/check-term-list.test.mjs (a component's short terms by
++  its file). Classes and selectors do not change, so what the design check measures does not
++  change; only `file` and the component a part sits under change. A wrong `file` makes the markup
++  count rise and the check fail.
++  layer_rules: not applicable; no computation.
++  deploy_order: none; deploy:site-v2 is manual.
++  blast_radius: none on what a visitor sees; every pixel and DOM difference is listed in
++  rendered_page_evidence.md with its reason. Registry and design-inventory pins only go down.
++
++acceptance_criteria:
++  - Every tab band, result chip, chevron, chevron heading link, group, group head and date heading on the built site is drawn by its one component in site_v2/src/components/ui/, and scripts/check_component_registry.py counts 0 markup outside each of those components, except any listed in acceptance_evidence.md with its reason.
++  - A group head links to the competition page or the nation page it names and to no other type of page; the registry's `links-to` says so and the check verifies it; a metric group heading carries its Statistics board and leads nowhere today.
++  - The parts page (scripts/parts_page.py against the local dev server), before and after, shows for every part the same number of forms or fewer, and no new form.
++  - On Home, Matches, Competitions, Teams, Players, the Bundesliga overview, matches and stats pages, /teams/bayern-munchen/, /teams/germany/, a played match, an upcoming match and a player page, at 375px and 1280px in EN, DE and FI, every tab, the rendered page is pixel-identical before and after, except where two copies of one part differed before and now take one form; every pixel and DOM difference is listed with its reason in rendered_page_evidence.md.
++  - Every link leads to the same page as before.
++  - No block, block order, wording or value changes on any approved page.
++
++approved_design:
++  - home: #127
++  - competitions: #128
++  - competition: #129
++  - matches: #130
++  - match: #132
++  - teams: #133
++  - team: #134
++  - players: #135
++  - player: #136
++
++depends_on:
++  - none: the work is on main alone, after !473 merged
++
++shared_files:
++  - tests/fixtures/component_registry/baseline.json
++  - tests/fixtures/design_inventory/baseline.json
++  - tests/fixtures/design_inventory/baseline_quick.json
++  - tests/fixtures/design_inventory/baseline_quick_fi.json
++
++decisions_taken: >
++  The library stays in site_v2/src/components/ui/. A part a block shows is placed as its
++  component; the block passes data, never a destination. A competition group head without a page
++  shows the competition's crest and name without the chevron, the one form of the two the site had
++  for it. Decided by the coordinating agent under docs/design/design_standard.md. No new
++  mechanism, dependency or recurring cost.
++
++decisions_reserved:
++  - none: no look, wording or block changes; any question goes to the coordinating session.
++
++done_when:
++  - python scripts/parts_page.py --base http://localhost:4327 before and after; forms per part equal or fewer.
++  - The before/after capture of the pages in acceptance_criteria reports pixel-identical screenshots; every difference listed.
++  - python scripts/check_component_registry.py passes; baseline pins do not rise.
++  - Full pytest and the site's node tests pass.
++  - python scripts/ci_local.py --mr --full-scope is green.
++
++amendments: (none)
+diff --git a/docs/design/components.yml b/docs/design/components.yml
+index e370d0b4..38de4fdb 100644
+--- a/docs/design/components.yml
++++ b/docs/design/components.yml
+@@ -130,7 +130,7 @@ components:
+     narrow: {below: w700, form: "the name at 20px"}
+   tabs:
+     name: Tab bar
+-    file: [site_v2/src/components/competition/CompetitionTabs.astro, site_v2/src/components/team/Tabs.astro, "site_v2/src/pages/[lang]/[players]/[player].astro"]
++    file: site_v2/src/components/ui/TabBand.astro
+     used-on: [Competition pages, Team page, Player page]
+     parts:
+       bar: {class: tabs, selector: nav.tabs, element: Tab bar, rule: "the tabs share the row and fit in one row at 375px in EN, DE and FI, no sideways scrolling", measured: fits, ruled-on: "#129 header"}
+@@ -151,18 +151,31 @@ components:
+     wide: "name over its rule, explainer, content"
+   group:
+     name: Group
+-    file: [site_v2/src/components/home/HeroFixtures.astro, site_v2/src/components/fixture/NextMatches.astro, site_v2/src/components/team/TeamFixtureGroup.astro, site_v2/src/components/competition/RankingsBlock.astro, site_v2/src/components/teams/TeamIndex.astro, site_v2/src/components/player/PlayerIndex.astro]
+-    used-on: [Home, Matches, Competition pages, Team page, Teams page, match page, Players]
++    file: site_v2/src/components/ui/Group.astro
++    used-on: [Home, Matches, Competition pages, Team page, Teams page, match page, Players, Player page]
++    parts:
++      spacing: {class: fxgroup, selector: ".fxgroup + .fxgroup", element: Group spacing, rule: "36px from one group's last row to the next group's heading", measured: "gap(prev)=36px", ruled-on: "#50; the design standard"}
++    wide: "group head over its rows"
++  group-head:
++    name: Group head
++    file: site_v2/src/components/ui/GroupHead.astro
++    links-to: [competition page, nation page]
++    used-on: [Home, Matches, Competition pages, Team page, Teams page, match page, Players, Player page]
+     parts:
+       head: {class: gh, selector: ".fxgroup:not(.rkgroup) > .gh", element: Competition group head, rule: "the level-1 heading over a competition's match rows: crest, name and chevron when it links, name and count on an index page; 18px bold, a 2px line under it, 36px above the group; on Home, inside the Next matches block, it keeps its line", measured: "border-bottom-width=2px; left-edge=section", ruled-on: "#50; #129; 2026-09-17 (\"Home with line\"); the design standard"}
+       name: {class: nm, selector: ".fxgroup:not(.rkgroup) > .gh .nm", text: 18-700-ink, element: Competition group name, rule: 18px bold ink, measured: "font-size=18px; font-weight=700; color=ink", ruled-on: "#50; the design standard"}
+       count: {class: cnt, selector: ".fxgroup > .gh .cnt", text: 13-400-muted, element: Group count, rule: "the team count at the right of a group head: 13px muted", measured: "font-size=13px; font-weight=400; color=muted", ruled-on: the Teams page review}
+-      spacing: {class: fxgroup, selector: ".fxgroup + .fxgroup", element: Group spacing, rule: "36px from one group's last row to the next group's heading", measured: "gap(prev)=36px", ruled-on: "#50; the design standard"}
+       metric-head: {class: gh, selector: ".rkgroup > .gh", element: Metric group heading, rule: "the level-1 heading over a metric group's boards or rows: the competition group head's size, without its line; 12px to what follows", measured: "border-bottom-width=0px; gap(next)=12px; left-edge=section", ruled-on: "#129 Rankings; 2026-09-17 (\"Rankings without\"); the design standard"}
+       metric-name: {class: nm, selector: ".rkgroup > .gh .nm", text: 18-700-ink, element: Metric group name, rule: "18px bold ink, a clear step over the 15px board names", measured: "font-size=18px; font-weight=700; color=ink", ruled-on: "#129 Rankings; the design standard"}
+-      date: {class: dh, selector: ".fxgroup .dh", text: 13-700-muted-caps, element: Date heading, rule: "the date once per day, over its rows, in the block heading's style: 13px bold capitals, muted", measured: "font-size=13px; font-weight=700; text-transform=uppercase; color=muted", ruled-on: "#127 (2026-09-14); #50; the design standard"}
+       logo: {class: clogo, gap: mock-css}
+-    wide: "group head (crest / name / chevron / count) over its rows"
++    wide: "crest / name / chevron / count; a competition's head links to the competition page, a nation's to the nation page; a metric group's head will link to its Statistics board"
++  date-heading:
++    name: Date heading
++    file: site_v2/src/components/ui/DateHeading.astro
++    used-on: [Home, Competition matchdays, Team page, match page, Player page]
++    parts:
++      date: {class: dh, selector: ".fxgroup .dh", text: 13-700-muted-caps, element: Date heading, rule: "the date once per day, over its rows, in the block heading's style: 13px bold capitals, muted", measured: "font-size=13px; font-weight=700; text-transform=uppercase; color=muted", ruled-on: "#127 (2026-09-14); #50; the design standard"}
++    wide: the day's date over its rows
+   match-row:
+     name: Match row
+     file: site_v2/src/components/ui/MatchRow.astro
+@@ -263,12 +276,18 @@ components:
+     narrow: {below: fits, form: "every row's value under its label, right-aligned"}
+   heading-link:
+     name: Chevron heading link
+-    file: site_v2/src/components/fixture/Chevron.astro
++    file: site_v2/src/components/ui/HeadingLink.astro
+     used-on: [every page with a group head]
+     parts:
+       link: {class: cnm, selector: a.cnm, element: Chevron heading link, rule: a heading that leads somewhere carries a chevron at rest and is never underlined, measured: "text-decoration-line=none", ruled-on: "#52; #129 binding rules"}
+-      chevron: {class: chev, selector: a.cnm .chev, element: Chevron, rule: "15px, muted at rest", measured: "color=muted", ruled-on: "#52"}
+     wide: "the heading text, then the chevron"
++  chevron:
++    name: Chevron
++    file: site_v2/src/components/ui/Chevron.astro
++    used-on: [every page with a group head, a fold or a filter dropdown]
++    parts:
++      chevron: {class: chev, selector: a.cnm .chev, element: Chevron, rule: "15px, muted at rest", measured: "color=muted", ruled-on: "#52"}
++    wide: the chevron mark
+   masthead:
+     name: Match header
+     file: site_v2/src/components/fixture/Masthead.astro
+@@ -312,7 +331,6 @@ components:
+     links-to: [match page]
+     used-on: [match page, Team page, Player page]
+     parts:
+-      chip: {class: pill, selector: ".resrow .pill", text: 11-700-pill-ink-caps, element: Result chip, rule: "one match's W, D or L from a team's side, in the page's language, on the result colour. It is 11px bold with 4px corners and one fixed width, the same chip in every list", measured: "font-size=11px; font-weight=700; color=pill-ink", ruled-on: "the match page review; the design standard"}
+       row: {class: resrow, element: Result row, rule: "result chip / score / opponent (crest, name, home or away) / competition / date on one line where every row of its list fits; otherwise two lines: the first chip / score / crest / opponent, the second home or away / competition / date", measured: fits, ruled-on: "the match page review; the phone review"}
+       score: {class: rscore, selector: ".resrow .rscore", text: 15-700-ink, element: Result row score, rule: "the score from the row's side, 15px bold ink", measured: "font-size=15px; font-weight=700; color=ink", ruled-on: the match page review}
+       name: {class: ropp, selector: ".resrow .ropp", text: 15-400-ink, element: Result row name, rule: "the club, 15px ink, wrapping, never cut off", measured: "font-size=15px; color=ink; white-space=normal", ruled-on: the match page review}
+@@ -327,7 +345,16 @@ components:
+       scorer: {class: scorer}
+     wide: "chip / score / opponent / competition / date on one line where every row of its list fits; the row links to the match page"
+     narrow: {below: w420, form: "two lines: a meeting or goal row below 420px, a result row where its list does not fit; below 420px an 8px column gap"}
+-    short-forms: [wins, draws, losses, minutes]
++    short-forms: [minutes]
++  chip:
++    name: Result chip
++    file: site_v2/src/components/ui/ResultChip.astro
++    used-on: [match page, Team page, Player page]
++    parts:
++      chip: {class: pill, selector: ".resrow .pill", text: 11-700-pill-ink-caps, element: Result chip, rule: "one match's W, D or L from a team's side, in the page's language, on the result colour. It is 11px bold with 4px corners and one fixed width, the same chip in every list", measured: "font-size=11px; font-weight=700; color=pill-ink", ruled-on: "the match page review; the design standard"}
++      count-chip: {class: pill, selector: ".cchip .pill", text: 11-700-pill-ink-caps, breaks: never}
++    wide: "W, D or L on the result colour"
++    short-forms: [wins, draws, losses]
+   form:
+     name: Form
+     file: site_v2/src/components/fixture/FormSegment.astro
+@@ -338,7 +365,6 @@ components:
+       draw: {class: D, selector: ".pill.D"}
+       loss: {class: L, selector: ".pill.L"}
+     wide: "a team's last results as chips"
+-    short-forms: [wins, draws, losses]
+   player-row:
+     name: Player row
+     file: site_v2/src/components/ui/PlayerRow.astro
+@@ -372,7 +398,6 @@ components:
+     parts:
+       row: {class: tc, selector: ".lrow.tc", element: Competition row, rule: "one competition of a team's season: crest, name and a muted note, with the standing or the cup's outcome on the right. A table's row adds the W, D and L counts, each the result chip and its count, then goals and points below. Narrow, the standing opens the second line", measured: fits, ruled-on: "the Team page review; the design standard"}
+       name: {class: tc-name, selector: ".tc .tc-name", text: 15-400-ink, element: Competition row name, rule: "15px ink; the note under it 13px muted", measured: "font-size=15px; font-weight=400; color=ink", ruled-on: "the Team page review; the design standard"}
+-      chip: {class: pill, selector: ".cchip .pill", text: 11-700-pill-ink-caps, breaks: never}
+       count: {class: cchip}
+       chips: {class: cchips, gap: mock-css}
+       inner: {class: tcin, gap: mock-css}
+@@ -384,7 +409,6 @@ components:
+       right: {class: tc-right, gap: mock-css}
+     wide: "crest, name and note | standing or outcome; W, D, L, goals and points below; the row links to the competition page"
+     narrow: {below: w340, form: the standing opens the second line}
+-    short-forms: [wins, draws, losses]
+   squad:
+     name: Squad grid
+     file: site_v2/src/components/team/TeamSquad.astro
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index fa558777..040699b8 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -80,10 +80,10 @@
+ | Block heading gap | `.sechead` | the block owns the space between its parts: 12px between every two of them, the name's rule and the explainer included; no part brings margin of its own, and a list opening the block carries no top padding; the name starts at the block's left edge | `gap(next)=12px; left-edge=section` | ruled | #129 binding rules; #127 correction 3; the design standard |
+ | Block explainer | `.bsub` | the one sentence under a block name, 13px muted | `font-size=13px; color=muted` | ruled | #129 Deserved points |
+ | Tab explainer | `.bsub.tab-intro` | a tab's opening sentence under the tab bar, in the block explainer's style: 13px muted | `font-size=13px; color=muted` | ruled | the Team page review |
++| Group spacing | `.fxgroup + .fxgroup` | 36px from one group's last row to the next group's heading | `gap(prev)=36px` | ruled | #50; the design standard |
+ | Competition group head | `.fxgroup:not(.rkgroup) > .gh` | the level-1 heading over a competition's match rows: crest, name and chevron when it links, name and count on an index page; 18px bold, a 2px line under it, 36px above the group; on Home, inside the Next matches block, it keeps its line | `border-bottom-width=2px; left-edge=section` | ruled | #50; #129; 2026-09-17 ("Home with line"); the design standard |
+ | Competition group name | `.fxgroup:not(.rkgroup) > .gh .nm` | 18px bold ink | `font-size=18px; font-weight=700; color=ink` | ruled | #50; the design standard |
+ | Group count | `.fxgroup > .gh .cnt` | the team count at the right of a group head: 13px muted | `font-size=13px; font-weight=400; color=muted` | ruled | the Teams page review |
+-| Group spacing | `.fxgroup + .fxgroup` | 36px from one group's last row to the next group's heading | `gap(prev)=36px` | ruled | #50; the design standard |
+ | Metric group heading | `.rkgroup > .gh` | the level-1 heading over a metric group's boards or rows: the competition group head's size, without its line; 12px to what follows | `border-bottom-width=0px; gap(next)=12px; left-edge=section` | ruled | #129 Rankings; 2026-09-17 ("Rankings without"); the design standard |
+ | Metric group name | `.rkgroup > .gh .nm` | 18px bold ink, a clear step over the 15px board names | `font-size=18px; font-weight=700; color=ink` | ruled | #129 Rankings; the design standard |
+ | Date heading | `.fxgroup .dh` | the date once per day, over its rows, in the block heading's style: 13px bold capitals, muted | `font-size=13px; font-weight=700; text-transform=uppercase; color=muted` | ruled | #127 (2026-09-14); #50; the design standard |
+@@ -130,7 +130,6 @@
+ | Match header parts | `.vh, .played` | the match header's other parts: registered, no text of their own |  | ruled | the component registry |
+ | List row | `.lrow` | one row of a list, a 1px line between rows, nothing cut off; a crest or photo 8px from its name; 8px above and below a one-line row, 12px a two-line row. Its name is 15px, its second line 13px muted, its numbers 15px bold | `fits` | ruled | the match page review; the design standard |
+ | Row list parts | `.rlist, .rlist.pm` | the row list's other parts: registered, no text of their own |  | ruled | the component registry |
+-| Result chip | `.resrow .pill` | one match's W, D or L from a team's side, in the page's language, on the result colour. It is 11px bold with 4px corners and one fixed width, the same chip in every list | `font-size=11px; font-weight=700; color=pill-ink` | ruled | the match page review; the design standard |
+ | Result row | `.resrow` | result chip / score / opponent (crest, name, home or away) / competition / date on one line where every row of its list fits; otherwise two lines: the first chip / score / crest / opponent, the second home or away / competition / date | `fits` | ruled | the match page review; the phone review |
+ | Result row score | `.resrow .rscore` | the score from the row's side, 15px bold ink | `font-size=15px; font-weight=700; color=ink` | ruled | the match page review |
+ | Result row name | `.resrow .ropp` | the club, 15px ink, wrapping, never cut off | `font-size=15px; color=ink; white-space=normal` | ruled | the match page review |
+@@ -141,6 +140,8 @@
+ | Result row home away | `.resrow .ha` | the result row's home away, in the 11-700-muted-caps text style, never broken | `font-size=11px; font-weight=700; color=muted; text-transform=uppercase; one-line; fits` | ruled | the component registry |
+ | Result row home or away line | `.resrow .rha` | home or away opening the second line in the two-line form, 13px muted, never split | `font-size=13px; color=muted` | ruled | the phone review |
+ | Result row parts | `.rm-c, .rm-p, .scorer` | the result row's other parts: registered, no text of their own |  | ruled | the component registry |
++| Result chip | `.resrow .pill` | one match's W, D or L from a team's side, in the page's language, on the result colour. It is 11px bold with 4px corners and one fixed width, the same chip in every list | `font-size=11px; font-weight=700; color=pill-ink` | ruled | the match page review; the design standard |
++| Result chip count chip | `.cchip .pill` | the result chip's count chip, in the 11-700-pill-ink-caps text style, never broken | `font-size=11px; font-weight=700; color=pill-ink; text-transform=uppercase; one-line; fits` | ruled | the component registry |
+ | Form parts | `.pill.W, .pill.D, .pill.L` | the form's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Player row | `.plrow` | photo / name over position / goals and assists on the right at every width; two lines below 375px when the row is short of room; under 280px the name takes the whole line and the position shares the second line with the numbers; on a line-up, the minutes played | `fits` | ruled | the match page review; the component registry |
+ | Player row name | `.plrow .pname .nm` | 15px regular ink, wrapping, never cut off | `font-size=15px; font-weight=400; color=ink; white-space=normal` | ruled | the match page review |
+@@ -150,7 +151,6 @@
+ | Two columns parts | `.rsplit, .sheets, .off` | the two columns's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Competition row | `.lrow.tc` | one competition of a team's season: crest, name and a muted note, with the standing or the cup's outcome on the right. A table's row adds the W, D and L counts, each the result chip and its count, then goals and points below. Narrow, the standing opens the second line | `fits` | ruled | the Team page review; the design standard |
+ | Competition row name | `.tc .tc-name` | 15px ink; the note under it 13px muted | `font-size=15px; font-weight=400; color=ink` | ruled | the Team page review; the design standard |
+-| Competition row chip | `.cchip .pill` | the competition row's chip, in the 11-700-pill-ink-caps text style, never broken | `font-size=11px; font-weight=700; color=pill-ink; text-transform=uppercase; one-line; fits` | ruled | the component registry |
+ | Competition row parts | `.cchip` | the competition row's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Squad grid | `.sqgrid` | the squad's player rows in two columns where each keeps 280px, otherwise one | `fits` | ruled | the Team page review |
+ | Strip plot row | `.rs-row` | a metric's name, the league's values with every team's mark, and the team's rank over its value; drawn by `team/TeamLeagueStrips.astro` | `fits` | ruled | the Team page review |
+diff --git a/scripts/check_component_registry.py b/scripts/check_component_registry.py
+index e5beaf01..20169989 100644
+--- a/scripts/check_component_registry.py
++++ b/scripts/check_component_registry.py
+@@ -47,7 +47,8 @@ COMPONENT_KEYS = {"name", "file", "used-on", "parts", "wide", "narrow", "never-s
+ LINK_BUILDERS = {
+     "match page": re.compile(r"matchPageHref\(|word\(lang, \"matches\"\)"),
+     "team page": re.compile(r"word\(lang, \"teams\"\)"),
+-    "player page": re.compile(r"word\(lang, \"players\"\)"),
++    "player page": re.compile(r"word\(lang, \"players\"\)\}/\$\{(?!nation\})"),
++    "nation page": re.compile(r"word\(lang, \"players\"\)\}/\$\{nation\}"),
+     "competition page": re.compile(r"localeHref\(lang, `\$\{[\w.]+\}/`\)"),
+ }
+ PART_KEYS = {"class", "selector", "text", "mark", "breaks", "element", "rule", "measured", "status", "ruled-on", "gap"}
+diff --git a/scripts/parts_page.py b/scripts/parts_page.py
+index b51e23b7..3a44c2d3 100644
+--- a/scripts/parts_page.py
++++ b/scripts/parts_page.py
+@@ -63,22 +63,22 @@ KINDS: list[tuple[str, list[str]]] = [
+     ("Page heading", ["page-heading.heading", "entity-header.head", "entity-header.identity"]),
+     ("Section heading", ["block.heading", "split.column-head"]),
+     ("Explainer", ["block.explainer", "block.tab-explainer"]),
+-    ("Group heading", ["group.head", "group.metric-head", "group.metric-name", "standings.group-head",
++    ("Group heading", ["group-head.head", "group-head.metric-head", "group-head.metric-name", "standings.group-head",
+                        "standings.group-name", "masthead.competition"]),
+-    ("Competition name", ["group.name", "competition-row.name", "index-row.name"]),
++    ("Competition name", ["group-head.name", "competition-row.name", "index-row.name"]),
+     ("Team name", ["match-row.name", "table-row.name", "result-row.name", "comparison.team-name",
+                    "masthead.team-link", "masthead.team-name", "chart.label"]),
+     ("Player name", ["player-row.name"]),
+-    ("Date", ["group.date", "match-row.kick-off", "match-row.zone", "masthead.kick-off"]),
++    ("Date", ["date-heading.date", "match-row.kick-off", "match-row.zone", "masthead.kick-off"]),
+     ("Score", ["match-row.score", "result-row.score", "masthead.score", "masthead.winner",
+                "masthead.team-goals", "masthead.dash", "masthead.result-line"]),
+-    ("Result badge", ["result-row.chip", "competition-row.chip", "form.chips", "form.win",
++    ("Result badge", ["chip.chip", "chip.count-chip", "form.chips", "form.win",
+                       "form.draw", "form.loss"]),
+     ("Position / value", ["player-row.position", "player-row.number", "table-row.ordered-by",
+                           "fact-row.value", "standings.goal-difference", "standings.wdl",
+                           "last-season.trend", "last-season.up", "last-season.down", "last-season.flat",
+                           "last-season.now", "last-season.prev", "strip-plot.value",
+-                          "strip-plot.median-value", "comparison.better-value", "group.count",
++                          "strip-plot.median-value", "comparison.better-value", "group-head.count",
+                           "competition-row.right", "competition-row.numbers", "scatter-plot.table-value"]),
+     ("Meta line", ["result-row.meta", "result-row.goal-meta", "result-row.home-away",
+                    "result-row.home-away-line", "result-row.player-competition", "result-row.player-line",
+@@ -97,9 +97,9 @@ KINDS: list[tuple[str, list[str]]] = [
+     ("Row", ["match-row.sides", "table-row.row", "table-row.narrow-row", "list-row.row", "result-row.row",
+              "result-row.meeting", "result-row.goal", "player-row.row", "competition-row.row",
+              "fact-row.block", "strip-plot.row"]),
+-    ("Chevron link", ["heading-link.link", "heading-link.chevron", "fold.control", "fold.link",
++    ("Chevron link", ["heading-link.link", "chevron.chevron", "fold.control", "fold.link",
+                       "fold.label", "breadcrumb.link"]),
+-    ("Crest", ["crest.crest", "crest.small", "competition-row.crest", "group.logo"]),
++    ("Crest", ["crest.crest", "crest.small", "competition-row.crest", "group-head.logo"]),
+     ("Player photo", ["player-row.photo"]),
+     ("Chart mark", ["chart.mark", "chart.other-mark", "chart.team-mark", "chart.bar", "chart.line",
+                     "chart.axis", "comparison.better-bar", "strip-plot.band"]),
+diff --git a/site_v2/src/components/competition/CompetitionTabs.astro b/site_v2/src/components/competition/CompetitionTabs.astro
+index af988031..bed91a43 100644
+--- a/site_v2/src/components/competition/CompetitionTabs.astro
++++ b/site_v2/src/components/competition/CompetitionTabs.astro
+@@ -4,6 +4,7 @@
+ // whose page is not built (or not emitted for this competition) renders as a label without a link,
+ // because the build refuses a link to a page it did not emit. A cup or tournament reads "Rounds"
+ // where a league reads "Matchdays".
++import TabBand from "../ui/TabBand.astro";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+ import { localeHref, word } from "../../lib/href";
+@@ -42,14 +43,4 @@ const tabs: { key: TabKey; label: string; href: string | null }[] = [
+ ];
+ ---
+ 
+-<nav class="tabs comp-tabs" aria-label={t(lang, "compTabsAria")}>
+-  {tabs.map((tb) =>
+-    tb.key === active ? (
+-      <span class="tab on" aria-current="page">{tb.label}</span>
+-    ) : tb.href ? (
+-      <a class="tab" href={tb.href}>{tb.label}</a>
+-    ) : (
+-      <span class="tab" aria-disabled="true">{tb.label}</span>
+-    ),
+-  )}
+-</nav>
++<TabBand label={t(lang, "compTabsAria")} tabs={tabs.map((tb) => ({ ...tb, current: tb.key === active }))} />
+diff --git a/site_v2/src/components/competition/MatchdaySchedule.astro b/site_v2/src/components/competition/MatchdaySchedule.astro
+index 4d7a49e3..b1071709 100644
+--- a/site_v2/src/components/competition/MatchdaySchedule.astro
++++ b/site_v2/src/components/competition/MatchdaySchedule.astro
+@@ -11,6 +11,8 @@
+ // serves for it, the way its competition names it ("6. Spieltag", "Mestaruussarja, 23. kierros").
+ import MatchRow from "../ui/MatchRow.astro";
+ import SectionHead from "../ui/SectionHead.astro";
++import DateHeading from "../ui/DateHeading.astro";
++import Group from "../ui/Group.astro";
+ import { formatDate } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+@@ -74,10 +76,10 @@ const idOf = (i: number) => `md-${rounds[i].round_sequence ?? i + 1}`;
+     </nav>
+     <section>
+       <SectionHead label={t(lang, "compSecSchedule")} />
+-      <div class="fxgroup">
++      <Group>
+         {days(r).map(([day, fixtures]) => (
+           <>
+-            <div class="dh">{formatDate(fixtures[0].kickoff, lang)}</div>
++            <DateHeading date={formatDate(fixtures[0].kickoff, lang)} />
+             {fixtures.map((fx) => (
+               <MatchRow
+                 fx={fx}
+@@ -88,7 +90,7 @@ const idOf = (i: number) => `md-${rounds[i].round_sequence ?? i + 1}`;
+             ))}
+           </>
+         ))}
+-      </div>
++      </Group>
+     </section>
+   </div>
+ ))}
+diff --git a/site_v2/src/components/competition/RankingsBlock.astro b/site_v2/src/components/competition/RankingsBlock.astro
+index 00fd12e4..ce24d628 100644
+--- a/site_v2/src/components/competition/RankingsBlock.astro
++++ b/site_v2/src/components/competition/RankingsBlock.astro
+@@ -5,6 +5,8 @@
+ // without its line), the boards inside a group in the order the export lists them. A group with
+ // no board is absent; a block with no group renders nothing, and the page then has no tab.
+ import SectionHead from "../ui/SectionHead.astro";
++import Group from "../ui/Group.astro";
++import GroupHead from "../ui/GroupHead.astro";
+ import RankingBoard from "./RankingBoard.astro";
+ import type { Lang } from "../../lib/format";
+ import { metricLabel } from "../../i18n/strings";
+@@ -28,10 +30,10 @@ const groups = boardGroups(boards, GROUP_KEYS_IN_ORDER) as { key: string; boards
+     <SectionHead label={label} />
+     <p class="bsub">{intro}</p>
+     {groups.map((group) => (
+-      <div class="fxgroup rkgroup">
+-        <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${group.key}.label`)}</span></div>
++      <Group metric>
++        <GroupHead lang={lang} name={metricLabel(lang, `metricGroups.${group.key}.label`)} statistics={group.key} />
+         {group.boards.map((board) => <RankingBoard board={board} entity={entity} lang={lang} />)}
+-      </div>
++      </Group>
+     ))}
+   </section>
+ )}
+diff --git a/site_v2/src/components/competition/StandingsTable.astro b/site_v2/src/components/competition/StandingsTable.astro
+index 2d209a30..7cba34f5 100644
+--- a/site_v2/src/components/competition/StandingsTable.astro
++++ b/site_v2/src/components/competition/StandingsTable.astro
+@@ -6,6 +6,7 @@
+ // narrow phone. The provider's cross-group ranking tables are not sections here.
+ import SectionHead from "../ui/SectionHead.astro";
+ import TableRow from "../ui/TableRow.astro";
++import GroupHead from "../ui/GroupHead.astro";
+ import { integer, signedInteger } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+@@ -26,7 +27,7 @@ const showSectionNames = sections.length > 1;
+     <SectionHead label={t(lang, "table")} />
+     {sections.map((sec) => (
+       <div class="ctab-section">
+-        {showSectionNames && <div class="gh"><span class="nm">{sec.name}</span></div>}
++        {showSectionNames && <GroupHead lang={lang} name={sec.name} />}
+         <div class="ctab">
+           <div class="ctab-head">
+             <span class="h rk">{t(lang, "positionShort")}</span>
+diff --git a/site_v2/src/components/competitions/FilterRows.astro b/site_v2/src/components/competitions/FilterRows.astro
+index 5a1b51a7..472f1e81 100644
+--- a/site_v2/src/components/competitions/FilterRows.astro
++++ b/site_v2/src/components/competitions/FilterRows.astro
+@@ -6,6 +6,7 @@
+ // element that must follow them as a sibling. The buttons and the
+ // dropdowns are two forms of the same radios: fitBlocks.mjs picks the form that fits, filterBar.mjs
+ // keeps the dropdowns on the radios and removes the choices that would leave no row.
++import Chevron from "../ui/Chevron.astro";
+ import { t } from "../../i18n/strings";
+ import type { Lang } from "../../lib/format";
+ import { offered } from "../../lib/filterBar.mjs";
+@@ -79,9 +80,7 @@ const filters = [
+           <select class="sel-in" data-filter={f.name} aria-label={f.aria}>
+             {f.choices.map((c) => <option value={c.value} selected={c.value === ""}>{c.value ? c.label : f.first}</option>)}
+           </select>
+-          <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+-            <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
+-          </svg>
++          <Chevron />
+         </div>
+       ))}
+     </div>
+diff --git a/site_v2/src/components/fixture/Chevron.astro b/site_v2/src/components/fixture/Chevron.astro
+deleted file mode 100644
+index 36f8904b..00000000
+--- a/site_v2/src/components/fixture/Chevron.astro
++++ /dev/null
+@@ -1,4 +0,0 @@
+-<svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+-  <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+-        stroke-linejoin="round"></path>
+-</svg>
+diff --git a/site_v2/src/components/fixture/FormSegment.astro b/site_v2/src/components/fixture/FormSegment.astro
+index a9a0aa8b..0c2e6b76 100644
+--- a/site_v2/src/components/fixture/FormSegment.astro
++++ b/site_v2/src/components/fixture/FormSegment.astro
+@@ -5,6 +5,7 @@
+ import SectionHead from "../ui/SectionHead.astro";
+ import MetricSwitch from "../ui/MetricSwitch.astro";
+ import MetricComparison from "./MetricComparison.astro";
++import ResultChip from "../ui/ResultChip.astro";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+ import { comparisonGroups, needsSwitch } from "../../lib/comparisonGroups";
+@@ -18,11 +19,11 @@ interface Props {
+ const { fixture, lang, compName } = Astro.props;
+ const { home, away } = fixture;
+ 
+-const LETTER: Record<string, string> = { W: "winsShort", D: "drawsShort", L: "lossesShort" };
+-const results = (side: Side): string[] =>
++const isResult = (r: string): r is "W" | "D" | "L" => r === "W" || r === "D" || r === "L";
++const results = (side: Side): ("W" | "D" | "L")[] =>
+   side.form?.window_type === "prev_season"
+     ? []
+-    : (side.form_window ?? []).map((m) => m.result ?? "").filter((r) => r in LETTER);
++    : (side.form_window ?? []).map((m) => m.result ?? "").filter(isResult);
+ const prev = [home, away].some((s) => s.form?.window_type === "prev_season");
+ const intro = prev ? t(lang, "formIntroPrev", { competition: compName }) : t(lang, "formIntro");
+ const shown = Boolean(home.form || away.form);
+@@ -36,10 +37,10 @@ const groups = comparisonGroups(home.form, away.form);
+     {needsSwitch(groups) && <MetricSwitch id="tsw-form" lang={lang} />}
+     <MetricComparison names={[home.name, away.name]} groups={groups} home={home.form} away={away.form} lang={lang}>
+       {results(home).length > 0 && (
+-        <div class="pills" slot="home">{results(home).map((r) => <span class:list={["pill", r]}>{t(lang, LETTER[r])}</span>)}</div>
++        <div class="pills" slot="home">{results(home).map((r) => <ResultChip lang={lang} result={r} />)}</div>
+       )}
+       {results(away).length > 0 && (
+-        <div class="pills" slot="away">{results(away).map((r) => <span class:list={["pill", r]}>{t(lang, LETTER[r])}</span>)}</div>
++        <div class="pills" slot="away">{results(away).map((r) => <ResultChip lang={lang} result={r} />)}</div>
+       )}
+     </MetricComparison>
+   </section>
+diff --git a/site_v2/src/components/fixture/Masthead.astro b/site_v2/src/components/fixture/Masthead.astro
+index 195d133c..67888825 100644
+--- a/site_v2/src/components/fixture/Masthead.astro
++++ b/site_v2/src/components/fixture/Masthead.astro
+@@ -7,7 +7,8 @@
+ // and under 700px each team's goals close its line. After penalties the big score is the shoot-out's
+ // and the score after extra time stands under it; an awarded result says there how it came about.
+ import Crest from "../ui/Crest.astro";
+-import Chevron from "./Chevron.astro";
++import Chevron from "../ui/Chevron.astro";
++import GroupHead from "../ui/GroupHead.astro";
+ import { formatDate, formatTime, scoreLine, signedInteger } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { t, playedStatusWord } from "../../i18n/strings";
+@@ -20,11 +21,12 @@ interface Props {
+   round: string;
+   compName: string;
+   compLogo?: string | null;
+-  compHref?: string;
++  /** The competition's slug when its page is built. */
++  compSlug?: string | null;
+   teamHrefs: { home?: string; away?: string };
+   showStanding: boolean;
+ }
+-const { fixture, lang, title, round, compName, compLogo, compHref, teamHrefs, showStanding } = Astro.props;
++const { fixture, lang, title, round, compName, compLogo, compSlug, teamHrefs, showStanding } = Astro.props;
+ const { home, away } = fixture;
+ 
+ const time = fixture.status === "TBD" ? t(lang, "timeOpen") : `${formatTime(fixture.kickoff, lang)} UTC`;
+@@ -69,20 +71,7 @@ const sides: { side: Side; href?: string }[] = [
+ 
+ <header class="mast">
+   <div class="mcomp">
+-    <div class="gh">
+-      {compHref ? (
+-        <a class="cnm" href={compHref}>
+-          <span class="clogo"><Crest name={compName} crest={compLogo} size="xs" /></span>
+-          <span class="nm">{compName}</span>
+-          <Chevron />
+-        </a>
+-      ) : (
+-        <span class="cnm">
+-          <span class="clogo"><Crest name={compName} crest={compLogo} size="xs" /></span>
+-          <span class="nm">{compName}</span>
+-        </span>
+-      )}
+-    </div>
++    <GroupHead lang={lang} name={compName} crest={{ name: compName, url: compLogo }} competition={compSlug} />
+   </div>
+   <h1 class="vh">{title}</h1>
+   <div class="eyebrow">{eyebrow}</div>
+diff --git a/site_v2/src/components/fixture/MetricComparison.astro b/site_v2/src/components/fixture/MetricComparison.astro
+index 87f7d318..19210388 100644
+--- a/site_v2/src/components/fixture/MetricComparison.astro
++++ b/site_v2/src/components/fixture/MetricComparison.astro
+@@ -6,6 +6,8 @@
+ // side shows "-" there. No reordering by value. Rows that are not key metrics, and a group heading
+ // with no key row, carry `nonkey` for the Show all metrics switch.
+ import MetricRow from "./MetricRow.astro";
++import Group from "../ui/Group.astro";
++import GroupHead from "../ui/GroupHead.astro";
+ import { metricLabel } from "../../i18n/strings";
+ import type { ComparisonGroup } from "../../lib/comparisonGroups";
+ import type { WindowStats } from "../../lib/types";
+@@ -28,11 +30,11 @@ const { names, groups, home, away, lang, oneMatch = false } = Astro.props;
+     <div class="cmp-team cmp-away"><div class="h">{names[1]}</div><slot name="away" /></div>
+   </div>
+   {groups.map(({ key, rows, hasKey }) => (
+-    <div class:list={["fxgroup", "rkgroup", { nonkey: !hasKey }]}>
+-      <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${key}.label`)}</span></div>
++    <Group metric nonkey={!hasKey}>
++      <GroupHead lang={lang} name={metricLabel(lang, `metricGroups.${key}.label`)} statistics={key} />
+       {rows.map((def) => (
+         <MetricRow def={def} home={home} away={away} lang={lang} oneMatch={oneMatch} />
+       ))}
+-    </div>
++    </Group>
+   ))}
+ </div>
+diff --git a/site_v2/src/components/fixture/NextMatches.astro b/site_v2/src/components/fixture/NextMatches.astro
+index 009ca06d..a85ad703 100644
+--- a/site_v2/src/components/fixture/NextMatches.astro
++++ b/site_v2/src/components/fixture/NextMatches.astro
+@@ -5,10 +5,10 @@
+ // whose next match is this one, or who has none, adds no row; with no row the block is absent.
+ import SectionHead from "../ui/SectionHead.astro";
+ import MatchRow from "../ui/MatchRow.astro";
+-import Crest from "../ui/Crest.astro";
+-import Chevron from "./Chevron.astro";
++import DateHeading from "../ui/DateHeading.astro";
++import Group from "../ui/Group.astro";
++import GroupHead from "../ui/GroupHead.astro";
+ import { t } from "../../i18n/strings";
+-import { localeHref } from "../../lib/href";
+ import { formatDate } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import type { CompetitionIndex, Side } from "../../lib/types";
+@@ -53,7 +53,7 @@ const head = (code: string) => {
+     name: comps[code]?.name ?? code,
+     slug: comps[code]?.slug ?? null,
+     logo: row?.logo_url ?? null,
+-    href: row && comps[code] ? localeHref(lang, `${comps[code].slug}/`) : undefined,
++    page: row && comps[code] ? comps[code].slug : null,
+   };
+ };
+ ---
+@@ -64,28 +64,15 @@ const head = (code: string) => {
+     {[...groups.entries()].map(([code, fixtures]) => {
+       const g = head(code);
+       return (
+-        <div class="fxgroup">
+-          <div class="gh">
+-            {g.href ? (
+-              <a class="cnm" href={g.href}>
+-                <span class="clogo"><Crest name={g.name} crest={g.logo} size="xs" /></span>
+-                <span class="nm">{g.name}</span>
+-                <Chevron />
+-              </a>
+-            ) : (
+-              <span class="cnm">
+-                <span class="clogo"><Crest name={g.name} crest={g.logo} size="xs" /></span>
+-                <span class="nm">{g.name}</span>
+-              </span>
+-            )}
+-          </div>
++        <Group>
++          <GroupHead lang={lang} name={g.name} crest={{ name: g.name, url: g.logo }} competition={g.page} />
+           {days(fixtures).map((day) => (
+             <>
+-              <div class="dh">{formatDate(day[0].kickoff, lang)}</div>
++              <DateHeading date={formatDate(day[0].kickoff, lang)} />
+               {day.map((fx) => <MatchRow fx={fx} competitionSlug={g.slug} lang={lang} />)}
+             </>
+           ))}
+-        </div>
++        </Group>
+       );
+     })}
+   </section>
+diff --git a/site_v2/src/components/home/HeroFixtures.astro b/site_v2/src/components/home/HeroFixtures.astro
+index 83f5861b..7ff164db 100644
+--- a/site_v2/src/components/home/HeroFixtures.astro
++++ b/site_v2/src/components/home/HeroFixtures.astro
+@@ -9,12 +9,13 @@
+ // No round on the row: the provider's round name is English in every locale.
+ import SectionHead from "../ui/SectionHead.astro";
+ import MatchRow from "../ui/MatchRow.astro";
+-import Crest from "../ui/Crest.astro";
++import DateHeading from "../ui/DateHeading.astro";
+ import Fold from "../ui/Fold.astro";
++import Group from "../ui/Group.astro";
++import GroupHead from "../ui/GroupHead.astro";
+ import type { Lang } from "../../lib/format";
+ import { formatDate } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+-import { localeHref } from "../../lib/href";
+ import type { CompetitionFixture, LandingUpcomingGroup } from "../../lib/types";
+ 
+ interface Props {
+@@ -39,26 +40,18 @@ const opensDay = (fixtures: CompetitionFixture[], i: number) =>
+     const rows = (from: number, to?: number) =>
+       group.fixtures.slice(from, to).map((fx, j) => (
+         <>
+-          {opensDay(group.fixtures, from + j) && <div class="dh">{formatDate(fx.kickoff, lang)}</div>}
++          {opensDay(group.fixtures, from + j) && <DateHeading date={formatDate(fx.kickoff, lang)} />}
+           <MatchRow fx={fx} competitionSlug={group.competition_slug ?? null} lang={lang} topMatch={fx.is_match_that_matters} />
+         </>
+       ));
+     return (
+-      <div class="fxgroup">
+-        <div class="gh">
+-          {group.competition_slug ? (
+-            <a class="cnm" href={localeHref(lang, `${group.competition_slug}/`)}>
+-              <span class="clogo"><Crest name={group.league_name ?? group.league_code} crest={group.crest} size="xs" /></span>
+-              <span class="nm">{group.league_name ?? group.league_code}</span>
+-              <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+-                <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2"
+-                      stroke-linecap="round" stroke-linejoin="round"></path>
+-              </svg>
+-            </a>
+-          ) : (
+-            <span class="nm">{group.league_name ?? group.league_code}</span>
+-          )}
+-        </div>
++      <Group>
++        <GroupHead
++          lang={lang}
++          name={group.league_name ?? group.league_code}
++          crest={{ name: group.league_name ?? group.league_code, url: group.crest }}
++          competition={group.competition_slug}
++        />
+ 
+         {rows(0, VISIBLE_ROWS)}
+ 
+@@ -67,7 +60,7 @@ const opensDay = (fixtures: CompetitionFixture[], i: number) =>
+             {rows(VISIBLE_ROWS)}
+           </Fold>
+         )}
+-      </div>
++      </Group>
+     );
+   })}
+ </section>
+diff --git a/site_v2/src/components/matches/MatchesDay.astro b/site_v2/src/components/matches/MatchesDay.astro
+index f2ff8f4d..5053f6af 100644
+--- a/site_v2/src/components/matches/MatchesDay.astro
++++ b/site_v2/src/components/matches/MatchesDay.astro
+@@ -12,8 +12,9 @@
+ import Breadcrumb from "../fixture/Breadcrumb.astro";
+ import SectionHead from "../ui/SectionHead.astro";
+ import MatchRow from "../ui/MatchRow.astro";
+-import Crest from "../ui/Crest.astro";
+ import Fold from "../ui/Fold.astro";
++import Group from "../ui/Group.astro";
++import GroupHead from "../ui/GroupHead.astro";
+ import FilterRows from "../competitions/FilterRows.astro";
+ import { t } from "../../i18n/strings";
+ import { localeHref, word } from "../../lib/href";
+@@ -75,21 +76,13 @@ const crumbs = [
+         <section>
+           <SectionHead label={t(lang, "compSecSchedule")} />
+           {groups.map((group, i) => (
+-            <div class="fxgroup" data-entity-type={group.entity_type} data-confederation={group.confederation}>
+-              <div class="gh">
+-                {group.slug ? (
+-                  <a class="cnm" href={localeHref(lang, `${group.slug}/`)}>
+-                    <span class="clogo"><Crest name={group.name} crest={group.crest} size="xs" /></span>
+-                    <span class="nm">{group.name ?? group.league_code}</span>
+-                    <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+-                      <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2"
+-                            stroke-linecap="round" stroke-linejoin="round"></path>
+-                    </svg>
+-                  </a>
+-                ) : (
+-                  <span class="nm">{group.name ?? group.league_code}</span>
+-                )}
+-              </div>
++            <Group data-entity-type={group.entity_type} data-confederation={group.confederation}>
++              <GroupHead
++                lang={lang}
++                name={group.name ?? group.league_code}
++                crest={{ name: group.name, url: group.crest }}
++                competition={group.slug}
++              />
+ 
+               {group.fixtures.slice(0, VISIBLE_ROWS).map((fx) => <MatchRow fx={fx} competitionSlug={group.slug} lang={lang} />)}
+ 
+@@ -98,7 +91,7 @@ const crumbs = [
+                   {group.fixtures.slice(VISIBLE_ROWS).map((fx) => <MatchRow fx={fx} competitionSlug={group.slug} lang={lang} />)}
+                 </Fold>
+               )}
+-            </div>
++            </Group>
+           ))}
+         </section>
+       </div>
+diff --git a/site_v2/src/components/player/PlayerComparison.astro b/site_v2/src/components/player/PlayerComparison.astro
+index a9745573..5d2bfc46 100644
+--- a/site_v2/src/components/player/PlayerComparison.astro
++++ b/site_v2/src/components/player/PlayerComparison.astro
+@@ -6,7 +6,9 @@
+ import SectionHead from "../ui/SectionHead.astro";
+ import MetricSwitch from "../ui/MetricSwitch.astro";
+ import ChartLegend from "../ui/ChartLegend.astro";
+-import Chevron from "../fixture/Chevron.astro";
++import Group from "../ui/Group.astro";
++import GroupHead from "../ui/GroupHead.astro";
++import Chevron from "../ui/Chevron.astro";
+ import { stripInset } from "../../lib/chartTheme";
+ import { formatValue, integer, ordinal } from "../../lib/format";
+ import { t, metricLabel, boardTitle } from "../../i18n/strings";
+@@ -121,8 +123,8 @@ const aria = t(lang, "playerComparedWith");
+               { mark: "median", label: t(lang, "median") },
+             ]} />
+             {c.groups.map((g) => (
+-              <div class:list={["fxgroup", "rkgroup", { nonkey: showSwitch && !g.hasKey }]}>
+-                <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${g.key}.label`)}</span></div>
++              <Group metric nonkey={showSwitch && !g.hasKey}>
++                <GroupHead lang={lang} name={metricLabel(lang, `metricGroups.${g.key}.label`)} statistics={g.key} />
+                 {g.rows.map((r) => {
+                   const m = c.byKey.get(r.metric_id)!;
+                   const v = m.value as number;
+@@ -148,7 +150,7 @@ const aria = t(lang, "playerComparedWith");
+                     </div>
+                   );
+                 })}
+-              </div>
++              </Group>
+             ))}
+           </div>
+         </div>
+diff --git a/site_v2/src/components/player/PlayerIndex.astro b/site_v2/src/components/player/PlayerIndex.astro
+index 7a256bc5..faaf99cf 100644
+--- a/site_v2/src/components/player/PlayerIndex.astro
++++ b/site_v2/src/components/player/PlayerIndex.astro
+@@ -10,7 +10,9 @@
+ // filters leave empty.
+ import FilterRows from "../competitions/FilterRows.astro";
+ import SectionHead from "../ui/SectionHead.astro";
+-import Chevron from "../fixture/Chevron.astro";
++import Chevron from "../ui/Chevron.astro";
++import Group from "../ui/Group.astro";
++import GroupHead from "../ui/GroupHead.astro";
+ import PlayerIndexRow from "./PlayerIndexRow.astro";
+ import { t } from "../../i18n/strings";
+ import { integer } from "../../lib/format";
+@@ -55,14 +57,14 @@ const filterRows = [
+       <section class="tblock">
+         <SectionHead label={t(lang, "playersWorldsBest")} />
+         {lists.map((list) => (
+-          <div class="fxgroup" data-competition-slot={String(list.slot)}>
+-            <div class="gh"><span class="nm">{t(lang, list.label)}</span></div>
++          <Group data-competition-slot={String(list.slot)}>
++            <GroupHead lang={lang} name={t(lang, list.label)} />
+             <div class="comp-grid">
+               {list.rows.map((player) => (
+-                <PlayerIndexRow player={player} lang={lang} slot={list.slot} region={player.region_key ?? NO_REGION} />
++                <PlayerIndexRow player={player} lang={lang} competitionSlot={list.slot} region={player.region_key ?? NO_REGION} />
+               ))}
+             </div>
+-          </div>
++          </Group>
+         ))}
+       </section>
+     )}
+@@ -70,29 +72,23 @@ const filterRows = [
+     <section class="tblock">
+       <SectionHead label={t(lang, "playersByNation")} />
+       {groups.map((g) => (
+-        <div
+-          class="fxgroup"
+-          data-confederation={g.region ?? NO_REGION}
+-          data-slots={[...g.perPosition.keys()].join(" ")}
+-        >
+-          <div class="gh">
+-            {g.slug ? (
+-              <a class="cnm" href={nationHref(g.slug)}><span class="nm">{g.nation}</span><Chevron /></a>
+-            ) : (
+-              <span class="nm">{g.nation ?? t(lang, "playersNoNation")}</span>
+-            )}
+-            <span class="cnt" data-hub="all">{count(g.n)}</span>
+-            {[...g.perPosition].map(([slot, n]) => (
+-              <span class="cnt" data-hub="pos" data-competition-slot={String(slot)}>{count(n)}</span>
+-            ))}
+-          </div>
++        <Group data-confederation={g.region ?? NO_REGION} data-slots={[...g.perPosition.keys()].join(" ")}>
++          <GroupHead
++            lang={lang}
++            name={g.slug ? g.nation : g.nation ?? t(lang, "playersNoNation")}
++            nation={g.slug}
++            counts={[
++              { text: count(g.n), attrs: { "data-hub": "all" } },
++              ...[...g.perPosition].map(([slot, n]) => ({ text: count(n), attrs: { "data-hub": "pos", "data-competition-slot": String(slot) } })),
++            ]}
++          />
+           <div class="comp-grid">
+             {g.rows.map((player) => (
+               <PlayerIndexRow
+                 player={player}
+                 lang={lang}
+                 view={hubView(player)}
+-                slot={slotOf(player.position_group)}
++                competitionSlot={slotOf(player.position_group)}
+                 region={g.region ?? NO_REGION}
+               />
+             ))}
+@@ -111,7 +107,7 @@ const filterRows = [
+                 </a>
+               ))}
+           </div>
+-        </div>
++        </Group>
+       ))}
+     </section>
+   </div>
+diff --git a/site_v2/src/components/player/PlayerIndexRow.astro b/site_v2/src/components/player/PlayerIndexRow.astro
+index a45a36ab..fc6b547a 100644
+--- a/site_v2/src/components/player/PlayerIndexRow.astro
++++ b/site_v2/src/components/player/PlayerIndexRow.astro
+@@ -1,6 +1,6 @@
+ ---
+ // One row of the Players page and a nation page, the player row without numbers: photo / name over
+-// position / club. `view`, `slot` and `region` mark the views it shows in, for the stylesheet's
++// position / club. `view`, `competitionSlot` and `region` mark the views it shows in, for the stylesheet's
+ // position and region filters.
+ import PlayerRow from "../ui/PlayerRow.astro";
+ import { positionLabel } from "../../i18n/strings";
+@@ -12,10 +12,10 @@ interface Props {
+   player: PlayerIndexRow;
+   lang: Lang;
+   view?: string | null;
+-  slot?: number;
++  competitionSlot?: number;
+   region?: string;
+ }
+-const { player, lang, view, slot, region } = Astro.props;
++const { player, lang, view, competitionSlot, region } = Astro.props;
+ const code = codeOf(player.position_group);
+ const position = player.position_role ?? code;
+ const line = [position ? positionLabel(lang, position) : null, player.club].filter((s): s is string => Boolean(s));
+@@ -29,6 +29,6 @@ const line = [position ? positionLabel(lang, position) : null, player.club].filt
+   id={player.player_id}
+   slug={player.slug}
+   data-hub={view ?? undefined}
+-  data-competition-slot={slot === undefined ? undefined : String(slot)}
++  data-competition-slot={competitionSlot === undefined ? undefined : String(competitionSlot)}
+   data-confederation={region}
+ />
+diff --git a/site_v2/src/components/player/PlayerLastSeason.astro b/site_v2/src/components/player/PlayerLastSeason.astro
+index 0b42f73b..e8f7fb71 100644
+--- a/site_v2/src/components/player/PlayerLastSeason.astro
++++ b/site_v2/src/components/player/PlayerLastSeason.astro
+@@ -5,6 +5,8 @@
+ import SectionHead from "../ui/SectionHead.astro";
+ import MetricSwitch from "../ui/MetricSwitch.astro";
+ import TableRow from "../ui/TableRow.astro";
++import Group from "../ui/Group.astro";
++import GroupHead from "../ui/GroupHead.astro";
+ import { DASH, formatValue, integer } from "../../lib/format";
+ import { t, metricLabel, boardTitle } from "../../i18n/strings";
+ import { betterSide } from "../../lib/bars";
+@@ -43,8 +45,8 @@ const shown = (v: number | null | undefined, format: Parameters<typeof formatVal
+     {showSwitch && <MetricSwitch id="player-last-season-switch" lang={lang} />}
+     <div class="yoy-list">
+       {groups.map((g) => (
+-        <div class:list={["fxgroup", "rkgroup", { nonkey: showSwitch && !g.hasKey }]}>
+-          <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${g.key}.label`)}</span></div>
++        <Group metric nonkey={showSwitch && !g.hasKey}>
++          <GroupHead lang={lang} name={metricLabel(lang, `metricGroups.${g.key}.label`)} statistics={g.key} />
+           <div class="ctab yoyt">
+             <div class="ctab-head">
+               <span class="h nmh"></span>
+@@ -73,7 +75,7 @@ const shown = (v: number | null | undefined, format: Parameters<typeof formatVal
+               );
+             })}
+           </div>
+-        </div>
++        </Group>
+       ))}
+     </div>
+   </section>
+diff --git a/site_v2/src/components/team/Tabs.astro b/site_v2/src/components/team/Tabs.astro
+index 1ab1d66d..977317e5 100644
+--- a/site_v2/src/components/team/Tabs.astro
++++ b/site_v2/src/components/team/Tabs.astro
+@@ -1,7 +1,7 @@
+ ---
+-// The Team page's tabs: Overview, Matches and Performance, each present when its page has a block.
+-// Each tab is a `<label>` bound to a hidden `#tab-*` radio the page renders; the checked radio marks
+-// its label and shows its `.page` panel in CSS. No client script.
++// The Team page's tabs: Overview, Matches and Performance, each present when its page has a block,
++// on the tab band's radios; the checked radio shows its `.page` panel in CSS.
++import TabBand from "../ui/TabBand.astro";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+ 
+@@ -14,8 +14,4 @@ const { lang, pages } = Astro.props;
+ const LABEL = { overview: "overview", matches: "navMatches", performance: "tabPerformance" };
+ ---
+ 
+-<nav class="tabs comp-tabs" aria-label={t(lang, "tabsAria")}>
+-  {pages.map((go) => (
+-    <label class="tab" for={`tab-${go}`}>{t(lang, LABEL[go])}</label>
+-  ))}
+-</nav>
++<TabBand label={t(lang, "tabsAria")} group="team-tab" tabs={pages.map((go) => ({ key: go, label: t(lang, LABEL[go]) }))} />
+diff --git a/site_v2/src/components/team/TeamFixtureGroup.astro b/site_v2/src/components/team/TeamFixtureGroup.astro
+index b6757259..647497de 100644
+--- a/site_v2/src/components/team/TeamFixtureGroup.astro
++++ b/site_v2/src/components/team/TeamFixtureGroup.astro
+@@ -2,12 +2,12 @@
+ // One competition's matches of a team, the way Home lists a competition: the group head (crest /
+ // name / chevron to the competition's page), a date heading wherever the day changes, THE match
+ // row. `nextId` puts the Next tag on that match.
+-import Crest from "../ui/Crest.astro";
+-import Chevron from "../fixture/Chevron.astro";
++import DateHeading from "../ui/DateHeading.astro";
++import Group from "../ui/Group.astro";
++import GroupHead from "../ui/GroupHead.astro";
+ import MatchRow from "../ui/MatchRow.astro";
+ import type { Lang } from "../../lib/format";
+ import { formatDate } from "../../lib/format";
+-import { localeHref } from "../../lib/href";
+ import { asMatchRowFixture, competitionInfo } from "../../lib/teamFixtures";
+ import type { TeamRef, TeamScheduleFixture } from "../../lib/types";
+ 
+@@ -24,22 +24,12 @@ const info = competitionInfo(code);
+ const dayOf = (fx: TeamScheduleFixture) => fx.kickoff_datetime?.slice(0, 10) ?? null;
+ ---
+ 
+-<div class="fxgroup" data-competition-slot={slot}>
+-  <div class="gh">
+-    {info.slug ? (
+-      <a class="cnm" href={localeHref(lang, `${info.slug}/`)}>
+-        <span class="clogo"><Crest name={info.name} crest={info.crest} size="xs" /></span>
+-        <span class="nm">{info.name}</span>
+-        <Chevron />
+-      </a>
+-    ) : (
+-      <span class="nm">{info.name}</span>
+-    )}
+-  </div>
++<Group data-competition-slot={slot}>
++  <GroupHead lang={lang} name={info.name} crest={{ name: info.name, url: info.crest }} competition={info.slug} />
+   {fixtures.map((fx, i) => (
+     <>
+-      {(i === 0 || dayOf(fx) !== dayOf(fixtures[i - 1])) && <div class="dh">{formatDate(fx.kickoff_datetime, lang)}</div>}
++      {(i === 0 || dayOf(fx) !== dayOf(fixtures[i - 1])) && <DateHeading date={formatDate(fx.kickoff_datetime, lang)} />}
+       <MatchRow fx={asMatchRowFixture(fx, team)} competitionSlug={info.slug} lang={lang} nextMatch={fx.fixture_id === nextId} />
+     </>
+   ))}
+-</div>
++</Group>
+diff --git a/site_v2/src/components/team/TeamLastSeason.astro b/site_v2/src/components/team/TeamLastSeason.astro
+index 46b9dbc5..6c786ad7 100644
+--- a/site_v2/src/components/team/TeamLastSeason.astro
++++ b/site_v2/src/components/team/TeamLastSeason.astro
+@@ -7,6 +7,8 @@
+ import SectionHead from "../ui/SectionHead.astro";
+ import MetricSwitch from "../ui/MetricSwitch.astro";
+ import TableRow from "../ui/TableRow.astro";
++import Group from "../ui/Group.astro";
++import GroupHead from "../ui/GroupHead.astro";
+ import type { Lang } from "../../lib/format";
+ import { formatValue, integer, DASH } from "../../lib/format";
+ import { t, metricLabel, boardTitle } from "../../i18n/strings";
+@@ -41,8 +43,8 @@ const shown = (v: unknown, format: Parameters<typeof formatValue>[1]) =>
+     {needsSwitch(groups) && <MetricSwitch id="tsw-season" lang={lang} />}
+     <div class="yoy-list">
+       {groups.map((g) => (
+-        <div class:list={["fxgroup", "rkgroup", { nonkey: !g.hasKey }]}>
+-          <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${g.key}.label`)}</span></div>
++        <Group metric nonkey={!g.hasKey}>
++          <GroupHead lang={lang} name={metricLabel(lang, `metricGroups.${g.key}.label`)} statistics={g.key} />
+           <div class="ctab yoyt">
+             <div class="ctab-head">
+               <span class="h nmh"></span>
+@@ -71,7 +73,7 @@ const shown = (v: unknown, format: Parameters<typeof formatValue>[1]) =>
+               );
+             })}
+           </div>
+-        </div>
++        </Group>
+       ))}
+     </div>
+   </section>
+diff --git a/site_v2/src/components/team/TeamLeagueStrips.astro b/site_v2/src/components/team/TeamLeagueStrips.astro
+index 5413f63f..c91507a5 100644
+--- a/site_v2/src/components/team/TeamLeagueStrips.astro
++++ b/site_v2/src/components/team/TeamLeagueStrips.astro
+@@ -9,6 +9,8 @@
+ import SectionHead from "../ui/SectionHead.astro";
+ import MetricSwitch from "../ui/MetricSwitch.astro";
+ import ChartLegend from "../ui/ChartLegend.astro";
++import Group from "../ui/Group.astro";
++import GroupHead from "../ui/GroupHead.astro";
+ import { stripInset } from "../../lib/chartTheme";
+ import type { Lang } from "../../lib/format";
+ import { formatValue, ordinal } from "../../lib/format";
+@@ -49,8 +51,8 @@ function place(v: number, lo: number, hi: number): number {
+         { mark: "other", label: t(lang, "teamOtherTeams", { competition: compName }) },
+       ]} />
+       {groups.map((g) => (
+-        <div class:list={["fxgroup", "rkgroup", { nonkey: !g.hasKey }]}>
+-          <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${g.key}.label`)}</span></div>
++        <Group metric nonkey={!g.hasKey}>
++          <GroupHead lang={lang} name={metricLabel(lang, `metricGroups.${g.key}.label`)} statistics={g.key} />
+           {g.rows.map((r) => {
+             const b = bench.get(r.metric_id)!;
+             const v = b.metric_value as number;
+@@ -74,7 +76,7 @@ function place(v: number, lo: number, hi: number): number {
+               </div>
+             );
+           })}
+-        </div>
++        </Group>
+       ))}
+     </div>
+   </section>
+diff --git a/site_v2/src/components/teams/TeamIndex.astro b/site_v2/src/components/teams/TeamIndex.astro
+index 70c3db93..07ac5337 100644
+--- a/site_v2/src/components/teams/TeamIndex.astro
++++ b/site_v2/src/components/teams/TeamIndex.astro
+@@ -12,6 +12,8 @@ import FilterRows from "../competitions/FilterRows.astro";
+ import SectionHead from "../ui/SectionHead.astro";
+ import IndexRow from "../ui/IndexRow.astro";
+ import Fold from "../ui/Fold.astro";
++import Group from "../ui/Group.astro";
++import GroupHead from "../ui/GroupHead.astro";
+ import { t } from "../../i18n/strings";
+ import { localeHref } from "../../lib/href";
+ import { competitionInfo } from "../../lib/teamFixtures";
+@@ -82,11 +84,8 @@ const heading = (item: Extract<Item, { kind: "head" }>) => {
+     {blocks.map((block, b) => (
+       <section class:list={["tblock", block.className]}>
+         <SectionHead label={block.label} />
+-        {block.units.map((unit, u) => (
+-          <div class:list={[unit.view, unit.head && "fxgroup"]} data-entity-type={unit.entity} data-confederation={unit.region}>
+-            {unit.head && (
+-              <div class="gh"><span class="nm">{unit.head.name}</span><span class="cnt">{count(unit.head.n)}</span></div>
+-            )}
++        {block.units.map((unit, u) => {
++          const grid = (
+             <div class="comp-grid">
+               {[unit.list.visible, unit.list.rest].map((part, p) => {
+                 const rendered = part.map((item) => {
+@@ -108,8 +107,16 @@ const heading = (item: Extract<Item, { kind: "head" }>) => {
+                 );
+               })}
+             </div>
+-          </div>
+-        ))}
++          );
++          return unit.head ? (
++            <Group class={unit.view} data-entity-type={unit.entity} data-confederation={unit.region}>
++              <GroupHead lang={lang} name={unit.head.name} counts={[{ text: count(unit.head.n) }]} />
++              {grid}
++            </Group>
++          ) : (
++            <div class={unit.view} data-entity-type={unit.entity} data-confederation={unit.region}>{grid}</div>
++          );
++        })}
+       </section>
+     ))}
+   </div>
+diff --git a/site_v2/src/components/ui/Chevron.astro b/site_v2/src/components/ui/Chevron.astro
+new file mode 100644
+index 00000000..36f8904b
+--- /dev/null
++++ b/site_v2/src/components/ui/Chevron.astro
+@@ -0,0 +1,4 @@
++<svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
++  <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
++        stroke-linejoin="round"></path>
++</svg>
+diff --git a/site_v2/src/components/ui/CompetitionRow.astro b/site_v2/src/components/ui/CompetitionRow.astro
+index 84c74c40..9b927262 100644
+--- a/site_v2/src/components/ui/CompetitionRow.astro
++++ b/site_v2/src/components/ui/CompetitionRow.astro
+@@ -5,6 +5,7 @@
+ // a line. The row links to the competition's page when the competition has one.
+ import Crest from "./Crest.astro";
+ import ListRow from "./ListRow.astro";
++import ResultChip from "./ResultChip.astro";
+ import { integer } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+@@ -26,9 +27,9 @@ const words = info.name.split(" ");
+ const head = words.slice(0, -1).join(" ");
+ const last = words[words.length - 1];
+ const CHIPS = [
+-  { k: "W", field: "wins", label: "winsShort" },
+-  { k: "D", field: "draws", label: "drawsShort" },
+-  { k: "L", field: "losses", label: "lossesShort" },
++  { k: "W", field: "wins" },
++  { k: "D", field: "draws" },
++  { k: "L", field: "losses" },
+ ] as const;
+ ---
+ 
+@@ -41,7 +42,7 @@ const CHIPS = [
+       <span class="tc-extra">
+         {right && <span class="tc-rank2" aria-hidden="true">{right}</span>}
+         <span class="cchips">
+-          {CHIPS.map((ch) => <span class="cchip"><span class:list={["pill", ch.k]}>{t(lang, ch.label)}</span>{integer(table[ch.field], lang)}</span>)}
++          {CHIPS.map((ch) => <span class="cchip"><ResultChip lang={lang} result={ch.k} />{integer(table[ch.field], lang)}</span>)}
+         </span>
+         <span class="tc-nums facts-line">
+           <span class="nb">{t(lang, "goals")}{" "}<b>{integer(table.goals_for, lang)}:{integer(table.goals_against, lang)}</b></span>
+diff --git a/site_v2/src/components/ui/DateHeading.astro b/site_v2/src/components/ui/DateHeading.astro
+new file mode 100644
+index 00000000..8da82439
+--- /dev/null
++++ b/site_v2/src/components/ui/DateHeading.astro
+@@ -0,0 +1,9 @@
++---
++// THE date heading: a day's date once, over that day's rows in a group.
++interface Props {
++  date: string;
++}
++const { date } = Astro.props;
++---
++
++<div class="dh">{date}</div>
+diff --git a/site_v2/src/components/ui/Fold.astro b/site_v2/src/components/ui/Fold.astro
+index b35061fb..73eb26d2 100644
+--- a/site_v2/src/components/ui/Fold.astro
++++ b/site_v2/src/components/ui/Fold.astro
+@@ -2,7 +2,7 @@
+ // The site's fold: the rows in the slot follow the shown rows in the same list, and the control
+ // stays under whatever is shown, so a long list closes where the reader stops. A checkbox and its
+ // label do the toggling, the site's scriptless pattern; every row is in the HTML.
+-import Chevron from "../fixture/Chevron.astro";
++import Chevron from "./Chevron.astro";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+ 
+diff --git a/site_v2/src/components/ui/Group.astro b/site_v2/src/components/ui/Group.astro
+new file mode 100644
+index 00000000..8680244b
+--- /dev/null
++++ b/site_v2/src/components/ui/Group.astro
+@@ -0,0 +1,14 @@
++---
++// THE group: a run of rows under one group head, 36px from the group before it. A metric group sits
++// under its heading without the line; a group hidden by the metric switch while it is off is marked.
++// Its rows are the slot. Other attributes (the filters' data marks) pass through.
++interface Props {
++  class?: string | null;
++  metric?: boolean;
++  nonkey?: boolean;
++  [attr: string]: unknown;
++}
++const { class: kind, metric = false, nonkey = false, ...rest } = Astro.props;
++---
++
++<div class:list={[kind, "fxgroup", { rkgroup: metric, nonkey }]} {...rest}><slot /></div>
+diff --git a/site_v2/src/components/ui/GroupHead.astro b/site_v2/src/components/ui/GroupHead.astro
+new file mode 100644
+index 00000000..31eeedba
+--- /dev/null
++++ b/site_v2/src/components/ui/GroupHead.astro
+@@ -0,0 +1,33 @@
++---
++// THE group head, the level-1 heading over a group's rows. A competition's head shows its crest and
++// name, with the chevron when it links to the competition page; a nation's head links to the nation
++// page; a metric group's head is its name; an index page's head adds its counts on the right.
++// A metric group heading names the Statistics board it will lead to; while no board page exists it
++// leads nowhere.
++import Crest from "./Crest.astro";
++import HeadingLink from "./HeadingLink.astro";
++import { localeHref, word } from "../../lib/href";
++import type { Lang } from "../../lib/format";
++
++interface Props {
++  lang: Lang;
++  name: string | null | undefined;
++  /** A competition's crest, shown before its name. */
++  crest?: { name: string | null | undefined; url: string | null | undefined } | null;
++  /** The competition's slug when it has a page. */
++  competition?: string | null;
++  /** The nation's slug when it has a page. */
++  nation?: string | null;
++  /** The metric group whose Statistics board this heading will lead to. */
++  statistics?: string | null;
++  counts?: { text: string; attrs?: Record<string, string | undefined> }[];
++}
++const { lang, name, crest, competition, nation, counts = [] } = Astro.props;
++const href = competition
++  ? localeHref(lang, `${competition}/`)
++  : nation ? localeHref(lang, `${word(lang, "players")}/${nation}/`) : null;
++---
++
++<div class="gh">{href || crest ? (
++  <HeadingLink href={href}>{crest && <span class="clogo"><Crest name={crest.name} crest={crest.url} size="xs" /></span>}<span class="nm">{name}</span></HeadingLink>
++) : <span class="nm">{name}</span>}{counts.map((c) => <span class="cnt" {...c.attrs}>{c.text}</span>)}</div>
+diff --git a/site_v2/src/components/ui/HeadingLink.astro b/site_v2/src/components/ui/HeadingLink.astro
+new file mode 100644
+index 00000000..88824a63
+--- /dev/null
++++ b/site_v2/src/components/ui/HeadingLink.astro
+@@ -0,0 +1,12 @@
++---
++// THE chevron heading link: a heading that leads somewhere is one link, its text then the chevron,
++// never underlined. Given no address it is the same heading without the link and the chevron.
++import Chevron from "./Chevron.astro";
++
++interface Props {
++  href?: string | null;
++}
++const { href } = Astro.props;
++---
++
++{href ? <a class="cnm" href={href}><slot /><Chevron /></a> : <span class="cnm"><slot /></span>}
+diff --git a/site_v2/src/components/ui/ResultChip.astro b/site_v2/src/components/ui/ResultChip.astro
+new file mode 100644
+index 00000000..5a249499
+--- /dev/null
++++ b/site_v2/src/components/ui/ResultChip.astro
+@@ -0,0 +1,15 @@
++---
++// THE result chip: one match's W, D or L from a team's side, in the page's language, on the result
++// colour. The same chip in every list, in a competition row's counts and in a form line.
++import { t } from "../../i18n/strings";
++import type { Lang } from "../../lib/format";
++
++interface Props {
++  lang: Lang;
++  result: "W" | "D" | "L";
++}
++const { lang, result } = Astro.props;
++const LETTER = { W: "winsShort", D: "drawsShort", L: "lossesShort" } as const;
++---
++
++<span class:list={["pill", result]}>{t(lang, LETTER[result])}</span>
+diff --git a/site_v2/src/components/ui/ResultRow.astro b/site_v2/src/components/ui/ResultRow.astro
+index 3d65cc84..adbee489 100644
+--- a/site_v2/src/components/ui/ResultRow.astro
++++ b/site_v2/src/components/ui/ResultRow.astro
+@@ -7,6 +7,7 @@
+ // competition and date. The row links to its match's page when this build makes one.
+ import Crest from "./Crest.astro";
+ import ListRow from "./ListRow.astro";
++import ResultChip from "./ResultChip.astro";
+ import { t } from "../../i18n/strings";
+ import { matchPageHref } from "../../lib/href";
+ import { integer } from "../../lib/format";
+@@ -34,8 +35,7 @@ interface Props {
+   competitionSlot?: number;
+ }
+ const { lang, kind = "result", result, score, clubs, homeAway, facts = [], detail, player, fixture, competitionSlot } = Astro.props;
+-const LETTER: Record<string, string> = { W: "winsShort", D: "drawsShort", L: "lossesShort" };
+-const chip = kind === "result" && result && LETTER[result] ? result : null;
++const chip = kind === "result" && (result === "W" || result === "D" || result === "L") ? result : null;
+ const ha = kind !== "result" ? "" : homeAway === "home" ? t(lang, "home") : homeAway === "away" ? t(lang, "away") : "";
+ const goal = kind === "goal" || kind === "scorer";
+ const forms = { result: [], meeting: ["meet"], goal: ["goal", "meet"], scorer: ["goal", "scorer"] }[kind];
+@@ -54,7 +54,7 @@ const units = (player?.parts ?? []).map(({ value, term }) => ({
+ 
+ <ListRow href={matchPageHref(lang, fixture)} data-fixture={fixture ?? undefined} data-competition-slot={competitionSlot}>
+   <div class:list={["resrow", ...forms]}>
+-    {chip && <span class:list={["pill", chip]}>{t(lang, LETTER[chip])}</span>}
++    {chip && <ResultChip lang={lang} result={chip} />}
+     {score != null && <span class="rscore">{score}</span>}
+     <span class="ropp">
+       {clubs.map((c, i) => <>{i > 0 && " – "}<span class="club"><Crest name={c.name} crest={c.crest} size="xs" /><span class="cn">{c.text ?? c.name}</span></span></>)}
+diff --git a/site_v2/src/components/ui/TabBand.astro b/site_v2/src/components/ui/TabBand.astro
+new file mode 100644
+index 00000000..0254b088
+--- /dev/null
++++ b/site_v2/src/components/ui/TabBand.astro
+@@ -0,0 +1,36 @@
++---
++// THE tab band under a page's header. Two kinds of tab, one look:
++// - pages: each tab is its own page; the tab you are on is lit, a built sibling is a link, a tab
++//   whose page is not built is a label without a link;
++// - radios (`group` set): each tab is a label bound to a hidden radio, `tab-{key}`, rendered here
++//   before the band so the page's panels, its siblings, show the checked one in CSS. The first tab
++//   opens. No client script.
++interface Tab {
++  key: string;
++  label: string;
++  href?: string | null;
++  current?: boolean;
++}
++interface Props {
++  label: string;
++  tabs: Tab[];
++  /** The radio group's name, for tabs within one page. */
++  group?: string;
++}
++const { label, tabs, group } = Astro.props;
++---
++
++{group && tabs.map((tb, i) => <input type="radio" name={group} id={`tab-${tb.key}`} class="tab-in" checked={i === 0} />)}
++<nav class="tabs comp-tabs" aria-label={label}>
++  {tabs.map((tb) =>
++    group ? (
++      <label class="tab" for={`tab-${tb.key}`}>{tb.label}</label>
++    ) : tb.current ? (
++      <span class="tab on" aria-current="page">{tb.label}</span>
++    ) : tb.href ? (
++      <a class="tab" href={tb.href}>{tb.label}</a>
++    ) : (
++      <span class="tab" aria-disabled="true">{tb.label}</span>
++    ),
++  )}
++</nav>
+diff --git a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
+index 62d26e91..e6a567ce 100644
+--- a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
++++ b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
+@@ -159,7 +159,7 @@ const entity = {
+       round={round}
+       compName={compName}
+       compLogo={indexRow?.logo_url}
+-      compHref={compHref}
++      compSlug={built.competitionPage ? comp.slug : null}
+       teamHrefs={{ home: teamHref(home.slug), away: teamHref(away.slug) }}
+       showStanding={isNext && !played}
+     />
+diff --git a/site_v2/src/pages/[lang]/[players]/[nation].astro b/site_v2/src/pages/[lang]/[players]/[nation].astro
+index 6d4ca9c5..a3cc1023 100644
+--- a/site_v2/src/pages/[lang]/[players]/[nation].astro
++++ b/site_v2/src/pages/[lang]/[players]/[nation].astro
+@@ -68,7 +68,7 @@ const crumbs = [
+           <div>
+             <div class="comp-grid">
+               {page.rows.map((player) => (
+-                <PlayerIndexRow player={player} lang={lang} slot={slotOf(player.position_group)} />
++                <PlayerIndexRow player={player} lang={lang} competitionSlot={slotOf(player.position_group)} />
+               ))}
+             </div>
+           </div>
+diff --git a/site_v2/src/pages/[lang]/[players]/[player].astro b/site_v2/src/pages/[lang]/[players]/[player].astro
+index 55e720e8..3c4f7f45 100644
+--- a/site_v2/src/pages/[lang]/[players]/[player].astro
++++ b/site_v2/src/pages/[lang]/[players]/[player].astro
+@@ -12,6 +12,7 @@ import PlayerLastSeason from "../../../components/player/PlayerLastSeason.astro"
+ import PlayerRecent from "../../../components/player/PlayerRecent.astro";
+ import SectionHead from "../../../components/ui/SectionHead.astro";
+ import StatCards from "../../../components/ui/StatCards.astro";
++import TabBand from "../../../components/ui/TabBand.astro";
+ import TeamFixtureGroup from "../../../components/team/TeamFixtureGroup.astro";
+ import { t, metricInSentence, metricLabel } from "../../../i18n/strings";
+ import { localeHref, LOCALES, word } from "../../../lib/href";
+@@ -117,8 +118,8 @@ const crumbs = [
+   { name },
+ ];
+ const TAB = {
+-  club: { id: "tab-club", page: "club", label: "playerTabClub", head: "teamThisSeasonHead" },
+-  national_team: { id: "tab-national", page: "national", label: "playerTabNational", head: "playerCurrentCompetitions" },
++  club: { page: "club", label: "playerTabClub", head: "teamThisSeasonHead" },
++  national_team: { page: "national", label: "playerTabNational", head: "playerCurrentCompetitions" },
+ } as const;
+ ---
+ 
+@@ -136,10 +137,7 @@ const TAB = {
+ 
+     <PlayerHeader player={player} lang={lang} />
+ 
+-    {tabs.map((tab, i) => <input type="radio" name="player-tab" id={TAB[tab.tab].id} class="tab-in" checked={i === 0} />)}
+-    <nav class="tabs comp-tabs" aria-label={t(lang, "playerTabsAria")}>
+-      {tabs.map((tab) => <label class="tab" for={TAB[tab.tab].id}>{t(lang, TAB[tab.tab].label)}</label>)}
+-    </nav>
++    <TabBand label={t(lang, "playerTabsAria")} group="player-tab" tabs={tabs.map((tab) => ({ key: TAB[tab.tab].page, label: t(lang, TAB[tab.tab].label) }))} />
+ 
+     {tabs.map((tab) => (
+       <div class="page" data-page={TAB[tab.tab].page}>
+diff --git a/site_v2/src/pages/[lang]/[teams]/[team].astro b/site_v2/src/pages/[lang]/[teams]/[team].astro
+index 90f1f904..96a9bf5f 100644
+--- a/site_v2/src/pages/[lang]/[teams]/[team].astro
++++ b/site_v2/src/pages/[lang]/[teams]/[team].astro
+@@ -105,7 +105,6 @@ const crumbs = [
+ 
+     <TeamHeader team={team} season={season} lang={lang} />
+ 
+-    {pages.map((p) => <input type="radio" name="team-tab" id={`tab-${p}`} class="tab-in" checked={p === "overview"} />)}
+     <Tabs lang={lang} pages={[...pages]} />
+ 
+     <div class="page" data-page="overview">
+diff --git a/tests/fixtures/component_registry/baseline.json b/tests/fixtures/component_registry/baseline.json
+index 9fffe7b3..908dac3d 100644
+--- a/tests/fixtures/component_registry/baseline.json
++++ b/tests/fixtures/component_registry/baseline.json
+@@ -4,6 +4,6 @@
+  "unlisted classes": {"system.css": 34},
+  "part gaps": {"mock-css": 34, "style-varies": 4},
+  "set sizes": {"colours": 20, "marks": 4, "spacing": 11, "switch": 13, "text": 19},
+- "markup outside its component": {"block": 23, "board": 5, "breadcrumb": 2, "competition-index": 4, "filter-bar": 12, "header": 2, "heading-link": 11, "last-season": 2, "page-shell": 17, "player-row": 1, "table-row": 1, "team-index": 5},
+- "components in several files": {"registry": 13}
++ "markup outside its component": {"block": 23, "board": 5, "breadcrumb": 2, "competition-index": 4, "filter-bar": 12, "header": 2, "last-season": 2, "page-shell": 17, "player-row": 1, "table-row": 1, "team-index": 5},
++ "components in several files": {"registry": 11}
+ }
+diff --git a/tests/test_parts_page.py b/tests/test_parts_page.py
+index 94a4ee63..df9c57cc 100644
+--- a/tests/test_parts_page.py
++++ b/tests/test_parts_page.py
+@@ -269,14 +269,14 @@ def _drawing_data(styles):
+              {"tag": "div", "attrs": [["class", "fxgroup"]], "inputs": []}]
+     marks = ['<span class="nm">Bundesliga</span>', '<span class="nm"><b>Serie</b> A</span>']
+     return {"sheets": [".nm{padding-left:7px}"], "bundles": [[0]], "runs": [], "pages": [], "colours": {},
+-            "instances": [{"page": "Home", "state": "", "key": "group.name", "bundle": 0,
++            "instances": [{"page": "Home", "state": "", "key": "group-head.name", "bundle": 0,
+                            "captures": {375: {"style": s, "html": m, "chain": chain, "trimmed": False}}}
+                           for m, s in zip(marks, styles)]}
+ 
+ 
+ @pytest.mark.skipif(not _chromium_available(), reason="Playwright's Chromium is not installed here")
+ def test_the_drawing_check_measures_the_part_itself_and_marks_only_a_form_drawn_differently(tmp_path):
+-    parts = [{"key": "group.name", "selector": ".nm", "name": "Competition group name"}]
++    parts = [{"key": "group-head.name", "selector": ".nm", "name": "Competition group name"}]
+     out = tmp_path / "parts_page.html"
+     placeholder = {p: "" for p in pp.STYLE_PROPS}
+     pp.write_page(out, _drawing_data([placeholder, placeholder]), parts, [])
+@@ -287,5 +287,5 @@ def test_the_drawing_check_measures_the_part_itself_and_marks_only_a_form_drawn_
+     assert fidelity == {"1-375": [], "2-375": ["padding-left 9px → 7px"]}
+     page = out.read_text(encoding="utf-8")
+     assert page.count("Out of its page:") == 1 and "padding-left 9px → 7px" in page
+-    assert counts["Competition name"]["group.name"] == 2
++    assert counts["Competition name"]["group-head.name"] == 2
+     assert not (tmp_path / "parts_page.unchecked.html").exists()
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../task/243-parts-heads/acceptance_evidence.md    | 45 ++++++++++++++++++++++
+#    .../task/243-parts-heads/rendered_page_evidence.md | 43 +++++++++++++++++++++
+#    2 files changed, 88 insertions(+)
+# ============================================================================

@@ -6,6 +6,8 @@
 // side shows "-" there. No reordering by value. Rows that are not key metrics, and a group heading
 // with no key row, carry `nonkey` for the Show all metrics switch.
 import MetricRow from "./MetricRow.astro";
+import Group from "../ui/Group.astro";
+import GroupHead from "../ui/GroupHead.astro";
 import { metricLabel } from "../../i18n/strings";
 import type { ComparisonGroup } from "../../lib/comparisonGroups";
 import type { WindowStats } from "../../lib/types";
@@ -28,11 +30,11 @@ const { names, groups, home, away, lang, oneMatch = false } = Astro.props;
     <div class="cmp-team cmp-away"><div class="h">{names[1]}</div><slot name="away" /></div>
   </div>
   {groups.map(({ key, rows, hasKey }) => (
-    <div class:list={["fxgroup", "rkgroup", { nonkey: !hasKey }]}>
-      <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${key}.label`)}</span></div>
+    <Group metric nonkey={!hasKey}>
+      <GroupHead lang={lang} name={metricLabel(lang, `metricGroups.${key}.label`)} statistics={key} />
       {rows.map((def) => (
         <MetricRow def={def} home={home} away={away} lang={lang} oneMatch={oneMatch} />
       ))}
-    </div>
+    </Group>
   ))}
 </div>

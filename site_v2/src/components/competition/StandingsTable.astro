@@ -6,6 +6,7 @@
 // narrow phone. The provider's cross-group ranking tables are not sections here.
 import SectionHead from "../ui/SectionHead.astro";
 import TableRow from "../ui/TableRow.astro";
+import GroupHead from "../ui/GroupHead.astro";
 import { integer, signedInteger } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
@@ -26,7 +27,7 @@ const showSectionNames = sections.length > 1;
     <SectionHead label={t(lang, "table")} />
     {sections.map((sec) => (
       <div class="ctab-section">
-        {showSectionNames && <div class="gh"><span class="nm">{sec.name}</span></div>}
+        {showSectionNames && <GroupHead lang={lang} name={sec.name} />}
         <div class="ctab">
           <div class="ctab-head">
             <span class="h rk">{t(lang, "positionShort")}</span>

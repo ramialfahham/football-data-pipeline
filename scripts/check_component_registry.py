@@ -47,7 +47,8 @@ COMPONENT_KEYS = {"name", "file", "used-on", "parts", "wide", "narrow", "never-s
 LINK_BUILDERS = {
     "match page": re.compile(r"matchPageHref\(|word\(lang, \"matches\"\)"),
     "team page": re.compile(r"word\(lang, \"teams\"\)"),
-    "player page": re.compile(r"word\(lang, \"players\"\)"),
+    "player page": re.compile(r"word\(lang, \"players\"\)\}/\$\{(?!nation\})"),
+    "nation page": re.compile(r"word\(lang, \"players\"\)\}/\$\{nation\}"),
     "competition page": re.compile(r"localeHref\(lang, `\$\{[\w.]+\}/`\)"),
 }
 PART_KEYS = {"class", "selector", "text", "mark", "breaks", "element", "rule", "measured", "status", "ruled-on", "gap"}

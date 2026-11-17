@@ -159,7 +159,7 @@ const entity = {
       round={round}
       compName={compName}
       compLogo={indexRow?.logo_url}
-      compHref={compHref}
+      compSlug={built.competitionPage ? comp.slug : null}
       teamHrefs={{ home: teamHref(home.slug), away: teamHref(away.slug) }}
       showStanding={isNext && !played}
     />

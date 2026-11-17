@@ -5,6 +5,7 @@
 import SectionHead from "../ui/SectionHead.astro";
 import MetricSwitch from "../ui/MetricSwitch.astro";
 import MetricComparison from "./MetricComparison.astro";
+import ResultChip from "../ui/ResultChip.astro";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
 import { comparisonGroups, needsSwitch } from "../../lib/comparisonGroups";
@@ -18,11 +19,11 @@ interface Props {
 const { fixture, lang, compName } = Astro.props;
 const { home, away } = fixture;
 
-const LETTER: Record<string, string> = { W: "winsShort", D: "drawsShort", L: "lossesShort" };
-const results = (side: Side): string[] =>
+const isResult = (r: string): r is "W" | "D" | "L" => r === "W" || r === "D" || r === "L";
+const results = (side: Side): ("W" | "D" | "L")[] =>
   side.form?.window_type === "prev_season"
     ? []
-    : (side.form_window ?? []).map((m) => m.result ?? "").filter((r) => r in LETTER);
+    : (side.form_window ?? []).map((m) => m.result ?? "").filter(isResult);
 const prev = [home, away].some((s) => s.form?.window_type === "prev_season");
 const intro = prev ? t(lang, "formIntroPrev", { competition: compName }) : t(lang, "formIntro");
 const shown = Boolean(home.form || away.form);
@@ -36,10 +37,10 @@ const groups = comparisonGroups(home.form, away.form);
     {needsSwitch(groups) && <MetricSwitch id="tsw-form" lang={lang} />}
     <MetricComparison names={[home.name, away.name]} groups={groups} home={home.form} away={away.form} lang={lang}>
       {results(home).length > 0 && (
-        <div class="pills" slot="home">{results(home).map((r) => <span class:list={["pill", r]}>{t(lang, LETTER[r])}</span>)}</div>
+        <div class="pills" slot="home">{results(home).map((r) => <ResultChip lang={lang} result={r} />)}</div>
       )}
       {results(away).length > 0 && (
-        <div class="pills" slot="away">{results(away).map((r) => <span class:list={["pill", r]}>{t(lang, LETTER[r])}</span>)}</div>
+        <div class="pills" slot="away">{results(away).map((r) => <ResultChip lang={lang} result={r} />)}</div>
       )}
     </MetricComparison>
   </section>

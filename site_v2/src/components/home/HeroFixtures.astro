@@ -9,12 +9,13 @@
 // No round on the row: the provider's round name is English in every locale.
 import SectionHead from "../ui/SectionHead.astro";
 import MatchRow from "../ui/MatchRow.astro";
-import Crest from "../ui/Crest.astro";
+import DateHeading from "../ui/DateHeading.astro";
 import Fold from "../ui/Fold.astro";
+import Group from "../ui/Group.astro";
+import GroupHead from "../ui/GroupHead.astro";
 import type { Lang } from "../../lib/format";
 import { formatDate } from "../../lib/format";
 import { t } from "../../i18n/strings";
-import { localeHref } from "../../lib/href";
 import type { CompetitionFixture, LandingUpcomingGroup } from "../../lib/types";
 
 interface Props {
@@ -39,26 +40,18 @@ const opensDay = (fixtures: CompetitionFixture[], i: number) =>
     const rows = (from: number, to?: number) =>
       group.fixtures.slice(from, to).map((fx, j) => (
         <>
-          {opensDay(group.fixtures, from + j) && <div class="dh">{formatDate(fx.kickoff, lang)}</div>}
+          {opensDay(group.fixtures, from + j) && <DateHeading date={formatDate(fx.kickoff, lang)} />}
           <MatchRow fx={fx} competitionSlug={group.competition_slug ?? null} lang={lang} topMatch={fx.is_match_that_matters} />
         </>
       ));
     return (
-      <div class="fxgroup">
-        <div class="gh">
-          {group.competition_slug ? (
-            <a class="cnm" href={localeHref(lang, `${group.competition_slug}/`)}>
-              <span class="clogo"><Crest name={group.league_name ?? group.league_code} crest={group.crest} size="xs" /></span>
-              <span class="nm">{group.league_name ?? group.league_code}</span>
-              <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2"
-                      stroke-linecap="round" stroke-linejoin="round"></path>
-              </svg>
-            </a>
-          ) : (
-            <span class="nm">{group.league_name ?? group.league_code}</span>
-          )}
-        </div>
+      <Group>
+        <GroupHead
+          lang={lang}
+          name={group.league_name ?? group.league_code}
+          crest={{ name: group.league_name ?? group.league_code, url: group.crest }}
+          competition={group.competition_slug}
+        />
 
         {rows(0, VISIBLE_ROWS)}
 
@@ -67,7 +60,7 @@ const opensDay = (fixtures: CompetitionFixture[], i: number) =>
             {rows(VISIBLE_ROWS)}
           </Fold>
         )}
-      </div>
+      </Group>
     );
   })}
 </section>

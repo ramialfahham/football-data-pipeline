@@ -7,6 +7,7 @@
 // competition and date. The row links to its match's page when this build makes one.
 import Crest from "./Crest.astro";
 import ListRow from "./ListRow.astro";
+import ResultChip from "./ResultChip.astro";
 import { t } from "../../i18n/strings";
 import { matchPageHref } from "../../lib/href";
 import { integer } from "../../lib/format";
@@ -34,8 +35,7 @@ interface Props {
   competitionSlot?: number;
 }
 const { lang, kind = "result", result, score, clubs, homeAway, facts = [], detail, player, fixture, competitionSlot } = Astro.props;
-const LETTER: Record<string, string> = { W: "winsShort", D: "drawsShort", L: "lossesShort" };
-const chip = kind === "result" && result && LETTER[result] ? result : null;
+const chip = kind === "result" && (result === "W" || result === "D" || result === "L") ? result : null;
 const ha = kind !== "result" ? "" : homeAway === "home" ? t(lang, "home") : homeAway === "away" ? t(lang, "away") : "";
 const goal = kind === "goal" || kind === "scorer";
 const forms = { result: [], meeting: ["meet"], goal: ["goal", "meet"], scorer: ["goal", "scorer"] }[kind];
@@ -54,7 +54,7 @@ const units = (player?.parts ?? []).map(({ value, term }) => ({
 
 <ListRow href={matchPageHref(lang, fixture)} data-fixture={fixture ?? undefined} data-competition-slot={competitionSlot}>
   <div class:list={["resrow", ...forms]}>
-    {chip && <span class:list={["pill", chip]}>{t(lang, LETTER[chip])}</span>}
+    {chip && <ResultChip lang={lang} result={chip} />}
     {score != null && <span class="rscore">{score}</span>}
     <span class="ropp">
       {clubs.map((c, i) => <>{i > 0 && " – "}<span class="club"><Crest name={c.name} crest={c.crest} size="xs" /><span class="cn">{c.text ?? c.name}</span></span></>)}

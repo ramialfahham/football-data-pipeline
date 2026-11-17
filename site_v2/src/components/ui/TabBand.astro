@@ -1,0 +1,36 @@
+---
+// THE tab band under a page's header. Two kinds of tab, one look:
+// - pages: each tab is its own page; the tab you are on is lit, a built sibling is a link, a tab
+//   whose page is not built is a label without a link;
+// - radios (`group` set): each tab is a label bound to a hidden radio, `tab-{key}`, rendered here
+//   before the band so the page's panels, its siblings, show the checked one in CSS. The first tab
+//   opens. No client script.
+interface Tab {
+  key: string;
+  label: string;
+  href?: string | null;
+  current?: boolean;
+}
+interface Props {
+  label: string;
+  tabs: Tab[];
+  /** The radio group's name, for tabs within one page. */
+  group?: string;
+}
+const { label, tabs, group } = Astro.props;
+---
+
+{group && tabs.map((tb, i) => <input type="radio" name={group} id={`tab-${tb.key}`} class="tab-in" checked={i === 0} />)}
+<nav class="tabs comp-tabs" aria-label={label}>
+  {tabs.map((tb) =>
+    group ? (
+      <label class="tab" for={`tab-${tb.key}`}>{tb.label}</label>
+    ) : tb.current ? (
+      <span class="tab on" aria-current="page">{tb.label}</span>
+    ) : tb.href ? (
+      <a class="tab" href={tb.href}>{tb.label}</a>
+    ) : (
+      <span class="tab" aria-disabled="true">{tb.label}</span>
+    ),
+  )}
+</nav>

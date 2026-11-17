@@ -11,6 +11,8 @@
 // serves for it, the way its competition names it ("6. Spieltag", "Mestaruussarja, 23. kierros").
 import MatchRow from "../ui/MatchRow.astro";
 import SectionHead from "../ui/SectionHead.astro";
+import DateHeading from "../ui/DateHeading.astro";
+import Group from "../ui/Group.astro";
 import { formatDate } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
@@ -74,10 +76,10 @@ const idOf = (i: number) => `md-${rounds[i].round_sequence ?? i + 1}`;
     </nav>
     <section>
       <SectionHead label={t(lang, "compSecSchedule")} />
-      <div class="fxgroup">
+      <Group>
         {days(r).map(([day, fixtures]) => (
           <>
-            <div class="dh">{formatDate(fixtures[0].kickoff, lang)}</div>
+            <DateHeading date={formatDate(fixtures[0].kickoff, lang)} />
             {fixtures.map((fx) => (
               <MatchRow
                 fx={fx}
@@ -88,7 +90,7 @@ const idOf = (i: number) => `md-${rounds[i].round_sequence ?? i + 1}`;
             ))}
           </>
         ))}
-      </div>
+      </Group>
     </section>
   </div>
 ))}

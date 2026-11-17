@@ -12,6 +12,7 @@ import PlayerLastSeason from "../../../components/player/PlayerLastSeason.astro"
 import PlayerRecent from "../../../components/player/PlayerRecent.astro";
 import SectionHead from "../../../components/ui/SectionHead.astro";
 import StatCards from "../../../components/ui/StatCards.astro";
+import TabBand from "../../../components/ui/TabBand.astro";
 import TeamFixtureGroup from "../../../components/team/TeamFixtureGroup.astro";
 import { t, metricInSentence, metricLabel } from "../../../i18n/strings";
 import { localeHref, LOCALES, word } from "../../../lib/href";
@@ -117,8 +118,8 @@ const crumbs = [
   { name },
 ];
 const TAB = {
-  club: { id: "tab-club", page: "club", label: "playerTabClub", head: "teamThisSeasonHead" },
-  national_team: { id: "tab-national", page: "national", label: "playerTabNational", head: "playerCurrentCompetitions" },
+  club: { page: "club", label: "playerTabClub", head: "teamThisSeasonHead" },
+  national_team: { page: "national", label: "playerTabNational", head: "playerCurrentCompetitions" },
 } as const;
 ---
 
@@ -136,10 +137,7 @@ const TAB = {
 
     <PlayerHeader player={player} lang={lang} />
 
-    {tabs.map((tab, i) => <input type="radio" name="player-tab" id={TAB[tab.tab].id} class="tab-in" checked={i === 0} />)}
-    <nav class="tabs comp-tabs" aria-label={t(lang, "playerTabsAria")}>
-      {tabs.map((tab) => <label class="tab" for={TAB[tab.tab].id}>{t(lang, TAB[tab.tab].label)}</label>)}
-    </nav>
+    <TabBand label={t(lang, "playerTabsAria")} group="player-tab" tabs={tabs.map((tab) => ({ key: TAB[tab.tab].page, label: t(lang, TAB[tab.tab].label) }))} />
 
     {tabs.map((tab) => (
       <div class="page" data-page={TAB[tab.tab].page}>
