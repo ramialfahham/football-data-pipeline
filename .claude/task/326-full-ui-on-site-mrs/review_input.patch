@@ -237,7 +237,7 @@ index cbbc5d80..8c569156 100644
              if p["merged"]:
                  env["MR_TARGET_SHA"] = target_sha
 diff --git a/scripts/merge_ready.py b/scripts/merge_ready.py
-index f1ca5639..97f6dc65 100644
+index f1ca5639..62dc6466 100644
 --- a/scripts/merge_ready.py
 +++ b/scripts/merge_ready.py
 @@ -12,6 +12,9 @@ merged in. If main has not moved since, the green result stands. If it has, the
@@ -329,6 +329,31 @@ index f1ca5639..97f6dc65 100644
      tested = tested_sha_of(mr)
      current = run(["git", "rev-parse", f"{REMOTE}/{target}"], cwd=toplevel).strip()
      mr_files = run(["git", "diff", "--name-only", f"{tested}...{head}"], cwd=toplevel).split()
+@@ -246,10 +307,24 @@ def decide(iid: str) -> tuple[int, list[str]]:
+     return 1, lines + ["OVERLAP: re-run the pipeline without a new commit."] + [f"- {h}" for h in hits]
+ 
+ 
++def repo_python() -> str | None:
++    """The repo's .venv Python, which carries PyYAML for reading .gitlab-ci.yml."""
++    toplevel = run(["git", "rev-parse", "--show-toplevel"], check=False).strip()
++    return find_in_checkouts(toplevel, ".venv/Scripts/python.exe", ".venv/bin/python") if toplevel else None
++
++
+ def main(argv: list[str]) -> int:
+     if len(argv) != 2 or not argv[1].isdigit():
+         print(__doc__, file=sys.stderr)
+         return 2
++    try:
++        import yaml  # noqa: F401
++    except ImportError:
++        venv = repo_python()
++        if venv and os.path.normcase(os.path.abspath(venv)) != os.path.normcase(os.path.abspath(sys.executable)):
++            return subprocess.call([venv, os.path.abspath(__file__), argv[1]])
++        print("cannot decide: PyYAML is missing; run with the repo's .venv Python", file=sys.stderr)
++        return 2
+     try:
+         code, lines = decide(argv[1])
+     except Undecided as e:
 diff --git a/tests/test_ci_local.py b/tests/test_ci_local.py
 index 6a3e5077..0d192a96 100644
 --- a/tests/test_ci_local.py
@@ -427,13 +452,29 @@ index 69424949..748c3e71 100644
      assert fi_flags in fi_step.group(1)
      assert fi["viewports"] == [320] and fi["langs"] == ["fi"] and fi["rendered"]["platform"] == "linux"
 diff --git a/tests/test_merge_ready.py b/tests/test_merge_ready.py
-index 08097625..37c00236 100644
+index 08097625..389c050e 100644
 --- a/tests/test_merge_ready.py
 +++ b/tests/test_merge_ready.py
-@@ -118,6 +118,109 @@ def test_main_requires_an_iid(capsys):
+@@ -118,6 +118,125 @@ def test_main_requires_an_iid(capsys):
      assert mr.main(["merge_ready.py", "abc"]) == 2
  
  
++def test_without_pyyaml_main_reruns_under_the_repo_python(monkeypatch):
++    monkeypatch.setitem(sys.modules, "yaml", None)
++    monkeypatch.setattr(mr, "repo_python", lambda: "/repo/.venv/bin/python")
++    calls = []
++    monkeypatch.setattr(mr.subprocess, "call", lambda cmd: calls.append(cmd) or 0)
++    assert mr.main(["merge_ready.py", "7"]) == 0
++    assert calls[0][0] == "/repo/.venv/bin/python" and calls[0][1].endswith("merge_ready.py") and calls[0][2] == "7"
++
++
++def test_without_pyyaml_or_a_repo_python_main_cannot_decide(monkeypatch, capsys):
++    monkeypatch.setitem(sys.modules, "yaml", None)
++    monkeypatch.setattr(mr, "repo_python", lambda: None)
++    assert mr.main(["merge_ready.py", "7"]) == 2
++    assert "PyYAML" in capsys.readouterr().err
++
++
 +# --- the full design sweep of an MR that changes the rendered site ---
 +WIDTHS = "280,320,360,375,700,1010"
 +FULL = [280, 320, 360, 375, 700, 1010]
@@ -553,6 +594,7 @@ index 08097625..37c00236 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .../326-full-ui-on-site-mrs/review_input.patch     | 494 +++++++++++++++++++++
-#    1 file changed, 494 insertions(+)
+#   .claude/task/326-full-ui-on-site-mrs/review.md     |  31 ++
+#    .../326-full-ui-on-site-mrs/review_input.patch     | 558 +++++++++++++++++++++
+#    2 files changed, 589 insertions(+)
 # ============================================================================

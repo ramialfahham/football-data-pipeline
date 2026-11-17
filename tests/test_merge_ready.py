@@ -118,6 +118,22 @@ def test_main_requires_an_iid(capsys):
     assert mr.main(["merge_ready.py", "abc"]) == 2
 
 
+def test_without_pyyaml_main_reruns_under_the_repo_python(monkeypatch):
+    monkeypatch.setitem(sys.modules, "yaml", None)
+    monkeypatch.setattr(mr, "repo_python", lambda: "/repo/.venv/bin/python")
+    calls = []
+    monkeypatch.setattr(mr.subprocess, "call", lambda cmd: calls.append(cmd) or 0)
+    assert mr.main(["merge_ready.py", "7"]) == 0
+    assert calls[0][0] == "/repo/.venv/bin/python" and calls[0][1].endswith("merge_ready.py") and calls[0][2] == "7"
+
+
+def test_without_pyyaml_or_a_repo_python_main_cannot_decide(monkeypatch, capsys):
+    monkeypatch.setitem(sys.modules, "yaml", None)
+    monkeypatch.setattr(mr, "repo_python", lambda: None)
+    assert mr.main(["merge_ready.py", "7"]) == 2
+    assert "PyYAML" in capsys.readouterr().err
+
+
 # --- the full design sweep of an MR that changes the rendered site ---
 WIDTHS = "280,320,360,375,700,1010"
 FULL = [280, 320, 360, 375, 700, 1010]

@@ -307,9 +307,23 @@ def decide(iid: str) -> tuple[int, list[str]]:
     return 1, lines + ["OVERLAP: re-run the pipeline without a new commit."] + [f"- {h}" for h in hits]
 
 
+def repo_python() -> str | None:
+    """The repo's .venv Python, which carries PyYAML for reading .gitlab-ci.yml."""
+    toplevel = run(["git", "rev-parse", "--show-toplevel"], check=False).strip()
+    return find_in_checkouts(toplevel, ".venv/Scripts/python.exe", ".venv/bin/python") if toplevel else None
+
+
 def main(argv: list[str]) -> int:
     if len(argv) != 2 or not argv[1].isdigit():
         print(__doc__, file=sys.stderr)
+        return 2
+    try:
+        import yaml  # noqa: F401
+    except ImportError:
+        venv = repo_python()
+        if venv and os.path.normcase(os.path.abspath(venv)) != os.path.normcase(os.path.abspath(sys.executable)):
+            return subprocess.call([venv, os.path.abspath(__file__), argv[1]])
+        print("cannot decide: PyYAML is missing; run with the repo's .venv Python", file=sys.stderr)
         return 2
     try:
         code, lines = decide(argv[1])
