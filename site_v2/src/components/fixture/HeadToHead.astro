@@ -3,6 +3,7 @@
 // order, the side that was at home first, competition / date with its year. "No meetings on record."
 // when the warehouse holds none.
 import SectionHead from "../ui/SectionHead.astro";
+import Explainer from "../ui/Explainer.astro";
 import ResultRow from "../ui/ResultRow.astro";
 import RowList from "../ui/RowList.astro";
 import { formatDayYear } from "../../lib/format";
@@ -35,7 +36,7 @@ const rows = meetings.map((m) => {
 
 <section aria-label={t(lang, "secH2H")}>
   <SectionHead label={t(lang, "secH2H")} />
-  {intro && <p class="bsub">{intro}</p>}
+  {intro && <Explainer text={intro} />}
   <RowList kind="results">
     {rows.map((r) => (
       <ResultRow

@@ -50,9 +50,7 @@ const filterRows = [
 ---
 
 <section class="teamindex">
-  <FilterRows lang={lang} rows={filterRows} competitions={POSITIONS.map((p) => ({ name: t(lang, p.label) }))} slotsArePositions />
-
-  <div class="categories">
+  <FilterRows lang={lang} rows={filterRows} competitions={POSITIONS.map((p) => ({ name: t(lang, p.label) }))} slotsArePositions>
     {lists.length > 0 && (
       <section class="tblock">
         <SectionHead label={t(lang, "playersWorldsBest")} />
@@ -110,7 +108,7 @@ const filterRows = [
         </Group>
       ))}
     </section>
-  </div>
+  </FilterRows>
 </section>
 
 <script>

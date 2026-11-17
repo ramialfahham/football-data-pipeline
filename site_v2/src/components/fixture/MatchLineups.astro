@@ -5,6 +5,7 @@
 // The two columns sit side by side from 560px, their rows level. Without a line-up the heading says
 // so in one line.
 import SectionHead from "../ui/SectionHead.astro";
+import Explainer from "../ui/Explainer.astro";
 import PlayerRow from "../ui/PlayerRow.astro";
 import { DASH, matchMinute } from "../../lib/format";
 import type { Lang } from "../../lib/format";
@@ -56,6 +57,6 @@ function second(p: LineupPlayer): string[] {
       ))}
     </div>
   ) : (
-    <p class="bsub">{t(lang, "lineupsNotRecorded")}</p>
+    <Explainer text={t(lang, "lineupsNotRecorded")} />
   )}
 </section>

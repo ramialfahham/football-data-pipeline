@@ -7,6 +7,7 @@
 // every row in its place. Look from the chart theme (system.css). Data:
 // mart_team_competition_benchmarks and its every-club strip.
 import SectionHead from "../ui/SectionHead.astro";
+import Explainer from "../ui/Explainer.astro";
 import MetricSwitch from "../ui/MetricSwitch.astro";
 import ChartLegend from "../ui/ChartLegend.astro";
 import Group from "../ui/Group.astro";
@@ -43,7 +44,7 @@ function place(v: number, lo: number, hi: number): number {
 {groups.length > 0 && (
   <section>
     <SectionHead label={t(lang, "teamVsLeague")} />
-    <p class="bsub">{t(lang, "teamVsLeagueIntro", { competition: compName })}</p>
+    <Explainer text={t(lang, "teamVsLeagueIntro", { competition: compName })} />
     {needsSwitch(groups) && <MetricSwitch id="tsw-league" lang={lang} />}
     <div class="chart">
       <ChartLegend keys={[

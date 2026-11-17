@@ -61,8 +61,7 @@ const crumbs = [
         rows={[{ confederation: page.region }]}
         competitions={POSITIONS.map((p) => ({ name: t(lang, p.label) }))}
         slotsArePositions
-      />
-      <div class="categories">
+      >
         <section class="tblock">
           <SectionHead label={t(lang, "navPlayers")} />
           <div>
@@ -73,7 +72,7 @@ const crumbs = [
             </div>
           </div>
         </section>
-      </div>
+      </FilterRows>
     </section>
   </div>
 </Layout>

@@ -2,6 +2,7 @@
 // Two lists, home and away, side by side where the block is 560px wide or more, their rows level
 // with each other; one above the other below. The rows come through the `home` and `away` slots.
 import SectionHead from "../ui/SectionHead.astro";
+import Explainer from "../ui/Explainer.astro";
 
 interface Props {
   label: string;
@@ -14,7 +15,7 @@ const { label, intro, homeLabel, awayLabel } = Astro.props;
 
 <section aria-label={label}>
   <SectionHead label={label} />
-  {intro && <p class="bsub">{intro}</p>}
+  {intro && <Explainer text={intro} />}
   <div class="rsplit">
     <div class="rcol">
       <div class="colhead">{homeLabel}</div>

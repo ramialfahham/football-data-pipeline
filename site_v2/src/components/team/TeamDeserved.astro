@@ -10,6 +10,7 @@
 // and marks keep their size at every width (chartMarks.mjs). Present only where the model fitted
 // the league (mart_team_profile, deserved_scatter).
 import SectionHead from "../ui/SectionHead.astro";
+import Explainer from "../ui/Explainer.astro";
 import ChartLegend from "../ui/ChartLegend.astro";
 import { scatter, offset } from "../../lib/chartTheme";
 import type { Lang } from "../../lib/format";
@@ -103,7 +104,7 @@ const fmtTick = (x: number) => (x > 0 ? `+${integer(x, lang)}` : integer(x, lang
 {me && s.deserved_points != null && (
   <section>
     <SectionHead label={metricLabel(lang, DESERVED)} />
-    <p class="bsub">{t(lang, "compDeservedExplainer", names)}</p>
+    <Explainer text={t(lang, "compDeservedExplainer", names)} />
     <div class="ctab dpm">
       <div class="ctab-head"><span class="h nmh">{t(lang, "teamAfterMatches", { competition: compName, n: integer(s.played, lang) })}</span><span class="h"></span></div>
       {rows.map((r) => (

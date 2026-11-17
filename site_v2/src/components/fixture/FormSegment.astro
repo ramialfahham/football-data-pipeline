@@ -3,6 +3,7 @@
 // (docs/metrics_context_model.md section 4), under one head row of each team's name and its W/D/L pills.
 // A side whose window is last season's record shows no pills: they are its recent matches, not its window.
 import SectionHead from "../ui/SectionHead.astro";
+import Explainer from "../ui/Explainer.astro";
 import MetricSwitch from "../ui/MetricSwitch.astro";
 import MetricComparison from "./MetricComparison.astro";
 import ResultChip from "../ui/ResultChip.astro";
@@ -33,7 +34,7 @@ const groups = comparisonGroups(home.form, away.form);
 {shown && (
   <section aria-label={t(lang, "secForm")}>
     <SectionHead label={t(lang, "secForm")} />
-    <p class="bsub">{intro}</p>
+    <Explainer text={intro} />
     {needsSwitch(groups) && <MetricSwitch id="tsw-form" lang={lang} />}
     <MetricComparison names={[home.name, away.name]} groups={groups} home={home.form} away={away.form} lang={lang}>
       {results(home).length > 0 && (

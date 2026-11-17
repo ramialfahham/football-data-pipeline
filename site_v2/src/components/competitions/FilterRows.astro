@@ -6,7 +6,7 @@
 // element that must follow them as a sibling. The buttons and the
 // dropdowns are two forms of the same radios: fitBlocks.mjs picks the form that fits, filterBar.mjs
 // keeps the dropdowns on the radios and removes the choices that would leave no row.
-import Chevron from "../ui/Chevron.astro";
+import FilterBar from "../ui/FilterBar.astro";
 import { t } from "../../i18n/strings";
 import type { Lang } from "../../lib/format";
 import { offered } from "../../lib/filterBar.mjs";
@@ -61,32 +61,11 @@ const filters = [
   filter("region-filter", "region", REGION_LABELS, rows.map((r) => r.confederation), t(lang, "filterByRegion"), t(lang, "filterAllRegions")),
   competitionFilter,
 ].filter((f) => f.shown);
+const bar = filters.map((f) => ({
+  name: f.name,
+  aria: f.aria,
+  choices: f.choices.map((c) => ({ ...c, option: c.value ? c.label : f.first })),
+}));
 ---
 
-{filters.map((f) => f.choices.map((c) => (
-  <input class="seg-in" type="radio" name={f.name} id={c.id} value={c.value} checked={c.value === ""} />
-)))}
-
-{filters.length > 0 && (
-  <div class="fbar">
-    {filters.map((f) => (
-      <div class="seg" role="group" aria-label={f.aria}>
-        {f.choices.map((c) => <label class="seg-btn" for={c.id}>{c.label}</label>)}
-      </div>
-    ))}
-    <div class="selbar">
-      {filters.map((f) => (
-        <div class="seg sel">
-          <select class="sel-in" data-filter={f.name} aria-label={f.aria}>
-            {f.choices.map((c) => <option value={c.value} selected={c.value === ""}>{c.value ? c.label : f.first}</option>)}
-          </select>
-          <Chevron />
-        </div>
-      ))}
-    </div>
-  </div>
-)}
-
-<script>
-  import "../../lib/filterBar.mjs";
-</script>
+{Astro.slots.has("default") ? <FilterBar filters={bar}><slot /></FilterBar> : <FilterBar filters={bar} />}

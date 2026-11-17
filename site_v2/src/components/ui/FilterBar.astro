@@ -1,0 +1,52 @@
+---
+// THE filter bar: each filter's radios first, then, while a filter has two choices or more, the
+// bar holding the same choices twice, as buttons and as a dropdown; fitBlocks.mjs picks the form
+// that fits and filterBar.mjs keeps the dropdowns on the radios. The rows the filters act on are
+// the slot, in the `.categories` element the stylesheet reads as the radios' sibling. A choice's
+// `attrs` (a comparison's mark) go on its radio and its button. The first choice is checked.
+import Chevron from "./Chevron.astro";
+
+interface Choice {
+  id: string;
+  value: string;
+  label: string;
+  /** The dropdown's text for this choice, when it differs from the button's. */
+  option?: string;
+  attrs?: Record<string, string | number>;
+}
+interface Props {
+  filters: { name: string; aria: string; choices: Choice[] }[];
+}
+const { filters } = Astro.props;
+const bar = filters.some((f) => f.choices.length > 1);
+const rows = Astro.slots.has("default");
+---
+
+{filters.map((f) => f.choices.map((c, i) => (
+  <input class="seg-in" type="radio" name={f.name} id={c.id} value={c.value} {...c.attrs} checked={i === 0} />
+)))}
+
+{bar && (
+  <div class="fbar">
+    {filters.map((f) => (
+      <div class="seg" role="group" aria-label={f.aria}>
+        {f.choices.map((c) => <label class="seg-btn" for={c.id} {...c.attrs}>{c.label}</label>)}
+      </div>
+    ))}
+    <div class="selbar">
+      {filters.map((f) => (
+        <div class="seg sel">
+          <select class="sel-in" data-filter={f.name} aria-label={f.aria}>
+            {f.choices.map((c, i) => <option value={c.value} selected={i === 0}>{c.option ?? c.label}</option>)}
+          </select>
+          <Chevron />
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{rows && <div class="categories"><slot /></div>}
+
+<script>
+  import "../../lib/filterBar.mjs";
+</script>

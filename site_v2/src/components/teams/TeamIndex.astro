@@ -78,9 +78,7 @@ const heading = (item: Extract<Item, { kind: "head" }>) => {
 ---
 
 <section class="teamindex">
-  <FilterRows lang={lang} rows={filterRows} />
-
-  <div class="categories">
+  <FilterRows lang={lang} rows={filterRows}>
     {blocks.map((block, b) => (
       <section class:list={["tblock", block.className]}>
         <SectionHead label={block.label} />
@@ -119,7 +117,7 @@ const heading = (item: Extract<Item, { kind: "head" }>) => {
         })}
       </section>
     ))}
-  </div>
+  </FilterRows>
 </section>
 
 <script>

@@ -33,9 +33,7 @@ const categories = groupAndOrderCompetitions(competitions);
 ---
 
 <section class="compindex">
-  <FilterRows lang={lang} rows={competitions} />
-
-  <div class="categories">
+  <FilterRows lang={lang} rows={competitions}>
     {categories.map((cat) => (
       <div class="comp-category">
         <div class="colhead">{t(lang, cat.labelI18nKey)}</div>
@@ -54,7 +52,7 @@ const categories = groupAndOrderCompetitions(competitions);
         </div>
       </div>
     ))}
-  </div>
+  </FilterRows>
 </section>
 
 <script>

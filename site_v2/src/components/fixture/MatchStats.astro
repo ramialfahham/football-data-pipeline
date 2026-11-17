@@ -4,6 +4,7 @@
 // rate per match is the match's own count, so no row carries "per match". Without team stats the
 // heading says so in one line.
 import SectionHead from "../ui/SectionHead.astro";
+import Explainer from "../ui/Explainer.astro";
 import MetricSwitch from "../ui/MetricSwitch.astro";
 import MetricComparison from "./MetricComparison.astro";
 import type { Lang } from "../../lib/format";
@@ -24,11 +25,11 @@ const groups = comparisonGroups(home.match_stats, away.match_stats, ["goals"]);
   <SectionHead label={t(lang, "secMatchStats")} />
   {groups.length > 0 ? (
     <>
-      <p class="bsub">{t(lang, "matchStatsIntro")}</p>
+      <Explainer text={t(lang, "matchStatsIntro")} />
       {needsSwitch(groups) && <MetricSwitch id="tsw-stats" lang={lang} />}
       <MetricComparison names={[home.name, away.name]} groups={groups} home={home.match_stats} away={away.match_stats} lang={lang} oneMatch />
     </>
   ) : (
-    <p class="bsub">{t(lang, "matchStatsNotRecorded")}</p>
+    <Explainer text={t(lang, "matchStatsNotRecorded")} />
   )}
 </section>

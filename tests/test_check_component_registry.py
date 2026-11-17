@@ -108,6 +108,22 @@ def test_a_link_to_a_page_type_the_registry_does_not_name_fails(tmp_path):
                    "components.row: links-to names the team page, which src/ui/Row.astro never links to"]
 
 
+def test_a_nation_page_link_is_not_a_player_page_link(tmp_path):
+    _site(tmp_path, {
+        "src/ui/Head.astro": 'const href = localeHref(lang, `${word(lang, "players")}/${nation}/`);',
+        "src/ui/Row.astro": 'const href = localeHref(lang, `${word(lang, "players")}/${page}/`);',
+    })
+    reg = {"components": {
+        "head": {"file": "src/ui/Head.astro", "links-to": ["player page"], "parts": {}},
+        "row": {"file": "src/ui/Row.astro", "links-to": ["nation page"], "parts": {}},
+    }}
+    assert ccr.link_failures(reg, tmp_path) == [
+        "components.head: src/ui/Head.astro links to the nation page, which links-to does not name",
+        "components.head: links-to names the player page, which src/ui/Head.astro never links to",
+        "components.row: src/ui/Row.astro links to the player page, which links-to does not name",
+        "components.row: links-to names the nation page, which src/ui/Row.astro never links to"]
+
+
 def test_links_to_names_only_known_page_types(tmp_path):
     reg = copy.deepcopy(MINI)
     reg["components"]["box"]["links-to"] = ["stats page"]

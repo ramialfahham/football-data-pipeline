@@ -36,13 +36,12 @@ const slotsOf = (fixtures: { league_code: string }[]) =>
 
 {codes.length > 0 && (
   <>
-    <FilterRows lang={lang} rows={[]} competitions={codes.map((c) => ({ name: competitionInfo(c).name }))} />
-    <div class="categories">
+    <FilterRows lang={lang} rows={[]} competitions={codes.map((c) => ({ name: competitionInfo(c).name }))}>
       {groups.length > 0 && (
         <section data-slots={slotsOf(schedule.upcoming)}>
           <SectionHead label={t(lang, "homeNext")} />
           {groups.map((g) => (
-            <TeamFixtureGroup code={g.code} fixtures={g.fixtures} team={team} lang={lang} slot={slot.get(g.code)} />
+            <TeamFixtureGroup code={g.code} fixtures={g.fixtures} team={team} lang={lang} competitionSlot={slot.get(g.code)} />
           ))}
         </section>
       )}
@@ -56,6 +55,6 @@ const slotsOf = (fixtures: { league_code: string }[]) =>
           </RowList>
         </section>
       )}
-    </div>
+    </FilterRows>
   </>
 )}
