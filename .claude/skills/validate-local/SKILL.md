@@ -154,7 +154,9 @@ python scripts/ci_local.py --job validate:ui --full-scope
 ```
 
 It builds the site in the `build:site-v2` image first, because `validate:ui` needs that job, and hands
-only `site_v2/dist` over. Pass 1 is the merge-request scope. Pass 2 re-runs the steps that branch on
+only `site_v2/dist` over. Pass 1 is the merge-request scope; on a branch that changes `site_v2/src/`
+or `docs/design/components.yml` that is already main's full scope, as `--mr --plan` shows with
+`UI_FULL_SCOPE=1`. Pass 2 re-runs the steps that branch on
 `CI_PIPELINE_SOURCE` in main's full scope: every width, en, de and fi, against `baseline.json`. Leave
 `--full-scope` off to iterate, never for the run before a review round.
 

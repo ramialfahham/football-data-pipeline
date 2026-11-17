@@ -118,6 +118,125 @@ def test_main_requires_an_iid(capsys):
     assert mr.main(["merge_ready.py", "abc"]) == 2
 
 
+def test_without_pyyaml_main_reruns_under_the_repo_python(monkeypatch):
+    monkeypatch.setitem(sys.modules, "yaml", None)
+    monkeypatch.setattr(mr, "repo_python", lambda: "/repo/.venv/bin/python")
+    calls = []
+    monkeypatch.setattr(mr.subprocess, "call", lambda cmd: calls.append(cmd) or 0)
+    assert mr.main(["merge_ready.py", "7"]) == 0
+    assert calls[0][0] == "/repo/.venv/bin/python" and calls[0][1].endswith("merge_ready.py") and calls[0][2] == "7"
+
+
+def test_without_pyyaml_or_a_repo_python_main_cannot_decide(monkeypatch, capsys):
+    monkeypatch.setitem(sys.modules, "yaml", None)
+    monkeypatch.setattr(mr, "repo_python", lambda: None)
+    assert mr.main(["merge_ready.py", "7"]) == 2
+    assert "PyYAML" in capsys.readouterr().err
+
+
+# --- the full design sweep of an MR that changes the rendered site ---
+WIDTHS = "280,320,360,375,700,1010"
+FULL = [280, 320, 360, 375, 700, 1010]
+STAMP = "2026-11-17T10:00:00.000000Z 01O "
+
+
+def _gap(widths, off, note=""):
+    return f"{STAMP}gap counts: 14334 pages counted at {widths} px · {note}{off} off the baseline\n"
+
+
+def _off(line):
+    return f"{STAMP}FAIL  (counts) · 0 · - · (baseline) · {line}\n"
+
+
+def test_the_full_widths_are_the_baselines():
+    assert mr.full_widths() == FULL
+
+
+@pytest.mark.parametrize("files, full", [
+    (["site_v2/src/pages/index.astro"], True),
+    (["docs/design/components.yml"], True),
+    (["site_v2/scripts/check-font-coverage.mjs", "scripts/merge_ready.py"], False),
+    ([], False),
+])
+def test_needs_full_sweep_reads_validate_ui_rule(files, full):
+    assert mr.needs_full_sweep(files) is full
+
+
+def test_a_quick_sweep_is_not_the_full_one():
+    trace = _gap("280,1010", 0) + _gap("320", 0)
+    assert mr.sweep_findings(trace, FULL) == (False, [])
+
+
+def test_a_sweep_whose_counts_were_not_compared_is_not_the_full_one():
+    assert mr.sweep_findings(_gap(WIDTHS, 0, "rendered counts not compared: x · "), FULL) == (False, [])
+
+
+def test_a_full_sweep_on_its_pins():
+    assert mr.sweep_findings(_gap(WIDTHS, 0), FULL) == (True, [])
+
+
+def test_a_full_sweep_names_each_count_off_its_pin():
+    rose = "count rose · Match page · scroll · 2180, baseline 2175"
+    fell = "count fell · Team page · overflow · 0, baseline 3: lower the baseline"
+    ran, off = mr.sweep_findings(_off(rose) + _off(fell) + _gap(WIDTHS, 2), FULL)
+    assert ran and off == [rose, fell]
+
+
+@pytest.fixture()
+def ui_job(monkeypatch):
+    state = {"jobs": [{"id": 5, "name": "validate:ui", "status": "success"}], "trace": _gap(WIDTHS, 0)}
+    monkeypatch.setattr(mr, "glab_json", lambda p: state["jobs"])
+    monkeypatch.setattr(mr, "run", lambda cmd, cwd=None, check=True: state["trace"])
+    return state
+
+
+SITE = ["site_v2/src/pages/index.astro"]
+
+
+def test_sweep_refusal_ignores_an_mr_off_the_rendered_site(ui_job):
+    ui_job["trace"] = _gap("280,1010", 3)
+    assert mr.sweep_refusal(_mr(), ["scripts/x.py"]) == []
+
+
+def test_sweep_refusal_passes_a_full_sweep_on_its_pins(ui_job):
+    assert mr.sweep_refusal(_mr(), SITE) == []
+
+
+def test_sweep_refusal_refuses_counts_off_the_baseline(ui_job):
+    ui_job["jobs"][0]["status"] = "failed"
+    ui_job["trace"] = _off("count fell · Team page · overflow · 0, baseline 3: lower the baseline") + _gap(WIDTHS, 1)
+    lines = mr.sweep_refusal(_mr(), SITE)
+    assert lines[0].startswith("NOT READY") and "Team page" in lines[1]
+
+
+def test_sweep_refusal_refuses_a_pipeline_that_swept_only_the_quick_scope(ui_job):
+    ui_job["trace"] = _gap("280,1010", 0) + _gap("320", 0)
+    assert mr.sweep_refusal(_mr(), SITE)[0].startswith("NOT READY")
+
+
+def test_sweep_refusal_refuses_a_pipeline_without_validate_ui(ui_job):
+    ui_job["jobs"] = [{"id": 6, "name": "test:python", "status": "success"}]
+    assert mr.sweep_refusal(_mr(), SITE)[0].startswith("NOT READY")
+
+
+def test_sweep_refusal_leaves_a_running_sweep_to_the_pipeline_check(ui_job):
+    ui_job["jobs"][0]["status"] = "running"
+    ui_job["trace"] = ""
+    assert mr.sweep_refusal(_mr(), SITE) == []
+
+
+def test_decide_refuses_a_site_mr_with_counts_off_before_reading_the_tested_commit(fake, monkeypatch):
+    fake["glab"]["projects/:id/merge_requests/7"] = _mr()
+    fake["glab"]["projects/:id/pipelines/1/jobs"] = [{"id": 5, "name": "validate:ui", "status": "failed"}]
+    fake["git"]["git rev-parse --show-toplevel"] = "/x\n"
+    fake["git"]["git diff --name-only"] = "site_v2/src/pages/index.astro\n"
+    fake["git"]["glab api projects/:id/jobs/5/trace"] = (
+        _off("count rose · Match page · scroll · 2180, baseline 2175") + _gap(WIDTHS, 1))
+    monkeypatch.setattr(mr, "tested_sha_of", lambda m: (_ for _ in ()).throw(AssertionError("reached")))
+    code, lines = mr.decide("7")
+    assert code == 1 and lines[0].startswith("NOT READY") and "Match page" in lines[1]
+
+
 # --- the parts that read the contract and GitLab ---
 def _contract(depends="  - !449\n", shared="  - none: t\n"):
     return f"objective: >\n  t\ndepends_on:\n{depends}shared_files:\n{shared}done_when:\n  - t\n"

@@ -172,6 +172,68 @@ def test_a_job_without_rules_runs_in_every_pipeline():
     assert cl.rule_when({"script": ["x"]}, MR_ENV, []) == "on_success"
 
 
+def test_only_the_matching_rule_sets_its_variables(tmp_path):
+    d = ci(tmp_path, """
+        job:
+          script: [x]
+          rules:
+            - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+              changes: [src/**/*]
+              variables:
+                WIDE: "1"
+            - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    """)
+    job = cl.resolve_job(d, "job")
+    assert cl.rule_variables(job, MR_ENV, ["src/a.py"]) == {"WIDE": "1"}
+    assert cl.rule_variables(job, MR_ENV, ["docs/a.md"]) == {}
+    assert cl.rule_variables({"script": ["x"]}, MR_ENV, ["src/a.py"]) == {}
+
+
+@pytest.mark.parametrize("changed, full", [
+    (["site_v2/src/pages/index.astro"], True),
+    (["site_v2/src/components/chrome/SiteHeader.astro", "scripts/x.py"], True),
+    (["docs/design/components.yml"], True),
+    (["site_v2/scripts/check-font-coverage.mjs"], False),
+    (["site_v2/package.json"], False),
+    (["design-mocks/gen_match_page.py"], False),
+    (["tests/fixtures/design_inventory/baseline.json"], False),
+    ([".gitlab-ci.yml"], False),
+])
+def test_an_mr_that_changes_the_rendered_site_gets_the_full_sweep(doc, changed, full):
+    job = cl.resolve_job(doc, "validate:ui")
+    assert cl.rule_when(job, MR_ENV, changed) == "on_success"
+    assert cl.rule_variables(job, MR_ENV, changed) == ({"UI_FULL_SCOPE": "1"} if full else {})
+
+
+def test_main_never_gets_the_rule_variable(doc):
+    push = {"CI_PIPELINE_SOURCE": "push", "CI_DEFAULT_BRANCH": "main", "CI_COMMIT_BRANCH": "main"}
+    assert cl.rule_variables(cl.resolve_job(doc, "validate:ui"), push, ["site_v2/src/pages/index.astro"]) == {}
+
+
+def _sweeps(doc, env: dict[str, str]) -> list[str]:
+    """The design-inventory runs validate:ui's steps make in this environment, as argument lines."""
+    sh = shutil.which("sh")
+    if sh is None:
+        pytest.skip("no POSIX shell")
+    out = []
+    for step in cl.plan_job(doc, "validate:ui")["script"]:
+        if "check_design_inventory.py" not in step:
+            continue
+        body = step.replace("python scripts/check_design_inventory.py", "echo SWEEP")
+        r = subprocess.run([sh, "-c", body], env=dict(os.environ, **env), capture_output=True, text=True, check=True)
+        out += [line for line in r.stdout.splitlines() if line.startswith("SWEEP")]
+    return out
+
+
+def test_the_scoped_steps_sweep_the_full_baseline_when_the_rule_says_so(doc):
+    quick = _sweeps(doc, {"CI_PIPELINE_SOURCE": "merge_request_event", "UI_FULL_SCOPE": ""})
+    assert len(quick) == 2 and all("baseline_quick" in s for s in quick)
+    for env in ({"CI_PIPELINE_SOURCE": "merge_request_event", "UI_FULL_SCOPE": "1"},
+                {"CI_PIPELINE_SOURCE": "push", "UI_FULL_SCOPE": ""}):
+        full = _sweeps(doc, env)
+        assert len(full) == 1 and "--baseline" not in full[0] and "--viewports" not in full[0] and "--langs" not in full[0]
+
+
 def test_variables_expand_in_order_and_unknown_ones_are_empty():
     env = cl.job_env({"variables": {"A": "$CI_PROJECT_DIR/.cache"}}, {"variables": {"B": "${A}/x", "C": "$$HOME $NOPE"}},
                      {"CI_PROJECT_DIR": "/work"})
