@@ -6,6 +6,7 @@
 // by and carries the ordered-by style. The gap is the catalogue's, actual minus deserved, signed.
 // The whole row links to the team page. Renders nothing unless the model fitted this competition.
 import SectionHead from "../ui/SectionHead.astro";
+import Explainer from "../ui/Explainer.astro";
 import TableRow from "../ui/TableRow.astro";
 import { decimal1, integer, signedDelta } from "../../lib/format";
 import type { Lang } from "../../lib/format";
@@ -38,7 +39,7 @@ const names = {
 {rows.length > 0 && (
   <section>
     <SectionHead label={t(lang, "compSecDeserved", names)} />
-    <p class="bsub">{t(lang, "compDeservedExplainer", names)}</p>
+    <Explainer text={t(lang, "compDeservedExplainer", names)} />
     <div class="ctab dpt">
       <div class="ctab-head">
         <span class="h rk">{t(lang, "positionShort")}</span>

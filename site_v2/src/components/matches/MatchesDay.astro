@@ -49,9 +49,7 @@ const crumbs = [
 
     <h1>{t(lang, "navMatches")}</h1>
 
-    <FilterRows lang={lang} rows={groups} />
-
-    <div class="categories">
+    <FilterRows lang={lang} rows={groups}>
       <div class="md">
         <input class="md-in" type="radio" name="day" id={`day-${day.day}`} checked />
         <nav class="mdnav" aria-label={t(lang, "dayPickerAria")}>
@@ -95,5 +93,5 @@ const crumbs = [
           ))}
         </section>
       </div>
-    </div>
+    </FilterRows>
   </div>

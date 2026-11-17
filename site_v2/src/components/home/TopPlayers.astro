@@ -9,6 +9,7 @@
 //
 // A board with no data never arrives, and index.astro leaves the block out when none survived.
 import SectionHead from "../ui/SectionHead.astro";
+import Explainer from "../ui/Explainer.astro";
 import RankingBoard from "../competition/RankingBoard.astro";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
@@ -29,7 +30,7 @@ const leagueNames = [
 
 <section>
   <SectionHead label={t(lang, "homeTopPlayers")} />
-  <p class="bsub">{t(lang, "homeTopPlayersIntro", { leagues: leagueNames.join(", ") })}</p>
+  <Explainer text={t(lang, "homeTopPlayersIntro", { leagues: leagueNames.join(", ") })} />
   {boards.map((board) => (
     <RankingBoard
       board={{ ...board, rows: board.rows.map((row, i) => ({ ...row, rank: i + 1 })) }}

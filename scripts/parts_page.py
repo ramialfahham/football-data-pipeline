@@ -62,7 +62,7 @@ GLOB_PICKS: dict[str, list[tuple[str, str, str | None]]] = {
 KINDS: list[tuple[str, list[str]]] = [
     ("Page heading", ["page-heading.heading", "entity-header.head", "entity-header.identity"]),
     ("Section heading", ["block.heading", "split.column-head"]),
-    ("Explainer", ["block.explainer", "block.tab-explainer"]),
+    ("Explainer", ["explainer.explainer", "explainer.tab-explainer"]),
     ("Group heading", ["group-head.head", "group-head.metric-head", "group-head.metric-name", "standings.group-head",
                        "standings.group-name", "masthead.competition"]),
     ("Competition name", ["group-head.name", "competition-row.name", "index-row.name"]),

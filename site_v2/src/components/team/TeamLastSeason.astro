@@ -5,6 +5,7 @@
 // neither value is left out. The key metrics show; the switch shows every row in its place.
 // Data: mart_team_competition_benchmarks (metric_value, metric_value_prev_season).
 import SectionHead from "../ui/SectionHead.astro";
+import Explainer from "../ui/Explainer.astro";
 import MetricSwitch from "../ui/MetricSwitch.astro";
 import TableRow from "../ui/TableRow.astro";
 import Group from "../ui/Group.astro";
@@ -39,7 +40,7 @@ const shown = (v: unknown, format: Parameters<typeof formatValue>[1]) =>
 {groups.length > 0 && (
   <section>
     <SectionHead label={t(lang, "teamVsLastSeason")} />
-    <p class="bsub">{t(lang, "teamVsLastSeasonIntro", { n: integer(s.yoy_games_played_cutoff, lang) })}</p>
+    <Explainer text={t(lang, "teamVsLastSeasonIntro", { n: integer(s.yoy_games_played_cutoff, lang) })} />
     {needsSwitch(groups) && <MetricSwitch id="tsw-season" lang={lang} />}
     <div class="yoy-list">
       {groups.map((g) => (

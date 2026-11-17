@@ -146,9 +146,15 @@ components:
       block: {class: section, selector: section, element: Block, rule: "36px above each block; every content block has a name; a block with nothing to show is absent", measured: "margin-top=36px", ruled-on: "#129 binding rules"}
       heading: {class: eyebrow, selector: ".sechead .eyebrow", text: 13-700-muted-caps, element: Block heading, rule: "the block's name: 13px capitals, bold, muted, over a 1px rule", measured: "font-size=13px; font-weight=700; text-transform=uppercase; color=muted", ruled-on: "#129 binding rules (13px, from 11)"}
       heading-gap: {class: sechead, element: Block heading gap, rule: "the block owns the space between its parts: 12px between every two of them, the name's rule and the explainer included; no part brings margin of its own, and a list opening the block carries no top padding; the name starts at the block's left edge", measured: "gap(next)=12px; left-edge=section", ruled-on: "#129 binding rules; #127 correction 3; the design standard"}
+    wide: "name over its rule, explainer, content"
+  explainer:
+    name: Explainer
+    file: site_v2/src/components/ui/Explainer.astro
+    used-on: [every page]
+    parts:
       explainer: {class: bsub, text: 13-400-muted, element: Block explainer, rule: "the one sentence under a block name, 13px muted", measured: "font-size=13px; color=muted", ruled-on: "#129 Deserved points"}
       tab-explainer: {class: tab-intro, selector: ".bsub.tab-intro", element: Tab explainer, rule: "a tab's opening sentence under the tab bar, in the block explainer's style: 13px muted", measured: "font-size=13px; color=muted", ruled-on: the Team page review}
-    wide: "name over its rule, explainer, content"
+    wide: the one sentence under a block's name or a tab band
   group:
     name: Group
     file: site_v2/src/components/ui/Group.astro
@@ -519,7 +525,7 @@ components:
     never-split: [Matchday 9]
   filter-bar:
     name: Filter bar
-    file: site_v2/src/components/competitions/FilterRows.astro
+    file: site_v2/src/components/ui/FilterBar.astro
     used-on: [Competitions, Matches, Teams, Team page, Players, nation page]
     parts:
       row: {class: seg, element: Filter row, rule: "one segmented control per filter: a sunk ground with 8px corners holding its buttons edge to edge, without inner padding. A long list takes its dropdown", measured: "background-color=sunk", ruled-on: "the Filter bar design; the design standard"}

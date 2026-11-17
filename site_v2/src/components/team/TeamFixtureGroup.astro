@@ -17,14 +17,14 @@ interface Props {
   team: TeamRef;
   lang: Lang;
   nextId?: number | null;
-  slot?: number;
+  competitionSlot?: number;
 }
-const { code, fixtures, team, lang, nextId = null, slot } = Astro.props;
+const { code, fixtures, team, lang, nextId = null, competitionSlot } = Astro.props;
 const info = competitionInfo(code);
 const dayOf = (fx: TeamScheduleFixture) => fx.kickoff_datetime?.slice(0, 10) ?? null;
 ---
 
-<Group data-competition-slot={slot}>
+<Group data-competition-slot={competitionSlot}>
   <GroupHead lang={lang} name={info.name} crest={{ name: info.name, url: info.crest }} competition={info.slug} />
   {fixtures.map((fx, i) => (
     <>

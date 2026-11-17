@@ -5,6 +5,7 @@
 // without its line), the boards inside a group in the order the export lists them. A group with
 // no board is absent; a block with no group renders nothing, and the page then has no tab.
 import SectionHead from "../ui/SectionHead.astro";
+import Explainer from "../ui/Explainer.astro";
 import Group from "../ui/Group.astro";
 import GroupHead from "../ui/GroupHead.astro";
 import RankingBoard from "./RankingBoard.astro";
@@ -28,7 +29,7 @@ const groups = boardGroups(boards, GROUP_KEYS_IN_ORDER) as { key: string; boards
 {groups.length > 0 && (
   <section>
     <SectionHead label={label} />
-    <p class="bsub">{intro}</p>
+    <Explainer text={intro} />
     {groups.map((group) => (
       <Group metric>
         <GroupHead lang={lang} name={metricLabel(lang, `metricGroups.${group.key}.label`)} statistics={group.key} />

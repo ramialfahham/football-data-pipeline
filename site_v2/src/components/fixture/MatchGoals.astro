@@ -5,6 +5,7 @@
 // says so and each team's scorers follow, home team first, with no running score. Without scorers,
 // the heading and one line. A match with no goal has no block.
 import SectionHead from "../ui/SectionHead.astro";
+import Explainer from "../ui/Explainer.astro";
 import ResultRow from "../ui/ResultRow.astro";
 import RowList from "../ui/RowList.astro";
 import { DASH, matchMinute, scoreLine } from "../../lib/format";
@@ -40,8 +41,8 @@ function detail(g: PlayedGoal): string[] {
 {(rows.length > 0 || notRecorded) && (
   <section aria-label={t(lang, "goals")}>
     <SectionHead label={t(lang, "goals")} />
-    {notRecorded && <p class="bsub">{t(lang, "goalsNotRecorded")}</p>}
-    {!notRecorded && !timed && <p class="bsub">{t(lang, "goalsNoMinutes")}</p>}
+    {notRecorded && <Explainer text={t(lang, "goalsNotRecorded")} />}
+    {!notRecorded && !timed && <Explainer text={t(lang, "goalsNoMinutes")} />}
     {rows.length > 0 && (
       <RowList kind="results">
         {rows.map((g) => {

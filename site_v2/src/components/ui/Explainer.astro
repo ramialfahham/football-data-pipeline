@@ -1,0 +1,14 @@
+---
+// THE explainer: the one sentence under a block's name, or a tab's opening sentence under the tab
+// band. Other attributes (a comparison panel's mark) pass through.
+interface Props {
+  text: string;
+  /** A tab's opening sentence. */
+  tab?: boolean;
+  class?: string;
+  [attr: string]: unknown;
+}
+const { text, tab = false, class: kind, ...rest } = Astro.props;
+---
+
+<p class:list={["bsub", { "tab-intro": tab }, kind]} {...rest}>{text}</p>

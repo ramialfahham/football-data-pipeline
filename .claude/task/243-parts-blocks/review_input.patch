@@ -1,0 +1,917 @@
+diff --git a/.claude/task/243-parts-blocks/contract.md b/.claude/task/243-parts-blocks/contract.md
+new file mode 100644
+index 00000000..f5fc79c8
+--- /dev/null
++++ b/.claude/task/243-parts-blocks/contract.md
+@@ -0,0 +1,102 @@
++# Task contract — parts library, explainer, filter bar, block heading, stat card and crest
++
++objective: >
++  Issue #243, the component-library step, third group: the block explainer and the filter bar each
++  exist once as an Astro component in site_v2/src/components/ui/, and every page that shows one
++  places the component instead of its own copy of the markup; the block heading, the stat card and
++  the crest are already one component each and every page places them, which the registry check
++  records. docs/design/components.yml maps each of these parts to its one component file. No look
++  change: a refactor of markup ownership, not a redesign. The match row, the result chip and the
++  tag stay as they are.
++
++refs: >
++  #243 (component system), note 4249336961 (one form per part). Visual details and engineering
++  calls are the coordinating agent's under docs/design/design_standard.md.
++
++scope_paths:
++  - .claude/task/243-parts-blocks/
++  - site_v2/src/components/*/*.astro
++  - site_v2/src/pages/[[]lang]/*.astro
++  - site_v2/src/pages/[[]lang]/*/*.astro
++  - site_v2/src/pages/[[]lang]/*/*/*.astro
++  - site_v2/src/pages/[[]lang]/*/*/*/*.astro
++  - docs/design/components.yml
++  - docs/wireframes/block_standard.md
++  - scripts/check_component_registry.py
++  - scripts/parts_page.py
++  - tests/test_check_component_registry.py
++  - tests/test_parts_page.py
++  - tests/fixtures/component_registry/baseline.json
++  - tests/fixtures/design_inventory/baseline.json
++  - tests/fixtures/design_inventory/baseline_quick.json
++  - tests/fixtures/design_inventory/baseline_quick_fi.json
++
++protected_override: >
++  docs/design/components.yml: the explainer and the filter bar's `file` each become one component
++  file; the explainer becomes a component of its own, taking the block's explainer parts; no text
++  style, value, rule or measurement changes. The component-library step of #243 (each part built
++  once as a component, every built page moved onto it with no change in look), approved in chat,
++  17 Nov 2026; visual details and engineering calls are the coordinating agent's under
++  docs/design/design_standard.md, approved in chat, 16 Nov 2026.
++
++impact_map: >
++  writers: none; the component and page templates of site_v2 (markup moves into components), the
++  component registry, its generated table, its check and its tests, and the parts page's part
++  kinds. No dbt model, export script, data file or stylesheet rule.
++  downstream: site_v2/dist only. leaf: consumption layer, no computation added or changed.
++  guard: docs/design/components.yml is read by scripts/check_component_registry.py (the registry
++  check and the block standard's generated table), scripts/check_design_inventory.py and
++  scripts/design_inventory.py (the design check measures each part by its class and selector),
++  scripts/parts_page.py and site_v2/scripts/check-term-list.test.mjs. Classes and selectors do not
++  change, so what the design check measures does not change; only `file` and the component a part
++  sits under change. A wrong `file` makes the markup count rise and the check fail.
++  layer_rules: not applicable; no computation.
++  deploy_order: none; deploy:site-v2 is manual.
++  blast_radius: none on what a visitor sees; every pixel and DOM difference is listed in
++  rendered_page_evidence.md with its reason. Registry and design-inventory pins only go down.
++
++acceptance_criteria:
++  - Every block explainer, tab explainer and filter bar on the built site is drawn by its one component in site_v2/src/components/ui/, and scripts/check_component_registry.py counts 0 markup outside the explainer and filter-bar components; the block heading, stat card and crest components count 0 outside, except any listed in acceptance_evidence.md with its reason.
++  - The registry check's link test covers a nation page apart from a player page.
++  - The parts page (scripts/parts_page.py against the local dev server), before and after, shows for every part the same number of forms or fewer, and no new form.
++  - On Home, Matches, Competitions, Teams, Players, the Bundesliga overview, matches and stats pages, /teams/bayern-munchen/, /teams/germany/, a played match, an upcoming match, a nation page and a player page, at 375px and 1280px in EN, DE and FI, every tab, the rendered page is pixel-identical before and after, except where two copies of one part differed before and now take one form; every pixel and DOM difference is listed with its reason in rendered_page_evidence.md.
++  - Every link leads to the same page as before, and every filter keeps its choices.
++  - No block, block order, wording or value changes on any approved page.
++
++approved_design:
++  - home: #127
++  - competitions: #128
++  - competition: #129
++  - matches: #130
++  - match: #132
++  - teams: #133
++  - team: #134
++  - players: #135
++  - player: #136
++
++depends_on:
++  - none: the work is on main alone, after !475 merged
++
++shared_files:
++  - tests/fixtures/component_registry/baseline.json
++  - tests/fixtures/design_inventory/baseline.json
++  - tests/fixtures/design_inventory/baseline_quick.json
++  - tests/fixtures/design_inventory/baseline_quick_fi.json
++
++decisions_taken: >
++  The library stays in site_v2/src/components/ui/. A part a block shows is placed as its
++  component; the block passes data. The filter bar's rows are its slot, so the radios and the rows
++  they filter stay siblings. Decided by the coordinating agent under docs/design/design_standard.md.
++  No new mechanism, dependency or recurring cost.
++
++decisions_reserved:
++  - none: no look, wording or block changes; any question goes to the coordinating session.
++
++done_when:
++  - python scripts/parts_page.py --base http://localhost:4327 before and after; forms per part equal or fewer.
++  - The before/after capture of the pages in acceptance_criteria reports pixel-identical screenshots; every difference listed.
++  - python scripts/check_component_registry.py passes; baseline pins do not rise.
++  - Full pytest and the site's node tests pass.
++  - python scripts/ci_local.py --mr --full-scope is green.
++
++amendments: (none)
+diff --git a/docs/design/components.yml b/docs/design/components.yml
+index 38de4fdb..eab10992 100644
+--- a/docs/design/components.yml
++++ b/docs/design/components.yml
+@@ -146,9 +146,15 @@ components:
+       block: {class: section, selector: section, element: Block, rule: "36px above each block; every content block has a name; a block with nothing to show is absent", measured: "margin-top=36px", ruled-on: "#129 binding rules"}
+       heading: {class: eyebrow, selector: ".sechead .eyebrow", text: 13-700-muted-caps, element: Block heading, rule: "the block's name: 13px capitals, bold, muted, over a 1px rule", measured: "font-size=13px; font-weight=700; text-transform=uppercase; color=muted", ruled-on: "#129 binding rules (13px, from 11)"}
+       heading-gap: {class: sechead, element: Block heading gap, rule: "the block owns the space between its parts: 12px between every two of them, the name's rule and the explainer included; no part brings margin of its own, and a list opening the block carries no top padding; the name starts at the block's left edge", measured: "gap(next)=12px; left-edge=section", ruled-on: "#129 binding rules; #127 correction 3; the design standard"}
++    wide: "name over its rule, explainer, content"
++  explainer:
++    name: Explainer
++    file: site_v2/src/components/ui/Explainer.astro
++    used-on: [every page]
++    parts:
+       explainer: {class: bsub, text: 13-400-muted, element: Block explainer, rule: "the one sentence under a block name, 13px muted", measured: "font-size=13px; color=muted", ruled-on: "#129 Deserved points"}
+       tab-explainer: {class: tab-intro, selector: ".bsub.tab-intro", element: Tab explainer, rule: "a tab's opening sentence under the tab bar, in the block explainer's style: 13px muted", measured: "font-size=13px; color=muted", ruled-on: the Team page review}
+-    wide: "name over its rule, explainer, content"
++    wide: the one sentence under a block's name or a tab band
+   group:
+     name: Group
+     file: site_v2/src/components/ui/Group.astro
+@@ -519,7 +525,7 @@ components:
+     never-split: [Matchday 9]
+   filter-bar:
+     name: Filter bar
+-    file: site_v2/src/components/competitions/FilterRows.astro
++    file: site_v2/src/components/ui/FilterBar.astro
+     used-on: [Competitions, Matches, Teams, Team page, Players, nation page]
+     parts:
+       row: {class: seg, element: Filter row, rule: "one segmented control per filter: a sunk ground with 8px corners holding its buttons edge to edge, without inner padding. A long list takes its dropdown", measured: "background-color=sunk", ruled-on: "the Filter bar design; the design standard"}
+diff --git a/scripts/parts_page.py b/scripts/parts_page.py
+index 3a44c2d3..35a4f026 100644
+--- a/scripts/parts_page.py
++++ b/scripts/parts_page.py
+@@ -62,7 +62,7 @@ GLOB_PICKS: dict[str, list[tuple[str, str, str | None]]] = {
+ KINDS: list[tuple[str, list[str]]] = [
+     ("Page heading", ["page-heading.heading", "entity-header.head", "entity-header.identity"]),
+     ("Section heading", ["block.heading", "split.column-head"]),
+-    ("Explainer", ["block.explainer", "block.tab-explainer"]),
++    ("Explainer", ["explainer.explainer", "explainer.tab-explainer"]),
+     ("Group heading", ["group-head.head", "group-head.metric-head", "group-head.metric-name", "standings.group-head",
+                        "standings.group-name", "masthead.competition"]),
+     ("Competition name", ["group-head.name", "competition-row.name", "index-row.name"]),
+diff --git a/site_v2/src/components/competition/DeservedTable.astro b/site_v2/src/components/competition/DeservedTable.astro
+index c3e30043..d4cc1b29 100644
+--- a/site_v2/src/components/competition/DeservedTable.astro
++++ b/site_v2/src/components/competition/DeservedTable.astro
+@@ -6,6 +6,7 @@
+ // by and carries the ordered-by style. The gap is the catalogue's, actual minus deserved, signed.
+ // The whole row links to the team page. Renders nothing unless the model fitted this competition.
+ import SectionHead from "../ui/SectionHead.astro";
++import Explainer from "../ui/Explainer.astro";
+ import TableRow from "../ui/TableRow.astro";
+ import { decimal1, integer, signedDelta } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+@@ -38,7 +39,7 @@ const names = {
+ {rows.length > 0 && (
+   <section>
+     <SectionHead label={t(lang, "compSecDeserved", names)} />
+-    <p class="bsub">{t(lang, "compDeservedExplainer", names)}</p>
++    <Explainer text={t(lang, "compDeservedExplainer", names)} />
+     <div class="ctab dpt">
+       <div class="ctab-head">
+         <span class="h rk">{t(lang, "positionShort")}</span>
+diff --git a/site_v2/src/components/competition/RankingsBlock.astro b/site_v2/src/components/competition/RankingsBlock.astro
+index ce24d628..80194f2e 100644
+--- a/site_v2/src/components/competition/RankingsBlock.astro
++++ b/site_v2/src/components/competition/RankingsBlock.astro
+@@ -5,6 +5,7 @@
+ // without its line), the boards inside a group in the order the export lists them. A group with
+ // no board is absent; a block with no group renders nothing, and the page then has no tab.
+ import SectionHead from "../ui/SectionHead.astro";
++import Explainer from "../ui/Explainer.astro";
+ import Group from "../ui/Group.astro";
+ import GroupHead from "../ui/GroupHead.astro";
+ import RankingBoard from "./RankingBoard.astro";
+@@ -28,7 +29,7 @@ const groups = boardGroups(boards, GROUP_KEYS_IN_ORDER) as { key: string; boards
+ {groups.length > 0 && (
+   <section>
+     <SectionHead label={label} />
+-    <p class="bsub">{intro}</p>
++    <Explainer text={intro} />
+     {groups.map((group) => (
+       <Group metric>
+         <GroupHead lang={lang} name={metricLabel(lang, `metricGroups.${group.key}.label`)} statistics={group.key} />
+diff --git a/site_v2/src/components/competitions/CompetitionIndexGrid.astro b/site_v2/src/components/competitions/CompetitionIndexGrid.astro
+index 0c423040..41fd549b 100644
+--- a/site_v2/src/components/competitions/CompetitionIndexGrid.astro
++++ b/site_v2/src/components/competitions/CompetitionIndexGrid.astro
+@@ -33,9 +33,7 @@ const categories = groupAndOrderCompetitions(competitions);
+ ---
+ 
+ <section class="compindex">
+-  <FilterRows lang={lang} rows={competitions} />
+-
+-  <div class="categories">
++  <FilterRows lang={lang} rows={competitions}>
+     {categories.map((cat) => (
+       <div class="comp-category">
+         <div class="colhead">{t(lang, cat.labelI18nKey)}</div>
+@@ -54,7 +52,7 @@ const categories = groupAndOrderCompetitions(competitions);
+         </div>
+       </div>
+     ))}
+-  </div>
++  </FilterRows>
+ </section>
+ 
+ <script>
+diff --git a/site_v2/src/components/competitions/FilterRows.astro b/site_v2/src/components/competitions/FilterRows.astro
+index 472f1e81..319a08fc 100644
+--- a/site_v2/src/components/competitions/FilterRows.astro
++++ b/site_v2/src/components/competitions/FilterRows.astro
+@@ -6,7 +6,7 @@
+ // element that must follow them as a sibling. The buttons and the
+ // dropdowns are two forms of the same radios: fitBlocks.mjs picks the form that fits, filterBar.mjs
+ // keeps the dropdowns on the radios and removes the choices that would leave no row.
+-import Chevron from "../ui/Chevron.astro";
++import FilterBar from "../ui/FilterBar.astro";
+ import { t } from "../../i18n/strings";
+ import type { Lang } from "../../lib/format";
+ import { offered } from "../../lib/filterBar.mjs";
+@@ -61,32 +61,11 @@ const filters = [
+   filter("region-filter", "region", REGION_LABELS, rows.map((r) => r.confederation), t(lang, "filterByRegion"), t(lang, "filterAllRegions")),
+   competitionFilter,
+ ].filter((f) => f.shown);
++const bar = filters.map((f) => ({
++  name: f.name,
++  aria: f.aria,
++  choices: f.choices.map((c) => ({ ...c, option: c.value ? c.label : f.first })),
++}));
+ ---
+ 
+-{filters.map((f) => f.choices.map((c) => (
+-  <input class="seg-in" type="radio" name={f.name} id={c.id} value={c.value} checked={c.value === ""} />
+-)))}
+-
+-{filters.length > 0 && (
+-  <div class="fbar">
+-    {filters.map((f) => (
+-      <div class="seg" role="group" aria-label={f.aria}>
+-        {f.choices.map((c) => <label class="seg-btn" for={c.id}>{c.label}</label>)}
+-      </div>
+-    ))}
+-    <div class="selbar">
+-      {filters.map((f) => (
+-        <div class="seg sel">
+-          <select class="sel-in" data-filter={f.name} aria-label={f.aria}>
+-            {f.choices.map((c) => <option value={c.value} selected={c.value === ""}>{c.value ? c.label : f.first}</option>)}
+-          </select>
+-          <Chevron />
+-        </div>
+-      ))}
+-    </div>
+-  </div>
+-)}
+-
+-<script>
+-  import "../../lib/filterBar.mjs";
+-</script>
++{Astro.slots.has("default") ? <FilterBar filters={bar}><slot /></FilterBar> : <FilterBar filters={bar} />}
+diff --git a/site_v2/src/components/fixture/FormSegment.astro b/site_v2/src/components/fixture/FormSegment.astro
+index 0c2e6b76..d3ca6991 100644
+--- a/site_v2/src/components/fixture/FormSegment.astro
++++ b/site_v2/src/components/fixture/FormSegment.astro
+@@ -3,6 +3,7 @@
+ // (docs/metrics_context_model.md section 4), under one head row of each team's name and its W/D/L pills.
+ // A side whose window is last season's record shows no pills: they are its recent matches, not its window.
+ import SectionHead from "../ui/SectionHead.astro";
++import Explainer from "../ui/Explainer.astro";
+ import MetricSwitch from "../ui/MetricSwitch.astro";
+ import MetricComparison from "./MetricComparison.astro";
+ import ResultChip from "../ui/ResultChip.astro";
+@@ -33,7 +34,7 @@ const groups = comparisonGroups(home.form, away.form);
+ {shown && (
+   <section aria-label={t(lang, "secForm")}>
+     <SectionHead label={t(lang, "secForm")} />
+-    <p class="bsub">{intro}</p>
++    <Explainer text={intro} />
+     {needsSwitch(groups) && <MetricSwitch id="tsw-form" lang={lang} />}
+     <MetricComparison names={[home.name, away.name]} groups={groups} home={home.form} away={away.form} lang={lang}>
+       {results(home).length > 0 && (
+diff --git a/site_v2/src/components/fixture/HeadToHead.astro b/site_v2/src/components/fixture/HeadToHead.astro
+index 6bb4f7fa..ef57278b 100644
+--- a/site_v2/src/components/fixture/HeadToHead.astro
++++ b/site_v2/src/components/fixture/HeadToHead.astro
+@@ -3,6 +3,7 @@
+ // order, the side that was at home first, competition / date with its year. "No meetings on record."
+ // when the warehouse holds none.
+ import SectionHead from "../ui/SectionHead.astro";
++import Explainer from "../ui/Explainer.astro";
+ import ResultRow from "../ui/ResultRow.astro";
+ import RowList from "../ui/RowList.astro";
+ import { formatDayYear } from "../../lib/format";
+@@ -35,7 +36,7 @@ const rows = meetings.map((m) => {
+ 
+ <section aria-label={t(lang, "secH2H")}>
+   <SectionHead label={t(lang, "secH2H")} />
+-  {intro && <p class="bsub">{intro}</p>}
++  {intro && <Explainer text={intro} />}
+   <RowList kind="results">
+     {rows.map((r) => (
+       <ResultRow
+diff --git a/site_v2/src/components/fixture/MatchGoals.astro b/site_v2/src/components/fixture/MatchGoals.astro
+index 7a8f3248..12e257f3 100644
+--- a/site_v2/src/components/fixture/MatchGoals.astro
++++ b/site_v2/src/components/fixture/MatchGoals.astro
+@@ -5,6 +5,7 @@
+ // says so and each team's scorers follow, home team first, with no running score. Without scorers,
+ // the heading and one line. A match with no goal has no block.
+ import SectionHead from "../ui/SectionHead.astro";
++import Explainer from "../ui/Explainer.astro";
+ import ResultRow from "../ui/ResultRow.astro";
+ import RowList from "../ui/RowList.astro";
+ import { DASH, matchMinute, scoreLine } from "../../lib/format";
+@@ -40,8 +41,8 @@ function detail(g: PlayedGoal): string[] {
+ {(rows.length > 0 || notRecorded) && (
+   <section aria-label={t(lang, "goals")}>
+     <SectionHead label={t(lang, "goals")} />
+-    {notRecorded && <p class="bsub">{t(lang, "goalsNotRecorded")}</p>}
+-    {!notRecorded && !timed && <p class="bsub">{t(lang, "goalsNoMinutes")}</p>}
++    {notRecorded && <Explainer text={t(lang, "goalsNotRecorded")} />}
++    {!notRecorded && !timed && <Explainer text={t(lang, "goalsNoMinutes")} />}
+     {rows.length > 0 && (
+       <RowList kind="results">
+         {rows.map((g) => {
+diff --git a/site_v2/src/components/fixture/MatchLeaders.astro b/site_v2/src/components/fixture/MatchLeaders.astro
+index 32c447bf..3a27f286 100644
+--- a/site_v2/src/components/fixture/MatchLeaders.astro
++++ b/site_v2/src/components/fixture/MatchLeaders.astro
+@@ -4,6 +4,7 @@
+ // player pages carry an address the warehouse serves. Without player stats the heading says so in
+ // one line; with one side's missing the boards stand and one line names that side.
+ import SectionHead from "../ui/SectionHead.astro";
++import Explainer from "../ui/Explainer.astro";
+ import RankingBoard from "../competition/RankingBoard.astro";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+@@ -23,12 +24,12 @@ const none = missing.length === 2 || leaders.length === 0;
+ <section aria-label={t(lang, "secMatchLeaders")}>
+   <SectionHead label={t(lang, "secMatchLeaders")} />
+   {none ? (
+-    <p class="bsub">{t(lang, "leadersNotRecorded")}</p>
++    <Explainer text={t(lang, "leadersNotRecorded")} />
+   ) : (
+     <>
+-      <p class="bsub">{t(lang, "leadersIntro")}</p>
++      <Explainer text={t(lang, "leadersIntro")} />
+       {missing.length === 1 && (
+-        <p class="bsub">{t(lang, "leadersSideNotRecorded", { team: missing[0].name ?? "" })}</p>
++        <Explainer text={t(lang, "leadersSideNotRecorded", { team: missing[0].name ?? "" })} />
+       )}
+       {leaders.map((board) => (
+         <RankingBoard board={board} entity="player" lang={lang} linked={false} />
+diff --git a/site_v2/src/components/fixture/MatchLineups.astro b/site_v2/src/components/fixture/MatchLineups.astro
+index 8fa93517..f9e5954c 100644
+--- a/site_v2/src/components/fixture/MatchLineups.astro
++++ b/site_v2/src/components/fixture/MatchLineups.astro
+@@ -5,6 +5,7 @@
+ // The two columns sit side by side from 560px, their rows level. Without a line-up the heading says
+ // so in one line.
+ import SectionHead from "../ui/SectionHead.astro";
++import Explainer from "../ui/Explainer.astro";
+ import PlayerRow from "../ui/PlayerRow.astro";
+ import { DASH, matchMinute } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+@@ -56,6 +57,6 @@ function second(p: LineupPlayer): string[] {
+       ))}
+     </div>
+   ) : (
+-    <p class="bsub">{t(lang, "lineupsNotRecorded")}</p>
++    <Explainer text={t(lang, "lineupsNotRecorded")} />
+   )}
+ </section>
+diff --git a/site_v2/src/components/fixture/MatchStats.astro b/site_v2/src/components/fixture/MatchStats.astro
+index 1c522d75..bb192e49 100644
+--- a/site_v2/src/components/fixture/MatchStats.astro
++++ b/site_v2/src/components/fixture/MatchStats.astro
+@@ -4,6 +4,7 @@
+ // rate per match is the match's own count, so no row carries "per match". Without team stats the
+ // heading says so in one line.
+ import SectionHead from "../ui/SectionHead.astro";
++import Explainer from "../ui/Explainer.astro";
+ import MetricSwitch from "../ui/MetricSwitch.astro";
+ import MetricComparison from "./MetricComparison.astro";
+ import type { Lang } from "../../lib/format";
+@@ -24,11 +25,11 @@ const groups = comparisonGroups(home.match_stats, away.match_stats, ["goals"]);
+   <SectionHead label={t(lang, "secMatchStats")} />
+   {groups.length > 0 ? (
+     <>
+-      <p class="bsub">{t(lang, "matchStatsIntro")}</p>
++      <Explainer text={t(lang, "matchStatsIntro")} />
+       {needsSwitch(groups) && <MetricSwitch id="tsw-stats" lang={lang} />}
+       <MetricComparison names={[home.name, away.name]} groups={groups} home={home.match_stats} away={away.match_stats} lang={lang} oneMatch />
+     </>
+   ) : (
+-    <p class="bsub">{t(lang, "matchStatsNotRecorded")}</p>
++    <Explainer text={t(lang, "matchStatsNotRecorded")} />
+   )}
+ </section>
+diff --git a/site_v2/src/components/fixture/SplitSection.astro b/site_v2/src/components/fixture/SplitSection.astro
+index 0b365240..3a627522 100644
+--- a/site_v2/src/components/fixture/SplitSection.astro
++++ b/site_v2/src/components/fixture/SplitSection.astro
+@@ -2,6 +2,7 @@
+ // Two lists, home and away, side by side where the block is 560px wide or more, their rows level
+ // with each other; one above the other below. The rows come through the `home` and `away` slots.
+ import SectionHead from "../ui/SectionHead.astro";
++import Explainer from "../ui/Explainer.astro";
+ 
+ interface Props {
+   label: string;
+@@ -14,7 +15,7 @@ const { label, intro, homeLabel, awayLabel } = Astro.props;
+ 
+ <section aria-label={label}>
+   <SectionHead label={label} />
+-  {intro && <p class="bsub">{intro}</p>}
++  {intro && <Explainer text={intro} />}
+   <div class="rsplit">
+     <div class="rcol">
+       <div class="colhead">{homeLabel}</div>
+diff --git a/site_v2/src/components/home/TopPlayers.astro b/site_v2/src/components/home/TopPlayers.astro
+index 33913d00..11337656 100644
+--- a/site_v2/src/components/home/TopPlayers.astro
++++ b/site_v2/src/components/home/TopPlayers.astro
+@@ -9,6 +9,7 @@
+ //
+ // A board with no data never arrives, and index.astro leaves the block out when none survived.
+ import SectionHead from "../ui/SectionHead.astro";
++import Explainer from "../ui/Explainer.astro";
+ import RankingBoard from "../competition/RankingBoard.astro";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+@@ -29,7 +30,7 @@ const leagueNames = [
+ 
+ <section>
+   <SectionHead label={t(lang, "homeTopPlayers")} />
+-  <p class="bsub">{t(lang, "homeTopPlayersIntro", { leagues: leagueNames.join(", ") })}</p>
++  <Explainer text={t(lang, "homeTopPlayersIntro", { leagues: leagueNames.join(", ") })} />
+   {boards.map((board) => (
+     <RankingBoard
+       board={{ ...board, rows: board.rows.map((row, i) => ({ ...row, rank: i + 1 })) }}
+diff --git a/site_v2/src/components/home/TopTeams.astro b/site_v2/src/components/home/TopTeams.astro
+index bdac807b..6a527c6a 100644
+--- a/site_v2/src/components/home/TopTeams.astro
++++ b/site_v2/src/components/home/TopTeams.astro
+@@ -10,6 +10,7 @@
+ //
+ // A board with no data never arrives, and index.astro leaves the block out when none survived.
+ import SectionHead from "../ui/SectionHead.astro";
++import Explainer from "../ui/Explainer.astro";
+ import RankingBoard from "../competition/RankingBoard.astro";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+@@ -30,7 +31,7 @@ const leagueNames = [
+ 
+ <section>
+   <SectionHead label={t(lang, "homeTopTeams")} />
+-  <p class="bsub">{t(lang, "homeTopTeamsIntro", { leagues: leagueNames.join(", ") })}</p>
++  <Explainer text={t(lang, "homeTopTeamsIntro", { leagues: leagueNames.join(", ") })} />
+   {boards.map((board) => (
+     <RankingBoard
+       board={{ ...board, rows: board.rows.map((row, i) => ({ ...row, rank: i + 1 })) }}
+diff --git a/site_v2/src/components/matches/MatchesDay.astro b/site_v2/src/components/matches/MatchesDay.astro
+index 5053f6af..1ef0d7ff 100644
+--- a/site_v2/src/components/matches/MatchesDay.astro
++++ b/site_v2/src/components/matches/MatchesDay.astro
+@@ -49,9 +49,7 @@ const crumbs = [
+ 
+     <h1>{t(lang, "navMatches")}</h1>
+ 
+-    <FilterRows lang={lang} rows={groups} />
+-
+-    <div class="categories">
++    <FilterRows lang={lang} rows={groups}>
+       <div class="md">
+         <input class="md-in" type="radio" name="day" id={`day-${day.day}`} checked />
+         <nav class="mdnav" aria-label={t(lang, "dayPickerAria")}>
+@@ -95,5 +93,5 @@ const crumbs = [
+           ))}
+         </section>
+       </div>
+-    </div>
++    </FilterRows>
+   </div>
+diff --git a/site_v2/src/components/player/PlayerComparison.astro b/site_v2/src/components/player/PlayerComparison.astro
+index 5d2bfc46..6803758f 100644
+--- a/site_v2/src/components/player/PlayerComparison.astro
++++ b/site_v2/src/components/player/PlayerComparison.astro
+@@ -8,7 +8,8 @@ import MetricSwitch from "../ui/MetricSwitch.astro";
+ import ChartLegend from "../ui/ChartLegend.astro";
+ import Group from "../ui/Group.astro";
+ import GroupHead from "../ui/GroupHead.astro";
+-import Chevron from "../ui/Chevron.astro";
++import Explainer from "../ui/Explainer.astro";
++import FilterBar from "../ui/FilterBar.astro";
+ import { stripInset } from "../../lib/chartTheme";
+ import { formatValue, integer, ordinal } from "../../lib/format";
+ import { t, metricLabel, boardTitle } from "../../i18n/strings";
+@@ -91,26 +92,13 @@ const aria = t(lang, "playerComparedWith");
+ {comparisons.length > 0 && (
+   <section>
+     <SectionHead label={t(lang, "playerVsOthers")} />
+-    {comparisons.map((c) => (
+-      <input class="seg-in" type="radio" name={group} id={`${group}-${c.slot}`} value={c.slot} data-cmp={c.slot} checked={c.slot === 1} />
+-    ))}
+-    {comparisons.length > 1 && (
+-      <div class="fbar">
+-        <div class="seg" role="group" aria-label={aria}>
+-          {comparisons.map((c) => <label class="seg-btn" for={`${group}-${c.slot}`} data-cmp={c.slot}>{c.label}</label>)}
+-        </div>
+-        <div class="selbar">
+-          <div class="seg sel">
+-            <select class="sel-in" data-filter={group} aria-label={aria}>
+-              {comparisons.map((c) => <option value={c.slot} selected={c.slot === 1}>{c.label}</option>)}
+-            </select>
+-            <Chevron />
+-          </div>
+-        </div>
+-      </div>
+-    )}
++    <FilterBar filters={[{
++      name: group,
++      aria,
++      choices: comparisons.map((c) => ({ id: `${group}-${c.slot}`, value: String(c.slot), label: c.label, attrs: { "data-cmp": c.slot } })),
++    }]} />
+     <div class="cmp-panels">
+-      {comparisons.map((c) => <p class="bsub cmp-p" data-cmp={c.slot}>{`${c.intro} ${t(lang, "playerPer90")}`}</p>)}
++      {comparisons.map((c) => <Explainer text={`${c.intro} ${t(lang, "playerPer90")}`} class="cmp-p" data-cmp={c.slot} />)}
+     </div>
+     {showSwitch && <MetricSwitch id={`${group}-switch`} lang={lang} />}
+     <div class="cmp-panels">
+@@ -158,7 +146,3 @@ const aria = t(lang, "playerComparedWith");
+     </div>
+   </section>
+ )}
+-
+-<script>
+-  import "../../lib/filterBar.mjs";
+-</script>
+diff --git a/site_v2/src/components/player/PlayerIndex.astro b/site_v2/src/components/player/PlayerIndex.astro
+index faaf99cf..b8ca24e6 100644
+--- a/site_v2/src/components/player/PlayerIndex.astro
++++ b/site_v2/src/components/player/PlayerIndex.astro
+@@ -50,9 +50,7 @@ const filterRows = [
+ ---
+ 
+ <section class="teamindex">
+-  <FilterRows lang={lang} rows={filterRows} competitions={POSITIONS.map((p) => ({ name: t(lang, p.label) }))} slotsArePositions />
+-
+-  <div class="categories">
++  <FilterRows lang={lang} rows={filterRows} competitions={POSITIONS.map((p) => ({ name: t(lang, p.label) }))} slotsArePositions>
+     {lists.length > 0 && (
+       <section class="tblock">
+         <SectionHead label={t(lang, "playersWorldsBest")} />
+@@ -110,7 +108,7 @@ const filterRows = [
+         </Group>
+       ))}
+     </section>
+-  </div>
++  </FilterRows>
+ </section>
+ 
+ <script>
+diff --git a/site_v2/src/components/player/PlayerLastSeason.astro b/site_v2/src/components/player/PlayerLastSeason.astro
+index e8f7fb71..f0094f13 100644
+--- a/site_v2/src/components/player/PlayerLastSeason.astro
++++ b/site_v2/src/components/player/PlayerLastSeason.astro
+@@ -3,6 +3,7 @@
+ // all club competitions, in the served metric list. The Team page's table and trend. Absent when the
+ // player has no club minutes last season or every value is blank.
+ import SectionHead from "../ui/SectionHead.astro";
++import Explainer from "../ui/Explainer.astro";
+ import MetricSwitch from "../ui/MetricSwitch.astro";
+ import TableRow from "../ui/TableRow.astro";
+ import Group from "../ui/Group.astro";
+@@ -34,14 +35,14 @@ const shown = (v: number | null | undefined, format: Parameters<typeof formatVal
+ {groups.length > 0 && (
+   <section>
+     <SectionHead label={t(lang, "teamVsLastSeason")} />
+-    <p class="bsub">
+-      {t(lang, "playerLastSeasonIntro", {
++    <Explainer
++      text={t(lang, "playerLastSeasonIntro", {
+         player: name,
+         now: integer(lastSeason!.minutes, lang),
+         prev: integer(lastSeason!.minutes_prev, lang),
+         per90: t(lang, "playerPer90"),
+       })}
+-    </p>
++    />
+     {showSwitch && <MetricSwitch id="player-last-season-switch" lang={lang} />}
+     <div class="yoy-list">
+       {groups.map((g) => (
+diff --git a/site_v2/src/components/team/TeamDeserved.astro b/site_v2/src/components/team/TeamDeserved.astro
+index a10eecd7..c4862412 100644
+--- a/site_v2/src/components/team/TeamDeserved.astro
++++ b/site_v2/src/components/team/TeamDeserved.astro
+@@ -10,6 +10,7 @@
+ // and marks keep their size at every width (chartMarks.mjs). Present only where the model fitted
+ // the league (mart_team_profile, deserved_scatter).
+ import SectionHead from "../ui/SectionHead.astro";
++import Explainer from "../ui/Explainer.astro";
+ import ChartLegend from "../ui/ChartLegend.astro";
+ import { scatter, offset } from "../../lib/chartTheme";
+ import type { Lang } from "../../lib/format";
+@@ -103,7 +104,7 @@ const fmtTick = (x: number) => (x > 0 ? `+${integer(x, lang)}` : integer(x, lang
+ {me && s.deserved_points != null && (
+   <section>
+     <SectionHead label={metricLabel(lang, DESERVED)} />
+-    <p class="bsub">{t(lang, "compDeservedExplainer", names)}</p>
++    <Explainer text={t(lang, "compDeservedExplainer", names)} />
+     <div class="ctab dpm">
+       <div class="ctab-head"><span class="h nmh">{t(lang, "teamAfterMatches", { competition: compName, n: integer(s.played, lang) })}</span><span class="h"></span></div>
+       {rows.map((r) => (
+diff --git a/site_v2/src/components/team/TeamFixtureGroup.astro b/site_v2/src/components/team/TeamFixtureGroup.astro
+index 647497de..bc0543e1 100644
+--- a/site_v2/src/components/team/TeamFixtureGroup.astro
++++ b/site_v2/src/components/team/TeamFixtureGroup.astro
+@@ -17,14 +17,14 @@ interface Props {
+   team: TeamRef;
+   lang: Lang;
+   nextId?: number | null;
+-  slot?: number;
++  competitionSlot?: number;
+ }
+-const { code, fixtures, team, lang, nextId = null, slot } = Astro.props;
++const { code, fixtures, team, lang, nextId = null, competitionSlot } = Astro.props;
+ const info = competitionInfo(code);
+ const dayOf = (fx: TeamScheduleFixture) => fx.kickoff_datetime?.slice(0, 10) ?? null;
+ ---
+ 
+-<Group data-competition-slot={slot}>
++<Group data-competition-slot={competitionSlot}>
+   <GroupHead lang={lang} name={info.name} crest={{ name: info.name, url: info.crest }} competition={info.slug} />
+   {fixtures.map((fx, i) => (
+     <>
+diff --git a/site_v2/src/components/team/TeamLastSeason.astro b/site_v2/src/components/team/TeamLastSeason.astro
+index 6c786ad7..320b7c22 100644
+--- a/site_v2/src/components/team/TeamLastSeason.astro
++++ b/site_v2/src/components/team/TeamLastSeason.astro
+@@ -5,6 +5,7 @@
+ // neither value is left out. The key metrics show; the switch shows every row in its place.
+ // Data: mart_team_competition_benchmarks (metric_value, metric_value_prev_season).
+ import SectionHead from "../ui/SectionHead.astro";
++import Explainer from "../ui/Explainer.astro";
+ import MetricSwitch from "../ui/MetricSwitch.astro";
+ import TableRow from "../ui/TableRow.astro";
+ import Group from "../ui/Group.astro";
+@@ -39,7 +40,7 @@ const shown = (v: unknown, format: Parameters<typeof formatValue>[1]) =>
+ {groups.length > 0 && (
+   <section>
+     <SectionHead label={t(lang, "teamVsLastSeason")} />
+-    <p class="bsub">{t(lang, "teamVsLastSeasonIntro", { n: integer(s.yoy_games_played_cutoff, lang) })}</p>
++    <Explainer text={t(lang, "teamVsLastSeasonIntro", { n: integer(s.yoy_games_played_cutoff, lang) })} />
+     {needsSwitch(groups) && <MetricSwitch id="tsw-season" lang={lang} />}
+     <div class="yoy-list">
+       {groups.map((g) => (
+diff --git a/site_v2/src/components/team/TeamLeagueStrips.astro b/site_v2/src/components/team/TeamLeagueStrips.astro
+index c91507a5..6625aa58 100644
+--- a/site_v2/src/components/team/TeamLeagueStrips.astro
++++ b/site_v2/src/components/team/TeamLeagueStrips.astro
+@@ -7,6 +7,7 @@
+ // every row in its place. Look from the chart theme (system.css). Data:
+ // mart_team_competition_benchmarks and its every-club strip.
+ import SectionHead from "../ui/SectionHead.astro";
++import Explainer from "../ui/Explainer.astro";
+ import MetricSwitch from "../ui/MetricSwitch.astro";
+ import ChartLegend from "../ui/ChartLegend.astro";
+ import Group from "../ui/Group.astro";
+@@ -43,7 +44,7 @@ function place(v: number, lo: number, hi: number): number {
+ {groups.length > 0 && (
+   <section>
+     <SectionHead label={t(lang, "teamVsLeague")} />
+-    <p class="bsub">{t(lang, "teamVsLeagueIntro", { competition: compName })}</p>
++    <Explainer text={t(lang, "teamVsLeagueIntro", { competition: compName })} />
+     {needsSwitch(groups) && <MetricSwitch id="tsw-league" lang={lang} />}
+     <div class="chart">
+       <ChartLegend keys={[
+diff --git a/site_v2/src/components/team/TeamMatches.astro b/site_v2/src/components/team/TeamMatches.astro
+index f9a1704a..1a85cdeb 100644
+--- a/site_v2/src/components/team/TeamMatches.astro
++++ b/site_v2/src/components/team/TeamMatches.astro
+@@ -36,13 +36,12 @@ const slotsOf = (fixtures: { league_code: string }[]) =>
+ 
+ {codes.length > 0 && (
+   <>
+-    <FilterRows lang={lang} rows={[]} competitions={codes.map((c) => ({ name: competitionInfo(c).name }))} />
+-    <div class="categories">
++    <FilterRows lang={lang} rows={[]} competitions={codes.map((c) => ({ name: competitionInfo(c).name }))}>
+       {groups.length > 0 && (
+         <section data-slots={slotsOf(schedule.upcoming)}>
+           <SectionHead label={t(lang, "homeNext")} />
+           {groups.map((g) => (
+-            <TeamFixtureGroup code={g.code} fixtures={g.fixtures} team={team} lang={lang} slot={slot.get(g.code)} />
++            <TeamFixtureGroup code={g.code} fixtures={g.fixtures} team={team} lang={lang} competitionSlot={slot.get(g.code)} />
+           ))}
+         </section>
+       )}
+@@ -56,6 +55,6 @@ const slotsOf = (fixtures: { league_code: string }[]) =>
+           </RowList>
+         </section>
+       )}
+-    </div>
++    </FilterRows>
+   </>
+ )}
+diff --git a/site_v2/src/components/teams/TeamIndex.astro b/site_v2/src/components/teams/TeamIndex.astro
+index 07ac5337..180d7df7 100644
+--- a/site_v2/src/components/teams/TeamIndex.astro
++++ b/site_v2/src/components/teams/TeamIndex.astro
+@@ -78,9 +78,7 @@ const heading = (item: Extract<Item, { kind: "head" }>) => {
+ ---
+ 
+ <section class="teamindex">
+-  <FilterRows lang={lang} rows={filterRows} />
+-
+-  <div class="categories">
++  <FilterRows lang={lang} rows={filterRows}>
+     {blocks.map((block, b) => (
+       <section class:list={["tblock", block.className]}>
+         <SectionHead label={block.label} />
+@@ -119,7 +117,7 @@ const heading = (item: Extract<Item, { kind: "head" }>) => {
+         })}
+       </section>
+     ))}
+-  </div>
++  </FilterRows>
+ </section>
+ 
+ <script>
+diff --git a/site_v2/src/components/ui/Explainer.astro b/site_v2/src/components/ui/Explainer.astro
+new file mode 100644
+index 00000000..3006a184
+--- /dev/null
++++ b/site_v2/src/components/ui/Explainer.astro
+@@ -0,0 +1,14 @@
++---
++// THE explainer: the one sentence under a block's name, or a tab's opening sentence under the tab
++// band. Other attributes (a comparison panel's mark) pass through.
++interface Props {
++  text: string;
++  /** A tab's opening sentence. */
++  tab?: boolean;
++  class?: string;
++  [attr: string]: unknown;
++}
++const { text, tab = false, class: kind, ...rest } = Astro.props;
++---
++
++<p class:list={["bsub", { "tab-intro": tab }, kind]} {...rest}>{text}</p>
+diff --git a/site_v2/src/components/ui/FilterBar.astro b/site_v2/src/components/ui/FilterBar.astro
+new file mode 100644
+index 00000000..218bc71c
+--- /dev/null
++++ b/site_v2/src/components/ui/FilterBar.astro
+@@ -0,0 +1,52 @@
++---
++// THE filter bar: each filter's radios first, then, while a filter has two choices or more, the
++// bar holding the same choices twice, as buttons and as a dropdown; fitBlocks.mjs picks the form
++// that fits and filterBar.mjs keeps the dropdowns on the radios. The rows the filters act on are
++// the slot, in the `.categories` element the stylesheet reads as the radios' sibling. A choice's
++// `attrs` (a comparison's mark) go on its radio and its button. The first choice is checked.
++import Chevron from "./Chevron.astro";
++
++interface Choice {
++  id: string;
++  value: string;
++  label: string;
++  /** The dropdown's text for this choice, when it differs from the button's. */
++  option?: string;
++  attrs?: Record<string, string | number>;
++}
++interface Props {
++  filters: { name: string; aria: string; choices: Choice[] }[];
++}
++const { filters } = Astro.props;
++const bar = filters.some((f) => f.choices.length > 1);
++const rows = Astro.slots.has("default");
++---
++
++{filters.map((f) => f.choices.map((c, i) => (
++  <input class="seg-in" type="radio" name={f.name} id={c.id} value={c.value} {...c.attrs} checked={i === 0} />
++)))}
++
++{bar && (
++  <div class="fbar">
++    {filters.map((f) => (
++      <div class="seg" role="group" aria-label={f.aria}>
++        {f.choices.map((c) => <label class="seg-btn" for={c.id} {...c.attrs}>{c.label}</label>)}
++      </div>
++    ))}
++    <div class="selbar">
++      {filters.map((f) => (
++        <div class="seg sel">
++          <select class="sel-in" data-filter={f.name} aria-label={f.aria}>
++            {f.choices.map((c, i) => <option value={c.value} selected={i === 0}>{c.option ?? c.label}</option>)}
++          </select>
++          <Chevron />
++        </div>
++      ))}
++    </div>
++  </div>
++)}
++{rows && <div class="categories"><slot /></div>}
++
++<script>
++  import "../../lib/filterBar.mjs";
++</script>
+diff --git a/site_v2/src/pages/[lang]/[players]/[nation].astro b/site_v2/src/pages/[lang]/[players]/[nation].astro
+index a3cc1023..3e1dd391 100644
+--- a/site_v2/src/pages/[lang]/[players]/[nation].astro
++++ b/site_v2/src/pages/[lang]/[players]/[nation].astro
+@@ -61,8 +61,7 @@ const crumbs = [
+         rows={[{ confederation: page.region }]}
+         competitions={POSITIONS.map((p) => ({ name: t(lang, p.label) }))}
+         slotsArePositions
+-      />
+-      <div class="categories">
++      >
+         <section class="tblock">
+           <SectionHead label={t(lang, "navPlayers")} />
+           <div>
+@@ -73,7 +72,7 @@ const crumbs = [
+             </div>
+           </div>
+         </section>
+-      </div>
++      </FilterRows>
+     </section>
+   </div>
+ </Layout>
+diff --git a/site_v2/src/pages/[lang]/[teams]/[team].astro b/site_v2/src/pages/[lang]/[teams]/[team].astro
+index 96a9bf5f..f12e93d1 100644
+--- a/site_v2/src/pages/[lang]/[teams]/[team].astro
++++ b/site_v2/src/pages/[lang]/[teams]/[team].astro
+@@ -20,6 +20,7 @@ import TeamLeagueStrips from "../../../components/team/TeamLeagueStrips.astro";
+ import TeamLastSeason from "../../../components/team/TeamLastSeason.astro";
+ import RecentMatch from "../../../components/fixture/RecentMatch.astro";
+ import SectionHead from "../../../components/ui/SectionHead.astro";
++import Explainer from "../../../components/ui/Explainer.astro";
+ import RowList from "../../../components/ui/RowList.astro";
+ import { t } from "../../../i18n/strings";
+ import { localeHref, word } from "../../../lib/href";
+@@ -135,7 +136,7 @@ const crumbs = [
+ 
+     {hasPerformance && (
+       <div class="page" data-page="performance">
+-        <p class="bsub tab-intro">{t(lang, "teamPerfIntro", { competition: compName, season: season.season_label ?? "" })}</p>
++        <Explainer tab text={t(lang, "teamPerfIntro", { competition: compName, season: season.season_label ?? "" })} />
+         <TeamStanding season={season} lang={lang} />
+         <TeamDeserved season={season} teamName={name} compName={compName} lang={lang} />
+         <TeamLeagueStrips season={season} teamName={name} compName={compName} lang={lang} />
+diff --git a/tests/fixtures/component_registry/baseline.json b/tests/fixtures/component_registry/baseline.json
+index 908dac3d..f667e082 100644
+--- a/tests/fixtures/component_registry/baseline.json
++++ b/tests/fixtures/component_registry/baseline.json
+@@ -4,6 +4,6 @@
+  "unlisted classes": {"system.css": 34},
+  "part gaps": {"mock-css": 34, "style-varies": 4},
+  "set sizes": {"colours": 20, "marks": 4, "spacing": 11, "switch": 13, "text": 19},
+- "markup outside its component": {"block": 23, "board": 5, "breadcrumb": 2, "competition-index": 4, "filter-bar": 12, "header": 2, "last-season": 2, "page-shell": 17, "player-row": 1, "table-row": 1, "team-index": 5},
++ "markup outside its component": {"block": 1, "board": 5, "breadcrumb": 2, "competition-index": 4, "header": 2, "last-season": 2, "page-shell": 17, "player-row": 1, "table-row": 1, "team-index": 5},
+  "components in several files": {"registry": 11}
+ }
+diff --git a/tests/test_check_component_registry.py b/tests/test_check_component_registry.py
+index ff4837f8..f2909c26 100644
+--- a/tests/test_check_component_registry.py
++++ b/tests/test_check_component_registry.py
+@@ -108,6 +108,22 @@ def test_a_link_to_a_page_type_the_registry_does_not_name_fails(tmp_path):
+                    "components.row: links-to names the team page, which src/ui/Row.astro never links to"]
+ 
+ 
++def test_a_nation_page_link_is_not_a_player_page_link(tmp_path):
++    _site(tmp_path, {
++        "src/ui/Head.astro": 'const href = localeHref(lang, `${word(lang, "players")}/${nation}/`);',
++        "src/ui/Row.astro": 'const href = localeHref(lang, `${word(lang, "players")}/${page}/`);',
++    })
++    reg = {"components": {
++        "head": {"file": "src/ui/Head.astro", "links-to": ["player page"], "parts": {}},
++        "row": {"file": "src/ui/Row.astro", "links-to": ["nation page"], "parts": {}},
++    }}
++    assert ccr.link_failures(reg, tmp_path) == [
++        "components.head: src/ui/Head.astro links to the nation page, which links-to does not name",
++        "components.head: links-to names the player page, which src/ui/Head.astro never links to",
++        "components.row: src/ui/Row.astro links to the player page, which links-to does not name",
++        "components.row: links-to names the nation page, which src/ui/Row.astro never links to"]
++
++
+ def test_links_to_names_only_known_page_types(tmp_path):
+     reg = copy.deepcopy(MINI)
+     reg["components"]["box"]["links-to"] = ["stats page"]
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../task/243-parts-blocks/acceptance_evidence.md   | 42 ++++++++++++++++++++++
+#    .../243-parts-blocks/rendered_page_evidence.md     | 34 ++++++++++++++++++
+#    2 files changed, 76 insertions(+)
+# ============================================================================

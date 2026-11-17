@@ -3,6 +3,7 @@
 // all club competitions, in the served metric list. The Team page's table and trend. Absent when the
 // player has no club minutes last season or every value is blank.
 import SectionHead from "../ui/SectionHead.astro";
+import Explainer from "../ui/Explainer.astro";
 import MetricSwitch from "../ui/MetricSwitch.astro";
 import TableRow from "../ui/TableRow.astro";
 import Group from "../ui/Group.astro";
@@ -34,14 +35,14 @@ const shown = (v: number | null | undefined, format: Parameters<typeof formatVal
 {groups.length > 0 && (
   <section>
     <SectionHead label={t(lang, "teamVsLastSeason")} />
-    <p class="bsub">
-      {t(lang, "playerLastSeasonIntro", {
+    <Explainer
+      text={t(lang, "playerLastSeasonIntro", {
         player: name,
         now: integer(lastSeason!.minutes, lang),
         prev: integer(lastSeason!.minutes_prev, lang),
         per90: t(lang, "playerPer90"),
       })}
-    </p>
+    />
     {showSwitch && <MetricSwitch id="player-last-season-switch" lang={lang} />}
     <div class="yoy-list">
       {groups.map((g) => (

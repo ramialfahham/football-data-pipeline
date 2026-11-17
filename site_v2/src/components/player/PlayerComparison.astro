@@ -8,7 +8,8 @@ import MetricSwitch from "../ui/MetricSwitch.astro";
 import ChartLegend from "../ui/ChartLegend.astro";
 import Group from "../ui/Group.astro";
 import GroupHead from "../ui/GroupHead.astro";
-import Chevron from "../ui/Chevron.astro";
+import Explainer from "../ui/Explainer.astro";
+import FilterBar from "../ui/FilterBar.astro";
 import { stripInset } from "../../lib/chartTheme";
 import { formatValue, integer, ordinal } from "../../lib/format";
 import { t, metricLabel, boardTitle } from "../../i18n/strings";
@@ -91,26 +92,13 @@ const aria = t(lang, "playerComparedWith");
 {comparisons.length > 0 && (
   <section>
     <SectionHead label={t(lang, "playerVsOthers")} />
-    {comparisons.map((c) => (
-      <input class="seg-in" type="radio" name={group} id={`${group}-${c.slot}`} value={c.slot} data-cmp={c.slot} checked={c.slot === 1} />
-    ))}
-    {comparisons.length > 1 && (
-      <div class="fbar">
-        <div class="seg" role="group" aria-label={aria}>
-          {comparisons.map((c) => <label class="seg-btn" for={`${group}-${c.slot}`} data-cmp={c.slot}>{c.label}</label>)}
-        </div>
-        <div class="selbar">
-          <div class="seg sel">
-            <select class="sel-in" data-filter={group} aria-label={aria}>
-              {comparisons.map((c) => <option value={c.slot} selected={c.slot === 1}>{c.label}</option>)}
-            </select>
-            <Chevron />
-          </div>
-        </div>
-      </div>
-    )}
+    <FilterBar filters={[{
+      name: group,
+      aria,
+      choices: comparisons.map((c) => ({ id: `${group}-${c.slot}`, value: String(c.slot), label: c.label, attrs: { "data-cmp": c.slot } })),
+    }]} />
     <div class="cmp-panels">
-      {comparisons.map((c) => <p class="bsub cmp-p" data-cmp={c.slot}>{`${c.intro} ${t(lang, "playerPer90")}`}</p>)}
+      {comparisons.map((c) => <Explainer text={`${c.intro} ${t(lang, "playerPer90")}`} class="cmp-p" data-cmp={c.slot} />)}
     </div>
     {showSwitch && <MetricSwitch id={`${group}-switch`} lang={lang} />}
     <div class="cmp-panels">
@@ -158,7 +146,3 @@ const aria = t(lang, "playerComparedWith");
     </div>
   </section>
 )}
-
-<script>
-  import "../../lib/filterBar.mjs";
-</script>
