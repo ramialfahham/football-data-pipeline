@@ -9,7 +9,12 @@ Reads the registry and fails closed on a key, set reference or form it does not 
   `forms` — a component whose rules switch at a width other than its one narrow form's;
   `unlisted classes` — a class the stylesheet styles and no component or rule lists;
 - counts the parts the registry records as a gap (`gap:` on a part), per kind;
-- counts the values each set holds.
+- counts the values each set holds;
+- counts, per component with one `.astro` file, its own classes (those no other component lists)
+  written in a class attribute of any other `.astro` file under `site_v2/src`: the part's markup
+  outside its component;
+- counts the components whose `file` is still more than one file;
+- fails a component whose `links-to` page types differ from the destinations its file builds.
 
 Checks 1, 2 and 5 are measured by `check_design_inventory.py` on the generated rows: a part's class
 is registered, its text style is asserted, and a part that never breaks is asserted on one line.
@@ -34,9 +39,17 @@ REGISTRY = REPO / "docs" / "design" / "components.yml"
 DOC = REPO / "docs" / "wireframes" / "block_standard.md"
 SYSTEM_CSS = REPO / "site_v2" / "src" / "styles" / "system.css"
 BASELINE = REPO / "tests" / "fixtures" / "component_registry" / "baseline.json"
+SITE = REPO / "site_v2" / "src"
 
 SETS = ("text", "marks", "spacing", "colours", "switch")
-COMPONENT_KEYS = {"name", "file", "used-on", "parts", "wide", "narrow", "never-split", "short-forms"}
+COMPONENT_KEYS = {"name", "file", "used-on", "parts", "wide", "narrow", "never-split", "short-forms", "links-to"}
+# How a component file builds a link to each type of page.
+LINK_BUILDERS = {
+    "match page": re.compile(r"matchPageHref\(|word\(lang, \"matches\"\)"),
+    "team page": re.compile(r"word\(lang, \"teams\"\)"),
+    "player page": re.compile(r"word\(lang, \"players\"\)"),
+    "competition page": re.compile(r"localeHref\(lang, `\$\{[\w.]+\}/`\)"),
+}
 PART_KEYS = {"class", "selector", "text", "mark", "breaks", "element", "rule", "measured", "status", "ruled-on", "gap"}
 RULE_KEYS = {"selector", "rule", "measured", "status", "ruled-on"}
 TEXT_KEYS = {"size", "weight", "colour", "case"}
@@ -93,6 +106,9 @@ def load(path: Path = REGISTRY) -> dict:
             _keys(where + ".narrow", narrow, {"below", "form"}, {"below", "form"})
             if narrow["below"] != FITS and narrow["below"] not in sets["switch"]:
                 raise RegistryError("%s.narrow: switch %r is in no set" % (where, narrow["below"]))
+        links = comp.get("links-to", [])
+        if not isinstance(links, list) or not set(links) <= set(LINK_BUILDERS):
+            raise RegistryError("%s.links-to: expected a list of %s, got %r" % (where, " / ".join(LINK_BUILDERS), links))
         terms = comp.get("short-forms", [])
         if not isinstance(terms, list) or not all(isinstance(x, str) for x in terms) or len(set(terms)) != len(terms):
             raise RegistryError("%s.short-forms: expected a list of distinct term keys, got %r" % (where, terms))
@@ -355,6 +371,92 @@ def counts(reg: dict, css: str) -> dict[str, dict[str, int]]:
     return out
 
 
+# --- the templates ----------------------------------------------------------------------------
+
+_ATTR = re.compile(r"\bclass(?::list)?=(\"[^\"]*\"|\{)")
+_LITERAL = re.compile(r"\"([^\"]*)\"|'([^']*)'|`([^`]*)`")
+_KEY = re.compile(r"[{,]\s*\"?([A-Za-z_][\w-]*)\"?\s*(?=[:,}])")
+
+
+def _brace(text: str, start: int) -> str:
+    """The `{ ... }` expression opening at `start`, braces balanced."""
+    depth = 0
+    for i in range(start, len(text)):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+    return text[start:]
+
+
+def template_classes(text: str) -> list[str]:
+    """Every class a template's class attributes write: the words of `class="..."`, and of
+    `class={...}` / `class:list={...}` the words of its string literals and its object keys."""
+    out: list[str] = []
+    for m in _ATTR.finditer(text):
+        if m.group(1) != "{":
+            out += m.group(1).strip('"').split()
+            continue
+        expr = _brace(text, m.end() - 1)
+        for lit in _LITERAL.finditer(expr):
+            out += [w for w in "".join(g or "" for g in lit.groups()).split() if "$" not in w]
+        inner = _LITERAL.sub("\"\"", expr[1:-1])
+        out += [k for o in re.findall(r"\{[^{}]*\}", inner) for k in _KEY.findall(o)]
+    return out
+
+
+def own_classes(reg: dict) -> dict[str, set[str]]:
+    """Each component's classes that no other component lists as a part's class."""
+    mine = {cid: {p["class"] for p in comp["parts"].values()} for cid, comp in reg["components"].items()}
+    return {cid: {c for c in cls if not any(c in o for k, o in mine.items() if k != cid)} for cid, cls in mine.items()}
+
+
+def _one_file(comp: dict) -> str | None:
+    f = comp["file"]
+    return f if isinstance(f, str) and f.endswith(".astro") else None
+
+
+def markup_counts(reg: dict, site: Path = SITE, root: Path = REPO) -> dict[str, dict[str, int]]:
+    """Per component with one `.astro` file, the times its own classes are written by another
+    `.astro` file; and the number of components whose `file` is still a list."""
+    files = {p.relative_to(root).as_posix(): template_classes(p.read_text(encoding="utf-8"))
+             for p in sorted(Path(site).rglob("*.astro"))}
+    outside: dict[str, int] = {}
+    for cid, cls in own_classes(reg).items():
+        home = _one_file(reg["components"][cid])
+        if home is None or not cls:
+            continue
+        n = sum(1 for path, written in files.items() if path != home for c in written if c in cls)
+        if n:
+            outside[cid] = n
+    lists = sum(1 for comp in reg["components"].values() if isinstance(comp["file"], list))
+    return {"markup outside its component": outside, "components in several files": {"registry": lists} if lists else {}}
+
+
+def link_failures(reg: dict, root: Path = REPO) -> list[str]:
+    """A component whose file builds a link to a page type its `links-to` does not name, or names a
+    page type its file never builds a link to."""
+    out = []
+    for cid, comp in reg["components"].items():
+        if "links-to" not in comp:
+            continue
+        home = _one_file(comp)
+        path = root / home if home else None
+        if path is None or not path.exists():
+            out.append("components.%s: links-to needs one existing .astro file" % cid)
+            continue
+        text = path.read_text(encoding="utf-8")
+        built = {kind for kind, rx in LINK_BUILDERS.items() if rx.search(text)}
+        named = set(comp["links-to"])
+        for kind in sorted(built - named):
+            out.append("components.%s: %s links to the %s, which links-to does not name" % (cid, home, kind))
+        for kind in sorted(named - built):
+            out.append("components.%s: links-to names the %s, which %s never links to" % (cid, kind, home))
+    return out
+
+
 def compare(measured: dict, pinned: dict) -> list[str]:
     lines = []
     for group in sorted(set(measured) | set(pinned)):
@@ -390,6 +492,8 @@ def main(argv=None) -> int:
     elif want != doc:
         failures.append("%s: the element table differs from the registry; run with --write" % doc_path.name)
     measured = counts(reg, _css(Path(args.css)))
+    measured.update(markup_counts(reg))
+    failures += link_failures(reg)
     failures += compare(measured, json.loads(Path(args.baseline).read_text(encoding="utf-8")))
     for f in failures:
         print("FAIL  " + f)

@@ -1,0 +1,77 @@
+---
+// THE result row, in its four forms. A result: chip / score from the row's side / opponent (crest,
+// name, home or away) / competition and date. A meeting: the result row without its chip, the two
+// sides in the match's order. A goal: the score after it, the scorer with the crest of the side it
+// counts for, the minute with the assist, own goal or penalty on the second line; a scorer is a goal
+// without minutes, so without a score. A player's row adds the player's own line under the
+// competition and date. The row links to its match's page when this build makes one.
+import Crest from "./Crest.astro";
+import ListRow from "./ListRow.astro";
+import { t } from "../../i18n/strings";
+import { matchPageHref } from "../../lib/href";
+import { integer } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+
+interface Club {
+  name: string | null | undefined;
+  crest: string | null | undefined;
+  /** The text beside the crest when it is not the club's name: a goal's scorer. */
+  text?: string | null;
+}
+interface Props {
+  lang: Lang;
+  kind?: "result" | "meeting" | "goal" | "scorer";
+  result?: string | null;
+  score?: string | null;
+  clubs: Club[];
+  homeAway?: string | null;
+  facts?: (string | null | undefined)[];
+  detail?: string | null;
+  /** The player's own line: On the bench, or the counts it shows. */
+  player?: { onBench: boolean; parts: { value: number; term: "minutes" | "goals" | "assists" | "ballActions" }[] } | null;
+  fixture?: number | null;
+  /** The competition filter's mark. */
+  competitionSlot?: number;
+}
+const { lang, kind = "result", result, score, clubs, homeAway, facts = [], detail, player, fixture, competitionSlot } = Astro.props;
+const LETTER: Record<string, string> = { W: "winsShort", D: "drawsShort", L: "lossesShort" };
+const chip = kind === "result" && result && LETTER[result] ? result : null;
+const ha = kind !== "result" ? "" : homeAway === "home" ? t(lang, "home") : homeAway === "away" ? t(lang, "away") : "";
+const goal = kind === "goal" || kind === "scorer";
+const forms = { result: [], meeting: ["meet"], goal: ["goal", "meet"], scorer: ["goal", "scorer"] }[kind];
+const shown = facts.filter((f) => f != null);
+const WORD = {
+  minutes: ["minutesShort", "minutesShort"],
+  goals: ["goalsOne", "goalsMany"],
+  assists: ["assistsOne", "assistsMany"],
+  ballActions: ["ballActionsOne", "ballActionsMany"],
+} as const;
+const units = (player?.parts ?? []).map(({ value, term }) => ({
+  n: integer(value, lang),
+  word: t(lang, WORD[term][value === 1 ? 0 : 1]),
+}));
+---
+
+<ListRow href={matchPageHref(lang, fixture)} data-fixture={fixture ?? undefined} data-competition-slot={competitionSlot}>
+  <div class:list={["resrow", ...forms]}>
+    {chip && <span class:list={["pill", chip]}>{t(lang, LETTER[chip])}</span>}
+    {score != null && <span class="rscore">{score}</span>}
+    <span class="ropp">
+      {clubs.map((c, i) => <>{i > 0 && " – "}<span class="club"><Crest name={c.name} crest={c.crest} size="xs" /><span class="cn">{c.text ?? c.name}</span></span></>)}
+      {ha && <span class="ha">{ha}</span>}
+    </span>
+    {goal ? (
+      detail && <span class="rmeta">{detail}</span>
+    ) : player ? (
+      <span class="rmeta"><span class="rm-c facts-line">{ha && <span class="rha">{ha}</span>}{shown.map((f) => <span>{f}</span>)}</span>{(player.onBench || player.parts.length > 0) && (
+        <span class="rm-p facts-line">
+          {player.onBench
+            ? <span class="nb">{t(lang, "playerOnBench")}</span>
+            : units.map((p) => <span class="nb"><b>{p.n}</b>{` ${p.word}`}</span>)}
+        </span>
+      )}</span>
+    ) : (
+      <span class="rmeta facts-line">{ha && <span class="rha">{ha}</span>}{shown.map((f) => <span>{f}</span>)}</span>
+    )}
+  </div>
+</ListRow>

@@ -1,0 +1,55 @@
+---
+// THE table row: rank / crest and name (a player's club under the name) / the numbers under their
+// heads. A team's row links to the team page and a player's row to the player page when this build
+// makes one; a row that leads nowhere is not a link.
+import Crest from "./Crest.astro";
+import { hasPlayerPage } from "../../lib/builtPlayers.mjs";
+import { localeHref, word } from "../../lib/href";
+import type { Lang } from "../../lib/format";
+
+interface Cell {
+  text: string | number | null | undefined;
+  /** Tabular figures. */
+  num?: boolean;
+  /** The cell's kind: the ordered-by number, a W/D/L column, a trend. */
+  kind?: string;
+  /** A cell that is a mark: its spoken name. */
+  label?: string;
+}
+interface Props {
+  lang: Lang;
+  team?: string | null;
+  player?: string | null;
+  /** No rank cell when absent. */
+  rank?: string | number | null;
+  crest?: { name: string | null | undefined; url: string | null | undefined } | null;
+  name: string | null | undefined;
+  /** The line under the name; a row given one stacks the two. */
+  sub?: string | null;
+  cells: Cell[];
+  nonkey?: boolean;
+}
+const { lang, team, player, rank, crest, name, sub, cells, nonkey } = Astro.props;
+const href = team
+  ? localeHref(lang, `${word(lang, "teams")}/${team}/`)
+  : player && hasPlayerPage(player) ? localeHref(lang, `${word(lang, "players")}/${player}/`) : undefined;
+const Row = href ? "a" : "div";
+---
+
+<Row class:list={["ctab-row", { nonkey }]} href={href}>
+  {rank !== undefined && <span class="rk num">{rank}</span>}
+  <span class="tm">
+    {crest && <Crest name={crest.name} crest={crest.url} size="xs" />}
+    {sub !== undefined ? (
+      <span class="ent">
+        <span class="nm">{name}</span>
+        <span class="sub">{sub}</span>
+      </span>
+    ) : (
+      <span class="nm">{name}</span>
+    )}
+  </span>
+  {cells.map((c) => (
+    <span class:list={["n", { num: c.num }, c.kind]} role={c.label ? "img" : undefined} aria-label={c.label}>{c.text}</span>
+  ))}
+</Row>

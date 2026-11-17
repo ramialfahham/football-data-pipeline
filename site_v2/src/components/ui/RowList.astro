@@ -1,0 +1,11 @@
+---
+// THE list that holds a block's rows: result rows, a player's result rows (with the player's own
+// line), or a team's competition rows. The kind sets the list's measured form.
+interface Props {
+  kind: "results" | "player-results" | "competitions";
+}
+const { kind } = Astro.props;
+const CLASS = { results: "rlist", "player-results": "rlist pm", competitions: "tcomps" };
+---
+
+<div class={CLASS[kind]}><slot /></div>

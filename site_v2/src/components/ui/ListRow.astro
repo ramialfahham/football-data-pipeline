@@ -1,0 +1,14 @@
+---
+// THE list row: one row of a list, the whole row one link when it leads somewhere, otherwise a plain
+// row. Every row of a list (result, meeting, goal, player, competition) sits in it. Other attributes
+// (the filters' data marks) pass through.
+interface Props {
+  href?: string | null;
+  class?: string;
+  [attr: string]: unknown;
+}
+const { href, class: kind, ...rest } = Astro.props;
+const Row = href ? "a" : "div";
+---
+
+<Row class:list={["lrow", kind]} href={href ?? undefined} {...rest}><slot /></Row>

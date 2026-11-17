@@ -1,17 +1,16 @@
 ---
-// Competitions: one list row per competition of the season, in the served order (domestic first,
-// league then cup, then international). Line 1: crest / name / a muted note (a league's latest
-// round, a cup's round reached, an international league phase); on the right the standing, or a
-// cup's Through / Knocked out / Winners. Line 2, for a table: the W/D/L counts, then goals and
-// points. Every value is mart_team_competitions'; the row links to the competition's page.
-import Crest from "../ui/Crest.astro";
+// Competitions: one competition row per competition of the season, in the served order (domestic
+// first, league then cup, then international). The note is a league's latest round, a cup's round
+// reached, or an international league phase; on the right the standing, or a cup's Through /
+// Knocked out / Winners; a table adds the W/D/L counts, goals and points. Every value is
+// mart_team_competitions'.
+import CompetitionRow from "../ui/CompetitionRow.astro";
+import RowList from "../ui/RowList.astro";
 import SectionHead from "../ui/SectionHead.astro";
 import type { Lang } from "../../lib/format";
-import { ordinal, integer } from "../../lib/format";
+import { ordinal } from "../../lib/format";
 import { t } from "../../i18n/strings";
 import { roundName } from "../../lib/roundName.mjs";
-import { localeHref } from "../../lib/href";
-import { competitionInfo } from "../../lib/teamFixtures";
 import type { TeamCompetition } from "../../lib/types";
 
 interface Props {
@@ -23,7 +22,6 @@ const { competitions, lang } = Astro.props;
 const CUP_STATUS: Record<string, string> = { through: "teamThrough", knocked_out: "teamKnockedOut", winners: "teamWinners" };
 
 const rows = competitions.map((c) => {
-  const info = competitionInfo(c.league_code);
   const cup = c.cup_status != null || c.reached_round_stage_kind !== "table";
   const note = cup
     ? roundName(t, lang, c.reached_round_label_i18n_key, c.reached_round_number, c.reached_round_letter)
@@ -33,52 +31,15 @@ const rows = competitions.map((c) => {
   const right = cup
     ? (c.cup_status && CUP_STATUS[c.cup_status] ? t(lang, CUP_STATUS[c.cup_status]) : null)
     : c.standing_rank != null ? ordinal(c.standing_rank, lang) : null;
-  const words = info.name.split(" ");
-  return {
-    info,
-    head: words.slice(0, -1).join(" "),
-    last: words[words.length - 1],
-    note,
-    right,
-    table: !cup,
-    c,
-  };
+  return { c, note, right, table: cup ? null : c };
 });
-const CHIPS = [
-  { k: "W", field: "wins", label: "winsShort" },
-  { k: "D", field: "draws", label: "drawsShort" },
-  { k: "L", field: "losses", label: "lossesShort" },
-] as const;
 ---
 
 {rows.length > 0 && (
   <section>
     <SectionHead label={t(lang, "navCompetitions")} />
-    <div class="tcomps">
-      {rows.map((r) => {
-        const Row = r.info.slug ? "a" : "div";
-        return (
-          <Row class="lrow tc" href={r.info.slug ? localeHref(lang, `${r.info.slug}/`) : undefined}>
-            <div class="tcin">
-              <span class="tc-crest"><Crest name={r.info.name} crest={r.info.crest} size="xs" /></span>
-              <span class="tc-name">{r.head && `${r.head} `}<span class="nb">{r.last}</span>{r.note && <span class="tc-ctx">{r.note}</span>}</span>
-              {r.right && <span class="tc-right">{r.right}</span>}
-              {r.table && (
-                <span class="tc-extra">
-                  {r.right && <span class="tc-rank2" aria-hidden="true">{r.right}</span>}
-                  <span class="cchips">
-                    {CHIPS.map((ch) => <span class="cchip"><span class:list={["pill", ch.k]}>{t(lang, ch.label)}</span>{integer(r.c[ch.field], lang)}</span>)}
-                  </span>
-                  <span class="tc-nums facts-line">
-                    <span class="nb">{t(lang, "goals")}{" "}<b>{integer(r.c.goals_for, lang)}:{integer(r.c.goals_against, lang)}</b></span>
-                    <span class="nb">{t(lang, "points")}{" "}<b>{integer(r.c.points, lang)}</b></span>
-                  </span>
-                </span>
-              )}
-            </div>
-          </Row>
-        );
-      })}
-    </div>
+    <RowList kind="competitions">
+      {rows.map((r) => <CompetitionRow lang={lang} code={r.c.league_code} note={r.note} right={r.right} table={r.table} />)}
+    </RowList>
   </section>
 )}

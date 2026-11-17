@@ -17,10 +17,9 @@
 // loaded in a background tab hid all eight categories until a filter was touched.
 // The unfiltered page (no JS) already shows every non-empty category correctly; JS only handles
 // filtering, so nothing breaks if it fails to load.
-import Crest from "../ui/Crest.astro";
+import IndexRow from "../ui/IndexRow.astro";
 import FilterRows from "./FilterRows.astro";
 import { t } from "../../i18n/strings";
-import { localeHref } from "../../lib/href";
 import { groupAndOrderCompetitions } from "../../lib/competitionOrder";
 import type { Lang } from "../../lib/format";
 import type { CompetitionIndexRow } from "../../lib/types";
@@ -42,20 +41,15 @@ const categories = groupAndOrderCompetitions(competitions);
         <div class="colhead">{t(lang, cat.labelI18nKey)}</div>
         <div class="comp-grid">
           {cat.rows.map((row) => (
-            <a
-              class="comp-row"
-              href={localeHref(lang, `${row.slug}/`)}
+            <IndexRow
+              lang={lang}
+              competition={row.slug}
+              name={row.competition_name}
+              crest={row.logo_url}
+              region={(row.region_label_i18n_key ? t(lang, row.region_label_i18n_key) : row.region_label_en) ?? ""}
               data-entity-type={row.entity_type}
               data-confederation={row.confederation}
-            >
-              <Crest name={row.competition_name} crest={row.logo_url} size="xs" />
-              <span class="comp-meta">
-                <span class="comp-name">{row.competition_name}</span>
-                <span class="comp-region">
-                  {row.region_label_i18n_key ? t(lang, row.region_label_i18n_key) : row.region_label_en}
-                </span>
-              </span>
-            </a>
+            />
           ))}
         </div>
       </div>

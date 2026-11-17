@@ -86,7 +86,7 @@ def test_linked_rows_are_square_and_flush():
 
 
 def test_a_team_competition_row_keeps_the_space_in_goals_and_points():
-    text = _read("components/team/TeamCompetitions.astro")
+    text = _read("components/ui/CompetitionRow.astro")
     assert re.search(r'"goals"\)\}\{" "\}<b>', text)
     assert re.search(r'"points"\)\}\{" "\}<b>', text)
 

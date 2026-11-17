@@ -3,14 +3,12 @@
 // defenders, midfielders, forwards, other), each player as the match page's player row without
 // goals or assists: photo / name, then country / age / appearances / minutes per appearance (no
 // minutes without an appearance). The appearances are served: 0 where every finished match carries
-// player data, otherwise empty, shown "–". Two columns where they fit. A row links to the player's
-// page when this build makes one.
+// player data, otherwise empty, shown "–". Two columns where they fit.
 import SectionHead from "../ui/SectionHead.astro";
 import { decimal0, integer, DASH } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t, metricInSentence } from "../../i18n/strings";
-import { localeHref, word } from "../../lib/href";
-import { builtPlayers } from "../../lib/builtPlayers.mjs";
+import PlayerRow from "../ui/PlayerRow.astro";
 import type { SquadMember } from "../../lib/types";
 
 interface Props {
@@ -42,9 +40,6 @@ function age(birth: string | null | undefined): number | null {
   const before = NOW.getMonth() < d.getMonth() || (NOW.getMonth() === d.getMonth() && NOW.getDate() < d.getDate());
   return NOW.getFullYear() - d.getFullYear() - (before ? 1 : 0);
 }
-function initials(name: string | null | undefined): string {
-  return (name ?? "").split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase();
-}
 function line(m: SquadMember): string[] {
   const a = age(m.birth_date);
   const apps = m.appearances == null
@@ -71,18 +66,9 @@ const groups = GROUPS.map((g) => ({
       <>
         <div class="colhead">{t(lang, g.label)}</div>
         <div class="sqgrid">
-          {g.members.map((m) => {
-            const slug = builtPlayers().get(m.player_id);
-            const Row = slug ? "a" : "div";
-            return (
-              <Row class="lrow" href={slug ? localeHref(lang, `${word(lang, "players")}/${slug}/`) : undefined}>
-                <div class="plrow">
-                  <span class="pphoto">{m.photo ? <img src={m.photo} alt="" loading="lazy" width="34" height="34" /> : initials(m.name)}</span>
-                  <span class="pname"><span class="nm">{m.name}</span><span class="ps facts-line">{line(m).map((s) => <span>{s}</span>)}</span></span>
-                </div>
-              </Row>
-            );
-          })}
+          {g.members.map((m) => (
+            <PlayerRow lang={lang} name={m.name} photo={m.photo} line={line(m)} id={m.player_id} />
+          ))}
         </div>
       </>
     ))}

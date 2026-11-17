@@ -31,7 +31,7 @@ const none = missing.length === 2 || leaders.length === 0;
         <p class="bsub">{t(lang, "leadersSideNotRecorded", { team: missing[0].name ?? "" })}</p>
       )}
       {leaders.map((board) => (
-        <RankingBoard board={board} entity="player" lang={lang} rowHref={() => undefined} />
+        <RankingBoard board={board} entity="player" lang={lang} linked={false} />
       ))}
     </>
   )}

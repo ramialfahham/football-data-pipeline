@@ -4,6 +4,7 @@
 // player has no club minutes last season or every value is blank.
 import SectionHead from "../ui/SectionHead.astro";
 import MetricSwitch from "../ui/MetricSwitch.astro";
+import TableRow from "../ui/TableRow.astro";
 import { DASH, formatValue, integer } from "../../lib/format";
 import { t, metricLabel, boardTitle } from "../../i18n/strings";
 import { betterSide } from "../../lib/bars";
@@ -57,21 +58,18 @@ const shown = (v: number | null | undefined, format: Parameters<typeof formatVal
               const b = shown(m.value_prev, r.format);
               const blank = a === DASH || b === DASH;
               const side = blank || a === b ? null : betterSide(m.value as number, m.value_prev as number, r.direction);
+              const trend = blank || (r.direction === "neutral" && a !== b)
+                ? { text: "", kind: "tr" }
+                : side === "home" ? { text: "▲", kind: "tr up", label: t(lang, "teamTrendBetter") }
+                : side === "away" ? { text: "▼", kind: "tr down", label: t(lang, "teamTrendWorse") }
+                : { text: "–", kind: "tr flat", label: t(lang, "teamTrendSame") };
               return (
-                <div class:list={["ctab-row", { nonkey: showSwitch && !r.is_key_metric }]}>
-                  <span class="tm"><span class="nm">{boardTitle(lang, r.label_i18n_key, false)}</span></span>
-                  <span class="n now">{a}</span>
-                  <span class="n prev">{b}</span>
-                  {blank || (r.direction === "neutral" && a !== b) ? (
-                    <span class="n tr"></span>
-                  ) : side === "home" ? (
-                    <span class="n tr up" role="img" aria-label={t(lang, "teamTrendBetter")}>▲</span>
-                  ) : side === "away" ? (
-                    <span class="n tr down" role="img" aria-label={t(lang, "teamTrendWorse")}>▼</span>
-                  ) : (
-                    <span class="n tr flat" role="img" aria-label={t(lang, "teamTrendSame")}>–</span>
-                  )}
-                </div>
+                <TableRow
+                  lang={lang}
+                  name={boardTitle(lang, r.label_i18n_key, false)}
+                  cells={[{ text: a, kind: "now" }, { text: b, kind: "prev" }, trend]}
+                  nonkey={showSwitch && !r.is_key_metric}
+                />
               );
             })}
           </div>

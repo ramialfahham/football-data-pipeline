@@ -5,7 +5,8 @@
 // says so and each team's scorers follow, home team first, with no running score. Without scorers,
 // the heading and one line. A match with no goal has no block.
 import SectionHead from "../ui/SectionHead.astro";
-import Crest from "../ui/Crest.astro";
+import ResultRow from "../ui/ResultRow.astro";
+import RowList from "../ui/RowList.astro";
 import { DASH, matchMinute, scoreLine } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
@@ -42,24 +43,20 @@ function detail(g: PlayedGoal): string[] {
     {notRecorded && <p class="bsub">{t(lang, "goalsNotRecorded")}</p>}
     {!notRecorded && !timed && <p class="bsub">{t(lang, "goalsNoMinutes")}</p>}
     {rows.length > 0 && (
-      <div class="rlist">
+      <RowList kind="results">
         {rows.map((g) => {
           const side = g.side === "away" ? away : home;
           return (
-            <div class="lrow">
-              <div class:list={["resrow", "goal", timed ? "meet" : "scorer"]}>
-                {timed && <span class="rscore">{scoreLine(g.score_home_after, g.score_away_after)}</span>}
-                <span class="ropp">
-                  <span class="club"><Crest name={side.name} crest={side.crest} size="xs" /><span class="cn">{g.player_name ?? DASH}</span></span>
-                </span>
-                {detail(g).length > 0 && (
-                  <span class="rmeta">{detail(g).join(", ")}</span>
-                )}
-              </div>
-            </div>
+            <ResultRow
+              lang={lang}
+              kind={timed ? "goal" : "scorer"}
+              score={timed ? scoreLine(g.score_home_after, g.score_away_after) : null}
+              clubs={[{ name: side.name, crest: side.crest, text: g.player_name ?? DASH }]}
+              detail={detail(g).join(", ") || null}
+            />
           );
         })}
-      </div>
+      </RowList>
     )}
   </section>
 )}

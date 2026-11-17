@@ -59,6 +59,62 @@ def test_the_real_tree_is_on_its_pins():
     assert ccr.main([]) == 0
 
 
+def test_a_template_writes_the_classes_of_its_attributes():
+    text = ('<div class="lrow tc"><span class:list={["pill", result, { winner: w, played }]} />'
+            '<b class={CLASS[kind]} /><i class:list={["n", `x-${k}`, c.kind]} /></div>')
+    assert ccr.template_classes(text) == ["lrow", "tc", "pill", "winner", "played", "n"]
+
+
+def test_a_component_owns_the_classes_no_other_component_lists():
+    reg = {"components": {
+        "row": {"parts": {"row": {"class": "rw"}, "name": {"class": "nm"}}},
+        "table": {"parts": {"name": {"class": "nm"}, "box": {"class": "tb"}}},
+    }}
+    assert ccr.own_classes(reg) == {"row": {"rw"}, "table": {"tb"}}
+
+
+def _site(tmp_path: Path, files: dict) -> Path:
+    for rel, text in files.items():
+        p = tmp_path / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(text, encoding="utf-8")
+    return tmp_path / "src"
+
+
+def test_markup_of_a_part_outside_its_component_is_counted(tmp_path):
+    reg = {"components": {
+        "row": {"file": "src/ui/Row.astro", "parts": {"row": {"class": "rw"}, "name": {"class": "nm"}}},
+        "table": {"file": ["src/a.astro", "src/b.astro"], "parts": {"name": {"class": "nm"}}},
+    }}
+    site = _site(tmp_path, {
+        "src/ui/Row.astro": '<a class="rw"><span class="nm" /></a>',
+        "src/Block.astro": '<div class="rw" /><div class:list={["rw", x]} /><span class="nm" />',
+    })
+    got = ccr.markup_counts(reg, site, tmp_path)
+    assert got == {"markup outside its component": {"row": 2}, "components in several files": {"registry": 1}}
+
+
+def test_a_link_to_a_page_type_the_registry_does_not_name_fails(tmp_path):
+    _site(tmp_path, {
+        "src/ui/Row.astro": 'const href = localeHref(lang, `${word(lang, "players")}/${slug}/`);',
+        "src/ui/Team.astro": 'const href = localeHref(lang, `${word(lang, "teams")}/${slug}/`);',
+    })
+    reg = {"components": {
+        "row": {"file": "src/ui/Row.astro", "links-to": ["team page"], "parts": {}},
+        "team": {"file": "src/ui/Team.astro", "links-to": ["team page"], "parts": {}},
+    }}
+    got = ccr.link_failures(reg, tmp_path)
+    assert got == ["components.row: src/ui/Row.astro links to the player page, which links-to does not name",
+                   "components.row: links-to names the team page, which src/ui/Row.astro never links to"]
+
+
+def test_links_to_names_only_known_page_types(tmp_path):
+    reg = copy.deepcopy(MINI)
+    reg["components"]["box"]["links-to"] = ["stats page"]
+    with pytest.raises(ccr.RegistryError, match="links-to"):
+        ccr.load(_write(tmp_path, reg))
+
+
 @pytest.mark.parametrize("change, message", [
     (lambda r: r["components"]["box"]["parts"]["label"].update(colour="ink"), "unknown key colour"),
     (lambda r: r["components"]["box"]["parts"]["label"].update(text="99-100-ink"), "is in no set"),
@@ -194,11 +250,13 @@ def _flat(pins: dict) -> dict:
     return {(g, k): n for g, by in pins.items() for k, n in (by.items() if isinstance(by, dict) else [(None, by)])}
 
 
-def _rises(now: dict, was: dict) -> list[str]:
+def _rises(now: dict, was: dict, measured: set[str] | None = None) -> list[str]:
     """Every pin above main's, except the switch set's size: it counts declared breakpoints, not a
-    gap, and the check pins it both ways."""
+    gap, and the check pins it both ways; and except a count group main's baseline does not hold at
+    all (`measured`, main's group names), whose first pins are what the branch introducing it
+    measures. A group main holds empty is measured: every pin in it is 0."""
     return ["%s · %s · %d, main %d" % (k[0], k[1], n, was.get(k, 0)) for k, n in sorted(now.items(), key=str)
-            if n > was.get(k, 0) and k != ("set sizes", "switch")]
+            if n > was.get(k, 0) and k != ("set sizes", "switch") and (measured is None or k[0] in measured)]
 
 
 def test_only_the_switch_set_may_grow_past_mains():
@@ -207,13 +265,25 @@ def test_only_the_switch_set_may_grow_past_mains():
     assert _rises(now, was) == ["forms · x · 1, main 0", "set sizes · colours · 21, main 20"]
 
 
+def test_a_count_group_main_does_not_hold_starts_at_the_branchs_pins():
+    main = {"forms": {"x": 1}}
+    now = {("forms", "x"): 1, ("markup outside its component", "box"): 3}
+    assert _rises(now, _flat(main), set(main)) == []
+
+
+def test_a_rise_in_a_group_main_holds_empty_is_reported():
+    main = {"forms": {"x": 1}, "stylesheet values": {}}
+    now = {("forms", "x"): 1, ("stylesheet values", "size"): 1}
+    assert _rises(now, _flat(main), set(main)) == ["stylesheet values · size · 1, main 0"]
+
+
 @pytest.mark.parametrize("path", ["tests/fixtures/component_registry/baseline.json",
                                   "tests/fixtures/font_coverage/baseline.json"])
 def test_no_pin_rises_above_mains(path):
     base = _mains(path)
     if base is None:
         pytest.skip("main has no %s yet; this branch introduces it" % path)
-    up = _rises(_flat(json.loads((REPO / path).read_text(encoding="utf-8"))), _flat(base))
+    up = _rises(_flat(json.loads((REPO / path).read_text(encoding="utf-8"))), _flat(base), set(base))
     assert up == [], "a pin rose above main's; a new gap is fixed, not pinned:\n" + "\n".join(up)
 
 

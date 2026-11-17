@@ -1,0 +1,53 @@
+---
+// THE competition row: one competition of a team's season. Line 1: crest / name / a muted note; on
+// the right the standing or a cup's outcome. A table's row adds line 2: the W, D and L counts, each
+// the result chip and its count, then goals and points. The name's last word never stands alone on
+// a line. The row links to the competition's page when the competition has one.
+import Crest from "./Crest.astro";
+import ListRow from "./ListRow.astro";
+import { integer } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import { localeHref } from "../../lib/href";
+import { competitionInfo } from "../../lib/teamFixtures";
+
+interface Props {
+  lang: Lang;
+  /** The competition's league code. */
+  code: string;
+  note?: string | null;
+  /** The standing or the cup's outcome, on the right. */
+  right?: string | null;
+  table?: { wins: number; draws: number; losses: number; goals_for: number; goals_against: number; points: number } | null;
+}
+const { lang, code, note, right, table } = Astro.props;
+const info = competitionInfo(code);
+const words = info.name.split(" ");
+const head = words.slice(0, -1).join(" ");
+const last = words[words.length - 1];
+const CHIPS = [
+  { k: "W", field: "wins", label: "winsShort" },
+  { k: "D", field: "draws", label: "drawsShort" },
+  { k: "L", field: "losses", label: "lossesShort" },
+] as const;
+---
+
+<ListRow class="tc" href={info.slug ? localeHref(lang, `${info.slug}/`) : undefined}>
+  <div class="tcin">
+    <span class="tc-crest"><Crest name={info.name} crest={info.crest} size="xs" /></span>
+    <span class="tc-name">{head && `${head} `}<span class="nb">{last}</span>{note && <span class="tc-ctx">{note}</span>}</span>
+    {right && <span class="tc-right">{right}</span>}
+    {table && (
+      <span class="tc-extra">
+        {right && <span class="tc-rank2" aria-hidden="true">{right}</span>}
+        <span class="cchips">
+          {CHIPS.map((ch) => <span class="cchip"><span class:list={["pill", ch.k]}>{t(lang, ch.label)}</span>{integer(table[ch.field], lang)}</span>)}
+        </span>
+        <span class="tc-nums facts-line">
+          <span class="nb">{t(lang, "goals")}{" "}<b>{integer(table.goals_for, lang)}:{integer(table.goals_against, lang)}</b></span>
+          <span class="nb">{t(lang, "points")}{" "}<b>{integer(table.points, lang)}</b></span>
+        </span>
+      </span>
+    )}
+  </div>
+</ListRow>

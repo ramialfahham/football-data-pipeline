@@ -5,12 +5,11 @@
 // the catalogue's names of those four metrics; deserved points is the number the table is ordered
 // by and carries the ordered-by style. The gap is the catalogue's, actual minus deserved, signed.
 // The whole row links to the team page. Renders nothing unless the model fitted this competition.
-import Crest from "../ui/Crest.astro";
 import SectionHead from "../ui/SectionHead.astro";
+import TableRow from "../ui/TableRow.astro";
 import { decimal1, integer, signedDelta } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t, metricLabel, metricInSentence } from "../../i18n/strings";
-import { localeHref, word } from "../../lib/href";
 import type { DeservedRow } from "../../lib/types";
 
 interface Props {
@@ -49,17 +48,19 @@ const names = {
         ))}
       </div>
       {rows.map((row) => (
-        <a class="ctab-row" href={row.slug ? localeHref(lang, `${word(lang, "teams")}/${row.slug}/`) : undefined}>
-          <span class="rk num">{integer(row.deserved_rank, lang)}</span>
-          <span class="tm">
-            <Crest name={row.name} crest={row.crest} size="xs" />
-            <span class="nm">{row.name}</span>
-          </span>
-          <span class="n num">{signedDelta(row.shots_on_goal_difference_per_match, "decimal_1", lang).value}</span>
-          <span class="n num pts">{decimal1(row.deserved_points, lang)}</span>
-          <span class="n num">{integer(row.points, lang)}</span>
-          <span class="n num">{signedDelta(row.deserved_points_gap, "decimal_1", lang).value}</span>
-        </a>
+        <TableRow
+          lang={lang}
+          team={row.slug}
+          rank={integer(row.deserved_rank, lang)}
+          crest={{ name: row.name, url: row.crest }}
+          name={row.name}
+          cells={[
+            { text: signedDelta(row.shots_on_goal_difference_per_match, "decimal_1", lang).value, num: true },
+            { text: decimal1(row.deserved_points, lang), num: true, kind: "pts" },
+            { text: integer(row.points, lang), num: true },
+            { text: signedDelta(row.deserved_points_gap, "decimal_1", lang).value, num: true },
+          ]}
+        />
       ))}
     </div>
   </section>

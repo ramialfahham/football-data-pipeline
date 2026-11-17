@@ -20,6 +20,7 @@ import TeamLeagueStrips from "../../../components/team/TeamLeagueStrips.astro";
 import TeamLastSeason from "../../../components/team/TeamLastSeason.astro";
 import RecentMatch from "../../../components/fixture/RecentMatch.astro";
 import SectionHead from "../../../components/ui/SectionHead.astro";
+import RowList from "../../../components/ui/RowList.astro";
 import { t } from "../../../i18n/strings";
 import { localeHref, word } from "../../../lib/href";
 import { competitionInfo } from "../../../lib/teamFixtures";
@@ -112,7 +113,7 @@ const crumbs = [
       {recent.length > 0 && (
         <section>
           <SectionHead label={t(lang, "secRecent")} />
-          <div class="rlist">{recent.map((m) => <RecentMatch match={m} lang={lang} />)}</div>
+          <RowList kind="results">{recent.map((m) => <RecentMatch match={m} lang={lang} />)}</RowList>
         </section>
       )}
       {nextMatches.length > 0 && (

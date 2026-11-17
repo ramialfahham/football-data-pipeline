@@ -1,0 +1,26 @@
+---
+// One Players to watch row: the player row with goals and assists (a goalkeeper's saves). A count
+// the warehouse leaves blank shows as a dash.
+import PlayerRow from "../ui/PlayerRow.astro";
+import type { Lang } from "../../lib/format";
+import { positionLabel } from "../../i18n/strings";
+import type { TopPlayer } from "../../lib/types";
+
+interface Props {
+  player: TopPlayer;
+  lang: Lang;
+}
+const { player, lang } = Astro.props;
+const numbers = player.position_code === "G"
+  ? [{ value: player.saves_player, term: "saves" as const }]
+  : [{ value: player.goals_total, term: "goals" as const }, { value: player.goals_assists, term: "assists" as const }];
+---
+
+<PlayerRow
+  lang={lang}
+  name={player.player_name}
+  photo={player.player_photo_url}
+  line={[positionLabel(lang, player.position_code)]}
+  numbers={numbers}
+  id={player.player_sk}
+/>
