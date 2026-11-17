@@ -1,0 +1,558 @@
+diff --git a/.claude/skills/validate-local/SKILL.md b/.claude/skills/validate-local/SKILL.md
+index 3d07dd14..86c3ca97 100644
+--- a/.claude/skills/validate-local/SKILL.md
++++ b/.claude/skills/validate-local/SKILL.md
+@@ -154,7 +154,9 @@ python scripts/ci_local.py --job validate:ui --full-scope
+ ```
+ 
+ It builds the site in the `build:site-v2` image first, because `validate:ui` needs that job, and hands
+-only `site_v2/dist` over. Pass 1 is the merge-request scope. Pass 2 re-runs the steps that branch on
++only `site_v2/dist` over. Pass 1 is the merge-request scope; on a branch that changes `site_v2/src/`
++or `docs/design/components.yml` that is already main's full scope, as `--mr --plan` shows with
++`UI_FULL_SCOPE=1`. Pass 2 re-runs the steps that branch on
+ `CI_PIPELINE_SOURCE` in main's full scope: every width, en, de and fi, against `baseline.json`. Leave
+ `--full-scope` off to iterate, never for the run before a review round.
+ 
+diff --git a/.claude/task/326-full-ui-on-site-mrs/contract.md b/.claude/task/326-full-ui-on-site-mrs/contract.md
+new file mode 100644
+index 00000000..6935fbe8
+--- /dev/null
++++ b/.claude/task/326-full-ui-on-site-mrs/contract.md
+@@ -0,0 +1,72 @@
++# Task contract — a merge request that changes the site is checked against the full page baseline
++
++objective: >
++  Issue #326: a merge request that changes `site_v2/src/**` or `docs/design/components.yml` runs
++  validate:ui's design-inventory sweep at every width and language against
++  `tests/fixtures/design_inventory/baseline.json`, as main does, so a count that drifts shows in
++  the MR instead of on main. `scripts/ci_local.py --mr` runs the same sweep for such a branch, and
++  `scripts/merge_ready.py` says not ready while that sweep has a count off the baseline or did not
++  run.
++
++refs: >
++  #326; !471 and !472 (main's red validate:ui, pipeline 3078457547).
++
++scope_paths:
++  - .claude/task/326-full-ui-on-site-mrs/
++  - .gitlab-ci.yml
++  - scripts/ci_local.py
++  - scripts/merge_ready.py
++  - tests/test_ci_local.py
++  - tests/test_merge_ready.py
++  - .claude/skills/validate-local/SKILL.md
++  - docs/wireframes/block_standard.md
++  - tests/test_design_inventory.py
++
++protected_override: >
++  The full validate:ui scope on merge requests that change the rendered surface: approved in chat,
++  17 Nov 2026, recorded on #326 (note 4255024092) with the measured runner time.
++
++impact_map: >
++  writers: none; no table, model or page output changes.
++  guard: validate:ui's rules gain one rule, first after the schedule rule: a merge_request_event
++  whose changes hit `site_v2/src/**/*` or `docs/design/components.yml` sets UI_FULL_SCOPE=1. Both
++  paths are inside `*ui_paths`, so build:site-v2 still fires on every pipeline validate:ui fires
++  on. The two scoped script steps read the variable; main's push,
++  web runs and every other MR run as today. build:site-v2 takes the same rules list by anchor, so
++  the two jobs' rules stay equal (`tests/test_design_inventory.py` pins that); the variable is
++  unused there.
++  readers: scripts/ci_local.py loads .gitlab-ci.yml at run time (rules, variables, steps);
++  scripts/merge_ready.py now reads the same rule through ci_local; tests/test_ci_local.py and
++  tests/test_merge_ready.py load the real file.
++  failure: if the variable never set, MRs keep the quick sweep (today's state) and the new tests
++  fail; if it set too widely, an MR pays the full sweep (about 11 min more on ci-runner-01, no
++  spend). Main's pipeline is unchanged.
++  blast_radius: CI runtime of MRs touching the two paths; no data, no deploy.
++
++approved_design:
++  - none: no page output changes
++
++depends_on:
++  - none: works on main alone
++
++shared_files:
++  - none: no design, registry, font or chart baseline changes
++
++decisions_taken: >
++  The recurring runner time (about 11 min per site MR pipeline, no spend) is the CPO's approval
++  on #326. The path rule lives once, in validate:ui's rules; ci_local applies a matching rule's
++  `variables:` as GitLab does, and merge_ready reads the same rule. No new dependency.
++
++decisions_reserved:
++  - none: the scope, the paths and the cost are the approved issue text.
++
++done_when:
++  - python -m pytest tests/test_ci_local.py tests/test_merge_ready.py -q passes, with tests for the path rule, the scoped steps and the merge_ready refusal.
++  - python scripts/ci_local.py --mr --plan on a branch that changes a site_v2/src file shows validate:ui with UI_FULL_SCOPE=1, and on this branch without it.
++  - python scripts/ci_local.py --mr on a branch that changes a site_v2/src file runs the sweep at every width in en, de and fi against baseline.json.
++  - python scripts/ci_local.py --mr is green on this branch; the MR pipeline is green.
++
++amendments:
++  - 2026-11-17: + tests/test_design_inventory.py — authority: the #326 approval above (its pin on
++    validate:ui's scoped steps reads the changed step text); content: that pin's regex follows the
++    UI_FULL_SCOPE condition. build:site-v2 shares validate:ui's rules by anchor.
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index 99351362..aa983d42 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -555,17 +555,18 @@ validate:ui:
+     # them first a stylesheet defect stops the job at the fixture and the per-page lines and
+     # screenshots never appear. Either step red is the job red.
+     # A merge request renders the narrowest and the widest width in English and German against its own pins;
+-    # main, a manual run and a local run render every width and language against the full baseline.
++    # main, a manual run, a local run and a merge request that changes the rendered site (UI_FULL_SCOPE)
++    # render every width and language against the full baseline.
+     - |
+       SCOPE=""
+-      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
++      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ] && [ -z "${UI_FULL_SCOPE:-}" ]; then
+         SCOPE="--viewports 280,1010 --langs en,de --baseline tests/fixtures/design_inventory/baseline_quick.json"
+       fi
+       python scripts/check_design_inventory.py --dist site_v2/dist --artifacts artifacts/design_inventory $SCOPE
+     # Finnish compounds break at 320px where English and German do not; a run takes one list of
+     # widths and one of languages, so the third language is its own run with its own pins.
+     - |
+-      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
++      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ] && [ -z "${UI_FULL_SCOPE:-}" ]; then
+         python scripts/check_design_inventory.py --dist site_v2/dist --artifacts artifacts/design_inventory_fi --viewports 320 --langs fi --baseline tests/fixtures/design_inventory/baseline_quick_fi.json
+       fi
+     - python -m pytest tests/test_design_inventory.py -q
+@@ -582,8 +583,17 @@ validate:ui:
+     expire_in: 7 days
+   # Main's full sweep renders every page at 6 widths in 3 languages and runs 41–60 min, over the 1h default.
+   timeout: 2h
+-  rules:
++  # A merge request that changes the rendered site is swept as main sweeps it, so a count that
++  # drifts from `baseline.json` fails here and not on main. `scripts/ci_local.py` and
++  # `scripts/merge_ready.py` read this rule. build:site-v2 takes the same list.
++  rules: &ui_rules
+     - *not_on_schedule
++    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
++      changes:
++        - site_v2/src/**/*
++        - docs/design/components.yml
++      variables:
++        UI_FULL_SCOPE: "1"
+     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+       changes: *ui_paths
+     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+@@ -732,13 +742,7 @@ build:site-v2:
+     reports:
+       dotenv: merged_result.env
+     expire_in: 1 day
+-  rules:
+-    - *not_on_schedule
+-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+-      changes: *ui_paths
+-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+-      changes: *ui_paths
+-    - if: $CI_PIPELINE_SOURCE == "web"
++  rules: *ui_rules
+ 
+ # ---------------------------------------------------------------------------
+ # data stage — was: ci-data-build.yml
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index 93378678..2641317f 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -24,9 +24,10 @@
+ > coverage gaps: a built page no row owns, a generator that fails, a generator page no row names,
+ > and a language a mock does not carry. A count that differs from its pin fails. A pin may not
+ > rise above main's, so a new page or mock arrives with no gaps. The rendered counts depend on the
+-> font, so they are compared only on the platform the baseline names. A merge request renders the
+-> narrowest and the widest width in EN and DE against `baseline_quick.json`; main renders every
+-> width against `baseline.json`. Text overflows when it runs
++> font, so they are compared only on the platform the baseline names. Main, and a merge request that
++> changes `site_v2/src/` or `docs/design/components.yml`, render every width against `baseline.json`;
++> any other merge request renders the narrowest and the widest width in EN and DE against
++> `baseline_quick.json`. Text overflows when it runs
+ > more than 1px past its box. Two lines overlap when they still cross with a fifth of each line's
+ > height trimmed at the top and the bottom.
+ 
+diff --git a/scripts/ci_local.py b/scripts/ci_local.py
+index cbbc5d80..8c569156 100644
+--- a/scripts/ci_local.py
++++ b/scripts/ci_local.py
+@@ -335,21 +335,32 @@ def changes_match(patterns, changed: list[str]) -> bool:
+     return any(r.match(f) for r in rx for f in changed)
+ 
+ 
+-def rule_when(job: dict, env: dict[str, str], changed: list[str]) -> str | None:
+-    """`when` of the first rule that matches this pipeline, None when no rule does. A job with no
+-    rules: runs (on_success) in every pipeline the workflow admits."""
++def first_rule(job: dict, env: dict[str, str], changed: list[str]) -> dict | None:
++    """The first rule that matches this pipeline, None when no rule does. A job with no rules: runs
++    (on_success) in every pipeline the workflow admits."""
+     rules = job.get("rules")
+     if rules is None:
+-        return "on_success"
++        return {}
+     for rule in rules:
+         if "if" in rule and not eval_if(str(rule["if"]), env):
+             continue
+         if "changes" in rule and not changes_match(rule["changes"], changed):
+             continue
+-        return str(rule.get("when", "on_success"))
++        return rule
+     return None
+ 
+ 
++def rule_when(job: dict, env: dict[str, str], changed: list[str]) -> str | None:
++    rule = first_rule(job, env, changed)
++    return None if rule is None else str(rule.get("when", "on_success"))
++
++
++def rule_variables(job: dict, env: dict[str, str], changed: list[str]) -> dict[str, str]:
++    """The `variables:` of the first matching rule, which GitLab sets over the job's own."""
++    rule = first_rule(job, env, changed) or {}
++    return {str(k): expand(str(v), env) for k, v in (rule.get("variables") or {}).items()}
++
++
+ def artifact_needs(job: dict) -> list[str]:
+     """The needed jobs whose artifacts the job receives: every need unless it says `artifacts: false`."""
+     out = []
+@@ -710,11 +721,13 @@ def main() -> int:
+                 names.append(n)
+         order = order_jobs(doc, names)
+         plans = {n: plan_job(doc, n) for n in order}
++        set_by_rule = {n: rule_variables(plans[n]["job"], base_env, changed) for n in order}
+         for n in order:
+             p = plans[n]
+-            print("  run   %-24s %s%s%s" % (n, p["image"], "  [merged result]" if p["merged"] else "",
+-                                          ("  (needed by another job)" if n not in names else "")
+-                                          + ("  " + p["note"] if p["note"] else "")))
++            print("  run   %-24s %s%s%s%s" % (n, p["image"], "  [merged result]" if p["merged"] else "",
++                                            ("  (needed by another job)" if n not in names else "")
++                                            + ("  " + p["note"] if p["note"] else ""),
++                                            "".join("  %s=%s" % kv for kv in sorted(set_by_rule[n].items()))))
+         for n, why in skipped.items():
+             print("  skip  %-24s %s" % (n, why))
+         if args.plan or not order:
+@@ -737,6 +750,7 @@ def main() -> int:
+             write_steps(p, steps, args.full_scope)
+             needs_dir, extra = collect_needs(plans, p, runs)
+             env = job_env(doc, p["job"], base_env)
++            env.update(set_by_rule[n])
+             env.update(extra)
+             if p["merged"]:
+                 env["MR_TARGET_SHA"] = target_sha
+diff --git a/scripts/merge_ready.py b/scripts/merge_ready.py
+index f1ca5639..97f6dc65 100644
+--- a/scripts/merge_ready.py
++++ b/scripts/merge_ready.py
+@@ -12,6 +12,9 @@ merged in. If main has not moved since, the green result stands. If it has, the
+ when it touches the MR's files or the dbt lineage of the models the MR changes, upstream or
+ downstream. A move that does not is ready; one that does means the pipeline re-runs, with no new
+ commit.
++
++An MR that validate:ui's rules give the full design sweep (UI_FULL_SCOPE) is not ready until that
++sweep ran in its pipeline with no count off `baseline.json`.
+ """
+ 
+ from __future__ import annotations
+@@ -33,6 +36,10 @@ CROSS_CUTTING = (".gitlab-ci.yml", "requirements.txt", "requirements-dev.txt", "
+                  "site_v2/package-lock.json", ".sqlfluff", "dbt_project/dbt_project.yml",
+                  "dbt_project/packages.yml")
+ DBT_RUN_FILES = ("dbt_project/macros/",)
++UI_JOB = "validate:ui"
++FULL_SCOPE_VAR = "UI_FULL_SCOPE"
++SWEEP_RE = re.compile(r"gap counts: \d+ pages counted at (\S+) px · (.*?)(\d+) off the baseline\s*$", re.M)
++OFF_RE = re.compile(r"· \(baseline\) · (count (?:rose|fell) · .*)$", re.M)
+ DBT_DIR = "dbt_project"
+ MODEL_PREFIXES = ("dbt_project/models/", "dbt_project/seeds/")
+ 
+@@ -161,6 +168,57 @@ def tested_sha_of(mr: dict, cwd: str | None = None) -> str:
+     return min(shas, key=lambda s: commit_time(s, cwd))
+ 
+ 
++def needs_full_sweep(files: list[str]) -> bool:
++    """Whether validate:ui's rules give an MR changing these files the full design sweep."""
++    import ci_local as cl
++
++    doc = cl.load_ci()
++    env = {"CI_PIPELINE_SOURCE": "merge_request_event", "CI_DEFAULT_BRANCH": "main"}
++    return bool(cl.rule_variables(cl.resolve_job(doc, UI_JOB), env, files).get(FULL_SCOPE_VAR))
++
++
++def full_widths() -> list[int]:
++    import check_design_inventory as cdi
++
++    baseline = cdi.di.load_baseline(cdi.di.BASELINE)
++    return sorted(baseline.get("viewports", cdi.DEFAULT_VIEWPORTS))
++
++
++def sweep_findings(trace: str, widths: list[int]) -> tuple[bool, list[str]]:
++    """(the trace holds a compared sweep at every width, the counts it found off the baseline)."""
++    full = [m for m in SWEEP_RE.finditer(trace)
++            if sorted(int(v) for v in m.group(1).split(",")) == widths and "not compared" not in m.group(2)]
++    if not full:
++        return False, []
++    total = sum(int(m.group(3)) for m in full)
++    if not total:
++        return True, []
++    return True, OFF_RE.findall(trace) or [f"{total} off the baseline"]
++
++
++def sweep_refusal(mr: dict, files: list[str]) -> list[str]:
++    """Why an MR that needs the full design sweep is not ready, or nothing."""
++    if not needs_full_sweep(files):
++        return []
++    pipeline = mr.get("head_pipeline") or {}
++    if not pipeline.get("id"):
++        return []
++    jobs = [j for j in glab_json(f"projects/:id/pipelines/{pipeline['id']}/jobs?per_page=100") if j.get("name") == UI_JOB]
++    if not jobs:
++        return [f"NOT READY: the MR changes the rendered site and its pipeline has no {UI_JOB} job."]
++    job = jobs[0]
++    if job.get("status") not in ("success", "failed"):
++        return []
++    trace = run(["glab", "api", f"projects/:id/jobs/{job['id']}/trace"], check=False)
++    ran, off = sweep_findings(trace, full_widths())
++    if off:
++        return [f"NOT READY: {UI_JOB} (job {job['id']}) has counts off baseline.json:"] + [f"- {o}" for o in off]
++    if not ran and job["status"] == "success":
++        return [f"NOT READY: {UI_JOB} (job {job['id']}) did not sweep every width against baseline.json; "
++                "re-run the pipeline."]
++    return []
++
++
+ def commit_time(ref: str, cwd: str | None) -> int:
+     return int(run(["git", "log", "-1", "--format=%ct", ref], cwd=cwd, check=False).strip() or 0)
+ 
+@@ -214,6 +272,9 @@ def decide(iid: str) -> tuple[int, list[str]]:
+     head = mr["sha"]
+     toplevel = run(["git", "rev-parse", "--show-toplevel"]).strip()
+     run(["git", "fetch", "--quiet", REMOTE, target, f"refs/merge-requests/{iid}/head"], cwd=toplevel)
++    refusal = sweep_refusal(mr, run(["git", "diff", "--name-only", f"{REMOTE}/{target}...{head}"], cwd=toplevel).split())
++    if refusal:
++        return 1, refusal
+     tested = tested_sha_of(mr)
+     current = run(["git", "rev-parse", f"{REMOTE}/{target}"], cwd=toplevel).strip()
+     mr_files = run(["git", "diff", "--name-only", f"{tested}...{head}"], cwd=toplevel).split()
+diff --git a/tests/test_ci_local.py b/tests/test_ci_local.py
+index 6a3e5077..0d192a96 100644
+--- a/tests/test_ci_local.py
++++ b/tests/test_ci_local.py
+@@ -172,6 +172,68 @@ def test_a_job_without_rules_runs_in_every_pipeline():
+     assert cl.rule_when({"script": ["x"]}, MR_ENV, []) == "on_success"
+ 
+ 
++def test_only_the_matching_rule_sets_its_variables(tmp_path):
++    d = ci(tmp_path, """
++        job:
++          script: [x]
++          rules:
++            - if: $CI_PIPELINE_SOURCE == "merge_request_event"
++              changes: [src/**/*]
++              variables:
++                WIDE: "1"
++            - if: $CI_PIPELINE_SOURCE == "merge_request_event"
++    """)
++    job = cl.resolve_job(d, "job")
++    assert cl.rule_variables(job, MR_ENV, ["src/a.py"]) == {"WIDE": "1"}
++    assert cl.rule_variables(job, MR_ENV, ["docs/a.md"]) == {}
++    assert cl.rule_variables({"script": ["x"]}, MR_ENV, ["src/a.py"]) == {}
++
++
++@pytest.mark.parametrize("changed, full", [
++    (["site_v2/src/pages/index.astro"], True),
++    (["site_v2/src/components/chrome/SiteHeader.astro", "scripts/x.py"], True),
++    (["docs/design/components.yml"], True),
++    (["site_v2/scripts/check-font-coverage.mjs"], False),
++    (["site_v2/package.json"], False),
++    (["design-mocks/gen_match_page.py"], False),
++    (["tests/fixtures/design_inventory/baseline.json"], False),
++    ([".gitlab-ci.yml"], False),
++])
++def test_an_mr_that_changes_the_rendered_site_gets_the_full_sweep(doc, changed, full):
++    job = cl.resolve_job(doc, "validate:ui")
++    assert cl.rule_when(job, MR_ENV, changed) == "on_success"
++    assert cl.rule_variables(job, MR_ENV, changed) == ({"UI_FULL_SCOPE": "1"} if full else {})
++
++
++def test_main_never_gets_the_rule_variable(doc):
++    push = {"CI_PIPELINE_SOURCE": "push", "CI_DEFAULT_BRANCH": "main", "CI_COMMIT_BRANCH": "main"}
++    assert cl.rule_variables(cl.resolve_job(doc, "validate:ui"), push, ["site_v2/src/pages/index.astro"]) == {}
++
++
++def _sweeps(doc, env: dict[str, str]) -> list[str]:
++    """The design-inventory runs validate:ui's steps make in this environment, as argument lines."""
++    sh = shutil.which("sh")
++    if sh is None:
++        pytest.skip("no POSIX shell")
++    out = []
++    for step in cl.plan_job(doc, "validate:ui")["script"]:
++        if "check_design_inventory.py" not in step:
++            continue
++        body = step.replace("python scripts/check_design_inventory.py", "echo SWEEP")
++        r = subprocess.run([sh, "-c", body], env=dict(os.environ, **env), capture_output=True, text=True, check=True)
++        out += [line for line in r.stdout.splitlines() if line.startswith("SWEEP")]
++    return out
++
++
++def test_the_scoped_steps_sweep_the_full_baseline_when_the_rule_says_so(doc):
++    quick = _sweeps(doc, {"CI_PIPELINE_SOURCE": "merge_request_event", "UI_FULL_SCOPE": ""})
++    assert len(quick) == 2 and all("baseline_quick" in s for s in quick)
++    for env in ({"CI_PIPELINE_SOURCE": "merge_request_event", "UI_FULL_SCOPE": "1"},
++                {"CI_PIPELINE_SOURCE": "push", "UI_FULL_SCOPE": ""}):
++        full = _sweeps(doc, env)
++        assert len(full) == 1 and "--baseline" not in full[0] and "--viewports" not in full[0] and "--langs" not in full[0]
++
++
+ def test_variables_expand_in_order_and_unknown_ones_are_empty():
+     env = cl.job_env({"variables": {"A": "$CI_PROJECT_DIR/.cache"}}, {"variables": {"B": "${A}/x", "C": "$$HOME $NOPE"}},
+                      {"CI_PROJECT_DIR": "/work"})
+diff --git a/tests/test_design_inventory.py b/tests/test_design_inventory.py
+index 69424949..748c3e71 100644
+--- a/tests/test_design_inventory.py
++++ b/tests/test_design_inventory.py
+@@ -401,8 +401,8 @@ def test_the_merge_request_run_names_the_scope_of_its_pin_file():
+     import check_design_inventory as cdi  # noqa: PLC0415
+     flags = "--viewports %s --langs %s --baseline tests/fixtures/design_inventory/baseline_quick.json" % (
+         ",".join(str(v) for v in quick["viewports"]), ",".join(quick["langs"]))
+-    step = re.search(r'SCOPE=""\n\s*if \[ "\$CI_PIPELINE_SOURCE" = "merge_request_event" \]; then\n(.*?)\n\s*fi\n(.*?\$SCOPE)',
+-                     ci, re.S)
++    mr_quick = r'if \[ "\$CI_PIPELINE_SOURCE" = "merge_request_event" \] && \[ -z "\$\{UI_FULL_SCOPE:-\}" \]; then\n'
++    step = re.search(r'SCOPE=""\n\s*' + mr_quick + r'(.*?)\n\s*fi\n(.*?\$SCOPE)', ci, re.S)
+     assert step, "validate:ui no longer sets the quick scope only on a merge request pipeline"
+     assert flags in step.group(1)
+     assert "--viewports" not in step.group(2) and "--langs" not in step.group(2) and "--baseline" not in step.group(2), (
+@@ -412,7 +412,7 @@ def test_the_merge_request_run_names_the_scope_of_its_pin_file():
+     fi = di.load_baseline(REPO / "tests" / "fixtures" / "design_inventory" / "baseline_quick_fi.json")
+     fi_flags = "--viewports %s --langs %s --baseline tests/fixtures/design_inventory/baseline_quick_fi.json" % (
+         ",".join(str(v) for v in fi["viewports"]), ",".join(fi["langs"]))
+-    fi_step = re.search(r'if \[ "\$CI_PIPELINE_SOURCE" = "merge_request_event" \]; then\n\s*python scripts/check_design_inventory\.py (.*?)\n\s*fi\n', ci)
++    fi_step = re.search(mr_quick + r'\s*python scripts/check_design_inventory\.py (.*?)\n\s*fi\n', ci)
+     assert fi_step, "validate:ui no longer runs the Finnish sweep on a merge request pipeline"
+     assert fi_flags in fi_step.group(1)
+     assert fi["viewports"] == [320] and fi["langs"] == ["fi"] and fi["rendered"]["platform"] == "linux"
+diff --git a/tests/test_merge_ready.py b/tests/test_merge_ready.py
+index 08097625..37c00236 100644
+--- a/tests/test_merge_ready.py
++++ b/tests/test_merge_ready.py
+@@ -118,6 +118,109 @@ def test_main_requires_an_iid(capsys):
+     assert mr.main(["merge_ready.py", "abc"]) == 2
+ 
+ 
++# --- the full design sweep of an MR that changes the rendered site ---
++WIDTHS = "280,320,360,375,700,1010"
++FULL = [280, 320, 360, 375, 700, 1010]
++STAMP = "2026-11-17T10:00:00.000000Z 01O "
++
++
++def _gap(widths, off, note=""):
++    return f"{STAMP}gap counts: 14334 pages counted at {widths} px · {note}{off} off the baseline\n"
++
++
++def _off(line):
++    return f"{STAMP}FAIL  (counts) · 0 · - · (baseline) · {line}\n"
++
++
++def test_the_full_widths_are_the_baselines():
++    assert mr.full_widths() == FULL
++
++
++@pytest.mark.parametrize("files, full", [
++    (["site_v2/src/pages/index.astro"], True),
++    (["docs/design/components.yml"], True),
++    (["site_v2/scripts/check-font-coverage.mjs", "scripts/merge_ready.py"], False),
++    ([], False),
++])
++def test_needs_full_sweep_reads_validate_ui_rule(files, full):
++    assert mr.needs_full_sweep(files) is full
++
++
++def test_a_quick_sweep_is_not_the_full_one():
++    trace = _gap("280,1010", 0) + _gap("320", 0)
++    assert mr.sweep_findings(trace, FULL) == (False, [])
++
++
++def test_a_sweep_whose_counts_were_not_compared_is_not_the_full_one():
++    assert mr.sweep_findings(_gap(WIDTHS, 0, "rendered counts not compared: x · "), FULL) == (False, [])
++
++
++def test_a_full_sweep_on_its_pins():
++    assert mr.sweep_findings(_gap(WIDTHS, 0), FULL) == (True, [])
++
++
++def test_a_full_sweep_names_each_count_off_its_pin():
++    rose = "count rose · Match page · scroll · 2180, baseline 2175"
++    fell = "count fell · Team page · overflow · 0, baseline 3: lower the baseline"
++    ran, off = mr.sweep_findings(_off(rose) + _off(fell) + _gap(WIDTHS, 2), FULL)
++    assert ran and off == [rose, fell]
++
++
++@pytest.fixture()
++def ui_job(monkeypatch):
++    state = {"jobs": [{"id": 5, "name": "validate:ui", "status": "success"}], "trace": _gap(WIDTHS, 0)}
++    monkeypatch.setattr(mr, "glab_json", lambda p: state["jobs"])
++    monkeypatch.setattr(mr, "run", lambda cmd, cwd=None, check=True: state["trace"])
++    return state
++
++
++SITE = ["site_v2/src/pages/index.astro"]
++
++
++def test_sweep_refusal_ignores_an_mr_off_the_rendered_site(ui_job):
++    ui_job["trace"] = _gap("280,1010", 3)
++    assert mr.sweep_refusal(_mr(), ["scripts/x.py"]) == []
++
++
++def test_sweep_refusal_passes_a_full_sweep_on_its_pins(ui_job):
++    assert mr.sweep_refusal(_mr(), SITE) == []
++
++
++def test_sweep_refusal_refuses_counts_off_the_baseline(ui_job):
++    ui_job["jobs"][0]["status"] = "failed"
++    ui_job["trace"] = _off("count fell · Team page · overflow · 0, baseline 3: lower the baseline") + _gap(WIDTHS, 1)
++    lines = mr.sweep_refusal(_mr(), SITE)
++    assert lines[0].startswith("NOT READY") and "Team page" in lines[1]
++
++
++def test_sweep_refusal_refuses_a_pipeline_that_swept_only_the_quick_scope(ui_job):
++    ui_job["trace"] = _gap("280,1010", 0) + _gap("320", 0)
++    assert mr.sweep_refusal(_mr(), SITE)[0].startswith("NOT READY")
++
++
++def test_sweep_refusal_refuses_a_pipeline_without_validate_ui(ui_job):
++    ui_job["jobs"] = [{"id": 6, "name": "test:python", "status": "success"}]
++    assert mr.sweep_refusal(_mr(), SITE)[0].startswith("NOT READY")
++
++
++def test_sweep_refusal_leaves_a_running_sweep_to_the_pipeline_check(ui_job):
++    ui_job["jobs"][0]["status"] = "running"
++    ui_job["trace"] = ""
++    assert mr.sweep_refusal(_mr(), SITE) == []
++
++
++def test_decide_refuses_a_site_mr_with_counts_off_before_reading_the_tested_commit(fake, monkeypatch):
++    fake["glab"]["projects/:id/merge_requests/7"] = _mr()
++    fake["glab"]["projects/:id/pipelines/1/jobs"] = [{"id": 5, "name": "validate:ui", "status": "failed"}]
++    fake["git"]["git rev-parse --show-toplevel"] = "/x\n"
++    fake["git"]["git diff --name-only"] = "site_v2/src/pages/index.astro\n"
++    fake["git"]["glab api projects/:id/jobs/5/trace"] = (
++        _off("count rose · Match page · scroll · 2180, baseline 2175") + _gap(WIDTHS, 1))
++    monkeypatch.setattr(mr, "tested_sha_of", lambda m: (_ for _ in ()).throw(AssertionError("reached")))
++    code, lines = mr.decide("7")
++    assert code == 1 and lines[0].startswith("NOT READY") and "Match page" in lines[1]
++
++
+ # --- the parts that read the contract and GitLab ---
+ def _contract(depends="  - !449\n", shared="  - none: t\n"):
+     return f"objective: >\n  t\ndepends_on:\n{depends}shared_files:\n{shared}done_when:\n  - t\n"
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../326-full-ui-on-site-mrs/review_input.patch     | 494 +++++++++++++++++++++
+#    1 file changed, 494 insertions(+)
+# ============================================================================

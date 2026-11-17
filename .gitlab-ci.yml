@@ -555,17 +555,18 @@ validate:ui:
     # them first a stylesheet defect stops the job at the fixture and the per-page lines and
     # screenshots never appear. Either step red is the job red.
     # A merge request renders the narrowest and the widest width in English and German against its own pins;
-    # main, a manual run and a local run render every width and language against the full baseline.
+    # main, a manual run, a local run and a merge request that changes the rendered site (UI_FULL_SCOPE)
+    # render every width and language against the full baseline.
     - |
       SCOPE=""
-      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
+      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ] && [ -z "${UI_FULL_SCOPE:-}" ]; then
         SCOPE="--viewports 280,1010 --langs en,de --baseline tests/fixtures/design_inventory/baseline_quick.json"
       fi
       python scripts/check_design_inventory.py --dist site_v2/dist --artifacts artifacts/design_inventory $SCOPE
     # Finnish compounds break at 320px where English and German do not; a run takes one list of
     # widths and one of languages, so the third language is its own run with its own pins.
     - |
-      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
+      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ] && [ -z "${UI_FULL_SCOPE:-}" ]; then
         python scripts/check_design_inventory.py --dist site_v2/dist --artifacts artifacts/design_inventory_fi --viewports 320 --langs fi --baseline tests/fixtures/design_inventory/baseline_quick_fi.json
       fi
     - python -m pytest tests/test_design_inventory.py -q
@@ -582,8 +583,17 @@ validate:ui:
     expire_in: 7 days
   # Main's full sweep renders every page at 6 widths in 3 languages and runs 41–60 min, over the 1h default.
   timeout: 2h
-  rules:
+  # A merge request that changes the rendered site is swept as main sweeps it, so a count that
+  # drifts from `baseline.json` fails here and not on main. `scripts/ci_local.py` and
+  # `scripts/merge_ready.py` read this rule. build:site-v2 takes the same list.
+  rules: &ui_rules
     - *not_on_schedule
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - site_v2/src/**/*
+        - docs/design/components.yml
+      variables:
+        UI_FULL_SCOPE: "1"
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes: *ui_paths
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -732,13 +742,7 @@ build:site-v2:
     reports:
       dotenv: merged_result.env
     expire_in: 1 day
-  rules:
-    - *not_on_schedule
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      changes: *ui_paths
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      changes: *ui_paths
-    - if: $CI_PIPELINE_SOURCE == "web"
+  rules: *ui_rules
 
 # ---------------------------------------------------------------------------
 # data stage — was: ci-data-build.yml

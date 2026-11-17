@@ -335,19 +335,30 @@ def changes_match(patterns, changed: list[str]) -> bool:
     return any(r.match(f) for r in rx for f in changed)
 
 
-def rule_when(job: dict, env: dict[str, str], changed: list[str]) -> str | None:
-    """`when` of the first rule that matches this pipeline, None when no rule does. A job with no
-    rules: runs (on_success) in every pipeline the workflow admits."""
+def first_rule(job: dict, env: dict[str, str], changed: list[str]) -> dict | None:
+    """The first rule that matches this pipeline, None when no rule does. A job with no rules: runs
+    (on_success) in every pipeline the workflow admits."""
     rules = job.get("rules")
     if rules is None:
-        return "on_success"
+        return {}
     for rule in rules:
         if "if" in rule and not eval_if(str(rule["if"]), env):
             continue
         if "changes" in rule and not changes_match(rule["changes"], changed):
             continue
-        return str(rule.get("when", "on_success"))
+        return rule
     return None
+
+
+def rule_when(job: dict, env: dict[str, str], changed: list[str]) -> str | None:
+    rule = first_rule(job, env, changed)
+    return None if rule is None else str(rule.get("when", "on_success"))
+
+
+def rule_variables(job: dict, env: dict[str, str], changed: list[str]) -> dict[str, str]:
+    """The `variables:` of the first matching rule, which GitLab sets over the job's own."""
+    rule = first_rule(job, env, changed) or {}
+    return {str(k): expand(str(v), env) for k, v in (rule.get("variables") or {}).items()}
 
 
 def artifact_needs(job: dict) -> list[str]:
@@ -710,11 +721,13 @@ def main() -> int:
                 names.append(n)
         order = order_jobs(doc, names)
         plans = {n: plan_job(doc, n) for n in order}
+        set_by_rule = {n: rule_variables(plans[n]["job"], base_env, changed) for n in order}
         for n in order:
             p = plans[n]
-            print("  run   %-24s %s%s%s" % (n, p["image"], "  [merged result]" if p["merged"] else "",
-                                          ("  (needed by another job)" if n not in names else "")
-                                          + ("  " + p["note"] if p["note"] else "")))
+            print("  run   %-24s %s%s%s%s" % (n, p["image"], "  [merged result]" if p["merged"] else "",
+                                            ("  (needed by another job)" if n not in names else "")
+                                            + ("  " + p["note"] if p["note"] else ""),
+                                            "".join("  %s=%s" % kv for kv in sorted(set_by_rule[n].items()))))
         for n, why in skipped.items():
             print("  skip  %-24s %s" % (n, why))
         if args.plan or not order:
@@ -737,6 +750,7 @@ def main() -> int:
             write_steps(p, steps, args.full_scope)
             needs_dir, extra = collect_needs(plans, p, runs)
             env = job_env(doc, p["job"], base_env)
+            env.update(set_by_rule[n])
             env.update(extra)
             if p["merged"]:
                 env["MR_TARGET_SHA"] = target_sha

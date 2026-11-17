@@ -12,6 +12,9 @@ merged in. If main has not moved since, the green result stands. If it has, the 
 when it touches the MR's files or the dbt lineage of the models the MR changes, upstream or
 downstream. A move that does not is ready; one that does means the pipeline re-runs, with no new
 commit.
+
+An MR that validate:ui's rules give the full design sweep (UI_FULL_SCOPE) is not ready until that
+sweep ran in its pipeline with no count off `baseline.json`.
 """
 
 from __future__ import annotations
@@ -33,6 +36,10 @@ CROSS_CUTTING = (".gitlab-ci.yml", "requirements.txt", "requirements-dev.txt", "
                  "site_v2/package-lock.json", ".sqlfluff", "dbt_project/dbt_project.yml",
                  "dbt_project/packages.yml")
 DBT_RUN_FILES = ("dbt_project/macros/",)
+UI_JOB = "validate:ui"
+FULL_SCOPE_VAR = "UI_FULL_SCOPE"
+SWEEP_RE = re.compile(r"gap counts: \d+ pages counted at (\S+) px · (.*?)(\d+) off the baseline\s*$", re.M)
+OFF_RE = re.compile(r"· \(baseline\) · (count (?:rose|fell) · .*)$", re.M)
 DBT_DIR = "dbt_project"
 MODEL_PREFIXES = ("dbt_project/models/", "dbt_project/seeds/")
 
@@ -161,6 +168,57 @@ def tested_sha_of(mr: dict, cwd: str | None = None) -> str:
     return min(shas, key=lambda s: commit_time(s, cwd))
 
 
+def needs_full_sweep(files: list[str]) -> bool:
+    """Whether validate:ui's rules give an MR changing these files the full design sweep."""
+    import ci_local as cl
+
+    doc = cl.load_ci()
+    env = {"CI_PIPELINE_SOURCE": "merge_request_event", "CI_DEFAULT_BRANCH": "main"}
+    return bool(cl.rule_variables(cl.resolve_job(doc, UI_JOB), env, files).get(FULL_SCOPE_VAR))
+
+
+def full_widths() -> list[int]:
+    import check_design_inventory as cdi
+
+    baseline = cdi.di.load_baseline(cdi.di.BASELINE)
+    return sorted(baseline.get("viewports", cdi.DEFAULT_VIEWPORTS))
+
+
+def sweep_findings(trace: str, widths: list[int]) -> tuple[bool, list[str]]:
+    """(the trace holds a compared sweep at every width, the counts it found off the baseline)."""
+    full = [m for m in SWEEP_RE.finditer(trace)
+            if sorted(int(v) for v in m.group(1).split(",")) == widths and "not compared" not in m.group(2)]
+    if not full:
+        return False, []
+    total = sum(int(m.group(3)) for m in full)
+    if not total:
+        return True, []
+    return True, OFF_RE.findall(trace) or [f"{total} off the baseline"]
+
+
+def sweep_refusal(mr: dict, files: list[str]) -> list[str]:
+    """Why an MR that needs the full design sweep is not ready, or nothing."""
+    if not needs_full_sweep(files):
+        return []
+    pipeline = mr.get("head_pipeline") or {}
+    if not pipeline.get("id"):
+        return []
+    jobs = [j for j in glab_json(f"projects/:id/pipelines/{pipeline['id']}/jobs?per_page=100") if j.get("name") == UI_JOB]
+    if not jobs:
+        return [f"NOT READY: the MR changes the rendered site and its pipeline has no {UI_JOB} job."]
+    job = jobs[0]
+    if job.get("status") not in ("success", "failed"):
+        return []
+    trace = run(["glab", "api", f"projects/:id/jobs/{job['id']}/trace"], check=False)
+    ran, off = sweep_findings(trace, full_widths())
+    if off:
+        return [f"NOT READY: {UI_JOB} (job {job['id']}) has counts off baseline.json:"] + [f"- {o}" for o in off]
+    if not ran and job["status"] == "success":
+        return [f"NOT READY: {UI_JOB} (job {job['id']}) did not sweep every width against baseline.json; "
+                "re-run the pipeline."]
+    return []
+
+
 def commit_time(ref: str, cwd: str | None) -> int:
     return int(run(["git", "log", "-1", "--format=%ct", ref], cwd=cwd, check=False).strip() or 0)
 
@@ -214,6 +272,9 @@ def decide(iid: str) -> tuple[int, list[str]]:
     head = mr["sha"]
     toplevel = run(["git", "rev-parse", "--show-toplevel"]).strip()
     run(["git", "fetch", "--quiet", REMOTE, target, f"refs/merge-requests/{iid}/head"], cwd=toplevel)
+    refusal = sweep_refusal(mr, run(["git", "diff", "--name-only", f"{REMOTE}/{target}...{head}"], cwd=toplevel).split())
+    if refusal:
+        return 1, refusal
     tested = tested_sha_of(mr)
     current = run(["git", "rev-parse", f"{REMOTE}/{target}"], cwd=toplevel).strip()
     mr_files = run(["git", "diff", "--name-only", f"{tested}...{head}"], cwd=toplevel).split()

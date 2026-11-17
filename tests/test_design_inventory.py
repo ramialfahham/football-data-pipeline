@@ -401,8 +401,8 @@ def test_the_merge_request_run_names_the_scope_of_its_pin_file():
     import check_design_inventory as cdi  # noqa: PLC0415
     flags = "--viewports %s --langs %s --baseline tests/fixtures/design_inventory/baseline_quick.json" % (
         ",".join(str(v) for v in quick["viewports"]), ",".join(quick["langs"]))
-    step = re.search(r'SCOPE=""\n\s*if \[ "\$CI_PIPELINE_SOURCE" = "merge_request_event" \]; then\n(.*?)\n\s*fi\n(.*?\$SCOPE)',
-                     ci, re.S)
+    mr_quick = r'if \[ "\$CI_PIPELINE_SOURCE" = "merge_request_event" \] && \[ -z "\$\{UI_FULL_SCOPE:-\}" \]; then\n'
+    step = re.search(r'SCOPE=""\n\s*' + mr_quick + r'(.*?)\n\s*fi\n(.*?\$SCOPE)', ci, re.S)
     assert step, "validate:ui no longer sets the quick scope only on a merge request pipeline"
     assert flags in step.group(1)
     assert "--viewports" not in step.group(2) and "--langs" not in step.group(2) and "--baseline" not in step.group(2), (
@@ -412,7 +412,7 @@ def test_the_merge_request_run_names_the_scope_of_its_pin_file():
     fi = di.load_baseline(REPO / "tests" / "fixtures" / "design_inventory" / "baseline_quick_fi.json")
     fi_flags = "--viewports %s --langs %s --baseline tests/fixtures/design_inventory/baseline_quick_fi.json" % (
         ",".join(str(v) for v in fi["viewports"]), ",".join(fi["langs"]))
-    fi_step = re.search(r'if \[ "\$CI_PIPELINE_SOURCE" = "merge_request_event" \]; then\n\s*python scripts/check_design_inventory\.py (.*?)\n\s*fi\n', ci)
+    fi_step = re.search(mr_quick + r'\s*python scripts/check_design_inventory\.py (.*?)\n\s*fi\n', ci)
     assert fi_step, "validate:ui no longer runs the Finnish sweep on a merge request pipeline"
     assert fi_flags in fi_step.group(1)
     assert fi["viewports"] == [320] and fi["langs"] == ["fi"] and fi["rendered"]["platform"] == "linux"
