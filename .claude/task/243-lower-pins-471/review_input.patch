@@ -1,0 +1,76 @@
+diff --git a/.claude/task/243-lower-pins-471/contract.md b/.claude/task/243-lower-pins-471/contract.md
+new file mode 100644
+index 00000000..0706db11
+--- /dev/null
++++ b/.claude/task/243-lower-pins-471/contract.md
+@@ -0,0 +1,38 @@
++# Task contract — lower the four design-inventory pins that fell with !471
++
++objective: >
++  Issue #243: main's validate:ui (pipeline 3078457547, job 18101723045, on e15e5fbe) fails only on
++  four rendered counts in the full design-inventory sweep that fell after !471 merged. This lowers
++  exactly those four pins in tests/fixtures/design_inventory/baseline.json to the values main
++  measured: Match page scroll 2175 to 2003; Team page overflow 3 to 0 (the entry goes);
++  gen_matches_hub.py/matches-hub_2026-09-26.html scroll 9 to 8; matches hub scroll 9 to 8.
++
++refs: >
++  #243; !471; main pipeline 3078457547, job 18101723045 (its counts.json artifact is the source of
++  the four values).
++
++scope_paths:
++  - .claude/task/243-lower-pins-471/
++  - tests/fixtures/design_inventory/baseline.json
++
++approved_design:
++  - none: no page output changes
++
++depends_on:
++  - none: !471 is merged; the work is on main alone
++
++shared_files:
++  - tests/fixtures/design_inventory/baseline.json
++
++decisions_taken: >
++  A pin that fell is lowered to the measured value, as the check asks; no other pin moves. No new
++  mechanism, dependency or recurring cost.
++
++decisions_reserved:
++  - none: lowering a fallen pin to its measured value is the check's own instruction.
++
++done_when:
++  - The four values in baseline.json equal main's counts.json for job 18101723045; no other value changes.
++  - python scripts/ci_local.py --mr is green.
++
++amendments: (none)
+diff --git a/tests/fixtures/design_inventory/baseline.json b/tests/fixtures/design_inventory/baseline.json
+index ed728446..a6081901 100644
+--- a/tests/fixtures/design_inventory/baseline.json
++++ b/tests/fixtures/design_inventory/baseline.json
+@@ -16,10 +16,9 @@
+   "platform": "linux",
+   "pages": {
+    "Competition overview": {"split": 21},
+-   "Match page": {"scroll": 2175, "split": 2, "classes": 1},
++   "Match page": {"scroll": 2003, "split": 2, "classes": 1},
+    "Matches day page": {"miss · Fold": 378, "miss · Match row score": 414},
+    "Played match page": {"scroll": 2, "classes": 1},
+-   "Team page": {"overflow": 3},
+    "competition-hub cup": {"classes": 9},
+    "competition-hub groups": {"classes": 9},
+    "competition-hub league": {"overflow": 112, "classes": 11},
+@@ -28,13 +27,13 @@
+    "competition-overview": {"classes": 9},
+    "competition-rankings": {"split": 4, "classes": 9},
+    "gen_interaction.py/interaction_standard.html": {"scroll": 2, "split": 2, "classes": 11, "miss · Competition group head": 6},
+-   "gen_matches_hub.py/matches-hub_2026-09-26.html": {"scroll": 9, "classes": 10},
++   "gen_matches_hub.py/matches-hub_2026-09-26.html": {"scroll": 8, "classes": 10},
+    "gen_sitemap.py/sitemap_overview.html": {"scroll": 4, "overflow": 2, "split": 20, "classes": 27, "miss · (page)": 6},
+    "gen_taxonomy.py/taxonomy_options.html": {"scroll": 1, "overflow": 34, "split": 5, "classes": 13, "miss · (page)": 6},
+    "home": {"classes": 10},
+    "home legacy": {"split": 6, "classes": 12},
+    "index.html": {"miss · (page)": 6},
+-   "matches hub": {"scroll": 9, "classes": 10},
++   "matches hub": {"scroll": 8, "classes": 10},
+    "matches next": {"classes": 12},
+    "matches past": {"classes": 12},
+    "top players": {"classes": 12},
