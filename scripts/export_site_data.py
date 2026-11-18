@@ -71,7 +71,7 @@ _COMPETITION_PLAYER_BOARDS = (
 # The played match page's Match leaders: mart_leaderboards' match boards, a filter like the tuples
 # above, carried in the catalogue's order. The warehouse cuts each board at three.
 _MATCH_PLAYER_BOARDS = (
-    "shots_player", "passes_player", "passes_key_player", "dribbles_attempts_player",
+    "shots_player", "passes_player", "passes_key_player", "ball_actions_player", "dribbles_attempts_player",
     "duels_won_player", "defensive_actions_player", "fouls_player",
 )
 # Five rows per board on a competition page (#129 board rules); the warehouse ranks and orders,

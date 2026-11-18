@@ -100,10 +100,12 @@ def test_player_boards_agree_in_the_mart_the_yml_and_the_export():
 
 def test_the_export_match_boards_are_ranked_by_the_mart():
     match_boards = _jinja_list(PLAYER_SQL.read_text(encoding="utf-8"), "match_boards")
-    assert set(_MATCH_PLAYER_BOARDS) <= set(match_boards), "the Match leaders boards the export carries"
+    assert set(_MATCH_PLAYER_BOARDS) == set(match_boards), (
+        "the export carries every Match leaders board the mart ranks: shape_match_leaders refuses one it does not list"
+    )
     assert len(set(_MATCH_PLAYER_BOARDS)) == len(_MATCH_PLAYER_BOARDS)
     assert _in_catalogue_order(_MATCH_PLAYER_BOARDS, "player") == (
-        "shots_player", "passes_player", "passes_key_player", "dribbles_attempts_player",
+        "shots_player", "passes_player", "passes_key_player", "ball_actions_player", "dribbles_attempts_player",
         "duels_won_player", "defensive_actions_player", "fouls_player",
     ), "the ruled order of the Match leaders boards"
 

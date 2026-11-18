@@ -5,8 +5,9 @@
 
   Source: int_player_season_record, which computes every metric (counts and ratios) from its catalogue
   formula. Each upcoming fixture side's team is joined to its players' latest season-to-date row for the
-  fixture's (league_code, season_api_year); a side with no row there yet takes the same competition's previous
-  season (window_type='prev_season'). Goals, assists and shots on target are handed to the export under the keys
+  fixture's (league_code, season_api_year); a side whose team has not played a match there yet (awarded
+  results not counted) takes the same competition's previous season (window_type='prev_season'). A team that
+  has played but has no player rows there gets no rows. Goals, assists and shots on target are handed to the export under the keys
   the site reads (goals_total, goals_assists, shots_on). saves_player_pct is only meaningful for
   goalkeepers. top_player_rank orders a side by goals plus assists, then goals, then fewer minutes; NULL
   when the player's goals plus assists is unknown.
@@ -65,6 +66,7 @@ matched as (
         sf.player_sk,
         s.league_code,
         s.is_home,
+        s.season_api_year as fixture_season_api_year,
         sf.entity_type,
         sf.season_api_year,
         'season_to_date' as window_type,
@@ -113,6 +115,7 @@ matched as (
         sf.player_sk,
         s.league_code,
         s.is_home,
+        s.season_api_year as fixture_season_api_year,
         sf.entity_type,
         sf.season_api_year,
         'prev_season' as window_type,
@@ -189,6 +192,12 @@ chosen as (
             m.team_sk = tm.team_sk
             and m.league_code = tm.league_code
             and m.season_api_year = tm.season_api_year
+    left join team_matches as played_now
+        on
+            m.team_sk = played_now.team_sk
+            and m.league_code = played_now.league_code
+            and m.fixture_season_api_year = played_now.season_api_year
+    where m.priority = 1 or coalesce(played_now.team_matches, 0) = 0
     qualify m.priority = min(m.priority) over (partition by m.upcoming_fixture_sk, m.team_sk)
 ),
 
