@@ -323,7 +323,7 @@ Canonical mart inventory (exhaustive) for this project:
 | `mart_standings` | (league_code, season_api_year, group_name, team_sk) | The league's official standings row, the provider's except where corrected to the league's figures (rank, points, W/D/L, goals scored and conceded, goal difference, form) plus `table_kind`, the section's kind (league / group / conference / split_round / ranking) resolved from its name through the `standings_table_kinds` seed. Teams level on points stand in the league's tie-break order where our table equals the provider's (`int_standings__official_rank`). |
 | `mart_competition_season_summary` | (league_code, season_api_year) | The season's headline tallies over finished matches: matches, goals, goals per match, home/away/draw split, the biggest-margin and most-goals fixtures, the longest unbeaten and winless runs with their holders. Composes `int_legs__team_match`; results tallied at competition grain, not catalogue metrics. |
 | `mart_team_market_value` | team_sk | Team squad market value; currently WC-scoped (see #418 to generalize). |
-| `mart_team_profile` | (team_sk, season_sk) | v2 team profile: full-season metrics, YoY deltas, streaks. |
+| `mart_team_profile` | (team_sk, season_sk) | v2 team profile: full-season metrics, streaks. |
 | `mart_player_profile` | (player_sk, season_sk) | v2 player profile rollup. |
 | `mart_team_window_metrics` | (fixture_sk, team_sk) | A team's metrics over a window, for the match whose page shows them: its form before an upcoming match, the match alone once played. |
 | `mart_player_momentum` | (upcoming_fixture_sk, team_sk, player_sk) | W1 momentum aggregate (player). |

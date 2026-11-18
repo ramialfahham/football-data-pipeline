@@ -2,8 +2,7 @@
   The rate guard of engineering_standards.md section 3.2, on the season surface. For every team
   rate the catalogue defines with a denominator, wherever int_team_season__metrics_cumulative
   shows a value at match N, every column its formula reads is present in every non-awarded game
-  of that season up to N. Every match number is guarded, not only the latest row: the
-  year-over-year model reads mid-season rows.
+  of that season up to N. Every match number is guarded, not only the latest row.
 
   Generated from metric_catalogue.csv at run time exactly as assert_form_window_rates_inputs_covered
   is (the inputs are the expression identifiers that are columns of base_relation; no per-rate

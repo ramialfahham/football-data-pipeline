@@ -1,7 +1,6 @@
 {#
   Player contribution-share — a player's goal-involvement share of the team's WHOLE-SEASON goals
-  (content_architecture §6.4, the "bonus" flagship; a player-profile differentiator, sibling of
-  int_player_profile__yoy). "Involved in 45% of Bayern's goals."
+  (content_architecture §6.4, the "bonus" flagship; a player-profile differentiator). "Involved in 45% of Bayern's goals."
 
   Metric definition:
     - numerator = scorer_points_player (goals + assists), its catalogue formula over the player's matches

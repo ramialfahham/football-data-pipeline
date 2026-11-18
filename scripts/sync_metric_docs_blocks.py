@@ -166,7 +166,7 @@ DERIVED_AFFIXES: tuple[tuple[str, str, str], ...] = (
 BLOCK_NAME_RE = re.compile(r"^\w+$")
 
 # Floor under the derived names read from the model YAML, for the same reason as MIN_METRICS.
-MIN_DERIVED = 40
+MIN_DERIVED = 3
 
 # Affixes that total a value; a metric with a `denominator_expr` is a rate, and totalling it is a
 # different quantity, so its block is refused and the column stays blank.

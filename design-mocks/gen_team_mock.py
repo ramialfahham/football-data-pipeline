@@ -452,8 +452,8 @@ def build_league_rows(feat, team_name="Borussia Dortmund"):
                                 + ", ".join(missing) + ". The warehouse serves them in this page's build.")
 
 
-def build_season_bars(feat):
-    """Compared with last season, with last season at the same point on the left."""
+def build_season_bars(last):
+    """Compared with last season: this season so far against the whole of last season."""
     strings = (REPO / "site_v2/src/i18n/strings.ts").read_text(encoding="utf-8")
 
     def label(key):
@@ -475,7 +475,8 @@ def build_season_bars(feat):
             return str(Decimal(str(x)).quantize(Decimal(q), rounding=ROUND_HALF_UP))
         return {"percent": r(v * 100, "1") + "%", "decimal_0": r(v, "1"), "integer": r(v, "1")}.get(f, r(v, "0.1"))
 
-    n = feat.get("yoy_games_played_cutoff") or feat["played"]
+    last = last or {}
+    values = {m["metric_key"]: m for m in last.get("metrics", [])}
     css = ('<style>.ctab.yoyt{--cols:minmax(0,1fr) 3.4rem 3.4rem 2.8rem;margin-top:0} .yoyt-head .h{white-space:normal;line-height:1.2} '
            '@container (min-width:420px){.ctab.yoyt{--cols:minmax(0,1fr) 4.6rem 4.6rem 3rem}} .ctab.yoyt .tm .nm{font-weight:400} '
            '.yoyt-sub{display:block;font-size:12px;color:var(--muted);font-weight:400} '
@@ -484,7 +485,9 @@ def build_season_bars(feat):
            '.ctab.yoyt .n.tr{font-size:13px;text-align:center;padding-left:0} .tr.up{color:var(--accent)} '
            '.tr.down{color:var(--loss)} .tr.flat{color:var(--muted)} '
            '.yoyt-head{margin-top:6px} .rkgroup > .gh{margin-bottom:26px}</style>')
-    out = [css, f'<p class="bsub">Both seasons are compared over their first {n} matches. <a class="mk-chevlink" href="/en/glossary/">Metric Glossary' + CHEV + '</a></p>', fold_open("tf-season"),
+    out = [css, f'<p class="bsub">This season ({last.get("matches")} matches) against last season ({last.get("matches_prev")}), '
+           "across all competitions. Values are per match, so the number of matches doesn't tilt them. Early on, a few "
+           'matches can swing the numbers; they settle as the matches add up. <a class="mk-chevlink" href="/en/glossary/">Metric Glossary' + CHEV + '</a></p>', fold_open("tf-season"),
            '<div class="ctab yoyt yoyt-head"><div class="ctab-head"><span class="h"></span><span class="h">This season</span>'
            '<span class="h">Last season</span><span class="h" style="text-align:center">Trend</span></div></div>',
            '<div class="yoyt-wrap">']
@@ -499,7 +502,7 @@ def build_season_bars(feat):
         for r in rows:
             key = bind.get(r["metric_id"], r["metric_id"])
             f = "percent" if key.endswith("_pct") else r["format"]
-            prev, now = feat.get(f"{key}_prev_season"), feat.get(f"{key}_this_season")
+            prev, now = values.get(key, {}).get("value_prev"), values.get(key, {}).get("value")
             sub = "per match" if r["per_match"] else ("percentage" if key in share_by_count else "")
             name = label(r["label_i18n_key"]) + (f'<span class="yoyt-sub">{sub}</span>' if sub else "")
             trend = '<span class="n tr flat" aria-label="no change">–</span>'
@@ -516,7 +519,7 @@ def build_season_bars(feat):
                        f'<span class="n now">{fmt(now, f)}</span><span class="n prev">{fmt(prev, f)}</span>{trend}</div>')
         out.append("</div></div>")
     out.append("</div>" + fold_ctl("tf-season", len(served)))
-    return "".join(out) + gap(f"{len(missing)} of {len(served)} rows have no value at the same point last season yet: "
+    return "".join(out) + gap(f"{len(missing)} of {len(served)} rows have no value in one of the two seasons: "
                               + ", ".join(missing) + ". The warehouse serves them in this page's build.")
 
 
@@ -674,7 +677,7 @@ def build():
                     + frow("Points", pts, f"Season before: {int(pts) - pts_d}")
                     + "</section>"
                     + gap("Position in the season before at the same point: no mart serves it (the payload has this season's latest_rank "
-                          "and last season's final rank only). Points in the season before at the same point are served (points_prev_season)."))
+                          "and last season's final rank only)."))
     expl = ("Deserved points are the points a team usually earns with its shots on target difference – its shots "
             "on target minus its opponents'. Teams with fewer points than deserved are better than the table shows; "
             "teams with more are worse.")
@@ -969,7 +972,7 @@ def build():
                   + f'<section aria-label="Compared with the league">{sechead("Compared with the league")}'
                   + build_league_rows(feat) + "</section>"
                   + f'<section aria-label="Compared with last season">{sechead("Compared with last season")}'
-                  + build_season_bars(feat) + "</section>"),
+                  + build_season_bars(payload.get("last_season")) + "</section>"),
         "squad": f'<p class="pagecap">Bundesliga · season to date · {len(squad)} players with a match</p>' + "".join(sq),
         "history": f'<section>{sechead("Seasons")}{"".join(hist)}</section>'
                    + gap("All-time and Coach: all-time can count only the seasons held (Bundesliga since 2016/17); no mart serves the coach (it stops at staging)."),

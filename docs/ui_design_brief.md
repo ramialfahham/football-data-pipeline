@@ -131,9 +131,6 @@ no heat maps, no pass networks and no win probability.
   between them. Shot share % is the share of all shots in the team's matches. Points capture % is
   points won / points available. The gap label reads "dominates play more/less than results show".
   The block shows two real numbers and their difference, NOT a composite score gauge.
-- **Year-over-year (YoY)** (domestic leagues): points, goals for and goals against through N games
-  this season, against the same N games last season, with deltas. The values are NULL for cups and
-  where the warehouse holds no last season. Design the absent state.
 - **Streaks**: the current unbeaten, win, winless, clean-sheet and scoring runs.
 - **Fixtures**: a list of the next and recent matches.
 - **Squad**: per player, for the competition-season: appearances (matches played), minutes per

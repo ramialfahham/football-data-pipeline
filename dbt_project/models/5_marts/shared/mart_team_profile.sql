@@ -11,8 +11,6 @@
     - season metric rates  int_team_season__metrics
 
   Differentiators:
-    - Vs own history — year-over-year (rule R6 in models/docs/metric_rules.md),
-      from int_team_profile__yoy.
     - Streaks (lighter layer) — trailing unbeaten / win / winless / clean-sheet /
       scoring runs from int_team_profile__streaks.
 
@@ -43,10 +41,6 @@ competition_seasons as (
         season_sk,
         season_label
     from {{ ref('dim_competition_season') }}
-),
-
-yoy as (
-    select * from {{ ref('int_team_profile__yoy') }}
 ),
 
 streaks as (
@@ -137,69 +131,6 @@ select
     -- shooting dominance + results efficiency (catalogued season metrics)
     m.shots_share_pct,
     m.points_capture_pct,
-    -- year-over-year (rule R6)
-    y.yoy_games_played_cutoff,
-    y.points_this_season,
-    y.points_prev_season,
-    y.points_delta_yoy,
-    y.points_rank_prev_season,
-    y.goals_for_this_season,
-    y.goals_for_prev_season,
-    y.goals_for_delta_yoy,
-    y.goals_against_this_season,
-    y.goals_against_prev_season,
-    y.goals_against_delta_yoy,
-    -- rate-metric YoY: matchday-aligned this/prev/delta for the LOCKED 16-row display set — the
-    -- data for the team Stats tab's per-metric vs-last-season column. All simple passthrough from
-    -- int_team_profile__yoy (the deltas were computed there).
-    y.goals_per_match_this_season,
-    y.goals_per_match_prev_season,
-    y.goals_per_match_delta_yoy,
-    y.goals_against_per_match_this_season,
-    y.goals_against_per_match_prev_season,
-    y.goals_against_per_match_delta_yoy,
-    y.clean_sheets_pct_this_season,
-    y.clean_sheets_pct_prev_season,
-    y.clean_sheets_pct_delta_yoy,
-    y.shots_per_match_this_season,
-    y.shots_per_match_prev_season,
-    y.shots_per_match_delta_yoy,
-    y.shots_inside_box_pct_this_season,
-    y.shots_inside_box_pct_prev_season,
-    y.shots_inside_box_pct_delta_yoy,
-    y.shots_on_goal_per_match_this_season,
-    y.shots_on_goal_per_match_prev_season,
-    y.shots_on_goal_per_match_delta_yoy,
-    y.finishing_efficiency_pct_this_season,
-    y.finishing_efficiency_pct_prev_season,
-    y.finishing_efficiency_pct_delta_yoy,
-    y.duels_per_match_this_season,
-    y.duels_per_match_prev_season,
-    y.duels_per_match_delta_yoy,
-    y.duels_won_pct_this_season,
-    y.duels_won_pct_prev_season,
-    y.duels_won_pct_delta_yoy,
-    y.defensive_actions_per_match_this_season,
-    y.defensive_actions_per_match_prev_season,
-    y.defensive_actions_per_match_delta_yoy,
-    y.passes_per_match_this_season,
-    y.passes_per_match_prev_season,
-    y.passes_per_match_delta_yoy,
-    y.passes_accuracy_pct_this_season,
-    y.passes_accuracy_pct_prev_season,
-    y.passes_accuracy_pct_delta_yoy,
-    y.passes_key_per_match_this_season,
-    y.passes_key_per_match_prev_season,
-    y.passes_key_per_match_delta_yoy,
-    y.corners_per_match_this_season,
-    y.corners_per_match_prev_season,
-    y.corners_per_match_delta_yoy,
-    y.corners_against_per_match_this_season,
-    y.corners_against_per_match_prev_season,
-    y.corners_against_per_match_delta_yoy,
-    y.saves_pct_this_season,
-    y.saves_pct_prev_season,
-    y.saves_pct_delta_yoy,
     -- streaks (trailing run as of the latest match)
     s.unbeaten_run,
     s.win_run,
@@ -255,11 +186,6 @@ left join teams as t
     on m.team_sk = t.team_sk
 left join competitions as reg
     on m.league_code = reg.league_code
-left join yoy as y
-    on
-        m.team_sk = y.team_sk
-        and m.league_code = y.league_code
-        and m.season_api_year = y.season_api_year
 left join streaks as s
     on
         m.team_sk = s.team_sk

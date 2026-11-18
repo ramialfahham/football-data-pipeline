@@ -78,13 +78,6 @@ teams as (
     from {{ ref('dim_team') }}
 ),
 
--- Phase C: appearances-aligned year-over-year for the player's PRIMARY club that
--- competition-season (mirrors int_team_profile__yoy -> mart_team_profile). Only the
--- latest season per (player, club, league) has a YoY row; older seasons get NULL.
-yoy as (
-    select * from {{ ref('int_player_profile__yoy') }}
-),
-
 -- Phase D bonus: goal-involvement share of the club's whole-season goals, for the player's PRIMARY club
 -- that competition-season (content_architecture §6.4).
 contribution as (
@@ -217,32 +210,6 @@ select
     a.duels_won_player_pct,
     a.dribbles_success_player_pct,
     a.saves_player_pct,
-    -- year-over-year (domestic only; the player's primary club that season; NULL
-    -- otherwise / when the prior season at that club is absent).
-    y.yoy_appearances_cutoff,
-    y.goals_player_this_season,
-    y.goals_player_prev_season,
-    y.goals_player_delta_yoy,
-    y.assists_player_this_season,
-    y.assists_player_prev_season,
-    y.assists_player_delta_yoy,
-    y.shots_on_goal_player_this_season,
-    y.shots_on_goal_player_prev_season,
-    y.shots_on_goal_player_delta_yoy,
-    y.passes_key_player_this_season,
-    y.passes_key_player_prev_season,
-    y.passes_key_player_delta_yoy,
-    y.defensive_actions_player_this_season,
-    y.defensive_actions_player_prev_season,
-    y.defensive_actions_player_delta_yoy,
-    -- prior-season FULL totals: the "how big was last season" anchor for the pace-matched
-    -- deltas above (context only, no delta-vs-full; NULL when the prior season is absent).
-    y.appearances_prev_full,
-    y.goals_player_prev_season_full,
-    y.assists_player_prev_season_full,
-    y.shots_on_goal_player_prev_season_full,
-    y.passes_key_player_prev_season_full,
-    y.defensive_actions_player_prev_season_full,
     -- contribution-share (goal involvements as a share of the club's whole-season goals; the player's
     -- primary club that season; NULL where absent).
     c.scorer_points_player,
@@ -266,12 +233,6 @@ left join team_affiliation as ta
         and a.season_api_year = ta.season_api_year
 left join teams as t
     on ta.team_sk = t.team_sk
-left join yoy as y
-    on
-        a.player_sk = y.player_sk
-        and ta.team_sk = y.team_sk
-        and a.league_code = y.league_code
-        and a.season_api_year = y.season_api_year
 left join contribution as c
     on
         a.player_sk = c.player_sk

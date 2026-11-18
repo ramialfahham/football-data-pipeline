@@ -494,10 +494,7 @@ seeds:
         description: >
           Which part of the metric the column holds, read from the column's name. NULL: the
           metric over the table's own row, which is one match, one season or one window as the
-          table says. this_season: the season in progress so far. prev_season: the season before,
-          through the same point. prev_season_full: the whole season before. delta_yoy: this
-          season minus the season before at the same point. sum_season: totalled over the
-          season. form: over the team's form window. home or away: the fixture's home or away
+          table says. sum_season: totalled over the season. form: over the team's form window. home or away: the fixture's home or away
           side. opponent: the opposing team. last_meeting: the two teams' previous meeting.
           recent_meetings: each of their recent meetings. A side and a period join with an
           underscore, as in home_form.

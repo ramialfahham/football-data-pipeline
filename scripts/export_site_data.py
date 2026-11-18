@@ -519,7 +519,6 @@ def _shape_team_benchmark_member(row: dict) -> dict:
     return {
         "metric_key": row.get("metric_key"),
         "metric_value": row.get("metric_value"),
-        "metric_value_prev_season": row.get("metric_value_prev_season"),
         "rank": row.get("rank"),
         "team_count": row.get("team_count"),
         "league_median": row.get("league_median"),

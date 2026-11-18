@@ -4,11 +4,9 @@
   final one. This is the single home of the team-season metrics:
 
     - int_team_season__metrics is the FINAL-ROW PROJECTION of this model (whole-season rollup).
-    - int_team_profile__yoy COMPOSES this model at the games-played cutoff N to align two seasons
-      by matchday for ALL metrics ("this season through N vs last season through its first N").
 
   Grain: (team_sk, league_code, season_api_year, match_number). All-competitions, like
-  int_team_season__metrics (no domestic filter — the YoY consumer applies that).
+  int_team_season__metrics (no domestic filter).
 
   Every catalogue metric is written by scripts/generate_metric_sql.py from metric_catalogue.csv,
   by the rules in models/docs/metric_rules.md. The match counts, the coverage counts and the raw

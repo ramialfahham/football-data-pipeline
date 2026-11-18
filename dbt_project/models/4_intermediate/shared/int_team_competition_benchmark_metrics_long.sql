@@ -13,10 +13,6 @@
   alone (int_team_competition_phase__metrics): its teams and its matches, without the qualifiers
   and the knockout phase. Every other competition-season counts all its matches. round_stage_kind
   says which: table for a competition-season benchmarked over its table rounds, NULL otherwise.
-
-  Each row also carries the team's value at the same point last season (rule R6), from
-  int_team_season__metrics_cumulative, chosen as int_team_profile__yoy chooses it: the previous
-  season's latest match at or before this season's match count, domestic leagues only.
   Grain: (team_sk, season_sk, metric_key).
 #}
 
@@ -82,86 +78,6 @@ season as (
     {% endfor %}
 ),
 
-competitions as (
-    select
-        league_code,
-        competition_type
-    from {{ ref('dim_league') }}
-),
-
-domestic_cumulative as (
-    select c.*
-    from {{ ref('int_team_season__metrics_cumulative') }} as c
-    inner join competitions as r
-        on c.league_code = r.league_code
-    where r.competition_type = 'domestic_league'
-),
-
--- each domestic team-season's match count, the N its previous season is read at
-season_n as (
-    select
-        team_sk,
-        league_code,
-        season_api_year,
-        max(match_number) as match_count
-    from domestic_cumulative
-    group by team_sk, league_code, season_api_year
-),
-
-previous as (
-    select
-        n.team_sk,
-        n.league_code,
-        n.season_api_year,
-        c.goals_per_match,
-        c.goals_against_per_match,
-        cast(c.clean_sheets as float64) as clean_sheets,
-        c.clean_sheets_pct,
-        c.shots_per_match,
-        c.shots_on_goal_pct,
-        c.shots_inside_box_pct,
-        c.shots_inside_box_per_match,
-        c.shots_on_goal_per_match,
-        c.shots_on_goal_against_per_match,
-        c.shots_on_goal_difference_per_match,
-        c.finishing_efficiency_pct,
-        c.duels_per_match,
-        c.duels_won_per_match,
-        c.duels_won_pct,
-        c.defensive_actions_per_match,
-        c.tackles_per_match,
-        c.interceptions_per_match,
-        c.blocks_per_match,
-        c.passes_per_match,
-        c.passes_accurate_per_match,
-        c.passes_accuracy_pct,
-        c.passes_share_pct,
-        c.passes_key_per_match,
-        c.dribbles_attempts_per_match,
-        c.dribbles_success_per_match,
-        c.dribbles_success_pct,
-        c.corners_per_match,
-        c.corners_against_per_match,
-        c.free_kicks_per_match,
-        c.fouls_per_match,
-        c.offsides_per_match,
-        c.saves_per_match,
-        c.saves_pct,
-        cast(c.cards_yellow as float64) as cards_yellow,
-        cast(c.cards_red as float64) as cards_red
-    from season_n as n
-    inner join domestic_cumulative as c
-        on
-            n.team_sk = c.team_sk
-            and n.league_code = c.league_code
-            and n.season_api_year - 1 = c.season_api_year
-            and n.match_count >= c.match_number
-    qualify row_number() over (
-        partition by n.team_sk, n.league_code, n.season_api_year
-        order by c.match_number desc
-    ) = 1
-),
-
 current_long as (
     select
         team_sk,
@@ -213,56 +129,6 @@ current_long as (
             cards_red
         )
     )
-),
-
-previous_long as (
-    select
-        team_sk,
-        league_code,
-        season_api_year,
-        metric_key,
-        metric_value
-    from previous
-    unpivot (
-        metric_value for metric_key in (
-            goals_per_match,
-            goals_against_per_match,
-            clean_sheets,
-            clean_sheets_pct,
-            shots_per_match,
-            shots_on_goal_pct,
-            shots_inside_box_pct,
-            shots_inside_box_per_match,
-            shots_on_goal_per_match,
-            shots_on_goal_against_per_match,
-            shots_on_goal_difference_per_match,
-            finishing_efficiency_pct,
-            duels_per_match,
-            duels_won_per_match,
-            duels_won_pct,
-            defensive_actions_per_match,
-            tackles_per_match,
-            interceptions_per_match,
-            blocks_per_match,
-            passes_per_match,
-            passes_accurate_per_match,
-            passes_accuracy_pct,
-            passes_share_pct,
-            passes_key_per_match,
-            dribbles_attempts_per_match,
-            dribbles_success_per_match,
-            dribbles_success_pct,
-            corners_per_match,
-            corners_against_per_match,
-            free_kicks_per_match,
-            fouls_per_match,
-            offsides_per_match,
-            saves_per_match,
-            saves_pct,
-            cards_yellow,
-            cards_red
-        )
-    )
 )
 
 select
@@ -273,12 +139,5 @@ select
     cur.season_api_year,
     cur.round_stage_kind,
     cur.metric_key,
-    cur.metric_value,
-    prev.metric_value as metric_value_prev_season
+    cur.metric_value
 from current_long as cur
-left join previous_long as prev
-    on
-        cur.team_sk = prev.team_sk
-        and cur.league_code = prev.league_code
-        and cur.season_api_year = prev.season_api_year
-        and cur.metric_key = prev.metric_key

@@ -2,8 +2,7 @@
   Team competition benchmark (the vs-benchmark block; content_architecture §6 — the engine, table stakes).
   LONG: one row per (team, season, metric_key) over the team benchmark metrics. Each row places the
   team against its league that season: the team's metric_value, the league median (+ mean) and
-  p25/p75 spread, the team's rank (k of team_count), metric_value - median, and the team's value at
-  the same point last season.
+  p25/p75 spread, the team's rank (k of team_count) and metric_value - median.
 
   rank orders by the metric's direction from the catalogue: a lower_better metric ranks the lowest
   value 1, every other metric the highest; tied values share a rank. Median-led; rank not percentile
@@ -49,7 +48,6 @@ ranked as (
         m.round_stage_kind,
         m.metric_key,
         m.metric_value,
-        m.metric_value_prev_season,
         rank() over (
             partition by m.league_code, m.season_api_year, m.metric_key
             order by if(c.direction = 'lower_better', m.metric_value, -m.metric_value) asc
@@ -79,7 +77,6 @@ select
     b.league_p75,
     b.team_count,
     r.rank,
-    r.metric_value_prev_season,
     r.metric_value - b.league_median as vs_median_delta
 from ranked as r
 inner join benchmarks as b

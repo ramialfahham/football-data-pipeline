@@ -186,7 +186,7 @@ models:
       - name: round_order
         description: "{{ doc('round_order') }}"
       - name: match_number
-        description: "The player's Nth finished match played that competition-season, ordered by kickoff (equal to games_played) — the appearance cutoff the year-over-year comparison aligns two seasons on."
+        description: "The player's Nth finished match played that competition-season, ordered by kickoff (equal to games_played)."
       - name: goals_player
         description: "{{ doc('goals_player') }}"
       - name: goals_against_player

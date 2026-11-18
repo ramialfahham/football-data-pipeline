@@ -1198,10 +1198,10 @@ def test_shape_team_benchmark_member_carries_mart_columns():
         "league_code": "BL1", "season_api_year": 2025, "metric_key": "goals_per_match",
         "metric_value": 2.2, "league_mean": 1.6, "league_median": 1.5,
         "league_p25": 1.1, "league_p75": 2.0, "team_count": 18, "rank": 3,
-        "vs_median_delta": 0.7, "metric_value_prev_season": 1.9,
+        "vs_median_delta": 0.7,
     })
     assert m == {
-        "metric_key": "goals_per_match", "metric_value": 2.2, "metric_value_prev_season": 1.9,
+        "metric_key": "goals_per_match", "metric_value": 2.2,
         "rank": 3, "team_count": 18,
         "league_median": 1.5, "league_p25": 1.1, "league_p75": 2.0, "vs_median_delta": 0.7,
     }
