@@ -5,7 +5,11 @@ Reads the registry and fails closed on a key, set reference or form it does not 
 - generates the element table of `docs/wireframes/block_standard.md` from the registry and fails
   when the document's table differs (`--write` rewrites it);
 - counts the gaps of the registry's checks 3 and 4 in `site_v2/src/styles/system.css`:
-  `stylesheet values` — a font size, weight, colour, spacing or switch width no set holds;
+  `stylesheet values` — a font size, weight, colour, spacing, corner radius or switch width no set holds;
+  `unchecked property` — a declaration no set governs and the NON_VISUAL list does not name
+  (borders, sizes, shadows, offsets, backgrounds and so on), per property;
+  `inline styles` — a `<style>` block or `style=` attribute in a `.astro` file, which this check
+  cannot read;
   `forms` — a component whose rules switch at a width other than its one narrow form's;
   `unlisted classes` — a class the stylesheet styles and no component or rule lists;
 - counts the parts the registry records as a gap (`gap:` on a part), per kind;
@@ -41,7 +45,7 @@ SYSTEM_CSS = REPO / "site_v2" / "src" / "styles" / "system.css"
 BASELINE = REPO / "tests" / "fixtures" / "component_registry" / "baseline.json"
 SITE = REPO / "site_v2" / "src"
 
-SETS = ("text", "marks", "spacing", "colours", "switch")
+SETS = ("text", "marks", "spacing", "colours", "switch", "corners")
 COMPONENT_KEYS = {"name", "file", "used-on", "parts", "wide", "narrow", "never-split", "short-forms", "links-to"}
 # How a component file builds a link to each type of page.
 LINK_BUILDERS = {
@@ -92,7 +96,7 @@ def load(path: Path = REGISTRY) -> dict:
         _keys("sets.text.%s" % name, style, TEXT_KEYS, {"size", "weight", "colour"})
     for name, mark in sets["marks"].items():
         _keys("sets.marks.%s" % name, mark, {"size", "colour"}, {"size", "colour"})
-    for name in ("spacing", "colours"):
+    for name in ("spacing", "colours", "corners"):
         if not isinstance(sets[name], list):
             raise RegistryError("sets.%s: expected a list" % name)
     for name, width in sets["switch"].items():
@@ -218,11 +222,82 @@ _CLASS = re.compile(r"\.([A-Za-z_][\w-]*)")
 _FUNC = re.compile(r"[a-z-]+\((?:[^()]|\([^()]*\))*\)|[^\s,()]+")
 SPACING_PROPS = re.compile(r"^(margin|padding)(-(top|right|bottom|left|inline|block)(-(start|end))?)?$|^(row-|column-)?gap$")
 COLOUR_PROPS = ("color", "background-color", "background", "fill", "stroke")
+RADIUS_PROPS = re.compile(r"^border-((top|bottom)-(left|right)-)?radius$|^border-(start|end)-(start|end)-radius$")
+NO_VALUE = {"0", "0px", "auto", "inherit", "!important"}
+
+# Properties that carry no visual value: layout placement, behaviour, text flow. Every other
+# property the stylesheet declares is either governed by a set or counted as unchecked.
+NON_VISUAL = frozenset("""
+display flex-direction flex-wrap align-content align-items align-self justify-content
+justify-items justify-self place-items grid-area grid-column grid-row grid-template-areas
+overflow overflow-x overflow-y overflow-wrap overscroll-behavior-x position z-index visibility
+cursor pointer-events user-select container container-type content appearance -webkit-appearance
+scrollbar-width box-sizing object-fit text-overflow white-space word-break hyphens text-wrap
+text-align text-transform font-variant-numeric transition
+-webkit-font-smoothing paint-order vector-effect
+""".split())
+_SIMPLE_COLOUR = {"none", "transparent", "currentcolor", "inherit", "0"}
+_INLINE = {"style block": re.compile(r"<style\b"), "style attribute": re.compile(r"(?<![\w-])style\s*=")}
 
 
 def _css(path: Path = SYSTEM_CSS) -> str:
     text = _COMMENT.sub(lambda m: " " * len(m.group(0)), path.read_text(encoding="utf-8"))
     return re.sub(r"@font-face\s*\{[^}]*\}", "", text)
+
+
+def declarations(css: str) -> list[tuple[str, str]]:
+    """Every (property, value) of the stylesheet, custom properties included. A chunk that ends
+    at `{` is a selector or an at-rule head; one that ends at `;` or `}` is a declaration."""
+    out: list[tuple[str, str]] = []
+    buf: list[str] = []
+    depth = 0
+    for ch in css:
+        depth += (ch == "(") - (ch == ")")
+        if depth == 0 and ch in ";{}":
+            chunk = "".join(buf).strip()
+            buf = []
+            if ch != "{" and ":" in chunk and not chunk.startswith("@"):
+                prop, value = chunk.split(":", 1)
+                out.append((prop.strip(), value.strip()))
+            continue
+        buf.append(ch)
+    return out
+
+
+def _governed(prop: str, value: str, colours: set[str]) -> bool:
+    """True when a set holds every value of the declaration."""
+    if prop.startswith("--"):
+        return prop[2:] in colours
+    if prop in ("font-size", "font-weight", "font") or RADIUS_PROPS.match(prop) or SPACING_PROPS.match(prop):
+        return True
+    if prop in COLOUR_PROPS:
+        rest = re.sub(r"var\([^()]*\)|#[0-9a-fA-F]{3,8}\b", " ", value)
+        return set(rest.lower().split()) <= _SIMPLE_COLOUR
+    return False
+
+
+def unchecked_properties(reg: dict, css: str) -> dict[str, int]:
+    """Declarations no set governs and the non-visual list does not name, per property."""
+    colours = {str(c) for c in reg["sets"]["colours"]}
+    out: dict[str, int] = {}
+    for prop, value in declarations(css):
+        if prop in NON_VISUAL or _governed(prop, value, colours):
+            continue
+        out[prop] = out.get(prop, 0) + 1
+    return out
+
+
+def inline_styles(root: Path) -> dict[str, int]:
+    """`<style>` blocks and `style=` attributes in the pages and components: styles there sit
+    outside the stylesheet this check reads."""
+    out: dict[str, int] = {}
+    for path in sorted(Path(root).rglob("*.astro")):
+        text = path.read_text(encoding="utf-8")
+        for kind, pat in _INLINE.items():
+            n = len(pat.findall(text))
+            if n:
+                out[kind] = out.get(kind, 0) + n
+    return out
 
 
 def _vars(css: str) -> dict[str, str]:
@@ -243,7 +318,7 @@ def switch_width(kind: str, px: str) -> str:
 def stylesheet_values(css: str) -> dict[str, list[str]]:
     """Every value the stylesheet writes, per set: font sizes, weights, colours, spacings, widths."""
     defs = _vars(css)
-    out: dict[str, list[str]] = {"size": [], "weight": [], "colour": [], "spacing": [], "switch": []}
+    out: dict[str, list[str]] = {"size": [], "weight": [], "colour": [], "spacing": [], "switch": [], "corner": []}
     for m in _DECL.finditer(css):
         prop, value = m.group(1), m.group(2).strip()
         if prop.startswith("--"):
@@ -261,9 +336,11 @@ def stylesheet_values(css: str) -> dict[str, list[str]]:
         elif prop in COLOUR_PROPS:
             for tok in re.findall(r"var\(--([\w-]+)\)|(#[0-9a-fA-F]{3,8})\b", value):
                 out["colour"].append(tok[0] or tok[1].lower())
+        elif RADIUS_PROPS.match(prop):
+            out["corner"].extend(t for t in _resolve(value, defs).replace("/", " ").split() if t not in NO_VALUE)
         elif SPACING_PROPS.match(prop):
             for tok in _FUNC.findall(value):
-                if tok not in ("0", "0px", "auto", "inherit", "!important"):
+                if tok not in NO_VALUE:
                     out["spacing"].append(tok)
     for q in _QUERY.finditer(css):
         for kind, px in _WIDTH.findall(q.group(1)):
@@ -279,6 +356,7 @@ def _set_values(reg: dict) -> dict[str, set[str]]:
         "colour": {str(c) for c in sets["colours"]} | {str(s["colour"]) for s in sets["text"].values()},
         "spacing": {str(v) for v in sets["spacing"]},
         "switch": {str(v) for v in sets["switch"].values()},
+        "corner": {str(v) for v in sets["corners"]},
     }
 
 
@@ -338,9 +416,11 @@ def component_widths(reg: dict, css: str) -> dict[str, set[str]]:
     return out
 
 
-def counts(reg: dict, css: str) -> dict[str, dict[str, int]]:
+def counts(reg: dict, css: str, astro_root: Path | None = None) -> dict[str, dict[str, int]]:
     allowed = _set_values(reg)
-    out: dict[str, dict[str, int]] = {"stylesheet values": {}, "forms": {}, "unlisted classes": {}, "part gaps": {}, "set sizes": {}}
+    out: dict[str, dict[str, int]] = {"stylesheet values": {}, "forms": {}, "unlisted classes": {}, "part gaps": {},
+                                      "set sizes": {}, "unchecked property": unchecked_properties(reg, css),
+                                      "inline styles": inline_styles(astro_root) if astro_root else {}}
     for group, values in stylesheet_values(css).items():
         n = sum(1 for v in values if v not in allowed[group])
         if n:
@@ -477,6 +557,7 @@ def main(argv=None) -> int:
     ap.add_argument("--doc", default=str(DOC))
     ap.add_argument("--css", default=str(SYSTEM_CSS))
     ap.add_argument("--baseline", default=str(BASELINE))
+    ap.add_argument("--src", default=str(SITE), help="the pages and components checked for inline styles")
     ap.add_argument("--write", action="store_true", help="rewrite the block standard's element table")
     args = ap.parse_args(argv)
     try:
@@ -492,7 +573,7 @@ def main(argv=None) -> int:
         doc_path.write_text(want, encoding="utf-8")
     elif want != doc:
         failures.append("%s: the element table differs from the registry; run with --write" % doc_path.name)
-    measured = counts(reg, _css(Path(args.css)))
+    measured = counts(reg, _css(Path(args.css)), Path(args.src))
     measured.update(markup_counts(reg))
     failures += link_failures(reg)
     failures += compare(measured, json.loads(Path(args.baseline).read_text(encoding="utf-8")))
