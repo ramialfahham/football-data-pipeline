@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: int_pipeline__corrections_no_longer_needed
+    description: >
+      Every row of the five correction seeds of results and cards (fixture_result_corrections,
+      fixture_goal_corrections, fixture_round_corrections, standings_corrections and
+      fixture_card_corrections) that the provider no longer needs, because its own data now carries
+      the corrected values. Each such row is to be removed from its seed.
+      mart_competition_research_list reads it. Grain: (seed, correction).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [seed, correction]
+    columns:
+      - name: seed
+        description: "The correction seed that holds the row."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["fixture_result_corrections", "fixture_goal_corrections", "fixture_round_corrections", "standings_corrections", "fixture_card_corrections"]
+      - name: correction
+        description: "The seed row's key: the fixture id, or for standings_corrections the league code, season, provider team id and group name, separated by a space."
+        tests: [not_null]
+      - name: fixture_id
+        description: "API-Football's numeric id for the fixture; NULL on a standings correction."
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]

@@ -11,22 +11,14 @@
   - score_after_wrong: a list in match order whose scores after each goal do not step up one goal
     at a time to the goals it serves;
   - unknown_player: a scorer's or assister's provider id that dim_player does not hold;
-  - goals_not_reconciled: a match whose goal events exist but add up neither alone nor with the
-    players' goals; it needs its goals in fixture_goal_corrections.
+  - goals_on_not_recorded: goals served on a match whose state is not_recorded.
+  A match whose goal events add up neither alone nor with the players' goals serves none and is on
+  mart_competition_research_list.
 #}
 {{ config(store_failures = true, severity = 'error') }}
 
 with fixtures as (
     select * from {{ ref('mart_competition_fixtures') }}
-),
-
-goal_events as (
-    select
-        fixture_sk,
-        count(*) as goal_events
-    from {{ ref('fct_fixture_event') }}
-    where is_goal
-    group by fixture_sk
 ),
 
 players as (
@@ -96,13 +88,11 @@ checked as (
                 )
                 then 'score_after_wrong'
             when s.served_unknown_player > 0 or s.served_unknown_assist > 0 then 'unknown_player'
-            when f.goal_data_state = 'not_recorded' and coalesce(e.goal_events, 0) > 0 then 'goals_not_reconciled'
+            when f.goal_data_state = 'not_recorded' and s.entries > 0 then 'goals_on_not_recorded'
         end as problem
     from fixtures as f
     inner join served as s
         on f.fixture_sk = s.fixture_sk
-    left join goal_events as e
-        on f.fixture_sk = e.fixture_sk
 )
 
 select *

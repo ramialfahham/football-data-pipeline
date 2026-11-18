@@ -43,7 +43,9 @@ match stats are good enough.
   minute can fall in that period's added time. A scorer or assister who fails this is withheld
   until sourced research stands in fixture_goal_corrections; the goal and the score stay.
 - Withheld values. A value that fails its check and has no sourced correction yet is left blank,
-  as line-ups and cards are.
+  as line-ups and cards are. Each withheld result, goal list, scorer, assister, card list and
+  line-up team's goals stands on mart_competition_research_list, beside every correction the provider
+  no longer needs.
 - Cards. A player's yellow and red cards are exact. Where his stat line and the card events
   disagree, or a card's player is not on the sheet, the match's cards come from sourced research.
   Research is not needed where another fetch gives the events' count.
