@@ -40,7 +40,11 @@ const venue = fixture.venue;
 const result = fixture.is_played ? fixture.result : null;
 const awarded = Boolean(result && (result.award_kind || fixture.status === "AWD" || fixture.status === "WO"));
 const onPenalties = Boolean(result && !awarded && fixture.status === "PEN");
-const eyebrow = result ? playedStatusWord(lang, fixture.status, result.award_kind) : t(lang, "eyebrowPreview");
+// A match still to be played (not started, postponed) is previewed; a cancelled, abandoned or
+// awaiting-result match has no top line, its status tag in the kick-off line says what happened.
+const eyebrow = result
+  ? playedStatusWord(lang, fixture.status, result.award_kind)
+  : !state || state === "postponed" ? t(lang, "eyebrowPreview") : null;
 const big = result
   ? onPenalties
     ? { home: result.shootout_home, away: result.shootout_away }
@@ -78,7 +82,7 @@ const sides: { side: Side; href?: string }[] = [
     <GroupHead lang={lang} name={compName} crest={{ name: compName, url: compLogo }} competition={compSlug} />
   </div>
   <h1 class="vh">{title}</h1>
-  <div class="status-word">{eyebrow}</div>
+  {eyebrow && <div class="status-word">{eyebrow}</div>}
   <div class="kick facts-line">
     {kick.map((unit) => <span>{unit}</span>)}
     {state && <span><StatusTag lang={lang} state={state} /></span>}
