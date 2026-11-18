@@ -1526,6 +1526,7 @@ const METRIC_TERMS: Record<string, string> = {
   "playerMetrics.shootingAccuracy.label": "shootingAccuracy",
   "playerMetrics.passesPer90.label": "passes",
   "playerMetrics.ballActionsPer90.label": "ballActions",
+  "playerMetrics.ballActions.label": "ballActions",
   "playerMetrics.keyPassesPer90.label": "keyPasses",
   "playerMetrics.duelsWonPer90.label": "duelsWon",
   "playerMetrics.duels.wonPct": "duelsWon",
