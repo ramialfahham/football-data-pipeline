@@ -367,6 +367,7 @@ def shape_team_payload(
     competition_rows: list[dict] | None = None,
     recent_rows: list[dict] | None = None,
     season_labels: dict | None = None,
+    window_rows: list[dict] | None = None,
 ) -> dict:
     """One team's mart_team_profile rows (+ mart_team_fixtures + mart_roster +
     mart_team_competition_benchmarks rows) -> the team page payload.
@@ -381,6 +382,8 @@ def shape_team_payload(
     career_rows: that team's mart_player_career rows — per-player season stats joined onto the
         roster below (GAP-22).
     benchmark_rows: that team's mart_team_competition_benchmarks rows (rank-vs-league per season; GAP-23).
+    window_rows: that team's mart_team_page_window_metrics rows (This season and Compared with last
+        season over all the club's competitions); none for a national team.
     """
     featured = _featured_season_row(profile_rows)
     team_id = int(featured["team_sk"])
@@ -456,8 +459,12 @@ def shape_team_payload(
                 for e in entries
             ]
         # The strip plot: every club's value per metric in this league-season, the self team flagged.
-        # The page shows the featured season only, so only that season carries it.
+        # The page compares the featured season and each competition of its year that is
+        # benchmarked over its table rounds, so only those seasons carry it.
         strips = (strip_index or {}).get((s.get("league_code"), s.get("season_api_year")))
+        season_bench = benchmark_by_season.get((s.get("league_code"), s.get("season_api_year")), [])
+        table_phase = s.get("season_api_year") == featured.get("season_api_year") and any(
+            br.get("round_stage_kind") == "table" for br in season_bench)
         # The Competitions block: every competition of the featured season's year, in the served
         # order.
         if s.get("is_featured_season"):
@@ -469,7 +476,7 @@ def shape_team_payload(
                     key=lambda cr: cr.get("competition_order") or 0,
                 )
             ]
-        if strips and s.get("is_featured_season"):
+        if strips and (s.get("is_featured_season") or table_phase):
             s["league_strip"] = [
                 {"metric_key": key, "clubs": [
                     {"name": c["name"], "value": c["value"], "is_self": c["team_sk"] == team_id}
@@ -496,6 +503,11 @@ def shape_team_payload(
             for r in sorted(recent_rows or [], key=lambda r: r["recency_rank"])
         ],
         "schedule": _team_schedule(fixture_rows or [], featured.get("season_api_year")),
+        "this_season": _team_this_season(
+            window_rows or [],
+            [cr for cr in competition_rows or [] if cr.get("season_api_year") == featured.get("season_api_year")],
+        ),
+        "last_season": _team_last_season(window_rows or []),
         "seasons": seasons_out,
     }
 
@@ -541,6 +553,40 @@ def _player_last_season(window_rows: list[dict]) -> dict | None:
     return {
         "minutes": rows[0].get("minutes"),
         "minutes_prev": rows[0].get("minutes_prev_season"),
+        "metrics": [
+            {"metric_key": r["metric_key"], "value": r.get("metric_value"),
+             "value_prev": r.get("metric_value_prev_season")}
+            for r in rows
+        ],
+    }
+
+
+def _team_this_season(window_rows: list[dict], competition_rows: list[dict]) -> dict | None:
+    """This season over all the club's competitions: its matches, wins and card counts, and the
+    competitions in their served order. None for a team with no club window (a national team)."""
+    if not window_rows:
+        return None
+    first = window_rows[0]
+    order = {cr.get("league_code"): cr.get("competition_order") or 0 for cr in competition_rows}
+    codes = sorted(first.get("league_codes") or [], key=lambda c: (c not in order, order.get(c, 0), c))
+    return {
+        "matches": first.get("matches"),
+        "wins": first.get("wins"),
+        "league_codes": codes,
+        "cards": {r["metric_key"]: r.get("metric_value") for r in window_rows if r.get("is_card")},
+        "comparison_keys": sorted(r["metric_key"] for r in window_rows if r.get("is_comparison")),
+    }
+
+
+def _team_last_season(window_rows: list[dict]) -> dict | None:
+    """Compared with last season: both seasons' matches and each metric's two values. None when the
+    club played no match last season."""
+    rows = sorted((r for r in window_rows if r.get("is_comparison")), key=lambda r: r["metric_key"])
+    if not rows or rows[0].get("matches_prev_season") is None:
+        return None
+    return {
+        "matches": rows[0].get("matches"),
+        "matches_prev": rows[0].get("matches_prev_season"),
         "metrics": [
             {"metric_key": r["metric_key"], "value": r.get("metric_value"),
              "value_prev": r.get("metric_value_prev_season")}
@@ -1145,6 +1191,12 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
         id_list = ", ".join(str(int(t)) for t in team_ids)
         recent_sql += f" and team_sk in ({id_list})"
     recent_by_team = _group_by(_query(client, recent_sql), "team_sk")
+    # This season and Compared with last season: a club's window rows, scoped like the roster.
+    window_sql = f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_team_page_window_metrics`"
+    if sample:
+        id_list = ", ".join(str(int(t)) for t in team_ids)
+        window_sql += f" where team_sk in ({id_list})"
+    window_by_team = _group_by(_query(client, window_sql), "team_sk")
     # The season as each competition names it (split-year or calendar-year), served on the profile.
     season_labels = {
         (r["league_code"], int(r["season_api_year"])): r.get("season_label") for r in rows
@@ -1154,6 +1206,7 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
             grouped[t], fixtures_by_team.get(t, []), roster_by_team.get(t, []),
             bench_by_team.get(t, []), scatter_idx, career_by_team.get(t, []), strip_idx,
             comp_by_team.get(t, []), recent_by_team.get(t, []), season_labels,
+            window_by_team.get(t, []),
         )
         for t in team_ids
     ]

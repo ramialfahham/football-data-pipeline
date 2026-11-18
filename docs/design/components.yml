@@ -201,7 +201,7 @@ components:
     short-forms: [timeOpen]
   table:
     name: Table
-    file: [site_v2/src/components/competition/StandingsTable.astro, site_v2/src/components/competition/DeservedTable.astro, site_v2/src/components/competition/RankingBoard.astro, site_v2/src/components/team/TeamDeserved.astro, site_v2/src/components/team/TeamLastSeason.astro, site_v2/src/components/player/PlayerLastSeason.astro]
+    file: [site_v2/src/components/competition/StandingsTable.astro, site_v2/src/components/competition/DeservedTable.astro, site_v2/src/components/competition/RankingBoard.astro, site_v2/src/components/team/TeamDeserved.astro, site_v2/src/components/ui/LastSeasonTable.astro]
     used-on: [Competition pages, Team page, Player page, Home]
     parts:
       head: {class: ctab-head, element: Table head, rule: "the head row with the column labels (or, on a board, the board's name); its 1px rule is the table's only line; it starts at the block's left edge", measured: "border-bottom-width=1px; left-edge=section", ruled-on: "#129 Table; 2026-09-17 (\"head only\")"}
@@ -257,10 +257,10 @@ components:
     short-forms: [position]
   last-season:
     name: Last-season table
-    file: site_v2/src/components/team/TeamLastSeason.astro
-    used-on: [Team page]
+    file: site_v2/src/components/ui/LastSeasonTable.astro
+    used-on: [Team page, Player page]
     parts:
-      trend: {class: tr, selector: ".ctab.yoyt .n.tr", element: Trend, rule: "▲ in the accent when this season is better, ▼ in the loss red when worse, \"–\" when the shown values are equal", measured: "font-size=13px", ruled-on: the Team page review}
+      trend: {class: tr, selector: ".ctab.yoyt .n.tr", element: Trend, rule: "▲ in the accent when this season is better, ▼ in the loss red when worse, \"–\" when the shown values are equal; empty when either season has no value", measured: "font-size=13px", ruled-on: the Team page review}
       list: {class: yoy-list}
       up: {class: up, gap: mock-css}
       down: {class: down, gap: mock-css}
@@ -437,7 +437,7 @@ components:
     narrow: {below: fits, form: one column}
   strip-plot:
     name: Strip plot
-    file: [site_v2/src/components/team/TeamLeagueStrips.astro, site_v2/src/components/player/PlayerComparison.astro]
+    file: [site_v2/src/components/ui/StripPlot.astro, site_v2/src/components/team/TeamLeagueStrips.astro, site_v2/src/components/player/PlayerComparison.astro]
     used-on: [Team page, Player page]
     parts:
       plot: {class: rs-plot}
@@ -447,16 +447,16 @@ components:
       median-key: {class: rs-tick-key}
       panels: {class: cmp-panels}
       panel: {class: cmp-p}
-      row: {class: rs-row, element: Strip plot row, rule: "a metric's name, the league's values with every team's mark, and the team's rank over its value; drawn by `team/TeamLeagueStrips.astro`", measured: fits, ruled-on: the Team page review}
-      value: {class: rs-val, element: Strip plot value, rule: "the team's rank over its value; drawn by `team/TeamLeagueStrips.astro`", measured: "font-size=15px; font-weight=700; color=ink", ruled-on: the Team page review}
+      row: {class: rs-row, element: Strip plot row, rule: "a metric's name, the compared set's values with every mark, the median ticked with its value, and the rank over the value; drawn by `ui/StripPlot.astro`", measured: fits, ruled-on: the Team page review}
+      value: {class: rs-val, element: Strip plot value, rule: "the rank over its value; drawn by `ui/StripPlot.astro`", measured: "font-size=15px; font-weight=700; color=ink", ruled-on: the Team page review}
       band: {class: rs-band, selector: ".rs-row .rs-band", element: Strip plot band, rule: "a strip plot row's strip: its line with every team's mark on it", measured: fits, ruled-on: the chart theme}
     wide: "name | strip | rank over value"
     narrow: {below: w480, form: "name | rank over value, the strip on its own line"}
-    never-split: [14th, "1.1", "better →"]
+    never-split: [14th, "1.1"]
   card:
     name: Card
     file: site_v2/src/components/ui/StatCards.astro
-    used-on: [Player page]
+    used-on: [Team page, Player page]
     parts:
       block: {class: kpis}
       grid: {class: kpi-row}
@@ -509,7 +509,7 @@ components:
       box: {class: chart, selector: ".chart, .chart .chart-wide, .chart .chart-narrow", element: Chart, rule: "every chart's box. Under 480px every chart takes its narrow form. The look is in `system.css` (Charts), the layout numbers in `lib/chartTheme.ts`", measured: fits, ruled-on: the chart theme}
       legend: {class: chart-legend, selector: ".chart-legend .chart-key", element: Chart legend, rule: "above its chart, one key per mark: the mark, then its name; drawn by `ui/ChartLegend.astro`", measured: "font-size=13px; color=muted", ruled-on: the chart theme}
       axis: {class: chart-axis, element: Chart axis, rule: "an axis line and its outward ticks; a strip plot's line", measured: fits, ruled-on: the chart theme}
-      tick: {class: chart-tick, selector: ".chart-tick, .chart-tick.chart-end", text: 11-400-muted, element: Chart tick label, rule: "a tick label, an axis title's second line, a strip plot's direction note, in the small label's size", measured: "font-size=11px", ruled-on: the chart theme}
+      tick: {class: chart-tick, selector: ".chart-tick", text: 11-400-muted, element: Chart tick label, rule: "a tick label and an axis title's second line, in the small label's size", measured: "font-size=11px", ruled-on: the chart theme}
       note: {class: chart-note, element: Chart note, rule: "an axis title and the label of the team's difference", measured: "font-size=13px", ruled-on: the chart theme}
       label: {class: chart-label, element: Chart label, rule: "the team's name beside its mark", measured: "font-size=13px", ruled-on: the chart theme}
       name: {class: chart-name, text: 15-700-ink, element: Chart name, rule: "a metric's name in a strip plot or a comparison, in the item title style, start-aligned", measured: "font-size=15px; font-weight=700; color=ink", ruled-on: "the chart theme; the design standard"}

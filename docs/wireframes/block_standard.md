@@ -112,7 +112,7 @@
 | Standings table wdl | `.ctab .n.wdl` | the standings table's wdl, in the 13-400-muted text style, never broken | `font-size=13px; font-weight=400; color=muted; one-line; fits` | ruled | the component registry |
 | Deserved points table shots head | `.ctab-head .hs` | the deserved points table's shots head, in the 11-700-muted text style | `font-size=11px; font-weight=700; color=muted` | ruled | the component registry |
 | Deserved points table parts | `.dpt` | the deserved points table's other parts: registered, no text of their own |  | ruled | the component registry |
-| Trend | `.ctab.yoyt .n.tr` | ▲ in the accent when this season is better, ▼ in the loss red when worse, "–" when the shown values are equal | `font-size=13px` | ruled | the Team page review |
+| Trend | `.ctab.yoyt .n.tr` | ▲ in the accent when this season is better, ▼ in the loss red when worse, "–" when the shown values are equal; empty when either season has no value | `font-size=13px` | ruled | the Team page review |
 | Last-season table parts | `.yoy-list` | the last-season table's other parts: registered, no text of their own |  | ruled | the component registry |
 | Fact row label | `.frow .fl` | label, 15px ink regular | `font-size=15px; color=ink; font-weight=400` | ruled | #129 the fact row; the design standard |
 | Fact row value | `.frow .fvv b` | the value, bold 15px accent — the number the row is about; right-aligned at every width | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules, Block 3; the design standard |
@@ -158,8 +158,8 @@
 | Competition row name | `.tc .tc-name` | 15px ink; the note under it 13px muted | `font-size=15px; font-weight=400; color=ink` | ruled | the Team page review; the design standard |
 | Competition row parts | `.cchip` | the competition row's other parts: registered, no text of their own |  | ruled | the component registry |
 | Squad grid | `.sqgrid` | the squad's player rows in two columns where each keeps 280px, otherwise one | `fits` | ruled | the Team page review |
-| Strip plot row | `.rs-row` | a metric's name, the league's values with every team's mark, and the team's rank over its value; drawn by `team/TeamLeagueStrips.astro` | `fits` | ruled | the Team page review |
-| Strip plot value | `.rs-val` | the team's rank over its value; drawn by `team/TeamLeagueStrips.astro` | `font-size=15px; font-weight=700; color=ink` | ruled | the Team page review |
+| Strip plot row | `.rs-row` | a metric's name, the compared set's values with every mark, the median ticked with its value, and the rank over the value; drawn by `ui/StripPlot.astro` | `fits` | ruled | the Team page review |
+| Strip plot value | `.rs-val` | the rank over its value; drawn by `ui/StripPlot.astro` | `font-size=15px; font-weight=700; color=ink` | ruled | the Team page review |
 | Strip plot band | `.rs-row .rs-band` | a strip plot row's strip: its line with every team's mark on it | `fits` | ruled | the chart theme |
 | Strip plot parts | `.rs-plot, .rs-peers, .rs-tick, .rs-tick-value, .rs-tick-key, .cmp-panels, .cmp-p` | the strip plot's other parts: registered, no text of their own |  | ruled | the component registry |
 | Card parts | `.kpis, .kpi-row, .kpi, .kpi-in, .kpi-v, .kpi-t, .kpi-l, .kpis.narrow, .kpis.tight` | the card's other parts: registered, no text of their own |  | ruled | the component registry |
@@ -174,7 +174,7 @@
 | Chart | `.chart, .chart .chart-wide, .chart .chart-narrow` | every chart's box. Under 480px every chart takes its narrow form. The look is in `system.css` (Charts), the layout numbers in `lib/chartTheme.ts` | `fits` | ruled | the chart theme |
 | Chart legend | `.chart-legend .chart-key` | above its chart, one key per mark: the mark, then its name; drawn by `ui/ChartLegend.astro` | `font-size=13px; color=muted` | ruled | the chart theme |
 | Chart axis | `.chart-axis` | an axis line and its outward ticks; a strip plot's line | `fits` | ruled | the chart theme |
-| Chart tick label | `.chart-tick, .chart-tick.chart-end` | a tick label, an axis title's second line, a strip plot's direction note, in the small label's size | `font-size=11px` | ruled | the chart theme |
+| Chart tick label | `.chart-tick` | a tick label and an axis title's second line, in the small label's size | `font-size=11px` | ruled | the chart theme |
 | Chart note | `.chart-note` | an axis title and the label of the team's difference | `font-size=13px` | ruled | the chart theme |
 | Chart label | `.chart-label` | the team's name beside its mark | `font-size=13px` | ruled | the chart theme |
 | Chart name | `.chart-name` | a metric's name in a strip plot or a comparison, in the item title style, start-aligned | `font-size=15px; font-weight=700; color=ink` | ruled | the chart theme; the design standard |

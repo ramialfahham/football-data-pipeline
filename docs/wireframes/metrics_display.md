@@ -36,12 +36,12 @@ Every catalogue row says whether it is a key metric (`is_key_metric`). Team and 
 The windows themselves are settled in `docs/metrics_context_model.md` (the
 context→window matrix, §1/§4). This section binds them to DISPLAY:
 
-1. **One cross-competition number exists in the product**: W1 live form. Every
-   cumulative number (W2, season rollups, profiles) is **within one
-   competition**. No surface may aggregate a season across competitions.
+1. **Two kinds of cross-competition number exist in the product**: W1 live form, and a club's
+   season. It shows on the Team and Player pages: This season and Compared with last season.
+   It covers all the club's competitions. Every other cumulative number (W2, season rollups,
+   profiles) is **within one competition**.
 2. **W2's user-facing name is "through matchday N"** — "season-to-date" is the
-   internal mart name only. At the final matchday it equals the full season;
-   aligned by matchday it powers YoY.
+   internal mart name only. At the final matchday it equals the full season.
 3. **One window per team, no switch.** The match page shows each team the window that
    `docs/metrics_context_model.md` §3–4 gives it, flagged by the warehouse.
 4. **Tournament exception** (matrix §4): world/continental championships use

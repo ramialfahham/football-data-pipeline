@@ -1,0 +1,64 @@
+---
+// THE last-season table: the metrics in their groups, each row this season / last season / the
+// trend. ▲ when this season is better by the metric's direction, ▼ when worse, "–" when the shown
+// values are equal, empty when either season has no value or the metric has no direction. A
+// non-key row carries the switch's mark.
+import TableRow from "./TableRow.astro";
+import Group from "./Group.astro";
+import GroupHead from "./GroupHead.astro";
+import { DASH, formatValue } from "../../lib/format";
+import { t, metricLabel } from "../../i18n/strings";
+import { betterSide } from "../../lib/bars";
+import type { Lang } from "../../lib/format";
+
+interface Row {
+  label: string;
+  now: number | null | undefined;
+  prev: number | null | undefined;
+  format: Parameters<typeof formatValue>[1];
+  direction: Parameters<typeof betterSide>[2];
+  nonkey: boolean;
+}
+interface Props {
+  lang: Lang;
+  groups: { key: string; nonkey: boolean; rows: Row[] }[];
+}
+const { lang, groups } = Astro.props;
+const shown = (v: number | null | undefined, format: Row["format"]) =>
+  typeof v === "number" ? formatValue(v, format, lang) : DASH;
+---
+
+<div class="yoy-list">
+  {groups.map((g) => (
+    <Group metric nonkey={g.nonkey}>
+      <GroupHead lang={lang} name={metricLabel(lang, `metricGroups.${g.key}.label`)} statistics={g.key} />
+      <div class="ctab yoyt">
+        <div class="ctab-head">
+          <span class="h nmh"></span>
+          <span class="h">{t(lang, "teamThisSeasonHead")}</span>
+          <span class="h">{t(lang, "teamLastSeasonHead")}</span>
+          <span class="h tr">{t(lang, "teamTrend")}</span>
+        </div>
+        {g.rows.map((r) => {
+          const a = shown(r.now, r.format);
+          const b = shown(r.prev, r.format);
+          const blank = a === DASH || b === DASH;
+          const side = blank || a === b ? null : betterSide(r.now as number, r.prev as number, r.direction);
+          const trend = blank || (r.direction === "neutral" && a !== b)
+            ? { text: "", kind: "tr" }
+            : side === "home" ? { text: "▲", kind: "tr up", label: t(lang, "teamTrendBetter") }
+            : side === "away" ? { text: "▼", kind: "tr down", label: t(lang, "teamTrendWorse") }
+            : { text: "–", kind: "tr flat", label: t(lang, "teamTrendSame") };
+          return (
+            <TableRow
+              lang={lang}
+              name={r.label}
+              cells={[{ text: a, kind: "now" }, { text: b, kind: "prev" }, trend]}
+              nonkey={r.nonkey}
+            />
+          );
+        })}
+      </div>
+    </Group>
+  ))}
+</div>

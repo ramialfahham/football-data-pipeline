@@ -795,6 +795,69 @@ def test_league_strip_lists_every_club_of_the_featured_season_and_flags_self():
     assert "league_strip" not in other
 
 
+def test_league_strip_also_on_each_table_phase_competition_of_the_featured_year():
+    rows = [
+        {"team_sk": 2, "season_api_year": 2026, "league_code": "BL1", "team_name": "Forest"},
+        {"team_sk": 2, "season_api_year": 2026, "league_code": "UCL", "team_name": "Forest"},
+        {"team_sk": 2, "season_api_year": 2026, "league_code": "DFBP", "team_name": "Forest"},
+        {"team_sk": 2, "season_api_year": 2025, "league_code": "UCL", "team_name": "Forest"},
+    ]
+    phase = {"UCL": "table", "BL1": None, "DFBP": None}
+    bench = [
+        {"team_sk": t, "team_name": n, "league_code": lc, "season_api_year": y,
+         "round_stage_kind": phase[lc], "metric_key": "goals_per_match", "metric_value": v}
+        for y, lc in [(2026, "BL1"), (2026, "UCL"), (2026, "DFBP"), (2025, "UCL")]
+        for t, n, v in [(2, "Forest", 1.2), (1, "City", 2.4)]
+    ]
+    rows[0]["is_featured_season"] = True
+    for r in rows[1:]:
+        r["is_featured_season"] = False
+    p = shape_team_payload(rows, benchmark_rows=[b for b in bench if b["team_sk"] == 2],
+                           strip_index=league_strip_index(bench))
+    with_strip = {(s["league_code"], s["season_api_year"]) for s in p["seasons"] if "league_strip" in s}
+    assert with_strip == {("BL1", 2026), ("UCL", 2026)}
+
+
+def test_a_club_carries_this_season_and_last_season_over_all_its_competitions():
+    rows = _mark_featured([{"team_sk": 157, "season_api_year": 2026, "league_code": "BL1", "team_name": "Bayern"}])
+    comps = [
+        {"team_sk": 157, "league_code": lc, "season_api_year": 2026, "competition_order": o}
+        for lc, o in [("UCL", 3), ("BL1", 1), ("DFBP", 2)]
+    ]
+    base = {"team_sk": 157, "matches": 12, "wins": 8, "matches_prev_season": 54,
+            "league_codes": ["BL1", "DFBP", "UCL"]}
+    window = [
+        {**base, "metric_key": "goals", "is_card": True, "is_comparison": False, "metric_value": 45.0,
+         "metric_value_prev_season": None},
+        {**base, "metric_key": "cards_red", "is_card": True, "is_comparison": False, "metric_value": 1.0,
+         "metric_value_prev_season": None},
+        {**base, "metric_key": "goals_per_match", "is_card": False, "is_comparison": True,
+         "metric_value": 3.75, "metric_value_prev_season": 3.4},
+    ]
+    p = shape_team_payload(rows, competition_rows=comps, window_rows=window)
+    assert p["this_season"] == {"matches": 12, "wins": 8, "league_codes": ["BL1", "DFBP", "UCL"],
+                                "cards": {"goals": 45.0, "cards_red": 1.0},
+                                "comparison_keys": ["goals_per_match"]}
+    assert p["last_season"] == {"matches": 12, "matches_prev": 54, "metrics": [
+        {"metric_key": "goals_per_match", "value": 3.75, "value_prev": 3.4}]}
+
+
+def test_a_team_without_a_club_window_has_neither_block():
+    rows = _mark_featured([{"team_sk": 25, "season_api_year": 2026, "league_code": "UNL", "team_name": "Germany"}])
+    p = shape_team_payload(rows)
+    assert p["this_season"] is None and p["last_season"] is None
+
+
+def test_a_club_without_last_season_matches_has_no_last_season_block():
+    rows = _mark_featured([{"team_sk": 7, "season_api_year": 2026, "league_code": "BL2", "team_name": "X"}])
+    window = [{"team_sk": 7, "matches": 3, "wins": 1, "matches_prev_season": None, "league_codes": ["BL2"],
+               "metric_key": "goals_per_match", "is_card": False, "is_comparison": True,
+               "metric_value": 1.0, "metric_value_prev_season": None}]
+    p = shape_team_payload(rows, window_rows=window)
+    assert p["this_season"]["matches"] == 3
+    assert p["last_season"] is None
+
+
 def test_the_featured_season_lists_its_competitions_in_the_served_order():
     rows = [
         {"team_sk": 165, "season_api_year": 2026, "league_code": "BL1", "team_name": "Dortmund"},

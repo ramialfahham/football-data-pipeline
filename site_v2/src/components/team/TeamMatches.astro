@@ -18,9 +18,11 @@ interface Props {
   schedule: TeamSchedule;
   competitions: TeamCompetition[];
   team: TeamRef;
+  /** The Results rows' form. */
+  resultRows?: "results" | "player-results";
   lang: Lang;
 }
-const { schedule, competitions, team, lang } = Astro.props;
+const { schedule, competitions, team, resultRows = "results", lang } = Astro.props;
 
 const carried = new Set([...schedule.upcoming, ...schedule.results].map((fx) => fx.league_code));
 const codes = [
@@ -48,7 +50,7 @@ const slotsOf = (fixtures: { league_code: string }[]) =>
       {schedule.results.length > 0 && (
         <section data-slots={slotsOf(schedule.results)}>
           <SectionHead label={t(lang, "results")} />
-          <RowList kind="results">
+          <RowList kind={resultRows}>
             {schedule.results.map((fx, i) => (
               <RecentMatch match={asResultMatch(fx, i + 1)} lang={lang} competitionSlot={slot.get(fx.league_code)} />
             ))}

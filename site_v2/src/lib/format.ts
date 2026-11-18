@@ -32,6 +32,11 @@ function dateFormat(lang: Lang, options: Intl.DateTimeFormatOptions): Intl.DateT
   return f;
 }
 
+/** Names joined as a sentence lists them: "A, B and C" (DE "und", FI "ja"). */
+export function listOf(names: string[], lang: Lang): string {
+  return new Intl.ListFormat(LOCALE[lang], { type: "conjunction" }).format(names);
+}
+
 function nf(lang: Lang, min: number, max: number): Intl.NumberFormat {
   return numberFormat(lang, {
     minimumFractionDigits: min,

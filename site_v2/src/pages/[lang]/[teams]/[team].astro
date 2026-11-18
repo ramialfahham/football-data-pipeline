@@ -1,10 +1,12 @@
 ---
 // The Team page (screen 02). URL: /{lang}/{teams word}/{team-slug}/ (site_architecture.md).
 // One season, the featured one (`is_featured_season`); only the blocks that look ahead show what
-// comes next. Three tabs: Overview (Competitions, Recent matches, Next matches, Highs and lows,
-// Squad), Matches (the Filter bar, Upcoming, Results) and Performance (the tab's explainer,
-// Standing, Deserved points, Compared with the league, Compared with last season). The page
-// composes the shared elements; it holds no styling and derives no facts.
+// comes next. A club's page opens with This season above three tabs: Overview (Competitions, Next
+// matches, Recent matches, Highs and lows, Squad), Matches (the Filter bar, Next matches, Results)
+// and Performance (Deserved points, Compared with other teams, Compared with last season). A
+// national team's page has no This season, keeps Recent matches before Next matches, and keeps
+// the tab's explainer, Standing and Compared with the league. The page composes the shared
+// elements; it holds no styling and derives no facts.
 import Layout from "../../../layouts/Layout.astro";
 import Breadcrumb from "../../../components/fixture/Breadcrumb.astro";
 import TeamHeader from "../../../components/team/TeamHeader.astro";
@@ -18,10 +20,10 @@ import TeamStanding from "../../../components/team/TeamStanding.astro";
 import TeamDeserved from "../../../components/team/TeamDeserved.astro";
 import TeamLeagueStrips from "../../../components/team/TeamLeagueStrips.astro";
 import TeamLastSeason from "../../../components/team/TeamLastSeason.astro";
-import RecentMatch from "../../../components/fixture/RecentMatch.astro";
+import TeamRecent from "../../../components/team/TeamRecent.astro";
+import TeamThisSeason from "../../../components/team/TeamThisSeason.astro";
 import SectionHead from "../../../components/ui/SectionHead.astro";
 import Explainer from "../../../components/ui/Explainer.astro";
-import RowList from "../../../components/ui/RowList.astro";
 import { t } from "../../../i18n/strings";
 import { localeHref, word } from "../../../lib/href";
 import { competitionInfo } from "../../../lib/teamFixtures";
@@ -66,9 +68,18 @@ const competitions = season.competitions ?? [];
 const recent = team.recent_matches ?? [];
 const nextMatches = schedule.upcoming.filter((fx) => fx.upcoming_rank === 1);
 
+// A club has a window over all its competitions; a national team's page keeps its own blocks.
+const club = team.this_season != null;
+const resultRows = club ? "player-results" : "results";
+// The club is compared in its league and in each competition of the season that carries a strip.
+const stripSeasons = club
+  ? [season, ...team.seasons.filter((s) => s !== season && s.season_api_year === season.season_api_year && (s.league_strip?.length ?? 0) > 0)]
+  : [season];
+
 const hasMatches = schedule.upcoming.length > 0 || schedule.results.length > 0;
 const hasPerformance = season.latest_rank != null || season.points_this_season != null
-  || (season.benchmarks ?? []).some((b) => b.metric_value != null);
+  || (season.benchmarks ?? []).some((b) => b.metric_value != null)
+  || (team.last_season?.metrics ?? []).some((m) => m.value != null || m.value_prev != null);
 const pages = (["overview", "matches", "performance"] as const).filter(
   (p) => p === "overview" || (p === "matches" ? hasMatches : hasPerformance),
 );
@@ -106,16 +117,13 @@ const crumbs = [
 
     <TeamHeader team={team} season={season} lang={lang} />
 
+    {club && <TeamThisSeason season={team.this_season!} seasonLabel={season.season_label ?? ""} lang={lang} />}
+
     <Tabs lang={lang} pages={[...pages]} />
 
     <div class="page" data-page="overview">
-      <TeamCompetitions competitions={competitions} lang={lang} />
-      {recent.length > 0 && (
-        <section>
-          <SectionHead label={t(lang, "secRecent")} />
-          <RowList kind="results">{recent.map((m) => <RecentMatch match={m} lang={lang} />)}</RowList>
-        </section>
-      )}
+      <TeamCompetitions competitions={competitions} oneLine={club} lang={lang} />
+      {!club && <TeamRecent matches={recent} kind="results" lang={lang} />}
       {nextMatches.length > 0 && (
         <section>
           <SectionHead label={t(lang, "homeNext")} />
@@ -124,23 +132,24 @@ const crumbs = [
           ))}
         </section>
       )}
+      {club && <TeamRecent matches={recent} kind="player-results" lang={lang} />}
       <TeamHighsLows season={season} lang={lang} />
       <TeamSquad squad={season.squad ?? []} lang={lang} />
     </div>
 
     {hasMatches && (
       <div class="page" data-page="matches">
-        <TeamMatches schedule={schedule} competitions={competitions} team={self} lang={lang} />
+        <TeamMatches schedule={schedule} competitions={competitions} team={self} resultRows={resultRows} lang={lang} />
       </div>
     )}
 
     {hasPerformance && (
       <div class="page" data-page="performance">
-        <Explainer tab text={t(lang, "teamPerfIntro", { competition: compName, season: season.season_label ?? "" })} />
-        <TeamStanding season={season} lang={lang} />
-        <TeamDeserved season={season} teamName={name} compName={compName} lang={lang} />
-        <TeamLeagueStrips season={season} teamName={name} compName={compName} lang={lang} />
-        <TeamLastSeason season={season} lang={lang} />
+        {!club && <Explainer tab text={t(lang, "teamPerfIntro", { competition: compName, season: season.season_label ?? "" })} />}
+        {!club && <TeamStanding season={season} lang={lang} />}
+        <TeamDeserved season={season} teamName={name} compName={compName} lead={club} lang={lang} />
+        <TeamLeagueStrips seasons={stripSeasons} teamName={name} club={club} compared={team.this_season?.comparison_keys} lang={lang} />
+        {club && <TeamLastSeason lastSeason={team.last_season} compared={team.this_season!.comparison_keys} lang={lang} />}
       </div>
     )}
   </div>

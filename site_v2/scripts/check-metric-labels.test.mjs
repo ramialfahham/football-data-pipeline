@@ -362,6 +362,7 @@ const NOT_THE_METRIC = {
   savesMany: "the word after a save count, not the saves metric",
   pointsMany: "the word after a points count, not the points metric",
   ballActionsMany: "the word after a ball action count, not the metric",
+  teamCardMatches: "the label of a club's match count card; FI words it as the appearances term does",
 };
 
 test("no page string spells a catalogue metric name; it comes from its term", () => {

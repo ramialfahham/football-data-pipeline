@@ -14,6 +14,38 @@
   "recent_matches": [
     {
       "recency_rank": 1,
+      "played_fixture_sk": 1552219,
+      "played_league_code": "ED",
+      "played_kickoff_datetime": "2026-11-08 15:45:00+00:00",
+      "played_round_name": "Regular Season - 12",
+      "home_away": "home",
+      "goals_for": 2,
+      "goals_against": 5,
+      "result": "L",
+      "opponent_team_sk": 197,
+      "opponent_name": "PSV Eindhoven",
+      "opponent_logo_url": "https://media.api-sports.io/football/teams/197.png",
+      "has_team_stats": true,
+      "has_player_stats": true
+    },
+    {
+      "recency_rank": 2,
+      "played_fixture_sk": 1552211,
+      "played_league_code": "ED",
+      "played_kickoff_datetime": "2026-10-31 20:00:00+00:00",
+      "played_round_name": "Regular Season - 11",
+      "home_away": "home",
+      "goals_for": 4,
+      "goals_against": 0,
+      "result": "W",
+      "opponent_team_sk": 410,
+      "opponent_name": "GO Ahead Eagles",
+      "opponent_logo_url": "https://media.api-sports.io/football/teams/410.png",
+      "has_team_stats": true,
+      "has_player_stats": true
+    },
+    {
+      "recency_rank": 3,
       "played_fixture_sk": 1552200,
       "played_league_code": "ED",
       "played_kickoff_datetime": "2026-10-24 16:45:00+00:00",
@@ -29,7 +61,7 @@
       "has_player_stats": true
     },
     {
-      "recency_rank": 2,
+      "recency_rank": 4,
       "played_fixture_sk": 1552195,
       "played_league_code": "ED",
       "played_kickoff_datetime": "2026-10-18 12:30:00+00:00",
@@ -45,7 +77,7 @@
       "has_player_stats": true
     },
     {
-      "recency_rank": 3,
+      "recency_rank": 5,
       "played_fixture_sk": 1552187,
       "played_league_code": "ED",
       "played_kickoff_datetime": "2026-10-11 12:30:00+00:00",
@@ -59,74 +91,14 @@
       "opponent_logo_url": "https://media.api-sports.io/football/teams/193.png",
       "has_team_stats": true,
       "has_player_stats": true
-    },
-    {
-      "recency_rank": 4,
-      "played_fixture_sk": 1552172,
-      "played_league_code": "ED",
-      "played_kickoff_datetime": "2026-09-19 14:30:00+00:00",
-      "played_round_name": "Regular Season - 7",
-      "home_away": "away",
-      "goals_for": 1,
-      "goals_against": 1,
-      "result": "D",
-      "opponent_team_sk": 198,
-      "opponent_name": "ADO Den Haag",
-      "opponent_logo_url": "https://media.api-sports.io/football/teams/198.png",
-      "has_team_stats": true,
-      "has_player_stats": true
-    },
-    {
-      "recency_rank": 5,
-      "played_fixture_sk": 1552168,
-      "played_league_code": "ED",
-      "played_kickoff_datetime": "2026-09-12 19:00:00+00:00",
-      "played_round_name": "Regular Season - 6",
-      "home_away": "home",
-      "goals_for": 3,
-      "goals_against": 0,
-      "result": "W",
-      "opponent_team_sk": 413,
-      "opponent_name": "NEC Nijmegen",
-      "opponent_logo_url": "https://media.api-sports.io/football/teams/413.png",
-      "has_team_stats": true,
-      "has_player_stats": true
     }
   ],
   "schedule": {
     "upcoming": [
       {
-        "fixture_id": 1552211,
-        "league_code": "ED",
-        "upcoming_rank": 1,
-        "opponent_name": "GO Ahead Eagles",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/410.png",
-        "is_home": true,
-        "kickoff_datetime": "2026-10-31 20:00:00+00:00",
-        "round_name": "Regular Season - 11",
-        "goals_for": null,
-        "goals_against": null,
-        "result": null,
-        "status_short": "NS"
-      },
-      {
-        "fixture_id": 1552219,
-        "league_code": "ED",
-        "upcoming_rank": 2,
-        "opponent_name": "PSV Eindhoven",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/197.png",
-        "is_home": true,
-        "kickoff_datetime": "2026-11-08 15:45:00+00:00",
-        "round_name": "Regular Season - 12",
-        "goals_for": null,
-        "goals_against": null,
-        "result": null,
-        "status_short": "NS"
-      },
-      {
         "fixture_id": 1552233,
         "league_code": "ED",
-        "upcoming_rank": 3,
+        "upcoming_rank": 1,
         "opponent_name": "FC Utrecht",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/207.png",
         "is_home": false,
@@ -140,7 +112,7 @@
       {
         "fixture_id": 1552234,
         "league_code": "ED",
-        "upcoming_rank": 4,
+        "upcoming_rank": 2,
         "opponent_name": "Sparta Rotterdam",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/426.png",
         "is_home": true,
@@ -154,7 +126,7 @@
       {
         "fixture_id": 1552247,
         "league_code": "ED",
-        "upcoming_rank": 5,
+        "upcoming_rank": 3,
         "opponent_name": "SC Heerenveen",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/210.png",
         "is_home": false,
@@ -168,7 +140,7 @@
       {
         "fixture_id": 1552252,
         "league_code": "ED",
-        "upcoming_rank": 6,
+        "upcoming_rank": 4,
         "opponent_name": "AFC Ajax",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/194.png",
         "is_home": false,
@@ -182,7 +154,7 @@
       {
         "fixture_id": 1552261,
         "league_code": "ED",
-        "upcoming_rank": 7,
+        "upcoming_rank": 5,
         "opponent_name": "FC Groningen",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/202.png",
         "is_home": true,
@@ -196,7 +168,7 @@
       {
         "fixture_id": 1552275,
         "league_code": "ED",
-        "upcoming_rank": 8,
+        "upcoming_rank": 6,
         "opponent_name": "NEC Nijmegen",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/413.png",
         "is_home": false,
@@ -210,7 +182,7 @@
       {
         "fixture_id": 1552280,
         "league_code": "ED",
-        "upcoming_rank": 9,
+        "upcoming_rank": 7,
         "opponent_name": "Willem II",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/195.png",
         "is_home": true,
@@ -224,7 +196,7 @@
       {
         "fixture_id": 1552292,
         "league_code": "ED",
-        "upcoming_rank": 10,
+        "upcoming_rank": 8,
         "opponent_name": "GO Ahead Eagles",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/410.png",
         "is_home": false,
@@ -238,7 +210,7 @@
       {
         "fixture_id": 1552302,
         "league_code": "ED",
-        "upcoming_rank": 11,
+        "upcoming_rank": 9,
         "opponent_name": "FC Twente",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/415.png",
         "is_home": false,
@@ -252,7 +224,7 @@
       {
         "fixture_id": 1552306,
         "league_code": "ED",
-        "upcoming_rank": 12,
+        "upcoming_rank": 10,
         "opponent_name": "FC Utrecht",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/207.png",
         "is_home": true,
@@ -266,7 +238,7 @@
       {
         "fixture_id": 1552320,
         "league_code": "ED",
-        "upcoming_rank": 13,
+        "upcoming_rank": 11,
         "opponent_name": "PSV Eindhoven",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/197.png",
         "is_home": false,
@@ -280,7 +252,7 @@
       {
         "fixture_id": 1552325,
         "league_code": "ED",
-        "upcoming_rank": 14,
+        "upcoming_rank": 12,
         "opponent_name": "PEC Zwolle",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/193.png",
         "is_home": true,
@@ -294,7 +266,7 @@
       {
         "fixture_id": 1552339,
         "league_code": "ED",
-        "upcoming_rank": 15,
+        "upcoming_rank": 13,
         "opponent_name": "Sparta Rotterdam",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/426.png",
         "is_home": false,
@@ -308,7 +280,7 @@
       {
         "fixture_id": 1552344,
         "league_code": "ED",
-        "upcoming_rank": 16,
+        "upcoming_rank": 14,
         "opponent_name": "ADO Den Haag",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/198.png",
         "is_home": true,
@@ -322,7 +294,7 @@
       {
         "fixture_id": 1552353,
         "league_code": "ED",
-        "upcoming_rank": 17,
+        "upcoming_rank": 15,
         "opponent_name": "Feyenoord",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/209.png",
         "is_home": false,
@@ -336,7 +308,7 @@
       {
         "fixture_id": 1552361,
         "league_code": "ED",
-        "upcoming_rank": 18,
+        "upcoming_rank": 16,
         "opponent_name": "Telstar",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/427.png",
         "is_home": true,
@@ -350,7 +322,7 @@
       {
         "fixture_id": 1552369,
         "league_code": "ED",
-        "upcoming_rank": 19,
+        "upcoming_rank": 17,
         "opponent_name": "Fortuna Sittard",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/205.png",
         "is_home": true,
@@ -364,7 +336,7 @@
       {
         "fixture_id": 1552378,
         "league_code": "ED",
-        "upcoming_rank": 20,
+        "upcoming_rank": 18,
         "opponent_name": "AZ Alkmaar",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/201.png",
         "is_home": false,
@@ -378,7 +350,7 @@
       {
         "fixture_id": 1552388,
         "league_code": "ED",
-        "upcoming_rank": 21,
+        "upcoming_rank": 19,
         "opponent_name": "Excelsior",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/196.png",
         "is_home": false,
@@ -392,7 +364,7 @@
       {
         "fixture_id": 1552397,
         "league_code": "ED",
-        "upcoming_rank": 22,
+        "upcoming_rank": 20,
         "opponent_name": "SC Heerenveen",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/210.png",
         "is_home": true,
@@ -406,7 +378,7 @@
       {
         "fixture_id": 1552409,
         "league_code": "ED",
-        "upcoming_rank": 23,
+        "upcoming_rank": 21,
         "opponent_name": "FC Groningen",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/202.png",
         "is_home": false,
@@ -420,7 +392,7 @@
       {
         "fixture_id": 1552414,
         "league_code": "ED",
-        "upcoming_rank": 24,
+        "upcoming_rank": 22,
         "opponent_name": "AFC Ajax",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/194.png",
         "is_home": true,
@@ -433,6 +405,34 @@
       }
     ],
     "results": [
+      {
+        "fixture_id": 1552219,
+        "league_code": "ED",
+        "upcoming_rank": null,
+        "opponent_name": "PSV Eindhoven",
+        "opponent_logo_url": "https://media.api-sports.io/football/teams/197.png",
+        "is_home": true,
+        "kickoff_datetime": "2026-11-08 15:45:00+00:00",
+        "round_name": "Regular Season - 12",
+        "goals_for": 2,
+        "goals_against": 5,
+        "result": "L",
+        "status_short": "FT"
+      },
+      {
+        "fixture_id": 1552211,
+        "league_code": "ED",
+        "upcoming_rank": null,
+        "opponent_name": "GO Ahead Eagles",
+        "opponent_logo_url": "https://media.api-sports.io/football/teams/410.png",
+        "is_home": true,
+        "kickoff_datetime": "2026-10-31 20:00:00+00:00",
+        "round_name": "Regular Season - 11",
+        "goals_for": 4,
+        "goals_against": 0,
+        "result": "W",
+        "status_short": "FT"
+      },
       {
         "fixture_id": 1552200,
         "league_code": "ED",
@@ -575,6 +575,55 @@
       }
     ]
   },
+  "this_season": {
+    "matches": 12,
+    "wins": 4,
+    "league_codes": [
+      "ED"
+    ],
+    "cards": {
+      "cards_yellow": 21.0,
+      "goals": 25.0,
+      "cards_red": 1.0,
+      "goals_against": 27.0
+    },
+    "comparison_keys": [
+      "blocks_per_match",
+      "clean_sheets_pct",
+      "corners_against_per_match",
+      "corners_per_match",
+      "defensive_actions_per_match",
+      "dribbles_attempts_per_match",
+      "dribbles_success_pct",
+      "dribbles_success_per_match",
+      "duels_per_match",
+      "duels_won_pct",
+      "duels_won_per_match",
+      "finishing_efficiency_pct",
+      "fouls_per_match",
+      "free_kicks_per_match",
+      "goals_against_per_match",
+      "goals_per_match",
+      "interceptions_per_match",
+      "offsides_per_match",
+      "passes_accuracy_pct",
+      "passes_accurate_per_match",
+      "passes_key_per_match",
+      "passes_per_match",
+      "passes_share_pct",
+      "saves_pct",
+      "saves_per_match",
+      "shots_inside_box_pct",
+      "shots_inside_box_per_match",
+      "shots_on_goal_against_per_match",
+      "shots_on_goal_difference_per_match",
+      "shots_on_goal_pct",
+      "shots_on_goal_per_match",
+      "shots_per_match",
+      "tackles_per_match"
+    ]
+  },
+  "last_season": null,
   "seasons": [
     {
       "team_sk": 420,
@@ -584,111 +633,111 @@
       "season_api_year": 2026,
       "competition_type": "domestic_league",
       "team_code": "CAM",
-      "played": 10,
-      "wins": 3,
+      "played": 12,
+      "wins": 4,
       "draws": 3,
-      "losses": 4,
-      "goals_for": 19,
-      "goals_against": 22,
-      "goal_diff": -3,
-      "points": 12,
-      "clean_sheets": 2,
+      "losses": 5,
+      "goals_for": 25,
+      "goals_against": 27,
+      "goal_diff": -2,
+      "points": 15,
+      "clean_sheets": 3,
       "latest_rank": 10,
-      "latest_form": "WDWDW",
-      "season_games_played": 10,
-      "stat_coverage_season_games": 10,
-      "goals_per_match": 1.9,
-      "goals_against_per_match": 2.2,
+      "latest_form": "LWWDW",
+      "season_games_played": 12,
+      "stat_coverage_season_games": 12,
+      "goals_per_match": 2.0833333333333335,
+      "goals_against_per_match": 2.25,
       "shots_per_match": 12.5,
-      "shots_on_goal_pct": 0.4,
-      "shots_inside_box_pct": 0.704,
-      "finishing_efficiency_pct": 0.38,
-      "passes_accuracy_pct": 0.7881653607133208,
-      "passes_per_match": 370.1,
-      "corners_per_match": 3.8,
-      "corners_against_per_match": 6.5,
-      "saves_pct": 0.6111111111111112,
-      "player_stat_coverage_season_games": 10,
-      "shots_on_goal_per_match": 5.0,
-      "shots_on_goal_against_per_match": 5.4,
-      "shots_on_goal_difference_per_match": -0.4,
-      "passes_key_per_match": 9.4,
-      "duels_per_match": 105.6,
-      "duels_won_pct": 0.5066287878787878,
-      "defensive_actions_per_match": 31.9,
-      "shots_share_pct": 0.4664179104477612,
-      "points_capture_pct": 0.4,
-      "yoy_games_played_cutoff": 10,
-      "points_this_season": 12,
+      "shots_on_goal_pct": 0.3933333333333333,
+      "shots_inside_box_pct": 0.7133333333333334,
+      "finishing_efficiency_pct": 0.4067796610169492,
+      "passes_accuracy_pct": 0.7885532591414944,
+      "passes_per_match": 366.9166666666667,
+      "corners_per_match": 3.8333333333333335,
+      "corners_against_per_match": 5.666666666666667,
+      "saves_pct": 0.5737704918032787,
+      "player_stat_coverage_season_games": 12,
+      "shots_on_goal_per_match": 4.916666666666667,
+      "shots_on_goal_against_per_match": 5.166666666666667,
+      "shots_on_goal_difference_per_match": -0.25,
+      "passes_key_per_match": 9.75,
+      "duels_per_match": 105.33333333333333,
+      "duels_won_pct": 0.5189873417721519,
+      "defensive_actions_per_match": 31.916666666666668,
+      "shots_share_pct": 0.4716981132075472,
+      "points_capture_pct": 0.4166666666666667,
+      "yoy_games_played_cutoff": 12,
+      "points_this_season": 15,
       "points_prev_season": null,
       "points_delta_yoy": null,
       "points_rank_prev_season": null,
-      "goals_for_this_season": 19,
+      "goals_for_this_season": 25,
       "goals_for_prev_season": null,
       "goals_for_delta_yoy": null,
-      "goals_against_this_season": 22,
+      "goals_against_this_season": 27,
       "goals_against_prev_season": null,
       "goals_against_delta_yoy": null,
-      "goals_per_match_this_season": 1.9,
+      "goals_per_match_this_season": 2.0833333333333335,
       "goals_per_match_prev_season": null,
       "goals_per_match_delta_yoy": null,
-      "goals_against_per_match_this_season": 2.2,
+      "goals_against_per_match_this_season": 2.25,
       "goals_against_per_match_prev_season": null,
       "goals_against_per_match_delta_yoy": null,
-      "clean_sheets_pct_this_season": 0.2,
+      "clean_sheets_pct_this_season": 0.25,
       "clean_sheets_pct_prev_season": null,
       "clean_sheets_pct_delta_yoy": null,
       "shots_per_match_this_season": 12.5,
       "shots_per_match_prev_season": null,
       "shots_per_match_delta_yoy": null,
-      "shots_inside_box_pct_this_season": 0.704,
+      "shots_inside_box_pct_this_season": 0.7133333333333334,
       "shots_inside_box_pct_prev_season": null,
       "shots_inside_box_pct_delta_yoy": null,
-      "shots_on_goal_per_match_this_season": 5.0,
+      "shots_on_goal_per_match_this_season": 4.916666666666667,
       "shots_on_goal_per_match_prev_season": null,
       "shots_on_goal_per_match_delta_yoy": null,
-      "finishing_efficiency_pct_this_season": 0.38,
+      "finishing_efficiency_pct_this_season": 0.4067796610169492,
       "finishing_efficiency_pct_prev_season": null,
       "finishing_efficiency_pct_delta_yoy": null,
-      "duels_per_match_this_season": 105.6,
+      "duels_per_match_this_season": 105.33333333333333,
       "duels_per_match_prev_season": null,
       "duels_per_match_delta_yoy": null,
-      "duels_won_pct_this_season": 0.5066287878787878,
+      "duels_won_pct_this_season": 0.5189873417721519,
       "duels_won_pct_prev_season": null,
       "duels_won_pct_delta_yoy": null,
-      "defensive_actions_per_match_this_season": 31.9,
+      "defensive_actions_per_match_this_season": 31.916666666666668,
       "defensive_actions_per_match_prev_season": null,
       "defensive_actions_per_match_delta_yoy": null,
-      "passes_per_match_this_season": 370.1,
+      "passes_per_match_this_season": 366.9166666666667,
       "passes_per_match_prev_season": null,
       "passes_per_match_delta_yoy": null,
-      "passes_accuracy_pct_this_season": 0.7881653607133208,
+      "passes_accuracy_pct_this_season": 0.7885532591414944,
       "passes_accuracy_pct_prev_season": null,
       "passes_accuracy_pct_delta_yoy": null,
-      "passes_key_per_match_this_season": 9.4,
+      "passes_key_per_match_this_season": 9.75,
       "passes_key_per_match_prev_season": null,
       "passes_key_per_match_delta_yoy": null,
-      "corners_per_match_this_season": 3.8,
+      "corners_per_match_this_season": 3.8333333333333335,
       "corners_per_match_prev_season": null,
       "corners_per_match_delta_yoy": null,
-      "corners_against_per_match_this_season": 6.5,
+      "corners_against_per_match_this_season": 5.666666666666667,
       "corners_against_per_match_prev_season": null,
       "corners_against_per_match_delta_yoy": null,
-      "saves_pct_this_season": 0.6111111111111112,
+      "saves_pct_this_season": 0.5737704918032787,
       "saves_pct_prev_season": null,
       "saves_pct_delta_yoy": null,
-      "unbeaten_run": 6,
-      "win_run": 1,
-      "winless_run": 0,
+      "unbeaten_run": 0,
+      "win_run": 0,
+      "winless_run": 1,
       "clean_sheet_run": 0,
-      "scoring_run": 9,
-      "deserved_points": 12.750838574423483,
-      "deserved_rank": 9,
-      "deserved_points_gap": -0.7508385744234829,
+      "scoring_run": 11,
+      "deserved_points": 15.723624595469257,
+      "deserved_rank": 10,
+      "deserved_points_gap": -0.7236245954692571,
       "deserved_points_gap_rank": 8,
-      "cards_yellow": 16,
+      "cards_yellow": 21,
       "cards_red": 1,
-      "longest_unbeaten_run": 6,
+      "longest_unbeaten_run": 7,
       "longest_winless_run": 5,
       "biggest_win_fixture_sk": 1552200,
       "biggest_win_league_code": "ED",
@@ -709,17 +758,39 @@
       "is_featured_season": true,
       "season_label": "2026/27",
       "next_fixture": {
-        "opponent_name": "GO Ahead Eagles",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/410.png",
-        "is_home": true,
-        "kickoff_datetime": "2026-10-31 20:00:00+00:00",
-        "round_name": "Regular Season - 11",
+        "opponent_name": "FC Utrecht",
+        "opponent_logo_url": "https://media.api-sports.io/football/teams/207.png",
+        "is_home": false,
+        "kickoff_datetime": "2026-11-21 17:45:00+00:00",
+        "round_name": "Regular Season - 13",
         "goals_for": null,
         "goals_against": null,
         "result": null,
         "status_short": "NS"
       },
       "recent_results": [
+        {
+          "opponent_name": "PSV Eindhoven",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/197.png",
+          "is_home": true,
+          "kickoff_datetime": "2026-11-08 15:45:00+00:00",
+          "round_name": "Regular Season - 12",
+          "goals_for": 2,
+          "goals_against": 5,
+          "result": "L",
+          "status_short": "FT"
+        },
+        {
+          "opponent_name": "GO Ahead Eagles",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/410.png",
+          "is_home": true,
+          "kickoff_datetime": "2026-10-31 20:00:00+00:00",
+          "round_name": "Regular Season - 11",
+          "goals_for": 4,
+          "goals_against": 0,
+          "result": "W",
+          "status_short": "FT"
+        },
         {
           "opponent_name": "Willem II",
           "opponent_logo_url": "https://media.api-sports.io/football/teams/195.png",
@@ -752,28 +823,6 @@
           "goals_against": 0,
           "result": "W",
           "status_short": "FT"
-        },
-        {
-          "opponent_name": "ADO Den Haag",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/198.png",
-          "is_home": false,
-          "kickoff_datetime": "2026-09-19 14:30:00+00:00",
-          "round_name": "Regular Season - 7",
-          "goals_for": 1,
-          "goals_against": 1,
-          "result": "D",
-          "status_short": "FT"
-        },
-        {
-          "opponent_name": "NEC Nijmegen",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/413.png",
-          "is_home": true,
-          "kickoff_datetime": "2026-09-12 19:00:00+00:00",
-          "round_name": "Regular Season - 6",
-          "goals_for": 3,
-          "goals_against": 0,
-          "result": "W",
-          "status_short": "FT"
         }
       ],
       "squad": [
@@ -784,8 +833,8 @@
           "nationality": "Belgium",
           "birth_date": "1995-03-27",
           "photo": "https://media.api-sports.io/football/players/8787.png",
-          "appearances": 6,
-          "minutes_per_appearance": 62.5,
+          "appearances": 8,
+          "minutes_per_appearance": 62.625,
           "goals": 0,
           "assists": 0
         },
@@ -808,9 +857,9 @@
           "nationality": "Netherlands",
           "birth_date": "1999-12-18",
           "photo": "https://media.api-sports.io/football/players/37078.png",
-          "appearances": 10,
-          "minutes_per_appearance": 90.0,
-          "goals": 0,
+          "appearances": 12,
+          "minutes_per_appearance": 89.0,
+          "goals": 1,
           "assists": 1
         },
         {
@@ -820,10 +869,10 @@
           "nationality": "Italy",
           "birth_date": "2001-08-13",
           "photo": "https://media.api-sports.io/football/players/91436.png",
-          "appearances": 7,
-          "minutes_per_appearance": 57.142857142857146,
+          "appearances": 9,
+          "minutes_per_appearance": 64.44444444444444,
           "goals": 0,
-          "assists": 0
+          "assists": 1
         },
         {
           "player_id": 135748,
@@ -844,8 +893,8 @@
           "nationality": "Austria",
           "birth_date": "2002-01-13",
           "photo": "https://media.api-sports.io/football/players/169446.png",
-          "appearances": 8,
-          "minutes_per_appearance": 52.75,
+          "appearances": 10,
+          "minutes_per_appearance": 56.3,
           "goals": 5,
           "assists": 2
         },
@@ -856,9 +905,9 @@
           "nationality": "Germany",
           "birth_date": "1999-11-10",
           "photo": "https://media.api-sports.io/football/players/178346.png",
-          "appearances": 4,
-          "minutes_per_appearance": 53.5,
-          "goals": 1,
+          "appearances": 6,
+          "minutes_per_appearance": 63.5,
+          "goals": 2,
           "assists": 1
         },
         {
@@ -892,7 +941,7 @@
           "nationality": "Netherlands",
           "birth_date": "2001-11-29",
           "photo": "https://media.api-sports.io/football/players/289583.png",
-          "appearances": 10,
+          "appearances": 12,
           "minutes_per_appearance": 90.0,
           "goals": 0,
           "assists": 0
@@ -904,10 +953,10 @@
           "nationality": "France",
           "birth_date": "2003-02-11",
           "photo": "https://media.api-sports.io/football/players/323581.png",
-          "appearances": 10,
-          "minutes_per_appearance": 74.2,
+          "appearances": 12,
+          "minutes_per_appearance": 76.83333333333333,
           "goals": 5,
-          "assists": 2
+          "assists": 3
         },
         {
           "player_id": 359315,
@@ -916,10 +965,10 @@
           "nationality": "Netherlands",
           "birth_date": "2005-07-31",
           "photo": "https://media.api-sports.io/football/players/359315.png",
-          "appearances": 10,
-          "minutes_per_appearance": 89.4,
-          "goals": 5,
-          "assists": 1
+          "appearances": 12,
+          "minutes_per_appearance": 88.66666666666667,
+          "goals": 6,
+          "assists": 2
         },
         {
           "player_id": 364184,
@@ -928,9 +977,9 @@
           "nationality": "Netherlands",
           "birth_date": "2005-10-04",
           "photo": "https://media.api-sports.io/football/players/364184.png",
-          "appearances": 7,
-          "minutes_per_appearance": 86.42857142857143,
-          "goals": 0,
+          "appearances": 9,
+          "minutes_per_appearance": 87.22222222222223,
+          "goals": 1,
           "assists": 2
         },
         {
@@ -952,8 +1001,8 @@
           "nationality": "Netherlands",
           "birth_date": "2006-07-01",
           "photo": "https://media.api-sports.io/football/players/386825.png",
-          "appearances": 7,
-          "minutes_per_appearance": 36.714285714285715,
+          "appearances": 9,
+          "minutes_per_appearance": 29.666666666666668,
           "goals": 0,
           "assists": 0
         },
@@ -964,8 +1013,8 @@
           "nationality": "Belgium",
           "birth_date": "2006-09-17",
           "photo": "https://media.api-sports.io/football/players/396198.png",
-          "appearances": 10,
-          "minutes_per_appearance": 85.2,
+          "appearances": 12,
+          "minutes_per_appearance": 86.0,
           "goals": 1,
           "assists": 0
         },
@@ -988,8 +1037,8 @@
           "nationality": "France",
           "birth_date": "2005-04-28",
           "photo": "https://media.api-sports.io/football/players/437767.png",
-          "appearances": 10,
-          "minutes_per_appearance": 67.7,
+          "appearances": 12,
+          "minutes_per_appearance": 70.0,
           "goals": 0,
           "assists": 2
         },
@@ -1000,9 +1049,9 @@
           "nationality": "Netherlands",
           "birth_date": "2006-10-10",
           "photo": "https://media.api-sports.io/football/players/438749.png",
-          "appearances": 8,
-          "minutes_per_appearance": 50.125,
-          "goals": 1,
+          "appearances": 10,
+          "minutes_per_appearance": 43.0,
+          "goals": 2,
           "assists": 0
         },
         {
@@ -1012,10 +1061,10 @@
           "nationality": "Netherlands",
           "birth_date": "2008-01-13",
           "photo": "https://media.api-sports.io/football/players/441265.png",
-          "appearances": 9,
-          "minutes_per_appearance": 45.111111111111114,
+          "appearances": 11,
+          "minutes_per_appearance": 41.81818181818182,
           "goals": 0,
-          "assists": 1
+          "assists": 2
         },
         {
           "player_id": 453708,
@@ -1048,9 +1097,21 @@
           "nationality": "Norway",
           "birth_date": "2005-10-18",
           "photo": "https://media.api-sports.io/football/players/516008.png",
-          "appearances": 7,
-          "minutes_per_appearance": 49.285714285714285,
+          "appearances": 8,
+          "minutes_per_appearance": 43.25,
           "goals": 1,
+          "assists": 0
+        },
+        {
+          "player_id": 516834,
+          "name": "Daan Visser",
+          "position": "Midfielder",
+          "nationality": "Netherlands",
+          "birth_date": null,
+          "photo": "https://media.api-sports.io/football/players/516834.png",
+          "appearances": 1,
+          "minutes_per_appearance": 12.0,
+          "goals": 0,
           "assists": 0
         },
         {
@@ -1096,8 +1157,8 @@
           "nationality": null,
           "birth_date": null,
           "photo": "https://media.api-sports.io/football/players/633612.png",
-          "appearances": 4,
-          "minutes_per_appearance": 31.25,
+          "appearances": 6,
+          "minutes_per_appearance": 27.333333333333332,
           "goals": 0,
           "assists": 0
         },
@@ -1129,20 +1190,20 @@
       "benchmarks": [
         {
           "metric_key": "blocks_per_match",
-          "metric_value": 3.9,
+          "metric_value": 4.25,
           "metric_value_prev_season": null,
-          "rank": 10,
+          "rank": 15,
           "team_count": 18,
-          "league_median": 3.9,
-          "league_p25": 3.3,
-          "league_p75": 4.3,
-          "vs_median_delta": 0.0
+          "league_median": 4.75,
+          "league_p25": 4.416666666666667,
+          "league_p75": 5.25,
+          "vs_median_delta": -0.5
         },
         {
           "metric_key": "cards_red",
           "metric_value": 1.0,
           "metric_value_prev_season": null,
-          "rank": 12,
+          "rank": 10,
           "team_count": 18,
           "league_median": 0.0,
           "league_p25": 0.0,
@@ -1151,482 +1212,482 @@
         },
         {
           "metric_key": "cards_yellow",
-          "metric_value": 16.0,
+          "metric_value": 21.0,
           "metric_value_prev_season": null,
-          "rank": 13,
+          "rank": 14,
           "team_count": 18,
-          "league_median": 14.0,
-          "league_p25": 13.0,
-          "league_p75": 16.0,
-          "vs_median_delta": 2.0
+          "league_median": 17.0,
+          "league_p25": 15.0,
+          "league_p75": 21.0,
+          "vs_median_delta": 4.0
         },
         {
           "metric_key": "clean_sheets",
-          "metric_value": 2.0,
+          "metric_value": 3.0,
           "metric_value_prev_season": null,
-          "rank": 5,
+          "rank": 4,
           "team_count": 18,
-          "league_median": 1.0,
+          "league_median": 2.0,
           "league_p25": 0.0,
-          "league_p75": 2.0,
+          "league_p75": 3.0,
           "vs_median_delta": 1.0
         },
         {
           "metric_key": "clean_sheets_pct",
-          "metric_value": 0.2,
-          "metric_value_prev_season": null,
-          "rank": 5,
-          "team_count": 18,
-          "league_median": 0.1,
-          "league_p25": 0.0,
-          "league_p75": 0.2,
-          "vs_median_delta": 0.1
-        },
-        {
-          "metric_key": "corners_against_per_match",
-          "metric_value": 6.5,
-          "metric_value_prev_season": null,
-          "rank": 15,
-          "team_count": 18,
-          "league_median": 5.2,
-          "league_p25": 3.9,
-          "league_p75": 6.3,
-          "vs_median_delta": 1.2999999999999998
-        },
-        {
-          "metric_key": "corners_per_match",
-          "metric_value": 3.8,
-          "metric_value_prev_season": null,
-          "rank": 16,
-          "team_count": 18,
-          "league_median": 4.8,
-          "league_p25": 4.1,
-          "league_p75": 6.3,
-          "vs_median_delta": -1.0
-        },
-        {
-          "metric_key": "defensive_actions_per_match",
-          "metric_value": 31.9,
-          "metric_value_prev_season": null,
-          "rank": 2,
-          "team_count": 18,
-          "league_median": 28.1,
-          "league_p25": 25.3,
-          "league_p75": 29.1,
-          "vs_median_delta": 3.799999999999997
-        },
-        {
-          "metric_key": "dribbles_attempts_per_match",
-          "metric_value": 18.3,
-          "metric_value_prev_season": null,
-          "rank": 2,
-          "team_count": 18,
-          "league_median": 15.0,
-          "league_p25": 11.8,
-          "league_p75": 15.9,
-          "vs_median_delta": 3.3000000000000007
-        },
-        {
-          "metric_key": "dribbles_success_pct",
-          "metric_value": 0.5136612021857924,
-          "metric_value_prev_season": null,
-          "rank": 3,
-          "team_count": 18,
-          "league_median": 0.4620253164556962,
-          "league_p25": 0.44370860927152317,
-          "league_p75": 0.4968553459119497,
-          "vs_median_delta": 0.05163588573009614
-        },
-        {
-          "metric_key": "dribbles_success_per_match",
-          "metric_value": 9.4,
-          "metric_value_prev_season": null,
-          "rank": 1,
-          "team_count": 18,
-          "league_median": 6.8,
-          "league_p25": 5.5,
-          "league_p75": 7.9,
-          "vs_median_delta": 2.6000000000000005
-        },
-        {
-          "metric_key": "duels_per_match",
-          "metric_value": 105.6,
-          "metric_value_prev_season": null,
-          "rank": 1,
-          "team_count": 18,
-          "league_median": 89.6,
-          "league_p25": 86.0,
-          "league_p75": 95.9,
-          "vs_median_delta": 16.0
-        },
-        {
-          "metric_key": "duels_won_pct",
-          "metric_value": 0.5066287878787878,
-          "metric_value_prev_season": null,
-          "rank": 8,
-          "team_count": 18,
-          "league_median": 0.49667405764966743,
-          "league_p25": 0.49041372351160445,
-          "league_p75": 0.5136138613861386,
-          "vs_median_delta": 0.009954730229120412
-        },
-        {
-          "metric_key": "duels_won_per_match",
-          "metric_value": 53.5,
-          "metric_value_prev_season": null,
-          "rank": 1,
-          "team_count": 18,
-          "league_median": 44.8,
-          "league_p25": 41.9,
-          "league_p75": 46.9,
-          "vs_median_delta": 8.700000000000003
-        },
-        {
-          "metric_key": "finishing_efficiency_pct",
-          "metric_value": 0.38,
-          "metric_value_prev_season": null,
-          "rank": 3,
-          "team_count": 18,
-          "league_median": 0.3333333333333333,
-          "league_p25": 0.2978723404255319,
-          "league_p75": 0.37037037037037035,
-          "vs_median_delta": 0.04666666666666669
-        },
-        {
-          "metric_key": "fouls_per_match",
-          "metric_value": 12.1,
-          "metric_value_prev_season": null,
-          "rank": 15,
-          "team_count": 18,
-          "league_median": 10.5,
-          "league_p25": 9.4,
-          "league_p75": 11.8,
-          "vs_median_delta": 1.5999999999999996
-        },
-        {
-          "metric_key": "goals_against_per_match",
-          "metric_value": 2.2,
-          "metric_value_prev_season": null,
-          "rank": 12,
-          "team_count": 18,
-          "league_median": 1.9,
-          "league_p25": 1.3,
-          "league_p75": 2.3,
-          "vs_median_delta": 0.30000000000000027
-        },
-        {
-          "metric_key": "goals_per_match",
-          "metric_value": 1.9,
-          "metric_value_prev_season": null,
-          "rank": 7,
-          "team_count": 18,
-          "league_median": 1.7,
-          "league_p25": 1.6,
-          "league_p75": 2.3,
-          "vs_median_delta": 0.19999999999999996
-        },
-        {
-          "metric_key": "interceptions_per_match",
-          "metric_value": 10.7,
-          "metric_value_prev_season": null,
-          "rank": 2,
-          "team_count": 18,
-          "league_median": 8.4,
-          "league_p25": 7.7,
-          "league_p75": 9.9,
-          "vs_median_delta": 2.299999999999999
-        },
-        {
-          "metric_key": "passes_accuracy_pct",
-          "metric_value": 0.7881653607133208,
-          "metric_value_prev_season": null,
-          "rank": 15,
-          "team_count": 18,
-          "league_median": 0.8113389626055488,
-          "league_p25": 0.8004462072384729,
-          "league_p75": 0.8574407582938388,
-          "vs_median_delta": -0.023173601892228057
-        },
-        {
-          "metric_key": "passes_accurate_per_match",
-          "metric_value": 291.7,
-          "metric_value_prev_season": null,
-          "rank": 15,
-          "team_count": 18,
-          "league_median": 336.3,
-          "league_p25": 310.1,
-          "league_p75": 423.5,
-          "vs_median_delta": -44.60000000000002
-        },
-        {
-          "metric_key": "passes_key_per_match",
-          "metric_value": 9.4,
-          "metric_value_prev_season": null,
-          "rank": 12,
-          "team_count": 18,
-          "league_median": 10.9,
-          "league_p25": 8.3,
-          "league_p75": 13.9,
-          "vs_median_delta": -1.5
-        },
-        {
-          "metric_key": "passes_per_match",
-          "metric_value": 370.1,
-          "metric_value_prev_season": null,
-          "rank": 15,
-          "team_count": 18,
-          "league_median": 414.5,
-          "league_p25": 384.7,
-          "league_p75": 489.7,
-          "vs_median_delta": -44.39999999999998
-        },
-        {
-          "metric_key": "passes_share_pct",
-          "metric_value": 0.4651250471283147,
-          "metric_value_prev_season": null,
-          "rank": 11,
-          "team_count": 18,
-          "league_median": 0.47541738629821534,
-          "league_p25": 0.4385544915640675,
-          "league_p75": 0.5736704446381866,
-          "vs_median_delta": -0.010292339169900633
-        },
-        {
-          "metric_key": "saves_pct",
-          "metric_value": 0.6111111111111112,
-          "metric_value_prev_season": null,
-          "rank": 13,
-          "team_count": 18,
-          "league_median": 0.6551724137931034,
-          "league_p25": 0.5970149253731343,
-          "league_p75": 0.7027027027027027,
-          "vs_median_delta": -0.044061302681992265
-        },
-        {
-          "metric_key": "saves_per_match",
-          "metric_value": 3.3,
-          "metric_value_prev_season": null,
-          "rank": 9,
-          "team_count": 18,
-          "league_median": 3.3,
-          "league_p25": 2.7,
-          "league_p75": 4.2,
-          "vs_median_delta": 0.0
-        },
-        {
-          "metric_key": "shots_inside_box_pct",
-          "metric_value": 0.704,
+          "metric_value": 0.25,
           "metric_value_prev_season": null,
           "rank": 4,
           "team_count": 18,
-          "league_median": 0.6713286713286714,
-          "league_p25": 0.6363636363636364,
-          "league_p75": 0.7024390243902439,
-          "vs_median_delta": 0.0326713286713286
+          "league_median": 0.16666666666666666,
+          "league_p25": 0.0,
+          "league_p75": 0.25,
+          "vs_median_delta": 0.08333333333333334
         },
         {
-          "metric_key": "shots_inside_box_per_match",
-          "metric_value": 8.8,
+          "metric_key": "corners_against_per_match",
+          "metric_value": 5.666666666666667,
+          "metric_value_prev_season": null,
+          "rank": 11,
+          "team_count": 18,
+          "league_median": 5.083333333333333,
+          "league_p25": 4.0,
+          "league_p75": 5.916666666666667,
+          "vs_median_delta": 0.5833333333333339
+        },
+        {
+          "metric_key": "corners_per_match",
+          "metric_value": 3.8333333333333335,
+          "metric_value_prev_season": null,
+          "rank": 15,
+          "team_count": 18,
+          "league_median": 4.666666666666667,
+          "league_p25": 4.0,
+          "league_p75": 6.0,
+          "vs_median_delta": -0.8333333333333335
+        },
+        {
+          "metric_key": "defensive_actions_per_match",
+          "metric_value": 31.916666666666668,
+          "metric_value_prev_season": null,
+          "rank": 2,
+          "team_count": 18,
+          "league_median": 28.333333333333332,
+          "league_p25": 27.666666666666668,
+          "league_p75": 29.833333333333332,
+          "vs_median_delta": 3.5833333333333357
+        },
+        {
+          "metric_key": "dribbles_attempts_per_match",
+          "metric_value": 18.416666666666668,
+          "metric_value_prev_season": null,
+          "rank": 2,
+          "team_count": 18,
+          "league_median": 13.833333333333334,
+          "league_p25": 11.916666666666666,
+          "league_p75": 16.166666666666668,
+          "vs_median_delta": 4.583333333333334
+        },
+        {
+          "metric_key": "dribbles_success_pct",
+          "metric_value": 0.5429864253393665,
+          "metric_value_prev_season": null,
+          "rank": 1,
+          "team_count": 18,
+          "league_median": 0.46621621621621623,
+          "league_p25": 0.4458874458874459,
+          "league_p75": 0.4906832298136646,
+          "vs_median_delta": 0.07677020912315025
+        },
+        {
+          "metric_key": "dribbles_success_per_match",
+          "metric_value": 10.0,
+          "metric_value_prev_season": null,
+          "rank": 1,
+          "team_count": 18,
+          "league_median": 6.583333333333333,
+          "league_p25": 5.666666666666667,
+          "league_p75": 7.5,
+          "vs_median_delta": 3.416666666666667
+        },
+        {
+          "metric_key": "duels_per_match",
+          "metric_value": 105.33333333333333,
+          "metric_value_prev_season": null,
+          "rank": 1,
+          "team_count": 18,
+          "league_median": 88.66666666666667,
+          "league_p25": 87.83333333333333,
+          "league_p75": 96.0,
+          "vs_median_delta": 16.666666666666657
+        },
+        {
+          "metric_key": "duels_won_pct",
+          "metric_value": 0.5189873417721519,
+          "metric_value_prev_season": null,
+          "rank": 3,
+          "team_count": 18,
+          "league_median": 0.4984391259105099,
+          "league_p25": 0.4870689655172414,
+          "league_p75": 0.515263644773358,
+          "vs_median_delta": 0.020548215861642016
+        },
+        {
+          "metric_key": "duels_won_per_match",
+          "metric_value": 54.666666666666664,
+          "metric_value_prev_season": null,
+          "rank": 1,
+          "team_count": 18,
+          "league_median": 44.75,
+          "league_p25": 42.5,
+          "league_p75": 47.333333333333336,
+          "vs_median_delta": 9.916666666666664
+        },
+        {
+          "metric_key": "finishing_efficiency_pct",
+          "metric_value": 0.4067796610169492,
+          "metric_value_prev_season": null,
+          "rank": 2,
+          "team_count": 18,
+          "league_median": 0.3442622950819672,
+          "league_p25": 0.3090909090909091,
+          "league_p75": 0.37142857142857144,
+          "vs_median_delta": 0.06251736593498197
+        },
+        {
+          "metric_key": "fouls_per_match",
+          "metric_value": 11.833333333333334,
+          "metric_value_prev_season": null,
+          "rank": 15,
+          "team_count": 18,
+          "league_median": 10.583333333333334,
+          "league_p25": 9.666666666666666,
+          "league_p75": 11.166666666666666,
+          "vs_median_delta": 1.25
+        },
+        {
+          "metric_key": "goals_against_per_match",
+          "metric_value": 2.25,
           "metric_value_prev_season": null,
           "rank": 12,
           "team_count": 18,
-          "league_median": 9.6,
-          "league_p25": 7.8,
-          "league_p75": 11.5,
-          "vs_median_delta": -0.7999999999999989
+          "league_median": 2.0,
+          "league_p25": 1.3333333333333333,
+          "league_p75": 2.3333333333333335,
+          "vs_median_delta": 0.25
+        },
+        {
+          "metric_key": "goals_per_match",
+          "metric_value": 2.0833333333333335,
+          "metric_value_prev_season": null,
+          "rank": 6,
+          "team_count": 18,
+          "league_median": 1.75,
+          "league_p25": 1.5,
+          "league_p75": 2.4166666666666665,
+          "vs_median_delta": 0.3333333333333335
+        },
+        {
+          "metric_key": "interceptions_per_match",
+          "metric_value": 10.5,
+          "metric_value_prev_season": null,
+          "rank": 3,
+          "team_count": 18,
+          "league_median": 8.333333333333334,
+          "league_p25": 8.0,
+          "league_p75": 10.333333333333334,
+          "vs_median_delta": 2.166666666666666
+        },
+        {
+          "metric_key": "passes_accuracy_pct",
+          "metric_value": 0.7885532591414944,
+          "metric_value_prev_season": null,
+          "rank": 15,
+          "team_count": 18,
+          "league_median": 0.8109381401065138,
+          "league_p25": 0.7943217665615142,
+          "league_p75": 0.8572566512665286,
+          "vs_median_delta": -0.022384880965019338
+        },
+        {
+          "metric_key": "passes_accurate_per_match",
+          "metric_value": 289.3333333333333,
+          "metric_value_prev_season": null,
+          "rank": 15,
+          "team_count": 18,
+          "league_median": 343.3333333333333,
+          "league_p25": 309.0,
+          "league_p75": 443.5,
+          "vs_median_delta": -54.0
+        },
+        {
+          "metric_key": "passes_key_per_match",
+          "metric_value": 9.75,
+          "metric_value_prev_season": null,
+          "rank": 13,
+          "team_count": 18,
+          "league_median": 10.833333333333334,
+          "league_p25": 9.5,
+          "league_p75": 14.0,
+          "vs_median_delta": -1.083333333333334
+        },
+        {
+          "metric_key": "passes_per_match",
+          "metric_value": 366.9166666666667,
+          "metric_value_prev_season": null,
+          "rank": 15,
+          "team_count": 18,
+          "league_median": 422.75,
+          "league_p25": 385.25,
+          "league_p75": 510.0833333333333,
+          "vs_median_delta": -55.833333333333314
+        },
+        {
+          "metric_key": "passes_share_pct",
+          "metric_value": 0.46090233434523187,
+          "metric_value_prev_season": null,
+          "rank": 12,
+          "team_count": 18,
+          "league_median": 0.4911890007745933,
+          "league_p25": 0.44142079633342884,
+          "league_p75": 0.5823900538133234,
+          "vs_median_delta": -0.030286666429361453
+        },
+        {
+          "metric_key": "saves_pct",
+          "metric_value": 0.5737704918032787,
+          "metric_value_prev_season": null,
+          "rank": 15,
+          "team_count": 18,
+          "league_median": 0.6216216216216216,
+          "league_p25": 0.5802469135802469,
+          "league_p75": 0.6875,
+          "vs_median_delta": -0.04785112981834294
+        },
+        {
+          "metric_key": "saves_per_match",
+          "metric_value": 2.9166666666666665,
+          "metric_value_prev_season": null,
+          "rank": 11,
+          "team_count": 18,
+          "league_median": 3.0,
+          "league_p25": 2.6666666666666665,
+          "league_p75": 3.9166666666666665,
+          "vs_median_delta": -0.08333333333333348
+        },
+        {
+          "metric_key": "shots_inside_box_pct",
+          "metric_value": 0.7133333333333334,
+          "metric_value_prev_season": null,
+          "rank": 3,
+          "team_count": 18,
+          "league_median": 0.6691729323308271,
+          "league_p25": 0.6555555555555556,
+          "league_p75": 0.7074235807860262,
+          "vs_median_delta": 0.04416040100250629
+        },
+        {
+          "metric_key": "shots_inside_box_per_match",
+          "metric_value": 8.916666666666666,
+          "metric_value_prev_season": null,
+          "rank": 12,
+          "team_count": 18,
+          "league_median": 9.666666666666666,
+          "league_p25": 7.75,
+          "league_p75": 11.583333333333334,
+          "vs_median_delta": -0.75
         },
         {
           "metric_key": "shots_on_goal_against_per_match",
-          "metric_value": 5.4,
-          "metric_value_prev_season": null,
-          "rank": 10,
-          "team_count": 18,
-          "league_median": 5.2,
-          "league_p25": 4.1,
-          "league_p75": 6.6,
-          "vs_median_delta": 0.20000000000000018
-        },
-        {
-          "metric_key": "shots_on_goal_difference_per_match",
-          "metric_value": -0.4,
+          "metric_value": 5.166666666666667,
           "metric_value_prev_season": null,
           "rank": 9,
           "team_count": 18,
-          "league_median": -0.4,
-          "league_p25": -2.2,
-          "league_p75": 2.5,
+          "league_median": 5.166666666666667,
+          "league_p25": 4.083333333333333,
+          "league_p75": 6.25,
+          "vs_median_delta": 0.0
+        },
+        {
+          "metric_key": "shots_on_goal_difference_per_match",
+          "metric_value": -0.25,
+          "metric_value_prev_season": null,
+          "rank": 10,
+          "team_count": 18,
+          "league_median": -0.25,
+          "league_p25": -2.3333333333333335,
+          "league_p75": 2.4166666666666665,
           "vs_median_delta": 0.0
         },
         {
           "metric_key": "shots_on_goal_pct",
-          "metric_value": 0.4,
+          "metric_value": 0.3933333333333333,
           "metric_value_prev_season": null,
           "rank": 4,
           "team_count": 18,
-          "league_median": 0.3584905660377358,
-          "league_p25": 0.31654676258992803,
-          "league_p75": 0.38461538461538464,
-          "vs_median_delta": 0.0415094339622642
+          "league_median": 0.35039370078740156,
+          "league_p25": 0.33116883116883117,
+          "league_p75": 0.3888888888888889,
+          "vs_median_delta": 0.04293963254593175
         },
         {
           "metric_key": "shots_on_goal_per_match",
-          "metric_value": 5.0,
+          "metric_value": 4.916666666666667,
           "metric_value_prev_season": null,
           "rank": 10,
           "team_count": 18,
-          "league_median": 5.0,
-          "league_p25": 4.4,
-          "league_p75": 6.4,
+          "league_median": 4.916666666666667,
+          "league_p25": 4.25,
+          "league_p75": 6.166666666666667,
           "vs_median_delta": 0.0
         },
         {
           "metric_key": "shots_per_match",
           "metric_value": 12.5,
           "metric_value_prev_season": null,
-          "rank": 12,
+          "rank": 13,
           "team_count": 18,
-          "league_median": 14.3,
-          "league_p25": 12.0,
-          "league_p75": 16.9,
-          "vs_median_delta": -1.8000000000000007
+          "league_median": 14.166666666666666,
+          "league_p25": 12.5,
+          "league_p75": 17.333333333333332,
+          "vs_median_delta": -1.666666666666666
         },
         {
           "metric_key": "tackles_per_match",
-          "metric_value": 17.3,
+          "metric_value": 17.166666666666668,
           "metric_value_prev_season": null,
-          "rank": 4,
+          "rank": 2,
           "team_count": 18,
-          "league_median": 15.0,
-          "league_p25": 13.4,
-          "league_p75": 17.1,
-          "vs_median_delta": 2.3000000000000007
+          "league_median": 15.083333333333334,
+          "league_p25": 13.666666666666666,
+          "league_p75": 16.583333333333332,
+          "vs_median_delta": 2.083333333333334
         }
       ],
       "deserved_scatter": [
         {
-          "name": "Willem II",
-          "sotd": -4.9,
-          "points": 2,
-          "deserved": 3.6977725366876326,
-          "is_self": false
-        },
-        {
-          "name": "Cambuur",
-          "sotd": -0.4,
-          "points": 12,
-          "deserved": 12.750838574423483,
-          "is_self": true
-        },
-        {
-          "name": "ADO Den Haag",
-          "sotd": -3.2,
-          "points": 6,
-          "deserved": 7.1178197064989535,
-          "is_self": false
-        },
-        {
-          "name": "SC Heerenveen",
-          "sotd": 2.0,
-          "points": 15,
-          "deserved": 17.579140461215932,
+          "name": "Fortuna Sittard",
+          "sotd": -1.6666666666666667,
+          "points": 20,
+          "deserved": 12.268608414239482,
           "is_self": false
         },
         {
           "name": "FC Groningen",
-          "sotd": -0.7,
+          "sotd": -0.08333333333333333,
           "points": 15,
-          "deserved": 12.147300838574424,
-          "is_self": false
-        },
-        {
-          "name": "GO Ahead Eagles",
-          "sotd": 1.2,
-          "points": 14,
-          "deserved": 15.969706498951783,
-          "is_self": false
-        },
-        {
-          "name": "FC Utrecht",
-          "sotd": -2.4,
-          "points": 12,
-          "deserved": 8.727253668763105,
-          "is_self": false
-        },
-        {
-          "name": "Telstar",
-          "sotd": -3.6,
-          "points": 6,
-          "deserved": 6.313102725366878,
-          "is_self": false
-        },
-        {
-          "name": "AFC Ajax",
-          "sotd": 3.5,
-          "points": 21,
-          "deserved": 20.596829140461214,
-          "is_self": false
-        },
-        {
-          "name": "Fortuna Sittard",
-          "sotd": -1.3,
-          "points": 18,
-          "deserved": 10.94022536687631,
-          "is_self": false
-        },
-        {
-          "name": "PEC Zwolle",
-          "sotd": -2.2,
-          "points": 8,
-          "deserved": 9.129612159329142,
+          "deserved": 16.13009708737864,
           "is_self": false
         },
         {
           "name": "Sparta Rotterdam",
-          "sotd": -0.4,
-          "points": 9,
-          "deserved": 12.750838574423483,
-          "is_self": false
-        },
-        {
-          "name": "PSV Eindhoven",
-          "sotd": 2.5,
-          "points": 20,
-          "deserved": 18.58503668763103,
-          "is_self": false
-        },
-        {
-          "name": "Excelsior",
-          "sotd": -1.4,
-          "points": 11,
-          "deserved": 10.739046121593292,
+          "sotd": -0.9166666666666666,
+          "points": 12,
+          "deserved": 14.097734627831716,
           "is_self": false
         },
         {
           "name": "Feyenoord",
-          "sotd": 4.7,
-          "points": 24,
-          "deserved": 23.01098008385744,
+          "sotd": 3.6666666666666665,
+          "points": 25,
+          "deserved": 25.275728155339802,
+          "is_self": false
+        },
+        {
+          "name": "ADO Den Haag",
+          "sotd": -2.4166666666666665,
+          "points": 9,
+          "deserved": 10.439482200647252,
+          "is_self": false
+        },
+        {
+          "name": "GO Ahead Eagles",
+          "sotd": 0.5,
+          "points": 17,
+          "deserved": 17.55275080906149,
+          "is_self": false
+        },
+        {
+          "name": "PSV Eindhoven",
+          "sotd": 2.8333333333333335,
+          "points": 26,
+          "deserved": 23.243365695792882,
+          "is_self": false
+        },
+        {
+          "name": "Telstar",
+          "sotd": -2.5,
+          "points": 10,
+          "deserved": 10.236245954692558,
+          "is_self": false
+        },
+        {
+          "name": "AZ Alkmaar",
+          "sotd": 2.9166666666666665,
+          "points": 23,
+          "deserved": 23.446601941747574,
+          "is_self": false
+        },
+        {
+          "name": "Excelsior",
+          "sotd": -2.4166666666666665,
+          "points": 11,
+          "deserved": 10.439482200647252,
+          "is_self": false
+        },
+        {
+          "name": "FC Utrecht",
+          "sotd": -2.3333333333333335,
+          "points": 12,
+          "deserved": 10.642718446601943,
+          "is_self": false
+        },
+        {
+          "name": "SC Heerenveen",
+          "sotd": 2.25,
+          "points": 21,
+          "deserved": 21.820711974110033,
+          "is_self": false
+        },
+        {
+          "name": "Cambuur",
+          "sotd": -0.25,
+          "points": 15,
+          "deserved": 15.723624595469257,
+          "is_self": true
+        },
+        {
+          "name": "PEC Zwolle",
+          "sotd": -2.0,
+          "points": 12,
+          "deserved": 11.455663430420714,
+          "is_self": false
+        },
+        {
+          "name": "Willem II",
+          "sotd": -4.416666666666667,
+          "points": 3,
+          "deserved": 5.56181229773463,
           "is_self": false
         },
         {
           "name": "NEC Nijmegen",
           "sotd": 0.5,
-          "points": 11,
-          "deserved": 14.561451781970652,
+          "points": 14,
+          "deserved": 17.55275080906149,
+          "is_self": false
+        },
+        {
+          "name": "AFC Ajax",
+          "sotd": 2.4166666666666665,
+          "points": 25,
+          "deserved": 22.227184466019416,
           "is_self": false
         },
         {
           "name": "FC Twente",
-          "sotd": 2.9,
-          "points": 20,
-          "deserved": 19.389753668763102,
-          "is_self": false
-        },
-        {
-          "name": "AZ Alkmaar",
-          "sotd": 3.2,
-          "points": 20,
-          "deserved": 19.993291404612158,
+          "sotd": 3.9166666666666665,
+          "points": 24,
+          "deserved": 25.88543689320388,
           "is_self": false
         }
       ],
@@ -1637,15 +1698,15 @@
           "entity_type": "club",
           "standing_group_name": "Eredivisie",
           "standing_rank": 10,
-          "played": 10,
-          "wins": 3,
+          "played": 12,
+          "wins": 4,
           "draws": 3,
-          "losses": 4,
-          "goals_for": 19,
-          "goals_against": 22,
-          "points": 12,
+          "losses": 5,
+          "goals_for": 25,
+          "goals_against": 27,
+          "points": 15,
           "latest_played_round_label_i18n_key": "compFactMatchday",
-          "latest_played_round_number": 10,
+          "latest_played_round_number": 12,
           "latest_played_round_letter": null,
           "reached_round_label_i18n_key": "compFactMatchday",
           "reached_round_number": 34,
@@ -1660,92 +1721,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 4.7,
+              "value": 5.25,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 2.3,
+              "value": 4.666666666666667,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 4.3,
+              "value": 5.166666666666667,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 4.3,
+              "value": 4.75,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 3.2,
+              "value": 4.583333333333333,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 3.8,
+              "value": 4.75,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 2.6,
+              "value": 3.6666666666666665,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 3.3,
+              "value": 4.25,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 3.8,
+              "value": 4.416666666666667,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 4.6,
+              "value": 6.083333333333333,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 3.3,
+              "value": 2.9166666666666665,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 4.1,
+              "value": 5.416666666666667,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 4.3,
+              "value": 5.5,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 3.9,
+              "value": 4.666666666666667,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 4.1,
+              "value": 6.333333333333333,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 3.9,
+              "value": 4.25,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 4.3,
+              "value": 5.083333333333333,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 5.3,
+              "value": 5.25,
               "is_self": false
             }
           ]
@@ -1770,7 +1831,7 @@
             },
             {
               "name": "Excelsior",
-              "value": 0.0,
+              "value": 1.0,
               "is_self": false
             },
             {
@@ -1790,7 +1851,7 @@
             },
             {
               "name": "FC Groningen",
-              "value": 0.0,
+              "value": 2.0,
               "is_self": false
             },
             {
@@ -1850,52 +1911,52 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 14.0,
+              "value": 17.0,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 20.0,
+              "value": 26.0,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 14.0,
+              "value": 17.0,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 13.0,
-              "is_self": false
-            },
-            {
-              "name": "PSV Eindhoven",
-              "value": 17.0,
-              "is_self": false
-            },
-            {
-              "name": "ADO Den Haag",
-              "value": 17.0,
-              "is_self": false
-            },
-            {
-              "name": "AZ Alkmaar",
-              "value": 14.0,
-              "is_self": false
-            },
-            {
-              "name": "FC Groningen",
-              "value": 12.0,
-              "is_self": false
-            },
-            {
-              "name": "Fortuna Sittard",
               "value": 15.0,
               "is_self": false
             },
             {
-              "name": "FC Utrecht",
+              "name": "PSV Eindhoven",
               "value": 21.0,
+              "is_self": false
+            },
+            {
+              "name": "ADO Den Haag",
+              "value": 21.0,
+              "is_self": false
+            },
+            {
+              "name": "AZ Alkmaar",
+              "value": 17.0,
+              "is_self": false
+            },
+            {
+              "name": "FC Groningen",
+              "value": 15.0,
+              "is_self": false
+            },
+            {
+              "name": "Fortuna Sittard",
+              "value": 18.0,
+              "is_self": false
+            },
+            {
+              "name": "FC Utrecht",
+              "value": 25.0,
               "is_self": false
             },
             {
@@ -1905,37 +1966,37 @@
             },
             {
               "name": "SC Heerenveen",
-              "value": 9.0,
-              "is_self": false
-            },
-            {
-              "name": "GO Ahead Eagles",
-              "value": 8.0,
-              "is_self": false
-            },
-            {
-              "name": "NEC Nijmegen",
               "value": 13.0,
               "is_self": false
             },
             {
+              "name": "GO Ahead Eagles",
+              "value": 10.0,
+              "is_self": false
+            },
+            {
+              "name": "NEC Nijmegen",
+              "value": 19.0,
+              "is_self": false
+            },
+            {
               "name": "FC Twente",
-              "value": 8.0,
+              "value": 12.0,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 16.0,
+              "value": 21.0,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 16.0,
+              "value": 19.0,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 14.0,
+              "value": 17.0,
               "is_self": false
             }
           ]
@@ -1945,12 +2006,12 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 1.0,
+              "value": 2.0,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 2.0,
+              "value": 3.0,
               "is_self": false
             },
             {
@@ -1965,7 +2026,7 @@
             },
             {
               "name": "PSV Eindhoven",
-              "value": 1.0,
+              "value": 2.0,
               "is_self": false
             },
             {
@@ -2000,12 +2061,12 @@
             },
             {
               "name": "SC Heerenveen",
-              "value": 4.0,
+              "value": 5.0,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 0.0,
+              "value": 1.0,
               "is_self": false
             },
             {
@@ -2015,12 +2076,12 @@
             },
             {
               "name": "FC Twente",
-              "value": 3.0,
+              "value": 4.0,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 2.0,
+              "value": 3.0,
               "is_self": true
             },
             {
@@ -2040,12 +2101,12 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 0.1,
+              "value": 0.16666666666666666,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 0.2,
+              "value": 0.25,
               "is_self": false
             },
             {
@@ -2055,12 +2116,12 @@
             },
             {
               "name": "Excelsior",
-              "value": 0.2,
+              "value": 0.16666666666666666,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 0.1,
+              "value": 0.16666666666666666,
               "is_self": false
             },
             {
@@ -2070,17 +2131,17 @@
             },
             {
               "name": "AZ Alkmaar",
-              "value": 0.3,
+              "value": 0.25,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 0.1,
+              "value": 0.08333333333333333,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 0.2,
+              "value": 0.16666666666666666,
               "is_self": false
             },
             {
@@ -2090,17 +2151,17 @@
             },
             {
               "name": "Feyenoord",
-              "value": 0.4,
+              "value": 0.3333333333333333,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 0.4,
+              "value": 0.4166666666666667,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 0.0,
+              "value": 0.08333333333333333,
               "is_self": false
             },
             {
@@ -2110,12 +2171,12 @@
             },
             {
               "name": "FC Twente",
-              "value": 0.3,
+              "value": 0.3333333333333333,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 0.2,
+              "value": 0.25,
               "is_self": true
             },
             {
@@ -2125,7 +2186,7 @@
             },
             {
               "name": "Telstar",
-              "value": 0.1,
+              "value": 0.08333333333333333,
               "is_self": false
             }
           ]
@@ -2135,92 +2196,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 7.2,
+              "value": 6.333333333333333,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 3.1,
+              "value": 4.0,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 6.3,
+              "value": 6.75,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 5.3,
+              "value": 5.083333333333333,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 3.1,
+              "value": 2.75,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 5.4,
+              "value": 5.916666666666667,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 3.9,
+              "value": 3.3333333333333335,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 5.2,
+              "value": 5.5,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 8.0,
+              "value": 7.5,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 5.8,
+              "value": 5.75,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 4.5,
+              "value": 4.166666666666667,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 5.2,
+              "value": 5.0,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 4.4,
+              "value": 4.833333333333333,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 3.2,
+              "value": 3.3333333333333335,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 3.8,
+              "value": 3.3333333333333335,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 6.5,
+              "value": 5.666666666666667,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 6.5,
+              "value": 6.0,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 5.8,
+              "value": 5.916666666666667,
               "is_self": false
             }
           ]
@@ -2230,32 +2291,32 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 4.1,
+              "value": 4.666666666666667,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 6.7,
+              "value": 5.833333333333333,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 4.8,
+              "value": 4.25,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 3.8,
+              "value": 3.75,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 6.5,
+              "value": 6.416666666666667,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 3.9,
+              "value": 3.8333333333333335,
               "is_self": false
             },
             {
@@ -2265,57 +2326,57 @@
             },
             {
               "name": "FC Groningen",
-              "value": 4.6,
+              "value": 4.0,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 2.7,
+              "value": 2.6666666666666665,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 4.1,
+              "value": 4.416666666666667,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 6.3,
+              "value": 5.833333333333333,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 4.8,
+              "value": 4.75,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 6.1,
+              "value": 5.25,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 6.3,
+              "value": 6.5,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 7.0,
+              "value": 7.25,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 3.8,
+              "value": 3.8333333333333335,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 5.6,
+              "value": 6.0,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 4.6,
+              "value": 4.416666666666667,
               "is_self": false
             }
           ]
@@ -2325,92 +2386,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 33.4,
+              "value": 32.916666666666664,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 24.1,
+              "value": 26.75,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 29.0,
+              "value": 29.083333333333332,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 28.6,
+              "value": 30.0,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 29.0,
+              "value": 29.833333333333332,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 29.8,
+              "value": 29.833333333333332,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 27.1,
+              "value": 28.333333333333332,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 27.2,
+              "value": 27.666666666666668,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 23.3,
+              "value": 26.25,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 28.2,
+              "value": 29.25,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 28.1,
+              "value": 28.25,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 23.3,
+              "value": 24.916666666666668,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 24.3,
+              "value": 24.916666666666668,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 30.5,
+              "value": 30.916666666666668,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 25.3,
+              "value": 28.0,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 31.9,
+              "value": 31.916666666666668,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 29.1,
+              "value": 28.25,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 27.1,
+              "value": 28.5,
               "is_self": false
             }
           ]
@@ -2420,92 +2481,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 12.3,
+              "value": 12.333333333333334,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 15.6,
+              "value": 16.416666666666668,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 11.8,
+              "value": 11.583333333333334,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 11.1,
+              "value": 10.833333333333334,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 17.1,
+              "value": 16.166666666666668,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 8.8,
+              "value": 8.416666666666666,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 16.8,
+              "value": 16.583333333333332,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 15.8,
+              "value": 14.416666666666666,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 9.9,
+              "value": 10.416666666666666,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 13.8,
+              "value": 13.666666666666666,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 19.9,
+              "value": 19.25,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 15.0,
+              "value": 13.833333333333334,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 15.9,
+              "value": 15.5,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 15.1,
+              "value": 14.75,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 13.6,
+              "value": 13.416666666666666,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 18.3,
+              "value": 18.416666666666668,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 11.2,
+              "value": 11.916666666666666,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 15.0,
+              "value": 14.416666666666666,
               "is_self": false
             }
           ]
@@ -2515,92 +2576,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 0.44715447154471544,
+              "value": 0.46621621621621623,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 0.5448717948717948,
+              "value": 0.5329949238578681,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 0.4661016949152542,
+              "value": 0.4892086330935252,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 0.5045045045045045,
+              "value": 0.46153846153846156,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 0.42105263157894735,
+              "value": 0.4072164948453608,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 0.4090909090909091,
+              "value": 0.44554455445544555,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 0.5297619047619048,
+              "value": 0.542713567839196,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 0.4620253164556962,
+              "value": 0.45664739884393063,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 0.43434343434343436,
+              "value": 0.448,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 0.4927536231884058,
+              "value": 0.47560975609756095,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 0.4472361809045226,
+              "value": 0.4458874458874459,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 0.4866666666666667,
+              "value": 0.5060240963855421,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 0.4968553459119497,
+              "value": 0.4838709677419355,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 0.44370860927152317,
+              "value": 0.4406779661016949,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 0.47058823529411764,
+              "value": 0.4906832298136646,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 0.5136612021857924,
+              "value": 0.5429864253393665,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 0.38392857142857145,
+              "value": 0.3986013986013986,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 0.4533333333333333,
+              "value": 0.4682080924855491,
               "is_self": false
             }
           ]
@@ -2610,92 +2671,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 5.5,
+              "value": 5.75,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 8.5,
+              "value": 8.75,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 5.5,
+              "value": 5.666666666666667,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 5.6,
+              "value": 5.0,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 7.2,
+              "value": 6.583333333333333,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 3.6,
+              "value": 3.75,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 8.9,
+              "value": 9.0,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 7.3,
+              "value": 6.583333333333333,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 4.3,
+              "value": 4.666666666666667,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 6.8,
+              "value": 6.5,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 8.9,
+              "value": 8.583333333333334,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 7.3,
+              "value": 7.0,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 7.9,
+              "value": 7.5,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 6.7,
+              "value": 6.5,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 6.4,
+              "value": 6.583333333333333,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 9.4,
+              "value": 10.0,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 4.3,
+              "value": 4.75,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 6.8,
+              "value": 6.75,
               "is_self": false
             }
           ]
@@ -2705,92 +2766,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 96.0,
+              "value": 96.66666666666667,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 86.0,
+              "value": 88.33333333333333,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 90.2,
+              "value": 89.41666666666667,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 89.9,
+              "value": 88.66666666666667,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 86.0,
+              "value": 86.25,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 87.3,
+              "value": 88.41666666666667,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 95.9,
+              "value": 96.0,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 89.6,
+              "value": 90.08333333333333,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 82.7,
+              "value": 85.0,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 99.1,
+              "value": 98.66666666666667,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 89.6,
+              "value": 89.16666666666667,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 80.8,
+              "value": 80.08333333333333,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 85.1,
+              "value": 86.83333333333333,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 101.8,
+              "value": 98.75,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 87.5,
+              "value": 87.83333333333333,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 105.6,
+              "value": 105.33333333333333,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 89.2,
+              "value": 88.66666666666667,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 89.7,
+              "value": 91.41666666666667,
               "is_self": false
             }
           ]
@@ -2800,92 +2861,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 0.48020833333333335,
+              "value": 0.4870689655172414,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 0.5209302325581395,
+              "value": 0.5113207547169811,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 0.49667405764966743,
+              "value": 0.49487418452935694,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 0.47052280311457173,
+              "value": 0.4793233082706767,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 0.5104651162790698,
+              "value": 0.5033816425120773,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 0.47880870561282934,
+              "value": 0.47690857681432614,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 0.5213764337851929,
+              "value": 0.5243055555555556,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 0.5223214285714286,
+              "value": 0.515263644773358,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 0.4957678355501814,
+              "value": 0.4970588235294118,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 0.49041372351160445,
+              "value": 0.4822635135135135,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 0.5234375,
+              "value": 0.5233644859813084,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 0.5136138613861386,
+              "value": 0.4984391259105099,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 0.491186839012926,
+              "value": 0.47888675623800386,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 0.49410609037328096,
+              "value": 0.5012658227848101,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 0.47885714285714287,
+              "value": 0.48861480075901326,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 0.5066287878787878,
+              "value": 0.5189873417721519,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 0.5,
+              "value": 0.5046992481203008,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 0.5094760312151616,
+              "value": 0.5177757520510483,
               "is_self": false
             }
           ]
@@ -2895,92 +2956,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 46.1,
+              "value": 47.083333333333336,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 44.8,
+              "value": 45.166666666666664,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 44.8,
+              "value": 44.25,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 42.3,
+              "value": 42.5,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 43.9,
+              "value": 43.416666666666664,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 41.8,
+              "value": 42.166666666666664,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 50.0,
+              "value": 50.333333333333336,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 46.8,
+              "value": 46.416666666666664,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 41.0,
+              "value": 42.25,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 48.6,
+              "value": 47.583333333333336,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 46.9,
+              "value": 46.666666666666664,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 41.5,
+              "value": 39.916666666666664,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 41.8,
+              "value": 41.583333333333336,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 50.3,
+              "value": 49.5,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 41.9,
+              "value": 42.916666666666664,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 53.5,
+              "value": 54.666666666666664,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 44.6,
+              "value": 44.75,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 45.7,
+              "value": 47.333333333333336,
               "is_self": false
             }
           ]
@@ -2990,52 +3051,52 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 0.22727272727272727,
+              "value": 0.23529411764705882,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 0.3684210526315789,
+              "value": 0.3875,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 0.37037037037037035,
-              "is_self": false
-            },
-            {
-              "name": "Excelsior",
-              "value": 0.39473684210526316,
-              "is_self": false
-            },
-            {
-              "name": "PSV Eindhoven",
-              "value": 0.352112676056338,
-              "is_self": false
-            },
-            {
-              "name": "ADO Den Haag",
               "value": 0.3333333333333333,
               "is_self": false
             },
             {
+              "name": "Excelsior",
+              "value": 0.375,
+              "is_self": false
+            },
+            {
+              "name": "PSV Eindhoven",
+              "value": 0.42528735632183906,
+              "is_self": false
+            },
+            {
+              "name": "ADO Den Haag",
+              "value": 0.3,
+              "is_self": false
+            },
+            {
               "name": "AZ Alkmaar",
-              "value": 0.296875,
+              "value": 0.2972972972972973,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 0.38181818181818183,
+              "value": 0.37142857142857144,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 0.37777777777777777,
+              "value": 0.34615384615384615,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 0.36363636363636365,
+              "value": 0.37037037037037035,
               "is_self": false
             },
             {
@@ -3045,37 +3106,37 @@
             },
             {
               "name": "SC Heerenveen",
-              "value": 0.288135593220339,
+              "value": 0.32857142857142857,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 0.3492063492063492,
+              "value": 0.3484848484848485,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 0.2978723404255319,
+              "value": 0.3090909090909091,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 0.2463768115942029,
+              "value": 0.2696629213483146,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 0.38,
+              "value": 0.4067796610169492,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 0.3333333333333333,
+              "value": 0.3442622950819672,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 0.3225806451612903,
+              "value": 0.34782608695652173,
               "is_self": false
             }
           ]
@@ -3085,92 +3146,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 11.0,
+              "value": 11.083333333333334,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 9.3,
+              "value": 9.666666666666666,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 10.5,
+              "value": 9.833333333333334,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 11.7,
+              "value": 10.833333333333334,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 10.0,
+              "value": 10.5,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 14.6,
+              "value": 14.0,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 12.4,
+              "value": 12.25,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 9.4,
+              "value": 9.583333333333334,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 9.7,
+              "value": 10.583333333333334,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 15.8,
+              "value": 16.25,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 9.1,
+              "value": 8.75,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 8.5,
+              "value": 8.416666666666666,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 7.8,
+              "value": 7.833333333333333,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 11.1,
+              "value": 10.75,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 11.8,
+              "value": 11.166666666666666,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 12.1,
+              "value": 11.833333333333334,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 10.6,
+              "value": 10.75,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 10.3,
+              "value": 10.583333333333334,
               "is_self": false
             }
           ]
@@ -3180,72 +3241,72 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 2.3,
+              "value": 2.0,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 1.3,
+              "value": 1.25,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 3.2,
+              "value": 3.3333333333333335,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 1.9,
+              "value": 2.4166666666666665,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 1.3,
+              "value": 1.25,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 2.3,
+              "value": 2.0833333333333335,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 1.2,
+              "value": 1.3333333333333333,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 2.1,
+              "value": 2.3333333333333335,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 1.7,
+              "value": 1.6666666666666667,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 2.7,
+              "value": 2.8333333333333335,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 1.1,
+              "value": 1.4166666666666667,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 1.3,
+              "value": 1.3333333333333333,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 2.3,
+              "value": 2.25,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 1.8,
+              "value": 1.75,
               "is_self": false
             },
             {
@@ -3255,17 +3316,17 @@
             },
             {
               "name": "Cambuur",
-              "value": 2.2,
+              "value": 2.25,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 2.4,
+              "value": 2.4166666666666665,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 2.1,
+              "value": 2.0833333333333335,
               "is_self": false
             }
           ]
@@ -3275,32 +3336,32 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 1.1,
+              "value": 1.0833333333333333,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 2.9,
+              "value": 2.6666666666666665,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 1.0,
+              "value": 0.9166666666666666,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 1.6,
+              "value": 1.3333333333333333,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 2.8,
+              "value": 3.3333333333333335,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 1.3,
+              "value": 1.3333333333333333,
               "is_self": false
             },
             {
@@ -3310,57 +3371,57 @@
             },
             {
               "name": "FC Groningen",
-              "value": 2.4,
+              "value": 2.4166666666666665,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 1.7,
+              "value": 1.6666666666666667,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 1.7,
+              "value": 1.75,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 3.2,
+              "value": 3.0,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 1.8,
+              "value": 2.0,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 2.3,
+              "value": 2.0,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 1.7,
+              "value": 1.6666666666666667,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 1.9,
+              "value": 2.5,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 1.9,
+              "value": 2.0833333333333335,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 1.7,
+              "value": 1.75,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 1.2,
+              "value": 1.5,
               "is_self": false
             }
           ]
@@ -3370,92 +3431,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 11.7,
+              "value": 11.083333333333334,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 8.4,
+              "value": 8.583333333333334,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 9.7,
+              "value": 9.5,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 10.4,
+              "value": 10.833333333333334,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 8.4,
+              "value": 8.333333333333334,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 8.3,
-              "is_self": false
-            },
-            {
-              "name": "AZ Alkmaar",
-              "value": 7.0,
-              "is_self": false
-            },
-            {
-              "name": "FC Groningen",
               "value": 8.5,
               "is_self": false
             },
             {
+              "name": "AZ Alkmaar",
+              "value": 7.416666666666667,
+              "is_self": false
+            },
+            {
+              "name": "FC Groningen",
+              "value": 8.333333333333334,
+              "is_self": false
+            },
+            {
               "name": "Fortuna Sittard",
-              "value": 7.1,
+              "value": 8.166666666666666,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 7.9,
+              "value": 7.916666666666667,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 9.9,
+              "value": 10.333333333333334,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 7.6,
+              "value": 7.833333333333333,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 8.8,
+              "value": 8.333333333333334,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 10.1,
+              "value": 10.416666666666666,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 8.3,
+              "value": 8.0,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 10.7,
+              "value": 10.5,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 7.7,
+              "value": 7.5,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 7.2,
+              "value": 8.166666666666666,
               "is_self": false
             }
           ]
@@ -3465,12 +3526,12 @@
           "clubs": [
             {
               "name": "ADO Den Haag",
-              "value": 1.8,
+              "value": 1.9166666666666667,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 2.0,
+              "value": 1.8333333333333333,
               "is_self": false
             }
           ]
@@ -3480,92 +3541,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 0.7550028587764437,
+              "value": 0.7612216566404443,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 0.8866507340389211,
+              "value": 0.8834147063175026,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 0.770172509738453,
+              "value": 0.7697124304267161,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 0.8019122333905369,
+              "value": 0.7943217665615142,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 0.8794452347083926,
+              "value": 0.8766442560654779,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 0.8093969484136595,
+              "value": 0.8121427163414153,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 0.8574407582938388,
+              "value": 0.8572566512665286,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 0.8118115772205297,
+              "value": 0.807564827451745,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 0.7687116564417178,
+              "value": 0.7690169320192065,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 0.8004462072384729,
+              "value": 0.7972674301788226,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 0.8667621776504298,
+              "value": 0.8694657735664107,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 0.8502385397220493,
+              "value": 0.8462763134618786,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 0.8258882194057761,
+              "value": 0.8209691629955947,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 0.8229528282622014,
+              "value": 0.8201881950384945,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 0.8594224924012158,
+              "value": 0.8642254370102471,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 0.7881653607133208,
+              "value": 0.7885532591414944,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 0.8060826618144008,
+              "value": 0.8020765736534717,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 0.8113389626055488,
+              "value": 0.8109381401065138,
               "is_self": false
             }
           ]
@@ -3575,92 +3636,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 264.1,
+              "value": 274.1666666666667,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 519.4,
+              "value": 497.5833333333333,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 276.8,
+              "value": 276.5833333333333,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 327.1,
+              "value": 314.75,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 494.6,
+              "value": 499.8333333333333,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 334.2,
+              "value": 343.3333333333333,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 452.3,
+              "value": 448.4166666666667,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 346.4,
+              "value": 345.1666666666667,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 250.6,
+              "value": 253.58333333333334,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 322.9,
+              "value": 330.6666666666667,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 423.5,
+              "value": 443.5,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 409.9,
+              "value": 398.6666666666667,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 397.5,
+              "value": 388.25,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 403.0,
+              "value": 399.5,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 452.4,
+              "value": 477.9166666666667,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 291.7,
+              "value": 289.3333333333333,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 310.1,
+              "value": 309.0,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 336.3,
+              "value": 329.9166666666667,
               "is_self": false
             }
           ]
@@ -3670,92 +3731,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 8.2,
+              "value": 9.5,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 17.5,
+              "value": 15.583333333333334,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 8.3,
-              "is_self": false
-            },
-            {
-              "name": "Excelsior",
               "value": 8.0,
               "is_self": false
             },
             {
+              "name": "Excelsior",
+              "value": 7.416666666666667,
+              "is_self": false
+            },
+            {
               "name": "PSV Eindhoven",
-              "value": 14.3,
+              "value": 14.5,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 9.4,
+              "value": 9.833333333333334,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 13.9,
+              "value": 14.0,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 10.9,
+              "value": 10.833333333333334,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 7.2,
+              "value": 7.166666666666667,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 10.4,
+              "value": 10.666666666666666,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 16.0,
+              "value": 15.083333333333334,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 12.7,
+              "value": 12.416666666666666,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 11.8,
+              "value": 11.0,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 12.7,
+              "value": 13.5,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 16.8,
+              "value": 17.166666666666668,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 9.4,
+              "value": 9.75,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 11.9,
+              "value": 11.5,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 8.1,
+              "value": 8.666666666666666,
               "is_self": false
             }
           ]
@@ -3765,92 +3826,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 349.8,
+              "value": 360.1666666666667,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 585.8,
+              "value": 563.25,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 359.4,
+              "value": 359.3333333333333,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 407.9,
+              "value": 396.25,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 562.4,
+              "value": 570.1666666666666,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 412.9,
+              "value": 422.75,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 527.5,
+              "value": 523.0833333333334,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 426.7,
+              "value": 427.4166666666667,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 326.0,
+              "value": 329.75,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 403.4,
+              "value": 414.75,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 488.6,
+              "value": 510.0833333333333,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 482.1,
+              "value": 471.0833333333333,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 481.3,
+              "value": 472.9166666666667,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 489.7,
+              "value": 487.0833333333333,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 526.4,
+              "value": 553.0,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 370.1,
+              "value": 366.9166666666667,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 384.7,
+              "value": 385.25,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 414.5,
+              "value": 406.8333333333333,
               "is_self": false
             }
           ]
@@ -3860,92 +3921,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 0.4029025570145128,
+              "value": 0.4137468887612483,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 0.6233241115130879,
+              "value": 0.5970320643052733,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 0.406929347826087,
+              "value": 0.3993332098536766,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 0.4361633875106929,
+              "value": 0.41798523206751054,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 0.5984251968503937,
+              "value": 0.6092066601371204,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 0.47541738629821534,
+              "value": 0.4911890007745933,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 0.5902428107866174,
+              "value": 0.5823900538133234,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 0.48866239120476407,
+              "value": 0.49137765855527876,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 0.3657578817457646,
+              "value": 0.3672048997772829,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 0.4588262056414923,
+              "value": 0.4769068608662323,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 0.5360983102918587,
+              "value": 0.5484275602544575,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 0.5252206122671315,
+              "value": 0.5108440267485993,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 0.5378254553581405,
+              "value": 0.5328138202985635,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 0.5996816066617683,
+              "value": 0.5927390731163168,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 0.5736704446381866,
+              "value": 0.5929764989723886,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 0.4651250471283147,
+              "value": 0.46090233434523187,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 0.4385544915640675,
+              "value": 0.44142079633342884,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 0.4631284916201117,
+              "value": 0.4606529533874316,
               "is_self": false
             }
           ]
@@ -3955,92 +4016,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 0.6615384615384615,
+              "value": 0.684931506849315,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 0.675,
+              "value": 0.72,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 0.5789473684210527,
+              "value": 0.5465116279069767,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 0.6470588235294118,
+              "value": 0.5882352941176471,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 0.7142857142857143,
+              "value": 0.7083333333333334,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 0.6617647058823529,
+              "value": 0.6875,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 0.625,
+              "value": 0.5897435897435898,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 0.6551724137931034,
-              "is_self": false
-            },
-            {
-              "name": "Fortuna Sittard",
-              "value": 0.7241379310344828,
-              "is_self": false
-            },
-            {
-              "name": "FC Utrecht",
               "value": 0.5970149253731343,
               "is_self": false
             },
             {
+              "name": "Fortuna Sittard",
+              "value": 0.7361111111111112,
+              "is_self": false
+            },
+            {
+              "name": "FC Utrecht",
+              "value": 0.5802469135802469,
+              "is_self": false
+            },
+            {
               "name": "Feyenoord",
-              "value": 0.7027027027027027,
+              "value": 0.66,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 0.7105263157894737,
+              "value": 0.6666666666666666,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 0.54,
+              "value": 0.5423728813559322,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 0.5609756097560976,
+              "value": 0.5625,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 0.7435897435897436,
+              "value": 0.7073170731707317,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 0.6111111111111112,
+              "value": 0.5737704918032787,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 0.5964912280701754,
+              "value": 0.6216216216216216,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 0.6818181818181818,
+              "value": 0.6756756756756757,
               "is_self": false
             }
           ]
@@ -4050,92 +4111,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 4.3,
+              "value": 4.166666666666667,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 2.7,
-              "is_self": false
-            },
-            {
-              "name": "Willem II",
-              "value": 4.4,
-              "is_self": false
-            },
-            {
-              "name": "Excelsior",
-              "value": 3.3,
-              "is_self": false
-            },
-            {
-              "name": "PSV Eindhoven",
               "value": 3.0,
               "is_self": false
             },
             {
+              "name": "Willem II",
+              "value": 3.9166666666666665,
+              "is_self": false
+            },
+            {
+              "name": "Excelsior",
+              "value": 3.3333333333333335,
+              "is_self": false
+            },
+            {
+              "name": "PSV Eindhoven",
+              "value": 2.8333333333333335,
+              "is_self": false
+            },
+            {
               "name": "ADO Den Haag",
-              "value": 4.5,
+              "value": 4.583333333333333,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 2.0,
+              "value": 1.9166666666666667,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 3.8,
+              "value": 3.3333333333333335,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 4.2,
+              "value": 4.416666666666667,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 4.0,
+              "value": 3.9166666666666665,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 2.6,
+              "value": 2.75,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 2.7,
+              "value": 2.3333333333333335,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 2.7,
+              "value": 2.6666666666666665,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 2.3,
+              "value": 2.25,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 2.9,
+              "value": 2.4166666666666665,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 3.3,
+              "value": 2.9166666666666665,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 3.4,
+              "value": 3.8333333333333335,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 4.5,
+              "value": 4.166666666666667,
               "is_self": false
             }
           ]
@@ -4145,92 +4206,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 0.6206896551724138,
+              "value": 0.6038961038961039,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 0.7252252252252253,
+              "value": 0.7257383966244726,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 0.6724137931034483,
+              "value": 0.6691729323308271,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 0.7358490566037735,
+              "value": 0.7083333333333334,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 0.6903553299492385,
+              "value": 0.6982758620689655,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 0.6229508196721312,
+              "value": 0.6174496644295302,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 0.6804733727810651,
+              "value": 0.6682692307692307,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 0.6713286713286714,
+              "value": 0.6802325581395349,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 0.5670103092783505,
+              "value": 0.576271186440678,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 0.6906474820143885,
+              "value": 0.6823529411764706,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 0.7024390243902439,
+              "value": 0.7074235807860262,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 0.6363636363636364,
+              "value": 0.6555555555555556,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 0.6624203821656051,
+              "value": 0.6647398843930635,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 0.6540880503144654,
+              "value": 0.6632653061224489,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 0.6650246305418719,
+              "value": 0.6850393700787402,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 0.704,
+              "value": 0.7133333333333334,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 0.7202797202797203,
+              "value": 0.7245508982035929,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 0.6083333333333333,
+              "value": 0.6266666666666667,
               "is_self": false
             }
           ]
@@ -4240,92 +4301,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 7.2,
+              "value": 7.75,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 16.1,
+              "value": 14.333333333333334,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 7.8,
+              "value": 7.416666666666667,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 7.8,
+              "value": 7.083333333333333,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 13.6,
-              "is_self": false
-            },
-            {
-              "name": "ADO Den Haag",
-              "value": 7.6,
-              "is_self": false
-            },
-            {
-              "name": "AZ Alkmaar",
-              "value": 11.5,
-              "is_self": false
-            },
-            {
-              "name": "FC Groningen",
-              "value": 9.6,
-              "is_self": false
-            },
-            {
-              "name": "Fortuna Sittard",
-              "value": 5.5,
-              "is_self": false
-            },
-            {
-              "name": "FC Utrecht",
-              "value": 9.6,
-              "is_self": false
-            },
-            {
-              "name": "Feyenoord",
-              "value": 14.4,
-              "is_self": false
-            },
-            {
-              "name": "SC Heerenveen",
-              "value": 9.8,
-              "is_self": false
-            },
-            {
-              "name": "GO Ahead Eagles",
-              "value": 10.4,
-              "is_self": false
-            },
-            {
-              "name": "NEC Nijmegen",
-              "value": 10.4,
-              "is_self": false
-            },
-            {
-              "name": "FC Twente",
               "value": 13.5,
               "is_self": false
             },
             {
+              "name": "ADO Den Haag",
+              "value": 7.666666666666667,
+              "is_self": false
+            },
+            {
+              "name": "AZ Alkmaar",
+              "value": 11.583333333333334,
+              "is_self": false
+            },
+            {
+              "name": "FC Groningen",
+              "value": 9.75,
+              "is_self": false
+            },
+            {
+              "name": "Fortuna Sittard",
+              "value": 5.666666666666667,
+              "is_self": false
+            },
+            {
+              "name": "FC Utrecht",
+              "value": 9.666666666666666,
+              "is_self": false
+            },
+            {
+              "name": "Feyenoord",
+              "value": 13.5,
+              "is_self": false
+            },
+            {
+              "name": "SC Heerenveen",
+              "value": 9.833333333333334,
+              "is_self": false
+            },
+            {
+              "name": "GO Ahead Eagles",
+              "value": 9.583333333333334,
+              "is_self": false
+            },
+            {
+              "name": "NEC Nijmegen",
+              "value": 10.833333333333334,
+              "is_self": false
+            },
+            {
+              "name": "FC Twente",
+              "value": 14.5,
+              "is_self": false
+            },
+            {
               "name": "Cambuur",
-              "value": 8.8,
+              "value": 8.916666666666666,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 10.3,
+              "value": 10.083333333333334,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 7.3,
+              "value": 7.833333333333333,
               "is_self": false
             }
           ]
@@ -4335,92 +4396,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 6.6,
+              "value": 6.25,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 4.1,
+              "value": 4.25,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 7.6,
+              "value": 7.166666666666667,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 5.2,
+              "value": 5.75,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 4.6,
+              "value": 4.416666666666667,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 6.8,
+              "value": 6.583333333333333,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 3.2,
+              "value": 3.25,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 6.2,
+              "value": 5.916666666666667,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 5.8,
+              "value": 6.0,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 6.8,
+              "value": 6.833333333333333,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 3.7,
+              "value": 4.083333333333333,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 3.9,
+              "value": 3.5833333333333335,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 5.1,
+              "value": 5.0,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 4.2,
+              "value": 4.083333333333333,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 4.0,
+              "value": 3.5,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 5.4,
+              "value": 5.166666666666667,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 5.5,
+              "value": 6.0,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 6.7,
+              "value": 6.333333333333333,
               "is_self": false
             }
           ]
@@ -4430,67 +4491,67 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": -2.2,
+              "value": -2.0,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 3.5,
+              "value": 2.4166666666666665,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": -4.9,
+              "value": -4.416666666666667,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": -1.4,
+              "value": -2.4166666666666665,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 2.5,
+              "value": 2.8333333333333335,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": -3.2,
+              "value": -2.4166666666666665,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 3.2,
+              "value": 2.9166666666666665,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": -0.7,
+              "value": -0.08333333333333333,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": -1.3,
+              "value": -1.6666666666666667,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": -2.4,
+              "value": -2.3333333333333335,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 4.7,
+              "value": 3.6666666666666665,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 2.0,
+              "value": 2.25,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 1.2,
+              "value": 0.5,
               "is_self": false
             },
             {
@@ -4500,22 +4561,22 @@
             },
             {
               "name": "FC Twente",
-              "value": 2.9,
+              "value": 3.9166666666666665,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": -0.4,
+              "value": -0.25,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": -0.4,
+              "value": -0.9166666666666666,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": -3.6,
+              "value": -2.5,
               "is_self": false
             }
           ]
@@ -4525,92 +4586,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 0.3793103448275862,
+              "value": 0.33116883116883117,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 0.34234234234234234,
+              "value": 0.33755274261603374,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 0.23275862068965517,
+              "value": 0.24812030075187969,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 0.3584905660377358,
+              "value": 0.3333333333333333,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 0.3604060913705584,
+              "value": 0.375,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 0.29508196721311475,
+              "value": 0.33557046979865773,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 0.378698224852071,
+              "value": 0.3557692307692308,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 0.38461538461538464,
+              "value": 0.4069767441860465,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 0.4639175257731959,
+              "value": 0.4406779661016949,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 0.31654676258992803,
+              "value": 0.3176470588235294,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 0.4097560975609756,
+              "value": 0.40611353711790393,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 0.38311688311688313,
+              "value": 0.3888888888888889,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 0.4012738853503185,
+              "value": 0.3815028901734104,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 0.29559748427672955,
+              "value": 0.28061224489795916,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 0.3399014778325123,
+              "value": 0.35039370078740156,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 0.4,
+              "value": 0.3933333333333333,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 0.35664335664335667,
+              "value": 0.3652694610778443,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 0.25833333333333336,
+              "value": 0.30666666666666664,
               "is_self": false
             }
           ]
@@ -4620,92 +4681,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 4.4,
+              "value": 4.25,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 7.6,
+              "value": 6.666666666666667,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 2.7,
+              "value": 2.75,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 3.8,
+              "value": 3.3333333333333335,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 7.1,
+              "value": 7.25,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 3.6,
+              "value": 4.166666666666667,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 6.4,
+              "value": 6.166666666666667,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 5.5,
+              "value": 5.833333333333333,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 4.5,
+              "value": 4.333333333333333,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 4.4,
+              "value": 4.5,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 8.4,
+              "value": 7.75,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 5.9,
+              "value": 5.833333333333333,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 6.3,
+              "value": 5.5,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 4.7,
+              "value": 4.583333333333333,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 6.9,
+              "value": 7.416666666666667,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 5.0,
+              "value": 4.916666666666667,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 5.1,
+              "value": 5.083333333333333,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 3.1,
+              "value": 3.8333333333333335,
               "is_self": false
             }
           ]
@@ -4715,77 +4776,77 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 11.6,
+              "value": 12.833333333333334,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 22.2,
+              "value": 19.75,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 11.6,
+              "value": 11.083333333333334,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 10.6,
+              "value": 10.0,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 19.7,
+              "value": 19.333333333333332,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 12.2,
+              "value": 12.416666666666666,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 16.9,
+              "value": 17.333333333333332,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 14.3,
+              "value": 14.333333333333334,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 9.7,
+              "value": 9.833333333333334,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 13.9,
+              "value": 14.166666666666666,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 20.5,
+              "value": 19.083333333333332,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 15.4,
+              "value": 15.0,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 15.7,
+              "value": 14.416666666666666,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 15.9,
+              "value": 16.333333333333332,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 20.3,
+              "value": 21.166666666666668,
               "is_self": false
             },
             {
@@ -4795,12 +4856,12 @@
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 14.3,
+              "value": 13.916666666666666,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 12.0,
+              "value": 12.5,
               "is_self": false
             }
           ]
@@ -4810,92 +4871,92 @@
           "clubs": [
             {
               "name": "PEC Zwolle",
-              "value": 17.0,
+              "value": 16.583333333333332,
               "is_self": false
             },
             {
               "name": "AFC Ajax",
-              "value": 13.4,
+              "value": 13.5,
               "is_self": false
             },
             {
               "name": "Willem II",
-              "value": 15.0,
+              "value": 14.416666666666666,
               "is_self": false
             },
             {
               "name": "Excelsior",
-              "value": 13.9,
+              "value": 14.416666666666666,
               "is_self": false
             },
             {
               "name": "PSV Eindhoven",
-              "value": 17.4,
+              "value": 16.916666666666668,
               "is_self": false
             },
             {
               "name": "ADO Den Haag",
-              "value": 17.7,
+              "value": 16.583333333333332,
               "is_self": false
             },
             {
               "name": "AZ Alkmaar",
-              "value": 17.5,
+              "value": 17.25,
               "is_self": false
             },
             {
               "name": "FC Groningen",
-              "value": 15.4,
+              "value": 15.083333333333334,
               "is_self": false
             },
             {
               "name": "Fortuna Sittard",
-              "value": 12.4,
+              "value": 13.666666666666666,
               "is_self": false
             },
             {
               "name": "FC Utrecht",
-              "value": 15.7,
+              "value": 15.25,
               "is_self": false
             },
             {
               "name": "Feyenoord",
-              "value": 14.9,
+              "value": 15.0,
               "is_self": false
             },
             {
               "name": "SC Heerenveen",
-              "value": 11.6,
+              "value": 11.666666666666666,
               "is_self": false
             },
             {
               "name": "GO Ahead Eagles",
-              "value": 11.2,
+              "value": 11.083333333333334,
               "is_self": false
             },
             {
               "name": "NEC Nijmegen",
-              "value": 16.5,
+              "value": 15.833333333333334,
               "is_self": false
             },
             {
               "name": "FC Twente",
-              "value": 12.9,
+              "value": 13.666666666666666,
               "is_self": false
             },
             {
               "name": "Cambuur",
-              "value": 17.3,
+              "value": 17.166666666666668,
               "is_self": true
             },
             {
               "name": "Sparta Rotterdam",
-              "value": 17.1,
+              "value": 15.666666666666666,
               "is_self": false
             },
             {
               "name": "Telstar",
-              "value": 14.6,
+              "value": 15.083333333333334,
               "is_self": false
             }
           ]
@@ -5388,7 +5449,7 @@
           "player_id": 301465,
           "name": "A. Anello",
           "position": "Midfielder",
-          "nationality": "USA",
+          "nationality": "United States of America",
           "birth_date": "2002-04-22",
           "photo": "https://media.api-sports.io/football/players/301465.png",
           "appearances": null,
@@ -5568,7 +5629,7 @@
           "player_id": 446871,
           "name": "Tyrique Mercera",
           "position": "Defender",
-          "nationality": "Curaçao",
+          "nationality": "Curacao",
           "birth_date": "2003-12-19",
           "photo": "https://media.api-sports.io/football/players/446871.png",
           "appearances": 2,

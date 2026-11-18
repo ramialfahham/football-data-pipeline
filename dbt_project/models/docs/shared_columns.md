@@ -602,6 +602,10 @@ than zero when the competition supplies no team statistics for the fixture.
 {% enddocs %}
 
 
+{% docs benchmark_round_stage_kind %}
+The rounds the competition-season is benchmarked over. It is table when only the league or group phase counts, without qualifiers and knockout rounds; empty when every match counts.
+{% enddocs %}
+
 {% docs yoy_appearances_cutoff %}
 N = appearances this season; the prior season is compared through its first N appearances.
 {% enddocs %}

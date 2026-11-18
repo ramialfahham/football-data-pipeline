@@ -77,6 +77,11 @@ models:
       - name: league_code
         description: "{{ doc('league_code') }}"
         tests: [not_null]
+      - name: round_stage_kind
+        description: "{{ doc('benchmark_round_stage_kind') }}"
+        tests:
+          - accepted_values:
+              values: ["table"]
       - name: metric_key
         description: "The benchmarked metric — a metric_catalogue team metric_id (the benchmark metric set)."
         tests:
