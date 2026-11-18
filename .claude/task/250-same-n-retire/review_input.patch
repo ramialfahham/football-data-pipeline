@@ -1,0 +1,3072 @@
+diff --git a/.claude/task/250-same-n-retire/contract.md b/.claude/task/250-same-n-retire/contract.md
+new file mode 100644
+index 00000000..26641dd2
+--- /dev/null
++++ b/.claude/task/250-same-n-retire/contract.md
+@@ -0,0 +1,168 @@
++# Task contract — Team page redesign: retire the same-N comparison
++
++objective: >
++  Issue #250. The club Team page compares this season so far against the whole of last season
++  (mart_team_page_window_metrics, merged on main c1084493). The earlier comparison, each season
++  through the team's first N matches, is no longer read by any page: int_team_profile__yoy and its
++  columns on mart_team_profile, and metric_value_prev_season on the team benchmarks. The player's
++  same kind of comparison, int_player_profile__yoy (each season through the player's first N
++  appearances at the club, plus last season's full totals) and its columns on mart_player_profile,
++  is read by no page either: the Player page compares through mart_player_window_metrics. This
++  removes both with their tests and descriptions, and rule R6 states the team's window.
++
++refs: >
++  #250, the design approved in chat, 2026-11-06, and its explainers in note 4254003834. The reader
++  inventory and the removal, the national Standing reads included, and the player chain's place in
++  this MR were ruled by the coordinating session on 2026-11-18. The R6 text, the two
++  content_architecture lines that name the window marts, and the removal of the catalogue metric
++  points_rank (added on #235): approved in chat, 2026-11-18, through the coordinating session.
++
++scope_paths:
++  - dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
++  - dbt_project/models/4_intermediate/shared/int_team_profile.yml
++  - dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++  - dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
++  - dbt_project/models/4_intermediate/shared/int_player_profile.yml
++  - dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
++  - dbt_project/models/5_marts/shared/mart_team_profile.sql
++  - dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
++  - dbt_project/models/5_marts/shared/mart_player_profile.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/models/docs/shared_columns.md
++  - dbt_project/models/docs/metric_columns.md
++  - dbt_project/models/docs/metric_rules.md
++  - dbt_project/seeds/metric_map.csv
++  - dbt_project/seeds/metric_catalogue.csv
++  - dbt_project/tests/assert_team_yoy_pairs_the_same_games_played.sql
++  - dbt_project/tests/assert_team_benchmark_prev_season_matches_yoy.sql
++  - scripts/export_site_data.py
++  - scripts/declare_missing_columns.py
++  - scripts/sync_metric_docs_blocks.py
++  - tests/test_sync_metric_docs_blocks.py
++  - tests/test_metric_map.py
++  - tests/test_sentence_length_in_docs.py
++  - tests/test_export_site_data.py
++  - tests/test_no_decision_history_in_code.py
++  - design-mocks/gen_team_mock.py
++  - docs/content_architecture.md
++  - docs/ui_design_brief.md
++  - docs/metrics_context_model.md
++  - dbt_project/models/4_intermediate/shared/int_season_record.yml
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++  - dbt_project/models/4_intermediate/shared/int_player_season_record.sql
++  - dbt_project/models/4_intermediate/shared/int_team_season_record.sql
++  - dbt_project/tests/assert_season_rates_inputs_covered.sql
++  - dbt_project/seeds/schema.yml
++  - dbt_project/docs/layering.md
++  - .claude/task/250-same-n-retire/contract.md
++  - .claude/task/250-same-n-retire/review.md
++  - .claude/task/250-same-n-retire/review_input.patch
++
++impact_map: >
++  writers: dbt only; no ingestion change. Removed: int_team_profile__yoy (model, its yml entry and
++  four tests), assert_team_yoy_pairs_the_same_games_played, assert_team_benchmark_prev_season_matches_yoy.
++  Changed: mart_team_profile loses its 59 year-over-year columns (yoy_games_played_cutoff,
++  points_this_season, points_prev_season, points_delta_yoy, points_rank_prev_season, goals for and
++  against, and the 16 rates, each this season, previous season and delta);
++  int_team_competition_benchmark_metrics_long, int_team_competition_benchmarks' docs and
++  mart_team_competition_benchmarks lose metric_value_prev_season and the cumulative read behind it.
++  int_team_season__metrics_cumulative and int_team_season__table_by_time stay: other models read them.
++  Player: int_player_profile__yoy (model, its yml entry and its tests) is removed, and
++  mart_player_profile loses its 22 year-over-year columns (yoy_appearances_cutoff, the five
++  metrics' this season, previous season and delta, appearances_prev_full and the five
++  _prev_season_full totals). int_player_season_record and int_player_profile__contribution stay.
++  `dbt ls --resource-type model --select int_player_profile__yoy+` returns int_player_profile__yoy
++  mart_player_index mart_player_profile; mart_player_index reads identity columns only.
++  Seed: metric_catalogue loses the row points_rank; the export's metrics.json (the whole catalogue,
++  read by no page) loses it with it.
++  lineage: `dbt ls --resource-type model --select int_team_profile__yoy+` returns
++  int_team_profile__yoy mart_player_index mart_team_index mart_team_profile; mart_team_index and
++  mart_player_index read only team_sk from mart_team_profile. `dbt ls --resource-type model --select
++  int_team_competition_benchmark_metrics_long+` returns int_team_competition_benchmark_metrics_long
++  int_team_competition_benchmarks mart_team_competition_benchmarks.
++  consumption: export_site_data.py reads mart_team_profile with select * into the team payload's
++  seasons[], and ships benchmarks[].metric_value_prev_season; both leave the payload. In site_v2,
++  TeamStanding.astro (national team pages only) reads points_this_season, points_prev_season and
++  points_rank_prev_season, and [team].astro's hasPerformance reads points_this_season. Measured on
++  prod, all three are NULL on all 215 national featured-season rows (the model is domestic leagues
++  only), and on 0 club rows does points_this_season decide hasPerformance; format.ts gives the dash
++  for null and undefined alike, so no page changes. design-mocks/gen_team_mock.py reads the cutoff
++  and the this-season and previous-season columns for its last-season table. The export reads
++  mart_player_profile by a fixed column list that holds none of the player columns, and no site_v2
++  file names them; the Player page's comparison reads mart_player_window_metrics.
++  ci_layer_rules: scripts/check_layer_contract.py, scripts/check_description_hygiene.py,
++  scripts/check_relationships_coverage.py, scripts/sync_metric_docs_blocks.py --check,
++  tests/test_metric_map.py. sync_metric_docs_blocks.py refuses to run when it matches fewer
++  derived column names than its floor, MIN_DERIVED 40; the removal leaves fewer, so the floor
++  moves to just under the real count it leaves.
++  deploy_order: one merge; the nightly rebuilds mart_team_profile and the benchmark models without
++  the columns. The retired table int_team_profile__yoy stays in BigQuery until dropped; nothing reads it.
++  blast_radius: no displayed number changes, proved by an export payload diff on a sample of team
++  pages with a national team and a sample of player pages. The team payload loses the
++  year-over-year keys from seasons[] and metric_value_prev_season from benchmarks[]; the player
++  payload does not change. A BI reader of mart_team_profile or mart_player_profile loses the
++  first-N columns.
++
++approved_design:
++  - team: #134
++
++depends_on:
++  - none: the window mart this replaces the old comparison with is merged (main c1084493)
++
++shared_files:
++  - none: no design baseline, registry or screenshot fixture changes
++
++decisions_taken: >
++  The national Standing block keeps its reads of points_this_season, points_prev_season and
++  points_rank_prev_season while the payload no longer carries them; the values were NULL for every
++  national team, the page renders the same dash, and the national team page's own redesign removes
++  the reads (ruled by the coordinating session, 2026-11-18). site_v2 is not touched.
++  gen_team_mock.py's last-season table reads the payload's last_season (the whole-season window) and
++  the explainer approved in #250 note 4254003834, in place of the first-N columns. The generator's
++  full run already fails on main before that table, on the built page's season selector, and stays
++  counted as a failing generator in the design inventory baseline; rewriting it for the new page is
++  not this task. Rule R6 gains the words that give teams the all-competitions window; the other three
++  docs only lose the first-N words, and content_architecture names the window marts in place of the
++  retired models, each by the exact lines approved (refs). The catalogue metric points_rank leaves
++  the catalogue: its only column was points_rank_prev_season, and nothing else reads it; its
++  generated doc block and map row regenerate. The fan-question test in tests/test_metric_map.py keeps its twenty
++  questions: the two that named the retired player columns are answered by the columns that hold
++  the same facts now, mart_player_career (a season's goals at a club) and
++  mart_player_window_metrics (this season against last). No new mechanism. No recurring cost added; the nightly reads less (dry-run sizes in the MR).
++
++decisions_reserved:
++  - none: the removal of points_rank and the exact text of R6 and the three docs are approved (refs);
++    no page output changes
++
++done_when:
++  - dbt parse succeeds from the repo root.
++  - python scripts/sync_metric_docs_blocks.py --check, check_layer_contract.py,
++    check_description_hygiene.py and check_relationships_coverage.py pass.
++  - python -m pytest tests -q is green.
++  - SQLFluff adds no violation on any changed model.
++  - git grep finds no yoy_games_played_cutoff, yoy_appearances_cutoff, int_team_profile__yoy,
++    int_player_profile__yoy or team metric_value_prev_season outside the window marts.
++  - Dry-run bytes of mart_team_profile and the benchmark models, before and after, are in the MR.
++  - The team payloads of a sample with a club and a national team differ from main's only by the
++    removed keys, and the player payloads of a sample do not differ.
++  - ci_local --mr is green; CI's data:build:mr is green; merge_ready says ready.
++
++amendments:
++  - 2026-11-18: + dbt_project/models/4_intermediate/shared/int_season_record.yml,
++    dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml,
++    dbt_project/models/4_intermediate/shared/int_player_season_record.sql,
++    dbt_project/models/4_intermediate/shared/int_team_season_record.sql,
++    dbt_project/tests/assert_season_rates_inputs_covered.sql, dbt_project/seeds/schema.yml —
++    authority: engineering_standards.md section 2, a description states what the table holds
++    (analytics-engineer-reviewer, round 1); content: the descriptions and comments lose the words
++    that name the removed year-over-year content, and the metric_map variant description loses
++    the four variants no map row carries.
++  - 2026-11-18: + dbt_project/docs/layering.md — authority: the CPO, approved in chat, 2026-11-18,
++    through the coordinating session (analytics-engineer-reviewer, round 1); content: the
++    mart_team_profile row loses "YoY deltas", strip-only.
++  - 2026-11-18: + tests/test_sentence_length_in_docs.py — authority: the standing rule that a pin
++    moves only down, and is lowered in the change that lowers it (ci_local test:python); content:
++    the metric_columns.md pin from 15 to 4, after the removed same-N blocks took 11 long
++    sentences with them.
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index 6ebff00e..98abfd94 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -323,7 +323,7 @@ Canonical mart inventory (exhaustive) for this project:
+ | `mart_standings` | (league_code, season_api_year, group_name, team_sk) | The league's official standings row, the provider's except where corrected to the league's figures (rank, points, W/D/L, goals scored and conceded, goal difference, form) plus `table_kind`, the section's kind (league / group / conference / split_round / ranking) resolved from its name through the `standings_table_kinds` seed. Teams level on points stand in the league's tie-break order where our table equals the provider's (`int_standings__official_rank`). |
+ | `mart_competition_season_summary` | (league_code, season_api_year) | The season's headline tallies over finished matches: matches, goals, goals per match, home/away/draw split, the biggest-margin and most-goals fixtures, the longest unbeaten and winless runs with their holders. Composes `int_legs__team_match`; results tallied at competition grain, not catalogue metrics. |
+ | `mart_team_market_value` | team_sk | Team squad market value; currently WC-scoped (see #418 to generalize). |
+-| `mart_team_profile` | (team_sk, season_sk) | v2 team profile: full-season metrics, YoY deltas, streaks. |
++| `mart_team_profile` | (team_sk, season_sk) | v2 team profile: full-season metrics, streaks. |
+ | `mart_player_profile` | (player_sk, season_sk) | v2 player profile rollup. |
+ | `mart_team_window_metrics` | (fixture_sk, team_sk) | A team's metrics over a window, for the match whose page shows them: its form before an upcoming match, the match alone once played. |
+ | `mart_player_momentum` | (upcoming_fixture_sk, team_sk, player_sk) | W1 momentum aggregate (player). |
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+index 49a7f1be..b9d8603e 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+@@ -504,7 +504,7 @@ models:
+         description: "{{ doc('season_api_year') }}"
+         tests: [not_null]
+       - name: match_number
+-        description: "Games played through this cumulative row (= games_played). The grain key + the YoY alignment cutoff N."
++        description: "Games played through this cumulative row (= games_played). The grain key."
+         tests: [not_null]
+       - name: season_games_played
+         description: "Games played through this matchday (name inherited from the whole-season projection for byte-identity)."
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
+index 51ccecd7..4f89c763 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
+@@ -4,11 +4,9 @@
+   final one. This is the single home of the team-season metrics:
+ 
+     - int_team_season__metrics is the FINAL-ROW PROJECTION of this model (whole-season rollup).
+-    - int_team_profile__yoy COMPOSES this model at the games-played cutoff N to align two seasons
+-      by matchday for ALL metrics ("this season through N vs last season through its first N").
+ 
+   Grain: (team_sk, league_code, season_api_year, match_number). All-competitions, like
+-  int_team_season__metrics (no domestic filter — the YoY consumer applies that).
++  int_team_season__metrics (no domestic filter).
+ 
+   Every catalogue metric is written by scripts/generate_metric_sql.py from metric_catalogue.csv,
+   by the rules in models/docs/metric_rules.md. The match counts, the coverage counts and the raw
+diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+index dc8128ae..ca4bd849 100644
+--- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+@@ -44,8 +44,7 @@ models:
+     description: >
+       The team competition-benchmark metrics in long form, per team-season: every team metric of the
+       site's served list plus the shots-on-target difference and the clean-sheet share, one row per (team_sk, season_sk,
+-      metric_key) unpivoted from int_team_season__metrics, with the value at the same point last
+-      season. The single source of
++      metric_key) unpivoted from int_team_season__metrics. The single source of
+       the benchmark metric set — int_team_competition_benchmarks aggregates it to the league
+       distribution and mart_team_competition_benchmarks ranks each team against it, so the two cannot
+       drift. Replaces the team_benchmark_metrics() macro. Grain: (team_sk, season_sk, metric_key).
+@@ -91,8 +90,6 @@ models:
+       - name: metric_value
+         description: "The team's season-to-date value for this metric. UNPIVOT excludes nulls, so this is never null."
+         tests: [not_null]
+-      - name: metric_value_prev_season
+-        description: "The team's value at the same point last season (rule R6): the previous season's latest match at or before this season's match count, domestic leagues only; null otherwise."
+       - name: league_sk
+         description: "{{ doc('league_sk') }}"
+         tests:
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_profile.yml b/dbt_project/models/4_intermediate/shared/int_player_profile.yml
+index 8fb2d903..ee68b00f 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_profile.yml
++++ b/dbt_project/models/4_intermediate/shared/int_player_profile.yml
+@@ -1,93 +1,6 @@
+ version: 2
+ 
+ models:
+-  - name: int_player_profile__yoy
+-    description: >
+-      A player's season against their last, compared over the same number of appearances. One row
+-      per player's CURRENT club-league season. DOMESTIC LEAGUES ONLY. Grain: (team_sk, player_sk,
+-      league_code, season_api_year).
+-
+-      Carries cumulative goals, assists, shots on target, key passes and defensive actions through
+-      the latest N appearances this season, against the prior season AT THE SAME CLUB through its
+-      first N. defensive_actions_player is tackles plus interceptions plus blocks.
+-    tests:
+-      - dbt_utils.unique_combination_of_columns:
+-          combination_of_columns: [team_sk, player_sk, league_code, season_api_year]
+-      # The prior season's FULL total is a superset of its pace-matched cutoff figure, so
+-      # full >= pace-matched for every metric (all are monotonic cumulative counts), and a
+-      # pace-matched prev row implies a full prev row exists. Catches a broken prev_full window.
+-      - dbt_utils.expression_is_true:
+-          expression: "appearances_prev is null or (appearances_prev_full >= appearances_prev and goals_player_prev_season_full >= goals_player_prev_season and assists_player_prev_season_full >= assists_player_prev_season and shots_on_goal_player_prev_season_full >= shots_on_goal_player_prev_season and passes_key_player_prev_season_full >= passes_key_player_prev_season and defensive_actions_player_prev_season_full >= defensive_actions_player_prev_season)"
+-          name: player_yoy_full_season_ref_ge_pace_matched
+-    columns:
+-      - name: team_sk
+-        description: "{{ doc('team_sk') }} Here it is the player's club this season; the year-over-year comparison is per club."
+-        tests:
+-          - not_null
+-          - relationships:
+-              to: ref('dim_team')
+-              field: team_sk
+-      - name: player_sk
+-        description: "{{ doc('player_sk') }}"
+-        tests:
+-          - not_null
+-          - relationships:
+-              to: ref('dim_player')
+-              field: player_sk
+-      - name: league_code
+-        description: "{{ doc('league_code') }}"
+-        tests: [not_null]
+-      - name: season_api_year
+-        description: "{{ doc('season_api_year') }} Here it is the player's current domestic season, the year-over-year anchor."
+-        tests: [not_null]
+-      - name: yoy_appearances_cutoff
+-        description: "{{ doc('yoy_appearances_cutoff') }}"
+-        tests: [not_null]
+-      - name: goals_player_delta_yoy
+-        description: "{{ doc('goals_player_delta_yoy__player') }} Here the alignment is by appearances: the count of matches the player actually played."
+-      - name: appearances_prev_full
+-        description: "{{ doc('appearances_prev_full') }}"
+-      - name: goals_player_prev_season_full
+-        description: "{{ doc('goals_player_prev_season_full__player') }} Assists, shots on target, key passes and defensive actions follow the same pattern in this model."
+-      - name: goals_player_this_season
+-        description: "{{ doc('goals_player_this_season__player') }}"
+-      - name: assists_player_this_season
+-        description: "{{ doc('assists_player_this_season__player') }}"
+-      - name: shots_on_goal_player_this_season
+-        description: "{{ doc('shots_on_goal_player_this_season__player') }}"
+-      - name: passes_key_player_this_season
+-        description: "{{ doc('passes_key_player_this_season__player') }}"
+-      - name: defensive_actions_player_this_season
+-        description: "{{ doc('defensive_actions_player_this_season__player') }}"
+-      - name: appearances_prev
+-        description: "The prior season's appearances at this club through the same appearance cutoff as the current season (yoy_appearances_cutoff) — the pace-matched figure appearances_prev_full is compared against. NULL when there is no prior season at this club to compare against."
+-      - name: goals_player_prev_season
+-        description: "{{ doc('goals_player_prev_season__player') }}"
+-      - name: assists_player_prev_season
+-        description: "{{ doc('assists_player_prev_season__player') }}"
+-      - name: shots_on_goal_player_prev_season
+-        description: "{{ doc('shots_on_goal_player_prev_season__player') }}"
+-      - name: passes_key_player_prev_season
+-        description: "{{ doc('passes_key_player_prev_season__player') }}"
+-      - name: defensive_actions_player_prev_season
+-        description: "{{ doc('defensive_actions_player_prev_season__player') }}"
+-      - name: assists_player_prev_season_full
+-        description: "{{ doc('assists_player_prev_season_full__player') }}"
+-      - name: shots_on_goal_player_prev_season_full
+-        description: "{{ doc('shots_on_goal_player_prev_season_full__player') }}"
+-      - name: passes_key_player_prev_season_full
+-        description: "{{ doc('passes_key_player_prev_season_full__player') }}"
+-      - name: defensive_actions_player_prev_season_full
+-        description: "{{ doc('defensive_actions_player_prev_season_full__player') }}"
+-      - name: assists_player_delta_yoy
+-        description: "{{ doc('assists_player_delta_yoy__player') }}"
+-      - name: shots_on_goal_player_delta_yoy
+-        description: "{{ doc('shots_on_goal_player_delta_yoy__player') }}"
+-      - name: passes_key_player_delta_yoy
+-        description: "{{ doc('passes_key_player_delta_yoy__player') }}"
+-      - name: defensive_actions_player_delta_yoy
+-        description: "{{ doc('defensive_actions_player_delta_yoy__player') }}"
+-
+   - name: int_player_profile__contribution
+     description: >
+       What share of a club's goals a player was involved in: their goals plus assists over the
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql b/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
+index dc69cce2..850ae133 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
+@@ -1,7 +1,6 @@
+ {#
+   Player contribution-share — a player's goal-involvement share of the team's WHOLE-SEASON goals
+-  (content_architecture §6.4, the "bonus" flagship; a player-profile differentiator, sibling of
+-  int_player_profile__yoy). "Involved in 45% of Bayern's goals."
++  (content_architecture §6.4, the "bonus" flagship; a player-profile differentiator). "Involved in 45% of Bayern's goals."
+ 
+   Metric definition:
+     - numerator = scorer_points_player (goals + assists), its catalogue formula over the player's matches
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql b/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
+deleted file mode 100644
+index 7d875bb4..00000000
+--- a/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
++++ /dev/null
+@@ -1,177 +0,0 @@
+-{#
+-  Appearances-aligned year-over-year — player, domestic leagues only (Phase C, #391;
+-  the player mirror of int_team_profile__yoy, #324).
+-
+-  What it compares, and when a side is blank, is rule R6 in models/docs/metric_rules.md.
+-
+-  Alignment is by APPEARANCES (match_number from int_player_season_record — the running
+-  count of the matches the player actually PLAYED — a count of player-stat rows would
+-  include unused substitutes and inflate it), the player analog of the team
+-  builder's games played. Not by date, not by round number.
+-
+-  Metric set (the broader per-position set): goals, assists, shots on
+-  target, key passes, defensive actions (tackles + interceptions + blocks). Raw
+-  cumulative counts (per-90 / ratios live elsewhere); the delta is this - prev.
+-
+-  Full-season reference: alongside the pace-matched prev figures, each metric also carries
+-  the prior season's COMPLETE total (*_prev_season_full, its max appearances, no cutoff) —
+-  the "how big was last season" anchor for the delta. Context only: it is NEVER differenced
+-  against the still-running current season (a part season vs a full season would mislead,
+-  the very trap this model avoids). NULL under the same honest-absence as the prev figures.
+-
+-  Scope: competition_type = 'domestic_league' only (rule R6).
+-
+-  Grain: (team_sk, player_sk, league_code, season_api_year) — one row per player's
+-  CURRENT club-league season. season_sk is attached downstream in mart_player_profile
+-  via the player's primary club; a within-season same-league two-club spell surfaces
+-  the primary club there (an honest limit, rare).
+-#}
+-
+-with std as (
+-    select
+-        team_sk,
+-        player_sk,
+-        league_code,
+-        season_api_year,
+-        match_number,
+-        goals_player,
+-        assists_player,
+-        shots_on_goal_player,
+-        passes_key_player,
+-        defensive_actions_player
+-    from {{ ref('int_player_season_record') }}
+-),
+-
+-competitions as (
+-    select
+-        league_code,
+-        competition_type
+-    from {{ ref('dim_league') }}
+-),
+-
+-dom as (
+-    select s.*
+-    from std as s
+-    inner join competitions as r
+-        on s.league_code = r.league_code
+-    where r.competition_type = 'domestic_league'
+-),
+-
+--- Current season per (player, club, league) and its latest appearance count N: the
+--- single most-recent cumulative row (max season, then max match_number).
+-cur as (
+-    select
+-        team_sk,
+-        player_sk,
+-        league_code,
+-        season_api_year as cur_season,
+-        match_number as appearances_cutoff,
+-        goals_player as goals_player_this_season,
+-        assists_player as assists_player_this_season,
+-        shots_on_goal_player as shots_on_goal_player_this_season,
+-        passes_key_player as passes_key_player_this_season,
+-        defensive_actions_player as defensive_actions_player_this_season
+-    from dom
+-    qualify row_number() over (
+-        partition by team_sk, player_sk, league_code
+-        order by season_api_year desc, match_number desc
+-    ) = 1
+-),
+-
+--- Prior season at the same club, cumulative through the same appearance cutoff
+--- (largest match_number <= N; a complete prior season normally has >= N appearances).
+-prev as (
+-    select
+-        d.team_sk,
+-        d.player_sk,
+-        d.league_code,
+-        d.match_number as appearances_prev,
+-        d.goals_player as goals_player_prev_season,
+-        d.assists_player as assists_player_prev_season,
+-        d.shots_on_goal_player as shots_on_goal_player_prev_season,
+-        d.passes_key_player as passes_key_player_prev_season,
+-        d.defensive_actions_player as defensive_actions_player_prev_season
+-    from dom as d
+-    inner join cur as c
+-        on
+-            d.team_sk = c.team_sk
+-            and d.player_sk = c.player_sk
+-            and d.league_code = c.league_code
+-    where
+-        d.season_api_year = c.cur_season - 1
+-        and d.match_number <= c.appearances_cutoff
+-    qualify row_number() over (
+-        partition by d.team_sk, d.player_sk, d.league_code
+-        order by d.match_number desc
+-    ) = 1
+-),
+-
+--- Prior season at the same club, cumulative through its FULL extent (max match_number, no
+--- cutoff cap): the "how big was last season" anchor for the pace-matched delta above.
+--- Context only — never differenced against the running current season.
+-prev_full as (
+-    select
+-        d.team_sk,
+-        d.player_sk,
+-        d.league_code,
+-        d.match_number as appearances_prev_full,
+-        d.goals_player as goals_player_prev_season_full,
+-        d.assists_player as assists_player_prev_season_full,
+-        d.shots_on_goal_player as shots_on_goal_player_prev_season_full,
+-        d.passes_key_player as passes_key_player_prev_season_full,
+-        d.defensive_actions_player as defensive_actions_player_prev_season_full
+-    from dom as d
+-    inner join cur as c
+-        on
+-            d.team_sk = c.team_sk
+-            and d.player_sk = c.player_sk
+-            and d.league_code = c.league_code
+-    where d.season_api_year = c.cur_season - 1
+-    qualify row_number() over (
+-        partition by d.team_sk, d.player_sk, d.league_code
+-        order by d.match_number desc
+-    ) = 1
+-)
+-
+-select
+-    cur.team_sk,
+-    cur.player_sk,
+-    cur.league_code,
+-    cur.cur_season as season_api_year,
+-    cur.appearances_cutoff as yoy_appearances_cutoff,
+-    cur.goals_player_this_season,
+-    cur.assists_player_this_season,
+-    cur.shots_on_goal_player_this_season,
+-    cur.passes_key_player_this_season,
+-    cur.defensive_actions_player_this_season,
+-    prev.appearances_prev,
+-    prev.goals_player_prev_season,
+-    prev.assists_player_prev_season,
+-    prev.shots_on_goal_player_prev_season,
+-    prev.passes_key_player_prev_season,
+-    prev.defensive_actions_player_prev_season,
+-    -- prior-season FULL totals (context anchor; NULL when no prior season at this club)
+-    prev_full.appearances_prev_full,
+-    prev_full.goals_player_prev_season_full,
+-    prev_full.assists_player_prev_season_full,
+-    prev_full.shots_on_goal_player_prev_season_full,
+-    prev_full.passes_key_player_prev_season_full,
+-    prev_full.defensive_actions_player_prev_season_full,
+-    cur.goals_player_this_season - prev.goals_player_prev_season as goals_player_delta_yoy,
+-    cur.assists_player_this_season - prev.assists_player_prev_season as assists_player_delta_yoy,
+-    cur.shots_on_goal_player_this_season - prev.shots_on_goal_player_prev_season
+-        as shots_on_goal_player_delta_yoy,
+-    cur.passes_key_player_this_season - prev.passes_key_player_prev_season as passes_key_player_delta_yoy,
+-    cur.defensive_actions_player_this_season - prev.defensive_actions_player_prev_season
+-        as defensive_actions_player_delta_yoy
+-from cur
+-left join prev
+-    on
+-        cur.team_sk = prev.team_sk
+-        and cur.player_sk = prev.player_sk
+-        and cur.league_code = prev.league_code
+-left join prev_full
+-    on
+-        cur.team_sk = prev_full.team_sk
+-        and cur.player_sk = prev_full.player_sk
+-        and cur.league_code = prev_full.league_code
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_record.sql b/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
+index 0b5e01c4..9d076498 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
+@@ -14,7 +14,6 @@
+   Every metric is its catalogue formula over the window's leg rows, written by
+   scripts/generate_metric_sql.py by the rules in models/docs/metric_rules.md.
+ 
+-  Carries round_order + match_number for the deferred year-over-year surface.
+   Season-bounded (partition by league_code, season_api_year). A national qualifying
+   campaign is one season here — the provider stamps a whole campaign with a single
+   season_api_year even though its matches span 2–3 calendar years — so this partition
+diff --git a/dbt_project/models/4_intermediate/shared/int_season_record.yml b/dbt_project/models/4_intermediate/shared/int_season_record.yml
+index 318a290f..3cc8c783 100644
+--- a/dbt_project/models/4_intermediate/shared/int_season_record.yml
++++ b/dbt_project/models/4_intermediate/shared/int_season_record.yml
+@@ -186,7 +186,7 @@ models:
+       - name: round_order
+         description: "{{ doc('round_order') }}"
+       - name: match_number
+-        description: "The player's Nth finished match played that competition-season, ordered by kickoff (equal to games_played) — the appearance cutoff the year-over-year comparison aligns two seasons on."
++        description: "The player's Nth finished match played that competition-season, ordered by kickoff (equal to games_played)."
+       - name: goals_player
+         description: "{{ doc('goals_player') }}"
+       - name: goals_against_player
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
+index 39a84df3..fb2d457e 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
+@@ -13,10 +13,6 @@
+   alone (int_team_competition_phase__metrics): its teams and its matches, without the qualifiers
+   and the knockout phase. Every other competition-season counts all its matches. round_stage_kind
+   says which: table for a competition-season benchmarked over its table rounds, NULL otherwise.
+-
+-  Each row also carries the team's value at the same point last season (rule R6), from
+-  int_team_season__metrics_cumulative, chosen as int_team_profile__yoy chooses it: the previous
+-  season's latest match at or before this season's match count, domestic leagues only.
+   Grain: (team_sk, season_sk, metric_key).
+ #}
+ 
+@@ -82,86 +78,6 @@ season as (
+     {% endfor %}
+ ),
+ 
+-competitions as (
+-    select
+-        league_code,
+-        competition_type
+-    from {{ ref('dim_league') }}
+-),
+-
+-domestic_cumulative as (
+-    select c.*
+-    from {{ ref('int_team_season__metrics_cumulative') }} as c
+-    inner join competitions as r
+-        on c.league_code = r.league_code
+-    where r.competition_type = 'domestic_league'
+-),
+-
+--- each domestic team-season's match count, the N its previous season is read at
+-season_n as (
+-    select
+-        team_sk,
+-        league_code,
+-        season_api_year,
+-        max(match_number) as match_count
+-    from domestic_cumulative
+-    group by team_sk, league_code, season_api_year
+-),
+-
+-previous as (
+-    select
+-        n.team_sk,
+-        n.league_code,
+-        n.season_api_year,
+-        c.goals_per_match,
+-        c.goals_against_per_match,
+-        cast(c.clean_sheets as float64) as clean_sheets,
+-        c.clean_sheets_pct,
+-        c.shots_per_match,
+-        c.shots_on_goal_pct,
+-        c.shots_inside_box_pct,
+-        c.shots_inside_box_per_match,
+-        c.shots_on_goal_per_match,
+-        c.shots_on_goal_against_per_match,
+-        c.shots_on_goal_difference_per_match,
+-        c.finishing_efficiency_pct,
+-        c.duels_per_match,
+-        c.duels_won_per_match,
+-        c.duels_won_pct,
+-        c.defensive_actions_per_match,
+-        c.tackles_per_match,
+-        c.interceptions_per_match,
+-        c.blocks_per_match,
+-        c.passes_per_match,
+-        c.passes_accurate_per_match,
+-        c.passes_accuracy_pct,
+-        c.passes_share_pct,
+-        c.passes_key_per_match,
+-        c.dribbles_attempts_per_match,
+-        c.dribbles_success_per_match,
+-        c.dribbles_success_pct,
+-        c.corners_per_match,
+-        c.corners_against_per_match,
+-        c.free_kicks_per_match,
+-        c.fouls_per_match,
+-        c.offsides_per_match,
+-        c.saves_per_match,
+-        c.saves_pct,
+-        cast(c.cards_yellow as float64) as cards_yellow,
+-        cast(c.cards_red as float64) as cards_red
+-    from season_n as n
+-    inner join domestic_cumulative as c
+-        on
+-            n.team_sk = c.team_sk
+-            and n.league_code = c.league_code
+-            and n.season_api_year - 1 = c.season_api_year
+-            and n.match_count >= c.match_number
+-    qualify row_number() over (
+-        partition by n.team_sk, n.league_code, n.season_api_year
+-        order by c.match_number desc
+-    ) = 1
+-),
+-
+ current_long as (
+     select
+         team_sk,
+@@ -213,56 +129,6 @@ current_long as (
+             cards_red
+         )
+     )
+-),
+-
+-previous_long as (
+-    select
+-        team_sk,
+-        league_code,
+-        season_api_year,
+-        metric_key,
+-        metric_value
+-    from previous
+-    unpivot (
+-        metric_value for metric_key in (
+-            goals_per_match,
+-            goals_against_per_match,
+-            clean_sheets,
+-            clean_sheets_pct,
+-            shots_per_match,
+-            shots_on_goal_pct,
+-            shots_inside_box_pct,
+-            shots_inside_box_per_match,
+-            shots_on_goal_per_match,
+-            shots_on_goal_against_per_match,
+-            shots_on_goal_difference_per_match,
+-            finishing_efficiency_pct,
+-            duels_per_match,
+-            duels_won_per_match,
+-            duels_won_pct,
+-            defensive_actions_per_match,
+-            tackles_per_match,
+-            interceptions_per_match,
+-            blocks_per_match,
+-            passes_per_match,
+-            passes_accurate_per_match,
+-            passes_accuracy_pct,
+-            passes_share_pct,
+-            passes_key_per_match,
+-            dribbles_attempts_per_match,
+-            dribbles_success_per_match,
+-            dribbles_success_pct,
+-            corners_per_match,
+-            corners_against_per_match,
+-            free_kicks_per_match,
+-            fouls_per_match,
+-            offsides_per_match,
+-            saves_per_match,
+-            saves_pct,
+-            cards_yellow,
+-            cards_red
+-        )
+-    )
+ )
+ 
+ select
+@@ -273,12 +139,5 @@ select
+     cur.season_api_year,
+     cur.round_stage_kind,
+     cur.metric_key,
+-    cur.metric_value,
+-    prev.metric_value as metric_value_prev_season
++    cur.metric_value
+ from current_long as cur
+-left join previous_long as prev
+-    on
+-        cur.team_sk = prev.team_sk
+-        and cur.league_code = prev.league_code
+-        and cur.season_api_year = prev.season_api_year
+-        and cur.metric_key = prev.metric_key
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_profile.yml b/dbt_project/models/4_intermediate/shared/int_team_profile.yml
+index 2ed63a17..4f15caa5 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_profile.yml
++++ b/dbt_project/models/4_intermediate/shared/int_team_profile.yml
+@@ -1,179 +1,6 @@
+ version: 2
+ 
+ models:
+-  - name: int_team_profile__yoy
+-    description: >
+-      This season against last, compared over the same number of games played. One row per
+-      team's CURRENT domestic season. Grain: (team_sk, league_code, season_api_year).
+-      DOMESTIC LEAGUES ONLY.
+-
+-      Carries the three scoreline totals and every rate metric, each as _this_season,
+-      _prev_season and _delta_yoy. It also carries last season's position at the cutoff,
+-      points_rank_prev_season.
+-
+-      Aligned by GAMES PLAYED, not by matchday: parsed round numbers collide across phases in a
+-      multi-phase format, so games played is the only key safe for every competition shape.
+-    tests:
+-      - dbt_utils.unique_combination_of_columns:
+-          combination_of_columns: [team_sk, league_code, season_api_year]
+-      # Ratio bounds are split by invariant family, mirroring int_team_season__metrics_cumulative
+-      # (the composed source): the YoY cutoff N is low by construction early in every season, so a
+-      # provider-subset ratio can legitimately be >1 on a side before dilution. Structurally-capped
+-      # ratios (finishing_efficiency_pct = open-play goals/shots on target; saves_pct = saves/(saves+
+-      # goals); clean_sheets_pct = clean_sheet_games/games) stay strict [0,1] on both sides.
+-      - dbt_utils.expression_is_true:
+-          expression: "(finishing_efficiency_pct_this_season is null or finishing_efficiency_pct_this_season between 0 and 1) and (saves_pct_this_season is null or saves_pct_this_season between 0 and 1) and (clean_sheets_pct_this_season is null or clean_sheets_pct_this_season between 0 and 1) and (finishing_efficiency_pct_prev_season is null or finishing_efficiency_pct_prev_season between 0 and 1) and (saves_pct_prev_season is null or saves_pct_prev_season between 0 and 1) and (clean_sheets_pct_prev_season is null or clean_sheets_pct_prev_season between 0 and 1)"
+-          name: team_profile_yoy_structural_ratios_in_range
+-      # Provider-subset ratios (shots_inside_box_pct = inside_box/shots, passes_accuracy_pct = accurate/total,
+-      # duels_won_pct = won/total): one provider stat over another. At a low cutoff N a single game
+-      # where the provider reports numerator > denominator (a known API inconsistency) is not yet
+-      # diluted, so >1 is genuine data, not a bug — bounded >= 0 only (a negative would be a real
+-      # sign-flip). Per-match count rates have no upper bound; they are >= 0 like any count.
+-      - dbt_utils.expression_is_true:
+-          expression: "(shots_inside_box_pct_this_season is null or shots_inside_box_pct_this_season >= 0) and (passes_accuracy_pct_this_season is null or passes_accuracy_pct_this_season >= 0) and (duels_won_pct_this_season is null or duels_won_pct_this_season >= 0) and (shots_inside_box_pct_prev_season is null or shots_inside_box_pct_prev_season >= 0) and (passes_accuracy_pct_prev_season is null or passes_accuracy_pct_prev_season >= 0) and (duels_won_pct_prev_season is null or duels_won_pct_prev_season >= 0)"
+-          name: team_profile_yoy_subset_ratios_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "(goals_per_match_this_season is null or goals_per_match_this_season >= 0) and (goals_against_per_match_this_season is null or goals_against_per_match_this_season >= 0) and (shots_per_match_this_season is null or shots_per_match_this_season >= 0) and (shots_on_goal_per_match_this_season is null or shots_on_goal_per_match_this_season >= 0) and (duels_per_match_this_season is null or duels_per_match_this_season >= 0) and (defensive_actions_per_match_this_season is null or defensive_actions_per_match_this_season >= 0) and (passes_per_match_this_season is null or passes_per_match_this_season >= 0) and (passes_key_per_match_this_season is null or passes_key_per_match_this_season >= 0) and (corners_per_match_this_season is null or corners_per_match_this_season >= 0) and (corners_against_per_match_this_season is null or corners_against_per_match_this_season >= 0) and (goals_per_match_prev_season is null or goals_per_match_prev_season >= 0) and (goals_against_per_match_prev_season is null or goals_against_per_match_prev_season >= 0) and (shots_per_match_prev_season is null or shots_per_match_prev_season >= 0) and (shots_on_goal_per_match_prev_season is null or shots_on_goal_per_match_prev_season >= 0) and (duels_per_match_prev_season is null or duels_per_match_prev_season >= 0) and (defensive_actions_per_match_prev_season is null or defensive_actions_per_match_prev_season >= 0) and (passes_per_match_prev_season is null or passes_per_match_prev_season >= 0) and (passes_key_per_match_prev_season is null or passes_key_per_match_prev_season >= 0) and (corners_per_match_prev_season is null or corners_per_match_prev_season >= 0) and (corners_against_per_match_prev_season is null or corners_against_per_match_prev_season >= 0)"
+-          name: team_profile_yoy_per_match_rates_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "points_rank_prev_season is null or (points_rank_prev_season >= 1 and games_played_prev is not null)"
+-          name: team_profile_yoy_points_rank_is_a_place
+-    columns:
+-      - name: team_sk
+-        description: "{{ doc('team_sk') }}"
+-        tests:
+-          - not_null
+-          - relationships:
+-              to: ref('dim_team')
+-              field: team_sk
+-      - name: league_code
+-        description: "{{ doc('league_code') }}"
+-        tests: [not_null]
+-      - name: season_api_year
+-        description: "{{ doc('season_api_year') }} Here it is the team's current domestic season, the year-over-year anchor."
+-        tests: [not_null]
+-      - name: yoy_games_played_cutoff
+-        description: "{{ doc('yoy_games_played_cutoff') }}"
+-        tests: [not_null]
+-      - name: points_delta_yoy
+-        description: "{{ doc('table_points') }} Here, this season's minus the previous season's, each on the day of the team's Nth match (yoy_games_played_cutoff)."
+-      - name: goals_per_match_delta_yoy
+-        description: "{{ doc('goals_per_match_delta_yoy__team') }}"
+-      - name: games_played_prev
+-        description: "The prior season's games played through the same games-played cutoff as yoy_games_played_cutoff (the largest match_number not exceeding it). NULL when the team has no prior domestic season in this league to align against."
+-      - name: points_this_season
+-        description: "{{ doc('table_points') }} Here, this season, on the day of the team's Nth match (yoy_games_played_cutoff); empty where the table is not rebuilt."
+-      - name: goals_for_this_season
+-        description: "{{ doc('goals') }} Here, this season through the games-played cutoff N (yoy_games_played_cutoff)."
+-      - name: goals_against_this_season
+-        description: "{{ doc('goals_against_this_season__team') }}"
+-      - name: goals_per_match_this_season
+-        description: "{{ doc('goals_per_match_this_season__team') }}"
+-      - name: goals_against_per_match_this_season
+-        description: "{{ doc('goals_against_per_match_this_season__team') }}"
+-      - name: clean_sheets_pct_this_season
+-        description: "{{ doc('clean_sheets_pct_this_season__team') }}"
+-      - name: shots_per_match_this_season
+-        description: "{{ doc('shots_per_match_this_season__team') }}"
+-      - name: shots_inside_box_pct_this_season
+-        description: "{{ doc('shots_inside_box_pct_this_season__team') }}"
+-      - name: shots_on_goal_per_match_this_season
+-        description: "{{ doc('shots_on_goal_per_match_this_season__team') }}"
+-      - name: finishing_efficiency_pct_this_season
+-        description: "{{ doc('finishing_efficiency_pct_this_season__team') }}"
+-      - name: duels_per_match_this_season
+-        description: "{{ doc('duels_per_match_this_season__team') }}"
+-      - name: duels_won_pct_this_season
+-        description: "{{ doc('duels_won_pct_this_season__team') }}"
+-      - name: defensive_actions_per_match_this_season
+-        description: "{{ doc('defensive_actions_per_match_this_season__team') }}"
+-      - name: passes_per_match_this_season
+-        description: "{{ doc('passes_per_match_this_season__team') }}"
+-      - name: passes_accuracy_pct_this_season
+-        description: "{{ doc('passes_accuracy_pct_this_season__team') }}"
+-      - name: passes_key_per_match_this_season
+-        description: "{{ doc('passes_key_per_match_this_season__team') }}"
+-      - name: corners_per_match_this_season
+-        description: "{{ doc('corners_per_match_this_season__team') }}"
+-      - name: corners_against_per_match_this_season
+-        description: "{{ doc('corners_against_per_match_this_season__team') }}"
+-      - name: saves_pct_this_season
+-        description: "{{ doc('saves_pct_this_season__team') }}"
+-      - name: points_rank_prev_season
+-        description: "{{ doc('points_rank_prev_season__team') }} Here, the official table on the day of that match; empty where it is not rebuilt or the team is level at a criterion the results cannot settle."
+-      - name: points_prev_season
+-        description: "{{ doc('table_points') }} Here, the previous season, on the day of the team's match at the same count; empty where that table is not rebuilt."
+-      - name: goals_for_prev_season
+-        description: "{{ doc('goals') }} Here, the previous season through the same games-played cutoff N."
+-      - name: goals_against_prev_season
+-        description: "{{ doc('goals_against_prev_season__team') }}"
+-      - name: goals_per_match_prev_season
+-        description: "{{ doc('goals_per_match_prev_season__team') }}"
+-      - name: goals_against_per_match_prev_season
+-        description: "{{ doc('goals_against_per_match_prev_season__team') }}"
+-      - name: clean_sheets_pct_prev_season
+-        description: "{{ doc('clean_sheets_pct_prev_season__team') }}"
+-      - name: shots_per_match_prev_season
+-        description: "{{ doc('shots_per_match_prev_season__team') }}"
+-      - name: shots_inside_box_pct_prev_season
+-        description: "{{ doc('shots_inside_box_pct_prev_season__team') }}"
+-      - name: shots_on_goal_per_match_prev_season
+-        description: "{{ doc('shots_on_goal_per_match_prev_season__team') }}"
+-      - name: finishing_efficiency_pct_prev_season
+-        description: "{{ doc('finishing_efficiency_pct_prev_season__team') }}"
+-      - name: duels_per_match_prev_season
+-        description: "{{ doc('duels_per_match_prev_season__team') }}"
+-      - name: duels_won_pct_prev_season
+-        description: "{{ doc('duels_won_pct_prev_season__team') }}"
+-      - name: defensive_actions_per_match_prev_season
+-        description: "{{ doc('defensive_actions_per_match_prev_season__team') }}"
+-      - name: passes_per_match_prev_season
+-        description: "{{ doc('passes_per_match_prev_season__team') }}"
+-      - name: passes_accuracy_pct_prev_season
+-        description: "{{ doc('passes_accuracy_pct_prev_season__team') }}"
+-      - name: passes_key_per_match_prev_season
+-        description: "{{ doc('passes_key_per_match_prev_season__team') }}"
+-      - name: corners_per_match_prev_season
+-        description: "{{ doc('corners_per_match_prev_season__team') }}"
+-      - name: corners_against_per_match_prev_season
+-        description: "{{ doc('corners_against_per_match_prev_season__team') }}"
+-      - name: saves_pct_prev_season
+-        description: "{{ doc('saves_pct_prev_season__team') }}"
+-      - name: goals_for_delta_yoy
+-        description: "{{ doc('goals') }} Here, this season's minus the previous season's, both through the games-played cutoff N (yoy_games_played_cutoff)."
+-      - name: goals_against_delta_yoy
+-        description: "{{ doc('goals_against_delta_yoy__team') }}"
+-      - name: goals_against_per_match_delta_yoy
+-        description: "{{ doc('goals_against_per_match_delta_yoy__team') }}"
+-      - name: clean_sheets_pct_delta_yoy
+-        description: "{{ doc('clean_sheets_pct_delta_yoy__team') }}"
+-      - name: shots_per_match_delta_yoy
+-        description: "{{ doc('shots_per_match_delta_yoy__team') }}"
+-      - name: shots_inside_box_pct_delta_yoy
+-        description: "{{ doc('shots_inside_box_pct_delta_yoy__team') }}"
+-      - name: shots_on_goal_per_match_delta_yoy
+-        description: "{{ doc('shots_on_goal_per_match_delta_yoy__team') }}"
+-      - name: finishing_efficiency_pct_delta_yoy
+-        description: "{{ doc('finishing_efficiency_pct_delta_yoy__team') }}"
+-      - name: duels_per_match_delta_yoy
+-        description: "{{ doc('duels_per_match_delta_yoy__team') }}"
+-      - name: duels_won_pct_delta_yoy
+-        description: "{{ doc('duels_won_pct_delta_yoy__team') }}"
+-      - name: defensive_actions_per_match_delta_yoy
+-        description: "{{ doc('defensive_actions_per_match_delta_yoy__team') }}"
+-      - name: passes_per_match_delta_yoy
+-        description: "{{ doc('passes_per_match_delta_yoy__team') }}"
+-      - name: passes_accuracy_pct_delta_yoy
+-        description: "{{ doc('passes_accuracy_pct_delta_yoy__team') }}"
+-      - name: passes_key_per_match_delta_yoy
+-        description: "{{ doc('passes_key_per_match_delta_yoy__team') }}"
+-      - name: corners_per_match_delta_yoy
+-        description: "{{ doc('corners_per_match_delta_yoy__team') }}"
+-      - name: corners_against_per_match_delta_yoy
+-        description: "{{ doc('corners_against_per_match_delta_yoy__team') }}"
+-      - name: saves_pct_delta_yoy
+-        description: "{{ doc('saves_pct_delta_yoy__team') }}"
+-
+   - name: int_team_profile__streaks
+     description: >
+       A team's current runs as of its most recent match: unbeaten, win, winless, clean-sheet and
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql b/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
+deleted file mode 100644
+index 8947b504..00000000
+--- a/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
++++ /dev/null
+@@ -1,175 +0,0 @@
+-{#
+-  Games-played-aligned year-over-year — team, domestic leagues only (#324). Now covers ALL
+-  season metrics (not just the 3 totals): COMPOSES int_team_season__metrics_cumulative (the rate
+-  formulas applied at every matchday) at the cutoff N.
+-
+-  What it compares, and when a side is blank, is rule R6 in models/docs/metric_rules.md.
+-
+-  Alignment is by GAMES PLAYED (match_number), not date and not the round-name number. For fixed-
+-  matchday leagues (one match per matchday) games-played == matchday. Games played is unambiguous
+-  in every format (parsed round numbers collide across multi-phase domestic formats).
+-
+-  Metrics:
+-    - Goals for / against: the cumulative scoreline sums (always present).
+-    - Points and position: the official table on the day of the team's Nth match this season and
+-      last season (int_team_season__table_by_time); empty where that season's table is not rebuilt.
+-    - Rates (the LOCKED 16-row team display set): as the cumulative model holds them at N.
+-    - delta = this − prev.
+-
+-  Columns are grouped this-season / prev-season (simple selects) then the deltas (calculations),
+-  matching the model's prior shape (ST06). The rate formulas live once, in the cumulative model —
+-  here we only select + subtract. Scope: domestic_league only. Grain: (team_sk, league_code,
+-  season_api_year) — one row per team's CURRENT domestic season.
+-#}
+-
+-with cml as (
+-    select * from {{ ref('int_team_season__metrics_cumulative') }}
+-),
+-
+-competitions as (
+-    select
+-        league_code,
+-        competition_type
+-    from {{ ref('dim_league') }}
+-),
+-
+--- domestic-league cumulative rows only (YoY is meaningful for league formats; cups/tournaments
+--- have no aligned comparison).
+-dom as (
+-    select c.*
+-    from cml as c
+-    inner join competitions as r
+-        on c.league_code = r.league_code
+-    where r.competition_type = 'domestic_league'
+-),
+-
+--- current season per (team, league) and its latest games-played count N: the single most-recent
+--- cumulative row (max season, then max match_number).
+-cur as (
+-    select * from dom
+-    qualify row_number() over (
+-        partition by team_sk, league_code
+-        order by season_api_year desc, match_number desc
+-    ) = 1
+-),
+-
+--- prior season through the same games-played cutoff (largest match_number <= N; a complete prior
+--- season normally has >= N games).
+-prev as (
+-    select d.*
+-    from dom as d
+-    inner join cur as c
+-        on
+-            d.team_sk = c.team_sk
+-            and d.league_code = c.league_code
+-    where
+-        d.season_api_year = c.season_api_year - 1
+-        and d.match_number <= c.match_number
+-    qualify row_number() over (
+-        partition by d.team_sk, d.league_code
+-        order by d.match_number desc
+-    ) = 1
+-),
+-
+--- the official table on the day of a team's Nth league match
+-tables_at_match as (
+-    select
+-        r.team_sk,
+-        r.league_code,
+-        r.season_api_year,
+-        r.match_number,
+-        t.table_points,
+-        t.table_position
+-    from {{ ref('int_team_season_record') }} as r
+-    inner join {{ ref('int_team_season__table_by_time') }} as t
+-        on
+-            r.team_sk = t.team_sk
+-            and r.league_code = t.league_code
+-            and r.season_api_year = t.season_api_year
+-            and r.kickoff_datetime = t.table_at
+-)
+-
+-select
+-    cur.team_sk,
+-    cur.league_code,
+-    cur.season_api_year,
+-    cur.match_number as yoy_games_played_cutoff,
+-    prev.match_number as games_played_prev,
+-    -- this-season values (through N): 3 scoreline totals + the LOCKED 16-row rate metrics
+-    cur_table.table_points as points_this_season,
+-    cur.goals as goals_for_this_season,
+-    cur.goals_against as goals_against_this_season,
+-    cur.goals_per_match as goals_per_match_this_season,
+-    cur.goals_against_per_match as goals_against_per_match_this_season,
+-    cur.clean_sheets_pct as clean_sheets_pct_this_season,
+-    cur.shots_per_match as shots_per_match_this_season,
+-    cur.shots_inside_box_pct as shots_inside_box_pct_this_season,
+-    cur.shots_on_goal_per_match as shots_on_goal_per_match_this_season,
+-    cur.finishing_efficiency_pct as finishing_efficiency_pct_this_season,
+-    cur.duels_per_match as duels_per_match_this_season,
+-    cur.duels_won_pct as duels_won_pct_this_season,
+-    cur.defensive_actions_per_match as defensive_actions_per_match_this_season,
+-    cur.passes_per_match as passes_per_match_this_season,
+-    cur.passes_accuracy_pct as passes_accuracy_pct_this_season,
+-    cur.passes_key_per_match as passes_key_per_match_this_season,
+-    cur.corners_per_match as corners_per_match_this_season,
+-    cur.corners_against_per_match as corners_against_per_match_this_season,
+-    cur.saves_pct as saves_pct_this_season,
+-    -- prior-season values (through the same N)
+-    prev_table.table_position as points_rank_prev_season,
+-    prev_table.table_points as points_prev_season,
+-    prev.goals as goals_for_prev_season,
+-    prev.goals_against as goals_against_prev_season,
+-    prev.goals_per_match as goals_per_match_prev_season,
+-    prev.goals_against_per_match as goals_against_per_match_prev_season,
+-    prev.clean_sheets_pct as clean_sheets_pct_prev_season,
+-    prev.shots_per_match as shots_per_match_prev_season,
+-    prev.shots_inside_box_pct as shots_inside_box_pct_prev_season,
+-    prev.shots_on_goal_per_match as shots_on_goal_per_match_prev_season,
+-    prev.finishing_efficiency_pct as finishing_efficiency_pct_prev_season,
+-    prev.duels_per_match as duels_per_match_prev_season,
+-    prev.duels_won_pct as duels_won_pct_prev_season,
+-    prev.defensive_actions_per_match as defensive_actions_per_match_prev_season,
+-    prev.passes_per_match as passes_per_match_prev_season,
+-    prev.passes_accuracy_pct as passes_accuracy_pct_prev_season,
+-    prev.passes_key_per_match as passes_key_per_match_prev_season,
+-    prev.corners_per_match as corners_per_match_prev_season,
+-    prev.corners_against_per_match as corners_against_per_match_prev_season,
+-    prev.saves_pct as saves_pct_prev_season,
+-    -- year-over-year deltas (this − prev; NULL when either side is NULL)
+-    cur_table.table_points - prev_table.table_points as points_delta_yoy,
+-    cur.goals - prev.goals as goals_for_delta_yoy,
+-    cur.goals_against - prev.goals_against as goals_against_delta_yoy,
+-    cur.goals_per_match - prev.goals_per_match as goals_per_match_delta_yoy,
+-    cur.goals_against_per_match - prev.goals_against_per_match as goals_against_per_match_delta_yoy,
+-    cur.clean_sheets_pct - prev.clean_sheets_pct as clean_sheets_pct_delta_yoy,
+-    cur.shots_per_match - prev.shots_per_match as shots_per_match_delta_yoy,
+-    cur.shots_inside_box_pct - prev.shots_inside_box_pct as shots_inside_box_pct_delta_yoy,
+-    cur.shots_on_goal_per_match - prev.shots_on_goal_per_match as shots_on_goal_per_match_delta_yoy,
+-    cur.finishing_efficiency_pct - prev.finishing_efficiency_pct as finishing_efficiency_pct_delta_yoy,
+-    cur.duels_per_match - prev.duels_per_match as duels_per_match_delta_yoy,
+-    cur.duels_won_pct - prev.duels_won_pct as duels_won_pct_delta_yoy,
+-    cur.defensive_actions_per_match - prev.defensive_actions_per_match as defensive_actions_per_match_delta_yoy,
+-    cur.passes_per_match - prev.passes_per_match as passes_per_match_delta_yoy,
+-    cur.passes_accuracy_pct - prev.passes_accuracy_pct as passes_accuracy_pct_delta_yoy,
+-    cur.passes_key_per_match - prev.passes_key_per_match as passes_key_per_match_delta_yoy,
+-    cur.corners_per_match - prev.corners_per_match as corners_per_match_delta_yoy,
+-    cur.corners_against_per_match - prev.corners_against_per_match as corners_against_per_match_delta_yoy,
+-    cur.saves_pct - prev.saves_pct as saves_pct_delta_yoy
+-from cur
+-left join prev
+-    on
+-        cur.team_sk = prev.team_sk
+-        and cur.league_code = prev.league_code
+-left join tables_at_match as cur_table
+-    on
+-        cur.team_sk = cur_table.team_sk
+-        and cur.league_code = cur_table.league_code
+-        and cur.season_api_year = cur_table.season_api_year
+-        and cur.match_number = cur_table.match_number
+-left join tables_at_match as prev_table
+-    on
+-        prev.team_sk = prev_table.team_sk
+-        and prev.league_code = prev_table.league_code
+-        and prev.season_api_year = prev_table.season_api_year
+-        and prev.match_number = prev_table.match_number
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_season_record.sql b/dbt_project/models/4_intermediate/shared/int_team_season_record.sql
+index 69d7d38a..4f00fd5b 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_season_record.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_season_record.sql
+@@ -9,8 +9,7 @@
+   Grain: (team_sk, league_code, season_api_year, fixture_sk).
+ 
+   Ordered by kickoff. Carries round_order (the matchday number parsed from round_name)
+-  and match_number (the team's Nth match that season) so the year-over-year surface can align two
+-  seasons by matchday.
++  and match_number (the team's Nth match that season).
+ 
+   Season-bounded: partitioned by (league_code, season_api_year). This covers clubs and
+   single-season tournaments (WC/continental — the latest row is "all matches so far in
+diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+index 7af724e4..5d885b0c 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+@@ -78,13 +78,6 @@ teams as (
+     from {{ ref('dim_team') }}
+ ),
+ 
+--- Phase C: appearances-aligned year-over-year for the player's PRIMARY club that
+--- competition-season (mirrors int_team_profile__yoy -> mart_team_profile). Only the
+--- latest season per (player, club, league) has a YoY row; older seasons get NULL.
+-yoy as (
+-    select * from {{ ref('int_player_profile__yoy') }}
+-),
+-
+ -- Phase D bonus: goal-involvement share of the club's whole-season goals, for the player's PRIMARY club
+ -- that competition-season (content_architecture §6.4).
+ contribution as (
+@@ -217,32 +210,6 @@ select
+     a.duels_won_player_pct,
+     a.dribbles_success_player_pct,
+     a.saves_player_pct,
+-    -- year-over-year (domestic only; the player's primary club that season; NULL
+-    -- otherwise / when the prior season at that club is absent).
+-    y.yoy_appearances_cutoff,
+-    y.goals_player_this_season,
+-    y.goals_player_prev_season,
+-    y.goals_player_delta_yoy,
+-    y.assists_player_this_season,
+-    y.assists_player_prev_season,
+-    y.assists_player_delta_yoy,
+-    y.shots_on_goal_player_this_season,
+-    y.shots_on_goal_player_prev_season,
+-    y.shots_on_goal_player_delta_yoy,
+-    y.passes_key_player_this_season,
+-    y.passes_key_player_prev_season,
+-    y.passes_key_player_delta_yoy,
+-    y.defensive_actions_player_this_season,
+-    y.defensive_actions_player_prev_season,
+-    y.defensive_actions_player_delta_yoy,
+-    -- prior-season FULL totals: the "how big was last season" anchor for the pace-matched
+-    -- deltas above (context only, no delta-vs-full; NULL when the prior season is absent).
+-    y.appearances_prev_full,
+-    y.goals_player_prev_season_full,
+-    y.assists_player_prev_season_full,
+-    y.shots_on_goal_player_prev_season_full,
+-    y.passes_key_player_prev_season_full,
+-    y.defensive_actions_player_prev_season_full,
+     -- contribution-share (goal involvements as a share of the club's whole-season goals; the player's
+     -- primary club that season; NULL where absent).
+     c.scorer_points_player,
+@@ -266,12 +233,6 @@ left join team_affiliation as ta
+         and a.season_api_year = ta.season_api_year
+ left join teams as t
+     on ta.team_sk = t.team_sk
+-left join yoy as y
+-    on
+-        a.player_sk = y.player_sk
+-        and ta.team_sk = y.team_sk
+-        and a.league_code = y.league_code
+-        and a.season_api_year = y.season_api_year
+ left join contribution as c
+     on
+         a.player_sk = c.player_sk
+diff --git a/dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql b/dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
+index 8ba08696..9b0f944b 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
+@@ -2,8 +2,7 @@
+   Team competition benchmark (the vs-benchmark block; content_architecture §6 — the engine, table stakes).
+   LONG: one row per (team, season, metric_key) over the team benchmark metrics. Each row places the
+   team against its league that season: the team's metric_value, the league median (+ mean) and
+-  p25/p75 spread, the team's rank (k of team_count), metric_value - median, and the team's value at
+-  the same point last season.
++  p25/p75 spread, the team's rank (k of team_count) and metric_value - median.
+ 
+   rank orders by the metric's direction from the catalogue: a lower_better metric ranks the lowest
+   value 1, every other metric the highest; tied values share a rank. Median-led; rank not percentile
+@@ -49,7 +48,6 @@ ranked as (
+         m.round_stage_kind,
+         m.metric_key,
+         m.metric_value,
+-        m.metric_value_prev_season,
+         rank() over (
+             partition by m.league_code, m.season_api_year, m.metric_key
+             order by if(c.direction = 'lower_better', m.metric_value, -m.metric_value) asc
+@@ -79,7 +77,6 @@ select
+     b.league_p75,
+     b.team_count,
+     r.rank,
+-    r.metric_value_prev_season,
+     r.metric_value - b.league_median as vs_median_delta
+ from ranked as r
+ inner join benchmarks as b
+diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+index 86c7a803..037a8c0c 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+@@ -11,8 +11,6 @@
+     - season metric rates  int_team_season__metrics
+ 
+   Differentiators:
+-    - Vs own history — year-over-year (rule R6 in models/docs/metric_rules.md),
+-      from int_team_profile__yoy.
+     - Streaks (lighter layer) — trailing unbeaten / win / winless / clean-sheet /
+       scoring runs from int_team_profile__streaks.
+ 
+@@ -45,10 +43,6 @@ competition_seasons as (
+     from {{ ref('dim_competition_season') }}
+ ),
+ 
+-yoy as (
+-    select * from {{ ref('int_team_profile__yoy') }}
+-),
+-
+ streaks as (
+     select * from {{ ref('int_team_profile__streaks') }}
+ ),
+@@ -137,69 +131,6 @@ select
+     -- shooting dominance + results efficiency (catalogued season metrics)
+     m.shots_share_pct,
+     m.points_capture_pct,
+-    -- year-over-year (rule R6)
+-    y.yoy_games_played_cutoff,
+-    y.points_this_season,
+-    y.points_prev_season,
+-    y.points_delta_yoy,
+-    y.points_rank_prev_season,
+-    y.goals_for_this_season,
+-    y.goals_for_prev_season,
+-    y.goals_for_delta_yoy,
+-    y.goals_against_this_season,
+-    y.goals_against_prev_season,
+-    y.goals_against_delta_yoy,
+-    -- rate-metric YoY: matchday-aligned this/prev/delta for the LOCKED 16-row display set — the
+-    -- data for the team Stats tab's per-metric vs-last-season column. All simple passthrough from
+-    -- int_team_profile__yoy (the deltas were computed there).
+-    y.goals_per_match_this_season,
+-    y.goals_per_match_prev_season,
+-    y.goals_per_match_delta_yoy,
+-    y.goals_against_per_match_this_season,
+-    y.goals_against_per_match_prev_season,
+-    y.goals_against_per_match_delta_yoy,
+-    y.clean_sheets_pct_this_season,
+-    y.clean_sheets_pct_prev_season,
+-    y.clean_sheets_pct_delta_yoy,
+-    y.shots_per_match_this_season,
+-    y.shots_per_match_prev_season,
+-    y.shots_per_match_delta_yoy,
+-    y.shots_inside_box_pct_this_season,
+-    y.shots_inside_box_pct_prev_season,
+-    y.shots_inside_box_pct_delta_yoy,
+-    y.shots_on_goal_per_match_this_season,
+-    y.shots_on_goal_per_match_prev_season,
+-    y.shots_on_goal_per_match_delta_yoy,
+-    y.finishing_efficiency_pct_this_season,
+-    y.finishing_efficiency_pct_prev_season,
+-    y.finishing_efficiency_pct_delta_yoy,
+-    y.duels_per_match_this_season,
+-    y.duels_per_match_prev_season,
+-    y.duels_per_match_delta_yoy,
+-    y.duels_won_pct_this_season,
+-    y.duels_won_pct_prev_season,
+-    y.duels_won_pct_delta_yoy,
+-    y.defensive_actions_per_match_this_season,
+-    y.defensive_actions_per_match_prev_season,
+-    y.defensive_actions_per_match_delta_yoy,
+-    y.passes_per_match_this_season,
+-    y.passes_per_match_prev_season,
+-    y.passes_per_match_delta_yoy,
+-    y.passes_accuracy_pct_this_season,
+-    y.passes_accuracy_pct_prev_season,
+-    y.passes_accuracy_pct_delta_yoy,
+-    y.passes_key_per_match_this_season,
+-    y.passes_key_per_match_prev_season,
+-    y.passes_key_per_match_delta_yoy,
+-    y.corners_per_match_this_season,
+-    y.corners_per_match_prev_season,
+-    y.corners_per_match_delta_yoy,
+-    y.corners_against_per_match_this_season,
+-    y.corners_against_per_match_prev_season,
+-    y.corners_against_per_match_delta_yoy,
+-    y.saves_pct_this_season,
+-    y.saves_pct_prev_season,
+-    y.saves_pct_delta_yoy,
+     -- streaks (trailing run as of the latest match)
+     s.unbeaten_run,
+     s.win_run,
+@@ -255,11 +186,6 @@ left join teams as t
+     on m.team_sk = t.team_sk
+ left join competitions as reg
+     on m.league_code = reg.league_code
+-left join yoy as y
+-    on
+-        m.team_sk = y.team_sk
+-        and m.league_code = y.league_code
+-        and m.season_api_year = y.season_api_year
+ left join streaks as s
+     on
+         m.team_sk = s.team_sk
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index bc7f45a9..04ee330a 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -742,7 +742,7 @@ models:
+   - name: mart_team_profile
+     description: >
+       A team's season in one row: identity, record, rank and form, full-season metric rates,
+-      year-over-year movement, streaks and the deserved-versus-actual points gap.
++      streaks and the deserved-versus-actual points gap.
+       Grain: (team_sk, season_sk).
+ 
+       Composed from dim_team, mart_team_season and the int_team_season__* / int_team_profile__*
+@@ -815,104 +815,6 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "defensive_actions_per_match is null or defensive_actions_per_match >= 0"
+           name: team_profile_defensive_actions_per_match_non_negative
+-      # Year-over-year copies take the bounds int_team_profile.yml fixed for the same columns:
+-      # structural ratios [0,1], the provider-subset ratios >= 0 only, per-match counts >= 0.
+-      - dbt_utils.expression_is_true:
+-          expression: "goals_per_match_this_season is null or goals_per_match_this_season >= 0"
+-          name: team_profile_goals_per_match_this_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "goals_per_match_prev_season is null or goals_per_match_prev_season >= 0"
+-          name: team_profile_goals_per_match_prev_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "goals_against_per_match_this_season is null or goals_against_per_match_this_season >= 0"
+-          name: team_profile_goals_against_per_match_this_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "goals_against_per_match_prev_season is null or goals_against_per_match_prev_season >= 0"
+-          name: team_profile_goals_against_per_match_prev_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "clean_sheets_pct_this_season is null or (clean_sheets_pct_this_season between 0 and 1)"
+-          name: team_profile_clean_sheets_pct_this_season_in_range
+-      - dbt_utils.expression_is_true:
+-          expression: "clean_sheets_pct_prev_season is null or (clean_sheets_pct_prev_season between 0 and 1)"
+-          name: team_profile_clean_sheets_pct_prev_season_in_range
+-      - dbt_utils.expression_is_true:
+-          expression: "shots_per_match_this_season is null or shots_per_match_this_season >= 0"
+-          name: team_profile_shots_per_match_this_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "shots_per_match_prev_season is null or shots_per_match_prev_season >= 0"
+-          name: team_profile_shots_per_match_prev_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "shots_inside_box_pct_this_season is null or shots_inside_box_pct_this_season >= 0"
+-          name: team_profile_shots_inside_box_pct_this_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "shots_inside_box_pct_prev_season is null or shots_inside_box_pct_prev_season >= 0"
+-          name: team_profile_shots_inside_box_pct_prev_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "shots_on_goal_per_match_this_season is null or shots_on_goal_per_match_this_season >= 0"
+-          name: team_profile_shots_on_goal_per_match_this_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "shots_on_goal_per_match_prev_season is null or shots_on_goal_per_match_prev_season >= 0"
+-          name: team_profile_shots_on_goal_per_match_prev_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "finishing_efficiency_pct_this_season is null or (finishing_efficiency_pct_this_season between 0 and 1)"
+-          name: team_profile_finishing_efficiency_pct_this_season_in_range
+-      - dbt_utils.expression_is_true:
+-          expression: "finishing_efficiency_pct_prev_season is null or (finishing_efficiency_pct_prev_season between 0 and 1)"
+-          name: team_profile_finishing_efficiency_pct_prev_season_in_range
+-      - dbt_utils.expression_is_true:
+-          expression: "duels_per_match_this_season is null or duels_per_match_this_season >= 0"
+-          name: team_profile_duels_per_match_this_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "duels_per_match_prev_season is null or duels_per_match_prev_season >= 0"
+-          name: team_profile_duels_per_match_prev_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "duels_won_pct_this_season is null or duels_won_pct_this_season >= 0"
+-          name: team_profile_duels_won_pct_this_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "duels_won_pct_prev_season is null or duels_won_pct_prev_season >= 0"
+-          name: team_profile_duels_won_pct_prev_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "defensive_actions_per_match_this_season is null or defensive_actions_per_match_this_season >= 0"
+-          name: team_profile_defensive_actions_per_match_this_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "defensive_actions_per_match_prev_season is null or defensive_actions_per_match_prev_season >= 0"
+-          name: team_profile_defensive_actions_per_match_prev_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "passes_per_match_this_season is null or passes_per_match_this_season >= 0"
+-          name: team_profile_passes_per_match_this_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "passes_per_match_prev_season is null or passes_per_match_prev_season >= 0"
+-          name: team_profile_passes_per_match_prev_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "passes_accuracy_pct_this_season is null or passes_accuracy_pct_this_season >= 0"
+-          name: team_profile_passes_accuracy_pct_this_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "passes_accuracy_pct_prev_season is null or passes_accuracy_pct_prev_season >= 0"
+-          name: team_profile_passes_accuracy_pct_prev_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "passes_key_per_match_this_season is null or passes_key_per_match_this_season >= 0"
+-          name: team_profile_passes_key_per_match_this_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "passes_key_per_match_prev_season is null or passes_key_per_match_prev_season >= 0"
+-          name: team_profile_passes_key_per_match_prev_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "corners_per_match_this_season is null or corners_per_match_this_season >= 0"
+-          name: team_profile_corners_per_match_this_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "corners_per_match_prev_season is null or corners_per_match_prev_season >= 0"
+-          name: team_profile_corners_per_match_prev_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "corners_against_per_match_this_season is null or corners_against_per_match_this_season >= 0"
+-          name: team_profile_corners_against_per_match_this_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "corners_against_per_match_prev_season is null or corners_against_per_match_prev_season >= 0"
+-          name: team_profile_corners_against_per_match_prev_season_non_negative
+-      - dbt_utils.expression_is_true:
+-          expression: "saves_pct_this_season is null or (saves_pct_this_season between 0 and 1)"
+-          name: team_profile_saves_pct_this_season_in_range
+-      - dbt_utils.expression_is_true:
+-          expression: "saves_pct_prev_season is null or (saves_pct_prev_season between 0 and 1)"
+-          name: team_profile_saves_pct_prev_season_in_range
+     columns:
+       - name: season_label
+         description: "The season's name as the site shows it, from dim_competition_season."
+@@ -943,10 +845,6 @@ models:
+         tests: [not_null]
+       - name: competition_type
+         description: "{{ doc('competition_type') }}"
+-      - name: points_delta_yoy
+-        description: "{{ doc('table_points') }} Here, this season's minus the previous season's, each on the day of the team's Nth match (yoy_games_played_cutoff)."
+-      - name: goals_per_match_delta_yoy
+-        description: "{{ doc('goals_per_match_delta_yoy__team') }}"
+       - name: deserved_rank
+         description: "{{ doc('deserved_rank') }}"
+       - name: deserved_points
+@@ -1105,120 +1003,6 @@ models:
+         description: "{{ doc('shots_share_pct') }}"
+       - name: points_capture_pct
+         description: "{{ doc('points_capture_pct') }}"
+-      - name: yoy_games_played_cutoff
+-        description: "{{ doc('yoy_games_played_cutoff') }}"
+-      - name: points_this_season
+-        description: "{{ doc('table_points') }} Here, this season, on the day of the team's Nth match (yoy_games_played_cutoff); empty where the table is not rebuilt."
+-      - name: points_prev_season
+-        description: "{{ doc('table_points') }} Here, the previous season, on the day of the team's match at the same count; empty where that table is not rebuilt."
+-      - name: points_rank_prev_season
+-        description: "{{ doc('points_rank_prev_season__team') }} Here, the official table on the day of that match; empty where it is not rebuilt or the team is level at a criterion the results cannot settle."
+-      - name: goals_for_this_season
+-        description: "{{ doc('goals') }} Here, this season through the games-played cutoff N (yoy_games_played_cutoff)."
+-      - name: goals_for_prev_season
+-        description: "{{ doc('goals') }} Here, the previous season through the same games-played cutoff N."
+-      - name: goals_for_delta_yoy
+-        description: "{{ doc('goals') }} Here, this season's minus the previous season's, both through the games-played cutoff N (yoy_games_played_cutoff)."
+-      - name: goals_against_this_season
+-        description: "{{ doc('goals_against_this_season__team') }}"
+-      - name: goals_against_prev_season
+-        description: "{{ doc('goals_against_prev_season__team') }}"
+-      - name: goals_against_delta_yoy
+-        description: "{{ doc('goals_against_delta_yoy__team') }}"
+-      - name: goals_per_match_this_season
+-        description: "{{ doc('goals_per_match_this_season__team') }}"
+-      - name: goals_per_match_prev_season
+-        description: "{{ doc('goals_per_match_prev_season__team') }}"
+-      - name: goals_against_per_match_this_season
+-        description: "{{ doc('goals_against_per_match_this_season__team') }}"
+-      - name: goals_against_per_match_prev_season
+-        description: "{{ doc('goals_against_per_match_prev_season__team') }}"
+-      - name: goals_against_per_match_delta_yoy
+-        description: "{{ doc('goals_against_per_match_delta_yoy__team') }}"
+-      - name: clean_sheets_pct_this_season
+-        description: "{{ doc('clean_sheets_pct_this_season__team') }}"
+-      - name: clean_sheets_pct_prev_season
+-        description: "{{ doc('clean_sheets_pct_prev_season__team') }}"
+-      - name: clean_sheets_pct_delta_yoy
+-        description: "{{ doc('clean_sheets_pct_delta_yoy__team') }}"
+-      - name: shots_per_match_this_season
+-        description: "{{ doc('shots_per_match_this_season__team') }}"
+-      - name: shots_per_match_prev_season
+-        description: "{{ doc('shots_per_match_prev_season__team') }}"
+-      - name: shots_per_match_delta_yoy
+-        description: "{{ doc('shots_per_match_delta_yoy__team') }}"
+-      - name: shots_inside_box_pct_this_season
+-        description: "{{ doc('shots_inside_box_pct_this_season__team') }}"
+-      - name: shots_inside_box_pct_prev_season
+-        description: "{{ doc('shots_inside_box_pct_prev_season__team') }}"
+-      - name: shots_inside_box_pct_delta_yoy
+-        description: "{{ doc('shots_inside_box_pct_delta_yoy__team') }}"
+-      - name: shots_on_goal_per_match_this_season
+-        description: "{{ doc('shots_on_goal_per_match_this_season__team') }}"
+-      - name: shots_on_goal_per_match_prev_season
+-        description: "{{ doc('shots_on_goal_per_match_prev_season__team') }}"
+-      - name: shots_on_goal_per_match_delta_yoy
+-        description: "{{ doc('shots_on_goal_per_match_delta_yoy__team') }}"
+-      - name: finishing_efficiency_pct_this_season
+-        description: "{{ doc('finishing_efficiency_pct_this_season__team') }}"
+-      - name: finishing_efficiency_pct_prev_season
+-        description: "{{ doc('finishing_efficiency_pct_prev_season__team') }}"
+-      - name: finishing_efficiency_pct_delta_yoy
+-        description: "{{ doc('finishing_efficiency_pct_delta_yoy__team') }}"
+-      - name: duels_per_match_this_season
+-        description: "{{ doc('duels_per_match_this_season__team') }}"
+-      - name: duels_per_match_prev_season
+-        description: "{{ doc('duels_per_match_prev_season__team') }}"
+-      - name: duels_per_match_delta_yoy
+-        description: "{{ doc('duels_per_match_delta_yoy__team') }}"
+-      - name: duels_won_pct_this_season
+-        description: "{{ doc('duels_won_pct_this_season__team') }}"
+-      - name: duels_won_pct_prev_season
+-        description: "{{ doc('duels_won_pct_prev_season__team') }}"
+-      - name: duels_won_pct_delta_yoy
+-        description: "{{ doc('duels_won_pct_delta_yoy__team') }}"
+-      - name: defensive_actions_per_match_this_season
+-        description: "{{ doc('defensive_actions_per_match_this_season__team') }}"
+-      - name: defensive_actions_per_match_prev_season
+-        description: "{{ doc('defensive_actions_per_match_prev_season__team') }}"
+-      - name: defensive_actions_per_match_delta_yoy
+-        description: "{{ doc('defensive_actions_per_match_delta_yoy__team') }}"
+-      - name: passes_per_match_this_season
+-        description: "{{ doc('passes_per_match_this_season__team') }}"
+-      - name: passes_per_match_prev_season
+-        description: "{{ doc('passes_per_match_prev_season__team') }}"
+-      - name: passes_per_match_delta_yoy
+-        description: "{{ doc('passes_per_match_delta_yoy__team') }}"
+-      - name: passes_accuracy_pct_this_season
+-        description: "{{ doc('passes_accuracy_pct_this_season__team') }}"
+-      - name: passes_accuracy_pct_prev_season
+-        description: "{{ doc('passes_accuracy_pct_prev_season__team') }}"
+-      - name: passes_accuracy_pct_delta_yoy
+-        description: "{{ doc('passes_accuracy_pct_delta_yoy__team') }}"
+-      - name: passes_key_per_match_this_season
+-        description: "{{ doc('passes_key_per_match_this_season__team') }}"
+-      - name: passes_key_per_match_prev_season
+-        description: "{{ doc('passes_key_per_match_prev_season__team') }}"
+-      - name: passes_key_per_match_delta_yoy
+-        description: "{{ doc('passes_key_per_match_delta_yoy__team') }}"
+-      - name: corners_per_match_this_season
+-        description: "{{ doc('corners_per_match_this_season__team') }}"
+-      - name: corners_per_match_prev_season
+-        description: "{{ doc('corners_per_match_prev_season__team') }}"
+-      - name: corners_per_match_delta_yoy
+-        description: "{{ doc('corners_per_match_delta_yoy__team') }}"
+-      - name: corners_against_per_match_this_season
+-        description: "{{ doc('corners_against_per_match_this_season__team') }}"
+-      - name: corners_against_per_match_prev_season
+-        description: "{{ doc('corners_against_per_match_prev_season__team') }}"
+-      - name: corners_against_per_match_delta_yoy
+-        description: "{{ doc('corners_against_per_match_delta_yoy__team') }}"
+-      - name: saves_pct_this_season
+-        description: "{{ doc('saves_pct_this_season__team') }}"
+-      - name: saves_pct_prev_season
+-        description: "{{ doc('saves_pct_prev_season__team') }}"
+-      - name: saves_pct_delta_yoy
+-        description: "{{ doc('saves_pct_delta_yoy__team') }}"
+       - name: unbeaten_run
+         description: "{{ doc('unbeaten_run') }}"
+       - name: win_run
+@@ -2008,50 +1792,6 @@ models:
+         description: "{{ doc('dribbles_success_player_pct') }}"
+       - name: saves_player_pct
+         description: "{{ doc('saves_player_pct') }}"
+-      - name: yoy_appearances_cutoff
+-        description: "{{ doc('yoy_appearances_cutoff') }}"
+-      - name: goals_player_this_season
+-        description: "{{ doc('goals_player_this_season__player') }}"
+-      - name: goals_player_prev_season
+-        description: "{{ doc('goals_player_prev_season__player') }}"
+-      - name: goals_player_delta_yoy
+-        description: "{{ doc('goals_player_delta_yoy__player') }}"
+-      - name: assists_player_this_season
+-        description: "{{ doc('assists_player_this_season__player') }}"
+-      - name: assists_player_prev_season
+-        description: "{{ doc('assists_player_prev_season__player') }}"
+-      - name: assists_player_delta_yoy
+-        description: "{{ doc('assists_player_delta_yoy__player') }}"
+-      - name: shots_on_goal_player_this_season
+-        description: "{{ doc('shots_on_goal_player_this_season__player') }}"
+-      - name: shots_on_goal_player_prev_season
+-        description: "{{ doc('shots_on_goal_player_prev_season__player') }}"
+-      - name: shots_on_goal_player_delta_yoy
+-        description: "{{ doc('shots_on_goal_player_delta_yoy__player') }}"
+-      - name: passes_key_player_this_season
+-        description: "{{ doc('passes_key_player_this_season__player') }}"
+-      - name: passes_key_player_prev_season
+-        description: "{{ doc('passes_key_player_prev_season__player') }}"
+-      - name: passes_key_player_delta_yoy
+-        description: "{{ doc('passes_key_player_delta_yoy__player') }}"
+-      - name: defensive_actions_player_this_season
+-        description: "{{ doc('defensive_actions_player_this_season__player') }}"
+-      - name: defensive_actions_player_prev_season
+-        description: "{{ doc('defensive_actions_player_prev_season__player') }}"
+-      - name: defensive_actions_player_delta_yoy
+-        description: "{{ doc('defensive_actions_player_delta_yoy__player') }}"
+-      - name: appearances_prev_full
+-        description: "{{ doc('appearances_prev_full') }}"
+-      - name: goals_player_prev_season_full
+-        description: "{{ doc('goals_player_prev_season_full__player') }}"
+-      - name: assists_player_prev_season_full
+-        description: "{{ doc('assists_player_prev_season_full__player') }}"
+-      - name: shots_on_goal_player_prev_season_full
+-        description: "{{ doc('shots_on_goal_player_prev_season_full__player') }}"
+-      - name: passes_key_player_prev_season_full
+-        description: "{{ doc('passes_key_player_prev_season_full__player') }}"
+-      - name: defensive_actions_player_prev_season_full
+-        description: "{{ doc('defensive_actions_player_prev_season_full__player') }}"
+       - name: scorer_points_player
+         description: "{{ doc('scorer_points_player') }}"
+       - name: team_goals_season
+@@ -3367,8 +3107,8 @@ models:
+   - name: mart_team_competition_benchmarks
+     description: >
+       Where a team sits against its own league on each team metric: its value, the league median
+-      and mean, the p25/p75 spread, its rank out of team_count, its distance from the median and
+-      its value at the same point last season. Long-shaped, one row per (team, season, metric).
++      and mean, the p25/p75 spread, its rank out of team_count and its distance from the median.
++      Long-shaped, one row per (team, season, metric).
+       Grain: (team_sk, season_sk, metric_key).
+ 
+       rank follows the metric's catalogue direction: for a lower_better metric rank 1 is the lowest
+@@ -3449,8 +3189,6 @@ models:
+       - name: team_count
+         description: "N — teams ranked for this metric this league-season."
+         tests: [not_null]
+-      - name: metric_value_prev_season
+-        description: "The team's value at the same point last season (rule R6): the previous season's latest match at or before this season's match count, domestic leagues only; null otherwise."
+       - name: rank
+         description: "Rank by the metric's catalogue direction (lower_better: 1 = lowest value, otherwise 1 = highest), k of team_count; tied values share a rank."
+         tests: [not_null]
+diff --git a/dbt_project/models/docs/metric_columns.md b/dbt_project/models/docs/metric_columns.md
+index 99ac8960..fcbd1a07 100644
+--- a/dbt_project/models/docs/metric_columns.md
++++ b/dbt_project/models/docs/metric_columns.md
+@@ -35,32 +35,6 @@ Goals the player set up for a teammate.
+ {% enddocs %}
+ 
+ 
+-{% docs assists_player_delta_yoy__player %}
+-Goals the player set up for a teammate. The change from the previous season to the current one,
+-compared at the same point of the campaign: the current value minus the previous one.
+-{% enddocs %}
+-
+-
+-{% docs assists_player_prev_season__player %}
+-Goals the player set up for a teammate. Value for the season before, through the same number of
+-matches as the current season has played so far. So the two are compared at the same point of a
+-campaign rather than a part season against a full one.
+-{% enddocs %}
+-
+-
+-{% docs assists_player_prev_season_full__player %}
+-Goals the player set up for a teammate. The previous season's complete total, with no cutoff.
+-It is context for how large that season was and is never subtracted from the season in
+-progress, because a part season against a full one would mislead.
+-{% enddocs %}
+-
+-
+-{% docs assists_player_this_season__player %}
+-Goals the player set up for a teammate. Value for the season now in progress, accumulated
+-through the matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs ball_actions_per90 %}
+ The passes, shots and dribbles the player attempted, and the tackles, interceptions, blocks and
+ saves made, per 90 minutes played.
+@@ -133,26 +107,6 @@ Matches in which the team conceded no goal, as a share of all its matches.
+ {% enddocs %}
+ 
+ 
+-{% docs clean_sheets_pct_delta_yoy__team %}
+-Matches in which the team conceded no goal, as a share of all its matches. The change from the
+-previous season to the current one, compared at the same point of the campaign: the current
+-value minus the previous one.
+-{% enddocs %}
+-
+-
+-{% docs clean_sheets_pct_prev_season__team %}
+-Matches in which the team conceded no goal, as a share of all its matches. Value for the season
+-before, through the same number of matches as the current season has played so far. So the two
+-are compared at the same point of a campaign rather than a part season against a full one.
+-{% enddocs %}
+-
+-
+-{% docs clean_sheets_pct_this_season__team %}
+-Matches in which the team conceded no goal, as a share of all its matches. Value for the season
+-now in progress, accumulated through the matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs contribution_player_pct %}
+ The player's goals plus assists as a share of the goals the club scored on the pitch in that
+ competition season.
+@@ -169,51 +123,11 @@ Average number of corner kicks the team conceded per match.
+ {% enddocs %}
+ 
+ 
+-{% docs corners_against_per_match_delta_yoy__team %}
+-Average number of corner kicks the team conceded per match. The change from the previous season
+-to the current one, compared at the same point of the campaign: the current value minus the
+-previous one.
+-{% enddocs %}
+-
+-
+-{% docs corners_against_per_match_prev_season__team %}
+-Average number of corner kicks the team conceded per match. Value for the season before,
+-through the same number of matches as the current season has played so far. So the two are
+-compared at the same point of a campaign rather than a part season against a full one.
+-{% enddocs %}
+-
+-
+-{% docs corners_against_per_match_this_season__team %}
+-Average number of corner kicks the team conceded per match. Value for the season now in
+-progress, accumulated through the matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs corners_per_match %}
+ Average number of corner kicks the team won per match.
+ {% enddocs %}
+ 
+ 
+-{% docs corners_per_match_delta_yoy__team %}
+-Average number of corner kicks the team won per match. The change from the previous season to
+-the current one, compared at the same point of the campaign: the current value minus the
+-previous one.
+-{% enddocs %}
+-
+-
+-{% docs corners_per_match_prev_season__team %}
+-Average number of corner kicks the team won per match. Value for the season before, through the
+-same number of matches as the current season has played so far. So the two are compared at the
+-same point of a campaign rather than a part season against a full one.
+-{% enddocs %}
+-
+-
+-{% docs corners_per_match_this_season__team %}
+-Average number of corner kicks the team won per match. Value for the season now in progress,
+-accumulated through the matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs defensive_actions_per90 %}
+ Tackles, interceptions and blocks the player made per 90 minutes played.
+ {% enddocs %}
+@@ -224,59 +138,11 @@ Average number of tackles, interceptions and blocks the team's players made per
+ {% enddocs %}
+ 
+ 
+-{% docs defensive_actions_per_match_delta_yoy__team %}
+-Average number of tackles, interceptions and blocks the team's players made per match. The
+-change from the previous season to the current one, compared at the same point of the campaign:
+-the current value minus the previous one.
+-{% enddocs %}
+-
+-
+-{% docs defensive_actions_per_match_prev_season__team %}
+-Average number of tackles, interceptions and blocks the team's players made per match. Value
+-for the season before, through the same number of matches as the current season has played so
+-far. So the two are compared at the same point of a campaign rather than a part season against
+-a full one.
+-{% enddocs %}
+-
+-
+-{% docs defensive_actions_per_match_this_season__team %}
+-Average number of tackles, interceptions and blocks the team's players made per match. Value
+-for the season now in progress, accumulated through the matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs defensive_actions_player %}
+ Tackles, interceptions and blocks the player made.
+ {% enddocs %}
+ 
+ 
+-{% docs defensive_actions_player_delta_yoy__player %}
+-Tackles, interceptions and blocks the player made. The change from the previous season to the
+-current one, compared at the same point of the campaign: the current value minus the previous
+-one.
+-{% enddocs %}
+-
+-
+-{% docs defensive_actions_player_prev_season__player %}
+-Tackles, interceptions and blocks the player made. Value for the season before, through the
+-same number of matches as the current season has played so far. So the two are compared at the
+-same point of a campaign rather than a part season against a full one.
+-{% enddocs %}
+-
+-
+-{% docs defensive_actions_player_prev_season_full__player %}
+-Tackles, interceptions and blocks the player made. The previous season's complete total, with
+-no cutoff. It is context for how large that season was and is never subtracted from the season
+-in progress, because a part season against a full one would mislead.
+-{% enddocs %}
+-
+-
+-{% docs defensive_actions_player_this_season__player %}
+-Tackles, interceptions and blocks the player made. Value for the season now in progress,
+-accumulated through the matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs deserved_points %}
+ Points the team would have won if its points per match followed its shots-on-target difference
+ per match, as the two relate across its league season.
+@@ -362,28 +228,6 @@ team's players contested per match.
+ {% enddocs %}
+ 
+ 
+-{% docs duels_per_match_delta_yoy__team %}
+-Average number of one-on-one challenges for the ball, on the ground or in the air, that the
+-team's players contested per match. The change from the previous season to the current one,
+-compared at the same point of the campaign: the current value minus the previous one.
+-{% enddocs %}
+-
+-
+-{% docs duels_per_match_prev_season__team %}
+-Average number of one-on-one challenges for the ball, on the ground or in the air, that the
+-team's players contested per match. Value for the season before, through the same number of
+-matches as the current season has played so far. So the two are compared at the same point of a
+-campaign rather than a part season against a full one.
+-{% enddocs %}
+-
+-
+-{% docs duels_per_match_this_season__team %}
+-Average number of one-on-one challenges for the ball, on the ground or in the air, that the
+-team's players contested per match. Value for the season now in progress, accumulated through
+-the matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs duels_player %}
+ One-on-one challenges for the ball, on the ground or in the air, that the player contested.
+ {% enddocs %}
+@@ -395,28 +239,6 @@ as a share of those they contested.
+ {% enddocs %}
+ 
+ 
+-{% docs duels_won_pct_delta_yoy__team %}
+-One-on-one challenges for the ball, on the ground or in the air, that the team's players won,
+-as a share of those they contested. The change from the previous season to the current one,
+-compared at the same point of the campaign: the current value minus the previous one.
+-{% enddocs %}
+-
+-
+-{% docs duels_won_pct_prev_season__team %}
+-One-on-one challenges for the ball, on the ground or in the air, that the team's players won,
+-as a share of those they contested. Value for the season before, through the same number of
+-matches as the current season has played so far. So the two are compared at the same point of a
+-campaign rather than a part season against a full one.
+-{% enddocs %}
+-
+-
+-{% docs duels_won_pct_this_season__team %}
+-One-on-one challenges for the ball, on the ground or in the air, that the team's players won,
+-as a share of those they contested. Value for the season now in progress, accumulated through
+-the matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs duels_won_per90 %}
+ One-on-one challenges for the ball, on the ground or in the air, that the player won, per 90
+ minutes played.
+@@ -445,27 +267,6 @@ on target.
+ {% enddocs %}
+ 
+ 
+-{% docs finishing_efficiency_pct_delta_yoy__team %}
+-Goals the team scored, not counting penalties and opponents' own goals, as a share of its shots
+-on target. The change from the previous season to the current one, compared at the same point
+-of the campaign: the current value minus the previous one.
+-{% enddocs %}
+-
+-
+-{% docs finishing_efficiency_pct_prev_season__team %}
+-Goals the team scored, not counting penalties and opponents' own goals, as a share of its shots
+-on target. Value for the season before, through the same number of matches as the current
+-season has played so far. So the two are compared at the same point of a campaign rather than a
+-part season against a full one.
+-{% enddocs %}
+-
+-
+-{% docs finishing_efficiency_pct_this_season__team %}
+-Goals the team scored, not counting penalties and opponents' own goals, as a share of its shots
+-on target. Value for the season now in progress, accumulated through the matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs finishing_efficiency_player_pct %}
+ Goals the player scored, not counting penalties, as a share of the player's shots on target.
+ {% enddocs %}
+@@ -501,12 +302,6 @@ Goals the team conceded.
+ {% enddocs %}
+ 
+ 
+-{% docs goals_against_delta_yoy__team %}
+-Goals the team conceded. The change from the previous season to the current one, compared at
+-the same point of the campaign: the current value minus the previous one.
+-{% enddocs %}
+-
+-
+ {% docs goals_against_per90 %}
+ Goals the team conceded while the player was in goal, per 90 minutes played.
+ {% enddocs %}
+@@ -517,49 +312,16 @@ Average number of goals the team conceded per match.
+ {% enddocs %}
+ 
+ 
+-{% docs goals_against_per_match_delta_yoy__team %}
+-Average number of goals the team conceded per match. The change from the previous season to the
+-current one, compared at the same point of the campaign: the current value minus the previous
+-one.
+-{% enddocs %}
+-
+-
+-{% docs goals_against_per_match_prev_season__team %}
+-Average number of goals the team conceded per match. Value for the season before, through the
+-same number of matches as the current season has played so far. So the two are compared at the
+-same point of a campaign rather than a part season against a full one.
+-{% enddocs %}
+-
+-
+-{% docs goals_against_per_match_this_season__team %}
+-Average number of goals the team conceded per match. Value for the season now in progress,
+-accumulated through the matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs goals_against_player %}
+ Goals the team conceded while the player was in goal.
+ {% enddocs %}
+ 
+ 
+-{% docs goals_against_prev_season__team %}
+-Goals the team conceded. Value for the season before, through the same number of matches as the
+-current season has played so far. So the two are compared at the same point of a campaign
+-rather than a part season against a full one.
+-{% enddocs %}
+-
+-
+ {% docs goals_against_sum_season__team %}
+ Goals the team conceded. Totalled over the season.
+ {% enddocs %}
+ 
+ 
+-{% docs goals_against_this_season__team %}
+-Goals the team conceded. Value for the season now in progress, accumulated through the matches
+-played so far.
+-{% enddocs %}
+-
+-
+ {% docs goals_open_play %}
+ Goals the team scored, not counting penalties and opponents' own goals.
+ {% enddocs %}
+@@ -595,58 +357,11 @@ Average number of goals the team scored per match.
+ {% enddocs %}
+ 
+ 
+-{% docs goals_per_match_delta_yoy__team %}
+-Average number of goals the team scored per match. The change from the previous season to the
+-current one, compared at the same point of the campaign: the current value minus the previous
+-one.
+-{% enddocs %}
+-
+-
+-{% docs goals_per_match_prev_season__team %}
+-Average number of goals the team scored per match. Value for the season before, through the
+-same number of matches as the current season has played so far. So the two are compared at the
+-same point of a campaign rather than a part season against a full one.
+-{% enddocs %}
+-
+-
+-{% docs goals_per_match_this_season__team %}
+-Average number of goals the team scored per match. Value for the season now in progress,
+-accumulated through the matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs goals_player %}
+ Goals the player scored, penalties included and own goals not.
+ {% enddocs %}
+ 
+ 
+-{% docs goals_player_delta_yoy__player %}
+-Goals the player scored, penalties included and own goals not. The change from the previous
+-season to the current one, compared at the same point of the campaign: the current value minus
+-the previous one.
+-{% enddocs %}
+-
+-
+-{% docs goals_player_prev_season__player %}
+-Goals the player scored, penalties included and own goals not. Value for the season before,
+-through the same number of matches as the current season has played so far. So the two are
+-compared at the same point of a campaign rather than a part season against a full one.
+-{% enddocs %}
+-
+-
+-{% docs goals_player_prev_season_full__player %}
+-Goals the player scored, penalties included and own goals not. The previous season's complete
+-total, with no cutoff. It is context for how large that season was and is never subtracted from
+-the season in progress, because a part season against a full one would mislead.
+-{% enddocs %}
+-
+-
+-{% docs goals_player_this_season__player %}
+-Goals the player scored, penalties included and own goals not. Value for the season now in
+-progress, accumulated through the matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs interceptions_per90 %}
+ Opponents' passes the player intercepted per 90 minutes played.
+ {% enddocs %}
+@@ -697,26 +412,6 @@ The team's passes that reached a teammate, as a share of all its passes.
+ {% enddocs %}
+ 
+ 
+-{% docs passes_accuracy_pct_delta_yoy__team %}
+-The team's passes that reached a teammate, as a share of all its passes. The change from the
+-previous season to the current one, compared at the same point of the campaign: the current
+-value minus the previous one.
+-{% enddocs %}
+-
+-
+-{% docs passes_accuracy_pct_prev_season__team %}
+-The team's passes that reached a teammate, as a share of all its passes. Value for the season
+-before, through the same number of matches as the current season has played so far. So the two
+-are compared at the same point of a campaign rather than a part season against a full one.
+-{% enddocs %}
+-
+-
+-{% docs passes_accuracy_pct_this_season__team %}
+-The team's passes that reached a teammate, as a share of all its passes. Value for the season
+-now in progress, accumulated through the matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs passes_accuracy_player_pct %}
+ The player's passes that reached a teammate, as a share of all the player's passes.
+ {% enddocs %}
+@@ -748,59 +443,11 @@ shot.
+ {% enddocs %}
+ 
+ 
+-{% docs passes_key_per_match_delta_yoy__team %}
+-Average number of passes per match by the team's players that led directly to a teammate's
+-shot. The change from the previous season to the current one, compared at the same point of the
+-campaign: the current value minus the previous one.
+-{% enddocs %}
+-
+-
+-{% docs passes_key_per_match_prev_season__team %}
+-Average number of passes per match by the team's players that led directly to a teammate's
+-shot. Value for the season before, through the same number of matches as the current season has
+-played so far. So the two are compared at the same point of a campaign rather than a part
+-season against a full one.
+-{% enddocs %}
+-
+-
+-{% docs passes_key_per_match_this_season__team %}
+-Average number of passes per match by the team's players that led directly to a teammate's
+-shot. Value for the season now in progress, accumulated through the matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs passes_key_player %}
+ The player's passes that led directly to a teammate's shot.
+ {% enddocs %}
+ 
+ 
+-{% docs passes_key_player_delta_yoy__player %}
+-The player's passes that led directly to a teammate's shot. The change from the previous season
+-to the current one, compared at the same point of the campaign: the current value minus the
+-previous one.
+-{% enddocs %}
+-
+-
+-{% docs passes_key_player_prev_season__player %}
+-The player's passes that led directly to a teammate's shot. Value for the season before,
+-through the same number of matches as the current season has played so far. So the two are
+-compared at the same point of a campaign rather than a part season against a full one.
+-{% enddocs %}
+-
+-
+-{% docs passes_key_player_prev_season_full__player %}
+-The player's passes that led directly to a teammate's shot. The previous season's complete
+-total, with no cutoff. It is context for how large that season was and is never subtracted from
+-the season in progress, because a part season against a full one would mislead.
+-{% enddocs %}
+-
+-
+-{% docs passes_key_player_this_season__player %}
+-The player's passes that led directly to a teammate's shot. Value for the season now in
+-progress, accumulated through the matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs passes_per90 %}
+ Passes the player attempted per 90 minutes played.
+ {% enddocs %}
+@@ -811,26 +458,6 @@ Average number of passes the team attempted per match.
+ {% enddocs %}
+ 
+ 
+-{% docs passes_per_match_delta_yoy__team %}
+-Average number of passes the team attempted per match. The change from the previous season to
+-the current one, compared at the same point of the campaign: the current value minus the
+-previous one.
+-{% enddocs %}
+-
+-
+-{% docs passes_per_match_prev_season__team %}
+-Average number of passes the team attempted per match. Value for the season before, through the
+-same number of matches as the current season has played so far. So the two are compared at the
+-same point of a campaign rather than a part season against a full one.
+-{% enddocs %}
+-
+-
+-{% docs passes_per_match_this_season__team %}
+-Average number of passes the team attempted per match. Value for the season now in progress,
+-accumulated through the matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs passes_player %}
+ Passes the player attempted.
+ {% enddocs %}
+@@ -856,20 +483,6 @@ Points the team won as a share of the 3 points per match it could have won.
+ {% enddocs %}
+ 
+ 
+-{% docs points_rank %}
+-The team's place in its league table, with teams level on points ordered by the league's own
+-rules.
+-{% enddocs %}
+-
+-
+-{% docs points_rank_prev_season__team %}
+-The team's place in its league table, with teams level on points ordered by the league's own
+-rules. Value for the season before, through the same number of matches as the current season
+-has played so far. So the two are compared at the same point of a campaign rather than a part
+-season against a full one.
+-{% enddocs %}
+-
+-
+ {% docs points_won %}
+ Points the team won: 3 for a win, 1 for a draw, none for a defeat. A league match drawn and
+ then decided by a shoot-out gives the shoot-out winner 2.
+@@ -892,27 +505,6 @@ The team's saves as a share of its saves plus the goals it conceded, own goals n
+ {% enddocs %}
+ 
+ 
+-{% docs saves_pct_delta_yoy__team %}
+-The team's saves as a share of its saves plus the goals it conceded, own goals not counted. The
+-change from the previous season to the current one, compared at the same point of the campaign:
+-the current value minus the previous one.
+-{% enddocs %}
+-
+-
+-{% docs saves_pct_prev_season__team %}
+-The team's saves as a share of its saves plus the goals it conceded, own goals not counted.
+-Value for the season before, through the same number of matches as the current season has
+-played so far. So the two are compared at the same point of a campaign rather than a part
+-season against a full one.
+-{% enddocs %}
+-
+-
+-{% docs saves_pct_this_season__team %}
+-The team's saves as a share of its saves plus the goals it conceded, own goals not counted.
+-Value for the season now in progress, accumulated through the matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs saves_per90 %}
+ Shots on target the player saved in goal per 90 minutes played.
+ {% enddocs %}
+@@ -959,26 +551,6 @@ The team's shots from inside the penalty area as a share of all its shots.
+ {% enddocs %}
+ 
+ 
+-{% docs shots_inside_box_pct_delta_yoy__team %}
+-The team's shots from inside the penalty area as a share of all its shots. The change from the
+-previous season to the current one, compared at the same point of the campaign: the current
+-value minus the previous one.
+-{% enddocs %}
+-
+-
+-{% docs shots_inside_box_pct_prev_season__team %}
+-The team's shots from inside the penalty area as a share of all its shots. Value for the season
+-before, through the same number of matches as the current season has played so far. So the two
+-are compared at the same point of a campaign rather than a part season against a full one.
+-{% enddocs %}
+-
+-
+-{% docs shots_inside_box_pct_this_season__team %}
+-The team's shots from inside the penalty area as a share of all its shots. Value for the season
+-now in progress, accumulated through the matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs shots_inside_box_per_match %}
+ Average number of shots the team took from inside the penalty area per match.
+ {% enddocs %}
+@@ -1025,62 +597,16 @@ Average number of shots on target the team had per match.
+ {% enddocs %}
+ 
+ 
+-{% docs shots_on_goal_per_match_delta_yoy__team %}
+-Average number of shots on target the team had per match. The change from the previous season
+-to the current one, compared at the same point of the campaign: the current value minus the
+-previous one.
+-{% enddocs %}
+-
+-
+-{% docs shots_on_goal_per_match_prev_season__team %}
+-Average number of shots on target the team had per match. Value for the season before, through
+-the same number of matches as the current season has played so far. So the two are compared at
+-the same point of a campaign rather than a part season against a full one.
+-{% enddocs %}
+-
+-
+-{% docs shots_on_goal_per_match_this_season__team %}
+-Average number of shots on target the team had per match. Value for the season now in progress,
+-accumulated through the matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs shots_on_goal_player %}
+ Shots on target the player had.
+ {% enddocs %}
+ 
+ 
+-{% docs shots_on_goal_player_delta_yoy__player %}
+-Shots on target the player had. The change from the previous season to the current one,
+-compared at the same point of the campaign: the current value minus the previous one.
+-{% enddocs %}
+-
+-
+ {% docs shots_on_goal_player_pct %}
+ The player's shots on target as a share of all the player's shots.
+ {% enddocs %}
+ 
+ 
+-{% docs shots_on_goal_player_prev_season__player %}
+-Shots on target the player had. Value for the season before, through the same number of matches
+-as the current season has played so far. So the two are compared at the same point of a
+-campaign rather than a part season against a full one.
+-{% enddocs %}
+-
+-
+-{% docs shots_on_goal_player_prev_season_full__player %}
+-Shots on target the player had. The previous season's complete total, with no cutoff. It is
+-context for how large that season was and is never subtracted from the season in progress,
+-because a part season against a full one would mislead.
+-{% enddocs %}
+-
+-
+-{% docs shots_on_goal_player_this_season__player %}
+-Shots on target the player had. Value for the season now in progress, accumulated through the
+-matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs shots_per90 %}
+ Shots the player took per 90 minutes played.
+ {% enddocs %}
+@@ -1091,26 +617,6 @@ Average number of shots the team took per match.
+ {% enddocs %}
+ 
+ 
+-{% docs shots_per_match_delta_yoy__team %}
+-Average number of shots the team took per match. The change from the previous season to the
+-current one, compared at the same point of the campaign: the current value minus the previous
+-one.
+-{% enddocs %}
+-
+-
+-{% docs shots_per_match_prev_season__team %}
+-Average number of shots the team took per match. Value for the season before, through the same
+-number of matches as the current season has played so far. So the two are compared at the same
+-point of a campaign rather than a part season against a full one.
+-{% enddocs %}
+-
+-
+-{% docs shots_per_match_this_season__team %}
+-Average number of shots the team took per match. Value for the season now in progress,
+-accumulated through the matches played so far.
+-{% enddocs %}
+-
+-
+ {% docs shots_player %}
+ Shots the player took.
+ {% enddocs %}
+diff --git a/dbt_project/models/docs/metric_rules.md b/dbt_project/models/docs/metric_rules.md
+index d2945cb4..6226b06f 100644
+--- a/dbt_project/models/docs/metric_rules.md
++++ b/dbt_project/models/docs/metric_rules.md
+@@ -19,9 +19,9 @@ How every metric is computed:
+   2 points and the loser 1.
+ - R4 A metric is blank when any match it counts lacks an input.
+ - R5 A ratio over zero is blank.
+-- R6 A team's year-over-year exists for domestic league seasons only: its season through N matches
+-  against its previous season through its first N. A player's covers all club competitions at any
+-  club: this season so far against the whole of last season. Either is blank when either side is.
++- R6 A team's year-over-year covers all the club's competitions. A player's covers all club
++  competitions at any club. Both compare this season so far against the whole of last season.
++  Either is blank when either side is.
+ - R7 Results the league publishes (the score, the league table) are taken as published, never
+   computed. The one exception: teams level on points stand in the order of the league's own
+   tie-break rule. A count of results or a playing-time fact (minutes, starts) is a fact, not
+diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
+index 0556411e..451460b6 100644
+--- a/dbt_project/models/docs/shared_columns.md
++++ b/dbt_project/models/docs/shared_columns.md
+@@ -82,12 +82,6 @@ when the payload was ingested, not when anything happened on a pitch.
+      here, open every model it will reach and read the SQL.** -->
+ 
+ 
+-{% docs appearances_prev_full %}
+-The prior season's TOTAL appearances at this club (full-season reference; >= appearances_prev).
+-NULL when no prior season.
+-{% enddocs %}
+-
+-
+ {% docs as_of_date %}
+ Snapshot date for market_value_eur; null when no estimate loaded.
+ {% enddocs %}
+@@ -457,8 +451,7 @@ Version of the research prompt or ingest job (e.g. wc_squad_value_v1).
+ 
+ 
+ {% docs round_order %}
+-Matchday number parsed from round_name (null if non-numeric). For deferred year-over-year
+-alignment.
++Matchday number parsed from round_name (null if non-numeric).
+ {% enddocs %}
+ 
+ 
+@@ -606,15 +599,6 @@ than zero when the competition supplies no team statistics for the fixture.
+ The rounds the competition-season is benchmarked over. It is table when only the league or group phase counts, without qualifiers and knockout rounds; empty when every match counts.
+ {% enddocs %}
+ 
+-{% docs yoy_appearances_cutoff %}
+-N = appearances this season; the prior season is compared through its first N appearances.
+-{% enddocs %}
+-
+-
+-{% docs yoy_games_played_cutoff %}
+-N = games played this season; the prior season is compared through its first N games.
+-{% enddocs %}
+-
+ 
+ {% docs fixture_api_id %}
+ API-Football's numeric id for the fixture, as the provider returns it at `$.fixture.id`.
+diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
+index dc9d91f2..26daef1f 100644
+--- a/dbt_project/seeds/metric_catalogue.csv
++++ b/dbt_project/seeds/metric_catalogue.csv
+@@ -76,7 +76,6 @@ saves_per90,player,playerMetrics.savesPer90.label,Shots on target the player sav
+ shots_on_goal_difference_per_match,team,metrics.shots_on_goal_difference_per_match.label,Average per match of the team's shots on target minus its opponents' shots on target.,int_legs__team_match,sum(shots_on_target - shots_on_target_against),count(*),expression,decimal_1,shooting,false,higher_better,On-target dominance - on-target shots created minus conceded per game; high = the process deserves results (deserved-vs-actual input),2,10
+ shots_on_goal_against_per_match,team,metrics.shots_on_goal_against_per_match.label,Average number of shots on target the team's opponents had per match.,int_legs__team_match,sum(shots_on_target_against),count(*),expression,decimal_1,shooting,true,lower_better,On-target threat conceded - opponent shots on target per game; low = limits clear chances (deserved-vs-actual input),2,9
+ deserved_rank,team,metrics.deserved_rank.label,"The team's position in its league when the teams are ordered by deserved points, most first.",,,,model,integer,outcomes,false,lower_better,Deserved league position - 1 = the most points the process deserved; where the process says the team should sit,9,
+-points_rank,team,metrics.points_rank.label,"The team's place in its league table, with teams level on points ordered by the league's own rules.",,,,model,integer,outcomes,false,lower_better,League position - 1 = top of the table; the place in the official table at that point of the season,9,
+ deserved_points,team,metrics.deserved_points.label,"Points the team would have won if its points per match followed its shots-on-target difference per match, as the two relate across its league season.",,,,model,integer,outcomes,false,higher_better,Deserved points - what the season's on-target dominance was worth; compare it against the real points total,9,
+ deserved_points_gap,team,metrics.deserved_points_gap.label,The points the team won in its played matches minus its deserved points.,,,,model,integer,outcomes,false,neutral,"Deserved-vs-actual gap - actual minus deserved points; negative = results lag the process (due a correction), positive = results flatter it (regression risk). A narrative, not good or bad",9,
+ deserved_points_gap_rank,team,metrics.deserved_points_gap_rank.label,"The team's position in its league when the teams are ordered by deserved-points gap, the most negative first.",,,,model,integer,outcomes,false,neutral,"Deserved-points gap position - 1 = the most under-rewarded team of the league, the last position the most over-rewarded; an ordering, not good or bad",9,
+diff --git a/dbt_project/seeds/metric_map.csv b/dbt_project/seeds/metric_map.csv
+index b9fea7cb..17a19a63 100644
+--- a/dbt_project/seeds/metric_map.csv
++++ b/dbt_project/seeds/metric_map.csv
+@@ -182,19 +182,11 @@ mart_player_momentum,saves_player_pct,saves_player_pct,,window_type,
+ mart_player_momentum,shots_on,shots_on_goal_player,,window_type,
+ mart_player_momentum,tackles_player,tackles_player,,window_type,
+ mart_player_profile,assists_player,assists_player,,,
+-mart_player_profile,assists_player_delta_yoy,assists_player,delta_yoy,,
+-mart_player_profile,assists_player_prev_season,assists_player,prev_season,,
+-mart_player_profile,assists_player_prev_season_full,assists_player,prev_season_full,,
+-mart_player_profile,assists_player_this_season,assists_player,this_season,,
+ mart_player_profile,ball_actions_player,ball_actions_player,,,
+ mart_player_profile,blocks_player,blocks_player,,,
+ mart_player_profile,cards_red_player,cards_red_player,,,
+ mart_player_profile,cards_yellow_player,cards_yellow_player,,,
+ mart_player_profile,contribution_player_pct,contribution_player_pct,,,
+-mart_player_profile,defensive_actions_player_delta_yoy,defensive_actions_player,delta_yoy,,
+-mart_player_profile,defensive_actions_player_prev_season,defensive_actions_player,prev_season,,
+-mart_player_profile,defensive_actions_player_prev_season_full,defensive_actions_player,prev_season_full,,
+-mart_player_profile,defensive_actions_player_this_season,defensive_actions_player,this_season,,
+ mart_player_profile,dribbles_attempts_player,dribbles_attempts_player,,,
+ mart_player_profile,dribbles_past_player,dribbles_past_player,,,
+ mart_player_profile,dribbles_success_player,dribbles_success_player,,,
+@@ -205,19 +197,11 @@ mart_player_profile,duels_won_player_pct,duels_won_player_pct,,,
+ mart_player_profile,goals_open_play_player,goals_open_play_player,,,
+ mart_player_profile,goals_penalty_player,goals_penalty_player,,,
+ mart_player_profile,goals_player,goals_player,,,
+-mart_player_profile,goals_player_delta_yoy,goals_player,delta_yoy,,
+-mart_player_profile,goals_player_prev_season,goals_player,prev_season,,
+-mart_player_profile,goals_player_prev_season_full,goals_player,prev_season_full,,
+-mart_player_profile,goals_player_this_season,goals_player,this_season,,
+ mart_player_profile,interceptions_player,interceptions_player,,,
+ mart_player_profile,offsides_player,offsides_player,,,
+ mart_player_profile,passes_accuracy_player_pct,passes_accuracy_player_pct,,,
+ mart_player_profile,passes_accurate_player,passes_accurate_player,,,
+ mart_player_profile,passes_key_player,passes_key_player,,,
+-mart_player_profile,passes_key_player_delta_yoy,passes_key_player,delta_yoy,,
+-mart_player_profile,passes_key_player_prev_season,passes_key_player,prev_season,,
+-mart_player_profile,passes_key_player_prev_season_full,passes_key_player,prev_season_full,,
+-mart_player_profile,passes_key_player_this_season,passes_key_player,this_season,,
+ mart_player_profile,passes_player,passes_player,,,
+ mart_player_profile,penalty_committed_player,penalty_committed_player,,,
+ mart_player_profile,penalty_won_player,penalty_won_player,,,
+@@ -226,10 +210,6 @@ mart_player_profile,saves_player_pct,saves_player_pct,,,
+ mart_player_profile,scorer_points_player,scorer_points_player,,,
+ mart_player_profile,shots_on_goal_against_player,shots_on_goal_against_player,,,
+ mart_player_profile,shots_on_goal_player,shots_on_goal_player,,,
+-mart_player_profile,shots_on_goal_player_delta_yoy,shots_on_goal_player,delta_yoy,,
+-mart_player_profile,shots_on_goal_player_prev_season,shots_on_goal_player,prev_season,,
+-mart_player_profile,shots_on_goal_player_prev_season_full,shots_on_goal_player,prev_season_full,,
+-mart_player_profile,shots_on_goal_player_this_season,shots_on_goal_player,this_season,,
+ mart_player_profile,tackles_player,tackles_player,,,
+ mart_player_season_record,ball_actions_per90,ball_actions_per90,,window_type,
+ mart_player_season_record,blocks_player,blocks_player,,window_type,
+@@ -428,88 +408,33 @@ mart_team_page_window_metrics,metric_value,tackles_per_match,,,metric_key
+ mart_team_profile,cards_red,cards_red,,,
+ mart_team_profile,cards_yellow,cards_yellow,,,
+ mart_team_profile,clean_sheets,clean_sheets,,,
+-mart_team_profile,clean_sheets_pct_delta_yoy,clean_sheets_pct,delta_yoy,,
+-mart_team_profile,clean_sheets_pct_prev_season,clean_sheets_pct,prev_season,,
+-mart_team_profile,clean_sheets_pct_this_season,clean_sheets_pct,this_season,,
+ mart_team_profile,corners_against_per_match,corners_against_per_match,,,
+-mart_team_profile,corners_against_per_match_delta_yoy,corners_against_per_match,delta_yoy,,
+-mart_team_profile,corners_against_per_match_prev_season,corners_against_per_match,prev_season,,
+-mart_team_profile,corners_against_per_match_this_season,corners_against_per_match,this_season,,
+ mart_team_profile,corners_per_match,corners_per_match,,,
+-mart_team_profile,corners_per_match_delta_yoy,corners_per_match,delta_yoy,,
+-mart_team_profile,corners_per_match_prev_season,corners_per_match,prev_season,,
+-mart_team_profile,corners_per_match_this_season,corners_per_match,this_season,,
+ mart_team_profile,defensive_actions_per_match,defensive_actions_per_match,,,
+-mart_team_profile,defensive_actions_per_match_delta_yoy,defensive_actions_per_match,delta_yoy,,
+-mart_team_profile,defensive_actions_per_match_prev_season,defensive_actions_per_match,prev_season,,
+-mart_team_profile,defensive_actions_per_match_this_season,defensive_actions_per_match,this_season,,
+ mart_team_profile,deserved_points,deserved_points,,,
+ mart_team_profile,deserved_points_gap,deserved_points_gap,,,
+ mart_team_profile,deserved_points_gap_rank,deserved_points_gap_rank,,,
+ mart_team_profile,deserved_rank,deserved_rank,,,
+ mart_team_profile,duels_per_match,duels_per_match,,,
+-mart_team_profile,duels_per_match_delta_yoy,duels_per_match,delta_yoy,,
+-mart_team_profile,duels_per_match_prev_season,duels_per_match,prev_season,,
+-mart_team_profile,duels_per_match_this_season,duels_per_match,this_season,,
+ mart_team_profile,duels_won_pct,duels_won_pct,,,
+-mart_team_profile,duels_won_pct_delta_yoy,duels_won_pct,delta_yoy,,
+-mart_team_profile,duels_won_pct_prev_season,duels_won_pct,prev_season,,
+-mart_team_profile,duels_won_pct_this_season,duels_won_pct,this_season,,
+ mart_team_profile,finishing_efficiency_pct,finishing_efficiency_pct,,,
+-mart_team_profile,finishing_efficiency_pct_delta_yoy,finishing_efficiency_pct,delta_yoy,,
+-mart_team_profile,finishing_efficiency_pct_prev_season,finishing_efficiency_pct,prev_season,,
+-mart_team_profile,finishing_efficiency_pct_this_season,finishing_efficiency_pct,this_season,,
+ mart_team_profile,goals_against,goals_against,,,
+-mart_team_profile,goals_against_delta_yoy,goals_against,delta_yoy,,
+ mart_team_profile,goals_against_per_match,goals_against_per_match,,,
+-mart_team_profile,goals_against_per_match_delta_yoy,goals_against_per_match,delta_yoy,,
+-mart_team_profile,goals_against_per_match_prev_season,goals_against_per_match,prev_season,,
+-mart_team_profile,goals_against_per_match_this_season,goals_against_per_match,this_season,,
+-mart_team_profile,goals_against_prev_season,goals_against,prev_season,,
+-mart_team_profile,goals_against_this_season,goals_against,this_season,,
+ mart_team_profile,goals_for,goals,,,
+-mart_team_profile,goals_for_delta_yoy,goals,delta_yoy,,
+-mart_team_profile,goals_for_prev_season,goals,prev_season,,
+-mart_team_profile,goals_for_this_season,goals,this_season,,
+ mart_team_profile,goals_per_match,goals_per_match,,,
+-mart_team_profile,goals_per_match_delta_yoy,goals_per_match,delta_yoy,,
+-mart_team_profile,goals_per_match_prev_season,goals_per_match,prev_season,,
+-mart_team_profile,goals_per_match_this_season,goals_per_match,this_season,,
+ mart_team_profile,latest_rank,league_rank,,,
+ mart_team_profile,passes_accuracy_pct,passes_accuracy_pct,,,
+-mart_team_profile,passes_accuracy_pct_delta_yoy,passes_accuracy_pct,delta_yoy,,
+-mart_team_profile,passes_accuracy_pct_prev_season,passes_accuracy_pct,prev_season,,
+-mart_team_profile,passes_accuracy_pct_this_season,passes_accuracy_pct,this_season,,
+ mart_team_profile,passes_key_per_match,passes_key_per_match,,,
+-mart_team_profile,passes_key_per_match_delta_yoy,passes_key_per_match,delta_yoy,,
+-mart_team_profile,passes_key_per_match_prev_season,passes_key_per_match,prev_season,,
+-mart_team_profile,passes_key_per_match_this_season,passes_key_per_match,this_season,,
+ mart_team_profile,passes_per_match,passes_per_match,,,
+-mart_team_profile,passes_per_match_delta_yoy,passes_per_match,delta_yoy,,
+-mart_team_profile,passes_per_match_prev_season,passes_per_match,prev_season,,
+-mart_team_profile,passes_per_match_this_season,passes_per_match,this_season,,
+ mart_team_profile,points,points_won,,,
+ mart_team_profile,points_capture_pct,points_capture_pct,,,
+-mart_team_profile,points_rank_prev_season,points_rank,prev_season,,
+ mart_team_profile,saves_pct,saves_pct,,,
+-mart_team_profile,saves_pct_delta_yoy,saves_pct,delta_yoy,,
+-mart_team_profile,saves_pct_prev_season,saves_pct,prev_season,,
+-mart_team_profile,saves_pct_this_season,saves_pct,this_season,,
+ mart_team_profile,shots_inside_box_pct,shots_inside_box_pct,,,
+-mart_team_profile,shots_inside_box_pct_delta_yoy,shots_inside_box_pct,delta_yoy,,
+-mart_team_profile,shots_inside_box_pct_prev_season,shots_inside_box_pct,prev_season,,
+-mart_team_profile,shots_inside_box_pct_this_season,shots_inside_box_pct,this_season,,
+ mart_team_profile,shots_on_goal_against_per_match,shots_on_goal_against_per_match,,,
+ mart_team_profile,shots_on_goal_difference_per_match,shots_on_goal_difference_per_match,,,
+ mart_team_profile,shots_on_goal_pct,shots_on_goal_pct,,,
+ mart_team_profile,shots_on_goal_per_match,shots_on_goal_per_match,,,
+-mart_team_profile,shots_on_goal_per_match_delta_yoy,shots_on_goal_per_match,delta_yoy,,
+-mart_team_profile,shots_on_goal_per_match_prev_season,shots_on_goal_per_match,prev_season,,
+-mart_team_profile,shots_on_goal_per_match_this_season,shots_on_goal_per_match,this_season,,
+ mart_team_profile,shots_per_match,shots_per_match,,,
+-mart_team_profile,shots_per_match_delta_yoy,shots_per_match,delta_yoy,,
+-mart_team_profile,shots_per_match_prev_season,shots_per_match,prev_season,,
+-mart_team_profile,shots_per_match_this_season,shots_per_match,this_season,,
+ mart_team_profile,shots_share_pct,shots_share_pct,,,
+ mart_team_season,clean_sheets,clean_sheets,,,
+ mart_team_season,goals_against,goals_against,,,
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index a2513995..4374cca5 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -494,10 +494,7 @@ seeds:
+         description: >
+           Which part of the metric the column holds, read from the column's name. NULL: the
+           metric over the table's own row, which is one match, one season or one window as the
+-          table says. this_season: the season in progress so far. prev_season: the season before,
+-          through the same point. prev_season_full: the whole season before. delta_yoy: this
+-          season minus the season before at the same point. sum_season: totalled over the
+-          season. form: over the team's form window. home or away: the fixture's home or away
++          table says. sum_season: totalled over the season. form: over the team's form window. home or away: the fixture's home or away
+           side. opponent: the opposing team. last_meeting: the two teams' previous meeting.
+           recent_meetings: each of their recent meetings. A side and a period join with an
+           underscore, as in home_form.
+diff --git a/dbt_project/tests/assert_season_rates_inputs_covered.sql b/dbt_project/tests/assert_season_rates_inputs_covered.sql
+index d5694b22..bc279440 100644
+--- a/dbt_project/tests/assert_season_rates_inputs_covered.sql
++++ b/dbt_project/tests/assert_season_rates_inputs_covered.sql
+@@ -2,8 +2,7 @@
+   The rate guard of engineering_standards.md section 3.2, on the season surface. For every team
+   rate the catalogue defines with a denominator, wherever int_team_season__metrics_cumulative
+   shows a value at match N, every column its formula reads is present in every non-awarded game
+-  of that season up to N. Every match number is guarded, not only the latest row: the
+-  year-over-year model reads mid-season rows.
++  of that season up to N. Every match number is guarded, not only the latest row.
+ 
+   Generated from metric_catalogue.csv at run time exactly as assert_form_window_rates_inputs_covered
+   is (the inputs are the expression identifiers that are columns of base_relation; no per-rate
+diff --git a/dbt_project/tests/assert_team_benchmark_prev_season_matches_yoy.sql b/dbt_project/tests/assert_team_benchmark_prev_season_matches_yoy.sql
+deleted file mode 100644
+index 5902c328..00000000
+--- a/dbt_project/tests/assert_team_benchmark_prev_season_matches_yoy.sql
++++ /dev/null
+@@ -1,115 +0,0 @@
+--- A team benchmark's value at the same point last season equals int_team_profile__yoy's, for every
+--- metric both serve, on the team's current domestic season: the two read rule R6 one way. Also
+--- fails a value outside a domestic league, where rule R6 has none, and a benchmark metric the
+--- catalogue does not hold, which the mart's rank would drop.
+-
+-{{ config(store_failures = true) }}
+-
+-with yoy as (
+-    select
+-        team_sk,
+-        league_code,
+-        season_api_year,
+-        metric_key,
+-        metric_value_prev_season
+-    from {{ ref('int_team_profile__yoy') }}
+-    unpivot include nulls (
+-        metric_value_prev_season for metric_key in (
+-            goals_per_match_prev_season as 'goals_per_match',
+-            goals_against_per_match_prev_season as 'goals_against_per_match',
+-            clean_sheets_pct_prev_season as 'clean_sheets_pct',
+-            shots_per_match_prev_season as 'shots_per_match',
+-            shots_inside_box_pct_prev_season as 'shots_inside_box_pct',
+-            shots_on_goal_per_match_prev_season as 'shots_on_goal_per_match',
+-            finishing_efficiency_pct_prev_season as 'finishing_efficiency_pct',
+-            duels_per_match_prev_season as 'duels_per_match',
+-            duels_won_pct_prev_season as 'duels_won_pct',
+-            defensive_actions_per_match_prev_season as 'defensive_actions_per_match',
+-            passes_per_match_prev_season as 'passes_per_match',
+-            passes_accuracy_pct_prev_season as 'passes_accuracy_pct',
+-            passes_key_per_match_prev_season as 'passes_key_per_match',
+-            corners_per_match_prev_season as 'corners_per_match',
+-            corners_against_per_match_prev_season as 'corners_against_per_match',
+-            saves_pct_prev_season as 'saves_pct'
+-        )
+-    )
+-),
+-
+-benchmarks as (
+-    select
+-        team_sk,
+-        league_code,
+-        season_api_year,
+-        metric_key,
+-        metric_value_prev_season
+-    from {{ ref('mart_team_competition_benchmarks') }}
+-),
+-
+-catalogue as (
+-    select metric_id
+-    from {{ ref('metric_catalogue') }}
+-    where entity = 'team'
+-),
+-
+-mismatches as (
+-    select
+-        b.team_sk,
+-        b.league_code,
+-        b.season_api_year,
+-        b.metric_key,
+-        b.metric_value_prev_season as benchmark_prev,
+-        y.metric_value_prev_season as yoy_prev
+-    from benchmarks as b
+-    inner join yoy as y
+-        on
+-            b.team_sk = y.team_sk
+-            and b.league_code = y.league_code
+-            and b.season_api_year = y.season_api_year
+-            and b.metric_key = y.metric_key
+-    where
+-        (b.metric_value_prev_season is null) != (y.metric_value_prev_season is null)
+-        or abs(b.metric_value_prev_season - y.metric_value_prev_season) > 1e-9
+-),
+-
+-registry as (
+-    select
+-        league_code,
+-        competition_type
+-    from {{ ref('dim_league') }}
+-),
+-
+-outside_domestic as (
+-    select
+-        b.team_sk,
+-        b.league_code,
+-        b.season_api_year,
+-        b.metric_key,
+-        b.metric_value_prev_season as benchmark_prev,
+-        cast(null as float64) as yoy_prev
+-    from benchmarks as b
+-    left join registry as r
+-        on b.league_code = r.league_code
+-    where
+-        b.metric_value_prev_season is not null
+-        and coalesce(r.competition_type, '') != 'domestic_league'
+-),
+-
+-uncatalogued as (
+-    select distinct
+-        cast(null as int64) as team_sk,
+-        cast(null as string) as league_code,
+-        cast(null as int64) as season_api_year,
+-        l.metric_key,
+-        cast(null as float64) as benchmark_prev,
+-        cast(null as float64) as yoy_prev
+-    from {{ ref('int_team_competition_benchmark_metrics_long') }} as l
+-    left join catalogue as c
+-        on l.metric_key = c.metric_id
+-    where c.metric_id is null
+-)
+-
+-select * from mismatches
+-union all
+-select * from outside_domestic
+-union all
+-select * from uncatalogued
+diff --git a/dbt_project/tests/assert_team_yoy_pairs_the_same_games_played.sql b/dbt_project/tests/assert_team_yoy_pairs_the_same_games_played.sql
+deleted file mode 100644
+index e3da00bd..00000000
+--- a/dbt_project/tests/assert_team_yoy_pairs_the_same_games_played.sql
++++ /dev/null
+@@ -1,121 +0,0 @@
+-{#
+-  int_team_profile__yoy compares each team's current domestic league season through its N matches
+-  played with the same team's previous season in that league through its first N (fewer if that
+-  season had fewer), recomputed here from int_legs__team_match: the team's latest season in the
+-  league, its match count N, the previous season's cutoff, and the goals on each side, summed over
+-  exactly those matches (a forfeit counts in both, as in the league table). The points on each
+-  side are the rebuilt table's (int_team_season__table_by_time) at the kick-off of that side's
+-  last match. The previous side is empty when the team did not play the league the season before.
+-
+-  One row per (team, league) whose pairing or totals differ, or that exists on one side only.
+-#}
+-{{ config(store_failures = true, severity = 'error') }}
+-
+-with domestic_legs as (
+-    select
+-        l.team_sk,
+-        l.league_code,
+-        l.season_api_year,
+-        l.goals,
+-        l.goals_against,
+-        l.kickoff_datetime,
+-        row_number() over (
+-            partition by l.team_sk, l.league_code, l.season_api_year
+-            order by l.kickoff_datetime asc, l.fixture_sk asc
+-        ) as match_number
+-    from {{ ref('int_legs__team_match') }} as l
+-    inner join {{ ref('dim_league') }} as r
+-        on l.league_code = r.league_code
+-    where r.competition_type = 'domestic_league'
+-),
+-
+-current_seasons as (
+-    select
+-        team_sk,
+-        league_code,
+-        season_api_year,
+-        max(match_number) as games_played
+-    from domestic_legs
+-    group by team_sk, league_code, season_api_year
+-    qualify row_number() over (partition by team_sk, league_code order by season_api_year desc) = 1
+-),
+-
+-expected_sums as (
+-    select
+-        c.team_sk,
+-        c.league_code,
+-        c.season_api_year,
+-        c.games_played as cutoff,
+-        max(if(d.season_api_year = c.season_api_year - 1, d.match_number, null)) as games_played_prev,
+-        max(if(d.season_api_year = c.season_api_year, d.kickoff_datetime, null)) as kickoff_this_season,
+-        max(if(d.season_api_year = c.season_api_year - 1, d.kickoff_datetime, null)) as kickoff_prev_season,
+-        sum(if(d.season_api_year = c.season_api_year, d.goals, 0)) as goals_this_season,
+-        sum(if(d.season_api_year = c.season_api_year - 1, d.goals, null)) as goals_prev_season,
+-        sum(if(d.season_api_year = c.season_api_year, d.goals_against, 0)) as goals_against_this_season,
+-        sum(if(d.season_api_year = c.season_api_year - 1, d.goals_against, null)) as goals_against_prev_season
+-    from current_seasons as c
+-    inner join domestic_legs as d
+-        on
+-            c.team_sk = d.team_sk
+-            and c.league_code = d.league_code
+-            and d.season_api_year in (c.season_api_year, c.season_api_year - 1)
+-            and d.match_number <= c.games_played
+-    group by c.team_sk, c.league_code, c.season_api_year, c.games_played
+-),
+-
+-expected as (
+-    select
+-        s.*,
+-        cur_t.table_points as points_this_season,
+-        prev_t.table_points as points_prev_season
+-    from expected_sums as s
+-    left join {{ ref('int_team_season__table_by_time') }} as cur_t
+-        on
+-            s.team_sk = cur_t.team_sk
+-            and s.league_code = cur_t.league_code
+-            and s.season_api_year = cur_t.season_api_year
+-            and s.kickoff_this_season = cur_t.table_at
+-    left join {{ ref('int_team_season__table_by_time') }} as prev_t
+-        on
+-            s.team_sk = prev_t.team_sk
+-            and s.league_code = prev_t.league_code
+-            and s.season_api_year - 1 = prev_t.season_api_year
+-            and s.kickoff_prev_season = prev_t.table_at
+-),
+-
+-model as (
+-    select
+-        team_sk,
+-        league_code,
+-        season_api_year,
+-        yoy_games_played_cutoff as cutoff,
+-        games_played_prev,
+-        points_this_season,
+-        points_prev_season,
+-        goals_for_this_season as goals_this_season,
+-        goals_for_prev_season as goals_prev_season,
+-        goals_against_this_season,
+-        goals_against_prev_season
+-    from {{ ref('int_team_profile__yoy') }}
+-)
+-
+-select
+-    coalesce(e.team_sk, m.team_sk) as team_sk,
+-    coalesce(e.league_code, m.league_code) as league_code,
+-    to_json_string(e) as expected,
+-    to_json_string(m) as model
+-from expected as e
+-full outer join model as m
+-    on e.team_sk = m.team_sk and e.league_code = m.league_code
+-where
+-    e.team_sk is null
+-    or m.team_sk is null
+-    or e.season_api_year != m.season_api_year
+-    or e.cutoff != m.cutoff
+-    or e.games_played_prev is distinct from m.games_played_prev
+-    or e.points_this_season is distinct from m.points_this_season
+-    or e.points_prev_season is distinct from m.points_prev_season
+-    or e.goals_this_season != m.goals_this_season
+-    or e.goals_prev_season is distinct from m.goals_prev_season
+-    or e.goals_against_this_season != m.goals_against_this_season
+-    or e.goals_against_prev_season is distinct from m.goals_against_prev_season
+diff --git a/design-mocks/gen_team_mock.py b/design-mocks/gen_team_mock.py
+index 43b9531d..95a0e7b6 100644
+--- a/design-mocks/gen_team_mock.py
++++ b/design-mocks/gen_team_mock.py
+@@ -452,8 +452,8 @@ def build_league_rows(feat, team_name="Borussia Dortmund"):
+                                 + ", ".join(missing) + ". The warehouse serves them in this page's build.")
+ 
+ 
+-def build_season_bars(feat):
+-    """Compared with last season, with last season at the same point on the left."""
++def build_season_bars(last):
++    """Compared with last season: this season so far against the whole of last season."""
+     strings = (REPO / "site_v2/src/i18n/strings.ts").read_text(encoding="utf-8")
+ 
+     def label(key):
+@@ -475,7 +475,8 @@ def build_season_bars(feat):
+             return str(Decimal(str(x)).quantize(Decimal(q), rounding=ROUND_HALF_UP))
+         return {"percent": r(v * 100, "1") + "%", "decimal_0": r(v, "1"), "integer": r(v, "1")}.get(f, r(v, "0.1"))
+ 
+-    n = feat.get("yoy_games_played_cutoff") or feat["played"]
++    last = last or {}
++    values = {m["metric_key"]: m for m in last.get("metrics", [])}
+     css = ('<style>.ctab.yoyt{--cols:minmax(0,1fr) 3.4rem 3.4rem 2.8rem;margin-top:0} .yoyt-head .h{white-space:normal;line-height:1.2} '
+            '@container (min-width:420px){.ctab.yoyt{--cols:minmax(0,1fr) 4.6rem 4.6rem 3rem}} .ctab.yoyt .tm .nm{font-weight:400} '
+            '.yoyt-sub{display:block;font-size:12px;color:var(--muted);font-weight:400} '
+@@ -484,7 +485,9 @@ def build_season_bars(feat):
+            '.ctab.yoyt .n.tr{font-size:13px;text-align:center;padding-left:0} .tr.up{color:var(--accent)} '
+            '.tr.down{color:var(--loss)} .tr.flat{color:var(--muted)} '
+            '.yoyt-head{margin-top:6px} .rkgroup > .gh{margin-bottom:26px}</style>')
+-    out = [css, f'<p class="bsub">Both seasons are compared over their first {n} matches. <a class="mk-chevlink" href="/en/glossary/">Metric Glossary' + CHEV + '</a></p>', fold_open("tf-season"),
++    out = [css, f'<p class="bsub">This season ({last.get("matches")} matches) against last season ({last.get("matches_prev")}), '
++           "across all competitions. Values are per match, so the number of matches doesn't tilt them. Early on, a few "
++           'matches can swing the numbers; they settle as the matches add up. <a class="mk-chevlink" href="/en/glossary/">Metric Glossary' + CHEV + '</a></p>', fold_open("tf-season"),
+            '<div class="ctab yoyt yoyt-head"><div class="ctab-head"><span class="h"></span><span class="h">This season</span>'
+            '<span class="h">Last season</span><span class="h" style="text-align:center">Trend</span></div></div>',
+            '<div class="yoyt-wrap">']
+@@ -499,7 +502,7 @@ def build_season_bars(feat):
+         for r in rows:
+             key = bind.get(r["metric_id"], r["metric_id"])
+             f = "percent" if key.endswith("_pct") else r["format"]
+-            prev, now = feat.get(f"{key}_prev_season"), feat.get(f"{key}_this_season")
++            prev, now = values.get(key, {}).get("value_prev"), values.get(key, {}).get("value")
+             sub = "per match" if r["per_match"] else ("percentage" if key in share_by_count else "")
+             name = label(r["label_i18n_key"]) + (f'<span class="yoyt-sub">{sub}</span>' if sub else "")
+             trend = '<span class="n tr flat" aria-label="no change">–</span>'
+@@ -516,7 +519,7 @@ def build_season_bars(feat):
+                        f'<span class="n now">{fmt(now, f)}</span><span class="n prev">{fmt(prev, f)}</span>{trend}</div>')
+         out.append("</div></div>")
+     out.append("</div>" + fold_ctl("tf-season", len(served)))
+-    return "".join(out) + gap(f"{len(missing)} of {len(served)} rows have no value at the same point last season yet: "
++    return "".join(out) + gap(f"{len(missing)} of {len(served)} rows have no value in one of the two seasons: "
+                               + ", ".join(missing) + ". The warehouse serves them in this page's build.")
+ 
+ 
+@@ -674,7 +677,7 @@ def build():
+                     + frow("Points", pts, f"Season before: {int(pts) - pts_d}")
+                     + "</section>"
+                     + gap("Position in the season before at the same point: no mart serves it (the payload has this season's latest_rank "
+-                          "and last season's final rank only). Points in the season before at the same point are served (points_prev_season)."))
++                          "and last season's final rank only)."))
+     expl = ("Deserved points are the points a team usually earns with its shots on target difference – its shots "
+             "on target minus its opponents'. Teams with fewer points than deserved are better than the table shows; "
+             "teams with more are worse.")
+@@ -969,7 +972,7 @@ def build():
+                   + f'<section aria-label="Compared with the league">{sechead("Compared with the league")}'
+                   + build_league_rows(feat) + "</section>"
+                   + f'<section aria-label="Compared with last season">{sechead("Compared with last season")}'
+-                  + build_season_bars(feat) + "</section>"),
++                  + build_season_bars(payload.get("last_season")) + "</section>"),
+         "squad": f'<p class="pagecap">Bundesliga · season to date · {len(squad)} players with a match</p>' + "".join(sq),
+         "history": f'<section>{sechead("Seasons")}{"".join(hist)}</section>'
+                    + gap("All-time and Coach: all-time can count only the seasons held (Bundesliga since 2016/17); no mart serves the coach (it stops at staging)."),
+diff --git a/docs/content_architecture.md b/docs/content_architecture.md
+index 465884e5..8972c220 100644
+--- a/docs/content_architecture.md
++++ b/docs/content_architecture.md
+@@ -68,7 +68,7 @@ either subject, and appears on many tabs. The Subject column names the entity a
+ | | Competition header | competition | `mart_competition_index` (name, crest, region) + `mart_competition_fixtures` (the next round) |
+ | **Performance** | Form (recent) | team, player | `mart_team_window_metrics`, `mart_player_momentum` (+ `mart_team_momentum_window` drill-down, team only) |
+ | | Season (this season; per-game toggle) | team, player | `mart_team_profile`, `mart_player_profile` |
+-| | Season-over-season | team, player | `int_team_profile__yoy` → `mart_team_profile`; `int_player_profile__yoy` → `mart_player_profile` |
++| | Season-over-season | team, player | `mart_team_page_window_metrics`; `mart_player_window_metrics` |
+ | | Vs-benchmark (bars vs league avg + percentile) | team, player | `mart_team_competition_benchmarks`, `mart_player_competition_benchmarks` |
+ | | Single fixture | team, player | `mart_team_window_metrics` (window_type match), `mart_player_fixture_stats` |
+ | **Standings / rank** | League / group table | team | `mart_standings`: the league's official row (the provider's, except where corrected), with `table_kind` |
+@@ -85,7 +85,7 @@ either subject, and appears on many tabs. The Subject column names the entity a
+ | | Lineups / key players | fixture | `mart_player_season_record` (key players, by `top_player_rank`). No mart serves lineups. |
+ | | Head-to-head | fixture | `mart_head_to_head` |
+ | **Insight** | Deserved-vs-actual *(flagship)* | team (player v1.x) | `mart_team_profile` (`deserved_points`, `deserved_rank`, `deserved_points_gap`) |
+-| | Vs-own-history / YoY *(flagship)* | team (player v1.x) | `int_team_profile__yoy` → `mart_team_profile` |
++| | Vs-own-history / YoY *(flagship)* | team (player v1.x) | `mart_team_page_window_metrics` |
+ | | Opponent / schedule context *(flagship, v1.x)* | team, player | none (section 6) |
+ | | Contribution-share *(bonus)* | player↔team | `int_player_profile__contribution` → `mart_player_profile` (catalogued as `contribution_player_pct`) |
+ | | Streaks | team | `int_team_profile__streaks` → `mart_team_profile` |
+@@ -159,11 +159,8 @@ peers and gives a percentile. A team benchmark ranks a team within its league.
+    domestic leagues. `mart_team_profile` serves `deserved_points`, `deserved_rank` and
+    `deserved_points_gap`. `int_team_season__deserved_vs_actual` owns the method, which uses no xG.
+    The player analog, output against underlying play, is v1.x.
+-2. **Vs-own-history (year-over-year)** *(v1)*: the entity against itself one season earlier, at the
+-   same point. Example: *"22 points after 10 games against 18 last year"*. A team aligns by games
+-   played; a player aligns by appearances at the same club. Rule R6 in
+-   `dbt_project/models/docs/metric_rules.md` owns the alignment. `int_team_profile__yoy` and
+-   `int_player_profile__yoy` compute it, for domestic leagues only.
++2. **Vs-own-history (year-over-year)** *(v1)*: the entity against itself one season earlier. Rule R6
++   in `dbt_project/models/docs/metric_rules.md` owns the alignment.
+ 3. **Opponent and schedule context** *(v1.x)*: performance weighted by opposition quality, through
+    the benchmark engine. Its other name is opponent-adjusted form. Backward: *"the unbeaten run came
+    against the bottom half"*. Forward: *"4 of the next 5 are top-six"* (fixture difficulty). The
+diff --git a/docs/metrics_context_model.md b/docs/metrics_context_model.md
+index eb6567a4..43e38c6e 100644
+--- a/docs/metrics_context_model.md
++++ b/docs/metrics_context_model.md
+@@ -21,7 +21,7 @@ a player.
+ | Kind | Answers | Scope |
+ |------|---------|-------|
+ | **Live form** | "How are they playing *at the moment*?" | **Cross-competition**: the entity's last 5 matches across all its competitions |
+-| **Season record** | "What have they done *in this competition*?" | **Within that one competition**: cumulative season to date, the basis of year-over-year |
++| **Season record** | "What have they done *in this competition*?" | **Within that one competition**: cumulative season to date |
+ 
+ Only live form crosses competitions. The season record always stays within one competition. The
+ models name live form "momentum".
+@@ -162,7 +162,7 @@ matches. The two are separate, and both live in the **intermediate** layer.
+ - **Match window.** It holds one played match, for that match's own page. Its `window_type` is
+   `match`, and the same formulas apply to a window of one.
+ - **Season record.** It is cumulative within one competition through each match of the season. One
+-  model gives the record to date, the full season and year-over-year.
++  model gives the record to date and the full season.
+ 
+ Each form window carries a descriptor for the UI's window meta line: `window_type`,
+ `games_in_window`, `contributing_competitions`, `phase`.
+diff --git a/docs/ui_design_brief.md b/docs/ui_design_brief.md
+index 65f396aa..07c33d36 100644
+--- a/docs/ui_design_brief.md
++++ b/docs/ui_design_brief.md
+@@ -131,9 +131,6 @@ no heat maps, no pass networks and no win probability.
+   between them. Shot share % is the share of all shots in the team's matches. Points capture % is
+   points won / points available. The gap label reads "dominates play more/less than results show".
+   The block shows two real numbers and their difference, NOT a composite score gauge.
+-- **Year-over-year (YoY)** (domestic leagues): points, goals for and goals against through N games
+-  this season, against the same N games last season, with deltas. The values are NULL for cups and
+-  where the warehouse holds no last season. Design the absent state.
+ - **Streaks**: the current unbeaten, win, winless, clean-sheet and scoring runs.
+ - **Fixtures**: a list of the next and recent matches.
+ - **Squad**: per player, for the competition-season: appearances (matches played), minutes per
+diff --git a/scripts/declare_missing_columns.py b/scripts/declare_missing_columns.py
+index 837379e0..f3ae1795 100644
+--- a/scripts/declare_missing_columns.py
++++ b/scripts/declare_missing_columns.py
+@@ -297,7 +297,6 @@ def _shared_blocks() -> set[str]:
+ # An explicit table, not a name pattern: a wrong entry attaches the wrong definition, and an
+ # unlisted model aborts rather than defaulting.
+ MODEL_ENTITY: dict[str, str] = {
+-    "int_team_profile__yoy": "team",
+     "mart_team_profile": "team",
+     "int_team_season__metrics": "team",
+     "int_team_season__metrics_cumulative": "team",
+@@ -307,7 +306,6 @@ MODEL_ENTITY: dict[str, str] = {
+     "int_legs__team_match": "team",
+     "int_team_season__deserved_vs_actual": "team",
+     "mart_head_to_head": "team",
+-    "int_player_profile__yoy": "player",
+     "mart_player_profile": "player",
+     "int_player_club_season__metrics": "player",
+     "int_player_season_record": "player",
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index 43c2bc97..90c46aea 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -519,7 +519,6 @@ def _shape_team_benchmark_member(row: dict) -> dict:
+     return {
+         "metric_key": row.get("metric_key"),
+         "metric_value": row.get("metric_value"),
+-        "metric_value_prev_season": row.get("metric_value_prev_season"),
+         "rank": row.get("rank"),
+         "team_count": row.get("team_count"),
+         "league_median": row.get("league_median"),
+diff --git a/scripts/sync_metric_docs_blocks.py b/scripts/sync_metric_docs_blocks.py
+index f7aec502..a5646901 100644
+--- a/scripts/sync_metric_docs_blocks.py
++++ b/scripts/sync_metric_docs_blocks.py
+@@ -166,7 +166,7 @@ DERIVED_AFFIXES: tuple[tuple[str, str, str], ...] = (
+ BLOCK_NAME_RE = re.compile(r"^\w+$")
+ 
+ # Floor under the derived names read from the model YAML, for the same reason as MIN_METRICS.
+-MIN_DERIVED = 40
++MIN_DERIVED = 3
+ 
+ # Affixes that total a value; a metric with a `denominator_expr` is a rate, and totalling it is a
+ # different quantity, so its block is refused and the column stays blank.
+diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
+index 1b1ec634..bfadbf2c 100644
+--- a/tests/test_export_site_data.py
++++ b/tests/test_export_site_data.py
+@@ -1198,10 +1198,10 @@ def test_shape_team_benchmark_member_carries_mart_columns():
+         "league_code": "BL1", "season_api_year": 2025, "metric_key": "goals_per_match",
+         "metric_value": 2.2, "league_mean": 1.6, "league_median": 1.5,
+         "league_p25": 1.1, "league_p75": 2.0, "team_count": 18, "rank": 3,
+-        "vs_median_delta": 0.7, "metric_value_prev_season": 1.9,
++        "vs_median_delta": 0.7,
+     })
+     assert m == {
+-        "metric_key": "goals_per_match", "metric_value": 2.2, "metric_value_prev_season": 1.9,
++        "metric_key": "goals_per_match", "metric_value": 2.2,
+         "rank": 3, "team_count": 18,
+         "league_median": 1.5, "league_p25": 1.1, "league_p75": 2.0, "vs_median_delta": 0.7,
+     }
+diff --git a/tests/test_metric_map.py b/tests/test_metric_map.py
+index ace1c4ad..35c4d0fc 100644
+--- a/tests/test_metric_map.py
++++ b/tests/test_metric_map.py
+@@ -236,8 +236,9 @@ QUESTIONS = (
+      "mart_team_window_metrics", "goals_per_match", "goals_per_match", {"window_type": "last_5"}),
+     ("How many points has Bayern Munich won in its last five matches?",
+      "mart_team_window_metrics", "points_won", "points_won", {"window_type": "last_5"}),
+-    ("How many goals per match was Leverkusen conceding at this point last season?",
+-     "mart_team_profile", "goals_against_per_match_prev_season", "goals_against_per_match", {}),
++    ("Is Leverkusen conceding more or fewer goals per match than last season?",
++     "mart_team_page_window_metrics", "metric_value", "goals_against_per_match",
++     {"metric_key": "goals_against_per_match"}),
+     ("Has Napoli won more points this season than its chances deserved?",
+      "mart_team_profile", "deserved_points_gap", "deserved_points_gap", {}),
+     ("Does Liverpool get more shots on target per match than the typical Premier League team?",
+@@ -267,10 +268,10 @@ QUESTIONS = (
+      "mart_player_profile", "saves_player_pct", "saves_player_pct", {}),
+     ("How many assists has Musiala made in his team's last five matches?",
+      "mart_player_momentum", "goals_assists", "assists_player", {"window_type": "last_5"}),
+-    ("Has Salah scored more or fewer goals than at the same point last season?",
+-     "mart_player_profile", "goals_player_delta_yoy", "goals_player", {}),
+-    ("How many goals did Wirtz score in the whole of last season?",
+-     "mart_player_profile", "goals_player_prev_season_full", "goals_player", {}),
++    ("Is Salah scoring more or fewer goals per 90 minutes than last season?",
++     "mart_player_window_metrics", "metric_value", "goals_per90", {"metric_key": "goals_per90"}),
++    ("How many goals did Wirtz score for his club in the whole of last season?",
++     "mart_player_career", "goals_player", "goals_player", {}),
+     ("How many goals did Lewandowski score for Barcelona each season?",
+      "mart_player_career", "goals_player", "goals_player", {}),
+     ("How many tackles did Declan Rice make in his last match?",
+diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
+index 078d8728..7072e115 100644
+--- a/tests/test_no_decision_history_in_code.py
++++ b/tests/test_no_decision_history_in_code.py
+@@ -20,8 +20,8 @@ HOOKS = os.path.join(REPO, ".claude", "hooks")
+ sys.path.insert(0, HOOKS)
+ import comment_history_gate as gate  # noqa: E402
+ 
+-PINNED_LINES = 270
+-PINNED_FILES = 93
++PINNED_LINES = 267
++PINNED_FILES = 91
+ 
+ HASH = chr(35)
+ 
+diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
+index 146535a0..b012bef2 100644
+--- a/tests/test_sentence_length_in_docs.py
++++ b/tests/test_sentence_length_in_docs.py
+@@ -37,7 +37,7 @@ PINNED = {
+     "dbt_project/docs/layering.md": 41,
+     "dbt_project/models/1_staging/api_football/README.md": 1,
+     "dbt_project/models/docs/cleaning_rules.md": 5,
+-    "dbt_project/models/docs/metric_columns.md": 15,
++    "dbt_project/models/docs/metric_columns.md": 4,
+     "dbt_project/models/docs/metric_rules.md": 2,
+     "dbt_project/models/docs/shared_columns.md": 33,
+     "deploy/nightly/README.md": 19,
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/250-same-n-retire/review.md          |   58 +
+#    .claude/task/250-same-n-retire/review_input.patch | 3037 +++++++++++++++++++++
+#    2 files changed, 3095 insertions(+)
+# ============================================================================

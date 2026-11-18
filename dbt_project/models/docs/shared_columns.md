@@ -82,12 +82,6 @@ when the payload was ingested, not when anything happened on a pitch.
      here, open every model it will reach and read the SQL.** -->
 
 
-{% docs appearances_prev_full %}
-The prior season's TOTAL appearances at this club (full-season reference; >= appearances_prev).
-NULL when no prior season.
-{% enddocs %}
-
-
 {% docs as_of_date %}
 Snapshot date for market_value_eur; null when no estimate loaded.
 {% enddocs %}
@@ -457,8 +451,7 @@ Version of the research prompt or ingest job (e.g. wc_squad_value_v1).
 
 
 {% docs round_order %}
-Matchday number parsed from round_name (null if non-numeric). For deferred year-over-year
-alignment.
+Matchday number parsed from round_name (null if non-numeric).
 {% enddocs %}
 
 
@@ -604,15 +597,6 @@ than zero when the competition supplies no team statistics for the fixture.
 
 {% docs benchmark_round_stage_kind %}
 The rounds the competition-season is benchmarked over. It is table when only the league or group phase counts, without qualifiers and knockout rounds; empty when every match counts.
-{% enddocs %}
-
-{% docs yoy_appearances_cutoff %}
-N = appearances this season; the prior season is compared through its first N appearances.
-{% enddocs %}
-
-
-{% docs yoy_games_played_cutoff %}
-N = games played this season; the prior season is compared through its first N games.
 {% enddocs %}
 
 

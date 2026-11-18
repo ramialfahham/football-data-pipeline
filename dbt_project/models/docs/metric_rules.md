@@ -19,9 +19,9 @@ How every metric is computed:
   2 points and the loser 1.
 - R4 A metric is blank when any match it counts lacks an input.
 - R5 A ratio over zero is blank.
-- R6 A team's year-over-year exists for domestic league seasons only: its season through N matches
-  against its previous season through its first N. A player's covers all club competitions at any
-  club: this season so far against the whole of last season. Either is blank when either side is.
+- R6 A team's year-over-year covers all the club's competitions. A player's covers all club
+  competitions at any club. Both compare this season so far against the whole of last season.
+  Either is blank when either side is.
 - R7 Results the league publishes (the score, the league table) are taken as published, never
   computed. The one exception: teams level on points stand in the order of the league's own
   tie-break rule. A count of results or a playing-time fact (minutes, starts) is a fact, not

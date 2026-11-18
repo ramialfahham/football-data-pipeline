@@ -21,7 +21,7 @@ a player.
 | Kind | Answers | Scope |
 |------|---------|-------|
 | **Live form** | "How are they playing *at the moment*?" | **Cross-competition**: the entity's last 5 matches across all its competitions |
-| **Season record** | "What have they done *in this competition*?" | **Within that one competition**: cumulative season to date, the basis of year-over-year |
+| **Season record** | "What have they done *in this competition*?" | **Within that one competition**: cumulative season to date |
 
 Only live form crosses competitions. The season record always stays within one competition. The
 models name live form "momentum".
@@ -162,7 +162,7 @@ matches. The two are separate, and both live in the **intermediate** layer.
 - **Match window.** It holds one played match, for that match's own page. Its `window_type` is
   `match`, and the same formulas apply to a window of one.
 - **Season record.** It is cumulative within one competition through each match of the season. One
-  model gives the record to date, the full season and year-over-year.
+  model gives the record to date and the full season.
 
 Each form window carries a descriptor for the UI's window meta line: `window_type`,
 `games_in_window`, `contributing_competitions`, `phase`.

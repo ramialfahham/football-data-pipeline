@@ -14,7 +14,6 @@
   Every metric is its catalogue formula over the window's leg rows, written by
   scripts/generate_metric_sql.py by the rules in models/docs/metric_rules.md.
 
-  Carries round_order + match_number for the deferred year-over-year surface.
   Season-bounded (partition by league_code, season_api_year). A national qualifying
   campaign is one season here — the provider stamps a whole campaign with a single
   season_api_year even though its matches span 2–3 calendar years — so this partition

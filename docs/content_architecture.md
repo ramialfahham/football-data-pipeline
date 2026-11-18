@@ -68,7 +68,7 @@ either subject, and appears on many tabs. The Subject column names the entity a 
 | | Competition header | competition | `mart_competition_index` (name, crest, region) + `mart_competition_fixtures` (the next round) |
 | **Performance** | Form (recent) | team, player | `mart_team_window_metrics`, `mart_player_momentum` (+ `mart_team_momentum_window` drill-down, team only) |
 | | Season (this season; per-game toggle) | team, player | `mart_team_profile`, `mart_player_profile` |
-| | Season-over-season | team, player | `int_team_profile__yoy` → `mart_team_profile`; `int_player_profile__yoy` → `mart_player_profile` |
+| | Season-over-season | team, player | `mart_team_page_window_metrics`; `mart_player_window_metrics` |
 | | Vs-benchmark (bars vs league avg + percentile) | team, player | `mart_team_competition_benchmarks`, `mart_player_competition_benchmarks` |
 | | Single fixture | team, player | `mart_team_window_metrics` (window_type match), `mart_player_fixture_stats` |
 | **Standings / rank** | League / group table | team | `mart_standings`: the league's official row (the provider's, except where corrected), with `table_kind` |
@@ -85,7 +85,7 @@ either subject, and appears on many tabs. The Subject column names the entity a 
 | | Lineups / key players | fixture | `mart_player_season_record` (key players, by `top_player_rank`). No mart serves lineups. |
 | | Head-to-head | fixture | `mart_head_to_head` |
 | **Insight** | Deserved-vs-actual *(flagship)* | team (player v1.x) | `mart_team_profile` (`deserved_points`, `deserved_rank`, `deserved_points_gap`) |
-| | Vs-own-history / YoY *(flagship)* | team (player v1.x) | `int_team_profile__yoy` → `mart_team_profile` |
+| | Vs-own-history / YoY *(flagship)* | team (player v1.x) | `mart_team_page_window_metrics` |
 | | Opponent / schedule context *(flagship, v1.x)* | team, player | none (section 6) |
 | | Contribution-share *(bonus)* | player↔team | `int_player_profile__contribution` → `mart_player_profile` (catalogued as `contribution_player_pct`) |
 | | Streaks | team | `int_team_profile__streaks` → `mart_team_profile` |
@@ -159,11 +159,8 @@ peers and gives a percentile. A team benchmark ranks a team within its league.
    domestic leagues. `mart_team_profile` serves `deserved_points`, `deserved_rank` and
    `deserved_points_gap`. `int_team_season__deserved_vs_actual` owns the method, which uses no xG.
    The player analog, output against underlying play, is v1.x.
-2. **Vs-own-history (year-over-year)** *(v1)*: the entity against itself one season earlier, at the
-   same point. Example: *"22 points after 10 games against 18 last year"*. A team aligns by games
-   played; a player aligns by appearances at the same club. Rule R6 in
-   `dbt_project/models/docs/metric_rules.md` owns the alignment. `int_team_profile__yoy` and
-   `int_player_profile__yoy` compute it, for domestic leagues only.
+2. **Vs-own-history (year-over-year)** *(v1)*: the entity against itself one season earlier. Rule R6
+   in `dbt_project/models/docs/metric_rules.md` owns the alignment.
 3. **Opponent and schedule context** *(v1.x)*: performance weighted by opposition quality, through
    the benchmark engine. Its other name is opponent-adjusted form. Backward: *"the unbeaten run came
    against the bottom half"*. Forward: *"4 of the next 5 are top-six"* (fixture difficulty). The

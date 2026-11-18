@@ -297,7 +297,6 @@ def _shared_blocks() -> set[str]:
 # An explicit table, not a name pattern: a wrong entry attaches the wrong definition, and an
 # unlisted model aborts rather than defaulting.
 MODEL_ENTITY: dict[str, str] = {
-    "int_team_profile__yoy": "team",
     "mart_team_profile": "team",
     "int_team_season__metrics": "team",
     "int_team_season__metrics_cumulative": "team",
@@ -307,7 +306,6 @@ MODEL_ENTITY: dict[str, str] = {
     "int_legs__team_match": "team",
     "int_team_season__deserved_vs_actual": "team",
     "mart_head_to_head": "team",
-    "int_player_profile__yoy": "player",
     "mart_player_profile": "player",
     "int_player_club_season__metrics": "player",
     "int_player_season_record": "player",

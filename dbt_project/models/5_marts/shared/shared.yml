@@ -742,7 +742,7 @@ models:
   - name: mart_team_profile
     description: >
       A team's season in one row: identity, record, rank and form, full-season metric rates,
-      year-over-year movement, streaks and the deserved-versus-actual points gap.
+      streaks and the deserved-versus-actual points gap.
       Grain: (team_sk, season_sk).
 
       Composed from dim_team, mart_team_season and the int_team_season__* / int_team_profile__*
@@ -815,104 +815,6 @@ models:
       - dbt_utils.expression_is_true:
           expression: "defensive_actions_per_match is null or defensive_actions_per_match >= 0"
           name: team_profile_defensive_actions_per_match_non_negative
-      # Year-over-year copies take the bounds int_team_profile.yml fixed for the same columns:
-      # structural ratios [0,1], the provider-subset ratios >= 0 only, per-match counts >= 0.
-      - dbt_utils.expression_is_true:
-          expression: "goals_per_match_this_season is null or goals_per_match_this_season >= 0"
-          name: team_profile_goals_per_match_this_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "goals_per_match_prev_season is null or goals_per_match_prev_season >= 0"
-          name: team_profile_goals_per_match_prev_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "goals_against_per_match_this_season is null or goals_against_per_match_this_season >= 0"
-          name: team_profile_goals_against_per_match_this_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "goals_against_per_match_prev_season is null or goals_against_per_match_prev_season >= 0"
-          name: team_profile_goals_against_per_match_prev_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "clean_sheets_pct_this_season is null or (clean_sheets_pct_this_season between 0 and 1)"
-          name: team_profile_clean_sheets_pct_this_season_in_range
-      - dbt_utils.expression_is_true:
-          expression: "clean_sheets_pct_prev_season is null or (clean_sheets_pct_prev_season between 0 and 1)"
-          name: team_profile_clean_sheets_pct_prev_season_in_range
-      - dbt_utils.expression_is_true:
-          expression: "shots_per_match_this_season is null or shots_per_match_this_season >= 0"
-          name: team_profile_shots_per_match_this_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "shots_per_match_prev_season is null or shots_per_match_prev_season >= 0"
-          name: team_profile_shots_per_match_prev_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "shots_inside_box_pct_this_season is null or shots_inside_box_pct_this_season >= 0"
-          name: team_profile_shots_inside_box_pct_this_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "shots_inside_box_pct_prev_season is null or shots_inside_box_pct_prev_season >= 0"
-          name: team_profile_shots_inside_box_pct_prev_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "shots_on_goal_per_match_this_season is null or shots_on_goal_per_match_this_season >= 0"
-          name: team_profile_shots_on_goal_per_match_this_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "shots_on_goal_per_match_prev_season is null or shots_on_goal_per_match_prev_season >= 0"
-          name: team_profile_shots_on_goal_per_match_prev_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "finishing_efficiency_pct_this_season is null or (finishing_efficiency_pct_this_season between 0 and 1)"
-          name: team_profile_finishing_efficiency_pct_this_season_in_range
-      - dbt_utils.expression_is_true:
-          expression: "finishing_efficiency_pct_prev_season is null or (finishing_efficiency_pct_prev_season between 0 and 1)"
-          name: team_profile_finishing_efficiency_pct_prev_season_in_range
-      - dbt_utils.expression_is_true:
-          expression: "duels_per_match_this_season is null or duels_per_match_this_season >= 0"
-          name: team_profile_duels_per_match_this_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "duels_per_match_prev_season is null or duels_per_match_prev_season >= 0"
-          name: team_profile_duels_per_match_prev_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "duels_won_pct_this_season is null or duels_won_pct_this_season >= 0"
-          name: team_profile_duels_won_pct_this_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "duels_won_pct_prev_season is null or duels_won_pct_prev_season >= 0"
-          name: team_profile_duels_won_pct_prev_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "defensive_actions_per_match_this_season is null or defensive_actions_per_match_this_season >= 0"
-          name: team_profile_defensive_actions_per_match_this_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "defensive_actions_per_match_prev_season is null or defensive_actions_per_match_prev_season >= 0"
-          name: team_profile_defensive_actions_per_match_prev_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "passes_per_match_this_season is null or passes_per_match_this_season >= 0"
-          name: team_profile_passes_per_match_this_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "passes_per_match_prev_season is null or passes_per_match_prev_season >= 0"
-          name: team_profile_passes_per_match_prev_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "passes_accuracy_pct_this_season is null or passes_accuracy_pct_this_season >= 0"
-          name: team_profile_passes_accuracy_pct_this_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "passes_accuracy_pct_prev_season is null or passes_accuracy_pct_prev_season >= 0"
-          name: team_profile_passes_accuracy_pct_prev_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "passes_key_per_match_this_season is null or passes_key_per_match_this_season >= 0"
-          name: team_profile_passes_key_per_match_this_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "passes_key_per_match_prev_season is null or passes_key_per_match_prev_season >= 0"
-          name: team_profile_passes_key_per_match_prev_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "corners_per_match_this_season is null or corners_per_match_this_season >= 0"
-          name: team_profile_corners_per_match_this_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "corners_per_match_prev_season is null or corners_per_match_prev_season >= 0"
-          name: team_profile_corners_per_match_prev_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "corners_against_per_match_this_season is null or corners_against_per_match_this_season >= 0"
-          name: team_profile_corners_against_per_match_this_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "corners_against_per_match_prev_season is null or corners_against_per_match_prev_season >= 0"
-          name: team_profile_corners_against_per_match_prev_season_non_negative
-      - dbt_utils.expression_is_true:
-          expression: "saves_pct_this_season is null or (saves_pct_this_season between 0 and 1)"
-          name: team_profile_saves_pct_this_season_in_range
-      - dbt_utils.expression_is_true:
-          expression: "saves_pct_prev_season is null or (saves_pct_prev_season between 0 and 1)"
-          name: team_profile_saves_pct_prev_season_in_range
     columns:
       - name: season_label
         description: "The season's name as the site shows it, from dim_competition_season."
@@ -943,10 +845,6 @@ models:
         tests: [not_null]
       - name: competition_type
         description: "{{ doc('competition_type') }}"
-      - name: points_delta_yoy
-        description: "{{ doc('table_points') }} Here, this season's minus the previous season's, each on the day of the team's Nth match (yoy_games_played_cutoff)."
-      - name: goals_per_match_delta_yoy
-        description: "{{ doc('goals_per_match_delta_yoy__team') }}"
       - name: deserved_rank
         description: "{{ doc('deserved_rank') }}"
       - name: deserved_points
@@ -1105,120 +1003,6 @@ models:
         description: "{{ doc('shots_share_pct') }}"
       - name: points_capture_pct
         description: "{{ doc('points_capture_pct') }}"
-      - name: yoy_games_played_cutoff
-        description: "{{ doc('yoy_games_played_cutoff') }}"
-      - name: points_this_season
-        description: "{{ doc('table_points') }} Here, this season, on the day of the team's Nth match (yoy_games_played_cutoff); empty where the table is not rebuilt."
-      - name: points_prev_season
-        description: "{{ doc('table_points') }} Here, the previous season, on the day of the team's match at the same count; empty where that table is not rebuilt."
-      - name: points_rank_prev_season
-        description: "{{ doc('points_rank_prev_season__team') }} Here, the official table on the day of that match; empty where it is not rebuilt or the team is level at a criterion the results cannot settle."
-      - name: goals_for_this_season
-        description: "{{ doc('goals') }} Here, this season through the games-played cutoff N (yoy_games_played_cutoff)."
-      - name: goals_for_prev_season
-        description: "{{ doc('goals') }} Here, the previous season through the same games-played cutoff N."
-      - name: goals_for_delta_yoy
-        description: "{{ doc('goals') }} Here, this season's minus the previous season's, both through the games-played cutoff N (yoy_games_played_cutoff)."
-      - name: goals_against_this_season
-        description: "{{ doc('goals_against_this_season__team') }}"
-      - name: goals_against_prev_season
-        description: "{{ doc('goals_against_prev_season__team') }}"
-      - name: goals_against_delta_yoy
-        description: "{{ doc('goals_against_delta_yoy__team') }}"
-      - name: goals_per_match_this_season
-        description: "{{ doc('goals_per_match_this_season__team') }}"
-      - name: goals_per_match_prev_season
-        description: "{{ doc('goals_per_match_prev_season__team') }}"
-      - name: goals_against_per_match_this_season
-        description: "{{ doc('goals_against_per_match_this_season__team') }}"
-      - name: goals_against_per_match_prev_season
-        description: "{{ doc('goals_against_per_match_prev_season__team') }}"
-      - name: goals_against_per_match_delta_yoy
-        description: "{{ doc('goals_against_per_match_delta_yoy__team') }}"
-      - name: clean_sheets_pct_this_season
-        description: "{{ doc('clean_sheets_pct_this_season__team') }}"
-      - name: clean_sheets_pct_prev_season
-        description: "{{ doc('clean_sheets_pct_prev_season__team') }}"
-      - name: clean_sheets_pct_delta_yoy
-        description: "{{ doc('clean_sheets_pct_delta_yoy__team') }}"
-      - name: shots_per_match_this_season
-        description: "{{ doc('shots_per_match_this_season__team') }}"
-      - name: shots_per_match_prev_season
-        description: "{{ doc('shots_per_match_prev_season__team') }}"
-      - name: shots_per_match_delta_yoy
-        description: "{{ doc('shots_per_match_delta_yoy__team') }}"
-      - name: shots_inside_box_pct_this_season
-        description: "{{ doc('shots_inside_box_pct_this_season__team') }}"
-      - name: shots_inside_box_pct_prev_season
-        description: "{{ doc('shots_inside_box_pct_prev_season__team') }}"
-      - name: shots_inside_box_pct_delta_yoy
-        description: "{{ doc('shots_inside_box_pct_delta_yoy__team') }}"
-      - name: shots_on_goal_per_match_this_season
-        description: "{{ doc('shots_on_goal_per_match_this_season__team') }}"
-      - name: shots_on_goal_per_match_prev_season
-        description: "{{ doc('shots_on_goal_per_match_prev_season__team') }}"
-      - name: shots_on_goal_per_match_delta_yoy
-        description: "{{ doc('shots_on_goal_per_match_delta_yoy__team') }}"
-      - name: finishing_efficiency_pct_this_season
-        description: "{{ doc('finishing_efficiency_pct_this_season__team') }}"
-      - name: finishing_efficiency_pct_prev_season
-        description: "{{ doc('finishing_efficiency_pct_prev_season__team') }}"
-      - name: finishing_efficiency_pct_delta_yoy
-        description: "{{ doc('finishing_efficiency_pct_delta_yoy__team') }}"
-      - name: duels_per_match_this_season
-        description: "{{ doc('duels_per_match_this_season__team') }}"
-      - name: duels_per_match_prev_season
-        description: "{{ doc('duels_per_match_prev_season__team') }}"
-      - name: duels_per_match_delta_yoy
-        description: "{{ doc('duels_per_match_delta_yoy__team') }}"
-      - name: duels_won_pct_this_season
-        description: "{{ doc('duels_won_pct_this_season__team') }}"
-      - name: duels_won_pct_prev_season
-        description: "{{ doc('duels_won_pct_prev_season__team') }}"
-      - name: duels_won_pct_delta_yoy
-        description: "{{ doc('duels_won_pct_delta_yoy__team') }}"
-      - name: defensive_actions_per_match_this_season
-        description: "{{ doc('defensive_actions_per_match_this_season__team') }}"
-      - name: defensive_actions_per_match_prev_season
-        description: "{{ doc('defensive_actions_per_match_prev_season__team') }}"
-      - name: defensive_actions_per_match_delta_yoy
-        description: "{{ doc('defensive_actions_per_match_delta_yoy__team') }}"
-      - name: passes_per_match_this_season
-        description: "{{ doc('passes_per_match_this_season__team') }}"
-      - name: passes_per_match_prev_season
-        description: "{{ doc('passes_per_match_prev_season__team') }}"
-      - name: passes_per_match_delta_yoy
-        description: "{{ doc('passes_per_match_delta_yoy__team') }}"
-      - name: passes_accuracy_pct_this_season
-        description: "{{ doc('passes_accuracy_pct_this_season__team') }}"
-      - name: passes_accuracy_pct_prev_season
-        description: "{{ doc('passes_accuracy_pct_prev_season__team') }}"
-      - name: passes_accuracy_pct_delta_yoy
-        description: "{{ doc('passes_accuracy_pct_delta_yoy__team') }}"
-      - name: passes_key_per_match_this_season
-        description: "{{ doc('passes_key_per_match_this_season__team') }}"
-      - name: passes_key_per_match_prev_season
-        description: "{{ doc('passes_key_per_match_prev_season__team') }}"
-      - name: passes_key_per_match_delta_yoy
-        description: "{{ doc('passes_key_per_match_delta_yoy__team') }}"
-      - name: corners_per_match_this_season
-        description: "{{ doc('corners_per_match_this_season__team') }}"
-      - name: corners_per_match_prev_season
-        description: "{{ doc('corners_per_match_prev_season__team') }}"
-      - name: corners_per_match_delta_yoy
-        description: "{{ doc('corners_per_match_delta_yoy__team') }}"
-      - name: corners_against_per_match_this_season
-        description: "{{ doc('corners_against_per_match_this_season__team') }}"
-      - name: corners_against_per_match_prev_season
-        description: "{{ doc('corners_against_per_match_prev_season__team') }}"
-      - name: corners_against_per_match_delta_yoy
-        description: "{{ doc('corners_against_per_match_delta_yoy__team') }}"
-      - name: saves_pct_this_season
-        description: "{{ doc('saves_pct_this_season__team') }}"
-      - name: saves_pct_prev_season
-        description: "{{ doc('saves_pct_prev_season__team') }}"
-      - name: saves_pct_delta_yoy
-        description: "{{ doc('saves_pct_delta_yoy__team') }}"
       - name: unbeaten_run
         description: "{{ doc('unbeaten_run') }}"
       - name: win_run
@@ -2008,50 +1792,6 @@ models:
         description: "{{ doc('dribbles_success_player_pct') }}"
       - name: saves_player_pct
         description: "{{ doc('saves_player_pct') }}"
-      - name: yoy_appearances_cutoff
-        description: "{{ doc('yoy_appearances_cutoff') }}"
-      - name: goals_player_this_season
-        description: "{{ doc('goals_player_this_season__player') }}"
-      - name: goals_player_prev_season
-        description: "{{ doc('goals_player_prev_season__player') }}"
-      - name: goals_player_delta_yoy
-        description: "{{ doc('goals_player_delta_yoy__player') }}"
-      - name: assists_player_this_season
-        description: "{{ doc('assists_player_this_season__player') }}"
-      - name: assists_player_prev_season
-        description: "{{ doc('assists_player_prev_season__player') }}"
-      - name: assists_player_delta_yoy
-        description: "{{ doc('assists_player_delta_yoy__player') }}"
-      - name: shots_on_goal_player_this_season
-        description: "{{ doc('shots_on_goal_player_this_season__player') }}"
-      - name: shots_on_goal_player_prev_season
-        description: "{{ doc('shots_on_goal_player_prev_season__player') }}"
-      - name: shots_on_goal_player_delta_yoy
-        description: "{{ doc('shots_on_goal_player_delta_yoy__player') }}"
-      - name: passes_key_player_this_season
-        description: "{{ doc('passes_key_player_this_season__player') }}"
-      - name: passes_key_player_prev_season
-        description: "{{ doc('passes_key_player_prev_season__player') }}"
-      - name: passes_key_player_delta_yoy
-        description: "{{ doc('passes_key_player_delta_yoy__player') }}"
-      - name: defensive_actions_player_this_season
-        description: "{{ doc('defensive_actions_player_this_season__player') }}"
-      - name: defensive_actions_player_prev_season
-        description: "{{ doc('defensive_actions_player_prev_season__player') }}"
-      - name: defensive_actions_player_delta_yoy
-        description: "{{ doc('defensive_actions_player_delta_yoy__player') }}"
-      - name: appearances_prev_full
-        description: "{{ doc('appearances_prev_full') }}"
-      - name: goals_player_prev_season_full
-        description: "{{ doc('goals_player_prev_season_full__player') }}"
-      - name: assists_player_prev_season_full
-        description: "{{ doc('assists_player_prev_season_full__player') }}"
-      - name: shots_on_goal_player_prev_season_full
-        description: "{{ doc('shots_on_goal_player_prev_season_full__player') }}"
-      - name: passes_key_player_prev_season_full
-        description: "{{ doc('passes_key_player_prev_season_full__player') }}"
-      - name: defensive_actions_player_prev_season_full
-        description: "{{ doc('defensive_actions_player_prev_season_full__player') }}"
       - name: scorer_points_player
         description: "{{ doc('scorer_points_player') }}"
       - name: team_goals_season
@@ -3367,8 +3107,8 @@ models:
   - name: mart_team_competition_benchmarks
     description: >
       Where a team sits against its own league on each team metric: its value, the league median
-      and mean, the p25/p75 spread, its rank out of team_count, its distance from the median and
-      its value at the same point last season. Long-shaped, one row per (team, season, metric).
+      and mean, the p25/p75 spread, its rank out of team_count and its distance from the median.
+      Long-shaped, one row per (team, season, metric).
       Grain: (team_sk, season_sk, metric_key).
 
       rank follows the metric's catalogue direction: for a lower_better metric rank 1 is the lowest
@@ -3449,8 +3189,6 @@ models:
       - name: team_count
         description: "N — teams ranked for this metric this league-season."
         tests: [not_null]
-      - name: metric_value_prev_season
-        description: "The team's value at the same point last season (rule R6): the previous season's latest match at or before this season's match count, domestic leagues only; null otherwise."
       - name: rank
         description: "Rank by the metric's catalogue direction (lower_better: 1 = lowest value, otherwise 1 = highest), k of team_count; tied values share a rank."
         tests: [not_null]

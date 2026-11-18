@@ -9,8 +9,7 @@
   Grain: (team_sk, league_code, season_api_year, fixture_sk).
 
   Ordered by kickoff. Carries round_order (the matchday number parsed from round_name)
-  and match_number (the team's Nth match that season) so the year-over-year surface can align two
-  seasons by matchday.
+  and match_number (the team's Nth match that season).
 
   Season-bounded: partitioned by (league_code, season_api_year). This covers clubs and
   single-season tournaments (WC/continental — the latest row is "all matches so far in
