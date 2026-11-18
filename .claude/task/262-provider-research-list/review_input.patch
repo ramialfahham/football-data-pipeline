@@ -1,0 +1,1011 @@
+diff --git a/.claude/task/262-provider-research-list/contract.md b/.claude/task/262-provider-research-list/contract.md
+new file mode 100644
+index 00000000..3d1dd7b7
+--- /dev/null
++++ b/.claude/task/262-provider-research-list/contract.md
+@@ -0,0 +1,102 @@
++# Task contract — the daily list of provider errors to research
++
++objective: >
++  Issue #262, boxes 1, 2 and 7. A new mart, mart_competition_research_list, rebuilt by the nightly,
++  holds one row per match (or match-team, or seed row) where a check of the provider's data
++  withholds a value on goals, scores, awards or cards, and one row per correction the provider no
++  longer needs. The list's reader is the research routine of #262 (its own MR). Two provider-data
++  cases that still fail the build move to the list: a correction the provider no longer needs
++  (no_longer_needed in assert_result_corrections_applied) and a match whose goal events add up
++  neither alone nor with the players' goals (goals_not_reconciled in
++  assert_mart_competition_fixtures_goals_add_up). Cards gain the no-longer-needed check the other
++  correction seeds have.
++
++refs: >
++  #262 What exactly boxes 1, 2 and 7 (box 7: approved in chat, 2026-11-15); scope ruled by the
++  coordinating session on 2026-11-18: this MR leaves out the standings tests and the standings
++  section kind, which get their own MR. Research priority tiers: #176 (approved in chat,
++  2026-10-12). Withhold pattern: !446 and !447.
++
++scope_paths:
++  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/4_intermediate/shared/int_pipeline__corrections_no_longer_needed.sql
++  - dbt_project/models/4_intermediate/shared/int_pipeline__corrections_no_longer_needed.yml
++  - dbt_project/models/5_marts/shared/mart_competition_research_list.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/models/docs/cleaning_rules.md
++  - dbt_project/docs/layering.md
++  - dbt_project/seeds/schema.yml
++  - dbt_project/tests/assert_result_corrections_applied.sql
++  - dbt_project/tests/assert_mart_competition_fixtures_goals_add_up.sql
++  - .claude/task/262-provider-research-list/contract.md
++  - .claude/task/262-provider-research-list/review.md
++  - .claude/task/262-provider-research-list/review_input.patch
++
++impact_map: >
++  writers: every changed model is written by dbt only; no ingestion code and no raw table change.
++  The two new models are new leaves.
++  downstream: `dbt ls --select base_apif__fixture_events+ --resource-type model` on 2026-11-18 lists
++  89 models, the two new ones included: base_apif__fixture_events base_apif__fixture_events_checked base_apif__fixture_players
++  base_apif__fixture_players_checked base_apif__fixture_players_from_lineups
++  base_apif__fixture_statistics base_apif__lineup_sheets base_apif__lineups base_apif__players
++  dim_player fct_fixture_event fct_fixture_lineup fct_fixture_player_stats fct_fixture_team_stats,
++  the int_player_*, int_team_*, int_legs__*, int_standings__official_rank and
++  int_competition_season__player_stat_corrections models, and every mart from
++  mart_competition_fixtures to mart_team_window_metrics. The one change there is a new column,
++  provider_cards_match_research. Each of the model's ten readers names its columns
++  (base_apif__fixture_events_checked's final select and fct_fixture_event's are explicit;
++  the others select named columns), so no reader carries the column and no number below changes.
++  The new int model and mart have no downstream model; the mart is the int model's one reader. The two edited tests read
++  mart_competition_fixtures, fct_fixture_event and the four result seeds; they lose provider-data
++  cases and gain goals_on_not_recorded, a check of our code.
++  layer_rules: check_layer_contract applies unchanged. The int model reads base and seeds only
++  (no mart). The mart reads base, core, intermediate, seeds and mart_competition_fixtures
++  (marts may ref marts): the provider_* columns and the withheld card and line-up goal flags exist
++  only in base. No model sets its own materialisation.
++  deploy_order: one build; the nightly picks it up after merge.
++  blast_radius: no shipped number changes; the nightly can no longer stop on the two moved cases.
++  The new mart's nightly bytes come from a dry-run and are stated in the MR.
++
++approved_design:
++  - none: no page output changes; the list is read by the research routine, not by the site
++
++depends_on:
++  - none: builds on merged !446, !447 and !465 only
++shared_files:
++  - none: no design baseline, chart manifest or chart pin changes
++
++decisions_taken: >
++  Ruled by the coordinating session on 2026-11-18 under #262. (1) The list holds the checks of
++  box 1's kinds (goals, scores, awards, cards): result_withheld (result_needs_research),
++  goals_not_reconciled, scorer_withheld and assist_withheld (scorer_ and assist_needs_research),
++  cards_withheld (cards_need_research), lineup_goals_withheld (goals_need_research), and
++  correction_no_longer_needed for fixture_result_corrections, fixture_goal_corrections,
++  fixture_round_corrections, standings_corrections and fixture_card_corrections. Each row names
++  the seed that fixes it. Team country and the stats limit are not result kinds and stay off the
++  list. (2) Each row carries research_tier from #176: 1 a domestic league of the registry, 2 a
++  match of a national team, 3 a match of a club that plays a registry domestic league in its
++  current season, NULL otherwise; and is_current_season from dim_competition_season. Which tiers
++  are researched is the routine's rule, not the list's. (3) The no-longer-needed logic moves
++  unchanged from assert_result_corrections_applied into int_pipeline__corrections_no_longer_needed;
++  the test keeps every check of our seed and code. (4) A card correction is no longer needed when
++  the provider's own card events of the match, cleaned, equal the seed card for card (player id,
++  card, minute and added minute), with no card without a player, and its stat lines carry the same
++  cards (no cards_from_research row). base_apif__fixture_events compares the events before the seed
++  replaces them, as provider_cards_match_research. (5) goals_not_reconciled leaves the error test
++  and the test gains goals_on_not_recorded: a not_recorded match serves no goal. (6) Both edited
++  tests stay error severity. The list is a table with no severity: nothing on it stops a build.
++  (7) Item key: item_key, the check and its subject, unique.
++  (8) Names follow engineering_standards §1: the mart's entity is competition, because every row
++  is a competition's match or standings row; the int model is an int_pipeline__ helper.
++  Threshold declarations: no new mechanism (a mart and an int model in existing layers). Recurring cost: two small tables a night, measured by dry-run in the MR.
++
++decisions_reserved:
++  - The standings tests (assert_team_season_equals_league_table, assert_team_table_equals_published_tables, assert_team_season_games_not_short_of_standings) and kind_needs_research: what a disagreement withholds is the CPO's (Q2 of the #262 plan), its own MR.
++  - The live-without-merge route, the scheduled runner and the weekly report: CPO decisions, not built here.
++  - Which research tiers the routine researches: the research skill's MR.
++
++done_when:
++  - dbt parse passes; sqlfluff lint passes on the changed models and tests; the full pytest suite passes.
++  - The MR's data build runs every model and every test passes.
++  - The MR states, measured read-only on its tables, the list's rows by check and tier, and the nightly bytes of the two new models from a dry-run.
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index 6ebff00e..b8589999 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -340,6 +340,7 @@ Canonical mart inventory (exhaustive) for this project:
+ | `mart_player_window_metrics` | (player_sk, page_tab, metric_key) | LONG Player page tab metrics: the four cards, and on the Club tab each metric this season against the whole of last season. Composes `int_player_window__metrics`. |
+ | `mart_player_squad_benchmarks` | (squad_sk, player_sk, metric_key) | LONG Squad comparison: the players with a third of the team's minutes in the window, with rank, median and count. Composes `int_player_squad_window__metrics`. |
+ | `mart_player_career` | (player_sk, team_sk, season_sk) | Player Career log: one row per player × club × competition-season (appearances/goals/assists) + player/club identity + `entity_type`. Composes `int_player_club_season__metrics` (the per-club atoms base, #480 §8.3); a mid-season transfer = two rows; national-entity rows = national appearances in covered competitions (NOT true caps); `national_appearances_total` denormalised per player. |
++| `mart_competition_research_list` | item_key | The provider errors to research. One row per match, or team in a match, where a provider-data check withholds a value. One row per correction the provider no longer needs. Read by the research routine, by no page. |
+ 
+ ## Consumption layer (export scripts, site builds) — NOT a dbt layer, bound by this contract
+ 
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 26b2095c..5240f5db 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -640,6 +640,8 @@ models:
+         description: "On a goal from fixture_goal_corrections, the source's https URLs; NULL on every event the provider sent. Such a goal stands at event_index 10000 plus its place in the match."
+       - name: card_correction_source
+         description: "On a card from fixture_card_corrections, the source's https URLs; NULL on every event the provider sent."
++      - name: provider_cards_match_research
++        description: "On every event of a match in fixture_card_corrections, TRUE where the provider's own events of the match include a substitution or a card, and its card events, cleaned, equal the seed's cards one for one by player id, card, minute and added minute, with no card the seed lacks; NULL on every other match."
+       - name: is_provider_goal
+         description: "TRUE where the provider files the event as a goal that counts: a normal goal, a penalty or an own goal, not a shoot-out kick. On a match whose goals come from fixture_goal_corrections, is_goal is FALSE on these events and TRUE on the corrections."
+         tests: [not_null]
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+index 3a9e3bd1..93765d88 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+@@ -551,6 +551,70 @@ nameless_left_out as (
+         )
+         and countif(g.is_goal_event and not g.is_nameless and g.team_id = s.home_team_id) = s.score_home
+         and countif(g.is_goal_event and not g.is_nameless and g.team_id = s.away_team_id) = s.score_away
++),
++
++research_card_keys as (
++    select
++        fixture_id,
++        player_id,
++        event_detail,
++        minute_elapsed,
++        coalesce(minute_extra, 0) as minute_extra,
++        count(*) as cards
++    from {{ ref('fixture_card_corrections') }}
++    where card_order > 0
++    group by fixture_id, player_id, event_detail, minute_elapsed, coalesce(minute_extra, 0)
++),
++
++-- The provider's own cards of a researched match, before the seed replaces them.
++provider_card_keys as (
++    select
++        r.fixture_id,
++        r.player_id,
++        r.event_detail,
++        r.minute_elapsed,
++        coalesce(r.minute_extra, 0) as minute_extra,
++        count(*) as cards
++    from resolved as r
++    inner join card_corrected_matches as m
++        on r.fixture_id = m.fixture_id
++    where r.event_type = 'Card' and coalesce(r.event_comments, '') != 'Not on pitch'
++    group by r.fixture_id, r.player_id, r.event_detail, r.minute_elapsed, coalesce(r.minute_extra, 0)
++),
++
++card_key_pairs as (
++    select
++        coalesce(s.fixture_id, p.fixture_id) as fixture_id,
++        coalesce(s.cards = p.cards, false) as agrees
++    from research_card_keys as s
++    full outer join provider_card_keys as p
++        on
++            s.fixture_id = p.fixture_id
++            and s.player_id = p.player_id
++            and s.event_detail = p.event_detail
++            and s.minute_elapsed = p.minute_elapsed
++            and s.minute_extra = p.minute_extra
++),
++
++provider_full_events as (
++    select r.fixture_id
++    from resolved as r
++    inner join card_corrected_matches as m
++        on r.fixture_id = m.fixture_id
++    where r.event_type in ('subst', 'Card')
++    group by r.fixture_id
++),
++
++card_research_agreement as (
++    select
++        m.fixture_id,
++        pf.fixture_id is not null and coalesce(logical_and(k.agrees), true) as provider_cards_match_research
++    from card_corrected_matches as m
++    left join provider_full_events as pf
++        on m.fixture_id = pf.fixture_id
++    left join card_key_pairs as k
++        on m.fixture_id = k.fixture_id
++    group by m.fixture_id, pf.fixture_id
+ )
+ 
+ select
+@@ -581,7 +645,10 @@ select
+     -- The events prove a zero only where they cover more than the goals: a match with at least one
+     -- substitution or card, which every played match has.
+     coalesce(logical_or(g.event_type in ('subst', 'Card')) over (partition by g.league_code, g.fixture_id), false)
+-        as has_full_events
++        as has_full_events,
++    c.provider_cards_match_research
+ from goal_events as g
+ left join nameless_left_out as n
+     on g.fixture_id = n.fixture_id
++left join card_research_agreement as c
++    on g.fixture_id = c.fixture_id
+diff --git a/dbt_project/models/4_intermediate/shared/int_pipeline__corrections_no_longer_needed.sql b/dbt_project/models/4_intermediate/shared/int_pipeline__corrections_no_longer_needed.sql
+new file mode 100644
+index 00000000..e39eac20
+--- /dev/null
++++ b/dbt_project/models/4_intermediate/shared/int_pipeline__corrections_no_longer_needed.sql
+@@ -0,0 +1,234 @@
++{#
++  Every hand correction of a result, a goal list, a round, a standings row or a match's cards that
++  the provider no longer needs, because its own data now carries the corrected values. One row per
++  correction, to be removed from its seed:
++  - fixture_result_corrections: the provider carries the official score and any shoot-out. An
++    award is always needed: the provider never says how it came about.
++  - fixture_goal_corrections: the provider's goal events add up to the score, and carry every
++    corrected goal with the same team, player id and minute. A goal without a player id, or whose
++    scorer or assister fails the line-up check, never matches.
++  - fixture_round_corrections: the provider files the fixture under the same round.
++  - standings_corrections: the provider's table row carries every corrected figure and team.
++  - fixture_card_corrections: the provider's card events equal the seed's cards one for one
++    (provider_cards_match_research), its stat lines carry the same cards (no cards_from_research),
++    and every player with a corrected card has a stat line.
++
++  correction names the seed row as assert_result_corrections_applied names it. Grain: (seed,
++  correction).
++#}
++
++with fixtures as (
++    select * from {{ ref('base_apif__fixtures_next') }}
++),
++
++fixture_corrections as (
++    select * from {{ ref('fixture_result_corrections') }}
++),
++
++goal_corrections as (
++    select * from {{ ref('fixture_goal_corrections') }}
++),
++
++round_corrections as (
++    select * from {{ ref('fixture_round_corrections') }}
++),
++
++table_corrections as (
++    select * from {{ ref('standings_corrections') }}
++),
++
++card_corrections as (
++    select * from {{ ref('fixture_card_corrections') }}
++),
++
++standings as (
++    select * from {{ ref('base_apif__standings') }}
++),
++
++events as (
++    select * from {{ ref('base_apif__fixture_events_checked') }}
++),
++
++goal_counts as (
++    select
++        c.fixture_id,
++        countif(c.goal_order > 0) as seed_goals,
++        min(if(f.award_kind in ('played', 'abandoned'), f.on_pitch_home, f.goals_home)) as score_home,
++        min(if(f.award_kind in ('played', 'abandoned'), f.on_pitch_away, f.goals_away)) as score_away
++    from goal_corrections as c
++    left join fixtures as f
++        on c.fixture_id = f.fixture_id
++    group by c.fixture_id
++),
++
++provider_goals as (
++    select
++        e.fixture_id,
++        countif(e.is_provider_goal and e.team_id = f.home_team_id) as provider_home,
++        countif(e.is_provider_goal and e.team_id = f.away_team_id) as provider_away
++    from events as e
++    inner join goal_counts as g
++        on e.fixture_id = g.fixture_id
++    inner join fixtures as f
++        on e.fixture_id = f.fixture_id
++    group by e.fixture_id
++),
++
++seed_goal_keys as (
++    select
++        fixture_id,
++        team_id,
++        player_id,
++        minute_elapsed,
++        coalesce(minute_extra, 0) as minute_extra,
++        count(*) as goals
++    from goal_corrections
++    where goal_order > 0 and player_id is not null
++    group by fixture_id, team_id, player_id, minute_elapsed, coalesce(minute_extra, 0)
++),
++
++provider_goal_keys as (
++    select
++        e.fixture_id,
++        e.team_id,
++        e.player_id,
++        e.minute_elapsed,
++        coalesce(e.minute_extra, 0) as minute_extra,
++        count(*) as goals
++    from events as e
++    inner join goal_counts as g
++        on e.fixture_id = g.fixture_id
++    where e.is_provider_goal and not e.scorer_needs_research and not e.assist_needs_research
++    group by e.fixture_id, e.team_id, e.player_id, e.minute_elapsed, coalesce(e.minute_extra, 0)
++),
++
++goal_matches as (
++    select
++        s.fixture_id,
++        sum(least(s.goals, p.goals)) as matched_goals
++    from seed_goal_keys as s
++    inner join provider_goal_keys as p
++        on
++            s.fixture_id = p.fixture_id
++            and s.team_id = p.team_id
++            and s.player_id = p.player_id
++            and s.minute_elapsed = p.minute_elapsed
++            and s.minute_extra = p.minute_extra
++    group by s.fixture_id
++),
++
++card_matches as (
++    select distinct fixture_id
++    from card_corrections
++),
++
++card_events_agree as (
++    select fixture_id
++    from {{ ref('base_apif__fixture_events') }}
++    group by fixture_id
++    having logical_and(coalesce(provider_cards_match_research, false))
++),
++
++stat_lines_differ as (
++    select distinct p.fixture_id
++    from {{ ref('base_apif__fixture_players') }} as p
++    cross join unnest(p.stat_corrections) as c
++    where c.rule = 'cards_from_research'
++),
++
++carded_players_without_line as (
++    select distinct c.fixture_id
++    from card_corrections as c
++    left join {{ ref('base_apif__fixture_players') }} as p
++        on c.fixture_id = p.fixture_id and c.player_id = p.player_id
++    where c.card_order > 0 and p.player_id is null
++)
++
++select
++    'fixture_result_corrections' as seed,
++    cast(c.fixture_id as string) as correction,
++    c.fixture_id,
++    f.league_code,
++    f.season as season_api_year
++from fixture_corrections as c
++inner join fixtures as f
++    on c.fixture_id = f.fixture_id
++where
++    f.provider_goals_home = c.goals_home
++    and f.provider_goals_away = c.goals_away
++    and not c.awarded
++    and (
++        c.shootout_home is null
++        or (f.provider_shootout_home = c.shootout_home and f.provider_shootout_away = c.shootout_away)
++    )
++union all
++select
++    'fixture_goal_corrections' as seed,
++    cast(g.fixture_id as string) as correction,
++    g.fixture_id,
++    f.league_code,
++    f.season as season_api_year
++from goal_counts as g
++inner join provider_goals as e
++    on g.fixture_id = e.fixture_id
++inner join fixtures as f
++    on g.fixture_id = f.fixture_id
++left join goal_matches as m
++    on g.fixture_id = m.fixture_id
++where
++    e.provider_home = g.score_home
++    and e.provider_away = g.score_away
++    and coalesce(m.matched_goals, 0) = g.seed_goals
++union all
++select
++    'fixture_round_corrections' as seed,
++    cast(c.fixture_id as string) as correction,
++    c.fixture_id,
++    f.league_code,
++    f.season as season_api_year
++from round_corrections as c
++inner join fixtures as f
++    on c.fixture_id = f.fixture_id
++where f.provider_round_name = c.round_name
++union all
++select
++    'standings_corrections' as seed,
++    concat(c.league_code, ' ', cast(c.season as string), ' ', cast(c.team_id as string), ' ', c.group_name)
++        as correction,
++    cast(null as int64) as fixture_id,
++    c.league_code,
++    c.season as season_api_year
++from table_corrections as c
++inner join standings as s
++    on
++        c.league_code = s.league_code
++        and c.season = s.season
++        and c.team_id = s.provider_team_id
++        and c.group_name = s.group_name
++where
++    s.provider_standing_rank = c.standing_rank
++    and s.provider_points = c.points
++    and s.provider_played_all = c.played
++    and s.provider_wins_all = c.wins
++    and s.provider_draws_all = c.draws
++    and s.provider_losses_all = c.losses
++    and s.provider_goals_for_all = c.goals_for
++    and s.provider_goals_against_all = c.goals_against
++    and s.team_id = s.provider_team_id
++union all
++select
++    'fixture_card_corrections' as seed,
++    cast(m.fixture_id as string) as correction,
++    m.fixture_id,
++    f.league_code,
++    f.season as season_api_year
++from card_matches as m
++inner join fixtures as f
++    on m.fixture_id = f.fixture_id
++inner join card_events_agree as a
++    on m.fixture_id = a.fixture_id
++left join stat_lines_differ as d
++    on m.fixture_id = d.fixture_id
++left join carded_players_without_line as w
++    on m.fixture_id = w.fixture_id
++where d.fixture_id is null and w.fixture_id is null
+diff --git a/dbt_project/models/4_intermediate/shared/int_pipeline__corrections_no_longer_needed.yml b/dbt_project/models/4_intermediate/shared/int_pipeline__corrections_no_longer_needed.yml
+new file mode 100644
+index 00000000..eda955d8
+--- /dev/null
++++ b/dbt_project/models/4_intermediate/shared/int_pipeline__corrections_no_longer_needed.yml
+@@ -0,0 +1,31 @@
++version: 2
++
++models:
++  - name: int_pipeline__corrections_no_longer_needed
++    description: >
++      Every row of the five correction seeds of results and cards (fixture_result_corrections,
++      fixture_goal_corrections, fixture_round_corrections, standings_corrections and
++      fixture_card_corrections) that the provider no longer needs, because its own data now carries
++      the corrected values. Each such row is to be removed from its seed.
++      mart_competition_research_list reads it. Grain: (seed, correction).
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [seed, correction]
++    columns:
++      - name: seed
++        description: "The correction seed that holds the row."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["fixture_result_corrections", "fixture_goal_corrections", "fixture_round_corrections", "standings_corrections", "fixture_card_corrections"]
++      - name: correction
++        description: "The seed row's key: the fixture id, or for standings_corrections the league code, season, provider team id and group name, separated by a space."
++        tests: [not_null]
++      - name: fixture_id
++        description: "API-Football's numeric id for the fixture; NULL on a standings correction."
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: season_api_year
++        description: "{{ doc('season_api_year') }}"
++        tests: [not_null]
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_research_list.sql b/dbt_project/models/5_marts/shared/mart_competition_research_list.sql
+new file mode 100644
+index 00000000..bb4d1520
+--- /dev/null
++++ b/dbt_project/models/5_marts/shared/mart_competition_research_list.sql
+@@ -0,0 +1,204 @@
++{#
++  The list of provider errors to research, rebuilt each night: one row per match, or team in a
++  match, where a check of the provider's data withholds a value on goals, scores, awards or cards,
++  and one row per correction the provider no longer needs. A value the provider has corrected
++  itself passes its check, and its row leaves the list. check_name says what failed:
++  - result_withheld: the match's result fails a result check (result_needs_research);
++  - goals_not_reconciled: the match's goal events add up neither alone nor with the players' goals,
++    so it serves no goal (goal_data_state not_recorded);
++  - scorer_withheld, assist_withheld: a goal's scorer or assister was not on the pitch at its minute;
++  - cards_withheld: the match's stat lines and card events disagree, or a card's player is not on
++    the sheet (cards_need_research);
++  - lineup_goals_withheld: a line-up team's player goals do not add up to its score
++    (goals_need_research);
++  - correction_no_longer_needed: the provider's own data now carries the row's corrected values
++    (int_pipeline__corrections_no_longer_needed), and the row is to be removed.
++  seed names the correction seed that fixes the row. research_tier is the research order of the
++  match: 1 a domestic league of the registry, 2 a match of a national team, 3 a match of a club
++  that plays a registry domestic league in its current season, NULL otherwise.
++
++  It reads base for the flags that exist only there: the withheld cards and line-up goals, and
++  the provider's own values a correction is compared with. Grain: item_key.
++#}
++
++with fixtures as (
++    select
++        fixture_sk,
++        season_sk,
++        league_code,
++        season_api_year,
++        fixture_date,
++        home_team_sk,
++        away_team_sk,
++        result_needs_research
++    from {{ ref('fct_fixture') }}
++),
++
++goal_event_matches as (
++    select fixture_sk
++    from {{ ref('fct_fixture_event') }}
++    where is_goal
++    group by fixture_sk
++),
++
++items as (
++    select
++        'result_withheld' as check_name,
++        'fixture_result_corrections' as seed,
++        fixture_sk,
++        cast(null as int64) as team_sk,
++        cast(null as string) as correction
++    from fixtures
++    where result_needs_research
++    union all
++    select
++        'goals_not_reconciled' as check_name,
++        'fixture_goal_corrections' as seed,
++        f.fixture_sk,
++        cast(null as int64) as team_sk,
++        cast(null as string) as correction
++    from {{ ref('mart_competition_fixtures') }} as f
++    inner join goal_event_matches as e
++        on f.fixture_sk = e.fixture_sk
++    where f.goal_data_state = 'not_recorded'
++    union all
++    select distinct
++        'scorer_withheld' as check_name,
++        'fixture_goal_corrections' as seed,
++        fixture_sk,
++        cast(null as int64) as team_sk,
++        cast(null as string) as correction
++    from {{ ref('fct_fixture_event') }}
++    where scorer_needs_research
++    union all
++    select distinct
++        'assist_withheld' as check_name,
++        'fixture_goal_corrections' as seed,
++        fixture_sk,
++        cast(null as int64) as team_sk,
++        cast(null as string) as correction
++    from {{ ref('fct_fixture_event') }}
++    where assist_needs_research
++    union all
++    select distinct
++        'cards_withheld' as check_name,
++        'fixture_card_corrections' as seed,
++        cast(p.fixture_id as int64) as fixture_sk,
++        cast(null as int64) as team_sk,
++        cast(null as string) as correction
++    from {{ ref('base_apif__fixture_players') }} as p
++    cross join unnest(p.stat_corrections) as c
++    where c.rule = 'cards_need_research'
++    union all
++    select distinct
++        'lineup_goals_withheld' as check_name,
++        'fixture_goal_corrections' as seed,
++        cast(fixture_id as int64) as fixture_sk,
++        cast(team_id as int64) as team_sk,
++        cast(null as string) as correction
++    from {{ ref('base_apif__fixture_players_from_lineups') }}
++    where goals_need_research
++),
++
++no_longer_needed as (
++    select
++        'correction_no_longer_needed' as check_name,
++        seed,
++        cast(fixture_id as int64) as fixture_sk,
++        cast(null as int64) as team_sk,
++        correction,
++        league_code,
++        season_api_year
++    from {{ ref('int_pipeline__corrections_no_longer_needed') }}
++),
++
++all_items as (
++    select
++        i.check_name,
++        i.seed,
++        i.fixture_sk,
++        i.team_sk,
++        i.correction,
++        f.league_code,
++        f.season_api_year
++    from items as i
++    inner join fixtures as f
++        on i.fixture_sk = f.fixture_sk
++    union all
++    select
++        check_name,
++        seed,
++        fixture_sk,
++        team_sk,
++        correction,
++        league_code,
++        season_api_year
++    from no_longer_needed
++),
++
++seasons as (
++    select
++        season_sk,
++        league_code,
++        season_api_year,
++        season_is_current
++    from {{ ref('dim_competition_season') }}
++),
++
++domestic_leagues as (
++    select league_code
++    from {{ ref('dim_league') }}
++    where competition_type = 'domestic_league'
++),
++
++national_teams as (
++    select team_sk
++    from {{ ref('dim_team') }}
++    where is_national_team
++),
++
++domestic_league_clubs as (
++    select distinct m.team_sk
++    from {{ ref('dim_team_competition_season_mapping') }} as m
++    inner join domestic_leagues as d
++        on m.league_code = d.league_code
++    inner join seasons as s
++        on m.season_sk = s.season_sk
++    where s.season_is_current
++)
++
++select
++    a.check_name,
++    a.seed,
++    a.correction,
++    a.fixture_sk,
++    a.team_sk,
++    a.league_code,
++    a.season_api_year,
++    f.fixture_date,
++    concat(
++        a.check_name, ' ', a.seed, ' ',
++        coalesce(a.correction, cast(a.fixture_sk as string)),
++        coalesce(concat(' ', cast(a.team_sk as string)), '')
++    ) as item_key,
++    coalesce(s.season_is_current, false) as is_current_season,
++    case
++        when d.league_code is not null then 1
++        when hn.team_sk is not null or an.team_sk is not null then 2
++        when hc.team_sk is not null or ac.team_sk is not null then 3
++    end as research_tier
++from all_items as a
++left join fixtures as f
++    on a.fixture_sk = f.fixture_sk
++left join seasons as s
++    on a.league_code = s.league_code and a.season_api_year = s.season_api_year
++left join domestic_leagues as d
++    on a.league_code = d.league_code
++left join national_teams as hn
++    on f.home_team_sk = hn.team_sk
++left join national_teams as an
++    on f.away_team_sk = an.team_sk
++left join domestic_league_clubs as hc
++    on f.home_team_sk = hc.team_sk
++left join domestic_league_clubs as ac
++    on f.away_team_sk = ac.team_sk
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index bc7f45a9..2e16f9fd 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -4282,3 +4282,58 @@ models:
+       - name: has_nation_page
+         description: "True when the player's nation has more players than the Players page shows of it, so it has its own page at nation_slug. False for the players with no nationality. One value per nation."
+         tests: [not_null]
++
++  - name: mart_competition_research_list
++    description: >
++      The list of provider errors to research, rebuilt each night. One row per match, or team in a
++      match, where a check of the provider's data withholds a value on goals, scores, awards or
++      cards, and one row per correction the provider no longer needs. A value the provider has
++      corrected itself passes its check, and its row leaves the list. The research routine reads
++      it; no page does. Grain: item_key.
++    columns:
++      - name: item_key
++        description: "The row's key: check_name, seed, and the correction's key or the fixture id, with the team id for a line-up team, separated by a space."
++        tests: [unique, not_null]
++      - name: check_name
++        description: "What failed: result_withheld, goals_not_reconciled, scorer_withheld, assist_withheld, cards_withheld, lineup_goals_withheld, or correction_no_longer_needed (the provider's own data now carries the row's corrected values, and the row is to be removed)."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["result_withheld", "goals_not_reconciled", "scorer_withheld", "assist_withheld", "cards_withheld", "lineup_goals_withheld", "correction_no_longer_needed"]
++      - name: seed
++        description: "The correction seed that fixes the row, or that holds the correction no longer needed."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["fixture_result_corrections", "fixture_goal_corrections", "fixture_round_corrections", "standings_corrections", "fixture_card_corrections"]
++      - name: correction
++        description: "On a correction no longer needed, the seed row's key: the fixture id, or for standings_corrections the league code, season, provider team id and group name. NULL on every other row."
++      - name: fixture_sk
++        description: "{{ doc('fixture_sk') }}"
++        tests:
++          - relationships:
++              to: ref('fct_fixture')
++              field: fixture_sk
++      - name: team_sk
++        description: "{{ doc('team_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: season_api_year
++        description: "{{ doc('season_api_year') }}"
++        tests: [not_null]
++      - name: fixture_date
++        description: "{{ doc('fixture_date') }}"
++      - name: is_current_season
++        description: "True when the row's competition-season is the provider's current one."
++        tests: [not_null]
++      - name: research_tier
++        description: "The research order of the row: 1 a match of a domestic league of the registry, 2 a match of a national team, 3 a match of a club that plays a registry domestic league in its current season. NULL on any other row."
++        tests:
++          - accepted_values:
++              values: [1, 2, 3]
++              quote: false
+diff --git a/dbt_project/models/docs/cleaning_rules.md b/dbt_project/models/docs/cleaning_rules.md
+index 66b8e847..dcfeb917 100644
+--- a/dbt_project/models/docs/cleaning_rules.md
++++ b/dbt_project/models/docs/cleaning_rules.md
+@@ -43,7 +43,9 @@ match stats are good enough.
+   minute can fall in that period's added time. A scorer or assister who fails this is withheld
+   until sourced research stands in fixture_goal_corrections; the goal and the score stay.
+ - Withheld values. A value that fails its check and has no sourced correction yet is left blank,
+-  as line-ups and cards are.
++  as line-ups and cards are. Each withheld result, goal list, scorer, assister, card list and
++  line-up team's goals stands on mart_competition_research_list, beside every correction the provider
++  no longer needs.
+ - Cards. A player's yellow and red cards are exact. Where his stat line and the card events
+   disagree, or a card's player is not on the sheet, the match's cards come from sourced research.
+   Research is not needed where another fetch gives the events' count.
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index a2513995..0f128f02 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -709,8 +709,8 @@ seeds:
+       researched and sourced; a match with no goal has one row at goal_order 0 and no goal fields.
+       Applied in base_apif__fixture_events: the match's goals are these, and
+       the provider's goal events stay beside them, not counted. assert_result_corrections_applied
+-      fails when a match's rows are not applied, do not add up to its score, are not sourced, or
+-      are no longer needed.
++      fails when a match's rows are not applied, do not add up to its score, or are not sourced;
++      int_pipeline__corrections_no_longer_needed lists a match whose rows are no longer needed.
+     config:
+       column_types:
+         fixture_id: int64
+diff --git a/dbt_project/tests/assert_mart_competition_fixtures_goals_add_up.sql b/dbt_project/tests/assert_mart_competition_fixtures_goals_add_up.sql
+index 6f6d2abe..ac497087 100644
+--- a/dbt_project/tests/assert_mart_competition_fixtures_goals_add_up.sql
++++ b/dbt_project/tests/assert_mart_competition_fixtures_goals_add_up.sql
+@@ -11,8 +11,9 @@
+   - score_after_wrong: a list in match order whose scores after each goal do not step up one goal
+     at a time to the goals it serves;
+   - unknown_player: a scorer's or assister's provider id that dim_player does not hold;
+-  - goals_not_reconciled: a match whose goal events exist but add up neither alone nor with the
+-    players' goals; it needs its goals in fixture_goal_corrections.
++  - goals_on_not_recorded: goals served on a match whose state is not_recorded.
++  A match whose goal events add up neither alone nor with the players' goals serves none and is on
++  mart_competition_research_list.
+ #}
+ {{ config(store_failures = true, severity = 'error') }}
+ 
+@@ -20,15 +21,6 @@ with fixtures as (
+     select * from {{ ref('mart_competition_fixtures') }}
+ ),
+ 
+-goal_events as (
+-    select
+-        fixture_sk,
+-        count(*) as goal_events
+-    from {{ ref('fct_fixture_event') }}
+-    where is_goal
+-    group by fixture_sk
+-),
+-
+ players as (
+     select player_sk
+     from {{ ref('dim_player') }}
+@@ -96,13 +88,11 @@ checked as (
+                 )
+                 then 'score_after_wrong'
+             when s.served_unknown_player > 0 or s.served_unknown_assist > 0 then 'unknown_player'
+-            when f.goal_data_state = 'not_recorded' and coalesce(e.goal_events, 0) > 0 then 'goals_not_reconciled'
++            when f.goal_data_state = 'not_recorded' and s.entries > 0 then 'goals_on_not_recorded'
+         end as problem
+     from fixtures as f
+     inner join served as s
+         on f.fixture_sk = s.fixture_sk
+-    left join goal_events as e
+-        on f.fixture_sk = e.fixture_sk
+ )
+ 
+ select *
+diff --git a/dbt_project/tests/assert_result_corrections_applied.sql b/dbt_project/tests/assert_result_corrections_applied.sql
+index e165fb38..6c7d2519 100644
+--- a/dbt_project/tests/assert_result_corrections_applied.sql
++++ b/dbt_project/tests/assert_result_corrections_applied.sql
+@@ -1,5 +1,5 @@
+--- Every hand correction of a result or a round, from the four correction seeds, is applied, sourced
+--- and still needed. One row per broken correction:
++-- Every hand correction of a result or a round, from the four correction seeds, is applied and
++-- sourced. One row per broken correction:
+ --   - not_applied: base has no such match or table row, or does not carry the official figures
+ --     and team. A withheld result (result_needs_research) carries none, by design.
+ --   - winner_not_valid: a winner is set where the score already decides, or names a team not in
+@@ -13,11 +13,7 @@
+ --   - does_not_add_up: a match's corrected goals do not add up to its score side by side (the
+ --     score on the pitch for a played or abandoned award), name a team not in the match, or sit
+ --     beside the row that says the match had no goal.
+---   - no_longer_needed: the provider now carries the official result itself, or every corrected
+---     goal with the same team, player id and minute; a goal without a player id, or whose scorer or
+---     assister fails the line-up check, never matches.
+---     An award is always needed: the provider never says how it came about. A round correction
+---     is no longer needed once the provider files the fixture under the same round.
++-- A correction the provider no longer needs is in int_pipeline__corrections_no_longer_needed.
+ 
+ {{ config(store_failures = true) }}
+ 
+@@ -68,60 +64,13 @@ event_counts as (
+     select
+         e.fixture_id,
+         countif(e.is_goal and e.goal_correction_source is not null) as applied_goals,
+-        countif(e.is_goal and e.goal_correction_source is null) as provider_goals_counted,
+-        countif(e.is_provider_goal and e.team_id = f.home_team_id) as provider_home,
+-        countif(e.is_provider_goal and e.team_id = f.away_team_id) as provider_away
++        countif(e.is_goal and e.goal_correction_source is null) as provider_goals_counted
+     from events as e
+     inner join goal_counts as g
+         on e.fixture_id = g.fixture_id
+-    inner join fixtures as f
+-        on e.fixture_id = f.fixture_id
+     group by e.fixture_id
+ ),
+ 
+-seed_goal_keys as (
+-    select
+-        fixture_id,
+-        team_id,
+-        player_id,
+-        minute_elapsed,
+-        coalesce(minute_extra, 0) as minute_extra,
+-        count(*) as goals
+-    from goal_corrections
+-    where goal_order > 0 and player_id is not null
+-    group by fixture_id, team_id, player_id, minute_elapsed, coalesce(minute_extra, 0)
+-),
+-
+-provider_goal_keys as (
+-    select
+-        e.fixture_id,
+-        e.team_id,
+-        e.player_id,
+-        e.minute_elapsed,
+-        coalesce(e.minute_extra, 0) as minute_extra,
+-        count(*) as goals
+-    from events as e
+-    inner join goal_counts as g
+-        on e.fixture_id = g.fixture_id
+-    where e.is_provider_goal and not e.scorer_needs_research and not e.assist_needs_research
+-    group by e.fixture_id, e.team_id, e.player_id, e.minute_elapsed, coalesce(e.minute_extra, 0)
+-),
+-
+-goal_matches as (
+-    select
+-        s.fixture_id,
+-        sum(least(s.goals, p.goals)) as matched_goals
+-    from seed_goal_keys as s
+-    inner join provider_goal_keys as p
+-        on
+-            s.fixture_id = p.fixture_id
+-            and s.team_id = p.team_id
+-            and s.player_id = p.player_id
+-            and s.minute_elapsed = p.minute_elapsed
+-            and s.minute_extra = p.minute_extra
+-    group by s.fixture_id
+-),
+-
+ goal_checks as (
+     select
+         'fixture_goal_corrections' as seed,
+@@ -137,17 +86,10 @@ goal_checks as (
+                 or g.seed_home is distinct from g.score_home
+                 or g.seed_away is distinct from g.score_away
+                 then 'does_not_add_up'
+-            when
+-                e.provider_home = g.score_home
+-                and e.provider_away = g.score_away
+-                and coalesce(m.matched_goals, 0) = g.seed_goals
+-                then 'no_longer_needed'
+         end as problem
+     from goal_counts as g
+     left join event_counts as e
+         on g.fixture_id = e.fixture_id
+-    left join goal_matches as m
+-        on g.fixture_id = m.fixture_id
+ ),
+ 
+ fixture_checks as (
+@@ -199,15 +141,6 @@ fixture_checks as (
+                     )
+                 )
+                 then 'shootout_not_valid'
+-            when
+-                f.provider_goals_home = c.goals_home
+-                and f.provider_goals_away = c.goals_away
+-                and not c.awarded
+-                and (
+-                    c.shootout_home is null
+-                    or (f.provider_shootout_home = c.shootout_home and f.provider_shootout_away = c.shootout_away)
+-                )
+-                then 'no_longer_needed'
+         end as problem
+     from fixture_corrections as c
+     left join fixtures as f
+@@ -220,7 +153,6 @@ round_checks as (
+         cast(c.fixture_id as string) as correction,
+         case
+             when f.fixture_id is null or f.round_name is distinct from c.round_name then 'not_applied'
+-            when f.provider_round_name = c.round_name then 'no_longer_needed'
+         end as problem
+     from round_corrections as c
+     left join fixtures as f
+@@ -246,17 +178,6 @@ table_checks as (
+                 or s.goals_against_all is distinct from c.goals_against
+                 or s.goals_diff is distinct from c.goals_for - c.goals_against
+                 then 'not_applied'
+-            when
+-                s.provider_standing_rank = c.standing_rank
+-                and s.provider_points = c.points
+-                and s.provider_played_all = c.played
+-                and s.provider_wins_all = c.wins
+-                and s.provider_draws_all = c.draws
+-                and s.provider_losses_all = c.losses
+-                and s.provider_goals_for_all = c.goals_for
+-                and s.provider_goals_against_all = c.goals_against
+-                and s.team_id = s.provider_team_id
+-                then 'no_longer_needed'
+         end as problem
+     from table_corrections as c
+     left join standings as s
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/262-provider-research-list/review.md  |   30 +
+#    .../262-provider-research-list/review_input.patch  | 1002 ++++++++++++++++++++
+#    2 files changed, 1032 insertions(+)
+# ============================================================================

@@ -4020,3 +4020,58 @@ models:
       - name: has_nation_page
         description: "True when the player's nation has more players than the Players page shows of it, so it has its own page at nation_slug. False for the players with no nationality. One value per nation."
         tests: [not_null]
+
+  - name: mart_competition_research_list
+    description: >
+      The list of provider errors to research, rebuilt each night. One row per match, or team in a
+      match, where a check of the provider's data withholds a value on goals, scores, awards or
+      cards, and one row per correction the provider no longer needs. A value the provider has
+      corrected itself passes its check, and its row leaves the list. The research routine reads
+      it; no page does. Grain: item_key.
+    columns:
+      - name: item_key
+        description: "The row's key: check_name, seed, and the correction's key or the fixture id, with the team id for a line-up team, separated by a space."
+        tests: [unique, not_null]
+      - name: check_name
+        description: "What failed: result_withheld, goals_not_reconciled, scorer_withheld, assist_withheld, cards_withheld, lineup_goals_withheld, or correction_no_longer_needed (the provider's own data now carries the row's corrected values, and the row is to be removed)."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["result_withheld", "goals_not_reconciled", "scorer_withheld", "assist_withheld", "cards_withheld", "lineup_goals_withheld", "correction_no_longer_needed"]
+      - name: seed
+        description: "The correction seed that fixes the row, or that holds the correction no longer needed."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["fixture_result_corrections", "fixture_goal_corrections", "fixture_round_corrections", "standings_corrections", "fixture_card_corrections"]
+      - name: correction
+        description: "On a correction no longer needed, the seed row's key: the fixture id, or for standings_corrections the league code, season, provider team id and group name. NULL on every other row."
+      - name: fixture_sk
+        description: "{{ doc('fixture_sk') }}"
+        tests:
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: team_sk
+        description: "{{ doc('team_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: fixture_date
+        description: "{{ doc('fixture_date') }}"
+      - name: is_current_season
+        description: "True when the row's competition-season is the provider's current one."
+        tests: [not_null]
+      - name: research_tier
+        description: "The research order of the row: 1 a match of a domestic league of the registry, 2 a match of a national team, 3 a match of a club that plays a registry domestic league in its current season. NULL on any other row."
+        tests:
+          - accepted_values:
+              values: [1, 2, 3]
+              quote: false

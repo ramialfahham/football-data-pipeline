@@ -551,6 +551,70 @@ nameless_left_out as (
         )
         and countif(g.is_goal_event and not g.is_nameless and g.team_id = s.home_team_id) = s.score_home
         and countif(g.is_goal_event and not g.is_nameless and g.team_id = s.away_team_id) = s.score_away
+),
+
+research_card_keys as (
+    select
+        fixture_id,
+        player_id,
+        event_detail,
+        minute_elapsed,
+        coalesce(minute_extra, 0) as minute_extra,
+        count(*) as cards
+    from {{ ref('fixture_card_corrections') }}
+    where card_order > 0
+    group by fixture_id, player_id, event_detail, minute_elapsed, coalesce(minute_extra, 0)
+),
+
+-- The provider's own cards of a researched match, before the seed replaces them.
+provider_card_keys as (
+    select
+        r.fixture_id,
+        r.player_id,
+        r.event_detail,
+        r.minute_elapsed,
+        coalesce(r.minute_extra, 0) as minute_extra,
+        count(*) as cards
+    from resolved as r
+    inner join card_corrected_matches as m
+        on r.fixture_id = m.fixture_id
+    where r.event_type = 'Card' and coalesce(r.event_comments, '') != 'Not on pitch'
+    group by r.fixture_id, r.player_id, r.event_detail, r.minute_elapsed, coalesce(r.minute_extra, 0)
+),
+
+card_key_pairs as (
+    select
+        coalesce(s.fixture_id, p.fixture_id) as fixture_id,
+        coalesce(s.cards = p.cards, false) as agrees
+    from research_card_keys as s
+    full outer join provider_card_keys as p
+        on
+            s.fixture_id = p.fixture_id
+            and s.player_id = p.player_id
+            and s.event_detail = p.event_detail
+            and s.minute_elapsed = p.minute_elapsed
+            and s.minute_extra = p.minute_extra
+),
+
+provider_full_events as (
+    select r.fixture_id
+    from resolved as r
+    inner join card_corrected_matches as m
+        on r.fixture_id = m.fixture_id
+    where r.event_type in ('subst', 'Card')
+    group by r.fixture_id
+),
+
+card_research_agreement as (
+    select
+        m.fixture_id,
+        pf.fixture_id is not null and coalesce(logical_and(k.agrees), true) as provider_cards_match_research
+    from card_corrected_matches as m
+    left join provider_full_events as pf
+        on m.fixture_id = pf.fixture_id
+    left join card_key_pairs as k
+        on m.fixture_id = k.fixture_id
+    group by m.fixture_id, pf.fixture_id
 )
 
 select
@@ -581,7 +645,10 @@ select
     -- The events prove a zero only where they cover more than the goals: a match with at least one
     -- substitution or card, which every played match has.
     coalesce(logical_or(g.event_type in ('subst', 'Card')) over (partition by g.league_code, g.fixture_id), false)
-        as has_full_events
+        as has_full_events,
+    c.provider_cards_match_research
 from goal_events as g
 left join nameless_left_out as n
     on g.fixture_id = n.fixture_id
+left join card_research_agreement as c
+    on g.fixture_id = c.fixture_id

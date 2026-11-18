@@ -706,8 +706,8 @@ seeds:
       researched and sourced; a match with no goal has one row at goal_order 0 and no goal fields.
       Applied in base_apif__fixture_events: the match's goals are these, and
       the provider's goal events stay beside them, not counted. assert_result_corrections_applied
-      fails when a match's rows are not applied, do not add up to its score, are not sourced, or
-      are no longer needed.
+      fails when a match's rows are not applied, do not add up to its score, or are not sourced;
+      int_pipeline__corrections_no_longer_needed lists a match whose rows are no longer needed.
     config:
       column_types:
         fixture_id: int64

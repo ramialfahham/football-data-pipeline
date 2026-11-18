@@ -640,6 +640,8 @@ models:
         description: "On a goal from fixture_goal_corrections, the source's https URLs; NULL on every event the provider sent. Such a goal stands at event_index 10000 plus its place in the match."
       - name: card_correction_source
         description: "On a card from fixture_card_corrections, the source's https URLs; NULL on every event the provider sent."
+      - name: provider_cards_match_research
+        description: "On every event of a match in fixture_card_corrections, TRUE where the provider's own events of the match include a substitution or a card, and its card events, cleaned, equal the seed's cards one for one by player id, card, minute and added minute, with no card the seed lacks; NULL on every other match."
       - name: is_provider_goal
         description: "TRUE where the provider files the event as a goal that counts: a normal goal, a penalty or an own goal, not a shoot-out kick. On a match whose goals come from fixture_goal_corrections, is_goal is FALSE on these events and TRUE on the corrections."
         tests: [not_null]

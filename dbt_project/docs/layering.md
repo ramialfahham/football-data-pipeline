@@ -340,6 +340,7 @@ Canonical mart inventory (exhaustive) for this project:
 | `mart_player_window_metrics` | (player_sk, page_tab, metric_key) | LONG Player page tab metrics: the four cards, and on the Club tab each metric this season against the whole of last season. Composes `int_player_window__metrics`. |
 | `mart_player_squad_benchmarks` | (squad_sk, player_sk, metric_key) | LONG Squad comparison: the players with a third of the team's minutes in the window, with rank, median and count. Composes `int_player_squad_window__metrics`. |
 | `mart_player_career` | (player_sk, team_sk, season_sk) | Player Career log: one row per player × club × competition-season (appearances/goals/assists) + player/club identity + `entity_type`. Composes `int_player_club_season__metrics` (the per-club atoms base, #480 §8.3); a mid-season transfer = two rows; national-entity rows = national appearances in covered competitions (NOT true caps); `national_appearances_total` denormalised per player. |
+| `mart_competition_research_list` | item_key | The provider errors to research. One row per match, or team in a match, where a provider-data check withholds a value. One row per correction the provider no longer needs. Read by the research routine, by no page. |
 
 ## Consumption layer (export scripts, site builds) — NOT a dbt layer, bound by this contract
 

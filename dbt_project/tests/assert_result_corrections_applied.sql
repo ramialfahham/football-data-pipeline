@@ -1,5 +1,5 @@
--- Every hand correction of a result or a round, from the four correction seeds, is applied, sourced
--- and still needed. One row per broken correction:
+-- Every hand correction of a result or a round, from the four correction seeds, is applied and
+-- sourced. One row per broken correction:
 --   - not_applied: base has no such match or table row, or does not carry the official figures
 --     and team. A withheld result (result_needs_research) carries none, by design.
 --   - winner_not_valid: a winner is set where the score already decides, or names a team not in
@@ -13,11 +13,7 @@
 --   - does_not_add_up: a match's corrected goals do not add up to its score side by side (the
 --     score on the pitch for a played or abandoned award), name a team not in the match, or sit
 --     beside the row that says the match had no goal.
---   - no_longer_needed: the provider now carries the official result itself, or every corrected
---     goal with the same team, player id and minute; a goal without a player id, or whose scorer or
---     assister fails the line-up check, never matches.
---     An award is always needed: the provider never says how it came about. A round correction
---     is no longer needed once the provider files the fixture under the same round.
+-- A correction the provider no longer needs is in int_pipeline__corrections_no_longer_needed.
 
 {{ config(store_failures = true) }}
 
@@ -68,58 +64,11 @@ event_counts as (
     select
         e.fixture_id,
         countif(e.is_goal and e.goal_correction_source is not null) as applied_goals,
-        countif(e.is_goal and e.goal_correction_source is null) as provider_goals_counted,
-        countif(e.is_provider_goal and e.team_id = f.home_team_id) as provider_home,
-        countif(e.is_provider_goal and e.team_id = f.away_team_id) as provider_away
+        countif(e.is_goal and e.goal_correction_source is null) as provider_goals_counted
     from events as e
     inner join goal_counts as g
         on e.fixture_id = g.fixture_id
-    inner join fixtures as f
-        on e.fixture_id = f.fixture_id
     group by e.fixture_id
-),
-
-seed_goal_keys as (
-    select
-        fixture_id,
-        team_id,
-        player_id,
-        minute_elapsed,
-        coalesce(minute_extra, 0) as minute_extra,
-        count(*) as goals
-    from goal_corrections
-    where goal_order > 0 and player_id is not null
-    group by fixture_id, team_id, player_id, minute_elapsed, coalesce(minute_extra, 0)
-),
-
-provider_goal_keys as (
-    select
-        e.fixture_id,
-        e.team_id,
-        e.player_id,
-        e.minute_elapsed,
-        coalesce(e.minute_extra, 0) as minute_extra,
-        count(*) as goals
-    from events as e
-    inner join goal_counts as g
-        on e.fixture_id = g.fixture_id
-    where e.is_provider_goal and not e.scorer_needs_research and not e.assist_needs_research
-    group by e.fixture_id, e.team_id, e.player_id, e.minute_elapsed, coalesce(e.minute_extra, 0)
-),
-
-goal_matches as (
-    select
-        s.fixture_id,
-        sum(least(s.goals, p.goals)) as matched_goals
-    from seed_goal_keys as s
-    inner join provider_goal_keys as p
-        on
-            s.fixture_id = p.fixture_id
-            and s.team_id = p.team_id
-            and s.player_id = p.player_id
-            and s.minute_elapsed = p.minute_elapsed
-            and s.minute_extra = p.minute_extra
-    group by s.fixture_id
 ),
 
 goal_checks as (
@@ -137,17 +86,10 @@ goal_checks as (
                 or g.seed_home is distinct from g.score_home
                 or g.seed_away is distinct from g.score_away
                 then 'does_not_add_up'
-            when
-                e.provider_home = g.score_home
-                and e.provider_away = g.score_away
-                and coalesce(m.matched_goals, 0) = g.seed_goals
-                then 'no_longer_needed'
         end as problem
     from goal_counts as g
     left join event_counts as e
         on g.fixture_id = e.fixture_id
-    left join goal_matches as m
-        on g.fixture_id = m.fixture_id
 ),
 
 fixture_checks as (
@@ -199,15 +141,6 @@ fixture_checks as (
                     )
                 )
                 then 'shootout_not_valid'
-            when
-                f.provider_goals_home = c.goals_home
-                and f.provider_goals_away = c.goals_away
-                and not c.awarded
-                and (
-                    c.shootout_home is null
-                    or (f.provider_shootout_home = c.shootout_home and f.provider_shootout_away = c.shootout_away)
-                )
-                then 'no_longer_needed'
         end as problem
     from fixture_corrections as c
     left join fixtures as f
@@ -220,7 +153,6 @@ round_checks as (
         cast(c.fixture_id as string) as correction,
         case
             when f.fixture_id is null or f.round_name is distinct from c.round_name then 'not_applied'
-            when f.provider_round_name = c.round_name then 'no_longer_needed'
         end as problem
     from round_corrections as c
     left join fixtures as f
@@ -246,17 +178,6 @@ table_checks as (
                 or s.goals_against_all is distinct from c.goals_against
                 or s.goals_diff is distinct from c.goals_for - c.goals_against
                 then 'not_applied'
-            when
-                s.provider_standing_rank = c.standing_rank
-                and s.provider_points = c.points
-                and s.provider_played_all = c.played
-                and s.provider_wins_all = c.wins
-                and s.provider_draws_all = c.draws
-                and s.provider_losses_all = c.losses
-                and s.provider_goals_for_all = c.goals_for
-                and s.provider_goals_against_all = c.goals_against
-                and s.team_id = s.provider_team_id
-                then 'no_longer_needed'
         end as problem
     from table_corrections as c
     left join standings as s
