@@ -250,31 +250,36 @@ export function expectedBoards(dataDir = DATA_DIR) {
 
 const TEAM_RE = {
   row: /<div(?=[^>]*\sclass="rs-row[ "])[^>]*>/g,
+  panel: /<div(?=[^>]*\sclass="cmp-p")(?=[^>]*\sdata-league="([^"]*)")[^>]*>/g,
   metric: /\sdata-metric="([^"]*)"/,
   rank: /<span class="rs-val">([^<]*)<small>/,
 };
 
-/** The league rows on one Team page, each with its metric and the rank it shows. A row is the HTML
- *  from one `.rs-row` wrapper to the next. */
+/** The league rows on one Team page, each with its metric, the rank it shows, and the league of the
+ *  panel it stands in (null outside a panel). A row is the HTML from one `.rs-row` wrapper to the next. */
 export function teamRankRows(html) {
   const starts = [...html.matchAll(TEAM_RE.row)];
+  const panels = [...html.matchAll(TEAM_RE.panel)];
   return starts.map((m, i) => ({
     metric: m[0].match(TEAM_RE.metric)?.[1] ?? null,
     shown: html.slice(m.index, starts[i + 1]?.index ?? html.length).match(TEAM_RE.rank)?.[1]?.trim() ?? null,
+    league: panels.filter((p) => p.index < m.index).pop()?.[1] ?? null,
   }));
 }
 
-/** Issues on one Team page: each row's shown rank against `served`, the featured season's rank by
- *  metric key from the payload the page was built from. */
+/** Issues on one Team page: each row's shown rank against `served`, the rank by metric key from the
+ *  payload the page was built from. A row in a competition's panel reads `{league}:{metric}`, any
+ *  other row the featured season's `{metric}`. */
 export function checkTeamPage(html, lang, served, path = "") {
   const issues = [];
-  for (const { metric, shown } of teamRankRows(html)) {
+  for (const { metric, shown, league } of teamRankRows(html)) {
+    const key = league ? `${league}:${metric}` : metric;
     if (!metric) {
       issues.push(`${path}: a league row names no metric with data-metric`);
-    } else if (!served?.has(metric)) {
+    } else if (!served?.has(key)) {
       issues.push(`${path}: the league row of ${metric} has no served rank in the team payload`);
-    } else if (shown !== ordinal(served.get(metric), lang)) {
-      issues.push(`${path}: the league row of ${metric} shows ${shown ?? "no rank"}, the payload serves ${ordinal(served.get(metric), lang)}`);
+    } else if (shown !== ordinal(served.get(key), lang)) {
+      issues.push(`${path}: the league row of ${metric} shows ${shown ?? "no rank"}, the payload serves ${ordinal(served.get(key), lang)}`);
     }
   }
   return issues;
@@ -316,7 +321,7 @@ export function checkScatterLabels(html, path = "") {
 }
 
 /** Each team payload's served league ranks, by slug: the featured season's `benchmarks`, rank by
- *  metric key. */
+ *  metric key, and every season that carries a strip, rank by `{league_code}:{metric key}`. */
 export function expectedTeamRanks(dataDir = DATA_DIR) {
   const dir = join(dataDir, "teams");
   const ranks = new Map();
@@ -324,7 +329,12 @@ export function expectedTeamRanks(dataDir = DATA_DIR) {
   for (const file of readdirSync(dir).filter((f) => f.endsWith(".json"))) {
     const p = JSON.parse(readFileSync(join(dir, file), "utf8"));
     const season = (p.seasons ?? []).find((s) => s.is_featured_season);
-    ranks.set(p.slug, new Map((season?.benchmarks ?? []).map((b) => [b.metric_key, b.rank])));
+    const served = new Map((season?.benchmarks ?? []).map((b) => [b.metric_key, b.rank]));
+    for (const s of p.seasons ?? []) {
+      if (s !== season && !(s.league_strip ?? []).length) continue;
+      for (const b of s.benchmarks ?? []) served.set(`${s.league_code}:${b.metric_key}`, b.rank);
+    }
+    ranks.set(p.slug, served);
   }
   return ranks;
 }

@@ -1,0 +1,37 @@
+---
+// This season: the club's season over all its competitions, above the tabs on every tab. Its
+// explainer names the season and lists the competitions in the served order; six cards count the
+// matches, wins, goals, goals against, yellow cards and red cards, a 0 included.
+// Data: mart_team_page_window_metrics, through the payload's this_season.
+import SectionHead from "../ui/SectionHead.astro";
+import Explainer from "../ui/Explainer.astro";
+import StatCards from "../ui/StatCards.astro";
+import { DASH, integer, listOf } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import { competitionInfo } from "../../lib/teamFixtures";
+import type { Lang } from "../../lib/format";
+import type { TeamThisSeason } from "../../lib/types";
+
+interface Props {
+  season: TeamThisSeason;
+  seasonLabel: string;
+  lang: Lang;
+}
+const { season, seasonLabel, lang } = Astro.props;
+const count = (v: number | null | undefined) => (v == null ? DASH : integer(v, lang));
+const cards = [
+  { value: count(season.matches), label: t(lang, "teamCardMatches") },
+  { value: count(season.wins), label: t(lang, "wins") },
+  { value: count(season.cards.goals), label: t(lang, "goals") },
+  { value: count(season.cards.goals_against), label: t(lang, "goalsAgainst") },
+  { value: count(season.cards.cards_yellow), label: t(lang, "yellowCards") },
+  { value: count(season.cards.cards_red), label: t(lang, "redCards") },
+];
+const competitions = listOf(season.league_codes.map((c) => competitionInfo(c).name), lang);
+---
+
+<section>
+  <SectionHead label={t(lang, "teamThisSeasonHead")} />
+  <Explainer text={t(lang, "teamThisSeasonIntro", { season: seasonLabel, competitions })} />
+  <StatCards cards={cards} />
+</section>

@@ -1,0 +1,23 @@
+---
+// Recent matches: the team's last results, newest first, in the row form the page gives.
+import RecentMatch from "../fixture/RecentMatch.astro";
+import RowList from "../ui/RowList.astro";
+import SectionHead from "../ui/SectionHead.astro";
+import { t } from "../../i18n/strings";
+import type { Lang } from "../../lib/format";
+import type { FormMatch } from "../../lib/types";
+
+interface Props {
+  matches: FormMatch[];
+  kind: "results" | "player-results";
+  lang: Lang;
+}
+const { matches, kind, lang } = Astro.props;
+---
+
+{matches.length > 0 && (
+  <section>
+    <SectionHead label={t(lang, "secRecent")} />
+    <RowList kind={kind}>{matches.map((m) => <RecentMatch match={m} lang={lang} />)}</RowList>
+  </section>
+)}

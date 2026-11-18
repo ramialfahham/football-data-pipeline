@@ -1,16 +1,13 @@
 ---
 // Compared with last season (Club tab): this season so far against the whole of last season, over
-// all club competitions, in the served metric list. The Team page's table and trend. Absent when the
+// all club competitions, in the served metric list, on the last-season table. Absent when the
 // player has no club minutes last season or every value is blank.
 import SectionHead from "../ui/SectionHead.astro";
 import Explainer from "../ui/Explainer.astro";
 import MetricSwitch from "../ui/MetricSwitch.astro";
-import TableRow from "../ui/TableRow.astro";
-import Group from "../ui/Group.astro";
-import GroupHead from "../ui/GroupHead.astro";
-import { DASH, formatValue, integer } from "../../lib/format";
-import { t, metricLabel, boardTitle } from "../../i18n/strings";
-import { betterSide } from "../../lib/bars";
+import LastSeasonTable from "../ui/LastSeasonTable.astro";
+import { integer } from "../../lib/format";
+import { t, boardTitle } from "../../i18n/strings";
 import { playerGroups } from "../../lib/playerPage";
 import type { Lang } from "../../lib/format";
 import type { PlayerLastSeason as LastSeason } from "../../lib/playerPage";
@@ -28,8 +25,21 @@ const has = (id: string) => byKey.get(id)?.value != null || byKey.get(id)?.value
 const groups = lastSeason?.minutes_prev ? playerGroups(has, isGoalkeeper) : [];
 const showSwitch = !isGoalkeeper && groups.flatMap((g) => g.rows).some((r) => r.is_key_metric)
   && groups.flatMap((g) => g.rows).some((r) => !r.is_key_metric);
-const shown = (v: number | null | undefined, format: Parameters<typeof formatValue>[1]) =>
-  typeof v === "number" ? formatValue(v, format, lang) : DASH;
+const table = groups.map((g) => ({
+  key: g.key,
+  nonkey: showSwitch && !g.hasKey,
+  rows: g.rows.map((r) => {
+    const m = byKey.get(r.metric_id)!;
+    return {
+      label: boardTitle(lang, r.label_i18n_key, false),
+      now: m.value,
+      prev: m.value_prev,
+      format: r.format,
+      direction: r.direction,
+      nonkey: showSwitch && !r.is_key_metric,
+    };
+  }),
+}));
 ---
 
 {groups.length > 0 && (
@@ -44,40 +54,6 @@ const shown = (v: number | null | undefined, format: Parameters<typeof formatVal
       })}
     />
     {showSwitch && <MetricSwitch id="player-last-season-switch" lang={lang} />}
-    <div class="yoy-list">
-      {groups.map((g) => (
-        <Group metric nonkey={showSwitch && !g.hasKey}>
-          <GroupHead lang={lang} name={metricLabel(lang, `metricGroups.${g.key}.label`)} statistics={g.key} />
-          <div class="ctab yoyt">
-            <div class="ctab-head">
-              <span class="h nmh"></span>
-              <span class="h">{t(lang, "teamThisSeasonHead")}</span>
-              <span class="h">{t(lang, "teamLastSeasonHead")}</span>
-              <span class="h tr">{t(lang, "teamTrend")}</span>
-            </div>
-            {g.rows.map((r) => {
-              const m = byKey.get(r.metric_id)!;
-              const a = shown(m.value, r.format);
-              const b = shown(m.value_prev, r.format);
-              const blank = a === DASH || b === DASH;
-              const side = blank || a === b ? null : betterSide(m.value as number, m.value_prev as number, r.direction);
-              const trend = blank || (r.direction === "neutral" && a !== b)
-                ? { text: "", kind: "tr" }
-                : side === "home" ? { text: "▲", kind: "tr up", label: t(lang, "teamTrendBetter") }
-                : side === "away" ? { text: "▼", kind: "tr down", label: t(lang, "teamTrendWorse") }
-                : { text: "–", kind: "tr flat", label: t(lang, "teamTrendSame") };
-              return (
-                <TableRow
-                  lang={lang}
-                  name={boardTitle(lang, r.label_i18n_key, false)}
-                  cells={[{ text: a, kind: "now" }, { text: b, kind: "prev" }, trend]}
-                  nonkey={showSwitch && !r.is_key_metric}
-                />
-              );
-            })}
-          </div>
-        </Group>
-      ))}
-    </div>
+    <LastSeasonTable lang={lang} groups={table} />
   </section>
 )}

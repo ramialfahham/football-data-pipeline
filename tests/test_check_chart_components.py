@@ -32,6 +32,7 @@ def test_the_tree_is_clean_and_finds_every_chart_component():
         "site_v2/src/components/team/TeamDeserved.astro",
         "site_v2/src/components/team/TeamLeagueStrips.astro",
         "site_v2/src/components/ui/ChartLegend.astro",
+        "site_v2/src/components/ui/StripPlot.astro",
     ]
 
 

@@ -163,6 +163,10 @@ The four renders the CPO approved on #129 are `renders/competition-overview_2026
 byte for byte; the Overview and Home renders differ only in a `<title>` and a CSS comment that
 carried a date (code comments carry no dates here).
 
+The approved Team page renders are `renders/team-page_2026-11-06_01.html` (EN), `_02.html` (DE)
+and `_03.html` (FI). Their generator redrew a `site_v2/dist` built before the page existed, so it
+stays outside the repo.
+
 **They read real data.** Five pulls sit beside them, each the JSON the `bq` CLI wrote from prod
 on 2026-09-16, unchanged:
 

@@ -15,9 +15,11 @@ import type { TeamCompetition } from "../../lib/types";
 
 interface Props {
   competitions: TeamCompetition[];
+  /** One line per competition, without the table's second line. */
+  oneLine?: boolean;
   lang: Lang;
 }
-const { competitions, lang } = Astro.props;
+const { competitions, oneLine = false, lang } = Astro.props;
 
 const CUP_STATUS: Record<string, string> = { through: "teamThrough", knocked_out: "teamKnockedOut", winners: "teamWinners" };
 
@@ -31,7 +33,7 @@ const rows = competitions.map((c) => {
   const right = cup
     ? (c.cup_status && CUP_STATUS[c.cup_status] ? t(lang, CUP_STATUS[c.cup_status]) : null)
     : c.standing_rank != null ? ordinal(c.standing_rank, lang) : null;
-  return { c, note, right, table: cup ? null : c };
+  return { c, note, right, table: cup || oneLine ? null : c };
 });
 ---
 

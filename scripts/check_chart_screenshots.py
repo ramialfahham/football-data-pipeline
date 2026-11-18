@@ -55,8 +55,7 @@ MARKS = {
     "team": (
         ("svg .chart-dot.chart-me", "fill", "--chart-team"),
         ("svg .chart-dot:not(.chart-me)", "fill", "--chart-other"),
-        (".rs-band .chart-dot.chart-me", "background-color", "--chart-team"),
-        (".rs-band .chart-dot:not(.chart-me)", "background-color", "--chart-other"),
+        (".rs-band .rs-peers circle", "fill", "--chart-other"),
     ),
     "match": (
         (".cmp-val.chart-better", "color", "--chart-better"),

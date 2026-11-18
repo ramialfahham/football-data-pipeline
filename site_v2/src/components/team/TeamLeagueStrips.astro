@@ -1,83 +1,113 @@
 ---
-// Compared with the league: the served metric list (metric_rows.json, the catalogue's groups and
-// order), each row a strip plot of the team's league this season. The line runs from the league's
-// lowest to its highest value, values growing to the right; every other club is a small light dot,
-// the team the one solid dot. The team's rank (the mart's, by the metric's direction) stands on the
-// right with its value under it; "better" points the metric's way. A row without a value for the team is left out. The key metrics show; the switch shows
-// every row in its place. Look from the chart theme (system.css). Data:
-// mart_team_competition_benchmarks and its every-club strip.
+// Compared with other teams (a club) or Compared with the league (a national team): each metric of
+// the served list as a strip plot of the competition's teams this season, the median ticked, the
+// team's rank over its value on the right. A club chooses among its league and each competition of
+// the season benchmarked over its table rounds, each a panel; the choice shows from two of them.
+// A row without a value for the team is left out. The key metrics show; the switch shows every
+// row in its place. Data: mart_team_competition_benchmarks and its every-club strip.
 import SectionHead from "../ui/SectionHead.astro";
 import Explainer from "../ui/Explainer.astro";
 import MetricSwitch from "../ui/MetricSwitch.astro";
 import ChartLegend from "../ui/ChartLegend.astro";
+import FilterBar from "../ui/FilterBar.astro";
 import Group from "../ui/Group.astro";
 import GroupHead from "../ui/GroupHead.astro";
-import { stripInset } from "../../lib/chartTheme";
+import StripPlot from "../ui/StripPlot.astro";
 import type { Lang } from "../../lib/format";
-import { formatValue, ordinal } from "../../lib/format";
+import { integer } from "../../lib/format";
 import { t, metricLabel, boardTitle } from "../../i18n/strings";
 import { comparisonGroups, needsSwitch } from "../../lib/comparisonGroups";
-import { teamBinding } from "../../lib/metricRows";
+import { teamBinding, teamComparisonGroups } from "../../lib/metricRows";
+import { competitionInfo } from "../../lib/teamFixtures";
 import type { TeamSeason, WindowStats } from "../../lib/types";
 
 interface Props {
-  season: TeamSeason;
+  /** The featured season first, then each competition the club is compared in. */
+  seasons: TeamSeason[];
   teamName: string;
-  compName: string;
+  club: boolean;
+  /** A club's comparison metrics, served. */
+  compared?: string[];
   lang: Lang;
 }
-const { season: s, teamName, compName, lang } = Astro.props;
+const { seasons, teamName, club, compared = [], lang } = Astro.props;
 
-const bench = new Map((s.benchmarks ?? []).map((b) => [b.metric_key, b]));
-const strips = new Map((s.league_strip ?? []).map((x) => [x.metric_key, x.clubs]));
-const values = Object.fromEntries([...bench].map(([k, b]) => [k, b.metric_value ?? null])) as WindowStats;
-const groups = comparisonGroups(values, null).map((g) => ({ ...g, rows: g.rows.map(teamBinding) }))
-  .map((g) => ({ ...g, rows: g.rows.filter((r) => bench.get(r.metric_id)?.metric_value != null) }))
-  .filter((g) => g.rows.length > 0);
-
-// A value's place on the line, inside the inset at each end so no dot is cut.
-function place(v: number, lo: number, hi: number): number {
-  return hi === lo ? 50 : stripInset + ((v - lo) / (hi - lo)) * (100 - 2 * stripInset);
-}
+const panels = seasons.map((s, i) => {
+  const bench = new Map((s.benchmarks ?? []).map((b) => [b.metric_key, b]));
+  const strips = new Map((s.league_strip ?? []).map((x) => [x.metric_key, x.clubs]));
+  const has = (id: string) => bench.get(id)?.metric_value != null;
+  const groups = club
+    ? teamComparisonGroups(compared, has)
+    : comparisonGroups(Object.fromEntries([...bench].map(([k, b]) => [k, b.metric_value ?? null])) as WindowStats, null)
+      .map((g) => ({ ...g, rows: g.rows.map(teamBinding).filter((r) => has(r.metric_id)) }))
+      .filter((g) => g.rows.length > 0);
+  const comp = competitionInfo(s.league_code).name;
+  // Every team of the pool is ranked on some metric, so the pool is the largest count of any metric.
+  const teamCount = Math.max(0, ...(s.benchmarks ?? []).map((b) => b.team_count ?? 0));
+  return {
+    slot: i + 1,
+    league: s.league_code,
+    comp,
+    groups,
+    bench,
+    strips,
+    intro: club
+      ? t(lang, "teamVsOthersIntro", { n: integer(teamCount, lang), competition: comp, season: s.season_label ?? "" })
+      : t(lang, "teamVsLeagueIntro", { competition: comp }),
+    others: t(lang, i === 0 ? "teamOtherTeams" : "teamOtherTeamsInternational", { competition: comp }),
+  };
+}).filter((p) => p.groups.length > 0);
+const showSwitch = needsSwitch(panels.flatMap((p) => p.groups));
+const group = "team-compare";
 ---
 
-{groups.length > 0 && (
+{panels.length > 0 && (
   <section>
-    <SectionHead label={t(lang, "teamVsLeague")} />
-    <Explainer text={t(lang, "teamVsLeagueIntro", { competition: compName })} />
-    {needsSwitch(groups) && <MetricSwitch id="tsw-league" lang={lang} />}
-    <div class="chart">
-      <ChartLegend keys={[
-        { mark: "team", label: teamName },
-        { mark: "other", label: t(lang, "teamOtherTeams", { competition: compName }) },
-      ]} />
-      {groups.map((g) => (
-        <Group metric nonkey={!g.hasKey}>
-          <GroupHead lang={lang} name={metricLabel(lang, `metricGroups.${g.key}.label`)} statistics={g.key} />
-          {g.rows.map((r) => {
-            const b = bench.get(r.metric_id)!;
-            const v = b.metric_value as number;
-            const clubs = (strips.get(r.metric_id) ?? []).filter((c) => c.value != null) as { name: string; value: number; is_self: boolean }[];
-            const all = clubs.map((c) => c.value);
-            const lo = all.length ? Math.min(...all, v) : v;
-            const hi = all.length ? Math.max(...all, v) : v;
-            return (
-              <div class:list={["rs-row", { nonkey: !r.is_key_metric }]} data-metric={r.metric_id}>
-                <span class="chart-name">{boardTitle(lang, r.label_i18n_key, r.per_match)}</span>
-                <span class="rs-band">
-                  <span class="chart-axis"></span>
-                  {clubs.filter((c) => !c.is_self).map((c) => (
-                    <span style={`left:${place(c.value, lo, hi)}%`}><i class="chart-dot"></i></span>
-                  ))}
-                  <span style={`left:${place(v, lo, hi)}%`}><i class="chart-dot chart-me"></i></span>
-                  {r.direction === "higher_better" && <span class="chart-tick chart-end">{t(lang, "teamBetterRight")}</span>}
-                  {r.direction === "lower_better" && <span class="chart-tick">{t(lang, "teamBetterLeft")}</span>}
-                </span>
-                <span class="rs-val">{ordinal(b.rank, lang)}<small>{formatValue(v, r.format, lang)}</small></span>
-              </div>
-            );
-          })}
-        </Group>
+    <SectionHead label={t(lang, club ? "teamVsOthers" : "teamVsLeague")} />
+    <FilterBar filters={[{
+      name: group,
+      aria: t(lang, "playerComparedWith"),
+      choices: panels.map((p) => ({ id: `${group}-${p.slot}`, value: String(p.slot), label: p.comp, attrs: { "data-cmp": p.slot } })),
+    }]} />
+    <div class="cmp-panels">
+      {panels.map((p) => <Explainer text={p.intro} class="cmp-p" data-cmp={p.slot} />)}
+    </div>
+    {showSwitch && <MetricSwitch id="tsw-league" lang={lang} />}
+    <div class="cmp-panels">
+      {panels.map((p) => (
+        <div class="cmp-p" data-cmp={p.slot} data-league={p.league}>
+          <div class="chart">
+            <ChartLegend keys={[
+              { mark: "team", label: teamName },
+              { mark: "other", label: p.others },
+              { mark: "median", label: t(lang, "median") },
+            ]} />
+            {p.groups.map((g) => (
+              <Group metric nonkey={!g.hasKey}>
+                <GroupHead lang={lang} name={metricLabel(lang, `metricGroups.${g.key}.label`)} statistics={g.key} />
+                {g.rows.map((r) => {
+                  const b = p.bench.get(r.metric_id)!;
+                  const peers = (p.strips.get(r.metric_id) ?? [])
+                    .filter((c) => !c.is_self && c.value != null)
+                    .map((c) => c.value as number);
+                  return (
+                    <StripPlot
+                      lang={lang}
+                      metricId={r.metric_id}
+                      label={boardTitle(lang, r.label_i18n_key, r.per_match)}
+                      value={b.metric_value as number}
+                      rank={b.rank}
+                      peers={peers}
+                      median={b.league_median}
+                      format={r.format}
+                      nonkey={!r.is_key_metric}
+                    />
+                  );
+                })}
+              </Group>
+            ))}
+          </div>
+        </div>
       ))}
     </div>
   </section>

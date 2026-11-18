@@ -11,7 +11,8 @@
 
   An international club competition with a league or group phase is benchmarked over that phase
   alone (int_team_competition_phase__metrics): its teams and its matches, without the qualifiers
-  and the knockout phase. Every other competition-season counts all its matches.
+  and the knockout phase. Every other competition-season counts all its matches. round_stage_kind
+  says which: table for a competition-season benchmarked over its table rounds, NULL otherwise.
 
   Each row also carries the team's value at the same point last season (rule R6), from
   int_team_season__metrics_cumulative, chosen as int_team_profile__yoy chooses it: the previous
@@ -37,6 +38,7 @@ season as (
         league_sk,
         league_code,
         season_api_year,
+        {{ "'table'" if source == 'phase' else 'cast(null as string)' }} as round_stage_kind,
         season_games_played,
         goals_per_match,
         goals_against_per_match,
@@ -167,6 +169,7 @@ current_long as (
         league_sk,
         league_code,
         season_api_year,
+        round_stage_kind,
         metric_key,
         metric_value
     from season
@@ -268,6 +271,7 @@ select
     cur.league_sk,
     cur.league_code,
     cur.season_api_year,
+    cur.round_stage_kind,
     cur.metric_key,
     cur.metric_value,
     prev.metric_value as metric_value_prev_season

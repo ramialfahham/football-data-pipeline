@@ -429,7 +429,30 @@ export interface Team {
   venue?: Venue | null;
   recent_matches?: FormMatch[];
   schedule?: TeamSchedule;
+  /** This season over all the club's competitions (mart_team_page_window_metrics); null for a
+   *  national team, which has no club window. */
+  this_season?: TeamThisSeason | null;
+  /** Compared with last season: this season so far against the whole of last season; null when
+   *  the club played no match last season. */
+  last_season?: TeamLastSeasonWindow | null;
   seasons: TeamSeason[];
+}
+
+export interface TeamThisSeason {
+  matches: number;
+  wins: number;
+  /** The competitions of the season, in the served competition order. */
+  league_codes: string[];
+  /** The card counts by metric key: goals, goals_against, cards_yellow, cards_red. */
+  cards: Record<string, number | null>;
+  /** The metrics both comparisons show, as the warehouse serves them. */
+  comparison_keys: string[];
+}
+
+export interface TeamLastSeasonWindow {
+  matches: number;
+  matches_prev: number;
+  metrics: { metric_key: string; value: number | null; value_prev: number | null }[];
 }
 
 // ---------------------------------------------------------------------------

@@ -316,6 +316,14 @@ test("a more-is-better row shows the served rank too: the highest value is 1st",
   assert.match(checkTeamPage(leagueRow("goals_per_match", "2.9", "18th"), "en", served, "p")[0], /shows 18th, the payload serves 1st/);
 });
 
+test("a row in a competition's panel shows that competition's served rank", () => {
+  const served = new Map([["goals_per_match", 1], ["BL1:goals_per_match", 1], ["UCL:goals_per_match", 6]]);
+  const panel = (league, rank) => `<div class="cmp-p" data-cmp="1" data-league="${league}">${leagueRow("goals_per_match", "2.0", rank)}</div>`;
+  assert.deepEqual(checkTeamPage(panel("BL1", "1st") + panel("UCL", "6th"), "en", served, "p"), []);
+  assert.match(checkTeamPage(panel("UCL", "1st"), "en", served, "p")[0], /shows 1st, the payload serves 6th/);
+  assert.match(checkTeamPage(panel("UECL", "1st"), "en", served, "p")[0], /no served rank/);
+});
+
 test("a league row with no metric, no served rank or no shown rank is an issue, not a pass", () => {
   const served = new Map([["fouls_per_match", 1]]);
   assert.match(checkTeamPage(leagueRow("fouls_per_match", "6.1", "1st").replace(' data-metric="fouls_per_match"', ""), "en", served, "p")[0],

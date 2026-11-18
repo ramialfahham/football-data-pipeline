@@ -1,0 +1,43 @@
+---
+// THE strip plot row: the metric's name, a line from the lowest to the highest value with every
+// other entity a light dot, the median a tick with its value, the entity itself the solid dot, and
+// its rank over its value on the right. A non-key row carries the switch's mark.
+import { stripInset } from "../../lib/chartTheme";
+import { formatValue, ordinal } from "../../lib/format";
+import { medianAnchor, placeOnLine } from "../../lib/playerPage";
+import type { Lang } from "../../lib/format";
+
+interface Props {
+  lang: Lang;
+  metricId: string;
+  label: string;
+  value: number;
+  rank: number | null | undefined;
+  /** Every value of the compared set. */
+  peers: number[];
+  median: number | null | undefined;
+  format: Parameters<typeof formatValue>[1];
+  nonkey: boolean;
+}
+const { lang, metricId, label, value, rank, peers, median, format, nonkey } = Astro.props;
+const lo = Math.min(...peers, value);
+const hi = Math.max(...peers, value);
+const at = (x: number) => `${Number(placeOnLine(x, lo, hi, stripInset).toFixed(1))}%`;
+const tick = median != null ? at(median) : null;
+---
+
+<div class:list={["rs-row", { nonkey }]} data-metric={metricId}>
+  <span class="chart-name">{label}</span>
+  <span class="rs-band">
+    <svg class="rs-plot" aria-hidden="true" focusable="false">
+      <line class="chart-axis" x1="0" x2="100%" y1="50%" y2="50%"></line>
+      <g class="rs-peers">{peers.map((x) => <circle cx={at(x)}></circle>)}</g>
+      {tick != null && <line class="rs-tick" x1={tick} x2={tick} y1="2" y2="12"></line>}
+      {tick != null && (
+        <text class="rs-tick-value" x={tick} y="27" text-anchor={medianAnchor(parseFloat(tick))}>{formatValue(median, format, lang)}</text>
+      )}
+      <circle class="chart-dot chart-me" cx={at(value)} cy="50%"></circle>
+    </svg>
+  </span>
+  <span class="rs-val">{ordinal(rank, lang)}<small>{formatValue(value, format, lang)}</small></span>
+</div>

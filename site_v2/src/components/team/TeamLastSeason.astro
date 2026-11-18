@@ -1,81 +1,52 @@
 ---
-// Compared with last season: a table of the served metric list (the catalogue's groups and order),
-// this season and last season over their first N matches, then the trend: ▲ when this season is
-// better by the metric's direction, ▼ when worse, "–" when the shown values are equal. A row with
-// neither value is left out. The key metrics show; the switch shows every row in its place.
-// Data: mart_team_competition_benchmarks (metric_value, metric_value_prev_season).
+// Compared with last season: this season so far against the whole of last season, over all the
+// club's competitions, per match, from the first match, on the last-season table. The key metrics
+// show; the switch shows every row in its place. Absent when the club played no match last season
+// or every value is blank. Data: mart_team_page_window_metrics, through the payload's last_season.
 import SectionHead from "../ui/SectionHead.astro";
 import Explainer from "../ui/Explainer.astro";
 import MetricSwitch from "../ui/MetricSwitch.astro";
-import TableRow from "../ui/TableRow.astro";
-import Group from "../ui/Group.astro";
-import GroupHead from "../ui/GroupHead.astro";
+import LastSeasonTable from "../ui/LastSeasonTable.astro";
 import type { Lang } from "../../lib/format";
-import { formatValue, integer, DASH } from "../../lib/format";
-import { t, metricLabel, boardTitle } from "../../i18n/strings";
-import { comparisonGroups, needsSwitch } from "../../lib/comparisonGroups";
-import { teamBinding } from "../../lib/metricRows";
-import { betterSide } from "../../lib/bars";
-import type { TeamSeason, WindowStats } from "../../lib/types";
+import { integer } from "../../lib/format";
+import { t, boardTitle } from "../../i18n/strings";
+import { needsSwitch } from "../../lib/comparisonGroups";
+import { teamComparisonGroups } from "../../lib/metricRows";
+import type { TeamLastSeasonWindow } from "../../lib/types";
 
 interface Props {
-  season: TeamSeason;
+  lastSeason: TeamLastSeasonWindow | null | undefined;
+  /** The club's comparison metrics, served. */
+  compared: string[];
   lang: Lang;
 }
-const { season: s, lang } = Astro.props;
+const { lastSeason, compared, lang } = Astro.props;
 
-const bench = s.benchmarks ?? [];
-const now = Object.fromEntries(bench.map((b) => [b.metric_key, b.metric_value ?? null])) as WindowStats;
-const prev = Object.fromEntries(bench.map((b) => [b.metric_key, b.metric_value_prev_season ?? null])) as WindowStats;
-const has = (id: string) => now[id] != null || prev[id] != null;
-const groups = s.yoy_games_played_cutoff != null && bench.some((b) => b.metric_value_prev_season != null)
-  ? comparisonGroups(now, prev)
-    .map((g) => ({ ...g, rows: g.rows.map(teamBinding).filter((r) => has(r.metric_id)) }))
-    .filter((g) => g.rows.length > 0)
+const byKey = new Map((lastSeason?.metrics ?? []).map((m) => [m.metric_key, m]));
+const groups = lastSeason
+  ? teamComparisonGroups(compared, (id) => byKey.get(id)?.value != null || byKey.get(id)?.value_prev != null)
   : [];
-const shown = (v: unknown, format: Parameters<typeof formatValue>[1]) =>
-  typeof v === "number" ? formatValue(v, format, lang) : DASH;
+const showSwitch = needsSwitch(groups);
+const table = groups.map((g) => ({
+  key: g.key,
+  nonkey: !g.hasKey,
+  rows: g.rows.map((r) => ({
+    label: boardTitle(lang, r.label_i18n_key, r.per_match),
+    now: byKey.get(r.metric_id)?.value,
+    prev: byKey.get(r.metric_id)?.value_prev,
+    format: r.format,
+    direction: r.direction,
+    nonkey: !r.is_key_metric,
+  })),
+}));
+const matches = (n: number) => t(lang, n === 1 ? "teamMatchOne" : "compFactMatches", { n: integer(n, lang) });
 ---
 
 {groups.length > 0 && (
   <section>
     <SectionHead label={t(lang, "teamVsLastSeason")} />
-    <Explainer text={t(lang, "teamVsLastSeasonIntro", { n: integer(s.yoy_games_played_cutoff, lang) })} />
-    {needsSwitch(groups) && <MetricSwitch id="tsw-season" lang={lang} />}
-    <div class="yoy-list">
-      {groups.map((g) => (
-        <Group metric nonkey={!g.hasKey}>
-          <GroupHead lang={lang} name={metricLabel(lang, `metricGroups.${g.key}.label`)} statistics={g.key} />
-          <div class="ctab yoyt">
-            <div class="ctab-head">
-              <span class="h nmh"></span>
-              <span class="h">{t(lang, "teamThisSeasonHead")}</span>
-              <span class="h">{t(lang, "teamLastSeasonHead")}</span>
-              <span class="h tr">{t(lang, "teamTrend")}</span>
-            </div>
-            {g.rows.map((r) => {
-              const a = shown(now[r.metric_id], r.format);
-              const b = shown(prev[r.metric_id], r.format);
-              const side = a === DASH || b === DASH || a === b
-                ? null
-                : betterSide(now[r.metric_id] as number, prev[r.metric_id] as number, r.direction);
-              const trend = a === DASH || b === DASH || (r.direction === "neutral" && a !== b)
-                ? { text: "", kind: "tr" }
-                : side === "home" ? { text: "▲", kind: "tr up", label: t(lang, "teamTrendBetter") }
-                : side === "away" ? { text: "▼", kind: "tr down", label: t(lang, "teamTrendWorse") }
-                : { text: "–", kind: "tr flat", label: t(lang, "teamTrendSame") };
-              return (
-                <TableRow
-                  lang={lang}
-                  name={boardTitle(lang, r.label_i18n_key, r.per_match)}
-                  cells={[{ text: a, kind: "now" }, { text: b, kind: "prev" }, trend]}
-                  nonkey={!r.is_key_metric}
-                />
-              );
-            })}
-          </div>
-        </Group>
-      ))}
-    </div>
+    <Explainer text={t(lang, "teamVsLastSeasonIntro", { now: matches(lastSeason!.matches), prev: integer(lastSeason!.matches_prev, lang) })} />
+    {showSwitch && <MetricSwitch id="tsw-season" lang={lang} />}
+    <LastSeasonTable lang={lang} groups={table} />
   </section>
 )}

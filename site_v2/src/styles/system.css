@@ -1119,16 +1119,12 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
 .chart-bar > span:last-child > span { border-radius: 0 4px 4px 0; }
 .chart-bar > .chart-better > span { background: var(--chart-better); }
 
-/* The strip plot: a metric's name / the league from its lowest to its highest value, values growing
-   to the right, every other club a light dot, the team the solid dot / the team's rank over its
-   value. Narrow, the strip takes the row's second line. */
+/* The strip plot: a metric's name / the compared set from its lowest to its highest value, values
+   growing to the right, every other entity a light dot, the median a tick, the entity the solid
+   dot / its rank over its value. Narrow, the strip takes the row's second line. */
 .rs-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) 4.6rem; column-gap: 12px; align-items: center;
   padding: 12px 0; border-bottom: 1px solid var(--line); }
 .rs-band { position: relative; height: 14px; margin: 8px 0 16px; }
-.rs-band > .chart-axis { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--chart-axis); }
-.rs-band > span:not([class]) { position: absolute; top: 50%; translate: -50% -50%; display: flex; }
-.rs-band > .chart-tick { position: absolute; top: 16px; left: 0; white-space: nowrap; }
-.rs-band > .chart-tick.chart-end { left: auto; right: 0; }
 .rs-val { align-self: start; text-align: right; font-size: var(--chart-text-value); font-weight: 700; color: var(--chart-team); font-variant-numeric: tabular-nums; line-height: 1.25; }
 .rs-val small { display: block; font-size: var(--chart-text); font-weight: 400; color: var(--muted); }
 

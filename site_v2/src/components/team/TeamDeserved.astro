@@ -23,9 +23,11 @@ interface Props {
   season: TeamSeason;
   teamName: string;
   compName: string;
+  /** Open the explainer with the competition the block covers. */
+  lead?: boolean;
   lang: Lang;
 }
-const { season: s, teamName, compName, lang } = Astro.props;
+const { season: s, teamName, compName, lead = false, lang } = Astro.props;
 
 const SOTD = "metrics.shots_on_goal_difference_per_match.label";
 const DESERVED = "metrics.deserved_points.label";
@@ -105,7 +107,7 @@ const fmtTick = (x: number) => (x > 0 ? `+${integer(x, lang)}` : integer(x, lang
 {me && s.deserved_points != null && (
   <section>
     <SectionHead label={metricLabel(lang, DESERVED)} />
-    <Explainer text={t(lang, "compDeservedExplainer", names)} />
+    <Explainer text={lead ? `${t(lang, "teamDeservedOnly", { competition: compName, season: s.season_label ?? "" })} ${t(lang, "compDeservedExplainer", names)}` : t(lang, "compDeservedExplainer", names)} />
     <div class="ctab dpm">
       <div class="ctab-head"><span class="h nmh">{t(lang, "teamAfterMatches", { competition: compName, n: integer(s.played, lang) })}</span><span class="h"></span></div>
       {rows.map((r) => (

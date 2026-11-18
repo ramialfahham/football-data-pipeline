@@ -24,6 +24,11 @@
       "i18n_keys": ["navTeams", "founded", "compSeason", "overview", "navMatches", "tabPerformance", "tabsAria"]
     },
     {
+      "block": "This season",
+      "mart": "mart_team_page_window_metrics",
+      "i18n_keys": ["teamThisSeasonHead", "teamThisSeasonIntro", "teamCardMatches", "wins", "goals", "goalsAgainst", "yellowCards", "redCards"]
+    },
+    {
       "block": "Competitions",
       "mart": "mart_team_competitions",
       "i18n_keys": ["navCompetitions", "teamLeaguePhase", "teamThrough", "teamKnockedOut", "teamWinners", "winsShort", "drawsShort", "lossesShort", "goals", "points"]
@@ -58,6 +63,7 @@
       "mart": "mart_team_profile",
       "i18n_keys": [
         "compDeservedExplainer",
+        "teamDeservedOnly",
         "teamAfterMatches",
         "teamOtherTeams",
         "teamScatterAria",
@@ -70,15 +76,28 @@
       ]
     },
     {
-      "block": "Compared with the league and with last season",
+      "block": "Compared with other teams (a club) or with the league (a national team)",
       "mart": "mart_team_competition_benchmarks",
       "i18n_keys": [
+        "teamVsOthers",
+        "teamVsOthersIntro",
         "teamVsLeague",
         "teamVsLeagueIntro",
-        "teamBetterLeft",
-        "teamBetterRight",
+        "teamOtherTeams",
+        "teamOtherTeamsInternational",
+        "median",
+        "playerComparedWith",
+        "showAllMetrics"
+      ]
+    },
+    {
+      "block": "Compared with last season",
+      "mart": "mart_team_page_window_metrics",
+      "i18n_keys": [
         "teamVsLastSeason",
         "teamVsLastSeasonIntro",
+        "teamMatchOne",
+        "compFactMatches",
         "teamThisSeasonHead",
         "teamLastSeasonHead",
         "teamTrend",
