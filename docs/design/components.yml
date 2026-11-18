@@ -217,6 +217,7 @@ components:
     parts:
       row: {class: ctab-row, element: Table row, rule: "a 1px line between rows, no stripe; the row's tracks are the head's (one fixed track list per table kind)", measured: "stripe=transparent from 1; tracks=head", ruled-on: "#129 Table; the design standard"}
       name: {class: nm, selector: ".ctab .tm .nm", text: 15-400-ink, element: Table name cell, rule: "15px ink, wraps and never truncates", measured: "font-size=15px; font-weight=400; color=ink; white-space=normal", ruled-on: "#129 Table; the design standard"}
+      sub-line: {class: sub, selector: ".ctab .tm .sub", text: 13-400-muted, element: Table sub-line, rule: "the line under a row's name (a player's club, a value's unit), 13px muted", measured: "font-size=13px; color=muted", ruled-on: "#129 Rankings; the design standard"}
       narrow-row: {class: ctab-row, selector: ".ctab.fit-two .ctab-row", element: Table narrow row, rule: "a row that does not fit on one line takes two: rank, crest and name, then each number under its head", measured: "tracks=head", ruled-on: the narrow-screen fix}
       ordered-by: {class: pts, selector: ".ctab .n.pts", text: 15-700-accent, element: Ordered-by number, rule: "the number a table is ordered by: bold 15px accent, everywhere, no per-block colour", measured: "font-size=15px; font-weight=700; color=accent", ruled-on: "#129 binding rules"}
     wide: "rank | crest and name | numbers under their heads; the row links to the team or player page"
@@ -228,7 +229,7 @@ components:
     parts:
       name: {class: nm, selector: ".ctab.rkt .ctab-head .nmh .bt .nm", text: 15-700-ink, element: Board name, rule: "a board is a single-value table; its name sits in the head row with the chevron, in the item title style: 15px bold ink, not capitals, at the block's left edge", measured: "font-size=15px; font-weight=700; color=ink; text-transform=none", ruled-on: "#129 board rules; #127 correction 1; the design standard"}
       name-cell: {class: nmh, selector: ".ctab.rkt .ctab-head .nmh", element: Board name cell, rule: "at the block's left edge", measured: "left-edge=section", ruled-on: "#127 correction 3"}
-      sub-line: {class: sub, selector: ".ctab.rkt .tm .ent .sub", text: 13-400-muted, element: Board sub-line, rule: "a player's club under the name, 13px muted", measured: "font-size=13px; color=muted", ruled-on: "#129 Rankings; the design standard"}
+      sub-line: {class: sub, selector: ".board .ent .sub"}
       spacing: {class: board, selector: ".board + .board", element: Board spacing, rule: 24px between boards, measured: "gap(prev)=24px", ruled-on: "#40, #41 (the shipped board); the design standard"}
     wide: "a single-value table, its name in the head row"
     narrow: {below: w480, form: a name and its sub-line each on its own line}
@@ -306,6 +307,7 @@ components:
       winner: {class: winner, selector: ".mast .winner", gap: style-varies, element: Match header winner, rule: "the winning side's goals by weight, never by hue", measured: "font-weight=700", ruled-on: the played match page review}
       team-goals: {class: sg, selector: ".mast .team .sg", gap: style-varies, element: Match header team goals, rule: "under 700px a team's goals close its line, 20px ink like the team's name, the winner's bold", measured: "font-size=20px; color=ink", ruled-on: "the played match page review; the design standard"}
       result-line: {class: resline, selector: ".mast .resline", text: 13-400-muted, element: Match header result line, rule: "the line under the score, 13px muted: after penalties the score after extra time, its numbers bold; on an award, how it came about", measured: "font-size=13px; color=muted", ruled-on: the played match page review}
+      status-word: {class: status-word, selector: ".mast .status-word", text: 13-700-muted-caps}
       kick-off: {class: kick, selector: ".mast .kick", text: 13-400-muted, breaks: between words}
       dash: {class: dash, selector: ".mast .dash", text: 30-400-muted, breaks: never}
       hidden-label: {class: vh}
@@ -400,6 +402,7 @@ components:
     used-on: [match page]
     parts:
       column-head: {class: colhead, selector: ".rcol .colhead", text: 13-700-muted-caps, element: Column head, rule: "a list column's name in the block heading's style, 13px bold capitals muted; one fact may follow on a second 13px muted line (a team's formation); a second head inside the column opens its second list, 12px under the first", measured: "font-size=13px; font-weight=700; text-transform=uppercase; color=muted", ruled-on: "the played match page review; the design standard"}
+      formation: {class: formation, selector: ".rcol .colhead .formation", text: 13-400-muted}
       columns: {class: rsplit}
       sheets: {class: sheets}
       "off": {class: "off"}
@@ -473,7 +476,6 @@ components:
     parts:
       plot: {class: dp-chart, element: Scatter plot, rule: "each team's shots on target difference per match against its points, with the deserved points line; drawn by `team/TeamDeserved.astro`", measured: fits, ruled-on: the Team page review}
       table: {class: dpm, gap: mock-css}
-      table-sub: {class: dpm-sub, gap: mock-css}
       table-value: {class: dpm-v, gap: mock-css}
     wide: the scatter with its axes and the deserved points line
     narrow: {below: w480, form: the narrow drawing}

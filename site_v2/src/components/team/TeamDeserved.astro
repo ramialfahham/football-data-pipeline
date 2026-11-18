@@ -12,6 +12,7 @@
 import SectionHead from "../ui/SectionHead.astro";
 import Explainer from "../ui/Explainer.astro";
 import ChartLegend from "../ui/ChartLegend.astro";
+import TableRow from "../ui/TableRow.astro";
 import { scatter, offset } from "../../lib/chartTheme";
 import type { Lang } from "../../lib/format";
 import { decimal1, integer, signedDelta } from "../../lib/format";
@@ -108,7 +109,7 @@ const fmtTick = (x: number) => (x > 0 ? `+${integer(x, lang)}` : integer(x, lang
     <div class="ctab dpm">
       <div class="ctab-head"><span class="h nmh">{t(lang, "teamAfterMatches", { competition: compName, n: integer(s.played, lang) })}</span><span class="h"></span></div>
       {rows.map((r) => (
-        <div class="ctab-row"><span class="tm"><span class="nm">{r.name}{r.sub && <span class="dpm-sub">{r.sub}</span>}</span></span><span class="n dpm-v">{r.value}</span></div>
+        <TableRow lang={lang} name={r.name} sub={r.sub || undefined} cells={[{ text: r.value, kind: "dpm-v" }]} />
       ))}
     </div>
     <div class="chart">

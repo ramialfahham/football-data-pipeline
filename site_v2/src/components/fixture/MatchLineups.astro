@@ -36,7 +36,7 @@ function second(p: LineupPlayer): string[] {
     <div class="rsplit sheets">
       {sides.map((side) => (
         <div class="rcol">
-          <div class="colhead">{side.name ?? ""}{side.formation && <span class="ps">{side.formation}</span>}</div>
+          <div class="colhead">{side.name ?? ""}{side.formation && <span class="formation">{side.formation}</span>}</div>
           {side.lineup.map((p, i) => {
             return (
               <>

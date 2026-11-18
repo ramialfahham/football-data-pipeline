@@ -78,7 +78,7 @@ const sides: { side: Side; href?: string }[] = [
     <GroupHead lang={lang} name={compName} crest={{ name: compName, url: compLogo }} competition={compSlug} />
   </div>
   <h1 class="vh">{title}</h1>
-  <div class="eyebrow">{eyebrow}</div>
+  <div class="status-word">{eyebrow}</div>
   <div class="kick facts-line">
     {kick.map((unit) => <span>{unit}</span>)}
     {state && <span><StatusTag lang={lang} state={state} /></span>}
