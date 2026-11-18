@@ -1,0 +1,433 @@
+diff --git a/.claude/task/243-page-copies-to-parts/contract.md b/.claude/task/243-page-copies-to-parts/contract.md
+new file mode 100644
+index 00000000..7abacd55
+--- /dev/null
++++ b/.claude/task/243-page-copies-to-parts/contract.md
+@@ -0,0 +1,112 @@
++# Task contract — the last page-local copies of library parts
++
++objective: >
++  Issue #243, step 4's check: the registry counts three pieces of markup outside the part they
++  copy. The Team page's Deserved points table writes its own table rows; it moves onto the table
++  row component, and the table row's second line under the name becomes one form for every
++  table: 13px muted at line height 1.2, the ranking tables' form. That moves
++  the Deserved table's second line from line height 1.25 to 1.2, the one intended look change.
++  The match header's status word ("Match preview", or how a played match ended) writes the block
++  heading's `eyebrow`, and the line-up column head writes the player row's `ps` for a team's
++  formation; each becomes a part of the component that draws it (the match header, the two-column
++  head), with the same computed style, no look change.
++
++refs: >
++  #243 (component system), note 4249336961 (one form per part). Visual details and engineering
++  calls are the coordinating agent's under docs/design/design_standard.md.
++
++scope_paths:
++  - .claude/task/243-page-copies-to-parts/
++  - site_v2/src/components/fixture/Masthead.astro
++  - site_v2/src/components/fixture/MatchLineups.astro
++  - site_v2/src/components/team/TeamDeserved.astro
++  - site_v2/src/styles/system.css
++  - docs/design/components.yml
++  - docs/wireframes/block_standard.md
++  - scripts/parts_page.py
++  - tests/fixtures/component_registry/baseline.json
++  - tests/fixtures/chart_screenshots/*
++  - tests/fixtures/design_inventory/baseline.json
++  - tests/fixtures/design_inventory/baseline_quick.json
++  - tests/fixtures/design_inventory/baseline_quick_fi.json
++
++protected_override: >
++  docs/design/components.yml: the match header gains its status-word part, the two-column head
++  gains its formation part, the Deserved points table's own sub-line part goes, its rows now
++  being the table row's, and the sub-line part moves from the board to the table row as the
++  second line of every table (selector `.ctab .tm .sub`, the elements the stylesheet's
++  `.ctab .tm .ent .sub` styles) with a rule naming any table's second line, the board keeping a
++  part without text for its narrow rules (`.board .ent .sub`); its text style and measurement do
++  not change, and no other part, text style, value, rule or measurement changes. The
++  component-library step of #243 (each part built once as a component, every built page moved
++  onto it), approved in chat, 17 Nov 2026; visual details and engineering calls are the
++  coordinating agent's under docs/design/design_standard.md, approved in chat, 16 Nov 2026.
++
++impact_map: >
++  writers: none; two match-page components and the Team page's Deserved points component, the
++  selectors in system.css that style them, the component registry, its generated table and its
++  pins. No dbt model, export script, data file or test logic.
++  downstream: site_v2/dist only: every match page and every Team page's Performance tab. leaf:
++  consumption layer, no computation.
++  guard: docs/design/components.yml is read by scripts/check_component_registry.py (the registry
++  check and the block standard's generated table), scripts/check_design_inventory.py and
++  scripts/design_inventory.py (the design check measures each part by its class and selector),
++  scripts/parts_page.py and site_v2/scripts/check-term-list.test.mjs. Two parts are added with the
++  selectors the markup now carries and one gap-only part goes with its class; no measured class or
++  selector changes. A wrong class makes the markup count rise and the check fail.
++  layer_rules: not applicable; no computation.
++  deploy_order: none; deploy:site-v2 is manual.
++  blast_radius: the Deserved points table's second line ("per match" under a column's name) on
++  every Team page's Performance tab, line height 16.25px to 15.6px; nothing else a visitor sees.
++  Every match page and the Team pages are captured before and after.
++
++acceptance_criteria:
++  - scripts/check_component_registry.py counts 0 markup outside the block, player-row and table-row components, and tests/fixtures/component_registry/baseline.json pins all three at 0.
++  - Every match page of the local data at 375px and 1280px (EN; DE and FI for every played match and one upcoming match) renders pixel-identical before and after, with the same href list and visible text.
++  - Every Team page of the local data at 375px and 1280px in EN, DE and FI renders pixel-identical before and after except the Deserved points table, whose second lines are 13px muted at line height 1.2; the same href list and visible text; every difference is listed with its reason in rendered_page_evidence.md.
++  - No block, wording, value or link changes on any page.
++
++approved_design:
++  - match: #132
++  - team: #134
++
++depends_on:
++  - none: the work is on main alone
++
++shared_files:
++  - tests/fixtures/component_registry/baseline.json
++  - docs/design/components.yml
++  - site_v2/src/styles/system.css
++
++decisions_taken: >
++  The status word and the formation keep their text style under a class of their own component;
++  the stylesheet gives the status word the block heading's declaration through one selector list,
++  so the two keep one form. The table row's second line takes one form for every table, 13px
++  muted at line height 1.2 (the ranking tables'), and the Deserved points table takes it.
++  Decided by the coordinating agent under docs/design/design_standard.md. No new mechanism,
++  dependency or recurring cost.
++
++decisions_reserved:
++  - none: any question goes to the coordinating session.
++
++done_when:
++  - The before/after capture of every match page and every Team page reports pixel-identical screenshots, the same hrefs and the same text, except the Deserved table's second line; every difference listed.
++  - python scripts/check_component_registry.py passes; baseline pins do not rise.
++  - Full pytest and the site's node tests pass.
++  - python scripts/ci_local.py --mr is green.
++
++amendments: >
++  The Deserved points table moves onto the table row in this task, its second line at the table
++  row's 1.2 line height, table-wide: the coordinating agent's form pick under
++  docs/design/design_standard.md (mandate approved in chat, 16 Nov 2026), 18 Nov 2026.
++  scripts/parts_page.py names the Deserved table's sub-line part in its Meta line kind; that part
++  goes, so its name leaves the kind's list (the coordinating agent's engineering call, same
++  mandate), 18 Nov 2026.
++  The sub-line part moves from the board to the table row in docs/design/components.yml, so the
++  registry measures the second line of every table the stylesheet styles (review round 1); the
++  design inventory's Pages table in docs/wireframes/block_standard.md and the parts page's Meta
++  line kind follow the part's new name; same mandate, 18 Nov 2026.
++  The Team page's chart screenshot pins (tests/fixtures/chart_screenshots/, the scatter and strip
++  plots below the Deserved table) are retaken on Linux by the design check: the charts sit up to
++  1px higher at a fractional offset, so their text rasterises a pixel apart; nothing in a chart
++  changes; same mandate, 18 Nov 2026.
+diff --git a/docs/design/components.yml b/docs/design/components.yml
+index a0377910..67bedfbf 100644
+--- a/docs/design/components.yml
++++ b/docs/design/components.yml
+@@ -217,6 +217,7 @@ components:
+     parts:
+       row: {class: ctab-row, element: Table row, rule: "a 1px line between rows, no stripe; the row's tracks are the head's (one fixed track list per table kind)", measured: "stripe=transparent from 1; tracks=head", ruled-on: "#129 Table; the design standard"}
+       name: {class: nm, selector: ".ctab .tm .nm", text: 15-400-ink, element: Table name cell, rule: "15px ink, wraps and never truncates", measured: "font-size=15px; font-weight=400; color=ink; white-space=normal", ruled-on: "#129 Table; the design standard"}
++      sub-line: {class: sub, selector: ".ctab .tm .sub", text: 13-400-muted, element: Table sub-line, rule: "the line under a row's name (a player's club, a value's unit), 13px muted", measured: "font-size=13px; color=muted", ruled-on: "#129 Rankings; the design standard"}
+       narrow-row: {class: ctab-row, selector: ".ctab.fit-two .ctab-row", element: Table narrow row, rule: "a row that does not fit on one line takes two: rank, crest and name, then each number under its head", measured: "tracks=head", ruled-on: the narrow-screen fix}
+       ordered-by: {class: pts, selector: ".ctab .n.pts", text: 15-700-accent, element: Ordered-by number, rule: "the number a table is ordered by: bold 15px accent, everywhere, no per-block colour", measured: "font-size=15px; font-weight=700; color=accent", ruled-on: "#129 binding rules"}
+     wide: "rank | crest and name | numbers under their heads; the row links to the team or player page"
+@@ -228,7 +229,7 @@ components:
+     parts:
+       name: {class: nm, selector: ".ctab.rkt .ctab-head .nmh .bt .nm", text: 15-700-ink, element: Board name, rule: "a board is a single-value table; its name sits in the head row with the chevron, in the item title style: 15px bold ink, not capitals, at the block's left edge", measured: "font-size=15px; font-weight=700; color=ink; text-transform=none", ruled-on: "#129 board rules; #127 correction 1; the design standard"}
+       name-cell: {class: nmh, selector: ".ctab.rkt .ctab-head .nmh", element: Board name cell, rule: "at the block's left edge", measured: "left-edge=section", ruled-on: "#127 correction 3"}
+-      sub-line: {class: sub, selector: ".ctab.rkt .tm .ent .sub", text: 13-400-muted, element: Board sub-line, rule: "a player's club under the name, 13px muted", measured: "font-size=13px; color=muted", ruled-on: "#129 Rankings; the design standard"}
++      sub-line: {class: sub, selector: ".board .ent .sub"}
+       spacing: {class: board, selector: ".board + .board", element: Board spacing, rule: 24px between boards, measured: "gap(prev)=24px", ruled-on: "#40, #41 (the shipped board); the design standard"}
+     wide: "a single-value table, its name in the head row"
+     narrow: {below: w480, form: a name and its sub-line each on its own line}
+@@ -306,6 +307,7 @@ components:
+       winner: {class: winner, selector: ".mast .winner", gap: style-varies, element: Match header winner, rule: "the winning side's goals by weight, never by hue", measured: "font-weight=700", ruled-on: the played match page review}
+       team-goals: {class: sg, selector: ".mast .team .sg", gap: style-varies, element: Match header team goals, rule: "under 700px a team's goals close its line, 20px ink like the team's name, the winner's bold", measured: "font-size=20px; color=ink", ruled-on: "the played match page review; the design standard"}
+       result-line: {class: resline, selector: ".mast .resline", text: 13-400-muted, element: Match header result line, rule: "the line under the score, 13px muted: after penalties the score after extra time, its numbers bold; on an award, how it came about", measured: "font-size=13px; color=muted", ruled-on: the played match page review}
++      status-word: {class: status-word, selector: ".mast .status-word", text: 13-700-muted-caps}
+       kick-off: {class: kick, selector: ".mast .kick", text: 13-400-muted, breaks: between words}
+       dash: {class: dash, selector: ".mast .dash", text: 30-400-muted, breaks: never}
+       hidden-label: {class: vh}
+@@ -400,6 +402,7 @@ components:
+     used-on: [match page]
+     parts:
+       column-head: {class: colhead, selector: ".rcol .colhead", text: 13-700-muted-caps, element: Column head, rule: "a list column's name in the block heading's style, 13px bold capitals muted; one fact may follow on a second 13px muted line (a team's formation); a second head inside the column opens its second list, 12px under the first", measured: "font-size=13px; font-weight=700; text-transform=uppercase; color=muted", ruled-on: "the played match page review; the design standard"}
++      formation: {class: formation, selector: ".rcol .colhead .formation", text: 13-400-muted}
+       columns: {class: rsplit}
+       sheets: {class: sheets}
+       "off": {class: "off"}
+@@ -473,7 +476,6 @@ components:
+     parts:
+       plot: {class: dp-chart, element: Scatter plot, rule: "each team's shots on target difference per match against its points, with the deserved points line; drawn by `team/TeamDeserved.astro`", measured: fits, ruled-on: the Team page review}
+       table: {class: dpm, gap: mock-css}
+-      table-sub: {class: dpm-sub, gap: mock-css}
+       table-value: {class: dpm-v, gap: mock-css}
+     wide: the scatter with its axes and the deserved points line
+     narrow: {below: w480, form: the narrow drawing}
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index 1667d5f6..2bd6b15e 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -98,12 +98,13 @@
+ | Table parts | `.ctab` | the table's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Table row | `.ctab-row` | a 1px line between rows, no stripe; the row's tracks are the head's (one fixed track list per table kind) | `stripe=transparent from 1; tracks=head` | ruled | #129 Table; the design standard |
+ | Table name cell | `.ctab .tm .nm` | 15px ink, wraps and never truncates | `font-size=15px; font-weight=400; color=ink; white-space=normal` | ruled | #129 Table; the design standard |
++| Table sub-line | `.ctab .tm .sub` | the line under a row's name (a player's club, a value's unit), 13px muted | `font-size=13px; color=muted` | ruled | #129 Rankings; the design standard |
+ | Table narrow row | `.ctab.fit-two .ctab-row` | a row that does not fit on one line takes two: rank, crest and name, then each number under its head | `tracks=head` | ruled | the narrow-screen fix |
+ | Ordered-by number | `.ctab .n.pts` | the number a table is ordered by: bold 15px accent, everywhere, no per-block colour | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules |
+ | Board name | `.ctab.rkt .ctab-head .nmh .bt .nm` | a board is a single-value table; its name sits in the head row with the chevron, in the item title style: 15px bold ink, not capitals, at the block's left edge | `font-size=15px; font-weight=700; color=ink; text-transform=none` | ruled | #129 board rules; #127 correction 1; the design standard |
+ | Board name cell | `.ctab.rkt .ctab-head .nmh` | at the block's left edge | `left-edge=section` | ruled | #127 correction 3 |
+-| Board sub-line | `.ctab.rkt .tm .ent .sub` | a player's club under the name, 13px muted | `font-size=13px; color=muted` | ruled | #129 Rankings; the design standard |
+ | Board spacing | `.board + .board` | 24px between boards | `gap(prev)=24px` | ruled | #40, #41 (the shipped board); the design standard |
++| Board parts | `.board .ent .sub` | the board's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Table group heading | `.ctab-section > .gh` | the heading over one table of a group stage ("Group A"): the metric group heading's form, 18px bold. It has no line of its own; the table head's rule is under it | `border-bottom-width=0px; left-edge=section` | ruled | #129 Table; the design standard |
+ | Table group name | `.ctab-section > .gh .nm` | 18px bold ink | `font-size=18px; font-weight=700; color=ink` | ruled | #129 Table; the design standard |
+ | Standings table goal difference | `.ctab .n.gd` | the standings table's goal difference, in the 13-400-muted text style, never broken | `font-size=13px; font-weight=400; color=muted; one-line; fits` | ruled | the component registry |
+@@ -126,6 +127,7 @@
+ | Match header winner | `.mast .winner` | the winning side's goals by weight, never by hue | `font-weight=700` | ruled | the played match page review |
+ | Match header team goals | `.mast .team .sg` | under 700px a team's goals close its line, 20px ink like the team's name, the winner's bold | `font-size=20px; color=ink` | ruled | the played match page review; the design standard |
+ | Match header result line | `.mast .resline` | the line under the score, 13px muted: after penalties the score after extra time, its numbers bold; on an award, how it came about | `font-size=13px; color=muted` | ruled | the played match page review |
++| Match header status word | `.mast .status-word` | the match header's status word, in the 13-700-muted-caps text style | `font-size=13px; font-weight=700; color=muted; text-transform=uppercase` | ruled | the component registry |
+ | Match header kick off | `.mast .kick` | the match header's kick off, in the 13-400-muted text style | `font-size=13px; font-weight=400; color=muted` | ruled | the component registry |
+ | Match header dash | `.mast .dash` | the match header's dash, in the 30-400-muted text style, never broken | `font-size=30px; font-weight=400; color=muted; one-line; fits` | ruled | the component registry |
+ | Match header parts | `.vh, .played` | the match header's other parts: registered, no text of their own |  | ruled | the component registry |
+@@ -150,6 +152,7 @@
+ | Player row position | `.plrow .pname .ps` | 13px muted. On a line-up the substitution follows as a unit in the same line. It is the minute a starter went off, or a substitute came on and for whom | `font-size=13px; color=muted` | ruled | the match page review |
+ | Player row number | `.plrow .pstat b` | 15px bold ink | `font-size=15px; font-weight=700; color=ink` | ruled | the match page review |
+ | Column head | `.rcol .colhead` | a list column's name in the block heading's style, 13px bold capitals muted; one fact may follow on a second 13px muted line (a team's formation); a second head inside the column opens its second list, 12px under the first | `font-size=13px; font-weight=700; text-transform=uppercase; color=muted` | ruled | the played match page review; the design standard |
++| Two columns formation | `.rcol .colhead .formation` | the two columns's formation, in the 13-400-muted text style | `font-size=13px; font-weight=400; color=muted` | ruled | the component registry |
+ | Two columns parts | `.rsplit, .sheets, .off` | the two columns's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Competition row | `.lrow.tc` | one competition of a team's season: crest, name and a muted note, with the standing or the cup's outcome on the right. A table's row adds the W, D and L counts, each the result chip and its count, then goals and points below. Narrow, the standing opens the second line | `fits` | ruled | the Team page review; the design standard |
+ | Competition row name | `.tc .tc-name` | 15px ink; the note under it 13px muted | `font-size=15px; font-weight=400; color=ink` | ruled | the Team page review; the design standard |
+@@ -252,7 +255,7 @@ of record in `design-mocks/renders/` are not pages; the generators that wrote th
+ | Competitions index | built | `site_v2/dist` | `en/competitions/index.html` | path | Filter row, Row link, Search field [>=1010px], Search button [<1010px] |
+ | Competition overview | built | `site_v2/dist` | `en/bundesliga/index.html` | path | Block heading, Table head, Table row, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
+ | Competition matchdays | built | `site_v2/dist` | `en/bundesliga/matches/index.html` | path | Block heading, Schedule block, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar, Search field [>=1010px], Search button [<1010px] |
+-| Competition rankings | built | `site_v2/dist` | `en/bundesliga/stats/index.html` | path | Block heading, Metric group heading, Board name, Board sub-line, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
++| Competition rankings | built | `site_v2/dist` | `en/bundesliga/stats/index.html` | path | Block heading, Metric group heading, Board name, Table sub-line, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
+ | Match page | built | `site_v2/dist` | `en/*/matches/*/index.html` | path | Block heading, Match header competition head, Navigation link, Search field [>=1010px], Search button [<1010px] |
+ | Played match page | built | `site_v2/dist` | `en/bundesliga/matches/2026-09-05-tsg-1899-hoffenheim-vs-borussia-dortmund/index.html` | path | Match header winner, Goal row meta, Comparison element, Metric switch, Comparison team name, Column head, Search field [>=1010px], Search button [<1010px] |
+ | Team page | built | `site_v2/dist` | `en/teams/*/index.html` | path | Block heading, Tab bar, Competition row, Result row, Match row kick-off, Tag, Fact row value, Player row, Squad grid, Search field [>=1010px], Search button [<1010px] |
+@@ -265,7 +268,7 @@ of record in `design-mocks/renders/` are not pages; the generators that wrote th
+ | Matches day page | built | `site_v2/dist` | `en/matches/*/index.html` | path | Page heading, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row score, Search field [>=1010px], Search button [<1010px] |
+ | competition-overview | mock | `gen_overview_after_teams.py` | `competition_overview_after_teams_v2.html` | toggle | Block heading, Table head, Table row, Ordered-by number, Fact row value, Tab bar |
+ | competition-matchdays | mock | `gen_competition_matchdays.py` | `competition_matchdays_mock_v1.html` | toggle | Block heading, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar |
+-| competition-rankings | mock | `gen_competition_teams.py` | `competition_teams_mock_v1.html` | toggle | Block heading, Metric group heading, Board name, Board sub-line, Tab bar |
++| competition-rankings | mock | `gen_competition_teams.py` | `competition_teams_mock_v1.html` | toggle | Block heading, Metric group heading, Board name, Table sub-line, Tab bar |
+ | home | mock | `gen_home_with_rules.py` | `home_with_rules_v1.html` | toggle | Block heading, Competition group head, Board name, Date heading |
+ | competition-hub league | mock | `gen_competition_hub.py` | `competition_hub_mock_league.html` | toggle | Block heading, Table head, Table row, Tab bar |
+ | competition-hub groups | mock | `gen_competition_hub.py` | `competition_hub_mock_groups.html` | toggle | Table group heading, Table row |
+diff --git a/scripts/parts_page.py b/scripts/parts_page.py
+index 35a4f026..ee891ab1 100644
+--- a/scripts/parts_page.py
++++ b/scripts/parts_page.py
+@@ -82,9 +82,9 @@ KINDS: list[tuple[str, list[str]]] = [
+                           "competition-row.right", "competition-row.numbers", "scatter-plot.table-value"]),
+     ("Meta line", ["result-row.meta", "result-row.goal-meta", "result-row.home-away",
+                    "result-row.home-away-line", "result-row.player-competition", "result-row.player-line",
+-                   "board.sub-line", "fact-row.context", "index-row.region", "index-row.meta",
++                   "table-row.sub-line", "fact-row.context", "index-row.region", "index-row.meta",
+                    "entity-header.meta", "competition-row.context", "competition-row.extra",
+-                   "masthead.standing", "scatter-plot.table-sub", "strip-plot.median-key"]),
++                   "masthead.standing", "strip-plot.median-key"]),
+     ("Label", ["fact-row.label", "chart.name", "chart.tick", "chart.note", "chart.legend",
+                "metric-switch.label"]),
+     ("Tab bar", ["tabs.bar", "tabs.tab", "tabs.tabs"]),
+diff --git a/site_v2/src/components/fixture/Masthead.astro b/site_v2/src/components/fixture/Masthead.astro
+index a1a177ab..389aadb7 100644
+--- a/site_v2/src/components/fixture/Masthead.astro
++++ b/site_v2/src/components/fixture/Masthead.astro
+@@ -78,7 +78,7 @@ const sides: { side: Side; href?: string }[] = [
+     <GroupHead lang={lang} name={compName} crest={{ name: compName, url: compLogo }} competition={compSlug} />
+   </div>
+   <h1 class="vh">{title}</h1>
+-  <div class="eyebrow">{eyebrow}</div>
++  <div class="status-word">{eyebrow}</div>
+   <div class="kick facts-line">
+     {kick.map((unit) => <span>{unit}</span>)}
+     {state && <span><StatusTag lang={lang} state={state} /></span>}
+diff --git a/site_v2/src/components/fixture/MatchLineups.astro b/site_v2/src/components/fixture/MatchLineups.astro
+index f9e5954c..19a9e68b 100644
+--- a/site_v2/src/components/fixture/MatchLineups.astro
++++ b/site_v2/src/components/fixture/MatchLineups.astro
+@@ -36,7 +36,7 @@ function second(p: LineupPlayer): string[] {
+     <div class="rsplit sheets">
+       {sides.map((side) => (
+         <div class="rcol">
+-          <div class="colhead">{side.name ?? ""}{side.formation && <span class="ps">{side.formation}</span>}</div>
++          <div class="colhead">{side.name ?? ""}{side.formation && <span class="formation">{side.formation}</span>}</div>
+           {side.lineup.map((p, i) => {
+             return (
+               <>
+diff --git a/site_v2/src/components/team/TeamDeserved.astro b/site_v2/src/components/team/TeamDeserved.astro
+index c4862412..4a91aedc 100644
+--- a/site_v2/src/components/team/TeamDeserved.astro
++++ b/site_v2/src/components/team/TeamDeserved.astro
+@@ -12,6 +12,7 @@
+ import SectionHead from "../ui/SectionHead.astro";
+ import Explainer from "../ui/Explainer.astro";
+ import ChartLegend from "../ui/ChartLegend.astro";
++import TableRow from "../ui/TableRow.astro";
+ import { scatter, offset } from "../../lib/chartTheme";
+ import type { Lang } from "../../lib/format";
+ import { decimal1, integer, signedDelta } from "../../lib/format";
+@@ -108,7 +109,7 @@ const fmtTick = (x: number) => (x > 0 ? `+${integer(x, lang)}` : integer(x, lang
+     <div class="ctab dpm">
+       <div class="ctab-head"><span class="h nmh">{t(lang, "teamAfterMatches", { competition: compName, n: integer(s.played, lang) })}</span><span class="h"></span></div>
+       {rows.map((r) => (
+-        <div class="ctab-row"><span class="tm"><span class="nm">{r.name}{r.sub && <span class="dpm-sub">{r.sub}</span>}</span></span><span class="n dpm-v">{r.value}</span></div>
++        <TableRow lang={lang} name={r.name} sub={r.sub || undefined} cells={[{ text: r.value, kind: "dpm-v" }]} />
+       ))}
+     </div>
+     <div class="chart">
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index 7a892210..0d02cba5 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -67,7 +67,7 @@ img { max-width: 100%; }
+ .fx .seg-in:focus-visible ~ .fbar > .seg:not(.sel) { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+ .inner { max-width: 960px; margin: 0 auto; padding: 0 16px 48px; }
+ .num { font-variant-numeric: tabular-nums; }
+-.eyebrow { font-size: 13px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
++.eyebrow, .mast .status-word { font-size: 13px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+ section { margin-top: 36px; }
+ .sechead { display: flex; align-items: baseline; gap: 12px; }
+ .sechead::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+@@ -90,7 +90,7 @@ section { margin-top: 36px; }
+ 
+ /* ---- masthead ---- */
+ .mast { text-align: center; padding: 12px 0 24px; border-bottom: 1px solid var(--line); }
+-.mast .eyebrow { margin-top: 12px; }
++.mast .status-word { margin-top: 12px; }
+ .mast .kick { font-size: 13px; color: var(--muted); margin-top: 8px; --facts-justify: center; }
+ .mast .kick b { color: var(--muted); font-weight: 700; }
+ .teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; margin-top: 24px; }
+@@ -159,7 +159,7 @@ section { margin-top: 36px; }
+ .split { display: grid; grid-template-columns: 1fr; gap: 12px 24px; margin-top: 4px; }
+ @container (min-width: 560px) { .split { grid-template-columns: 1fr 1fr; } }
+ .colhead { font-size: 13px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 12px 0 0; }
+-.colhead .ps { display: block; font-size: 13px; font-weight: 400; letter-spacing: 0; text-transform: none; }
++.colhead .formation { display: block; font-size: 13px; font-weight: 400; letter-spacing: 0; text-transform: none; }
+ .res { width: 24px; height: 24px; border-radius: 4px; display: grid; place-items: center; font-weight: 700; font-size: 11px; color: var(--pill-ink); }
+ .res.W { background: var(--win); }
+ .res.D { background: var(--draw); }
+@@ -842,8 +842,8 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+    fixed track list; the board's name is the head, with its chevron, and its rule over the rows.
+    A player's row carries the club under the name. */
+ .ctab.rkt, .ctab.rkt.ctab { --cols: 2rem minmax(0, 1fr) 3.6rem; margin-top: 0; }
+-.ctab.rkt .tm .ent { display: flex; flex-direction: column; min-width: 0; }
+-.ctab.rkt .tm .ent .sub { font-size: 13px; color: var(--muted); line-height: 1.2; }
++.ctab .tm .ent { display: flex; flex-direction: column; min-width: 0; }
++.ctab .tm .ent .sub { font-size: 13px; color: var(--muted); line-height: 1.2; }
+ .ctab.rkt .ctab-head .nmh { text-align: left; padding-left: 0; grid-column: 1 / 3; }
+ .ctab.rkt .ctab-head .rk { display: none; }
+ .ctab.rkt .ctab-head .nmh .bt { display: inline-flex; align-items: center; gap: 4px; }
+@@ -1066,7 +1066,6 @@ a.lrow.tc, div.lrow.tc { padding-block: 12px; }
+ .ctab.dpm, .ctab.dpm.ctab { --cols: minmax(0, 1fr) 4.2rem; }
+ .ctab.dpm .ctab-head .nmh { text-align: left; padding-left: 0; }
+ .ctab.dpm .n.dpm-v { font-size: 15px; font-weight: 700; color: var(--ink); }
+-.dpm-sub { display: block; font-size: 13px; color: var(--muted); font-weight: 400; }
+ 
+ /* ============================================================ *
+  *  CHARTS — the theme every chart reads. Its look values are    *
+diff --git a/tests/fixtures/chart_screenshots/manifest.json b/tests/fixtures/chart_screenshots/manifest.json
+index 8b64ee85..9413bd45 100644
+--- a/tests/fixtures/chart_screenshots/manifest.json
++++ b/tests/fixtures/chart_screenshots/manifest.json
+@@ -7,17 +7,17 @@
+   "comparison-en-light-375.png": "511956b8ef70b9aae8b7a639ff47b159686987e6ae0d082d8ee07238b0475125",
+   "comparison-fi-dark-1010.png": "025401823def0b2ed507ea6d874b95074614ef2e6709f086a0f0fa436b42cdd0",
+   "comparison-fi-dark-375.png": "3ae62c58a3a99853b06b3ae019b56cfd2863f432b3b0cbf2d746481d379efaeb",
+-  "scatter-en-dark-1010.png": "e630f1140c8626067595f97eef1d6792c3c412c84bda87ba377463f06d3a7bd8",
+-  "scatter-en-dark-375.png": "47460f67cc208e830bdc68879029486a279e78efdf05f32360913be0c37c631e",
+-  "scatter-en-light-1010.png": "995339de792e52d8aab89035714b3dc285259d7baa1e568228a108c02e9270f2",
+-  "scatter-en-light-375.png": "38994e288c0dc1a9620097e4bd877a57e33ad3c7dd207afa38ab055f07baeff0",
+-  "scatter-fi-dark-1010.png": "bf2b7e0b6b26b094a420bd206eb665393cc0078f575f4d9c9e559dcd45ac8584",
+-  "scatter-fi-dark-375.png": "0050384c79535c2616fed3e15831002b7229c80da83077d401c4dbea97a95b24",
+-  "strip-en-dark-1010.png": "f2dcf8887e8a95120c6fc0be8db3662b3fd72019ac42927fca7aedb5b4e7952b",
+-  "strip-en-dark-375.png": "60ee203f55701bb97da93bcd67bd3870b6d7e9102d73446d3427db23a33a1fb7",
+-  "strip-en-light-1010.png": "e141592202912dc7a6fa297589e39ab5de182e1a65b00644ad6878d33fe35666",
+-  "strip-en-light-375.png": "6e77ea89d4ba60a4ae038eb34fa762c90c1cc4984464abf0acc4772bd882da4a",
+-  "strip-fi-dark-1010.png": "e4f9b55961a43ff017ec832bf77c4276254a9341e436dc991b59ed2c504c9c7b",
+-  "strip-fi-dark-375.png": "29a7b7e7cb1a18b558d120b00683d43a0ce728d87751f1f9e68575f54f754d8a"
++  "scatter-en-dark-1010.png": "f12c7aadf9eb280848c407eb29781ef9665843e187749b9377adea1b53304b34",
++  "scatter-en-dark-375.png": "18c6f84027580f1ec575be78e2fbf541ce5c9940ffba1c1ffc0dd925c116b783",
++  "scatter-en-light-1010.png": "2e64c478a81e08050bd06f9864f65384c75bbfde9a640bb600338238f8ba9abb",
++  "scatter-en-light-375.png": "684e0831bbbbdb488cf03fa3f3e36fae28cf061282fe563df18fe3d9da673634",
++  "scatter-fi-dark-1010.png": "2589a03134dfee0c82f9665ef1aeea4d6e0cb04983ca681b44c6b8acc139f02d",
++  "scatter-fi-dark-375.png": "df8395622d4431d0f62c7bb62460baf670e7a321c09ed91766b1a1f82e299b22",
++  "strip-en-dark-1010.png": "74e2735b96615f4adcc02dddb7007c7741d75c937399da318bab1e314b6be2ac",
++  "strip-en-dark-375.png": "e915fda4c579c26184c9dfc7870ea91868c2b51690a8d53587c527bbbf0c0b30",
++  "strip-en-light-1010.png": "b5ffce135abb039b42dc45fed959aded519e5cf942ea90588f1c0986f1fc4b09",
++  "strip-en-light-375.png": "bea243d993d08632f6d530b21bf4579b5b1f9be4a7abc4732259d818042cf567",
++  "strip-fi-dark-1010.png": "e324272e747e7648b971bc4e85b14c766f0632252223cb30fded3587b626e2ec",
++  "strip-fi-dark-375.png": "a96c12a49cee3b8127248021b07dcb706feff7b2798eb56b496e1086a08e29ca"
+  }
+ }
+diff --git a/tests/fixtures/chart_screenshots/scatter-en-dark-1010.png b/tests/fixtures/chart_screenshots/scatter-en-dark-1010.png
+index bf3f9cd1..3a9f0804 100644
+Binary files a/tests/fixtures/chart_screenshots/scatter-en-dark-1010.png and b/tests/fixtures/chart_screenshots/scatter-en-dark-1010.png differ
+diff --git a/tests/fixtures/chart_screenshots/scatter-en-dark-375.png b/tests/fixtures/chart_screenshots/scatter-en-dark-375.png
+index 5b720cdb..add14c82 100644
+Binary files a/tests/fixtures/chart_screenshots/scatter-en-dark-375.png and b/tests/fixtures/chart_screenshots/scatter-en-dark-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/scatter-en-light-1010.png b/tests/fixtures/chart_screenshots/scatter-en-light-1010.png
+index 141b222d..8f096947 100644
+Binary files a/tests/fixtures/chart_screenshots/scatter-en-light-1010.png and b/tests/fixtures/chart_screenshots/scatter-en-light-1010.png differ
+diff --git a/tests/fixtures/chart_screenshots/scatter-en-light-375.png b/tests/fixtures/chart_screenshots/scatter-en-light-375.png
+index a78d9ad0..b179aa84 100644
+Binary files a/tests/fixtures/chart_screenshots/scatter-en-light-375.png and b/tests/fixtures/chart_screenshots/scatter-en-light-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/scatter-fi-dark-1010.png b/tests/fixtures/chart_screenshots/scatter-fi-dark-1010.png
+index 33f009d1..b831f6bc 100644
+Binary files a/tests/fixtures/chart_screenshots/scatter-fi-dark-1010.png and b/tests/fixtures/chart_screenshots/scatter-fi-dark-1010.png differ
+diff --git a/tests/fixtures/chart_screenshots/scatter-fi-dark-375.png b/tests/fixtures/chart_screenshots/scatter-fi-dark-375.png
+index 01430ed1..c3b48b9b 100644
+Binary files a/tests/fixtures/chart_screenshots/scatter-fi-dark-375.png and b/tests/fixtures/chart_screenshots/scatter-fi-dark-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-en-dark-1010.png b/tests/fixtures/chart_screenshots/strip-en-dark-1010.png
+index ff9349a9..c194be68 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-en-dark-1010.png and b/tests/fixtures/chart_screenshots/strip-en-dark-1010.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-en-dark-375.png b/tests/fixtures/chart_screenshots/strip-en-dark-375.png
+index e16713e9..9872df00 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-en-dark-375.png and b/tests/fixtures/chart_screenshots/strip-en-dark-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-en-light-1010.png b/tests/fixtures/chart_screenshots/strip-en-light-1010.png
+index 0c180ae0..fc13294d 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-en-light-1010.png and b/tests/fixtures/chart_screenshots/strip-en-light-1010.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-en-light-375.png b/tests/fixtures/chart_screenshots/strip-en-light-375.png
+index 3265c8b6..7ea9bd0f 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-en-light-375.png and b/tests/fixtures/chart_screenshots/strip-en-light-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-fi-dark-1010.png b/tests/fixtures/chart_screenshots/strip-fi-dark-1010.png
+index ba4bca80..b8e31bac 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-fi-dark-1010.png and b/tests/fixtures/chart_screenshots/strip-fi-dark-1010.png differ
+diff --git a/tests/fixtures/chart_screenshots/strip-fi-dark-375.png b/tests/fixtures/chart_screenshots/strip-fi-dark-375.png
+index 567fba1e..d01bb226 100644
+Binary files a/tests/fixtures/chart_screenshots/strip-fi-dark-375.png and b/tests/fixtures/chart_screenshots/strip-fi-dark-375.png differ
+diff --git a/tests/fixtures/component_registry/baseline.json b/tests/fixtures/component_registry/baseline.json
+index 33a3da3d..751dcdba 100644
+--- a/tests/fixtures/component_registry/baseline.json
++++ b/tests/fixtures/component_registry/baseline.json
+@@ -2,10 +2,10 @@
+  "stylesheet values": {},
+  "forms": {"crest": 1, "fact-row": 1, "header": 1, "table": 1},
+  "unlisted classes": {"system.css": 34},
+- "part gaps": {"mock-css": 34, "style-varies": 4},
++ "part gaps": {"mock-css": 33, "style-varies": 4},
+  "set sizes": {"colours": 20, "corners": 3, "marks": 4, "spacing": 11, "switch": 13, "text": 19},
+  "unchecked property": {"--chart-bar": 1, "--chart-dot-other": 1, "--chart-dot-team": 1, "--chart-halo": 1, "--chart-text": 1, "--chart-text-name": 1, "--chart-text-tick": 1, "--chart-text-value": 1, "--cols": 11, "--div": 2, "--facts-justify": 15, "--gap": 2, "--sp": 1, "--vw": 2, "-webkit-backdrop-filter": 1, "-webkit-mask-image": 1, "backdrop-filter": 1, "background": 5, "border": 11, "border-bottom": 23, "border-color": 2, "border-left": 2, "border-top": 3, "box-shadow": 8, "clip-path": 1, "cy": 1, "flex": 21, "font-family": 2, "grid-template-columns": 42, "grid-template-rows": 1, "height": 41, "inset": 3, "left": 4, "letter-spacing": 17, "line-height": 21, "mask-image": 1, "max-width": 11, "min-height": 3, "min-width": 28, "opacity": 7, "outline": 6, "outline-offset": 9, "r": 3, "right": 3, "stroke-dasharray": 1, "stroke-width": 7, "text-decoration": 6, "text-decoration-color": 2, "text-underline-offset": 2, "top": 6, "transform": 7, "translate": 1, "vertical-align": 3, "width": 36},
+  "inline styles": {"style attribute": 4},
+- "markup outside its component": {"block": 1, "board": 5, "breadcrumb": 2, "competition-index": 4, "header": 2, "last-season": 2, "page-shell": 17, "player-row": 1, "table-row": 1, "team-index": 5},
++ "markup outside its component": {"board": 5, "breadcrumb": 2, "competition-index": 4, "header": 2, "last-season": 2, "page-shell": 17, "team-index": 5},
+  "components in several files": {"registry": 11}
+ }
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../acceptance_evidence.md                         | 33 ++++++++++++
+#    .../rendered_page_evidence.md                      | 62 ++++++++++++++++++++++
+#    2 files changed, 95 insertions(+)
+# ============================================================================

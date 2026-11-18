@@ -98,12 +98,13 @@
 | Table parts | `.ctab` | the table's other parts: registered, no text of their own |  | ruled | the component registry |
 | Table row | `.ctab-row` | a 1px line between rows, no stripe; the row's tracks are the head's (one fixed track list per table kind) | `stripe=transparent from 1; tracks=head` | ruled | #129 Table; the design standard |
 | Table name cell | `.ctab .tm .nm` | 15px ink, wraps and never truncates | `font-size=15px; font-weight=400; color=ink; white-space=normal` | ruled | #129 Table; the design standard |
+| Table sub-line | `.ctab .tm .sub` | the line under a row's name (a player's club, a value's unit), 13px muted | `font-size=13px; color=muted` | ruled | #129 Rankings; the design standard |
 | Table narrow row | `.ctab.fit-two .ctab-row` | a row that does not fit on one line takes two: rank, crest and name, then each number under its head | `tracks=head` | ruled | the narrow-screen fix |
 | Ordered-by number | `.ctab .n.pts` | the number a table is ordered by: bold 15px accent, everywhere, no per-block colour | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules |
 | Board name | `.ctab.rkt .ctab-head .nmh .bt .nm` | a board is a single-value table; its name sits in the head row with the chevron, in the item title style: 15px bold ink, not capitals, at the block's left edge | `font-size=15px; font-weight=700; color=ink; text-transform=none` | ruled | #129 board rules; #127 correction 1; the design standard |
 | Board name cell | `.ctab.rkt .ctab-head .nmh` | at the block's left edge | `left-edge=section` | ruled | #127 correction 3 |
-| Board sub-line | `.ctab.rkt .tm .ent .sub` | a player's club under the name, 13px muted | `font-size=13px; color=muted` | ruled | #129 Rankings; the design standard |
 | Board spacing | `.board + .board` | 24px between boards | `gap(prev)=24px` | ruled | #40, #41 (the shipped board); the design standard |
+| Board parts | `.board .ent .sub` | the board's other parts: registered, no text of their own |  | ruled | the component registry |
 | Table group heading | `.ctab-section > .gh` | the heading over one table of a group stage ("Group A"): the metric group heading's form, 18px bold. It has no line of its own; the table head's rule is under it | `border-bottom-width=0px; left-edge=section` | ruled | #129 Table; the design standard |
 | Table group name | `.ctab-section > .gh .nm` | 18px bold ink | `font-size=18px; font-weight=700; color=ink` | ruled | #129 Table; the design standard |
 | Standings table goal difference | `.ctab .n.gd` | the standings table's goal difference, in the 13-400-muted text style, never broken | `font-size=13px; font-weight=400; color=muted; one-line; fits` | ruled | the component registry |
@@ -126,6 +127,7 @@
 | Match header winner | `.mast .winner` | the winning side's goals by weight, never by hue | `font-weight=700` | ruled | the played match page review |
 | Match header team goals | `.mast .team .sg` | under 700px a team's goals close its line, 20px ink like the team's name, the winner's bold | `font-size=20px; color=ink` | ruled | the played match page review; the design standard |
 | Match header result line | `.mast .resline` | the line under the score, 13px muted: after penalties the score after extra time, its numbers bold; on an award, how it came about | `font-size=13px; color=muted` | ruled | the played match page review |
+| Match header status word | `.mast .status-word` | the match header's status word, in the 13-700-muted-caps text style | `font-size=13px; font-weight=700; color=muted; text-transform=uppercase` | ruled | the component registry |
 | Match header kick off | `.mast .kick` | the match header's kick off, in the 13-400-muted text style | `font-size=13px; font-weight=400; color=muted` | ruled | the component registry |
 | Match header dash | `.mast .dash` | the match header's dash, in the 30-400-muted text style, never broken | `font-size=30px; font-weight=400; color=muted; one-line; fits` | ruled | the component registry |
 | Match header parts | `.vh, .played` | the match header's other parts: registered, no text of their own |  | ruled | the component registry |
@@ -150,6 +152,7 @@
 | Player row position | `.plrow .pname .ps` | 13px muted. On a line-up the substitution follows as a unit in the same line. It is the minute a starter went off, or a substitute came on and for whom | `font-size=13px; color=muted` | ruled | the match page review |
 | Player row number | `.plrow .pstat b` | 15px bold ink | `font-size=15px; font-weight=700; color=ink` | ruled | the match page review |
 | Column head | `.rcol .colhead` | a list column's name in the block heading's style, 13px bold capitals muted; one fact may follow on a second 13px muted line (a team's formation); a second head inside the column opens its second list, 12px under the first | `font-size=13px; font-weight=700; text-transform=uppercase; color=muted` | ruled | the played match page review; the design standard |
+| Two columns formation | `.rcol .colhead .formation` | the two columns's formation, in the 13-400-muted text style | `font-size=13px; font-weight=400; color=muted` | ruled | the component registry |
 | Two columns parts | `.rsplit, .sheets, .off` | the two columns's other parts: registered, no text of their own |  | ruled | the component registry |
 | Competition row | `.lrow.tc` | one competition of a team's season: crest, name and a muted note, with the standing or the cup's outcome on the right. A table's row adds the W, D and L counts, each the result chip and its count, then goals and points below. Narrow, the standing opens the second line | `fits` | ruled | the Team page review; the design standard |
 | Competition row name | `.tc .tc-name` | 15px ink; the note under it 13px muted | `font-size=15px; font-weight=400; color=ink` | ruled | the Team page review; the design standard |
@@ -252,7 +255,7 @@ of record in `design-mocks/renders/` are not pages; the generators that wrote th
 | Competitions index | built | `site_v2/dist` | `en/competitions/index.html` | path | Filter row, Row link, Search field [>=1010px], Search button [<1010px] |
 | Competition overview | built | `site_v2/dist` | `en/bundesliga/index.html` | path | Block heading, Table head, Table row, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
 | Competition matchdays | built | `site_v2/dist` | `en/bundesliga/matches/index.html` | path | Block heading, Schedule block, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar, Search field [>=1010px], Search button [<1010px] |
-| Competition rankings | built | `site_v2/dist` | `en/bundesliga/stats/index.html` | path | Block heading, Metric group heading, Board name, Board sub-line, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
+| Competition rankings | built | `site_v2/dist` | `en/bundesliga/stats/index.html` | path | Block heading, Metric group heading, Board name, Table sub-line, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
 | Match page | built | `site_v2/dist` | `en/*/matches/*/index.html` | path | Block heading, Match header competition head, Navigation link, Search field [>=1010px], Search button [<1010px] |
 | Played match page | built | `site_v2/dist` | `en/bundesliga/matches/2026-09-05-tsg-1899-hoffenheim-vs-borussia-dortmund/index.html` | path | Match header winner, Goal row meta, Comparison element, Metric switch, Comparison team name, Column head, Search field [>=1010px], Search button [<1010px] |
 | Team page | built | `site_v2/dist` | `en/teams/*/index.html` | path | Block heading, Tab bar, Competition row, Result row, Match row kick-off, Tag, Fact row value, Player row, Squad grid, Search field [>=1010px], Search button [<1010px] |
@@ -265,7 +268,7 @@ of record in `design-mocks/renders/` are not pages; the generators that wrote th
 | Matches day page | built | `site_v2/dist` | `en/matches/*/index.html` | path | Page heading, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row score, Search field [>=1010px], Search button [<1010px] |
 | competition-overview | mock | `gen_overview_after_teams.py` | `competition_overview_after_teams_v2.html` | toggle | Block heading, Table head, Table row, Ordered-by number, Fact row value, Tab bar |
 | competition-matchdays | mock | `gen_competition_matchdays.py` | `competition_matchdays_mock_v1.html` | toggle | Block heading, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar |
-| competition-rankings | mock | `gen_competition_teams.py` | `competition_teams_mock_v1.html` | toggle | Block heading, Metric group heading, Board name, Board sub-line, Tab bar |
+| competition-rankings | mock | `gen_competition_teams.py` | `competition_teams_mock_v1.html` | toggle | Block heading, Metric group heading, Board name, Table sub-line, Tab bar |
 | home | mock | `gen_home_with_rules.py` | `home_with_rules_v1.html` | toggle | Block heading, Competition group head, Board name, Date heading |
 | competition-hub league | mock | `gen_competition_hub.py` | `competition_hub_mock_league.html` | toggle | Block heading, Table head, Table row, Tab bar |
 | competition-hub groups | mock | `gen_competition_hub.py` | `competition_hub_mock_groups.html` | toggle | Table group heading, Table row |
