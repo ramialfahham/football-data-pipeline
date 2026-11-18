@@ -25,6 +25,7 @@ MINI = {
         "spacing": ["8px"],
         "colours": ["ink", "muted"],
         "switch": {"w480": "480px"},
+        "corners": ["4px", "50%"],
     },
     "components": {
         "box": {
@@ -142,6 +143,7 @@ def test_links_to_names_only_known_page_types(tmp_path):
     (lambda r: r["components"]["box"].update({"short-forms": "played"}), "expected a list of distinct term keys"),
     (lambda r: r["components"]["box"].update({"short-forms": ["played", "played"]}), "expected a list of distinct term keys"),
     (lambda r: r["sets"].pop("marks"), "missing marks"),
+    (lambda r: r["sets"].update(corners="4px"), "sets.corners: expected a list"),
     (lambda r: r["sets"]["switch"].update(w1="wide"), "expected a px width"),
 ])
 def test_the_registry_fails_closed(tmp_path, change, message):
@@ -202,7 +204,62 @@ def test_stylesheet_values_outside_the_sets_are_counted():
     assert got["stylesheet values"] == {"size": 1, "spacing": 1, "colour": 1, "switch": 1}
     assert got["forms"] == {"box": 1}
     assert got["part gaps"] == {"mock-css": 1, "lines-unmeasured": 1}
-    assert got["set sizes"] == {"text": 1, "marks": 1, "spacing": 1, "colours": 2, "switch": 1}
+    assert got["set sizes"] == {"text": 1, "marks": 1, "spacing": 1, "colours": 2, "switch": 1, "corners": 2}
+
+
+def test_a_corner_radius_outside_the_set_is_counted_per_value():
+    css = (".bx { border-radius: 4px; }\n.a { border-radius: 9px; }\n.b { border-radius: 3px 0 0 4px; }\n"
+           ".c { border-top-left-radius: 50%; border-radius: 0; }\n")
+    assert ccr.counts(MINI, css)["stylesheet values"] == {"corner": 2}
+    assert "corner" not in ccr.counts(MINI, ".bx { border-radius: 4px 50%; }\n")["stylesheet values"]
+
+
+def test_a_property_no_set_governs_is_counted_as_unchecked():
+    css = (".bx { display: flex; gap: 8px; font-size: 13px; color: var(--ink); border-radius: 4px; }\n"
+           ".bx { border-bottom: 1px solid var(--line); width: 40px; height: 4px; box-shadow: 0 0 2px #000; }\n"
+           ".a { background: color-mix(in srgb, var(--ink) 5%, transparent); }\n"
+           ".b { background: var(--ink); fill: none; --muted: #888; --new: 5px; }\n"
+           "@media (min-width: 480px) { .bx { width: 50px; } }\n")
+    assert ccr.counts(MINI, css)["unchecked property"] == {
+        "border-bottom": 1, "width": 2, "height": 1, "box-shadow": 1, "background": 1, "--new": 1}
+
+
+def test_a_new_unchecked_property_fails_the_pin():
+    pinned = {"unchecked property": {"width": 1}}
+    got = ccr.counts(MINI, ".bx { width: 1px; float: left; }\n")
+    assert ccr.compare({"unchecked property": got["unchecked property"]}, pinned) == ["count rose · unchecked property · float · 1, baseline 0"]
+
+
+def test_a_new_radius_fails_the_pin():
+    got = ccr.counts(MINI, ".bx { border-radius: 11px; }\n")
+    assert ccr.compare({"stylesheet values": got["stylesheet values"]}, {"stylesheet values": {}}) == [
+        "count rose · stylesheet values · corner · 1, baseline 0"]
+
+
+def test_a_declaration_inside_parentheses_is_not_split():
+    assert ccr.declarations('.a { mask-image: url("data:image/svg+xml;utf8,x"); color: red }') == [
+        ("mask-image", 'url("data:image/svg+xml;utf8,x")'), ("color", "red")]
+
+
+def test_inline_styles_in_a_page_are_counted(tmp_path):
+    (tmp_path / "ok.astro").write_text('<div class="a" data-style="x"></div>\n', encoding="utf-8")
+    assert ccr.inline_styles(tmp_path) == {}
+    (tmp_path / "a.astro").write_text('<p style="color:red">x</p>\n<span style={`width:1%`}></span>\n', encoding="utf-8")
+    (tmp_path / "b.astro").write_text("<style>.x { color: red }</style>\n", encoding="utf-8")
+    assert ccr.inline_styles(tmp_path) == {"style attribute": 2, "style block": 1}
+    assert ccr.counts(MINI, ".bx { color: var(--ink); }\n", tmp_path)["inline styles"] == {"style attribute": 2, "style block": 1}
+
+
+def test_an_inline_style_fails_the_run(tmp_path):
+    base = json.loads(ccr.BASELINE.read_text(encoding="utf-8"))
+    base["inline styles"] = {}
+    pins = tmp_path / "baseline.json"
+    pins.write_text(json.dumps(base), encoding="utf-8")
+    src = tmp_path / "src"
+    src.mkdir()
+    assert ccr.main(["--src", str(src), "--baseline", str(pins)]) == 0
+    (src / "a.astro").write_text('<p style="color:red">x</p>\n', encoding="utf-8")
+    assert ccr.main(["--src", str(src), "--baseline", str(pins)]) == 1
 
 
 def test_a_class_the_stylesheet_styles_and_no_component_lists_is_counted():
@@ -270,9 +327,11 @@ def _rises(now: dict, was: dict, measured: set[str] | None = None) -> list[str]:
     """Every pin above main's, except the switch set's size: it counts declared breakpoints, not a
     gap, and the check pins it both ways; and except a count group main's baseline does not hold at
     all (`measured`, main's group names), whose first pins are what the branch introducing it
-    measures. A group main holds empty is measured: every pin in it is 0."""
+    measures. A group main holds empty is measured: every pin in it is 0. The corners set's size
+    is introduced the same way, once."""
     return ["%s · %s · %d, main %d" % (k[0], k[1], n, was.get(k, 0)) for k, n in sorted(now.items(), key=str)
-            if n > was.get(k, 0) and k != ("set sizes", "switch") and (measured is None or k[0] in measured)]
+            if n > was.get(k, 0) and k != ("set sizes", "switch") and (measured is None or k[0] in measured)
+            and not (k == ("set sizes", "corners") and k not in was)]
 
 
 def test_only_the_switch_set_may_grow_past_mains():
@@ -291,6 +350,14 @@ def test_a_rise_in_a_group_main_holds_empty_is_reported():
     main = {"forms": {"x": 1}, "stylesheet values": {}}
     now = {("forms", "x"): 1, ("stylesheet values", "size"): 1}
     assert _rises(now, _flat(main), set(main)) == ["stylesheet values · size · 1, main 0"]
+
+
+def test_the_corners_set_is_introduced_once_and_then_only_falls():
+    main = {"set sizes": {"colours": 20}}
+    now = {("set sizes", "colours"): 20, ("set sizes", "corners"): 3}
+    assert _rises(now, _flat(main), set(main)) == []
+    main = {"set sizes": {"colours": 20, "corners": 2}}
+    assert _rises(now, _flat(main), set(main)) == ["set sizes · corners · 3, main 2"]
 
 
 @pytest.mark.parametrize("path", ["tests/fixtures/component_registry/baseline.json",
