@@ -134,7 +134,7 @@ components:
     file: site_v2/src/components/ui/TabBand.astro
     used-on: [Competition pages, Team page, Player page]
     parts:
-      bar: {class: tabs, selector: nav.tabs, element: Tab bar, rule: "the tabs share the row and fit in one row at 375px in EN, DE and FI, no sideways scrolling", measured: fits, ruled-on: "#129 header"}
+      bar: {class: tabs, selector: nav.tabs, element: Tab bar, rule: "the tabs share the row equally and fit in one row at 375px in EN, DE and FI, no sideways scrolling; a label that needs more than its share takes it", measured: fits, ruled-on: "#129 header"}
       tab: {class: tab, selector: nav.tabs .tab, text: 13-700-muted, breaks: never, element: Tab, rule: "one line each, never wrapped, 13px bold; the tab you are on ink with the 2px line, every other tab muted", measured: one-line, ruled-on: "#129 header; the design standard"}
       tabs: {class: comp-tabs}
       switch: {class: tab-in}

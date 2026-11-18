@@ -73,7 +73,7 @@
 | Facts line | `.facts-line` | the facts of one line. Each fact is one unbreakable unit. The units sit in one wrapping line with a 12px gap and no glyph. On a narrow screen a whole unit moves to the next line. A unit wider than the line takes a line of its own and breaks between words | `fits` | ruled | the separator rule |
 | Page heading | `.crumb + h1` | a menu page's heading under its breadcrumb, the menu item's word, in the page title style: 30px bold ink, 20px below 700px | `font-size=30px [>=700px]; font-size=20px [<700px]; font-weight=700; color=ink` | ruled | #130; the design standard |
 | Entity header parts | `.thead, .tid` | the entity header's other parts: registered, no text of their own |  | ruled | the component registry |
-| Tab bar | `nav.tabs` | the tabs share the row and fit in one row at 375px in EN, DE and FI, no sideways scrolling | `fits` | ruled | #129 header |
+| Tab bar | `nav.tabs` | the tabs share the row equally and fit in one row at 375px in EN, DE and FI, no sideways scrolling; a label that needs more than its share takes it | `fits` | ruled | #129 header |
 | Tab | `nav.tabs .tab` | one line each, never wrapped, 13px bold; the tab you are on ink with the 2px line, every other tab muted | `one-line` | ruled | #129 header; the design standard |
 | Tab bar parts | `.comp-tabs, .tab-in` | the tab bar's other parts: registered, no text of their own |  | ruled | the component registry |
 | Block | `section` | 36px above each block; every content block has a name; a block with nothing to show is absent | `margin-top=36px` | ruled | #129 binding rules |

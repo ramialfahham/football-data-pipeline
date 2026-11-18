@@ -751,8 +751,9 @@ a.comp-row:focus-visible { outline-offset: -2px; }
    and a tab whose page is not built yet is a label without a link. */
 .comp-tabs .tab[aria-disabled="true"] { cursor: default; }
 .fx .comp-tabs .tab[aria-disabled="true"]:hover { color: var(--muted); }
-/* The tab bar fits its tabs in one row at 375px in every language: the tabs share the width. */
-.comp-tabs .tab { flex: 1 1 auto; text-align: center; padding-inline: 4px; }
+/* The tab bar fits its tabs in one row at 375px in every language: the tabs share the width
+   equally, and a label that needs more than its share takes it (min-width stays auto). */
+.comp-tabs .tab { flex: 1 1 0; text-align: center; padding-inline: 4px; }
 
 /* The matchday picker (the Matchdays tab): its own full-width line under the tab bar, the arrows
    pinned to the two edges and the title centred so nothing shifts between matchdays. One matchday
