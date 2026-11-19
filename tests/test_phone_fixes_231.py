@@ -95,6 +95,16 @@ def test_a_filter_button_is_at_least_44px_wide_and_no_rule_narrows_it():
     assert shrinking == []
 
 
+def test_a_hyphen_joined_club_name_wraps_inside_itself_only_where_its_line_is_too_narrow():
+    css = _read("styles/system.css")
+    rules = re.findall(r"^([^{}\n]*\.club \.cn[^{}\n]*)\{([^}]*)\}", css, re.M)
+    assert [sel.strip() for sel, _ in rules] == [".club .cn .nb"]
+    body = rules[0][1]
+    assert re.search(r"display:\s*inline-block", body)
+    assert re.search(r"white-space:\s*normal", body)
+    assert not re.search(r"(?<![\w-])(min-|max-)?width\s*:", body)
+
+
 def test_a_team_competition_row_keeps_the_space_in_goals_and_points():
     text = _read("components/ui/CompetitionRow.astro")
     assert re.search(r'"goals"\)\}\{" "\}<b>', text)

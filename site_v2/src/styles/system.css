@@ -1030,6 +1030,8 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 /* A club in a row carries its crest before its name, 8px apart, as every crest or photo sits. */
 .club { display: inline-flex; align-items: center; gap: 8px; vertical-align: middle; max-width: 100%; }
 .ropp > .club:only-child { vertical-align: top; }
+/* A hyphen-joined name moves whole to the next line like any word; as an inline-block it is only as wide as its line, so it wraps inside itself only where the word alone is wider than the line. */
+.club .cn .nb { display: inline-block; white-space: normal; }
 
 /* Player row: photo / name over position / numbers on the right at every width; the name wraps, and
    where the row is short of room the goals and the assists take two lines. Under 280px the name
