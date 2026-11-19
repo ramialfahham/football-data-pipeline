@@ -1,6 +1,7 @@
 // A name never breaks between its initial and its surname ("A. Nollenberger"): they share the
-// no-break span too. A word joined by a hyphen never breaks at the hyphen: each word of a page's body text with a
-// letter, a hyphen and a letter in it is wrapped in the no-break span, so the word moves whole to the
+// no-break span too. A word joined by a hyphen never breaks at the hyphen, nor a score at its dash: each word of a
+// page's body text with a letter, a hyphen and a letter in it, or a digit, an en dash and a digit, is wrapped in
+// the no-break span, so the word moves whole to the
 // next line while the text a reader copies, searches or a search engine indexes keeps its real
 // hyphen. Only text between tags inside <body> changes. Tags and attributes stay as they are, and so
 // does everything inside the elements below: raw text, SVG text (a span is not SVG), a select's
@@ -8,7 +9,7 @@
 
 const RAW = new Set(["script", "style", "textarea", "title"]);
 const SKIP = new Set(["svg", "select", "template", "noscript", "math"]);
-const JOINED = /[\p{L}\p{M}]-[\p{L}\p{M}]/u;
+const JOINED = /[\p{L}\p{M}]-[\p{L}\p{M}]|\d–\d/u;
 const TOKEN = /<!--[\s\S]*?-->|<\/?([A-Za-z][\w:-]*)[^>]*>|[^<]+|</g;
 const NB = /\sclass\s*=\s*["'](?:[^"']*\s)?nb[\s"']/i;
 

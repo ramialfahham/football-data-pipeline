@@ -85,6 +85,16 @@ def test_linked_rows_are_square_and_flush():
     assert "border-radius" not in "".join(re.findall(r"^a\.comp-row \{(.*?)\}", css, re.M))
 
 
+def test_a_filter_button_is_at_least_44px_wide_and_no_rule_narrows_it():
+    css = _read("styles/system.css")
+    rules = re.findall(r"^([^{}\n]*\.seg-btn[^{}\n]*)\{([^}]*)\}", css, re.M)
+    sizing = [(sel.strip(), body) for sel, body in rules if re.search(r"(?<![\w-])(min-|max-)?width\s*:", body)]
+    assert [sel for sel, _ in sizing] == [".fbar > .seg:not(.sel) .seg-btn"]
+    assert "min-width: 44px" in sizing[0][1]
+    shrinking = [body for sel, body in rules if sel.strip().startswith(".fbar") and re.search(r"flex:\s*\d+\s+[1-9]", body)]
+    assert shrinking == []
+
+
 def test_a_team_competition_row_keeps_the_space_in_goals_and_points():
     text = _read("components/ui/CompetitionRow.astro")
     assert re.search(r'"goals"\)\}\{" "\}<b>', text)

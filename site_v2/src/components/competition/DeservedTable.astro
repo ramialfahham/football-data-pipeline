@@ -22,11 +22,19 @@ const rows = deserved.filter((row) => row.deserved_rank != null);
 
 const SOTD = "metrics.shots_on_goal_difference_per_match.label";
 const DESERVED = "metrics.deserved_points.label";
+const lowerFirst = (s: string) => s.charAt(0).toLocaleLowerCase(lang) + s.slice(1);
+const narrowNames = {
+  shotsName: metricLabel(lang, "metrics.shots_on_target_per_match.label"),
+  sotdName: metricLabel(lang, SOTD),
+  pointsName: metricLabel(lang, "metrics.points_won.label"),
+  deservedName: lowerFirst(metricLabel(lang, DESERVED)),
+  deservedLowercase: lowerFirst(metricLabel(lang, DESERVED)),
+};
 const heads = [
-  { name: metricLabel(lang, SOTD), sub: t(lang, "perMatch") },
-  { name: metricLabel(lang, DESERVED), sub: "" },
-  { name: metricLabel(lang, "metrics.points_won.label"), sub: "" },
-  { name: metricLabel(lang, "metrics.deserved_points_gap.label"), sub: "" },
+  { name: metricLabel(lang, SOTD), narrow: t(lang, "compDeservedShotsHeadNarrow", narrowNames), sub: t(lang, "perMatch") },
+  { name: metricLabel(lang, DESERVED), narrow: "", sub: "" },
+  { name: metricLabel(lang, "metrics.points_won.label"), narrow: "", sub: "" },
+  { name: metricLabel(lang, "metrics.deserved_points_gap.label"), narrow: t(lang, "compDeservedGapHeadNarrow", narrowNames), sub: "" },
 ];
 const names = {
   deservedName: metricLabel(lang, DESERVED),
@@ -45,7 +53,11 @@ const names = {
         <span class="h rk">{t(lang, "positionShort")}</span>
         <span class="h nmh"></span>
         {heads.map((h) => (
-          <span class="h">{h.name}{h.sub && <span class="hs">{h.sub}</span>}</span>
+          h.narrow ? (
+            <span class="h"><span data-full>{h.name}{h.sub && <span class="hs">{h.sub}</span>}</span><span data-narrow>{h.narrow}{h.sub && <span class="hs">{h.sub}</span>}</span></span>
+          ) : (
+            <span class="h">{h.name}{h.sub && <span class="hs">{h.sub}</span>}</span>
+          )
         ))}
       </div>
       {rows.map((row) => (

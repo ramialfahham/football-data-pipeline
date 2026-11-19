@@ -614,9 +614,10 @@ a.brow:focus-visible { outline-offset: -2px; }
    a dropdown per filter in the Filter row's sunk box, side by side while each holds its longest
    choice and stacked full width below that. fitBlocks.mjs marks .fbar and .selbar fit-one or
    fit-two per language; without the script the buttons show and wrap. */
-.fbar.fit-one > .seg:not(.sel) .seg-btn { flex: 1 1 auto; }
+.fbar > .seg:not(.sel) .seg-btn { min-width: 44px; }
+.fbar.fit-one > .seg:not(.sel) .seg-btn { flex: 1 0 auto; }
 .fbar:not(.fit-one) > .seg:not(.sel) { flex-wrap: wrap; }
-.fbar:not(.fit-one) > .seg:not(.sel) .seg-btn { flex: 0 1 auto; }
+.fbar:not(.fit-one) > .seg:not(.sel) .seg-btn { flex: 0 0 auto; }
 .fbar .seg-btn[hidden] { display: none; }
 .selbar { display: none; gap: 8px; margin-top: 0; }
 .fbar.fit-two > .seg:not(.sel) { display: none; }
@@ -670,7 +671,6 @@ a.brow:focus-visible { outline-offset: -2px; }
 .comp-meta { display: block; min-width: 0; }
 .comp-name {
   display: block; font-size: 15px; font-weight: 400; color: var(--ink);
-  min-width: 0;
 }
 .comp-region { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
 /* The row is a link: hover and active come from the shared row-link rule above `a.brow`; the ring
@@ -834,11 +834,14 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .bsub { margin: 0; font-size: 13px; line-height: 1.45; color: var(--muted); text-wrap: pretty; }
 /* Two more table kinds, each one fixed track list. `.dpt`: the Overview's deserved points table
    (# / club / four metrics named in full); the ordered-by number keeps the accent. Its four equal
-   number tracks shrink on a narrow screen, and a long head wraps and hyphenates. */
+   number tracks shrink on a narrow screen, and a long head wraps between words. */
 .ctab.dpt, .ctab.dpt.ctab { --cols: 2rem minmax(0, 1fr) repeat(4, minmax(3.6rem, 4.6rem)); }
 .ctab.dpt .ctab-head { align-items: end; }
-.ctab.dpt .h { hyphens: auto; overflow-wrap: anywhere; }
 .ctab.dpt .h .hs { display: block; }
+.ctab.dpt .h [data-full] { display: none; }
+.ctab.dpt.heads-full .h [data-full] { display: inline; }
+.ctab.dpt.heads-full .h [data-narrow] { display: none; }
+.ctab.dpt:not(.heads-full) .h { padding-left: 4px; }
 /* A board is a single-value table: the Table's rows and grid (# / crest name / value), one
    fixed track list; the board's name is the head, with its chevron, and its rule over the rows.
    A player's row carries the club under the name. */
@@ -901,7 +904,9 @@ a.comp-row:focus-visible { outline-offset: -2px; }
   .mp .mast .team { display: grid; grid-template-columns: auto 1fr; column-gap: 12px; row-gap: 4px; align-items: center;
                     text-align: left; padding: 12px 4px; }
   .mp .mast .team .crest { grid-row: span 2; }
-  .mp .mast .team .tname { font-size: 20px; text-wrap: pretty; }
+  .mp .mast .team .tname { font-size: 15px; text-wrap: pretty; }
+  .mp .mast .teams.fit-two .tname { font-size: 18px; }
+  .mp .mast .teams.fit-one .tname { font-size: 20px; }
   .mp .mast .team .stand { grid-column: 2; --facts-justify: flex-start; }
 }
 @media (max-width: 699.98px) and (hover: hover) {
@@ -1002,11 +1007,21 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .fit-one .resrow .rha, .fit-two .resrow .ropp > .ha, .rlist.pm:not(.fit-one) .resrow .ropp > .ha { display: none; }
 .fit-one .resrow .ropp > .ha { display: inline; }
 .fit-two .resrow .rha, .rlist.pm:not(.fit-one) .resrow .rha { display: inline; }
-/* A meeting of the two teams: the row without the chip, which would take one side. */
-.resrow.meet { grid-template-columns: 42px 1fr; grid-template-areas: "score opp" ". meta"; }
+/* A meeting of the two teams: the row without the chip, which would take one side. On one line
+   where every meeting of its list fits; otherwise the score, the home name, the away name, one line
+   each, then the competition and date. Before fitBlocks marks the list, the width decides. */
+.resrow.meet { grid-template-columns: 42px 1fr fit-content(45%); grid-template-areas: "score opp opp" ". meta meta"; }
+.resrow.meet:not(.goal) .ropp > .club, .fit-two .resrow.meet .ropp > .club { display: flex; }
+.resrow.meet:not(.goal) .meet-dash, .fit-two .resrow.meet .meet-dash { display: none; }
 @container (min-width: 420px) {
-  .resrow.meet { grid-template-columns: 42px 1fr fit-content(45%); grid-template-areas: "score opp meta"; }
+  .resrow.meet { grid-template-areas: "score opp meta"; }
+  .rlist:not(.fit-two) .resrow.meet .ropp > .club { display: inline-flex; }
+  .rlist:not(.fit-two) .resrow.meet .meet-dash { display: inline; }
 }
+.fit-one .resrow.meet { grid-template-areas: "score opp meta"; }
+.fit-two .resrow.meet { grid-template-areas: "score opp opp" ". meta meta"; }
+.fit-one .resrow.meet .ropp > .club { display: inline-flex; }
+.fit-one .resrow.meet .meet-dash { display: inline; }
 /* A scorer without a minute has no running score. */
 .resrow.scorer { grid-template-columns: 1fr; grid-template-areas: "opp" "meta"; }
 @container (min-width: 420px) {
