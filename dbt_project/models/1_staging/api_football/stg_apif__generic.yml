@@ -51,6 +51,46 @@ models:
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
+      - name: api_errors_json
+        description: "The errors object of the provider's response to the call that produced this row ($.errors), as JSON text."
+      - name: api_reported_result_count
+        description: "The number of results the provider's response says it holds ($.results), for the call that produced this row."
+      - name: request_parameters_json
+        description: "The query parameters of the call that produced this row, as the provider echoes them back ($.parameters), as JSON text."
+      - name: fixture_api_unix_seconds
+        description: "The kickoff time as a Unix timestamp in seconds, as the provider returns it ($.fixture.timestamp)."
+      - name: kickoff_datetime
+        description: "{{ doc('kickoff_datetime') }}"
+      - name: kickoff_timezone
+        description: "The timezone name the provider reports for the kickoff time ($.fixture.timezone)."
+      - name: status_long
+        description: "The provider's full-text match status, for example 'Match Finished' or 'Not Started' ($.fixture.status.long)."
+      - name: status_short
+        description: "{{ doc('status_short') }}"
+      - name: status_elapsed
+        description: "Minutes elapsed in the match at the provider's last status update ($.fixture.status.elapsed)."
+      - name: season
+        description: "{{ doc('season_api_year') }}"
+      - name: league_api_id
+        description: "{{ doc('league_api_id') }}"
+      - name: league_name
+        description: "The competition's name as the provider returns it, with HTML-encoded characters decoded."
+      - name: round_name
+        description: "{{ doc('round_name__provider') }}"
+      - name: home_team_name
+        description: "The home side's name as the provider returns it ($.teams.home.name), with HTML-encoded characters decoded."
+      - name: away_team_name
+        description: "The away side's name as the provider returns it ($.teams.away.name), with HTML-encoded characters decoded."
+      - name: goals_home
+        description: "Goals scored by the home side, as the provider reports them ($.goals.home)."
+      - name: goals_away
+        description: "Goals scored by the away side, as the provider reports them ($.goals.away)."
+      - name: venue_id
+        description: "The provider's identifier of the stadium the fixture is played at ($.fixture.venue.id), as text."
+      - name: venue_name
+        description: "The name of the stadium the fixture is played at ($.fixture.venue.name), with HTML-encoded characters decoded."
+      - name: venue_city
+        description: "The city of the stadium the fixture is played at ($.fixture.venue.city), with HTML-encoded characters decoded."
 
   - name: stg_apif__standings
     description: >
@@ -91,6 +131,36 @@ models:
         description: Goals scored across all matches of the section, as the provider's standings row reports them ($.all.goals.for).
       - name: goals_against_all
         description: Goals conceded across all matches of the section, as the provider's standings row reports them ($.all.goals.against).
+      - name: api_errors_json
+        description: "The errors object of the provider's response to the call that produced this row ($.errors), as JSON text."
+      - name: api_reported_result_count
+        description: "The number of results the provider's response says it holds ($.results), for the call that produced this row."
+      - name: request_parameters_json
+        description: "The query parameters of the call that produced this row, as the provider echoes them back ($.parameters), as JSON text."
+      - name: league_api_id
+        description: "{{ doc('league_api_id') }}"
+      - name: league_name
+        description: "The competition's name as the provider returns it, with HTML-encoded characters decoded."
+      - name: standing_rank
+        description: "The team's position in the section's table, as the provider ranks it ($.rank)."
+      - name: team_name
+        description: "The team's name as the provider returns it, with HTML-encoded characters decoded."
+      - name: points
+        description: "Points the team has in the section, as the provider reports them ($.points)."
+      - name: goals_diff
+        description: "{{ doc('goals_diff') }} Here, the team's goal difference in the section as the provider reports it ($.goalsDiff)."
+      - name: form
+        description: "The team's recent results as a string of letters, as the provider returns it ($.form)."
+      - name: group_description
+        description: "The provider's note on the team's table position, for example a promotion or relegation place ($.description)."
+      - name: played_all
+        description: "Matches the team has played in the section, as the provider reports them ($.all.played)."
+      - name: wins_all
+        description: "Matches the team has won in the section, as the provider reports them ($.all.win)."
+      - name: draws_all
+        description: "Matches the team has drawn in the section, as the provider reports them ($.all.draw)."
+      - name: losses_all
+        description: "Matches the team has lost in the section, as the provider reports them ($.all.lose)."
 
   - name: stg_apif__teams
     description: >
@@ -115,6 +185,30 @@ models:
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
+      - name: api_errors_json
+        description: "The errors object of the provider's response to the call that produced this row ($.errors), as JSON text."
+      - name: api_reported_result_count
+        description: "The number of results the provider's response says it holds ($.results), for the call that produced this row."
+      - name: request_parameters_json
+        description: "The query parameters of the call that produced this row, as the provider echoes them back ($.parameters), as JSON text."
+      - name: team_code
+        description: "{{ doc('team_code') }}"
+      - name: team_country
+        description: "{{ doc('team_country__provider') }}"
+      - name: founded_year
+        description: "The year the team was founded, as the provider returns it ($.team.founded)."
+      - name: team_logo_url
+        description: "{{ doc('team_logo_url__provider') }}"
+      - name: venue_id
+        description: "The provider's identifier of the team's home stadium ($.venue.id), as text."
+      - name: venue_name
+        description: "The name of the team's home stadium ($.venue.name), with HTML-encoded characters decoded."
+      - name: venue_address
+        description: "The street address of the team's home stadium ($.venue.address), with HTML-encoded characters decoded."
+      - name: venue_city
+        description: "The city of the team's home stadium ($.venue.city), with HTML-encoded characters decoded."
+      - name: venue_capacity
+        description: "The seating capacity of the team's home stadium, as the provider returns it ($.venue.capacity)."
 
   - name: stg_apif__team_deliveries
     description: >
@@ -154,6 +248,52 @@ models:
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
+      - name: api_errors_json
+        description: "The errors object of the provider's response to the call that produced this row ($.errors), as JSON text."
+      - name: api_reported_result_count
+        description: "The number of results the provider's response says it holds ($.results), for the call that produced this row."
+      - name: request_parameters_json
+        description: "The query parameters of the call that produced this row, as the provider echoes them back ($.parameters), as JSON text."
+      - name: league_name
+        description: "The competition's name as the provider returns it, with HTML-encoded characters decoded."
+      - name: league_type
+        description: "The provider's competition type, for example 'League' or 'Cup' ($.league.type)."
+      - name: country
+        description: "The name of the country the competition belongs to ($.country.name), with HTML-encoded characters decoded."
+      - name: league_logo_url
+        description: "URL of the competition's logo as the provider returns it ($.league.logo)."
+      - name: country_flag_url
+        description: "URL of the country's flag as the provider returns it ($.country.flag)."
+      - name: season_start_date
+        description: "The date the season starts, as the provider returns it ($.seasons[].start)."
+      - name: season_end_date
+        description: "The date the season ends, as the provider returns it ($.seasons[].end)."
+      - name: season_is_current
+        description: "True when the provider marks this season as the competition's current one ($.seasons[].current)."
+      - name: has_coverage_fixture_events
+        description: "True when the provider states it covers match events for this season ($.seasons[].coverage.fixtures.events)."
+      - name: has_coverage_fixture_lineups
+        description: "True when the provider states it covers line-ups for this season ($.seasons[].coverage.fixtures.lineups)."
+      - name: has_coverage_fixture_statistics
+        description: "True when the provider states it covers team match statistics for this season ($.seasons[].coverage.fixtures.statistics_fixtures)."
+      - name: has_coverage_fixture_players
+        description: "True when the provider states it covers per-player match statistics for this season ($.seasons[].coverage.fixtures.statistics_players)."
+      - name: has_coverage_standings
+        description: "True when the provider states it covers league tables for this season ($.seasons[].coverage.standings)."
+      - name: has_coverage_players
+        description: "True when the provider states it covers player data for this season ($.seasons[].coverage.players)."
+      - name: has_coverage_top_scorers
+        description: "True when the provider states it covers top-scorer lists for this season ($.seasons[].coverage.top_scorers)."
+      - name: has_coverage_top_assists
+        description: "True when the provider states it covers top-assist lists for this season ($.seasons[].coverage.top_assists)."
+      - name: has_coverage_top_cards
+        description: "True when the provider states it covers top-card lists for this season ($.seasons[].coverage.top_cards)."
+      - name: has_coverage_injuries
+        description: "True when the provider states it covers injuries for this season ($.seasons[].coverage.injuries)."
+      - name: has_coverage_predictions
+        description: "True when the provider states it covers predictions for this season ($.seasons[].coverage.predictions)."
+      - name: has_coverage_odds
+        description: "True when the provider states it covers betting odds for this season ($.seasons[].coverage.odds)."
 
   - name: stg_apif__players
     description: >
@@ -174,6 +314,22 @@ models:
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
+      - name: season_year
+        description: "{{ doc('season_api_year') }}"
+      - name: player_name
+        description: "{{ doc('player_name__provider') }}"
+      - name: player_firstname
+        description: "{{ doc('player_first_name') }}"
+      - name: player_lastname
+        description: "{{ doc('player_last_name') }}"
+      - name: player_photo_url
+        description: "{{ doc('player_photo_url__provider') }}"
+      - name: birth_date
+        description: "The player's date of birth as the provider returns it ($.player.birth.date)."
+      - name: nationality
+        description: "The player's nationality as the provider returns it, with HTML-encoded characters decoded."
+      - name: statistics_json
+        description: "The player's statistics array for the season, as the provider returns it ($.statistics), kept as JSON."
 
   - name: stg_apif__fixture_events
     description: >
@@ -200,6 +356,28 @@ models:
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
+      - name: minute_elapsed
+        description: "The match minute of the event, as the provider returns it ($.time.elapsed)."
+      - name: minute_extra
+        description: "The added-time minutes of the event beyond the regular period, as the provider returns them ($.time.extra)."
+      - name: team_id
+        description: "{{ doc('team_api_id') }} The team the event is credited to."
+      - name: team_name
+        description: "The name of the team the event is credited to ($.team.name), with HTML-encoded characters decoded."
+      - name: player_name
+        description: "{{ doc('player_name__provider') }}"
+      - name: player_id
+        description: "{{ doc('player_api_id') }} The player the event is credited to."
+      - name: assist_player_name
+        description: "The name of the second player involved in the event, for example the assist-maker or the player coming on ($.assist.name), with HTML-encoded characters decoded."
+      - name: assist_player_id
+        description: "{{ doc('player_api_id') }} The second player involved in the event, for example the assist-maker or the player coming on."
+      - name: event_type
+        description: "The provider's kind of event, for example 'Goal', 'Card' or 'subst' ($.type)."
+      - name: event_detail
+        description: "The provider's detail of the event, for example 'Normal Goal' or 'Yellow Card' ($.detail)."
+      - name: event_comments
+        description: "The provider's free-text comment on the event ($.comments)."
 
   - name: stg_apif__fixture_players
     description: >
@@ -224,6 +402,76 @@ models:
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
+      - name: team_name
+        description: "The team's name as the provider returns it, with HTML-encoded characters decoded."
+      - name: player_name
+        description: "{{ doc('player_name__provider') }}"
+      - name: player_photo_url
+        description: "{{ doc('player_photo_url__provider') }}"
+      - name: minutes_played
+        description: "{{ doc('minutes_played__provider') }}"
+      - name: shirt_number
+        description: "The shirt number the player wore in the match, as the provider reports it ($.statistics[0].games.number)."
+      - name: position_code
+        description: "The player's position in the match as the provider's short code ($.statistics[0].games.position)."
+      - name: is_captain
+        description: "{{ doc('is_captain') }}"
+      - name: is_substitute
+        description: "{{ doc('is_substitute') }}"
+      - name: offsides
+        description: "Times the player was caught offside, as the provider reports them ($.statistics[0].offsides)."
+      - name: shots_total
+        description: "All shots the player took, as the provider reports them ($.statistics[0].shots.total)."
+      - name: shots_on
+        description: "Shots the player took that were on target, as the provider reports them ($.statistics[0].shots.on)."
+      - name: goals_total
+        description: "Goals the player scored, as the provider reports them ($.statistics[0].goals.total)."
+      - name: goals_against
+        description: "Goals conceded, as the provider reports them for the player ($.statistics[0].goals.conceded)."
+      - name: goals_assists
+        description: "Assists the player made, as the provider reports them ($.statistics[0].goals.assists)."
+      - name: saves
+        description: "Saves the player made, as the provider reports them ($.statistics[0].goals.saves)."
+      - name: passes_total
+        description: "All passes the player attempted, as the provider reports them ($.statistics[0].passes.total)."
+      - name: passes_key
+        description: "Passes by the player that led directly to a shot, as the provider reports them ($.statistics[0].passes.key)."
+      - name: passes_accuracy_percent
+        description: "{{ doc('passes_accuracy_percent__provider') }}"
+      - name: tackles_total
+        description: "Tackles the player made, as the provider reports them ($.statistics[0].tackles.total)."
+      - name: tackles_blocks
+        description: "Shots the player blocked, as the provider reports them ($.statistics[0].tackles.blocks)."
+      - name: tackles_interceptions
+        description: "Interceptions the player made, as the provider reports them ($.statistics[0].tackles.interceptions)."
+      - name: duels_total
+        description: "Duels the player took part in, as the provider reports them ($.statistics[0].duels.total)."
+      - name: duels_won
+        description: "Duels the player won, as the provider reports them ($.statistics[0].duels.won)."
+      - name: dribbles_attempts
+        description: "Dribbles the player attempted, as the provider reports them ($.statistics[0].dribbles.attempts)."
+      - name: dribbles_success
+        description: "Dribbles the player completed, as the provider reports them ($.statistics[0].dribbles.success)."
+      - name: dribbles_past
+        description: "Times the player was dribbled past, as the provider reports them ($.statistics[0].dribbles.past)."
+      - name: fouls_drawn
+        description: "{{ doc('fouls_drawn__provider') }}"
+      - name: fouls_committed
+        description: "{{ doc('fouls_committed__provider') }}"
+      - name: cards_yellow
+        description: "Yellow cards the player received, as the provider reports them ($.statistics[0].cards.yellow)."
+      - name: cards_red
+        description: "Red cards the player received, as the provider reports them ($.statistics[0].cards.red)."
+      - name: penalty_won
+        description: "Penalties the player won, as the provider reports them ($.statistics[0].penalty.won)."
+      - name: penalty_committed
+        description: "Penalties the player gave away, as the provider reports them (the provider's field is spelled 'commited': $.statistics[0].penalty.commited)."
+      - name: penalty_scored
+        description: "{{ doc('penalty_scored__provider') }}"
+      - name: penalty_missed
+        description: "{{ doc('penalty_missed__provider') }}"
+      - name: penalty_saved
+        description: "{{ doc('penalty_saved__provider') }}"
 
   - name: stg_apif__fixture_statistics
     description: >
@@ -245,6 +493,12 @@ models:
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
+      - name: team_name
+        description: "The team's name as the provider returns it, with HTML-encoded characters decoded."
+      - name: stat_type
+        description: "The provider's name of the statistic, for example 'Shots on Goal' or 'Ball Possession' ($.statistics[].type)."
+      - name: stat_value_raw
+        description: "The statistic's value exactly as the provider sends it, as text ($.statistics[].value)."
 
   - name: stg_apif__lineups
     description: >
@@ -271,6 +525,16 @@ models:
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
+      - name: team_name
+        description: "The team's name as the provider returns it, with HTML-encoded characters decoded."
+      - name: formation
+        description: "The formation the team lined up in, for example '4-3-3', as the provider returns it ($.formation)."
+      - name: coach_name
+        description: "The name of the team's coach for the match ($.coach.name), with HTML-encoded characters decoded."
+      - name: start_xi_json
+        description: "The starting eleven as the provider returns it ($.startXI), kept as JSON."
+      - name: substitutes_json
+        description: "The named substitutes as the provider returns them ($.substitutes), kept as JSON."
 
   - name: stg_apif__transfers
     description: >
@@ -286,6 +550,16 @@ models:
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
+      - name: player_id
+        description: "{{ doc('player_api_id') }}"
+      - name: transfer_date
+        description: "The date of the transfer, as the provider returns it ($.date)."
+      - name: transfer_type
+        description: "The provider's description of the transfer, for example a fee in text, 'Free' or 'Loan' ($.type)."
+      - name: team_in_id
+        description: "{{ doc('team_api_id') }} The team the player joined."
+      - name: team_out_id
+        description: "{{ doc('team_api_id') }} The team the player left."
 
   - name: stg_apif__squads
     description: >
@@ -308,6 +582,16 @@ models:
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
+      - name: player_name
+        description: "{{ doc('player_name__provider') }}"
+      - name: age
+        description: "The player's age in years as the provider states it ($.age)."
+      - name: shirt_number
+        description: "The player's squad shirt number as the provider lists it ($.number)."
+      - name: position
+        description: "The player's position as the provider lists it ($.position)."
+      - name: player_photo_url
+        description: "{{ doc('player_photo_url__provider') }}"
 
   - name: stg_apif__player_profiles
     description: >
@@ -326,6 +610,32 @@ models:
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
+      - name: player_name
+        description: "{{ doc('player_name__provider') }}"
+      - name: player_firstname
+        description: "{{ doc('player_first_name') }}"
+      - name: player_lastname
+        description: "{{ doc('player_last_name') }}"
+      - name: age
+        description: "The player's age in years as the provider states it ($.player.age)."
+      - name: birth_date
+        description: "The player's date of birth as the provider returns it ($.player.birth.date)."
+      - name: birth_place
+        description: "The player's place of birth as the provider returns it ($.player.birth.place), with HTML-encoded characters decoded."
+      - name: birth_country
+        description: "The player's country of birth as the provider returns it ($.player.birth.country), with HTML-encoded characters decoded."
+      - name: nationality
+        description: "The player's nationality as the provider returns it, with HTML-encoded characters decoded."
+      - name: height
+        description: "The player's height as the provider returns it, as text ($.player.height)."
+      - name: weight
+        description: "The player's weight as the provider returns it, as text ($.player.weight)."
+      - name: squad_number
+        description: "The player's squad number as the provider returns it ($.player.number)."
+      - name: position
+        description: "The player's position as the provider returns it ($.player.position)."
+      - name: player_photo_url
+        description: "{{ doc('player_photo_url__provider') }}"
 
   - name: stg_apif__player_teams
     description: >
@@ -349,6 +659,10 @@ models:
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
+      - name: team_name
+        description: "The name of a club the player was registered with ($.team.name), with HTML-encoded characters decoded."
+      - name: season_year
+        description: "{{ doc('season_api_year') }}"
 
   - name: stg_apif__coaches
     description: >
@@ -368,6 +682,24 @@ models:
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
+      - name: coach_name
+        description: "The coach's name as the provider returns it ($.coach.name), with HTML-encoded characters decoded."
+      - name: coach_first_name
+        description: "The coach's first name as the provider returns it ($.coach.firstname), with HTML-encoded characters decoded."
+      - name: coach_last_name
+        description: "The coach's last name as the provider returns it ($.coach.lastname), with HTML-encoded characters decoded."
+      - name: coach_age
+        description: "The coach's age in years as the provider states it ($.coach.age)."
+      - name: coach_birth_date
+        description: "The coach's date of birth as the provider returns it ($.coach.birth.date)."
+      - name: coach_birth_place
+        description: "The coach's place of birth as the provider returns it ($.coach.birth.place), with HTML-encoded characters decoded."
+      - name: coach_birth_country
+        description: "The coach's country of birth as the provider returns it ($.coach.birth.country), with HTML-encoded characters decoded."
+      - name: coach_nationality
+        description: "The coach's nationality as the provider returns it ($.coach.nationality), with HTML-encoded characters decoded."
+      - name: coach_photo_url
+        description: "URL of the coach's photo as the provider returns it ($.coach.photo)."
 
   - name: stg_apif__coach_career
     description: >
@@ -388,3 +720,9 @@ models:
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
+      - name: team_name
+        description: "The name of the club of this career stint ($.team.name), with HTML-encoded characters decoded."
+      - name: start_date
+        description: "The date this career stint started, as the provider returns it ($.start)."
+      - name: end_date
+        description: "The date this career stint ended, as the provider returns it ($.end)."
