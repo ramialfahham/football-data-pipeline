@@ -617,6 +617,59 @@ The provider's own label can be short, ambiguous, or a stale sponsor name — fo
 name see `dim_team.team_name` or a mart already joined to it.
 {% enddocs %}
 
+{% docs team_country__provider %}
+The country of the team as this endpoint's payload returns it ($.team.country), with HTML-encoded
+characters decoded.
+{% enddocs %}
+
+{% docs team_logo_url__provider %}
+URL of the team's crest as this endpoint's payload returns it ($.team.logo).
+{% enddocs %}
+
+{% docs player_name__provider %}
+The player's name as this endpoint's payload returns it, with HTML-encoded characters decoded.
+{% enddocs %}
+
+{% docs player_photo_url__provider %}
+URL of the player's photo as this endpoint's payload returns it.
+{% enddocs %}
+
+{% docs round_name__provider %}
+The round of the competition the fixture belongs to, as the provider's round text
+($.league.round).
+{% enddocs %}
+
+{% docs minutes_played__provider %}
+Minutes the player was on the pitch in the match, as the provider reports them
+($.statistics[0].games.minutes).
+{% enddocs %}
+
+{% docs passes_accuracy_percent__provider %}
+The provider's passes.accuracy figure for the player ($.statistics[0].passes.accuracy) with any
+percent sign removed. The provider sends either a percentage or a count of accurate passes,
+depending on the fetch; base_apif__fixture_players tells them apart.
+{% enddocs %}
+
+{% docs fouls_drawn__provider %}
+Fouls the player won, as the provider reports them ($.statistics[0].fouls.drawn).
+{% enddocs %}
+
+{% docs fouls_committed__provider %}
+Fouls the player committed, as the provider reports them ($.statistics[0].fouls.committed).
+{% enddocs %}
+
+{% docs penalty_scored__provider %}
+Penalties the player scored, as the provider reports them ($.statistics[0].penalty.scored).
+{% enddocs %}
+
+{% docs penalty_missed__provider %}
+Penalties the player missed, as the provider reports them ($.statistics[0].penalty.missed).
+{% enddocs %}
+
+{% docs penalty_saved__provider %}
+Penalties the player saved, as the provider reports them ($.statistics[0].penalty.saved).
+{% enddocs %}
+
 {% docs team_season_sk %}
 Surrogate key over (team_sk, season_sk): one team's one competition-season. Generated once in
 int_team_season__metrics and carried unchanged everywhere else it appears.
