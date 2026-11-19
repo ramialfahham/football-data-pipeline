@@ -57,7 +57,7 @@ const units = (player?.parts ?? []).map(({ value, term }) => ({
     {chip && <ResultChip lang={lang} result={chip} />}
     {score != null && <span class="rscore">{score}</span>}
     <span class="ropp">
-      {clubs.map((c, i) => <>{i > 0 && " – "}<span class="club"><Crest name={c.name} crest={c.crest} size="xs" /><span class="cn">{c.text ?? c.name}</span></span></>)}
+      {clubs.map((c, i) => <>{i > 0 && <span class="meet-dash"> – </span>}<span class="club"><Crest name={c.name} crest={c.crest} size="xs" /><span class="cn">{c.text ?? c.name}</span></span></>)}
       {ha && <span class="ha">{ha}</span>}
     </span>
     {goal ? (

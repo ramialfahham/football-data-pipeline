@@ -3,7 +3,7 @@
   "mock_css": {"design-mocks/gen_competitions.py": 13, "design-mocks/gen_interaction.py": 3, "design-mocks/gen_match_page.py": 33, "design-mocks/gen_navmap.py": 6, "design-mocks/gen_sitemap.py": 8, "design-mocks/gen_taxonomy.py": 6, "design-mocks/gen_team_mock.py": 73},
   "css_outside_system_css": {"site_v2/src/components/fixture/MetricRow.astro": 2, "site_v2/src/lib/fitBlocks.mjs": 2},
   "width_rules": {"279.98px": 1, "340px": 1, "420px": 4, "430px": 1, "470px": 1, "479.98px": 1, "480px": 1, "560px": 2, "599.98px": 2, "699.98px": 4, "700px": 1, "800px": 1, "900px": 1, "1010px": 1},
-  "banned_properties": {"site_v2/src/styles/system.css": 6},
+  "banned_properties": {"site_v2/src/styles/system.css": 4},
   "literal_text": {"site_v2/src/components/chrome/SiteFooter.astro": 2, "site_v2/src/components/chrome/SiteHeader.astro": 2, "site_v2/src/pages/index.astro": 2}
  },
  "coverage": {
@@ -15,8 +15,7 @@
  "rendered": {
   "platform": "linux",
   "pages": {
-   "Competition overview": {"split": 21},
-   "Match page": {"scroll": 2003, "split": 2, "classes": 1},
+   "Match page": {"scroll": 1913, "classes": 1},
    "Matches day page": {"miss · Fold": 378, "miss · Match row score": 414},
    "Played match page": {"scroll": 2, "classes": 1},
    "competition-hub cup": {"classes": 9},

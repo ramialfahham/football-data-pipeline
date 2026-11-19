@@ -25,6 +25,11 @@ test("only a hyphen between two letters joins a word", () => {
   assert.equal(keepHyphenWords(html), html);
 });
 
+test("a score is kept whole at its en dash, with the punctuation that clings to it", () => {
+  const out = keepHyphenWords(page("<p>Abandoned at 0–0; the result was awarded 3–0.</p>"));
+  assert.equal(bodyOf(out), '<p>Abandoned at <span class="nb">0–0;</span> the result was awarded <span class="nb">3–0.</span></p>');
+});
+
 test("a page is changed once", () => {
   const out = keepHyphenWords(page("<p>Al-Nassr</p>"));
   assert.equal(keepHyphenWords(out), out);
