@@ -69,6 +69,7 @@ assumption that there is a defect. Which agent reviews which path is
 | `onboard-competition` | add a competition: registry entry, dbt vars sync, labels |
 | `onboard-endpoint` | evaluate and ingest a new provider endpoint, cost approved first |
 | `verify-competition-ingest` | check a competition's ingest health |
+| `research-provider-errors` | research the provider-error list from allowed sites and report proposed seed rows |
 
 The `/status` command (`.claude/commands/status.md`, protected) shows the branch, the tree, open
 MRs and the handover.
