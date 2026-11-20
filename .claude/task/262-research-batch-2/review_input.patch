@@ -1,0 +1,73 @@
+diff --git a/.claude/task/262-research-batch-2/contract.md b/.claude/task/262-research-batch-2/contract.md
+new file mode 100644
+index 00000000..44d3e93c
+--- /dev/null
++++ b/.claude/task/262-research-batch-2/contract.md
+@@ -0,0 +1,44 @@
++# Task contract — research batch 2 of the #262 provider-error backlog
++
++objective: >
++  Issue #262. Research the next 15 current-season matches of mart_competition_research_list
++  that sit in a competition of the research skill's site table, after batch 1's, and add the
++  agreed, sourced rows to the correction seeds, so the nightly can serve the values it withholds today.
++
++refs: >
++  #262 note, research backlog cleared as soon as possible (approved in chat, 2026-11-20);
++  method .claude/skills/research-provider-errors/SKILL.md; row formats dbt_project/seeds/schema.yml.
++
++scope_paths:
++  - dbt_project/seeds/fixture_card_corrections.csv
++  - dbt_project/seeds/fixture_goal_corrections.csv
++  - .claude/task/262-research-batch-2/contract.md
++  - .claude/task/262-research-batch-2/review.md
++  - .claude/task/262-research-batch-2/review_input.patch
++
++approved_design:
++  - none: no page output changes
++
++depends_on:
++  - none: builds on merged seeds and mart_competition_research_list only
++shared_files:
++  - none: no design baseline, chart manifest or chart pin changes
++
++decisions_taken: >
++  The batch rule is the CPO's, approved in chat, 2026-11-20 (note on #262): clear the backlog
++  current season first, in batches, each batch landing as an ordinary seed MR the CPO merges.
++  Rows follow the skill's section 7 conventions. A match enters the seeds only when two blind
++  reads agree and every name matches one player on the provider's sheet. No correction_no_longer_needed
++  row is removed. No new mechanism, no new dependency, no recurring cost: reads only, plus
++  BigQuery reads under 1 GB.
++
++decisions_reserved:
++  - which matches stay open when a read disagrees or a site cannot be read: reported, never guessed
++  - removal of correction_no_longer_needed rows: undecided, untouched
++
++done_when:
++  - every added row's fixture_id is in the research list and its source is a host of the site table
++  - dbt parse passes and the seed schema tests' accepted values hold for the added rows
++  - the batch report lists matches researched, rows per seed, and every match stopped or left open
++
++amendments: (none)
+diff --git a/dbt_project/seeds/fixture_card_corrections.csv b/dbt_project/seeds/fixture_card_corrections.csv
+index 27860672..fce3e57c 100644
+--- a/dbt_project/seeds/fixture_card_corrections.csv
++++ b/dbt_project/seeds/fixture_card_corrections.csv
+@@ -1988,3 +1988,6 @@ fixture_id,card_order,team_id,player_id,player_name,minute_elapsed,minute_extra,
+ 1493234,8,1066,5778,L. Petruchi,78,,Red Card,official,https://www.ligaprofesional.ar/ficha-partido?competition=724&season=2026&match=2614588,"Gimnasia Mendoza-Independiente Rivadavia, APD, 2026-11-07: every card checked against the Liga Profesional's official match page"
+ 1493234,9,1066,296129,L. Cingolani,84,,Yellow Card,official,https://www.ligaprofesional.ar/ficha-partido?competition=724&season=2026&match=2614588,"Gimnasia Mendoza-Independiente Rivadavia, APD, 2026-11-07: every card checked against the Liga Profesional's official match page"
+ 1493234,10,1066,296129,L. Cingolani,84,,Red Card,official,https://www.ligaprofesional.ar/ficha-partido?competition=724&season=2026&match=2614588,"Gimnasia Mendoza-Independiente Rivadavia, APD, 2026-11-07: every card checked against the Liga Profesional's official match page"
++1575541,1,226,162481,Diogo Nascimento,54,,Yellow Card,official,https://www.ligaportugal.pt/match/20262027/ligaportugalbetclic/11/6,"Rio Ave-SC Braga, LP, 2026-11-08: every card checked against the Liga Portugal's official match page"
++1575541,2,226,340846,Diogo Bezerra,67,,Yellow Card,official,https://www.ligaportugal.pt/match/20262027/ligaportugalbetclic/11/6,"Rio Ave-SC Braga, LP, 2026-11-08: every card checked against the Liga Portugal's official match page"
++1575541,3,217,936,Fran Navarro,79,,Yellow Card,official,https://www.ligaportugal.pt/match/20262027/ligaportugalbetclic/11/6,"Rio Ave-SC Braga, LP, 2026-11-08: every card checked against the Liga Portugal's official match page"
+diff --git a/dbt_project/seeds/fixture_goal_corrections.csv b/dbt_project/seeds/fixture_goal_corrections.csv
+index bc84ab65..5b728c83 100644
+--- a/dbt_project/seeds/fixture_goal_corrections.csv
++++ b/dbt_project/seeds/fixture_goal_corrections.csv
+@@ -150,3 +150,7 @@ fixture_id,goal_order,team_id,player_id,player_name,minute_elapsed,minute_extra,
+ 1190052,4,5541,140681,Kyle Edwards,61,,Normal Goal,444576,Kirtney Franklyn,official,https://www.concacaf.com/en/world-cup-qualifying-men/news/dominica-saint-vincent-and-the-grenadines-earn-home-wins/,"St Vincent and the Grenadines-Anguilla, World Cup qualifier CONCACAF second round 4 Jun 2025: 6-0; the CONCACAF match report names every scorer, minute and assist, and no assist on Anderson's 20' goal"
+ 1190052,5,5541,103405,Oalex Anderson,69,,Normal Goal,,,official,https://www.concacaf.com/en/world-cup-qualifying-men/news/dominica-saint-vincent-and-the-grenadines-earn-home-wins/,"St Vincent and the Grenadines-Anguilla, World Cup qualifier CONCACAF second round 4 Jun 2025: 6-0; the CONCACAF match report names every scorer, minute and assist, and no assist on Anderson's 20' goal"
+ 1190052,6,5541,444576,Kirtney Franklyn,85,,Normal Goal,,,official,https://www.concacaf.com/en/world-cup-qualifying-men/news/dominica-saint-vincent-and-the-grenadines-earn-home-wins/,"St Vincent and the Grenadines-Anguilla, World Cup qualifier CONCACAF second round 4 Jun 2025: 6-0; the CONCACAF match report names every scorer, minute and assist, and no assist on Anderson's 20' goal"
++1639963,1,8172,214095,J. St. Louis,14,,Normal Goal,449560,Andrew Shaffer,official,https://www.concacaf.com/competitions/nations-league/matches/7e980a92919d46329412009992b46674/us-virgin-islands-vs-bahamas,"US Virgin Islands-Bahamas, CONCACAF Nations League C matchday 3, 2026-09-29: 3-1; the CONCACAF match page prints no date and no penalty or own-goal marker, teams, score and matchday agree"
++1639963,2,8172,214039,R. Joseph,45,3,Normal Goal,,,official,https://www.concacaf.com/competitions/nations-league/matches/7e980a92919d46329412009992b46674/us-virgin-islands-vs-bahamas,"US Virgin Islands-Bahamas, CONCACAF Nations League C matchday 3, 2026-09-29: 3-1; the CONCACAF match page prints no date and no penalty or own-goal marker, teams, score and matchday agree"
++1639963,3,8172,648308,N. Armour,62,,Normal Goal,214227,J. Ramos,official,https://www.concacaf.com/competitions/nations-league/matches/7e980a92919d46329412009992b46674/us-virgin-islands-vs-bahamas,"US Virgin Islands-Bahamas, CONCACAF Nations League C matchday 3, 2026-09-29: 3-1; the CONCACAF match page prints no date and no penalty or own-goal marker, teams, score and matchday agree"
++1639963,4,5157,140643,C. Rahming,68,,Normal Goal,140641,M. Joseph,official,https://www.concacaf.com/competitions/nations-league/matches/7e980a92919d46329412009992b46674/us-virgin-islands-vs-bahamas,"US Virgin Islands-Bahamas, CONCACAF Nations League C matchday 3, 2026-09-29: 3-1; the CONCACAF match page prints no date and no penalty or own-goal marker, teams, score and matchday agree"
