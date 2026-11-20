@@ -50,10 +50,10 @@ index 00000000..d7bc962d
 +
 +amendments: (none)
 diff --git a/dbt_project/seeds/fixture_card_corrections.csv b/dbt_project/seeds/fixture_card_corrections.csv
-index 4eb95d67..8e050307 100644
+index 4eb95d67..27860672 100644
 --- a/dbt_project/seeds/fixture_card_corrections.csv
 +++ b/dbt_project/seeds/fixture_card_corrections.csv
-@@ -1930,3 +1930,68 @@ fixture_id,card_order,team_id,player_id,player_name,minute_elapsed,minute_extra,
+@@ -1930,3 +1930,61 @@ fixture_id,card_order,team_id,player_id,player_name,minute_elapsed,minute_extra,
  1644363,7,543,47119,Ruibal,118,,Yellow Card,match_reports,https://www.laliga.com/partido/temporada-2026-2027-copa-del-rey-cda-navalcarnero-real-betis-3 https://www.101tv.es/realbetis/sigue-en-directo-el-cda-navalcarnero-real-betis-de-copa-del-rey/,"Navalcarnero-Real Betis, CDR, 2026-11-12: every card checked against two match reports, LaLiga and 101tv"
  1644363,8,543,47119,Ruibal,118,,Red Card,match_reports,https://www.laliga.com/partido/temporada-2026-2027-copa-del-rey-cda-navalcarnero-real-betis-3 https://www.101tv.es/realbetis/sigue-en-directo-el-cda-navalcarnero-real-betis-de-copa-del-rey/,"Navalcarnero-Real Betis, CDR, 2026-11-12: every card checked against two match reports, LaLiga and 101tv"
  1644363,9,5271,560951,Kensly Vázquez,120,2,Yellow Card,match_reports,https://www.laliga.com/partido/temporada-2026-2027-copa-del-rey-cda-navalcarnero-real-betis-3 https://www.101tv.es/realbetis/sigue-en-directo-el-cda-navalcarnero-real-betis-de-copa-del-rey/,"Navalcarnero-Real Betis, CDR, 2026-11-12: every card checked against two match reports, LaLiga and 101tv"
@@ -84,13 +84,6 @@ index 4eb95d67..8e050307 100644
 +1575544,4,212,240,P. Rosario,43,,Yellow Card,official,https://www.ligaportugal.pt/match/20262027/ligaportugalbetclic/11/9,"Vitória SC-FC Porto, LP, 2026-11-08: every card checked against the Liga Portugal's official match page"
 +1575544,5,212,2901,Hwang In-Beom,67,,Yellow Card,official,https://www.ligaportugal.pt/match/20262027/ligaportugalbetclic/11/9,"Vitória SC-FC Porto, LP, 2026-11-08: every card checked against the Liga Portugal's official match page"
 +1575544,6,212,278375,A. Varela,90,7,Yellow Card,official,https://www.ligaportugal.pt/match/20262027/ligaportugalbetclic/11/9,"Vitória SC-FC Porto, LP, 2026-11-08: every card checked against the Liga Portugal's official match page"
-+1556133,1,292,109383,R. Omori,3,,Yellow Card,official,https://data.j-league.or.jp/SFMS02/?match_card_id=34650,"FC Tokyo-Kashima, J1, 2026-11-07: every card checked against the J.League's official match record; players matched to the provider's sheet by shirt number"
-+1556133,2,292,423792,S. Nagano,28,,Yellow Card,official,https://data.j-league.or.jp/SFMS02/?match_card_id=34650,"FC Tokyo-Kashima, J1, 2026-11-07: every card checked against the J.League's official match record; players matched to the provider's sheet by shirt number"
-+1556133,3,290,33399,Y. Higuchi,45,1,Yellow Card,official,https://data.j-league.or.jp/SFMS02/?match_card_id=34650,"FC Tokyo-Kashima, J1, 2026-11-07: every card checked against the J.League's official match record; players matched to the provider's sheet by shirt number"
-+1556133,4,290,33089,Y. Suzuki,63,,Yellow Card,official,https://data.j-league.or.jp/SFMS02/?match_card_id=34650,"FC Tokyo-Kashima, J1, 2026-11-07: every card checked against the J.League's official match record; players matched to the provider's sheet by shirt number"
-+1556133,5,292,119232,Dani Gómez,81,,Yellow Card,official,https://data.j-league.or.jp/SFMS02/?match_card_id=34650,"FC Tokyo-Kashima, J1, 2026-11-07: every card checked against the J.League's official match record; players matched to the provider's sheet by shirt number"
-+1556133,6,292,119232,Dani Gómez,90,6,Yellow Card,official,https://data.j-league.or.jp/SFMS02/?match_card_id=34650,"FC Tokyo-Kashima, J1, 2026-11-07: every card checked against the J.League's official match record; players matched to the provider's sheet by shirt number"
-+1556133,7,292,119232,Dani Gómez,90,6,Red Card,official,https://data.j-league.or.jp/SFMS02/?match_card_id=34650,"FC Tokyo-Kashima, J1, 2026-11-07: every card checked against the J.League's official match record; players matched to the provider's sheet by shirt number"
 +1575538,1,15130,314226,L. Zvonarek,51,,Yellow Card,official,https://www.ligaportugal.pt/match/20262027/ligaportugalbetclic/11/2,"Estrela-Benfica, LP, 2026-11-08: every card checked against the Liga Portugal's official match page"
 +1575538,2,15130,472200,Alisson,89,,Yellow Card,official,https://www.ligaportugal.pt/match/20262027/ligaportugalbetclic/11/2,"Estrela-Benfica, LP, 2026-11-08: every card checked against the Liga Portugal's official match page"
 +1493086,1,449,362721,T. Adoryan,4,,Yellow Card,official,https://www.ligaprofesional.ar/ficha-partido?competition=724&season=2026&match=2614452,"Newell's Old Boys-Banfield, APD, 2026-08-23: every card checked against the Liga Profesional's official match page"
@@ -122,3 +115,20 @@ index 4eb95d67..8e050307 100644
 +1493234,8,1066,5778,L. Petruchi,78,,Red Card,official,https://www.ligaprofesional.ar/ficha-partido?competition=724&season=2026&match=2614588,"Gimnasia Mendoza-Independiente Rivadavia, APD, 2026-11-07: every card checked against the Liga Profesional's official match page"
 +1493234,9,1066,296129,L. Cingolani,84,,Yellow Card,official,https://www.ligaprofesional.ar/ficha-partido?competition=724&season=2026&match=2614588,"Gimnasia Mendoza-Independiente Rivadavia, APD, 2026-11-07: every card checked against the Liga Profesional's official match page"
 +1493234,10,1066,296129,L. Cingolani,84,,Red Card,official,https://www.ligaprofesional.ar/ficha-partido?competition=724&season=2026&match=2614588,"Gimnasia Mendoza-Independiente Rivadavia, APD, 2026-11-07: every card checked against the Liga Profesional's official match page"
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/262-research-batch-1/review.md        |  18 +++
+#    .../task/262-research-batch-1/review_input.patch   | 124 +++++++++++++++++++++
+#    2 files changed, 142 insertions(+)
+# ============================================================================
