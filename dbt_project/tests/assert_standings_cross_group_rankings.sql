@@ -1,10 +1,10 @@
 {#
   A cross-group ranking is a ranking and a real table never is. WC 2026 "Group Stage" and ACN 2027
   "Groups" hold one team from each group, so they are rankings, and every other section of those
-  two league-seasons stays a group. APD 2026 "Liga Profesional Argentina" combines the season's
-  group tables, so it is a ranking; no other section of a split-season league (BPL, VL, KL1, LMX,
-  APD) is, though each of its teams sits in two tables. Each failing row is a section whose kind
-  breaks one of these.
+  two league-seasons stays a group. APD 2026 has a combined table, the one section that holds every
+  team of the season, whatever the provider calls it; it is a ranking, and no other section of a
+  split-season league (BPL, VL, KL1, LMX, APD) is, though each of its teams sits in two tables.
+  Each failing row is a section whose kind breaks one of these, or a missing combined table.
 #}
 {{ config(store_failures = true, severity = 'error') }}
 
@@ -24,11 +24,24 @@ rankings as (
         'Groups' as group_name
 ),
 
+apd_section_teams as (
+    select distinct
+        league_code,
+        season_api_year,
+        group_name,
+        team_sk
+    from {{ ref('fct_standings') }}
+    where league_code = 'APD' and season_api_year = 2026
+),
+
 combined_tables as (
     select
-        'APD' as league_code,
-        2026 as season_api_year,
-        'Liga Profesional Argentina' as group_name
+        league_code,
+        season_api_year,
+        group_name
+    from apd_section_teams
+    group by league_code, season_api_year, group_name
+    having count(*) = (select count(distinct t.team_sk) from apd_section_teams as t)
 ),
 
 ranking_seasons as (
@@ -85,6 +98,17 @@ left join kinds as k
         and c.season_api_year = k.season_api_year
         and c.group_name = k.group_name
 where k.table_kind is distinct from 'ranking'
+
+union all
+
+select
+    'APD' as league_code,
+    2026 as season_api_year,
+    cast(null as string) as group_name,
+    cast(null as string) as table_kind,
+    'a combined table' as expected
+from (select count(*) as tables from combined_tables)
+where tables = 0
 
 union all
 

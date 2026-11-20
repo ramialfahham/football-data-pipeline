@@ -1,6 +1,8 @@
 -- Each played match's boards on mart_leaderboards follow the Match leaders rule, recomputed here from
 -- int_player_match__metrics: per board the players with a count above zero, ordered by count, then
--- fewer minutes, then player_sk; the first three kept; rank the RANK of the count.
+-- fewer minutes, then player_sk; the first three kept; rank the RANK of the count. A
+-- competition-season whose player stats need research (stats_need_research) has no rows on the
+-- mart, so it has none here.
 --
 -- Returns a row (= fails) per board row on one side only, and per row whose value, rank or position
 -- differs from the recomputation.
@@ -11,8 +13,15 @@
     'dribbles_attempts_player', 'duels_won_player', 'defensive_actions_player', 'fouls_player',
 ] %}
 
-with match_metrics as (
+with withheld as (
+    select c.season_sk
+    from {{ ref('int_competition_season__player_stat_corrections') }} as c
+    where c.stats_need_research and c.season_sk is not null
+),
+
+match_metrics as (
     select * from {{ ref('int_player_match__metrics') }}
+    where season_sk not in (select w.season_sk from withheld as w)
 ),
 
 served as (
