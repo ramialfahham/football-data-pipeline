@@ -1,0 +1,167 @@
+diff --git a/.claude/task/262-nightly-tests-fix/contract.md b/.claude/task/262-nightly-tests-fix/contract.md
+new file mode 100644
+index 00000000..9aadb7e0
+--- /dev/null
++++ b/.claude/task/262-nightly-tests-fix/contract.md
+@@ -0,0 +1,65 @@
++# Task contract — two singular tests follow the rules the models already implement
++
++objective: >
++  The prod nightly of 2026-11-20 (Cloud Run fdp-nightly) failed on two singular dbt tests and dbt
++  skipped 410 downstream nodes, so marts.mart_standings was not rebuilt. Both failures are the
++  tests, not the data. (1) assert_mart_leaderboards_match_boards_follow_the_rule recomputes the
++  match boards from int_player_match__metrics and does not apply the withheld-season rule
++  (stats_need_research) that mart_leaderboards applies under #262, so 104 fixtures of a withheld
++  competition-season (CNL 2025) come back as 'only expected'. It now leaves the same seasons out
++  of the recomputation. (2) assert_standings_cross_group_rankings hard-codes the provider's name
++  of APD 2026's combined table, 'Liga Profesional Argentina'; the provider delivered that name
++  from 2026-11-12 to 2026-11-19 and 'Tabla Anual' from 2026-11-20, for the same 30 teams, and
++  int_standings__section_kinds already classifies it as a ranking structurally. The test now
++  identifies APD 2026's combined table as the section that holds every team of the league-season,
++  with no provider label. No model, seed or doc keys on either name.
++
++refs: >
++  #262 (leaderboard test, the withhold rule of commit 60c09141; the standings test is named in
++  this same contract). Coordinating session routed the task on 2026-11-20. Blocks !491.
++
++scope_paths:
++  - dbt_project/tests/assert_mart_leaderboards_match_boards_follow_the_rule.sql
++  - dbt_project/tests/assert_standings_cross_group_rankings.sql
++  - .claude/task/262-nightly-tests-fix/contract.md
++  - .claude/task/262-nightly-tests-fix/review.md
++  - .claude/task/262-nightly-tests-fix/review_input.patch
++
++impact_map: >
++  writers: none; both files are singular tests (no model, seed or macro changes).
++  downstream: a test is a leaf; it has no downstream models. Readers by name: grep for
++  'Liga Profesional Argentina' and 'Tabla Anual' over the repo (outside task folders) finds only
++  assert_standings_cross_group_rankings.sql.
++  layer_rules: tests only; check_layer_contract.py is not touched.
++  deploy_order: none; a corrected test only takes effect at the next dbt run of the tests, and the
++  nightly stops failing on it.
++  blast_radius: no mart or number changes. The leaderboard test stops flagging the withheld
++  season; the standings test accepts the provider's current name for the combined table and still
++  fails when the combined table is missing or not a ranking.
++
++depends_on:
++  - none: tests only; !491 waits on this change, this change needs no open MR's code
++
++shared_files:
++  - none: no design baselines or fixtures
++
++decisions_taken: >
++  Engineering calls made by the builder, stated in the MR: the leaderboard test reads the withheld
++  seasons from int_competition_season__player_stat_corrections exactly as mart_leaderboards does;
++  the standings test identifies the combined table by structure (the section that holds every team
++  of the league-season), not by a provider label. No new mechanism, no recurring cost. The WC
++  'Group Stage' and ACN 'Groups' labels in the same test are not changed. No other test on the
++  withholding marts of commit 60c09141 has the gap (read all eleven; the others check mart rows
++  against rules, or already exclude withheld seasons).
++
++decisions_reserved:
++  - none: no product, metric, naming or display decision; tests only
++
++done_when:
++  - dbt parse passes (.venv/Scripts/dbt.exe, repo root, --project-dir dbt_project)
++  - sqlfluff lint of both tests is clean (repo root, jinja templater, bigquery dialect)
++  - each test's compiled SQL, run read-only against prod after a dry run under 1 GB, returns 0 rows
++  - ci_local --job test:python is green
++  - merge request pipeline green
++
++amendments: (none)
+diff --git a/dbt_project/tests/assert_mart_leaderboards_match_boards_follow_the_rule.sql b/dbt_project/tests/assert_mart_leaderboards_match_boards_follow_the_rule.sql
+index 3a3f2dc5..1cf5e842 100644
+--- a/dbt_project/tests/assert_mart_leaderboards_match_boards_follow_the_rule.sql
++++ b/dbt_project/tests/assert_mart_leaderboards_match_boards_follow_the_rule.sql
+@@ -1,6 +1,8 @@
+ -- Each played match's boards on mart_leaderboards follow the Match leaders rule, recomputed here from
+ -- int_player_match__metrics: per board the players with a count above zero, ordered by count, then
+--- fewer minutes, then player_sk; the first three kept; rank the RANK of the count.
++-- fewer minutes, then player_sk; the first three kept; rank the RANK of the count. A
++-- competition-season whose player stats need research (stats_need_research) has no rows on the
++-- mart, so it has none here.
+ --
+ -- Returns a row (= fails) per board row on one side only, and per row whose value, rank or position
+ -- differs from the recomputation.
+@@ -11,8 +13,15 @@
+     'dribbles_attempts_player', 'duels_won_player', 'defensive_actions_player', 'fouls_player',
+ ] %}
+ 
+-with match_metrics as (
++with withheld as (
++    select c.season_sk
++    from {{ ref('int_competition_season__player_stat_corrections') }} as c
++    where c.stats_need_research and c.season_sk is not null
++),
++
++match_metrics as (
+     select * from {{ ref('int_player_match__metrics') }}
++    where season_sk not in (select w.season_sk from withheld as w)
+ ),
+ 
+ served as (
+diff --git a/dbt_project/tests/assert_standings_cross_group_rankings.sql b/dbt_project/tests/assert_standings_cross_group_rankings.sql
+index 5fed451f..d0767e33 100644
+--- a/dbt_project/tests/assert_standings_cross_group_rankings.sql
++++ b/dbt_project/tests/assert_standings_cross_group_rankings.sql
+@@ -1,10 +1,10 @@
+ {#
+   A cross-group ranking is a ranking and a real table never is. WC 2026 "Group Stage" and ACN 2027
+   "Groups" hold one team from each group, so they are rankings, and every other section of those
+-  two league-seasons stays a group. APD 2026 "Liga Profesional Argentina" combines the season's
+-  group tables, so it is a ranking; no other section of a split-season league (BPL, VL, KL1, LMX,
+-  APD) is, though each of its teams sits in two tables. Each failing row is a section whose kind
+-  breaks one of these.
++  two league-seasons stays a group. APD 2026 has a combined table, the one section that holds every
++  team of the season, whatever the provider calls it; it is a ranking, and no other section of a
++  split-season league (BPL, VL, KL1, LMX, APD) is, though each of its teams sits in two tables.
++  Each failing row is a section whose kind breaks one of these, or a missing combined table.
+ #}
+ {{ config(store_failures = true, severity = 'error') }}
+ 
+@@ -24,11 +24,24 @@ rankings as (
+         'Groups' as group_name
+ ),
+ 
++apd_section_teams as (
++    select distinct
++        league_code,
++        season_api_year,
++        group_name,
++        team_sk
++    from {{ ref('fct_standings') }}
++    where league_code = 'APD' and season_api_year = 2026
++),
++
+ combined_tables as (
+     select
+-        'APD' as league_code,
+-        2026 as season_api_year,
+-        'Liga Profesional Argentina' as group_name
++        league_code,
++        season_api_year,
++        group_name
++    from apd_section_teams
++    group by league_code, season_api_year, group_name
++    having count(*) = (select count(distinct t.team_sk) from apd_section_teams as t)
+ ),
+ 
+ ranking_seasons as (
+@@ -88,6 +101,17 @@ where k.table_kind is distinct from 'ranking'
+ 
+ union all
+ 
++select
++    'APD' as league_code,
++    2026 as season_api_year,
++    cast(null as string) as group_name,
++    cast(null as string) as table_kind,
++    'a combined table' as expected
++from (select count(*) as tables from combined_tables)
++where tables = 0
++
++union all
++
+ select
+     k.league_code,
+     k.season_api_year,
