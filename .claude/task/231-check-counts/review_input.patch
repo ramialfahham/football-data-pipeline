@@ -1,0 +1,475 @@
+diff --git a/.claude/task/231-check-counts/contract.md b/.claude/task/231-check-counts/contract.md
+new file mode 100644
+index 00000000..5b6e21b9
+--- /dev/null
++++ b/.claude/task/231-check-counts/contract.md
+@@ -0,0 +1,80 @@
++# Task contract — the design-check counters count only what the registry forbids
++
++objective: >
++  The design checks count a designed hyphen break of a club name as a split, and count a page
++  that has no matches to show as missing Fold, Match row score or Filter row. Both are false
++  counts. Fix the counters so a break at a hyphen is a split only where the registry does not
++  allow it, and an element is expected only on a page whose rows would show it. Re-measure the
++  pins; none rises.
++refs: "#231, !490 (the Result row part club-name), #297 (blocked by the false rises)"
++
++scope_paths:
++  - scripts/check_design_inventory.py
++  - scripts/design_inventory.py
++  - scripts/check_component_registry.py
++  - docs/design/components.yml
++  - tests/test_design_inventory.py
++  - tests/test_check_component_registry.py
++  - tests/fixtures/design_inventory/baseline.json
++  - tests/fixtures/design_inventory/baseline_quick.json
++  - tests/fixtures/design_inventory/baseline_quick_fi.json
++  - .claude/task/231-check-counts/contract.md
++  - .claude/task/231-check-counts/review.md
++  - .claude/task/231-check-counts/review_input.patch
++
++protected_override: >
++  The coordinating session approved the change to the design checks and to the one registry
++  key, in the session message of 2026-11-20, as an engineering decision under the CPO's
++  visual-details mandate of 2026-11-16 (the counters were wrong, not the pages). The MR head
++  declares the locked files; the CPO's merge is the approval.
++
++impact_map: >
++  writers: none. No table or model is written. The files are checks and their tests.
++  downstream: the guards' readers. `scripts/check_design_inventory.py` runs in `ci_local --mr`
++  (job validate:ui and the MR design job) and in the main sweep against
++  tests/fixtures/design_inventory/baseline.json and baseline_quick*.json;
++  `scripts/design_inventory.py` is imported by it and by tests/test_design_inventory.py;
++  `scripts/check_component_registry.py` reads docs/design/components.yml and generates
++  docs/wireframes/block_standard.md, whose generated table is pinned by a test. Nothing else
++  reads the `breaks` key (grep over scripts, tests, design-mocks, site_v2/src: only
++  check_component_registry.py).
++  layer_rules: none apply (no dbt). The registry's own checker validates the new `breaks` value.
++  deploy_order: none. No deployed system reads these files; the nightly never runs them.
++  blast_radius: what stops being counted is a break at a hyphen inside a part marked
++  `breaks: hyphens` where the word is wider than its line, and an element missing from a page
++  that has no row that would show it. Every other split, overflow, scroll, overlap and
++  miss still counts, and the registry's three Fold, Match row score and Filter row rows
++  stay expected wherever their rows exist. A pin may only fall.
++
++approved_design:
++  - none: no page output changes
++
++depends_on:
++  - none: no open MR touches the checks, the registry or the baselines (the only open MR, !491, is seeds)
++shared_files:
++  - tests/fixtures/design_inventory/baseline.json
++  - tests/fixtures/design_inventory/baseline_quick.json
++  - tests/fixtures/design_inventory/baseline_quick_fi.json
++
++decisions_taken: >
++  A part of the registry that may break a word at its hyphens says so with `breaks: hyphens`,
++  read by the check; the check never parses the rule text. The part club-name is the only one
++  marked. A word broken at hyphens inside such a part is not a split when every break falls
++  right after a hyphen and the word is wider than its box. Fold, Match row score and Filter row
++  are expected on the Matches page and the Matches day page only when the page's rows would
++  show them: a competition group with more than 3 rows (VISIBLE_ROWS of MatchesDay.astro), a
++  row whose two scores differ (MatchRow.astro marks a winner only then), at least 2 distinct
++  entity types or 2 distinct confederations among the groups (FilterRows.astro shows a filter
++  from 2 values). The precondition reads the rows, never the element it excuses. The task was
++  assigned and the registry key approved by the coordinating session. No new recurring cost.
++
++decisions_reserved:
++  - none: the three counters follow the registry's own rules and the page code's own thresholds, and nothing new about a page is decided
++
++done_when:
++  - tests/test_design_inventory.py and tests/test_check_component_registry.py pass, including the new tests (a hyphen break allowed, a non-hyphen split counted, a break outside the allowed part counted, a break where the word fits counted, a thin day page not counted, a full day page without its Fold still counted).
++  - python scripts/check_component_registry.py is green and docs/wireframes/block_standard.md is regenerated unchanged.
++  - python scripts/ci_local.py --mr is green and every pin is at or below main's.
++  - The MR pipeline is green.
++
++amendments: (none)
+diff --git a/docs/design/components.yml b/docs/design/components.yml
+index 6604fc9d..ab055759 100644
+--- a/docs/design/components.yml
++++ b/docs/design/components.yml
+@@ -351,7 +351,7 @@ components:
+       meeting: {class: meet, selector: ".resrow.meet", element: Meeting row, rule: "a meeting of the two teams: the result row without its chip. The score is in the match's order, the home side first, the date with its year. On one line where every meeting of its list fits; otherwise the score, the home name, the away name, one line each, then the competition and date", measured: fits, ruled-on: the match page review}
+       goal: {class: goal, selector: ".resrow.goal", element: Goal row, rule: "a goal: the score after it, then the scorer with the crest of the side it counts for. The second line holds the minute with the assist, own goal or penalty. Without minutes the row has no score", measured: fits, ruled-on: the played match page review}
+       goal-meta: {class: rmeta, selector: ".resrow.goal .rmeta", text: 13-400-muted, element: Goal row meta, rule: "the goal's minute and its assist, own goal or penalty, in a list row's second-line style: 13px muted", measured: "font-size=13px; color=muted", ruled-on: "the played match page review; the design standard"}
+-      club-name: {class: cn, selector: ".club", element: Result row club name, rule: "a club's name in a row wraps between words. A hyphen-joined word stays whole on its line and breaks at its hyphens only where it is wider than the line", measured: fits, ruled-on: "the narrow-screen fix"}
++      club-name: {class: cn, selector: ".club", breaks: hyphens, element: Result row club name, rule: "a club's name in a row wraps between words. A hyphen-joined word stays whole on its line and breaks at its hyphens only where it is wider than the line", measured: fits, ruled-on: "the narrow-screen fix"}
+       player-competition: {class: rm-c}
+       player-line: {class: rm-p}
+       home-away: {class: ha, selector: ".resrow .ha", text: 11-700-muted-caps, breaks: never}
+diff --git a/scripts/check_component_registry.py b/scripts/check_component_registry.py
+index 751c312a..c81491d2 100644
+--- a/scripts/check_component_registry.py
++++ b/scripts/check_component_registry.py
+@@ -58,7 +58,7 @@ LINK_BUILDERS = {
+ PART_KEYS = {"class", "selector", "text", "mark", "breaks", "element", "rule", "measured", "status", "ruled-on", "gap"}
+ RULE_KEYS = {"selector", "rule", "measured", "status", "ruled-on"}
+ TEXT_KEYS = {"size", "weight", "colour", "case"}
+-BREAKS = ("never", "between words")
++BREAKS = ("never", "between words", "hyphens")
+ GAPS = {
+     "mock-css": "a design mock's CSS restyles this class, so the block standard cannot list it yet",
+     "style-varies": "the part's text shows in more than one style today",
+diff --git a/scripts/check_design_inventory.py b/scripts/check_design_inventory.py
+index 9345024c..8c051d0a 100644
+--- a/scripts/check_design_inventory.py
++++ b/scripts/check_design_inventory.py
+@@ -76,8 +76,30 @@ COVERAGE = ("page with no row", "generator fails", "mock page with no row", "lan
+ # tight lines that only touch are not counted. `classes`: the class names no inventory selector
+ # uses and the component registry does not list. Text that is not displayed, fully transparent or clipped away is not read.
+ COUNT_JS = r"""
+-(registered) => {
+-  const reg = new Set(registered);
++(arg) => {
++  const reg = new Set(arg.registered);
++  const hyphenParts = arg.hyphens.join(',');
++  const lineOf = (el) => {
++    let a = el;
++    while (a && a !== document.body && /^(inline|contents|inline-block|inline-flex)$/.test(getComputedStyle(a).display)) a = a.parentElement;
++    const s = getComputedStyle(a || document.body);
++    return (a || document.body).getBoundingClientRect().width - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight);
++  };
++  const hyphenBreak = (n, p, start, word) => {
++    if (!hyphenParts || !p.closest(hyphenParts)) return false;
++    let prev = null, whole = 0;
++    for (let i = 0; i < word.length; i++) {
++      const cr = document.createRange();
++      cr.setStart(n, start + i);
++      cr.setEnd(n, start + i + 1);
++      const r = [...cr.getClientRects()].find((x) => x.width > 0.5);
++      if (!r) continue;
++      whole += r.width;
++      if (prev && Math.abs(r.top - prev.r.top) >= 2 && !/[-‐‑]/.test(word[prev.i])) return false;
++      prev = { i, r };
++    }
++    return whole > lineOf(p) + 1;
++  };
+   const counted = window.__diCounted || (window.__diCounted = { nodes: new WeakSet(), boxes: new WeakSet(), pairs: new Set(), page: false });
+   const shownMemo = new Map();
+   const shown = (el) => {
+@@ -165,7 +187,7 @@ COUNT_JS = r"""
+           wr.setEnd(n, m.index + m[0].length);
+           const wt = [];
+           for (const r of wr.getClientRects()) if (r.width > 0.5 && !wt.some((t) => Math.abs(t - r.top) < 2)) wt.push(r.top);
+-          if (wt.length > 1) { split++; ex.split.push(label(p, m[0])); }
++          if (wt.length > 1 && !hyphenBreak(n, p, m.index, m[0])) { split++; ex.split.push(label(p, m[0])); }
+         }
+       }
+     }
+@@ -318,8 +340,27 @@ MEASURE_JS = r"""
+ """
+ 
+ # Playwright's object transport costs more CPU than the scripts themselves; a JSON string does not.
++# What a page's rows would show, read from the rows and never from the element a miss is excused
++# for. `fold`: a competition group holds more rows than the page's visible rows
++# (VISIBLE_ROWS, MatchesDay.astro). `score`: a row whose two scores differ (MatchRow.astro marks a
++# winner only then; a played row that lost its score spans is still expected to show one). `filter`: the groups carry two values of a filter (FilterRows.astro offers a
++# filter from two values).
++PRESENCE_JS = r"""
++() => {
++  const shown = new Set();
++  const groups = [...document.querySelectorAll('.fxgroup')];
++  if (groups.some((g) => g.querySelectorAll('.fxrow').length > %d)) shown.add('fold');
++  const goals = (row) => [...row.querySelectorAll('.side .g')].map((g) => g.textContent.trim());
++  if ([...document.querySelectorAll('.fxrow')].some((r) => { const g = goals(r); return g.length === 2 ? g[0] !== g[1] : r.classList.contains('played'); })) shown.add('score');
++  const distinct = (attr) => new Set(groups.map((g) => g.getAttribute(attr)).filter(Boolean)).size;
++  if (distinct('data-entity-type') >= 2 || distinct('data-confederation') >= 2) shown.add('filter');
++  return [...shown];
++}
++""" % di.visible_rows()
++PRESENCE_JSON_JS = "() => JSON.stringify((%s)())" % PRESENCE_JS.strip()
++
+ MEASURE_JSON_JS = "(spec) => JSON.stringify((%s)(spec))" % MEASURE_JS.strip()
+-COUNT_JSON_JS = "(registered) => JSON.stringify((%s)(registered))" % COUNT_JS.strip()
++COUNT_JSON_JS = "(arg) => JSON.stringify((%s)(arg))" % COUNT_JS.strip()
+ 
+ 
+ POINTER_JS = r"""
+@@ -537,6 +578,8 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
+     if own:
+         acc = {"seen": set(), "visible": {}, "total": 0, "found": set()}
+     start = len(failures)
++    if any(page.name == p for p, _ in di.PRESENCE_NEEDS):
++        acc.setdefault("rows", set()).update(json.loads(pw_page.evaluate(PRESENCE_JSON_JS)))
+     for el in inv.elements:
+         res = data["elements"].get(el.name, {})
+         level = "FAIL" if el.status == "ruled" else "WARN"
+@@ -638,6 +681,9 @@ def finish_page(acc: dict, page: di.Page, viewport: int, lang: str, failures: li
+         if msg:
+             failures.append(Failure(page.name, viewport, lang, name, msg, level))
+     for name in page.expected_at(viewport):
++        need = di.PRESENCE_NEEDS.get((page.name, name))
++        if need and need not in acc.get("rows", ()):
++            continue
+         if name not in acc["seen"]:
+             failures.append(Failure(page.name, viewport, lang, name, "expected on this page · measured 0 matches"))
+     if acc["total"] == 0:
+@@ -707,7 +753,7 @@ def render_one(pw_page, job: dict, p, lang: str, viewport: int, shots: list[int]
+         measure_page(pw_page, inv, spec, p, viewport, lang, failures, acc)
+         # The pointer checks scroll the page, and a sticky header then lies over the content.
+         pw_page.evaluate("window.scrollTo(0, 0); document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => r())))")
+-        found = json.loads(pw_page.evaluate(COUNT_JSON_JS, job["registered"]))
++        found = json.loads(pw_page.evaluate(COUNT_JSON_JS, {"registered": job["registered"], "hyphens": job["hyphens"]}))
+         founds.append({"classes": found["classes"], "ex": {k: found["ex"][k][:20] for k in COUNTS[:-1]},
+                        **{k: found[k] for k in COUNTS[:-1]}})
+         # After the count, which the screenshot's resize would otherwise change.
+@@ -813,6 +859,13 @@ def registry_classes(path: Path = REGISTRY) -> frozenset[str]:
+     return frozenset(part["class"] for comp in reg["components"].values() for part in comp["parts"].values())
+ 
+ 
++def hyphen_selectors(path: Path = REGISTRY) -> list[str]:
++    """The selector of every registry part that may break a word at its hyphens."""
++    reg = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
++    return sorted({part.get("selector") or "." + part["class"] for comp in reg["components"].values()
++                   for part in comp["parts"].values() if part.get("breaks") == "hyphens"})
++
++
+ def main(argv=None) -> int:
+     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+     ap.add_argument("--inventory", default=str(di.DOC))
+@@ -913,6 +966,7 @@ def main(argv=None) -> int:
+             # Interleaved, so each process gets the same mix of light and heavy pages.
+             jobs = [{"viewports": viewports, "targets": list(enumerate(targets))[k::workers], "bases": bases,
+                      "inv": inv, "spec": spec, "registered": registered,
++                     "hyphens": hyphen_selectors(Path(args.registry)),
+                      "artifacts": str(artifacts) if artifacts else None} for k in range(workers)]
+             if len(jobs) == 1:
+                 rendered = render_targets(jobs[0])
+diff --git a/scripts/design_inventory.py b/scripts/design_inventory.py
+index c1e36ead..afe9cb61 100644
+--- a/scripts/design_inventory.py
++++ b/scripts/design_inventory.py
+@@ -65,6 +65,26 @@ PX_KINDS = ("gap(next)", "gap(prev)", "min-box")
+ FLAG_KINDS = ("fits", "one-line", "whole-words", "fit-marked", "left-edge", "tracks")
+ 
+ 
++MATCHES_DAY = REPO / "site_v2" / "src" / "components" / "matches" / "MatchesDay.astro"
++# What a page's rows would show, by page and element: the page is expected to show the element
++# only when its rows would (`check_design_inventory.PRESENCE_JS` reads them off the rendered page).
++PRESENCE_NEEDS = {
++    ("Matches page", "Fold"): "fold",
++    ("Matches page", "Match row score"): "score",
++    ("Matches page", "Filter row"): "filter",
++    ("Matches day page", "Fold"): "fold",
++    ("Matches day page", "Match row score"): "score",
++}
++
++
++def visible_rows(path: Path = MATCHES_DAY) -> int:
++    """The rows a competition group shows before its Fold, as the page's own code sets them."""
++    m = re.search(r"\bVISIBLE_ROWS\s*=\s*(\d+)", path.read_text(encoding="utf-8"))
++    if not m:
++        raise InventoryError("%s: no VISIBLE_ROWS to read the Fold's threshold from" % path.name)
++    return int(m.group(1))
++
++
+ class InventoryError(ValueError):
+     """The document does not parse; the row and the token are named."""
+ 
+diff --git a/tests/fixtures/design_inventory/baseline.json b/tests/fixtures/design_inventory/baseline.json
+index e3846344..f98ba576 100644
+--- a/tests/fixtures/design_inventory/baseline.json
++++ b/tests/fixtures/design_inventory/baseline.json
+@@ -16,7 +16,6 @@
+   "platform": "linux",
+   "pages": {
+    "Match page": {"scroll": 1913, "classes": 1},
+-   "Matches day page": {"miss · Fold": 378, "miss · Match row score": 414},
+    "Played match page": {"scroll": 2, "classes": 1},
+    "competition-hub cup": {"classes": 9},
+    "competition-hub groups": {"classes": 9},
+diff --git a/tests/fixtures/design_inventory/baseline_quick.json b/tests/fixtures/design_inventory/baseline_quick.json
+index abc4411c..3ef8ddeb 100644
+--- a/tests/fixtures/design_inventory/baseline_quick.json
++++ b/tests/fixtures/design_inventory/baseline_quick.json
+@@ -150,10 +150,6 @@
+     "scroll": 2,
+     "classes": 1
+    },
+-   "Matches day page": {
+-    "miss · Fold": 84,
+-    "miss · Match row score": 92
+-   },
+    "index.html": {
+     "miss · (page)": 2
+    },
+diff --git a/tests/fixtures/design_inventory/baseline_quick_fi.json b/tests/fixtures/design_inventory/baseline_quick_fi.json
+index 5e1eb919..aeffe14a 100644
+--- a/tests/fixtures/design_inventory/baseline_quick_fi.json
++++ b/tests/fixtures/design_inventory/baseline_quick_fi.json
+@@ -96,10 +96,6 @@
+     "scroll": 120,
+     "classes": 1
+    },
+-   "Matches day page": {
+-    "miss · Fold": 21,
+-    "miss · Match row score": 23
+-   },
+    "competition-hub cup": {
+     "classes": 9
+    },
+diff --git a/tests/test_design_inventory.py b/tests/test_design_inventory.py
+index 748c3e71..a58f7349 100644
+--- a/tests/test_design_inventory.py
++++ b/tests/test_design_inventory.py
+@@ -1159,3 +1159,144 @@ def test_validate_ui_runs_the_lint_the_red_proof_and_the_measured_check():
+     # tests first would stop a stylesheet defect at the fixture, without the pages' lines and
+     # screenshots
+     assert script.index("scripts/check_design_inventory.py") < script.index("tests/test_design_inventory.py")
++
++
++def _split_count(tmp_path: Path, body: str, viewport: str = "280") -> tuple[int, str]:
++    """The split count of one ad-hoc page, rendered with the live stylesheet."""
++    folder = tmp_path / "pages"
++    folder.mkdir()
++    shutil.copy(SYSTEM_CSS, folder / "system.css")
++    (folder / "probe.html").write_text(
++        '<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="system.css">'
++        "<style>body{margin:0;font:15px/1.4 sans-serif}.box{width:100px}</style></head><body>%s</body></html>" % body,
++        encoding="utf-8")
++    proc = subprocess.run(
++        [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks", "--no-built",
++         "--page", "probe=%s" % (folder / "probe.html"), "--langs", "en", "--viewports", viewport],
++        capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
++    )
++    out = proc.stdout + proc.stderr
++    line = next(ln for ln in out.splitlines() if ln.startswith("COUNT probe"))
++    return int(re.search(r"split (\d+)", line).group(1)), out
++
++
++def test_the_registry_marks_the_part_that_may_break_at_hyphens():
++    check = pytest.importorskip("check_design_inventory")
++    assert check.hyphen_selectors() == [".club"]
++
++
++@needs_browser
++@pytest.mark.parametrize("viewport", ["260", "280"])
++def test_a_club_name_broken_at_its_hyphens_is_not_a_split(tmp_path, viewport):
++    split, out = _split_count(tmp_path, '<div class="box"><span class="club"><span class="cn">'
++                              '<span class="nb">Weston-super-Mare</span></span></span></div>', viewport)
++    assert split == 0, out
++
++
++@needs_browser
++def test_a_word_split_anywhere_but_at_a_hyphen_still_counts(tmp_path):
++    split, out = _split_count(tmp_path, '<div class="box" style="width:50px"><span class="club"><span class="cn">'
++                              '<span class="nb" style="overflow-wrap:anywhere">Extraordinarily</span></span></span></div>')
++    assert split == 1, out
++
++
++@needs_browser
++def test_a_hyphenated_word_also_broken_inside_a_segment_still_counts(tmp_path):
++    split, out = _split_count(tmp_path, '<div class="box" style="width:50px"><span class="club"><span class="cn">'
++                              '<span class="nb" style="overflow-wrap:anywhere">Moenchengladbach-Borussia</span>'
++                              "</span></span></div>")
++    assert split == 1, out
++
++
++@needs_browser
++def test_a_hyphen_break_outside_the_part_that_allows_it_still_counts(tmp_path):
++    split, out = _split_count(tmp_path, '<div class="box" style="width:60px"><span>Weston-super-Mare</span></div>')
++    assert split == 1, out
++
++
++@needs_browser
++def test_a_hyphen_break_of_a_word_that_fits_its_line_still_counts(tmp_path):
++    split, out = _split_count(tmp_path, '<div class="box" style="width:120px"><span class="club"><span class="cn">'
++                              "Aaaa Weston-super</span></span></div>")
++    assert split == 1, out
++
++
++def _day_page_check(tmp_path: Path, name: str, body: str, expect: str) -> tuple[int, str]:
++    """The check on one built page called `name`, expecting `expect`, at 375px."""
++    real = di.DOC.read_text(encoding="utf-8")
++    tmp_path.mkdir(parents=True, exist_ok=True)
++    doc = tmp_path / "block_standard.md"
++    doc.write_text(real.split("\n## Pages")[0] + "\n## Pages\n\n| Page | Kind | Source | URL | FI | Expect |\n"
++                   "|---|---|---|---|---|---|\n| %s | built | `site_v2/dist` | `en/day.html` | path | %s |\n"
++                   % (name, expect), encoding="utf-8")
++    dist = tmp_path / "dist" / "en"
++    dist.mkdir(parents=True)
++    (dist / "day.html").write_text(
++        '<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="system.css"></head>'
++        "<body>%s</body></html>" % body, encoding="utf-8")
++    shutil.copy(SYSTEM_CSS, dist / "system.css")
++    proc = subprocess.run(
++        [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks",
++         "--inventory", str(doc), "--dist", str(tmp_path / "dist"), "--langs", "en", "--viewports", "375"],
++        capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
++    )
++    return proc.returncode, proc.stdout + proc.stderr
++
++
++def _match_row(home: int | None = None, away: int | None = None, spans: bool = True) -> str:
++    """A match row as MatchRow.astro renders it: unplayed with no score, or `played` with its two
++    score spans, the winner's marked; `spans=False` is a played row whose score spans are gone."""
++    goals = '<span class="g num%s">%d</span>'
++    row = '<a class="fxrow%s" href="#"><span class="sides"><span class="side"><span class="nm">A</span>%s</span>' \
++          '<span class="side"><span class="nm">B</span>%s</span></span></a>'
++    if home is None:
++        return row % ("", "", "")
++    if not spans:
++        return row % (" played", "", "")
++    return row % (" played", goals % (" winner" if home > away else "", home),
++                  goals % (" winner" if away > home else "", away))
++
++
++def _group(rows: list[str], **marks: str) -> str:
++    return "<div class=\"fxgroup\" %s>%s</div>" % (" ".join('data-%s="%s"' % kv for kv in marks.items()), "".join(rows))
++
++
++@needs_browser
++@pytest.mark.parametrize("name", ["Matches day page", "Matches page"])
++def test_a_day_without_the_rows_that_show_a_fold_or_a_score_misses_neither(tmp_path, name):
++    thin = _group([_match_row(), _match_row()], **{"entity-type": "club"})
++    _code, out = _day_page_check(tmp_path, name, thin, "Fold, Match row score")
++    assert "Fold · expected on this page" not in out, out
++    assert "Match row score · expected on this page" not in out, out
++
++
++@needs_browser
++def test_a_day_whose_rows_would_show_a_fold_and_a_score_still_misses_them(tmp_path):
++    full = _group([_match_row(2, 1)] + [_match_row() for _ in range(3)], **{"entity-type": "club"})
++    code, out = _day_page_check(tmp_path, "Matches day page", full, "Fold, Match row score")
++    assert code == 1, out
++    assert "Fold · expected on this page · measured 0 matches" in out, out
++    assert "Match row score · expected on this page" not in out, out
++    played = _group([_match_row(1, 1), _match_row(3, 0)], **{"entity-type": "club"})
++    code, out = _day_page_check(tmp_path / "played", "Matches day page",
++                                played.replace(" winner", ""), "Match row score")
++    assert "Match row score · expected on this page · measured 0 matches" in out, out
++    lost = _group([_match_row(1, 0, spans=False)], **{"entity-type": "club"})
++    code, out = _day_page_check(tmp_path / "lost", "Matches day page", lost, "Match row score")
++    assert "Match row score · expected on this page · measured 0 matches" in out, out
++
++
++@needs_browser
++def test_the_filter_row_is_expected_when_the_groups_carry_two_values_of_a_filter(tmp_path):
++    one = _group([_match_row()], **{"entity-type": "club", "confederation": "UEFA"})
++    two = one + _group([_match_row()], **{"entity-type": "national", "confederation": "UEFA"})
++    _code, out = _day_page_check(tmp_path / "one", "Matches page", one, "Filter row")
++    assert "Filter row · expected on this page" not in out, out
++    _code, out = _day_page_check(tmp_path / "two", "Matches page", two, "Filter row")
++    assert "Filter row · expected on this page · measured 0 matches" in out, out
++
++
++def test_the_fold_threshold_is_the_one_the_page_code_sets():
++    assert di.visible_rows() == 3
++    assert ("Matches day page", "Fold") in di.PRESENCE_NEEDS and ("Matches page", "Filter row") in di.PRESENCE_NEEDS
++    assert {n for _p, n in di.PRESENCE_NEEDS} <= {e.name for e in di.load().elements}
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/231-check-counts/review_input.patch | 443 +++++++++++++++++++++++
+#    1 file changed, 443 insertions(+)
+# ============================================================================

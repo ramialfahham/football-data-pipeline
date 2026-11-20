@@ -1159,3 +1159,144 @@ def test_validate_ui_runs_the_lint_the_red_proof_and_the_measured_check():
     # tests first would stop a stylesheet defect at the fixture, without the pages' lines and
     # screenshots
     assert script.index("scripts/check_design_inventory.py") < script.index("tests/test_design_inventory.py")
+
+
+def _split_count(tmp_path: Path, body: str, viewport: str = "280") -> tuple[int, str]:
+    """The split count of one ad-hoc page, rendered with the live stylesheet."""
+    folder = tmp_path / "pages"
+    folder.mkdir()
+    shutil.copy(SYSTEM_CSS, folder / "system.css")
+    (folder / "probe.html").write_text(
+        '<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="system.css">'
+        "<style>body{margin:0;font:15px/1.4 sans-serif}.box{width:100px}</style></head><body>%s</body></html>" % body,
+        encoding="utf-8")
+    proc = subprocess.run(
+        [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks", "--no-built",
+         "--page", "probe=%s" % (folder / "probe.html"), "--langs", "en", "--viewports", viewport],
+        capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+    )
+    out = proc.stdout + proc.stderr
+    line = next(ln for ln in out.splitlines() if ln.startswith("COUNT probe"))
+    return int(re.search(r"split (\d+)", line).group(1)), out
+
+
+def test_the_registry_marks_the_part_that_may_break_at_hyphens():
+    check = pytest.importorskip("check_design_inventory")
+    assert check.hyphen_selectors() == [".club"]
+
+
+@needs_browser
+@pytest.mark.parametrize("viewport", ["260", "280"])
+def test_a_club_name_broken_at_its_hyphens_is_not_a_split(tmp_path, viewport):
+    split, out = _split_count(tmp_path, '<div class="box"><span class="club"><span class="cn">'
+                              '<span class="nb">Weston-super-Mare</span></span></span></div>', viewport)
+    assert split == 0, out
+
+
+@needs_browser
+def test_a_word_split_anywhere_but_at_a_hyphen_still_counts(tmp_path):
+    split, out = _split_count(tmp_path, '<div class="box" style="width:50px"><span class="club"><span class="cn">'
+                              '<span class="nb" style="overflow-wrap:anywhere">Extraordinarily</span></span></span></div>')
+    assert split == 1, out
+
+
+@needs_browser
+def test_a_hyphenated_word_also_broken_inside_a_segment_still_counts(tmp_path):
+    split, out = _split_count(tmp_path, '<div class="box" style="width:50px"><span class="club"><span class="cn">'
+                              '<span class="nb" style="overflow-wrap:anywhere">Moenchengladbach-Borussia</span>'
+                              "</span></span></div>")
+    assert split == 1, out
+
+
+@needs_browser
+def test_a_hyphen_break_outside_the_part_that_allows_it_still_counts(tmp_path):
+    split, out = _split_count(tmp_path, '<div class="box" style="width:60px"><span>Weston-super-Mare</span></div>')
+    assert split == 1, out
+
+
+@needs_browser
+def test_a_hyphen_break_of_a_word_that_fits_its_line_still_counts(tmp_path):
+    split, out = _split_count(tmp_path, '<div class="box" style="width:120px"><span class="club"><span class="cn">'
+                              "Aaaa Weston-super</span></span></div>")
+    assert split == 1, out
+
+
+def _day_page_check(tmp_path: Path, name: str, body: str, expect: str) -> tuple[int, str]:
+    """The check on one built page called `name`, expecting `expect`, at 375px."""
+    real = di.DOC.read_text(encoding="utf-8")
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    doc = tmp_path / "block_standard.md"
+    doc.write_text(real.split("\n## Pages")[0] + "\n## Pages\n\n| Page | Kind | Source | URL | FI | Expect |\n"
+                   "|---|---|---|---|---|---|\n| %s | built | `site_v2/dist` | `en/day.html` | path | %s |\n"
+                   % (name, expect), encoding="utf-8")
+    dist = tmp_path / "dist" / "en"
+    dist.mkdir(parents=True)
+    (dist / "day.html").write_text(
+        '<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="system.css"></head>'
+        "<body>%s</body></html>" % body, encoding="utf-8")
+    shutil.copy(SYSTEM_CSS, dist / "system.css")
+    proc = subprocess.run(
+        [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks",
+         "--inventory", str(doc), "--dist", str(tmp_path / "dist"), "--langs", "en", "--viewports", "375"],
+        capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+    )
+    return proc.returncode, proc.stdout + proc.stderr
+
+
+def _match_row(home: int | None = None, away: int | None = None, spans: bool = True) -> str:
+    """A match row as MatchRow.astro renders it: unplayed with no score, or `played` with its two
+    score spans, the winner's marked; `spans=False` is a played row whose score spans are gone."""
+    goals = '<span class="g num%s">%d</span>'
+    row = '<a class="fxrow%s" href="#"><span class="sides"><span class="side"><span class="nm">A</span>%s</span>' \
+          '<span class="side"><span class="nm">B</span>%s</span></span></a>'
+    if home is None:
+        return row % ("", "", "")
+    if not spans:
+        return row % (" played", "", "")
+    return row % (" played", goals % (" winner" if home > away else "", home),
+                  goals % (" winner" if away > home else "", away))
+
+
+def _group(rows: list[str], **marks: str) -> str:
+    return "<div class=\"fxgroup\" %s>%s</div>" % (" ".join('data-%s="%s"' % kv for kv in marks.items()), "".join(rows))
+
+
+@needs_browser
+@pytest.mark.parametrize("name", ["Matches day page", "Matches page"])
+def test_a_day_without_the_rows_that_show_a_fold_or_a_score_misses_neither(tmp_path, name):
+    thin = _group([_match_row(), _match_row()], **{"entity-type": "club"})
+    _code, out = _day_page_check(tmp_path, name, thin, "Fold, Match row score")
+    assert "Fold · expected on this page" not in out, out
+    assert "Match row score · expected on this page" not in out, out
+
+
+@needs_browser
+def test_a_day_whose_rows_would_show_a_fold_and_a_score_still_misses_them(tmp_path):
+    full = _group([_match_row(2, 1)] + [_match_row() for _ in range(3)], **{"entity-type": "club"})
+    code, out = _day_page_check(tmp_path, "Matches day page", full, "Fold, Match row score")
+    assert code == 1, out
+    assert "Fold · expected on this page · measured 0 matches" in out, out
+    assert "Match row score · expected on this page" not in out, out
+    played = _group([_match_row(1, 1), _match_row(3, 0)], **{"entity-type": "club"})
+    code, out = _day_page_check(tmp_path / "played", "Matches day page",
+                                played.replace(" winner", ""), "Match row score")
+    assert "Match row score · expected on this page · measured 0 matches" in out, out
+    lost = _group([_match_row(1, 0, spans=False)], **{"entity-type": "club"})
+    code, out = _day_page_check(tmp_path / "lost", "Matches day page", lost, "Match row score")
+    assert "Match row score · expected on this page · measured 0 matches" in out, out
+
+
+@needs_browser
+def test_the_filter_row_is_expected_when_the_groups_carry_two_values_of_a_filter(tmp_path):
+    one = _group([_match_row()], **{"entity-type": "club", "confederation": "UEFA"})
+    two = one + _group([_match_row()], **{"entity-type": "national", "confederation": "UEFA"})
+    _code, out = _day_page_check(tmp_path / "one", "Matches page", one, "Filter row")
+    assert "Filter row · expected on this page" not in out, out
+    _code, out = _day_page_check(tmp_path / "two", "Matches page", two, "Filter row")
+    assert "Filter row · expected on this page · measured 0 matches" in out, out
+
+
+def test_the_fold_threshold_is_the_one_the_page_code_sets():
+    assert di.visible_rows() == 3
+    assert ("Matches day page", "Fold") in di.PRESENCE_NEEDS and ("Matches page", "Filter row") in di.PRESENCE_NEEDS
+    assert {n for _p, n in di.PRESENCE_NEEDS} <= {e.name for e in di.load().elements}

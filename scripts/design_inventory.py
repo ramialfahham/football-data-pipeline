@@ -65,6 +65,26 @@ PX_KINDS = ("gap(next)", "gap(prev)", "min-box")
 FLAG_KINDS = ("fits", "one-line", "whole-words", "fit-marked", "left-edge", "tracks")
 
 
+MATCHES_DAY = REPO / "site_v2" / "src" / "components" / "matches" / "MatchesDay.astro"
+# What a page's rows would show, by page and element: the page is expected to show the element
+# only when its rows would (`check_design_inventory.PRESENCE_JS` reads them off the rendered page).
+PRESENCE_NEEDS = {
+    ("Matches page", "Fold"): "fold",
+    ("Matches page", "Match row score"): "score",
+    ("Matches page", "Filter row"): "filter",
+    ("Matches day page", "Fold"): "fold",
+    ("Matches day page", "Match row score"): "score",
+}
+
+
+def visible_rows(path: Path = MATCHES_DAY) -> int:
+    """The rows a competition group shows before its Fold, as the page's own code sets them."""
+    m = re.search(r"\bVISIBLE_ROWS\s*=\s*(\d+)", path.read_text(encoding="utf-8"))
+    if not m:
+        raise InventoryError("%s: no VISIBLE_ROWS to read the Fold's threshold from" % path.name)
+    return int(m.group(1))
+
+
 class InventoryError(ValueError):
     """The document does not parse; the row and the token are named."""
 

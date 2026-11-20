@@ -76,8 +76,30 @@ COVERAGE = ("page with no row", "generator fails", "mock page with no row", "lan
 # tight lines that only touch are not counted. `classes`: the class names no inventory selector
 # uses and the component registry does not list. Text that is not displayed, fully transparent or clipped away is not read.
 COUNT_JS = r"""
-(registered) => {
-  const reg = new Set(registered);
+(arg) => {
+  const reg = new Set(arg.registered);
+  const hyphenParts = arg.hyphens.join(',');
+  const lineOf = (el) => {
+    let a = el;
+    while (a && a !== document.body && /^(inline|contents|inline-block|inline-flex)$/.test(getComputedStyle(a).display)) a = a.parentElement;
+    const s = getComputedStyle(a || document.body);
+    return (a || document.body).getBoundingClientRect().width - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight);
+  };
+  const hyphenBreak = (n, p, start, word) => {
+    if (!hyphenParts || !p.closest(hyphenParts)) return false;
+    let prev = null, whole = 0;
+    for (let i = 0; i < word.length; i++) {
+      const cr = document.createRange();
+      cr.setStart(n, start + i);
+      cr.setEnd(n, start + i + 1);
+      const r = [...cr.getClientRects()].find((x) => x.width > 0.5);
+      if (!r) continue;
+      whole += r.width;
+      if (prev && Math.abs(r.top - prev.r.top) >= 2 && !/[-‐‑]/.test(word[prev.i])) return false;
+      prev = { i, r };
+    }
+    return whole > lineOf(p) + 1;
+  };
   const counted = window.__diCounted || (window.__diCounted = { nodes: new WeakSet(), boxes: new WeakSet(), pairs: new Set(), page: false });
   const shownMemo = new Map();
   const shown = (el) => {
@@ -165,7 +187,7 @@ COUNT_JS = r"""
           wr.setEnd(n, m.index + m[0].length);
           const wt = [];
           for (const r of wr.getClientRects()) if (r.width > 0.5 && !wt.some((t) => Math.abs(t - r.top) < 2)) wt.push(r.top);
-          if (wt.length > 1) { split++; ex.split.push(label(p, m[0])); }
+          if (wt.length > 1 && !hyphenBreak(n, p, m.index, m[0])) { split++; ex.split.push(label(p, m[0])); }
         }
       }
     }
@@ -318,8 +340,27 @@ MEASURE_JS = r"""
 """
 
 # Playwright's object transport costs more CPU than the scripts themselves; a JSON string does not.
+# What a page's rows would show, read from the rows and never from the element a miss is excused
+# for. `fold`: a competition group holds more rows than the page's visible rows
+# (VISIBLE_ROWS, MatchesDay.astro). `score`: a row whose two scores differ (MatchRow.astro marks a
+# winner only then; a played row that lost its score spans is still expected to show one). `filter`: the groups carry two values of a filter (FilterRows.astro offers a
+# filter from two values).
+PRESENCE_JS = r"""
+() => {
+  const shown = new Set();
+  const groups = [...document.querySelectorAll('.fxgroup')];
+  if (groups.some((g) => g.querySelectorAll('.fxrow').length > %d)) shown.add('fold');
+  const goals = (row) => [...row.querySelectorAll('.side .g')].map((g) => g.textContent.trim());
+  if ([...document.querySelectorAll('.fxrow')].some((r) => { const g = goals(r); return g.length === 2 ? g[0] !== g[1] : r.classList.contains('played'); })) shown.add('score');
+  const distinct = (attr) => new Set(groups.map((g) => g.getAttribute(attr)).filter(Boolean)).size;
+  if (distinct('data-entity-type') >= 2 || distinct('data-confederation') >= 2) shown.add('filter');
+  return [...shown];
+}
+""" % di.visible_rows()
+PRESENCE_JSON_JS = "() => JSON.stringify((%s)())" % PRESENCE_JS.strip()
+
 MEASURE_JSON_JS = "(spec) => JSON.stringify((%s)(spec))" % MEASURE_JS.strip()
-COUNT_JSON_JS = "(registered) => JSON.stringify((%s)(registered))" % COUNT_JS.strip()
+COUNT_JSON_JS = "(arg) => JSON.stringify((%s)(arg))" % COUNT_JS.strip()
 
 
 POINTER_JS = r"""
@@ -537,6 +578,8 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
     if own:
         acc = {"seen": set(), "visible": {}, "total": 0, "found": set()}
     start = len(failures)
+    if any(page.name == p for p, _ in di.PRESENCE_NEEDS):
+        acc.setdefault("rows", set()).update(json.loads(pw_page.evaluate(PRESENCE_JSON_JS)))
     for el in inv.elements:
         res = data["elements"].get(el.name, {})
         level = "FAIL" if el.status == "ruled" else "WARN"
@@ -638,6 +681,9 @@ def finish_page(acc: dict, page: di.Page, viewport: int, lang: str, failures: li
         if msg:
             failures.append(Failure(page.name, viewport, lang, name, msg, level))
     for name in page.expected_at(viewport):
+        need = di.PRESENCE_NEEDS.get((page.name, name))
+        if need and need not in acc.get("rows", ()):
+            continue
         if name not in acc["seen"]:
             failures.append(Failure(page.name, viewport, lang, name, "expected on this page · measured 0 matches"))
     if acc["total"] == 0:
@@ -707,7 +753,7 @@ def render_one(pw_page, job: dict, p, lang: str, viewport: int, shots: list[int]
         measure_page(pw_page, inv, spec, p, viewport, lang, failures, acc)
         # The pointer checks scroll the page, and a sticky header then lies over the content.
         pw_page.evaluate("window.scrollTo(0, 0); document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => r())))")
-        found = json.loads(pw_page.evaluate(COUNT_JSON_JS, job["registered"]))
+        found = json.loads(pw_page.evaluate(COUNT_JSON_JS, {"registered": job["registered"], "hyphens": job["hyphens"]}))
         founds.append({"classes": found["classes"], "ex": {k: found["ex"][k][:20] for k in COUNTS[:-1]},
                        **{k: found[k] for k in COUNTS[:-1]}})
         # After the count, which the screenshot's resize would otherwise change.
@@ -813,6 +859,13 @@ def registry_classes(path: Path = REGISTRY) -> frozenset[str]:
     return frozenset(part["class"] for comp in reg["components"].values() for part in comp["parts"].values())
 
 
+def hyphen_selectors(path: Path = REGISTRY) -> list[str]:
+    """The selector of every registry part that may break a word at its hyphens."""
+    reg = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    return sorted({part.get("selector") or "." + part["class"] for comp in reg["components"].values()
+                   for part in comp["parts"].values() if part.get("breaks") == "hyphens"})
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--inventory", default=str(di.DOC))
@@ -913,6 +966,7 @@ def main(argv=None) -> int:
             # Interleaved, so each process gets the same mix of light and heavy pages.
             jobs = [{"viewports": viewports, "targets": list(enumerate(targets))[k::workers], "bases": bases,
                      "inv": inv, "spec": spec, "registered": registered,
+                     "hyphens": hyphen_selectors(Path(args.registry)),
                      "artifacts": str(artifacts) if artifacts else None} for k in range(workers)]
             if len(jobs) == 1:
                 rendered = render_targets(jobs[0])

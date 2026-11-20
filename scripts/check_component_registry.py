@@ -58,7 +58,7 @@ LINK_BUILDERS = {
 PART_KEYS = {"class", "selector", "text", "mark", "breaks", "element", "rule", "measured", "status", "ruled-on", "gap"}
 RULE_KEYS = {"selector", "rule", "measured", "status", "ruled-on"}
 TEXT_KEYS = {"size", "weight", "colour", "case"}
-BREAKS = ("never", "between words")
+BREAKS = ("never", "between words", "hyphens")
 GAPS = {
     "mock-css": "a design mock's CSS restyles this class, so the block standard cannot list it yet",
     "style-varies": "the part's text shows in more than one style today",
