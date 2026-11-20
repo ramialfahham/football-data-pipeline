@@ -14,17 +14,12 @@
 
   Blank cells load from the seed as NULL or empty string depending on quoting, so guard both.
 
-  CI note. On a merge request this guard reads the BRANCH's seed: `--favor-state` is absent from
-  `data:build:mr`'s `dbt test` invocation, and `dbt seed --target "$DBT_CI_TARGET"` runs before it
-  in the same job, so the BRANCH's `metric_catalogue` relation always exists in that target and
-  plain `--defer` prefers a relation that exists over the deferred one. **Catalogue values and a
-  guard that depends on them CAN land in the same merge request.** Do not split a change on the
-  strength of the opposite (once true) rule.
-  ⚠ There is no shared `ci` target any more: the CI target is named per merge request
-  (`ci_mr<IID>`), so this seed lands in that merge request's own dataset and no other branch can
-  read or overwrite it.
-  ⚠ Also still true: `--favor-state` remains on the sibling `dbt build` invocation, deliberately.
-  Both that asymmetry and the per-merge-request naming are pinned in
+  CI note. On a merge request this guard reads the BRANCH's seed: a changed `metric_catalogue` is
+  selected by the lineage build in `data:build:mr` (`state:modified+` and the changed seed's path),
+  and dbt never defers a node it selects. **Catalogue values and a guard that depends on them CAN
+  land in the same merge request.**
+  ⚠ The CI target is named per merge request (`ci_mr<IID>_<SHA>`), so this seed lands in that
+  merge request's own dataset and no other branch can read or overwrite it; the naming is pinned in
   `tests/test_ci_data_job_invariants.py`.
 #}
 {{ config(store_failures = true) }}
