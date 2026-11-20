@@ -139,7 +139,7 @@ workflow:
 # dataset with `target.name`, so isolation was ALREADY keyed on the target name — it
 # simply was not unique per branch. Every merge request built into the SAME five `ci_*`
 # datasets, which was invisible while the singular tests read production. The moment
-# they read the ci datasets instead (see the `dbt test` line below), a merge request
+# they read the ci datasets instead, a merge request
 # that rebuilt nothing began reading whatever another branch had left there: !115 —
 # which changes no models — went red on THREE tests against tables !114 had built an
 # hour earlier, headline error "Unrecognized name: points_capture; Did you mean
@@ -215,9 +215,8 @@ workflow:
 # FAILS CLOSED, and the loud message is the point. An earlier draft skipped the
 # whole data stage via `rules: ... when: never` when the credential was absent. That
 # was backwards: a rules-excluded job leaves NO entry in the pipeline UI, so the
-# pipeline went GREEN having run no SQL lint, no dbt build and none of the singular
-# data-quality suite — the suite ci-data-build.yml annotates "DQ is non-negotiable
-# and the full singular suite always runs". The GitHub original could not reach that
+# pipeline went GREEN having run no SQL lint, no dbt build and none of the data tests.
+# The GitHub original could not reach that
 # state: it had no credential guard, so missing WIF secrets errored the auth action
 # and reddened the gate. A missing credential must stay a RED pipeline, because red
 # is the signal that the gate is not wired up yet.
@@ -227,7 +226,7 @@ workflow:
 .gcp_auth: &gcp_auth |
   if [ -z "$GCP_WORKLOAD_IDENTITY_PROVIDER" ] || [ -z "$GCP_SERVICE_ACCOUNT" ]; then
     echo "FATAL: GCP_WORKLOAD_IDENTITY_PROVIDER and/or GCP_SERVICE_ACCOUNT are not set." >&2
-    echo "The data-quality gate (sqlfluff lint, dbt build, singular DQ tests) cannot run" >&2
+    echo "The data-quality gate (sqlfluff lint, dbt build, dbt tests) cannot run" >&2
     echo "without GCP credentials, and must not be reported as passing." >&2
     echo "Fix: Settings -> CI/CD -> Variables. Add both (neither is secret, so leave" >&2
     echo "Masked off; leave Protected off unless the branch is protected):" >&2
@@ -874,63 +873,8 @@ data:build:mr:
     - >-
       dbt build --select state:modified+ $CHANGED_SEEDS --exclude tag:freshness_check
       --defer --favor-state --state /tmp/main-state --target "$DBT_CI_TARGET"
-    # DQ is non-negotiable and the full singular suite always runs. Slimming applies
-    # to model BUILDS only, never to the DQ gate.
-    #
-    # ⚠ `--defer` WITHOUT `--favor-state`, and the asymmetry with the build line above
-    # is the whole point (#92, fixed 2026-08-27). `--favor-state` resolves every ref()
-    # to the DEFERRED (prod) relation EVEN WHEN THIS RUN JUST BUILT THAT MODEL. On the
-    # BUILD line that is correct and load-bearing — a model being built must take its
-    # upstreams from prod rather than from a stale table, and a node dbt is building
-    # is not deferred anyway.
-    # ⚠ ITS REASON IS NARROWER THAN IT USED TO BE. "Another MR's leftovers" cannot
-    # happen any more — no other branch can write into ci_mr<IID>_*. What survives is
-    # an EARLIER PIPELINE OF THIS SAME merge request: build a model, then push a commit
-    # reverting it to match main, and it drops out of state:modified+ so the next
-    # pipeline does not rebuild it — leaving a superseded table that --defer alone
-    # would prefer. --favor-state forces prod for it. That is the whole remaining case.
-    # HERE, on the TEST line, nothing is being built, so the same flag threw away this
-    # MR's own models and pointed all 30 tests at PRODUCTION. The gate was green because
-    # prod was healthy, not because the branch was.
-    # ⛔ The comment that stood here claimed the opposite — "validates this MR's rebuilt
-    # ci_* models layered over prod ... an ISOLATED view, not shared prod state" — which
-    # is exactly backwards for the rebuilt models, and is why the defect survived a year
-    # of readings: the file asserted the behaviour the flag prevented.
-    # Proof it was real, one job, ninety seconds apart: pipeline 2796272877 job
-    # 16145201830 created ci_marts.mart_team_season_insights with a renamed column,
-    # PASSed assert_mart_team_season_insights_metric_consistency against it inside the
-    # build, then failed the SAME test here with "Unrecognized name: points_capture_pct;
-    # Did you mean points_capture?" — a column that exists only in prod.
-    # ⚠ WHAT `--defer` ALONE STILL DOES: it prefers a relation in the current target when
-    # one EXISTS, and only falls back to prod when it does not. That was a real hole while
-    # every merge request shared one dataset set — it is CLOSED by the per-merge-request
-    # target above, so "another MR's leftovers" is no longer a state that can occur. What
-    # remains is an EARLIER PIPELINE OF THIS SAME merge request — and it is NOT simply
-    # "this branch's own work", so do not read it as harmless. In the revert case named
-    # above the leftover is what this branch USED TO produce and no longer does, so the
-    # gate can read a table the current commit does not generate and go green (or red) on
-    # it. ⚠ FREQUENCY, not just severity: it needs a model built and then reverted to
-    # match main within one merge request, so it is rare — but it is not impossible and it
-    # is not benign. It is ACCEPTED because removing it means restoring --favor-state
-    # here, which is #92 itself.
-    # ⛔ Do NOT re-add --favor-state here to "match the build line". They are asymmetric
-    # deliberately, and the reason is above.
-    #
-    # ⚠ KNOWN AND ACCEPTED (#73, CPO 2026-08-16): on an MR that ONBOARDS A NEW COMPETITION, four
-    # singular tests fail here by construction — assert_base_leagues / assert_base_teams /
-    # assert_base_fixtures_next / assert_fct_fixture `_covers_active_competition_var`. They assert
-    # "every code in vars.active_competition_league_codes has rows", the onboarding MR adds the
-    # code, and this job no longer ingests, so the rows cannot exist until the post-merge run.
-    # The tests are telling the TRUTH; the data really is absent.
-    # ⛔ DO NOT silence them with a tag/exclude here. That was built, reviewed and REJECTED as a
-    # coverage cut — the CPO's ruling was to ship the ingest removal and fix the cause properly
-    # instead. The cause is that nothing records whether a league has been INGESTED (the registry
-    # records only that it SHOULD be), so the tests cannot ask "should this have data YET?".
-    # That is issue #76. Until it lands, an onboarding MR shows red here and is merged on
-    # judgement, exactly as !50 was.
-    - >-
-      dbt test --select test_type:singular --exclude tag:freshness_check
-      --defer --state /tmp/main-state --target "$DBT_CI_TARGET"
+    # A merge request is tested by the tests inside this build, those on the nodes it changes and
+    # their descendants; the full test suite runs in data:build:main and the nightly.
   rules:
     - *not_on_schedule
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"

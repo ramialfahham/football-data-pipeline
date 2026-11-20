@@ -7,6 +7,7 @@ flags they document.
 from __future__ import annotations
 
 import pathlib
+import re
 
 import yaml
 
@@ -171,46 +172,68 @@ def test_mr_data_build_never_ingests():
     )
 
 
-def _mr_dbt_invocations() -> tuple[str, str]:
-    """`data:build:mr`'s (build, test) dbt invocations; each is a `>-` scalar, so one line."""
+def _dbt_lines(job: str, verb: str) -> list[str]:
+    """The job's `dbt <verb>` invocations; each is a `>-` scalar or a plain line, so one line."""
     jobs = _script_lines_by_job(_ci_config())
-    assert "data:build:mr" in jobs, (
-        "data:build:mr not found in .gitlab-ci.yml. If the job was renamed, update this test "
+    assert job in jobs, (
+        f"{job} not found in .gitlab-ci.yml. If the job was renamed, update this test "
         f"rather than deleting it. Jobs seen: {sorted(jobs)}"
     )
-    lines = [" ".join(line.split()) for line in jobs["data:build:mr"]]
-    builds = [ln for ln in lines if ln.startswith("dbt build ")]
-    tests = [ln for ln in lines if ln.startswith("dbt test ")]
+    lines = [" ".join(line.split()) for line in jobs[job]]
+    return [ln for ln in lines if ln.startswith(f"dbt {verb} ")]
+
+
+def test_the_mr_data_gate_is_its_lineage_build_alone() -> None:
+    """A merge request is tested by the tests inside its lineage build, and by no separate suite."""
+    builds = _dbt_lines("data:build:mr", "build")
     assert len(builds) == 1, f"expected exactly one `dbt build` in data:build:mr, saw {builds}"
-    assert len(tests) == 1, f"expected exactly one `dbt test` in data:build:mr, saw {tests}"
-    return builds[0], tests[0]
+    build = builds[0]
 
-
-def test_the_mr_singular_test_gate_reads_the_branch_not_prod() -> None:
-    """`--favor-state` stays on the build line and off the test line, which must read the branch."""
-    build, test = _mr_dbt_invocations()
-
-    assert "--favor-state" not in test, (
-        "data:build:mr's `dbt test` line carries --favor-state again. That resolves every ref() to "
-        "PRODUCTION even for models this run just built, so the 30 singular tests stop testing the "
-        "branch and re-report on prod — green because prod is healthy, not because the change is "
-        "(GitLab #92). It also makes any column rename unmergeable: prod gains the column only "
-        f"after the merge, so the gate can never go green first. Line: {test}"
+    assert _dbt_lines("data:build:mr", "test") == [], (
+        "data:build:mr runs a separate `dbt test` again. It re-reads PRODUCTION for every node the "
+        "merge request did not change, so a failure prod already has turns every merge request red, "
+        "including the one that repairs it, and prod can only be repaired by merging. The full test "
+        "suite runs in data:build:main and the nightly; a merge request runs the tests of its own "
+        "lineage inside the build."
     )
-    for flag in ("--defer", "--state /tmp/main-state"):
-        assert flag in test, (
-            f"data:build:mr's `dbt test` line lost `{flag}`. Deferral itself must STAY — without it "
-            "an upstream this MR did not build resolves to nothing instead of to prod. Only "
-            f"--favor-state was removed. Line: {test}"
+    assert "state:modified+" in build, (
+        "data:build:mr's `dbt build` no longer selects state:modified+. That selection brings in "
+        "every test on a changed node and its descendants, and it is the whole of the merge "
+        f"request's data gate. Line: {build}"
+    )
+    excluded = re.findall(r"--exclude((?:\s+(?!--)\S+)+)", build)
+    assert [e.split() for e in excluded] == [["tag:freshness_check"]], (
+        "data:build:mr's `dbt build` must run its tests: the only thing it may exclude is the "
+        f"freshness_check tag. Line: {build}"
+    )
+    assert "--exclude-resource-type" not in build and "--resource-type" not in build, (
+        f"data:build:mr's `dbt build` filters by resource type, which can drop the tests. Line: {build}"
+    )
+    for flag in ("--defer", "--favor-state", "--state /tmp/main-state"):
+        assert flag in build, (
+            f"data:build:mr's `dbt build` line lost `{flag}`. A model being built must take its "
+            "upstreams from prod rather than from a superseded table (an earlier pipeline of THIS "
+            "merge request can leave one), and deferral is the only reason an upstream this MR did "
+            f"not build resolves at all. Line: {build}"
         )
 
-    assert "--favor-state" in build, (
-        "data:build:mr's `dbt build` line lost --favor-state. It is correct THERE and the asymmetry "
-        "with the test line is the whole of #92's first half. A model being built must take its "
-        "upstreams from prod rather than from a superseded table — an earlier pipeline of THIS "
-        "merge request can leave one (build a model, then revert it to match main and it drops "
-        "out of state:modified+), and --defer alone would prefer it. Do not make the two lines "
-        f"match. Line: {build}"
+
+def test_main_and_nightly_builds_run_the_full_singular_suite() -> None:
+    """Dropping the suite from merge requests leaves it to the prod build, which must keep it."""
+    tests = _dbt_lines("data:build:main", "test")
+    assert any(
+        "--select test_type:singular" in ln and "--target prod" in ln for ln in tests
+    ), (
+        "data:build:main no longer runs the full singular suite against prod. A merge request "
+        "tests only its own lineage, so this is the one place a test on an unchanged node runs. "
+        f"`dbt test` lines seen: {tests}"
+    )
+    entrypoint = (ROOT / "deploy" / "nightly" / "entrypoint.sh").read_text(encoding="utf-8")
+    nightly = [ln.strip() for ln in entrypoint.splitlines() if ln.strip().startswith("dbt build")]
+    assert nightly == ["dbt build --target prod"], (
+        "the nightly (deploy/nightly/entrypoint.sh) no longer runs the whole project's tests with a "
+        "bare `dbt build --target prod`; a merge request tests only its own lineage, so the nightly "
+        f"is the other place a test on an unchanged node runs. `dbt build` lines seen: {nightly}"
     )
 
 
@@ -265,7 +288,7 @@ def test_each_merge_request_builds_into_its_own_datasets() -> None:
 
 def test_the_mr_build_rebuilds_every_changed_seed() -> None:
     """dbt fingerprints a seed only up to 1 MB, so a larger changed seed needs a path selector."""
-    build, _ = _mr_dbt_invocations()
+    build = _dbt_lines("data:build:mr", "build")[0]
     lines = [" ".join(line.split()) for line in _script_lines_by_job(_ci_config())["data:build:mr"]]
 
     def only(prefix: str) -> int:

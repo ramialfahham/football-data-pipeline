@@ -1,0 +1,335 @@
+diff --git a/.claude/task/262-mr-gate-new-failures/contract.md b/.claude/task/262-mr-gate-new-failures/contract.md
+new file mode 100644
+index 00000000..2c471a35
+--- /dev/null
++++ b/.claude/task/262-mr-gate-new-failures/contract.md
+@@ -0,0 +1,66 @@
++# Task contract — a merge request's data build tests only what the merge request changes
++
++objective: >
++  `data:build:mr` stops running the separate full singular suite against prod. A merge request is
++  tested by the tests inside its own lineage build (`state:modified+` plus the seeds it changed), so
++  a failure prod already has can no longer turn an unrelated merge request red. The full test suite
++  runs in `data:build:main` and the nightly only.
++
++refs: >
++  #262; the 20 Nov 2026 prod nightly failure (two wrong singular tests, fixed in !492) that left
++  `data:build:mr` red on every merge request; !491, !492, !493.
++
++scope_paths:
++  - .claude/task/262-mr-gate-new-failures/
++  - .gitlab-ci.yml
++  - tests/test_ci_data_job_invariants.py
++  - dbt_project/docs/layering.md
++  - dbt_project/tests/assert_metric_meaning_complete.sql
++
++protected_override: >
++  Removing the separate singular-test step from `data:build:mr` in `.gitlab-ci.yml`: approved in
++  chat, 2026-11-20.
++
++impact_map: >
++  writers: none; no table, model or page output changes.
++  guard: `data:build:mr` loses its last script line, `dbt test --select test_type:singular ...`.
++  The lineage `dbt build` before it is unchanged and still runs every test on the models and seeds
++  the merge request touches and their descendants (measured on MR 491, job 18212969580: one seed
++  selected 1423 tests and 87 models in the build, and a singular test failed inside it).
++  readers: tests/test_ci_data_job_invariants.py is the only file that parses the job's `dbt test`
++  line (`_mr_dbt_invocations`, now `_dbt_lines`); `grep -rnE "dbt test|test_type" tests scripts docs
++  .claude/hooks dbt_project` finds one other reader, the comment of
++  dbt_project/tests/assert_metric_meaning_complete.sql, which is rewritten here. scripts/ci_local.py runs data:build:mr offline only
++  (dbt parse and sqlfluff lint, no dbt test); scripts/merge_ready.py reads it through ci_local. `data:build:main` (`dbt test --select test_type:singular ... --target
++  prod`) and the nightly are not edited.
++  failure: a merge request that changes a model no longer runs singular tests that read only
++  unmodified nodes; they run on main after the merge and in the nightly. A red test on main is then
++  the signal, as for any other post-merge failure. Cost: about 15.65 GB (about $0.10) and 2 minutes
++  per merge request pipeline are no longer spent (measured on MR 491, job 18203321659).
++  blast_radius: CI behaviour and cost of `data:build:mr` only; no data, no deploy.
++
++approved_design:
++  - none: no page output changes
++
++depends_on:
++  - none: works on main alone
++
++shared_files:
++  - none: no design, registry, font or chart baseline changes
++
++decisions_taken: >
++  The rule that a merge request is tested only on what it changes, and that the full suite runs in
++  `data:build:main` and the nightly, is approved in chat, 2026-11-20. The stale comments and the
++  layering paragraph that describe the removed step are rewritten to the current rule, one line
++  each. No new dependency, mechanism or recurring cost.
++
++decisions_reserved:
++  - none: the rule, the removal and the wording scope are the approved instruction.
++
++done_when:
++  - python -m pytest tests/test_ci_data_job_invariants.py -q passes, with a test that data:build:mr runs no `dbt test` and keeps the lineage build, and a test that data:build:main runs the full singular suite.
++  - grep -rn "full singular suite always runs" .gitlab-ci.yml dbt_project/docs returns nothing.
++  - python scripts/ci_local.py --mr is green.
++  - The merge request pipeline is green and python scripts/merge_ready.py <iid> says ready.
++
++amendments: (none)
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index aa983d42..9be74fcf 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -139,7 +139,7 @@ workflow:
+ # dataset with `target.name`, so isolation was ALREADY keyed on the target name — it
+ # simply was not unique per branch. Every merge request built into the SAME five `ci_*`
+ # datasets, which was invisible while the singular tests read production. The moment
+-# they read the ci datasets instead (see the `dbt test` line below), a merge request
++# they read the ci datasets instead, a merge request
+ # that rebuilt nothing began reading whatever another branch had left there: !115 —
+ # which changes no models — went red on THREE tests against tables !114 had built an
+ # hour earlier, headline error "Unrecognized name: points_capture; Did you mean
+@@ -215,9 +215,8 @@ workflow:
+ # FAILS CLOSED, and the loud message is the point. An earlier draft skipped the
+ # whole data stage via `rules: ... when: never` when the credential was absent. That
+ # was backwards: a rules-excluded job leaves NO entry in the pipeline UI, so the
+-# pipeline went GREEN having run no SQL lint, no dbt build and none of the singular
+-# data-quality suite — the suite ci-data-build.yml annotates "DQ is non-negotiable
+-# and the full singular suite always runs". The GitHub original could not reach that
++# pipeline went GREEN having run no SQL lint, no dbt build and none of the data tests.
++# The GitHub original could not reach that
+ # state: it had no credential guard, so missing WIF secrets errored the auth action
+ # and reddened the gate. A missing credential must stay a RED pipeline, because red
+ # is the signal that the gate is not wired up yet.
+@@ -227,7 +226,7 @@ workflow:
+ .gcp_auth: &gcp_auth |
+   if [ -z "$GCP_WORKLOAD_IDENTITY_PROVIDER" ] || [ -z "$GCP_SERVICE_ACCOUNT" ]; then
+     echo "FATAL: GCP_WORKLOAD_IDENTITY_PROVIDER and/or GCP_SERVICE_ACCOUNT are not set." >&2
+-    echo "The data-quality gate (sqlfluff lint, dbt build, singular DQ tests) cannot run" >&2
++    echo "The data-quality gate (sqlfluff lint, dbt build, dbt tests) cannot run" >&2
+     echo "without GCP credentials, and must not be reported as passing." >&2
+     echo "Fix: Settings -> CI/CD -> Variables. Add both (neither is secret, so leave" >&2
+     echo "Masked off; leave Protected off unless the branch is protected):" >&2
+@@ -874,63 +873,8 @@ data:build:mr:
+     - >-
+       dbt build --select state:modified+ $CHANGED_SEEDS --exclude tag:freshness_check
+       --defer --favor-state --state /tmp/main-state --target "$DBT_CI_TARGET"
+-    # DQ is non-negotiable and the full singular suite always runs. Slimming applies
+-    # to model BUILDS only, never to the DQ gate.
+-    #
+-    # ⚠ `--defer` WITHOUT `--favor-state`, and the asymmetry with the build line above
+-    # is the whole point (#92, fixed 2026-08-27). `--favor-state` resolves every ref()
+-    # to the DEFERRED (prod) relation EVEN WHEN THIS RUN JUST BUILT THAT MODEL. On the
+-    # BUILD line that is correct and load-bearing — a model being built must take its
+-    # upstreams from prod rather than from a stale table, and a node dbt is building
+-    # is not deferred anyway.
+-    # ⚠ ITS REASON IS NARROWER THAN IT USED TO BE. "Another MR's leftovers" cannot
+-    # happen any more — no other branch can write into ci_mr<IID>_*. What survives is
+-    # an EARLIER PIPELINE OF THIS SAME merge request: build a model, then push a commit
+-    # reverting it to match main, and it drops out of state:modified+ so the next
+-    # pipeline does not rebuild it — leaving a superseded table that --defer alone
+-    # would prefer. --favor-state forces prod for it. That is the whole remaining case.
+-    # HERE, on the TEST line, nothing is being built, so the same flag threw away this
+-    # MR's own models and pointed all 30 tests at PRODUCTION. The gate was green because
+-    # prod was healthy, not because the branch was.
+-    # ⛔ The comment that stood here claimed the opposite — "validates this MR's rebuilt
+-    # ci_* models layered over prod ... an ISOLATED view, not shared prod state" — which
+-    # is exactly backwards for the rebuilt models, and is why the defect survived a year
+-    # of readings: the file asserted the behaviour the flag prevented.
+-    # Proof it was real, one job, ninety seconds apart: pipeline 2796272877 job
+-    # 16145201830 created ci_marts.mart_team_season_insights with a renamed column,
+-    # PASSed assert_mart_team_season_insights_metric_consistency against it inside the
+-    # build, then failed the SAME test here with "Unrecognized name: points_capture_pct;
+-    # Did you mean points_capture?" — a column that exists only in prod.
+-    # ⚠ WHAT `--defer` ALONE STILL DOES: it prefers a relation in the current target when
+-    # one EXISTS, and only falls back to prod when it does not. That was a real hole while
+-    # every merge request shared one dataset set — it is CLOSED by the per-merge-request
+-    # target above, so "another MR's leftovers" is no longer a state that can occur. What
+-    # remains is an EARLIER PIPELINE OF THIS SAME merge request — and it is NOT simply
+-    # "this branch's own work", so do not read it as harmless. In the revert case named
+-    # above the leftover is what this branch USED TO produce and no longer does, so the
+-    # gate can read a table the current commit does not generate and go green (or red) on
+-    # it. ⚠ FREQUENCY, not just severity: it needs a model built and then reverted to
+-    # match main within one merge request, so it is rare — but it is not impossible and it
+-    # is not benign. It is ACCEPTED because removing it means restoring --favor-state
+-    # here, which is #92 itself.
+-    # ⛔ Do NOT re-add --favor-state here to "match the build line". They are asymmetric
+-    # deliberately, and the reason is above.
+-    #
+-    # ⚠ KNOWN AND ACCEPTED (#73, CPO 2026-08-16): on an MR that ONBOARDS A NEW COMPETITION, four
+-    # singular tests fail here by construction — assert_base_leagues / assert_base_teams /
+-    # assert_base_fixtures_next / assert_fct_fixture `_covers_active_competition_var`. They assert
+-    # "every code in vars.active_competition_league_codes has rows", the onboarding MR adds the
+-    # code, and this job no longer ingests, so the rows cannot exist until the post-merge run.
+-    # The tests are telling the TRUTH; the data really is absent.
+-    # ⛔ DO NOT silence them with a tag/exclude here. That was built, reviewed and REJECTED as a
+-    # coverage cut — the CPO's ruling was to ship the ingest removal and fix the cause properly
+-    # instead. The cause is that nothing records whether a league has been INGESTED (the registry
+-    # records only that it SHOULD be), so the tests cannot ask "should this have data YET?".
+-    # That is issue #76. Until it lands, an onboarding MR shows red here and is merged on
+-    # judgement, exactly as !50 was.
+-    - >-
+-      dbt test --select test_type:singular --exclude tag:freshness_check
+-      --defer --state /tmp/main-state --target "$DBT_CI_TARGET"
++    # A merge request is tested by the tests inside this build, those on the nodes it changes and
++    # their descendants; the full test suite runs in data:build:main and the nightly.
+   rules:
+     - *not_on_schedule
+     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index 903ef453..24b4cce9 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -33,7 +33,7 @@ dbt’s profile field **`dataset`** (`profiles.yml` / `profiles.example.yml`) is
+ 
+ ⚠ **The CI target is PER MERGE REQUEST; there is no shared `ci` target** (#92, 2026-08-27). It used to be one `ci` target writing `ci_marts` / `ci_analytics` for every branch, and that shared workspace became a real defect the moment the singular tests started reading it instead of prod: a merge request that rebuilt nothing read tables another branch had built, and went red on three tests for reasons that had nothing to do with it. `.gitlab-ci.yml` derives `DBT_CI_TARGET=ci_mr<IID>_<SHA>`. `<SHA>` is the first 8 characters of the target commit the pipeline merged in. The profile's output name and its `dataset:` both come from it. `generate_schema_name`'s target-name prefix isolates the layer datasets, and the profile `dataset:` isolates the base models and seeds. **The macro is unchanged.** CI never expires or deletes these datasets; `scripts/list_mr_scratch.py` lists the sets nothing reads any more. A full set is ~6 GB (~12¢/month).
+ 
+-⚠ **The two dbt invocations in `data:build:mr` differ by one flag ON PURPOSE.** `dbt build` runs `--defer --favor-state`; `dbt test` runs `--defer` alone. `--favor-state` resolves a `ref()` to the deferred prod relation even when the current run just built that model — right for a BUILD (its upstreams must come from prod), wrong for a TEST (it discarded the merge request's own models and pointed the whole singular suite at production). Both the asymmetry and the per-MR naming are pinned in `tests/test_ci_data_job_invariants.py`.
++⚠ **A merge request is tested only on what it changes.** The tests inside the `dbt build` of `data:build:mr` run, those on the models and seeds it changes and their descendants; the full test suite runs in `data:build:main` and the nightly.
+ 
+ The dbt variable **`raw_schema`** (default **`raw`** in `dbt_project.yml`) must match the BigQuery dataset id used by ingestion (`API_FOOTBALL_BIGQUERY_DATASET`). Override either in sync, for example:
+ 
+diff --git a/dbt_project/tests/assert_metric_meaning_complete.sql b/dbt_project/tests/assert_metric_meaning_complete.sql
+index c93d5cb2..1e364f84 100644
+--- a/dbt_project/tests/assert_metric_meaning_complete.sql
++++ b/dbt_project/tests/assert_metric_meaning_complete.sql
+@@ -14,17 +14,12 @@
+ 
+   Blank cells load from the seed as NULL or empty string depending on quoting, so guard both.
+ 
+-  CI note. On a merge request this guard reads the BRANCH's seed: `--favor-state` is absent from
+-  `data:build:mr`'s `dbt test` invocation, and `dbt seed --target "$DBT_CI_TARGET"` runs before it
+-  in the same job, so the BRANCH's `metric_catalogue` relation always exists in that target and
+-  plain `--defer` prefers a relation that exists over the deferred one. **Catalogue values and a
+-  guard that depends on them CAN land in the same merge request.** Do not split a change on the
+-  strength of the opposite (once true) rule.
+-  ⚠ There is no shared `ci` target any more: the CI target is named per merge request
+-  (`ci_mr<IID>`), so this seed lands in that merge request's own dataset and no other branch can
+-  read or overwrite it.
+-  ⚠ Also still true: `--favor-state` remains on the sibling `dbt build` invocation, deliberately.
+-  Both that asymmetry and the per-merge-request naming are pinned in
++  CI note. On a merge request this guard reads the BRANCH's seed: a changed `metric_catalogue` is
++  selected by the lineage build in `data:build:mr` (`state:modified+` and the changed seed's path),
++  and dbt never defers a node it selects. **Catalogue values and a guard that depends on them CAN
++  land in the same merge request.**
++  ⚠ The CI target is named per merge request (`ci_mr<IID>_<SHA>`), so this seed lands in that
++  merge request's own dataset and no other branch can read or overwrite it; the naming is pinned in
+   `tests/test_ci_data_job_invariants.py`.
+ #}
+ {{ config(store_failures = true) }}
+diff --git a/tests/test_ci_data_job_invariants.py b/tests/test_ci_data_job_invariants.py
+index 53c00a8b..092d3a7a 100644
+--- a/tests/test_ci_data_job_invariants.py
++++ b/tests/test_ci_data_job_invariants.py
+@@ -7,6 +7,7 @@ flags they document.
+ from __future__ import annotations
+ 
+ import pathlib
++import re
+ 
+ import yaml
+ 
+@@ -171,46 +172,68 @@ def test_mr_data_build_never_ingests():
+     )
+ 
+ 
+-def _mr_dbt_invocations() -> tuple[str, str]:
+-    """`data:build:mr`'s (build, test) dbt invocations; each is a `>-` scalar, so one line."""
++def _dbt_lines(job: str, verb: str) -> list[str]:
++    """The job's `dbt <verb>` invocations; each is a `>-` scalar or a plain line, so one line."""
+     jobs = _script_lines_by_job(_ci_config())
+-    assert "data:build:mr" in jobs, (
+-        "data:build:mr not found in .gitlab-ci.yml. If the job was renamed, update this test "
++    assert job in jobs, (
++        f"{job} not found in .gitlab-ci.yml. If the job was renamed, update this test "
+         f"rather than deleting it. Jobs seen: {sorted(jobs)}"
+     )
+-    lines = [" ".join(line.split()) for line in jobs["data:build:mr"]]
+-    builds = [ln for ln in lines if ln.startswith("dbt build ")]
+-    tests = [ln for ln in lines if ln.startswith("dbt test ")]
+-    assert len(builds) == 1, f"expected exactly one `dbt build` in data:build:mr, saw {builds}"
+-    assert len(tests) == 1, f"expected exactly one `dbt test` in data:build:mr, saw {tests}"
+-    return builds[0], tests[0]
+-
++    lines = [" ".join(line.split()) for line in jobs[job]]
++    return [ln for ln in lines if ln.startswith(f"dbt {verb} ")]
+ 
+-def test_the_mr_singular_test_gate_reads_the_branch_not_prod() -> None:
+-    """`--favor-state` stays on the build line and off the test line, which must read the branch."""
+-    build, test = _mr_dbt_invocations()
+ 
+-    assert "--favor-state" not in test, (
+-        "data:build:mr's `dbt test` line carries --favor-state again. That resolves every ref() to "
+-        "PRODUCTION even for models this run just built, so the 30 singular tests stop testing the "
+-        "branch and re-report on prod — green because prod is healthy, not because the change is "
+-        "(GitLab #92). It also makes any column rename unmergeable: prod gains the column only "
+-        f"after the merge, so the gate can never go green first. Line: {test}"
++def test_the_mr_data_gate_is_its_lineage_build_alone() -> None:
++    """A merge request is tested by the tests inside its lineage build, and by no separate suite."""
++    builds = _dbt_lines("data:build:mr", "build")
++    assert len(builds) == 1, f"expected exactly one `dbt build` in data:build:mr, saw {builds}"
++    build = builds[0]
++
++    assert _dbt_lines("data:build:mr", "test") == [], (
++        "data:build:mr runs a separate `dbt test` again. It re-reads PRODUCTION for every node the "
++        "merge request did not change, so a failure prod already has turns every merge request red, "
++        "including the one that repairs it, and prod can only be repaired by merging. The full test "
++        "suite runs in data:build:main and the nightly; a merge request runs the tests of its own "
++        "lineage inside the build."
+     )
+-    for flag in ("--defer", "--state /tmp/main-state"):
+-        assert flag in test, (
+-            f"data:build:mr's `dbt test` line lost `{flag}`. Deferral itself must STAY — without it "
+-            "an upstream this MR did not build resolves to nothing instead of to prod. Only "
+-            f"--favor-state was removed. Line: {test}"
++    assert "state:modified+" in build, (
++        "data:build:mr's `dbt build` no longer selects state:modified+. That selection brings in "
++        "every test on a changed node and its descendants, and it is the whole of the merge "
++        f"request's data gate. Line: {build}"
++    )
++    excluded = re.findall(r"--exclude((?:\s+(?!--)\S+)+)", build)
++    assert [e.split() for e in excluded] == [["tag:freshness_check"]], (
++        "data:build:mr's `dbt build` must run its tests: the only thing it may exclude is the "
++        f"freshness_check tag. Line: {build}"
++    )
++    assert "--exclude-resource-type" not in build and "--resource-type" not in build, (
++        f"data:build:mr's `dbt build` filters by resource type, which can drop the tests. Line: {build}"
++    )
++    for flag in ("--defer", "--favor-state", "--state /tmp/main-state"):
++        assert flag in build, (
++            f"data:build:mr's `dbt build` line lost `{flag}`. A model being built must take its "
++            "upstreams from prod rather than from a superseded table (an earlier pipeline of THIS "
++            "merge request can leave one), and deferral is the only reason an upstream this MR did "
++            f"not build resolves at all. Line: {build}"
+         )
+ 
+-    assert "--favor-state" in build, (
+-        "data:build:mr's `dbt build` line lost --favor-state. It is correct THERE and the asymmetry "
+-        "with the test line is the whole of #92's first half. A model being built must take its "
+-        "upstreams from prod rather than from a superseded table — an earlier pipeline of THIS "
+-        "merge request can leave one (build a model, then revert it to match main and it drops "
+-        "out of state:modified+), and --defer alone would prefer it. Do not make the two lines "
+-        f"match. Line: {build}"
++
++def test_main_and_nightly_builds_run_the_full_singular_suite() -> None:
++    """Dropping the suite from merge requests leaves it to the prod build, which must keep it."""
++    tests = _dbt_lines("data:build:main", "test")
++    assert any(
++        "--select test_type:singular" in ln and "--target prod" in ln for ln in tests
++    ), (
++        "data:build:main no longer runs the full singular suite against prod. A merge request "
++        "tests only its own lineage, so this is the one place a test on an unchanged node runs. "
++        f"`dbt test` lines seen: {tests}"
++    )
++    entrypoint = (ROOT / "deploy" / "nightly" / "entrypoint.sh").read_text(encoding="utf-8")
++    nightly = [ln.strip() for ln in entrypoint.splitlines() if ln.strip().startswith("dbt build")]
++    assert nightly == ["dbt build --target prod"], (
++        "the nightly (deploy/nightly/entrypoint.sh) no longer runs the whole project's tests with a "
++        "bare `dbt build --target prod`; a merge request tests only its own lineage, so the nightly "
++        f"is the other place a test on an unchanged node runs. `dbt build` lines seen: {nightly}"
+     )
+ 
+ 
+@@ -265,7 +288,7 @@ def test_each_merge_request_builds_into_its_own_datasets() -> None:
+ 
+ def test_the_mr_build_rebuilds_every_changed_seed() -> None:
+     """dbt fingerprints a seed only up to 1 MB, so a larger changed seed needs a path selector."""
+-    build, _ = _mr_dbt_invocations()
++    build = _dbt_lines("data:build:mr", "build")[0]
+     lines = [" ".join(line.split()) for line in _script_lines_by_job(_ci_config())["data:build:mr"]]
+ 
+     def only(prefix: str) -> int:
