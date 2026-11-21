@@ -1,6 +1,6 @@
 # Review — claude/156-nightly-site-export-deploy
 
-diff_sha256: 5083294c6dde6e30d46844eeaedaadae8621e61703c26501f1b3b4e0da61af29
+diff_sha256: 6789e70228990a3b61c428bc67c390f7cd4aecc2ec3f813379a3a36a5090e3c1
 
 rounds: 2
 
