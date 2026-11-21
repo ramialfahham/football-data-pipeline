@@ -1,0 +1,769 @@
+diff --git a/.claude/task/256-player-page-tests/contract.md b/.claude/task/256-player-page-tests/contract.md
+new file mode 100644
+index 00000000..11a99c18
+--- /dev/null
++++ b/.claude/task/256-player-page-tests/contract.md
+@@ -0,0 +1,75 @@
++# Task contract — Player page: value tests for the values #256 serves without one
++
++objective: >
++  Issue 256. The Player page's values are served and merged (MRs 382, 388, 390), and the
++  hand-worked answer key covers the five new metrics. Six checklist lines have no value test:
++  the header (age, season label, full name, current club), the featured season's latest-match
++  tie-break, a nation's current competitions, the tab flags, the position count and filter order,
++  the Squad's count, median and rank, and the last-season minutes of the cards. This adds
++  hand-worked cases for real players and squads in seasons that are over, in one new seed, and two
++  singular tests that recompute each rule for every player, so a wrong value fails a build. It
++  changes no model; a wrong value a test finds is reported, and fixed here only when the fix is
++  inside the #256 checklist.
++
++refs: >
++  Issue 256 (the checklist, "Quality: every new metric value has a value test"); design 136;
++  coordinating session's audit of 20 Nov (256-checklist-audit.md in the shared notes). Pattern:
++  player_season_answer_key and assert_player_season_answer_key.
++
++scope_paths:
++  - .claude/task/256-player-page-tests/contract.md
++  - .claude/task/256-player-page-tests/review.md
++  - .claude/task/256-player-page-tests/review_input.patch
++  - dbt_project/seeds/player_page_answer_key.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/tests/assert_player_page_answer_key.sql
++  - dbt_project/tests/assert_player_page_choices_follow_the_rule.sql
++  - dbt_project/tests/assert_player_page_blocks_follow_the_rule.sql
++
++approved_design:
++  - none: no page output changes; one seed and three tests are added and no model or export changes
++
++depends_on:
++  - none: reads models already on main
++
++shared_files:
++  - none: no design baseline, chart manifest or chart pin changes
++
++impact_map: >
++  Leaf change: no model, macro or export is edited. writers: nothing writes the new seed except
++  `dbt seed`. downstream: the seed and the three singular tests are read by nothing;
++  `dbt ls --select "mart_player_profile+ mart_player_window_metrics+ mart_player_competition_benchmarks+
++  mart_player_squad_benchmarks+ int_player__page_profile+ int_team__current_national_competitions+"
++  --resource-type model --output name` (main 5544c8b0) returns only int_player__page_profile
++  int_player_page__window_seasons int_player_squad_window__metrics int_player_window__metrics
++  int_team__current_national_competitions mart_player_competition_benchmarks mart_player_fixture_stats
++  mart_player_index mart_player_profile mart_player_squad_benchmarks mart_player_window_metrics
++  mart_team_momentum_window, the models the tests read. layer_rules: check_layer_contract has no
++  rule for singular tests or seeds beyond the seed description. deploy_order: none; the seed lands
++  in the ci_mr dataset in the MR build and in the prod seed dataset on the first nightly after merge,
++  and a test that fails on prod data fails the nightly, so every case is checked against prod
++  before the push. blast_radius: none for any number; a new failing test on a later data change is
++  the intended effect.
++
++decisions_taken: >
++  The coordinating session ruled on 20 Nov that hand-worked value tests for the six gaps are inside
++  the approved #256 checklist, and set the scope: one MR, answer-key rows plus singular tests, the
++  pattern of player_season_answer_key. Cases are real players and squads in seasons that are over,
++  so a nightly refresh cannot change an answer: Vercoutre, Matip, Basa, Evra and the player with
++  provider id 94 for the header, the featured season and the cards; Bundesliga 2018 for the
++  position counts; Nancy 2016/17 for the Squad. The answers are worked out by queries over
++  int_legs__player_match, int_legs__team_match and fct_fixture, which are not the models under test,
++  and the key says so in its description. Rules that move with the clock (a nation's current
++  competitions, the national-team tab) are recomputed for every player in a singular test.
++
++decisions_reserved:
++  - none: the tests restate rules already approved on #136 and #256, and the filter order's basis (the
++    competition's last match, not the player's) is the model's behaviour and is only pinned, not changed
++
++done_when:
++  - "dbt parse from the repo root passes with the new seed and tests"
++  - "the three tests return zero rows against the prod datasets, and each case in the key was compared with a query worked without the marts"
++  - "python scripts/ci_local.py --mr passes"
++  - "the MR pipeline is green and python scripts/merge_ready.py <iid> says ready"
++
++amendments: (none)
+diff --git a/dbt_project/seeds/player_page_answer_key.csv b/dbt_project/seeds/player_page_answer_key.csv
+new file mode 100644
+index 00000000..e7e65a03
+--- /dev/null
++++ b/dbt_project/seeds/player_page_answer_key.csv
+@@ -0,0 +1,66 @@
++block,player_id,scope,field,expected,working
++header,94,featured,full_name,Ronaldo Aparecido Rodrigues,"Naldo, first name Ronaldo and last name Aparecido Rodrigues in dim_player: the full name is the two joined by a space."
++header,94,featured,season_label,2018/19,"Naldo: his latest domestic-league season is 2018 in Ligue 1 (last match 2019-05-18) and in the Bundesliga (last match 2018-12-15), a split-year season labelled 2018/19."
++header,94,featured,league_code,L1,"Naldo played the Bundesliga (7 matches, 630 minutes, last 2018-12-15) and Ligue 1 (8 matches, 304 minutes, last 2019-05-18) in 2018: the featured season is the one with the later last match, Ligue 1, not the one with more minutes."
++header,94,featured,current_club_name,AS Monaco FC,"Naldo: the club of his latest club match, Ligue 1 2019-05-18 for AS Monaco FC."
++header,94,featured,position_group,DEF,"Naldo: position code D in all 8 Ligue 1 2018 matches."
++header,94,featured,has_club_tab,true,"Naldo has club matches in the data."
++header,94,featured,has_national_team_tab,false,"Naldo played no national-team match in a current competition and is on no current squad list: his last match was in 2019."
++header,25204,featured,full_name,Marvin Matip,"Marvin Matip: first and last name both missing in dim_player, so the full name is the provider's player name."
++header,25204,featured,season_label,2016/17,"Marvin Matip: his only club season is the Bundesliga 2016, a split-year season labelled 2016/17."
++header,25204,featured,league_code,BL1,"Marvin Matip: 33 Bundesliga 2016 matches for FC Ingolstadt 04, the latest 2017-05-20."
++header,25204,featured,current_club_name,FC Ingolstadt 04,"Marvin Matip: the club of his latest club match, Bundesliga 2017-05-20."
++header,25204,featured,position_group,DEF,"Marvin Matip: position code D in all 33 Bundesliga 2016 matches."
++header,25204,featured,has_club_tab,true,"Marvin Matip has club matches in the data."
++header,25204,featured,has_national_team_tab,false,"Marvin Matip: no national-team match in a current competition and no current squad list."
++header,85676,featured,full_name,Rémy Vercoutre,"Vercoutre, first name Rémy and last name Vercoutre in dim_player; the provider's player name is the short R. Vercoutre."
++header,85676,featured,season_label,2017/18,"Vercoutre: his only club season is Ligue 1 2017, a split-year season labelled 2017/18."
++header,85676,featured,league_code,L1,"Vercoutre: 35 Ligue 1 2017 matches for Caen, the latest 2018-05-06."
++header,85676,featured,current_club_name,Caen,"Vercoutre: the club of his latest club match, Ligue 1 2018-05-06."
++header,85676,featured,position_group,GK,"Vercoutre: position code G in all 35 Ligue 1 2017 matches."
++header,85676,featured,has_club_tab,true,"Vercoutre has club matches in the data."
++header,85676,featured,has_national_team_tab,false,"Vercoutre: no national-team match in a current competition and no current squad list."
++header,87077,featured,full_name,Patrice Evra,"Evra, first name Patrice and last name Evra in dim_player."
++header,87077,featured,season_label,2017/18,"Evra: 2017 in the Premier League (West Ham, 5 matches, 228 minutes, last 2018-05-05) and in Ligue 1 (Marseille, 4 matches, 350 minutes, last 2017-10-29): the featured season is the Premier League, the later last match, with fewer minutes. Split-year season 2017/18."
++header,87077,featured,league_code,PL,"Evra: Premier League 2017 has the later last match (2018-05-05) than Ligue 1 2017 (2017-10-29), though Ligue 1 holds more minutes."
++header,87077,featured,current_club_name,West Ham United FC,"Evra: the club of his latest club match, Premier League 2018-05-05."
++header,87077,featured,position_group,DEF,"Evra: in the featured Premier League 2017 season position code D in 3 matches and M in 2: the most frequent is D."
++header,87077,featured,has_club_tab,true,"Evra has club matches in the data."
++header,87077,featured,has_national_team_tab,false,"Evra: no national-team match in a current competition and no current squad list."
++header,87163,featured,full_name,Marko Baša,"Marko Baša: first and last name both missing in dim_player, so the full name is the provider's player name."
++header,87163,featured,season_label,2016/17,"Marko Baša: his only club season is Ligue 1 2016, a split-year season labelled 2016/17."
++header,87163,featured,league_code,L1,"Marko Baša: 23 Ligue 1 2016 matches for Lille OSC, the latest 2017-05-06."
++header,87163,featured,current_club_name,Lille OSC,"Marko Baša: the club of his latest club match, Ligue 1 2017-05-06."
++header,87163,featured,position_group,DEF,"Marko Baša: position code D in all 23 Ligue 1 2016 matches."
++header,87163,featured,has_club_tab,true,"Marko Baša has club matches in the data."
++header,87163,featured,has_national_team_tab,false,"Marko Baša: no national-team match in a current competition and no current squad list."
++position_count,,BL1|2018|DEF,position_player_count,124,"Bundesliga 2018: 124 players with at least 270 minutes in matches at position code D, summed per player over the competition's int_legs__player_match lines; every team match has player data."
++position_count,,BL1|2018|ATT,position_player_count,76,"Bundesliga 2018: 76 players with at least 270 minutes at position code F."
++position_count,,BL1|2018|GK,position_player_count,26,"Bundesliga 2018: 26 players with at least 270 minutes at position code G."
++competition_order,94,BL1|2018,competition_order,1,"Naldo's Club filter, 2018 season: domestic leagues first, later last match first. The Bundesliga's last match is 2019-05-27, Ligue 1's 2019-05-24, so the Bundesliga is 1. Each holds at least 270 minutes at D (630 and 304)."
++competition_order,94,L1|2018,competition_order,2,"Naldo's Club filter: Ligue 1, a domestic league with the earlier last match (2019-05-24), is 2."
++competition_order,94,UCL|2018,competition_order,3,"Naldo's Club filter: the Champions League (360 minutes at D) is not a domestic league, so it comes after both leagues."
++competition_order,87077,L1|2017,competition_order,1,"Evra's Club filter, 2017 season: Ligue 1 (350 minutes at D) is the domestic league and comes first. The Premier League's 228 minutes are under the 270 floor."
++competition_order,87077,UEL|2017,competition_order,2,"Evra's Club filter: the Europa League (403 minutes at D) comes after the domestic league."
++club_window,94,appearances,value,19,"Naldo, club competitions of 2018/19 at any club: Bundesliga 7 matches and Ligue 1 8 matches with minutes, Champions League 4: 19 matches with minutes above 0."
++club_window,94,appearances,minutes,1294,"Naldo: 630 (Bundesliga) + 304 (Ligue 1) + 360 (Champions League) = 1294 minutes."
++club_window,94,appearances,minutes_prev_season,3060,"Naldo, club competitions of 2017/18 at any club: Bundesliga 34 matches for club 174, 3060 minutes."
++club_window,94,minutes_per_appearance,value,68.10526315789474,"Naldo: 1294 minutes over 19 appearances."
++club_window,94,goals_player,value,0,"Naldo: 0 goals in the 19 matches, none blank."
++club_window,94,assists_player,value,,"Naldo: assists are blank in 2 of the 19 matches, so the value is blank by rule R4 though the other 17 sum to 0."
++club_window,94,cards_yellow_player,value,1,"Naldo: 1 yellow card in the 19 matches, none blank."
++club_window,94,cards_red_player,value,2,"Naldo: 2 red cards in the 19 matches, none blank."
++club_window,87077,appearances,value,14,"Evra, club competitions of 2017/18: Ligue 1 4 matches, Premier League 5 and Europa League 5 (7 on the sheet, 2 with 0 minutes): 14 matches with minutes above 0."
++club_window,87077,appearances,minutes,981,"Evra: 350 (Ligue 1) + 228 (Premier League) + 403 (Europa League) = 981 minutes."
++club_window,87077,appearances,minutes_prev_season,1120,"Evra, club competitions of 2016/17 at any club: Ligue 1 for club 81, 873 minutes, and Serie A for club 496, 247 minutes: 1120. The comparison follows the transfer."
++club_window,87077,minutes_per_appearance,value,70.07142857142857,"Evra: 981 minutes over 14 appearances."
++club_window,87077,goals_player,value,0,"Evra: 0 goals in the window, none blank."
++club_window,87077,assists_player,value,,"Evra: assists are blank in 2 of the 16 matches, so the value is blank by rule R4."
++club_window,87077,cards_yellow_player,value,4,"Evra: 4 yellow cards in the window, none blank."
++club_window,87077,cards_red_player,value,1,"Evra: 1 red card in the window, none blank."
++squad,,club|102|fc40c5646c527bee0e38fe1b802fb9a1,squad_player_count,18,"Nancy, club competitions of 2016/17: 38 team matches (Ligue 1), so the floor is 38 x 90 / 3 = 1140 minutes. 18 of 27 players reach it, the lowest 1160 minutes."
++squad,,club|102|fc40c5646c527bee0e38fe1b802fb9a1,goals_per90.squad_median,0.03678849201023903,"Nancy squad of 18, goals per 90 sorted: 0.3595, 0.1851, 0.1396, 0.1388, 0.1260, 0.0488, 0.0481, 0.0400, 0.0385, 0.0350, then 8 players on 0. The median is the mean of the 9th (0.03854389721627409) and 10th (0.03503308680420397) values."
++squad,49922,club|102|fc40c5646c527bee0e38fe1b802fb9a1,goals_per90.rank,1,"Player 49922: 8 goals in 2003 minutes, 0.3595 goals per 90, the highest of the 18."
++squad,2709,club|102|fc40c5646c527bee0e38fe1b802fb9a1,goals_per90.rank,3,"Player 2709: 3 goals in 1934 minutes, 0.1396 goals per 90, behind 0.3595 and 0.1851."
++squad,20905,club|102|fc40c5646c527bee0e38fe1b802fb9a1,goals_per90.rank,11,"Player 20905: 0 goals in 2046 minutes. 10 players have more, so the rank is 11."
++squad,62325,club|102|fc40c5646c527bee0e38fe1b802fb9a1,goals_per90.rank,11,"Player 62325: 0 goals in 1718 minutes, tied with player 20905 on 0 and also rank 11."
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index dbbb3af8..b7fe48ed 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -1374,6 +1374,47 @@ seeds:
+         description: "The hand working: the player-season, the matches counted, each sum, and every cleaning rule that changed an input."
+         tests: [not_null]
+ 
++  - name: player_page_answer_key
++    description: >
++      Hand-worked values of the Player page for real players and squads in seasons that are over, so
++      a nightly refresh cannot change an answer: the header (full name, season label, featured
++      league, current club, position, the two tabs), the position player counts, the filter order,
++      the Club tab's cards with last season's minutes, and one Squad's count, median and ranks. Each
++      answer was worked out from the cleaned player-match lines (int_legs__player_match), the team
++      matches (int_legs__team_match) and the fixtures, never from a Player page mart.
++      assert_player_page_answer_key fails when the marts return anything else.
++    config:
++      column_types:
++        block: string
++        player_id: int64
++        scope: string
++        field: string
++        expected: string
++        working: string
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [block, player_id, scope, field]
++    columns:
++      - name: block
++        description: "Which part of the page the case checks: header, position_count, competition_order, club_window or squad."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["header", "position_count", "competition_order", "club_window", "squad"]
++      - name: player_id
++        description: "{{ doc('player_api_id') }} Blank for a case that belongs to a position or a squad."
++      - name: scope
++        description: "What the value is about within the block: 'featured' for the header, 'league|season|position' for a position count, 'league|season' for a filter order, the metric for a window value, the squad key for a Squad."
++        tests: [not_null]
++      - name: field
++        description: "The value checked: a profile field, position_player_count, competition_order, value, minutes or minutes_prev_season for a window metric, squad_player_count, or '<metric>.squad_median' and '<metric>.rank' for a Squad."
++        tests: [not_null]
++      - name: expected
++        description: "The value worked out by hand. Blank where the value must be blank."
++      - name: working
++        description: "The hand working: the matches counted, each sum and the rule behind the answer."
++        tests: [not_null]
++
+   - name: competition_season_map
+     description: >
+       Our own placing of every club competition edition in a season, reviewed by hand, so no season
+diff --git a/dbt_project/tests/assert_player_page_answer_key.sql b/dbt_project/tests/assert_player_page_answer_key.sql
+new file mode 100644
+index 00000000..23ddbcde
+--- /dev/null
++++ b/dbt_project/tests/assert_player_page_answer_key.sql
+@@ -0,0 +1,136 @@
++{#
++  Hand-worked Player page values (seeds/player_page_answer_key.csv): real players and squads in seasons
++  that are over, each answer worked out from the cleaned player-match lines, the team matches and the
++  fixtures, never from a Player page mart. The marts must return exactly the expected value, or a blank
++  where the key is blank. A number compares at 1e-9. Returns each case whose value differs and each
++  case whose row is missing from the mart.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with answer_key as (
++    select * from {{ ref('player_page_answer_key') }}
++),
++
++header as (
++    select
++        'header' as block,
++        p.player_sk as player_id,
++        'featured' as scope,
++        f.field,
++        f.actual_text
++    from {{ ref('mart_player_profile') }} as p,
++        unnest([
++            struct('full_name' as field, p.player_full_name as actual_text),
++            ('season_label', p.season_label),
++            ('league_code', p.league_code),
++            ('current_club_name', p.current_club_name),
++            ('position_group', p.position_group),
++            ('has_club_tab', cast(p.has_club_tab as string)),
++            ('has_national_team_tab', cast(p.has_national_team_tab as string))
++        ]) as f
++    where p.is_featured_season
++),
++
++position_counts as (
++    select distinct
++        'position_count' as block,
++        cast(null as int64) as player_id,
++        concat(league_code, '|', season_api_year, '|', position_group) as scope,
++        'position_player_count' as field,
++        cast(position_player_count as string) as actual_text
++    from {{ ref('mart_player_competition_benchmarks') }}
++),
++
++filter_order as (
++    select distinct
++        'competition_order' as block,
++        player_sk as player_id,
++        concat(league_code, '|', season_api_year) as scope,
++        'competition_order' as field,
++        cast(competition_order as string) as actual_text
++    from {{ ref('mart_player_competition_benchmarks') }}
++    where page_tab is not null
++),
++
++club_window as (
++    select
++        'club_window' as block,
++        w.player_sk as player_id,
++        w.metric_key as scope,
++        f.field,
++        f.actual_text
++    from {{ ref('mart_player_window_metrics') }} as w,
++        unnest([
++            struct('value' as field, cast(w.metric_value as string) as actual_text),
++            ('minutes', cast(w.minutes as string)),
++            ('minutes_prev_season', cast(w.minutes_prev_season as string))
++        ]) as f
++    where w.page_tab = 'club'
++),
++
++squad as (
++    select distinct
++        'squad' as block,
++        cast(null as int64) as player_id,
++        squad_sk as scope,
++        'squad_player_count' as field,
++        cast(squad_player_count as string) as actual_text
++    from {{ ref('mart_player_squad_benchmarks') }}
++    union distinct
++    select distinct
++        'squad' as block,
++        cast(null as int64) as player_id,
++        squad_sk as scope,
++        concat(metric_key, '.squad_median') as field,
++        cast(squad_median as string) as actual_text
++    from {{ ref('mart_player_squad_benchmarks') }}
++    union distinct
++    select distinct
++        'squad' as block,
++        player_sk as player_id,
++        squad_sk as scope,
++        concat(metric_key, '.rank') as field,
++        cast(rank as string) as actual_text
++    from {{ ref('mart_player_squad_benchmarks') }}
++),
++
++actual as (
++    select
++        *,
++        safe_cast(actual_text as float64) as actual_number
++    from (
++        select * from header
++        union all
++        select * from position_counts
++        union all
++        select * from filter_order
++        union all
++        select * from club_window
++        union all
++        select * from squad
++    )
++)
++
++select
++    k.block,
++    k.player_id,
++    k.scope,
++    k.field,
++    k.expected,
++    a.actual_text,
++    a.block is not null as row_found
++from answer_key as k
++left join actual as a
++    on
++        k.block = a.block
++        and k.scope = a.scope
++        and k.field = a.field
++        and k.player_id is not distinct from a.player_id
++where
++    a.block is null
++    or case
++        when k.expected is null then a.actual_text is not null
++        when safe_cast(k.expected as float64) is not null and a.actual_number is not null
++            then abs(safe_cast(k.expected as float64) - a.actual_number) > 1e-9
++        else k.expected is distinct from a.actual_text
++    end
+diff --git a/dbt_project/tests/assert_player_page_blocks_follow_the_rule.sql b/dbt_project/tests/assert_player_page_blocks_follow_the_rule.sql
+new file mode 100644
+index 00000000..7cf777f7
+--- /dev/null
++++ b/dbt_project/tests/assert_player_page_blocks_follow_the_rule.sql
+@@ -0,0 +1,166 @@
++{#
++  The Player page's comparison blocks, recomputed here for every player and squad, one failing row per
++  broken case: a competition in the Club or National team filter that is not in its place (domestic league
++  first, then the later last match of the competition, then the code), a Squad whose count is not the
++  players who reached a third of the team's minutes, a Squad rank that is not one more than the players
++  with a higher value, a Squad median that is not the middle of its values, and a Club tab whose minutes
++  this season or last season are not the player's minutes in the competitions of the window.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with shown_competitions as (
++    select distinct
++        b.player_sk,
++        b.season_sk,
++        b.league_code,
++        b.page_tab,
++        b.competition_order,
++        w.competition_type,
++        w.last_match_at
++    from {{ ref('mart_player_competition_benchmarks') }} as b
++    inner join {{ ref('int_player_page__window_seasons') }} as w
++        on
++            b.player_sk = w.player_sk
++            and b.season_sk = w.season_sk
++            and w.window_type = if(b.page_tab = 'club', 'this_season', 'current_competitions')
++    where b.page_tab is not null
++),
++
++filter_order_wrong as (
++    select
++        'filter order' as failure,
++        concat(cast(player_sk as string), ' ', page_tab, ' ', season_sk) as grain
++    from (
++        select
++            *,
++            row_number() over (
++                partition by player_sk, page_tab
++                order by
++                    case competition_type
++                        when 'domestic_league' then 1
++                        when 'domestic_cup' then 2
++                        when 'domestic_super_cup' then 3
++                        else 4
++                    end asc,
++                    last_match_at desc,
++                    league_code asc,
++                    season_sk asc
++            ) as expected_order
++        from shown_competitions
++    )
++    where competition_order != expected_order
++),
++
++squad_rows as (
++    select
++        squad_sk,
++        player_sk,
++        metric_key,
++        metric_value,
++        squad_player_count,
++        squad_median,
++        rank
++    from {{ ref('mart_player_squad_benchmarks') }}
++),
++
++squad_members as (
++    select
++        squad_sk,
++        count(*) as members
++    from {{ ref('int_player_squad_window__metrics') }}
++    where minutes >= team_matches * 90 / 3 and not stats_need_research
++    group by squad_sk
++),
++
++squad_count_wrong as (
++    select
++        'squad count' as failure,
++        r.squad_sk as grain
++    from (
++        select
++            squad_sk,
++            min(squad_player_count) as lowest,
++            max(squad_player_count) as highest
++        from squad_rows
++        group by squad_sk
++    ) as r
++    left join squad_members as m
++        on r.squad_sk = m.squad_sk
++    where r.lowest != r.highest or r.highest is distinct from m.members
++),
++
++squad_rank_wrong as (
++    select
++        'squad rank' as failure,
++        concat(s.squad_sk, ' ', s.metric_key, ' ', cast(s.player_sk as string)) as grain
++    from squad_rows as s
++    inner join squad_rows as o
++        on s.squad_sk = o.squad_sk and s.metric_key = o.metric_key
++    group by s.squad_sk, s.metric_key, s.player_sk, s.rank
++    having s.rank != 1 + countif(o.metric_value > s.metric_value)
++),
++
++squad_median_wrong as (
++    select
++        'squad median' as failure,
++        concat(squad_sk, ' ', metric_key) as grain
++    from (
++        select
++            squad_sk,
++            metric_key,
++            squad_median,
++            metric_value,
++            row_number() over (partition by squad_sk, metric_key order by metric_value asc) as position_in_order,
++            count(*) over (partition by squad_sk, metric_key) as values_counted
++        from squad_rows
++    )
++    where position_in_order in (div(values_counted + 1, 2), div(values_counted, 2) + 1)
++    group by squad_sk, metric_key, squad_median
++    having squad_median is null or abs(avg(metric_value) - squad_median) > 1e-9
++),
++
++window_minutes as (
++    select
++        p.player_sk,
++        w.window_type,
++        sum(l.minutes) as minutes
++    from {{ ref('int_player__page_profile') }} as p
++    inner join {{ ref('int_competition_season__club_windows') }} as w
++        on p.featured_season_sk = w.anchor_season_sk
++    inner join {{ ref('int_legs__player_match') }} as l
++        on p.player_sk = l.player_sk and w.season_sk = l.season_sk
++    group by p.player_sk, w.window_type
++),
++
++club_tabs as (
++    select distinct
++        player_sk,
++        minutes,
++        minutes_prev_season
++    from {{ ref('mart_player_window_metrics') }}
++    where page_tab = 'club'
++),
++
++tab_minutes_wrong as (
++    select
++        'club tab minutes' as failure,
++        cast(t.player_sk as string) as grain
++    from club_tabs as t
++    left join window_minutes as this_season
++        on t.player_sk = this_season.player_sk and this_season.window_type = 'this_season'
++    left join window_minutes as last_season
++        on t.player_sk = last_season.player_sk and last_season.window_type = 'last_season'
++    where
++        (t.minutes is not null and t.minutes is distinct from this_season.minutes)
++        or (t.minutes_prev_season is not null and t.minutes_prev_season is distinct from last_season.minutes)
++)
++
++select * from filter_order_wrong
++union all
++select * from squad_count_wrong
++union all
++select * from squad_rank_wrong
++union all
++select * from squad_median_wrong
++union all
++select * from tab_minutes_wrong
+diff --git a/dbt_project/tests/assert_player_page_choices_follow_the_rule.sql b/dbt_project/tests/assert_player_page_choices_follow_the_rule.sql
+new file mode 100644
+index 00000000..b0af844e
+--- /dev/null
++++ b/dbt_project/tests/assert_player_page_choices_follow_the_rule.sql
+@@ -0,0 +1,244 @@
++{#
++  The Player page's header and choices, recomputed here for every player, one failing row per broken case:
++  an age that is not the whole years since the birth date, a full name that is not first and last name
++  joined (the player name when either is missing), a featured season that another season of the player
++  beats (club before national, domestic league before any other, the later year, the later last match),
++  a nation whose current competitions are not those running now or, with none running, the one that
++  finished last, a club tab for a player with no club match, and a national-team tab that differs from
++  the player's presence on a team sheet or stat line of a current competition, or on its squad list.
++  A nation with a competition starting or ending within a day of the run is left out, because the
++  models read the clock when they were built. A birth date on 29 February is left out of the age check,
++  because a whole-year step from it lands on 28 February in a common year, and so is a birthday today,
++  because the marts are built once a day and a build before midnight holds yesterday's age.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with people as (
++    select distinct
++        player_sk,
++        player_name,
++        player_first_name,
++        player_last_name,
++        player_full_name,
++        player_birth_date,
++        player_age
++    from {{ ref('mart_player_profile') }}
++),
++
++age_wrong as (
++    select
++        'age' as failure,
++        cast(p.player_sk as string) as grain
++    from people as p
++    cross join unnest(generate_array(0, 130)) as n
++    where
++        p.player_birth_date <= current_date()
++        and format_date('%m%d', p.player_birth_date) not in ('0229', format_date('%m%d', current_date()))
++        and date_add(p.player_birth_date, interval n year) <= current_date()
++    group by p.player_sk, p.player_age
++    having p.player_age is distinct from max(n)
++),
++
++full_name_wrong as (
++    select
++        'full name' as failure,
++        cast(player_sk as string) as grain
++    from people
++    where
++        player_full_name is distinct from if(
++            player_first_name is not null and player_last_name is not null,
++            concat(player_first_name, ' ', player_last_name),
++            player_name
++        )
++),
++
++player_seasons as (
++    select
++        player_sk,
++        season_sk,
++        season_api_year,
++        if(entity_type = 'club', 0, 1) as kind_rank,
++        if(competition_type = 'domestic_league', 0, 1) as type_rank,
++        max(kickoff_datetime) as last_match_at
++    from {{ ref('int_legs__player_match') }}
++    group by player_sk, season_sk, season_api_year, entity_type, competition_type
++),
++
++featured_beaten as (
++    select
++        'featured season beaten' as failure,
++        concat(cast(f.player_sk as string), ' ', f.season_sk, ' by ', o.season_sk) as grain
++    from {{ ref('int_player__page_profile') }} as p
++    inner join player_seasons as f
++        on p.player_sk = f.player_sk and p.featured_season_sk = f.season_sk
++    inner join player_seasons as o
++        on f.player_sk = o.player_sk and f.season_sk != o.season_sk
++    where
++        o.kind_rank < f.kind_rank
++        or (
++            o.kind_rank = f.kind_rank
++            and (
++                o.type_rank < f.type_rank
++                or (
++                    o.type_rank = f.type_rank
++                    and (
++                        o.season_api_year > f.season_api_year
++                        or (o.season_api_year = f.season_api_year and o.last_match_at > f.last_match_at)
++                    )
++                )
++            )
++        )
++),
++
++national_seasons as (
++    select
++        f.season_sk,
++        f.league_code,
++        min(f.kickoff_datetime) as first_match_at,
++        max(f.kickoff_datetime) as last_match_at
++    from {{ ref('fct_fixture') }} as f
++    inner join {{ ref('dim_league') }} as leagues
++        on f.league_code = leagues.league_code
++    where leagues.entity_type = 'national'
++    group by f.season_sk, f.league_code
++),
++
++team_national_seasons as (
++    select distinct
++        s.season_sk,
++        s.league_code,
++        s.first_match_at,
++        s.last_match_at,
++        team_sk
++    from {{ ref('fct_fixture') }} as f
++    inner join national_seasons as s
++        on f.season_sk = s.season_sk,
++        unnest([f.home_team_sk, f.away_team_sk]) as team_sk
++    where team_sk is not null
++),
++
++unsettled_teams as (
++    select distinct team_sk
++    from team_national_seasons
++    where
++        first_match_at between timestamp_sub(current_timestamp(), interval 1 day) and timestamp_add(current_timestamp(), interval 1 day)
++        or last_match_at between timestamp_sub(current_timestamp(), interval 1 day) and timestamp_add(current_timestamp(), interval 1 day)
++),
++
++started as (
++    select *
++    from team_national_seasons
++    where
++        first_match_at <= current_timestamp()
++        and team_sk not in (select team_sk from unsettled_teams)
++),
++
++expected_current as (
++    select
++        team_sk,
++        season_sk
++    from started
++    where last_match_at >= current_timestamp()
++    union all
++    select
++        team_sk,
++        latest.season_sk
++    from (
++        select
++            team_sk,
++            array_agg(struct(season_sk) order by last_match_at desc, league_code asc, season_sk asc limit 1)[offset(0)] as latest,
++            logical_or(last_match_at >= current_timestamp()) as any_running
++        from started
++        group by team_sk
++    )
++    where not any_running
++),
++
++actual_current as (
++    select
++        team_sk,
++        season_sk
++    from {{ ref('int_team__current_national_competitions') }}
++    where team_sk not in (select team_sk from unsettled_teams)
++),
++
++current_wrong as (
++    select
++        'current competition' as failure,
++        concat(cast(coalesce(e.team_sk, a.team_sk) as string), ' ', coalesce(e.season_sk, a.season_sk)) as grain
++    from expected_current as e
++    full outer join actual_current as a
++        on e.team_sk = a.team_sk and e.season_sk = a.season_sk
++    where e.team_sk is null or a.team_sk is null
++),
++
++club_players as (
++    select distinct player_sk
++    from {{ ref('int_legs__player_match') }}
++    where entity_type = 'club'
++),
++
++club_tab_wrong as (
++    select
++        'club tab' as failure,
++        cast(p.player_sk as string) as grain
++    from {{ ref('int_player__page_profile') }} as p
++    left join club_players as c
++        on p.player_sk = c.player_sk
++    where p.has_club_tab != (c.player_sk is not null)
++),
++
++team_sheets as (
++    select
++        fixture_sk,
++        team_sk,
++        player_sk
++    from {{ ref('fct_fixture_lineup') }}
++    where lineup_state in ('confirmed', 'researched') and player_sk is not null
++    union distinct
++    select
++        fixture_sk,
++        team_sk,
++        player_sk
++    from {{ ref('fct_fixture_player_stats') }}
++),
++
++expected_national as (
++    select distinct s.player_sk
++    from team_sheets as s
++    inner join {{ ref('fct_fixture') }} as f
++        on s.fixture_sk = f.fixture_sk
++    inner join expected_current as c
++        on s.team_sk = c.team_sk and f.season_sk = c.season_sk
++    union distinct
++    select distinct cast(sq.player_api_id as int64) as player_sk
++    from {{ ref('base_apif__squads') }} as sq
++    inner join expected_current as c
++        on cast(sq.team_api_id as int64) = c.team_sk
++    inner join national_seasons as n
++        on c.season_sk = n.season_sk and sq.league_code = n.league_code
++),
++
++national_tab_wrong as (
++    select
++        'national-team tab' as failure,
++        cast(p.player_sk as string) as grain
++    from {{ ref('int_player__page_profile') }} as p
++    left join expected_national as e
++        on p.player_sk = e.player_sk
++    where
++        (p.national_team_sk is null or p.national_team_sk not in (select team_sk from unsettled_teams))
++        and p.has_national_team_tab != (e.player_sk is not null)
++)
++
++select * from age_wrong
++union all
++select * from full_name_wrong
++union all
++select * from featured_beaten
++union all
++select * from current_wrong
++union all
++select * from club_tab_wrong
++union all
++select * from national_tab_wrong

@@ -1374,6 +1374,47 @@ seeds:
         description: "The hand working: the player-season, the matches counted, each sum, and every cleaning rule that changed an input."
         tests: [not_null]
 
+  - name: player_page_answer_key
+    description: >
+      Hand-worked values of the Player page for real players and squads in seasons that are over, so
+      a nightly refresh cannot change an answer: the header (full name, season label, featured
+      league, current club, position, the two tabs), the position player counts, the filter order,
+      the Club tab's cards with last season's minutes, and one Squad's count, median and ranks. Each
+      answer was worked out from the cleaned player-match lines (int_legs__player_match), the team
+      matches (int_legs__team_match) and the fixtures, never from a Player page mart.
+      assert_player_page_answer_key fails when the marts return anything else.
+    config:
+      column_types:
+        block: string
+        player_id: int64
+        scope: string
+        field: string
+        expected: string
+        working: string
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [block, player_id, scope, field]
+    columns:
+      - name: block
+        description: "Which part of the page the case checks: header, position_count, competition_order, club_window or squad."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["header", "position_count", "competition_order", "club_window", "squad"]
+      - name: player_id
+        description: "{{ doc('player_api_id') }} Blank for a case that belongs to a position or a squad."
+      - name: scope
+        description: "What the value is about within the block: 'featured' for the header, 'league|season|position' for a position count, 'league|season' for a filter order, the metric for a window value, the squad key for a Squad."
+        tests: [not_null]
+      - name: field
+        description: "The value checked: a profile field, position_player_count, competition_order, value, minutes or minutes_prev_season for a window metric, squad_player_count, or '<metric>.squad_median' and '<metric>.rank' for a Squad."
+        tests: [not_null]
+      - name: expected
+        description: "The value worked out by hand. Blank where the value must be blank."
+      - name: working
+        description: "The hand working: the matches counted, each sum and the rule behind the answer."
+        tests: [not_null]
+
   - name: competition_season_map
     description: >
       Our own placing of every club competition edition in a season, reviewed by hand, so no season
