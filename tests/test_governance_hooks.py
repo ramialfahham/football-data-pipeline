@@ -1981,7 +1981,8 @@ def test_a_web_dispatch_never_auto_starts_a_warehouse_build():
 def test_the_firebase_deploy_is_reachable_only_by_deliberate_dispatch():
     """`when: manual` alone excludes nothing by source, so a deploy job must be unreachable except by web dispatch.
 
-    The two nightly-image jobs are excluded by name, since a property-based exclusion could be met by accident."""
+    The two nightly-image jobs and the two site-image jobs are excluded by name, since a property-based
+    exclusion could be met by accident."""
     import pathlib
 
     import yaml
@@ -1991,7 +1992,7 @@ def test_the_firebase_deploy_is_reachable_only_by_deliberate_dispatch():
 
     everyday = ("mr", "push_main", "schedule")
 
-    auto_deploy_jobs = {"build:nightly-image", "deploy:nightly-image"}
+    auto_deploy_jobs = {"build:nightly-image", "deploy:nightly-image", "build:site-image", "deploy:site-image"}
 
     deploy_jobs = [k for k, v in ci.items()
                    if not k.startswith(".") and isinstance(v, dict)
@@ -2062,6 +2063,51 @@ def test_the_nightly_image_jobs_are_reachable_only_on_a_push_to_main():
         f"build:nightly-image's needs: is missing {sorted(missing)} — a push to main that "
         f"fails one of these can still have its content built into the prod image and pushed "
         f"before the failure is visible. needs={ci['build:nightly-image'].get('needs')!r}")
+
+
+def test_the_site_image_jobs_are_reachable_only_on_a_push_to_main_and_gated_like_the_nightly_image():
+    """The `fdp-site` image pair builds the nightly site deploy's image; it has the nightly pair's shape."""
+    import pathlib
+
+    import yaml
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    ci = yaml.safe_load((root / ".gitlab-ci.yml").read_text(encoding="utf-8"))
+
+    for name in ("build:site-image", "deploy:site-image"):
+        assert name in ci, f"{name} is missing"
+        for context in ("mr", "schedule", "web"):
+            assert _when_in(ci[name], context) == "never", f"{name} is reachable on a {context!r} pipeline"
+        assert _when_in(ci[name], "push_main") == "on_success", f"{name} no longer runs on a push to main"
+
+    assert ci["build:site-image"]["rules"] == ci["deploy:site-image"]["rules"]
+    assert ci["deploy:site-image"].get("needs") == ["build:site-image"]
+    assert ci["build:site-image"].get("resource_group") == ci["deploy:site-image"].get("resource_group")
+    required_gates = {"validate:governance", "test:python", "validate:secrets", "lint:python"}
+    assert required_gates <= set(ci["build:site-image"].get("needs") or [])
+
+
+def test_the_site_image_paths_cover_what_the_nightly_site_job_runs():
+    """A path missing from `.site_image_paths` fails silently, since the image just does not rebuild."""
+    import fnmatch
+    import pathlib
+
+    import yaml
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    ci = yaml.safe_load((root / ".gitlab-ci.yml").read_text(encoding="utf-8"))
+    paths = ci.get(".site_image_paths")
+    assert isinstance(paths, list) and paths
+
+    def covered(path: str) -> bool:
+        return any(fnmatch.fnmatch(path, p) for pattern in paths for p in (pattern, pattern.replace("**/", "")))
+
+    for path in ("scripts/nightly_site_deploy.py", "scripts/export_site_data.py", "deploy/site/Dockerfile",
+                 "deploy/site/Dockerfile.dockerignore", "site_v2/src/pages/index.astro", "requirements.txt",
+                 "dbt_project/seeds/metric_catalogue.csv", "dbt_project/seeds/metric_map.csv",
+                 "dbt_project/models/5_marts/mart_x.sql", "dbt_project/models/3_core/dim_x.sql",
+                 "docs/competition_registry.yml", "docs/design/components.yml"):
+        assert covered(path), f"{path} is baked into the fdp-site image but is not in .site_image_paths"
 
 
 def test_data_paths_image_covers_what_the_nightly_image_actually_runs():

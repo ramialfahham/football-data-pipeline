@@ -1,0 +1,12 @@
+[
+  {
+    "name": "keep-latest-five-fdp-site-images",
+    "action": { "type": "Keep" },
+    "mostRecentVersions": { "packageNamePrefixes": ["fdp-site"], "keepCount": 5 }
+  },
+  {
+    "name": "delete-other-fdp-site-images",
+    "action": { "type": "Delete" },
+    "condition": { "tagState": "any", "packageNamePrefixes": ["fdp-site"] }
+  }
+]

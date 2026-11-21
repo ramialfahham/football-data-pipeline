@@ -1,0 +1,1342 @@
+diff --git a/.claude/task/156-nightly-site-export-deploy/contract.md b/.claude/task/156-nightly-site-export-deploy/contract.md
+new file mode 100644
+index 00000000..54084157
+--- /dev/null
++++ b/.claude/task/156-nightly-site-export-deploy/contract.md
+@@ -0,0 +1,141 @@
++# Task contract — nightly site export, build and deploy from live data
++
++objective: >
++  Issue 156: every night, after the warehouse nightly (`fdp-nightly`, 04:00 UTC), export the entities the
++  built pages read, build the site at the deploy job's heap, and deploy it to Firebase only when
++  `audit-seo` and `check-built-pages` are green, with no manual step. One Cloud Run job `fdp-site`,
++  started by a third Cloud Scheduler entry, runs `scripts/nightly_site_deploy.py`. The committed sample
++  under `site_v2/src/data/` stays the MR build's input and its README already says so; production no
++  longer shows the sample.
++
++refs: >
++  Issue 156 (How steps 1 to 4), gate issue 290 (its list names the nightly live-data deploy). Issue 155 is
++  closed and fixed on main, so step 2 of the How has nothing left to fix. The disabled GitLab schedule
++  4379625 is not touched.
++
++scope_paths:
++  - scripts/export_site_data.py
++  - scripts/nightly_site_deploy.py
++  - tests/test_deploy_entities.py
++  - tests/test_nightly_site_deploy.py
++  - tests/test_governance_hooks.py
++  - deploy/site/**
++  - deploy/nightly/README.md
++  - deploy/nightly/alert-policy.json
++  - .gitlab-ci.yml
++  - .claude/task/156-nightly-site-export-deploy/contract.md
++  - .claude/task/156-nightly-site-export-deploy/review.md
++  - .claude/task/156-nightly-site-export-deploy/review_input.patch
++  - .claude/task/156-nightly-site-export-deploy/measurement.md
++
++protected_override: >
++  `.gitlab-ci.yml` is edited to add the image build and deploy pair for `fdp-site` and to point
++  `deploy:export` at the shared entity list. Gate issue 290 lists the nightly live-data deploy; its list was
++  approved in chat, 2026-11-11. The one full local export that measures the cost was approved in chat,
++  2026-11-21. The MR head declares the locked file and the merge is the approval.
++
++impact_map: >
++  writers: `scripts/export_site_data.py` is the only writer of `site_v2/export_data` and of the nightly
++  job's export folder. No dbt model, raw table, seed or mart is added or changed.
++  downstream: readers of `ENTITY_TYPES` and of the script (`grep -rln "export_site_data\|ENTITY_TYPES"
++  --include=*.py --include=*.yml`): `.gitlab-ci.yml` (`deploy:export`), `tests/test_catalogue_order.py`
++  (imports the module), `scripts/check_layer_contract.py` (reads the file path), and
++  `site_v2/scripts/check-metric-labels.test.mjs` (reads the source text for named blocks); several other
++  tests import the module and are unaffected because the change is additive. The new constants
++  `DEPLOY_ENTITIES` and `ENTITY_OUTPUTS` and the function `parse_entities` sit beside `ENTITY_TYPES`;
++  `ENTITY_TYPES` and the default of `--entities` do not change. No dbt lineage: no model is touched.
++  layer_rules: not applicable, no model change; `check_layer_contract.py` still passes (it only reads the
++  script path). Guard invariants: no BigQuery write (the export SELECTs marts and seeds only), the manual
++  deploy job stays reachable only by web dispatch, and the new image jobs run only on a push to main and
++  fail closed.
++  deploy_order: the image jobs fire on a push to main that changes what the image carries (the paths in
++  `.site_image_paths`). `gcloud run jobs update fdp-site` needs the job, so after the first merge
++  `deploy:site-image` is red until the runbook's create step is done; it is then re-run. The nightly
++  (`fdp-nightly`, 04:00) is untouched. The scheduler entry is created last, after the first run of the
++  merged job succeeded, and never before this MR merges.
++  blast_radius: a nightly deploy replaces the live Firebase site. Guards that stop it: the warehouse nightly
++  must have finished today; the export's counts must hold at 90 percent or more of the live site's, and a
++  live site without the counts file refuses the deploy unless the run is flagged as the first; both build
++  gates must be green. The site stays `noindex` and `INDEXABLE` stays false.
++
++approved_design:
++  - none: no page output changes
++
++depends_on:
++  - none: no open merge request exists to depend on; main already holds issue 155's fix
++
++shared_files:
++  - none: no design baseline, component registry, font coverage or chart screenshot file changes
++
++decisions_taken: >
++  The builder's recommendation for where the schedule lives, ruled by the coordinating session: a Cloud Run
++  job `fdp-site` and a third Cloud Scheduler entry after `fdp-nightly`. A GitLab pipeline schedule is
++  not used: a 20 to 113 minute build of about 16 GB of files would hold one of the runner's two slots
++  and its disk. Because it is a new mechanism with recurring spend, the choice is also in
++  decisions_reserved, so the MR head puts it to the CPO and the merge is the answer.
++  NEW MECHANISM, declared for cto-reviewer: one Cloud Run job, one Cloud Scheduler entry, one image
++  (`deploy/site/Dockerfile`) built by a kaniko job pair that mirrors `build:nightly-image` and
++  `deploy:nightly-image`, one alert policy, two job-scoped role grants on `fdp-site` (run.developer for
++  the CI repoint, run.invoker for the scheduler), and one Artifact Registry cleanup policy. It reuses the
++  pipeline service account; its warehouse guard repeats the execution-list call of
++  `scripts/wait_for_nightly.py` with different semantics (the newest execution, created today, succeeded).
++  RECURRING COST, declared for cto-reviewer and the CPO:
++  - Cloud Run: about 0.6 USD per night for 8 vCPU and 32 GiB for about 50 minutes, replaced by the measured
++    minutes. The filesystem of a Cloud Run job is memory; the export, `dist` and the build heap take about
++    25 GB at the peak.
++  - BigQuery: about 3.4 GiB per export, about 0.02 USD a run, about 0.6 USD a month.
++  - Firebase storage beyond 10 GB at 0.026 USD per GB-month for the retained releases, bounded by
++    `maxVersions`.
++  - Artifact Registry: one image of about 1 GB per push to main that changes what the image carries, at
++    0.10 USD per GB-month, bounded by a cleanup policy that keeps the latest five `fdp-site` versions.
++  - Runner time: each kaniko build holds a runner slot for up to 30 minutes on a push to main that changes
++    what the image carries.
++  The measured figure goes at the top of the MR head. It is measured before the merge, on this machine, from
++  one full local run of the same image: the export's billed bytes from INFORMATION_SCHEMA, the build minutes
++  and peak memory, and the size of `dist`, which also bounds the Firebase upload. Deploying a branch to the
++  live site to measure it is not done. The first run of the merged job confirms the figure, and the schedule
++  entry is created only after that run succeeded. The CPO's merge with the measured number in the head is the
++  approval, and no schedule is enabled before that merge.
++  Firebase release retention is capped at a few versions through the Hosting API `maxVersions` setting,
++  applied once by the runbook (it is a site setting, not a file in the repo).
++  The count guard: the export manifest's counts are compared with a small file the previous deploy published
++  at `/export-manifest.json` on the live site (counts and the export's source counts, nothing else; no
++  checksums, no row data). The deploy is refused when team, fixture, competition, player or player_peers
++  falls under 90 percent of that file's value (a key with fewer than 20 rows before is ignored, and a
++  missing key counts as a fall). Unplayed and match-day counts are not compared: they fall legitimately
++  after a round is played. A 404 on the file refuses the deploy unless the execution carries
++  `ALLOW_FIRST_DEPLOY=1`, and the run then logs that the floor was skipped. That is the first deploy, and
++  the first deploy after a manual fallback deploy, which publishes no counts file. Any other fetch error
++  refuses, so a bad night is never mistaken for a first one.
++  The warehouse guard: the newest `fdp-nightly` execution must have been created today (UTC) and have
++  completed successfully; one still running is waited for up to 45 minutes; anything else refuses the deploy.
++  One entity list: `DEPLOY_ENTITIES` in `scripts/export_site_data.py` (the entities every page reads;
++  `nav`, `leaderboards` and `glossary` are not read by any page), selected by `--entities deploy`, read by
++  both `deploy:export` and the nightly script. `tests/test_deploy_entities.py` pins it to the data files the
++  committed sample holds, which is the set of files the pages read.
++  The image build uses the Dockerfile's own ignore file, copied over the checkout's `.dockerignore` before
++  kaniko runs: the shared `.dockerignore` excludes `site_v2/`, which the nightly image must not carry.
++  `deploy:site-image` fails on every error, including a missing job.
++  Known and not closed here: the built pages load club crests and, until the photo rule is built, player
++  photos from the data provider's host. Both are already on main and no build gate checks the origin.
++
++decisions_reserved:
++  - whether the CPO accepts the Cloud Run job plus Cloud Scheduler mechanism and its measured recurring cost:
++    put on the MR head with the number and the rejected alternative, a GitLab pipeline schedule
++  - whether the live site may carry a public `/export-manifest.json` of row counts: if not, the count
++    baseline moves to a Cloud Storage object, which is a new bucket and a new grant
++  - the Firebase `maxVersions` value and the Artifact Registry cleanup policy (keep five), if different
++    values are wanted
++  - the creation of the Cloud Run job, the role grants, the scheduler entry, the cleanup policy and the first
++    run, which are runbook steps for someone with `gcloud` rights on the project; the first run deploys live
++    data to the `.web.app` site
++
++done_when:
++  - python -m pytest tests/ -q is green, including tests/test_deploy_entities.py and tests/test_nightly_site_deploy.py
++  - the offline gates in FAST_GATES pass
++  - python scripts/ci_local.py --mr is green
++  - one full local run of the same steps is measured (BigQuery billed bytes, build minutes, peak memory, size of
++    `dist`, gate result) and the recurring cost is at the top of the MR head
++  - the MR pipeline is green
++
++amendments: (none)
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index 9dfd0a03..7a28f68a 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -1084,10 +1084,10 @@ deploy:export:
+     - *dbt_profile
+     - *gcp_auth
+     - export PYTHONPATH=.
+-    # The --entities list is LOAD-BEARING: every data set a built page reads, and no
+-    # other (competitions.json is always emitted). Reads marts and seeds only; writes
+-    # no BigQuery table.
+-    - python scripts/export_site_data.py --entities teams,fixtures,competitions,competition_index,teams_index,players_index,landing,players,matches,metric_groups,metric_rows --out site_v2/export_data
++    # `deploy` is DEPLOY_ENTITIES: every data set a built page reads, and no other
++    # (competitions.json is always emitted); tests/test_deploy_entities.py pins it. Reads marts
++    # and seeds only; writes no BigQuery table.
++    - python scripts/export_site_data.py --entities deploy --out site_v2/export_data
+   artifacts:
+     paths:
+       - site_v2/export_data
+@@ -1272,3 +1272,72 @@ deploy:nightly-image:
+     - *not_on_schedule
+     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
+       changes: *data_paths_image
++
++# ---------------------------------------------------------------------------
++# GitLab #156: the nightly site deploy is the Cloud Run job `fdp-site` (deploy/site/Dockerfile),
++# started by Cloud Scheduler after `fdp-nightly`; deploy/nightly/README.md is the runbook. This pair
++# builds its image and repoints the job at it, the same shape as the nightly-image pair above and for
++# the same reason: nothing else rebuilds the image when main moves.
++#
++# The checkout's `.dockerignore` excludes site_v2/ for the nightly image, and kaniko reads no other
++# ignore file, so the first script line swaps in deploy/site/Dockerfile.dockerignore. The checkout is this job's
++# own clone; nothing is committed.
++# ---------------------------------------------------------------------------
++# Everything the job reads at run time: the export script and the seeds it reads, the marts and core
++# models and the registry and component list the build's prebuild gates read, and the site itself.
++.site_image_paths: &site_image_paths
++  - deploy/site/*
++  - scripts/nightly_site_deploy.py
++  - scripts/export_site_data.py
++  - site_v2/**/*
++  - requirements.txt
++  - dbt_project/seeds/**/*
++  - dbt_project/models/3_core/**/*
++  - dbt_project/models/5_marts/**/*
++  - docs/competition_registry.yml
++  - docs/design/components.yml
++
++build:site-image:
++  image:
++    name: gcr.io/kaniko-project/executor:debug
++    entrypoint: [""]
++  <<: *gcp_job
++  stage: deploy
++  needs: ["validate:governance", "test:python", "validate:secrets", "lint:python"]
++  resource_group: deploy-site-image
++  timeout: 30m
++  script:
++    - *gcp_auth
++    - cp deploy/site/Dockerfile.dockerignore .dockerignore
++    - >
++      /kaniko/executor
++      --context "$CI_PROJECT_DIR"
++      --dockerfile "$CI_PROJECT_DIR/deploy/site/Dockerfile"
++      --destination "europe-west1-docker.pkg.dev/football-data-pipeline-gcp/cloud-run-source-deploy/fdp-site:$CI_COMMIT_SHA"
++  rules:
++    - *not_on_schedule
++    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
++      changes: *site_image_paths
++
++deploy:site-image:
++  <<: *gcp_job
++  image: google/cloud-sdk:slim
++  stage: deploy
++  needs: ["build:site-image"]
++  resource_group: deploy-site-image
++  timeout: 5m
++  script:
++    - *gcp_auth
++    - gcloud auth login --cred-file="$GOOGLE_APPLICATION_CREDENTIALS" --quiet
++    - gcloud config set project football-data-pipeline-gcp --quiet
++    # `update` changes only the image: the service account, CPU, memory, timeout and retries set
++    # once by the runbook are left as they are. It fails on every error, a missing job included: the
++    # job is created from the first image this pair pushes, and this step is re-run after that.
++    - >
++      gcloud run jobs update fdp-site
++      --image="europe-west1-docker.pkg.dev/football-data-pipeline-gcp/cloud-run-source-deploy/fdp-site:$CI_COMMIT_SHA"
++      --region europe-west1
++  rules:
++    - *not_on_schedule
++    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
++      changes: *site_image_paths
+diff --git a/deploy/nightly/README.md b/deploy/nightly/README.md
+index 5183c1d8..6085c315 100644
+--- a/deploy/nightly/README.md
++++ b/deploy/nightly/README.md
+@@ -136,13 +136,14 @@ when it is past the `error_after` already declared in `sources.yml`. Job success
+ proxy — a pipeline that "succeeds" nightly while writing nothing is stale and would pass a
+ job-success check. Table age is the real signal.
+ 
+-Three policies, all wired to the same email:
++Four policies, all wired to the same email:
+ 
+ | Policy | Fires when | Means |
+ |---|---|---|
+ | `fdp raw data is STALE or uncheckable` | the sentinel exits non-zero | **stale data (exit 1) OR we cannot tell (exit 2)** — read the log |
+ | `fdp freshness sentinel itself stopped` | no successful sentinel run in 3h | we can no longer *tell* |
+ | `fdp-nightly execution failed` | a nightly run dies | early warning, before staleness |
++| `fdp-site execution failed` | a site deploy run fails | nothing was deployed, the live site shows the previous build |
+ 
+ **Cost: zero.** `client.get_table()` is a metadata call, not a query — no bytes scanned, no
+ query job. That is what makes hourly affordable without thinking about it.
+@@ -386,3 +387,138 @@ actually contains (`*data_paths_image`) — see "Deploy the job" above for what
+ what it does not (the sentinel is still pinned separately). The command above is the manual
+ fallback now, not
+ the normal path to prod.
++
++---
++
++## The site deploy (`fdp-site`)
++
++The nightly site deploy is a second Cloud Run job, `fdp-site`. A third Cloud Scheduler entry starts it
++after `fdp-nightly` (04:00 UTC, usually done by 05:40). It runs `scripts/nightly_site_deploy.py` in the
++image of `deploy/site/Dockerfile`. Its steps:
++
++1. **Guard.** Today's `fdp-nightly` execution must have succeeded. A running one is waited for, up to 45 minutes.
++2. **Export.** `export_site_data.py --entities deploy` writes every entity the pages read. It reads marts and seeds only.
++3. **Count floor.** `team`, `fixture`, `competition`, `player` and `player_peers` must stay at 90 percent or more of the live counts.
++   The live counts are the file the previous deploy published at
++   `https://football-data-pipeline-gcp.web.app/export-manifest.json`. A 404 stops the job unless the execution sets `ALLOW_FIRST_DEPLOY=1`.
++   Set it for the first deploy, and after a manual deploy, which publishes no counts file. Any other fetch error stops the job.
++4. **Build and gates.** The export replaces the committed sample, then `npm run build` runs at an 8 GB heap.
++   That is the prebuild tests, `astro build`, `audit-seo` and `check-built-pages`.
++5. **Deploy.** The counts file goes into `dist/`, then `firebase deploy --only hosting` runs.
++   A red gate stops the job before this step, so the live site keeps the previous build.
++
++The Cloud Run disk is memory. The export (about 3 GB, moved into the build folder, not copied) and `dist` (about 13 GB) live in it.
++The build heap adds up to 8 GB. That is why the job is sized 8 vCPU and 32 GiB. MR builds still read the committed sample.
++
++### Create it, in this order
++
++The image does not exist until the merge that adds this job has pushed `main`. Then `build:site-image` builds it.
++`deploy:site-image` fails, because the job does not exist yet. Take the tag from that build (the merge commit).
++After the job exists, run `deploy:site-image` again.
++
++```bash
++gcloud run jobs create fdp-site \
++  --image europe-west1-docker.pkg.dev/football-data-pipeline-gcp/cloud-run-source-deploy/fdp-site:<merge-commit-sha> \
++  --region europe-west1 \
++  --service-account github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com \
++  --cpu 8 --memory 32Gi \
++  --task-timeout 3h \
++  --max-retries 0
++```
++
++`--max-retries 0` makes a failed night a visible red run. The next scheduled run is the retry.
++The job runs as the account CI already uses for the warehouse read, the nightly's execution list and the Firebase deploy.
++The CI repoint needs one job-scoped grant, so `deploy:site-image` can update `fdp-site` and nothing else:
++
++```bash
++gcloud run jobs add-iam-policy-binding fdp-site \
++  --region europe-west1 \
++  --member="serviceAccount:github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com" \
++  --role="roles/run.developer"
++```
++
++From here on, `deploy:site-image` repoints the job at every new image. It fails on any error, so a stale image never hides behind a green pipeline.
++A first run that fails on another permission names the missing role.
++
++### Keep five images (once)
++
++Every push to `main` that changes what the image carries adds one image of about 1 GB. The repository also holds the nightly image.
++The policy applies to the `fdp-site` package only:
++
++```bash
++gcloud artifacts repositories list-cleanup-policies cloud-run-source-deploy --location europe-west1
++gcloud artifacts repositories set-cleanup-policies cloud-run-source-deploy \
++  --location europe-west1 \
++  --policy deploy/site/cleanup-policy.json \
++  --no-dry-run
++```
++
++`set-cleanup-policies` replaces the repository's policies, so read the list first and merge any it shows into the file.
++
++### Cap the release history (once, before the first run)
++
++Every release is about 13 GB. Firebase bills stored releases beyond 10 GB. Keep a few:
++
++```bash
++curl -s -X PATCH \
++  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
++  -H "Content-Type: application/json" \
++  -d '{"maxVersions": "3"}' \
++  "https://firebasehosting.googleapis.com/v1beta1/projects/football-data-pipeline-gcp/sites/football-data-pipeline-gcp/config?updateMask=maxVersions"
++```
++
++### The first run, before any schedule
++
++```bash
++gcloud run jobs execute fdp-site --region europe-west1 --update-env-vars ALLOW_FIRST_DEPLOY=1 --wait
++```
++
++This deploys live data to the `.web.app` site. The flag lets the first deploy pass, because the live site has no counts file yet.
++It is set for this execution only; the job keeps no value of it.
++The merge request carries the cost measured on a full local run of the same image, before the merge.
++Read these off this run to confirm it, and correct the merge request if they differ:
++
++- **BigQuery bytes** of the export, from the run's time window:
++
++  ```sql
++  SELECT COUNT(*) AS queries, ROUND(SUM(total_bytes_billed) / POW(1024, 3), 2) AS gib_billed
++  FROM `region-eu`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
++  WHERE creation_time BETWEEN TIMESTAMP('<run start>') AND TIMESTAMP('<run end>')
++    AND user_email = 'github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com'
++    AND job_type = 'QUERY'
++  ```
++
++- **Minutes** per step: the job's log prints each step's seconds and the size of `dist`.
++- **Peak memory**: `run.googleapis.com/container/memory/utilizations` in Cloud Monitoring.
++- **Firebase upload size**: the deploy's own output, and the release list in the Hosting console.
++
++### Schedule it, only after the first run has succeeded
++
++```bash
++gcloud run jobs add-iam-policy-binding fdp-site \
++  --region europe-west1 \
++  --member="serviceAccount:github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com" \
++  --role="roles/run.invoker"
++
++gcloud scheduler jobs create http fdp-site \
++  --location europe-west1 \
++  --schedule "30 6 * * *" \
++  --time-zone UTC \
++  --uri "https://run.googleapis.com/v2/projects/football-data-pipeline-gcp/locations/europe-west1/jobs/fdp-site:run" \
++  --http-method POST \
++  --oauth-service-account-email github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com
++```
++
++06:30 leaves about 50 minutes after the nightly's usual end. A late nightly is waited for. A failed one stops the deploy.
++The GitLab schedule `4379625` stays disabled. The alert policy `fdp-site execution failed` is in `alert-policy.json`.
++It goes in with the recipe of "Create the alert policies".
++
++### Stop it, or roll back
++
++```bash
++gcloud scheduler jobs pause fdp-site --location europe-west1
++```
++
++Roll a bad deploy back in the Firebase console: Hosting, release history, Rollback on the previous release.
++The manual `deploy:export` and `deploy:site-v2` jobs in `.gitlab-ci.yml` stay as the fallback by web dispatch.
++They publish no counts file, so the next run of `fdp-site` after one needs `--update-env-vars ALLOW_FIRST_DEPLOY=1`.
+diff --git a/deploy/nightly/alert-policy.json b/deploy/nightly/alert-policy.json
+index 66184186..957c4213 100644
+--- a/deploy/nightly/alert-policy.json
++++ b/deploy/nightly/alert-policy.json
+@@ -149,6 +149,42 @@
+         }
+       ],
+ 
++      "alertStrategy": { "autoClose": "604800s" },
++      "notificationChannels": [],
++      "enabled": true
++    },
++
++    {
++      "displayName": "fdp-site execution failed",
++
++      "_comment": [
++        "The nightly site deploy (GitLab #156). A red run is how its guards speak: the warehouse",
++        "nightly did not finish today, the export fell below the live site, or audit-seo or",
++        "check-built-pages failed. Nothing was deployed, so the site shows yesterday's build."
++      ],
++
++      "documentation": {
++        "content": "The nightly site deploy (the Cloud Run job fdp-site) FAILED, so nothing was deployed and the live site still shows the previous build.\n\nThe job's first log line of the failing step says why: the warehouse nightly had not finished successfully today, the export's counts fell below the live site's, or `audit-seo` / `check-built-pages` failed.\n\n  gcloud run jobs executions list --job fdp-site --region europe-west1 --limit 5\n  gcloud logging read 'resource.type=\"cloud_run_job\" AND resource.labels.job_name=\"fdp-site\"' --limit 80 --order=desc\n\nNo retry happens automatically (`--max-retries 0`). Recovery is the next scheduled run, or run it by hand once the cause is fixed:\n  gcloud run jobs execute fdp-site --region europe-west1\n\nRunbook: deploy/nightly/README.md",
++        "mimeType": "text/markdown"
++      },
++
++      "combiner": "OR",
++      "conditions": [
++        {
++          "displayName": "Site deploy execution failed",
++          "conditionThreshold": {
++            "filter": "resource.type = \"cloud_run_job\" AND resource.labels.job_name = \"fdp-site\" AND metric.type = \"run.googleapis.com/job/completed_execution_count\" AND metric.labels.result = \"failed\"",
++            "comparison": "COMPARISON_GT",
++            "thresholdValue": 0,
++            "duration": "0s",
++            "aggregations": [
++              { "alignmentPeriod": "3600s", "perSeriesAligner": "ALIGN_SUM" }
++            ],
++            "trigger": { "count": 1 }
++          }
++        }
++      ],
++
+       "alertStrategy": { "autoClose": "604800s" },
+       "notificationChannels": [],
+       "enabled": true
+diff --git a/deploy/site/Dockerfile b/deploy/site/Dockerfile
+new file mode 100644
+index 00000000..978cf24b
+--- /dev/null
++++ b/deploy/site/Dockerfile
+@@ -0,0 +1,33 @@
++# The nightly site image: export, build and deploy of the Matchday Pilot site (GitLab #156).
++#
++# Built by CI (`build:site-image` in .gitlab-ci.yml) with kaniko, the same way the nightly image is,
++# and run as the Cloud Run job `fdp-site`; deploy/nightly/README.md is the runbook.
++#
++# Python for the export, Node for the build and Firebase's CLI. `npm ci` is baked in, so a night
++# spends no time installing.
++
++FROM node:24-bookworm-slim
++
++RUN apt-get update \
++    && apt-get install -y --no-install-recommends python3 python3-pip python3-venv ca-certificates \
++    && rm -rf /var/lib/apt/lists/* \
++    && python3 -m venv /opt/venv
++
++ENV PATH="/opt/venv/bin:${PATH}"
++
++RUN npm install -g firebase-tools@13
++
++WORKDIR /app
++
++# The SAME requirements.txt CI installs.
++COPY requirements.txt ./
++RUN pip install --no-cache-dir --upgrade pip \
++    && pip install --no-cache-dir -r requirements.txt
++
++COPY site_v2/package.json site_v2/package-lock.json ./site_v2/
++RUN npm ci --prefix site_v2
++
++COPY . .
++
++ENV PYTHONPATH=/app
++CMD ["python", "scripts/nightly_site_deploy.py"]
+diff --git a/deploy/site/Dockerfile.dockerignore b/deploy/site/Dockerfile.dockerignore
+new file mode 100644
+index 00000000..15a73a34
+--- /dev/null
++++ b/deploy/site/Dockerfile.dockerignore
+@@ -0,0 +1,34 @@
++# The build context of the nightly site image. `build:site-image` copies this file over the checkout's
++# `.dockerignore` before kaniko runs (kaniko reads no other ignore file), because the shared
++# `.dockerignore` excludes site_v2/, which the nightly image must not carry and this one must.
++#
++# What the build and its prebuild tests read is site_v2/, scripts/, docs/ and dbt_project/seeds, so only
++# secrets, build output and what no step reads are left out.
++
++.env
++.env.*
++!.env.example
++*.pem
++*.key
++*-key.json
++*credentials*.json
++.gcp-oidc-token
++.gcp-credentials.json
++
++site
++site_v2/node_modules
++site_v2/dist
++site_v2/export_data
++__pycache__
++**/__pycache__
++*.py[cod]
++.pytest_cache
++.ruff_cache
++.venv
++venv
++dbt_project/target
++dbt_project/dbt_packages
++dbt_project/logs
++.git
++.claude
++.cursor
+diff --git a/deploy/site/cleanup-policy.json b/deploy/site/cleanup-policy.json
+new file mode 100644
+index 00000000..04ff3c05
+--- /dev/null
++++ b/deploy/site/cleanup-policy.json
+@@ -0,0 +1,12 @@
++[
++  {
++    "name": "keep-latest-five-fdp-site-images",
++    "action": { "type": "Keep" },
++    "mostRecentVersions": { "packageNamePrefixes": ["fdp-site"], "keepCount": 5 }
++  },
++  {
++    "name": "delete-other-fdp-site-images",
++    "action": { "type": "Delete" },
++    "condition": { "tagState": "any", "packageNamePrefixes": ["fdp-site"] }
++  }
++]
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index a54ab0b1..bc7e2892 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -39,6 +39,25 @@ DEFAULT_OUT = "artifacts/site_data"
+ ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
+                 "leaderboards", "glossary", "metric_groups", "metric_rows", "landing",
+                 "competition_index", "matches", "teams_index", "players_index")
++# What each entity writes under the output folder, by top-level name (a folder ends in "/").
++ENTITY_OUTPUTS = {
++    "teams": ("teams/",),
++    "players": ("players/", "player_pages.json", "player_peers/"),
++    "fixtures": ("fixtures/",),
++    "competitions": ("competitions/",),
++    "nav": ("nav.json",),
++    "leaderboards": ("leaderboards/",),
++    "glossary": ("metrics.json",),
++    "metric_groups": ("metric_groups.json",),
++    "metric_rows": ("metric_rows.json", "player_metric_rows.json"),
++    "landing": ("landing.json",),
++    "competition_index": ("competition_index.json",),
++    "matches": ("matches/",),
++    "teams_index": ("teams_index.json",),
++    "players_index": ("players_index.json",),
++}
++# The entities the built pages read: the deploy export and the nightly site job take exactly these.
++DEPLOY_ENTITIES = tuple(e for e in ENTITY_TYPES if e not in ("nav", "leaderboards", "glossary"))
+ REGISTRY_PATH = "docs/competition_registry.yml"
+ CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
+ METRIC_MAP_PATH = "dbt_project/seeds/metric_map.csv"
+@@ -2791,17 +2810,29 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
+     return manifest
+ 
+ 
++def parse_entities(text: str) -> tuple[str, ...]:
++    """The entity list of `--entities`: names split on commas, `deploy` expanding to DEPLOY_ENTITIES."""
++    names: list[str] = []
++    for name in (n.strip() for n in text.split(",")):
++        if not name:
++            continue
++        for entity in (DEPLOY_ENTITIES if name == "deploy" else (name,)):
++            if entity not in names:
++                names.append(entity)
++    return tuple(names)
++
++
+ def main() -> int:
+     ap = argparse.ArgumentParser(description="Per-entity site export (#365)")
+     ap.add_argument("--out", default=DEFAULT_OUT)
+     ap.add_argument("--entities", default=",".join(ENTITY_TYPES),
+-                    help="comma-separated: teams,players")
++                    help="comma-separated: teams,players; `deploy` is every entity the built pages read")
+     ap.add_argument("--sample", type=int, default=0,
+                     help="cap entities per type (0 = all; for quick checks)")
+     ap.add_argument("--played-ids", default="",
+                     help="comma-separated fixture ids: the played matches to export (the unplayed ones are exported in full)")
+     args = ap.parse_args()
+-    entities = tuple(e.strip() for e in args.entities.split(",") if e.strip())
++    entities = parse_entities(args.entities)
+     played_ids = tuple(int(i) for i in args.played_ids.split(",") if i.strip())
+     out_root = pathlib.Path(args.out)
+     out_root.mkdir(parents=True, exist_ok=True)
+diff --git a/scripts/nightly_site_deploy.py b/scripts/nightly_site_deploy.py
+new file mode 100644
+index 00000000..39d5c25b
+--- /dev/null
++++ b/scripts/nightly_site_deploy.py
+@@ -0,0 +1,228 @@
++"""The nightly site deploy, as the Cloud Run job `fdp-site` runs it.
++
++Steps, each failing the job on error and stopping before the Firebase deploy:
++  1. the warehouse nightly (`fdp-nightly`) must have finished successfully today (UTC);
++  2. export every entity the built pages read (`export_site_data.py --entities deploy`);
++  3. the export's counts must hold against the counts the live site's previous deploy published;
++  4. replace the committed sample under site_v2/src/data with the export;
++  5. `npm run build`: the build, `audit-seo` and `check-built-pages`;
++  6. publish the counts beside the site, then `firebase deploy --only hosting`.
++
++The job runs as its service account, so Google clients and firebase-tools take application default
++credentials with no key file.
++"""
++
++from __future__ import annotations
++
++import json
++import math
++import os
++import shutil
++import subprocess
++import sys
++import time
++import urllib.error
++import urllib.request
++from datetime import datetime, timezone
++from pathlib import Path
++
++GCP_PROJECT_ID = "football-data-pipeline-gcp"
++REGION = "europe-west1"
++NIGHTLY_JOB = "fdp-nightly"
++EXECUTIONS_URL = (
++    f"https://run.googleapis.com/v2/projects/{GCP_PROJECT_ID}/locations/{REGION}/jobs/{NIGHTLY_JOB}/executions"
++)
++LIVE_MANIFEST_URL = f"https://{GCP_PROJECT_ID}.web.app/export-manifest.json"
++PUBLISHED_MANIFEST = "export-manifest.json"
++
++POLL_SECONDS = 60
++MAX_WAIT_SECONDS = 45 * 60
++REQUEST_TIMEOUT_SECONDS = 30
++
++COMPARED_COUNTS = ("team", "fixture", "competition", "player", "player_peers")
++MIN_SHARE = 0.9
++MIN_BASELINE = 20
++HEAP_MB = 8192
++FIRST_DEPLOY_FLAG = "ALLOW_FIRST_DEPLOY"
++
++REPO = Path(__file__).resolve().parents[1]
++SITE_DIR = REPO / "site_v2"
++EXPORT_DIR = Path(os.environ.get("TMPDIR", "/tmp")) / "site_export"
++
++
++def log(message: str) -> None:
++    print(f"[nightly-site] {message}", flush=True)
++
++
++def _parse_time(text: str) -> datetime:
++    """An RFC 3339 time from the Cloud Run API; Python 3.11 reads a fraction of nine digits."""
++    return datetime.fromisoformat(text.replace("Z", "+00:00"))
++
++
++def _succeeded(execution: dict) -> bool:
++    for condition in execution.get("conditions", []):
++        if condition.get("type") == "Completed":
++            return condition.get("state") == "CONDITION_SUCCEEDED"
++    return (
++        execution.get("succeededCount", 0) >= 1
++        and not execution.get("failedCount")
++        and not execution.get("cancelledCount")
++    )
++
++
++def nightly_state(executions: list[dict], today: datetime) -> tuple[str, str]:
++    """('ok' | 'wait' | 'refuse', why) for the newest nightly execution, which the API lists first."""
++    if not executions:
++        return "refuse", f"no {NIGHTLY_JOB} execution exists"
++    newest = executions[0]
++    name = newest["name"].rsplit("/", 1)[-1]
++    created = _parse_time(newest["createTime"]).astimezone(timezone.utc)
++    if created.date() != today.astimezone(timezone.utc).date():
++        return "refuse", f"the newest nightly ({name}) was created {created:%Y-%m-%d %H:%M} UTC, not today"
++    if not newest.get("completionTime"):
++        return "wait", f"nightly {name} is still running"
++    if not _succeeded(newest):
++        return "refuse", f"nightly {name} did not succeed"
++    return "ok", f"nightly {name} succeeded"
++
++
++def wait_for_nightly(session, now=lambda: datetime.now(timezone.utc), sleep=time.sleep) -> None:
++    waited = 0
++    while True:
++        response = session.get(EXECUTIONS_URL, params={"pageSize": 5}, timeout=REQUEST_TIMEOUT_SECONDS)
++        response.raise_for_status()
++        state, why = nightly_state(response.json().get("executions", []), now())
++        if state == "ok":
++            log(why)
++            return
++        if state == "refuse" or waited >= MAX_WAIT_SECONDS:
++            raise SystemExit(f"[nightly-site] refusing to deploy: {why}")
++        log(f"{why}; checking again in {POLL_SECONDS} s")
++        sleep(POLL_SECONDS)
++        waited += POLL_SECONDS
++
++
++def count_regressions(previous: dict | None, current: dict) -> list[str]:
++    """What fell too far below the previous deploy's counts; None for previous is the first deploy."""
++    if previous is None:
++        return []
++    issues = []
++    before_counts = previous.get("counts", {})
++    now_counts = current.get("counts", {})
++    for key in COMPARED_COUNTS:
++        before = before_counts.get(key, 0)
++        if before < MIN_BASELINE:
++            continue
++        now = now_counts.get(key, 0)
++        if now < before * MIN_SHARE:
++            issues.append(f"{key}: {now} now, {before} on the live site (floor {math.ceil(before * MIN_SHARE)})")
++    return issues
++
++
++def fetch_live_manifest(url: str = LIVE_MANIFEST_URL, opener=urllib.request.urlopen) -> dict | None:
++    """The counts the live site's previous deploy published; None on a 404, which is the first deploy."""
++    try:
++        with opener(url, timeout=REQUEST_TIMEOUT_SECONDS) as response:
++            return json.loads(response.read().decode("utf-8"))
++    except urllib.error.HTTPError as error:
++        if error.code == 404:
++            return None
++        raise
++
++
++def published_manifest(manifest: dict) -> dict:
++    """Counts only: no file index, no checksums."""
++    return {
++        "generated_at": manifest["generated_at"],
++        "counts": manifest["counts"],
++        "source_counts": manifest.get("source_counts", {}),
++    }
++
++
++def replace_sample_with_export(site_dir: Path, export_dir: Path) -> None:
++    """The deployed site is built from the export alone, so the committed sample leaves the folder first.
++
++    The export is moved, not copied: the job's disk is memory, and a second copy would stay resident."""
++    data = site_dir / "src" / "data"
++    for child in data.iterdir():
++        if child.name == "README.md":
++            continue
++        shutil.rmtree(child) if child.is_dir() else child.unlink()
++    for child in list(export_dir.iterdir()):
++        shutil.move(str(child), str(data / child.name))
++
++
++def folder_size(path: Path) -> tuple[int, int]:
++    files = [p for p in path.rglob("*") if p.is_file()]
++    return len(files), sum(p.stat().st_size for p in files)
++
++
++def step(name: str, command: list[str], cwd: Path = REPO, env: dict | None = None) -> None:
++    log(f"{name}: {' '.join(command)}")
++    started = time.monotonic()
++    subprocess.run(command, cwd=cwd, env=env, check=True)
++    log(f"{name}: done in {time.monotonic() - started:.0f} s")
++
++
++def floor_issues(previous: dict | None, current: dict, allow_first: bool) -> list[str]:
++    """Why the export may not replace the live site; a live site with no counts file needs the first-deploy flag."""
++    if previous is None:
++        if allow_first:
++            log(f"the live site publishes no counts file; {FIRST_DEPLOY_FLAG} is set, so the count floor is skipped")
++            return []
++        return [
++            f"the live site publishes no counts file, so the count floor cannot run; set {FIRST_DEPLOY_FLAG}=1 on "
++            "the execution for the first deploy, or after a manual deploy"
++        ]
++    return count_regressions(previous, current)
++
++
++def main() -> int:
++    import google.auth
++    from google.auth.transport.requests import AuthorizedSession
++
++    credentials, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
++    return deploy(AuthorizedSession(credentials))
++
++
++def deploy(session) -> int:
++    wait_for_nightly(session)
++
++    if EXPORT_DIR.exists():
++        shutil.rmtree(EXPORT_DIR)
++    env = dict(os.environ, PYTHONPATH=str(REPO))
++    step(
++        "export",
++        [sys.executable, "scripts/export_site_data.py", "--entities", "deploy", "--out", str(EXPORT_DIR)],
++        env=env,
++    )
++
++    manifest = json.loads((EXPORT_DIR / "manifest.json").read_text(encoding="utf-8"))
++    log(f"export counts: {manifest['counts']}; source counts: {manifest.get('source_counts', {})}")
++    issues = floor_issues(fetch_live_manifest(), manifest, os.environ.get(FIRST_DEPLOY_FLAG) == "1")
++    if issues:
++        raise SystemExit("[nightly-site] refusing to deploy: " + "; ".join(issues))
++
++    replace_sample_with_export(SITE_DIR, EXPORT_DIR)
++    step(
++        "build and gates",
++        ["npm", "run", "build"],
++        cwd=SITE_DIR,
++        env=dict(os.environ, NODE_OPTIONS=f"--max-old-space-size={HEAP_MB}"),
++    )
++
++    dist = SITE_DIR / "dist"
++    (dist / PUBLISHED_MANIFEST).write_text(json.dumps(published_manifest(manifest), indent=2), encoding="utf-8")
++    files, size = folder_size(dist)
++    log(f"dist: {files} files, {size / 1e9:.2f} GB")
++    step(
++        "deploy",
++        ["firebase", "deploy", "--only", "hosting", "--project", GCP_PROJECT_ID, "--non-interactive"],
++        cwd=SITE_DIR,
++    )
++    log("done")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/tests/test_deploy_entities.py b/tests/test_deploy_entities.py
+new file mode 100644
+index 00000000..07e3dd53
+--- /dev/null
++++ b/tests/test_deploy_entities.py
+@@ -0,0 +1,105 @@
++"""The deploy export takes exactly the entities the built pages read, and every page enumerates all of it.
++
++The committed sample under site_v2/src/data is the pages' input, so the set of top-level names it holds is
++the set the pages read. The deploy export must write that set and nothing a page ignores.
++"""
++
++from __future__ import annotations
++
++import os
++import re
++import subprocess
++import sys
++from pathlib import Path
++
++import yaml
++
++REPO = Path(__file__).resolve().parents[1]
++DATA = "site_v2/src/data"
++PAGES = REPO / "site_v2" / "src" / "pages"
++
++sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
++import export_site_data as export  # noqa: E402
++
++ALWAYS_WRITTEN = ("competitions.json",)
++UNREAD_ENTITIES = {"nav", "leaderboards", "glossary"}
++
++
++def _tracked_sample() -> list[str]:
++    out = subprocess.run(
++        ["git", "ls-files", DATA], cwd=REPO, capture_output=True, text=True, check=True
++    ).stdout.split()
++    return [p[len(DATA) + 1:] for p in out if p != f"{DATA}/README.md"]
++
++
++def _top_level(paths: list[str]) -> set[str]:
++    return {p.split("/", 1)[0] + "/" if "/" in p else p for p in paths}
++
++
++def _deploy_outputs() -> set[str]:
++    names = set(ALWAYS_WRITTEN)
++    for entity in export.DEPLOY_ENTITIES:
++        names.update(export.ENTITY_OUTPUTS[entity])
++    return names
++
++
++def test_every_entity_declares_what_it_writes():
++    assert set(export.ENTITY_OUTPUTS) == set(export.ENTITY_TYPES)
++
++
++def test_the_deploy_entities_are_every_entity_but_the_three_no_page_reads():
++    assert set(export.ENTITY_TYPES) - set(export.DEPLOY_ENTITIES) == UNREAD_ENTITIES
++    assert len(set(export.DEPLOY_ENTITIES)) == len(export.DEPLOY_ENTITIES)
++
++
++def test_the_deploy_export_writes_exactly_what_the_pages_read():
++    read = _top_level(_tracked_sample())
++    written = _deploy_outputs()
++    assert not read - written, f"a page reads what the deploy export does not write: {sorted(read - written)}"
++    assert not written - read, f"the deploy export writes what no page reads: {sorted(written - read)}"
++
++
++def test_the_entities_no_page_reads_write_nothing_a_page_reads():
++    read = _top_level(_tracked_sample())
++    for entity in UNREAD_ENTITIES:
++        assert not set(export.ENTITY_OUTPUTS[entity]) & read, entity
++
++
++def _globs() -> list[tuple[Path, str]]:
++    found = []
++    for page in PAGES.rglob("*.astro"):
++        for pattern in re.findall(r'import\.meta\.glob<[^>]*>\(\s*"/src/data/([^"]+)"', page.read_text(encoding="utf-8")):
++            found.append((page, pattern))
++    return found
++
++
++def _glob_regex(pattern: str) -> re.Pattern[str]:
++    return re.compile("^" + re.escape(pattern).replace(r"\*", "[^/]+") + "$")
++
++
++def test_every_glob_a_page_reads_matches_every_payload_file_of_its_folder():
++    sample = _tracked_sample()
++    globs = _globs()
++    assert globs, "no page reads a payload folder through a glob: this test has gone stale"
++    for page, pattern in globs:
++        folder = pattern.split("/", 1)[0] + "/"
++        assert folder in _deploy_outputs(), f"{page.name} reads {pattern}, which the deploy export does not write"
++        pattern_re = _glob_regex(pattern)
++        files = [p for p in sample if p.startswith(folder)]
++        assert files, f"{pattern} matches nothing in the committed sample"
++        missed = [p for p in files if not pattern_re.match(p)]
++        assert not missed, f"{page.name}: {pattern} skips {missed[:3]}, which the export writes"
++
++
++def test_the_deploy_export_job_takes_the_shared_entity_list():
++    ci = yaml.safe_load((REPO / ".gitlab-ci.yml").read_text(encoding="utf-8"))
++    script = "\n".join(str(line) for line in ci["deploy:export"]["script"] if isinstance(line, str))
++    match = re.search(r"export_site_data\.py\s+--entities\s+(\S+)", script)
++    assert match, "deploy:export no longer runs export_site_data.py --entities"
++    assert match.group(1) == "deploy"
++
++
++def test_parse_entities_expands_deploy_and_drops_repeats():
++    assert export.parse_entities("deploy") == export.DEPLOY_ENTITIES
++    assert export.parse_entities("teams,deploy") == ("teams",) + tuple(e for e in export.DEPLOY_ENTITIES if e != "teams")
++    assert export.parse_entities(" teams , nav ,") == ("teams", "nav")
+diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
+index 4f626b5c..450c051d 100644
+--- a/tests/test_governance_hooks.py
++++ b/tests/test_governance_hooks.py
+@@ -1981,7 +1981,8 @@ def test_a_web_dispatch_never_auto_starts_a_warehouse_build():
+ def test_the_firebase_deploy_is_reachable_only_by_deliberate_dispatch():
+     """`when: manual` alone excludes nothing by source, so a deploy job must be unreachable except by web dispatch.
+ 
+-    The two nightly-image jobs are excluded by name, since a property-based exclusion could be met by accident."""
++    The two nightly-image jobs and the two site-image jobs are excluded by name, since a property-based
++    exclusion could be met by accident."""
+     import pathlib
+ 
+     import yaml
+@@ -1991,7 +1992,7 @@ def test_the_firebase_deploy_is_reachable_only_by_deliberate_dispatch():
+ 
+     everyday = ("mr", "push_main", "schedule")
+ 
+-    auto_deploy_jobs = {"build:nightly-image", "deploy:nightly-image"}
++    auto_deploy_jobs = {"build:nightly-image", "deploy:nightly-image", "build:site-image", "deploy:site-image"}
+ 
+     deploy_jobs = [k for k, v in ci.items()
+                    if not k.startswith(".") and isinstance(v, dict)
+@@ -2064,6 +2065,51 @@ def test_the_nightly_image_jobs_are_reachable_only_on_a_push_to_main():
+         f"before the failure is visible. needs={ci['build:nightly-image'].get('needs')!r}")
+ 
+ 
++def test_the_site_image_jobs_are_reachable_only_on_a_push_to_main_and_gated_like_the_nightly_image():
++    """The `fdp-site` image pair builds the nightly site deploy's image; it has the nightly pair's shape."""
++    import pathlib
++
++    import yaml
++
++    root = pathlib.Path(__file__).resolve().parents[1]
++    ci = yaml.safe_load((root / ".gitlab-ci.yml").read_text(encoding="utf-8"))
++
++    for name in ("build:site-image", "deploy:site-image"):
++        assert name in ci, f"{name} is missing"
++        for context in ("mr", "schedule", "web"):
++            assert _when_in(ci[name], context) == "never", f"{name} is reachable on a {context!r} pipeline"
++        assert _when_in(ci[name], "push_main") == "on_success", f"{name} no longer runs on a push to main"
++
++    assert ci["build:site-image"]["rules"] == ci["deploy:site-image"]["rules"]
++    assert ci["deploy:site-image"].get("needs") == ["build:site-image"]
++    assert ci["build:site-image"].get("resource_group") == ci["deploy:site-image"].get("resource_group")
++    required_gates = {"validate:governance", "test:python", "validate:secrets", "lint:python"}
++    assert required_gates <= set(ci["build:site-image"].get("needs") or [])
++
++
++def test_the_site_image_paths_cover_what_the_nightly_site_job_runs():
++    """A path missing from `.site_image_paths` fails silently, since the image just does not rebuild."""
++    import fnmatch
++    import pathlib
++
++    import yaml
++
++    root = pathlib.Path(__file__).resolve().parents[1]
++    ci = yaml.safe_load((root / ".gitlab-ci.yml").read_text(encoding="utf-8"))
++    paths = ci.get(".site_image_paths")
++    assert isinstance(paths, list) and paths
++
++    def covered(path: str) -> bool:
++        return any(fnmatch.fnmatch(path, p) for pattern in paths for p in (pattern, pattern.replace("**/", "")))
++
++    for path in ("scripts/nightly_site_deploy.py", "scripts/export_site_data.py", "deploy/site/Dockerfile",
++                 "deploy/site/Dockerfile.dockerignore", "site_v2/src/pages/index.astro", "requirements.txt",
++                 "dbt_project/seeds/metric_catalogue.csv", "dbt_project/seeds/metric_map.csv",
++                 "dbt_project/models/5_marts/mart_x.sql", "dbt_project/models/3_core/dim_x.sql",
++                 "docs/competition_registry.yml", "docs/design/components.yml"):
++        assert covered(path), f"{path} is baked into the fdp-site image but is not in .site_image_paths"
++
++
+ def test_data_paths_image_covers_what_the_nightly_image_actually_runs():
+     """A path missing from `.data_paths_image` fails silently, since the image just does not rebuild."""
+     import pathlib
+diff --git a/tests/test_nightly_site_deploy.py b/tests/test_nightly_site_deploy.py
+new file mode 100644
+index 00000000..85eeff19
+--- /dev/null
++++ b/tests/test_nightly_site_deploy.py
+@@ -0,0 +1,296 @@
++"""The guards of the nightly site deploy: the warehouse nightly, the count floor, the folder swap."""
++
++from __future__ import annotations
++
++import json
++import math
++import os
++import sys
++import urllib.error
++from datetime import datetime, timezone
++
++import pytest
++
++sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
++import nightly_site_deploy as nsd  # noqa: E402
++
++TODAY = datetime(2026, 11, 22, 6, 30, tzinfo=timezone.utc)
++
++
++def execution(created="2026-11-22T04:00:03.123456789Z", completed="2026-11-22T05:30:00Z", state="CONDITION_SUCCEEDED"):
++    out = {"name": "projects/p/locations/r/jobs/fdp-nightly/executions/fdp-nightly-abc", "createTime": created}
++    if completed:
++        out["completionTime"] = completed
++        out["conditions"] = [{"type": "Completed", "state": state}]
++    return out
++
++
++def test_a_nightly_that_succeeded_today_passes():
++    assert nsd.nightly_state([execution()], TODAY)[0] == "ok"
++
++
++def test_no_execution_refuses():
++    assert nsd.nightly_state([], TODAY)[0] == "refuse"
++
++
++def test_a_nightly_of_yesterday_refuses():
++    state, why = nsd.nightly_state([execution(created="2026-11-21T04:00:00Z")], TODAY)
++    assert state == "refuse" and "not today" in why
++
++
++def test_a_failed_nightly_refuses():
++    assert nsd.nightly_state([execution(state="CONDITION_FAILED")], TODAY)[0] == "refuse"
++
++
++def test_a_running_nightly_waits():
++    assert nsd.nightly_state([execution(completed=None)], TODAY)[0] == "wait"
++
++
++def test_counts_without_conditions_use_the_task_counts():
++    ok = dict(execution(), succeededCount=1)
++    ok.pop("conditions", None)
++    ok["completionTime"] = "2026-11-22T05:30:00Z"
++    assert nsd.nightly_state([ok], TODAY)[0] == "ok"
++    bad = dict(ok, failedCount=1)
++    assert nsd.nightly_state([bad], TODAY)[0] == "refuse"
++
++
++class FakeSession:
++    def __init__(self, bodies):
++        self.bodies = list(bodies)
++        self.calls = 0
++
++    def get(self, url, params=None, timeout=None):
++        self.calls += 1
++        body = self.bodies.pop(0)
++
++        class Response:
++            def raise_for_status(self):
++                return None
++
++            def json(self):
++                return body
++
++        return Response()
++
++
++def test_wait_returns_once_the_nightly_has_finished():
++    session = FakeSession([{"executions": [execution(completed=None)]}, {"executions": [execution()]}])
++    slept = []
++    nsd.wait_for_nightly(session, now=lambda: TODAY, sleep=slept.append)
++    assert session.calls == 2 and slept == [nsd.POLL_SECONDS]
++
++
++def test_wait_gives_up_after_the_limit_and_refuses():
++    session = FakeSession([{"executions": [execution(completed=None)]}] * 100)
++    with pytest.raises(SystemExit, match="still running"):
++        nsd.wait_for_nightly(session, now=lambda: TODAY, sleep=lambda s: None)
++    assert session.calls == nsd.MAX_WAIT_SECONDS // nsd.POLL_SECONDS + 1
++
++
++def test_wait_refuses_at_once_on_a_failed_nightly():
++    session = FakeSession([{"executions": [execution(state="CONDITION_FAILED")]}])
++    with pytest.raises(SystemExit, match="did not succeed"):
++        nsd.wait_for_nightly(session, now=lambda: TODAY, sleep=lambda s: None)
++    assert session.calls == 1
++
++
++LIVE = {"counts": {"team": 3346, "fixture": 64952, "competition": 254, "player": 18526, "player_peers": 547, "match_day": 69}}
++
++
++def test_the_first_deploy_has_nothing_to_fall_below():
++    assert nsd.count_regressions(None, {"counts": {}}) == []
++
++
++def test_counts_at_the_floor_pass_and_below_it_fail():
++    at_floor = {"counts": {**LIVE["counts"], "player": math.ceil(18526 * 0.9)}}
++    assert nsd.count_regressions(LIVE, at_floor) == []
++    below = {"counts": {**LIVE["counts"], "player": math.ceil(18526 * 0.9) - 1}}
++    issues = nsd.count_regressions(LIVE, below)
++    assert len(issues) == 1 and issues[0].startswith("player:")
++
++
++def test_a_missing_key_is_a_fall():
++    now = {"counts": {k: v for k, v in LIVE["counts"].items() if k != "team"}}
++    assert [i.split(":")[0] for i in nsd.count_regressions(LIVE, now)] == ["team"]
++
++
++def test_growth_and_uncompared_keys_pass():
++    now = {"counts": {**{k: v * 2 for k, v in LIVE["counts"].items() if k != "match_day"}, "match_day": 1}}
++    assert nsd.count_regressions(LIVE, now) == []
++
++
++def test_a_small_baseline_is_ignored():
++    assert nsd.count_regressions({"counts": {"team": 19}}, {"counts": {"team": 0}}) == []
++
++
++def _opener(error=None, body=b"{}"):
++    def opener(url, timeout=None):
++        if error is not None:
++            raise error
++        return _Ctx(body)
++
++    return opener
++
++
++class _Ctx:
++    def __init__(self, body):
++        self.body = body
++
++    def __enter__(self):
++        return self
++
++    def __exit__(self, *exc):
++        return False
++
++    def read(self):
++        return self.body
++
++
++def _http(code):
++    return urllib.error.HTTPError("u", code, "x", {}, None)
++
++
++def test_a_404_is_the_first_deploy():
++    assert nsd.fetch_live_manifest("u", opener=_opener(error=_http(404))) is None
++
++
++def test_any_other_error_refuses_rather_than_pass_as_a_first_deploy():
++    with pytest.raises(urllib.error.HTTPError):
++        nsd.fetch_live_manifest("u", opener=_opener(error=_http(503)))
++    with pytest.raises(urllib.error.URLError):
++        nsd.fetch_live_manifest("u", opener=_opener(error=urllib.error.URLError("down")))
++
++
++def test_a_served_manifest_is_read():
++    assert nsd.fetch_live_manifest("u", opener=_opener(body=json.dumps(LIVE).encode())) == LIVE
++
++
++def test_the_published_manifest_carries_counts_only():
++    manifest = {"generated_at": "t", "counts": {"team": 1}, "source_counts": {"fixtures_played": 2}, "entries": [{"sha256": "x"}]}
++    assert set(nsd.published_manifest(manifest)) == {"generated_at", "counts", "source_counts"}
++
++
++def test_the_sample_is_replaced_by_the_export_and_the_readme_stays(tmp_path):
++    site, export = tmp_path / "site", tmp_path / "export"
++    data = site / "src" / "data"
++    (data / "teams").mkdir(parents=True)
++    (data / "teams" / "old.json").write_text("{}")
++    (data / "landing.json").write_text("{}")
++    (data / "README.md").write_text("keep")
++    (export / "teams").mkdir(parents=True)
++    (export / "teams" / "new.json").write_text("{}")
++    (export / "manifest.json").write_text("{}")
++
++    nsd.replace_sample_with_export(site, export)
++
++    assert sorted(p.relative_to(data).as_posix() for p in data.rglob("*") if p.is_file()) == [
++        "README.md",
++        "manifest.json",
++        "teams/new.json",
++    ]
++    assert list(export.iterdir()) == [], "the export is moved, so no second copy stays on the memory disk"
++
++
++def test_a_live_site_without_a_counts_file_refuses_unless_the_run_is_flagged_first():
++    assert nsd.floor_issues(None, {"counts": {}}, allow_first=False)
++    assert nsd.floor_issues(None, {"counts": {}}, allow_first=True) == []
++
++
++def test_a_served_counts_file_is_compared_whatever_the_flag():
++    low = {"counts": {**LIVE["counts"], "team": 1}}
++    assert nsd.floor_issues(LIVE, low, allow_first=True)
++    assert nsd.floor_issues(LIVE, LIVE, allow_first=False) == []
++
++
++class _Recorder:
++    """Stands in for `step`: records each step, writes the export's manifest, and can fail one step."""
++
++    def __init__(self, export_dir, fail=None, counts=None):
++        self.export_dir, self.fail, self.counts = export_dir, fail, counts or LIVE["counts"]
++        self.names = []
++
++    def __call__(self, name, command, cwd=None, env=None):
++        self.names.append(name)
++        if name == "export":
++            (self.export_dir / "teams").mkdir(parents=True, exist_ok=True)
++            (self.export_dir / "teams" / "1.json").write_text("{}")
++            manifest = {"generated_at": "t", "counts": self.counts, "source_counts": {}}
++            (self.export_dir / "manifest.json").write_text(json.dumps(manifest))
++        if name == "build and gates":
++            (nsd.SITE_DIR / "dist").mkdir(parents=True, exist_ok=True)
++            (nsd.SITE_DIR / "dist" / "index.html").write_text("x")
++        if name == self.fail:
++            raise SystemExit(f"{name} failed")
++
++
++@pytest.fixture
++def job(tmp_path, monkeypatch):
++    site = tmp_path / "site_v2"
++    (site / "src" / "data").mkdir(parents=True)
++    monkeypatch.setattr(nsd, "SITE_DIR", site)
++    monkeypatch.setattr(nsd, "EXPORT_DIR", tmp_path / "export")
++    monkeypatch.setattr(nsd, "wait_for_nightly", lambda session: None)
++    monkeypatch.setattr(nsd, "fetch_live_manifest", lambda: LIVE)
++    monkeypatch.delenv(nsd.FIRST_DEPLOY_FLAG, raising=False)
++    return tmp_path
++
++
++def test_the_steps_run_in_order_and_the_counts_file_goes_into_dist_before_the_deploy(job, monkeypatch):
++    recorder = _Recorder(job / "export")
++    monkeypatch.setattr(nsd, "step", recorder)
++
++    assert nsd.deploy(object()) == 0
++
++    assert recorder.names == ["export", "build and gates", "deploy"]
++    assert json.loads((nsd.SITE_DIR / "dist" / nsd.PUBLISHED_MANIFEST).read_text())["counts"] == LIVE["counts"]
++
++
++@pytest.mark.parametrize("failing", ["export", "build and gates"])
++def test_a_failed_step_stops_the_job_before_the_firebase_deploy(job, monkeypatch, failing):
++    recorder = _Recorder(job / "export", fail=failing)
++    monkeypatch.setattr(nsd, "step", recorder)
++
++    with pytest.raises(SystemExit):
++        nsd.deploy(object())
++
++    assert "deploy" not in recorder.names
++
++
++def test_a_fall_below_the_live_counts_stops_the_job_before_the_build(job, monkeypatch):
++    recorder = _Recorder(job / "export", counts={**LIVE["counts"], "team": 1})
++    monkeypatch.setattr(nsd, "step", recorder)
++
++    with pytest.raises(SystemExit, match="team"):
++        nsd.deploy(object())
++
++    assert recorder.names == ["export"]
++
++
++def test_a_missing_counts_file_stops_the_job_before_the_build_unless_flagged(job, monkeypatch):
++    monkeypatch.setattr(nsd, "fetch_live_manifest", lambda: None)
++    recorder = _Recorder(job / "export")
++    monkeypatch.setattr(nsd, "step", recorder)
++    with pytest.raises(SystemExit, match=nsd.FIRST_DEPLOY_FLAG):
++        nsd.deploy(object())
++    assert recorder.names == ["export"]
++
++    monkeypatch.setenv(nsd.FIRST_DEPLOY_FLAG, "1")
++    recorder = _Recorder(job / "export")
++    monkeypatch.setattr(nsd, "step", recorder)
++    assert nsd.deploy(object()) == 0
++    assert recorder.names == ["export", "build and gates", "deploy"]
++
++
++def test_step_raises_on_a_failing_command():
++    import subprocess
++
++    with pytest.raises(subprocess.CalledProcessError):
++        nsd.step("fails", [sys.executable, "-c", "raise SystemExit(3)"])
++
++
++def test_the_site_build_script_runs_both_gates_after_the_build():
++    package = json.loads((nsd.SITE_DIR / "package.json").read_text(encoding="utf-8"))
++    build = package["scripts"]["build"]
++    order = [build.index(part) for part in ("astro build", "audit-seo", "check-built-pages")]
++    assert order == sorted(order), build
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../review_input.patch                             | 1105 ++++++++++++++++++++
+#    1 file changed, 1105 insertions(+)
+# ============================================================================

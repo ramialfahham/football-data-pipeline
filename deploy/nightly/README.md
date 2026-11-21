@@ -136,13 +136,14 @@ when it is past the `error_after` already declared in `sources.yml`. Job success
 proxy — a pipeline that "succeeds" nightly while writing nothing is stale and would pass a
 job-success check. Table age is the real signal.
 
-Three policies, all wired to the same email:
+Four policies, all wired to the same email:
 
 | Policy | Fires when | Means |
 |---|---|---|
 | `fdp raw data is STALE or uncheckable` | the sentinel exits non-zero | **stale data (exit 1) OR we cannot tell (exit 2)** — read the log |
 | `fdp freshness sentinel itself stopped` | no successful sentinel run in 3h | we can no longer *tell* |
 | `fdp-nightly execution failed` | a nightly run dies | early warning, before staleness |
+| `fdp-site execution failed` | a site deploy run fails | nothing was deployed, the live site shows the previous build |
 
 **Cost: zero.** `client.get_table()` is a metadata call, not a query — no bytes scanned, no
 query job. That is what makes hourly affordable without thinking about it.
@@ -386,3 +387,138 @@ actually contains (`*data_paths_image`) — see "Deploy the job" above for what 
 what it does not (the sentinel is still pinned separately). The command above is the manual
 fallback now, not
 the normal path to prod.
+
+---
+
+## The site deploy (`fdp-site`)
+
+The nightly site deploy is a second Cloud Run job, `fdp-site`. A third Cloud Scheduler entry starts it
+after `fdp-nightly` (04:00 UTC, usually done by 05:40). It runs `scripts/nightly_site_deploy.py` in the
+image of `deploy/site/Dockerfile`. Its steps:
+
+1. **Guard.** Today's `fdp-nightly` execution must have succeeded. A running one is waited for, up to 45 minutes.
+2. **Export.** `export_site_data.py --entities deploy` writes every entity the pages read. It reads marts and seeds only.
+3. **Count floor.** `team`, `fixture`, `competition`, `player` and `player_peers` must stay at 90 percent or more of the live counts.
+   The live counts are the file the previous deploy published at
+   `https://football-data-pipeline-gcp.web.app/export-manifest.json`. A 404 stops the job unless the execution sets `ALLOW_FIRST_DEPLOY=1`.
+   Set it for the first deploy, and after a manual deploy, which publishes no counts file. Any other fetch error stops the job.
+4. **Build and gates.** The export replaces the committed sample, then `npm run build` runs at an 8 GB heap.
+   That is the prebuild tests, `astro build`, `audit-seo` and `check-built-pages`.
+5. **Deploy.** The counts file goes into `dist/`, then `firebase deploy --only hosting` runs.
+   A red gate stops the job before this step, so the live site keeps the previous build.
+
+The Cloud Run disk is memory. The export (about 3 GB, moved into the build folder, not copied) and `dist` (about 13 GB) live in it.
+The build heap adds up to 8 GB. That is why the job is sized 8 vCPU and 32 GiB. MR builds still read the committed sample.
+
+### Create it, in this order
+
+The image does not exist until the merge that adds this job has pushed `main`. Then `build:site-image` builds it.
+`deploy:site-image` fails, because the job does not exist yet. Take the tag from that build (the merge commit).
+After the job exists, run `deploy:site-image` again.
+
+```bash
+gcloud run jobs create fdp-site \
+  --image europe-west1-docker.pkg.dev/football-data-pipeline-gcp/cloud-run-source-deploy/fdp-site:<merge-commit-sha> \
+  --region europe-west1 \
+  --service-account github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com \
+  --cpu 8 --memory 32Gi \
+  --task-timeout 3h \
+  --max-retries 0
+```
+
+`--max-retries 0` makes a failed night a visible red run. The next scheduled run is the retry.
+The job runs as the account CI already uses for the warehouse read, the nightly's execution list and the Firebase deploy.
+The CI repoint needs one job-scoped grant, so `deploy:site-image` can update `fdp-site` and nothing else:
+
+```bash
+gcloud run jobs add-iam-policy-binding fdp-site \
+  --region europe-west1 \
+  --member="serviceAccount:github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com" \
+  --role="roles/run.developer"
+```
+
+From here on, `deploy:site-image` repoints the job at every new image. It fails on any error, so a stale image never hides behind a green pipeline.
+A first run that fails on another permission names the missing role.
+
+### Keep five images (once)
+
+Every push to `main` that changes what the image carries adds one image of about 1 GB. The repository also holds the nightly image.
+The policy applies to the `fdp-site` package only:
+
+```bash
+gcloud artifacts repositories list-cleanup-policies cloud-run-source-deploy --location europe-west1
+gcloud artifacts repositories set-cleanup-policies cloud-run-source-deploy \
+  --location europe-west1 \
+  --policy deploy/site/cleanup-policy.json \
+  --no-dry-run
+```
+
+`set-cleanup-policies` replaces the repository's policies, so read the list first and merge any it shows into the file.
+
+### Cap the release history (once, before the first run)
+
+Every release is about 13 GB. Firebase bills stored releases beyond 10 GB. Keep a few:
+
+```bash
+curl -s -X PATCH \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  -H "Content-Type: application/json" \
+  -d '{"maxVersions": "3"}' \
+  "https://firebasehosting.googleapis.com/v1beta1/projects/football-data-pipeline-gcp/sites/football-data-pipeline-gcp/config?updateMask=maxVersions"
+```
+
+### The first run, before any schedule
+
+```bash
+gcloud run jobs execute fdp-site --region europe-west1 --update-env-vars ALLOW_FIRST_DEPLOY=1 --wait
+```
+
+This deploys live data to the `.web.app` site. The flag lets the first deploy pass, because the live site has no counts file yet.
+It is set for this execution only; the job keeps no value of it.
+The merge request carries the cost measured on a full local run of the same image, before the merge.
+Read these off this run to confirm it, and correct the merge request if they differ:
+
+- **BigQuery bytes** of the export, from the run's time window:
+
+  ```sql
+  SELECT COUNT(*) AS queries, ROUND(SUM(total_bytes_billed) / POW(1024, 3), 2) AS gib_billed
+  FROM `region-eu`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+  WHERE creation_time BETWEEN TIMESTAMP('<run start>') AND TIMESTAMP('<run end>')
+    AND user_email = 'github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com'
+    AND job_type = 'QUERY'
+  ```
+
+- **Minutes** per step: the job's log prints each step's seconds and the size of `dist`.
+- **Peak memory**: `run.googleapis.com/container/memory/utilizations` in Cloud Monitoring.
+- **Firebase upload size**: the deploy's own output, and the release list in the Hosting console.
+
+### Schedule it, only after the first run has succeeded
+
+```bash
+gcloud run jobs add-iam-policy-binding fdp-site \
+  --region europe-west1 \
+  --member="serviceAccount:github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com" \
+  --role="roles/run.invoker"
+
+gcloud scheduler jobs create http fdp-site \
+  --location europe-west1 \
+  --schedule "30 6 * * *" \
+  --time-zone UTC \
+  --uri "https://run.googleapis.com/v2/projects/football-data-pipeline-gcp/locations/europe-west1/jobs/fdp-site:run" \
+  --http-method POST \
+  --oauth-service-account-email github-actions-dbt@football-data-pipeline-gcp.iam.gserviceaccount.com
+```
+
+06:30 leaves about 50 minutes after the nightly's usual end. A late nightly is waited for. A failed one stops the deploy.
+The GitLab schedule `4379625` stays disabled. The alert policy `fdp-site execution failed` is in `alert-policy.json`.
+It goes in with the recipe of "Create the alert policies".
+
+### Stop it, or roll back
+
+```bash
+gcloud scheduler jobs pause fdp-site --location europe-west1
+```
+
+Roll a bad deploy back in the Firebase console: Hosting, release history, Rollback on the previous release.
+The manual `deploy:export` and `deploy:site-v2` jobs in `.gitlab-ci.yml` stay as the fallback by web dispatch.
+They publish no counts file, so the next run of `fdp-site` after one needs `--update-env-vars ALLOW_FIRST_DEPLOY=1`.

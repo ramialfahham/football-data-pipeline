@@ -152,6 +152,42 @@
       "alertStrategy": { "autoClose": "604800s" },
       "notificationChannels": [],
       "enabled": true
+    },
+
+    {
+      "displayName": "fdp-site execution failed",
+
+      "_comment": [
+        "The nightly site deploy (GitLab #156). A red run is how its guards speak: the warehouse",
+        "nightly did not finish today, the export fell below the live site, or audit-seo or",
+        "check-built-pages failed. Nothing was deployed, so the site shows yesterday's build."
+      ],
+
+      "documentation": {
+        "content": "The nightly site deploy (the Cloud Run job fdp-site) FAILED, so nothing was deployed and the live site still shows the previous build.\n\nThe job's first log line of the failing step says why: the warehouse nightly had not finished successfully today, the export's counts fell below the live site's, or `audit-seo` / `check-built-pages` failed.\n\n  gcloud run jobs executions list --job fdp-site --region europe-west1 --limit 5\n  gcloud logging read 'resource.type=\"cloud_run_job\" AND resource.labels.job_name=\"fdp-site\"' --limit 80 --order=desc\n\nNo retry happens automatically (`--max-retries 0`). Recovery is the next scheduled run, or run it by hand once the cause is fixed:\n  gcloud run jobs execute fdp-site --region europe-west1\n\nRunbook: deploy/nightly/README.md",
+        "mimeType": "text/markdown"
+      },
+
+      "combiner": "OR",
+      "conditions": [
+        {
+          "displayName": "Site deploy execution failed",
+          "conditionThreshold": {
+            "filter": "resource.type = \"cloud_run_job\" AND resource.labels.job_name = \"fdp-site\" AND metric.type = \"run.googleapis.com/job/completed_execution_count\" AND metric.labels.result = \"failed\"",
+            "comparison": "COMPARISON_GT",
+            "thresholdValue": 0,
+            "duration": "0s",
+            "aggregations": [
+              { "alignmentPeriod": "3600s", "perSeriesAligner": "ALIGN_SUM" }
+            ],
+            "trigger": { "count": 1 }
+          }
+        }
+      ],
+
+      "alertStrategy": { "autoClose": "604800s" },
+      "notificationChannels": [],
+      "enabled": true
     }
   ]
 }

@@ -1084,10 +1084,10 @@ deploy:export:
     - *dbt_profile
     - *gcp_auth
     - export PYTHONPATH=.
-    # The --entities list is LOAD-BEARING: every data set a built page reads, and no
-    # other (competitions.json is always emitted). Reads marts and seeds only; writes
-    # no BigQuery table.
-    - python scripts/export_site_data.py --entities teams,fixtures,competitions,competition_index,teams_index,players_index,landing,players,matches,metric_groups,metric_rows --out site_v2/export_data
+    # `deploy` is DEPLOY_ENTITIES: every data set a built page reads, and no other
+    # (competitions.json is always emitted); tests/test_deploy_entities.py pins it. Reads marts
+    # and seeds only; writes no BigQuery table.
+    - python scripts/export_site_data.py --entities deploy --out site_v2/export_data
   artifacts:
     paths:
       - site_v2/export_data
@@ -1272,3 +1272,72 @@ deploy:nightly-image:
     - *not_on_schedule
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
       changes: *data_paths_image
+
+# ---------------------------------------------------------------------------
+# GitLab #156: the nightly site deploy is the Cloud Run job `fdp-site` (deploy/site/Dockerfile),
+# started by Cloud Scheduler after `fdp-nightly`; deploy/nightly/README.md is the runbook. This pair
+# builds its image and repoints the job at it, the same shape as the nightly-image pair above and for
+# the same reason: nothing else rebuilds the image when main moves.
+#
+# The checkout's `.dockerignore` excludes site_v2/ for the nightly image, and kaniko reads no other
+# ignore file, so the first script line swaps in deploy/site/Dockerfile.dockerignore. The checkout is this job's
+# own clone; nothing is committed.
+# ---------------------------------------------------------------------------
+# Everything the job reads at run time: the export script and the seeds it reads, the marts and core
+# models and the registry and component list the build's prebuild gates read, and the site itself.
+.site_image_paths: &site_image_paths
+  - deploy/site/*
+  - scripts/nightly_site_deploy.py
+  - scripts/export_site_data.py
+  - site_v2/**/*
+  - requirements.txt
+  - dbt_project/seeds/**/*
+  - dbt_project/models/3_core/**/*
+  - dbt_project/models/5_marts/**/*
+  - docs/competition_registry.yml
+  - docs/design/components.yml
+
+build:site-image:
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  <<: *gcp_job
+  stage: deploy
+  needs: ["validate:governance", "test:python", "validate:secrets", "lint:python"]
+  resource_group: deploy-site-image
+  timeout: 30m
+  script:
+    - *gcp_auth
+    - cp deploy/site/Dockerfile.dockerignore .dockerignore
+    - >
+      /kaniko/executor
+      --context "$CI_PROJECT_DIR"
+      --dockerfile "$CI_PROJECT_DIR/deploy/site/Dockerfile"
+      --destination "europe-west1-docker.pkg.dev/football-data-pipeline-gcp/cloud-run-source-deploy/fdp-site:$CI_COMMIT_SHA"
+  rules:
+    - *not_on_schedule
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
+      changes: *site_image_paths
+
+deploy:site-image:
+  <<: *gcp_job
+  image: google/cloud-sdk:slim
+  stage: deploy
+  needs: ["build:site-image"]
+  resource_group: deploy-site-image
+  timeout: 5m
+  script:
+    - *gcp_auth
+    - gcloud auth login --cred-file="$GOOGLE_APPLICATION_CREDENTIALS" --quiet
+    - gcloud config set project football-data-pipeline-gcp --quiet
+    # `update` changes only the image: the service account, CPU, memory, timeout and retries set
+    # once by the runbook are left as they are. It fails on every error, a missing job included: the
+    # job is created from the first image this pair pushes, and this step is re-run after that.
+    - >
+      gcloud run jobs update fdp-site
+      --image="europe-west1-docker.pkg.dev/football-data-pipeline-gcp/cloud-run-source-deploy/fdp-site:$CI_COMMIT_SHA"
+      --region europe-west1
+  rules:
+    - *not_on_schedule
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
+      changes: *site_image_paths
