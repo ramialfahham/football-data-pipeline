@@ -102,8 +102,7 @@ pass. Do not convert an absence of findings into a finding.
   line names the same approval. A §10 decision with no named approval is still FAIL.
 - You can never approve a §10 decision — finding one means FAIL (if taken
   silently) or ESCALATE (if genuinely ambiguous).
-- Uncertain whether a written rule covers a case? The classification itself is
-  a CPO decision (§10 meta-rule) — ESCALATE, never analogize.
+- Uncertain whether a written rule covers a case? ESCALATE, never analogize.
 
 ## Output format (exact; the commit gate machine-parses it)
 

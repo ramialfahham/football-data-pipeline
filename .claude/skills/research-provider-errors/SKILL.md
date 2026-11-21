@@ -4,7 +4,8 @@ description: |
   Research the rows of mart_competition_research_list from allowed sites and report proposed
   correction-seed rows: withheld results, goals, scorers, assisters, cards and line-up goals.
   Each match gets two separate reads. Reads that disagree go no further. Never reads a stopped
-  site. Use it for the morning research of the list. It edits no seed and opens no merge request.
+  site. Use it for the morning research of the list. It lands the rows as a seed-only
+  research-fix merge request and merges it once its review and pipeline pass.
   Do NOT use it for line-up research.
 ---
 
@@ -12,11 +13,15 @@ description: |
 
 The nightly withholds a value that fails a check of the provider's data. The value stays blank
 until sourced research stands in a correction seed. `mart_competition_research_list` lists every
-such value. This skill researches the list rows and reports what to put in the seeds.
+such value. This skill researches the list rows and lands what it proves in the seeds, as a
+research-fix merge request (section 8).
 
 ## What this skill never does
 
-- It never edits a seed file, commits, pushes or opens a merge request.
+- It never edits a file other than the rows of `fixture_card_corrections`,
+  `fixture_result_corrections` and `fixture_goal_corrections`, and its own task folder.
+- It never commits on `main`, never amends, and never merges a merge request that is not its own
+  research-fix MR.
 - It never reads a site that is not in the site table below.
 - It never reads a stopped site, by a fetch or by the browser.
 - It never reads a page that refused a plain fetch with a 403, by another route.
@@ -41,7 +46,7 @@ order by research_tier nulls last, fixture_date
 
 - Research only the current season. A row with no `research_tier` is not researched.
 - Report every row you do not research, with its reason, in the final report.
-- A `correction_no_longer_needed` row needs no research. Go to section 8.
+- A `correction_no_longer_needed` row needs no research. Go to section 9.
 
 ## 2. Choose the matches
 
@@ -124,11 +129,38 @@ Column formats are in `dbt_project/seeds/schema.yml`. Conventions that matter:
 - `source` is the https URLs read, separated by a space.
 - `note` names the match, the competition and the date, and says what was checked.
 
-## 8. Report
+## 8. Land the rows
 
-Do not edit a seed. Put in the final report, one block per seed:
+Land only rows that passed sections 3 to 7. With none, open nothing and go to section 9. Land all rows of one batch in one merge request.
 
-- the proposed rows, as CSV lines;
+1. List open merge requests with `glab mr list`. A match already in an open research-fix MR stays with that MR.
+2. Branch from fresh main: `git fetch gitlab main`, then `git checkout -b research-fix/<YYYY-MM-DD> gitlab/main`.
+3. Run `git branch --unset-upstream`. Never commit on `main`.
+4. A second run on the same day takes `research-fix/<YYYY-MM-DD>-2`, then `-3`. The task folder takes the same suffix.
+5. Never reuse, edit or continue the branch or the task folder of an earlier run, merged or not.
+6. Write the contract from `.claude/task/TEMPLATE.md` to `.claude/task/262-research-fix-<YYYY-MM-DD>/contract.md` before any edit.
+7. The contract's `scope_paths` are that folder and the seeds it changes. `depends_on` and `shared_files` read `none` with a reason.
+8. Edit the seeds. Add rows, or change a row of a match researched in this run.
+9. Never remove a row, change a header, or touch another file.
+10. Every row has `source_kind`, `source` and `note`, as in section 7.
+11. Every `source` URL is on a host of the site table below.
+12. Run the review cycle of `docs/working_agreement.md` section 2 on the staged diff. Use the reviewers that `.claude/review_routing.json` routes for the changed paths.
+13. Write `review.md` with the hash that `python .claude/hooks/git_discipline.py --staged-hash` prints.
+14. When the commit gate's cap of review cycles is reached, stop and merge nothing. Put the open findings in the report.
+15. Commit with `git commit -F <message file>`, as the only command of the call. The post-commit hook pushes the branch and opens the merge request.
+16. Run `python scripts/check_research_fix_mr.py --base gitlab/main`. Fix a failure in a new commit and a new review cycle, never by an amend.
+17. Wait for the merge request's pipeline to finish. If it is red or cancelled, stop and merge nothing. Put the failing job in the report.
+18. Run `python scripts/merge_ready.py <MR number>`. If it is not ready, stop and merge nothing. Put its output in the report.
+19. Merge with `glab mr merge <MR number> --yes --sha <head commit of the MR, 40 hex characters>`, from this checkout, at that commit with a clean tree.
+20. The merge hook allows only this form. The pipeline must be green, `merge_ready.py` must say ready, and the diff must touch only paths of `agent_merge_paths`.
+21. If the hook blocks the merge, stop and report its reason. Never try another form of merge.
+22. After the merge, watch the pipeline of `main`. If it is red, revert the merge in a new MR and report it.
+
+## 9. Report
+
+Put in the final report, one block per seed:
+
+- the rows landed, as CSV lines, with the merge request's link and whether it merged;
 - each match stopped, with its reason and the two reads' values where they differ;
 - each row not researched, with its reason;
 - each `correction_no_longer_needed` row, with its seed and key;
@@ -139,10 +171,8 @@ Do not edit a seed. Put in the final report, one block per seed:
 These steps wait for the CPO. When a row needs one, stop at it, list the row in the report under
 its stub, and go on with the next row.
 
-- Landing a fix. How a proposed seed row reaches the seed is not decided.
-- Do not edit a seed, commit, or open a merge request.
-- Removing a correction. A `correction_no_longer_needed` row is removed from its seed by the same
-  step as above. Report the row and stop.
+- Removing a correction. A research-fix MR never removes a row. A `correction_no_longer_needed`
+  row is reported, and the skill stops at it.
 - A standings or points row. What a standings mismatch withholds is not decided. Report the row
   and stop.
 

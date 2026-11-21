@@ -459,6 +459,10 @@ validate:governance:
     # scripts/sync_metric_docs_blocks.py` — never a hand edit to the generated file.
     - python scripts/sync_metric_docs_blocks.py --check
     - python scripts/check_task_artifacts.py --base "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
+    # A research-fix MR (branch research-fix/*) proves in its own pipeline that it changes only
+    # correction-seed rows with sources on the skill's sites; a red result keeps its merge blocked.
+    # The check runs from the target branch's copy, so the MR cannot change the check that judges it.
+    - case "${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME:-}" in research-fix/*) git show "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}:scripts/check_research_fix_mr.py" > /tmp/check_research_fix_mr_main.py || exit 1; python /tmp/check_research_fix_mr_main.py --base "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}" ;; esac
     - *dbt_profile
     - cd dbt_project && dbt deps && dbt parse
   # This job had no `rules:` at all, so it ran on every pipeline the workflow

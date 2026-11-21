@@ -261,20 +261,18 @@ CI re-checks the artifacts on every MR with `scripts/check_task_artifacts.py`.
 ## 3. Branches — always
 
 Every change goes on a **new branch**. Never commit directly to `main`. Never push to `main`. Open
-an MR and wait for CI and explicit user approval before merging.
+an MR and wait for CI. Merging follows the rule below.
 
 **Process:**
 
 1. `git checkout -b feature/name`, never with `gitlab/main` as the tracking target.
 2. Do the work and commit.
 3. `git push gitlab feature/name`, with the explicit remote branch name.
-4. Open an MR, then wait for CI and user approval.
+4. Open an MR, then wait for CI. Merging follows the rule below.
 
 A `gitlab/main` tracking target sends pushes directly to `main`. Never rely on implicit tracking.
 
-**Never run `glab mr merge`.** Merging is the user's action, not the agent's. The agent's job ends
-when the MR is open and CI is green. Never run `glab mr merge` or its `glab mr accept` alias for
-any reason, `--auto-merge` included. The one exception is the user typing "merge it", or an equivalent, in
+The agent merges an MR itself when its pipeline is green, `scripts/merge_ready.py` says ready, and every required reviewer passed. The diff must touch none of these: fan-visible text, `metric_catalogue.csv`, a core document, a guard hook or gate, or a cost setting. A path not listed in `agent_merge_paths` of `.claude/review_routing.json` counts as one of these. The agent then watches main's pipeline and reverts on red. Every other MR waits for the CPO's merge. The one exception is the user typing "merge it", or an equivalent, in
 the same message.
 
 ### 3a. Branch consolidation — check before branching
@@ -398,8 +396,15 @@ standards, the metric catalogue and the task contract.
 
 **Visual details** (sizes, spacing, alignment, corners, separators, and which existing form of a part a page uses) are decided by the coordinating agent against `docs/design/design_standard.md`; the CPO reviews each finished page group and can veto any page.
 
-**The meta-rule:** when a new case does not clearly match a written rule, the classification
-itself is a CPO decision. An analogy to an existing rule is not a licence (Appendix A3).
+**Standing budget.** BigQuery work for CI, checks and research runs without asking up to €25 a month on top of the nightly. The agent reports each month's spend; anything above goes to the CPO first.
+
+**Wording before go-live.** Until go-live, the coordinating agent writes fan-visible strings from the approved designs and existing labels; the CPO reviews each finished page group and can veto any string. URLs, slugs and other permanent identifiers stay CPO-only.
+
+**Review cap.** At the round cap, the coordinating agent lands what passed and closes or splits off the rest; a fourth round stays the CPO's.
+
+**Unclear cases.** The coordinating agent classifies a case no rule covers, states the classification in the MR description and proceeds. A case that involves cost, permanence or prod data stays with the CPO.
+
+A core-doc sentence that only restates a rule the CPO already approved, or describes code that implements one, needs no new approval. The scope-auditor checks that it matches.
 
 ---
 
@@ -422,7 +427,7 @@ nudge.
 
 | The decision changes… | The record is… |
 |---|---|
-| **code** | the MR. The CPO merges it, and the merge is the approval. |
+| **code** | the MR. The merge is the approval: the CPO's, or the agent's under §3. |
 | **a rule**: how we work, what a screen shows, what a metric means | the document that owns that rule, **edited in the same MR**. The new text replaces the old text, never appended to it. |
 | **a requirement** for work not yet built | that work's GitLab issue, edited in place |
 | **a locked file** (a protected path) | the contract's `protected_override` and the MR head's `Locked files` line. They name the approval, where and when, and never quote it. The merge is the approval. |
@@ -438,8 +443,7 @@ nudge.
   `.gitlab/merge_request_templates/Default.md` (`glab mr update <n> --description …`).
 - The head holds the issue's checklist, ticked, with one link per tick, and the same
   `Locked files:` line. Everything else sits below a fold.
-- The merge is the one act the builder cannot perform, so the merge is the approval. Nothing is
-  recorded until the CPO merges.
+- The merge is the approval: the CPO's, or the agent's under §3. Nothing is recorded until the MR merges.
 - No record quotes the CPO.
 - The CPO reads the head before merging and refuses a long one.
 

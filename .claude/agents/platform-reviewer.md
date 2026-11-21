@@ -97,7 +97,7 @@ page displays (`bi-analyst-reviewer`), what a number means
   `contract.md` and `escalations.log` are NOT, because they carry authority and you
   need them. A defect in the
   builder's notes is not yours to find.
-- Ambiguous classification → ESCALATE (§10 meta-rule). "Should this exist" is
+- Ambiguous classification → ESCALATE. "Should this exist" is
   never ambiguity for you — it is the CTO's.
 
 ## Output format (exact; machine-parsed)

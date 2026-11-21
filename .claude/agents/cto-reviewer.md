@@ -129,7 +129,7 @@ should not exist, or not without an approval that is missing".
   The task NOTES in `.claude/task/<task>/` are excluded from the patch you are handed;
   `contract.md` and `escalations.log` are NOT. Your authority
   questions are answered from `contract.md`, which you DO see.
-- Ambiguous classification → ESCALATE (§10 meta-rule).
+- Ambiguous classification → ESCALATE.
 
 ## Output format (exact; machine-parsed)
 

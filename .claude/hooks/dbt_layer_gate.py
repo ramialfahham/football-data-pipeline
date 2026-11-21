@@ -35,7 +35,7 @@ _CONSUMPTION_RULE = (
     "value deserve a DQ test, or need to be byte-identical across two frontends? -> dbt. If no "
     "mart serves what the page needs, that is a DATA GAP (register it, ship the mart first) — "
     "never bridge it here. See dbt_project/docs/layering.md §Consumption layer. "
-    "Unsure how to classify a case? That classification is a CPO decision — escalate blinded "
+    "Unsure how to classify a case? Escalate blinded "
     "(working_agreement.md §10/§11, anti-pattern A3)."
 )
 
