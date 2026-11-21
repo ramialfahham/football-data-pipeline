@@ -13,7 +13,7 @@ import MatchRow from "../ui/MatchRow.astro";
 import SectionHead from "../ui/SectionHead.astro";
 import DateHeading from "../ui/DateHeading.astro";
 import Group from "../ui/Group.astro";
-import { formatDate } from "../../lib/format";
+import { formatDate, kickoffClock, kickoffDay } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
 import { roundName } from "../../lib/roundName.mjs";
@@ -39,7 +39,7 @@ function title(r: CompetitionRound): string {
 function days(r: CompetitionRound): [string | null, CompetitionRound["fixtures"]][] {
   const byDay = new Map<string | null, CompetitionRound["fixtures"]>();
   for (const fx of r.fixtures) {
-    const day = fx.kickoff ? fx.kickoff.slice(0, 10) : null;
+    const day = kickoffDay(fx);
     if (!byDay.has(day)) byDay.set(day, []);
     byDay.get(day)!.push(fx);
   }
@@ -79,7 +79,7 @@ const idOf = (i: number) => `md-${rounds[i].round_sequence ?? i + 1}`;
       <Group>
         {days(r).map(([day, fixtures]) => (
           <>
-            <DateHeading date={formatDate(fixtures[0].kickoff, lang)} />
+            <DateHeading date={formatDate(kickoffClock(fixtures[0]).at, lang)} />
             {fixtures.map((fx) => (
               <MatchRow
                 fx={fx}

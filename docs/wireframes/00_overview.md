@@ -101,9 +101,12 @@ Every screen file follows this structure:
 - **W/D/L**: letter + color, never color alone (brief §4).
 - **Tabular numerals** on every stat column.
 - **Text expansion**: design with DE (~+30% vs EN); labels are i18n keys.
-- **Timezones**: kickoff datetimes export as UTC ISO strings; render server-side in
-  a competition-neutral format and progressively enhance to the visitor's local
-  timezone with a tiny script (static site cannot know the timezone at build time).
+- **Timezones**: a match row prints its kick-off on the venue's clock with a zone label
+  (`20:30 CET`, `20:00 BST`, `20:00 EDT`), both served by the warehouse (`kickoff_local`,
+  `kickoff_zone_label`); the site converts nothing, and a day heading shows the date of that
+  clock. The payload still carries the UTC kick-off as `kickoff`. A fixture with no venue takes
+  its competition country's zone, and a fixture with neither shows `UTC`. The Matches page is
+  the exception: its day is the UTC date, so its rows print the UTC clock with the label `UTC`.
 
 ## Layout system
 

@@ -227,8 +227,8 @@ def _featured_season_row(rows: list[dict]) -> dict:
 # has_result, is_upcoming) are dropped — the published row is display-only. The
 # per-fixture deep-link (fixture URL identity) is GAP-19, deliberately absent here.
 _TEAM_FIXTURE_FIELDS = (
-    "opponent_name", "opponent_logo_url", "is_home", "kickoff_datetime",
-    "round_name", "goals_for", "goals_against", "result", "status_short",
+    "opponent_name", "opponent_logo_url", "is_home", "kickoff_datetime", "kickoff_local",
+    "kickoff_zone_label", "round_name", "goals_for", "goals_against", "result", "status_short",
 )
 
 
@@ -1060,6 +1060,8 @@ def shape_fixture_payload(fix: dict, home_side: dict, away_side: dict,
         "fixture_id": fid,
         "slug": fix.get("fixture_slug"),
         "kickoff": fix.get("kickoff_datetime"),
+        "kickoff_local": fix.get("kickoff_local"),
+        "kickoff_zone_label": fix.get("kickoff_zone_label"),
         "status": fix.get("status_short"),
         "unplayed_state": fix.get("unplayed_state"),
         "league_code": fix.get("league_code"),
@@ -1335,7 +1337,8 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
     unplayed fixtures the warehouse held before any sampling, for the manifest."""
     marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
     fixtures = _query(client, f"""
-        select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name, round_order,
+        select fixture_sk, league_code, season_api_year, kickoff_datetime, kickoff_local,
+               kickoff_zone_label, round_name, round_order,
                is_next_round,
                status_short, unplayed_state, venue_name as venue_name_snapshot, home_team_sk, away_team_sk,
                fixture_slug,
@@ -1887,7 +1890,8 @@ def fetch_player_index(client) -> dict:
 
 _COMPETITION_FIXTURE_COLUMNS = (
     "fixture_sk, league_code, season_api_year, round_name, round_label_i18n_key, round_number, round_letter, round_order, round_sequence, "
-    "fixture_order, kickoff_datetime, status_short, unplayed_state, is_played, goals_home, goals_away, "
+    "fixture_order, kickoff_datetime, kickoff_local, kickoff_zone_label, status_short, unplayed_state, "
+    "is_played, goals_home, goals_away, "
     "home_team_sk, home_team_name, home_team_slug, home_team_logo_url, "
     "away_team_sk, away_team_name, away_team_slug, away_team_logo_url, "
     "fixture_slug, is_next_round, is_match_that_matters"
@@ -1902,6 +1906,8 @@ def _competition_fixture(r: dict) -> dict:
         "fixture_id": int(r["fixture_sk"]),
         "slug": r.get("fixture_slug"),
         "kickoff": r.get("kickoff_datetime"),
+        "kickoff_local": r.get("kickoff_local"),
+        "kickoff_zone_label": r.get("kickoff_zone_label"),
         "round": r.get("round_name"),
         "round_label_i18n_key": r.get("round_label_i18n_key"),
         "round_number": r.get("round_number"),

@@ -1917,3 +1917,80 @@ seeds:
               field: confederation
       - name: confederation_note
         description: "Why the country belongs to no confederation; empty when it belongs to one."
+
+  - name: time_zones
+    description: >
+      The IANA time zones a country or a venue may name, with the conventional abbreviation of each
+      zone's standard and daylight time where one exists. One row per zone, plus `UTC`, the zone a
+      fixture takes when neither its venue nor its competition's country has one.
+
+      A zone with no conventional abbreviation has empty labels and prints BigQuery's own
+      `UTC+N`. Offsets and daylight-saving dates are not stored: BigQuery computes them.
+    config:
+      column_types:
+        time_zone: string
+        label_standard: string
+        label_daylight: string
+    columns:
+      - name: time_zone
+        description: "The IANA zone name, as BigQuery accepts it in `DATETIME(timestamp, zone)`."
+        tests:
+          - not_null
+          - unique
+      - name: label_standard
+        description: "The abbreviation printed in the zone's standard time (CET, GMT); empty when none is conventional."
+      - name: label_daylight
+        description: "The abbreviation printed in the zone's daylight time (CEST, BST); empty when the zone has no daylight time or no conventional abbreviation."
+
+  - name: country_time_zones
+    description: >
+      The default time zone of each country in `countries`, one row per country. A country whose
+      venues sit in several zones with no dominant one (the United States of America, Canada,
+      Brazil, Mexico, Australia, Russia, Indonesia) has an empty zone: each of its venues is named
+      in `venue_time_zones`.
+    config:
+      column_types:
+        country_key: string
+        time_zone: string
+    columns:
+      - name: country_key
+        description: "The country's key in `countries`."
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('countries')
+              field: country_key
+      - name: time_zone
+        description: "The zone most of the country's venues play in; empty when the country spans several."
+        tests:
+          - relationships:
+              to: ref('time_zones')
+              field: time_zone
+
+  - name: venue_time_zones
+    description: >
+      The time zone of a venue where its country's default is absent or wrong: every venue of a
+      country with no default, a venue on an island or overseas territory of its country, and a
+      venue whose competition files it under another country. One row per provider venue id. A venue
+      without a row takes its country's default.
+    config:
+      column_types:
+        venue_api_id: string
+        venue_name: string
+        time_zone: string
+    columns:
+      - name: venue_api_id
+        description: "The provider's venue id, as `fct_fixture.venue_api_id` carries it."
+        tests:
+          - not_null
+          - unique
+      - name: venue_name
+        description: "The venue's name, so a reader of this file can tell which venue the id is."
+      - name: time_zone
+        description: "The IANA zone the venue's kick-offs are played in."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('time_zones')
+              field: time_zone

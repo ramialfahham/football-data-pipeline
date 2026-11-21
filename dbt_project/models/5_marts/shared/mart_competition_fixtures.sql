@@ -16,7 +16,8 @@
   round that mart serves for the competition is flagged, played or not, so this table and the Home
   page can never name different next matchdays. is_match_that_matters is that mart's flag carried
   over, false on every other row. fixture_order is the reading order of a competition-season's
-  rows, rounds in sequence and each round by kick-off, so nothing downstream sorts.
+  rows, rounds in sequence and each round by kick-off on the venue's clock, so nothing downstream
+  sorts and a day's heading never runs out of date order.
 
   is_last_round is the round just played: in the season of the competition's next matchday (its
   current season), the latest round by round_sequence with a played fixture, and only that round's
@@ -59,6 +60,8 @@ with fixtures as (
         season_api_year,
         round_name,
         kickoff_datetime,
+        kickoff_local,
+        kickoff_zone_label,
         fixture_date,
         status_short,
         goals_home,
@@ -473,6 +476,8 @@ select
     rn.round_letter,
     r.round_sequence,
     f.kickoff_datetime,
+    f.kickoff_local,
+    f.kickoff_zone_label,
     f.fixture_date,
     f.status_short,
     f.goals_home,
@@ -532,7 +537,7 @@ select
     end as lineup_state,
     row_number() over (
         partition by f.league_code, f.season_api_year
-        order by r.round_sequence asc, f.kickoff_datetime asc, f.fixture_sk asc
+        order by r.round_sequence asc, f.kickoff_local asc, f.kickoff_datetime asc, f.fixture_sk asc
     ) as fixture_order
 from fixtures as f
 inner join rounds as r

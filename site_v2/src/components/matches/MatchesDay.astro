@@ -31,6 +31,13 @@ interface Props {
 const { day, openingDay, lang } = Astro.props;
 
 const VISIBLE_ROWS = 3;
+// A day of this page is a UTC date, so its rows keep the UTC clock: a venue clock on a row could
+// fall on another date than the day it sits under.
+const onUtcClock = (fx: MatchDayPayload["competitions"][number]["fixtures"][number]) => ({
+  ...fx,
+  kickoff_local: null,
+  kickoff_zone_label: null,
+});
 const matchesWord = word(lang, "matches");
 const dayHref = (d: string) => localeHref(lang, d === openingDay ? `${matchesWord}/` : `${matchesWord}/${d}/`);
 const isOpening = day.day === openingDay;
@@ -82,11 +89,11 @@ const crumbs = [
                 competition={group.slug}
               />
 
-              {group.fixtures.slice(0, VISIBLE_ROWS).map((fx) => <MatchRow fx={fx} competitionSlug={group.slug} lang={lang} />)}
+              {group.fixtures.slice(0, VISIBLE_ROWS).map((fx) => <MatchRow fx={onUtcClock(fx)} competitionSlug={group.slug} lang={lang} />)}
 
               {group.fixtures.length > VISIBLE_ROWS && (
                 <Fold id={`fold-${i}`} n={group.fixtures.length} lang={lang}>
-                  {group.fixtures.slice(VISIBLE_ROWS).map((fx) => <MatchRow fx={fx} competitionSlug={group.slug} lang={lang} />)}
+                  {group.fixtures.slice(VISIBLE_ROWS).map((fx) => <MatchRow fx={onUtcClock(fx)} competitionSlug={group.slug} lang={lang} />)}
                 </Fold>
               )}
             </Group>

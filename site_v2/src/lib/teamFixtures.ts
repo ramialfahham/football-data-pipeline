@@ -36,6 +36,8 @@ export function asMatchRowFixture(fx: TeamScheduleFixture, team: TeamRef): Compe
     fixture_id: fx.fixture_id,
     slug: builtFixtures().get(fx.fixture_id)?.slug ?? null,
     kickoff: fx.kickoff_datetime ?? null,
+    kickoff_local: fx.kickoff_local ?? null,
+    kickoff_zone_label: fx.kickoff_zone_label ?? null,
     status: fx.status_short ?? null,
     is_played: false,
     goals_home: null,

@@ -14,7 +14,7 @@ import Fold from "../ui/Fold.astro";
 import Group from "../ui/Group.astro";
 import GroupHead from "../ui/GroupHead.astro";
 import type { Lang } from "../../lib/format";
-import { formatDate } from "../../lib/format";
+import { formatDate, kickoffClock, kickoffDay } from "../../lib/format";
 import { t } from "../../i18n/strings";
 import type { CompetitionFixture, LandingUpcomingGroup } from "../../lib/types";
 
@@ -26,9 +26,8 @@ const { groups, lang } = Astro.props;
 
 const VISIBLE_ROWS = 3;
 
-const dayOf = (fx: CompetitionFixture) => (fx.kickoff ? fx.kickoff.slice(0, 10) : null);
 const opensDay = (fixtures: CompetitionFixture[], i: number) =>
-  i === 0 || dayOf(fixtures[i]) !== dayOf(fixtures[i - 1]);
+  i === 0 || kickoffDay(fixtures[i]) !== kickoffDay(fixtures[i - 1]);
 ---
 
 <section>
@@ -40,7 +39,7 @@ const opensDay = (fixtures: CompetitionFixture[], i: number) =>
     const rows = (from: number, to?: number) =>
       group.fixtures.slice(from, to).map((fx, j) => (
         <>
-          {opensDay(group.fixtures, from + j) && <DateHeading date={formatDate(fx.kickoff, lang)} />}
+          {opensDay(group.fixtures, from + j) && <DateHeading date={formatDate(kickoffClock(fx).at, lang)} />}
           <MatchRow fx={fx} competitionSlug={group.competition_slug ?? null} lang={lang} topMatch={fx.is_match_that_matters} />
         </>
       ));

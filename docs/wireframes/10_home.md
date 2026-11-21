@@ -773,7 +773,7 @@ is the noise this block carried until 2026-08-18.
 | Element | JSON key | Format |
 |---|---|---|
 | Competition heading | `upcoming[].league_name` | text; links to the competition hub via `competition_slug` |
-| Kickoff | `upcoming[].fixtures[].kickoff` | UTC ISO in the payload; rendered per the timezone convention in `00_overview.md` |
+| Kickoff | `upcoming[].fixtures[].kickoff_local`, `.kickoff_zone_label` | the venue's clock and its zone label, printed as served per the timezone convention in `00_overview.md`; `kickoff` stays the UTC ISO |
 | ~~Round~~ | `upcoming[].fixtures[].round` | **NOT RENDERED.** The payload carries it, the hero does not show it. `fixture.round` is the provider's raw English string, so putting it here shipped "Regular Season - 18" and "3rd Qualifying Round" byte-identically to de/en/fi — verified from built output — making the home page a fourth surface for **#866**, and the most visible one. #866 states the fix cannot live in the frontend: mapping that string to a phase plus a number is taxonomy mapping, which the consumption layer forbids. The round returns here when the warehouse serves a localisable phase. |
 | Home / away name + crest | `…fixtures[].home.name` / `.crest`, `.away.name` / `.crest` | crest falls back to a monogram, as on 01 |
 | Link target | `…fixtures[].slug` | `/{locale}/{competition_slug}/matches/{slug}/` |

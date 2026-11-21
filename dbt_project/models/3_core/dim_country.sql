@@ -23,14 +23,25 @@
     mart_competition_index.region_label, which relationship (this dim, or dim_region) is populated
     for a competition IS the answer to whether its sub-line shows a country or a region (#62 step 3).
     mart_team_index reads confederation: a team's region is its country's confederation.
+
+    time_zone is the country's default IANA zone from the country_time_zones seed, empty for a
+    country whose venues sit in several zones: dim_venue then takes each venue's zone from
+    venue_time_zones.
 #}
 
 with import_countries as (
     select * from {{ ref('countries') }}
+),
+
+import_country_time_zones as (
+    select * from {{ ref('country_time_zones') }}
 )
 
 select
-    country_key,
-    country_name,
-    confederation
+    import_countries.country_key,
+    import_countries.country_name,
+    import_countries.confederation,
+    import_country_time_zones.time_zone
 from import_countries
+left join import_country_time_zones
+    on import_countries.country_key = import_country_time_zones.country_key

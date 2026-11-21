@@ -21,14 +21,15 @@ interface Props {
 }
 const { code, fixtures, team, lang, nextId = null, competitionSlot } = Astro.props;
 const info = competitionInfo(code);
-const dayOf = (fx: TeamScheduleFixture) => fx.kickoff_datetime?.slice(0, 10) ?? null;
+const clockOf = (fx: TeamScheduleFixture) => fx.kickoff_local ?? fx.kickoff_datetime;
+const dayOf = (fx: TeamScheduleFixture) => clockOf(fx)?.slice(0, 10) ?? null;
 ---
 
 <Group data-competition-slot={competitionSlot}>
   <GroupHead lang={lang} name={info.name} crest={{ name: info.name, url: info.crest }} competition={info.slug} />
   {fixtures.map((fx, i) => (
     <>
-      {(i === 0 || dayOf(fx) !== dayOf(fixtures[i - 1])) && <DateHeading date={formatDate(fx.kickoff_datetime, lang)} />}
+      {(i === 0 || dayOf(fx) !== dayOf(fixtures[i - 1])) && <DateHeading date={formatDate(clockOf(fx), lang)} />}
       <MatchRow fx={asMatchRowFixture(fx, team)} competitionSlug={info.slug} lang={lang} nextMatch={fx.fixture_id === nextId} />
     </>
   ))}

@@ -1,0 +1,2276 @@
+diff --git a/.claude/task/146-venue-timezone/contract.md b/.claude/task/146-venue-timezone/contract.md
+new file mode 100644
+index 00000000..bc0498db
+--- /dev/null
++++ b/.claude/task/146-venue-timezone/contract.md
+@@ -0,0 +1,147 @@
++# Task contract — kick-off in the venue's clock
++
++objective: >
++  Issue #146: the warehouse knows where a match is played in time. A venue has an IANA time zone
++  (`dim_venue`), a country has a default zone (`dim_country`), `dim_timezone` lists the valid zones
++  and the labels they print, and `fct_fixture` serves `kickoff_local` and `kickoff_zone_label` for
++  every fixture. The marts that list matches carry both columns, the export ships them, and the
++  site's one match row prints them with the date heading of the local day. The site converts nothing.
++
++refs: >
++  #146 (shape agreed with the CPO, 2026-09-14, in the issue's comment); #129, #127, #130, #134
++  (the pages whose rows change); main 2d37dc8b; the coordinator's request of 2026-11-20.
++
++scope_paths:
++  - .claude/task/146-venue-timezone/
++  - dbt_project/seeds/country_time_zones.csv
++  - dbt_project/seeds/time_zones.csv
++  - dbt_project/seeds/venue_time_zones.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/macros/kickoff_zone_label.sql
++  - dbt_project/models/2_base/api_football/base_apif__venues.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/docs/layering.md
++  - docs/wireframes/00_overview.md
++  - docs/wireframes/10_home.md
++  - dbt_project/models/3_core/dim_venue.sql
++  - dbt_project/models/3_core/dim_timezone.sql
++  - dbt_project/models/3_core/dim_country.sql
++  - dbt_project/models/3_core/fct_fixture.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/5_marts/shared/mart_next_matchday.sql
++  - dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
++  - dbt_project/models/5_marts/shared/mart_team_fixtures.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/tests/*.sql
++  - scripts/export_site_data.py
++  - tests/test_export_landing.py
++  - tests/test_export_matches.py
++  - tests/test_export_site_data.py
++  - tests/test_kickoff_clock_146.py
++  - tests/test_no_decision_history_in_code.py
++  - tests/test_sentence_length_in_docs.py
++  - site_v2/src/lib/types.ts
++  - site_v2/src/lib/teamFixtures.ts
++  - site_v2/src/data/competitions/BL1/2026.json
++  - tests/test_export_pages_data.py
++  - site_v2/src/lib/format.ts
++  - site_v2/src/lib/format.test.mjs
++  - site_v2/src/components/ui/MatchRow.astro
++  - site_v2/src/components/home/HeroFixtures.astro
++  - site_v2/src/components/competition/MatchdaySchedule.astro
++  - site_v2/src/components/matches/MatchesDay.astro
++  - site_v2/src/components/team/TeamFixtureGroup.astro
++  - site_v2/src/components/fixture/NextMatches.astro
++
++impact_map: >
++  writers: dim_country is written by the `countries` and `country_time_zones` seeds; dim_timezone by
++  the `time_zones` seed; base_apif__venues (new) by base_apif__fixtures_next, base_apif__teams_global
++  and base_apif__league_entity; dim_venue (new) by base_apif__venues and two seeds; fct_fixture by
++  base_apif__fixtures_next only, and now also reads dim_venue, dim_league, dim_country and
++  dim_timezone. downstream, measured 2026-11-21 with `dbt ls --select fct_fixture+ --resource-type
++  model`: 73 lines, among them the marts mart_competition_fixtures, mart_competition_index,
++  mart_competition_research_list, mart_competition_season_summary, mart_fixture_standing_context,
++  mart_head_to_head, mart_leaderboards, mart_match_days, mart_matchday_insights, mart_next_matchday,
++  mart_player_career, mart_player_competition_benchmarks, mart_player_fixture_stats, mart_player_index,
++  mart_player_momentum, mart_player_profile, mart_player_season_record, mart_player_squad_benchmarks,
++  mart_player_window_metrics, mart_standings, mart_team_competition_benchmarks, mart_team_competitions,
++  mart_team_fixtures, mart_team_index, mart_team_leaderboards, mart_team_momentum_window,
++  mart_team_page_window_metrics, mart_team_profile, mart_team_season, mart_team_season_insights,
++  mart_team_season_record, mart_team_window_metrics, and the intermediate models between. `dbt ls
++  --select countries+` (before this change) listed dim_country, mart_player_index and
++  mart_team_index. RAW count: fct_fixture has 65,205 rows and 0 NULL kickoff_datetime; the change
++  adds three columns and changes no existing column. layer_rules: check_layer_contract.py (core reads
++  base, seeds and other core models; marts read core; a core model reads no mart); the venue's
++  country is resolved across `/fixtures`, `/teams` and `/leagues` in 2_base, as layering.md's
++  cross-source entity rule requires; no per-competition file; no `partition_by`/`cluster_by`; descriptions
++  stay under the BigQuery limits (check_description_hygiene.py). The registry
++  docs/competition_registry.yml is not touched: the fallback for a fixture without a venue is
++  `dim_league.league_country` -> `dim_country.time_zone`. deploy_order: seeds and models deploy in
++  one nightly build; fct_fixture rebuilds after dim_venue (dbt orders it by ref), and a failing
++  `not_null` on a venue zone stops the build before the marts. blast_radius: every row of
++  fct_fixture gains `kickoff_time_zone`, `kickoff_local`, `kickoff_zone_label`; the match row on Home,
++  competition, team and match-page lists prints the venue's clock instead of UTC. The Matches
++  page is not changed: its day is the UTC date (mart_match_days.match_day, the key of the day-page
++  URL), so its rows keep the UTC clock and a day heading and a row clock never name two dates;
++  mart_match_days is untouched. The order of a round's rows (mart_competition_fixtures.fixture_order)
++  follows the printed clock, so the day headings never run out of date order; the Matches page
++  orders its rows by day_row_order, which is unchanged.
++
++acceptance_criteria:
++  - Every upcoming fixture row the site renders carries a served local kick-off time and a served zone label (`kickoff_local`, `kickoff_zone_label`), computed in the warehouse from the fixture's venue; the site prints them and converts nothing.
++  - A venue has a time zone: a warehouse table of venues (2,492 distinct venue ids on `stg_apif__fixtures_next` today) with an IANA zone derived from the venue's city and country, tested not-null for every venue a fixture references.
++  - A fixture with no venue (18,238 of 64,552 today — qualifiers and cups mostly) falls back to its competition's zone from the registry, and the row still shows a zone label; a fixture with neither shows UTC and says so.
++  - `mart_next_matchday` (and the fixture-page payload) serve the two columns; Home and the competition page render them; the date heading per day uses the local date.
++
++approved_design:
++  - home: #127
++  - competition: #129
++  - matches: #130
++  - match: #132
++  - team: #134
++
++depends_on:
++  - none: main 2d37dc8b holds every model this change reads; no open MR changes fct_fixture
++
++shared_files:
++  - none: no design baseline, chart manifest or chart pin is edited by hand; a baseline the local CI run reports as drifted is regenerated, never hand-merged
++
++decisions_taken: >
++  The shape agreed with the CPO on 2026-09-14 (issue #146, comment): `dim_venue`, a default zone per
++  country (the `country_time_zones` seed, published on `dim_country`), a seed of venue-level overrides for the countries that span zones, `dim_timezone`
++  to refuse a typo, `fct_fixture` serving `kickoff_local` and `kickoff_zone_label`. Facts measured
++  on 2026-11-20 that shaped the build: (1) BigQuery prints a zone as `UTC+2`, never as `CEST`, so
++  `dim_timezone` also carries the conventional abbreviation for standard and daylight time where one
++  exists, and a zone without one prints `UTC+N` from BigQuery itself; daylight time is read from the
++  zone's offset at the kick-off against its lowest offset of that year. (2) The fixtures do not carry
++  a venue country: a venue's country is the `league_country` of the competitions its
++  fixtures belong to, else the `dim_team.team_country` of a team whose home ground it is, else the
++  country most home teams of its fixtures belong to; the order is the one with the fewest wrong
++  venues in the measured 2,545 (the venues where the orders differ are listed in the seed). (3)
++  The overrides are keyed by venue id, because a city name is ambiguous (Saint-Denis is a Paris
++  suburb and a town in Reunion). (4) A country that spans zones has no default zone, so its venues
++  without an override fail the not-null test instead of taking a wrong zone. (5) The competition
++  fallback reads `dim_league.league_country`, not a registry field: the registry is ingest
++  configuration. The label of a fixture with no zone is `UTC`. No new dependency, no recurring cost.
++  (6) The venue's country is resolved in `base_apif__venues`, not in core: layering.md's "Entity
++  requiring cross-source resolution" rule names the venue across `/teams` and `/fixtures` as base
++  work. (7) Docs follow the code in the same branch: layering.md's dimension inventory,
++  00_overview.md's timezone convention and 10_home.md's kick-off row state the served clock; none
++  is a core document of §10. (8) The Matches page stays on the UTC day and the UTC clock, as the
++  issue's text defers it ("the Matches page will too"): `MatchesDay.astro` strips the two served
++  columns from its rows. (9) `fixture_order` follows `kickoff_local` so that a list printed under
++  local-date headings is in heading order; it changes the order of rows only where one competition's
++  fixtures sit in different zones.
++
++decisions_reserved:
++  - The label wording for a zone with no conventional abbreviation (built as `UTC+N`, for example `UTC+3` in Riyadh): user-visible wording, for the CPO to confirm or replace in the same MR.
++  - The match page's Masthead prints `time UTC` still; its design (#132) is not changed by this task.
++  - Whether a Matches day page is keyed on the venue's local date instead of the UTC date, which changes the date of `/{locale}/matches/{yyyy-mm-dd}/`, the day pages' row sets and their links (path A, as built: the Matches page stays on UTC; path B: `mart_match_days.match_day` becomes `date(kickoff_local)` and the page prints the venue clock). Recommendation: path B once the CPO confirms the URL date, because a reader sees one clock sitewide; until then path A leaves no page contradicting itself.
++
++done_when:
++  - dbt parse passes and dbt ls --select dim_venue+ lists fct_fixture's readers.
++  - python scripts/check_layer_contract.py and scripts/check_description_hygiene.py pass.
++  - python -m pytest tests/test_kickoff_clock_146.py tests/test_export_landing.py tests/test_export_matches.py tests/test_export_site_data.py passes.
++  - node --test site_v2/src/lib/format.test.mjs passes.
++  - python scripts/ci_local.py --mr is green and the MR pipeline is green.
++  - python scripts/merge_ready.py <iid> says ready.
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index 24b4cce9..5522ba21 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -228,6 +228,8 @@ Canonical dimension inventory for this project:
+ |-----|-------|----------------------|-------|
+ | `dim_date` | day | generated via `dbt_utils.date_spine` | Global; not league-scoped. |
+ | `dim_league` | league_api_id | `base_apif__league_entity`, with the `competition_registry` and `competition_types` seeds | One row per configured league; surrogate key is the API integer directly. |
++| `dim_venue` | venue_api_id | `base_apif__venues`, with the `venue_time_zones` seed and `dim_country` | One row per venue a fixture names. Carries the IANA time zone the venue's kick-offs are played in: the seed row, else its country's default. The country is resolved in base. |
++| `dim_timezone` | time_zone | the `time_zones` seed | The zones a country or venue may name, with the abbreviation BigQuery cannot print (CET, CEST). Stores no offsets. |
+ | `dim_competition_season` | (league_api_id, season_api_year) | `base_apif__competition_seasons` | Carries API coverage flags that drive downstream conditional logic. |
+ | `dim_team` | team_api_id | `base_apif__teams_global` | Pure global entity (identity only); surrogate key is the API integer directly. Carries no competition/season affiliation — membership lives in `dim_team_competition_season_mapping`, per-match facts in `fct_fixture`. |
+ | `dim_player` | player_api_id | `base_apif__players` | Pure global entity (identity only); surrogate key is the API integer directly. Not league-scoped and carries no team/season affiliation — roster membership lives in `dim_player_team_season_mapping`, appearances in the facts. |
+diff --git a/dbt_project/macros/kickoff_zone_label.sql b/dbt_project/macros/kickoff_zone_label.sql
+new file mode 100644
+index 00000000..53ca8fab
+--- /dev/null
++++ b/dbt_project/macros/kickoff_zone_label.sql
+@@ -0,0 +1,21 @@
++{#
++  The label a kick-off prints beside its local time. BigQuery names a zone only by its offset
++  (`UTC+2`), never `CEST`, so dim_timezone carries the conventional abbreviation for standard and
++  daylight time where one exists. Daylight time is the offset at the kick-off being above the
++  zone's lowest offset of that calendar year; a zone with no conventional abbreviation prints
++  BigQuery's own `UTC+N`.
++
++  The three offsets are columns the caller computes with utc_offset_minutes, so each stays a short
++  expression the SQL linter can parse.
++#}
++{%- macro utc_offset_minutes(ts, zone) -%}
++datetime_diff(datetime({{ ts }}, {{ zone }}), datetime({{ ts }}), minute)
++{%- endmacro %}
++
++{%- macro kickoff_zone_label(offset_now, offset_jan, offset_jul, ts, zone, label_standard, label_daylight) -%}
++case
++    when {{ offset_now }} > least({{ offset_jan }}, {{ offset_jul }})
++        then coalesce({{ label_daylight }}, format_timestamp('%Z', {{ ts }}, {{ zone }}))
++    else coalesce({{ label_standard }}, format_timestamp('%Z', {{ ts }}, {{ zone }}))
++end
++{%- endmacro %}
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 5240f5db..2a0d77b3 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -127,6 +127,28 @@ models:
+         description: "{{ doc('league_code') }}"
+         tests: [not_null]
+ 
++  - name: base_apif__venues
++    description: >
++      One row per provider venue that a fixture names, with the country it lies in. Entity
++      resolution for dim_venue. Grain: venue_api_id.
++
++      The fixtures carry a venue id, name and city but no country. The country is taken from the
++      competitions the venue's fixtures belong to, else from a team whose home ground the venue
++      is, else from the country most of its home teams belong to. It is NULL when no source names
++      one.
++    config:
++      tags: ["base", "api_football", "venue_context"]
++    columns:
++      - name: venue_api_id
++        description: "The provider's venue id, as the fixtures carry it."
++        tests: [not_null, unique]
++      - name: venue_name
++        description: "The venue's name as its latest fixture row spells it."
++      - name: venue_city
++        description: "The venue's city as its latest fixture row spells it."
++      - name: country_name
++        description: "The country the venue lies in, as named in `dim_country`; NULL when no competition, team ground or home team names one."
++
+   - name: base_apif__competition_seasons
+     description: >
+       One row per competition-season, collapsing the same season seen under more than one
+diff --git a/dbt_project/models/2_base/api_football/base_apif__venues.sql b/dbt_project/models/2_base/api_football/base_apif__venues.sql
+new file mode 100644
+index 00000000..632a6cad
+--- /dev/null
++++ b/dbt_project/models/2_base/api_football/base_apif__venues.sql
+@@ -0,0 +1,97 @@
++-- One row per provider venue that a fixture names, with the country it lies in.
++-- Entity resolution for dim_venue: the fixtures give a venue id, name and city but no country,
++-- and the country comes from the other sources, in this order: the country of the competitions
++-- its fixtures belong to, the country of a team whose home ground the venue is, the country most
++-- of its home teams belong to. Grain: venue_api_id.
++
++with import_fixtures as (
++    select * from {{ ref('base_apif__fixtures_next') }}
++),
++
++import_teams as (
++    select * from {{ ref('base_apif__teams_global') }}
++),
++
++import_leagues as (
++    select * from {{ ref('base_apif__league_entity') }}
++),
++
++fixture_venues as (
++    select
++        venue_id as venue_api_id,
++        venue_name,
++        venue_city,
++        league_code,
++        cast(home_team_id as int64) as home_team_id,
++        raw_ingested_at
++    from import_fixtures
++    where venue_id is not null
++),
++
++latest_label as (
++    select
++        venue_api_id,
++        venue_name,
++        venue_city
++    from fixture_venues
++    qualify row_number() over (
++        partition by venue_api_id
++        order by raw_ingested_at desc, venue_name asc, venue_city asc
++    ) = 1
++),
++
++competition_country as (
++    select
++        fixture_venues.venue_api_id,
++        import_leagues.league_country as country_name
++    from fixture_venues
++    inner join import_leagues
++        on fixture_venues.league_code = import_leagues.league_code
++    where import_leagues.league_country is not null
++    group by fixture_venues.venue_api_id, import_leagues.league_country
++    qualify row_number() over (
++        partition by fixture_venues.venue_api_id
++        order by count(*) desc, import_leagues.league_country asc
++    ) = 1
++),
++
++ground_country as (
++    select
++        venue_api_id,
++        min(team_country) as country_name
++    from import_teams
++    where venue_api_id is not null and team_country is not null
++    group by venue_api_id
++),
++
++home_team_country as (
++    select
++        fixture_venues.venue_api_id,
++        import_teams.team_country as country_name
++    from fixture_venues
++    inner join import_teams
++        on fixture_venues.home_team_id = cast(import_teams.team_api_id as int64)
++    where import_teams.team_country is not null
++    group by fixture_venues.venue_api_id, import_teams.team_country
++    qualify row_number() over (
++        partition by fixture_venues.venue_api_id
++        order by count(*) desc, import_teams.team_country asc
++    ) = 1
++)
++
++select
++    latest_label.venue_api_id,
++    latest_label.venue_name,
++    latest_label.venue_city,
++    coalesce(
++        competition_country.country_name,
++        ground_country.country_name,
++        home_team_country.country_name
++    ) as country_name
++from latest_label
++left join competition_country
++    on latest_label.venue_api_id = competition_country.venue_api_id
++left join ground_country
++    on latest_label.venue_api_id = ground_country.venue_api_id
++left join home_team_country
++    on latest_label.venue_api_id = home_team_country.venue_api_id
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index bb35fbad..69ac1c8b 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -91,6 +91,79 @@ models:
+               field: confederation
+           - dbt_utils.expression_is_true:
+               expression: "!= 'FIFA'"
++      - name: time_zone
++        description: >
++          The IANA zone most of the country's venues play in, from the country_time_zones seed.
++          NULL for a country whose venues sit in several zones with no dominant one: each of its
++          venues is then named in the venue_time_zones seed.
++        tests:
++          - relationships:
++              to: ref('dim_timezone')
++              field: time_zone
++
++  - name: dim_timezone
++    description: >
++      The IANA time zones a country or a venue may name, published from the `time_zones` seed.
++      Grain: time_zone.
++
++      It stores no offsets and no daylight-saving dates: BigQuery computes the local time of a
++      kick-off. It carries only the abbreviation BigQuery cannot print, such as CET and CEST.
++    meta:
++      owner: "data-platform"
++      domain: "football"
++      criticality: "medium"
++    config:
++      tags: ["core", "dimension"]
++    columns:
++      - name: time_zone
++        description: "The IANA zone name, as BigQuery accepts it in `DATETIME(timestamp, zone)`."
++        tests: [not_null, unique]
++      - name: label_standard
++        description: "The abbreviation printed in the zone's standard time, such as CET; NULL when none is conventional, and BigQuery's `UTC+N` is printed instead."
++      - name: label_daylight
++        description: "The abbreviation printed in the zone's daylight time, such as CEST; NULL when the zone has no daylight time or no conventional abbreviation."
++
++  - name: dim_venue
++    description: >
++      One row per provider venue that a fixture names, with the IANA time zone its kick-offs are
++      played in. Grain: venue_api_id.
++
++      The fixtures carry no venue country. It is taken from the competitions its fixtures belong
++      to, else from a team whose home ground the venue is, else from the country most of its home
++      teams belong to.
++      The zone is the venue's row in the `venue_time_zones` seed, else its country's default. A
++      venue of a country that spans zones, with no seed row, has no zone and fails the not_null
++      test: a wrong zone is never guessed.
++    meta:
++      owner: "data-platform"
++      domain: "football"
++      criticality: "high"
++    config:
++      tags: ["core", "dimension"]
++    columns:
++      - name: venue_sk
++        description: "The provider's venue id cast to INT64."
++        tests: [not_null, unique]
++      - name: venue_api_id
++        description: "The provider's venue id, as `fct_fixture.venue_api_id` carries it."
++        tests: [not_null, unique]
++      - name: venue_name
++        description: "The venue's name as its latest fixture row spells it."
++      - name: venue_city
++        description: "The venue's city as its latest fixture row spells it."
++      - name: venue_country
++        description: "The country the venue lies in, as named in `dim_country`; NULL when no team, competition or home team names one."
++        tests:
++          - relationships:
++              to: ref('dim_country')
++              field: country_name
++      - name: time_zone
++        description: "The IANA zone the venue's kick-offs are played in."
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_timezone')
++              field: time_zone
+ 
+   - name: dim_region
+     description: >
+@@ -648,6 +721,23 @@ models:
+         tests: [not_null]
+       - name: kickoff_datetime
+         description: "{{ doc('kickoff_datetime') }}"
++      - name: kickoff_time_zone
++        description: >
++          The IANA zone of the kick-off's clock: the venue's zone, else the zone of the
++          competition's country, else UTC.
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_timezone')
++              field: time_zone
++      - name: kickoff_local
++        description: "The kick-off on the clock of kickoff_time_zone, as a date and time with no offset."
++        tests: [not_null]
++      - name: kickoff_zone_label
++        description: >
++          The zone's abbreviation on the kick-off's date (CET in winter, CEST in summer), or
++          `UTC+N` where the zone has no conventional abbreviation, or `UTC`.
++        tests: [not_null]
+       - name: kickoff_timezone
+         description: "Kickoff timezone string as delivered by the API."
+       - name: status_short
+@@ -708,6 +798,10 @@ models:
+         description: "The away goals at the final whistle or at the abandonment of a played or abandoned match that was awarded afterwards; NULL otherwise. goals_away is then the awarded score."
+       - name: venue_api_id
+         description: "API-Football venue id."
++        tests:
++          - relationships:
++              to: ref('dim_venue')
++              field: venue_api_id
+       - name: venue_name_snapshot
+         description: "Venue name at the time the fixture was ingested."
+       - name: venue_city_snapshot
+diff --git a/dbt_project/models/3_core/dim_country.sql b/dbt_project/models/3_core/dim_country.sql
+index 817008a7..7c4bf3d5 100644
+--- a/dbt_project/models/3_core/dim_country.sql
++++ b/dbt_project/models/3_core/dim_country.sql
+@@ -23,14 +23,25 @@
+     mart_competition_index.region_label, which relationship (this dim, or dim_region) is populated
+     for a competition IS the answer to whether its sub-line shows a country or a region (#62 step 3).
+     mart_team_index reads confederation: a team's region is its country's confederation.
++
++    time_zone is the country's default IANA zone from the country_time_zones seed, empty for a
++    country whose venues sit in several zones: dim_venue then takes each venue's zone from
++    venue_time_zones.
+ #}
+ 
+ with import_countries as (
+     select * from {{ ref('countries') }}
++),
++
++import_country_time_zones as (
++    select * from {{ ref('country_time_zones') }}
+ )
+ 
+ select
+-    country_key,
+-    country_name,
+-    confederation
++    import_countries.country_key,
++    import_countries.country_name,
++    import_countries.confederation,
++    import_country_time_zones.time_zone
+ from import_countries
++left join import_country_time_zones
++    on import_countries.country_key = import_country_time_zones.country_key
+diff --git a/dbt_project/models/3_core/dim_timezone.sql b/dbt_project/models/3_core/dim_timezone.sql
+new file mode 100644
+index 00000000..9a1392ac
+--- /dev/null
++++ b/dbt_project/models/3_core/dim_timezone.sql
+@@ -0,0 +1,19 @@
++{#
++    The time zones a country or a venue may name, published from the time_zones seed. A
++    relationships test to this dim refuses a misspelt zone. Offsets and daylight-saving dates are
++    stored nowhere: BigQuery computes the local time per kick-off date, and only the abbreviation
++    it cannot print (CET, CEST) is carried, as label_standard and label_daylight. Grain: time_zone.
++
++    READ by dim_country.time_zone, dim_venue.time_zone and fct_fixture.kickoff_time_zone, each a
++    `relationships` test to time_zone.
++#}
++
++with import_time_zones as (
++    select * from {{ ref('time_zones') }}
++)
++
++select
++    time_zone,
++    label_standard,
++    label_daylight
++from import_time_zones
+diff --git a/dbt_project/models/3_core/dim_venue.sql b/dbt_project/models/3_core/dim_venue.sql
+new file mode 100644
+index 00000000..a417f702
+--- /dev/null
++++ b/dbt_project/models/3_core/dim_venue.sql
+@@ -0,0 +1,34 @@
++{#
++    One row per provider venue that a fixture names, with the IANA time zone its kick-offs are
++    played in. Grain: venue_api_id.
++
++    The country is resolved in base_apif__venues. The zone is the venue's row in the
++    venue_time_zones seed, else its country's default in dim_country. A country that spans zones
++    has no default, so a venue of such a country without a seed row has no zone and fails the
++    not_null test: a wrong zone is never guessed.
++#}
++
++with import_venues as (
++    select * from {{ ref('base_apif__venues') }}
++),
++
++import_dim_country as (
++    select * from {{ ref('dim_country') }}
++),
++
++import_venue_time_zones as (
++    select * from {{ ref('venue_time_zones') }}
++)
++
++select
++    cast(import_venues.venue_api_id as int64) as venue_sk,
++    import_venues.venue_api_id,
++    import_venues.venue_name,
++    import_venues.venue_city,
++    import_venues.country_name as venue_country,
++    coalesce(import_venue_time_zones.time_zone, import_dim_country.time_zone) as time_zone
++from import_venues
++left join import_venue_time_zones
++    on import_venues.venue_api_id = import_venue_time_zones.venue_api_id
++left join import_dim_country
++    on import_venues.country_name = import_dim_country.country_name
+diff --git a/dbt_project/models/3_core/fct_fixture.sql b/dbt_project/models/3_core/fct_fixture.sql
+index 2c326065..4d2acb76 100644
+--- a/dbt_project/models/3_core/fct_fixture.sql
++++ b/dbt_project/models/3_core/fct_fixture.sql
+@@ -1,5 +1,87 @@
+ with import_base_apif__fixtures_next as (
+     select * from {{ ref('base_apif__fixtures_next') }}
++),
++
++import_dim_venue as (
++    select * from {{ ref('dim_venue') }}
++),
++
++import_dim_league as (
++    select * from {{ ref('dim_league') }}
++),
++
++import_dim_country as (
++    select * from {{ ref('dim_country') }}
++),
++
++import_dim_timezone as (
++    select * from {{ ref('dim_timezone') }}
++),
++
++-- The venue's zone, else the competition country's, else UTC: every fixture has a zone.
++fixture_zone as (
++    select
++        fixtures.fixture_id,
++        fixtures.kickoff_datetime,
++        coalesce(import_dim_venue.time_zone, import_dim_country.time_zone, 'UTC') as kickoff_time_zone
++    from import_base_apif__fixtures_next as fixtures
++    left join import_dim_venue
++        on fixtures.venue_id = import_dim_venue.venue_api_id
++    left join import_dim_league
++        on fixtures.league_code = import_dim_league.league_code
++    left join import_dim_country
++        on import_dim_league.league_country = import_dim_country.country_name
++),
++
++fixture_year as (
++    select
++        fixture_id,
++        kickoff_datetime,
++        kickoff_time_zone,
++        timestamp(date_trunc(date(kickoff_datetime), year)) as year_start,
++        timestamp(date_add(date_trunc(date(kickoff_datetime), year), interval 6 month)) as year_middle
++    from fixture_zone
++),
++
++fixture_offsets as (
++    select
++        fixture_id,
++        kickoff_datetime,
++        kickoff_time_zone,
++        {{ utc_offset_minutes('kickoff_datetime', 'kickoff_time_zone') }} as offset_now,
++        {{ utc_offset_minutes('year_start', 'kickoff_time_zone') }} as offset_january,
++        {{ utc_offset_minutes('year_middle', 'kickoff_time_zone') }} as offset_july
++    from fixture_year
++),
++
++fixture_clock as (
++    select
++        fixture_offsets.fixture_id,
++        fixture_offsets.kickoff_time_zone,
++        datetime(fixture_offsets.kickoff_datetime, fixture_offsets.kickoff_time_zone) as kickoff_local,
++        {{ kickoff_zone_label(
++            'fixture_offsets.offset_now',
++            'fixture_offsets.offset_january',
++            'fixture_offsets.offset_july',
++            'fixture_offsets.kickoff_datetime',
++            'fixture_offsets.kickoff_time_zone',
++            'import_dim_timezone.label_standard',
++            'import_dim_timezone.label_daylight'
++        ) }} as kickoff_zone_label
++    from fixture_offsets
++    left join import_dim_timezone
++        on fixture_offsets.kickoff_time_zone = import_dim_timezone.time_zone
++),
++
++fixtures as (
++    select
++        import_base_apif__fixtures_next.*,
++        fixture_clock.kickoff_time_zone,
++        fixture_clock.kickoff_local,
++        fixture_clock.kickoff_zone_label
++    from import_base_apif__fixtures_next
++    left join fixture_clock
++        on import_base_apif__fixtures_next.fixture_id = fixture_clock.fixture_id
+ )
+ 
+ select
+@@ -16,6 +98,9 @@ select
+     away_team_id as away_team_api_id,
+     fixture_date,
+     kickoff_datetime,
++    kickoff_time_zone,
++    kickoff_local,
++    kickoff_zone_label,
+     kickoff_timezone,
+     status_short,
+     status_long,
+@@ -35,4 +120,4 @@ select
+     venue_name as venue_name_snapshot,
+     venue_city as venue_city_snapshot,
+     raw_ingested_at
+-from import_base_apif__fixtures_next
++from fixtures
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql b/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
+index a317e916..8f4356c9 100644
+--- a/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
++++ b/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
+@@ -16,7 +16,8 @@
+   round that mart serves for the competition is flagged, played or not, so this table and the Home
+   page can never name different next matchdays. is_match_that_matters is that mart's flag carried
+   over, false on every other row. fixture_order is the reading order of a competition-season's
+-  rows, rounds in sequence and each round by kick-off, so nothing downstream sorts.
++  rows, rounds in sequence and each round by kick-off on the venue's clock, so nothing downstream
++  sorts and a day's heading never runs out of date order.
+ 
+   is_last_round is the round just played: in the season of the competition's next matchday (its
+   current season), the latest round by round_sequence with a played fixture, and only that round's
+@@ -59,6 +60,8 @@ with fixtures as (
+         season_api_year,
+         round_name,
+         kickoff_datetime,
++        kickoff_local,
++        kickoff_zone_label,
+         fixture_date,
+         status_short,
+         goals_home,
+@@ -473,6 +476,8 @@ select
+     rn.round_letter,
+     r.round_sequence,
+     f.kickoff_datetime,
++    f.kickoff_local,
++    f.kickoff_zone_label,
+     f.fixture_date,
+     f.status_short,
+     f.goals_home,
+@@ -532,7 +537,7 @@ select
+     end as lineup_state,
+     row_number() over (
+         partition by f.league_code, f.season_api_year
+-        order by r.round_sequence asc, f.kickoff_datetime asc, f.fixture_sk asc
++        order by r.round_sequence asc, f.kickoff_local asc, f.kickoff_datetime asc, f.fixture_sk asc
+     ) as fixture_order
+ from fixtures as f
+ inner join rounds as r
+diff --git a/dbt_project/models/5_marts/shared/mart_next_matchday.sql b/dbt_project/models/5_marts/shared/mart_next_matchday.sql
+index b9cb01cc..fe481385 100644
+--- a/dbt_project/models/5_marts/shared/mart_next_matchday.sql
++++ b/dbt_project/models/5_marts/shared/mart_next_matchday.sql
+@@ -29,6 +29,9 @@
+   flag. Chosen here, not in the export: which match matters is a ranking, and rankings live in
+   the warehouse.
+ 
++  kickoff_local and kickoff_zone_label are the kick-off on its venue's clock and the label printed
++  beside it, as fct_fixture serves them; the page prints both and converts nothing.
++
+   Grain: fixture_sk.
+ #}
+ 
+@@ -39,6 +42,8 @@ with upcoming as (
+         season_api_year,
+         round_name,
+         kickoff_datetime,
++        kickoff_local,
++        kickoff_zone_label,
+         fixture_date,
+         status_short,
+         home_team_sk,
+@@ -70,6 +75,8 @@ next_matchday as (
+         u.season_api_year,
+         u.round_name,
+         u.kickoff_datetime,
++        u.kickoff_local,
++        u.kickoff_zone_label,
+         u.fixture_date,
+         u.status_short,
+         u.home_team_sk,
+@@ -141,6 +148,8 @@ ranked as (
+         rn.round_number,
+         rn.round_letter,
+         m.kickoff_datetime,
++        m.kickoff_local,
++        m.kickoff_zone_label,
+         m.fixture_date,
+         m.status_short,
+         m.home_team_sk,
+@@ -176,6 +185,8 @@ select
+     round_number,
+     round_letter,
+     kickoff_datetime,
++    kickoff_local,
++    kickoff_zone_label,
+     fixture_date,
+     status_short,
+     home_team_sk,
+diff --git a/dbt_project/models/5_marts/shared/mart_team_fixtures.sql b/dbt_project/models/5_marts/shared/mart_team_fixtures.sql
+index ca9ec13a..ea59279f 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_fixtures.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_fixtures.sql
+@@ -29,6 +29,8 @@ with fixtures as (
+         league_code,
+         season_api_year,
+         kickoff_datetime,
++        kickoff_local,
++        kickoff_zone_label,
+         round_name,
+         status_short,
+         home_team_sk,
+@@ -61,6 +63,8 @@ sides as (
+         league_code,
+         season_api_year,
+         kickoff_datetime,
++        kickoff_local,
++        kickoff_zone_label,
+         round_name,
+         status_short,
+         home_team_sk as team_sk,
+@@ -73,6 +77,8 @@ sides as (
+         league_code,
+         season_api_year,
+         kickoff_datetime,
++        kickoff_local,
++        kickoff_zone_label,
+         round_name,
+         status_short,
+         away_team_sk as team_sk,
+@@ -88,6 +94,8 @@ joined as (
+         s.league_code,
+         s.season_api_year,
+         s.kickoff_datetime,
++        s.kickoff_local,
++        s.kickoff_zone_label,
+         s.round_name,
+         s.status_short,
+         s.is_home,
+@@ -119,6 +127,8 @@ select
+     league_code,
+     season_api_year,
+     kickoff_datetime,
++    kickoff_local,
++    kickoff_zone_label,
+     round_name,
+     status_short,
+     is_home,
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 60769587..1d9b89b0 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -2587,6 +2587,12 @@ models:
+         description: "The group letter the round's name shows; NULL when it shows none."
+       - name: kickoff_datetime
+         description: "{{ doc('kickoff_datetime') }}"
++      - name: kickoff_local
++        description: "The kick-off on the clock of the venue's time zone, as a date and time with no offset; the zone of the competition's country when the fixture has no venue, UTC when neither has a zone."
++        tests: [not_null]
++      - name: kickoff_zone_label
++        description: "The label printed beside kickoff_local: the zone's abbreviation on that date (CET in winter, CEST in summer), `UTC+N` where the zone has none, `UTC` for a fixture with no zone."
++        tests: [not_null]
+       - name: fixture_date
+         description: "{{ doc('fixture_date') }}"
+         tests: [not_null]
+@@ -2712,6 +2718,12 @@ models:
+       - name: kickoff_datetime
+         description: "{{ doc('kickoff_datetime') }}"
+         tests: [not_null]
++      - name: kickoff_local
++        description: "The kick-off on the clock of the venue's time zone, as a date and time with no offset; the zone of the competition's country when the fixture has no venue, UTC when neither has a zone."
++        tests: [not_null]
++      - name: kickoff_zone_label
++        description: "The label printed beside kickoff_local: the zone's abbreviation on that date (CET in winter, CEST in summer), `UTC+N` where the zone has none, `UTC` for a fixture with no zone."
++        tests: [not_null]
+       - name: fixture_date
+         description: "{{ doc('fixture_date') }}"
+         tests: [not_null]
+@@ -3006,6 +3018,12 @@ models:
+         description: "{{ doc('season_api_year') }}"
+       - name: kickoff_datetime
+         description: "{{ doc('kickoff_datetime') }}"
++      - name: kickoff_local
++        description: "The kick-off on the clock of the venue's time zone, as a date and time with no offset; the zone of the competition's country when the fixture has no venue, UTC when neither has a zone."
++        tests: [not_null]
++      - name: kickoff_zone_label
++        description: "The label printed beside kickoff_local: the zone's abbreviation on that date (CET in winter, CEST in summer), `UTC+N` where the zone has none, `UTC` for a fixture with no zone."
++        tests: [not_null]
+       - name: round_name
+         description: "{{ doc('round_name') }}"
+       - name: status_short
+diff --git a/dbt_project/seeds/country_time_zones.csv b/dbt_project/seeds/country_time_zones.csv
+new file mode 100644
+index 00000000..e785c25d
+--- /dev/null
++++ b/dbt_project/seeds/country_time_zones.csv
+@@ -0,0 +1,230 @@
++country_key,time_zone
++afghanistan,Asia/Kabul
++albania,Europe/Tirane
++algeria,Africa/Algiers
++american-samoa,Pacific/Pago_Pago
++andorra,Europe/Andorra
++angola,Africa/Luanda
++anguilla,America/Anguilla
++antigua-and-barbuda,America/Antigua
++argentina,America/Argentina/Buenos_Aires
++armenia,Asia/Yerevan
++aruba,America/Aruba
++australia,
++austria,Europe/Vienna
++azerbaijan,Asia/Baku
++bahamas,America/Nassau
++bahrain,Asia/Bahrain
++bangladesh,Asia/Dhaka
++barbados,America/Barbados
++belarus,Europe/Minsk
++belgium,Europe/Brussels
++belize,America/Belize
++benin,Africa/Porto-Novo
++bermuda,Atlantic/Bermuda
++bhutan,Asia/Thimphu
++bolivia,America/La_Paz
++bonaire,America/Kralendijk
++bosnia-and-herzegovina,Europe/Sarajevo
++botswana,Africa/Gaborone
++brazil,
++british-virgin-islands,America/Tortola
++brunei,Asia/Brunei
++bulgaria,Europe/Sofia
++burkina-faso,Africa/Ouagadougou
++burundi,Africa/Bujumbura
++cambodia,Asia/Phnom_Penh
++cameroon,Africa/Douala
++canada,
++cape-verde,Atlantic/Cape_Verde
++cayman-islands,America/Cayman
++central-african-republic,Africa/Bangui
++chad,Africa/Ndjamena
++chile,America/Santiago
++china,Asia/Shanghai
++chinese-taipei,Asia/Taipei
++colombia,America/Bogota
++comoros,Indian/Comoro
++congo,Africa/Brazzaville
++cook-islands,Pacific/Rarotonga
++costa-rica,America/Costa_Rica
++croatia,Europe/Zagreb
++cuba,America/Havana
++curacao,America/Curacao
++cyprus,Asia/Nicosia
++czechia,Europe/Prague
++denmark,Europe/Copenhagen
++djibouti,Africa/Djibouti
++dominica,America/Dominica
++dominican-republic,America/Santo_Domingo
++dr-congo,Africa/Kinshasa
++east-timor,Asia/Dili
++ecuador,America/Guayaquil
++egypt,Africa/Cairo
++el-salvador,America/El_Salvador
++england,Europe/London
++equatorial-guinea,Africa/Malabo
++eritrea,Africa/Asmara
++estonia,Europe/Tallinn
++eswatini,Africa/Mbabane
++ethiopia,Africa/Addis_Ababa
++falkland-islands,Atlantic/Stanley
++faroe-islands,Atlantic/Faroe
++fiji,Pacific/Fiji
++finland,Europe/Helsinki
++france,Europe/Paris
++french-guiana,America/Cayenne
++gabon,Africa/Libreville
++gambia,Africa/Banjul
++georgia,Asia/Tbilisi
++germany,Europe/Berlin
++ghana,Africa/Accra
++gibraltar,Europe/Gibraltar
++great-britain,Europe/London
++greece,Europe/Athens
++grenada,America/Grenada
++guadeloupe,America/Guadeloupe
++guam,Pacific/Guam
++guatemala,America/Guatemala
++guernsey,Europe/London
++guinea,Africa/Conakry
++guinea-bissau,Africa/Bissau
++guyana,America/Guyana
++haiti,America/Port-au-Prince
++honduras,America/Tegucigalpa
++hong-kong,Asia/Hong_Kong
++hungary,Europe/Budapest
++iceland,Atlantic/Reykjavik
++india,Asia/Kolkata
++indonesia,
++iran,Asia/Tehran
++iraq,Asia/Baghdad
++isle-of-man,Europe/London
++israel,Asia/Jerusalem
++italy,Europe/Rome
++ivory-coast,Africa/Abidjan
++jamaica,America/Jamaica
++japan,Asia/Tokyo
++jersey,Europe/London
++jordan,Asia/Amman
++kazakhstan,Asia/Almaty
++kenya,Africa/Nairobi
++kiribati,Pacific/Tarawa
++kosovo,Europe/Belgrade
++kuwait,Asia/Kuwait
++kyrgyzstan,Asia/Bishkek
++laos,Asia/Vientiane
++latvia,Europe/Riga
++lebanon,Asia/Beirut
++lesotho,Africa/Maseru
++liberia,Africa/Monrovia
++libya,Africa/Tripoli
++liechtenstein,Europe/Vaduz
++lithuania,Europe/Vilnius
++luxembourg,Europe/Luxembourg
++macao,Asia/Macau
++madagascar,Indian/Antananarivo
++malawi,Africa/Blantyre
++malaysia,Asia/Kuala_Lumpur
++maldives,Indian/Maldives
++mali,Africa/Bamako
++malta,Europe/Malta
++martinique,America/Martinique
++mauritania,Africa/Nouakchott
++mauritius,Indian/Mauritius
++mayotte,Indian/Mayotte
++mexico,
++moldova,Europe/Chisinau
++monaco,Europe/Monaco
++mongolia,Asia/Ulaanbaatar
++montenegro,Europe/Podgorica
++montserrat,America/Montserrat
++morocco,Africa/Casablanca
++mozambique,Africa/Maputo
++myanmar,Asia/Yangon
++namibia,Africa/Windhoek
++nepal,Asia/Kathmandu
++netherlands,Europe/Amsterdam
++new-caledonia,Pacific/Noumea
++new-zealand,Pacific/Auckland
++nicaragua,America/Managua
++niger,Africa/Niamey
++nigeria,Africa/Lagos
++north-korea,Asia/Pyongyang
++north-macedonia,Europe/Skopje
++northern-cyprus,Asia/Nicosia
++northern-ireland,Europe/London
++norway,Europe/Oslo
++oman,Asia/Muscat
++pakistan,Asia/Karachi
++palestine,Asia/Hebron
++panama,America/Panama
++papua-new-guinea,Pacific/Port_Moresby
++paraguay,America/Asuncion
++peru,America/Lima
++philippines,Asia/Manila
++poland,Europe/Warsaw
++portugal,Europe/Lisbon
++puerto-rico,America/Puerto_Rico
++qatar,Asia/Qatar
++republic-of-ireland,Europe/Dublin
++reunion,Indian/Reunion
++romania,Europe/Bucharest
++russia,
++rwanda,Africa/Kigali
++saint-kitts-and-nevis,America/St_Kitts
++saint-lucia,America/St_Lucia
++saint-martin,America/Marigot
++saint-vincent-and-the-grenadines,America/St_Vincent
++samoa,Pacific/Apia
++san-marino,Europe/San_Marino
++sao-tome-and-principe,Africa/Sao_Tome
++saudi-arabia,Asia/Riyadh
++scotland,Europe/London
++senegal,Africa/Dakar
++serbia,Europe/Belgrade
++seychelles,Indian/Mahe
++sierra-leone,Africa/Freetown
++singapore,Asia/Singapore
++sint-maarten,America/Lower_Princes
++slovakia,Europe/Bratislava
++slovenia,Europe/Ljubljana
++solomon-islands,Pacific/Guadalcanal
++somalia,Africa/Mogadishu
++south-africa,Africa/Johannesburg
++south-korea,Asia/Seoul
++south-sudan,Africa/Juba
++spain,Europe/Madrid
++sri-lanka,Asia/Colombo
++sudan,Africa/Khartoum
++suriname,America/Paramaribo
++sweden,Europe/Stockholm
++switzerland,Europe/Zurich
++syria,Asia/Damascus
++tahiti,Pacific/Tahiti
++tajikistan,Asia/Dushanbe
++tanzania,Africa/Dar_es_Salaam
++thailand,Asia/Bangkok
++togo,Africa/Lome
++tonga,Pacific/Tongatapu
++trinidad-and-tobago,America/Port_of_Spain
++tunisia,Africa/Tunis
++turkey,Europe/Istanbul
++turkmenistan,Asia/Ashgabat
++turks-and-caicos-islands,America/Grand_Turk
++uganda,Africa/Kampala
++ukraine,Europe/Kyiv
++united-arab-emirates,Asia/Dubai
++united-states-of-america,
++uruguay,America/Montevideo
++us-virgin-islands,America/St_Thomas
++uzbekistan,Asia/Tashkent
++vanuatu,Pacific/Efate
++venezuela,America/Caracas
++vietnam,Asia/Ho_Chi_Minh
++wales,Europe/London
++yemen,Asia/Aden
++yugoslavia,Europe/Belgrade
++zambia,Africa/Lusaka
++zanzibar,Africa/Dar_es_Salaam
++zimbabwe,Africa/Harare
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index dbbb3af8..9bd83728 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -1876,3 +1876,80 @@ seeds:
+               field: confederation
+       - name: confederation_note
+         description: "Why the country belongs to no confederation; empty when it belongs to one."
++
++  - name: time_zones
++    description: >
++      The IANA time zones a country or a venue may name, with the conventional abbreviation of each
++      zone's standard and daylight time where one exists. One row per zone, plus `UTC`, the zone a
++      fixture takes when neither its venue nor its competition's country has one.
++
++      A zone with no conventional abbreviation has empty labels and prints BigQuery's own
++      `UTC+N`. Offsets and daylight-saving dates are not stored: BigQuery computes them.
++    config:
++      column_types:
++        time_zone: string
++        label_standard: string
++        label_daylight: string
++    columns:
++      - name: time_zone
++        description: "The IANA zone name, as BigQuery accepts it in `DATETIME(timestamp, zone)`."
++        tests:
++          - not_null
++          - unique
++      - name: label_standard
++        description: "The abbreviation printed in the zone's standard time (CET, GMT); empty when none is conventional."
++      - name: label_daylight
++        description: "The abbreviation printed in the zone's daylight time (CEST, BST); empty when the zone has no daylight time or no conventional abbreviation."
++
++  - name: country_time_zones
++    description: >
++      The default time zone of each country in `countries`, one row per country. A country whose
++      venues sit in several zones with no dominant one (the United States of America, Canada,
++      Brazil, Mexico, Australia, Russia, Indonesia) has an empty zone: each of its venues is named
++      in `venue_time_zones`.
++    config:
++      column_types:
++        country_key: string
++        time_zone: string
++    columns:
++      - name: country_key
++        description: "The country's key in `countries`."
++        tests:
++          - not_null
++          - unique
++          - relationships:
++              to: ref('countries')
++              field: country_key
++      - name: time_zone
++        description: "The zone most of the country's venues play in; empty when the country spans several."
++        tests:
++          - relationships:
++              to: ref('time_zones')
++              field: time_zone
++
++  - name: venue_time_zones
++    description: >
++      The time zone of a venue where its country's default is absent or wrong: every venue of a
++      country with no default, a venue on an island or overseas territory of its country, and a
++      venue whose competition files it under another country. One row per provider venue id. A venue
++      without a row takes its country's default.
++    config:
++      column_types:
++        venue_api_id: string
++        venue_name: string
++        time_zone: string
++    columns:
++      - name: venue_api_id
++        description: "The provider's venue id, as `fct_fixture.venue_api_id` carries it."
++        tests:
++          - not_null
++          - unique
++      - name: venue_name
++        description: "The venue's name, so a reader of this file can tell which venue the id is."
++      - name: time_zone
++        description: "The IANA zone the venue's kick-offs are played in."
++        tests:
++          - not_null
++          - relationships:
++              to: ref('time_zones')
++              field: time_zone
+diff --git a/dbt_project/seeds/time_zones.csv b/dbt_project/seeds/time_zones.csv
+new file mode 100644
+index 00000000..5647e596
+--- /dev/null
++++ b/dbt_project/seeds/time_zones.csv
+@@ -0,0 +1,232 @@
++time_zone,label_standard,label_daylight
++UTC,UTC,
++Africa/Abidjan,GMT,
++Africa/Accra,GMT,
++Africa/Addis_Ababa,EAT,
++Africa/Algiers,CET,
++Africa/Asmara,EAT,
++Africa/Bamako,GMT,
++Africa/Bangui,WAT,
++Africa/Banjul,GMT,
++Africa/Bissau,GMT,
++Africa/Blantyre,CAT,
++Africa/Brazzaville,WAT,
++Africa/Bujumbura,CAT,
++Africa/Cairo,EET,EEST
++Africa/Casablanca,,
++Africa/Conakry,GMT,
++Africa/Dakar,GMT,
++Africa/Dar_es_Salaam,EAT,
++Africa/Djibouti,EAT,
++Africa/Douala,WAT,
++Africa/Freetown,GMT,
++Africa/Gaborone,CAT,
++Africa/Harare,CAT,
++Africa/Johannesburg,SAST,
++Africa/Juba,CAT,
++Africa/Kampala,EAT,
++Africa/Khartoum,CAT,
++Africa/Kigali,CAT,
++Africa/Kinshasa,WAT,
++Africa/Lagos,WAT,
++Africa/Libreville,WAT,
++Africa/Lome,GMT,
++Africa/Luanda,WAT,
++Africa/Lubumbashi,CAT,
++Africa/Lusaka,CAT,
++Africa/Malabo,WAT,
++Africa/Maputo,CAT,
++Africa/Maseru,SAST,
++Africa/Mbabane,SAST,
++Africa/Mogadishu,EAT,
++Africa/Monrovia,GMT,
++Africa/Nairobi,EAT,
++Africa/Ndjamena,WAT,
++Africa/Niamey,WAT,
++Africa/Nouakchott,GMT,
++Africa/Ouagadougou,GMT,
++Africa/Porto-Novo,WAT,
++Africa/Sao_Tome,GMT,
++Africa/Tripoli,EET,
++Africa/Tunis,CET,
++Africa/Windhoek,CAT,
++America/Anguilla,AST,
++America/Antigua,AST,
++America/Argentina/Buenos_Aires,ART,
++America/Aruba,AST,
++America/Asuncion,,
++America/Barbados,AST,
++America/Belize,CST,
++America/Bogota,,
++America/Caracas,,
++America/Cayenne,,
++America/Cayman,EST,
++America/Chicago,CST,CDT
++America/Ciudad_Juarez,MST,MDT
++America/Costa_Rica,CST,
++America/Cuiaba,,
++America/Curacao,AST,
++America/Denver,MST,MDT
++America/Dominica,AST,
++America/El_Salvador,CST,
++America/Grand_Turk,EST,EDT
++America/Grenada,AST,
++America/Guadeloupe,AST,
++America/Guatemala,CST,
++America/Guayaquil,,
++America/Guyana,,
++America/Havana,,
++America/Jamaica,EST,
++America/Kralendijk,AST,
++America/La_Paz,,
++America/Lima,,
++America/Los_Angeles,PST,PDT
++America/Lower_Princes,AST,
++America/Managua,CST,
++America/Marigot,AST,
++America/Martinique,AST,
++America/Mazatlan,MST,
++America/Mexico_City,CST,
++America/Montevideo,,
++America/Montserrat,AST,
++America/Nassau,EST,EDT
++America/New_York,EST,EDT
++America/Panama,EST,
++America/Paramaribo,,
++America/Phoenix,MST,
++America/Port-au-Prince,EST,EDT
++America/Port_of_Spain,AST,
++America/Puerto_Rico,AST,
++America/Santiago,,
++America/Santo_Domingo,AST,
++America/Sao_Paulo,BRT,
++America/St_Kitts,AST,
++America/St_Lucia,AST,
++America/St_Thomas,AST,
++America/St_Vincent,AST,
++America/Tegucigalpa,CST,
++America/Tijuana,PST,PDT
++America/Toronto,EST,EDT
++America/Tortola,AST,
++America/Vancouver,PST,PDT
++Asia/Aden,AST,
++Asia/Almaty,,
++Asia/Amman,,
++Asia/Ashgabat,,
++Asia/Baghdad,AST,
++Asia/Bahrain,AST,
++Asia/Baku,,
++Asia/Bangkok,ICT,
++Asia/Beirut,EET,EEST
++Asia/Bishkek,,
++Asia/Brunei,,
++Asia/Colombo,,
++Asia/Damascus,,
++Asia/Dhaka,,
++Asia/Dili,,
++Asia/Dubai,GST,
++Asia/Dushanbe,,
++Asia/Hebron,,
++Asia/Ho_Chi_Minh,ICT,
++Asia/Hong_Kong,HKT,
++Asia/Jerusalem,,
++Asia/Kabul,,
++Asia/Karachi,PKT,
++Asia/Kathmandu,,
++Asia/Kolkata,IST,
++Asia/Kuala_Lumpur,,
++Asia/Kuwait,AST,
++Asia/Macau,,
++Asia/Manila,PHT,
++Asia/Muscat,GST,
++Asia/Nicosia,EET,EEST
++Asia/Phnom_Penh,ICT,
++Asia/Pyongyang,,
++Asia/Qatar,AST,
++Asia/Riyadh,AST,
++Asia/Seoul,KST,
++Asia/Shanghai,,
++Asia/Singapore,SGT,
++Asia/Taipei,,
++Asia/Tashkent,,
++Asia/Tbilisi,,
++Asia/Tehran,,
++Asia/Thimphu,,
++Asia/Tokyo,JST,
++Asia/Ulaanbaatar,,
++Asia/Vientiane,ICT,
++Asia/Yangon,,
++Asia/Yerevan,,
++Atlantic/Azores,,
++Atlantic/Bermuda,AST,ADT
++Atlantic/Canary,WET,WEST
++Atlantic/Cape_Verde,,
++Atlantic/Faroe,WET,WEST
++Atlantic/Reykjavik,GMT,
++Atlantic/Stanley,,
++Australia/Melbourne,AEST,AEDT
++Australia/Sydney,AEST,AEDT
++Europe/Amsterdam,CET,CEST
++Europe/Andorra,CET,CEST
++Europe/Athens,EET,EEST
++Europe/Belgrade,CET,CEST
++Europe/Berlin,CET,CEST
++Europe/Bratislava,CET,CEST
++Europe/Brussels,CET,CEST
++Europe/Bucharest,EET,EEST
++Europe/Budapest,CET,CEST
++Europe/Chisinau,EET,EEST
++Europe/Copenhagen,CET,CEST
++Europe/Dublin,GMT,IST
++Europe/Gibraltar,CET,CEST
++Europe/Helsinki,EET,EEST
++Europe/Istanbul,,
++Europe/Kyiv,EET,EEST
++Europe/Lisbon,WET,WEST
++Europe/Ljubljana,CET,CEST
++Europe/London,GMT,BST
++Europe/Luxembourg,CET,CEST
++Europe/Madrid,CET,CEST
++Europe/Malta,CET,CEST
++Europe/Minsk,,
++Europe/Monaco,CET,CEST
++Europe/Moscow,MSK,
++Europe/Oslo,CET,CEST
++Europe/Paris,CET,CEST
++Europe/Podgorica,CET,CEST
++Europe/Prague,CET,CEST
++Europe/Riga,EET,EEST
++Europe/Rome,CET,CEST
++Europe/San_Marino,CET,CEST
++Europe/Sarajevo,CET,CEST
++Europe/Skopje,CET,CEST
++Europe/Sofia,EET,EEST
++Europe/Stockholm,CET,CEST
++Europe/Tallinn,EET,EEST
++Europe/Tirane,CET,CEST
++Europe/Vaduz,CET,CEST
++Europe/Vienna,CET,CEST
++Europe/Vilnius,EET,EEST
++Europe/Warsaw,CET,CEST
++Europe/Zagreb,CET,CEST
++Europe/Zurich,CET,CEST
++Indian/Antananarivo,EAT,
++Indian/Comoro,EAT,
++Indian/Mahe,,
++Indian/Maldives,,
++Indian/Mauritius,,
++Indian/Mayotte,EAT,
++Indian/Reunion,,
++Pacific/Apia,,
++Pacific/Auckland,NZST,NZDT
++Pacific/Efate,,
++Pacific/Fiji,,
++Pacific/Guadalcanal,,
++Pacific/Guam,ChST,
++Pacific/Noumea,,
++Pacific/Pago_Pago,SST,
++Pacific/Port_Moresby,,
++Pacific/Rarotonga,,
++Pacific/Tahiti,,
++Pacific/Tarawa,,
++Pacific/Tongatapu,,
+diff --git a/dbt_project/seeds/venue_time_zones.csv b/dbt_project/seeds/venue_time_zones.csv
+new file mode 100644
+index 00000000..de02f891
+--- /dev/null
++++ b/dbt_project/seeds/venue_time_zones.csv
+@@ -0,0 +1,138 @@
++venue_api_id,venue_name,time_zone
++1898,Mercedes-Benz Stadium,America/New_York
++19491,SeatGeek Stadium,America/Chicago
++1616,Dignity Health Sports Park,America/Los_Angeles
++18659,Bank of America Stadium,America/New_York
++1620,Subaru Park,America/New_York
++1609,Soldier Field,America/Chicago
++19229,TQL Stadium,America/New_York
++12667,Lower.com Field,America/New_York
++11533,Historic Crew Stadium,America/New_York
++1610,Dick's Sporting Goods Park,America/Denver
++20764,Chase Stadium,America/New_York
++11976,DRV PNK Stadium,America/New_York
++1618,Gillette Stadium,America/New_York
++1612,Toyota Stadium,America/Chicago
++21544,Sports Illustrated Stadium,America/New_York
++1619,Red Bull Arena,America/New_York
++12599,PNC Stadium,America/Chicago
++1615,Children's Mercy Park,America/Chicago
++3040,Fifth Third Bank Stadium,America/New_York
++1922,Banc of California Stadium,America/Los_Angeles
++19419,BMO Stadium,America/Los_Angeles
++19357,GEODIS Park,America/Chicago
++1833,Yankee Stadium,America/New_York
++1838,Exploria Stadium,America/New_York
++20500,Inter&Co Stadium,America/New_York
++1748,Providence Park,America/Los_Angeles
++19223,America First Field,America/Denver
++1621,Rio Tinto Stadium,America/Denver
++1617,Allianz Field,America/Chicago
++11534,Lumen Field,America/Los_Angeles
++1623,CenturyLink Field,America/Los_Angeles
++19408,CITYPARK,America/Chicago
++313,BC Place Stadium,America/Vancouver
++1613,Audi Field,America/New_York
++22725,State Farm Stadium,America/Phoenix
++2602,Tim Hortons Field,America/Toronto
++21640,Hamilton Stadium,America/Toronto
++310,Saputo Stadium,America/Toronto
++312,BMO Field,America/Toronto
++19445,BC Place,America/Vancouver
++19444,Starlight Stadium,America/Vancouver
++20806,Industree Group Stadium,Australia/Sydney
++127,McDonald Jones Stadium,Australia/Sydney
++129,Netstrata Jubilee Stadium,Australia/Sydney
++20807,AAMI Park,Australia/Melbourne
++255,Arena Barueri,America/Sao_Paulo
++262,Estadio Olimpico do Para,America/Sao_Paulo
++234,Estádio Governador Magalhães Pinto,America/Sao_Paulo
++206,Estádio Raimundo Sampaio,America/Sao_Paulo
++21427,Arena MRV,America/Sao_Paulo
++220,Estádio Nabi Abi Chedid,America/Sao_Paulo
++20813,Arena BRB Mané Garrincha,America/Sao_Paulo
++242,Estádio Brinco de Ouro da Princesa,America/Sao_Paulo
++20691,Estádio Kleber José de Andrade,America/Sao_Paulo
++248,Estádio Alfredo Jaconi,America/Sao_Paulo
++5625,Estádio Francisco Stédile,America/Sao_Paulo
++227,Arena Condá,America/Sao_Paulo
++233,Estádio Heriberto Hülse,America/Sao_Paulo
++235,Arena Pantanal,America/Cuiaba
++10493,Arena da Baixada,America/Sao_Paulo
++259,Estádio Durival de Britto e Silva,America/Sao_Paulo
++230,Estádio Major Antônio Couto Pereira,America/Sao_Paulo
++214,Estádio Aderbal Ramos da Silva,America/Sao_Paulo
++7126,Estádio Orlando Scarpelli,America/Sao_Paulo
++225,Estádio Governador Plácido Aderaldo Castelo,America/Sao_Paulo
++237,Estádio Municipal Presidente Getúlio Vargas,America/Sao_Paulo
++240,Estádio de Hailé Pinheiro,America/Sao_Paulo
++211,Estádio Antônio Accioly,America/Sao_Paulo
++5676,Estádio José Maria de Campos Maia,America/Sao_Paulo
++241,Arena do Grêmio,America/Sao_Paulo
++244,Estádio José Pinheiro Borda,America/Sao_Paulo
++218,Estádio Nilton Santos,America/Sao_Paulo
++204,Estádio do Maracanã,America/Sao_Paulo
++279,Estádio São Januário,America/Sao_Paulo
++19377,Estadio Jornalista Mário Filho,America/Sao_Paulo
++5665,Estádio Luso-Brasileiro,America/Sao_Paulo
++216,Arena Fonte Nova,America/Sao_Paulo
++281,Estádio Manoel Barradas,America/Sao_Paulo
++10494,Estádio Urbano Caldeira,America/Sao_Paulo
++269,Estadio Do MorumBIS,America/Sao_Paulo
++258,Allianz Parque,America/Sao_Paulo
++11531,Neo Química Arena,America/Sao_Paulo
++8267,Arena do Jacaré,America/Sao_Paulo
++278,Estádio Municipal João Havelange,America/Sao_Paulo
++5650,Estádio Municipal General Raulino de Oliveira,America/Sao_Paulo
++20474,Estadio Victoria,America/Mexico_City
++1080,Estadio Victoria de Aguascalientes,America/Mexico_City
++1845,Estadio Olímpico Benito Juárez,America/Ciudad_Juarez
++1069,Estadio Azteca,America/Mexico_City
++11624,Estadio Ciudad de los Deportes,America/Mexico_City
++7182,Estadio Azteca,America/Mexico_City
++1083,Estadio Olímpico Universitario,America/Mexico_City
++1071,Estadio Jalisco,America/Mexico_City
++11905,Estadio BBVA,America/Mexico_City
++1079,Estadio BBVA Bancomer,America/Mexico_City
++20435,Estadio El Encanto,America/Mazatlan
++10546,Estadio de Mazatlán,America/Mazatlan
++22432,Estadio Banorte,America/Mexico_City
++1081,Estadio Hidalgo,America/Mexico_City
++1082,Estadio Cuauhtémoc,America/Mexico_City
++1795,Estadio Alfonso Lastras Ramírez,America/Mexico_City
++1087,Estadio Universitario de Nuevo León,America/Mexico_City
++20476,Estadio Corregidora,America/Mexico_City
++1084,Estadio La Corregidora,America/Mexico_City
++1088,Estadio Caliente,America/Tijuana
++1089,Estadio Nemesio Díez,America/Mexico_City
++20475,Estadio Corona,America/Mexico_City
++1085,Estadio Nuevo Corona,America/Mexico_City
++1076,Estadio AKRON,America/Mexico_City
++1349,Kazan' Arena,Europe/Moscow
++1338,Stadion FK Krasnodar,Europe/Moscow
++1327,RZD Arena,Europe/Moscow
++1352,Otkrytiye Arena,Europe/Moscow
++1333,VEB Arena,Europe/Moscow
++1339,Rostov Arena,Europe/Moscow
++2834,Olimpiyskiy Stadion Fisht,Europe/Moscow
++1329,Stadion Arsenal,Europe/Moscow
++1289,Estádio de São Miguel,Atlantic/Azores
++3611,Macau Olympic Complex Stadium,Asia/Macau
++6879,Ciudad Deportiva de Lanzarote,Atlantic/Canary
++1481,Estadio de Gran Canaria,Atlantic/Canary
++1496,Estadio Heliodoro Rodríguez Lopéz,Atlantic/Canary
++22053,Estadio Heliodoro Rodríguez Lopéz,Atlantic/Canary
++8526,Stade Klébert Picard,Indian/Reunion
++11091,Stade Omnisports,America/Cayenne
++10536,Stade Joseph Kabila Kabange,Africa/Lubumbashi
++4742,Stade du TP Mazembe,Africa/Lubumbashi
++22451,VFF Freshwater Stadium,Pacific/Efate
++7381,Amaan Stadium,Africa/Dar_es_Salaam
++5761,Stade Municipal Pierre-Aliker,America/Martinique
++1983,Stade Georges-Gratiant,America/Martinique
++2031,Stade Numa Daly,Pacific/Noumea
++2121,Stade Pater Te Hono Nui,Pacific/Tahiti
++2143,Stade Michel Volnay,Indian/Reunion
++11535,Q2 Stadium,America/Chicago
++19418,Shell Energy Stadium,America/Chicago
++11918,Stadion Ergilio Hato,America/Curacao
+diff --git a/dbt_project/tests/assert_fct_fixture_kickoff_zone_follows_venue.sql b/dbt_project/tests/assert_fct_fixture_kickoff_zone_follows_venue.sql
+new file mode 100644
+index 00000000..8980ce90
+--- /dev/null
++++ b/dbt_project/tests/assert_fct_fixture_kickoff_zone_follows_venue.sql
+@@ -0,0 +1,37 @@
++{#
++  A fixture's zone is its venue's, else its competition country's, else UTC; its local kick-off is
++  its UTC kick-off on that zone's clock; a fixture with no zone is labelled UTC. Returns the
++  fixtures that break any of the three.
++#}
++
++with fixtures as (
++    select
++        fixture_sk,
++        venue_api_id,
++        league_code,
++        kickoff_datetime,
++        kickoff_time_zone,
++        kickoff_local,
++        kickoff_zone_label
++    from {{ ref('fct_fixture') }}
++),
++
++expected as (
++    select
++        fixtures.*,
++        coalesce(venues.time_zone, countries.time_zone) as served_zone
++    from fixtures
++    left join {{ ref('dim_venue') }} as venues
++        on fixtures.venue_api_id = venues.venue_api_id
++    left join {{ ref('dim_league') }} as leagues
++        on fixtures.league_code = leagues.league_code
++    left join {{ ref('dim_country') }} as countries
++        on leagues.league_country = countries.country_name
++)
++
++select *
++from expected
++where
++    kickoff_time_zone != coalesce(served_zone, 'UTC')
++    or kickoff_local != datetime(kickoff_datetime, kickoff_time_zone)
++    or (served_zone is null and kickoff_zone_label != 'UTC')
+diff --git a/dbt_project/tests/assert_kickoff_zone_label_known_zones.sql b/dbt_project/tests/assert_kickoff_zone_label_known_zones.sql
+new file mode 100644
+index 00000000..0a149fe3
+--- /dev/null
++++ b/dbt_project/tests/assert_kickoff_zone_label_known_zones.sql
+@@ -0,0 +1,76 @@
++{#
++  Fixed kick-offs in known zones render the local time and label a reader expects, in winter and
++  summer, across a date change, in the southern hemisphere and in a zone with no conventional
++  abbreviation. Returns the cases that do not.
++#}
++
++with cases as (
++    select
++        kickoff_datetime,
++        time_zone,
++        expected_local,
++        expected_label
++    from unnest([
++        struct(
++            timestamp '2026-12-05 19:30:00' as kickoff_datetime,
++            'Europe/Berlin' as time_zone,
++            datetime '2026-12-05 20:30:00' as expected_local,
++            'CET' as expected_label
++        ),
++        struct(timestamp '2026-07-05 18:00:00', 'Europe/Berlin', datetime '2026-07-05 20:00:00', 'CEST'),
++        struct(timestamp '2026-12-05 19:30:00', 'Europe/London', datetime '2026-12-05 19:30:00', 'GMT'),
++        struct(timestamp '2026-07-05 19:00:00', 'Europe/London', datetime '2026-07-05 20:00:00', 'BST'),
++        struct(timestamp '2026-12-05 19:30:00', 'Europe/Dublin', datetime '2026-12-05 19:30:00', 'GMT'),
++        struct(timestamp '2026-07-05 19:00:00', 'Europe/Dublin', datetime '2026-07-05 20:00:00', 'IST'),
++        struct(timestamp '2026-07-05 00:00:00', 'America/New_York', datetime '2026-07-04 20:00:00', 'EDT'),
++        struct(timestamp '2026-12-05 01:00:00', 'America/New_York', datetime '2026-12-04 20:00:00', 'EST'),
++        struct(timestamp '2026-07-05 03:00:00', 'America/Phoenix', datetime '2026-07-04 20:00:00', 'MST'),
++        struct(timestamp '2026-11-21 17:00:00', 'Asia/Riyadh', datetime '2026-11-21 20:00:00', 'AST'),
++        struct(timestamp '2026-12-05 09:00:00', 'Australia/Sydney', datetime '2026-12-05 20:00:00', 'AEDT'),
++        struct(timestamp '2026-07-05 10:00:00', 'Australia/Sydney', datetime '2026-07-05 20:00:00', 'AEST'),
++        struct(timestamp '2026-12-05 19:30:00', 'Europe/Istanbul', datetime '2026-12-05 22:30:00', 'UTC+3'),
++        struct(timestamp '2026-07-05 19:30:00', 'America/Sao_Paulo', datetime '2026-07-05 16:30:00', 'BRT'),
++        struct(timestamp '2026-07-05 19:30:00', 'UTC', datetime '2026-07-05 19:30:00', 'UTC')
++    ])
++),
++
++year_starts as (
++    select
++        *,
++        timestamp(date_trunc(date(kickoff_datetime), year)) as year_start,
++        timestamp(date_add(date_trunc(date(kickoff_datetime), year), interval 6 month)) as year_middle
++    from cases
++),
++
++offsets as (
++    select
++        *,
++        {{ utc_offset_minutes('kickoff_datetime', 'time_zone') }} as offset_now,
++        {{ utc_offset_minutes('year_start', 'time_zone') }} as offset_january,
++        {{ utc_offset_minutes('year_middle', 'time_zone') }} as offset_july
++    from year_starts
++),
++
++labelled as (
++    select
++        offsets.*,
++        datetime(offsets.kickoff_datetime, offsets.time_zone) as kickoff_local,
++        {{ kickoff_zone_label(
++            'offsets.offset_now',
++            'offsets.offset_january',
++            'offsets.offset_july',
++            'offsets.kickoff_datetime',
++            'offsets.time_zone',
++            'zones.label_standard',
++            'zones.label_daylight'
++        ) }} as kickoff_zone_label
++    from offsets
++    left join {{ ref('dim_timezone') }} as zones
++        on offsets.time_zone = zones.time_zone
++)
++
++select *
++from labelled
++where
++    kickoff_local != expected_local
++    or kickoff_zone_label != expected_label
+diff --git a/docs/wireframes/00_overview.md b/docs/wireframes/00_overview.md
+index bcbd532f..04b672ae 100644
+--- a/docs/wireframes/00_overview.md
++++ b/docs/wireframes/00_overview.md
+@@ -101,9 +101,12 @@ Every screen file follows this structure:
+ - **W/D/L**: letter + color, never color alone (brief §4).
+ - **Tabular numerals** on every stat column.
+ - **Text expansion**: design with DE (~+30% vs EN); labels are i18n keys.
+-- **Timezones**: kickoff datetimes export as UTC ISO strings; render server-side in
+-  a competition-neutral format and progressively enhance to the visitor's local
+-  timezone with a tiny script (static site cannot know the timezone at build time).
++- **Timezones**: a match row prints its kick-off on the venue's clock with a zone label
++  (`20:30 CET`, `20:00 BST`, `20:00 EDT`), both served by the warehouse (`kickoff_local`,
++  `kickoff_zone_label`); the site converts nothing, and a day heading shows the date of that
++  clock. The payload still carries the UTC kick-off as `kickoff`. A fixture with no venue takes
++  its competition country's zone, and a fixture with neither shows `UTC`. The Matches page is
++  the exception: its day is the UTC date, so its rows print the UTC clock with the label `UTC`.
+ 
+ ## Layout system
+ 
+diff --git a/docs/wireframes/10_home.md b/docs/wireframes/10_home.md
+index 06bbd256..d1ca8e54 100644
+--- a/docs/wireframes/10_home.md
++++ b/docs/wireframes/10_home.md
+@@ -773,7 +773,7 @@ is the noise this block carried until 2026-08-18.
+ | Element | JSON key | Format |
+ |---|---|---|
+ | Competition heading | `upcoming[].league_name` | text; links to the competition hub via `competition_slug` |
+-| Kickoff | `upcoming[].fixtures[].kickoff` | UTC ISO in the payload; rendered per the timezone convention in `00_overview.md` |
++| Kickoff | `upcoming[].fixtures[].kickoff_local`, `.kickoff_zone_label` | the venue's clock and its zone label, printed as served per the timezone convention in `00_overview.md`; `kickoff` stays the UTC ISO |
+ | ~~Round~~ | `upcoming[].fixtures[].round` | **NOT RENDERED.** The payload carries it, the hero does not show it. `fixture.round` is the provider's raw English string, so putting it here shipped "Regular Season - 18" and "3rd Qualifying Round" byte-identically to de/en/fi — verified from built output — making the home page a fourth surface for **#866**, and the most visible one. #866 states the fix cannot live in the frontend: mapping that string to a phase plus a number is taxonomy mapping, which the consumption layer forbids. The round returns here when the warehouse serves a localisable phase. |
+ | Home / away name + crest | `…fixtures[].home.name` / `.crest`, `.away.name` / `.crest` | crest falls back to a monogram, as on 01 |
+ | Link target | `…fixtures[].slug` | `/{locale}/{competition_slug}/matches/{slug}/` |
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index a77f15e8..a54ab0b1 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -227,8 +227,8 @@ def _featured_season_row(rows: list[dict]) -> dict:
+ # has_result, is_upcoming) are dropped — the published row is display-only. The
+ # per-fixture deep-link (fixture URL identity) is GAP-19, deliberately absent here.
+ _TEAM_FIXTURE_FIELDS = (
+-    "opponent_name", "opponent_logo_url", "is_home", "kickoff_datetime",
+-    "round_name", "goals_for", "goals_against", "result", "status_short",
++    "opponent_name", "opponent_logo_url", "is_home", "kickoff_datetime", "kickoff_local",
++    "kickoff_zone_label", "round_name", "goals_for", "goals_against", "result", "status_short",
+ )
+ 
+ 
+@@ -1060,6 +1060,8 @@ def shape_fixture_payload(fix: dict, home_side: dict, away_side: dict,
+         "fixture_id": fid,
+         "slug": fix.get("fixture_slug"),
+         "kickoff": fix.get("kickoff_datetime"),
++        "kickoff_local": fix.get("kickoff_local"),
++        "kickoff_zone_label": fix.get("kickoff_zone_label"),
+         "status": fix.get("status_short"),
+         "unplayed_state": fix.get("unplayed_state"),
+         "league_code": fix.get("league_code"),
+@@ -1335,7 +1337,8 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
+     unplayed fixtures the warehouse held before any sampling, for the manifest."""
+     marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
+     fixtures = _query(client, f"""
+-        select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name, round_order,
++        select fixture_sk, league_code, season_api_year, kickoff_datetime, kickoff_local,
++               kickoff_zone_label, round_name, round_order,
+                is_next_round,
+                status_short, unplayed_state, venue_name as venue_name_snapshot, home_team_sk, away_team_sk,
+                fixture_slug,
+@@ -1887,7 +1890,8 @@ def fetch_player_index(client) -> dict:
+ 
+ _COMPETITION_FIXTURE_COLUMNS = (
+     "fixture_sk, league_code, season_api_year, round_name, round_label_i18n_key, round_number, round_letter, round_order, round_sequence, "
+-    "fixture_order, kickoff_datetime, status_short, unplayed_state, is_played, goals_home, goals_away, "
++    "fixture_order, kickoff_datetime, kickoff_local, kickoff_zone_label, status_short, unplayed_state, "
++    "is_played, goals_home, goals_away, "
+     "home_team_sk, home_team_name, home_team_slug, home_team_logo_url, "
+     "away_team_sk, away_team_name, away_team_slug, away_team_logo_url, "
+     "fixture_slug, is_next_round, is_match_that_matters"
+@@ -1902,6 +1906,8 @@ def _competition_fixture(r: dict) -> dict:
+         "fixture_id": int(r["fixture_sk"]),
+         "slug": r.get("fixture_slug"),
+         "kickoff": r.get("kickoff_datetime"),
++        "kickoff_local": r.get("kickoff_local"),
++        "kickoff_zone_label": r.get("kickoff_zone_label"),
+         "round": r.get("round_name"),
+         "round_label_i18n_key": r.get("round_label_i18n_key"),
+         "round_number": r.get("round_number"),
+diff --git a/site_v2/src/components/competition/MatchdaySchedule.astro b/site_v2/src/components/competition/MatchdaySchedule.astro
+index b1071709..a541b9f7 100644
+--- a/site_v2/src/components/competition/MatchdaySchedule.astro
++++ b/site_v2/src/components/competition/MatchdaySchedule.astro
+@@ -13,7 +13,7 @@ import MatchRow from "../ui/MatchRow.astro";
+ import SectionHead from "../ui/SectionHead.astro";
+ import DateHeading from "../ui/DateHeading.astro";
+ import Group from "../ui/Group.astro";
+-import { formatDate } from "../../lib/format";
++import { formatDate, kickoffClock, kickoffDay } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+ import { roundName } from "../../lib/roundName.mjs";
+@@ -39,7 +39,7 @@ function title(r: CompetitionRound): string {
+ function days(r: CompetitionRound): [string | null, CompetitionRound["fixtures"]][] {
+   const byDay = new Map<string | null, CompetitionRound["fixtures"]>();
+   for (const fx of r.fixtures) {
+-    const day = fx.kickoff ? fx.kickoff.slice(0, 10) : null;
++    const day = kickoffDay(fx);
+     if (!byDay.has(day)) byDay.set(day, []);
+     byDay.get(day)!.push(fx);
+   }
+@@ -79,7 +79,7 @@ const idOf = (i: number) => `md-${rounds[i].round_sequence ?? i + 1}`;
+       <Group>
+         {days(r).map(([day, fixtures]) => (
+           <>
+-            <DateHeading date={formatDate(fixtures[0].kickoff, lang)} />
++            <DateHeading date={formatDate(kickoffClock(fixtures[0]).at, lang)} />
+             {fixtures.map((fx) => (
+               <MatchRow
+                 fx={fx}
+diff --git a/site_v2/src/components/fixture/NextMatches.astro b/site_v2/src/components/fixture/NextMatches.astro
+index a85ad703..82e3c040 100644
+--- a/site_v2/src/components/fixture/NextMatches.astro
++++ b/site_v2/src/components/fixture/NextMatches.astro
+@@ -9,7 +9,7 @@ import DateHeading from "../ui/DateHeading.astro";
+ import Group from "../ui/Group.astro";
+ import GroupHead from "../ui/GroupHead.astro";
+ import { t } from "../../i18n/strings";
+-import { formatDate } from "../../lib/format";
++import { formatDate, kickoffClock, kickoffDay } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import type { CompetitionIndex, Side } from "../../lib/types";
+ import competitions from "../../data/competitions.json";
+@@ -29,7 +29,7 @@ const indexed = (competitionIndex as unknown as CompetitionIndex).competitions;
+ const matches = [home.next_match, away.next_match]
+   .filter((m): m is Next => Boolean(m))
+   .filter((m, i, all) => all.findIndex((o) => o.fixture_id === m.fixture_id) === i)
+-  .sort((a, b) => (a.kickoff ?? "").localeCompare(b.kickoff ?? ""));
++  .sort((a, b) => (kickoffClock(a).at ?? "").localeCompare(kickoffClock(b).at ?? ""));
+ 
+ const groups = new Map<string, Next[]>();
+ for (const m of matches) {
+@@ -40,7 +40,7 @@ for (const m of matches) {
+ function days(fixtures: Next[]): Next[][] {
+   const byDay = new Map<string, Next[]>();
+   for (const fx of fixtures) {
+-    const day = fx.kickoff ? fx.kickoff.slice(0, 10) : "";
++    const day = kickoffDay(fx) ?? "";
+     if (!byDay.has(day)) byDay.set(day, []);
+     byDay.get(day)!.push(fx);
+   }
+@@ -68,7 +68,7 @@ const head = (code: string) => {
+           <GroupHead lang={lang} name={g.name} crest={{ name: g.name, url: g.logo }} competition={g.page} />
+           {days(fixtures).map((day) => (
+             <>
+-              <DateHeading date={formatDate(day[0].kickoff, lang)} />
++              <DateHeading date={formatDate(kickoffClock(day[0]).at, lang)} />
+               {day.map((fx) => <MatchRow fx={fx} competitionSlug={g.slug} lang={lang} />)}
+             </>
+           ))}
+diff --git a/site_v2/src/components/home/HeroFixtures.astro b/site_v2/src/components/home/HeroFixtures.astro
+index 7ff164db..ee7fd4e7 100644
+--- a/site_v2/src/components/home/HeroFixtures.astro
++++ b/site_v2/src/components/home/HeroFixtures.astro
+@@ -14,7 +14,7 @@ import Fold from "../ui/Fold.astro";
+ import Group from "../ui/Group.astro";
+ import GroupHead from "../ui/GroupHead.astro";
+ import type { Lang } from "../../lib/format";
+-import { formatDate } from "../../lib/format";
++import { formatDate, kickoffClock, kickoffDay } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+ import type { CompetitionFixture, LandingUpcomingGroup } from "../../lib/types";
+ 
+@@ -26,9 +26,8 @@ const { groups, lang } = Astro.props;
+ 
+ const VISIBLE_ROWS = 3;
+ 
+-const dayOf = (fx: CompetitionFixture) => (fx.kickoff ? fx.kickoff.slice(0, 10) : null);
+ const opensDay = (fixtures: CompetitionFixture[], i: number) =>
+-  i === 0 || dayOf(fixtures[i]) !== dayOf(fixtures[i - 1]);
++  i === 0 || kickoffDay(fixtures[i]) !== kickoffDay(fixtures[i - 1]);
+ ---
+ 
+ <section>
+@@ -40,7 +39,7 @@ const opensDay = (fixtures: CompetitionFixture[], i: number) =>
+     const rows = (from: number, to?: number) =>
+       group.fixtures.slice(from, to).map((fx, j) => (
+         <>
+-          {opensDay(group.fixtures, from + j) && <DateHeading date={formatDate(fx.kickoff, lang)} />}
++          {opensDay(group.fixtures, from + j) && <DateHeading date={formatDate(kickoffClock(fx).at, lang)} />}
+           <MatchRow fx={fx} competitionSlug={group.competition_slug ?? null} lang={lang} topMatch={fx.is_match_that_matters} />
+         </>
+       ));
+diff --git a/site_v2/src/components/matches/MatchesDay.astro b/site_v2/src/components/matches/MatchesDay.astro
+index 1ef0d7ff..edc8d49b 100644
+--- a/site_v2/src/components/matches/MatchesDay.astro
++++ b/site_v2/src/components/matches/MatchesDay.astro
+@@ -31,6 +31,13 @@ interface Props {
+ const { day, openingDay, lang } = Astro.props;
+ 
+ const VISIBLE_ROWS = 3;
++// A day of this page is a UTC date, so its rows keep the UTC clock: a venue clock on a row could
++// fall on another date than the day it sits under.
++const onUtcClock = (fx: MatchDayPayload["competitions"][number]["fixtures"][number]) => ({
++  ...fx,
++  kickoff_local: null,
++  kickoff_zone_label: null,
++});
+ const matchesWord = word(lang, "matches");
+ const dayHref = (d: string) => localeHref(lang, d === openingDay ? `${matchesWord}/` : `${matchesWord}/${d}/`);
+ const isOpening = day.day === openingDay;
+@@ -82,11 +89,11 @@ const crumbs = [
+                 competition={group.slug}
+               />
+ 
+-              {group.fixtures.slice(0, VISIBLE_ROWS).map((fx) => <MatchRow fx={fx} competitionSlug={group.slug} lang={lang} />)}
++              {group.fixtures.slice(0, VISIBLE_ROWS).map((fx) => <MatchRow fx={onUtcClock(fx)} competitionSlug={group.slug} lang={lang} />)}
+ 
+               {group.fixtures.length > VISIBLE_ROWS && (
+                 <Fold id={`fold-${i}`} n={group.fixtures.length} lang={lang}>
+-                  {group.fixtures.slice(VISIBLE_ROWS).map((fx) => <MatchRow fx={fx} competitionSlug={group.slug} lang={lang} />)}
++                  {group.fixtures.slice(VISIBLE_ROWS).map((fx) => <MatchRow fx={onUtcClock(fx)} competitionSlug={group.slug} lang={lang} />)}
+                 </Fold>
+               )}
+             </Group>
+diff --git a/site_v2/src/components/team/TeamFixtureGroup.astro b/site_v2/src/components/team/TeamFixtureGroup.astro
+index bc0543e1..b01f0a94 100644
+--- a/site_v2/src/components/team/TeamFixtureGroup.astro
++++ b/site_v2/src/components/team/TeamFixtureGroup.astro
+@@ -21,14 +21,15 @@ interface Props {
+ }
+ const { code, fixtures, team, lang, nextId = null, competitionSlot } = Astro.props;
+ const info = competitionInfo(code);
+-const dayOf = (fx: TeamScheduleFixture) => fx.kickoff_datetime?.slice(0, 10) ?? null;
++const clockOf = (fx: TeamScheduleFixture) => fx.kickoff_local ?? fx.kickoff_datetime;
++const dayOf = (fx: TeamScheduleFixture) => clockOf(fx)?.slice(0, 10) ?? null;
+ ---
+ 
+ <Group data-competition-slot={competitionSlot}>
+   <GroupHead lang={lang} name={info.name} crest={{ name: info.name, url: info.crest }} competition={info.slug} />
+   {fixtures.map((fx, i) => (
+     <>
+-      {(i === 0 || dayOf(fx) !== dayOf(fixtures[i - 1])) && <DateHeading date={formatDate(fx.kickoff_datetime, lang)} />}
++      {(i === 0 || dayOf(fx) !== dayOf(fixtures[i - 1])) && <DateHeading date={formatDate(clockOf(fx), lang)} />}
+       <MatchRow fx={asMatchRowFixture(fx, team)} competitionSlug={info.slug} lang={lang} nextMatch={fx.fixture_id === nextId} />
+     </>
+   ))}
+diff --git a/site_v2/src/components/ui/MatchRow.astro b/site_v2/src/components/ui/MatchRow.astro
+index a274331c..95745211 100644
+--- a/site_v2/src/components/ui/MatchRow.astro
++++ b/site_v2/src/components/ui/MatchRow.astro
+@@ -10,11 +10,12 @@
+ // A row is a link only when its target exists: a match links to its page when this build makes one,
+ // the preview of an unplayed match or the page of a played one; the markup is the same either way.
+ //
+-// The kick-off is rendered in UTC with that label until the warehouse serves the venue's clock
+-// and zone (#146); a fixture whose time is not set yet shows the TBC copy in the time slot.
++// The kick-off prints as the warehouse serves it: the venue's clock and its zone label, converted
++// by nothing here; a row served without them keeps its UTC kick-off and says UTC. A fixture whose
++// time is not set yet shows the TBC copy in the time slot.
+ import Crest from "./Crest.astro";
+ import StatusTag from "./StatusTag.astro";
+-import { formatTime } from "../../lib/format";
++import { formatTime, kickoffClock } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { localeHref, word } from "../../lib/href";
+ import { t } from "../../i18n/strings";
+@@ -31,7 +32,7 @@ interface Props {
+ }
+ const { fx, competitionSlug, lang, topMatch = false, nextMatch = false } = Astro.props;
+ 
+-const ZONE = "UTC";
++const clock = kickoffClock(fx);
+ const played = fx.is_played && fx.goals_home != null && fx.goals_away != null;
+ const state = played ? null : fx.unplayed_state ?? null;
+ const linked = Boolean(competitionSlug && fx.slug) && builtFixtures().has(fx.fixture_id);
+@@ -39,7 +40,7 @@ const href = linked ? localeHref(lang, `${competitionSlug}/${word(lang, "matches
+ const Row = linked ? "a" : "div";
+ const homeWins = played && (fx.goals_home as number) > (fx.goals_away as number);
+ const awayWins = played && (fx.goals_away as number) > (fx.goals_home as number);
+-const time = fx.status === "TBD" ? t(lang, "timeOpenShort") : formatTime(fx.kickoff, lang);
++const time = fx.status === "TBD" ? t(lang, "timeOpenShort") : formatTime(clock.at, lang);
+ ---
+ 
+ <Row class:list={["fxrow", { played }]} href={href} data-fixture={fx.fixture_id}>
+@@ -60,7 +61,7 @@ const time = fx.status === "TBD" ? t(lang, "timeOpenShort") : formatTime(fx.kick
+   {!played && !state && (
+     <span class="when">
+       <b class="t">{time}</b>
+-      <span class="rowtz">{ZONE}</span>
++      <span class="rowtz">{clock.zone}</span>
+     </span>
+   )}
+ </Row>
+diff --git a/site_v2/src/lib/format.test.mjs b/site_v2/src/lib/format.test.mjs
+new file mode 100644
+index 00000000..610ec416
+--- /dev/null
++++ b/site_v2/src/lib/format.test.mjs
+@@ -0,0 +1,51 @@
++// Pins the kick-off clock a match row prints: the served venue wall clock and its zone label,
++// read as the digits they show on every machine; a row served without them keeps its UTC kick-off.
++
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { formatDate, formatTime, kickoffClock, kickoffDay } from "./format.ts";
++
++const SERVED = {
++  kickoff: "2026-11-21 23:30:00+00:00",
++  kickoff_local: "2026-11-22 00:30:00",
++  kickoff_zone_label: "CET",
++};
++
++test("a row prints its served local kick-off and its zone label", () => {
++  assert.deepEqual(kickoffClock(SERVED), { at: "2026-11-22 00:30:00", zone: "CET" });
++  assert.equal(formatTime(kickoffClock(SERVED).at, "en"), "00:30");
++});
++
++test("a served wall clock is read as its digits, whatever the machine's zone", () => {
++  const was = process.env.TZ;
++  try {
++    for (const zone of ["America/Los_Angeles", "Asia/Tokyo", "UTC"]) {
++      process.env.TZ = zone;
++      assert.equal(formatTime("2026-07-05 20:00:00", "en"), "20:00");
++    }
++  } finally {
++    if (was === undefined) delete process.env.TZ;
++    else process.env.TZ = was;
++  }
++});
++
++test("the day heading groups a row under the date of its local clock", () => {
++  assert.equal(kickoffDay(SERVED), "2026-11-22");
++  assert.match(formatDate(kickoffClock(SERVED).at, "en"), /22/);
++});
++
++test("a row served without a local clock keeps its UTC kick-off and says UTC", () => {
++  const row = { kickoff: "2026-11-21 23:30:00+00:00" };
++  assert.deepEqual(kickoffClock(row), { at: "2026-11-21 23:30:00+00:00", zone: "UTC" });
++  assert.equal(formatTime(kickoffClock(row).at, "en"), "23:30");
++  assert.equal(kickoffDay(row), "2026-11-21");
++});
++
++test("a row with a local clock and no label says UTC, never a blank", () => {
++  assert.equal(kickoffClock({ kickoff_local: "2026-11-22 00:30:00" }).zone, "UTC");
++});
++
++test("a row with no kick-off at all has no clock and no day", () => {
++  assert.deepEqual(kickoffClock({}), { at: null, zone: "UTC" });
++  assert.equal(kickoffDay({}), null);
++});
+diff --git a/site_v2/src/lib/format.ts b/site_v2/src/lib/format.ts
+index 4f154bb3..4ec823e2 100644
+--- a/site_v2/src/lib/format.ts
++++ b/site_v2/src/lib/format.ts
+@@ -131,14 +131,33 @@ export function signedDelta(
+   return { value, unit: null };
+ }
+ 
+-// ---- dates ---- kickoff is served as a UTC ISO string ("2026-07-26 22:30:00+00:00").
+-// Rendered in UTC so the static build is deterministic across machines and matches the
+-// stored kickoff; local-timezone display is a later enhancement (01_fixture_page.md §5.2).
++// ---- dates ---- kickoff is served as a UTC ISO string ("2026-07-26 22:30:00+00:00"), and
++// kickoff_local as the venue's wall clock with no offset ("2026-07-26 20:30:00"). Both are
++// rendered through UTC so the static build is deterministic across machines: a served wall
++// clock is read as the digits it shows, never converted.
++const WALL_CLOCK = /^\d{4}-\d\d-\d\d[ T]\d\d:\d\d(:\d\d(\.\d+)?)?$/;
+ function toDate(iso: string | null | undefined): Date | null {
+   if (!iso) return null;
+-  const d = new Date(iso.replace(" ", "T"));
++  const text = iso.replace(" ", "T");
++  const d = new Date(WALL_CLOCK.test(iso) ? `${text}Z` : text);
+   return Number.isNaN(d.getTime()) ? null : d;
+ }
++
++/** The clock a match row prints: the served local kick-off and its zone label. A row served
++ *  without them keeps its UTC kick-off and says UTC. */
++export function kickoffClock(fx: {
++  kickoff?: string | null;
++  kickoff_local?: string | null;
++  kickoff_zone_label?: string | null;
++}): { at: string | null; zone: string } {
++  if (fx.kickoff_local) return { at: fx.kickoff_local, zone: fx.kickoff_zone_label ?? "UTC" };
++  return { at: fx.kickoff ?? null, zone: "UTC" };
++}
++
++/** The date a day heading groups a row under: the date of its printed clock. */
++export function kickoffDay(fx: Parameters<typeof kickoffClock>[0]): string | null {
++  return kickoffClock(fx).at?.slice(0, 10) ?? null;
++}
+ export function formatDate(iso: string | null | undefined, lang: Lang): string {
+   const d = toDate(iso);
+   if (!d) return DASH;
+diff --git a/site_v2/src/lib/teamFixtures.ts b/site_v2/src/lib/teamFixtures.ts
+index 957404f4..d8cffd25 100644
+--- a/site_v2/src/lib/teamFixtures.ts
++++ b/site_v2/src/lib/teamFixtures.ts
+@@ -36,6 +36,8 @@ export function asMatchRowFixture(fx: TeamScheduleFixture, team: TeamRef): Compe
+     fixture_id: fx.fixture_id,
+     slug: builtFixtures().get(fx.fixture_id)?.slug ?? null,
+     kickoff: fx.kickoff_datetime ?? null,
++    kickoff_local: fx.kickoff_local ?? null,
++    kickoff_zone_label: fx.kickoff_zone_label ?? null,
+     status: fx.status_short ?? null,
+     is_played: false,
+     goals_home: null,
+diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
+index 31e543b6..eb16bfa3 100644
+--- a/site_v2/src/lib/types.ts
++++ b/site_v2/src/lib/types.ts
+@@ -119,6 +119,8 @@ export interface Fixture {
+   fixture_id: number;
+   slug: string;
+   kickoff?: string | null;
++  kickoff_local?: string | null;
++  kickoff_zone_label?: string | null;
+   status?: string | null;
+   unplayed_state?: UnplayedState | null;
+   league_code: string;
+@@ -252,6 +254,8 @@ export interface TeamFixture {
+   opponent_logo_url?: string | null;
+   is_home?: boolean | null;
+   kickoff_datetime?: string | null;
++  kickoff_local?: string | null;
++  kickoff_zone_label?: string | null;
+   round_name?: string | null;
+   goals_for?: number | null;
+   goals_against?: number | null;
+@@ -739,6 +743,8 @@ export interface CompetitionFixture {
+   fixture_id: number;
+   slug: string | null;
+   kickoff: string | null;
++  kickoff_local?: string | null;
++  kickoff_zone_label?: string | null;
+   status: string | null;
+   unplayed_state?: UnplayedState | null;
+   is_played: boolean;
+diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
+index bfadbf2c..b40d687f 100644
+--- a/tests/test_export_site_data.py
++++ b/tests/test_export_site_data.py
+@@ -1039,7 +1039,8 @@ def test_the_team_schedule_lists_every_match_ahead_and_every_result_of_the_featu
+ 
+     def fx(sk, kickoff, year, *, upcoming=None, recency=None, order=None, league="BL1"):
+         return {"team_sk": 165, "fixture_sk": sk, "league_code": league, "season_api_year": year,
+-                "kickoff_datetime": kickoff, "opponent_team_sk": 5, "opponent_name": f"O{sk}",
++                "kickoff_datetime": kickoff, "kickoff_local": kickoff[:19],
++                "kickoff_zone_label": "CET", "opponent_team_sk": 5, "opponent_name": f"O{sk}",
+                 "opponent_logo_url": "x", "is_home": True, "round_name": "R", "goals_for": None,
+                 "goals_against": None, "result": None, "status_short": "NS",
+                 "has_result": recency is not None, "is_upcoming": upcoming is not None,
+@@ -1064,6 +1065,7 @@ def test_the_team_schedule_lists_every_match_ahead_and_every_result_of_the_featu
+         "fixture_id": 4, "league_code": "UCL", "upcoming_rank": 1, "opponent_name": "O4",
+         # the payload carries no order key: its list order is the order
+         "opponent_logo_url": "x", "is_home": True, "kickoff_datetime": "2026-11-04 20:00:00+00:00",
++        "kickoff_local": "2026-11-04 20:00:00", "kickoff_zone_label": "CET",
+         "round_name": "R", "goals_for": None, "goals_against": None, "result": None,
+         "status_short": "NS"}
+     assert shape_team_payload(_mark_featured(rows))["schedule"] == {"upcoming": [], "results": []}
+diff --git a/tests/test_kickoff_clock_146.py b/tests/test_kickoff_clock_146.py
+new file mode 100644
+index 00000000..6922e8e6
+--- /dev/null
++++ b/tests/test_kickoff_clock_146.py
+@@ -0,0 +1,102 @@
++"""The venue's clock: the seeds name only zones that exist, every country has a row, and the export
++carries the two served columns on every match row it shapes."""
++import csv
++import pathlib
++import sys
++
++import pytest
++
++ROOT = pathlib.Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(ROOT / "scripts"))
++
++import export_site_data as export  # noqa: E402
++
++SEEDS = ROOT / "dbt_project" / "seeds"
++
++
++def _rows(name: str) -> list[dict]:
++    with open(SEEDS / name, encoding="utf-8", newline="") as f:
++        return list(csv.DictReader(f))
++
++
++def test_every_zone_a_seed_names_is_in_time_zones():
++    known = {r["time_zone"] for r in _rows("time_zones.csv")}
++    named = {r["time_zone"] for r in _rows("country_time_zones.csv") if r["time_zone"]}
++    named |= {r["time_zone"] for r in _rows("venue_time_zones.csv")}
++    assert named - known == set()
++
++
++def test_every_zone_in_time_zones_is_an_iana_zone():
++    zoneinfo = pytest.importorskip("zoneinfo")
++    try:
++        zoneinfo.ZoneInfo("Europe/Berlin")
++    except zoneinfo.ZoneInfoNotFoundError:
++        pytest.skip("no tz database on this machine")
++    bad = []
++    for r in _rows("time_zones.csv"):
++        try:
++            zoneinfo.ZoneInfo(r["time_zone"])
++        except zoneinfo.ZoneInfoNotFoundError:
++            bad.append(r["time_zone"])
++    assert bad == []
++
++
++def test_every_country_has_a_row_in_country_time_zones():
++    countries = {r["country_key"] for r in _rows("countries.csv")}
++    zoned = [r["country_key"] for r in _rows("country_time_zones.csv")]
++    assert len(zoned) == len(set(zoned))
++    assert countries == set(zoned)
++
++
++def test_a_country_without_a_default_zone_is_one_that_spans_zones():
++    without = {r["country_key"] for r in _rows("country_time_zones.csv") if not r["time_zone"]}
++    assert without == {
++        "australia", "brazil", "canada", "indonesia", "mexico", "russia", "united-states-of-america",
++    }
++
++
++def test_a_venue_has_one_row_in_venue_time_zones():
++    ids = [r["venue_api_id"] for r in _rows("venue_time_zones.csv")]
++    assert len(ids) == len(set(ids))
++
++
++def test_a_zone_that_has_a_daylight_label_has_a_standard_label():
++    bad = [r["time_zone"] for r in _rows("time_zones.csv") if r["label_daylight"] and not r["label_standard"]]
++    assert bad == []
++
++
++def test_the_competition_fixture_columns_carry_the_clock():
++    columns = {c.strip() for c in export._COMPETITION_FIXTURE_COLUMNS.split(",")}
++    assert {"kickoff_local", "kickoff_zone_label"} <= columns
++
++
++def _mart_row(**extra) -> dict:
++    return {
++        "fixture_sk": 7, "fixture_slug": "a-b", "kickoff_datetime": "2026-11-21 19:30:00+00:00",
++        "kickoff_local": "2026-11-21 20:30:00", "kickoff_zone_label": "CET", "round_name": "R",
++        "fixture_order": 1, "status_short": "NS", "is_played": False, "home_team_sk": 1,
++        "away_team_sk": 2, **extra,
++    }
++
++
++def test_a_match_row_carries_the_served_local_kickoff_and_label_unchanged():
++    row = export._competition_fixture(_mart_row())
++    assert row["kickoff"] == "2026-11-21 19:30:00+00:00"
++    assert row["kickoff_local"] == "2026-11-21 20:30:00"
++    assert row["kickoff_zone_label"] == "CET"
++
++
++def test_a_next_match_and_a_landing_group_carry_the_clock():
++    nxt = export.shape_next_match({**_mart_row(), "league_code": "BL1"}, fixture_id=99)
++    assert (nxt["kickoff_local"], nxt["kickoff_zone_label"]) == ("2026-11-21 20:30:00", "CET")
++    groups = export.group_upcoming_fixtures([{**_mart_row(), "league_code": "BL1"}], {"BL1": {"name": "Bundesliga"}})
++    fixture = groups[0]["fixtures"][0]
++    assert (fixture["kickoff_local"], fixture["kickoff_zone_label"]) == ("2026-11-21 20:30:00", "CET")
++
++
++def test_a_team_schedule_row_carries_the_clock():
++    shaped = export._shape_team_fixture({
++        "kickoff_datetime": "2026-11-21 19:30:00+00:00", "kickoff_local": "2026-11-21 20:30:00",
++        "kickoff_zone_label": "CET",
++    })
++    assert (shaped["kickoff_local"], shaped["kickoff_zone_label"]) == ("2026-11-21 20:30:00", "CET")
+diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
+index 7072e115..970d16a2 100644
+--- a/tests/test_no_decision_history_in_code.py
++++ b/tests/test_no_decision_history_in_code.py
+@@ -20,8 +20,8 @@ HOOKS = os.path.join(REPO, ".claude", "hooks")
+ sys.path.insert(0, HOOKS)
+ import comment_history_gate as gate  # noqa: E402
+ 
+-PINNED_LINES = 267
+-PINNED_FILES = 91
++PINNED_LINES = 266
++PINNED_FILES = 90
+ 
+ HASH = chr(35)
+ 
+diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
+index b012bef2..20046b86 100644
+--- a/tests/test_sentence_length_in_docs.py
++++ b/tests/test_sentence_length_in_docs.py
+@@ -56,7 +56,7 @@ PINNED = {
+     "docs/roles/product_analyst.md": 4,
+     "docs/roles/seo_expert.md": 11,
+     "docs/roles/ui_expert.md": 1,
+-    "docs/wireframes/00_overview.md": 12,
++    "docs/wireframes/00_overview.md": 11,
+     "docs/wireframes/01_fixture_page.md": 4,
+     "docs/wireframes/03_player_profile.md": 3,
+     "docs/wireframes/08_browse.md": 9,
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../task/146-venue-timezone/acceptance_evidence.md |    9 +
+#    .../146-venue-timezone/rendered_page_evidence.md   |    9 +
+#    .claude/task/146-venue-timezone/review.md          |   39 +
+#    .claude/task/146-venue-timezone/review_input.patch | 2245 ++++++++++++++++++++
+#    4 files changed, 2302 insertions(+)
+# ============================================================================

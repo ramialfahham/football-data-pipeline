@@ -1039,7 +1039,8 @@ def test_the_team_schedule_lists_every_match_ahead_and_every_result_of_the_featu
 
     def fx(sk, kickoff, year, *, upcoming=None, recency=None, order=None, league="BL1"):
         return {"team_sk": 165, "fixture_sk": sk, "league_code": league, "season_api_year": year,
-                "kickoff_datetime": kickoff, "opponent_team_sk": 5, "opponent_name": f"O{sk}",
+                "kickoff_datetime": kickoff, "kickoff_local": kickoff[:19],
+                "kickoff_zone_label": "CET", "opponent_team_sk": 5, "opponent_name": f"O{sk}",
                 "opponent_logo_url": "x", "is_home": True, "round_name": "R", "goals_for": None,
                 "goals_against": None, "result": None, "status_short": "NS",
                 "has_result": recency is not None, "is_upcoming": upcoming is not None,
@@ -1064,6 +1065,7 @@ def test_the_team_schedule_lists_every_match_ahead_and_every_result_of_the_featu
         "fixture_id": 4, "league_code": "UCL", "upcoming_rank": 1, "opponent_name": "O4",
         # the payload carries no order key: its list order is the order
         "opponent_logo_url": "x", "is_home": True, "kickoff_datetime": "2026-11-04 20:00:00+00:00",
+        "kickoff_local": "2026-11-04 20:00:00", "kickoff_zone_label": "CET",
         "round_name": "R", "goals_for": None, "goals_against": None, "result": None,
         "status_short": "NS"}
     assert shape_team_payload(_mark_featured(rows))["schedule"] == {"upcoming": [], "results": []}
