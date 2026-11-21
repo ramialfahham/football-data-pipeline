@@ -4,6 +4,7 @@
 // makes one; a row that leads nowhere is not a link.
 import Crest from "./Crest.astro";
 import { hasPlayerPage } from "../../lib/builtPlayers.mjs";
+import { hasTeamPage } from "../../lib/builtTeams.mjs";
 import { localeHref, word } from "../../lib/href";
 import type { Lang } from "../../lib/format";
 
@@ -31,7 +32,7 @@ interface Props {
 }
 const { lang, team, player, rank, crest, name, sub, cells, nonkey } = Astro.props;
 const href = team
-  ? localeHref(lang, `${word(lang, "teams")}/${team}/`)
+  ? hasTeamPage(team) ? localeHref(lang, `${word(lang, "teams")}/${team}/`) : undefined
   : player && hasPlayerPage(player) ? localeHref(lang, `${word(lang, "players")}/${player}/`) : undefined;
 const Row = href ? "a" : "div";
 ---

@@ -1,0 +1,594 @@
+diff --git a/.claude/task/333-team-link-built-only/acceptance_evidence.md b/.claude/task/333-team-link-built-only/acceptance_evidence.md
+new file mode 100644
+index 00000000..2ca258ac
+--- /dev/null
++++ b/.claude/task/333-team-link-built-only/acceptance_evidence.md
+@@ -0,0 +1,8 @@
++# Verification — a team row links only to a team page the build makes
++
++Instrument: `npm run build` in site_v2 on the committed sample plus the live export of 21 Nov (88,230 files): its `competitions/WCQAF/2023.json` and the 53 team payloads of its standings teams copied into `src/data`, which is the Africa qualification page with Eritrea (no `teams/` file in the live export, 3,391 files) among 54 standings rows. 2,535 pages built; the built `dist/{en,de,fi}/world-cup-qualification-africa/index.html` was read, not the source. `node --test src/lib/builtTeams.test.mjs`: 2 passed.
++
++criteria_demonstrated:
++  - **A team row on any page leads to the team page when this build makes one, and is plain text when it does not:** in the built `/en/world-cup-qualification-africa/` 52 of the 53 standings rows read `<a href="/en/teams/<slug>/" class="ctab-row">` (for example `/en/teams/egypt/`, `/en/teams/burkina-faso/`), each with its team payload in `src/data/teams`; the one row of a team with no payload is `<div class="ctab-row">`. The same counts hold in DE (`/de/mannschaften/…`) and FI (`/fi/joukkueet/…`).
++  - **The World Cup qualification Africa page (EN, DE, FI) has no dead internal link: Eritrea's row in the standings is plain text:** in the built page of each locale the row named Eritrea is a `div` (`<span class="nm">Eritrea</span>`, rank 6, played 0), and the string `/en/teams/eritrea/` (`/de/mannschaften/eritrea/`, `/fi/joukkueet/eritrea/`) does not occur in the file. `node scripts/audit-seo.mjs` after the build reports no dead internal link; its 12 violations are the nation-page h1 rows of #296 (`/en/teams/morocco/` and 3 more nations, 3 locales).
++  - **The Teams page and every table row take "the team has a built page" from one place:** `TableRow.astro` and `pages/[lang]/[teams]/index.astro` both call `hasTeamPage` from `site_v2/src/lib/builtTeams.mjs`, and the Teams page no longer reads `src/data/teams` itself (`grep -n "readdirSync" "site_v2/src/pages/[lang]/[teams]/index.astro"` returns no match). Two other readers stay as they were and are not table rows: the team route `[team].astro`, which emits the pages, and `playerPage.ts` `teamHasPage`, a player header's club link by team id.
+diff --git a/.claude/task/333-team-link-built-only/contract.md b/.claude/task/333-team-link-built-only/contract.md
+new file mode 100644
+index 00000000..a8606054
+--- /dev/null
++++ b/.claude/task/333-team-link-built-only/contract.md
+@@ -0,0 +1,66 @@
++# Task contract — a team row links only to a team page the build makes
++
++objective: >
++  Issue #333: a team row in a table leads to the team page only when this build makes that page,
++  and is plain text otherwise, as a player row already is. A first full build from live data had 3
++  dead internal links (Eritrea in the World Cup qualification Africa standings, EN/DE/FI), so
++  `audit-seo` refused to deploy.
++
++refs: "#333; #170 (a team page for every club the site shows); #132"
++
++scope_paths:
++  - .claude/task/333-team-link-built-only/**
++  - site_v2/src/lib/builtTeams.mjs
++  - site_v2/src/lib/builtTeams.test.mjs
++  - site_v2/src/components/ui/TableRow.astro
++  - site_v2/src/pages/*teams*/index.astro
++
++impact_map: >
++  writers: none; the export is unchanged, the module reads `src/data/teams/*.json`, the files
++  `[team].astro` builds a page from.
++  downstream: `TableRow` is used by StandingsTable, DeservedTable, RankingBoard (team boards),
++  TeamDeserved and LastSeasonTable (`grep -rn "TableRow" site_v2/src --include=*.astro`), so the
++  pages reached are Home (Top teams), the competition page (standings, deserved points, team
++  boards), the Statistics page (team boards through RankingsBlock), the Teams page and the Team
++  page; LastSeasonTable passes no team slug and the match page's Match leaders are player rows
++  with `linked={false}`. A row
++  whose team has a payload renders exactly as before; one without becomes a `div`. The Teams page
++  already links a team only when a payload exists; it takes the same lookup from the module.
++  layer_rules: no dbt, no export, no new page.
++  deploy_order: none; site code only.
++  blast_radius: rows of teams without a payload: today a dead link, afterwards plain text. On the
++  live export of 21 Nov that is Eritrea's row on the Africa qualification standings, 3 locales.
++  The committed sample's teams all have payloads, so its pages are unchanged.
++
++approved_design:
++  - home: #127
++  - competition: #129
++  - teams: #133
++  - team: #134
++  - statistics: #139
++
++depends_on:
++  - none: site code on main alone
++shared_files:
++  - none: no design, registry, font or chart baseline changes
++
++acceptance_criteria:
++  - A team row on any page leads to the team page when this build makes one, and is plain text when it does not.
++  - The World Cup qualification Africa page (EN, DE, FI) has no dead internal link: Eritrea's row in the standings is plain text.
++  - The Teams page and every table row take "the team has a built page" from one place.
++
++decisions_taken: >
++  The rule that a row leads only where a page exists is the one players already follow and the
++  Teams page already applies to teams; plain text for a team with no page was ruled by the
++  coordinating session, approved in chat, 21 Nov 2026. No new dependency, no recurring cost, no
++  new mechanism: one lookup module beside builtPlayers.
++
++decisions_reserved:
++  - none: the rule and the scope are the approved issue text; whether a team that has played no match ever gets a page stays with #170.
++
++done_when:
++  - cd site_v2 && node --test passes, with a test that pins the lookup (a slug in a teams directory is built, an absent one is not).
++  - A build of the committed sample plus the live export's Africa qualification payload has Eritrea's row as plain text on the page in EN, DE and FI and `node scripts/audit-seo.mjs` reports no dead link.
++  - python scripts/ci_local.py --mr is green on this branch.
++
++amendments: (none)
+diff --git a/.claude/task/333-team-link-built-only/review_input.patch b/.claude/task/333-team-link-built-only/review_input.patch
+new file mode 100644
+index 00000000..96508979
+--- /dev/null
++++ b/.claude/task/333-team-link-built-only/review_input.patch
+@@ -0,0 +1,390 @@
++diff --git a/.claude/task/333-team-link-built-only/acceptance_evidence.md b/.claude/task/333-team-link-built-only/acceptance_evidence.md
++new file mode 100644
++index 00000000..2ca258ac
++--- /dev/null
+++++ b/.claude/task/333-team-link-built-only/acceptance_evidence.md
++@@ -0,0 +1,8 @@
+++# Verification — a team row links only to a team page the build makes
+++
+++Instrument: `npm run build` in site_v2 on the committed sample plus the live export of 21 Nov (88,230 files): its `competitions/WCQAF/2023.json` and the 53 team payloads of its standings teams copied into `src/data`, which is the Africa qualification page with Eritrea (no `teams/` file in the live export, 3,391 files) among 54 standings rows. 2,535 pages built; the built `dist/{en,de,fi}/world-cup-qualification-africa/index.html` was read, not the source. `node --test src/lib/builtTeams.test.mjs`: 2 passed.
+++
+++criteria_demonstrated:
+++  - **A team row on any page leads to the team page when this build makes one, and is plain text when it does not:** in the built `/en/world-cup-qualification-africa/` 52 of the 53 standings rows read `<a href="/en/teams/<slug>/" class="ctab-row">` (for example `/en/teams/egypt/`, `/en/teams/burkina-faso/`), each with its team payload in `src/data/teams`; the one row of a team with no payload is `<div class="ctab-row">`. The same counts hold in DE (`/de/mannschaften/…`) and FI (`/fi/joukkueet/…`).
+++  - **The World Cup qualification Africa page (EN, DE, FI) has no dead internal link: Eritrea's row in the standings is plain text:** in the built page of each locale the row named Eritrea is a `div` (`<span class="nm">Eritrea</span>`, rank 6, played 0), and the string `/en/teams/eritrea/` (`/de/mannschaften/eritrea/`, `/fi/joukkueet/eritrea/`) does not occur in the file. `node scripts/audit-seo.mjs` after the build reports no dead internal link; its 12 violations are the nation-page h1 rows of #296 (`/en/teams/morocco/` and 3 more nations, 3 locales).
+++  - **The Teams page and every table row take "the team has a built page" from one place:** `TableRow.astro` and `pages/[lang]/[teams]/index.astro` both call `hasTeamPage` from `site_v2/src/lib/builtTeams.mjs`, and the Teams page no longer reads `src/data/teams` itself (`grep -n "readdirSync" "site_v2/src/pages/[lang]/[teams]/index.astro"` returns no match). Two other readers stay as they were and are not table rows: the team route `[team].astro`, which emits the pages, and `playerPage.ts` `teamHasPage`, a player header's club link by team id.
++diff --git a/.claude/task/333-team-link-built-only/contract.md b/.claude/task/333-team-link-built-only/contract.md
++new file mode 100644
++index 00000000..85ec4881
++--- /dev/null
+++++ b/.claude/task/333-team-link-built-only/contract.md
++@@ -0,0 +1,61 @@
+++# Task contract — a team row links only to a team page the build makes
+++
+++objective: >
+++  Issue #333: a team row in a table leads to the team page only when this build makes that page,
+++  and is plain text otherwise, as a player row already is. A first full build from live data had 3
+++  dead internal links (Eritrea in the World Cup qualification Africa standings, EN/DE/FI), so
+++  `audit-seo` refused to deploy.
+++
+++refs: "#333; #170 (a team page for every club the site shows); #132"
+++
+++scope_paths:
+++  - .claude/task/333-team-link-built-only/**
+++  - site_v2/src/lib/builtTeams.mjs
+++  - site_v2/src/lib/builtTeams.test.mjs
+++  - site_v2/src/components/ui/TableRow.astro
+++  - site_v2/src/pages/*teams*/index.astro
+++
+++impact_map: >
+++  writers: none; the export is unchanged, the module reads `src/data/teams/*.json`, the files
+++  `[team].astro` builds a page from.
+++  downstream: `TableRow` is used by StandingsTable, DeservedTable, RankingBoard (team boards),
+++  TeamDeserved and LastSeasonTable (`grep -rn "TableRow" site_v2/src --include=*.astro`). A row
+++  whose team has a payload renders exactly as before; one without becomes a `div`. The Teams page
+++  already links a team only when a payload exists; it takes the same lookup from the module.
+++  layer_rules: no dbt, no export, no new page.
+++  deploy_order: none; site code only.
+++  blast_radius: rows of teams without a payload: today a dead link, afterwards plain text. On the
+++  live export of 21 Nov that is Eritrea's row on the Africa qualification standings, 3 locales.
+++  The committed sample's teams all have payloads, so its pages are unchanged.
+++
+++approved_design:
+++  - home: #127
+++  - competition: #129
+++  - teams: #133
+++  - team: #134
+++
+++depends_on:
+++  - none: site code on main alone
+++shared_files:
+++  - none: no design, registry, font or chart baseline changes
+++
+++acceptance_criteria:
+++  - A team row on any page leads to the team page when this build makes one, and is plain text when it does not.
+++  - The World Cup qualification Africa page (EN, DE, FI) has no dead internal link: Eritrea's row in the standings is plain text.
+++  - The Teams page and every table row take "the team has a built page" from one place.
+++
+++decisions_taken: >
+++  The rule that a row leads only where a page exists is the one players already follow and the
+++  Teams page already applies to teams; plain text for a team with no page was ruled by the
+++  coordinating session, approved in chat, 21 Nov 2026. No new dependency, no recurring cost, no
+++  new mechanism: one lookup module beside builtPlayers.
+++
+++decisions_reserved:
+++  - none: the rule and the scope are the approved issue text; whether a team that has played no match ever gets a page stays with #170.
+++
+++done_when:
+++  - cd site_v2 && node --test passes, with a test that pins the lookup (a slug in a teams directory is built, an absent one is not).
+++  - A build of the committed sample plus the live export's Africa qualification payload has Eritrea's row as plain text on the page in EN, DE and FI and `node scripts/audit-seo.mjs` reports no dead link.
+++  - python scripts/ci_local.py --mr is green on this branch.
+++
+++amendments: (none)
++diff --git a/.claude/task/333-team-link-built-only/review_input.patch b/.claude/task/333-team-link-built-only/review_input.patch
++new file mode 100644
++index 00000000..edc64dea
++--- /dev/null
+++++ b/.claude/task/333-team-link-built-only/review_input.patch
++@@ -0,0 +1,191 @@
+++diff --git a/.claude/task/333-team-link-built-only/acceptance_evidence.md b/.claude/task/333-team-link-built-only/acceptance_evidence.md
+++new file mode 100644
+++index 00000000..2ca258ac
+++--- /dev/null
++++++ b/.claude/task/333-team-link-built-only/acceptance_evidence.md
+++@@ -0,0 +1,8 @@
++++# Verification — a team row links only to a team page the build makes
++++
++++Instrument: `npm run build` in site_v2 on the committed sample plus the live export of 21 Nov (88,230 files): its `competitions/WCQAF/2023.json` and the 53 team payloads of its standings teams copied into `src/data`, which is the Africa qualification page with Eritrea (no `teams/` file in the live export, 3,391 files) among 54 standings rows. 2,535 pages built; the built `dist/{en,de,fi}/world-cup-qualification-africa/index.html` was read, not the source. `node --test src/lib/builtTeams.test.mjs`: 2 passed.
++++
++++criteria_demonstrated:
++++  - **A team row on any page leads to the team page when this build makes one, and is plain text when it does not:** in the built `/en/world-cup-qualification-africa/` 52 of the 53 standings rows read `<a href="/en/teams/<slug>/" class="ctab-row">` (for example `/en/teams/egypt/`, `/en/teams/burkina-faso/`), each with its team payload in `src/data/teams`; the one row of a team with no payload is `<div class="ctab-row">`. The same counts hold in DE (`/de/mannschaften/…`) and FI (`/fi/joukkueet/…`).
++++  - **The World Cup qualification Africa page (EN, DE, FI) has no dead internal link: Eritrea's row in the standings is plain text:** in the built page of each locale the row named Eritrea is a `div` (`<span class="nm">Eritrea</span>`, rank 6, played 0), and the string `/en/teams/eritrea/` (`/de/mannschaften/eritrea/`, `/fi/joukkueet/eritrea/`) does not occur in the file. `node scripts/audit-seo.mjs` after the build reports no dead internal link; its 12 violations are the nation-page h1 rows of #296 (`/en/teams/morocco/` and 3 more nations, 3 locales).
++++  - **The Teams page and every table row take "the team has a built page" from one place:** `TableRow.astro` and `pages/[lang]/[teams]/index.astro` both call `hasTeamPage` from `site_v2/src/lib/builtTeams.mjs`, and the Teams page no longer reads `src/data/teams` itself (`grep -n "readdirSync" "site_v2/src/pages/[lang]/[teams]/index.astro"` returns no match). Two other readers stay as they were and are not table rows: the team route `[team].astro`, which emits the pages, and `playerPage.ts` `teamHasPage`, a player header's club link by team id.
+++diff --git a/.claude/task/333-team-link-built-only/contract.md b/.claude/task/333-team-link-built-only/contract.md
+++new file mode 100644
+++index 00000000..2d288648
+++--- /dev/null
++++++ b/.claude/task/333-team-link-built-only/contract.md
+++@@ -0,0 +1,59 @@
++++# Task contract — a team row links only to a team page the build makes
++++
++++objective: >
++++  Issue #333: a team row in a table leads to the team page only when this build makes that page,
++++  and is plain text otherwise, as a player row already is. A first full build from live data had 3
++++  dead internal links (Eritrea in the World Cup qualification Africa standings, EN/DE/FI), so
++++  `audit-seo` refused to deploy.
++++
++++refs: "#333; #170 (a team page for every club the site shows); #132"
++++
++++scope_paths:
++++  - .claude/task/333-team-link-built-only/**
++++  - site_v2/src/lib/builtTeams.mjs
++++  - site_v2/src/lib/builtTeams.test.mjs
++++  - site_v2/src/components/ui/TableRow.astro
++++  - site_v2/src/pages/*teams*/index.astro
++++
++++impact_map: >
++++  writers: none; the export is unchanged, the module reads `src/data/teams/*.json`, the files
++++  `[team].astro` builds a page from.
++++  downstream: `TableRow` is used by StandingsTable, DeservedTable, RankingBoard (team boards),
++++  TeamDeserved and LastSeasonTable (`grep -rn "TableRow" site_v2/src --include=*.astro`). A row
++++  whose team has a payload renders exactly as before; one without becomes a `div`. The Teams page
++++  already links a team only when a payload exists; it takes the same lookup from the module.
++++  layer_rules: no dbt, no export, no new page.
++++  deploy_order: none; site code only.
++++  blast_radius: rows of teams without a payload: today a dead link, afterwards plain text. On the
++++  live export of 21 Nov that is Eritrea's row on the Africa qualification standings, 3 locales.
++++  The committed sample's teams all have payloads, so its pages are unchanged.
++++
++++approved_design:
++++  - competition: #129
++++  - teams: #133
++++
++++depends_on:
++++  - none: site code on main alone
++++shared_files:
++++  - none: no design, registry, font or chart baseline changes
++++
++++acceptance_criteria:
++++  - A team row on any page leads to the team page when this build makes one, and is plain text when it does not.
++++  - The World Cup qualification Africa page (EN, DE, FI) has no dead internal link: Eritrea's row in the standings is plain text.
++++  - The Teams page and every table row take "the team has a built page" from one place.
++++
++++decisions_taken: >
++++  The rule that a row leads only where a page exists is the one players already follow and the
++++  Teams page already applies to teams; plain text for a team with no page was ruled by the
++++  coordinating session, approved in chat, 21 Nov 2026. No new dependency, no recurring cost, no
++++  new mechanism: one lookup module beside builtPlayers.
++++
++++decisions_reserved:
++++  - none: the rule and the scope are the approved issue text; whether a team that has played no match ever gets a page stays with #170.
++++
++++done_when:
++++  - cd site_v2 && node --test passes, with a test that pins the lookup (a slug in a teams directory is built, an absent one is not).
++++  - A build of the committed sample plus the live export's Africa qualification payload has Eritrea's row as plain text on the page in EN, DE and FI and `node scripts/audit-seo.mjs` reports no dead link.
++++  - python scripts/ci_local.py --mr is green on this branch.
++++
++++amendments: (none)
+++diff --git a/site_v2/src/components/ui/TableRow.astro b/site_v2/src/components/ui/TableRow.astro
+++index a4dd0547..33364e3f 100644
+++--- a/site_v2/src/components/ui/TableRow.astro
++++++ b/site_v2/src/components/ui/TableRow.astro
+++@@ -4,6 +4,7 @@
+++ // makes one; a row that leads nowhere is not a link.
+++ import Crest from "./Crest.astro";
+++ import { hasPlayerPage } from "../../lib/builtPlayers.mjs";
++++import { hasTeamPage } from "../../lib/builtTeams.mjs";
+++ import { localeHref, word } from "../../lib/href";
+++ import type { Lang } from "../../lib/format";
+++ 
+++@@ -31,7 +32,7 @@ interface Props {
+++ }
+++ const { lang, team, player, rank, crest, name, sub, cells, nonkey } = Astro.props;
+++ const href = team
+++-  ? localeHref(lang, `${word(lang, "teams")}/${team}/`)
++++  ? hasTeamPage(team) ? localeHref(lang, `${word(lang, "teams")}/${team}/`) : undefined
+++   : player && hasPlayerPage(player) ? localeHref(lang, `${word(lang, "players")}/${player}/`) : undefined;
+++ const Row = href ? "a" : "div";
+++ ---
+++diff --git a/site_v2/src/lib/builtTeams.mjs b/site_v2/src/lib/builtTeams.mjs
+++new file mode 100644
+++index 00000000..5db744ff
+++--- /dev/null
++++++ b/site_v2/src/lib/builtTeams.mjs
+++@@ -0,0 +1,25 @@
++++// The team pages this build makes: one per payload the export wrote to src/data/teams, the files
++++// the team route builds its pages from. A row links to a team only when the team's page is in this
++++// list.
++++
++++import { readdirSync, readFileSync, existsSync } from "node:fs";
++++import { join } from "node:path";
++++
++++/** The served slug of every team payload in `dataDir`/teams. */
++++export function readBuiltTeams(dataDir) {
++++  const dir = join(dataDir, "teams");
++++  if (!existsSync(dir)) return new Set();
++++  return new Set(
++++    readdirSync(dir)
++++      .filter((name) => name.endsWith(".json"))
++++      .map((name) => JSON.parse(readFileSync(join(dir, name), "utf8")).slug),
++++  );
++++}
++++
++++let cached;
++++
++++/** Whether this build makes the page at a served team slug. */
++++export function hasTeamPage(slug) {
++++  cached ??= readBuiltTeams(join(process.cwd(), "src/data"));
++++  return cached.has(slug);
++++}
+++diff --git a/site_v2/src/lib/builtTeams.test.mjs b/site_v2/src/lib/builtTeams.test.mjs
+++new file mode 100644
+++index 00000000..34e0993b
+++--- /dev/null
++++++ b/site_v2/src/lib/builtTeams.test.mjs
+++@@ -0,0 +1,23 @@
++++// Pins the list of team pages a build makes: the slug inside each payload of src/data/teams.
++++
++++import { test } from "node:test";
++++import assert from "node:assert/strict";
++++import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
++++import { tmpdir } from "node:os";
++++import { join } from "node:path";
++++import { readBuiltTeams } from "./builtTeams.mjs";
++++
++++test("every team payload is one built page, named by its served slug", () => {
++++  const dir = mkdtempSync(join(tmpdir(), "teams-"));
++++  mkdirSync(join(dir, "teams"));
++++  writeFileSync(join(dir, "teams", "108.json"), JSON.stringify({ slug: "bayern-munich" }));
++++  writeFileSync(join(dir, "teams", "157.json"), JSON.stringify({ slug: "germany" }));
++++  writeFileSync(join(dir, "teams", "notes.txt"), "not a payload");
++++  const built = readBuiltTeams(dir);
++++  assert.deepEqual([...built].sort(), ["bayern-munich", "germany"]);
++++  assert.equal(built.has("eritrea"), false, "a team with no payload has no page");
++++});
++++
++++test("a build without team payloads makes no team page", () => {
++++  assert.equal(readBuiltTeams(mkdtempSync(join(tmpdir(), "teams-"))).size, 0);
++++});
+++diff --git a/site_v2/src/pages/[lang]/[teams]/index.astro b/site_v2/src/pages/[lang]/[teams]/index.astro
+++index fc93b63f..d30a655e 100644
+++--- a/site_v2/src/pages/[lang]/[teams]/index.astro
++++++ b/site_v2/src/pages/[lang]/[teams]/index.astro
+++@@ -7,10 +7,9 @@ import TeamIndex from "../../../components/teams/TeamIndex.astro";
+++ import { t } from "../../../i18n/strings";
+++ import { localeHref, word } from "../../../lib/href";
+++ import type { Lang } from "../../../lib/format";
+++-import type { Team, TeamIndex as TeamIndexData } from "../../../lib/types";
++++import type { TeamIndex as TeamIndexData } from "../../../lib/types";
++++import { hasTeamPage } from "../../../lib/builtTeams.mjs";
+++ import teamsIndex from "../../../data/teams_index.json";
+++-import { readdirSync, readFileSync } from "node:fs";
+++-import { join } from "node:path";
+++ 
+++ export function getStaticPaths() {
+++   return (["de", "en", "fi"] as const).map((lang) => ({
+++@@ -22,12 +21,7 @@ const lang = (Astro.params.lang ?? "en") as Lang;
+++ const data = teamsIndex as unknown as TeamIndexData;
+++ 
+++ // A row links only to a page the build makes: one per team payload.
+++-const dir = join(process.cwd(), "src/data/teams");
+++-const built = new Set(
+++-  readdirSync(dir)
+++-    .filter((name) => name.endsWith(".json"))
+++-    .map((name) => (JSON.parse(readFileSync(join(dir, name), "utf8")) as Team).slug),
+++-);
++++const built = new Set(data.teams.map((item) => item.team_slug).filter(hasTeamPage));
+++ 
+++ const title = t(lang, "seoTeamsTitle");
+++ const description = t(lang, "seoTeamsDesc");
++diff --git a/site_v2/src/components/ui/TableRow.astro b/site_v2/src/components/ui/TableRow.astro
++index a4dd0547..33364e3f 100644
++--- a/site_v2/src/components/ui/TableRow.astro
+++++ b/site_v2/src/components/ui/TableRow.astro
++@@ -4,6 +4,7 @@
++ // makes one; a row that leads nowhere is not a link.
++ import Crest from "./Crest.astro";
++ import { hasPlayerPage } from "../../lib/builtPlayers.mjs";
+++import { hasTeamPage } from "../../lib/builtTeams.mjs";
++ import { localeHref, word } from "../../lib/href";
++ import type { Lang } from "../../lib/format";
++ 
++@@ -31,7 +32,7 @@ interface Props {
++ }
++ const { lang, team, player, rank, crest, name, sub, cells, nonkey } = Astro.props;
++ const href = team
++-  ? localeHref(lang, `${word(lang, "teams")}/${team}/`)
+++  ? hasTeamPage(team) ? localeHref(lang, `${word(lang, "teams")}/${team}/`) : undefined
++   : player && hasPlayerPage(player) ? localeHref(lang, `${word(lang, "players")}/${player}/`) : undefined;
++ const Row = href ? "a" : "div";
++ ---
++diff --git a/site_v2/src/lib/builtTeams.mjs b/site_v2/src/lib/builtTeams.mjs
++new file mode 100644
++index 00000000..5db744ff
++--- /dev/null
+++++ b/site_v2/src/lib/builtTeams.mjs
++@@ -0,0 +1,25 @@
+++// The team pages this build makes: one per payload the export wrote to src/data/teams, the files
+++// the team route builds its pages from. A row links to a team only when the team's page is in this
+++// list.
+++
+++import { readdirSync, readFileSync, existsSync } from "node:fs";
+++import { join } from "node:path";
+++
+++/** The served slug of every team payload in `dataDir`/teams. */
+++export function readBuiltTeams(dataDir) {
+++  const dir = join(dataDir, "teams");
+++  if (!existsSync(dir)) return new Set();
+++  return new Set(
+++    readdirSync(dir)
+++      .filter((name) => name.endsWith(".json"))
+++      .map((name) => JSON.parse(readFileSync(join(dir, name), "utf8")).slug),
+++  );
+++}
+++
+++let cached;
+++
+++/** Whether this build makes the page at a served team slug. */
+++export function hasTeamPage(slug) {
+++  cached ??= readBuiltTeams(join(process.cwd(), "src/data"));
+++  return cached.has(slug);
+++}
++diff --git a/site_v2/src/lib/builtTeams.test.mjs b/site_v2/src/lib/builtTeams.test.mjs
++new file mode 100644
++index 00000000..34e0993b
++--- /dev/null
+++++ b/site_v2/src/lib/builtTeams.test.mjs
++@@ -0,0 +1,23 @@
+++// Pins the list of team pages a build makes: the slug inside each payload of src/data/teams.
+++
+++import { test } from "node:test";
+++import assert from "node:assert/strict";
+++import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+++import { tmpdir } from "node:os";
+++import { join } from "node:path";
+++import { readBuiltTeams } from "./builtTeams.mjs";
+++
+++test("every team payload is one built page, named by its served slug", () => {
+++  const dir = mkdtempSync(join(tmpdir(), "teams-"));
+++  mkdirSync(join(dir, "teams"));
+++  writeFileSync(join(dir, "teams", "108.json"), JSON.stringify({ slug: "bayern-munich" }));
+++  writeFileSync(join(dir, "teams", "157.json"), JSON.stringify({ slug: "germany" }));
+++  writeFileSync(join(dir, "teams", "notes.txt"), "not a payload");
+++  const built = readBuiltTeams(dir);
+++  assert.deepEqual([...built].sort(), ["bayern-munich", "germany"]);
+++  assert.equal(built.has("eritrea"), false, "a team with no payload has no page");
+++});
+++
+++test("a build without team payloads makes no team page", () => {
+++  assert.equal(readBuiltTeams(mkdtempSync(join(tmpdir(), "teams-"))).size, 0);
+++});
++diff --git a/site_v2/src/pages/[lang]/[teams]/index.astro b/site_v2/src/pages/[lang]/[teams]/index.astro
++index fc93b63f..d30a655e 100644
++--- a/site_v2/src/pages/[lang]/[teams]/index.astro
+++++ b/site_v2/src/pages/[lang]/[teams]/index.astro
++@@ -7,10 +7,9 @@ import TeamIndex from "../../../components/teams/TeamIndex.astro";
++ import { t } from "../../../i18n/strings";
++ import { localeHref, word } from "../../../lib/href";
++ import type { Lang } from "../../../lib/format";
++-import type { Team, TeamIndex as TeamIndexData } from "../../../lib/types";
+++import type { TeamIndex as TeamIndexData } from "../../../lib/types";
+++import { hasTeamPage } from "../../../lib/builtTeams.mjs";
++ import teamsIndex from "../../../data/teams_index.json";
++-import { readdirSync, readFileSync } from "node:fs";
++-import { join } from "node:path";
++ 
++ export function getStaticPaths() {
++   return (["de", "en", "fi"] as const).map((lang) => ({
++@@ -22,12 +21,7 @@ const lang = (Astro.params.lang ?? "en") as Lang;
++ const data = teamsIndex as unknown as TeamIndexData;
++ 
++ // A row links only to a page the build makes: one per team payload.
++-const dir = join(process.cwd(), "src/data/teams");
++-const built = new Set(
++-  readdirSync(dir)
++-    .filter((name) => name.endsWith(".json"))
++-    .map((name) => (JSON.parse(readFileSync(join(dir, name), "utf8")) as Team).slug),
++-);
+++const built = new Set(data.teams.map((item) => item.team_slug).filter(hasTeamPage));
++ 
++ const title = t(lang, "seoTeamsTitle");
++ const description = t(lang, "seoTeamsDesc");
+diff --git a/site_v2/src/components/ui/TableRow.astro b/site_v2/src/components/ui/TableRow.astro
+index a4dd0547..33364e3f 100644
+--- a/site_v2/src/components/ui/TableRow.astro
++++ b/site_v2/src/components/ui/TableRow.astro
+@@ -4,6 +4,7 @@
+ // makes one; a row that leads nowhere is not a link.
+ import Crest from "./Crest.astro";
+ import { hasPlayerPage } from "../../lib/builtPlayers.mjs";
++import { hasTeamPage } from "../../lib/builtTeams.mjs";
+ import { localeHref, word } from "../../lib/href";
+ import type { Lang } from "../../lib/format";
+ 
+@@ -31,7 +32,7 @@ interface Props {
+ }
+ const { lang, team, player, rank, crest, name, sub, cells, nonkey } = Astro.props;
+ const href = team
+-  ? localeHref(lang, `${word(lang, "teams")}/${team}/`)
++  ? hasTeamPage(team) ? localeHref(lang, `${word(lang, "teams")}/${team}/`) : undefined
+   : player && hasPlayerPage(player) ? localeHref(lang, `${word(lang, "players")}/${player}/`) : undefined;
+ const Row = href ? "a" : "div";
+ ---
+diff --git a/site_v2/src/lib/builtTeams.mjs b/site_v2/src/lib/builtTeams.mjs
+new file mode 100644
+index 00000000..5db744ff
+--- /dev/null
++++ b/site_v2/src/lib/builtTeams.mjs
+@@ -0,0 +1,25 @@
++// The team pages this build makes: one per payload the export wrote to src/data/teams, the files
++// the team route builds its pages from. A row links to a team only when the team's page is in this
++// list.
++
++import { readdirSync, readFileSync, existsSync } from "node:fs";
++import { join } from "node:path";
++
++/** The served slug of every team payload in `dataDir`/teams. */
++export function readBuiltTeams(dataDir) {
++  const dir = join(dataDir, "teams");
++  if (!existsSync(dir)) return new Set();
++  return new Set(
++    readdirSync(dir)
++      .filter((name) => name.endsWith(".json"))
++      .map((name) => JSON.parse(readFileSync(join(dir, name), "utf8")).slug),
++  );
++}
++
++let cached;
++
++/** Whether this build makes the page at a served team slug. */
++export function hasTeamPage(slug) {
++  cached ??= readBuiltTeams(join(process.cwd(), "src/data"));
++  return cached.has(slug);
++}
+diff --git a/site_v2/src/lib/builtTeams.test.mjs b/site_v2/src/lib/builtTeams.test.mjs
+new file mode 100644
+index 00000000..34e0993b
+--- /dev/null
++++ b/site_v2/src/lib/builtTeams.test.mjs
+@@ -0,0 +1,23 @@
++// Pins the list of team pages a build makes: the slug inside each payload of src/data/teams.
++
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
++import { tmpdir } from "node:os";
++import { join } from "node:path";
++import { readBuiltTeams } from "./builtTeams.mjs";
++
++test("every team payload is one built page, named by its served slug", () => {
++  const dir = mkdtempSync(join(tmpdir(), "teams-"));
++  mkdirSync(join(dir, "teams"));
++  writeFileSync(join(dir, "teams", "108.json"), JSON.stringify({ slug: "bayern-munich" }));
++  writeFileSync(join(dir, "teams", "157.json"), JSON.stringify({ slug: "germany" }));
++  writeFileSync(join(dir, "teams", "notes.txt"), "not a payload");
++  const built = readBuiltTeams(dir);
++  assert.deepEqual([...built].sort(), ["bayern-munich", "germany"]);
++  assert.equal(built.has("eritrea"), false, "a team with no payload has no page");
++});
++
++test("a build without team payloads makes no team page", () => {
++  assert.equal(readBuiltTeams(mkdtempSync(join(tmpdir(), "teams-"))).size, 0);
++});
+diff --git a/site_v2/src/pages/[lang]/[teams]/index.astro b/site_v2/src/pages/[lang]/[teams]/index.astro
+index fc93b63f..d30a655e 100644
+--- a/site_v2/src/pages/[lang]/[teams]/index.astro
++++ b/site_v2/src/pages/[lang]/[teams]/index.astro
+@@ -7,10 +7,9 @@ import TeamIndex from "../../../components/teams/TeamIndex.astro";
+ import { t } from "../../../i18n/strings";
+ import { localeHref, word } from "../../../lib/href";
+ import type { Lang } from "../../../lib/format";
+-import type { Team, TeamIndex as TeamIndexData } from "../../../lib/types";
++import type { TeamIndex as TeamIndexData } from "../../../lib/types";
++import { hasTeamPage } from "../../../lib/builtTeams.mjs";
+ import teamsIndex from "../../../data/teams_index.json";
+-import { readdirSync, readFileSync } from "node:fs";
+-import { join } from "node:path";
+ 
+ export function getStaticPaths() {
+   return (["de", "en", "fi"] as const).map((lang) => ({
+@@ -22,12 +21,7 @@ const lang = (Astro.params.lang ?? "en") as Lang;
+ const data = teamsIndex as unknown as TeamIndexData;
+ 
+ // A row links only to a page the build makes: one per team payload.
+-const dir = join(process.cwd(), "src/data/teams");
+-const built = new Set(
+-  readdirSync(dir)
+-    .filter((name) => name.endsWith(".json"))
+-    .map((name) => (JSON.parse(readFileSync(join(dir, name), "utf8")) as Team).slug),
+-);
++const built = new Set(data.teams.map((item) => item.team_slug).filter(hasTeamPage));
+ 
+ const title = t(lang, "seoTeamsTitle");
+ const description = t(lang, "seoTeamsDesc");
