@@ -45,8 +45,9 @@ const EN: Dict = {
   h2hNone: "No meetings on record.",
   formIntro: "Form metrics from each team's last 5 matches across all competitions.",
   formIntroPrev: "Form metrics from each team's last 5 matches across all competitions; before a team's first {competition} match, from its last {competition} season.",
-  playersIntro: "Each team's leading players {in} this season, by goals and assists.",
-  playersIntroPrev: "Each team's leading players {in} by goals and assists; before a team's first match in it, last season's.",
+  playersIntro: "Each team's key players {in} this season.",
+  playersIntroPrev: "Each team's key players {in} last season.",
+  playersIntroMixed: "Each team's key players {in}: this season's, or last season's before the team's first match in it.",
   compIn: "in {competition}",
   compInMasculine: "in {competition}",
   table: "Table",
@@ -551,8 +552,9 @@ const DE: Dict = {
   formIntroPrev: "Formwerte aus den letzten 5 Spielen jeder Mannschaft in allen Wettbewerben; vor dem ersten Spiel in der {competition} aus der Vorsaison dort.",
   compIn: "in der {competition}",
   compInMasculine: "im {competition}",
-  playersIntro: "Die besten Spieler jeder Mannschaft {in} in dieser Saison, nach Scorerpunkten.",
-  playersIntroPrev: "Die besten Spieler jeder Mannschaft {in} nach Scorerpunkten; vor dem ersten Spiel dort aus der Vorsaison.",
+  playersIntro: "Die Leistungsträger der einzelnen Mannschaften {in} in dieser Saison.",
+  playersIntroPrev: "Die Leistungsträger der einzelnen Mannschaften {in} in der Vorsaison.",
+  playersIntroMixed: "Die Leistungsträger der einzelnen Mannschaften {in}: aus dieser Saison oder, vor dem ersten Spiel dort, aus der Vorsaison.",
   table: "Tabelle",
   aboutNoH2h: "{home} gegen {away}, {round}.",
   posF: "Stürmer", posM: "Mittelfeldspieler", posD: "Verteidiger", posG: "Torhüter",
@@ -998,8 +1000,9 @@ const FI: Dict = {
   formIntroPrev: "Kuntoluvut kunkin joukkueen 5 viimeisestä ottelusta kaikissa kilpailuissa; ennen ensimmäistä ottelua kilpailussa {competition} edelliseltä kaudelta siellä.",
   compIn: "kilpailussa {competition}",
   compInMasculine: "kilpailussa {competition}",
-  playersIntro: "Kunkin joukkueen parhaat pelaajat {in} tällä kaudella, tehopisteiden mukaan.",
-  playersIntroPrev: "Kunkin joukkueen parhaat pelaajat {in} tehopisteiden mukaan; ennen ensimmäistä ottelua edelliseltä kaudelta.",
+  playersIntro: "Kunkin joukkueen tärkeimmät pelaajat tämän kauden {in}.",
+  playersIntroPrev: "Kunkin joukkueen tärkeimmät pelaajat viime kauden {in}.",
+  playersIntroMixed: "Kunkin joukkueen tärkeimmät pelaajat {in}: tältä kaudelta tai ennen joukkueen ensimmäistä ottelua siellä viime kaudelta.",
   table: "Sarjataulukko",
   // "–" not "vs": the Finnish values were byte-identical to the English ones, so two of three
   // locales shipped the same <meta description>. Caught only after the cross-locale check was
@@ -1430,9 +1433,29 @@ export function t(lang: Lang, key: string, params?: Record<string, string | numb
  *  "im {competition}"; every other competition reads "in der {competition}". */
 const MASCULINE_IN_GERMAN = new Set(["DFBP", "FAC", "UESC", "WC", "CWC", "ACN", "AFCON", "GCUP", "CCCU"]);
 
+/** The Finnish inessive of each competition two Finnish publishers use; a competition without one
+ *  reads "kilpailussa {name}". */
+const FI_INESSIVE: Record<string, string> = {
+  BL1: "Bundesliigassa", BL2: "2. Bundesliigassa", PL: "Valioliigassa", PD: "La Ligassa", SA: "Serie A:ssa",
+  L1: "Ligue 1:ssä", VL: "Veikkausliigassa", LP: "Portugalin pääsarjassa", MLS: "MLS:ssä",
+  SPL: "Saudi-Arabian pääsarjassa", ED: "Eredivisiessä", BPL: "Belgian pääsarjassa", TSL: "Turkin pääsarjassa",
+  EKS: "Ekstraklasassa", UCL: "Mestarien liigassa", UEL: "Eurooppa-liigassa", UECL: "Konferenssiliigassa",
+  UESC: "Super Cupissa", COAM: "Copa Americassa", AFCON: "Afrikan mestaruusturnauksessa", UNL: "Kansojen liigassa",
+  EURO: "EM-kisoissa", DFBP: "Saksan cupissa", FAC: "FA Cupissa", CDR: "Espanjan cupissa", CDF: "Ranskan cupissa",
+  CIT: "Italian cupissa", CWC: "seurajoukkueiden MM-kisoissa", WC: "MM-kisoissa", WCQEU: "MM-karsinnoissa",
+  WCQAF: "MM-karsinnoissa", WCQCA: "MM-karsinnoissa", WCQSA: "MM-karsinnoissa", WCQAS: "MM-karsinnoissa",
+  WCQIP: "MM-karsinnoissa", WCQOC: "MM-karsinnoissa",
+};
+
 /** "in {competition}" in the page's language, with the German article the competition's name takes. */
 export function inCompetition(lang: Lang, leagueCode: string, name: string): string {
   return t(lang, MASCULINE_IN_GERMAN.has(leagueCode) ? "compInMasculine" : "compIn", { competition: name });
+}
+
+/** The Players to watch intro's "in {competition}": the competition's inessive in Finnish, every other
+ *  language as inCompetition. */
+export function playersInCompetition(lang: Lang, leagueCode: string, name: string): string {
+  return (lang === "fi" && FI_INESSIVE[leagueCode]) || inCompetition(lang, leagueCode, name);
 }
 
 /** A played match's status word, from its served status and award: Awarded, After penalties,
@@ -1504,6 +1527,7 @@ const METRIC_TERMS: Record<string, string> = {
   "metrics.points_won.label": "points",
   "metrics.deserved_points.label": "deservedPoints",
   "metrics.deserved_points_gap.label": "deservedPointsGap",
+  "playerMetrics.scorerPoints.label": "goalsAndAssists",
   "playerMetrics.scorerPoints.goals": "goals",
   "playerMetrics.scorerPoints.assists": "assists",
   "playerMetrics.passAccuracy.total": "passes",

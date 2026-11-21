@@ -114,9 +114,13 @@ _W2_DROP = {"upcoming_fixture_sk", "team_sk", "is_home"}
 _CTX_DROP = {"fixture_sk", "team_sk", "season_sk"}
 _H2H_DROP = {"team_sk", "opponent_team_sk", "pair_key", "is_canonical"}
 _FW_DROP = {"upcoming_fixture_sk", "team_sk", "entity_type", "season_api_year", "window_type"}
-_TOPPLAYER_DROP = {"upcoming_fixture_sk", "team_sk", "is_home", "entity_type",
-                   "season_api_year", "league_code", "top_player_rank",
-                   "player_name", "player_photo_url"}
+# Players to watch: its boards in the block's order, and the mart rank that places a side's players
+# on each.
+_MATCH_WATCH_BOARDS = ("scorer_points_player", "ball_actions_per90")
+_PLAYERS_TO_WATCH_RANKS = {
+    "scorer_points_player": "scorer_points_rank",
+    "ball_actions_per90": "ball_actions_per90_rank",
+}
 
 # The competition_type -> nav group MAPPING now lives in the competition_types seed
 # (display_group column, GAP-19.3), read via _display_group_of_type() — no hardcoded
@@ -752,11 +756,11 @@ def form_block(w1: dict | None, w2: dict | None) -> dict | None:
 
 
 def _fixture_side(team_id: int, identity: dict | None, form: dict | None, ctx: dict | None,
-                  form_window: list | None = None, top_players: list | None = None,
+                  form_window: list | None = None, players_to_watch: dict | None = None,
                   next_match: dict | None = None) -> dict:
     """One team's block on the fixture page: identity + its form block + standings context + the
-    form-window list + top players + its next match. Each sub-block is None/[] when no mart serves
-    it for the side (honest absence — the UI renders the empty state)."""
+    form-window list + Players to watch + its next match. Each sub-block is None/[] when no mart
+    serves it for the side (honest absence — the UI renders the empty state)."""
     return {
         "team_id": team_id,
         "name": (identity or {}).get("team_name"),
@@ -766,7 +770,7 @@ def _fixture_side(team_id: int, identity: dict | None, form: dict | None, ctx: d
         "form": form,
         "standing": _drop(ctx, _CTX_DROP) if ctx else None,
         "form_window": form_window or [],
-        "top_players": top_players or [],
+        "players_to_watch": players_to_watch,
         "next_match": next_match,
     }
 
@@ -779,25 +783,32 @@ def shape_next_match(row: dict | None, fixture_id: int) -> dict | None:
     return {**_competition_fixture(row), "league_code": row.get("league_code")}
 
 
-def shape_top_players(rows: list[dict], names: dict, limit: int = 5) -> list[dict]:
-    """Top N players for a fixture side, SELECTED by the warehouse top_player_rank
-    (goals plus assists, then goals, then fewer minutes, computed in mart_player_season_record; the
-    export does not rank). Names/photos are the mart's own columns. Relies on the mart column
-    being present (ship-the-mart-first); a Python ranking fallback is intentionally
-    NOT provided — re-deriving the rank here would violate the consumption-layer
-    contract (anti-pattern A5)."""
-    ranked = sorted(
-        [r for r in rows if r.get("top_player_rank") is not None and r["top_player_rank"] <= limit],
-        key=lambda r: r["top_player_rank"],
-    )
+def shape_players_to_watch(rows: list[dict], boards: dict[str, dict[str, str]],
+                           limit: int = 3) -> dict | None:
+    """One fixture side's Players to watch: its window and, per board, the top `limit` players
+    SELECTED by the board's rank in mart_player_season_record (the export does not rank, A5). Each
+    board carries its catalogue name key and format; each row the player and the board's value.
+    None when the mart ranks none of the side's players on any board."""
     out = []
-    for r in ranked:
-        p = _drop(r, _TOPPLAYER_DROP)
-        ident = names.get(int(r["player_sk"])) or {}
-        p["player_name"] = ident.get("player_name")
-        p["player_photo_url"] = ident.get("player_photo_url")
-        out.append(p)
-    return out
+    for metric_key, meta in boards.items():
+        rank = _PLAYERS_TO_WATCH_RANKS[metric_key]
+        ranked = sorted((r for r in rows if r.get(rank) is not None and r[rank] <= limit),
+                        key=lambda r: r[rank])
+        out.append({
+            "metric_key": metric_key,
+            "label_i18n_key": meta["label_i18n_key"],
+            "format": meta["format"],
+            "rows": [{
+                "player_sk": int(r["player_sk"]),
+                "player_name": r.get("player_name"),
+                "player_photo_url": r.get("player_photo_url"),
+                "position_code": r.get("position_code"),
+                "value": r.get(metric_key),
+            } for r in ranked],
+        })
+    if not any(b["rows"] for b in out):
+        return None
+    return {"window_type": rows[0].get("window_type"), "boards": out}
 
 
 def build_nav(competitions: list[dict]) -> dict:
@@ -1389,7 +1400,7 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
         for r in _query(client, f"select * from `{marts}.mart_head_to_head` where {conds}"):
             h2h[(int(r["team_sk"]), int(r["opponent_team_sk"]))] = r
 
-    # Drill-down: the last-5 form-window list and top players per side.
+    # Drill-down: the last-5 form-window list and Players to watch per side.
     form_window: dict = {}
     for r in _query(client, f"select * from `{marts}.mart_team_momentum_window` "
                             f"where upcoming_fixture_sk in ({fid_in})"):
@@ -1397,12 +1408,15 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
             _drop(r, _FW_DROP)
         )
     season_players: dict = {}
-    for r in _query(client, f"select * from `{marts}.mart_player_season_record` "
-                            f"where upcoming_fixture_sk in ({fid_in}) and top_player_rank <= 5"):
+    watch_boards = _board_catalogue(_MATCH_WATCH_BOARDS)
+    for r in _query(client, f"""
+        select upcoming_fixture_sk, team_sk, player_sk, player_name, player_photo_url, position_code,
+               window_type, {", ".join(_PLAYERS_TO_WATCH_RANKS)}, {", ".join(_PLAYERS_TO_WATCH_RANKS.values())}
+        from `{marts}.mart_player_season_record`
+        where upcoming_fixture_sk in ({fid_in})
+          and (scorer_points_rank <= 3 or ball_actions_per90_rank <= 3)
+    """):
         season_players.setdefault((int(r["upcoming_fixture_sk"]), int(r["team_sk"])), []).append(r)
-    player_names = {
-        int(r["player_sk"]): r for rows in season_players.values() for r in rows
-    }
 
     team_in = ", ".join(sorted({str(int(f[k])) for f in fixtures for k in ("home_team_sk", "away_team_sk")}))
     next_matches: dict = {}
@@ -1427,7 +1441,7 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
             ctx.get((fid, team_id)),
             form_window=sorted(form_window.get((fid, team_id), []),
                                key=lambda r: r.get("recency_rank") or 99),
-            top_players=shape_top_players(season_players.get((fid, team_id), []), player_names),
+            players_to_watch=shape_players_to_watch(season_players.get((fid, team_id), []), watch_boards),
             next_match=shape_next_match(next_matches.get(team_id), fid),
         )
 
@@ -2304,9 +2318,8 @@ def _board_catalogue(
 def shape_home_top_players(rows: list[dict], meta: dict, label_keys: dict[str, str]) -> list[dict]:
     """The home page's Top players block: four boards, one metric each, one player per league.
 
-    ⚠ NOT `shape_top_players` above — that is the FIXTURE page's players-to-watch list. Different
-    block, different mart, different shape; the names are one word apart on purpose because they
-    are both "top players" to a reader and nothing else about them is shared.
+    ⚠ NOT `shape_players_to_watch` above — that is the FIXTURE page's Players to watch. Different
+    block, different mart, different shape.
 
     Design: GitLab #40, which `design-mocks/README.md` names as the authority. Four boards in a
     fixed order, ranked descending, top 7. The board is a `metric_key` in `mart_leaderboards`; the

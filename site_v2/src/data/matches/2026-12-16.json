@@ -1,0 +1,52 @@
+{
+  "type": "match_day",
+  "slug": "2026-12-16",
+  "day": "2026-12-16",
+  "is_opening_day": false,
+  "previous_day": "2026-12-15",
+  "next_day": "2026-12-21",
+  "competitions": [
+    {
+      "league_code": "CIT",
+      "name": "Coppa Italia",
+      "slug": "coppa-italia",
+      "crest": "https://media.api-sports.io/football/leagues/137.png",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1639883,
+          "slug": "2026-12-16-ssc-napoli-vs-acf-fiorentina",
+          "kickoff": "2026-12-16 20:00:00+00:00",
+          "round": "Round of 16",
+          "round_label_i18n_key": "roundOf16",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 4,
+          "fixture_order": 33,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 492,
+            "name": "SSC Napoli",
+            "slug": "ssc-napoli",
+            "crest": "https://media.api-sports.io/football/teams/492.png"
+          },
+          "away": {
+            "team_id": 502,
+            "name": "ACF Fiorentina",
+            "slug": "acf-fiorentina",
+            "crest": "https://media.api-sports.io/football/teams/502.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

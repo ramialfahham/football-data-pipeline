@@ -82,7 +82,7 @@ either subject, and appears on many tabs. The Subject column names the entity a 
 | | Team directory | competition→teams | `dim_team_competition_season_mapping` (a core model) |
 | | Player career (clubs + per-comp totals) | player | `mart_player_career` |
 | **Matchup** | Match preview (two sides) | fixture | composed: the form window (`mart_team_window_metrics` or `mart_team_season_record`, whichever `is_form_window` flags) + standing (`mart_fixture_standing_context`) + head-to-head (`mart_head_to_head`) |
-| | Lineups / key players | fixture | `mart_player_season_record` (key players, by `top_player_rank`). No mart serves lineups. |
+| | Lineups / key players | fixture | `mart_player_season_record` (Players to watch, by `scorer_points_rank` and `ball_actions_per90_rank`). No mart serves lineups. |
 | | Head-to-head | fixture | `mart_head_to_head` |
 | **Insight** | Deserved-vs-actual *(flagship)* | team (player v1.x) | `mart_team_profile` (`deserved_points`, `deserved_rank`, `deserved_points_gap`) |
 | | Vs-own-history / YoY *(flagship)* | team (player v1.x) | `mart_team_page_window_metrics` |

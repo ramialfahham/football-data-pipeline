@@ -1,0 +1,52 @@
+{
+  "type": "match_day",
+  "slug": "2027-01-26",
+  "day": "2027-01-26",
+  "is_opening_day": false,
+  "previous_day": "2027-01-13",
+  "next_day": null,
+  "competitions": [
+    {
+      "league_code": "CIT",
+      "name": "Coppa Italia",
+      "slug": "coppa-italia",
+      "crest": "https://media.api-sports.io/football/leagues/137.png",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1638135,
+          "slug": "2027-01-26-atalanta-bc-vs-udinese-calcio",
+          "kickoff": "2027-01-26 20:00:00+00:00",
+          "round": "Round of 16",
+          "round_label_i18n_key": "roundOf16",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 4,
+          "fixture_order": 36,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 499,
+            "name": "Atalanta BC",
+            "slug": "atalanta-bc",
+            "crest": "https://media.api-sports.io/football/teams/499.png"
+          },
+          "away": {
+            "team_id": 494,
+            "name": "Udinese Calcio",
+            "slug": "udinese-calcio",
+            "crest": "https://media.api-sports.io/football/teams/494.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

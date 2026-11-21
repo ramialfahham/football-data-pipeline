@@ -59,18 +59,27 @@ export interface FormMatch {
   has_player_stats?: boolean | null;
 }
 
-export interface TopPlayer {
+/** One row of a Players to watch board: the player and the board's value. */
+export interface WatchPlayer {
   player_sk: number;
-  position_code?: string | null;
-  goals_total?: number | null;
-  goals_assists?: number | null;
-  saves_player?: number | null;
-  saves_player_pct?: number | null;
-  shots_on?: number | null;
-  passes_key_player?: number | null;
   player_name?: string | null;
   player_photo_url?: string | null;
+  position_code?: string | null;
+  value?: number | null;
+}
+
+/** One Players to watch board of a side: its metric, the catalogue's name key and format, its rows. */
+export interface WatchBoard {
+  metric_key: string;
+  label_i18n_key: string;
+  format: SingleFormat;
+  rows: WatchPlayer[];
+}
+
+/** A side's Players to watch: the window its boards cover, and the boards in the block's order. */
+export interface PlayersToWatch {
   window_type?: string | null;
+  boards: WatchBoard[];
 }
 
 export interface Side {
@@ -82,7 +91,7 @@ export interface Side {
   form?: WindowStats | null;
   standing?: Standing | null;
   form_window?: FormMatch[];
-  top_players?: TopPlayer[];
+  players_to_watch?: PlayersToWatch | null;
   /** The team's next match in any competition, as the site's match row; absent when it is this one. */
   next_match?: (CompetitionFixture & { league_code: string }) | null;
 }

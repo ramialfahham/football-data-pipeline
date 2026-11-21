@@ -10,14 +10,14 @@ import Masthead from "../../../../components/fixture/Masthead.astro";
 import FormSegment from "../../../../components/fixture/FormSegment.astro";
 import SplitSection from "../../../../components/fixture/SplitSection.astro";
 import RecentMatch from "../../../../components/fixture/RecentMatch.astro";
-import PlayerToWatch from "../../../../components/fixture/PlayerToWatch.astro";
+import PlayersToWatch from "../../../../components/fixture/PlayersToWatch.astro";
 import HeadToHead from "../../../../components/fixture/HeadToHead.astro";
 import NextMatches from "../../../../components/fixture/NextMatches.astro";
 import MatchGoals from "../../../../components/fixture/MatchGoals.astro";
 import MatchLeaders from "../../../../components/fixture/MatchLeaders.astro";
 import MatchStats from "../../../../components/fixture/MatchStats.astro";
 import MatchLineups from "../../../../components/fixture/MatchLineups.astro";
-import { t, inCompetition, playedStatusWord } from "../../../../i18n/strings";
+import { t, playedStatusWord } from "../../../../i18n/strings";
 import { localeHref, word } from "../../../../lib/href";
 import { formatDayYear, formatShortDate, scoreLine } from "../../../../lib/format";
 import type { Lang } from "../../../../lib/format";
@@ -122,11 +122,6 @@ const crumbs = [
 const teamHref = (slug?: string | null) =>
   slug && built.teamSlugs.includes(slug) ? localeHref(lang, `${word(lang, "teams")}/${slug}/`) : undefined;
 
-const playersPrev = [home, away].some((s) => (s.top_players ?? []).some((p) => p.window_type === "prev_season"));
-const playersIntro = t(lang, playersPrev ? "playersIntroPrev" : "playersIntro", {
-  in: inCompetition(lang, fixture.league_code, compName),
-});
-
 // schema.org/SportsEvent per 01_fixture_page.md section 8; every value a served payload field, an
 // optional member omitted rather than emitted empty.
 const entity = {
@@ -177,14 +172,7 @@ const entity = {
           </Fragment>
         </SplitSection>
 
-        <SplitSection label={t(lang, "secPlayers")} intro={playersIntro} homeLabel={home.name} awayLabel={away.name}>
-          <Fragment slot="home">
-            {(home.top_players ?? []).slice(0, 5).map((p) => <PlayerToWatch player={p} lang={lang} />)}
-          </Fragment>
-          <Fragment slot="away">
-            {(away.top_players ?? []).slice(0, 5).map((p) => <PlayerToWatch player={p} lang={lang} />)}
-          </Fragment>
-        </SplitSection>
+        <PlayersToWatch home={home} away={away} leagueCode={fixture.league_code} compName={compName} lang={lang} />
       </>
     )}
 

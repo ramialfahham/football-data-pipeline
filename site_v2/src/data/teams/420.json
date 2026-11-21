@@ -582,10 +582,10 @@
       "ED"
     ],
     "cards": {
-      "cards_yellow": 21.0,
-      "goals": 25.0,
+      "goals_against": 27.0,
       "cards_red": 1.0,
-      "goals_against": 27.0
+      "cards_yellow": 21.0,
+      "goals": 25.0
     },
     "comparison_keys": [
       "blocks_per_match",
@@ -667,65 +667,6 @@
       "defensive_actions_per_match": 31.916666666666668,
       "shots_share_pct": 0.4716981132075472,
       "points_capture_pct": 0.4166666666666667,
-      "yoy_games_played_cutoff": 12,
-      "points_this_season": 15,
-      "points_prev_season": null,
-      "points_delta_yoy": null,
-      "points_rank_prev_season": null,
-      "goals_for_this_season": 25,
-      "goals_for_prev_season": null,
-      "goals_for_delta_yoy": null,
-      "goals_against_this_season": 27,
-      "goals_against_prev_season": null,
-      "goals_against_delta_yoy": null,
-      "goals_per_match_this_season": 2.0833333333333335,
-      "goals_per_match_prev_season": null,
-      "goals_per_match_delta_yoy": null,
-      "goals_against_per_match_this_season": 2.25,
-      "goals_against_per_match_prev_season": null,
-      "goals_against_per_match_delta_yoy": null,
-      "clean_sheets_pct_this_season": 0.25,
-      "clean_sheets_pct_prev_season": null,
-      "clean_sheets_pct_delta_yoy": null,
-      "shots_per_match_this_season": 12.5,
-      "shots_per_match_prev_season": null,
-      "shots_per_match_delta_yoy": null,
-      "shots_inside_box_pct_this_season": 0.7133333333333334,
-      "shots_inside_box_pct_prev_season": null,
-      "shots_inside_box_pct_delta_yoy": null,
-      "shots_on_goal_per_match_this_season": 4.916666666666667,
-      "shots_on_goal_per_match_prev_season": null,
-      "shots_on_goal_per_match_delta_yoy": null,
-      "finishing_efficiency_pct_this_season": 0.4067796610169492,
-      "finishing_efficiency_pct_prev_season": null,
-      "finishing_efficiency_pct_delta_yoy": null,
-      "duels_per_match_this_season": 105.33333333333333,
-      "duels_per_match_prev_season": null,
-      "duels_per_match_delta_yoy": null,
-      "duels_won_pct_this_season": 0.5189873417721519,
-      "duels_won_pct_prev_season": null,
-      "duels_won_pct_delta_yoy": null,
-      "defensive_actions_per_match_this_season": 31.916666666666668,
-      "defensive_actions_per_match_prev_season": null,
-      "defensive_actions_per_match_delta_yoy": null,
-      "passes_per_match_this_season": 366.9166666666667,
-      "passes_per_match_prev_season": null,
-      "passes_per_match_delta_yoy": null,
-      "passes_accuracy_pct_this_season": 0.7885532591414944,
-      "passes_accuracy_pct_prev_season": null,
-      "passes_accuracy_pct_delta_yoy": null,
-      "passes_key_per_match_this_season": 9.75,
-      "passes_key_per_match_prev_season": null,
-      "passes_key_per_match_delta_yoy": null,
-      "corners_per_match_this_season": 3.8333333333333335,
-      "corners_per_match_prev_season": null,
-      "corners_per_match_delta_yoy": null,
-      "corners_against_per_match_this_season": 5.666666666666667,
-      "corners_against_per_match_prev_season": null,
-      "corners_against_per_match_delta_yoy": null,
-      "saves_pct_this_season": 0.5737704918032787,
-      "saves_pct_prev_season": null,
-      "saves_pct_delta_yoy": null,
       "unbeaten_run": 0,
       "win_run": 0,
       "winless_run": 1,
@@ -1191,7 +1132,6 @@
         {
           "metric_key": "blocks_per_match",
           "metric_value": 4.25,
-          "metric_value_prev_season": null,
           "rank": 15,
           "team_count": 18,
           "league_median": 4.75,
@@ -1202,7 +1142,6 @@
         {
           "metric_key": "cards_red",
           "metric_value": 1.0,
-          "metric_value_prev_season": null,
           "rank": 10,
           "team_count": 18,
           "league_median": 0.0,
@@ -1213,7 +1152,6 @@
         {
           "metric_key": "cards_yellow",
           "metric_value": 21.0,
-          "metric_value_prev_season": null,
           "rank": 14,
           "team_count": 18,
           "league_median": 17.0,
@@ -1224,7 +1162,6 @@
         {
           "metric_key": "clean_sheets",
           "metric_value": 3.0,
-          "metric_value_prev_season": null,
           "rank": 4,
           "team_count": 18,
           "league_median": 2.0,
@@ -1235,7 +1172,6 @@
         {
           "metric_key": "clean_sheets_pct",
           "metric_value": 0.25,
-          "metric_value_prev_season": null,
           "rank": 4,
           "team_count": 18,
           "league_median": 0.16666666666666666,
@@ -1246,7 +1182,6 @@
         {
           "metric_key": "corners_against_per_match",
           "metric_value": 5.666666666666667,
-          "metric_value_prev_season": null,
           "rank": 11,
           "team_count": 18,
           "league_median": 5.083333333333333,
@@ -1257,7 +1192,6 @@
         {
           "metric_key": "corners_per_match",
           "metric_value": 3.8333333333333335,
-          "metric_value_prev_season": null,
           "rank": 15,
           "team_count": 18,
           "league_median": 4.666666666666667,
@@ -1268,7 +1202,6 @@
         {
           "metric_key": "defensive_actions_per_match",
           "metric_value": 31.916666666666668,
-          "metric_value_prev_season": null,
           "rank": 2,
           "team_count": 18,
           "league_median": 28.333333333333332,
@@ -1279,7 +1212,6 @@
         {
           "metric_key": "dribbles_attempts_per_match",
           "metric_value": 18.416666666666668,
-          "metric_value_prev_season": null,
           "rank": 2,
           "team_count": 18,
           "league_median": 13.833333333333334,
@@ -1290,7 +1222,6 @@
         {
           "metric_key": "dribbles_success_pct",
           "metric_value": 0.5429864253393665,
-          "metric_value_prev_season": null,
           "rank": 1,
           "team_count": 18,
           "league_median": 0.46621621621621623,
@@ -1301,7 +1232,6 @@
         {
           "metric_key": "dribbles_success_per_match",
           "metric_value": 10.0,
-          "metric_value_prev_season": null,
           "rank": 1,
           "team_count": 18,
           "league_median": 6.583333333333333,
@@ -1312,7 +1242,6 @@
         {
           "metric_key": "duels_per_match",
           "metric_value": 105.33333333333333,
-          "metric_value_prev_season": null,
           "rank": 1,
           "team_count": 18,
           "league_median": 88.66666666666667,
@@ -1323,7 +1252,6 @@
         {
           "metric_key": "duels_won_pct",
           "metric_value": 0.5189873417721519,
-          "metric_value_prev_season": null,
           "rank": 3,
           "team_count": 18,
           "league_median": 0.4984391259105099,
@@ -1334,7 +1262,6 @@
         {
           "metric_key": "duels_won_per_match",
           "metric_value": 54.666666666666664,
-          "metric_value_prev_season": null,
           "rank": 1,
           "team_count": 18,
           "league_median": 44.75,
@@ -1345,7 +1272,6 @@
         {
           "metric_key": "finishing_efficiency_pct",
           "metric_value": 0.4067796610169492,
-          "metric_value_prev_season": null,
           "rank": 2,
           "team_count": 18,
           "league_median": 0.3442622950819672,
@@ -1356,7 +1282,6 @@
         {
           "metric_key": "fouls_per_match",
           "metric_value": 11.833333333333334,
-          "metric_value_prev_season": null,
           "rank": 15,
           "team_count": 18,
           "league_median": 10.583333333333334,
@@ -1367,7 +1292,6 @@
         {
           "metric_key": "goals_against_per_match",
           "metric_value": 2.25,
-          "metric_value_prev_season": null,
           "rank": 12,
           "team_count": 18,
           "league_median": 2.0,
@@ -1378,7 +1302,6 @@
         {
           "metric_key": "goals_per_match",
           "metric_value": 2.0833333333333335,
-          "metric_value_prev_season": null,
           "rank": 6,
           "team_count": 18,
           "league_median": 1.75,
@@ -1389,7 +1312,6 @@
         {
           "metric_key": "interceptions_per_match",
           "metric_value": 10.5,
-          "metric_value_prev_season": null,
           "rank": 3,
           "team_count": 18,
           "league_median": 8.333333333333334,
@@ -1400,7 +1322,6 @@
         {
           "metric_key": "passes_accuracy_pct",
           "metric_value": 0.7885532591414944,
-          "metric_value_prev_season": null,
           "rank": 15,
           "team_count": 18,
           "league_median": 0.8109381401065138,
@@ -1411,7 +1332,6 @@
         {
           "metric_key": "passes_accurate_per_match",
           "metric_value": 289.3333333333333,
-          "metric_value_prev_season": null,
           "rank": 15,
           "team_count": 18,
           "league_median": 343.3333333333333,
@@ -1422,7 +1342,6 @@
         {
           "metric_key": "passes_key_per_match",
           "metric_value": 9.75,
-          "metric_value_prev_season": null,
           "rank": 13,
           "team_count": 18,
           "league_median": 10.833333333333334,
@@ -1433,7 +1352,6 @@
         {
           "metric_key": "passes_per_match",
           "metric_value": 366.9166666666667,
-          "metric_value_prev_season": null,
           "rank": 15,
           "team_count": 18,
           "league_median": 422.75,
@@ -1444,7 +1362,6 @@
         {
           "metric_key": "passes_share_pct",
           "metric_value": 0.46090233434523187,
-          "metric_value_prev_season": null,
           "rank": 12,
           "team_count": 18,
           "league_median": 0.4911890007745933,
@@ -1455,7 +1372,6 @@
         {
           "metric_key": "saves_pct",
           "metric_value": 0.5737704918032787,
-          "metric_value_prev_season": null,
           "rank": 15,
           "team_count": 18,
           "league_median": 0.6216216216216216,
@@ -1466,7 +1382,6 @@
         {
           "metric_key": "saves_per_match",
           "metric_value": 2.9166666666666665,
-          "metric_value_prev_season": null,
           "rank": 11,
           "team_count": 18,
           "league_median": 3.0,
@@ -1477,7 +1392,6 @@
         {
           "metric_key": "shots_inside_box_pct",
           "metric_value": 0.7133333333333334,
-          "metric_value_prev_season": null,
           "rank": 3,
           "team_count": 18,
           "league_median": 0.6691729323308271,
@@ -1488,7 +1402,6 @@
         {
           "metric_key": "shots_inside_box_per_match",
           "metric_value": 8.916666666666666,
-          "metric_value_prev_season": null,
           "rank": 12,
           "team_count": 18,
           "league_median": 9.666666666666666,
@@ -1499,7 +1412,6 @@
         {
           "metric_key": "shots_on_goal_against_per_match",
           "metric_value": 5.166666666666667,
-          "metric_value_prev_season": null,
           "rank": 9,
           "team_count": 18,
           "league_median": 5.166666666666667,
@@ -1510,7 +1422,6 @@
         {
           "metric_key": "shots_on_goal_difference_per_match",
           "metric_value": -0.25,
-          "metric_value_prev_season": null,
           "rank": 10,
           "team_count": 18,
           "league_median": -0.25,
@@ -1521,7 +1432,6 @@
         {
           "metric_key": "shots_on_goal_pct",
           "metric_value": 0.3933333333333333,
-          "metric_value_prev_season": null,
           "rank": 4,
           "team_count": 18,
           "league_median": 0.35039370078740156,
@@ -1532,7 +1442,6 @@
         {
           "metric_key": "shots_on_goal_per_match",
           "metric_value": 4.916666666666667,
-          "metric_value_prev_season": null,
           "rank": 10,
           "team_count": 18,
           "league_median": 4.916666666666667,
@@ -1543,7 +1452,6 @@
         {
           "metric_key": "shots_per_match",
           "metric_value": 12.5,
-          "metric_value_prev_season": null,
           "rank": 13,
           "team_count": 18,
           "league_median": 14.166666666666666,
@@ -1554,7 +1462,6 @@
         {
           "metric_key": "tackles_per_match",
           "metric_value": 17.166666666666668,
-          "metric_value_prev_season": null,
           "rank": 2,
           "team_count": 18,
           "league_median": 15.083333333333334,
@@ -1565,87 +1472,10 @@
       ],
       "deserved_scatter": [
         {
-          "name": "Fortuna Sittard",
-          "sotd": -1.6666666666666667,
-          "points": 20,
-          "deserved": 12.268608414239482,
-          "is_self": false
-        },
-        {
-          "name": "FC Groningen",
-          "sotd": -0.08333333333333333,
-          "points": 15,
-          "deserved": 16.13009708737864,
-          "is_self": false
-        },
-        {
-          "name": "Sparta Rotterdam",
-          "sotd": -0.9166666666666666,
-          "points": 12,
-          "deserved": 14.097734627831716,
-          "is_self": false
-        },
-        {
-          "name": "Feyenoord",
-          "sotd": 3.6666666666666665,
-          "points": 25,
-          "deserved": 25.275728155339802,
-          "is_self": false
-        },
-        {
-          "name": "ADO Den Haag",
-          "sotd": -2.4166666666666665,
-          "points": 9,
-          "deserved": 10.439482200647252,
-          "is_self": false
-        },
-        {
-          "name": "GO Ahead Eagles",
-          "sotd": 0.5,
-          "points": 17,
-          "deserved": 17.55275080906149,
-          "is_self": false
-        },
-        {
-          "name": "PSV Eindhoven",
-          "sotd": 2.8333333333333335,
-          "points": 26,
-          "deserved": 23.243365695792882,
-          "is_self": false
-        },
-        {
-          "name": "Telstar",
-          "sotd": -2.5,
-          "points": 10,
-          "deserved": 10.236245954692558,
-          "is_self": false
-        },
-        {
-          "name": "AZ Alkmaar",
-          "sotd": 2.9166666666666665,
-          "points": 23,
-          "deserved": 23.446601941747574,
-          "is_self": false
-        },
-        {
-          "name": "Excelsior",
-          "sotd": -2.4166666666666665,
-          "points": 11,
-          "deserved": 10.439482200647252,
-          "is_self": false
-        },
-        {
-          "name": "FC Utrecht",
-          "sotd": -2.3333333333333335,
-          "points": 12,
-          "deserved": 10.642718446601943,
-          "is_self": false
-        },
-        {
-          "name": "SC Heerenveen",
-          "sotd": 2.25,
-          "points": 21,
-          "deserved": 21.820711974110033,
+          "name": "Willem II",
+          "sotd": -4.416666666666667,
+          "points": 3,
+          "deserved": 5.56181229773463,
           "is_self": false
         },
         {
@@ -1656,6 +1486,48 @@
           "is_self": true
         },
         {
+          "name": "ADO Den Haag",
+          "sotd": -2.4166666666666665,
+          "points": 9,
+          "deserved": 10.439482200647252,
+          "is_self": false
+        },
+        {
+          "name": "SC Heerenveen",
+          "sotd": 2.25,
+          "points": 21,
+          "deserved": 21.820711974110033,
+          "is_self": false
+        },
+        {
+          "name": "FC Groningen",
+          "sotd": -0.08333333333333333,
+          "points": 15,
+          "deserved": 16.13009708737864,
+          "is_self": false
+        },
+        {
+          "name": "FC Utrecht",
+          "sotd": -2.3333333333333335,
+          "points": 12,
+          "deserved": 10.642718446601943,
+          "is_self": false
+        },
+        {
+          "name": "Telstar",
+          "sotd": -2.5,
+          "points": 10,
+          "deserved": 10.236245954692558,
+          "is_self": false
+        },
+        {
+          "name": "Fortuna Sittard",
+          "sotd": -1.6666666666666667,
+          "points": 20,
+          "deserved": 12.268608414239482,
+          "is_self": false
+        },
+        {
           "name": "PEC Zwolle",
           "sotd": -2.0,
           "points": 12,
@@ -1663,10 +1535,45 @@
           "is_self": false
         },
         {
-          "name": "Willem II",
-          "sotd": -4.416666666666667,
-          "points": 3,
-          "deserved": 5.56181229773463,
+          "name": "Sparta Rotterdam",
+          "sotd": -0.9166666666666666,
+          "points": 12,
+          "deserved": 14.097734627831716,
+          "is_self": false
+        },
+        {
+          "name": "PSV Eindhoven",
+          "sotd": 2.8333333333333335,
+          "points": 26,
+          "deserved": 23.243365695792882,
+          "is_self": false
+        },
+        {
+          "name": "GO Ahead Eagles",
+          "sotd": 0.5,
+          "points": 17,
+          "deserved": 17.55275080906149,
+          "is_self": false
+        },
+        {
+          "name": "Excelsior",
+          "sotd": -2.4166666666666665,
+          "points": 11,
+          "deserved": 10.439482200647252,
+          "is_self": false
+        },
+        {
+          "name": "FC Twente",
+          "sotd": 3.9166666666666665,
+          "points": 24,
+          "deserved": 25.88543689320388,
+          "is_self": false
+        },
+        {
+          "name": "Feyenoord",
+          "sotd": 3.6666666666666665,
+          "points": 25,
+          "deserved": 25.275728155339802,
           "is_self": false
         },
         {
@@ -1684,10 +1591,10 @@
           "is_self": false
         },
         {
-          "name": "FC Twente",
-          "sotd": 3.9166666666666665,
-          "points": 24,
-          "deserved": 25.88543689320388,
+          "name": "AZ Alkmaar",
+          "sotd": 2.9166666666666665,
+          "points": 23,
+          "deserved": 23.446601941747574,
           "is_self": false
         }
       ],
@@ -5005,65 +4912,6 @@
       "defensive_actions_per_match": 30.5,
       "shots_share_pct": 0.75,
       "points_capture_pct": 0.16666666666666666,
-      "yoy_games_played_cutoff": null,
-      "points_this_season": null,
-      "points_prev_season": null,
-      "points_delta_yoy": null,
-      "points_rank_prev_season": null,
-      "goals_for_this_season": null,
-      "goals_for_prev_season": null,
-      "goals_for_delta_yoy": null,
-      "goals_against_this_season": null,
-      "goals_against_prev_season": null,
-      "goals_against_delta_yoy": null,
-      "goals_per_match_this_season": null,
-      "goals_per_match_prev_season": null,
-      "goals_per_match_delta_yoy": null,
-      "goals_against_per_match_this_season": null,
-      "goals_against_per_match_prev_season": null,
-      "goals_against_per_match_delta_yoy": null,
-      "clean_sheets_pct_this_season": null,
-      "clean_sheets_pct_prev_season": null,
-      "clean_sheets_pct_delta_yoy": null,
-      "shots_per_match_this_season": null,
-      "shots_per_match_prev_season": null,
-      "shots_per_match_delta_yoy": null,
-      "shots_inside_box_pct_this_season": null,
-      "shots_inside_box_pct_prev_season": null,
-      "shots_inside_box_pct_delta_yoy": null,
-      "shots_on_goal_per_match_this_season": null,
-      "shots_on_goal_per_match_prev_season": null,
-      "shots_on_goal_per_match_delta_yoy": null,
-      "finishing_efficiency_pct_this_season": null,
-      "finishing_efficiency_pct_prev_season": null,
-      "finishing_efficiency_pct_delta_yoy": null,
-      "duels_per_match_this_season": null,
-      "duels_per_match_prev_season": null,
-      "duels_per_match_delta_yoy": null,
-      "duels_won_pct_this_season": null,
-      "duels_won_pct_prev_season": null,
-      "duels_won_pct_delta_yoy": null,
-      "defensive_actions_per_match_this_season": null,
-      "defensive_actions_per_match_prev_season": null,
-      "defensive_actions_per_match_delta_yoy": null,
-      "passes_per_match_this_season": null,
-      "passes_per_match_prev_season": null,
-      "passes_per_match_delta_yoy": null,
-      "passes_accuracy_pct_this_season": null,
-      "passes_accuracy_pct_prev_season": null,
-      "passes_accuracy_pct_delta_yoy": null,
-      "passes_key_per_match_this_season": null,
-      "passes_key_per_match_prev_season": null,
-      "passes_key_per_match_delta_yoy": null,
-      "corners_per_match_this_season": null,
-      "corners_per_match_prev_season": null,
-      "corners_per_match_delta_yoy": null,
-      "corners_against_per_match_this_season": null,
-      "corners_against_per_match_prev_season": null,
-      "corners_against_per_match_delta_yoy": null,
-      "saves_pct_this_season": null,
-      "saves_pct_prev_season": null,
-      "saves_pct_delta_yoy": null,
       "unbeaten_run": 1,
       "win_run": 0,
       "winless_run": 2,
@@ -5790,65 +5638,6 @@
       "defensive_actions_per_match": 30.294117647058822,
       "shots_share_pct": 0.40463645943098,
       "points_capture_pct": 0.18627450980392157,
-      "yoy_games_played_cutoff": null,
-      "points_this_season": null,
-      "points_prev_season": null,
-      "points_delta_yoy": null,
-      "points_rank_prev_season": null,
-      "goals_for_this_season": null,
-      "goals_for_prev_season": null,
-      "goals_for_delta_yoy": null,
-      "goals_against_this_season": null,
-      "goals_against_prev_season": null,
-      "goals_against_delta_yoy": null,
-      "goals_per_match_this_season": null,
-      "goals_per_match_prev_season": null,
-      "goals_per_match_delta_yoy": null,
-      "goals_against_per_match_this_season": null,
-      "goals_against_per_match_prev_season": null,
-      "goals_against_per_match_delta_yoy": null,
-      "clean_sheets_pct_this_season": null,
-      "clean_sheets_pct_prev_season": null,
-      "clean_sheets_pct_delta_yoy": null,
-      "shots_per_match_this_season": null,
-      "shots_per_match_prev_season": null,
-      "shots_per_match_delta_yoy": null,
-      "shots_inside_box_pct_this_season": null,
-      "shots_inside_box_pct_prev_season": null,
-      "shots_inside_box_pct_delta_yoy": null,
-      "shots_on_goal_per_match_this_season": null,
-      "shots_on_goal_per_match_prev_season": null,
-      "shots_on_goal_per_match_delta_yoy": null,
-      "finishing_efficiency_pct_this_season": null,
-      "finishing_efficiency_pct_prev_season": null,
-      "finishing_efficiency_pct_delta_yoy": null,
-      "duels_per_match_this_season": null,
-      "duels_per_match_prev_season": null,
-      "duels_per_match_delta_yoy": null,
-      "duels_won_pct_this_season": null,
-      "duels_won_pct_prev_season": null,
-      "duels_won_pct_delta_yoy": null,
-      "defensive_actions_per_match_this_season": null,
-      "defensive_actions_per_match_prev_season": null,
-      "defensive_actions_per_match_delta_yoy": null,
-      "passes_per_match_this_season": null,
-      "passes_per_match_prev_season": null,
-      "passes_per_match_delta_yoy": null,
-      "passes_accuracy_pct_this_season": null,
-      "passes_accuracy_pct_prev_season": null,
-      "passes_accuracy_pct_delta_yoy": null,
-      "passes_key_per_match_this_season": null,
-      "passes_key_per_match_prev_season": null,
-      "passes_key_per_match_delta_yoy": null,
-      "corners_per_match_this_season": null,
-      "corners_per_match_prev_season": null,
-      "corners_per_match_delta_yoy": null,
-      "corners_against_per_match_this_season": null,
-      "corners_against_per_match_prev_season": null,
-      "corners_against_per_match_delta_yoy": null,
-      "saves_pct_this_season": null,
-      "saves_pct_prev_season": null,
-      "saves_pct_delta_yoy": null,
       "unbeaten_run": 1,
       "win_run": 1,
       "winless_run": 0,
@@ -6388,7 +6177,6 @@
         {
           "metric_key": "blocks_per_match",
           "metric_value": 3.9411764705882355,
-          "metric_value_prev_season": null,
           "rank": 8,
           "team_count": 21,
           "league_median": 3.7941176470588234,
@@ -6399,7 +6187,6 @@
         {
           "metric_key": "cards_red",
           "metric_value": 4.0,
-          "metric_value_prev_season": null,
           "rank": 14,
           "team_count": 16,
           "league_median": 2.0,
@@ -6410,7 +6197,6 @@
         {
           "metric_key": "cards_yellow",
           "metric_value": 50.0,
-          "metric_value_prev_season": null,
           "rank": 11,
           "team_count": 21,
           "league_median": 50.0,
@@ -6421,7 +6207,6 @@
         {
           "metric_key": "clean_sheets",
           "metric_value": 7.0,
-          "metric_value_prev_season": null,
           "rank": 14,
           "team_count": 21,
           "league_median": 8.0,
@@ -6432,7 +6217,6 @@
         {
           "metric_key": "clean_sheets_pct",
           "metric_value": 0.20588235294117646,
-          "metric_value_prev_season": null,
           "rank": 15,
           "team_count": 21,
           "league_median": 0.25,
@@ -6443,7 +6227,6 @@
         {
           "metric_key": "corners_against_per_match",
           "metric_value": 6.235294117647059,
-          "metric_value_prev_season": null,
           "rank": 17,
           "team_count": 21,
           "league_median": 5.382352941176471,
@@ -6454,7 +6237,6 @@
         {
           "metric_key": "corners_per_match",
           "metric_value": 4.529411764705882,
-          "metric_value_prev_season": null,
           "rank": 14,
           "team_count": 21,
           "league_median": 5.0,
@@ -6465,7 +6247,6 @@
         {
           "metric_key": "defensive_actions_per_match",
           "metric_value": 30.294117647058822,
-          "metric_value_prev_season": null,
           "rank": 8,
           "team_count": 21,
           "league_median": 29.763157894736842,
@@ -6476,7 +6257,6 @@
         {
           "metric_key": "dribbles_attempts_per_match",
           "metric_value": 13.617647058823529,
-          "metric_value_prev_season": null,
           "rank": 20,
           "team_count": 21,
           "league_median": 16.36842105263158,
@@ -6487,7 +6267,6 @@
         {
           "metric_key": "dribbles_success_pct",
           "metric_value": 0.5118790496760259,
-          "metric_value_prev_season": null,
           "rank": 10,
           "team_count": 21,
           "league_median": 0.5054095826893354,
@@ -6498,7 +6277,6 @@
         {
           "metric_key": "dribbles_success_per_match",
           "metric_value": 6.970588235294118,
-          "metric_value_prev_season": null,
           "rank": 17,
           "team_count": 21,
           "league_median": 8.323529411764707,
@@ -6509,7 +6287,6 @@
         {
           "metric_key": "duels_per_match",
           "metric_value": 96.5,
-          "metric_value_prev_season": null,
           "rank": 15,
           "team_count": 21,
           "league_median": 97.67647058823529,
@@ -6520,7 +6297,6 @@
         {
           "metric_key": "duels_won_pct",
           "metric_value": 0.4855227064919232,
-          "metric_value_prev_season": null,
           "rank": 18,
           "team_count": 21,
           "league_median": 0.49457831325301205,
@@ -6531,7 +6307,6 @@
         {
           "metric_key": "duels_won_per_match",
           "metric_value": 46.85294117647059,
-          "metric_value_prev_season": null,
           "rank": 20,
           "team_count": 21,
           "league_median": 48.6764705882353,
@@ -6542,7 +6317,6 @@
         {
           "metric_key": "finishing_efficiency_pct",
           "metric_value": 0.1875,
-          "metric_value_prev_season": null,
           "rank": 21,
           "team_count": 21,
           "league_median": 0.28804347826086957,
@@ -6553,7 +6327,6 @@
         {
           "metric_key": "fouls_per_match",
           "metric_value": 10.588235294117647,
-          "metric_value_prev_season": null,
           "rank": 16,
           "team_count": 21,
           "league_median": 10.0,
@@ -6564,7 +6337,6 @@
         {
           "metric_key": "goals_against_per_match",
           "metric_value": 2.0294117647058822,
-          "metric_value_prev_season": null,
           "rank": 18,
           "team_count": 21,
           "league_median": 1.4705882352941178,
@@ -6575,7 +6347,6 @@
         {
           "metric_key": "goals_per_match",
           "metric_value": 0.7647058823529411,
-          "metric_value_prev_season": null,
           "rank": 21,
           "team_count": 21,
           "league_median": 1.4705882352941178,
@@ -6586,7 +6357,6 @@
         {
           "metric_key": "interceptions_per_match",
           "metric_value": 8.705882352941176,
-          "metric_value_prev_season": null,
           "rank": 17,
           "team_count": 21,
           "league_median": 9.235294117647058,
@@ -6597,7 +6367,6 @@
         {
           "metric_key": "offsides_per_match",
           "metric_value": 1.3529411764705883,
-          "metric_value_prev_season": null,
           "rank": 1,
           "team_count": 4,
           "league_median": 2.0,
@@ -6608,7 +6377,6 @@
         {
           "metric_key": "passes_accuracy_pct",
           "metric_value": 0.7728937728937729,
-          "metric_value_prev_season": null,
           "rank": 12,
           "team_count": 21,
           "league_median": 0.7788197767145135,
@@ -6619,7 +6387,6 @@
         {
           "metric_key": "passes_accurate_per_match",
           "metric_value": 304.0882352941176,
-          "metric_value_prev_season": null,
           "rank": 16,
           "team_count": 21,
           "league_median": 339.1111111111111,
@@ -6630,7 +6397,6 @@
         {
           "metric_key": "passes_key_per_match",
           "metric_value": 8.176470588235293,
-          "metric_value_prev_season": null,
           "rank": 17,
           "team_count": 21,
           "league_median": 9.264705882352942,
@@ -6641,7 +6407,6 @@
         {
           "metric_key": "passes_per_match",
           "metric_value": 393.44117647058823,
-          "metric_value_prev_season": null,
           "rank": 17,
           "team_count": 21,
           "league_median": 422.5,
@@ -6652,7 +6417,6 @@
         {
           "metric_key": "passes_share_pct",
           "metric_value": 0.4732708296479745,
-          "metric_value_prev_season": null,
           "rank": 15,
           "team_count": 21,
           "league_median": 0.4863330334150352,
@@ -6663,7 +6427,6 @@
         {
           "metric_key": "saves_pct",
           "metric_value": 0.6826923076923077,
-          "metric_value_prev_season": null,
           "rank": 12,
           "team_count": 21,
           "league_median": 0.6859504132231405,
@@ -6674,7 +6437,6 @@
         {
           "metric_key": "saves_per_match",
           "metric_value": 4.176470588235294,
-          "metric_value_prev_season": null,
           "rank": 3,
           "team_count": 21,
           "league_median": 3.411764705882353,
@@ -6685,7 +6447,6 @@
         {
           "metric_key": "shots_inside_box_pct",
           "metric_value": 0.6145833333333334,
-          "metric_value_prev_season": null,
           "rank": 11,
           "team_count": 21,
           "league_median": 0.6145833333333334,
@@ -6696,7 +6457,6 @@
         {
           "metric_key": "shots_inside_box_per_match",
           "metric_value": 6.9411764705882355,
-          "metric_value_prev_season": null,
           "rank": 17,
           "team_count": 21,
           "league_median": 8.029411764705882,
@@ -6707,7 +6467,6 @@
         {
           "metric_key": "shots_on_goal_against_per_match",
           "metric_value": 6.205882352941177,
-          "metric_value_prev_season": null,
           "rank": 19,
           "team_count": 21,
           "league_median": 4.777777777777778,
@@ -6718,7 +6477,6 @@
         {
           "metric_key": "shots_on_goal_difference_per_match",
           "metric_value": -2.4411764705882355,
-          "metric_value_prev_season": null,
           "rank": 19,
           "team_count": 21,
           "league_median": -0.19444444444444445,
@@ -6729,7 +6487,6 @@
         {
           "metric_key": "shots_on_goal_pct",
           "metric_value": 0.3333333333333333,
-          "metric_value_prev_season": null,
           "rank": 13,
           "team_count": 21,
           "league_median": 0.3426724137931034,
@@ -6740,7 +6497,6 @@
         {
           "metric_key": "shots_on_goal_per_match",
           "metric_value": 3.764705882352941,
-          "metric_value_prev_season": null,
           "rank": 17,
           "team_count": 21,
           "league_median": 4.526315789473684,
@@ -6751,7 +6507,6 @@
         {
           "metric_key": "shots_per_match",
           "metric_value": 11.294117647058824,
-          "metric_value_prev_season": null,
           "rank": 17,
           "team_count": 21,
           "league_median": 12.647058823529411,
@@ -6762,7 +6517,6 @@
         {
           "metric_key": "tackles_per_match",
           "metric_value": 17.647058823529413,
-          "metric_value_prev_season": null,
           "rank": 8,
           "team_count": 21,
           "league_median": 17.394736842105264,

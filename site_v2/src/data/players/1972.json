@@ -8,6 +8,7 @@
   "age": 33,
   "height": "189",
   "position_group": "GK",
+  "position_role": null,
   "season_label": "2026/27",
   "club": {
     "team_id": 174,
@@ -26,22 +27,22 @@
       },
       "cards": {
         "cards_red_player": 0.0,
-        "minutes_per_appearance": 93.0,
-        "saves_player_pct": 0.7796610169491526,
+        "minutes_per_appearance": 89.27272727272727,
+        "saves_player_pct": 0.765625,
+        "appearances": 11.0,
         "cards_yellow_player": 2.0,
-        "appearances": 10.0,
-        "goals_against_player": 13.0
+        "goals_against_player": 15.0
       },
       "next_matches": [
         {
-          "fixture_id": 1575215,
+          "fixture_id": 1575228,
           "league_code": "BL1",
           "upcoming_rank": 1,
-          "opponent_name": "TSG 1899 Hoffenheim",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/167.png",
-          "is_home": false,
-          "kickoff_datetime": "2026-11-08 18:30:00+00:00",
-          "round_name": "Regular Season - 9",
+          "opponent_name": "VfB Stuttgart",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/172.png",
+          "is_home": true,
+          "kickoff_datetime": "2026-11-21 17:30:00+00:00",
+          "round_name": "Regular Season - 10",
           "goals_for": null,
           "goals_against": null,
           "result": null,
@@ -58,81 +59,97 @@
           "metrics": [
             {
               "metric_key": "ball_actions_per90",
-              "value": 35.75,
+              "value": 35.90673575129534,
               "rank": 16,
-              "median": 39.285714285714285
+              "median": 39.42857142857143
             },
             {
               "metric_key": "goals_against_per90",
-              "value": 1.125,
-              "rank": 3,
-              "median": 1.875
+              "value": 1.282383419689119,
+              "rank": 6,
+              "median": 1.8888888888888888
             },
             {
               "metric_key": "passes_accuracy_player_pct",
-              "value": 0.49173553719008267,
+              "value": 0.48659003831417624,
               "rank": 21,
-              "median": 0.6923076923076923
+              "median": 0.6829268292682927
             },
             {
               "metric_key": "passes_per90",
-              "value": 30.25,
-              "rank": 17,
-              "median": 35.285714285714285
+              "value": 30.427461139896373,
+              "rank": 18,
+              "median": 35.125
             },
             {
               "metric_key": "saves_per90",
-              "value": 5.375,
-              "rank": 1,
-              "median": 3.5
+              "value": 5.362694300518135,
+              "rank": 2,
+              "median": 3.6666666666666665
             },
             {
               "metric_key": "saves_player_pct",
-              "value": 0.8269230769230769,
+              "value": 0.8070175438596491,
               "rank": 1,
-              "median": 0.6585365853658537
+              "median": 0.6739130434782609
             }
           ]
         }
       ],
       "squad": null,
       "last_season": {
-        "minutes": 930,
+        "minutes": 982,
         "minutes_prev": 2790,
         "metrics": [
           {
             "metric_key": "ball_actions_per90",
-            "value": 33.38709677419355,
+            "value": 33.63543788187373,
             "value_prev": 32.25806451612903
           },
           {
             "metric_key": "goals_against_per90",
-            "value": 1.2580645161290323,
+            "value": 1.374745417515275,
             "value_prev": 0.9032258064516129
           },
           {
             "metric_key": "passes_accuracy_player_pct",
-            "value": 0.5335570469798657,
+            "value": 0.526813880126183,
             "value_prev": 0.5668449197860963
           },
           {
             "metric_key": "passes_per90",
-            "value": 28.838709677419356,
+            "value": 29.05295315682281,
             "value_prev": 30.161290322580644
           },
           {
             "metric_key": "saves_per90",
-            "value": 4.451612903225806,
+            "value": 4.490835030549898,
             "value_prev": 2.096774193548387
           },
           {
             "metric_key": "saves_player_pct",
-            "value": 0.7796610169491526,
-            "value_prev": 0.6989247311827957
+            "value": 0.765625,
+            "value_prev": 0.7065217391304348
           }
         ]
       },
       "recent_matches": [
+        {
+          "played_fixture_sk": 1575215,
+          "played_league_code": "BL1",
+          "played_kickoff_datetime": "2026-11-08 18:30:00+00:00",
+          "home_away": "away",
+          "goals_for": 1,
+          "goals_against": 2,
+          "result": "L",
+          "opponent_name": "TSG 1899 Hoffenheim",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/167.png",
+          "minutes": 52,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 22,
+          "on_bench": false
+        },
         {
           "played_fixture_sk": 1575210,
           "played_league_code": "BL1",

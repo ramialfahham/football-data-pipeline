@@ -1,0 +1,573 @@
+{
+  "type": "fixture",
+  "fixture_id": 1557469,
+  "slug": "2026-11-23-brentford-fc-vs-everton-fc",
+  "kickoff": "2026-11-23 20:00:00+00:00",
+  "status": "NS",
+  "unplayed_state": null,
+  "league_code": "PL",
+  "league_name": "Premier League",
+  "season": 2026,
+  "round": "Regular Season - 11",
+  "round_order": 11,
+  "is_next_round": true,
+  "venue": "Brentford Community Stadium",
+  "home": {
+    "team_id": 55,
+    "name": "Brentford FC",
+    "slug": "brentford-fc",
+    "crest": "https://media.api-sports.io/football/teams/55.png",
+    "country": "England",
+    "form": {
+      "league_code": "PL",
+      "entity_type": "club",
+      "season_api_year": 2026,
+      "window_type": "last_5",
+      "games_in_window": 5,
+      "games_expecting_team_stats": 5,
+      "games_with_team_stats": 5,
+      "contributing_competitions": [
+        "PL"
+      ],
+      "games_with_player_stats": 5,
+      "points_won": 5,
+      "clean_sheets": 1,
+      "goals_per_match": 1.2,
+      "goals_against_per_match": 1.4,
+      "shots_per_match": 10.0,
+      "shots_on_goal_pct": 0.26,
+      "shots_inside_box_pct": null,
+      "shots_on_goal_per_match": 2.6,
+      "finishing_efficiency_pct": 0.38461538461538464,
+      "passes_per_match": 342.0,
+      "passes_accuracy_pct": 0.7578947368421053,
+      "corners_per_match": 3.4,
+      "corners_against_per_match": 5.4,
+      "saves_pct": 0.6666666666666666,
+      "passes_key_per_match": 6.8,
+      "tackles_per_match": 17.0,
+      "interceptions_per_match": 12.4,
+      "blocks_per_match": 4.2,
+      "defensive_actions_per_match": 33.6,
+      "duels_per_match": 103.4,
+      "duels_won_pct": 0.4874274661508704,
+      "shots_on_goal_against_per_match": 4.2,
+      "shots_off_target_per_match": 4.4,
+      "shots_blocked_per_match": 3.0,
+      "shots_inside_box_per_match": null,
+      "passes_accurate_per_match": 259.2,
+      "passes_share_pct": 0.4181951577402788,
+      "dribbles_attempts_per_match": 16.6,
+      "dribbles_success_per_match": 5.8,
+      "dribbles_success_pct": 0.3493975903614458,
+      "duels_won_per_match": 50.4,
+      "saves_per_match": 2.8,
+      "free_kicks_per_match": 11.6,
+      "fouls_per_match": 10.6,
+      "offsides_per_match": 1.8,
+      "cards_yellow_per_match": 2.6,
+      "cards_red_per_match": 0.6,
+      "cards_yellow": 13,
+      "cards_red": 3
+    },
+    "standing": {
+      "group_name": "Premier League",
+      "is_knockout": false,
+      "league_rank": 8,
+      "standing_points": 14,
+      "standing_played": 10,
+      "standing_goals_diff": 5,
+      "standing_form": "LWDLD"
+    },
+    "form_window": [
+      {
+        "league_code": "PL",
+        "recency_rank": 1,
+        "played_fixture_sk": 1557458,
+        "played_league_code": "PL",
+        "played_kickoff_datetime": "2026-11-08 14:00:00+00:00",
+        "played_round_name": "Regular Season - 10",
+        "home_away": "away",
+        "goals_for": 0,
+        "goals_against": 2,
+        "result": "L",
+        "opponent_team_sk": 51,
+        "opponent_name": "Brighton & Hove Albion FC",
+        "opponent_logo_url": "https://media.api-sports.io/football/teams/51.png",
+        "is_home": true,
+        "has_team_stats": true,
+        "has_player_stats": true
+      },
+      {
+        "league_code": "PL",
+        "recency_rank": 2,
+        "played_fixture_sk": 1557449,
+        "played_league_code": "PL",
+        "played_kickoff_datetime": "2026-10-31 15:00:00+00:00",
+        "played_round_name": "Regular Season - 9",
+        "home_away": "home",
+        "goals_for": 2,
+        "goals_against": 0,
+        "result": "W",
+        "opponent_team_sk": 65,
+        "opponent_name": "Nottingham Forest FC",
+        "opponent_logo_url": "https://media.api-sports.io/football/teams/65.png",
+        "is_home": true,
+        "has_team_stats": true,
+        "has_player_stats": true
+      },
+      {
+        "league_code": "PL",
+        "recency_rank": 3,
+        "played_fixture_sk": 1557442,
+        "played_league_code": "PL",
+        "played_kickoff_datetime": "2026-10-25 14:00:00+00:00",
+        "played_round_name": "Regular Season - 8",
+        "home_away": "away",
+        "goals_for": 1,
+        "goals_against": 1,
+        "result": "D",
+        "opponent_team_sk": 64,
+        "opponent_name": "Hull City AFC",
+        "opponent_logo_url": "https://media.api-sports.io/football/teams/64.png",
+        "is_home": true,
+        "has_team_stats": true,
+        "has_player_stats": true
+      },
+      {
+        "league_code": "PL",
+        "recency_rank": 4,
+        "played_fixture_sk": 1557428,
+        "played_league_code": "PL",
+        "played_kickoff_datetime": "2026-10-17 14:00:00+00:00",
+        "played_round_name": "Regular Season - 7",
+        "home_away": "home",
+        "goals_for": 1,
+        "goals_against": 2,
+        "result": "L",
+        "opponent_team_sk": 40,
+        "opponent_name": "Liverpool FC",
+        "opponent_logo_url": "https://media.api-sports.io/football/teams/40.png",
+        "is_home": true,
+        "has_team_stats": true,
+        "has_player_stats": true
+      },
+      {
+        "league_code": "PL",
+        "recency_rank": 5,
+        "played_fixture_sk": 1557418,
+        "played_league_code": "PL",
+        "played_kickoff_datetime": "2026-10-10 14:00:00+00:00",
+        "played_round_name": "Regular Season - 6",
+        "home_away": "away",
+        "goals_for": 2,
+        "goals_against": 2,
+        "result": "D",
+        "opponent_team_sk": 66,
+        "opponent_name": "Aston Villa FC",
+        "opponent_logo_url": "https://media.api-sports.io/football/teams/66.png",
+        "is_home": true,
+        "has_team_stats": true,
+        "has_player_stats": true
+      }
+    ],
+    "players_to_watch": {
+      "window_type": "season_to_date",
+      "boards": [
+        {
+          "metric_key": "scorer_points_player",
+          "label_i18n_key": "playerMetrics.scorerPoints.label",
+          "format": "integer",
+          "rows": [
+            {
+              "player_sk": 196156,
+              "player_name": "Thiago",
+              "player_photo_url": "https://media.api-sports.io/football/players/196156.png",
+              "position_code": "F",
+              "value": 4
+            },
+            {
+              "player_sk": 178077,
+              "player_name": "K. Schade",
+              "player_photo_url": "https://media.api-sports.io/football/players/178077.png",
+              "position_code": "M",
+              "value": 3
+            },
+            {
+              "player_sk": 106725,
+              "player_name": "K. Lewis-Potter",
+              "player_photo_url": "https://media.api-sports.io/football/players/106725.png",
+              "position_code": "D",
+              "value": 3
+            }
+          ]
+        },
+        {
+          "metric_key": "ball_actions_per90",
+          "label_i18n_key": "playerMetrics.ballActionsPer90.label",
+          "format": "decimal_1",
+          "rows": [
+            {
+              "player_sk": 15908,
+              "player_name": "M. Damsgaard",
+              "player_photo_url": "https://media.api-sports.io/football/players/15908.png",
+              "position_code": "M",
+              "value": 57.80281690140845
+            },
+            {
+              "player_sk": 277306,
+              "player_name": "M. Sangaré",
+              "player_photo_url": "https://media.api-sports.io/football/players/277306.png",
+              "position_code": "M",
+              "value": 55.811688311688314
+            },
+            {
+              "player_sk": 25073,
+              "player_name": "V. Janelt",
+              "player_photo_url": "https://media.api-sports.io/football/players/25073.png",
+              "position_code": "M",
+              "value": 47.44444444444444
+            }
+          ]
+        }
+      ]
+    },
+    "next_match": null
+  },
+  "away": {
+    "team_id": 45,
+    "name": "Everton FC",
+    "slug": "everton-fc",
+    "crest": "https://media.api-sports.io/football/teams/45.png",
+    "country": "England",
+    "form": {
+      "league_code": "PL",
+      "entity_type": "club",
+      "season_api_year": 2026,
+      "window_type": "last_5",
+      "games_in_window": 5,
+      "games_expecting_team_stats": 5,
+      "games_with_team_stats": 5,
+      "contributing_competitions": [
+        "PL"
+      ],
+      "games_with_player_stats": 5,
+      "points_won": 7,
+      "clean_sheets": 1,
+      "goals_per_match": 1.2,
+      "goals_against_per_match": 1.4,
+      "shots_per_match": 12.0,
+      "shots_on_goal_pct": 0.45,
+      "shots_inside_box_pct": 0.7833333333333333,
+      "shots_on_goal_per_match": 5.4,
+      "finishing_efficiency_pct": 0.2222222222222222,
+      "passes_per_match": 440.4,
+      "passes_accuracy_pct": 0.8301544050862852,
+      "corners_per_match": 4.2,
+      "corners_against_per_match": 6.4,
+      "saves_pct": 0.65,
+      "passes_key_per_match": 10.2,
+      "tackles_per_match": 14.0,
+      "interceptions_per_match": 7.2,
+      "blocks_per_match": 5.0,
+      "defensive_actions_per_match": 26.2,
+      "duels_per_match": 97.6,
+      "duels_won_pct": 0.5573770491803278,
+      "shots_on_goal_against_per_match": 4.4,
+      "shots_off_target_per_match": null,
+      "shots_blocked_per_match": null,
+      "shots_inside_box_per_match": 9.4,
+      "passes_accurate_per_match": 365.6,
+      "passes_share_pct": 0.5040054932478828,
+      "dribbles_attempts_per_match": 13.4,
+      "dribbles_success_per_match": 7.2,
+      "dribbles_success_pct": 0.5373134328358209,
+      "duels_won_per_match": 54.4,
+      "saves_per_match": 2.6,
+      "free_kicks_per_match": 11.8,
+      "fouls_per_match": 8.8,
+      "offsides_per_match": 2.4,
+      "cards_yellow_per_match": 1.8,
+      "cards_red_per_match": 0.0,
+      "cards_yellow": 9,
+      "cards_red": 0
+    },
+    "standing": {
+      "group_name": "Premier League",
+      "is_knockout": false,
+      "league_rank": 6,
+      "standing_points": 16,
+      "standing_played": 10,
+      "standing_goals_diff": 2,
+      "standing_form": "WWLLD"
+    },
+    "form_window": [
+      {
+        "league_code": "PL",
+        "recency_rank": 1,
+        "played_fixture_sk": 1557460,
+        "played_league_code": "PL",
+        "played_kickoff_datetime": "2026-11-06 20:00:00+00:00",
+        "played_round_name": "Regular Season - 10",
+        "home_away": "home",
+        "goals_for": 3,
+        "goals_against": 1,
+        "result": "W",
+        "opponent_team_sk": 1346,
+        "opponent_name": "Coventry City FC",
+        "opponent_logo_url": "https://media.api-sports.io/football/teams/1346.png",
+        "is_home": false,
+        "has_team_stats": true,
+        "has_player_stats": true
+      },
+      {
+        "league_code": "PL",
+        "recency_rank": 2,
+        "played_fixture_sk": 1557455,
+        "played_league_code": "PL",
+        "played_kickoff_datetime": "2026-11-02 20:00:00+00:00",
+        "played_round_name": "Regular Season - 9",
+        "home_away": "away",
+        "goals_for": 1,
+        "goals_against": 0,
+        "result": "W",
+        "opponent_team_sk": 34,
+        "opponent_name": "Newcastle United FC",
+        "opponent_logo_url": "https://media.api-sports.io/football/teams/34.png",
+        "is_home": false,
+        "has_team_stats": true,
+        "has_player_stats": true
+      },
+      {
+        "league_code": "PL",
+        "recency_rank": 3,
+        "played_fixture_sk": 1557437,
+        "played_league_code": "PL",
+        "played_kickoff_datetime": "2026-10-24 14:00:00+00:00",
+        "played_round_name": "Regular Season - 8",
+        "home_away": "away",
+        "goals_for": 0,
+        "goals_against": 2,
+        "result": "L",
+        "opponent_team_sk": 42,
+        "opponent_name": "Arsenal FC",
+        "opponent_logo_url": "https://media.api-sports.io/football/teams/42.png",
+        "is_home": false,
+        "has_team_stats": true,
+        "has_player_stats": true
+      },
+      {
+        "league_code": "PL",
+        "recency_rank": 4,
+        "played_fixture_sk": 1557430,
+        "played_league_code": "PL",
+        "played_kickoff_datetime": "2026-10-17 11:30:00+00:00",
+        "played_round_name": "Regular Season - 7",
+        "home_away": "home",
+        "goals_for": 0,
+        "goals_against": 2,
+        "result": "L",
+        "opponent_team_sk": 49,
+        "opponent_name": "Chelsea FC",
+        "opponent_logo_url": "https://media.api-sports.io/football/teams/49.png",
+        "is_home": false,
+        "has_team_stats": true,
+        "has_player_stats": true
+      },
+      {
+        "league_code": "PL",
+        "recency_rank": 5,
+        "played_fixture_sk": 1557422,
+        "played_league_code": "PL",
+        "played_kickoff_datetime": "2026-10-11 13:00:00+00:00",
+        "played_round_name": "Regular Season - 6",
+        "home_away": "away",
+        "goals_for": 2,
+        "goals_against": 2,
+        "result": "D",
+        "opponent_team_sk": 64,
+        "opponent_name": "Hull City AFC",
+        "opponent_logo_url": "https://media.api-sports.io/football/teams/64.png",
+        "is_home": false,
+        "has_team_stats": true,
+        "has_player_stats": true
+      }
+    ],
+    "players_to_watch": {
+      "window_type": "season_to_date",
+      "boards": [
+        {
+          "metric_key": "scorer_points_player",
+          "label_i18n_key": "playerMetrics.scorerPoints.label",
+          "format": "integer",
+          "rows": [
+            {
+              "player_sk": 343684,
+              "player_name": "T. Barry",
+              "player_photo_url": "https://media.api-sports.io/football/players/343684.png",
+              "position_code": "F",
+              "value": 7
+            },
+            {
+              "player_sk": 148099,
+              "player_name": "K. Dewsbury-Hall",
+              "player_photo_url": "https://media.api-sports.io/football/players/148099.png",
+              "position_code": "M",
+              "value": 4
+            },
+            {
+              "player_sk": 1456,
+              "player_name": "A. Maitland-Niles",
+              "player_photo_url": "https://media.api-sports.io/football/players/1456.png",
+              "position_code": "D",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "metric_key": "ball_actions_per90",
+          "label_i18n_key": "playerMetrics.ballActionsPer90.label",
+          "format": "decimal_1",
+          "rows": [
+            {
+              "player_sk": 895,
+              "player_name": "J. Garner",
+              "player_photo_url": "https://media.api-sports.io/football/players/895.png",
+              "position_code": "M",
+              "value": 60.57692307692308
+            },
+            {
+              "player_sk": 17661,
+              "player_name": "J. Branthwaite",
+              "player_photo_url": "https://media.api-sports.io/football/players/17661.png",
+              "position_code": "D",
+              "value": 54.04494382022472
+            },
+            {
+              "player_sk": 2936,
+              "player_name": "J. Tarkowski",
+              "player_photo_url": "https://media.api-sports.io/football/players/2936.png",
+              "position_code": "D",
+              "value": 52.8
+            }
+          ]
+        }
+      ]
+    },
+    "next_match": null
+  },
+  "head_to_head": {
+    "total_meetings": 11,
+    "wins": 3,
+    "draws": 4,
+    "losses": 4,
+    "goals_for": 14,
+    "goals_against": 17,
+    "meetings_last5": 5,
+    "wins_last5": 1,
+    "draws_last5": 3,
+    "losses_last5": 1,
+    "last_meeting_at": "2026-04-11 14:00:00+00:00",
+    "last_meeting_league_code": "PL",
+    "last_meeting_goals_for": 2,
+    "last_meeting_goals_against": 2,
+    "last_meeting_result": "D",
+    "recent_meetings": [
+      {
+        "fixture_api_id": 1379280,
+        "kickoff_datetime": "2026-04-11 14:00:00+00:00",
+        "league_code": "PL",
+        "home_away": "home",
+        "goals_for": 2,
+        "goals_against": 2,
+        "result": "D"
+      },
+      {
+        "fixture_api_id": 1379162,
+        "kickoff_datetime": "2026-01-04 15:00:00+00:00",
+        "league_code": "PL",
+        "home_away": "away",
+        "goals_for": 4,
+        "goals_against": 2,
+        "result": "W"
+      },
+      {
+        "fixture_api_id": 1208283,
+        "kickoff_datetime": "2025-02-26 19:30:00+00:00",
+        "league_code": "PL",
+        "home_away": "home",
+        "goals_for": 1,
+        "goals_against": 1,
+        "result": "D"
+      },
+      {
+        "fixture_api_id": 1208136,
+        "kickoff_datetime": "2024-11-23 15:00:00+00:00",
+        "league_code": "PL",
+        "home_away": "away",
+        "goals_for": 0,
+        "goals_against": 0,
+        "result": "D"
+      },
+      {
+        "fixture_api_id": 1035516,
+        "kickoff_datetime": "2024-04-27 16:30:00+00:00",
+        "league_code": "PL",
+        "home_away": "away",
+        "goals_for": 0,
+        "goals_against": 1,
+        "result": "L"
+      },
+      {
+        "fixture_api_id": 1035088,
+        "kickoff_datetime": "2023-09-23 16:30:00+00:00",
+        "league_code": "PL",
+        "home_away": "home",
+        "goals_for": 1,
+        "goals_against": 3,
+        "result": "L"
+      },
+      {
+        "fixture_api_id": 868208,
+        "kickoff_datetime": "2023-03-11 15:00:00+00:00",
+        "league_code": "PL",
+        "home_away": "away",
+        "goals_for": 0,
+        "goals_against": 1,
+        "result": "L"
+      },
+      {
+        "fixture_api_id": 867978,
+        "kickoff_datetime": "2022-08-27 14:00:00+00:00",
+        "league_code": "PL",
+        "home_away": "home",
+        "goals_for": 1,
+        "goals_against": 1,
+        "result": "D"
+      },
+      {
+        "fixture_api_id": 710917,
+        "kickoff_datetime": "2022-05-15 15:30:00+00:00",
+        "league_code": "PL",
+        "home_away": "away",
+        "goals_for": 3,
+        "goals_against": 2,
+        "result": "W"
+      },
+      {
+        "fixture_api_id": 824594,
+        "kickoff_datetime": "2022-02-05 15:00:00+00:00",
+        "league_code": "FAC",
+        "home_away": "away",
+        "goals_for": 1,
+        "goals_against": 4,
+        "result": "L"
+      }
+    ],
+    "intro": {
+      "en": "Brentford FC won 1 and Everton FC 1 of the last 5 meetings, and 3 were drawn.",
+      "de": "Von den letzten 5 Duellen gewann Brentford FC 1 und Everton FC 1, 3 endeten unentschieden.",
+      "fi": "5 edellisestä kohtaamisesta Brentford FC voitti 1 ja Everton FC 1, ja 3 päättyi tasan."
+    }
+  }
+}

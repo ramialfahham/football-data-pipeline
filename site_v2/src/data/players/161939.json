@@ -8,6 +8,7 @@
   "age": 24,
   "height": "187",
   "position_group": "DEF",
+  "position_role": null,
   "season_label": "2026/27",
   "club": {
     "team_id": 211,
@@ -25,28 +26,14 @@
         "slug": "sl-benfica"
       },
       "cards": {
-        "assists_player": 2.0,
-        "appearances": 18.0,
-        "cards_red_player": 0.0,
-        "cards_yellow_player": 6.0,
+        "appearances": 19.0,
+        "minutes_per_appearance": 83.10526315789474,
         "goals_player": 1.0,
-        "minutes_per_appearance": 84.11111111111111
+        "cards_red_player": null,
+        "assists_player": 2.0,
+        "cards_yellow_player": null
       },
       "next_matches": [
-        {
-          "fixture_id": 1575538,
-          "league_code": "LP",
-          "upcoming_rank": 1,
-          "opponent_name": "CF Estrela da Amadora",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/15130.png",
-          "is_home": false,
-          "kickoff_datetime": "2026-11-08 20:30:00+00:00",
-          "round_name": "Regular Season - 11",
-          "goals_for": null,
-          "goals_against": null,
-          "result": null,
-          "status_short": "NS"
-        },
         {
           "fixture_id": 1636315,
           "league_code": "UEL",
@@ -60,6 +47,20 @@
           "goals_against": null,
           "result": null,
           "status_short": "NS"
+        },
+        {
+          "fixture_id": 1575547,
+          "league_code": "LP",
+          "upcoming_rank": 1,
+          "opponent_name": "FC Famalicão",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/242.png",
+          "is_home": true,
+          "kickoff_datetime": "2026-11-30 20:15:00+00:00",
+          "round_name": "Regular Season - 12",
+          "goals_for": null,
+          "goals_against": null,
+          "result": null,
+          "status_short": "NS"
         }
       ],
       "competitions": [
@@ -68,37 +69,37 @@
           "season": 2026,
           "season_label": "2026/27",
           "position_group": "DEF",
-          "player_count": 86,
+          "player_count": 89,
           "metrics": [
             {
               "metric_key": "assists_per90",
-              "value": 0.10452961672473868,
-              "rank": 17,
+              "value": 0.09719222462203024,
+              "rank": 22,
               "median": 0.0
             },
             {
               "metric_key": "ball_actions_per90",
-              "value": 92.92682926829268,
+              "value": 93.207343412527,
               "rank": 2,
-              "median": 54.08653846153846
+              "median": 54.1747572815534
             },
             {
               "metric_key": "blocks_per90",
-              "value": 0.4181184668989547,
-              "rank": 24,
-              "median": 0.3
+              "value": 0.38876889848812096,
+              "rank": 27,
+              "median": 0.2795031055900621
             },
             {
               "metric_key": "defensive_actions_per90",
-              "value": 2.4041811846689893,
-              "rank": 59,
-              "median": 2.8662420382165603
+              "value": 2.429805615550756,
+              "rank": 61,
+              "median": 2.91044776119403
             },
             {
               "metric_key": "dribbles_success_per90",
-              "value": 0.10452961672473868,
-              "rank": 61,
-              "median": 0.27149321266968324
+              "value": 0.09719222462203024,
+              "rank": 66,
+              "median": 0.23904382470119523
             },
             {
               "metric_key": "dribbles_success_player_pct",
@@ -108,81 +109,87 @@
             },
             {
               "metric_key": "duels_won_per90",
-              "value": 3.0313588850174216,
-              "rank": 73,
-              "median": 4.086781029263371
+              "value": 2.915766738660907,
+              "rank": 76,
+              "median": 4.143884892086331
             },
             {
               "metric_key": "duels_won_player_pct",
-              "value": 0.5918367346938775,
-              "rank": 31,
-              "median": 0.5555555555555556
+              "value": 0.5555555555555556,
+              "rank": 44,
+              "median": 0.5535714285714286
             },
             {
               "metric_key": "fouls_per90",
-              "value": 1.1498257839721255,
-              "rank": 52,
-              "median": 1.0169491525423728
+              "value": 1.0691144708423326,
+              "rank": 50,
+              "median": 1.0146561443066517
             },
             {
               "metric_key": "goals_per90",
               "value": 0.0,
-              "rank": 21,
+              "rank": 22,
               "median": 0.0
             },
             {
               "metric_key": "interceptions_per90",
-              "value": 1.0452961672473868,
-              "rank": 45,
-              "median": 1.085972850678733
+              "value": 1.0691144708423326,
+              "rank": 47,
+              "median": 1.1
+            },
+            {
+              "metric_key": "offsides_per90",
+              "value": 0.09719222462203024,
+              "rank": 57,
+              "median": 0.0
             },
             {
               "metric_key": "passes_accuracy_player_pct",
-              "value": 0.9267441860465117,
-              "rank": 4,
+              "value": 0.9267241379310345,
+              "rank": 3,
               "median": 0.8535980148883374
             },
             {
               "metric_key": "passes_key_per90",
-              "value": 0.20905923344947736,
-              "rank": 62,
-              "median": 0.3711340206185567
+              "value": 0.19438444924406048,
+              "rank": 64,
+              "median": 0.37422037422037424
             },
             {
               "metric_key": "passes_per90",
-              "value": 89.89547038327527,
+              "value": 90.19438444924405,
               "rank": 2,
               "median": 50.41237113402062
             },
             {
               "metric_key": "scorer_points_per90",
-              "value": 0.10452961672473868,
-              "rank": 31,
+              "value": 0.09719222462203024,
+              "rank": 37,
               "median": 0.0
             },
             {
               "metric_key": "shots_on_goal_per90",
-              "value": 0.10452961672473868,
-              "rank": 45,
+              "value": 0.09719222462203024,
+              "rank": 50,
               "median": 0.1076555023923445
             },
             {
               "metric_key": "shots_on_goal_player_pct",
               "value": 0.2,
-              "rank": 39,
-              "median": 0.2
+              "rank": 43,
+              "median": 0.25
             },
             {
               "metric_key": "shots_per90",
-              "value": 0.5226480836236934,
-              "rank": 27,
-              "median": 0.3930131004366812
+              "value": 0.48596112311015116,
+              "rank": 36,
+              "median": 0.40632054176072235
             },
             {
               "metric_key": "tackles_per90",
-              "value": 0.9407665505226481,
-              "rank": 65,
-              "median": 1.3
+              "value": 0.9719222462203023,
+              "rank": 61,
+              "median": 1.3506139154160983
             }
           ]
         },
@@ -191,7 +198,7 @@
           "season": 2026,
           "season_label": "2026/27",
           "position_group": "DEF",
-          "player_count": 142,
+          "player_count": 141,
           "metrics": [
             {
               "metric_key": "assists_per90",
@@ -221,80 +228,77 @@
           "crest": "https://media.api-sports.io/football/teams/211.png",
           "slug": "sl-benfica"
         },
-        "player_count": 14,
+        "player_count": 13,
         "metrics": [
           {
             "metric_key": "assists_per90",
-            "value": 0.11889035667107001,
+            "value": 0.11399620012666245,
             "rank": 8,
-            "median": 0.1415619666567029,
+            "median": 0.15177065767284992,
             "others": [
               0.0,
               0.0,
               0.0,
-              0.0,
-              0.0683371298405467,
-              0.07646559048428207,
-              0.16423357664233576,
+              0.06396588486140725,
+              0.07177033492822966,
+              0.15177065767284992,
               0.19889502762430938,
-              0.21969080553295361,
+              0.20563594821020564,
               0.2553191489361702,
-              0.2803738317757009,
-              0.3375,
-              0.4299363057324841
+              0.26200873362445415,
+              0.4011887072808321,
+              0.44280442804428044
             ]
           },
           {
             "metric_key": "goals_per90",
-            "value": 0.059445178335535004,
-            "rank": 11,
-            "median": 0.1553470568321524,
+            "value": 0.056998100063331225,
+            "rank": 10,
+            "median": 0.1370906321401371,
             "others": [
               0.0,
               0.0,
               0.0,
-              0.06433166547533953,
-              0.1366742596810934,
-              0.14646053702196907,
-              0.16423357664233576,
-              0.225,
-              0.28892455858747995,
+              0.060687795010114634,
+              0.1279317697228145,
+              0.1370906321401371,
+              0.15177065767284992,
+              0.22140221402214022,
               0.2983425414364641,
-              0.45879354290569246,
-              0.7882165605095541,
-              1.2616822429906542
+              0.430622009569378,
+              0.8023774145616642,
+              1.244541484716157
             ]
           },
           {
             "metric_key": "scorer_points_per90",
-            "value": 0.178335535006605,
-            "rank": 11,
-            "median": 0.30869585593607574,
+            "value": 0.17099430018999368,
+            "rank": 10,
+            "median": 0.30354131534569984,
             "others": [
               0.0,
               0.0,
-              0.06433166547533953,
-              0.20501138952164008,
+              0.060687795010114634,
+              0.19189765458422176,
               0.2553191489361702,
-              0.28892455858747995,
-              0.3284671532846715,
-              0.3661513425549227,
+              0.30354131534569984,
+              0.3427265803503427,
               0.4972375690607735,
-              0.5352591333899746,
-              0.5625,
-              1.2181528662420382,
-              1.5420560747663552
+              0.5023923444976076,
+              0.6642066420664207,
+              1.2035661218424962,
+              1.5065502183406114
             ]
           }
         ]
       },
       "last_season": {
-        "minutes": 1514,
+        "minutes": 1579,
         "minutes_prev": 2341,
         "metrics": [
           {
             "metric_key": "assists_per90",
-            "value": 0.11889035667107001,
+            "value": 0.11399620012666245,
             "value_prev": 0.07689021785561725
           },
           {
@@ -344,7 +348,7 @@
           },
           {
             "metric_key": "goals_per90",
-            "value": 0.059445178335535004,
+            "value": 0.056998100063331225,
             "value_prev": 0.03844510892780863
           },
           {
@@ -374,7 +378,7 @@
           },
           {
             "metric_key": "scorer_points_per90",
-            "value": 0.178335535006605,
+            "value": 0.17099430018999368,
             "value_prev": 0.11533532678342588
           },
           {
@@ -400,6 +404,22 @@
         ]
       },
       "recent_matches": [
+        {
+          "played_fixture_sk": 1575538,
+          "played_league_code": "LP",
+          "played_kickoff_datetime": "2026-11-08 20:30:00+00:00",
+          "home_away": "away",
+          "goals_for": 3,
+          "goals_against": 2,
+          "result": "W",
+          "opponent_name": "CF Estrela da Amadora",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/15130.png",
+          "minutes": 65,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 70,
+          "on_bench": false
+        },
         {
           "played_fixture_sk": 1636229,
           "played_league_code": "UEL",
@@ -699,29 +719,14 @@
         "slug": "portugal"
       },
       "cards": {
-        "assists_player": 0.0,
-        "cards_yellow_player": 0.0,
         "minutes_per_appearance": 1.0,
+        "assists_player": 0.0,
+        "goals_player": 0.0,
         "appearances": 1.0,
-        "cards_red_player": 0.0,
-        "goals_player": 0.0
+        "cards_yellow_player": 0.0,
+        "cards_red_player": 0.0
       },
-      "next_matches": [
-        {
-          "fixture_id": 1528974,
-          "league_code": "UNL",
-          "upcoming_rank": 1,
-          "opponent_name": "Denmark",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/21.png",
-          "is_home": true,
-          "kickoff_datetime": "2026-11-14 19:45:00+00:00",
-          "round_name": "League A - 5",
-          "goals_for": null,
-          "goals_against": null,
-          "result": null,
-          "status_short": "NS"
-        }
-      ],
+      "next_matches": [],
       "competitions": [],
       "squad": null,
       "last_season": null,
