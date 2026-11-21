@@ -1,0 +1,52 @@
+{
+  "type": "match_day",
+  "slug": "2027-01-12",
+  "day": "2027-01-12",
+  "is_opening_day": false,
+  "previous_day": "2027-01-11",
+  "next_day": "2027-01-13",
+  "competitions": [
+    {
+      "league_code": "CIT",
+      "name": "Coppa Italia",
+      "slug": "coppa-italia",
+      "crest": "https://media.api-sports.io/football/leagues/137.png",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1638206,
+          "slug": "2027-01-12-as-roma-vs-hellas-verona-fc",
+          "kickoff": "2027-01-12 20:00:00+00:00",
+          "round": "Round of 16",
+          "round_label_i18n_key": "roundOf16",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 4,
+          "fixture_order": 34,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 497,
+            "name": "AS Roma",
+            "slug": "as-roma",
+            "crest": "https://media.api-sports.io/football/teams/497.png"
+          },
+          "away": {
+            "team_id": 504,
+            "name": "Hellas Verona FC",
+            "slug": "hellas-verona-fc",
+            "crest": "https://media.api-sports.io/football/teams/504.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

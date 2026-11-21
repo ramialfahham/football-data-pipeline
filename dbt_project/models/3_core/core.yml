@@ -752,8 +752,38 @@ models:
         description: "API-Football long status description."
       - name: status_elapsed
         description: "Elapsed minutes as reported by API-Football (in-play only)."
+      - name: is_finished
+        description: "True when the provider closed the match: played to full time, extra time or a shoot-out, or decided off the pitch as a technical loss or walkover. A finished match whose result is withheld stays finished and keeps blank goals."
+        tests: [not_null]
+      - name: is_played
+        description: "True when the match was played to the end on the pitch: full time, extra time or a shoot-out. False for a match decided off the pitch."
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "= false or is_finished"
+              name: fixture_played_is_finished
+      - name: is_awarded_result
+        description: "True where the match was decided off the pitch, a technical loss or a walkover. It counts for points and goals and never has a stat line."
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "= false or (is_finished and not is_played)"
+              name: fixture_awarded_is_finished_not_played
+      - name: is_shootout
+        description: "True where the match went to a penalty shoot-out."
+        tests: [not_null]
       - name: round_name
         description: "{{ doc('round_name') }}"
+      - name: round_order
+        description: "{{ doc('round_order') }}"
+      - name: round_stage_kind
+        description: "table for a round played for a table, final, placement for a third-place match, or knockout for every other round of ties, from the round_names row that names the round; NULL when no row covers the text."
+        tests:
+          - accepted_values:
+              values: ["table", "knockout", "final", "placement"]
+      - name: is_table_shootout
+        description: "True where a shoot-out decided a match in a round played for a table. The shoot-out winner then gets 2 points instead of 1. A shoot-out in a cup or play-off round is false."
+        tests: [not_null]
       - name: goals_home
         description: "Final-time goals scored by home team."
       - name: goals_away
@@ -886,7 +916,12 @@ models:
         description: "{{ doc('raw_ingested_at') }}"
 
   - name: fct_fixture_team_stats
-    description: "Per-team, per-fixture statistics, cleaned in base_apif__fixture_statistics: one row per team with a statistics line and per team of every finished match (all stats blank where the provider sent no line). Grain: (fixture_sk, team_sk)."
+    description: >
+      One row per team per fixture, whatever the match's status: the match from each side, with the
+      team's own cleaned statistics (from base_apif__fixture_statistics, blank where the provider
+      sent no line or the match has not been played), the opponent's same values as `*_against`,
+      goals_for and goals_against from the header, the result and the match's status columns.
+      A fixture whose two teams are not both known has no rows. Grain: (fixture_sk, team_sk).
     meta:
       owner: "data-platform"
       domain: "football"
@@ -898,6 +933,9 @@ models:
           combination_of_columns:
             - fixture_sk
             - team_sk
+      - dbt_utils.expression_is_true:
+          expression: "(result is null) = (goals_for is null or goals_against is null)"
+          name: team_fixture_result_follows_the_scoreline
     columns:
       - name: fixture_team_stat_sk
         description: "Surrogate key from (fixture_id, league_code, team_id)."
@@ -926,6 +964,44 @@ models:
         description: "{{ doc('fixture_api_id') }}"
       - name: team_api_id
         description: "{{ doc('team_api_id') }}"
+      - name: opponent_team_sk
+        description: "{{ doc('opponent_team_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: home_away
+        description: "{{ doc('home_away') }}"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["home", "away"]
+      - name: is_finished
+        description: "True when the provider closed the match, as fct_fixture's is_finished."
+        tests: [not_null]
+      - name: is_played
+        description: "True when the match was played to the end on the pitch, as fct_fixture's is_played."
+        tests: [not_null]
+      - name: is_awarded_result
+        description: "True where the match was decided off the pitch, a technical loss or a walkover. It counts for points and goals and never has a stat line, which is why the coverage counters subtract it rather than reading it as missing data."
+        tests: [not_null]
+      - name: goals_for
+        description: "Goals this team scored, from the fixture header, final only where is_finished; NULL while the match has no scoreline, including a finished match whose result is withheld."
+      - name: goals_against
+        description: "Goals this team conceded, from the fixture header, final only where is_finished; NULL while the match has no scoreline."
+      - name: result
+        description: "{{ doc('result') }} It is NULL while the match has no scoreline, and final only where is_finished."
+        tests:
+          - accepted_values:
+              values: ["W", "D", "L"]
+      - name: is_table_shootout_win
+        description: "{{ doc('is_table_shootout_win') }}"
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "= false or result = 'D'"
+              name: team_fixture_table_shootout_win_is_a_draw
       - name: has_stat_line
         description: "{{ doc('has_stat_line') }}"
         tests: [not_null]
@@ -965,6 +1041,42 @@ models:
         description: "{{ doc('goals_penalty') }}"
       - name: goals_own
         description: "{{ doc('goals_own') }}"
+      - name: shots_on_target_against
+        description: "The opponent's shots on target in the match: its own shots_on_target value."
+      - name: shots_off_target_against
+        description: "The opponent's shots off target in the match: its own shots_off_target value."
+      - name: shots_against
+        description: "The opponent's total shots in the match: its own shots value."
+      - name: shots_blocked_against
+        description: "The opponent's blocked shots in the match: its own shots_blocked value."
+      - name: shots_inside_box_against
+        description: "The opponent's shots from inside the box in the match: its own shots_inside_box value."
+      - name: shots_outside_box_against
+        description: "The opponent's shots from outside the box in the match: its own shots_outside_box value."
+      - name: fouls_against
+        description: "The opponent's fouls in the match: its own fouls value."
+      - name: corners_against
+        description: "The opponent's corners in the match: its own corners value."
+      - name: offsides_against
+        description: "The opponent's offsides in the match: its own offsides value."
+      - name: free_kicks_against
+        description: "The opponent's free kicks awarded in the match: its own free_kicks value."
+      - name: possession_pct_against
+        description: "The opponent's ball possession in the match, in percent: its own possession_pct value."
+      - name: cards_yellow_against
+        description: "The opponent's yellow cards in the match: its own cards_yellow value."
+      - name: cards_red_against
+        description: "The opponent's red cards in the match: its own cards_red value."
+      - name: saves_against
+        description: "The opponent's goalkeeper saves in the match: its own saves value."
+      - name: passes_against
+        description: "The opponent's passes in the match: its own passes value."
+      - name: passes_accurate_against
+        description: "The opponent's accurate passes in the match: its own passes_accurate value."
+      - name: goals_penalty_against
+        description: "The opponent's goals from the penalty spot in the match: its own goals_penalty value."
+      - name: goals_own_against
+        description: "Goals this team conceded as own goals, by its own players: the opponent's goals_own value. Part of goals_against, not a shot this team's goalkeeper faced."
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
 

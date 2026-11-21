@@ -3,10 +3,10 @@ version: 2
 models:
   - name: int_legs__team_match
     description: >
-      Building-block team-match leg: one row per (team, finished match) with the team's and
-      opponent's raw stats, competition type/entity classification, and windowing dimensions.
-      Cross-competition, cross-type. The shared foundation every team performance metric
-      aggregates over. Grain: (fixture_sk, team_sk).
+      Building-block team-match leg: one row per (team, finished match with a scoreline) with the
+      team's and opponent's raw stats, competition type/entity classification, and windowing
+      dimensions, selected from fct_fixture_team_stats. Cross-competition, cross-type. The shared
+      foundation every team performance metric aggregates over. Grain: (fixture_sk, team_sk).
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [fixture_sk, team_sk]
@@ -48,7 +48,7 @@ models:
         # not_null for the same reason as games_expecting_team_stats, which is derived FROM it:
         # a NULL here would make countif(not is_awarded_result) undercount and every gate compare
         # against a denominator that is quietly too small. It cannot be NULL today — the leg filter
-        # already restricts status_short to five non-null codes — so this guards a future change.
+        # already restricts the legs to finished matches, a non-null flag — so this guards a future change.
         tests: [not_null]
       - name: is_table_shootout_win
         description: "{{ doc('is_table_shootout_win') }}"

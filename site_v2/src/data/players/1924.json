@@ -8,6 +8,7 @@
   "age": 24,
   "height": "192",
   "position_group": "GK",
+  "position_role": null,
   "season_label": "2026/27",
   "club": {
     "team_id": 173,
@@ -25,23 +26,23 @@
         "slug": "rb-leipzig"
       },
       "cards": {
-        "appearances": 12.0,
-        "goals_against_player": 22.0,
-        "saves_player_pct": 0.7142857142857143,
+        "appearances": 13.0,
+        "minutes_per_appearance": 90.0,
         "cards_red_player": 0.0,
         "cards_yellow_player": 0.0,
-        "minutes_per_appearance": 90.0
+        "saves_player_pct": 0.7261904761904762,
+        "goals_against_player": 24.0
       },
       "next_matches": [
         {
-          "fixture_id": 1575213,
+          "fixture_id": 1575225,
           "league_code": "BL1",
           "upcoming_rank": 1,
-          "opponent_name": "FC Augsburg",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/170.png",
-          "is_home": true,
-          "kickoff_datetime": "2026-11-07 14:30:00+00:00",
-          "round_name": "Regular Season - 9",
+          "opponent_name": "1. FC Union Berlin",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/182.png",
+          "is_home": false,
+          "kickoff_datetime": "2026-11-21 14:30:00+00:00",
+          "round_name": "Regular Season - 10",
           "goals_for": null,
           "goals_against": null,
           "result": null,
@@ -68,7 +69,7 @@
           "opponent_name": "Bayer 04 Leverkusen",
           "opponent_logo_url": "https://media.api-sports.io/football/teams/168.png",
           "is_home": false,
-          "kickoff_datetime": "2026-12-01 19:00:00+00:00",
+          "kickoff_datetime": "2026-12-02 17:00:00+00:00",
           "round_name": "Round of 16",
           "goals_for": null,
           "goals_against": null,
@@ -86,39 +87,39 @@
           "metrics": [
             {
               "metric_key": "ball_actions_per90",
-              "value": 40.0,
+              "value": 40.625,
               "rank": 9,
-              "median": 39.285714285714285
+              "median": 39.42857142857143
             },
             {
               "metric_key": "goals_against_per90",
-              "value": 1.5714285714285714,
+              "value": 1.625,
               "rank": 9,
-              "median": 1.875
+              "median": 1.8888888888888888
             },
             {
               "metric_key": "passes_accuracy_player_pct",
-              "value": 0.7892561983471075,
-              "rank": 2,
-              "median": 0.6923076923076923
+              "value": 0.8113879003558719,
+              "rank": 1,
+              "median": 0.6829268292682927
             },
             {
               "metric_key": "passes_per90",
-              "value": 34.57142857142857,
-              "rank": 12,
-              "median": 35.285714285714285
+              "value": 35.125,
+              "rank": 11,
+              "median": 35.125
             },
             {
               "metric_key": "saves_per90",
-              "value": 5.285714285714286,
-              "rank": 2,
-              "median": 3.5
+              "value": 5.375,
+              "rank": 1,
+              "median": 3.6666666666666665
             },
             {
               "metric_key": "saves_player_pct",
-              "value": 0.7708333333333334,
+              "value": 0.7678571428571429,
               "rank": 3,
-              "median": 0.6585365853658537
+              "median": 0.6739130434782609
             }
           ]
         },
@@ -161,8 +162,8 @@
             },
             {
               "metric_key": "saves_player_pct",
-              "value": 0.5925925925925926,
-              "rank": 27,
+              "value": 0.6153846153846154,
+              "rank": 26,
               "median": 0.6538461538461539
             }
           ]
@@ -170,42 +171,58 @@
       ],
       "squad": null,
       "last_season": {
-        "minutes": 1080,
+        "minutes": 1170,
         "minutes_prev": 1418,
         "metrics": [
           {
             "metric_key": "ball_actions_per90",
-            "value": 38.5,
+            "value": 39.0,
             "value_prev": 38.2722143864598
           },
           {
             "metric_key": "goals_against_per90",
-            "value": 1.8333333333333333,
+            "value": 1.8461538461538463,
             "value_prev": 1.3328631875881523
           },
           {
             "metric_key": "passes_accuracy_player_pct",
-            "value": 0.7955665024630542,
+            "value": 0.8089887640449438,
             "value_prev": 0.7652329749103942
           },
           {
             "metric_key": "passes_per90",
-            "value": 33.833333333333336,
+            "value": 34.23076923076923,
             "value_prev": 35.41607898448519
           },
           {
             "metric_key": "saves_per90",
-            "value": 4.583333333333333,
+            "value": 4.6923076923076925,
             "value_prev": 2.7926657263751764
           },
           {
             "metric_key": "saves_player_pct",
-            "value": 0.7142857142857143,
-            "value_prev": 0.676923076923077
+            "value": 0.7261904761904762,
+            "value_prev": 0.6875
           }
         ]
       },
       "recent_matches": [
+        {
+          "played_fixture_sk": 1575213,
+          "played_league_code": "BL1",
+          "played_kickoff_datetime": "2026-11-07 14:30:00+00:00",
+          "home_away": "home",
+          "goals_for": 5,
+          "goals_against": 2,
+          "result": "W",
+          "opponent_name": "FC Augsburg",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/170.png",
+          "minutes": 90,
+          "goals": 0,
+          "assists": 0,
+          "ball_actions": 45,
+          "on_bench": false
+        },
         {
           "played_fixture_sk": 1635710,
           "played_league_code": "UCL",
@@ -409,29 +426,14 @@
         "slug": "belgium"
       },
       "cards": {
-        "cards_yellow_player": 0.0,
         "minutes_per_appearance": 90.0,
         "appearances": 1.0,
+        "cards_yellow_player": 0.0,
+        "goals_against_player": 4.0,
         "saves_player_pct": 0.5555555555555556,
-        "cards_red_player": 0.0,
-        "goals_against_player": 4.0
+        "cards_red_player": 0.0
       },
-      "next_matches": [
-        {
-          "fixture_id": 1528958,
-          "league_code": "UNL",
-          "upcoming_rank": 1,
-          "opponent_name": "Türkiye",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/777.png",
-          "is_home": false,
-          "kickoff_datetime": "2026-11-12 17:00:00+00:00",
-          "round_name": "League A - 5",
-          "goals_for": null,
-          "goals_against": null,
-          "result": null,
-          "status_short": "NS"
-        }
-      ],
+      "next_matches": [],
       "competitions": [],
       "squad": null,
       "last_season": null,

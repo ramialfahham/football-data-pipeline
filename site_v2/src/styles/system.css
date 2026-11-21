@@ -969,7 +969,9 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 /* A team sheet runs longer than any list: more rows than a sheet holds, the empty ones collapse. */
 .mp .rsplit.sheets .rcol { grid-row: span 30; }
 .mp .sechead + .rsplit .rcol:first-child .colhead,
-.mp .bsub + .rsplit .rcol:first-child .colhead { margin-top: 0; }
+.mp .bsub + .rsplit .rcol:first-child .colhead,
+.mp .board > .bt + .rsplit .rcol:first-child .colhead { margin-top: 0; }
+.mp .board > .bt + .rsplit { margin-top: 8px; }
 /* A team sheet's second head opens the substitutes 12px under the starters, at every width. */
 .mp .rsplit.sheets .rcol .lrow + .colhead { margin-top: 12px; }
 

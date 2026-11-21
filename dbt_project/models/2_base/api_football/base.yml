@@ -229,6 +229,57 @@ models:
         description: "The provider's round text; differs from round_name only where the round was corrected."
       - name: round_correction_source
         description: "Where the round was corrected, the source of the organiser's round: its published draw or results, or two independent match reports. NULL elsewhere."
+      - name: is_finished
+        description: "True when the provider closed the match: played to full time, extra time or a shoot-out, or decided off the pitch as a technical loss or walkover. A finished match whose result is withheld stays finished and keeps blank goals."
+        tests: [not_null]
+      - name: is_played
+        description: "True when the match was played to the end on the pitch: full time, extra time or a shoot-out. False for a match decided off the pitch."
+        tests: [not_null]
+      - name: is_awarded_result
+        description: "True where the match was decided off the pitch, a technical loss or a walkover. It counts for points and goals and never has a stat line."
+        tests: [not_null]
+      - name: is_shootout
+        description: "True where the match went to a penalty shoot-out."
+        tests: [not_null]
+      - name: round_order
+        description: "{{ doc('round_order') }}"
+
+  - name: base_apif__fixture_rounds
+    description: >
+      Every distinct round text of a competition-season in base_apif__fixtures_next, named the way
+      the competition names it: a copy key from the round_names seed (the competition-season's own
+      row, then the competition's, then the general one) with the number and group letter the name
+      shows, and the stage kind the row gives. Grain: (league_code, season_api_year, round_name).
+    config:
+      tags: ["base", "api_football", "fixture_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season_api_year, round_name]
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: round_name
+        description: "{{ doc('round_name') }}"
+        tests: [not_null]
+      - name: round_label_i18n_key
+        description: The copy key a page names the round by. NULL when no round_names pattern covers the text.
+      - name: round_stage_kind
+        description: "table for a round played for a table, final, placement for a third-place match, or knockout for every other round of ties, from the round_names row that names it; NULL when no row covers the text."
+        tests:
+          - accepted_values:
+              values: ["table", "knockout", "final", "placement"]
+      - name: round_number
+        description: The number the round's name shows (the matchday, or the round in a cup's sequence); NULL when the name shows none.
+      - name: round_letter
+        description: The group letter the round's name shows; NULL when the name shows none.
+      - name: needs_number
+        description: True when the matched name shows a number.
+      - name: needs_letter
+        description: True when the matched name shows a group letter.
 
   - name: base_apif__standings
     description: >

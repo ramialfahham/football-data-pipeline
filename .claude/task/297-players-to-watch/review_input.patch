@@ -1,0 +1,2586 @@
+diff --git a/.claude/task/297-players-to-watch/contract.md b/.claude/task/297-players-to-watch/contract.md
+new file mode 100644
+index 00000000..79a261d0
+--- /dev/null
++++ b/.claude/task/297-players-to-watch/contract.md
+@@ -0,0 +1,147 @@
++# Task contract — Players to watch: the two approved boards
++
++objective: >
++  Issue #297: the next match page's Players to watch shows the design approved on #132: per side,
++  two boards, Goals and assists and Ball actions per 90, each a Board name over the two-column split
++  with each team's top three outfield players, the value alone in the catalogue's format, over the
++  match's competition window. The export carries both boards per side from the ranks
++  mart_player_season_record serves; the block is rebuilt from the parts library; the intro names the
++  competition in EN, DE and FI.
++
++refs: >
++  #297; #132 notes of 2026-11-10 (17:45 no goalkeeper, 19:08 board names lead to their leaderboard,
++  19:14 the decisions, 19:22 the intro texts, 19:46 the Finnish forms and their rule); #243 parts
++  library; #290 go-live. The warehouse side (ranks, ball_actions_per90, its catalogue value test) is
++  on main from the 132-players-to-watch-data task; the window fix and the export's eighth Match
++  leaders board are on main from the 297-board-window task.
++
++depends_on:
++  - none: every warehouse and export fix this build reads is on main (dc309b34) and in prod
++
++shared_files:
++  - docs/design/components.yml
++  - site_v2/src/styles/system.css
++  - site_v2/src/i18n/strings.ts
++  - site_v2/src/lib/types.ts
++  - scripts/export_site_data.py
++  - tests/fixtures/component_registry/baseline.json
++  - tests/fixtures/design_inventory/baseline.json
++  - tests/fixtures/design_inventory/baseline_quick.json
++  - tests/fixtures/design_inventory/baseline_quick_fi.json
++
++scope_paths:
++  - .claude/task/297-players-to-watch/
++  - scripts/export_site_data.py
++  - tests/test_export_site_data.py
++  - site_v2/scripts/check-metric-labels.test.mjs
++  - site_v2/src/i18n/strings.test.mjs
++  - site_v2/src/pages/[[]lang]/[[]competition]/[[]matches]/[[]fixture].astro
++  - site_v2/src/components/fixture/PlayerToWatch.astro
++  - site_v2/src/components/fixture/PlayersToWatch.astro
++  - site_v2/src/components/ui/PlayerRow.astro
++  - site_v2/src/i18n/strings.ts
++  - site_v2/src/lib/types.ts
++  - site_v2/src/specs/competition/matches/fixture.spec.json
++  - site_v2/src/styles/system.css
++  - site_v2/src/data/landing.json
++  - site_v2/src/data/fixtures/*.json
++  - site_v2/src/data/matches/*.json
++  - site_v2/src/data/competitions/BL1/2026.json
++  - site_v2/src/data/teams/*.json
++  - site_v2/src/data/players/*.json
++  - site_v2/src/data/player_peers/*
++  - site_v2/src/data/player_pages.json
++  - site_v2/src/data/player_metric_rows.json
++  - site_v2/src/data/players_index.json
++  - site_v2/src/data/teams_index.json
++  - site_v2/src/data/README.md
++  - tests/test_sentence_length_in_docs.py
++  - tests/test_phone_built_pages_231.py
++  - tests/fixtures/chart_screenshots/*
++  - .gitignore
++  - docs/design/components.yml
++  - docs/wireframes/block_standard.md
++  - docs/wireframes/01_fixture_page.md
++  - docs/content_architecture.md
++  - docs/site_architecture.md
++  - tests/fixtures/component_registry/baseline.json
++  - tests/fixtures/design_inventory/baseline.json
++  - tests/fixtures/design_inventory/baseline_quick.json
++  - tests/fixtures/design_inventory/baseline_quick_fi.json
++
++protected_override: >
++  docs/design/components.yml: the parts the approved Players to watch design names, the Board name
++  over the two-column split and the player row's value alone, as the #250 Team page build added the
++  parts its design names. The design is #132's note of 2026-11-10 19:14 (approved in chat,
++  2026-11-10); the component-library step of #243 approved in chat, 17 Nov 2026; visual details are
++  the coordinating agent's under docs/design/design_standard.md, approved in chat, 16 Nov 2026.
++
++impact_map: >
++  writers: scripts/export_site_data.py writes fixtures/{id}.json; no dbt model and no ingestion
++  change. It reads mart_player_season_record, a leaf: `dbt ls --select mart_player_season_record+
++  --resource-type model` returns only football_data_pipeline.5_marts.shared.mart_player_season_record.
++  consumption: each fixture side's `top_players` (up to five rows of every mart column) becomes
++  `players_to_watch` (window_type and two boards of at most three rows: player id, name, photo,
++  position, value, with the board's catalogue label key and format). Readers of the old key:
++  [fixture].astro, lib/types.ts, fixture.spec.json, tests/test_export_site_data.py; none outside the
++  match page (Home's `top_players` is a different payload, shape_home_top_players, untouched).
++  site: the match page's Players to watch block only; PlayerRow gains a value with no unit word, its
++  other callers keep their numbers; the parts registry gains the parts the design names;
++  the Players to watch intro takes the competition's Finnish inessive through playersInCompetition();
++  inCompetition() and the competition page's Statistics tab intros are untouched.
++  sample: the committed sample is refreshed as a set by the recipe in site_v2/src/data/README.md,
++  because a past fixture can never be re-exported; the page set and the design baselines move with it.
++  layer_rules: the export does not rank (anti-pattern A5): it selects by the mart's
++  scorer_points_rank and ball_actions_per90_rank; check_component_registry.py and
++  check_design_inventory.py check the parts; check_page_css.py the stylesheet.
++  deploy_order: the mart columns and the window fix are in prod already (read-only checks of 18 and
++  19 Nov 2026); the export and the site deploy together, so no window where one reads a key the
++  other lacks.
++  blast_radius: the match page's Players to watch on every next match page; no number or wording
++  elsewhere changes. top_player_rank stays in the mart with no reader after
++  this change.
++
++approved_design:
++  - match: #132
++  - competition: #129
++
++decisions_taken: >
++  The board rules are #132's notes of 2026-11-10 (approved in chat): window, outfield only, top
++  three per side, ties, the floor, a player may stand on both boards, the board names as catalogue
++  labels. The intro texts are #132's note of 2026-11-10 19:22 (approved in chat); the Finnish forms
++  and their fallback rule are #132's note of 2026-11-10 19:46 (approved in chat). The board name
++  stays plain text until the leaderboard page it leads to is built (#132 note of 2026-11-10 19:08).
++  A side with no ranked player on a board shows its column head with no rows. When the two sides'
++  windows differ, the intro is playersIntroMixed, fan wording before go-live, the coordinating
++  session's call of 21 Nov 2026: EN "Each team's key players {in}: this season's, or last season's
++  before the team's first match in it."; DE "Die Leistungsträger der einzelnen Mannschaften {in}:
++  aus dieser Saison oder, vor dem ersten Spiel dort, aus der Vorsaison."; FI "Kunkin joukkueen
++  tärkeimmät pelaajat {in}: tältä kaudelta tai ennen joukkueen ensimmäistä ottelua siellä viime
++  kaudelta." It reuses the rule of the old playersIntroPrev. The payload shape and
++  component split are engineering calls of the coordinating session. The English intro reads "in
++  {competition}" as the site does everywhere; the Finnish intro takes the researched inessive,
++  #132's note of 2026-11-10 19:46. German "last season" is the #243 term list's "Vorsaison". The
++  Players to watch board switches to two columns at 560px of its own width, 592px of the page,
++  because a board is its own container, the principle stated in system.css. Box 3 holds where the provider sent player
++  stats for every window match; the coordinating session ruled on 18 Nov 2026 that no refetch is
++  due (the provider declares no player stats for the competitions without them, and the late-stats
++  re-asks already reach the rest). No design-inventory pin rises: the three baselines differ from main's only by the Match page scroll pin, which falls.
++
++decisions_reserved:
++  - The number format of Ball actions per 90 (open on #132) and the German intro with "Vorsaison": the coordinator shows them to the CPO with the built block.
++acceptance_criteria:
++  - The match page's Players to watch shows the design approved on #132 (2026-11-10): per side, two boards, Goals and assists, and Ball actions per 90, outfield players only, over the match's competition window.
++  - Ball actions per 90 is served by a warehouse model with the catalogue's minutes floor, and a dbt test checks its value against the catalogue formula.
++  - Every next match whose teams have played in the window shows both boards.
++  - The number format and the intro line with the competition name are approved before the build, in EN, DE and FI.
++
++done_when:
++  - python -m pytest passes, bar the built-page tests that read a stale local site build
++  - python scripts/check_component_registry.py passes
++  - python scripts/ci_local.py --mr is green
++  - a fixtures export shows both boards on every next match side the mart ranks
++  - the MR pipeline is green and python scripts/merge_ready.py <iid> says ready
++
++amendments:
++  - scope adds tests/test_sentence_length_in_docs.py: the data README's pin goes down by one long sentence the refresh split; the pin only moves down.
++  - scope adds tests/test_phone_built_pages_231.py and tests/fixtures/chart_screenshots/*: the refreshed sample no longer holds the one player page the phone test names, and the scatter chart pins on the club Team page follow the refreshed team payload; authority: the coordinating session's go for the sample refresh, 19 Nov 2026.
+diff --git a/.gitignore b/.gitignore
+index 6f24691b..e9fffcf5 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -286,26 +286,14 @@ site_v2/src/data/teams/*.json
+ # here. Re-export, rewrite this list to exactly the ids the new landing.json links, `git rm` the
+ # ones that left, all in the same commit — a stale entry pins a payload nothing re-exports.
+ !site_v2/src/data/teams/33.json
++!site_v2/src/data/teams/47.json
+ !site_v2/src/data/teams/49.json
+ !site_v2/src/data/teams/50.json
+ !site_v2/src/data/teams/51.json
+-!site_v2/src/data/teams/55.json
++!site_v2/src/data/teams/81.json
+ !site_v2/src/data/teams/85.json
+-!site_v2/src/data/teams/106.json
++!site_v2/src/data/teams/108.json
+ !site_v2/src/data/teams/157.json
+-!site_v2/src/data/teams/194.json
+-!site_v2/src/data/teams/209.json
+-!site_v2/src/data/teams/211.json
+-!site_v2/src/data/teams/224.json
+-!site_v2/src/data/teams/420.json
+-!site_v2/src/data/teams/505.json
+-!site_v2/src/data/teams/529.json
+-!site_v2/src/data/teams/536.json
+-!site_v2/src/data/teams/867.json
+-# The 18 clubs of the Bundesliga table on the committed competition page sample (GitLab #149):
+-# every table row and deserved-points row links to its team page. 157 is listed above.
+-!site_v2/src/data/teams/182.json
+-# Refresh with the competition sample: the clubs change when the sample season does.
+ !site_v2/src/data/teams/160.json
+ !site_v2/src/data/teams/162.json
+ !site_v2/src/data/teams/163.json
+@@ -319,110 +307,150 @@ site_v2/src/data/teams/*.json
+ !site_v2/src/data/teams/173.json
+ !site_v2/src/data/teams/174.json
+ !site_v2/src/data/teams/175.json
++!site_v2/src/data/teams/182.json
+ !site_v2/src/data/teams/185.json
+ !site_v2/src/data/teams/192.json
++!site_v2/src/data/teams/197.json
++!site_v2/src/data/teams/209.json
++!site_v2/src/data/teams/211.json
++!site_v2/src/data/teams/212.json
++!site_v2/src/data/teams/224.json
++!site_v2/src/data/teams/228.json
++!site_v2/src/data/teams/420.json
++!site_v2/src/data/teams/497.json
++!site_v2/src/data/teams/505.json
++!site_v2/src/data/teams/512.json
++!site_v2/src/data/teams/529.json
++!site_v2/src/data/teams/536.json
++!site_v2/src/data/teams/895.json
+ !site_v2/src/data/teams/1660.json
++# The 18 clubs of the Bundesliga table on the committed competition page sample (GitLab #149):
++# every table row and deserved-points row links to its team page. 157 is listed above.
++# Refresh with the competition sample: the clubs change when the sample season does.
+ site_v2/src/data/fixtures/*.json
+ # Every fixture an unplayed row of a committed page links to, from one export: every day of the
+ # Matches page (matches/*.json, the next matchday of every competition), every unplayed Bundesliga
+ # fixture of competitions/BL1/2026.json's Matchdays tab, and so every Home Next matches row.
+-# 537 ids, one pattern per run of ids.
++# 540 ids (529 unplayed and the 11 played samples), one pattern per run of ids.
+ # ⛔ Replace, never add. The export emits UPCOMING fixtures only (`status_short in ('NS', 'TBD')
+ # and fixture_date >= current_date()` in `fetch_fixture_payloads`), so a past id can never be
+ # re-exported and a stale entry would pin a payload no rerun updates. Refresh the day files, the
+ # Bundesliga payload, landing.json and this list together, and regenerate the list.
+-!site_v2/src/data/fixtures/1490555.json
+-!site_v2/src/data/fixtures/149241[24-68].json
+-!site_v2/src/data/fixtures/149318[47-9].json
+-!site_v2/src/data/fixtures/149319[245].json
+-!site_v2/src/data/fixtures/150708[24-7].json
+-!site_v2/src/data/fixtures/1528958.json
+-!site_v2/src/data/fixtures/152896[0-256].json
+-!site_v2/src/data/fixtures/152897[24].json
++!site_v2/src/data/fixtures/93198.json
++!site_v2/src/data/fixtures/1224099.json
++!site_v2/src/data/fixtures/1318799.json
++!site_v2/src/data/fixtures/1388000.json
++!site_v2/src/data/fixtures/1478037.json
++!site_v2/src/data/fixtures/149245[7-9].json
+ !site_v2/src/data/fixtures/154595[89].json
+ !site_v2/src/data/fixtures/154596[0-8].json
+ !site_v2/src/data/fixtures/1549407.json
+-!site_v2/src/data/fixtures/1550147.json
+-!site_v2/src/data/fixtures/155015[02-5].json
+-!site_v2/src/data/fixtures/1551001.json
+-!site_v2/src/data/fixtures/155219[14-7].json
+-!site_v2/src/data/fixtures/155278[347-9].json
+-!site_v2/src/data/fixtures/155319[3489].json
+-!site_v2/src/data/fixtures/155609[57].json
+-!site_v2/src/data/fixtures/155742[79].json
+-!site_v2/src/data/fixtures/155743[256].json
+-!site_v2/src/data/fixtures/155865[3-9].json
+-!site_v2/src/data/fixtures/155866[01].json
+-!site_v2/src/data/fixtures/157041[47-9].json
+-!site_v2/src/data/fixtures/1570420.json
+-!site_v2/src/data/fixtures/157518[69].json
+-!site_v2/src/data/fixtures/157519[4-9].json
+-!site_v2/src/data/fixtures/15752[0-9][0-9].json
+-!site_v2/src/data/fixtures/15753[0-9][0-9].json
+-!site_v2/src/data/fixtures/15754[0-3][0-9].json
++!site_v2/src/data/fixtures/155019[7-9].json
++!site_v2/src/data/fixtures/155020[0-6].json
++!site_v2/src/data/fixtures/1550684.json
++!site_v2/src/data/fixtures/1550700.json
++!site_v2/src/data/fixtures/155103[89].json
++!site_v2/src/data/fixtures/155104[0-6].json
++!site_v2/src/data/fixtures/155222[5-9].json
++!site_v2/src/data/fixtures/155223[0-3].json
++!site_v2/src/data/fixtures/1552819.json
++!site_v2/src/data/fixtures/155282[0-7].json
++!site_v2/src/data/fixtures/155322[7-9].json
++!site_v2/src/data/fixtures/155323[0-5].json
++!site_v2/src/data/fixtures/155614[1-9].json
++!site_v2/src/data/fixtures/1556150.json
++!site_v2/src/data/fixtures/155746[7-9].json
++!site_v2/src/data/fixtures/155747[0-6].json
++!site_v2/src/data/fixtures/155868[0-8].json
++!site_v2/src/data/fixtures/157045[3-9].json
++!site_v2/src/data/fixtures/157046[0-2].json
++!site_v2/src/data/fixtures/1575150.json
++!site_v2/src/data/fixtures/157522[1-9].json
++!site_v2/src/data/fixtures/157523[0-9].json
++!site_v2/src/data/fixtures/157524[0-9].json
++!site_v2/src/data/fixtures/157525[0-9].json
++!site_v2/src/data/fixtures/157526[0-9].json
++!site_v2/src/data/fixtures/157527[0-9].json
++!site_v2/src/data/fixtures/157528[0-9].json
++!site_v2/src/data/fixtures/157529[0-9].json
++!site_v2/src/data/fixtures/157530[0-9].json
++!site_v2/src/data/fixtures/157531[0-9].json
++!site_v2/src/data/fixtures/157532[0-9].json
++!site_v2/src/data/fixtures/157533[0-9].json
++!site_v2/src/data/fixtures/157534[0-9].json
++!site_v2/src/data/fixtures/157535[0-9].json
++!site_v2/src/data/fixtures/157536[0-9].json
++!site_v2/src/data/fixtures/157537[0-9].json
++!site_v2/src/data/fixtures/157538[0-9].json
++!site_v2/src/data/fixtures/157539[0-9].json
++!site_v2/src/data/fixtures/157540[0-9].json
++!site_v2/src/data/fixtures/157541[0-9].json
++!site_v2/src/data/fixtures/157542[0-9].json
++!site_v2/src/data/fixtures/157543[0-9].json
+ !site_v2/src/data/fixtures/157544[0-5].json
+-!site_v2/src/data/fixtures/1575458.json
+-!site_v2/src/data/fixtures/1576197.json
+-!site_v2/src/data/fixtures/157620[34].json
+-!site_v2/src/data/fixtures/158443[16-8].json
+-!site_v2/src/data/fixtures/160305[3-9].json
+-!site_v2/src/data/fixtures/160306[01].json
+-!site_v2/src/data/fixtures/162994[3-9].json
+-!site_v2/src/data/fixtures/162995[0-8].json
+-!site_v2/src/data/fixtures/1635617.json
+-!site_v2/src/data/fixtures/1635621.json
+-!site_v2/src/data/fixtures/163563[06].json
+-!site_v2/src/data/fixtures/163564[57].json
+-!site_v2/src/data/fixtures/1635655.json
+-!site_v2/src/data/fixtures/1635661.json
+-!site_v2/src/data/fixtures/1635672.json
+-!site_v2/src/data/fixtures/163568[48].json
+-!site_v2/src/data/fixtures/1635693.json
+-!site_v2/src/data/fixtures/163570[02].json
+-!site_v2/src/data/fixtures/163571[69].json
+-!site_v2/src/data/fixtures/163573[78].json
+-!site_v2/src/data/fixtures/1636215.json
+-!site_v2/src/data/fixtures/163623[45].json
+-!site_v2/src/data/fixtures/163624[19].json
+-!site_v2/src/data/fixtures/1636258.json
+-!site_v2/src/data/fixtures/163626[27].json
+-!site_v2/src/data/fixtures/163627[36].json
+-!site_v2/src/data/fixtures/163628[08].json
+-!site_v2/src/data/fixtures/163630[38].json
+-!site_v2/src/data/fixtures/163631[18].json
+-!site_v2/src/data/fixtures/1636330.json
+-!site_v2/src/data/fixtures/1636340.json
+-!site_v2/src/data/fixtures/163637[89].json
+-!site_v2/src/data/fixtures/163638[58].json
+-!site_v2/src/data/fixtures/1636397.json
+-!site_v2/src/data/fixtures/1636415.json
+-!site_v2/src/data/fixtures/163642[49].json
+-!site_v2/src/data/fixtures/163643[047].json
+-!site_v2/src/data/fixtures/163644[29].json
+-!site_v2/src/data/fixtures/163645[49].json
+-!site_v2/src/data/fixtures/1636462.json
+-!site_v2/src/data/fixtures/163647[45].json
++!site_v2/src/data/fixtures/157554[5-9].json
++!site_v2/src/data/fixtures/157555[0-3].json
++!site_v2/src/data/fixtures/157623[3-9].json
++!site_v2/src/data/fixtures/157624[01].json
++!site_v2/src/data/fixtures/158446[6-9].json
++!site_v2/src/data/fixtures/158447[0-4].json
++!site_v2/src/data/fixtures/160304[48].json
++!site_v2/src/data/fixtures/1603051.json
++!site_v2/src/data/fixtures/162997[5-9].json
++!site_v2/src/data/fixtures/162998[0-9].json
++!site_v2/src/data/fixtures/1629990.json
++!site_v2/src/data/fixtures/1635611.json
++!site_v2/src/data/fixtures/1635625.json
++!site_v2/src/data/fixtures/163564[129].json
++!site_v2/src/data/fixtures/163566[37].json
++!site_v2/src/data/fixtures/1635673.json
++!site_v2/src/data/fixtures/1635682.json
++!site_v2/src/data/fixtures/1635692.json
++!site_v2/src/data/fixtures/1635703.json
++!site_v2/src/data/fixtures/163571[358].json
++!site_v2/src/data/fixtures/163572[48].json
++!site_v2/src/data/fixtures/163573[15].json
++!site_v2/src/data/fixtures/1636231.json
++!site_v2/src/data/fixtures/1636244.json
++!site_v2/src/data/fixtures/163625[25].json
++!site_v2/src/data/fixtures/1636261.json
++!site_v2/src/data/fixtures/163627[07].json
++!site_v2/src/data/fixtures/163629[48].json
++!site_v2/src/data/fixtures/163630[157].json
++!site_v2/src/data/fixtures/1636315.json
++!site_v2/src/data/fixtures/1636329.json
++!site_v2/src/data/fixtures/163633[46].json
++!site_v2/src/data/fixtures/163634[39].json
++!site_v2/src/data/fixtures/163638[169].json
++!site_v2/src/data/fixtures/163639[35].json
++!site_v2/src/data/fixtures/163640[25].json
++!site_v2/src/data/fixtures/163641[02].json
++!site_v2/src/data/fixtures/163642[0168].json
++!site_v2/src/data/fixtures/163643[158].json
++!site_v2/src/data/fixtures/1636457.json
++!site_v2/src/data/fixtures/1636460.json
+ !site_v2/src/data/fixtures/163792[67].json
+-!site_v2/src/data/fixtures/1638109.json
+ !site_v2/src/data/fixtures/163813[45].json
+ !site_v2/src/data/fixtures/163820[67].json
+-!site_v2/src/data/fixtures/163855[7-9].json
+-!site_v2/src/data/fixtures/163856[0-9].json
+-!site_v2/src/data/fixtures/163857[0-2].json
+-!site_v2/src/data/fixtures/163901[45].json
+-!site_v2/src/data/fixtures/1639339.json
+-!site_v2/src/data/fixtures/163934[02-8].json
+-!site_v2/src/data/fixtures/163953[2457-9].json
+-!site_v2/src/data/fixtures/163954[0-5].json
+ !site_v2/src/data/fixtures/163988[34].json
+-!site_v2/src/data/fixtures/1640021.json
+-!site_v2/src/data/fixtures/1640556.json
+-!site_v2/src/data/fixtures/164417[12].json
+-!site_v2/src/data/fixtures/164433[3-9].json
+-!site_v2/src/data/fixtures/16443[4-7][0-9].json
+-!site_v2/src/data/fixtures/164438[0-6].json
+-!site_v2/src/data/fixtures/164469[0-7].json
+-!site_v2/src/data/fixtures/164557[89].json
++!site_v2/src/data/fixtures/1640000.json
++!site_v2/src/data/fixtures/1640760.json
++!site_v2/src/data/fixtures/1644170.json
++!site_v2/src/data/fixtures/1647178.json
++!site_v2/src/data/fixtures/164738[1-3].json
++!site_v2/src/data/fixtures/164767[1-8].json
++!site_v2/src/data/fixtures/164835[1-8].json
++!site_v2/src/data/fixtures/164949[12].json
++!site_v2/src/data/fixtures/164956[4-9].json
++!site_v2/src/data/fixtures/164957[01].json
++!site_v2/src/data/fixtures/164967[2-9].json
++!site_v2/src/data/fixtures/164968[0-9].json
++!site_v2/src/data/fixtures/164969[01].json
++!site_v2/src/data/fixtures/165026[0-9].json
++!site_v2/src/data/fixtures/165027[0-9].json
++!site_v2/src/data/fixtures/165028[0-9].json
++!site_v2/src/data/fixtures/165029[0-9].json
++!site_v2/src/data/fixtures/165030[0-5].json
+ # The competition page's sample: one competition-season, the Bundesliga 2026/27 after three
+ # matchdays. Every competition the index lists gets a page; only this one carries content in the
+ # committed build, and the teams and fixtures above are what it links to.
+@@ -431,113 +459,120 @@ site_v2/src/data/competitions/**/*.json
+ # The Player page's sample: the players the Home and Bundesliga boards link to, and their peer
+ # files. Replace as a set, from one export, like the teams above (src/data/README.md).
+ site_v2/src/data/players/*.json
++!site_v2/src/data/players/134.json
+ !site_v2/src/data/players/184.json
+ !site_v2/src/data/players/502.json
+ !site_v2/src/data/players/567.json
+ !site_v2/src/data/players/714.json
+ !site_v2/src/data/players/794.json
+-!site_v2/src/data/players/875.json
+ !site_v2/src/data/players/972.json
+-!site_v2/src/data/players/984.json
+ !site_v2/src/data/players/1100.json
++!site_v2/src/data/players/1148.json
+ !site_v2/src/data/players/1149.json
+ !site_v2/src/data/players/1156.json
+ !site_v2/src/data/players/1496.json
+-!site_v2/src/data/players/1741.json
+ !site_v2/src/data/players/1922.json
+ !site_v2/src/data/players/1924.json
+ !site_v2/src/data/players/1972.json
+ !site_v2/src/data/players/2897.json
+-!site_v2/src/data/players/2915.json
+-!site_v2/src/data/players/5973.json
++!site_v2/src/data/players/2937.json
++!site_v2/src/data/players/6231.json
+ !site_v2/src/data/players/7073.json
++!site_v2/src/data/players/7327.json
++!site_v2/src/data/players/10500.json
+ !site_v2/src/data/players/18964.json
+ !site_v2/src/data/players/18970.json
+ !site_v2/src/data/players/19617.json
+ !site_v2/src/data/players/21587.json
++!site_v2/src/data/players/25033.json
+ !site_v2/src/data/players/25158.json
+ !site_v2/src/data/players/25297.json
+-!site_v2/src/data/players/25368.json
+ !site_v2/src/data/players/25391.json
+-!site_v2/src/data/players/25406.json
+-!site_v2/src/data/players/25903.json
++!site_v2/src/data/players/25626.json
++!site_v2/src/data/players/25915.json
+ !site_v2/src/data/players/26171.json
+ !site_v2/src/data/players/26256.json
+ !site_v2/src/data/players/32011.json
+ !site_v2/src/data/players/36798.json
+-!site_v2/src/data/players/37153.json
+-!site_v2/src/data/players/37938.json
++!site_v2/src/data/players/37438.json
+ !site_v2/src/data/players/44814.json
+-!site_v2/src/data/players/47308.json
++!site_v2/src/data/players/46930.json
+ !site_v2/src/data/players/47516.json
+ !site_v2/src/data/players/88140.json
++!site_v2/src/data/players/90617.json
++!site_v2/src/data/players/126951.json
+ !site_v2/src/data/players/128384.json
+ !site_v2/src/data/players/161939.json
+-!site_v2/src/data/players/162032.json
+ !site_v2/src/data/players/162219.json
+-!site_v2/src/data/players/162703.json
++!site_v2/src/data/players/162761.json
++!site_v2/src/data/players/163032.json
+ !site_v2/src/data/players/163039.json
+ !site_v2/src/data/players/163078.json
+ !site_v2/src/data/players/177452.json
+ !site_v2/src/data/players/178768.json
+-!site_v2/src/data/players/199143.json
++!site_v2/src/data/players/179400.json
+ !site_v2/src/data/players/202696.json
+-!site_v2/src/data/players/203224.json
+-!site_v2/src/data/players/203329.json
+-!site_v2/src/data/players/237087.json
+-!site_v2/src/data/players/277003.json
+-!site_v2/src/data/players/280070.json
+-!site_v2/src/data/players/314254.json
++!site_v2/src/data/players/291964.json
++!site_v2/src/data/players/303679.json
+ !site_v2/src/data/players/314511.json
+-!site_v2/src/data/players/324957.json
++!site_v2/src/data/players/326067.json
+ !site_v2/src/data/players/327347.json
+ !site_v2/src/data/players/328033.json
++!site_v2/src/data/players/328225.json
+ !site_v2/src/data/players/336671.json
+-!site_v2/src/data/players/339887.json
++!site_v2/src/data/players/340547.json
++!site_v2/src/data/players/352730.json
+ !site_v2/src/data/players/353143.json
+-!site_v2/src/data/players/353943.json
+-!site_v2/src/data/players/359390.json
+-!site_v2/src/data/players/362564.json
+ !site_v2/src/data/players/362755.json
+-!site_v2/src/data/players/380690.json
++!site_v2/src/data/players/363156.json
++!site_v2/src/data/players/383665.json
+ !site_v2/src/data/players/386828.json
+ !site_v2/src/data/players/409190.json
++!site_v2/src/data/players/432310.json
++!site_v2/src/data/players/449509.json
+ !site_v2/src/data/players/478991.json
+ site_v2/src/data/player_peers/**/*.json
+-!site_v2/src/data/player_peers/AFCON/2025/MID.json
++!site_v2/src/data/player_peers/AFCON/2025/ATT.json
++!site_v2/src/data/player_peers/AFCON/2025/CM.json
++!site_v2/src/data/player_peers/BL1/2026/AM.json
+ !site_v2/src/data/player_peers/BL1/2026/ATT.json
++!site_v2/src/data/player_peers/BL1/2026/CM.json
+ !site_v2/src/data/player_peers/BL1/2026/DEF.json
++!site_v2/src/data/player_peers/BL1/2026/DM.json
+ !site_v2/src/data/player_peers/BL1/2026/GK.json
+-!site_v2/src/data/player_peers/BL1/2026/MID.json
++!site_v2/src/data/player_peers/ED/2026/AM.json
+ !site_v2/src/data/player_peers/ED/2026/ATT.json
+ !site_v2/src/data/player_peers/ED/2026/DEF.json
+-!site_v2/src/data/player_peers/ED/2026/MID.json
+ !site_v2/src/data/player_peers/L1/2026/ATT.json
+-!site_v2/src/data/player_peers/L1/2026/MID.json
++!site_v2/src/data/player_peers/L1/2026/CM.json
++!site_v2/src/data/player_peers/LP/2026/AM.json
+ !site_v2/src/data/player_peers/LP/2026/ATT.json
+ !site_v2/src/data/player_peers/LP/2026/DEF.json
+-!site_v2/src/data/player_peers/LP/2026/MID.json
++!site_v2/src/data/player_peers/PD/2026/AM.json
+ !site_v2/src/data/player_peers/PD/2026/ATT.json
+ !site_v2/src/data/player_peers/PD/2026/DEF.json
+ !site_v2/src/data/player_peers/PL/2026/ATT.json
+ !site_v2/src/data/player_peers/PL/2026/DEF.json
+-!site_v2/src/data/player_peers/PL/2026/MID.json
++!site_v2/src/data/player_peers/PL/2026/DM.json
+ !site_v2/src/data/player_peers/SA/2026/ATT.json
+-!site_v2/src/data/player_peers/SA/2026/MID.json
++!site_v2/src/data/player_peers/SA/2026/CM.json
++!site_v2/src/data/player_peers/SA/2026/DM.json
+ !site_v2/src/data/player_peers/UCL/2026/ATT.json
++!site_v2/src/data/player_peers/UCL/2026/CM.json
+ !site_v2/src/data/player_peers/UCL/2026/DEF.json
++!site_v2/src/data/player_peers/UCL/2026/DM.json
+ !site_v2/src/data/player_peers/UCL/2026/GK.json
+-!site_v2/src/data/player_peers/UCL/2026/MID.json
+ !site_v2/src/data/player_peers/UECL/2026/ATT.json
+-!site_v2/src/data/player_peers/UECL/2026/DEF.json
+-!site_v2/src/data/player_peers/UECL/2026/MID.json
++!site_v2/src/data/player_peers/UECL/2026/CM.json
+ !site_v2/src/data/player_peers/UEL/2026/ATT.json
+ !site_v2/src/data/player_peers/UEL/2026/DEF.json
+-!site_v2/src/data/player_peers/UEL/2026/MID.json
++!site_v2/src/data/player_peers/UEL/2026/DM.json
++!site_v2/src/data/player_peers/UNL/2026/AM.json
+ !site_v2/src/data/player_peers/UNL/2026/ATT.json
++!site_v2/src/data/player_peers/UNL/2026/CM.json
+ !site_v2/src/data/player_peers/UNL/2026/DEF.json
+-!site_v2/src/data/player_peers/UNL/2026/MID.json
+-!site_v2/src/data/player_peers/WC/2026/MID.json
++!site_v2/src/data/player_peers/UNL/2026/DM.json
++!site_v2/src/data/player_peers/WC/2026/DEF.json
+ 
+ # CPO working documents dropped in the repo ROOT (exports of planning conversations, briefs).
+ # Not project source, so not committed -- and not deleted either: the contract and stop gates flag
+diff --git a/docs/content_architecture.md b/docs/content_architecture.md
+index 8972c220..0732b18a 100644
+--- a/docs/content_architecture.md
++++ b/docs/content_architecture.md
+@@ -82,7 +82,7 @@ either subject, and appears on many tabs. The Subject column names the entity a
+ | | Team directory | competition→teams | `dim_team_competition_season_mapping` (a core model) |
+ | | Player career (clubs + per-comp totals) | player | `mart_player_career` |
+ | **Matchup** | Match preview (two sides) | fixture | composed: the form window (`mart_team_window_metrics` or `mart_team_season_record`, whichever `is_form_window` flags) + standing (`mart_fixture_standing_context`) + head-to-head (`mart_head_to_head`) |
+-| | Lineups / key players | fixture | `mart_player_season_record` (key players, by `top_player_rank`). No mart serves lineups. |
++| | Lineups / key players | fixture | `mart_player_season_record` (Players to watch, by `scorer_points_rank` and `ball_actions_per90_rank`). No mart serves lineups. |
+ | | Head-to-head | fixture | `mart_head_to_head` |
+ | **Insight** | Deserved-vs-actual *(flagship)* | team (player v1.x) | `mart_team_profile` (`deserved_points`, `deserved_rank`, `deserved_points_gap`) |
+ | | Vs-own-history / YoY *(flagship)* | team (player v1.x) | `mart_team_page_window_metrics` |
+diff --git a/docs/design/components.yml b/docs/design/components.yml
+index ab055759..1b13bcc1 100644
+--- a/docs/design/components.yml
++++ b/docs/design/components.yml
+@@ -230,10 +230,19 @@ components:
+     parts:
+       name: {class: nm, selector: ".ctab.rkt .ctab-head .nmh .bt .nm", text: 15-700-ink, element: Board name, rule: "a board is a single-value table; its name sits in the head row with the chevron, in the item title style: 15px bold ink, not capitals, at the block's left edge", measured: "font-size=15px; font-weight=700; color=ink; text-transform=none", ruled-on: "#129 board rules; #127 correction 1; the design standard"}
+       name-cell: {class: nmh, selector: ".ctab.rkt .ctab-head .nmh", element: Board name cell, rule: "at the block's left edge", measured: "left-edge=section", ruled-on: "#127 correction 3"}
++      title: {class: bt}
+       sub-line: {class: sub, selector: ".board .ent .sub"}
+       spacing: {class: board, selector: ".board + .board", element: Board spacing, rule: 24px between boards, measured: "gap(prev)=24px", ruled-on: "#40, #41 (the shipped board); the design standard"}
+     wide: "a single-value table, its name in the head row"
+     narrow: {below: w480, form: a name and its sub-line each on its own line}
++  split-board:
++    name: Board over two columns
++    file: site_v2/src/components/fixture/PlayersToWatch.astro
++    used-on: [match page]
++    parts:
++      board: {class: board}
++      name: {class: bt, selector: ".board > .bt", text: 15-700-ink, element: Board name over two columns, rule: "the name of a board in two team columns: the board name's style, 15px bold ink, 8px over the column heads", measured: "font-size=15px; font-weight=700; color=ink; text-transform=none; left-edge=section", ruled-on: "the match page review; the design standard"}
++    wide: "the board's name over the two teams' columns of player rows"
+   standings:
+     name: Standings table
+     file: site_v2/src/components/competition/StandingsTable.astro
+@@ -394,7 +403,7 @@ components:
+     links-to: [player page]
+     used-on: [match page, Team page, Players, nation page]
+     parts:
+-      row: {class: plrow, element: Player row, rule: "photo / name over position / goals and assists on the right at every width; two lines below 375px when the row is short of room; under 280px the name takes the whole line and the position shares the second line with the numbers; on a line-up, the minutes played", measured: fits, ruled-on: "the match page review; the component registry"}
++      row: {class: plrow, element: Player row, rule: "photo / name over position / the numbers, or a board's value alone, on the right at every width; two lines below 375px when the row is short of room; under 280px the name takes the whole line and the position shares the second line with the numbers; on a line-up, the minutes played", measured: fits, ruled-on: "the match page review; the component registry"}
+       name: {class: nm, selector: ".plrow .pname .nm", text: 15-400-ink, element: Player row name, rule: "15px regular ink, wrapping, never cut off", measured: "font-size=15px; font-weight=400; color=ink; white-space=normal", ruled-on: the match page review}
+       position: {class: ps, selector: ".plrow .pname .ps", text: 13-400-muted, element: Player row position, rule: "13px muted. On a line-up the substitution follows as a unit in the same line. It is the minute a starter went off, or a substitute came on and for whom", measured: "font-size=13px; color=muted", ruled-on: the match page review}
+       number: {class: pstat, selector: ".plrow .pstat b", text: 15-700-ink, element: Player row number, rule: 15px bold ink, measured: "font-size=15px; font-weight=700; color=ink", ruled-on: the match page review}
+diff --git a/docs/site_architecture.md b/docs/site_architecture.md
+index a2440cd7..a65ce69b 100644
+--- a/docs/site_architecture.md
++++ b/docs/site_architecture.md
+@@ -278,7 +278,7 @@ every file. The `fetch_*` function for a file holds its live list of marts.
+ | Nation page | `players_index.json` | `mart_player_index`: the nations with a page and their players in order. Read `fetch_player_index`. |
+ | Matches page and its days | `matches/{yyyy-mm-dd}.json`, one per day | `mart_match_days` (the reach, each day's neighbours, the opening day), `mart_competition_fixtures` (the match rows), `mart_competition_index` (a competition's name, crest, kind and region rank). Read `fetch_match_day_payloads`. |
+ | Competition page, all three tabs | `competitions/{league_code}/{season}.json` (the page shows the latest season served) | Header: `mart_competition_index`. The table: `mart_standings`, with `table_kind`. The deserved points table: `mart_team_profile`. The season in numbers: `mart_competition_season_summary`. The Matchdays tab, the header's round and the match-that-matters flag: `mart_competition_fixtures`. The Rankings tab's boards, the top five per board: `mart_team_leaderboards` and `mart_leaderboards`. Read `fetch_competition_payloads` for the live list. |
+-| Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_window_metrics` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H), `mart_team_momentum_window` (the form list), `mart_player_momentum` (top players). Read `fetch_fixture_payloads`. **Not** `mart_matchday_insights`, the retired MVP's presentation pivot of the momentum mart. v2 reads the source marts directly. A played match's payload reads `mart_competition_fixtures` (result, goals, line-up state), `mart_leaderboards` (match boards), `mart_team_window_metrics` (one match) and `mart_player_fixture_stats` (line-ups). Read `fetch_played_fixture_payloads`. |
++| Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_window_metrics` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H), `mart_team_momentum_window` (the form list), `mart_player_season_record` (Players to watch). Read `fetch_fixture_payloads`. **Not** `mart_matchday_insights`, the retired MVP's presentation pivot of the momentum mart. v2 reads the source marts directly. A played match's payload reads `mart_competition_fixtures` (result, goals, line-up state), `mart_leaderboards` (match boards), `mart_team_window_metrics` (one match) and `mart_player_fixture_stats` (line-ups). Read `fetch_played_fixture_payloads`. |
+ | Team profile ⭐ | `teams/{team_api_id}.json` | `mart_team_profile`, `mart_team_fixtures` (next match, last five), `mart_roster` (the squad), `mart_team_competition_benchmarks`, `mart_player_career` (squad season stats). Read `fetch_team_payloads`. |
+ | Player profile ⭐ | `players/{player_api_id}.json`, `player_peers/{league_code}/{season}/{position_group}.json`, `player_metric_rows.json`, `player_pages.json` | `mart_player_profile`, `mart_player_window_metrics`, `mart_player_competition_benchmarks`, `mart_player_squad_benchmarks`, `mart_player_fixture_stats` (the matches of the season shown), `mart_team_fixtures` (next matches), `mart_team_profile` (team names and slugs). Read `fetch_player_payloads`. |
+ | Standings | within the competition file | `mart_standings` (league and group tables, incl. WC group letters) |
+diff --git a/docs/wireframes/01_fixture_page.md b/docs/wireframes/01_fixture_page.md
+index 9c315dda..238f1436 100644
+--- a/docs/wireframes/01_fixture_page.md
++++ b/docs/wireframes/01_fixture_page.md
+@@ -32,7 +32,7 @@ Secondary hook: the past-meetings record ("they've never beaten them at home" en
+ Payload top level: `fixture_id, slug, kickoff, status, league_code, league_name,
+ season, round, round_order, is_next_round, venue, home, away, head_to_head`.
+ Each side (`home`/`away`): `team_id, name, slug, crest, country, form, standing,
+-form_window[], top_players[], next_match`.
++form_window[], players_to_watch, next_match`.
+ 
+ ## 4. Layout
+ 
+@@ -42,7 +42,7 @@ The page draws render `match-page_2026-10-07_75`. Its blocks, in order:
+ 2. Header: the competition's group head, then round · date · time UTC · venue, then the two teams.
+ 3. Form comparison: one window per team, the W/D/L pills, the catalogue's rows.
+ 4. Recent matches: up to 5 result rows per team.
+-5. Players to watch: up to 5 player rows per team.
++5. Players to watch: the intro, then two boards with up to 3 player rows per team.
+ 6. Head to head: the intro, then up to 5 meetings.
+ 
+ A match further out than the next matchday gets the future match page, drawn by render
+@@ -134,15 +134,20 @@ full width beneath. Bars are normalized to the larger of the two values.
+ | Date | `played_kickoff_datetime` | locale short date |
+ | Link | `played_fixture_sk` | to the match's page when the build makes one |
+ 
+-### (5) Players to watch — per side `top_players[]` (≤5)
++### (5) Players to watch — per side `players_to_watch` (`window_type`, `boards[]`)
+ 
+-The players: `mart_player_season_record` by `top_player_rank`, the season record of the
+-match's competition. The rank orders by goals plus assists, then goals, then fewer minutes.
++Two boards, in this order: Goals and assists (`scorer_points_player`) and Ball actions per 90
++(`ball_actions_per90`). Each board carries `metric_key`, `label_i18n_key`, `format` and up to 3
++`rows[]`. `mart_player_season_record` places the players by `scorer_points_rank` and
++`ball_actions_per90_rank`: outfield players, the match's competition this season, or last season
++before the team's first match in it.
+ 
+-The player row: `player_photo_url`, `player_name` over `position_code`, then
+-`goals_total` and `goals_assists`; a goalkeeper shows `saves_player`.
+-The intro is `playersIntro`, or `playersIntroPrev` when a row's `window_type` is `prev_season`.
+-No link until the players' pages exist.
++The board: its name over the two columns, each headed by its team's name.
++The player row: `player_photo_url`, `player_name` over `position_code`, then `value` alone in the
++board's `format`. It links to the player's page when the build makes one.
++The intro is `playersIntro`, or `playersIntroPrev` when both sides' `window_type` is `prev_season`, or
++`playersIntroMixed` when the two sides' differ.
++A board with no row on either side is left out, and the block when no board is left.
+ 
+ ### (6) Head-to-head — `head_to_head` (perspective = **home team**)
+ 
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index 3044b1a2..9e97f8b4 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -105,7 +105,9 @@
+ | Board name | `.ctab.rkt .ctab-head .nmh .bt .nm` | a board is a single-value table; its name sits in the head row with the chevron, in the item title style: 15px bold ink, not capitals, at the block's left edge | `font-size=15px; font-weight=700; color=ink; text-transform=none` | ruled | #129 board rules; #127 correction 1; the design standard |
+ | Board name cell | `.ctab.rkt .ctab-head .nmh` | at the block's left edge | `left-edge=section` | ruled | #127 correction 3 |
+ | Board spacing | `.board + .board` | 24px between boards | `gap(prev)=24px` | ruled | #40, #41 (the shipped board); the design standard |
+-| Board parts | `.board .ent .sub` | the board's other parts: registered, no text of their own |  | ruled | the component registry |
++| Board parts | `.bt, .board .ent .sub` | the board's other parts: registered, no text of their own |  | ruled | the component registry |
++| Board name over two columns | `.board > .bt` | the name of a board in two team columns: the board name's style, 15px bold ink, 8px over the column heads | `font-size=15px; font-weight=700; color=ink; text-transform=none; left-edge=section` | ruled | the match page review; the design standard |
++| Board over two columns parts | `.board` | the board over two columns's other parts: registered, no text of their own |  | ruled | the component registry |
+ | Table group heading | `.ctab-section > .gh` | the heading over one table of a group stage ("Group A"): the metric group heading's form, 18px bold. It has no line of its own; the table head's rule is under it | `border-bottom-width=0px; left-edge=section` | ruled | #129 Table; the design standard |
+ | Table group name | `.ctab-section > .gh .nm` | 18px bold ink | `font-size=18px; font-weight=700; color=ink` | ruled | #129 Table; the design standard |
+ | Standings table goal difference | `.ctab .n.gd` | the standings table's goal difference, in the 13-400-muted text style, never broken | `font-size=13px; font-weight=400; color=muted; one-line; fits` | ruled | the component registry |
+@@ -150,7 +152,7 @@
+ | Result chip count chip | `.cchip .pill` | the result chip's count chip, in the 11-700-pill-ink-caps text style, never broken | `font-size=11px; font-weight=700; color=pill-ink; text-transform=uppercase; one-line; fits` | ruled | the component registry |
+ | Status tag | `.stag` | a match not played says why: Postponed, Abandoned, Cancelled or Awaiting result. It stands where the score or kick-off would. On a narrow row it takes the row tag's own line | `font-size=11px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink` | ruled | the status display approval; the design standard |
+ | Form parts | `.pill.W, .pill.D, .pill.L` | the form's other parts: registered, no text of their own |  | ruled | the component registry |
+-| Player row | `.plrow` | photo / name over position / goals and assists on the right at every width; two lines below 375px when the row is short of room; under 280px the name takes the whole line and the position shares the second line with the numbers; on a line-up, the minutes played | `fits` | ruled | the match page review; the component registry |
++| Player row | `.plrow` | photo / name over position / the numbers, or a board's value alone, on the right at every width; two lines below 375px when the row is short of room; under 280px the name takes the whole line and the position shares the second line with the numbers; on a line-up, the minutes played | `fits` | ruled | the match page review; the component registry |
+ | Player row name | `.plrow .pname .nm` | 15px regular ink, wrapping, never cut off | `font-size=15px; font-weight=400; color=ink; white-space=normal` | ruled | the match page review |
+ | Player row position | `.plrow .pname .ps` | 13px muted. On a line-up the substitution follows as a unit in the same line. It is the minute a starter went off, or a substitute came on and for whom | `font-size=13px; color=muted` | ruled | the match page review |
+ | Player row number | `.plrow .pstat b` | 15px bold ink | `font-size=15px; font-weight=700; color=ink` | ruled | the match page review |
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index a54ab0b1..113de678 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -114,9 +114,13 @@ _W2_DROP = {"upcoming_fixture_sk", "team_sk", "is_home"}
+ _CTX_DROP = {"fixture_sk", "team_sk", "season_sk"}
+ _H2H_DROP = {"team_sk", "opponent_team_sk", "pair_key", "is_canonical"}
+ _FW_DROP = {"upcoming_fixture_sk", "team_sk", "entity_type", "season_api_year", "window_type"}
+-_TOPPLAYER_DROP = {"upcoming_fixture_sk", "team_sk", "is_home", "entity_type",
+-                   "season_api_year", "league_code", "top_player_rank",
+-                   "player_name", "player_photo_url"}
++# Players to watch: its boards in the block's order, and the mart rank that places a side's players
++# on each.
++_MATCH_WATCH_BOARDS = ("scorer_points_player", "ball_actions_per90")
++_PLAYERS_TO_WATCH_RANKS = {
++    "scorer_points_player": "scorer_points_rank",
++    "ball_actions_per90": "ball_actions_per90_rank",
++}
+ 
+ # The competition_type -> nav group MAPPING now lives in the competition_types seed
+ # (display_group column, GAP-19.3), read via _display_group_of_type() — no hardcoded
+@@ -752,11 +756,11 @@ def form_block(w1: dict | None, w2: dict | None) -> dict | None:
+ 
+ 
+ def _fixture_side(team_id: int, identity: dict | None, form: dict | None, ctx: dict | None,
+-                  form_window: list | None = None, top_players: list | None = None,
++                  form_window: list | None = None, players_to_watch: dict | None = None,
+                   next_match: dict | None = None) -> dict:
+     """One team's block on the fixture page: identity + its form block + standings context + the
+-    form-window list + top players + its next match. Each sub-block is None/[] when no mart serves
+-    it for the side (honest absence — the UI renders the empty state)."""
++    form-window list + Players to watch + its next match. Each sub-block is None/[] when no mart
++    serves it for the side (honest absence — the UI renders the empty state)."""
+     return {
+         "team_id": team_id,
+         "name": (identity or {}).get("team_name"),
+@@ -766,7 +770,7 @@ def _fixture_side(team_id: int, identity: dict | None, form: dict | None, ctx: d
+         "form": form,
+         "standing": _drop(ctx, _CTX_DROP) if ctx else None,
+         "form_window": form_window or [],
+-        "top_players": top_players or [],
++        "players_to_watch": players_to_watch,
+         "next_match": next_match,
+     }
+ 
+@@ -779,25 +783,32 @@ def shape_next_match(row: dict | None, fixture_id: int) -> dict | None:
+     return {**_competition_fixture(row), "league_code": row.get("league_code")}
+ 
+ 
+-def shape_top_players(rows: list[dict], names: dict, limit: int = 5) -> list[dict]:
+-    """Top N players for a fixture side, SELECTED by the warehouse top_player_rank
+-    (goals plus assists, then goals, then fewer minutes, computed in mart_player_season_record; the
+-    export does not rank). Names/photos are the mart's own columns. Relies on the mart column
+-    being present (ship-the-mart-first); a Python ranking fallback is intentionally
+-    NOT provided — re-deriving the rank here would violate the consumption-layer
+-    contract (anti-pattern A5)."""
+-    ranked = sorted(
+-        [r for r in rows if r.get("top_player_rank") is not None and r["top_player_rank"] <= limit],
+-        key=lambda r: r["top_player_rank"],
+-    )
++def shape_players_to_watch(rows: list[dict], boards: dict[str, dict[str, str]],
++                           limit: int = 3) -> dict | None:
++    """One fixture side's Players to watch: its window and, per board, the top `limit` players
++    SELECTED by the board's rank in mart_player_season_record (the export does not rank, A5). Each
++    board carries its catalogue name key and format; each row the player and the board's value.
++    None when the mart ranks none of the side's players on any board."""
+     out = []
+-    for r in ranked:
+-        p = _drop(r, _TOPPLAYER_DROP)
+-        ident = names.get(int(r["player_sk"])) or {}
+-        p["player_name"] = ident.get("player_name")
+-        p["player_photo_url"] = ident.get("player_photo_url")
+-        out.append(p)
+-    return out
++    for metric_key, meta in boards.items():
++        rank = _PLAYERS_TO_WATCH_RANKS[metric_key]
++        ranked = sorted((r for r in rows if r.get(rank) is not None and r[rank] <= limit),
++                        key=lambda r: r[rank])
++        out.append({
++            "metric_key": metric_key,
++            "label_i18n_key": meta["label_i18n_key"],
++            "format": meta["format"],
++            "rows": [{
++                "player_sk": int(r["player_sk"]),
++                "player_name": r.get("player_name"),
++                "player_photo_url": r.get("player_photo_url"),
++                "position_code": r.get("position_code"),
++                "value": r.get(metric_key),
++            } for r in ranked],
++        })
++    if not any(b["rows"] for b in out):
++        return None
++    return {"window_type": rows[0].get("window_type"), "boards": out}
+ 
+ 
+ def build_nav(competitions: list[dict]) -> dict:
+@@ -1389,7 +1400,7 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
+         for r in _query(client, f"select * from `{marts}.mart_head_to_head` where {conds}"):
+             h2h[(int(r["team_sk"]), int(r["opponent_team_sk"]))] = r
+ 
+-    # Drill-down: the last-5 form-window list and top players per side.
++    # Drill-down: the last-5 form-window list and Players to watch per side.
+     form_window: dict = {}
+     for r in _query(client, f"select * from `{marts}.mart_team_momentum_window` "
+                             f"where upcoming_fixture_sk in ({fid_in})"):
+@@ -1397,12 +1408,15 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
+             _drop(r, _FW_DROP)
+         )
+     season_players: dict = {}
+-    for r in _query(client, f"select * from `{marts}.mart_player_season_record` "
+-                            f"where upcoming_fixture_sk in ({fid_in}) and top_player_rank <= 5"):
++    watch_boards = _board_catalogue(_MATCH_WATCH_BOARDS)
++    for r in _query(client, f"""
++        select upcoming_fixture_sk, team_sk, player_sk, player_name, player_photo_url, position_code,
++               window_type, {", ".join(_PLAYERS_TO_WATCH_RANKS)}, {", ".join(_PLAYERS_TO_WATCH_RANKS.values())}
++        from `{marts}.mart_player_season_record`
++        where upcoming_fixture_sk in ({fid_in})
++          and (scorer_points_rank <= 3 or ball_actions_per90_rank <= 3)
++    """):
+         season_players.setdefault((int(r["upcoming_fixture_sk"]), int(r["team_sk"])), []).append(r)
+-    player_names = {
+-        int(r["player_sk"]): r for rows in season_players.values() for r in rows
+-    }
+ 
+     team_in = ", ".join(sorted({str(int(f[k])) for f in fixtures for k in ("home_team_sk", "away_team_sk")}))
+     next_matches: dict = {}
+@@ -1427,7 +1441,7 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
+             ctx.get((fid, team_id)),
+             form_window=sorted(form_window.get((fid, team_id), []),
+                                key=lambda r: r.get("recency_rank") or 99),
+-            top_players=shape_top_players(season_players.get((fid, team_id), []), player_names),
++            players_to_watch=shape_players_to_watch(season_players.get((fid, team_id), []), watch_boards),
+             next_match=shape_next_match(next_matches.get(team_id), fid),
+         )
+ 
+@@ -2304,9 +2318,8 @@ def _board_catalogue(
+ def shape_home_top_players(rows: list[dict], meta: dict, label_keys: dict[str, str]) -> list[dict]:
+     """The home page's Top players block: four boards, one metric each, one player per league.
+ 
+-    ⚠ NOT `shape_top_players` above — that is the FIXTURE page's players-to-watch list. Different
+-    block, different mart, different shape; the names are one word apart on purpose because they
+-    are both "top players" to a reader and nothing else about them is shared.
++    ⚠ NOT `shape_players_to_watch` above — that is the FIXTURE page's Players to watch. Different
++    block, different mart, different shape.
+ 
+     Design: GitLab #40, which `design-mocks/README.md` names as the authority. Four boards in a
+     fixed order, ranked descending, top 7. The board is a `metric_key` in `mart_leaderboards`; the
+diff --git a/site_v2/scripts/check-metric-labels.test.mjs b/site_v2/scripts/check-metric-labels.test.mjs
+index 18fdb290..c95bda4c 100644
+--- a/site_v2/scripts/check-metric-labels.test.mjs
++++ b/site_v2/scripts/check-metric-labels.test.mjs
+@@ -108,6 +108,7 @@ const boardKeys = [
+   ...boardTuple("_COMPETITION_TEAM_BOARDS", "team", 12),
+   ...boardTuple("_COMPETITION_PLAYER_BOARDS", "player", 13),
+   ...boardTuple("_MATCH_PLAYER_BOARDS", "player", 7),
++  ...boardTuple("_MATCH_WATCH_BOARDS", "player", 2),
+ ];
+ 
+ /** The metric GROUPS (#152): keys and order from the export's copy of the catalogue
+diff --git a/site_v2/src/components/fixture/PlayerToWatch.astro b/site_v2/src/components/fixture/PlayerToWatch.astro
+index 34606b77..c56f2820 100644
+--- a/site_v2/src/components/fixture/PlayerToWatch.astro
++++ b/site_v2/src/components/fixture/PlayerToWatch.astro
+@@ -1,19 +1,17 @@
+ ---
+-// One Players to watch row: the player row with goals and assists (a goalkeeper's saves). A count
+-// the warehouse leaves blank shows as a dash.
++// One Players to watch row: the player row with the board's value alone, in the catalogue's format.
+ import PlayerRow from "../ui/PlayerRow.astro";
+-import type { Lang } from "../../lib/format";
++import { formatValue } from "../../lib/format";
++import type { Lang, SingleFormat } from "../../lib/format";
+ import { positionLabel } from "../../i18n/strings";
+-import type { TopPlayer } from "../../lib/types";
++import type { WatchPlayer } from "../../lib/types";
+ 
+ interface Props {
+-  player: TopPlayer;
++  player: WatchPlayer;
++  format: SingleFormat;
+   lang: Lang;
+ }
+-const { player, lang } = Astro.props;
+-const numbers = player.position_code === "G"
+-  ? [{ value: player.saves_player, term: "saves" as const }]
+-  : [{ value: player.goals_total, term: "goals" as const }, { value: player.goals_assists, term: "assists" as const }];
++const { player, format, lang } = Astro.props;
+ ---
+ 
+ <PlayerRow
+@@ -21,6 +19,6 @@ const numbers = player.position_code === "G"
+   name={player.player_name}
+   photo={player.player_photo_url}
+   line={[positionLabel(lang, player.position_code)]}
+-  numbers={numbers}
++  value={formatValue(player.value, format, lang)}
+   id={player.player_sk}
+ />
+diff --git a/site_v2/src/components/fixture/PlayersToWatch.astro b/site_v2/src/components/fixture/PlayersToWatch.astro
+new file mode 100644
+index 00000000..4307c326
+--- /dev/null
++++ b/site_v2/src/components/fixture/PlayersToWatch.astro
+@@ -0,0 +1,60 @@
++---
++// Players to watch: the block heading, the intro naming the match's competition, then the two
++// boards, Goals and assists and Ball actions per 90. Each board is its name over the two columns,
++// each team's top three as served. The intro reads last season when a side's window is last season.
++// A board neither side has a row on is left out, and the block when no board is left.
++import SectionHead from "../ui/SectionHead.astro";
++import Explainer from "../ui/Explainer.astro";
++import PlayerToWatch from "./PlayerToWatch.astro";
++import type { Lang } from "../../lib/format";
++import { t, playersInCompetition, metricLabel } from "../../i18n/strings";
++import type { Side, WatchBoard } from "../../lib/types";
++
++interface Props {
++  home: Side;
++  away: Side;
++  leagueCode: string;
++  compName: string;
++  lang: Lang;
++}
++const { home, away, leagueCode, compName, lang } = Astro.props;
++
++const sides = [home, away];
++const boardOf = (side: Side, metric: string): WatchBoard | undefined =>
++  side.players_to_watch?.boards.find((b) => b.metric_key === metric);
++const metrics = [...new Set(sides.flatMap((s) => (s.players_to_watch?.boards ?? []).map((b) => b.metric_key)))];
++const boards = metrics
++  .map((metric) => ({ home: boardOf(home, metric), away: boardOf(away, metric) }))
++  .filter((b) => (b.home?.rows.length ?? 0) + (b.away?.rows.length ?? 0) > 0);
++const windows = new Set(sides.filter((s) => s.players_to_watch).map((s) => s.players_to_watch!.window_type));
++const introKey = windows.size > 1 ? "playersIntroMixed" : windows.has("prev_season") ? "playersIntroPrev" : "playersIntro";
++const intro = t(lang, introKey, {
++  in: playersInCompetition(lang, leagueCode, compName),
++});
++const label = t(lang, "secPlayers");
++---
++
++{boards.length > 0 && (
++  <section aria-label={label}>
++    <SectionHead label={label} />
++    <Explainer text={intro} />
++    {boards.map(({ home: h, away: a }) => {
++      const served = (h ?? a)!;
++      return (
++        <div class="board">
++          <div class="bt" role="heading" aria-level="3">{metricLabel(lang, served.label_i18n_key)}</div>
++          <div class="rsplit">
++            <div class="rcol">
++              <div class="colhead">{home.name}</div>
++              {(h?.rows ?? []).map((p) => <PlayerToWatch player={p} format={served.format} lang={lang} />)}
++            </div>
++            <div class="rcol">
++              <div class="colhead">{away.name}</div>
++              {(a?.rows ?? []).map((p) => <PlayerToWatch player={p} format={served.format} lang={lang} />)}
++            </div>
++          </div>
++        </div>
++      );
++    })}
++  </section>
++)}
+diff --git a/site_v2/src/components/ui/PlayerRow.astro b/site_v2/src/components/ui/PlayerRow.astro
+index 194434ff..fcd582ca 100644
+--- a/site_v2/src/components/ui/PlayerRow.astro
++++ b/site_v2/src/components/ui/PlayerRow.astro
+@@ -1,6 +1,6 @@
+ ---
+ // THE player row: photo (the initials when there is none) / name over its second line / the numbers
+-// on the right when the list has any. The row links to the player's page when this build makes one;
++// on the right when the list has any, or a board's value alone. The row links to the player's page when this build makes one;
+ // a row given no player id leads nowhere. Other attributes (the filters' data marks) pass through.
+ import ListRow from "./ListRow.astro";
+ import { builtPlayers } from "../../lib/builtPlayers.mjs";
+@@ -17,12 +17,14 @@ interface Props {
+   line: string[];
+   /** The numbers on the right; a count the warehouse leaves blank shows as a dash. */
+   numbers?: { value: number | null | undefined; term: Term }[] | null;
++  /** A board's value on the right, already in its format, with no word after it. */
++  value?: string | null;
+   /** The player's id; with `slug`, the slug its page is built under. */
+   id?: number | null;
+   slug?: string | null;
+   [attr: string]: unknown;
+ }
+-const { lang, name, photo, line, numbers, id, slug, ...rest } = Astro.props;
++const { lang, name, photo, line, numbers, value, id, slug, ...rest } = Astro.props;
+ const initials = (name ?? "").split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase();
+ const page = id == null || !builtPlayers().has(id) ? null : slug ?? builtPlayers().get(id);
+ const href = page ? localeHref(lang, `${word(lang, "players")}/${page}/`) : undefined;
+@@ -52,5 +54,10 @@ const units = (numbers ?? []).map(({ value, term }) => ({
+         {units.map((p) => <span class="nb"><b>{p.n}</b> {p.word}</span>)}
+       </span>
+     )}
++    {value != null && (
++      <span class="pstat facts-line">
++        <span class="nb"><b>{value}</b></span>
++      </span>
++    )}
+   </div>
+ </ListRow>
+diff --git a/site_v2/src/i18n/strings.test.mjs b/site_v2/src/i18n/strings.test.mjs
+index 34d3ea99..93c5dfa7 100644
+--- a/site_v2/src/i18n/strings.test.mjs
++++ b/site_v2/src/i18n/strings.test.mjs
+@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
+ 
+ const HERE = dirname(fileURLToPath(import.meta.url));
+ const competitions = JSON.parse(readFileSync(join(HERE, "../data/competitions.json"), "utf8"));
+-const { t, inCompetition } = await import("./strings.ts");
++const { t, inCompetition, playersInCompetition } = await import("./strings.ts");
+ 
+ const headNoun = (name) => name.replace(/ of .*$/, "").split(/[\s-]+/).pop();
+ 
+@@ -22,6 +22,14 @@ test("English and Finnish name the competition without an article", () => {
+   assert.equal(inCompetition("fi", "BL1", "Bundesliga"), "kilpailussa Bundesliga");
+ });
+ 
++test("the Players to watch intro takes the Finnish inessive and reads as inCompetition elsewhere", () => {
++  assert.equal(playersInCompetition("fi", "BL1", "Bundesliga"), "Bundesliigassa");
++  assert.equal(playersInCompetition("fi", "PL", "Premier League"), "Valioliigassa");
++  assert.equal(playersInCompetition("fi", "LMX", "Liga MX"), "kilpailussa Liga MX");
++  assert.equal(playersInCompetition("en", "PL", "Premier League"), "in Premier League");
++  assert.equal(playersInCompetition("de", "BL1", "Bundesliga"), "in der Bundesliga");
++});
++
+ test("a placeholder used twice is filled twice", () => {
+   const s = t("en", "formIntroPrev", { competition: "Bundesliga" });
+   assert.ok(!s.includes("{competition}"), s);
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index f5cc7795..dd411ed7 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -45,8 +45,9 @@ const EN: Dict = {
+   h2hNone: "No meetings on record.",
+   formIntro: "Form metrics from each team's last 5 matches across all competitions.",
+   formIntroPrev: "Form metrics from each team's last 5 matches across all competitions; before a team's first {competition} match, from its last {competition} season.",
+-  playersIntro: "Each team's leading players {in} this season, by goals and assists.",
+-  playersIntroPrev: "Each team's leading players {in} by goals and assists; before a team's first match in it, last season's.",
++  playersIntro: "Each team's key players {in} this season.",
++  playersIntroPrev: "Each team's key players {in} last season.",
++  playersIntroMixed: "Each team's key players {in}: this season's, or last season's before the team's first match in it.",
+   compIn: "in {competition}",
+   compInMasculine: "in {competition}",
+   table: "Table",
+@@ -551,8 +552,9 @@ const DE: Dict = {
+   formIntroPrev: "Formwerte aus den letzten 5 Spielen jeder Mannschaft in allen Wettbewerben; vor dem ersten Spiel in der {competition} aus der Vorsaison dort.",
+   compIn: "in der {competition}",
+   compInMasculine: "im {competition}",
+-  playersIntro: "Die besten Spieler jeder Mannschaft {in} in dieser Saison, nach Scorerpunkten.",
+-  playersIntroPrev: "Die besten Spieler jeder Mannschaft {in} nach Scorerpunkten; vor dem ersten Spiel dort aus der Vorsaison.",
++  playersIntro: "Die Leistungsträger der einzelnen Mannschaften {in} in dieser Saison.",
++  playersIntroPrev: "Die Leistungsträger der einzelnen Mannschaften {in} in der Vorsaison.",
++  playersIntroMixed: "Die Leistungsträger der einzelnen Mannschaften {in}: aus dieser Saison oder, vor dem ersten Spiel dort, aus der Vorsaison.",
+   table: "Tabelle",
+   aboutNoH2h: "{home} gegen {away}, {round}.",
+   posF: "Stürmer", posM: "Mittelfeldspieler", posD: "Verteidiger", posG: "Torhüter",
+@@ -998,8 +1000,9 @@ const FI: Dict = {
+   formIntroPrev: "Kuntoluvut kunkin joukkueen 5 viimeisestä ottelusta kaikissa kilpailuissa; ennen ensimmäistä ottelua kilpailussa {competition} edelliseltä kaudelta siellä.",
+   compIn: "kilpailussa {competition}",
+   compInMasculine: "kilpailussa {competition}",
+-  playersIntro: "Kunkin joukkueen parhaat pelaajat {in} tällä kaudella, tehopisteiden mukaan.",
+-  playersIntroPrev: "Kunkin joukkueen parhaat pelaajat {in} tehopisteiden mukaan; ennen ensimmäistä ottelua edelliseltä kaudelta.",
++  playersIntro: "Kunkin joukkueen tärkeimmät pelaajat tämän kauden {in}.",
++  playersIntroPrev: "Kunkin joukkueen tärkeimmät pelaajat viime kauden {in}.",
++  playersIntroMixed: "Kunkin joukkueen tärkeimmät pelaajat {in}: tältä kaudelta tai ennen joukkueen ensimmäistä ottelua siellä viime kaudelta.",
+   table: "Sarjataulukko",
+   // "–" not "vs": the Finnish values were byte-identical to the English ones, so two of three
+   // locales shipped the same <meta description>. Caught only after the cross-locale check was
+@@ -1430,11 +1433,31 @@ export function t(lang: Lang, key: string, params?: Record<string, string | numb
+  *  "im {competition}"; every other competition reads "in der {competition}". */
+ const MASCULINE_IN_GERMAN = new Set(["DFBP", "FAC", "UESC", "WC", "CWC", "ACN", "AFCON", "GCUP", "CCCU"]);
+ 
++/** The Finnish inessive of each competition two Finnish publishers use; a competition without one
++ *  reads "kilpailussa {name}". */
++const FI_INESSIVE: Record<string, string> = {
++  BL1: "Bundesliigassa", BL2: "2. Bundesliigassa", PL: "Valioliigassa", PD: "La Ligassa", SA: "Serie A:ssa",
++  L1: "Ligue 1:ssä", VL: "Veikkausliigassa", LP: "Portugalin pääsarjassa", MLS: "MLS:ssä",
++  SPL: "Saudi-Arabian pääsarjassa", ED: "Eredivisiessä", BPL: "Belgian pääsarjassa", TSL: "Turkin pääsarjassa",
++  EKS: "Ekstraklasassa", UCL: "Mestarien liigassa", UEL: "Eurooppa-liigassa", UECL: "Konferenssiliigassa",
++  UESC: "Super Cupissa", COAM: "Copa Americassa", AFCON: "Afrikan mestaruusturnauksessa", UNL: "Kansojen liigassa",
++  EURO: "EM-kisoissa", DFBP: "Saksan cupissa", FAC: "FA Cupissa", CDR: "Espanjan cupissa", CDF: "Ranskan cupissa",
++  CIT: "Italian cupissa", CWC: "seurajoukkueiden MM-kisoissa", WC: "MM-kisoissa", WCQEU: "MM-karsinnoissa",
++  WCQAF: "MM-karsinnoissa", WCQCA: "MM-karsinnoissa", WCQSA: "MM-karsinnoissa", WCQAS: "MM-karsinnoissa",
++  WCQIP: "MM-karsinnoissa", WCQOC: "MM-karsinnoissa",
++};
++
+ /** "in {competition}" in the page's language, with the German article the competition's name takes. */
+ export function inCompetition(lang: Lang, leagueCode: string, name: string): string {
+   return t(lang, MASCULINE_IN_GERMAN.has(leagueCode) ? "compInMasculine" : "compIn", { competition: name });
+ }
+ 
++/** The Players to watch intro's "in {competition}": the competition's inessive in Finnish, every other
++ *  language as inCompetition. */
++export function playersInCompetition(lang: Lang, leagueCode: string, name: string): string {
++  return (lang === "fi" && FI_INESSIVE[leagueCode]) || inCompetition(lang, leagueCode, name);
++}
++
+ /** A played match's status word, from its served status and award: Awarded, After penalties,
+  * After extra time or Full time. */
+ export function playedStatusWord(lang: Lang, status: string | null | undefined, awardKind: string | null | undefined): string {
+@@ -1504,6 +1527,7 @@ const METRIC_TERMS: Record<string, string> = {
+   "metrics.points_won.label": "points",
+   "metrics.deserved_points.label": "deservedPoints",
+   "metrics.deserved_points_gap.label": "deservedPointsGap",
++  "playerMetrics.scorerPoints.label": "goalsAndAssists",
+   "playerMetrics.scorerPoints.goals": "goals",
+   "playerMetrics.scorerPoints.assists": "assists",
+   "playerMetrics.passAccuracy.total": "passes",
+diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
+index eb16bfa3..0ee8bba7 100644
+--- a/site_v2/src/lib/types.ts
++++ b/site_v2/src/lib/types.ts
+@@ -59,18 +59,27 @@ export interface FormMatch {
+   has_player_stats?: boolean | null;
+ }
+ 
+-export interface TopPlayer {
++/** One row of a Players to watch board: the player and the board's value. */
++export interface WatchPlayer {
+   player_sk: number;
+-  position_code?: string | null;
+-  goals_total?: number | null;
+-  goals_assists?: number | null;
+-  saves_player?: number | null;
+-  saves_player_pct?: number | null;
+-  shots_on?: number | null;
+-  passes_key_player?: number | null;
+   player_name?: string | null;
+   player_photo_url?: string | null;
++  position_code?: string | null;
++  value?: number | null;
++}
++
++/** One Players to watch board of a side: its metric, the catalogue's name key and format, its rows. */
++export interface WatchBoard {
++  metric_key: string;
++  label_i18n_key: string;
++  format: SingleFormat;
++  rows: WatchPlayer[];
++}
++
++/** A side's Players to watch: the window its boards cover, and the boards in the block's order. */
++export interface PlayersToWatch {
+   window_type?: string | null;
++  boards: WatchBoard[];
+ }
+ 
+ export interface Side {
+@@ -82,7 +91,7 @@ export interface Side {
+   form?: WindowStats | null;
+   standing?: Standing | null;
+   form_window?: FormMatch[];
+-  top_players?: TopPlayer[];
++  players_to_watch?: PlayersToWatch | null;
+   /** The team's next match in any competition, as the site's match row; absent when it is this one. */
+   next_match?: (CompetitionFixture & { league_code: string }) | null;
+ }
+diff --git a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
+index c3045ffa..2074646d 100644
+--- a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
++++ b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
+@@ -10,14 +10,14 @@ import Masthead from "../../../../components/fixture/Masthead.astro";
+ import FormSegment from "../../../../components/fixture/FormSegment.astro";
+ import SplitSection from "../../../../components/fixture/SplitSection.astro";
+ import RecentMatch from "../../../../components/fixture/RecentMatch.astro";
+-import PlayerToWatch from "../../../../components/fixture/PlayerToWatch.astro";
++import PlayersToWatch from "../../../../components/fixture/PlayersToWatch.astro";
+ import HeadToHead from "../../../../components/fixture/HeadToHead.astro";
+ import NextMatches from "../../../../components/fixture/NextMatches.astro";
+ import MatchGoals from "../../../../components/fixture/MatchGoals.astro";
+ import MatchLeaders from "../../../../components/fixture/MatchLeaders.astro";
+ import MatchStats from "../../../../components/fixture/MatchStats.astro";
+ import MatchLineups from "../../../../components/fixture/MatchLineups.astro";
+-import { t, inCompetition, playedStatusWord } from "../../../../i18n/strings";
++import { t, playedStatusWord } from "../../../../i18n/strings";
+ import { localeHref, word } from "../../../../lib/href";
+ import { formatDayYear, formatShortDate, scoreLine } from "../../../../lib/format";
+ import type { Lang } from "../../../../lib/format";
+@@ -122,11 +122,6 @@ const crumbs = [
+ const teamHref = (slug?: string | null) =>
+   slug && built.teamSlugs.includes(slug) ? localeHref(lang, `${word(lang, "teams")}/${slug}/`) : undefined;
+ 
+-const playersPrev = [home, away].some((s) => (s.top_players ?? []).some((p) => p.window_type === "prev_season"));
+-const playersIntro = t(lang, playersPrev ? "playersIntroPrev" : "playersIntro", {
+-  in: inCompetition(lang, fixture.league_code, compName),
+-});
+-
+ // schema.org/SportsEvent per 01_fixture_page.md section 8; every value a served payload field, an
+ // optional member omitted rather than emitted empty.
+ const entity = {
+@@ -177,14 +172,7 @@ const entity = {
+           </Fragment>
+         </SplitSection>
+ 
+-        <SplitSection label={t(lang, "secPlayers")} intro={playersIntro} homeLabel={home.name} awayLabel={away.name}>
+-          <Fragment slot="home">
+-            {(home.top_players ?? []).slice(0, 5).map((p) => <PlayerToWatch player={p} lang={lang} />)}
+-          </Fragment>
+-          <Fragment slot="away">
+-            {(away.top_players ?? []).slice(0, 5).map((p) => <PlayerToWatch player={p} lang={lang} />)}
+-          </Fragment>
+-        </SplitSection>
++        <PlayersToWatch home={home} away={away} leagueCode={fixture.league_code} compName={compName} lang={lang} />
+       </>
+     )}
+ 
+diff --git a/site_v2/src/specs/competition/matches/fixture.spec.json b/site_v2/src/specs/competition/matches/fixture.spec.json
+index dedd531b..e7e559d7 100644
+--- a/site_v2/src/specs/competition/matches/fixture.spec.json
++++ b/site_v2/src/specs/competition/matches/fixture.spec.json
+@@ -72,17 +72,15 @@
+         "secPlayers",
+         "playersIntro",
+         "playersIntroPrev",
++        "playersIntroMixed",
+         "compIn",
+         "compInMasculine",
+         "posF",
+         "posM",
+         "posD",
+-        "posG",
+-        "goals",
+-        "goalsOne",
+-        "assists",
+-        "assistsOne",
+-        "saves"
++        "goalsAndAssists",
++        "ballActions",
++        "per90"
+       ]
+     },
+     {
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index ce64f991..3b630616 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -969,7 +969,9 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+ /* A team sheet runs longer than any list: more rows than a sheet holds, the empty ones collapse. */
+ .mp .rsplit.sheets .rcol { grid-row: span 30; }
+ .mp .sechead + .rsplit .rcol:first-child .colhead,
+-.mp .bsub + .rsplit .rcol:first-child .colhead { margin-top: 0; }
++.mp .bsub + .rsplit .rcol:first-child .colhead,
++.mp .board > .bt + .rsplit .rcol:first-child .colhead { margin-top: 0; }
++.mp .board > .bt + .rsplit { margin-top: 8px; }
+ /* A team sheet's second head opens the substitutes 12px under the starters, at every width. */
+ .mp .rsplit.sheets .rcol .lrow + .colhead { margin-top: 12px; }
+ 
+diff --git a/tests/fixtures/chart_screenshots/manifest.json b/tests/fixtures/chart_screenshots/manifest.json
+index 49a4e5fd..8af7d563 100644
+--- a/tests/fixtures/chart_screenshots/manifest.json
++++ b/tests/fixtures/chart_screenshots/manifest.json
+@@ -8,11 +8,11 @@
+   "comparison-fi-dark-1010.png": "025401823def0b2ed507ea6d874b95074614ef2e6709f086a0f0fa436b42cdd0",
+   "comparison-fi-dark-375.png": "3ae62c58a3a99853b06b3ae019b56cfd2863f432b3b0cbf2d746481d379efaeb",
+   "scatter-en-dark-1010.png": "7daeff661bf70b64bb33e5f81f1cdeb71ed598b89cdcccc53064e059728097b7",
+-  "scatter-en-dark-375.png": "9100b7c9e76dc9905326c0d002aa5f4dfcb401799be91759d8cc291d3d11d2eb",
++  "scatter-en-dark-375.png": "f59270e134730fcde0e3fe2c30032457f4d61ba353ff9c3f3b0b1a7fcd79f067",
+   "scatter-en-light-1010.png": "95f11cfad86302d89755d2ddcce2028124b68091be2b44ec187f986fa2393b6e",
+-  "scatter-en-light-375.png": "da05f7f1a1e01f478e8d6886bcb0bf05d0dd98178602dd1c040dc279469ce2a6",
++  "scatter-en-light-375.png": "1cec4da1a05c2d5975551b7ac4817ed50d0a9a9f96074be6c469a6b149308add",
+   "scatter-fi-dark-1010.png": "0d1253f03efb50b51e44d71e3196f4daddda946f184d27b3d5cf0708dddfe93d",
+-  "scatter-fi-dark-375.png": "eb59d6f635382ff8a339c3f69c7340bd66f3918eac180151c0909aa12d4d19eb",
++  "scatter-fi-dark-375.png": "e73450e91c5e2f8a6c8558dfdff37659379ff061259c9aaec978407c0d6bbdfe",
+   "strip-en-dark-1010.png": "47e847a9852ecf1108b126c0f73615586b9b7b9622fc95a8dd5f320449f952a9",
+   "strip-en-dark-375.png": "8396a28ab7ac1d0b05619b00081eeecc2cec341842c047a75d6f76fd4f5a333f",
+   "strip-en-light-1010.png": "239e667ce548f610a82a8dfdd80cf7f689fc7f7bbc5144f0ad8912c7e05dfe85",
+diff --git a/tests/fixtures/chart_screenshots/scatter-en-dark-375.png b/tests/fixtures/chart_screenshots/scatter-en-dark-375.png
+index 6745a1d2..12b9cf9a 100644
+Binary files a/tests/fixtures/chart_screenshots/scatter-en-dark-375.png and b/tests/fixtures/chart_screenshots/scatter-en-dark-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/scatter-en-light-375.png b/tests/fixtures/chart_screenshots/scatter-en-light-375.png
+index c78dcda3..d1b4ca16 100644
+Binary files a/tests/fixtures/chart_screenshots/scatter-en-light-375.png and b/tests/fixtures/chart_screenshots/scatter-en-light-375.png differ
+diff --git a/tests/fixtures/chart_screenshots/scatter-fi-dark-375.png b/tests/fixtures/chart_screenshots/scatter-fi-dark-375.png
+index 36d56ce7..22f986ad 100644
+Binary files a/tests/fixtures/chart_screenshots/scatter-fi-dark-375.png and b/tests/fixtures/chart_screenshots/scatter-fi-dark-375.png differ
+diff --git a/tests/fixtures/design_inventory/baseline.json b/tests/fixtures/design_inventory/baseline.json
+index f98ba576..b8913617 100644
+--- a/tests/fixtures/design_inventory/baseline.json
++++ b/tests/fixtures/design_inventory/baseline.json
+@@ -15,7 +15,7 @@
+  "rendered": {
+   "platform": "linux",
+   "pages": {
+-   "Match page": {"scroll": 1913, "classes": 1},
++   "Match page": {"scroll": 1734, "classes": 1},
+    "Played match page": {"scroll": 2, "classes": 1},
+    "competition-hub cup": {"classes": 9},
+    "competition-hub groups": {"classes": 9},
+diff --git a/tests/fixtures/design_inventory/baseline_quick.json b/tests/fixtures/design_inventory/baseline_quick.json
+index 3ef8ddeb..7db79830 100644
+--- a/tests/fixtures/design_inventory/baseline_quick.json
++++ b/tests/fixtures/design_inventory/baseline_quick.json
+@@ -143,7 +143,7 @@
+   "platform": "linux",
+   "pages": {
+    "Match page": {
+-    "scroll": 1017,
++    "scroll": 943,
+     "classes": 1
+    },
+    "Played match page": {
+diff --git a/tests/fixtures/design_inventory/baseline_quick_fi.json b/tests/fixtures/design_inventory/baseline_quick_fi.json
+index aeffe14a..a6d64b58 100644
+--- a/tests/fixtures/design_inventory/baseline_quick_fi.json
++++ b/tests/fixtures/design_inventory/baseline_quick_fi.json
+@@ -93,7 +93,7 @@
+   "platform": "linux",
+   "pages": {
+    "Match page": {
+-    "scroll": 120,
++    "scroll": 89,
+     "classes": 1
+    },
+    "competition-hub cup": {
+diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
+index b40d687f..d0ea86b3 100644
+--- a/tests/test_export_site_data.py
++++ b/tests/test_export_site_data.py
+@@ -28,7 +28,7 @@ from scripts.export_site_data import (
+     shape_player_payload,
+     shape_player_peers,
+     shape_team_payload,
+-    shape_top_players,
++    shape_players_to_watch,
+     player_slug_with_id,
+ )
+ from scripts import export_site_data
+@@ -241,20 +241,41 @@ def test_fetch_nav_takes_each_leagues_tier_from_the_competition_mart(monkeypatch
+     assert order.index("BL2") < order.index("BL1"), "the mart's tier orders the hub, not the YAML"
+ 
+ 
+-def test_shape_top_players_selects_by_rank_and_joins_names():
+-    # Selection only: ordered by the warehouse's top_player_rank, with join keys and the rank dropped.
+-    rows = [
+-        {"player_sk": 1, "upcoming_fixture_sk": 9, "team_sk": 5, "top_player_rank": 2},
+-        {"player_sk": 2, "upcoming_fixture_sk": 9, "team_sk": 5, "top_player_rank": 1},
+-        {"player_sk": 3, "upcoming_fixture_sk": 9, "team_sk": 5, "top_player_rank": None},
+-    ]
+-    names = {1: {"player_name": "A", "player_photo_url": "a"},
+-             2: {"player_name": "B", "player_photo_url": "b"},
+-             3: {"player_name": "C", "player_photo_url": "c"}}
+-    top = shape_top_players(rows, names, limit=5)
+-    assert [p["player_name"] for p in top] == ["B", "A"]   # by rank asc; null-rank C excluded
+-    assert "upcoming_fixture_sk" not in top[0]              # join keys dropped
+-    assert "top_player_rank" not in top[0]                 # selection key dropped
++_WATCH_BOARDS = {
++    "scorer_points_player": {"label_i18n_key": "playerMetrics.scorerPoints.label", "format": "integer"},
++    "ball_actions_per90": {"label_i18n_key": "playerMetrics.ballActionsPer90.label", "format": "decimal_1"},
++}
++
++
++def _watch_row(sk, sp_rank, ba_rank, **kw):
++    return {"player_sk": sk, "upcoming_fixture_sk": 9, "team_sk": 5, "player_name": f"P{sk}",
++            "player_photo_url": f"u{sk}", "position_code": "M", "window_type": "season_to_date",
++            "scorer_points_player": 10 - sk, "ball_actions_per90": 60.0 + sk,
++            "scorer_points_rank": sp_rank, "ball_actions_per90_rank": ba_rank, **kw}
++
++
++def test_shape_players_to_watch_selects_each_board_by_its_rank():
++    # Selection only: each board takes the mart's rank, top three, in rank order; the export never ranks.
++    rows = [_watch_row(1, 2, None), _watch_row(2, 1, 3), _watch_row(3, None, 1),
++            _watch_row(4, 3, 2), _watch_row(5, 4, 4)]
++    watch = shape_players_to_watch(rows, _WATCH_BOARDS)
++    assert watch["window_type"] == "season_to_date"
++    goals, actions = watch["boards"]
++    assert goals["metric_key"] == "scorer_points_player" and goals["format"] == "integer"
++    assert goals["label_i18n_key"] == "playerMetrics.scorerPoints.label"
++    assert [r["player_sk"] for r in goals["rows"]] == [2, 1, 4]
++    assert [r["player_sk"] for r in actions["rows"]] == [3, 4, 2]
++    assert actions["rows"][0] == {"player_sk": 3, "player_name": "P3", "player_photo_url": "u3",
++                                  "position_code": "M", "value": 63.0}
++    assert goals["rows"][0]["value"] == 8
++
++
++def test_shape_players_to_watch_keeps_an_empty_board_and_is_none_without_any():
++    (one,) = [_watch_row(1, 1, None)]
++    watch = shape_players_to_watch([one], _WATCH_BOARDS)
++    assert [len(b["rows"]) for b in watch["boards"]] == [1, 0]
++    assert shape_players_to_watch([], _WATCH_BOARDS) is None
++    assert shape_players_to_watch([_watch_row(1, None, None)], _WATCH_BOARDS) is None
+ 
+ 
+ def test_shape_competition_payload_orders_every_block_by_served_columns():
+@@ -550,7 +571,7 @@ def test_fixture_side_carries_identity_and_handles_missing():
+                          {"goals_per_match": 1.4}, None)
+     assert side["team_id"] == 1 and side["name"] == "A" and side["slug"] == "a" and side["crest"] == "u"
+     assert side["form"] == {"goals_per_match": 1.4}
+-    assert side["standing"] is None and side["top_players"] == []  # honest absence
++    assert side["standing"] is None and side["players_to_watch"] is None  # honest absence
+ 
+ 
+ def test_form_block_is_the_block_the_warehouse_flags():
+@@ -650,7 +671,7 @@ def test_fixture_payloads_read_the_match_and_each_teams_next_match_from_the_mart
+ 
+ 
+ def test_fixture_payloads_carry_the_served_window_round_slugs_and_season_players(monkeypatch):
+-    """Form is the flagged block, and Players to watch are mart_player_season_record's top five by rank."""
++    """Form is the flagged block, and Players to watch are mart_player_season_record's two boards by rank."""
+     page = _match_row(20, 1, 2, "2026-10-31T17:30:00Z")
+     keys = {"upcoming_fixture_sk": 20, "is_home": True}
+ 
+@@ -664,9 +685,11 @@ def test_fixture_payloads_carry_the_served_window_round_slugs_and_season_players
+         if "mart_team_season_record" in sql:
+             return [{**keys, "team_sk": 2, "window_type": "prev_season", "goals_per_match": 2.0, "is_form_window": True}]
+         if "mart_player_season_record" in sql:
++            assert "scorer_points_rank <= 3 or ball_actions_per90_rank <= 3" in sql
+             return [{**keys, "team_sk": 1, "player_sk": 7, "player_name": "P7", "player_photo_url": "u7",
+-                     "top_player_rank": 1, "goals_total": 3, "goals_assists": 1,
+-                     "window_type": "season_to_date", "league_code": "BL1"}]
++                     "position_code": "F", "scorer_points_player": 4, "ball_actions_per90": None,
++                     "scorer_points_rank": 1, "ball_actions_per90_rank": None,
++                     "window_type": "season_to_date"}]
+         return []
+ 
+     monkeypatch.setattr(export_site_data, "_query", fake_query)
+@@ -676,9 +699,14 @@ def test_fixture_payloads_carry_the_served_window_round_slugs_and_season_players
+     assert p["home"]["slug"] == "t1" and p["away"]["slug"] == "t2"
+     assert p["home"]["form"] == {"window_type": "last_5", "goals_per_match": 1.4}
+     assert p["away"]["form"] == {"window_type": "prev_season", "goals_per_match": 2.0}, "the flagged season record"
+-    assert p["home"]["top_players"] == [{"player_sk": 7, "goals_total": 3, "goals_assists": 1,
+-                                          "window_type": "season_to_date", "player_name": "P7",
+-                                          "player_photo_url": "u7"}]
++    watch = p["home"]["players_to_watch"]
++    assert watch["window_type"] == "season_to_date"
++    assert [b["metric_key"] for b in watch["boards"]] == ["scorer_points_player", "ball_actions_per90"]
++    assert [b["format"] for b in watch["boards"]] == ["integer", "decimal_1"], "the catalogue's formats"
++    assert watch["boards"][0]["rows"] == [{"player_sk": 7, "player_name": "P7", "player_photo_url": "u7",
++                                           "position_code": "F", "value": 4}]
++    assert watch["boards"][1]["rows"] == []
++    assert p["away"]["players_to_watch"] is None
+ 
+ 
+ def test_player_slug_folds_accents_and_appends_id():
+diff --git a/tests/test_phone_built_pages_231.py b/tests/test_phone_built_pages_231.py
+index e7217a6e..18d6d1cf 100644
+--- a/tests/test_phone_built_pages_231.py
++++ b/tests/test_phone_built_pages_231.py
+@@ -34,8 +34,8 @@ def _pages() -> list[str]:
+     ):
+         pages += [
+             _first(f"{lang}/{teams}/1-fc-koln/index.html"),
+-            _first(f"{lang}/{players}/a-daghim-362564/index.html"),
+-            _first(f"{lang}/bundesliga/{matches}/2026-10-18-*/index.html"),
++            _first(f"{lang}/{players}/n-fullkrug-25391/index.html"),
++            _first(f"{lang}/bundesliga/{matches}/2026-11-2*/index.html"),
+             _first(f"{lang}/bundesliga/index.html"),
+         ]
+     return sorted(set(pages))
+diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
+index 9647d8fb..6cc618b0 100644
+--- a/tests/test_sentence_length_in_docs.py
++++ b/tests/test_sentence_length_in_docs.py
+@@ -69,7 +69,7 @@ PINNED = {
+     "docs/wireframes/99_gaps_register.md": 65,
+     "docs/wireframes/block_standard.md": 9,
+     "docs/wireframes/metrics_display.md": 25,
+-    "site_v2/src/data/README.md": 10,
++    "site_v2/src/data/README.md": 9,
+ }
+ 
+ 
+
+# ============================================================================
+# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
+# ============================================================================
+# The files below changed and are DELIBERATELY excluded from the diff body:
+# they are generated/sample data, and pasting them has measured at ~89% of the
+# review payload. They are still reviewed content and still bind your verdict.
+#
+# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
+# particular: whether a field displayed by a component actually EXISTS in the
+# exported sample is checked by opening these files, not by reading a diff.
+#
+#   site_v2/src/data/README.md                         |    18 +-
+#    site_v2/src/data/competitions/BL1/2026.json        |  3276 +-
+#    site_v2/src/data/fixtures/1490555.json             |   722 -
+#    site_v2/src/data/fixtures/1492412.json             |   764 -
+#    site_v2/src/data/fixtures/1492414.json             |   746 -
+#    site_v2/src/data/fixtures/1492415.json             |   764 -
+#    site_v2/src/data/fixtures/1492416.json             |   763 -
+#    site_v2/src/data/fixtures/1492418.json             |   709 -
+#    site_v2/src/data/fixtures/1492457.json             |   565 +
+#    site_v2/src/data/fixtures/1492458.json             |   546 +
+#    site_v2/src/data/fixtures/1492459.json             |   528 +
+#    site_v2/src/data/fixtures/1493184.json             |   736 -
+#    site_v2/src/data/fixtures/1493187.json             |   718 -
+#    site_v2/src/data/fixtures/1493188.json             |   737 -
+#    site_v2/src/data/fixtures/1493189.json             |   538 -
+#    site_v2/src/data/fixtures/1493192.json             |   583 -
+#    site_v2/src/data/fixtures/1493194.json             |   763 -
+#    site_v2/src/data/fixtures/1493195.json             |   763 -
+#    site_v2/src/data/fixtures/1507082.json             |   502 -
+#    site_v2/src/data/fixtures/1507084.json             |   503 -
+#    site_v2/src/data/fixtures/1507085.json             |   503 -
+#    site_v2/src/data/fixtures/1507086.json             |   571 -
+#    site_v2/src/data/fixtures/1507087.json             |   561 -
+#    site_v2/src/data/fixtures/1528958.json             |   673 -
+#    site_v2/src/data/fixtures/1528960.json             |   673 -
+#    site_v2/src/data/fixtures/1528961.json             |   673 -
+#    site_v2/src/data/fixtures/1528962.json             |   682 -
+#    site_v2/src/data/fixtures/1528965.json             |   673 -
+#    site_v2/src/data/fixtures/1528966.json             |   673 -
+#    site_v2/src/data/fixtures/1528972.json             |   673 -
+#    site_v2/src/data/fixtures/1528974.json             |   673 -
+#    site_v2/src/data/fixtures/1545958.json             |     5 +-
+#    site_v2/src/data/fixtures/1545959.json             |     5 +-
+#    site_v2/src/data/fixtures/1545960.json             |     5 +-
+#    site_v2/src/data/fixtures/1545961.json             |     5 +-
+#    site_v2/src/data/fixtures/1545962.json             |     5 +-
+#    site_v2/src/data/fixtures/1545963.json             |     5 +-
+#    site_v2/src/data/fixtures/1545964.json             |     5 +-
+#    site_v2/src/data/fixtures/1545965.json             |     5 +-
+#    site_v2/src/data/fixtures/1545966.json             |     5 +-
+#    site_v2/src/data/fixtures/1545967.json             |    32 +-
+#    site_v2/src/data/fixtures/1545968.json             |     5 +-
+#    site_v2/src/data/fixtures/1549407.json             |     5 +-
+#    site_v2/src/data/fixtures/1550147.json             |   792 -
+#    site_v2/src/data/fixtures/1550150.json             |   747 -
+#    site_v2/src/data/fixtures/1550152.json             |   791 -
+#    site_v2/src/data/fixtures/1550153.json             |   738 -
+#    site_v2/src/data/fixtures/1550154.json             |   792 -
+#    site_v2/src/data/fixtures/1550155.json             |   845 -
+#    site_v2/src/data/fixtures/1550197.json             |   520 +
+#    site_v2/src/data/fixtures/1550198.json             |   575 +
+#    site_v2/src/data/fixtures/1550199.json             |   573 +
+#    site_v2/src/data/fixtures/1550200.json             |   520 +
+#    site_v2/src/data/fixtures/1550201.json             |   520 +
+#    site_v2/src/data/fixtures/1550202.json             |   573 +
+#    site_v2/src/data/fixtures/1550203.json             |   537 +
+#    site_v2/src/data/fixtures/1550204.json             |   574 +
+#    site_v2/src/data/fixtures/1550205.json             |   574 +
+#    site_v2/src/data/fixtures/1550206.json             |   573 +
+#    site_v2/src/data/fixtures/1551001.json             |   790 -
+#    site_v2/src/data/fixtures/1551038.json             |   453 +
+#    site_v2/src/data/fixtures/1551039.json             |   555 +
+#    site_v2/src/data/fixtures/1551040.json             |   555 +
+#    site_v2/src/data/fixtures/1551041.json             |   573 +
+#    site_v2/src/data/fixtures/1551042.json             |   564 +
+#    site_v2/src/data/fixtures/1551043.json             |   573 +
+#    site_v2/src/data/fixtures/1551044.json             |   573 +
+#    site_v2/src/data/fixtures/1551045.json             |   573 +
+#    site_v2/src/data/fixtures/1551046.json             |   564 +
+#    site_v2/src/data/fixtures/1552191.json             |   773 -
+#    site_v2/src/data/fixtures/1552194.json             |   808 -
+#    site_v2/src/data/fixtures/1552195.json             |   773 -
+#    site_v2/src/data/fixtures/1552196.json             |   773 -
+#    site_v2/src/data/fixtures/1552197.json             |   764 -
+#    site_v2/src/data/fixtures/1552225.json             |   461 +
+#    site_v2/src/data/fixtures/1552226.json             |   538 +
+#    site_v2/src/data/fixtures/1552227.json             |   555 +
+#    site_v2/src/data/fixtures/1552228.json             |   537 +
+#    site_v2/src/data/fixtures/1552229.json             |   557 +
+#    site_v2/src/data/fixtures/1552230.json             |   556 +
+#    site_v2/src/data/fixtures/1552231.json             |   501 +
+#    site_v2/src/data/fixtures/1552232.json             |   502 +
+#    site_v2/src/data/fixtures/1552233.json             |   501 +
+#    site_v2/src/data/fixtures/1552783.json             |   791 -
+#    site_v2/src/data/fixtures/1552784.json             |   736 -
+#    site_v2/src/data/fixtures/1552787.json             |   791 -
+#    site_v2/src/data/fixtures/1552788.json             |   791 -
+#    site_v2/src/data/fixtures/1552789.json             |   719 -
+#    site_v2/src/data/fixtures/1552819.json             |   565 +
+#    site_v2/src/data/fixtures/1552820.json             |   575 +
+#    site_v2/src/data/fixtures/1552821.json             |   574 +
+#    site_v2/src/data/fixtures/1552822.json             |   461 +
+#    site_v2/src/data/fixtures/1552823.json             |   547 +
+#    site_v2/src/data/fixtures/1552824.json             |   574 +
+#    site_v2/src/data/fixtures/1552825.json             |   501 +
+#    site_v2/src/data/fixtures/1552826.json             |   573 +
+#    site_v2/src/data/fixtures/1552827.json             |   460 +
+#    site_v2/src/data/fixtures/1553193.json             |   826 -
+#    site_v2/src/data/fixtures/1553194.json             |   773 -
+#    site_v2/src/data/fixtures/1553198.json             |   736 -
+#    site_v2/src/data/fixtures/1553199.json             |   773 -
+#    site_v2/src/data/fixtures/1553227.json             |   556 +
+#    site_v2/src/data/fixtures/1553228.json             |   520 +
+#    site_v2/src/data/fixtures/1553229.json             |   555 +
+#    site_v2/src/data/fixtures/1553230.json             |   537 +
+#    site_v2/src/data/fixtures/1553231.json             |   460 +
+#    site_v2/src/data/fixtures/1553232.json             |   555 +
+#    site_v2/src/data/fixtures/1553233.json             |   460 +
+#    site_v2/src/data/fixtures/1553234.json             |   519 +
+#    site_v2/src/data/fixtures/1553235.json             |   555 +
+#    site_v2/src/data/fixtures/1556095.json             |   790 -
+#    site_v2/src/data/fixtures/1556097.json             |   790 -
+#    site_v2/src/data/fixtures/1556141.json             |   573 +
+#    site_v2/src/data/fixtures/1556142.json             |   519 +
+#    site_v2/src/data/fixtures/1556143.json             |   519 +
+#    site_v2/src/data/fixtures/1556144.json             |   501 +
+#    site_v2/src/data/fixtures/1556145.json             |   555 +
+#    site_v2/src/data/fixtures/1556146.json             |   555 +
+#    site_v2/src/data/fixtures/1556147.json             |   460 +
+#    site_v2/src/data/fixtures/1556148.json             |   555 +
+#    site_v2/src/data/fixtures/1556149.json             |   512 +
+#    site_v2/src/data/fixtures/1556150.json             |   460 +
+#    site_v2/src/data/fixtures/1557427.json             |   738 -
+#    site_v2/src/data/fixtures/1557429.json             |   792 -
+#    site_v2/src/data/fixtures/1557432.json             |   773 -
+#    site_v2/src/data/fixtures/1557435.json             |   782 -
+#    site_v2/src/data/fixtures/1557436.json             |   677 -
+#    site_v2/src/data/fixtures/1557467.json             |   503 +
+#    site_v2/src/data/fixtures/1557468.json             |   556 +
+#    site_v2/src/data/fixtures/1557469.json             |   573 +
+#    site_v2/src/data/fixtures/1557470.json             |   573 +
+#    site_v2/src/data/fixtures/1557471.json             |   461 +
+#    site_v2/src/data/fixtures/1557472.json             |   461 +
+#    site_v2/src/data/fixtures/1557473.json             |   575 +
+#    site_v2/src/data/fixtures/1557474.json             |   574 +
+#    site_v2/src/data/fixtures/1557475.json             |   574 +
+#    site_v2/src/data/fixtures/1557476.json             |   501 +
+#    site_v2/src/data/fixtures/1558653.json             |   790 -
+#    site_v2/src/data/fixtures/1558654.json             |   846 -
+#    site_v2/src/data/fixtures/1558655.json             |   790 -
+#    site_v2/src/data/fixtures/1558656.json             |   846 -
+#    site_v2/src/data/fixtures/1558657.json             |   754 -
+#    site_v2/src/data/fixtures/1558658.json             |   677 -
+#    site_v2/src/data/fixtures/1558659.json             |   736 -
+#    site_v2/src/data/fixtures/1558660.json             |   818 -
+#    site_v2/src/data/fixtures/1558661.json             |   677 -
+#    site_v2/src/data/fixtures/1558680.json             |   556 +
+#    site_v2/src/data/fixtures/1558681.json             |   461 +
+#    site_v2/src/data/fixtures/1558682.json             |   573 +
+#    site_v2/src/data/fixtures/1558683.json             |   556 +
+#    site_v2/src/data/fixtures/1558684.json             |   501 +
+#    site_v2/src/data/fixtures/1558685.json             |   538 +
+#    site_v2/src/data/fixtures/1558686.json             |   574 +
+#    site_v2/src/data/fixtures/1558687.json             |   460 +
+#    site_v2/src/data/fixtures/1558688.json             |   519 +
+#    site_v2/src/data/fixtures/1570414.json             |   791 -
+#    site_v2/src/data/fixtures/1570417.json             |   791 -
+#    site_v2/src/data/fixtures/1570418.json             |   746 -
+#    site_v2/src/data/fixtures/1570419.json             |   731 -
+#    site_v2/src/data/fixtures/1570420.json             |   791 -
+#    site_v2/src/data/fixtures/1570453.json             |   521 +
+#    site_v2/src/data/fixtures/1570454.json             |   575 +
+#    site_v2/src/data/fixtures/1570455.json             |   569 +
+#    site_v2/src/data/fixtures/1570456.json             |   576 +
+#    site_v2/src/data/fixtures/1570457.json             |   539 +
+#    site_v2/src/data/fixtures/1570458.json             |   503 +
+#    site_v2/src/data/fixtures/1570459.json             |   462 +
+#    site_v2/src/data/fixtures/1570460.json             |   575 +
+#    site_v2/src/data/fixtures/1570461.json             |   576 +
+#    site_v2/src/data/fixtures/1570462.json             |   576 +
+#    site_v2/src/data/fixtures/1575186.json             |   792 -
+#    site_v2/src/data/fixtures/1575189.json             |   791 -
+#    site_v2/src/data/fixtures/1575194.json             |   818 -
+#    site_v2/src/data/fixtures/1575195.json             |   705 -
+#    site_v2/src/data/fixtures/1575196.json             |   845 -
+#    site_v2/src/data/fixtures/1575197.json             |   846 -
+#    site_v2/src/data/fixtures/1575198.json             |   846 -
+#    site_v2/src/data/fixtures/1575199.json             |   790 -
+#    site_v2/src/data/fixtures/1575200.json             |   790 -
+#    site_v2/src/data/fixtures/1575201.json             |   790 -
+#    site_v2/src/data/fixtures/1575202.json             |   772 -
+#    site_v2/src/data/fixtures/1575203.json             |   846 -
+#    site_v2/src/data/fixtures/1575204.json             |   846 -
+#    site_v2/src/data/fixtures/1575205.json             |   808 -
+#    site_v2/src/data/fixtures/1575206.json             |   845 -
+#    site_v2/src/data/fixtures/1575207.json             |   844 -
+#    site_v2/src/data/fixtures/1575208.json             |   772 -
+#    site_v2/src/data/fixtures/1575209.json             |   845 -
+#    site_v2/src/data/fixtures/1575210.json             |   845 -
+#    site_v2/src/data/fixtures/1575211.json             |   772 -
+#    site_v2/src/data/fixtures/1575212.json             |   732 -
+#    site_v2/src/data/fixtures/1575213.json             |   845 -
+#    site_v2/src/data/fixtures/1575214.json             |   845 -
+#    site_v2/src/data/fixtures/1575215.json             |   845 -
+#    site_v2/src/data/fixtures/1575216.json             |   845 -
+#    site_v2/src/data/fixtures/1575217.json             |   845 -
+#    site_v2/src/data/fixtures/1575218.json             |   808 -
+#    site_v2/src/data/fixtures/1575219.json             |   845 -
+#    site_v2/src/data/fixtures/1575220.json             |   772 -
+#    site_v2/src/data/fixtures/1575221.json             |   867 +-
+#    site_v2/src/data/fixtures/1575222.json             |   881 +-
+#    site_v2/src/data/fixtures/1575223.json             |   885 +-
+#    site_v2/src/data/fixtures/1575224.json             |   865 +-
+#    site_v2/src/data/fixtures/1575225.json             |   871 +-
+#    site_v2/src/data/fixtures/1575226.json             |   871 +-
+#    site_v2/src/data/fixtures/1575227.json             |   879 +-
+#    site_v2/src/data/fixtures/1575228.json             |   883 +-
+#    site_v2/src/data/fixtures/1575229.json             |   873 +-
+#    site_v2/src/data/fixtures/1575230.json             |   869 +-
+#    site_v2/src/data/fixtures/1575231.json             |   889 +-
+#    site_v2/src/data/fixtures/1575232.json             |   869 +-
+#    site_v2/src/data/fixtures/1575233.json             |   859 +-
+#    site_v2/src/data/fixtures/1575234.json             |   869 +-
+#    site_v2/src/data/fixtures/1575235.json             |   853 +-
+#    site_v2/src/data/fixtures/1575236.json             |   889 +-
+#    site_v2/src/data/fixtures/1575237.json             |   883 +-
+#    site_v2/src/data/fixtures/1575238.json             |   885 +-
+#    site_v2/src/data/fixtures/1575239.json             |   869 +-
+#    site_v2/src/data/fixtures/1575240.json             |   865 +-
+#    site_v2/src/data/fixtures/1575241.json             |   873 +-
+#    site_v2/src/data/fixtures/1575242.json             |   863 +-
+#    site_v2/src/data/fixtures/1575243.json             |   897 +-
+#    site_v2/src/data/fixtures/1575244.json             |   877 +-
+#    site_v2/src/data/fixtures/1575245.json             |   867 +-
+#    site_v2/src/data/fixtures/1575246.json             |   877 +-
+#    site_v2/src/data/fixtures/1575247.json             |   891 +-
+#    site_v2/src/data/fixtures/1575248.json             |   865 +-
+#    site_v2/src/data/fixtures/1575249.json             |   883 +-
+#    site_v2/src/data/fixtures/1575250.json             |   863 +-
+#    site_v2/src/data/fixtures/1575251.json             |   879 +-
+#    site_v2/src/data/fixtures/1575252.json             |   863 +-
+#    site_v2/src/data/fixtures/1575253.json             |   877 +-
+#    site_v2/src/data/fixtures/1575254.json             |   877 +-
+#    site_v2/src/data/fixtures/1575255.json             |   891 +-
+#    site_v2/src/data/fixtures/1575256.json             |   887 +-
+#    site_v2/src/data/fixtures/1575257.json             |   875 +-
+#    site_v2/src/data/fixtures/1575258.json             |   865 +-
+#    site_v2/src/data/fixtures/1575259.json             |   885 +-
+#    site_v2/src/data/fixtures/1575260.json             |   873 +-
+#    site_v2/src/data/fixtures/1575261.json             |   875 +-
+#    site_v2/src/data/fixtures/1575262.json             |   877 +-
+#    site_v2/src/data/fixtures/1575263.json             |   881 +-
+#    site_v2/src/data/fixtures/1575264.json             |   875 +-
+#    site_v2/src/data/fixtures/1575265.json             |   877 +-
+#    site_v2/src/data/fixtures/1575266.json             |   867 +-
+#    site_v2/src/data/fixtures/1575267.json             |   875 +-
+#    site_v2/src/data/fixtures/1575268.json             |   881 +-
+#    site_v2/src/data/fixtures/1575269.json             |   889 +-
+#    site_v2/src/data/fixtures/1575270.json             |   859 +-
+#    site_v2/src/data/fixtures/1575271.json             |   873 +-
+#    site_v2/src/data/fixtures/1575272.json             |   871 +-
+#    site_v2/src/data/fixtures/1575273.json             |   889 +-
+#    site_v2/src/data/fixtures/1575274.json             |   875 +-
+#    site_v2/src/data/fixtures/1575275.json             |   865 +-
+#    site_v2/src/data/fixtures/1575276.json             |   877 +-
+#    site_v2/src/data/fixtures/1575277.json             |   861 +-
+#    site_v2/src/data/fixtures/1575278.json             |   867 +-
+#    site_v2/src/data/fixtures/1575279.json             |   869 +-
+#    site_v2/src/data/fixtures/1575280.json             |   883 +-
+#    site_v2/src/data/fixtures/1575281.json             |   875 +-
+#    site_v2/src/data/fixtures/1575282.json             |   895 +-
+#    site_v2/src/data/fixtures/1575283.json             |   895 +-
+#    site_v2/src/data/fixtures/1575284.json             |   857 +-
+#    site_v2/src/data/fixtures/1575285.json             |   879 +-
+#    site_v2/src/data/fixtures/1575286.json             |   869 +-
+#    site_v2/src/data/fixtures/1575287.json             |   885 +-
+#    site_v2/src/data/fixtures/1575288.json             |   871 +-
+#    site_v2/src/data/fixtures/1575289.json             |   871 +-
+#    site_v2/src/data/fixtures/1575290.json             |   863 +-
+#    site_v2/src/data/fixtures/1575291.json             |   897 +-
+#    site_v2/src/data/fixtures/1575292.json             |   887 +-
+#    site_v2/src/data/fixtures/1575293.json             |   865 +-
+#    site_v2/src/data/fixtures/1575294.json             |   887 +-
+#    site_v2/src/data/fixtures/1575295.json             |   887 +-
+#    site_v2/src/data/fixtures/1575296.json             |   887 +-
+#    site_v2/src/data/fixtures/1575297.json             |   867 +-
+#    site_v2/src/data/fixtures/1575298.json             |   863 +-
+#    site_v2/src/data/fixtures/1575299.json             |   879 +-
+#    site_v2/src/data/fixtures/1575300.json             |   875 +-
+#    site_v2/src/data/fixtures/1575301.json             |   875 +-
+#    site_v2/src/data/fixtures/1575302.json             |   865 +-
+#    site_v2/src/data/fixtures/1575303.json             |   867 +-
+#    site_v2/src/data/fixtures/1575304.json             |   881 +-
+#    site_v2/src/data/fixtures/1575305.json             |   869 +-
+#    site_v2/src/data/fixtures/1575306.json             |   879 +-
+#    site_v2/src/data/fixtures/1575307.json             |   863 +-
+#    site_v2/src/data/fixtures/1575308.json             |   875 +-
+#    site_v2/src/data/fixtures/1575309.json             |   887 +-
+#    site_v2/src/data/fixtures/1575310.json             |   879 +-
+#    site_v2/src/data/fixtures/1575311.json             |   867 +-
+#    site_v2/src/data/fixtures/1575312.json             |   879 +-
+#    site_v2/src/data/fixtures/1575313.json             |   871 +-
+#    site_v2/src/data/fixtures/1575314.json             |   879 +-
+#    site_v2/src/data/fixtures/1575315.json             |   861 +-
+#    site_v2/src/data/fixtures/1575316.json             |   863 +-
+#    site_v2/src/data/fixtures/1575317.json             |   879 +-
+#    site_v2/src/data/fixtures/1575318.json             |   873 +-
+#    site_v2/src/data/fixtures/1575319.json             |   893 +-
+#    site_v2/src/data/fixtures/1575320.json             |   873 +-
+#    site_v2/src/data/fixtures/1575321.json             |   871 +-
+#    site_v2/src/data/fixtures/1575322.json             |   879 +-
+#    site_v2/src/data/fixtures/1575323.json             |   873 +-
+#    site_v2/src/data/fixtures/1575324.json             |   881 +-
+#    site_v2/src/data/fixtures/1575325.json             |   867 +-
+#    site_v2/src/data/fixtures/1575326.json             |   859 +-
+#    site_v2/src/data/fixtures/1575327.json             |   875 +-
+#    site_v2/src/data/fixtures/1575328.json             |   887 +-
+#    site_v2/src/data/fixtures/1575329.json             |   855 +-
+#    site_v2/src/data/fixtures/1575330.json             |   916 +-
+#    site_v2/src/data/fixtures/1575331.json             |   871 +-
+#    site_v2/src/data/fixtures/1575332.json             |   879 +-
+#    site_v2/src/data/fixtures/1575333.json             |   879 +-
+#    site_v2/src/data/fixtures/1575334.json             |   867 +-
+#    site_v2/src/data/fixtures/1575335.json             |   923 +-
+#    site_v2/src/data/fixtures/1575336.json             |   869 +-
+#    site_v2/src/data/fixtures/1575337.json             |   881 +-
+#    site_v2/src/data/fixtures/1575338.json             |   867 +-
+#    site_v2/src/data/fixtures/1575339.json             |   855 +-
+#    site_v2/src/data/fixtures/1575340.json             |   873 +-
+#    site_v2/src/data/fixtures/1575341.json             |   905 +-
+#    site_v2/src/data/fixtures/1575342.json             |   899 +-
+#    site_v2/src/data/fixtures/1575343.json             |   877 +-
+#    site_v2/src/data/fixtures/1575344.json             |   875 +-
+#    site_v2/src/data/fixtures/1575345.json             |   891 +-
+#    site_v2/src/data/fixtures/1575346.json             |   891 +-
+#    site_v2/src/data/fixtures/1575347.json             |   889 +-
+#    site_v2/src/data/fixtures/1575348.json             |   913 +-
+#    site_v2/src/data/fixtures/1575349.json             |   907 +-
+#    site_v2/src/data/fixtures/1575350.json             |   913 +-
+#    site_v2/src/data/fixtures/1575351.json             |   921 +-
+#    site_v2/src/data/fixtures/1575352.json             |   904 +-
+#    site_v2/src/data/fixtures/1575353.json             |   913 +-
+#    site_v2/src/data/fixtures/1575354.json             |   927 +-
+#    site_v2/src/data/fixtures/1575355.json             |   911 +-
+#    site_v2/src/data/fixtures/1575356.json             |   895 +-
+#    site_v2/src/data/fixtures/1575357.json             |   905 +-
+#    site_v2/src/data/fixtures/1575358.json             |   923 +-
+#    site_v2/src/data/fixtures/1575359.json             |   927 +-
+#    site_v2/src/data/fixtures/1575360.json             |   901 +-
+#    site_v2/src/data/fixtures/1575361.json             |   912 +-
+#    site_v2/src/data/fixtures/1575362.json             |   921 +-
+#    site_v2/src/data/fixtures/1575363.json             |   943 +-
+#    site_v2/src/data/fixtures/1575364.json             |   908 +-
+#    site_v2/src/data/fixtures/1575365.json             |   887 +-
+#    site_v2/src/data/fixtures/1575366.json             |   911 +-
+#    site_v2/src/data/fixtures/1575367.json             |   922 +-
+#    site_v2/src/data/fixtures/1575368.json             |   907 +-
+#    site_v2/src/data/fixtures/1575369.json             |   905 +-
+#    site_v2/src/data/fixtures/1575370.json             |   890 +-
+#    site_v2/src/data/fixtures/1575371.json             |   931 +-
+#    site_v2/src/data/fixtures/1575372.json             |   919 +-
+#    site_v2/src/data/fixtures/1575373.json             |   909 +-
+#    site_v2/src/data/fixtures/1575374.json             |   865 +-
+#    site_v2/src/data/fixtures/1575375.json             |   869 +-
+#    site_v2/src/data/fixtures/1575376.json             |   885 +-
+#    site_v2/src/data/fixtures/1575377.json             |   883 +-
+#    site_v2/src/data/fixtures/1575378.json             |   871 +-
+#    site_v2/src/data/fixtures/1575379.json             |   865 +-
+#    site_v2/src/data/fixtures/1575380.json             |   879 +-
+#    site_v2/src/data/fixtures/1575381.json             |   867 +-
+#    site_v2/src/data/fixtures/1575382.json             |   881 +-
+#    site_v2/src/data/fixtures/1575383.json             |   853 +-
+#    site_v2/src/data/fixtures/1575384.json             |   859 +-
+#    site_v2/src/data/fixtures/1575385.json             |   869 +-
+#    site_v2/src/data/fixtures/1575386.json             |   889 +-
+#    site_v2/src/data/fixtures/1575387.json             |   869 +-
+#    site_v2/src/data/fixtures/1575388.json             |   869 +-
+#    site_v2/src/data/fixtures/1575389.json             |   883 +-
+#    site_v2/src/data/fixtures/1575390.json             |   885 +-
+#    site_v2/src/data/fixtures/1575391.json             |   889 +-
+#    site_v2/src/data/fixtures/1575392.json             |   873 +-
+#    site_v2/src/data/fixtures/1575393.json             |   887 +-
+#    site_v2/src/data/fixtures/1575394.json             |   863 +-
+#    site_v2/src/data/fixtures/1575395.json             |   865 +-
+#    site_v2/src/data/fixtures/1575396.json             |   873 +-
+#    site_v2/src/data/fixtures/1575397.json             |   867 +-
+#    site_v2/src/data/fixtures/1575398.json             |   877 +-
+#    site_v2/src/data/fixtures/1575399.json             |   895 +-
+#    site_v2/src/data/fixtures/1575400.json             |   865 +-
+#    site_v2/src/data/fixtures/1575401.json             |   859 +-
+#    site_v2/src/data/fixtures/1575402.json             |   877 +-
+#    site_v2/src/data/fixtures/1575403.json             |   887 +-
+#    site_v2/src/data/fixtures/1575404.json             |   859 +-
+#    site_v2/src/data/fixtures/1575405.json             |   881 +-
+#    site_v2/src/data/fixtures/1575406.json             |   863 +-
+#    site_v2/src/data/fixtures/1575407.json             |   879 +-
+#    site_v2/src/data/fixtures/1575408.json             |   873 +-
+#    site_v2/src/data/fixtures/1575409.json             |   887 +-
+#    site_v2/src/data/fixtures/1575410.json             |   863 +-
+#    site_v2/src/data/fixtures/1575411.json             |   869 +-
+#    site_v2/src/data/fixtures/1575412.json             |   873 +-
+#    site_v2/src/data/fixtures/1575413.json             |   885 +-
+#    site_v2/src/data/fixtures/1575414.json             |   877 +-
+#    site_v2/src/data/fixtures/1575415.json             |   875 +-
+#    site_v2/src/data/fixtures/1575416.json             |   877 +-
+#    site_v2/src/data/fixtures/1575417.json             |   871 +-
+#    site_v2/src/data/fixtures/1575418.json             |   875 +-
+#    site_v2/src/data/fixtures/1575419.json             |   857 +-
+#    site_v2/src/data/fixtures/1575420.json             |   875 +-
+#    site_v2/src/data/fixtures/1575421.json             |   869 +-
+#    site_v2/src/data/fixtures/1575422.json             |   871 +-
+#    site_v2/src/data/fixtures/1575423.json             |   875 +-
+#    site_v2/src/data/fixtures/1575424.json             |   863 +-
+#    site_v2/src/data/fixtures/1575425.json             |   885 +-
+#    site_v2/src/data/fixtures/1575426.json             |   889 +-
+#    site_v2/src/data/fixtures/1575427.json             |   881 +-
+#    site_v2/src/data/fixtures/1575428.json             |   867 +-
+#    site_v2/src/data/fixtures/1575429.json             |   857 +-
+#    site_v2/src/data/fixtures/1575430.json             |   891 +-
+#    site_v2/src/data/fixtures/1575431.json             |   879 +-
+#    site_v2/src/data/fixtures/1575432.json             |   875 +-
+#    site_v2/src/data/fixtures/1575433.json             |   875 +-
+#    site_v2/src/data/fixtures/1575434.json             |   869 +-
+#    site_v2/src/data/fixtures/1575435.json             |   861 +-
+#    site_v2/src/data/fixtures/1575436.json             |   891 +-
+#    site_v2/src/data/fixtures/1575437.json             |   869 +-
+#    site_v2/src/data/fixtures/1575438.json             |   869 +-
+#    site_v2/src/data/fixtures/1575439.json             |   857 +-
+#    site_v2/src/data/fixtures/1575440.json             |   863 +-
+#    site_v2/src/data/fixtures/1575441.json             |   875 +-
+#    site_v2/src/data/fixtures/1575442.json             |   871 +-
+#    site_v2/src/data/fixtures/1575443.json             |   887 +-
+#    site_v2/src/data/fixtures/1575444.json             |   881 +-
+#    site_v2/src/data/fixtures/1575445.json             |   893 +-
+#    site_v2/src/data/fixtures/1575458.json             |   791 -
+#    site_v2/src/data/fixtures/1575545.json             |   460 +
+#    site_v2/src/data/fixtures/1575546.json             |   555 +
+#    site_v2/src/data/fixtures/1575547.json             |   605 +
+#    site_v2/src/data/fixtures/1575548.json             |   587 +
+#    site_v2/src/data/fixtures/1575549.json             |   637 +
+#    site_v2/src/data/fixtures/1575550.json             |   573 +
+#    site_v2/src/data/fixtures/1575551.json             |   460 +
+#    site_v2/src/data/fixtures/1575552.json             |   537 +
+#    site_v2/src/data/fixtures/1575553.json             |   537 +
+#    site_v2/src/data/fixtures/1576197.json             |   732 -
+#    site_v2/src/data/fixtures/1576203.json             |   826 -
+#    site_v2/src/data/fixtures/1576204.json             |   772 -
+#    site_v2/src/data/fixtures/1576233.json             |   520 +
+#    site_v2/src/data/fixtures/1576234.json             |   461 +
+#    site_v2/src/data/fixtures/1576235.json             |   538 +
+#    site_v2/src/data/fixtures/1576236.json             |   556 +
+#    site_v2/src/data/fixtures/1576237.json             |   521 +
+#    site_v2/src/data/fixtures/1576238.json             |   502 +
+#    site_v2/src/data/fixtures/1576239.json             |   556 +
+#    site_v2/src/data/fixtures/1576240.json             |   502 +
+#    site_v2/src/data/fixtures/1576241.json             |   512 +
+#    site_v2/src/data/fixtures/1584431.json             |   772 -
+#    site_v2/src/data/fixtures/1584436.json             |   808 -
+#    site_v2/src/data/fixtures/1584437.json             |   718 -
+#    site_v2/src/data/fixtures/1584438.json             |   774 -
+#    site_v2/src/data/fixtures/1584466.json             |   460 +
+#    site_v2/src/data/fixtures/1584467.json             |   460 +
+#    site_v2/src/data/fixtures/1584468.json             |   460 +
+#    site_v2/src/data/fixtures/1584469.json             |   538 +
+#    site_v2/src/data/fixtures/1584470.json             |   501 +
+#    site_v2/src/data/fixtures/1584471.json             |   555 +
+#    site_v2/src/data/fixtures/1584472.json             |   502 +
+#    site_v2/src/data/fixtures/1584473.json             |   556 +
+#    site_v2/src/data/fixtures/1584474.json             |   520 +
+#    site_v2/src/data/fixtures/1603044.json             |   566 +
+#    site_v2/src/data/fixtures/1603048.json             |   636 +
+#    site_v2/src/data/fixtures/1603051.json             |   600 +
+#    site_v2/src/data/fixtures/1603053.json             |   677 -
+#    site_v2/src/data/fixtures/1603054.json             |   506 -
+#    site_v2/src/data/fixtures/1603055.json             |   791 -
+#    site_v2/src/data/fixtures/1603056.json             |   772 -
+#    site_v2/src/data/fixtures/1603057.json             |   602 -
+#    site_v2/src/data/fixtures/1603058.json             |   755 -
+#    site_v2/src/data/fixtures/1603059.json             |   719 -
+#    site_v2/src/data/fixtures/1603060.json             |   718 -
+#    site_v2/src/data/fixtures/1603061.json             |   737 -
+#    site_v2/src/data/fixtures/1629943.json             |   480 -
+#    site_v2/src/data/fixtures/1629944.json             |   539 -
+#    site_v2/src/data/fixtures/1629945.json             |   569 -
+#    site_v2/src/data/fixtures/1629946.json             |   701 -
+#    site_v2/src/data/fixtures/1629947.json             |   651 -
+#    site_v2/src/data/fixtures/1629948.json             |   466 -
+#    site_v2/src/data/fixtures/1629949.json             |   733 -
+#    site_v2/src/data/fixtures/1629950.json             |   569 -
+#    site_v2/src/data/fixtures/1629951.json             |   651 -
+#    site_v2/src/data/fixtures/1629952.json             |   416 -
+#    site_v2/src/data/fixtures/1629953.json             |   692 -
+#    site_v2/src/data/fixtures/1629954.json             |   651 -
+#    site_v2/src/data/fixtures/1629955.json             |   610 -
+#    site_v2/src/data/fixtures/1629956.json             |   651 -
+#    site_v2/src/data/fixtures/1629957.json             |   480 -
+#    site_v2/src/data/fixtures/1629958.json             |   733 -
+#    site_v2/src/data/fixtures/1629975.json             |   443 +
+#    site_v2/src/data/fixtures/1629976.json             |   501 +
+#    site_v2/src/data/fixtures/1629977.json             |   474 +
+#    site_v2/src/data/fixtures/1629978.json             |   406 +
+#    site_v2/src/data/fixtures/1629979.json             |   447 +
+#    site_v2/src/data/fixtures/1629980.json             |   424 +
+#    site_v2/src/data/fixtures/1629981.json             |   474 +
+#    site_v2/src/data/fixtures/1629982.json             |   474 +
+#    site_v2/src/data/fixtures/1629983.json             |   524 +
+#    site_v2/src/data/fixtures/1629984.json             |   492 +
+#    site_v2/src/data/fixtures/1629985.json             |   465 +
+#    site_v2/src/data/fixtures/1629986.json             |   465 +
+#    site_v2/src/data/fixtures/1629987.json             |   443 +
+#    site_v2/src/data/fixtures/1629988.json             |   553 +
+#    site_v2/src/data/fixtures/1629989.json             |   473 +
+#    site_v2/src/data/fixtures/1629990.json             |   524 +
+#    site_v2/src/data/fixtures/1635611.json             |   525 +
+#    site_v2/src/data/fixtures/1635617.json             |   644 -
+#    site_v2/src/data/fixtures/1635621.json             |   660 -
+#    site_v2/src/data/fixtures/1635625.json             |   492 +
+#    site_v2/src/data/fixtures/1635630.json             |   756 -
+#    site_v2/src/data/fixtures/1635636.json             |   711 -
+#    site_v2/src/data/fixtures/1635641.json             |   438 +
+#    site_v2/src/data/fixtures/1635642.json             |   524 +
+#    site_v2/src/data/fixtures/1635645.json             |   679 -
+#    site_v2/src/data/fixtures/1635647.json             |   733 -
+#    site_v2/src/data/fixtures/1635649.json             |   492 +
+#    site_v2/src/data/fixtures/1635655.json             |   679 -
+#    site_v2/src/data/fixtures/1635661.json             |   674 -
+#    site_v2/src/data/fixtures/1635663.json             |   534 +
+#    site_v2/src/data/fixtures/1635667.json             |   524 +
+#    site_v2/src/data/fixtures/1635672.json             |   692 -
+#    site_v2/src/data/fixtures/1635673.json             |   525 +
+#    site_v2/src/data/fixtures/1635682.json             |   525 +
+#    site_v2/src/data/fixtures/1635684.json             |   679 -
+#    site_v2/src/data/fixtures/1635688.json             |   720 -
+#    site_v2/src/data/fixtures/1635692.json             |   574 +
+#    site_v2/src/data/fixtures/1635693.json             |   660 -
+#    site_v2/src/data/fixtures/1635700.json             |   507 -
+#    site_v2/src/data/fixtures/1635702.json             |   747 -
+#    site_v2/src/data/fixtures/1635703.json             |   524 +
+#    site_v2/src/data/fixtures/1635713.json             |   525 +
+#    site_v2/src/data/fixtures/1635715.json             |   524 +
+#    site_v2/src/data/fixtures/1635716.json             |   765 -
+#    site_v2/src/data/fixtures/1635718.json             |   470 +
+#    site_v2/src/data/fixtures/1635719.json             |   507 -
+#    site_v2/src/data/fixtures/1635724.json             |   474 +
+#    site_v2/src/data/fixtures/1635728.json             |   516 +
+#    site_v2/src/data/fixtures/1635731.json             |   486 +
+#    site_v2/src/data/fixtures/1635735.json             |   493 +
+#    site_v2/src/data/fixtures/1635737.json             |   710 -
+#    site_v2/src/data/fixtures/1635738.json             |   679 -
+#    site_v2/src/data/fixtures/1636215.json             |   508 -
+#    site_v2/src/data/fixtures/1636231.json             |   457 +
+#    site_v2/src/data/fixtures/1636234.json             |   562 -
+#    site_v2/src/data/fixtures/1636235.json             |   733 -
+#    site_v2/src/data/fixtures/1636241.json             |   507 -
+#    site_v2/src/data/fixtures/1636244.json             |   525 +
+#    site_v2/src/data/fixtures/1636249.json             |   688 -
+#    site_v2/src/data/fixtures/1636252.json             |   524 +
+#    site_v2/src/data/fixtures/1636255.json             |   494 +
+#    site_v2/src/data/fixtures/1636258.json             |   706 -
+#    site_v2/src/data/fixtures/1636261.json             |   439 +
+#    site_v2/src/data/fixtures/1636262.json             |   452 -
+#    site_v2/src/data/fixtures/1636267.json             |   783 -
+#    site_v2/src/data/fixtures/1636270.json             |   494 +
+#    site_v2/src/data/fixtures/1636273.json             |   364 -
+#    site_v2/src/data/fixtures/1636276.json             |   733 -
+#    site_v2/src/data/fixtures/1636277.json             |   492 +
+#    site_v2/src/data/fixtures/1636280.json             |   562 -
+#    site_v2/src/data/fixtures/1636288.json             |   516 -
+#    site_v2/src/data/fixtures/1636294.json             |   478 +
+#    site_v2/src/data/fixtures/1636298.json             |   493 +
+#    site_v2/src/data/fixtures/1636301.json             |   524 +
+#    site_v2/src/data/fixtures/1636303.json             |   516 -
+#    site_v2/src/data/fixtures/1636305.json             |   456 +
+#    site_v2/src/data/fixtures/1636307.json             |   534 +
+#    site_v2/src/data/fixtures/1636308.json             |   643 -
+#    site_v2/src/data/fixtures/1636311.json             |   507 -
+#    site_v2/src/data/fixtures/1636315.json             |   439 +
+#    site_v2/src/data/fixtures/1636318.json             |   489 -
+#    site_v2/src/data/fixtures/1636329.json             |   502 +
+#    site_v2/src/data/fixtures/1636330.json             |   679 -
+#    site_v2/src/data/fixtures/1636334.json             |   364 +
+#    site_v2/src/data/fixtures/1636336.json             |   534 +
+#    site_v2/src/data/fixtures/1636340.json             |   706 -
+#    site_v2/src/data/fixtures/1636343.json             |   495 +
+#    site_v2/src/data/fixtures/1636349.json             |   443 +
+#    site_v2/src/data/fixtures/1636378.json             |   680 -
+#    site_v2/src/data/fixtures/1636379.json             |   774 -
+#    site_v2/src/data/fixtures/1636381.json             |   493 +
+#    site_v2/src/data/fixtures/1636385.json             |   336 -
+#    site_v2/src/data/fixtures/1636386.json             |   470 +
+#    site_v2/src/data/fixtures/1636388.json             |   364 -
+#    site_v2/src/data/fixtures/1636389.json             |   440 +
+#    site_v2/src/data/fixtures/1636393.json             |   432 +
+#    site_v2/src/data/fixtures/1636395.json             |   493 +
+#    site_v2/src/data/fixtures/1636397.json             |   720 -
+#    site_v2/src/data/fixtures/1636402.json             |   493 +
+#    site_v2/src/data/fixtures/1636405.json             |   447 +
+#    site_v2/src/data/fixtures/1636410.json             |   525 +
+#    site_v2/src/data/fixtures/1636412.json             |   512 +
+#    site_v2/src/data/fixtures/1636415.json             |   705 -
+#    site_v2/src/data/fixtures/1636420.json             |   485 +
+#    site_v2/src/data/fixtures/1636421.json             |   492 +
+#    site_v2/src/data/fixtures/1636424.json             |   680 -
+#    site_v2/src/data/fixtures/1636426.json             |   487 +
+#    site_v2/src/data/fixtures/1636428.json             |   400 +
+#    site_v2/src/data/fixtures/1636429.json             |   507 -
+#    site_v2/src/data/fixtures/1636430.json             |   534 -
+#    site_v2/src/data/fixtures/1636431.json             |   416 +
+#    site_v2/src/data/fixtures/1636434.json             |   679 -
+#    site_v2/src/data/fixtures/1636435.json             |   462 +
+#    site_v2/src/data/fixtures/1636437.json             |   508 -
+#    .../data/fixtures/{1636462.json => 1636438.json}   |   351 +-
+#    site_v2/src/data/fixtures/1636442.json             |   535 -
+#    site_v2/src/data/fixtures/1636449.json             |   678 -
+#    site_v2/src/data/fixtures/1636454.json             |   733 -
+#    site_v2/src/data/fixtures/1636457.json             |   438 +
+#    site_v2/src/data/fixtures/1636459.json             |   678 -
+#    site_v2/src/data/fixtures/1636460.json             |   439 +
+#    site_v2/src/data/fixtures/1636474.json             |   507 -
+#    site_v2/src/data/fixtures/1636475.json             |   706 -
+#    site_v2/src/data/fixtures/1637926.json             |   671 +-
+#    site_v2/src/data/fixtures/1637927.json             |   972 +-
+#    site_v2/src/data/fixtures/1638109.json             |   538 -
+#    site_v2/src/data/fixtures/1638134.json             |   833 +-
+#    site_v2/src/data/fixtures/1638135.json             |   956 +-
+#    site_v2/src/data/fixtures/1638206.json             |   663 +-
+#    site_v2/src/data/fixtures/1638207.json             |   675 +-
+#    site_v2/src/data/fixtures/1638557.json             |   773 -
+#    site_v2/src/data/fixtures/1638558.json             |   732 -
+#    site_v2/src/data/fixtures/1638559.json             |   763 -
+#    site_v2/src/data/fixtures/1638560.json             |   835 -
+#    site_v2/src/data/fixtures/1638561.json             |   845 -
+#    site_v2/src/data/fixtures/1638562.json             |   790 -
+#    site_v2/src/data/fixtures/1638563.json             |   844 -
+#    site_v2/src/data/fixtures/1638564.json             |   845 -
+#    site_v2/src/data/fixtures/1638565.json             |   632 -
+#    site_v2/src/data/fixtures/1638566.json             |   808 -
+#    site_v2/src/data/fixtures/1638567.json             |   826 -
+#    site_v2/src/data/fixtures/1638568.json             |   782 -
+#    site_v2/src/data/fixtures/1638569.json             |   632 -
+#    site_v2/src/data/fixtures/1638570.json             |   773 -
+#    site_v2/src/data/fixtures/1638571.json             |   665 -
+#    site_v2/src/data/fixtures/1638572.json             |   790 -
+#    site_v2/src/data/fixtures/1639015.json             |   195 -
+#    site_v2/src/data/fixtures/1639342.json             |   259 -
+#    site_v2/src/data/fixtures/1639344.json             |   281 -
+#    site_v2/src/data/fixtures/1639346.json             |   281 -
+#    site_v2/src/data/fixtures/1639539.json             |   281 -
+#    site_v2/src/data/fixtures/1639540.json             |   281 -
+#    site_v2/src/data/fixtures/1639541.json             |   281 -
+#    site_v2/src/data/fixtures/1639542.json             |   281 -
+#    site_v2/src/data/fixtures/1639543.json             |   195 -
+#    site_v2/src/data/fixtures/1639883.json             |   972 +-
+#    site_v2/src/data/fixtures/1639884.json             |   856 +-
+#    site_v2/src/data/fixtures/1640021.json             |   819 -
+#    site_v2/src/data/fixtures/1640556.json             |   801 -
+#    site_v2/src/data/fixtures/1644172.json             |   281 -
+#    site_v2/src/data/fixtures/1644333.json             |   308 -
+#    site_v2/src/data/fixtures/1644334.json             |    55 -
+#    site_v2/src/data/fixtures/1644335.json             |    55 -
+#    site_v2/src/data/fixtures/1644336.json             |   308 -
+#    site_v2/src/data/fixtures/1644337.json             |    55 -
+#    site_v2/src/data/fixtures/1644338.json             |    55 -
+#    site_v2/src/data/fixtures/1644339.json             |   308 -
+#    site_v2/src/data/fixtures/1644340.json             |    55 -
+#    site_v2/src/data/fixtures/1644341.json             |    55 -
+#    site_v2/src/data/fixtures/1644342.json             |   308 -
+#    site_v2/src/data/fixtures/1644343.json             |    55 -
+#    site_v2/src/data/fixtures/1644344.json             |    55 -
+#    site_v2/src/data/fixtures/1644345.json             |    55 -
+#    site_v2/src/data/fixtures/1644346.json             |    55 -
+#    site_v2/src/data/fixtures/1644347.json             |    55 -
+#    site_v2/src/data/fixtures/1644348.json             |   226 -
+#    site_v2/src/data/fixtures/1644349.json             |    55 -
+#    site_v2/src/data/fixtures/1644350.json             |    55 -
+#    site_v2/src/data/fixtures/1644351.json             |    55 -
+#    site_v2/src/data/fixtures/1644352.json             |    55 -
+#    site_v2/src/data/fixtures/1644353.json             |    55 -
+#    site_v2/src/data/fixtures/1644354.json             |    55 -
+#    site_v2/src/data/fixtures/1644355.json             |    55 -
+#    site_v2/src/data/fixtures/1644356.json             |    87 -
+#    site_v2/src/data/fixtures/1644357.json             |    55 -
+#    site_v2/src/data/fixtures/1644358.json             |   309 -
+#    site_v2/src/data/fixtures/1644359.json             |    55 -
+#    site_v2/src/data/fixtures/1644360.json             |   394 -
+#    site_v2/src/data/fixtures/1644361.json             |    55 -
+#    site_v2/src/data/fixtures/1644362.json             |    55 -
+#    site_v2/src/data/fixtures/1644363.json             |   223 -
+#    site_v2/src/data/fixtures/1644364.json             |   226 -
+#    site_v2/src/data/fixtures/1644365.json             |    55 -
+#    site_v2/src/data/fixtures/1644366.json             |    55 -
+#    site_v2/src/data/fixtures/1644367.json             |   308 -
+#    site_v2/src/data/fixtures/1644368.json             |    55 -
+#    site_v2/src/data/fixtures/1644369.json             |    55 -
+#    site_v2/src/data/fixtures/1644370.json             |    55 -
+#    site_v2/src/data/fixtures/1644371.json             |    55 -
+#    site_v2/src/data/fixtures/1644372.json             |   222 -
+#    site_v2/src/data/fixtures/1644373.json             |    55 -
+#    site_v2/src/data/fixtures/1644374.json             |   308 -
+#    site_v2/src/data/fixtures/1644375.json             |    55 -
+#    site_v2/src/data/fixtures/1644376.json             |   255 -
+#    site_v2/src/data/fixtures/1644377.json             |    55 -
+#    site_v2/src/data/fixtures/1644378.json             |   222 -
+#    site_v2/src/data/fixtures/1644379.json             |   359 -
+#    site_v2/src/data/fixtures/1644380.json             |   308 -
+#    site_v2/src/data/fixtures/1644381.json             |    55 -
+#    site_v2/src/data/fixtures/1644382.json             |    55 -
+#    site_v2/src/data/fixtures/1644383.json             |    55 -
+#    site_v2/src/data/fixtures/1644384.json             |    55 -
+#    site_v2/src/data/fixtures/1644385.json             |    55 -
+#    site_v2/src/data/fixtures/1644386.json             |    55 -
+#    site_v2/src/data/fixtures/1644690.json             |   551 -
+#    site_v2/src/data/fixtures/1644691.json             |   551 -
+#    site_v2/src/data/fixtures/1644692.json             |   551 -
+#    site_v2/src/data/fixtures/1644693.json             |   551 -
+#    site_v2/src/data/fixtures/1644694.json             |   605 -
+#    site_v2/src/data/fixtures/1644695.json             |   605 -
+#    site_v2/src/data/fixtures/1644696.json             |   605 -
+#    site_v2/src/data/fixtures/1644697.json             |   605 -
+#    site_v2/src/data/fixtures/1645578.json             |   308 -
+#    site_v2/src/data/fixtures/1645579.json             |   479 -
+#    site_v2/src/data/fixtures/1647178.json             |   493 +
+#    site_v2/src/data/fixtures/1647381.json             |   478 +
+#    site_v2/src/data/fixtures/1647382.json             |   454 +
+#    site_v2/src/data/fixtures/1647383.json             |   529 +
+#    .../data/fixtures/{1639348.json => 1647671.json}   |   219 +-
+#    .../data/fixtures/{1639538.json => 1647672.json}   |   141 +-
+#    site_v2/src/data/fixtures/1647673.json             |   268 +
+#    .../data/fixtures/{1639544.json => 1647674.json}   |   247 +-
+#    .../data/fixtures/{1639545.json => 1647675.json}   |   189 +-
+#    .../data/fixtures/{1639345.json => 1647676.json}   |   233 +-
+#    .../data/fixtures/{1639347.json => 1647677.json}   |   204 +-
+#    .../data/fixtures/{1639343.json => 1647678.json}   |   237 +-
+#    site_v2/src/data/fixtures/1648351.json             |   639 +
+#    site_v2/src/data/fixtures/1648352.json             |   638 +
+#    site_v2/src/data/fixtures/1648353.json             |   592 +
+#    site_v2/src/data/fixtures/1648354.json             |   637 +
+#    site_v2/src/data/fixtures/1648355.json             |   624 +
+#    site_v2/src/data/fixtures/1648356.json             |   574 +
+#    site_v2/src/data/fixtures/1648357.json             |   557 +
+#    site_v2/src/data/fixtures/1648358.json             |   557 +
+#    site_v2/src/data/fixtures/1649491.json             |   566 +
+#    site_v2/src/data/fixtures/1649492.json             |   573 +
+#    site_v2/src/data/fixtures/1649564.json             |   510 +
+#    site_v2/src/data/fixtures/1649565.json             |   481 +
+#    site_v2/src/data/fixtures/1649566.json             |   528 +
+#    site_v2/src/data/fixtures/1649567.json             |   519 +
+#    site_v2/src/data/fixtures/1649568.json             |   487 +
+#    site_v2/src/data/fixtures/1649569.json             |   521 +
+#    site_v2/src/data/fixtures/1649570.json             |   460 +
+#    site_v2/src/data/fixtures/1649571.json             |   501 +
+#    site_v2/src/data/fixtures/1649672.json             |   214 +
+#    site_v2/src/data/fixtures/1649673.json             |   250 +
+#    site_v2/src/data/fixtures/1649674.json             |   196 +
+#    site_v2/src/data/fixtures/1649675.json             |   196 +
+#    site_v2/src/data/fixtures/1649676.json             |   234 +
+#    site_v2/src/data/fixtures/1649677.json             |   250 +
+#    site_v2/src/data/fixtures/1649678.json             |   234 +
+#    site_v2/src/data/fixtures/1649679.json             |   234 +
+#    site_v2/src/data/fixtures/1649680.json             |   268 +
+#    site_v2/src/data/fixtures/1649681.json             |   306 +
+#    site_v2/src/data/fixtures/1649682.json             |   196 +
+#    site_v2/src/data/fixtures/1649683.json             |   196 +
+#    site_v2/src/data/fixtures/1649684.json             |   272 +
+#    site_v2/src/data/fixtures/1649685.json             |   196 +
+#    site_v2/src/data/fixtures/1649686.json             |   250 +
+#    site_v2/src/data/fixtures/1649687.json             |   196 +
+#    site_v2/src/data/fixtures/1649688.json             |   196 +
+#    site_v2/src/data/fixtures/1649689.json             |   268 +
+#    site_v2/src/data/fixtures/1649690.json             |   234 +
+#    site_v2/src/data/fixtures/1649691.json             |   214 +
+#    site_v2/src/data/fixtures/1650260.json             |   196 +
+#    site_v2/src/data/fixtures/1650261.json             |   196 +
+#    site_v2/src/data/fixtures/1650262.json             |   196 +
+#    site_v2/src/data/fixtures/1650263.json             |   196 +
+#    site_v2/src/data/fixtures/1650264.json             |   196 +
+#    .../data/fixtures/{1644171.json => 1650265.json}   |   187 +-
+#    site_v2/src/data/fixtures/1650266.json             |   196 +
+#    site_v2/src/data/fixtures/1650267.json             |   126 +
+#    site_v2/src/data/fixtures/1650268.json             |   196 +
+#    site_v2/src/data/fixtures/1650269.json             |   196 +
+#    site_v2/src/data/fixtures/1650270.json             |   196 +
+#    site_v2/src/data/fixtures/1650271.json             |   196 +
+#    site_v2/src/data/fixtures/1650272.json             |   196 +
+#    site_v2/src/data/fixtures/1650273.json             |   196 +
+#    .../data/fixtures/{1639535.json => 1650274.json}   |   149 +-
+#    site_v2/src/data/fixtures/1650275.json             |   196 +
+#    site_v2/src/data/fixtures/1650276.json             |   196 +
+#    .../data/fixtures/{1639014.json => 1650277.json}   |   123 +-
+#    site_v2/src/data/fixtures/1650278.json             |   196 +
+#    site_v2/src/data/fixtures/1650279.json             |   196 +
+#    site_v2/src/data/fixtures/1650280.json             |   196 +
+#    site_v2/src/data/fixtures/1650281.json             |   126 +
+#    site_v2/src/data/fixtures/1650282.json             |   126 +
+#    site_v2/src/data/fixtures/1650283.json             |   196 +
+#    site_v2/src/data/fixtures/1650284.json             |   228 +
+#    site_v2/src/data/fixtures/1650285.json             |   196 +
+#    .../data/fixtures/{1639537.json => 1650286.json}   |   185 +-
+#    site_v2/src/data/fixtures/1650287.json             |   196 +
+#    site_v2/src/data/fixtures/1650288.json             |   196 +
+#    site_v2/src/data/fixtures/1650289.json             |   126 +
+#    site_v2/src/data/fixtures/1650290.json             |   196 +
+#    site_v2/src/data/fixtures/1650291.json             |   126 +
+#    site_v2/src/data/fixtures/1650292.json             |   196 +
+#    site_v2/src/data/fixtures/1650293.json             |   196 +
+#    site_v2/src/data/fixtures/1650294.json             |   196 +
+#    .../data/fixtures/{1639532.json => 1650295.json}   |   125 +-
+#    site_v2/src/data/fixtures/1650296.json             |   196 +
+#    .../data/fixtures/{1639339.json => 1650297.json}   |   159 +-
+#    site_v2/src/data/fixtures/1650298.json             |   196 +
+#    site_v2/src/data/fixtures/1650299.json             |   196 +
+#    site_v2/src/data/fixtures/1650300.json             |   196 +
+#    site_v2/src/data/fixtures/1650301.json             |   196 +
+#    site_v2/src/data/fixtures/1650302.json             |   196 +
+#    site_v2/src/data/fixtures/1650303.json             |   196 +
+#    .../data/fixtures/{1639340.json => 1650304.json}   |   151 +-
+#    .../data/fixtures/{1639534.json => 1650305.json}   |   191 +-
+#    site_v2/src/data/landing.json                      | 11134 +++--
+#    site_v2/src/data/matches/2026-08-21.json           |   129 -
+#    site_v2/src/data/matches/2026-08-22.json           |   318 -
+#    site_v2/src/data/matches/2026-08-23.json           |   318 -
+#    site_v2/src/data/matches/2026-08-24.json           |   129 -
+#    site_v2/src/data/matches/2026-09-01.json           |    48 +-
+#    site_v2/src/data/matches/2026-09-02.json           |    46 +-
+#    site_v2/src/data/matches/2026-09-03.json           |     8 +
+#    site_v2/src/data/matches/2026-09-15.json           |    10 +-
+#    site_v2/src/data/matches/2026-09-26.json           |   194 -
+#    site_v2/src/data/matches/2026-09-27.json           |   194 -
+#    site_v2/src/data/matches/2026-09-29.json           |    48 -
+#    site_v2/src/data/matches/2026-09-30.json           |    48 -
+#    site_v2/src/data/matches/2026-10-03.json           |   140 -
+#    site_v2/src/data/matches/2026-10-04.json           |   194 -
+#    site_v2/src/data/matches/2026-10-05.json           |    75 -
+#    site_v2/src/data/matches/2026-10-06.json           |   221 -
+#    site_v2/src/data/matches/2026-10-07.json           |    48 -
+#    site_v2/src/data/matches/2026-10-09.json           |   113 -
+#    site_v2/src/data/matches/2026-10-10.json           |   221 -
+#    site_v2/src/data/matches/2026-10-11.json           |   286 -
+#    site_v2/src/data/matches/2026-10-13.json           |   491 -
+#    site_v2/src/data/matches/2026-10-14.json           |   329 -
+#    site_v2/src/data/matches/2026-10-15.json           |  1130 +-
+#    site_v2/src/data/matches/2026-10-16.json           |   488 +-
+#    site_v2/src/data/matches/2026-10-17.json           |  2078 +-
+#    site_v2/src/data/matches/2026-10-18.json           |  1842 +-
+#    site_v2/src/data/matches/2026-10-19.json           |   525 -
+#    site_v2/src/data/matches/2026-10-20.json           |   459 -
+#    site_v2/src/data/matches/2026-10-21.json           |   301 +-
+#    site_v2/src/data/matches/2026-10-22.json           |  1008 +-
+#    site_v2/src/data/matches/2026-10-23.json           |   154 +-
+#    site_v2/src/data/matches/2026-10-24.json           |   189 +-
+#    site_v2/src/data/matches/2026-10-25.json           |   205 +-
+#    site_v2/src/data/matches/2026-10-26.json           |   183 -
+#    site_v2/src/data/matches/2026-10-27.json           |   838 +-
+#    site_v2/src/data/matches/2026-10-28.json           |   836 +-
+#    site_v2/src/data/matches/2026-10-29.json           |   439 +-
+#    site_v2/src/data/matches/2026-10-30.json           |   114 +
+#    site_v2/src/data/matches/2026-10-31.json           |   156 +
+#    .../matches/{2026-10-12.json => 2026-11-02.json}   |   244 +-
+#    site_v2/src/data/matches/2026-11-03.json           |   559 +
+#    site_v2/src/data/matches/2026-11-04.json           |   415 +
+#    site_v2/src/data/matches/2026-11-05.json           |  1232 +
+#    site_v2/src/data/matches/2026-11-06.json           |   784 +
+#    site_v2/src/data/matches/2026-11-07.json           |  3224 ++
+#    site_v2/src/data/matches/2026-11-08.json           |  2398 ++
+#    site_v2/src/data/matches/2026-11-09.json           |   142 +-
+#    site_v2/src/data/matches/2026-11-12.json           |   135 +-
+#    site_v2/src/data/matches/2026-11-13.json           |   157 +-
+#    site_v2/src/data/matches/2026-11-14.json           |  1673 +-
+#    site_v2/src/data/matches/2026-11-15.json           |   858 +
+#    site_v2/src/data/matches/2026-11-17.json           |   102 -
+#    site_v2/src/data/matches/2026-11-18.json           |   153 +-
+#    site_v2/src/data/matches/2026-11-19.json           |   145 +
+#    site_v2/src/data/matches/2026-11-20.json           |   627 +
+#    site_v2/src/data/matches/2026-11-21.json           |  2117 +
+#    site_v2/src/data/matches/2026-11-22.json           |  1444 +
+#    site_v2/src/data/matches/2026-11-23.json           |   459 +
+#    site_v2/src/data/matches/2026-11-24.json           |   559 +
+#    site_v2/src/data/matches/2026-11-25.json           |   373 +
+#    site_v2/src/data/matches/2026-11-26.json           |  1148 +
+#    site_v2/src/data/matches/2026-11-27.json           |    94 +
+#    site_v2/src/data/matches/2026-11-28.json           |  1387 +
+#    site_v2/src/data/matches/2026-11-29.json           |   559 +
+#    site_v2/src/data/matches/2026-11-30.json           |    83 +
+#    site_v2/src/data/matches/2026-12-01.json           |   187 +
+#    site_v2/src/data/matches/2026-12-02.json           |   222 +-
+#    site_v2/src/data/matches/2026-12-03.json           |    52 +
+#    site_v2/src/data/matches/2026-12-05.json           |   641 +
+#    site_v2/src/data/matches/2026-12-15.json           |    52 +
+#    site_v2/src/data/matches/2026-12-16.json           |    52 +
+#    site_v2/src/data/matches/2026-12-21.json           |    83 +
+#    site_v2/src/data/matches/2027-01-07.json           |    10 +-
+#    site_v2/src/data/matches/2027-01-08.json           |     8 +
+#    site_v2/src/data/matches/2027-01-09.json           |    12 +
+#    site_v2/src/data/matches/2027-01-10.json           |    12 +
+#    site_v2/src/data/matches/2027-01-11.json           |    10 +-
+#    site_v2/src/data/matches/2027-01-12.json           |    52 +
+#    site_v2/src/data/matches/2027-01-13.json           |    52 +
+#    site_v2/src/data/matches/2027-01-26.json           |    52 +
+#    site_v2/src/data/player_pages.json                 |   118 +-
+#    site_v2/src/data/player_peers/AFCON/2025/ATT.json  |   336 +
+#    .../player_peers/AFCON/2025/{MID.json => CM.json}  |   261 +-
+#    site_v2/src/data/player_peers/BL1/2026/AM.json     |   571 +
+#    site_v2/src/data/player_peers/BL1/2026/ATT.json    |   911 +-
+#    site_v2/src/data/player_peers/BL1/2026/CM.json     |  1258 +
+#    site_v2/src/data/player_peers/BL1/2026/DEF.json    |  1610 +-
+#    site_v2/src/data/player_peers/BL1/2026/DM.json     |   288 +
+#    site_v2/src/data/player_peers/BL1/2026/GK.json     |   188 +-
+#    site_v2/src/data/player_peers/BL1/2026/MID.json    |  1833 -
+#    site_v2/src/data/player_peers/ED/2026/AM.json      |   827 +
+#    site_v2/src/data/player_peers/ED/2026/ATT.json     |   949 +-
+#    site_v2/src/data/player_peers/ED/2026/DEF.json     |  2024 +-
+#    site_v2/src/data/player_peers/ED/2026/MID.json     |  2017 -
+#    site_v2/src/data/player_peers/L1/2026/ATT.json     |   899 +-
+#    site_v2/src/data/player_peers/L1/2026/CM.json      |  1202 +
+#    site_v2/src/data/player_peers/L1/2026/MID.json     |  1793 -
+#    site_v2/src/data/player_peers/LP/2026/AM.json      |   963 +
+#    site_v2/src/data/player_peers/LP/2026/ATT.json     |  1021 +-
+#    site_v2/src/data/player_peers/LP/2026/DEF.json     |  1515 +-
+#    site_v2/src/data/player_peers/LP/2026/MID.json     |  2121 -
+#    site_v2/src/data/player_peers/PD/2026/AM.json      |   686 +
+#    site_v2/src/data/player_peers/PD/2026/ATT.json     |  1267 +-
+#    site_v2/src/data/player_peers/PD/2026/DEF.json     |  2088 +-
+#    site_v2/src/data/player_peers/PL/2026/ATT.json     |   791 +-
+#    site_v2/src/data/player_peers/PL/2026/DEF.json     |  1872 +-
+#    site_v2/src/data/player_peers/PL/2026/DM.json      |   824 +
+#    site_v2/src/data/player_peers/PL/2026/MID.json     |  2454 --
+#    site_v2/src/data/player_peers/SA/2026/ATT.json     |  1472 +-
+#    site_v2/src/data/player_peers/SA/2026/CM.json      |  1919 +
+#    site_v2/src/data/player_peers/SA/2026/DM.json      |   227 +
+#    site_v2/src/data/player_peers/SA/2026/MID.json     |  2356 -
+#    site_v2/src/data/player_peers/UCL/2026/ATT.json    |    54 +-
+#    .../player_peers/UCL/2026/{MID.json => CM.json}    |   865 +-
+#    site_v2/src/data/player_peers/UCL/2026/DEF.json    |   208 +-
+#    site_v2/src/data/player_peers/UCL/2026/DM.json     |   392 +
+#    site_v2/src/data/player_peers/UCL/2026/GK.json     |    12 +-
+#    site_v2/src/data/player_peers/UECL/2026/ATT.json   |    10 +-
+#    .../player_peers/UECL/2026/{MID.json => CM.json}   |   843 +-
+#    site_v2/src/data/player_peers/UECL/2026/DEF.json   |  1960 -
+#    site_v2/src/data/player_peers/UEL/2026/ATT.json    |    16 +-
+#    site_v2/src/data/player_peers/UEL/2026/DEF.json    |    57 +-
+#    site_v2/src/data/player_peers/UEL/2026/DM.json     |   281 +
+#    site_v2/src/data/player_peers/UEL/2026/MID.json    |  1189 -
+#    site_v2/src/data/player_peers/UNL/2026/AM.json     |   751 +
+#    site_v2/src/data/player_peers/UNL/2026/ATT.json    |  1259 +-
+#    site_v2/src/data/player_peers/UNL/2026/CM.json     |  2041 +
+#    site_v2/src/data/player_peers/UNL/2026/DEF.json    |  3130 +-
+#    site_v2/src/data/player_peers/UNL/2026/DM.json     |   684 +
+#    site_v2/src/data/player_peers/UNL/2026/MID.json    |  1465 -
+#    site_v2/src/data/player_peers/WC/2026/DEF.json     |  2634 ++
+#    site_v2/src/data/player_peers/WC/2026/MID.json     |  1933 -
+#    site_v2/src/data/players/10500.json                |  1083 +
+#    site_v2/src/data/players/1100.json                 |  1376 +-
+#    .../src/data/players/{277003.json => 1148.json}    |  1679 +-
+#    site_v2/src/data/players/1149.json                 |  1225 +-
+#    site_v2/src/data/players/1156.json                 |   606 +-
+#    .../src/data/players/{280070.json => 126951.json}  |   827 +-
+#    site_v2/src/data/players/128384.json               |  1309 +-
+#    site_v2/src/data/players/134.json                  |   919 +
+#    site_v2/src/data/players/1496.json                 |   625 +-
+#    site_v2/src/data/players/161939.json               |   251 +-
+#    site_v2/src/data/players/162032.json               |   982 -
+#    site_v2/src/data/players/162219.json               |   292 +-
+#    site_v2/src/data/players/162703.json               |   870 -
+#    site_v2/src/data/players/162761.json               |  1051 +
+#    site_v2/src/data/players/163032.json               |  1624 +
+#    site_v2/src/data/players/163039.json               |   591 +-
+#    site_v2/src/data/players/163078.json               |   656 +-
+#    site_v2/src/data/players/1741.json                 |  1556 -
+#    site_v2/src/data/players/177452.json               |  1169 +-
+#    site_v2/src/data/players/178768.json               |   116 +-
+#    site_v2/src/data/players/179400.json               |   402 +
+#    site_v2/src/data/players/184.json                  |  1398 +-
+#    site_v2/src/data/players/18964.json                |    65 +-
+#    site_v2/src/data/players/18970.json                |   771 +-
+#    site_v2/src/data/players/1922.json                 |   625 +-
+#    site_v2/src/data/players/1924.json                 |   112 +-
+#    site_v2/src/data/players/19617.json                |  1284 +-
+#    site_v2/src/data/players/1972.json                 |    83 +-
+#    site_v2/src/data/players/199143.json               |  1182 -
+#    site_v2/src/data/players/202696.json               |  1201 +-
+#    site_v2/src/data/players/203224.json               |  1532 -
+#    site_v2/src/data/players/21587.json                |   574 +-
+#    site_v2/src/data/players/237087.json               |   998 -
+#    .../src/data/players/{203329.json => 25033.json}   |   237 +-
+#    site_v2/src/data/players/25158.json                |   739 +-
+#    site_v2/src/data/players/25297.json                |  1083 +-
+#    site_v2/src/data/players/25368.json                |  1621 -
+#    site_v2/src/data/players/25391.json                |   669 +-
+#    site_v2/src/data/players/25406.json                |   833 -
+#    site_v2/src/data/players/25626.json                |   283 +
+#    site_v2/src/data/players/25903.json                |   416 -
+#    site_v2/src/data/players/25915.json                |  1392 +
+#    site_v2/src/data/players/26171.json                |   565 +-
+#    site_v2/src/data/players/26256.json                |    21 +-
+#    site_v2/src/data/players/2897.json                 |   587 +-
+#    site_v2/src/data/players/2915.json                 |  1144 -
+#    site_v2/src/data/players/291964.json               |  1535 +
+#    site_v2/src/data/players/2937.json                 |  1211 +
+#    .../src/data/players/{324957.json => 303679.json}  |   727 +-
+#    site_v2/src/data/players/314254.json               |   905 -
+#    site_v2/src/data/players/314511.json               |  1331 +-
+#    site_v2/src/data/players/32011.json                |   597 +-
+#    .../src/data/players/{353943.json => 326067.json}  |  1013 +-
+#    site_v2/src/data/players/327347.json               |   669 +-
+#    site_v2/src/data/players/328033.json               |  1350 +-
+#    site_v2/src/data/players/328225.json               |   887 +
+#    site_v2/src/data/players/336671.json               |   970 +-
+#    site_v2/src/data/players/339887.json               |  1046 -
+#    site_v2/src/data/players/340547.json               |   957 +
+#    site_v2/src/data/players/352730.json               |   773 +
+#    site_v2/src/data/players/353143.json               |   613 +-
+#    site_v2/src/data/players/359390.json               |  1105 -
+#    site_v2/src/data/players/362564.json               |  1046 -
+#    site_v2/src/data/players/362755.json               |   248 +-
+#    site_v2/src/data/players/363156.json               |   941 +
+#    site_v2/src/data/players/36798.json                |   847 +-
+#    site_v2/src/data/players/37153.json                |  1089 -
+#    site_v2/src/data/players/37438.json                |   958 +
+#    site_v2/src/data/players/37938.json                |   777 -
+#    site_v2/src/data/players/380690.json               |   926 -
+#    site_v2/src/data/players/383665.json               |   994 +
+#    site_v2/src/data/players/386828.json               |  1066 +-
+#    site_v2/src/data/players/409190.json               |   727 +-
+#    site_v2/src/data/players/432310.json               |   981 +
+#    site_v2/src/data/players/44814.json                |  1211 +-
+#    site_v2/src/data/players/449509.json               |   351 +
+#    site_v2/src/data/players/46930.json                |  1711 +
+#    site_v2/src/data/players/47308.json                |   855 -
+#    site_v2/src/data/players/47516.json                |   771 +-
+#    site_v2/src/data/players/478991.json               |    46 +-
+#    site_v2/src/data/players/502.json                  |  1331 +-
+#    site_v2/src/data/players/567.json                  |  1249 +-
+#    site_v2/src/data/players/5973.json                 |   887 -
+#    site_v2/src/data/players/6231.json                 |  1763 +
+#    site_v2/src/data/players/7073.json                 |   669 +-
+#    site_v2/src/data/players/714.json                  |   590 +-
+#    site_v2/src/data/players/7327.json                 |   950 +
+#    site_v2/src/data/players/794.json                  |   691 +-
+#    site_v2/src/data/players/875.json                  |   963 -
+#    site_v2/src/data/players/88140.json                |    19 +-
+#    site_v2/src/data/players/90617.json                |  1599 +
+#    site_v2/src/data/players/972.json                  |  1380 +-
+#    site_v2/src/data/players/984.json                  |  1174 -
+#    site_v2/src/data/teams/{106.json => 108.json}      | 16173 +++----
+#    site_v2/src/data/teams/157.json                    |  2784 +-
+#    site_v2/src/data/teams/160.json                    |  2170 +-
+#    site_v2/src/data/teams/162.json                    |  1634 +-
+#    site_v2/src/data/teams/163.json                    |  1852 +-
+#    site_v2/src/data/teams/164.json                    |  1753 +-
+#    site_v2/src/data/teams/165.json                    |  2881 +-
+#    site_v2/src/data/teams/1660.json                   |   904 +-
+#    site_v2/src/data/teams/167.json                    |  2233 +-
+#    site_v2/src/data/teams/168.json                    |  2654 +-
+#    site_v2/src/data/teams/169.json                    |  2423 +-
+#    site_v2/src/data/teams/170.json                    |  1635 +-
+#    site_v2/src/data/teams/172.json                    |  1839 +-
+#    site_v2/src/data/teams/173.json                    |  2689 +-
+#    site_v2/src/data/teams/174.json                    |  1664 +-
+#    site_v2/src/data/teams/175.json                    |  1518 +-
+#    site_v2/src/data/teams/182.json                    |  1648 +-
+#    site_v2/src/data/teams/185.json                    |  1241 +-
+#    site_v2/src/data/teams/192.json                    |  1759 +-
+#    site_v2/src/data/teams/{194.json => 197.json}      | 36779 +++++++---------
+#    site_v2/src/data/teams/209.json                    |  1734 +-
+#    site_v2/src/data/teams/211.json                    |  1960 +-
+#    site_v2/src/data/teams/212.json                    | 29657 +++++++++++++
+#    site_v2/src/data/teams/224.json                    |  1084 +-
+#    site_v2/src/data/teams/228.json                    | 28687 +++++++++++++
+#    site_v2/src/data/teams/33.json                     |  3880 +-
+#    site_v2/src/data/teams/420.json                    |   376 +-
+#    site_v2/src/data/teams/47.json                     | 28517 ++++++++++++
+#    site_v2/src/data/teams/49.json                     |  3969 +-
+#    site_v2/src/data/teams/497.json                    | 42809 +++++++++++++++++++
+#    site_v2/src/data/teams/50.json                     |  4196 +-
+#    site_v2/src/data/teams/505.json                    |  3887 +-
+#    site_v2/src/data/teams/51.json                     |  2953 +-
+#    site_v2/src/data/teams/{867.json => 512.json}      | 14934 +++----
+#    site_v2/src/data/teams/529.json                    |  3793 +-
+#    site_v2/src/data/teams/536.json                    |  3636 +-
+#    site_v2/src/data/teams/55.json                     | 13030 ------
+#    site_v2/src/data/teams/81.json                     | 37179 ++++++++++++++++
+#    site_v2/src/data/teams/85.json                     |  3415 +-
+#    site_v2/src/data/teams/895.json                    | 19478 +++++++++
+#    1073 files changed, 523241 insertions(+), 493264 deletions(-)
+# ============================================================================
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../297-players-to-watch/acceptance_evidence.md    |   11 +
+#    .../297-players-to-watch/rendered_page_evidence.md |    9 +
+#    .claude/task/297-players-to-watch/review.md        |   45 +
+#    .../task/297-players-to-watch/review_input.patch   | 2585 ++++++++++++++++++++
+#    4 files changed, 2650 insertions(+)
+# ============================================================================

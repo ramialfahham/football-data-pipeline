@@ -1,0 +1,52 @@
+{
+  "type": "match_day",
+  "slug": "2027-01-13",
+  "day": "2027-01-13",
+  "is_opening_day": false,
+  "previous_day": "2027-01-12",
+  "next_day": "2027-01-26",
+  "competitions": [
+    {
+      "league_code": "CIT",
+      "name": "Coppa Italia",
+      "slug": "coppa-italia",
+      "crest": "https://media.api-sports.io/football/leagues/137.png",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1637927,
+          "slug": "2027-01-13-ac-milan-vs-monza",
+          "kickoff": "2027-01-13 20:00:00+00:00",
+          "round": "Round of 16",
+          "round_label_i18n_key": "roundOf16",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 4,
+          "fixture_order": 35,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 489,
+            "name": "AC Milan",
+            "slug": "ac-milan",
+            "crest": "https://media.api-sports.io/football/teams/489.png"
+          },
+          "away": {
+            "team_id": 1579,
+            "name": "Monza",
+            "slug": "monza",
+            "crest": "https://media.api-sports.io/football/teams/1579.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 {{ config(severity = 'error', store_failures = true) }}
 
--- Integrity guard: every non-null team-stat team_sk must be one of its fixture's two participants.
+-- Integrity guard: every non-null team-stat team id in base must be one of its fixture's two participants.
 -- A violation means a match statistics line is attributed to a team that did not play the fixture —
 -- a provider mis-attribution or duplicate team id. Known cases are corrected upstream by
 -- seeds/fixture_team_id_overrides.csv; this test fails (ERROR) on any new occurrence.
@@ -14,15 +14,17 @@
 -- Scoped to fixtures whose two participants are both known — NULL-safe: a fixture missing a
 -- participant id is a separate defect, not flagged here, and the explicit IS NOT NULL guards avoid
 -- the NOT IN (NULL, ...) -> UNKNOWN trap.
+-- It reads the base statistics, not the fact: the fact builds its team rows from the fixture's own
+-- participants, so a check against it could never fail.
 select
-    s.fixture_sk,
-    s.team_sk,
+    f.fixture_sk,
+    s.team_id as team_api_id,
     s.league_code
-from {{ ref('fct_fixture_team_stats') }} as s
+from {{ ref('base_apif__fixture_statistics') }} as s
 inner join {{ ref('fct_fixture') }} as f
-    on s.fixture_sk = f.fixture_sk
+    on s.fixture_id = f.fixture_api_id
 where
-    s.team_sk is not null
-    and f.home_team_sk is not null
-    and f.away_team_sk is not null
-    and s.team_sk not in (f.home_team_sk, f.away_team_sk)
+    s.team_id is not null
+    and f.home_team_api_id is not null
+    and f.away_team_api_id is not null
+    and s.team_id not in (f.home_team_api_id, f.away_team_api_id)

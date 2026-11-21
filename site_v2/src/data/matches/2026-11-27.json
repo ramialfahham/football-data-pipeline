@@ -1,0 +1,94 @@
+{
+  "type": "match_day",
+  "slug": "2026-11-27",
+  "day": "2026-11-27",
+  "is_opening_day": false,
+  "previous_day": "2026-11-26",
+  "next_day": "2026-11-28",
+  "competitions": [
+    {
+      "league_code": "CDF",
+      "name": "Coupe de France",
+      "slug": "coupe-de-france",
+      "crest": "https://media.api-sports.io/football/leagues/66.png",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1650265,
+          "slug": "2026-11-27-cannes-vs-le-puy-foot",
+          "kickoff": "2026-11-27 18:00:00+00:00",
+          "round": "Round of 128",
+          "round_label_i18n_key": null,
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 128,
+          "round_sequence": 2,
+          "fixture_order": 93,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 9932,
+            "name": "Cannes",
+            "slug": "cannes",
+            "crest": "https://media.api-sports.io/football/teams/9932.png"
+          },
+          "away": {
+            "team_id": 3069,
+            "name": "Le Puy Foot",
+            "slug": "le-puy-foot",
+            "crest": "https://media.api-sports.io/football/teams/3069.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "LP",
+      "name": "Liga Portugal",
+      "slug": "liga-portugal",
+      "crest": "https://media.api-sports.io/football/leagues/94.png",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1575551,
+          "slug": "2026-11-27-maritimo-vs-cd-nacional",
+          "kickoff": "2026-11-27 20:15:00+00:00",
+          "round": "Regular Season - 12",
+          "round_label_i18n_key": "compFactMatchday",
+          "round_number": 12,
+          "round_letter": null,
+          "round_order": 12,
+          "round_sequence": 12,
+          "fixture_order": 100,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 214,
+            "name": "Maritimo",
+            "slug": "maritimo",
+            "crest": "https://media.api-sports.io/football/teams/214.png"
+          },
+          "away": {
+            "team_id": 225,
+            "name": "CD Nacional",
+            "slug": "cd-nacional",
+            "crest": "https://media.api-sports.io/football/teams/225.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

@@ -1,19 +1,17 @@
 ---
-// One Players to watch row: the player row with goals and assists (a goalkeeper's saves). A count
-// the warehouse leaves blank shows as a dash.
+// One Players to watch row: the player row with the board's value alone, in the catalogue's format.
 import PlayerRow from "../ui/PlayerRow.astro";
-import type { Lang } from "../../lib/format";
+import { formatValue } from "../../lib/format";
+import type { Lang, SingleFormat } from "../../lib/format";
 import { positionLabel } from "../../i18n/strings";
-import type { TopPlayer } from "../../lib/types";
+import type { WatchPlayer } from "../../lib/types";
 
 interface Props {
-  player: TopPlayer;
+  player: WatchPlayer;
+  format: SingleFormat;
   lang: Lang;
 }
-const { player, lang } = Astro.props;
-const numbers = player.position_code === "G"
-  ? [{ value: player.saves_player, term: "saves" as const }]
-  : [{ value: player.goals_total, term: "goals" as const }, { value: player.goals_assists, term: "assists" as const }];
+const { player, format, lang } = Astro.props;
 ---
 
 <PlayerRow
@@ -21,6 +19,6 @@ const numbers = player.position_code === "G"
   name={player.player_name}
   photo={player.player_photo_url}
   line={[positionLabel(lang, player.position_code)]}
-  numbers={numbers}
+  value={formatValue(player.value, format, lang)}
   id={player.player_sk}
 />

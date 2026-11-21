@@ -8,6 +8,7 @@
   "age": 18,
   "height": null,
   "position_group": "ATT",
+  "position_role": null,
   "season_label": "2026/27",
   "club": {
     "team_id": 165,
@@ -25,23 +26,23 @@
         "slug": "borussia-dortmund"
       },
       "cards": {
-        "cards_red_player": 1.0,
+        "cards_yellow_player": 0.0,
         "goals_player": 2.0,
-        "minutes_per_appearance": 35.75,
-        "appearances": 4.0,
         "assists_player": 0.0,
-        "cards_yellow_player": 0.0
+        "minutes_per_appearance": 35.75,
+        "cards_red_player": 1.0,
+        "appearances": 4.0
       },
       "next_matches": [
         {
-          "fixture_id": 1575212,
+          "fixture_id": 1575226,
           "league_code": "BL1",
           "upcoming_rank": 1,
-          "opponent_name": "SV Elversberg",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/1660.png",
-          "is_home": true,
-          "kickoff_datetime": "2026-11-07 14:30:00+00:00",
-          "round_name": "Regular Season - 9",
+          "opponent_name": "Borussia Mönchengladbach",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/163.png",
+          "is_home": false,
+          "kickoff_datetime": "2026-11-21 14:30:00+00:00",
+          "round_name": "Regular Season - 10",
           "goals_for": null,
           "goals_against": null,
           "result": null,
@@ -68,7 +69,7 @@
           "opponent_name": "Eintracht Frankfurt",
           "opponent_logo_url": "https://media.api-sports.io/football/teams/169.png",
           "is_home": false,
-          "kickoff_datetime": "2026-12-01 19:00:00+00:00",
+          "kickoff_datetime": "2026-12-02 19:45:00+00:00",
           "round_name": "Round of 16",
           "goals_for": null,
           "goals_against": null,
@@ -265,29 +266,14 @@
         "slug": "italy"
       },
       "cards": {
+        "minutes_per_appearance": null,
         "assists_player": 0.0,
-        "cards_yellow_player": 0.0,
+        "cards_red_player": 0.0,
         "goals_player": 0.0,
         "appearances": 0.0,
-        "minutes_per_appearance": null,
-        "cards_red_player": 0.0
+        "cards_yellow_player": 0.0
       },
-      "next_matches": [
-        {
-          "fixture_id": 1528960,
-          "league_code": "UNL",
-          "upcoming_rank": 1,
-          "opponent_name": "France",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/2.png",
-          "is_home": true,
-          "kickoff_datetime": "2026-11-12 19:45:00+00:00",
-          "round_name": "League A - 5",
-          "goals_for": null,
-          "goals_against": null,
-          "result": null,
-          "status_short": "NS"
-        }
-      ],
+      "next_matches": [],
       "competitions": [],
       "squad": null,
       "last_season": null,

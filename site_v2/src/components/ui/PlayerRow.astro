@@ -1,6 +1,6 @@
 ---
 // THE player row: photo (the initials when there is none) / name over its second line / the numbers
-// on the right when the list has any. The row links to the player's page when this build makes one;
+// on the right when the list has any, or a board's value alone. The row links to the player's page when this build makes one;
 // a row given no player id leads nowhere. Other attributes (the filters' data marks) pass through.
 import ListRow from "./ListRow.astro";
 import { builtPlayers } from "../../lib/builtPlayers.mjs";
@@ -17,12 +17,14 @@ interface Props {
   line: string[];
   /** The numbers on the right; a count the warehouse leaves blank shows as a dash. */
   numbers?: { value: number | null | undefined; term: Term }[] | null;
+  /** A board's value on the right, already in its format, with no word after it. */
+  value?: string | null;
   /** The player's id; with `slug`, the slug its page is built under. */
   id?: number | null;
   slug?: string | null;
   [attr: string]: unknown;
 }
-const { lang, name, photo, line, numbers, id, slug, ...rest } = Astro.props;
+const { lang, name, photo, line, numbers, value, id, slug, ...rest } = Astro.props;
 const initials = (name ?? "").split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase();
 const page = id == null || !builtPlayers().has(id) ? null : slug ?? builtPlayers().get(id);
 const href = page ? localeHref(lang, `${word(lang, "players")}/${page}/`) : undefined;
@@ -50,6 +52,11 @@ const units = (numbers ?? []).map(({ value, term }) => ({
     {numbers && (
       <span class="pstat facts-line">
         {units.map((p) => <span class="nb"><b>{p.n}</b> {p.word}</span>)}
+      </span>
+    )}
+    {value != null && (
+      <span class="pstat facts-line">
+        <span class="nb"><b>{value}</b></span>
       </span>
     )}
   </div>

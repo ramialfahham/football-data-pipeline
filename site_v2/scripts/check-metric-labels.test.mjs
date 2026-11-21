@@ -108,6 +108,7 @@ const boardKeys = [
   ...boardTuple("_COMPETITION_TEAM_BOARDS", "team", 12),
   ...boardTuple("_COMPETITION_PLAYER_BOARDS", "player", 13),
   ...boardTuple("_MATCH_PLAYER_BOARDS", "player", 7),
+  ...boardTuple("_MATCH_WATCH_BOARDS", "player", 2),
 ];
 
 /** The metric GROUPS (#152): keys and order from the export's copy of the catalogue

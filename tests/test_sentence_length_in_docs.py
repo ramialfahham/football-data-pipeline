@@ -69,7 +69,7 @@ PINNED = {
     "docs/wireframes/99_gaps_register.md": 65,
     "docs/wireframes/block_standard.md": 9,
     "docs/wireframes/metrics_display.md": 25,
-    "site_v2/src/data/README.md": 10,
+    "site_v2/src/data/README.md": 9,
 }
 
 
