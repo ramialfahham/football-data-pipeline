@@ -34,8 +34,8 @@ def _pages() -> list[str]:
     ):
         pages += [
             _first(f"{lang}/{teams}/1-fc-koln/index.html"),
-            _first(f"{lang}/{players}/a-daghim-362564/index.html"),
-            _first(f"{lang}/bundesliga/{matches}/2026-10-18-*/index.html"),
+            _first(f"{lang}/{players}/n-fullkrug-25391/index.html"),
+            _first(f"{lang}/bundesliga/{matches}/2026-11-2*/index.html"),
             _first(f"{lang}/bundesliga/index.html"),
         ]
     return sorted(set(pages))

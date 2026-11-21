@@ -1,0 +1,60 @@
+---
+// Players to watch: the block heading, the intro naming the match's competition, then the two
+// boards, Goals and assists and Ball actions per 90. Each board is its name over the two columns,
+// each team's top three as served. The intro reads last season when a side's window is last season.
+// A board neither side has a row on is left out, and the block when no board is left.
+import SectionHead from "../ui/SectionHead.astro";
+import Explainer from "../ui/Explainer.astro";
+import PlayerToWatch from "./PlayerToWatch.astro";
+import type { Lang } from "../../lib/format";
+import { t, playersInCompetition, metricLabel } from "../../i18n/strings";
+import type { Side, WatchBoard } from "../../lib/types";
+
+interface Props {
+  home: Side;
+  away: Side;
+  leagueCode: string;
+  compName: string;
+  lang: Lang;
+}
+const { home, away, leagueCode, compName, lang } = Astro.props;
+
+const sides = [home, away];
+const boardOf = (side: Side, metric: string): WatchBoard | undefined =>
+  side.players_to_watch?.boards.find((b) => b.metric_key === metric);
+const metrics = [...new Set(sides.flatMap((s) => (s.players_to_watch?.boards ?? []).map((b) => b.metric_key)))];
+const boards = metrics
+  .map((metric) => ({ home: boardOf(home, metric), away: boardOf(away, metric) }))
+  .filter((b) => (b.home?.rows.length ?? 0) + (b.away?.rows.length ?? 0) > 0);
+const windows = new Set(sides.filter((s) => s.players_to_watch).map((s) => s.players_to_watch!.window_type));
+const introKey = windows.size > 1 ? "playersIntroMixed" : windows.has("prev_season") ? "playersIntroPrev" : "playersIntro";
+const intro = t(lang, introKey, {
+  in: playersInCompetition(lang, leagueCode, compName),
+});
+const label = t(lang, "secPlayers");
+---
+
+{boards.length > 0 && (
+  <section aria-label={label}>
+    <SectionHead label={label} />
+    <Explainer text={intro} />
+    {boards.map(({ home: h, away: a }) => {
+      const served = (h ?? a)!;
+      return (
+        <div class="board">
+          <div class="bt" role="heading" aria-level="3">{metricLabel(lang, served.label_i18n_key)}</div>
+          <div class="rsplit">
+            <div class="rcol">
+              <div class="colhead">{home.name}</div>
+              {(h?.rows ?? []).map((p) => <PlayerToWatch player={p} format={served.format} lang={lang} />)}
+            </div>
+            <div class="rcol">
+              <div class="colhead">{away.name}</div>
+              {(a?.rows ?? []).map((p) => <PlayerToWatch player={p} format={served.format} lang={lang} />)}
+            </div>
+          </div>
+        </div>
+      );
+    })}
+  </section>
+)}

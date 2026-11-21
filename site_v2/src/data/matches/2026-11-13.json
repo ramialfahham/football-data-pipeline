@@ -7,104 +7,105 @@
   "next_day": "2026-11-14",
   "competitions": [
     {
-      "league_code": "CNL",
-      "name": "CONCACAF Nations League",
-      "slug": "concacaf-nations-league",
-      "crest": "https://media.api-sports.io/football/leagues/536.png",
-      "entity_type": "national",
-      "confederation": "CONCACAF",
-      "region_rank": 4,
-      "fixtures": [
-        {
-          "fixture_id": 1644692,
-          "slug": "2026-11-13-guatemala-vs-canada",
-          "kickoff": "2026-11-13 21:00:00+00:00",
-          "round": "Quarter-finals",
-          "round_order": null,
-          "round_sequence": 10,
-          "fixture_order": 93,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
-          "home": {
-            "team_id": 5161,
-            "name": "Guatemala",
-            "slug": "guatemala",
-            "crest": "https://media.api-sports.io/football/teams/5161.png"
-          },
-          "away": {
-            "team_id": 5529,
-            "name": "Canada",
-            "slug": "canada",
-            "crest": "https://media.api-sports.io/football/teams/5529.png"
-          },
-          "is_next_round": true,
-          "is_match_that_matters": false
-        }
-      ]
-    },
-    {
-      "league_code": "UNL",
-      "name": "UEFA Nations League",
-      "slug": "nations-league",
-      "crest": "https://media.api-sports.io/football/leagues/5.png",
-      "entity_type": "national",
+      "league_code": "CDF",
+      "name": "Coupe de France",
+      "slug": "coupe-de-france",
+      "crest": "https://media.api-sports.io/football/leagues/66.png",
+      "entity_type": "club",
       "confederation": "UEFA",
       "region_rank": 1,
       "fixtures": [
         {
-          "fixture_id": 1528965,
-          "slug": "2026-11-13-serbia-vs-germany",
-          "kickoff": "2026-11-13 19:45:00+00:00",
-          "round": "League A - 5",
-          "round_order": 5,
-          "round_sequence": 17,
-          "fixture_order": 109,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "fixture_id": 1647948,
+          "slug": "2026-11-13-dijon-vs-orleans",
+          "kickoff": "2026-11-13 19:00:00+00:00",
+          "round": "1/128-finals",
+          "round_label_i18n_key": null,
+          "round_number": null,
+          "round_letter": null,
+          "round_order": null,
+          "round_sequence": 1,
+          "fixture_order": 5,
+          "status": "FT",
+          "unplayed_state": null,
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 2,
           "home": {
-            "team_id": 14,
-            "name": "Serbia",
-            "slug": "serbia",
-            "crest": "https://media.api-sports.io/football/teams/14.png"
+            "team_id": 89,
+            "name": "Dijon",
+            "slug": "dijon",
+            "crest": "https://media.api-sports.io/football/teams/89.png"
           },
           "away": {
-            "team_id": 25,
-            "name": "Germany",
-            "slug": "germany",
-            "crest": "https://media.api-sports.io/football/teams/25.png"
+            "team_id": 103,
+            "name": "Orleans",
+            "slug": "orleans",
+            "crest": "https://media.api-sports.io/football/teams/103.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1528966,
-          "slug": "2026-11-13-netherlands-vs-greece",
-          "kickoff": "2026-11-13 19:45:00+00:00",
-          "round": "League A - 5",
-          "round_order": 5,
-          "round_sequence": 17,
-          "fixture_order": 110,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "fixture_id": 1647959,
+          "slug": "2026-11-13-la-neuvillette-vs-valenciennes",
+          "kickoff": "2026-11-13 19:00:00+00:00",
+          "round": "1/128-finals",
+          "round_label_i18n_key": null,
+          "round_number": null,
+          "round_letter": null,
+          "round_order": null,
+          "round_sequence": 1,
+          "fixture_order": 6,
+          "status": "PEN",
+          "unplayed_state": null,
+          "is_played": true,
+          "goals_home": 2,
+          "goals_away": 2,
           "home": {
-            "team_id": 1118,
-            "name": "Netherlands",
-            "slug": "netherlands",
-            "crest": "https://media.api-sports.io/football/teams/1118.png"
+            "team_id": 28629,
+            "name": "La Neuvillette",
+            "slug": "la-neuvillette",
+            "crest": "https://media.api-sports.io/football/teams/28629.png"
           },
           "away": {
-            "team_id": 1117,
-            "name": "Greece",
-            "slug": "greece",
-            "crest": "https://media.api-sports.io/football/teams/1117.png"
+            "team_id": 105,
+            "name": "Valenciennes",
+            "slug": "valenciennes",
+            "crest": "https://media.api-sports.io/football/teams/105.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1647986,
+          "slug": "2026-11-13-st-philbert-gd-lieu-vs-la-roche-vf",
+          "kickoff": "2026-11-13 19:00:00+00:00",
+          "round": "1/128-finals",
+          "round_label_i18n_key": null,
+          "round_number": null,
+          "round_letter": null,
+          "round_order": null,
+          "round_sequence": 1,
+          "fixture_order": 7,
+          "status": "FT",
+          "unplayed_state": null,
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 3,
+          "home": {
+            "team_id": 15110,
+            "name": "St-Philbert Gd Lieu",
+            "slug": "st-philbert-gd-lieu",
+            "crest": "https://media.api-sports.io/football/teams/15110.png"
+          },
+          "away": {
+            "team_id": 9915,
+            "name": "La Roche VF",
+            "slug": "la-roche-vf",
+            "crest": "https://media.api-sports.io/football/teams/9915.png"
+          },
+          "is_next_round": false,
           "is_match_that_matters": false
         }
       ]

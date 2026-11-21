@@ -32,7 +32,7 @@ Secondary hook: the past-meetings record ("they've never beaten them at home" en
 Payload top level: `fixture_id, slug, kickoff, status, league_code, league_name,
 season, round, round_order, is_next_round, venue, home, away, head_to_head`.
 Each side (`home`/`away`): `team_id, name, slug, crest, country, form, standing,
-form_window[], top_players[], next_match`.
+form_window[], players_to_watch, next_match`.
 
 ## 4. Layout
 
@@ -42,7 +42,7 @@ The page draws render `match-page_2026-10-07_75`. Its blocks, in order:
 2. Header: the competition's group head, then round · date · time UTC · venue, then the two teams.
 3. Form comparison: one window per team, the W/D/L pills, the catalogue's rows.
 4. Recent matches: up to 5 result rows per team.
-5. Players to watch: up to 5 player rows per team.
+5. Players to watch: the intro, then two boards with up to 3 player rows per team.
 6. Head to head: the intro, then up to 5 meetings.
 
 A match further out than the next matchday gets the future match page, drawn by render
@@ -134,15 +134,20 @@ full width beneath. Bars are normalized to the larger of the two values.
 | Date | `played_kickoff_datetime` | locale short date |
 | Link | `played_fixture_sk` | to the match's page when the build makes one |
 
-### (5) Players to watch — per side `top_players[]` (≤5)
+### (5) Players to watch — per side `players_to_watch` (`window_type`, `boards[]`)
 
-The players: `mart_player_season_record` by `top_player_rank`, the season record of the
-match's competition. The rank orders by goals plus assists, then goals, then fewer minutes.
+Two boards, in this order: Goals and assists (`scorer_points_player`) and Ball actions per 90
+(`ball_actions_per90`). Each board carries `metric_key`, `label_i18n_key`, `format` and up to 3
+`rows[]`. `mart_player_season_record` places the players by `scorer_points_rank` and
+`ball_actions_per90_rank`: outfield players, the match's competition this season, or last season
+before the team's first match in it.
 
-The player row: `player_photo_url`, `player_name` over `position_code`, then
-`goals_total` and `goals_assists`; a goalkeeper shows `saves_player`.
-The intro is `playersIntro`, or `playersIntroPrev` when a row's `window_type` is `prev_season`.
-No link until the players' pages exist.
+The board: its name over the two columns, each headed by its team's name.
+The player row: `player_photo_url`, `player_name` over `position_code`, then `value` alone in the
+board's `format`. It links to the player's page when the build makes one.
+The intro is `playersIntro`, or `playersIntroPrev` when both sides' `window_type` is `prev_season`, or
+`playersIntroMixed` when the two sides' differ.
+A board with no row on either side is left out, and the block when no board is left.
 
 ### (6) Head-to-head — `head_to_head` (perspective = **home team**)
 

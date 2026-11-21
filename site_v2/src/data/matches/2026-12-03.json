@@ -1,0 +1,52 @@
+{
+  "type": "match_day",
+  "slug": "2026-12-03",
+  "day": "2026-12-03",
+  "is_opening_day": false,
+  "previous_day": "2026-12-02",
+  "next_day": "2026-12-05",
+  "competitions": [
+    {
+      "league_code": "CIT",
+      "name": "Coppa Italia",
+      "slug": "coppa-italia",
+      "crest": "https://media.api-sports.io/football/leagues/137.png",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1638134,
+          "slug": "2026-12-03-juventus-fc-vs-us-sassuolo",
+          "kickoff": "2026-12-03 20:00:00+00:00",
+          "round": "Round of 16",
+          "round_label_i18n_key": "roundOf16",
+          "round_number": null,
+          "round_letter": null,
+          "round_order": 16,
+          "round_sequence": 4,
+          "fixture_order": 31,
+          "status": "NS",
+          "unplayed_state": null,
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 496,
+            "name": "Juventus FC",
+            "slug": "juventus-fc",
+            "crest": "https://media.api-sports.io/football/teams/496.png"
+          },
+          "away": {
+            "team_id": 488,
+            "name": "US Sassuolo",
+            "slug": "us-sassuolo",
+            "crest": "https://media.api-sports.io/football/teams/488.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

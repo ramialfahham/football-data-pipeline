@@ -28,7 +28,7 @@ from scripts.export_site_data import (
     shape_player_payload,
     shape_player_peers,
     shape_team_payload,
-    shape_top_players,
+    shape_players_to_watch,
     player_slug_with_id,
 )
 from scripts import export_site_data
@@ -241,20 +241,41 @@ def test_fetch_nav_takes_each_leagues_tier_from_the_competition_mart(monkeypatch
     assert order.index("BL2") < order.index("BL1"), "the mart's tier orders the hub, not the YAML"
 
 
-def test_shape_top_players_selects_by_rank_and_joins_names():
-    # Selection only: ordered by the warehouse's top_player_rank, with join keys and the rank dropped.
-    rows = [
-        {"player_sk": 1, "upcoming_fixture_sk": 9, "team_sk": 5, "top_player_rank": 2},
-        {"player_sk": 2, "upcoming_fixture_sk": 9, "team_sk": 5, "top_player_rank": 1},
-        {"player_sk": 3, "upcoming_fixture_sk": 9, "team_sk": 5, "top_player_rank": None},
-    ]
-    names = {1: {"player_name": "A", "player_photo_url": "a"},
-             2: {"player_name": "B", "player_photo_url": "b"},
-             3: {"player_name": "C", "player_photo_url": "c"}}
-    top = shape_top_players(rows, names, limit=5)
-    assert [p["player_name"] for p in top] == ["B", "A"]   # by rank asc; null-rank C excluded
-    assert "upcoming_fixture_sk" not in top[0]              # join keys dropped
-    assert "top_player_rank" not in top[0]                 # selection key dropped
+_WATCH_BOARDS = {
+    "scorer_points_player": {"label_i18n_key": "playerMetrics.scorerPoints.label", "format": "integer"},
+    "ball_actions_per90": {"label_i18n_key": "playerMetrics.ballActionsPer90.label", "format": "decimal_1"},
+}
+
+
+def _watch_row(sk, sp_rank, ba_rank, **kw):
+    return {"player_sk": sk, "upcoming_fixture_sk": 9, "team_sk": 5, "player_name": f"P{sk}",
+            "player_photo_url": f"u{sk}", "position_code": "M", "window_type": "season_to_date",
+            "scorer_points_player": 10 - sk, "ball_actions_per90": 60.0 + sk,
+            "scorer_points_rank": sp_rank, "ball_actions_per90_rank": ba_rank, **kw}
+
+
+def test_shape_players_to_watch_selects_each_board_by_its_rank():
+    # Selection only: each board takes the mart's rank, top three, in rank order; the export never ranks.
+    rows = [_watch_row(1, 2, None), _watch_row(2, 1, 3), _watch_row(3, None, 1),
+            _watch_row(4, 3, 2), _watch_row(5, 4, 4)]
+    watch = shape_players_to_watch(rows, _WATCH_BOARDS)
+    assert watch["window_type"] == "season_to_date"
+    goals, actions = watch["boards"]
+    assert goals["metric_key"] == "scorer_points_player" and goals["format"] == "integer"
+    assert goals["label_i18n_key"] == "playerMetrics.scorerPoints.label"
+    assert [r["player_sk"] for r in goals["rows"]] == [2, 1, 4]
+    assert [r["player_sk"] for r in actions["rows"]] == [3, 4, 2]
+    assert actions["rows"][0] == {"player_sk": 3, "player_name": "P3", "player_photo_url": "u3",
+                                  "position_code": "M", "value": 63.0}
+    assert goals["rows"][0]["value"] == 8
+
+
+def test_shape_players_to_watch_keeps_an_empty_board_and_is_none_without_any():
+    (one,) = [_watch_row(1, 1, None)]
+    watch = shape_players_to_watch([one], _WATCH_BOARDS)
+    assert [len(b["rows"]) for b in watch["boards"]] == [1, 0]
+    assert shape_players_to_watch([], _WATCH_BOARDS) is None
+    assert shape_players_to_watch([_watch_row(1, None, None)], _WATCH_BOARDS) is None
 
 
 def test_shape_competition_payload_orders_every_block_by_served_columns():
@@ -550,7 +571,7 @@ def test_fixture_side_carries_identity_and_handles_missing():
                          {"goals_per_match": 1.4}, None)
     assert side["team_id"] == 1 and side["name"] == "A" and side["slug"] == "a" and side["crest"] == "u"
     assert side["form"] == {"goals_per_match": 1.4}
-    assert side["standing"] is None and side["top_players"] == []  # honest absence
+    assert side["standing"] is None and side["players_to_watch"] is None  # honest absence
 
 
 def test_form_block_is_the_block_the_warehouse_flags():
@@ -650,7 +671,7 @@ def test_fixture_payloads_read_the_match_and_each_teams_next_match_from_the_mart
 
 
 def test_fixture_payloads_carry_the_served_window_round_slugs_and_season_players(monkeypatch):
-    """Form is the flagged block, and Players to watch are mart_player_season_record's top five by rank."""
+    """Form is the flagged block, and Players to watch are mart_player_season_record's two boards by rank."""
     page = _match_row(20, 1, 2, "2026-10-31T17:30:00Z")
     keys = {"upcoming_fixture_sk": 20, "is_home": True}
 
@@ -664,9 +685,11 @@ def test_fixture_payloads_carry_the_served_window_round_slugs_and_season_players
         if "mart_team_season_record" in sql:
             return [{**keys, "team_sk": 2, "window_type": "prev_season", "goals_per_match": 2.0, "is_form_window": True}]
         if "mart_player_season_record" in sql:
+            assert "scorer_points_rank <= 3 or ball_actions_per90_rank <= 3" in sql
             return [{**keys, "team_sk": 1, "player_sk": 7, "player_name": "P7", "player_photo_url": "u7",
-                     "top_player_rank": 1, "goals_total": 3, "goals_assists": 1,
-                     "window_type": "season_to_date", "league_code": "BL1"}]
+                     "position_code": "F", "scorer_points_player": 4, "ball_actions_per90": None,
+                     "scorer_points_rank": 1, "ball_actions_per90_rank": None,
+                     "window_type": "season_to_date"}]
         return []
 
     monkeypatch.setattr(export_site_data, "_query", fake_query)
@@ -676,9 +699,14 @@ def test_fixture_payloads_carry_the_served_window_round_slugs_and_season_players
     assert p["home"]["slug"] == "t1" and p["away"]["slug"] == "t2"
     assert p["home"]["form"] == {"window_type": "last_5", "goals_per_match": 1.4}
     assert p["away"]["form"] == {"window_type": "prev_season", "goals_per_match": 2.0}, "the flagged season record"
-    assert p["home"]["top_players"] == [{"player_sk": 7, "goals_total": 3, "goals_assists": 1,
-                                          "window_type": "season_to_date", "player_name": "P7",
-                                          "player_photo_url": "u7"}]
+    watch = p["home"]["players_to_watch"]
+    assert watch["window_type"] == "season_to_date"
+    assert [b["metric_key"] for b in watch["boards"]] == ["scorer_points_player", "ball_actions_per90"]
+    assert [b["format"] for b in watch["boards"]] == ["integer", "decimal_1"], "the catalogue's formats"
+    assert watch["boards"][0]["rows"] == [{"player_sk": 7, "player_name": "P7", "player_photo_url": "u7",
+                                           "position_code": "F", "value": 4}]
+    assert watch["boards"][1]["rows"] == []
+    assert p["away"]["players_to_watch"] is None
 
 
 def test_player_slug_folds_accents_and_appends_id():
