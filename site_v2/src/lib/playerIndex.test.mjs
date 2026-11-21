@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { worldsBest, nationGroups, nationPages, hubView, slotOf, codeOf } from "./playerIndex.mjs";
@@ -84,4 +84,28 @@ test("the committed sample: no nation slug is a player slug, every player slug e
   const players = [...readBuiltPlayers(dataDir).values()];
   for (const slug of players) assert.match(slug, /(^|-)\d+$/);
   assert.doesNotThrow(() => nationPages(data, players));
+});
+
+test("a nation page's h1 is never its national team page's name, in EN, DE and FI", async () => {
+  const dataDir = join(dirname(fileURLToPath(import.meta.url)), "..", "data");
+  const file = join(dataDir, "players_index.json");
+  if (!existsSync(file)) return;
+  const { t } = await import("../i18n/strings.ts");
+  const data = JSON.parse(readFileSync(file, "utf8"));
+  const nationSlugs = new Set(nationPages(data, []).map((x) => x.slug));
+  const national = new Set(
+    JSON.parse(readFileSync(join(dataDir, "teams_index.json"), "utf8")).teams
+      .filter((x) => x.entity_type === "national").map((x) => x.team_slug),
+  );
+  const teamsDir = join(dataDir, "teams");
+  const pairs = readdirSync(teamsDir).filter((f) => f.endsWith(".json"))
+    .map((f) => JSON.parse(readFileSync(join(teamsDir, f), "utf8")))
+    .filter((team) => national.has(team.slug) && nationSlugs.has(team.slug));
+  assert.ok(pairs.length > 0, "the sample must hold a nation page and a national team page of one nation");
+  for (const team of pairs) {
+    for (const lang of ["en", "de", "fi"]) {
+      const h1 = t(lang, "seoNationTitle", { nation: team.name });
+      assert.notEqual(h1, team.name, `${lang} ${team.slug}`);
+    }
+  }
 });
