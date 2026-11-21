@@ -3,10 +3,10 @@ version: 2
 models:
   - name: int_round_names
     description: >
-      Every distinct round text of a competition-season in fct_fixture, named the way the
-      competition names it: a copy key from the round_names seed (the competition-season's own
-      row, then the competition's, then the general one) with the number and group letter the
-      name shows. Grain: (league_code, season_api_year, round_name).
+      Every distinct round text of a competition-season in base_apif__fixtures_next, named the way the
+      competition names it by base_apif__fixture_rounds (a copy key from the round_names seed with
+      the number and group letter the name shows), with the competition's latest season marked.
+      Grain: (league_code, season_api_year, round_name).
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [league_code, season_api_year, round_name]
@@ -36,5 +36,5 @@ models:
       - name: needs_letter
         description: True when the matched name shows a group letter.
       - name: is_latest_season
-        description: True for the competition's latest season in fct_fixture, the season the competition pages show.
+        description: True for the competition's latest season, the season the competition pages show.
         tests: [not_null]

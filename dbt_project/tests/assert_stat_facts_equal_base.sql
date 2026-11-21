@@ -2,6 +2,8 @@
   A stat fact disagrees with its base: a row in one and not the other, or a value that differs.
   Each fact is its base keyed and renamed, rebuilt in full every night, so every column it takes
   from base must match on every row. One row per disagreeing row, with the side it is missing from.
+  The team fact also holds the sides of matches with no scoreline yet, which base has no row for;
+  those rows are left out of the comparison.
 #}
 {{ config(store_failures = true, severity = 'error') }}
 
@@ -18,7 +20,8 @@
      'fact_rows': 'not is_from_lineups', 'renamed': player_keys, 'columns': player_columns},
     {'fact': 'fct_fixture_player_stats', 'base': 'base_apif__fixture_players_from_lineups',
      'fact_rows': 'is_from_lineups', 'renamed': player_keys, 'columns': player_columns},
-    {'fact': 'fct_fixture_team_stats', 'base': 'base_apif__fixture_statistics', 'fact_rows': 'true',
+    {'fact': 'fct_fixture_team_stats', 'base': 'base_apif__fixture_statistics',
+     'fact_rows': 'has_stat_line or (is_finished and goals_for is not null and goals_against is not null)',
      'renamed': {'fixture_api_id': 'fixture_id', 'team_api_id': 'team_id'},
      'columns': ['league_code', 'has_stat_line', 'shots_on_target', 'shots_off_target', 'shots',
                  'shots_blocked', 'shots_inside_box', 'shots_outside_box', 'fouls', 'corners',

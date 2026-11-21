@@ -1,0 +1,1277 @@
+diff --git a/.claude/task/327-team-fixture-status/contract.md b/.claude/task/327-team-fixture-status/contract.md
+new file mode 100644
+index 00000000..9bf42d2f
+--- /dev/null
++++ b/.claude/task/327-team-fixture-status/contract.md
+@@ -0,0 +1,114 @@
++# Task contract — core team-fixture fact and match status decided once in base (#327, MR 1 of 4)
++
++objective: >
++  Steps 1-3 of #327. Match status and the round classification are decided once in base and carried
++  on fct_fixture. fct_fixture_team_stats becomes the team-per-fixture fact: two rows per fixture of
++  every status, with goals_for / goals_against, the result, the opponent's key and the opponent's
++  stat values. int_legs__team_match becomes a thin selection over that fact and its output is
++  unchanged. No page number changes.
++refs: "#327 (steps 1, 2, 3; checkboxes 1, 2 and the first half of 5)"
++
++scope_paths:
++  - dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_rounds.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/3_core/fct_fixture.sql
++  - dbt_project/models/3_core/fct_fixture_team_stats.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/4_intermediate/shared/int_round_names.sql
++  - dbt_project/models/4_intermediate/shared/int_round_names.yml
++  - dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
++  - dbt_project/models/4_intermediate/shared/int_legs.yml
++  - dbt_project/docs/layering.md
++  - tests/test_no_decision_history_in_code.py
++  - dbt_project/tests/assert_stat_facts_equal_base.sql
++  - dbt_project/tests/assert_fanout_facts_not_empty.sql
++  - dbt_project/tests/assert_fct_fixture_team_stats_covers_active_competition_var.sql
++  - dbt_project/tests/assert_team_fixture_rows_reconcile.sql
++  - dbt_project/tests/assert_team_stats_team_in_fixture_participants.sql
++  - dbt_project/seeds/schema.yml
++  - .claude/task/327-team-fixture-status/**
++
++impact_map: >
++  writers: base_apif__fixtures_next (adds is_finished, is_played, is_awarded_result, is_shootout,
++  round_order from its own status_short and round_name); new base_apif__fixture_rounds (the round
++  matching moved verbatim out of int_round_names); fct_fixture (adds those columns and
++  round_stage_kind, is_table_shootout); fct_fixture_team_stats (re-grained to every side of every
++  fixture, left-joined to base_apif__fixture_statistics); int_legs__team_match (selection over the
++  fact); int_round_names (selection over base_apif__fixture_rounds plus is_latest_season).
++  downstream: `dbt ls --select <model>+ --resource-type model` from the repo root, run 2026-11-21:
++  base_apif__fixtures_next+ = 98 models, 34 marts; fct_fixture_team_stats+ = 66 models, 32 marts;
++  int_legs__team_match+ = 65 models, 32 marts; int_round_names+ = 67 models, 32 marts. The readers
++  of fct_fixture_team_stats are int_legs__team_match and four tests
++  (assert_fct_fixture_team_stats_covers_active_competition_var, assert_fanout_facts_not_empty,
++  assert_team_id_aliases_merged, assert_team_stats_team_in_fixture_participants) plus
++  assert_stat_facts_equal_base; none selects a column the widening removes.
++  layer_rules: check_layer_contract.py: base refs no core, intermediate or mart (the rounds model
++  reads base_apif__fixtures_next and the round_names seed only); core refs no stg_* or mart_*
++  (fct_fixture_team_stats reads fct_fixture, base_apif__fixture_statistics and nothing else);
++  materialisation stays set per layer. fct_fixture_team_stats now reads fct_fixture, a same-layer
++  ref the cross-layer consumption rule allows.
++  deploy_order: no table is dropped or renamed, only columns added and one fact widened by rows
++  whose stat columns are NULL, so the deployed marts keep building against the new tables in the
++  same nightly build, in dependency order. int_round_names keeps its columns and grain.
++  blast_radius: none for any number on any page. Proof: int_legs__team_match from the MR build
++  equals prod's, row for row and column for column, by EXCEPT DISTINCT both ways (query and row
++  counts in the MR head); fct_fixture_team_stats has 2 x fixtures-with-both-teams rows, all stat
++  totals equal base (assert_stat_facts_equal_base), int_round_names equals prod's the same way.
++  RAW evidence, prod 2026-11-21: core.fct_fixture 65,209 fixtures, 0 with a NULL team, every team
++  in dim_team across all ten statuses; core.fct_fixture_team_stats 123,250 rows, all on a side of a
++  finished fixture; 8 finished fixtures carry no scoreline (withheld, kept out of the legs as now).
++
++depends_on:
++  - "!500: it rewrites fct_fixture.sql and edits core.yml; this branch commits those two files after it merges, then rebases on gitlab/main"
++shared_files:
++  - "none: no design baseline, registry or screenshot fixture is touched"
++
++decisions_taken: >
++  #327 direction and its How steps 1-3 approved in chat, 2026-11-18; the issue's What exactly and
++  How are the spec. Engineering calls inside it, stated here: (1) the status columns reuse the
++  names already in the warehouse (is_finished, is_awarded_result, is_table_shootout_win,
++  has_stat_line) plus is_played and is_shootout; (2) is_finished is the status list alone and is
++  not the same set as "has a scoreline", so a finished match whose result is withheld stays
++  finished and its goals stay NULL; readers that need a scoreline test the goals columns, as
++  int_legs__team_match does today; (3) is_played is FT, AET, PEN, the played list the readers
++  write out today; (4) the fact carries keys, status, goals, result, stats and the opponent's
++  stats; header attributes (kick-off, season, round) are read from fct_fixture by the readers, not
++  copied onto the fact; (5) the round_names matching moves into base_apif__fixture_rounds because
++  base may not read int_round_names; int_round_names stays as the reader-facing selection;
++  (6) the fact keeps the name fct_fixture_team_stats in this MR; the rename to fct_team_fixture is
++  an engineering decision (a model name) taken by the coordinating session, one mechanical MR
++  after this one and before MR 2; the CI check on status_short literals is likewise decided: a
++  pytest pin that only goes down, added in the last reader-move MR once the count is zero;
++  (6b) the fct_fixture_team_stats rows of dbt_project/docs/layering.md and fact qualification
++  rule 3 change in this MR, with the sentences written at the top of the MR description under
++  "Core text for approval"; the merge is the approval;
++  (6c) the two tests that count the fact's rows (assert_fanout_facts_not_empty and
++  assert_fct_fixture_team_stats_covers_active_competition_var) keep their meaning by counting
++  finished sides only, since the fact now also holds unplayed sides;
++  (7) rule R3 is not touched: forfeits keep their scoreline and their NULL stat columns in the
++  rows, and is_awarded_result stays the column the metric filters read.
++  No new dependency, no recurring cost, no new CI check, no change to a protected path.
++
++decisions_reserved:
++  - "none: the rename, the status_short pin and the layering.md text are decided as stated in decisions_taken (6) and (6b); this MR adds no other CPO-class question"
++
++done_when:
++  - ".venv/Scripts/dbt.exe parse --project-dir dbt_project exits 0 (from the repo root)"
++  - "python -m sqlfluff lint on each changed model, from the repo root, with the full rule set, reports nothing new"
++  - "python scripts/check_layer_contract.py and python scripts/check_description_hygiene.py exit 0"
++  - "python scripts/ci_local.py --mr is green"
++  - "in the MR build: int_legs__team_match and int_round_names equal prod by EXCEPT DISTINCT both ways, 0 rows each way, and the row counts match"
++  - "in the MR build: assert_team_fixture_rows_reconcile and assert_stat_facts_equal_base return 0 rows"
++
++amendments: >
++  (1) assert_team_stats_team_in_fixture_participants joins scope_paths: the fact now builds its team
++  rows from the fixture's own participants, so a check of the fact against fct_fixture can no longer
++  fail. The test is re-pointed at base_apif__fixture_statistics, the input that can carry a
++  mis-attributed team, so the invariant it guards is kept. An engineering edit inside the approved
++  #327, found by the round 1 platform review; no new decision class.
++  (2) dbt_project/seeds/schema.yml joins scope_paths: the round_names seed description names the
++  model that applies the seed, which is now base_apif__fixture_rounds, not int_round_names. One
++  sentence is reworded so the persisted description points at the right model; found by the round 2
++  warehouse review; no new decision class.
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index b41e1adc..f9bf74a9 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -201,7 +201,7 @@ Allowed:
+ - Relationship logic and conformed attributes that marts and intermediate models should reuse rather than re-derive.
+ 
+ Not allowed:
+-- Wide, consumer-specific projections or performance-oriented denormalization (those belong in **marts**, with support from **intermediate** where needed).
++- Wide, consumer-specific projections or performance-oriented denormalization (those belong in **marts**, with support from **intermediate** where needed). A team-perspective row carrying the opponent's values of the same match is the match's atomic grain, not such a denormalization.
+ 
+ ### Dimension qualification rules
+ 
+@@ -248,7 +248,7 @@ A table earns `fct_` status only when **all three** conditions hold:
+ 
+ 1. **Event or measurement.** It captures something that happened at a point in time (a match, a transfer, a card) or the state of a measure at a point in time (standings on a given day). A reference list with no time dimension does not qualify.
+ 2. **Dimensional context.** It joins to one or more dims via foreign keys and/or carries degenerate dim columns that pin the event/measurement to a team, player, season, and date.
+-3. **Measures or atomic grain.** It carries additive/semi-additive measures (goals, minutes, shots, points), or it is the atomic grain of a state that downstream models aggregate. Wide denormalized shapes designed for a single consumer belong in `5_marts`, not `3_core`.
++3. **Measures or atomic grain.** It carries additive/semi-additive measures (goals, minutes, shots, points), or it is the atomic grain of a state that downstream models aggregate. Wide denormalized shapes designed for a single consumer belong in `5_marts`, not `3_core`. A team row that carries the opponent's values of the same match is the match's atomic grain.
+ 
+ Patterns that look like facts but are not:
+ 
+@@ -263,7 +263,7 @@ Canonical fact inventory for this project:
+ |------|-------|-------------------------|-------|
+ | `fct_fixture` | `fixture_sk` (= `fixture_api_id`) | `base_apif__fixtures_next` | Match header; status, round, and venue travel as degenerate attributes. Half-time / extra-time / penalty splits deferred. |
+ | `fct_standings` | `(season_sk, team_sk, group_name)` | `base_apif__standings` (from generic `stg_apif__standings`) | Current league position per team-season; raw payload is replaced wholesale per season on each ingest. |
+-| `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `base_apif__fixture_statistics` | `statistics_lines_json` pivoted to named columns; dedup in base layer. |
++| `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `base_apif__fixture_statistics`, `fct_fixture` | One row per team per fixture, every status. It carries the team's own stats, the opponent's, goals for and against, the result and the match status columns. |
+ | `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `base_apif__fixture_players_checked` (from `base_apif__fixture_players`), `base_apif__fixture_players_from_lineups` | `player_statistics_json[0]` flattened into measures; for a played team match without it, or a sheet player with a card and no stat line, the team sheet and match events. |
+ | `fct_fixture_event` | `event_sk` hashed over full staging grain | `base_apif__fixture_events_checked` (from `base_apif__fixture_events` and `base_apif__lineups`) | What counts as a goal is `is_goal`, defined once in `base_apif__fixture_events`; a scorer or assister off the pitch on the line-up is withheld in `base_apif__fixture_events_checked`. |
+ | `fct_fixture_lineup` | `(fixture_sk, team_sk, player_sk)` | `base_apif__lineups` (with seed `fixture_lineup_corrections`) | Starters and bench from each team's latest line-up or a researched one, with the substitutions paired from the match events and the match's line-up state. |
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 2a0d77b3..63a9f4db 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -229,6 +229,57 @@ models:
+         description: "The provider's round text; differs from round_name only where the round was corrected."
+       - name: round_correction_source
+         description: "Where the round was corrected, the source of the organiser's round: its published draw or results, or two independent match reports. NULL elsewhere."
++      - name: is_finished
++        description: "True when the provider closed the match: played to full time, extra time or a shoot-out, or decided off the pitch as a technical loss or walkover. A finished match whose result is withheld stays finished and keeps blank goals."
++        tests: [not_null]
++      - name: is_played
++        description: "True when the match was played to the end on the pitch: full time, extra time or a shoot-out. False for a match decided off the pitch."
++        tests: [not_null]
++      - name: is_awarded_result
++        description: "True where the match was decided off the pitch, a technical loss or a walkover. It counts for points and goals and never has a stat line."
++        tests: [not_null]
++      - name: is_shootout
++        description: "True where the match went to a penalty shoot-out."
++        tests: [not_null]
++      - name: round_order
++        description: "{{ doc('round_order') }}"
++
++  - name: base_apif__fixture_rounds
++    description: >
++      Every distinct round text of a competition-season in base_apif__fixtures_next, named the way
++      the competition names it: a copy key from the round_names seed (the competition-season's own
++      row, then the competition's, then the general one) with the number and group letter the name
++      shows, and the stage kind the row gives. Grain: (league_code, season_api_year, round_name).
++    config:
++      tags: ["base", "api_football", "fixture_context"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [league_code, season_api_year, round_name]
++    columns:
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: season_api_year
++        description: "{{ doc('season_api_year') }}"
++        tests: [not_null]
++      - name: round_name
++        description: "{{ doc('round_name') }}"
++        tests: [not_null]
++      - name: round_label_i18n_key
++        description: The copy key a page names the round by. NULL when no round_names pattern covers the text.
++      - name: round_stage_kind
++        description: "table for a round played for a table, final, placement for a third-place match, or knockout for every other round of ties, from the round_names row that names it; NULL when no row covers the text."
++        tests:
++          - accepted_values:
++              values: ["table", "knockout", "final", "placement"]
++      - name: round_number
++        description: The number the round's name shows (the matchday, or the round in a cup's sequence); NULL when the name shows none.
++      - name: round_letter
++        description: The group letter the round's name shows; NULL when the name shows none.
++      - name: needs_number
++        description: True when the matched name shows a number.
++      - name: needs_letter
++        description: True when the matched name shows a group letter.
+ 
+   - name: base_apif__standings
+     description: >
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_rounds.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_rounds.sql
+new file mode 100644
+index 00000000..64e07489
+--- /dev/null
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_rounds.sql
+@@ -0,0 +1,65 @@
++{#
++    base_apif__fixture_rounds — every distinct round text of a competition-season named the way the
++    competition names it.
++
++    The lower-cased text takes the round_names pattern that matches it: the competition-season's
++    own row first (a cup whose early rounds change with each season's format), then the
++    competition's own (Veikkausliiga's Mestaruussarja, the Premier League's Matchweek), then the
++    general one, each by lowest priority. The row gives the copy key the page names the round by;
++    its number and group letter are read from the text with the row's own expressions, and its
++    stage kind says whether the round is played for a table, is a final, a third-place match, or
++    another round of knockout ties.
++
++    Grain: (league_code, season_api_year, round_name).
++#}
++
++with fixture_rounds as (
++    select distinct
++        league_code,
++        season as season_api_year,
++        round_name
++    from {{ ref('base_apif__fixtures_next') }}
++    where round_name is not null
++),
++
++import_round_names as (
++    select * from {{ ref('round_names') }}
++),
++
++matched as (
++    select
++        rounds.league_code,
++        rounds.season_api_year,
++        rounds.round_name,
++        names.label_i18n_key,
++        names.n_regex,
++        names.g_regex,
++        names.stage_kind
++    from fixture_rounds as rounds
++    inner join import_round_names as names
++        on
++            regexp_contains(lower(trim(rounds.round_name)), names.pattern)
++            and (names.league_code is null or rounds.league_code = names.league_code)
++            and (names.season_api_year is null or rounds.season_api_year = names.season_api_year)
++    qualify row_number() over (
++        partition by rounds.league_code, rounds.season_api_year, rounds.round_name
++        order by names.season_api_year is null, names.league_code is null, names.priority
++    ) = 1
++)
++
++select
++    rounds.league_code,
++    rounds.season_api_year,
++    rounds.round_name,
++    matched.label_i18n_key as round_label_i18n_key,
++    matched.stage_kind as round_stage_kind,
++    safe_cast(regexp_extract(lower(trim(rounds.round_name)), matched.n_regex) as int64) as round_number,
++    upper(regexp_extract(lower(trim(rounds.round_name)), matched.g_regex)) as round_letter,
++    matched.n_regex is not null as needs_number,
++    matched.g_regex is not null as needs_letter
++from fixture_rounds as rounds
++left join matched
++    on
++        rounds.league_code = matched.league_code
++        and rounds.season_api_year = matched.season_api_year
++        and rounds.round_name = matched.round_name
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
+index e25b1d8b..40c1ef55 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
+@@ -248,7 +248,7 @@ fixtures as (
+         raw_ingested_at,
+         cast(home_team_id as int64) as home_team_id,
+         cast(away_team_id as int64) as away_team_id,
+-        status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO')
++        is_finished
+         and goals_home is not null and goals_away is not null
+         and home_team_id is not null and away_team_id is not null as is_finished
+     from {{ ref('base_apif__fixtures_next') }}
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql b/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
+index 5bac00cd..ec255bd6 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
+@@ -131,9 +131,17 @@ checked as (
+     from cleaned
+ )
+ 
++-- The match's state, decided once here: every reader takes these columns and writes no status list.
++-- Finished means the provider closed the match, a withheld result included; whether a scoreline
++-- stands is a question of the goals columns.
+ select
+     * except (goals_home, goals_away, shootout_home, shootout_away, winner_team_id, result_needs_research),
+     result_needs_research,
++    coalesce(status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO'), false) as is_finished,
++    coalesce(status_short in ('FT', 'AET', 'PEN'), false) as is_played,
++    coalesce(status_short in ('AWD', 'WO'), false) as is_awarded_result,
++    coalesce(status_short = 'PEN', false) as is_shootout,
++    safe_cast(regexp_extract(round_name, r'(\d+)$') as int64) as round_order,
+     if(result_needs_research, null, goals_home) as goals_home,
+     if(result_needs_research, null, goals_away) as goals_away,
+     if(result_needs_research, null, shootout_home) as shootout_home,
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index 69ac1c8b..2bef7d44 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -752,8 +752,38 @@ models:
+         description: "API-Football long status description."
+       - name: status_elapsed
+         description: "Elapsed minutes as reported by API-Football (in-play only)."
++      - name: is_finished
++        description: "True when the provider closed the match: played to full time, extra time or a shoot-out, or decided off the pitch as a technical loss or walkover. A finished match whose result is withheld stays finished and keeps blank goals."
++        tests: [not_null]
++      - name: is_played
++        description: "True when the match was played to the end on the pitch: full time, extra time or a shoot-out. False for a match decided off the pitch."
++        tests:
++          - not_null
++          - dbt_utils.expression_is_true:
++              expression: "= false or is_finished"
++              name: fixture_played_is_finished
++      - name: is_awarded_result
++        description: "True where the match was decided off the pitch, a technical loss or a walkover. It counts for points and goals and never has a stat line."
++        tests:
++          - not_null
++          - dbt_utils.expression_is_true:
++              expression: "= false or (is_finished and not is_played)"
++              name: fixture_awarded_is_finished_not_played
++      - name: is_shootout
++        description: "True where the match went to a penalty shoot-out."
++        tests: [not_null]
+       - name: round_name
+         description: "{{ doc('round_name') }}"
++      - name: round_order
++        description: "{{ doc('round_order') }}"
++      - name: round_stage_kind
++        description: "table for a round played for a table, final, placement for a third-place match, or knockout for every other round of ties, from the round_names row that names the round; NULL when no row covers the text."
++        tests:
++          - accepted_values:
++              values: ["table", "knockout", "final", "placement"]
++      - name: is_table_shootout
++        description: "True where a shoot-out decided a match in a round played for a table. The shoot-out winner then gets 2 points instead of 1. A shoot-out in a cup or play-off round is false."
++        tests: [not_null]
+       - name: goals_home
+         description: "Final-time goals scored by home team."
+       - name: goals_away
+@@ -886,7 +916,12 @@ models:
+         description: "{{ doc('raw_ingested_at') }}"
+ 
+   - name: fct_fixture_team_stats
+-    description: "Per-team, per-fixture statistics, cleaned in base_apif__fixture_statistics: one row per team with a statistics line and per team of every finished match (all stats blank where the provider sent no line). Grain: (fixture_sk, team_sk)."
++    description: >
++      One row per team per fixture, whatever the match's status: the match from each side, with the
++      team's own cleaned statistics (from base_apif__fixture_statistics, blank where the provider
++      sent no line or the match has not been played), the opponent's same values as `*_against`,
++      goals_for and goals_against from the header, the result and the match's status columns.
++      A fixture whose two teams are not both known has no rows. Grain: (fixture_sk, team_sk).
+     meta:
+       owner: "data-platform"
+       domain: "football"
+@@ -898,6 +933,9 @@ models:
+           combination_of_columns:
+             - fixture_sk
+             - team_sk
++      - dbt_utils.expression_is_true:
++          expression: "(result is null) = (goals_for is null or goals_against is null)"
++          name: team_fixture_result_follows_the_scoreline
+     columns:
+       - name: fixture_team_stat_sk
+         description: "Surrogate key from (fixture_id, league_code, team_id)."
+@@ -926,6 +964,44 @@ models:
+         description: "{{ doc('fixture_api_id') }}"
+       - name: team_api_id
+         description: "{{ doc('team_api_id') }}"
++      - name: opponent_team_sk
++        description: "{{ doc('opponent_team_sk') }}"
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
++      - name: home_away
++        description: "{{ doc('home_away') }}"
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["home", "away"]
++      - name: is_finished
++        description: "True when the provider closed the match, as fct_fixture's is_finished."
++        tests: [not_null]
++      - name: is_played
++        description: "True when the match was played to the end on the pitch, as fct_fixture's is_played."
++        tests: [not_null]
++      - name: is_awarded_result
++        description: "True where the match was decided off the pitch, a technical loss or a walkover. It counts for points and goals and never has a stat line, which is why the coverage counters subtract it rather than reading it as missing data."
++        tests: [not_null]
++      - name: goals_for
++        description: "Goals this team scored, from the fixture header, final only where is_finished; NULL while the match has no scoreline, including a finished match whose result is withheld."
++      - name: goals_against
++        description: "Goals this team conceded, from the fixture header, final only where is_finished; NULL while the match has no scoreline."
++      - name: result
++        description: "{{ doc('result') }} It is NULL while the match has no scoreline, and final only where is_finished."
++        tests:
++          - accepted_values:
++              values: ["W", "D", "L"]
++      - name: is_table_shootout_win
++        description: "{{ doc('is_table_shootout_win') }}"
++        tests:
++          - not_null
++          - dbt_utils.expression_is_true:
++              expression: "= false or result = 'D'"
++              name: team_fixture_table_shootout_win_is_a_draw
+       - name: has_stat_line
+         description: "{{ doc('has_stat_line') }}"
+         tests: [not_null]
+@@ -965,6 +1041,42 @@ models:
+         description: "{{ doc('goals_penalty') }}"
+       - name: goals_own
+         description: "{{ doc('goals_own') }}"
++      - name: shots_on_target_against
++        description: "The opponent's shots on target in the match: its own shots_on_target value."
++      - name: shots_off_target_against
++        description: "The opponent's shots off target in the match: its own shots_off_target value."
++      - name: shots_against
++        description: "The opponent's total shots in the match: its own shots value."
++      - name: shots_blocked_against
++        description: "The opponent's blocked shots in the match: its own shots_blocked value."
++      - name: shots_inside_box_against
++        description: "The opponent's shots from inside the box in the match: its own shots_inside_box value."
++      - name: shots_outside_box_against
++        description: "The opponent's shots from outside the box in the match: its own shots_outside_box value."
++      - name: fouls_against
++        description: "The opponent's fouls in the match: its own fouls value."
++      - name: corners_against
++        description: "The opponent's corners in the match: its own corners value."
++      - name: offsides_against
++        description: "The opponent's offsides in the match: its own offsides value."
++      - name: free_kicks_against
++        description: "The opponent's free kicks awarded in the match: its own free_kicks value."
++      - name: possession_pct_against
++        description: "The opponent's ball possession in the match, in percent: its own possession_pct value."
++      - name: cards_yellow_against
++        description: "The opponent's yellow cards in the match: its own cards_yellow value."
++      - name: cards_red_against
++        description: "The opponent's red cards in the match: its own cards_red value."
++      - name: saves_against
++        description: "The opponent's goalkeeper saves in the match: its own saves value."
++      - name: passes_against
++        description: "The opponent's passes in the match: its own passes value."
++      - name: passes_accurate_against
++        description: "The opponent's accurate passes in the match: its own passes_accurate value."
++      - name: goals_penalty_against
++        description: "The opponent's goals from the penalty spot in the match: its own goals_penalty value."
++      - name: goals_own_against
++        description: "Goals this team conceded as own goals, by its own players: the opponent's goals_own value. Part of goals_against, not a shot this team's goalkeeper faced."
+       - name: raw_ingested_at
+         description: "{{ doc('raw_ingested_at') }}"
+ 
+diff --git a/dbt_project/models/3_core/fct_fixture.sql b/dbt_project/models/3_core/fct_fixture.sql
+index 4d2acb76..cb1571b1 100644
+--- a/dbt_project/models/3_core/fct_fixture.sql
++++ b/dbt_project/models/3_core/fct_fixture.sql
+@@ -73,15 +73,25 @@ fixture_clock as (
+         on fixture_offsets.kickoff_time_zone = import_dim_timezone.time_zone
+ ),
+ 
++import_base_apif__fixture_rounds as (
++    select * from {{ ref('base_apif__fixture_rounds') }}
++),
++
+ fixtures as (
+     select
+         import_base_apif__fixtures_next.*,
+         fixture_clock.kickoff_time_zone,
+         fixture_clock.kickoff_local,
+-        fixture_clock.kickoff_zone_label
++        fixture_clock.kickoff_zone_label,
++        import_base_apif__fixture_rounds.round_stage_kind
+     from import_base_apif__fixtures_next
+     left join fixture_clock
+         on import_base_apif__fixtures_next.fixture_id = fixture_clock.fixture_id
++    left join import_base_apif__fixture_rounds
++        on
++            import_base_apif__fixtures_next.league_code = import_base_apif__fixture_rounds.league_code
++            and import_base_apif__fixtures_next.season = import_base_apif__fixture_rounds.season_api_year
++            and import_base_apif__fixtures_next.round_name = import_base_apif__fixture_rounds.round_name
+ )
+ 
+ select
+@@ -105,7 +115,14 @@ select
+     status_short,
+     status_long,
+     status_elapsed,
++    is_finished,
++    is_played,
++    is_awarded_result,
++    is_shootout,
+     round_name,
++    round_order,
++    round_stage_kind,
++    coalesce(round_stage_kind = 'table' and is_shootout, false) as is_table_shootout,
+     goals_home,
+     goals_away,
+     shootout_home,
+diff --git a/dbt_project/models/3_core/fct_fixture_team_stats.sql b/dbt_project/models/3_core/fct_fixture_team_stats.sql
+index f51b0616..1d43be2a 100644
+--- a/dbt_project/models/3_core/fct_fixture_team_stats.sql
++++ b/dbt_project/models/3_core/fct_fixture_team_stats.sql
+@@ -1,33 +1,103 @@
+-with src as (
++{#
++    One row per team per fixture, whatever the match's status: the match from each side, with the
++    team's own stat values, the opponent's same values (`*_against`), the scoreline from the team's
++    side, the result and the match's status columns. Grain: (fixture_sk, team_sk). A fixture whose
++    two teams are not both known has no rows.
++
++    The scoreline is the header's: goals_for is the team's goals_home or goals_away, so the two
++    rows of a match mirror each other. A forfeit keeps its scoreline and its blank stat columns;
++    what a forfeit counts in is rule R3 in models/docs/metric_rules.md, applied by the readers
++    through is_awarded_result.
++#}
++
++{% set stat_columns = [
++    'shots_on_target', 'shots_off_target', 'shots', 'shots_blocked', 'shots_inside_box',
++    'shots_outside_box', 'fouls', 'corners', 'offsides', 'free_kicks', 'possession_pct',
++    'cards_yellow', 'cards_red', 'saves', 'passes', 'passes_accurate', 'goals_penalty', 'goals_own'
++] %}
++
++with fixtures as (
++    select * from {{ ref('fct_fixture') }}
++    where home_team_sk is not null and away_team_sk is not null
++),
++
++sides as (
++    select
++        fixture_sk,
++        fixture_api_id,
++        league_code,
++        is_finished,
++        is_played,
++        is_awarded_result,
++        'home' as home_away,
++        home_team_sk as team_sk,
++        home_team_api_id as team_api_id,
++        away_team_sk as opponent_team_sk,
++        away_team_api_id as opponent_team_api_id,
++        goals_home as goals_for,
++        goals_away as goals_against,
++        awarded_to_team_sk,
++        winner_team_sk,
++        is_table_shootout
++    from fixtures
++    union all
++    select
++        fixture_sk,
++        fixture_api_id,
++        league_code,
++        is_finished,
++        is_played,
++        is_awarded_result,
++        'away' as home_away,
++        away_team_sk as team_sk,
++        away_team_api_id as team_api_id,
++        home_team_sk as opponent_team_sk,
++        home_team_api_id as opponent_team_api_id,
++        goals_away as goals_for,
++        goals_home as goals_against,
++        awarded_to_team_sk,
++        winner_team_sk,
++        is_table_shootout
++    from fixtures
++),
++
++stats as (
+     select * from {{ ref('base_apif__fixture_statistics') }}
+ )
+ 
+ select
+-    {{ dbt_utils.generate_surrogate_key(['fixture_id', 'league_code', 'team_id']) }}
++    {{ dbt_utils.generate_surrogate_key(['s.fixture_api_id', 's.league_code', 's.team_api_id']) }}
+         as fixture_team_stat_sk,
+-    cast(fixture_id as int64) as fixture_sk,
+-    cast(team_id as int64) as team_sk,
+-    league_code,
+-    fixture_id as fixture_api_id,
+-    team_id as team_api_id,
+-    has_stat_line,
+-    shots_on_target,
+-    shots_off_target,
+-    shots,
+-    shots_blocked,
+-    shots_inside_box,
+-    shots_outside_box,
+-    fouls,
+-    corners,
+-    offsides,
+-    free_kicks,
+-    possession_pct,
+-    cards_yellow,
+-    cards_red,
+-    saves,
+-    passes,
+-    passes_accurate,
+-    goals_penalty,
+-    goals_own,
+-    src.raw_ingested_at
+-from src
++    s.fixture_sk,
++    s.team_sk,
++    s.opponent_team_sk,
++    s.league_code,
++    s.fixture_api_id,
++    s.team_api_id,
++    s.home_away,
++    s.is_finished,
++    s.is_played,
++    s.is_awarded_result,
++    s.goals_for,
++    s.goals_against,
++    case
++        when s.goals_for is null or s.goals_against is null then null
++        when s.awarded_to_team_sk is not null then if(s.awarded_to_team_sk = s.team_sk, 'W', 'L')
++        when s.goals_for > s.goals_against then 'W'
++        when s.goals_for < s.goals_against then 'L'
++        else 'D'
++    end as result,
++    coalesce(s.is_table_shootout and s.winner_team_sk = s.team_sk, false) as is_table_shootout_win,
++    coalesce(own.has_stat_line, false) as has_stat_line,
++    {%- for column in stat_columns %}
++    own.{{ column }},
++    {%- endfor %}
++    {%- for column in stat_columns %}
++    opp.{{ column }} as {{ column }}_against,
++    {%- endfor %}
++    own.raw_ingested_at
++from sides as s
++left join stats as own
++    on s.fixture_api_id = own.fixture_id and s.team_api_id = own.team_id
++left join stats as opp
++    on s.fixture_api_id = opp.fixture_id and s.opponent_team_api_id = opp.team_id
+diff --git a/dbt_project/models/4_intermediate/shared/int_legs.yml b/dbt_project/models/4_intermediate/shared/int_legs.yml
+index 94216bab..a2894fff 100644
+--- a/dbt_project/models/4_intermediate/shared/int_legs.yml
++++ b/dbt_project/models/4_intermediate/shared/int_legs.yml
+@@ -3,10 +3,10 @@ version: 2
+ models:
+   - name: int_legs__team_match
+     description: >
+-      Building-block team-match leg: one row per (team, finished match) with the team's and
+-      opponent's raw stats, competition type/entity classification, and windowing dimensions.
+-      Cross-competition, cross-type. The shared foundation every team performance metric
+-      aggregates over. Grain: (fixture_sk, team_sk).
++      Building-block team-match leg: one row per (team, finished match with a scoreline) with the
++      team's and opponent's raw stats, competition type/entity classification, and windowing
++      dimensions, selected from fct_fixture_team_stats. Cross-competition, cross-type. The shared
++      foundation every team performance metric aggregates over. Grain: (fixture_sk, team_sk).
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [fixture_sk, team_sk]
+@@ -48,7 +48,7 @@ models:
+         # not_null for the same reason as games_expecting_team_stats, which is derived FROM it:
+         # a NULL here would make countif(not is_awarded_result) undercount and every gate compare
+         # against a denominator that is quietly too small. It cannot be NULL today — the leg filter
+-        # already restricts status_short to five non-null codes — so this guards a future change.
++        # already restricts the legs to finished matches, a non-null flag — so this guards a future change.
+         tests: [not_null]
+       - name: is_table_shootout_win
+         description: "{{ doc('is_table_shootout_win') }}"
+diff --git a/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql b/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
+index 123cfbe9..6752aa7f 100644
+--- a/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
++++ b/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
+@@ -1,177 +1,64 @@
+ {#
+-  Building-block team-match leg: one row per (team, finished match), carrying that team's
+-  cleaned stats AND the opponent's (so danger-zone-conceded etc. are derivable), plus the
++  Building-block team-match leg: one row per (team, finished match with a scoreline), carrying that
++  team's cleaned stats AND the opponent's (so danger-zone-conceded etc. are derivable), plus the
+   competition's type/entity classification and the dimensions windows need.
+ 
+-  "Finished" includes forfeits (AWD, WO); what they count in is rule R3 in
+-  models/docs/metric_rules.md. They carry a scoreline and no stat line, and `is_awarded_result`
+-  marks them.
++  A selection over fct_fixture_team_stats, which holds the team's side of every match; what
++  "finished" means is decided in base_apif__fixtures_next. Finished includes forfeits (AWD, WO);
++  what they count in is rule R3 in models/docs/metric_rules.md. They carry a scoreline and no stat
++  line, and `is_awarded_result` marks them.
+ 
+   Cross-competition and cross-type — the shared foundation every team performance metric
+   aggregates over (a metric = a filter + aggregate of these rows). Grain: (fixture_sk, team_sk).
+-
+-  Built alongside the legacy int_matchday__finished_fixture_team_leg during migration
+-  (see issue #321); that one is retired once marts cut over to this.
+ #}
+ 
+-with fixtures as (
+-    select * from {{ ref('fct_fixture') }}
+-),
+-
+-team_stats as (
+-    select * from {{ ref('fct_fixture_team_stats') }}
+-),
+-
+-competitions as (
+-    select * from {{ ref('dim_league') }}
+-),
+-
+-round_kinds as (
+-    select
+-        league_code,
+-        season_api_year,
+-        round_name,
+-        round_stage_kind
+-    from {{ ref('int_round_names') }}
+-),
+-
+--- Each finished match as two team legs: the home side's perspective and the away side's.
+-legs as (
+-    select
+-        f.fixture_sk,
+-        f.league_sk,
+-        f.season_sk,
+-        f.league_code,
+-        f.season_api_year,
+-        f.kickoff_datetime,
+-        f.round_name,
+-        safe_cast(regexp_extract(f.round_name, r'(\d+)$') as int64) as round_order,
+-        'home' as home_away,
+-        f.home_team_sk as team_sk,
+-        f.away_team_sk as opponent_team_sk,
+-        f.goals_home as goals,
+-        f.goals_away as goals_against,
+-        case
+-            when f.awarded_to_team_sk is not null then if(f.awarded_to_team_sk = f.home_team_sk, 'W', 'L')
+-            when f.goals_home > f.goals_away then 'W'
+-            when f.goals_home < f.goals_away then 'L'
+-            else 'D'
+-        end as result,
+-        -- an AWARDED result: the match was decided off the pitch (technical loss / walkover), so it
+-        -- counts for points and goals and can NEVER have a stat line. Emitted so the coverage gates
+-        -- downstream can tell "the stats are missing" from "there were never any to have" — without
+-        -- it, counting these as played nulls every rate for the whole season.
+-        f.status_short in ('AWD', 'WO') as is_awarded_result,
+-        coalesce(
+-            rk.round_stage_kind = 'table' and f.status_short = 'PEN' and f.winner_team_sk = f.home_team_sk,
+-            false
+-        ) as is_table_shootout_win
+-    from fixtures as f
+-    left join round_kinds as rk
+-        on
+-            f.league_code = rk.league_code
+-            and f.season_api_year = rk.season_api_year
+-            and f.round_name = rk.round_name
+-    where
+-        f.status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO')
+-        and f.goals_home is not null
+-        and f.goals_away is not null
+-    union all
+-    select
+-        f.fixture_sk,
+-        f.league_sk,
+-        f.season_sk,
+-        f.league_code,
+-        f.season_api_year,
+-        f.kickoff_datetime,
+-        f.round_name,
+-        safe_cast(regexp_extract(f.round_name, r'(\d+)$') as int64) as round_order,
+-        'away' as home_away,
+-        f.away_team_sk as team_sk,
+-        f.home_team_sk as opponent_team_sk,
+-        f.goals_away as goals,
+-        f.goals_home as goals_against,
+-        case
+-            when f.awarded_to_team_sk is not null then if(f.awarded_to_team_sk = f.away_team_sk, 'W', 'L')
+-            when f.goals_away > f.goals_home then 'W'
+-            when f.goals_away < f.goals_home then 'L'
+-            else 'D'
+-        end as result,
+-        -- an AWARDED result: the match was decided off the pitch (technical loss / walkover), so it
+-        -- counts for points and goals and can NEVER have a stat line. Emitted so the coverage gates
+-        -- downstream can tell "the stats are missing" from "there were never any to have" — without
+-        -- it, counting these as played nulls every rate for the whole season.
+-        f.status_short in ('AWD', 'WO') as is_awarded_result,
+-        coalesce(
+-            rk.round_stage_kind = 'table' and f.status_short = 'PEN' and f.winner_team_sk = f.away_team_sk,
+-            false
+-        ) as is_table_shootout_win
+-    from fixtures as f
+-    left join round_kinds as rk
+-        on
+-            f.league_code = rk.league_code
+-            and f.season_api_year = rk.season_api_year
+-            and f.round_name = rk.round_name
+-    where
+-        f.status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO')
+-        and f.goals_home is not null
+-        and f.goals_away is not null
+-),
+-
+-with_stats as (
+-    select
+-        l.fixture_sk,
+-        l.league_sk,
+-        l.season_sk,
+-        l.league_code,
+-        l.season_api_year,
+-        l.kickoff_datetime,
+-        l.round_name,
+-        l.round_order,
+-        l.home_away,
+-        l.team_sk,
+-        l.opponent_team_sk,
+-        l.goals,
+-        l.goals_against,
+-        l.result,
+-        l.is_awarded_result,
+-        l.is_table_shootout_win,
+-        own.shots_on_target,
+-        own.shots,
+-        own.shots_inside_box,
+-        own.corners,
+-        own.passes,
+-        own.passes_accurate,
+-        own.saves,
+-        own.shots_off_target,
+-        own.shots_blocked,
+-        own.fouls,
+-        own.offsides,
+-        own.free_kicks,
+-        opp.passes as passes_against,
+-        opp.shots_on_target as shots_on_target_against,
+-        opp.shots as shots_against,
+-        opp.shots_inside_box as shots_inside_box_against,
+-        opp.corners as corners_against,
+-        own.cards_yellow,
+-        own.cards_red,
+-        -- the goal split, cleaned in base from the events; goals stays the scoreline
+-        own.goals_penalty,
+-        own.goals_own,
+-        -- own goals this team conceded: credited to the opponent, so they sit on its row. Part of
+-        -- goals_against, but not a shot on target the keeper faced (saves_pct leaves them out).
+-        opp.goals_own as goals_own_against
+-    from legs as l
+-    left join team_stats as own
+-        on l.fixture_sk = own.fixture_sk and l.team_sk = own.team_sk
+-    left join team_stats as opp
+-        on l.fixture_sk = opp.fixture_sk and l.opponent_team_sk = opp.team_sk
+-)
+-
+ select
+-    ws.*,
++    t.fixture_sk,
++    f.league_sk,
++    f.season_sk,
++    t.league_code,
++    f.season_api_year,
++    f.kickoff_datetime,
++    f.round_name,
++    f.round_order,
++    t.home_away,
++    t.team_sk,
++    t.opponent_team_sk,
++    t.goals_for as goals,
++    t.goals_against,
++    t.result,
++    t.is_awarded_result,
++    t.is_table_shootout_win,
++    t.shots_on_target,
++    t.shots,
++    t.shots_inside_box,
++    t.corners,
++    t.passes,
++    t.passes_accurate,
++    t.saves,
++    t.shots_off_target,
++    t.shots_blocked,
++    t.fouls,
++    t.offsides,
++    t.free_kicks,
++    t.passes_against,
++    t.shots_on_target_against,
++    t.shots_against,
++    t.shots_inside_box_against,
++    t.corners_against,
++    t.cards_yellow,
++    t.cards_red,
++    t.goals_penalty,
++    t.goals_own,
++    t.goals_own_against,
+     reg.competition_type,
+     reg.entity_type
+-from with_stats as ws
+-left join competitions as reg
+-    on ws.league_code = reg.league_code
++from {{ ref('fct_fixture_team_stats') }} as t
++inner join {{ ref('fct_fixture') }} as f
++    on t.fixture_sk = f.fixture_sk
++left join {{ ref('dim_league') }} as reg
++    on t.league_code = reg.league_code
++where
++    t.is_finished
++    and t.goals_for is not null
++    and t.goals_against is not null
+diff --git a/dbt_project/models/4_intermediate/shared/int_round_names.sql b/dbt_project/models/4_intermediate/shared/int_round_names.sql
+index b335ca08..607f66b5 100644
+--- a/dbt_project/models/4_intermediate/shared/int_round_names.sql
++++ b/dbt_project/models/4_intermediate/shared/int_round_names.sql
+@@ -1,78 +1,22 @@
+ {#
+     int_round_names — every distinct round text of a competition-season named the way the
+-    competition names it.
+-
+-    The lower-cased text takes the round_names pattern that matches it: the competition-season's
+-    own row first (a cup whose early rounds change with each season's format), then the
+-    competition's own (Veikkausliiga's Mestaruussarja, the Premier League's Matchweek), then the
+-    general one, each by lowest priority. The row gives the copy key the page names the round by;
+-    its number and group letter are read from the text with the row's own expressions, and its
+-    stage kind says whether the round is played for a table, is a final, a third-place match, or
+-    another round of knockout ties.
++    competition names it, from base_apif__fixture_rounds, with the competition's latest season
++    marked.
+ 
+     Grain: (league_code, season_api_year, round_name). is_latest_season marks the season the
+     competition pages show; assert_every_round_text_resolves fails on a round of that season with
+     no name.
+ #}
+ 
+-with import_fct_fixture as (
+-    select distinct
+-        league_code,
+-        season_api_year,
+-        round_name
+-    from {{ ref('fct_fixture') }}
+-    where round_name is not null
+-),
+-
+-import_round_names as (
+-    select * from {{ ref('round_names') }}
+-),
+-
+-latest_seasons as (
+-    select
+-        league_code,
+-        max(season_api_year) as latest_season_api_year
+-    from import_fct_fixture
+-    group by league_code
+-),
+-
+-matched as (
+-    select
+-        rounds.league_code,
+-        rounds.season_api_year,
+-        rounds.round_name,
+-        names.label_i18n_key,
+-        names.n_regex,
+-        names.g_regex,
+-        names.stage_kind
+-    from import_fct_fixture as rounds
+-    inner join import_round_names as names
+-        on
+-            regexp_contains(lower(trim(rounds.round_name)), names.pattern)
+-            and (names.league_code is null or rounds.league_code = names.league_code)
+-            and (names.season_api_year is null or rounds.season_api_year = names.season_api_year)
+-    qualify row_number() over (
+-        partition by rounds.league_code, rounds.season_api_year, rounds.round_name
+-        order by names.season_api_year is null, names.league_code is null, names.priority
+-    ) = 1
+-)
+-
+ select
+-    rounds.league_code,
+-    rounds.season_api_year,
+-    rounds.round_name,
+-    matched.label_i18n_key as round_label_i18n_key,
+-    matched.stage_kind as round_stage_kind,
+-    safe_cast(regexp_extract(lower(trim(rounds.round_name)), matched.n_regex) as int64) as round_number,
+-    upper(regexp_extract(lower(trim(rounds.round_name)), matched.g_regex)) as round_letter,
+-    matched.n_regex is not null as needs_number,
+-    matched.g_regex is not null as needs_letter,
+-    rounds.season_api_year = latest.latest_season_api_year as is_latest_season
+-from import_fct_fixture as rounds
+-inner join latest_seasons as latest
+-    on rounds.league_code = latest.league_code
+-left join matched
+-    on
+-        rounds.league_code = matched.league_code
+-        and rounds.season_api_year = matched.season_api_year
+-        and rounds.round_name = matched.round_name
++    league_code,
++    season_api_year,
++    round_name,
++    round_label_i18n_key,
++    round_stage_kind,
++    round_number,
++    round_letter,
++    needs_number,
++    needs_letter,
++    season_api_year = max(season_api_year) over (partition by league_code) as is_latest_season
++from {{ ref('base_apif__fixture_rounds') }}
+diff --git a/dbt_project/models/4_intermediate/shared/int_round_names.yml b/dbt_project/models/4_intermediate/shared/int_round_names.yml
+index 29c0e907..e5127275 100644
+--- a/dbt_project/models/4_intermediate/shared/int_round_names.yml
++++ b/dbt_project/models/4_intermediate/shared/int_round_names.yml
+@@ -3,10 +3,10 @@ version: 2
+ models:
+   - name: int_round_names
+     description: >
+-      Every distinct round text of a competition-season in fct_fixture, named the way the
+-      competition names it: a copy key from the round_names seed (the competition-season's own
+-      row, then the competition's, then the general one) with the number and group letter the
+-      name shows. Grain: (league_code, season_api_year, round_name).
++      Every distinct round text of a competition-season in base_apif__fixtures_next, named the way the
++      competition names it by base_apif__fixture_rounds (a copy key from the round_names seed with
++      the number and group letter the name shows), with the competition's latest season marked.
++      Grain: (league_code, season_api_year, round_name).
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [league_code, season_api_year, round_name]
+@@ -36,5 +36,5 @@ models:
+       - name: needs_letter
+         description: True when the matched name shows a group letter.
+       - name: is_latest_season
+-        description: True for the competition's latest season in fct_fixture, the season the competition pages show.
++        description: True for the competition's latest season, the season the competition pages show.
+         tests: [not_null]
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index e4fbbe69..47cb81c6 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -169,7 +169,7 @@ seeds:
+       each by lowest priority. Competition rows hold names a competition uses itself (Matchweek,
+       Mestaruussarja); season rows hold a cup's early rounds, whose names follow that season's
+       format, matched to the organiser's rounds by the fixtures' dates. Hand-authored from the
+-      researched, approved names; int_round_names applies it and assert_every_round_text_resolves
++      researched, approved names; base_apif__fixture_rounds applies it and assert_every_round_text_resolves
+       fails on a latest-season round no row names.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+diff --git a/dbt_project/tests/assert_fanout_facts_not_empty.sql b/dbt_project/tests/assert_fanout_facts_not_empty.sql
+index befe51d1..07866a2e 100644
+--- a/dbt_project/tests/assert_fanout_facts_not_empty.sql
++++ b/dbt_project/tests/assert_fanout_facts_not_empty.sql
+@@ -8,6 +8,7 @@ with counts as (
+     union all
+     select 'fct_fixture_team_stats' as model_name, count(*) as row_count
+     from {{ ref('fct_fixture_team_stats') }}
++    where is_finished
+     union all
+     select 'fct_fixture_event' as model_name, count(*) as row_count
+     from {{ ref('fct_fixture_event') }}
+diff --git a/dbt_project/tests/assert_fct_fixture_team_stats_covers_active_competition_var.sql b/dbt_project/tests/assert_fct_fixture_team_stats_covers_active_competition_var.sql
+index c8807eb4..f5987e3b 100644
+--- a/dbt_project/tests/assert_fct_fixture_team_stats_covers_active_competition_var.sql
++++ b/dbt_project/tests/assert_fct_fixture_team_stats_covers_active_competition_var.sql
+@@ -26,6 +26,7 @@ counts as (
+         league_code,
+         count(*) as n
+     from {{ ref('fct_fixture_team_stats') }}
++    where is_finished
+     group by league_code
+ )
+ 
+diff --git a/dbt_project/tests/assert_stat_facts_equal_base.sql b/dbt_project/tests/assert_stat_facts_equal_base.sql
+index b05b1cef..bc9de429 100644
+--- a/dbt_project/tests/assert_stat_facts_equal_base.sql
++++ b/dbt_project/tests/assert_stat_facts_equal_base.sql
+@@ -2,6 +2,8 @@
+   A stat fact disagrees with its base: a row in one and not the other, or a value that differs.
+   Each fact is its base keyed and renamed, rebuilt in full every night, so every column it takes
+   from base must match on every row. One row per disagreeing row, with the side it is missing from.
++  The team fact also holds the sides of matches with no scoreline yet, which base has no row for;
++  those rows are left out of the comparison.
+ #}
+ {{ config(store_failures = true, severity = 'error') }}
+ 
+@@ -18,7 +20,8 @@
+      'fact_rows': 'not is_from_lineups', 'renamed': player_keys, 'columns': player_columns},
+     {'fact': 'fct_fixture_player_stats', 'base': 'base_apif__fixture_players_from_lineups',
+      'fact_rows': 'is_from_lineups', 'renamed': player_keys, 'columns': player_columns},
+-    {'fact': 'fct_fixture_team_stats', 'base': 'base_apif__fixture_statistics', 'fact_rows': 'true',
++    {'fact': 'fct_fixture_team_stats', 'base': 'base_apif__fixture_statistics',
++     'fact_rows': 'has_stat_line or (is_finished and goals_for is not null and goals_against is not null)',
+      'renamed': {'fixture_api_id': 'fixture_id', 'team_api_id': 'team_id'},
+      'columns': ['league_code', 'has_stat_line', 'shots_on_target', 'shots_off_target', 'shots',
+                  'shots_blocked', 'shots_inside_box', 'shots_outside_box', 'fouls', 'corners',
+diff --git a/dbt_project/tests/assert_team_fixture_rows_reconcile.sql b/dbt_project/tests/assert_team_fixture_rows_reconcile.sql
+new file mode 100644
+index 00000000..9fbef570
+--- /dev/null
++++ b/dbt_project/tests/assert_team_fixture_rows_reconcile.sql
+@@ -0,0 +1,101 @@
++{#
++  The team-per-fixture fact is the header seen from each side. One row per failing fixture and
++  check: a fixture with both teams known that does not have exactly two rows (one home, one away),
++  a row whose goals_for or goals_against is not the header's, a row whose opponent's row does not
++  hold the mirrored goals, a status column that differs from fct_fixture's, or an opponent stat
++  value that is not the opponent's own.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++{% set stat_columns = [
++    'shots_on_target', 'shots_off_target', 'shots', 'shots_blocked', 'shots_inside_box',
++    'shots_outside_box', 'fouls', 'corners', 'offsides', 'free_kicks', 'possession_pct',
++    'cards_yellow', 'cards_red', 'saves', 'passes', 'passes_accurate', 'goals_penalty', 'goals_own'
++] %}
++
++with fixtures as (
++    select * from {{ ref('fct_fixture') }}
++    where home_team_sk is not null and away_team_sk is not null
++),
++
++team_rows as (
++    select * from {{ ref('fct_fixture_team_stats') }}
++),
++
++row_counts as (
++    select
++        fixtures.fixture_sk,
++        countif(team_rows.home_away = 'home') as home_rows,
++        countif(team_rows.home_away = 'away') as away_rows
++    from fixtures
++    left join team_rows
++        on fixtures.fixture_sk = team_rows.fixture_sk
++    group by fixtures.fixture_sk
++)
++
++select
++    fixture_sk,
++    'not one home row and one away row' as failed_check
++from row_counts
++where home_rows != 1 or away_rows != 1
++
++union all
++
++select
++    team_rows.fixture_sk,
++    'a team row is not on a fixture with both teams' as failed_check
++from team_rows
++left join fixtures
++    on team_rows.fixture_sk = fixtures.fixture_sk
++where fixtures.fixture_sk is null
++
++union all
++
++select
++    team_rows.fixture_sk,
++    'goals_for or goals_against differs from the header' as failed_check
++from team_rows
++inner join fixtures
++    on team_rows.fixture_sk = fixtures.fixture_sk
++where
++    (team_rows.home_away = 'home' and (
++        team_rows.team_sk != fixtures.home_team_sk
++        or team_rows.opponent_team_sk != fixtures.away_team_sk
++        or team_rows.goals_for is distinct from fixtures.goals_home
++        or team_rows.goals_against is distinct from fixtures.goals_away
++    ))
++    or (team_rows.home_away = 'away' and (
++        team_rows.team_sk != fixtures.away_team_sk
++        or team_rows.opponent_team_sk != fixtures.home_team_sk
++        or team_rows.goals_for is distinct from fixtures.goals_away
++        or team_rows.goals_against is distinct from fixtures.goals_home
++    ))
++
++union all
++
++select
++    team_rows.fixture_sk,
++    'a status column differs from fct_fixture' as failed_check
++from team_rows
++inner join fixtures
++    on team_rows.fixture_sk = fixtures.fixture_sk
++where
++    team_rows.is_finished != fixtures.is_finished
++    or team_rows.is_played != fixtures.is_played
++    or team_rows.is_awarded_result != fixtures.is_awarded_result
++
++union all
++
++select
++    own.fixture_sk,
++    'the opponent row is missing or does not mirror this row' as failed_check
++from team_rows as own
++left join team_rows as opp
++    on own.fixture_sk = opp.fixture_sk and own.opponent_team_sk = opp.team_sk
++where
++    opp.fixture_sk is null
++    or own.goals_for is distinct from opp.goals_against
++    or own.goals_against is distinct from opp.goals_for
++    {%- for column in stat_columns %}
++    or own.{{ column }}_against is distinct from opp.{{ column }}
++    {%- endfor %}
+diff --git a/dbt_project/tests/assert_team_stats_team_in_fixture_participants.sql b/dbt_project/tests/assert_team_stats_team_in_fixture_participants.sql
+index b552c412..1e9a8c20 100644
+--- a/dbt_project/tests/assert_team_stats_team_in_fixture_participants.sql
++++ b/dbt_project/tests/assert_team_stats_team_in_fixture_participants.sql
+@@ -1,6 +1,6 @@
+ {{ config(severity = 'error', store_failures = true) }}
+ 
+--- Integrity guard: every non-null team-stat team_sk must be one of its fixture's two participants.
++-- Integrity guard: every non-null team-stat team id in base must be one of its fixture's two participants.
+ -- A violation means a match statistics line is attributed to a team that did not play the fixture —
+ -- a provider mis-attribution or duplicate team id. Known cases are corrected upstream by
+ -- seeds/fixture_team_id_overrides.csv; this test fails (ERROR) on any new occurrence.
+@@ -14,15 +14,17 @@
+ -- Scoped to fixtures whose two participants are both known — NULL-safe: a fixture missing a
+ -- participant id is a separate defect, not flagged here, and the explicit IS NOT NULL guards avoid
+ -- the NOT IN (NULL, ...) -> UNKNOWN trap.
++-- It reads the base statistics, not the fact: the fact builds its team rows from the fixture's own
++-- participants, so a check against it could never fail.
+ select
+-    s.fixture_sk,
+-    s.team_sk,
++    f.fixture_sk,
++    s.team_id as team_api_id,
+     s.league_code
+-from {{ ref('fct_fixture_team_stats') }} as s
++from {{ ref('base_apif__fixture_statistics') }} as s
+ inner join {{ ref('fct_fixture') }} as f
+-    on s.fixture_sk = f.fixture_sk
++    on s.fixture_id = f.fixture_api_id
+ where
+-    s.team_sk is not null
+-    and f.home_team_sk is not null
+-    and f.away_team_sk is not null
+-    and s.team_sk not in (f.home_team_sk, f.away_team_sk)
++    s.team_id is not null
++    and f.home_team_api_id is not null
++    and f.away_team_api_id is not null
++    and s.team_id not in (f.home_team_api_id, f.away_team_api_id)
+diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
+index 970d16a2..606f1a0b 100644
+--- a/tests/test_no_decision_history_in_code.py
++++ b/tests/test_no_decision_history_in_code.py
+@@ -20,8 +20,8 @@ HOOKS = os.path.join(REPO, ".claude", "hooks")
+ sys.path.insert(0, HOOKS)
+ import comment_history_gate as gate  # noqa: E402
+ 
+-PINNED_LINES = 266
+-PINNED_FILES = 90
++PINNED_LINES = 265
++PINNED_FILES = 89
+ 
+ HASH = chr(35)
+ 
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .../327-team-fixture-status/review_input.patch     | 1259 ++++++++++++++++++++
+#    1 file changed, 1259 insertions(+)
+# ============================================================================

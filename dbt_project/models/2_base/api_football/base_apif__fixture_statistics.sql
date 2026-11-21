@@ -248,7 +248,7 @@ fixtures as (
         raw_ingested_at,
         cast(home_team_id as int64) as home_team_id,
         cast(away_team_id as int64) as away_team_id,
-        status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO')
+        is_finished
         and goals_home is not null and goals_away is not null
         and home_team_id is not null and away_team_id is not null as is_finished
     from {{ ref('base_apif__fixtures_next') }}

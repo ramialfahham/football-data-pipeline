@@ -201,7 +201,7 @@ Allowed:
 - Relationship logic and conformed attributes that marts and intermediate models should reuse rather than re-derive.
 
 Not allowed:
-- Wide, consumer-specific projections or performance-oriented denormalization (those belong in **marts**, with support from **intermediate** where needed).
+- Wide, consumer-specific projections or performance-oriented denormalization (those belong in **marts**, with support from **intermediate** where needed). A team-perspective row carrying the opponent's values of the same match is the match's atomic grain, not such a denormalization.
 
 ### Dimension qualification rules
 
@@ -248,7 +248,7 @@ A table earns `fct_` status only when **all three** conditions hold:
 
 1. **Event or measurement.** It captures something that happened at a point in time (a match, a transfer, a card) or the state of a measure at a point in time (standings on a given day). A reference list with no time dimension does not qualify.
 2. **Dimensional context.** It joins to one or more dims via foreign keys and/or carries degenerate dim columns that pin the event/measurement to a team, player, season, and date.
-3. **Measures or atomic grain.** It carries additive/semi-additive measures (goals, minutes, shots, points), or it is the atomic grain of a state that downstream models aggregate. Wide denormalized shapes designed for a single consumer belong in `5_marts`, not `3_core`.
+3. **Measures or atomic grain.** It carries additive/semi-additive measures (goals, minutes, shots, points), or it is the atomic grain of a state that downstream models aggregate. Wide denormalized shapes designed for a single consumer belong in `5_marts`, not `3_core`. A team row that carries the opponent's values of the same match is the match's atomic grain.
 
 Patterns that look like facts but are not:
 
@@ -263,7 +263,7 @@ Canonical fact inventory for this project:
 |------|-------|-------------------------|-------|
 | `fct_fixture` | `fixture_sk` (= `fixture_api_id`) | `base_apif__fixtures_next` | Match header; status, round, and venue travel as degenerate attributes. Half-time / extra-time / penalty splits deferred. |
 | `fct_standings` | `(season_sk, team_sk, group_name)` | `base_apif__standings` (from generic `stg_apif__standings`) | Current league position per team-season; raw payload is replaced wholesale per season on each ingest. |
-| `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `base_apif__fixture_statistics` | `statistics_lines_json` pivoted to named columns; dedup in base layer. |
+| `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `base_apif__fixture_statistics`, `fct_fixture` | One row per team per fixture, every status. It carries the team's own stats, the opponent's, goals for and against, the result and the match status columns. |
 | `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `base_apif__fixture_players_checked` (from `base_apif__fixture_players`), `base_apif__fixture_players_from_lineups` | `player_statistics_json[0]` flattened into measures; for a played team match without it, or a sheet player with a card and no stat line, the team sheet and match events. |
 | `fct_fixture_event` | `event_sk` hashed over full staging grain | `base_apif__fixture_events_checked` (from `base_apif__fixture_events` and `base_apif__lineups`) | What counts as a goal is `is_goal`, defined once in `base_apif__fixture_events`; a scorer or assister off the pitch on the line-up is withheld in `base_apif__fixture_events_checked`. |
 | `fct_fixture_lineup` | `(fixture_sk, team_sk, player_sk)` | `base_apif__lineups` (with seed `fixture_lineup_corrections`) | Starters and bench from each team's latest line-up or a researched one, with the substitutions paired from the match events and the match's line-up state. |

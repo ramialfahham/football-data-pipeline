@@ -169,7 +169,7 @@ seeds:
       each by lowest priority. Competition rows hold names a competition uses itself (Matchweek,
       Mestaruussarja); season rows hold a cup's early rounds, whose names follow that season's
       format, matched to the organiser's rounds by the fixtures' dates. Hand-authored from the
-      researched, approved names; int_round_names applies it and assert_every_round_text_resolves
+      researched, approved names; base_apif__fixture_rounds applies it and assert_every_round_text_resolves
       fails on a latest-season round no row names.
     tests:
       - dbt_utils.unique_combination_of_columns:

@@ -26,6 +26,7 @@ counts as (
         league_code,
         count(*) as n
     from {{ ref('fct_fixture_team_stats') }}
+    where is_finished
     group by league_code
 )
 

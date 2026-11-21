@@ -8,6 +8,7 @@ with counts as (
     union all
     select 'fct_fixture_team_stats' as model_name, count(*) as row_count
     from {{ ref('fct_fixture_team_stats') }}
+    where is_finished
     union all
     select 'fct_fixture_event' as model_name, count(*) as row_count
     from {{ ref('fct_fixture_event') }}
