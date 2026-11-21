@@ -218,6 +218,66 @@ def test_the_mr_data_gate_is_its_lineage_build_alone() -> None:
         )
 
 
+STALE_STEP = "STALE_PROD_MODELS=$(python scripts/stale_prod_nodes.py /tmp/main-state/manifest.json) || exit 1"
+
+
+def test_the_mr_data_build_rebuilds_the_prod_models_a_prod_build_left_stale() -> None:
+    """A deferred read must meet only prod tables that match their inputs, so stale ones are built here."""
+    jobs = _script_lines_by_job(_ci_config())
+    lines = [" ".join(line.split()) for line in jobs["data:build:mr"]]
+    assert STALE_STEP in lines, (
+        "data:build:mr no longer computes the stale prod models from the prod manifest. Without "
+        "them a prod that a build left partly built fails every merge request on tests that read "
+        f"stale deferred prod tables. Expected line: {STALE_STEP}"
+    )
+    compile_at = next(i for i, ln in enumerate(lines) if "dbt compile --target prod --target-path /tmp/main-state" in ln)
+    build_at = next(i for i, ln in enumerate(lines) if ln.startswith("dbt build "))
+    assert compile_at < lines.index(STALE_STEP) < build_at, (
+        "the stale-model step must run after the prod manifest is compiled and before the dbt build."
+    )
+    build = lines[build_at]
+    assert "state:modified+" in build and "$STALE_PROD_MODELS" in build, (
+        "data:build:mr's `dbt build` must select state:modified+ together with $STALE_PROD_MODELS, "
+        f"or the stale prod models are never built into the merge request's datasets. Line: {build}"
+    )
+    for job in ("data:build:main", "data:nightly"):
+        assert "scripts/stale_prod_nodes.py" not in " ".join(jobs[job]), (
+            f"{job} runs the stale-model step. It rebuilds the whole of prod, so there is nothing "
+            "stale for it to select."
+        )
+
+
+def test_the_mr_data_build_triggers_only_on_what_it_builds_or_runs() -> None:
+    """An MR changing no dbt input, dbt version, registry or step of this job gets no BigQuery build."""
+    config = _ci_config()
+    mr_paths = set(config[".data_paths_mr"])
+    allowed = DBT_COMPILE_INPUTS | {
+        "dbt_project/.sqlfluff",
+        "docs/competition_registry.yml",
+        "requirements.txt",
+        ".gitlab-ci.yml",
+    }
+    job_lines = _script_lines_by_job(config)["data:build:mr"]
+    run_scripts = set(re.findall(r"python (scripts/[\w.]+\.py)", "\n".join(job_lines)))
+    own_scripts = {p for p in mr_paths if p.startswith("scripts/")}
+    assert own_scripts == run_scripts, (
+        f".data_paths_mr lists {sorted(own_scripts - run_scripts)} that data:build:mr does not run, "
+        f"and omits {sorted(run_scripts - own_scripts)} that it runs. A script the job never runs "
+        "cannot change its result, and one it runs must start it when it changes."
+    )
+    extra = mr_paths - allowed - own_scripts
+    assert not extra, (
+        f".data_paths_mr gained {sorted(extra)}. Each entry starts a BigQuery build, so it must be a "
+        "dbt input, the dbt version, the registry, the CI file or a script this job runs; an offline "
+        "gate, a reporting script or ingestion code is none of those."
+    )
+    missing = allowed - mr_paths
+    assert not missing, f".data_paths_mr lost {sorted(missing)}, so a change to it no longer gets validated."
+    for job in ("data:wait-prod-build", "data:build:mr"):
+        rule = next(r for r in config[job]["rules"] if isinstance(r, dict) and "changes" in r)
+        assert rule["changes"] == config[".data_paths_mr"], f"{job} no longer triggers on .data_paths_mr"
+
+
 def test_main_and_nightly_builds_run_the_full_singular_suite() -> None:
     """Dropping the suite from merge requests leaves it to the prod build, which must keep it."""
     tests = _dbt_lines("data:build:main", "test")

@@ -53,6 +53,9 @@ and pass.
    from `dbt ls --select <model>+` / the dbt MCP, not asserted) + the CI layer
    rules that apply. A spot-fix shipped without the end-to-end map, or an
    asserted / dishonest "trivial" short-form, → FAIL.
+9. A change to a model's rule must change every test that recomputes that rule
+   in the same MR. A test never hard-codes a provider's competition, team or
+   table name; it reads them from the model or a seed.
 
 ## Verdict rules (no free passes)
 
