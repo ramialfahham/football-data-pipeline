@@ -7,10 +7,9 @@ import TeamIndex from "../../../components/teams/TeamIndex.astro";
 import { t } from "../../../i18n/strings";
 import { localeHref, word } from "../../../lib/href";
 import type { Lang } from "../../../lib/format";
-import type { Team, TeamIndex as TeamIndexData } from "../../../lib/types";
+import type { TeamIndex as TeamIndexData } from "../../../lib/types";
+import { hasTeamPage } from "../../../lib/builtTeams.mjs";
 import teamsIndex from "../../../data/teams_index.json";
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 
 export function getStaticPaths() {
   return (["de", "en", "fi"] as const).map((lang) => ({
@@ -22,12 +21,7 @@ const lang = (Astro.params.lang ?? "en") as Lang;
 const data = teamsIndex as unknown as TeamIndexData;
 
 // A row links only to a page the build makes: one per team payload.
-const dir = join(process.cwd(), "src/data/teams");
-const built = new Set(
-  readdirSync(dir)
-    .filter((name) => name.endsWith(".json"))
-    .map((name) => (JSON.parse(readFileSync(join(dir, name), "utf8")) as Team).slug),
-);
+const built = new Set(data.teams.map((item) => item.team_slug).filter(hasTeamPage));
 
 const title = t(lang, "seoTeamsTitle");
 const description = t(lang, "seoTeamsDesc");
