@@ -340,9 +340,21 @@ team_events as (
     group by fixture_id, team_id
 ),
 
+-- The most offsides any player line of a team shows in a match, over every fetch.
+player_offsides as (
+    select
+        fixture_id,
+        team_id,
+        max(offsides) as player_offsides_max
+    from {{ ref('stg_apif__fixture_players') }}
+    where fixture_id is not null and team_id is not null
+    group by fixture_id, team_id
+),
+
 in_context as (
     select
         t.*,
+        po.player_offsides_max,
         o.shots_on_target as opponent_shots_on_target,
         o.shots_off_target as opponent_shots_off_target,
         o.shots as opponent_shots,
@@ -383,6 +395,8 @@ in_context as (
         on
             t.fixture_id = o.fixture_id
             and o.team_id = if(t.team_id = f.home_team_id, f.away_team_id, f.home_team_id)
+    left join player_offsides as po
+        on t.fixture_id = po.fixture_id and t.team_id = po.team_id
     left join match_events as me
         on t.fixture_id = me.fixture_id
     left join team_events as te
@@ -410,7 +424,15 @@ filled as (
         coalesce(shots_outside_box, if(opponent_shots_outside_box is not null, 0, null)) as shots_outside_box_filled,
         coalesce(fouls, if(opponent_fouls is not null, 0, null)) as fouls_filled,
         coalesce(corners, if(opponent_corners is not null, 0, null)) as corners_filled,
-        coalesce(offsides, if(opponent_offsides is not null, 0, null)) as offsides_filled,
+        coalesce(
+            offsides,
+            if(
+                opponent_offsides is not null
+                or (fouls is not null and possession_pct is not null and coalesce(player_offsides_max, 0) = 0),
+                0,
+                null
+            )
+        ) as offsides_filled,
         coalesce(free_kicks, if(opponent_free_kicks is not null, 0, null)) as free_kicks_filled,
         coalesce(
             cards_yellow,
