@@ -11,9 +11,15 @@ import { join } from "node:path";
 import {
   checkFixturesPage, checkFixturesPayloads, checkMatchPageCount, checkMatchRowLinks, checkMatchRowsFound, checkRankingsPage,
   boards, isZeroValue,
-  main, matchRows, renderedBoards, rounds, checkTabPagesFound, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
+  main as mainWithPins, matchRows, renderedBoards, rounds, checkTabPagesFound, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
   checkTeamPage, checkTeamRowsFound, teamRankRows, TEAM_PAGE, checkScatterLabels, scatterCharts,
+  checkImageOrigins, countImages, emptyImageCounts, imageKind, imageUrls, IMAGE_PINS,
 } from "./check-built-pages.mjs";
+
+// The trees the main tests write carry no images; the pins describe the committed sample, so they
+// run against pins of 0 and the image rules have their own tests below.
+const NO_IMAGES = { playerPhoto: 0, providerImage: 0, foreign: 0 };
+const main = (distDir, dataDir, pins = NO_IMAGES) => mainWithPins(distDir, dataDir, pins);
 
 function round(n, { checked = false, next = false, rows = [] } = {}) {
   const rowHtml = rows
@@ -421,6 +427,136 @@ test("main fails a Team page whose scatter is missing or puts the label beside t
     assert.ok(errors.mock.calls.some((c) => /beside the team's name/.test(c.arguments[0])));
     write(scatter({ note: { dx: "-0.6em", dy: "0.35em", anchor: "end" }, name }));
     assert.equal(main(join(root, "dist"), join(root, "data")), 0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+const PROVIDER = "https://media.api-sports.io/football";
+
+test("an image address is read from src and from every srcset candidate, on img and source, in either quote", () => {
+  const html =
+    `<img src="${PROVIDER}/teams/1.png" alt="">` +
+    `<IMG alt='' SRC='${PROVIDER}/leagues/2.png'>` +
+    `<picture><source srcset="/a.webp 1x, https://cdn.example.com/b.webp 2x"><img src="/c.png"></picture>` +
+    `<a href="https://media.api-sports.io/football/players/9.png">not an image</a>`;
+  assert.deepEqual(imageUrls(html), [
+    `${PROVIDER}/teams/1.png`, `${PROVIDER}/leagues/2.png`, "/a.webp", "https://cdn.example.com/b.webp", "/c.png",
+  ]);
+});
+
+test("the social cards and the JSON-LD image and logo are read as image addresses, in any attribute order", () => {
+  const html =
+    `<meta content="${PROVIDER}/teams/1.png" property="og:image">` +
+    `<meta name="twitter:image" content='${PROVIDER}/players/9.png'>` +
+    `<meta property="og:title" content="${PROVIDER}/not-an-image.png">` +
+    `<script type="application/ld+json">{"@type":"Person","image":"${PROVIDER}/players/8.png",` +
+    `"parent":{"logo":{"@type":"ImageObject","url":"${PROVIDER}/teams/2.png"},"url":"https://matchdaypilot.com/x/"},` +
+    `"sameAs":["${PROVIDER}/nope.png"],"photos":[{"image":["/a.png","${PROVIDER}/teams/3.png"]}]}</script>` +
+    `<script type="application/ld+json">{"image":"${PROVIDER}/teams/4.png", broken</script>`;
+  assert.deepEqual(imageUrls(html), [
+    `${PROVIDER}/teams/1.png`, `${PROVIDER}/players/9.png`,
+    `${PROVIDER}/players/8.png`, `${PROVIDER}/teams/2.png`, "/a.png", `${PROVIDER}/teams/3.png`,
+    `${PROVIDER}/teams/4.png`,
+  ]);
+});
+
+test("an image is ours, a provider photo, a provider crest or logo, or from another host", () => {
+  assert.equal(imageKind("/assets/crest.png"), "ours");
+  assert.equal(imageKind("data:image/png;base64,AAAA"), "ours");
+  assert.equal(imageKind("https://matchdaypilot.com/crests/1.png"), "ours");
+  assert.equal(imageKind(`${PROVIDER}/players/9.png`), "playerPhoto");
+  assert.equal(imageKind(`${PROVIDER}/coachs/9.png`), "playerPhoto");
+  assert.equal(imageKind(`//media.api-sports.io/football/players/9.png`), "playerPhoto");
+  assert.equal(imageKind(`${PROVIDER}/teams/1.png`), "providerImage");
+  assert.equal(imageKind(`${PROVIDER}/leagues/1.png`), "providerImage");
+  assert.equal(imageKind("https://media-4.api-sports.io/football/teams/1.png"), "providerImage");
+  assert.equal(imageKind("https://matchdaypilot.com.evil.example/x.png"), "foreign");
+  assert.equal(imageKind("https://cdn.example.com/x.png"), "foreign");
+  assert.equal(imageKind("http://[bad"), "foreign");
+});
+
+test("images are counted by kind across pages, with the first addresses of each kind", () => {
+  const counts = emptyImageCounts();
+  countImages(`<img src="${PROVIDER}/teams/1.png"><img src="/ours.png">`, "/en/", counts);
+  countImages(`<img src="${PROVIDER}/players/9.png"><img src="https://cdn.example.com/x.png">`, "/de/", counts);
+  assert.deepEqual([counts.playerPhoto, counts.providerImage, counts.foreign], [1, 1, 1]);
+  assert.deepEqual(counts.examples.playerPhoto, [`/de/ ${PROVIDER}/players/9.png`]);
+});
+
+test("the committed pins hold player photos and other hosts at 0", () => {
+  assert.equal(IMAGE_PINS.playerPhoto, 0);
+  assert.equal(IMAGE_PINS.foreign, 0);
+});
+
+test("a pin at 0 fails any image of its kind on every build", () => {
+  const counts = emptyImageCounts();
+  countImages(`<img src="${PROVIDER}/players/9.png">`, "/en/p/", counts);
+  const pins = { playerPhoto: 0, providerImage: 0, foreign: 0 };
+  for (const fullBuild of [false, true]) {
+    const issues = checkImageOrigins(counts, { fullBuild, pins });
+    assert.equal(issues.length, 1);
+    assert.match(issues[0], /1 provider player or coach photo image\(s\), pinned at 0 \(first: \/en\/p\/ /);
+  }
+  assert.deepEqual(checkImageOrigins(emptyImageCounts(), { pins }), []);
+});
+
+test("a pin above 0 fails a sample build whose count rose or fell, and is only reported on a full export", () => {
+  const pins = { playerPhoto: 0, providerImage: 2, foreign: 0 };
+  const built = (n) => countImages(`<img src="${PROVIDER}/teams/1.png">`.repeat(n), "/en/", emptyImageCounts());
+  assert.deepEqual(checkImageOrigins(built(2), { pins }), []);
+  assert.match(checkImageOrigins(built(3), { pins })[0], /3 provider crest or logo image\(s\), pinned at 2 \(first/);
+  assert.match(checkImageOrigins(built(1), { pins })[0], /1 provider crest or logo image\(s\), pinned at 2: lower the providerImage pin/);
+  assert.deepEqual(checkImageOrigins(built(900), { pins, fullBuild: true }), []);
+});
+
+test("main fails a built page with an image from a foreign host or a provider photo, and passes the pinned sample", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "check-built-pages-img-"));
+  try {
+    mkdirSync(join(root, "data"), { recursive: true });
+    mkdirSync(join(root, "dist", "en"), { recursive: true });
+    const page = (img) => writeFileSync(join(root, "dist", "en", "index.html"), `<html><body>${img}</body></html>`);
+    const pins = { playerPhoto: 0, providerImage: 1, foreign: 0 };
+    const errors = t.mock.method(console, "error", () => {});
+    t.mock.method(console, "log", () => {});
+    page(`<img src="${PROVIDER}/teams/1.png">`);
+    assert.equal(main(join(root, "dist"), join(root, "data"), pins), 0, errors.mock.calls.map((c) => c.arguments[0]).join("\n"));
+    page(`<img src="${PROVIDER}/teams/1.png"><img src="${PROVIDER}/players/9.png">`);
+    assert.equal(main(join(root, "dist"), join(root, "data"), pins), 1);
+    assert.ok(errors.mock.calls.some((c) => /provider player or coach photo/.test(c.arguments[0])));
+    page(`<img src="${PROVIDER}/teams/1.png"><img src="https://cdn.example.com/x.png">`);
+    assert.equal(main(join(root, "dist"), join(root, "data"), pins), 1);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("main holds a pin above 0 on a sample build and only reports it on a full export; a pin at 0 holds on both", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "check-built-pages-pin-"));
+  try {
+    mkdirSync(join(root, "data"), { recursive: true });
+    mkdirSync(join(root, "dist", "en"), { recursive: true });
+    const crests = (n) => writeFileSync(join(root, "dist", "en", "index.html"),
+      `<html><body>${`<img src="${PROVIDER}/teams/1.png">`.repeat(n)}</body></html>`);
+    const photo = () => writeFileSync(join(root, "dist", "en", "index.html"),
+      `<html><body><meta property="og:image" content="${PROVIDER}/players/9.png"></body></html>`);
+    const manifest = () => writeFileSync(join(root, "data", "manifest.json"), JSON.stringify(
+      { counts: { fixture: 0 }, source_counts: { fixtures_unplayed: 0, fixtures_played: 0 } }));
+    const pins = { playerPhoto: 0, providerImage: 2, foreign: 0 };
+    const run = () => main(join(root, "dist"), join(root, "data"), pins);
+    t.mock.method(console, "error", () => {});
+    t.mock.method(console, "log", () => {});
+    crests(5);
+    assert.equal(run(), 1, "a sample build with a count above its pin fails");
+    crests(1);
+    assert.equal(run(), 1, "a sample build with a count below its pin fails");
+    crests(2);
+    assert.equal(run(), 0);
+    manifest();
+    crests(5);
+    assert.equal(run(), 0, "a full export is not failed on a pin above 0");
+    photo();
+    assert.equal(run(), 1, "a pin at 0 holds on a full export");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -1,7 +1,7 @@
 ---
 // Squad: the whole roster of the featured season (mart_roster), by position (goalkeepers,
 // defenders, midfielders, forwards, other), each player as the match page's player row without
-// goals or assists: photo / name, then country / age / appearances / minutes per appearance (no
+// goals or assists: initials / name, then country / age / appearances / minutes per appearance (no
 // minutes without an appearance). The appearances are served: 0 where every finished match carries
 // player data, otherwise empty, shown "–". Two columns where they fit.
 import SectionHead from "../ui/SectionHead.astro";
@@ -67,7 +67,7 @@ const groups = GROUPS.map((g) => ({
         <div class="colhead">{t(lang, g.label)}</div>
         <div class="sqgrid">
           {g.members.map((m) => (
-            <PlayerRow lang={lang} name={m.name} photo={m.photo} line={line(m)} id={m.player_id} />
+            <PlayerRow lang={lang} name={m.name} line={line(m)} id={m.player_id} />
           ))}
         </div>
       </>

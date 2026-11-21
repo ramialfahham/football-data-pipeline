@@ -25,6 +25,12 @@
 // 5. On every Team page, in each deserved points scatter, the difference label and the team's name
 //    stay apart: the label on the other side of the team's dot, anchored the other way, or on the
 //    name's side at least one line under the name.
+// 6. Every image a built page names comes from our own origin. An `<img>` or `<source>` address, an
+//    `og:image` or `twitter:image` address and a JSON-LD `image` or `logo` address that names another
+//    host is counted by kind (a provider player or coach photo, a provider crest or
+//    logo, any other host) and held to `IMAGE_PINS`, a ceiling per kind that only goes down. A pin at
+//    0 holds on every build. A pin above 0 holds on a build of the committed sample (no manifest) and
+//    is only reported on a full export. The change that removes a kind lowers its pin to 0.
 //
 // The parsing is regex over the emitted HTML, as audit-seo does it: the shapes are this repo's own
 // components, and the pure functions below are unit-tested on string literals.
@@ -385,6 +391,126 @@ export function checkMatchRowsFound({ matchRows, payloadFiles }) {
     : [];
 }
 
+export const OUR_HOSTS = ["matchdaypilot.com", "www.matchdaypilot.com", "football-data-pipeline-gcp.web.app"];
+export const PROVIDER_HOST = "api-sports.io";
+export const PROVIDER_PERSON_PATHS = ["/football/players/", "/football/coachs/"];
+export const IMAGE_PINS = { playerPhoto: 0, providerImage: 59337, foreign: 0 };
+export const IMAGE_EXAMPLES = 3;
+
+const IMG_TAG = /<(?:img|source)\b[^>]*>/gi;
+const IMG_ATTR = /\s(?:src|srcset)\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
+
+const META_TAG = /<meta\b[^>]*>/gi;
+const META_IMAGE = /\s(?:property|name)\s*=\s*["'](?:og|twitter):image(?::[a-z_]+)?["']/i;
+const META_CONTENT = /\scontent\s*=\s*(?:"([^"]*)"|'([^']*)')/i;
+const LD_SCRIPT = /<script\b[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi;
+const LD_KEYS = new Set(["image", "logo"]);
+const LD_STRING = /"(?:image|logo)"\s*:\s*"([^"]*)"/g;
+
+/** The `image` and `logo` addresses a JSON-LD value names, a string, a list or an object with a `url`. */
+function ldAddresses(value, key = null, out = []) {
+  if (typeof value === "string") {
+    if (LD_KEYS.has(key)) out.push(value);
+  } else if (Array.isArray(value)) {
+    for (const v of value) ldAddresses(v, key, out);
+  } else if (value && typeof value === "object") {
+    for (const [k, v] of Object.entries(value)) {
+      if (LD_KEYS.has(key) && k === "url") ldAddresses(v, key, out);
+      else ldAddresses(v, k, out);
+    }
+  }
+  return out;
+}
+
+/** Every image address the page names: image tags (`srcset` candidates split apart), the `og:image`
+ *  and `twitter:image` cards and the `image` and `logo` of the JSON-LD blocks. */
+export function imageUrls(html) {
+  const urls = [];
+  for (const [tag] of html.matchAll(META_TAG)) {
+    if (!META_IMAGE.test(tag)) continue;
+    const m = tag.match(META_CONTENT);
+    const url = (m?.[1] ?? m?.[2] ?? "").trim();
+    if (url) urls.push(url);
+  }
+  for (const [, body] of html.matchAll(LD_SCRIPT)) {
+    try {
+      urls.push(...ldAddresses(JSON.parse(body)));
+    } catch {
+      urls.push(...[...body.matchAll(LD_STRING)].map((m) => m[1]));
+    }
+  }
+  for (const [tag] of html.matchAll(IMG_TAG)) {
+    for (const m of tag.matchAll(IMG_ATTR)) {
+      const value = (m[1] ?? m[2]).trim();
+      const isSet = /^\s*srcset/i.test(m[0]);
+      for (const part of isSet ? value.split(",") : [value]) {
+        const url = part.trim().split(/\s+/)[0];
+        if (url) urls.push(url);
+      }
+    }
+  }
+  return urls;
+}
+
+/** What an image address is: `ours` (a path on this site, a data address or our own host),
+ *  `playerPhoto` (the provider's player or coach photo path), `providerImage` (any other path on the
+ *  provider's host: crests, logos) or `foreign` (any other host). */
+export function imageKind(url) {
+  const absolute = /^(?:https?:)?\/\//i.test(url);
+  if (!absolute) return "ours";
+  let host;
+  let pathname;
+  try {
+    ({ hostname: host, pathname } = new URL(url.startsWith("//") ? `https:${url}` : url));
+  } catch {
+    return "foreign";
+  }
+  if (OUR_HOSTS.includes(host)) return "ours";
+  if (host === PROVIDER_HOST || host.endsWith(`.${PROVIDER_HOST}`)) {
+    return PROVIDER_PERSON_PATHS.some((p) => pathname.startsWith(p)) ? "playerPhoto" : "providerImage";
+  }
+  return "foreign";
+}
+
+export const emptyImageCounts = () => ({
+  playerPhoto: 0, providerImage: 0, foreign: 0, examples: { playerPhoto: [], providerImage: [], foreign: [] },
+});
+
+/** The count of non-ours images by kind on one page, with the addresses of the first few of each. */
+export function countImages(html, path = "", into = emptyImageCounts()) {
+  for (const url of imageUrls(html)) {
+    const kind = imageKind(url);
+    if (kind === "ours") continue;
+    into[kind] += 1;
+    if (into.examples[kind].length < IMAGE_EXAMPLES) into.examples[kind].push(`${path} ${url}`);
+  }
+  return into;
+}
+
+const IMAGE_LABELS = {
+  playerPhoto: "provider player or coach photo",
+  providerImage: "provider crest or logo",
+  foreign: "image from a host that is not ours",
+};
+
+/** Issues from the image counts against `pins`, a ceiling per kind that only goes down. A pin at 0
+ *  holds on every build. A pin above 0 holds on a sample build only, in both directions (a count that
+ *  fell is a pin to lower), and is reported and not failed on a full export, whose counts the sample
+ *  does not bound. */
+export function checkImageOrigins(counts, { fullBuild = false, pins = IMAGE_PINS } = {}) {
+  const issues = [];
+  for (const kind of Object.keys(IMAGE_LABELS)) {
+    const n = counts[kind];
+    const pin = pins[kind];
+    if (pin === 0 ? n > 0 : !fullBuild && n !== pin) {
+      const seen = counts.examples[kind].length ? ` (first: ${counts.examples[kind].join("; ")})` : "";
+      const lower = n < pin ? `: lower the ${kind} pin` : "";
+      issues.push(`${n} ${IMAGE_LABELS[kind]} image(s), pinned at ${pin}${lower}${seen}`);
+    }
+  }
+  return issues;
+}
+
 export function readManifest(dataDir = DATA_DIR) {
   const file = join(dataDir, "manifest.json");
   return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : null;
@@ -401,7 +527,7 @@ export function payloadIds(dataDir = DATA_DIR) {
   return new Set(readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => Number(f.slice(0, -5))));
 }
 
-export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
+export function main(distDir = DIST_DIR, dataDir = DATA_DIR, pins = IMAGE_PINS) {
   if (!existsSync(distDir)) {
     console.error(`check-built-pages: no build output at ${distDir}`);
     return 1;
@@ -418,7 +544,9 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
   const teamRanks = expectedTeamRanks(dataDir);
   const built = payloadIds(dataDir);
   const manifest = readManifest(dataDir);
+  const images = emptyImageCounts();
   for (const { path, html } of readDist(distDir)) {
+    countImages(html, path, images);
     if (MATCH_PAGE.test(path)) matchPages += 1;
     rowsChecked += matchRows(html).length;
     issues.push(...checkMatchRowLinks(html, built, path));
@@ -444,6 +572,7 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
   issues.push(...checkMatchPageCount({ matchPages, payloadFiles, manifest }));
   issues.push(...checkTabPagesFound({ fixturesPages, rankingsPages, expected }));
   issues.push(...checkMatchRowsFound({ matchRows: rowsChecked, payloadFiles }));
+  issues.push(...checkImageOrigins(images, { fullBuild: Boolean(manifest), pins }));
   issues.push(...checkTeamRowsFound({ teamPages, teamRows, expected: teamRanks }));
   if (teamPages > 0 && scatters === 0 && servesScatter(dataDir))
     issues.push("a team payload serves the deserved points scatter but no Team page carried one");
@@ -458,7 +587,8 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
         ? ` = the warehouse's ${manifest.source_counts?.fixtures_unplayed} unplayed and ${manifest.source_counts?.fixtures_played} played`
         : " (no manifest: sample build)") +
       `; ${fixturesPages} fixtures page(s), ${rankingsPages} rankings page(s), ${rowsChecked} match row(s)` +
-      ` and ${teamRows} league row(s) and ${scatters} scatter(s) on ${teamPages} team page(s) checked. OK.`,
+      ` and ${teamRows} league row(s) and ${scatters} scatter(s) on ${teamPages} team page(s) checked;` +
+      ` ${images.providerImage} provider crest/logo image(s), ${images.playerPhoto} player photo(s), ${images.foreign} other foreign image(s). OK.`,
   );
   return 0;
 }

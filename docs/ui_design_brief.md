@@ -57,7 +57,7 @@ thing.
 | Color semantics | Win, draw and loss (W/D/L) use one consistent encoding: color plus letter, never color alone. Each metric has a good direction, which the data carries in `direction`. The design expresses better and worse consistently. |
 | Accessibility | WCAG AA (Web Content Accessibility Guidelines, level AA): contrast in both themes, touch targets, reduced motion. |
 | Performance | The site is static and fast: no heavy JavaScript, and charts are lightweight islands. Design for instant first paint, within a Core Web Vitals budget. |
-| Images | Team crests and player photos come from the provider's content delivery network (CDN) as small PNGs of variable quality. The design needs a graceful fallback: a monogram or initials. |
+| Images | Team crests come from the provider's content delivery network (CDN) as small PNGs of variable quality. The design needs a graceful fallback: a monogram or initials. |
 | Labels | Labels and wording are i18n (internationalisation) keys. Design with realistic strings from the longest language. |
 | Row links | A row that leads somewhere is ONE link: the whole row. Hover tints its background, a press sinks it, and the focus ring sits inside the row. An underline marks a word inside running text, such as a breadcrumb or a sentence. A name inside a row never has an underline. One shared rule in `system.css` carries this for every row link on the site. |
 | Nothing renders empty | A block that does not apply to a page is absent. A block that applies but that the data cannot fill keeps its heading. It says in one line what is not recorded, in the same words on every page. A single missing value inside a rendered row shows "–". |
@@ -145,7 +145,7 @@ The home page's GitLab issue and `docs/wireframes/10_home.md` §0 own this scree
 
 ### 6.4 Player profile
 
-**Identity**: name, photo, nationality, birth date, position badge (GK/DF/MF/FW), team.
+**Identity**: name, nationality, birth date, position badge (GK/DF/MF/FW), team.
 
 **Per season** (selector):
 

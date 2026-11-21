@@ -1,5 +1,5 @@
 ---
-// One row of the Players page and a nation page, the player row without numbers: photo / name over
+// One row of the Players page and a nation page, the player row without numbers: initials / name over
 // position / club. `view`, `competitionSlot` and `region` mark the views it shows in, for the stylesheet's
 // position and region filters.
 import PlayerRow from "../ui/PlayerRow.astro";
@@ -24,7 +24,6 @@ const line = [position ? positionLabel(lang, position) : null, player.club].filt
 <PlayerRow
   lang={lang}
   name={player.name}
-  photo={player.photo}
   line={line}
   id={player.player_id}
   slug={player.slug}

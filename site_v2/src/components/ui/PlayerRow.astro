@@ -1,5 +1,5 @@
 ---
-// THE player row: photo (the initials when there is none) / name over its second line / the numbers
+// THE player row: the initials / name over its second line / the numbers
 // on the right when the list has any, or a board's value alone. The row links to the player's page when this build makes one;
 // a row given no player id leads nowhere. Other attributes (the filters' data marks) pass through.
 import ListRow from "./ListRow.astro";
@@ -13,7 +13,6 @@ type Term = "minutes" | "goals" | "assists" | "saves";
 interface Props {
   lang: Lang;
   name: string | null | undefined;
-  photo?: string | null;
   line: string[];
   /** The numbers on the right; a count the warehouse leaves blank shows as a dash. */
   numbers?: { value: number | null | undefined; term: Term }[] | null;
@@ -24,7 +23,7 @@ interface Props {
   slug?: string | null;
   [attr: string]: unknown;
 }
-const { lang, name, photo, line, numbers, value, id, slug, ...rest } = Astro.props;
+const { lang, name, line, numbers, value, id, slug, ...rest } = Astro.props;
 const initials = (name ?? "").split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase();
 const page = id == null || !builtPlayers().has(id) ? null : slug ?? builtPlayers().get(id);
 const href = page ? localeHref(lang, `${word(lang, "players")}/${page}/`) : undefined;
@@ -42,9 +41,7 @@ const units = (numbers ?? []).map(({ value, term }) => ({
 
 <ListRow href={href} {...rest}>
   <div class="plrow">
-    <span class="pphoto">
-      {photo ? <img src={photo} alt="" loading="lazy" width="34" height="34" /> : <span>{initials}</span>}
-    </span>
+    <span class="pphoto"><span>{initials}</span></span>
     <span class="pname">
       <span class="nm">{name}</span>
       <span class="ps facts-line">{line.map((s) => <span>{s}</span>)}</span>
