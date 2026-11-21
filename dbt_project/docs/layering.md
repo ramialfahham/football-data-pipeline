@@ -228,6 +228,8 @@ Canonical dimension inventory for this project:
 |-----|-------|----------------------|-------|
 | `dim_date` | day | generated via `dbt_utils.date_spine` | Global; not league-scoped. |
 | `dim_league` | league_api_id | `base_apif__league_entity`, with the `competition_registry` and `competition_types` seeds | One row per configured league; surrogate key is the API integer directly. |
+| `dim_venue` | venue_api_id | `base_apif__venues`, with the `venue_time_zones` seed and `dim_country` | One row per venue a fixture names. Carries the IANA time zone the venue's kick-offs are played in: the seed row, else its country's default. The country is resolved in base. |
+| `dim_timezone` | time_zone | the `time_zones` seed | The zones a country or venue may name, with the abbreviation BigQuery cannot print (CET, CEST). Stores no offsets. |
 | `dim_competition_season` | (league_api_id, season_api_year) | `base_apif__competition_seasons` | Carries API coverage flags that drive downstream conditional logic. |
 | `dim_team` | team_api_id | `base_apif__teams_global` | Pure global entity (identity only); surrogate key is the API integer directly. Carries no competition/season affiliation — membership lives in `dim_team_competition_season_mapping`, per-match facts in `fct_fixture`. |
 | `dim_player` | player_api_id | `base_apif__players` | Pure global entity (identity only); surrogate key is the API integer directly. Not league-scoped and carries no team/season affiliation — roster membership lives in `dim_player_team_season_mapping`, appearances in the facts. |

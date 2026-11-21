@@ -127,6 +127,28 @@ models:
         description: "{{ doc('league_code') }}"
         tests: [not_null]
 
+  - name: base_apif__venues
+    description: >
+      One row per provider venue that a fixture names, with the country it lies in. Entity
+      resolution for dim_venue. Grain: venue_api_id.
+
+      The fixtures carry a venue id, name and city but no country. The country is taken from the
+      competitions the venue's fixtures belong to, else from a team whose home ground the venue
+      is, else from the country most of its home teams belong to. It is NULL when no source names
+      one.
+    config:
+      tags: ["base", "api_football", "venue_context"]
+    columns:
+      - name: venue_api_id
+        description: "The provider's venue id, as the fixtures carry it."
+        tests: [not_null, unique]
+      - name: venue_name
+        description: "The venue's name as its latest fixture row spells it."
+      - name: venue_city
+        description: "The venue's city as its latest fixture row spells it."
+      - name: country_name
+        description: "The country the venue lies in, as named in `dim_country`; NULL when no competition, team ground or home team names one."
+
   - name: base_apif__competition_seasons
     description: >
       One row per competition-season, collapsing the same season seen under more than one

@@ -131,13 +131,32 @@ export function signedDelta(
   return { value, unit: null };
 }
 
-// ---- dates ---- kickoff is served as a UTC ISO string ("2026-07-26 22:30:00+00:00").
-// Rendered in UTC so the static build is deterministic across machines and matches the
-// stored kickoff; local-timezone display is a later enhancement (01_fixture_page.md §5.2).
+// ---- dates ---- kickoff is served as a UTC ISO string ("2026-07-26 22:30:00+00:00"), and
+// kickoff_local as the venue's wall clock with no offset ("2026-07-26 20:30:00"). Both are
+// rendered through UTC so the static build is deterministic across machines: a served wall
+// clock is read as the digits it shows, never converted.
+const WALL_CLOCK = /^\d{4}-\d\d-\d\d[ T]\d\d:\d\d(:\d\d(\.\d+)?)?$/;
 function toDate(iso: string | null | undefined): Date | null {
   if (!iso) return null;
-  const d = new Date(iso.replace(" ", "T"));
+  const text = iso.replace(" ", "T");
+  const d = new Date(WALL_CLOCK.test(iso) ? `${text}Z` : text);
   return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** The clock a match row prints: the served local kick-off and its zone label. A row served
+ *  without them keeps its UTC kick-off and says UTC. */
+export function kickoffClock(fx: {
+  kickoff?: string | null;
+  kickoff_local?: string | null;
+  kickoff_zone_label?: string | null;
+}): { at: string | null; zone: string } {
+  if (fx.kickoff_local) return { at: fx.kickoff_local, zone: fx.kickoff_zone_label ?? "UTC" };
+  return { at: fx.kickoff ?? null, zone: "UTC" };
+}
+
+/** The date a day heading groups a row under: the date of its printed clock. */
+export function kickoffDay(fx: Parameters<typeof kickoffClock>[0]): string | null {
+  return kickoffClock(fx).at?.slice(0, 10) ?? null;
 }
 export function formatDate(iso: string | null | undefined, lang: Lang): string {
   const d = toDate(iso);

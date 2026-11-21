@@ -2587,6 +2587,12 @@ models:
         description: "The group letter the round's name shows; NULL when it shows none."
       - name: kickoff_datetime
         description: "{{ doc('kickoff_datetime') }}"
+      - name: kickoff_local
+        description: "The kick-off on the clock of the venue's time zone, as a date and time with no offset; the zone of the competition's country when the fixture has no venue, UTC when neither has a zone."
+        tests: [not_null]
+      - name: kickoff_zone_label
+        description: "The label printed beside kickoff_local: the zone's abbreviation on that date (CET in winter, CEST in summer), `UTC+N` where the zone has none, `UTC` for a fixture with no zone."
+        tests: [not_null]
       - name: fixture_date
         description: "{{ doc('fixture_date') }}"
         tests: [not_null]
@@ -2711,6 +2717,12 @@ models:
         tests: [not_null]
       - name: kickoff_datetime
         description: "{{ doc('kickoff_datetime') }}"
+        tests: [not_null]
+      - name: kickoff_local
+        description: "The kick-off on the clock of the venue's time zone, as a date and time with no offset; the zone of the competition's country when the fixture has no venue, UTC when neither has a zone."
+        tests: [not_null]
+      - name: kickoff_zone_label
+        description: "The label printed beside kickoff_local: the zone's abbreviation on that date (CET in winter, CEST in summer), `UTC+N` where the zone has none, `UTC` for a fixture with no zone."
         tests: [not_null]
       - name: fixture_date
         description: "{{ doc('fixture_date') }}"
@@ -3006,6 +3018,12 @@ models:
         description: "{{ doc('season_api_year') }}"
       - name: kickoff_datetime
         description: "{{ doc('kickoff_datetime') }}"
+      - name: kickoff_local
+        description: "The kick-off on the clock of the venue's time zone, as a date and time with no offset; the zone of the competition's country when the fixture has no venue, UTC when neither has a zone."
+        tests: [not_null]
+      - name: kickoff_zone_label
+        description: "The label printed beside kickoff_local: the zone's abbreviation on that date (CET in winter, CEST in summer), `UTC+N` where the zone has none, `UTC` for a fixture with no zone."
+        tests: [not_null]
       - name: round_name
         description: "{{ doc('round_name') }}"
       - name: status_short

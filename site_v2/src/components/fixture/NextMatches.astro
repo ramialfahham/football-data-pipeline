@@ -9,7 +9,7 @@ import DateHeading from "../ui/DateHeading.astro";
 import Group from "../ui/Group.astro";
 import GroupHead from "../ui/GroupHead.astro";
 import { t } from "../../i18n/strings";
-import { formatDate } from "../../lib/format";
+import { formatDate, kickoffClock, kickoffDay } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import type { CompetitionIndex, Side } from "../../lib/types";
 import competitions from "../../data/competitions.json";
@@ -29,7 +29,7 @@ const indexed = (competitionIndex as unknown as CompetitionIndex).competitions;
 const matches = [home.next_match, away.next_match]
   .filter((m): m is Next => Boolean(m))
   .filter((m, i, all) => all.findIndex((o) => o.fixture_id === m.fixture_id) === i)
-  .sort((a, b) => (a.kickoff ?? "").localeCompare(b.kickoff ?? ""));
+  .sort((a, b) => (kickoffClock(a).at ?? "").localeCompare(kickoffClock(b).at ?? ""));
 
 const groups = new Map<string, Next[]>();
 for (const m of matches) {
@@ -40,7 +40,7 @@ for (const m of matches) {
 function days(fixtures: Next[]): Next[][] {
   const byDay = new Map<string, Next[]>();
   for (const fx of fixtures) {
-    const day = fx.kickoff ? fx.kickoff.slice(0, 10) : "";
+    const day = kickoffDay(fx) ?? "";
     if (!byDay.has(day)) byDay.set(day, []);
     byDay.get(day)!.push(fx);
   }
@@ -68,7 +68,7 @@ const head = (code: string) => {
           <GroupHead lang={lang} name={g.name} crest={{ name: g.name, url: g.logo }} competition={g.page} />
           {days(fixtures).map((day) => (
             <>
-              <DateHeading date={formatDate(day[0].kickoff, lang)} />
+              <DateHeading date={formatDate(kickoffClock(day[0]).at, lang)} />
               {day.map((fx) => <MatchRow fx={fx} competitionSlug={g.slug} lang={lang} />)}
             </>
           ))}

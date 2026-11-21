@@ -56,7 +56,7 @@ PINNED = {
     "docs/roles/product_analyst.md": 4,
     "docs/roles/seo_expert.md": 11,
     "docs/roles/ui_expert.md": 1,
-    "docs/wireframes/00_overview.md": 12,
+    "docs/wireframes/00_overview.md": 11,
     "docs/wireframes/01_fixture_page.md": 4,
     "docs/wireframes/03_player_profile.md": 3,
     "docs/wireframes/08_browse.md": 9,

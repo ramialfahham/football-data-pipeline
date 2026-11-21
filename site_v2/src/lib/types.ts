@@ -119,6 +119,8 @@ export interface Fixture {
   fixture_id: number;
   slug: string;
   kickoff?: string | null;
+  kickoff_local?: string | null;
+  kickoff_zone_label?: string | null;
   status?: string | null;
   unplayed_state?: UnplayedState | null;
   league_code: string;
@@ -252,6 +254,8 @@ export interface TeamFixture {
   opponent_logo_url?: string | null;
   is_home?: boolean | null;
   kickoff_datetime?: string | null;
+  kickoff_local?: string | null;
+  kickoff_zone_label?: string | null;
   round_name?: string | null;
   goals_for?: number | null;
   goals_against?: number | null;
@@ -739,6 +743,8 @@ export interface CompetitionFixture {
   fixture_id: number;
   slug: string | null;
   kickoff: string | null;
+  kickoff_local?: string | null;
+  kickoff_zone_label?: string | null;
   status: string | null;
   unplayed_state?: UnplayedState | null;
   is_played: boolean;

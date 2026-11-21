@@ -29,6 +29,9 @@
   flag. Chosen here, not in the export: which match matters is a ranking, and rankings live in
   the warehouse.
 
+  kickoff_local and kickoff_zone_label are the kick-off on its venue's clock and the label printed
+  beside it, as fct_fixture serves them; the page prints both and converts nothing.
+
   Grain: fixture_sk.
 #}
 
@@ -39,6 +42,8 @@ with upcoming as (
         season_api_year,
         round_name,
         kickoff_datetime,
+        kickoff_local,
+        kickoff_zone_label,
         fixture_date,
         status_short,
         home_team_sk,
@@ -70,6 +75,8 @@ next_matchday as (
         u.season_api_year,
         u.round_name,
         u.kickoff_datetime,
+        u.kickoff_local,
+        u.kickoff_zone_label,
         u.fixture_date,
         u.status_short,
         u.home_team_sk,
@@ -141,6 +148,8 @@ ranked as (
         rn.round_number,
         rn.round_letter,
         m.kickoff_datetime,
+        m.kickoff_local,
+        m.kickoff_zone_label,
         m.fixture_date,
         m.status_short,
         m.home_team_sk,
@@ -176,6 +185,8 @@ select
     round_number,
     round_letter,
     kickoff_datetime,
+    kickoff_local,
+    kickoff_zone_label,
     fixture_date,
     status_short,
     home_team_sk,

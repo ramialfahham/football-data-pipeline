@@ -91,6 +91,79 @@ models:
               field: confederation
           - dbt_utils.expression_is_true:
               expression: "!= 'FIFA'"
+      - name: time_zone
+        description: >
+          The IANA zone most of the country's venues play in, from the country_time_zones seed.
+          NULL for a country whose venues sit in several zones with no dominant one: each of its
+          venues is then named in the venue_time_zones seed.
+        tests:
+          - relationships:
+              to: ref('dim_timezone')
+              field: time_zone
+
+  - name: dim_timezone
+    description: >
+      The IANA time zones a country or a venue may name, published from the `time_zones` seed.
+      Grain: time_zone.
+
+      It stores no offsets and no daylight-saving dates: BigQuery computes the local time of a
+      kick-off. It carries only the abbreviation BigQuery cannot print, such as CET and CEST.
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["core", "dimension"]
+    columns:
+      - name: time_zone
+        description: "The IANA zone name, as BigQuery accepts it in `DATETIME(timestamp, zone)`."
+        tests: [not_null, unique]
+      - name: label_standard
+        description: "The abbreviation printed in the zone's standard time, such as CET; NULL when none is conventional, and BigQuery's `UTC+N` is printed instead."
+      - name: label_daylight
+        description: "The abbreviation printed in the zone's daylight time, such as CEST; NULL when the zone has no daylight time or no conventional abbreviation."
+
+  - name: dim_venue
+    description: >
+      One row per provider venue that a fixture names, with the IANA time zone its kick-offs are
+      played in. Grain: venue_api_id.
+
+      The fixtures carry no venue country. It is taken from the competitions its fixtures belong
+      to, else from a team whose home ground the venue is, else from the country most of its home
+      teams belong to.
+      The zone is the venue's row in the `venue_time_zones` seed, else its country's default. A
+      venue of a country that spans zones, with no seed row, has no zone and fails the not_null
+      test: a wrong zone is never guessed.
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["core", "dimension"]
+    columns:
+      - name: venue_sk
+        description: "The provider's venue id cast to INT64."
+        tests: [not_null, unique]
+      - name: venue_api_id
+        description: "The provider's venue id, as `fct_fixture.venue_api_id` carries it."
+        tests: [not_null, unique]
+      - name: venue_name
+        description: "The venue's name as its latest fixture row spells it."
+      - name: venue_city
+        description: "The venue's city as its latest fixture row spells it."
+      - name: venue_country
+        description: "The country the venue lies in, as named in `dim_country`; NULL when no team, competition or home team names one."
+        tests:
+          - relationships:
+              to: ref('dim_country')
+              field: country_name
+      - name: time_zone
+        description: "The IANA zone the venue's kick-offs are played in."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_timezone')
+              field: time_zone
 
   - name: dim_region
     description: >
@@ -648,6 +721,23 @@ models:
         tests: [not_null]
       - name: kickoff_datetime
         description: "{{ doc('kickoff_datetime') }}"
+      - name: kickoff_time_zone
+        description: >
+          The IANA zone of the kick-off's clock: the venue's zone, else the zone of the
+          competition's country, else UTC.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_timezone')
+              field: time_zone
+      - name: kickoff_local
+        description: "The kick-off on the clock of kickoff_time_zone, as a date and time with no offset."
+        tests: [not_null]
+      - name: kickoff_zone_label
+        description: >
+          The zone's abbreviation on the kick-off's date (CET in winter, CEST in summer), or
+          `UTC+N` where the zone has no conventional abbreviation, or `UTC`.
+        tests: [not_null]
       - name: kickoff_timezone
         description: "Kickoff timezone string as delivered by the API."
       - name: status_short
@@ -708,6 +798,10 @@ models:
         description: "The away goals at the final whistle or at the abandonment of a played or abandoned match that was awarded afterwards; NULL otherwise. goals_away is then the awarded score."
       - name: venue_api_id
         description: "API-Football venue id."
+        tests:
+          - relationships:
+              to: ref('dim_venue')
+              field: venue_api_id
       - name: venue_name_snapshot
         description: "Venue name at the time the fixture was ingested."
       - name: venue_city_snapshot
