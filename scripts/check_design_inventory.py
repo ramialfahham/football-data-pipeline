@@ -87,18 +87,23 @@ COUNT_JS = r"""
   };
   const hyphenBreak = (n, p, start, word) => {
     if (!hyphenParts || !p.closest(hyphenParts)) return false;
-    let prev = null, whole = 0;
+    let prev = null;
     for (let i = 0; i < word.length; i++) {
       const cr = document.createRange();
       cr.setStart(n, start + i);
       cr.setEnd(n, start + i + 1);
       const r = [...cr.getClientRects()].find((x) => x.width > 0.5);
       if (!r) continue;
-      whole += r.width;
       if (prev && Math.abs(r.top - prev.r.top) >= 2 && !/[-‐‑]/.test(word[prev.i])) return false;
       prev = { i, r };
     }
-    return whole > lineOf(p) + 1;
+    const probe = document.createElement('span');
+    probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap';
+    probe.textContent = word;
+    p.appendChild(probe);
+    const whole = probe.getBoundingClientRect().width;
+    probe.remove();
+    return whole > lineOf(p);
   };
   const counted = window.__diCounted || (window.__diCounted = { nodes: new WeakSet(), boxes: new WeakSet(), pairs: new Set(), page: false });
   const shownMemo = new Map();

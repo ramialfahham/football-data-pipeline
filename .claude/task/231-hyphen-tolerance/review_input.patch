@@ -1,0 +1,139 @@
+diff --git a/.claude/task/231-hyphen-tolerance/contract.md b/.claude/task/231-hyphen-tolerance/contract.md
+new file mode 100644
+index 00000000..df52b557
+--- /dev/null
++++ b/.claude/task/231-hyphen-tolerance/contract.md
+@@ -0,0 +1,66 @@
++# Task contract — the split count excuses a hyphen break by the word's real width
++
++objective: >
++  The design check excuses a club name broken at its hyphens when the whole name cannot fit on
++  one line of its box. It decides "cannot fit" by comparing the sum of the characters' widths
++  with the line width plus one pixel. A name wider than its line by less than a pixel, such as
++  Montigny-lès-Metz (134.6px) in a 134px box at 280px on the Coupe de France match page, is
++  counted as a split although it breaks only at its hyphens. Measure the word's real width on
++  one line instead of adding slack, and pin both cases with tests.
++refs: "#231; false rise found by the #297 session; the hyphen exemption: !493"
++
++scope_paths:
++  - scripts/check_design_inventory.py
++  - tests/test_design_inventory.py
++  - .claude/task/231-hyphen-tolerance/contract.md
++  - .claude/task/231-hyphen-tolerance/review.md
++  - .claude/task/231-hyphen-tolerance/review_input.patch
++
++protected_override: >
++  The coordinating session set this change in its session message of 2026-11-21, as an
++  engineering decision under the CPO's visual-details mandate of 2026-11-16 (the counter was
++  wrong, not the page), the same basis as the earlier change to this guard. The MR head
++  declares the locked files, scripts/check_design_inventory.py and
++  tests/test_design_inventory.py; the CPO's merge is the approval.
++
++impact_map: >
++  writers: none. No table or model is written. The two files are a check and its tests.
++  downstream: `scripts/check_design_inventory.py` runs in `ci_local --mr` and in the MR pipeline
++  (job validate:ui, the design check against tests/fixtures/design_inventory/baseline.json and
++  baseline_quick*.json) and in the main sweep; `tests/test_design_inventory.py` runs in
++  validate:ui after the check. Nothing else imports the check's COUNT_JS (grep over scripts,
++  tests and design-mocks).
++  layer_rules: none apply (no dbt).
++  deploy_order: none. No deployed system reads these files; the nightly never runs them.
++  blast_radius: what stops being counted is a break at the hyphens of a word inside a part
++  marked `breaks: hyphens`, when the word is wider than its line by less than a pixel. A word
++  that fits its line and still wraps at a hyphen, a break inside a segment, and a break
++  outside the marked part all still count. A pin may only fall; a fall is lowered in the
++  baseline in this MR only if validate:ui reports one.
++
++approved_design:
++  - none: no page output changes
++
++depends_on:
++  - none: no open MR touches the check or its tests
++
++shared_files:
++  - none: no baseline file is expected to change; an amendment adds one if validate:ui reports a count that fell
++
++decisions_taken: >
++  The coordinating session's message of 2026-11-21 sets the fix: drop the one-pixel tolerance in
++  hyphenBreak and measure the word's real width on one line, with a pytest pinning a word just
++  over its line that breaks at its hyphens (excused) and a word that fits but wraps at a hyphen
++  (still counted). The loop in hyphenBreak already proves that every break falls after a
++  hyphen; the width test only has to show that the word cannot fit on one line.
++
++decisions_reserved:
++  - none: the change corrects a counter and decides nothing about a page, a metric or a name
++
++done_when:
++  - "python -m pytest tests/test_design_inventory.py passes locally in Chromium, with both new tests"
++  - "the Montigny-lès-Metz case measured at 280px reads split 0 and the existing hyphen tests still read as before"
++  - "python scripts/ci_local.py --mr passes, validate:ui included"
++  - "the MR pipeline is green and python scripts/merge_ready.py <iid> says ready"
++
++amendments: (none)
+diff --git a/scripts/check_design_inventory.py b/scripts/check_design_inventory.py
+index 8c051d0a..1ad2a05f 100644
+--- a/scripts/check_design_inventory.py
++++ b/scripts/check_design_inventory.py
+@@ -87,18 +87,23 @@ COUNT_JS = r"""
+   };
+   const hyphenBreak = (n, p, start, word) => {
+     if (!hyphenParts || !p.closest(hyphenParts)) return false;
+-    let prev = null, whole = 0;
++    let prev = null;
+     for (let i = 0; i < word.length; i++) {
+       const cr = document.createRange();
+       cr.setStart(n, start + i);
+       cr.setEnd(n, start + i + 1);
+       const r = [...cr.getClientRects()].find((x) => x.width > 0.5);
+       if (!r) continue;
+-      whole += r.width;
+       if (prev && Math.abs(r.top - prev.r.top) >= 2 && !/[-‐‑]/.test(word[prev.i])) return false;
+       prev = { i, r };
+     }
+-    return whole > lineOf(p) + 1;
++    const probe = document.createElement('span');
++    probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap';
++    probe.textContent = word;
++    p.appendChild(probe);
++    const whole = probe.getBoundingClientRect().width;
++    probe.remove();
++    return whole > lineOf(p);
+   };
+   const counted = window.__diCounted || (window.__diCounted = { nodes: new WeakSet(), boxes: new WeakSet(), pairs: new Set(), page: false });
+   const shownMemo = new Map();
+diff --git a/tests/test_design_inventory.py b/tests/test_design_inventory.py
+index a58f7349..e1aa15ea 100644
+--- a/tests/test_design_inventory.py
++++ b/tests/test_design_inventory.py
+@@ -1221,6 +1221,31 @@ def test_a_hyphen_break_of_a_word_that_fits_its_line_still_counts(tmp_path):
+     assert split == 1, out
+ 
+ 
++def _club_in_a_box_of(widest: list[str], delta: float, text: str) -> str:
++    """A club name `text` in a box as wide as the widest of `widest` is on one line, plus `delta` pixels,
++    measured in the page."""
++    return (
++        '<div class="box" id="box"><span class="club"><span class="cn"><span class="nb" id="name">%s</span></span></span></div>'
++        '<script>const widths = %s.map((s) => { const probe = document.createElement("span");'
++        'probe.style.cssText = "position:absolute;visibility:hidden;white-space:nowrap";'
++        'probe.textContent = s; document.getElementById("name").appendChild(probe);'
++        'const w = probe.getBoundingClientRect().width; probe.remove(); return w; });'
++        'document.getElementById("box").style.width = (Math.max(...widths) + %s) + "px";</script>'
++        % (text, json.dumps(widest), delta))
++
++
++@needs_browser
++def test_a_club_name_wider_than_its_line_by_less_than_a_pixel_broken_at_its_hyphens_is_not_a_split(tmp_path):
++    split, out = _split_count(tmp_path, _club_in_a_box_of(["Montigny-lès-Metz"], -0.4, "Montigny-lès-Metz"))
++    assert split == 0, out
++
++
++@needs_browser
++def test_a_club_name_that_fits_its_line_by_a_hair_but_wraps_at_a_hyphen_still_counts(tmp_path):
++    split, out = _split_count(tmp_path, _club_in_a_box_of(["Weston-super", "Aaaa Weston-"], 0.4, "Aaaa Weston-super"))
++    assert split == 1, out
++
++
+ def _day_page_check(tmp_path: Path, name: str, body: str, expect: str) -> tuple[int, str]:
+     """The check on one built page called `name`, expecting `expect`, at 375px."""
+     real = di.DOC.read_text(encoding="utf-8")
